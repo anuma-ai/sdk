@@ -2,7 +2,7 @@
 
 > **PostOauthConsentErrors** = `object`
 
-Defined in: [src/client/types.gen.ts:10894](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10894)
+Defined in: [src/client/types.gen.ts:10896](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10896)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:10894](https://github.com/anuma-ai/sdk/blob
 
 > **400**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:10898](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10898)
+Defined in: [src/client/types.gen.ts:10900](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10900)
 
 Bad Request
 
@@ -20,6 +20,6 @@ Bad Request
 
 > **401**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:10902](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10902)
+Defined in: [src/client/types.gen.ts:10904](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10904)
 
 Unauthorized

@@ -20,9 +20,12 @@
  *   PORTAL_API_KEY=... pnpm eval:topic
  *   pnpm eval:topic --models inclusionai/ling-2.6-flash,gpt-oss/gpt-oss-120b --repeat 3 [--verbose]
  *   pnpm eval:topic --json
- *   pnpm eval:topic --repeat 5 --save-baseline   # write the golden baseline
- *   pnpm eval:topic --repeat 5 --baseline test/memory/src/topic/baseline.json
+ *   pnpm eval:topic --repeat 10 --save-baseline  # write the golden baseline
+ *   pnpm eval:topic --repeat 10 --baseline test/memory/src/topic/baseline.json
  *                                                # gate: exit 1 on a regression
+ *
+ * The gate REFUSES a repeat count that differs from the baseline's, so 10 is not
+ * a suggestion here — it is what the committed baseline records.
  */
 import "dotenv/config";
 import { readFile, writeFile } from "node:fs/promises";
@@ -47,32 +50,50 @@ const DEFAULT_BASELINE_PATH = "test/memory/src/topic/baseline.json";
 /**
  * Gated metrics.
  *
- * Floors are sized to the MEAN of the 5 gated runs, not to a single run. One
- * flipped item moves a 5-run mean by 1/(items x 5) — e.g. 1/170 = 0.6pt for the
- * 34 gold entities, 1/35 = 2.9pt for the 7 junk traps — so each floor below sits
- * a few flips above that.
+ * The gate runs 5 repeats against a baseline captured over 10 — `gate.ts` folds
+ * both counts into the tolerance, so the two need not match. Floors are sized to
+ * the MEAN of the gated run, not to a single run: one flipped item moves a 5-run
+ * mean by 1/(items x 5), e.g. 1/170 = 0.6pt across the 34 gold entities.
  *
- * They were previously 0.06–0.30, sized to the spread of a SINGLE run. Applied to
- * a 5-run mean that made the gate ~sqrt(5) too loose (#772 review): the same
- * mistake that let a consolidation case fail on every pass unnoticed. `gate.ts`
- * now derives the working tolerance from the standard error of the mean
- * difference, so these floors only stop a freakishly stable capture from setting
- * a hair-trigger.
+ * For every metric here the FLOOR dominates the spread term, so these numbers —
+ * not the capture's variance — are what set the gate. That also means gating at
+ * 5 costs nothing versus gating at 10.
+ *
+ * They were previously 0.06-0.30, sized to the spread of a SINGLE run. Applied to
+ * a mean that made the gate ~sqrt(n) too loose (#772 review) — the same mistake
+ * that let a consolidation case fail on every pass unnoticed.
  */
 const GATE_METRICS: GateMetricSpec[] = [
-  // Observed 100% across all 10 baseline runs. Floor = 2 of 34 gold entities.
+  // 100% across all 10 baseline runs. Floor = 2 of 34 gold entities.
   { key: "recall", direction: "higher-better", minTolerance: 0.02 },
-  // Observed 89.5–100% (one run produced 4 false positives). Floor covers that.
+  // 100% across the committed capture; floor covers ~1 spurious entity per run.
   { key: "precision", direction: "higher-better", minTolerance: 0.03 },
   { key: "f1", direction: "higher-better", minTolerance: 0.02 },
-  // Observed 91.2–100%: a 3-of-34 kind flip is inherent noise, not a regression.
+  // Committed capture ranges 94.1-97.1% (sd 1.42pt) — the only metric here with
+  // real spread. A 1-of-34 kind flip is inherent noise, not a regression.
   { key: "kindAccuracy", direction: "higher-better", minTolerance: 0.03, label: "kind accuracy" },
-  // Only 7 traps, and one run came in at 57.1% (3 traps over-extracted), so a
-  // single flip is 14.3% and the honest noise floor is ~2 flips. That makes this
-  // a collapse detector, not a drift detector — it fires when over-extraction is
-  // SYSTEMATIC across the repeats. Growing the trap corpus is what would tighten
-  // it; until then a loose-but-honest floor beats a flaky one.
-  { key: "junkCleanRate", direction: "higher-better", minTolerance: 0.06, label: "junk-clean" },
+  // Derived against the COMMITTED baseline (mean 1.0) and the gate's repeat of
+  // 5, in the unit that actually moves: a trap-check. 5 repeats x 7 traps = 35
+  // checks, so each failed check moves the gated mean by 1/35 = 2.86pt. Firing
+  // needs the mean below 1.0 - 0.09 = 91.0%.
+  //
+  //   checks  scenario                            drop     @0.09
+  //     3     one 57.1% run  |  1 trap x 3 runs   8.57pt   pass
+  //     4     1 trap on 4 of 5 runs              11.43pt   FIRES
+  //     5     1 trap on EVERY run                14.29pt   FIRES
+  //     6     two 57.1% runs                     17.14pt   FIRES
+  //
+  // 0.12 (an earlier revision) fired only at 5 checks, so a break reproducing on
+  // 4 of 5 runs read green. For a non-deterministic extractor that partial shape
+  // is the likelier real regression, which is why this sits at 0.09.
+  //
+  // Row 3 is irreducibly ambiguous at n=7: "one bad run" (noise, must pass) and
+  // "1 trap failing on 3 of 5 runs" (a 60% regression) are the same 3 checks.
+  // Growing the trap corpus is the only thing that separates them.
+  //
+  // Units are trap-checks, not "runs of N", deliberately: the repeat count has
+  // already changed twice inside this PR and row labels in "of 5" did not survive.
+  { key: "junkCleanRate", direction: "higher-better", minTolerance: 0.09, label: "junk-clean" },
   // 8 cases → one flip is 12.5%. Only the WITH-vocab rate is gated; the no-vocab
   // rate is the control arm and is reported, not gated.
   { key: "canonWithVocab", direction: "higher-better", minTolerance: 0.05, label: "canon (vocab)" },
@@ -309,9 +330,20 @@ const band = (xs: number[]) =>
   `${pct(meanOf(xs))} [${pct(Math.min(...xs))}-${pct(Math.max(...xs))}]`;
 const seriesOf = (runs: TopicRun[], key: keyof TopicRunMetrics) => runs.map((r) => r.metrics[key]);
 
-/** The knobs the numbers depend on, recorded in the baseline and refused on mismatch. */
-function gateConfig(model: string): { model: string; repeat: number } {
-  return { model, repeat: REPEAT };
+/**
+ * The knobs the numbers depend on, recorded in the baseline and refused on
+ * mismatch.
+ *
+ * `repeat` is deliberately NOT recorded. It affects the UNCERTAINTY of the mean,
+ * not what the mean means, and `meanDiffTolerance` already accounts for both run
+ * counts via sqrt(1/n_base + 1/n_cur) — so a 5-run gate against a 10-run
+ * baseline is statistically sound and no longer needs to be refused. Pinning it
+ * forced CI to burn the baseline's full capture count on every gated PR (and, on
+ * #784, refused outright when the two drifted). The recall gate has always
+ * relied on this asymmetry: one live run against a 3-run baseline.
+ */
+function gateConfig(model: string): { model: string } {
+  return { model };
 }
 
 /** Write the baseline file and report where it landed (stderr — never stdout). */

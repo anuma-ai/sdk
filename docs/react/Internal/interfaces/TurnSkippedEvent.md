@@ -14,7 +14,7 @@ Defined in: [src/lib/memory/autoExtractWorker.ts:113](https://github.com/anuma-a
 
 ### reason
 
-> **reason**: `"no-messages"` | `"no-new-content"` | `"superseded"` | `"in-flight"`
+> **reason**: `"superseded"` | `"no-messages"` | `"no-new-content"` | `"in-flight"`
 
 Defined in: [src/lib/memory/autoExtractWorker.ts:112](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#112)
 

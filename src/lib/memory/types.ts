@@ -261,7 +261,20 @@ export type RecallDegradation =
   | "rerank-unavailable"
   /** `budget: 'high'` requested but no `decomposeOptions`, so query
    *  decomposition was skipped and the budget downgraded to mid. */
-  | "decompose-unavailable";
+  | "decompose-unavailable"
+  /** There was no usable cosine lane, so results were ranked on BM25 (lexical)
+   *  alone: either the query embedding failed (or came back empty), or no
+   *  candidate had a vector to score against it because the row (re)embed failed.
+   *  Also set when the chunk lane — cosine-only, with no lexical equivalent — was
+   *  skipped for the same reason. The embeddings provider is a single upstream
+   *  with no fallback, so this is a whole-provider outage rather than a per-item
+   *  miss — expect a quality drop, not a total loss.
+   *
+   *  NOT set for a partial failure that leaves cosine running (a sub-query embed
+   *  failing back to the single-query path, or a row batch failing while other
+   *  rows keep usable vectors) — those are logged, not reported, so this stays a
+   *  reliable outage signal rather than a general embedding-error counter. */
+  | "embeddings-unavailable";
 
 /**
  * Per-call recall observability payload (see {@link RecallOptions.onDiagnostics}).
@@ -305,8 +318,26 @@ export interface RecallDiagnostics {
 export type RetainAction = "create" | "merge" | "update" | "skip" | "suppressed" | "supersede";
 export type RetainSource = "manual" | "auto-extracted" | "capsule";
 
-/** Why the consolidator fell back to "create" instead of a real decision. */
-export type ConsolidationFallbackReason = "llm_error" | "invalid_response";
+/**
+ * Why a retain fell back to "create" instead of applying a consolidation
+ * decision. Each value names a DIFFERENT thing to go fix, which is the point of
+ * keeping them apart:
+ *
+ * - `llm_error` — the consolidation call never produced a response (network,
+ *   timeout, 5xx, 429, empty completion, or missing credentials). Look at the
+ *   portal and the auth config.
+ * - `invalid_response` — the model answered, but with something unusable: an
+ *   unknown action, a targetId that was not in the candidate set, an `update` or
+ *   `supersede` with empty content, a `noop` with no target. Look at the prompt
+ *   and the model.
+ * - `target_vanished` — the model returned a decision that was valid when it was
+ *   made, and the row it named was deleted or superseded by a concurrent writer
+ *   before the write landed. Nothing is broken in the consolidator; a sustained
+ *   rate points at write contention (for example an auto-extraction worker and a
+ *   manual write racing over the same vault), which quietly costs you the
+ *   dedup that decision would have performed.
+ */
+export type ConsolidationFallbackReason = "llm_error" | "invalid_response" | "target_vanished";
 
 export interface RetainOptions {
   source?: RetainSource;
@@ -323,7 +354,8 @@ export interface RetainOptions {
    * Returns `action: 'suppressed'` with the matched `tombstoneId`.
    */
   respectTombstones?: boolean;
-  /** Cosine similarity threshold for auto-merge. Default: 0.85. */
+  /** Cosine similarity threshold for auto-merge. Default: 0.8
+   *  (`DEFAULT_AUTO_MERGE_THRESHOLD` in retain.ts — the source of truth). */
   autoMergeThreshold?: number;
   /**
    * When provided, runs an LLM-based consolidation pass against the top-K
@@ -351,9 +383,13 @@ export interface RetainOptions {
      */
     piiRedaction?: boolean | PiiRedactor;
   };
-  /** Cosine similarity floor for the consolidator candidate set. Default: 0.65. */
+  /** Cosine similarity floor for the consolidator candidate set. Default: 0.55
+   *  (`DEFAULT_CONSOLIDATE_THRESHOLD` in retain.ts — the source of truth). */
   consolidateThreshold?: number;
-  /** Top-K consolidation candidates to feed the LLM. Default: 5. */
+  /** Top-K consolidation candidates to feed the LLM. Default: 20
+   *  (`DEFAULT_CONSOLIDATE_TOP_K` in retain.ts — the source of truth). Widened
+   *  from 5 so a value change can find and retire ALL stale duplicates of the
+   *  old value in one pass, not just the nearest few. */
   consolidateTopK?: number;
   /**
    * W6 temporal lane — when the event in this fact occurred. Persisted to

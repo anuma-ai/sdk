@@ -606,6 +606,33 @@ export type RunToolLoopOptions = {
   hooks?: RunHooks | RunHooks[];
 };
 
+/**
+ * Terminal state of the LAST model response in the turn, normalized to the
+ * completions vocabulary (`"stop"` | `"length"` | `"tool_calls"` | provider-
+ * specific values). `undefined` when the stream carried no finish reason at all.
+ *
+ * Exposed because neither response shape reliably carries it out to a caller.
+ * The Responses API shape has no field for it — `LlmapiResponseResponse` declares
+ * neither `status` nor `incomplete_details` — so `buildFinalResponse` cannot
+ * surface truncation there even though the loop detected it (`responses.ts`
+ * normalizes it onto the accumulator). Completions does expose
+ * `choices[0].finish_reason`, but omits `tool_calls` entirely when there are
+ * none, so a caller sniffing the response cannot tell "no tool calls" from
+ * "field absent".
+ *
+ * The loop already knows both, unambiguously and identically for either API.
+ * Reporting them here means callers and test harnesses stop reverse-engineering
+ * them from a response shape that cannot answer. See anuma-ai/sdk#805.
+ */
+export type RunTerminalState = {
+  /** Normalized finish reason of the final response. `"length"` means the output
+   *  ceiling cut it off; anything else means the model stopped on its own. */
+  finishReason?: string;
+  /** Tool calls the final response carried. `0` is meaningful — combined with
+   *  empty content it identifies a turn that ended having produced nothing. */
+  finalToolCallCount: number;
+};
+
 export type RunToolLoopResult =
   | {
       data: ApiResponse;
@@ -614,6 +641,8 @@ export type RunToolLoopResult =
       toolsChecksum?: string;
       /** Results from tools that were auto-executed by the SDK */
       autoExecutedToolResults?: AutoExecutedToolResult[];
+      /** Terminal state of the final model response. See {@link RunTerminalState}. */
+      terminalState?: RunTerminalState;
     }
   | {
       data: ApiResponse | null;
@@ -626,6 +655,18 @@ export type RunToolLoopResult =
       detached?: true;
       /** Non-null only when `resumable` was true AND an inference id was captured before detach. */
       resume?: StreamResumeHandle | null;
+      /**
+       * Terminal state of the final model response, when the failure is one the
+       * loop diagnosed FROM that response — today, the truncated-to-nothing
+       * error. See {@link RunTerminalState}.
+       *
+       * Absent on failures that never got a terminal response to read (transport
+       * errors, detach, an SSE failure mid-stream), which is why it stays
+       * optional here. Present on the truncation error specifically because that
+       * is where it is most diagnostic: a caller can branch on
+       * `finishReason === "length"` instead of matching the error string.
+       */
+      terminalState?: RunTerminalState;
     };
 
 /** Capability header: tells the portal this client can resume a detached stream. Pinned with zeta-chain/ai-portal#1139. */
@@ -2090,8 +2131,57 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
       currentAccumulator.content += tip;
     }
 
+    // A completion the provider cut off at the output-token ceiling arrives
+    // here as an accumulator with no tool calls and no content: the partial
+    // tool call could not be parsed, so nothing survived. The loop's exit
+    // condition (`toolCalls.size > 0`) cannot tell that apart from a model
+    // that finished cleanly, so without this check the turn returns
+    // `error: null` and an empty response — the caller sees success and no
+    // output. Observed against deepinfra/moonshotai/Kimi-K2.6, whose 4096
+    // default ceiling truncates a multi-slide `add_slide` round mid-argument.
+    //
+    // Only fires when nothing usable came back. A truncated *text* answer is
+    // still worth returning, so partial content is left alone.
+    // Checked on whichever accumulator is about to be returned, so the
+    // single-round path below is covered too: a *first* response truncated
+    // before it produced anything leaves toolIteration at 0 and is just as
+    // silent as a truncated continuation.
+    const truncatedToNothing = (acc: {
+      finishReason?: string;
+      toolCalls: Map<string, unknown>;
+      content: string;
+    }): boolean =>
+      acc.finishReason === "length" && acc.toolCalls.size === 0 && acc.content.trim() === "";
+    const TRUNCATION_ERROR =
+      "Model response was truncated at the output-token limit before it produced " +
+      "any usable content or tool call. Retry with a higher `maxOutputTokens`, or " +
+      "prompt for fewer/smaller tool calls per turn.";
+
+    /**
+     * Report the accumulator's terminal state on the result. Reads the same two
+     * fields `truncatedToNothing` above does, so what a caller sees is exactly
+     * what the guard decided on — rather than a re-derivation from the response
+     * shape, which cannot answer for either API (see {@link RunTerminalState}).
+     */
+    const terminalStateOf = (acc: {
+      finishReason?: string;
+      toolCalls: Map<string, unknown>;
+    }): RunTerminalState => ({
+      ...(acc.finishReason !== undefined && { finishReason: acc.finishReason }),
+      finalToolCallCount: acc.toolCalls.size,
+    });
+
     // Build final response from the last accumulator
     if (toolIteration > 0) {
+      if (truncatedToNothing(currentAccumulator)) {
+        await fireRunError({ error: TRUNCATION_ERROR, stage: "model" });
+        return {
+          data: buildResponseFinal(currentAccumulator),
+          error: TRUNCATION_ERROR,
+          toolsChecksum: currentAccumulator.toolsChecksum,
+          terminalState: terminalStateOf(currentAccumulator),
+        };
+      }
       const finalResponse = buildResponseFinal(currentAccumulator);
       if (onFinish) onFinish(finalResponse);
       await fireRunEnd({
@@ -2103,6 +2193,19 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
         error: null,
         toolsChecksum: currentAccumulator.toolsChecksum,
         autoExecutedToolResults: accumulatedToolResults,
+        terminalState: terminalStateOf(currentAccumulator),
+      };
+    }
+
+    // Single-round turn: no tool call was ever executed. If the one response
+    // we got was truncated to nothing, this is the same silent dead-end.
+    if (truncatedToNothing(accumulator)) {
+      await fireRunError({ error: TRUNCATION_ERROR, stage: "model" });
+      return {
+        data: response,
+        error: TRUNCATION_ERROR,
+        toolsChecksum: accumulator.toolsChecksum,
+        terminalState: terminalStateOf(accumulator),
       };
     }
 
@@ -2115,6 +2218,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
       data: response,
       error: null,
       toolsChecksum: accumulator.toolsChecksum,
+      terminalState: terminalStateOf(accumulator),
     };
   } catch (err) {
     if (isAbortError(err)) {

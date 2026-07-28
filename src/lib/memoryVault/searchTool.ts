@@ -19,6 +19,7 @@ import type { StoredVaultMemory } from "../db/memoryVault/types";
 import { getLogger } from "../logger";
 import { applyMMR } from "../memory/mmr";
 import type { PortalLlmAuth } from "../memory/portalLlm";
+import { EMBEDDINGS_DEGRADED_EMPTY } from "../memory/recallConstants";
 import { recencyMultiplier, type RecencyOptions } from "../memory/recency";
 import { RerankerUnavailableError, rerankPairs } from "../memory/reranker";
 import { rrfFuse } from "../memory/rrf";
@@ -1355,6 +1356,51 @@ export async function eagerEmbedContent(
  * by recency (newer `updatedAt` wins) so the projected corpus builder's
  * admission window is deterministic across cache-hit/miss ordering.
  */
+/**
+ * Embed the query, degrading to an EMPTY vector instead of throwing.
+ *
+ * The embeddings provider is a single upstream with no fallback, and every
+ * `generateEmbedding` call on the read path was unguarded — so one outage threw
+ * out of the whole fused search and memory injection silently vanished for its
+ * duration (the caller's catch is the only thing between it and a broken turn).
+ *
+ * An empty vector is a working degradation rather than a sentinel: `cosineSimilarity`
+ * returns 0 on a length mismatch, so the cosine lane goes quiet while BM25 — which
+ * is purely lexical and needs no vector at all — still admits and ranks. The user
+ * keeps keyword-quality recall instead of none.
+ *
+ * Degrades on ANY failure, including a fatal 401/402/403. "Out of credits" should
+ * not mean "your memories are gone"; it means cosine is unavailable this turn.
+ * `onDegraded` lets the caller surface it (recall reports `embeddings-unavailable`)
+ * so this never becomes a silent quality drop.
+ */
+async function embedQueryOrDegrade(
+  query: string,
+  embeddingOptions: EmbeddingOptions,
+  onDegraded?: () => void
+): Promise<number[]> {
+  try {
+    const embedding = await generateEmbedding(query, embeddingOptions);
+    // An empty vector is the same dead cosine lane as a thrown request — a
+    // malformed/empty provider response must not read as healthy, or the caller
+    // reports "No relevant memories" on a search that never ran cosine at all.
+    if (embedding.length === 0) {
+      getLogger().warn(
+        "memoryVault: query embedding came back empty — falling back to BM25-only ranking for this search"
+      );
+      onDegraded?.();
+    }
+    return embedding;
+  } catch (err) {
+    getLogger().warn(
+      "memoryVault: query embedding failed — falling back to BM25-only ranking for this search: " +
+        (err instanceof Error ? err.message : String(err))
+    );
+    onDegraded?.();
+    return [];
+  }
+}
+
 export function admitVaultProjections(
   queryEmbedding: ArrayLike<number>,
   vectored: Array<{ uniqueId: string; embedding: ArrayLike<number>; updatedAt: Date }>,
@@ -1410,12 +1456,21 @@ export async function buildProjectedCorpus(
      * are real, in-scope candidate rows (present in the key scan) are honored.
      */
     forceIncludeIds?: string[];
+    /** Invoked when the query embedding failed and this search degraded to BM25-only. */
+    onEmbeddingDegraded?: () => void;
   }
 ): Promise<{
   memories: StoredVaultMemory[];
   embeddedItems: EmbeddedItem[];
   queryEmbedding: number[];
   vaultSize: number;
+  /**
+   * True when the un-embedded lane's batch embed failed. Reported separately
+   * from `onEmbeddingDegraded` (which covers the query embed) because it leaves
+   * cosine PARTIALLY usable, not inert — see
+   * {@link PreparedVaultCandidates.embeddingFailure}.
+   */
+  laneEmbedFailed: boolean;
 }> {
   const keys = await getVaultCandidateKeysOp(
     vaultCtx,
@@ -1436,24 +1491,42 @@ export async function buildProjectedCorpus(
   // Empty vault: nothing to rank. Return before embedding the query so an
   // empty vault costs zero embedding calls.
   if (keys.length === 0) {
-    return { memories: [], embeddedItems: [], queryEmbedding: [], vaultSize: 0 };
+    return {
+      memories: [],
+      embeddedItems: [],
+      queryEmbedding: [],
+      vaultSize: 0,
+      laneEmbedFailed: false,
+    };
   }
-  const queryEmbedding = await generateEmbedding(query, embeddingOptions);
+  const queryEmbedding = await embedQueryOrDegrade(
+    query,
+    embeddingOptions,
+    opts.onEmbeddingDegraded
+  );
+  // With no query vector, every vector-resolution step below is dead work: a
+  // stored or cached vector is only usable if it dim-matches the query, and
+  // nothing matches length 0. Skip straight to a recency admission (see the
+  // `admittedIds` fallback) so the decrypt window is spent on rows BM25 can rank
+  // rather than on loading embedding columns for an inert cosine lane.
+  const embeddingsDegraded = queryEmbedding.length === 0;
   const currentModel = embeddingOptions.model ?? DEFAULT_API_EMBEDDING_MODEL;
 
   const vectored: Array<{ uniqueId: string; embedding: Float32Array; updatedAt: Date }> = [];
   const missIds: string[] = []; // cache miss, has a compatible stored vector (load it)
   const noVectorIds: string[] = []; // no usable stored vector (un-embedded lane)
   const keyById = new Map(keys.map((k) => [k.uniqueId, k]));
-  for (const k of keys) {
-    const cached = cache.get(k.uniqueId);
-    if (cached && cached.length === queryEmbedding.length) {
-      vectored.push({ uniqueId: k.uniqueId, embedding: cached, updatedAt: k.updatedAt });
-      continue;
+  if (!embeddingsDegraded) {
+    for (const k of keys) {
+      const cached = cache.get(k.uniqueId);
+      if (cached && cached.length === queryEmbedding.length) {
+        vectored.push({ uniqueId: k.uniqueId, embedding: cached, updatedAt: k.updatedAt });
+        continue;
+      }
+      const modelCompatible = (k.embeddingModel ?? currentModel) === currentModel;
+      if (modelCompatible) missIds.push(k.uniqueId);
+      else noVectorIds.push(k.uniqueId);
     }
-    const modelCompatible = (k.embeddingModel ?? currentModel) === currentModel;
-    if (modelCompatible) missIds.push(k.uniqueId);
-    else noVectorIds.push(k.uniqueId);
   }
 
   // Load embedding column ONLY for cache misses that claim a compatible vector.
@@ -1478,6 +1551,9 @@ export async function buildProjectedCorpus(
     for (const id of missIds) if (!gotVector.has(id)) noVectorIds.push(id);
   }
 
+  // Set when the un-embedded lane's batch embed failed, leaving rows in the
+  // candidate set that a healthy pass would have given vectors to.
+  let laneEmbedFailed = false;
   // Un-embedded lane: bounded decrypt+embed so those rows can still rank.
   if (noVectorIds.length > 0) {
     const laneIds = noVectorIds.slice(0, opts.unembeddedCap);
@@ -1489,27 +1565,67 @@ export async function buildProjectedCorpus(
     const laneRows = (await getVaultMemoriesByIdsOp(vaultCtx, laneIds, hydrateOpts)).filter(
       (m) => !isEncrypted(m.content)
     );
+    // Guarded like the query embed: an outage here must not throw out of the whole
+    // search. These vectors only feed the cosine lane, so losing them costs cosine
+    // ordering for these rows — the admission below falls back to recency when it
+    // ends up with nothing vectored, and BM25 still ranks whatever is decrypted.
     if (laneRows.length > 0) {
-      const laneVecs = await generateEmbeddings(
-        laneRows.map((m) => m.content),
-        embeddingOptions
-      );
-      laneRows.forEach((m, i) => {
-        const vec = Float32Array.from(laneVecs[i]);
-        cache.set(m.uniqueId, vec);
-        vectored.push({ uniqueId: m.uniqueId, embedding: vec, updatedAt: m.updatedAt });
-        updateVaultMemoryEmbeddingOp(
-          vaultCtx,
-          m.uniqueId,
-          JSON.stringify(laneVecs[i]),
-          currentModel
-        ).catch(() => {});
-      });
+      let laneVecs: number[][] | undefined;
+      try {
+        laneVecs = await generateEmbeddings(
+          laneRows.map((m) => m.content),
+          embeddingOptions
+        );
+      } catch (err) {
+        laneEmbedFailed = true;
+        getLogger().warn(
+          `memoryVault: un-embedded lane embedding failed for ${laneRows.length} rows — they ` +
+            "rank on BM25 alone for this search: " +
+            (err instanceof Error ? err.message : String(err))
+        );
+      }
+      if (laneVecs) {
+        const vecs = laneVecs;
+        laneRows.forEach((m, i) => {
+          const vec = Float32Array.from(vecs[i]);
+          cache.set(m.uniqueId, vec);
+          vectored.push({ uniqueId: m.uniqueId, embedding: vec, updatedAt: m.updatedAt });
+          updateVaultMemoryEmbeddingOp(
+            vaultCtx,
+            m.uniqueId,
+            JSON.stringify(vecs[i]),
+            currentModel
+          ).catch(() => {});
+        });
+      }
     }
   }
 
   const k = Math.max(opts.limit * opts.admitFactor, opts.admitFloor);
   const admittedIds = admitVaultProjections(queryEmbedding, vectored, k);
+  // Cosine picks WHICH ROWS GET DECRYPTED here, so a missing vector doesn't just
+  // cost ordering — it costs the row its place in the corpus BM25 ranks. When the
+  // embeds that fill `vectored` failed, admission is sized by however many vectors
+  // happened to survive: none (query embed down) admits nothing at all, and a
+  // handful of warm cache entries admits a window far short of k. Either way BM25
+  // ranks a shrunken corpus and the outage silently costs lexical recall.
+  //
+  // Top the window up to k with the most-recently-updated candidates that cosine
+  // didn't already take. Only when an embed actually failed — a healthy pass gives
+  // every candidate a vector (up to `unembeddedCap`), so this must not change what
+  // a working search decrypts.
+  //
+  // A lexical hit older than the topped-up window is still missed: decrypt-last
+  // fundamentally needs cosine to choose what to decrypt, and this trades the
+  // whole vault for its most recent k. But k is at least `admitFloor`, and the
+  // alternative is ranking whatever handful of rows kept a cached vector.
+  if ((embeddingsDegraded || laneEmbedFailed) && admittedIds.length < k) {
+    const already = new Set(admittedIds);
+    for (const key of [...keys].sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime())) {
+      if (admittedIds.length >= k) break;
+      if (!already.has(key.uniqueId)) admittedIds.push(key.uniqueId);
+    }
+  }
   // Union in side-lane candidates whose cosine fell outside the window so the
   // graph/temporal lanes can still admit them. Intersect against keyById so
   // only real, in-scope rows are decrypted (drop ids from another scope/folder
@@ -1545,7 +1661,7 @@ export async function buildProjectedCorpus(
     eventTimeKind: normalizeEventTimeKind(m.eventTimeKind),
     factType: m.factType,
   }));
-  return { memories, embeddedItems, queryEmbedding, vaultSize };
+  return { memories, embeddedItems, queryEmbedding, vaultSize, laneEmbedFailed };
 }
 
 /**
@@ -1612,6 +1728,35 @@ export interface PreparedVaultCandidates {
    * from "saved but temporarily undecryptable".
    */
   vaultSize: number;
+  /**
+   * True when this candidate set has NO usable cosine lane — the query embed
+   * failed (or came back empty), or every row vector is missing because the row
+   * (re)embed failed. Ranking then runs on BM25 alone.
+   *
+   * Deliberately narrow: it means "cosine is inert", not "an embedding call
+   * somewhere failed". A partial failure that still leaves a query vector and
+   * some row vectors is logged, not reported here — callers turn this into
+   * `embeddings-unavailable` telemetry and a model-facing "only keyword
+   * matching ran" message, both of which would be false in that case.
+   */
+  embeddingsUnavailable: boolean;
+  /**
+   * True when ANY embedding request failed (or returned empty) while preparing
+   * this set — the query embed, the legacy row (re)embed batch, or the projected
+   * un-embedded lane. Deliberately BROADER than
+   * {@link PreparedVaultCandidates.embeddingsUnavailable}: it is also true for a
+   * partial failure that leaves a query vector and some row vectors intact.
+   *
+   * The two answer different questions and are not interchangeable.
+   * `embeddingsUnavailable` asks "is cosine inert?" — the right question for a
+   * READER deciding what to tell the model and whether to raise outage
+   * telemetry. This asks "could a row be scoring 0 only because its vector is
+   * missing?" — the right question for a WRITER whose correctness depends on
+   * cosine finding a match, since a partial failure is invisible to the other
+   * flag but still hides the row a write should have merged into. See the gate
+   * in `retain()`.
+   */
+  embeddingFailure: boolean;
 }
 
 /**
@@ -1644,7 +1789,14 @@ export async function prepareVaultCandidates(
   // entry point now, so a direct caller (retain) must get the same no-storage-read
   // short-circuit on a degenerate query.
   if (!query || typeof query !== "string") {
-    return { memories: [], embeddedItems: [], queryEmbedding: [], vaultSize: 0 };
+    return {
+      memories: [],
+      embeddedItems: [],
+      queryEmbedding: [],
+      vaultSize: 0,
+      embeddingsUnavailable: false,
+      embeddingFailure: false,
+    };
   }
   // `limit` is read here only to size the projected decrypt-last admission
   // window; the ranking depth is applied later, in rankPreparedVaultCandidates.
@@ -1673,6 +1825,19 @@ export async function prepareVaultCandidates(
   let embeddedItems: EmbeddedItem[];
   let queryEmbedding: number[];
   let vaultSize: number;
+  // Set when the query embedding failed and this search fell back to BM25-only.
+  // Reported out so recall() can surface `embeddings-unavailable` rather than
+  // letting a whole-provider outage look like a run of poor-quality results.
+  let embeddingsUnavailable = false;
+  // Any embedding failure at all, partial ones included — see
+  // PreparedVaultCandidates.embeddingFailure for why this is tracked separately.
+  let embeddingFailure = false;
+  const onEmbeddingDegraded = () => {
+    // A failed (or empty) query embed is both: cosine is inert AND an embedding
+    // call failed.
+    embeddingsUnavailable = true;
+    embeddingFailure = true;
+  };
 
   if (searchOptions?.decryptLast) {
     // Side-lane candidate ids (graph W5 + temporal W6) forwarded by recall().
@@ -1689,17 +1854,37 @@ export async function prepareVaultCandidates(
       admitFloor: ADMIT_FLOOR,
       unembeddedCap: UNEMBEDDED_CAP,
       ...(forceIncludeIds.length > 0 && { forceIncludeIds }),
+      onEmbeddingDegraded,
     });
     if (corpus.vaultSize === 0) {
-      return { memories: [], embeddedItems: [], queryEmbedding: [], vaultSize: 0 };
+      return {
+        memories: [],
+        embeddedItems: [],
+        queryEmbedding: [],
+        vaultSize: 0,
+        embeddingsUnavailable: false,
+        embeddingFailure: false,
+      };
     }
     ({ memories, embeddedItems, queryEmbedding, vaultSize } = corpus);
+    // The lane batch is the projected path's counterpart of the legacy row
+    // (re)embed below: it leaves rows in the candidate set without the vector a
+    // healthy pass would have given them, which is a partial failure and so
+    // does NOT set `embeddingsUnavailable`.
+    if (corpus.laneEmbedFailed) embeddingFailure = true;
     // Keys exist but nothing decrypted (e.g. every admitted row still
     // encrypted). Mirror the legacy path's memories.length === 0 guard so we
     // don't fall through into decompose/LLM ranking on an empty head. Report
     // the real vaultSize so callers don't mistake this for an empty vault.
     if (memories.length === 0) {
-      return { memories: [], embeddedItems: [], queryEmbedding: [], vaultSize };
+      return {
+        memories: [],
+        embeddedItems: [],
+        queryEmbedding: [],
+        vaultSize,
+        embeddingsUnavailable,
+        embeddingFailure,
+      };
     }
   } else {
     const loaded = await getAllVaultMemoriesOp(
@@ -1724,11 +1909,19 @@ export async function prepareVaultCandidates(
     // nothing saved yet" and say so to the LLM, which would invite
     // duplicate saves while decryption is temporarily unavailable.
     if (memories.length === 0) {
-      return { memories: [], embeddedItems: [], queryEmbedding: [], vaultSize: loaded.length };
+      return {
+        memories: [],
+        embeddedItems: [],
+        queryEmbedding: [],
+        vaultSize: loaded.length,
+        embeddingsUnavailable: false,
+        embeddingFailure: false,
+      };
     }
 
-    // Embed the query
-    queryEmbedding = await generateEmbedding(query, embeddingOptions);
+    // Embed the query. Degrades to [] on an embeddings outage rather than throwing
+    // out of the whole search — see embedQueryOrDegrade.
+    queryEmbedding = await embedQueryOrDegrade(query, embeddingOptions, onEmbeddingDegraded);
     const currentModel = embeddingOptions.model ?? DEFAULT_API_EMBEDDING_MODEL;
 
     // Batch-(re)embed any vault entries that aren't cached with a usable vector.
@@ -1741,7 +1934,12 @@ export async function prepareVaultCandidates(
     const uncachedTexts: string[] = [];
     const uncachedIndices: number[] = [];
     let staleReembedCount = 0;
-    for (let i = 0; i < memories.length; i++) {
+    // Nothing to resolve when the query embed already failed: every cosine is 0
+    // regardless, so row vectors buy nothing this call — and attempting them would
+    // fire one doomed request per uncached row against an outage that just failed.
+    // The rows stay in `embeddedItems` with whatever (or no) vector they have, so
+    // BM25 still ranks them.
+    for (let i = 0; queryEmbedding.length > 0 && i < memories.length; i++) {
       const content = memories[i].content;
       const memoryId = memories[i].uniqueId;
       // A cache hit is usable only if its dimension matches the query. The cache
@@ -1780,19 +1978,37 @@ export async function prepareVaultCandidates(
       );
     }
     if (uncachedTexts.length > 0) {
-      const newEmbeddings = await generateEmbeddings(uncachedTexts, embeddingOptions);
-      for (let j = 0; j < uncachedTexts.length; j++) {
-        cache.set(memories[uncachedIndices[j]].uniqueId, Float32Array.from(newEmbeddings[j]));
-        // Persist embedding + model to DB (fire-and-forget)
-        updateVaultMemoryEmbeddingOp(
-          vaultCtx,
-          memories[uncachedIndices[j]].uniqueId,
-          JSON.stringify(newEmbeddings[j]),
-          currentModel
-        ).catch(
-          // Silently swallow – SDK must not use console.*; embedding will be retried on next search
-          () => {}
+      // Guarded for the same reason the query embed is: this batch is larger than
+      // the single query embed and so is the likelier thing to 429, and an outage
+      // that starts a moment after a successful query embed lands here. Throwing
+      // would take the whole search down and silently remove memory from the turn
+      // — the exact failure this function exists to prevent. A row left without a
+      // vector just scores cosine 0, and BM25 still ranks it.
+      let newEmbeddings: number[][] | undefined;
+      try {
+        newEmbeddings = await generateEmbeddings(uncachedTexts, embeddingOptions);
+      } catch (err) {
+        embeddingFailure = true;
+        getLogger().warn(
+          `memoryVault: (re)embedding ${uncachedTexts.length} vault rows failed — they rank on ` +
+            "BM25 alone for this search: " +
+            (err instanceof Error ? err.message : String(err))
         );
+      }
+      if (newEmbeddings) {
+        for (let j = 0; j < uncachedTexts.length; j++) {
+          cache.set(memories[uncachedIndices[j]].uniqueId, Float32Array.from(newEmbeddings[j]));
+          // Persist embedding + model to DB (fire-and-forget)
+          updateVaultMemoryEmbeddingOp(
+            vaultCtx,
+            memories[uncachedIndices[j]].uniqueId,
+            JSON.stringify(newEmbeddings[j]),
+            currentModel
+          ).catch(
+            // Silently swallow – SDK must not use console.*; embedding will be retried on next search
+            () => {}
+          );
+        }
       }
     }
 
@@ -1814,7 +2030,23 @@ export async function prepareVaultCandidates(
     }));
   }
 
-  return { memories, embeddedItems, queryEmbedding, vaultSize };
+  // A query vector with nothing to score it against is just as inert as no query
+  // vector: every cosine is 0 and this set ranks on BM25 alone. Only reachable
+  // when a row (re)embed above failed — a healthy pass embeds every row that had
+  // no usable vector — so this is the batch-failure counterpart of a failed query
+  // embed, and callers must be able to tell the model the same thing about it.
+  if (!embeddingsUnavailable && !embeddedItems.some((it) => it.embedding.length > 0)) {
+    embeddingsUnavailable = true;
+  }
+
+  return {
+    memories,
+    embeddedItems,
+    queryEmbedding,
+    vaultSize,
+    embeddingsUnavailable,
+    embeddingFailure,
+  };
 }
 
 /**
@@ -1838,10 +2070,12 @@ export async function rankPreparedVaultCandidates(
   vaultSize: number;
   reranked: boolean;
   hadV2Head: boolean;
+  /** Forwarded from the prepared set — see {@link PreparedVaultCandidates.embeddingsUnavailable}. */
+  embeddingsUnavailable: boolean;
 }> {
   const limit = searchOptions?.limit ?? 5;
   const minSimilarity = searchOptions?.minSimilarity ?? 0.1;
-  const { memories, embeddedItems, queryEmbedding, vaultSize } = prepared;
+  const { memories, embeddedItems, queryEmbedding, vaultSize, embeddingsUnavailable } = prepared;
 
   // Dimension net. The load loop above re-embeds stale-model and wrong-dim
   // vectors, so this should normally be empty; it still fires if a re-embed
@@ -1886,6 +2120,7 @@ export async function rankPreparedVaultCandidates(
     vaultSize: number;
     reranked: boolean;
     hadV2Head: boolean;
+    embeddingsUnavailable: boolean;
   } => {
     const results = out.results.map((r) => {
       const meta = metaById.get(r.uniqueId);
@@ -1904,6 +2139,7 @@ export async function rankPreparedVaultCandidates(
       vaultSize: out.vaultSize,
       reranked: out.reranked ?? false,
       hadV2Head: out.hadV2Head ?? false,
+      embeddingsUnavailable,
     };
   };
 
@@ -1938,38 +2174,102 @@ export async function rankPreparedVaultCandidates(
   // Composite path — LLM decomposes the query into sub-queries, embeds them,
   // and runs the multi-facet RRF ranker. Falls through to V2/V2+CE on
   // "specific" mode so single-fact queries don't pay the decomposition cost.
-  if (useFusion && searchOptions?.decompose === "llm" && searchOptions.decomposeOptions) {
+  // Skipped entirely when embeddings are unavailable: every sub-query facet is a
+  // cosine pass, so the composite ranker would fuse a set of all-zero lanes at the
+  // cost of an LLM decompose call plus N embedding calls against a provider that
+  // just failed. Fall through to the single-query path, which BM25 can still serve.
+  if (
+    useFusion &&
+    !embeddingsUnavailable &&
+    searchOptions?.decompose === "llm" &&
+    searchOptions.decomposeOptions
+  ) {
     const decomp = await decomposeQuery(query, searchOptions.decomposeOptions);
     if (decomp.mode === "composite") {
-      const subEmbeddings = await generateEmbeddings(decomp.subQueries, embeddingOptions);
-      const subQueries = decomp.subQueries.map((sq, i) => ({
-        query: sq,
-        embedding: subEmbeddings[i],
-      }));
-      const v2HeadStats = { hadResults: false };
-      const composite = await rankComposite(query, queryEmbedding, subQueries, embeddedItems, {
-        limit,
-        minSimilarity,
-        rerank: !!searchOptions.rerank,
-        ...(searchOptions.rerankTopN !== undefined && {
-          rerankTopN: searchOptions.rerankTopN,
-        }),
-        ...(searchOptions.ceWeight !== undefined && { ceWeight: searchOptions.ceWeight }),
-        ...(searchOptions.mmr !== undefined && { mmr: searchOptions.mmr }),
-        ...tuning,
-        ...(searchOptions.entityRanking && { entityRanking: searchOptions.entityRanking }),
-        ...(searchOptions.temporalRanking && { temporalRanking: searchOptions.temporalRanking }),
-        rerankStats,
-        v2HeadStats,
-      });
-      return stampTimestamps({
-        results: composite,
-        vaultSize,
-        reranked: rerankStats.applied,
-        hadV2Head: v2HeadStats.hadResults,
-      });
+      // A mid-flight outage here degrades the same way: drop to the single-query
+      // path rather than throwing out of the search.
+      let subEmbeddings: number[][];
+      try {
+        subEmbeddings = await generateEmbeddings(decomp.subQueries, embeddingOptions);
+      } catch (err) {
+        getLogger().warn(
+          "memoryVault: sub-query embedding failed — falling back to single-query ranking: " +
+            (err instanceof Error ? err.message : String(err))
+        );
+        // NOT reported as embeddingsUnavailable: the original query vector is
+        // still valid, so the single-query path below runs a real cosine lane.
+        // Flagging it would raise outage telemetry and tell the answer model
+        // only keyword matching ran, when full semantic ranking did — just
+        // without the multi-facet decomposition.
+        subEmbeddings = [];
+      }
+      // A successful-but-degenerate response is the same dead lane as a throw,
+      // and `subEmbeddings.length` alone can't see it: `[[], [], []]` for three
+      // facets has length 3. Every facet must have a REAL vector AT THE QUERY'S
+      // DIMENSION, because there are three ways to reach the same all-zero fusion:
+      //   - empty vector — cosineSimilarity's zero-magnitude branch returns 0;
+      //   - short response — `subEmbeddings[i]` indexes past the end and hands
+      //     `rankComposite` an undefined embedding;
+      //   - wrong dimension — cosineSimilarity bails at `a.length !== b.length`
+      //     and returns 0 (memoryEngine/vector.ts). Reachable via the embedding
+      //     cache, which `generateEmbeddings` keys on text alone, not on model:
+      //     vectors cached under a previous embedding model come back at the old
+      //     dimension while the query vector is current. The row-load path
+      //     dim-checks its cache hits for exactly this reason; facets get the
+      //     same check here.
+      // The `subQueries.length > 0` clause is not redundant: without it a
+      // zero-facet decomposition reads as usable (`0 === 0`, and `[].every()` is
+      // true), and `rankComposite` returns [] on an empty facet list — turning a
+      // degrade into a total recall miss. Unreachable today (decomposeQuery's
+      // validate() rejects an empty subQueries), but the old `length > 0` check
+      // made it safe by accident and this shape doesn't.
+      // Same reasoning as the empty-query guard in embedQueryOrDegrade, applied
+      // to the batch.
+      const subEmbeddingsUsable =
+        decomp.subQueries.length > 0 &&
+        subEmbeddings.length === decomp.subQueries.length &&
+        subEmbeddings.every((v) => v.length > 0 && v.length === queryEmbedding.length);
+      if (subEmbeddings.length > 0 && !subEmbeddingsUsable) {
+        getLogger().warn(
+          `memoryVault: sub-query embedding returned ${subEmbeddings.length} vectors ` +
+            `(dims ${subEmbeddings.map((v) => v.length).join(",")}) for ` +
+            `${decomp.subQueries.length} sub-queries against a ${queryEmbedding.length}-dim ` +
+            "query — falling back to single-query ranking"
+        );
+      }
+      // On a sub-query embed failure, fall through to the single-query path below
+      // — the same path "specific" mode takes — rather than fusing all-zero lanes.
+      if (subEmbeddingsUsable) {
+        const subQueries = decomp.subQueries.map((sq, i) => ({
+          query: sq,
+          embedding: subEmbeddings[i],
+        }));
+        const v2HeadStats = { hadResults: false };
+        const composite = await rankComposite(query, queryEmbedding, subQueries, embeddedItems, {
+          limit,
+          minSimilarity,
+          rerank: !!searchOptions.rerank,
+          ...(searchOptions.rerankTopN !== undefined && {
+            rerankTopN: searchOptions.rerankTopN,
+          }),
+          ...(searchOptions.ceWeight !== undefined && { ceWeight: searchOptions.ceWeight }),
+          ...(searchOptions.mmr !== undefined && { mmr: searchOptions.mmr }),
+          ...tuning,
+          ...(searchOptions.entityRanking && { entityRanking: searchOptions.entityRanking }),
+          ...(searchOptions.temporalRanking && { temporalRanking: searchOptions.temporalRanking }),
+          rerankStats,
+          v2HeadStats,
+        });
+        return stampTimestamps({
+          results: composite,
+          vaultSize,
+          reranked: rerankStats.applied,
+          hadV2Head: v2HeadStats.hadResults,
+        });
+      }
     }
-    // mode === "specific" — fall through to V2/V2+CE below.
+    // mode === "specific" (or a degraded sub-query embed) — fall through to
+    // V2/V2+CE below.
   }
 
   if (useFusion && searchOptions?.rerank) {
@@ -2038,11 +2338,31 @@ export async function searchVaultMemoriesWithSize(
   vaultSize: number;
   reranked: boolean;
   hadV2Head: boolean;
+  /** True when this search had no usable cosine lane and ranked on BM25 alone. */
+  embeddingsUnavailable: boolean;
+  /**
+   * True when this search actually scored rows against a real query vector.
+   *
+   * NOT the inverse of `embeddingsUnavailable`. That flag answers "did cosine
+   * break?", and it is `false` on the degenerate returns below — an invalid
+   * query, an empty scope, nothing decryptable — where cosine did not break so
+   * much as never run. A caller asking "can this lane vouch that semantic
+   * ranking happened?" (recall's chunk-lane reconciliation) must not read those
+   * as a healthy cosine pass.
+   */
+  rankedOnCosine: boolean;
 }> {
   // Invalid query short-circuits BEFORE any storage read (the pre-split
   // behavior — a test pins that `getAllVaultMemoriesOp` is never called).
   if (!query || typeof query !== "string") {
-    return { results: [], vaultSize: 0, reranked: false, hadV2Head: false };
+    return {
+      results: [],
+      vaultSize: 0,
+      reranked: false,
+      hadV2Head: false,
+      embeddingsUnavailable: false,
+      rankedOnCosine: false,
+    };
   }
   const prepared = await prepareVaultCandidates(
     query,
@@ -2054,13 +2374,38 @@ export async function searchVaultMemoriesWithSize(
   // Preserve the pre-split early returns exactly: an empty scope reports
   // vaultSize 0, and rows-present-but-none-decryptable reports the real
   // vaultSize so callers do not mistake it for an empty vault.
+  // Both degenerate returns had nothing to score, so neither can vouch for
+  // cosine having run — see `rankedOnCosine`.
   if (prepared.vaultSize === 0) {
-    return { results: [], vaultSize: 0, reranked: false, hadV2Head: false };
+    return {
+      results: [],
+      vaultSize: 0,
+      reranked: false,
+      hadV2Head: false,
+      embeddingsUnavailable: prepared.embeddingsUnavailable,
+      rankedOnCosine: false,
+    };
   }
   if (prepared.memories.length === 0) {
-    return { results: [], vaultSize: prepared.vaultSize, reranked: false, hadV2Head: false };
+    return {
+      results: [],
+      vaultSize: prepared.vaultSize,
+      reranked: false,
+      hadV2Head: false,
+      embeddingsUnavailable: prepared.embeddingsUnavailable,
+      rankedOnCosine: false,
+    };
   }
-  return rankPreparedVaultCandidates(query, prepared, embeddingOptions, searchOptions);
+  const ranked = await rankPreparedVaultCandidates(
+    query,
+    prepared,
+    embeddingOptions,
+    searchOptions
+  );
+  // A real candidate set reached the ranker, so cosine ran iff it was usable.
+  // `prepareVaultCandidates` already collapses "query vector missing" and "no
+  // row vector to score it against" into `embeddingsUnavailable` for this set.
+  return { ...ranked, rankedOnCosine: !ranked.embeddingsUnavailable };
 }
 
 /**
@@ -2088,6 +2433,20 @@ export async function searchVaultMemories(
   );
   return results;
 }
+
+/**
+ * The `useFusion: false` variant. That path ranks through `rankVaultMemories`,
+ * which is cosine-ONLY — it doesn't even read the query text — so an embeddings
+ * outage leaves no lane running at all.
+ *
+ * Telling the model to "retry with different keywords" there would be worse than
+ * unhelpful: it invites retries this path cannot honor, and each one comes back
+ * equally empty for a reason the model can't see.
+ */
+const EMBEDDINGS_DEGRADED_EMPTY_NO_LEXICAL =
+  "Memory search is temporarily unavailable — the semantic lookup failed and this " +
+  "search mode has no keyword fallback, so no memory search ran at all. Do not " +
+  "conclude the user has no such memory; say the memory lookup was unavailable.";
 
 /** Numbered "[N] (id: …, similarity: …)\n<content>" rendering shared by the
  * chat-tool's recall-delegated and useFusion:false branches. */
@@ -2203,16 +2562,26 @@ export function createMemoryVaultSearchTool(
 
         // useFusion:false callers want cosine-only — skip recall's fusion.
         if (searchOptions?.useFusion === false) {
-          const legacy = await searchVaultMemories(query, vaultCtx, embeddingOptions, cache, {
-            limit: requestLimit,
-            minSimilarity,
-            useFusion: false,
-            ...tuningForward,
-            ...(folderId !== undefined && { folderId }),
-            ...(searchOptions?.scopes && { scopes: searchOptions.scopes }),
-          });
+          // ...WithSize rather than searchVaultMemories: the wrapper discards
+          // `embeddingsUnavailable`, which decides the empty-result wording below.
+          const { results: legacy, embeddingsUnavailable } = await searchVaultMemoriesWithSize(
+            query,
+            vaultCtx,
+            embeddingOptions,
+            cache,
+            {
+              limit: requestLimit,
+              minSimilarity,
+              useFusion: false,
+              ...tuningForward,
+              ...(folderId !== undefined && { folderId }),
+              ...(searchOptions?.scopes && { scopes: searchOptions.scopes }),
+            }
+          );
           if (legacy.length === 0) {
-            return "No relevant memories found in the vault.";
+            return embeddingsUnavailable
+              ? EMBEDDINGS_DEGRADED_EMPTY_NO_LEXICAL
+              : "No relevant memories found in the vault.";
           }
           return formatVaultHits(
             legacy.map((r) => ({ id: r.uniqueId, content: r.content, score: r.similarity }))
@@ -2220,10 +2589,16 @@ export function createMemoryVaultSearchTool(
         }
 
         const { recall } = await import("../memory/recall.js");
+        // Read the degradation off the diagnostics seam rather than widening
+        // RecallResult: it is the channel that already exists for exactly this.
+        let recallDegraded: readonly string[] = [];
         const result = await recall(
           query,
           { vaultCtx, embeddingOptions, vaultCache: cache },
           {
+            onDiagnostics: (d) => {
+              recallDegraded = d.degraded;
+            },
             types: ["fact"],
             limit: requestLimit,
             minScore: minSimilarity,
@@ -2248,7 +2623,9 @@ export function createMemoryVaultSearchTool(
         }
 
         if (result.memories.length === 0) {
-          return "No relevant memories found in the vault.";
+          return recallDegraded.includes("embeddings-unavailable")
+            ? EMBEDDINGS_DEGRADED_EMPTY
+            : "No relevant memories found in the vault.";
         }
 
         // Surface whatever ranker score the pipeline produced (fused
