@@ -580,6 +580,7 @@ export {
 } from "../lib/chat/stockPriceClassifier";
 export type {
   AutoExecutedToolResult,
+  RunTerminalState,
   RunToolLoopOptions,
   RunToolLoopResult,
   StepFinishEvent,
