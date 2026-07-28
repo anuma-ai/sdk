@@ -949,6 +949,308 @@ describe("retain — write-time supersession (A2)", () => {
 });
 
 /**
+ * #630 — a consolidation decision that gets DROPPED has to say so.
+ *
+ * The applier falls through to create whenever the row a decision named is
+ * deleted or superseded between the candidate search and the write. Falling
+ * through is the right outcome (the target really is gone —
+ * `assertMergeTargetGoneOrThrow` has already separated that from a write that
+ * merely failed), but until now it happened in complete silence: no log, no
+ * `onFallback`. The consolidator identified a duplicate, the dedup was thrown
+ * away, and the only symptom was the vault growing.
+ *
+ * `target_vanished` is its own reason rather than reusing `invalid_response`
+ * because it points somewhere else entirely: the model behaved, the DB moved.
+ * A consumer sees "fix write contention", not "fix the prompt".
+ *
+ * These tests assert on the hook, not the log, because the hook is the contract.
+ * The `onFallback` mock passes through the real `consolidationFallback` module —
+ * only `./consolidate` is mocked in this file — so the wiring under test is the
+ * production wiring.
+ */
+describe("retain — a dropped consolidation decision is reported (#630)", () => {
+  /** A live row: exists, not retired. */
+  const liveRow = (uniqueId: string) => ({ uniqueId, content: "existing", proofCount: 1 });
+
+  /**
+   * Stage 1 (consolidate, 0.65 floor) sees `matches`; Stage 2 (strict cosine
+   * merge) sees nothing.
+   *
+   * Driven by a call counter rather than two `mockResolvedValueOnce` calls on
+   * purpose. `vi.clearAllMocks()` clears recorded calls but does NOT drain a
+   * `Once` queue, so a test that throws or returns before Stage 2 leaves its
+   * second queued value behind for whichever test runs next — which then gets an
+   * empty Stage 1, skips consolidation entirely, and fails claiming the hook was
+   * never called. Two of the cases below deliberately abort mid-Stage-1, so this
+   * block has to be order-independent.
+   */
+  function stages(matches: VaultMatch[]) {
+    let call = 0;
+    vi.mocked(prepareVaultCandidates).mockResolvedValue(prepared([0.1, 0.2, 0.3]) as never);
+    vi.mocked(rankPreparedVaultCandidates).mockImplementation(
+      async () => rankResult(call++ === 0 ? matches : []) as never
+    );
+  }
+
+  function stagesFor(id: string) {
+    stages([{ uniqueId: id, content: "existing", similarity: 0.7 }]);
+    vi.mocked(generateEmbedding).mockResolvedValue([0.1, 0.2, 0.3]);
+    vi.mocked(createVaultMemoryOp).mockResolvedValue({ uniqueId: "fresh" } as never);
+  }
+
+  it("reports target_vanished when a noop target was deleted before the write", async () => {
+    stagesFor("gone");
+    vi.mocked(consolidateMemory).mockResolvedValue({ action: "noop", targetId: "gone" });
+    vi.mocked(getVaultMemoryOp).mockResolvedValue(null as never);
+    const onFallback = vi.fn();
+
+    const result = await retain("dup fact", ctx, {
+      consolidateOptions: { apiKey: "k", onFallback },
+    });
+
+    // Still creates — the outcome is unchanged, only the silence is.
+    expect(result.action).toBe("create");
+    expect(onFallback).toHaveBeenCalledExactlyOnceWith("target_vanished");
+  });
+
+  it("reports target_vanished when a noop target was superseded before the write", async () => {
+    stagesFor("retired");
+    vi.mocked(consolidateMemory).mockResolvedValue({ action: "noop", targetId: "retired" });
+    vi.mocked(getVaultMemoryOp).mockResolvedValue({
+      uniqueId: "retired",
+      supersededBy: "newer",
+    } as never);
+    const onFallback = vi.fn();
+
+    const result = await retain("dup fact", ctx, {
+      consolidateOptions: { apiKey: "k", onFallback },
+    });
+
+    expect(result.action).toBe("create");
+    expect(onFallback).toHaveBeenCalledExactlyOnceWith("target_vanished");
+  });
+
+  it("reports target_vanished when a noop target disappears mid-write", async () => {
+    // The row was live at read time, the write came back null, and the re-probe
+    // confirms it is gone — so the proof-count bump is lost, not merely delayed.
+    stagesFor("racy");
+    vi.mocked(consolidateMemory).mockResolvedValue({ action: "noop", targetId: "racy" });
+    vi.mocked(getVaultMemoryOp)
+      .mockResolvedValueOnce(liveRow("racy") as never)
+      .mockResolvedValue(null as never);
+    vi.mocked(updateVaultMemoryOp).mockResolvedValue(null as never);
+    const onFallback = vi.fn();
+
+    const result = await retain("dup fact", ctx, {
+      consolidateOptions: { apiKey: "k", onFallback },
+    });
+
+    expect(result.action).toBe("create");
+    expect(onFallback).toHaveBeenCalledExactlyOnceWith("target_vanished");
+  });
+
+  it("reports target_vanished when an update target vanished, losing the rewrite", async () => {
+    stagesFor("gone");
+    vi.mocked(consolidateMemory).mockResolvedValue({
+      action: "update",
+      targetId: "gone",
+      content: "richer consolidated form",
+    });
+    vi.mocked(getVaultMemoryOp).mockResolvedValue(null as never);
+    const onFallback = vi.fn();
+
+    const result = await retain("plain fact", ctx, {
+      consolidateOptions: { apiKey: "k", onFallback },
+    });
+
+    expect(result.action).toBe("create");
+    expect(onFallback).toHaveBeenCalledExactlyOnceWith("target_vanished");
+    // The consolidator's richer text is discarded along with the decision: what
+    // lands is the caller's original input.
+    expect(vi.mocked(createVaultMemoryOp)).toHaveBeenCalledWith(
+      mockVaultCtx,
+      expect.objectContaining({ content: "plain fact" })
+    );
+  });
+
+  it("reports target_vanished when an update target disappears mid-write", async () => {
+    stagesFor("racy");
+    vi.mocked(consolidateMemory).mockResolvedValue({
+      action: "update",
+      targetId: "racy",
+      content: "richer consolidated form",
+    });
+    vi.mocked(getVaultMemoryOp)
+      .mockResolvedValueOnce(liveRow("racy") as never)
+      .mockResolvedValue(null as never);
+    vi.mocked(updateVaultMemoryOp).mockResolvedValue(null as never);
+    const onFallback = vi.fn();
+
+    const result = await retain("plain fact", ctx, {
+      consolidateOptions: { apiKey: "k", onFallback },
+    });
+
+    expect(result.action).toBe("create");
+    expect(onFallback).toHaveBeenCalledExactlyOnceWith("target_vanished");
+  });
+
+  it("reports target_vanished when every supersede target is already retired", async () => {
+    stagesFor("old");
+    vi.mocked(consolidateMemory).mockResolvedValue({
+      action: "supersede",
+      targetId: "old",
+      targetIds: ["old", "older"],
+      content: "Lives in San Francisco",
+    });
+    vi.mocked(getVaultMemoryOp).mockResolvedValue({
+      uniqueId: "old",
+      supersededBy: "someone-else",
+    } as never);
+    const onFallback = vi.fn();
+
+    const result = await retain("Lives in San Francisco", ctx, {
+      consolidateOptions: { apiKey: "k", onFallback },
+    });
+
+    expect(result.action).toBe("create");
+    expect(vi.mocked(createSupersedingMemoryOp)).not.toHaveBeenCalled();
+    expect(onFallback).toHaveBeenCalledExactlyOnceWith("target_vanished");
+  });
+
+  it("reports target_vanished when the supersede primary loses the race INSIDE the write", async () => {
+    // The one race the applier cannot see: the target was live when it validated,
+    // and `createSupersedingMemoryOp`'s own re-check is what lost. It returns
+    // `{ created: null, retired: false }` and retain() falls through to a plain
+    // create — the supersession the consolidator ruled on never happened.
+    stages([{ uniqueId: "old", content: "Lives in Portland", similarity: 0.7 }]);
+    vi.mocked(consolidateMemory).mockResolvedValue({
+      action: "supersede",
+      targetId: "old",
+      content: "Lives in San Francisco",
+    });
+    // Live at validation time...
+    vi.mocked(getVaultMemoryOp).mockResolvedValue({
+      uniqueId: "old",
+      content: "Lives in Portland",
+    } as never);
+    vi.mocked(generateEmbedding).mockResolvedValue([0.1, 0.2, 0.3]);
+    // ...but the atomic write's re-check finds it already retired.
+    vi.mocked(createSupersedingMemoryOp).mockResolvedValue({
+      created: null as never,
+      retired: false,
+    });
+    vi.mocked(createVaultMemoryOp).mockResolvedValue({ uniqueId: "plain-new" } as never);
+    const onFallback = vi.fn();
+
+    const result = await retain("Lives in San Francisco", ctx, {
+      consolidateOptions: { apiKey: "k", onFallback },
+    });
+
+    // The fact is still stored, just not as a supersession.
+    expect(result).toMatchObject({ action: "create", memoryId: "plain-new" });
+    expect(vi.mocked(createSupersedingMemoryOp)).toHaveBeenCalled();
+    expect(onFallback).toHaveBeenCalledExactlyOnceWith("target_vanished");
+  });
+
+  it("stays silent when a supersede only PARTIALLY races — the decision still applied", async () => {
+    // One of two targets is already retired. The supersession still happens over
+    // the survivor, so nothing was dropped and nothing should be reported.
+    // Without this, any multi-target supersession would look like a fallback.
+    stages([{ uniqueId: "old", content: "Lives in Portland", similarity: 0.7 }]);
+    vi.mocked(consolidateMemory).mockResolvedValue({
+      action: "supersede",
+      targetId: "old",
+      targetIds: ["old", "already-retired"],
+      content: "Lives in San Francisco",
+    });
+    vi.mocked(getVaultMemoryOp).mockImplementation(
+      async (_ctx, id) =>
+        (id === "old"
+          ? { uniqueId: "old", content: "Lives in Portland" }
+          : { uniqueId: id, supersededBy: "someone-else" }) as never
+    );
+    vi.mocked(generateEmbedding).mockResolvedValue([0.1, 0.2, 0.3]);
+    vi.mocked(createSupersedingMemoryOp).mockResolvedValue({
+      created: { uniqueId: "new-sf" } as never,
+      retired: true,
+    });
+    const onFallback = vi.fn();
+
+    const result = await retain("Lives in San Francisco", ctx, {
+      consolidateOptions: { apiKey: "k", onFallback },
+    });
+
+    expect(result.action).toBe("supersede");
+    expect(onFallback).not.toHaveBeenCalled();
+  });
+
+  it("stays silent on a decision that applied cleanly", async () => {
+    // The control. `onFallback` means "a decision was lost"; a successful merge
+    // must never touch it, or the rate a consumer alerts on is meaningless.
+    stages([{ uniqueId: "live", content: "existing", similarity: 0.7 }]);
+    vi.mocked(consolidateMemory).mockResolvedValue({ action: "noop", targetId: "live" });
+    vi.mocked(getVaultMemoryOp).mockResolvedValue(liveRow("live") as never);
+    vi.mocked(updateVaultMemoryOp).mockResolvedValue({
+      uniqueId: "live",
+      proofCount: 2,
+    } as never);
+    const onFallback = vi.fn();
+
+    const result = await retain("dup fact", ctx, {
+      consolidateOptions: { apiKey: "k", onFallback },
+    });
+
+    expect(result).toMatchObject({ action: "merge", memoryId: "live", proofCount: 2 });
+    expect(onFallback).not.toHaveBeenCalled();
+  });
+
+  it("a genuine write failure still THROWS rather than reporting a race", async () => {
+    // The distinction assertMergeTargetGoneOrThrow exists to draw: the write
+    // failed and the target is still there. That is not a vanished target and
+    // must not be downgraded to an observability event and a duplicate.
+    stagesFor("still-here");
+    vi.mocked(consolidateMemory).mockResolvedValue({ action: "noop", targetId: "still-here" });
+    vi.mocked(getVaultMemoryOp).mockResolvedValue(liveRow("still-here") as never);
+    vi.mocked(updateVaultMemoryOp).mockResolvedValue(null as never);
+    const onFallback = vi.fn();
+
+    await expect(
+      retain("dup fact", ctx, { consolidateOptions: { apiKey: "k", onFallback } })
+    ).rejects.toThrow(/failed to persist/);
+    expect(onFallback).not.toHaveBeenCalled();
+  });
+
+  it("a throwing onFallback cannot break the write", async () => {
+    // Same guarantee consolidate.ts already makes for its own two reasons: a
+    // broken metrics sink must not fail the retain it is only observing.
+    stagesFor("gone");
+    vi.mocked(consolidateMemory).mockResolvedValue({ action: "noop", targetId: "gone" });
+    vi.mocked(getVaultMemoryOp).mockResolvedValue(null as never);
+    const onFallback = vi.fn(() => {
+      throw new Error("metrics sink exploded");
+    });
+
+    const result = await retain("dup fact", ctx, {
+      consolidateOptions: { apiKey: "k", onFallback },
+    });
+
+    expect(result.action).toBe("create");
+    expect(onFallback).toHaveBeenCalledTimes(1);
+  });
+
+  it("drops the decision without a hook when the caller wired none", async () => {
+    // onFallback is optional; the fallthrough must not depend on it existing.
+    stagesFor("gone");
+    vi.mocked(consolidateMemory).mockResolvedValue({ action: "noop", targetId: "gone" });
+    vi.mocked(getVaultMemoryOp).mockResolvedValue(null as never);
+
+    const result = await retain("dup fact", ctx, { consolidateOptions: { apiKey: "k" } });
+
+    expect(result.action).toBe("create");
+  });
+});
+
+/**
  * B2 retain half — the two merge stages share ONE prepared candidate set.
  * These pin the three properties that make the sharing sound, all of which are
  * silent if broken: prepare runs once, it is prepared at the WIDEST limit, and
