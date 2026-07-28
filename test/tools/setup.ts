@@ -105,6 +105,53 @@ export function wrapTool(tool: ToolConfig, log: ToolCallLog[]): ToolConfig {
   return tool;
 }
 
+// ── Terminal-state extraction ────────────────────────────────────────────────
+
+/**
+ * Pull the finish reason off a final response without assuming which API shape
+ * produced it.
+ *
+ * `apiType` defaults to `"auto"`, so a run can come back in either shape and the
+ * two report truncation differently: completions puts `finish_reason` on a
+ * choice, the Responses API uses `status: "incomplete"` plus
+ * `incomplete_details.reason`. Normalized to the completions vocabulary
+ * (`"length"` for a ceiling cut) so one field is comparable across both.
+ *
+ * Returns `null` only when neither shape is recognized — which is itself worth
+ * seeing in an artifact, rather than being flattened into a plausible default.
+ */
+function extractFinishReason(data: unknown): string | null {
+  if (!data || typeof data !== "object") return null;
+  const d = data as Record<string, any>;
+
+  // Completions: choices[0].finish_reason ("stop" | "length" | "tool_calls" | …)
+  const choiceReason = d.choices?.[0]?.finish_reason;
+  if (typeof choiceReason === "string") return choiceReason;
+
+  // Responses API: status plus, when incomplete, a reason. `max_output_tokens`
+  // is the ceiling cut — map it onto "length" so both shapes read the same.
+  if (typeof d.status === "string") {
+    const detail = d.incomplete_details?.reason;
+    if (d.status === "incomplete") {
+      return detail === "max_output_tokens" ? "length" : `incomplete:${detail ?? "unknown"}`;
+    }
+    return d.status;
+  }
+  return null;
+}
+
+/** Tool calls carried by the final response, in either shape. */
+function extractFinalToolCallCount(data: unknown): number | null {
+  if (!data || typeof data !== "object") return null;
+  const d = data as Record<string, any>;
+  const choiceCalls = d.choices?.[0]?.message?.tool_calls;
+  if (Array.isArray(choiceCalls)) return choiceCalls.length;
+  if (Array.isArray(d.output)) {
+    return d.output.filter((o: any) => o?.type === "function_call").length;
+  }
+  return null;
+}
+
 // ── Recording wrapper ────────────────────────────────────────────────────────
 
 /**
@@ -162,6 +209,8 @@ export async function runToolLoop(
     steps,
     finalText: extractText(result),
     error: result.error ?? null,
+    finishReason: extractFinishReason(result.data),
+    finalToolCallCount: extractFinalToolCallCount(result.data),
   });
 
   return result;
