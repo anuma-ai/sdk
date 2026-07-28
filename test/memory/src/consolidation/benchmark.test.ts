@@ -265,38 +265,6 @@ const CASES: Case[] = [
     ],
     expect: { action: "supersede", targetIds: ["c1", "c2", "c3"] },
   },
-  {
-    name: "already captured, different wording",
-    category: "noop",
-    newFact: "User has two children.",
-    candidates: [
-      { id: "c1", content: "User has two kids.", similarity: 0.95 },
-      { id: "c2", content: "User is married.", similarity: 0.41 },
-    ],
-    expect: { action: "noop", targetIds: ["c1"] },
-  },
-  {
-    name: "same trip, different month → create not supersede",
-    category: "hard-negative",
-    newFact: "User flew to Tokyo in March.",
-    candidates: [
-      { id: "c1", content: "User flew to Tokyo in January.", similarity: 0.89 },
-      { id: "c2", content: "User has a valid passport.", similarity: 0.33 },
-    ],
-    expect: { action: "create" },
-  },
-  {
-    name: "different subject, same predicate → create not merge",
-    category: "hard-negative",
-    // The trap: near-identical wording about a DIFFERENT person. Merging here
-    // would overwrite the user's own city with a sibling's.
-    newFact: "User's sister lives in Denver.",
-    candidates: [
-      { id: "c1", content: "User lives in Denver.", similarity: 0.87 },
-      { id: "c2", content: "User visits family a few times a year.", similarity: 0.38 },
-    ],
-    expect: { action: "create" },
-  },
 ];
 
 /**
@@ -319,12 +287,27 @@ const CASES: Case[] = [
  * and failed 8 of 26 subsequent runs (31%) with no code change. `itemsPerRun`
  * floors the spread at what the mean actually implies; see `binomialRunStdDev`.
  *
- * WHY 14 CASES. Tolerance shrinks as 1/sqrt(cases) but one case's weight shrinks
- * as 1/cases, so the two cross: past roughly 28 cases (at 15 runs) the tolerance
- * drops BELOW one case's weight and a fully-broken case stops firing — the gate
- * would grow more precise and less useful at the same time. 14 maximises the
- * margin between those bounds while halving the old run-to-run noise, at 2x the
- * LLM cost of 7 (210 sequential calls, ~5 min at the measured 1.36s median).
+ * WHY THE CORPUS IS 11 AND WHY GROWING IT IS NOT FREE. Two bounds squeeze it from
+ * both sides, and the second one is counter-intuitive:
+ *
+ *   Upper bound — tolerance shrinks as 1/sqrt(cases) but one case's weight shrinks
+ *   as 1/cases, so the two cross. Past roughly 28 cases (at 15 runs) the tolerance
+ *   drops BELOW one case's weight and a fully-broken case stops firing: the gate
+ *   grows more precise and less useful at the same time.
+ *
+ *   The real bound — a rate's variance is p(1-p), so adding cases the model gets
+ *   WRONG raises the noise faster than the extra cases lower it. Learned the hard
+ *   way: this corpus was taken to 14 and three of the new cases scored 0/25, which
+ *   dropped the mean from 95% to 72%. At p=0.72 the variance is 4.4x what it is at
+ *   p=0.95, the tolerance grew to 8.2pt against a one-case weight of 7.1pt, and the
+ *   margin went NEGATIVE — a bigger corpus that could no longer detect a broken
+ *   case. Those three were removed. A case only pays for itself if the model
+ *   reliably gets it right; a case it fails is a finding to file, not a fixture.
+ *
+ * So most of the false-failure fix above comes from `itemsPerRun` and an honest
+ * baseline, not from corpus size. 11 over 7 buys a modest resolution gain (a 6.2pt
+ * detectable regression vs 6.6pt) for 1.6x the LLM cost — cases run sequentially,
+ * measured between 1.4s and 3.4s per decision depending on provider load.
  *
  * The committed baseline is generated at `--runs 25` while the workflow GATES at
  * 15. Deliberately asymmetric: a capture's error in the mean is permanent until

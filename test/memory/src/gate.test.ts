@@ -342,6 +342,27 @@ describe("itemsPerRun tolerance floor", () => {
     expect(compareToGateBaseline(broken, luckyBaseline(WITH), [WITH])).toHaveLength(1);
   });
 
+  it("loses single-case sensitivity when the corpus mean is dragged down", () => {
+    // The trap that a bigger corpus walks into. Variance is p(1-p), so cases the
+    // model FAILS raise the noise faster than the extra cases lower it. Measured:
+    // taking this corpus to 14 added three cases that scored 0/25, the mean fell
+    // 95% -> 72%, and the tolerance overtook one case's weight — a larger corpus
+    // that could no longer detect a broken case. Pinned so the bound is explicit
+    // rather than rediscovered.
+    const spec: GateMetricSpec = { ...WITHOUT, itemsPerRun: 14 };
+    const draggedMean = 0.7229; // the mean actually captured at 14 cases
+    const stdDev = Math.sqrt((draggedMean * (1 - draggedMean)) / 14);
+    const tolerance = meanDiffTolerance(spec, stdDev, 25, 15, draggedMean);
+    expect(tolerance).toBeGreaterThan(1 / 14);
+
+    // The healthy corpus keeps the margin the gate depends on.
+    const healthyMean = 0.92;
+    const healthySd = Math.sqrt((healthyMean * (1 - healthyMean)) / 11);
+    expect(
+      meanDiffTolerance({ ...WITHOUT, itemsPerRun: 11 }, healthySd, 25, 15, healthyMean)
+    ).toBeLessThan(1 / 11);
+  });
+
   it("keeps firing on one broken case at the widened 21-case corpus", () => {
     // The design constraint of growing the corpus: tolerance shrinks as 1/sqrt(C)
     // but one case's weight shrinks as 1/C, so past roughly C = runs/(8p(1-p))
