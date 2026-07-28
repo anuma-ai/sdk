@@ -184,3 +184,33 @@ describe("CompletionsStrategy.buildRequestBody - output-token field", () => {
     expect(body).not.toHaveProperty("max_tokens");
   });
 });
+
+describe("CompletionsStrategy finish_reason passthrough", () => {
+  const strategy = new CompletionsStrategy();
+
+  // buildFinalResponse used to derive this field entirely from whether tool
+  // calls were present — `toolCalls ? "tool_calls" : "stop"` — which reported
+  // a completion cut off at the output-token ceiling as a clean "stop". The
+  // tool loop's truncation guard needs the provider's real verdict.
+  it("preserves a 'length' finish_reason through to the final response", () => {
+    const acc = createAccumulator();
+    strategy.processStreamChunk({ choices: [{ index: 0, finish_reason: "length" }] }, acc);
+    expect(acc.finishReason).toBe("length");
+
+    const final = strategy.buildFinalResponse(acc);
+    expect(final.choices[0].finish_reason).toBe("length");
+  });
+
+  it("preserves 'stop' and 'tool_calls' as sent", () => {
+    for (const reason of ["stop", "tool_calls"]) {
+      const acc = createAccumulator();
+      strategy.processStreamChunk({ choices: [{ index: 0, finish_reason: reason }] }, acc);
+      expect(strategy.buildFinalResponse(acc).choices[0].finish_reason).toBe(reason);
+    }
+  });
+
+  it("falls back to the derived value when the stream carried no finish_reason", () => {
+    const acc = createAccumulator();
+    expect(strategy.buildFinalResponse(acc).choices[0].finish_reason).toBe("stop");
+  });
+});

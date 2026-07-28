@@ -2090,8 +2090,34 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
       currentAccumulator.content += tip;
     }
 
+    // A completion the provider cut off at the output-token ceiling arrives
+    // here as an accumulator with no tool calls and no content: the partial
+    // tool call could not be parsed, so nothing survived. The loop's exit
+    // condition (`toolCalls.size > 0`) cannot tell that apart from a model
+    // that finished cleanly, so without this check the turn returns
+    // `error: null` and an empty response — the caller sees success and no
+    // output. Observed against deepinfra/moonshotai/Kimi-K2.6, whose 4096
+    // default ceiling truncates a multi-slide `add_slide` round mid-argument.
+    //
+    // Only fires when nothing usable came back. A truncated *text* answer is
+    // still worth returning, so partial content is left alone.
+    const truncatedToNothing = (acc: typeof currentAccumulator): boolean =>
+      acc.finishReason === "length" && acc.toolCalls.size === 0 && acc.content.trim() === "";
+
     // Build final response from the last accumulator
     if (toolIteration > 0) {
+      if (truncatedToNothing(currentAccumulator)) {
+        const err =
+          "Model response was truncated at the output-token limit before it produced " +
+          "any usable content or tool call. Retry with a higher `maxOutputTokens`, or " +
+          "prompt for fewer/smaller tool calls per turn.";
+        await fireRunError({ error: err, stage: "model" });
+        return {
+          data: buildResponseFinal(currentAccumulator),
+          error: err,
+          toolsChecksum: currentAccumulator.toolsChecksum,
+        };
+      }
       const finalResponse = buildResponseFinal(currentAccumulator);
       if (onFinish) onFinish(finalResponse);
       await fireRunEnd({
