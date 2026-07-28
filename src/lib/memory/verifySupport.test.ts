@@ -346,6 +346,68 @@ describe("verifyMemoriesForPublish — budgets and redaction", () => {
     expect(bodyOf(fetchFn)).not.toContain("fact 2");
   });
 
+  it("reads no sources for the over-budget tail, and still calls it over-budget", async () => {
+    // The cap is applied before source resolution, so the tail's provenance is
+    // never read — that is the point, since a mature memory can carry a lot of
+    // ids and a large batch would otherwise fan out reads for items it can
+    // never send. The trap that creates: with no ids resolved, the tail looks
+    // exactly like a memory whose evidence was deleted, and reporting it as
+    // `sources-missing` would turn "we did not check this" into "the evidence
+    // is gone" — the precise conflation this whole pass exists to prevent.
+    const many = Array.from({ length: 4 }, (_, i) => extracted(`m${i}`, `fact ${i}`, [`c${i}`]));
+    const table = Object.fromEntries(many.map((_, i) => [`c${i}`, `user: said fact ${i}`]));
+    const read = new Set<string>();
+    const sources = {
+      getSourceText: async (id: string) => {
+        read.add(id);
+        return (table as Record<string, string>)[id] ?? null;
+      },
+    };
+
+    const results = await verifyMemoriesForPublish(many, sources, {
+      apiKey: "k",
+      fetchFn: mockFetch(choices({ supported: [1, 2] })),
+      maxItems: 2,
+    });
+
+    // Only the sent items' sources were read.
+    expect([...read].sort()).toEqual(["c0", "c1"]);
+    // And the tail is still labelled honestly, with counts that say nothing
+    // was read rather than inventing a drop.
+    for (const r of results.slice(2)) {
+      expect(r.status).toBe("unchecked");
+      expect(r.status === "unchecked" && r.reason).toBe("over-budget");
+      expect(r.resolvedSourceCount).toBe(0);
+      expect(r.droppedSourceCount).toBe(0);
+    }
+  });
+
+  it("normalizes a non-finite or fractional maxItems instead of checking nothing", async () => {
+    // `maxItems` is a public option typed as `number`. `Math.max(1, NaN)` is
+    // NaN, and `slice(0, NaN)` sends nothing while `slice(NaN)` marks
+    // everything over-budget — so a bad value used to report "none of your
+    // memories could be checked" on a batch that was entirely checkable.
+    const many = Array.from({ length: 3 }, (_, i) => extracted(`m${i}`, `fact ${i}`, [`c${i}`]));
+    const table = Object.fromEntries(many.map((_, i) => [`c${i}`, `user: said fact ${i}`]));
+
+    for (const bad of [Number.NaN, Number.POSITIVE_INFINITY, undefined]) {
+      const results = await verifyMemoriesForPublish(many, sourcesFrom(table), {
+        apiKey: "k",
+        fetchFn: mockFetch(choices({ supported: [1, 2, 3] })),
+        maxItems: bad as number,
+      });
+      expect(results.map((r) => r.status)).toEqual(["supported", "supported", "supported"]);
+    }
+
+    // A fractional cap floors rather than producing a torn slice.
+    const fractional = await verifyMemoriesForPublish(many, sourcesFrom(table), {
+      apiKey: "k",
+      fetchFn: mockFetch(choices({ supported: [1] })),
+      maxItems: 1.9,
+    });
+    expect(fractional.map((r) => r.status)).toEqual(["supported", "unchecked", "unchecked"]);
+  });
+
   it("redacts by default — the switch is opt-out, not opt-in", async () => {
     // Nothing upstream of this entry point passes `extract.piiRedaction` down
     // the way extraction does for consolidation and the injection classifier,

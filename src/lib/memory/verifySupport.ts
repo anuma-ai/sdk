@@ -494,7 +494,39 @@ export async function verifyMemoriesForPublish(
       continue;
     }
     candidates.push({ index: i, uniqueId: memory.uniqueId, content: memory.content, ids });
-    for (const id of ids) idsToResolve.add(id);
+  }
+
+  // Normalized, not just floored. `maxItems` is a public option typed as
+  // `number`, and `Math.max(1, NaN)` is NaN — the worst possible value here
+  // rather than a loud one: `slice(0, NaN)` sends NOTHING while `slice(NaN)`
+  // marks EVERY item over-budget, so a bad number silently reports "nothing
+  // could be checked" on a batch that was entirely checkable.
+  const maxItems = Number.isFinite(options.maxItems)
+    ? Math.max(1, Math.floor(options.maxItems as number))
+    : DEFAULT_MAX_ITEMS;
+
+  // Apply the batch cap HERE, before resolution, not just before the portal
+  // call. Provenance is unioned on every merge (`retain` accumulates
+  // sourceChunkIds), so a mature memory can carry a lot of ids and a batch of
+  // 200 would otherwise fan out thousands of concurrent reads to build evidence
+  // for the ~20 it can actually send. The over-budget tail is bucketed the same
+  // either way — it just no longer pays for reads first.
+  const withinBudget = candidates.slice(0, maxItems);
+  for (const c of candidates.slice(maxItems)) {
+    // Both counts are 0 and that is the honest number: capping before
+    // resolution means nothing was read for this memory, so no source either
+    // resolved or dropped. (The previous cap ran after resolution and could
+    // report real counts — the trade is deliberate, see above.)
+    results[c.index] = {
+      uniqueId: c.uniqueId,
+      status: "unchecked",
+      reason: "over-budget",
+      resolvedSourceCount: 0,
+      droppedSourceCount: 0,
+    };
+  }
+  for (const c of withinBudget) {
+    for (const id of c.ids) idsToResolve.add(id);
   }
 
   // Resolve each distinct id once. Memories that merged share provenance
@@ -531,7 +563,12 @@ export async function verifyMemoriesForPublish(
     counts: Pick<MemoryVerification, "resolvedSourceCount" | "droppedSourceCount">;
   }
   const pending: Pending[] = [];
-  for (const { index, uniqueId, content, ids } of candidates) {
+  // `withinBudget`, not `candidates`. The over-budget tail deliberately had its
+  // ids left out of resolution, so walking it here would find zero evidence and
+  // overwrite its `over-budget` verdict with `sources-missing` — turning "we
+  // did not check this" into "the evidence is gone", which is exactly the
+  // conflation this pass exists to prevent.
+  for (const { index, uniqueId, content, ids } of withinBudget) {
     const evidence = ids
       .map((id) => resolved.get(id) ?? null)
       .filter((text): text is string => text !== null);
@@ -573,10 +610,21 @@ export async function verifyMemoriesForPublish(
     // drop the tail: an item we never sent is `unchecked`, not `supported`. The
     // injection classifier can trust its remainder because the deterministic
     // screen already passed it; here the remainder has no prior verdict at all.
-    const maxItems = Math.max(1, options.maxItems ?? DEFAULT_MAX_ITEMS);
-    const sent = pending.slice(0, maxItems);
-    for (const { index, uniqueId, counts } of pending.slice(maxItems)) {
-      results[index] = { uniqueId, status: "unchecked", reason: "over-budget", ...counts };
+    // The cap was already applied to `candidates` before source resolution, so
+    // `pending` cannot exceed it — every item here was within budget when its
+    // evidence was read. Guarded rather than re-sliced: if a future edit
+    // reorders those passes this trims and says so, instead of silently
+    // sending an uncapped batch to the portal.
+    let sent = pending;
+    if (pending.length > maxItems) {
+      getLogger().warn(
+        `[memory/verify-support] ${pending.length} candidates survived a cap of ${maxItems}; ` +
+          `the pre-resolution cap was bypassed — trimming.`
+      );
+      for (const { index, uniqueId, counts } of pending.slice(maxItems)) {
+        results[index] = { uniqueId, status: "unchecked", reason: "over-budget", ...counts };
+      }
+      sent = pending.slice(0, maxItems);
     }
     if (pending.length > sent.length) {
       getLogger().warn(
