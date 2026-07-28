@@ -37,7 +37,15 @@ export async function processEntryMemoryEngine(
   api: ApiConfig,
   verbose: boolean,
   maxSessions?: number,
-  embeddingCache?: Map<string, number[]>
+  /**
+   * Shared cross-question embedding cache, spread into `EmbeddingOptions.cache`
+   * below. `Float32Array`, matching the SDK — this said `number[]` and drifted
+   * when the SDK moved to Float32Array (#705, half the RAM per vector). The
+   * mismatch was invisible because `tsconfig.json` is `include: ["src/**\/*"]`,
+   * so nothing typechecked this directory; `suite.ts` has always passed a
+   * `Map<string, Float32Array>`, so the annotation — not the value — was wrong.
+   */
+  embeddingCache?: Map<string, Float32Array>
 ): Promise<LongMemEvalResult> {
   const startTime = performance.now();
 

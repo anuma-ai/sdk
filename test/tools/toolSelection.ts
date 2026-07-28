@@ -70,15 +70,34 @@ const { portalKey: apiKey, baseUrl } = config;
 // functions. Hard-coded copies drift from production over time and let
 // description-quality regressions slip past the integration tests.
 
-/** Extract { name, description } from a ToolConfig (factory result) or schema. */
+/**
+ * Extract { name, description } from a ToolConfig (factory result) or schema.
+ *
+ * Fields are `unknown` and narrowed here rather than declared as `string`,
+ * because `ToolConfig` extends `LlmapiChatCompletionTool`, which is
+ * `{ [key: string]: unknown }` (see clientCompat.ts). An all-optional parameter
+ * of declared `string` fields is a TS "weak type": it requires the argument to
+ * share at least one DECLARED property, and an index signature declares none —
+ * so every `toMeta(createXTool(...))` call below failed to typecheck. Reading
+ * `unknown` and narrowing is also the honest shape for this function, which
+ * parses tool objects whose metadata is untyped by construction.
+ */
 function toMeta(source: {
-  name?: string;
-  description?: string;
-  function?: { name?: string; description?: string };
+  name?: unknown;
+  description?: unknown;
+  function?: unknown;
+  // The index signature is what makes this assignable at all: TS skips the
+  // weak-type check entirely when the target has one. Without it, no amount of
+  // widening the three fields helps, because the check keys on the target being
+  // all-optional rather than on the field types.
+  [key: string]: unknown;
 }): { name: string; description: string } {
-  const name = source.function?.name ?? source.name;
-  const description = source.function?.description ?? source.description;
-  if (!name || !description) {
+  const fn = (
+    typeof source.function === "object" && source.function !== null ? source.function : {}
+  ) as { name?: unknown; description?: unknown };
+  const name = typeof fn.name === "string" ? fn.name : source.name;
+  const description = typeof fn.description === "string" ? fn.description : source.description;
+  if (typeof name !== "string" || !name || typeof description !== "string" || !description) {
     throw new Error(
       `Tool source missing name or description: ${JSON.stringify(source).slice(0, 200)}`
     );
