@@ -54,48 +54,6 @@ import {
 
 const DEFAULT_BASELINE_PATH = "test/memory/src/consolidation/baseline.json";
 
-/**
- * Gated metrics.
- *
- * IMPORTANT — this gate is coarse by construction. The corpus is 7 hand-labelled
- * cases, so at `--runs 5` one flipped decision moves accuracy by 1/35 ≈ 2.9%.
- * That makes this a detector for a COLLAPSE (a broken prompt, a schema change the
- * model can't satisfy, a fallback storm) rather than for fine-grained quality
- * drift. Growing the corpus is what would make a tighter gate meaningful.
- *
- * Each individual pass scores in 1/7 steps, so a 5-run baseline is a coin flip:
- * consecutive 5-run passes of the live model scored 94.3% / 100% / 82.9%, and a
- * baseline generated from the lucky 100% pass would red the gate on the healthy
- * 82.9% one. The committed baseline is therefore generated at `--runs 15`, where
- * the mean is representative. The workflow gates at 15 too — not because the
- * counts must match (they need not; `meanDiffTolerance` folds both into the
- * tolerance) but because here the spread term DOMINATES the floor, so gating at
- * fewer runs genuinely widens the gate. Contrast the topic gate, where every
- * floor dominates and gating at 5 against a 10-run baseline costs nothing.
- *
- * The FLOOR below is sized to the MEAN, not to a single pass. 15 passes over 7
- * cases is 105 decisions, so one flipped decision moves the gated mean by
- * 1/105 = 0.95pt, and 0.03 sits above three flips.
- *
- * It was previously 0.12–0.18, sized for a single pass (1/7 = 14.3pt). Applied to
- * a 15-pass mean that made the gate ~sqrt(15) too loose: a case failing on EVERY
- * pass moves the mean 12.4pt and was reported as "no regressions" — it took 3+
- * simultaneously broken cases to fire at all (#772 review). `gate.ts` now derives
- * the working tolerance from the standard error of the mean difference; this floor
- * only stops a freakishly stable capture from setting a hair-trigger.
- */
-const GATE_METRICS: GateMetricSpec[] = [
-  {
-    key: "overallAccuracy",
-    direction: "higher-better",
-    minTolerance: 0.03,
-    label: "accuracy",
-  },
-  // Fallbacks are the silent failure mode: a create-fallback leaves the stale
-  // contradiction consolidation exists to retire. Higher is worse.
-  { key: "fallbackRate", direction: "lower-better", minTolerance: 0.03, label: "fallback rate" },
-];
-
 const { values: args } = parseArgs({
   options: {
     models: { type: "string" },
@@ -259,6 +217,149 @@ const CASES: Case[] = [
       { id: "c2", content: "User shops at Zara.", similarity: 0.72 },
     ],
     expect: { action: "create" },
+  },
+
+  // ---- Second of each category (see GATE_METRICS below for why 14) --------
+  // Every case below must have exactly ONE defensible answer. A case a competent
+  // human would argue about adds variance instead of removing it, which is the
+  // opposite of why the corpus grew.
+  {
+    name: "unrelated health fact",
+    category: "create",
+    newFact: "User is allergic to penicillin.",
+    candidates: [
+      { id: "c1", content: "User takes vitamin D every morning.", similarity: 0.36 },
+      { id: "c2", content: "User's dentist is on Pine Street.", similarity: 0.24 },
+    ],
+    expect: { action: "create" },
+  },
+  {
+    name: "same facet, adds an attribute",
+    category: "update",
+    newFact: "User's cat Mochi is four years old.",
+    candidates: [
+      { id: "c1", content: "User has a cat named Mochi.", similarity: 0.85 },
+      { id: "c2", content: "User is allergic to pollen.", similarity: 0.19 },
+    ],
+    expect: { action: "update", targetIds: ["c1"] },
+  },
+  {
+    name: "standing value contradicted (1 stale)",
+    category: "supersede-single",
+    newFact: "User is vegetarian.",
+    candidates: [
+      { id: "c1", content: "User eats meat a few times a week.", similarity: 0.81 },
+      { id: "c2", content: "User loves Thai food.", similarity: 0.33 },
+    ],
+    expect: { action: "supersede", targetIds: ["c1"] },
+  },
+  {
+    name: "standing value changed (3 paraphrased dupes, different facet)",
+    category: "supersede-multi",
+    newFact: "User's primary laptop is a MacBook Pro.",
+    candidates: [
+      { id: "c1", content: "User's main laptop is a ThinkPad X1.", similarity: 0.85 },
+      { id: "c2", content: "User uses a ThinkPad as their primary machine.", similarity: 0.84 },
+      { id: "c3", content: "User's daily-driver laptop is a ThinkPad.", similarity: 0.83 },
+      { id: "c4", content: "User has two external monitors.", similarity: 0.22 },
+    ],
+    expect: { action: "supersede", targetIds: ["c1", "c2", "c3"] },
+  },
+  {
+    name: "already captured, different wording",
+    category: "noop",
+    newFact: "User has two children.",
+    candidates: [
+      { id: "c1", content: "User has two kids.", similarity: 0.95 },
+      { id: "c2", content: "User is married.", similarity: 0.41 },
+    ],
+    expect: { action: "noop", targetIds: ["c1"] },
+  },
+  {
+    name: "same trip, different month → create not supersede",
+    category: "hard-negative",
+    newFact: "User flew to Tokyo in March.",
+    candidates: [
+      { id: "c1", content: "User flew to Tokyo in January.", similarity: 0.89 },
+      { id: "c2", content: "User has a valid passport.", similarity: 0.33 },
+    ],
+    expect: { action: "create" },
+  },
+  {
+    name: "different subject, same predicate → create not merge",
+    category: "hard-negative",
+    // The trap: near-identical wording about a DIFFERENT person. Merging here
+    // would overwrite the user's own city with a sibling's.
+    newFact: "User's sister lives in Denver.",
+    candidates: [
+      { id: "c1", content: "User lives in Denver.", similarity: 0.87 },
+      { id: "c2", content: "User visits family a few times a year.", similarity: 0.38 },
+    ],
+    expect: { action: "create" },
+  },
+];
+
+/**
+ * Gated metrics.
+ *
+ * Declared AFTER `CASES` because `itemsPerRun` reads `CASES.length`: at module
+ * scope a const can't be referenced before its initializer runs.
+ *
+ * This gate detects a COLLAPSE — a broken prompt, a schema the model can't
+ * satisfy, a fallback storm — not fine-grained quality drift. The resolution
+ * limit is one case: 14 cases x 15 passes is 210 decisions, so a single case
+ * failing on EVERY pass moves the gated mean by 1/14 = 7.1pt, and the working
+ * tolerance is deliberately set below that and above the run-to-run noise.
+ *
+ * WHY `itemsPerRun`. Accuracy is a rate over the corpus, and a rate's variance is
+ * `p(1-p)/cases` — it shrinks as p approaches 1. So a baseline that draws a
+ * lucky-high mean ALSO records an unusually small spread, and the gate compounds
+ * both errors in the same direction: bar too high, band too narrow. That is not
+ * hypothetical — the 7-case baseline captured 98.1% against a true mean of 95.4%
+ * and failed 8 of 26 subsequent runs (31%) with no code change. `itemsPerRun`
+ * floors the spread at what the mean actually implies; see `binomialRunStdDev`.
+ *
+ * WHY 14 CASES. Tolerance shrinks as 1/sqrt(cases) but one case's weight shrinks
+ * as 1/cases, so the two cross: past roughly 28 cases (at 15 runs) the tolerance
+ * drops BELOW one case's weight and a fully-broken case stops firing — the gate
+ * would grow more precise and less useful at the same time. 14 maximises the
+ * margin between those bounds while halving the old run-to-run noise, at 2x the
+ * LLM cost of 7 (210 sequential calls, ~5 min at the measured 1.36s median).
+ *
+ * The committed baseline is generated at `--runs 25` while the workflow GATES at
+ * 15. Deliberately asymmetric: a capture's error in the mean is permanent until
+ * someone regenerates it — and mis-estimating that mean is precisely what broke
+ * this gate — whereas a gate run's cost is paid again on every PR. So buy
+ * precision where it lasts. 25 passes put the mean's standard error at 1.1pp
+ * (vs 1.5pp at 15) and widen the one-broken-case margin to +2.7pt. Not higher:
+ * 40 passes is 560 sequential calls, which at any upward latency drift crowds the
+ * job's 30-minute timeout for a marginal gain.
+ *
+ * The counts need NOT match — `meanDiffTolerance` folds both into the tolerance,
+ * and `runs` is deliberately absent from the recorded config for that reason. But
+ * note the spread term DOMINATES the floor here, so gating at fewer runs than 15
+ * genuinely widens the gate. Contrast the topic gate, where every floor dominates
+ * and gating at 5 against a 10-run baseline is free.
+ *
+ * `minTolerance` remains the absolute backstop for a degenerate all-identical
+ * capture, where both the empirical and binomial spreads are zero.
+ */
+const GATE_METRICS: GateMetricSpec[] = [
+  {
+    key: "overallAccuracy",
+    direction: "higher-better",
+    minTolerance: 0.03,
+    label: "accuracy",
+    itemsPerRun: CASES.length,
+  },
+  // Fallbacks are the silent failure mode: a create-fallback leaves the stale
+  // contradiction consolidation exists to retire. Higher is worse.
+  {
+    key: "fallbackRate",
+    direction: "lower-better",
+    minTolerance: 0.03,
+    label: "fallback rate",
+    itemsPerRun: CASES.length,
   },
 ];
 

@@ -5,6 +5,7 @@ import {
   compareToGateBaseline,
   describeConfigMismatch,
   formatGateRegressions,
+  type GateBaseline,
   type GateMetricSpec,
   type GateRun,
   isValidGateBaseline,
@@ -279,5 +280,125 @@ describe("mean-difference tolerance scaling (#772 review)", () => {
   it("never goes below the per-suite floor", () => {
     const spec: GateMetricSpec = { key: "m", direction: "higher-better", minTolerance: 0.03 };
     expect(meanDiffTolerance(spec, 0, 15, 15)).toBe(0.03);
+  });
+});
+
+/**
+ * A rate's noise depends on its level, so a baseline that draws a lucky-high mean
+ * records a deceptively small spread and gates on chance. These pin the fix using
+ * the ACTUAL numbers from the consolidation baseline that was failing ~31% of
+ * runs with no code change (mean 98.1%, stdDev 0.0503, 15 runs, 7 cases).
+ */
+describe("itemsPerRun tolerance floor", () => {
+  const LUCKY_MEAN = 0.980952380952381;
+  const LUCKY_STDDEV = 0.050266539324928375;
+  const BASE_RUNS = 15;
+
+  /** The committed band, verbatim, so this test tracks the real regression. */
+  function luckyBaseline(spec: GateMetricSpec): GateBaseline {
+    return {
+      config: {},
+      runs: BASE_RUNS,
+      metrics: {
+        [spec.key]: {
+          mean: LUCKY_MEAN,
+          min: 6 / 7,
+          max: 1,
+          stdDev: LUCKY_STDDEV,
+          tolerance: meanDiffTolerance(spec, LUCKY_STDDEV, BASE_RUNS, BASE_RUNS, LUCKY_MEAN),
+        },
+      },
+    };
+  }
+
+  const WITHOUT: GateMetricSpec = {
+    key: "overallAccuracy",
+    direction: "higher-better",
+    minTolerance: 0.03,
+  };
+  const WITH: GateMetricSpec = { ...WITHOUT, itemsPerRun: 7 };
+
+  it("widens the tolerance when the mean implies more noise than the spread showed", () => {
+    const without = meanDiffTolerance(WITHOUT, LUCKY_STDDEV, BASE_RUNS, BASE_RUNS, LUCKY_MEAN);
+    const with_ = meanDiffTolerance(WITH, LUCKY_STDDEV, BASE_RUNS, BASE_RUNS, LUCKY_MEAN);
+    // The observed-but-wrong width, and the binomially-honest one.
+    expect(without).toBeCloseTo(0.0367, 4);
+    expect(with_).toBeCloseTo(0.0572, 4);
+    expect(with_).toBeGreaterThan(without);
+  });
+
+  it("stops failing the run that measured the process's true mean", () => {
+    // 93.33% was observed twice and is ~1 standard error BELOW the true 95.35%
+    // mean — i.e. an ordinary run. The old gate called it a regression.
+    const trueMeanRun = Array.from({ length: BASE_RUNS }, () => ({ overallAccuracy: 0.9333 }));
+
+    expect(compareToGateBaseline(trueMeanRun, luckyBaseline(WITHOUT), [WITHOUT])).toHaveLength(1);
+    expect(compareToGateBaseline(trueMeanRun, luckyBaseline(WITH), [WITH])).toEqual([]);
+  });
+
+  it("keeps firing when one case of seven breaks on every pass", () => {
+    // The widening must not buy calm at the cost of the gate's whole purpose.
+    const broken = Array.from({ length: BASE_RUNS }, () => ({ overallAccuracy: 6 / 7 }));
+    expect(compareToGateBaseline(broken, luckyBaseline(WITH), [WITH])).toHaveLength(1);
+  });
+
+  it("keeps firing on one broken case at the widened 21-case corpus", () => {
+    // The design constraint of growing the corpus: tolerance shrinks as 1/sqrt(C)
+    // but one case's weight shrinks as 1/C, so past roughly C = runs/(8p(1-p))
+    // (~39 here) a single fully-broken case would stop tripping the gate. 21 keeps
+    // a real margin; this pins that it does.
+    const spec: GateMetricSpec = { ...WITHOUT, itemsPerRun: 21 };
+    const mean = 0.9535;
+    const stdDev = Math.sqrt((mean * (1 - mean)) / 21);
+    const baseline: GateBaseline = {
+      config: {},
+      runs: BASE_RUNS,
+      metrics: {
+        overallAccuracy: {
+          mean,
+          min: mean,
+          max: mean,
+          stdDev,
+          tolerance: meanDiffTolerance(spec, stdDev, BASE_RUNS, BASE_RUNS, mean),
+        },
+      },
+    };
+    const oneCaseWeight = 1 / 21;
+    expect(baseline.metrics.overallAccuracy.tolerance).toBeLessThan(oneCaseWeight);
+
+    const broken = Array.from({ length: BASE_RUNS }, () => ({
+      overallAccuracy: mean - oneCaseWeight,
+    }));
+    expect(compareToGateBaseline(broken, baseline, [spec])).toHaveLength(1);
+  });
+
+  it("never narrows a spread that is genuinely wider than binomial", () => {
+    // Correlated failures or a drifting provider show up as excess spread. A model
+    // that assumes independent items must not be allowed to explain it away.
+    const excess = 0.4;
+    expect(meanDiffTolerance(WITH, excess, BASE_RUNS, BASE_RUNS, LUCKY_MEAN)).toBeCloseTo(
+      meanDiffTolerance(WITHOUT, excess, BASE_RUNS, BASE_RUNS, LUCKY_MEAN),
+      12
+    );
+  });
+
+  it("leaves every metric that does not opt in exactly as it was", () => {
+    for (const [sd, n] of [
+      [0.05, 15],
+      [0.1, 3],
+      [0, 15],
+    ] as const) {
+      expect(meanDiffTolerance(WITHOUT, sd, n, n, LUCKY_MEAN)).toBe(
+        meanDiffTolerance(WITHOUT, sd, n, n)
+      );
+    }
+  });
+
+  it("uses the widest rate the interval allows, not the measured one", () => {
+    // A mean sitting at 1.0 has zero binomial variance; the floor must come from
+    // the bottom of its confidence interval or it collapses exactly when a
+    // too-perfect capture makes it matter most.
+    const perfect = meanDiffTolerance(WITH, 0.02, BASE_RUNS, BASE_RUNS, 1);
+    expect(perfect).toBeGreaterThan(TOLERANCE_SIGMAS * 0.02 * Math.sqrt(2 / BASE_RUNS));
   });
 });
