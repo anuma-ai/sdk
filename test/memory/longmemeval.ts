@@ -582,20 +582,46 @@ function recallGateConfig(): Record<string, string | number | boolean> {
  * was 500ing, and it would have committed a baseline that can never fail.
  * Observed in the wild too — the `benchmarks` branch holds several
  * recall-strategy runs at 0–1.8% accuracy beside healthy ~80% ones.
+ *
+ * Also refuses a run that measured only PART of its questions. Excluding crashed
+ * entries from the averages fixes a fabricated-zero bias, but it cannot fix a
+ * SELECTION bias: if crashes cluster on the hard questions, what is left is an
+ * easier subsample, and comparing it against a full-run baseline is not a
+ * like-for-like comparison in either direction.
  */
 function assertRetrievalHappened(result: {
+  totalQuestions: number;
+  harnessFailures: number;
   retrieval: { avgRecall: number; avgPrecision: number; measuredQuestions: number };
 }): void {
   const { avgRecall, avgPrecision, measuredQuestions } = result.retrieval;
-  // Nothing measured at all is now its OWN failure, distinct from "ranking
-  // returned nothing". The averages read 0/0 in both cases, but a run where
-  // every entry crashed needs the operator pointed at the crashes rather than
-  // at the retrieval stack — and once the averages exclude crashed entries, an
-  // empty denominator is the only thing left that can produce this shape.
+  // Nothing measured at all is its OWN failure, distinct from "ranking returned
+  // nothing". The averages read 0/0 in both cases, but a run where every entry
+  // crashed needs the operator pointed at the crashes rather than at the
+  // retrieval stack — and once the averages exclude crashed entries, an empty
+  // denominator is the only thing left that can produce this shape.
   if (measuredQuestions === 0) {
     console.error(
       `\n  Retrieval was never measured — every entry failed in the harness.\n` +
         `  This is a FAILED RUN, not a 0% result. See the per-entry harness errors above.\n`
+    );
+    process.exit(1);
+  }
+  // A PARTIAL measurement is refused outright rather than compared. This costs
+  // nothing that was not already lost: the `unscored > 0` check at the end of
+  // main() fails any run with a harness error regardless, so there is no run
+  // where this exit changes the job outcome. What it changes is that the gate no
+  // longer prints a verdict — or `--save-baseline` write a file — off a
+  // subsample, ahead of that check. Relying on a later exit to invalidate an
+  // earlier gate's output is exactly the ordering hazard the comment on that
+  // check warns about; this makes the requirement local to the gate.
+  if (measuredQuestions < result.totalQuestions) {
+    console.error(
+      `\n  Retrieval was measured on only ${measuredQuestions}/${result.totalQuestions} questions ` +
+        `(${result.harnessFailures} harness failure(s)).\n` +
+        `  Refusing to gate or capture a baseline from a partial run: crashes are not random ` +
+        `with respect to difficulty,\n  so the surviving subsample is not comparable to a ` +
+        `full-run baseline. Fix the harness errors and re-run.\n`
     );
     process.exit(1);
   }
@@ -610,6 +636,8 @@ function assertRetrievalHappened(result: {
 
 async function saveRecallBaseline(
   runs: Array<{
+    totalQuestions: number;
+    harnessFailures: number;
     retrieval: { avgRecall: number; avgPrecision: number; measuredQuestions: number };
     accuracy: number;
   }>,
@@ -640,6 +668,8 @@ async function saveRecallBaseline(
 
 async function gateRecallAgainstBaseline(
   result: {
+    totalQuestions: number;
+    harnessFailures: number;
     retrieval: { avgRecall: number; avgPrecision: number; measuredQuestions: number };
     accuracy: number;
   },
