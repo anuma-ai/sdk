@@ -287,6 +287,7 @@ export async function recall(
       reranked,
       hadV2Head: v2Head,
       embeddingsUnavailable: factEmbeddingsUnavailable,
+      rankedOnCosine: factRankedOnCosine,
     } = await searchVaultMemoriesWithSize(
       query,
       ctx.vaultCtx,
@@ -344,7 +345,13 @@ export async function recall(
     didRerank = reranked;
     hadV2Head = v2Head;
     if (factEmbeddingsUnavailable) embeddingsUnavailable = true;
-    factLaneRankedOnCosine = !factEmbeddingsUnavailable;
+    // Read the lane's own answer rather than inverting `embeddingsUnavailable`:
+    // an empty vault (or one whose rows are all undecryptable) reports no outage
+    // without ever running a cosine pass, and inverting it there let the fact
+    // lane vouch for semantic ranking it never did — silencing the chunk-lane
+    // reconciliation below for exactly the users most likely to hit it (chunks
+    // saved, no facts yet).
+    factLaneRankedOnCosine = factRankedOnCosine;
     factLaneMs = nowMs() - factStart;
   }
 

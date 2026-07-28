@@ -2306,6 +2306,17 @@ export async function searchVaultMemoriesWithSize(
   hadV2Head: boolean;
   /** True when this search had no usable cosine lane and ranked on BM25 alone. */
   embeddingsUnavailable: boolean;
+  /**
+   * True when this search actually scored rows against a real query vector.
+   *
+   * NOT the inverse of `embeddingsUnavailable`. That flag answers "did cosine
+   * break?", and it is `false` on the degenerate returns below — an invalid
+   * query, an empty scope, nothing decryptable — where cosine did not break so
+   * much as never run. A caller asking "can this lane vouch that semantic
+   * ranking happened?" (recall's chunk-lane reconciliation) must not read those
+   * as a healthy cosine pass.
+   */
+  rankedOnCosine: boolean;
 }> {
   // Invalid query short-circuits BEFORE any storage read (the pre-split
   // behavior — a test pins that `getAllVaultMemoriesOp` is never called).
@@ -2316,6 +2327,7 @@ export async function searchVaultMemoriesWithSize(
       reranked: false,
       hadV2Head: false,
       embeddingsUnavailable: false,
+      rankedOnCosine: false,
     };
   }
   const prepared = await prepareVaultCandidates(
@@ -2328,6 +2340,8 @@ export async function searchVaultMemoriesWithSize(
   // Preserve the pre-split early returns exactly: an empty scope reports
   // vaultSize 0, and rows-present-but-none-decryptable reports the real
   // vaultSize so callers do not mistake it for an empty vault.
+  // Both degenerate returns had nothing to score, so neither can vouch for
+  // cosine having run — see `rankedOnCosine`.
   if (prepared.vaultSize === 0) {
     return {
       results: [],
@@ -2335,6 +2349,7 @@ export async function searchVaultMemoriesWithSize(
       reranked: false,
       hadV2Head: false,
       embeddingsUnavailable: prepared.embeddingsUnavailable,
+      rankedOnCosine: false,
     };
   }
   if (prepared.memories.length === 0) {
@@ -2344,9 +2359,19 @@ export async function searchVaultMemoriesWithSize(
       reranked: false,
       hadV2Head: false,
       embeddingsUnavailable: prepared.embeddingsUnavailable,
+      rankedOnCosine: false,
     };
   }
-  return rankPreparedVaultCandidates(query, prepared, embeddingOptions, searchOptions);
+  const ranked = await rankPreparedVaultCandidates(
+    query,
+    prepared,
+    embeddingOptions,
+    searchOptions
+  );
+  // A real candidate set reached the ranker, so cosine ran iff it was usable.
+  // `prepareVaultCandidates` already collapses "query vector missing" and "no
+  // row vector to score it against" into `embeddingsUnavailable` for this set.
+  return { ...ranked, rankedOnCosine: !ranked.embeddingsUnavailable };
 }
 
 /**

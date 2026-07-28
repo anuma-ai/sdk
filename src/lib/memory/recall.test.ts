@@ -1115,3 +1115,65 @@ describe("recall — embeddings outage degrades instead of throwing", () => {
     expect(seen[0].degraded).not.toContain("embeddings-unavailable");
   });
 });
+
+/**
+ * The reconciliation above only holds if "the fact lane didn't report an
+ * outage" really means "the fact lane ranked on cosine". It doesn't when the
+ * fact lane had nothing to rank: an empty vault (or one whose rows are all
+ * undecryptable) reports `embeddingsUnavailable: false` without ever running a
+ * cosine pass, so a chunk-embed failure looked like a non-outage and a real
+ * provider outage came back as a confident empty result.
+ */
+describe("recall — a fact lane with nothing to rank cannot vouch for cosine", () => {
+  it("reports the outage when the vault is EMPTY and the chunk embed fails", async () => {
+    // The common shape: a user with conversation chunks but no saved facts yet.
+    vi.mocked(getAllVaultMemoriesOp).mockResolvedValue([]);
+    vi.mocked(countActiveVaultMemoriesOp).mockResolvedValue(0);
+    vi.mocked(generateEmbedding).mockRejectedValue(new Error("provider down"));
+
+    const seen: RecallDiagnostics[] = [];
+    const result = await recall("shellfish", makeCtx(), {
+      types: ["fact", "chunk"],
+      onDiagnostics: (d) => seen.push(d),
+    });
+
+    expect(result.memories).toHaveLength(0);
+    expect(vi.mocked(searchChunksOp)).not.toHaveBeenCalled();
+    // Without this, the recall tool tells the answer model "No relevant
+    // memories found" during a live outage — a confident false negative.
+    expect(seen[0].degraded).toContain("embeddings-unavailable");
+  });
+
+  it("reports the outage when every vault row is undecryptable and the chunk embed fails", async () => {
+    // Rows exist but none decrypt, so the fact lane returns before it ever
+    // embeds the query — only the chunk lane's embed is attempted, and it fails.
+    vi.mocked(getAllVaultMemoriesOp).mockResolvedValue([
+      makeMemory("m1", `enc:v2:${"a".repeat(64)}`), // still ciphertext — excluded from ranking
+    ]);
+    vi.mocked(generateEmbedding).mockRejectedValue(new Error("provider down"));
+
+    const seen: RecallDiagnostics[] = [];
+    await recall("shellfish", makeCtx(), {
+      types: ["fact", "chunk"],
+      onDiagnostics: (d) => seen.push(d),
+    });
+
+    expect(seen[0].degraded).toContain("embeddings-unavailable");
+  });
+
+  it("still stays quiet when the fact lane genuinely ranked on cosine", async () => {
+    vi.mocked(getAllVaultMemoriesOp).mockResolvedValue([makeMemory("m1", "allergic to shellfish")]);
+    vi.mocked(generateEmbedding)
+      .mockRejectedValueOnce(new Error("transient blip"))
+      .mockResolvedValue([1, 0, 0]);
+    vi.mocked(generateEmbeddings).mockResolvedValue([[1, 0, 0]]);
+
+    const seen: RecallDiagnostics[] = [];
+    await recall("shellfish", makeCtx(), {
+      types: ["fact", "chunk"],
+      onDiagnostics: (d) => seen.push(d),
+    });
+
+    expect(seen[0].degraded).not.toContain("embeddings-unavailable");
+  });
+});
