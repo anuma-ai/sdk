@@ -126,9 +126,9 @@ jobs:
       INPUT_BASELINE_REPEAT: ${{ inputs.baseline_repeat || '3' }}
       NODE_OPTIONS: "--max-old-space-size=6144"
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: "22"
 
@@ -148,7 +148,7 @@ jobs:
       # `loadLongMemEvalDataset` fetches on demand, so the eval pulls oracle
       # itself on a cold cache and reuses it on every warm one.
       - name: Restore longmemeval cache (oracle dataset + embeddings)
-        uses: actions/cache@v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           path: |
             ~/.cache/longmemeval/embedding-cache-*.json
@@ -191,7 +191,7 @@ jobs:
 
       - name: Upload generated baseline
         if: env.INPUT_MODE == 'save-baseline'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: recall-baseline
           path: test/memory/src/longmemeval/recall-baseline.json
@@ -220,7 +220,7 @@ jobs:
 
       - name: Upload results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: recall-eval-results
           path: results.json
