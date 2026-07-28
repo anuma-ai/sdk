@@ -296,8 +296,17 @@ export class ResponsesStrategy implements ApiStrategy {
       return result;
     }
 
-    // Handle response.completed event - extract usage and mark tool calls as completed
-    if (typedChunk.type === "response.completed") {
+    // Handle the terminal response event - extract usage and mark tool calls
+    // as completed.
+    //
+    // `response.incomplete` is a *separate* terminal event from
+    // `response.completed`, and it is the one the Responses API sends when a
+    // turn is cut off at `max_output_tokens`. It was not handled here at all,
+    // so a truncated turn skipped usage extraction, tool-call completion, and
+    // the truncation normalization below — the stream simply ended with
+    // everything still pending. Both events carry the same response envelope,
+    // so they take the same path.
+    if (typedChunk.type === "response.completed" || typedChunk.type === "response.incomplete") {
       if (typedChunk.response?.usage) {
         const u = typedChunk.response.usage as Record<string, number | undefined>;
         const promptTokens = u.input_tokens ?? u.prompt_tokens ?? 0;
@@ -319,16 +328,18 @@ export class ResponsesStrategy implements ApiStrategy {
 
       // Normalize the Responses-API truncation signal onto the same field the
       // completions strategy uses, so the tool loop has one thing to check.
-      // A response cut off at the ceiling arrives as
-      // `status: "incomplete"` with `incomplete_details.reason:
-      // "max_output_tokens"`; everything else is a clean finish.
+      //
+      // Two shapes in the wild: the dedicated `response.incomplete` event, and
+      // `response.completed` carrying `status: "incomplete"`. Either way the
+      // reason lives in `incomplete_details.reason`, and only
+      // "max_output_tokens" is a truncation — other reasons (e.g. a content
+      // filter) are not, and must not be reported as one.
       const resp = typedChunk.response as
         | { status?: string; incomplete_details?: { reason?: string } }
         | undefined;
-      if (
-        resp?.status === "incomplete" &&
-        resp.incomplete_details?.reason === "max_output_tokens"
-      ) {
+      const looksIncomplete =
+        typedChunk.type === "response.incomplete" || resp?.status === "incomplete";
+      if (looksIncomplete && resp?.incomplete_details?.reason === "max_output_tokens") {
         accumulator.finishReason = "length";
       }
 

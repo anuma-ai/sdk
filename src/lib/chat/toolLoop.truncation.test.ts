@@ -55,22 +55,47 @@ function toolCallStream(callId: string, name: string, args: string) {
 }
 
 /**
- * Responses-API stream truncated at the ceiling. `optionalText` models the
- * two shapes separately: nothing at all (the harmful case) versus a partial
- * answer the caller can still use.
+ * Responses-API stream truncated at the ceiling.
+ *
+ * `eventType` matters: the API sends a dedicated terminal
+ * `response.incomplete` event, which the strategy did not handle at all — an
+ * earlier version of this test asserted the `response.completed` +
+ * `status: "incomplete"` shape and passed while the real event was still
+ * being ignored. Both shapes are exercised below.
+ *
+ * `optionalText` separates the harmful case (nothing usable came back) from a
+ * partial answer the caller can still render.
  */
-function truncatedStream(optionalText?: string) {
+function truncatedStream(
+  optionalText?: string,
+  eventType: "response.incomplete" | "response.completed" = "response.incomplete"
+) {
   return (async function* () {
     yield { type: "response.created", response: { id: "r", model: "m" } };
     if (optionalText) {
       yield { type: "response.output_text.delta", delta: { OfString: optionalText } };
     }
     yield {
-      type: "response.completed",
+      type: eventType,
       response: {
         status: "incomplete",
         incomplete_details: { reason: "max_output_tokens" },
         usage: { input_tokens: 10, output_tokens: 4096 },
+      },
+    };
+  })();
+}
+
+/** Truncated for a reason that is NOT the token ceiling. */
+function filteredStream() {
+  return (async function* () {
+    yield { type: "response.created", response: { id: "r", model: "m" } };
+    yield {
+      type: "response.incomplete",
+      response: {
+        status: "incomplete",
+        incomplete_details: { reason: "content_filter" },
+        usage: { input_tokens: 10, output_tokens: 5 },
       },
     };
   })();
@@ -111,16 +136,41 @@ describe("runToolLoop truncation guard", () => {
     mockGenerateEmbedding.mockResolvedValue([0.1]);
   });
 
-  it("errors when a continuation is truncated to nothing after a tool round", async () => {
-    mockCreateSseClient
-      .mockReturnValueOnce({ stream: toolCallStream("c1", "plan_deck", "{}") } as never)
-      .mockReturnValueOnce({ stream: truncatedStream() } as never);
+  it.each(["response.incomplete", "response.completed"] as const)(
+    "errors when a continuation is truncated to nothing (%s)",
+    async (eventType) => {
+      mockCreateSseClient
+        .mockReturnValueOnce({ stream: toolCallStream("c1", "plan_deck", "{}") } as never)
+        .mockReturnValueOnce({ stream: truncatedStream(undefined, eventType) } as never);
+
+      const result = await run();
+
+      // The regression: this used to be `null`.
+      expect(result.error).toContain("truncated at the output-token limit");
+      expect(result.error).toContain("maxOutputTokens");
+    }
+  );
+
+  // greptile P1 on #792: the guard originally sat inside `if (toolIteration >
+  // 0)`, so a *first* response truncated before it produced anything left
+  // toolIteration at 0 and fell through to the single-round return — just as
+  // silent as the case the guard was written for.
+  it("errors when the very first response is truncated to nothing", async () => {
+    mockCreateSseClient.mockReturnValueOnce({ stream: truncatedStream() } as never);
 
     const result = await run();
 
-    // The regression: this used to be `null`.
     expect(result.error).toContain("truncated at the output-token limit");
-    expect(result.error).toContain("maxOutputTokens");
+  });
+
+  it("does not fire when the turn was cut short for a reason other than the ceiling", async () => {
+    mockCreateSseClient.mockReturnValueOnce({ stream: filteredStream() } as never);
+
+    const result = await run();
+
+    // A content filter is not a truncation; reporting it as one would send
+    // callers chasing a token budget that is not the problem.
+    expect(result.error).toBeNull();
   });
 
   it("still returns a truncated answer that carries partial content", async () => {
