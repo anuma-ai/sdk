@@ -9,7 +9,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("./recall", () => ({ recall: vi.fn() }));
+vi.mock("../memoryVault/decomposeQuery", () => ({
+  decomposeQuery: vi.fn(),
+}));
 
+import { decomposeQuery } from "../memoryVault/decomposeQuery";
 import { recall } from "./recall";
 import {
   createRecallTool,
@@ -404,5 +408,82 @@ describe("createRecallTool executor — embeddings outage on an empty result", (
     await expect(tool.executor!({ query: "my shellfish allergy" })).rejects.toThrow(
       /recall_memory: search failed/
     );
+  });
+});
+
+/**
+ * 719/B4 — query decomposition runs in the tool layer, then passes
+ * `subQueries` into LLM-free `recall()`.
+ */
+describe("createRecallTool executor — tool-layer decompose (719/B4)", () => {
+  beforeEach(() => {
+    vi.mocked(recall).mockResolvedValue(recallResult([fact("m1", "Lives in SF")]));
+    vi.mocked(decomposeQuery).mockReset();
+  });
+
+  it("at budget=high with decomposeOptions, forwards composite facets as subQueries", async () => {
+    vi.mocked(decomposeQuery).mockResolvedValue({
+      mode: "composite",
+      subQueries: ["What is the user name?", "Where does the user live?", "What is their job?"],
+    });
+
+    const tool = createRecallTool(ctx, {
+      types: ["fact"],
+      budget: "high",
+      decomposeOptions: { apiKey: "k", model: "inclusionai/ling-2.6-flash" },
+    });
+    await tool.executor!({ query: "tell me about the user" });
+
+    expect(decomposeQuery).toHaveBeenCalledWith(
+      "tell me about the user",
+      expect.objectContaining({ apiKey: "k", model: "inclusionai/ling-2.6-flash" })
+    );
+    expect(recall).toHaveBeenCalledWith(
+      "tell me about the user",
+      ctx,
+      expect.objectContaining({
+        budget: "high",
+        subQueries: ["What is the user name?", "Where does the user live?", "What is their job?"],
+      })
+    );
+  });
+
+  it("at budget=high, specific-mode does not pass subQueries", async () => {
+    vi.mocked(decomposeQuery).mockResolvedValue({
+      mode: "specific",
+      subQueries: ["tell me about the user"],
+    });
+
+    const tool = createRecallTool(ctx, {
+      types: ["fact"],
+      budget: "high",
+      decomposeOptions: { apiKey: "k" },
+    });
+    await tool.executor!({ query: "tell me about the user" });
+
+    expect(decomposeQuery).toHaveBeenCalled();
+    const opts = vi.mocked(recall).mock.calls[0][2];
+    expect(opts?.subQueries).toBeUndefined();
+  });
+
+  it("does not call decomposeQuery at budget=mid even with decomposeOptions", async () => {
+    const tool = createRecallTool(ctx, {
+      types: ["fact"],
+      budget: "mid",
+      decomposeOptions: { apiKey: "k" },
+    });
+    await tool.executor!({ query: "my allergy" });
+
+    expect(decomposeQuery).not.toHaveBeenCalled();
+    expect(recall).toHaveBeenCalledWith(
+      "my allergy",
+      ctx,
+      expect.objectContaining({ budget: "mid" })
+    );
+  });
+
+  it("tool description nudges multi-facet asks toward several targeted searches", () => {
+    const tool = createRecallTool(ctx, { types: ["fact"] });
+    expect(tool.function.description).toMatch(/several targeted searches/i);
   });
 });

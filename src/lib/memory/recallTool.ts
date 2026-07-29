@@ -8,6 +8,7 @@
  */
 
 import type { ToolConfig } from "../chat/useChat/types.js";
+import { decomposeQuery } from "../memoryVault/decomposeQuery.js";
 import { normalizeForScreen } from "./injectionScreen.js";
 import { recall } from "./recall.js";
 import {
@@ -47,7 +48,8 @@ export interface RecallToolOptions {
   folderId?: string | null;
   /** Exclude one conversation from chunk results (typically the active one). */
   excludeConversationId?: string;
-  /** LLM-decompose options; only used at budget="high". Auth follows the
+  /** LLM-decompose options; only used at budget="high". Runs in THIS tool
+   * executor (719/B4) — `recall()` itself is LLM-free. Auth follows the
    * dual pattern: apiKey (server/CLI) or getToken (browser identity
    * tokens) — at least one required. */
   decomposeOptions?: PortalLlmAuth & {
@@ -342,7 +344,10 @@ export function createRecallTool(
         "Search the user's memory across stored facts/preferences and past conversation excerpts. " +
         "Returns a unified ranked list — facts carry an `id` you can reference; conversation excerpts " +
         "carry a date and role. Use this whenever the user's question may relate to anything previously " +
-        "discussed or saved (preferences, prior decisions, past topics). Phrase the query naturally.",
+        "discussed or saved (preferences, prior decisions, past topics). Phrase the query naturally. " +
+        'For multi-faceted / overview questions ("tell me about the user", "what\'s my tech stack"), ' +
+        "prefer several targeted searches — one facet each (e.g. name, work, hobbies) — over a single " +
+        "broad query; fuse the results yourself.",
       arguments: {
         type: "object",
         properties: {
@@ -443,6 +448,21 @@ export function createRecallTool(
         // RecallResult — it is the channel that already exists for exactly this,
         // and the vault search tool reads it the same way.
         let recallDegraded: readonly string[] = [];
+
+        // 719/B4 — query decomposition lives in the tool layer, not inside
+        // recall(). At budget=high with auth, classify + (if composite) expand
+        // into facet sub-queries, then hand the facets to LLM-free recall.
+        // Failure / specific-mode degrades to a single-query recall (no
+        // subQueries) — same contract as the old in-pipeline path, but the
+        // 1–2s LLM RTT is no longer buried inside retrieval.
+        let subQueries: string[] | undefined;
+        if (defaultBudget === "high" && toolOptions?.decomposeOptions) {
+          const decomp = await decomposeQuery(query, toolOptions.decomposeOptions);
+          if (decomp.mode === "composite" && decomp.subQueries.length >= 2) {
+            subQueries = decomp.subQueries;
+          }
+        }
+
         const recallOpts: RecallOptions = {
           onDiagnostics: (d) => {
             recallDegraded = d.degraded;
@@ -456,10 +476,13 @@ export function createRecallTool(
           ...(toolOptions?.excludeConversationId && {
             excludeConversationId: toolOptions.excludeConversationId,
           }),
+          // Still forwarded for graphRefine auth if a future caller opts in;
+          // recall() does not use it for query rewrite.
           ...(toolOptions?.decomposeOptions && {
             decomposeOptions: toolOptions.decomposeOptions,
           }),
           ...(toolOptions?.now !== undefined && { now: toolOptions.now }),
+          ...(subQueries && { subQueries }),
         };
 
         const result = await recall(query, ctx, recallOpts);

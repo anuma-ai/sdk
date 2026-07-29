@@ -10,7 +10,7 @@ Options for the vault search tool.
 
 > `optional` **admitFactor**: `number`
 
-Defined in: [src/lib/memoryVault/searchTool.ts:142](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/searchTool.ts#142)
+Defined in: [src/lib/memoryVault/searchTool.ts:152](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/searchTool.ts#152)
 
 Admission window multiplier for decrypt-last (`limit * admitFactor`). Default 3.
 
@@ -20,7 +20,7 @@ Admission window multiplier for decrypt-last (`limit * admitFactor`). Default 3.
 
 > `optional` **admitFloor**: `number`
 
-Defined in: [src/lib/memoryVault/searchTool.ts:144](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/searchTool.ts#144)
+Defined in: [src/lib/memoryVault/searchTool.ts:154](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/searchTool.ts#154)
 
 Admission window floor for decrypt-last. Default 30.
 
@@ -46,38 +46,39 @@ Multiplicative cross-encoder blend weight. Default 0.1. Only used when `rerank` 
 
 ***
 
-### decompose?
+### ~~decompose?~~
 
 > `optional` **decompose**: `"off"` | `"llm"`
 
-Defined in: [src/lib/memoryVault/searchTool.ts:110](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/searchTool.ts#110)
+Defined in: [src/lib/memoryVault/searchTool.ts:119](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/searchTool.ts#119)
 
-LLM-based query decomposition for composite/abstract queries. When set,
-each query is classified + (if composite) decomposed into 3–5 facet
-sub-queries via gpt-5-mini, then ranked via rankComposite.
-Requires `decomposeOptions` (auth) when set to "llm".
+**Deprecated**
+
+719/B4 — LLM rewrite no longer runs inside vault search.
+Use [MemoryVaultSearchOptions.subQueries](#subqueries) (or `createRecallTool`).
 
 ***
 
-### decomposeOptions?
+### ~~decomposeOptions?~~
 
 > `optional` **decomposeOptions**: [`PortalLlmAuth`](PortalLlmAuth.md) & `object`
 
-Defined in: [src/lib/memoryVault/searchTool.ts:114](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/searchTool.ts#114)
-
-Auth + endpoint for the decomposition LLM call. Required when
-decompose="llm". Auth is the dual pattern — one of `apiKey` /
-`getToken`; see [PortalLlmAuth](PortalLlmAuth.md).
+Defined in: [src/lib/memoryVault/searchTool.ts:124](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/searchTool.ts#124)
 
 **Type Declaration**
 
-**baseUrl?**
+**~~baseUrl?~~**
 
 > `optional` **baseUrl**: `string`
 
-**model?**
+**~~model?~~**
 
 > `optional` **model**: `string`
+
+**Deprecated**
+
+719/B4 — see `decompose`. Auth for tool-layer rewrite lives
+on `RecallToolOptions.decomposeOptions`.
 
 ***
 
@@ -85,7 +86,7 @@ decompose="llm". Auth is the dual pattern — one of `apiKey` /
 
 > `optional` **decryptLast**: `boolean`
 
-Defined in: [src/lib/memoryVault/searchTool.ts:140](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/searchTool.ts#140)
+Defined in: [src/lib/memoryVault/searchTool.ts:150](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/searchTool.ts#150)
 
 B2 decrypt-last — when set, build the ranking corpus from a
 column-projected key scan + vector LRU (no whole-vault blob load),
@@ -99,7 +100,7 @@ prefix stays byte-identical.
 
 > `optional` **entityRanking**: `string`\[]
 
-Defined in: [src/lib/memoryVault/searchTool.ts:124](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/searchTool.ts#124)
+Defined in: [src/lib/memoryVault/searchTool.ts:134](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/searchTool.ts#134)
 
 W5 graph lane — pre-built ranking of memory IDs by entity-overlap
 score with the query. RRF-fused alongside cosine + BM25. Build via
@@ -257,6 +258,25 @@ When provided, only search memories with these scopes
 
 ***
 
+### ~~subQueries?~~
+
+> `optional` **subQueries**: `string`\[]
+
+Defined in: [src/lib/memoryVault/searchTool.ts:114](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/searchTool.ts#114)
+
+Pre-decomposed facet queries for the composite ranker (719/B4). When
+≥2 are supplied (and embeddings are available), runs rankComposite
+over them — no LLM call inside the search path. Callers that want LLM
+rewrite (e.g. `createRecallTool`) call `decomposeQuery` first and pass
+the facets here.
+
+**Deprecated**
+
+`decompose: "llm"` / `decomposeOptions` — ignored. Kept so
+older call sites type-check; pass `subQueries` instead.
+
+***
+
 ### supersessionBoost?
 
 > `optional` **supersessionBoost**: `number`
@@ -281,7 +301,7 @@ Hard cap on the supersession candidate window. Default 50.
 
 > `optional` **temporalRanking**: `string`\[]
 
-Defined in: [src/lib/memoryVault/searchTool.ts:132](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/searchTool.ts#132)
+Defined in: [src/lib/memoryVault/searchTool.ts:142](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/searchTool.ts#142)
 
 W6 temporal lane — pre-built ranking of memory IDs whose event-time
 overlaps the resolved query window, ordered by overlap score

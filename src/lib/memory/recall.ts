@@ -2,9 +2,14 @@
  * Unified Recall API — single retrieval surface above vault + engine.
  *
  * Budget maps to pipeline depth (mirrors Hindsight's tiered defaults):
- * - `low`  → V2 cosine + BM25 + recency (no rerank, no decompose)
+ * - `low`  → V2 cosine + BM25 + recency (no rerank)
  * - `mid`  → V2 + cross-encoder rerank
- * - `high` → V2 + rerank + LLM query decomposition for composite queries
+ * - `high` → V2 + rerank + multi-hop graph traversal
+ *
+ * LLM-free by design (719/B4): query decomposition for composite asks
+ * lives in the tool/agent layer (`createRecallTool`), which may pass
+ * pre-built `subQueries` into this API. `recall()` itself never pays an
+ * LLM RTT.
  *
  * Fact + chunk lanes are fused with RRF (k=60). The previous naive
  * "sort the union by raw score" path is gone — score scales differ
@@ -59,7 +64,6 @@ const DEFAULT_CHUNK_MIN_SCORE = 0.5;
 
 interface BudgetFlags {
   rerank: boolean;
-  decompose: boolean;
   /**
    * PR4 — enable multi-hop entity-graph traversal in the W5 lane. Gated to
    * `high` only: multi-hop widens the candidate pool (more RRF entries + a
@@ -72,12 +76,12 @@ interface BudgetFlags {
 function flagsForBudget(budget: Budget): BudgetFlags {
   switch (budget) {
     case "high":
-      return { rerank: true, decompose: true, traverse: true };
+      return { rerank: true, traverse: true };
     case "mid":
-      return { rerank: true, decompose: false, traverse: false };
+      return { rerank: true, traverse: false };
     case "low":
     default:
-      return { rerank: false, decompose: false, traverse: false };
+      return { rerank: false, traverse: false };
   }
 }
 
@@ -123,13 +127,14 @@ export async function recall(
 ): Promise<RecallResult> {
   const types: MemoryKind[] = options.types ?? ["fact"];
   const limit = options.limit ?? DEFAULT_LIMIT;
-  const requestedBudget = options.budget ?? DEFAULT_BUDGET;
-  const flags = flagsForBudget(requestedBudget);
-  const decomposeAvailable = flags.decompose && !!options.decomposeOptions;
-  // Report the budget actually executed: high silently downgrades to mid
-  // when decomposeOptions is missing (no LLM to run the query rewriter).
-  const usedBudget: "low" | "mid" | "high" =
-    requestedBudget === "high" && !decomposeAvailable ? "mid" : requestedBudget;
+  const usedBudget = options.budget ?? DEFAULT_BUDGET;
+  const flags = flagsForBudget(usedBudget);
+  // Composite facets from the tool/agent layer (719/B4). ≥2 triggers the
+  // vault composite ranker; a single leftover string is ignored so callers
+  // that always forward `decomp.subQueries` (including specific-mode's
+  // `[original]`) stay on the single-query path.
+  const subQueries =
+    options.subQueries && options.subQueries.length >= 2 ? options.subQueries : undefined;
 
   // Best-effort observability state (D2). Populated as phases run; flushed to
   // options.onDiagnostics just before every return.
@@ -176,7 +181,6 @@ export async function recall(
     if (flags.rerank && factResults.length > 0 && hadV2Head && !didRerank) {
       degraded.push("rerank-unavailable");
     }
-    if (flags.decompose && !decomposeAvailable) degraded.push("decompose-unavailable");
     if (embeddingsUnavailable) degraded.push("embeddings-unavailable");
     const diagnostics: RecallDiagnostics = {
       usedBudget,
@@ -322,10 +326,8 @@ export async function recall(
         }),
         ...(options.rrfK !== undefined && { rrfK: options.rrfK }),
         ...(options.decryptLast !== undefined && { decryptLast: options.decryptLast }),
-        ...(decomposeAvailable && {
-          decompose: "llm" as const,
-          decomposeOptions: options.decomposeOptions,
-        }),
+        // 719/B4 — composite facets arrive pre-built; no LLM call here.
+        ...(subQueries && { subQueries }),
         ...(options.scopes && { scopes: options.scopes }),
         ...(options.folderId !== undefined && { folderId: options.folderId }),
         ...(options.factTypes?.length && { factTypes: options.factTypes }),

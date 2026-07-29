@@ -193,9 +193,9 @@ describe("recall — query validation", () => {
     expect(searchChunksOp).not.toHaveBeenCalled();
   });
 
-  it("reports the downgraded budget even on the empty-query early return", async () => {
+  it("reports the requested budget even on the empty-query early return", async () => {
     const result = await recall("", makeCtx(), { budget: "high" });
-    expect(result.usedBudget).toBe("mid");
+    expect(result.usedBudget).toBe("high");
   });
 });
 
@@ -227,33 +227,38 @@ describe("recall — budget tiers", () => {
     expect(result.memories[0].id).toBe("m1");
   });
 
-  it("budget=high WITHOUT decomposeOptions silently downgrades to mid", async () => {
+  it("budget=high stays high without decomposeOptions (719/B4 — recall is LLM-free)", async () => {
     const result = await recall(QUERY, makeCtx(), { budget: "high" });
 
-    expect(result.usedBudget).toBe("mid");
+    expect(result.usedBudget).toBe("high");
     expect(decomposeQuery).not.toHaveBeenCalled();
-    // Rerank still runs — only the decompose stage is dropped.
+    // Rerank still runs — high includes the CE stage.
     expect(rerankPairs).toHaveBeenCalled();
     expect(result.memories[0].id).toBe("m1");
   });
 
-  it("budget=high WITH decomposeOptions invokes the LLM decomposition", async () => {
-    vi.mocked(decomposeQuery).mockResolvedValue({
-      mode: "composite",
-      subQueries: ["sub one", "sub two", "sub three"],
-    });
-
+  it("budget=high WITH decomposeOptions does NOT invoke LLM rewrite inside recall()", async () => {
+    // 719/B4: decomposeOptions on RecallOptions is auth for graphRefine /
+    // tool-layer callers — recall itself never calls decomposeQuery.
     const result = await recall(QUERY, makeCtx(), {
       budget: "high",
       decomposeOptions: { apiKey: "llm-key", model: "openai/gpt-5-mini" },
     });
 
     expect(result.usedBudget).toBe("high");
-    expect(decomposeQuery).toHaveBeenCalledTimes(1);
-    expect(decomposeQuery).toHaveBeenCalledWith(
-      QUERY,
-      expect.objectContaining({ apiKey: "llm-key", model: "openai/gpt-5-mini" })
-    );
+    expect(decomposeQuery).not.toHaveBeenCalled();
+    expect(generateEmbeddings).not.toHaveBeenCalled();
+    expect(result.memories[0].id).toBe("m1");
+  });
+
+  it("subQueries (≥2) drives the composite ranker without an LLM call", async () => {
+    const result = await recall(QUERY, makeCtx(), {
+      budget: "high",
+      subQueries: ["sub one", "sub two", "sub three"],
+    });
+
+    expect(result.usedBudget).toBe("high");
+    expect(decomposeQuery).not.toHaveBeenCalled();
     // Sub-queries are embedded for the composite ranker.
     expect(generateEmbeddings).toHaveBeenCalledWith(
       ["sub one", "sub two", "sub three"],
@@ -268,35 +273,24 @@ describe("recall — budget tiers", () => {
     // vault item absent from facet fusion (m3, similarity 0, below the 0.1
     // factMinScore) must NOT appear in results. Prevents zero-relevance
     // padding from reaching the answer LLM on the high-budget composite path.
-    vi.mocked(decomposeQuery).mockResolvedValue({
-      mode: "composite",
-      subQueries: ["sub one", "sub two"],
-    });
-
     const result = await recall(QUERY, makeCtx(), {
       budget: "high",
-      decomposeOptions: { apiKey: "llm-key" },
+      subQueries: ["sub one", "sub two"],
     });
 
     expect(result.memories.find((m) => m.id === "m3")).toBeUndefined();
   });
 
-  it("degrades gracefully when decompose falls back to specific (LLM failure contract)", async () => {
-    // decomposeQuery's documented failure contract: network/JSON errors
-    // return { mode: "specific" } instead of throwing. recall must still
-    // produce results via the V2+CE path.
-    vi.mocked(decomposeQuery).mockResolvedValue({ mode: "specific", subQueries: [QUERY] });
-
+  it("a single subQuery entry stays on the single-query path", async () => {
+    // specific-mode decompose returns `[original]`; callers may forward it
+    // blindly. One facet must NOT pay the composite embed/RRF cost.
     const result = await recall(QUERY, makeCtx(), {
       budget: "high",
-      decomposeOptions: { apiKey: "llm-key" },
+      subQueries: [QUERY],
     });
 
     expect(result.memories.map((m) => m.id)).toEqual(["m1", "m2"]);
-    // NOTE (pinned behavior): usedBudget reflects the *configured*
-    // pipeline, not the internal fallback — it stays "high" because
-    // decomposeOptions were supplied, even though decomposition
-    // degraded to single-query mode internally.
+    expect(generateEmbeddings).not.toHaveBeenCalled();
     expect(result.usedBudget).toBe("high");
     expect(result.reranked).toBe(true);
   });
@@ -322,7 +316,7 @@ describe("recall — budget tiers", () => {
 
     const result = await recall(QUERY, makeCtx(), { budget: "high" });
 
-    expect(result.usedBudget).toBe("mid"); // high downgrades w/o decomposeOptions
+    expect(result.usedBudget).toBe("high");
     expect(result.reranked).toBe(false);
     // Recall still returns the fused ranking — degradation is graceful.
     expect(result.memories.map((m) => m.id)).toEqual(["m1", "m2"]);
@@ -997,7 +991,7 @@ describe("recall — diagnostics (onDiagnostics)", () => {
     expect(seen[0].degraded).not.toContain("rerank-unavailable");
   });
 
-  it("flags decompose-unavailable when budget:high lacks decomposeOptions", async () => {
+  it("does NOT flag decompose-unavailable (719/B4 — signal is retired)", async () => {
     const seen: RecallDiagnostics[] = [];
 
     const result = await recall(QUERY, makeCtx(), {
@@ -1005,8 +999,8 @@ describe("recall — diagnostics (onDiagnostics)", () => {
       onDiagnostics: (d) => seen.push(d),
     });
 
-    expect(result.usedBudget).toBe("mid");
-    expect(seen[0].degraded).toContain("decompose-unavailable");
+    expect(result.usedBudget).toBe("high");
+    expect(seen[0].degraded).not.toContain("decompose-unavailable");
   });
 
   it("never lets a throwing diagnostics sink break recall", async () => {

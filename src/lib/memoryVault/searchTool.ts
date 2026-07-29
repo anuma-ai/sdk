@@ -102,15 +102,25 @@ export interface MemoryVaultSearchOptions {
   /** RRF smoothing constant for lane fusion. Default 60. */
   rrfK?: number;
   /**
-   * LLM-based query decomposition for composite/abstract queries. When set,
-   * each query is classified + (if composite) decomposed into 3–5 facet
-   * sub-queries via gpt-5-mini, then ranked via {@link rankComposite}.
-   * Requires `decomposeOptions` (auth) when set to "llm".
+   * Pre-decomposed facet queries for the composite ranker (719/B4). When
+   * ≥2 are supplied (and embeddings are available), runs {@link rankComposite}
+   * over them — no LLM call inside the search path. Callers that want LLM
+   * rewrite (e.g. `createRecallTool`) call `decomposeQuery` first and pass
+   * the facets here.
+   *
+   * @deprecated `decompose: "llm"` / `decomposeOptions` — ignored. Kept so
+   * older call sites type-check; pass `subQueries` instead.
+   */
+  subQueries?: string[];
+  /**
+   * @deprecated 719/B4 — LLM rewrite no longer runs inside vault search.
+   * Use {@link MemoryVaultSearchOptions.subQueries} (or `createRecallTool`).
    */
   decompose?: "off" | "llm";
-  /** Auth + endpoint for the decomposition LLM call. Required when
-   * decompose="llm". Auth is the dual pattern — one of `apiKey` /
-   * `getToken`; see {@link PortalLlmAuth}. */
+  /**
+   * @deprecated 719/B4 — see `decompose`. Auth for tool-layer rewrite lives
+   * on `RecallToolOptions.decomposeOptions`.
+   */
   decomposeOptions?: PortalLlmAuth & {
     baseUrl?: string;
     model?: string;
@@ -2171,105 +2181,99 @@ export async function rankPreparedVaultCandidates(
     ...(searchOptions?.factTypeWeights && { factTypeWeights: searchOptions.factTypeWeights }),
   };
 
-  // Composite path — LLM decomposes the query into sub-queries, embeds them,
-  // and runs the multi-facet RRF ranker. Falls through to V2/V2+CE on
-  // "specific" mode so single-fact queries don't pay the decomposition cost.
+  // Composite path — caller-supplied facet queries (719/B4). The LLM rewrite
+  // that used to live here moved to the tool/agent layer (`createRecallTool`);
+  // this path only embeds + RRF-fuses pre-built sub-queries. Falls through to
+  // V2/V2+CE when fewer than 2 facets are provided.
   // Skipped entirely when embeddings are unavailable: every sub-query facet is a
   // cosine pass, so the composite ranker would fuse a set of all-zero lanes at the
-  // cost of an LLM decompose call plus N embedding calls against a provider that
-  // just failed. Fall through to the single-query path, which BM25 can still serve.
-  if (
-    useFusion &&
-    !embeddingsUnavailable &&
-    searchOptions?.decompose === "llm" &&
-    searchOptions.decomposeOptions
-  ) {
-    const decomp = await decomposeQuery(query, searchOptions.decomposeOptions);
-    if (decomp.mode === "composite") {
-      // A mid-flight outage here degrades the same way: drop to the single-query
-      // path rather than throwing out of the search.
-      let subEmbeddings: number[][];
-      try {
-        subEmbeddings = await generateEmbeddings(decomp.subQueries, embeddingOptions);
-      } catch (err) {
-        getLogger().warn(
-          "memoryVault: sub-query embedding failed — falling back to single-query ranking: " +
-            (err instanceof Error ? err.message : String(err))
-        );
-        // NOT reported as embeddingsUnavailable: the original query vector is
-        // still valid, so the single-query path below runs a real cosine lane.
-        // Flagging it would raise outage telemetry and tell the answer model
-        // only keyword matching ran, when full semantic ranking did — just
-        // without the multi-facet decomposition.
-        subEmbeddings = [];
-      }
-      // A successful-but-degenerate response is the same dead lane as a throw,
-      // and `subEmbeddings.length` alone can't see it: `[[], [], []]` for three
-      // facets has length 3. Every facet must have a REAL vector AT THE QUERY'S
-      // DIMENSION, because there are three ways to reach the same all-zero fusion:
-      //   - empty vector — cosineSimilarity's zero-magnitude branch returns 0;
-      //   - short response — `subEmbeddings[i]` indexes past the end and hands
-      //     `rankComposite` an undefined embedding;
-      //   - wrong dimension — cosineSimilarity bails at `a.length !== b.length`
-      //     and returns 0 (memoryEngine/vector.ts). Reachable via the embedding
-      //     cache, which `generateEmbeddings` keys on text alone, not on model:
-      //     vectors cached under a previous embedding model come back at the old
-      //     dimension while the query vector is current. The row-load path
-      //     dim-checks its cache hits for exactly this reason; facets get the
-      //     same check here.
-      // The `subQueries.length > 0` clause is not redundant: without it a
-      // zero-facet decomposition reads as usable (`0 === 0`, and `[].every()` is
-      // true), and `rankComposite` returns [] on an empty facet list — turning a
-      // degrade into a total recall miss. Unreachable today (decomposeQuery's
-      // validate() rejects an empty subQueries), but the old `length > 0` check
-      // made it safe by accident and this shape doesn't.
-      // Same reasoning as the empty-query guard in embedQueryOrDegrade, applied
-      // to the batch.
-      const subEmbeddingsUsable =
-        decomp.subQueries.length > 0 &&
-        subEmbeddings.length === decomp.subQueries.length &&
-        subEmbeddings.every((v) => v.length > 0 && v.length === queryEmbedding.length);
-      if (subEmbeddings.length > 0 && !subEmbeddingsUsable) {
-        getLogger().warn(
-          `memoryVault: sub-query embedding returned ${subEmbeddings.length} vectors ` +
-            `(dims ${subEmbeddings.map((v) => v.length).join(",")}) for ` +
-            `${decomp.subQueries.length} sub-queries against a ${queryEmbedding.length}-dim ` +
-            "query — falling back to single-query ranking"
-        );
-      }
-      // On a sub-query embed failure, fall through to the single-query path below
-      // — the same path "specific" mode takes — rather than fusing all-zero lanes.
-      if (subEmbeddingsUsable) {
-        const subQueries = decomp.subQueries.map((sq, i) => ({
-          query: sq,
-          embedding: subEmbeddings[i],
-        }));
-        const v2HeadStats = { hadResults: false };
-        const composite = await rankComposite(query, queryEmbedding, subQueries, embeddedItems, {
-          limit,
-          minSimilarity,
-          rerank: !!searchOptions.rerank,
-          ...(searchOptions.rerankTopN !== undefined && {
-            rerankTopN: searchOptions.rerankTopN,
-          }),
-          ...(searchOptions.ceWeight !== undefined && { ceWeight: searchOptions.ceWeight }),
-          ...(searchOptions.mmr !== undefined && { mmr: searchOptions.mmr }),
-          ...tuning,
-          ...(searchOptions.entityRanking && { entityRanking: searchOptions.entityRanking }),
-          ...(searchOptions.temporalRanking && { temporalRanking: searchOptions.temporalRanking }),
-          rerankStats,
-          v2HeadStats,
-        });
-        return stampTimestamps({
-          results: composite,
-          vaultSize,
-          reranked: rerankStats.applied,
-          hadV2Head: v2HeadStats.hadResults,
-        });
-      }
+  // cost of N embedding calls against a provider that just failed. Fall through
+  // to the single-query path, which BM25 can still serve.
+  const facetQueries =
+    searchOptions?.subQueries && searchOptions.subQueries.length >= 2
+      ? searchOptions.subQueries
+      : undefined;
+  if (useFusion && !embeddingsUnavailable && facetQueries) {
+    // A mid-flight outage here degrades the same way: drop to the single-query
+    // path rather than throwing out of the search.
+    let subEmbeddings: number[][];
+    try {
+      subEmbeddings = await generateEmbeddings(facetQueries, embeddingOptions);
+    } catch (err) {
+      getLogger().warn(
+        "memoryVault: sub-query embedding failed — falling back to single-query ranking: " +
+          (err instanceof Error ? err.message : String(err))
+      );
+      // NOT reported as embeddingsUnavailable: the original query vector is
+      // still valid, so the single-query path below runs a real cosine lane.
+      // Flagging it would raise outage telemetry and tell the answer model
+      // only keyword matching ran, when full semantic ranking did — just
+      // without the multi-facet decomposition.
+      subEmbeddings = [];
     }
-    // mode === "specific" (or a degraded sub-query embed) — fall through to
-    // V2/V2+CE below.
+    // A successful-but-degenerate response is the same dead lane as a throw,
+    // and `subEmbeddings.length` alone can't see it: `[[], [], []]` for three
+    // facets has length 3. Every facet must have a REAL vector AT THE QUERY'S
+    // DIMENSION, because there are three ways to reach the same all-zero fusion:
+    //   - empty vector — cosineSimilarity's zero-magnitude branch returns 0;
+    //   - short response — `subEmbeddings[i]` indexes past the end and hands
+    //     `rankComposite` an undefined embedding;
+    //   - wrong dimension — cosineSimilarity bails at `a.length !== b.length`
+    //     and returns 0 (memoryEngine/vector.ts). Reachable via the embedding
+    //     cache, which `generateEmbeddings` keys on text alone, not on model:
+    //     vectors cached under a previous embedding model come back at the old
+    //     dimension while the query vector is current. The row-load path
+    //     dim-checks its cache hits for exactly this reason; facets get the
+    //     same check here.
+    // The `facetQueries.length > 0` clause is not redundant: without it a
+    // zero-facet list reads as usable (`0 === 0`, and `[].every()` is true),
+    // and `rankComposite` returns [] on an empty facet list — turning a
+    // degrade into a total recall miss.
+    // Same reasoning as the empty-query guard in embedQueryOrDegrade, applied
+    // to the batch.
+    const subEmbeddingsUsable =
+      facetQueries.length > 0 &&
+      subEmbeddings.length === facetQueries.length &&
+      subEmbeddings.every((v) => v.length > 0 && v.length === queryEmbedding.length);
+    if (subEmbeddings.length > 0 && !subEmbeddingsUsable) {
+      getLogger().warn(
+        `memoryVault: sub-query embedding returned ${subEmbeddings.length} vectors ` +
+          `(dims ${subEmbeddings.map((v) => v.length).join(",")}) for ` +
+          `${facetQueries.length} sub-queries against a ${queryEmbedding.length}-dim ` +
+          "query — falling back to single-query ranking"
+      );
+    }
+    // On a sub-query embed failure, fall through to the single-query path below
+    // rather than fusing all-zero lanes.
+    if (subEmbeddingsUsable) {
+      const subQueries = facetQueries.map((sq, i) => ({
+        query: sq,
+        embedding: subEmbeddings[i],
+      }));
+      const v2HeadStats = { hadResults: false };
+      const composite = await rankComposite(query, queryEmbedding, subQueries, embeddedItems, {
+        limit,
+        minSimilarity,
+        rerank: !!searchOptions?.rerank,
+        ...(searchOptions?.rerankTopN !== undefined && {
+          rerankTopN: searchOptions.rerankTopN,
+        }),
+        ...(searchOptions?.ceWeight !== undefined && { ceWeight: searchOptions.ceWeight }),
+        ...(searchOptions?.mmr !== undefined && { mmr: searchOptions.mmr }),
+        ...tuning,
+        ...(searchOptions?.entityRanking && { entityRanking: searchOptions.entityRanking }),
+        ...(searchOptions?.temporalRanking && { temporalRanking: searchOptions.temporalRanking }),
+        rerankStats,
+        v2HeadStats,
+      });
+      return stampTimestamps({
+        results: composite,
+        vaultSize,
+        reranked: rerankStats.applied,
+        hadV2Head: v2HeadStats.hadResults,
+      });
+    }
+    // Degenerate sub-query embed — fall through to V2/V2+CE below.
   }
 
   if (useFusion && searchOptions?.rerank) {
@@ -2546,15 +2550,16 @@ export function createMemoryVaultSearchTool(
       try {
         // Route through the unified recall() API so the chat tool, the
         // SDK's programmatic surface, and any future consumer all share
-        // one ranking pipeline. searchOptions.rerank/decompose/decomposeOptions
-        // map onto recall's `budget` for the legacy MemoryVaultSearchOptions
-        // shape.
-        const budget: "low" | "mid" | "high" =
-          searchOptions?.decompose === "llm" && searchOptions.decomposeOptions
-            ? "high"
-            : searchOptions?.rerank
-              ? "mid"
-              : "low";
+        // one ranking pipeline. 719/B4: LLM rewrite (when opted in via
+        // the deprecated `decompose: "llm"` flag) runs HERE in the tool
+        // executor, then passes pre-built `subQueries` into LLM-free recall.
+        const wantsDecompose =
+          searchOptions?.decompose === "llm" && !!searchOptions.decomposeOptions;
+        const budget: "low" | "mid" | "high" = wantsDecompose
+          ? "high"
+          : searchOptions?.rerank
+            ? "mid"
+            : "low";
         // Host's configured folder wins — the LLM can't escape a host-
         // imposed scope. When the host has *not* set a folder, the LLM's
         // explicit folder_id (including `null` for unfiled) is used.
@@ -2588,6 +2593,16 @@ export function createMemoryVaultSearchTool(
           );
         }
 
+        // Tool-layer decompose (719/B4). Failure degrades to specific-mode
+        // (no subQueries) — same contract as the old in-search path.
+        let subQueries: string[] | undefined;
+        if (wantsDecompose && searchOptions?.decomposeOptions) {
+          const decomp = await decomposeQuery(query, searchOptions.decomposeOptions);
+          if (decomp.mode === "composite" && decomp.subQueries.length >= 2) {
+            subQueries = decomp.subQueries;
+          }
+        }
+
         const { recall } = await import("../memory/recall.js");
         // Read the degradation off the diagnostics seam rather than widening
         // RecallResult: it is the channel that already exists for exactly this.
@@ -2606,10 +2621,7 @@ export function createMemoryVaultSearchTool(
             ...tuningForward,
             ...(folderId !== undefined && { folderId }),
             ...(searchOptions?.scopes && { scopes: searchOptions.scopes }),
-            ...(searchOptions?.decompose === "llm" &&
-              searchOptions.decomposeOptions && {
-                decomposeOptions: searchOptions.decomposeOptions,
-              }),
+            ...(subQueries && { subQueries }),
           }
         );
 
