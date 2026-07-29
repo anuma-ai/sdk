@@ -10,9 +10,11 @@
  * assertion wanted.
  */
 import { Database, Q } from "@nozbe/watermelondb";
+import type { WriterInterface } from "@nozbe/watermelondb/Database/WorkQueue";
 import LokiJSAdapter from "@nozbe/watermelondb/adapters/lokijs";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { extractAndLinkEntitiesForMemoriesOp } from "../../memory/topicExtract";
 import * as entityOps from "../entities/operations";
 import {
   type EntityOperationsContext,
@@ -25,6 +27,7 @@ import { SDK_SCHEMA_VERSION, sdkMigrations, sdkModelClasses, sdkSchema } from ".
 import type { VaultMemory } from "./models";
 import {
   backfillMemoryTopicsOp,
+  clearMemoryTopicsOverrideOp,
   createVaultMemoryOp,
   getMemoriesNeedingTopicExtractionOp,
   relinkMemoryTopicsOp,
@@ -436,17 +439,27 @@ describe("topics is written by every link path", () => {
  * the relink tests.
  */
 describe("getMemoriesNeedingTopicExtractionOp — the curated gate survived the filter move", () => {
-  it("keeps a curated UNLINKED row out of pending", async () => {
-    // No links + no stamp is the shape that would otherwise be sent to the LLM.
+  it("keeps a curated, deliberately topicless row out of pending", async () => {
+    // No links + no stamp is the shape that would otherwise be sent to the LLM,
+    // and an EMPTY record is what makes this row the user's choice rather than
+    // restore damage: parseTopics keeps `[]` ("recorded as topicless") distinct
+    // from null ("no record yet"), and only null is repaired — see the pre-v42
+    // restore-damage suite.
     const id = await seedMemory("follows ZetaChain");
-    await markAsRestored(id, { topics_user_managed: true });
+    await markAsRestored(id, {
+      topics: "[]",
+      topics_updated_at: 5_000,
+      topics_user_managed: true,
+    });
 
     const result = await getMemoriesNeedingTopicExtractionOp(ctx);
 
     expect(result.pending).toEqual([]);
     expect(result.linkedUnstamped).toEqual([]);
-    // ...and it isn't a relink candidate either: no record to rebuild from.
+    // ...and it isn't a relink candidate either: no names to rebuild from.
     expect(result.topicsToRelink).toEqual([]);
+    // The flag survives — the user asked for no topics on this memory.
+    expect((await rowOf(id)).topicsUserManaged).toBe(true);
   });
 
   it("keeps a curated LINKED-UNSTAMPED row out of linkedUnstamped", async () => {
@@ -482,8 +495,15 @@ describe("getMemoriesNeedingTopicExtractionOp — the curated gate survived the 
   });
 
   it("still gates on a raw SQLite 1, not just a real boolean", async () => {
+    // Links + a record, so the row is curated in every sense — the flag is the
+    // only thing keeping it out of `linkedUnstamped`.
     const id = await seedMemory("follows ZetaChain");
-    await markAsRestored(id, { topics_user_managed: 1 });
+    await setMemoryEntitiesOp(ctx, id, ["ZetaChain"]);
+    await markAsRestored(id, {
+      topics_user_managed: 1,
+      topics_extracted_at: null,
+      topics_extracted_version: null,
+    });
 
     const result = await getMemoriesNeedingTopicExtractionOp(ctx);
 
@@ -710,6 +730,10 @@ describe("relinkMemoryTopicsOp", () => {
     });
     const before = await rowOf(id);
     const updatedAtBefore = before.updatedAt.getTime();
+    // The COLUMN, not the Model: WatermelonDB's RecordCache hands out the same
+    // instance for every `find`, so holding the Model and comparing `.topics`
+    // after the op would compare the value to itself and never fail.
+    const topicsBefore = before.topics;
 
     await relinkMemoryTopicsOp(ctx, [id]);
 
@@ -718,7 +742,7 @@ describe("relinkMemoryTopicsOp", () => {
     // its embedding) for every memory on every device migration.
     expect(after.topicsUpdatedAt).toBe(5_000);
     expect(after.updatedAt.getTime()).toBe(updatedAtBefore);
-    expect(after.topics).toBe(before.topics);
+    expect(after.topics).toBe(topicsBefore);
     expect((after._raw as Record<string, unknown>)._status).toBe("synced");
   });
 
@@ -842,5 +866,343 @@ describe("topics backfill", () => {
       prepareSpy.mockRestore();
     }
     expect(await topicsOf(id)).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// T6 — rows a PRE-v42 restore damaged
+// ---------------------------------------------------------------------------
+
+/**
+ * v42 makes `topics` the durable record the index is rebuilt from, which fixes
+ * the mechanism going forward but repairs nothing on a device restored BEFORE
+ * it: those rows have no record to rebuild from. Two shapes reach no bucket at
+ * all and so sit outside entity-graph recall permanently (#796) — a curated row
+ * whose curation is empty, and a stamped auto row at the current extraction
+ * version. Both are healed here, and the healing must not touch a row whose
+ * topics the user really does own.
+ */
+describe("pre-v42 restore damage", () => {
+  /** No `topics` record and no links — the state a pre-v42 restore leaves. */
+  async function seedDamaged(
+    content: string,
+    extra: Record<string, unknown> = {}
+  ): Promise<string> {
+    const id = await seedMemory(content);
+    await markAsRestored(id, { topics: null, topics_updated_at: null, ...extra });
+    return id;
+  }
+
+  /** A portal completion returning a fixed extraction result, injected via
+   * `fetchFn` so the suite's global no-network stub stays in force. */
+  function llmReturning(memories: Array<{ id: string; entities: unknown[] }>): typeof fetch {
+    return vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        choices: [{ message: { content: JSON.stringify({ memories }) } }],
+      }),
+    }) as unknown as typeof fetch;
+  }
+
+  it("re-extracts a stamped row left with neither links nor a record", async () => {
+    // Stamped at the CURRENT version and unedited, so every other check passes
+    // it over: relink has no record to read, backfill no links to derive from.
+    // The LLM is the only way back, and this narrow route is how it gets there.
+    const id = await seedDamaged("works at Acme", {
+      topics_extracted_at: Date.now() + 10_000,
+      topics_extracted_version: TOPICS_EXTRACTION_VERSION,
+    });
+
+    const sweep = await getMemoriesNeedingTopicExtractionOp(ctx);
+
+    expect(sweep.pending.map((m) => m.uniqueId)).toEqual([id]);
+  });
+
+  it("leaves a healthy extracted row alone", async () => {
+    // The reason the repair is scoped this tightly rather than done with a
+    // TOPICS_EXTRACTION_VERSION bump: that gate is unconditional across every
+    // stamped row, so it would have sent each user's whole extracted vault back
+    // to the LLM to reach the handful of damaged ones.
+    const id = await seedMemory("works at Acme");
+    await replaceMemoryEntitiesGuardedOp(entityCtx, id, ["Acme"]);
+    await markAsRestored(id, {
+      topics_extracted_at: Date.now() + 10_000,
+      topics_extracted_version: TOPICS_EXTRACTION_VERSION,
+    });
+    expect(await topicsOf(id)).not.toBeNull();
+
+    const sweep = await getMemoriesNeedingTopicExtractionOp(ctx);
+
+    expect(sweep.pending).toEqual([]);
+    expect(sweep.linkedUnstamped).toEqual([]);
+    expect(sweep.topicsToRelink).toEqual([]);
+    expect(sweep.topicsBackfill).toEqual([]);
+  });
+
+  it("never re-asks about a row extraction already answered empty", async () => {
+    // `[]` is a RECORD ("no topics here"), not damage, and it looks identical to
+    // a damaged row from the links alone. Re-offering it would leak an LLM call
+    // per quiet memory per sweep, forever — the exact thing the watermark exists
+    // to prevent.
+    const id = await seedDamaged("likes tea", {
+      topics: "[]",
+      topics_updated_at: 5_000,
+      topics_extracted_at: Date.now() + 10_000,
+      topics_extracted_version: TOPICS_EXTRACTION_VERSION,
+    });
+
+    for (let pass = 0; pass < 3; pass++) {
+      const sweep = await getMemoriesNeedingTopicExtractionOp(ctx);
+      expect(sweep.pending).toEqual([]);
+      expect(sweep.linkedUnstamped).toEqual([]);
+      expect(sweep.topicsToRelink).toEqual([]);
+      expect(sweep.topicsBackfill).toEqual([]);
+    }
+    expect(await topicsOf(id)).toEqual([]);
+  });
+
+  it("terminates when the repair extraction itself finds nothing", async () => {
+    // The repair has to be self-limiting: an answered-empty pass writes `[]`
+    // (topicsEqual never matches a null record, so the write always lands), and
+    // `[]` no longer matches the repair. Without that, a memory with no entities
+    // in it would be re-extracted on every sweep for the rest of its life.
+    const id = await seedDamaged("likes tea", {
+      topics_extracted_at: Date.now() + 10_000,
+      topics_extracted_version: TOPICS_EXTRACTION_VERSION,
+    });
+
+    const first = await getMemoriesNeedingTopicExtractionOp(ctx);
+    expect(first.pending.map((m) => m.uniqueId)).toEqual([id]);
+    await extractAndLinkEntitiesForMemoriesOp(ctx, [id], {
+      apiKey: "k",
+      fetchFn: llmReturning([{ id, entities: [] }]),
+      now: Date.now(),
+    });
+
+    expect(await topicsOf(id)).toEqual([]);
+    expect((await getMemoriesNeedingTopicExtractionOp(ctx)).pending).toEqual([]);
+  });
+
+  it("leaves a row with a record but no links to the relink bucket", async () => {
+    // A non-empty record with no index is repairable without the LLM, and
+    // topicsToRelink claims it before the repair check is reached.
+    const id = await seedMemory("works at Acme");
+    await markAsRestored(id, {
+      topics: JSON.stringify([{ name: "Acme", source: "auto" }]),
+      topics_updated_at: 5_000,
+      topics_extracted_at: Date.now() + 10_000,
+      topics_extracted_version: TOPICS_EXTRACTION_VERSION,
+    });
+
+    const sweep = await getMemoriesNeedingTopicExtractionOp(ctx);
+
+    expect(sweep.topicsToRelink).toEqual([id]);
+    expect(sweep.pending).toEqual([]);
+  });
+
+  it("clears a provably-empty curation and sends the row to the LLM bucket", async () => {
+    // The flag says the user owns this memory's topics, but there is no record
+    // to own and no link either, so it is protecting nothing while blocking
+    // every repair path.
+    const id = await seedDamaged("follows ZetaChain", { topics_user_managed: true });
+    const updatedAtBefore = (await rowOf(id)).updatedAt.getTime();
+
+    const sweep = await getMemoriesNeedingTopicExtractionOp(ctx);
+
+    expect(sweep.pending.map((m) => m.uniqueId)).toEqual([id]);
+    // The flag has to actually go, not just be ignored by the partition: the
+    // extraction path checks it up front and replaceMemoryEntitiesGuardedOp
+    // re-checks it inside its writer, so a still-flagged row would be selected
+    // and then discarded on every sweep, forever.
+    expect((await rowOf(id)).topicsUserManaged).toBe(false);
+    // A repair is not a re-observation — recency must not move.
+    expect((await rowOf(id)).updatedAt.getTime()).toBe(updatedAtBefore);
+  });
+
+  it("persists what the extraction found instead of losing it to the guard", async () => {
+    const id = await seedDamaged("works at Acme", { topics_user_managed: true });
+
+    const sweep = await getMemoriesNeedingTopicExtractionOp(ctx);
+    const run = await extractAndLinkEntitiesForMemoriesOp(
+      ctx,
+      sweep.pending.map((m) => m.uniqueId),
+      {
+        apiKey: "k",
+        fetchFn: llmReturning([{ id, entities: [{ name: "Acme", kind: "organization" }] }]),
+        now: Date.now(),
+      }
+    );
+
+    expect(run.skippedIds).toEqual([]);
+    expect(run.stampedIds).toEqual([id]);
+    // Both halves landed: the device-local index and the durable record.
+    expect(await linkedNamesOf(id)).toEqual(["acme"]);
+    const topics = await topicsOf(id);
+    expect(topicNames(topics)).toEqual(["acme"]);
+    expect(topics!.map((t) => t.source)).toEqual(["auto"]);
+  });
+
+  it("leaves a curated row that still has links alone", async () => {
+    const id = await seedMemory("follows ZetaChain");
+    await setMemoryEntitiesOp(ctx, id, ["ZetaChain"]);
+    await markAsRestored(id, { topics: null, topics_updated_at: null });
+
+    const sweep = await getMemoriesNeedingTopicExtractionOp(ctx);
+
+    // Its topics are recoverable from the index, so it belongs to backfill —
+    // never to the LLM, and the flag stays.
+    expect(sweep.topicsBackfill).toEqual([id]);
+    expect(sweep.pending).toEqual([]);
+    expect((await rowOf(id)).topicsUserManaged).toBe(true);
+  });
+
+  it("leaves a curated row that has a topics record alone", async () => {
+    const id = await seedMemory("follows ZetaChain");
+    await markAsRestored(id, {
+      topics: JSON.stringify([{ name: "ZetaChain", source: "user" }]),
+      topics_updated_at: 5_000,
+      topics_user_managed: true,
+    });
+
+    const sweep = await getMemoriesNeedingTopicExtractionOp(ctx);
+
+    // Record but no index: the post-v42 restore case, which relink repairs
+    // without touching the vault row at all.
+    expect(sweep.topicsToRelink).toEqual([id]);
+    expect(sweep.pending).toEqual([]);
+    expect((await rowOf(id)).topicsUserManaged).toBe(true);
+  });
+
+  it("declines the repair reset when a topics record exists", async () => {
+    // The race the `unlessTopicsRecorded` guard closes: a real curation landing
+    // between the sweep's read and its clear. Resetting then would hand the
+    // user's chosen topics to the autotagger.
+    const id = await seedMemory("follows ZetaChain");
+    await setMemoryEntitiesOp(ctx, id, ["ZetaChain"]);
+
+    expect(await clearMemoryTopicsOverrideOp(ctx, id, { unlessTopicsRecorded: true })).toBe(false);
+    expect((await rowOf(id)).topicsUserManaged).toBe(true);
+
+    // The user-facing reset is unaffected — resetting a curated row is its job.
+    expect(await clearMemoryTopicsOverrideOp(ctx, id)).toBe(true);
+    expect((await rowOf(id)).topicsUserManaged).toBe(false);
+  });
+
+  it("keeps the curation when the repair sweep runs mid-write", async () => {
+    // The interleave the `unlessTopicsRecorded` guard cannot catch on its own:
+    // the clear landing between a curation's flag write and its topics write.
+    // While those were two writers the row spent that gap reading exactly like
+    // damage — flag set, no record, no links — and the guard only looks at
+    // `topics`, so it waved the reset through.
+    const id = await seedDamaged("follows ZetaChain", {
+      topics_user_managed: true,
+      topics_extracted_at: Date.now() + 10_000,
+      topics_extracted_version: TOPICS_EXTRACTION_VERSION,
+    });
+
+    // Run the repair sweep the first time the curation releases the write queue.
+    // That is the whole window a second writer gets: with the flag and the topics
+    // split across two writers it falls between them, with one writer it can only
+    // land after the curation is whole. Both ops run for real.
+    const realWrite = db.write.bind(db);
+    let depth = 0;
+    let swept = false;
+    const track =
+      (work: (writer: WriterInterface) => Promise<unknown>) => async (writer: WriterInterface) => {
+        depth++;
+        try {
+          return await work(writer);
+        } finally {
+          depth--;
+        }
+      };
+    const writeSpy = vi.spyOn(db, "write").mockImplementation((work, description) => {
+      // A writer nested via callWriter has to reach the queue in the same tick or
+      // WatermelonDB rejects it, so only top-level writers are gated.
+      if (depth > 0) return realWrite(track(work), description);
+      const committed = realWrite(track(work), description);
+      return (async () => {
+        const result = await committed;
+        if (!swept) {
+          swept = true;
+          await getMemoriesNeedingTopicExtractionOp(ctx);
+        }
+        return result;
+      })();
+    });
+
+    await setMemoryEntitiesOp(ctx, id, ["ZetaChain"]);
+    writeSpy.mockRestore();
+    expect(swept).toBe(true);
+
+    // The user picked these topics — nothing about a concurrent repair may
+    // hand them back to the autotagger.
+    const row = await rowOf(id);
+    expect(row.topicsUserManaged).toBe(true);
+    const topics = await topicsOf(id);
+    expect(topicNames(topics)).toEqual(["zetachain"]);
+    expect(topics!.map((t) => t.source)).toEqual(["user"]);
+    expect(row.topicsExtractedVersion).toBe(TOPICS_EXTRACTION_VERSION);
+    expect((await getMemoriesNeedingTopicExtractionOp(ctx)).pending).toEqual([]);
+  });
+
+  it("finishes the sweep when one repair clear fails", async () => {
+    // The clear loop sits before the return, so an unguarded write failure threw
+    // out of the whole sweep: the worker got no pending, no relink and no
+    // backfill list either, over one row it could have skipped.
+    const damagedA = await seedDamaged("memory a", { topics_user_managed: true });
+    const damagedB = await seedDamaged("memory b", { topics_user_managed: true });
+    const toRelink = await seedMemory("works at Acme");
+    await markAsRestored(toRelink, {
+      topics: JSON.stringify([{ name: "Acme", source: "auto" }]),
+      topics_updated_at: 5_000,
+      topics_extracted_at: Date.now() + 10_000,
+      topics_extracted_version: TOPICS_EXTRACTION_VERSION,
+    });
+
+    const realWrite = db.write.bind(db);
+    let failed = false;
+    const writeSpy = vi.spyOn(db, "write").mockImplementation((work, description) => {
+      if (failed) return realWrite(work, description);
+      failed = true;
+      return Promise.reject(new Error("disk full"));
+    });
+
+    const sweep = await getMemoriesNeedingTopicExtractionOp(ctx);
+    writeSpy.mockRestore();
+
+    expect(failed).toBe(true);
+    expect(sweep.topicsToRelink).toEqual([toRelink]);
+    expect(sweep.pending.map((m) => m.uniqueId).sort()).toEqual([damagedA, damagedB].sort());
+    // Only the row whose write failed keeps its stale flag, and the next sweep
+    // picks it up again — the clear is idempotent.
+    const stillFlagged: string[] = [];
+    for (const id of [damagedA, damagedB]) {
+      if ((await rowOf(id)).topicsUserManaged) stillFlagged.push(id);
+    }
+    expect(stillFlagged).toHaveLength(1);
+
+    await getMemoriesNeedingTopicExtractionOp(ctx);
+    expect((await rowOf(stillFlagged[0]!)).topicsUserManaged).toBe(false);
+  });
+
+  it("caps the repair under limit and drains it across sweeps", async () => {
+    const ids: string[] = [];
+    for (let i = 0; i < 5; i++) {
+      ids.push(await seedDamaged(`memory ${i}`, { topics_user_managed: true }));
+    }
+
+    // Each clear loads a Model and dirties the row, so the backlog has to be
+    // paced like every other bucket rather than repaired in one spike.
+    const first = await getMemoriesNeedingTopicExtractionOp(ctx, { limit: 2 });
+    expect(first.pending).toHaveLength(2);
+    let cleared = 0;
+    for (const id of ids) if (!(await rowOf(id)).topicsUserManaged) cleared++;
+    expect(cleared).toBe(2);
+
+    for (let pass = 0; pass < 4; pass++) {
+      await getMemoriesNeedingTopicExtractionOp(ctx, { limit: 2 });
+    }
+    for (const id of ids) expect((await rowOf(id)).topicsUserManaged).toBe(false);
   });
 });
