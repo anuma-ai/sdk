@@ -1,5 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 
+import type { NerDetector, PiiSpan } from "../pii/ner";
+import { PiiRedactor } from "../pii/redactor";
+
 vi.mock("../db/chat/operations", () => ({
   getMessageOp: vi.fn(),
 }));
@@ -455,6 +458,41 @@ describe("verifyMemoriesForPublish — budgets and redaction", () => {
     const [inFact, firstInEvidence, secondInEvidence] = body.match(/\[EMAIL_\d+\]/g) ?? [];
     expect(secondInEvidence).toBe(inFact);
     expect(firstInEvidence).not.toBe(inFact);
+  });
+
+  // The redactor a caller HANDS us may carry an NER detector, and NER only runs
+  // on `redactTextAsync` — the sync `redactText` is regex-only. Redacting this
+  // path synchronously silently shipped every name, location and org to the
+  // portal in plain text for exactly the callers who configured redaction most
+  // carefully. Both slots are covered because both leave the device: the fact is
+  // what the extractor wrote, the evidence is the raw conversation.
+  it("applies the caller's NER detector, not just the regex half of it", async () => {
+    const detector: NerDetector = {
+      async detect(text: string): Promise<PiiSpan[]> {
+        // Deliberately something no regex in the redactor matches — a bare
+        // personal name. If NER is skipped this survives into the request body.
+        const spans: PiiSpan[] = [];
+        let at = text.indexOf("Marguerite Okonkwo");
+        while (at !== -1) {
+          spans.push({ start: at, end: at + "Marguerite Okonkwo".length, category: "PERSON" });
+          at = text.indexOf("Marguerite Okonkwo", at + 1);
+        }
+        return spans;
+      },
+    };
+    const fetchFn = mockFetch(choices({ supported: [1] }));
+    await verifyMemoriesForPublish(
+      [extracted("m1", "Works with Marguerite Okonkwo", ["c1"])],
+      sourcesFrom({ c1: "user: Marguerite Okonkwo reviewed the draft" }),
+      { apiKey: "k", fetchFn, piiRedaction: new PiiRedactor({ nerDetector: detector }) }
+    );
+    const body = bodyOf(fetchFn);
+    expect(body).not.toContain("Marguerite Okonkwo");
+    // Same value, same placeholder across fact and evidence — the shared-redactor
+    // invariant has to survive the async path too.
+    const seen = body.match(/\[PERSON_\d+\]/g) ?? [];
+    expect(seen).toHaveLength(2);
+    expect(seen[0]).toBe(seen[1]);
   });
 
   it("does not let the content it is judging forge the item framing", async () => {

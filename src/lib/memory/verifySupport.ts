@@ -360,35 +360,50 @@ async function verifyFactSupport(
   // is OPT-OUT here: only an explicit `false` disables it
   // (resolvePiiRedactor(false) → undefined).
   const redactor: PiiRedactor | undefined = resolvePiiRedactor(options.piiRedaction ?? true);
-  const safe = (text: string) => (redactor ? redactor.redactText(text).text : text);
+  // ASYNC, deliberately. `redactText` is regex-only; a caller who configured an
+  // `nerDetector` gets names, locations and orgs masked only by
+  // `redactTextAsync`. This is an egress path — the fact and the raw
+  // conversation evidence both leave the device — so it has to honour the
+  // redactor the caller actually configured, not the cheaper half of it.
+  // Without a detector `redactTextAsync` returns `redactText` directly, so
+  // nothing changes for the default case.
+  const safe = async (text: string) =>
+    redactor ? (await redactor.redactTextAsync(text)).text : text;
   let truncatedCount = 0;
-  const numbered = items
-    .map((item, i) => {
-      // Both slots carry attacker-reachable text (a fact is whatever the
-      // extractor wrote about a poisoned turn; evidence is raw conversation),
-      // so neither may be able to forge the framing. Facts collapse to one
-      // line and EVERY evidence line is indented — including the lines inside a
-      // multi-line message, and splitting on {@link LINE_BREAK} rather than just
-      // `\n` so a lone `\r` cannot start an unindented one — which leaves the
-      // left margin unreachable from content. Who SAID a line is the resolver's
-      // invariant, not this function's: it indents text whose roles it cannot see.
-      let evidence = item.evidence
-        .map(safe)
-        .join("\n")
-        .split(LINE_BREAK)
-        .map((line) => `  ${line}`)
-        .join("\n");
-      if (evidence.length > maxEvidenceChars) {
-        // The marker goes at the margin, which the prompt declares as ours.
-        // Indenting it into the evidence block would read better and let any
-        // message forge a truncation note by typing one.
-        evidence = `${evidence.slice(0, maxEvidenceChars)}\n…[evidence truncated]`;
-        truncatedCount++;
-      }
-      const fact = safe(item.fact).replace(/\s+/g, " ").trim();
-      return `[${i + 1}] FACT: ${fact}\nMESSAGES:\n${evidence}`;
-    })
-    .join("\n\n");
+  const parts: string[] = [];
+  // SEQUENTIAL, not Promise.all. The redactor is stateful: it mints
+  // `[EMAIL_1]`, `[EMAIL_2]`, … in first-seen order and reuses them so one
+  // value reads the same everywhere in the prompt. Racing the calls would tie
+  // that numbering to promise resolution order, so the same batch could produce
+  // a differently-numbered prompt run to run. Document order is the only order
+  // that reproduces.
+  for (const [i, item] of items.entries()) {
+    // Both slots carry attacker-reachable text (a fact is whatever the
+    // extractor wrote about a poisoned turn; evidence is raw conversation),
+    // so neither may be able to forge the framing. Facts collapse to one
+    // line and EVERY evidence line is indented — including the lines inside a
+    // multi-line message, and splitting on {@link LINE_BREAK} rather than just
+    // `\n` so a lone `\r` cannot start an unindented one — which leaves the
+    // left margin unreachable from content. Who SAID a line is the resolver's
+    // invariant, not this function's: it indents text whose roles it cannot see.
+    const redactedEvidence: string[] = [];
+    for (const line of item.evidence) redactedEvidence.push(await safe(line));
+    let evidence = redactedEvidence
+      .join("\n")
+      .split(LINE_BREAK)
+      .map((line) => `  ${line}`)
+      .join("\n");
+    if (evidence.length > maxEvidenceChars) {
+      // The marker goes at the margin, which the prompt declares as ours.
+      // Indenting it into the evidence block would read better and let any
+      // message forge a truncation note by typing one.
+      evidence = `${evidence.slice(0, maxEvidenceChars)}\n…[evidence truncated]`;
+      truncatedCount++;
+    }
+    const fact = (await safe(item.fact)).replace(/\s+/g, " ").trim();
+    parts.push(`[${i + 1}] FACT: ${fact}\nMESSAGES:\n${evidence}`);
+  }
+  const numbered = parts.join("\n\n");
   if (truncatedCount > 0) {
     // Aggregate, not per item: truncation can turn a supported fact into a
     // review flag, so it must be observable, but one line per memory would
