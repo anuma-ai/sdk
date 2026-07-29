@@ -2,4 +2,4 @@
 
 > **GetWellKnownJwksJsonResponse** = [`GetWellKnownJwksJsonResponses`](GetWellKnownJwksJsonResponses.md)\[keyof [`GetWellKnownJwksJsonResponses`](GetWellKnownJwksJsonResponses.md)]
 
-Defined in: [src/client/types.gen.ts:4325](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4325)
+Defined in: [src/client/types.gen.ts:4347](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4347)

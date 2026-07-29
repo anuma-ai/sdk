@@ -2,7 +2,7 @@
 
 > **getApiV1Personas**<`ThrowOnError`>(`options?`: [`Options`](../type-aliases/Options.md)<[`GetApiV1PersonasData`](../type-aliases/GetApiV1PersonasData.md), `ThrowOnError`, `unknown`>): `RequestResult`<[`GetApiV1PersonasResponses`](../type-aliases/GetApiV1PersonasResponses.md), [`GetApiV1PersonasErrors`](../type-aliases/GetApiV1PersonasErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:1067](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1067)
+Defined in: [src/client/sdk.gen.ts:1088](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1088)
 
 List personas
 

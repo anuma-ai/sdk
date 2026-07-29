@@ -275,6 +275,11 @@
 | [GetApiV1ModelsErrors](Internal/type-aliases/GetApiV1ModelsErrors.md) | - |
 | [GetApiV1ModelsResponse](Internal/type-aliases/GetApiV1ModelsResponse.md) | - |
 | [GetApiV1ModelsResponses](Internal/type-aliases/GetApiV1ModelsResponses.md) | - |
+| [GetApiV1NotificationsPreferencesData](Internal/type-aliases/GetApiV1NotificationsPreferencesData.md) | - |
+| [GetApiV1NotificationsPreferencesError](Internal/type-aliases/GetApiV1NotificationsPreferencesError.md) | - |
+| [GetApiV1NotificationsPreferencesErrors](Internal/type-aliases/GetApiV1NotificationsPreferencesErrors.md) | - |
+| [GetApiV1NotificationsPreferencesResponse](Internal/type-aliases/GetApiV1NotificationsPreferencesResponse.md) | - |
+| [GetApiV1NotificationsPreferencesResponses](Internal/type-aliases/GetApiV1NotificationsPreferencesResponses.md) | - |
 | [GetApiV1PersonasByIdData](Internal/type-aliases/GetApiV1PersonasByIdData.md) | - |
 | [GetApiV1PersonasByIdError](Internal/type-aliases/GetApiV1PersonasByIdError.md) | - |
 | [GetApiV1PersonasByIdErrors](Internal/type-aliases/GetApiV1PersonasByIdErrors.md) | - |
@@ -491,6 +496,8 @@
 | [HandlersNearbyModerateRequest](Internal/type-aliases/HandlersNearbyModerateRequest.md) | - |
 | [HandlersNonceResponse](Internal/type-aliases/HandlersNonceResponse.md) | - |
 | [HandlersNotificationDeviceResponse](Internal/type-aliases/HandlersNotificationDeviceResponse.md) | - |
+| [HandlersNotificationPreferenceItem](Internal/type-aliases/HandlersNotificationPreferenceItem.md) | - |
+| [HandlersNotificationPreferencesResponse](Internal/type-aliases/HandlersNotificationPreferencesResponse.md) | - |
 | [HandlersOAuthClientResponse](Internal/type-aliases/HandlersOAuthClientResponse.md) | - |
 | [HandlersOauthTokenError](Internal/type-aliases/HandlersOauthTokenError.md) | - |
 | [HandlersOAuthTokenResponse](Internal/type-aliases/HandlersOAuthTokenResponse.md) | - |
@@ -527,6 +534,8 @@
 | [HandlersSendTestPushRequest](Internal/type-aliases/HandlersSendTestPushRequest.md) | - |
 | [HandlersSendTestPushResponse](Internal/type-aliases/HandlersSendTestPushResponse.md) | - |
 | [HandlersSetConnectorEnabledRequest](Internal/type-aliases/HandlersSetConnectorEnabledRequest.md) | - |
+| [HandlersSetNotificationPreferenceInput](Internal/type-aliases/HandlersSetNotificationPreferenceInput.md) | - |
+| [HandlersSetNotificationPreferencesRequest](Internal/type-aliases/HandlersSetNotificationPreferencesRequest.md) | - |
 | [HandlersSetScopeItem](Internal/type-aliases/HandlersSetScopeItem.md) | - |
 | [HandlersSetScopesRequest](Internal/type-aliases/HandlersSetScopesRequest.md) | - |
 | [HandlersSetSubscriptionTierRequest](Internal/type-aliases/HandlersSetSubscriptionTierRequest.md) | - |
@@ -1137,6 +1146,11 @@
 | [PutApiV1ConnectorsByProviderToolsErrors](Internal/type-aliases/PutApiV1ConnectorsByProviderToolsErrors.md) | - |
 | [PutApiV1ConnectorsByProviderToolsResponse](Internal/type-aliases/PutApiV1ConnectorsByProviderToolsResponse.md) | - |
 | [PutApiV1ConnectorsByProviderToolsResponses](Internal/type-aliases/PutApiV1ConnectorsByProviderToolsResponses.md) | - |
+| [PutApiV1NotificationsPreferencesData](Internal/type-aliases/PutApiV1NotificationsPreferencesData.md) | - |
+| [PutApiV1NotificationsPreferencesError](Internal/type-aliases/PutApiV1NotificationsPreferencesError.md) | - |
+| [PutApiV1NotificationsPreferencesErrors](Internal/type-aliases/PutApiV1NotificationsPreferencesErrors.md) | - |
+| [PutApiV1NotificationsPreferencesResponse](Internal/type-aliases/PutApiV1NotificationsPreferencesResponse.md) | - |
+| [PutApiV1NotificationsPreferencesResponses](Internal/type-aliases/PutApiV1NotificationsPreferencesResponses.md) | - |
 | [ResponseErrorResponse](Internal/type-aliases/ResponseErrorResponse.md) | - |
 | [ResponseInsufficientBalanceResponse](Internal/type-aliases/ResponseInsufficientBalanceResponse.md) | - |
 | [SharedChatModel](Internal/type-aliases/SharedChatModel.md) | Model ID used to generate the response, like `gpt-4o` or `o3`. OpenAI offers a wide range of models with different capabilities, performance characteristics, and price points. Refer to the [model guide](https://platform.openai.com/docs/models) to browse and compare available models. |
@@ -1208,6 +1222,7 @@
 | [getApiV1Me](Internal/functions/getApiV1Me.md) | Return the caller's identity and granted scopes |
 | [getApiV1MediaSharedBySlug](Internal/functions/getApiV1MediaSharedBySlug.md) | Resolve a public shared artifact's media |
 | [getApiV1Models](Internal/functions/getApiV1Models.md) | List available models |
+| [getApiV1NotificationsPreferences](Internal/functions/getApiV1NotificationsPreferences.md) | List notification preferences |
 | [getApiV1Personas](Internal/functions/getApiV1Personas.md) | List personas |
 | [getApiV1PersonasById](Internal/functions/getApiV1PersonasById.md) | Get persona |
 | [getApiV1PhoneCallsByCallId](Internal/functions/getApiV1PhoneCallsByCallId.md) | Get phone call |
@@ -1322,6 +1337,7 @@
 | [putApiV1AgentsByIdPreference](Internal/functions/putApiV1AgentsByIdPreference.md) | Set user agent preference |
 | [putApiV1ConnectorsByProviderScopes](Internal/functions/putApiV1ConnectorsByProviderScopes.md) | Batch Allow/Disable connector capabilities |
 | [putApiV1ConnectorsByProviderTools](Internal/functions/putApiV1ConnectorsByProviderTools.md) | Batch ALLOW/DENY connector tools |
+| [putApiV1NotificationsPreferences](Internal/functions/putApiV1NotificationsPreferences.md) | Set notification preferences |
 
 ## References
 

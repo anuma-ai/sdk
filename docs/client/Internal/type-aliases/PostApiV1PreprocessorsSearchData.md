@@ -2,7 +2,7 @@
 
 > **PostApiV1PreprocessorsSearchData** = `object`
 
-Defined in: [src/client/types.gen.ts:8913](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8913)
+Defined in: [src/client/types.gen.ts:9008](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9008)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:8913](https://github.com/anuma-ai/sdk/blob/
 
 > **body**: [`HandlersPreProcessorRequest`](HandlersPreProcessorRequest.md)
 
-Defined in: [src/client/types.gen.ts:8917](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8917)
+Defined in: [src/client/types.gen.ts:9012](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9012)
 
 Search query (q max 400 chars / 50 words) and optional limit (default 5, max 10).
 
@@ -20,7 +20,7 @@ Search query (q max 400 chars / 50 words) and optional limit (default 5, max 10)
 
 > `optional` **path**: `never`
 
-Defined in: [src/client/types.gen.ts:8918](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8918)
+Defined in: [src/client/types.gen.ts:9013](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9013)
 
 ***
 
@@ -28,7 +28,7 @@ Defined in: [src/client/types.gen.ts:8918](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **query**: `never`
 
-Defined in: [src/client/types.gen.ts:8919](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8919)
+Defined in: [src/client/types.gen.ts:9014](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9014)
 
 ***
 
@@ -36,4 +36,4 @@ Defined in: [src/client/types.gen.ts:8919](https://github.com/anuma-ai/sdk/blob/
 
 > **url**: `"/api/v1/preprocessors/search"`
 
-Defined in: [src/client/types.gen.ts:8920](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8920)
+Defined in: [src/client/types.gen.ts:9015](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9015)

@@ -2,7 +2,7 @@
 
 > **PostApiV1ConnectorsByProviderProxyData** = `object`
 
-Defined in: [src/client/types.gen.ts:7123](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7123)
+Defined in: [src/client/types.gen.ts:7145](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7145)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:7123](https://github.com/anuma-ai/sdk/blob/
 
 > **body**: [`HandlersConnectorProxyRequest`](HandlersConnectorProxyRequest.md)
 
-Defined in: [src/client/types.gen.ts:7127](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7127)
+Defined in: [src/client/types.gen.ts:7149](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7149)
 
 Proxy request
 
@@ -20,7 +20,7 @@ Proxy request
 
 > **path**: `object`
 
-Defined in: [src/client/types.gen.ts:7128](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7128)
+Defined in: [src/client/types.gen.ts:7150](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7150)
 
 **provider**
 
@@ -34,7 +34,7 @@ Logical connector provider (x, slack)
 
 > `optional` **query**: `never`
 
-Defined in: [src/client/types.gen.ts:7134](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7134)
+Defined in: [src/client/types.gen.ts:7156](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7156)
 
 ***
 
@@ -42,4 +42,4 @@ Defined in: [src/client/types.gen.ts:7134](https://github.com/anuma-ai/sdk/blob/
 
 > **url**: `"/api/v1/connectors/{provider}/proxy"`
 
-Defined in: [src/client/types.gen.ts:7135](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7135)
+Defined in: [src/client/types.gen.ts:7157](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7157)

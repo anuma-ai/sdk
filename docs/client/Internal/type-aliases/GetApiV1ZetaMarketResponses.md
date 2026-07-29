@@ -2,7 +2,7 @@
 
 > **GetApiV1ZetaMarketResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:10418](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10418)
+Defined in: [src/client/types.gen.ts:10513](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10513)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:10418](https://github.com/anuma-ai/sdk/blob
 
 > **200**: [`HandlersZetaMarketResponse`](HandlersZetaMarketResponse.md)
 
-Defined in: [src/client/types.gen.ts:10422](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10422)
+Defined in: [src/client/types.gen.ts:10517](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10517)
 
 OK
