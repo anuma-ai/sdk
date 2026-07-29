@@ -2,7 +2,7 @@
 
 > **HandlersUserLookupEnrollment** = `object`
 
-Defined in: [src/client/types.gen.ts:3037](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3037)
+Defined in: [src/client/types.gen.ts:3067](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3067)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:3037](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **app\_id**: `number`
 
-Defined in: [src/client/types.gen.ts:3038](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3038)
+Defined in: [src/client/types.gen.ts:3068](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3068)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:3038](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **app\_name**: `string`
 
-Defined in: [src/client/types.gen.ts:3039](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3039)
+Defined in: [src/client/types.gen.ts:3069](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3069)
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: [src/client/types.gen.ts:3039](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **balance\_updated\_at**: `string`
 
-Defined in: [src/client/types.gen.ts:3040](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3040)
+Defined in: [src/client/types.gen.ts:3070](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3070)
 
 ***
 
@@ -34,7 +34,7 @@ Defined in: [src/client/types.gen.ts:3040](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **cached\_balance\_usd**: `number`
 
-Defined in: [src/client/types.gen.ts:3044](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3044)
+Defined in: [src/client/types.gen.ts:3074](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3074)
 
 \= available (single-column model, epic #1092 PR4)
 
@@ -44,7 +44,7 @@ Defined in: [src/client/types.gen.ts:3044](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **created\_at**: `string`
 
-Defined in: [src/client/types.gen.ts:3045](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3045)
+Defined in: [src/client/types.gen.ts:3075](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3075)
 
 ***
 
@@ -52,7 +52,7 @@ Defined in: [src/client/types.gen.ts:3045](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **id**: `number`
 
-Defined in: [src/client/types.gen.ts:3046](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3046)
+Defined in: [src/client/types.gen.ts:3076](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3076)
 
 ***
 
@@ -60,7 +60,7 @@ Defined in: [src/client/types.gen.ts:3046](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **lifetime\_credits**: `number`
 
-Defined in: [src/client/types.gen.ts:3047](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3047)
+Defined in: [src/client/types.gen.ts:3077](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3077)
 
 ***
 
@@ -68,7 +68,7 @@ Defined in: [src/client/types.gen.ts:3047](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **payment\_provider**: `string`
 
-Defined in: [src/client/types.gen.ts:3048](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3048)
+Defined in: [src/client/types.gen.ts:3078](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3078)
 
 ***
 
@@ -76,7 +76,7 @@ Defined in: [src/client/types.gen.ts:3048](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **pro\_activated\_at**: `string`
 
-Defined in: [src/client/types.gen.ts:3049](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3049)
+Defined in: [src/client/types.gen.ts:3079](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3079)
 
 ***
 
@@ -84,7 +84,7 @@ Defined in: [src/client/types.gen.ts:3049](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **starter\_activated\_at**: `string`
 
-Defined in: [src/client/types.gen.ts:3050](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3050)
+Defined in: [src/client/types.gen.ts:3080](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3080)
 
 ***
 
@@ -92,7 +92,7 @@ Defined in: [src/client/types.gen.ts:3050](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **subscription\_source**: `string`
 
-Defined in: [src/client/types.gen.ts:3051](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3051)
+Defined in: [src/client/types.gen.ts:3081](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3081)
 
 ***
 
@@ -100,7 +100,7 @@ Defined in: [src/client/types.gen.ts:3051](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **subscription\_tier**: `string`
 
-Defined in: [src/client/types.gen.ts:3052](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3052)
+Defined in: [src/client/types.gen.ts:3082](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3082)
 
 ***
 
@@ -108,4 +108,4 @@ Defined in: [src/client/types.gen.ts:3052](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **updated\_at**: `string`
 
-Defined in: [src/client/types.gen.ts:3053](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3053)
+Defined in: [src/client/types.gen.ts:3083](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3083)

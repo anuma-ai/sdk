@@ -2,7 +2,7 @@
 
 > **GetApiV1AdminUsersLookupData** = `object`
 
-Defined in: [src/client/types.gen.ts:6094](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6094)
+Defined in: [src/client/types.gen.ts:6128](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6128)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:6094](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **body**: `never`
 
-Defined in: [src/client/types.gen.ts:6095](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6095)
+Defined in: [src/client/types.gen.ts:6129](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6129)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:6095](https://github.com/anuma-ai/sdk/blob/
 
 > **headers**: `object`
 
-Defined in: [src/client/types.gen.ts:6096](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6096)
+Defined in: [src/client/types.gen.ts:6130](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6130)
 
 **X-Admin-API-Key**
 
@@ -32,7 +32,7 @@ Admin API key
 
 > `optional` **path**: `never`
 
-Defined in: [src/client/types.gen.ts:6102](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6102)
+Defined in: [src/client/types.gen.ts:6136](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6136)
 
 ***
 
@@ -40,7 +40,7 @@ Defined in: [src/client/types.gen.ts:6102](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **query**: `object`
 
-Defined in: [src/client/types.gen.ts:6103](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6103)
+Defined in: [src/client/types.gen.ts:6137](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6137)
 
 **email?**
 
@@ -72,4 +72,4 @@ User wallet address (0x...)
 
 > **url**: `"/api/v1/admin/users/lookup"`
 
-Defined in: [src/client/types.gen.ts:6121](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6121)
+Defined in: [src/client/types.gen.ts:6155](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6155)

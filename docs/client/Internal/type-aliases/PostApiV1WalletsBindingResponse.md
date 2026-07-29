@@ -2,4 +2,4 @@
 
 > **PostApiV1WalletsBindingResponse** = [`PostApiV1WalletsBindingResponses`](PostApiV1WalletsBindingResponses.md)\[keyof [`PostApiV1WalletsBindingResponses`](PostApiV1WalletsBindingResponses.md)]
 
-Defined in: [src/client/types.gen.ts:10301](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10301)
+Defined in: [src/client/types.gen.ts:10408](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10408)

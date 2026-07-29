@@ -2,4 +2,4 @@
 
 > **DeleteApiV1UserApiKeysByKeyIdResponse** = [`DeleteApiV1UserApiKeysByKeyIdResponses`](DeleteApiV1UserApiKeysByKeyIdResponses.md)\[keyof [`DeleteApiV1UserApiKeysByKeyIdResponses`](DeleteApiV1UserApiKeysByKeyIdResponses.md)]
 
-Defined in: [src/client/types.gen.ts:10016](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10016)
+Defined in: [src/client/types.gen.ts:10123](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10123)

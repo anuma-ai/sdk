@@ -2,7 +2,7 @@
 
 > **HandlersTotpEnrollInitResponse** = `object`
 
-Defined in: [src/client/types.gen.ts:3282](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3282)
+Defined in: [src/client/types.gen.ts:3312](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3312)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:3282](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **otpauth\_uri**: `string`
 
-Defined in: [src/client/types.gen.ts:3283](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3283)
+Defined in: [src/client/types.gen.ts:3313](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3313)
 
 ***
 
@@ -18,4 +18,4 @@ Defined in: [src/client/types.gen.ts:3283](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **secret\_base32**: `string`
 
-Defined in: [src/client/types.gen.ts:3284](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3284)
+Defined in: [src/client/types.gen.ts:3314](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3314)

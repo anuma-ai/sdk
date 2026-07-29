@@ -2,7 +2,7 @@
 
 > **HandlersSendTestPushResponse** = `object`
 
-Defined in: [src/client/types.gen.ts:2567](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2567)
+Defined in: [src/client/types.gen.ts:2588](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2588)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:2567](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **delivered\_count**: `number`
 
-Defined in: [src/client/types.gen.ts:2568](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2568)
+Defined in: [src/client/types.gen.ts:2589](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2589)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:2568](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **error\_count**: `number`
 
-Defined in: [src/client/types.gen.ts:2569](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2569)
+Defined in: [src/client/types.gen.ts:2590](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2590)
 
 ***
 
@@ -26,4 +26,4 @@ Defined in: [src/client/types.gen.ts:2569](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **pruned\_count**: `number`
 
-Defined in: [src/client/types.gen.ts:2570](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2570)
+Defined in: [src/client/types.gen.ts:2591](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2591)

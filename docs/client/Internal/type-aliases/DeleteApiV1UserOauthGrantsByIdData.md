@@ -2,7 +2,7 @@
 
 > **DeleteApiV1UserOauthGrantsByIdData** = `object`
 
-Defined in: [src/client/types.gen.ts:10047](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10047)
+Defined in: [src/client/types.gen.ts:10154](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10154)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:10047](https://github.com/anuma-ai/sdk/blob
 
 > `optional` **body**: `never`
 
-Defined in: [src/client/types.gen.ts:10048](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10048)
+Defined in: [src/client/types.gen.ts:10155](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10155)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:10048](https://github.com/anuma-ai/sdk/blob
 
 > **path**: `object`
 
-Defined in: [src/client/types.gen.ts:10049](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10049)
+Defined in: [src/client/types.gen.ts:10156](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10156)
 
 **id**
 
@@ -32,7 +32,7 @@ Grant ID
 
 > `optional` **query**: `never`
 
-Defined in: [src/client/types.gen.ts:10055](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10055)
+Defined in: [src/client/types.gen.ts:10162](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10162)
 
 ***
 
@@ -40,4 +40,4 @@ Defined in: [src/client/types.gen.ts:10055](https://github.com/anuma-ai/sdk/blob
 
 > **url**: `"/api/v1/user/oauth/grants/{id}"`
 
-Defined in: [src/client/types.gen.ts:10056](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10056)
+Defined in: [src/client/types.gen.ts:10163](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10163)

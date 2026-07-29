@@ -2,7 +2,7 @@
 
 > **OpenaiChatCompletionPredictionContentContentUnionParam** = `object`
 
-Defined in: [src/client/types.gen.ts:3915](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3915)
+Defined in: [src/client/types.gen.ts:3945](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3945)
 
 The content that should be matched when generating a model response. If
 generated tokens would match this content, the entire model response can be
@@ -14,7 +14,7 @@ returned much more quickly.
 
 > `optional` **any**: `unknown`
 
-Defined in: [src/client/types.gen.ts:3916](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3916)
+Defined in: [src/client/types.gen.ts:3946](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3946)
 
 ***
 
@@ -22,7 +22,7 @@ Defined in: [src/client/types.gen.ts:3916](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **ofArrayOfContentParts**: [`OpenaiChatCompletionContentPartTextParam`](OpenaiChatCompletionContentPartTextParam.md)\[]
 
-Defined in: [src/client/types.gen.ts:3917](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3917)
+Defined in: [src/client/types.gen.ts:3947](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3947)
 
 ***
 
@@ -30,4 +30,4 @@ Defined in: [src/client/types.gen.ts:3917](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **ofString**: [`ParamOptString`](ParamOptString.md)
 
-Defined in: [src/client/types.gen.ts:3918](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3918)
+Defined in: [src/client/types.gen.ts:3948](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3948)

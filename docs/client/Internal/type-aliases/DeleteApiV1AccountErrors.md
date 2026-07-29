@@ -2,7 +2,7 @@
 
 > **DeleteApiV1AccountErrors** = `object`
 
-Defined in: [src/client/types.gen.ts:4334](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4334)
+Defined in: [src/client/types.gen.ts:4364](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4364)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:4334](https://github.com/anuma-ai/sdk/blob/
 
 > **401**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:4338](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4338)
+Defined in: [src/client/types.gen.ts:4368](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4368)
 
 Unauthorized
 
@@ -20,7 +20,7 @@ Unauthorized
 
 > **403**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:4342](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4342)
+Defined in: [src/client/types.gen.ts:4372](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4372)
 
 Forbidden — account deletion requires user (JWT) authentication
 
@@ -30,7 +30,7 @@ Forbidden — account deletion requires user (JWT) authentication
 
 > **404**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:4346](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4346)
+Defined in: [src/client/types.gen.ts:4376](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4376)
 
 Account not found
 
@@ -40,6 +40,6 @@ Account not found
 
 > **500**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:4350](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4350)
+Defined in: [src/client/types.gen.ts:4380](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4380)
 
 Internal server error

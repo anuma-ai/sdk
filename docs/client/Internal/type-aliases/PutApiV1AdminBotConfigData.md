@@ -2,7 +2,7 @@
 
 > **PutApiV1AdminBotConfigData** = `object`
 
-Defined in: [src/client/types.gen.ts:5047](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5047)
+Defined in: [src/client/types.gen.ts:5077](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5077)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:5047](https://github.com/anuma-ai/sdk/blob/
 
 > **body**: `object`
 
-Defined in: [src/client/types.gen.ts:5051](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5051)
+Defined in: [src/client/types.gen.ts:5081](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5081)
 
 Partial BotConfig patch
 
@@ -24,7 +24,7 @@ Partial BotConfig patch
 
 > **headers**: `object`
 
-Defined in: [src/client/types.gen.ts:5054](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5054)
+Defined in: [src/client/types.gen.ts:5084](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5084)
 
 **X-Admin-API-Key**
 
@@ -38,7 +38,7 @@ Admin API key
 
 > `optional` **path**: `never`
 
-Defined in: [src/client/types.gen.ts:5060](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5060)
+Defined in: [src/client/types.gen.ts:5090](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5090)
 
 ***
 
@@ -46,7 +46,7 @@ Defined in: [src/client/types.gen.ts:5060](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **query**: `never`
 
-Defined in: [src/client/types.gen.ts:5061](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5061)
+Defined in: [src/client/types.gen.ts:5091](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5091)
 
 ***
 
@@ -54,4 +54,4 @@ Defined in: [src/client/types.gen.ts:5061](https://github.com/anuma-ai/sdk/blob/
 
 > **url**: `"/api/v1/admin/bot/config"`
 
-Defined in: [src/client/types.gen.ts:5062](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5062)
+Defined in: [src/client/types.gen.ts:5092](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5092)

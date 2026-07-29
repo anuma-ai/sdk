@@ -2,7 +2,7 @@
 
 > **PostApiV1ConnectorsByProviderDisconnectResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:7112](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7112)
+Defined in: [src/client/types.gen.ts:7146](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7146)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:7112](https://github.com/anuma-ai/sdk/blob/
 
 > **200**: `object`
 
-Defined in: [src/client/types.gen.ts:7116](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7116)
+Defined in: [src/client/types.gen.ts:7150](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7150)
 
 {"revoked": true}
 

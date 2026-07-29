@@ -2,7 +2,7 @@
 
 > **PostAuthOauthByProviderRevokeData** = `object`
 
-Defined in: [src/client/types.gen.ts:10501](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10501)
+Defined in: [src/client/types.gen.ts:10608](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10608)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:10501](https://github.com/anuma-ai/sdk/blob
 
 > **body**: [`HandlersRevokeRequest`](HandlersRevokeRequest.md)
 
-Defined in: [src/client/types.gen.ts:10505](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10505)
+Defined in: [src/client/types.gen.ts:10612](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10612)
 
 Revoke request
 
@@ -20,7 +20,7 @@ Revoke request
 
 > **path**: `object`
 
-Defined in: [src/client/types.gen.ts:10506](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10506)
+Defined in: [src/client/types.gen.ts:10613](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10613)
 
 **provider**
 
@@ -34,7 +34,7 @@ OAuth provider (google-drive, dropbox)
 
 > `optional` **query**: `never`
 
-Defined in: [src/client/types.gen.ts:10512](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10512)
+Defined in: [src/client/types.gen.ts:10619](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10619)
 
 ***
 
@@ -42,4 +42,4 @@ Defined in: [src/client/types.gen.ts:10512](https://github.com/anuma-ai/sdk/blob
 
 > **url**: `"/auth/oauth/{provider}/revoke"`
 
-Defined in: [src/client/types.gen.ts:10513](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10513)
+Defined in: [src/client/types.gen.ts:10620](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10620)

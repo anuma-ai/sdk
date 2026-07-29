@@ -2,7 +2,7 @@
 
 > **PostApiV1UtilityChatCompletionsResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:10175](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10175)
+Defined in: [src/client/types.gen.ts:10282](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10282)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:10175](https://github.com/anuma-ai/sdk/blob
 
 > **200**: `LlmapiChatCompletionResponse` | `string`
 
-Defined in: [src/client/types.gen.ts:10179](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10179)
+Defined in: [src/client/types.gen.ts:10286](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10286)
 
 OK

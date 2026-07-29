@@ -2,4 +2,4 @@
 
 > **GetApiV1AgentPreferencesError** = [`GetApiV1AgentPreferencesErrors`](GetApiV1AgentPreferencesErrors.md)\[keyof [`GetApiV1AgentPreferencesErrors`](GetApiV1AgentPreferencesErrors.md)]
 
-Defined in: [src/client/types.gen.ts:6264](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6264)
+Defined in: [src/client/types.gen.ts:6298](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6298)

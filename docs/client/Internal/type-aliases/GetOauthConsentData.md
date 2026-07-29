@@ -2,7 +2,7 @@
 
 > **GetOauthConsentData** = `object`
 
-Defined in: [src/client/types.gen.ts:10828](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10828)
+Defined in: [src/client/types.gen.ts:10935](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10935)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:10828](https://github.com/anuma-ai/sdk/blob
 
 > `optional` **body**: `never`
 
-Defined in: [src/client/types.gen.ts:10829](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10829)
+Defined in: [src/client/types.gen.ts:10936](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10936)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:10829](https://github.com/anuma-ai/sdk/blob
 
 > `optional` **path**: `never`
 
-Defined in: [src/client/types.gen.ts:10830](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10830)
+Defined in: [src/client/types.gen.ts:10937](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10937)
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: [src/client/types.gen.ts:10830](https://github.com/anuma-ai/sdk/blob
 
 > **query**: `object`
 
-Defined in: [src/client/types.gen.ts:10831](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10831)
+Defined in: [src/client/types.gen.ts:10938](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10938)
 
 **client\_id**
 
@@ -76,4 +76,4 @@ Opaque client state
 
 > **url**: `"/oauth/consent"`
 
-Defined in: [src/client/types.gen.ts:10861](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10861)
+Defined in: [src/client/types.gen.ts:10968](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10968)

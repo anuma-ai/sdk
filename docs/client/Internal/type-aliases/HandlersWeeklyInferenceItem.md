@@ -2,7 +2,7 @@
 
 > **HandlersWeeklyInferenceItem** = `object`
 
-Defined in: [src/client/types.gen.ts:3300](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3300)
+Defined in: [src/client/types.gen.ts:3330](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3330)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:3300](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **requests**: `number`
 
-Defined in: [src/client/types.gen.ts:3301](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3301)
+Defined in: [src/client/types.gen.ts:3331](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3331)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:3301](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **tokens**: `number`
 
-Defined in: [src/client/types.gen.ts:3302](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3302)
+Defined in: [src/client/types.gen.ts:3332](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3332)
 
 ***
 
@@ -26,6 +26,6 @@ Defined in: [src/client/types.gen.ts:3302](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **week\_start**: `string`
 
-Defined in: [src/client/types.gen.ts:3306](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3306)
+Defined in: [src/client/types.gen.ts:3336](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3336)
 
 ISO 8601 date (YYYY-MM-DD) of the ISO week start (Monday, UTC)

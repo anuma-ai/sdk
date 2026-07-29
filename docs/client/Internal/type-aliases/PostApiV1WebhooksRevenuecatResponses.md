@@ -2,7 +2,7 @@
 
 > **PostApiV1WebhooksRevenuecatResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:10384](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10384)
+Defined in: [src/client/types.gen.ts:10491](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10491)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:10384](https://github.com/anuma-ai/sdk/blob
 
 > **200**: `object`
 
-Defined in: [src/client/types.gen.ts:10388](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10388)
+Defined in: [src/client/types.gen.ts:10495](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10495)
 
 OK
 

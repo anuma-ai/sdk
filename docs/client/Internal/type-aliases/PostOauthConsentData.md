@@ -2,7 +2,7 @@
 
 > **PostOauthConsentData** = `object`
 
-Defined in: [src/client/types.gen.ts:10886](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10886)
+Defined in: [src/client/types.gen.ts:10993](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10993)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:10886](https://github.com/anuma-ai/sdk/blob
 
 > `optional` **body**: `number`
 
-Defined in: [src/client/types.gen.ts:10890](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10890)
+Defined in: [src/client/types.gen.ts:10997](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10997)
 
 Daily spending cap in USD
 
@@ -20,7 +20,7 @@ Daily spending cap in USD
 
 > `optional` **path**: `never`
 
-Defined in: [src/client/types.gen.ts:10891](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10891)
+Defined in: [src/client/types.gen.ts:10998](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10998)
 
 ***
 
@@ -28,7 +28,7 @@ Defined in: [src/client/types.gen.ts:10891](https://github.com/anuma-ai/sdk/blob
 
 > `optional` **query**: `never`
 
-Defined in: [src/client/types.gen.ts:10892](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10892)
+Defined in: [src/client/types.gen.ts:10999](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10999)
 
 ***
 
@@ -36,4 +36,4 @@ Defined in: [src/client/types.gen.ts:10892](https://github.com/anuma-ai/sdk/blob
 
 > **url**: `"/oauth/consent"`
 
-Defined in: [src/client/types.gen.ts:10893](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10893)
+Defined in: [src/client/types.gen.ts:11000](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11000)

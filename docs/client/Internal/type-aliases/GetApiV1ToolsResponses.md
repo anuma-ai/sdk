@@ -2,7 +2,7 @@
 
 > **GetApiV1ToolsResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:9610](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9610)
+Defined in: [src/client/types.gen.ts:9717](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9717)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:9610](https://github.com/anuma-ai/sdk/blob/
 
 > **200**: [`HandlersGetToolsResponse`](HandlersGetToolsResponse.md)
 
-Defined in: [src/client/types.gen.ts:9614](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9614)
+Defined in: [src/client/types.gen.ts:9721](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9721)
 
 OK
