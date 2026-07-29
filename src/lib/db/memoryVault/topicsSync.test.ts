@@ -10,6 +10,7 @@
  * assertion wanted.
  */
 import { Database, Q } from "@nozbe/watermelondb";
+import type { WriterInterface } from "@nozbe/watermelondb/Database/WorkQueue";
 import LokiJSAdapter from "@nozbe/watermelondb/adapters/lokijs";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -1085,6 +1086,104 @@ describe("pre-v42 restore damage", () => {
     // The user-facing reset is unaffected — resetting a curated row is its job.
     expect(await clearMemoryTopicsOverrideOp(ctx, id)).toBe(true);
     expect((await rowOf(id)).topicsUserManaged).toBe(false);
+  });
+
+  it("keeps the curation when the repair sweep runs mid-write", async () => {
+    // The interleave the `unlessTopicsRecorded` guard cannot catch on its own:
+    // the clear landing between a curation's flag write and its topics write.
+    // While those were two writers the row spent that gap reading exactly like
+    // damage — flag set, no record, no links — and the guard only looks at
+    // `topics`, so it waved the reset through.
+    const id = await seedDamaged("follows ZetaChain", {
+      topics_user_managed: true,
+      topics_extracted_at: Date.now() + 10_000,
+      topics_extracted_version: TOPICS_EXTRACTION_VERSION,
+    });
+
+    // Run the repair sweep the first time the curation releases the write queue.
+    // That is the whole window a second writer gets: with the flag and the topics
+    // split across two writers it falls between them, with one writer it can only
+    // land after the curation is whole. Both ops run for real.
+    const realWrite = db.write.bind(db);
+    let depth = 0;
+    let swept = false;
+    const track =
+      (work: (writer: WriterInterface) => Promise<unknown>) => async (writer: WriterInterface) => {
+        depth++;
+        try {
+          return await work(writer);
+        } finally {
+          depth--;
+        }
+      };
+    const writeSpy = vi.spyOn(db, "write").mockImplementation((work, description) => {
+      // A writer nested via callWriter has to reach the queue in the same tick or
+      // WatermelonDB rejects it, so only top-level writers are gated.
+      if (depth > 0) return realWrite(track(work), description);
+      const committed = realWrite(track(work), description);
+      return (async () => {
+        const result = await committed;
+        if (!swept) {
+          swept = true;
+          await getMemoriesNeedingTopicExtractionOp(ctx);
+        }
+        return result;
+      })();
+    });
+
+    await setMemoryEntitiesOp(ctx, id, ["ZetaChain"]);
+    writeSpy.mockRestore();
+    expect(swept).toBe(true);
+
+    // The user picked these topics — nothing about a concurrent repair may
+    // hand them back to the autotagger.
+    const row = await rowOf(id);
+    expect(row.topicsUserManaged).toBe(true);
+    const topics = await topicsOf(id);
+    expect(topicNames(topics)).toEqual(["zetachain"]);
+    expect(topics!.map((t) => t.source)).toEqual(["user"]);
+    expect(row.topicsExtractedVersion).toBe(TOPICS_EXTRACTION_VERSION);
+    expect((await getMemoriesNeedingTopicExtractionOp(ctx)).pending).toEqual([]);
+  });
+
+  it("finishes the sweep when one repair clear fails", async () => {
+    // The clear loop sits before the return, so an unguarded write failure threw
+    // out of the whole sweep: the worker got no pending, no relink and no
+    // backfill list either, over one row it could have skipped.
+    const damagedA = await seedDamaged("memory a", { topics_user_managed: true });
+    const damagedB = await seedDamaged("memory b", { topics_user_managed: true });
+    const toRelink = await seedMemory("works at Acme");
+    await markAsRestored(toRelink, {
+      topics: JSON.stringify([{ name: "Acme", source: "auto" }]),
+      topics_updated_at: 5_000,
+      topics_extracted_at: Date.now() + 10_000,
+      topics_extracted_version: TOPICS_EXTRACTION_VERSION,
+    });
+
+    const realWrite = db.write.bind(db);
+    let failed = false;
+    const writeSpy = vi.spyOn(db, "write").mockImplementation((work, description) => {
+      if (failed) return realWrite(work, description);
+      failed = true;
+      return Promise.reject(new Error("disk full"));
+    });
+
+    const sweep = await getMemoriesNeedingTopicExtractionOp(ctx);
+    writeSpy.mockRestore();
+
+    expect(failed).toBe(true);
+    expect(sweep.topicsToRelink).toEqual([toRelink]);
+    expect(sweep.pending.map((m) => m.uniqueId).sort()).toEqual([damagedA, damagedB].sort());
+    // Only the row whose write failed keeps its stale flag, and the next sweep
+    // picks it up again — the clear is idempotent.
+    const stillFlagged: string[] = [];
+    for (const id of [damagedA, damagedB]) {
+      if ((await rowOf(id)).topicsUserManaged) stillFlagged.push(id);
+    }
+    expect(stillFlagged).toHaveLength(1);
+
+    await getMemoriesNeedingTopicExtractionOp(ctx);
+    expect((await rowOf(stillFlagged[0]!)).topicsUserManaged).toBe(false);
   });
 
   it("caps the repair under limit and drains it across sweeps", async () => {

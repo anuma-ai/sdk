@@ -1105,8 +1105,11 @@ describe("setMemoryEntitiesOp", () => {
   /** ctx whose entityCtx serves `existing` links and records batch deletes. */
   function ctxWithEntity(record = mockRecord(), existing: ReturnType<typeof linkRow>[] = []) {
     const batch = vi.fn(async () => undefined);
+    // The op runs the link call through `writer.callWriter` so flag, links and
+    // `topics` share one writer, so the stub has to hand one out.
+    const writer = { callWriter: (work: () => any) => work() };
     const ctx = makeCtx({
-      database: { write: vi.fn(async (cb: () => any) => cb()), batch } as any,
+      database: { write: vi.fn(async (cb: (w: any) => any) => cb(writer)), batch } as any,
       vaultMemoryCollection: { find: vi.fn(async () => record) } as any,
       entityCtx: {
         memoryEntityCollection: {

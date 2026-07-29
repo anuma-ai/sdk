@@ -1157,14 +1157,20 @@ export async function setMemoryEntitiesOp(
   }
   if (record.isDeleted || !isOwnedByCtxUser(ctx, record)) return null;
 
-  // 1) Mark user-managed FIRST, re-checking soft-delete inside the writer — a
-  // delete that committed after the probe must win (mirrors updateVaultMemoryOp),
-  // so we never attach links to a deleted memory. Setting the flag before
-  // touching links also means a later link failure still leaves the memory
-  // user-managed rather than silently reclaimable by auto-extraction.
+  // Flag, links, stale-link prune and the `topics` record all land in ONE
+  // writer. Committing the flag on its own published a window where the row read
+  // as user-managed with neither a record nor a link — the exact shape
+  // getMemoriesNeedingTopicExtractionOp treats as pre-v42 restore damage — so a
+  // repair sweep landing between the two writes cleared the flag, invalidated
+  // the extraction version and handed the user's topics to the autotagger. One
+  // writer makes that intermediate state unreachable by any other writer.
+  //
+  // The soft-delete / ownership re-check stays INSIDE the writer: a delete that
+  // committed after the probe above must win (mirrors updateVaultMemoryOp), so
+  // links never attach to a deleted memory.
   let stale = false;
   const originalUpdatedAt = record.updatedAt.getTime();
-  await ctx.database.write(async () => {
+  await ctx.database.write(async (writer) => {
     if (record.isDeleted || !isOwnedByCtxUser(ctx, record)) {
       stale = true;
       return;
@@ -1173,42 +1179,37 @@ export async function setMemoryEntitiesOp(
       r._setRaw("topics_user_managed", true);
       r._setRaw("updated_at", originalUpdatedAt);
     });
+
+    // Add the new links first (idempotent), THEN drop only the stale ones. This
+    // ordering means a transient failure can leave at most EXTRA topics
+    // (old ∪ new) — never zero — so a topic edit can't wipe a memory's topics
+    // (the delete-all-then-relink order could, on a mid-op failure). The link op
+    // writes `topics` from old ∪ new for the same reason; the prune below then
+    // narrows the record to the user's set, in the same batch as the link
+    // deletes. `callWriter` runs the link op as part of this writer rather than
+    // deadlocking on its own `database.write`.
+    const linked =
+      entities.length > 0
+        ? await writer.callWriter(() =>
+            linkMemoryEntitiesOp(entityCtx, memoryId, entities, { topicsSource: "user" })
+          )
+        : [];
+    const keep = new Set(linked.map((e) => e.uniqueId));
+    const existing = await entityCtx.memoryEntityCollection
+      .query(Q.where("memory_id", memoryId))
+      .fetch();
+    const staleLinks = existing.filter((l) => !keep.has(String(l.entityId)));
+    // Clearing all topics skips the link op entirely, so `topics` still needs its
+    // explicit `[]` — the record of "the user removed every topic", which is not
+    // the same as the null column that means "no record yet" (see parseTopics).
+    if (staleLinks.length === 0 && entities.length > 0) return;
+    const topicsOp = await prepareMemoryTopicsUpdate(entityCtx, memoryId, linked, entities, "user");
+    await ctx.database.batch(
+      ...staleLinks.map((l) => l.prepareDestroyPermanently()),
+      ...(topicsOp ? [topicsOp] : [])
+    );
   });
   if (stale) return null;
-
-  // 2) Add the new links first (idempotent), THEN drop only the stale ones.
-  // This ordering means a transient failure can leave at most EXTRA topics
-  // (old ∪ new) — never zero — so a topic edit can't wipe a memory's topics
-  // (the delete-all-then-relink order could, on a mid-op failure). The link op
-  // writes `topics` from old ∪ new for the same reason; the prune below then
-  // narrows the record to the user's set, in the same batch as the link deletes.
-  const linked =
-    entities.length > 0
-      ? await linkMemoryEntitiesOp(entityCtx, memoryId, entities, { topicsSource: "user" })
-      : [];
-  const keep = new Set(linked.map((e) => e.uniqueId));
-  const existing = await entityCtx.memoryEntityCollection
-    .query(Q.where("memory_id", memoryId))
-    .fetch();
-  const staleLinks = existing.filter((l) => !keep.has(String(l.entityId)));
-  // Clearing all topics skips the link op entirely, so `topics` still needs its
-  // explicit `[]` — the record of "the user removed every topic", which is not
-  // the same as the null column that means "no record yet" (see parseTopics).
-  if (staleLinks.length > 0 || entities.length === 0) {
-    await ctx.database.write(async () => {
-      const topicsOp = await prepareMemoryTopicsUpdate(
-        entityCtx,
-        memoryId,
-        linked,
-        entities,
-        "user"
-      );
-      await ctx.database.batch(
-        ...staleLinks.map((l) => l.prepareDestroyPermanently()),
-        ...(topicsOp ? [topicsOp] : [])
-      );
-    });
-  }
 
   return vaultMemoryToStored(record, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner);
 }
@@ -1749,7 +1750,14 @@ export async function getMemoriesNeedingTopicExtractionOp(
   // until an extraction actually lands. This dirties the row, so it uploads once;
   // that's intended, the flag no longer describes the memory.
   for (const id of emptyCurationToClear) {
-    await clearMemoryTopicsOverrideOp(ctx, id, { unlessTopicsRecorded: true });
+    try {
+      await clearMemoryTopicsOverrideOp(ctx, id, { unlessTopicsRecorded: true });
+    } catch (err) {
+      // One failed write must not abort the sweep — every other bucket is
+      // computed by now and callers would get nothing. The clear is idempotent,
+      // so the row is offered again next pass.
+      getLogger().warn("[memory/topics] repair clear failed", err);
+    }
   }
 
   // Cap EVERY list under `limit`. Each one costs a per-row Model load in the
