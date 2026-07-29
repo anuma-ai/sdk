@@ -93,6 +93,8 @@ export interface RequestEncryptionKeyOptions {
  */
 const encryptionKeyStore = new Map<string, StoredKeys>();
 const pendingKeyRequests = new Map<string, Promise<void>>();
+/** In-flight verify-before-commit refreshes, keyed by wallet address (#561 / PR #828). */
+const pendingKeyRefreshes = new Map<string, Promise<boolean>>();
 
 /**
  * Monotonic counter incremented whenever `clearAllEncryptionState()` runs.
@@ -198,14 +200,6 @@ function notifyKeyAvailable(address: string): void {
 const keyPairStore = new Map<string, CryptoKeyPair>();
 
 /**
- * True when any key version is present for the address (partial keys count).
- */
-function hasAnyStoredKey(address: string): boolean {
-  const keys = encryptionKeyStore.get(address);
-  return Boolean(keys?.current || keys?.legacy);
-}
-
-/**
  * Gets an encryption key by version for a wallet address
  * @param address - The wallet address
  * @param version - Which key version to retrieve
@@ -270,6 +264,7 @@ export function clearAllEncryptionState(): void {
   cryptoKeyCache.clear();
   keyAvailableCallbacks.clear();
   pendingKeyRequests.clear();
+  pendingKeyRefreshes.clear();
 
   clearAllKeyPairs();
 
@@ -778,15 +773,12 @@ export async function decryptDataBytesFromBytes(
  * Checks if an encryption key exists in memory for the given wallet address.
  *
  * @param address - Wallet address
- * @param version - When omitted, true if **either** v2 or v3 is present
- *   (partial key state must not blank the other version — #561). When set,
- *   checks only that version.
+ * @param version - When omitted, checks the **v3** (`current`) key — the key
+ *   write/OPFS/encrypt paths need. Callers that only need to read legacy
+ *   `enc:v2:` data should pass `"v2"` explicitly. (#561 / PR #828)
  */
 export function hasEncryptionKey(address: string, version?: EncryptionKeyVersion): boolean {
-  if (version === undefined) {
-    return hasAnyStoredKey(address);
-  }
-  return getStoredKeyByVersion(address, version) !== null;
+  return getStoredKeyByVersion(address, version ?? "v3") !== null;
 }
 
 /**
@@ -1094,9 +1086,27 @@ export async function requestEncryptionKey(
       return;
     }
 
-    // Store both keys in memory for dual-key migration support
-    setStoredKey(walletAddress, { legacy: legacyKey, current: currentKey });
-    // Force path may replace hex under a still-cached CryptoKey — drop both.
+    const existing = encryptionKeyStore.get(walletAddress);
+    if (!options?.force && existing && (existing.legacy || existing.current)) {
+      // Partial / seeded store: only fill *missing* versions, and only when the
+      // fresh derive matches a key already present (same signature). Never wipe
+      // a still-valid sibling with a divergent signature (#561 / PR #828).
+      const matchesCurrent = Boolean(existing.current && existing.current === currentKey);
+      const matchesLegacy = Boolean(existing.legacy && existing.legacy === legacyKey);
+      if (!matchesCurrent && !matchesLegacy) {
+        getLogger().warn(
+          "requestEncryptionKey: derived keys do not match existing store; leaving unchanged"
+        );
+        return;
+      }
+      setStoredKey(walletAddress, {
+        legacy: existing.legacy ?? legacyKey,
+        current: existing.current ?? currentKey,
+      });
+    } else {
+      setStoredKey(walletAddress, { legacy: legacyKey, current: currentKey });
+    }
+    // Force / fill path may replace hex under a still-cached CryptoKey — drop both.
     cryptoKeyCache.delete(`${walletAddress}:v2`);
     cryptoKeyCache.delete(`${walletAddress}:v3`);
 
@@ -1123,9 +1133,11 @@ export async function requestEncryptionKey(
  * they successfully decrypt `probeCiphertext` (a prefixed `enc:v2:` / `enc:v3:`
  * value). If they do not, the existing in-memory keys are left untouched.
  *
- * This is the safe recovery path for #561: a present-but-wrong key must not be
- * silently replaced by another wrong key, and intact ciphertext must never be
- * treated as authoritative over by a failed re-derive.
+ * Concurrent calls for the same wallet share one sign+derive (deduped via
+ * {@link pendingKeyRefreshes}) so a page of parallel decrypts cannot storm the
+ * wallet with one prompt per message (#561 / PR #828). Waiters that join a
+ * successful refresh re-check their own probe under the new store without
+ * signing again.
  *
  * @returns true when keys were refreshed (probe decrypted); false when the
  *   probe failed under the candidate keys (store unchanged) or the probe was
@@ -1143,20 +1155,73 @@ export async function refreshEncryptionKeyIfMatches(
     );
   }
 
+  const pending = pendingKeyRefreshes.get(walletAddress);
+  if (pending) {
+    const committed = await pending;
+    if (!committed) return false;
+    // Shared refresh updated the store — verify this caller's probe without re-signing.
+    return probeDecryptsWithStoredKey(walletAddress, probeCiphertext);
+  }
+
+  const promise = refreshEncryptionKeyIfMatchesInner(
+    walletAddress,
+    probeCiphertext,
+    signMessage,
+    embeddedWalletSigner
+  ).finally(() => {
+    if (pendingKeyRefreshes.get(walletAddress) === promise) {
+      pendingKeyRefreshes.delete(walletAddress);
+    }
+  });
+  pendingKeyRefreshes.set(walletAddress, promise);
+  return promise;
+}
+
+/** True when the current in-memory key for the probe's version opens it. */
+async function probeDecryptsWithStoredKey(
+  walletAddress: string,
+  probeCiphertext: string
+): Promise<boolean> {
+  const parsed = parsePrefixedCiphertext(probeCiphertext);
+  if (!parsed) return false;
+  try {
+    const key = await getEncryptionKey(walletAddress, parsed.version);
+    await decryptDataWithKey(parsed.encryptedData, key);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function parsePrefixedCiphertext(
+  probeCiphertext: string
+): { version: EncryptionKeyVersion; encryptedData: string } | null {
   const version = probeCiphertext.startsWith("enc:v3:")
     ? ("v3" as const)
     : probeCiphertext.startsWith("enc:v2:")
       ? ("v2" as const)
       : null;
-  if (!version) {
-    return false;
-  }
+  if (!version) return null;
   const encryptedData = probeCiphertext.slice(
     version === "v3" ? "enc:v3:".length : "enc:v2:".length
   );
   if (encryptedData.length < 56 || !/^[0-9a-f]+$/i.test(encryptedData)) {
+    return null;
+  }
+  return { version, encryptedData };
+}
+
+async function refreshEncryptionKeyIfMatchesInner(
+  walletAddress: string,
+  probeCiphertext: string,
+  signMessage: SignMessageFn,
+  embeddedWalletSigner?: EmbeddedWalletSignerFn
+): Promise<boolean> {
+  const parsed = parsePrefixedCiphertext(probeCiphertext);
+  if (!parsed) {
     return false;
   }
+  const { version, encryptedData } = parsed;
 
   const startEpoch = sessionEpoch;
   const signOptions: SignMessageOptions = { showWalletUIs: false };

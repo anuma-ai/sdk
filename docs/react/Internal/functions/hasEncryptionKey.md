@@ -2,7 +2,7 @@
 
 > **hasEncryptionKey**(`address`: `string`, `version?`: [`EncryptionKeyVersion`](../type-aliases/EncryptionKeyVersion.md)): `boolean`
 
-Defined in: [src/react/useEncryption.ts:785](https://github.com/anuma-ai/sdk/blob/main/src/react/useEncryption.ts#785)
+Defined in: [src/react/useEncryption.ts:780](https://github.com/anuma-ai/sdk/blob/main/src/react/useEncryption.ts#780)
 
 Checks if an encryption key exists in memory for the given wallet address.
 
@@ -47,9 +47,9 @@ Wallet address
 </td>
 <td>
 
-When omitted, true if **either** v2 or v3 is present
-(partial key state must not blank the other version — #561). When set,
-checks only that version.
+When omitted, checks the **v3** (`current`) key — the key
+write/OPFS/encrypt paths need. Callers that only need to read legacy
+`enc:v2:` data should pass `"v2"` explicitly. (#561 / PR #828)
 
 </td>
 </tr>

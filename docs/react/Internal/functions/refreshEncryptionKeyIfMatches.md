@@ -2,15 +2,17 @@
 
 > **refreshEncryptionKeyIfMatches**(`walletAddress`: `string`, `probeCiphertext`: `string`, `signMessage`: [`SignMessageFn`](../type-aliases/SignMessageFn.md), `embeddedWalletSigner?`: [`EmbeddedWalletSignerFn`](../type-aliases/EmbeddedWalletSignerFn.md)): `Promise`<`boolean`>
 
-Defined in: [src/react/useEncryption.ts:1134](https://github.com/anuma-ai/sdk/blob/main/src/react/useEncryption.ts#1134)
+Defined in: [src/react/useEncryption.ts:1146](https://github.com/anuma-ai/sdk/blob/main/src/react/useEncryption.ts#1146)
 
 Re-derive encryption keys from a fresh signature and commit them **only if**
 they successfully decrypt `probeCiphertext` (a prefixed `enc:v2:` / `enc:v3:`
 value). If they do not, the existing in-memory keys are left untouched.
 
-This is the safe recovery path for #561: a present-but-wrong key must not be
-silently replaced by another wrong key, and intact ciphertext must never be
-treated as authoritative over by a failed re-derive.
+Concurrent calls for the same wallet share one sign+derive (deduped via
+pendingKeyRefreshes) so a page of parallel decrypts cannot storm the
+wallet with one prompt per message (#561 / PR #828). Waiters that join a
+successful refresh re-check their own probe under the new store without
+signing again.
 
 ## Parameters
 
