@@ -155,6 +155,12 @@ export interface RecallOptions {
    * Query decomposition is **not** driven by this field inside `recall()`
    * (719/B4); {@link createRecallTool} reads the same shape from
    * `RecallToolOptions.decomposeOptions` for tool-layer rewrite.
+   *
+   * Callers that still pass `{ budget: 'high', decomposeOptions }` without
+   * {@link RecallOptions.subQueries} keep compiling but no longer rewrite —
+   * `recall()` emits `decompose-moved` on {@link RecallDiagnostics.degraded}
+   * so upgrades without a changelog read still leave a telemetry breadcrumb.
+   *
    * Auth is the dual pattern — one of `apiKey` / `getToken` is required;
    * see {@link PortalLlmAuth}.
    */
@@ -276,9 +282,19 @@ export type RecallDegradation =
   /**
    * @deprecated 719/B4 moved query decomposition out of `recall()`. Budget
    * `high` no longer requires `decomposeOptions` and this signal is never
-   * emitted. Kept in the union so existing telemetry consumers stay typed.
+   * emitted. Prefer `"decompose-moved"` for the upgrade breadcrumb. Kept in
+   * the union so existing telemetry consumers stay typed.
    */
   | "decompose-unavailable"
+  /**
+   * `budget: 'high'` with `decomposeOptions` set but no usable
+   * {@link RecallOptions.subQueries}. Pre-B4 this call shape triggered LLM
+   * rewrite inside `recall()`; post-B4 it stays on the single-query high
+   * path (rerank + graph) and callers must pass facets (or use
+   * {@link createRecallTool}). Surfaced so silent quality regressions show
+   * up in diagnostics instead of looking healthier than before.
+   */
+  | "decompose-moved"
   /** There was no usable cosine lane, so results were ranked on BM25 (lexical)
    *  alone: either the query embedding failed (or came back empty), or no
    *  candidate had a vector to score against it because the row (re)embed failed.

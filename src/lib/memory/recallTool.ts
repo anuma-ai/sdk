@@ -476,11 +476,10 @@ export function createRecallTool(
           ...(toolOptions?.excludeConversationId && {
             excludeConversationId: toolOptions.excludeConversationId,
           }),
-          // Still forwarded for graphRefine auth if a future caller opts in;
-          // recall() does not use it for query rewrite.
-          ...(toolOptions?.decomposeOptions && {
-            decomposeOptions: toolOptions.decomposeOptions,
-          }),
+          // Do NOT forward decomposeOptions into recall() — rewrite already
+          // ran above, and forwarding would falsely trip `decompose-moved`
+          // on every specific-mode high-budget call. graphRefine auth can
+          // be threaded later when the tool opts into that path.
           ...(toolOptions?.now !== undefined && { now: toolOptions.now }),
           ...(subQueries && { subQueries }),
         };

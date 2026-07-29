@@ -38,6 +38,11 @@ export { createVaultEmbeddingCache, DEFAULT_VAULT_CACHE_SIZE } from "./lruCache"
  */
 export type VaultEmbeddingCache = Map<string, Float32Array>;
 
+/** One-time breadcrumb for callers still passing `decompose: "llm"` into the
+ * programmatic search path (719/B4). The tool executor still honors that flag;
+ * `searchVaultMemories*` ignores it. */
+let warnedProgrammaticDecomposeIgnored = false;
+
 /**
  * Options for the vault search tool.
  */
@@ -107,19 +112,20 @@ export interface MemoryVaultSearchOptions {
    * over them — no LLM call inside the search path. Callers that want LLM
    * rewrite (e.g. `createRecallTool`) call `decomposeQuery` first and pass
    * the facets here.
-   *
-   * @deprecated `decompose: "llm"` / `decomposeOptions` — ignored. Kept so
-   * older call sites type-check; pass `subQueries` instead.
    */
   subQueries?: string[];
   /**
-   * @deprecated 719/B4 — LLM rewrite no longer runs inside vault search.
-   * Use {@link MemoryVaultSearchOptions.subQueries} (or `createRecallTool`).
+   * @deprecated 719/B4 — ignored by {@link searchVaultMemories} /
+   * {@link searchVaultMemoriesWithSize}. Pass {@link MemoryVaultSearchOptions.subQueries}
+   * (or use `createRecallTool`). The legacy {@link createMemoryVaultSearchTool}
+   * executor still honors `decompose: "llm"` + `decomposeOptions` for eval
+   * parity, then forwards facets into the LLM-free search path.
    */
   decompose?: "off" | "llm";
   /**
-   * @deprecated 719/B4 — see `decompose`. Auth for tool-layer rewrite lives
-   * on `RecallToolOptions.decomposeOptions`.
+   * @deprecated 719/B4 — see `decompose`. Ignored on the programmatic search
+   * path; tool-layer rewrite still reads this from the search-tool options.
+   * Prefer `RecallToolOptions.decomposeOptions` with `createRecallTool`.
    */
   decomposeOptions?: PortalLlmAuth & {
     baseUrl?: string;
@@ -2367,6 +2373,22 @@ export async function searchVaultMemoriesWithSize(
       rankedOnCosine: false,
     };
   }
+
+  // 719/B4 — programmatic path ignores `decompose: "llm"`; the legacy search
+  // tool executor still rewrites. Warn once when an un-updated caller would
+  // silently lose composite rewrite (no usable `subQueries` either).
+  if (
+    searchOptions?.decompose === "llm" &&
+    normalizeSubQueries(searchOptions.subQueries).length < 2 &&
+    !warnedProgrammaticDecomposeIgnored
+  ) {
+    warnedProgrammaticDecomposeIgnored = true;
+    getLogger().warn(
+      "memoryVault: decompose:\"llm\" is ignored by searchVaultMemories — pass subQueries " +
+        "or use createMemoryVaultSearchTool / createRecallTool (719/B4)"
+    );
+  }
+
   const prepared = await prepareVaultCandidates(
     query,
     vaultCtx,

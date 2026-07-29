@@ -40,7 +40,7 @@ Endpoint for the answer LLM.
 
 > `optional` **bm25AdmissionDivisor**: `number`
 
-Defined in: [src/lib/memory/types.ts:203](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#203)
+Defined in: [src/lib/memory/types.ts:209](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#209)
 
 Divisor mapping BM25 scores to the admission floor. Default: 50.
 
@@ -68,7 +68,7 @@ Search depth. Default: 'low'.
 
 > `optional` **ceWeight**: `number`
 
-Defined in: [src/lib/memory/types.ts:189](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#189)
+Defined in: [src/lib/memory/types.ts:195](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#195)
 
 Multiplicative cross-encoder blend weight. Default: 0.1.
 
@@ -96,13 +96,19 @@ Restrict chunk search to one conversation. Chunk-only.
 
 > `optional` **decomposeOptions**: [`PortalLlmAuth`](PortalLlmAuth.md) & `object`
 
-Defined in: [src/lib/memory/types.ts:161](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#161)
+Defined in: [src/lib/memory/types.ts:167](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#167)
 
 Auth + endpoint for optional LLM helpers that reuse portal auth —
 currently [RecallOptions.graphRefine](RecallOptions.md#graphrefine) neighbor selection.
 Query decomposition is **not** driven by this field inside `recall()`
 (719/B4); [createRecallTool](../functions/createRecallTool.md) reads the same shape from
 `RecallToolOptions.decomposeOptions` for tool-layer rewrite.
+
+Callers that still pass `{ budget: 'high', decomposeOptions }` without
+[RecallOptions.subQueries](RecallOptions.md#subqueries) keep compiling but no longer rewrite —
+`recall()` emits `decompose-moved` on [RecallDiagnostics.degraded](RecallDiagnostics.md#degraded)
+so upgrades without a changelog read still leave a telemetry breadcrumb.
+
 Auth is the dual pattern — one of `apiKey` / `getToken` is required;
 see [PortalLlmAuth](PortalLlmAuth.md).
 
@@ -126,7 +132,7 @@ see [PortalLlmAuth](PortalLlmAuth.md).
 
 > `optional` **decryptLast**: `boolean`
 
-Defined in: [src/lib/memory/types.ts:212](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#212)
+Defined in: [src/lib/memory/types.ts:218](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#218)
 
 Decrypt vault memory content only for the top-N ranked candidates
 instead of the whole vault. Forwarded verbatim to the vault search
@@ -143,7 +149,7 @@ whole-vault decrypt path).
 
 > `optional` **entityFanout**: `number`
 
-Defined in: [src/lib/memory/types.ts:221](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#221)
+Defined in: [src/lib/memory/types.ts:227](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#227)
 
 Max neighbor entities expanded per hop. Default: 8.
 
@@ -339,7 +345,7 @@ Function to get an auth token (e.g., Privy's getIdentityToken). Token is sent as
 
 > `optional` **graphRefine**: `boolean`
 
-Defined in: [src/lib/memory/types.ts:232](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#232)
+Defined in: [src/lib/memory/types.ts:238](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#238)
 
 PR5 — enable LLM graph path-refinement: at each traversal hop a model picks
 which neighbor entities to expand instead of pure co-occurrence ranking.
@@ -396,7 +402,7 @@ Override the answer model. Default: anthropic/claude-sonnet-4-6.
 
 > `optional` **maxHops**: `number`
 
-Defined in: [src/lib/memory/types.ts:219](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#219)
+Defined in: [src/lib/memory/types.ts:225](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#225)
 
 Total graph hops incl. the seed lookup (hop 1). Default: 1 (seed only).
 
@@ -450,7 +456,7 @@ Drop results below this score. Default: 0.1 for facts, 0.5 for chunks (mirrors t
 
 > `optional` **mmr**: `boolean`
 
-Defined in: [src/lib/memory/types.ts:195](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#195)
+Defined in: [src/lib/memory/types.ts:201](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#201)
 
 Apply MMR diversification after ranking (rerank pipeline only). Default: false.
 
@@ -464,7 +470,7 @@ Apply MMR diversification after ranking (rerank pipeline only). Default: false.
 
 > `optional` **nodeBudget**: `number`
 
-Defined in: [src/lib/memory/types.ts:223](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#223)
+Defined in: [src/lib/memory/types.ts:229](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#229)
 
 Hard cap on accumulated memory IDs across all hops. Default: 64.
 
@@ -478,7 +484,7 @@ Hard cap on accumulated memory IDs across all hops. Default: 64.
 
 > `optional` **now**: `number`
 
-Defined in: [src/lib/memory/types.ts:172](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#172)
+Defined in: [src/lib/memory/types.ts:178](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#178)
 
 Reference "now" for resolving relative temporal phrases in the
 query ("last week", "yesterday", "N days ago"). Default: `Date.now()`.
@@ -496,7 +502,7 @@ resolves windows in 2026 and never overlaps stored event\_time.
 
 > `optional` **onDiagnostics**: (`diagnostics`: [`RecallDiagnostics`](RecallDiagnostics.md)) => `void`
 
-Defined in: [src/lib/memory/types.ts:180](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#180)
+Defined in: [src/lib/memory/types.ts:186](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#186)
 
 Best-effort observability hook. Called once per `recall()` with per-lane
 timings, lane counts, and soft-degradation signals — the raw material for
@@ -543,7 +549,7 @@ swallowed (diagnostics must never break retrieval). Off unless provided.
 
 > `optional` **proofCountAlpha**: `number`
 
-Defined in: [src/lib/memory/types.ts:201](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#201)
+Defined in: [src/lib/memory/types.ts:207](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#207)
 
 Proof-count log-boost scale. Default: 0.1.
 
@@ -557,7 +563,7 @@ Proof-count log-boost scale. Default: 0.1.
 
 > `optional` **recency**: [`RecencyOptions`](RecencyOptions.md)
 
-Defined in: [src/lib/memory/types.ts:193](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#193)
+Defined in: [src/lib/memory/types.ts:199](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#199)
 
 Recency decay curve overrides (per-year decay slope, floor, no-date multiplier).
 
@@ -571,7 +577,7 @@ Recency decay curve overrides (per-year decay slope, floor, no-date multiplier).
 
 > `optional` **recencyAlpha**: `number`
 
-Defined in: [src/lib/memory/types.ts:191](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#191)
+Defined in: [src/lib/memory/types.ts:197](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#197)
 
 Recency boost slope in the fused ranker. Default: 1.0.
 
@@ -585,7 +591,7 @@ Recency boost slope in the fused ranker. Default: 1.0.
 
 > `optional` **rerankTopN**: `number`
 
-Defined in: [src/lib/memory/types.ts:187](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#187)
+Defined in: [src/lib/memory/types.ts:193](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#193)
 
 Number of candidates fed to the cross-encoder rerank stage. Default: 30.
 
@@ -609,7 +615,7 @@ Optional JSON Schema to coerce structured outputs.
 
 > `optional` **rrfK**: `number`
 
-Defined in: [src/lib/memory/types.ts:205](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#205)
+Defined in: [src/lib/memory/types.ts:211](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#211)
 
 RRF smoothing constant for lane fusion (facts × chunks and side lanes). Default: 60.
 
@@ -656,7 +662,7 @@ inside `recall()` — 719/B4). Callers that still want LLM rewrite
 
 > `optional` **supersessionBoost**: `number`
 
-Defined in: [src/lib/memory/types.ts:197](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#197)
+Defined in: [src/lib/memory/types.ts:203](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#203)
 
 Supersession score-gap transfer factor. Default: 0.8.
 
@@ -670,7 +676,7 @@ Supersession score-gap transfer factor. Default: 0.8.
 
 > `optional` **supersessionWindow**: `number`
 
-Defined in: [src/lib/memory/types.ts:199](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#199)
+Defined in: [src/lib/memory/types.ts:205](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#205)
 
 Hard cap on the supersession candidate window. Default: 50.
 

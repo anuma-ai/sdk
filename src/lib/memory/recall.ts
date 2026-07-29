@@ -181,6 +181,21 @@ export async function recall(
     if (flags.rerank && factResults.length > 0 && hadV2Head && !didRerank) {
       degraded.push("rerank-unavailable");
     }
+    // Pre-B4: `{ budget:'high', decomposeOptions }` rewrote inside recall().
+    // Post-B4 that shape still compiles (decomposeOptions is reused for
+    // graphRefine) but no longer decomposes — surface a breadcrumb so an
+    // un-updated caller does not see a healthier diagnostics payload while
+    // getting shallower composite retrieval. Skip when `graphRefine` is on:
+    // that path legitimately needs decomposeOptions for neighbor-LLM auth
+    // without implying a rewrite migration miss.
+    if (
+      usedBudget === "high" &&
+      options.decomposeOptions &&
+      !subQueries &&
+      !options.graphRefine
+    ) {
+      degraded.push("decompose-moved");
+    }
     if (embeddingsUnavailable) degraded.push("embeddings-unavailable");
     const diagnostics: RecallDiagnostics = {
       usedBudget,

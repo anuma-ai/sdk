@@ -1030,6 +1030,46 @@ describe("recall — diagnostics (onDiagnostics)", () => {
     expect(seen[0].degraded).not.toContain("decompose-unavailable");
   });
 
+  it("flags decompose-moved when high budget still passes decomposeOptions without subQueries", async () => {
+    const seen: RecallDiagnostics[] = [];
+
+    const result = await recall(QUERY, makeCtx(), {
+      budget: "high",
+      decomposeOptions: { apiKey: "legacy-key" },
+      onDiagnostics: (d) => seen.push(d),
+    });
+
+    expect(result.usedBudget).toBe("high");
+    expect(seen[0].degraded).toContain("decompose-moved");
+    expect(seen[0].degraded).not.toContain("decompose-unavailable");
+  });
+
+  it("does not flag decompose-moved when high budget supplies subQueries", async () => {
+    const seen: RecallDiagnostics[] = [];
+
+    await recall(QUERY, makeCtx(), {
+      budget: "high",
+      decomposeOptions: { apiKey: "legacy-key" },
+      subQueries: ["facet one?", "facet two?"],
+      onDiagnostics: (d) => seen.push(d),
+    });
+
+    expect(seen[0].degraded).not.toContain("decompose-moved");
+  });
+
+  it("does not flag decompose-moved when high budget uses decomposeOptions only for graphRefine", async () => {
+    const seen: RecallDiagnostics[] = [];
+
+    await recall(QUERY, makeCtx(), {
+      budget: "high",
+      graphRefine: true,
+      decomposeOptions: { apiKey: "graph-key" },
+      onDiagnostics: (d) => seen.push(d),
+    });
+
+    expect(seen[0].degraded).not.toContain("decompose-moved");
+  });
+
   it("never lets a throwing diagnostics sink break recall", async () => {
     const result = await recall(QUERY, makeCtx(), {
       onDiagnostics: () => {

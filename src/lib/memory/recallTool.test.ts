@@ -464,6 +464,9 @@ describe("createRecallTool executor — tool-layer decompose (719/B4)", () => {
     expect(decomposeQuery).toHaveBeenCalled();
     const opts = vi.mocked(recall).mock.calls[0][2];
     expect(opts?.subQueries).toBeUndefined();
+    // Rewrite already ran in the tool — do not re-forward auth into recall
+    // or specific-mode high-budget calls trip `decompose-moved`.
+    expect(opts?.decomposeOptions).toBeUndefined();
   });
 
   it("does not call decomposeQuery at budget=mid even with decomposeOptions", async () => {
