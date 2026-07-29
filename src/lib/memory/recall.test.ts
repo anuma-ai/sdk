@@ -39,9 +39,13 @@ vi.mock("./reranker", async (importOriginal) => ({
   rerankPairs: vi.fn(),
 }));
 
-vi.mock("../memoryVault/decomposeQuery", () => ({
-  decomposeQuery: vi.fn(),
-}));
+vi.mock("../memoryVault/decomposeQuery", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../memoryVault/decomposeQuery")>();
+  return {
+    ...actual,
+    decomposeQuery: vi.fn(),
+  };
+});
 
 // Wrap (not replace) so the real ranking pipeline still runs — this test
 // file pins actual orchestration — while letting us assert on the
@@ -293,6 +297,29 @@ describe("recall — budget tiers", () => {
     expect(generateEmbeddings).not.toHaveBeenCalled();
     expect(result.usedBudget).toBe("high");
     expect(result.reranked).toBe(true);
+  });
+
+  it("normalizes subQueries before composite ranking (trim/dedupe/cap)", async () => {
+    const result = await recall(QUERY, makeCtx(), {
+      budget: "high",
+      subQueries: [
+        "  sub one ",
+        "sub one",
+        "",
+        "sub two",
+        "SUB TWO",
+        "sub three",
+        "sub four",
+        "sub five",
+        "sub six ignored",
+      ],
+    });
+
+    expect(result.usedBudget).toBe("high");
+    expect(generateEmbeddings).toHaveBeenCalledWith(
+      ["sub one", "sub two", "sub three", "sub four", "sub five"],
+      expect.anything()
+    );
   });
 
   it("degrades to the V2 ranking and reports reranked:false when the CE fails", async () => {

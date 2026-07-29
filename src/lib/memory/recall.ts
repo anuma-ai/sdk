@@ -28,6 +28,7 @@ import {
 import { getLogger } from "../logger.js";
 import { DEFAULT_API_EMBEDDING_MODEL } from "../memoryEngine/constants.js";
 import { generateEmbedding } from "../memoryEngine/embeddings.js";
+import { normalizeSubQueries } from "../memoryVault/decomposeQuery.js";
 import type { VaultSearchResult } from "../memoryVault/searchTool.js";
 import { searchVaultMemoriesWithSize } from "../memoryVault/searchTool.js";
 import {
@@ -129,12 +130,11 @@ export async function recall(
   const limit = options.limit ?? DEFAULT_LIMIT;
   const usedBudget = options.budget ?? DEFAULT_BUDGET;
   const flags = flagsForBudget(usedBudget);
-  // Composite facets from the tool/agent layer (719/B4). ≥2 triggers the
-  // vault composite ranker; a single leftover string is ignored so callers
-  // that always forward `decomp.subQueries` (including specific-mode's
-  // `[original]`) stay on the single-query path.
-  const subQueries =
-    options.subQueries && options.subQueries.length >= 2 ? options.subQueries : undefined;
+  // Composite facets from the tool/agent layer (719/B4). Normalize
+  // (trim / dedupe / cap at 5) then require ≥2 so a single leftover string
+  // (specific-mode's `[original]`) stays on the single-query path.
+  const normalizedFacets = normalizeSubQueries(options.subQueries);
+  const subQueries = normalizedFacets.length >= 2 ? normalizedFacets : undefined;
 
   // Best-effort observability state (D2). Populated as phases run; flushed to
   // options.onDiagnostics just before every return.

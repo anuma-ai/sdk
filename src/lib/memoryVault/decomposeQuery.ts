@@ -37,7 +37,8 @@ import { callPortalJsonCompletion, type PortalLlmAuth } from "../memory/portalLl
 // degrades to the safe `{specific, [query]}` fallback below, so recall never
 // breaks even on a hiccup.
 const DEFAULT_MODEL = "inclusionai/ling-2.6-flash";
-const MAX_SUB_QUERIES = 5;
+/** Max facets accepted from LLM rewrite or a caller-supplied `subQueries` list. */
+export const MAX_SUB_QUERIES = 5;
 
 const SYSTEM_PROMPT = `You classify a memory query and, if needed, decompose it into concrete sub-queries.
 
@@ -137,6 +138,29 @@ export async function decomposeQuery(
   return validate(parsed, trimmed) ?? fallback;
 }
 
+/**
+ * Normalize caller- or LLM-supplied facet queries for the composite ranker
+ * (719/B4). Trims, drops blanks, case-insensitive-dedupes, and caps at
+ * {@link MAX_SUB_QUERIES}. Duplicate facets would otherwise receive repeated
+ * RRF weight; oversized lists burn embeddings for nothing.
+ */
+export function normalizeSubQueries(raw: readonly unknown[] | undefined): string[] {
+  if (!raw || raw.length === 0) return [];
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const s of raw) {
+    if (typeof s !== "string") continue;
+    const t = s.trim();
+    if (t.length === 0) continue;
+    const key = t.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(t);
+    if (out.length >= MAX_SUB_QUERIES) break;
+  }
+  return out;
+}
+
 function validate(parsed: unknown, originalQuery: string): DecomposedQuery | null {
   if (typeof parsed !== "object" || parsed === null) return null;
   const obj = parsed as Record<string, unknown>;
@@ -144,11 +168,7 @@ function validate(parsed: unknown, originalQuery: string): DecomposedQuery | nul
   const mode = obj.mode === "composite" ? "composite" : "specific";
   if (!Array.isArray(obj.subQueries)) return null;
 
-  const subQueries = obj.subQueries
-    .filter((s): s is string => typeof s === "string")
-    .map((s) => s.trim())
-    .filter((s) => s.length > 0)
-    .slice(0, MAX_SUB_QUERIES);
+  const subQueries = normalizeSubQueries(obj.subQueries);
 
   if (subQueries.length === 0) return null;
   if (mode === "specific") {

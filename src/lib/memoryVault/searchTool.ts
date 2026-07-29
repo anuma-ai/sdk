@@ -28,7 +28,7 @@ import { generateEmbedding, generateEmbeddings } from "../memoryEngine/embedding
 import type { EmbeddingOptions } from "../memoryEngine/types";
 import { cosineSimilarity } from "../memoryEngine/vector";
 import { prepareBM25Corpus, type PreparedBM25Corpus, scoreBM25, scoreBM25Prepared } from "./bm25";
-import { decomposeQuery } from "./decomposeQuery";
+import { decomposeQuery, normalizeSubQueries } from "./decomposeQuery";
 
 export { createVaultEmbeddingCache, DEFAULT_VAULT_CACHE_SIZE } from "./lruCache";
 
@@ -2184,15 +2184,14 @@ export async function rankPreparedVaultCandidates(
   // Composite path — caller-supplied facet queries (719/B4). The LLM rewrite
   // that used to live here moved to the tool/agent layer (`createRecallTool`);
   // this path only embeds + RRF-fuses pre-built sub-queries. Falls through to
-  // V2/V2+CE when fewer than 2 facets are provided.
+  // V2/V2+CE when fewer than 2 facets remain after normalize (trim / dedupe /
+  // cap at 5).
   // Skipped entirely when embeddings are unavailable: every sub-query facet is a
   // cosine pass, so the composite ranker would fuse a set of all-zero lanes at the
   // cost of N embedding calls against a provider that just failed. Fall through
   // to the single-query path, which BM25 can still serve.
-  const facetQueries =
-    searchOptions?.subQueries && searchOptions.subQueries.length >= 2
-      ? searchOptions.subQueries
-      : undefined;
+  const normalizedFacets = normalizeSubQueries(searchOptions?.subQueries);
+  const facetQueries = normalizedFacets.length >= 2 ? normalizedFacets : undefined;
   if (useFusion && !embeddingsUnavailable && facetQueries) {
     // A mid-flight outage here degrades the same way: drop to the single-query
     // path rather than throwing out of the search.
