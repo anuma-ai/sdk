@@ -871,6 +871,39 @@ describe("synthesizeProfile", () => {
     expect(mockRecall).not.toHaveBeenCalled();
   });
 
+  // The column-backed facets are the ones with a publication consequence: `occupation`
+  // and `interests` are what a profile store writes verbatim into a PUBLIC row. The
+  // existing fail-closed test covers `bio`, whose only output is prose. If the gate
+  // stopped the prose but a structured value still came through, an empty published
+  // set would produce a public profile column derived from memories the user never
+  // approved — the exact leak the gate exists to prevent, in the one field that
+  // travels furthest.
+  it("emits no structured occupation or interests when the gate excludes everything", async () => {
+    mockGetAll.mockResolvedValue([mem("a")]);
+    mockRecall.mockResolvedValue({
+      memories: [ranked("a"), ranked("b")],
+      usedBudget: "low",
+      reranked: false,
+      candidateCount: 2,
+    });
+
+    const doc = await synthesizeProfile(ctx, {
+      apiKey: "k",
+      facets: [WORK_ROLE, FACETS[1]],
+      reviewedMemoryIds: [],
+    });
+
+    const work = doc.sections.find((s) => s.key === "work_role");
+    const interests = doc.sections.find((s) => s.key === "interests");
+    expect(work?.text).toBe("");
+    expect(interests?.text).toBe("");
+    // Absent, not empty-string / empty-array: absence is "no claim", whereas a
+    // present-but-empty value is a claim a store may write over a prior good one.
+    expect(work).not.toHaveProperty("occupation");
+    expect(interests).not.toHaveProperty("interests");
+    expect(mockReflect).not.toHaveBeenCalled();
+  });
+
   it("still runs ungated when reviewedMemoryIds is omitted entirely", async () => {
     mockGetAll.mockResolvedValue([mem("a")]);
     mockRecall.mockResolvedValue({
