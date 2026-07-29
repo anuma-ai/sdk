@@ -2384,7 +2384,7 @@ export async function searchVaultMemoriesWithSize(
   ) {
     warnedProgrammaticDecomposeIgnored = true;
     getLogger().warn(
-      "memoryVault: decompose:\"llm\" is ignored by searchVaultMemories — pass subQueries " +
+      'memoryVault: decompose:"llm" is ignored by searchVaultMemories — pass subQueries ' +
         "or use createMemoryVaultSearchTool / createRecallTool (719/B4)"
     );
   }

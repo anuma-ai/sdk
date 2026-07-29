@@ -188,12 +188,7 @@ export async function recall(
     // getting shallower composite retrieval. Skip when `graphRefine` is on:
     // that path legitimately needs decomposeOptions for neighbor-LLM auth
     // without implying a rewrite migration miss.
-    if (
-      usedBudget === "high" &&
-      options.decomposeOptions &&
-      !subQueries &&
-      !options.graphRefine
-    ) {
+    if (usedBudget === "high" && options.decomposeOptions && !subQueries && !options.graphRefine) {
       degraded.push("decompose-moved");
     }
     if (embeddingsUnavailable) degraded.push("embeddings-unavailable");
