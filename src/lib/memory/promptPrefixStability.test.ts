@@ -6,6 +6,7 @@ import type { DecayInput } from "./decay";
 import { createLlmDecayClassifier } from "./decayClassifier";
 import { classifyInjectionCandidates } from "./injectionClassifier";
 import { extractEntitiesForMemories } from "./topicExtract";
+import { type MemoryToVerify, verifyMemoriesForPublish } from "./verifySupport";
 
 /**
  * Prompt-prefix stability for the memory portal calls.
@@ -362,6 +363,59 @@ describe("createLlmDecayClassifier prompt prefix", () => {
   });
 });
 
+describe("verifyMemoriesForPublish prompt prefix", () => {
+  const affirmed = JSON.stringify({ supported: [] });
+  const sources = { getSourceText: async (id: string) => `user: message ${id}` };
+  const memory = (uniqueId: string, content: string): MemoryToVerify => ({
+    uniqueId,
+    content,
+    source: "auto-extracted",
+    sourceChunkIds: [`msg_${uniqueId}`],
+  });
+
+  it("sends a byte-identical system message across calls with different batch sizes", async () => {
+    // One memory then two. A publish batch's size varies per publish, so an
+    // interpolated count would cost the cache on every call while reading as a
+    // harmless clarification.
+    const captured: CapturedRequest[] = [];
+    const fetchFn = capturingFetch(captured, affirmed);
+    await verifyMemoriesForPublish([memory("a41f", "Lives in Vantiscoro")], sources, {
+      apiKey: "k",
+      fetchFn,
+    });
+    await verifyMemoriesForPublish(
+      [memory("b72c", "Allergic to quillfish"), memory("c93d", "Owns a whippet named Quillbert")],
+      sources,
+      { apiKey: "k", fetchFn }
+    );
+
+    expect(captured).toHaveLength(2);
+    expect(systemOf(captured[1])).toBe(systemOf(captured[0]));
+  });
+
+  it("keeps the numbered fact and evidence listing out of the system message", async () => {
+    const captured: CapturedRequest[] = [];
+    const fetchFn = capturingFetch(captured, affirmed);
+    await verifyMemoriesForPublish(
+      [memory("a41f", "Lives in Vantiscoro"), memory("b72c", "Allergic to quillfish")],
+      sources,
+      { apiKey: "k", fetchFn }
+    );
+
+    const system = systemOf(captured[0]);
+    expect(system).not.toContain("Vantiscoro");
+    expect(system).not.toContain("quillfish");
+    // Both halves of the payload — the fact AND its evidence — belong to the
+    // user message. Evidence is the bigger risk here than in the other callers:
+    // it is the largest per-call block, so folding it into the prompt would be
+    // the most expensive version of this mistake.
+    expect(system).not.toContain("[1] FACT:");
+    expect(system).not.toContain("msg_a41f");
+    expect(userOf(captured[0])).toContain("[1] FACT: Lives in Vantiscoro");
+    expect(userOf(captured[0])).toContain("user: message msg_a41f");
+  });
+});
+
 /**
  * Everything above runs inside one module instantiation, and a prompt built at
  * LOAD time — a module-level template literal that interpolates, say, the
@@ -510,6 +564,26 @@ describe("system prompts are identical across module instantiations", () => {
           ),
       "./decayClassifier",
       JSON.stringify({ verdict: "keep" })
+    );
+    expect(after).toBe(before);
+  });
+  it("holds for publish verification", async () => {
+    const [before, after] = await captureAcrossReload(
+      (mod, fetchFn) =>
+        (mod as typeof import("./verifySupport")).verifyMemoriesForPublish(
+          [
+            {
+              uniqueId: "mem_a41f",
+              content: "Lives in Vantiscoro",
+              source: "auto-extracted",
+              sourceChunkIds: ["msg_7f31"],
+            },
+          ],
+          { getSourceText: async () => "user: I moved to Vantiscoro last spring" },
+          { apiKey: "k", fetchFn }
+        ),
+      "./verifySupport",
+      JSON.stringify({ supported: [1] })
     );
     expect(after).toBe(before);
   });

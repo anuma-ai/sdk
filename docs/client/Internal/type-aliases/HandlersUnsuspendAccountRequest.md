@@ -2,7 +2,7 @@
 
 > **HandlersUnsuspendAccountRequest** = `object`
 
-Defined in: [src/client/types.gen.ts:2767](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2767)
+Defined in: [src/client/types.gen.ts:2789](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2789)
 
 ## Properties
 
@@ -10,4 +10,4 @@ Defined in: [src/client/types.gen.ts:2767](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **user\_address**: `string`
 
-Defined in: [src/client/types.gen.ts:2768](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2768)
+Defined in: [src/client/types.gen.ts:2790](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2790)

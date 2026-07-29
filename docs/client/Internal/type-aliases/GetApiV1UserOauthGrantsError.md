@@ -2,4 +2,4 @@
 
 > **GetApiV1UserOauthGrantsError** = [`GetApiV1UserOauthGrantsErrors`](GetApiV1UserOauthGrantsErrors.md)\[keyof [`GetApiV1UserOauthGrantsErrors`](GetApiV1UserOauthGrantsErrors.md)]
 
-Defined in: [src/client/types.gen.ts:10036](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10036)
+Defined in: [src/client/types.gen.ts:10131](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10131)

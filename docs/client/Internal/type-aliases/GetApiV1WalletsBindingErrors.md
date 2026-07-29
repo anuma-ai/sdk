@@ -2,7 +2,7 @@
 
 > **GetApiV1WalletsBindingErrors** = `object`
 
-Defined in: [src/client/types.gen.ts:10245](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10245)
+Defined in: [src/client/types.gen.ts:10340](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10340)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:10245](https://github.com/anuma-ai/sdk/blob
 
 > **401**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:10249](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10249)
+Defined in: [src/client/types.gen.ts:10344](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10344)
 
 Unauthorized

@@ -2,4 +2,4 @@
 
 > **GetApiV1DocsSwaggerJsonResponse** = [`GetApiV1DocsSwaggerJsonResponses`](GetApiV1DocsSwaggerJsonResponses.md)\[keyof [`GetApiV1DocsSwaggerJsonResponses`](GetApiV1DocsSwaggerJsonResponses.md)]
 
-Defined in: [src/client/types.gen.ts:8392](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8392)
+Defined in: [src/client/types.gen.ts:8414](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8414)

@@ -2,7 +2,7 @@
 
 > **OpenaiChatCompletionAssistantMessageParamContentArrayOfContentPartUnion** = `object`
 
-Defined in: [src/client/types.gen.ts:3340](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3340)
+Defined in: [src/client/types.gen.ts:3362](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3362)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:3340](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **any**: `unknown`
 
-Defined in: [src/client/types.gen.ts:3341](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3341)
+Defined in: [src/client/types.gen.ts:3363](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3363)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:3341](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **ofRefusal**: [`OpenaiChatCompletionContentPartRefusalParam`](OpenaiChatCompletionContentPartRefusalParam.md)
 
-Defined in: [src/client/types.gen.ts:3342](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3342)
+Defined in: [src/client/types.gen.ts:3364](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3364)
 
 ***
 
@@ -26,4 +26,4 @@ Defined in: [src/client/types.gen.ts:3342](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **ofText**: [`OpenaiChatCompletionContentPartTextParam`](OpenaiChatCompletionContentPartTextParam.md)
 
-Defined in: [src/client/types.gen.ts:3343](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3343)
+Defined in: [src/client/types.gen.ts:3365](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3365)

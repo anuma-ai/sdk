@@ -2,4 +2,4 @@
 
 > **PostApiV1AuthMfaPasskeyVerifyBeginResponse** = [`PostApiV1AuthMfaPasskeyVerifyBeginResponses`](PostApiV1AuthMfaPasskeyVerifyBeginResponses.md)\[keyof [`PostApiV1AuthMfaPasskeyVerifyBeginResponses`](PostApiV1AuthMfaPasskeyVerifyBeginResponses.md)]
 
-Defined in: [src/client/types.gen.ts:6543](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6543)
+Defined in: [src/client/types.gen.ts:6565](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6565)

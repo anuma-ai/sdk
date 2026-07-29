@@ -8,6 +8,12 @@
  * derived from the baseline run's OWN spread — the gate fires only when a metric
  * moves by more than the noise the baseline itself exhibited.
  *
+ * With one correction to "its own spread": a metric that declares
+ * {@link GateMetricSpec.itemsPerRun} also gets a floor from the binomial spread
+ * its mean implies. A rate's noise depends on its level, so a baseline that drew
+ * a lucky-high mean records a deceptively small spread and sets a gate that fails
+ * on nothing but chance — see {@link binomialRunStdDev} for the measured case.
+ *
  * Suites differ in two ways this module abstracts over:
  *   - metric direction: recall is higher-better, dropped-batches is lower-better
  *   - run config: a gate is only meaningful against a baseline generated with the
@@ -37,10 +43,63 @@ export interface GateMetricSpec {
    * because a real drop moves more than one item.
    */
   minTolerance: number;
+  /**
+   * Opt-in. Number of independent items each run scores for this metric (e.g.
+   * the case count for a per-case accuracy rate). Set it when the metric is a
+   * RATE over a countable corpus and the tolerance should not be at the mercy of
+   * how lucky the baseline capture was — see {@link binomialRunStdDev}.
+   *
+   * Omitted = the tolerance comes from the baseline's empirical spread alone,
+   * which is the historical behaviour every other suite still uses.
+   */
+  itemsPerRun?: number;
   /** How {@link formatGateRegressions} renders the value. Defaults to `"rate"`. */
   format?: "rate" | "count";
   /** Optional display label; defaults to {@link GateMetricSpec.key}. */
   label?: string;
+}
+
+/** Clamp to the [0, 1] a rate has to live in. */
+function clamp01(x: number): number {
+  return Math.min(1, Math.max(0, x));
+}
+
+/**
+ * Standard deviation of a per-run RATE measured over `items` independent items,
+ * if the underlying per-item success probability is `rate`.
+ *
+ * This exists because an empirical spread is a BIASED tolerance source for a
+ * rate near 1. A rate's variance is `p(1-p)/items`, which collapses as p→1, so a
+ * baseline that happens to capture a lucky-high mean also records an unusually
+ * small spread — and the gate then compounds the two errors in the same
+ * direction: the bar is set too high AND the tolerance around it too narrow.
+ *
+ * Measured on the consolidation suite: a baseline captured at 98.1% recorded
+ * stdDev 0.050 → tolerance 0.037 → floor 94.4%. The true process mean was 95.4%
+ * with a per-gate-run standard error of 2.1pp, so 8 of 26 historical runs (31%)
+ * landed under that floor with no code change at all. At the true mean the
+ * per-run spread is 0.082, not 0.050 — the baseline under-measured its own noise
+ * by 40% purely because it got a good draw.
+ */
+function binomialRunStdDev(rate: number, items: number): number {
+  const p = clamp01(rate);
+  return Math.sqrt((p * (1 - p)) / Math.max(1, items));
+}
+
+/**
+ * The rate inside `mean ± sigmas·se` whose binomial variance is largest.
+ *
+ * `p(1-p)` peaks at 0.5, so the worst case is whichever end of the interval sits
+ * nearest 0.5 (or 0.5 itself when the interval spans it). Using that instead of
+ * the point estimate is what makes the tolerance robust to the mean itself being
+ * off: we size the band for the noisiest rate the baseline is consistent with,
+ * not the one it happened to measure.
+ */
+function highestVarianceRate(mean: number, seOfMean: number, sigmas: number): number {
+  const lo = clamp01(mean - sigmas * seOfMean);
+  const hi = clamp01(mean + sigmas * seOfMean);
+  if (lo <= 0.5 && 0.5 <= hi) return 0.5;
+  return Math.abs(lo - 0.5) < Math.abs(hi - 0.5) ? lo : hi;
 }
 
 /**
@@ -57,26 +116,42 @@ export const TOLERANCE_SIGMAS = 2;
  * This is the whole reason bands store `stdDev` rather than a fixed tolerance.
  * The gate compares MEANS, and the uncertainty of a mean shrinks as √n — so
  * using a single run's spread as the tolerance makes the gate ~√n too loose.
- * Concretely, on the consolidation suite (15 passes over 7 cases) the old
- * spread-derived tolerance was 1/7: a case failing on EVERY pass moved the mean
- * by 0.124 and was reported as "no regressions". Only 3+ simultaneously broken
- * cases could ever fire.
+ * Concretely, when the consolidation suite was 15 passes over 7 cases (it is 12
+ * now) the old spread-derived tolerance was 1/7: a case failing on EVERY pass
+ * moved the mean by 0.124 and was reported as "no regressions". Only 3+
+ * simultaneously broken cases could ever fire.
  *
  * `√(1/n_base + 1/n_cur)` is the standard error of the DIFFERENCE of two means,
  * which is what's actually being tested. It also does the right thing when the
  * two sides differ: the recall gate compares a single live run against a 3-run
  * baseline, so its tolerance stays near single-run width instead of being
  * wrongly tightened.
+ *
+ * `mean` is only consulted for metrics that declare
+ * {@link GateMetricSpec.itemsPerRun}, where the empirical spread is replaced by
+ * the larger of itself and the binomial spread the mean implies. Without that the
+ * spread is trusted as-is, which is fine for a metric whose variance doesn't
+ * depend on its level, and wrong for a rate near 1 — see
+ * {@link binomialRunStdDev}.
  */
 export function meanDiffTolerance(
   spec: GateMetricSpec,
   stdDev: number,
   baselineRuns: number,
-  currentRuns: number
+  currentRuns: number,
+  mean?: number
 ): number {
   const nBase = Math.max(1, baselineRuns);
   const nCur = Math.max(1, currentRuns);
-  const standardError = stdDev * Math.sqrt(1 / nBase + 1 / nCur);
+  let perRunStdDev = stdDev;
+  if (spec.itemsPerRun !== undefined && mean !== undefined) {
+    // Widen (never narrow): an empirical spread ABOVE the binomial prediction is
+    // real extra noise — correlated failures, a drifting provider — and must not
+    // be argued away by a model that assumes independent items.
+    const worstRate = highestVarianceRate(mean, stdDev / Math.sqrt(nBase), TOLERANCE_SIGMAS);
+    perRunStdDev = Math.max(stdDev, binomialRunStdDev(worstRate, spec.itemsPerRun));
+  }
+  const standardError = perRunStdDev * Math.sqrt(1 / nBase + 1 / nCur);
   return Math.max(spec.minTolerance, TOLERANCE_SIGMAS * standardError);
 }
 
@@ -171,7 +246,7 @@ export function buildGateBaseline(
       // Recorded so a human reading the file sees the effective gate width for a
       // same-shape run; `compareToGateBaseline` recomputes it for the actual run
       // counts rather than trusting this number.
-      tolerance: meanDiffTolerance(spec, stdDev, runs.length, runs.length),
+      tolerance: meanDiffTolerance(spec, stdDev, runs.length, runs.length, meanOf(xs)),
     };
   }
   return { config, runs: runs.length, metrics };
@@ -210,7 +285,7 @@ export function compareToGateBaseline(
     }
     // Tolerance is computed HERE, from both run counts, not read from the file —
     // see meanDiffTolerance for why a stored spread is the wrong scale.
-    const tolerance = meanDiffTolerance(spec, base.stdDev, baseline.runs, runs.length);
+    const tolerance = meanDiffTolerance(spec, base.stdDev, baseline.runs, runs.length, base.mean);
     const current = meanOf(series(runs, spec.key));
     const drop = spec.direction === "higher-better" ? base.mean - current : current - base.mean;
     // Strictly MORE than the tolerance, with float slack: a drop landing exactly

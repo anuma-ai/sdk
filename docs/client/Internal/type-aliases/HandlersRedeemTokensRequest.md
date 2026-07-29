@@ -2,7 +2,7 @@
 
 > **HandlersRedeemTokensRequest** = `object`
 
-Defined in: [src/client/types.gen.ts:2429](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2429)
+Defined in: [src/client/types.gen.ts:2442](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2442)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:2429](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **amount**: `string`
 
-Defined in: [src/client/types.gen.ts:2433](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2433)
+Defined in: [src/client/types.gen.ts:2446](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2446)
 
 Amount is the number of Anuma Tokens to burn (as a decimal string to handle large values).

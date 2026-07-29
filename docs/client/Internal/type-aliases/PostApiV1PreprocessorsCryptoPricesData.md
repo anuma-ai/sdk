@@ -2,7 +2,7 @@
 
 > **PostApiV1PreprocessorsCryptoPricesData** = `object`
 
-Defined in: [src/client/types.gen.ts:8873](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8873)
+Defined in: [src/client/types.gen.ts:8968](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8968)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:8873](https://github.com/anuma-ai/sdk/blob/
 
 > **body**: [`HandlersPreProcessorRequest`](HandlersPreProcessorRequest.md)
 
-Defined in: [src/client/types.gen.ts:8877](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8877)
+Defined in: [src/client/types.gen.ts:8972](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8972)
 
 User prompt. q max 500 chars.
 
@@ -20,7 +20,7 @@ User prompt. q max 500 chars.
 
 > `optional` **path**: `never`
 
-Defined in: [src/client/types.gen.ts:8878](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8878)
+Defined in: [src/client/types.gen.ts:8973](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8973)
 
 ***
 
@@ -28,7 +28,7 @@ Defined in: [src/client/types.gen.ts:8878](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **query**: `never`
 
-Defined in: [src/client/types.gen.ts:8879](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8879)
+Defined in: [src/client/types.gen.ts:8974](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8974)
 
 ***
 
@@ -36,4 +36,4 @@ Defined in: [src/client/types.gen.ts:8879](https://github.com/anuma-ai/sdk/blob/
 
 > **url**: `"/api/v1/preprocessors/crypto-prices"`
 
-Defined in: [src/client/types.gen.ts:8880](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8880)
+Defined in: [src/client/types.gen.ts:8975](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8975)

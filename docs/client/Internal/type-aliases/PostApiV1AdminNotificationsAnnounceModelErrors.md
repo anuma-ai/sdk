@@ -2,7 +2,7 @@
 
 > **PostApiV1AdminNotificationsAnnounceModelErrors** = `object`
 
-Defined in: [src/client/types.gen.ts:5298](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5298)
+Defined in: [src/client/types.gen.ts:5320](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5320)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:5298](https://github.com/anuma-ai/sdk/blob/
 
 > **400**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:5302](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5302)
+Defined in: [src/client/types.gen.ts:5324](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5324)
 
 Bad Request
 
@@ -20,7 +20,7 @@ Bad Request
 
 > **401**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:5306](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5306)
+Defined in: [src/client/types.gen.ts:5328](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5328)
 
 Unauthorized
 
@@ -30,7 +30,7 @@ Unauthorized
 
 > **409**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:5310](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5310)
+Defined in: [src/client/types.gen.ts:5332](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5332)
 
 Conflict
 
@@ -40,7 +40,7 @@ Conflict
 
 > **500**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:5314](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5314)
+Defined in: [src/client/types.gen.ts:5336](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5336)
 
 Internal Server Error
 
@@ -50,6 +50,6 @@ Internal Server Error
 
 > **503**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:5318](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5318)
+Defined in: [src/client/types.gen.ts:5340](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5340)
 
 Service Unavailable

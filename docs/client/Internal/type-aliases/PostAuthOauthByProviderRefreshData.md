@@ -2,7 +2,7 @@
 
 > **PostAuthOauthByProviderRefreshData** = `object`
 
-Defined in: [src/client/types.gen.ts:10464](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10464)
+Defined in: [src/client/types.gen.ts:10559](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10559)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:10464](https://github.com/anuma-ai/sdk/blob
 
 > **body**: [`HandlersRefreshRequest`](HandlersRefreshRequest.md)
 
-Defined in: [src/client/types.gen.ts:10468](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10468)
+Defined in: [src/client/types.gen.ts:10563](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10563)
 
 Refresh request
 
@@ -20,7 +20,7 @@ Refresh request
 
 > **path**: `object`
 
-Defined in: [src/client/types.gen.ts:10469](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10469)
+Defined in: [src/client/types.gen.ts:10564](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10564)
 
 **provider**
 
@@ -34,7 +34,7 @@ OAuth provider (google-drive, dropbox)
 
 > `optional` **query**: `never`
 
-Defined in: [src/client/types.gen.ts:10475](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10475)
+Defined in: [src/client/types.gen.ts:10570](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10570)
 
 ***
 
@@ -42,4 +42,4 @@ Defined in: [src/client/types.gen.ts:10475](https://github.com/anuma-ai/sdk/blob
 
 > **url**: `"/auth/oauth/{provider}/refresh"`
 
-Defined in: [src/client/types.gen.ts:10476](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10476)
+Defined in: [src/client/types.gen.ts:10571](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10571)

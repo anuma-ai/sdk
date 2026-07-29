@@ -16,7 +16,7 @@ Extends base result with React-specific sendMessage signature.
 
 > **clearQueue**: () => `void`
 
-Defined in: [src/react/useChatStorage.ts:944](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#944)
+Defined in: [src/react/useChatStorage.ts:951](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#951)
 
 Clear all queued operations for the current wallet.
 Discards pending operations without writing them.
@@ -293,7 +293,7 @@ separately; the LLM no longer has to route between two surfaces.
 
 > **createVaultMemory**: (`content`: `string`, `scope?`: `string`) => `Promise`<[`StoredVaultMemory`](StoredVaultMemory.md)>
 
-Defined in: [src/react/useChatStorage.ts:914](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#914)
+Defined in: [src/react/useChatStorage.ts:921](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#921)
 
 Create a new vault memory with the given content.
 
@@ -396,7 +396,7 @@ Defined in: [src/lib/db/chat/types.ts:948](https://github.com/anuma-ai/sdk/blob/
 
 > **deleteVaultMemory**: (`id`: `string`) => `Promise`<`boolean`>
 
-Defined in: [src/react/useChatStorage.ts:931](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#931)
+Defined in: [src/react/useChatStorage.ts:938](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#938)
 
 Delete a vault memory by its ID (soft delete).
 
@@ -437,7 +437,7 @@ true if the memory was found and deleted
 
 > **flushQueue**: () => `Promise`<[`FlushResult`](FlushResult.md)>
 
-Defined in: [src/react/useChatStorage.ts:938](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#938)
+Defined in: [src/react/useChatStorage.ts:945](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#945)
 
 Manually flush all queued operations for the current wallet.
 Operations are encrypted and written to the database.
@@ -757,7 +757,7 @@ Paginated display read: the newest `limit` messages (optionally below
 
 > **getVaultMemories**: (`options?`: `object`) => `Promise`<[`StoredVaultMemory`](StoredVaultMemory.md)\[]>
 
-Defined in: [src/react/useChatStorage.ts:904](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#904)
+Defined in: [src/react/useChatStorage.ts:911](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#911)
 
 Get all vault memories for context injection.
 Returns memories sorted by creation date (newest first). Soft-deleted
@@ -851,7 +851,7 @@ Defined in: [src/lib/db/chat/types.ts:939](https://github.com/anuma-ai/sdk/blob/
 
 > **queueStatus**: [`QueueStatus`](QueueStatus.md)
 
-Defined in: [src/react/useChatStorage.ts:949](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#949)
+Defined in: [src/react/useChatStorage.ts:956](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#956)
 
 Current status of the write queue.
 
@@ -2066,7 +2066,7 @@ Defined in: [src/lib/db/chat/types.ts:946](https://github.com/anuma-ai/sdk/blob/
 
 > **updateVaultMemory**: (`id`: `string`, `content`: `string`, `scope?`: `string`) => `Promise`<[`StoredVaultMemory`](StoredVaultMemory.md) | `null`>
 
-Defined in: [src/react/useChatStorage.ts:921](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#921)
+Defined in: [src/react/useChatStorage.ts:928](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#928)
 
 Update an existing vault memory's content.
 
@@ -2147,7 +2147,14 @@ the updated memory, or null if not found
 
 > **vaultEmbeddingCache**: [`VaultEmbeddingCache`](../type-aliases/VaultEmbeddingCache.md)
 
-Defined in: [src/react/useChatStorage.ts:895](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#895)
+Defined in: [src/react/useChatStorage.ts:902](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#902)
 
 The shared vault embedding cache. Use this to eagerly embed content
 when saving vault memories (via eagerEmbedContent).
+
+Shared per `(database, walletAddress, embeddingModel)` rather than owned by
+this hook instance: every `useChatStorage` on the same three gets this exact
+object, and it outlives their unmounts. Writes and evictions are therefore
+visible to all of them — which is the point (a memory deleted through one
+hook stops being served by the others) but does mean `clear()` clears for
+everyone.

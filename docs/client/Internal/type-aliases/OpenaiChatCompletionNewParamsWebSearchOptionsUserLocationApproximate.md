@@ -2,7 +2,7 @@
 
 > **OpenaiChatCompletionNewParamsWebSearchOptionsUserLocationApproximate** = `object`
 
-Defined in: [src/client/types.gen.ts:3902](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3902)
+Defined in: [src/client/types.gen.ts:3924](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3924)
 
 Approximate location parameters for the search.
 
@@ -12,7 +12,7 @@ Approximate location parameters for the search.
 
 > `optional` **any**: `unknown`
 
-Defined in: [src/client/types.gen.ts:3903](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3903)
+Defined in: [src/client/types.gen.ts:3925](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3925)
 
 ***
 
@@ -20,7 +20,7 @@ Defined in: [src/client/types.gen.ts:3903](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **city**: [`ParamOptString`](ParamOptString.md)
 
-Defined in: [src/client/types.gen.ts:3904](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3904)
+Defined in: [src/client/types.gen.ts:3926](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3926)
 
 ***
 
@@ -28,7 +28,7 @@ Defined in: [src/client/types.gen.ts:3904](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **country**: [`ParamOptString`](ParamOptString.md)
 
-Defined in: [src/client/types.gen.ts:3905](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3905)
+Defined in: [src/client/types.gen.ts:3927](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3927)
 
 ***
 
@@ -36,7 +36,7 @@ Defined in: [src/client/types.gen.ts:3905](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **region**: [`ParamOptString`](ParamOptString.md)
 
-Defined in: [src/client/types.gen.ts:3906](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3906)
+Defined in: [src/client/types.gen.ts:3928](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3928)
 
 ***
 
@@ -44,4 +44,4 @@ Defined in: [src/client/types.gen.ts:3906](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **timezone**: [`ParamOptString`](ParamOptString.md)
 
-Defined in: [src/client/types.gen.ts:3907](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3907)
+Defined in: [src/client/types.gen.ts:3929](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3929)
