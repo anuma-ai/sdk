@@ -2262,6 +2262,19 @@ export type HandlersNotificationDeviceResponse = {
     token?: string;
 };
 
+export type HandlersNotificationPreferenceItem = {
+    default?: boolean;
+    description?: string;
+    enabled?: boolean;
+    id?: string;
+    label?: string;
+    label_key?: string;
+};
+
+export type HandlersNotificationPreferencesResponse = {
+    categories?: Array<HandlersNotificationPreferenceItem>;
+};
+
 export type HandlersOAuthClientResponse = {
     agent_server_url?: string;
     allowed_redirect_uris?: Array<string>;
@@ -2559,6 +2572,14 @@ export type HandlersSendTestPushRequest = {
     data?: {
         [key: string]: unknown;
     };
+    /**
+     * EventType routes the test push through the full Dispatch pipeline
+     * (kill-switch → category mapping → recipient preference → channelId)
+     * instead of the raw device fan-out — the E2E knob for verifying the
+     * gates themselves. Empty keeps the raw send: an operator debugging
+     * delivery should not be blocked by the target's preferences.
+     */
+    event_type?: string;
     title?: string;
     url?: string;
     user_address?: string;
@@ -2572,6 +2593,15 @@ export type HandlersSendTestPushResponse = {
 
 export type HandlersSetConnectorEnabledRequest = {
     enabled?: boolean;
+};
+
+export type HandlersSetNotificationPreferenceInput = {
+    enabled?: boolean;
+    id?: string;
+};
+
+export type HandlersSetNotificationPreferencesRequest = {
+    preferences?: Array<HandlersSetNotificationPreferenceInput>;
 };
 
 export type HandlersSetScopeItem = {
@@ -5358,6 +5388,10 @@ export type PostApiV1AdminNotificationsSendErrors = {
      * Not Found
      */
     404: ResponseErrorResponse;
+    /**
+     * Conflict
+     */
+    409: ResponseErrorResponse;
     /**
      * Internal Server Error
      */
@@ -8720,6 +8754,79 @@ export type PostApiV1NotificationsDevicesUnregisterResponses = {
 };
 
 export type PostApiV1NotificationsDevicesUnregisterResponse = PostApiV1NotificationsDevicesUnregisterResponses[keyof PostApiV1NotificationsDevicesUnregisterResponses];
+
+export type GetApiV1NotificationsPreferencesData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/notifications/preferences';
+};
+
+export type GetApiV1NotificationsPreferencesErrors = {
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+    /**
+     * Forbidden
+     */
+    403: ResponseErrorResponse;
+    /**
+     * Internal Server Error
+     */
+    500: ResponseErrorResponse;
+};
+
+export type GetApiV1NotificationsPreferencesError = GetApiV1NotificationsPreferencesErrors[keyof GetApiV1NotificationsPreferencesErrors];
+
+export type GetApiV1NotificationsPreferencesResponses = {
+    /**
+     * OK
+     */
+    200: HandlersNotificationPreferencesResponse;
+};
+
+export type GetApiV1NotificationsPreferencesResponse = GetApiV1NotificationsPreferencesResponses[keyof GetApiV1NotificationsPreferencesResponses];
+
+export type PutApiV1NotificationsPreferencesData = {
+    /**
+     * Per-category toggles
+     */
+    body: HandlersSetNotificationPreferencesRequest;
+    path?: never;
+    query?: never;
+    url: '/api/v1/notifications/preferences';
+};
+
+export type PutApiV1NotificationsPreferencesErrors = {
+    /**
+     * Bad Request
+     */
+    400: ResponseErrorResponse;
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+    /**
+     * Forbidden
+     */
+    403: ResponseErrorResponse;
+    /**
+     * Internal Server Error
+     */
+    500: ResponseErrorResponse;
+};
+
+export type PutApiV1NotificationsPreferencesError = PutApiV1NotificationsPreferencesErrors[keyof PutApiV1NotificationsPreferencesErrors];
+
+export type PutApiV1NotificationsPreferencesResponses = {
+    /**
+     * OK
+     */
+    200: HandlersNotificationPreferencesResponse;
+};
+
+export type PutApiV1NotificationsPreferencesResponse = PutApiV1NotificationsPreferencesResponses[keyof PutApiV1NotificationsPreferencesResponses];
 
 export type GetApiV1PersonasData = {
     body?: never;

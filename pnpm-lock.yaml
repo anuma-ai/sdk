@@ -47,8 +47,8 @@ importers:
   .:
     dependencies:
       '@anuma/portal':
-        specifier: 1.0.0-next.20260727223242
-        version: 1.0.0-next.20260727223242
+        specifier: 1.0.0-next.20260728214647
+        version: 1.0.0-next.20260728214647
       '@babel/parser':
         specifier: ^7.29.2
         version: 7.29.2
@@ -307,8 +307,8 @@ packages:
   '@andrewbranch/untar.js@1.0.3':
     resolution: {integrity: sha512-Jh15/qVmrLGhkKJBdXlK1+9tY4lZruYjsgkDFj08ZmDiWVBLJcqkok7Z0/R0In+i1rScBpJlSvrTS2Lm41Pbnw==}
 
-  '@anuma/portal@1.0.0-next.20260727223242':
-    resolution: {integrity: sha512-EkM8P4CwY0BT9/VA9o4/TUJCIV1lAYmWrA5PEjgK++einofFUFA4YDiHtkpQ2m22c4EF4zXtvFHWt3sTkTapXA==}
+  '@anuma/portal@1.0.0-next.20260728214647':
+    resolution: {integrity: sha512-/ekh+duFmkcAuv+27MJrmFOLHf/6lVoLa84gLnmqsgwquNnVvci/U1ZwuLqZho7z9PjfQmp/pJz6cS6Mceqjuw==}
 
   '@arethetypeswrong/cli@0.18.2':
     resolution: {integrity: sha512-PcFM20JNlevEDKBg4Re29Rtv2xvjvQZzg7ENnrWFSS0PHgdP2njibVFw+dRUhNkPgNfac9iUqO0ohAXqQL4hbw==}
@@ -7567,7 +7567,7 @@ snapshots:
 
   '@andrewbranch/untar.js@1.0.3': {}
 
-  '@anuma/portal@1.0.0-next.20260727223242': {}
+  '@anuma/portal@1.0.0-next.20260728214647': {}
 
   '@arethetypeswrong/cli@0.18.2':
     dependencies:

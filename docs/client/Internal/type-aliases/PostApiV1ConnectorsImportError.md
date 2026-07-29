@@ -2,4 +2,4 @@
 
 > **PostApiV1ConnectorsImportError** = [`PostApiV1ConnectorsImportErrors`](PostApiV1ConnectorsImportErrors.md)\[keyof [`PostApiV1ConnectorsImportErrors`](PostApiV1ConnectorsImportErrors.md)]
 
-Defined in: [src/client/types.gen.ts:7070](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7070)
+Defined in: [src/client/types.gen.ts:7104](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7104)

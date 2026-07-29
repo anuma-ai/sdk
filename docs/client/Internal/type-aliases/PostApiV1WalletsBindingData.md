@@ -2,7 +2,7 @@
 
 > **PostApiV1WalletsBindingData** = `object`
 
-Defined in: [src/client/types.gen.ts:10263](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10263)
+Defined in: [src/client/types.gen.ts:10370](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10370)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:10263](https://github.com/anuma-ai/sdk/blob
 
 > **body**: [`HandlersBindRequest`](HandlersBindRequest.md)
 
-Defined in: [src/client/types.gen.ts:10267](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10267)
+Defined in: [src/client/types.gen.ts:10374](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10374)
 
 binding
 
@@ -20,7 +20,7 @@ binding
 
 > `optional` **path**: `never`
 
-Defined in: [src/client/types.gen.ts:10268](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10268)
+Defined in: [src/client/types.gen.ts:10375](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10375)
 
 ***
 
@@ -28,7 +28,7 @@ Defined in: [src/client/types.gen.ts:10268](https://github.com/anuma-ai/sdk/blob
 
 > `optional` **query**: `never`
 
-Defined in: [src/client/types.gen.ts:10269](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10269)
+Defined in: [src/client/types.gen.ts:10376](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10376)
 
 ***
 
@@ -36,4 +36,4 @@ Defined in: [src/client/types.gen.ts:10269](https://github.com/anuma-ai/sdk/blob
 
 > **url**: `"/api/v1/wallets/binding"`
 
-Defined in: [src/client/types.gen.ts:10270](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10270)
+Defined in: [src/client/types.gen.ts:10377](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10377)
