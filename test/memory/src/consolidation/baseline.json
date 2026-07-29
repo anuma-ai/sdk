@@ -1,7 +1,7 @@
 {
   "config": {
     "model": "inclusionai/ling-2.6-flash",
-    "cases": 11
+    "cases": 12
   },
   "runs": 25,
   "metrics": {
@@ -13,10 +13,10 @@
       "tolerance": 0.03
     },
     "fallbackRate": {
-      "mean": 0.014545454545454545,
+      "mean": 0.006666666666666666,
       "min": 0,
-      "max": 0.09090909090909091,
-      "stdDev": 0.03401506715249038,
+      "max": 0.08333333333333333,
+      "stdDev": 0.023073955174772422,
       "tolerance": 0.03
     }
   }

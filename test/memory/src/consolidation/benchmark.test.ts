@@ -220,7 +220,7 @@ const CASES: Case[] = [
     expect: { action: "create" },
   },
 
-  // ---- Second of each category (see GATE_METRICS below for why 11) --------
+  // ---- Second of each category (see GATE_METRICS below for why 12) --------
   // Every case below must have exactly ONE defensible answer. A case a competent
   // human would argue about adds variance instead of removing it, which is the
   // opposite of why the corpus grew.
@@ -266,6 +266,26 @@ const CASES: Case[] = [
     ],
     expect: { action: "supersede", targetIds: ["c1", "c2", "c3"] },
   },
+  {
+    // Restored after #825: the prompt now routes pure rewordings to noop. This
+    // fixture's wording is the one in the production prompt ("two kids" /
+    // "two children") — without it that rule has no live-eval coverage.
+    // Measured 5/5 on ling-2.6-flash after the prompt fix.
+    name: "already captured, different wording",
+    category: "noop",
+    newFact: "User has two children.",
+    candidates: [
+      { id: "c1", content: "User has two kids.", similarity: 0.95 },
+      { id: "c2", content: "User is married.", similarity: 0.41 },
+    ],
+    expect: { action: "noop", targetIds: ["c1"] },
+  },
+  // NOT restored: "different subject, same predicate → create not merge"
+  // (sister lives in Denver). #825 added the SAME SUBJECT REQUIRED rule, but
+  // ling-2.6-flash still supersedes on this fixture ~5–7/8 of the time — so
+  // putting it back would recreate the negative-margin trap this PR documents.
+  // Prompt text is pinned in consolidate.test.ts; the live fixture waits on a
+  // model that actually clears it.
 ];
 
 /**
@@ -276,8 +296,8 @@ const CASES: Case[] = [
  *
  * This gate detects a COLLAPSE — a broken prompt, a schema the model can't
  * satisfy, a fallback storm — not fine-grained quality drift. The resolution
- * limit is one case: 11 cases x 15 passes is 165 decisions, so a single case
- * failing on EVERY pass moves the gated mean by 1/11 = 9.1pt, and the working
+ * limit is one case: 12 cases x 15 passes is 180 decisions, so a single case
+ * failing on EVERY pass moves the gated mean by 1/12 = 8.3pt, and the working
  * tolerance is deliberately set below that and above the run-to-run noise.
  *
  * WHY `itemsPerRun`. Accuracy is a rate over the corpus, and a rate's variance is
@@ -305,7 +325,7 @@ const CASES: Case[] = [
  * metric that has to catch absent decisions. Empirical spread alone (plus
  * `minTolerance`) is the right band here.
  *
- * WHY THE CORPUS IS 11 AND WHY GROWING IT IS NOT FREE. Two bounds squeeze it from
+ * WHY THE CORPUS IS 12 AND WHY GROWING IT IS NOT FREE. Two bounds squeeze it from
  * both sides, and the second one is counter-intuitive:
  *
  *   Upper bound — tolerance shrinks as 1/sqrt(cases) but one case's weight shrinks
@@ -322,24 +342,29 @@ const CASES: Case[] = [
  *   case. Those three were removed. A case only pays for itself if the model
  *   reliably gets it right; a case it fails is a finding to file, not a fixture.
  *
+ *   After #825 fixed the rewording → noop prompt weakness, that fixture came
+ *   back (measured 5/5). The sister/Denver different-subject case did NOT —
+ *   ling-2.6-flash still supersedes on it most of the time, so restoring it would
+ *   recreate the trap above. Tokyo March vs January stayed out as a bad fixture
+ *   with no single defensible label. So 12 = the 11 healthy cases + the one
+ *   finding that actually cleared.
+ *
  * So most of the false-failure fix above comes from `itemsPerRun` and an honest
- * baseline, not from corpus size. 11 over 7 buys only a modest resolution gain —
- * projected at ~6.2pt detectable vs ~6.6pt, assuming a healthy-capture mean near
- * 92%; the committed baseline is what settles it — for 1.6x the LLM cost.
+ * baseline, not from corpus size. 12 over 7 buys a modest resolution gain for
+ * ~1.7x the LLM cost.
  *
  * That cost is wall-clock, not just spend: cases run SEQUENTIALLY, and the
  * per-decision latency was measured anywhere from 1.4s to 4.5s depending on
- * provider load. At the slow end a 25-run capture is ~21 minutes against the job's
+ * provider load. At the slow end a 25-run capture is ~22 minutes against the job's
  * 30-minute timeout, which is the real ceiling on both corpus size and run count.
  *
  * The committed baseline is generated at `--runs 25` while the workflow GATES at
  * 15. Deliberately asymmetric: a capture's error in the mean is permanent until
  * someone regenerates it — and mis-estimating that mean is precisely what broke
  * this gate — whereas a gate run's cost is paid again on every PR. So buy
- * precision where it lasts. Over 11 cases, 25 passes put the mean's standard error
- * at 1.6pp against 2.1pp at 15. Not higher: 40 passes is 440 sequential calls,
- * which at the 4.5s latency seen above is ~33 minutes — past the job's 30-minute
- * timeout — to buy 0.3pp.
+ * precision where it lasts. Over 12 cases, 25 passes put the mean's standard error
+ * at ~1.3pp against ~1.7pp at 15. Not higher: 40 passes is 480 sequential calls,
+ * which at the 4.5s latency seen above is past the job's 30-minute timeout.
  *
  * The counts need NOT match — `meanDiffTolerance` folds both into the tolerance,
  * and `runs` is deliberately absent from the recorded config for that reason. But

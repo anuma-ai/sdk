@@ -304,6 +304,53 @@ describe("consolidateMemory", () => {
   });
 });
 
+describe("consolidateMemory — prompt pins #825 subject/rewording rules", () => {
+  /** Fetch mock that records request bodies and returns a noop decision. */
+  function capturingFetch(): { fetchFn: typeof fetch; bodies: string[] } {
+    const bodies: string[] = [];
+    const fetchFn = vi.fn().mockImplementation((_url: string, init?: { body?: unknown }) => {
+      bodies.push(typeof init?.body === "string" ? init.body : "");
+      return Promise.resolve({
+        ok: true,
+        json: async () => choices({ action: "noop", targetId: "m1" }),
+      });
+    }) as unknown as typeof fetch;
+    return { fetchFn, bodies };
+  }
+
+  it("tells the model a pure rewording is noop, with the kids/children example", async () => {
+    // #825 shipped this prompt text without a test; deleting the matching eval
+    // fixture left the rule with zero regression coverage. Pin the wording the
+    // production prompt uses so a revert can't quietly drop it. The body is
+    // JSON-encoded, so quotes arrive escaped.
+    const { fetchFn, bodies } = capturingFetch();
+    await consolidateMemory("User has two children.", [{ id: "m1", content: "User has two kids.", similarity: 0.95 }], {
+      apiKey: "k",
+      fetchFn,
+    });
+    const sent = bodies.join("");
+    expect(sent).toContain('\\"has two kids\\" / \\"has two children\\"');
+    expect(sent).toContain(
+      'A pure rewording that adds nothing is NOT an update; it is \\"noop\\"'
+    );
+  });
+
+  it("requires the same subject before merge, with the peanut-allergy example", async () => {
+    const { fetchFn, bodies } = capturingFetch();
+    await consolidateMemory(
+      "User's sister lives in Denver.",
+      [{ id: "m1", content: "User lives in Denver.", similarity: 0.87 }],
+      { apiKey: "k", fetchFn }
+    );
+    const sent = bodies.join("");
+    expect(sent).toContain("SAME SUBJECT REQUIRED");
+    expect(sent).toContain("User's daughter is allergic to peanuts");
+    expect(sent).toContain(
+      "Never retire the user's own value because a fact about somebody else resembles it"
+    );
+  });
+});
+
 describe("consolidateMemory — PII redaction", () => {
   /** Fetch mock that records request bodies and returns the given decision JSON. */
   function capturingFetch(decision: unknown): { fetchFn: typeof fetch; bodies: string[] } {
