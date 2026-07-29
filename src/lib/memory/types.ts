@@ -196,6 +196,17 @@ export interface RecallOptions {
    * whole-vault decrypt path).
    */
   decryptLast?: boolean;
+  /**
+   * 719/B3 — int8 cosine first pass + Float32 re-score of the top window.
+   * Approximate; **default OFF** until eval-gate accuracy evidence clears
+   * it for the default lane. Forwarded to the vault search pipeline.
+   */
+  int8FirstPass?: boolean;
+  /**
+   * Float32 re-score window when {@link RecallOptions.int8FirstPass} is on.
+   * Default 100. See {@link MemoryVaultSearchOptions.int8RescoreTopN}.
+   */
+  int8RescoreTopN?: number;
   // -------------------------------------------------------------------------
   // Multi-hop graph traversal knobs (PR4). Only active on the `high` budget
   // (the W5 lane's `traverse` flag); no-ops on low/mid. All optional; defaults

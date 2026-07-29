@@ -5,8 +5,11 @@
  * A 1536-dim Float32 vector is 6 KiB; the same vector quantized to
  * Int8 + a single Float32 scale is 1.5 KiB + 4 bytes.
  *
- * Used by clients that hold thousands of embeddings in RAM to support
- * fast first-pass similarity ranking without paying the full Float32 cost.
+ * Wired by 719/B3 as an **opt-in** first-pass cosine ranker in the vault
+ * search path (`MemoryVaultSearchOptions.int8FirstPass` /
+ * `RecallOptions.int8FirstPass`): approximate int8 ranks the corpus, then
+ * Float32 re-scores the top-K. Default OFF until eval-gate accuracy
+ * evidence clears the approximate path for the default lane.
  *
  * Quantization scheme:
  * - scale = max absolute value across the vector (>= 0)

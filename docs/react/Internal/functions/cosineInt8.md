@@ -2,7 +2,7 @@
 
 > **cosineInt8**(`a`: `Int8Array`, `scaleA`: `number`, `b`: `Int8Array`, `scaleB`: `number`): `number`
 
-Defined in: [src/lib/memoryEngine/quantization.ts:119](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryEngine/quantization.ts#119)
+Defined in: [src/lib/memoryEngine/quantization.ts:122](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryEngine/quantization.ts#122)
 
 Cosine similarity between two Int8-quantized embeddings.
 
