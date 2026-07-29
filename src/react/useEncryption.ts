@@ -92,9 +92,26 @@ export interface RequestEncryptionKeyOptions {
  * non-extractable `CryptoKey`s. Hardening this is a tracked follow-up.
  */
 const encryptionKeyStore = new Map<string, StoredKeys>();
-const pendingKeyRequests = new Map<string, Promise<void>>();
-/** In-flight verify-before-commit refreshes, keyed by wallet address (#561 / PR #828). */
-const pendingKeyRefreshes = new Map<string, Promise<boolean>>();
+const pendingKeyRequests = new Map<string, Promise<boolean>>();
+/**
+ * In-flight candidate derives for {@link refreshEncryptionKeyIfMatches}, keyed by
+ * wallet address. Shares one sign+derive across parallel probes (#561 / PR #828).
+ */
+const pendingCandidateDerives = new Map<string, Promise<DerivedKeyPair | null>>();
+/**
+ * Session-scoped candidates from the last refresh derive per address. Lets later
+ * probes (or pagination) try the same keys without re-signing when the first
+ * probe missed — and caps the wallet-changed case at one sign (#828 review).
+ */
+const refreshCandidatesByAddress = new Map<string, DerivedKeyPair>();
+/**
+ * Addresses where {@link requestEncryptionKey} derived keys that diverged from
+ * the seeded/pinned store. Subsequent non-force calls short-circuit without
+ * re-signing until the store is cleared or a matching derive succeeds.
+ */
+const divergentDeriveAddresses = new Set<string>();
+
+type DerivedKeyPair = { legacy: string; current: string };
 
 /**
  * Monotonic counter incremented whenever `clearAllEncryptionState()` runs.
@@ -229,6 +246,8 @@ export function clearEncryptionKey(address: string): void {
   encryptionKeyStore.delete(address);
   cryptoKeyCache.delete(`${address}:v2`);
   cryptoKeyCache.delete(`${address}:v3`);
+  refreshCandidatesByAddress.delete(address);
+  divergentDeriveAddresses.delete(address);
 }
 
 /**
@@ -264,7 +283,9 @@ export function clearAllEncryptionState(): void {
   cryptoKeyCache.clear();
   keyAvailableCallbacks.clear();
   pendingKeyRequests.clear();
-  pendingKeyRefreshes.clear();
+  pendingCandidateDerives.clear();
+  refreshCandidatesByAddress.clear();
+  divergentDeriveAddresses.clear();
 
   clearAllKeyPairs();
 
@@ -790,6 +811,8 @@ export function hasEncryptionKey(address: string, version?: EncryptionKeyVersion
  *
  * Existing versions are preserved when the corresponding argument is omitted.
  * Pass an explicit empty merge is not supported; omit the field to leave it.
+ *
+ * Each provided key must be 64 hex characters (32-byte AES key).
  */
 export function seedEncryptionKeys(
   address: string,
@@ -803,6 +826,12 @@ export function seedEncryptionKeys(
   if (!keys.legacy && !keys.current) {
     throw new Error("seedEncryptionKeys: at least one of legacy or current is required");
   }
+  if (keys.legacy !== undefined) {
+    assertAes256KeyHex("legacy", keys.legacy);
+  }
+  if (keys.current !== undefined) {
+    assertAes256KeyHex("current", keys.current);
+  }
 
   const existing = encryptionKeyStore.get(address);
   const next: StoredKeys = {
@@ -815,7 +844,22 @@ export function seedEncryptionKeys(
   if (keys.legacy !== undefined) cryptoKeyCache.delete(`${address}:v2`);
   if (keys.current !== undefined) cryptoKeyCache.delete(`${address}:v3`);
 
+  // Fresh seed supersedes any prior divergent/refresh memo for this address.
+  refreshCandidatesByAddress.delete(address);
+  divergentDeriveAddresses.delete(address);
+
   notifyKeyAvailable(address);
+}
+
+/** 32-byte AES key as lowercase/uppercase hex (no 0x prefix). */
+const AES_256_KEY_HEX = /^[0-9a-fA-F]{64}$/;
+
+function assertAes256KeyHex(field: string, value: string): void {
+  if (!AES_256_KEY_HEX.test(value)) {
+    throw new Error(
+      `seedEncryptionKeys: ${field} must be 64 hex characters (32-byte AES key), got length ${value.length}`
+    );
+  }
 }
 
 /**
@@ -1008,18 +1052,26 @@ export type EmbeddedWalletSignerFn = (
  * Note: Keys are stored in memory only and do not persist across page reloads.
  * This is a security feature - users must sign once per session to derive their key.
  *
+ * When a seeded/pinned store already has keys and the fresh derive does not
+ * match any of them, the store is left unchanged and this resolves to `false`
+ * (without firing {@link onKeyAvailable}). Callers that need write readiness
+ * should check the return value or {@link hasEncryptionKey} before encrypting
+ * so they can surface a re-unlock UI instead of failing downstream (#828).
+ *
  * @param walletAddress - The wallet address to generate the key for
  * @param signMessage - Function to sign a message (returns signature hex string)
  * @param embeddedWalletSigner - Optional function for silent signing with embedded wallets
  * @param options - Optional flags (e.g. force re-derive)
- * @returns Promise that resolves when the key is available
+ * @returns `true` when keys are available after the call; `false` when a
+ *   divergent derive left the store unchanged (or the session was torn down
+ *   mid-flight).
  */
 export async function requestEncryptionKey(
   walletAddress: string,
   signMessage: SignMessageFn,
   embeddedWalletSigner?: EmbeddedWalletSignerFn,
   options?: RequestEncryptionKeyOptions
-): Promise<void> {
+): Promise<boolean> {
   // Validate wallet address format
   if (!isValidWalletAddress(walletAddress)) {
     throw new Error(
@@ -1035,7 +1087,12 @@ export async function requestEncryptionKey(
     getStoredKeyByVersion(walletAddress, "v3") &&
     getStoredKeyByVersion(walletAddress, "v2")
   ) {
-    return;
+    return true;
+  }
+
+  // Prior divergent derive for this address: do not re-prompt every page read.
+  if (!options?.force && divergentDeriveAddresses.has(walletAddress)) {
+    return false;
   }
 
   // Deduplicate: if another call is already signing for this address, await it
@@ -1043,13 +1100,12 @@ export async function requestEncryptionKey(
   if (!options?.force) {
     const pending = pendingKeyRequests.get(walletAddress);
     if (pending) {
-      await pending;
-      return;
+      return pending;
     }
   }
 
   const startEpoch = sessionEpoch;
-  const promise = (async () => {
+  const promise = (async (): Promise<boolean> => {
     // Prefer embedded wallet signer for silent signing, fall back to standard signMessage
     // Always disable wallet UIs for a seamless experience
     const signOptions: SignMessageOptions = { showWalletUIs: false };
@@ -1083,7 +1139,7 @@ export async function requestEncryptionKey(
     // the result on the floor — writing it back would silently restore the
     // previous session's key material after logout.
     if (sessionEpoch !== startEpoch) {
-      return;
+      return false;
     }
 
     const existing = encryptionKeyStore.get(walletAddress);
@@ -1097,7 +1153,8 @@ export async function requestEncryptionKey(
         getLogger().warn(
           "requestEncryptionKey: derived keys do not match existing store; leaving unchanged"
         );
-        return;
+        divergentDeriveAddresses.add(walletAddress);
+        return false;
       }
       setStoredKey(walletAddress, {
         legacy: existing.legacy ?? legacyKey,
@@ -1109,14 +1166,17 @@ export async function requestEncryptionKey(
     // Force / fill path may replace hex under a still-cached CryptoKey — drop both.
     cryptoKeyCache.delete(`${walletAddress}:v2`);
     cryptoKeyCache.delete(`${walletAddress}:v3`);
+    refreshCandidatesByAddress.delete(walletAddress);
+    divergentDeriveAddresses.delete(walletAddress);
 
     // Notify listeners that key is now available (triggers queue flush, etc.)
     notifyKeyAvailable(walletAddress);
+    return true;
   })();
 
   pendingKeyRequests.set(walletAddress, promise);
   try {
-    await promise;
+    return await promise;
   } finally {
     // Gate on identity: if `clearAllEncryptionState()` ran mid-flight and a
     // subsequent caller stored a fresh promise for this address, deleting
@@ -1133,11 +1193,11 @@ export async function requestEncryptionKey(
  * they successfully decrypt `probeCiphertext` (a prefixed `enc:v2:` / `enc:v3:`
  * value). If they do not, the existing in-memory keys are left untouched.
  *
- * Concurrent calls for the same wallet share one sign+derive (deduped via
- * {@link pendingKeyRefreshes}) so a page of parallel decrypts cannot storm the
- * wallet with one prompt per message (#561 / PR #828). Waiters that join a
- * successful refresh re-check their own probe under the new store without
- * signing again.
+ * Concurrent calls for the same wallet share one sign+derive. Each caller then
+ * probes **its own** ciphertext against those candidates, so mixed-era messages
+ * in one `Promise.all` batch can still recover when only the leader's probe
+ * misses (#828 review). Failed candidates are memoized for the session so
+ * pagination does not re-prompt on every page when the wallet has changed.
  *
  * @returns true when keys were refreshed (probe decrypted); false when the
  *   probe failed under the candidate keys (store unchanged) or the probe was
@@ -1155,42 +1215,42 @@ export async function refreshEncryptionKeyIfMatches(
     );
   }
 
-  const pending = pendingKeyRefreshes.get(walletAddress);
-  if (pending) {
-    const committed = await pending;
-    if (!committed) return false;
-    // Shared refresh updated the store — verify this caller's probe without re-signing.
-    return probeDecryptsWithStoredKey(walletAddress, probeCiphertext);
-  }
-
-  const promise = refreshEncryptionKeyIfMatchesInner(
-    walletAddress,
-    probeCiphertext,
-    signMessage,
-    embeddedWalletSigner
-  ).finally(() => {
-    if (pendingKeyRefreshes.get(walletAddress) === promise) {
-      pendingKeyRefreshes.delete(walletAddress);
-    }
-  });
-  pendingKeyRefreshes.set(walletAddress, promise);
-  return promise;
-}
-
-/** True when the current in-memory key for the probe's version opens it. */
-async function probeDecryptsWithStoredKey(
-  walletAddress: string,
-  probeCiphertext: string
-): Promise<boolean> {
   const parsed = parsePrefixedCiphertext(probeCiphertext);
-  if (!parsed) return false;
-  try {
-    const key = await getEncryptionKey(walletAddress, parsed.version);
-    await decryptDataWithKey(parsed.encryptedData, key);
-    return true;
-  } catch {
+  if (!parsed) {
     return false;
   }
+
+  // Prefer session-cached candidates (no re-sign) before starting a new derive.
+  const cached = refreshCandidatesByAddress.get(walletAddress);
+  if (cached) {
+    return tryCommitCandidatesIfProbeMatches(walletAddress, parsed, cached);
+  }
+
+  let derivePromise = pendingCandidateDerives.get(walletAddress);
+  if (!derivePromise) {
+    // Cache candidates inside the shared promise (before it resolves) so a
+    // caller arriving between resolve and the awaiter's continuation cannot
+    // miss both the pending map and the session cache and re-sign.
+    derivePromise = (async () => {
+      const candidates = await deriveRefreshCandidates(signMessage, embeddedWalletSigner);
+      if (candidates) {
+        refreshCandidatesByAddress.set(walletAddress, candidates);
+      }
+      return candidates;
+    })().finally(() => {
+      if (pendingCandidateDerives.get(walletAddress) === derivePromise) {
+        pendingCandidateDerives.delete(walletAddress);
+      }
+    });
+    pendingCandidateDerives.set(walletAddress, derivePromise);
+  }
+
+  const candidates = await derivePromise;
+  if (!candidates) {
+    return false;
+  }
+
+  return tryCommitCandidatesIfProbeMatches(walletAddress, parsed, candidates);
 }
 
 function parsePrefixedCiphertext(
@@ -1211,18 +1271,10 @@ function parsePrefixedCiphertext(
   return { version, encryptedData };
 }
 
-async function refreshEncryptionKeyIfMatchesInner(
-  walletAddress: string,
-  probeCiphertext: string,
+async function deriveRefreshCandidates(
   signMessage: SignMessageFn,
   embeddedWalletSigner?: EmbeddedWalletSignerFn
-): Promise<boolean> {
-  const parsed = parsePrefixedCiphertext(probeCiphertext);
-  if (!parsed) {
-    return false;
-  }
-  const { version, encryptedData } = parsed;
-
+): Promise<DerivedKeyPair | null> {
   const startEpoch = sessionEpoch;
   const signOptions: SignMessageOptions = { showWalletUIs: false };
   let signature: string;
@@ -1250,10 +1302,19 @@ async function refreshEncryptionKeyIfMatchesInner(
   ]);
 
   if (sessionEpoch !== startEpoch) {
-    return false;
+    return null;
   }
 
-  const candidateHex = version === "v2" ? legacyKey : currentKey;
+  return { legacy: legacyKey, current: currentKey };
+}
+
+/** True when candidates open `parsed` ciphertext; commits them on success. */
+async function tryCommitCandidatesIfProbeMatches(
+  walletAddress: string,
+  parsed: { version: EncryptionKeyVersion; encryptedData: string },
+  candidates: DerivedKeyPair
+): Promise<boolean> {
+  const candidateHex = parsed.version === "v2" ? candidates.legacy : candidates.current;
   const keyBytes = hexToBytes(candidateHex);
   const candidateCryptoKey = await crypto.subtle.importKey(
     "raw",
@@ -1264,22 +1325,18 @@ async function refreshEncryptionKeyIfMatchesInner(
   );
 
   try {
-    await decryptDataWithKey(encryptedData, candidateCryptoKey);
+    await decryptDataWithKey(parsed.encryptedData, candidateCryptoKey);
   } catch {
-    // Candidate keys cannot open the intact ciphertext — do not replace store.
     getLogger().warn(
       "refreshEncryptionKeyIfMatches: candidate keys failed to decrypt probe; leaving store unchanged"
     );
     return false;
   }
 
-  if (sessionEpoch !== startEpoch) {
-    return false;
-  }
-
-  setStoredKey(walletAddress, { legacy: legacyKey, current: currentKey });
+  setStoredKey(walletAddress, { legacy: candidates.legacy, current: candidates.current });
   cryptoKeyCache.delete(`${walletAddress}:v2`);
   cryptoKeyCache.delete(`${walletAddress}:v3`);
+  divergentDeriveAddresses.delete(walletAddress);
   notifyKeyAvailable(walletAddress);
   return true;
 }
@@ -1688,7 +1745,7 @@ export function clearAllKeyPairs(): void {
  */
 export interface UseEncryptionResult {
   /** Request and generate an encryption key for a wallet address */
-  requestEncryptionKey: (walletAddress: string) => Promise<void>;
+  requestEncryptionKey: (walletAddress: string) => Promise<boolean>;
   /** Request and generate an ECDH key pair for a wallet address */
   requestKeyPair: (walletAddress: string) => Promise<void>;
   /** Export the public key for a wallet address as base64-encoded SPKI */

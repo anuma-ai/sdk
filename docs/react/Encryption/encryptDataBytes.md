@@ -2,7 +2,7 @@
 
 > **encryptDataBytes**(`plaintext`: `Uint8Array`, `address`: `string`): `Promise`<`Uint8Array`<`ArrayBufferLike`>>
 
-Defined in: [src/react/useEncryption.ts:643](https://github.com/anuma-ai/sdk/blob/main/src/react/useEncryption.ts#643)
+Defined in: [src/react/useEncryption.ts:664](https://github.com/anuma-ai/sdk/blob/main/src/react/useEncryption.ts#664)
 
 Like [encryptData](encryptData.md) but takes raw bytes and returns the raw encrypted
 `[IV][ciphertext+tag]` Uint8Array instead of a hex string. Avoids the hex

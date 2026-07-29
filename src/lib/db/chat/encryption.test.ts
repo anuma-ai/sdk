@@ -482,32 +482,20 @@ describe("Chat Encryption Utilities", () => {
 
     it("requestEncryptionKey does not wipe a seeded key with a divergent signature (#828)", async () => {
       clearAllEncryptionKeys();
-      const { seedEncryptionKeys, hasEncryptionKey, encryptData, decryptData } =
-        await import("../../../react/useEncryption");
+      const { seedEncryptionKeys, hasEncryptionKey } = await import("../../../react/useEncryption");
 
-      // Establish a real key, capture ciphertext, then re-seed only that current hex
-      // by going through a full request then... simpler: request with mock, encrypt,
-      // clear, seed wrong, then request with wrong signer must leave wrong key and
-      // not replace with another wrong derive that still can't read — actually we
-      // need to prove a *valid* seeded key survives a bad requestEncryptionKey.
-      await requestEncryptionKey(testAddress, mockSignMessage);
-      const cipherHex = await encryptData("keep-me", testAddress);
-      // Re-seed the correct current by leaving store as-is, then try a bad fill:
-      // Simulate partial store with ONLY the correct current (no legacy).
-      // We can't read hex out — instead: clear, seed wrong current, request with
-      // correct signer fills both when match...
-      // For "valid survives bad": seed wrong, request with correct signer — that
-      // WOULD replace after match fails... matchesCurrent is false, so leave wrong.
-      clearAllEncryptionKeys();
       seedEncryptionKeys(testAddress, { current: "ab".repeat(32) });
       const badSigner = vi.fn(async () => `0x${"33".repeat(65)}`) as unknown as SignMessageFn;
-      await requestEncryptionKey(testAddress, badSigner);
+      const ok = await requestEncryptionKey(testAddress, badSigner);
+      expect(ok).toBe(false);
       // Store unchanged — still only the wrong seeded current (no legacy filled).
       expect(hasEncryptionKey(testAddress, "v3")).toBe(true);
       expect(hasEncryptionKey(testAddress, "v2")).toBe(false);
       expect(hasEncryptionKey(testAddress)).toBe(true); // default = v3
-      void cipherHex;
-      void decryptData;
+
+      // Divergent memo: subsequent calls must not re-sign.
+      await requestEncryptionKey(testAddress, badSigner);
+      expect(badSigner).toHaveBeenCalledTimes(1);
     });
 
     it("hasEncryptionKey() without version requires v3, not merely v2 (#828)", async () => {
@@ -517,6 +505,68 @@ describe("Chat Encryption Utilities", () => {
       expect(hasEncryptionKey(testAddress, "v2")).toBe(true);
       expect(hasEncryptionKey(testAddress, "v3")).toBe(false);
       expect(hasEncryptionKey(testAddress)).toBe(false);
+    });
+
+    it("refresh memos failed candidates so pagination does not re-sign (#828)", async () => {
+      await requestEncryptionKey(testAddress, mockSignMessage);
+      const realCipher = await encryptField("alien-target", testAddress, mockSignMessage);
+
+      clearAllEncryptionKeys();
+      const { seedEncryptionKeys, refreshEncryptionKeyIfMatches } =
+        await import("../../../react/useEncryption");
+      seedEncryptionKeys(testAddress, { current: "ab".repeat(32) });
+
+      let signCalls = 0;
+      const wrongSigner = vi.fn(async () => {
+        signCalls += 1;
+        return `0x${"44".repeat(65)}`;
+      }) as unknown as SignMessageFn;
+
+      expect(await refreshEncryptionKeyIfMatches(testAddress, realCipher, wrongSigner)).toBe(false);
+      expect(await refreshEncryptionKeyIfMatches(testAddress, realCipher, wrongSigner)).toBe(false);
+      expect(signCalls).toBe(1);
+    });
+
+    it("parallel refresh waiters probe their own ciphertext against shared candidates (#828)", async () => {
+      await requestEncryptionKey(testAddress, mockSignMessage);
+      const goodCipher = await encryptField("recover-me", testAddress, mockSignMessage);
+
+      // Build an alien probe that the correct signer cannot open.
+      const alienSigner = vi.fn(async () => `0x${"55".repeat(65)}`) as unknown as SignMessageFn;
+      clearAllEncryptionKeys();
+      await requestEncryptionKey(testAddress, alienSigner);
+      const alienCipher = await encryptField("alien", testAddress, alienSigner);
+
+      clearAllEncryptionKeys();
+      const { seedEncryptionKeys, refreshEncryptionKeyIfMatches, decryptData } =
+        await import("../../../react/useEncryption");
+      seedEncryptionKeys(testAddress, { current: "ab".repeat(32) });
+
+      let signCalls = 0;
+      const countingSigner = vi.fn(async (message: string) => {
+        signCalls += 1;
+        await new Promise((r) => setTimeout(r, 30));
+        return mockSignMessage(message);
+      }) as unknown as SignMessageFn;
+
+      // Leader probe misses; waiter probe matches the shared candidates.
+      const [leader, waiter] = await Promise.all([
+        refreshEncryptionKeyIfMatches(testAddress, alienCipher, countingSigner),
+        refreshEncryptionKeyIfMatches(testAddress, goodCipher, countingSigner),
+      ]);
+
+      expect(signCalls).toBe(1);
+      expect(leader).toBe(false);
+      expect(waiter).toBe(true);
+      const hex = goodCipher.slice("enc:v3:".length);
+      expect(await decryptData(hex, testAddress)).toBe("recover-me");
+    });
+
+    it("seedEncryptionKeys rejects non-64-char hex (#828)", async () => {
+      clearAllEncryptionKeys();
+      const { seedEncryptionKeys } = await import("../../../react/useEncryption");
+      expect(() => seedEncryptionKeys(testAddress, { current: "abcd" })).toThrow(/64 hex/);
+      expect(() => seedEncryptionKeys(testAddress, { legacy: "zz".repeat(32) })).toThrow(/64 hex/);
     });
   });
 });

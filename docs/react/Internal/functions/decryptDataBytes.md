@@ -2,7 +2,7 @@
 
 > **decryptDataBytes**(`encryptedHex`: `string`, `address`: `string`, `version`: [`EncryptionKeyVersion`](../type-aliases/EncryptionKeyVersion.md)): `Promise`<`Uint8Array`<`ArrayBufferLike`>>
 
-Defined in: [src/react/useEncryption.ts:700](https://github.com/anuma-ai/sdk/blob/main/src/react/useEncryption.ts#700)
+Defined in: [src/react/useEncryption.ts:721](https://github.com/anuma-ai/sdk/blob/main/src/react/useEncryption.ts#721)
 
 Decrypts data and returns as Uint8Array (for binary data)
 

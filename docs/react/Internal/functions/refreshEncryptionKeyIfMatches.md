@@ -2,17 +2,17 @@
 
 > **refreshEncryptionKeyIfMatches**(`walletAddress`: `string`, `probeCiphertext`: `string`, `signMessage`: [`SignMessageFn`](../type-aliases/SignMessageFn.md), `embeddedWalletSigner?`: [`EmbeddedWalletSignerFn`](../type-aliases/EmbeddedWalletSignerFn.md)): `Promise`<`boolean`>
 
-Defined in: [src/react/useEncryption.ts:1146](https://github.com/anuma-ai/sdk/blob/main/src/react/useEncryption.ts#1146)
+Defined in: [src/react/useEncryption.ts:1206](https://github.com/anuma-ai/sdk/blob/main/src/react/useEncryption.ts#1206)
 
 Re-derive encryption keys from a fresh signature and commit them **only if**
 they successfully decrypt `probeCiphertext` (a prefixed `enc:v2:` / `enc:v3:`
 value). If they do not, the existing in-memory keys are left untouched.
 
-Concurrent calls for the same wallet share one sign+derive (deduped via
-pendingKeyRefreshes) so a page of parallel decrypts cannot storm the
-wallet with one prompt per message (#561 / PR #828). Waiters that join a
-successful refresh re-check their own probe under the new store without
-signing again.
+Concurrent calls for the same wallet share one sign+derive. Each caller then
+probes **its own** ciphertext against those candidates, so mixed-era messages
+in one `Promise.all` batch can still recover when only the leader's probe
+misses (#828 review). Failed candidates are memoized for the session so
+pagination does not re-prompt on every page when the wallet has changed.
 
 ## Parameters
 
