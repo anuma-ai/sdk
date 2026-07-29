@@ -32,9 +32,13 @@ vi.mock("../memory/reranker", async (importOriginal) => ({
   rerankPairs: vi.fn(),
 }));
 
-vi.mock("./decomposeQuery", () => ({
-  decomposeQuery: vi.fn(),
-}));
+vi.mock("./decomposeQuery", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("./decomposeQuery")>();
+  return {
+    ...actual,
+    decomposeQuery: vi.fn(),
+  };
+});
 
 import * as ops from "../db/memoryVault/operations";
 import * as embed from "../memoryEngine/embeddings";

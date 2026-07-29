@@ -38,7 +38,7 @@ import { callPortalJsonCompletion, type PortalLlmAuth } from "../memory/portalLl
 // breaks even on a hiccup.
 const DEFAULT_MODEL = "inclusionai/ling-2.6-flash";
 /** Max facets accepted from LLM rewrite or a caller-supplied `subQueries` list. */
-export const MAX_SUB_QUERIES = 5;
+const MAX_SUB_QUERIES = 5;
 
 const SYSTEM_PROMPT = `You classify a memory query and, if needed, decompose it into concrete sub-queries.
 
@@ -140,9 +140,9 @@ export async function decomposeQuery(
 
 /**
  * Normalize caller- or LLM-supplied facet queries for the composite ranker
- * (719/B4). Trims, drops blanks, case-insensitive-dedupes, and caps at
- * {@link MAX_SUB_QUERIES}. Duplicate facets would otherwise receive repeated
- * RRF weight; oversized lists burn embeddings for nothing.
+ * (719/B4). Trims, drops blanks, case-insensitive-dedupes, and caps at 5.
+ * Duplicate facets would otherwise receive repeated RRF weight; oversized
+ * lists burn embeddings for nothing.
  */
 export function normalizeSubQueries(raw: readonly unknown[] | undefined): string[] {
   if (!raw || raw.length === 0) return [];
