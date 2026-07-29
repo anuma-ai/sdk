@@ -41,3 +41,5 @@ Client paths are in `zeta-chain/ai-memoryless-client`.
 | `summarizeObservationTrends` | dark | Same subtree — consumed only by `synthesizeProfile` and `profileSalience`. |
 | `rankProfileCandidates` | dark | Same subtree — profile-salience ranking for `synthesizeProfile`. |
 | `scoreProfileSalience` | dark | Same subtree — per-candidate half of that salience pass. |
+| `verifyMemoriesForPublish` | dark | #707. The publish-time support check for People Nearby. Nothing mounts it: there is no People Nearby publish flow in the client yet, and it is deliberately not wired into `setMemoryVisibilityOp` (that op is offline storage and also the revoke path). Goes live with the publish UI that has to render the verdicts. |
+| `createMessageSourceResolver` | dark | Dark with `verifyMemoriesForPublish` — the default `VerificationSources` wiring over the chat store, and its only caller. |
