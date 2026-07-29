@@ -1,6 +1,6 @@
 # StoredMessageWithSimilarity
 
-Defined in: [src/lib/db/chat/types.ts:285](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#285)
+Defined in: [src/lib/db/chat/types.ts:294](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#294)
 
 ## Extends
 
@@ -55,6 +55,26 @@ Defined in: [src/lib/db/chat/types.ts:216](https://github.com/anuma-ai/sdk/blob/
 **Inherited from**
 
 [`StoredMessage`](StoredMessage.md).[`createdAt`](StoredMessage.md#createdat)
+
+***
+
+### decryptionStatus?
+
+> `optional` **decryptionStatus**: `"key_missing"` | `"auth_mismatch"` | `"invalid_payload"`
+
+Defined in: [src/lib/db/chat/types.ts:245](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#245)
+
+Set when `content` could not be decrypted on read (#561).
+The `content` field still holds the original ciphertext — never a
+`[Decryption Failed]` placeholder — so a later unlock can recover.
+
+* `key_missing`: no key for this field's `enc:vN:` version in the store
+* `auth_mismatch`: a key was present but AES-GCM auth failed (wrong key)
+* `invalid_payload`: malformed ciphertext envelope
+
+**Inherited from**
+
+[`StoredMessage`](StoredMessage.md).[`decryptionStatus`](StoredMessage.md#decryptionstatus)
 
 ***
 
@@ -208,7 +228,7 @@ Defined in: [src/lib/db/chat/types.ts:207](https://github.com/anuma-ai/sdk/blob/
 
 > **similarity**: `number`
 
-Defined in: [src/lib/db/chat/types.ts:286](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#286)
+Defined in: [src/lib/db/chat/types.ts:295](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#295)
 
 ***
 

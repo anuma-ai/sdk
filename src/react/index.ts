@@ -137,6 +137,8 @@ export type { DisplayToolMigrations } from "../tools/uiInteraction";
 export { migrateDisplayResult } from "../tools/uiInteraction";
 export type {
   EmbeddedWalletSignerFn,
+  EncryptionKeyVersion,
+  RequestEncryptionKeyOptions,
   SignMessageFn,
   SignMessageOptions,
   UseEncryptionResult,
@@ -157,13 +159,16 @@ export {
   encryptDataBatch,
   encryptDataBytes,
   encryptDataWithKey,
+  EncryptionKeyMissingError,
   exportPublicKey,
   getEncryptionKey,
   hasEncryptionKey,
   hasKeyPair,
   onKeyAvailable,
+  refreshEncryptionKeyIfMatches,
   requestEncryptionKey,
   requestKeyPair,
+  seedEncryptionKeys,
   useEncryption,
 } from "./useEncryption";
 export type {

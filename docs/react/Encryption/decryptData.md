@@ -1,8 +1,8 @@
 # decryptData
 
-> **decryptData**(`encryptedHex`: `string`, `address`: `string`, `version`: `EncryptionKeyVersion`): `Promise`<`string`>
+> **decryptData**(`encryptedHex`: `string`, `address`: `string`, `version`: [`EncryptionKeyVersion`](../Internal/type-aliases/EncryptionKeyVersion.md)): `Promise`<`string`>
 
-Defined in: [src/react/useEncryption.ts:653](https://github.com/anuma-ai/sdk/blob/main/src/react/useEncryption.ts#653)
+Defined in: [src/react/useEncryption.ts:707](https://github.com/anuma-ai/sdk/blob/main/src/react/useEncryption.ts#707)
 
 Decrypts data using AES-GCM with the stored encryption key.
 
@@ -74,7 +74,7 @@ The wallet address associated with the encryption key
 </td>
 <td>
 
-`EncryptionKeyVersion`
+[`EncryptionKeyVersion`](../Internal/type-aliases/EncryptionKeyVersion.md)
 
 </td>
 <td>
