@@ -324,15 +324,17 @@ describe("consolidateMemory — prompt pins #825 subject/rewording rules", () =>
     // production prompt uses so a revert can't quietly drop it. The body is
     // JSON-encoded, so quotes arrive escaped.
     const { fetchFn, bodies } = capturingFetch();
-    await consolidateMemory("User has two children.", [{ id: "m1", content: "User has two kids.", similarity: 0.95 }], {
-      apiKey: "k",
-      fetchFn,
-    });
+    await consolidateMemory(
+      "User has two children.",
+      [{ id: "m1", content: "User has two kids.", similarity: 0.95 }],
+      {
+        apiKey: "k",
+        fetchFn,
+      }
+    );
     const sent = bodies.join("");
     expect(sent).toContain('\\"has two kids\\" / \\"has two children\\"');
-    expect(sent).toContain(
-      'A pure rewording that adds nothing is NOT an update; it is \\"noop\\"'
-    );
+    expect(sent).toContain('A pure rewording that adds nothing is NOT an update; it is \\"noop\\"');
   });
 
   it("requires the same subject before merge, with the peanut-allergy example", async () => {
