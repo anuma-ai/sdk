@@ -24,7 +24,6 @@ export type {
 export {
   createMemoryVaultSearchTool,
   createVaultEmbeddingCache,
-  DEFAULT_INT8_RESCORE_TOP_N,
   DEFAULT_VAULT_CACHE_SIZE,
   eagerEmbedContent,
   preEmbedVaultMemories,

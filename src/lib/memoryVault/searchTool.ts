@@ -906,8 +906,8 @@ export async function rankFusedVaultMemoriesAsync(
     proofCountAlpha: options?.proofCountAlpha,
     bm25AdmissionDivisor: options?.bm25AdmissionDivisor,
     rrfK: options?.rrfK,
-    entityRanking: options?.entityRanking,
-    temporalRanking: options?.temporalRanking,
+    // Side lanes (entity/temporal) are fused AFTER CE below — do not pass them
+    // here or they get RRF'd twice and CE runs on a pre-fused head.
     ...(options?.factTypeWeights && { factTypeWeights: options.factTypeWeights }),
     ...(options?.int8FirstPass !== undefined && { int8FirstPass: options.int8FirstPass }),
     ...(options?.int8RescoreTopN !== undefined && { int8RescoreTopN: options.int8RescoreTopN }),
@@ -2482,6 +2482,12 @@ export async function rankPreparedVaultCandidates(
     }),
     ...(searchOptions?.supersessionWindow !== undefined && {
       supersessionWindow: searchOptions.supersessionWindow,
+    }),
+    ...(searchOptions?.int8FirstPass !== undefined && {
+      int8FirstPass: searchOptions.int8FirstPass,
+    }),
+    ...(searchOptions?.int8RescoreTopN !== undefined && {
+      int8RescoreTopN: searchOptions.int8RescoreTopN,
     }),
   });
 
