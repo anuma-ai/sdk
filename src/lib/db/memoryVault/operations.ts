@@ -1228,10 +1228,19 @@ export async function setMemoryEntitiesOp(
  * see the schema note. This op's version-invalidation trick is the reason the
  * earlier plan to exclude them from sync was dropped, and it's the last piece
  * that has to move before they can go.
+ *
+ * `options.unlessTopicsRecorded` declines the reset when the row already has a
+ * `topics` record, re-checked INSIDE the serialized writer. Only the repair path
+ * in {@link getMemoriesNeedingTopicExtractionOp} passes it: that path clears the
+ * flag off rows whose curation is provably empty, and a `setMemoryEntitiesOp`
+ * committing in the gap would have written a real record the autotagger must not
+ * be handed. The user-facing reset leaves it off — resetting a memory that HAS
+ * curated topics is the whole point there.
  */
 export async function clearMemoryTopicsOverrideOp(
   ctx: VaultMemoryOperationsContext,
-  memoryId: string
+  memoryId: string,
+  options?: { unlessTopicsRecorded?: boolean }
 ): Promise<boolean> {
   let record: VaultMemory;
   try {
@@ -1241,7 +1250,10 @@ export async function clearMemoryTopicsOverrideOp(
   }
   if (record.isDeleted || !isOwnedByCtxUser(ctx, record)) return false;
   const originalUpdatedAt = record.updatedAt.getTime();
+  let cleared = false;
   await ctx.database.write(async () => {
+    if (options?.unlessTopicsRecorded && parseTopics(record.topics) !== null) return;
+    cleared = true;
     await record.update((r) => {
       r._setRaw("topics_user_managed", false);
       // Stale version + a non-null stamp routes the row through the pending path
@@ -1254,7 +1266,7 @@ export async function clearMemoryTopicsOverrideOp(
       r._setRaw("updated_at", originalUpdatedAt);
     });
   });
-  return true;
+  return cleared;
 }
 
 /**
@@ -1446,6 +1458,12 @@ export async function getUnfiledVaultMemoriesOp(
  * older version (including pre-v37 rows, read as version 0) is then re-extracted
  * by the next sweep, so topic-quality improvements propagate across the existing
  * vault. The worker's `limit` drains that re-extraction across sweeps.
+ *
+ * Bumping this is a WHOLE-VAULT re-extraction: the gate is unconditional across
+ * every stamped row, and `stampTopicsExtractedAtOp` stamps this version on every
+ * healthy row, so a bump sends each user's entire extracted vault back to the
+ * LLM. Never reach for it to repair a subset — see the pre-v42-restore repair in
+ * {@link getMemoriesNeedingTopicExtractionOp}, which targets the damaged rows.
  */
 export const TOPICS_EXTRACTION_VERSION = 3;
 
@@ -1459,9 +1477,10 @@ export interface MemoriesNeedingTopicExtraction {
    * Memories to run LLM topic extraction on (decrypted): never-extracted rows
    * with no entity links, plus stamped rows edited since their last pass
    * (`updated_at` > `topics_extracted_at`) or extracted under an older
-   * `topics_extracted_version` than {@link TOPICS_EXTRACTION_VERSION}. Edited /
-   * stale-version rows come first (they get priority under `limit`), each group
-   * newest-created first.
+   * `topics_extracted_version` than {@link TOPICS_EXTRACTION_VERSION}, plus the
+   * pre-v42-restore repair: a stamped row left with neither links nor a `topics`
+   * record, which no no-LLM bucket can reach. Edited / stale-version rows come
+   * first (they get priority under `limit`), each group newest-created first.
    */
   pending: StoredVaultMemory[];
   /**
@@ -1583,6 +1602,11 @@ function linksDivergeFromTopics(topics: readonly StoredTopic[], linked: Set<stri
  * between the record and the index and never re-derive them. That's why the
  * ownership filter lives in the partition below rather than in the query: a
  * restored curated memory is exactly the row whose index must be rebuilt.
+ *
+ * NOT purely a read: a curated row with no `topics` record AND no usable link is
+ * a contradiction only a pre-v42 restore produces, and this is the one place
+ * that can see all three facts at once, so it clears the flag there (capped by
+ * `limit`) before returning. See the branch for why that's safe.
  */
 export async function getMemoriesNeedingTopicExtractionOp(
   ctx: VaultMemoryOperationsContext,
@@ -1608,11 +1632,13 @@ export async function getMemoriesNeedingTopicExtractionOp(
     rows.map((r) => r.id as string)
   );
 
+  const cap = options?.limit !== undefined && options.limit > 0 ? options.limit : undefined;
   const pendingRaw: Record<string, unknown>[] = [];
   const stampedPendingRaw: Record<string, unknown>[] = [];
   const linkedUnstampedAll: string[] = [];
   const topicsToRelinkAll: string[] = [];
   const topicsBackfillAll: string[] = [];
+  const emptyCurationToClear: string[] = [];
 
   for (const raw of rows) {
     const id = raw.id as string;
@@ -1637,11 +1663,28 @@ export async function getMemoriesNeedingTopicExtractionOp(
 
     // Truthiness (not `=== true`) so an unsanitized SQLite `1` can't fail open.
     if (raw.topics_user_managed) {
-      // The user owns these topics — never re-derive them. Still a backfill
-      // candidate: a curated row predating v42 has links but no record, and
-      // without one its topics don't survive a device migration.
-      if (topics === null && linked !== undefined) topicsBackfillAll.push(id);
-      continue;
+      if (topics !== null || linked !== undefined) {
+        // The user owns these topics — never re-derive them. Still a backfill
+        // candidate: a curated row predating v42 has links but no record, and
+        // without one its topics don't survive a device migration.
+        if (topics === null) topicsBackfillAll.push(id);
+        continue;
+      }
+      // Nothing to own: no `topics` record AND no usable link. That's what a
+      // pre-v42 restore leaves behind — the flag synced, the device-local index
+      // can't, and there was no record to rebuild it from — so relink has
+      // nothing to read and backfill nothing to derive, and the flag keeps the
+      // row out of entity-graph recall permanently. The curation is provably
+      // empty, so drop the flag (after the loop) and classify the row like any
+      // auto one.
+      //
+      // `topics: []` is deliberately NOT this shape: parseTopics reads it as
+      // "recorded as topicless", a choice the user made, and re-extracting would
+      // overwrite it.
+      //
+      // Capped like every bucket below: the clear loads a Model per row.
+      if (cap !== undefined && emptyCurationToClear.length >= cap) continue;
+      emptyCurationToClear.push(id);
     }
 
     // Stamped rows re-extract when edited since the last pass OR when they were
@@ -1670,11 +1713,43 @@ export async function getMemoriesNeedingTopicExtractionOp(
       isPending = true;
     }
 
+    // Pre-v42-restore repair: a stamped row the checks above left in NO bucket,
+    // carrying neither a link nor a `topics` record. Its stamp says it was
+    // extracted, but nothing survived the restore, so relink has no record to
+    // read and backfill no links to derive from — the LLM is the only way back
+    // and this is the only route to it.
+    //
+    // Deliberately narrow — three conditions, all required — so that healthy
+    // extracted rows are never dragged in. A TOPICS_EXTRACTION_VERSION bump
+    // would have re-extracted the ENTIRE vault to reach these few rows.
+    //
+    // `topics === null` and NOT `topics.length === 0`: parseTopics keeps `[]`
+    // ("extraction answered empty") apart from null ("no record"), and `[]` is a
+    // legitimate result the watermark exists to stop re-asking about. This also
+    // terminates the repair — an answered-empty pass writes `[]`, so a repaired
+    // row stops matching even if the LLM finds nothing. A row with a NON-empty
+    // record and no links belongs to `topicsToRelink`, which claimed it earlier.
+    if (!isPending && linked === undefined && topics === null) {
+      pendingRaw.push(raw);
+      isPending = true;
+    }
+
     // An imminent LLM pass writes `topics` itself, so backfilling first would
     // just buy a second upload of the same row.
     if (!isPending && topics === null && linked !== undefined) {
       topicsBackfillAll.push(id);
     }
+  }
+
+  // Drop the flag before returning, or routing these rows to `pending` achieves
+  // nothing: BOTH the extraction path's up-front check and
+  // `replaceMemoryEntitiesGuardedOp`'s in-write guard read `topics_user_managed`,
+  // so a still-flagged row is selected every sweep and skipped every sweep. The
+  // reset op is reused for its stamp invalidation too — the row stays pending
+  // until an extraction actually lands. This dirties the row, so it uploads once;
+  // that's intended, the flag no longer describes the memory.
+  for (const id of emptyCurationToClear) {
+    await clearMemoryTopicsOverrideOp(ctx, id, { unlessTopicsRecorded: true });
   }
 
   // Cap EVERY list under `limit`. Each one costs a per-row Model load in the
@@ -1683,7 +1758,6 @@ export async function getMemoriesNeedingTopicExtractionOp(
   // first sweep of a legacy or freshly-restored vault. Capping also paces the
   // backfill's one-time re-upload of the vault across sweeps. Edited /
   // stale-version rows lead `pending` so they win the cap.
-  const cap = options?.limit !== undefined && options.limit > 0 ? options.limit : undefined;
   const orderedPendingRaw = [...stampedPendingRaw, ...pendingRaw];
   const limitedPendingRaw = cap !== undefined ? orderedPendingRaw.slice(0, cap) : orderedPendingRaw;
   const pending = await mapInBatches(limitedPendingRaw, (raw) =>

@@ -1311,9 +1311,16 @@ describe("getMemoriesNeedingTopicExtractionOp", () => {
         topics_extracted_at: 3_000,
         updated_at: 2_000,
         topics_extracted_version: TOPICS_EXTRACTION_VERSION, // fresh stamp AT current version → excluded
+        // Links + a record that matches them: what a HEALTHY extracted row looks
+        // like. Stamped with neither, it would be the pre-v42-restore shape the
+        // partition now repairs through `pending`.
+        topics: '[{"name":"name_of_ent_cur","source":"auto"}]',
       }),
     ];
-    const { ctx } = sweepCtx(rows, [{ memory_id: "mem_legacy" }]);
+    const { ctx } = sweepCtx(rows, [
+      { memory_id: "mem_legacy" },
+      { memory_id: "mem_current", entity_id: "ent_cur" },
+    ]);
 
     const result = await getMemoriesNeedingTopicExtractionOp(ctx);
 
@@ -1336,9 +1343,11 @@ describe("getMemoriesNeedingTopicExtractionOp", () => {
         topics_extracted_at: 3_000,
         updated_at: 2_000,
         topics_extracted_version: TOPICS_EXTRACTION_VERSION, // current → excluded
+        // Healthy: links + a matching record (see the partition test above).
+        topics: '[{"name":"name_of_ent_cur","source":"auto"}]',
       }),
     ];
-    const { ctx } = sweepCtx(rows, []);
+    const { ctx } = sweepCtx(rows, [{ memory_id: "mem_curver", entity_id: "ent_cur" }]);
 
     const result = await getMemoriesNeedingTopicExtractionOp(ctx);
 
@@ -1371,17 +1380,26 @@ describe("getMemoriesNeedingTopicExtractionOp", () => {
   it("keeps user-managed rows out of the LLM buckets (filtered in the partition, not the query)", async () => {
     // The query no longer filters on topics_user_managed — topicsToRelink and
     // topicsBackfill need curated rows, so ownership is applied per-bucket.
+    //
+    // Both curated rows carry links on purpose: a curated row with NO links and
+    // no `topics` record is a provably-empty curation the sweep repairs instead
+    // of gating (real-database coverage in topicsSync.test.ts).
     const rows = [
       rawRow("mem_curated", { topics_user_managed: true }),
       rawRow("mem_curated_sqlite_bool", { topics_user_managed: 1 }),
       rawRow("mem_auto"),
     ];
-    const { ctx } = sweepCtx(rows, []);
+    const { ctx } = sweepCtx(rows, [
+      { memory_id: "mem_curated" },
+      { memory_id: "mem_curated_sqlite_bool" },
+    ]);
 
     const result = await getMemoriesNeedingTopicExtractionOp(ctx);
 
     expect(result.pending.map((m) => m.uniqueId)).toEqual(["mem_auto"]);
     expect(result.linkedUnstamped).toEqual([]);
+    // Their topics live only in the index, so they're backfill candidates.
+    expect(result.topicsBackfill.sort()).toEqual(["mem_curated", "mem_curated_sqlite_bool"]);
   });
 
   it("does not pass a topics_user_managed clause to the query", async () => {
