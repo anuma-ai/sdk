@@ -186,8 +186,7 @@ export async function decryptMessageFields(
   let assembled = await assembleDecryptedMessage(message, address);
 
   const needsRefresh =
-    assembled.decryptionStatus === "auth_mismatch" ||
-    assembled.decryptionStatus === "key_missing";
+    assembled.decryptionStatus === "auth_mismatch" || assembled.decryptionStatus === "key_missing";
 
   if (needsRefresh && signMessage && assembled.refreshProbe) {
     try {
@@ -232,33 +231,24 @@ async function assembleDecryptedMessage(
     message.sources as typeof message.sources | string | undefined,
     address
   );
-  const thoughtProcessResult = await decryptMaybeJsonFieldDetailed<
-    typeof message.thoughtProcess
-  >(message.thoughtProcess as typeof message.thoughtProcess | string | undefined, address);
+  const thoughtProcessResult = await decryptMaybeJsonFieldDetailed<typeof message.thoughtProcess>(
+    message.thoughtProcess as typeof message.thoughtProcess | string | undefined,
+    address
+  );
 
   let decryptionStatus: FieldDecryptStatus | undefined;
   let refreshProbe: string | undefined;
 
   const consider = (status: FieldDecryptStatus, probe?: string) => {
     decryptionStatus = worseDecryptStatus(decryptionStatus, status);
-    if (
-      !refreshProbe &&
-      probe &&
-      (status === "auth_mismatch" || status === "key_missing")
-    ) {
+    if (!refreshProbe && probe && (status === "auth_mismatch" || status === "key_missing")) {
       refreshProbe = probe;
     }
   };
 
-  consider(
-    contentResult.status,
-    isEncrypted(message.content) ? message.content : undefined
-  );
+  consider(contentResult.status, isEncrypted(message.content) ? message.content : undefined);
   if (thinkingResult && message.thinking && typeof message.thinking === "string") {
-    consider(
-      thinkingResult.status,
-      isEncrypted(message.thinking) ? message.thinking : undefined
-    );
+    consider(thinkingResult.status, isEncrypted(message.thinking) ? message.thinking : undefined);
   }
   if (vectorResult.probe) consider(vectorResult.status, vectorResult.probe);
   if (chunksResult.probe) consider(chunksResult.status, chunksResult.probe);

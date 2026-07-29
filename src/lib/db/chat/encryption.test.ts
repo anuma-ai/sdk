@@ -495,7 +495,7 @@ describe("Chat Encryption Utilities", () => {
       // Re-seed the correct current by leaving store as-is, then try a bad fill:
       // Simulate partial store with ONLY the correct current (no legacy).
       // We can't read hex out — instead: clear, seed wrong current, request with
-      // correct signer fills both when match... 
+      // correct signer fills both when match...
       // For "valid survives bad": seed wrong, request with correct signer — that
       // WOULD replace after match fails... matchesCurrent is false, so leave wrong.
       clearAllEncryptionKeys();
@@ -512,8 +512,7 @@ describe("Chat Encryption Utilities", () => {
 
     it("hasEncryptionKey() without version requires v3, not merely v2 (#828)", async () => {
       clearAllEncryptionKeys();
-      const { seedEncryptionKeys, hasEncryptionKey } =
-        await import("../../../react/useEncryption");
+      const { seedEncryptionKeys, hasEncryptionKey } = await import("../../../react/useEncryption");
       seedEncryptionKeys(testAddress, { legacy: "ab".repeat(32) });
       expect(hasEncryptionKey(testAddress, "v2")).toBe(true);
       expect(hasEncryptionKey(testAddress, "v3")).toBe(false);

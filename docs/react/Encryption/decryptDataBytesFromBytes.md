@@ -2,7 +2,7 @@
 
 > **decryptDataBytesFromBytes**(`encrypted`: `Uint8Array`, `address`: `string`, `version`: [`EncryptionKeyVersion`](../Internal/type-aliases/EncryptionKeyVersion.md)): `Promise`<`Uint8Array`<`ArrayBufferLike`>>
 
-Defined in: [src/react/useEncryption.ts:752](https://github.com/anuma-ai/sdk/blob/main/src/react/useEncryption.ts#752)
+Defined in: [src/react/useEncryption.ts:747](https://github.com/anuma-ai/sdk/blob/main/src/react/useEncryption.ts#747)
 
 Like [decryptDataBytes](../Internal/functions/decryptDataBytes.md) but takes the raw encrypted bytes
 (`[IV][ciphertext+tag]`) directly instead of a hex string. Skips the
