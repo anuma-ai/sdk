@@ -479,6 +479,7 @@ export {
 // ── Encryption (non-React utilities) ──
 
 export type { EmbeddedWalletSignerFn, SignMessageFn } from "../react/useEncryption";
+export type { RequestEncryptionKeyOptions } from "../react/useEncryption";
 export {
   clearAllEncryptionKeys,
   clearAllEncryptionState,
@@ -494,13 +495,16 @@ export {
   encryptDataBatch,
   encryptDataBytes,
   encryptDataWithKey,
+  EncryptionKeyMissingError,
   exportPublicKey,
   getEncryptionKey,
   hasEncryptionKey,
   hasKeyPair,
   onKeyAvailable,
+  refreshEncryptionKeyIfMatches,
   requestEncryptionKey,
   requestKeyPair,
+  seedEncryptionKeys,
 } from "../react/useEncryption";
 
 // ── Queue Manager ──

@@ -1,8 +1,8 @@
 # decryptDataBytesFromBytes
 
-> **decryptDataBytesFromBytes**(`encrypted`: `Uint8Array`, `address`: `string`, `version`: `EncryptionKeyVersion`): `Promise`<`Uint8Array`<`ArrayBufferLike`>>
+> **decryptDataBytesFromBytes**(`encrypted`: `Uint8Array`, `address`: `string`, `version`: [`EncryptionKeyVersion`](../Internal/type-aliases/EncryptionKeyVersion.md)): `Promise`<`Uint8Array`<`ArrayBufferLike`>>
 
-Defined in: [src/react/useEncryption.ts:714](https://github.com/anuma-ai/sdk/blob/main/src/react/useEncryption.ts#714)
+Defined in: [src/react/useEncryption.ts:752](https://github.com/anuma-ai/sdk/blob/main/src/react/useEncryption.ts#752)
 
 Like [decryptDataBytes](../Internal/functions/decryptDataBytes.md) but takes the raw encrypted bytes
 (`[IV][ciphertext+tag]`) directly instead of a hex string. Skips the
@@ -75,7 +75,7 @@ The wallet address associated with the encryption key
 </td>
 <td>
 
-`EncryptionKeyVersion`
+[`EncryptionKeyVersion`](../Internal/type-aliases/EncryptionKeyVersion.md)
 
 </td>
 <td>

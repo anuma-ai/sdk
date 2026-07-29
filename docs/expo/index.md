@@ -694,6 +694,12 @@ Re-exports [embedMessage](../react/Internal/functions/embedMessage.md)
 
 ***
 
+### EncryptionKeyMissingError
+
+Re-exports [EncryptionKeyMissingError](../react/Internal/classes/EncryptionKeyMissingError.md)
+
+***
+
 ### ensureDefaultFoldersOp
 
 Re-exports [ensureDefaultFoldersOp](../react/Internal/functions/ensureDefaultFoldersOp.md)
@@ -1330,6 +1336,12 @@ Re-exports [ReflectResult](../react/Internal/interfaces/ReflectResult.md)
 
 ***
 
+### refreshEncryptionKeyIfMatches
+
+Re-exports [refreshEncryptionKeyIfMatches](../react/Internal/functions/refreshEncryptionKeyIfMatches.md)
+
+***
+
 ### relinkMemoryTopicsOp
 
 Re-exports [relinkMemoryTopicsOp](../react/Internal/functions/relinkMemoryTopicsOp.md)
@@ -1339,6 +1351,12 @@ Re-exports [relinkMemoryTopicsOp](../react/Internal/functions/relinkMemoryTopics
 ### requestEncryptionKey
 
 Re-exports [requestEncryptionKey](../react/Internal/functions/requestEncryptionKey.md)
+
+***
+
+### RequestEncryptionKeyOptions
+
+Re-exports [RequestEncryptionKeyOptions](../react/Internal/interfaces/RequestEncryptionKeyOptions.md)
 
 ***
 
@@ -1477,6 +1495,12 @@ Re-exports [SearchSource](../react/Internal/interfaces/SearchSource.md)
 ### searchVaultMemories
 
 Re-exports [searchVaultMemories](../react/Internal/functions/searchVaultMemories.md)
+
+***
+
+### seedEncryptionKeys
+
+Re-exports [seedEncryptionKeys](../react/Internal/functions/seedEncryptionKeys.md)
 
 ***
 

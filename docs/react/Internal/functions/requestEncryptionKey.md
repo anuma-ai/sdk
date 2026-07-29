@@ -1,11 +1,12 @@
 # requestEncryptionKey
 
-> **requestEncryptionKey**(`walletAddress`: `string`, `signMessage`: [`SignMessageFn`](../type-aliases/SignMessageFn.md), `embeddedWalletSigner?`: [`EmbeddedWalletSignerFn`](../type-aliases/EmbeddedWalletSignerFn.md)): `Promise`<`void`>
+> **requestEncryptionKey**(`walletAddress`: `string`, `signMessage`: [`SignMessageFn`](../type-aliases/SignMessageFn.md), `embeddedWalletSigner?`: [`EmbeddedWalletSignerFn`](../type-aliases/EmbeddedWalletSignerFn.md), `options?`: [`RequestEncryptionKeyOptions`](../interfaces/RequestEncryptionKeyOptions.md)): `Promise`<`void`>
 
-Defined in: [src/react/useEncryption.ts:940](https://github.com/anuma-ai/sdk/blob/main/src/react/useEncryption.ts#940)
+Defined in: [src/react/useEncryption.ts:1025](https://github.com/anuma-ai/sdk/blob/main/src/react/useEncryption.ts#1025)
 
 Requests the user to sign a message to generate an encryption key.
-If a key already exists in memory for the given wallet, resolves immediately.
+If a key already exists in memory for the given wallet, resolves immediately
+unless [RequestEncryptionKeyOptions.force](../interfaces/RequestEncryptionKeyOptions.md#force) is set.
 
 Note: Keys are stored in memory only and do not persist across page reloads.
 This is a security feature - users must sign once per session to derive their key.
@@ -69,6 +70,23 @@ Function to sign a message (returns signature hex string)
 <td>
 
 Optional function for silent signing with embedded wallets
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options?`
+
+</td>
+<td>
+
+[`RequestEncryptionKeyOptions`](../interfaces/RequestEncryptionKeyOptions.md)
+
+</td>
+<td>
+
+Optional flags (e.g. force re-derive)
 
 </td>
 </tr>

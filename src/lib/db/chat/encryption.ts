@@ -1,8 +1,9 @@
 import type { EmbeddedWalletSignerFn, SignMessageFn } from "../../../react/useEncryption";
-import { requestEncryptionKey } from "../../../react/useEncryption";
+import { refreshEncryptionKeyIfMatches, requestEncryptionKey } from "../../../react/useEncryption";
 import { getLogger } from "../../logger";
 import {
   decryptField,
+  decryptFieldDetailed,
   decryptJsonField,
   encryptField,
   encryptJsonField,
@@ -142,6 +143,15 @@ async function decryptMaybeJsonField<T>(
 
 /**
  * Decrypts all sensitive message fields after retrieval.
+ *
+ * Self-heal (#561): when `signMessage` is provided and the content field fails
+ * with an auth-tag mismatch under the currently pinned key, we try one
+ * verify-before-commit re-derive via {@link refreshEncryptionKeyIfMatches}.
+ * Candidate keys that cannot open the intact ciphertext never replace the store.
+ *
+ * On unrecoverable decrypt failure the original ciphertext is left in place
+ * (never replaced with a `[Decryption Failed]` placeholder) and
+ * `decryptionStatus` is set so consumers can show a recoverable unlock path.
  */
 export async function decryptMessageFields(
   message: StoredMessage,
@@ -161,20 +171,65 @@ export async function decryptMessageFields(
     }
   }
 
-  // String fields: decryptField returns the input unchanged when it
-  // doesn't carry the enc: prefix, so the no-encryption path doesn't
-  // copy.
-  const decryptedContent = await decryptField(message.content, address);
+  const contentResult = await decryptFieldDetailed(message.content, address);
 
+  // One verify-before-commit refresh when the pinned key can't open intact ciphertext.
+  if (contentResult.status === "auth_mismatch" && signMessage && isEncrypted(message.content)) {
+    try {
+      const refreshed = await refreshEncryptionKeyIfMatches(
+        address,
+        message.content,
+        signMessage,
+        embeddedWalletSigner
+      );
+      if (refreshed) {
+        return decryptMessageFieldsInner(message, address);
+      }
+    } catch (error) {
+      getLogger().warn("Failed to refresh encryption key after auth mismatch:", error);
+    }
+  }
+
+  if (contentResult.status === "key_missing" && signMessage && isEncrypted(message.content)) {
+    // Key for this version was absent — requestEncryptionKey above may have
+    // been a no-op if another version was already pinned. Force a full derive
+    // only when we have no key for the needed version; still verify via refresh
+    // so a wrong signature cannot overwrite a still-valid sibling key blindly.
+    try {
+      const refreshed = await refreshEncryptionKeyIfMatches(
+        address,
+        message.content,
+        signMessage,
+        embeddedWalletSigner
+      );
+      if (refreshed) {
+        return decryptMessageFieldsInner(message, address);
+      }
+    } catch (error) {
+      getLogger().warn("Failed to refresh encryption key after key-missing:", error);
+    }
+  }
+
+  return assembleDecryptedMessage(message, address, contentResult);
+}
+
+async function decryptMessageFieldsInner(
+  message: StoredMessage,
+  address: string
+): Promise<StoredMessage> {
+  const contentResult = await decryptFieldDetailed(message.content, address);
+  return assembleDecryptedMessage(message, address, contentResult);
+}
+
+async function assembleDecryptedMessage(
+  message: StoredMessage,
+  address: string,
+  contentResult: Awaited<ReturnType<typeof decryptFieldDetailed>>
+): Promise<StoredMessage> {
   const decryptedThinking = message.thinking
     ? await decryptField(message.thinking, address)
     : message.thinking;
 
-  // JSON fields: previously each of these always ran JSON.stringify on
-  // already-parsed objects only to feed decryptJsonField, which then
-  // JSON.parsed the same string back. The helper above skips the
-  // round-trip when the value is already an object, cutting one
-  // string-allocation + one parse per plaintext field per row.
   const decryptedVector = await decryptMaybeJsonField<number[]>(
     message.vector as number[] | string | undefined,
     address
@@ -195,13 +250,24 @@ export async function decryptMessageFields(
     address
   );
 
-  return {
+  const decryptionStatus =
+    contentResult.status === "ok" || contentResult.status === "plaintext"
+      ? undefined
+      : contentResult.status;
+
+  const result: StoredMessage = {
     ...message,
-    content: decryptedContent,
+    content: contentResult.value,
     thinking: decryptedThinking,
     vector: decryptedVector,
     chunks: decryptedChunks,
     sources: decryptedSources,
     thoughtProcess: decryptedThoughtProcess,
   };
+  if (decryptionStatus) {
+    result.decryptionStatus = decryptionStatus;
+  } else {
+    delete result.decryptionStatus;
+  }
+  return result;
 }

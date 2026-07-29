@@ -186,6 +186,71 @@ describe("Chat Encryption Utilities", () => {
     });
   });
 
+  describe("decryptFieldDetailed (#561)", () => {
+    it("returns key_missing when only the other version is seeded", async () => {
+      clearAllEncryptionKeys();
+      const { seedEncryptionKeys } = await import("../../../react/useEncryption");
+      seedEncryptionKeys(testAddress, { legacy: "ab".repeat(32) });
+      const fakeV3 = `enc:v3:${"a".repeat(64)}`;
+      const { decryptFieldDetailed } = await import("../encryption-utils");
+      const result = await decryptFieldDetailed(fakeV3, testAddress);
+      expect(result.status).toBe("key_missing");
+      expect(result.value).toBe(fakeV3);
+      expect(result.value).not.toContain("Decryption Failed");
+    });
+
+    it("returns auth_mismatch with ciphertext intact when the pinned key is wrong", async () => {
+      clearAllEncryptionKeys();
+      const { seedEncryptionKeys } = await import("../../../react/useEncryption");
+      seedEncryptionKeys(testAddress, { current: "ab".repeat(32) });
+      const cipher = `enc:v3:${"b".repeat(64)}`;
+      const { decryptFieldDetailed } = await import("../encryption-utils");
+      const result = await decryptFieldDetailed(cipher, testAddress);
+      expect(result.status).toBe("auth_mismatch");
+      expect(result.value).toBe(cipher);
+      expect(result.value).not.toContain("Decryption Failed");
+    });
+
+    it("refreshEncryptionKeyIfMatches recovers a wrong pinned key without masking ciphertext", async () => {
+      await requestEncryptionKey(testAddress, mockSignMessage);
+      const cipher = await encryptField("hello-partial", testAddress, mockSignMessage);
+
+      clearAllEncryptionKeys();
+      const { seedEncryptionKeys, refreshEncryptionKeyIfMatches, hasEncryptionKey } =
+        await import("../../../react/useEncryption");
+      // Pin a wrong v3-only key (no v2) — the historical fail-closed shape.
+      seedEncryptionKeys(testAddress, { current: "cd".repeat(32) });
+      expect(hasEncryptionKey(testAddress, "v2")).toBe(false);
+      expect(hasEncryptionKey(testAddress, "v3")).toBe(true);
+
+      const { decryptFieldDetailed } = await import("../encryption-utils");
+      expect((await decryptFieldDetailed(cipher, testAddress)).status).toBe("auth_mismatch");
+
+      const refreshed = await refreshEncryptionKeyIfMatches(testAddress, cipher, mockSignMessage);
+      expect(refreshed).toBe(true);
+      const ok = await decryptFieldDetailed(cipher, testAddress);
+      expect(ok.status).toBe("ok");
+      expect(ok.value).toBe("hello-partial");
+    });
+
+    it("refreshEncryptionKeyIfMatches leaves the store alone when the probe does not match", async () => {
+      clearAllEncryptionKeys();
+      const { seedEncryptionKeys, refreshEncryptionKeyIfMatches, hasEncryptionKey } =
+        await import("../../../react/useEncryption");
+      const wrong = "ab".repeat(32);
+      seedEncryptionKeys(testAddress, { current: wrong });
+      const alienCipher = `enc:v3:${"f".repeat(64)}`;
+
+      const wrongSigner = vi.fn(async () => `0x${"11".repeat(65)}`) as unknown as SignMessageFn;
+      const refreshed = await refreshEncryptionKeyIfMatches(testAddress, alienCipher, wrongSigner);
+      expect(refreshed).toBe(false);
+      // Store still has the original wrong key (not replaced by another wrong derive).
+      expect(hasEncryptionKey(testAddress, "v3")).toBe(true);
+      const { decryptFieldDetailed } = await import("../encryption-utils");
+      expect((await decryptFieldDetailed(alienCipher, testAddress)).status).toBe("auth_mismatch");
+    });
+  });
+
   describe("decryptMessageFields", () => {
     it("should decrypt an encrypted message", async () => {
       await requestEncryptionKey(testAddress, mockSignMessage);
@@ -296,6 +361,62 @@ describe("Chat Encryption Utilities", () => {
 
       const decrypted = await decryptMessageFields(v2Message, testAddress, mockSignMessage);
       expect(decrypted.content).toBe(plaintext);
+    });
+
+    it("self-heals a wrong pinned key when signMessage is provided (#561)", async () => {
+      await requestEncryptionKey(testAddress, mockSignMessage);
+      const encrypted = (await encryptMessageFields(
+        {
+          conversationId: "conv-123",
+          role: "user" as const,
+          content: "recover me",
+        },
+        testAddress,
+        mockSignMessage
+      )) as { content: string };
+
+      clearAllEncryptionKeys();
+      const { seedEncryptionKeys } = await import("../../../react/useEncryption");
+      seedEncryptionKeys(testAddress, { current: "ee".repeat(32) });
+
+      const storedMessage: StoredMessage = {
+        uniqueId: "msg-heal",
+        messageId: "msg-heal" as unknown as number,
+        conversationId: "conv-123",
+        role: "user",
+        content: encrypted.content,
+        model: "test",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      const decrypted = await decryptMessageFields(storedMessage, testAddress, mockSignMessage);
+      expect(decrypted.content).toBe("recover me");
+      expect(decrypted.decryptionStatus).toBeUndefined();
+    });
+
+    it("sets decryptionStatus and keeps ciphertext when recovery is impossible (#561)", async () => {
+      clearAllEncryptionKeys();
+      const { seedEncryptionKeys } = await import("../../../react/useEncryption");
+      seedEncryptionKeys(testAddress, { current: "ee".repeat(32) });
+      const cipher = `enc:v3:${"c".repeat(64)}`;
+      const wrongSigner = vi.fn(async () => `0x${"22".repeat(65)}`) as unknown as SignMessageFn;
+
+      const storedMessage: StoredMessage = {
+        uniqueId: "msg-fail",
+        messageId: "msg-fail" as unknown as number,
+        conversationId: "conv-123",
+        role: "user",
+        content: cipher,
+        model: "test",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      const decrypted = await decryptMessageFields(storedMessage, testAddress, wrongSigner);
+      expect(decrypted.content).toBe(cipher);
+      expect(decrypted.content).not.toContain("Decryption Failed");
+      expect(decrypted.decryptionStatus).toBe("auth_mismatch");
     });
   });
 });
