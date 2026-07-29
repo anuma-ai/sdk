@@ -237,12 +237,21 @@ server-side, but the client should never publish un-gated text.
 
 > `optional` **reviewedMemoryIds**: readonly `string`\[]
 
-Defined in: [src/lib/memory/synthesizeProfile.ts:256](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/synthesizeProfile.ts#256)
+Defined in: [src/lib/memory/synthesizeProfile.ts:266](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/synthesizeProfile.ts#266)
 
-When non-empty, intersect each facet's recalled evidence with this id set
-before the LLM runs (publish-review gate). Empty intersection → empty
-section (legitimate no-evidence), not a stale fallback. Omit / empty →
-no gate.
+Publish-review gate: when SUPPLIED, each facet's recalled evidence is
+intersected with this id set before the LLM runs, so synthesis can only draw
+on memories the user approved for publication. Empty intersection → empty
+section (legitimate no-evidence), not a stale fallback.
+
+Pass the user's published set (e.g. `getAllVaultMemoriesOp(ctx, { visibility: ["public"] })`) to keep a published profile derivable only from published
+memories — People Nearby's two-tier model treats `private` memories as never
+leaving the device, and a summary derived from them is a derivative that does.
+
+`[]` means "nothing approved" and gates everything OUT (no recall, no LLM
+call, empty sections). **Omitting the field is the only way to run ungated**
+— that asymmetry is deliberate, so a caller computing a published set can
+never accidentally disable the gate by finding it empty.
 
 ***
 
