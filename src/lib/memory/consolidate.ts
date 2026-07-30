@@ -198,15 +198,28 @@ export async function consolidateMemory(
   // it returns (below) so the vault still stores real values. A single
   // redactor keeps placeholders consistent across the new fact and candidates,
   // so the model can still match the same value across them.
+  //
+  // ASYNC, deliberately: `redactText` is regex-only, so a caller who configured
+  // an `nerDetector` gets names, locations and orgs masked only by
+  // `redactTextAsync` — and a person or employer is precisely the kind of value
+  // two near-duplicate memories are being deduped over here. Without a detector
+  // `redactTextAsync` returns `redactText` directly, so the default path is
+  // unchanged. NER placeholders come from the same `getPlaceholder` map as the
+  // regex ones, so the restore below handles them identically.
+  //
+  // SEQUENTIAL, and the new fact first, so numbering follows prompt order. The
+  // redactor is stateful — racing these would tie `[EMAIL_1]` vs `[EMAIL_2]` to
+  // promise resolution order and the model could stop seeing the shared value
+  // that makes two memories the same fact.
   const redactor = resolvePiiRedactor(options.piiRedaction);
-  const safeTrimmed = redactor ? redactor.redactText(trimmed).text : trimmed;
+  const safeTrimmed = redactor ? (await redactor.redactTextAsync(trimmed)).text : trimmed;
 
-  const candidateText = candidates
-    .map((c, i) => {
-      const safeContent = redactor ? redactor.redactText(c.content).text : c.content;
-      return `[${i + 1}] (id: ${c.id}, sim: ${c.similarity.toFixed(2)})\n  ${safeContent}`;
-    })
-    .join("\n");
+  const rows: string[] = [];
+  for (const [i, c] of candidates.entries()) {
+    const safeContent = redactor ? (await redactor.redactTextAsync(c.content)).text : c.content;
+    rows.push(`[${i + 1}] (id: ${c.id}, sim: ${c.similarity.toFixed(2)})\n  ${safeContent}`);
+  }
+  const candidateText = rows.join("\n");
   const userMessage = `New memory:\n  ${safeTrimmed}\n\nExisting memories (top ${candidates.length} by cosine):\n${candidateText}`;
 
   let parsed: unknown;

@@ -148,12 +148,22 @@ export async function classifyInjectionCandidates(
   // Redact PII before the content leaves the device — same setting the
   // extractor used. The response is integer indices only, so no de-anonymize.
   const redactor = resolvePiiRedactor(options.piiRedaction);
-  const numbered = scope
-    .map((c, i) => {
-      const safe = redactor ? redactor.redactText(c.content).text : c.content;
-      return `[${i + 1}] ${safe}`;
-    })
-    .join("\n");
+  // ASYNC, deliberately: `redactText` is regex-only, so a caller who configured
+  // an `nerDetector` gets names, locations and orgs masked only by
+  // `redactTextAsync`. Without a detector it returns `redactText` directly, so
+  // the default path is unchanged.
+  //
+  // SEQUENTIAL, not Promise.all. The redactor is stateful — it mints
+  // `[EMAIL_1]`, `[EMAIL_2]`, … in first-seen order and reuses them so one value
+  // reads the same in every item the model compares. Racing the calls would tie
+  // that numbering to promise resolution order, so the same batch could produce
+  // a differently-numbered prompt run to run.
+  const lines: string[] = [];
+  for (const [i, c] of scope.entries()) {
+    const safe = redactor ? (await redactor.redactTextAsync(c.content)).text : c.content;
+    lines.push(`[${i + 1}] ${safe}`);
+  }
+  const numbered = lines.join("\n");
 
   let parsed: unknown;
   try {
