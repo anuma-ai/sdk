@@ -1,0 +1,288 @@
+/**
+ * Consolidation sweeper (Fix C) unit tests. The vault ops, the decide model
+ * (`consolidateMemory`), the embedder (`eagerEmbedContent`) and the logger are
+ * mocked (retain.test.ts pattern) — the cosine clustering and the junk gate run
+ * for real, so a cluster is formed by genuine vector geometry.
+ */
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+vi.mock("../db/memoryVault/operations", () => ({
+  getConsolidationScanRawOp: vi.fn(),
+  getUnembeddedVaultMemoryIdsOp: vi.fn(),
+  getVaultMemoriesByIdsOp: vi.fn(),
+  getVaultMemoryOp: vi.fn(),
+  deleteVaultMemoryOp: vi.fn(),
+  updateVaultMemoryOp: vi.fn(),
+  supersedeVaultMemoryOp: vi.fn(),
+}));
+
+vi.mock("../memoryVault/searchTool", () => ({
+  eagerEmbedContent: vi.fn(),
+}));
+
+vi.mock("./consolidate", () => ({
+  consolidateMemory: vi.fn(),
+}));
+
+const warn = vi.fn();
+vi.mock("../logger", () => ({
+  getLogger: () => ({ warn, info: vi.fn(), error: vi.fn(), debug: vi.fn() }),
+}));
+
+import {
+  type ConsolidationScanRaw,
+  deleteVaultMemoryOp,
+  getConsolidationScanRawOp,
+  getUnembeddedVaultMemoryIdsOp,
+  getVaultMemoriesByIdsOp,
+  getVaultMemoryOp,
+  supersedeVaultMemoryOp,
+  updateVaultMemoryOp,
+  type VaultMemoryOperationsContext,
+} from "../db/memoryVault/operations";
+import type { StoredVaultMemory } from "../db/memoryVault/types";
+import type { EmbeddingOptions } from "../memoryEngine/types";
+import { eagerEmbedContent } from "../memoryVault/searchTool";
+import { consolidateMemory } from "./consolidate";
+import { createConsolidationSweeper } from "./consolidationSweep";
+import type { CreateConsolidationSweeperOptions } from "./types";
+
+const vaultCtx = {} as VaultMemoryOperationsContext;
+const embeddingOptions = {} as EmbeddingOptions;
+const consolidateOptions = { apiKey: "k" };
+
+function scanRow(
+  uniqueId: string,
+  vec: number[],
+  extra: Partial<ConsolidationScanRaw> = {}
+): ConsolidationScanRaw {
+  return {
+    uniqueId,
+    embedding: JSON.stringify(vec),
+    embeddingModel: "m1",
+    scope: "private",
+    folderId: null,
+    updatedAt: 1000,
+    proofCount: 1,
+    ...extra,
+  };
+}
+
+function stored(
+  uniqueId: string,
+  content: string,
+  extra: Partial<StoredVaultMemory> = {}
+): StoredVaultMemory {
+  return {
+    uniqueId,
+    content,
+    proofCount: 1,
+    updatedAt: new Date(1000),
+    ...extra,
+  } as StoredVaultMemory;
+}
+
+/** Back both bulk-fetch + single-fetch mocks with one in-memory store. */
+function setStore(rows: StoredVaultMemory[]): void {
+  const map = new Map(rows.map((r) => [r.uniqueId, r]));
+  vi.mocked(getVaultMemoriesByIdsOp).mockImplementation(async (_ctx, ids: string[]) =>
+    ids.map((id) => map.get(id)).filter((r): r is StoredVaultMemory => Boolean(r))
+  );
+  vi.mocked(getVaultMemoryOp).mockImplementation(async (_ctx, id: string) => map.get(id) ?? null);
+}
+
+function makeSweeper(overrides: Partial<CreateConsolidationSweeperOptions> = {}) {
+  return createConsolidationSweeper({
+    vaultCtx,
+    embeddingOptions,
+    vaultCache: new Map(),
+    consolidateOptions,
+    ...overrides,
+  });
+}
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  warn.mockClear();
+  vi.mocked(getUnembeddedVaultMemoryIdsOp).mockResolvedValue([]);
+  vi.mocked(getConsolidationScanRawOp).mockResolvedValue([]);
+  vi.mocked(getVaultMemoriesByIdsOp).mockResolvedValue([]);
+  vi.mocked(getVaultMemoryOp).mockResolvedValue(null);
+  vi.mocked(deleteVaultMemoryOp).mockResolvedValue(true);
+  vi.mocked(updateVaultMemoryOp).mockResolvedValue(stored("s", "merged"));
+  vi.mocked(supersedeVaultMemoryOp).mockResolvedValue(true);
+  vi.mocked(eagerEmbedContent).mockResolvedValue(undefined);
+  // Default decide-model verdict: retire every candidate under the survivor.
+  vi.mocked(consolidateMemory).mockImplementation(
+    async (_new: string, cands: Array<{ id: string }>) => ({
+      action: "supersede" as const,
+      targetIds: cands.map((c) => c.id),
+      content: "MERGED",
+    })
+  );
+});
+
+describe("createConsolidationSweeper — dedup", () => {
+  it("clusters two near-duplicate rows and supersedes the stale one under the survivor", async () => {
+    vi.mocked(getConsolidationScanRawOp).mockResolvedValue([
+      scanRow("a", [1, 0, 0]),
+      scanRow("b", [0.95, 0.05, 0]), // cosine ~0.998 with a → same cluster
+      scanRow("c", [0, 0, 1]), // cosine 0 with both → distinct
+    ]);
+    setStore([
+      stored("a", "Prefers light mode for their interface."), // longer → survivor
+      stored("b", "Prefers light mode."),
+      stored("c", "Allergic to peanuts."),
+    ]);
+
+    const result = await makeSweeper().sweep();
+
+    expect(result.clustersFound).toBe(1);
+    expect(result.superseded).toBe(1);
+    // The shorter paraphrase 'b' is retired under the richer survivor 'a'.
+    expect(supersedeVaultMemoryOp).toHaveBeenCalledWith(vaultCtx, "b", "a");
+    // Survivor rewritten to the merged content + re-embedded.
+    expect(updateVaultMemoryOp).toHaveBeenCalledWith(vaultCtx, "a", { content: "MERGED" });
+    expect(eagerEmbedContent).toHaveBeenCalledWith(
+      "MERGED",
+      embeddingOptions,
+      expect.any(Map),
+      vaultCtx,
+      "a"
+    );
+  });
+
+  it("leaves distinct facts alone (no cluster, decide model never called)", async () => {
+    vi.mocked(getConsolidationScanRawOp).mockResolvedValue([
+      scanRow("a", [1, 0, 0]),
+      scanRow("b", [0, 1, 0]), // cosine 0 → not a duplicate
+    ]);
+    setStore([stored("a", "Lives in Portland."), stored("b", "Works at Google.")]);
+
+    const result = await makeSweeper().sweep();
+
+    expect(result.clustersFound).toBe(0);
+    expect(result.superseded).toBe(0);
+    expect(consolidateMemory).not.toHaveBeenCalled();
+    expect(supersedeVaultMemoryOp).not.toHaveBeenCalled();
+  });
+
+  it("skips dedup entirely when consolidateOptions is absent (no plaintext egress)", async () => {
+    vi.mocked(getConsolidationScanRawOp).mockResolvedValue([
+      scanRow("a", [1, 0, 0]),
+      scanRow("b", [0.95, 0.05, 0]),
+    ]);
+    setStore([stored("a", "Prefers dark mode."), stored("b", "Prefers dark mode overall.")]);
+
+    const result = await makeSweeper({ consolidateOptions: undefined }).sweep();
+
+    expect(consolidateMemory).not.toHaveBeenCalled();
+    expect(supersedeVaultMemoryOp).not.toHaveBeenCalled();
+    expect(result.superseded).toBe(0);
+    // Junk purge still ran (decrypted the rows), so the scan was processed.
+    expect(result.scanned).toBe(2);
+  });
+
+  it("caps clusters per sweep and reports the dropped count (no silent truncation)", async () => {
+    vi.mocked(getConsolidationScanRawOp).mockResolvedValue([
+      scanRow("a1", [1, 0, 0, 0]),
+      scanRow("a2", [0.95, 0.05, 0, 0]),
+      scanRow("b1", [0, 1, 0, 0]),
+      scanRow("b2", [0.05, 0.95, 0, 0]),
+      scanRow("c1", [0, 0, 1, 0]),
+      scanRow("c2", [0, 0, 0.95, 0.05]),
+    ]);
+    setStore([
+      stored("a1", "Fact A one."),
+      stored("a2", "Fact A two."),
+      stored("b1", "Fact B one."),
+      stored("b2", "Fact B two."),
+      stored("c1", "Fact C one."),
+      stored("c2", "Fact C two."),
+    ]);
+
+    const result = await makeSweeper({ maxClustersPerSweep: 1 }).sweep();
+
+    expect(result.clustersFound).toBe(3);
+    expect(result.clustersDropped).toBe(2);
+    // Only the one uncapped cluster reached the decide model.
+    expect(consolidateMemory).toHaveBeenCalledTimes(1);
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining("cluster cap"));
+  });
+});
+
+describe("createConsolidationSweeper — junk purge + backfill", () => {
+  it("soft-deletes content-free junk rows", async () => {
+    vi.mocked(getConsolidationScanRawOp).mockResolvedValue([
+      scanRow("junk", [1, 0, 0]),
+      scanRow("ok", [0, 1, 0]),
+    ]);
+    setStore([stored("junk", "1"), stored("ok", "Enjoys hiking on weekends.")]);
+
+    const result = await makeSweeper().sweep();
+
+    expect(result.junkDeleted).toBe(1);
+    expect(deleteVaultMemoryOp).toHaveBeenCalledWith(vaultCtx, "junk");
+    expect(deleteVaultMemoryOp).not.toHaveBeenCalledWith(vaultCtx, "ok");
+  });
+
+  it("backfills embeddings for un-embedded rows", async () => {
+    vi.mocked(getUnembeddedVaultMemoryIdsOp).mockResolvedValue(["x"]);
+    setStore([stored("x", "Recently adopted a dog named Biscuit.")]);
+
+    const result = await makeSweeper().sweep();
+
+    expect(result.embeddedBackfilled).toBe(1);
+    expect(eagerEmbedContent).toHaveBeenCalledWith(
+      "Recently adopted a dog named Biscuit.",
+      embeddingOptions,
+      expect.any(Map),
+      vaultCtx,
+      "x"
+    );
+  });
+});
+
+describe("createConsolidationSweeper — dryRun", () => {
+  it("computes counts but applies nothing", async () => {
+    vi.mocked(getUnembeddedVaultMemoryIdsOp).mockResolvedValue(["x"]);
+    vi.mocked(getConsolidationScanRawOp).mockResolvedValue([
+      scanRow("a", [1, 0, 0]),
+      scanRow("b", [0.95, 0.05, 0]),
+      scanRow("junk", [0, 0, 1]),
+    ]);
+    setStore([
+      stored("x", "A brand new memory to embed."),
+      stored("a", "Prefers light mode for their interface."),
+      stored("b", "Prefers light mode."),
+      stored("junk", "2"),
+    ]);
+
+    const result = await makeSweeper({ dryRun: true }).sweep();
+
+    expect(result.dryRun).toBe(true);
+    expect(result.embeddedBackfilled).toBe(1);
+    expect(result.junkDeleted).toBe(1);
+    expect(result.superseded).toBe(1);
+    // Nothing was actually mutated.
+    expect(deleteVaultMemoryOp).not.toHaveBeenCalled();
+    expect(supersedeVaultMemoryOp).not.toHaveBeenCalled();
+    expect(updateVaultMemoryOp).not.toHaveBeenCalled();
+    expect(eagerEmbedContent).not.toHaveBeenCalled();
+  });
+});
+
+describe("createConsolidationSweeper — lifecycle", () => {
+  it("is a no-op after dispose", async () => {
+    vi.mocked(getConsolidationScanRawOp).mockResolvedValue([scanRow("a", [1, 0, 0])]);
+    setStore([stored("a", "Some fact.")]);
+
+    const sweeper = makeSweeper();
+    sweeper.dispose();
+    const result = await sweeper.sweep();
+
+    expect(result.scanned).toBe(0);
+    expect(getConsolidationScanRawOp).not.toHaveBeenCalled();
+    expect(getUnembeddedVaultMemoryIdsOp).not.toHaveBeenCalled();
+  });
+});

@@ -448,3 +448,103 @@ export interface RetainResult {
   /** Updated proof_count after this write. 0 when nothing was written (suppressed). */
   proofCount: number;
 }
+
+// ---------------------------------------------------------------------------
+// Consolidation sweep (Fix C) — a bounded BACKGROUND sweep that heals the
+// already-polluted vault: duplicates + contradictions that reactive per-write
+// consolidation never reaches (they were written before the fix, or the model
+// missed a single supersede). Modeled on the decay sweeper: created once,
+// disposable, bounded per sweep, with an already-processed cache so a stable
+// cluster is not re-sent to the portal every sweep.
+// ---------------------------------------------------------------------------
+
+/** Counts from one consolidation sweep, for UI surfacing / telemetry.
+ * Count-only by design — memory CONTENT is never logged or returned. */
+export interface ConsolidationSweepResult {
+  /** Active rows the scan considered this sweep. */
+  scanned: number;
+  /** Multi-row near-duplicate clusters found (before the per-sweep cap). */
+  clustersFound: number;
+  /** Stale duplicates retired (superseded → a surviving row) this sweep. */
+  superseded: number;
+  /** Content-free junk rows soft-deleted (tombstoned) this sweep. */
+  junkDeleted: number;
+  /** Rows without a vector that were embedded this sweep (backfill). */
+  embeddedBackfilled: number;
+  /** Clusters deferred to a later sweep because the per-sweep cluster cap was
+   * hit — surfaced (never silently truncated) so bounded coverage is honest. */
+  clustersDropped: number;
+  /** True when the sweep only computed what it WOULD change and applied nothing. */
+  dryRun: boolean;
+}
+
+/** @public */
+export interface CreateConsolidationSweeperOptions {
+  /** Vault write context — the same one recall/retain use. Must be scoped
+   * (userId) or explicitly `singleTenant` (per-wallet client DB). */
+  vaultCtx: VaultMemoryOperationsContext;
+  /** Embedding API options — used to backfill un-embedded rows and to re-embed a
+   * merged survivor so its vector stays consistent with its new content. */
+  embeddingOptions: EmbeddingOptions;
+  /** Vault embedding LRU cache shared with recall/retain — kept in sync on
+   * backfill / survivor re-embed. */
+  vaultCache: VaultEmbeddingCache;
+  /**
+   * Reference "now". A number is fixed (deterministic tests); a function is
+   * re-evaluated per sweep. Default `Date.now`. (Reserved for future
+   * time-based heuristics; the sweep is otherwise time-independent.)
+   */
+  now?: number | (() => number);
+  /**
+   * LLM decide-model auth/endpoint. REQUIRED for the dedup step — it egresses
+   * DECRYPTED cluster content to the portal decide model (same trust posture as
+   * the decay classifier). When ABSENT, the sweep still runs embedding backfill
+   * + junk purge but SKIPS dedup entirely (no plaintext leaves the device).
+   */
+  consolidateOptions?: PortalLlmAuth & {
+    baseUrl?: string;
+    model?: string;
+    /** Notified when the consolidator degrades to its create fallback. */
+    onFallback?: (reason: ConsolidationFallbackReason) => void;
+    /** PII-redact cluster content before it reaches the decide model, and
+     * de-anonymize the result before it is persisted. Pass `true` or a shared
+     * redactor. */
+    piiRedaction?: boolean | PiiRedactor;
+  };
+  /** Cosine floor to cluster near-duplicates. Default 0.55 — matches retain's
+   * `DEFAULT_CONSOLIDATE_THRESHOLD` (deliberately conservative: too low a floor
+   * risks clustering distinct same-subject facts and retiring a correct one). */
+  consolidateThreshold?: number;
+  /** Max un-embedded rows to backfill per sweep. Default 50. Bounded so a large
+   * vault drains its backlog across sweeps rather than in one spike. */
+  maxBackfillPerSweep?: number;
+  /** Max rows to decrypt + junk-check per sweep (a stable clean row is not
+   * re-checked until its `updated_at` changes). Default 50. */
+  maxJunkChecksPerSweep?: number;
+  /** Max multi-row clusters to consolidate (i.e. portal calls) per sweep.
+   * Default 20. Excess clusters are deferred and counted in
+   * {@link ConsolidationSweepResult.clustersDropped}. */
+  maxClustersPerSweep?: number;
+  /** When true, compute + log/return what WOULD be superseded / junk-deleted /
+   * backfilled but apply NOTHING. Default false. Ship the first rollout with
+   * this on for log-only observation. */
+  dryRun?: boolean;
+  /** Fires once after each sweep with the counts (UI / telemetry). */
+  onSwept?: (result: ConsolidationSweepResult) => void;
+  /** Diagnostic — fires on an unexpected sweep-level error. */
+  onError?: (error: Error) => void;
+}
+
+/** @public */
+export interface ConsolidationSweeper {
+  /**
+   * Scan the vault, backfill missing embeddings, purge junk, and collapse
+   * near-duplicate clusters (retiring stale rows as history). Safe to call
+   * repeatedly — supersede keeps history (reversible) and each op re-checks
+   * inside its write, so a live re-observation racing the sweep wins. Returns
+   * the counts. A no-op (zero counts) after {@link ConsolidationSweeper.dispose}.
+   */
+  sweep(): Promise<ConsolidationSweepResult>;
+  /** Stop accepting sweeps. An in-flight `sweep()` resolves normally. */
+  dispose(): void;
+}

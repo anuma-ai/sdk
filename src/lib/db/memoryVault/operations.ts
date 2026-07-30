@@ -2115,6 +2115,76 @@ export async function getDecayCandidatesRawOp(
 }
 
 /**
+ * The content-light shape the background CONSOLIDATION sweep (Fix C) needs to
+ * CLUSTER active rows by cosine before it decrypts anything. Mirrors
+ * {@link DecayCandidateRaw}: plaintext scan columns only, NO `content` decrypt —
+ * the sweep decrypts just the (small) clusters that actually near-duplicate.
+ */
+export interface ConsolidationScanRaw {
+  uniqueId: string;
+  /** JSON-stringified embedding vector; null on rows not yet embedded. A row
+   * with no vector is invisible to cosine clustering — the sweep backfills those
+   * separately (see {@link getUnembeddedVaultMemoryIdsOp}). */
+  embedding: string | null;
+  /** Model that produced `embedding`. Clustering only compares rows sharing a
+   * model (cosine across different embedding spaces is meaningless). */
+  embeddingModel: string | null;
+  scope: string;
+  folderId: string | null;
+  /** Unix ms `updated_at` — the cluster-cache version key: a re-observed row
+   * (bumped `updated_at`) re-enters its cluster's re-evaluation. */
+  updatedAt: number;
+  /** Re-observation count; the survivor picker prefers the most-reinforced row. */
+  proofCount: number | null;
+}
+
+/**
+ * Consolidation sweep candidate scan (Fix C). Selects the content-light columns
+ * the background dedup sweep clusters over, via `unsafeFetchRaw` — NO Model per
+ * row (dodges the never-evicted RecordCache / web Pile-2 OOM) and NO `content`
+ * decrypt. Scopes to the ACTIVE, recall-reachable rows via `baseVaultConditions`
+ * (excludes deleted / archived / quarantined / superseded / cross-user), so the
+ * sweep only ever collapses duplicates that are actually live in recall.
+ *
+ * Refuses to run on an unscoped multi-tenant context (see
+ * {@link assertVaultScopeForSweep}).
+ */
+export async function getConsolidationScanRawOp(
+  ctx: VaultMemoryOperationsContext
+): Promise<ConsolidationScanRaw[]> {
+  assertVaultScopeForSweep(ctx);
+  const results = (await ctx.vaultMemoryCollection
+    .query(...baseVaultConditions(ctx))
+    .unsafeFetchRaw()) as Record<string, unknown>[];
+  return results.map((raw) => ({
+    uniqueId: raw.id as string,
+    embedding: (raw.embedding as string | null) ?? null,
+    embeddingModel: (raw.embedding_model as string | null) ?? null,
+    scope: (raw.scope as string) ?? "",
+    folderId: (raw.folder_id as string | null) ?? null,
+    updatedAt: raw.updated_at as number,
+    proofCount: (raw.proof_count as number | null) ?? null,
+  }));
+}
+
+/**
+ * Ids of ACTIVE vault rows that have NO embedding yet — the backfill targets for
+ * the consolidation sweep (a row without a vector can't be clustered). Same
+ * content-light `unsafeFetchRaw` + `baseVaultConditions` scoping as
+ * {@link getConsolidationScanRawOp}; the sweep decrypts + embeds them in a
+ * bounded batch. Refuses to run on an unscoped context.
+ */
+export async function getUnembeddedVaultMemoryIdsOp(
+  ctx: VaultMemoryOperationsContext
+): Promise<string[]> {
+  assertVaultScopeForSweep(ctx);
+  const results = (await ctx.vaultMemoryCollection
+    .query(...baseVaultConditions(ctx), Q.where("embedding", Q.eq(null)))
+    .unsafeFetchRaw()) as Record<string, unknown>[];
+  return results.map((raw) => raw.id as string);
+}
+
+/**
  * Archive a memory (decay soft state, PR2) — set `archived_at`. An archived row
  * drops out of every recall lane via the `baseVaultConditions` choke point but
  * stays recoverable via {@link restoreVaultMemoryOp} until the hard-delete
