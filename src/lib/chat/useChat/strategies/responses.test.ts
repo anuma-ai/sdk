@@ -217,7 +217,9 @@ describe("ResponsesStrategy.processStreamChunk - whitespace-only deltas", () => 
     const emitted: string[] = [];
     for (const delta of deltas) {
       const out = strategy.processStreamChunk({ type: "response.output_text.delta", delta }, acc);
-      if (out.content !== undefined) emitted.push(out.content);
+      // `ProcessChunkResult.content` is `string | null` — never `undefined` — so
+      // the no-delta case is null, not a missing key.
+      if (out.content !== null) emitted.push(out.content);
     }
     expect(emitted.join("")).toBe("## Heading\n\nBody");
     expect(acc.content).toBe("## Heading\n\nBody");

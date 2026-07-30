@@ -81,9 +81,9 @@ describe("createWeatherTool", () => {
   describe("tool shape", () => {
     it("registers as display_weather with skipContinuation", () => {
       const { tool } = buildTool();
-      expect(tool.function.name).toBe("display_weather");
+      expect((tool.function as { name: string }).name).toBe("display_weather");
       expect(tool.skipContinuation).toBe(true);
-      const params = tool.function.arguments as { required?: string[] };
+      const params = (tool.function as { arguments: { required?: string[] } }).arguments;
       expect(params.required).toContain("location");
     });
   });
@@ -403,7 +403,7 @@ describe("createWeatherTool", () => {
       let result: DisplayWeatherResult | undefined;
       await new Promise<void>((resolve) => {
         withNavigatorLanguage("en-US", () => {
-          tool.executor!({ location: "London" }).then((r) => {
+          Promise.resolve(tool.executor!({ location: "London" })).then((r) => {
             result = r as DisplayWeatherResult;
             resolve();
           });
@@ -421,7 +421,7 @@ describe("createWeatherTool", () => {
       let result: DisplayWeatherResult | undefined;
       await new Promise<void>((resolve) => {
         withNavigatorLanguage("en-GB", () => {
-          tool.executor!({ location: "London" }).then((r) => {
+          Promise.resolve(tool.executor!({ location: "London" })).then((r) => {
             result = r as DisplayWeatherResult;
             resolve();
           });
@@ -439,7 +439,7 @@ describe("createWeatherTool", () => {
       let result: DisplayWeatherResult | undefined;
       await new Promise<void>((resolve) => {
         withNavigatorLanguage("not-a-locale!!!", () => {
-          tool.executor!({ location: "London" }).then((r) => {
+          Promise.resolve(tool.executor!({ location: "London" })).then((r) => {
             result = r as DisplayWeatherResult;
             resolve();
           });

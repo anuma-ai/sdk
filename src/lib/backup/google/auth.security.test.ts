@@ -5,7 +5,7 @@
  * Once the vulnerabilities are fixed, these tests should PASS, verifying the fixes work correctly.
  */
 
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, afterEach, beforeEach, vi } from "vitest";
 
 // Type declaration for global in test environment
 declare const global: typeof globalThis;
@@ -13,6 +13,21 @@ import { handleGoogleDriveCallback } from "./auth";
 import type { Client } from "../../../client/client";
 import { postAuthOauthByProviderExchange } from "../../../client/sdk.gen";
 import { setLogger, consoleLogger, type Logger } from "../../logger";
+import type { OAuthError, OAuthResult } from "../oauth/storage";
+
+/**
+ * `OAuthResult` is a discriminated union, and `expect(result.ok).toBe(false)`
+ * does not narrow it for the compiler — so reading `result.error` afterwards is
+ * a type error even though the runtime value is there. Assert and narrow in one
+ * step: this throws (failing the test) if the callback unexpectedly succeeded,
+ * and hands back the `error` payload for the assertions that follow.
+ */
+function expectFailure<T>(result: OAuthResult<T>): OAuthError {
+  if (result.ok) {
+    throw new Error(`expected an error result, got ok: ${JSON.stringify(result.data)}`);
+  }
+  return result.error;
+}
 
 // Mock the SDK function
 vi.mock("../../../client/sdk.gen", () => ({
@@ -118,9 +133,10 @@ describe("SECURITY: Google Drive OAuth Error Handling", () => {
 
     // Error should be logged and returned in result object
     expect(result.ok).toBe(false);
-    expect(result.error).toBeDefined();
-    expect(result.error.code).toBeDefined();
-    expect(result.error.message).toBeDefined();
+    const error = expectFailure(result);
+    expect(error).toBeDefined();
+    expect(error.code).toBeDefined();
+    expect(error.message).toBeDefined();
     expect(mockLogger.error).toHaveBeenCalled();
     expect(mockLogger.warn).toHaveBeenCalled();
   });
@@ -156,8 +172,9 @@ describe("SECURITY: Google Drive OAuth Error Handling", () => {
 
     // Encryption failure should be explicitly handled with error code
     expect(result.ok).toBe(false);
-    expect(result.error.code).toBe("encryption");
-    expect(result.error.message).toContain("encryption");
+    const error = expectFailure(result);
+    expect(error.code).toBe("encryption");
+    expect(error.message).toContain("encryption");
 
     storeSpy.mockRestore();
   });

@@ -30,10 +30,42 @@ import { generateEmbedding, generateEmbeddings } from "../memoryEngine/embedding
 const mockVaultCtx = {} as VaultMemoryOperationsContext;
 const embeddingOptions: EmbeddingOptions = { apiKey: "test-key" };
 
+/**
+ * A complete, default-valued row. Only `uniqueId`/`content` vary across these
+ * tests, but the fixture spells out every column so it stays a real
+ * `StoredVaultMemory` — a partial one silently stops representing the shape the
+ * cache actually reads.
+ */
 function makeMemory(id: string, content: string): StoredVaultMemory {
   return {
     uniqueId: id,
     content,
+    scope: "private",
+    folderId: null,
+    userId: null,
+    embedding: null,
+    embeddingModel: null,
+    sourceChunkIds: null,
+    proofCount: 1,
+    source: "manual",
+    eventTimeStart: null,
+    eventTimeEnd: null,
+    eventTimeKind: null,
+    topicsUserManaged: false,
+    topics: null,
+    topicsUpdatedAt: null,
+    topicsExtractedAt: null,
+    topicsExtractedVersion: null,
+    supersededBy: null,
+    supersededAt: null,
+    lastObservedAt: null,
+    factType: null,
+    archivedAt: null,
+    trustTier: null,
+    visibility: "private",
+    twinOptIn: false,
+    publishedAt: null,
+    geohash: null,
     createdAt: new Date(),
     updatedAt: new Date(),
     isDeleted: false,

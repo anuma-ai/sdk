@@ -297,7 +297,9 @@ describe("convertLegacyDeckJson", () => {
       slides: [
         {
           id: "s1",
-          // @ts-expect-error - intentionally minimal to test defensive defaults
+          // Intentionally minimal, to exercise the defensive defaults. The legacy
+          // element type already declares every field but `kind` optional, so this
+          // needs no suppression.
           elements: [{ kind: "text", id: "t" }, { kind: "image" }],
         },
       ],

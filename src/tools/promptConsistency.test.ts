@@ -71,8 +71,18 @@ function extractSnakeCaseWords(text: string): Set<string> {
   return new Set(text.match(SNAKE_CASE_RE) ?? []);
 }
 
+/**
+ * `ToolConfig` inherits `LlmapiChatCompletionTool`'s index signature, so
+ * `function` is typed `unknown` until the #549 follow-up gives it a real shape
+ * (see the TODO in `src/clientCompat.ts`). Every tool this file builds comes
+ * from our own factories, which always emit `{ name, description }`.
+ */
+function toolFn(tool: ToolConfig): { name: string; description?: string } {
+  return tool.function as { name: string; description?: string };
+}
+
 function getToolNames(tools: ToolConfig[]): Set<string> {
-  return new Set(tools.map((t) => t.function.name));
+  return new Set(tools.map((t) => toolFn(t).name));
 }
 
 /**
@@ -113,15 +123,15 @@ describe("tool prompt/schema consistency", () => {
 
   it("app tool descriptions only reference registered tools", () => {
     for (const tool of app) {
-      const desc = tool.function.description ?? "";
-      assertNoUnknownReferences(`${tool.function.name}.description`, desc);
+      const { name, description } = toolFn(tool);
+      assertNoUnknownReferences(`${name}.description`, description ?? "");
     }
   });
 
   it("slide tool descriptions only reference registered tools", () => {
     for (const tool of slide) {
-      const desc = tool.function.description ?? "";
-      assertNoUnknownReferences(`${tool.function.name}.description`, desc);
+      const { name, description } = toolFn(tool);
+      assertNoUnknownReferences(`${name}.description`, description ?? "");
     }
   });
 

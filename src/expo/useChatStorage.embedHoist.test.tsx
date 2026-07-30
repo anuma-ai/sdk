@@ -28,7 +28,7 @@ import { renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { sdkMigrations, sdkModelClasses, sdkSchema } from "../lib/db/schema";
-import { consoleLogger, setLogger } from "../lib/logger";
+import { consoleLogger, setLogger, type Logger } from "../lib/logger";
 import type { ServerTool } from "../lib/tools";
 
 // The two hoisted network calls are stubbed with PLAIN functions, not vi.fn:
@@ -162,7 +162,9 @@ function responsesShape(text: string) {
 describe("useChatStorage hoisted tool-selection work (expo)", () => {
   let db: Database;
   let realCreateMessageOp: typeof createMessageOp;
-  let warn: ReturnType<typeof vi.fn>;
+  // Typed to `Logger["warn"]` so the mock is assignable to the logger we install
+  // below; a bare `vi.fn()` widens to the any-args mock signature and is not.
+  let warn: ReturnType<typeof vi.fn<Logger["warn"]>>;
   let unhandled: unknown[];
   // Node's process event, not the DOM one — happy-dom does not forward unhandled
   // rejections to `window`, so a DOM listener would never fire.
@@ -179,7 +181,7 @@ describe("useChatStorage hoisted tool-selection work (expo)", () => {
     catalogImpl = async () => [];
     unhandled = [];
     process.on("unhandledRejection", onUnhandled);
-    warn = vi.fn();
+    warn = vi.fn<Logger["warn"]>();
     setLogger({ debug: () => {}, info: () => {}, warn, error: () => {} });
     const actual = await vi.importActual<typeof import("../lib/db/chat")>("../lib/db/chat");
     realCreateMessageOp = actual.createMessageOp;
@@ -343,7 +345,7 @@ describe("useChatStorage hoisted tool-selection work (expo)", () => {
         conversationId: "conv_expo_defer",
         getToken: async () => "tok",
         autoEmbedMessages: false,
-        serverTools: { deferLoading: { enabled: true } },
+        serverTools: { deferLoading: { enabled: true, hotToolNames: [] } },
         onToolSelection: selection,
       })
     );

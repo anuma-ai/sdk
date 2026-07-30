@@ -269,7 +269,7 @@ describe("Chat Encryption Utilities", () => {
       // Create a StoredMessage-like object from encrypted data
       const storedMessage: StoredMessage = {
         uniqueId: "msg-123",
-        messageId: "msg-123",
+        messageId: 123,
         conversationId: "conv-123",
         role: "assistant",
         content: encrypted.content,
@@ -292,7 +292,7 @@ describe("Chat Encryption Utilities", () => {
 
       const plaintextMessage: StoredMessage = {
         uniqueId: "msg-old",
-        messageId: "msg-old",
+        messageId: 1,
         conversationId: "conv-123",
         role: "user",
         content: "This is plaintext from old SDK",
@@ -310,7 +310,7 @@ describe("Chat Encryption Utilities", () => {
     it("should return message as-is without address", async () => {
       const message: StoredMessage = {
         uniqueId: "msg-1",
-        messageId: "msg-1",
+        messageId: 1,
         conversationId: "conv-1",
         role: "user",
         content: "test",
@@ -350,7 +350,7 @@ describe("Chat Encryption Utilities", () => {
 
       const v2Message: StoredMessage = {
         uniqueId: "msg-v2",
-        messageId: "msg-v2",
+        messageId: 2,
         conversationId: "conv-123",
         role: "user",
         content: `enc:v2:${encryptedHex}`,

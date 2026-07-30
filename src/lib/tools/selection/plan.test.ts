@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import type { ServerToolsFilterFunction } from "../serverTools";
 import { FULL_GENERATIVE_CLIENT_FACTORIES, type ServerToolCatalog } from "./intents";
 import { resolvePlan } from "./plan";
 
@@ -16,7 +17,7 @@ const catalog: ServerToolCatalog = {
   // The produced value is a semantic filter function → toolChoice resolves auto.
   plain: {
     resolveServerTools: (_ctx) => {
-      const filter: (e: number[] | number[][], t: never[]) => string[] = () => [];
+      const filter: ServerToolsFilterFunction = () => [];
       return filter;
     },
   },

@@ -2,7 +2,7 @@
 import LokiJSAdapter from "@nozbe/watermelondb/adapters/lokijs";
 import { describe, expect, it, vi } from "vitest";
 
-import { DatabaseManager, type PlatformStorage } from "./manager";
+import { DatabaseManager, type DatabaseManagerOptions, type PlatformStorage } from "./manager";
 import { SDK_SCHEMA_VERSION, sdkMigrations, sdkSchema } from "./schema";
 
 /** Map-backed PlatformStorage so tests can seed/inspect the migration markers. */
@@ -20,9 +20,10 @@ function makeStorage(): PlatformStorage & { persistent: Map<string, string> } {
   };
 }
 
-function makeManager(
-  overrides: Partial<Parameters<typeof DatabaseManager.prototype.constructor>[0]> = {}
-) {
+// `DatabaseManager.prototype.constructor` is typed as the bare `Function`, so
+// the old `Parameters<...>[0]` here resolved to `never` and rejected every
+// override a caller passed. Name the options interface directly.
+function makeManager(overrides: Partial<DatabaseManagerOptions> = {}) {
   const storage = makeStorage();
   // Real in-memory Loki adapter per call so `new Database(...)` is valid; the spy
   // records the dbName each build so we can assert build counts per wallet.

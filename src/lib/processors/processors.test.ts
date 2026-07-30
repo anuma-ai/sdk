@@ -24,7 +24,10 @@ import { ZipProcessor } from "./ZipProcessor";
 // ── Helpers ──
 
 function toDataUrl(buffer: ArrayBuffer | Buffer | Uint8Array, mimeType: string): string {
-  const base64 = Buffer.from(buffer).toString("base64");
+  // `Buffer.from` has separate overloads for ArrayBuffer and for array-likes, and
+  // the union matches neither — normalize to a view first.
+  const bytes = buffer instanceof ArrayBuffer ? new Uint8Array(buffer) : buffer;
+  const base64 = Buffer.from(bytes).toString("base64");
   return `data:${mimeType};base64,${base64}`;
 }
 
