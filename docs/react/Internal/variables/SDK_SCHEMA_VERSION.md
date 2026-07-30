@@ -1,8 +1,8 @@
 # SDK\_SCHEMA\_VERSION
 
-> `const` **SDK\_SCHEMA\_VERSION**: `42` = `42`
+> `const` **SDK\_SCHEMA\_VERSION**: `43` = `43`
 
-Defined in: [src/lib/db/schema.ts:102](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/schema.ts#102)
+Defined in: [src/lib/db/schema.ts:106](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/schema.ts#106)
 
 Current combined schema version for all SDK storage modules.
 
@@ -82,3 +82,7 @@ Version history:
   `topics_updated_at` is a SECOND timestamp because every topic writer pins
   `updated_at` on purpose (recall's recency multiplier) and both sync paths
   key on `updated_at`, so a topic-only change would neither upload nor merge
+* v43: Added a (is\_deleted, created\_at) index to conversations. Every
+  conversation list read filters is\_deleted and orders by created\_at DESC,
+  which previously meant a temp B-tree sort of the whole live set on every
+  read. Structural only — no column added, no data rewritten

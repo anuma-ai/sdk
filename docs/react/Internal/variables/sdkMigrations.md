@@ -2,7 +2,7 @@
 
 > `const` **sdkMigrations**: `Readonly`<{ `maxVersion`: `number`; `minVersion`: `number`; `sortedMigrations`: `Readonly`<{ `steps`: `MigrationStep`\[]; `toVersion`: `number`; }>\[]; `validated`: `true`; }>
 
-Defined in: [src/lib/db/schema.ts:498](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/schema.ts#498)
+Defined in: [src/lib/db/schema.ts:512](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/schema.ts#512)
 
 Combined migrations for all SDK storage modules.
 
@@ -55,3 +55,4 @@ Migration history:
 * v39 → v40: Added `fact_type`, `archived_at`, `trust_tier` columns to memory\_vault for typed memory + decay + Tier-0 security (all nullable + plaintext, NULL backfill)
 * v40 → v41: Added `visibility`, `twin_opt_in`, `published_at`, `geohash` columns to memory\_vault for the People Nearby cross-user visibility axis (two-tier `private | public`; null/unknown grandfathered as 'private')
 * v41 → v42: Added `topics` + `topics_updated_at` columns to memory\_vault, making a memory's topics the durable synced record and `entity`/`memory_entity` a device-local index over it (null `topics` = pre-v42, backfilled from the row's current links by the sweep)
+* v42 → v43: Added a composite `(is_deleted, created_at)` index to conversations so the list reads stop temp-sorting (structural only, no data rewritten)
