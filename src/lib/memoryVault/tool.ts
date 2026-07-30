@@ -34,6 +34,16 @@ const MANUAL_FACT_TYPES = [
   "other",
 ] as const;
 
+/**
+ * Max wall-clock the CREATE path waits on `retain()`'s embedding call before
+ * aborting it. `generateEmbedding` has bounded retry but no per-request timeout,
+ * so a hung portal could otherwise stall the chat turn. We abort THIS call's
+ * embedding (via a signal threaded into retain) — never the shared
+ * recall/search/eval embedding path — so on timeout retain throws and the
+ * tool's single try/catch runs exactly one raw-create.
+ */
+const RETAIN_CREATE_TIMEOUT_MS = 10_000;
+
 /** Validate a caller/LLM-supplied `type` arg to a known FactType, or undefined. */
 function normalizeManualFactType(value: unknown): (typeof MANUAL_FACT_TYPES)[number] | undefined {
   return typeof value === "string" && (MANUAL_FACT_TYPES as readonly string[]).includes(value)
@@ -311,23 +321,26 @@ export function createMemoryVaultTool(
               // keep the raw create for back-compat.
               if (embeddingOptions && cache) {
                 let retainResult: RetainResult | undefined;
+                // Bound THIS create's wait with a per-call AbortController rather
+                // than a Promise.race: a race would leave the abandoned retain()
+                // running to complete its OWN create/merge after the fallback
+                // raw-create already ran → a duplicate row. Aborting the signal
+                // makes retain()'s embedding call reject fast (terminal, no
+                // retry), retain throws, and the single catch below runs the
+                // raw-create exactly once. Exactly one write on every path:
+                // retain resolves → its write; retain throws/aborts → one
+                // raw-create. Scoped to this call only (ctx.signal), so the
+                // shared recall/search/eval embedding path is never aborted.
+                const controller = new AbortController();
+                const timer = setTimeout(() => controller.abort(), RETAIN_CREATE_TIMEOUT_MS);
                 try {
                   // Dynamic import mirrors this module's cycle-avoidance stance
                   // (see the FactType note above): memoryVault must not statically
                   // pull the heavier memory/* graph at module load.
                   const { retain } = await import("../memory/retain");
-                  // Plain await — NO timeout race here. A race would leave the
-                  // abandoned retain() running to complete its OWN create/merge
-                  // after the fallback raw-create already ran → a duplicate row.
-                  // Instead, the embeddings fetch retain() drives now has a
-                  // bounded per-request abort (memoryEngine/generate), so a hung
-                  // portal makes retain() THROW fast and the single catch below
-                  // runs the raw-create exactly once. Exactly one write on every
-                  // path: retain resolves → its write; retain throws → one
-                  // raw-create.
                   retainResult = await retain(
                     content,
-                    { vaultCtx, embeddingOptions, vaultCache: cache },
+                    { vaultCtx, embeddingOptions, vaultCache: cache, signal: controller.signal },
                     {
                       source: "manual",
                       scope,
@@ -336,12 +349,14 @@ export function createMemoryVaultTool(
                     }
                   );
                 } catch {
-                  // retain() THROWS on an embedding outage/timeout (it refuses to
-                  // auto-merge against an inert cosine lane, which would create a
-                  // duplicate). A user-CONFIRMED save must never be lost to that,
-                  // so fall through to the raw create + eager embed below (the
-                  // pre-retain behavior). Any rare duplicate self-reconciles at the
-                  // next consolidation pass.
+                  // retain() THROWS on an embedding outage/timeout/abort (it
+                  // refuses to auto-merge against an inert cosine lane, which
+                  // would create a duplicate). A user-CONFIRMED save must never be
+                  // lost to that, so fall through to the raw create + eager embed
+                  // below (the pre-retain behavior). Any rare duplicate
+                  // self-reconciles at the next consolidation pass.
+                } finally {
+                  clearTimeout(timer);
                 }
                 if (retainResult) {
                   return describeRetainResult(retainResult);

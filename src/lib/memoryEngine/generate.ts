@@ -24,33 +24,32 @@ import type { EmbeddingOptions } from "./types";
  * a few attempts, then surface the final error. */
 const EMBED_MAX_ATTEMPTS = 4;
 
-/**
- * Per-attempt wall-clock timeout for a single embeddings HTTP request. Without
- * it a hung portal (socket opened, no bytes, no error) stalls the caller
- * forever — retry never fires because the request neither resolves nor rejects.
- * That directly stalled a chat turn on the manual-save create path
- * (`memoryVault/tool` → `retain` → here). Each attempt gets a FRESH
- * AbortController so a transient stall aborts and the next attempt starts clean;
- * once attempts are exhausted the abort surfaces as a throw, which is the
- * failure the create path's single try/catch fallback is built to recover from.
- */
-const EMBED_REQUEST_TIMEOUT_MS = 10_000;
+/** True for a fetch/AbortController cancellation. An abort is TERMINAL — the
+ * caller cancelled (e.g. the memory_vault_save tool's bounded create timeout) —
+ * so it must never be retried like a transient network blip. */
+function isAbortError(err: unknown): boolean {
+  return err instanceof Error && err.name === "AbortError";
+}
 
 async function withEmbeddingRetry<T extends { error?: unknown; response?: Response }>(
-  call: (signal: AbortSignal) => Promise<T>
+  call: () => Promise<T>,
+  signal?: AbortSignal
 ): Promise<T> {
   let last: T | undefined;
   let lastThrown: unknown;
   let threw = false;
   for (let attempt = 1; attempt <= EMBED_MAX_ATTEMPTS; attempt++) {
-    // Fresh controller per attempt: a timed-out request is aborted so it can't
-    // leak, and the next attempt is not poisoned by the previous abort.
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), EMBED_REQUEST_TIMEOUT_MS);
     try {
       threw = false;
-      last = await call(controller.signal);
+      last = await call();
       if (!last.error) return last;
+      // Some openapi-ts versions surface a fetch abort as a RESOLVED `{ error }`
+      // (no thrown rejection). Treat that as terminal too — rethrow so it lands
+      // in the catch's abort guard below instead of looping (status is undefined
+      // for a wrapped abort, which would otherwise read as retryable).
+      if (signal?.aborted || isAbortError(last.error)) {
+        throw last.error instanceof Error ? last.error : new Error("Embedding request aborted");
+      }
       // Resolved with an HTTP-level error ({ error } set). Only transient
       // statuses are worth retrying — a non-429 4xx (bad auth / bad request)
       // fails identically every attempt, so surface it immediately.
@@ -58,6 +57,13 @@ async function withEmbeddingRetry<T extends { error?: unknown; response?: Respon
       const retryable = status === undefined || status === 429 || status >= 500;
       if (!retryable) return last;
     } catch (err) {
+      // An abort is TERMINAL, not transient: a caller cancelled the request
+      // (e.g. the tool-create path's timeout). Retrying would fire fresh
+      // requests against an already-aborted signal and burn the backoff budget,
+      // so rethrow immediately → retain() fails fast and its single-write
+      // fallback runs. Only reachable when a caller opted into `signal`; the
+      // shared recall/search/eval path passes none and is unaffected.
+      if (signal?.aborted || isAbortError(err)) throw err;
       // fetch itself rejected — ECONNRESET, DNS failure, connection timeout.
       // These never come back as a `{ error }` object, so without this catch
       // a real network fault would skip the retry entirely and hard-fail on
@@ -65,8 +71,6 @@ async function withEmbeddingRetry<T extends { error?: unknown; response?: Respon
       // exhaust attempts (preserving the throw contract for callers).
       threw = true;
       lastThrown = err;
-    } finally {
-      clearTimeout(timer);
     }
     if (attempt < EMBED_MAX_ATTEMPTS) {
       const base = 250 * 2 ** (attempt - 1);
@@ -141,7 +145,7 @@ export async function generateEmbedding(
   text: string,
   options: EmbeddingOptions
 ): Promise<number[]> {
-  const { baseUrl = BASE_URL, getToken, apiKey, model, cache } = options;
+  const { baseUrl = BASE_URL, getToken, apiKey, model, cache, signal } = options;
 
   // Check cache first. The cache holds Float32Array (native embedding
   // precision, half the resident RAM of a float64 number[]); the public
@@ -167,20 +171,22 @@ export async function generateEmbedding(
     throw new Error("Either apiKey or getToken must be provided");
   }
 
-  const response = await withEmbeddingRetry((signal) =>
-    postApiV1Embeddings({
-      baseUrl,
-      body: {
-        // Mask PII from the request body only — the cache above still keys on
-        // the original `text`, so callers keep their original values.
-        input: options.maskInput ? options.maskInput(text) : text,
-        model: model ?? DEFAULT_API_EMBEDDING_MODEL,
-      },
-      headers,
-      // Per-request abort so a hung portal fails fast instead of stalling the
-      // turn (the caller's create path then falls back to a single raw-create).
-      signal,
-    })
+  const response = await withEmbeddingRetry(
+    () =>
+      postApiV1Embeddings({
+        baseUrl,
+        body: {
+          // Mask PII from the request body only — the cache above still keys on
+          // the original `text`, so callers keep their original values.
+          input: options.maskInput ? options.maskInput(text) : text,
+          model: model ?? DEFAULT_API_EMBEDDING_MODEL,
+        },
+        headers,
+        // Only present when the caller passed one (e.g. the tool-create path).
+        // Omitted on the shared recall/search/eval path → no timeout, unchanged.
+        ...(signal && { signal }),
+      }),
+    signal
   );
 
   if (response.error) {
@@ -223,17 +229,21 @@ async function generateEmbeddingsBatch(
   baseUrl: string,
   model: string,
   onUsage?: EmbeddingOptions["onUsage"],
-  maskInput?: EmbeddingOptions["maskInput"]
+  maskInput?: EmbeddingOptions["maskInput"],
+  signal?: AbortSignal
 ): Promise<number[][]> {
-  const response = await withEmbeddingRetry((signal) =>
-    postApiV1Embeddings({
-      baseUrl,
-      // Mask PII from the request body only; cache/order still key on originals.
-      body: { input: maskInput ? texts.map(maskInput) : texts, model },
-      headers,
-      // Same per-request abort as the single-text path (shared retry helper).
-      signal,
-    })
+  const response = await withEmbeddingRetry(
+    () =>
+      postApiV1Embeddings({
+        baseUrl,
+        // Mask PII from the request body only; cache/order still key on originals.
+        body: { input: maskInput ? texts.map(maskInput) : texts, model },
+        headers,
+        // Only present when the caller opted in (tool-create path); omitted on
+        // the shared recall/search/eval path → no timeout, behavior unchanged.
+        ...(signal && { signal }),
+      }),
+    signal
   );
 
   if (response.error) {
@@ -272,7 +282,7 @@ export async function generateEmbeddings(
 ): Promise<number[][]> {
   if (texts.length === 0) return [];
 
-  const { baseUrl = BASE_URL, getToken, apiKey, model, batchSize, cache } = options;
+  const { baseUrl = BASE_URL, getToken, apiKey, model, batchSize, cache, signal } = options;
   const chunkSize = batchSize ?? DEFAULT_EMBEDDING_BATCH_SIZE;
 
   // Separate cached and uncached texts
@@ -325,7 +335,8 @@ export async function generateEmbeddings(
       baseUrl,
       embeddingModel,
       options.onUsage,
-      options.maskInput
+      options.maskInput,
+      signal
     );
   } else {
     // Large inputs: chunk and process with bounded concurrency
@@ -346,7 +357,8 @@ export async function generateEmbeddings(
           baseUrl,
           embeddingModel,
           options.onUsage,
-          options.maskInput
+          options.maskInput,
+          signal
         );
       }
     };

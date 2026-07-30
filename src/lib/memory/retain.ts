@@ -55,6 +55,16 @@ export interface RetainContext {
   vaultCtx: VaultMemoryOperationsContext;
   embeddingOptions: EmbeddingOptions;
   vaultCache: VaultEmbeddingCache;
+  /**
+   * Optional AbortSignal bounding the embedding request(s) this retain drives
+   * (query embed in `prepareVaultCandidates`, plus any create/update re-embed).
+   * When it aborts, the embed rejects with an `AbortError` (no retry — an abort
+   * is terminal), retain throws, and the caller's single-write fallback runs.
+   * Threaded onto `embeddingOptions.signal` for every embed call below. Omit on
+   * the recall/extraction paths — only the `memory_vault_save` tool sets it, to
+   * cap the create wait so a hung portal can't stall the chat turn.
+   */
+  signal?: AbortSignal;
 }
 
 /**
@@ -91,6 +101,16 @@ export async function retain(
 
   const enableAutoMerge = options.enableAutoMerge ?? true;
   const threshold = options.autoMergeThreshold ?? DEFAULT_AUTO_MERGE_THRESHOLD;
+
+  // Bound every embedding request this retain drives with the caller's abort
+  // signal when one was passed (the tool-create path sets a 10s timeout).
+  // Threading it through embeddingOptions reaches EVERY embed — the query embed
+  // inside prepareVaultCandidates AND any create/update re-embed — not just the
+  // direct generateEmbedding calls. Without a signal this is exactly
+  // ctx.embeddingOptions, so recall/extraction are unaffected (no timeout).
+  const embeddingOptions: EmbeddingOptions = ctx.signal
+    ? { ...ctx.embeddingOptions, signal: ctx.signal }
+    : ctx.embeddingOptions;
 
   // Resolve the scope ONCE and use it for both the dedup search and the write.
   // Leaving the search unscoped (its old behavior) made read and write
@@ -131,7 +151,7 @@ export async function retain(
     prepared = await prepareVaultCandidates(
       trimmed,
       ctx.vaultCtx,
-      ctx.embeddingOptions,
+      embeddingOptions,
       ctx.vaultCache,
       {
         limit: Math.max(options.consolidateTopK ?? DEFAULT_CONSOLIDATE_TOP_K, 1),
@@ -181,7 +201,12 @@ export async function retain(
     // paraphrased duplicates the strict cosine-merge below misses, and retires
     // stale values on a state change.
     if (options.consolidateOptions) {
-      const outcome = await tryConsolidate(trimmed, ctx, options, prepared);
+      const outcome = await tryConsolidate(
+        trimmed,
+        { ...ctx, embeddingOptions },
+        options,
+        prepared
+      );
       if (outcome) {
         if ("done" in outcome) return outcome.done;
         supersedeTargetIds = outcome.supersede;
@@ -206,7 +231,7 @@ export async function retain(
       const { results: matches } = await rankPreparedVaultCandidates(
         trimmed,
         prepared,
-        ctx.embeddingOptions,
+        embeddingOptions,
         {
           limit: 1,
           minSimilarity: threshold,
@@ -291,7 +316,7 @@ export async function retain(
       ? prepared.queryEmbedding
       : undefined;
   const embedding =
-    reusableQueryEmbedding ?? (await generateEmbedding(contentToWrite, ctx.embeddingOptions));
+    reusableQueryEmbedding ?? (await generateEmbedding(contentToWrite, embeddingOptions));
   const embeddingModel = ctx.embeddingOptions.model ?? DEFAULT_API_EMBEDDING_MODEL;
 
   // Tombstone gate: if this create matches a soft-deleted memory, the user (or

@@ -369,7 +369,14 @@ describe("createMemoryVaultTool", () => {
 
       expect(retain).toHaveBeenCalledWith(
         "User likes dogs",
-        { vaultCtx: mockVaultCtx, embeddingOptions, vaultCache: cache },
+        // ctx now carries a per-call AbortSignal bounding the create's embed —
+        // scoped to this call, never the shared recall/search/eval embed path.
+        {
+          vaultCtx: mockVaultCtx,
+          embeddingOptions,
+          vaultCache: cache,
+          signal: expect.any(AbortSignal),
+        },
         expect.objectContaining({ source: "manual", scope: "private" })
       );
       // The raw create + fire-and-forget embed path is bypassed entirely.
@@ -487,9 +494,11 @@ describe("createMemoryVaultTool", () => {
       const tool = createMemoryVaultTool(mockVaultCtx, autoConfirm, embeddingOptions, cache);
       const result = await tool.executor!({ content: "a fact whose embedding hangs" });
 
-      // Retain was attempted, then the fallback ran — but the vault was written
-      // to exactly once (no lingering retain create racing the fallback).
+      // Retain was attempted with a per-call abort signal (the bound), then the
+      // fallback ran — but the vault was written exactly once (no lingering
+      // retain create racing the fallback).
       expect(retain).toHaveBeenCalledTimes(1);
+      expect(vi.mocked(retain).mock.calls[0][1]).toHaveProperty("signal", expect.any(AbortSignal));
       expect(createVaultMemoryOp).toHaveBeenCalledTimes(1);
       expect(result).toBe("Memory saved successfully (ID: once-1).");
     });
