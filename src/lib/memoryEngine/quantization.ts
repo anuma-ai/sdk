@@ -5,21 +5,38 @@
  * A 1536-dim Float32 vector is 6 KiB; the same vector quantized to
  * Int8 + a single Float32 scale is 1.5 KiB + 4 bytes.
  *
- * Wired by 719/B3 as an **opt-in** first-pass cosine ranker in the vault
- * search path (`MemoryVaultSearchOptions.int8FirstPass` /
- * `RecallOptions.int8FirstPass`): approximate int8 ranks the corpus, then
- * Float32 re-scores the top-K. Default OFF until eval-gate accuracy
- * evidence clears the approximate path for the default lane.
+ * Intended for clients that hold thousands of embeddings in RAM: the value
+ * here is RESIDENT BYTES, not CPU.
  *
  * Quantization scheme:
  * - scale = max absolute value across the vector (>= 0)
  * - q[i] = clamp(round(v[i] / scale * 127), -127, 127)
  * - dequantize: v[i] ≈ q[i] * scale / 127
  *
- * Cosine similarity computed directly over the Int8 representation
- * gives a fast rough rank that is accurate enough for an initial
- * top-K retrieval pass; the caller can re-score the top-K against
- * the full Float32 vectors if higher precision is required.
+ * ## Do NOT use {@link cosineInt8} as a "fast first pass" (719/B3, PR #833)
+ *
+ * An int8 cosine pre-rank + Float32 re-score of the top-K was wired into the
+ * vault search path and reverted: it is SLOWER than the plain Float32 pass it
+ * replaces, in every configuration measured. Node 22, random unit vectors,
+ * median of 15:
+ *
+ * ```
+ * dim=1536 n=2000   float32 3.80ms   int8 pre-quantized 4.40ms  (1.16x SLOWER)
+ * dim=4096 n=1500   float32 7.83ms   int8 pre-quantized 8.66ms  (1.11x SLOWER)
+ * ```
+ *
+ * The "pre-quantized" column is the ceiling — quantization charged at zero,
+ * only the scoring loop timed — and it is already behind. {@link cosineInt8}
+ * and `cosineSimilarity` do identical work per element (3 mults, 3 adds); the
+ * int8 dot-product win needs SIMD/VNNI intrinsics that JS does not expose, and
+ * `Int8Array` reads sign-extend where `Float32Array` reads convert natively.
+ * There is no arithmetic saving to amortize, so caching the quantized form
+ * cannot rescue it. Charging quantization on top (two passes per vector) puts
+ * the cold path at ~7.5-8x the Float32 pass.
+ *
+ * To realize the RAM win, the int8 form has to REPLACE the Float32Array in the
+ * embedding cache and be dequantized only for a narrow re-score window. Holding
+ * both forms alive costs more than Float32 alone (4096-dim: 16384 B -> 20484 B).
  */
 
 /**

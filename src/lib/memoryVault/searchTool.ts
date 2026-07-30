@@ -25,26 +25,12 @@ import { RerankerUnavailableError, rerankPairs } from "../memory/reranker";
 import { rrfFuse } from "../memory/rrf";
 import { DEFAULT_API_EMBEDDING_MODEL } from "../memoryEngine/constants";
 import { generateEmbedding, generateEmbeddings } from "../memoryEngine/embeddings";
-import {
-  cosineInt8,
-  type QuantizedEmbedding,
-  quantizeEmbedding,
-} from "../memoryEngine/quantization";
 import type { EmbeddingOptions } from "../memoryEngine/types";
 import { cosineSimilarity } from "../memoryEngine/vector";
 import { prepareBM25Corpus, type PreparedBM25Corpus, scoreBM25, scoreBM25Prepared } from "./bm25";
 import { decomposeQuery } from "./decomposeQuery";
 
 export { createVaultEmbeddingCache, DEFAULT_VAULT_CACHE_SIZE } from "./lruCache";
-
-/**
- * Default float re-score window for the int8 cosine first pass (719/B3).
- * Approximate int8 ranks the full corpus; only this many candidates are
- * re-scored with Float32 before the rest of the fusion pipeline. Opt-in
- * via {@link MemoryVaultSearchOptions.int8FirstPass} — default OFF until
- * eval-gate evidence clears the approximate path for the default lane.
- */
-export const DEFAULT_INT8_RESCORE_TOP_N = 100;
 
 /**
  * Embedding cache keyed by content string. Stores pre-computed embeddings
@@ -156,21 +142,6 @@ export interface MemoryVaultSearchOptions {
   admitFactor?: number;
   /** Admission window floor for decrypt-last. Default 30. */
   admitFloor?: number;
-  /**
-   * 719/B3 — int8 cosine first pass over the full corpus, then Float32
-   * re-score of the top {@link MemoryVaultSearchOptions.int8RescoreTopN}
-   * candidates. Approximate; **default OFF** until eval-gate accuracy
-   * evidence clears it for the default lane. `quantization.ts` helpers
-   * were previously tested dead code — this is the wiring.
-   */
-  int8FirstPass?: boolean;
-  /**
-   * Float32 re-score window when {@link MemoryVaultSearchOptions.int8FirstPass}
-   * is on. Default {@link DEFAULT_INT8_RESCORE_TOP_N} (100). Candidates
-   * outside the window are dropped from the cosine head (BM25 / side lanes
-   * can still admit them).
-   */
-  int8RescoreTopN?: number;
 }
 
 /**
@@ -192,12 +163,6 @@ interface EmbeddedItem {
   id: string;
   content: string;
   embedding: ArrayLike<number>;
-  /**
-   * Lazily-filled int8 form of {@link EmbeddedItem.embedding}. Cached on the
-   * item so composite multi-facet ranking (several passes over the same
-   * objects) pays quantization once. 719/B3.
-   */
-  quantized?: QuantizedEmbedding;
   /** Original creation timestamp — what `RankedMemory.createdAt` surfaces.
    * Distinct from `updatedAt` since `proofCountIncrement` re-observation
    * doesn't bump `created_at`. */
@@ -221,66 +186,6 @@ interface EmbeddedItem {
    * VaultSearchResult so recall() can suppress the originating chunk in the
    * chunk lane (a fact and the chunk it came from shouldn't both surface). */
   sourceChunkIds?: string[] | null;
-}
-
-/** Coerce an embedding ArrayLike into the input shape quantizeEmbedding accepts. */
-function asQuantizeInput(v: ArrayLike<number>): Float32Array | number[] {
-  if (v instanceof Float32Array) return v;
-  if (Array.isArray(v)) return v as number[];
-  return Float32Array.from(v);
-}
-
-/**
- * Ensure `item.quantized` is populated (mutate-on-first-use). Shared across
- * composite facet passes that reuse the same EmbeddedItem objects.
- */
-function ensureQuantized(item: EmbeddedItem): QuantizedEmbedding {
-  if (item.quantized) return item.quantized;
-  const q = quantizeEmbedding(asQuantizeInput(item.embedding));
-  item.quantized = q;
-  return q;
-}
-
-/**
- * Score every item against the query embedding.
- *
- * Default: full-corpus Float32 cosine (legacy, exact).
- *
- * `int8FirstPass: true` (719/B3): rank the full corpus with {@link cosineInt8},
- * then re-score only the top `int8RescoreTopN` with Float32. Tail candidates
- * leave the cosine head — the fused ranker's BM25 / side lanes can still
- * admit them. When the corpus fits inside the re-score window the result is
- * bit-identical to the Float32 path (same scores, same order).
- */
-function scoreItemsCosine(
-  queryEmbedding: number[],
-  items: EmbeddedItem[],
-  options?: { int8FirstPass?: boolean; int8RescoreTopN?: number }
-): Array<{ item: EmbeddedItem; similarity: number }> {
-  if (items.length === 0) return [];
-  if (!options?.int8FirstPass) {
-    return items.map((item) => ({
-      item,
-      similarity: cosineSimilarity(queryEmbedding, item.embedding),
-    }));
-  }
-
-  const rescoreTopN = Math.max(1, options.int8RescoreTopN ?? DEFAULT_INT8_RESCORE_TOP_N);
-  const queryQ = quantizeEmbedding(queryEmbedding);
-  const rough = items.map((item) => {
-    const q = ensureQuantized(item);
-    return {
-      item,
-      approx: cosineInt8(queryQ.data, queryQ.scale, q.data, q.scale),
-    };
-  });
-  rough.sort((a, b) => b.approx - a.approx);
-
-  const head = rough.slice(0, Math.min(rescoreTopN, rough.length));
-  return head.map(({ item }) => ({
-    item,
-    similarity: cosineSimilarity(queryEmbedding, item.embedding),
-  }));
 }
 
 /**
@@ -461,20 +366,13 @@ export function rankVaultMemories(
     supersessionBoost?: number;
     /** Hard cap on the supersession candidate window. Default 50. */
     supersessionWindow?: number;
-    /** 719/B3 — see {@link MemoryVaultSearchOptions.int8FirstPass}. Default off. */
-    int8FirstPass?: boolean;
-    /** 719/B3 — see {@link MemoryVaultSearchOptions.int8RescoreTopN}. */
-    int8RescoreTopN?: number;
   }
 ): VaultSearchResult[] {
   const limit = options?.limit ?? 5;
   const minSimilarity = options?.minSimilarity ?? 0.1;
   const supersessionWindowCap = options?.supersessionWindow ?? SUPERSESSION_MAX_WINDOW;
 
-  const scored = scoreItemsCosine(queryEmbedding, items, {
-    ...(options?.int8FirstPass !== undefined && { int8FirstPass: options.int8FirstPass }),
-    ...(options?.int8RescoreTopN !== undefined && { int8RescoreTopN: options.int8RescoreTopN }),
-  }).map(({ item, similarity }) => ({
+  const scored = items.map((item) => ({
     uniqueId: item.id,
     content: item.content,
     embedding: item.embedding,
@@ -485,7 +383,7 @@ export function rankVaultMemories(
     eventTimeEnd: item.eventTimeEnd,
     eventTimeKind: item.eventTimeKind,
     factType: item.factType,
-    similarity,
+    similarity: cosineSimilarity(queryEmbedding, item.embedding),
   }));
 
   const filtered = scored.filter((r) => r.similarity >= minSimilarity);
@@ -627,10 +525,6 @@ export function rankFusedVaultMemories(
      * the same `items` passed here. Omit for single-pass callers (behavior unchanged).
      */
     preparedBM25Corpus?: PreparedBM25Corpus;
-    /** 719/B3 — see {@link MemoryVaultSearchOptions.int8FirstPass}. Default off. */
-    int8FirstPass?: boolean;
-    /** 719/B3 — see {@link MemoryVaultSearchOptions.int8RescoreTopN}. */
-    int8RescoreTopN?: number;
   }
 ): VaultSearchResult[] {
   const limit = options?.limit ?? 5;
@@ -652,8 +546,6 @@ export function rankFusedVaultMemories(
     ...(options?.supersessionWindow !== undefined && {
       supersessionWindow: options.supersessionWindow,
     }),
-    ...(options?.int8FirstPass !== undefined && { int8FirstPass: options.int8FirstPass }),
-    ...(options?.int8RescoreTopN !== undefined && { int8RescoreTopN: options.int8RescoreTopN }),
   });
   const baseIds = new Set(baseRanked.map((r) => r.uniqueId));
 
@@ -889,10 +781,6 @@ export async function rankFusedVaultMemoriesAsync(
      * because V2 head was empty (lane-only hits)" from "CE failed on a non-empty head".
      */
     v2HeadStats?: { hadResults: boolean };
-    /** 719/B3 — see {@link MemoryVaultSearchOptions.int8FirstPass}. Default off. */
-    int8FirstPass?: boolean;
-    /** 719/B3 — see {@link MemoryVaultSearchOptions.int8RescoreTopN}. */
-    int8RescoreTopN?: number;
   }
 ): Promise<VaultSearchResult[]> {
   const limit = options?.limit ?? 5;
@@ -906,11 +794,7 @@ export async function rankFusedVaultMemoriesAsync(
     proofCountAlpha: options?.proofCountAlpha,
     bm25AdmissionDivisor: options?.bm25AdmissionDivisor,
     rrfK: options?.rrfK,
-    // Side lanes (entity/temporal) are fused AFTER CE below — do not pass them
-    // here or they get RRF'd twice and CE runs on a pre-fused head.
     ...(options?.factTypeWeights && { factTypeWeights: options.factTypeWeights }),
-    ...(options?.int8FirstPass !== undefined && { int8FirstPass: options.int8FirstPass }),
-    ...(options?.int8RescoreTopN !== undefined && { int8RescoreTopN: options.int8RescoreTopN }),
   });
 
   // Track whether the V2 head was non-empty (before side-lane fusion).
@@ -1177,10 +1061,6 @@ export async function rankComposite(
      * from "CE failed on a non-empty head".
      */
     v2HeadStats?: { hadResults: boolean };
-    /** 719/B3 — see {@link MemoryVaultSearchOptions.int8FirstPass}. Default off. */
-    int8FirstPass?: boolean;
-    /** 719/B3 — see {@link MemoryVaultSearchOptions.int8RescoreTopN}. */
-    int8RescoreTopN?: number;
   }
 ): Promise<VaultSearchResult[]> {
   const limit = options?.limit ?? 5;
@@ -1211,8 +1091,6 @@ export async function rankComposite(
     }),
     ...(options?.rrfK !== undefined && { rrfK: options.rrfK }),
     ...(options?.factTypeWeights && { factTypeWeights: options.factTypeWeights }),
-    ...(options?.int8FirstPass !== undefined && { int8FirstPass: options.int8FirstPass }),
-    ...(options?.int8RescoreTopN !== undefined && { int8RescoreTopN: options.int8RescoreTopN }),
   };
 
   // Stage 1 — per-facet V2 ranking. Each sub-query contributes only its
@@ -1526,14 +1404,7 @@ async function embedQueryOrDegrade(
 export function admitVaultProjections(
   queryEmbedding: ArrayLike<number>,
   vectored: Array<{ uniqueId: string; embedding: ArrayLike<number>; updatedAt: Date }>,
-  k: number,
-  options?: {
-    /**
-     * 719/B3 — int8 first pass over the vector set, then Float32 re-score of
-     * a 2×K pool to pick the final K. Default off (exact Float32 admit).
-     */
-    int8FirstPass?: boolean;
-  }
+  k: number
 ): string[] {
   // Admit the top-K by cosine, ties by recency. NO `score > 0` gate: a
   // low/zero/negative-cosine row must still be allowed into the decrypted
@@ -1541,31 +1412,8 @@ export function admitVaultProjections(
   // hit (parity with the legacy whole-vault path, which feeds every row to
   // BM25). Degenerate/empty vectors score 0 (see cosineSimilarity), sort last,
   // and only enter if K exceeds the embedded count — harmless.
-  if (!options?.int8FirstPass || vectored.length === 0 || k <= 0) {
-    return vectored
-      .map((it) => ({ it, score: cosineSimilarity(queryEmbedding, it.embedding) }))
-      .sort((a, b) => b.score - a.score || b.it.updatedAt.getTime() - a.it.updatedAt.getTime())
-      .slice(0, k)
-      .map((s) => s.it.uniqueId);
-  }
-
-  const queryQ = quantizeEmbedding(asQuantizeInput(queryEmbedding));
-  const rough = vectored.map((it) => {
-    const q = quantizeEmbedding(asQuantizeInput(it.embedding));
-    return {
-      it,
-      approx: cosineInt8(queryQ.data, queryQ.scale, q.data, q.scale),
-    };
-  });
-  rough.sort((a, b) => b.approx - a.approx || b.it.updatedAt.getTime() - a.it.updatedAt.getTime());
-  // Re-score a 2×K pool with Float32 so the admit set matches the exact
-  // path more closely than raw int8 ranks would.
-  const pool = rough.slice(0, Math.min(Math.max(k * 2, k), rough.length));
-  return pool
-    .map(({ it }) => ({
-      it,
-      score: cosineSimilarity(queryEmbedding, it.embedding),
-    }))
+  return vectored
+    .map((it) => ({ it, score: cosineSimilarity(queryEmbedding, it.embedding) }))
     .sort((a, b) => b.score - a.score || b.it.updatedAt.getTime() - a.it.updatedAt.getTime())
     .slice(0, k)
     .map((s) => s.it.uniqueId);
@@ -1610,8 +1458,6 @@ export async function buildProjectedCorpus(
     forceIncludeIds?: string[];
     /** Invoked when the query embedding failed and this search degraded to BM25-only. */
     onEmbeddingDegraded?: () => void;
-    /** 719/B3 — forwarded to {@link admitVaultProjections}. Default off. */
-    int8FirstPass?: boolean;
   }
 ): Promise<{
   memories: StoredVaultMemory[];
@@ -1756,9 +1602,7 @@ export async function buildProjectedCorpus(
   }
 
   const k = Math.max(opts.limit * opts.admitFactor, opts.admitFloor);
-  const admittedIds = admitVaultProjections(queryEmbedding, vectored, k, {
-    ...(opts.int8FirstPass !== undefined && { int8FirstPass: opts.int8FirstPass }),
-  });
+  const admittedIds = admitVaultProjections(queryEmbedding, vectored, k);
   // Cosine picks WHICH ROWS GET DECRYPTED here, so a missing vector doesn't just
   // cost ordering — it costs the row its place in the corpus BM25 ranks. When the
   // embeds that fill `vectored` failed, admission is sized by however many vectors
@@ -2011,9 +1855,6 @@ export async function prepareVaultCandidates(
       unembeddedCap: UNEMBEDDED_CAP,
       ...(forceIncludeIds.length > 0 && { forceIncludeIds }),
       onEmbeddingDegraded,
-      ...(searchOptions.int8FirstPass !== undefined && {
-        int8FirstPass: searchOptions.int8FirstPass,
-      }),
     });
     if (corpus.vaultSize === 0) {
       return {
@@ -2328,12 +2169,6 @@ export async function rankPreparedVaultCandidates(
     }),
     ...(searchOptions?.rrfK !== undefined && { rrfK: searchOptions.rrfK }),
     ...(searchOptions?.factTypeWeights && { factTypeWeights: searchOptions.factTypeWeights }),
-    ...(searchOptions?.int8FirstPass !== undefined && {
-      int8FirstPass: searchOptions.int8FirstPass,
-    }),
-    ...(searchOptions?.int8RescoreTopN !== undefined && {
-      int8RescoreTopN: searchOptions.int8RescoreTopN,
-    }),
   };
 
   // Composite path — LLM decomposes the query into sub-queries, embeds them,
@@ -2482,12 +2317,6 @@ export async function rankPreparedVaultCandidates(
     }),
     ...(searchOptions?.supersessionWindow !== undefined && {
       supersessionWindow: searchOptions.supersessionWindow,
-    }),
-    ...(searchOptions?.int8FirstPass !== undefined && {
-      int8FirstPass: searchOptions.int8FirstPass,
-    }),
-    ...(searchOptions?.int8RescoreTopN !== undefined && {
-      int8RescoreTopN: searchOptions.int8RescoreTopN,
     }),
   });
 

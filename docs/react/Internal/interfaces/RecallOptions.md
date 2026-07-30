@@ -88,7 +88,7 @@ whole-vault decrypt path).
 
 > `optional` **entityFanout**: `number`
 
-Defined in: [src/lib/memory/types.ts:218](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#218)
+Defined in: [src/lib/memory/types.ts:207](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#207)
 
 Max neighbor entities expanded per hop. Default: 8.
 
@@ -142,7 +142,7 @@ Vault folder filter. Vault-only.
 
 > `optional` **graphRefine**: `boolean`
 
-Defined in: [src/lib/memory/types.ts:229](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#229)
+Defined in: [src/lib/memory/types.ts:218](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#218)
 
 PR5 — enable LLM graph path-refinement: at each traversal hop a model picks
 which neighbor entities to expand instead of pure co-occurrence ranking.
@@ -163,29 +163,6 @@ Include source chunks for fact memories that have provenance. Default: false.
 
 ***
 
-### int8FirstPass?
-
-> `optional` **int8FirstPass**: `boolean`
-
-Defined in: [src/lib/memory/types.ts:204](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#204)
-
-719/B3 — int8 cosine first pass + Float32 re-score of the top window.
-Approximate; **default OFF** until eval-gate accuracy evidence clears
-it for the default lane. Forwarded to the vault search pipeline.
-
-***
-
-### int8RescoreTopN?
-
-> `optional` **int8RescoreTopN**: `number`
-
-Defined in: [src/lib/memory/types.ts:209](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#209)
-
-Float32 re-score window when [RecallOptions.int8FirstPass](#int8firstpass) is on.
-Default 100. See [MemoryVaultSearchOptions.int8RescoreTopN](MemoryVaultSearchOptions.md#int8rescoretopn).
-
-***
-
 ### limit?
 
 > `optional` **limit**: `number`
@@ -200,7 +177,7 @@ Max items returned. Default: 8.
 
 > `optional` **maxHops**: `number`
 
-Defined in: [src/lib/memory/types.ts:216](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#216)
+Defined in: [src/lib/memory/types.ts:205](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#205)
 
 Total graph hops incl. the seed lookup (hop 1). Default: 1 (seed only).
 
@@ -240,7 +217,7 @@ Apply MMR diversification after ranking (rerank pipeline only). Default: false.
 
 > `optional` **nodeBudget**: `number`
 
-Defined in: [src/lib/memory/types.ts:220](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#220)
+Defined in: [src/lib/memory/types.ts:209](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#209)
 
 Hard cap on accumulated memory IDs across all hops. Default: 64.
 

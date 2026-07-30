@@ -2,7 +2,7 @@
 
 > **quantizeEmbedding**(`v`: `number`\[] | `Float32Array`<`ArrayBufferLike`>): [`QuantizedEmbedding`](../interfaces/QuantizedEmbedding.md)
 
-Defined in: [src/lib/memoryEngine/quantization.ts:56](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryEngine/quantization.ts#56)
+Defined in: [src/lib/memoryEngine/quantization.ts:73](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryEngine/quantization.ts#73)
 
 Quantize a Float32 embedding (or number\[]) into an Int8 vector + scale.
 

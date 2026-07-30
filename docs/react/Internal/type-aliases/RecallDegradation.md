@@ -2,6 +2,6 @@
 
 > **RecallDegradation** = `"rerank-unavailable"` | `"decompose-unavailable"` | `"embeddings-unavailable"`
 
-Defined in: [src/lib/memory/types.ts:269](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#269)
+Defined in: [src/lib/memory/types.ts:258](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#258)
 
 Soft-degradation signals surfaced via [RecallDiagnostics.degraded](../interfaces/RecallDiagnostics.md#degraded).

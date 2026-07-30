@@ -1,6 +1,6 @@
 # QuantizedEmbedding
 
-Defined in: [src/lib/memoryEngine/quantization.ts:35](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryEngine/quantization.ts#35)
+Defined in: [src/lib/memoryEngine/quantization.ts:52](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryEngine/quantization.ts#52)
 
 Result of quantizing a Float32 / number\[] embedding to Int8.
 
@@ -17,7 +17,7 @@ one allocated here, and is plain transferable storage.
 
 > **data**: `Int8Array`
 
-Defined in: [src/lib/memoryEngine/quantization.ts:36](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryEngine/quantization.ts#36)
+Defined in: [src/lib/memoryEngine/quantization.ts:53](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryEngine/quantization.ts#53)
 
 ***
 
@@ -25,4 +25,4 @@ Defined in: [src/lib/memoryEngine/quantization.ts:36](https://github.com/anuma-a
 
 > **scale**: `number`
 
-Defined in: [src/lib/memoryEngine/quantization.ts:37](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryEngine/quantization.ts#37)
+Defined in: [src/lib/memoryEngine/quantization.ts:54](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryEngine/quantization.ts#54)

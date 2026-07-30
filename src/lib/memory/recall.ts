@@ -322,10 +322,6 @@ export async function recall(
         }),
         ...(options.rrfK !== undefined && { rrfK: options.rrfK }),
         ...(options.decryptLast !== undefined && { decryptLast: options.decryptLast }),
-        ...(options.int8FirstPass !== undefined && { int8FirstPass: options.int8FirstPass }),
-        ...(options.int8RescoreTopN !== undefined && {
-          int8RescoreTopN: options.int8RescoreTopN,
-        }),
         ...(decomposeAvailable && {
           decompose: "llm" as const,
           decomposeOptions: options.decomposeOptions,
