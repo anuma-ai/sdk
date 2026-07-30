@@ -236,6 +236,53 @@ describe("createConsolidationSweeper — dedup", () => {
     expect(updateVaultMemoryOp).not.toHaveBeenCalled();
   });
 
+  it("does NOT let already-processed clusters starve fresh ones out of the cap", async () => {
+    // Regression: the per-sweep cap used to be applied BEFORE already-processed
+    // clusters were skipped, so a standing backlog of stable (already-sent)
+    // clusters consumed every sweep's slots and fresh duplicate clusters were
+    // deferred forever. The skip must happen FIRST so the cap is spent only on
+    // clusters that still need a decide-model call.
+    const p = [scanRow("p1", [1, 0, 0, 0, 0, 0]), scanRow("p2", [0.95, 0.05, 0, 0, 0, 0])];
+    const pStore = [
+      stored("p1", "Prefers light mode for their whole interface."),
+      stored("p2", "Prefers light mode."),
+    ];
+
+    // cap = 2 throughout. Sweep 1 sees ONLY cluster P (1 ≤ 2) → processed + memoized.
+    const sweeper = makeSweeper({ maxClustersPerSweep: 2 });
+    vi.mocked(getConsolidationScanRawOp).mockResolvedValue(p);
+    setStore(pStore);
+    await sweeper.sweep();
+    expect(supersedeVaultMemoryOp).toHaveBeenCalledWith(vaultCtx, "p2", "p1");
+
+    // Sweep 2: P is now already-processed + two FRESH clusters F1, F2 appear.
+    // 1 processed + 2 fresh, cap = 2. Buggy order (cap then skip) would process
+    // only ONE fresh cluster and report a drop; correct order (skip then cap)
+    // processes BOTH fresh clusters and drops none.
+    vi.mocked(getConsolidationScanRawOp).mockResolvedValue([
+      ...p,
+      scanRow("f1a", [0, 1, 0, 0, 0, 0]),
+      scanRow("f1b", [0, 0.95, 0.05, 0, 0, 0]),
+      scanRow("f2a", [0, 0, 1, 0, 0, 0]),
+      scanRow("f2b", [0, 0, 0.95, 0.05, 0, 0]),
+    ]);
+    setStore([
+      ...pStore,
+      stored("f1a", "Enjoys hiking in the mountains every weekend."),
+      stored("f1b", "Enjoys hiking."),
+      stored("f2a", "Works as a software engineer at a startup."),
+      stored("f2b", "Works as an engineer."),
+    ]);
+
+    const result = await sweeper.sweep();
+
+    expect(result.clustersFound).toBe(3);
+    // Both fresh clusters healed; the already-processed one consumed no slot.
+    expect(result.clustersDropped).toBe(0);
+    expect(supersedeVaultMemoryOp).toHaveBeenCalledWith(vaultCtx, "f1b", "f1a");
+    expect(supersedeVaultMemoryOp).toHaveBeenCalledWith(vaultCtx, "f2b", "f2a");
+  });
+
   it("caps clusters per sweep and reports the dropped count (no silent truncation)", async () => {
     vi.mocked(getConsolidationScanRawOp).mockResolvedValue([
       scanRow("a1", [1, 0, 0, 0]),

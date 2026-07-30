@@ -24,16 +24,32 @@ import type { EmbeddingOptions } from "./types";
  * a few attempts, then surface the final error. */
 const EMBED_MAX_ATTEMPTS = 4;
 
+/**
+ * Per-attempt wall-clock timeout for a single embeddings HTTP request. Without
+ * it a hung portal (socket opened, no bytes, no error) stalls the caller
+ * forever — retry never fires because the request neither resolves nor rejects.
+ * That directly stalled a chat turn on the manual-save create path
+ * (`memoryVault/tool` → `retain` → here). Each attempt gets a FRESH
+ * AbortController so a transient stall aborts and the next attempt starts clean;
+ * once attempts are exhausted the abort surfaces as a throw, which is the
+ * failure the create path's single try/catch fallback is built to recover from.
+ */
+const EMBED_REQUEST_TIMEOUT_MS = 10_000;
+
 async function withEmbeddingRetry<T extends { error?: unknown; response?: Response }>(
-  call: () => Promise<T>
+  call: (signal: AbortSignal) => Promise<T>
 ): Promise<T> {
   let last: T | undefined;
   let lastThrown: unknown;
   let threw = false;
   for (let attempt = 1; attempt <= EMBED_MAX_ATTEMPTS; attempt++) {
+    // Fresh controller per attempt: a timed-out request is aborted so it can't
+    // leak, and the next attempt is not poisoned by the previous abort.
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), EMBED_REQUEST_TIMEOUT_MS);
     try {
       threw = false;
-      last = await call();
+      last = await call(controller.signal);
       if (!last.error) return last;
       // Resolved with an HTTP-level error ({ error } set). Only transient
       // statuses are worth retrying — a non-429 4xx (bad auth / bad request)
@@ -49,6 +65,8 @@ async function withEmbeddingRetry<T extends { error?: unknown; response?: Respon
       // exhaust attempts (preserving the throw contract for callers).
       threw = true;
       lastThrown = err;
+    } finally {
+      clearTimeout(timer);
     }
     if (attempt < EMBED_MAX_ATTEMPTS) {
       const base = 250 * 2 ** (attempt - 1);
@@ -149,7 +167,7 @@ export async function generateEmbedding(
     throw new Error("Either apiKey or getToken must be provided");
   }
 
-  const response = await withEmbeddingRetry(() =>
+  const response = await withEmbeddingRetry((signal) =>
     postApiV1Embeddings({
       baseUrl,
       body: {
@@ -159,6 +177,9 @@ export async function generateEmbedding(
         model: model ?? DEFAULT_API_EMBEDDING_MODEL,
       },
       headers,
+      // Per-request abort so a hung portal fails fast instead of stalling the
+      // turn (the caller's create path then falls back to a single raw-create).
+      signal,
     })
   );
 
@@ -204,12 +225,14 @@ async function generateEmbeddingsBatch(
   onUsage?: EmbeddingOptions["onUsage"],
   maskInput?: EmbeddingOptions["maskInput"]
 ): Promise<number[][]> {
-  const response = await withEmbeddingRetry(() =>
+  const response = await withEmbeddingRetry((signal) =>
     postApiV1Embeddings({
       baseUrl,
       // Mask PII from the request body only; cache/order still key on originals.
       body: { input: maskInput ? texts.map(maskInput) : texts, model },
       headers,
+      // Same per-request abort as the single-text path (shared retry helper).
+      signal,
     })
   );
 

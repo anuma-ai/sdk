@@ -474,6 +474,26 @@ describe("createMemoryVaultTool", () => {
       expect(result).toBe("Memory saved successfully (ID: fallback-1).");
     });
 
+    it("writes exactly ONCE when the embedding aborts/times out (no double-write)", async () => {
+      // Regression: the old timeout RACE abandoned retain() without cancelling
+      // it, so retain could complete its OWN create AFTER the fallback raw-create
+      // already ran → a duplicate row. The embeddings fetch now aborts fast, so
+      // retain() rejects and the SINGLE catch runs the raw-create exactly once.
+      vi.mocked(retain).mockRejectedValue(
+        Object.assign(new Error("The operation was aborted"), { name: "AbortError" })
+      );
+      vi.mocked(createVaultMemoryOp).mockResolvedValue(makeStoredMemory({ uniqueId: "once-1" }));
+
+      const tool = createMemoryVaultTool(mockVaultCtx, autoConfirm, embeddingOptions, cache);
+      const result = await tool.executor!({ content: "a fact whose embedding hangs" });
+
+      // Retain was attempted, then the fallback ran — but the vault was written
+      // to exactly once (no lingering retain create racing the fallback).
+      expect(retain).toHaveBeenCalledTimes(1);
+      expect(createVaultMemoryOp).toHaveBeenCalledTimes(1);
+      expect(result).toBe("Memory saved successfully (ID: once-1).");
+    });
+
     it("keeps the raw create path when no embeddings are configured (back-compat)", async () => {
       vi.mocked(createVaultMemoryOp).mockResolvedValue(makeStoredMemory({ uniqueId: "raw-1" }));
 

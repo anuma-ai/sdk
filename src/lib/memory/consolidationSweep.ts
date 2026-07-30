@@ -438,19 +438,27 @@ export function createConsolidationSweeper(
     const liveSigs = new Set(multi.map(clusterSignature));
     for (const sig of alreadyProcessed) if (!liveSigs.has(sig)) alreadyProcessed.delete(sig);
 
-    let toProcess = multi;
-    if (multi.length > maxClusters) {
-      result.clustersDropped = multi.length - maxClusters;
+    // Drop already-processed (stable) clusters BEFORE the per-sweep cap, not
+    // after. Capping first let a standing backlog of already-processed clusters
+    // consume every sweep's slots, so fresh duplicate clusters were deferred
+    // forever and never healed. Filtering first spends the cap only on clusters
+    // that still need a decide-model call; `clustersDropped` is the post-filter
+    // remainder so the deferred count stays honest.
+    const pending = multi
+      .map((cluster) => ({ cluster, sig: clusterSignature(cluster) }))
+      .filter(({ sig }) => !alreadyProcessed.has(sig));
+
+    let toProcess = pending;
+    if (pending.length > maxClusters) {
+      result.clustersDropped = pending.length - maxClusters;
       getLogger().warn(
         `[memory/consolidation] cluster cap (${maxClusters}) reached; ` +
           `${result.clustersDropped} cluster(s) deferred to a later sweep`
       );
-      toProcess = multi.slice(0, maxClusters);
+      toProcess = pending.slice(0, maxClusters);
     }
 
-    for (const cluster of toProcess) {
-      const sig = clusterSignature(cluster);
-      if (alreadyProcessed.has(sig)) continue; // stable cluster — don't re-send
+    for (const { cluster, sig } of toProcess) {
       try {
         await consolidateCluster(cluster, result);
         // Memoize ONLY on a clean run. A stable create/no-op judgement is
