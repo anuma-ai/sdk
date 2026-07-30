@@ -50,6 +50,18 @@ const DEFAULT_CONSOLIDATE_THRESHOLD = 0.55;
 /** Widened so a value change can find (and retire) ALL stale duplicates of the
  * old value in one pass, not just the nearest few. */
 const DEFAULT_CONSOLIDATE_TOP_K = 20;
+/**
+ * Cap on the Path-B completeness loop (see {@link retireRemainingDuplicates}).
+ * A value change can have MORE paraphrased duplicates than one `consolidateTopK`
+ * search window (20) surfaces, and the decide model may under-list `targetIds`
+ * even within the window — so after the first supersede write we re-search and
+ * re-decide until nothing stale remains. Bounded at 4 iterations so a
+ * pathological vault (or a model that keeps naming already-retired rows) can't
+ * spin: each iteration must strictly grow the exclude set or the loop stops, and
+ * hitting the cap while still retiring is logged (not silently swallowed),
+ * mirroring the background sweep's honesty. The sweep still mops up anything left.
+ */
+const MAX_SUPERSEDE_ITERATIONS = 4;
 
 export interface RetainContext {
   vaultCtx: VaultMemoryOperationsContext;
@@ -422,6 +434,20 @@ export async function retain(
           }
         );
       }
+      // Path-B completeness: the decide model saw at most one `consolidateTopK`
+      // window and may have under-listed `targetIds`, so `supersedeTargetIds`
+      // can leave stale duplicates of the just-changed value behind — beyond the
+      // window, or simply un-named. Re-search + re-decide against the survivor
+      // until none remain (bounded), so a standing value with >20 paraphrases
+      // fully collapses on THIS write instead of waiting for the background sweep.
+      await retireRemainingDuplicates(
+        created.uniqueId,
+        contentToWrite,
+        new Set(supersedeTargetIds),
+        { ...ctx, embeddingOptions },
+        options,
+        resolvedScope
+      );
       return {
         action: "supersede",
         memoryId: created.uniqueId,
@@ -824,6 +850,152 @@ async function tryConsolidate(
     `unapplicable ${decision.action} decision reached the applier — validate() should have rejected it`
   );
   return null;
+}
+
+/**
+ * The stale ids a consolidation decision retires, for a survivor treated as the
+ * "new fact" (the Path-B completeness loop and the background sweep share this
+ * mapping). `supersede` lists them explicitly; `update`/`noop` name the single
+ * same-facet row the survivor fully captures/merges into; `create` retires
+ * nothing. Never includes the survivor itself.
+ *
+ * Inlined here rather than imported from `consolidationSweep.ts` to keep retain's
+ * hot path free of a cross-module dependency; the union logic is identical to
+ * that file's `staleIdsFromDecision` (kept in sync by the shared decision shape).
+ */
+function staleIdsFromDecision(
+  decision: { action: string; targetId?: string; targetIds?: string[] },
+  survivorId: string
+): string[] {
+  let raw: string[];
+  if (decision.action === "supersede") {
+    raw = decision.targetIds?.length
+      ? decision.targetIds
+      : decision.targetId
+        ? [decision.targetId]
+        : [];
+  } else if (decision.action === "update" || decision.action === "noop") {
+    raw = decision.targetId ? [decision.targetId] : [];
+  } else {
+    raw = [];
+  }
+  return [...new Set(raw)].filter((id) => id !== survivorId);
+}
+
+/**
+ * Path-B completeness loop. After the atomic supersede write persisted the
+ * survivor and retired the decide model's first `targetIds` set, iterate to
+ * retire EVERY remaining stale duplicate of the just-changed value — the ones
+ * beyond a single `consolidateTopK` search window, and the ones the model simply
+ * failed to name in the first decision.
+ *
+ * Each iteration:
+ *   1. Re-search the survivor's content at the consolidation floor, EXCLUDING the
+ *      survivor id and every id retired so far (the exclude set).
+ *   2. If nothing remains → done.
+ *   3. Ask the decide model which of the remaining rows the survivor replaces.
+ *   4. If it names none (they're genuinely distinct) → done. Otherwise retire
+ *      each against the survivor and add it to the exclude set.
+ *
+ * Runs ONLY on the Path-B / sweep path (`consolidateOptions` present) — never on
+ * the tool's cosine-only path, which has no decide model. Bounded at
+ * {@link MAX_SUPERSEDE_ITERATIONS}: the exclude set must strictly grow each
+ * iteration or the loop stops (infinite-loop guard), and hitting the cap while
+ * still retiring is logged rather than silently swallowed. Best-effort by design:
+ * the survivor is already written and the primary set already retired, so an
+ * embedding outage or a failed retire here just stops early and leaves the rest
+ * for the background sweep — it never throws back into retain's write.
+ */
+async function retireRemainingDuplicates(
+  survivorId: string,
+  survivorContent: string,
+  alreadyRetired: Set<string>,
+  ctx: RetainContext,
+  options: RetainOptions,
+  resolvedScope: string
+): Promise<void> {
+  const consolidateOptions = options.consolidateOptions;
+  if (!consolidateOptions) return; // cosine-only path — no decide model, no loop.
+
+  const consolidateThreshold = options.consolidateThreshold ?? DEFAULT_CONSOLIDATE_THRESHOLD;
+  const topK = Math.max(options.consolidateTopK ?? DEFAULT_CONSOLIDATE_TOP_K, 1);
+
+  // Everything the survivor must not re-retire: itself + every id already retired
+  // (the primary atomic target and the first decision's remaining ids).
+  const excluded = new Set(alreadyRetired);
+  excluded.add(survivorId);
+
+  const { consolidateMemory: doConsolidate } = await import("./consolidate.js");
+
+  for (let iteration = 0; iteration < MAX_SUPERSEDE_ITERATIONS; iteration++) {
+    const excludedBefore = excluded.size;
+
+    // Re-prepare + rank against the survivor's content. There is no exclude
+    // option on the search, so drop the survivor + already-retired ids from the
+    // ranked results below.
+    const prepared = await prepareVaultCandidates(
+      survivorContent,
+      ctx.vaultCtx,
+      ctx.embeddingOptions,
+      ctx.vaultCache,
+      {
+        limit: topK,
+        useFusion: false,
+        scopes: [resolvedScope],
+        includeArchived: true,
+        ...(options.folderId !== undefined && { folderId: options.folderId }),
+      }
+    );
+    // Non-fatal here (unlike retain's main gate): the survivor is already stored
+    // and the primary set retired, so an outage just defers the rest to the sweep.
+    if (prepared.embeddingFailure || prepared.embeddingsUnavailable) return;
+
+    const { results: matches } = await rankPreparedVaultCandidates(
+      survivorContent,
+      prepared,
+      ctx.embeddingOptions,
+      { limit: topK, minSimilarity: consolidateThreshold, useFusion: false }
+    );
+
+    const remaining = matches.filter((m) => !excluded.has(m.uniqueId));
+    if (remaining.length === 0) return; // (2) nothing stale left.
+
+    const candidates = remaining.map((m) => ({
+      id: m.uniqueId,
+      content: m.content,
+      similarity: m.similarity,
+    }));
+
+    const decision = await doConsolidate(survivorContent, candidates, consolidateOptions);
+    const staleIds = staleIdsFromDecision(decision, survivorId);
+    if (staleIds.length === 0) return; // (4) model judged the rest distinct.
+
+    for (const staleId of staleIds) {
+      // Best-effort: supersedeVaultMemoryOp re-checks inside its own write, so a
+      // benign already-gone row and a genuine failure both just mean "not retired
+      // this pass" — the sweep reconciles either. Mark excluded regardless so the
+      // next iteration can't re-consider it (progress + infinite-loop guard).
+      try {
+        await supersedeVaultMemoryOp(ctx.vaultCtx, staleId, survivorId);
+      } catch {
+        // swallow — leave for the sweep; never throw back into retain's write.
+      }
+      excluded.add(staleId);
+    }
+
+    // Infinite-loop guard: the exclude set MUST strictly grow, or the model is
+    // only re-naming rows we've already retired and there is no progress to make.
+    if (excluded.size === excludedBefore) return;
+  }
+
+  // Fell out of the loop = we retired something on every one of the last
+  // iterations and the cap stopped us while duplicates may still remain. Surface
+  // it (count-only, no content — SDK rule) exactly as the sweep does on its cap.
+  getLogger().warn(
+    "[memory/retain] supersede completeness loop hit MAX_SUPERSEDE_ITERATIONS while still retiring — " +
+      "remaining duplicates will reconcile at the next consolidation sweep",
+    { survivorId, retired: excluded.size - 1, maxIterations: MAX_SUPERSEDE_ITERATIONS }
+  );
 }
 
 /**

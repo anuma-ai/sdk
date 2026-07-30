@@ -38,20 +38,33 @@ import { notifyConsolidationFallback } from "./consolidationFallback.js";
 import { callPortalJsonCompletion, type PortalLlmAuth } from "./portalLlm.js";
 import type { ConsolidationFallbackReason } from "./types.js";
 
-// Open-weights consolidator. Consolidation reasons over the SAME
-// chat-derived facts as extraction, so it stays on an open provider too —
-// routing it to a closed third party would reopen the privacy gap the
-// (global, open-weights) extractor default closes. NOT gpt-oss-120b (the
-// extraction default): gpt-oss returns empty completion content ~30% of the time on
-// this single-decision prompt (measured 3/10), which silently degrades every
-// affected merge to a create fallback and defeats facet-dedup. ling-2.6-flash
-// is reliable here (0/10 empty) and discriminates create/update/noop correctly
-// on the benchmark cases. Unlike gpt-oss, ling ACCEPTS `response_format:
-// json_object` (verified), so portalLlm.ts sends it — the reliability numbers
-// above were measured with response_format on, matching production.
+// Consolidation decide model. minimax-m3 is MiniMax's flagship model, routable
+// on the portal (the client already uses minimax elsewhere for image
+// orchestration), and it discriminates create/update/supersede/noop on the
+// benchmark cases. It reasons over the SAME chat-derived facts as extraction, so
+// it stays on a portal-routed provider rather than a closed third party that
+// would reopen the privacy gap the extractor default closes.
+//
+// PROMPT-INSTRUCTED, no `response_format`. minimax is NOT in portalLlm.ts's
+// `RESPONSE_FORMAT_OK` (openai / inclusionai / deepseek), so
+// `supportsResponseFormat("minimax/minimax-m3")` returns false and portalLlm.ts
+// OMITS the `response_format` field for this call. That is deliberate: it is
+// UNVERIFIED that minimax accepts `response_format: json_object`, and a wrong
+// add would 400 the whole request. Do NOT add minimax to RESPONSE_FORMAT_OK
+// without verifying it. Reliability instead rides on the strict-JSON system
+// prompt (`SYSTEM_PROMPT` below, "OUTPUT — strict JSON, no prose") plus the
+// tolerant `extractJsonCandidate` parser in portalLlm.ts, which extracts the
+// JSON object even when the model wraps it in prose or a code fence.
+//
+// GATE: the consolidation eval (test/memory/src/consolidation/benchmark.test.ts,
+// run as `pnpm eval:consolidation`) is what validates m3's decision accuracy AND
+// its fallback rate (schema violations that degrade to a create-fallback) on the
+// prompt-instructed path. The committed baseline must be regenerated for m3
+// before the CI gate describes the live path — see that file's header and this
+// PR's notes for the exact `--save-baseline` command.
 /** Exported so the consolidation eval gates the model production actually runs,
  * rather than a copy of this string that can drift out of sync. */
-export const DEFAULT_CONSOLIDATION_MODEL = "inclusionai/ling-2.6-flash";
+export const DEFAULT_CONSOLIDATION_MODEL = "minimax/minimax-m3";
 
 // Retry budget for TRANSIENT consolidation failures. A transient blip
 // (network/timeout/5xx/429/empty completion) that degrades straight to create

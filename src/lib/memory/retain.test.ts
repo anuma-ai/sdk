@@ -23,6 +23,16 @@ vi.mock("./consolidate", () => ({
   consolidateMemory: vi.fn(),
 }));
 
+// Shared logger spy — every getLogger() returns the same object so tests can
+// assert warns (e.g. the completeness-loop cap). Cleared by vi.clearAllMocks().
+const loggerMock = vi.hoisted(() => ({
+  warn: vi.fn(),
+  info: vi.fn(),
+  error: vi.fn(),
+  debug: vi.fn(),
+}));
+vi.mock("../logger", () => ({ getLogger: () => loggerMock }));
+
 import {
   createSupersedingMemoryOp,
   createVaultMemoryOp,
@@ -93,6 +103,13 @@ const ctx = {
 beforeEach(() => {
   vi.clearAllMocks();
   ctx.vaultCache.clear();
+  // Safe default for the Path-B completeness loop's re-search: Stage 1's
+  // scripted `mockResolvedValueOnce` value is consumed first, then this empty
+  // result tells the loop "nothing stale remains" so it stops. Without it, a
+  // supersede-success test using `mockVaultMatchesOnce` would leave the loop's
+  // rank call unmocked (undefined → crash). Tests that need the loop to keep
+  // finding duplicates script their own `mockResolvedValueOnce` sequence.
+  vi.mocked(rankPreparedVaultCandidates).mockResolvedValue(rankResult([]) as never);
 });
 
 describe("retain", () => {
@@ -761,10 +778,13 @@ describe("retain — write-time supersession (A2)", () => {
       expect.objectContaining({ content: "Lives in San Francisco" }),
       "old-portland"
     );
-    // Not a plain create, and strict cosine merge (Stage 2) is skipped — only
-    // the one consolidate search ran.
+    // Not a plain create, and strict cosine merge (Stage 2) is skipped on the
+    // supersede path. Two prepares run: retain's shared candidate prepare, then
+    // one Path-B completeness pass — which finds the sole stale row already
+    // retired (in the exclude set) and stops without any further retire.
     expect(vi.mocked(createVaultMemoryOp)).not.toHaveBeenCalled();
-    expect(vi.mocked(prepareVaultCandidates)).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(prepareVaultCandidates)).toHaveBeenCalledTimes(2);
+    expect(vi.mocked(supersedeVaultMemoryOp)).not.toHaveBeenCalled();
   });
 
   it("falls through to plain create when the supersede target vanished (race)", async () => {
@@ -938,6 +958,189 @@ describe("retain — write-time supersession (A2)", () => {
     expect(result).toMatchObject({ action: "supersede", memoryId: "light", targetId: "d1" });
     // The false secondary was re-read (not silently ignored) to disambiguate.
     expect(vi.mocked(getVaultMemoryOp)).toHaveBeenCalledWith(mockVaultCtx, "d2");
+  });
+
+  it("completeness loop: a value change with 25 dups retires ALL 25 across iterations", async () => {
+    // 25 paraphrases of the old standing value. One consolidateTopK (20) window
+    // cannot surface them all, and the decide model under-lists within a window —
+    // so retain must re-search + re-decide until every stale row is retired.
+    const ids = Array.from({ length: 25 }, (_, i) => `d${i + 1}`); // d1..d25
+    const batchA = ids.slice(0, 10); // d1..d10
+    const batchB = ids.slice(10, 20); // d11..d20
+    const batchC = ids.slice(20, 25); // d21..d25
+    const cand = (id: string) => ({ uniqueId: id, content: `dark ${id}`, similarity: 0.85 });
+
+    // Stage 1 surfaces batch A; the loop's re-searches surface B then C, then dry up.
+    vi.mocked(prepareVaultCandidates).mockResolvedValue(prepared([0.1, 0.2, 0.3]) as never);
+    vi.mocked(rankPreparedVaultCandidates)
+      .mockResolvedValueOnce(rankResult(batchA.map(cand)) as never) // Stage 1
+      .mockResolvedValueOnce(rankResult(batchB.map(cand)) as never) // loop iter 0
+      .mockResolvedValueOnce(rankResult(batchC.map(cand)) as never) // loop iter 1
+      .mockResolvedValueOnce(rankResult([]) as never); // loop iter 2 → stop
+
+    // The model retires exactly the batch it is shown each pass.
+    vi.mocked(consolidateMemory)
+      .mockResolvedValueOnce({
+        action: "supersede",
+        targetId: "d1",
+        targetIds: batchA,
+        content: "Prefers light mode",
+      } as never)
+      .mockResolvedValueOnce({
+        action: "supersede",
+        targetId: "d11",
+        targetIds: batchB,
+        content: "Prefers light mode",
+      } as never)
+      .mockResolvedValueOnce({
+        action: "supersede",
+        targetId: "d21",
+        targetIds: batchC,
+        content: "Prefers light mode",
+      } as never);
+
+    // Every candidate validates as live (tryConsolidate checks Stage 1's set).
+    vi.mocked(getVaultMemoryOp).mockImplementation(async (_ctx, id) => ({ uniqueId: id }) as never);
+    vi.mocked(generateEmbedding).mockResolvedValue([0.1, 0.2, 0.3]);
+    vi.mocked(createSupersedingMemoryOp).mockResolvedValue({
+      created: { uniqueId: "light" } as never,
+      retired: true,
+    });
+    vi.mocked(supersedeVaultMemoryOp).mockResolvedValue(true);
+
+    const result = await retain("Prefers light mode", ctx, { consolidateOptions });
+
+    expect(result).toMatchObject({ action: "supersede", memoryId: "light", targetId: "d1" });
+    // d1 retired atomically in createSupersedingMemoryOp; the other 24 via
+    // supersedeVaultMemoryOp (batch-A remainder + the two loop batches). Union = all 25.
+    const retiredViaOp = vi.mocked(supersedeVaultMemoryOp).mock.calls.map((c) => c[1] as string);
+    expect(retiredViaOp).toHaveLength(24);
+    expect(new Set([...retiredViaOp, "d1"])).toEqual(new Set(ids));
+    expect(vi.mocked(consolidateMemory)).toHaveBeenCalledTimes(3);
+  });
+
+  it("completeness loop: breaks when the decide model judges the remaining rows distinct", async () => {
+    // Stage 1 retires the one stale copy; the loop's re-search surfaces another
+    // similar row, but the model rules it a DISTINCT fact (create) → no retire, stop.
+    vi.mocked(prepareVaultCandidates).mockResolvedValue(prepared([0.1, 0.2, 0.3]) as never);
+    vi.mocked(rankPreparedVaultCandidates)
+      .mockResolvedValueOnce(
+        rankResult([{ uniqueId: "old", content: "Lives in Portland", similarity: 0.8 }]) as never
+      ) // Stage 1
+      .mockResolvedValueOnce(
+        rankResult([
+          { uniqueId: "other", content: "Sister lives in Portland", similarity: 0.7 },
+        ]) as never
+      ); // loop iter 0
+
+    vi.mocked(consolidateMemory)
+      .mockResolvedValueOnce({
+        action: "supersede",
+        targetId: "old",
+        content: "Lives in San Francisco",
+      } as never)
+      .mockResolvedValueOnce({ action: "create", content: "Lives in San Francisco" } as never);
+
+    vi.mocked(getVaultMemoryOp).mockResolvedValue({ uniqueId: "old" } as never);
+    vi.mocked(generateEmbedding).mockResolvedValue([0.1, 0.2, 0.3]);
+    vi.mocked(createSupersedingMemoryOp).mockResolvedValue({
+      created: { uniqueId: "new-sf" } as never,
+      retired: true,
+    });
+    vi.mocked(supersedeVaultMemoryOp).mockResolvedValue(true);
+
+    const result = await retain("Lives in San Francisco", ctx, { consolidateOptions });
+
+    expect(result).toMatchObject({ action: "supersede", memoryId: "new-sf" });
+    // One Stage-1 decision + one loop decision, and the loop retired nothing extra:
+    // 'other' is a distinct fact, so the loop stops without a supersede.
+    expect(vi.mocked(consolidateMemory)).toHaveBeenCalledTimes(2);
+    expect(vi.mocked(supersedeVaultMemoryOp)).not.toHaveBeenCalled();
+  });
+
+  it("completeness loop: caps at MAX_SUPERSEDE_ITERATIONS and warns while still retiring", async () => {
+    // The model keeps finding one more stale duplicate every pass, so the loop
+    // never breaks naturally. It must stop at the cap (4 passes) and log a warn
+    // rather than spin — mirroring the background sweep's cap honesty.
+    const cand = (id: string) => ({ uniqueId: id, content: `dark ${id}`, similarity: 0.85 });
+
+    vi.mocked(prepareVaultCandidates).mockResolvedValue(prepared([0.1, 0.2, 0.3]) as never);
+    vi.mocked(rankPreparedVaultCandidates)
+      .mockResolvedValueOnce(rankResult([cand("old")]) as never) // Stage 1
+      .mockResolvedValueOnce(rankResult([cand("l1")]) as never) // loop iter 0
+      .mockResolvedValueOnce(rankResult([cand("l2")]) as never) // loop iter 1
+      .mockResolvedValueOnce(rankResult([cand("l3")]) as never) // loop iter 2
+      .mockResolvedValueOnce(rankResult([cand("l4")]) as never); // loop iter 3 (cap)
+
+    vi.mocked(consolidateMemory)
+      .mockResolvedValueOnce({ action: "supersede", targetId: "old", content: "light" } as never)
+      .mockResolvedValueOnce({
+        action: "supersede",
+        targetId: "l1",
+        targetIds: ["l1"],
+        content: "light",
+      } as never)
+      .mockResolvedValueOnce({
+        action: "supersede",
+        targetId: "l2",
+        targetIds: ["l2"],
+        content: "light",
+      } as never)
+      .mockResolvedValueOnce({
+        action: "supersede",
+        targetId: "l3",
+        targetIds: ["l3"],
+        content: "light",
+      } as never)
+      .mockResolvedValueOnce({
+        action: "supersede",
+        targetId: "l4",
+        targetIds: ["l4"],
+        content: "light",
+      } as never);
+
+    vi.mocked(getVaultMemoryOp).mockResolvedValue({ uniqueId: "old" } as never);
+    vi.mocked(generateEmbedding).mockResolvedValue([0.1, 0.2, 0.3]);
+    vi.mocked(createSupersedingMemoryOp).mockResolvedValue({
+      created: { uniqueId: "light" } as never,
+      retired: true,
+    });
+    vi.mocked(supersedeVaultMemoryOp).mockResolvedValue(true);
+
+    const result = await retain("light", ctx, { consolidateOptions });
+
+    expect(result.action).toBe("supersede");
+    // Exactly 4 loop passes (the cap), each retiring one row: l1..l4.
+    expect(vi.mocked(supersedeVaultMemoryOp).mock.calls.map((c) => c[1])).toEqual([
+      "l1",
+      "l2",
+      "l3",
+      "l4",
+    ]);
+    // Cap hit while still retiring → one honest warn (count-only, no content).
+    expect(loggerMock.warn).toHaveBeenCalledWith(
+      expect.stringContaining("MAX_SUPERSEDE_ITERATIONS"),
+      expect.objectContaining({ survivorId: "light" })
+    );
+  });
+
+  it("completeness loop: does NOT run on the tool's cosine-only path (no consolidateOptions)", async () => {
+    // Without consolidateOptions there is no decide model and no supersede path, so
+    // the completeness loop is unreachable. A strict cosine merge must not trigger
+    // any re-search or retire.
+    mockVaultMatches([{ uniqueId: "hit", content: "existing", similarity: 0.9 }]);
+    vi.mocked(getVaultMemoryOp).mockResolvedValue({ uniqueId: "hit", content: "existing" } as never);
+    vi.mocked(updateVaultMemoryOp).mockResolvedValue({ uniqueId: "hit", proofCount: 2 } as never);
+    vi.mocked(generateEmbedding).mockResolvedValue([0.1, 0.2, 0.3]);
+
+    const result = await retain("existing", ctx, {}); // no consolidateOptions
+
+    expect(result.action).toBe("merge");
+    expect(vi.mocked(consolidateMemory)).not.toHaveBeenCalled();
+    expect(vi.mocked(supersedeVaultMemoryOp)).not.toHaveBeenCalled();
+    expect(vi.mocked(createSupersedingMemoryOp)).not.toHaveBeenCalled();
+    // Only retain's own shared prepare — no completeness-loop re-search.
+    expect(vi.mocked(prepareVaultCandidates)).toHaveBeenCalledTimes(1);
   });
 
   it("falls through to plain create when the target is already superseded", async () => {
