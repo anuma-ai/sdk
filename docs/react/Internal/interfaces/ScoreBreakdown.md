@@ -1,6 +1,6 @@
 # ScoreBreakdown
 
-Defined in: [src/lib/memory/types.ts:38](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#38)
+Defined in: [src/lib/memory/types.ts:40](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#40)
 
 ## Properties
 
@@ -8,7 +8,7 @@ Defined in: [src/lib/memory/types.ts:38](https://github.com/anuma-ai/sdk/blob/ma
 
 > `optional` **bm25**: `number`
 
-Defined in: [src/lib/memory/types.ts:47](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#47)
+Defined in: [src/lib/memory/types.ts:49](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#49)
 
 ***
 
@@ -16,7 +16,7 @@ Defined in: [src/lib/memory/types.ts:47](https://github.com/anuma-ai/sdk/blob/ma
 
 > `optional` **cosine**: `number`
 
-Defined in: [src/lib/memory/types.ts:42](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#42)
+Defined in: [src/lib/memory/types.ts:44](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#44)
 
 Raw cosine similarity. Set only when callers compute it explicitly
 (e.g. cosine-only `useFusion: false` search); the fusion path sets
@@ -28,7 +28,7 @@ Raw cosine similarity. Set only when callers compute it explicitly
 
 > `optional` **fused**: `number`
 
-Defined in: [src/lib/memory/types.ts:46](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#46)
+Defined in: [src/lib/memory/types.ts:48](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#48)
 
 Composite score from the fused ranker (cosine + BM25 + RRF + recency
 
@@ -41,7 +41,7 @@ Composite score from the fused ranker (cosine + BM25 + RRF + recency
 
 > `optional` **recency**: `number`
 
-Defined in: [src/lib/memory/types.ts:48](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#48)
+Defined in: [src/lib/memory/types.ts:50](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#50)
 
 ***
 
@@ -49,7 +49,7 @@ Defined in: [src/lib/memory/types.ts:48](https://github.com/anuma-ai/sdk/blob/ma
 
 > `optional` **rerank**: `number`
 
-Defined in: [src/lib/memory/types.ts:49](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#49)
+Defined in: [src/lib/memory/types.ts:51](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#51)
 
 ***
 
@@ -57,6 +57,6 @@ Defined in: [src/lib/memory/types.ts:49](https://github.com/anuma-ai/sdk/blob/ma
 
 > `optional` **rrfRank**: `number`
 
-Defined in: [src/lib/memory/types.ts:51](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#51)
+Defined in: [src/lib/memory/types.ts:53](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#53)
 
 Final RRF rank (1-indexed) before any boost.

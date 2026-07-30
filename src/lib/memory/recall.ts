@@ -2,9 +2,14 @@
  * Unified Recall API — single retrieval surface above vault + engine.
  *
  * Budget maps to pipeline depth (mirrors Hindsight's tiered defaults):
- * - `low`  → V2 cosine + BM25 + recency (no rerank, no decompose)
+ * - `low`  → V2 cosine + BM25 + recency (no rerank)
  * - `mid`  → V2 + cross-encoder rerank
- * - `high` → V2 + rerank + LLM query decomposition for composite queries
+ * - `high` → V2 + rerank + multi-hop graph traversal
+ *
+ * LLM-free by design (719/B4): query decomposition for composite asks
+ * lives in the tool/agent layer (`createRecallTool`), which may pass
+ * pre-built `subQueries` into this API. `recall()` itself never pays an
+ * LLM RTT.
  *
  * Fact + chunk lanes are fused with RRF (k=60). The previous naive
  * "sort the union by raw score" path is gone — score scales differ
@@ -23,6 +28,7 @@ import {
 import { getLogger } from "../logger.js";
 import { DEFAULT_API_EMBEDDING_MODEL } from "../memoryEngine/constants.js";
 import { generateEmbedding } from "../memoryEngine/embeddings.js";
+import { normalizeSubQueries } from "../memoryVault/decomposeQuery.js";
 import type { VaultSearchResult } from "../memoryVault/searchTool.js";
 import { searchVaultMemoriesWithSize } from "../memoryVault/searchTool.js";
 import {
@@ -59,7 +65,6 @@ const DEFAULT_CHUNK_MIN_SCORE = 0.5;
 
 interface BudgetFlags {
   rerank: boolean;
-  decompose: boolean;
   /**
    * PR4 — enable multi-hop entity-graph traversal in the W5 lane. Gated to
    * `high` only: multi-hop widens the candidate pool (more RRF entries + a
@@ -72,12 +77,12 @@ interface BudgetFlags {
 function flagsForBudget(budget: Budget): BudgetFlags {
   switch (budget) {
     case "high":
-      return { rerank: true, decompose: true, traverse: true };
+      return { rerank: true, traverse: true };
     case "mid":
-      return { rerank: true, decompose: false, traverse: false };
+      return { rerank: true, traverse: false };
     case "low":
     default:
-      return { rerank: false, decompose: false, traverse: false };
+      return { rerank: false, traverse: false };
   }
 }
 
@@ -123,13 +128,13 @@ export async function recall(
 ): Promise<RecallResult> {
   const types: MemoryKind[] = options.types ?? ["fact"];
   const limit = options.limit ?? DEFAULT_LIMIT;
-  const requestedBudget = options.budget ?? DEFAULT_BUDGET;
-  const flags = flagsForBudget(requestedBudget);
-  const decomposeAvailable = flags.decompose && !!options.decomposeOptions;
-  // Report the budget actually executed: high silently downgrades to mid
-  // when decomposeOptions is missing (no LLM to run the query rewriter).
-  const usedBudget: "low" | "mid" | "high" =
-    requestedBudget === "high" && !decomposeAvailable ? "mid" : requestedBudget;
+  const usedBudget = options.budget ?? DEFAULT_BUDGET;
+  const flags = flagsForBudget(usedBudget);
+  // Composite facets from the tool/agent layer (719/B4). Normalize
+  // (trim / dedupe / cap at 5) then require ≥2 so a single leftover string
+  // (specific-mode's `[original]`) stays on the single-query path.
+  const normalizedFacets = normalizeSubQueries(options.subQueries);
+  const subQueries = normalizedFacets.length >= 2 ? normalizedFacets : undefined;
 
   // Best-effort observability state (D2). Populated as phases run; flushed to
   // options.onDiagnostics just before every return.
@@ -176,7 +181,16 @@ export async function recall(
     if (flags.rerank && factResults.length > 0 && hadV2Head && !didRerank) {
       degraded.push("rerank-unavailable");
     }
-    if (flags.decompose && !decomposeAvailable) degraded.push("decompose-unavailable");
+    // Pre-B4: `{ budget:'high', decomposeOptions }` rewrote inside recall().
+    // Post-B4 that shape still compiles (decomposeOptions is reused for
+    // graphRefine) but no longer decomposes — surface a breadcrumb so an
+    // un-updated caller does not see a healthier diagnostics payload while
+    // getting shallower composite retrieval. Skip when `graphRefine` is on:
+    // that path legitimately needs decomposeOptions for neighbor-LLM auth
+    // without implying a rewrite migration miss.
+    if (usedBudget === "high" && options.decomposeOptions && !subQueries && !options.graphRefine) {
+      degraded.push("decompose-moved");
+    }
     if (embeddingsUnavailable) degraded.push("embeddings-unavailable");
     const diagnostics: RecallDiagnostics = {
       usedBudget,
@@ -322,10 +336,8 @@ export async function recall(
         }),
         ...(options.rrfK !== undefined && { rrfK: options.rrfK }),
         ...(options.decryptLast !== undefined && { decryptLast: options.decryptLast }),
-        ...(decomposeAvailable && {
-          decompose: "llm" as const,
-          decomposeOptions: options.decomposeOptions,
-        }),
+        // 719/B4 — composite facets arrive pre-built; no LLM call here.
+        ...(subQueries && { subQueries }),
         ...(options.scopes && { scopes: options.scopes }),
         ...(options.folderId !== undefined && { folderId: options.folderId }),
         ...(options.factTypes?.length && { factTypes: options.factTypes }),

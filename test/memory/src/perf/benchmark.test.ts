@@ -360,29 +360,14 @@ const COMPOSITE_QUERY = "what tooling and drinks come up around provisioning wor
 const CHUNK_QUERY = "we reviewed the rollout and agreed to revisit onboarding";
 
 /**
- * Canned `decomposeQuery` response. The decomposer takes an injectable `fetchFn`
- * (that is how the repo's other tests drive portal LLM calls), so the real
- * classify/validate code runs — only the round-trip is faked.
+ * Canned composite facets for the high-budget path. 719/B4 moved LLM
+ * rewrite out of recall(), so the harness passes `subQueries` directly.
  */
-function decomposeFetch(subQueries: string[]): typeof fetch {
-  const content = JSON.stringify({ mode: "composite", subQueries });
-  return (async () => ({
-    ok: true,
-    status: 200,
-    json: async () => ({ choices: [{ message: { content } }] }),
-  })) as unknown as typeof fetch;
-}
-
 const SUB_QUERIES = [
   "which tooling is used for provisioning",
   "which drinks are preferred",
   "what happens on provisioning days",
 ];
-
-const DECOMPOSE_OPTIONS = {
-  apiKey: "perf-harness-no-network",
-  fetchFn: decomposeFetch(SUB_QUERIES),
-};
 
 /** One scenario's numbers: the counters plus the two cache-derived metrics. */
 type ScenarioNumbers = PerfCounters & {
@@ -552,12 +537,13 @@ describe("memory work-cost scenarios", () => {
   it("composite recall re-tokenizes the corpus once per facet", async () => {
     const vaultCache = freshVaultCache();
     const ctx = { vaultCtx: readWorld.vaultCtx, embeddingOptions: { apiKey: "x" }, vaultCache };
+    // 719/B4 — facets arrive pre-built; recall() never calls the decomposer.
     const run = withDiagnostics({
       types: ["fact"],
       budget: "high",
       limit: 8,
       now: NOW,
-      decomposeOptions: DECOMPOSE_OPTIONS,
+      subQueries: SUB_QUERIES,
     });
     const numbers = await scenario("compositeHigh", { vaultCache }, async () => {
       await recall(COMPOSITE_QUERY, ctx, run.options);

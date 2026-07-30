@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { decomposeQuery } from "./decomposeQuery";
+import { decomposeQuery, normalizeSubQueries } from "./decomposeQuery";
 
 function mockFetch(body: unknown, ok = true): typeof fetch {
   return vi.fn().mockResolvedValue({
@@ -161,5 +161,29 @@ describe("decomposeQuery", () => {
     const result = await decomposeQuery("   ", { apiKey: "k", fetchFn });
     expect(result).toEqual({ mode: "specific", subQueries: ["   "] });
     expect(fetchFn).not.toHaveBeenCalled();
+  });
+});
+
+describe("normalizeSubQueries", () => {
+  it("trims, drops blanks, dedupes case-insensitively, and caps at 5", () => {
+    expect(
+      normalizeSubQueries([
+        "  Name? ",
+        "",
+        "name?",
+        "Where?",
+        "  ",
+        "Job?",
+        "Hobby?",
+        "Stack?",
+        "Extra sixth",
+        42 as unknown as string,
+      ])
+    ).toEqual(["Name?", "Where?", "Job?", "Hobby?", "Stack?"]);
+  });
+
+  it("returns [] for undefined / empty", () => {
+    expect(normalizeSubQueries(undefined)).toEqual([]);
+    expect(normalizeSubQueries([])).toEqual([]);
   });
 });

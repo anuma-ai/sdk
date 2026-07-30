@@ -11,6 +11,7 @@ import { chunkAndEmbedAllMessages } from "../../../../src/lib/memoryEngine/embed
 import { recall } from "../../../../src/lib/memory/recall.js";
 import { RECALL_TOOL_NAME } from "../../../../src/lib/memory/recallTool.js";
 import { retain } from "../../../../src/lib/memory/retain.js";
+import { decomposeQuery } from "../../../../src/lib/memoryVault/decomposeQuery.js";
 import {
   preEmbedVaultMemories,
   type VaultEmbeddingCache,
@@ -67,9 +68,30 @@ function parseQuestionDateUtc(raw: string): number {
 }
 
 function budgetFor(decompose: boolean, rerank: boolean): "low" | "mid" | "high" {
+  // 719/B4: high no longer means "decompose inside recall" — it means
+  // rerank + graph traverse. Decompose is applied by resolving subQueries
+  // ahead of the recall() call (below). Keep mapping decompose→high so the
+  // eval still exercises the full high-budget pipeline when rewrite is on.
   if (decompose) return "high";
   if (rerank) return "mid";
   return "low";
+}
+
+/**
+ * 719/B4 — resolve composite facets outside `recall()`. Returns `subQueries`
+ * only when the LLM classifies the query as composite (≥2 facets).
+ */
+async function resolveSubQueries(
+  query: string,
+  api: ApiConfig,
+  enabled: boolean
+): Promise<{ subQueries?: string[] }> {
+  if (!enabled) return {};
+  const decomp = await decomposeQuery(query, { apiKey: api.apiKey, baseUrl: api.baseUrl });
+  if (decomp.mode === "composite" && decomp.subQueries.length >= 2) {
+    return { subQueries: decomp.subQueries };
+  }
+  return {};
 }
 
 export async function processEntryRecall(
@@ -289,9 +311,6 @@ export async function processEntryRecall(
       // extraction in the prompt).
       entityCtx,
     };
-    const decomposeOpts = decomposeEnabled
-      ? { decomposeOptions: { apiKey: api.apiKey, baseUrl: api.baseUrl } }
-      : {};
     // Ranking tuning knobs (--ce-weight, --rrf-k, …) forwarded to every
     // recall() call. Empty object when no knob is set — pure no-op.
     const tuningOpts = buildRetrievalTuningOptions(searchPipeline);
@@ -317,6 +336,9 @@ export async function processEntryRecall(
       // failure rather than letting NaN poison every downstream date.
       const nowForQuery = Number.isFinite(nowForQueryRaw) ? nowForQueryRaw : undefined;
 
+      // 719/B4 — decompose outside recall(), pass facets as subQueries.
+      const subQueryOpts = await resolveSubQueries(query, api, decomposeEnabled);
+
       // Per-lane: separate calls so chunks don't compete with facts for
       // a shared limit. Each lane gets its own pool. Skip when the fused
       // path is taken — the single fused recall() below covers both
@@ -331,7 +353,7 @@ export async function processEntryRecall(
                 budget,
                 now: nowForQuery,
                 ...tuningOpts,
-                ...decomposeOpts,
+                ...subQueryOpts,
               })
             ).memories
           : [];
@@ -344,7 +366,7 @@ export async function processEntryRecall(
               budget,
               now: nowForQuery,
               ...tuningOpts,
-              ...decomposeOpts,
+              ...subQueryOpts,
             })
           ).memories
         : [];
@@ -359,7 +381,7 @@ export async function processEntryRecall(
               budget,
               now: nowForQuery,
               ...tuningOpts,
-              ...decomposeOpts,
+              ...subQueryOpts,
             })
           ).memories
         : [];

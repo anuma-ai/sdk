@@ -32,16 +32,19 @@ vi.mock("../memory/reranker", async (importOriginal) => ({
   rerankPairs: vi.fn(),
 }));
 
-vi.mock("./decomposeQuery", () => ({
-  decomposeQuery: vi.fn(),
-}));
+vi.mock("./decomposeQuery", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("./decomposeQuery")>();
+  return {
+    ...actual,
+    decomposeQuery: vi.fn(),
+  };
+});
 
 import * as ops from "../db/memoryVault/operations";
 import * as embed from "../memoryEngine/embeddings";
 import { getAllVaultMemoriesOp } from "../db/memoryVault/operations";
 import { generateEmbedding, generateEmbeddings } from "../memoryEngine/embeddings";
 import { rerankPairs } from "../memory/reranker";
-import { decomposeQuery } from "./decomposeQuery";
 import { setLogger, noopLogger, type Logger } from "../logger";
 import { DEFAULT_API_EMBEDDING_MODEL } from "../memoryEngine/constants";
 
@@ -1444,10 +1447,6 @@ describe("searchVaultMemoriesWithSize — embedding failures beyond the query em
     vi.spyOn(embed, "generateEmbedding").mockResolvedValue([1, 0, 0]);
     // Only the sub-query batch fails — the row vectors are already cached.
     vi.spyOn(embed, "generateEmbeddings").mockRejectedValue(new Error("429 rate limited"));
-    vi.mocked(decomposeQuery).mockResolvedValue({
-      mode: "composite",
-      subQueries: ["allergies", "food"],
-    } as any);
 
     const cache = createVaultEmbeddingCache();
     cache.set("m1", new Float32Array([1, 0, 0]));
@@ -1459,8 +1458,7 @@ describe("searchVaultMemoriesWithSize — embedding failures beyond the query em
       {
         limit: 5,
         useFusion: true,
-        decompose: "llm",
-        decomposeOptions: { apiKey: "k" } as any,
+        subQueries: ["allergies", "food"],
       }
     );
 
@@ -1846,12 +1844,10 @@ describe("searchVaultMemoriesWithSize — decryptLast branch", () => {
     const out = await searchVaultMemoriesWithSize("q", {} as any, { model: "m" } as any, cache, {
       limit: 5,
       decryptLast: true,
-      // If the corpus weren't empty-checked, this would drive decomposeQuery.
-      decompose: "llm",
-      decomposeOptions: { apiKey: "x" } as any,
+      // If the corpus weren't empty-checked, this would drive the composite path.
+      subQueries: ["facet a", "facet b"],
     });
 
-    expect(vi.mocked(decomposeQuery)).not.toHaveBeenCalled();
     expect(out.results).toEqual([]);
     expect(out.vaultSize).toBe(2);
     expect(out.reranked).toBe(false);
@@ -1871,10 +1867,6 @@ describe("composite sub-query embeds — degenerate responses fall through", () 
     vi.clearAllMocks();
     warnings = [];
     setLogger({ ...noopLogger, warn: (msg: string) => warnings.push(String(msg)) });
-    vi.mocked(decomposeQuery).mockResolvedValue({
-      mode: "composite",
-      subQueries: ["allergies", "food"],
-    } as any);
   });
   afterEach(() => setLogger(noopLogger));
 
@@ -1882,8 +1874,7 @@ describe("composite sub-query embeds — degenerate responses fall through", () 
     searchVaultMemoriesWithSize("shellfish", mockVaultCtx, mockEmbeddingOptions, seededCache(), {
       limit: 5,
       useFusion: true,
-      decompose: "llm",
-      decomposeOptions: { apiKey: "k" } as any,
+      subQueries: ["allergies", "food"],
     });
 
   // Both rows are pre-seeded so the row-(re)embed batch has nothing to do and the
@@ -1945,17 +1936,25 @@ describe("composite sub-query embeds — degenerate responses fall through", () 
     expect(out.results.map((r) => r.uniqueId)).toContain("m1");
   });
 
-  it("falls through on a zero-facet decomposition instead of returning nothing", async () => {
-    // Unreachable through decomposeQuery today (validate() rejects an empty
-    // subQueries), but the count check alone reads it as usable — `0 === 0` and
-    // `[].every()` is true — and rankComposite returns [] on an empty facet list.
-    // That flips this guard's failure mode from degrade to total recall miss, so
-    // the `subQueries.length > 0` clause is load-bearing, not defensive noise.
-    vi.mocked(decomposeQuery).mockResolvedValue({ mode: "composite", subQueries: [] } as any);
+  it("falls through on a zero-facet list instead of returning nothing", async () => {
+    // A zero-facet list must not enter the composite path: without the
+    // `length >= 2` gate, `0 === 0` and `[].every()` would read as usable and
+    // `rankComposite` would return [] — flipping degrade into a total miss.
     vi.spyOn(embed, "generateEmbeddings").mockResolvedValue([]);
 
-    const out = await search();
+    const out = await searchVaultMemoriesWithSize(
+      "shellfish",
+      mockVaultCtx,
+      mockEmbeddingOptions,
+      seededCache(),
+      {
+        limit: 5,
+        useFusion: true,
+        subQueries: [],
+      }
+    );
 
+    expect(vi.mocked(embed.generateEmbeddings)).not.toHaveBeenCalled();
     expect(out.results.map((r) => r.uniqueId)).toContain("m1");
   });
 

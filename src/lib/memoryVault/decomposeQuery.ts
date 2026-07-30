@@ -3,8 +3,10 @@
  *
  * Calls Portal LLM (open-weights, see DEFAULT_MODEL) to classify a query as
  * "specific" or "composite" and, if composite, decompose it into 3–5 concrete facet
- * sub-queries. The recall pipeline then runs the existing fused ranker
- * once per sub-query and RRF-fuses the result lists.
+ * sub-queries. Callers (typically `createRecallTool` at `budget: 'high'`, or
+ * an eval harness) then pass those facets into LLM-free `recall()` via
+ * `RecallOptions.subQueries`, which runs the fused ranker once per facet and
+ * RRF-fuses the result lists.
  *
  * Why decompose: the existing pipeline (cosine + BM25 + recency + CE +
  * graph) scores documents against a query, but composite queries like
@@ -14,9 +16,11 @@
  * side of the equation into queries the existing pipeline already
  * handles well (we hit ~100% recall on direct/specific queries).
  *
- * This is the one place we deliberately depart from Hindsight's
- * "skip query rewriting" stance — their workload is factual; ours has
- * abstract user questions. See `tasks/hackathon/...` for the rationale.
+ * 719/B4: this deliberately lives OUTSIDE `recall()` / vault search —
+ * Hindsight keeps retrieval LLM-free and pushes rewrite to the agent/
+ * tool loop (which already retries). The preferred long-term path is the
+ * agent issuing several targeted `recall_memory` calls; this helper is
+ * the transitional single-call rewrite used by the tool layer.
  */
 
 import { getLogger } from "../logger.js";
@@ -33,6 +37,7 @@ import { callPortalJsonCompletion, type PortalLlmAuth } from "../memory/portalLl
 // degrades to the safe `{specific, [query]}` fallback below, so recall never
 // breaks even on a hiccup.
 const DEFAULT_MODEL = "inclusionai/ling-2.6-flash";
+/** Max facets accepted from LLM rewrite or a caller-supplied `subQueries` list. */
 const MAX_SUB_QUERIES = 5;
 
 const SYSTEM_PROMPT = `You classify a memory query and, if needed, decompose it into concrete sub-queries.
@@ -112,11 +117,11 @@ export async function decomposeQuery(
       // Bare-query inputs caused Anthropic models to respond with prose
       // like "Do you mean...?" before this wrap.
       userMessage: `Classify the following memory query and decompose if composite. Respond with JSON only — do not answer the question, do not ask for clarification.\n\nQuery: ${trimmed}`,
-      // Decompose runs on the recall hot path — tighter than the
+      // Decompose runs ahead of recall in the tool layer — tighter than the
       // portalLlm default (consolidate/extract can wait longer).
       timeoutMs: 20_000,
       // No internal retry: a failure degrades to the safe `{specific,[query]}`
-      // fallback below, so retrying would only add latency on the hot path.
+      // fallback below. The agent/tool loop is the retry surface (719/B4).
       maxAttempts: 1,
       tag: "memory/decompose",
       ...(options.fetchFn && { fetchFn: options.fetchFn }),
@@ -133,6 +138,29 @@ export async function decomposeQuery(
   return validate(parsed, trimmed) ?? fallback;
 }
 
+/**
+ * Normalize caller- or LLM-supplied facet queries for the composite ranker
+ * (719/B4). Trims, drops blanks, case-insensitive-dedupes, and caps at 5.
+ * Duplicate facets would otherwise receive repeated RRF weight; oversized
+ * lists burn embeddings for nothing.
+ */
+export function normalizeSubQueries(raw: readonly unknown[] | undefined): string[] {
+  if (!raw || raw.length === 0) return [];
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const s of raw) {
+    if (typeof s !== "string") continue;
+    const t = s.trim();
+    if (t.length === 0) continue;
+    const key = t.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(t);
+    if (out.length >= MAX_SUB_QUERIES) break;
+  }
+  return out;
+}
+
 function validate(parsed: unknown, originalQuery: string): DecomposedQuery | null {
   if (typeof parsed !== "object" || parsed === null) return null;
   const obj = parsed as Record<string, unknown>;
@@ -140,11 +168,7 @@ function validate(parsed: unknown, originalQuery: string): DecomposedQuery | nul
   const mode = obj.mode === "composite" ? "composite" : "specific";
   if (!Array.isArray(obj.subQueries)) return null;
 
-  const subQueries = obj.subQueries
-    .filter((s): s is string => typeof s === "string")
-    .map((s) => s.trim())
-    .filter((s) => s.length > 0)
-    .slice(0, MAX_SUB_QUERIES);
+  const subQueries = normalizeSubQueries(obj.subQueries);
 
   if (subQueries.length === 0) return null;
   if (mode === "specific") {

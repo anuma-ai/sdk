@@ -29,9 +29,11 @@ export type MemoryKind = "fact" | "chunk";
  * Budget controls retrieval depth/cost. Higher budgets enable more
  * candidate sources and the cross-encoder reranker.
  *
- * - `low`: cosine + BM25 fusion only. No reranker. Mobile default.
- * - `mid`: + recency boost. Demo default.
- * - `high`: + cross-encoder rerank stage. Demo `budget: high` path.
+ * - `low`: cosine + BM25 + recency. No reranker. Mobile default.
+ * - `mid`: + cross-encoder rerank.
+ * - `high`: + multi-hop graph traversal. LLM-free — query decomposition
+ *   (when wanted) lives in the tool/agent layer ({@link createRecallTool}),
+ *   not inside `recall()` itself (719/B4).
  */
 export type Budget = "low" | "mid" | "high";
 
@@ -139,10 +141,28 @@ export interface RecallOptions {
   /** Drop results below this score. Default: 0.1 for facts, 0.5 for chunks (mirrors today's defaults). */
   minScore?: number;
   /**
-   * Auth + endpoint for the LLM-based query decomposition pass. Without
-   * these, decompose is skipped even at `budget: 'high'`. Mirrors the
-   * shape used by `searchVaultMemories`. Auth is the dual pattern — one
-   * of `apiKey` / `getToken` is required; see {@link PortalLlmAuth}.
+   * Pre-decomposed facet queries for the composite ranker. When ≥2 are
+   * supplied, the vault lane runs `rankComposite` over them (no LLM call
+   * inside `recall()` — 719/B4). Callers that still want LLM rewrite
+   * (e.g. {@link createRecallTool} at `budget: 'high'`) call
+   * `decomposeQuery` themselves and pass the result here. A single entry
+   * (or omitting this) keeps the single-query path.
+   */
+  subQueries?: string[];
+  /**
+   * Auth + endpoint for optional LLM helpers that reuse portal auth —
+   * currently {@link RecallOptions.graphRefine} neighbor selection.
+   * Query decomposition is **not** driven by this field inside `recall()`
+   * (719/B4); {@link createRecallTool} reads the same shape from
+   * `RecallToolOptions.decomposeOptions` for tool-layer rewrite.
+   *
+   * Callers that still pass `{ budget: 'high', decomposeOptions }` without
+   * {@link RecallOptions.subQueries} keep compiling but no longer rewrite —
+   * `recall()` emits `decompose-moved` on {@link RecallDiagnostics.degraded}
+   * so upgrades without a changelog read still leave a telemetry breadcrumb.
+   *
+   * Auth is the dual pattern — one of `apiKey` / `getToken` is required;
+   * see {@link PortalLlmAuth}.
    */
   decomposeOptions?: PortalLlmAuth & {
     baseUrl?: string;
@@ -259,9 +279,22 @@ export type RecallDegradation =
   /** Rerank was requested (budget mid/high) but the cross-encoder didn't run
    *  this call — unavailable (e.g. React Native) or a transient failure. */
   | "rerank-unavailable"
-  /** `budget: 'high'` requested but no `decomposeOptions`, so query
-   *  decomposition was skipped and the budget downgraded to mid. */
+  /**
+   * @deprecated 719/B4 moved query decomposition out of `recall()`. Budget
+   * `high` no longer requires `decomposeOptions` and this signal is never
+   * emitted. Prefer `"decompose-moved"` for the upgrade breadcrumb. Kept in
+   * the union so existing telemetry consumers stay typed.
+   */
   | "decompose-unavailable"
+  /**
+   * `budget: 'high'` with `decomposeOptions` set but no usable
+   * {@link RecallOptions.subQueries}. Pre-B4 this call shape triggered LLM
+   * rewrite inside `recall()`; post-B4 it stays on the single-query high
+   * path (rerank + graph) and callers must pass facets (or use
+   * {@link createRecallTool}). Surfaced so silent quality regressions show
+   * up in diagnostics instead of looking healthier than before.
+   */
+  | "decompose-moved"
   /** There was no usable cosine lane, so results were ranked on BM25 (lexical)
    *  alone: either the query embedding failed (or came back empty), or no
    *  candidate had a vector to score against it because the row (re)embed failed.
