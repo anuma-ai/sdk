@@ -496,7 +496,14 @@ export async function synthesizeProfile(
     };
   }
 
-  const staleKeys = await computeStaleFacetKeys(ctx, memories, facets, previous, watermark);
+  const staleKeys = await computeStaleFacetKeys(
+    ctx,
+    memories,
+    facets,
+    previous,
+    watermark,
+    options.reviewedMemoryIds
+  );
 
   const settled = await Promise.allSettled(
     facets.map(async (facet) => {
@@ -659,6 +666,8 @@ function computeVaultWatermark(memories: StoredVaultMemory[]): number {
  *   a supersession successor) → attributed to the facets they're relevant to
  *   (see {@link attributeFacts}) rather than forcing a full re-synthesis,
  *   falling back to ALL facets only when attribution can't be computed safely.
+ *   With the review gate armed, only REVIEWED candidates are attributed — see
+ *   the note at the attribution step.
  * - Watermark DECREASE (current scoped max < previous) → the baseline is no
  *   longer reliable (a high-changeTime fact left scope / was removed), so
  *   per-fact delta against the inflated prior mark would miss real changes →
@@ -672,7 +681,8 @@ async function computeStaleFacetKeys(
   memories: StoredVaultMemory[],
   facets: ProfileFacet[],
   previous: ProfileDoc | undefined,
-  watermark: number
+  watermark: number,
+  reviewedMemoryIds: readonly string[] | undefined
 ): Promise<Set<ProfileFacetKey>> {
   const allKeys = new Set(facets.map((f) => f.key));
   if (previous && watermark < previous.vaultWatermark) return allKeys;
@@ -712,9 +722,36 @@ async function computeStaleFacetKeys(
   // successor. Attribute them to relevant facets instead of regenerating
   // everything. Cited changed facts already marked their section stale above.
   const citedIds = new Set(previous.sections.flatMap((s) => s.sourceMemoryIds));
-  const toAttribute = changed.filter(
+  let toAttribute = changed.filter(
     (m) => !m.isDeleted && !m.supersededBy && !citedIds.has(m.uniqueId)
   );
+  // The watermark and the changed-set deliberately track the WHOLE scoped vault,
+  // but the review gate intersects each facet's evidence with `reviewedMemoryIds`
+  // before anything reaches the LLM. So an UNREVIEWED changed fact is not new
+  // evidence for any section — attributing it bills a re-synthesis whose gated
+  // input is byte-identical to the one that produced the prior section. That is
+  // the common case, not an edge: chat auto-extract writes unreviewed facts on
+  // every turn, so without this filter each refresh after any conversation
+  // regenerated whatever facets the fresh fact attributed to — or ALL of them,
+  // since a just-extracted fact often has no embedding yet and attributeFacts
+  // bails to a full regenerate. Delta refresh was only cheap on a dormant vault.
+  //
+  // Only the attribution step needs the filter. A section can only cite ids that
+  // survived the gate, so the cited-changed path above is already reviewed-only;
+  // and any change to the reviewed set moves `reviewedMemoryIdsSignature`, which
+  // discards `previous` outright.
+  //
+  // Bound worth knowing: the gated recall asks for RECALL_MAX_LIMIT and slices
+  // to it *before* the intersection (see synthesizeFacet — the cap is the limit
+  // passed at that call site, not something recall applies on its own), so on a
+  // vault deep enough to fill that window an unreviewed fact can displace a
+  // reviewed one out of it and quietly change a section's evidence. That section
+  // then carries one-refresh-stale text until its own evidence moves — a far
+  // better trade than billing every facet on every turn.
+  if (reviewedMemoryIds !== undefined) {
+    const allowed = new Set(reviewedMemoryIds);
+    toAttribute = toAttribute.filter((m) => allowed.has(m.uniqueId));
+  }
   if (toAttribute.length > 0) {
     const attributed = await attributeFacts(ctx, toAttribute, facets);
     if (attributed === null) return allKeys; // can't attribute safely → regen all
