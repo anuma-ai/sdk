@@ -315,7 +315,21 @@ export interface RecallDiagnostics {
 // Retain API — for completeness / future-proofing. Implemented Wed 5/6 (W2).
 // ---------------------------------------------------------------------------
 
-export type RetainAction = "create" | "merge" | "update" | "skip" | "suppressed" | "supersede";
+export type RetainAction =
+  | "create"
+  | "merge"
+  | "update"
+  | "skip"
+  | "suppressed"
+  | "supersede"
+  /**
+   * The content was too short or low-signal to store (see the shared junk gate,
+   * `isJunkMemoryContent`). No memory was written; `memoryId` is "" and
+   * `proofCount` is 0. Returned instead of throwing so every write caller —
+   * extraction, the memory_vault_save tool, any future one — gets one terminal
+   * outcome to branch on.
+   */
+  | "rejected";
 export type RetainSource = "manual" | "auto-extracted" | "capsule";
 
 /**

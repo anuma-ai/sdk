@@ -68,6 +68,7 @@ export {
   type ScreenedCandidate,
   type ScreenResult,
 } from "./injectionScreen.js";
+export { isJunkMemoryContent, MIN_CONTENT_LENGTH } from "./junkGate.js";
 export {
   classifyObservationTrend,
   type ObservationTrend,

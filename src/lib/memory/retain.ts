@@ -34,6 +34,7 @@ import {
   type VaultEmbeddingCache,
 } from "../memoryVault/searchTool.js";
 import { notifyConsolidationFallback } from "./consolidationFallback.js";
+import { isJunkMemoryContent } from "./junkGate.js";
 import type { RetainOptions, RetainResult } from "./types.js";
 
 const DEFAULT_AUTO_MERGE_THRESHOLD = 0.8;
@@ -76,6 +77,16 @@ export async function retain(
   const trimmed = content.trim();
   if (trimmed.length === 0) {
     throw new Error("retain: content cannot be empty");
+  }
+
+  // Shared junk gate — the ONE place low-signal content is rejected for every
+  // caller (extraction, the memory_vault_save tool, any future write). Returns
+  // a terminal `rejected` result WITHOUT writing, so junk like "1"/"2"/"---"
+  // never enters the vault regardless of which path produced it. (Empty is
+  // handled above with a throw, matching the pre-existing contract; junk is a
+  // non-exceptional "nothing to store" outcome.)
+  if (isJunkMemoryContent(trimmed)) {
+    return { action: "rejected", memoryId: "", proofCount: 0 };
   }
 
   const enableAutoMerge = options.enableAutoMerge ?? true;

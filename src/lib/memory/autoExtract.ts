@@ -26,6 +26,7 @@ import {
   type InjectionClassifierOptions,
 } from "./injectionClassifier.js";
 import { type InjectionReason, screenCandidatesForInjection } from "./injectionScreen.js";
+import { isJunkMemoryContent } from "./junkGate.js";
 import { callPortalJsonCompletion, type PortalLlmAuth } from "./portalLlm.js";
 import { retain, type RetainContext } from "./retain.js";
 import type { RetainOptions, RetainResult } from "./types.js";
@@ -79,10 +80,6 @@ async function isMemoryTopicsUserManaged(
 export const DEFAULT_EXTRACTION_MODEL = "gpt-oss/gpt-oss-120b";
 const DEFAULT_MIN_CONFIDENCE = 0.7;
 const MAX_CONTENT_LENGTH = 200;
-// Floor to drop empty-ish fragments that survive the non-empty check but carry
-// no real fact (a stray punctuation mark, a single letter). See
-// `isLowSignalContent`.
-const MIN_CONTENT_LENGTH = 3;
 
 const FACT_TYPES = [
   "identity",
@@ -766,6 +763,11 @@ export async function extractAndRetain(
  * extractor mining a profile field or tool output rather than something the
  * user said.
  *
+ * The too-short / no-letter floor lives in the shared {@link isJunkMemoryContent}
+ * gate (also used by the memory_vault_save tool and retain()), so extraction and
+ * the model's tool-create path reject identically. This function keeps only the
+ * extraction-specific own-name check on top of that shared base.
+ *
  * NOTE: deliberately NO "single token / no whitespace" heuristic. It was an
  * English-only signal that silently dropped every CJK-language fact (Japanese
  * / Chinese put no spaces between words) — data loss for ja/zh locales — and
@@ -775,11 +777,12 @@ export async function extractAndRetain(
  * window on the client. This gate stays language-agnostic.
  */
 function isLowSignalContent(content: string, ownNames: readonly string[]): boolean {
+  // Shared floor: too short, or no letter/ideograph (digits, punctuation).
+  if (isJunkMemoryContent(content)) return true;
   const normalized = content
     .trim()
     .replace(/[.!?]+$/, "")
     .toLowerCase();
-  if (normalized.length < MIN_CONTENT_LENGTH) return true;
   // The user's own name is circular for a personal memory system.
   if (
     ownNames.some(

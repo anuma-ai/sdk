@@ -101,6 +101,21 @@ describe("retain", () => {
     await expect(retain("   ", ctx)).rejects.toThrow();
   });
 
+  it("rejects junk content without writing (shared junk gate)", async () => {
+    // "1"/"42"/"---" are low-signal scraps: the gate returns a terminal
+    // `rejected` result and NOTHING is written or even searched, so the single
+    // junk gate covers every retain() caller (extraction, the tool, future ones).
+    for (const junk of ["1", "42", "---", "  .."]) {
+      const result = await retain(junk, ctx);
+      expect(result.action).toBe("rejected");
+      expect(result.memoryId).toBe("");
+      expect(result.proofCount).toBe(0);
+    }
+    expect(vi.mocked(prepareVaultCandidates)).not.toHaveBeenCalled();
+    expect(vi.mocked(createVaultMemoryOp)).not.toHaveBeenCalled();
+    expect(vi.mocked(updateVaultMemoryOp)).not.toHaveBeenCalled();
+  });
+
   it("creates a new memory when no similar match exists", async () => {
     mockVaultMatches([]);
     vi.mocked(generateEmbedding).mockResolvedValue([0.1, 0.2, 0.3]);
@@ -570,12 +585,13 @@ describe("retain", () => {
   it("falls through to create when search hits but record fetch fails", async () => {
     // Edge: searchVaultMemories returns a stub but the record was deleted
     // between operations. Should not crash; create new instead.
-    mockVaultMatches([{ uniqueId: "ghost", content: "x", similarity: 0.9 }]);
+    // (Content must clear the shared junk gate, so use a real fact not "x".)
+    mockVaultMatches([{ uniqueId: "ghost", content: "Likes tea", similarity: 0.9 }]);
     vi.mocked(getVaultMemoryOp).mockResolvedValue(null);
     vi.mocked(generateEmbedding).mockResolvedValue([0.1]);
     vi.mocked(createVaultMemoryOp).mockResolvedValue({
       uniqueId: "fresh",
-      content: "x",
+      content: "Likes tea",
       scope: "private",
       folderId: null,
       userId: null,
@@ -588,7 +604,7 @@ describe("retain", () => {
       isDeleted: false,
     });
 
-    const result = await retain("x", ctx);
+    const result = await retain("Likes tea", ctx);
 
     expect(result.action).toBe("create");
   });
