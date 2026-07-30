@@ -13,7 +13,7 @@ import {
   updateVaultMemoryOp,
 } from "../db/memoryVault/operations";
 import { isJunkMemoryContent } from "../memory/junkGate";
-import type { RetainOptions, RetainResult } from "../memory/types";
+import type { RetainResult } from "../memory/types";
 import type { EmbeddingOptions } from "../memoryEngine/types";
 import { eagerEmbedContent, type VaultEmbeddingCache } from "./searchTool";
 
@@ -42,11 +42,26 @@ function normalizeManualFactType(value: unknown): (typeof MANUAL_FACT_TYPES)[num
 }
 
 /**
- * Map a {@link RetainResult} (the create path now routes through `retain()`,
- * which may merge/update/supersede a near-duplicate instead of inserting) to
- * the tool's success string. Every branch names the memory's id so the model
- * can reference it in a later update. `create` keeps the original wording so
- * the common case reads identically to before.
+ * Max time the CREATE path waits on `retain()` before falling back to a raw
+ * create. `generateEmbedding` (which retain calls) has bounded retry but NO
+ * per-request AbortController/timeout, so a hung portal could otherwise stall
+ * the chat turn indefinitely. On timeout we fall through to the raw-create path
+ * (same recovery as when retain throws); any rare duplicate self-reconciles at
+ * the next consolidation sweep.
+ */
+const RETAIN_CREATE_TIMEOUT_MS = 10_000;
+
+/** Sentinel resolved by the timeout race when `retain()` outruns its budget. */
+const RETAIN_TIMED_OUT = Symbol("retain-timed-out");
+
+/**
+ * Map a {@link RetainResult} to the tool's success string. The create path
+ * routes through `retain()` WITHOUT a consolidation stage, so in practice it
+ * only ever `merge`s into a true ≥0.8 cosine duplicate or `create`s a new row.
+ * The `update`/`supersede` branches are defensive — reachable only if a caller
+ * ever re-enables Stage-1 consolidation — and every branch names the memory's
+ * id so the model can reference it in a later update. `create` keeps the
+ * original wording so the common case reads identically to before.
  */
 function describeRetainResult(result: RetainResult): string {
   const id = result.memoryId;
@@ -111,22 +126,6 @@ export interface MemoryVaultToolOptions {
    * When provided, the LLM can specify a folderName argument.
    */
   folderMap?: Map<string, string>;
-
-  /**
-   * Auth/endpoint (and optional `onFallback` / `piiRedaction`) for the
-   * write-time consolidation LLM used on the CREATE path. When this is present
-   * AND both `embeddingOptions` and `cache` were passed to
-   * {@link createMemoryVaultTool}, a model tool-save is routed through
-   * `retain()`, which dedups and consolidates against near-duplicate memories
-   * exactly like auto-extraction (instead of blindly inserting a new row).
-   *
-   * When omitted, create still dedups via retain's cosine auto-merge (as long
-   * as embeddings are available) but skips the LLM consolidation stage. It must
-   * be passed explicitly — it can't default from `embeddingOptions`, whose
-   * `model` is the EMBEDDING model (not a chat model) and which carries no
-   * `onFallback` / `piiRedaction`.
-   */
-  retainConsolidate?: RetainOptions["consolidateOptions"];
 }
 
 /**
@@ -170,10 +169,12 @@ export function createMemoryVaultTool(
       description:
         "Save or update a memory in the user's persistent memory vault. " +
         "Use this to remember important facts, preferences, or context about the user. " +
-        "New saves are automatically de-duplicated: if a near-identical memory already " +
-        "exists it is reinforced or consolidated rather than duplicated, so you do not " +
-        "need to search first to avoid duplicates. Provide an existing memory's ID only " +
-        "when you intend to overwrite that specific memory's content.",
+        "New saves are automatically de-duplicated against true near-duplicates: if an " +
+        "almost-identical memory already exists it is reinforced rather than stored twice, " +
+        "so you do not need to search first to avoid exact duplicates. Semantic (reworded) " +
+        "dedup is left to background auto-extraction and the consolidation sweep. Provide " +
+        "an existing memory's ID only when you intend to overwrite that specific memory's " +
+        "content.",
       arguments: {
         type: "object",
         properties: {
@@ -310,31 +311,45 @@ export function createMemoryVaultTool(
             } else {
               const folderId = folderName ? options?.folderMap?.get(folderName) : undefined;
 
-              // Fix A — route CREATE through retain() so a model tool-save dedups
-              // and consolidates against near-duplicate memories exactly like
-              // auto-extraction, instead of raw-inserting a duplicate. Only when
-              // we have the embedding pieces retain needs (embeddingOptions +
-              // cache); without them we keep the raw create for back-compat.
+              // Fix A — route CREATE through retain()'s STRICT COSINE AUTO-MERGE
+              // ONLY (no consolidateOptions → retain skips its Stage-1 LLM
+              // consolidation). That dedups against a TRUE near-duplicate (≥0.8
+              // cosine → reinforce the existing row) and otherwise creates a new
+              // row; it NEVER noop-drops a distinct fact and NEVER rewrites an
+              // unrelated row. Semantic (reworded) dedup is deliberately left to
+              // background auto-extraction + the consolidation sweep — a
+              // model/user-confirmed save must never silently store nothing or
+              // overwrite a different memory. Only runs when we have the embedding
+              // pieces retain needs (embeddingOptions + cache); without them we
+              // keep the raw create for back-compat.
               if (embeddingOptions && cache) {
                 let retainResult: RetainResult | undefined;
+                let timer: ReturnType<typeof setTimeout> | undefined;
                 try {
                   // Dynamic import mirrors this module's cycle-avoidance stance
                   // (see the FactType note above): memoryVault must not statically
                   // pull the heavier memory/* graph at module load.
                   const { retain } = await import("../memory/retain");
-                  retainResult = await retain(
-                    content,
-                    { vaultCtx, embeddingOptions, vaultCache: cache },
-                    {
-                      source: "manual",
-                      scope,
-                      ...(folderId !== undefined && { folderId }),
-                      ...(factType && { factType }),
-                      ...(options?.retainConsolidate && {
-                        consolidateOptions: options.retainConsolidate,
-                      }),
-                    }
-                  );
+                  // Bound the wait: generateEmbedding has no per-request timeout,
+                  // so race retain() against a cap and fall back to raw-create on
+                  // timeout rather than stall the chat turn (Fix #5).
+                  const raced = await Promise.race([
+                    retain(
+                      content,
+                      { vaultCtx, embeddingOptions, vaultCache: cache },
+                      {
+                        source: "manual",
+                        scope,
+                        ...(folderId !== undefined && { folderId }),
+                        ...(factType && { factType }),
+                      }
+                    ),
+                    new Promise<typeof RETAIN_TIMED_OUT>((resolve) => {
+                      timer = setTimeout(() => resolve(RETAIN_TIMED_OUT), RETAIN_CREATE_TIMEOUT_MS);
+                    }),
+                  ]);
+                  // On timeout, leave retainResult undefined → raw-create fallback.
+                  if (raced !== RETAIN_TIMED_OUT) retainResult = raced;
                 } catch {
                   // retain() THROWS on an embedding outage (it refuses to
                   // auto-merge against an inert cosine lane, which would create a
@@ -342,6 +357,8 @@ export function createMemoryVaultTool(
                   // so fall through to the raw create + eager embed below (the
                   // pre-retain behavior). Any rare duplicate self-reconciles at the
                   // next consolidation pass.
+                } finally {
+                  if (timer) clearTimeout(timer);
                 }
                 if (retainResult) {
                   return describeRetainResult(retainResult);

@@ -526,8 +526,9 @@ export interface CreateConsolidationSweeperOptions {
    * {@link ConsolidationSweepResult.clustersDropped}. */
   maxClustersPerSweep?: number;
   /** When true, compute + log/return what WOULD be superseded / junk-deleted /
-   * backfilled but apply NOTHING. Default false. Ship the first rollout with
-   * this on for log-only observation. */
+   * backfilled but apply NOTHING. **Default true** (safe): the sweep also drives
+   * destructive soft-deletes + supersedes, so a caller must explicitly opt in
+   * with `dryRun: false` to APPLY. Ship the first rollout log-only, then flip. */
   dryRun?: boolean;
   /** Fires once after each sweep with the counts (UI / telemetry). */
   onSwept?: (result: ConsolidationSweepResult) => void;

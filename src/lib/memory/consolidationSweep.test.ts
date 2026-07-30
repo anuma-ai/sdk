@@ -97,6 +97,10 @@ function makeSweeper(overrides: Partial<CreateConsolidationSweeperOptions> = {})
     embeddingOptions,
     vaultCache: new Map(),
     consolidateOptions,
+    // These tests exercise the APPLY path by default. The sweeper's own default
+    // is now dryRun:true (log-only) — covered by the dedicated "defaults to
+    // dryRun" test below — so opt into applying here.
+    dryRun: false,
     ...overrides,
   });
 }
@@ -183,6 +187,55 @@ describe("createConsolidationSweeper — dedup", () => {
     expect(result.scanned).toBe(2);
   });
 
+  it("retries a cluster whose consolidate threw on the next sweep (not memoized on failure)", async () => {
+    // A stable cluster that THROWS (portal blip) must not be memoized, or a
+    // one-off outage would permanently skip a real duplicate.
+    vi.mocked(getConsolidationScanRawOp).mockResolvedValue([
+      scanRow("a", [1, 0, 0]),
+      scanRow("b", [0.95, 0.05, 0]),
+    ]);
+    setStore([
+      stored("a", "Prefers light mode for their interface."),
+      stored("b", "Prefers light mode."),
+    ]);
+
+    const sweeper = makeSweeper();
+
+    // First sweep: consolidate throws → error reported, cluster NOT memoized.
+    vi.mocked(consolidateMemory).mockRejectedValueOnce(new Error("portal blip"));
+    await sweeper.sweep();
+    expect(consolidateMemory).toHaveBeenCalledTimes(1);
+    expect(supersedeVaultMemoryOp).not.toHaveBeenCalled();
+
+    // Second sweep: same stable cluster is retried (it was not memoized) and now
+    // the default supersede verdict applies.
+    await sweeper.sweep();
+    expect(consolidateMemory).toHaveBeenCalledTimes(2);
+    expect(supersedeVaultMemoryOp).toHaveBeenCalledWith(vaultCtx, "b", "a");
+  });
+
+  it("maps a noop decision's targetId to a retire under the survivor (no survivor rewrite)", async () => {
+    // consolidateMemory 'noop' names an existing duplicate (targetId) without
+    // merged content — staleIdsFromDecision must map it to a retire of that row
+    // under the survivor, and the survivor content must NOT be rewritten.
+    vi.mocked(getConsolidationScanRawOp).mockResolvedValue([
+      scanRow("a", [1, 0, 0]),
+      scanRow("b", [0.95, 0.05, 0]),
+    ]);
+    setStore([
+      stored("a", "Prefers light mode for their interface."), // longer → survivor
+      stored("b", "Prefers light mode."),
+    ]);
+    vi.mocked(consolidateMemory).mockResolvedValue({ action: "noop", targetId: "b" });
+
+    const result = await makeSweeper().sweep();
+
+    expect(result.superseded).toBe(1);
+    expect(supersedeVaultMemoryOp).toHaveBeenCalledWith(vaultCtx, "b", "a");
+    // noop carries no merged content → the survivor row is left untouched.
+    expect(updateVaultMemoryOp).not.toHaveBeenCalled();
+  });
+
   it("caps clusters per sweep and reports the dropped count (no silent truncation)", async () => {
     vi.mocked(getConsolidationScanRawOp).mockResolvedValue([
       scanRow("a1", [1, 0, 0, 0]),
@@ -244,6 +297,36 @@ describe("createConsolidationSweeper — junk purge + backfill", () => {
 });
 
 describe("createConsolidationSweeper — dryRun", () => {
+  it("DEFAULTS to dryRun (log-only) when not specified — applies nothing", async () => {
+    // Safety default: a caller that does not pass dryRun must NOT mutate the vault.
+    vi.mocked(getConsolidationScanRawOp).mockResolvedValue([
+      scanRow("a", [1, 0, 0]),
+      scanRow("b", [0.95, 0.05, 0]),
+      scanRow("junk", [0, 0, 1]),
+    ]);
+    setStore([
+      stored("a", "Prefers light mode for their interface."),
+      stored("b", "Prefers light mode."),
+      stored("junk", "2"),
+    ]);
+
+    // Build the sweeper directly (NOT via makeSweeper, which forces dryRun:false).
+    const sweeper = createConsolidationSweeper({
+      vaultCtx,
+      embeddingOptions,
+      vaultCache: new Map(),
+      consolidateOptions,
+    });
+    const result = await sweeper.sweep();
+
+    expect(result.dryRun).toBe(true);
+    expect(result.junkDeleted).toBe(1);
+    expect(result.superseded).toBe(1);
+    expect(deleteVaultMemoryOp).not.toHaveBeenCalled();
+    expect(supersedeVaultMemoryOp).not.toHaveBeenCalled();
+    expect(updateVaultMemoryOp).not.toHaveBeenCalled();
+  });
+
   it("computes counts but applies nothing", async () => {
     vi.mocked(getUnembeddedVaultMemoryIdsOp).mockResolvedValue(["x"]);
     vi.mocked(getConsolidationScanRawOp).mockResolvedValue([

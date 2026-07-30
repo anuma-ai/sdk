@@ -162,7 +162,16 @@ function pickSurvivor(rows: StoredVaultMemory[]): StoredVaultMemory {
 /** The stale ids a decision retires. `supersede` lists them explicitly;
  * `update`/`noop` name a single same-facet row (the survivor is the richest, so
  * retiring the target it fully-captures/merges-into loses nothing); `create`
- * means the survivor is distinct → retire nothing. Never includes the survivor. */
+ * means the survivor is distinct → retire nothing. Never includes the survivor.
+ *
+ * REUSE NOTE: `consolidateMemory` was designed for the WRITE path, where its
+ * decision compares ONE new fact against existing rows — so its `targetId(s)`
+ * name the EXISTING rows the incoming fact replaces/duplicates. The sweep reuses
+ * that same model over a cluster by treating the picked SURVIVOR as the "new
+ * fact" and the other cluster rows as the "existing" candidates; the ids the
+ * decision returns are therefore exactly the non-survivor rows to retire. This
+ * mapping is why a `noop` (the survivor already exists as `targetId`) still
+ * yields a retire target here rather than "do nothing". */
 function staleIdsFromDecision(decision: ConsolidationDecision, survivorId: string): string[] {
   let raw: string[];
   if (decision.action === "supersede") {
@@ -193,7 +202,12 @@ export function createConsolidationSweeper(
     consolidateOptions,
     onSwept,
     onError,
-    dryRun = false,
+    // Default SAFE: the first rollout is log-only. A caller must explicitly pass
+    // `dryRun: false` to APPLY supersedes / junk deletes / backfills. This gate
+    // also drives destructive soft-deletes (junk purge) + supersedes, so
+    // defaulting to apply would let a fresh integration mutate the vault before
+    // anyone has watched a dry-run's counts.
+    dryRun = true,
   } = options;
   const threshold = options.consolidateThreshold ?? DEFAULT_CONSOLIDATION_SWEEP_THRESHOLD;
   const maxBackfill = options.maxBackfillPerSweep ?? DEFAULT_MAX_BACKFILL_PER_SWEEP;
@@ -274,7 +288,9 @@ export function createConsolidationSweeper(
     for (const k of junkChecked) if (!liveKeys.has(k)) junkChecked.delete(k);
 
     const candidates = scan
-      .filter((r) => !handled.has(r.uniqueId) && !junkChecked.has(cacheKey(r.uniqueId, r.updatedAt)))
+      .filter(
+        (r) => !handled.has(r.uniqueId) && !junkChecked.has(cacheKey(r.uniqueId, r.updatedAt))
+      )
       .slice(0, maxJunkChecks);
     if (candidates.length === 0) return;
 
@@ -437,12 +453,15 @@ export function createConsolidationSweeper(
       if (alreadyProcessed.has(sig)) continue; // stable cluster — don't re-send
       try {
         await consolidateCluster(cluster, result);
+        // Memoize ONLY on a clean run. A stable create/no-op judgement is
+        // legitimately cached here so it isn't re-egressed next sweep; but a
+        // THROWN consolidate (a transient portal blip) must NOT be memoized —
+        // leave the cluster for the next sweep to retry, otherwise a one-off
+        // outage would permanently skip a real duplicate.
+        alreadyProcessed.add(sig);
       } catch (err) {
         reportError(err);
       }
-      // Mark processed regardless of outcome so a create/no-op judgement on a
-      // stable cluster is not re-egressed next sweep.
-      alreadyProcessed.add(sig);
     }
   }
 

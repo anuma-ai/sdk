@@ -378,14 +378,13 @@ describe("createMemoryVaultTool", () => {
       expect(result).toBe("Memory saved successfully (ID: ret-1).");
     });
 
-    it("threads folderId, factType and retainConsolidate into retain options", async () => {
+    it("threads folderId and factType into retain options but NEVER consolidateOptions (strict cosine only)", async () => {
       vi.mocked(retain).mockResolvedValue(retainResult());
 
       const folderMap = new Map([["Work", "folder_1"]]);
-      const consolidate = { apiKey: "consolidate-key", model: "gpt-x" };
       const tool = createMemoryVaultTool(
         mockVaultCtx,
-        { onSave: async () => true, folderMap, retainConsolidate: consolidate },
+        { onSave: async () => true, folderMap },
         embeddingOptions,
         cache
       );
@@ -403,9 +402,37 @@ describe("createMemoryVaultTool", () => {
           scope: "private",
           folderId: "folder_1",
           factType: "constraint",
-          consolidateOptions: consolidate,
         })
       );
+      // The create path must run retain's cosine auto-merge ONLY — passing
+      // consolidateOptions would re-enable Stage-1 LLM consolidation, which can
+      // noop-drop the new fact or rewrite a different row (the data-integrity
+      // footgun). Assert the option is never threaded.
+      const retainOpts = vi.mocked(retain).mock.calls[0][2];
+      expect(retainOpts).not.toHaveProperty("consolidateOptions");
+    });
+
+    it("merges into a true near-duplicate (retain 'merge') instead of storing twice", async () => {
+      // retain with no consolidateOptions folds a ≥0.8 cosine dup into the
+      // existing row and reports its id — the new content is not stored twice.
+      vi.mocked(retain).mockResolvedValue(retainResult({ action: "merge", memoryId: "dup-1" }));
+
+      const tool = createMemoryVaultTool(mockVaultCtx, autoConfirm, embeddingOptions, cache);
+      const result = await tool.executor!({ content: "User likes dogs" });
+
+      expect(createVaultMemoryOp).not.toHaveBeenCalled();
+      expect(result).toBe("Memory merged into an existing memory (ID: dup-1).");
+    });
+
+    it("creates + reports the new id for a genuinely distinct fact (never success without persisting)", async () => {
+      // A distinct fact clears no cosine threshold, so retain creates a new row
+      // and hands back its id — the tool never reports success without a persisted id.
+      vi.mocked(retain).mockResolvedValue(retainResult({ action: "create", memoryId: "fresh-1" }));
+
+      const tool = createMemoryVaultTool(mockVaultCtx, autoConfirm, embeddingOptions, cache);
+      const result = await tool.executor!({ content: "User is allergic to shellfish" });
+
+      expect(result).toBe("Memory saved successfully (ID: fresh-1).");
     });
 
     it("maps a retain merge/supersede result to an accurate message", async () => {
@@ -416,9 +443,7 @@ describe("createMemoryVaultTool", () => {
         "Memory merged into an existing memory (ID: dup-1)."
       );
 
-      vi.mocked(retain).mockResolvedValue(
-        retainResult({ action: "supersede", memoryId: "new-2" })
-      );
+      vi.mocked(retain).mockResolvedValue(retainResult({ action: "supersede", memoryId: "new-2" }));
       expect(await tool.executor!({ content: "User now prefers cats" })).toBe(
         "Memory saved, replacing an outdated memory (ID: new-2)."
       );
@@ -427,7 +452,9 @@ describe("createMemoryVaultTool", () => {
     it("FALLS BACK to a raw create + eager embed when retain() throws (never lose a confirmed save)", async () => {
       // retain() throws on an embedding outage; a user-confirmed save must still land.
       vi.mocked(retain).mockRejectedValue(new Error("embeddings unavailable"));
-      vi.mocked(createVaultMemoryOp).mockResolvedValue(makeStoredMemory({ uniqueId: "fallback-1" }));
+      vi.mocked(createVaultMemoryOp).mockResolvedValue(
+        makeStoredMemory({ uniqueId: "fallback-1" })
+      );
 
       const tool = createMemoryVaultTool(mockVaultCtx, autoConfirm, embeddingOptions, cache);
       const result = await tool.executor!({ content: "important fact" });

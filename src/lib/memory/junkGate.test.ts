@@ -17,6 +17,13 @@ describe("isJunkMemoryContent", () => {
       expect(isJunkMemoryContent("菜食主義")).toBe(false);
     });
 
+    it("accepts a 2-char CJK fact below the Latin length floor", () => {
+      // "single" / "married" in Japanese — 2 kanji is a full word, so the CJK
+      // floor of 2 (not the Latin floor of 3) must let it through.
+      expect(isJunkMemoryContent("独身")).toBe(false);
+      expect(isJunkMemoryContent("既婚")).toBe(false);
+    });
+
     it("accepts a short-but-real fact at the length boundary", () => {
       // 3 chars, has letters → durable.
       expect(isJunkMemoryContent("cat")).toBe(false);
@@ -24,6 +31,14 @@ describe("isJunkMemoryContent", () => {
 
     it("accepts a fact with numbers as long as it has letters", () => {
       expect(isJunkMemoryContent("Runs 5k daily")).toBe(false);
+    });
+
+    it("accepts a 4-digit year (letter-free but structured)", () => {
+      expect(isJunkMemoryContent("2024")).toBe(false);
+    });
+
+    it("accepts a phone-number-like token (digits + punctuation, not pure digits)", () => {
+      expect(isJunkMemoryContent("555-1234")).toBe(false);
     });
 
     it("accepts content with trailing punctuation as long as the stem is durable", () => {
