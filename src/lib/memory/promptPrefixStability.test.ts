@@ -542,26 +542,30 @@ describe("system prompts are identical across module instantiations", () => {
   it("holds for the decay classifier", async () => {
     const now = Date.UTC(2026, 6, 1);
     const [before, after] = await captureAcrossReload(
+      // `classify` returns `DecayVerdict | Promise<DecayVerdict>` — it short-circuits
+      // synchronously when no LLM call is needed — so normalize to a promise.
       (mod, fetchFn) =>
-        (mod as typeof import("./decayClassifier"))
-          .createLlmDecayClassifier({
-            apiKey: "k",
-            fetchFn,
-            getContent: async () => "Was training for the Vantiscoro marathon",
-          })
-          .classify(
-            {
-              id: "mem_a41f",
-              factType: "other",
-              eventTimeEnd: null,
-              eventTimeKind: null,
-              updatedAt: now - 100 * 24 * 60 * 60 * 1000,
-              archivedAt: null,
-              source: "auto-extracted",
-            },
-            "keep",
-            now
-          ),
+        Promise.resolve(
+          (mod as typeof import("./decayClassifier"))
+            .createLlmDecayClassifier({
+              apiKey: "k",
+              fetchFn,
+              getContent: async () => "Was training for the Vantiscoro marathon",
+            })
+            .classify(
+              {
+                id: "mem_a41f",
+                factType: "other",
+                eventTimeEnd: null,
+                eventTimeKind: null,
+                updatedAt: now - 100 * 24 * 60 * 60 * 1000,
+                archivedAt: null,
+                source: "auto-extracted",
+              },
+              "keep",
+              now
+            )
+        ),
       "./decayClassifier",
       JSON.stringify({ verdict: "keep" })
     );

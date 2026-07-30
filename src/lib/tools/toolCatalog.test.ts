@@ -33,18 +33,21 @@ const CONNECTOR_SET_NAMES = [
 function realConnectorToolNames(): Set<string> {
   const getToken = () => null;
   const request = async () => "";
+  // Both the X and Slack factories take a proxy caller returning the upstream
+  // status + JSON. Nothing here calls it — we only read tool names.
+  const proxy = async () => ({ status: 200, json: null });
+  // `ToolConfig.function` is `unknown` because `LlmapiChatCompletionTool` is
+  // still the permissive index-signature shim (#549 TODO in clientCompat.ts).
+  const toolName = (tool: ToolConfig) => (tool.function as { name: string }).name;
 
   const names = new Set<string>(Object.keys(createGmailTools(request, request)));
-  for (const tool of createCalendarTools(getToken, request)) names.add(tool.function.name);
-  for (const tool of createDriveTools(getToken, request)) names.add(tool.function.name);
-  for (const tool of createNotionTools(getToken, request)) names.add(tool.function.name);
-  for (const tool of createGitHubTools(getToken, request)) names.add(tool.function.name);
-  for (const tool of Object.values(createXTools(async () => null)))
-    names.add((tool as { function: { name: string } }).function.name);
-  for (const tool of Object.values(createSlackTools(async () => ({ status: 200, json: null }))))
-    names.add((tool as { function: { name: string } }).function.name);
-  for (const tool of Object.values(createDropboxTools(request, request)))
-    names.add((tool as { function: { name: string } }).function.name);
+  for (const tool of createCalendarTools(getToken, request)) names.add(toolName(tool));
+  for (const tool of createDriveTools(getToken, request)) names.add(toolName(tool));
+  for (const tool of createNotionTools(getToken, request)) names.add(toolName(tool));
+  for (const tool of createGitHubTools(getToken, request)) names.add(toolName(tool));
+  for (const tool of Object.values(createXTools(proxy))) names.add(toolName(tool));
+  for (const tool of Object.values(createSlackTools(proxy))) names.add(toolName(tool));
+  for (const tool of Object.values(createDropboxTools(request, request))) names.add(toolName(tool));
   return names;
 }
 

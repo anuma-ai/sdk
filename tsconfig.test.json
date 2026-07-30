@@ -1,4 +1,5 @@
-// Typecheck config for `test/` — the eval harness and the e2e tool suites.
+// Typecheck config for test code: the `test/` eval harness and e2e suites, plus
+// every colocated `*.test.ts(x)` under `src/`.
 //
 // The root `tsconfig.json` is `include: ["src/**/*"]`, so until this existed
 // NOTHING under `test/` was typechecked by `pnpm typecheck` or by CI. That is the
@@ -23,6 +24,23 @@
 // `nodenext` instead would demand explicit `.js` extensions and fail on files that
 // run fine today — checking them under rules they are never executed under would
 // report problems that do not exist.
+//
+// The `src/**/*.test.*` globs are here for the same reason `test/**/*` is, and they
+// arrived later because the hole was less obvious: the root config's
+// `exclude: ["**/*.test.ts", ...]` silently dropped 168 colocated suites, so a test
+// whose fixture had drifted out of shape still ran green and still reported nothing.
+// That is worse than an uncompiled harness — a suite that passes `{}` where the
+// signature grew three required fields keeps its name and stops testing what the
+// name claims.
+//
+// They belong to THIS config, not a widened root `include`, and the reason is the
+// same "never executed under those rules" argument as above, with receipts. The root
+// targets `es2020`, so `expect(calls.at(-1))` — a normal idiom in these suites, and
+// fine on every Node the tests run on — reports TS2550 "Property 'at' does not
+// exist". And `rootDir: "./src"` rejects `src/lib/memory/entitySalience.test.ts`
+// outright with TS6059, because it imports the shared topic dataset out of
+// `test/memory/`. Checking src tests under the root config invents 5 errors in 4
+// files that do not exist under the settings vitest actually uses.
 {
   "extends": "./tsconfig.json",
   "compilerOptions": {
@@ -35,10 +53,33 @@
     "target": "es2022",
     "types": ["node"]
   },
-  // `src/` arrives transitively via the harness's imports and is checked as a
-  // side effect, which is intended: a `src` change that breaks a harness call
-  // site should fail here.
-  "include": ["test/**/*"],
+  // Non-test `src/` arrives transitively via the imports and is checked as a side
+  // effect, which is intended: a `src` change that breaks a call site should fail
+  // here. The `*.spec.*` globs match nothing today but mirror
+  // `vitest.config.mts`'s include — vitest would run such a file, so tsc should see
+  // it the day someone adds one.
+  "include": [
+    "test/**/*",
+    "src/**/*.test.ts",
+    "src/**/*.test.tsx",
+    "src/**/*.spec.ts",
+    "src/**/*.spec.tsx"
+  ],
   // The root config excludes `**/*.test.ts`; test files are the point here.
-  "exclude": []
+  //
+  // The five entries below are the pre-existing errors this config would otherwise
+  // start reporting in suites that open PRs are mid-rewrite on. Their fixture rot is
+  // the same StoredVaultMemory drift fixed everywhere else, but the fixes land on the
+  // exact lines those branches are rewriting (#834 rewrites retain.test.ts around
+  // both 107 and 576), so fixing them here buys nothing but conflicts. Delete these
+  // five lines and fix the 21 errors once both PRs are in — tracked on #820.
+  "exclude": [
+    // #832 (query decomposition out of recall)
+    "src/lib/memory/recall.test.ts",
+    "src/lib/memory/recallTool.test.ts",
+    "src/lib/memoryVault/searchTool.test.ts",
+    // #834 (tool-save via retain)
+    "src/lib/memory/retain.test.ts",
+    "src/lib/memoryVault/tool.test.ts"
+  ]
 }

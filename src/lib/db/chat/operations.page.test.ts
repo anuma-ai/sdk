@@ -329,7 +329,7 @@ describe("getConversationsPageOp", () => {
     expect(page.map((c) => c.conversationId)).toEqual(["conv-10", "conv-9", "conv-8", "conv-7"]);
     // Lazy projection: raw title under encryptedTitle, no decrypted `title`.
     expect(page[0].encryptedTitle).toBe("title 10");
-    expect((page[0] as Record<string, unknown>).title).toBeUndefined();
+    expect((page[0] as unknown as Record<string, unknown>).title).toBeUndefined();
   });
 
   it("defaults to a 200-row page and returns all when fewer exist", async () => {

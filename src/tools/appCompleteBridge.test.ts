@@ -232,7 +232,7 @@ describe("createAppCompleteBridge connect handshake", () => {
     // re-announce loop). The bridge must ack exactly once.
     const spy = vi.fn();
     const source = { postMessage: spy } as unknown as Window;
-    const fire = (): void =>
+    const fire = (): void => {
       window.dispatchEvent(
         new MessageEvent("message", {
           data: { type: APP_COMPLETE_CONNECT_TYPE, id: "retry-1" },
@@ -240,6 +240,7 @@ describe("createAppCompleteBridge connect handshake", () => {
           source,
         })
       );
+    };
     fire();
     fire();
     fire();
