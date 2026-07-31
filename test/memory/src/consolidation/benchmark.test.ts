@@ -9,7 +9,8 @@
  *
  * This harness runs a FIXED set of hand-labelled cases through
  * `consolidateMemory` across several candidate models and reports, per model:
- *   - accuracy (right action AND right target ids), overall + by category
+ *   - accuracy (right action AND right target ids) over the decisions that
+ *     COMPLETED, overall + by category
  *   - fallback rate (LLM error / schema violation → degraded to create)
  *   - median latency per decision
  *
@@ -53,45 +54,6 @@ import {
 // ---------------------------------------------------------------------------
 
 const DEFAULT_BASELINE_PATH = "test/memory/src/consolidation/baseline.json";
-
-/**
- * Gated metrics.
- *
- * IMPORTANT — this gate is coarse by construction. The corpus is 7 hand-labelled
- * cases, so at `--runs 5` one flipped decision moves accuracy by 1/35 ≈ 2.9%.
- * That makes this a detector for a COLLAPSE (a broken prompt, a schema change the
- * model can't satisfy, a fallback storm) rather than for fine-grained quality
- * drift. Growing the corpus is what would make a tighter gate meaningful.
- *
- * Each individual pass scores in 1/7 steps, so a 5-run baseline is a coin flip:
- * consecutive 5-run passes of the live model scored 94.3% / 100% / 82.9%, and a
- * baseline generated from the lucky 100% pass would red the gate on the healthy
- * 82.9% one. The committed baseline is therefore generated at `--runs 15`, where
- * the mean is representative. The workflow gates at the same run count — the
- * benchmark REFUSES to compare across a different one.
- *
- * The FLOOR below is sized to the MEAN, not to a single pass. 15 passes over 7
- * cases is 105 decisions, so one flipped decision moves the gated mean by
- * 1/105 = 0.95pt, and 0.03 sits above three flips.
- *
- * It was previously 0.12–0.18, sized for a single pass (1/7 = 14.3pt). Applied to
- * a 15-pass mean that made the gate ~sqrt(15) too loose: a case failing on EVERY
- * pass moves the mean 12.4pt and was reported as "no regressions" — it took 3+
- * simultaneously broken cases to fire at all (#772 review). `gate.ts` now derives
- * the working tolerance from the standard error of the mean difference; this floor
- * only stops a freakishly stable capture from setting a hair-trigger.
- */
-const GATE_METRICS: GateMetricSpec[] = [
-  {
-    key: "overallAccuracy",
-    direction: "higher-better",
-    minTolerance: 0.03,
-    label: "accuracy",
-  },
-  // Fallbacks are the silent failure mode: a create-fallback leaves the stale
-  // contradiction consolidation exists to retire. Higher is worse.
-  { key: "fallbackRate", direction: "lower-better", minTolerance: 0.03, label: "fallback rate" },
-];
 
 const { values: args } = parseArgs({
   options: {
@@ -257,6 +219,179 @@ const CASES: Case[] = [
     ],
     expect: { action: "create" },
   },
+
+  // ---- Second of each category (see GATE_METRICS below for why 12) --------
+  // Every case below must have exactly ONE defensible answer. A case a competent
+  // human would argue about adds variance instead of removing it, which is the
+  // opposite of why the corpus grew.
+  {
+    name: "unrelated health fact",
+    category: "create",
+    newFact: "User is allergic to penicillin.",
+    candidates: [
+      { id: "c1", content: "User takes vitamin D every morning.", similarity: 0.36 },
+      { id: "c2", content: "User's dentist is on Pine Street.", similarity: 0.24 },
+    ],
+    expect: { action: "create" },
+  },
+  {
+    name: "same facet, adds an attribute",
+    category: "update",
+    newFact: "User's cat Mochi is four years old.",
+    candidates: [
+      { id: "c1", content: "User has a cat named Mochi.", similarity: 0.85 },
+      { id: "c2", content: "User is allergic to pollen.", similarity: 0.19 },
+    ],
+    expect: { action: "update", targetIds: ["c1"] },
+  },
+  {
+    name: "standing value contradicted (1 stale)",
+    category: "supersede-single",
+    newFact: "User is vegetarian.",
+    candidates: [
+      { id: "c1", content: "User eats meat a few times a week.", similarity: 0.81 },
+      { id: "c2", content: "User loves Thai food.", similarity: 0.33 },
+    ],
+    expect: { action: "supersede", targetIds: ["c1"] },
+  },
+  {
+    name: "standing value changed (3 paraphrased dupes, different facet)",
+    category: "supersede-multi",
+    newFact: "User's primary laptop is a MacBook Pro.",
+    candidates: [
+      { id: "c1", content: "User's main laptop is a ThinkPad X1.", similarity: 0.85 },
+      { id: "c2", content: "User uses a ThinkPad as their primary machine.", similarity: 0.84 },
+      { id: "c3", content: "User's daily-driver laptop is a ThinkPad.", similarity: 0.83 },
+      { id: "c4", content: "User has two external monitors.", similarity: 0.22 },
+    ],
+    expect: { action: "supersede", targetIds: ["c1", "c2", "c3"] },
+  },
+  {
+    // Restored after #825: the prompt now routes pure rewordings to noop. This
+    // fixture's wording is the one in the production prompt ("two kids" /
+    // "two children") — without it that rule has no live-eval coverage.
+    // Measured 5/5 on ling-2.6-flash after the prompt fix.
+    name: "already captured, different wording",
+    category: "noop",
+    newFact: "User has two children.",
+    candidates: [
+      { id: "c1", content: "User has two kids.", similarity: 0.95 },
+      { id: "c2", content: "User is married.", similarity: 0.41 },
+    ],
+    expect: { action: "noop", targetIds: ["c1"] },
+  },
+  // NOT restored: "different subject, same predicate → create not merge"
+  // (sister lives in Denver). #825 added the SAME SUBJECT REQUIRED rule, but
+  // ling-2.6-flash still supersedes on this fixture ~5–7/8 of the time — so
+  // putting it back would recreate the negative-margin trap this PR documents.
+  // Prompt text is pinned in consolidate.test.ts; the live fixture waits on a
+  // model that actually clears it.
+];
+
+/**
+ * Gated metrics.
+ *
+ * Declared AFTER `CASES` because `itemsPerRun` reads `CASES.length`: at module
+ * scope a const can't be referenced before its initializer runs.
+ *
+ * This gate detects a COLLAPSE — a broken prompt, a schema the model can't
+ * satisfy, a fallback storm — not fine-grained quality drift. The resolution
+ * limit is one case: 12 cases x 15 passes is 180 decisions, so a single case
+ * failing on EVERY pass moves the gated mean by 1/12 = 8.3pt, and the working
+ * tolerance is deliberately set below that and above the run-to-run noise.
+ *
+ * WHY `itemsPerRun`. Accuracy is a rate over the corpus, and a rate's variance is
+ * `p(1-p)/cases` — it shrinks as p approaches 1. So a baseline that draws a
+ * lucky-high mean ALSO records an unusually small spread, and the gate compounds
+ * both errors in the same direction: bar too high, band too narrow. That is not
+ * hypothetical — the 7-case baseline captured 98.1% against a true mean of 95.4%
+ * and failed 8 of 26 subsequent runs (31%) with no code change. `itemsPerRun`
+ * floors the spread at what the mean actually implies; see `binomialRunStdDev`.
+ *
+ * `itemsPerRun` is on accuracy only, set to `CASES.length` as an upper bound
+ * rather than an exact count: `metricsFor` scores accuracy over the decisions
+ * that COMPLETED, so a run with fallbacks had fewer effective items and is
+ * slightly noisier than the floor assumes. The error is second-order at the
+ * single-digit fallback rates seen in practice, and it errs toward a tighter
+ * gate — if `fallbackRate` is high enough for it to matter, that metric's own
+ * band fires first and names the cause.
+ *
+ * `fallbackRate` deliberately omits `itemsPerRun`. Accuracy divides by completed
+ * decisions, so a "stops producing parseable output" regression is invisible to
+ * it and `fallbackRate` is the only detector. Near zero the binomial floor is
+ * tiny, but a capture taken during a provider wobble records a non-zero mean and
+ * the floor then WIDENS the ceiling off that weather — baking the same
+ * unrepresentative-capture failure this PR exists to eliminate into the one
+ * metric that has to catch absent decisions. Empirical spread alone (plus
+ * `minTolerance`) is the right band here.
+ *
+ * WHY THE CORPUS IS 12 AND WHY GROWING IT IS NOT FREE. Two bounds squeeze it from
+ * both sides, and the second one is counter-intuitive:
+ *
+ *   Upper bound — tolerance shrinks as 1/sqrt(cases) but one case's weight shrinks
+ *   as 1/cases, so the two cross. Past roughly 28 cases (at 15 runs) the tolerance
+ *   drops BELOW one case's weight and a fully-broken case stops firing: the gate
+ *   grows more precise and less useful at the same time.
+ *
+ *   The real bound — a rate's variance is p(1-p), so adding cases the model gets
+ *   WRONG raises the noise faster than the extra cases lower it. Learned the hard
+ *   way: this corpus was taken to 14 and three of the new cases scored 0/25, which
+ *   dropped the mean from 95% to 72%. At p=0.72 the variance is 4.4x what it is at
+ *   p=0.95, the tolerance grew to 8.2pt against a one-case weight of 7.1pt, and the
+ *   margin went NEGATIVE — a bigger corpus that could no longer detect a broken
+ *   case. Those three were removed. A case only pays for itself if the model
+ *   reliably gets it right; a case it fails is a finding to file, not a fixture.
+ *
+ *   After #825 fixed the rewording → noop prompt weakness, that fixture came
+ *   back (measured 5/5). The sister/Denver different-subject case did NOT —
+ *   ling-2.6-flash still supersedes on it most of the time, so restoring it would
+ *   recreate the trap above. Tokyo March vs January stayed out as a bad fixture
+ *   with no single defensible label. So 12 = the 11 healthy cases + the one
+ *   finding that actually cleared.
+ *
+ * So most of the false-failure fix above comes from `itemsPerRun` and an honest
+ * baseline, not from corpus size. 12 over 7 buys a modest resolution gain for
+ * ~1.7x the LLM cost.
+ *
+ * That cost is wall-clock, not just spend: cases run SEQUENTIALLY, and the
+ * per-decision latency was measured anywhere from 1.4s to 4.5s depending on
+ * provider load. At the slow end a 25-run capture is ~22 minutes against the job's
+ * 30-minute timeout, which is the real ceiling on both corpus size and run count.
+ *
+ * The committed baseline is generated at `--runs 25` while the workflow GATES at
+ * 15. Deliberately asymmetric: a capture's error in the mean is permanent until
+ * someone regenerates it — and mis-estimating that mean is precisely what broke
+ * this gate — whereas a gate run's cost is paid again on every PR. So buy
+ * precision where it lasts. Over 12 cases, 25 passes put the mean's standard error
+ * at ~1.3pp against ~1.7pp at 15. Not higher: 40 passes is 480 sequential calls,
+ * which at the 4.5s latency seen above is past the job's 30-minute timeout.
+ *
+ * The counts need NOT match — `meanDiffTolerance` folds both into the tolerance,
+ * and `runs` is deliberately absent from the recorded config for that reason. But
+ * note the spread term DOMINATES the floor here, so gating at fewer runs than 15
+ * genuinely widens the gate. Contrast the topic gate, where every floor dominates
+ * and gating at 5 against a 10-run baseline is free.
+ *
+ * `minTolerance` remains the absolute backstop for a degenerate all-identical
+ * capture, where both the empirical and binomial spreads are zero.
+ */
+const GATE_METRICS: GateMetricSpec[] = [
+  {
+    key: "overallAccuracy",
+    direction: "higher-better",
+    minTolerance: 0.03,
+    label: "accuracy",
+    itemsPerRun: CASES.length,
+  },
+  // Fallbacks are the silent failure mode: a create-fallback leaves the stale
+  // contradiction consolidation exists to retire. Higher is worse. No
+  // `itemsPerRun` — see GATE_METRICS doc above.
+  {
+    key: "fallbackRate",
+    direction: "lower-better",
+    minTolerance: 0.03,
+    label: "fallback rate",
+  },
 ];
 
 // ---------------------------------------------------------------------------
@@ -333,8 +468,24 @@ type ConsolidationRunMetrics = {
 
 function metricsFor(results: readonly RunResult[]): ConsolidationRunMetrics {
   const total = results.length || 1;
+  // Accuracy is over the decisions that actually HAPPENED. A fallback is not a
+  // wrong decision, it's an absent one — the provider 429'd or returned
+  // unparseable JSON, so the model never got to be right or wrong. Dividing by
+  // every attempt made accuracy a second provider-health metric, which is what
+  // `fallbackRate` already is, and it corrupted baselines: a capture taken during
+  // an OpenRouter wobble recorded 88.4% where the same decisions scored 96.8%
+  // over the ones that completed. That is the exact unrepresentative-capture
+  // failure this gate's calibration exists to prevent, arriving through the
+  // metric instead of the tolerance. It also matches what the report legend has
+  // claimed all along ("excluding fallbacks").
+  const scored = results.filter((r) => !r.fallback);
   return {
-    overallAccuracy: results.filter((r) => r.correct).length / total,
+    // Every decision fell back: no accuracy signal exists, so report the floor
+    // rather than NaN (which compares false against any tolerance and would read
+    // as "no regression"). `fallbackRate` hits 1.0 in the same run and names the
+    // real cause, so the two together are unambiguous.
+    overallAccuracy:
+      scored.length === 0 ? 0 : scored.filter((r) => r.correct).length / scored.length,
     fallbackRate: results.filter((r) => r.fallback).length / total,
   };
 }
@@ -488,10 +639,17 @@ function mean(xs: number[]): number {
 }
 
 /** The knobs the numbers depend on, recorded in the baseline and refused on mismatch. */
-function gateConfig(model: string): { model: string; runs: number; cases: number } {
-  // `cases` is recorded too: growing the corpus changes what the accuracy means,
-  // so an old baseline must be regenerated rather than silently compared.
-  return { model, runs: RUNS, cases: CASES.length };
+function gateConfig(model: string): { model: string; cases: number } {
+  // `cases` IS recorded: growing the corpus changes what the accuracy means, so
+  // an old baseline must be regenerated rather than silently compared.
+  //
+  // `runs` is NOT, for the same reason as the topic gate: it moves the
+  // uncertainty of the mean, not its meaning, and `meanDiffTolerance` already
+  // folds both run counts into the tolerance. Note the practical difference from
+  // topic though — here the spread term dominates the floor, so gating at fewer
+  // runs genuinely widens the gate rather than being free. The workflow stays at
+  // 15 by choice, not by enforcement.
+  return { model, cases: CASES.length };
 }
 
 async function saveBaseline(

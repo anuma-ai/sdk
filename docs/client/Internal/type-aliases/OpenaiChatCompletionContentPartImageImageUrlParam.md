@@ -2,7 +2,7 @@
 
 > **OpenaiChatCompletionContentPartImageImageUrlParam** = `object`
 
-Defined in: [src/client/types.gen.ts:3474](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3474)
+Defined in: [src/client/types.gen.ts:3502](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3502)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:3474](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **any**: `unknown`
 
-Defined in: [src/client/types.gen.ts:3475](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3475)
+Defined in: [src/client/types.gen.ts:3503](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3503)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:3475](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **detail**: `string`
 
-Defined in: [src/client/types.gen.ts:3482](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3482)
+Defined in: [src/client/types.gen.ts:3510](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3510)
 
 Specifies the detail level of the image. Learn more in the
 [Vision guide](https://platform.openai.com/docs/guides/vision#low-or-high-fidelity-image-understanding).
@@ -31,6 +31,6 @@ Any of "auto", "low", "high".
 
 > `optional` **url**: `string`
 
-Defined in: [src/client/types.gen.ts:3486](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3486)
+Defined in: [src/client/types.gen.ts:3514](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3514)
 
 Either a URL of the image or the base64 encoded image data.

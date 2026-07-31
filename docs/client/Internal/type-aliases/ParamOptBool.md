@@ -2,7 +2,7 @@
 
 > **ParamOptBool** = `object`
 
-Defined in: [src/client/types.gen.ts:4169](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4169)
+Defined in: [src/client/types.gen.ts:4197](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4197)
 
 Whether to enable strict schema adherence when generating the function call. If
 set to true, the model will follow the exact schema defined in the `parameters`
@@ -16,4 +16,4 @@ more about Structured Outputs in the
 
 > `optional` **value**: `boolean`
 
-Defined in: [src/client/types.gen.ts:4170](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4170)
+Defined in: [src/client/types.gen.ts:4198](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4198)

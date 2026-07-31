@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 
-import type { SlideElement } from "./index";
 import {
   getLayoutByName,
   LAYOUT_TEMPLATES,
@@ -10,6 +9,11 @@ import {
   renderSharedHeader,
   SHARED_HEADER_ELEMENTS,
 } from "./layouts";
+
+// The layout element type is module-local to `layouts.ts` (it used to be the
+// exported `SlideElement` union on `./index`), so pull it off an exported value
+// rather than reaching for a name that no longer exists.
+type SlideElement = (typeof SHARED_HEADER_ELEMENTS)[number];
 
 // Narrow runtime check that a value has the shape of a SlideElement.
 // TypeScript already guarantees this at compile time; this catches mistakes

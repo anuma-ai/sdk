@@ -8,9 +8,14 @@
  */
 
 import type { ToolConfig } from "../chat/useChat/types.js";
+import { decomposeQuery } from "../memoryVault/decomposeQuery.js";
 import { normalizeForScreen } from "./injectionScreen.js";
 import { recall } from "./recall.js";
-import { RECALL_MAX_LIMIT, RECALL_TOOL_NAME } from "./recallConstants.js";
+import {
+  EMBEDDINGS_DEGRADED_EMPTY,
+  RECALL_MAX_LIMIT,
+  RECALL_TOOL_NAME,
+} from "./recallConstants.js";
 import type {
   Budget,
   MemoryKind,
@@ -43,7 +48,8 @@ export interface RecallToolOptions {
   folderId?: string | null;
   /** Exclude one conversation from chunk results (typically the active one). */
   excludeConversationId?: string;
-  /** LLM-decompose options; only used at budget="high". Auth follows the
+  /** LLM-decompose options; only used at budget="high". Runs in THIS tool
+   * executor (719/B4) — `recall()` itself is LLM-free. Auth follows the
    * dual pattern: apiKey (server/CLI) or getToken (browser identity
    * tokens) — at least one required. */
   decomposeOptions?: PortalLlmAuth & {
@@ -338,7 +344,10 @@ export function createRecallTool(
         "Search the user's memory across stored facts/preferences and past conversation excerpts. " +
         "Returns a unified ranked list — facts carry an `id` you can reference; conversation excerpts " +
         "carry a date and role. Use this whenever the user's question may relate to anything previously " +
-        "discussed or saved (preferences, prior decisions, past topics). Phrase the query naturally.",
+        "discussed or saved (preferences, prior decisions, past topics). Phrase the query naturally. " +
+        'For multi-faceted / overview questions ("tell me about the user", "what\'s my tech stack"), ' +
+        "prefer several targeted searches — one facet each (e.g. name, work, hobbies) — over a single " +
+        "broad query; fuse the results yourself.",
       arguments: {
         type: "object",
         properties: {
@@ -435,7 +444,29 @@ export function createRecallTool(
       let surfaced = 0;
 
       try {
+        // Read the degradation off the diagnostics seam rather than widening
+        // RecallResult — it is the channel that already exists for exactly this,
+        // and the vault search tool reads it the same way.
+        let recallDegraded: readonly string[] = [];
+
+        // 719/B4 — query decomposition lives in the tool layer, not inside
+        // recall(). At budget=high with auth, classify + (if composite) expand
+        // into facet sub-queries, then hand the facets to LLM-free recall.
+        // Failure / specific-mode degrades to a single-query recall (no
+        // subQueries) — same contract as the old in-pipeline path, but the
+        // 1–2s LLM RTT is no longer buried inside retrieval.
+        let subQueries: string[] | undefined;
+        if (defaultBudget === "high" && toolOptions?.decomposeOptions) {
+          const decomp = await decomposeQuery(query, toolOptions.decomposeOptions);
+          if (decomp.mode === "composite" && decomp.subQueries.length >= 2) {
+            subQueries = decomp.subQueries;
+          }
+        }
+
         const recallOpts: RecallOptions = {
+          onDiagnostics: (d) => {
+            recallDegraded = d.degraded;
+          },
           types: defaultTypes,
           limit: effectiveLimit,
           budget: defaultBudget,
@@ -445,10 +476,12 @@ export function createRecallTool(
           ...(toolOptions?.excludeConversationId && {
             excludeConversationId: toolOptions.excludeConversationId,
           }),
-          ...(toolOptions?.decomposeOptions && {
-            decomposeOptions: toolOptions.decomposeOptions,
-          }),
+          // Do NOT forward decomposeOptions into recall() — rewrite already
+          // ran above, and forwarding would falsely trip `decompose-moved`
+          // on every specific-mode high-budget call. graphRefine auth can
+          // be threaded later when the tool opts into that path.
           ...(toolOptions?.now !== undefined && { now: toolOptions.now }),
+          ...(subQueries && { subQueries }),
         };
 
         const result = await recall(query, ctx, recallOpts);
@@ -476,6 +509,15 @@ export function createRecallTool(
         // Record what actually came back; `finally` releases the unused
         // portion of the reservation.
         surfaced = result.memories.length;
+
+        // An empty recall while the cosine lane was down is NOT evidence the
+        // memory doesn't exist, and "No relevant memories found." reads to the
+        // answer model as exactly that — it answers confidently in the negative.
+        // Handled here rather than inside `formatRecallResult` so that helper's
+        // exported contract (memories → fenced string) stays as-is.
+        if (result.memories.length === 0 && recallDegraded.includes("embeddings-unavailable")) {
+          return EMBEDDINGS_DEGRADED_EMPTY;
+        }
 
         const formatted = formatRecallResult(result.memories);
         // Append a truncation notice if the caller asked for more than the

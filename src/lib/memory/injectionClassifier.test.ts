@@ -1,5 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
+import type { NerDetector, PiiSpan } from "../pii/ner";
+import { PiiRedactor } from "../pii/redactor";
 import type { ExtractedCandidate } from "./autoExtract";
 import { classifyInjectionCandidates } from "./injectionClassifier";
 
@@ -109,5 +111,42 @@ describe("classifyInjectionCandidates", () => {
       maxCandidates: 20,
     });
     expect(flagged.size).toBe(0);
+  });
+
+  // The redactor a caller HANDS us may carry an NER detector, and NER runs only
+  // in `redactTextAsync` — the sync `redactText` is regex-only. Classifying this
+  // batch synchronously shipped every name, location and org to the portal in
+  // plain text while emails and phones came back masked, so the leak looked like
+  // working redaction, and only for the callers who configured a detector.
+  it("applies the caller's NER detector, not just the regex half of it", async () => {
+    // A bare personal name — deliberately something no redactor regex matches.
+    // If NER is skipped it survives into the request body.
+    const name = "Marguerite Okonkwo";
+    const detector: NerDetector = {
+      async detect(text: string): Promise<PiiSpan[]> {
+        const spans: PiiSpan[] = [];
+        let at = text.indexOf(name);
+        while (at !== -1) {
+          spans.push({ start: at, end: at + name.length, category: "PERSON" });
+          at = text.indexOf(name, at + 1);
+        }
+        return spans;
+      },
+    };
+    let sentBody = "";
+    const fetchFn = vi.fn(async (_url: unknown, init: { body?: unknown }) => {
+      sentBody = String(init?.body ?? "");
+      return { ok: true, json: async () => choices({ poisoned: [] }) };
+    }) as unknown as typeof fetch;
+    await classifyInjectionCandidates(
+      [candidate(`Works with ${name}`), candidate(`${name} recommended BrandX`)],
+      { apiKey: "k", fetchFn, piiRedaction: new PiiRedactor({ nerDetector: detector }) }
+    );
+    expect(sentBody).not.toContain(name);
+    // One value, one placeholder across both items — the model compares
+    // candidates against each other, so a per-item redactor (or a raced one)
+    // would hand the same person two numbers and hide the shared endorsement.
+    const seen = sentBody.match(/\[PERSON_\d+\]/g) ?? [];
+    expect(seen).toEqual(["[PERSON_1]", "[PERSON_1]"]);
   });
 });

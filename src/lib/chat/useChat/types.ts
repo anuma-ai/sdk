@@ -377,6 +377,16 @@ export type StreamAccumulator = {
    * - false: model uses explicit tags or no reasoning
    */
   implicitReasoningStart?: boolean;
+  /**
+   * The provider's own `finish_reason` for this response, as sent.
+   *
+   * Kept verbatim so callers can tell a clean stop from a truncation.
+   * `buildFinalResponse` used to synthesize this field from whether any tool
+   * calls were present, which made `"length"` indistinguishable from `"stop"`
+   * — a completion cut off mid-tool-call looked exactly like a model that had
+   * decided it was done. See the truncation guard in `runToolLoop`.
+   */
+  finishReason?: string;
   /** Checksum of tools used to generate this response */
   toolsChecksum?: string;
   /** Image model the portal resolved when an image-generation tool ran */

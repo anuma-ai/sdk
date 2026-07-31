@@ -128,21 +128,122 @@ export const DEFAULT_PROFILE_FACETS: ProfileFacet[] = [
   },
 ];
 
+/**
+ * Caps the consuming profile store enforces on the structured attributes
+ * (`nearby` internal/profiles/service.go — `maxOccupationLen`, `maxInterests`,
+ * `maxInterestLen`). An over-cap value is REJECTED outright, never truncated,
+ * and one rejected attribute fails the whole profile upsert — so synthesis has
+ * to land inside these itself or the values it emits are unpublishable.
+ *
+ * Counted in CODE POINTS, matching Go's `utf8.RuneCountInString`. Deliberately
+ * not `String.prototype.length`, which counts UTF-16 units and scores every
+ * astral-plane character (emoji, rarer CJK) double — that would drop values the
+ * server would happily have taken.
+ */
+const NEARBY_MAX_OCCUPATION_CODEPOINTS = 80;
+const NEARBY_MAX_INTERESTS = 12;
+const NEARBY_MAX_INTEREST_CODEPOINTS = 40;
+
+/**
+ * Ceiling on how many raw interest entries survive extraction. Not the publish
+ * cap — normalization drops blanks, over-long entries and duplicates AFTER
+ * redaction, so the raw list needs slack or a couple of junk entries would
+ * starve real ones out of the twelve.
+ *
+ * It does need SOME ceiling, because every surviving entry costs one NER
+ * inference before the cap is ever applied (see {@link synthesizeFacet}), and
+ * this field is unenforced model output: a response that ignores the array shape
+ * can hand back hundreds of fragments — a comma-heavy string splits into one
+ * entry per comma — turning one synthesis into hundreds of sequential
+ * inferences. Twice the publish cap leaves the dedupe-then-cap behaviour intact
+ * for anything resembling a real answer and bounds the work regardless.
+ */
+const MAX_RAW_INTERESTS = NEARBY_MAX_INTERESTS * 2;
+
+/** Code-point (rune) length — see the cap constants above for why this can't be
+ * `value.length`. */
+function codePointLength(value: string): number {
+  return [...value].length;
+}
+
+/** The prose contract every facet's synthesis shares. */
+const FACET_BASE_PROPERTIES: Record<string, unknown> = {
+  summary: {
+    type: "string",
+    description: "The synthesized section prose. Empty string if the memories don't cover it.",
+  },
+  hasEvidence: {
+    type: "boolean",
+    description: "False when the supplied memories don't support any claim for this facet.",
+  },
+};
+
 /** JSON schema coercing each facet's synthesis into a structured section. */
 const FACET_RESPONSE_SCHEMA: Record<string, unknown> = {
   type: "object",
-  properties: {
-    summary: {
-      type: "string",
-      description: "The synthesized section prose. Empty string if the memories don't cover it.",
-    },
-    hasEvidence: {
-      type: "boolean",
-      description: "False when the supplied memories don't support any claim for this facet.",
-    },
-  },
+  properties: FACET_BASE_PROPERTIES,
   required: ["summary", "hasEvidence"],
   additionalProperties: false,
+};
+
+/**
+ * work_role and interests additionally emit a PUBLISH-READY structured value
+ * beside the prose, because the consuming profile store has dedicated
+ * `occupation` / `interests` columns and prose doesn't fit them. The `summary`
+ * contract is untouched — the sections have their own consumers, and the
+ * structured value is purely additive.
+ *
+ * The caps live in the field descriptions rather than as `maxLength` /
+ * `maxItems` keywords on purpose. The default synthesis model isn't in
+ * `supportsResponseFormat`'s `json_schema` allowlist, so `reflect` hands it this
+ * schema as prompt text (reflect.ts) where a sentence reads at least as well as
+ * a keyword; and a provider that *does* enforce json_schema can reject
+ * validation keywords it doesn't implement, turning a 200 into a 400. Either
+ * way the schema is a request, not a guarantee — the caps are actually enforced
+ * by {@link normalizeOccupation} / {@link normalizeInterests} below.
+ */
+const WORK_ROLE_RESPONSE_SCHEMA: Record<string, unknown> = {
+  type: "object",
+  properties: {
+    ...FACET_BASE_PROPERTIES,
+    occupation: {
+      type: "string",
+      description: `The same role as a standalone phrase for a profile field, at most ${NEARBY_MAX_OCCUPATION_CODEPOINTS} characters (e.g. "Backend engineer, fintech"). Empty string when hasEvidence is false.`,
+    },
+  },
+  required: ["summary", "hasEvidence", "occupation"],
+  additionalProperties: false,
+};
+
+const INTERESTS_RESPONSE_SCHEMA: Record<string, unknown> = {
+  type: "object",
+  properties: {
+    ...FACET_BASE_PROPERTIES,
+    interests: {
+      type: "array",
+      items: { type: "string" },
+      description: `The same interests as discrete strings — at most ${NEARBY_MAX_INTERESTS} items, each at most ${NEARBY_MAX_INTEREST_CODEPOINTS} characters (e.g. ["trail running", "film photography"]). Empty array when hasEvidence is false.`,
+    },
+  },
+  required: ["summary", "hasEvidence", "interests"],
+  additionalProperties: false,
+};
+
+/** The response schema a facet is synthesized under: structured for the two
+ * facets that back a profile column, the shared prose-only schema for the rest. */
+function facetResponseSchema(key: ProfileFacetKey): Record<string, unknown> {
+  if (key === "work_role") return WORK_ROLE_RESPONSE_SCHEMA;
+  if (key === "interests") return INTERESTS_RESPONSE_SCHEMA;
+  return FACET_RESPONSE_SCHEMA;
+}
+
+/** The extra structured field a column-backed facet emits, phrased for the
+ * response line of the system prompt. Mirrors the schemas above — the model
+ * sees both (reflect embeds the schema verbatim for models that can't take
+ * `response_format`), and this plain line is the one it actually follows. */
+const FACET_STRUCTURED_RESPONSE_HINT: Partial<Record<ProfileFacetKey, string>> = {
+  work_role: `, "occupation": <the role as a standalone phrase of at most ${NEARBY_MAX_OCCUPATION_CODEPOINTS} characters, e.g. "Backend engineer, fintech", or "">`,
+  interests: `, "interests": <the same interests as an array of at most ${NEARBY_MAX_INTERESTS} strings of at most ${NEARBY_MAX_INTEREST_CODEPOINTS} characters each, e.g. ["trail running", "film photography"], or []>`,
 };
 
 /** A synthesized profile section, grounded in specific vault facts. */
@@ -154,6 +255,23 @@ export interface ProfileSection {
   text: string;
   /** Vault memory ids this section was grounded on — provenance + delta refresh. */
   sourceMemoryIds: string[];
+  /**
+   * Structured occupation — the `work_role` facet only. A short role phrase
+   * (at most 80 code points, PII-gated alongside {@link ProfileSection.text})
+   * that a profile store's `occupation` column takes verbatim.
+   *
+   * Absent when the facet found no evidence, when the model didn't return one,
+   * or when the value it returned couldn't be made publishable. `text` is
+   * unaffected either way, so the prose is never blocked on this.
+   */
+  occupation?: string;
+  /**
+   * Structured interests — the `interests` facet only. Discrete entries,
+   * trimmed and deduped case- and space-insensitively (first spelling wins), at
+   * most 12 items of at most 40 code points each, ready for a profile store's
+   * `interests` column. Absent when nothing survived normalization.
+   */
+  interests?: string[];
   /** Unix ms this section was generated. */
   generatedAt: number;
   /** True when regeneration failed and a prior section value was carried
@@ -171,10 +289,12 @@ export interface ProfileConfigFingerprint {
   /** Facet keys present in the doc, sorted. */
   facetKeys: ProfileFacetKey[];
   /** Order-independent digest of each facet's full definition (key + label +
-   * query + guidance). Reuse must invalidate when a facet's PROMPT changes, not
-   * just its key set — otherwise reused sections carry text generated under the
-   * old definition. Facet display order does NOT invalidate (sections are
-   * rebuilt in facet order and reused by key). */
+   * query + guidance) and the response schema it is synthesized under. Reuse
+   * must invalidate when a facet's PROMPT changes, not just its key set —
+   * otherwise reused sections carry text generated under the old definition,
+   * or under an output schema that predates a field the caller now reads.
+   * Facet display order does NOT invalidate (sections are rebuilt in facet
+   * order and reused by key). */
   facetsSignature: string;
   /** Scopes the facts were drawn from, sorted. */
   scopes: string[];
@@ -248,10 +368,20 @@ export interface SynthesizeProfileOptions extends PortalLlmAuth {
    */
   proofCountAlpha?: number;
   /**
-   * When non-empty, intersect each facet's recalled evidence with this id set
-   * before the LLM runs (publish-review gate). Empty intersection → empty
-   * section (legitimate no-evidence), not a stale fallback. Omit / empty →
-   * no gate.
+   * Publish-review gate: when SUPPLIED, each facet's recalled evidence is
+   * intersected with this id set before the LLM runs, so synthesis can only draw
+   * on memories the user approved for publication. Empty intersection → empty
+   * section (legitimate no-evidence), not a stale fallback.
+   *
+   * Pass the user's published set (e.g. `getAllVaultMemoriesOp(ctx, { visibility:
+   * ["public"] })`) to keep a published profile derivable only from published
+   * memories — People Nearby's two-tier model treats `private` memories as never
+   * leaving the device, and a summary derived from them is a derivative that does.
+   *
+   * `[]` means "nothing approved" and gates everything OUT (no recall, no LLM
+   * call, empty sections). **Omitting the field is the only way to run ungated**
+   * — that asymmetry is deliberate, so a caller computing a published set can
+   * never accidentally disable the gate by finding it empty.
    */
   reviewedMemoryIds?: readonly string[];
 }
@@ -366,7 +496,14 @@ export async function synthesizeProfile(
     };
   }
 
-  const staleKeys = await computeStaleFacetKeys(ctx, memories, facets, previous, watermark);
+  const staleKeys = await computeStaleFacetKeys(
+    ctx,
+    memories,
+    facets,
+    previous,
+    watermark,
+    options.reviewedMemoryIds
+  );
 
   const settled = await Promise.allSettled(
     facets.map(async (facet) => {
@@ -430,18 +567,54 @@ function configMatches(
 
 /** Order-independent digest of the publish-review id set. Empty / omitted → "". */
 function reviewedMemoryIdsSignature(ids: readonly string[] | undefined): string {
-  if (ids === undefined || ids.length === 0) return "";
+  // `undefined` (no gate) and `[]` (gate active, nothing approved) are DIFFERENT configs and must
+  // produce different signatures: collapsing both to "" would let a doc synthesized ungated be
+  // reused verbatim once the caller starts passing an empty published set, silently serving
+  // private-derived content the gate now forbids. The sentinel can't collide with a real id list
+  // because ids never contain NUL.
+  if (ids === undefined) return "";
+  if (ids.length === 0) return "\u0000gated-empty";
   return [...new Set(ids)].sort().join("\n");
 }
 
-/** Order-independent digest of the facet definitions — key + label + query +
- * guidance. Sorted so facet reordering (handled by the facet-order map) doesn't
- * invalidate reuse, but any prompt/label change does. */
-function facetsSignature(facets: ProfileFacet[]): string {
+/**
+ * Order-independent digest of the facet definitions — key + label + query +
+ * guidance — plus the response schema each facet resolves to. Sorted so facet
+ * reordering (handled by the facet-order map) doesn't invalidate reuse, but any
+ * prompt/label change does.
+ *
+ * The schema belongs in here rather than beside it: `reflect` embeds it
+ * verbatim in the system prompt for every model outside its `json_schema`
+ * allowlist — which includes the default synthesis model — so a schema edit
+ * changes what the model was asked for exactly the way a guidance edit does. If
+ * it didn't invalidate, a section synthesized under the old schema would keep
+ * being reused forever, because delta refresh only revisits facets whose FACTS
+ * changed; adding a field to the output shape would silently never reach anyone
+ * with a cached doc. Folding it in also makes the NEXT schema edit
+ * self-invalidating, instead of depending on someone remembering to bump
+ * {@link PROFILE_DOC_VERSION} (which stays reserved for genuine breaks — this
+ * is an additive, optional-field change, and existing docs stay readable).
+ *
+ * Every facet folds in a schema, including the ones whose schema didn't change,
+ * so introducing this invalidates EVERY cached doc once — not just the facet
+ * sets containing work_role or interests. That's deliberate: making the fold
+ * conditional on "differs from the prose schema" would buy a narrower one-time
+ * cost and give back the guarantee, since a later edit to the shared prose
+ * schema would then invalidate nothing at all.
+ *
+ * Not exported through the barrels; `synthesizeProfile.test.ts` consumes it so
+ * the test builds prior-doc fingerprints from the real algorithm rather than a
+ * mirror of it — the schemas it folds in are module-private and a hand-copied
+ * mirror would rot into "everything regenerates" test noise.
+ */
+export function facetsSignature(facets: ProfileFacet[]): string {
   // JSON-encode each facet's fields so no field boundary can collide, sort so
   // display order doesn't matter (sections are rebuilt in facet order), join.
+  // The schema stringifies deterministically — it's a module constant, so its
+  // key order only moves when this file does, which is exactly when the
+  // signature should move.
   return facets
-    .map((f) => JSON.stringify([f.key, f.label, f.query, f.guidance]))
+    .map((f) => JSON.stringify([f.key, f.label, f.query, f.guidance, facetResponseSchema(f.key)]))
     .sort()
     .join("\n");
 }
@@ -493,6 +666,8 @@ function computeVaultWatermark(memories: StoredVaultMemory[]): number {
  *   a supersession successor) → attributed to the facets they're relevant to
  *   (see {@link attributeFacts}) rather than forcing a full re-synthesis,
  *   falling back to ALL facets only when attribution can't be computed safely.
+ *   With the review gate armed, only REVIEWED candidates are attributed — see
+ *   the note at the attribution step.
  * - Watermark DECREASE (current scoped max < previous) → the baseline is no
  *   longer reliable (a high-changeTime fact left scope / was removed), so
  *   per-fact delta against the inflated prior mark would miss real changes →
@@ -506,7 +681,8 @@ async function computeStaleFacetKeys(
   memories: StoredVaultMemory[],
   facets: ProfileFacet[],
   previous: ProfileDoc | undefined,
-  watermark: number
+  watermark: number,
+  reviewedMemoryIds: readonly string[] | undefined
 ): Promise<Set<ProfileFacetKey>> {
   const allKeys = new Set(facets.map((f) => f.key));
   if (previous && watermark < previous.vaultWatermark) return allKeys;
@@ -546,9 +722,36 @@ async function computeStaleFacetKeys(
   // successor. Attribute them to relevant facets instead of regenerating
   // everything. Cited changed facts already marked their section stale above.
   const citedIds = new Set(previous.sections.flatMap((s) => s.sourceMemoryIds));
-  const toAttribute = changed.filter(
+  let toAttribute = changed.filter(
     (m) => !m.isDeleted && !m.supersededBy && !citedIds.has(m.uniqueId)
   );
+  // The watermark and the changed-set deliberately track the WHOLE scoped vault,
+  // but the review gate intersects each facet's evidence with `reviewedMemoryIds`
+  // before anything reaches the LLM. So an UNREVIEWED changed fact is not new
+  // evidence for any section — attributing it bills a re-synthesis whose gated
+  // input is byte-identical to the one that produced the prior section. That is
+  // the common case, not an edge: chat auto-extract writes unreviewed facts on
+  // every turn, so without this filter each refresh after any conversation
+  // regenerated whatever facets the fresh fact attributed to — or ALL of them,
+  // since a just-extracted fact often has no embedding yet and attributeFacts
+  // bails to a full regenerate. Delta refresh was only cheap on a dormant vault.
+  //
+  // Only the attribution step needs the filter. A section can only cite ids that
+  // survived the gate, so the cited-changed path above is already reviewed-only;
+  // and any change to the reviewed set moves `reviewedMemoryIdsSignature`, which
+  // discards `previous` outright.
+  //
+  // Bound worth knowing: the gated recall asks for RECALL_MAX_LIMIT and slices
+  // to it *before* the intersection (see synthesizeFacet — the cap is the limit
+  // passed at that call site, not something recall applies on its own), so on a
+  // vault deep enough to fill that window an unreviewed fact can displace a
+  // reviewed one out of it and quietly change a section's evidence. That section
+  // then carries one-refresh-stale text until its own evidence moves — a far
+  // better trade than billing every facet on every turn.
+  if (reviewedMemoryIds !== undefined) {
+    const allowed = new Set(reviewedMemoryIds);
+    toAttribute = toAttribute.filter((m) => allowed.has(m.uniqueId));
+  }
   if (toAttribute.length > 0) {
     const attributed = await attributeFacts(ctx, toAttribute, facets);
     if (attributed === null) return allKeys; // can't attribute safely → regen all
@@ -660,7 +863,28 @@ async function synthesizeFacet(
   const proofCountAlpha = options.proofCountAlpha ?? DEFAULT_PROFILE_PROOF_ALPHA;
 
   const reviewed = options.reviewedMemoryIds;
-  const hasReviewGate = reviewed !== undefined && reviewed.length > 0;
+  // The gate is ACTIVE whenever the caller supplied the field at all — an empty array means
+  // "nothing is approved for publication", which must produce nothing.
+  //
+  // This deliberately reverses the previous `length > 0` condition, under which an empty array
+  // disabled the gate entirely. That failed OPEN in exactly the case the gate exists for: a caller
+  // passing its published-memory set for a user who has published nothing handed over an empty
+  // array and got synthesis across the whole private vault — and via anuma-ai/sdk#816 those private
+  // facts become public `occupation`/`interests` matching keys. People Nearby's two-tier model
+  // (private = never leaves the device) makes "omitted" the only way to ask for no gate.
+  const hasReviewGate = reviewed !== undefined;
+  if (hasReviewGate && reviewed.length === 0) {
+    // Nothing approved: return the legitimate-empty section without recalling or calling the LLM.
+    // Same shape as an empty intersection below (NOT a stale fallback — there is no failure here),
+    // and it skips all spend for what is the common state before a user publishes anything.
+    return {
+      key: facet.key,
+      label: facet.label,
+      text: "",
+      sourceMemoryIds: [],
+      generatedAt: Date.now(),
+    };
+  }
 
   // When gating, fetch up to RECALL_MAX_LIMIT before intersecting — `undefined`
   // is NOT unbounded (`recall` defaults to 8), which would shrink the pool
@@ -702,7 +926,7 @@ async function synthesizeFacet(
     types: ["fact"],
     maxTokens: DEFAULT_FACET_MAX_TOKENS,
     systemPrompt: buildFacetSystemPrompt(facet),
-    responseSchema: FACET_RESPONSE_SCHEMA,
+    responseSchema: facetResponseSchema(facet.key),
     memories,
   });
 
@@ -732,6 +956,37 @@ async function synthesizeFacet(
     const redacted = await options.redactor.redactTextAsync(text);
     section.text = redacted.text;
   }
+
+  // Structured attributes ride ALONGSIDE the prose for the two facets that back
+  // a profile column. Skipped on a no-evidence verdict (and on an empty cited
+  // set), so a section that clears its prose clears its attributes too rather
+  // than publishing values nothing grounds.
+  if (!legitimateEmpty && !noEvidence) {
+    const values = extractStructuredValues(facet.key, result.structuredOutput);
+    // Redact BEFORE enforcing the caps. These are published strings, so
+    // `config.redacted` has to hold for them as much as for the prose; and a
+    // placeholder changes both a value's length and whether two entries are
+    // duplicates, so trimming, capping and deduping have to run on the text
+    // that actually ships. Sequentially, so placeholder numbering within a
+    // section is deterministic.
+    if (options.redactor) {
+      if (values.occupation) {
+        values.occupation = (await options.redactor.redactTextAsync(values.occupation)).text;
+      }
+      if (values.interests) {
+        const gated: string[] = [];
+        for (const interest of values.interests) {
+          gated.push((await options.redactor.redactTextAsync(interest)).text);
+        }
+        values.interests = gated;
+      }
+    }
+    const occupation = normalizeOccupation(values.occupation);
+    if (occupation !== undefined) section.occupation = occupation;
+    const interests = normalizeInterests(values.interests);
+    if (interests !== undefined) section.interests = interests;
+  }
+
   return section;
 }
 
@@ -760,6 +1015,7 @@ function fallbackSection(facet: ProfileFacet, prior: ProfileSection | undefined)
 /** Grounding system prompt for a facet — reuses reflect's evidence discipline
  * and layers the facet-specific guidance + structured-output contract. */
 function buildFacetSystemPrompt(facet: ProfileFacet): string {
+  const structuredField = FACET_STRUCTURED_RESPONSE_HINT[facet.key] ?? "";
   return `You are writing the "${facet.label}" section of a person's shareable profile, using their private memories (supplied as evidence) as the only source of truth.
 
 Task for this section:
@@ -770,7 +1026,7 @@ Rules:
 - If the memories don't cover this section, return an empty summary with hasEvidence=false. Do not pad or guess.
 - Write in third person about the person, in a natural voice suitable for a public profile (no "I"/"you", no name repetition).
 - Be concise and specific; no preamble, hedging, or meta-commentary.
-- Respond as JSON: { "summary": <the section text, or "">, "hasEvidence": <true|false> }.`;
+- Respond as JSON: { "summary": <the section text, or "">, "hasEvidence": <true|false>${structuredField} }.`;
 }
 
 /** Pull section text from the structured output only. Returns `legitimateEmpty`
@@ -789,4 +1045,149 @@ function extractFacetText(structured: unknown): { text: string; legitimateEmpty:
   // text, which (since we always request structured output) is the JSON payload
   // itself and would publish a truncated `{"summary": ...` fragment as prose.
   return { text: "", legitimateEmpty: false };
+}
+
+/** A facet's structured attributes. Only the owning facet ever fills its field. */
+interface FacetStructuredValues {
+  occupation?: string;
+  interests?: string[];
+}
+
+/**
+ * Pull a facet's structured attributes off the LLM's JSON — shape-checked and
+ * count-bounded, but NOT yet trimmed, length-capped, or deduped (that runs after
+ * redaction; see {@link synthesizeFacet}).
+ *
+ * Deliberately tolerant. The default synthesis model receives the schema as a
+ * prompt instruction rather than an enforced `response_format`, so a missing or
+ * mis-shaped field is expected traffic, not an error: anything unusable is
+ * dropped and the prose section still publishes. A facet never fails because
+ * its structured attribute didn't come back.
+ */
+function extractStructuredValues(key: ProfileFacetKey, structured: unknown): FacetStructuredValues {
+  if (!structured || typeof structured !== "object") return {};
+  const obj = structured as { occupation?: unknown; interests?: unknown };
+  if (key === "work_role") {
+    return typeof obj.occupation === "string" ? { occupation: obj.occupation } : {};
+  }
+  if (key === "interests") {
+    const list = coerceInterestList(obj.interests);
+    // Bounded here rather than in normalizeInterests: the entries between the
+    // two are redacted one by one, so the ceiling has to land before that loop
+    // to actually bound anything.
+    if (list) return { interests: list.slice(0, MAX_RAW_INTERESTS) };
+  }
+  return {};
+}
+
+/**
+ * Coerce whatever landed in the `interests` slot into a list of strings, or
+ * undefined when it isn't recoverable. Non-string members are dropped rather
+ * than stringified — a number or object in there means the response was
+ * improvised, and improvised values aren't publishable.
+ */
+function coerceInterestList(value: unknown): string[] | undefined {
+  if (Array.isArray(value)) return value.filter((i): i is string => typeof i === "string");
+  if (typeof value !== "string") return undefined;
+  const trimmed = value.trim();
+  // A model that ignored the array shape either serializes the array into the
+  // slot or reaches for the comma-separated list the `summary` guidance asks
+  // for. Parse the first case: splitting `["trail running","film photography"]`
+  // on commas yields `["trail running` and `"film photography"]`, which are
+  // non-blank and inside the length cap, so the brackets and quotes would
+  // survive every downstream check and land verbatim in a published column.
+  if (trimmed.startsWith("[")) {
+    try {
+      const parsed: unknown = JSON.parse(trimmed);
+      if (Array.isArray(parsed)) return parsed.filter((i): i is string => typeof i === "string");
+    } catch {
+      // Bracketed but not valid JSON (unquoted entries, or a stray trailing
+      // comma). Shed the brackets so the comma split below doesn't carry them
+      // into the column.
+      if (trimmed.endsWith("]")) return splitInterestFragments(trimmed.slice(1, -1));
+    }
+  }
+  // An interest containing a comma would split, but they're short noun phrases
+  // and this path is only reached on already-malformed output.
+  return splitInterestFragments(trimmed);
+}
+
+/**
+ * Comma-split a non-JSON interests string, shedding the serialization
+ * punctuation the split leaves stuck to each fragment. Shedding the outer
+ * brackets isn't enough on its own: `["trail running", "film photography",]`
+ * doesn't parse (trailing comma) yet still splits into `"trail running"` WITH
+ * its quotes, and a response truncated mid-array keeps its opening bracket on
+ * the first fragment. Both are non-blank and well inside the length cap, so they
+ * clear every downstream check and reach a published column verbatim.
+ *
+ * Only a MATCHED pair of wrapping quotes comes off, and at most one bracket per
+ * side. A greedy strip would eat the leading apostrophe off a real entry like
+ * `'90s music`, which is a worse trade than leaving one unbalanced quote on
+ * output that was already malformed twice over.
+ */
+function splitInterestFragments(source: string): string[] {
+  return source.split(",").map((fragment) => {
+    let entry = fragment.trim();
+    if (entry.startsWith("[")) entry = entry.slice(1);
+    if (entry.endsWith("]")) entry = entry.slice(0, -1);
+    entry = entry.trim();
+    const quote = entry[0];
+    // A lone quote character collapses to empty here, which normalization then
+    // drops — the right outcome for a fragment that was pure punctuation.
+    if ((quote === '"' || quote === "'") && entry.endsWith(quote)) entry = entry.slice(1, -1);
+    return entry;
+  });
+}
+
+/**
+ * Trim an occupation and check it against the publish cap. An over-cap value is
+ * DROPPED, not truncated: the server rejects the whole upsert on an overrun, and
+ * a phrase clipped mid-word misrepresents someone in a field that reads as a
+ * fact. The prose section still carries the full statement, so the trade is
+ * coverage (the column stays empty when the model ignores the length guidance)
+ * for never publishing a garbled derivative.
+ */
+function normalizeOccupation(value: string | undefined): string | undefined {
+  if (value === undefined) return undefined;
+  const trimmed = value.trim();
+  if (!trimmed) return undefined;
+  const length = codePointLength(trimmed);
+  if (length > NEARBY_MAX_OCCUPATION_CODEPOINTS) {
+    getLogger().warn(
+      "[memory/synthesizeProfile] occupation exceeded the publishable length; dropping it",
+      { length, max: NEARBY_MAX_OCCUPATION_CODEPOINTS }
+    );
+    return undefined;
+  }
+  return trimmed;
+}
+
+/**
+ * Reduce an interests list to something the profile store takes verbatim.
+ *
+ * Mirrors nearby's `normalizeInterests` (the column is a SET — interests are
+ * matching keys, so an unnormalized list distorts overlap scores): entries are
+ * trimmed, and repeats differing only by case or surrounding space collapse
+ * with the FIRST spelling winning. On top of that this enforces the caps the
+ * server validates BEFORE it normalizes — over-long entries are dropped
+ * individually so the rest of the list still publishes, and the item cap is
+ * applied after deduping so duplicates don't eat slots. Undefined when nothing
+ * survives, so the field is omitted rather than published empty.
+ */
+function normalizeInterests(values: string[] | undefined): string[] | undefined {
+  if (values === undefined) return undefined;
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const value of values) {
+    const trimmed = value.trim();
+    if (!trimmed) continue;
+    if (codePointLength(trimmed) > NEARBY_MAX_INTEREST_CODEPOINTS) continue;
+    const key = trimmed.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(trimmed);
+    if (out.length === NEARBY_MAX_INTERESTS) break;
+  }
+  return out.length > 0 ? out : undefined;
 }

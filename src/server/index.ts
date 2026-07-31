@@ -131,6 +131,7 @@ export {
 
 export {
   archiveVaultMemoryOp,
+  backfillMemoryTopicsOp,
   createVaultMemoriesBatchOp,
   createVaultMemoryOp,
   type CreateVaultMemoryOptions,
@@ -145,6 +146,7 @@ export {
   getVaultMemoryOp,
   hardDeleteDecayedOp,
   type MemoriesNeedingTopicExtraction,
+  relinkMemoryTopicsOp,
   restoreVaultMemoryOp,
   setMemoryVisibilityOp,
   stampTopicsExtractedAtOp,
@@ -160,22 +162,14 @@ export {
 } from "../lib/db/memoryVault";
 
 // ── Vault Folders ──
-
-export {
-  createVaultFolderOp,
-  type CreateVaultFolderOptions,
-  deleteVaultFolderOp,
-  ensureDefaultFoldersOp,
-  getAllVaultFoldersOp,
-  getVaultFolderMemoryCountOp,
-  moveMemoriesToFolderOp,
-  type StoredVaultFolder,
-  updateVaultFolderContextOp,
-  updateVaultFolderOp,
-  type UpdateVaultFolderOptions,
-  VaultFolder,
-  type VaultFolderOperationsContext,
-} from "../lib/db/vaultFolders";
+//
+// Deliberately NOT exported here. Folders are being retired in favour of topics
+// (`memory_entity` links), and the ops carry no user scoping, so on a shared
+// server database they read and write across tenants — `moveMemoriesToFolderOp`
+// would even rewrite another tenant's memory `scope` (#626). No server consumer
+// ever used them. The table itself stays in `sdkModelClasses` while
+// `memory_vault.folder_id` exists; client (single-tenant) apps keep reaching the
+// ops through `@anuma/sdk/react` and `@anuma/sdk/expo`.
 
 // ── Projects ──
 
@@ -485,6 +479,7 @@ export {
 // ── Encryption (non-React utilities) ──
 
 export type { EmbeddedWalletSignerFn, SignMessageFn } from "../react/useEncryption";
+export type { RequestEncryptionKeyOptions } from "../react/useEncryption";
 export {
   clearAllEncryptionKeys,
   clearAllEncryptionState,
@@ -500,13 +495,16 @@ export {
   encryptDataBatch,
   encryptDataBytes,
   encryptDataWithKey,
+  EncryptionKeyMissingError,
   exportPublicKey,
   getEncryptionKey,
   hasEncryptionKey,
   hasKeyPair,
   onKeyAvailable,
+  refreshEncryptionKeyIfMatches,
   requestEncryptionKey,
   requestKeyPair,
+  seedEncryptionKeys,
 } from "../react/useEncryption";
 
 // ── Queue Manager ──
@@ -588,6 +586,7 @@ export {
 } from "../lib/chat/stockPriceClassifier";
 export type {
   AutoExecutedToolResult,
+  RunTerminalState,
   RunToolLoopOptions,
   RunToolLoopResult,
   StepFinishEvent,

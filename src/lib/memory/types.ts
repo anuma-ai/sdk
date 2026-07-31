@@ -29,9 +29,11 @@ export type MemoryKind = "fact" | "chunk";
  * Budget controls retrieval depth/cost. Higher budgets enable more
  * candidate sources and the cross-encoder reranker.
  *
- * - `low`: cosine + BM25 fusion only. No reranker. Mobile default.
- * - `mid`: + recency boost. Demo default.
- * - `high`: + cross-encoder rerank stage. Demo `budget: high` path.
+ * - `low`: cosine + BM25 + recency. No reranker. Mobile default.
+ * - `mid`: + cross-encoder rerank.
+ * - `high`: + multi-hop graph traversal. LLM-free — query decomposition
+ *   (when wanted) lives in the tool/agent layer ({@link createRecallTool}),
+ *   not inside `recall()` itself (719/B4).
  */
 export type Budget = "low" | "mid" | "high";
 
@@ -139,10 +141,28 @@ export interface RecallOptions {
   /** Drop results below this score. Default: 0.1 for facts, 0.5 for chunks (mirrors today's defaults). */
   minScore?: number;
   /**
-   * Auth + endpoint for the LLM-based query decomposition pass. Without
-   * these, decompose is skipped even at `budget: 'high'`. Mirrors the
-   * shape used by `searchVaultMemories`. Auth is the dual pattern — one
-   * of `apiKey` / `getToken` is required; see {@link PortalLlmAuth}.
+   * Pre-decomposed facet queries for the composite ranker. When ≥2 are
+   * supplied, the vault lane runs `rankComposite` over them (no LLM call
+   * inside `recall()` — 719/B4). Callers that still want LLM rewrite
+   * (e.g. {@link createRecallTool} at `budget: 'high'`) call
+   * `decomposeQuery` themselves and pass the result here. A single entry
+   * (or omitting this) keeps the single-query path.
+   */
+  subQueries?: string[];
+  /**
+   * Auth + endpoint for optional LLM helpers that reuse portal auth —
+   * currently {@link RecallOptions.graphRefine} neighbor selection.
+   * Query decomposition is **not** driven by this field inside `recall()`
+   * (719/B4); {@link createRecallTool} reads the same shape from
+   * `RecallToolOptions.decomposeOptions` for tool-layer rewrite.
+   *
+   * Callers that still pass `{ budget: 'high', decomposeOptions }` without
+   * {@link RecallOptions.subQueries} keep compiling but no longer rewrite —
+   * `recall()` emits `decompose-moved` on {@link RecallDiagnostics.degraded}
+   * so upgrades without a changelog read still leave a telemetry breadcrumb.
+   *
+   * Auth is the dual pattern — one of `apiKey` / `getToken` is required;
+   * see {@link PortalLlmAuth}.
    */
   decomposeOptions?: PortalLlmAuth & {
     baseUrl?: string;
@@ -259,9 +279,35 @@ export type RecallDegradation =
   /** Rerank was requested (budget mid/high) but the cross-encoder didn't run
    *  this call — unavailable (e.g. React Native) or a transient failure. */
   | "rerank-unavailable"
-  /** `budget: 'high'` requested but no `decomposeOptions`, so query
-   *  decomposition was skipped and the budget downgraded to mid. */
-  | "decompose-unavailable";
+  /**
+   * @deprecated 719/B4 moved query decomposition out of `recall()`. Budget
+   * `high` no longer requires `decomposeOptions` and this signal is never
+   * emitted. Prefer `"decompose-moved"` for the upgrade breadcrumb. Kept in
+   * the union so existing telemetry consumers stay typed.
+   */
+  | "decompose-unavailable"
+  /**
+   * `budget: 'high'` with `decomposeOptions` set but no usable
+   * {@link RecallOptions.subQueries}. Pre-B4 this call shape triggered LLM
+   * rewrite inside `recall()`; post-B4 it stays on the single-query high
+   * path (rerank + graph) and callers must pass facets (or use
+   * {@link createRecallTool}). Surfaced so silent quality regressions show
+   * up in diagnostics instead of looking healthier than before.
+   */
+  | "decompose-moved"
+  /** There was no usable cosine lane, so results were ranked on BM25 (lexical)
+   *  alone: either the query embedding failed (or came back empty), or no
+   *  candidate had a vector to score against it because the row (re)embed failed.
+   *  Also set when the chunk lane — cosine-only, with no lexical equivalent — was
+   *  skipped for the same reason. The embeddings provider is a single upstream
+   *  with no fallback, so this is a whole-provider outage rather than a per-item
+   *  miss — expect a quality drop, not a total loss.
+   *
+   *  NOT set for a partial failure that leaves cosine running (a sub-query embed
+   *  failing back to the single-query path, or a row batch failing while other
+   *  rows keep usable vectors) — those are logged, not reported, so this stays a
+   *  reliable outage signal rather than a general embedding-error counter. */
+  | "embeddings-unavailable";
 
 /**
  * Per-call recall observability payload (see {@link RecallOptions.onDiagnostics}).
@@ -305,8 +351,26 @@ export interface RecallDiagnostics {
 export type RetainAction = "create" | "merge" | "update" | "skip" | "suppressed" | "supersede";
 export type RetainSource = "manual" | "auto-extracted" | "capsule";
 
-/** Why the consolidator fell back to "create" instead of a real decision. */
-export type ConsolidationFallbackReason = "llm_error" | "invalid_response";
+/**
+ * Why a retain fell back to "create" instead of applying a consolidation
+ * decision. Each value names a DIFFERENT thing to go fix, which is the point of
+ * keeping them apart:
+ *
+ * - `llm_error` — the consolidation call never produced a response (network,
+ *   timeout, 5xx, 429, empty completion, or missing credentials). Look at the
+ *   portal and the auth config.
+ * - `invalid_response` — the model answered, but with something unusable: an
+ *   unknown action, a targetId that was not in the candidate set, an `update` or
+ *   `supersede` with empty content, a `noop` with no target. Look at the prompt
+ *   and the model.
+ * - `target_vanished` — the model returned a decision that was valid when it was
+ *   made, and the row it named was deleted or superseded by a concurrent writer
+ *   before the write landed. Nothing is broken in the consolidator; a sustained
+ *   rate points at write contention (for example an auto-extraction worker and a
+ *   manual write racing over the same vault), which quietly costs you the
+ *   dedup that decision would have performed.
+ */
+export type ConsolidationFallbackReason = "llm_error" | "invalid_response" | "target_vanished";
 
 export interface RetainOptions {
   source?: RetainSource;
@@ -323,7 +387,8 @@ export interface RetainOptions {
    * Returns `action: 'suppressed'` with the matched `tombstoneId`.
    */
   respectTombstones?: boolean;
-  /** Cosine similarity threshold for auto-merge. Default: 0.85. */
+  /** Cosine similarity threshold for auto-merge. Default: 0.8
+   *  (`DEFAULT_AUTO_MERGE_THRESHOLD` in retain.ts — the source of truth). */
   autoMergeThreshold?: number;
   /**
    * When provided, runs an LLM-based consolidation pass against the top-K
@@ -351,9 +416,13 @@ export interface RetainOptions {
      */
     piiRedaction?: boolean | PiiRedactor;
   };
-  /** Cosine similarity floor for the consolidator candidate set. Default: 0.65. */
+  /** Cosine similarity floor for the consolidator candidate set. Default: 0.55
+   *  (`DEFAULT_CONSOLIDATE_THRESHOLD` in retain.ts — the source of truth). */
   consolidateThreshold?: number;
-  /** Top-K consolidation candidates to feed the LLM. Default: 5. */
+  /** Top-K consolidation candidates to feed the LLM. Default: 20
+   *  (`DEFAULT_CONSOLIDATE_TOP_K` in retain.ts — the source of truth). Widened
+   *  from 5 so a value change can find and retire ALL stale duplicates of the
+   *  old value in one pass, not just the nearest few. */
   consolidateTopK?: number;
   /**
    * W6 temporal lane — when the event in this fact occurred. Persisted to

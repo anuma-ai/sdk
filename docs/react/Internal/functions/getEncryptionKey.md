@@ -1,8 +1,8 @@
 # getEncryptionKey
 
-> **getEncryptionKey**(`address`: `string`, `version`: `EncryptionKeyVersion`): `Promise`<`CryptoKey`>
+> **getEncryptionKey**(`address`: `string`, `version`: [`EncryptionKeyVersion`](../type-aliases/EncryptionKeyVersion.md)): `Promise`<`CryptoKey`>
 
-Defined in: [src/react/useEncryption.ts:522](https://github.com/anuma-ai/sdk/blob/main/src/react/useEncryption.ts#522)
+Defined in: [src/react/useEncryption.ts:578](https://github.com/anuma-ai/sdk/blob/main/src/react/useEncryption.ts#578)
 
 Gets the encryption key from in-memory storage and imports it as a CryptoKey.
 The key must have been previously requested via requestEncryptionKey.
@@ -50,7 +50,7 @@ The wallet address
 </td>
 <td>
 
-`EncryptionKeyVersion`
+[`EncryptionKeyVersion`](../type-aliases/EncryptionKeyVersion.md)
 
 </td>
 <td>

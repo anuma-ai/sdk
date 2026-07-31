@@ -811,6 +811,25 @@ export const BENCHMARK_QUERIES: BenchmarkQuery[] = [
     k: 3,
   },
   {
+    // KNOWN GAP — this one does not pass, and cosine supersession cannot make it
+    // pass. Do not chase it as a ranking regression (see #773; it has failed
+    // since #418 introduced both this query and w48, three days AFTER the
+    // baseline that recorded direct@100%, so it never regressed — it was born
+    // failing).
+    //
+    // w01 "Senior backend engineer ... joined in 2023" and w48 "Got promoted to
+    // Staff Engineer in November 2025" are only 0.5717 similar, under the 0.70
+    // SUPERSESSION_SIMILARITY_THRESHOLD, so the pair is never even considered.
+    // Lowering the threshold does not help: measured 0.70/0.65/0.60 leave direct
+    // at 94.4%, and 0.55 drops overall recall 82.5% -> 79.5%. The ordering gate
+    // rejects it too — w48 is the OLDER row by write time (Nov vs Dec), so the
+    // rule would be asked to demote the very row it should promote.
+    //
+    // In production this pair is resolved at RETAIN time, not search time:
+    // consolidate.ts exists for exactly this ~0.7 paraphrase band, marks w01
+    // `superseded_by`, and search then excludes superseded rows outright. That
+    // capability is covered by the consolidation suite's supersede-single /
+    // supersede-multi cases, which is where this expectation belongs.
     query: "What is the user's current job title?",
     category: "direct",
     expectedIds: ["w48"],

@@ -2,9 +2,14 @@
  * Unified Recall API — single retrieval surface above vault + engine.
  *
  * Budget maps to pipeline depth (mirrors Hindsight's tiered defaults):
- * - `low`  → V2 cosine + BM25 + recency (no rerank, no decompose)
+ * - `low`  → V2 cosine + BM25 + recency (no rerank)
  * - `mid`  → V2 + cross-encoder rerank
- * - `high` → V2 + rerank + LLM query decomposition for composite queries
+ * - `high` → V2 + rerank + multi-hop graph traversal
+ *
+ * LLM-free by design (719/B4): query decomposition for composite asks
+ * lives in the tool/agent layer (`createRecallTool`), which may pass
+ * pre-built `subQueries` into this API. `recall()` itself never pays an
+ * LLM RTT.
  *
  * Fact + chunk lanes are fused with RRF (k=60). The previous naive
  * "sort the union by raw score" path is gone — score scales differ
@@ -23,6 +28,7 @@ import {
 import { getLogger } from "../logger.js";
 import { DEFAULT_API_EMBEDDING_MODEL } from "../memoryEngine/constants.js";
 import { generateEmbedding } from "../memoryEngine/embeddings.js";
+import { normalizeSubQueries } from "../memoryVault/decomposeQuery.js";
 import type { VaultSearchResult } from "../memoryVault/searchTool.js";
 import { searchVaultMemoriesWithSize } from "../memoryVault/searchTool.js";
 import {
@@ -59,7 +65,6 @@ const DEFAULT_CHUNK_MIN_SCORE = 0.5;
 
 interface BudgetFlags {
   rerank: boolean;
-  decompose: boolean;
   /**
    * PR4 — enable multi-hop entity-graph traversal in the W5 lane. Gated to
    * `high` only: multi-hop widens the candidate pool (more RRF entries + a
@@ -72,12 +77,12 @@ interface BudgetFlags {
 function flagsForBudget(budget: Budget): BudgetFlags {
   switch (budget) {
     case "high":
-      return { rerank: true, decompose: true, traverse: true };
+      return { rerank: true, traverse: true };
     case "mid":
-      return { rerank: true, decompose: false, traverse: false };
+      return { rerank: true, traverse: false };
     case "low":
     default:
-      return { rerank: false, decompose: false, traverse: false };
+      return { rerank: false, traverse: false };
   }
 }
 
@@ -123,13 +128,13 @@ export async function recall(
 ): Promise<RecallResult> {
   const types: MemoryKind[] = options.types ?? ["fact"];
   const limit = options.limit ?? DEFAULT_LIMIT;
-  const requestedBudget = options.budget ?? DEFAULT_BUDGET;
-  const flags = flagsForBudget(requestedBudget);
-  const decomposeAvailable = flags.decompose && !!options.decomposeOptions;
-  // Report the budget actually executed: high silently downgrades to mid
-  // when decomposeOptions is missing (no LLM to run the query rewriter).
-  const usedBudget: "low" | "mid" | "high" =
-    requestedBudget === "high" && !decomposeAvailable ? "mid" : requestedBudget;
+  const usedBudget = options.budget ?? DEFAULT_BUDGET;
+  const flags = flagsForBudget(usedBudget);
+  // Composite facets from the tool/agent layer (719/B4). Normalize
+  // (trim / dedupe / cap at 5) then require ≥2 so a single leftover string
+  // (specific-mode's `[original]`) stays on the single-query path.
+  const normalizedFacets = normalizeSubQueries(options.subQueries);
+  const subQueries = normalizedFacets.length >= 2 ? normalizedFacets : undefined;
 
   // Best-effort observability state (D2). Populated as phases run; flushed to
   // options.onDiagnostics just before every return.
@@ -149,6 +154,19 @@ export async function recall(
   // Used to distinguish "CE skipped on empty head (lane-only hits)" from
   // "CE failed on a non-empty head (actual outage)".
   let hadV2Head = false;
+  // Set when the vault search had no usable cosine lane and ranked on BM25 alone
+  // (see PreparedVaultCandidates.embeddingsUnavailable), or when the chunk lane —
+  // which is cosine-only, with no lexical equivalent — had to be skipped because
+  // its query embed failed. NOT set for a partial embedding failure that still
+  // leaves cosine running: this drives an outage alarm and a model-facing "only
+  // keyword matching ran" message, and both would be false in that case.
+  let embeddingsUnavailable = false;
+  // The chunk lane's own query embed failed (threw, or returned an empty vector).
+  // Resolved into `embeddingsUnavailable` only once the fact lane's outcome is
+  // known — see the reconciliation after the fact lane below.
+  let chunkEmbedFailed = false;
+  // Whether the fact lane actually ranked on a live cosine lane this call.
+  let factLaneRankedOnCosine = false;
 
   const emitDiagnostics = (candidateCount: number): void => {
     const cb = options.onDiagnostics;
@@ -163,7 +181,17 @@ export async function recall(
     if (flags.rerank && factResults.length > 0 && hadV2Head && !didRerank) {
       degraded.push("rerank-unavailable");
     }
-    if (flags.decompose && !decomposeAvailable) degraded.push("decompose-unavailable");
+    // Pre-B4: `{ budget:'high', decomposeOptions }` rewrote inside recall().
+    // Post-B4 that shape still compiles (decomposeOptions is reused for
+    // graphRefine) but no longer decomposes — surface a breadcrumb so an
+    // un-updated caller does not see a healthier diagnostics payload while
+    // getting shallower composite retrieval. Skip when `graphRefine` is on:
+    // that path legitimately needs decomposeOptions for neighbor-LLM auth
+    // without implying a rewrite migration miss.
+    if (usedBudget === "high" && options.decomposeOptions && !subQueries && !options.graphRefine) {
+      degraded.push("decompose-moved");
+    }
+    if (embeddingsUnavailable) degraded.push("embeddings-unavailable");
     const diagnostics: RecallDiagnostics = {
       usedBudget,
       reranked: didRerank,
@@ -216,8 +244,34 @@ export async function recall(
       : undefined;
   const prepStart = nowMs();
   const [queryEmbedding, entityRanking, temporalRanking] = await Promise.all([
+    // The chunk lane is cosine-only — `searchChunksOp` needs a real vector, and
+    // there is no lexical fallback for it — so an embeddings outage must SKIP the
+    // lane, not reject this shared Promise.all and take the primary fact lane
+    // (which BM25 can still serve) down with it. Mirrors safeLane's posture.
     needsChunkEmbedding
       ? generateEmbedding(query, ctx.embeddingOptions)
+          .then((vec) => {
+            // An empty vector is as dead as a throw here: `searchChunksOp` would
+            // run a cosine pass that can only score 0. Empty arrays are truthy,
+            // so this must be normalized to undefined or the lane still runs.
+            if (vec.length === 0) {
+              getLogger().warn(
+                "[memory/recall] chunk-lane query embedding came back empty; skipping the chunk lane"
+              );
+              chunkEmbedFailed = true;
+              return undefined;
+            }
+            return vec;
+          })
+          .catch((err) => {
+            getLogger().warn(
+              `[memory/recall] chunk-lane query embedding failed; skipping the chunk lane: ${
+                err instanceof Error ? err.message : String(err)
+              }`
+            );
+            chunkEmbedFailed = true;
+            return undefined;
+          })
       : Promise.resolve(undefined),
     // The graph + temporal lanes are AUXILIARY (RRF side-signals). A transient
     // WatermelonDB throw in either must NOT reject this Promise.all and take
@@ -246,6 +300,8 @@ export async function recall(
       vaultSize: size,
       reranked,
       hadV2Head: v2Head,
+      embeddingsUnavailable: factEmbeddingsUnavailable,
+      rankedOnCosine: factRankedOnCosine,
     } = await searchVaultMemoriesWithSize(
       query,
       ctx.vaultCtx,
@@ -280,10 +336,8 @@ export async function recall(
         }),
         ...(options.rrfK !== undefined && { rrfK: options.rrfK }),
         ...(options.decryptLast !== undefined && { decryptLast: options.decryptLast }),
-        ...(decomposeAvailable && {
-          decompose: "llm" as const,
-          decomposeOptions: options.decomposeOptions,
-        }),
+        // 719/B4 — composite facets arrive pre-built; no LLM call here.
+        ...(subQueries && { subQueries }),
         ...(options.scopes && { scopes: options.scopes }),
         ...(options.folderId !== undefined && { folderId: options.folderId }),
         ...(options.factTypes?.length && { factTypes: options.factTypes }),
@@ -302,8 +356,25 @@ export async function recall(
     vaultSize = size;
     didRerank = reranked;
     hadV2Head = v2Head;
+    if (factEmbeddingsUnavailable) embeddingsUnavailable = true;
+    // Read the lane's own answer rather than inverting `embeddingsUnavailable`:
+    // an empty vault (or one whose rows are all undecryptable) reports no outage
+    // without ever running a cosine pass, and inverting it there let the fact
+    // lane vouch for semantic ranking it never did — silencing the chunk-lane
+    // reconciliation below for exactly the users most likely to hit it (chunks
+    // saved, no facts yet).
+    factLaneRankedOnCosine = factRankedOnCosine;
     factLaneMs = nowMs() - factStart;
   }
+
+  // Reconcile the chunk lane's embed failure against what the fact lane actually
+  // did. Losing the chunk lane drops results outright (it is cosine-only, with no
+  // lexical equivalent), but that is a WHOLE-provider outage only when the fact
+  // lane didn't rank on cosine either — on a chunk-only recall there is no fact
+  // lane to save it, and when both degraded it is a genuine outage. If the fact
+  // lane ran a live cosine pass, reporting one would be the same false signal this
+  // PR removed from the composite fall-through: semantic ranking did run.
+  if (chunkEmbedFailed && !factLaneRankedOnCosine) embeddingsUnavailable = true;
 
   if (types.includes("chunk") && ctx.storageCtx && queryEmbedding) {
     const chunkStart = nowMs();

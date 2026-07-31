@@ -137,6 +137,8 @@ export type { DisplayToolMigrations } from "../tools/uiInteraction";
 export { migrateDisplayResult } from "../tools/uiInteraction";
 export type {
   EmbeddedWalletSignerFn,
+  EncryptionKeyVersion,
+  RequestEncryptionKeyOptions,
   SignMessageFn,
   SignMessageOptions,
   UseEncryptionResult,
@@ -157,13 +159,16 @@ export {
   encryptDataBatch,
   encryptDataBytes,
   encryptDataWithKey,
+  EncryptionKeyMissingError,
   exportPublicKey,
   getEncryptionKey,
   hasEncryptionKey,
   hasKeyPair,
   onKeyAvailable,
+  refreshEncryptionKeyIfMatches,
   requestEncryptionKey,
   requestKeyPair,
+  seedEncryptionKeys,
   useEncryption,
 } from "./useEncryption";
 export type {
@@ -299,6 +304,7 @@ export { useProjects } from "./useProjects";
 // Memory vault
 export {
   archiveVaultMemoryOp,
+  backfillMemoryTopicsOp,
   clearMemoryTopicsOverrideOp,
   createVaultMemoriesBatchOp,
   createVaultMemoryOp,
@@ -319,6 +325,7 @@ export {
   hardDeleteDecayedOp,
   type MemoriesNeedingTopicExtraction,
   type RankableVaultMemory,
+  relinkMemoryTopicsOp,
   restoreVaultMemoryOp,
   setMemoryEntitiesOp,
   setMemoryVisibilityOp,
@@ -513,7 +520,13 @@ export {
   linkMemoryEntitiesOp,
   replaceMemoryEntitiesGuardedOp,
 } from "../lib/db/entities/operations";
-export type { CreateEntityOptions, EntityKind, StoredEntity } from "../lib/db/entities/types";
+export type {
+  CreateEntityOptions,
+  EntityKind,
+  StoredEntity,
+  StoredTopic,
+  TopicSource,
+} from "../lib/db/entities/types";
 export { ENTITY_KINDS } from "../lib/db/entities/types";
 export type { UseSettingsOptions, UseSettingsResult } from "./useSettings";
 export { useSettings } from "./useSettings";

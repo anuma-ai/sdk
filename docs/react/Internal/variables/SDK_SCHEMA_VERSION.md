@@ -1,8 +1,8 @@
 # SDK\_SCHEMA\_VERSION
 
-> `const` **SDK\_SCHEMA\_VERSION**: `41` = `41`
+> `const` **SDK\_SCHEMA\_VERSION**: `43` = `43`
 
-Defined in: [src/lib/db/schema.ts:93](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/schema.ts#93)
+Defined in: [src/lib/db/schema.ts:106](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/schema.ts#106)
 
 Current combined schema version for all SDK storage modules.
 
@@ -73,3 +73,16 @@ Version history:
   is TWO-tier (`private | public`); null — and any unrecognised value —
   reads as 'private', so nothing pre-existing is ever published without an
   explicit visibility write
+* v42: Added topics, topics\_updated\_at columns to memory\_vault so a memory's
+  topics become the DURABLE record and `entity` / `memory_entity` become a
+  device-local index over it. Those two tables never sync (entity ids are
+  locally generated), so a restored device used to receive "curated" /
+  "already extracted" flags on memories with zero topic links and the graph
+  recall lane stayed dead. `topics` carries the names across devices;
+  `topics_updated_at` is a SECOND timestamp because every topic writer pins
+  `updated_at` on purpose (recall's recency multiplier) and both sync paths
+  key on `updated_at`, so a topic-only change would neither upload nor merge
+* v43: Added a (is\_deleted, created\_at) index to conversations. Every
+  conversation list read filters is\_deleted and orders by created\_at DESC,
+  which previously meant a temp B-tree sort of the whole live set on every
+  read. Structural only — no column added, no data rewritten

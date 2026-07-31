@@ -9,7 +9,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("./recall", () => ({ recall: vi.fn() }));
+vi.mock("../memoryVault/decomposeQuery", () => ({
+  decomposeQuery: vi.fn(),
+}));
 
+import { decomposeQuery } from "../memoryVault/decomposeQuery";
 import { recall } from "./recall";
 import {
   createRecallTool,
@@ -319,5 +323,170 @@ describe("createRecallTool executor — per-conversation volume cap", () => {
     vi.setSystemTime(Date.now() + RECALL_TURN_WINDOW_MS + 1);
     const over = await tool.executor!({ query: "one more please", limit: 10 });
     expect(over).toMatch(/budget/i);
+  });
+});
+
+/**
+ * A3 — an empty recall during an embeddings outage must not read to the answer
+ * model as "the user never mentioned this". `recall()` degrades to BM25 instead
+ * of throwing now, so an outage arrives as a SUCCESSFUL empty result; the
+ * executor is the last place that can say so.
+ */
+describe("createRecallTool executor — embeddings outage on an empty result", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("names the degradation instead of claiming no such memory exists", async () => {
+    vi.mocked(recall).mockImplementation(async (_q, _c, opts) => {
+      opts?.onDiagnostics?.({
+        usedBudget: "low",
+        reranked: false,
+        candidateCount: 0,
+        factCount: 0,
+        chunkCount: 0,
+        timings: { total: 1, prep: 0, factLane: 1, chunkLane: 0, fuse: 0 },
+        degraded: ["embeddings-unavailable"],
+      });
+      return recallResult([]);
+    });
+
+    const tool = createRecallTool(ctx, { types: ["fact"] });
+    const out = await tool.executor!({ query: "my shellfish allergy" });
+
+    expect(out).not.toBe("No relevant memories found.");
+    expect(out).toMatch(/temporarily unavailable/i);
+    expect(out).toMatch(/do not conclude/i);
+  });
+
+  it("still says no results on a healthy empty recall", async () => {
+    vi.mocked(recall).mockImplementation(async (_q, _c, opts) => {
+      opts?.onDiagnostics?.({
+        usedBudget: "low",
+        reranked: false,
+        candidateCount: 3,
+        factCount: 0,
+        chunkCount: 0,
+        timings: { total: 1, prep: 0, factLane: 1, chunkLane: 0, fuse: 0 },
+        degraded: [],
+      });
+      return recallResult([]);
+    });
+
+    const tool = createRecallTool(ctx, { types: ["fact"] });
+    const out = await tool.executor!({ query: "my shellfish allergy" });
+
+    expect(out).toBe("No relevant memories found.");
+  });
+
+  it("does not swap the message when the outage flag rides on a NON-empty result", async () => {
+    // Hits exist — BM25 found them. The model needs the memories, not a caveat
+    // telling it the lookup was degraded.
+    vi.mocked(recall).mockImplementation(async (_q, _c, opts) => {
+      opts?.onDiagnostics?.({
+        usedBudget: "low",
+        reranked: false,
+        candidateCount: 1,
+        factCount: 1,
+        chunkCount: 0,
+        timings: { total: 1, prep: 0, factLane: 1, chunkLane: 0, fuse: 0 },
+        degraded: ["embeddings-unavailable"],
+      });
+      return recallResult([fact("m1", "Allergic to shellfish")]);
+    });
+
+    const tool = createRecallTool(ctx, { types: ["fact"] });
+    const out = await tool.executor!({ query: "my shellfish allergy" });
+
+    expect(out).toContain("Allergic to shellfish");
+    expect(out).not.toMatch(/temporarily unavailable/i);
+  });
+
+  it("preserves the D4 guarantee: a genuine failure still throws", async () => {
+    vi.mocked(recall).mockRejectedValue(new Error("vault db read failed"));
+    const tool = createRecallTool(ctx, { types: ["fact"] });
+    await expect(tool.executor!({ query: "my shellfish allergy" })).rejects.toThrow(
+      /recall_memory: search failed/
+    );
+  });
+});
+
+/**
+ * 719/B4 — query decomposition runs in the tool layer, then passes
+ * `subQueries` into LLM-free `recall()`.
+ */
+describe("createRecallTool executor — tool-layer decompose (719/B4)", () => {
+  beforeEach(() => {
+    vi.mocked(recall).mockResolvedValue(recallResult([fact("m1", "Lives in SF")]));
+    vi.mocked(decomposeQuery).mockReset();
+  });
+
+  it("at budget=high with decomposeOptions, forwards composite facets as subQueries", async () => {
+    vi.mocked(decomposeQuery).mockResolvedValue({
+      mode: "composite",
+      subQueries: ["What is the user name?", "Where does the user live?", "What is their job?"],
+    });
+
+    const tool = createRecallTool(ctx, {
+      types: ["fact"],
+      budget: "high",
+      decomposeOptions: { apiKey: "k", model: "inclusionai/ling-2.6-flash" },
+    });
+    await tool.executor!({ query: "tell me about the user" });
+
+    expect(decomposeQuery).toHaveBeenCalledWith(
+      "tell me about the user",
+      expect.objectContaining({ apiKey: "k", model: "inclusionai/ling-2.6-flash" })
+    );
+    expect(recall).toHaveBeenCalledWith(
+      "tell me about the user",
+      ctx,
+      expect.objectContaining({
+        budget: "high",
+        subQueries: ["What is the user name?", "Where does the user live?", "What is their job?"],
+      })
+    );
+  });
+
+  it("at budget=high, specific-mode does not pass subQueries", async () => {
+    vi.mocked(decomposeQuery).mockResolvedValue({
+      mode: "specific",
+      subQueries: ["tell me about the user"],
+    });
+
+    const tool = createRecallTool(ctx, {
+      types: ["fact"],
+      budget: "high",
+      decomposeOptions: { apiKey: "k" },
+    });
+    await tool.executor!({ query: "tell me about the user" });
+
+    expect(decomposeQuery).toHaveBeenCalled();
+    const opts = vi.mocked(recall).mock.calls[0][2];
+    expect(opts?.subQueries).toBeUndefined();
+    // Rewrite already ran in the tool — do not re-forward auth into recall
+    // or specific-mode high-budget calls trip `decompose-moved`.
+    expect(opts?.decomposeOptions).toBeUndefined();
+  });
+
+  it("does not call decomposeQuery at budget=mid even with decomposeOptions", async () => {
+    const tool = createRecallTool(ctx, {
+      types: ["fact"],
+      budget: "mid",
+      decomposeOptions: { apiKey: "k" },
+    });
+    await tool.executor!({ query: "my allergy" });
+
+    expect(decomposeQuery).not.toHaveBeenCalled();
+    expect(recall).toHaveBeenCalledWith(
+      "my allergy",
+      ctx,
+      expect.objectContaining({ budget: "mid" })
+    );
+  });
+
+  it("tool description nudges multi-facet asks toward several targeted searches", () => {
+    const tool = createRecallTool(ctx, { types: ["fact"] });
+    expect(tool.function.description).toMatch(/several targeted searches/i);
   });
 });

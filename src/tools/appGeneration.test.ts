@@ -505,6 +505,44 @@ describe("create_file enforces Read-before-Write for overwrites", () => {
     expect((await storage.getFile("test-conv", "App.js"))?.content).toContain("App");
   });
 
+  // Observed on merge-queue run 30318214180 once the e2e suite was allowed to
+  // finish: the model emitted a `files` entry carrying `content` but no
+  // `path`. normalizePath(undefined) threw "Cannot read properties of
+  // undefined (reading 'replace')", which the executor's catch turned into an
+  // opaque "Failed to create file: ..." the model could not act on. The JSON
+  // schema marks both fields required, but that is a hint to the model, not an
+  // enforcement point. patch_file/read_file/delete_file all guard their scalar
+  // `path`; only the array case was unguarded.
+  it.each([
+    ["missing path", [{ content: "x" }], 'files[0] is missing a non-empty "path"'],
+    ["blank path", [{ path: "   ", content: "x" }], 'files[0] is missing a non-empty "path"'],
+    ["missing content", [{ path: "App.js" }], 'files[0] ("App.js") is missing a string "content"'],
+    ["not an object", ["App.js"], "files[0] is not an object"],
+  ])("rejects a malformed files entry (%s) without throwing", async (_label, files, expected) => {
+    const { createFile, storage } = makeTools();
+    const result = (await createFile.executor!({ files })) as Record<string, unknown>;
+
+    expect(result.success).toBeUndefined();
+    expect(result.error).toContain(expected);
+    // The error must name the problem, not leak the TypeError.
+    expect(String(result.error)).not.toContain("reading 'replace'");
+    // Atomic: a bad entry writes nothing at all.
+    expect(await storage.getFile("test-conv", "App.js")).toBeNull();
+  });
+
+  it("reports every malformed entry at once, and writes nothing", async () => {
+    const { createFile, storage } = makeTools();
+    const result = (await createFile.executor!({
+      files: [{ path: "App.js", content: "ok" }, { content: "no path" }, { path: "b.js" }],
+    })) as Record<string, unknown>;
+
+    expect(result.error).toContain('files[1] is missing a non-empty "path"');
+    expect(result.error).toContain('files[2] ("b.js") is missing a string "content"');
+    expect(result.malformed).toHaveLength(2);
+    // The valid sibling in the same call is not written either.
+    expect(await storage.getFile("test-conv", "App.js")).toBeNull();
+  });
+
   it("allows overwrite of a file the model created in this conversation (write counts as read)", async () => {
     const { createFile, storage } = makeTools();
     await createFile.executor!({

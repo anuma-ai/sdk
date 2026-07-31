@@ -538,6 +538,14 @@ export class CompletionsStrategy implements ApiStrategy {
         }
       }
 
+      // Record the provider's verdict verbatim. Only the two "clean" values
+      // below drive the completion bookkeeping, but "length" (and anything
+      // else a provider sends) has to survive to buildFinalResponse so the
+      // tool loop can distinguish a truncation from a finished turn.
+      if (choice.finish_reason) {
+        accumulator.finishReason = choice.finish_reason;
+      }
+
       // Mark tool calls as completed when finish_reason is set
       if (choice.finish_reason === "tool_calls" || choice.finish_reason === "stop") {
         // Recover xAI's hybrid tool-call format: Grok emits most args inside
@@ -667,7 +675,9 @@ export class CompletionsStrategy implements ApiStrategy {
             content: finalContent,
             ...(toolCalls && { tool_calls: toolCalls }),
           },
-          finish_reason: toolCalls ? "tool_calls" : "stop",
+          // Prefer what the provider actually said; fall back to the derived
+          // value only when the stream carried no finish_reason at all.
+          finish_reason: accumulator.finishReason ?? (toolCalls ? "tool_calls" : "stop"),
         },
       ],
       ...(usage && { usage }),

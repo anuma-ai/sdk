@@ -16,9 +16,11 @@ import { recall } from "./recall.js";
 import { RECALL_MAX_LIMIT } from "./recallConstants.js";
 import { reflect } from "./reflect.js";
 import {
+  facetsSignature,
   type ProfileConfigFingerprint,
   type ProfileDoc,
   type ProfileFacet,
+  type ProfileFacetKey,
   type ProfileSection,
   PROFILE_DOC_VERSION,
   synthesizeProfile,
@@ -42,13 +44,22 @@ const FACETS: ProfileFacet[] = [
   { key: "interests", label: "Interests", query: "what", guidance: "g" },
 ];
 
-/** Mirror of the source facetsSignature() — keep in sync. */
-function sig(facets: ProfileFacet[]): string {
-  return facets
-    .map((f) => JSON.stringify([f.key, f.label, f.query, f.guidance]))
-    .sort()
-    .join("\n");
-}
+/** The other column-backed facet. Not in FACETS — most tests don't need it. */
+const WORK_ROLE: ProfileFacet = {
+  key: "work_role",
+  label: "Work & Role",
+  query: "work",
+  guidance: "g",
+};
+
+const LABELS: Record<ProfileFacetKey, string> = {
+  bio: "Bio",
+  interests: "Interests",
+  work_role: "Work & Role",
+  location_context: "Location",
+  communication_style: "Communication Style",
+  recent_activity: "Recently",
+};
 
 /** The config fingerprint a given facet set + default scopes produce. */
 function fingerprint(
@@ -58,7 +69,11 @@ function fingerprint(
 ): ProfileConfigFingerprint {
   return {
     facetKeys: facets.map((f) => f.key).sort(),
-    facetsSignature: sig(facets),
+    // The real algorithm, not a mirror: it folds in each facet's response
+    // schema, which is module-private, so a hand-copied formula would rot into
+    // silent "everything regenerates" noise. The pre-schema formula is asserted
+    // directly in the invalidation test below.
+    facetsSignature: facetsSignature(facets),
     scopes: ["private"],
     redacted,
     reviewedMemoryIdsSignature: [...new Set(reviewedMemoryIds)].sort().join("\n"),
@@ -94,6 +109,12 @@ function mem(id: string, opts: Partial<StoredVaultMemory> = {}): StoredVaultMemo
     factType: null,
     archivedAt: null,
     trustTier: null,
+    topics: null,
+    topicsUpdatedAt: null,
+    visibility: "private",
+    twinOptIn: false,
+    publishedAt: null,
+    geohash: null,
     createdAt: opts.createdAt ?? new Date(500),
     updatedAt: opts.updatedAt ?? new Date(1000),
     isDeleted: false,
@@ -122,19 +143,27 @@ function stubRecallForReflect() {
   });
 }
 
-function reflectResult(summary: string, memoryIds: string[], hasEvidence = true) {
+/** `extra` carries the structured attributes a column-backed facet emits
+ * (`occupation` / `interests`) — or deliberate garbage, to drive the tolerant
+ * parse paths. */
+function reflectResult(
+  summary: string,
+  memoryIds: string[],
+  hasEvidence = true,
+  extra: Record<string, unknown> = {}
+) {
   return {
     text: summary,
-    structuredOutput: { summary, hasEvidence },
+    structuredOutput: { summary, hasEvidence, ...extra },
     basedOn: { memoryIds },
     usage: { promptTokens: 0, completionTokens: 0, totalTokens: 0 },
   };
 }
 
-function section(key: "bio" | "interests", text: string, ids: string[]): ProfileSection {
+function section(key: ProfileFacetKey, text: string, ids: string[]): ProfileSection {
   return {
     key,
-    label: key === "bio" ? "Bio" : "Interests",
+    label: LABELS[key],
     text,
     sourceMemoryIds: ids,
     generatedAt: 1,
@@ -820,7 +849,68 @@ describe("synthesizeProfile", () => {
     expect(mockReflect).not.toHaveBeenCalled();
   });
 
-  it("does not gate when reviewedMemoryIds is empty", async () => {
+  // An empty reviewedMemoryIds array means "nothing is approved for publication", so it must gate
+  // everything OUT — not disable the gate. Previously this failed open, which was backwards in
+  // exactly the case the gate exists for: a caller passing its published-memory set for a user who
+  // has published nothing handed over [] and got synthesis across the whole private vault.
+  it("gates everything out when reviewedMemoryIds is empty (fails closed)", async () => {
+    mockGetAll.mockResolvedValue([mem("a")]);
+    mockRecall.mockResolvedValue({
+      memories: [ranked("a"), ranked("b")],
+      usedBudget: "low",
+      reranked: false,
+      candidateCount: 2,
+    });
+
+    const doc = await synthesizeProfile(ctx, {
+      apiKey: "k",
+      facets: [FACETS[0]],
+      reviewedMemoryIds: [],
+    });
+
+    expect(doc.sections[0].text).toBe("");
+    expect(doc.sections[0].sourceMemoryIds).toEqual([]);
+    // Legitimate empty, not a failure — must not be marked stale (which would force a retry).
+    expect(doc.sections[0].stale).toBeUndefined();
+    // And it costs nothing: no LLM call, and not even a recall.
+    expect(mockReflect).not.toHaveBeenCalled();
+    expect(mockRecall).not.toHaveBeenCalled();
+  });
+
+  // The column-backed facets are the ones with a publication consequence: `occupation`
+  // and `interests` are what a profile store writes verbatim into a PUBLIC row. The
+  // existing fail-closed test covers `bio`, whose only output is prose. If the gate
+  // stopped the prose but a structured value still came through, an empty published
+  // set would produce a public profile column derived from memories the user never
+  // approved — the exact leak the gate exists to prevent, in the one field that
+  // travels furthest.
+  it("emits no structured occupation or interests when the gate excludes everything", async () => {
+    mockGetAll.mockResolvedValue([mem("a")]);
+    mockRecall.mockResolvedValue({
+      memories: [ranked("a"), ranked("b")],
+      usedBudget: "low",
+      reranked: false,
+      candidateCount: 2,
+    });
+
+    const doc = await synthesizeProfile(ctx, {
+      apiKey: "k",
+      facets: [WORK_ROLE, FACETS[1]],
+      reviewedMemoryIds: [],
+    });
+
+    const work = doc.sections.find((s) => s.key === "work_role");
+    const interests = doc.sections.find((s) => s.key === "interests");
+    expect(work?.text).toBe("");
+    expect(interests?.text).toBe("");
+    // Absent, not empty-string / empty-array: absence is "no claim", whereas a
+    // present-but-empty value is a claim a store may write over a prior good one.
+    expect(work).not.toHaveProperty("occupation");
+    expect(interests).not.toHaveProperty("interests");
+    expect(mockReflect).not.toHaveBeenCalled();
+  });
+
+  it("still runs ungated when reviewedMemoryIds is omitted entirely", async () => {
     mockGetAll.mockResolvedValue([mem("a")]);
     mockRecall.mockResolvedValue({
       memories: [ranked("a"), ranked("b")],
@@ -830,16 +920,38 @@ describe("synthesizeProfile", () => {
     });
     mockReflect.mockResolvedValueOnce(reflectResult("Bio", ["a", "b"]));
 
-    await synthesizeProfile(ctx, {
-      apiKey: "k",
-      facets: [FACETS[0]],
-      reviewedMemoryIds: [],
-    });
+    // Omitted (not []) is the only way to ask for no gate.
+    await synthesizeProfile(ctx, { apiKey: "k", facets: [FACETS[0]] });
 
     expect(mockReflect.mock.calls[0][2]?.memories?.map((m: RankedMemory) => m.id)).toEqual([
       "a",
       "b",
     ]);
+  });
+
+  it("does not reuse an ungated prior doc once the empty gate is active", async () => {
+    // A doc synthesized with no gate must not satisfy a later gated-empty request: the config
+    // fingerprint has to distinguish "no gate" from "gate active, nothing approved", or previously
+    // private-derived content would be served verbatim under the stricter policy.
+    mockGetAll.mockResolvedValue([mem("a")]);
+    mockRecall.mockResolvedValue({
+      memories: [ranked("a")],
+      usedBudget: "low",
+      reranked: false,
+      candidateCount: 1,
+    });
+    mockReflect.mockResolvedValueOnce(reflectResult("Bio", ["a"]));
+
+    const ungated = await synthesizeProfile(ctx, { apiKey: "k", facets: [FACETS[0]] });
+    expect(ungated.sections[0].text).toBe("Bio");
+
+    const gated = await synthesizeProfile(ctx, {
+      apiKey: "k",
+      facets: [FACETS[0]],
+      previous: ungated,
+      reviewedMemoryIds: [],
+    });
+    expect(gated.sections[0].text).toBe("");
   });
 
   it("invalidates delta reuse when reviewedMemoryIds changes (vault unchanged)", async () => {
@@ -880,5 +992,503 @@ describe("synthesizeProfile", () => {
     expect(doc.sections[0].text).toBe("Narrow bio");
     expect(doc.sections[0].sourceMemoryIds).toEqual(["a"]);
     expect(mockReflect).toHaveBeenCalledTimes(2);
+  });
+
+  // Chat auto-extract writes unreviewed facts constantly, and they land in the
+  // changed-set (which tracks the whole scoped vault) — but the gate strips them
+  // from the evidence, so the section's actual input is unchanged. Attributing
+  // one would bill an identical re-synthesis.
+  it("does not regenerate a gated facet for an unreviewed changed fact", async () => {
+    mockGetAll.mockResolvedValue([
+      mem("a", { updatedAt: new Date(1000) }), // cited by bio, reviewed, unchanged
+      mem("b", { updatedAt: new Date(1000) }), // cited by interests, reviewed, unchanged
+      // Freshly auto-extracted, NOT reviewed. Embedding lines up with the bio
+      // query, so attribution would mark bio stale if it ever saw this fact.
+      mem("z", {
+        createdAt: new Date(6000),
+        updatedAt: new Date(6000),
+        embedding: JSON.stringify([1, 0]),
+      }),
+    ]);
+    mockEmbed.mockResolvedValue([
+      [1, 0],
+      [0, 1],
+    ]);
+    mockReflect.mockResolvedValue(reflectResult("rebilled bio", ["a"]));
+
+    const previous = priorDoc(
+      [section("bio", "old bio", ["a"]), section("interests", "old interests", ["b"])],
+      2000,
+      fingerprint(FACETS, false, ["a", "b"])
+    );
+
+    const doc = await synthesizeProfile(ctx, {
+      apiKey: "k",
+      facets: FACETS,
+      previous,
+      reviewedMemoryIds: ["a", "b"],
+    });
+
+    expect(mockReflect).not.toHaveBeenCalled();
+    expect(mockEmbed).not.toHaveBeenCalled(); // never even reached attribution
+    expect(doc.sections.find((s) => s.key === "bio")!.text).toBe("old bio");
+    expect(doc.sections.find((s) => s.key === "interests")!.text).toBe("old interests");
+    // The mark still advances past the unreviewed write, so the next call with a
+    // quiet vault takes the fast path instead of re-deriving this every time.
+    expect(doc.vaultWatermark).toBe(6000);
+  });
+
+  // The costliest shape of the same bug: a just-extracted fact usually has no
+  // embedding yet, and an unattributable candidate bails to "regenerate ALL".
+  // Under the gate that is the whole profile re-billed for evidence that never
+  // moved.
+  it("does not regenerate every gated facet for an unreviewed, unembedded fact", async () => {
+    mockGetAll.mockResolvedValue([
+      mem("a", { updatedAt: new Date(1000) }),
+      mem("b", { updatedAt: new Date(1000) }),
+      mem("z", { createdAt: new Date(6000), updatedAt: new Date(6000), embedding: null }),
+    ]);
+    mockReflect.mockResolvedValue(reflectResult("rebilled", ["a"]));
+
+    const previous = priorDoc(
+      [section("bio", "old bio", ["a"]), section("interests", "old interests", ["b"])],
+      2000,
+      fingerprint(FACETS, false, ["a", "b"])
+    );
+
+    const doc = await synthesizeProfile(ctx, {
+      apiKey: "k",
+      facets: FACETS,
+      previous,
+      reviewedMemoryIds: ["a", "b"],
+    });
+
+    expect(mockReflect).not.toHaveBeenCalled();
+    expect(doc.sections.map((s) => s.text)).toEqual(["old bio", "old interests"]);
+  });
+
+  // Guard on the filter above: it must narrow to the reviewed set, not disable
+  // attribution. A REVIEWED fact that no section cites yet is real new evidence
+  // — it clears the gate, so it can enter a facet's next synthesis.
+  it("still attributes a reviewed changed fact no section cites", async () => {
+    mockGetAll.mockResolvedValue([
+      mem("a", { updatedAt: new Date(1000) }),
+      mem("b", { updatedAt: new Date(1000) }),
+      mem("c", {
+        createdAt: new Date(6000),
+        updatedAt: new Date(6000),
+        embedding: JSON.stringify([1, 0]), // matches the bio query
+      }),
+    ]);
+    mockEmbed.mockResolvedValue([
+      [1, 0],
+      [0, 1],
+    ]);
+    mockRecall.mockResolvedValue({
+      memories: [ranked("a"), ranked("c")],
+      usedBudget: "low",
+      reranked: false,
+      candidateCount: 2,
+    });
+    mockReflect.mockResolvedValueOnce(reflectResult("bio with c", ["a", "c"]));
+
+    const previous = priorDoc(
+      [section("bio", "old bio", ["a"]), section("interests", "old interests", ["b"])],
+      2000,
+      fingerprint(FACETS, false, ["a", "b", "c"])
+    );
+
+    const doc = await synthesizeProfile(ctx, {
+      apiKey: "k",
+      facets: FACETS,
+      previous,
+      reviewedMemoryIds: ["a", "b", "c"],
+    });
+
+    expect(mockReflect).toHaveBeenCalledTimes(1); // bio only
+    expect(doc.sections.find((s) => s.key === "bio")!.text).toBe("bio with c");
+    expect(doc.sections.find((s) => s.key === "interests")!.text).toBe("old interests");
+  });
+
+  // The two facets that back a profile column emit a structured value BESIDE
+  // the prose — the prose contract is unchanged, so existing consumers of
+  // `text` see nothing new.
+  it("emits a structured occupation alongside the work_role prose", async () => {
+    mockGetAll.mockResolvedValue([mem("a")]);
+    mockReflect.mockResolvedValueOnce(
+      reflectResult("Backend engineer at a fintech startup.", ["a"], true, {
+        occupation: "  Backend engineer, fintech  ",
+      })
+    );
+
+    const doc = await synthesizeProfile(ctx, { apiKey: "k", facets: [WORK_ROLE] });
+
+    expect(doc.sections[0].text).toBe("Backend engineer at a fintech startup.");
+    expect(doc.sections[0].occupation).toBe("Backend engineer, fintech");
+    expect(doc.sections[0].interests).toBeUndefined();
+  });
+
+  it("emits structured interests alongside the interests prose", async () => {
+    mockGetAll.mockResolvedValue([mem("a")]);
+    mockReflect.mockResolvedValueOnce(
+      reflectResult("trail running, film photography, Thai cooking", ["a"], true, {
+        interests: ["trail running", "film photography", "Thai cooking"],
+      })
+    );
+
+    const doc = await synthesizeProfile(ctx, { apiKey: "k", facets: [FACETS[1]] });
+
+    expect(doc.sections[0].text).toBe("trail running, film photography, Thai cooking");
+    expect(doc.sections[0].interests).toEqual([
+      "trail running",
+      "film photography",
+      "Thai cooking",
+    ]);
+    expect(doc.sections[0].occupation).toBeUndefined();
+  });
+
+  it("omits a blank occupation rather than publishing an empty column value", async () => {
+    mockGetAll.mockResolvedValue([mem("a")]);
+    mockReflect.mockResolvedValueOnce(
+      reflectResult("Works in logistics.", ["a"], true, { occupation: "   " })
+    );
+
+    const doc = await synthesizeProfile(ctx, { apiKey: "k", facets: [WORK_ROLE] });
+
+    expect(doc.sections[0].text).toBe("Works in logistics.");
+    expect("occupation" in doc.sections[0]).toBe(false);
+  });
+
+  // The caps are RUNE counts server-side (utf8.RuneCountInString). Measuring in
+  // UTF-16 units would score every astral-plane character double and reject
+  // values the server accepts — the CJK/emoji bug class this repo has hit before.
+  it("measures the length caps in code points, not UTF-16 units", async () => {
+    mockGetAll.mockResolvedValue([mem("a")]);
+    const occupation = "\u{1D518}".repeat(45); // 45 code points, 90 UTF-16 units
+    const interest = "\u{1D518}".repeat(25); // 25 code points, 50 UTF-16 units
+    expect(occupation.length).toBe(90);
+    expect(interest.length).toBe(50);
+
+    mockReflect
+      .mockResolvedValueOnce(reflectResult("role prose", ["a"], true, { occupation }))
+      .mockResolvedValueOnce(
+        reflectResult("interests prose", ["a"], true, { interests: [interest] })
+      );
+
+    const doc = await synthesizeProfile(ctx, { apiKey: "k", facets: [WORK_ROLE, FACETS[1]] });
+
+    expect(doc.sections[0].occupation).toBe(occupation); // inside the 80-rune cap
+    expect(doc.sections[1].interests).toEqual([interest]); // inside the 40-rune cap
+  });
+
+  // The server rejects an over-cap upsert outright, so an over-cap value has to
+  // go. Dropping beats truncating: the prose still carries the full statement,
+  // and a phrase clipped mid-word misrepresents the person in a field read as fact.
+  it("drops over-cap structured values instead of truncating them", async () => {
+    mockGetAll.mockResolvedValue([mem("a")]);
+    mockReflect
+      .mockResolvedValueOnce(
+        reflectResult("role prose", ["a"], true, { occupation: "x".repeat(81) })
+      )
+      .mockResolvedValueOnce(
+        reflectResult("interests prose", ["a"], true, {
+          interests: ["y".repeat(41), "film photography"],
+        })
+      );
+
+    const doc = await synthesizeProfile(ctx, { apiKey: "k", facets: [WORK_ROLE, FACETS[1]] });
+
+    expect(doc.sections[0].text).toBe("role prose"); // prose untouched
+    expect(doc.sections[0].occupation).toBeUndefined();
+    // One over-long entry doesn't cost the rest of the list.
+    expect(doc.sections[1].interests).toEqual(["film photography"]);
+  });
+
+  // Mirrors nearby's normalizeInterests (the column is a SET) plus the caps it
+  // validates before normalizing.
+  it("normalizes interests into a deduped, capped set", async () => {
+    mockGetAll.mockResolvedValue([mem("a")]);
+    mockReflect.mockResolvedValueOnce(
+      reflectResult("prose", ["a"], true, {
+        interests: [
+          "Ramen",
+          "  ramen ", // differs only by case + space → dropped, first spelling wins
+          "   ", // blank
+          42, // not a string
+          ...Array.from({ length: 13 }, (_, i) => `hobby ${i}`),
+        ],
+      })
+    );
+
+    const doc = await synthesizeProfile(ctx, { apiKey: "k", facets: [FACETS[1]] });
+
+    const interests = doc.sections[0].interests!;
+    expect(interests).toHaveLength(12);
+    // Deduping runs before the item cap, so duplicates don't eat slots.
+    expect(interests[0]).toBe("Ramen");
+    expect(interests.slice(1)).toEqual(Array.from({ length: 11 }, (_, i) => `hobby ${i}`));
+  });
+
+  // The default synthesis model gets the schema as a prompt instruction, not an
+  // enforced response_format, so it sometimes answers with the comma-separated
+  // shape the summary guidance asks for. Recover it from the structured slot
+  // rather than losing the field.
+  it("recovers interests emitted as a comma-separated string", async () => {
+    mockGetAll.mockResolvedValue([mem("a")]);
+    mockReflect.mockResolvedValueOnce(
+      reflectResult("prose", ["a"], true, {
+        interests: "trail running, film photography ,, Thai cooking",
+      })
+    );
+
+    const doc = await synthesizeProfile(ctx, { apiKey: "k", facets: [FACETS[1]] });
+
+    expect(doc.sections[0].interests).toEqual([
+      "trail running",
+      "film photography",
+      "Thai cooking",
+    ]);
+  });
+
+  // The same fallback has to handle a model that serialized the array into the
+  // string slot. Splitting that on commas leaves the brackets and quotes
+  // attached, and they'd clear every downstream check — non-blank, well inside
+  // the length cap — and land verbatim in a published column.
+  it("recovers interests emitted as a serialized array rather than splitting it", async () => {
+    mockGetAll.mockResolvedValue([mem("a")]);
+    mockReflect
+      .mockResolvedValueOnce(
+        reflectResult("prose", ["a"], true, {
+          interests: JSON.stringify(["trail running", "film photography"]),
+        })
+      )
+      // Bracketed but unquoted — not parseable, so it falls back to the split.
+      .mockResolvedValueOnce(
+        reflectResult("prose", ["a"], true, { interests: "[trail running, film photography]" })
+      );
+
+    const bracketed = await synthesizeProfile(ctx, { apiKey: "k", facets: [FACETS[1]] });
+    const unquoted = await synthesizeProfile(ctx, { apiKey: "k", facets: [FACETS[1]] });
+
+    expect(bracketed.sections[0].interests).toEqual(["trail running", "film photography"]);
+    expect(unquoted.sections[0].interests).toEqual(["trail running", "film photography"]);
+  });
+
+  // Shedding the outer brackets alone doesn't get the quotes off, and the
+  // truncated shape never reaches the bracket path at all. Each of these lands
+  // a fragment that is non-blank and under the length cap, so nothing
+  // downstream would have caught it.
+  it("sheds serialization punctuation from near-JSON interests strings", async () => {
+    mockGetAll.mockResolvedValue([mem("a")]);
+    const shapes = [
+      // Valid-looking but unparseable: trailing comma inside the array.
+      '["trail running", "film photography",]',
+      // Python-style single quotes.
+      "['trail running', 'film photography']",
+      // Truncated mid-array — no closing bracket, so the bracket path is skipped
+      // and the opening bracket rides along on the first fragment.
+      '["trail running", "film photography"',
+      // Quoted entries with the brackets already missing.
+      '"trail running", "film photography"',
+    ];
+
+    for (const shape of shapes) {
+      mockReflect.mockResolvedValueOnce(reflectResult("prose", ["a"], true, { interests: shape }));
+      const doc = await synthesizeProfile(ctx, { apiKey: "k", facets: [FACETS[1]] });
+      expect(doc.sections[0].interests).toEqual(["trail running", "film photography"]);
+    }
+  });
+
+  // The counterweight to the strip above: an entry whose leading apostrophe is
+  // part of the name has to survive, so only a matched pair of quotes comes off.
+  it("keeps an unmatched leading quote that belongs to the interest", async () => {
+    mockGetAll.mockResolvedValue([mem("a")]);
+    mockReflect.mockResolvedValueOnce(
+      reflectResult("prose", ["a"], true, { interests: "'90s music, trail running" })
+    );
+
+    const doc = await synthesizeProfile(ctx, { apiKey: "k", facets: [FACETS[1]] });
+
+    expect(doc.sections[0].interests).toEqual(["'90s music", "trail running"]);
+  });
+
+  // Every extracted entry costs an NER inference before the item cap is applied,
+  // and this field is unenforced model output — an answer that ignores the array
+  // shape can split into hundreds of fragments. The extraction bound is what
+  // keeps one bad response from turning into hundreds of sequential inferences.
+  it("bounds how many raw interests reach the redactor", async () => {
+    mockGetAll.mockResolvedValue([mem("a")]);
+    mockReflect.mockResolvedValueOnce(
+      reflectResult("prose", ["a"], true, {
+        interests: Array.from({ length: 500 }, (_, i) => `hobby ${i}`).join(","),
+      })
+    );
+    const redactTextAsync = vi.fn(async (text: string) => ({ text, matches: [] }));
+
+    const doc = await synthesizeProfile(ctx, {
+      apiKey: "k",
+      facets: [FACETS[1]],
+      redactor: { redactTextAsync } as never,
+    });
+
+    // One call for the prose, then at most twice the publish cap for the list.
+    expect(redactTextAsync.mock.calls.length).toBeLessThanOrEqual(1 + 12 * 2);
+    // The bound is invisible in the result: the 12 published entries are the
+    // same ones an unbounded list would have produced.
+    expect(doc.sections[0].interests).toEqual(Array.from({ length: 12 }, (_, i) => `hobby ${i}`));
+  });
+
+  // A mis-shaped structured field must never take the prose section down with it.
+  it("omits a structured attribute the model returned in the wrong shape", async () => {
+    mockGetAll.mockResolvedValue([mem("a")]);
+    mockReflect
+      .mockResolvedValueOnce(reflectResult("role prose", ["a"], true, { occupation: 42 }))
+      .mockResolvedValueOnce(
+        reflectResult("interests prose", ["a"], true, { interests: { a: 1 } })
+      );
+
+    const doc = await synthesizeProfile(ctx, { apiKey: "k", facets: [WORK_ROLE, FACETS[1]] });
+
+    expect(doc.sections[0].text).toBe("role prose");
+    expect(doc.sections[0].occupation).toBeUndefined();
+    expect(doc.sections[1].text).toBe("interests prose");
+    expect(doc.sections[1].interests).toBeUndefined();
+  });
+
+  it("ignores a structured attribute volunteered by a facet with no column", async () => {
+    mockGetAll.mockResolvedValue([mem("a")]);
+    mockReflect.mockResolvedValueOnce(
+      reflectResult("A bio", ["a"], true, {
+        occupation: "Backend engineer",
+        interests: ["ramen"],
+      })
+    );
+
+    const doc = await synthesizeProfile(ctx, { apiKey: "k", facets: [FACETS[0]] });
+
+    expect(doc.sections[0].text).toBe("A bio");
+    expect(doc.sections[0].occupation).toBeUndefined();
+    expect(doc.sections[0].interests).toBeUndefined();
+  });
+
+  // A no-evidence verdict clears the section — its structured values have to go
+  // with it, or a cleared profile keeps publishing the old column value.
+  it("clears the structured values on a no-evidence verdict", async () => {
+    mockGetAll.mockResolvedValue([
+      mem("a", { updatedAt: new Date(5000), createdAt: new Date(500) }),
+    ]);
+    mockReflect.mockResolvedValueOnce(
+      reflectResult("", ["a"], false, { occupation: "still here" })
+    );
+
+    const previous = priorDoc(
+      [{ ...section("work_role", "old prose", ["a"]), occupation: "old role" }],
+      2000,
+      fingerprint([WORK_ROLE])
+    );
+
+    const doc = await synthesizeProfile(ctx, { apiKey: "k", facets: [WORK_ROLE], previous });
+
+    expect(doc.sections[0].text).toBe("");
+    expect(doc.sections[0].occupation).toBeUndefined();
+    expect(doc.sections[0].stale).toBeFalsy();
+  });
+
+  // Failure keeps the whole prior section, structured values included — the
+  // column shouldn't empty out because one LLM call fell over.
+  it("carries a prior section's structured values forward when regeneration fails", async () => {
+    mockGetAll.mockResolvedValue([
+      mem("a", { updatedAt: new Date(5000), createdAt: new Date(500) }),
+    ]);
+    mockReflect.mockRejectedValueOnce(new Error("LLM down"));
+
+    const previous = priorDoc(
+      [
+        {
+          ...section("work_role", "Backend engineer at a fintech startup.", ["a"]),
+          occupation: "Backend engineer, fintech",
+        },
+      ],
+      2000,
+      fingerprint([WORK_ROLE])
+    );
+
+    const doc = await synthesizeProfile(ctx, { apiKey: "k", facets: [WORK_ROLE], previous });
+
+    expect(doc.sections[0].occupation).toBe("Backend engineer, fintech");
+    expect(doc.sections[0].stale).toBe(true);
+  });
+
+  // Structured values are published text, so `config.redacted` has to hold for
+  // them too — and redaction is what makes ordering matter: two distinct
+  // interests can collapse to the same placeholder, so the dedupe has to run
+  // afterwards.
+  it("redacts structured values and normalizes the redacted text", async () => {
+    mockGetAll.mockResolvedValue([mem("a")]);
+    mockReflect.mockResolvedValueOnce(
+      reflectResult("Hiking with Alice and Bob.", ["a"], true, {
+        interests: ["Hiking with Alice", "Hiking with Bob", "film photography"],
+      })
+    );
+    const redactTextAsync = vi.fn(async (text: string) => ({
+      text: text.replace(/Alice|Bob/g, "[PERSON_1]"),
+      matches: [],
+    }));
+
+    const doc = await synthesizeProfile(ctx, {
+      apiKey: "k",
+      facets: [FACETS[1]],
+      redactor: { redactTextAsync } as never,
+    });
+
+    expect(doc.sections[0].text).toBe("Hiking with [PERSON_1] and [PERSON_1].");
+    expect(doc.sections[0].interests).toEqual(["Hiking with [PERSON_1]", "film photography"]);
+  });
+
+  it("drops an occupation that redaction pushed past the cap", async () => {
+    mockGetAll.mockResolvedValue([mem("a")]);
+    // Inside the cap as the model wrote it; over it once the placeholder lands.
+    const occupation = "Support engineer at a mid-sized logistics firm, a@b.co";
+    expect(occupation.length).toBeLessThanOrEqual(80);
+    mockReflect.mockResolvedValueOnce(reflectResult("role prose", ["a"], true, { occupation }));
+    const redactTextAsync = vi.fn(async (text: string) => ({
+      text: text.replace("a@b.co", "[EMAIL_ADDRESS_PLACEHOLDER_NUMBER_ONE]"),
+      matches: [],
+    }));
+
+    const doc = await synthesizeProfile(ctx, {
+      apiKey: "k",
+      facets: [WORK_ROLE],
+      redactor: { redactTextAsync } as never,
+    });
+
+    expect(doc.sections[0].text).toBe("role prose");
+    expect(doc.sections[0].occupation).toBeUndefined();
+  });
+
+  // Delta refresh only revisits facets whose FACTS changed, so a doc cached
+  // before the structured attributes existed would never grow them. The response
+  // schema is folded into facetsSignature precisely to force that one regeneration.
+  it("does not reuse a doc whose facet signature predates the response schema", async () => {
+    mockGetAll.mockResolvedValue([mem("a", { updatedAt: new Date(2000) })]);
+    mockReflect
+      .mockResolvedValueOnce(reflectResult("re bio", ["a"]))
+      .mockResolvedValueOnce(reflectResult("re interests", ["a"]));
+
+    // The pre-change formula: key + label + query + guidance, no schema.
+    const legacySignature = FACETS.map((f) => JSON.stringify([f.key, f.label, f.query, f.guidance]))
+      .sort()
+      .join("\n");
+    const previous = priorDoc(
+      [section("bio", "old bio", ["a"]), section("interests", "old interests", ["a"])],
+      2000,
+      { ...cfg(), facetsSignature: legacySignature }
+    );
+
+    const doc = await synthesizeProfile(ctx, { apiKey: "k", facets: FACETS, previous });
+
+    expect(doc).not.toBe(previous);
+    expect(mockReflect).toHaveBeenCalledTimes(2);
+    expect(doc.config.facetsSignature).not.toBe(legacySignature);
   });
 });

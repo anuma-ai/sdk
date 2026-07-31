@@ -234,6 +234,15 @@ export interface StoredMessage {
   feedback?: MessageFeedback;
   /** Tool call events from the backend response (for reconstructing tool call history) */
   toolCallEvents?: LlmapiToolCallEvent[];
+  /**
+   * Set when `content` could not be decrypted on read (#561).
+   * The `content` field still holds the original ciphertext — never a
+   * `[Decryption Failed]` placeholder — so a later unlock can recover.
+   * - `key_missing`: no key for this field's `enc:vN:` version in the store
+   * - `auth_mismatch`: a key was present but AES-GCM auth failed (wrong key)
+   * - `invalid_payload`: malformed ciphertext envelope
+   */
+  decryptionStatus?: "key_missing" | "auth_mismatch" | "invalid_payload";
 }
 
 export interface ActivityPhase {

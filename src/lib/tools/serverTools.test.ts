@@ -163,9 +163,10 @@ describe("connector tool sets (#587)", () => {
 
 describe("mergeTools — defer-loading (Phase 3, opt-in)", () => {
   const st = (name: string): import("./serverTools").ServerTool => ({
+    type: "function",
     name,
     description: `desc ${name}`,
-    parameters: { type: "object", properties: {} },
+    parameters: { type: "object", properties: {}, required: [] },
   });
   // Catalog in arbitrary input order to prove ordering is imposed by the helper, not the input.
   const catalog = [
@@ -212,7 +213,7 @@ describe("mergeTools — defer-loading (Phase 3, opt-in)", () => {
     expect(merged[5].defer_loading).toBe(true);
     // Deferred keep FULL definitions (not name-only)
     expect(merged[4].description).toBe("desc AnumaImageMCP-edit_cloud_image");
-    expect(merged[4].parameters).toEqual({ type: "object", properties: {} });
+    expect(merged[4].parameters).toEqual({ type: "object", properties: {}, required: [] });
   });
 
   it("ON + completions → defer DISABLED (responses-only): no tool_search, normal completions format", () => {
@@ -237,7 +238,7 @@ describe("mergeTools — defer-loading (Phase 3, opt-in)", () => {
     expect(merged[1].defer_loading).toBeUndefined();
     expect(merged[4].name).toBe("AnumaImageMCP-edit_cloud_image");
     expect(merged[4].defer_loading).toBe(true);
-    expect(merged[4].parameters).toEqual({ type: "object", properties: {} });
+    expect(merged[4].parameters).toEqual({ type: "object", properties: {}, required: [] });
   });
 
   it("ON is byte-stable across calls (same catalog -> same bytes)", () => {
@@ -256,9 +257,10 @@ describe("mergeTools — defer-loading (Phase 3, opt-in)", () => {
 
 describe("mergeTools — defer-loading edge: empty server catalog + client tools", () => {
   const st = (name: string): import("./serverTools").ServerTool => ({
+    type: "function",
     name,
     description: `d ${name}`,
-    parameters: { type: "object", properties: {} },
+    parameters: { type: "object", properties: {}, required: [] },
   });
   it("empty catalog + defer on → NO tool_search (nothing to load), client tools only", () => {
     // An empty server catalog (e.g. the skip-storage/completions path that never fetched it) must not
@@ -303,9 +305,10 @@ describe("mergeTools — defer-loading edge: empty server catalog + client tools
 
 describe("mergeTools — defer-loading: duplicate hot names", () => {
   const st = (name: string): import("./serverTools").ServerTool => ({
+    type: "function",
     name,
     description: `d ${name}`,
-    parameters: { type: "object", properties: {} },
+    parameters: { type: "object", properties: {}, required: [] },
   });
   it("emits each hot tool once even if hotToolNames repeats it", () => {
     const merged = mergeTools([st("AnumaJinaMCP-read_url")], undefined, "responses", {

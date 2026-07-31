@@ -9,7 +9,7 @@ function toolByName(name: string) {
   const tool = createDriveTools(
     () => "good-token",
     async () => "good-token"
-  ).find((t) => t.function.name === name);
+  ).find((t) => (t.function as { name: string }).name === name);
   if (!tool?.executor) throw new Error(`no executor for ${name}`);
   return tool.executor as (args: Record<string, unknown>) => Promise<ToolResult>;
 }

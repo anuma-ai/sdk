@@ -186,6 +186,71 @@ describe("Chat Encryption Utilities", () => {
     });
   });
 
+  describe("decryptFieldDetailed (#561)", () => {
+    it("returns key_missing when only the other version is seeded", async () => {
+      clearAllEncryptionKeys();
+      const { seedEncryptionKeys } = await import("../../../react/useEncryption");
+      seedEncryptionKeys(testAddress, { legacy: "ab".repeat(32) });
+      const fakeV3 = `enc:v3:${"a".repeat(64)}`;
+      const { decryptFieldDetailed } = await import("../encryption-utils");
+      const result = await decryptFieldDetailed(fakeV3, testAddress);
+      expect(result.status).toBe("key_missing");
+      expect(result.value).toBe(fakeV3);
+      expect(result.value).not.toContain("Decryption Failed");
+    });
+
+    it("returns auth_mismatch with ciphertext intact when the pinned key is wrong", async () => {
+      clearAllEncryptionKeys();
+      const { seedEncryptionKeys } = await import("../../../react/useEncryption");
+      seedEncryptionKeys(testAddress, { current: "ab".repeat(32) });
+      const cipher = `enc:v3:${"b".repeat(64)}`;
+      const { decryptFieldDetailed } = await import("../encryption-utils");
+      const result = await decryptFieldDetailed(cipher, testAddress);
+      expect(result.status).toBe("auth_mismatch");
+      expect(result.value).toBe(cipher);
+      expect(result.value).not.toContain("Decryption Failed");
+    });
+
+    it("refreshEncryptionKeyIfMatches recovers a wrong pinned key without masking ciphertext", async () => {
+      await requestEncryptionKey(testAddress, mockSignMessage);
+      const cipher = await encryptField("hello-partial", testAddress, mockSignMessage);
+
+      clearAllEncryptionKeys();
+      const { seedEncryptionKeys, refreshEncryptionKeyIfMatches, hasEncryptionKey } =
+        await import("../../../react/useEncryption");
+      // Pin a wrong v3-only key (no v2) — the historical fail-closed shape.
+      seedEncryptionKeys(testAddress, { current: "cd".repeat(32) });
+      expect(hasEncryptionKey(testAddress, "v2")).toBe(false);
+      expect(hasEncryptionKey(testAddress, "v3")).toBe(true);
+
+      const { decryptFieldDetailed } = await import("../encryption-utils");
+      expect((await decryptFieldDetailed(cipher, testAddress)).status).toBe("auth_mismatch");
+
+      const refreshed = await refreshEncryptionKeyIfMatches(testAddress, cipher, mockSignMessage);
+      expect(refreshed).toBe(true);
+      const ok = await decryptFieldDetailed(cipher, testAddress);
+      expect(ok.status).toBe("ok");
+      expect(ok.value).toBe("hello-partial");
+    });
+
+    it("refreshEncryptionKeyIfMatches leaves the store alone when the probe does not match", async () => {
+      clearAllEncryptionKeys();
+      const { seedEncryptionKeys, refreshEncryptionKeyIfMatches, hasEncryptionKey } =
+        await import("../../../react/useEncryption");
+      const wrong = "ab".repeat(32);
+      seedEncryptionKeys(testAddress, { current: wrong });
+      const alienCipher = `enc:v3:${"f".repeat(64)}`;
+
+      const wrongSigner = vi.fn(async () => `0x${"11".repeat(65)}`) as unknown as SignMessageFn;
+      const refreshed = await refreshEncryptionKeyIfMatches(testAddress, alienCipher, wrongSigner);
+      expect(refreshed).toBe(false);
+      // Store still has the original wrong key (not replaced by another wrong derive).
+      expect(hasEncryptionKey(testAddress, "v3")).toBe(true);
+      const { decryptFieldDetailed } = await import("../encryption-utils");
+      expect((await decryptFieldDetailed(alienCipher, testAddress)).status).toBe("auth_mismatch");
+    });
+  });
+
   describe("decryptMessageFields", () => {
     it("should decrypt an encrypted message", async () => {
       await requestEncryptionKey(testAddress, mockSignMessage);
@@ -204,7 +269,7 @@ describe("Chat Encryption Utilities", () => {
       // Create a StoredMessage-like object from encrypted data
       const storedMessage: StoredMessage = {
         uniqueId: "msg-123",
-        messageId: "msg-123",
+        messageId: 123,
         conversationId: "conv-123",
         role: "assistant",
         content: encrypted.content,
@@ -227,7 +292,7 @@ describe("Chat Encryption Utilities", () => {
 
       const plaintextMessage: StoredMessage = {
         uniqueId: "msg-old",
-        messageId: "msg-old",
+        messageId: 1,
         conversationId: "conv-123",
         role: "user",
         content: "This is plaintext from old SDK",
@@ -245,7 +310,7 @@ describe("Chat Encryption Utilities", () => {
     it("should return message as-is without address", async () => {
       const message: StoredMessage = {
         uniqueId: "msg-1",
-        messageId: "msg-1",
+        messageId: 1,
         conversationId: "conv-1",
         role: "user",
         content: "test",
@@ -285,7 +350,7 @@ describe("Chat Encryption Utilities", () => {
 
       const v2Message: StoredMessage = {
         uniqueId: "msg-v2",
-        messageId: "msg-v2",
+        messageId: 2,
         conversationId: "conv-123",
         role: "user",
         content: `enc:v2:${encryptedHex}`,
@@ -296,6 +361,212 @@ describe("Chat Encryption Utilities", () => {
 
       const decrypted = await decryptMessageFields(v2Message, testAddress, mockSignMessage);
       expect(decrypted.content).toBe(plaintext);
+    });
+
+    it("self-heals a wrong pinned key when signMessage is provided (#561)", async () => {
+      await requestEncryptionKey(testAddress, mockSignMessage);
+      const encrypted = (await encryptMessageFields(
+        {
+          conversationId: "conv-123",
+          role: "user" as const,
+          content: "recover me",
+        },
+        testAddress,
+        mockSignMessage
+      )) as { content: string };
+
+      clearAllEncryptionKeys();
+      const { seedEncryptionKeys } = await import("../../../react/useEncryption");
+      seedEncryptionKeys(testAddress, { current: "ee".repeat(32) });
+
+      const storedMessage: StoredMessage = {
+        uniqueId: "msg-heal",
+        messageId: "msg-heal" as unknown as number,
+        conversationId: "conv-123",
+        role: "user",
+        content: encrypted.content,
+        model: "test",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      const decrypted = await decryptMessageFields(storedMessage, testAddress, mockSignMessage);
+      expect(decrypted.content).toBe("recover me");
+      expect(decrypted.decryptionStatus).toBeUndefined();
+    });
+
+    it("sets decryptionStatus and keeps ciphertext when recovery is impossible (#561)", async () => {
+      clearAllEncryptionKeys();
+      const { seedEncryptionKeys } = await import("../../../react/useEncryption");
+      seedEncryptionKeys(testAddress, { current: "ee".repeat(32) });
+      const cipher = `enc:v3:${"c".repeat(64)}`;
+      const wrongSigner = vi.fn(async () => `0x${"22".repeat(65)}`) as unknown as SignMessageFn;
+
+      const storedMessage: StoredMessage = {
+        uniqueId: "msg-fail",
+        messageId: "msg-fail" as unknown as number,
+        conversationId: "conv-123",
+        role: "user",
+        content: cipher,
+        model: "test",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      const decrypted = await decryptMessageFields(storedMessage, testAddress, wrongSigner);
+      expect(decrypted.content).toBe(cipher);
+      expect(decrypted.content).not.toContain("Decryption Failed");
+      expect(decrypted.decryptionStatus).toBe("auth_mismatch");
+    });
+
+    it("sets decryptionStatus when a sibling field fails but content is readable (#828)", async () => {
+      await requestEncryptionKey(testAddress, mockSignMessage);
+      const encrypted = (await encryptMessageFields(
+        {
+          conversationId: "conv-123",
+          role: "assistant" as const,
+          content: "readable content",
+          thinking: "secret thinking",
+        },
+        testAddress,
+        mockSignMessage
+      )) as { content: string; thinking: string };
+
+      // Corrupt only the thinking ciphertext payload so content still decrypts.
+      const badThinking = `enc:v3:${"d".repeat(64)}`;
+      const storedMessage: StoredMessage = {
+        uniqueId: "msg-sib",
+        messageId: "msg-sib" as unknown as number,
+        conversationId: "conv-123",
+        role: "assistant",
+        content: encrypted.content,
+        thinking: badThinking,
+        model: "test",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      // No signMessage — avoid self-heal overwriting; we want the status signal.
+      const decrypted = await decryptMessageFields(storedMessage, testAddress);
+      expect(decrypted.content).toBe("readable content");
+      expect(decrypted.thinking).toBe(badThinking);
+      expect(decrypted.decryptionStatus).toBe("auth_mismatch");
+    });
+
+    it("dedupes parallel refreshEncryptionKeyIfMatches to a single sign (#828)", async () => {
+      await requestEncryptionKey(testAddress, mockSignMessage);
+      const cipher = await encryptField("storm-me", testAddress, mockSignMessage);
+
+      clearAllEncryptionKeys();
+      const { seedEncryptionKeys, refreshEncryptionKeyIfMatches } =
+        await import("../../../react/useEncryption");
+      seedEncryptionKeys(testAddress, { current: "ab".repeat(32) });
+
+      let signCalls = 0;
+      const countingSigner = vi.fn(async (message: string) => {
+        signCalls += 1;
+        // Slow sign so concurrent callers overlap on the pending map.
+        await new Promise((r) => setTimeout(r, 30));
+        return mockSignMessage(message);
+      }) as unknown as SignMessageFn;
+
+      const results = await Promise.all([
+        refreshEncryptionKeyIfMatches(testAddress, cipher, countingSigner),
+        refreshEncryptionKeyIfMatches(testAddress, cipher, countingSigner),
+        refreshEncryptionKeyIfMatches(testAddress, cipher, countingSigner),
+      ]);
+
+      expect(results).toEqual([true, true, true]);
+      expect(signCalls).toBe(1);
+    });
+
+    it("requestEncryptionKey does not wipe a seeded key with a divergent signature (#828)", async () => {
+      clearAllEncryptionKeys();
+      const { seedEncryptionKeys, hasEncryptionKey } = await import("../../../react/useEncryption");
+
+      seedEncryptionKeys(testAddress, { current: "ab".repeat(32) });
+      const badSigner = vi.fn(async () => `0x${"33".repeat(65)}`) as unknown as SignMessageFn;
+      const ok = await requestEncryptionKey(testAddress, badSigner);
+      expect(ok).toBe(false);
+      // Store unchanged — still only the wrong seeded current (no legacy filled).
+      expect(hasEncryptionKey(testAddress, "v3")).toBe(true);
+      expect(hasEncryptionKey(testAddress, "v2")).toBe(false);
+      expect(hasEncryptionKey(testAddress)).toBe(true); // default = v3
+
+      // Divergent memo: subsequent calls must not re-sign.
+      await requestEncryptionKey(testAddress, badSigner);
+      expect(badSigner).toHaveBeenCalledTimes(1);
+    });
+
+    it("hasEncryptionKey() without version requires v3, not merely v2 (#828)", async () => {
+      clearAllEncryptionKeys();
+      const { seedEncryptionKeys, hasEncryptionKey } = await import("../../../react/useEncryption");
+      seedEncryptionKeys(testAddress, { legacy: "ab".repeat(32) });
+      expect(hasEncryptionKey(testAddress, "v2")).toBe(true);
+      expect(hasEncryptionKey(testAddress, "v3")).toBe(false);
+      expect(hasEncryptionKey(testAddress)).toBe(false);
+    });
+
+    it("refresh memos failed candidates so pagination does not re-sign (#828)", async () => {
+      await requestEncryptionKey(testAddress, mockSignMessage);
+      const realCipher = await encryptField("alien-target", testAddress, mockSignMessage);
+
+      clearAllEncryptionKeys();
+      const { seedEncryptionKeys, refreshEncryptionKeyIfMatches } =
+        await import("../../../react/useEncryption");
+      seedEncryptionKeys(testAddress, { current: "ab".repeat(32) });
+
+      let signCalls = 0;
+      const wrongSigner = vi.fn(async () => {
+        signCalls += 1;
+        return `0x${"44".repeat(65)}`;
+      }) as unknown as SignMessageFn;
+
+      expect(await refreshEncryptionKeyIfMatches(testAddress, realCipher, wrongSigner)).toBe(false);
+      expect(await refreshEncryptionKeyIfMatches(testAddress, realCipher, wrongSigner)).toBe(false);
+      expect(signCalls).toBe(1);
+    });
+
+    it("parallel refresh waiters probe their own ciphertext against shared candidates (#828)", async () => {
+      await requestEncryptionKey(testAddress, mockSignMessage);
+      const goodCipher = await encryptField("recover-me", testAddress, mockSignMessage);
+
+      // Build an alien probe that the correct signer cannot open.
+      const alienSigner = vi.fn(async () => `0x${"55".repeat(65)}`) as unknown as SignMessageFn;
+      clearAllEncryptionKeys();
+      await requestEncryptionKey(testAddress, alienSigner);
+      const alienCipher = await encryptField("alien", testAddress, alienSigner);
+
+      clearAllEncryptionKeys();
+      const { seedEncryptionKeys, refreshEncryptionKeyIfMatches, decryptData } =
+        await import("../../../react/useEncryption");
+      seedEncryptionKeys(testAddress, { current: "ab".repeat(32) });
+
+      let signCalls = 0;
+      const countingSigner = vi.fn(async (message: string) => {
+        signCalls += 1;
+        await new Promise((r) => setTimeout(r, 30));
+        return mockSignMessage(message);
+      }) as unknown as SignMessageFn;
+
+      // Leader probe misses; waiter probe matches the shared candidates.
+      const [leader, waiter] = await Promise.all([
+        refreshEncryptionKeyIfMatches(testAddress, alienCipher, countingSigner),
+        refreshEncryptionKeyIfMatches(testAddress, goodCipher, countingSigner),
+      ]);
+
+      expect(signCalls).toBe(1);
+      expect(leader).toBe(false);
+      expect(waiter).toBe(true);
+      const hex = goodCipher.slice("enc:v3:".length);
+      expect(await decryptData(hex, testAddress)).toBe("recover-me");
+    });
+
+    it("seedEncryptionKeys rejects non-64-char hex (#828)", async () => {
+      clearAllEncryptionKeys();
+      const { seedEncryptionKeys } = await import("../../../react/useEncryption");
+      expect(() => seedEncryptionKeys(testAddress, { current: "abcd" })).toThrow(/64 hex/);
+      expect(() => seedEncryptionKeys(testAddress, { legacy: "zz".repeat(32) })).toThrow(/64 hex/);
     });
   });
 });

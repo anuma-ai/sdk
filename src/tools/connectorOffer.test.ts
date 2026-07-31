@@ -5,9 +5,9 @@ import { createConnectorOfferTool } from "./connectorOffer";
 describe("createConnectorOfferTool", () => {
   it("registers as display_connector with skipContinuation and requires connectorId", () => {
     const tool = createConnectorOfferTool({ getContext: () => null });
-    expect(tool.function.name).toBe("display_connector");
+    expect((tool.function as { name: string }).name).toBe("display_connector");
     expect(tool.skipContinuation).toBe(true);
-    const params = tool.function.arguments as { required?: string[] };
+    const params = (tool.function as { arguments: { required?: string[] } }).arguments;
     expect(params.required).toContain("connectorId");
   });
 

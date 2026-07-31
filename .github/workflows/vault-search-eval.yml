@@ -14,11 +14,6 @@ name: Vault Search Eval
 # lanes, and embedding model, so the baseline records its config and the
 # benchmark refuses to compare across a mismatch.
 on:
-  # Runs in the merge queue with NO paths filter, so the status below is always
-  # produced there and can therefore be a REQUIRED check. The paths-scoped
-  # pull_request trigger stays for early signal during review; a required check
-  # that never reports on an unrelated PR would block it forever.
-  merge_group:
   workflow_dispatch:
     inputs:
       mode:
@@ -33,6 +28,10 @@ on:
         type: choice
         default: "false"
         options: ["false", "true"]
+  # ADVISORY gate — see .github/workflows/EVAL_GATES.md for why, and for the
+  # three-step recipe to make it blocking. In short: paths-scoped means no run
+  # (and so NO status) on an unrelated PR, which is why `vault-search-eval-status` must not
+  # be added to main's required checks in this shape.
   pull_request:
     branches: [main]
     paths:
@@ -66,17 +65,11 @@ on:
       - "test/memory/src/metrics.ts"
       - "test/memory/src/gate.ts"
 
-  # Also run when a qualifying change LANDS on main. Two reasons, both
-  # load-bearing:
-  #  1. Actions scopes a cache to the ref that created it, so caches born
-  #     in a PR live only under refs/pull/N/merge. Without a main-branch
-  #     run nothing ever seeds the frozen embedding vectors
-  #     for other PRs to restore, and every PR cold-starts — which is the
-  #     HuggingFace 429 exposure (and, for the vault gate, the re-embed
-  #     that breaks the frozen-vector premise the flat threshold rests on).
-  #  2. It gives a main-line signal: a regression that slipped review is
-  #     at least recorded against main rather than silently absorbed.
-  # Same paths as the PR trigger, so this stays off ordinary merges.
+  # The ONLY thing that seeds the shared caches. Actions scopes a cache to the
+  # ref that created it, so one born under refs/pull/N/merge is invisible to
+  # every other PR; without this main-branch run each PR cold-starts and re-pulls
+  # the dataset (HuggingFace 429s) and re-embeds. With merge_group now removed
+  # this is the sole seeder — do not prune it as a duplicate of the PR trigger.
   push:
     branches: [main]
     paths:
@@ -119,17 +112,25 @@ jobs:
       INPUT_MODE: ${{ inputs.mode || 'gate' }}
       INPUT_REFRESH: ${{ inputs.refresh_embeddings || 'false' }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: actions/setup-node@v4
+      # pnpm BEFORE setup-node: `cache: "pnpm"` resolves the store by running
+      # `pnpm store path`, so pnpm has to be on PATH by then. Corepack-enabling
+      # afterwards (what this workflow used to do) left setup-node with no pnpm and
+      # no cache, which is why these runs re-downloaded all ~1610 packages every
+      # time. Matches test.yml, which has always had it in this order.
+      - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: "22"
-
-      - name: Enable Corepack
-        run: corepack enable
+          cache: "pnpm"
 
       - name: Install Dependencies
-        run: pnpm install
+        # --frozen-lockfile so a lockfile that drifted from package.json fails here
+        # instead of being silently re-resolved, which also means the restored store
+        # is always the one the lockfile describes.
+        run: pnpm install --frozen-lockfile
 
       # The frozen vectors are gitignored (a few MB of float arrays), so cache
       # them across runs — otherwise every PR re-embeds 208 texts. Keyed on the
@@ -137,7 +138,7 @@ jobs:
       # fresh key rather than silently reusing stale vectors. (The benchmark
       # also self-invalidates: the cache file records its model.)
       - name: Restore frozen embedding cache
-        uses: actions/cache@v4
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: test/memory/src/vault/embeddings-cache.json
           key: vault-embeddings-v1-${{ hashFiles('test/memory/src/vault/dataset.ts', 'src/lib/memoryEngine/constants.ts') }}
@@ -168,7 +169,7 @@ jobs:
 
       - name: Upload generated baseline
         if: env.INPUT_MODE == 'save-baseline'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: vault-search-baseline
           path: test/memory/src/vault/baseline.json
@@ -200,17 +201,14 @@ jobs:
 
       - name: Upload results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: vault-search-eval-results
           path: results.json
           if-no-files-found: ignore
 
-  # Aggregator whose context is stable whatever the gate above did — the shape
-  # `e2e-tools-status` uses, and the only one safe to add to main's ruleset.
-  # Passes when the gate is skipped (paths didn't match), fails only when it
-  # actually failed. NOTE: adding `vault-search-eval-status` to ruleset 9764137 needs
-  # repo admin; until then this reports but cannot block.
+  # Reports this gate's outcome as one stable line. See the advisory note on
+  # the pull_request trigger for why it is not a required check today.
   vault-search-eval-status:
     if: always()
     needs: [vault-search-eval]
@@ -218,8 +216,11 @@ jobs:
     steps:
       - name: Check vault search gate result
         run: |
-          if [[ "${{ needs.vault-search-eval.result }}" == "failure" ]]; then
-            echo "Vault search eval gate failed"
+          # Allowlist, not a failure check: a timed-out job concludes
+          # `cancelled` and would otherwise post green. See EVAL_GATES.md.
+          result="${{ needs.vault-search-eval.result }}"
+          if [[ "$result" != "success" && "$result" != "skipped" ]]; then
+            echo "Vault search eval gate did not pass (result: $result)"
             exit 1
           fi
-          echo "Vault search eval gate passed (or was skipped)"
+          echo "Vault search eval gate passed"

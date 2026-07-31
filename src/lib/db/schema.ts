@@ -89,8 +89,21 @@ import { VaultFolder } from "./vaultFolders/models";
  *   is TWO-tier (`private | public`); null — and any unrecognised value —
  *   reads as 'private', so nothing pre-existing is ever published without an
  *   explicit visibility write
+ * - v42: Added topics, topics_updated_at columns to memory_vault so a memory's
+ *   topics become the DURABLE record and `entity` / `memory_entity` become a
+ *   device-local index over it. Those two tables never sync (entity ids are
+ *   locally generated), so a restored device used to receive "curated" /
+ *   "already extracted" flags on memories with zero topic links and the graph
+ *   recall lane stayed dead. `topics` carries the names across devices;
+ *   `topics_updated_at` is a SECOND timestamp because every topic writer pins
+ *   `updated_at` on purpose (recall's recency multiplier) and both sync paths
+ *   key on `updated_at`, so a topic-only change would neither upload nor merge
+ * - v43: Added a (is_deleted, created_at) index to conversations. Every
+ *   conversation list read filters is_deleted and orders by created_at DESC,
+ *   which previously meant a temp B-tree sort of the whole live set on every
+ *   read. Structural only — no column added, no data rewritten
  */
-export const SDK_SCHEMA_VERSION = 41;
+export const SDK_SCHEMA_VERSION = 43;
 
 /**
  * Combined WatermelonDB schema for all SDK storage modules.
@@ -160,7 +173,16 @@ export const sdkSchema = appSchema({
         { name: "conversation_id", type: "string", isIndexed: true },
         { name: "title", type: "string" },
         { name: "project_id", type: "string", isOptional: true, isIndexed: true },
-        { name: "created_at", type: "number" },
+        // Indexed to match every other list-sorted created_at in this schema.
+        // Note this single-column index is NOT what makes the conversation list
+        // reads fast on native SQLite — they all filter is_deleted as well, and
+        // SQLite will not combine the two indexes, so the composite created by
+        // the v42 migration is what its planner actually uses. This declaration
+        // still earns its keep on the other two adapters: LokiJS builds its
+        // binary indices from `isIndexed` (and ignores `sql` migration steps
+        // outright), and Postgres gathers statistics via autovacuum, so its
+        // planner can use a single-column index the SQLite planner skips.
+        { name: "created_at", type: "number", isIndexed: true },
         { name: "updated_at", type: "number" },
         { name: "is_deleted", type: "boolean", isIndexed: true },
         { name: "pinned_at", type: "number", isOptional: true },
@@ -234,9 +256,33 @@ export const sdkSchema = appSchema({
         // links). Auto-extraction then leaves its links alone — the user owns
         // them. Null/false = topics are auto-derived (default).
         { name: "topics_user_managed", type: "boolean", isOptional: true },
+        // The memory's topics as a DURABLE, SYNCED record: a JSON array of
+        // `{name, kind?, source}`, `name` in the caller's display casing (unlike
+        // `entity.canonical_name`, which is lowercased and has no display
+        // column). `entity` / `memory_entity` are a device-local INDEX over this
+        // — their ids are locally generated, so they can never sync — and a
+        // restored device rebuilds them from these names with no LLM call.
+        // Null = predates v42 (backfilled from the row's current links by the
+        // sweep's topicsBackfill bucket). See getMemoriesNeedingTopicExtractionOp.
+        { name: "topics", type: "string", isOptional: true },
+        // Unix ms of the last write to `topics`. A SECOND timestamp is required:
+        // every topic writer deliberately pins `updated_at` so a topic change
+        // doesn't inflate recall's recency multiplier, and both client sync
+        // paths key on `updated_at` — so without this a topic-only change would
+        // neither upload nor merge. Null = `topics` never written.
+        { name: "topics_updated_at", type: "number", isOptional: true },
         // Unix ms of the last LLM topic-extraction pass over this memory's
         // content. Null = never extracted standalone (legacy rows with entity
         // links are grandfathered — see getMemoriesNeedingTopicExtractionOp).
+        //
+        // DEPRECATED (v42) — `topics_updated_at` subsumes this and
+        // `topics_extracted_version` both: null there means never processed, and
+        // non-null with an empty `topics` means processed and found nothing
+        // (today's "answered empty" case), while a release-time
+        // EXTRACTOR_CHANGED_AT constant compared against `topics_updated_at`
+        // replaces the version check. Both columns are kept only to avoid a
+        // column-drop migration in an otherwise additive list; removing them is
+        // a follow-up once `topics` is proven in production.
         { name: "topics_extracted_at", type: "number", isOptional: true },
         // Write-time supersession (A2). When set, this fact was replaced by a
         // newer, incompatible-value fact (e.g. "Lives in Portland" superseded by
@@ -250,6 +296,9 @@ export const sdkSchema = appSchema({
         // The extraction-logic version this memory was last stamped under. Null
         // (pre-v38) is treated as version 0, so a bump of TOPICS_EXTRACTION_VERSION
         // re-extracts stale rows. See getMemoriesNeedingTopicExtractionOp.
+        //
+        // DEPRECATED (v42) alongside `topics_extracted_at` — same rationale and
+        // same removal follow-up; see that column's note above.
         { name: "topics_extracted_version", type: "number", isOptional: true },
         // Re-observation watermark (C3). Unix ms of the last time retain() merged
         // a duplicate observation into this fact (proof_count++). Distinct from
@@ -457,6 +506,8 @@ export const sdkSchema = appSchema({
  * - v38 → v39: Added `last_observed_at` column to memory_vault (C3 re-observation watermark; stamped on retain merge, distinct from updated_at)
  * - v39 → v40: Added `fact_type`, `archived_at`, `trust_tier` columns to memory_vault for typed memory + decay + Tier-0 security (all nullable + plaintext, NULL backfill)
  * - v40 → v41: Added `visibility`, `twin_opt_in`, `published_at`, `geohash` columns to memory_vault for the People Nearby cross-user visibility axis (two-tier `private | public`; null/unknown grandfathered as 'private')
+ * - v41 → v42: Added `topics` + `topics_updated_at` columns to memory_vault, making a memory's topics the durable synced record and `entity`/`memory_entity` a device-local index over it (null `topics` = pre-v42, backfilled from the row's current links by the sweep)
+ * - v42 → v43: Added a composite `(is_deleted, created_at)` index to conversations so the list reads stop temp-sorting (structural only, no data rewritten)
  */
 export const sdkMigrations = schemaMigrations({
   migrations: [
@@ -1026,6 +1077,66 @@ export const sdkMigrations = schemaMigrations({
             { name: "geohash", type: "string", isOptional: true },
           ],
         }),
+      ],
+    },
+    // v41 -> v42: topics + topics_updated_at on memory_vault — the durable,
+    // synced record of a memory's topics. Existing rows keep both NULL: the
+    // sweep's topicsBackfill bucket fills them from each row's current entity
+    // links (no LLM), capped under the worker's `limit` so the one-time
+    // re-upload it triggers drains across sweeps instead of spiking.
+    {
+      toVersion: 42,
+      steps: [
+        addColumns({
+          table: "memory_vault",
+          columns: [
+            { name: "topics", type: "string", isOptional: true },
+            { name: "topics_updated_at", type: "number", isOptional: true },
+          ],
+        }),
+      ],
+    },
+    // v42 -> v43: Give the conversation list reads an index they can actually
+    // sort on. All five of them (getConversationsOp, getConversationsLazyOp,
+    // getConversationsByProjectOp, getConversationsByProjectLazyOp and the
+    // keyset getConversationsPageOp) emit `where is_deleted is 0 ... order by
+    // created_at desc`, so before this they resolved is_deleted through its
+    // index and then built a temp B-tree over every live row just to return
+    // the newest page.
+    //
+    // The index is COMPOSITE, and that is the whole point — a bare index on
+    // created_at does not fix this. SQLite will not combine two single-column
+    // indexes here, so with `is_deleted` indexed and `created_at` indexed
+    // separately it still picks conversations_is_deleted and still temp-sorts.
+    // It only prefers a lone created_at index once ANALYZE has populated
+    // sqlite_stat1, and nothing ever runs ANALYZE: not WatermelonDB, not its
+    // native SQLite bindings, not this SDK. Every device is permanently in the
+    // no-statistics state, so the index has to satisfy the filter and the sort
+    // in one structure. `(is_deleted, created_at)` does: equality on the
+    // leading column, ordered scan on the second, and the keyset boundary
+    // becomes a range seek on the same index.
+    //
+    // unsafeExecuteSql, not addColumns: both columns already exist and
+    // WatermelonDB has no add-index migration step, so raw SQL is the only way
+    // to build one in place (same shape as the v19 -> v20 memory_vault
+    // migration). IF NOT EXISTS keeps the step idempotent.
+    //
+    // Two limits worth knowing before someone re-measures this and finds it
+    // missing. First, the LokiJS (web) adapter discards `sql` steps entirely,
+    // so existing browser databases gain nothing — web's only lever is the
+    // `isIndexed` flag on the column itself. Second, this index reaches
+    // MIGRATED databases only: WatermelonDB builds a fresh database purely from
+    // the encoded schema, and its schema format cannot express a composite
+    // index. The one hook that could (`unsafeSql` on the table) is a function,
+    // and the LokiJS adapter posts the schema to its worker, so attaching it
+    // makes the whole schema fail structuredClone and takes the database down
+    // at setup for anyone on `useWebWorker: true`. Not worth it for an index.
+    {
+      toVersion: 43,
+      steps: [
+        unsafeExecuteSql(
+          "CREATE INDEX IF NOT EXISTS conversations_is_deleted_created_at ON conversations (is_deleted, created_at);"
+        ),
       ],
     },
   ],

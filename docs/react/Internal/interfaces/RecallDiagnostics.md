@@ -1,6 +1,6 @@
 # RecallDiagnostics
 
-Defined in: [src/lib/memory/types.ts:271](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#271)
+Defined in: [src/lib/memory/types.ts:317](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#317)
 
 Per-call recall observability payload (see [RecallOptions.onDiagnostics](RecallOptions.md#ondiagnostics)).
 All timings are wall-clock milliseconds. Lane counts are post-dedupe,
@@ -12,7 +12,7 @@ pre-fusion. Intended to be forwarded to a metrics sink (e.g. PostHog).
 
 > **candidateCount**: `number`
 
-Defined in: [src/lib/memory/types.ts:277](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#277)
+Defined in: [src/lib/memory/types.ts:323](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#323)
 
 Total candidates considered before truncation.
 
@@ -22,7 +22,7 @@ Total candidates considered before truncation.
 
 > **chunkCount**: `number`
 
-Defined in: [src/lib/memory/types.ts:283](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#283)
+Defined in: [src/lib/memory/types.ts:329](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#329)
 
 Chunks the chunk lane returned (post-dedupe, pre-fusion).
 
@@ -32,7 +32,7 @@ Chunks the chunk lane returned (post-dedupe, pre-fusion).
 
 > **degraded**: [`RecallDegradation`](../type-aliases/RecallDegradation.md)\[]
 
-Defined in: [src/lib/memory/types.ts:298](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#298)
+Defined in: [src/lib/memory/types.ts:344](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#344)
 
 Soft-degradation signals that fired this call (empty when clean).
 
@@ -42,7 +42,7 @@ Soft-degradation signals that fired this call (empty when clean).
 
 > **factCount**: `number`
 
-Defined in: [src/lib/memory/types.ts:281](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#281)
+Defined in: [src/lib/memory/types.ts:327](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#327)
 
 Facts the fact lane returned (post-dedupe, pre-fusion).
 
@@ -52,7 +52,7 @@ Facts the fact lane returned (post-dedupe, pre-fusion).
 
 > **reranked**: `boolean`
 
-Defined in: [src/lib/memory/types.ts:275](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#275)
+Defined in: [src/lib/memory/types.ts:321](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#321)
 
 Whether the cross-encoder actually reranked the fact lane this call.
 
@@ -62,7 +62,7 @@ Whether the cross-encoder actually reranked the fact lane this call.
 
 > **timings**: `object`
 
-Defined in: [src/lib/memory/types.ts:285](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#285)
+Defined in: [src/lib/memory/types.ts:331](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#331)
 
 Wall-clock phase timings (ms).
 
@@ -102,7 +102,7 @@ Whole `recall()` call.
 
 > **usedBudget**: [`Budget`](../type-aliases/Budget.md)
 
-Defined in: [src/lib/memory/types.ts:273](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#273)
+Defined in: [src/lib/memory/types.ts:319](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#319)
 
 Budget actually executed (may have downgraded from the requested one).
 
@@ -112,6 +112,6 @@ Budget actually executed (may have downgraded from the requested one).
 
 > `optional` **vaultSize**: `number`
 
-Defined in: [src/lib/memory/types.ts:279](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#279)
+Defined in: [src/lib/memory/types.ts:325](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#325)
 
 Total vault size when the fact lane ran (absent if it didn't).

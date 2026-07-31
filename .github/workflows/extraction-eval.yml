@@ -18,10 +18,10 @@ on:
         default: "ab"
         options: ["ab", "save-baseline", "gate"]
       repeat:
-        description: "Runs per config (extraction is non-deterministic; ≥3 recommended)"
+        description: "Runs per config. 5 matches the committed baseline — this suite has no run-count refusal, so a lower value silently compares a smaller mean against the baseline's tolerance."
         required: false
         type: string
-        default: "3"
+        default: "5"
       model:
         description: "Extractor model (blank = default gpt-oss-120b)"
         required: false
@@ -51,6 +51,10 @@ on:
   # every title/description edit and would re-run this ~5-min LLM gate needlessly.
   # So a STACKED PR retargeted to `main` must get one more push (or reopen) to
   # run the gate; that's the standard stacked-PR flow and normally happens anyway.
+  # ADVISORY gate — see .github/workflows/EVAL_GATES.md for why, and for the
+  # three-step recipe to make it blocking. In short: paths-scoped means no run
+  # (and so NO status) on an unrelated PR, which is why `extraction-eval-status` must not
+  # be added to main's required checks in this shape.
   pull_request:
     branches: [main]
     paths:
@@ -60,7 +64,7 @@ on:
       - "test/memory/src/extraction/**"
 
 jobs:
-  eval:
+  extraction-eval:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
@@ -69,26 +73,41 @@ jobs:
       # after substitution — blocks command injection from the dispatch UI.
       # pull_request (no inputs) runs the regression gate at repeat 5 (matches
       # how baseline.json was generated); dispatch defaults to the A/B mode.
-      INPUT_MODE: ${{ inputs.mode || (github.event_name == 'pull_request' && 'gate') || 'ab' }}
-      INPUT_REPEAT: ${{ inputs.repeat || (github.event_name == 'pull_request' && '5') || '3' }}
+      # `inputs.X || <default>` rather than an event-name special-case: `inputs`
+      # is populated only on workflow_dispatch (the choice inputs carry their own
+      # defaults) and empty on pull_request, so the gate defaults fall through.
+      # Behaviour-identical to the old form today; kept because the previous
+      # `(github.event_name == 'pull_request' && ...)` shape silently degraded any
+      # NEW trigger to `ab` mode — running the eval but never comparing against
+      # the baseline. That is the trap waiting if merge_group is added back.
+      INPUT_MODE: ${{ inputs.mode || 'gate' }}
+      INPUT_REPEAT: ${{ inputs.repeat || '5' }}
       INPUT_MODEL: ${{ inputs.model }}
       INPUT_MATCH_THRESHOLD: ${{ inputs.match_threshold }}
       INPUT_BASELINE: ${{ inputs.baseline || 'true' }}
       INPUT_VERBOSE: ${{ inputs.verbose || 'false' }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0 # need origin/main for the A/B baseline swap
 
-      - uses: actions/setup-node@v4
+      # pnpm BEFORE setup-node: `cache: "pnpm"` resolves the store by running
+      # `pnpm store path`, so pnpm has to be on PATH by then. Corepack-enabling
+      # afterwards (what this workflow used to do) left setup-node with no pnpm and
+      # no cache, which is why these runs re-downloaded all ~1610 packages every
+      # time. Matches test.yml, which has always had it in this order.
+      - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: "22"
-
-      - name: Enable Corepack
-        run: corepack enable
+          cache: "pnpm"
 
       - name: Install Dependencies
-        run: pnpm install
+        # --frozen-lockfile so a lockfile that drifted from package.json fails here
+        # instead of being silently re-resolved, which also means the restored store
+        # is always the one the lockfile describes.
+        run: pnpm install --frozen-lockfile
 
       - name: Build eval args
         id: args
@@ -144,7 +163,7 @@ jobs:
 
       - name: Upload generated baseline
         if: env.INPUT_MODE == 'save-baseline'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: extraction-baseline
           path: test/memory/src/extraction/baseline.json
@@ -209,10 +228,29 @@ jobs:
 
       - name: Upload results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: extraction-eval-results
           path: |
             before.json
             after.json
           if-no-files-found: ignore
+
+  # Stable context whatever the gate above did — the `e2e-tools-status` shape,
+  # which is the only kind safe to add to main's ruleset. Passes when the gate
+  # was skipped, fails only when it actually failed.
+  extraction-eval-status:
+    if: always()
+    needs: [extraction-eval]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check extraction gate result
+        run: |
+          # Allowlist, not a failure check: a timed-out job concludes
+          # `cancelled` and would otherwise post green. See EVAL_GATES.md.
+          result="${{ needs.extraction-eval.result }}"
+          if [[ "$result" != "success" && "$result" != "skipped" ]]; then
+            echo "Extraction eval gate did not pass (result: $result)"
+            exit 1
+          fi
+          echo "Extraction eval gate passed"

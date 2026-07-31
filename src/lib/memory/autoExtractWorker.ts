@@ -313,7 +313,11 @@ export interface AutoExtractor {
   processTurn(messages: AutoExtractMessage[], conversationId?: string): boolean;
   /** True while a turn's extraction is in flight. */
   isProcessing(): boolean;
-  /** Stop accepting new turns. In-flight work continues to completion. */
+  /**
+   * Stop accepting new turns. In-flight work continues to completion, and any
+   * turn already queued (coalesced while an extraction was in flight) is still
+   * flushed — never dropped — so a turn sent right before unmount isn't lost.
+   */
   dispose(): void;
 }
 
@@ -709,10 +713,16 @@ export function createAutoExtractor(options: CreateAutoExtractorOptions): AutoEx
   /**
    * Run the next queued turn, if any (FIFO over conversations). One dispatch at
    * a time — dispatch's `finally` calls back here, so queued conversations
-   * drain sequentially, never overlapping. No-op after dispose (drops the queue).
+   * drain sequentially, never overlapping.
+   *
+   * Intentionally NOT guarded by `disposed`: a turn queued before dispose()
+   * must still be extracted or its facts are silently lost (G2 — the loss this
+   * worker exists to prevent). The in-flight extraction's finally() calls here,
+   * so the queue keeps draining to empty. New turns cannot enqueue after
+   * dispose (processTurn rejects when disposed), so every pending turn seen
+   * here is a pre-dispose arrival that is safe to run.
    */
   function drainPending(): void {
-    if (disposed) return;
     for (const [conversationId, state] of conversations) {
       if (state.pending) {
         const messages = state.pending;
@@ -728,8 +738,14 @@ export function createAutoExtractor(options: CreateAutoExtractorOptions): AutoEx
     isProcessing: () => inflight > 0,
     dispose: () => {
       disposed = true;
-      // Drop any queued-but-not-yet-running turns. In-flight work still completes.
-      for (const state of conversations.values()) state.pending = undefined;
+      // Flush the queue, don't drop it: a turn coalesced while an extraction was
+      // in flight (the common unmount-right-after-sending case) must still be
+      // extracted or its facts are silently lost (G2). The in-flight
+      // extraction's finally() calls drainPending() — no longer disposed-guarded
+      // — so the queue drains to empty after this. If nothing is in flight, kick
+      // it here. `disposed` still blocks NEW turns via processTurn, and the
+      // ≤1-in-flight invariant is preserved (drain dispatches one at a time).
+      if (inflight === 0) drainPending();
     },
   };
 }

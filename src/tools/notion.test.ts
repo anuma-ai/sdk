@@ -437,7 +437,7 @@ describe("Notion MCP Tools", () => {
         it(`creates tool with name "${toolName}" and executor`, () => {
           const tool = fn(mockGetAccessToken, mockRequestNotionAccess);
 
-          expect(tool.function.name).toBe(toolName);
+          expect((tool.function as { name: string }).name).toBe(toolName);
           expect(tool.type).toBe("function");
           expect(tool.executor).toBeTypeOf("function");
         });
@@ -490,7 +490,7 @@ describe("Notion MCP Tools", () => {
 
       expect(tools).toHaveLength(12);
 
-      const names = tools.map((t) => t.function.name);
+      const names = tools.map((t) => (t.function as { name: string }).name);
       expect(names).toEqual([
         "notion-search",
         "notion-fetch",

@@ -2,4 +2,4 @@
 
 > **GetApiV1AdminConnectorsError** = [`GetApiV1AdminConnectorsErrors`](GetApiV1AdminConnectorsErrors.md)\[keyof [`GetApiV1AdminConnectorsErrors`](GetApiV1AdminConnectorsErrors.md)]
 
-Defined in: [src/client/types.gen.ts:5218](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5218)
+Defined in: [src/client/types.gen.ts:5246](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5246)

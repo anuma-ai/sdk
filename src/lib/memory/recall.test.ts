@@ -39,9 +39,13 @@ vi.mock("./reranker", async (importOriginal) => ({
   rerankPairs: vi.fn(),
 }));
 
-vi.mock("../memoryVault/decomposeQuery", () => ({
-  decomposeQuery: vi.fn(),
-}));
+vi.mock("../memoryVault/decomposeQuery", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../memoryVault/decomposeQuery")>();
+  return {
+    ...actual,
+    decomposeQuery: vi.fn(),
+  };
+});
 
 // Wrap (not replace) so the real ranking pipeline still runs — this test
 // file pins actual orchestration — while letting us assert on the
@@ -193,9 +197,9 @@ describe("recall — query validation", () => {
     expect(searchChunksOp).not.toHaveBeenCalled();
   });
 
-  it("reports the downgraded budget even on the empty-query early return", async () => {
+  it("reports the requested budget even on the empty-query early return", async () => {
     const result = await recall("", makeCtx(), { budget: "high" });
-    expect(result.usedBudget).toBe("mid");
+    expect(result.usedBudget).toBe("high");
   });
 });
 
@@ -227,33 +231,38 @@ describe("recall — budget tiers", () => {
     expect(result.memories[0].id).toBe("m1");
   });
 
-  it("budget=high WITHOUT decomposeOptions silently downgrades to mid", async () => {
+  it("budget=high stays high without decomposeOptions (719/B4 — recall is LLM-free)", async () => {
     const result = await recall(QUERY, makeCtx(), { budget: "high" });
 
-    expect(result.usedBudget).toBe("mid");
+    expect(result.usedBudget).toBe("high");
     expect(decomposeQuery).not.toHaveBeenCalled();
-    // Rerank still runs — only the decompose stage is dropped.
+    // Rerank still runs — high includes the CE stage.
     expect(rerankPairs).toHaveBeenCalled();
     expect(result.memories[0].id).toBe("m1");
   });
 
-  it("budget=high WITH decomposeOptions invokes the LLM decomposition", async () => {
-    vi.mocked(decomposeQuery).mockResolvedValue({
-      mode: "composite",
-      subQueries: ["sub one", "sub two", "sub three"],
-    });
-
+  it("budget=high WITH decomposeOptions does NOT invoke LLM rewrite inside recall()", async () => {
+    // 719/B4: decomposeOptions on RecallOptions is auth for graphRefine /
+    // tool-layer callers — recall itself never calls decomposeQuery.
     const result = await recall(QUERY, makeCtx(), {
       budget: "high",
       decomposeOptions: { apiKey: "llm-key", model: "openai/gpt-5-mini" },
     });
 
     expect(result.usedBudget).toBe("high");
-    expect(decomposeQuery).toHaveBeenCalledTimes(1);
-    expect(decomposeQuery).toHaveBeenCalledWith(
-      QUERY,
-      expect.objectContaining({ apiKey: "llm-key", model: "openai/gpt-5-mini" })
-    );
+    expect(decomposeQuery).not.toHaveBeenCalled();
+    expect(generateEmbeddings).not.toHaveBeenCalled();
+    expect(result.memories[0].id).toBe("m1");
+  });
+
+  it("subQueries (≥2) drives the composite ranker without an LLM call", async () => {
+    const result = await recall(QUERY, makeCtx(), {
+      budget: "high",
+      subQueries: ["sub one", "sub two", "sub three"],
+    });
+
+    expect(result.usedBudget).toBe("high");
+    expect(decomposeQuery).not.toHaveBeenCalled();
     // Sub-queries are embedded for the composite ranker.
     expect(generateEmbeddings).toHaveBeenCalledWith(
       ["sub one", "sub two", "sub three"],
@@ -268,37 +277,49 @@ describe("recall — budget tiers", () => {
     // vault item absent from facet fusion (m3, similarity 0, below the 0.1
     // factMinScore) must NOT appear in results. Prevents zero-relevance
     // padding from reaching the answer LLM on the high-budget composite path.
-    vi.mocked(decomposeQuery).mockResolvedValue({
-      mode: "composite",
-      subQueries: ["sub one", "sub two"],
-    });
-
     const result = await recall(QUERY, makeCtx(), {
       budget: "high",
-      decomposeOptions: { apiKey: "llm-key" },
+      subQueries: ["sub one", "sub two"],
     });
 
     expect(result.memories.find((m) => m.id === "m3")).toBeUndefined();
   });
 
-  it("degrades gracefully when decompose falls back to specific (LLM failure contract)", async () => {
-    // decomposeQuery's documented failure contract: network/JSON errors
-    // return { mode: "specific" } instead of throwing. recall must still
-    // produce results via the V2+CE path.
-    vi.mocked(decomposeQuery).mockResolvedValue({ mode: "specific", subQueries: [QUERY] });
-
+  it("a single subQuery entry stays on the single-query path", async () => {
+    // specific-mode decompose returns `[original]`; callers may forward it
+    // blindly. One facet must NOT pay the composite embed/RRF cost.
     const result = await recall(QUERY, makeCtx(), {
       budget: "high",
-      decomposeOptions: { apiKey: "llm-key" },
+      subQueries: [QUERY],
     });
 
     expect(result.memories.map((m) => m.id)).toEqual(["m1", "m2"]);
-    // NOTE (pinned behavior): usedBudget reflects the *configured*
-    // pipeline, not the internal fallback — it stays "high" because
-    // decomposeOptions were supplied, even though decomposition
-    // degraded to single-query mode internally.
+    expect(generateEmbeddings).not.toHaveBeenCalled();
     expect(result.usedBudget).toBe("high");
     expect(result.reranked).toBe(true);
+  });
+
+  it("normalizes subQueries before composite ranking (trim/dedupe/cap)", async () => {
+    const result = await recall(QUERY, makeCtx(), {
+      budget: "high",
+      subQueries: [
+        "  sub one ",
+        "sub one",
+        "",
+        "sub two",
+        "SUB TWO",
+        "sub three",
+        "sub four",
+        "sub five",
+        "sub six ignored",
+      ],
+    });
+
+    expect(result.usedBudget).toBe("high");
+    expect(generateEmbeddings).toHaveBeenCalledWith(
+      ["sub one", "sub two", "sub three", "sub four", "sub five"],
+      expect.anything()
+    );
   });
 
   it("degrades to the V2 ranking and reports reranked:false when the CE fails", async () => {
@@ -322,7 +343,7 @@ describe("recall — budget tiers", () => {
 
     const result = await recall(QUERY, makeCtx(), { budget: "high" });
 
-    expect(result.usedBudget).toBe("mid"); // high downgrades w/o decomposeOptions
+    expect(result.usedBudget).toBe("high");
     expect(result.reranked).toBe(false);
     // Recall still returns the fused ranking — degradation is graceful.
     expect(result.memories.map((m) => m.id)).toEqual(["m1", "m2"]);
@@ -896,12 +917,13 @@ describe("createRecallTool executor", () => {
   });
 
   it("throws (does not leak an error string) when recall fails downstream", async () => {
-    // Use the query-embedding call as the failure injection point — it's
-    // unguarded, unlike the cross-encoder rerank which now soft-degrades.
-    // The executor re-throws so the tool-loop treats it as a failed call,
+    // Injection point is the vault DB read, which is still genuinely fatal. It
+    // used to be the query embedding, but that now soft-degrades to BM25 (A3) —
+    // as the cross-encoder rerank already did — so it no longer fails a recall.
+    // The executor must re-throw so the tool-loop treats it as a failed call,
     // rather than returning "Error searching memory: …" as a successful result
     // that leaks into the model's visible context (same rule as invalid args).
-    vi.mocked(generateEmbedding).mockRejectedValue(new Error("boom"));
+    vi.mocked(getAllVaultMemoriesOp).mockRejectedValue(new Error("boom"));
     const tool = createRecallTool(makeCtx(), { types: ["fact"], budget: "mid" });
 
     await expect(tool.executor!({ query: QUERY })).rejects.toThrow(
@@ -996,7 +1018,7 @@ describe("recall — diagnostics (onDiagnostics)", () => {
     expect(seen[0].degraded).not.toContain("rerank-unavailable");
   });
 
-  it("flags decompose-unavailable when budget:high lacks decomposeOptions", async () => {
+  it("does NOT flag decompose-unavailable (719/B4 — signal is retired)", async () => {
     const seen: RecallDiagnostics[] = [];
 
     const result = await recall(QUERY, makeCtx(), {
@@ -1004,8 +1026,48 @@ describe("recall — diagnostics (onDiagnostics)", () => {
       onDiagnostics: (d) => seen.push(d),
     });
 
-    expect(result.usedBudget).toBe("mid");
-    expect(seen[0].degraded).toContain("decompose-unavailable");
+    expect(result.usedBudget).toBe("high");
+    expect(seen[0].degraded).not.toContain("decompose-unavailable");
+  });
+
+  it("flags decompose-moved when high budget still passes decomposeOptions without subQueries", async () => {
+    const seen: RecallDiagnostics[] = [];
+
+    const result = await recall(QUERY, makeCtx(), {
+      budget: "high",
+      decomposeOptions: { apiKey: "legacy-key" },
+      onDiagnostics: (d) => seen.push(d),
+    });
+
+    expect(result.usedBudget).toBe("high");
+    expect(seen[0].degraded).toContain("decompose-moved");
+    expect(seen[0].degraded).not.toContain("decompose-unavailable");
+  });
+
+  it("does not flag decompose-moved when high budget supplies subQueries", async () => {
+    const seen: RecallDiagnostics[] = [];
+
+    await recall(QUERY, makeCtx(), {
+      budget: "high",
+      decomposeOptions: { apiKey: "legacy-key" },
+      subQueries: ["facet one?", "facet two?"],
+      onDiagnostics: (d) => seen.push(d),
+    });
+
+    expect(seen[0].degraded).not.toContain("decompose-moved");
+  });
+
+  it("does not flag decompose-moved when high budget uses decomposeOptions only for graphRefine", async () => {
+    const seen: RecallDiagnostics[] = [];
+
+    await recall(QUERY, makeCtx(), {
+      budget: "high",
+      graphRefine: true,
+      decomposeOptions: { apiKey: "graph-key" },
+      onDiagnostics: (d) => seen.push(d),
+    });
+
+    expect(seen[0].degraded).not.toContain("decompose-moved");
   });
 
   it("never lets a throwing diagnostics sink break recall", async () => {
@@ -1026,5 +1088,153 @@ describe("recall — diagnostics (onDiagnostics)", () => {
     expect(seen).toHaveLength(1);
     expect(seen[0].candidateCount).toBe(0);
     expect(seen[0].factCount).toBe(0);
+  });
+});
+
+/**
+ * A3 — the embeddings provider is a single upstream with no fallback, so an
+ * outage must degrade rather than remove memory from the turn. The fact lane
+ * falls back to BM25 (lexical, needs no vector); the chunk lane has no lexical
+ * equivalent and is skipped instead of taking the fact lane down with it.
+ */
+describe("recall — embeddings outage degrades instead of throwing", () => {
+  it("still returns BM25 hits and reports embeddings-unavailable", async () => {
+    vi.mocked(getAllVaultMemoriesOp).mockResolvedValue([makeMemory("m1", "allergic to shellfish")]);
+    vi.mocked(generateEmbedding).mockRejectedValue(new Error("provider down"));
+
+    const seen: RecallDiagnostics[] = [];
+    const result = await recall("shellfish", makeCtx(), {
+      onDiagnostics: (d) => seen.push(d),
+    });
+
+    expect(result.memories.map((m) => m.content)).toContain("allergic to shellfish");
+    expect(seen[0].degraded).toContain("embeddings-unavailable");
+  });
+
+  it("skips the chunk lane rather than failing the fact lane with it", async () => {
+    vi.mocked(getAllVaultMemoriesOp).mockResolvedValue([makeMemory("m1", "allergic to shellfish")]);
+    vi.mocked(generateEmbedding).mockRejectedValue(new Error("provider down"));
+
+    const seen: RecallDiagnostics[] = [];
+    // Requesting BOTH lanes: the chunk lane needs a query vector and has no
+    // lexical fallback, so it must drop out while facts still resolve. Before
+    // this it rejected the shared Promise.all and killed the whole recall.
+    const result = await recall("shellfish", makeCtx(), {
+      types: ["fact", "chunk"],
+      onDiagnostics: (d) => seen.push(d),
+    });
+
+    expect(result.memories.length).toBeGreaterThan(0);
+    expect(seen[0].chunkCount).toBe(0);
+    expect(seen[0].degraded).toContain("embeddings-unavailable");
+    expect(vi.mocked(searchChunksOp)).not.toHaveBeenCalled();
+  });
+
+  it("does not report the degradation when embeddings are healthy", async () => {
+    const seen: RecallDiagnostics[] = [];
+    await recall(QUERY, makeCtx(), { onDiagnostics: (d) => seen.push(d) });
+    expect(seen[0].degraded).not.toContain("embeddings-unavailable");
+  });
+
+  // Empty arrays are truthy, so a successful-but-empty response slipped past the
+  // `queryEmbedding` guard and ran a cosine pass that could only score 0.
+  it("skips the chunk lane on an empty (not thrown) query embedding", async () => {
+    vi.mocked(getAllVaultMemoriesOp).mockResolvedValue([makeMemory("m1", "allergic to shellfish")]);
+    vi.mocked(generateEmbedding).mockResolvedValue([]);
+
+    const seen: RecallDiagnostics[] = [];
+    await recall("shellfish", makeCtx(), {
+      types: ["fact", "chunk"],
+      onDiagnostics: (d) => seen.push(d),
+    });
+
+    expect(vi.mocked(searchChunksOp)).not.toHaveBeenCalled();
+    expect(seen[0].chunkCount).toBe(0);
+    expect(seen[0].degraded).toContain("embeddings-unavailable");
+  });
+
+  // The other direction: a chunk-lane embed failure alone is NOT a whole-provider
+  // outage when the fact lane went on to rank on a live cosine pass. Reporting one
+  // would be the same false signal the composite fall-through used to emit.
+  it("does not report an outage when the chunk embed fails but facts rank on cosine", async () => {
+    vi.mocked(getAllVaultMemoriesOp).mockResolvedValue([makeMemory("m1", "allergic to shellfish")]);
+    // Call 1 is the chunk lane (inside the shared Promise.all); the fact lane
+    // embeds afterwards and succeeds.
+    vi.mocked(generateEmbedding)
+      .mockRejectedValueOnce(new Error("transient blip"))
+      .mockResolvedValue([1, 0, 0]);
+    vi.mocked(generateEmbeddings).mockResolvedValue([[1, 0, 0]]);
+
+    const seen: RecallDiagnostics[] = [];
+    const result = await recall("shellfish", makeCtx(), {
+      types: ["fact", "chunk"],
+      onDiagnostics: (d) => seen.push(d),
+    });
+
+    expect(vi.mocked(searchChunksOp)).not.toHaveBeenCalled(); // lane still skipped
+    expect(result.memories.map((m) => m.content)).toContain("allergic to shellfish");
+    expect(seen[0].degraded).not.toContain("embeddings-unavailable");
+  });
+});
+
+/**
+ * The reconciliation above only holds if "the fact lane didn't report an
+ * outage" really means "the fact lane ranked on cosine". It doesn't when the
+ * fact lane had nothing to rank: an empty vault (or one whose rows are all
+ * undecryptable) reports `embeddingsUnavailable: false` without ever running a
+ * cosine pass, so a chunk-embed failure looked like a non-outage and a real
+ * provider outage came back as a confident empty result.
+ */
+describe("recall — a fact lane with nothing to rank cannot vouch for cosine", () => {
+  it("reports the outage when the vault is EMPTY and the chunk embed fails", async () => {
+    // The common shape: a user with conversation chunks but no saved facts yet.
+    vi.mocked(getAllVaultMemoriesOp).mockResolvedValue([]);
+    vi.mocked(countActiveVaultMemoriesOp).mockResolvedValue(0);
+    vi.mocked(generateEmbedding).mockRejectedValue(new Error("provider down"));
+
+    const seen: RecallDiagnostics[] = [];
+    const result = await recall("shellfish", makeCtx(), {
+      types: ["fact", "chunk"],
+      onDiagnostics: (d) => seen.push(d),
+    });
+
+    expect(result.memories).toHaveLength(0);
+    expect(vi.mocked(searchChunksOp)).not.toHaveBeenCalled();
+    // Without this, the recall tool tells the answer model "No relevant
+    // memories found" during a live outage — a confident false negative.
+    expect(seen[0].degraded).toContain("embeddings-unavailable");
+  });
+
+  it("reports the outage when every vault row is undecryptable and the chunk embed fails", async () => {
+    // Rows exist but none decrypt, so the fact lane returns before it ever
+    // embeds the query — only the chunk lane's embed is attempted, and it fails.
+    vi.mocked(getAllVaultMemoriesOp).mockResolvedValue([
+      makeMemory("m1", `enc:v2:${"a".repeat(64)}`), // still ciphertext — excluded from ranking
+    ]);
+    vi.mocked(generateEmbedding).mockRejectedValue(new Error("provider down"));
+
+    const seen: RecallDiagnostics[] = [];
+    await recall("shellfish", makeCtx(), {
+      types: ["fact", "chunk"],
+      onDiagnostics: (d) => seen.push(d),
+    });
+
+    expect(seen[0].degraded).toContain("embeddings-unavailable");
+  });
+
+  it("still stays quiet when the fact lane genuinely ranked on cosine", async () => {
+    vi.mocked(getAllVaultMemoriesOp).mockResolvedValue([makeMemory("m1", "allergic to shellfish")]);
+    vi.mocked(generateEmbedding)
+      .mockRejectedValueOnce(new Error("transient blip"))
+      .mockResolvedValue([1, 0, 0]);
+    vi.mocked(generateEmbeddings).mockResolvedValue([[1, 0, 0]]);
+
+    const seen: RecallDiagnostics[] = [];
+    await recall("shellfish", makeCtx(), {
+      types: ["fact", "chunk"],
+      onDiagnostics: (d) => seen.push(d),
+    });
+
+    expect(seen[0].degraded).not.toContain("embeddings-unavailable");
   });
 });

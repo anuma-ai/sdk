@@ -10,8 +10,9 @@
  *               and still need to pick up."
  *
  * These have cosine ~0.7–0.8 — high enough to be obviously the same fact, low
- * enough to slip past the 0.85 auto-merge floor. The result is an over-grown
- * vault that confuses the LLM at answer time.
+ * enough to slip past the auto-merge floor (0.8, `DEFAULT_AUTO_MERGE_THRESHOLD`
+ * in retain.ts). The result is an over-grown vault that confuses the LLM at
+ * answer time.
  *
  * Consolidation closes the gap: for each new fact, pull the top-K most
  * similar existing memories (looser threshold), pass to an LLM with explicit
@@ -32,8 +33,8 @@
  * silently swallow a write.
  */
 
-import { getLogger } from "../logger.js";
 import { type PiiRedactor, resolvePiiRedactor } from "../pii/redactor.js";
+import { notifyConsolidationFallback } from "./consolidationFallback.js";
 import { callPortalJsonCompletion, type PortalLlmAuth } from "./portalLlm.js";
 import type { ConsolidationFallbackReason } from "./types.js";
 
@@ -55,7 +56,7 @@ export const DEFAULT_CONSOLIDATION_MODEL = "inclusionai/ling-2.6-flash";
 // Retry budget for TRANSIENT consolidation failures. A transient blip
 // (network/timeout/5xx/429/empty completion) that degrades straight to create
 // is NOT low-cost: the paraphrased re-extractions consolidation exists to
-// catch sit at cosine ~0.7–0.8, below the 0.85 auto-merge floor, so a spurious
+// catch sit at cosine ~0.7–0.8, below the 0.8 auto-merge floor, so a spurious
 // create leaves a permanent near-duplicate that does NOT collapse at read time
 // or self-heal via proof_count (different wording → different embedding). 3
 // attempts = up to two cheap transient-only retries; the happy path still
@@ -73,19 +74,21 @@ A "memory" is a self-contained natural-language fact about the user. Multiple me
 Decide one of four actions:
 
 - "create": the new memory describes a distinct fact not covered by any existing memory. Write it as new.
-- "update": the new memory describes the SAME FACET as exactly one existing memory and is COMPATIBLE with it — it adds detail, fixes an incomplete value, or rephrases the same still-true fact. Return targetId of that existing memory + the consolidated content (richest version of the two).
-- "supersede": the new memory REPLACES a standing fact whose value has CHANGED and is now INCOMPATIBLE with an existing memory — the old fact was true before but is false now (a state change). Return "targetIds": an array of the ids of EVERY existing candidate that describes the SAME standing attribute now being changed — retire ALL stale duplicates of the old value, not just one (the candidate list may contain several paraphrases of the same old fact) + content = the NEW fact. The old memories are kept as history, not overwritten or deleted; do not re-state them.
-- "noop": the new memory is already fully captured by an existing memory — same facet, no new information. Skip the write.
+- "update": the new memory describes the SAME FACET of the SAME SUBJECT as exactly one existing memory, is COMPATIBLE with it, and ADDS INFORMATION — it adds detail or fills in an incomplete value. Return targetId of that existing memory + the consolidated content (richest version of the two). A pure rewording that adds nothing is NOT an update; it is "noop".
+- "supersede": the new memory REPLACES a standing fact whose value has CHANGED and is now INCOMPATIBLE with an existing memory ABOUT THE SAME SUBJECT — the old fact was true before but is false now (a state change). Before choosing this, name the subject of the new memory and the subject of each candidate out loud to yourself; if they are different people, the old fact is still TRUE and superseding it would delete a correct memory — choose "create" instead. Return "targetIds": an array of the ids of EVERY existing candidate that describes the SAME standing attribute now being changed — retire ALL stale duplicates of the old value, not just one (the candidate list may contain several paraphrases of the same old fact) + content = the NEW fact. The old memories are kept as history, not overwritten or deleted; do not re-state them.
+- "noop": the new memory is already fully captured by an existing memory — same facet of the same subject, no new information. This INCLUDES a restatement in different words ("has two kids" / "has two children"): if the existing memory already tells you everything the new one does, the answer is noop no matter how differently it is worded. Skip the write.
 
 RULES (carry these strictly):
 
 1. ONE OBSERVATION PER DISTINCT FACET. If the new memory is about "user's aunt's twins" and an existing memory is also about "user's aunt's twins", they are the same facet → update, never create.
+1a. SAME SUBJECT REQUIRED — check this FIRST, before you look at the facet. The subject is WHO the fact is about: the user, or a specific person or thing in their life (a relative, their manager, their dog Biscuit). "update", "supersede" and "noop" all require the new memory and the existing one to be about the SAME subject. Two memories can share a facet and still have different subjects, and then they are simply two different facts: "User's daughter is allergic to peanuts" and "User is allergic to peanuts" are both about a peanut allergy, but one is about the DAUGHTER and one is about the USER → create, keep both. This holds for EVERY attribute, not just the one in this example — where someone lives, who they work for, what they own, how old they are. A possessive like "user's X" makes X the subject, not the user; strip it and ask "whose fact is this?" before comparing anything. Never retire the user's own value because a fact about somebody else resembles it — the user's fact is still true, and retiring it destroys it.
 2. MATCH BY FACET, NOT TOPIC. Two memories both mentioning "Zara" is not enough to merge — only merge if they describe the same property (e.g. both about "user's pending Zara boot exchange"). Two memories about Zara on different topics (e.g. "user shops at Zara" + "user returned a sweater to Zara last week") are separate facets.
 3. NO COMPUTATION. Do not sum counts, decrement quantities, or derive new facts from existing ones. If the new memory says "user spent $200 today" and an existing memory says "user spent $150 yesterday", these are TWO SEPARATE EVENTS — create.
 4. EVENTS vs STANDING STATE.
    - Distinct EVENTS (episodic — something that happened on a date) are separate memories, even if the same activity: "user went to gym Monday" vs "user went to gym Friday" → create; keep both.
-   - A STANDING ATTRIBUTE (an ongoing state: where the user lives/works, relationship status, current role) has ONE current value. When the new memory changes that value ("Lives in Portland" → "Lives in San Francisco"; "Works at Google" → "Works at Riverbend"; "Engaged" → "Broke up"), the old value is no longer true → supersede (retire the old, record the new). Do NOT create (that leaves a stale contradiction) and do NOT update (that erases the history that the old value was once true).
-5. When in doubt between create and update, choose create — EXCEPT when the new memory directly contradicts the current value of a standing attribute in an existing memory; then choose supersede. Over-merging loses information; a live contradiction is worse than either.
+   - A STANDING ATTRIBUTE (an ongoing state: where someone lives/works, relationship status, current role) has ONE current value PER SUBJECT. When the new memory changes that value FOR THE SAME SUBJECT ("Lives in Portland" → "Lives in San Francisco"; "Works at Google" → "Works at Riverbend"; "Engaged" → "Broke up"), the old value is no longer true → supersede (retire the old, record the new). Do NOT create (that leaves a stale contradiction) and do NOT update (that erases the history that the old value was once true). A different subject holding the same attribute is not a value change at all → create.
+5. When in doubt between create and update, choose create — EXCEPT when the new memory directly contradicts the current value of a standing attribute in an existing memory ABOUT THE SAME SUBJECT; then choose supersede. Two facts about different subjects never contradict each other, however similarly they read. Over-merging loses information; a live contradiction is worse than either.
+6. When in doubt between update and noop, ask whether the existing memory ALONE already answers everything the new one would. If it does, choose noop — a write that changes only the wording costs a re-embed and makes an old fact look newly observed.
 
 OUTPUT — strict JSON, no prose:
 {
@@ -195,15 +198,28 @@ export async function consolidateMemory(
   // it returns (below) so the vault still stores real values. A single
   // redactor keeps placeholders consistent across the new fact and candidates,
   // so the model can still match the same value across them.
+  //
+  // ASYNC, deliberately: `redactText` is regex-only, so a caller who configured
+  // an `nerDetector` gets names, locations and orgs masked only by
+  // `redactTextAsync` — and a person or employer is precisely the kind of value
+  // two near-duplicate memories are being deduped over here. Without a detector
+  // `redactTextAsync` returns `redactText` directly, so the default path is
+  // unchanged. NER placeholders come from the same `getPlaceholder` map as the
+  // regex ones, so the restore below handles them identically.
+  //
+  // SEQUENTIAL, and the new fact first, so numbering follows prompt order. The
+  // redactor is stateful — racing these would tie `[EMAIL_1]` vs `[EMAIL_2]` to
+  // promise resolution order and the model could stop seeing the shared value
+  // that makes two memories the same fact.
   const redactor = resolvePiiRedactor(options.piiRedaction);
-  const safeTrimmed = redactor ? redactor.redactText(trimmed).text : trimmed;
+  const safeTrimmed = redactor ? (await redactor.redactTextAsync(trimmed)).text : trimmed;
 
-  const candidateText = candidates
-    .map((c, i) => {
-      const safeContent = redactor ? redactor.redactText(c.content).text : c.content;
-      return `[${i + 1}] (id: ${c.id}, sim: ${c.similarity.toFixed(2)})\n  ${safeContent}`;
-    })
-    .join("\n");
+  const rows: string[] = [];
+  for (const [i, c] of candidates.entries()) {
+    const safeContent = redactor ? (await redactor.redactTextAsync(c.content)).text : c.content;
+    rows.push(`[${i + 1}] (id: ${c.id}, sim: ${c.similarity.toFixed(2)})\n  ${safeContent}`);
+  }
+  const candidateText = rows.join("\n");
   const userMessage = `New memory:\n  ${safeTrimmed}\n\nExisting memories (top ${candidates.length} by cosine):\n${candidateText}`;
 
   let parsed: unknown;
@@ -266,23 +282,7 @@ function degrade(
   options: ConsolidateOptions,
   detail?: unknown
 ): ConsolidationResult {
-  // Warn by default so a persistently-failing consolidator (which silently
-  // accumulates duplicate memories) is observable without the caller having
-  // wired onFallback. This is the single log point for all degrade paths —
-  // previously only the thrown-error path logged, so parsed===null and
-  // invalid_response fallbacks were invisible.
-  if (detail !== undefined) {
-    getLogger().warn(`memory/consolidate: degraded to create (${reason})`, detail);
-  } else {
-    getLogger().warn(`memory/consolidate: degraded to create (${reason})`);
-  }
-  try {
-    options.onFallback?.(reason);
-  } catch {
-    // Observability callback must not break the write path — a throwing
-    // metrics hook would otherwise propagate up through retain() and
-    // fail the very write the fallback is trying to preserve.
-  }
+  notifyConsolidationFallback(reason, options.onFallback, detail);
   return { ...fallback, fallbackReason: reason };
 }
 

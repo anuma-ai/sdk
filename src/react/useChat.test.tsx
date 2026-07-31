@@ -83,7 +83,11 @@ describe("useChat", () => {
 
     // Type guard: after the assertions above, we know this is the success case
     if (response && response.error === null && response.data) {
-      const content = response.data.output?.[0]?.content;
+      // `ApiResponse` is a union — the Responses API returns `output[]`, Chat
+      // Completions returns `choices[]`. Assert we got the former before reading it,
+      // so a shape change fails here instead of quietly skipping the assertion.
+      expect(response.data).toHaveProperty("output");
+      const content = "output" in response.data ? response.data.output?.[0]?.content : undefined;
       expect(content).toEqual([{ type: "output_text", text: "Hello world" }]);
     }
     expect(result.current.isLoading).toBe(false);

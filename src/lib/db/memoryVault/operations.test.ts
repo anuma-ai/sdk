@@ -26,7 +26,7 @@ import {
   TOPICS_EXTRACTION_VERSION,
   vaultMemoryToStored,
 } from "./operations";
-import { linkMemoryEntitiesOp } from "../entities/operations";
+import { linkMemoryEntitiesOp, prepareMemoryTopicsUpdate } from "../entities/operations";
 import { sdkMigrations, sdkModelClasses, sdkSchema } from "../schema";
 import type { VaultMemory } from "./models";
 
@@ -43,6 +43,8 @@ vi.mock("./encryption", () => ({
 // without a real WatermelonDB.
 vi.mock("../entities/operations", () => ({
   linkMemoryEntitiesOp: vi.fn(async () => []),
+  prepareMemoryTopicsUpdate: vi.fn(async () => ({ _op: "vault-topics" })),
+  relinkMemoryEntitiesFromTopicsOp: vi.fn(async () => []),
   unlinkMemoryEntitiesOp: vi.fn(async () => undefined),
   unlinkAllMemoryEntitiesForUserOp: vi.fn(async () => undefined),
 }));
@@ -61,11 +63,15 @@ function mockRecord(overrides: Record<string, any> = {}) {
     updated_at: new Date("2025-01-01"),
     ...overrides,
   };
+  // Snake_case raw row, as WatermelonDB's `unsafeFetchRaw` returns (incl. `id`). The bulk
+  // read ops now use unsafeFetchRaw, so the query mocks below serve `r._raw`.
+  // Annotated rather than inferred: spreading an index-signature type into an
+  // object literal contributes no known keys, so the inferred type would be
+  // `{ id: any }` and tests that poke a column on `_raw` would not compile.
+  const rawRow: Record<string, any> = { id: overrides.id ?? "mem_1", ...raw };
   return {
     id: overrides.id ?? "mem_1",
-    // Snake_case raw row, as WatermelonDB's `unsafeFetchRaw` returns (incl. `id`). The bulk
-    // read ops now use unsafeFetchRaw, so the query mocks below serve `r._raw`.
-    _raw: { id: overrides.id ?? "mem_1", ...raw },
+    _raw: rawRow,
     get content() {
       return raw.content;
     },
@@ -812,13 +818,16 @@ describe("updateVaultMemoryEmbeddingOp", () => {
       vaultMemoryCollection: { find: vi.fn(async () => record) } as any,
     });
 
-    const result = await updateVaultMemoryEmbeddingOp(ctx, "mem_1", "[1,0,0]");
+    const result = await updateVaultMemoryEmbeddingOp(ctx, "mem_1", "[1,0,0]", "test-embed-model");
 
     expect(result).toBe(true);
     const updater = updateFn.mock.calls[0][0];
     const setRawSpy = vi.fn();
     updater({ _setRaw: setRawSpy });
     expect(setRawSpy).toHaveBeenCalledWith("embedding", "[1,0,0]");
+    // The model tag is written alongside the vector — a stale tag would make
+    // search re-embed the row on every query.
+    expect(setRawSpy).toHaveBeenCalledWith("embedding_model", "test-embed-model");
   });
 
   it("returns false for soft-deleted records", async () => {
@@ -828,7 +837,7 @@ describe("updateVaultMemoryEmbeddingOp", () => {
       } as any,
     });
 
-    const result = await updateVaultMemoryEmbeddingOp(ctx, "mem_1", "[1,0,0]");
+    const result = await updateVaultMemoryEmbeddingOp(ctx, "mem_1", "[1,0,0]", "test-embed-model");
     expect(result).toBe(false);
   });
 
@@ -841,7 +850,12 @@ describe("updateVaultMemoryEmbeddingOp", () => {
       } as any,
     });
 
-    const result = await updateVaultMemoryEmbeddingOp(ctx, "nonexistent", "[1,0,0]");
+    const result = await updateVaultMemoryEmbeddingOp(
+      ctx,
+      "nonexistent",
+      "[1,0,0]",
+      "test-embed-model"
+    );
     expect(result).toBe(false);
   });
 
@@ -855,7 +869,7 @@ describe("updateVaultMemoryEmbeddingOp", () => {
       vaultMemoryCollection: { find: vi.fn(async () => record) } as any,
     });
 
-    const result = await updateVaultMemoryEmbeddingOp(ctx, "mem_1", "[1,0,0]");
+    const result = await updateVaultMemoryEmbeddingOp(ctx, "mem_1", "[1,0,0]", "test-embed-model");
     expect(result).toBe(false);
   });
 });
@@ -1103,8 +1117,11 @@ describe("setMemoryEntitiesOp", () => {
   /** ctx whose entityCtx serves `existing` links and records batch deletes. */
   function ctxWithEntity(record = mockRecord(), existing: ReturnType<typeof linkRow>[] = []) {
     const batch = vi.fn(async () => undefined);
+    // The op runs the link call through `writer.callWriter` so flag, links and
+    // `topics` share one writer, so the stub has to hand one out.
+    const writer = { callWriter: (work: () => any) => work() };
     const ctx = makeCtx({
-      database: { write: vi.fn(async (cb: () => any) => cb()), batch } as any,
+      database: { write: vi.fn(async (cb: (w: any) => any) => cb(writer)), batch } as any,
       vaultMemoryCollection: { find: vi.fn(async () => record) } as any,
       entityCtx: {
         memoryEntityCollection: {
@@ -1132,13 +1149,18 @@ describe("setMemoryEntitiesOp", () => {
       { name: "berlin", kind: "place" },
     ]);
 
-    expect(linkMemoryEntitiesOp).toHaveBeenCalledWith(ctx.entityCtx, "mem_1", [
-      "tokyo",
-      { name: "berlin", kind: "place" },
-    ]);
-    // Only the stale link (ent_paris) is destroyed; ent_tokyo is kept.
+    expect(linkMemoryEntitiesOp).toHaveBeenCalledWith(
+      ctx.entityCtx,
+      "mem_1",
+      ["tokyo", { name: "berlin", kind: "place" }],
+      { topicsSource: "user" }
+    );
+    // Only the stale link (ent_paris) is destroyed; ent_tokyo is kept. The
+    // `topics` write rides in the same batch, narrowing the record from the
+    // old ∪ new set the link op wrote to the user's set.
     expect(batch).toHaveBeenCalledTimes(1);
-    expect(batch.mock.calls[0]).toHaveLength(1);
+    expect(batch.mock.calls[0]).toHaveLength(2);
+    expect(vi.mocked(prepareMemoryTopicsUpdate).mock.calls[0]?.[4]).toBe("user");
     expect(result?.topicsUserManaged).toBe(true);
   });
 
@@ -1159,9 +1181,12 @@ describe("setMemoryEntitiesOp", () => {
   it("clears all topics (empty set) but stays user-managed", async () => {
     const { ctx, batch } = ctxWithEntity(mockRecord({ id: "mem_1" }), [linkRow("ent_a")]);
     const result = await setMemoryEntitiesOp(ctx, "mem_1", []);
-    // No link call for an empty set; the lone existing link is removed.
+    // No link call for an empty set; the lone existing link is removed and
+    // `topics` is recorded as an explicit [] in the same batch.
     expect(linkMemoryEntitiesOp).not.toHaveBeenCalled();
     expect(batch).toHaveBeenCalledTimes(1);
+    expect(batch.mock.calls[0]).toHaveLength(2);
+    expect(vi.mocked(prepareMemoryTopicsUpdate).mock.calls[0]?.[2]).toEqual([]);
     expect(result?.topicsUserManaged).toBe(true);
   });
 
@@ -1254,10 +1279,24 @@ describe("getMemoriesNeedingTopicExtractionOp", () => {
     };
   }
 
-  function sweepCtx(rows: any[], linkRows: Array<{ memory_id: string }>) {
-    // Raw link rows (snake_case) — the op uses unsafeFetchRaw to avoid pinning
-    // link Models into the RecordCache.
-    const memoryEntityQuery = vi.fn(() => ({ unsafeFetchRaw: vi.fn(async () => linkRows) }));
+  /**
+   * `linkRows` are raw memory_entity rows; `entityRows` the `entity` rows they
+   * point at (defaulted from the link ids so a test that only cares about
+   * "has links" can pass names it doesn't spell out). Both are served via
+   * unsafeFetchRaw, matching the op — it must not pin Models into the
+   * RecordCache on a whole-vault sweep.
+   */
+  function sweepCtx(
+    rows: any[],
+    linkRows: Array<{ memory_id: string; entity_id?: string }>,
+    entityRows?: Array<{ id: string; canonical_name: string }>
+  ) {
+    const links = linkRows.map((l, i) => ({ entity_id: l.entity_id ?? `ent_${i}`, ...l }));
+    const entities =
+      entityRows ??
+      links.map((l) => ({ id: l.entity_id, canonical_name: `name_of_${l.entity_id}` }));
+    const memoryEntityQuery = vi.fn(() => ({ unsafeFetchRaw: vi.fn(async () => links) }));
+    const entityQuery = vi.fn(() => ({ unsafeFetchRaw: vi.fn(async () => entities) }));
     return {
       ctx: makeCtx({
         vaultMemoryCollection: {
@@ -1265,7 +1304,7 @@ describe("getMemoriesNeedingTopicExtractionOp", () => {
         } as any,
         entityCtx: {
           database: {} as any,
-          entityCollection: {} as any,
+          entityCollection: { query: entityQuery } as any,
           memoryEntityCollection: { query: memoryEntityQuery } as any,
         },
       }),
@@ -1287,9 +1326,16 @@ describe("getMemoriesNeedingTopicExtractionOp", () => {
         topics_extracted_at: 3_000,
         updated_at: 2_000,
         topics_extracted_version: TOPICS_EXTRACTION_VERSION, // fresh stamp AT current version → excluded
+        // Links + a record that matches them: what a HEALTHY extracted row looks
+        // like. Stamped with neither, it would be the pre-v42-restore shape the
+        // partition now repairs through `pending`.
+        topics: '[{"name":"name_of_ent_cur","source":"auto"}]',
       }),
     ];
-    const { ctx } = sweepCtx(rows, [{ memory_id: "mem_legacy" }]);
+    const { ctx } = sweepCtx(rows, [
+      { memory_id: "mem_legacy" },
+      { memory_id: "mem_current", entity_id: "ent_cur" },
+    ]);
 
     const result = await getMemoriesNeedingTopicExtractionOp(ctx);
 
@@ -1312,9 +1358,11 @@ describe("getMemoriesNeedingTopicExtractionOp", () => {
         topics_extracted_at: 3_000,
         updated_at: 2_000,
         topics_extracted_version: TOPICS_EXTRACTION_VERSION, // current → excluded
+        // Healthy: links + a matching record (see the partition test above).
+        topics: '[{"name":"name_of_ent_cur","source":"auto"}]',
       }),
     ];
-    const { ctx } = sweepCtx(rows, []);
+    const { ctx } = sweepCtx(rows, [{ memory_id: "mem_curver", entity_id: "ent_cur" }]);
 
     const result = await getMemoriesNeedingTopicExtractionOp(ctx);
 
@@ -1344,19 +1392,44 @@ describe("getMemoriesNeedingTopicExtractionOp", () => {
     expect(result.linkedUnstamped.length).toBe(2);
   });
 
-  it("excludes user-managed rows via the query conditions", async () => {
+  it("keeps user-managed rows out of the LLM buckets (filtered in the partition, not the query)", async () => {
+    // The query no longer filters on topics_user_managed — topicsToRelink and
+    // topicsBackfill need curated rows, so ownership is applied per-bucket.
+    //
+    // Both curated rows carry links on purpose: a curated row with NO links and
+    // no `topics` record is a provably-empty curation the sweep repairs instead
+    // of gating (real-database coverage in topicsSync.test.ts).
+    const rows = [
+      rawRow("mem_curated", { topics_user_managed: true }),
+      rawRow("mem_curated_sqlite_bool", { topics_user_managed: 1 }),
+      rawRow("mem_auto"),
+    ];
+    const { ctx } = sweepCtx(rows, [
+      { memory_id: "mem_curated" },
+      { memory_id: "mem_curated_sqlite_bool" },
+    ]);
+
+    const result = await getMemoriesNeedingTopicExtractionOp(ctx);
+
+    expect(result.pending.map((m) => m.uniqueId)).toEqual(["mem_auto"]);
+    expect(result.linkedUnstamped).toEqual([]);
+    // Their topics live only in the index, so they're backfill candidates.
+    expect(result.topicsBackfill.sort()).toEqual(["mem_curated", "mem_curated_sqlite_bool"]);
+  });
+
+  it("does not pass a topics_user_managed clause to the query", async () => {
     const queryFn = vi.fn(() => ({ unsafeFetchRaw: vi.fn(async () => []) }));
     const ctx = makeCtx({
       vaultMemoryCollection: { query: queryFn } as any,
       entityCtx: {
         database: {} as any,
-        entityCollection: {} as any,
+        entityCollection: { query: vi.fn() } as any,
         memoryEntityCollection: { query: vi.fn() } as any,
       },
     });
     await getMemoriesNeedingTopicExtractionOp(ctx);
-    // user-managed OR-clause + is_deleted + archived_at + trust_tier + superseded_by + sortBy = 6 conditions
-    expect(queryFn.mock.calls[0].length).toBe(6);
+    // is_deleted + archived_at + trust_tier + superseded_by + sortBy = 5.
+    expect(queryFn.mock.calls[0].length).toBe(5);
   });
 });
 

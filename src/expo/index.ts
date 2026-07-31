@@ -183,13 +183,17 @@ export {
 export type { FlushResult, QueueStatus } from "../lib/db/queue";
 export { QueueManager, queueManager, WalletPoller } from "../lib/db/queue";
 export type { EmbeddedWalletSignerFn, SignMessageFn } from "../react/useEncryption";
+export type { RequestEncryptionKeyOptions } from "../react/useEncryption";
 export {
   clearAllEncryptionKeys,
   clearAllEncryptionState,
   clearEncryptionKey,
+  EncryptionKeyMissingError,
   hasEncryptionKey,
   onKeyAvailable,
+  refreshEncryptionKeyIfMatches,
   requestEncryptionKey,
+  seedEncryptionKeys,
   useEncryption,
 } from "../react/useEncryption";
 
@@ -237,6 +241,7 @@ export {
 // Memory vault
 export {
   archiveVaultMemoryOp,
+  backfillMemoryTopicsOp,
   createVaultMemoriesBatchOp,
   createVaultMemoryOp,
   type CreateVaultMemoryOptions,
@@ -251,6 +256,7 @@ export {
   getVaultMemoryOp,
   hardDeleteDecayedOp,
   type MemoriesNeedingTopicExtraction,
+  relinkMemoryTopicsOp,
   restoreVaultMemoryOp,
   setMemoryVisibilityOp,
   stampTopicsExtractedAtOp,

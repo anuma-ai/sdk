@@ -33,6 +33,7 @@ import {
   rankPreparedVaultCandidates,
   type VaultEmbeddingCache,
 } from "../memoryVault/searchTool.js";
+import { notifyConsolidationFallback } from "./consolidationFallback.js";
 import type { RetainOptions, RetainResult } from "./types.js";
 
 const DEFAULT_AUTO_MERGE_THRESHOLD = 0.8;
@@ -132,9 +133,40 @@ export async function retain(
       }
     );
 
+    // An embedding failure is FATAL here, unlike on the read path.
+    //
+    // Search degrades to BM25 because partial recall beats none. A write cannot
+    // degrade the same way: both merge stages are cosine-only (`useFusion: false`,
+    // gated on `minSimilarity`), and BM25 has no say in either. A row left without
+    // a vector scores cosine 0, clears no threshold, and is indistinguishable from
+    // "no such memory exists" — so retain falls through to create and writes a
+    // PERMANENT duplicate of a fact it should have merged into. No later healthy
+    // pass undoes that; the duplicate is now in the vault.
+    //
+    // A partial failure is enough to cause it and is invisible to
+    // `embeddingsUnavailable` (which reports only a fully inert cosine lane), so
+    // the gate reads `embeddingFailure` — the merge target is exactly the kind of
+    // row a partial batch failure leaves unvectored. Both are checked because they
+    // are separately reachable.
+    //
+    // Throwing restores what happened before the read path was guarded, when an
+    // unguarded `generateEmbeddings` threw out of the search and the write simply
+    // never happened. Losing the write is recoverable — the caller can retry when
+    // embeddings recover; a duplicate is not.
+    //
+    // Only the auto-merge path is gated: `enableAutoMerge: false` is a caller that
+    // already decided to create, so there is no merge to lose.
+    if (prepared.embeddingFailure || prepared.embeddingsUnavailable) {
+      throw new Error(
+        "retain: embeddings unavailable — refusing to auto-merge against an inert cosine lane, " +
+          "which would create a duplicate instead of merging into the existing memory. Retry " +
+          "when embeddings recover, or pass enableAutoMerge: false to force a create."
+      );
+    }
+
     // Stage 1 — semantic consolidation (Hindsight-pattern), if enabled.
     // Pulls top-K memories above the looser consolidation floor (default
-    // 0.65) and asks an LLM to decide create/update/noop/supersede. Catches
+    // 0.55) and asks an LLM to decide create/update/noop/supersede. Catches
     // paraphrased duplicates the strict cosine-merge below misses, and retires
     // stale values on a state change.
     if (options.consolidateOptions) {
@@ -367,6 +399,18 @@ export async function retain(
     // concurrent winner. Fall through to the plain create/merge path below; the
     // rare leftover duplicate self-reconciles at the next consolidation (same
     // fall-through the single-target A2 path uses).
+    //
+    // Same dropped-decision report as the applier's five race paths, and it has
+    // to be here rather than there: this is the one race the applier cannot see,
+    // because the target was still live when it validated and only lost inside
+    // `createSupersedingMemoryOp`'s own re-check. The consolidator ruled this a
+    // value change and the supersession did not happen — that is exactly the
+    // event `onFallback` exists to surface.
+    notifyConsolidationFallback(
+      "target_vanished",
+      options.consolidateOptions?.onFallback,
+      `supersede: primary target ${primaryTargetId} retired or deleted inside the atomic write`
+    );
   }
 
   const created = await createVaultMemoryOp(ctx.vaultCtx, createOpts);
@@ -520,6 +564,24 @@ function resurrectFields(existing: {
  */
 type ConsolidateOutcome = { done: RetainResult } | { supersede: string[]; content: string } | null;
 
+/**
+ * Report a consolidation decision that was dropped because the row it named was
+ * deleted or superseded by a concurrent writer between the candidate search and
+ * the write, then return `null` so the caller falls through and creates.
+ *
+ * Falling through is the correct OUTCOME here — the target really is gone, and
+ * `assertMergeTargetGoneOrThrow` has already ruled out the case where the write
+ * merely failed. What was missing is that it happened at all: the consolidator
+ * decided this fact was a duplicate, that decision was thrown away, and neither
+ * a log line nor `onFallback` said so. A sustained rate means write contention is
+ * costing dedup that was correctly identified, and the only way to see it was to
+ * notice the vault growing.
+ */
+function abandonToRace(options: RetainOptions, detail: string): null {
+  notifyConsolidationFallback("target_vanished", options.consolidateOptions?.onFallback, detail);
+  return null;
+}
+
 async function tryConsolidate(
   trimmed: string,
   ctx: RetainContext,
@@ -583,13 +645,28 @@ async function tryConsolidate(
       const existing = await getVaultMemoryOp(ctx.vaultCtx, id);
       if (existing && !existing.supersededBy) valid.push(id);
     }
-    if (valid.length === 0) return null;
+    if (valid.length === 0) {
+      // Every row this supersession was meant to retire is already gone or
+      // already retired. The new fact still gets written, but the consolidator's
+      // judgement that it replaces a standing value went unrecorded.
+      return abandonToRace(
+        options,
+        `supersede: all ${requestedIds.length} target(s) deleted or already superseded`
+      );
+    }
     return { supersede: valid, content: decision.content };
   }
 
   if (decision.action === "noop" && decision.targetId) {
     const existing = await getVaultMemoryOp(ctx.vaultCtx, decision.targetId);
-    if (!existing || existing.supersededBy) return null; // race: target gone or superseded, fall through to create
+    if (!existing || existing.supersededBy) {
+      // The consolidator said this fact already exists; the row it pointed at is
+      // now gone or retired, so we create after all.
+      return abandonToRace(
+        options,
+        `noop: target ${decision.targetId} ${existing ? "superseded" : "deleted"} before the write`
+      );
+    }
     const mergedSourceIds = unionStrings(
       existing.sourceChunkIds ?? [],
       options.sourceChunkIds ?? []
@@ -616,7 +693,10 @@ async function tryConsolidate(
       // Target gone → fall through to create; genuine write failure → throw
       // rather than silently create a duplicate. See assertMergeTargetGoneOrThrow.
       await assertMergeTargetGoneOrThrow(ctx, decision.targetId);
-      return null;
+      return abandonToRace(
+        options,
+        `noop: target ${decision.targetId} deleted mid-write (proof-count bump lost)`
+      );
     }
     return {
       done: {
@@ -630,7 +710,15 @@ async function tryConsolidate(
 
   if (decision.action === "update" && decision.targetId && decision.content) {
     const existing = await getVaultMemoryOp(ctx.vaultCtx, decision.targetId);
-    if (!existing || existing.supersededBy) return null;
+    if (!existing || existing.supersededBy) {
+      // The consolidator rewrote this fact into a richer form and the row it was
+      // meant to overwrite is gone or retired, so that rewrite is discarded and
+      // the ORIGINAL text is what gets created.
+      return abandonToRace(
+        options,
+        `update: target ${decision.targetId} ${existing ? "superseded" : "deleted"} before the write`
+      );
+    }
     const mergedSourceIds = unionStrings(
       existing.sourceChunkIds ?? [],
       options.sourceChunkIds ?? []
@@ -664,7 +752,10 @@ async function tryConsolidate(
       // Target gone → fall through to create; genuine write failure → throw
       // rather than silently create a duplicate. See assertMergeTargetGoneOrThrow.
       await assertMergeTargetGoneOrThrow(ctx, decision.targetId);
-      return null;
+      return abandonToRace(
+        options,
+        `update: target ${decision.targetId} deleted mid-write (consolidated rewrite lost)`
+      );
     }
     // Cache keyed by memory id (not content) — set only after the DB write
     // committed, so a failed update can't poison the cache with a vector for
@@ -680,6 +771,22 @@ async function tryConsolidate(
     };
   }
 
+  // A non-create action whose guard clause above did not hold: an `update` or
+  // `supersede` with no content, or a `noop`/`update` with no targetId.
+  //
+  // Unreachable through `consolidateMemory` as it stands — `validate()` rejects
+  // every one of those shapes and degrades to create with `invalid_response`
+  // before the decision ever gets here (verified against all seven shapes:
+  // noop/update/supersede with a missing, empty or non-candidate field, plus an
+  // unknown action). Kept, and kept LOUD, because that is the invariant and not a
+  // guarantee this function can make locally: if `validate()` ever loosens, this
+  // is the branch that would start creating duplicates silently again, which is
+  // the exact regression #630 was filed about.
+  notifyConsolidationFallback(
+    "invalid_response",
+    options.consolidateOptions?.onFallback,
+    `unapplicable ${decision.action} decision reached the applier — validate() should have rejected it`
+  );
   return null;
 }
 

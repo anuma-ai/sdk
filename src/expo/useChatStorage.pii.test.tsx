@@ -50,7 +50,12 @@ function makeDatabase(): Database {
 
 function lastUseChatOptions() {
   const calls = mockUseChat.mock.calls;
-  return calls[calls.length - 1][0];
+  // `useChat`'s options parameter is optional, so the recorded argument is
+  // `UseChatOptions | undefined`. Every call under test passes options — if one
+  // ever doesn't, that's the bug, so fail here rather than on a vaguer assertion.
+  const opts = calls[calls.length - 1][0];
+  if (!opts) throw new Error("useChat was called without options");
+  return opts;
 }
 
 describe("useChatStorage PII forwarding (expo)", () => {

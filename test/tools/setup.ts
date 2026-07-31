@@ -162,6 +162,14 @@ export async function runToolLoop(
     steps,
     finalText: extractText(result),
     error: result.error ?? null,
+    // Straight off the loop's own normalized terminal state — NOT re-derived from
+    // the response shape. Neither shape can answer: the Responses API has no
+    // field for a finish reason at all, and completions omits `tool_calls` when
+    // there are none, so "no calls" is indistinguishable from "field absent".
+    finishReason:
+      ("terminalState" in result ? result.terminalState?.finishReason : undefined) ?? null,
+    finalToolCallCount:
+      ("terminalState" in result ? result.terminalState?.finalToolCallCount : undefined) ?? null,
   });
 
   return result;

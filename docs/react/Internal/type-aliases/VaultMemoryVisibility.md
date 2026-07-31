@@ -2,7 +2,7 @@
 
 > **VaultMemoryVisibility** = `"private"` | `"public"`
 
-Defined in: [src/lib/db/memoryVault/types.ts:16](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#16)
+Defined in: [src/lib/db/memoryVault/types.ts:17](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#17)
 
 People Nearby cross-user visibility. ORTHOGONAL to `scope` (model access):
 

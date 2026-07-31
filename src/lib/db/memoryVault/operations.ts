@@ -7,9 +7,12 @@ import {
   type EntityInput,
   type EntityOperationsContext,
   linkMemoryEntitiesOp,
+  prepareMemoryTopicsUpdate,
+  relinkMemoryEntitiesFromTopicsOp,
   unlinkAllMemoryEntitiesForUserOp,
   unlinkMemoryEntitiesOp,
 } from "../entities/operations";
+import { normalizeEntityName, parseTopics, type StoredTopic } from "../entities/types";
 import { decryptVaultMemoryFields, encryptVaultMemoryContent } from "./encryption";
 import type { VaultMemory } from "./models";
 import type {
@@ -189,6 +192,8 @@ function vaultMemoryToStoredRaw(memory: VaultMemory): StoredVaultMemory {
     eventTimeEnd: memory.eventTimeEnd ?? null,
     eventTimeKind: memory.eventTimeKind ?? null,
     topicsUserManaged: memory.topicsUserManaged ?? false,
+    topics: parseTopics(memory.topics),
+    topicsUpdatedAt: memory.topicsUpdatedAt ?? null,
     topicsExtractedAt: memory.topicsExtractedAt ?? null,
     topicsExtractedVersion: memory.topicsExtractedVersion ?? null,
     supersededBy: memory.supersededBy ?? null,
@@ -581,6 +586,8 @@ function vaultMemoryRawToStoredRaw(raw: Record<string, unknown>): StoredVaultMem
     eventTimeKind: (raw.event_time_kind as string | null) ?? null,
     // SQLite stores booleans as 0/1, LokiJS as true/false — coerce both.
     topicsUserManaged: raw.topics_user_managed === true || raw.topics_user_managed === 1,
+    topics: parseTopics(raw.topics),
+    topicsUpdatedAt: (raw.topics_updated_at as number | null) ?? null,
     topicsExtractedAt: (raw.topics_extracted_at as number | null) ?? null,
     topicsExtractedVersion: (raw.topics_extracted_version as number | null) ?? null,
     supersededBy: (raw.superseded_by as string | null) ?? null,
@@ -1130,7 +1137,8 @@ export async function updateVaultMemoryOp(
  * Replace semantics: the given `entities` become the memory's complete topic
  * set (pass `[]` to clear all topics — the memory stays user-managed and
  * unclustered). Requires `ctx.entityCtx`. Preserves `updated_at` so a topic
- * edit doesn't inflate the recency multiplier.
+ * edit doesn't inflate the recency multiplier — `topics_updated_at` is what
+ * carries the edit to the user's other devices.
  */
 export async function setMemoryEntitiesOp(
   ctx: VaultMemoryOperationsContext,
@@ -1149,14 +1157,20 @@ export async function setMemoryEntitiesOp(
   }
   if (record.isDeleted || !isOwnedByCtxUser(ctx, record)) return null;
 
-  // 1) Mark user-managed FIRST, re-checking soft-delete inside the writer — a
-  // delete that committed after the probe must win (mirrors updateVaultMemoryOp),
-  // so we never attach links to a deleted memory. Setting the flag before
-  // touching links also means a later link failure still leaves the memory
-  // user-managed rather than silently reclaimable by auto-extraction.
+  // Flag, links, stale-link prune and the `topics` record all land in ONE
+  // writer. Committing the flag on its own published a window where the row read
+  // as user-managed with neither a record nor a link — the exact shape
+  // getMemoriesNeedingTopicExtractionOp treats as pre-v42 restore damage — so a
+  // repair sweep landing between the two writes cleared the flag, invalidated
+  // the extraction version and handed the user's topics to the autotagger. One
+  // writer makes that intermediate state unreachable by any other writer.
+  //
+  // The soft-delete / ownership re-check stays INSIDE the writer: a delete that
+  // committed after the probe above must win (mirrors updateVaultMemoryOp), so
+  // links never attach to a deleted memory.
   let stale = false;
   const originalUpdatedAt = record.updatedAt.getTime();
-  await ctx.database.write(async () => {
+  await ctx.database.write(async (writer) => {
     if (record.isDeleted || !isOwnedByCtxUser(ctx, record)) {
       stale = true;
       return;
@@ -1165,25 +1179,37 @@ export async function setMemoryEntitiesOp(
       r._setRaw("topics_user_managed", true);
       r._setRaw("updated_at", originalUpdatedAt);
     });
+
+    // Add the new links first (idempotent), THEN drop only the stale ones. This
+    // ordering means a transient failure can leave at most EXTRA topics
+    // (old ∪ new) — never zero — so a topic edit can't wipe a memory's topics
+    // (the delete-all-then-relink order could, on a mid-op failure). The link op
+    // writes `topics` from old ∪ new for the same reason; the prune below then
+    // narrows the record to the user's set, in the same batch as the link
+    // deletes. `callWriter` runs the link op as part of this writer rather than
+    // deadlocking on its own `database.write`.
+    const linked =
+      entities.length > 0
+        ? await writer.callWriter(() =>
+            linkMemoryEntitiesOp(entityCtx, memoryId, entities, { topicsSource: "user" })
+          )
+        : [];
+    const keep = new Set(linked.map((e) => e.uniqueId));
+    const existing = await entityCtx.memoryEntityCollection
+      .query(Q.where("memory_id", memoryId))
+      .fetch();
+    const staleLinks = existing.filter((l) => !keep.has(String(l.entityId)));
+    // Clearing all topics skips the link op entirely, so `topics` still needs its
+    // explicit `[]` — the record of "the user removed every topic", which is not
+    // the same as the null column that means "no record yet" (see parseTopics).
+    if (staleLinks.length === 0 && entities.length > 0) return;
+    const topicsOp = await prepareMemoryTopicsUpdate(entityCtx, memoryId, linked, entities, "user");
+    await ctx.database.batch(
+      ...staleLinks.map((l) => l.prepareDestroyPermanently()),
+      ...(topicsOp ? [topicsOp] : [])
+    );
   });
   if (stale) return null;
-
-  // 2) Add the new links first (idempotent), THEN drop only the stale ones.
-  // This ordering means a transient failure can leave at most EXTRA topics
-  // (old ∪ new) — never zero — so a topic edit can't wipe a memory's topics
-  // (the delete-all-then-relink order could, on a mid-op failure).
-  const linked =
-    entities.length > 0 ? await linkMemoryEntitiesOp(entityCtx, memoryId, entities) : [];
-  const keep = new Set(linked.map((e) => e.uniqueId));
-  const existing = await entityCtx.memoryEntityCollection
-    .query(Q.where("memory_id", memoryId))
-    .fetch();
-  const staleLinks = existing.filter((l) => !keep.has(String(l.entityId)));
-  if (staleLinks.length > 0) {
-    await ctx.database.write(async () => {
-      await ctx.database.batch(...staleLinks.map((l) => l.prepareDestroyPermanently()));
-    });
-  }
 
   return vaultMemoryToStored(record, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner);
 }
@@ -1198,10 +1224,24 @@ export async function setMemoryEntitiesOp(
  * through the sweep's unstamped→`linkedUnstamped` grandfather path (stamped
  * current, no LLM pass); forcing a stamp when absent avoids that. Existing links
  * are left in place until the re-extraction replaces them. Preserves `updated_at`.
+ *
+ * Both stamp columns are DEPRECATED (v42) — `topics_updated_at` subsumes them;
+ * see the schema note. This op's version-invalidation trick is the reason the
+ * earlier plan to exclude them from sync was dropped, and it's the last piece
+ * that has to move before they can go.
+ *
+ * `options.unlessTopicsRecorded` declines the reset when the row already has a
+ * `topics` record, re-checked INSIDE the serialized writer. Only the repair path
+ * in {@link getMemoriesNeedingTopicExtractionOp} passes it: that path clears the
+ * flag off rows whose curation is provably empty, and a `setMemoryEntitiesOp`
+ * committing in the gap would have written a real record the autotagger must not
+ * be handed. The user-facing reset leaves it off — resetting a memory that HAS
+ * curated topics is the whole point there.
  */
 export async function clearMemoryTopicsOverrideOp(
   ctx: VaultMemoryOperationsContext,
-  memoryId: string
+  memoryId: string,
+  options?: { unlessTopicsRecorded?: boolean }
 ): Promise<boolean> {
   let record: VaultMemory;
   try {
@@ -1211,7 +1251,10 @@ export async function clearMemoryTopicsOverrideOp(
   }
   if (record.isDeleted || !isOwnedByCtxUser(ctx, record)) return false;
   const originalUpdatedAt = record.updatedAt.getTime();
+  let cleared = false;
   await ctx.database.write(async () => {
+    if (options?.unlessTopicsRecorded && parseTopics(record.topics) !== null) return;
+    cleared = true;
     await record.update((r) => {
       r._setRaw("topics_user_managed", false);
       // Stale version + a non-null stamp routes the row through the pending path
@@ -1224,7 +1267,7 @@ export async function clearMemoryTopicsOverrideOp(
       r._setRaw("updated_at", originalUpdatedAt);
     });
   });
-  return true;
+  return cleared;
 }
 
 /**
@@ -1416,6 +1459,12 @@ export async function getUnfiledVaultMemoriesOp(
  * older version (including pre-v37 rows, read as version 0) is then re-extracted
  * by the next sweep, so topic-quality improvements propagate across the existing
  * vault. The worker's `limit` drains that re-extraction across sweeps.
+ *
+ * Bumping this is a WHOLE-VAULT re-extraction: the gate is unconditional across
+ * every stamped row, and `stampTopicsExtractedAtOp` stamps this version on every
+ * healthy row, so a bump sends each user's entire extracted vault back to the
+ * LLM. Never reach for it to repair a subset — see the pre-v42-restore repair in
+ * {@link getMemoriesNeedingTopicExtractionOp}, which targets the damaged rows.
  */
 export const TOPICS_EXTRACTION_VERSION = 3;
 
@@ -1429,9 +1478,10 @@ export interface MemoriesNeedingTopicExtraction {
    * Memories to run LLM topic extraction on (decrypted): never-extracted rows
    * with no entity links, plus stamped rows edited since their last pass
    * (`updated_at` > `topics_extracted_at`) or extracted under an older
-   * `topics_extracted_version` than {@link TOPICS_EXTRACTION_VERSION}. Edited /
-   * stale-version rows come first (they get priority under `limit`), each group
-   * newest-created first.
+   * `topics_extracted_version` than {@link TOPICS_EXTRACTION_VERSION}, plus the
+   * pre-v42-restore repair: a stamped row left with neither links nor a `topics`
+   * record, which no no-LLM bucket can reach. Edited / stale-version rows come
+   * first (they get priority under `limit`), each group newest-created first.
    */
   pending: StoredVaultMemory[];
   /**
@@ -1443,14 +1493,121 @@ export interface MemoriesNeedingTopicExtraction {
    * grandfather backlog is drained across sweeps rather than in one spike.
    */
   linkedUnstamped: string[];
+  /**
+   * IDs whose `topics` record disagrees with their `memory_entity` links — the
+   * restored-device case, where the synced record arrived but the device-local
+   * index (which can never sync) did not. Rebuild with
+   * {@link relinkMemoryTopicsOp}: no LLM call, and no `memory_vault` write, so a
+   * restore doesn't re-upload the vault.
+   *
+   * INCLUDES user-managed rows. A curated memory's index needs rebuilding just
+   * like an auto one, and the flag it arrives with is what keeps the autotagger
+   * off it — so unlike {@link pending} / {@link linkedUnstamped}, this bucket is
+   * not filtered by ownership. Bounded by `limit`.
+   */
+  topicsToRelink: string[];
+  /**
+   * IDs that have links but no `topics` record at all — rows predating v42,
+   * whose topics would otherwise never reach the server. Fill with
+   * {@link backfillMemoryTopicsOp} (no LLM call), which derives the record from
+   * the links already there.
+   *
+   * Also includes user-managed rows, for the same reason: a curated memory's
+   * topics are exactly the ones worth preserving across a migration. Bounded by
+   * `limit` because filling `topics` bumps `topics_updated_at` and so re-uploads
+   * the row (embedding included) — uncapped, the first sweep after upgrade would
+   * re-upload the entire vault at once. Rows already in {@link pending} are
+   * excluded: their imminent LLM pass writes `topics` anyway.
+   */
+  topicsBackfill: string[];
+}
+
+/** memoryId → the canonical names its `memory_entity` rows currently point at.
+ * A memory with no USABLE links is absent from the map — no link rows at all, or
+ * only rows pointing at `entity` rows that no longer exist. Never mapped to an
+ * empty set: callers read presence as "has links", so a memory whose whole link
+ * set failed to resolve has to read as unlinked or it gets grandfather-stamped
+ * with zero topics (and offered for a backfill that can find nothing to write). */
+async function linkedEntityNamesByMemory(
+  entityCtx: EntityOperationsContext,
+  memoryIds: readonly string[]
+): Promise<Map<string, Set<string>>> {
+  // Chunk both id lists — SQLite caps bound variables (999), and huge Q.oneOf
+  // arrays hurt LokiJS too. unsafeFetchRaw (NOT fetch) throughout: the first
+  // post-migration sweep over a legacy vault can touch thousands of link rows,
+  // and .fetch() would pin a Model per row into the never-evicted RecordCache
+  // (web Pile-2).
+  const CHUNK = 500;
+  const entityIdByMemory = new Map<string, Set<string>>();
+  const allEntityIds = new Set<string>();
+  for (let i = 0; i < memoryIds.length; i += CHUNK) {
+    const links = (await entityCtx.memoryEntityCollection
+      .query(Q.where("memory_id", Q.oneOf(memoryIds.slice(i, i + CHUNK))))
+      .unsafeFetchRaw()) as Record<string, unknown>[];
+    for (const link of links) {
+      const memoryId = String(link.memory_id);
+      const entityId = String(link.entity_id);
+      allEntityIds.add(entityId);
+      let bucket = entityIdByMemory.get(memoryId);
+      if (!bucket) {
+        bucket = new Set();
+        entityIdByMemory.set(memoryId, bucket);
+      }
+      bucket.add(entityId);
+    }
+  }
+
+  const entityIds = Array.from(allEntityIds);
+  const nameById = new Map<string, string>();
+  for (let i = 0; i < entityIds.length; i += CHUNK) {
+    const entities = (await entityCtx.entityCollection
+      .query(Q.where("id", Q.oneOf(entityIds.slice(i, i + CHUNK))))
+      .unsafeFetchRaw()) as Record<string, unknown>[];
+    for (const e of entities) {
+      if (typeof e.canonical_name === "string") nameById.set(String(e.id), e.canonical_name);
+    }
+  }
+
+  const out = new Map<string, Set<string>>();
+  for (const [memoryId, ids] of entityIdByMemory) {
+    const names = new Set<string>();
+    for (const id of ids) {
+      const name = nameById.get(id);
+      if (name !== undefined) names.add(name);
+    }
+    if (names.size > 0) out.set(memoryId, names);
+  }
+  return out;
+}
+
+/** True when a memory's link set doesn't match the names in its `topics`
+ * record — i.e. the device-local index needs rebuilding from the record. */
+function linksDivergeFromTopics(topics: readonly StoredTopic[], linked: Set<string>): boolean {
+  const wanted = new Set(
+    topics.map((t) => normalizeEntityName(t.name)).filter((n) => n.length > 0)
+  );
+  if (wanted.size !== linked.size) return true;
+  for (const name of wanted) if (!linked.has(name)) return true;
+  return false;
 }
 
 /**
- * Sweep query for the background topic-extraction worker: partition the
- * user's non-deleted, non-user-managed memories by what the worker should do
- * with them (see {@link MemoriesNeedingTopicExtraction}). User-managed rows
- * are never returned — the user owns their topics, including an intentionally
- * empty set. Requires `ctx.entityCtx` for the entity-links check.
+ * Sweep query for the background topic-extraction worker: partition the user's
+ * non-deleted memories by what the worker should do with them (see
+ * {@link MemoriesNeedingTopicExtraction}). Requires `ctx.entityCtx` for the
+ * entity-links check.
+ *
+ * User-managed rows are excluded from the two LLM-facing buckets — the user owns
+ * their topics, including an intentionally empty set — but NOT from
+ * `topicsToRelink` / `topicsBackfill`, which only move a curated row's topics
+ * between the record and the index and never re-derive them. That's why the
+ * ownership filter lives in the partition below rather than in the query: a
+ * restored curated memory is exactly the row whose index must be rebuilt.
+ *
+ * NOT purely a read: a curated row with no `topics` record AND no usable link is
+ * a contradiction only a pre-v42 restore produces, and this is the one place
+ * that can see all three facts at once, so it clears the flag there (capped by
+ * `limit`) before returning. See the branch for why that's safe.
  */
 export async function getMemoriesNeedingTopicExtractionOp(
   ctx: VaultMemoryOperationsContext,
@@ -1460,13 +1617,7 @@ export async function getMemoriesNeedingTopicExtractionOp(
   if (!entityCtx) {
     throw new Error("getMemoriesNeedingTopicExtractionOp requires ctx.entityCtx");
   }
-  const conditions = [
-    // Boolean optional column: null (legacy) and false both mean auto-managed.
-    // Q.notEq(true) is a NULL trap on SQLite (NULL <> TRUE is NULL) — enumerate.
-    Q.or(Q.where("topics_user_managed", null), Q.where("topics_user_managed", false)),
-    ...baseVaultConditions(ctx),
-    Q.sortBy("created_at", Q.desc),
-  ];
+  const conditions = [...baseVaultConditions(ctx), Q.sortBy("created_at", Q.desc)];
   // unsafeFetchRaw (NOT fetch): whole-vault sweep must not pin a Model per row
   // into the never-evicted RecordCache (web Pile-2) — see getAllVaultMemoriesOp.
   const rows = (await ctx.vaultMemoryCollection.query(...conditions).unsafeFetchRaw()) as Record<
@@ -1474,66 +1625,165 @@ export async function getMemoriesNeedingTopicExtractionOp(
     unknown
   >[];
 
-  // Stamped rows re-extract when edited since the last pass OR when they were
-  // extracted under an older logic version (pre-v37 rows read as version 0, so a
-  // TOPICS_EXTRACTION_VERSION bump re-processes them). Unstamped rows split on
-  // whether they already have links (grandfather) or not (backfill).
-  const stampedPending: Record<string, unknown>[] = [];
-  const unstamped: Record<string, unknown>[] = [];
+  // Links are needed for every row now, not just unstamped ones: a restored row
+  // arrives WITH a `topics_extracted_at` stamp, so the relink check has to see
+  // stamped rows too or the restored-device case is never detected.
+  const linkedNames = await linkedEntityNamesByMemory(
+    entityCtx,
+    rows.map((r) => r.id as string)
+  );
+
+  const cap = options?.limit !== undefined && options.limit > 0 ? options.limit : undefined;
+  const pendingRaw: Record<string, unknown>[] = [];
+  const stampedPendingRaw: Record<string, unknown>[] = [];
+  const linkedUnstampedAll: string[] = [];
+  const topicsToRelinkAll: string[] = [];
+  const topicsBackfillAll: string[] = [];
+  const emptyCurationToClear: string[] = [];
+
   for (const raw of rows) {
+    const id = raw.id as string;
+    const topics = parseTopics(raw.topics);
+    const linked = linkedNames.get(id);
+
+    // A non-empty record the index doesn't match: rebuild the index, and route
+    // the row NOWHERE else. It needs neither the LLM nor a vault write, and a
+    // restored row that `linkMemoryEntitiesOp` wrote topics for without stamping
+    // (the auto path doesn't stamp) would otherwise ALSO read as never-extracted
+    // with no links and get sent to the LLM — paying for extraction of topics we
+    // already have. The rebuild makes links match, so the next sweep classifies
+    // the row normally.
+    if (
+      topics !== null &&
+      topics.length > 0 &&
+      linksDivergeFromTopics(topics, linked ?? new Set())
+    ) {
+      topicsToRelinkAll.push(id);
+      continue;
+    }
+
+    // Truthiness (not `=== true`) so an unsanitized SQLite `1` can't fail open.
+    if (raw.topics_user_managed) {
+      if (topics !== null || linked !== undefined) {
+        // The user owns these topics — never re-derive them. Still a backfill
+        // candidate: a curated row predating v42 has links but no record, and
+        // without one its topics don't survive a device migration.
+        if (topics === null) topicsBackfillAll.push(id);
+        continue;
+      }
+      // Nothing to own: no `topics` record AND no usable link. That's what a
+      // pre-v42 restore leaves behind — the flag synced, the device-local index
+      // can't, and there was no record to rebuild it from — so relink has
+      // nothing to read and backfill nothing to derive, and the flag keeps the
+      // row out of entity-graph recall permanently. The curation is provably
+      // empty, so drop the flag (after the loop) and classify the row like any
+      // auto one.
+      //
+      // `topics: []` is deliberately NOT this shape: parseTopics reads it as
+      // "recorded as topicless", a choice the user made, and re-extracting would
+      // overwrite it.
+      //
+      // Capped like every bucket below: the clear loads a Model per row.
+      if (cap !== undefined && emptyCurationToClear.length >= cap) continue;
+      emptyCurationToClear.push(id);
+    }
+
+    // Stamped rows re-extract when edited since the last pass OR when they were
+    // extracted under an older logic version (pre-v38 rows read as version 0, so
+    // a TOPICS_EXTRACTION_VERSION bump re-processes them). Unstamped rows split
+    // on whether they already have links (grandfather) or not (LLM pass).
+    //
+    // Both reads are DEPRECATED (v42): `topics_updated_at` subsumes them — null
+    // there means never processed, non-null with an empty `topics` means
+    // processed and found nothing, and a release-time EXTRACTOR_CHANGED_AT
+    // constant compared against it replaces the version gate. The columns are
+    // kept only to avoid a column-drop migration in an otherwise additive list;
+    // cutting this branch over is a follow-up once `topics` is proven in prod.
     const stamp = (raw.topics_extracted_at as number | null) ?? null;
+    let isPending = false;
     if (stamp !== null) {
       const version = (raw.topics_extracted_version as number | null) ?? 0;
       if ((raw.updated_at as number) > stamp || version < TOPICS_EXTRACTION_VERSION) {
-        stampedPending.push(raw);
+        stampedPendingRaw.push(raw);
+        isPending = true;
       }
-    } else {
-      unstamped.push(raw);
-    }
-  }
-
-  // Which unstamped rows already have entity links? Chunk the id list — SQLite
-  // caps bound variables (999), and huge Q.oneOf arrays hurt LokiJS too.
-  // unsafeFetchRaw (NOT fetch) here too: the first post-migration sweep over a
-  // legacy vault can touch thousands of link rows, and .fetch() would pin a
-  // Model per row into the never-evicted RecordCache (web Pile-2).
-  const linkedIds = new Set<string>();
-  const CHUNK = 500;
-  for (let i = 0; i < unstamped.length; i += CHUNK) {
-    const ids = unstamped.slice(i, i + CHUNK).map((r) => r.id as string);
-    const links = (await entityCtx.memoryEntityCollection
-      .query(Q.where("memory_id", Q.oneOf(ids)))
-      .unsafeFetchRaw()) as Record<string, unknown>[];
-    for (const link of links) linkedIds.add(String(link.memory_id));
-  }
-
-  const linkedUnstampedAll: string[] = [];
-  const pendingRaw: Record<string, unknown>[] = [...stampedPending];
-  for (const raw of unstamped) {
-    if (linkedIds.has(raw.id as string)) {
-      linkedUnstampedAll.push(raw.id as string);
+    } else if (linked !== undefined) {
+      linkedUnstampedAll.push(id);
     } else {
       pendingRaw.push(raw);
+      isPending = true;
+    }
+
+    // Pre-v42-restore repair: a stamped row the checks above left in NO bucket,
+    // carrying neither a link nor a `topics` record. Its stamp says it was
+    // extracted, but nothing survived the restore, so relink has no record to
+    // read and backfill no links to derive from — the LLM is the only way back
+    // and this is the only route to it.
+    //
+    // Deliberately narrow — three conditions, all required — so that healthy
+    // extracted rows are never dragged in. A TOPICS_EXTRACTION_VERSION bump
+    // would have re-extracted the ENTIRE vault to reach these few rows.
+    //
+    // `topics === null` and NOT `topics.length === 0`: parseTopics keeps `[]`
+    // ("extraction answered empty") apart from null ("no record"), and `[]` is a
+    // legitimate result the watermark exists to stop re-asking about. This also
+    // terminates the repair — an answered-empty pass writes `[]`, so a repaired
+    // row stops matching even if the LLM finds nothing. A row with a NON-empty
+    // record and no links belongs to `topicsToRelink`, which claimed it earlier.
+    if (!isPending && linked === undefined && topics === null) {
+      pendingRaw.push(raw);
+      isPending = true;
+    }
+
+    // An imminent LLM pass writes `topics` itself, so backfilling first would
+    // just buy a second upload of the same row.
+    if (!isPending && topics === null && linked !== undefined) {
+      topicsBackfillAll.push(id);
     }
   }
 
-  // Cap BOTH lists under `limit`. The worker stamps every `linkedUnstamped` id
-  // (via stampTopicsExtractedAtOp, which must load a Model per row to update) —
-  // uncapped, the first post-migration sweep of a legacy vault would grandfather
-  // thousands at once and pin that many Models in the never-evicted RecordCache
-  // (web Pile-2). Bounding it here drains the grandfather backlog across sweeps.
-  const cap = options?.limit !== undefined && options.limit > 0 ? options.limit : undefined;
-  const limitedPendingRaw = cap !== undefined ? pendingRaw.slice(0, cap) : pendingRaw;
-  const linkedUnstamped = cap !== undefined ? linkedUnstampedAll.slice(0, cap) : linkedUnstampedAll;
+  // Drop the flag before returning, or routing these rows to `pending` achieves
+  // nothing: BOTH the extraction path's up-front check and
+  // `replaceMemoryEntitiesGuardedOp`'s in-write guard read `topics_user_managed`,
+  // so a still-flagged row is selected every sweep and skipped every sweep. The
+  // reset op is reused for its stamp invalidation too — the row stays pending
+  // until an extraction actually lands. This dirties the row, so it uploads once;
+  // that's intended, the flag no longer describes the memory.
+  for (const id of emptyCurationToClear) {
+    try {
+      await clearMemoryTopicsOverrideOp(ctx, id, { unlessTopicsRecorded: true });
+    } catch (err) {
+      // One failed write must not abort the sweep — every other bucket is
+      // computed by now and callers would get nothing. The clear is idempotent,
+      // so the row is offered again next pass.
+      getLogger().warn("[memory/topics] repair clear failed", err);
+    }
+  }
+
+  // Cap EVERY list under `limit`. Each one costs a per-row Model load in the
+  // worker's follow-up write (stamp / relink / backfill), which uncapped would
+  // pin thousands of Models in the never-evicted RecordCache (web Pile-2) on the
+  // first sweep of a legacy or freshly-restored vault. Capping also paces the
+  // backfill's one-time re-upload of the vault across sweeps. Edited /
+  // stale-version rows lead `pending` so they win the cap.
+  const orderedPendingRaw = [...stampedPendingRaw, ...pendingRaw];
+  const limitedPendingRaw = cap !== undefined ? orderedPendingRaw.slice(0, cap) : orderedPendingRaw;
   const pending = await mapInBatches(limitedPendingRaw, (raw) =>
     vaultMemoryRawToStored(raw, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner)
   );
-  return { pending, linkedUnstamped };
+  const applyCap = (ids: string[]): string[] => (cap !== undefined ? ids.slice(0, cap) : ids);
+  return {
+    pending,
+    linkedUnstamped: applyCap(linkedUnstampedAll),
+    topicsToRelink: applyCap(topicsToRelinkAll),
+    topicsBackfill: applyCap(topicsBackfillAll),
+  };
 }
 
 /**
  * Stamp `topics_extracted_at` (and `topics_extracted_version`) on the given
- * memories — the topic worker calls this after a successful extraction pass
+ * memories — both DEPRECATED (v42), subsumed by `topics_updated_at`; see the
+ * schema note. The topic worker calls this after a successful extraction pass
  * (including zero-entity results, so quiet memories aren't re-asked every sweep)
  * and to grandfather `linkedUnstamped` rows without an LLM call. `version`
  * defaults to {@link TOPICS_EXTRACTION_VERSION}: stamping at the current version
@@ -1620,6 +1870,114 @@ export async function stampTopicsExtractedAtOp(
   }
 
   return stamped;
+}
+
+/**
+ * Rebuild the `memory_entity` index for the sweep's `topicsToRelink` rows from
+ * each row's `topics` record — the restored-device repair. No LLM call: every
+ * name already lives on the row.
+ *
+ * Writes NOTHING to `memory_vault`, deliberately. Restored rows are written
+ * `_status: 'synced'`, so touching them would mark the whole vault dirty and
+ * re-upload it (embeddings included) after every migration — the index is
+ * device-local state and rebuilding it is not a change to the memory.
+ * `topics_user_managed` in particular is left exactly as it arrived, so the
+ * autotagger stays off a curated memory whose links this just restored.
+ *
+ * Skips deleted, foreign-user, and record-less rows. Returns the ids relinked.
+ */
+export async function relinkMemoryTopicsOp(
+  ctx: VaultMemoryOperationsContext,
+  memoryIds: readonly string[]
+): Promise<string[]> {
+  const entityCtx = ctx.entityCtx;
+  if (!entityCtx) {
+    throw new Error("relinkMemoryTopicsOp requires ctx.entityCtx");
+  }
+  const relinked: string[] = [];
+  for (const id of Array.from(new Set(memoryIds))) {
+    let record: VaultMemory;
+    try {
+      record = await ctx.vaultMemoryCollection.find(id);
+    } catch {
+      continue;
+    }
+    if (record.isDeleted || !isOwnedByCtxUser(ctx, record)) continue;
+    const topics = parseTopics(record.topics);
+    if (topics === null || topics.length === 0) continue;
+    try {
+      await relinkMemoryEntitiesFromTopicsOp(entityCtx, id, topics);
+      relinked.push(id);
+    } catch (err) {
+      // One unreadable row must not abort the rest of the rebuild — the sweep
+      // will offer it again next pass.
+      getLogger().warn("[memory/topics] relink failed", err);
+    }
+  }
+  return relinked;
+}
+
+/**
+ * Fill `topics` for the sweep's `topicsBackfill` rows from the links they
+ * already carry — the one-time migration of pre-v42 rows, whose topics exist
+ * only in the device-local index and so never reach the server. No LLM call.
+ *
+ * Bumps `topics_updated_at` (that's the point — it's what makes the row
+ * upload) while pinning `updated_at`, like every other topic writer. Callers
+ * must pass a `limit`-bounded list: each row's upload carries its embedding, so
+ * an unbounded pass re-uploads the entire vault at once.
+ *
+ * `source` is derived from `topics_user_managed`, the only provenance a legacy
+ * row has: a curated memory's topics are recorded as `user`, everything else as
+ * `auto`. Skips deleted, foreign-user, unlinked rows, and rows that already have
+ * a record. Returns the ids filled.
+ */
+export async function backfillMemoryTopicsOp(
+  ctx: VaultMemoryOperationsContext,
+  memoryIds: readonly string[]
+): Promise<string[]> {
+  const entityCtx = ctx.entityCtx;
+  if (!entityCtx) {
+    throw new Error("backfillMemoryTopicsOp requires ctx.entityCtx");
+  }
+  const filled: string[] = [];
+  for (const id of Array.from(new Set(memoryIds))) {
+    let record: VaultMemory;
+    try {
+      record = await ctx.vaultMemoryCollection.find(id);
+    } catch {
+      continue;
+    }
+    if (record.isDeleted || !isOwnedByCtxUser(ctx, record)) continue;
+    if (parseTopics(record.topics) !== null) continue;
+    const links = await entityCtx.memoryEntityCollection
+      .query(Q.where("memory_id", id))
+      .unsafeFetchRaw();
+    const entityIds = (links as Record<string, unknown>[]).map((l) => String(l.entity_id));
+    if (entityIds.length === 0) continue;
+    const entities = await entityCtx.entityCollection
+      .query(Q.where("id", Q.oneOf(entityIds)))
+      .fetch();
+    if (entities.length === 0) continue;
+    // IMPRECISE BY CONSTRUCTION, and safe only because nothing reads `source`
+    // yet. `topics_user_managed` is per-MEMORY, so a curated legacy row stamps
+    // every one of its topics `user` — including auto-derived ones the user
+    // merely kept when they added one of their own. Per-topic provenance simply
+    // wasn't recorded before v42 and cannot be recovered. The later
+    // partial-refresh feature (refresh `auto` entries, leave `user` alone) must
+    // therefore NOT treat a backfilled `source` as ground truth: it would
+    // freeze stale auto topics on every pre-v42 curated memory.
+    const source = record.topicsUserManaged ? "user" : "auto";
+    await ctx.database.write(async () => {
+      // Names come from `entity.canonical_name`, so there's no display casing to
+      // pass — a pre-v42 row never recorded one. Hence the empty `inputs`.
+      const topicsOp = await prepareMemoryTopicsUpdate(entityCtx, id, entities, [], source);
+      if (!topicsOp) return;
+      await ctx.database.batch(topicsOp);
+      filled.push(id);
+    });
+  }
+  return filled;
 }
 
 export async function deleteAllVaultMemoriesForUserOp(

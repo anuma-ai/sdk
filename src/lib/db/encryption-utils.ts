@@ -3,13 +3,35 @@ import type {
   EncryptionKeyVersion,
   SignMessageFn,
 } from "../../react/useEncryption";
-import { decryptData, encryptData, requestEncryptionKey } from "../../react/useEncryption";
+import {
+  decryptData,
+  encryptData,
+  EncryptionKeyMissingError,
+  requestEncryptionKey,
+} from "../../react/useEncryption";
 import { getLogger } from "../logger";
 
 export type { EmbeddedWalletSignerFn, SignMessageFn };
 
 /** Current prefix for HKDF derived key encryption (default for new writes) */
 const ENCRYPTION_PREFIX = "enc:v3:";
+
+/**
+ * Outcome of a field decrypt attempt.
+ *
+ * On failure the original ciphertext is always returned in `value` — never a
+ * placeholder like `[Decryption Failed]`. Callers that need a UI string must
+ * map intentionally; masking intact ciphertext as data-loss is #561.
+ */
+type FieldDecryptStatus = "ok" | "plaintext" | "key_missing" | "auth_mismatch" | "invalid_payload";
+
+interface FieldDecryptResult {
+  status: FieldDecryptStatus;
+  /** Plaintext on ok/plaintext; original input on failure. */
+  value: string;
+  /** Encryption version detected on the input, if any. */
+  version?: EncryptionKeyVersion;
+}
 
 /**
  * Checks if a string value is encrypted (has the enc:v2: or enc:v3: prefix with valid hex payload).
@@ -74,26 +96,48 @@ export async function encryptField(
 }
 
 /**
- * Decrypts a field value by detecting the version prefix and using the appropriate key.
- * Returns the original value if not encrypted or if decryption fails (backwards compat).
+ * Decrypts a field value with a structured status.
+ *
+ * Uses only the key matching the field's own `enc:vN:` prefix — a missing v2
+ * key never blanks a v3 field (#561). Failures return the original ciphertext
+ * in `value` with a typed `status`; they never substitute a placeholder.
  */
-export async function decryptField(value: string, address: string): Promise<string> {
-  if (!value) return value;
+export async function decryptFieldDetailed(
+  value: string,
+  address: string
+): Promise<FieldDecryptResult> {
+  if (!value) return { status: "plaintext", value };
 
   const detected = detectEncryptionVersion(value);
-  if (!detected) return value; // plaintext
+  if (!detected) return { status: "plaintext", value };
 
-  // Validate payload
   if (detected.encryptedData.length < 56 || !/^[0-9a-f]+$/i.test(detected.encryptedData)) {
-    return value; // invalid payload, return as-is
+    return { status: "invalid_payload", value, version: detected.version };
   }
 
   try {
-    return await decryptData(detected.encryptedData, address, detected.version);
+    const plaintext = await decryptData(detected.encryptedData, address, detected.version);
+    return { status: "ok", value: plaintext, version: detected.version };
   } catch (error) {
-    getLogger().warn("Failed to decrypt field, returning as-is:", error);
-    return value;
+    if (error instanceof EncryptionKeyMissingError) {
+      getLogger().warn("Failed to decrypt field (key missing for version):", error.message);
+      return { status: "key_missing", value, version: detected.version };
+    }
+    getLogger().warn("Failed to decrypt field (auth mismatch or crypto error):", error);
+    return { status: "auth_mismatch", value, version: detected.version };
   }
+}
+
+/**
+ * Decrypts a field value by detecting the version prefix and using the appropriate key.
+ * Returns the original value if not encrypted or if decryption fails (backwards compat).
+ *
+ * Prefer {@link decryptFieldDetailed} when the caller needs to distinguish
+ * key-missing from auth-mismatch without masking ciphertext.
+ */
+export async function decryptField(value: string, address: string): Promise<string> {
+  const result = await decryptFieldDetailed(value, address);
+  return result.value;
 }
 
 /**

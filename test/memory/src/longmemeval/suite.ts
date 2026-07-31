@@ -29,9 +29,8 @@ import type {
   ApiConfig,
   RetrievalTuningKnobs,
 } from "./types.js";
-import { calculatePercentiles } from "../metrics.js";
 import { getCacheDirectory } from "./dataset.js";
-import { summarizeJudgment } from "./judge.js";
+import { aggregateSummary } from "./aggregate.js";
 import { DEFAULT_API_EMBEDDING_MODEL } from "../../../../src/lib/memoryEngine/constants.js";
 import { processEntryMemoryEngine } from "./memoryEngineStrategy.js";
 import { processEntryMemoryVault } from "./memoryVaultStrategy.js";
@@ -789,24 +788,31 @@ export function createConsolidationFallbackTracker(): {
   onFallback: (reason: ConsolidationFallbackReason) => void;
   report: (questionId: string) => void;
 } {
+  // Every reason gets a bucket, and the aggregate below is derived from the
+  // bucket VALUES rather than a hand-written sum of two of them. The previous
+  // shape named `llm_error` and `invalid_response` in three separate places, so
+  // adding `target_vanished` left it silently under-reporting on two of them —
+  // and `tsc --noEmit` does not catch the omission here because `tsconfig.json`
+  // only includes `src/**/*`, so nothing typechecks this directory in CI.
   const counts: Record<ConsolidationFallbackReason, number> = {
     llm_error: 0,
     invalid_response: 0,
+    target_vanished: 0,
   };
+  const reasons = Object.keys(counts) as ConsolidationFallbackReason[];
   return {
     onFallback: (reason) => {
       counts[reason]++;
     },
     report: (questionId) => {
-      const total = counts.llm_error + counts.invalid_response;
+      const total = reasons.reduce((sum, r) => sum + counts[r], 0);
       if (total === 0) return;
+      const breakdown = reasons.map((r) => `${r}: ${counts[r]}`).join(", ");
       console.warn(
-        `  ⚠ consolidation degraded to create ${total}x on ${questionId} ` +
-          `(llm_error: ${counts.llm_error}, invalid_response: ${counts.invalid_response})`
+        `  ⚠ consolidation degraded to create ${total}x on ${questionId} (${breakdown})`
       );
       // Reset so a reused tracker reports per-call deltas, not a running total.
-      counts.llm_error = 0;
-      counts.invalid_response = 0;
+      for (const r of reasons) counts[r] = 0;
     },
   };
 }
@@ -840,86 +846,6 @@ export function selectSessions(
   return {
     indices: Array.from(selected).sort((a, b) => a - b),
     limited: true,
-  };
-}
-
-// ── Result aggregation ──
-
-function aggregateSummary(
-  results: LongMemEvalResult[],
-  latencies: number[],
-  options: LongMemEvalOptions,
-  strategy: "memory-engine" | "memory-vault" | "memory-recall" | "memory-ensemble"
-): LongMemEvalSummary {
-  const byQuestionType: LongMemEvalSummary["byQuestionType"] = {} as any;
-  for (const type of [
-    "single-session-user",
-    "single-session-assistant",
-    "single-session-preference",
-    "temporal-reasoning",
-    "knowledge-update",
-    "multi-session",
-  ] as const) {
-    const typeResults = results.filter((r) => r.questionType === type);
-    if (typeResults.length > 0) {
-      const tally = summarizeJudgment(typeResults);
-      byQuestionType[type] = {
-        total: tally.total,
-        correct: tally.correct,
-        judgeFailures: tally.judgeFailures,
-        answerFailures: tally.answerFailures,
-        harnessFailures: tally.harnessFailures,
-        accuracy: tally.accuracy,
-      };
-    }
-  }
-
-  const latencyStats = calculatePercentiles(latencies);
-  // Accuracy is measured over the questions that were actually scored.
-  // Questions the judge couldn't rule on, and questions the answer step never
-  // produced an answer for, are surfaced as their own counts instead of being
-  // folded in as misses — see summarizeJudgment.
-  const overall = summarizeJudgment(results);
-
-  const totalTokenUsage = results.reduce(
-    (acc, r) => ({
-      promptTokens: acc.promptTokens + r.tokenUsage.promptTokens,
-      completionTokens: acc.completionTokens + r.tokenUsage.completionTokens,
-      totalTokens: acc.totalTokens + r.tokenUsage.totalTokens,
-      embeddingTokens: acc.embeddingTokens + r.tokenUsage.embeddingTokens,
-    }),
-    { promptTokens: 0, completionTokens: 0, totalTokens: 0, embeddingTokens: 0 }
-  );
-
-  return {
-    timestamp: new Date().toISOString(),
-    datasetName: `longmemeval_${options.variant}_${strategy}`,
-    strategy,
-    totalQuestions: overall.total,
-    correctAnswers: overall.correct,
-    judgeFailures: overall.judgeFailures,
-    answerFailures: overall.answerFailures,
-    harnessFailures: overall.harnessFailures,
-    accuracy: overall.accuracy,
-    byQuestionType,
-    retrieval: {
-      avgPrecision:
-        results.length > 0
-          ? results.reduce((sum, r) => sum + r.retrievalPrecision, 0) / results.length
-          : 0,
-      avgRecall:
-        results.length > 0
-          ? results.reduce((sum, r) => sum + r.retrievalRecall, 0) / results.length
-          : 0,
-    },
-    latency: {
-      p50: latencyStats.p50,
-      p95: latencyStats.p95,
-      p99: latencyStats.p99,
-      mean: latencyStats.mean,
-    },
-    tokenUsage: totalTokenUsage,
-    results: options.verbose ? results : [],
   };
 }
 
@@ -990,7 +916,6 @@ export async function runLongMemEval(
 
   for (const strat of strategies) {
     const results: LongMemEvalResult[] = [];
-    const latencies: number[] = [];
 
     if (strategies.length > 1) {
       console.log(`\n── Strategy: ${strat} ──\n`);
@@ -1163,11 +1088,10 @@ export async function runLongMemEval(
     for (const result of orderedResults) {
       if (result) {
         results.push(result);
-        latencies.push(result.latencyMs);
       }
     }
 
-    summaries[strat] = aggregateSummary(results, latencies, options, strat);
+    summaries[strat] = aggregateSummary(results, options, strat);
 
     // Persist embedding cache to disk after each strategy completes
     await saveEmbeddingCache(embeddingCachePath, embeddingCache);

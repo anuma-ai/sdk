@@ -22,11 +22,19 @@ const baseOptions = {
   extract: { apiKey: "k" },
 };
 
-const EMPTY_RESULT = {
+/**
+ * `extractAndRetain` resolves to an inline object type, so derive it rather than
+ * restating it — a field added there (`quarantined` was the last one) then fails
+ * the fixtures below instead of being silently absent from what the worker sees.
+ */
+type ExtractAndRetainResult = Awaited<ReturnType<typeof extractAndRetain>>;
+
+const EMPTY_RESULT: ExtractAndRetainResult = {
   candidates: [],
   results: [],
   failedCount: 0,
-  outcome: "no-facts" as const,
+  outcome: "no-facts",
+  quarantined: [],
 };
 
 /** Build n messages with ids m0..m(n-1). Tests assert on `.id`, so role/content are filler. */
@@ -305,16 +313,32 @@ describe("createAutoExtractor", () => {
     expect(vi.mocked(extractAndRetain)).toHaveBeenCalledTimes(1);
   });
 
-  it("dispose drops a queued pending turn", async () => {
+  it("dispose FLUSHES a queued pending turn instead of dropping it (G2)", async () => {
+    const finishFirst = blockFirstCall();
+    const extractor = createAutoExtractor(baseOptions);
+    extractor.processTurn(messages, "c1"); // in-flight
+    extractor.processTurn(messages, "c2"); // queued while in-flight
+    extractor.dispose(); // must NOT drop the queued turn
+    finishFirst();
+    await flush();
+    // The in-flight call ran AND the queued turn drained on completion — a turn
+    // coalesced right before unmount is no longer silently lost.
+    expect(vi.mocked(extractAndRetain)).toHaveBeenCalledTimes(2);
+    const drainedIds = vi.mocked(extractAndRetain).mock.calls[1][0].map((m) => m.id);
+    expect(drainedIds).toEqual(expect.arrayContaining(["m1", "m2"]));
+  });
+
+  it("dispose drains a MULTI-conversation queue to empty (G2)", async () => {
     const finishFirst = blockFirstCall();
     const extractor = createAutoExtractor(baseOptions);
     extractor.processTurn(messages, "c1"); // in-flight
     extractor.processTurn(messages, "c2"); // queued
+    extractor.processTurn(messages, "c3"); // queued
     extractor.dispose();
     finishFirst();
     await flush();
-    // Only the first (in-flight) call ran; the pending turn was dropped on dispose.
-    expect(vi.mocked(extractAndRetain)).toHaveBeenCalledTimes(1);
+    // in-flight + both queued conversations drain sequentially (≤1 in-flight).
+    expect(vi.mocked(extractAndRetain)).toHaveBeenCalledTimes(3);
   });
 
   it("fires onMemoryExtracted once per retained fact", async () => {
@@ -326,6 +350,7 @@ describe("createAutoExtractor", () => {
           confidence: 0.9,
           sourceMessageIds: ["m1"],
           entities: [],
+          eventTime: null,
         },
         {
           content: "fact 2",
@@ -333,6 +358,7 @@ describe("createAutoExtractor", () => {
           confidence: 0.85,
           sourceMessageIds: ["m1"],
           entities: [],
+          eventTime: null,
         },
       ],
       results: [
@@ -341,6 +367,7 @@ describe("createAutoExtractor", () => {
       ],
       failedCount: 0,
       outcome: "extracted",
+      quarantined: [],
     });
     const onMemoryExtracted = vi.fn();
     const onTurnComplete = vi.fn();

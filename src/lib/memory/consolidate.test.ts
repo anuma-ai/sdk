@@ -1,5 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
+import type { NerDetector, PiiSpan } from "../pii/ner";
+import { PiiRedactor } from "../pii/redactor";
 import { consolidateMemory } from "./consolidate";
 
 function mockFetch(body: unknown, ok = true): typeof fetch {
@@ -304,6 +306,55 @@ describe("consolidateMemory", () => {
   });
 });
 
+describe("consolidateMemory — prompt pins #825 subject/rewording rules", () => {
+  /** Fetch mock that records request bodies and returns a noop decision. */
+  function capturingFetch(): { fetchFn: typeof fetch; bodies: string[] } {
+    const bodies: string[] = [];
+    const fetchFn = vi.fn().mockImplementation((_url: string, init?: { body?: unknown }) => {
+      bodies.push(typeof init?.body === "string" ? init.body : "");
+      return Promise.resolve({
+        ok: true,
+        json: async () => choices({ action: "noop", targetId: "m1" }),
+      });
+    }) as unknown as typeof fetch;
+    return { fetchFn, bodies };
+  }
+
+  it("tells the model a pure rewording is noop, with the kids/children example", async () => {
+    // #825 shipped this prompt text without a test; deleting the matching eval
+    // fixture left the rule with zero regression coverage. Pin the wording the
+    // production prompt uses so a revert can't quietly drop it. The body is
+    // JSON-encoded, so quotes arrive escaped.
+    const { fetchFn, bodies } = capturingFetch();
+    await consolidateMemory(
+      "User has two children.",
+      [{ id: "m1", content: "User has two kids.", similarity: 0.95 }],
+      {
+        apiKey: "k",
+        fetchFn,
+      }
+    );
+    const sent = bodies.join("");
+    expect(sent).toContain('\\"has two kids\\" / \\"has two children\\"');
+    expect(sent).toContain('A pure rewording that adds nothing is NOT an update; it is \\"noop\\"');
+  });
+
+  it("requires the same subject before merge, with the peanut-allergy example", async () => {
+    const { fetchFn, bodies } = capturingFetch();
+    await consolidateMemory(
+      "User's sister lives in Denver.",
+      [{ id: "m1", content: "User lives in Denver.", similarity: 0.87 }],
+      { apiKey: "k", fetchFn }
+    );
+    const sent = bodies.join("");
+    expect(sent).toContain("SAME SUBJECT REQUIRED");
+    expect(sent).toContain("User's daughter is allergic to peanuts");
+    expect(sent).toContain(
+      "Never retire the user's own value because a fact about somebody else resembles it"
+    );
+  });
+});
+
 describe("consolidateMemory — PII redaction", () => {
   /** Fetch mock that records request bodies and returns the given decision JSON. */
   function capturingFetch(decision: unknown): { fetchFn: typeof fetch; bodies: string[] } {
@@ -397,6 +448,53 @@ describe("consolidateMemory — PII redaction", () => {
 
     expect(result.action).toBe("update");
     expect(result.content).toBe("User's email is jane@example.com.");
+  });
+
+  // The redactor a caller HANDS us may carry an NER detector, and NER runs only
+  // in `redactTextAsync` — the sync `redactText` is regex-only. Redacting this
+  // path synchronously shipped every name, location and org to the portal in
+  // plain text while emails and phones came back masked, so the leak looked like
+  // working redaction, and only for the callers who configured a detector. Both
+  // slots are covered because both leave the device: the new fact and every
+  // candidate content.
+  it("applies the caller's NER detector, not just the regex half of it", async () => {
+    // A bare personal name — deliberately something no redactor regex matches.
+    // If NER is skipped it survives into the request body.
+    const name = "Marguerite Okonkwo";
+    const detector: NerDetector = {
+      async detect(text: string): Promise<PiiSpan[]> {
+        const spans: PiiSpan[] = [];
+        let at = text.indexOf(name);
+        while (at !== -1) {
+          spans.push({ start: at, end: at + name.length, category: "PERSON" });
+          at = text.indexOf(name, at + 1);
+        }
+        return spans;
+      },
+    };
+    // Deliberately the UPDATE path: the model echoes the placeholder back and
+    // the result overwrites an existing memory, so the NER round-trip through
+    // restoreForStorage has to land the real name in the vault.
+    const { fetchFn, bodies } = capturingFetch({
+      action: "update",
+      targetId: "m1",
+      content: "User works with [PERSON_1] at the studio.",
+    });
+    const result = await consolidateMemory(
+      `Works with ${name} at the studio`,
+      [{ id: "m1", content: `Knows ${name} from the studio.`, similarity: 0.83 }],
+      { apiKey: "k", fetchFn, piiRedaction: new PiiRedactor({ nerDetector: detector }) }
+    );
+
+    const sent = bodies.join("");
+    expect(sent).not.toContain(name);
+    // One value, one placeholder across the new fact and the candidate — the
+    // shared value is the entire signal that these are the same fact, so a
+    // per-string redactor (or a raced one) would number them apart and the
+    // model would see two unrelated people.
+    expect(sent.match(/\[PERSON_\d+\]/g)).toEqual(["[PERSON_1]", "[PERSON_1]"]);
+    expect(result.action).toBe("update");
+    expect(result.content).toBe("User works with Marguerite Okonkwo at the studio.");
   });
 
   it("degrades to create when the consolidated content has a BRACKET-DROPPED hallucinated placeholder", async () => {

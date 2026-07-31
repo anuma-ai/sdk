@@ -2,10 +2,11 @@
 
 > **stampTopicsExtractedAtOp**(`ctx`: [`VaultMemoryOperationsContext`](../interfaces/VaultMemoryOperationsContext.md), `memoryIds`: readonly `string`\[], `extractedAt`: `number`, `version`: `number`): `Promise`<`string`\[]>
 
-Defined in: [src/lib/db/memoryVault/operations.ts:1559](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#1559)
+Defined in: [src/lib/db/memoryVault/operations.ts:1809](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#1809)
 
 Stamp `topics_extracted_at` (and `topics_extracted_version`) on the given
-memories — the topic worker calls this after a successful extraction pass
+memories — both DEPRECATED (v42), subsumed by `topics_updated_at`; see the
+schema note. The topic worker calls this after a successful extraction pass
 (including zero-entity results, so quiet memories aren't re-asked every sweep)
 and to grandfather `linkedUnstamped` rows without an LLM call. `version`
 defaults to [TOPICS\_EXTRACTION\_VERSION](../variables/TOPICS_EXTRACTION_VERSION.md): stamping at the current version
