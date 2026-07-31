@@ -31,6 +31,15 @@
  *
  * Falls back to "create" on any LLM/parse error so a flaky consolidator can't
  * silently swallow a write.
+ *
+ * One decision is NOT left to the model. `supersede` retires its targets, and
+ * superseded rows are excluded from recall by default, so a supersede across two
+ * different subjects hides a true memory ("User's sister lives in Denver"
+ * retiring "User lives in Denver" — #822). The prompt has forbidden that since
+ * #825 and the model does it anyway, so the prompt now also requires it to NAME
+ * the subject on both sides and `validate()` compares the two, downgrading to
+ * create on a mismatch. Models are reliable at naming a subject and unreliable
+ * at applying the consequence; this puts the consequence in code.
  */
 
 import { type PiiRedactor, resolvePiiRedactor } from "../pii/redactor.js";
@@ -95,12 +104,14 @@ OUTPUT — strict JSON, no prose:
   "action": "create" | "update" | "supersede" | "noop",
   "targetId": "<existing memory id — required for update/noop, omit for create/supersede>",
   "targetIds": ["<id>", ...],
-  "content": "<content — required for create/update/supersede, omit for noop>"
+  "content": "<content — required for create/update/supersede, omit for noop>",
+  "newSubject": "<required for supersede: WHO the new memory is about>",
+  "targetSubject": "<required for supersede: WHO the memories in targetIds are about>"
 }
 
 For "create": content is the new memory verbatim (or a slight refinement); omit targetId/targetIds.
 For "update": content is the merged richest-version, ≤80 words; targetId is the single memory to update.
-For "supersede": content is the NEW fact only (≤80 words); "targetIds" lists EVERY stale memory being retired (all candidates describing the same now-changed attribute).
+For "supersede": content is the NEW fact only (≤80 words); "targetIds" lists EVERY stale memory being retired (all candidates describing the same now-changed attribute). You MUST also fill in "newSubject" and "targetSubject" — write the plain subject, not a sentence: "the user", "the user's sister", "the user's manager", "Biscuit the dog". Rule 1a means a supersede is only valid when these two are the SAME subject; state them and check them against each other before you commit to the action. If they differ, the answer is "create". A subjectless fact ("Lives in Denver", "Works at Riverbend") is about "the user" — the extractor omits the subject when it is the user, so treat the absence of a subject as the user, never as unknown.
 For "noop": no content (existing memory is already correct); targetId is that memory.`;
 
 interface ConsolidationCandidate {
@@ -271,7 +282,26 @@ export async function consolidateMemory(
     if (restored.unresolved) {
       return degrade("invalid_response", fallback, options);
     }
-    return { ...result, content: restored.text };
+    return reportRefusal({ ...result, content: restored.text }, options);
+  }
+  return reportRefusal(result, options);
+}
+
+/**
+ * Report a decision {@link validate} refused on its own — today only the #822
+ * subject guard, which turns a cross-subject `supersede` into a `create`.
+ *
+ * Separate from {@link degrade} because nothing degraded: the model answered and
+ * the answer was rejected on a rule, so there is no `fallback` to substitute.
+ * Called on the FINAL result and nowhere earlier, so a refusal that is then
+ * overtaken by an unresolved-placeholder degrade reports once, as the degrade.
+ */
+function reportRefusal(
+  result: ConsolidationResult,
+  options: ConsolidateOptions
+): ConsolidationResult {
+  if (result.fallbackReason) {
+    notifyConsolidationFallback(result.fallbackReason, options.onFallback);
   }
   return result;
 }
@@ -284,6 +314,48 @@ function degrade(
 ): ConsolidationResult {
   notifyConsolidationFallback(reason, options.onFallback, detail);
   return { ...fallback, fallbackReason: reason };
+}
+
+/**
+ * Canonical form of a model-stated subject, for equality only.
+ *
+ * Collapses the ways a model refers to the same subject: case, surrounding
+ * whitespace and punctuation, a leading article, and the `user's ` /
+ * `the user's ` possessive prefix — so "User's sister" and "the user's sister."
+ * compare equal, as do "User" and "the user". Deliberately NOT a general
+ * normalizer: it does not stem, resolve synonyms (wife/spouse) or translate.
+ * Two different words for one subject therefore compare as different, which
+ * fails toward `create` — see the guard in {@link validate} for why that
+ * direction is the safe one.
+ *
+ * Empty string means "the model said nothing usable", which callers must treat
+ * as unknown rather than as a subject that happens to match another unknown.
+ */
+function normalizeSubject(raw: unknown): string {
+  if (typeof raw !== "string") return "";
+  let s = raw
+    .trim()
+    .toLowerCase()
+    .replace(/[.,;:!?]+$/u, "")
+    .trim();
+  s = s.replace(/^the\s+/u, "");
+  // "user's sister" -> "sister". Applied after the article strip so
+  // "the user's sister" lands here too. A bare "user" is left alone.
+  s = s.replace(/^users'?\s+/u, "").replace(/^user's\s+/u, "");
+  return s.trim();
+}
+
+/** The subjects the model uses for the user themselves. A subjectless fact is
+ * about the user by extractor convention ("Lives in San Francisco"), so an
+ * explicit "themselves"/"they" means the same thing. */
+const USER_SUBJECT_ALIASES = new Set(["user", "themselves", "themself", "they", "me", "self"]);
+
+/** Canonical subject key — folds the user's aliases onto one token so
+ * "the user" and "themselves" don't read as two different people. */
+function subjectKey(raw: unknown): string {
+  const s = normalizeSubject(raw);
+  if (s.length === 0) return "";
+  return USER_SUBJECT_ALIASES.has(s) ? "user" : s;
 }
 
 function validate(
@@ -330,6 +402,38 @@ function validate(
       ...new Set(rawIds.filter((id): id is string => typeof id === "string" && validIds.has(id))),
     ];
     if (targetIds.length === 0) return null;
+
+    // SUBJECT GUARD (#822). `supersede` retires the target rows, and superseded
+    // rows are excluded from recall by default (`getAllVaultMemoriesOp`,
+    // operations.ts) — so a wrong supersede does not degrade quality, it hides a
+    // true memory. The reported case: "User's sister lives in Denver" retiring
+    // "User lives in Denver", after which "where do I live?" answers with the
+    // sister's city or nothing.
+    //
+    // Rule 1a already forbids this in the prompt and the model still does it
+    // (#825's prompt fix measured ~5-7 supersedes out of 8 on that fixture), so
+    // the rule cannot live in the prompt alone. What the model IS reliable at is
+    // NAMING a subject; it is unreliable at applying the consequence. So the
+    // prompt asks it to state both subjects and this compares them here, where
+    // the outcome is deterministic and testable without an LLM.
+    //
+    // Only fires when BOTH subjects are stated and they disagree. A missing or
+    // unparseable subject keeps today's behaviour rather than blocking the
+    // action: requiring the field would turn every non-compliant supersede into
+    // a create, and a stale contradiction left standing is its own harm. Tighten
+    // to required once `subject_mismatch` telemetry shows the model fills these
+    // in reliably — the compliance rate is the thing to measure first.
+    //
+    // Direction of failure: an unrecognised synonym pair (wife/spouse) compares
+    // as different and downgrades a legitimate supersede to a create, leaving a
+    // near-duplicate. That is recoverable — the fact is still there. The failure
+    // this replaces is not.
+    const newSubject = subjectKey(obj.newSubject);
+    const targetSubject = subjectKey(obj.targetSubject);
+    if (newSubject.length > 0 && targetSubject.length > 0 && newSubject !== targetSubject) {
+      return { action: "create", content: c, fallbackReason: "subject_mismatch" };
+    }
+
     return { action: "supersede", targetId: targetIds[0], targetIds, content: c };
   }
 

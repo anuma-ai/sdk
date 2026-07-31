@@ -791,13 +791,19 @@ export function createConsolidationFallbackTracker(): {
   // Every reason gets a bucket, and the aggregate below is derived from the
   // bucket VALUES rather than a hand-written sum of two of them. The previous
   // shape named `llm_error` and `invalid_response` in three separate places, so
-  // adding `target_vanished` left it silently under-reporting on two of them —
-  // and `tsc --noEmit` does not catch the omission here because `tsconfig.json`
-  // only includes `src/**/*`, so nothing typechecks this directory in CI.
+  // adding `target_vanished` left it silently under-reporting on two of them.
+  // `tsconfig.test.json` now typechecks this directory (#813), and it is what
+  // caught the missing `subject_mismatch` bucket below.
+  //
+  // NOTE on reading the aggregate: `subject_mismatch` is not a degradation. It
+  // counts supersedes REFUSED because the model's stated subjects disagreed
+  // (#822), which is the guard working. Summing it into a "fallback rate" that
+  // is interpreted as consolidator health will overstate breakage.
   const counts: Record<ConsolidationFallbackReason, number> = {
     llm_error: 0,
     invalid_response: 0,
     target_vanished: 0,
+    subject_mismatch: 0,
   };
   const reasons = Object.keys(counts) as ConsolidationFallbackReason[];
   return {
@@ -808,8 +814,11 @@ export function createConsolidationFallbackTracker(): {
       const total = reasons.reduce((sum, r) => sum + counts[r], 0);
       if (total === 0) return;
       const breakdown = reasons.map((r) => `${r}: ${counts[r]}`).join(", ");
+      // "returned create instead of a merge" rather than "degraded": one of the
+      // reasons (`subject_mismatch`) is a deliberate refusal, not a failure, and
+      // the breakdown is what distinguishes them.
       console.warn(
-        `  ⚠ consolidation degraded to create ${total}x on ${questionId} (${breakdown})`
+        `  ⚠ consolidation returned create instead of a merge ${total}x on ${questionId} (${breakdown})`
       );
       // Reset so a reused tracker reports per-call deltas, not a running total.
       for (const r of reasons) counts[r] = 0;

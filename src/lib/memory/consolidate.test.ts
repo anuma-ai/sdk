@@ -135,6 +135,202 @@ describe("consolidateMemory", () => {
     expect(result.fallbackReason).toBe("invalid_response");
   });
 
+  // #822 — the subject guard. Prompt rule 1a forbids a cross-subject supersede
+  // and ling-2.6-flash violates it anyway (~5-7/8 on the reported fixture), so
+  // the rule is enforced here instead. These drive the model's stated subjects
+  // directly, so they pin the guard without an LLM.
+  describe("cross-subject supersede guard (#822)", () => {
+    const denver = [
+      { id: "c1", content: "User lives in Denver.", similarity: 0.87 },
+      { id: "c2", content: "User visits family a few times a year.", similarity: 0.38 },
+    ];
+
+    it("refuses the reported case: a sister's city must not retire the user's", async () => {
+      const onFallback = vi.fn();
+      const fetchFn = mockFetch(
+        choices({
+          action: "supersede",
+          targetIds: ["c1"],
+          content: "User's sister lives in Denver.",
+          newSubject: "the user's sister",
+          targetSubject: "the user",
+        })
+      );
+
+      const result = await consolidateMemory("User's sister lives in Denver.", denver, {
+        apiKey: "k",
+        fetchFn,
+        onFallback,
+      });
+
+      // create, not supersede: "User lives in Denver." stays readable by recall.
+      expect(result).toEqual({
+        action: "create",
+        content: "User's sister lives in Denver.",
+        fallbackReason: "subject_mismatch",
+      });
+      expect(onFallback).toHaveBeenCalledWith("subject_mismatch");
+      expect(onFallback).toHaveBeenCalledTimes(1);
+    });
+
+    it("still supersedes a real value change on the same subject", async () => {
+      const fetchFn = mockFetch(
+        choices({
+          action: "supersede",
+          targetIds: ["c1"],
+          content: "User lives in Portland.",
+          newSubject: "the user",
+          targetSubject: "user",
+        })
+      );
+
+      const result = await consolidateMemory("User lives in Portland.", denver, {
+        apiKey: "k",
+        fetchFn,
+      });
+
+      expect(result.action).toBe("supersede");
+      expect(result.targetIds).toEqual(["c1"]);
+      expect(result.fallbackReason).toBeUndefined();
+    });
+
+    it("treats a possessive and a bare relation as the same subject", async () => {
+      // "User's sister" vs "sister" is one subject stated two ways — a value
+      // change for the sister must still retire the sister's old city.
+      const sister = [{ id: "s1", content: "User's sister lives in Denver.", similarity: 0.9 }];
+      const fetchFn = mockFetch(
+        choices({
+          action: "supersede",
+          targetIds: ["s1"],
+          content: "User's sister lives in Austin.",
+          newSubject: "the user's sister",
+          targetSubject: "sister",
+        })
+      );
+
+      const result = await consolidateMemory("User's sister lives in Austin.", sister, {
+        apiKey: "k",
+        fetchFn,
+      });
+
+      expect(result.action).toBe("supersede");
+    });
+
+    it.each(["themselves", "they", "the user", "User"])(
+      "folds the user alias %s onto one subject",
+      async (alias) => {
+        const fetchFn = mockFetch(
+          choices({
+            action: "supersede",
+            targetIds: ["c1"],
+            content: "User lives in Portland.",
+            newSubject: alias,
+            targetSubject: "user",
+          })
+        );
+
+        const result = await consolidateMemory("User lives in Portland.", denver, {
+          apiKey: "k",
+          fetchFn,
+        });
+
+        expect(result.action).toBe("supersede");
+      }
+    );
+
+    it("leaves behaviour unchanged when the model states no subjects", async () => {
+      // Deliberately permissive: requiring the fields would turn every
+      // non-compliant supersede into a create, and a stale contradiction left
+      // standing is its own harm. Tighten once compliance is measured.
+      const fetchFn = mockFetch(
+        choices({ action: "supersede", targetIds: ["c1"], content: "User lives in Portland." })
+      );
+
+      const result = await consolidateMemory("User lives in Portland.", denver, {
+        apiKey: "k",
+        fetchFn,
+      });
+
+      expect(result.action).toBe("supersede");
+      expect(result.fallbackReason).toBeUndefined();
+    });
+
+    it("does not fire when only one subject is stated", async () => {
+      const fetchFn = mockFetch(
+        choices({
+          action: "supersede",
+          targetIds: ["c1"],
+          content: "User lives in Portland.",
+          newSubject: "the user",
+        })
+      );
+
+      const result = await consolidateMemory("User lives in Portland.", denver, {
+        apiKey: "k",
+        fetchFn,
+      });
+
+      expect(result.action).toBe("supersede");
+    });
+
+    it("ignores the stated subjects on update and noop", async () => {
+      // The guard is scoped to the destructive action. `update` rewrites content
+      // and `noop` drops the new fact; neither hides an existing memory from
+      // recall, so neither is worth the false-positive risk of a synonym miss.
+      const fetchFn = mockFetch(
+        choices({
+          action: "update",
+          targetId: "c1",
+          content: "User lives in Denver, in the Highlands.",
+          newSubject: "the user's sister",
+          targetSubject: "the user",
+        })
+      );
+
+      const result = await consolidateMemory("...", denver, { apiKey: "k", fetchFn });
+
+      expect(result.action).toBe("update");
+      expect(result.fallbackReason).toBeUndefined();
+    });
+
+    it("keeps the de-anonymized content when a redacted supersede is refused", async () => {
+      // The refusal returns model-authored content, so it goes through the same
+      // placeholder restore as an accepted decision — a create carrying
+      // "[PERSON_1] lives in Denver" would persist the placeholder.
+      const detector: NerDetector = {
+        detect: async (text: string): Promise<PiiSpan[]> => {
+          const at = text.indexOf("Dana");
+          return at === -1 ? [] : [{ start: at, end: at + 4, category: "PERSON" }];
+        },
+      };
+      const redactor = new PiiRedactor({ nerDetector: detector });
+      // Take the placeholder from the redactor rather than assuming its name, so
+      // this test pins the round trip and not the current token scheme.
+      const redacted = await redactor.redactTextAsync("Dana lives in Denver.");
+      expect(redacted.text).not.toContain("Dana");
+
+      const fetchFn = mockFetch(
+        choices({
+          action: "supersede",
+          targetIds: ["c1"],
+          content: redacted.text,
+          newSubject: "Dana",
+          targetSubject: "the user",
+        })
+      );
+
+      const result = await consolidateMemory("Dana lives in Denver.", denver, {
+        apiKey: "k",
+        fetchFn,
+        piiRedaction: redactor,
+      });
+
+      expect(result.action).toBe("create");
+      expect(result.fallbackReason).toBe("subject_mismatch");
+      expect(result.content).toBe("Dana lives in Denver.");
+    });
+  });
+
   it("falls back to create when targetId references a memory not in candidates", async () => {
     const fetchFn = mockFetch(choices({ action: "update", targetId: "m99", content: "x" }));
     const result = await consolidateMemory("new fact", candidates, { apiKey: "k", fetchFn });
@@ -352,6 +548,25 @@ describe("consolidateMemory — prompt pins #825 subject/rewording rules", () =>
     expect(sent).toContain(
       "Never retire the user's own value because a fact about somebody else resembles it"
     );
+  });
+
+  it("asks for both subjects on supersede so the #822 guard has something to compare", async () => {
+    // The guard is a no-op unless the model states them, and the prompt is the
+    // only thing that asks. Pinned because dropping these two lines would
+    // silently disarm the guard while every unit test above still passed.
+    const { fetchFn, bodies } = capturingFetch();
+    await consolidateMemory(
+      "User's sister lives in Denver.",
+      [{ id: "m1", content: "User lives in Denver.", similarity: 0.87 }],
+      { apiKey: "k", fetchFn }
+    );
+    const sent = bodies.join("");
+    expect(sent).toContain("newSubject");
+    expect(sent).toContain("targetSubject");
+    // A subjectless fact is the user, not an unknown — the extractor omits the
+    // subject when it is the user, so the opposite reading would make the guard
+    // fire on every ordinary value change.
+    expect(sent).toContain("treat the absence of a subject as the user");
   });
 });
 

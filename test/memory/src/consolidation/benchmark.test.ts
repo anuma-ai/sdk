@@ -280,12 +280,26 @@ const CASES: Case[] = [
     ],
     expect: { action: "noop", targetIds: ["c1"] },
   },
-  // NOT restored: "different subject, same predicate → create not merge"
-  // (sister lives in Denver). #825 added the SAME SUBJECT REQUIRED rule, but
-  // ling-2.6-flash still supersedes on this fixture ~5–7/8 of the time — so
-  // putting it back would recreate the negative-margin trap this PR documents.
-  // Prompt text is pinned in consolidate.test.ts; the live fixture waits on a
-  // model that actually clears it.
+  // STILL NOT restored: "different subject, same predicate → create not merge"
+  // (sister lives in Denver), #822.
+  //
+  // History, because the obvious next step has already been tried: #825 added
+  // the SAME SUBJECT REQUIRED prompt rule and ling-2.6-flash kept superseding
+  // ~5–7/8. Prompt work did not move it.
+  //
+  // The fix is no longer in the prompt. `validate()` now refuses a supersede
+  // whose stated subjects disagree and returns create with
+  // `fallbackReason: "subject_mismatch"` — so the OUTCOME is correct even when
+  // the model picks the wrong action, and the guard is pinned by unit tests that
+  // need no LLM (`consolidate.test.ts`, "cross-subject supersede guard").
+  //
+  // Restoring the fixture here would now measure something different and
+  // narrower: whether the model FILLS IN `newSubject` / `targetSubject`. The
+  // guard is inert when it does not, and that compliance rate has not been
+  // measured on ling-2.6-flash. Per the corpus rule below, a case only earns its
+  // place once the model reliably clears it — so measure compliance first
+  // (`subject_mismatch` rate in the eval output is the signal), then restore
+  // this with a baseline regenerated in the same PR.
 ];
 
 /**
@@ -345,9 +359,12 @@ const CASES: Case[] = [
  *   After #825 fixed the rewording → noop prompt weakness, that fixture came
  *   back (measured 5/5). The sister/Denver different-subject case did NOT —
  *   ling-2.6-flash still supersedes on it most of the time, so restoring it would
- *   recreate the trap above. Tokyo March vs January stayed out as a bad fixture
- *   with no single defensible label. So 12 = the 11 healthy cases + the one
- *   finding that actually cleared.
+ *   recreate the trap above. That case is now handled by a deterministic guard in
+ *   `validate()` rather than by the model (#822); see the note at the end of
+ *   `CASES` for why that changes what a restored fixture would measure and does
+ *   not by itself earn it a place. Tokyo March vs January stayed out as a bad
+ *   fixture with no single defensible label. So 12 = the 11 healthy cases + the
+ *   one finding that actually cleared.
  *
  * So most of the false-failure fix above comes from `itemsPerRun` and an honest
  * baseline, not from corpus size. 12 over 7 buys a modest resolution gain for
