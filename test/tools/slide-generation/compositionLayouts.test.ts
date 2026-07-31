@@ -51,13 +51,16 @@ function makeMessages(userText: string, systemPrompt?: string): Message[] {
  * and the loop ends after 100–275s with no error. The tests are correct; the
  * model is not building the deck it just planned.
  *
- * Skipped rather than deleted so #791 can make this suite enforcing without a
- * permanently-red required check. `picks a register-appropriate design system`
- * is deliberately NOT skipped — it passes, and whatever separates it from its
- * four siblings is the lead on #842. Un-skip as that issue is fixed.
+ * Skipped on measured rates, not on one sample: each failed **3 of 3** full
+ * runs in which it executed. Only tests that always fail are quarantined —
+ * #842 also fires intermittently on tests left enforcing here (see the rate
+ * table on that issue), so a green run is not proof this is fixed, and a red
+ * one is not necessarily a regression. Un-skip as #842 is fixed.
+ *
+ * `picks a register-appropriate design system` is NOT skipped: 0/3.
  */
 describe("composition-layouts wire-in", () => {
-  // Quarantined: #842 — plan_deck succeeds, zero add_slide calls (101s).
+  // Quarantined: #842 — 3/3 runs. plan_deck succeeds, zero add_slide calls.
   it.skip("generates a deck using design-system composition layouts", async () => {
     const store = createFileStore();
     const log: ToolCallLog[] = [];
@@ -112,7 +115,7 @@ describe("composition-layouts wire-in", () => {
   // Open-ended generation: no layout names in the prompt. We want to see
   // whether the model reaches for composition layouts on its own when the
   // system prompt offers both legacy and design-system options.
-  // Quarantined: #842 — plan_deck succeeds, zero add_slide calls (102s).
+  // Quarantined: #842 — 3/3 runs. plan_deck succeeds, zero add_slide calls.
   it.skip("picks composition layouts when given an open-ended prompt", async () => {
     const store = createFileStore();
     const log: ToolCallLog[] = [];
@@ -192,7 +195,7 @@ describe("composition-layouts wire-in", () => {
   // so the model can populate image slots with real generated URLs instead
   // of placehold.co rectangles. Bumped maxToolRounds because image MCP
   // calls add round-trips before plan_deck/add_slide.
-  // Quarantined: #842 — plan_deck succeeds, zero add_slide calls (276s).
+  // Quarantined: #842 — 3/3 runs. plan_deck succeeds, zero add_slide calls.
   it.skip("generates a 7-slide demo deck with real images", { timeout: 600_000 }, async () => {
     const store = createFileStore();
     const log: ToolCallLog[] = [];
@@ -246,7 +249,7 @@ describe("composition-layouts wire-in", () => {
   // pattern from the recipe and generate N items at fill time. This is
   // the architectural risk worth derisking — unit tests prove the
   // plumbing, but not that the model can produce conforming JSX.
-  // Quarantined: #842 — plan_deck succeeds, zero add_slide calls (159s).
+  // Quarantined: #842 — 3/3 runs. plan_deck succeeds, zero add_slide calls.
   it.skip(
     "fills the agenda composition's flex region with N items end-to-end",
     { timeout: 300_000 },

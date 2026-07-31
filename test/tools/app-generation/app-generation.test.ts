@@ -356,7 +356,7 @@ describe("app-generation", () => {
     });
   });
 
-  // Quarantined: #842 — the loop runs 65s and writes zero files (store.size 0).
+  // Quarantined: #842 — 3/3 runs. Loop runs ~65s and writes zero files (store.size 0).
   it.skip("generates a complex multi-feature app", async () => {
     const store = createFileStore();
     const log: ToolCallLog[] = [];

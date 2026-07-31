@@ -70,7 +70,7 @@ describe.concurrent.each(MODELS)("slide-generation prompts [%s]", (model) => {
   // the suite default (300_000ms) when the upstream LLM is slow —
   // observed in one e2e run hitting the cutoff mid-generation. Match
   // the heavier composition-layouts tests' 600s budget.
-  // Quarantined: #842 — plan_deck succeeds, zero add_slide calls (246s).
+  // Quarantined: #842 — 3/3 runs. plan_deck succeeds, zero add_slide calls.
   it.skip("home gardening fundamentals (no images)", { timeout: 600_000 }, async () => {
     const store = createFileStore();
     const log: ToolCallLog[] = [];
