@@ -73,6 +73,22 @@ jobs:
           TEST_FILTER: ${{ github.event.inputs.test_filter || '' }}
         run: pnpm e2e:tools "$TEST_FILTER"
 
+      # The per-run traces the recorder writes (#808) — per-step usage, tool
+      # calls, and the loop's normalized terminal state. Without this they are
+      # written to the runner's disk and thrown away, which is why every #842
+      # investigation so far has needed a local re-run with a portal key: the
+      # one field that separates "model declined" from "turn was cut off" was
+      # recorded and then discarded.
+      #
+      # `always()` because a FAILING run is the one worth keeping.
+      - name: Upload run traces
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: e2e-tools-runs
+          path: test/tools/.runs/*.jsonl
+          if-no-files-found: warn
+
   e2e-tools-compat:
     if: github.event_name == 'workflow_dispatch' && github.event.inputs.model == 'all'
     runs-on: ubuntu-latest
