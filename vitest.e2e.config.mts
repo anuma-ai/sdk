@@ -46,6 +46,35 @@ export default defineConfig({
     ],
     testTimeout: 300_000,
     hookTimeout: 120_000,
+    // Three attempts before a test is called failed.
+    //
+    // These tests drive a live model, so a single run has a per-test failure
+    // rate that is not zero and not enumerable. Quarantining was tried first
+    // and did not converge: three rounds of it (slide generation, then three
+    // app-generation tests, then the fourth precision-updates test) each
+    // removed the previous run's failure and surfaced a new name — including
+    // `googleDrive > chains list -> get_content`, which passed five runs then
+    // called get_content before list. Continuing would mean skipping the suite
+    // to reach green.
+    //
+    // Retries are the right instrument for that shape and, unlike a skip, keep
+    // the test enforcing: a genuinely broken tool fails all three attempts. A
+    // 33%-flaky test now fails a run ~3.6% of the time instead of a third of
+    // the time.
+    //
+    // NOT a licence to leave known-bad tests running. Retries turn a low rate
+    // into a negligible one; they barely dent a high one (a 62% test still
+    // fails ~24% of runs at three attempts), which is why the tests measured
+    // at 4/8 and 5/8 stay quarantined under #842 rather than being handed to
+    // this.
+    //
+    // Wall clock: each attempt gets the full `testTimeout`, so retries
+    // multiply the WORST case, not the typical one. That is affordable only
+    // because the timeout-prone tests are quarantined — the suite runs in
+    // ~5m30s against a 30-minute job budget. If a test that reliably burns
+    // its 300s ever comes back, this interaction has to be re-checked: three
+    // attempts of it alone is 15 minutes.
+    retry: 2,
     // Allow concurrent e2e tests so we can fan out across models.
     // Each test makes HTTP calls + waits on the LLM so the bottleneck is
     // wall time, not CPU. Kept at 6 because the portal rate-limits /
