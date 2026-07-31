@@ -87,7 +87,16 @@ jobs:
         with:
           name: e2e-tools-runs
           path: test/tools/.runs/*.jsonl
-          if-no-files-found: warn
+          # `.runs` is a HIDDEN directory, and upload-artifact has excluded
+          # dotted paths by default since v4.4 — without this the step still
+          # concludes `success`, warns "No files were found", and uploads
+          # nothing. Verified: run 30652472467 wrote 18 trace files and
+          # uploaded zero.
+          include-hidden-files: true
+          # `error`, not `warn`: a silent no-op upload is what this step exists
+          # to prevent, and a green step that uploaded nothing is the same
+          # class of lie as the green check this whole PR is fixing.
+          if-no-files-found: error
 
   e2e-tools-compat:
     if: github.event_name == 'workflow_dispatch' && github.event.inputs.model == 'all'
