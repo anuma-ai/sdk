@@ -343,6 +343,15 @@ export class ResponsesStrategy implements ApiStrategy {
         accumulator.finishReason = "length";
       }
 
+      // Keep the *unnormalized* terminal state too, so `buildFinalResponse` can
+      // put it back on the response. The normalization above deliberately
+      // collapses everything that is not `max_output_tokens` — which means a
+      // content-filter stop, or a truncation reason we do not model yet, leaves
+      // no trace at all once the stream ends. `response.incomplete` implies the
+      // status even when the envelope omits it (#805).
+      accumulator.responseStatus = looksIncomplete ? "incomplete" : resp?.status;
+      accumulator.incompleteReason = resp?.incomplete_details?.reason;
+
       // Capture tools_checksum if present
       if (typedChunk.response?.tools_checksum && !accumulator.toolsChecksum) {
         accumulator.toolsChecksum = typedChunk.response.tools_checksum;
@@ -723,6 +732,16 @@ export class ResponsesStrategy implements ApiStrategy {
       usage: Object.keys(accumulator.usage).length > 0 ? accumulator.usage : undefined,
       tools_checksum: accumulator.toolsChecksum,
       tool_call_events: accumulator.toolCallEvents,
+      // Response-level terminal state (#805). Note the individual output items
+      // above hardcode `status: "completed"` — that is the item's own status
+      // and says nothing about the turn. Only these two fields can tell a
+      // caller the turn was cut off, and until now neither survived the stream.
+      // Omitted rather than emitted as `undefined` so a clean turn's response
+      // shape is unchanged.
+      ...(accumulator.responseStatus !== undefined && { status: accumulator.responseStatus }),
+      ...(accumulator.incompleteReason !== undefined && {
+        incomplete_details: { reason: accumulator.incompleteReason },
+      }),
     };
   }
 }

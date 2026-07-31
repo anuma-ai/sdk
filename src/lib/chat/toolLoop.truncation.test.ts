@@ -18,7 +18,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import * as sseModule from "../../client/core/serverSentEvents.gen";
 import * as embeddingsModule from "../memoryEngine/embeddings";
-import { runToolLoop } from "./toolLoop";
+import { runToolLoop, type StepFinishEvent } from "./toolLoop";
 
 vi.mock("../../client/core/serverSentEvents.gen", async (importOriginal) => {
   const orig = await importOriginal<typeof sseModule>();
@@ -211,12 +211,11 @@ describe("runToolLoop truncation guard", () => {
 /**
  * `terminalState` reports what the guard above decided on, out to the caller.
  *
- * It exists because neither response shape can answer the question. The Responses
- * API has no field for a finish reason — `LlmapiResponseResponse` declares neither
- * `status` nor `incomplete_details` — so a truncation the loop DID detect is
- * invisible in `buildFinalResponse`'s output. Completions does carry
- * `choices[0].finish_reason`, but omits `tool_calls` when there are none, so a
- * caller counting them cannot separate "zero calls" from "field absent".
+ * It exists because neither response shape answered the question in one
+ * vocabulary. Completions carries `choices[0].finish_reason` but omits
+ * `tool_calls` when there are none, so a caller counting them cannot separate
+ * "zero calls" from "field absent". The Responses shape carried nothing at all
+ * until the `status` / `incomplete_details` propagation below.
  *
  * Both gaps were found by an e2e recorder that tried to re-derive these from
  * `result.data` and got `null` on the very runs it was added to explain (#805).
@@ -227,7 +226,7 @@ describe("runToolLoop terminalState", () => {
     mockGenerateEmbedding.mockResolvedValue([0.1]);
   });
 
-  it("reports the truncation the Responses shape cannot carry", async () => {
+  it("reports the truncation in both vocabularies", async () => {
     // The turn is truncated but keeps partial text, so it is NOT an error — which
     // is exactly the case where a caller needs to be told, and previously had no
     // way to find out.
@@ -239,9 +238,12 @@ describe("runToolLoop terminalState", () => {
 
     expect(result.error).toBeNull();
     expect(result.terminalState?.finishReason).toBe("length");
-    // And nothing in the response body says so:
-    expect(result.data).not.toHaveProperty("status");
-    expect(result.data).not.toHaveProperty("incomplete_details");
+    // ...and the response body now says so too, in the Responses vocabulary, so
+    // a caller holding only `data` is no longer blind (#805).
+    expect(result.data).toMatchObject({
+      status: "incomplete",
+      incomplete_details: { reason: "max_output_tokens" },
+    });
   });
 
   it("reports finalToolCallCount 0 on a turn that ended having produced nothing", async () => {
@@ -313,5 +315,128 @@ describe("runToolLoop terminalState", () => {
     expect(result.error).toContain("truncated at the output-token limit");
     expect(result.terminalState?.finishReason).toBe("length");
     expect(result.terminalState?.finalToolCallCount).toBe(0);
+  });
+});
+
+/**
+ * Response-level terminal state on the Responses shape (#805).
+ *
+ * `terminalState` above answers for a `runToolLoop` caller. This answers for
+ * everyone else: `buildFinalResponse`'s output is what a non-loop consumer
+ * holds, and it used to hardcode `status: "completed"` on individual output
+ * ITEMS while saying nothing about the turn. A completions consumer could read
+ * `choices[0].finish_reason`; a Responses consumer had nothing.
+ */
+describe("Responses buildFinalResponse terminal state", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockGenerateEmbedding.mockResolvedValue([0.1]);
+  });
+
+  it("carries a non-ceiling incomplete reason the normalization deliberately drops", async () => {
+    // `finishReason` is only set for max_output_tokens, so a content filter left
+    // NO trace anywhere once the stream ended. This is the case the normalized
+    // field cannot represent, which is why the raw fields are worth carrying.
+    mockCreateSseClient.mockReturnValueOnce({ stream: filteredStream() } as never);
+
+    const result = await run();
+
+    expect(result.error).toBeNull();
+    expect(result.terminalState?.finishReason).toBeUndefined();
+    expect(result.data).toMatchObject({
+      status: "incomplete",
+      incomplete_details: { reason: "content_filter" },
+    });
+  });
+
+  it("leaves a clean turn's response shape unchanged", async () => {
+    // Omitted, not emitted as undefined — a clean turn must not grow keys.
+    mockCreateSseClient.mockReturnValueOnce({ stream: cleanTextStream("Hello.") } as never);
+
+    const result = await run();
+
+    expect(result.data).toMatchObject({ status: "completed" });
+    expect(result.data).not.toHaveProperty("incomplete_details");
+  });
+});
+
+/**
+ * `onStepFinish` carries the round's own finish reason (#805).
+ *
+ * A round can truncate and the loop still recover on the next one — normal on
+ * Kimi-K2.6, where hitting 4096 recurs in runs that ultimately pass. A consumer
+ * watching steps could not see that at all; the round looked identical to one
+ * that said everything it meant to.
+ */
+describe("StepFinishEvent finishReason", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockGenerateEmbedding.mockResolvedValue([0.1]);
+  });
+
+  it("reports the reason for a round that hit the ceiling but still called a tool", async () => {
+    // A tool call DID come through, so the truncation guard stays quiet and the
+    // loop continues — exactly the case where the step event is the only signal.
+    const truncatedToolCallStream = (async function* () {
+      yield { type: "response.created", response: { id: "r", model: "m" } };
+      yield {
+        type: "response.output_item.added",
+        item: { id: "item_c1", call_id: "c1", type: "function_call", name: "plan_deck" },
+      };
+      yield {
+        type: "response.function_call_arguments.done",
+        item_id: "item_c1",
+        call_id: "c1",
+        arguments: "{}",
+      };
+      yield {
+        type: "response.incomplete",
+        response: {
+          status: "incomplete",
+          incomplete_details: { reason: "max_output_tokens" },
+          usage: { input_tokens: 10, output_tokens: 4096 },
+        },
+      };
+    })();
+
+    mockCreateSseClient
+      .mockReturnValueOnce({ stream: truncatedToolCallStream } as never)
+      .mockReturnValueOnce({ stream: cleanTextStream("Done.") } as never);
+
+    const steps: Array<{ stepIndex: number; finishReason?: string }> = [];
+    const result = await runToolLoop({
+      messages: [{ role: "user", content: [{ type: "text", text: "build a deck" }] }],
+      model: "test-model",
+      token: "token",
+      tools: [planDeckTool()],
+      toolChoice: "auto",
+      onStepFinish: (e) => steps.push({ stepIndex: e.stepIndex, finishReason: e.finishReason }),
+    });
+
+    expect(result.error).toBeNull();
+    expect(steps).toHaveLength(1);
+    expect(steps[0]?.finishReason).toBe("length");
+  });
+
+  it("omits the field when the provider sent no finish reason", async () => {
+    mockCreateSseClient
+      .mockReturnValueOnce({ stream: toolCallStream("c1", "plan_deck", "{}") } as never)
+      .mockReturnValueOnce({ stream: cleanTextStream("Done.") } as never);
+
+    // Push the event itself — rebuilding it here would re-add the key with an
+    // `undefined` value and the absence assertion would pass for the wrong
+    // reason.
+    const steps: StepFinishEvent[] = [];
+    await runToolLoop({
+      messages: [{ role: "user", content: [{ type: "text", text: "build a deck" }] }],
+      model: "test-model",
+      token: "token",
+      tools: [planDeckTool()],
+      toolChoice: "auto",
+      onStepFinish: (e) => steps.push(e),
+    });
+
+    expect(steps).toHaveLength(1);
+    expect(steps[0]).not.toHaveProperty("finishReason");
   });
 });

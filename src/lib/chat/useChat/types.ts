@@ -387,6 +387,22 @@ export type StreamAccumulator = {
    * decided it was done. See the truncation guard in `runToolLoop`.
    */
   finishReason?: string;
+  /**
+   * Response-level terminal state, Responses API only, as sent.
+   *
+   * `finishReason` above is the *normalized* signal — the Responses strategy
+   * sets it to `"length"` only for `incomplete_details.reason ===
+   * "max_output_tokens"`, because that is the one case the tool loop treats as
+   * a truncation. These two fields keep the unnormalized terminal state so
+   * `buildFinalResponse` can put it back on the response, where a caller can
+   * read it. Without them a Responses consumer cannot see truncation at all,
+   * while a completions consumer reads `choices[0].finish_reason` (#805).
+   *
+   * Absent on the completions path, which has no equivalent envelope.
+   */
+  responseStatus?: string;
+  /** Reason accompanying `responseStatus === "incomplete"`, e.g. `"max_output_tokens"`. */
+  incompleteReason?: string;
   /** Checksum of tools used to generate this response */
   toolsChecksum?: string;
   /** Image model the portal resolved when an image-generation tool ran */

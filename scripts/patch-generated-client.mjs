@@ -23,23 +23,36 @@ const PROJECT_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), 
 
 const CLIENT_COMPAT_REEXPORT = `
 // Backwards-compat shims — see ../clientCompat.ts. These named re-exports
-// override the generated LlmapiChatCompletionResponse (and supply aliases
-// that are not present in types.gen) for the public client entry.
+// override the generated LlmapiChatCompletionResponse / LlmapiResponseResponse
+// (and supply aliases that are not present in types.gen) for the public client
+// entry.
 export type {
   LlmapiChatCompletionResponse,
   LlmapiChatCompletionTool,
   LlmapiChatCompletionToolChoice,
   LlmapiChatCompletionUsage,
   LlmapiChoice,
+  LlmapiResponseResponse,
 } from '../clientCompat';
 `;
+
+/**
+ * Generated type names that `src/clientCompat.ts` overrides, and which must
+ * therefore be dropped from the `./types.gen` re-export so the named compat
+ * export is not a duplicate. Keep in sync with CLIENT_COMPAT_REEXPORT above.
+ */
+const OVERRIDDEN_GENERATED_TYPES = new Set([
+  "LlmapiChatCompletionResponse",
+  "LlmapiResponseResponse",
+]);
 
 const CLIENT_COMPAT_MARKER = "from '../clientCompat'";
 
 /**
  * openapi-ts 0.87 used `export type *` / `export *`, which named re-exports can
  * shadow. 0.97 emits explicit named re-exports, so we must drop the conflicting
- * generated `LlmapiChatCompletionResponse` before appending the compat export.
+ * generated types (see OVERRIDDEN_GENERATED_TYPES) before appending the compat
+ * export.
  */
 function patchClientIndex(absolute) {
   const original = readFileSync(absolute, "utf-8");
@@ -57,7 +70,7 @@ function patchClientIndex(absolute) {
       const filtered = names
         .split(",")
         .map((name) => name.trim())
-        .filter((name) => name && name !== "LlmapiChatCompletionResponse")
+        .filter((name) => name && !OVERRIDDEN_GENERATED_TYPES.has(name))
         .join(", ");
       return `export type { ${filtered} } from './types.gen';`;
     });
