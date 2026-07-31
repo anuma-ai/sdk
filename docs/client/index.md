@@ -596,7 +596,7 @@
 | [HandlersZetaMarketResponse](Internal/type-aliases/HandlersZetaMarketResponse.md) | - |
 | [LlmapiChatCompletionExtraFields](Internal/type-aliases/LlmapiChatCompletionExtraFields.md) | ExtraFields contains additional metadata |
 | [LlmapiChatCompletionRequest](Internal/type-aliases/LlmapiChatCompletionRequest.md) | - |
-| [LlmapiChatCompletionResponse](Internal/type-aliases/LlmapiChatCompletionResponse.md) | Override the generated `LlmapiChatCompletionResponse` so legacy top-level fields (`tools_checksum`, `tool_call_events`, `inference_id`, ...) and cost-on-usage (`usage.cost_micro_usd`, `usage.credits_used`) remain readable by SDK consumers that haven't migrated to the new `portal` envelope. |
+| [LlmapiChatCompletionResponse](Internal/type-aliases/LlmapiChatCompletionResponse.md) | - |
 | [LlmapiChatCompletionTool](Internal/type-aliases/LlmapiChatCompletionTool.md) | - |
 | [LlmapiChatCompletionToolChoice](Internal/type-aliases/LlmapiChatCompletionToolChoice.md) | - |
 | [LlmapiChatCompletionUsage](Internal/type-aliases/LlmapiChatCompletionUsage.md) | The pre-migration usage shape: standard OpenAI token counts plus the portal's cost/credit fields all on one flat object. The new schema splits these — OpenAI tokens stay in `usage`, portal cost fields move to the `portal` envelope — so this type no longer appears in the generated client. |
@@ -625,7 +625,7 @@
 | [LlmapiResponseOutputItem](Internal/type-aliases/LlmapiResponseOutputItem.md) | - |
 | [LlmapiResponseReasoning](Internal/type-aliases/LlmapiResponseReasoning.md) | Reasoning configures reasoning for o-series and other reasoning models |
 | [LlmapiResponseRequest](Internal/type-aliases/LlmapiResponseRequest.md) | - |
-| [LlmapiResponseResponse](Internal/type-aliases/LlmapiResponseResponse.md) | - |
+| [LlmapiResponseResponse](Internal/type-aliases/LlmapiResponseResponse.md) | Add the Responses API's terminal-state fields, which the portal's generated schema does not declare. |
 | [LlmapiResponseTool](Internal/type-aliases/LlmapiResponseTool.md) | - |
 | [LlmapiResponseToolChoice](Internal/type-aliases/LlmapiResponseToolChoice.md) | ToolChoice controls tool usage |
 | [LlmapiResponseUsage](Internal/type-aliases/LlmapiResponseUsage.md) | Usage contains token usage information |
