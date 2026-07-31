@@ -1128,7 +1128,19 @@ export type HandlersApiKeyWithKeyResponse = {
 
 export type HandlersAccountByDidResponse = {
     account_id?: number;
+    phone_verified?: boolean;
     privy_did?: string;
+};
+
+export type HandlersAccountsByPhoneHashesRequest = {
+    phone_hashes?: Array<Array<number>>;
+};
+
+export type HandlersAccountsByPhoneHashesResponse = {
+    /**
+     * Matches is never null — an empty batch answers [], so a caller need not special-case it.
+     */
+    matches?: Array<HandlersPhoneHashMatchResult>;
 };
 
 export type HandlersAddCreditsRequest = {
@@ -1503,6 +1515,60 @@ export type HandlersBoundWalletResponse = {
      * when the chain reader is unavailable for this request.
      */
     zeta_rewards?: string;
+};
+
+export type HandlersCampaignRequest = {
+    body?: string;
+    data?: Array<number>;
+    locales?: Array<string>;
+    /**
+     * MinAppVersion is a dotted numeric version ("1.4.2").
+     */
+    min_app_version?: string;
+    platforms?: Array<string>;
+    /**
+     * ScheduledAt (RFC 3339) is when the worker may start draining.
+     * Required when status is "scheduled".
+     */
+    scheduled_at?: string;
+    /**
+     * Status may be "draft" (default on create) or "scheduled". Every
+     * other transition belongs to the worker or the cancel endpoint.
+     */
+    status?: string;
+    /**
+     * Segment dimensions, AND-combined; empty list = no filter. Tiers are
+     * subscription tiers ("basic"/"starter"/"pro"); platforms are
+     * "ios"/"android"; locales accept full BCP-47 tags or primary subtags.
+     */
+    tiers?: Array<string>;
+    title?: string;
+    /**
+     * URL is the client deep link opened on tap. Must match the mobile
+     * client's allowed shape: "/(auth)/" prefix and no "..".
+     */
+    url?: string;
+};
+
+export type HandlersCampaignResponse = {
+    body?: string;
+    completed_at?: string;
+    created_at?: string;
+    data?: Array<number>;
+    failed_count?: number;
+    id?: number;
+    locales?: Array<string>;
+    min_app_version?: string;
+    platforms?: Array<string>;
+    scheduled_at?: string;
+    sent_count?: number;
+    skipped_count?: number;
+    started_at?: string;
+    status?: string;
+    tiers?: Array<string>;
+    title?: string;
+    updated_at?: string;
+    url?: string;
 };
 
 export type HandlersCancelScheduledDowngradeResponse = {
@@ -2126,6 +2192,11 @@ export type HandlersListAppsResponse = {
     pagination: HandlersPaginationResponse;
 };
 
+export type HandlersListCampaignsResponse = {
+    campaigns?: Array<HandlersCampaignResponse>;
+    pagination?: HandlersPaginationResponse;
+};
+
 export type HandlersListDeveloperApiKeysResponse = {
     api_keys: Array<HandlersDeveloperApiKeyResponse>;
     pagination: HandlersPaginationResponse;
@@ -2339,6 +2410,81 @@ export type HandlersPhoneCallTranscriptEntry = {
     created_at?: string;
     speaker?: string;
     text?: string;
+};
+
+export type HandlersPhoneHashAuditEntry = {
+    account_id?: number;
+    /**
+     * Reason is "pending" (Privy has a phone, stored hash missing or stale),
+     * "api_error" (transient Privy fetch / DB write failure — batch will retry), or
+     * "not_e164" (Privy holds a number this pass could not normalise — a per-account data
+     * problem worth naming, since the operator can only chase it if they know which rows).
+     */
+    reason?: string;
+};
+
+export type HandlersPhoneHashAuditResponse = {
+    /**
+     * hash already matches Privy phone
+     */
+    already_ok?: number;
+    api_errors?: number;
+    /**
+     * unique-index collision
+     */
+    conflicts?: number;
+    /**
+     * Entries lists the accounts counted in Pending and APIErrors. Never null.
+     */
+    entries?: Array<HandlersPhoneHashAuditEntry>;
+    limit?: number;
+    /**
+     * -1 when no more accounts remain
+     */
+    next_offset?: number;
+    /**
+     * Privy user has no linked phone
+     */
+    no_phone?: number;
+    /**
+     * Privy 404
+     */
+    no_privy_user?: number;
+    offset?: number;
+    /**
+     * has Privy phone but hash missing/stale (audit)
+     */
+    pending?: number;
+    /**
+     * PepperConfigured reports whether PORTAL_PHONE_HASH_PEPPER was set for this pass.
+     * FALSE means no hash could be written regardless of what the counts below say, so the
+     * whole report is about a deployment problem and NOT about phone coverage. It is
+     * surfaced because the enforcement-flip decision is made from this response: nearby's
+     * gate is fail-closed, so flipping with nothing written locks every user out. Reading
+     * that risk correctly must not require correlating with pod logs.
+     */
+    pepper_configured?: boolean;
+    skipped_no_did?: number;
+    /**
+     * The three causes previously conflated into one `skipped` counter. They call for
+     * opposite operator responses, which is why they are no longer summed:
+     * SkippedNoPepper  — CONFIG. Affects every account with a linked phone. Do not flip.
+     * SkippedNotE164   — DATA, per account. Privy holds something unparseable. Investigate
+     * the named accounts in Entries; does not block a flip.
+     * SkippedNoDID     — DATA, per account. No privy_did to resolve, so nothing to fetch.
+     */
+    skipped_no_pepper?: number;
+    skipped_not_e164?: number;
+    total?: number;
+    /**
+     * newly written or updated (backfill)
+     */
+    written?: number;
+};
+
+export type HandlersPhoneHashMatchResult = {
+    account_id?: number;
+    phone_hash?: Array<number>;
 };
 
 export type HandlersPreProcessorRequest = {
@@ -2572,6 +2718,14 @@ export type HandlersSendTestPushRequest = {
     data?: {
         [key: string]: unknown;
     };
+    /**
+     * EventType routes the test push through the full Dispatch pipeline
+     * (kill-switch → category mapping → recipient preference → channelId)
+     * instead of the raw device fan-out — the E2E knob for verifying the
+     * gates themselves. Empty keeps the raw send: an operator debugging
+     * delivery should not be blocked by the target's preferences.
+     */
+    event_type?: string;
     title?: string;
     url?: string;
     user_address?: string;
@@ -5351,6 +5505,211 @@ export type PostApiV1AdminNotificationsAnnounceModelResponses = {
 
 export type PostApiV1AdminNotificationsAnnounceModelResponse = PostApiV1AdminNotificationsAnnounceModelResponses[keyof PostApiV1AdminNotificationsAnnounceModelResponses];
 
+export type GetApiV1AdminNotificationsCampaignsData = {
+    body?: never;
+    headers: {
+        /**
+         * Admin API key
+         */
+        'X-Admin-API-Key': string;
+    };
+    path?: never;
+    query?: {
+        /**
+         * Maximum campaigns to return (default 50, max 200)
+         */
+        limit?: number;
+        /**
+         * Number of campaigns to skip (default 0)
+         */
+        offset?: number;
+    };
+    url: '/api/v1/admin/notifications/campaigns';
+};
+
+export type GetApiV1AdminNotificationsCampaignsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+};
+
+export type GetApiV1AdminNotificationsCampaignsError = GetApiV1AdminNotificationsCampaignsErrors[keyof GetApiV1AdminNotificationsCampaignsErrors];
+
+export type GetApiV1AdminNotificationsCampaignsResponses = {
+    /**
+     * OK
+     */
+    200: HandlersListCampaignsResponse;
+};
+
+export type GetApiV1AdminNotificationsCampaignsResponse = GetApiV1AdminNotificationsCampaignsResponses[keyof GetApiV1AdminNotificationsCampaignsResponses];
+
+export type PostApiV1AdminNotificationsCampaignsData = {
+    /**
+     * Campaign definition
+     */
+    body: HandlersCampaignRequest;
+    headers: {
+        /**
+         * Admin API key
+         */
+        'X-Admin-API-Key': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/admin/notifications/campaigns';
+};
+
+export type PostApiV1AdminNotificationsCampaignsErrors = {
+    /**
+     * Bad Request
+     */
+    400: ResponseErrorResponse;
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+    /**
+     * Internal Server Error
+     */
+    500: ResponseErrorResponse;
+};
+
+export type PostApiV1AdminNotificationsCampaignsError = PostApiV1AdminNotificationsCampaignsErrors[keyof PostApiV1AdminNotificationsCampaignsErrors];
+
+export type PostApiV1AdminNotificationsCampaignsResponses = {
+    /**
+     * Created
+     */
+    201: HandlersCampaignResponse;
+};
+
+export type PostApiV1AdminNotificationsCampaignsResponse = PostApiV1AdminNotificationsCampaignsResponses[keyof PostApiV1AdminNotificationsCampaignsResponses];
+
+export type GetApiV1AdminNotificationsCampaignsByCampaignIdData = {
+    body?: never;
+    headers: {
+        /**
+         * Admin API key
+         */
+        'X-Admin-API-Key': string;
+    };
+    path: {
+        /**
+         * Campaign id
+         */
+        campaign_id: number;
+    };
+    query?: never;
+    url: '/api/v1/admin/notifications/campaigns/{campaign_id}';
+};
+
+export type GetApiV1AdminNotificationsCampaignsByCampaignIdErrors = {
+    /**
+     * Not Found
+     */
+    404: ResponseErrorResponse;
+};
+
+export type GetApiV1AdminNotificationsCampaignsByCampaignIdError = GetApiV1AdminNotificationsCampaignsByCampaignIdErrors[keyof GetApiV1AdminNotificationsCampaignsByCampaignIdErrors];
+
+export type GetApiV1AdminNotificationsCampaignsByCampaignIdResponses = {
+    /**
+     * OK
+     */
+    200: HandlersCampaignResponse;
+};
+
+export type GetApiV1AdminNotificationsCampaignsByCampaignIdResponse = GetApiV1AdminNotificationsCampaignsByCampaignIdResponses[keyof GetApiV1AdminNotificationsCampaignsByCampaignIdResponses];
+
+export type PatchApiV1AdminNotificationsCampaignsByCampaignIdData = {
+    /**
+     * Fields to update
+     */
+    body: HandlersCampaignRequest;
+    headers: {
+        /**
+         * Admin API key
+         */
+        'X-Admin-API-Key': string;
+    };
+    path: {
+        /**
+         * Campaign id
+         */
+        campaign_id: number;
+    };
+    query?: never;
+    url: '/api/v1/admin/notifications/campaigns/{campaign_id}';
+};
+
+export type PatchApiV1AdminNotificationsCampaignsByCampaignIdErrors = {
+    /**
+     * Bad Request
+     */
+    400: ResponseErrorResponse;
+    /**
+     * Not Found
+     */
+    404: ResponseErrorResponse;
+    /**
+     * Conflict
+     */
+    409: ResponseErrorResponse;
+};
+
+export type PatchApiV1AdminNotificationsCampaignsByCampaignIdError = PatchApiV1AdminNotificationsCampaignsByCampaignIdErrors[keyof PatchApiV1AdminNotificationsCampaignsByCampaignIdErrors];
+
+export type PatchApiV1AdminNotificationsCampaignsByCampaignIdResponses = {
+    /**
+     * OK
+     */
+    200: HandlersCampaignResponse;
+};
+
+export type PatchApiV1AdminNotificationsCampaignsByCampaignIdResponse = PatchApiV1AdminNotificationsCampaignsByCampaignIdResponses[keyof PatchApiV1AdminNotificationsCampaignsByCampaignIdResponses];
+
+export type PostApiV1AdminNotificationsCampaignsByCampaignIdCancelData = {
+    body?: never;
+    headers: {
+        /**
+         * Admin API key
+         */
+        'X-Admin-API-Key': string;
+    };
+    path: {
+        /**
+         * Campaign id
+         */
+        campaign_id: number;
+    };
+    query?: never;
+    url: '/api/v1/admin/notifications/campaigns/{campaign_id}/cancel';
+};
+
+export type PostApiV1AdminNotificationsCampaignsByCampaignIdCancelErrors = {
+    /**
+     * Not Found
+     */
+    404: ResponseErrorResponse;
+    /**
+     * Conflict
+     */
+    409: ResponseErrorResponse;
+};
+
+export type PostApiV1AdminNotificationsCampaignsByCampaignIdCancelError = PostApiV1AdminNotificationsCampaignsByCampaignIdCancelErrors[keyof PostApiV1AdminNotificationsCampaignsByCampaignIdCancelErrors];
+
+export type PostApiV1AdminNotificationsCampaignsByCampaignIdCancelResponses = {
+    /**
+     * OK
+     */
+    200: HandlersCampaignResponse;
+};
+
+export type PostApiV1AdminNotificationsCampaignsByCampaignIdCancelResponse = PostApiV1AdminNotificationsCampaignsByCampaignIdCancelResponses[keyof PostApiV1AdminNotificationsCampaignsByCampaignIdCancelResponses];
+
 export type PostApiV1AdminNotificationsSendData = {
     /**
      * Push payload
@@ -5380,6 +5739,10 @@ export type PostApiV1AdminNotificationsSendErrors = {
      * Not Found
      */
     404: ResponseErrorResponse;
+    /**
+     * Conflict
+     */
+    409: ResponseErrorResponse;
     /**
      * Internal Server Error
      */
@@ -5727,6 +6090,94 @@ export type PutApiV1AdminPersonasByIdResponses = {
 };
 
 export type PutApiV1AdminPersonasByIdResponse = PutApiV1AdminPersonasByIdResponses[keyof PutApiV1AdminPersonasByIdResponses];
+
+export type GetApiV1AdminPhoneHashesAuditData = {
+    body?: never;
+    headers: {
+        /**
+         * Admin API key
+         */
+        'X-Admin-API-Key': string;
+    };
+    path?: never;
+    query?: {
+        /**
+         * Batch size (default 50, max 500)
+         */
+        limit?: number;
+        /**
+         * Offset into accounts ordered by id
+         */
+        offset?: number;
+    };
+    url: '/api/v1/admin/phone-hashes/audit';
+};
+
+export type GetApiV1AdminPhoneHashesAuditErrors = {
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+    /**
+     * Internal Server Error
+     */
+    500: ResponseErrorResponse;
+};
+
+export type GetApiV1AdminPhoneHashesAuditError = GetApiV1AdminPhoneHashesAuditErrors[keyof GetApiV1AdminPhoneHashesAuditErrors];
+
+export type GetApiV1AdminPhoneHashesAuditResponses = {
+    /**
+     * OK
+     */
+    200: HandlersPhoneHashAuditResponse;
+};
+
+export type GetApiV1AdminPhoneHashesAuditResponse = GetApiV1AdminPhoneHashesAuditResponses[keyof GetApiV1AdminPhoneHashesAuditResponses];
+
+export type PostApiV1AdminPhoneHashesBackfillData = {
+    body?: never;
+    headers: {
+        /**
+         * Admin API key
+         */
+        'X-Admin-API-Key': string;
+    };
+    path?: never;
+    query?: {
+        /**
+         * Batch size (default 50, max 500)
+         */
+        limit?: number;
+        /**
+         * Offset into accounts ordered by id
+         */
+        offset?: number;
+    };
+    url: '/api/v1/admin/phone-hashes/backfill';
+};
+
+export type PostApiV1AdminPhoneHashesBackfillErrors = {
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+    /**
+     * Internal Server Error
+     */
+    500: ResponseErrorResponse;
+};
+
+export type PostApiV1AdminPhoneHashesBackfillError = PostApiV1AdminPhoneHashesBackfillErrors[keyof PostApiV1AdminPhoneHashesBackfillErrors];
+
+export type PostApiV1AdminPhoneHashesBackfillResponses = {
+    /**
+     * OK
+     */
+    200: HandlersPhoneHashAuditResponse;
+};
+
+export type PostApiV1AdminPhoneHashesBackfillResponse = PostApiV1AdminPhoneHashesBackfillResponses[keyof PostApiV1AdminPhoneHashesBackfillResponses];
 
 export type PostApiV1AdminPrivyDevWipeData = {
     /**
@@ -10766,6 +11217,42 @@ export type GetInternalAccountsByDidByDidResponses = {
 };
 
 export type GetInternalAccountsByDidByDidResponse = GetInternalAccountsByDidByDidResponses[keyof GetInternalAccountsByDidByDidResponses];
+
+export type PostInternalAccountsByPhoneHashesData = {
+    /**
+     * Phone hashes to resolve (base64-encoded HMAC-SHA256, max 1000)
+     */
+    body: HandlersAccountsByPhoneHashesRequest;
+    path?: never;
+    query?: never;
+    url: '/internal/accounts/by-phone-hashes';
+};
+
+export type PostInternalAccountsByPhoneHashesErrors = {
+    /**
+     * Bad Request
+     */
+    400: ResponseErrorResponse;
+    /**
+     * Rate limit exceeded
+     */
+    429: ResponseErrorResponse;
+    /**
+     * Internal Server Error
+     */
+    500: ResponseErrorResponse;
+};
+
+export type PostInternalAccountsByPhoneHashesError = PostInternalAccountsByPhoneHashesErrors[keyof PostInternalAccountsByPhoneHashesErrors];
+
+export type PostInternalAccountsByPhoneHashesResponses = {
+    /**
+     * OK
+     */
+    200: HandlersAccountsByPhoneHashesResponse;
+};
+
+export type PostInternalAccountsByPhoneHashesResponse = PostInternalAccountsByPhoneHashesResponses[keyof PostInternalAccountsByPhoneHashesResponses];
 
 export type PostInternalCompleteData = {
     /**

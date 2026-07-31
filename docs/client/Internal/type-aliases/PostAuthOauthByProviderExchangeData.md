@@ -2,7 +2,7 @@
 
 > **PostAuthOauthByProviderExchangeData** = `object`
 
-Defined in: [src/client/types.gen.ts:10522](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10522)
+Defined in: [src/client/types.gen.ts:10973](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10973)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:10522](https://github.com/anuma-ai/sdk/blob
 
 > **body**: [`HandlersExchangeRequest`](HandlersExchangeRequest.md)
 
-Defined in: [src/client/types.gen.ts:10526](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10526)
+Defined in: [src/client/types.gen.ts:10977](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10977)
 
 Exchange request
 
@@ -20,7 +20,7 @@ Exchange request
 
 > **path**: `object`
 
-Defined in: [src/client/types.gen.ts:10527](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10527)
+Defined in: [src/client/types.gen.ts:10978](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10978)
 
 **provider**
 
@@ -34,7 +34,7 @@ OAuth provider (google-drive, dropbox)
 
 > `optional` **query**: `never`
 
-Defined in: [src/client/types.gen.ts:10533](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10533)
+Defined in: [src/client/types.gen.ts:10984](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10984)
 
 ***
 
@@ -42,4 +42,4 @@ Defined in: [src/client/types.gen.ts:10533](https://github.com/anuma-ai/sdk/blob
 
 > **url**: `"/auth/oauth/{provider}/exchange"`
 
-Defined in: [src/client/types.gen.ts:10534](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10534)
+Defined in: [src/client/types.gen.ts:10985](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10985)

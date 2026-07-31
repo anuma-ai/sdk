@@ -2,7 +2,7 @@
 
 > **HandlersBindRequest** = `object`
 
-Defined in: [src/client/types.gen.ts:1429](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1429)
+Defined in: [src/client/types.gen.ts:1441](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1441)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:1429](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **address**: `string`
 
-Defined in: [src/client/types.gen.ts:1433](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1433)
+Defined in: [src/client/types.gen.ts:1445](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1445)
 
 0x… (evm) or zeta1… (cosmos)
 
@@ -20,7 +20,7 @@ Defined in: [src/client/types.gen.ts:1433](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **nonce**: `string`
 
-Defined in: [src/client/types.gen.ts:1434](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1434)
+Defined in: [src/client/types.gen.ts:1446](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1446)
 
 ***
 
@@ -28,7 +28,7 @@ Defined in: [src/client/types.gen.ts:1434](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **pub\_key**: `string`
 
-Defined in: [src/client/types.gen.ts:1438](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1438)
+Defined in: [src/client/types.gen.ts:1450](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1450)
 
 base64 secp256k1 pubkey; required for cosmos
 
@@ -38,7 +38,7 @@ base64 secp256k1 pubkey; required for cosmos
 
 > `optional` **signature**: `string`
 
-Defined in: [src/client/types.gen.ts:1439](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1439)
+Defined in: [src/client/types.gen.ts:1451](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1451)
 
 ***
 
@@ -46,6 +46,6 @@ Defined in: [src/client/types.gen.ts:1439](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **wallet\_type**: `string`
 
-Defined in: [src/client/types.gen.ts:1443](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1443)
+Defined in: [src/client/types.gen.ts:1455](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1455)
 
 "evm" | "cosmos"

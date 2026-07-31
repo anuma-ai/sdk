@@ -2,7 +2,7 @@
 
 > **PostAuthOauthByProviderExchangeErrors** = `object`
 
-Defined in: [src/client/types.gen.ts:10537](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10537)
+Defined in: [src/client/types.gen.ts:10988](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10988)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:10537](https://github.com/anuma-ai/sdk/blob
 
 > **400**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:10541](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10541)
+Defined in: [src/client/types.gen.ts:10992](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10992)
 
 Bad Request
 
@@ -20,6 +20,6 @@ Bad Request
 
 > **500**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:10545](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10545)
+Defined in: [src/client/types.gen.ts:10996](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10996)
 
 Internal Server Error

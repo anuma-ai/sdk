@@ -2,7 +2,7 @@
 
 > **PostApiV1AdminNotificationsSendResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:5395](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5395)
+Defined in: [src/client/types.gen.ts:5758](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5758)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:5395](https://github.com/anuma-ai/sdk/blob/
 
 > **200**: [`HandlersSendTestPushResponse`](HandlersSendTestPushResponse.md)
 
-Defined in: [src/client/types.gen.ts:5399](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5399)
+Defined in: [src/client/types.gen.ts:5762](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5762)
 
 OK

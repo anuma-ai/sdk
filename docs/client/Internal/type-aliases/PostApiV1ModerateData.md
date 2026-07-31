@@ -2,7 +2,7 @@
 
 > **PostApiV1ModerateData** = `object`
 
-Defined in: [src/client/types.gen.ts:8628](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8628)
+Defined in: [src/client/types.gen.ts:9079](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9079)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:8628](https://github.com/anuma-ai/sdk/blob/
 
 > **body**: [`HandlersModerateRequest`](HandlersModerateRequest.md)
 
-Defined in: [src/client/types.gen.ts:8632](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8632)
+Defined in: [src/client/types.gen.ts:9083](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9083)
 
 Texts to moderate
 
@@ -20,7 +20,7 @@ Texts to moderate
 
 > `optional` **path**: `never`
 
-Defined in: [src/client/types.gen.ts:8633](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8633)
+Defined in: [src/client/types.gen.ts:9084](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9084)
 
 ***
 
@@ -28,7 +28,7 @@ Defined in: [src/client/types.gen.ts:8633](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **query**: `never`
 
-Defined in: [src/client/types.gen.ts:8634](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8634)
+Defined in: [src/client/types.gen.ts:9085](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9085)
 
 ***
 
@@ -36,4 +36,4 @@ Defined in: [src/client/types.gen.ts:8634](https://github.com/anuma-ai/sdk/blob/
 
 > **url**: `"/api/v1/moderate"`
 
-Defined in: [src/client/types.gen.ts:8635](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8635)
+Defined in: [src/client/types.gen.ts:9086](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9086)

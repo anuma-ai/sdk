@@ -2,4 +2,4 @@
 
 > **DeleteApiV1AdminTextResetError** = [`DeleteApiV1AdminTextResetErrors`](DeleteApiV1AdminTextResetErrors.md)\[keyof [`DeleteApiV1AdminTextResetErrors`](DeleteApiV1AdminTextResetErrors.md)]
 
-Defined in: [src/client/types.gen.ts:6039](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6039)
+Defined in: [src/client/types.gen.ts:6490](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6490)

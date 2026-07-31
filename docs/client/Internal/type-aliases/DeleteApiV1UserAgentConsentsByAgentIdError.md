@@ -2,4 +2,4 @@
 
 > **DeleteApiV1UserAgentConsentsByAgentIdError** = [`DeleteApiV1UserAgentConsentsByAgentIdErrors`](DeleteApiV1UserAgentConsentsByAgentIdErrors.md)\[keyof [`DeleteApiV1UserAgentConsentsByAgentIdErrors`](DeleteApiV1UserAgentConsentsByAgentIdErrors.md)]
 
-Defined in: [src/client/types.gen.ts:9937](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9937)
+Defined in: [src/client/types.gen.ts:10388](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10388)

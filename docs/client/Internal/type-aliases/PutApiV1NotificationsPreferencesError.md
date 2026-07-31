@@ -2,4 +2,4 @@
 
 > **PutApiV1NotificationsPreferencesError** = [`PutApiV1NotificationsPreferencesErrors`](PutApiV1NotificationsPreferencesErrors.md)\[keyof [`PutApiV1NotificationsPreferencesErrors`](PutApiV1NotificationsPreferencesErrors.md)]
 
-Defined in: [src/client/types.gen.ts:8808](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8808)
+Defined in: [src/client/types.gen.ts:9259](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9259)

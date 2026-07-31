@@ -2,7 +2,7 @@
 
 > **PostApiV1SharesBySlugReportResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:9319](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9319)
+Defined in: [src/client/types.gen.ts:9770](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9770)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:9319](https://github.com/anuma-ai/sdk/blob/
 
 > **202**: `unknown`
 
-Defined in: [src/client/types.gen.ts:9323](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9323)
+Defined in: [src/client/types.gen.ts:9774](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9774)
 
 Accepted

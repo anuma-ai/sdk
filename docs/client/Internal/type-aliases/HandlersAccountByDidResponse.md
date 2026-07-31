@@ -14,8 +14,16 @@ Defined in: [src/client/types.gen.ts:1130](https://github.com/anuma-ai/sdk/blob/
 
 ***
 
+### phone\_verified?
+
+> `optional` **phone\_verified**: `boolean`
+
+Defined in: [src/client/types.gen.ts:1131](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1131)
+
+***
+
 ### privy\_did?
 
 > `optional` **privy\_did**: `string`
 
-Defined in: [src/client/types.gen.ts:1131](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1131)
+Defined in: [src/client/types.gen.ts:1132](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1132)

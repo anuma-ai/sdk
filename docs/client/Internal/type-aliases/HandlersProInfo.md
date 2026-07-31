@@ -2,7 +2,7 @@
 
 > **HandlersProInfo** = `object`
 
-Defined in: [src/client/types.gen.ts:2426](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2426)
+Defined in: [src/client/types.gen.ts:2572](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2572)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:2426](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **pro\_active**: `boolean`
 
-Defined in: [src/client/types.gen.ts:2431](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2431)
+Defined in: [src/client/types.gen.ts:2577](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2577)
 
 ProActive is the authoritative state: whether the account is actually Pro via stake right now,
 derived from the grant row (true while the grant is active, i.e. not revoked).
@@ -21,7 +21,7 @@ derived from the grant row (true while the grant is active, i.e. not revoked).
 
 > `optional` **qualified**: `boolean`
 
-Defined in: [src/client/types.gen.ts:2437](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2437)
+Defined in: [src/client/types.gen.ts:2583](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2583)
 
 Qualified is whether the account's current stake meets the threshold (a "do I clear the bar"
 signal). Computed from the live per-wallet stake read at request time (cached value only as a
@@ -33,7 +33,7 @@ per-wallet fallback), so it reflects a fresh bind/stake immediately.
 
 > `optional` **staked\_zeta**: `string`
 
-Defined in: [src/client/types.gen.ts:2438](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2438)
+Defined in: [src/client/types.gen.ts:2584](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2584)
 
 ***
 
@@ -41,4 +41,4 @@ Defined in: [src/client/types.gen.ts:2438](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **threshold\_zeta**: `string`
 
-Defined in: [src/client/types.gen.ts:2439](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2439)
+Defined in: [src/client/types.gen.ts:2585](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2585)

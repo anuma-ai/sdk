@@ -2,7 +2,7 @@
 
 > **HandlersMobilePlatformVersions** = `object`
 
-Defined in: [src/client/types.gen.ts:2199](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2199)
+Defined in: [src/client/types.gen.ts:2270](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2270)
 
 Android versions for the Play Store build
 
@@ -12,7 +12,7 @@ Android versions for the Play Store build
 
 > `optional` **latest\_version**: `string`
 
-Defined in: [src/client/types.gen.ts:2204](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2204)
+Defined in: [src/client/types.gen.ts:2275](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2275)
 
 LatestVersion is the newest version live in the platform's store;
 older clients show a dismissible update nudge
@@ -23,7 +23,7 @@ older clients show a dismissible update nudge
 
 > `optional` **min\_supported\_version**: `string`
 
-Defined in: [src/client/types.gen.ts:2209](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2209)
+Defined in: [src/client/types.gen.ts:2280](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2280)
 
 MinSupportedVersion is the oldest version still supported; older
 clients are blocked behind an update-required wall

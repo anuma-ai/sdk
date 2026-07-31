@@ -2,7 +2,7 @@
 
 > **getApiV1Bootstrap**<`ThrowOnError`>(`options?`: [`Options`](../type-aliases/Options.md)<[`GetApiV1BootstrapData`](../type-aliases/GetApiV1BootstrapData.md), `ThrowOnError`, `unknown`>): `RequestResult`<[`GetApiV1BootstrapResponses`](../type-aliases/GetApiV1BootstrapResponses.md), [`GetApiV1BootstrapErrors`](../type-aliases/GetApiV1BootstrapErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:586](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#586)
+Defined in: [src/client/sdk.gen.ts:645](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#645)
 
 Bootstrap client session
 

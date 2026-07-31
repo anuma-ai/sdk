@@ -2,4 +2,4 @@
 
 > **PutApiV1ConnectorsByProviderScopesError** = [`PutApiV1ConnectorsByProviderScopesErrors`](PutApiV1ConnectorsByProviderScopesErrors.md)\[keyof [`PutApiV1ConnectorsByProviderScopesErrors`](PutApiV1ConnectorsByProviderScopesErrors.md)]
 
-Defined in: [src/client/types.gen.ts:7268](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7268)
+Defined in: [src/client/types.gen.ts:7719](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7719)

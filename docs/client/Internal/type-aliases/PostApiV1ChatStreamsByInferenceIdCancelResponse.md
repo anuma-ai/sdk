@@ -2,4 +2,4 @@
 
 > **PostApiV1ChatStreamsByInferenceIdCancelResponse** = [`PostApiV1ChatStreamsByInferenceIdCancelResponses`](PostApiV1ChatStreamsByInferenceIdCancelResponses.md)\[keyof [`PostApiV1ChatStreamsByInferenceIdCancelResponses`](PostApiV1ChatStreamsByInferenceIdCancelResponses.md)]
 
-Defined in: [src/client/types.gen.ts:6918](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6918)
+Defined in: [src/client/types.gen.ts:7369](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7369)

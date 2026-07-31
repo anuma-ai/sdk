@@ -2,4 +2,4 @@
 
 > **GetInternalAccountsByDidByDidError** = [`GetInternalAccountsByDidByDidErrors`](GetInternalAccountsByDidByDidErrors.md)\[keyof [`GetInternalAccountsByDidByDidErrors`](GetInternalAccountsByDidByDidErrors.md)]
 
-Defined in: [src/client/types.gen.ts:10759](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10759)
+Defined in: [src/client/types.gen.ts:11210](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11210)
