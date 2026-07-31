@@ -101,6 +101,38 @@ function filteredStream() {
   })();
 }
 
+/**
+ * The portal's chat/completions fallback: it runs non-streaming underneath and
+ * delivers the whole result as ONE `type: "response"` chunk. No
+ * `response.completed`, no deltas — a separate branch in the strategy, which
+ * used to drop terminal state on the floor.
+ */
+function fallbackEnvelopeStream(opts: {
+  text?: string;
+  status?: string;
+  incompleteReason?: string;
+  finishReason?: string;
+}) {
+  return (async function* () {
+    yield {
+      type: "response",
+      response: {
+        id: "r",
+        model: "m",
+        usage: { prompt_tokens: 10, completion_tokens: 4096 },
+        output: opts.text
+          ? [{ type: "message", content: [{ type: "output_text", text: opts.text }] }]
+          : [],
+        ...(opts.status !== undefined && { status: opts.status }),
+        ...(opts.incompleteReason !== undefined && {
+          incomplete_details: { reason: opts.incompleteReason },
+        }),
+        ...(opts.finishReason !== undefined && { finish_reason: opts.finishReason }),
+      },
+    };
+  })();
+}
+
 function cleanTextStream(text: string) {
   return (async function* () {
     yield { type: "response.created", response: { id: "r", model: "m" } };
@@ -357,6 +389,75 @@ describe("Responses buildFinalResponse terminal state", () => {
 
     expect(result.data).toMatchObject({ status: "completed" });
     expect(result.data).not.toHaveProperty("incomplete_details");
+  });
+});
+
+/**
+ * The portal's non-streaming fallback envelope (greptile P1 on this PR).
+ *
+ * It arrives as a single `type: "response"` chunk on a branch that never sees
+ * `response.completed`, and that branch extracted id/model/usage/content/tool
+ * calls but no terminal state at all. So on the one transport where a caller
+ * has the least visibility, the truncation guard could not fire, `onStepFinish`
+ * omitted `finishReason`, and the response carried no `status`.
+ */
+describe("portal chat/completions fallback envelope", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockGenerateEmbedding.mockResolvedValue([0.1]);
+  });
+
+  it("fires the truncation guard on a fallback turn cut off at the ceiling", async () => {
+    // Empty output + truncated. Before this, the guard saw finishReason
+    // undefined and returned error: null with nothing in the response.
+    mockCreateSseClient.mockReturnValueOnce({
+      stream: fallbackEnvelopeStream({
+        status: "incomplete",
+        incompleteReason: "max_output_tokens",
+      }),
+    } as never);
+
+    const result = await run();
+
+    expect(result.error).toContain("truncated at the output-token limit");
+    expect(result.terminalState?.finishReason).toBe("length");
+    expect(result.data).toMatchObject({
+      status: "incomplete",
+      incomplete_details: { reason: "max_output_tokens" },
+    });
+  });
+
+  it("prefers an explicit completions finish_reason when the envelope carries one", async () => {
+    // Produced by a chat/completions call underneath, so it can send the
+    // completions verdict directly rather than the Responses status pair.
+    mockCreateSseClient.mockReturnValueOnce({
+      stream: fallbackEnvelopeStream({ finishReason: "length" }),
+    } as never);
+
+    const result = await run();
+
+    expect(result.error).toContain("truncated at the output-token limit");
+    expect(result.terminalState?.finishReason).toBe("length");
+  });
+
+  it("does not report a non-ceiling incomplete reason as a truncation", async () => {
+    mockCreateSseClient.mockReturnValueOnce({
+      stream: fallbackEnvelopeStream({
+        text: "Partial.",
+        status: "incomplete",
+        incompleteReason: "content_filter",
+      }),
+    } as never);
+
+    const result = await run();
+
+    expect(result.error).toBeNull();
+    expect(result.terminalState?.finishReason).toBeUndefined();
+    // Still visible to the caller, just not called a truncation.
+    expect(result.data).toMatchObject({
+      status: "incomplete",
+      incomplete_details: { reason: "content_filter" },
+    });
   });
 });
 

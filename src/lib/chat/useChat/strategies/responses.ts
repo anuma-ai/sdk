@@ -276,6 +276,32 @@ export class ResponsesStrategy implements ApiStrategy {
         mergeToolCallEventsIntoAccumulator(accumulator, toolCallEvents);
       }
 
+      // Terminal state, same as the `response.completed` branch below (#805).
+      // This branch dropped it entirely: a turn delivered through the portal's
+      // non-streaming fallback carried no finish reason, so the truncation
+      // guard could not fire, `onStepFinish` omitted `finishReason`, and the
+      // response carried no `status` — the exact blindness this PR is fixing,
+      // on the one path that never sees a `response.completed` event.
+      //
+      // Two shapes to read: this envelope is Responses-shaped
+      // (`status` / `incomplete_details`), but it is produced by a
+      // chat/completions call underneath, so it can also carry the completions
+      // verdict directly. Prefer the explicit `finish_reason` when present.
+      const fbStatus = typeof resp.status === "string" ? resp.status : undefined;
+      const fbIncompleteReason = (resp.incomplete_details as { reason?: string } | undefined)
+        ?.reason;
+      const fbFinishReason =
+        typeof resp.finish_reason === "string" ? resp.finish_reason : undefined;
+      if (fbStatus !== undefined) accumulator.responseStatus = fbStatus;
+      if (fbIncompleteReason !== undefined) accumulator.incompleteReason = fbIncompleteReason;
+      if (fbFinishReason !== undefined) {
+        accumulator.finishReason = fbFinishReason;
+      } else if (fbStatus === "incomplete" && fbIncompleteReason === "max_output_tokens") {
+        // Same normalization as `response.completed`: only the token ceiling is
+        // a truncation. A content filter must not be reported as one.
+        accumulator.finishReason = "length";
+      }
+
       return result;
     }
 
