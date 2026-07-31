@@ -211,7 +211,7 @@ describe("slide-generation", () => {
   });
 
   // Quarantined: #842 — zero patch calls after a successful plan (165s).
-  it.skip("applies surgical update_element patches instead of rewriting the deck", async () => {
+  it("applies surgical update_element patches instead of rewriting the deck", async () => {
     const store = createFileStore();
     const log: ToolCallLog[] = [];
     const tools = createTestSlideTools(store).map((t) => wrapTool(t, log));
@@ -297,7 +297,7 @@ describe("slide-generation", () => {
   });
 
   // Quarantined: #842 — zero add_slide calls after a successful plan (116s).
-  it.skip("varies layouts across a multi-slide deck", async () => {
+  it("varies layouts across a multi-slide deck", async () => {
     const store = createFileStore();
     const log: ToolCallLog[] = [];
     const tools = createTestSlideTools(store).map((t) => wrapTool(t, log));
@@ -355,7 +355,7 @@ describe("slide-generation", () => {
   });
 
   // Quarantined: #842 — zero add_slide calls after a successful plan (197s).
-  it.skip("adds a new slide with the add_slide patch operation", async () => {
+  it("adds a new slide with the add_slide patch operation", async () => {
     const store = createFileStore();
     const log: ToolCallLog[] = [];
     const tools = createTestSlideTools(store).map((t) => wrapTool(t, log));

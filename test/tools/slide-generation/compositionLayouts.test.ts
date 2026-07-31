@@ -58,7 +58,7 @@ function makeMessages(userText: string, systemPrompt?: string): Message[] {
  */
 describe("composition-layouts wire-in", () => {
   // Quarantined: #842 — plan_deck succeeds, zero add_slide calls (101s).
-  it.skip("generates a deck using design-system composition layouts", async () => {
+  it("generates a deck using design-system composition layouts", async () => {
     const store = createFileStore();
     const log: ToolCallLog[] = [];
     const tools = createTestSlideTools(store).map((t) => wrapTool(t, log));
@@ -113,7 +113,7 @@ describe("composition-layouts wire-in", () => {
   // whether the model reaches for composition layouts on its own when the
   // system prompt offers both legacy and design-system options.
   // Quarantined: #842 — plan_deck succeeds, zero add_slide calls (102s).
-  it.skip("picks composition layouts when given an open-ended prompt", async () => {
+  it("picks composition layouts when given an open-ended prompt", async () => {
     const store = createFileStore();
     const log: ToolCallLog[] = [];
     const tools = createTestSlideTools(store).map((t) => wrapTool(t, log));
@@ -193,7 +193,7 @@ describe("composition-layouts wire-in", () => {
   // of placehold.co rectangles. Bumped maxToolRounds because image MCP
   // calls add round-trips before plan_deck/add_slide.
   // Quarantined: #842 — plan_deck succeeds, zero add_slide calls (276s).
-  it.skip("generates a 7-slide demo deck with real images", { timeout: 600_000 }, async () => {
+  it("generates a 7-slide demo deck with real images", { timeout: 600_000 }, async () => {
     const store = createFileStore();
     const log: ToolCallLog[] = [];
     const slideTools = createTestSlideTools(store).map((t) => wrapTool(t, log));
@@ -247,7 +247,7 @@ describe("composition-layouts wire-in", () => {
   // the architectural risk worth derisking — unit tests prove the
   // plumbing, but not that the model can produce conforming JSX.
   // Quarantined: #842 — plan_deck succeeds, zero add_slide calls (159s).
-  it.skip(
+  it(
     "fills the agenda composition's flex region with N items end-to-end",
     { timeout: 300_000 },
     async () => {

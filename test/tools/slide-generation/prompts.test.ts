@@ -71,7 +71,7 @@ describe.concurrent.each(MODELS)("slide-generation prompts [%s]", (model) => {
   // observed in one e2e run hitting the cutoff mid-generation. Match
   // the heavier composition-layouts tests' 600s budget.
   // Quarantined: #842 — plan_deck succeeds, zero add_slide calls (246s).
-  it.skip("home gardening fundamentals (no images)", { timeout: 600_000 }, async () => {
+  it("home gardening fundamentals (no images)", { timeout: 600_000 }, async () => {
     const store = createFileStore();
     const log: ToolCallLog[] = [];
     const tools = createTestSlideTools(store).map((t) => wrapTool(t, log));
