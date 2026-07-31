@@ -13,26 +13,34 @@ required cannot fail your merge, whatever it reports.**
 
 | Gate | Required context | Why |
 | --- | --- | --- |
-| `memory-perf` | **`memory-perf-status`** | Deterministic, no secrets, ~32s. Converted in #797. |
+| `memory-perf` | `memory-perf-status` — **workflow converted, ruleset entry pending (#797)** | Deterministic, no secrets, ~32s. Blocking as soon as the context is added to main's ruleset; until then it reports but does not block. |
 | `extraction-eval` | advisory | Live LLM, 2–4 min per queued merge |
 | `topic-eval` | advisory | ” |
 | `vault-search-eval` | advisory | ” |
 | `consolidation-eval` | advisory | ” |
 | `recall-eval` | advisory | ” |
 
-The five advisory gates report red/green and nothing else: a regression one of
-them catches still needs a human to look at the check. That was the state of
-**all six** until #797 — the point of listing it here is that "we have a gate
-for that" and "that gate can stop a bad merge" were different claims, and only
-the ruleset knew which was which.
+The advisory gates report red/green and nothing else: a regression one of them
+catches still needs a human to look at the check. That was the state of **all
+six** until #797 — the point of listing it here is that "we have a gate for
+that" and "that gate can stop a bad merge" were different claims, and only the
+ruleset knew which was which.
+
+Ordering, because it cannot be done in one step: the workflow conversion has to
+merge **before** the context is added to the ruleset, or every PR blocks on a
+context no workflow produces. So `memory-perf-status` is deliberately not
+blocking for the window between those two changes. **When the ruleset entry
+lands, update the row above** — a doc that claims a gate blocks when it does not
+is the same failure this file exists to prevent, one level up.
 
 Before adding one to the ruleset, do the conversion in §1 first. Requiring a
 paths-scoped context is the specific mistake that bricked #784.
 
 ## 1. Live-LLM gates are ADVISORY, and must stay that way in their current shape
 
-Each gate is paths-scoped on `pull_request`, so on a PR that touches none of its
-paths **no run is created at all** — the status context is *absent*, not skipped.
+Each of the five is paths-scoped on `pull_request`, so on a PR that touches none
+of its paths **no run is created at all** — the status context is *absent*, not
+skipped. (`memory-perf` no longer is; see §0.)
 
 That is fine while nothing requires it. It is fatal the moment one is marked
 required: a required context that never reports blocks the PR forever. That
