@@ -448,9 +448,15 @@ export type {
   TurnSkippedEvent,
 } from "../lib/memory";
 export type {
+  MemoryToVerify,
+  MemoryVerification,
   TopicExtractionInput,
   TopicExtractionRunResult,
   TopicExtractOptions,
+  UncheckedReason,
+  UnverifiableReason,
+  VerificationSources,
+  VerifyMemoriesForPublishOptions,
 } from "../lib/memory";
 export {
   capHopsForDensity,
@@ -462,6 +468,7 @@ export {
   createDecaySweeper,
   createLlmDecayClassifier,
   createLlmNeighborRefiner,
+  createMessageSourceResolver,
   createPlatformCursorStore,
   createRecallTool,
   DEFAULT_CHUNK_CACHE_SIZE,
@@ -503,6 +510,7 @@ export {
   TREND_STALE_WINDOW_DAYS,
   ttlForType,
   VAULT_SIZE_HOP_CAP,
+  verifyMemoriesForPublish,
 } from "../lib/memory";
 
 // Entity / memory_entity tables — the W5 graph-lane storage that
