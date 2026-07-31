@@ -119,7 +119,11 @@ describe("precision-updates", () => {
     await closeSharedBrowser();
   });
 
-  it("change button color — should modify only color-related CSS lines", async () => {
+  // Quarantined: #843 — hits the 300s per-test budget, same as the three
+  // below. It was left enforcing only because it passed the single run
+  // #843's list was drawn from; it has since timed out on 2 of 4 runs.
+  // All four tests in this file now share one signature and one issue.
+  it.skip("change button color — should modify only color-related CSS lines", async () => {
     const store = createFileStore();
     const log: ToolCallLog[] = [];
     const tools = createTestAppTools(store).map((t) => wrapTool(t, log));
