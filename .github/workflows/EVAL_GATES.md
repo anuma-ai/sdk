@@ -13,7 +13,7 @@ required cannot fail your merge, whatever it reports.**
 
 | Gate | Required context | Why |
 | --- | --- | --- |
-| `memory-perf` | `memory-perf-status` — **workflow converted, ruleset entry pending (#797)** | Deterministic, no secrets, ~32s. Blocking as soon as the context is added to main's ruleset; until then it reports but does not block. |
+| `memory-perf` | **`memory-perf-status`** — required since 2026-07-31 | Deterministic, no secrets, ~32s. Converted in #797; a work-cost regression now blocks the merge. |
 | `extraction-eval` | advisory | Live LLM, 2–4 min per queued merge |
 | `topic-eval` | advisory | ” |
 | `vault-search-eval` | advisory | ” |
@@ -26,12 +26,12 @@ six** until #797 — the point of listing it here is that "we have a gate for
 that" and "that gate can stop a bad merge" were different claims, and only the
 ruleset knew which was which.
 
-Ordering, because it cannot be done in one step: the workflow conversion has to
-merge **before** the context is added to the ruleset, or every PR blocks on a
-context no workflow produces. So `memory-perf-status` is deliberately not
-blocking for the window between those two changes. **When the ruleset entry
-lands, update the row above** — a doc that claims a gate blocks when it does not
-is the same failure this file exists to prevent, one level up.
+Ordering, for the next one: the workflow conversion has to merge **before** the
+context is added to the ruleset, or every PR blocks on a context no workflow
+produces. `memory-perf` went through that two-step on 2026-07-31 (#841 merged
+16:17, ruleset updated straight after) — and **the row above must be updated in
+the same sitting**, because a doc claiming a gate blocks when it does not is the
+same failure this file exists to prevent, one level up.
 
 Before adding one to the ruleset, do the conversion in §1 first. Requiring a
 paths-scoped context is the specific mistake that bricked #784.
