@@ -12,10 +12,12 @@ name: Memory Perf
 # identical answer every time. Wall-clock is printed but never gated.
 #
 # Two ways in:
-#   - pull_request touching a memory read/write path: run the gate.
+#   - pull_request (any): run the gate.
+#   - merge_group: run the gate again on the queued merge.
 #   - workflow_dispatch: run the gate, or regenerate the baseline and download it
 #     as an artifact (CI never pushes to the branch — a human commits it).
 on:
+  merge_group:
   workflow_dispatch:
     inputs:
       mode:
@@ -24,12 +26,21 @@ on:
         type: choice
         default: "gate"
         options: ["gate", "save-baseline"]
-  # ADVISORY gate — see .github/workflows/EVAL_GATES.md for why, and for the
-  # three-step recipe to make it blocking. In short: paths-scoped means no run
-  # (and so NO status) on an unrelated PR, which is why `perf` must not be added
-  # to main's required checks in this shape. Until it is, this gate reports
-  # red/green but does not block a merge — a regression it catches still needs a
-  # human to look at the check.
+  # BLOCKING gate (#797) — `memory-perf-status` is a required check on main.
+  #
+  # Deliberately NOT paths-scoped, and this is the whole reason it can be
+  # required at all: a paths-scoped workflow creates no run on a PR that touches
+  # none of its paths, so the status context is *absent* rather than skipped, and
+  # a required context that never reports blocks the PR forever. That is not
+  # hypothetical — it happened on #784 with `consolidation-eval-status`. See
+  # .github/workflows/EVAL_GATES.md.
+  #
+  # The five LLM evals stay advisory because converting them costs a 2–4 min
+  # live-model run on every queued merge. This one is different in kind: the
+  # embedder, decomposer and cross-encoder are deterministic stand-ins, so it
+  # needs no secrets, gives an identical answer every time, and the whole job
+  # finishes in well under a minute (32s on run 30580769082). An unconditional
+  # run is affordable; a silently-skipped gate is not.
   #
   # Default activity types (opened / synchronize / reopened). Same stacked-PR
   # caveat as the other eval workflows: retargeting a PR's base only fires
@@ -37,22 +48,6 @@ on:
   # one more push before this runs.
   pull_request:
     branches: [main]
-    paths:
-      - ".github/workflows/memory-perf.yml"
-      - "vitest.perf-memory.config.mts"
-      - "test/memory/src/perf/**"
-      - "test/memory/src/gate.ts"
-      - "src/lib/memory/**"
-      - "src/lib/memoryVault/**"
-      - "src/lib/memoryEngine/**"
-      # The whole db tree, not the individual operations files it was scoped to
-      # first. The fixture builds a real WatermelonDB and imports models, types
-      # and operations from chat/, entities/ and memoryVault/ — a change to any
-      # of them can move the counters or break the fixture outright, and naming
-      # files one at a time meant the list silently drifted out of date as the
-      # fixture grew. A few extra runs cost 43s each; a gate that quietly stops
-      # running costs the whole benchmark.
-      - "src/lib/db/**"
 
 jobs:
   perf:
@@ -156,3 +151,21 @@ jobs:
           name: memory-perf-log
           path: perf-memory.log
           if-no-files-found: ignore
+
+  # The required context. Named separately from `perf` so the job can be renamed,
+  # split or matrixed without touching the ruleset.
+  memory-perf-status:
+    if: always()
+    needs: [perf]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check memory perf gate result
+        run: |
+          # Allowlist, not a failure check: a timed-out job concludes
+          # `cancelled` and would otherwise post green. See EVAL_GATES.md.
+          result="${{ needs.perf.result }}"
+          if [[ "$result" != "success" && "$result" != "skipped" ]]; then
+            echo "Memory perf gate did not pass (result: $result)"
+            exit 1
+          fi
+          echo "Memory perf gate passed"

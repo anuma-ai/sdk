@@ -2,10 +2,34 @@
 
 Five workflows (`extraction-eval`, `topic-eval`, `vault-search-eval`,
 `consolidation-eval`, `recall-eval`) run live-LLM quality benchmarks against a
-committed baseline. They share two non-obvious properties. This file is the one
-place they are explained; each workflow points here rather than repeating them.
+committed baseline. `memory-perf` measures work cost with deterministic
+stand-ins. They share two non-obvious properties. This file is the one place
+they are explained; each workflow points here rather than repeating them.
 
-## 1. They are ADVISORY, and must stay that way in their current shape
+## 0. Which gates can block a merge
+
+Read this from the repo, not from the ruleset UI. **A gate not listed as
+required cannot fail your merge, whatever it reports.**
+
+| Gate | Required context | Why |
+| --- | --- | --- |
+| `memory-perf` | **`memory-perf-status`** | Deterministic, no secrets, ~32s. Converted in #797. |
+| `extraction-eval` | advisory | Live LLM, 2–4 min per queued merge |
+| `topic-eval` | advisory | ” |
+| `vault-search-eval` | advisory | ” |
+| `consolidation-eval` | advisory | ” |
+| `recall-eval` | advisory | ” |
+
+The five advisory gates report red/green and nothing else: a regression one of
+them catches still needs a human to look at the check. That was the state of
+**all six** until #797 — the point of listing it here is that "we have a gate
+for that" and "that gate can stop a bad merge" were different claims, and only
+the ruleset knew which was which.
+
+Before adding one to the ruleset, do the conversion in §1 first. Requiring a
+paths-scoped context is the specific mistake that bricked #784.
+
+## 1. Live-LLM gates are ADVISORY, and must stay that way in their current shape
 
 Each gate is paths-scoped on `pull_request`, so on a PR that touches none of its
 paths **no run is created at all** — the status context is *absent*, not skipped.
@@ -28,6 +52,10 @@ that it passed — the real run happens in the queue.
 
 The cost is a full LLM eval on every queued merge (~2–4 min each), which is why
 all five are advisory today.
+
+`memory-perf` took a shorter route: it is deterministic and finishes in well
+under a minute, so it simply dropped `paths:` and kept running on every PR. Step
+3 is only needed when the run itself is too expensive to repeat.
 
 ## 2. The status jobs use an allowlist, not a failure check
 
