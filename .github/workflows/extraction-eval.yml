@@ -63,6 +63,23 @@ on:
       - "src/lib/db/entities/types.ts"
       - "test/memory/src/extraction/**"
 
+# Every job below spends real Cerebras quota against the shared dev portal, and
+# that quota is account-wide — a superseded run left in flight competes with the
+# run that replaced it, and (2026-07-28) starved prod chat completions on
+# cerebras/gpt-oss-120b for ~40 minutes. Cancel the old run on a new push.
+# NOTE: this serializes per branch only — runs from DIFFERENT branches still
+# stack against the same account-wide quota, so it narrows the window rather
+# than closing it. Full isolation needs a separate upstream account for CI.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  # Cancel ONLY on pull_request. A blanket `true` would also cancel the
+  # push-to-main run, and on recall/vault-search that run is the sole seeder of
+  # the shared dataset + embedding caches — a run of merges would cancel it
+  # repeatedly and send every PR back to a cold start (HuggingFace 429s on the
+  # dataset pull). false makes those queue instead, so seeding still completes
+  # and concurrent runs are serialized rather than stacked.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   extraction-eval:
     runs-on: ubuntu-latest
