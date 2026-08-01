@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
+import { noopLogger, setLogger } from "../logger";
 import type { NerDetector, PiiSpan } from "../pii/ner";
 import { PiiRedactor } from "../pii/redactor";
 import { consolidateMemory } from "./consolidate";
@@ -238,6 +239,94 @@ describe("consolidateMemory", () => {
       }
     );
 
+    it("refuses the whole batch when a multi-target supersede mixes subjects", async () => {
+      // Greptile P1 on #848: with only a singular `targetSubject`, a batch of
+      // [user's row, sister's row] reported under one matching subject retired
+      // both. Positional `targetSubjects` is what makes each target checkable.
+      const mixed = [
+        { id: "c1", content: "User lives in Denver.", similarity: 0.87 },
+        { id: "c3", content: "User's sister lives in Denver.", similarity: 0.85 },
+      ];
+      const fetchFn = mockFetch(
+        choices({
+          action: "supersede",
+          targetIds: ["c3", "c1"],
+          content: "User's sister lives in Austin.",
+          newSubject: "the user's sister",
+          targetSubjects: ["the user's sister", "the user"],
+        })
+      );
+
+      const result = await consolidateMemory("User's sister lives in Austin.", mixed, {
+        apiKey: "k",
+        fetchFn,
+      });
+
+      // Not a partial supersede of c3 only: a batch that mixes subjects was
+      // grouped wrongly, so the grouping is not trustworthy in either direction.
+      expect(result).toEqual({
+        action: "create",
+        content: "User's sister lives in Austin.",
+        fallbackReason: "subject_mismatch",
+      });
+    });
+
+    it("supersedes a multi-target batch when every stated subject matches", async () => {
+      const dupes = [
+        { id: "c1", content: "User lives in Denver.", similarity: 0.87 },
+        { id: "c4", content: "User is based in Denver.", similarity: 0.86 },
+      ];
+      const fetchFn = mockFetch(
+        choices({
+          action: "supersede",
+          targetIds: ["c1", "c4"],
+          content: "User lives in Portland.",
+          newSubject: "the user",
+          targetSubjects: ["the user", "user"],
+        })
+      );
+
+      const result = await consolidateMemory("User lives in Portland.", dupes, {
+        apiKey: "k",
+        fetchFn,
+      });
+
+      expect(result.action).toBe("supersede");
+      expect(result.targetIds).toEqual(["c1", "c4"]);
+    });
+
+    it("reads targetSubjects positionally against the model's own id order", async () => {
+      // The subject array is indexed against the RAW `targetIds`, before the
+      // dedupe/validity filter reorders them — so an invalid id in the middle
+      // must not shift the remaining subjects onto the wrong rows.
+      const dupes = [
+        { id: "c1", content: "User lives in Denver.", similarity: 0.87 },
+        { id: "c4", content: "User is based in Denver.", similarity: 0.86 },
+      ];
+      const fetchFn = mockFetch(
+        choices({
+          action: "supersede",
+          targetIds: ["c1", "nope", "c4"],
+          content: "User lives in Portland.",
+          newSubject: "the user",
+          // Index 1 belongs to the dropped id; c4's subject is index 2.
+          targetSubjects: ["the user", "the user's sister", "the user"],
+        })
+      );
+
+      const result = await consolidateMemory("User lives in Portland.", dupes, {
+        apiKey: "k",
+        fetchFn,
+      });
+
+      // The mismatched entry belongs to an id that never enters targetIds, but it
+      // is still a stated subject in the batch, so the batch is refused. This
+      // pins the conservative reading deliberately: an id the model named and we
+      // could not resolve is not evidence that its subject was fine.
+      expect(result.action).toBe("create");
+      expect(result.fallbackReason).toBe("subject_mismatch");
+    });
+
     it("leaves behaviour unchanged when the model states no subjects", async () => {
       // Deliberately permissive: requiring the fields would turn every
       // non-compliant supersede into a create, and a stale contradiction left
@@ -271,6 +360,48 @@ describe("consolidateMemory", () => {
       });
 
       expect(result.action).toBe("supersede");
+    });
+
+    it("logs a refusal at info, not as a degradation", async () => {
+      // The reason's contract is "do not alarm on this". Warn-level "degraded to
+      // create" would contradict that and train readers to ignore the line that
+      // does mean something. `onFallback` still fires — that is the metrics
+      // channel and the rate stays countable either way.
+      const warn = vi.fn();
+      const info = vi.fn();
+      setLogger({ debug: vi.fn(), info, warn, error: vi.fn() });
+      try {
+        const fetchFn = mockFetch(
+          choices({
+            action: "supersede",
+            targetIds: ["c1"],
+            content: "User's sister lives in Denver.",
+            newSubject: "the user's sister",
+            targetSubject: "the user",
+          })
+        );
+
+        await consolidateMemory("User's sister lives in Denver.", denver, { apiKey: "k", fetchFn });
+
+        expect(warn).not.toHaveBeenCalled();
+        expect(info).toHaveBeenCalledTimes(1);
+        expect(String(info.mock.calls[0]?.[0])).toContain("refused a cross-subject supersede");
+      } finally {
+        setLogger(noopLogger);
+      }
+    });
+
+    it("still logs a real degradation at warn", async () => {
+      const warn = vi.fn();
+      setLogger({ debug: vi.fn(), info: vi.fn(), warn, error: vi.fn() });
+      try {
+        const fetchFn = mockFetch(choices({ action: "supersede", targetId: "c1" }));
+        await consolidateMemory("x", denver, { apiKey: "k", fetchFn });
+        expect(warn).toHaveBeenCalledTimes(1);
+        expect(String(warn.mock.calls[0]?.[0])).toContain("degraded to create");
+      } finally {
+        setLogger(noopLogger);
+      }
     });
 
     it("ignores the stated subjects on update and noop", async () => {
@@ -563,6 +694,10 @@ describe("consolidateMemory — prompt pins #825 subject/rewording rules", () =>
     const sent = bodies.join("");
     expect(sent).toContain("newSubject");
     expect(sent).toContain("targetSubject");
+    // Positional per-target subjects are what make a MULTI-target batch
+    // checkable; without them one matching subject vouches for the whole group.
+    expect(sent).toContain("targetSubjects");
+    expect(sent).toContain("do not retire the ones that match and keep the rest");
     // A subjectless fact is the user, not an unknown — the extractor omits the
     // subject when it is the user, so the opposite reading would make the guard
     // fire on every ordinary value change.

@@ -38,10 +38,25 @@ export function notifyConsolidationFallback(
   // wired onFallback. This is the single log point for all degrade paths —
   // previously only the thrown-error path logged, so parsed===null and
   // invalid_response fallbacks were invisible.
+  //
+  // `subject_mismatch` is the exception and must NOT read as breakage: it is a
+  // supersede we refused on purpose because the model's own stated subjects were
+  // different people (#822). Logging it at warn as "degraded" would contradict
+  // the reason's own "do not alarm on this" contract and train readers to ignore
+  // the line that does mean something. It still goes to `onFallback`, which is
+  // the metrics channel, so the rate stays countable either way.
+  const refused = reason === "subject_mismatch";
+  const message = refused
+    ? `memory/consolidate: refused a cross-subject supersede, created instead (${reason})`
+    : `memory/consolidate: degraded to create (${reason})`;
+  const log = getLogger();
   if (detail !== undefined) {
-    getLogger().warn(`memory/consolidate: degraded to create (${reason})`, detail);
+    if (refused) log.info(message, detail);
+    else log.warn(message, detail);
+  } else if (refused) {
+    log.info(message);
   } else {
-    getLogger().warn(`memory/consolidate: degraded to create (${reason})`);
+    log.warn(message);
   }
   try {
     onFallback?.(reason);

@@ -106,12 +106,13 @@ OUTPUT — strict JSON, no prose:
   "targetIds": ["<id>", ...],
   "content": "<content — required for create/update/supersede, omit for noop>",
   "newSubject": "<required for supersede: WHO the new memory is about>",
-  "targetSubject": "<required for supersede: WHO the memories in targetIds are about>"
+  "targetSubject": "<required for supersede: WHO the memory in targetId is about>",
+  "targetSubjects": ["<required for supersede: WHO each id in targetIds is about, same order>"]
 }
 
 For "create": content is the new memory verbatim (or a slight refinement); omit targetId/targetIds.
 For "update": content is the merged richest-version, ≤80 words; targetId is the single memory to update.
-For "supersede": content is the NEW fact only (≤80 words); "targetIds" lists EVERY stale memory being retired (all candidates describing the same now-changed attribute). You MUST also fill in "newSubject" and "targetSubject" — write the plain subject, not a sentence: "the user", "the user's sister", "the user's manager", "Biscuit the dog". Rule 1a means a supersede is only valid when these two are the SAME subject; state them and check them against each other before you commit to the action. If they differ, the answer is "create". A subjectless fact ("Lives in Denver", "Works at Riverbend") is about "the user" — the extractor omits the subject when it is the user, so treat the absence of a subject as the user, never as unknown.
+For "supersede": content is the NEW fact only (≤80 words); "targetIds" lists EVERY stale memory being retired (all candidates describing the same now-changed attribute). You MUST also name the subjects: "newSubject" for the new memory, and one entry in "targetSubjects" for EACH id in "targetIds", in the same order (use "targetSubject" as well when you retire a single memory). Write the plain subject, not a sentence: "the user", "the user's sister", "the user's manager", "Biscuit the dog". Rule 1a means a supersede is only valid when every one of those subjects is the SAME as "newSubject"; name them and check them against each other before you commit to the action. If ANY of them differs, the answer is "create" — do not retire the ones that match and keep the rest, because a group that mixes subjects was grouped wrongly in the first place. A subjectless fact ("Lives in Denver", "Works at Riverbend") is about "the user" — the extractor omits the subject when it is the user, so treat the absence of a subject as the user, never as unknown.
 For "noop": no content (existing memory is already correct); targetId is that memory.`;
 
 interface ConsolidationCandidate {
@@ -417,21 +418,45 @@ function validate(
     // prompt asks it to state both subjects and this compares them here, where
     // the outcome is deterministic and testable without an LLM.
     //
-    // Only fires when BOTH subjects are stated and they disagree. A missing or
-    // unparseable subject keeps today's behaviour rather than blocking the
-    // action: requiring the field would turn every non-compliant supersede into
-    // a create, and a stale contradiction left standing is its own harm. Tighten
-    // to required once `subject_mismatch` telemetry shows the model fills these
-    // in reliably — the compliance rate is the thing to measure first.
+    // Only fires when a subject is stated on BOTH sides and they disagree. A
+    // missing or unparseable subject keeps today's behaviour rather than blocking
+    // the action: requiring the field would turn every non-compliant supersede
+    // into a create, and a stale contradiction left standing is its own harm.
+    // Tighten to required once `subject_mismatch` telemetry shows the model fills
+    // these in reliably — the compliance rate is the thing to measure first.
+    //
+    // MULTI-TARGET. `targetIds` can hold several rows, and the prompt's claim
+    // that they all describe one standing attribute (hence one subject) is the
+    // same claim the model has already been shown to break — trusting it here
+    // would rebuild the bug one level up: a batch of [user's row, sister's row]
+    // reported under a single matching `targetSubject` would retire both. So the
+    // prompt asks for `targetSubjects` positionally against `targetIds`, and ANY
+    // stated target subject that differs from the new one refuses the WHOLE
+    // supersede. Refusing wholesale rather than filtering the batch is
+    // deliberate: a batch that mixes subjects tells you the model's grouping is
+    // unreliable, and keeping the "good" half of an unreliable grouping is a
+    // guess. `create` hides nothing, so it is the safe way to be wrong.
     //
     // Direction of failure: an unrecognised synonym pair (wife/spouse) compares
     // as different and downgrades a legitimate supersede to a create, leaving a
     // near-duplicate. That is recoverable — the fact is still there. The failure
     // this replaces is not.
     const newSubject = subjectKey(obj.newSubject);
-    const targetSubject = subjectKey(obj.targetSubject);
-    if (newSubject.length > 0 && targetSubject.length > 0 && newSubject !== targetSubject) {
-      return { action: "create", content: c, fallbackReason: "subject_mismatch" };
+    if (newSubject.length > 0) {
+      const positional = Array.isArray(obj.targetSubjects) ? (obj.targetSubjects as unknown[]) : [];
+      const statedSubjects = [
+        // Positional against the model's own `targetIds` array, so index i is the
+        // subject of raw id i — read before the dedupe/validity filter above,
+        // which reorders and drops entries.
+        ...(Array.isArray(obj.targetIds) ? (obj.targetIds as unknown[]) : []).map((_id, i) =>
+          subjectKey(positional[i])
+        ),
+        // The singular pair, which is the whole story for a one-target supersede.
+        subjectKey(obj.targetSubject),
+      ];
+      if (statedSubjects.some((s) => s.length > 0 && s !== newSubject)) {
+        return { action: "create", content: c, fallbackReason: "subject_mismatch" };
+      }
     }
 
     return { action: "supersede", targetId: targetIds[0], targetIds, content: c };
