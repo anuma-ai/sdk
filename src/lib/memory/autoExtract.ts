@@ -323,12 +323,29 @@ export async function extractFacts(
   // then de-anonymize the returned facts so the vault keeps real values. Only
   // the message *content* is redacted — the `[id]` provenance markers stay
   // intact so `sourceMessageIds` still validates against the original ids.
+  //
+  // NER-aware (#830's fifth path, deferred from #836 to avoid a conflict).
+  // `redactTextAsync` merges a configured detector's person/location/org spans
+  // with the regex matches; with no detector it returns `redactText` directly, so
+  // the default path is unchanged and pays nothing. This is the highest-volume
+  // LLM egress in the SDK — the whole recent transcript, on every extracting turn
+  // — so it was the worst one to leave regex-only.
+  //
+  // SEQUENTIAL, not `Promise.all`. The redactor assigns placeholder numbers as it
+  // goes and keeps one map across the call, which is what lets the model see two
+  // mentions of the same person as one entity and lets de-anonymization put the
+  // real value back. Concurrent redaction interleaves that numbering, so the same
+  // name could come back as [PERSON_1] on one line and [PERSON_2] on another.
+  // Every other NER-aware path merged in #836 loops for this reason, and so does
+  // `redactMessagesAsync` internally.
   const redactor = resolvePiiRedactor(options.piiRedaction);
-  const transcript = messages
-    .map(
-      (m) => `[${m.id}] ${m.role}: ${redactor ? redactor.redactText(m.content).text : m.content}`
-    )
-    .join("\n");
+  const transcriptLines: string[] = [];
+  for (const m of messages) {
+    // Only the message *content* is redacted — see the note above on `[id]`.
+    const content = redactor ? (await redactor.redactTextAsync(m.content)).text : m.content;
+    transcriptLines.push(`[${m.id}] ${m.role}: ${content}`);
+  }
+  const transcript = transcriptLines.join("\n");
   // Anchor relative temporal phrases. The transcript has no timestamps, so
   // without this the model dates "yesterday"/"next week" against its own
   // training-cutoff guess (see ExtractFactsOptions.now). Local-midnight basis

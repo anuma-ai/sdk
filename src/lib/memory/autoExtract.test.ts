@@ -12,7 +12,8 @@ import { linkMemoryEntitiesOp } from "../db/entities/operations";
 
 import { retain } from "./retain";
 
-import type { PiiRedactor } from "../pii/redactor";
+import type { NerDetector, PiiSpan } from "../pii/ner";
+import { PiiRedactor } from "../pii/redactor";
 
 import { extractAndRetain, extractFacts, type AutoExtractMessage } from "./autoExtract";
 
@@ -376,6 +377,11 @@ describe("extractFacts", () => {
       redactMessages: (m: unknown) => m,
       deAnonymize: (t: string) => t,
       redactText: (t: string) => ({ text: t }),
+      // The transcript build is NER-aware (#830), so the fake needs the async
+      // form too. `isPiiRedactor` only probes `redactMessages`/`deAnonymize`, so
+      // a stub missing this is accepted by the guard and then throws mid-extract
+      // — which is how this test caught the change.
+      redactTextAsync: async (t: string) => ({ text: t }),
       restoreForStorage: (t: string) => ({
         text: t === "[PERSON_1] [PERSON_2]" ? "Peter Lee" : t,
         unresolved: false,
@@ -908,6 +914,23 @@ describe("extractAndRetain", () => {
 describe("extractFacts — PII redaction", () => {
   beforeEach(() => vi.clearAllMocks());
 
+  /**
+   * The transcript half of a captured request — the `user` message only.
+   *
+   * The system prompt legitimately contains place names as few-shot examples
+   * ("Moved from Portland to SF", "Lives in San Francisco"), so asserting
+   * `not.toContain("Portland")` over the whole body fails on the prompt rather
+   * than on anything the redactor did.
+   */
+  function transcriptOf(bodies: string[]): string {
+    return bodies
+      .map((b) => {
+        const parsed = JSON.parse(b) as { messages: Array<{ role: string; content: string }> };
+        return parsed.messages.find((m) => m.role === "user")?.content ?? "";
+      })
+      .join("\n");
+  }
+
   /** Fetch mock that records each request body so we can assert what reached the wire. */
   function capturingFetch(content: string): { fetchFn: typeof fetch; bodies: string[] } {
     const bodies: string[] = [];
@@ -934,6 +957,79 @@ describe("extractFacts — PII redaction", () => {
     expect(sent).not.toContain("415-555-0199");
     expect(sent).toContain("[EMAIL_1]");
     expect(sent).toContain("[PHONE_1]");
+  });
+
+  // #830's fifth path. Until this landed, the transcript — the widest LLM egress
+  // in the SDK, the whole recent conversation on every extracting turn — was
+  // redacted with the regex-only `redactText`, so a caller who configured a
+  // detector still shipped person/location/org names in clear while emails and
+  // phones looked masked.
+  it("applies a configured NER detector to the transcript", async () => {
+    const detector: NerDetector = {
+      detect: async (text: string): Promise<PiiSpan[]> => {
+        const spans: PiiSpan[] = [];
+        for (const name of ["Dana", "Portland"]) {
+          const at = text.indexOf(name);
+          if (at !== -1) {
+            spans.push({
+              start: at,
+              end: at + name.length,
+              category: name === "Portland" ? "LOCATION" : "PERSON",
+            });
+          }
+        }
+        return spans;
+      },
+    };
+    const { fetchFn, bodies } = capturingFetch(JSON.stringify({ candidates: [] }));
+
+    await extractFacts(
+      [
+        { id: "m1", role: "user", content: "Dana and I moved to Portland." },
+        { id: "m2", role: "assistant", content: "How is Portland treating Dana?" },
+      ],
+      { apiKey: "k", fetchFn, piiRedaction: new PiiRedactor({ nerDetector: detector }) }
+    );
+
+    const sent = transcriptOf(bodies);
+    expect(sent).not.toContain("Dana");
+    expect(sent).not.toContain("Portland");
+    expect(sent).toContain("[PERSON_1]");
+    expect(sent).toContain("[LOCATION_1]");
+    // Provenance markers must survive redaction or `sourceMessageIds` stops
+    // validating against the original ids.
+    expect(sent).toContain("[m1]");
+    expect(sent).toContain("[m2]");
+  });
+
+  it("numbers placeholders consistently across messages (sequential, not concurrent)", async () => {
+    // One name in two messages has to redact to ONE placeholder: the model needs
+    // to see them as the same person, and de-anonymization needs one mapping.
+    // Redacting the transcript with Promise.all would interleave the redactor's
+    // incrementing numbering and could emit [PERSON_1] on one line and
+    // [PERSON_2] on the other for the same value.
+    const detector: NerDetector = {
+      detect: async (text: string): Promise<PiiSpan[]> => {
+        const at = text.indexOf("Dana");
+        return at === -1 ? [] : [{ start: at, end: at + 4, category: "PERSON" }];
+      },
+    };
+    const { fetchFn, bodies } = capturingFetch(JSON.stringify({ candidates: [] }));
+
+    await extractFacts(
+      [
+        { id: "m1", role: "user", content: "Dana is my sister." },
+        { id: "m2", role: "user", content: "Dana lives in Denver." },
+      ],
+      { apiKey: "k", fetchFn, piiRedaction: new PiiRedactor({ nerDetector: detector }) }
+    );
+
+    const sent = transcriptOf(bodies);
+    expect(sent).not.toContain("Dana");
+    // Both lines carry the SAME placeholder — one value, one mapping.
+    const occurrences = sent.match(/\[PERSON_\d+\]/g) ?? [];
+    expect(occurrences).toHaveLength(2);
+    expect(new Set(occurrences).size).toBe(1);
   });
 
   it("de-anonymizes returned fact content and entities back to the real values", async () => {
