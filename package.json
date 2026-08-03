@@ -275,8 +275,8 @@
       "js-yaml@>=4 <4.2.0": ">=4.2.0 <5.0.0",
       "js-yaml@>=3 <3.15.0": ">=3.15.0 <4.0.0",
       "markdown-it@<14.2.0": ">=14.2.0",
-      "brace-expansion@1": ">=1.1.16 <2.0.0",
-      "brace-expansion@2": ">=2.1.2 <3.0.0"
+      "brace-expansion@1": ">=1.1.18 <2.0.0",
+      "brace-expansion@2": ">=2.1.4 <3.0.0"
     },
     "patchedDependencies": {
       "tesseract.js@6.0.1": "patches/tesseract.js@6.0.1.patch",

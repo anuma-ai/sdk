@@ -484,6 +484,15 @@ describe("memory work-cost scenarios", () => {
     expect(warmNumbers.vaultCacheAdds).toBe(0);
     expect(warmNumbers.vaultFullRows).toBe(activeVaultSize());
     expect(warmNumbers.vaultDecrypts).toBe(activeVaultSize());
+
+    // The legacy half of the #845 discriminator, checked against the harness's
+    // INDEPENDENT counter. Asserting `vaultRowsDecrypted === vaultSize` on its own
+    // would be a tautology — both are `loaded.length` on this path — so it has to
+    // be compared to `vaultDecrypts`, which is counted by spying on
+    // `decryptVaultMemoryFields` rather than derived from the same variable.
+    const coldDiag = cold.read();
+    expect(coldDiag?.decryptLast).toBe(false);
+    expect(coldDiag?.vaultRowsDecrypted).toBe(coldNumbers.vaultDecrypts);
   });
 
   it("fact lane, projected decrypt-last read (cold then warm cache)", async () => {
@@ -532,6 +541,18 @@ describe("memory work-cost scenarios", () => {
     expect(coldNumbers.vaultRowRows).toBeGreaterThan(0);
     expect(coldNumbers.vaultDecrypts).toBeGreaterThan(0);
     expect(warmNumbers.vaultRowRows).toBeGreaterThan(0);
+
+    // The diagnostics must AGREE with the harness's own counters (#845). The
+    // point of `decryptLast` / `vaultRowsDecrypted` on RecallDiagnostics is that
+    // production can ask the question this harness answers offline: "did the
+    // projected branch run, and did it actually decrypt less than the vault?".
+    // Cross-checking them against `vaultDecrypts` here is what stops the reported
+    // number drifting from the real one — a diagnostic nobody validates is how
+    // #845 became unfalsifiable in the first place.
+    const coldDiag = cold.read();
+    expect(coldDiag?.decryptLast).toBe(true);
+    expect(coldDiag?.vaultRowsDecrypted).toBe(coldNumbers.vaultDecrypts);
+    expect(coldDiag?.vaultRowsDecrypted).toBeLessThan(coldDiag?.vaultSize ?? 0);
   });
 
   it("composite recall re-tokenizes the corpus once per facet", async () => {

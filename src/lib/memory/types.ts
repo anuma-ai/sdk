@@ -323,6 +323,27 @@ export interface RecallDiagnostics {
   candidateCount: number;
   /** Total vault size when the fact lane ran (absent if it didn't). */
   vaultSize?: number;
+  /**
+   * Which vault read path the fact lane actually executed: `true` for the
+   * projected key scan that decrypts only the admission window, `false` for the
+   * legacy whole-vault load. Absent when the fact lane didn't run.
+   *
+   * Reported because "the option was passed" and "the branch ran" are different
+   * facts, and #845 needed the second one: the projected path was enabled in
+   * production and the p50 did not move, with no way to tell a flag that never
+   * reached the bundle from a projection that isn't cheaper at that vault size.
+   */
+  decryptLast?: boolean;
+  /**
+   * Rows the fact lane paid to decrypt. Absent when it didn't run.
+   *
+   * Read against {@link RecallDiagnostics.vaultSize} — that ratio is the whole
+   * point. `decryptLast` true with `vaultRowsDecrypted` ≈ `vaultSize` means the
+   * admission window is admitting the entire vault and the projection is buying
+   * nothing. Far below `vaultSize` with latency unchanged means the decrypt was
+   * never the cost.
+   */
+  vaultRowsDecrypted?: number;
   /** Facts the fact lane returned (post-dedupe, pre-fusion). */
   factCount: number;
   /** Chunks the chunk lane returned (post-dedupe, pre-fusion). */
