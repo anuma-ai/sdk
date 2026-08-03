@@ -99,20 +99,32 @@ export async function ingestPublishedPhotoMemoriesOp(
   ctx: VaultMemoryOperationsContext,
   rows: PublishedPhotoMemory[]
 ): Promise<PhotoIngestResult> {
-  const photoRows = rows.filter(
-    (r) => typeof r.memoryId === "string" && r.memoryId.startsWith(PHOTO_MEMORY_ID_PREFIX)
-  );
+  // Deduplicate BY ID as we filter. Every row here is prepared with the server's
+  // memory_id as its primary key, so two entries carrying the same id would be
+  // two creates of the same key — which throws out of `database.batch` and takes
+  // the whole ingest with it, including the unrelated rows that were fine. A
+  // repeated id is one memory, so first-wins is the honest collapse.
+  const byId = new Map<string, PublishedPhotoMemory>();
+  for (const r of rows) {
+    if (typeof r.memoryId !== "string" || !r.memoryId.startsWith(PHOTO_MEMORY_ID_PREFIX)) continue;
+    if (!byId.has(r.memoryId)) byId.set(r.memoryId, r);
+  }
+  const photoRows = [...byId.values()];
   if (photoRows.length === 0) return { inserted: 0, skipped: 0 };
 
-  // One query for the whole batch rather than one per row: a full published set
-  // is up to MaxListPublished (500) rows and this runs on every reconcile pass.
-  const existing = await ctx.vaultMemoryCollection
+  // Cheap pre-filter so the encryption below only runs for rows we plausibly
+  // need. NOT authoritative — the check that decides is inside the write block,
+  // where WatermelonDB's writer lock makes read-then-create atomic. One query for
+  // the whole batch rather than one per row: a published set is up to
+  // MaxListPublished (500) rows and this runs on every reconcile pass.
+  const known = await ctx.vaultMemoryCollection
     .query()
     .fetchIds()
     .then((ids: string[]) => new Set(ids));
 
-  const fresh = photoRows.filter((r) => !existing.has(r.memoryId));
-  if (fresh.length === 0) return { inserted: 0, skipped: photoRows.length };
+  const candidates = photoRows.filter((r) => !known.has(r.memoryId));
+  if (candidates.length === 0) return { inserted: 0, skipped: photoRows.length };
+  const fresh = candidates;
 
   // Encrypt outside the write transaction — signing can prompt a wallet, and
   // holding a WatermelonDB write open across that is how the DB deadlocks.
@@ -131,14 +143,26 @@ export async function ingestPublishedPhotoMemoriesOp(
   );
 
   const now = Date.now();
+  let inserted = 0;
   await ctx.database.write(async () => {
-    const prepared = fresh.map((row, i) =>
+    // Re-check INSIDE the writer. Between the pre-filter above and here another
+    // pass could have created these rows: `database.write` serializes writers, so
+    // this read and the batch below are atomic with respect to any other write,
+    // while the pre-filter was not. Without it two overlapping passes both see a
+    // row as absent and the loser throws on the duplicate key.
+    const present = new Set(await ctx.vaultMemoryCollection.query().fetchIds());
+    const writable = fresh
+      .map((row, i) => ({ row, content: contents[i] }))
+      .filter(({ row }) => !present.has(row.memoryId));
+    inserted = writable.length;
+    if (writable.length === 0) return;
+    const prepared = writable.map(({ row, content }) =>
       ctx.vaultMemoryCollection.prepareCreate((record) => {
         // The server's id becomes the row id. See (2) in the file header.
         // WatermelonDB assigns a random id in prepareCreate and exposes no typed
         // hook to override it, so the raw handle is the only way in.
         (record._raw as { id: string }).id = row.memoryId;
-        record._setRaw("content", contents[i]);
+        record._setRaw("content", content);
         record._setRaw("scope", "private");
         record._setRaw("folder_id", null);
         record._setRaw("user_id", ctx.userId ?? null);
@@ -163,5 +187,5 @@ export async function ingestPublishedPhotoMemoriesOp(
     await ctx.database.batch(...prepared);
   });
 
-  return { inserted: fresh.length, skipped: photoRows.length - fresh.length };
+  return { inserted, skipped: photoRows.length - inserted };
 }

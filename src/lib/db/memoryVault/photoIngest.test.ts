@@ -149,6 +149,24 @@ describe("ingestPublishedPhotoMemoriesOp", () => {
     expect(await getAllVaultMemoriesOp(ctx)).toHaveLength(0);
   });
 
+  it("collapses a duplicate memoryId in one batch instead of throwing", async () => {
+    // Every row is created with the server's memory_id AS the primary key, so two
+    // entries carrying the same id are two creates of the same key — which throws
+    // out of database.batch and takes the whole ingest with it, including the
+    // unrelated rows that were fine. A repeated id is one memory.
+    const result = await ingestPublishedPhotoMemoriesOp(ctx, [
+      publishedRow(),
+      publishedRow(), // same id
+      publishedRow({ memoryId: CAPTION_ID, text: "my own words" }),
+    ]);
+
+    expect(result).toEqual({ inserted: 2, skipped: 0 });
+    const all = await getAllVaultMemoriesOp(ctx);
+    expect(all).toHaveLength(2);
+    // And the survivor is intact, not a half-written casualty of a thrown batch.
+    expect((await getVaultMemoryOp(ctx, CAPTION_ID))?.content).toBe("my own words");
+  });
+
   it("inserts only the rows the vault lacks, in a mixed batch", async () => {
     await ingestPublishedPhotoMemoriesOp(ctx, [publishedRow()]);
 
