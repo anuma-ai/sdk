@@ -107,12 +107,12 @@ OUTPUT — strict JSON, no prose:
   "content": "<content — required for create/update/supersede, omit for noop>",
   "newSubject": "<required for supersede: WHO the new memory is about>",
   "targetSubject": "<required for supersede: WHO the memory in targetId is about>",
-  "targetSubjects": ["<required for supersede: WHO each id in targetIds is about, same order>"]
+  "targetSubjects": ["<required for supersede: WHO each memory you are retiring is about — one entry per retired id>"]
 }
 
 For "create": content is the new memory verbatim (or a slight refinement); omit targetId/targetIds.
 For "update": content is the merged richest-version, ≤80 words; targetId is the single memory to update.
-For "supersede": content is the NEW fact only (≤80 words); "targetIds" lists EVERY stale memory being retired (all candidates describing the same now-changed attribute). You MUST also name the subjects: "newSubject" for the new memory, and one entry in "targetSubjects" for EACH id in "targetIds", in the same order (use "targetSubject" as well when you retire a single memory). Write the plain subject, not a sentence: "the user", "the user's sister", "the user's manager", "Biscuit the dog". Rule 1a means a supersede is only valid when every one of those subjects is the SAME as "newSubject"; name them and check them against each other before you commit to the action. If ANY of them differs, the answer is "create" — do not retire the ones that match and keep the rest, because a group that mixes subjects was grouped wrongly in the first place. A subjectless fact ("Lives in Denver", "Works at Riverbend") is about "the user" — the extractor omits the subject when it is the user, so treat the absence of a subject as the user, never as unknown.
+For "supersede": content is the NEW fact only (≤80 words); "targetIds" lists EVERY stale memory being retired (all candidates describing the same now-changed attribute). You MUST also name the subjects: "newSubject" for the new memory, and one entry in "targetSubjects" for EACH memory you are retiring (use "targetSubject" as well when you retire a single memory). List a subject ONLY for the memories you are actually retiring, not for every candidate you were shown. Write the plain subject, not a sentence: "the user", "the user's sister", "the user's manager", "Biscuit the dog". Rule 1a means a supersede is only valid when every one of those subjects is the SAME as "newSubject"; name them and check them against each other before you commit to the action. If ANY of them differs, the answer is "create" — do not retire the ones that match and keep the rest, because a group that mixes subjects was grouped wrongly in the first place. A subjectless fact ("Lives in Denver", "Works at Riverbend") is about "the user" — the extractor omits the subject when it is the user, so treat the absence of a subject as the user, never as unknown.
 For "noop": no content (existing memory is already correct); targetId is that memory.`;
 
 interface ConsolidationCandidate {
@@ -430,27 +430,36 @@ function validate(
     // same claim the model has already been shown to break — trusting it here
     // would rebuild the bug one level up: a batch of [user's row, sister's row]
     // reported under a single matching `targetSubject` would retire both. So the
-    // prompt asks for `targetSubjects` positionally against `targetIds`, and ANY
-    // stated target subject that differs from the new one refuses the WHOLE
-    // supersede. Refusing wholesale rather than filtering the batch is
-    // deliberate: a batch that mixes subjects tells you the model's grouping is
-    // unreliable, and keeping the "good" half of an unreliable grouping is a
-    // guess. `create` hides nothing, so it is the safe way to be wrong.
+    // prompt asks for a `targetSubjects` entry per retired id, and ANY stated
+    // target subject that differs from the new one refuses the WHOLE supersede.
+    // Refusing wholesale rather than filtering the batch is deliberate: a batch
+    // that mixes subjects tells you the model's grouping is unreliable, and
+    // keeping the "good" half of an unreliable grouping is a guess. `create`
+    // hides nothing, so it is the safe way to be wrong.
+    //
+    // READ EVERY STATED SUBJECT, and do NOT index them against `targetIds`.
+    // An earlier version mapped over `obj.targetIds` and took `targetSubjects[i]`,
+    // which read subjects out of a DIFFERENT container than the one it retires
+    // from: the retirement set is the union of `targetIds` AND the singular
+    // `targetId` (above), so any subject stated for an id that arrived via the
+    // singular slot — or any entry past `targetIds.length` — was dropped before
+    // the check ran, and an unstated position canonicalizes to "" which the
+    // predicate reads as consent. `{targetIds: [], targetId: "c1",
+    // targetSubjects: ["the user"], newSubject: "the user's sister"}` then walked
+    // #822 straight through, and that shape is exactly what the id-union exists
+    // to absorb. Since the test is `some()`, position carries no information —
+    // dropping the indexing removes the truncation and nothing else.
     //
     // Direction of failure: an unrecognised synonym pair (wife/spouse) compares
     // as different and downgrades a legitimate supersede to a create, leaving a
-    // near-duplicate. That is recoverable — the fact is still there. The failure
-    // this replaces is not.
+    // near-duplicate. A model that helpfully states a subject for every
+    // CANDIDATE rather than only the ids it is retiring lands the same way. Both
+    // are recoverable — the fact is still there. The failure this replaces is not.
     const newSubject = subjectKey(obj.newSubject);
     if (newSubject.length > 0) {
       const positional = Array.isArray(obj.targetSubjects) ? (obj.targetSubjects as unknown[]) : [];
       const statedSubjects = [
-        // Positional against the model's own `targetIds` array, so index i is the
-        // subject of raw id i — read before the dedupe/validity filter above,
-        // which reorders and drops entries.
-        ...(Array.isArray(obj.targetIds) ? (obj.targetIds as unknown[]) : []).map((_id, i) =>
-          subjectKey(positional[i])
-        ),
+        ...positional.map((s) => subjectKey(s)),
         // The singular pair, which is the whole story for a one-target supersede.
         subjectKey(obj.targetSubject),
       ];

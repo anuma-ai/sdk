@@ -295,10 +295,10 @@ describe("consolidateMemory", () => {
       expect(result.targetIds).toEqual(["c1", "c4"]);
     });
 
-    it("reads targetSubjects positionally against the model's own id order", async () => {
-      // The subject array is indexed against the RAW `targetIds`, before the
-      // dedupe/validity filter reorders them — so an invalid id in the middle
-      // must not shift the remaining subjects onto the wrong rows.
+    it("refuses on a mismatched subject at any position, including past the id count", async () => {
+      // Subjects are NOT indexed against `targetIds`. The check is `some()`, so
+      // position carries no information — and indexing truncated the array,
+      // which is what let the shapes below through.
       const dupes = [
         { id: "c1", content: "User lives in Denver.", similarity: 0.87 },
         { id: "c4", content: "User is based in Denver.", similarity: 0.86 },
@@ -309,7 +309,6 @@ describe("consolidateMemory", () => {
           targetIds: ["c1", "nope", "c4"],
           content: "User lives in Portland.",
           newSubject: "the user",
-          // Index 1 belongs to the dropped id; c4's subject is index 2.
           targetSubjects: ["the user", "the user's sister", "the user"],
         })
       );
@@ -319,12 +318,87 @@ describe("consolidateMemory", () => {
         fetchFn,
       });
 
-      // The mismatched entry belongs to an id that never enters targetIds, but it
-      // is still a stated subject in the batch, so the batch is refused. This
-      // pins the conservative reading deliberately: an id the model named and we
-      // could not resolve is not evidence that its subject was fine.
       expect(result.action).toBe("create");
       expect(result.fallbackReason).toBe("subject_mismatch");
+    });
+
+    // The retirement set is the UNION of `targetIds` and the singular `targetId`.
+    // An earlier version of this guard read subjects only from a map over
+    // `targetIds`, so a subject stated for an id that arrived via the singular
+    // slot was dropped before the comparison, and the unstated position
+    // canonicalized to "" — which the predicate read as consent. Each shape here
+    // retired a true memory. Reported on #848 by @usmaneth, who ran them rather
+    // than eyeballing them.
+    describe("subjects must be read from the same set that gets retired", () => {
+      const denverUnion = [
+        { id: "c1", content: "User lives in Denver.", similarity: 0.87 },
+        { id: "c2", content: "User's sister lives in Denver.", similarity: 0.85 },
+      ];
+
+      it.each([
+        [
+          "empty targetIds, id in the singular slot",
+          {
+            targetIds: [],
+            targetId: "c1",
+            targetSubjects: ["the user"],
+          },
+        ],
+        [
+          "no targetIds key at all",
+          {
+            targetId: "c1",
+            targetSubjects: ["the user"],
+          },
+        ],
+        [
+          "mismatch stated for the id in the singular slot",
+          {
+            targetIds: ["c2"],
+            targetId: "c1",
+            targetSubjects: ["the user's sister", "the user"],
+          },
+        ],
+      ])("refuses: %s", async (_name, shape) => {
+        const fetchFn = mockFetch(
+          choices({
+            action: "supersede",
+            content: "User's sister lives in Denver.",
+            newSubject: "the user's sister",
+            ...shape,
+          })
+        );
+
+        const result = await consolidateMemory("User's sister lives in Denver.", denverUnion, {
+          apiKey: "k",
+          fetchFn,
+        });
+
+        expect(result.action).toBe("create");
+        expect(result.fallbackReason).toBe("subject_mismatch");
+      });
+
+      it("control: the singular pair alone still refuses", async () => {
+        // Isolates the bug to the container mismatch rather than the comparison —
+        // this shape was already correct before the fix.
+        const fetchFn = mockFetch(
+          choices({
+            action: "supersede",
+            targetId: "c1",
+            content: "User's sister lives in Denver.",
+            newSubject: "the user's sister",
+            targetSubject: "the user",
+          })
+        );
+
+        const result = await consolidateMemory("User's sister lives in Denver.", denverUnion, {
+          apiKey: "k",
+          fetchFn,
+        });
+
+        expect(result.action).toBe("create");
+        expect(result.fallbackReason).toBe("subject_mismatch");
+      });
     });
 
     it("leaves behaviour unchanged when the model states no subjects", async () => {
