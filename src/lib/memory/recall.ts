@@ -167,6 +167,12 @@ export async function recall(
   let chunkEmbedFailed = false;
   // Whether the fact lane actually ranked on a live cosine lane this call.
   let factLaneRankedOnCosine = false;
+  // Which vault read path the fact lane took, and what it cost — undefined until
+  // the lane runs, so a chunk-only recall reports absence rather than a
+  // misleading `false`/`0`. See RecallDiagnostics.decryptLast for why this is
+  // reported instead of echoed from the caller's option (#845).
+  let decryptLastRan: boolean | undefined;
+  let vaultRowsDecrypted: number | undefined;
 
   const emitDiagnostics = (candidateCount: number): void => {
     const cb = options.onDiagnostics;
@@ -197,6 +203,8 @@ export async function recall(
       reranked: didRerank,
       candidateCount,
       ...(vaultSize !== undefined && { vaultSize }),
+      ...(decryptLastRan !== undefined && { decryptLast: decryptLastRan }),
+      ...(vaultRowsDecrypted !== undefined && { vaultRowsDecrypted }),
       factCount: factResults.length,
       chunkCount: chunkResults.length,
       timings: {
@@ -302,6 +310,8 @@ export async function recall(
       hadV2Head: v2Head,
       embeddingsUnavailable: factEmbeddingsUnavailable,
       rankedOnCosine: factRankedOnCosine,
+      decryptLast: factDecryptLast,
+      rowsDecrypted: factRowsDecrypted,
     } = await searchVaultMemoriesWithSize(
       query,
       ctx.vaultCtx,
@@ -364,6 +374,8 @@ export async function recall(
     // reconciliation below for exactly the users most likely to hit it (chunks
     // saved, no facts yet).
     factLaneRankedOnCosine = factRankedOnCosine;
+    decryptLastRan = factDecryptLast;
+    vaultRowsDecrypted = factRowsDecrypted;
     factLaneMs = nowMs() - factStart;
   }
 

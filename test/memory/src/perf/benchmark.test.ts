@@ -532,6 +532,35 @@ describe("memory work-cost scenarios", () => {
     expect(coldNumbers.vaultRowRows).toBeGreaterThan(0);
     expect(coldNumbers.vaultDecrypts).toBeGreaterThan(0);
     expect(warmNumbers.vaultRowRows).toBeGreaterThan(0);
+
+    // The diagnostics must AGREE with the harness's own counters (#845). The
+    // point of `decryptLast` / `vaultRowsDecrypted` on RecallDiagnostics is that
+    // production can ask the question this harness answers offline: "did the
+    // projected branch run, and did it actually decrypt less than the vault?".
+    // Cross-checking them against `vaultDecrypts` here is what stops the reported
+    // number drifting from the real one — a diagnostic nobody validates is how
+    // #845 became unfalsifiable in the first place.
+    const coldDiag = cold.read();
+    expect(coldDiag?.decryptLast).toBe(true);
+    expect(coldDiag?.vaultRowsDecrypted).toBe(coldNumbers.vaultDecrypts);
+    expect(coldDiag?.vaultRowsDecrypted).toBeLessThan(coldDiag?.vaultSize ?? 0);
+  });
+
+  it("reports the legacy read path decrypting the whole vault", async () => {
+    // The other half of the #845 discriminator. Without `decryptLast: true` the
+    // lane loads and decrypts every in-scope row, so `vaultRowsDecrypted` should
+    // equal `vaultSize` — which is exactly the signature to look for in prod when
+    // the flag was supposed to be on and the latency did not move.
+    const vaultCache = freshVaultCache();
+    const ctx = { vaultCtx: readWorld.vaultCtx, embeddingOptions: { apiKey: "x" }, vaultCache };
+    const legacy = withDiagnostics({ types: ["fact"], budget: "low", limit: 8, now: NOW });
+
+    await recall(FACT_QUERY_A, ctx, legacy.options);
+
+    const diag = legacy.read();
+    expect(diag?.decryptLast).toBe(false);
+    expect(diag?.vaultRowsDecrypted).toBe(diag?.vaultSize);
+    expect(diag?.vaultRowsDecrypted).toBeGreaterThan(0);
   });
 
   it("composite recall re-tokenizes the corpus once per facet", async () => {

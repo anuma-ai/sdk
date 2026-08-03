@@ -1773,6 +1773,28 @@ export interface PreparedVaultCandidates {
    * in `retain()`.
    */
   embeddingFailure: boolean;
+  /**
+   * Which read path produced this set: `true` for the projected key scan that
+   * decrypts only the admission window, `false` for the legacy whole-vault load.
+   *
+   * Reported rather than inferred from the caller's option because the two are
+   * not the same claim. anuma-ai/sdk#845 shipped the projected path, enabled it,
+   * and saw no latency change — and nothing downstream could say whether the
+   * branch had actually been taken. A flag set in a repo, a flag inlined into a
+   * bundle, and a branch executed are three different facts.
+   */
+  decryptLast: boolean;
+  /**
+   * Rows whose content was decrypted while preparing this set.
+   *
+   * The discriminator for #845, read against {@link PreparedVaultCandidates.vaultSize}:
+   * if `decryptLast` is true and this is ~`vaultSize`, the admission window is
+   * admitting the whole vault and the projection is buying nothing (look at
+   * `admitFactor` / `admitFloor` and the force-included side-lane ids). If it is
+   * far below `vaultSize` and the latency is unchanged anyway, the decrypt was
+   * never the cost and the search should move elsewhere.
+   */
+  rowsDecrypted: number;
 }
 
 /**
@@ -1812,6 +1834,8 @@ export async function prepareVaultCandidates(
       vaultSize: 0,
       embeddingsUnavailable: false,
       embeddingFailure: false,
+      decryptLast: !!searchOptions?.decryptLast,
+      rowsDecrypted: 0,
     };
   }
   // `limit` is read here only to size the projected decrypt-last admission
@@ -1841,6 +1865,11 @@ export async function prepareVaultCandidates(
   let embeddedItems: EmbeddedItem[];
   let queryEmbedding: number[];
   let vaultSize: number;
+  // Rows whose content we actually paid to decrypt. The projected path decrypts
+  // its admission window; the legacy path decrypts everything it loaded, so its
+  // count is the load size rather than the searchable size (a still-encrypted row
+  // was still attempted). Read against `vaultSize` — see the field docs.
+  let rowsDecrypted: number;
   // Set when the query embedding failed and this search fell back to BM25-only.
   // Reported out so recall() can surface `embeddings-unavailable` rather than
   // letting a whole-provider outage look like a run of poor-quality results.
@@ -1880,9 +1909,12 @@ export async function prepareVaultCandidates(
         vaultSize: 0,
         embeddingsUnavailable: false,
         embeddingFailure: false,
+        decryptLast: true,
+        rowsDecrypted: 0,
       };
     }
     ({ memories, embeddedItems, queryEmbedding, vaultSize } = corpus);
+    rowsDecrypted = memories.length;
     // The lane batch is the projected path's counterpart of the legacy row
     // (re)embed below: it leaves rows in the candidate set without the vector a
     // healthy pass would have given them, which is a partial failure and so
@@ -1900,6 +1932,8 @@ export async function prepareVaultCandidates(
         vaultSize,
         embeddingsUnavailable,
         embeddingFailure,
+        decryptLast: true,
+        rowsDecrypted: 0,
       };
     }
   } else {
@@ -1908,6 +1942,9 @@ export async function prepareVaultCandidates(
       Object.keys(queryOpts).length > 0 ? queryOpts : undefined
     );
     vaultSize = loaded.length;
+    // Every loaded row was decrypt-ATTEMPTED, so the cost is the load size — not
+    // the searchable size below, which excludes rows whose key was unavailable.
+    rowsDecrypted = loaded.length;
     // Decryption is best-effort (decryptField returns the raw enc:vN:
     // payload when the key is unavailable). Still-encrypted content must
     // not reach ranking: BM25 would tokenize hex garbage, the embedder
@@ -1932,6 +1969,8 @@ export async function prepareVaultCandidates(
         vaultSize: loaded.length,
         embeddingsUnavailable: false,
         embeddingFailure: false,
+        decryptLast: false,
+        rowsDecrypted: loaded.length,
       };
     }
 
@@ -2062,6 +2101,8 @@ export async function prepareVaultCandidates(
     vaultSize,
     embeddingsUnavailable,
     embeddingFailure,
+    decryptLast: !!searchOptions?.decryptLast,
+    rowsDecrypted,
   };
 }
 
@@ -2360,6 +2401,16 @@ export async function searchVaultMemoriesWithSize(
    * as a healthy cosine pass.
    */
   rankedOnCosine: boolean;
+  /**
+   * Which vault read path ran — projected key scan (`true`) or legacy whole-vault
+   * load (`false`). See {@link PreparedVaultCandidates.decryptLast}.
+   */
+  decryptLast: boolean;
+  /**
+   * Rows this search paid to decrypt. Read against `vaultSize` — see
+   * {@link PreparedVaultCandidates.rowsDecrypted}.
+   */
+  rowsDecrypted: number;
 }> {
   // Invalid query short-circuits BEFORE any storage read (the pre-split
   // behavior — a test pins that `getAllVaultMemoriesOp` is never called).
@@ -2371,6 +2422,10 @@ export async function searchVaultMemoriesWithSize(
       hadV2Head: false,
       embeddingsUnavailable: false,
       rankedOnCosine: false,
+      // No storage read happened, so nothing was decrypted; report the path the
+      // caller asked for so this turn is still attributable.
+      decryptLast: !!searchOptions?.decryptLast,
+      rowsDecrypted: 0,
     };
   }
 
@@ -2409,6 +2464,8 @@ export async function searchVaultMemoriesWithSize(
       hadV2Head: false,
       embeddingsUnavailable: prepared.embeddingsUnavailable,
       rankedOnCosine: false,
+      decryptLast: prepared.decryptLast,
+      rowsDecrypted: prepared.rowsDecrypted,
     };
   }
   if (prepared.memories.length === 0) {
@@ -2419,6 +2476,8 @@ export async function searchVaultMemoriesWithSize(
       hadV2Head: false,
       embeddingsUnavailable: prepared.embeddingsUnavailable,
       rankedOnCosine: false,
+      decryptLast: prepared.decryptLast,
+      rowsDecrypted: prepared.rowsDecrypted,
     };
   }
   const ranked = await rankPreparedVaultCandidates(
@@ -2430,7 +2489,12 @@ export async function searchVaultMemoriesWithSize(
   // A real candidate set reached the ranker, so cosine ran iff it was usable.
   // `prepareVaultCandidates` already collapses "query vector missing" and "no
   // row vector to score it against" into `embeddingsUnavailable` for this set.
-  return { ...ranked, rankedOnCosine: !ranked.embeddingsUnavailable };
+  return {
+    ...ranked,
+    rankedOnCosine: !ranked.embeddingsUnavailable,
+    decryptLast: prepared.decryptLast,
+    rowsDecrypted: prepared.rowsDecrypted,
+  };
 }
 
 /**
