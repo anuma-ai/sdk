@@ -1132,6 +1132,8 @@ describe("buildProjectedCorpus", () => {
       queryEmbedding: [],
       vaultSize: 0,
       laneEmbedFailed: false,
+      // Nothing was fetched, so nothing was decrypt-attempted.
+      rowsDecrypted: 0,
     });
   });
 
@@ -1632,6 +1634,66 @@ describe("searchVaultMemoriesWithSize — decryptLast branch", () => {
 
     expect(getAll).not.toHaveBeenCalled();
     expect(out.results.map((r) => r.uniqueId)).toContain("a");
+  });
+
+  it("counts an admitted row that came back ENCRYPTED as decrypt work", async () => {
+    // The #852 review finding (greptile P1 / cursor). `rowsDecrypted` used to be
+    // `memories.length` — the searchable set AFTER the still-encrypted filter — so
+    // a row that was fetched, decrypt-attempted, and came back as ciphertext was
+    // free work as far as the diagnostic was concerned. That under-reports in the
+    // one direction that misleads: `rowsDecrypted` far below `vaultSize` is
+    // supposed to mean "decrypt was never the cost".
+    const rows = [
+      { uniqueId: "a", content: "alpha" },
+      // Fetched and materialised, but the key was unavailable.
+      {
+        uniqueId: "b",
+        content: "enc:v3:deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef00",
+      },
+    ];
+    vi.spyOn(ops, "getVaultCandidateKeysOp").mockResolvedValue(
+      rows.map((r) => ({
+        uniqueId: r.uniqueId,
+        folderId: null,
+        scope: "private",
+        embeddingModel: "m",
+        updatedAt: new Date(),
+      })) as any
+    );
+    vi.spyOn(ops, "getVaultEmbeddingsByIdsOp").mockResolvedValue(
+      rows.map((r) => ({ uniqueId: r.uniqueId, embedding: "[1,0]", embeddingModel: "m" })) as any
+    );
+    vi.spyOn(ops, "getVaultMemoriesByIdsOp").mockResolvedValue(
+      rows.map((r) => ({
+        uniqueId: r.uniqueId,
+        content: r.content,
+        embedding: "[1,0]",
+        embeddingModel: "m",
+        scope: "private",
+        folderId: null,
+        userId: null,
+        isDeleted: false,
+        proofCount: 1,
+        sourceChunkIds: null,
+        eventTimeStart: null,
+        eventTimeEnd: null,
+        eventTimeKind: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      })) as any
+    );
+    vi.spyOn(embed, "generateEmbedding").mockResolvedValue([1, 0]);
+
+    const cache = createVaultEmbeddingCache();
+    const out = await searchVaultMemoriesWithSize("q", {} as any, { model: "m" } as any, cache, {
+      limit: 5,
+      decryptLast: true,
+    });
+
+    // Only "a" is searchable, but BOTH rows were decrypted.
+    expect(out.results.map((r) => r.uniqueId)).toEqual(["a"]);
+    expect(out.decryptLast).toBe(true);
+    expect(out.rowsDecrypted).toBe(2);
   });
 
   it("decryptLast OFF: legacy whole-vault path", async () => {

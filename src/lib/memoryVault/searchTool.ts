@@ -1487,7 +1487,20 @@ export async function buildProjectedCorpus(
    * {@link PreparedVaultCandidates.embeddingFailure}.
    */
   laneEmbedFailed: boolean;
+  /**
+   * Rows materialised through `decryptVaultMemoryFields` while building this
+   * corpus — the decrypt bill, counted where it is paid.
+   *
+   * Deliberately NOT `memories.length`. That is the searchable set AFTER the
+   * still-encrypted filter, and it misses two batches this function decrypts: the
+   * un-embedded lane (up to `unembeddedCap`) and any admitted row whose content
+   * came back encrypted. Inferring the count downstream from a different
+   * collection than the one that paid is how it came to under-report — the same
+   * container mismatch as #848.
+   */
+  rowsDecrypted: number;
 }> {
+  let rowsDecrypted = 0;
   const keys = await getVaultCandidateKeysOp(
     vaultCtx,
     Object.keys(queryOpts).length > 0 ? queryOpts : undefined
@@ -1513,6 +1526,7 @@ export async function buildProjectedCorpus(
       queryEmbedding: [],
       vaultSize: 0,
       laneEmbedFailed: false,
+      rowsDecrypted: 0,
     };
   }
   const queryEmbedding = await embedQueryOrDegrade(
@@ -1578,9 +1592,11 @@ export async function buildProjectedCorpus(
         `memoryVault: projected search un-embedded lane capped at ${laneIds.length}/${noVectorIds.length}`
       );
     }
-    const laneRows = (await getVaultMemoriesByIdsOp(vaultCtx, laneIds, hydrateOpts)).filter(
-      (m) => !isEncrypted(m.content)
-    );
+    // Count before filtering: every row this op returned was materialised, hence
+    // decrypt-attempted, whether or not its content came back readable.
+    const laneFetched = await getVaultMemoriesByIdsOp(vaultCtx, laneIds, hydrateOpts);
+    rowsDecrypted += laneFetched.length;
+    const laneRows = laneFetched.filter((m) => !isEncrypted(m.content));
     // Guarded like the query embed: an outage here must not throw out of the whole
     // search. These vectors only feed the cosine lane, so losing them costs cosine
     // ordering for these rows — the admission below falls back to recency when it
@@ -1653,6 +1669,7 @@ export async function buildProjectedCorpus(
     }
   }
   const admittedRows = await getVaultMemoriesByIdsOp(vaultCtx, [...admissionSet], hydrateOpts);
+  rowsDecrypted += admittedRows.length;
   const memories = admittedRows.filter((m) => !isEncrypted(m.content));
   // Parity with the legacy path's key-unavailable diagnostic: warn when an
   // admitted row's content is still encrypted (decryption degraded) so the
@@ -1677,7 +1694,7 @@ export async function buildProjectedCorpus(
     eventTimeKind: normalizeEventTimeKind(m.eventTimeKind),
     factType: m.factType,
   }));
-  return { memories, embeddedItems, queryEmbedding, vaultSize, laneEmbedFailed };
+  return { memories, embeddedItems, queryEmbedding, vaultSize, laneEmbedFailed, rowsDecrypted };
 }
 
 /**
@@ -1910,11 +1927,14 @@ export async function prepareVaultCandidates(
         embeddingsUnavailable: false,
         embeddingFailure: false,
         decryptLast: true,
-        rowsDecrypted: 0,
+        rowsDecrypted: corpus.rowsDecrypted,
       };
     }
     ({ memories, embeddedItems, queryEmbedding, vaultSize } = corpus);
-    rowsDecrypted = memories.length;
+    // From the corpus, not `memories.length`: the builder decrypts the un-embedded
+    // lane and every admitted row, including ones left encrypted, and none of that
+    // survives into the searchable set.
+    rowsDecrypted = corpus.rowsDecrypted;
     // The lane batch is the projected path's counterpart of the legacy row
     // (re)embed below: it leaves rows in the candidate set without the vector a
     // healthy pass would have given them, which is a partial failure and so
@@ -1933,7 +1953,9 @@ export async function prepareVaultCandidates(
         embeddingsUnavailable,
         embeddingFailure,
         decryptLast: true,
-        rowsDecrypted: 0,
+        // Rows WERE decrypt-attempted even though none came back readable — that
+        // is the whole point of reporting attempts rather than successes.
+        rowsDecrypted: corpus.rowsDecrypted,
       };
     }
   } else {
