@@ -352,9 +352,9 @@ export type RetainAction = "create" | "merge" | "update" | "skip" | "suppressed"
 export type RetainSource = "manual" | "auto-extracted" | "capsule";
 
 /**
- * Why a retain fell back to "create" instead of applying a consolidation
- * decision. Each value names a DIFFERENT thing to go fix, which is the point of
- * keeping them apart:
+ * Why a retain returned "create" instead of applying a consolidation decision.
+ * Each value names a DIFFERENT thing to go fix, which is the point of keeping
+ * them apart — and one of them is not a fault at all, see `subject_mismatch`:
  *
  * - `llm_error` — the consolidation call never produced a response (network,
  *   timeout, 5xx, 429, empty completion, or missing credentials). Look at the
@@ -369,8 +369,30 @@ export type RetainSource = "manual" | "auto-extracted" | "capsule";
  *   rate points at write contention (for example an auto-extraction worker and a
  *   manual write racing over the same vault), which quietly costs you the
  *   dedup that decision would have performed.
+ * - `subject_mismatch` — NOT a fault. The model returned a well-formed
+ *   `supersede` and we refused it because the two subjects it named were
+ *   different people, so retiring the target would have hidden a memory that is
+ *   still true (#822 — "User's sister lives in Denver" retiring "User lives in
+ *   Denver"). The refusal is the feature; do not alarm on it. What the rate does
+ *   tell you is how often the model reaches for a cross-subject supersede, and —
+ *   because the guard is inert unless the model fills in its subject fields — a
+ *   rate of exactly zero is as likely to mean "the fields are being omitted" as
+ *   "the mistake never happens". Check compliance before reading zero as health.
  */
-export type ConsolidationFallbackReason = "llm_error" | "invalid_response" | "target_vanished";
+export type ConsolidationFallbackReason =
+  | "llm_error"
+  | "invalid_response"
+  | "target_vanished"
+  /**
+   * A `supersede` was downgraded to `create` because the model's own stated
+   * subjects disagreed: the new fact is about someone other than the fact it
+   * wanted to retire (#822 — "User's sister lives in Denver" retiring "User
+   * lives in Denver"). NOT an error; the decision was refused on purpose, and
+   * the refusal preserved a true memory. Retiring a superseded row hides it from
+   * recall, so this is the one fallback that prevents data loss rather than
+   * reporting degraded quality.
+   */
+  | "subject_mismatch";
 
 export interface RetainOptions {
   source?: RetainSource;
@@ -407,6 +429,12 @@ export interface RetainOptions {
      * JSON that violates the schema (unknown action, bad targetId).
      * A flaky consolidator silently accumulates duplicate memories;
      * wire this to logging/metrics so the fallback rate is observable.
+     *
+     * `subject_mismatch` is the odd one out and worth reading separately: the
+     * model answered fine and we REFUSED its supersede because its own stated
+     * subjects disagreed (#822). A non-zero rate is the guard doing its job, not
+     * a problem — the rate to watch is how often it fires, which is also the
+     * only signal for how reliably the model fills the subject fields in at all.
      */
     onFallback?: (reason: ConsolidationFallbackReason) => void;
     /**
