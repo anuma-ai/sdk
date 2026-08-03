@@ -1497,6 +1497,15 @@ export async function buildProjectedCorpus(
    * came back encrypted. Inferring the count downstream from a different
    * collection than the one that paid is how it came to under-report — the same
    * container mismatch as #848.
+   *
+   * DISTINCT rows, and that is a guarantee callers rely on: the admission batch
+   * reuses whatever the lane already decrypted rather than re-fetching it, so this
+   * can never exceed `vaultSize`. Without that, a cold vault could report
+   * lane (≤ `unembeddedCap`) + admitted (k) and land ABOVE `vaultSize` — a shape
+   * neither the ratio reading below nor the #845 triage table contemplates, and an
+   * operator seeing 121/91 would blame the admission window when the bill was the
+   * lane. Opposite fixes, same number, which is the failure mode this diagnostic
+   * exists to end.
    */
   rowsDecrypted: number;
 }> {
@@ -1584,6 +1593,18 @@ export async function buildProjectedCorpus(
   // Set when the un-embedded lane's batch embed failed, leaving rows in the
   // candidate set that a healthy pass would have given vectors to.
   let laneEmbedFailed = false;
+  /**
+   * Rows the un-embedded lane already fetched AND decrypted, kept so the
+   * admission batch below can reuse them instead of paying for them twice.
+   *
+   * Lane rows are pushed into `vectored`, and `admitVaultProjections` picks from
+   * `vectored` — so a lane row that scores well used to be re-fetched by the
+   * admission `getVaultMemoriesByIdsOp`, which decrypts per row
+   * (`vaultMemoryRawToStored` → `decryptVaultMemoryFields`). It was decrypted
+   * twice for real, not just counted twice. Pre-existing; surfaced by making the
+   * decrypt bill measurable.
+   */
+  const laneById = new Map<string, StoredVaultMemory>();
   // Un-embedded lane: bounded decrypt+embed so those rows can still rank.
   if (noVectorIds.length > 0) {
     const laneIds = noVectorIds.slice(0, opts.unembeddedCap);
@@ -1596,6 +1617,7 @@ export async function buildProjectedCorpus(
     // decrypt-attempted, whether or not its content came back readable.
     const laneFetched = await getVaultMemoriesByIdsOp(vaultCtx, laneIds, hydrateOpts);
     rowsDecrypted += laneFetched.length;
+    for (const row of laneFetched) laneById.set(row.uniqueId, row);
     const laneRows = laneFetched.filter((m) => !isEncrypted(m.content));
     // Guarded like the query embed: an outage here must not throw out of the whole
     // search. These vectors only feed the cosine lane, so losing them costs cosine
@@ -1668,8 +1690,23 @@ export async function buildProjectedCorpus(
       if (keyById.has(id)) admissionSet.add(id);
     }
   }
-  const admittedRows = await getVaultMemoriesByIdsOp(vaultCtx, [...admissionSet], hydrateOpts);
-  rowsDecrypted += admittedRows.length;
+  // Reuse anything the lane already decrypted; fetch only the rest. Two effects:
+  // the same row is no longer decrypted twice, and `rowsDecrypted` becomes a count
+  // of DISTINCT rows, so it can never exceed `vaultSize` — which is what makes the
+  // `≈ vaultSize` / `≪ vaultSize` reading in the field docs sound. Order shifts
+  // (reused rows land last); both rankers score independently of corpus order.
+  const idsToFetch = [...admissionSet].filter((id) => !laneById.has(id));
+  // Skip the round trip entirely when the lane already covered the window.
+  const fetched =
+    idsToFetch.length > 0 ? await getVaultMemoriesByIdsOp(vaultCtx, idsToFetch, hydrateOpts) : [];
+  rowsDecrypted += fetched.length;
+  const admittedRows = [
+    ...fetched,
+    ...[...admissionSet].flatMap((id) => {
+      const reused = laneById.get(id);
+      return reused ? [reused] : [];
+    }),
+  ];
   const memories = admittedRows.filter((m) => !isEncrypted(m.content));
   // Parity with the legacy path's key-unavailable diagnostic: warn when an
   // admitted row's content is still encrypted (decryption degraded) so the

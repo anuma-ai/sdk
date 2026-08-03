@@ -484,6 +484,15 @@ describe("memory work-cost scenarios", () => {
     expect(warmNumbers.vaultCacheAdds).toBe(0);
     expect(warmNumbers.vaultFullRows).toBe(activeVaultSize());
     expect(warmNumbers.vaultDecrypts).toBe(activeVaultSize());
+
+    // The legacy half of the #845 discriminator, checked against the harness's
+    // INDEPENDENT counter. Asserting `vaultRowsDecrypted === vaultSize` on its own
+    // would be a tautology — both are `loaded.length` on this path — so it has to
+    // be compared to `vaultDecrypts`, which is counted by spying on
+    // `decryptVaultMemoryFields` rather than derived from the same variable.
+    const coldDiag = cold.read();
+    expect(coldDiag?.decryptLast).toBe(false);
+    expect(coldDiag?.vaultRowsDecrypted).toBe(coldNumbers.vaultDecrypts);
   });
 
   it("fact lane, projected decrypt-last read (cold then warm cache)", async () => {
@@ -544,23 +553,6 @@ describe("memory work-cost scenarios", () => {
     expect(coldDiag?.decryptLast).toBe(true);
     expect(coldDiag?.vaultRowsDecrypted).toBe(coldNumbers.vaultDecrypts);
     expect(coldDiag?.vaultRowsDecrypted).toBeLessThan(coldDiag?.vaultSize ?? 0);
-  });
-
-  it("reports the legacy read path decrypting the whole vault", async () => {
-    // The other half of the #845 discriminator. Without `decryptLast: true` the
-    // lane loads and decrypts every in-scope row, so `vaultRowsDecrypted` should
-    // equal `vaultSize` — which is exactly the signature to look for in prod when
-    // the flag was supposed to be on and the latency did not move.
-    const vaultCache = freshVaultCache();
-    const ctx = { vaultCtx: readWorld.vaultCtx, embeddingOptions: { apiKey: "x" }, vaultCache };
-    const legacy = withDiagnostics({ types: ["fact"], budget: "low", limit: 8, now: NOW });
-
-    await recall(FACT_QUERY_A, ctx, legacy.options);
-
-    const diag = legacy.read();
-    expect(diag?.decryptLast).toBe(false);
-    expect(diag?.vaultRowsDecrypted).toBe(diag?.vaultSize);
-    expect(diag?.vaultRowsDecrypted).toBeGreaterThan(0);
   });
 
   it("composite recall re-tokenizes the corpus once per facet", async () => {
