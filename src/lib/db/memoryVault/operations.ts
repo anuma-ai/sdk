@@ -13,7 +13,6 @@ import {
   unlinkMemoryEntitiesOp,
 } from "../entities/operations";
 import { normalizeEntityName, parseTopics, type StoredTopic } from "../entities/types";
-import { parseMedia } from "./types";
 import { decryptVaultMemoryFields, encryptVaultMemoryContent } from "./encryption";
 import type { VaultMemory } from "./models";
 import type {
@@ -23,6 +22,7 @@ import type {
   UpdateVaultMemoryOptions,
   VaultMemoryVisibility,
 } from "./types";
+import { parseMedia } from "./types";
 
 /** Coerce a stored visibility column to the enum — null/unknown reads as
  * "private" (grandfathered legacy rows; nothing is published without opt-in).
