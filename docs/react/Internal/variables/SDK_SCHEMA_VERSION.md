@@ -1,8 +1,8 @@
 # SDK\_SCHEMA\_VERSION
 
-> `const` **SDK\_SCHEMA\_VERSION**: `43` = `43`
+> `const` **SDK\_SCHEMA\_VERSION**: `44` = `44`
 
-Defined in: [src/lib/db/schema.ts:106](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/schema.ts#106)
+Defined in: [src/lib/db/schema.ts:109](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/schema.ts#109)
 
 Current combined schema version for all SDK storage modules.
 
@@ -86,3 +86,6 @@ Version history:
   conversation list read filters is\_deleted and orders by created\_at DESC,
   which previously meant a temp B-tree sort of the whole live set on every
   read. Structural only — no column added, no data rewritten
+* v44: Added `media` to memory\_vault — the photo(s) a server-extracted
+  memory came from, as JSON `[{feed_item_id, object_key}]`. Null on every
+  row that did not come from a photo, which is all of them before this

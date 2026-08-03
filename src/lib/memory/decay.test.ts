@@ -11,6 +11,7 @@ import {
   NEVER_TTL_MS,
   PAST_EVENT_GRACE_MS,
   SHORT_TTL_MS,
+  SOURCE_PHOTO,
   ttlForType,
 } from "./decay";
 
@@ -47,6 +48,73 @@ describe("ttlForType", () => {
     expect(ttlForType("other")).toBe(MEDIUM_TTL_MS);
     expect(ttlForType(null)).toBe(MEDIUM_TTL_MS);
     expect(ttlForType("some-future-type")).toBe(MEDIUM_TTL_MS);
+  });
+});
+
+describe("classifyDecay — photo source is protected from auto-archive", () => {
+  // This suite is not about tidiness. A photo memory is PUBLISHED and has been
+  // ADOPTED into the reconciler's ledger, and archived rows are hidden from
+  // every vault read lane by baseVaultConditions. So the moment decay archives
+  // one it drops out of `local` -> out of `desired` -> and, being in
+  // ledger.published, lands in `toRevoke`: the server-side memory is silently
+  // unpublished with the user never having touched the switch. Revoking is the
+  // user's decision and has exactly one entry point, the publish toggle.
+  //
+  // These tests are the only thing standing between a future refactor of the
+  // short-circuit and that silent unpublish.
+  it("keeps an untyped photo memory well past the medium fallback TTL", () => {
+    // The exact shape ingest writes: source photo, no factType (the server does
+    // not send one), so without the exemption ttlForType(null) = MEDIUM_TTL_MS
+    // and this would archive at day 180.
+    const verdict = classifyDecay(
+      input({
+        source: SOURCE_PHOTO,
+        factType: null,
+        updatedAt: NOW - (MEDIUM_TTL_MS + 30 * DAY),
+      }),
+      NOW
+    );
+    expect(verdict).toBe("keep");
+  });
+
+  it("keeps a photo memory that is ancient AND event-past", () => {
+    // Belt and braces: neither the "becomes past" branch nor the age fallback
+    // may reach a published row.
+    const verdict = classifyDecay(
+      input({
+        source: SOURCE_PHOTO,
+        factType: "plan",
+        updatedAt: NOW - 10 * 365 * DAY,
+        eventTimeEnd: NOW - 5 * 365 * DAY,
+      }),
+      NOW
+    );
+    expect(verdict).toBe("keep");
+  });
+
+  it("still applies the hard-delete clock once a photo memory IS archived", () => {
+    // Same asymmetry as manual: the exemption is from AUTO-ARCHIVE only. Archive
+    // is the shared purge buffer, so anything already archived (by an explicit
+    // user action, or by a row that predates the exemption) still ages out.
+    const verdict = classifyDecay(
+      input({ source: SOURCE_PHOTO, archivedAt: NOW - (HARD_DELETE_WINDOW_MS + DAY) }),
+      NOW
+    );
+    expect(verdict).toBe("delete");
+  });
+
+  it("archives an equivalent row whose source is NOT protected", () => {
+    // The control. Identical age and type, only `source` differs — which is what
+    // proves the exemption is doing the work rather than some other branch.
+    const verdict = classifyDecay(
+      input({
+        source: "auto-extracted",
+        factType: null,
+        updatedAt: NOW - (MEDIUM_TTL_MS + 30 * DAY),
+      }),
+      NOW
+    );
+    expect(verdict).toBe("archive");
   });
 });
 
