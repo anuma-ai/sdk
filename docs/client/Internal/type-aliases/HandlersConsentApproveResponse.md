@@ -2,7 +2,7 @@
 
 > **HandlersConsentApproveResponse** = `object`
 
-Defined in: [src/client/types.gen.ts:1647](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1647)
+Defined in: [src/client/types.gen.ts:1724](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1724)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:1647](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **code**: `string`
 
-Defined in: [src/client/types.gen.ts:1648](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1648)
+Defined in: [src/client/types.gen.ts:1725](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1725)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:1648](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **redirect\_uri**: `string`
 
-Defined in: [src/client/types.gen.ts:1649](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1649)
+Defined in: [src/client/types.gen.ts:1726](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1726)
 
 ***
 
@@ -26,4 +26,4 @@ Defined in: [src/client/types.gen.ts:1649](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **state**: `string`
 
-Defined in: [src/client/types.gen.ts:1650](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1650)
+Defined in: [src/client/types.gen.ts:1727](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1727)

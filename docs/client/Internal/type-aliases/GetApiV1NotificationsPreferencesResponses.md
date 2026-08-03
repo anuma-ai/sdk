@@ -2,7 +2,7 @@
 
 > **GetApiV1NotificationsPreferencesResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:8770](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8770)
+Defined in: [src/client/types.gen.ts:9232](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9232)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:8770](https://github.com/anuma-ai/sdk/blob/
 
 > **200**: [`HandlersNotificationPreferencesResponse`](HandlersNotificationPreferencesResponse.md)
 
-Defined in: [src/client/types.gen.ts:8774](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8774)
+Defined in: [src/client/types.gen.ts:9236](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9236)
 
 OK

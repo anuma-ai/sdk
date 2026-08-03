@@ -2,7 +2,7 @@
 
 > **PostApiV1ChatStreamsByInferenceIdCancelData** = `object`
 
-Defined in: [src/client/types.gen.ts:6882](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6882)
+Defined in: [src/client/types.gen.ts:7344](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7344)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:6882](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **body**: `never`
 
-Defined in: [src/client/types.gen.ts:6883](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6883)
+Defined in: [src/client/types.gen.ts:7345](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7345)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:6883](https://github.com/anuma-ai/sdk/blob/
 
 > **path**: `object`
 
-Defined in: [src/client/types.gen.ts:6884](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6884)
+Defined in: [src/client/types.gen.ts:7346](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7346)
 
 **inference\_id**
 
@@ -32,7 +32,7 @@ Inference ID (the X-Inference-ID returned on the original stream)
 
 > `optional` **query**: `never`
 
-Defined in: [src/client/types.gen.ts:6890](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6890)
+Defined in: [src/client/types.gen.ts:7352](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7352)
 
 ***
 
@@ -40,4 +40,4 @@ Defined in: [src/client/types.gen.ts:6890](https://github.com/anuma-ai/sdk/blob/
 
 > **url**: `"/api/v1/chat/streams/{inference_id}/cancel"`
 
-Defined in: [src/client/types.gen.ts:6891](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6891)
+Defined in: [src/client/types.gen.ts:7353](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7353)

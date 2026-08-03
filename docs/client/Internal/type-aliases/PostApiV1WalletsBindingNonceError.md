@@ -2,4 +2,4 @@
 
 > **PostApiV1WalletsBindingNonceError** = [`PostApiV1WalletsBindingNonceErrors`](PostApiV1WalletsBindingNonceErrors.md)\[keyof [`PostApiV1WalletsBindingNonceErrors`](PostApiV1WalletsBindingNonceErrors.md)]
 
-Defined in: [src/client/types.gen.ts:10412](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10412)
+Defined in: [src/client/types.gen.ts:10874](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10874)

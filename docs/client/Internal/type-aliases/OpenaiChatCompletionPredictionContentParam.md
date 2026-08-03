@@ -2,7 +2,7 @@
 
 > **OpenaiChatCompletionPredictionContentParam** = `object`
 
-Defined in: [src/client/types.gen.ts:3947](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3947)
+Defined in: [src/client/types.gen.ts:4112](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4112)
 
 Static predicted output content, such as the content of a text file that is
 being regenerated.
@@ -13,7 +13,7 @@ being regenerated.
 
 > `optional` **any**: `unknown`
 
-Defined in: [src/client/types.gen.ts:3948](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3948)
+Defined in: [src/client/types.gen.ts:4113](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4113)
 
 ***
 
@@ -21,7 +21,7 @@ Defined in: [src/client/types.gen.ts:3948](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **content**: [`OpenaiChatCompletionPredictionContentContentUnionParam`](OpenaiChatCompletionPredictionContentContentUnionParam.md)
 
-Defined in: [src/client/types.gen.ts:3949](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3949)
+Defined in: [src/client/types.gen.ts:4114](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4114)
 
 ***
 
@@ -29,7 +29,7 @@ Defined in: [src/client/types.gen.ts:3949](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **type**: `string`
 
-Defined in: [src/client/types.gen.ts:3956](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3956)
+Defined in: [src/client/types.gen.ts:4121](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4121)
 
 The type of the predicted content you want to provide. This type is currently
 always `content`.

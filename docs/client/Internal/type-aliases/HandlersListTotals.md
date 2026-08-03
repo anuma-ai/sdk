@@ -2,7 +2,7 @@
 
 > **HandlersListTotals** = `object`
 
-Defined in: [src/client/types.gen.ts:2149](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2149)
+Defined in: [src/client/types.gen.ts:2231](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2231)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:2149](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **ai\_credits**: `number`
 
-Defined in: [src/client/types.gen.ts:2154](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2154)
+Defined in: [src/client/types.gen.ts:2236](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2236)
 
 AICredits is the account's current spendable credit balance accrued from staking — active
 (unspent, unexpired) grants from the stake-to-earn drip, in whole credits.
@@ -21,7 +21,7 @@ AICredits is the account's current spendable credit balance accrued from staking
 
 > `optional` **pro**: [`HandlersProInfo`](HandlersProInfo.md)
 
-Defined in: [src/client/types.gen.ts:2155](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2155)
+Defined in: [src/client/types.gen.ts:2237](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2237)
 
 ***
 
@@ -29,7 +29,7 @@ Defined in: [src/client/types.gen.ts:2155](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **staked\_zeta**: `string`
 
-Defined in: [src/client/types.gen.ts:2156](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2156)
+Defined in: [src/client/types.gen.ts:2238](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2238)
 
 ***
 
@@ -37,7 +37,7 @@ Defined in: [src/client/types.gen.ts:2156](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **zeta\_rewards**: `string`
 
-Defined in: [src/client/types.gen.ts:2161](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2161)
+Defined in: [src/client/types.gen.ts:2243](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2243)
 
 ZetaRewards is the account's total pending (unclaimed) on-chain staking rewards across all
 bound wallets, in ZETA.

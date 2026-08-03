@@ -2,7 +2,7 @@
 
 > **GetApiV1UsageByModalityResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:9751](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9751)
+Defined in: [src/client/types.gen.ts:10213](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10213)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:9751](https://github.com/anuma-ai/sdk/blob/
 
 > **200**: [`HandlersUsageByModalityResponse`](HandlersUsageByModalityResponse.md)
 
-Defined in: [src/client/types.gen.ts:9755](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9755)
+Defined in: [src/client/types.gen.ts:10217](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10217)
 
 OK
