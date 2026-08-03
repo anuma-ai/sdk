@@ -331,13 +331,28 @@ export async function extractFacts(
   // LLM egress in the SDK — the whole recent transcript, on every extracting turn
   // — so it was the worst one to leave regex-only.
   //
-  // SEQUENTIAL, not `Promise.all`. The redactor assigns placeholder numbers as it
-  // goes and keeps one map across the call, which is what lets the model see two
-  // mentions of the same person as one entity and lets de-anonymization put the
-  // real value back. Concurrent redaction interleaves that numbering, so the same
-  // name could come back as [PERSON_1] on one line and [PERSON_2] on another.
-  // Every other NER-aware path merged in #836 loops for this reason, and so does
-  // `redactMessagesAsync` internally.
+  // SEQUENTIAL, not `Promise.all` — for DETERMINISM, not correctness.
+  //
+  // The tempting justification is wrong and worth writing down so nobody
+  // re-derives it: one value can NOT split across two placeholders under
+  // concurrency. `getPlaceholder` (pii/redactor.ts) memoises on the trimmed value
+  // and returns any existing placeholder before minting, and minting runs
+  // synchronously inside `rebuildSpans` — after `redactTextAsync`'s only
+  // suspension point (`await detectAllSpans`) has already resolved. So the mint
+  // sequence for one message is atomic against other in-flight calls, and
+  // de-anonymization round-trips whatever the interleaving.
+  //
+  // What concurrency does perturb is numbering across DISTINCT entities:
+  // sequentially Dana-then-Bob yields [PERSON_1]=Dana, [PERSON_2]=Bob, while
+  // `Promise.all` hands [PERSON_1] to whichever detector call settles first. The
+  // map stays internally consistent, but the transcript stops being reproducible
+  // for a given input — and snapshotting, diffing two prompts, and re-running a
+  // bad extraction all depend on that. Hence the loop.
+  //
+  // Pinned by "numbers placeholders in message order", which fails under
+  // `Promise.all`. Credit to @usmaneth for catching that the previous test — and
+  // the previous version of this comment — asserted the unreachable failure mode
+  // and so held no line.
   const redactor = resolvePiiRedactor(options.piiRedaction);
   const transcriptLines: string[] = [];
   for (const m of messages) {

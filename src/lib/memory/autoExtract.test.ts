@@ -1002,16 +1002,40 @@ describe("extractFacts — PII redaction", () => {
     expect(sent).toContain("[m2]");
   });
 
-  it("numbers placeholders consistently across messages (sequential, not concurrent)", async () => {
-    // One name in two messages has to redact to ONE placeholder: the model needs
-    // to see them as the same person, and de-anonymization needs one mapping.
-    // Redacting the transcript with Promise.all would interleave the redactor's
-    // incrementing numbering and could emit [PERSON_1] on one line and
-    // [PERSON_2] on the other for the same value.
+  it("numbers placeholders in message order (fails under Promise.all)", async () => {
+    // NOT "the same name keeps one placeholder" — that holds under any
+    // interleaving and so guards nothing. `getPlaceholder`
+    // (pii/redactor.ts:200-218) memoises on the trimmed value and returns before
+    // minting, and minting runs synchronously inside `rebuildSpans`, after the
+    // only suspension point (`await this.detectAllSpans`) has resolved. So one
+    // value cannot split across two placeholders however the calls interleave,
+    // and an assertion to that effect passes with `Promise.all` too. That is
+    // exactly what an earlier version of this test asserted, and @usmaneth showed
+    // it stayed green after swapping the loop for `Promise.all` — 57 passed.
+    //
+    // What concurrency actually perturbs is numbering across DISTINCT entities:
+    // sequential gives [PERSON_1]=Dana, [PERSON_2]=Bob, whereas Promise.all with
+    // m2 settling first flips them. De-anonymization survives either way (the map
+    // is internally consistent), but the transcript stops being reproducible for
+    // a given input — which is what snapshotting, prompt diffing and re-running a
+    // bad extraction all depend on. So order is the real guarantee the loop buys,
+    // and this asserts order.
+    //
+    // m1's detector call is delayed so that under `Promise.all` m2 would settle
+    // first and take [PERSON_1]. Sequentially m1 is awaited before m2 begins, so
+    // it cannot.
     const detector: NerDetector = {
       detect: async (text: string): Promise<PiiSpan[]> => {
-        const at = text.indexOf("Dana");
-        return at === -1 ? [] : [{ start: at, end: at + 4, category: "PERSON" }];
+        for (const [name, delayMs] of [
+          ["Dana", 10],
+          ["Bob", 0],
+        ] as const) {
+          const at = text.indexOf(name);
+          if (at === -1) continue;
+          if (delayMs > 0) await new Promise((resolve) => setTimeout(resolve, delayMs));
+          return [{ start: at, end: at + name.length, category: "PERSON" }];
+        }
+        return [];
       },
     };
     const { fetchFn, bodies } = capturingFetch(JSON.stringify({ candidates: [] }));
@@ -1019,17 +1043,17 @@ describe("extractFacts — PII redaction", () => {
     await extractFacts(
       [
         { id: "m1", role: "user", content: "Dana is my sister." },
-        { id: "m2", role: "user", content: "Dana lives in Denver." },
+        { id: "m2", role: "user", content: "Bob lives in Denver." },
       ],
       { apiKey: "k", fetchFn, piiRedaction: new PiiRedactor({ nerDetector: detector }) }
     );
 
     const sent = transcriptOf(bodies);
     expect(sent).not.toContain("Dana");
-    // Both lines carry the SAME placeholder — one value, one mapping.
-    const occurrences = sent.match(/\[PERSON_\d+\]/g) ?? [];
-    expect(occurrences).toHaveLength(2);
-    expect(new Set(occurrences).size).toBe(1);
+    expect(sent).not.toContain("Bob");
+    // Dana is first in the message list, so Dana is PERSON_1.
+    expect(sent).toContain("[m1] user: [PERSON_1] is my sister.");
+    expect(sent).toContain("[m2] user: [PERSON_2] lives in Denver.");
   });
 
   it("de-anonymizes returned fact content and entities back to the real values", async () => {
