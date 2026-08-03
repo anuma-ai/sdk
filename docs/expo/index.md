@@ -430,6 +430,12 @@ Re-exports [CreateMessageOptions](../react/Internal/interfaces/CreateMessageOpti
 
 ***
 
+### createMessageSourceResolver
+
+Re-exports [createMessageSourceResolver](../react/Internal/functions/createMessageSourceResolver.md)
+
+***
+
 ### createPlatformCursorStore
 
 Re-exports [createPlatformCursorStore](../react/Internal/functions/createPlatformCursorStore.md)
@@ -1048,6 +1054,12 @@ Re-exports [MemoryQuarantinedEvent](../react/Internal/interfaces/MemoryQuarantin
 
 ***
 
+### MemoryToVerify
+
+Re-exports [MemoryToVerify](../react/Internal/type-aliases/MemoryToVerify.md)
+
+***
+
 ### MemoryVaultSearchOptions
 
 Re-exports [MemoryVaultSearchOptions](../react/Internal/interfaces/MemoryVaultSearchOptions.md)
@@ -1057,6 +1069,12 @@ Re-exports [MemoryVaultSearchOptions](../react/Internal/interfaces/MemoryVaultSe
 ### MemoryVaultToolOptions
 
 Re-exports [MemoryVaultToolOptions](../react/Internal/interfaces/MemoryVaultToolOptions.md)
+
+***
+
+### MemoryVerification
+
+Re-exports [MemoryVerification](../react/Internal/type-aliases/MemoryVerification.md)
 
 ***
 
@@ -1750,6 +1768,18 @@ Re-exports [TurnSkippedEvent](../react/Internal/interfaces/TurnSkippedEvent.md)
 
 ***
 
+### UncheckedReason
+
+Re-exports [UncheckedReason](../react/Internal/type-aliases/UncheckedReason.md)
+
+***
+
+### UnverifiableReason
+
+Re-exports [UnverifiableReason](../react/Internal/type-aliases/UnverifiableReason.md)
+
+***
+
 ### updateVaultFolderContextOp
 
 Re-exports [updateVaultFolderContextOp](../react/Internal/functions/updateVaultFolderContextOp.md)
@@ -1861,6 +1891,24 @@ Re-exports [VaultSaveOperation](../react/Internal/interfaces/VaultSaveOperation.
 ### VaultSearchResult
 
 Re-exports [VaultSearchResult](../react/Internal/interfaces/VaultSearchResult.md)
+
+***
+
+### VerificationSources
+
+Re-exports [VerificationSources](../react/Internal/interfaces/VerificationSources.md)
+
+***
+
+### verifyMemoriesForPublish
+
+Re-exports [verifyMemoriesForPublish](../react/Internal/functions/verifyMemoriesForPublish.md)
+
+***
+
+### VerifyMemoriesForPublishOptions
+
+Re-exports [VerifyMemoriesForPublishOptions](../react/Internal/interfaces/VerifyMemoriesForPublishOptions.md)
 
 ***
 

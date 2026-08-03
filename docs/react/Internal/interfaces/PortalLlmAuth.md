@@ -20,6 +20,7 @@ runtime); `apiKey` takes precedence when both are set.
 * [`ReflectOptions`](ReflectOptions.md)
 * [`SynthesizeProfileOptions`](SynthesizeProfileOptions.md)
 * [`TopicExtractOptions`](TopicExtractOptions.md)
+* [`VerifyMemoriesForPublishOptions`](VerifyMemoriesForPublishOptions.md)
 
 ## Properties
 
