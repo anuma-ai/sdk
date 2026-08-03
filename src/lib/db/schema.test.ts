@@ -162,10 +162,15 @@ describe("sdkMigrations", () => {
     // works on exactly half the fleet.
     const v44 = sdkMigrations.sortedMigrations.find((m) => m.toVersion === 44);
     expect(v44).toBeDefined();
-    const added = (v44?.steps ?? []).flatMap(
-      (step: { table?: string; columns?: { name: string }[] }) =>
-        step.table === "memory_vault" ? (step.columns ?? []).map((c) => c.name) : []
-    );
+    // MigrationStep is a discriminated union (create_table | add_columns | sql),
+    // so it has no structural overlap with an add_columns shape — narrow through
+    // unknown rather than annotating the parameter.
+    const added = (v44?.steps ?? []).flatMap((step) => {
+      const addColumns = step as unknown as { table?: string; columns?: { name: string }[] };
+      return addColumns.table === "memory_vault"
+        ? (addColumns.columns ?? []).map((c) => c.name)
+        : [];
+    });
     expect(added).toContain("media");
 
     const columns = sdkSchema.tables.memory_vault.columns;

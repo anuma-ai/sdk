@@ -39,8 +39,13 @@ export interface StoredVaultMemory {
   /** How the memory was created: manual | auto-extracted | capsule | photo. */
   source: string | null;
   /** The photo(s) a SERVER-EXTRACTED memory was read out of. Null on every
-   * memory that did not come from a photo. See {@link PhotoMediaRef}. */
-  media: PhotoMediaRef[] | null;
+   * memory that did not come from a photo. See {@link PhotoMediaRef}.
+   *
+   * OPTIONAL rather than required: every read path sets it (the row mappers
+   * always call parseMedia), but making it required would be a compile-break
+   * for any caller that CONSTRUCTS a StoredVaultMemory — fixtures, mocks, and
+   * anything downstream — for a field that is null on all but photo rows. */
+  media?: PhotoMediaRef[] | null;
   /** W6 temporal lane — Unix ms when the event occurred (point/start of range). */
   eventTimeStart: number | null;
   /** W6 temporal lane — Unix ms when the event ended (range only). */
