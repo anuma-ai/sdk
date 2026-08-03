@@ -323,12 +323,44 @@ export async function extractFacts(
   // then de-anonymize the returned facts so the vault keeps real values. Only
   // the message *content* is redacted — the `[id]` provenance markers stay
   // intact so `sourceMessageIds` still validates against the original ids.
+  //
+  // NER-aware (#830's fifth path, deferred from #836 to avoid a conflict).
+  // `redactTextAsync` merges a configured detector's person/location/org spans
+  // with the regex matches; with no detector it returns `redactText` directly, so
+  // the default path is unchanged and pays nothing. This is the highest-volume
+  // LLM egress in the SDK — the whole recent transcript, on every extracting turn
+  // — so it was the worst one to leave regex-only.
+  //
+  // SEQUENTIAL, not `Promise.all` — for DETERMINISM, not correctness.
+  //
+  // The tempting justification is wrong and worth writing down so nobody
+  // re-derives it: one value can NOT split across two placeholders under
+  // concurrency. `getPlaceholder` (pii/redactor.ts) memoises on the trimmed value
+  // and returns any existing placeholder before minting, and minting runs
+  // synchronously inside `rebuildSpans` — after `redactTextAsync`'s only
+  // suspension point (`await detectAllSpans`) has already resolved. So the mint
+  // sequence for one message is atomic against other in-flight calls, and
+  // de-anonymization round-trips whatever the interleaving.
+  //
+  // What concurrency does perturb is numbering across DISTINCT entities:
+  // sequentially Dana-then-Bob yields [PERSON_1]=Dana, [PERSON_2]=Bob, while
+  // `Promise.all` hands [PERSON_1] to whichever detector call settles first. The
+  // map stays internally consistent, but the transcript stops being reproducible
+  // for a given input — and snapshotting, diffing two prompts, and re-running a
+  // bad extraction all depend on that. Hence the loop.
+  //
+  // Pinned by "numbers placeholders in message order", which fails under
+  // `Promise.all`. Credit to @usmaneth for catching that the previous test — and
+  // the previous version of this comment — asserted the unreachable failure mode
+  // and so held no line.
   const redactor = resolvePiiRedactor(options.piiRedaction);
-  const transcript = messages
-    .map(
-      (m) => `[${m.id}] ${m.role}: ${redactor ? redactor.redactText(m.content).text : m.content}`
-    )
-    .join("\n");
+  const transcriptLines: string[] = [];
+  for (const m of messages) {
+    // Only the message *content* is redacted — see the note above on `[id]`.
+    const content = redactor ? (await redactor.redactTextAsync(m.content)).text : m.content;
+    transcriptLines.push(`[${m.id}] ${m.role}: ${content}`);
+  }
+  const transcript = transcriptLines.join("\n");
   // Anchor relative temporal phrases. The transcript has no timestamps, so
   // without this the model dates "yesterday"/"next week" against its own
   // training-cutoff guess (see ExtractFactsOptions.now). Local-midnight basis

@@ -2,7 +2,7 @@
 
 > **extractAndRetain**(`messages`: [`AutoExtractMessage`](../interfaces/AutoExtractMessage.md)\[], `retainCtx`: [`RetainContext`](../interfaces/RetainContext.md), `options`: `object`): `Promise`<{ `candidates`: [`ExtractedCandidate`](../interfaces/ExtractedCandidate.md)\[]; `failedCount`: `number`; `outcome`: [`ExtractOutcome`](../type-aliases/ExtractOutcome.md); `quarantined`: [`QuarantinedMemoryInfo`](../interfaces/QuarantinedMemoryInfo.md)\[]; `results`: [`RetainResult`](../interfaces/RetainResult.md)\[]; }>
 
-Defined in: [src/lib/memory/autoExtract.ts:473](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#473)
+Defined in: [src/lib/memory/autoExtract.ts:505](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#505)
 
 Stage 2 — for each extracted candidate, call retain() with auto-merge
 enabled. When `consolidateOptions` are wired, retain()'s consolidation pass
