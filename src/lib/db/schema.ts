@@ -102,8 +102,11 @@ import { VaultFolder } from "./vaultFolders/models";
  *   conversation list read filters is_deleted and orders by created_at DESC,
  *   which previously meant a temp B-tree sort of the whole live set on every
  *   read. Structural only — no column added, no data rewritten
+ * - v44: Added `media` to memory_vault — the photo(s) a server-extracted
+ *   memory came from, as JSON `[{feed_item_id, object_key}]`. Null on every
+ *   row that did not come from a photo, which is all of them before this
  */
-export const SDK_SCHEMA_VERSION = 43;
+export const SDK_SCHEMA_VERSION = 44;
 
 /**
  * Combined WatermelonDB schema for all SDK storage modules.
@@ -271,6 +274,18 @@ export const sdkSchema = appSchema({
         // paths key on `updated_at` — so without this a topic-only change would
         // neither upload nor merge. Null = `topics` never written.
         { name: "topics_updated_at", type: "number", isOptional: true },
+        // The photo(s) a SERVER-EXTRACTED memory was read out of, as a JSON
+        // array of `{feed_item_id, object_key}` — exactly what
+        // GET /api/memories/published returns in `media[]`. Enough to render the
+        // source image without a second round-trip per memory.
+        //
+        // A JSON column rather than a join table: nothing on the client ever
+        // queries BY photo (the only direction is memory -> render its image),
+        // so a table would add a sync lane and a local-id space to serve a
+        // question nobody asks. `topics` and `source_chunk_ids` set the
+        // precedent for a list that is only ever read back whole. Null on
+        // anything not extracted from a photo.
+        { name: "media", type: "string", isOptional: true },
         // Unix ms of the last LLM topic-extraction pass over this memory's
         // content. Null = never extracted standalone (legacy rows with entity
         // links are grandfathered — see getMemoriesNeedingTopicExtractionOp).
@@ -1137,6 +1152,20 @@ export const sdkMigrations = schemaMigrations({
         unsafeExecuteSql(
           "CREATE INDEX IF NOT EXISTS conversations_is_deleted_created_at ON conversations (is_deleted, created_at);"
         ),
+      ],
+    },
+    // v43 -> v44: `media` on memory_vault — the photo(s) a server-extracted
+    // memory was read out of, as JSON `[{feed_item_id, object_key}]`, mirroring
+    // the `media[]` that GET /api/memories/published already returns. Existing
+    // rows keep NULL, which is the correct value for every memory that did not
+    // come from a photo (i.e. all of them until photo ingest runs).
+    {
+      toVersion: 44,
+      steps: [
+        addColumns({
+          table: "memory_vault",
+          columns: [{ name: "media", type: "string", isOptional: true }],
+        }),
       ],
     },
   ],

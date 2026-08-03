@@ -22,6 +22,15 @@
  * shared purge buffer for every row, so an already-archived manual memory is
  * still deleted after the window (the archived check runs before the manual
  * short-circuit by design).
+ *
+ * `source === "photo"` (server-extracted photo memories) is protected the same
+ * way, and for a sharper reason than curation: those rows are PUBLISHED, and
+ * auto-archiving one would silently un-publish it. Archived rows drop out of the
+ * default vault read, the publish reconciler builds its desired set from that
+ * read, and anything it previously adopted but no longer sees goes into
+ * `toRevoke` — so an age-archive at the medium TTL would revoke a memory from
+ * the server that the user never switched off. Revoking is the user's decision
+ * and has exactly one entry point: the publish switch.
  */
 
 import { getLogger } from "../logger.js";
@@ -35,6 +44,15 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 export const SHORT_TTL_MS = 30 * DAY_MS;
 /** Medium TTL — `other` / untyped rows age out ~180 days after last touch. */
 export const MEDIUM_TTL_MS = 180 * DAY_MS;
+
+/**
+ * `source` value carried by memories the SERVER extracted from an uploaded
+ * photo (anuma-ai/nearby#114). Distinct from "manual" (the user typed it) and
+ * from "auto-extracted" (this device read it out of a conversation), because it
+ * is the only source whose rows are born already published — which is what earns
+ * it the auto-archive exemption above.
+ */
+export const SOURCE_PHOTO = "photo";
 /**
  * "Never" TTL — durable identity-class types (identity/preference/relationship/
  * constraint) never age-archive. Expressed as +Infinity so the age comparison
@@ -216,7 +234,10 @@ export function classifyDecay(
   }
 
   // (2) Manual saves are protected from AUTO-ARCHIVE only (never reach 3/4).
-  if (m.source === "manual") return "keep";
+  // Photo-extracted memories join them: they are published, and archiving one
+  // would drop it from the reconciler's desired set and silently revoke it
+  // server-side (see the header). Only the user's switch may unpublish.
+  if (m.source === "manual" || m.source === SOURCE_PHOTO) return "keep";
 
   // (3/4) "Becomes past" types: event-driven staleness. Keyed on event_time_end
   // (an ongoing status with no end is still ongoing → skipped here).
