@@ -25,20 +25,15 @@ const BULK_ENDPOINT = "https://registry.npmjs.org/-/npm/v1/security/advisories/b
  * Fields: `id` (GHSA), `package`, `reason`, `expires` (YYYY-MM-DD, UTC).
  */
 const ALLOWLIST = [
-  {
-    id: "GHSA-mh99-v99m-4gvg",
-    package: "brace-expansion",
-    expires: "2026-10-01",
-    reason:
-      "DoS via unbounded expansion; affects <=5.0.7, and 5.0.8 is the ONLY patched release. " +
-      "The copies we resolve are the 1.x/2.x maintenance lines (1.1.16 / 2.1.2 — already the " +
-      "newest of each major via pnpm.overrides), required by minimatch@3 / minimatch@5 under " +
-      "exceljs -> archiver -> glob and react-native -> @react-native/codegen -> glob. " +
-      "Overriding to 5.0.8 breaks them: it ships a namespace CJS export, so minimatch@3's " +
-      "`require('brace-expansion')(pattern)` throws `TypeError: expand is not a function` " +
-      "(verified locally). Clears when exceljs/react-native move off glob@7, or when the " +
-      "1.x/2.x lines get a backport.",
-  },
+  // Empty. The brace-expansion DoS entry (GHSA-mh99-v99m-4gvg) was removed once
+  // the 1.x/2.x maintenance lines got the backport its own reason was waiting on
+  // — 1.1.18 / 2.1.4 patch both that advisory and GHSA-rgw5-rvv9-x895, and the
+  // pnpm.overrides now pin those. The audit reported the entry as matching no
+  // finding, which is the signal to delete rather than extend.
+  //
+  // Keep it empty when you can. An allowlist entry is a time-boxed admission that
+  // a known-vulnerable version ships; the exit condition belongs in `reason` so a
+  // later reader knows what to re-check, as that one did.
 ];
 
 function collectPackages() {
