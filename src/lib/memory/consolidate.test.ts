@@ -120,6 +120,46 @@ describe("consolidateMemory", () => {
     });
   });
 
+  it("routes the consolidation call to an endpointOverride", async () => {
+    // Consolidation runs inside `retain()` on the SAME background turn as
+    // extraction, so routing only extraction to the internal-utility twin would
+    // leave this call still rejected by the abuse gate for free-tier accounts —
+    // the turn would extract facts and then fail to dedup them.
+    // See zeta-chain/ai-memoryless-client#5536.
+    const fetchFn = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => choices({ action: "create", content: "new fact" }),
+    }) as unknown as typeof fetch;
+
+    await consolidateMemory("new fact", candidates, {
+      apiKey: "k",
+      baseUrl: "https://portal.test",
+      endpointOverride: "/api/v1/utility/chat/completions",
+      fetchFn,
+    });
+
+    expect((fetchFn as unknown as { mock: { calls: unknown[][] } }).mock.calls[0][0]).toBe(
+      "https://portal.test/api/v1/utility/chat/completions"
+    );
+  });
+
+  it("posts to the default chat-completions path when no override is given", async () => {
+    const fetchFn = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => choices({ action: "create", content: "new fact" }),
+    }) as unknown as typeof fetch;
+
+    await consolidateMemory("new fact", candidates, {
+      apiKey: "k",
+      baseUrl: "https://portal.test",
+      fetchFn,
+    });
+
+    expect((fetchFn as unknown as { mock: { calls: unknown[][] } }).mock.calls[0][0]).toBe(
+      "https://portal.test/api/v1/chat/completions"
+    );
+  });
+
   it("degrades to create when supersede omits a valid targetId", async () => {
     // Missing/invalid targetId is a schema violation → terminal degrade to
     // create (never silently retire an unknown row).

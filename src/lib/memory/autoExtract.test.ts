@@ -964,6 +964,46 @@ describe("extractFacts — PII redaction", () => {
   // redacted with the regex-only `redactText`, so a caller who configured a
   // detector still shipped person/location/org names in clear while emails and
   // phones looked masked.
+  it("routes the extraction call to an endpointOverride", async () => {
+    // NOT cosmetic. On the default `/api/v1/chat/completions` the portal's
+    // programmatic-abuse gate rejects this exact model for free-tier accounts —
+    // every production `action: reject` carried
+    // `requested_model: gpt-oss/gpt-oss-120b` while the same user's foreground
+    // chat model was allowed. Extraction 403'd on every turn for every basic-tier
+    // user, so free accounts never got memories at all. Routing to the
+    // internal-utility twin is the fix; this pins that the path actually moves.
+    // See zeta-chain/ai-memoryless-client#5536.
+    const fetchFn = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ choices: [{ message: { content: '{"candidates":[]}' } }] }),
+    }) as unknown as typeof fetch;
+
+    await extractFacts(messages, {
+      apiKey: "k",
+      baseUrl: "https://portal.test",
+      endpointOverride: "/api/v1/utility/chat/completions",
+      fetchFn,
+    });
+
+    expect((fetchFn as unknown as { mock: { calls: unknown[][] } }).mock.calls[0][0]).toBe(
+      "https://portal.test/api/v1/utility/chat/completions"
+    );
+  });
+
+  it("posts to the default chat-completions path when no override is given", async () => {
+    // The other half: a caller that does not opt in must be unchanged.
+    const fetchFn = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ choices: [{ message: { content: '{"candidates":[]}' } }] }),
+    }) as unknown as typeof fetch;
+
+    await extractFacts(messages, { apiKey: "k", baseUrl: "https://portal.test", fetchFn });
+
+    expect((fetchFn as unknown as { mock: { calls: unknown[][] } }).mock.calls[0][0]).toBe(
+      "https://portal.test/api/v1/chat/completions"
+    );
+  });
+
   it("applies a configured NER detector to the transcript", async () => {
     const detector: NerDetector = {
       detect: async (text: string): Promise<PiiSpan[]> => {

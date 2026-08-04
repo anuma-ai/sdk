@@ -215,6 +215,25 @@ export interface QuarantinedMemoryInfo {
  */
 export interface ExtractFactsOptions extends PortalLlmAuth {
   baseUrl?: string;
+  /**
+   * Optional per-call request path override, forwarded to
+   * {@link callPortalJsonCompletion}. When set, extraction POSTs to
+   * `baseUrl + endpointOverride` instead of the default
+   * `/api/v1/chat/completions` — path only, body unchanged.
+   *
+   * NOT cosmetic. This is background, markerless, first-party work the user never
+   * asked for and cannot see, and on the default path the portal's
+   * programmatic-abuse gate rejects it: in production every
+   * `action: reject` carried `requested_model: gpt-oss/gpt-oss-120b` (this
+   * model) for `tier: basic`, while the same user's foreground chat model was
+   * allowed. Extraction 403'd on every turn for every free-tier user, retried,
+   * exhausted, and reported `empty-after-retry` — so free accounts never got
+   * memories at all. Callers route this to the internal-utility twin, which is
+   * exempt. See zeta-chain/ai-memoryless-client#5536.
+   *
+   * Invalid values throw at call time (see {@link validateEndpointOverride}).
+   */
+  endpointOverride?: string;
   model?: string;
   /** Override the global fetch implementation (useful for tests). */
   fetchFn?: typeof fetch;
@@ -370,6 +389,9 @@ export async function extractFacts(
     ...(options.apiKey !== undefined && { apiKey: options.apiKey }),
     ...(options.getToken !== undefined && { getToken: options.getToken }),
     ...(options.baseUrl !== undefined && { baseUrl: options.baseUrl }),
+    ...(options.endpointOverride !== undefined && {
+      endpointOverride: options.endpointOverride,
+    }),
     model: options.model ?? DEFAULT_EXTRACTION_MODEL,
     systemPrompt: SYSTEM_PROMPT,
     userMessage: `Today's date is ${today}. Resolve any relative dates ("yesterday", "next week") against it.\n\nRecent conversation:\n${transcript}\n\nExtract durable user facts.`,

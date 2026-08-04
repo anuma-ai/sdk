@@ -153,6 +153,17 @@ interface ConsolidationResult {
  * runtime; see {@link PortalLlmAuth}. */
 interface ConsolidateOptions extends PortalLlmAuth {
   baseUrl?: string;
+  /**
+   * Optional per-call request path override, forwarded to
+   * {@link callPortalJsonCompletion}. Same reason as
+   * {@link ExtractFactsOptions.endpointOverride}: consolidation runs inside
+   * `retain()` on the SAME background turn as extraction, so routing only
+   * extraction to the internal-utility twin would leave this call still being
+   * rejected by the programmatic-abuse gate for free-tier accounts — the turn
+   * would then extract facts and fail to dedup them.
+   * See zeta-chain/ai-memoryless-client#5536.
+   */
+  endpointOverride?: string;
   model?: string;
   /** Notified on each degraded fallback. See `RetainOptions.consolidateOptions.onFallback`. */
   onFallback?: (reason: ConsolidationFallbackReason) => void;
@@ -240,6 +251,9 @@ export async function consolidateMemory(
       ...(options.apiKey !== undefined && { apiKey: options.apiKey }),
       ...(options.getToken !== undefined && { getToken: options.getToken }),
       ...(options.baseUrl !== undefined && { baseUrl: options.baseUrl }),
+      ...(options.endpointOverride !== undefined && {
+        endpointOverride: options.endpointOverride,
+      }),
       model: options.model ?? DEFAULT_CONSOLIDATION_MODEL,
       systemPrompt: SYSTEM_PROMPT,
       userMessage,

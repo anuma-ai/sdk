@@ -442,6 +442,15 @@ export interface RetainOptions {
    */
   consolidateOptions?: PortalLlmAuth & {
     baseUrl?: string;
+    /**
+     * Per-call request path override for the consolidation LLM call. Route this
+     * to the internal-utility twin for background work: on the default path the
+     * portal's programmatic-abuse gate rejects free-tier accounts, and since
+     * consolidation runs inside `retain()` on the same turn as extraction,
+     * overriding only extraction leaves this one rejected.
+     * See zeta-chain/ai-memoryless-client#5536.
+     */
+    endpointOverride?: string;
     model?: string;
     /**
      * Invoked when the consolidator degrades to its "create" fallback
