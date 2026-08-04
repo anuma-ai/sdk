@@ -2,7 +2,7 @@
 
 > **previewToolSelection**(`options`: `object`): `Promise`<{ `clientToolNames`: `string`\[]; `serverToolNames`: `string`\[]; }>
 
-Defined in: [src/react/useChatStorage.ts:207](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#207)
+Defined in: [src/react/useChatStorage.ts:203](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#203)
 
 Preview which tools `useChatStorage` will include for a given prompt,
 without making the actual chat request.

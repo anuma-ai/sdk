@@ -10,6 +10,7 @@ import type {
   FileMetadata,
   MessageChunk,
   MessageFeedback,
+  MessageOrigin,
   SearchSource,
 } from "./types";
 
@@ -48,6 +49,8 @@ export class Message extends Model {
   @text("feedback") feedback?: MessageFeedback;
   @json("tool_call_events", (raw: unknown) => raw as LlmapiToolCallEvent[])
   toolCallEvents?: LlmapiToolCallEvent[];
+  /** Plaintext by design — see MessageOrigin */
+  @text("origin") origin?: MessageOrigin;
 }
 
 export class Conversation extends Model {

@@ -1,15 +1,15 @@
 # SendMessageWithStorageResult
 
-> **SendMessageWithStorageResult** = { `assistantMessage`: [`StoredMessage`](../interfaces/StoredMessage.md); `autoExecutedToolResults?`: `object`\[]; `data`: `ApiResponse`; `error`: `null`; `toolResultsMessage?`: [`StoredMessage`](../interfaces/StoredMessage.md); `userMessage`: [`StoredMessage`](../interfaces/StoredMessage.md); } | { `assistantMessage?`: `undefined`; `data`: `ApiResponse`; `error`: `null`; `skipped`: `true`; `userMessage?`: `undefined`; } | { `assistantMessage?`: `undefined`; `data`: `null`; `error`: `string`; `userMessage?`: [`StoredMessage`](../interfaces/StoredMessage.md); }
+> **SendMessageWithStorageResult** = { `assistantMessage`: [`StoredMessage`](../interfaces/StoredMessage.md); `autoExecutedToolResults?`: `object`\[]; `data`: `ApiResponse`; `error`: `null`; `userMessage`: [`StoredMessage`](../interfaces/StoredMessage.md); } | { `assistantMessage?`: `undefined`; `data`: `ApiResponse`; `error`: `null`; `skipped`: `true`; `userMessage?`: `undefined`; } | { `assistantMessage?`: `undefined`; `data`: `null`; `error`: `string`; `userMessage?`: [`StoredMessage`](../interfaces/StoredMessage.md); }
 
-Defined in: [src/react/useChatStorage.ts:741](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#741)
+Defined in: [src/react/useChatStorage.ts:737](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#737)
 
 Result from sendMessage with storage (React version)
 The `data` field contains the raw server response which includes `tools_checksum`.
 
 ## Type Declaration
 
-{ `assistantMessage`: [`StoredMessage`](../interfaces/StoredMessage.md); `autoExecutedToolResults?`: `object`\[]; `data`: `ApiResponse`; `error`: `null`; `toolResultsMessage?`: [`StoredMessage`](../interfaces/StoredMessage.md); `userMessage`: [`StoredMessage`](../interfaces/StoredMessage.md); }
+{ `assistantMessage`: [`StoredMessage`](../interfaces/StoredMessage.md); `autoExecutedToolResults?`: `object`\[]; `data`: `ApiResponse`; `error`: `null`; `userMessage`: [`StoredMessage`](../interfaces/StoredMessage.md); }
 
 ### assistantMessage
 
@@ -28,14 +28,6 @@ Results from tools that were auto-executed by the SDK (e.g. display tools)
 ### error
 
 > **error**: `null`
-
-### toolResultsMessage?
-
-> `optional` **toolResultsMessage**: [`StoredMessage`](../interfaces/StoredMessage.md)
-
-The synthetic `[Tool Execution Results]` row those results were persisted as, so a caller can
-key its transient overlay on the id the SDK actually wrote instead of deriving one (#5519).
-Absent when no tool ran, or when that (non-fatal) write failed.
 
 ### userMessage
 

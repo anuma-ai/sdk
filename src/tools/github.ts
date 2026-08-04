@@ -182,7 +182,10 @@ IMPORTANT: For write operations (POST, PUT, PATCH, DELETE), always confirm with 
         // Parse JSON if possible, otherwise return raw text
         try {
           const data: unknown = JSON.parse(text);
-          const json = JSON.stringify(data, null, 2);
+          // Deliberately unindented: this is model input, not human-read. Indentation is ~12% of a
+          // repo listing (measured on a real 61-repo response), and that share is spent on
+          // whitespace instead of data the truncation below would otherwise keep. See issue #863.
+          const json = JSON.stringify(data);
           return truncate(json, MAX_RESPONSE_SIZE);
         } catch {
           return truncate(text, MAX_RESPONSE_SIZE);

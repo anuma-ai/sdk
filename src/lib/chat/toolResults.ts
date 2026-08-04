@@ -35,21 +35,6 @@ interface ToolResultSegment {
 
 const TOOL_LINE = /^Tool "([^"]+)" returned: (.*)$/;
 
-/**
- * Content for the row: one `Tool "<name>" returned: <json>` line per result.
- *
- * The trailing instruction is part of the format on purpose — the row is a `role: "user"` message, so
- * a model that is handed it back reads it as an instruction to continue rather than as a new request.
- */
-export function buildToolResultsContent(
-  results: readonly { name: string; result: unknown }[]
-): string {
-  const summary = results
-    .map((r) => `Tool "${r.name}" returned: ${JSON.stringify(r.result)}`)
-    .join("\n\n");
-  return `${TOOL_RESULTS_PREFIX}\n\n${summary}\n\nBased on these results, continue with the task.`;
-}
-
 /** A stored row's minimal shape — structural so both `StoredMessage` and plain pairs satisfy it. */
 interface ToolResultsRowLike {
   role: string;
@@ -65,8 +50,11 @@ interface ToolResultsRowLike {
  * The prefix alone is not enough: a person can type or paste "[Tool Execution Results]" into the
  * composer, and treating that as synthetic would fold their words into the previous assistant turn or
  * drop them outright. A real synthetic always carries at least one `Tool "<name>" returned: …` line —
- * `buildToolResultsContent` is only called with a non-empty result list — so requiring one keeps a
+ * `buildToolResultContent` is only called with a non-empty result list — so requiring one keeps a
  * human's message a human's message.
+ *
+ * The `origin: "tool_result"` column added in v44 (#866) is the stronger signal, but it is absent on
+ * every row written before then, so the shape check stays as the fallback rather than being replaced.
  */
 export function isToolResultsRow(row: ToolResultsRowLike): boolean {
   if (row.role !== "user" || !row.content.startsWith(TOOL_RESULTS_PREFIX)) return false;

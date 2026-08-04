@@ -8,8 +8,8 @@
 
 import { describe, expect, it } from "vitest";
 
+import { buildToolResultContent } from "./toolResultMessage";
 import {
-  buildToolResultsContent,
   DISPLAY_CARD_PLACEHOLDER,
   foldToolResultsRows,
   isToolResultsRow,
@@ -28,7 +28,7 @@ function row(role: string, content: string) {
 }
 
 function toolRow(results: { name: string; result: unknown }[]) {
-  return row("user", buildToolResultsContent(results));
+  return row("user", buildToolResultContent(results));
 }
 
 describe("isToolResultsRow", () => {
@@ -57,7 +57,7 @@ describe("isToolResultsRow", () => {
 
 describe("parseToolResultSegments", () => {
   it("reads one segment per tool, whichever newline style wrote the row", () => {
-    const sdkRow = buildToolResultsContent([
+    const sdkRow = buildToolResultContent([
       { name: "search_people_nearby", result: searchResult },
       { name: "display_people_map", result: cardResult },
     ]);

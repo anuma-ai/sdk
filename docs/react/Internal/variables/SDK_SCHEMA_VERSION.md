@@ -1,8 +1,8 @@
 # SDK\_SCHEMA\_VERSION
 
-> `const` **SDK\_SCHEMA\_VERSION**: `43` = `43`
+> `const` **SDK\_SCHEMA\_VERSION**: `44` = `44`
 
-Defined in: [src/lib/db/schema.ts:106](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/schema.ts#106)
+Defined in: [src/lib/db/schema.ts:118](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/schema.ts#118)
 
 Current combined schema version for all SDK storage modules.
 
@@ -86,3 +86,15 @@ Version history:
   conversation list read filters is\_deleted and orders by created\_at DESC,
   which previously meant a temp B-tree sort of the whole live set on every
   read. Structural only — no column added, no data rewritten
+* v44: Added origin column to history — provenance of a row, set by the
+  producer that synthesised it (`tool_result` = the hidden
+  `[Tool Execution Results]` message written from autoExecutedToolResults).
+  The embedding sweep skips those rows: they are machine-readable API dumps
+  that are never rendered, and chunking one cost 52 MB of vectors (620
+  chunks) against 0.2 MB of content. A content-prefix test cannot do this
+  job — `content` is `enc:v3:` ciphertext by the time the sweep reads it, so
+  provenance has to be recorded at write time. Deliberately NOT encrypted:
+  the sweep that must honour it runs with no wallet context, and an
+  unreadable flag would fail open. Existing rows stay NULL (= legacy,
+  unknown provenance, embedded as before) with no backfill, matching the v37
+  read-time-fallback precedent

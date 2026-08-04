@@ -14,11 +14,8 @@ import {
   DEFAULT_SUMMARY_TOKEN_THRESHOLD,
   maybeSummarizeHistory,
 } from "../lib/chat/summarize";
-import {
-  buildToolResultsContent,
-  DISPLAY_CARD_PLACEHOLDER,
-  foldToolResultsRows,
-} from "../lib/chat/toolResults";
+import { buildToolResultContent } from "../lib/chat/toolResultMessage";
+import { DISPLAY_CARD_PLACEHOLDER, foldToolResultsRows } from "../lib/chat/toolResults";
 import { type ApiType, resolveApiType } from "../lib/chat/useChat";
 import {
   type ApiResponse,
@@ -3352,14 +3349,18 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         | undefined;
       let storedToolResultsMessage: StoredMessage | undefined;
       if (autoToolResults && autoToolResults.length > 0) {
-        // Shared with the expo entry so the two rows stay byte-identical — the format is a contract
-        // the clients parse cards out of (#5519).
+        // One opts object, shared by all three payloads AND with the expo entry: the queued write
+        // replays through createMessageOp and the synthetic message stands in for the row until it
+        // does, so a field set on only one path is lost on the others (that is why `origin` lives
+        // here rather than being repeated). Byte-identical output across the two entries also
+        // matters because the format is a contract the clients parse cards out of (#5519).
         const toolResultsOpts = {
           conversationId: convId,
           role: "user" as const,
-          content: buildToolResultsContent(autoToolResults),
+          content: buildToolResultContent(autoToolResults),
           model: "",
           parentMessageId: storedAssistantMessage.uniqueId,
+          origin: "tool_result" as const,
         };
         try {
           const toolResultsWrite = await writeOrQueue(

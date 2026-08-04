@@ -17,11 +17,8 @@ import {
   DEFAULT_SUMMARY_TOKEN_THRESHOLD,
   maybeSummarizeHistory,
 } from "../lib/chat/summarize";
-import {
-  buildToolResultsContent,
-  DISPLAY_CARD_PLACEHOLDER,
-  foldToolResultsRows,
-} from "../lib/chat/toolResults";
+import { buildToolResultContent } from "../lib/chat/toolResultMessage";
+import { DISPLAY_CARD_PLACEHOLDER, foldToolResultsRows } from "../lib/chat/toolResults";
 import { type ApiType, resolveApiType, type RunToolLoopResult } from "../lib/chat/useChat";
 import {
   type ApiResponse,
@@ -2747,12 +2744,19 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         | undefined;
       let storedToolResultsMessage: StoredMessage | undefined;
       if (autoToolResults && autoToolResults.length > 0) {
+        // `buildToolResultContent` (not a local copy) so the expo row is byte-identical to the react
+        // one — the format is a contract the clients parse cards out of — and so this row inherits
+        // the same MAX_PERSISTED_TOOL_RESULT_CHARS cap (#866). `origin` sits on the shared opts
+        // object because all three payloads below reuse it: the queued write replays through
+        // createMessageOp and the synthetic stands in until it does, so tagging one path loses it
+        // on the others. It is also what keeps the row out of the embedding sweep.
         const toolResultsOpts: CreateMessageOptions = {
           conversationId: convId,
           role: "user",
-          content: buildToolResultsContent(autoToolResults),
+          content: buildToolResultContent(autoToolResults),
           model: "",
           parentMessageId: storedAssistantMessage.uniqueId,
+          origin: "tool_result",
         };
         try {
           const toolResultsWrite = await writeOrQueue(

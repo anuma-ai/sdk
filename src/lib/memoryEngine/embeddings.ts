@@ -46,6 +46,29 @@ export {
 export const DEFAULT_MIN_CONTENT_LENGTH = 10;
 
 /**
+ * Message provenance that is never indexed, at any of the four entry points
+ * below (sdk#861). All four are public API, so the skip has to be on each of
+ * them rather than only on the ones this repo happens to call: a consumer can
+ * hand any message id to `embedMessage` or `chunkAndEmbedMessage`.
+ *
+ * A turn's auto-executed tool results are persisted as a hidden `role: "user"`
+ * row so later turns and other devices keep the context. That row is a
+ * machine-readable API dump: no UI renders it, and nobody searches for
+ * `assignees_url` templates. The assistant's reply to it IS embedded and is the
+ * searchable summary of the same turn, so skipping the dump costs no recall.
+ *
+ * What it saves is the whole problem. Measured on one real row: 0.21 MB of
+ * content against 52.3 MB of chunk vectors (620 chunks), i.e. 99.6% of a row
+ * that the user cannot see or delete — and one such row was big enough to wedge
+ * the backup uploader in a retry loop.
+ *
+ * Keyed on the plaintext `origin` column rather than a content prefix because
+ * these passes read `content` straight out of the DB, where it is `enc:v3:`
+ * ciphertext: a `startsWith("[Tool Execution Results]")` test can never match.
+ */
+const NON_EMBEDDABLE_ORIGIN = "tool_result";
+
+/**
  * Embed a single message and store the embedding in the database
  *
  * @param ctx - Storage operations context
@@ -67,6 +90,12 @@ export async function embedMessage(
 
   // Skip if already has embedding
   if (message.vector && message.vector.length > 0) {
+    return message;
+  }
+
+  // Skip never-rendered tool-result dumps. Returned unchanged, not thrown: to a
+  // caller this is "nothing to embed here", the same as an already-embedded row.
+  if (message.origin === NON_EMBEDDABLE_ORIGIN) {
     return message;
   }
 
@@ -126,6 +155,11 @@ export async function embedAllMessages(
         continue;
       }
 
+      // Skip never-rendered tool-result dumps
+      if (message.origin === NON_EMBEDDABLE_ORIGIN) {
+        continue;
+      }
+
       // Skip short messages that won't provide useful search context
       const minLength = filter?.minContentLength ?? DEFAULT_MIN_CONTENT_LENGTH;
       if (message.content.length < minLength) {
@@ -177,6 +211,12 @@ export async function chunkAndEmbedMessage(
 
   // Skip if already has chunks
   if (message.chunks && message.chunks.length > 0) {
+    return message;
+  }
+
+  // Skip never-rendered tool-result dumps. Returned unchanged, not thrown: to a
+  // caller this is "nothing to embed here", the same as an already-chunked row.
+  if (message.origin === NON_EMBEDDABLE_ORIGIN) {
     return message;
   }
 
@@ -276,6 +316,10 @@ export async function chunkAndEmbedAllMessages(
       if (hasVector && !filter?.rechunkExisting && !isStale) continue;
       if (filter?.roles && !filter.roles.includes(message.role as "user" | "assistant")) continue;
       if (message.role === "system") continue;
+      // Skip never-rendered tool-result dumps. This is the site that fires in
+      // production: consumers run this sweep on every session mount, and it picks
+      // up any row lacking chunks — which is exactly how each dump grew to 52 MB.
+      if (message.origin === NON_EMBEDDABLE_ORIGIN) continue;
       if (message.content.length < minLength) continue;
 
       if (shouldChunkMessage(message.content, chunkSize)) {
