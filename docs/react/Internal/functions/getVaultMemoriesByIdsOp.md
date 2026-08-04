@@ -2,7 +2,7 @@
 
 > **getVaultMemoriesByIdsOp**(`ctx`: [`VaultMemoryOperationsContext`](../interfaces/VaultMemoryOperationsContext.md), `ids`: `string`\[], `options?`: `object`): `Promise`<[`StoredVaultMemory`](../interfaces/StoredVaultMemory.md)\[]>
 
-Defined in: [src/lib/db/memoryVault/operations.ts:929](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#929)
+Defined in: [src/lib/db/memoryVault/operations.ts:932](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#932)
 
 Bulk-decrypt a KNOWN set of memories by ID — the "decrypt last" half of
 on-demand recall (#5017) for lanes whose size is NOT bounded to the top-N

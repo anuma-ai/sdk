@@ -1,6 +1,6 @@
 # Database Schema
 
-Current version: **v43**
+Current version: **v44**
 
 ```mermaid
 graph LR
@@ -120,6 +120,7 @@ graph LR
 | `topics_user_managed` | boolean |  | ✓ |
 | `topics` | string |  | ✓ |
 | `topics_updated_at` | number |  | ✓ |
+| `media` | string |  | ✓ |
 | `topics_extracted_at` | number |  | ✓ |
 | `superseded_by` | string | ✓ | ✓ |
 | `superseded_at` | number |  | ✓ |
@@ -233,6 +234,7 @@ graph LR
 
 | Version | Changes |
 |---------|---------|
+| v44 | Added `media` to `memory_vault` |
 | v43 | `CREATE INDEX IF NOT EXISTS conversations_is_deleted_created_at ON conversations (is_deleted, created_at);` |
 | v42 | Added `topics`, `topics_updated_at` to `memory_vault` |
 | v41 | Added `visibility`, `twin_opt_in`, `published_at`, `geohash` to `memory_vault` |
