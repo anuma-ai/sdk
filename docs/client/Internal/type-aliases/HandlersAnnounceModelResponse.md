@@ -2,23 +2,15 @@
 
 > **HandlersAnnounceModelResponse** = `object`
 
-Defined in: [src/client/types.gen.ts:1361](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1361)
+Defined in: [src/client/types.gen.ts:1373](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1373)
 
 ## Properties
 
-### delivered\_count?
+### campaign\_id?
 
-> `optional` **delivered\_count**: `number`
+> `optional` **campaign\_id**: `number`
 
-Defined in: [src/client/types.gen.ts:1362](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1362)
-
-***
-
-### error\_count?
-
-> `optional` **error\_count**: `number`
-
-Defined in: [src/client/types.gen.ts:1363](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1363)
+Defined in: [src/client/types.gen.ts:1374](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1374)
 
 ***
 
@@ -26,12 +18,12 @@ Defined in: [src/client/types.gen.ts:1363](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **model\_id**: `string`
 
-Defined in: [src/client/types.gen.ts:1364](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1364)
+Defined in: [src/client/types.gen.ts:1375](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1375)
 
 ***
 
-### pruned\_count?
+### status?
 
-> `optional` **pruned\_count**: `number`
+> `optional` **status**: `string`
 
-Defined in: [src/client/types.gen.ts:1365](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1365)
+Defined in: [src/client/types.gen.ts:1376](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1376)
