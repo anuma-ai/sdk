@@ -123,6 +123,25 @@ export interface RecallOptions {
   /** Vault folder filter. Vault-only. */
   folderId?: string | null;
   /**
+   * Restrict the FACT lane to these vault ids, applied at candidate-load time
+   * so ranking and top-K run inside the set. Vault-only.
+   *
+   * For scoping recall to a set the vault schema can't express — topic
+   * membership, which lives in the `memory_entity` join. The caller resolves
+   * the ids and passes them here rather than post-filtering the result, which
+   * would let top-K be chosen across the whole vault first and return nothing
+   * whenever the scope's memories didn't independently out-rank it.
+   *
+   * An EMPTY array admits nothing; omit for no filter.
+   *
+   * Setting this DROPS the chunk lane, even if `types` asks for it: chunks are
+   * conversation excerpts with no vault row, so an id allow-list cannot narrow
+   * them, and returning them unscoped under a scoping option would be worse
+   * than not scoping at all. The drop is reported as
+   * `"chunk-lane-unscopable"` in {@link RecallDiagnostics.degraded}.
+   */
+  memoryIds?: readonly string[];
+  /**
    * Typed memory (PR1) — restrict fact recall to these FactTypes. Optional
    * and no-op when unset (all types are eligible). Vault-only.
    */
@@ -295,6 +314,15 @@ export type RecallDegradation =
    * up in diagnostics instead of looking healthier than before.
    */
   | "decompose-moved"
+  /**
+   * The caller asked for the chunk lane AND set {@link RecallOptions.memoryIds},
+   * so the chunk lane was dropped. Chunks are conversation excerpts with no
+   * vault row, so an id allow-list cannot narrow them — running the lane would
+   * return unscoped conversation text under an option whose whole purpose is
+   * narrowing. Surfaced rather than silently applied so a caller can see why
+   * `chunkCount` is 0.
+   */
+  | "chunk-lane-unscopable"
   /** There was no usable cosine lane, so results were ranked on BM25 (lexical)
    *  alone: either the query embedding failed (or came back empty), or no
    *  candidate had a vector to score against it because the row (re)embed failed.

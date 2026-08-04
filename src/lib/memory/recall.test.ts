@@ -516,6 +516,54 @@ describe("recall — filters and pass-through", () => {
     });
   });
 
+  it("narrows the candidate LOAD to memoryIds, not the ranked result", async () => {
+    // The whole point: filtering after ranking would let top-K be chosen across
+    // the vault first, so a narrow scope returns nothing whenever its memories
+    // don't independently out-rank everything else.
+    await recall(QUERY, makeCtx(), { memoryIds: ["m1", "m2"] });
+    expect(getAllVaultMemoriesOp).toHaveBeenCalledWith(
+      vaultCtx,
+      expect.objectContaining({ memoryIds: ["m1", "m2"] })
+    );
+  });
+
+  it("forwards an EMPTY memoryIds as a real filter, not as unset", async () => {
+    // An empty allow-list means "nothing is eligible". Dropping it would widen
+    // a deliberate scope back to the whole vault.
+    await recall(QUERY, makeCtx(), { memoryIds: [] });
+    expect(getAllVaultMemoriesOp).toHaveBeenCalledWith(
+      vaultCtx,
+      expect.objectContaining({ memoryIds: [] })
+    );
+  });
+
+  it("drops the chunk lane under memoryIds and says so in diagnostics", async () => {
+    // Chunks are conversation excerpts with no vault row, so an id allow-list
+    // cannot narrow them. Returning them unscoped under a scoping option would
+    // be worse than not scoping at all.
+    let degraded: readonly string[] = [];
+    const result = await recall(QUERY, makeCtx(), {
+      types: ["fact", "chunk"],
+      memoryIds: ["m1"],
+      onDiagnostics: (d) => {
+        degraded = d.degraded;
+      },
+    });
+    expect(degraded).toContain("chunk-lane-unscopable");
+    expect(result.memories.every((m) => m.kind === "fact")).toBe(true);
+  });
+
+  it("leaves the chunk lane alone when no id scope is set", async () => {
+    let degraded: readonly string[] = [];
+    await recall(QUERY, makeCtx(), {
+      types: ["fact", "chunk"],
+      onDiagnostics: (d) => {
+        degraded = d.degraded;
+      },
+    });
+    expect(degraded).not.toContain("chunk-lane-unscopable");
+  });
+
   it("forwards decryptLast through to searchVaultMemoriesWithSize", async () => {
     // decryptLast:true flips searchVaultMemoriesWithSize onto the
     // projected-corpus path (Task 1-5, exercised by searchTool.test.ts),

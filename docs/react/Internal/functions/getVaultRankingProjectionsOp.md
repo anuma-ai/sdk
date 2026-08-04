@@ -2,7 +2,7 @@
 
 > **getVaultRankingProjectionsOp**(`ctx`: [`VaultMemoryOperationsContext`](../interfaces/VaultMemoryOperationsContext.md), `options?`: `object`): `Promise`<[`RankableVaultMemory`](../interfaces/RankableVaultMemory.md)\[]>
 
-Defined in: [src/lib/db/memoryVault/operations.ts:712](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#712)
+Defined in: [src/lib/db/memoryVault/operations.ts:728](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#728)
 
 Return content-free [RankableVaultMemory](../interfaces/RankableVaultMemory.md) projections for recall
 ranking — the "rank first, decrypt last" half of on-demand recall (#5017).

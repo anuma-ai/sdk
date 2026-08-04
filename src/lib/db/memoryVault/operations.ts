@@ -628,6 +628,21 @@ export async function getAllVaultMemoriesOp(
     limit?: number;
     folderId?: string | null;
     /**
+     * Restrict to these ids — the caller's own candidate set, applied at LOAD
+     * time so ranking and top-K happen INSIDE it.
+     *
+     * Exists for topic-scoped recall: topic membership lives in the
+     * `memory_entity` join, which this table can't be filtered on, so the
+     * caller resolves the ids and hands them down. Post-filtering a ranked
+     * result instead is not equivalent — top-K would be chosen across the whole
+     * vault first, and a narrow scope would come back empty whenever its
+     * memories didn't independently win on relevance.
+     *
+     * An EMPTY array is a real value meaning "nothing is eligible" and returns
+     * no rows; omit the option for no filter.
+     */
+    memoryIds?: readonly string[];
+    /**
      * Include soft-deleted memories in the result (each carries
      * `isDeleted: true`). Default `false` — deleted rows are excluded, as
      * they are from every other read path. Used by the Memory Graph to
@@ -659,6 +674,7 @@ export async function getAllVaultMemoriesOp(
     ...(options?.scopes?.length ? [Q.where("scope", Q.oneOf(options.scopes))] : []),
     ...visibilityConditions(options?.visibility),
     ...(options?.folderId !== undefined ? [Q.where("folder_id", options.folderId)] : []),
+    ...(options?.memoryIds !== undefined ? [Q.where("id", Q.oneOf([...options.memoryIds]))] : []),
     ...(options?.factTypes?.length ? [Q.where("fact_type", Q.oneOf(options.factTypes))] : []),
     Q.sortBy(options?.since ? "updated_at" : "created_at", Q.desc),
     ...(options?.limit !== null && options?.limit !== undefined && options.limit > 0
@@ -786,6 +802,13 @@ export async function getVaultCandidateKeysOp(
     scopes?: string[];
     folderId?: string | null;
     /**
+     * Restrict to these ids. See {@link getAllVaultMemoriesOp} — the two paths
+     * must admit the same candidate set for the same query, so this filter has
+     * to exist on both or topic-scoped recall becomes path-dependent the way
+     * `factTypes` once was (#779).
+     */
+    memoryIds?: readonly string[];
+    /**
      * Typed memory (PR1) — restrict to these fact types. Omit for no filter.
      * MUST stay in step with `getAllVaultMemoriesOp`: this op backs the
      * decrypt-last search path, and the two paths are meant to return the same
@@ -820,6 +843,12 @@ export async function getVaultCandidateKeysOp(
       clauses.push(options.folderId === null ? '"folder_id" is null' : '"folder_id" = ?');
       if (options.folderId !== null) args.push(options.folderId);
     }
+    if (options?.memoryIds !== undefined) {
+      // An empty allow-list must match nothing, and `in ()` is a syntax error.
+      if (options.memoryIds.length === 0) return [];
+      clauses.push(`"id" in (${options.memoryIds.map(() => "?").join(",")})`);
+      args.push(...options.memoryIds);
+    }
     if (options?.factTypes?.length) {
       clauses.push(`"fact_type" in (${options.factTypes.map(() => "?").join(",")})`);
       args.push(...options.factTypes);
@@ -846,6 +875,7 @@ export async function getVaultCandidateKeysOp(
       }),
       ...(options?.scopes?.length ? [Q.where("scope", Q.oneOf(options.scopes))] : []),
       ...(options?.folderId !== undefined ? [Q.where("folder_id", options.folderId)] : []),
+      ...(options?.memoryIds !== undefined ? [Q.where("id", Q.oneOf([...options.memoryIds]))] : []),
       ...(options?.factTypes?.length ? [Q.where("fact_type", Q.oneOf(options.factTypes))] : []),
     ];
     const rows = (await ctx.vaultMemoryCollection.query(...conditions).unsafeFetchRaw()) as Record<

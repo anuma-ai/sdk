@@ -176,6 +176,34 @@ Used by a "memory history" view to render retired facts.
 <tr>
 <td>
 
+`options.memoryIds?`
+
+</td>
+<td>
+
+readonly `string`\[]
+
+</td>
+<td>
+
+Restrict to these ids — the caller's own candidate set, applied at LOAD
+time so ranking and top-K happen INSIDE it.
+
+Exists for topic-scoped recall: topic membership lives in the
+`memory_entity` join, which this table can't be filtered on, so the
+caller resolves the ids and hands them down. Post-filtering a ranked
+result instead is not equivalent — top-K would be chosen across the whole
+vault first, and a narrow scope would come back empty whenever its
+memories didn't independently win on relevance.
+
+An EMPTY array is a real value meaning "nothing is eligible" and returns
+no rows; omit the option for no filter.
+
+</td>
+</tr>
+<tr>
+<td>
+
 `options.scopes?`
 
 </td>

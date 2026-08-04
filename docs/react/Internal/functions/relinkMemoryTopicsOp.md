@@ -2,7 +2,7 @@
 
 > **relinkMemoryTopicsOp**(`ctx`: [`VaultMemoryOperationsContext`](../interfaces/VaultMemoryOperationsContext.md), `memoryIds`: readonly `string`\[]): `Promise`<`string`\[]>
 
-Defined in: [src/lib/db/memoryVault/operations.ts:1889](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#1889)
+Defined in: [src/lib/db/memoryVault/operations.ts:1919](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#1919)
 
 Rebuild the `memory_entity` index for the sweep's `topicsToRelink` rows from
 each row's `topics` record — the restored-device repair. No LLM call: every
