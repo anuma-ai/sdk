@@ -527,6 +527,22 @@ export interface BaseUseChatStorageOptions {
    */
   mcpR2Domain?: string;
   /**
+   * Tool names whose persisted results must never be replayed to the model.
+   *
+   * A turn's auto-executed tool results are stored as a synthetic
+   * `[Tool Execution Results]` row and, on a replayed send, folded back onto the
+   * assistant turn they belong to — that is what lets a follow-up question about a
+   * tool's output work after a reload. Name a tool here when its payload exists for
+   * the RENDERER rather than the model: a display card can carry data the model was
+   * deliberately never given (People Nearby's card holds third parties' snapped
+   * coordinates, which the search result strips), and replaying it would hand that
+   * data straight back.
+   *
+   * Hook-level rather than per-send on purpose: an exclusion that has to be
+   * remembered at every call site is one bad send away from leaking.
+   */
+  toolResultsHistoryExclude?: string[];
+  /**
    * Pre-processors run after the last user message is received but before
    * the first LLM request. Each receives the prompt text and a shared
    * embedding (computed once per request) and may return messages to

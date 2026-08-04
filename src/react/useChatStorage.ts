@@ -14,7 +14,11 @@ import {
   DEFAULT_SUMMARY_TOKEN_THRESHOLD,
   maybeSummarizeHistory,
 } from "../lib/chat/summarize";
-import { buildToolResultsContent } from "../lib/chat/toolResults";
+import {
+  buildToolResultsContent,
+  DISPLAY_CARD_PLACEHOLDER,
+  foldToolResultsRows,
+} from "../lib/chat/toolResults";
 import { type ApiType, resolveApiType } from "../lib/chat/useChat";
 import {
   type ApiResponse,
@@ -1143,6 +1147,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     piiRedaction,
     onPiiRedacted,
     nerDetector,
+    toolResultsHistoryExclude,
   } = options;
 
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(
@@ -2702,8 +2707,18 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           onPiiRedacted,
         });
 
+        // Fold this conversation's own `[Tool Execution Results]` rows onto the assistant turns that
+        // produced them: replayed verbatim they are `role: "user"`, so each puts two consecutive user
+        // turns on the wire (the failure web's client-side filter exists to avoid), while dropping
+        // them costs the model everything the tools returned. `toolResultsHistoryExclude` names the
+        // display payloads that must not travel at all.
+        const historyRows = foldToolResultsRows(messagesToConvert, {
+          exclude: toolResultsHistoryExclude,
+          placeholder: DISPLAY_CARD_PLACEHOLDER,
+        });
+
         // Batch: collect all fileIds across all messages, resolve once
-        const allFileIds = messagesToConvert.flatMap((msg) => msg.fileIds ?? []);
+        const allFileIds = historyRows.flatMap((msg) => msg.fileIds ?? []);
         let allMedia: StoredMedia[] = [];
         try {
           allMedia = allFileIds.length ? await getMediaByIdsOp(mediaCtx, allFileIds) : [];
@@ -2718,9 +2733,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           Promise.resolve(ids.map((id) => mediaLookup.get(id)).filter(Boolean) as StoredMedia[]);
         const historyMessages = (
           await Promise.all(
-            messagesToConvert.map((msg) =>
-              storedToLlmapiMessage(msg, encryptionKey, resolveMediaByIds)
-            )
+            historyRows.map((msg) => storedToLlmapiMessage(msg, encryptionKey, resolveMediaByIds))
           )
         ).flat();
 

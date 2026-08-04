@@ -171,6 +171,50 @@ describe("useChatStorage tool-results row (expo)", () => {
     ).toBeUndefined();
   });
 
+  it("replays the row folded onto the assistant turn, minus excluded tools", async () => {
+    mockRunToolLoop.mockResolvedValue(
+      loopResult([
+        { name: "search_people_nearby", result: { rows_returned: 1, people: [{ name: "Ada" }] } },
+        { name: "display_people_map", result: { people: [{ name: "Ada", lat: 1.5, lng: 2.5 }] } },
+      ])
+    );
+    const { result } = renderHook(() =>
+      useChatStorage({
+        database: db,
+        conversationId: "conv_replay",
+        getToken: async () => "tok",
+        // The card's payload exists for the renderer and carries coordinates the search result strips.
+        toolResultsHistoryExclude: ["display_people_map"],
+      })
+    );
+
+    await send(result);
+    // Second turn replays the stored thread.
+    mockRunToolLoop.mockResolvedValue(loopResult());
+    await send(result, "which of them likes chess");
+
+    const replayed = mockRunToolLoop.mock.calls[1]![0]!.messages as {
+      role: string;
+      content: { text?: string }[];
+    }[];
+    const text = (m: (typeof replayed)[number]) =>
+      m.content.map((part) => part.text ?? "").join("");
+
+    // No synthetic user turn on the wire — that is what made the model answer the previous turn.
+    expect(
+      replayed.filter((m) => m.role === "user" && text(m).includes(TOOL_RESULTS_PREFIX))
+    ).toEqual([]);
+    const assistantText = replayed
+      .filter((m) => m.role === "assistant")
+      .map(text)
+      .join("\n");
+    // The model keeps what it reasoned over…
+    expect(assistantText).toContain('Tool "search_people_nearby" returned:');
+    // …and never gets the coordinates back.
+    expect(assistantText).not.toContain("display_people_map");
+    expect(assistantText).not.toContain("lat");
+  });
+
   it("keeps the send successful when the row write fails", async () => {
     mockRunToolLoop.mockResolvedValue(
       loopResult([{ name: "display_people_map", result: PEOPLE_RESULT }])

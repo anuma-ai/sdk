@@ -17,7 +17,11 @@ import {
   DEFAULT_SUMMARY_TOKEN_THRESHOLD,
   maybeSummarizeHistory,
 } from "../lib/chat/summarize";
-import { buildToolResultsContent } from "../lib/chat/toolResults";
+import {
+  buildToolResultsContent,
+  DISPLAY_CARD_PLACEHOLDER,
+  foldToolResultsRows,
+} from "../lib/chat/toolResults";
 import { type ApiType, resolveApiType, type RunToolLoopResult } from "../lib/chat/useChat";
 import {
   type ApiResponse,
@@ -756,6 +760,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     nerDetector,
     onServerToolCall,
     onToolCallArgumentsDelta,
+    toolResultsHistoryExclude,
   } = options;
 
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(
@@ -2132,8 +2137,16 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           onPiiRedacted,
         });
 
+        // Fold this conversation's own `[Tool Execution Results]` rows onto the assistant turns that
+        // produced them. Replayed verbatim they are `role: "user"`, so each one puts two consecutive
+        // user turns on the wire and the model answers the previous turn instead of the new prompt;
+        // dropped outright (what web does client-side) the model forgets what the tools returned.
+        // `toolResultsHistoryExclude` names the display payloads that must not travel at all.
         messagesToSend = assembleMessagesWithHistory(
-          messagesToConvert.flatMap(storedToLlmapiMessage),
+          foldToolResultsRows(messagesToConvert, {
+            exclude: toolResultsHistoryExclude,
+            placeholder: DISPLAY_CARD_PLACEHOLDER,
+          }).flatMap(storedToLlmapiMessage),
           messages,
           summarySystemMessage
         );
