@@ -17,6 +17,7 @@ import {
   DEFAULT_SUMMARY_TOKEN_THRESHOLD,
   maybeSummarizeHistory,
 } from "../lib/chat/summarize";
+import { buildToolResultsContent } from "../lib/chat/toolResults";
 import { type ApiType, resolveApiType, type RunToolLoopResult } from "../lib/chat/useChat";
 import {
   type ApiResponse,
@@ -2683,6 +2684,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       };
 
       let storedAssistantMessage: StoredMessage;
+      let assistantMsgQueueId: string | undefined;
       try {
         const assistantMsgResult = await writeOrQueue(
           "createMessage",
@@ -2692,6 +2694,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           userMsgQueueId ? [userMsgQueueId] : []
         );
         storedAssistantMessage = assistantMsgResult.result;
+        assistantMsgQueueId = assistantMsgResult.queueId;
 
         // Embed assistant message (non-blocking, only for direct writes)
         if (!assistantMsgResult.queued) {
@@ -2703,6 +2706,39 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           error: err instanceof Error ? err.message : "Failed to store assistant message",
           userMessage: storedUserMessage,
         };
+      }
+
+      // Persist the turn's auto-executed tool results (e.g. display_people_map) as a synthetic user
+      // message, exactly as the react entry does — this is the row a reopened conversation re-renders
+      // its cards from, and without it every mobile card had to write one itself (#5519). Parented to
+      // the assistant message so it continues the branch: mobile derives its visible list by walking a
+      // parent/child chain, and a row hung off the user prompt is written and never rendered.
+      const autoToolResults = (result as Record<string, unknown>).autoExecutedToolResults as
+        | { name: string; result: unknown }[]
+        | undefined;
+      let storedToolResultsMessage: StoredMessage | undefined;
+      if (autoToolResults && autoToolResults.length > 0) {
+        const toolResultsOpts: CreateMessageOptions = {
+          conversationId: convId,
+          role: "user",
+          content: buildToolResultsContent(autoToolResults),
+          model: "",
+          parentMessageId: storedAssistantMessage.uniqueId,
+        };
+        try {
+          const toolResultsWrite = await writeOrQueue(
+            "createMessage",
+            toolResultsOpts,
+            () => createMessageOp(storageCtx, toolResultsOpts),
+            () => makeSyntheticStoredMessage(toolResultsOpts),
+            assistantMsgQueueId ? [assistantMsgQueueId] : []
+          );
+          storedToolResultsMessage = toolResultsWrite.result;
+        } catch {
+          // Non-critical — the results are still returned in memory for this turn; only the reload
+          // render loses them. Failing the send here would discard an assistant reply that is
+          // already persisted.
+        }
       }
 
       // Refresh the cached server-tools catalog when the response checksum
@@ -2736,6 +2772,8 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         error: null,
         userMessage: storedUserMessage,
         assistantMessage: storedAssistantMessage,
+        autoExecutedToolResults: autoToolResults,
+        toolResultsMessage: storedToolResultsMessage,
       };
     },
     [

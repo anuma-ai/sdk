@@ -14,6 +14,7 @@ import {
   DEFAULT_SUMMARY_TOKEN_THRESHOLD,
   maybeSummarizeHistory,
 } from "../lib/chat/summarize";
+import { buildToolResultsContent } from "../lib/chat/toolResults";
 import { type ApiType, resolveApiType } from "../lib/chat/useChat";
 import {
   type ApiResponse,
@@ -741,6 +742,12 @@ export type SendMessageWithStorageResult =
       assistantMessage: StoredMessage;
       /** Results from tools that were auto-executed by the SDK (e.g. display tools) */
       autoExecutedToolResults?: { name: string; result: unknown }[];
+      /**
+       * The synthetic `[Tool Execution Results]` row those results were persisted as, so a caller can
+       * key its transient overlay on the id the SDK actually wrote instead of deriving one (#5519).
+       * Absent when no tool ran, or when that (non-fatal) write failed.
+       */
+      toolResultsMessage?: StoredMessage;
     }
   | {
       data: ApiResponse;
@@ -3316,39 +3323,26 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       const autoToolResults = (result as Record<string, unknown>).autoExecutedToolResults as
         | { name: string; result: unknown }[]
         | undefined;
+      let storedToolResultsMessage: StoredMessage | undefined;
       if (autoToolResults && autoToolResults.length > 0) {
-        const toolSummary = autoToolResults
-          .map((r) => `Tool "${r.name}" returned: ${JSON.stringify(r.result)}`)
-          .join("\n\n");
-        const toolResultContent = `[Tool Execution Results]\n\n${toolSummary}\n\nBased on these results, continue with the task.`;
+        // Shared with the expo entry so the two rows stay byte-identical — the format is a contract
+        // the clients parse cards out of (#5519).
+        const toolResultsOpts = {
+          conversationId: convId,
+          role: "user" as const,
+          content: buildToolResultsContent(autoToolResults),
+          model: "",
+          parentMessageId: storedAssistantMessage.uniqueId,
+        };
         try {
-          await writeOrQueue(
+          const toolResultsWrite = await writeOrQueue(
             "createMessage",
-            {
-              conversationId: convId,
-              role: "user",
-              content: toolResultContent,
-              model: "",
-              parentMessageId: storedAssistantMessage.uniqueId,
-            },
-            () =>
-              createMessageOp(storageCtx, {
-                conversationId: convId,
-                role: "user",
-                content: toolResultContent,
-                model: "",
-                parentMessageId: storedAssistantMessage.uniqueId,
-              }),
-            () =>
-              makeSyntheticStoredMessage({
-                conversationId: convId,
-                role: "user",
-                content: toolResultContent,
-                model: "",
-                parentMessageId: storedAssistantMessage.uniqueId,
-              }),
+            toolResultsOpts,
+            () => createMessageOp(storageCtx, toolResultsOpts),
+            () => makeSyntheticStoredMessage(toolResultsOpts),
             assistantMsgQueueId ? [assistantMsgQueueId] : []
           );
+          storedToolResultsMessage = toolResultsWrite.result;
         } catch {
           // Non-critical — the tool result will still be available in memory
         }
@@ -3380,9 +3374,8 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         error: null,
         userMessage: storedUserMessage,
         assistantMessage: storedAssistantMessage,
-        autoExecutedToolResults: (result as Record<string, unknown>).autoExecutedToolResults as
-          | { name: string; result: unknown }[]
-          | undefined,
+        autoExecutedToolResults: autoToolResults,
+        toolResultsMessage: storedToolResultsMessage,
       };
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally omitting stable refs and config values that don't change identity

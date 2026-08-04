@@ -912,6 +912,17 @@ export interface BaseSendMessageSuccessResult {
   error: null;
   userMessage: StoredMessage;
   assistantMessage: StoredMessage;
+  /** Results from tools the SDK auto-executed this turn (e.g. display tools). */
+  autoExecutedToolResults?: { name: string; result: unknown }[];
+  /**
+   * The synthetic `[Tool Execution Results]` row those results were persisted as.
+   *
+   * Returned so a caller can key its transient overlay on the id the SDK actually wrote instead of
+   * deriving one and hoping the two agree — that guesswork is what mobile's per-card persist
+   * workarounds existed to do (#5519). Absent when the turn executed no tools, or when the row write
+   * failed (non-fatal: the assistant reply is already stored).
+   */
+  toolResultsMessage?: StoredMessage;
 }
 
 export interface BaseSendMessageSkippedResult {
