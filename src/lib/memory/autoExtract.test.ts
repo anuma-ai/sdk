@@ -54,6 +54,40 @@ describe("extractFacts", () => {
     expect(result).toEqual([]);
   });
 
+  // client#5536: the extraction call carries no flow fingerprint, so the portal's
+  // freeloader detector 403s it for basic-tier users in reject mode and every
+  // free-tier vault stays empty. Routing it to the utility endpoint is the fix,
+  // which needs the path to actually reach fetch — assert the URL, not the option.
+  it("forwards endpointOverride to the request path (baseUrl + override)", async () => {
+    const fetchFn = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ choices: [{ message: { content: '{"candidates":[]}' } }] }),
+    });
+    await extractFacts([{ id: "m1", role: "user", content: "I have a dog named Biscuit" }], {
+      apiKey: "k",
+      baseUrl: "https://portal.test",
+      endpointOverride: "/api/v1/utility/chat/completions",
+      fetchFn: fetchFn as unknown as typeof fetch,
+    });
+    expect(fetchFn.mock.calls[0][0]).toBe("https://portal.test/api/v1/utility/chat/completions");
+  });
+
+  // Guard the default: omitting the override must keep the main endpoint, so
+  // turning the routing on stays an explicit client decision (and the utility
+  // endpoint's silent price clamp is never entered by accident).
+  it("posts to /api/v1/chat/completions when no endpointOverride is given", async () => {
+    const fetchFn = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ choices: [{ message: { content: '{"candidates":[]}' } }] }),
+    });
+    await extractFacts([{ id: "m1", role: "user", content: "I have a dog named Biscuit" }], {
+      apiKey: "k",
+      baseUrl: "https://portal.test",
+      fetchFn: fetchFn as unknown as typeof fetch,
+    });
+    expect(fetchFn.mock.calls[0][0]).toBe("https://portal.test/api/v1/chat/completions");
+  });
+
   it("parses well-formed candidates", async () => {
     const candidates = {
       candidates: [
