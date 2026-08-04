@@ -2673,6 +2673,21 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           }
         }
 
+        // Fold this conversation's own `[Tool Execution Results]` rows onto the assistant turns that
+        // produced them: replayed verbatim they are `role: "user"`, so each puts two consecutive user
+        // turns on the wire (the failure web's client-side filter exists to avoid), while dropping them
+        // costs the model everything the tools returned. `toolResultsHistoryExclude` names the display
+        // payloads that must not travel at all.
+        //
+        // BEFORE summarization, not after: an excluded payload handed to the summarizer is still
+        // egress (it reaches the summary prompt, and whatever the summary keeps returns to the main
+        // model), and folding first stops the token-budget split from landing between an assistant row
+        // and its tool-results row, which would drop that row for having no assistant to fold into.
+        const foldedHistory = foldToolResultsRows(limitedMessages, {
+          exclude: toolResultsHistoryExclude,
+          placeholder: DISPLAY_CARD_PLACEHOLDER,
+        });
+
         // Convert stored messages to API format
         // Get encryption key if available for reading user files from OPFS
         let encryptionKey: CryptoKey | undefined;
@@ -2696,7 +2711,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         const { messagesToConvert, summarySystemMessage } = await maybeSummarizeHistory({
           database,
           conversationId: convId,
-          messages: limitedMessages,
+          messages: foldedHistory,
           summarizeHistory,
           summaryTokenThreshold,
           summaryMinWindowMessages,
@@ -2707,18 +2722,8 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           onPiiRedacted,
         });
 
-        // Fold this conversation's own `[Tool Execution Results]` rows onto the assistant turns that
-        // produced them: replayed verbatim they are `role: "user"`, so each puts two consecutive user
-        // turns on the wire (the failure web's client-side filter exists to avoid), while dropping
-        // them costs the model everything the tools returned. `toolResultsHistoryExclude` names the
-        // display payloads that must not travel at all.
-        const historyRows = foldToolResultsRows(messagesToConvert, {
-          exclude: toolResultsHistoryExclude,
-          placeholder: DISPLAY_CARD_PLACEHOLDER,
-        });
-
         // Batch: collect all fileIds across all messages, resolve once
-        const allFileIds = historyRows.flatMap((msg) => msg.fileIds ?? []);
+        const allFileIds = messagesToConvert.flatMap((msg) => msg.fileIds ?? []);
         let allMedia: StoredMedia[] = [];
         try {
           allMedia = allFileIds.length ? await getMediaByIdsOp(mediaCtx, allFileIds) : [];
@@ -2733,7 +2738,9 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           Promise.resolve(ids.map((id) => mediaLookup.get(id)).filter(Boolean) as StoredMedia[]);
         const historyMessages = (
           await Promise.all(
-            historyRows.map((msg) => storedToLlmapiMessage(msg, encryptionKey, resolveMediaByIds))
+            messagesToConvert.map((msg) =>
+              storedToLlmapiMessage(msg, encryptionKey, resolveMediaByIds)
+            )
           )
         ).flat();
 

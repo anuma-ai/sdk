@@ -2113,6 +2113,23 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         const validMessages = storedMessages.filter((msg) => !msg.error);
         const limitedMessages = validMessages.slice(-maxHistoryMessages);
 
+        // Fold this conversation's own `[Tool Execution Results]` rows onto the assistant turns that
+        // produced them. Replayed verbatim they are `role: "user"`, so each one puts two consecutive
+        // user turns on the wire and the model answers the previous turn instead of the new prompt;
+        // dropped outright (what web does client-side) the model forgets what the tools returned.
+        // `toolResultsHistoryExclude` names the display payloads that must not travel at all.
+        //
+        // BEFORE summarization, not after, for two reasons. An excluded payload handed to the
+        // summarizer is still egress — `formatMessagesForPrompt` would put those coordinates in the
+        // summary prompt, and anything the summary retains comes back to the main model through
+        // `summarySystemMessage`. And folding first means the token-budget split can no longer land
+        // between an assistant row and its tool-results row, which would leave the row with no
+        // assistant to fold into and silently drop the tool output.
+        const foldedHistory = foldToolResultsRows(limitedMessages, {
+          exclude: toolResultsHistoryExclude,
+          placeholder: DISPLAY_CARD_PLACEHOLDER,
+        });
+
         // Determine which messages to send: summarized + window or all verbatim.
         // Uses a direct fetch for the LLM call (not baseSendMessage) to avoid
         // corrupting isLoading state and abortController during summarization.
@@ -2126,7 +2143,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         const { messagesToConvert, summarySystemMessage } = await maybeSummarizeHistory({
           database,
           conversationId: convId,
-          messages: limitedMessages,
+          messages: foldedHistory,
           summarizeHistory,
           summaryTokenThreshold,
           summaryMinWindowMessages,
@@ -2137,16 +2154,8 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           onPiiRedacted,
         });
 
-        // Fold this conversation's own `[Tool Execution Results]` rows onto the assistant turns that
-        // produced them. Replayed verbatim they are `role: "user"`, so each one puts two consecutive
-        // user turns on the wire and the model answers the previous turn instead of the new prompt;
-        // dropped outright (what web does client-side) the model forgets what the tools returned.
-        // `toolResultsHistoryExclude` names the display payloads that must not travel at all.
         messagesToSend = assembleMessagesWithHistory(
-          foldToolResultsRows(messagesToConvert, {
-            exclude: toolResultsHistoryExclude,
-            placeholder: DISPLAY_CARD_PLACEHOLDER,
-          }).flatMap(storedToLlmapiMessage),
+          messagesToConvert.flatMap(storedToLlmapiMessage),
           messages,
           summarySystemMessage
         );

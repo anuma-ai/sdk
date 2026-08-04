@@ -32,6 +32,18 @@ function toolRow(results: { name: string; result: unknown }[]) {
 }
 
 describe("isToolResultsRow", () => {
+  it("does not classify a human message that merely starts with the prefix", () => {
+    // Someone can paste the marker into the composer. Folding that into the previous assistant turn —
+    // or dropping it — would delete what they actually said. A real synthetic always carries at least
+    // one tool line.
+    const typed = row("user", `${TOOL_RESULTS_PREFIX} what does this mean?`);
+    expect(isToolResultsRow(typed)).toBe(false);
+    expect(foldToolResultsRows([row("assistant", "Sure."), typed])).toEqual([
+      row("assistant", "Sure."),
+      typed,
+    ]);
+  });
+
   it("matches only a user row carrying the prefix", () => {
     expect(
       isToolResultsRow(toolRow([{ name: "search_people_nearby", result: searchResult }]))

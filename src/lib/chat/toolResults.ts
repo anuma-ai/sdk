@@ -26,8 +26,8 @@ export const TOOL_RESULTS_PREFIX = "[Tool Execution Results]";
  */
 export const DISPLAY_CARD_PLACEHOLDER = "[displayed a card to the user with the tool result]";
 
-/** One tool's contribution to the row. */
-export interface ToolResultSegment {
+/** One tool's contribution to the row. Internal: the fold is the only consumer. */
+interface ToolResultSegment {
   name: string;
   /** The `Tool "<name>" returned: <json>` line, verbatim. */
   line: string;
@@ -51,14 +51,23 @@ export function buildToolResultsContent(
 }
 
 /** A stored row's minimal shape — structural so both `StoredMessage` and plain pairs satisfy it. */
-export interface ToolResultsRowLike {
+interface ToolResultsRowLike {
   role: string;
   content: string;
 }
 
-/** Is this stored row one of the synthetic tool-results rows (and not a user turn quoting one)? */
+/**
+ * Is this stored row one of the synthetic tool-results rows?
+ *
+ * The prefix alone is not enough: a person can type or paste "[Tool Execution Results]" into the
+ * composer, and treating that as synthetic would fold their words into the previous assistant turn or
+ * drop them outright. A real synthetic always carries at least one `Tool "<name>" returned: …` line —
+ * `buildToolResultsContent` is only called with a non-empty result list — so requiring one keeps a
+ * human's message a human's message.
+ */
 export function isToolResultsRow(row: ToolResultsRowLike): boolean {
-  return row.role === "user" && row.content.startsWith(TOOL_RESULTS_PREFIX);
+  if (row.role !== "user" || !row.content.startsWith(TOOL_RESULTS_PREFIX)) return false;
+  return parseToolResultSegments(row.content).length > 0;
 }
 
 /**

@@ -25,6 +25,22 @@ vi.mock("../lib/chat/toolLoop", async (importOriginal) => {
   return { ...orig, runToolLoop: vi.fn() };
 });
 
+// Records what the summarizer is handed. An excluded display payload reaching it is egress in its own
+// right: it goes into the summary prompt, and whatever the summary keeps comes back to the main model.
+const summarizerInputs: { role: string; content: string }[][] = [];
+vi.mock("../lib/chat/summarize", async (importOriginal) => {
+  const orig = await importOriginal<typeof import("../lib/chat/summarize")>();
+  return {
+    ...orig,
+    maybeSummarizeHistory: vi.fn(
+      async ({ messages }: { messages: { role: string; content: string }[] }) => {
+        summarizerInputs.push(messages.map((m) => ({ role: m.role, content: m.content })));
+        return { messagesToConvert: messages, summarySystemMessage: null };
+      }
+    ),
+  };
+});
+
 // The row goes through `createMessageOp` like every other write; spying on the module lets one case
 // fail JUST that write while leaving the user/assistant rows intact.
 vi.mock("../lib/db/chat", async (importOriginal) => {
@@ -96,6 +112,7 @@ describe("useChatStorage tool-results row (expo)", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    summarizerInputs.length = 0;
     db = makeDatabase();
     // getServerTools is the only network call on this path; fail it fast.
     fetchSpy = vi.spyOn(globalThis, "fetch").mockRejectedValue(new Error("no network"));
@@ -213,6 +230,40 @@ describe("useChatStorage tool-results row (expo)", () => {
     // …and never gets the coordinates back.
     expect(assistantText).not.toContain("display_people_map");
     expect(assistantText).not.toContain("lat");
+  });
+
+  it("folds before summarizing, so an excluded payload never reaches the summary prompt", async () => {
+    mockRunToolLoop.mockResolvedValue(
+      loopResult([
+        { name: "search_people_nearby", result: { rows_returned: 1 } },
+        { name: "display_people_map", result: { people: [{ name: "Ada", lat: 1.5, lng: 2.5 }] } },
+      ])
+    );
+    const { result } = renderHook(() =>
+      useChatStorage({
+        database: db,
+        conversationId: "conv_summary",
+        getToken: async () => "tok",
+        toolResultsHistoryExclude: ["display_people_map"],
+      })
+    );
+
+    await send(result);
+    mockRunToolLoop.mockResolvedValue(loopResult());
+    await send(result, "who was closest?");
+
+    // Second send replays the stored thread; the summarizer sees the FOLDED rows.
+    const replayed = summarizerInputs[summarizerInputs.length - 1]!;
+    expect(replayed.some((m) => m.content.includes("display_people_map"))).toBe(false);
+    expect(replayed.some((m) => m.content.includes("lat"))).toBe(false);
+    // No synthetic user row survives to be summarized either — folding already moved its content.
+    expect(
+      replayed.some((m) => m.role === "user" && m.content.startsWith(TOOL_RESULTS_PREFIX))
+    ).toBe(false);
+    // …and what the model is allowed to keep is still there.
+    expect(replayed.some((m) => m.content.includes('Tool "search_people_nearby" returned:'))).toBe(
+      true
+    );
   });
 
   it("keeps the send successful when the row write fails", async () => {

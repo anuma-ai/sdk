@@ -2,7 +2,7 @@
 
 > **SendMessageWithStorageResult** = `BaseSendMessageWithStorageResult` | [`SendMessageWithStorageDetachedResult`](../interfaces/SendMessageWithStorageDetachedResult.md)
 
-Defined in: [src/expo/useChatStorage.ts:532](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChatStorage.ts#532)
+Defined in: [src/expo/useChatStorage.ts:537](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChatStorage.ts#537)
 
 Result from sendMessage with storage (Expo version).
 
