@@ -669,6 +669,8 @@ export async function getAllVaultMemoriesOp(
     visibility?: VaultMemoryVisibility[];
   }
 ): Promise<StoredVaultMemory[]> {
+  // An empty memoryIds allow-list must match nothing, and Q.oneOf([]) can fail on SQLite.
+  if (options?.memoryIds !== undefined && options.memoryIds.length === 0) return [];
   const conditions = [
     ...baseVaultConditions(ctx, options),
     ...(options?.scopes?.length ? [Q.where("scope", Q.oneOf(options.scopes))] : []),
@@ -869,6 +871,8 @@ export async function getVaultCandidateKeysOp(
       "memoryVault: getVaultCandidateKeysOp projected SQL unavailable, using full-load fallback: " +
         (err instanceof Error ? err.message : String(err))
     );
+    // An empty memoryIds allow-list must match nothing, and Q.oneOf([]) can fail on SQLite.
+    if (options?.memoryIds !== undefined && options.memoryIds.length === 0) return [];
     const conditions = [
       ...baseVaultConditions(ctx, {
         ...(options?.includeArchived !== undefined && { includeArchived: options.includeArchived }),
