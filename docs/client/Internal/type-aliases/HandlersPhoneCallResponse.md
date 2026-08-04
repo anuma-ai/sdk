@@ -2,7 +2,7 @@
 
 > **HandlersPhoneCallResponse** = `object`
 
-Defined in: [src/client/types.gen.ts:2319](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2319)
+Defined in: [src/client/types.gen.ts:2401](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2401)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:2319](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **answered\_by**: `string`
 
-Defined in: [src/client/types.gen.ts:2320](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2320)
+Defined in: [src/client/types.gen.ts:2402](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2402)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:2320](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **call\_ended\_by**: `string`
 
-Defined in: [src/client/types.gen.ts:2321](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2321)
+Defined in: [src/client/types.gen.ts:2403](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2403)
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: [src/client/types.gen.ts:2321](https://github.com/anuma-ai/sdk/blob/
 
 > **call\_id**: `string`
 
-Defined in: [src/client/types.gen.ts:2322](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2322)
+Defined in: [src/client/types.gen.ts:2404](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2404)
 
 ***
 
@@ -34,7 +34,7 @@ Defined in: [src/client/types.gen.ts:2322](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **completed**: `boolean`
 
-Defined in: [src/client/types.gen.ts:2323](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2323)
+Defined in: [src/client/types.gen.ts:2405](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2405)
 
 ***
 
@@ -42,7 +42,7 @@ Defined in: [src/client/types.gen.ts:2323](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **concatenated\_transcript**: `string`
 
-Defined in: [src/client/types.gen.ts:2324](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2324)
+Defined in: [src/client/types.gen.ts:2406](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2406)
 
 ***
 
@@ -50,7 +50,7 @@ Defined in: [src/client/types.gen.ts:2324](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **created\_at**: `string`
 
-Defined in: [src/client/types.gen.ts:2325](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2325)
+Defined in: [src/client/types.gen.ts:2407](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2407)
 
 ***
 
@@ -58,7 +58,7 @@ Defined in: [src/client/types.gen.ts:2325](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **end\_reason**: `string`
 
-Defined in: [src/client/types.gen.ts:2326](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2326)
+Defined in: [src/client/types.gen.ts:2408](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2408)
 
 ***
 
@@ -66,7 +66,7 @@ Defined in: [src/client/types.gen.ts:2326](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **ended\_at**: `string`
 
-Defined in: [src/client/types.gen.ts:2327](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2327)
+Defined in: [src/client/types.gen.ts:2409](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2409)
 
 ***
 
@@ -74,7 +74,7 @@ Defined in: [src/client/types.gen.ts:2327](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **error\_message**: `string`
 
-Defined in: [src/client/types.gen.ts:2328](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2328)
+Defined in: [src/client/types.gen.ts:2410](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2410)
 
 ***
 
@@ -82,7 +82,7 @@ Defined in: [src/client/types.gen.ts:2328](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **phone\_number**: `string`
 
-Defined in: [src/client/types.gen.ts:2329](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2329)
+Defined in: [src/client/types.gen.ts:2411](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2411)
 
 ***
 
@@ -90,7 +90,7 @@ Defined in: [src/client/types.gen.ts:2329](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **queue\_status**: `string`
 
-Defined in: [src/client/types.gen.ts:2330](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2330)
+Defined in: [src/client/types.gen.ts:2412](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2412)
 
 ***
 
@@ -98,7 +98,7 @@ Defined in: [src/client/types.gen.ts:2330](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **recipient\_name**: `string`
 
-Defined in: [src/client/types.gen.ts:2331](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2331)
+Defined in: [src/client/types.gen.ts:2413](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2413)
 
 ***
 
@@ -106,7 +106,7 @@ Defined in: [src/client/types.gen.ts:2331](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **started\_at**: `string`
 
-Defined in: [src/client/types.gen.ts:2332](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2332)
+Defined in: [src/client/types.gen.ts:2414](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2414)
 
 ***
 
@@ -114,7 +114,7 @@ Defined in: [src/client/types.gen.ts:2332](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **status**: `string`
 
-Defined in: [src/client/types.gen.ts:2333](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2333)
+Defined in: [src/client/types.gen.ts:2415](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2415)
 
 ***
 
@@ -122,7 +122,7 @@ Defined in: [src/client/types.gen.ts:2333](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **summary**: `string`
 
-Defined in: [src/client/types.gen.ts:2334](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2334)
+Defined in: [src/client/types.gen.ts:2416](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2416)
 
 ***
 
@@ -130,4 +130,4 @@ Defined in: [src/client/types.gen.ts:2334](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **transcripts**: [`HandlersPhoneCallTranscriptEntry`](HandlersPhoneCallTranscriptEntry.md)\[]
 
-Defined in: [src/client/types.gen.ts:2335](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2335)
+Defined in: [src/client/types.gen.ts:2417](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2417)

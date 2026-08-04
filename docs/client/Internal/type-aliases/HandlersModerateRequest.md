@@ -2,7 +2,7 @@
 
 > **HandlersModerateRequest** = `object`
 
-Defined in: [src/client/types.gen.ts:2234](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2234)
+Defined in: [src/client/types.gen.ts:2316](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2316)
 
 ## Properties
 
@@ -10,4 +10,4 @@ Defined in: [src/client/types.gen.ts:2234](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **texts**: `string`\[]
 
-Defined in: [src/client/types.gen.ts:2235](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2235)
+Defined in: [src/client/types.gen.ts:2317](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2317)

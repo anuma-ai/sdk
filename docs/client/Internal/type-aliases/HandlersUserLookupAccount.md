@@ -2,7 +2,7 @@
 
 > **HandlersUserLookupAccount** = `object`
 
-Defined in: [src/client/types.gen.ts:3048](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3048)
+Defined in: [src/client/types.gen.ts:3213](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3213)
 
 Account is nil when the identifier resolves to a Privy user that has no
 portal account row yet (e.g. a Privy signup that never completed onboarding).
@@ -13,7 +13,7 @@ portal account row yet (e.g. a Privy signup that never completed onboarding).
 
 > `optional` **created\_at**: `string`
 
-Defined in: [src/client/types.gen.ts:3049](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3049)
+Defined in: [src/client/types.gen.ts:3214](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3214)
 
 ***
 
@@ -21,7 +21,7 @@ Defined in: [src/client/types.gen.ts:3049](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **fraud\_flag**: `string`
 
-Defined in: [src/client/types.gen.ts:3050](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3050)
+Defined in: [src/client/types.gen.ts:3215](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3215)
 
 ***
 
@@ -29,7 +29,7 @@ Defined in: [src/client/types.gen.ts:3050](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **fraud\_flag\_updated\_at**: `string`
 
-Defined in: [src/client/types.gen.ts:3051](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3051)
+Defined in: [src/client/types.gen.ts:3216](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3216)
 
 ***
 
@@ -37,7 +37,7 @@ Defined in: [src/client/types.gen.ts:3051](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **fraud\_notes**: `string`
 
-Defined in: [src/client/types.gen.ts:3052](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3052)
+Defined in: [src/client/types.gen.ts:3217](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3217)
 
 ***
 
@@ -45,7 +45,7 @@ Defined in: [src/client/types.gen.ts:3052](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **id**: `number`
 
-Defined in: [src/client/types.gen.ts:3053](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3053)
+Defined in: [src/client/types.gen.ts:3218](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3218)
 
 ***
 
@@ -53,7 +53,7 @@ Defined in: [src/client/types.gen.ts:3053](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **identifier**: `string`
 
-Defined in: [src/client/types.gen.ts:3054](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3054)
+Defined in: [src/client/types.gen.ts:3219](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3219)
 
 ***
 
@@ -61,7 +61,7 @@ Defined in: [src/client/types.gen.ts:3054](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **stripe\_customer\_id**: `string`
 
-Defined in: [src/client/types.gen.ts:3055](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3055)
+Defined in: [src/client/types.gen.ts:3220](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3220)
 
 ***
 
@@ -69,4 +69,4 @@ Defined in: [src/client/types.gen.ts:3055](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **type**: `string`
 
-Defined in: [src/client/types.gen.ts:3056](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3056)
+Defined in: [src/client/types.gen.ts:3221](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3221)

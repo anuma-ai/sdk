@@ -2,7 +2,7 @@
 
 > **PostApiV1ResponsesErrors** = `object`
 
-Defined in: [src/client/types.gen.ts:9144](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9144)
+Defined in: [src/client/types.gen.ts:9606](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9606)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:9144](https://github.com/anuma-ai/sdk/blob/
 
 > **400**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:9148](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9148)
+Defined in: [src/client/types.gen.ts:9610](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9610)
 
 Bad Request
 
@@ -20,7 +20,7 @@ Bad Request
 
 > **402**: [`ResponseInsufficientBalanceResponse`](ResponseInsufficientBalanceResponse.md)
 
-Defined in: [src/client/types.gen.ts:9152](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9152)
+Defined in: [src/client/types.gen.ts:9614](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9614)
 
 Insufficient balance or spending cap exceeded
 
@@ -30,7 +30,7 @@ Insufficient balance or spending cap exceeded
 
 > **403**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:9156](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9156)
+Defined in: [src/client/types.gen.ts:9618](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9618)
 
 Model not available on current subscription tier
 
@@ -40,7 +40,7 @@ Model not available on current subscription tier
 
 > **413**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:9160](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9160)
+Defined in: [src/client/types.gen.ts:9622](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9622)
 
 Input exceeds model context window
 
@@ -50,7 +50,7 @@ Input exceeds model context window
 
 > **429**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:9164](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9164)
+Defined in: [src/client/types.gen.ts:9626](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9626)
 
 Model provider rate limit exceeded
 
@@ -60,6 +60,6 @@ Model provider rate limit exceeded
 
 > **500**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:9168](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9168)
+Defined in: [src/client/types.gen.ts:9630](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9630)
 
 Internal Server Error

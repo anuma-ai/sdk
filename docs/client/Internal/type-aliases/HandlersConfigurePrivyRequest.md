@@ -2,7 +2,7 @@
 
 > **HandlersConfigurePrivyRequest** = `object`
 
-Defined in: [src/client/types.gen.ts:1553](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1553)
+Defined in: [src/client/types.gen.ts:1630](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1630)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:1553](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **privy\_app\_id**: `string`
 
-Defined in: [src/client/types.gen.ts:1554](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1554)
+Defined in: [src/client/types.gen.ts:1631](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1631)
 
 ***
 
@@ -18,4 +18,4 @@ Defined in: [src/client/types.gen.ts:1554](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **privy\_verification\_key**: `string`
 
-Defined in: [src/client/types.gen.ts:1555](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1555)
+Defined in: [src/client/types.gen.ts:1632](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1632)

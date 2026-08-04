@@ -2,7 +2,7 @@
 
 > **HandlersSearchResult** = `object`
 
-Defined in: [src/client/types.gen.ts:2506](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2506)
+Defined in: [src/client/types.gen.ts:2663](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2663)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:2506](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **snippet**: `string`
 
-Defined in: [src/client/types.gen.ts:2507](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2507)
+Defined in: [src/client/types.gen.ts:2664](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2664)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:2507](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **title**: `string`
 
-Defined in: [src/client/types.gen.ts:2508](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2508)
+Defined in: [src/client/types.gen.ts:2665](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2665)
 
 ***
 
@@ -26,4 +26,4 @@ Defined in: [src/client/types.gen.ts:2508](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **url**: `string`
 
-Defined in: [src/client/types.gen.ts:2509](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2509)
+Defined in: [src/client/types.gen.ts:2666](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2666)
