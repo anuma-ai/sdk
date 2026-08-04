@@ -14,6 +14,7 @@ import {
   foldToolResultsRows,
   isToolResultsRow,
   parseToolResultSegments,
+  prepareToolResultsForReplay,
   TOOL_RESULTS_PREFIX,
 } from "./toolResults";
 
@@ -195,5 +196,49 @@ describe("foldToolResultsRows — link over position", () => {
     ]);
 
     expect(folded).toEqual([{ role: "user", content: "earlier prompt", uniqueId: "u9" }]);
+  });
+});
+
+describe("prepareToolResultsForReplay", () => {
+  const history = [
+    row("user", "find people near me"),
+    row("assistant", "Found a few."),
+    toolRow([
+      { name: "search_people_nearby", result: searchResult },
+      { name: "display_people_map", result: cardResult },
+    ]),
+    row("user", "which of them likes chess"),
+  ];
+
+  it("drops the rows when folding is off, so nothing rides on the assistant turn", () => {
+    // The default. A caller whose own scrubbers key on `role === "user"` + prefix keeps working:
+    // there is no folded payload for those filters to miss.
+    const prepared = prepareToolResultsForReplay(history, { fold: false });
+
+    expect(prepared.map((m) => m.role)).toEqual(["user", "assistant", "user"]);
+    expect(prepared[1]!.content).toBe("Found a few.");
+    expect(prepared[1]!.content).not.toContain("Tool ");
+    // The coordinates the card carries cannot reach the model on this branch even with no
+    // `exclude` list configured — which is exactly why it is the default.
+    expect(prepared.some((m) => m.content.includes("lat"))).toBe(false);
+  });
+
+  it("folds when the caller opts in, honouring exclude", () => {
+    const prepared = prepareToolResultsForReplay(history, {
+      fold: true,
+      exclude: ["display_people_map"],
+      placeholder: DISPLAY_CARD_PLACEHOLDER,
+    });
+
+    expect(prepared.map((m) => m.role)).toEqual(["user", "assistant", "user"]);
+    expect(prepared[1]!.content).toContain('Tool "search_people_nearby" returned:');
+    expect(prepared[1]!.content).not.toContain("lat");
+  });
+
+  it("never emits a bare tool-results row on either branch", () => {
+    for (const fold of [true, false]) {
+      const prepared = prepareToolResultsForReplay(history, { fold });
+      expect(prepared.some((m) => isToolResultsRow(m))).toBe(false);
+    }
   });
 });

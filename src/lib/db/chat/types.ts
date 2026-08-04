@@ -564,6 +564,24 @@ export interface BaseUseChatStorageOptions {
    */
   toolResultsHistoryExclude?: string[];
   /**
+   * Fold persisted `[Tool Execution Results]` rows onto the assistant turn that produced them
+   * when replaying stored history, instead of dropping them.
+   *
+   * **Defaults to `false`, and that default is deliberate.** Folding is the better behaviour —
+   * it is what lets a follow-up about a tool's output work after a reload — but it moves the
+   * payload from a `role: "user"` row onto an `assistant` row. Any consumer that scrubs these
+   * rows by checking `role === "user"` plus the content prefix (which is how both apps did it
+   * before this option existed) stops catching them the moment folding turns on, and starts
+   * replaying whatever the row held. Opting in is therefore a statement that the caller has
+   * checked its own filters and set {@link toolResultsHistoryExclude} for any payload that must
+   * not reach the model.
+   *
+   * With it off, rows are dropped from the replayed history rather than sent verbatim. Verbatim
+   * would put two consecutive `user` turns on the wire, and the model answers the previous turn
+   * instead of the new prompt.
+   */
+  foldToolResultsInHistory?: boolean;
+  /**
    * Pre-processors run after the last user message is received but before
    * the first LLM request. Each receives the prompt text and a shared
    * embedding (computed once per request) and may return messages to

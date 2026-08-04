@@ -15,7 +15,7 @@ import {
   maybeSummarizeHistory,
 } from "../lib/chat/summarize";
 import { buildToolResultContent } from "../lib/chat/toolResultMessage";
-import { DISPLAY_CARD_PLACEHOLDER, foldToolResultsRows } from "../lib/chat/toolResults";
+import { DISPLAY_CARD_PLACEHOLDER, prepareToolResultsForReplay } from "../lib/chat/toolResults";
 import { type ApiType, resolveApiType } from "../lib/chat/useChat";
 import {
   type ApiResponse,
@@ -1145,6 +1145,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     onPiiRedacted,
     nerDetector,
     toolResultsHistoryExclude,
+    foldToolResultsInHistory,
   } = options;
 
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(
@@ -1164,6 +1165,10 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
   // render for a caller that passes a fresh array literal.
   const toolResultsHistoryExcludeRef = useRef(toolResultsHistoryExclude);
   toolResultsHistoryExcludeRef.current = toolResultsHistoryExclude;
+  // Same reasoning as the exclude list: read at send time, so flipping the flag off takes effect on
+  // the next send rather than whenever `sendMessage` happens to be recreated.
+  const foldToolResultsInHistoryRef = useRef(foldToolResultsInHistory);
+  foldToolResultsInHistoryRef.current = foldToolResultsInHistory;
 
   const nerDetectorRef = useRef(nerDetector);
   nerDetectorRef.current = nerDetector;
@@ -2677,17 +2682,22 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           }
         }
 
-        // Fold this conversation's own `[Tool Execution Results]` rows onto the assistant turns that
-        // produced them: replayed verbatim they are `role: "user"`, so each puts two consecutive user
-        // turns on the wire (the failure web's client-side filter exists to avoid), while dropping them
-        // costs the model everything the tools returned. `toolResultsHistoryExclude` names the display
-        // payloads that must not travel at all.
+        // This conversation's own `[Tool Execution Results]` rows: folded onto the assistant turns
+        // that produced them when the caller opts in, dropped otherwise. Never verbatim — they are
+        // `role: "user"`, so each would put two consecutive user turns on the wire (the failure web's
+        // client-side filter exists to avoid).
+        //
+        // Off by default because folding relocates the payload onto an `assistant` row, and a caller
+        // whose own scrubbers key on `role === "user"` + prefix silently stops catching it. Opting in
+        // means the caller has checked its filters and named renderer-only payloads in
+        // `toolResultsHistoryExclude`.
         //
         // BEFORE summarization, not after: an excluded payload handed to the summarizer is still
         // egress (it reaches the summary prompt, and whatever the summary keeps returns to the main
         // model), and folding first stops the token-budget split from landing between an assistant row
         // and its tool-results row, which would drop that row for having no assistant to fold into.
-        const foldedHistory = foldToolResultsRows(limitedMessages, {
+        const foldedHistory = prepareToolResultsForReplay(limitedMessages, {
+          fold: foldToolResultsInHistoryRef.current === true,
           exclude: toolResultsHistoryExcludeRef.current,
           placeholder: DISPLAY_CARD_PLACEHOLDER,
         });

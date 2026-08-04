@@ -78,6 +78,32 @@ export function parseToolResultSegments(content: string): ToolResultSegment[] {
 }
 
 /**
+ * Apply the caller's replay policy for tool-results rows: fold them onto their assistant turn, or
+ * drop them.
+ *
+ * Both entries funnel through here rather than each writing its own `fold ? … : …`, because the two
+ * branches are not equally safe and the difference must be stated in exactly one place. Folding
+ * moves the payload onto an `assistant` row, so a consumer that scrubs these rows by
+ * `role === "user"` + prefix stops catching them — see `foldToolResultsInHistory`. Dropping is the
+ * conservative branch and the default.
+ *
+ * Never sends the rows verbatim: a `role: "user"` row replayed as-is puts two consecutive user turns
+ * on the wire and the model answers the previous one.
+ */
+export function prepareToolResultsForReplay<T extends ToolResultsRowLike>(
+  rows: readonly T[],
+  options: { fold: boolean; exclude?: readonly string[]; placeholder?: string }
+): T[] {
+  if (options.fold) {
+    return foldToolResultsRows(rows, {
+      exclude: options.exclude,
+      placeholder: options.placeholder,
+    });
+  }
+  return rows.filter((row) => !isToolResultsRow(row));
+}
+
+/**
  * Fold the synthetic tool-results rows of a replayed history into the assistant turns they belong to.
  *
  * - the row itself is removed, so history keeps strict user/assistant alternation;

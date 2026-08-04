@@ -202,6 +202,7 @@ describe("useChatStorage tool-results row (expo)", () => {
         getToken: async () => "tok",
         // The card's payload exists for the renderer and carries coordinates the search result strips.
         toolResultsHistoryExclude: ["display_people_map"],
+        foldToolResultsInHistory: true,
       })
     );
 
@@ -245,6 +246,7 @@ describe("useChatStorage tool-results row (expo)", () => {
         conversationId: "conv_summary",
         getToken: async () => "tok",
         toolResultsHistoryExclude: ["display_people_map"],
+        foldToolResultsInHistory: true,
       })
     );
 
