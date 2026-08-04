@@ -571,3 +571,140 @@ describe("embedMessage / chunkAndEmbedMessage — O(1) indexed lookup (D4)", () 
     expect(getConversationsOp).not.toHaveBeenCalled();
   });
 });
+
+describe("origin: 'tool_result' is never embedded (sdk#861)", () => {
+  const ctx = {} as StorageOperationsContext;
+
+  /** Long enough to take the chunking branch (DEFAULT_CHUNK_SIZE is 400). */
+  const longText = (label: string): string => `${label}. `.repeat(120);
+
+  function makeMessage(overrides: Partial<StoredMessage>): StoredMessage {
+    return {
+      uniqueId: "m-default",
+      messageId: 1,
+      conversationId: "c1",
+      role: "user",
+      content: "default content long enough",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      ...overrides,
+    };
+  }
+
+  beforeEach(() => {
+    vi.mocked(getConversationsOp).mockResolvedValue([
+      { conversationId: "c1" } as StoredConversation,
+    ]);
+    vi.mocked(updateMessageEmbeddingOp).mockResolvedValue(null);
+    vi.mocked(updateMessageChunksOp).mockResolvedValue(null);
+  });
+
+  it("chunkAndEmbedAllMessages skips the dump but still chunks a long real message", async () => {
+    // The production path: consumers run this sweep on every session mount. The
+    // pair matters — a gate that skipped everything would pass a skip-only test.
+    const fetchMock = stubFetchOk();
+    vi.mocked(getMessagesOp).mockResolvedValue([
+      makeMessage({
+        uniqueId: "dump",
+        content: longText('Tool "gmail_search" returned'),
+        origin: "tool_result",
+      }),
+      makeMessage({ uniqueId: "prose", content: longText("a long thing the user wrote") }),
+    ]);
+
+    const count = await chunkAndEmbedAllMessages(ctx, { apiKey: "k", baseUrl: BASE });
+
+    expect(count).toBe(1);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(updateMessageChunksOp).toHaveBeenCalledTimes(1);
+    expect(updateMessageChunksOp).toHaveBeenCalledWith(
+      ctx,
+      "prose",
+      expect.any(Array),
+      expect.any(String)
+    );
+  });
+
+  it("chunkAndEmbedAllMessages still embeds a legacy row whose origin is unset", async () => {
+    // The column is null on every pre-v44 row. Gating on "has an origin at all"
+    // instead of the sentinel would silently stop embedding the whole back-catalog.
+    const fetchMock = stubFetchOk();
+    vi.mocked(getMessagesOp).mockResolvedValue([
+      makeMessage({ uniqueId: "legacy", content: longText("written before v44") }),
+    ]);
+
+    expect(await chunkAndEmbedAllMessages(ctx, { apiKey: "k", baseUrl: BASE })).toBe(1);
+    expect(fetchMock).toHaveBeenCalled();
+    expect(updateMessageChunksOp).toHaveBeenCalledWith(
+      ctx,
+      "legacy",
+      expect.any(Array),
+      expect.any(String)
+    );
+  });
+
+  it("chunkAndEmbedMessage returns the dump unchanged without calling the API", async () => {
+    const fetchMock = stubFetchOk();
+    const dump = makeMessage({
+      uniqueId: "dump",
+      content: longText('Tool "github_api" returned'),
+      origin: "tool_result",
+    });
+    vi.mocked(getMessageOp).mockResolvedValue(dump);
+
+    // Unchanged, not thrown — callers treat this like an already-chunked row.
+    expect(await chunkAndEmbedMessage(ctx, "dump", { apiKey: "k", baseUrl: BASE })).toBe(dump);
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(updateMessageChunksOp).not.toHaveBeenCalled();
+    expect(updateMessageEmbeddingOp).not.toHaveBeenCalled();
+  });
+
+  it("embedMessage leaves a tagged row's vector unset but still embeds an untagged one", async () => {
+    // The fourth entry point, and the one with no internal caller — a consumer
+    // can hand it any message id, so the skip cannot rely on who calls it.
+    const fetchMock = stubFetchOk();
+    const dump = makeMessage({
+      uniqueId: "dump",
+      content: "tool output, long enough to embed",
+      origin: "tool_result",
+    });
+    vi.mocked(getMessageOp).mockResolvedValue(dump);
+
+    expect(await embedMessage(ctx, "dump", { apiKey: "k", baseUrl: BASE })).toBe(dump);
+    expect(dump.vector).toBeUndefined();
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(updateMessageEmbeddingOp).not.toHaveBeenCalled();
+
+    // Control: the same call on an untagged row still embeds and persists.
+    const prose = makeMessage({ uniqueId: "prose", content: "something the user typed" });
+    vi.mocked(getMessageOp).mockResolvedValue(prose);
+
+    await embedMessage(ctx, "prose", { apiKey: "k", baseUrl: BASE });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(updateMessageEmbeddingOp).toHaveBeenCalledWith(
+      ctx,
+      "prose",
+      embeddingFor("something the user typed"),
+      expect.any(String)
+    );
+  });
+
+  it("embedAllMessages skips the dump but still embeds a normal message", async () => {
+    const fetchMock = stubFetchOk();
+    vi.mocked(getMessagesOp).mockResolvedValue([
+      makeMessage({ uniqueId: "dump", content: "tool output, long enough", origin: "tool_result" }),
+      makeMessage({ uniqueId: "prose", content: "something the user typed" }),
+    ]);
+
+    expect(await embedAllMessages(ctx, { apiKey: "k", baseUrl: BASE })).toBe(1);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(recorded[0].input).toBe("something the user typed");
+    expect(updateMessageEmbeddingOp).toHaveBeenCalledTimes(1);
+    expect(updateMessageEmbeddingOp).toHaveBeenCalledWith(
+      ctx,
+      "prose",
+      expect.any(Array),
+      expect.any(String)
+    );
+  });
+});

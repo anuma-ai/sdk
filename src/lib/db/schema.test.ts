@@ -154,3 +154,35 @@ describe("sdkMigrations", () => {
     expect(sdkMigrations.maxVersion).toBe(SDK_SCHEMA_VERSION);
   });
 });
+
+describe("history.origin (v44)", () => {
+  it("is added by a migration AND declared on the table", () => {
+    // Both halves are needed and they reach different databases: the migration
+    // upgrades existing ones, the table declaration is all a freshly created
+    // database gets (WatermelonDB builds it from the encoded schema alone). Ship
+    // one without the other and half the install base has no column.
+    const addsOrigin = sdkMigrations.sortedMigrations
+      .filter((migration) => migration.toVersion === 44)
+      .flatMap((migration) => migration.steps)
+      .some(
+        (step) =>
+          step.type === "add_columns" &&
+          step.table === "history" &&
+          step.columns.some((column) => column.name === "origin")
+      );
+
+    expect(addsOrigin).toBe(true);
+    expect(sdkSchema.tables.history.columns.origin).toBeDefined();
+  });
+
+  it("is optional, so existing rows migrate to NULL rather than a value", () => {
+    // NULL is what keeps the embedding gate closed-by-default for legacy rows:
+    // it reads as "provenance unknown", which stays eligible. A non-optional
+    // column would sanitize to "" and a required backfill would have to invent
+    // provenance for rows whose content is encrypted and unreadable at migration
+    // time (schema migrations run at DB open, before the user has signed).
+    const column = sdkSchema.tables.history.columns.origin;
+    expect(column.type).toBe("string");
+    expect(column.isOptional).toBe(true);
+  });
+});
