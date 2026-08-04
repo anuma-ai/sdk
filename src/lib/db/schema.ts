@@ -102,11 +102,11 @@ import { VaultFolder } from "./vaultFolders/models";
  *   conversation list read filters is_deleted and orders by created_at DESC,
  *   which previously meant a temp B-tree sort of the whole live set on every
  *   read. Structural only — no column added, no data rewritten
- * - v44: Added `media` to memory_vault — the photo(s) a server-extracted
+ * - v45: Added `media` to memory_vault — the photo(s) a server-extracted
  *   memory came from, as JSON `[{feed_item_id, object_key}]`. Null on every
  *   row that did not come from a photo, which is all of them before this
  */
-export const SDK_SCHEMA_VERSION = 44;
+export const SDK_SCHEMA_VERSION = 45;
 
 /**
  * Combined WatermelonDB schema for all SDK storage modules.
@@ -1154,13 +1154,13 @@ export const sdkMigrations = schemaMigrations({
         ),
       ],
     },
-    // v43 -> v44: `media` on memory_vault — the photo(s) a server-extracted
+    // v44 -> v45: `media` on memory_vault — the photo(s) a server-extracted
     // memory was read out of, as JSON `[{feed_item_id, object_key}]`, mirroring
     // the `media[]` that GET /api/memories/published already returns. Existing
     // rows keep NULL, which is the correct value for every memory that did not
     // come from a photo (i.e. all of them until photo ingest runs).
     {
-      toVersion: 44,
+      toVersion: 45,
       steps: [
         addColumns({
           table: "memory_vault",
