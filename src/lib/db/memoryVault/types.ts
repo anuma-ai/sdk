@@ -16,6 +16,34 @@ import type { StoredTopic } from "../entities/types.js";
  */
 export type VaultMemoryVisibility = "private" | "public";
 
+/**
+ * Closed enum of single-valued SELF facet slots (facet slot+value supersede).
+ *
+ * A "facet" is a standing attribute of the user that holds exactly ONE current
+ * value at a time (unlike list-valued facts like allergies, or dated events).
+ * Each facet carries a slot key plus a normalized VALUE token, recorded on the
+ * memory for consumers that want to read a fact's slot and current value.
+ *
+ * NOT a dedup mechanism: retain() stamps these on create and otherwise ignores
+ * them — every write is deduped by semantic search + the decide model.
+ *
+ * Deliberately NARROW to start. Anything outside this set → no facet (null), and
+ * the memory simply carries no slot/value. SUBJECT is SELF-ONLY in this
+ * increment (a non-self subject → null), so a facet key is always
+ * `"<factType>:self:<slot>"`, e.g. `preference:self:ui_theme`.
+ */
+export const FACET_SLOTS = [
+  "ui_theme",
+  "residence",
+  "employer",
+  "job_title",
+  "diet",
+  "relationship_status",
+  "communication_style",
+] as const;
+
+export type FacetSlot = (typeof FACET_SLOTS)[number];
+
 export interface StoredVaultMemory {
   /** WatermelonDB internal ID */
   uniqueId: string;
@@ -92,6 +120,14 @@ export interface StoredVaultMemory {
   publishedAt: number | null;
   /** Reserved coarse-geohash slot for landmark/Trail memories. */
   geohash: string | null;
+  /** Facet slot (v43) — the closed `"<factType>:self:<slot>"` key of a
+   * single-valued SELF standing attribute, or null (no facet recorded).
+   * PLAINTEXT (TEST) — needs privacy sign-off before ship. */
+  facetKey: string | null;
+  /** Facet value (v43) — the normalized current value token for
+   * {@link facetKey}, or null. Recorded metadata; dedup does not read it.
+   * PLAINTEXT (TEST) — leaks the value; needs sign-off. */
+  facetValue: string | null;
   createdAt: Date;
   updatedAt: Date;
   isDeleted: boolean;
@@ -162,6 +198,14 @@ export interface CreateVaultMemoryOptions {
   publishedAt?: number | null;
   /** Coarse geohash for location-tagged memory sources (landmarks/Trail). */
   geohash?: string;
+  /** Facet slot+value supersede (v43) — the closed `"<factType>:self:<slot>"`
+   * key of a single-valued SELF standing attribute. The DB op re-validates it
+   * (garbage → dropped) and only writes the pair when BOTH key and value are
+   * valid. Omit for facet-less writes (persisted null). */
+  facetKey?: string | null;
+  /** Facet slot+value supersede (v43) — the normalized current value token for
+   * {@link facetKey}. Only written alongside a valid {@link facetKey}. */
+  facetValue?: string | null;
 }
 
 export interface UpdateVaultMemoryOptions {
@@ -229,4 +273,17 @@ export interface UpdateVaultMemoryOptions {
    * Omit/false to leave `archived_at` untouched.
    */
   restore?: boolean;
+  /**
+   * Facet slot (v43) — ADOPT-ONLY-WHEN-NULL. When provided (as a valid pair) the
+   * op stamps `facet_key`/`facet_value` ONLY if the target row has no facet yet
+   * (`facet_key` currently null); it NEVER overwrites a non-null facet. Lets a
+   * caller lazily tag a keyless row. Omit to leave the existing facet untouched.
+   *
+   * NOTE: retain() does not use this — it stamps facets on create only. This
+   * stays available for callers that want to backfill a facet onto an existing
+   * row. */
+  facetKey?: string | null;
+  /** Facet value (v43) — written alongside {@link facetKey} under the same
+   * adopt-only-when-null rule. */
+  facetValue?: string | null;
 }

@@ -18,6 +18,7 @@ export {
   getUnfiledVaultMemoriesOp,
   getVaultCandidateKeysOp,
   getVaultEmbeddingsByIdsOp,
+  getVaultMemoriesByFacetKeyOp,
   getVaultMemoriesByIdsOp,
   getVaultMemoryOp,
   getVaultRankingProjectionsOp,
@@ -37,6 +38,8 @@ export {
 } from "./operations";
 export {
   type CreateVaultMemoryOptions,
+  FACET_SLOTS,
+  type FacetSlot,
   type RankableVaultMemory,
   type StoredVaultMemory,
   type UpdateVaultMemoryOptions,

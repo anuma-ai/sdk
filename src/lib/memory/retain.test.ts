@@ -1129,7 +1129,10 @@ describe("retain — write-time supersession (A2)", () => {
     // the completeness loop is unreachable. A strict cosine merge must not trigger
     // any re-search or retire.
     mockVaultMatches([{ uniqueId: "hit", content: "existing", similarity: 0.9 }]);
-    vi.mocked(getVaultMemoryOp).mockResolvedValue({ uniqueId: "hit", content: "existing" } as never);
+    vi.mocked(getVaultMemoryOp).mockResolvedValue({
+      uniqueId: "hit",
+      content: "existing",
+    } as never);
     vi.mocked(updateVaultMemoryOp).mockResolvedValue({ uniqueId: "hit", proofCount: 2 } as never);
     vi.mocked(generateEmbedding).mockResolvedValue([0.1, 0.2, 0.3]);
 
@@ -1686,5 +1689,72 @@ describe("retain — embeddings outage must not silently duplicate", () => {
 
     expect(result.action).toBe("create");
     expect(result.memoryId).toBe("healthy");
+  });
+});
+
+describe("retain — facet columns (v43 metadata, not a dedup path)", () => {
+  const consolidateOptions = { apiKey: "k" };
+  const UI_THEME = "preference:self:ui_theme";
+
+  it("a same-slot value flip is decided by the decide model, not by the facet key", async () => {
+    // The facet columns carry the slot+value for OTHER consumers; they no longer
+    // short-circuit dedup. A dark → light flip therefore reaches the decide
+    // model like any other near-duplicate, and supersedes when it says so.
+    mockVaultMatchesOnce([
+      { uniqueId: "dark-row", content: "Prefers dark mode", similarity: 0.9 } as never,
+    ]);
+    vi.mocked(consolidateMemory).mockResolvedValue({
+      action: "supersede",
+      targetId: "dark-row",
+      targetIds: ["dark-row"],
+      content: "Prefers light mode",
+    });
+    vi.mocked(generateEmbedding).mockResolvedValue([0.1, 0.2, 0.3]);
+    vi.mocked(createSupersedingMemoryOp).mockResolvedValue({
+      created: { uniqueId: "light-row" } as never,
+      retired: true,
+    });
+    vi.mocked(supersedeVaultMemoryOp).mockResolvedValue(true);
+
+    const result = await retain("Prefers light mode", ctx, {
+      consolidateOptions,
+      facetKey: UI_THEME,
+      facetValue: "light",
+    });
+
+    expect(result).toMatchObject({
+      action: "supersede",
+      memoryId: "light-row",
+      targetId: "dark-row",
+    });
+    // The decide model IS consulted — that is the whole point of the change.
+    expect(vi.mocked(consolidateMemory)).toHaveBeenCalled();
+    // The superseding row still carries the facet so other consumers see it.
+    expect(vi.mocked(createSupersedingMemoryOp)).toHaveBeenCalledWith(
+      mockVaultCtx,
+      expect.objectContaining({ facetKey: UI_THEME, facetValue: "light" }),
+      "dark-row"
+    );
+  });
+
+  it("a facet-carrying write stamps facet_key/facet_value on the created row", async () => {
+    mockVaultMatches([]);
+    vi.mocked(generateEmbedding).mockResolvedValue([0.1, 0.2, 0.3]);
+    vi.mocked(createVaultMemoryOp).mockResolvedValue({ uniqueId: "new" } as never);
+
+    const result = await retain("Prefers dark mode", ctx, {
+      consolidateOptions,
+      facetKey: UI_THEME,
+      facetValue: "dark",
+    });
+
+    expect(result.action).toBe("create");
+    // The normal cosine/decide path runs for every write — there is no fast-path.
+    expect(vi.mocked(prepareVaultCandidates)).toHaveBeenCalled();
+    // The fresh row records the facet slot+value for its other consumers.
+    expect(vi.mocked(createVaultMemoryOp)).toHaveBeenCalledWith(
+      mockVaultCtx,
+      expect.objectContaining({ facetKey: UI_THEME, facetValue: "dark" })
+    );
   });
 });

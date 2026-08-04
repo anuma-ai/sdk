@@ -18,6 +18,7 @@ import { Q } from "@nozbe/watermelondb";
 import { type EntityOperationsContext, linkMemoryEntitiesOp } from "../db/entities/operations.js";
 import { ENTITY_KINDS, type EntityKind } from "../db/entities/types.js";
 import { VaultMemory } from "../db/memoryVault/models.js";
+import { FACET_SLOTS } from "../db/memoryVault/types.js";
 import { getLogger } from "../logger.js";
 import { type PiiRedactor, resolvePiiRedactor } from "../pii/redactor.js";
 import { isGenericEntityName } from "./entitySalience.js";
@@ -110,6 +111,10 @@ export const ENTITY_KIND_GUIDELINES = `Choose the MOST SPECIFIC kind:
     - other: a named entity that genuinely fits none of the above — use sparingly
   Prefer organization / product / event / place over the generic "thing"; fall back to "thing" or "other" only when no specific kind fits.`;
 
+/** The closed facet-slot enum rendered for the extraction prompt. Interpolated
+ * (not hardcoded) so the prompt can never drift from {@link FACET_SLOTS}. */
+const FACET_SLOT_LIST = FACET_SLOTS.join(" | ");
+
 const SYSTEM_PROMPT = `You extract durable user facts from conversations for a personal memory system.
 
 A "durable fact" is something the user shared about themselves that should still be true in future conversations. Examples that ARE durable:
@@ -147,6 +152,17 @@ For each durable fact, output:
     - { "kind": "ongoing", "start": "YYYY-MM-DD" }   for a status that started on a date and continues ("works at Linear since January 2024")
     - null   for facts with no temporal anchor ("favorite color is blue", "speaks Spanish")
   Always use absolute YYYY-MM-DD; never write "yesterday" / "last week" / "next month".
+- facetSlot: ONLY for a SINGLE-VALUED standing attribute ABOUT THE USER THEMSELVES (self) whose slot is one of: ${FACET_SLOT_LIST}. A "single-valued" attribute is one the user holds exactly ONE current value of at a time (their theme, where they live, who they work for). Emit null for anything else.
+- facetValue: when facetSlot is set, a SHORT normalized lowercase token capturing the CURRENT value (one or two words, no punctuation) — e.g. "dark", "light", "sf", "google", "vegan", "single". Emit null when facetSlot is null.
+  Emit facetSlot/facetValue as null for: events or dated facts ("went to the gym Friday"), list-valued or additive facts (allergies, hobbies, languages — the user can have many), facts about other people, and any slot not in the list above.
+  Worked examples:
+    - "prefers dark mode" → facetSlot "ui_theme", facetValue "dark"
+    - "prefers light mode" → facetSlot "ui_theme", facetValue "light"   (SAME slot, DIFFERENT value — the slot identifies the attribute, the value records which one is current)
+    - "moved to San Francisco" → facetSlot "residence", facetValue "sf"
+    - "now works at Google" → facetSlot "employer", facetValue "google"
+    - "is vegan" → facetSlot "diet", facetValue "vegan"
+    - "went to the gym on Friday" → facetSlot null, facetValue null   (a one-off event, not a standing single value)
+    - "allergic to shellfish" → facetSlot null, facetValue null   (list-valued/additive, not a single current value)
 
 When the user describes a CHANGE, extract only the NEW current state — not the prior state they're replacing. "I left Google, I'm at Riverbend now" → emit "Works at Riverbend" only, NOT "Previously worked at Google". "Moved from Portland to SF" → emit "Lives in San Francisco" only. The resolver supersedes the old memory; don't re-record it as a standalone fact.
 
@@ -187,6 +203,18 @@ export interface ExtractedCandidate {
     /** Unix ms timestamp of the event end. Only set when kind='range'. */
     end: number | null;
   } | null;
+  /**
+   * Facet slot key (v43) — the closed `"<factType>:self:<slot>"` key of a
+   * single-valued SELF standing attribute, or null. Built in
+   * {@link validateCandidates} ONLY when the model's `facetSlot` is in
+   * {@link FACET_SLOTS} AND `facetValue` is non-empty; off-enum / list-valued /
+   * dated facts stay null (both null together). Forwarded to retain(), which
+   * records it on the created row — it does not drive dedup.
+   */
+  facetKey: string | null;
+  /** Facet value (v43) — the normalized lowercase value token for
+   * {@link facetKey} (e.g. "dark"/"light"), or null. Paired with facetKey. */
+  facetValue: string | null;
 }
 
 /**
@@ -658,6 +686,15 @@ export async function extractAndRetain(
         // computed instead of discarding it. `candidate.type` is validated to a
         // FactType in validateCandidates (defaults to "other").
         factType: candidate.type,
+        // Facet slot+value supersede (v43) — forward the closed slot+value key so
+        // retain() can run its deterministic value-equality supersede. Only when
+        // BOTH are set (single-valued SELF standing attribute in the enum);
+        // otherwise omitted and the fact takes the cosine+LLM backstop.
+        ...(candidate.facetKey !== null &&
+          candidate.facetValue !== null && {
+            facetKey: candidate.facetKey,
+            facetValue: candidate.facetValue,
+          }),
         // Tier-0 security (PR3) — quarantine flagged candidates and force-create
         // them (no auto-merge) so a poisoned fact never merges into / bumps a
         // clean memory. The DB op re-validates the tier string.
@@ -845,9 +882,44 @@ function validateCandidates(
 
     const eventTime = parseEventTime(obj.eventTime);
 
-    out.push({ content, type, confidence, sourceMessageIds, entities, eventTime });
+    const { facetKey, facetValue } = parseFacet(obj, type);
+
+    out.push({
+      content,
+      type,
+      confidence,
+      sourceMessageIds,
+      entities,
+      eventTime,
+      facetKey,
+      facetValue,
+    });
   }
   return out;
+}
+
+/**
+ * Build the closed `"<factType>:self:<slot>"` facet key + normalized value from
+ * the model's `facetSlot`/`facetValue` fields — the classification half of the
+ * facet slot+value supersede.
+ *
+ * Returns both null (no facet) UNLESS the slot is in {@link FACET_SLOTS} AND the
+ * value is non-empty. Off-enum slots are HARD-DROPPED to null — the enum is
+ * deliberately narrow, and a slot outside it must fall back to the cosine+LLM
+ * dedup path, never invent a facet. SUBJECT is SELF-ONLY in this increment, so
+ * the key is always `"<type>:self:<slot>"`. The value is lowercased/trimmed to a
+ * token here; the DB op re-validates the pair before writing (garbage → null).
+ */
+function parseFacet(
+  obj: Record<string, unknown>,
+  type: FactType
+): { facetKey: string | null; facetValue: string | null } {
+  const slot = typeof obj.facetSlot === "string" ? obj.facetSlot.trim().toLowerCase() : "";
+  const value = typeof obj.facetValue === "string" ? obj.facetValue.trim().toLowerCase() : "";
+  if (!(FACET_SLOTS as readonly string[]).includes(slot) || value.length === 0) {
+    return { facetKey: null, facetValue: null };
+  }
+  return { facetKey: `${type}:self:${slot}`, facetValue: value };
 }
 
 /**

@@ -322,6 +322,7 @@ export {
   getUnfiledVaultMemoriesOp,
   getVaultCandidateKeysOp,
   getVaultEmbeddingsByIdsOp,
+  getVaultMemoriesByFacetKeyOp,
   getVaultMemoriesByIdsOp,
   getVaultMemoryOp,
   getVaultRankingProjectionsOp,

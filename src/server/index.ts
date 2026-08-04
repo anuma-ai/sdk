@@ -146,6 +146,7 @@ export {
   getMemoriesNeedingTopicExtractionOp,
   getUnembeddedVaultMemoryIdsOp,
   getUnfiledVaultMemoriesOp,
+  getVaultMemoriesByFacetKeyOp,
   getVaultMemoryOp,
   hardDeleteDecayedOp,
   type MemoriesNeedingTopicExtraction,

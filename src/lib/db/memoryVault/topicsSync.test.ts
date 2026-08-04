@@ -132,9 +132,11 @@ async function markAsRestored(
 // ---------------------------------------------------------------------------
 
 describe("schema v42", () => {
-  it("bumps SDK_SCHEMA_VERSION to 42", () => {
-    expect(SDK_SCHEMA_VERSION).toBe(42);
-    expect(sdkSchema.version).toBe(42);
+  it("has SDK_SCHEMA_VERSION at the current head (43 after the v43 facet columns)", () => {
+    // Current-version pin. v43 added memory_vault.facet_key + facet_value (facet
+    // slot+value supersede) on top of the v42 topics columns tested below.
+    expect(SDK_SCHEMA_VERSION).toBe(43);
+    expect(sdkSchema.version).toBe(43);
   });
 
   it("exposes topics + topics_updated_at on a fresh database", async () => {
@@ -177,10 +179,11 @@ describe("schema v42", () => {
         unsafeSql: undefined,
       },
     ]);
-    // A v41 database reaches the current schema through that step and nothing
-    // else: WatermelonDB rejects a migration list with gaps or duplicates at
-    // load time, so a contiguous list ending at 42 IS the v41 → v42 path.
-    expect(sdkMigrations.maxVersion).toBe(42);
+    // WatermelonDB rejects a migration list with gaps or duplicates at load
+    // time, so a contiguous list IS the upgrade path. The list now heads at 43
+    // (the v43 facet columns), so this asserts the current max rather than a
+    // fixed 42.
+    expect(sdkMigrations.maxVersion).toBe(43);
     expect(sdkMigrations.minVersion).toBeLessThan(41);
   });
 });
