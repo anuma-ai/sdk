@@ -114,8 +114,11 @@ import { VaultFolder } from "./vaultFolders/models";
  *   unreadable flag would fail open. Existing rows stay NULL (= legacy,
  *   unknown provenance, embedded as before) with no backfill, matching the v37
  *   read-time-fallback precedent
+ * - v45: Added `media` to memory_vault — the photo(s) a server-extracted
+ *   memory came from, as JSON `[{feed_item_id, object_key}]`. Null on every
+ *   row that did not come from a photo, which is all of them before this
  */
-export const SDK_SCHEMA_VERSION = 44;
+export const SDK_SCHEMA_VERSION = 45;
 
 /**
  * Combined WatermelonDB schema for all SDK storage modules.
@@ -284,6 +287,18 @@ export const sdkSchema = appSchema({
         // paths key on `updated_at` — so without this a topic-only change would
         // neither upload nor merge. Null = `topics` never written.
         { name: "topics_updated_at", type: "number", isOptional: true },
+        // The photo(s) a SERVER-EXTRACTED memory was read out of, as a JSON
+        // array of `{feed_item_id, object_key}` — exactly what
+        // GET /api/memories/published returns in `media[]`. Enough to render the
+        // source image without a second round-trip per memory.
+        //
+        // A JSON column rather than a join table: nothing on the client ever
+        // queries BY photo (the only direction is memory -> render its image),
+        // so a table would add a sync lane and a local-id space to serve a
+        // question nobody asks. `topics` and `source_chunk_ids` set the
+        // precedent for a list that is only ever read back whole. Null on
+        // anything not extracted from a photo.
+        { name: "media", type: "string", isOptional: true },
         // Unix ms of the last LLM topic-extraction pass over this memory's
         // content. Null = never extracted standalone (legacy rows with entity
         // links are grandfathered — see getMemoriesNeedingTopicExtractionOp).
@@ -1163,6 +1178,20 @@ export const sdkMigrations = schemaMigrations({
         addColumns({
           table: "history",
           columns: [{ name: "origin", type: "string", isOptional: true }],
+        }),
+      ],
+    },
+    // v44 -> v45: `media` on memory_vault — the photo(s) a server-extracted
+    // memory was read out of, as JSON `[{feed_item_id, object_key}]`, mirroring
+    // the `media[]` that GET /api/memories/published already returns. Existing
+    // rows keep NULL, which is the correct value for every memory that did not
+    // come from a photo (i.e. all of them until photo ingest runs).
+    {
+      toVersion: 45,
+      steps: [
+        addColumns({
+          table: "memory_vault",
+          columns: [{ name: "media", type: "string", isOptional: true }],
         }),
       ],
     },

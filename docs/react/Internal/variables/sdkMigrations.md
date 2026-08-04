@@ -2,7 +2,7 @@
 
 > `const` **sdkMigrations**: `Readonly`<{ `maxVersion`: `number`; `minVersion`: `number`; `sortedMigrations`: `Readonly`<{ `steps`: `MigrationStep`\[]; `toVersion`: `number`; }>\[]; `validated`: `true`; }>
 
-Defined in: [src/lib/db/schema.ts:526](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/schema.ts#526)
+Defined in: [src/lib/db/schema.ts:541](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/schema.ts#541)
 
 Combined migrations for all SDK storage modules.
 

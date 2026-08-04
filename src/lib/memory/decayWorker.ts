@@ -34,6 +34,7 @@ import {
   type DecayPolicy,
   type DecayVerdict,
   DEFAULT_DECAY_POLICY,
+  SOURCE_PHOTO,
 } from "./decay.js";
 
 /** Counts from one sweep, for UI surfacing (e.g. "N memories archived"). */
@@ -194,7 +195,7 @@ function toDecayInput(c: DecayCandidateRaw): DecayInput {
  * optional LLM classifier is skipped.
  */
 function isBorderline(input: DecayInput): boolean {
-  if (input.source === "manual") return false;
+  if (input.source === "manual" || input.source === SOURCE_PHOTO) return false;
   if (input.trustTier === "quarantined") return false;
   if (input.archivedAt !== null) return false;
   if (input.factType === null || input.factType === "other") return true;

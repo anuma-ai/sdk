@@ -1,8 +1,8 @@
 # SDK\_SCHEMA\_VERSION
 
-> `const` **SDK\_SCHEMA\_VERSION**: `44` = `44`
+> `const` **SDK\_SCHEMA\_VERSION**: `45` = `45`
 
-Defined in: [src/lib/db/schema.ts:118](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/schema.ts#118)
+Defined in: [src/lib/db/schema.ts:121](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/schema.ts#121)
 
 Current combined schema version for all SDK storage modules.
 
@@ -98,3 +98,6 @@ Version history:
   unreadable flag would fail open. Existing rows stay NULL (= legacy,
   unknown provenance, embedded as before) with no backfill, matching the v37
   read-time-fallback precedent
+* v45: Added `media` to memory\_vault — the photo(s) a server-extracted
+  memory came from, as JSON `[{feed_item_id, object_key}]`. Null on every
+  row that did not come from a photo, which is all of them before this

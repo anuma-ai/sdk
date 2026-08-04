@@ -153,6 +153,30 @@ describe("sdkMigrations", () => {
     expect(versions).toEqual(expected);
     expect(sdkMigrations.maxVersion).toBe(SDK_SCHEMA_VERSION);
   });
+
+  it("v45 adds `media` to memory_vault, and the table carries it", () => {
+    // The column that lets a server-extracted memory show the photo it came
+    // from. Asserted on BOTH sides because WatermelonDB uses them for different
+    // databases: an EXISTING device walks the migration, a fresh one is built
+    // straight from the encoded schema — so a column present in only one place
+    // works on exactly half the fleet.
+    const v45 = sdkMigrations.sortedMigrations.find((m) => m.toVersion === 45);
+    expect(v45).toBeDefined();
+    // MigrationStep is a discriminated union (create_table | add_columns | sql),
+    // so it has no structural overlap with an add_columns shape — narrow through
+    // unknown rather than annotating the parameter.
+    const added = (v45?.steps ?? []).flatMap((step) => {
+      const addColumns = step as unknown as { table?: string; columns?: { name: string }[] };
+      return addColumns.table === "memory_vault"
+        ? (addColumns.columns ?? []).map((c) => c.name)
+        : [];
+    });
+    expect(added).toContain("media");
+
+    const columns = sdkSchema.tables.memory_vault.columns;
+    expect(columns.media).toBeDefined();
+    expect(columns.media.isOptional).toBe(true);
+  });
 });
 
 describe("history.origin (v44)", () => {

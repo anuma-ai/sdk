@@ -36,8 +36,16 @@ export interface StoredVaultMemory {
   sourceChunkIds: string[] | null;
   /** Times this fact has been re-observed (for ranking + UX badges). */
   proofCount: number | null;
-  /** How the memory was created: manual | auto-extracted | capsule. */
+  /** How the memory was created: manual | auto-extracted | capsule | photo. */
   source: string | null;
+  /** The photo(s) a SERVER-EXTRACTED memory was read out of. Null on every
+   * memory that did not come from a photo. See {@link PhotoMediaRef}.
+   *
+   * OPTIONAL rather than required: every read path sets it (the row mappers
+   * always call parseMedia), but making it required would be a compile-break
+   * for any caller that CONSTRUCTS a StoredVaultMemory — fixtures, mocks, and
+   * anything downstream — for a field that is null on all but photo rows. */
+  media?: PhotoMediaRef[] | null;
   /** W6 temporal lane — Unix ms when the event occurred (point/start of range). */
   eventTimeStart: number | null;
   /** W6 temporal lane — Unix ms when the event ended (range only). */
@@ -119,6 +127,44 @@ export interface RankableVaultMemory {
   embeddingModel: string | null;
   createdAt: Date;
   updatedAt: Date;
+}
+
+/**
+ * A photo a server-extracted memory came from, as
+ * GET /api/memories/published returns it in `media[]`.
+ *
+ * Both identifiers travel because both are needed: `feedItemId` is the server's
+ * handle for the photo, and `objectKey` is what a client turns into a CDN URL
+ * without another round-trip per memory.
+ */
+export interface PhotoMediaRef {
+  feedItemId: number;
+  objectKey: string | null;
+}
+
+/**
+ * Decode the stored `media` column. Returns null for "no photo behind this
+ * memory" (the column is null on every non-photo row) and tolerates a corrupt
+ * or unexpected payload by reading it as null too — a memory whose photo
+ * reference cannot be parsed is still a perfectly good memory, and losing the
+ * thumbnail is a better failure than losing the row.
+ */
+export function parseMedia(value: unknown): PhotoMediaRef[] | null {
+  if (typeof value !== "string" || value === "") return null;
+  try {
+    const parsed: unknown = JSON.parse(value);
+    if (!Array.isArray(parsed)) return null;
+    const refs = parsed
+      .filter((r): r is Record<string, unknown> => typeof r === "object" && r !== null)
+      .map((r) => ({
+        feedItemId: Number(r.feedItemId ?? r.feed_item_id),
+        objectKey: (r.objectKey ?? r.object_key ?? null) as string | null,
+      }))
+      .filter((r) => Number.isFinite(r.feedItemId));
+    return refs.length > 0 ? refs : null;
+  } catch {
+    return null;
+  }
 }
 
 export interface CreateVaultMemoryOptions {

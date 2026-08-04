@@ -30,6 +30,10 @@ export class VaultMemory extends Model {
   /** Unix ms of the last `topics` write. Separate from `updated_at`, which every
    *  topic writer pins on purpose (recall recency) — see the schema note. */
   @field("topics_updated_at") topicsUpdatedAt!: number | null;
+  /** The photo(s) a SERVER-EXTRACTED memory came from — JSON
+   *  `[{feed_item_id, object_key}]`, exactly the shape
+   *  GET /api/memories/published returns. Null on anything not from a photo. */
+  @field("media") media!: string | null;
   /** Unix ms of the last LLM topic-extraction pass. Null = never extracted
    *  standalone (linked legacy rows are grandfathered as extracted).
    *  DEPRECATED (v42) — subsumed by `topics_updated_at`; see the schema note. */
