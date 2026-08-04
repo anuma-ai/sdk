@@ -12,12 +12,18 @@
 
 import type { AutoExecutedToolResult } from "./toolLoop";
 
+const HEADER = "[Tool Execution Results]\n\n";
+const FOOTER = "\n\nBased on these results, continue with the task.";
+const ENTRY_SEPARATOR = "\n\n";
+
 /**
- * Hard ceiling on the persisted tool-result message, in characters.
+ * Hard ceiling on the persisted tool-result message, in characters. Bounds the
+ * whole row, framing and per-entry prefixes included.
  *
- * Matches the per-tool caps (`MAX_RESPONSE_SIZE` in `tools/github.ts`,
- * `MAX_CONTENT_SIZE` in `tools/dropbox.ts`) so a capped provider's payload is
- * unaffected and only the uncapped ones are newly bounded.
+ * It does *not* clear the per-tool caps: `truncate` in `tools/github.ts` returns
+ * up to `MAX_RESPONSE_SIZE` (100_000) plus its own marker, and the
+ * `Tool "<name>" returned: ` prefix and `JSON.stringify` escaping push it
+ * further, so one maxed `github_api` call is over this budget on its own.
  */
 export const MAX_PERSISTED_TOOL_RESULT_CHARS = 100_000;
 
@@ -25,24 +31,70 @@ export const MAX_PERSISTED_TOOL_RESULT_CHARS = 100_000;
  * Assemble the persisted content for a turn's auto-executed tool results,
  * bounded to {@link MAX_PERSISTED_TOOL_RESULT_CHARS}.
  *
- * The truncation marker is explicit and human-readable on purpose: the row is
- * fed back to the model on later turns, so silent loss reads as the tool
- * having returned less than it did.
+ * The budget is shared per entry rather than spent first-come-first-served over
+ * the concatenation. Results accumulate in round order, and that order runs
+ * against us: the data-fetch tools run first and return the huge payloads,
+ * display tools run last and return the small structured ones. Capping the
+ * concatenation therefore evicted the display entry whole (found in review of
+ * PR #866), and that is data loss rather than lost context: the clients parse
+ * this row back with /Tool "display_(\w+)" returned: (.+)/ to rehydrate chart
+ * and weather cards on reload, and those payloads exist nowhere else.
+ *
+ * Truncation markers are explicit and human-readable on purpose: the row is fed
+ * back to the model on later turns, so silent loss reads as the tool having
+ * returned less than it did. Each marker stays attached to the entry it
+ * describes, so it is never a lone note at the end of an unrelated blob.
  */
 export function buildToolResultContent(results: AutoExecutedToolResult[]): string {
-  const summary = results
-    .map((r) => `Tool "${r.name}" returned: ${JSON.stringify(r.result)}`)
-    .join("\n\n");
+  const entries = results.map((r) => `Tool "${r.name}" returned: ${JSON.stringify(r.result)}`);
+  const framing =
+    HEADER.length + FOOTER.length + ENTRY_SEPARATOR.length * Math.max(0, entries.length - 1);
+  const summary = capEntries(entries, MAX_PERSISTED_TOOL_RESULT_CHARS - framing).join(
+    ENTRY_SEPARATOR
+  );
 
-  return `[Tool Execution Results]\n\n${capToolResultSummary(summary)}\n\nBased on these results, continue with the task.`;
+  return `${HEADER}${summary}${FOOTER}`;
 }
 
 /**
- * Cap the assembled tool output. Kept separate from the wrapper text so the
- * limit bounds the payload itself and the framing is never what gets cut.
+ * Share `budget` across the entries by water-filling: each gets an equal slice,
+ * and what the under-budget ones leave unused goes to the oversized ones.
+ * Assigning smallest-first is what makes that a single pass, and it is why a
+ * 200-char chart payload survives beside a github dump that is over budget on
+ * its own — a flat `budget / n` would cut both.
  */
-function capToolResultSummary(summary: string): string {
-  if (summary.length <= MAX_PERSISTED_TOOL_RESULT_CHARS) return summary;
-  const omitted = summary.length - MAX_PERSISTED_TOOL_RESULT_CHARS;
-  return `${summary.slice(0, MAX_PERSISTED_TOOL_RESULT_CHARS)}\n\n... (tool output truncated, ${omitted} characters omitted)`;
+function capEntries(entries: string[], budget: number): string[] {
+  const smallestFirst = entries
+    .map((_, index) => index)
+    .sort((a, b) => entries[a].length - entries[b].length);
+
+  const capped = [...entries];
+  let remaining = budget;
+  let unassigned = entries.length;
+  for (const index of smallestFirst) {
+    capped[index] = truncateEntry(entries[index], Math.floor(remaining / unassigned));
+    remaining -= capped[index].length;
+    unassigned--;
+  }
+
+  return capped;
+}
+
+/** Cut one entry down to `allowance`, its own truncation marker included. */
+function truncateEntry(entry: string, allowance: number): string {
+  if (entry.length <= allowance) return entry;
+
+  // Size the marker against the whole entry so its digit count is an upper
+  // bound: the marker built from the real omitted count can only be shorter,
+  // never long enough to push the entry back over its allowance.
+  const keep = allowance - truncationMarker(entry.length).length;
+  // Only reachable with thousands of results in one turn, where a share is
+  // narrower than the marker itself. The ceiling wins over the annotation there.
+  if (keep <= 0) return entry.slice(0, Math.max(0, allowance));
+
+  return `${entry.slice(0, keep)}${truncationMarker(entry.length - keep)}`;
+}
+
+function truncationMarker(omitted: number): string {
+  return `\n\n... (tool output truncated, ${omitted} characters omitted)`;
 }
