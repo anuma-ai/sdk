@@ -263,6 +263,7 @@ export {
   type LazyStoredConversation,
   type MessageChunk,
   type MessageFeedback,
+  type MessageOrigin,
   type MessageSkeleton,
   searchChunksOp,
   searchMessagesOp,

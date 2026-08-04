@@ -97,6 +97,7 @@ function messageToStoredRaw(
     parentMessageId: message.parentMessageId,
     feedback: message.feedback || null,
     toolCallEvents: parseJsonField(toolCallEventsRaw),
+    origin: message.origin,
   };
 }
 
@@ -207,6 +208,10 @@ function messageRawToStoredRaw(
     parentMessageId: raw.parent_message_id as string | undefined,
     feedback: (raw.feedback as StoredMessage["feedback"]) || null,
     toolCallEvents: parseJsonField(raw.tool_call_events),
+    // Load-bearing on this path specifically: getMessagesOp reads raws, and it is
+    // what the deferred embedding sweep iterates, so the provenance gate depends
+    // on `origin` surviving the raw mapper as well as the Model one.
+    origin: raw.origin as StoredMessage["origin"],
   };
 }
 
@@ -937,6 +942,9 @@ function applyMessageFields(msg: Message, encryptedOpts: Record<string, unknown>
         : JSON.stringify(encryptedOpts.toolCallEvents);
     msg._setRaw("tool_call_events", tceValue);
   }
+  // Written verbatim, never through encryptMessageFields — the sweep that reads
+  // this back has no wallet context (see MessageOrigin).
+  if (encryptedOpts.origin) msg._setRaw("origin", encryptedOpts.origin as string);
 }
 
 export async function createMessageOp(
@@ -1810,6 +1818,7 @@ export function makeSyntheticStoredMessage(opts: CreateMessageOptions): StoredMe
     thinking: opts.thinking,
     parentMessageId: opts.parentMessageId,
     toolCallEvents: opts.toolCallEvents,
+    origin: opts.origin,
   };
 }
 
