@@ -2,7 +2,7 @@
 
 > **HandlersSetConnectorEnabledRequest** = `object`
 
-Defined in: [src/client/types.gen.ts:2751](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2751)
+Defined in: [src/client/types.gen.ts:2586](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2586)
 
 ## Properties
 
@@ -10,4 +10,4 @@ Defined in: [src/client/types.gen.ts:2751](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **enabled**: `boolean`
 
-Defined in: [src/client/types.gen.ts:2752](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2752)
+Defined in: [src/client/types.gen.ts:2587](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2587)

@@ -2,7 +2,7 @@
 
 > **PostApiV1DeveloperAppsData** = `object`
 
-Defined in: [src/client/types.gen.ts:8030](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8030)
+Defined in: [src/client/types.gen.ts:7568](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7568)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:8030](https://github.com/anuma-ai/sdk/blob/
 
 > **body**: [`HandlersCreateDeveloperAppRequest`](HandlersCreateDeveloperAppRequest.md)
 
-Defined in: [src/client/types.gen.ts:8034](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8034)
+Defined in: [src/client/types.gen.ts:7572](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7572)
 
 Create app request
 
@@ -20,7 +20,7 @@ Create app request
 
 > `optional` **path**: `never`
 
-Defined in: [src/client/types.gen.ts:8035](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8035)
+Defined in: [src/client/types.gen.ts:7573](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7573)
 
 ***
 
@@ -28,7 +28,7 @@ Defined in: [src/client/types.gen.ts:8035](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **query**: `never`
 
-Defined in: [src/client/types.gen.ts:8036](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8036)
+Defined in: [src/client/types.gen.ts:7574](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7574)
 
 ***
 
@@ -36,4 +36,4 @@ Defined in: [src/client/types.gen.ts:8036](https://github.com/anuma-ai/sdk/blob/
 
 > **url**: `"/api/v1/developer/apps"`
 
-Defined in: [src/client/types.gen.ts:8037](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8037)
+Defined in: [src/client/types.gen.ts:7575](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7575)

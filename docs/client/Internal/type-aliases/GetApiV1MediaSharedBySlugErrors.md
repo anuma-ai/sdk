@@ -2,7 +2,7 @@
 
 > **GetApiV1MediaSharedBySlugErrors** = `object`
 
-Defined in: [src/client/types.gen.ts:9028](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9028)
+Defined in: [src/client/types.gen.ts:8566](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8566)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:9028](https://github.com/anuma-ai/sdk/blob/
 
 > **404**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:9032](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9032)
+Defined in: [src/client/types.gen.ts:8570](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8570)
 
 Not Found

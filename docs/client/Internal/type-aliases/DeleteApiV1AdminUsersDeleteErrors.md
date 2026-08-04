@@ -2,7 +2,7 @@
 
 > **DeleteApiV1AdminUsersDeleteErrors** = `object`
 
-Defined in: [src/client/types.gen.ts:6544](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6544)
+Defined in: [src/client/types.gen.ts:6082](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6082)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:6544](https://github.com/anuma-ai/sdk/blob/
 
 > **400**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:6548](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6548)
+Defined in: [src/client/types.gen.ts:6086](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6086)
 
 Bad Request
 
@@ -20,7 +20,7 @@ Bad Request
 
 > **401**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:6552](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6552)
+Defined in: [src/client/types.gen.ts:6090](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6090)
 
 Unauthorized
 
@@ -30,7 +30,7 @@ Unauthorized
 
 > **404**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:6556](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6556)
+Defined in: [src/client/types.gen.ts:6094](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6094)
 
 Not Found
 
@@ -40,7 +40,7 @@ Not Found
 
 > **500**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:6560](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6560)
+Defined in: [src/client/types.gen.ts:6098](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6098)
 
 Internal Server Error
 
@@ -50,6 +50,6 @@ Internal Server Error
 
 > **502**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:6564](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6564)
+Defined in: [src/client/types.gen.ts:6102](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6102)
 
 Bad Gateway

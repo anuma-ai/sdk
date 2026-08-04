@@ -2,4 +2,4 @@
 
 > **PostInternalEmbeddingsResponse** = [`PostInternalEmbeddingsResponses`](PostInternalEmbeddingsResponses.md)\[keyof [`PostInternalEmbeddingsResponses`](PostInternalEmbeddingsResponses.md)]
 
-Defined in: [src/client/types.gen.ts:11338](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11338)
+Defined in: [src/client/types.gen.ts:10840](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10840)

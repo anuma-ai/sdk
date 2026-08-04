@@ -2,7 +2,7 @@
 
 > **getOauthConsent**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`GetOauthConsentData`](../type-aliases/GetOauthConsentData.md), `ThrowOnError`>): `RequestResult`<[`GetOauthConsentResponses`](../type-aliases/GetOauthConsentResponses.md), [`GetOauthConsentErrors`](../type-aliases/GetOauthConsentErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:1728](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1728)
+Defined in: [src/client/sdk.gen.ts:1655](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1655)
 
 OAuth consent screen
 

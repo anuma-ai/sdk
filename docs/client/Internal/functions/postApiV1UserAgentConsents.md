@@ -2,7 +2,7 @@
 
 > **postApiV1UserAgentConsents**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`PostApiV1UserAgentConsentsData`](../type-aliases/PostApiV1UserAgentConsentsData.md), `ThrowOnError`>): `RequestResult`<[`PostApiV1UserAgentConsentsResponses`](../type-aliases/PostApiV1UserAgentConsentsResponses.md), [`PostApiV1UserAgentConsentsErrors`](../type-aliases/PostApiV1UserAgentConsentsErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:1432](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1432)
+Defined in: [src/client/sdk.gen.ts:1373](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1373)
 
 Create per-platform agent consent
 

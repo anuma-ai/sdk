@@ -2,7 +2,7 @@
 
 > **getApiV1Models**<`ThrowOnError`>(`options?`: [`Options`](../type-aliases/Options.md)<[`GetApiV1ModelsData`](../type-aliases/GetApiV1ModelsData.md), `ThrowOnError`, `unknown`>): `RequestResult`<[`GetApiV1ModelsResponses`](../type-aliases/GetApiV1ModelsResponses.md), [`GetApiV1ModelsErrors`](../type-aliases/GetApiV1ModelsErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:1077](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1077)
+Defined in: [src/client/sdk.gen.ts:1018](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1018)
 
 List available models
 

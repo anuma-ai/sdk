@@ -6,7 +6,7 @@ Defined in: [src/client/sdk.gen.ts:243](https://github.com/anuma-ai/sdk/blob/mai
 
 Announce a new model via push notification (admin)
 
-Creates an immediately-scheduled announcement campaign for a curated model (delivery is asynchronous and preference-gated; only announcements opt-ins receive it). Title and body default from the catalog entry; the tap deep-links to the in-app models screen. Idempotent per model\_id — repeat calls return 409 unless force=true. Track delivery via GET /api/v1/admin/notifications/campaigns/{campaign\_id}.
+Broadcasts an Expo push to every registered device announcing a curated model. Title and body default from the catalog entry; the tap deep-links to the in-app models screen. Idempotent per model\_id — repeat calls return 409 unless force=true is set, which also re-announces after a partial delivery.
 
 ## Type Parameters
 

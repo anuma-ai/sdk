@@ -2,7 +2,7 @@
 
 > **HandlersSetToolsRequest** = `object`
 
-Defined in: [src/client/types.gen.ts:2806](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2806)
+Defined in: [src/client/types.gen.ts:2641](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2641)
 
 ## Properties
 
@@ -10,4 +10,4 @@ Defined in: [src/client/types.gen.ts:2806](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **tools**: [`HandlersSetToolItem`](HandlersSetToolItem.md)\[]
 
-Defined in: [src/client/types.gen.ts:2807](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2807)
+Defined in: [src/client/types.gen.ts:2642](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2642)

@@ -2,7 +2,7 @@
 
 > **PostApiV1AdminNotificationsSendErrors** = `object`
 
-Defined in: [src/client/types.gen.ts:5740](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5740)
+Defined in: [src/client/types.gen.ts:5370](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5370)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:5740](https://github.com/anuma-ai/sdk/blob/
 
 > **400**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:5744](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5744)
+Defined in: [src/client/types.gen.ts:5374](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5374)
 
 Bad Request
 
@@ -20,7 +20,7 @@ Bad Request
 
 > **401**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:5748](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5748)
+Defined in: [src/client/types.gen.ts:5378](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5378)
 
 Unauthorized
 
@@ -30,19 +30,9 @@ Unauthorized
 
 > **404**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:5752](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5752)
+Defined in: [src/client/types.gen.ts:5382](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5382)
 
 Not Found
-
-***
-
-### 409
-
-> **409**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
-
-Defined in: [src/client/types.gen.ts:5756](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5756)
-
-Conflict
 
 ***
 
@@ -50,7 +40,7 @@ Conflict
 
 > **500**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:5760](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5760)
+Defined in: [src/client/types.gen.ts:5386](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5386)
 
 Internal Server Error
 
@@ -60,6 +50,6 @@ Internal Server Error
 
 > **503**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:5764](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5764)
+Defined in: [src/client/types.gen.ts:5390](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5390)
 
 Service Unavailable

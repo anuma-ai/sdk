@@ -2,7 +2,7 @@
 
 > **DeleteApiV1AdminAppsByAppIdApiKeysByIdData** = `object`
 
-Defined in: [src/client/types.gen.ts:4940](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4940)
+Defined in: [src/client/types.gen.ts:4775](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4775)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:4940](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **body**: `never`
 
-Defined in: [src/client/types.gen.ts:4941](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4941)
+Defined in: [src/client/types.gen.ts:4776](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4776)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:4941](https://github.com/anuma-ai/sdk/blob/
 
 > **headers**: `object`
 
-Defined in: [src/client/types.gen.ts:4942](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4942)
+Defined in: [src/client/types.gen.ts:4777](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4777)
 
 **X-Admin-API-Key**
 
@@ -32,7 +32,7 @@ Admin API key
 
 > **path**: `object`
 
-Defined in: [src/client/types.gen.ts:4948](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4948)
+Defined in: [src/client/types.gen.ts:4783](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4783)
 
 **app\_id**
 
@@ -52,7 +52,7 @@ API Key ID
 
 > `optional` **query**: `never`
 
-Defined in: [src/client/types.gen.ts:4958](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4958)
+Defined in: [src/client/types.gen.ts:4793](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4793)
 
 ***
 
@@ -60,4 +60,4 @@ Defined in: [src/client/types.gen.ts:4958](https://github.com/anuma-ai/sdk/blob/
 
 > **url**: `"/api/v1/admin/apps/{app_id}/api-keys/{id}"`
 
-Defined in: [src/client/types.gen.ts:4959](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4959)
+Defined in: [src/client/types.gen.ts:4794](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4794)

@@ -132,16 +132,6 @@
 | [GetApiV1AdminConnectorsErrors](Internal/type-aliases/GetApiV1AdminConnectorsErrors.md) | - |
 | [GetApiV1AdminConnectorsResponse](Internal/type-aliases/GetApiV1AdminConnectorsResponse.md) | - |
 | [GetApiV1AdminConnectorsResponses](Internal/type-aliases/GetApiV1AdminConnectorsResponses.md) | - |
-| [GetApiV1AdminNotificationsCampaignsByCampaignIdData](Internal/type-aliases/GetApiV1AdminNotificationsCampaignsByCampaignIdData.md) | - |
-| [GetApiV1AdminNotificationsCampaignsByCampaignIdError](Internal/type-aliases/GetApiV1AdminNotificationsCampaignsByCampaignIdError.md) | - |
-| [GetApiV1AdminNotificationsCampaignsByCampaignIdErrors](Internal/type-aliases/GetApiV1AdminNotificationsCampaignsByCampaignIdErrors.md) | - |
-| [GetApiV1AdminNotificationsCampaignsByCampaignIdResponse](Internal/type-aliases/GetApiV1AdminNotificationsCampaignsByCampaignIdResponse.md) | - |
-| [GetApiV1AdminNotificationsCampaignsByCampaignIdResponses](Internal/type-aliases/GetApiV1AdminNotificationsCampaignsByCampaignIdResponses.md) | - |
-| [GetApiV1AdminNotificationsCampaignsData](Internal/type-aliases/GetApiV1AdminNotificationsCampaignsData.md) | - |
-| [GetApiV1AdminNotificationsCampaignsError](Internal/type-aliases/GetApiV1AdminNotificationsCampaignsError.md) | - |
-| [GetApiV1AdminNotificationsCampaignsErrors](Internal/type-aliases/GetApiV1AdminNotificationsCampaignsErrors.md) | - |
-| [GetApiV1AdminNotificationsCampaignsResponse](Internal/type-aliases/GetApiV1AdminNotificationsCampaignsResponse.md) | - |
-| [GetApiV1AdminNotificationsCampaignsResponses](Internal/type-aliases/GetApiV1AdminNotificationsCampaignsResponses.md) | - |
 | [GetApiV1AdminOauthClientsByClientIdData](Internal/type-aliases/GetApiV1AdminOauthClientsByClientIdData.md) | - |
 | [GetApiV1AdminOauthClientsByClientIdError](Internal/type-aliases/GetApiV1AdminOauthClientsByClientIdError.md) | - |
 | [GetApiV1AdminOauthClientsByClientIdErrors](Internal/type-aliases/GetApiV1AdminOauthClientsByClientIdErrors.md) | - |
@@ -150,11 +140,6 @@
 | [GetApiV1AdminOauthClientsData](Internal/type-aliases/GetApiV1AdminOauthClientsData.md) | - |
 | [GetApiV1AdminOauthClientsResponse](Internal/type-aliases/GetApiV1AdminOauthClientsResponse.md) | - |
 | [GetApiV1AdminOauthClientsResponses](Internal/type-aliases/GetApiV1AdminOauthClientsResponses.md) | - |
-| [GetApiV1AdminPhoneHashesAuditData](Internal/type-aliases/GetApiV1AdminPhoneHashesAuditData.md) | - |
-| [GetApiV1AdminPhoneHashesAuditError](Internal/type-aliases/GetApiV1AdminPhoneHashesAuditError.md) | - |
-| [GetApiV1AdminPhoneHashesAuditErrors](Internal/type-aliases/GetApiV1AdminPhoneHashesAuditErrors.md) | - |
-| [GetApiV1AdminPhoneHashesAuditResponse](Internal/type-aliases/GetApiV1AdminPhoneHashesAuditResponse.md) | - |
-| [GetApiV1AdminPhoneHashesAuditResponses](Internal/type-aliases/GetApiV1AdminPhoneHashesAuditResponses.md) | - |
 | [GetApiV1AdminPrivyIdentifiersAuditData](Internal/type-aliases/GetApiV1AdminPrivyIdentifiersAuditData.md) | - |
 | [GetApiV1AdminPrivyIdentifiersAuditError](Internal/type-aliases/GetApiV1AdminPrivyIdentifiersAuditError.md) | - |
 | [GetApiV1AdminPrivyIdentifiersAuditErrors](Internal/type-aliases/GetApiV1AdminPrivyIdentifiersAuditErrors.md) | - |
@@ -407,8 +392,6 @@
 | [GetWellKnownJwksJsonResponse](Internal/type-aliases/GetWellKnownJwksJsonResponse.md) | - |
 | [GetWellKnownJwksJsonResponses](Internal/type-aliases/GetWellKnownJwksJsonResponses.md) | - |
 | [HandlersAccountByDidResponse](Internal/type-aliases/HandlersAccountByDidResponse.md) | - |
-| [HandlersAccountsByPhoneHashesRequest](Internal/type-aliases/HandlersAccountsByPhoneHashesRequest.md) | - |
-| [HandlersAccountsByPhoneHashesResponse](Internal/type-aliases/HandlersAccountsByPhoneHashesResponse.md) | - |
 | [HandlersAddCreditsRequest](Internal/type-aliases/HandlersAddCreditsRequest.md) | - |
 | [HandlersAddCreditsResponse](Internal/type-aliases/HandlersAddCreditsResponse.md) | - |
 | [HandlersAgentListItem](Internal/type-aliases/HandlersAgentListItem.md) | - |
@@ -429,8 +412,6 @@
 | [HandlersBootstrapResponse](Internal/type-aliases/HandlersBootstrapResponse.md) | - |
 | [HandlersBootstrapUser](Internal/type-aliases/HandlersBootstrapUser.md) | User is the authenticated identity context. |
 | [HandlersBoundWalletResponse](Internal/type-aliases/HandlersBoundWalletResponse.md) | - |
-| [HandlersCampaignRequest](Internal/type-aliases/HandlersCampaignRequest.md) | - |
-| [HandlersCampaignResponse](Internal/type-aliases/HandlersCampaignResponse.md) | - |
 | [HandlersCancelResponse](Internal/type-aliases/HandlersCancelResponse.md) | - |
 | [HandlersCancelScheduledDowngradeResponse](Internal/type-aliases/HandlersCancelScheduledDowngradeResponse.md) | - |
 | [HandlersCancelSubscriptionRequest](Internal/type-aliases/HandlersCancelSubscriptionRequest.md) | - |
@@ -494,7 +475,6 @@
 | [HandlersInferenceWeeklyResponse](Internal/type-aliases/HandlersInferenceWeeklyResponse.md) | - |
 | [HandlersListApiKeysResponse](Internal/type-aliases/HandlersListApiKeysResponse.md) | - |
 | [HandlersListAppsResponse](Internal/type-aliases/HandlersListAppsResponse.md) | - |
-| [HandlersListCampaignsResponse](Internal/type-aliases/HandlersListCampaignsResponse.md) | - |
 | [HandlersListConsentsResponse](Internal/type-aliases/HandlersListConsentsResponse.md) | - |
 | [HandlersListDeveloperApiKeysResponse](Internal/type-aliases/HandlersListDeveloperApiKeysResponse.md) | - |
 | [HandlersListDeveloperAppsResponse](Internal/type-aliases/HandlersListDeveloperAppsResponse.md) | - |
@@ -531,9 +511,6 @@
 | [HandlersPersonaResponse](Internal/type-aliases/HandlersPersonaResponse.md) | - |
 | [HandlersPhoneCallResponse](Internal/type-aliases/HandlersPhoneCallResponse.md) | - |
 | [HandlersPhoneCallTranscriptEntry](Internal/type-aliases/HandlersPhoneCallTranscriptEntry.md) | - |
-| [HandlersPhoneHashAuditEntry](Internal/type-aliases/HandlersPhoneHashAuditEntry.md) | - |
-| [HandlersPhoneHashAuditResponse](Internal/type-aliases/HandlersPhoneHashAuditResponse.md) | - |
-| [HandlersPhoneHashMatchResult](Internal/type-aliases/HandlersPhoneHashMatchResult.md) | - |
 | [HandlersPreProcessorRequest](Internal/type-aliases/HandlersPreProcessorRequest.md) | - |
 | [HandlersPrivyIdentifierAuditEntry](Internal/type-aliases/HandlersPrivyIdentifierAuditEntry.md) | - |
 | [HandlersPrivyIdentifierAuditResponse](Internal/type-aliases/HandlersPrivyIdentifierAuditResponse.md) | - |
@@ -727,11 +704,6 @@
 | [ParamOptFloat64](Internal/type-aliases/ParamOptFloat64.md) | An alternative to sampling with temperature, called nucleus sampling, where the model considers the results of the tokens with top\_p probability mass. So 0.1 means only the tokens comprising the top 10% probability mass are considered. |
 | [ParamOptInt64](Internal/type-aliases/ParamOptInt64.md) | An integer between 0 and 20 specifying the number of most likely tokens to return at each token position, each with an associated log probability. `logprobs` must be set to `true` if this parameter is used. |
 | [ParamOptString](Internal/type-aliases/ParamOptString.md) | The [IANA timezone](https://timeapi.io/documentation/iana-timezones) of the user, e.g. `America/Los_Angeles`. |
-| [PatchApiV1AdminNotificationsCampaignsByCampaignIdData](Internal/type-aliases/PatchApiV1AdminNotificationsCampaignsByCampaignIdData.md) | - |
-| [PatchApiV1AdminNotificationsCampaignsByCampaignIdError](Internal/type-aliases/PatchApiV1AdminNotificationsCampaignsByCampaignIdError.md) | - |
-| [PatchApiV1AdminNotificationsCampaignsByCampaignIdErrors](Internal/type-aliases/PatchApiV1AdminNotificationsCampaignsByCampaignIdErrors.md) | - |
-| [PatchApiV1AdminNotificationsCampaignsByCampaignIdResponse](Internal/type-aliases/PatchApiV1AdminNotificationsCampaignsByCampaignIdResponse.md) | - |
-| [PatchApiV1AdminNotificationsCampaignsByCampaignIdResponses](Internal/type-aliases/PatchApiV1AdminNotificationsCampaignsByCampaignIdResponses.md) | - |
 | [PatchApiV1AdminOauthClientsByClientIdData](Internal/type-aliases/PatchApiV1AdminOauthClientsByClientIdData.md) | - |
 | [PatchApiV1AdminOauthClientsByClientIdError](Internal/type-aliases/PatchApiV1AdminOauthClientsByClientIdError.md) | - |
 | [PatchApiV1AdminOauthClientsByClientIdErrors](Internal/type-aliases/PatchApiV1AdminOauthClientsByClientIdErrors.md) | - |
@@ -787,16 +759,6 @@
 | [PostApiV1AdminNotificationsAnnounceModelErrors](Internal/type-aliases/PostApiV1AdminNotificationsAnnounceModelErrors.md) | - |
 | [PostApiV1AdminNotificationsAnnounceModelResponse](Internal/type-aliases/PostApiV1AdminNotificationsAnnounceModelResponse.md) | - |
 | [PostApiV1AdminNotificationsAnnounceModelResponses](Internal/type-aliases/PostApiV1AdminNotificationsAnnounceModelResponses.md) | - |
-| [PostApiV1AdminNotificationsCampaignsByCampaignIdCancelData](Internal/type-aliases/PostApiV1AdminNotificationsCampaignsByCampaignIdCancelData.md) | - |
-| [PostApiV1AdminNotificationsCampaignsByCampaignIdCancelError](Internal/type-aliases/PostApiV1AdminNotificationsCampaignsByCampaignIdCancelError.md) | - |
-| [PostApiV1AdminNotificationsCampaignsByCampaignIdCancelErrors](Internal/type-aliases/PostApiV1AdminNotificationsCampaignsByCampaignIdCancelErrors.md) | - |
-| [PostApiV1AdminNotificationsCampaignsByCampaignIdCancelResponse](Internal/type-aliases/PostApiV1AdminNotificationsCampaignsByCampaignIdCancelResponse.md) | - |
-| [PostApiV1AdminNotificationsCampaignsByCampaignIdCancelResponses](Internal/type-aliases/PostApiV1AdminNotificationsCampaignsByCampaignIdCancelResponses.md) | - |
-| [PostApiV1AdminNotificationsCampaignsData](Internal/type-aliases/PostApiV1AdminNotificationsCampaignsData.md) | - |
-| [PostApiV1AdminNotificationsCampaignsError](Internal/type-aliases/PostApiV1AdminNotificationsCampaignsError.md) | - |
-| [PostApiV1AdminNotificationsCampaignsErrors](Internal/type-aliases/PostApiV1AdminNotificationsCampaignsErrors.md) | - |
-| [PostApiV1AdminNotificationsCampaignsResponse](Internal/type-aliases/PostApiV1AdminNotificationsCampaignsResponse.md) | - |
-| [PostApiV1AdminNotificationsCampaignsResponses](Internal/type-aliases/PostApiV1AdminNotificationsCampaignsResponses.md) | - |
 | [PostApiV1AdminNotificationsSendData](Internal/type-aliases/PostApiV1AdminNotificationsSendData.md) | - |
 | [PostApiV1AdminNotificationsSendError](Internal/type-aliases/PostApiV1AdminNotificationsSendError.md) | - |
 | [PostApiV1AdminNotificationsSendErrors](Internal/type-aliases/PostApiV1AdminNotificationsSendErrors.md) | - |
@@ -812,11 +774,6 @@
 | [PostApiV1AdminPersonasErrors](Internal/type-aliases/PostApiV1AdminPersonasErrors.md) | - |
 | [PostApiV1AdminPersonasResponse](Internal/type-aliases/PostApiV1AdminPersonasResponse.md) | - |
 | [PostApiV1AdminPersonasResponses](Internal/type-aliases/PostApiV1AdminPersonasResponses.md) | - |
-| [PostApiV1AdminPhoneHashesBackfillData](Internal/type-aliases/PostApiV1AdminPhoneHashesBackfillData.md) | - |
-| [PostApiV1AdminPhoneHashesBackfillError](Internal/type-aliases/PostApiV1AdminPhoneHashesBackfillError.md) | - |
-| [PostApiV1AdminPhoneHashesBackfillErrors](Internal/type-aliases/PostApiV1AdminPhoneHashesBackfillErrors.md) | - |
-| [PostApiV1AdminPhoneHashesBackfillResponse](Internal/type-aliases/PostApiV1AdminPhoneHashesBackfillResponse.md) | - |
-| [PostApiV1AdminPhoneHashesBackfillResponses](Internal/type-aliases/PostApiV1AdminPhoneHashesBackfillResponses.md) | - |
 | [PostApiV1AdminPrivyDevWipeData](Internal/type-aliases/PostApiV1AdminPrivyDevWipeData.md) | - |
 | [PostApiV1AdminPrivyDevWipeError](Internal/type-aliases/PostApiV1AdminPrivyDevWipeError.md) | - |
 | [PostApiV1AdminPrivyDevWipeErrors](Internal/type-aliases/PostApiV1AdminPrivyDevWipeErrors.md) | - |
@@ -1114,11 +1071,6 @@
 | [PostAuthOauthByProviderRevokeErrors](Internal/type-aliases/PostAuthOauthByProviderRevokeErrors.md) | - |
 | [PostAuthOauthByProviderRevokeResponse](Internal/type-aliases/PostAuthOauthByProviderRevokeResponse.md) | - |
 | [PostAuthOauthByProviderRevokeResponses](Internal/type-aliases/PostAuthOauthByProviderRevokeResponses.md) | - |
-| [PostInternalAccountsByPhoneHashesData](Internal/type-aliases/PostInternalAccountsByPhoneHashesData.md) | - |
-| [PostInternalAccountsByPhoneHashesError](Internal/type-aliases/PostInternalAccountsByPhoneHashesError.md) | - |
-| [PostInternalAccountsByPhoneHashesErrors](Internal/type-aliases/PostInternalAccountsByPhoneHashesErrors.md) | - |
-| [PostInternalAccountsByPhoneHashesResponse](Internal/type-aliases/PostInternalAccountsByPhoneHashesResponse.md) | - |
-| [PostInternalAccountsByPhoneHashesResponses](Internal/type-aliases/PostInternalAccountsByPhoneHashesResponses.md) | - |
 | [PostInternalCompleteData](Internal/type-aliases/PostInternalCompleteData.md) | - |
 | [PostInternalCompleteError](Internal/type-aliases/PostInternalCompleteError.md) | - |
 | [PostInternalCompleteErrors](Internal/type-aliases/PostInternalCompleteErrors.md) | - |
@@ -1240,11 +1192,8 @@
 | [getApiV1AdminAppsById](Internal/functions/getApiV1AdminAppsById.md) | Get app by ID |
 | [getApiV1AdminBotStatus](Internal/functions/getApiV1AdminBotStatus.md) | Get X-bot status (admin) |
 | [getApiV1AdminConnectors](Internal/functions/getApiV1AdminConnectors.md) | List connector enable/disable state (admin) |
-| [getApiV1AdminNotificationsCampaigns](Internal/functions/getApiV1AdminNotificationsCampaigns.md) | List announcement campaigns (admin) |
-| [getApiV1AdminNotificationsCampaignsByCampaignId](Internal/functions/getApiV1AdminNotificationsCampaignsByCampaignId.md) | Get an announcement campaign with delivery counters (admin) |
 | [getApiV1AdminOauthClients](Internal/functions/getApiV1AdminOauthClients.md) | List OAuth clients |
 | [getApiV1AdminOauthClientsByClientId](Internal/functions/getApiV1AdminOauthClientsByClientId.md) | Get an OAuth client |
-| [getApiV1AdminPhoneHashesAudit](Internal/functions/getApiV1AdminPhoneHashesAudit.md) | Audit phone-hash coverage |
 | [getApiV1AdminPrivyIdentifiersAudit](Internal/functions/getApiV1AdminPrivyIdentifiersAudit.md) | Audit Privy wallet identifiers |
 | [getApiV1AdminUsersLookup](Internal/functions/getApiV1AdminUsersLookup.md) | Lookup user by identifier |
 | [getApiV1AgentPreferences](Internal/functions/getApiV1AgentPreferences.md) | List user agent preferences |
@@ -1299,7 +1248,6 @@
 | [getOauthAuthorize](Internal/functions/getOauthAuthorize.md) | OAuth 2.0 authorization endpoint |
 | [getOauthConsent](Internal/functions/getOauthConsent.md) | OAuth consent screen |
 | [getWellKnownJwksJson](Internal/functions/getWellKnownJwksJson.md) | OAuth 2.0 JSON Web Key Set |
-| [patchApiV1AdminNotificationsCampaignsByCampaignId](Internal/functions/patchApiV1AdminNotificationsCampaignsByCampaignId.md) | Edit a draft/scheduled announcement campaign (admin) |
 | [patchApiV1AdminOauthClientsByClientId](Internal/functions/patchApiV1AdminOauthClientsByClientId.md) | Update an OAuth client |
 | [patchApiV1DeveloperAppsByAppUuid](Internal/functions/patchApiV1DeveloperAppsByAppUuid.md) | Update app |
 | [patchApiV1DeveloperAppsByAppUuidUsersByAddress](Internal/functions/patchApiV1DeveloperAppsByAppUuidUsersByAddress.md) | Update user limit |
@@ -1311,12 +1259,9 @@
 | [postApiV1AdminBotPollerStart](Internal/functions/postApiV1AdminBotPollerStart.md) | Start the X-bot poller (admin) |
 | [postApiV1AdminBotPollerStop](Internal/functions/postApiV1AdminBotPollerStop.md) | Stop the X-bot poller (admin) |
 | [postApiV1AdminNotificationsAnnounceModel](Internal/functions/postApiV1AdminNotificationsAnnounceModel.md) | Announce a new model via push notification (admin) |
-| [postApiV1AdminNotificationsCampaigns](Internal/functions/postApiV1AdminNotificationsCampaigns.md) | Create an announcement campaign (admin) |
-| [postApiV1AdminNotificationsCampaignsByCampaignIdCancel](Internal/functions/postApiV1AdminNotificationsCampaignsByCampaignIdCancel.md) | Cancel an announcement campaign (admin) |
 | [postApiV1AdminNotificationsSend](Internal/functions/postApiV1AdminNotificationsSend.md) | Send test push notification (admin) |
 | [postApiV1AdminOauthClients](Internal/functions/postApiV1AdminOauthClients.md) | Create an OAuth client (agent registration) |
 | [postApiV1AdminPersonas](Internal/functions/postApiV1AdminPersonas.md) | Create persona |
-| [postApiV1AdminPhoneHashesBackfill](Internal/functions/postApiV1AdminPhoneHashesBackfill.md) | Backfill phone hashes from Privy |
 | [postApiV1AdminPrivyDevWipe](Internal/functions/postApiV1AdminPrivyDevWipe.md) | Bulk-delete test users from the Privy dev app |
 | [postApiV1AdminPrivyIdentifiersMigrate](Internal/functions/postApiV1AdminPrivyIdentifiersMigrate.md) | Migrate Privy wallet identifiers |
 | [postApiV1AdminSeedApps](Internal/functions/postApiV1AdminSeedApps.md) | Seed apps and API keys |
@@ -1377,7 +1322,6 @@
 | [postAuthOauthByProviderExchange](Internal/functions/postAuthOauthByProviderExchange.md) | Exchange authorization code for tokens |
 | [postAuthOauthByProviderRefresh](Internal/functions/postAuthOauthByProviderRefresh.md) | Refresh access token |
 | [postAuthOauthByProviderRevoke](Internal/functions/postAuthOauthByProviderRevoke.md) | Revoke OAuth token |
-| [postInternalAccountsByPhoneHashes](Internal/functions/postInternalAccountsByPhoneHashes.md) | Resolve phone hashes to account IDs (batch) |
 | [postInternalComplete](Internal/functions/postInternalComplete.md) | Create a chat completion (internal) |
 | [postInternalEmbeddings](Internal/functions/postInternalEmbeddings.md) | Create embeddings (internal) |
 | [postInternalModerate](Internal/functions/postInternalModerate.md) | Moderate content (internal) |

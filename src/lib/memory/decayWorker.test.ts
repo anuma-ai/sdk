@@ -44,6 +44,7 @@ import {
   HARD_DELETE_WINDOW_MS,
   MEDIUM_TTL_MS,
   PAST_EVENT_GRACE_MS,
+  SOURCE_PHOTO,
 } from "./decay";
 import { createDecaySweeper } from "./decayWorker";
 
@@ -585,6 +586,38 @@ describe("createDecaySweeper — PR5 classifier seam", () => {
     expect(result.archived).toBe(0);
     expect(await archivedAtOf(manualOther)).toBeNull();
     expect(await archivedAtOf(manualUntyped)).toBeNull();
+  });
+
+  it("a PHOTO row is NEVER borderline — the classifier cannot route around the auto-archive exemption", async () => {
+    // classifyDecay exempts source==="photo" from auto-archive because archiving one
+    // silently UNPUBLISHES it: archived rows leave baseVaultConditions, so the row
+    // leaves `local`, leaves `desired`, and — photo ids being always adopted into
+    // ledger.published — lands in `toRevoke`. The classifier lane walked straight
+    // around that guard, because photoIngest never writes fact_type so every ingested
+    // photo row arrives factType===null and was borderline on the first check.
+    //
+    // A hostile classifier must therefore never even be consulted for these.
+    const photoUntyped = await seed({
+      content: "Hikes mountain trails",
+      source: SOURCE_PHOTO,
+      updatedAt: NOW, // no factType → null bucket, the exact shape ingest writes
+    });
+    const photoOther = await seed({
+      content: "Eats at ramen restaurants",
+      source: SOURCE_PHOTO,
+      factType: "other",
+      updatedAt: NOW - 5 * 365 * DAY, // ancient too, to be sure the rule lane also holds
+    });
+
+    const classify = vi.fn((): DecayVerdict => "archive"); // hostile: always archive
+    const sweeper = createDecaySweeper({ vaultCtx, now: NOW, classifier: { classify } });
+
+    const result = await sweeper.runSweep();
+
+    expect(classify).not.toHaveBeenCalled();
+    expect(result.archived).toBe(0);
+    expect(await archivedAtOf(photoUntyped)).toBeNull();
+    expect(await archivedAtOf(photoOther)).toBeNull();
   });
 
   it("MED regression: a QUARANTINED borderline row is NEVER borderline — classifier not called, but rule-based decay still applies", async () => {

@@ -2,7 +2,7 @@
 
 > **PostAuthOauthByProviderRevokeResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:11086](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11086)
+Defined in: [src/client/types.gen.ts:10624](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10624)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:11086](https://github.com/anuma-ai/sdk/blob
 
 > **200**: `object`
 
-Defined in: [src/client/types.gen.ts:11090](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11090)
+Defined in: [src/client/types.gen.ts:10628](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10628)
 
 Empty object on success
 

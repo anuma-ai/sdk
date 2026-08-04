@@ -2,7 +2,7 @@
 
 > **HandlersNotificationPreferencesResponse** = `object`
 
-Defined in: [src/client/types.gen.ts:2356](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2356)
+Defined in: [src/client/types.gen.ts:2274](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2274)
 
 ## Properties
 
@@ -10,4 +10,4 @@ Defined in: [src/client/types.gen.ts:2356](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **categories**: [`HandlersNotificationPreferenceItem`](HandlersNotificationPreferenceItem.md)\[]
 
-Defined in: [src/client/types.gen.ts:2357](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2357)
+Defined in: [src/client/types.gen.ts:2275](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2275)

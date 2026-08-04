@@ -2,7 +2,7 @@
 
 > **GetApiV1SharesErrors** = `object`
 
-Defined in: [src/client/types.gen.ts:9651](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9651)
+Defined in: [src/client/types.gen.ts:9189](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9189)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:9651](https://github.com/anuma-ai/sdk/blob/
 
 > **401**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:9655](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9655)
+Defined in: [src/client/types.gen.ts:9193](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9193)
 
 Unauthorized

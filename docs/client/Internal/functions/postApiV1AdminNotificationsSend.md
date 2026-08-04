@@ -2,11 +2,11 @@
 
 > **postApiV1AdminNotificationsSend**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`PostApiV1AdminNotificationsSendData`](../type-aliases/PostApiV1AdminNotificationsSendData.md), `ThrowOnError`>): `RequestResult`<[`PostApiV1AdminNotificationsSendResponses`](../type-aliases/PostApiV1AdminNotificationsSendResponses.md), [`PostApiV1AdminNotificationsSendErrors`](../type-aliases/PostApiV1AdminNotificationsSendErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:302](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#302)
+Defined in: [src/client/sdk.gen.ts:257](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#257)
 
 Send test push notification (admin)
 
-Sends an Expo push to every device registered under the resolved account. Exactly one of account\_id or user\_address must be provided. When event\_type is set, the send routes through the full dispatch pipeline (kill-switch, category mapping, recipient preference, Android channelId) — 409 means the recipient's preference blocked it, 503 means the event type is kill-switched. Returns the per-device delivery breakdown including any rows pruned because Expo reported DeviceNotRegistered.
+Sends an Expo push to every device registered under the resolved account. Exactly one of account\_id or user\_address must be provided. Returns the per-device delivery breakdown including any rows pruned because Expo reported DeviceNotRegistered.
 
 ## Type Parameters
 

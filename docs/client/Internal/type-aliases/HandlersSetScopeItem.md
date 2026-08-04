@@ -2,7 +2,7 @@
 
 > **HandlersSetScopeItem** = `object`
 
-Defined in: [src/client/types.gen.ts:2764](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2764)
+Defined in: [src/client/types.gen.ts:2599](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2599)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:2764](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **access**: `string`
 
-Defined in: [src/client/types.gen.ts:2765](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2765)
+Defined in: [src/client/types.gen.ts:2600](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2600)
 
 ***
 
@@ -18,4 +18,4 @@ Defined in: [src/client/types.gen.ts:2765](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **enabled**: `boolean`
 
-Defined in: [src/client/types.gen.ts:2766](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2766)
+Defined in: [src/client/types.gen.ts:2601](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2601)

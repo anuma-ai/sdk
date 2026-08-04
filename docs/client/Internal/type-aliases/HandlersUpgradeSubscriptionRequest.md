@@ -2,7 +2,7 @@
 
 > **HandlersUpgradeSubscriptionRequest** = `object`
 
-Defined in: [src/client/types.gen.ts:3102](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3102)
+Defined in: [src/client/types.gen.ts:2937](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2937)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:3102](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **interval**: `string`
 
-Defined in: [src/client/types.gen.ts:3106](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3106)
+Defined in: [src/client/types.gen.ts:2941](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2941)
 
 Optional: "month" or "year" (defaults to current)
 
@@ -20,6 +20,6 @@ Optional: "month" or "year" (defaults to current)
 
 > `optional` **tier**: `string`
 
-Defined in: [src/client/types.gen.ts:3110](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3110)
+Defined in: [src/client/types.gen.ts:2945](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2945)
 
 Required: "starter" or "pro"

@@ -2,7 +2,7 @@
 
 > **OpenaiChatCompletionContentPartInputAudioInputAudioParam** = `object`
 
-Defined in: [src/client/types.gen.ts:3693](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3693)
+Defined in: [src/client/types.gen.ts:3528](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3528)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:3693](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **any**: `unknown`
 
-Defined in: [src/client/types.gen.ts:3694](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3694)
+Defined in: [src/client/types.gen.ts:3529](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3529)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:3694](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **data**: `string`
 
-Defined in: [src/client/types.gen.ts:3698](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3698)
+Defined in: [src/client/types.gen.ts:3533](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3533)
 
 Base64 encoded audio data.
 
@@ -28,7 +28,7 @@ Base64 encoded audio data.
 
 > `optional` **format**: `string`
 
-Defined in: [src/client/types.gen.ts:3704](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3704)
+Defined in: [src/client/types.gen.ts:3539](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3539)
 
 The format of the encoded audio data. Currently supports "wav" and "mp3".
 

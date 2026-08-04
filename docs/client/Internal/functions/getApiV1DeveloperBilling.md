@@ -2,7 +2,7 @@
 
 > **getApiV1DeveloperBilling**<`ThrowOnError`>(`options?`: [`Options`](../type-aliases/Options.md)<[`GetApiV1DeveloperBillingData`](../type-aliases/GetApiV1DeveloperBillingData.md), `ThrowOnError`, `unknown`>): `RequestResult`<[`GetApiV1DeveloperBillingResponses`](../type-aliases/GetApiV1DeveloperBillingResponses.md), [`GetApiV1DeveloperBillingErrors`](../type-aliases/GetApiV1DeveloperBillingErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:1016](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1016)
+Defined in: [src/client/sdk.gen.ts:957](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#957)
 
 Get billing history
 

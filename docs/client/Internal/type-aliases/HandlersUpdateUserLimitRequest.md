@@ -2,7 +2,7 @@
 
 > **HandlersUpdateUserLimitRequest** = `object`
 
-Defined in: [src/client/types.gen.ts:3095](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3095)
+Defined in: [src/client/types.gen.ts:2930](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2930)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:3095](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **credits**: `number`
 
-Defined in: [src/client/types.gen.ts:3099](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3099)
+Defined in: [src/client/types.gen.ts:2934](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2934)
 
 credit limit (1 credit = $0.01)

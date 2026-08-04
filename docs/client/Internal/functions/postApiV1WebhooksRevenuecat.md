@@ -2,7 +2,7 @@
 
 > **postApiV1WebhooksRevenuecat**<`ThrowOnError`>(`options?`: [`Options`](../type-aliases/Options.md)<[`PostApiV1WebhooksRevenuecatData`](../type-aliases/PostApiV1WebhooksRevenuecatData.md), `ThrowOnError`, `unknown`>): `RequestResult`<[`PostApiV1WebhooksRevenuecatResponses`](../type-aliases/PostApiV1WebhooksRevenuecatResponses.md), [`PostApiV1WebhooksRevenuecatErrors`](../type-aliases/PostApiV1WebhooksRevenuecatErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:1571](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1571)
+Defined in: [src/client/sdk.gen.ts:1512](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1512)
 
 Handle RevenueCat webhook
 

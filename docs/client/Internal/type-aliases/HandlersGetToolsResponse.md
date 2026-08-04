@@ -2,7 +2,7 @@
 
 > **HandlersGetToolsResponse** = `object`
 
-Defined in: [src/client/types.gen.ts:2114](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2114)
+Defined in: [src/client/types.gen.ts:2037](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2037)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:2114](https://github.com/anuma-ai/sdk/blob/
 
 > **checksum**: `string`
 
-Defined in: [src/client/types.gen.ts:2115](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2115)
+Defined in: [src/client/types.gen.ts:2038](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2038)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:2115](https://github.com/anuma-ai/sdk/blob/
 
 > **tools**: `object`
 
-Defined in: [src/client/types.gen.ts:2116](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2116)
+Defined in: [src/client/types.gen.ts:2039](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2039)
 
 **Index Signature**
 

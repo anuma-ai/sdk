@@ -2,7 +2,7 @@
 
 > **PostApiV1ConnectorTokensByProviderErrors** = `object`
 
-Defined in: [src/client/types.gen.ts:7462](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7462)
+Defined in: [src/client/types.gen.ts:7000](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7000)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:7462](https://github.com/anuma-ai/sdk/blob/
 
 > **400**: [`HandlersConnectorMintErrorResponse`](HandlersConnectorMintErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:7466](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7466)
+Defined in: [src/client/types.gen.ts:7004](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7004)
 
 Bad Request
 
@@ -20,7 +20,7 @@ Bad Request
 
 > **401**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:7470](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7470)
+Defined in: [src/client/types.gen.ts:7008](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7008)
 
 Unauthorized
 
@@ -30,7 +30,7 @@ Unauthorized
 
 > **403**: [`HandlersConnectorMintErrorResponse`](HandlersConnectorMintErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:7474](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7474)
+Defined in: [src/client/types.gen.ts:7012](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7012)
 
 insufficient\_scope
 
@@ -40,7 +40,7 @@ insufficient\_scope
 
 > **412**: [`HandlersConnectorMintErrorResponse`](HandlersConnectorMintErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:7478](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7478)
+Defined in: [src/client/types.gen.ts:7016](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7016)
 
 connector\_not\_connected / scope\_not\_covered / invalid\_grant
 
@@ -50,7 +50,7 @@ connector\_not\_connected / scope\_not\_covered / invalid\_grant
 
 > **500**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:7482](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7482)
+Defined in: [src/client/types.gen.ts:7020](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7020)
 
 Internal Server Error
 
@@ -60,6 +60,6 @@ Internal Server Error
 
 > **503**: [`HandlersConnectorMintErrorResponse`](HandlersConnectorMintErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:7486](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7486)
+Defined in: [src/client/types.gen.ts:7024](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7024)
 
 upstream\_unavailable

@@ -2,4 +2,4 @@
 
 > **PostApiV1AdminPrivyDevWipeError** = [`PostApiV1AdminPrivyDevWipeErrors`](PostApiV1AdminPrivyDevWipeErrors.md)\[keyof [`PostApiV1AdminPrivyDevWipeErrors`](PostApiV1AdminPrivyDevWipeErrors.md)]
 
-Defined in: [src/client/types.gen.ts:6228](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6228)
+Defined in: [src/client/types.gen.ts:5766](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5766)

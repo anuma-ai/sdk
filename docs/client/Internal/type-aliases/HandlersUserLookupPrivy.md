@@ -2,7 +2,7 @@
 
 > **HandlersUserLookupPrivy** = `object`
 
-Defined in: [src/client/types.gen.ts:3248](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3248)
+Defined in: [src/client/types.gen.ts:3083](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3083)
 
 Privy is populated when the identifier was resolved through Privy (email
 lookup) or when there is no portal account but a Privy user exists for the
@@ -14,7 +14,7 @@ wallet. nil when no Privy user was resolved.
 
 > `optional` **created\_at**: `string`
 
-Defined in: [src/client/types.gen.ts:3249](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3249)
+Defined in: [src/client/types.gen.ts:3084](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3084)
 
 ***
 
@@ -22,7 +22,7 @@ Defined in: [src/client/types.gen.ts:3249](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **did**: `string`
 
-Defined in: [src/client/types.gen.ts:3250](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3250)
+Defined in: [src/client/types.gen.ts:3085](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3085)
 
 ***
 
@@ -30,7 +30,7 @@ Defined in: [src/client/types.gen.ts:3250](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **email**: `string`
 
-Defined in: [src/client/types.gen.ts:3251](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3251)
+Defined in: [src/client/types.gen.ts:3086](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3086)
 
 ***
 
@@ -38,7 +38,7 @@ Defined in: [src/client/types.gen.ts:3251](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **embedded\_wallet**: `string`
 
-Defined in: [src/client/types.gen.ts:3252](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3252)
+Defined in: [src/client/types.gen.ts:3087](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3087)
 
 ***
 
@@ -46,4 +46,4 @@ Defined in: [src/client/types.gen.ts:3252](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **linked\_account\_types**: `string`\[]
 
-Defined in: [src/client/types.gen.ts:3253](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3253)
+Defined in: [src/client/types.gen.ts:3088](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3088)
