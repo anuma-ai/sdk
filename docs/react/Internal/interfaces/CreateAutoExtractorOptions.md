@@ -23,6 +23,23 @@ auto-merge with no consolidation LLM calls.
 
 Portal base URL for consolidation calls. Default: the `extract` options' `baseUrl`.
 
+**endpointOverride?**
+
+> `optional` **endpointOverride**: `string`
+
+Per-call request path override for the consolidation LLM call, forwarded to
+`RetainOptions.consolidateOptions.endpointOverride`.
+
+Must be set alongside `extract.endpointOverride`, not instead of it. This
+pass runs inside `retain()` on the SAME background turn as extraction and
+hits the same programmatic-abuse gate, so routing only extraction leaves a
+turn that extracts facts and then fails to dedup them — memories get
+created without consolidation. See zeta-chain/ai-memoryless-client#5536.
+
+The worker forwards `consolidate` by spread, so this type is the only thing
+that gates it: without the field a caller's override compiles (spread
+bypasses excess-property checks) and is silently dropped.
+
 **model?**
 
 > `optional` **model**: `string`
@@ -118,7 +135,7 @@ Override folderId for all retained facts.
 
 > `optional` **injectionClassifier**: `object`
 
-Defined in: [src/lib/memory/autoExtractWorker.ts:266](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#266)
+Defined in: [src/lib/memory/autoExtractWorker.ts:281](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#281)
 
 Tier-0 security (PR5) — enable the optional SECOND-layer LLM injection
 classifier over the candidates the deterministic screen passed as clean.
@@ -190,7 +207,7 @@ Confidence floor for retained facts. Default 0.7.
 
 > `optional` **onCandidateFailed**: (`event`: `object`) => `void`
 
-Defined in: [src/lib/memory/autoExtractWorker.ts:293](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#293)
+Defined in: [src/lib/memory/autoExtractWorker.ts:308](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#308)
 
 Per-candidate retain() failure. Lets UI layers ("Anuma is saving …
 — couldn't save Lives in Portland") surface the specific fact that
@@ -268,7 +285,7 @@ once per filtered candidate that threw during retain.
 
 > `optional` **onError**: (`error`: `Error`, `conversationId?`: `string`) => `void`
 
-Defined in: [src/lib/memory/autoExtractWorker.ts:286](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#286)
+Defined in: [src/lib/memory/autoExtractWorker.ts:301](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#301)
 
 Diagnostic — fires on unexpected pipeline errors.
 
@@ -319,7 +336,7 @@ Diagnostic — fires on unexpected pipeline errors.
 
 > `optional` **onMemoryExtracted**: (`event`: [`MemoryExtractedEvent`](MemoryExtractedEvent.md)) => `void`
 
-Defined in: [src/lib/memory/autoExtractWorker.ts:274](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#274)
+Defined in: [src/lib/memory/autoExtractWorker.ts:289](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#289)
 
 Per-fact event — fires once per memory written.
 
@@ -358,7 +375,7 @@ Per-fact event — fires once per memory written.
 
 > `optional` **onMemoryQuarantined**: (`event`: [`MemoryQuarantinedEvent`](MemoryQuarantinedEvent.md)) => `void`
 
-Defined in: [src/lib/memory/autoExtractWorker.ts:280](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#280)
+Defined in: [src/lib/memory/autoExtractWorker.ts:295](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#295)
 
 Tier-0 security (PR3) — fires once per candidate quarantined by the
 injection screen (and persisted as an audit row). Lets a client surface a
@@ -399,7 +416,7 @@ injection screen (and persisted as an audit row). Lets a client surface a
 
 > `optional` **onSkipped**: (`event`: [`TurnSkippedEvent`](TurnSkippedEvent.md)) => `void`
 
-Defined in: [src/lib/memory/autoExtractWorker.ts:284](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#284)
+Defined in: [src/lib/memory/autoExtractWorker.ts:299](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#299)
 
 Diagnostic — fires when a turn is skipped.
 
@@ -438,7 +455,7 @@ Diagnostic — fires when a turn is skipped.
 
 > `optional` **onTurnComplete**: (`event`: [`TurnCompleteEvent`](TurnCompleteEvent.md)) => `void`
 
-Defined in: [src/lib/memory/autoExtractWorker.ts:282](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#282)
+Defined in: [src/lib/memory/autoExtractWorker.ts:297](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#297)
 
 Per-turn event — fires once after the whole pipeline finishes.
 

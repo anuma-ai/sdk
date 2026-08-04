@@ -246,6 +246,21 @@ export interface CreateAutoExtractorOptions {
   consolidate?: {
     /** Portal base URL for consolidation calls. Default: the `extract` options' `baseUrl`. */
     baseUrl?: string;
+    /**
+     * Per-call request path override for the consolidation LLM call, forwarded to
+     * `RetainOptions.consolidateOptions.endpointOverride`.
+     *
+     * Must be set alongside `extract.endpointOverride`, not instead of it. This
+     * pass runs inside `retain()` on the SAME background turn as extraction and
+     * hits the same programmatic-abuse gate, so routing only extraction leaves a
+     * turn that extracts facts and then fails to dedup them — memories get
+     * created without consolidation. See zeta-chain/ai-memoryless-client#5536.
+     *
+     * The worker forwards `consolidate` by spread, so this type is the only thing
+     * that gates it: without the field a caller's override compiles (spread
+     * bypasses excess-property checks) and is silently dropped.
+     */
+    endpointOverride?: string;
     /** Override the consolidation model. Default: see `consolidate.ts`. */
     model?: string;
     /**

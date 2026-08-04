@@ -63,6 +63,70 @@ const blockFirstCall = (): (() => void) => {
 
 beforeEach(() => vi.clearAllMocks());
 
+describe("createAutoExtractor — internal-utility routing", () => {
+  beforeEach(() => vi.mocked(extractAndRetain).mockReset());
+
+  it("forwards endpointOverride on BOTH the extract and consolidate passes", async () => {
+    // Greptile P1 on #859: `CreateAutoExtractorOptions.consolidate` did not expose
+    // `endpointOverride`, and the worker forwards that object by SPREAD — so a
+    // caller's override compiled (spread bypasses excess-property checks) and was
+    // silently dropped. The turn would then extract facts on the exempt path and
+    // consolidate them on the rejected one, creating memories without dedup.
+    //
+    // Both passes, asserted together, because routing one is the failure mode.
+    vi.mocked(extractAndRetain).mockResolvedValue({
+      candidates: [],
+      results: [],
+      failedCount: 0,
+      outcome: "no-facts",
+    } as unknown as Awaited<ReturnType<typeof extractAndRetain>>);
+
+    const UTILITY = "/api/v1/utility/chat/completions";
+    const extractor = createAutoExtractor({
+      ...baseOptions,
+      extract: { apiKey: "k", endpointOverride: UTILITY },
+      consolidate: { endpointOverride: UTILITY },
+    });
+    extractor.processTurn(messages, "c1");
+    await vi.waitFor(() => expect(extractAndRetain).toHaveBeenCalled());
+
+    const [, , retainOptions] = vi.mocked(extractAndRetain).mock.calls[0] as unknown as [
+      unknown,
+      unknown,
+      {
+        extract: { endpointOverride?: string };
+        consolidateOptions?: { endpointOverride?: string };
+      },
+    ];
+    expect(retainOptions.extract.endpointOverride).toBe(UTILITY);
+    expect(retainOptions.consolidateOptions?.endpointOverride).toBe(UTILITY);
+  });
+
+  it("passes no override when the caller sets none", async () => {
+    vi.mocked(extractAndRetain).mockResolvedValue({
+      candidates: [],
+      results: [],
+      failedCount: 0,
+      outcome: "no-facts",
+    } as unknown as Awaited<ReturnType<typeof extractAndRetain>>);
+
+    const extractor = createAutoExtractor({ ...baseOptions, consolidate: {} });
+    extractor.processTurn(messages, "c1");
+    await vi.waitFor(() => expect(extractAndRetain).toHaveBeenCalled());
+
+    const [, , retainOptions] = vi.mocked(extractAndRetain).mock.calls[0] as unknown as [
+      unknown,
+      unknown,
+      {
+        extract: { endpointOverride?: string };
+        consolidateOptions?: { endpointOverride?: string };
+      },
+    ];
+    expect(retainOptions.extract.endpointOverride).toBeUndefined();
+    expect(retainOptions.consolidateOptions?.endpointOverride).toBeUndefined();
+  });
+});
+
 describe("createAutoExtractor", () => {
   it("schedules extraction async — returns true immediately", () => {
     vi.mocked(extractAndRetain).mockResolvedValue(EMPTY_RESULT);
