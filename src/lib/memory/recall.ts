@@ -126,7 +126,18 @@ export async function recall(
   ctx: RecallContext,
   options: RecallOptions = {}
 ): Promise<RecallResult> {
-  const types: MemoryKind[] = options.types ?? ["fact"];
+  const requestedTypes: MemoryKind[] = options.types ?? ["fact"];
+  // An id allow-list cannot scope the chunk lane: chunks are conversation
+  // excerpts, not vault rows, so `memory_vault.id` has nothing to say about
+  // them. Running it anyway would return unscoped conversation text under an
+  // option whose entire purpose is narrowing — a scope that covers half the
+  // result is worse than no scope, because the caller believes it holds. Drop
+  // the lane instead, and say so in the diagnostics rather than silently.
+  const chunkLaneDroppedByScope =
+    options.memoryIds !== undefined && requestedTypes.includes("chunk");
+  const types: MemoryKind[] = chunkLaneDroppedByScope
+    ? requestedTypes.filter((t) => t !== "chunk")
+    : requestedTypes;
   const limit = options.limit ?? DEFAULT_LIMIT;
   const usedBudget = options.budget ?? DEFAULT_BUDGET;
   const flags = flagsForBudget(usedBudget);
@@ -197,6 +208,7 @@ export async function recall(
     if (usedBudget === "high" && options.decomposeOptions && !subQueries && !options.graphRefine) {
       degraded.push("decompose-moved");
     }
+    if (chunkLaneDroppedByScope) degraded.push("chunk-lane-unscopable");
     if (embeddingsUnavailable) degraded.push("embeddings-unavailable");
     const diagnostics: RecallDiagnostics = {
       usedBudget,
@@ -350,6 +362,7 @@ export async function recall(
         ...(subQueries && { subQueries }),
         ...(options.scopes && { scopes: options.scopes }),
         ...(options.folderId !== undefined && { folderId: options.folderId }),
+        ...(options.memoryIds !== undefined && { memoryIds: options.memoryIds }),
         ...(options.factTypes?.length && { factTypes: options.factTypes }),
         ...(options.factTypeWeights && { factTypeWeights: options.factTypeWeights }),
         ...(entityRanking.length > 0 && { entityRanking }),

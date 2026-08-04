@@ -46,6 +46,19 @@ export interface RecallToolOptions {
   scopes?: string[];
   /** Vault folder filter. */
   folderId?: string | null;
+  /**
+   * Restrict the fact lane to these vault ids — a host-imposed candidate set,
+   * applied at load time so ranking and top-K run inside it. There is no
+   * LLM-facing equivalent, so the model can neither widen nor escape it.
+   *
+   * Setting this also drops the chunk lane (see
+   * {@link RecallOptions.memoryIds}); with the default
+   * `types: ["fact", "chunk"]` that means this tool returns facts only while a
+   * scope is set, which is the only honest answer an id allow-list can give.
+   *
+   * An EMPTY array admits nothing; omit for no filter.
+   */
+  memoryIds?: readonly string[];
   /** Exclude one conversation from chunk results (typically the active one). */
   excludeConversationId?: string;
   /** LLM-decompose options; only used at budget="high". Runs in THIS tool
@@ -473,6 +486,7 @@ export function createRecallTool(
           ...(toolOptions?.minScore !== undefined && { minScore: toolOptions.minScore }),
           ...(toolOptions?.scopes && { scopes: toolOptions.scopes }),
           ...(toolOptions?.folderId !== undefined && { folderId: toolOptions.folderId }),
+          ...(toolOptions?.memoryIds !== undefined && { memoryIds: toolOptions.memoryIds }),
           ...(toolOptions?.excludeConversationId && {
             excludeConversationId: toolOptions.excludeConversationId,
           }),

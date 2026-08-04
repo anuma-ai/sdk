@@ -2,7 +2,7 @@
 
 > **getVaultCandidateKeysOp**(`ctx`: [`VaultMemoryOperationsContext`](../interfaces/VaultMemoryOperationsContext.md), `options?`: `object`): `Promise`<[`VaultCandidateKey`](../interfaces/VaultCandidateKey.md)\[]>
 
-Defined in: [src/lib/db/memoryVault/operations.ts:783](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#783)
+Defined in: [src/lib/db/memoryVault/operations.ts:799](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#799)
 
 Column-projected candidate keys — id + rank-metadata, NO content/embedding
 blobs. On OPFS-SQLite this is a projected SELECT (skips the blobs on disk);
@@ -106,6 +106,26 @@ silently path-dependent (#779).
 <td>
 
 Include archived (decayed) memories. Default `false`, as elsewhere.
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.memoryIds?`
+
+</td>
+<td>
+
+readonly `string`\[]
+
+</td>
+<td>
+
+Restrict to these ids. See [getAllVaultMemoriesOp](getAllVaultMemoriesOp.md) — the two paths
+must admit the same candidate set for the same query, so this filter has
+to exist on both or topic-scoped recall becomes path-dependent the way
+`factTypes` once was (#779).
 
 </td>
 </tr>

@@ -2289,6 +2289,32 @@ describe("getVaultCandidateKeysOp — filter parity with the legacy path (#779)"
     expect(await lokiConditionCount({ factTypes: ["preference"] })).toBe(5);
     // − archived_at ⇒ 3. Unfixed code keeps it and stays at 4.
     expect(await lokiConditionCount({ includeArchived: true })).toBe(3);
+    // + id ⇒ 5. Same parity requirement as fact_type: this op backs the
+    // decrypt-last path, so a filter that exists only on the legacy path makes
+    // scoped recall path-dependent.
+    expect(await lokiConditionCount({ memoryIds: ["m1"] })).toBe(5);
+  });
+
+  it("filters by id when memoryIds is passed", async () => {
+    const { sql, args } = await captureSql({ memoryIds: ["m1", "m2"] });
+    expect(sql).toContain('"id" in (?,?)');
+    expect(args).toEqual(expect.arrayContaining(["m1", "m2"]));
+  });
+
+  it("omits the id clause when memoryIds is absent", async () => {
+    expect((await captureSql()).sql).not.toContain('"id" in');
+  });
+
+  it("returns nothing for an EMPTY memoryIds rather than widening", async () => {
+    // `in ()` is a syntax error, and treating the empty case as "unset" would
+    // turn a deliberate scope-of-nothing into a whole-vault read. Short-circuit.
+    const spy = vi.spyOn(Q, "unsafeSqlQuery");
+    const queryFn = vi.fn(() => ({ unsafeFetchRaw: vi.fn(async () => []), fetch: vi.fn() }));
+    const ctx = makeCtx({ vaultMemoryCollection: { query: queryFn } as any });
+
+    await expect(getVaultCandidateKeysOp(ctx, { memoryIds: [] })).resolves.toEqual([]);
+    expect(spy).not.toHaveBeenCalled();
+    expect(queryFn).not.toHaveBeenCalled();
   });
 });
 

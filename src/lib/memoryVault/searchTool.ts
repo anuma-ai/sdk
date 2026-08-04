@@ -55,6 +55,21 @@ export interface MemoryVaultSearchOptions {
   scopes?: string[];
   /** When provided, only search memories in this folder (null for unfiled) */
   folderId?: string | null;
+  /**
+   * When provided, only search these memory ids — a caller-resolved candidate
+   * set, applied at LOAD time so ranking and top-K run inside it.
+   *
+   * Added for topic-scoped chat: topic membership lives in the `memory_entity`
+   * join, which this table can't be filtered on, so the client resolves the ids
+   * and passes them here. Post-filtering the ranked result is NOT the same
+   * thing — the vault would pick its top-K first and a narrow scope would come
+   * back empty whenever its memories didn't independently out-rank the rest.
+   *
+   * An EMPTY array means "nothing is eligible" and yields no results; omit for
+   * no filter. Fact lane only — chunks are conversation excerpts with no
+   * `memory_entity` rows, so an id allow-list has nothing to say about them.
+   */
+  memoryIds?: readonly string[];
   /** Typed memory (PR1) — when provided, only search memories of these fact
    * types. Applied at load time via `Q.oneOf` on the indexed `fact_type`
    * column. Omit for no type filter. */
@@ -1457,6 +1472,7 @@ export async function buildProjectedCorpus(
   queryOpts: {
     scopes?: string[];
     folderId?: string | null;
+    memoryIds?: readonly string[];
     factTypes?: string[];
     includeArchived?: boolean;
   },
@@ -1901,11 +1917,16 @@ export async function prepareVaultCandidates(
   const queryOpts: {
     scopes?: string[];
     folderId?: string | null;
+    memoryIds?: readonly string[];
     factTypes?: string[];
     includeArchived?: boolean;
   } = {};
   if (scopes?.length) queryOpts.scopes = scopes;
   if (folderId !== undefined) queryOpts.folderId = folderId;
+  // `!== undefined`, not `?.length`: an empty allow-list is a real filter that
+  // admits nothing, and treating it as "unset" would widen a deliberate scope
+  // back to the whole vault.
+  if (searchOptions?.memoryIds !== undefined) queryOpts.memoryIds = searchOptions.memoryIds;
   if (searchOptions?.factTypes?.length) queryOpts.factTypes = searchOptions.factTypes;
   if (searchOptions?.includeArchived) queryOpts.includeArchived = true;
 
@@ -2708,6 +2729,10 @@ export function createMemoryVaultSearchTool(
         // imposed scope. When the host has *not* set a folder, the LLM's
         // explicit folder_id (including `null` for unfiled) is used.
         const folderId = searchOptions?.folderId ?? argFolderId;
+        // Host-imposed too, and with no LLM-facing equivalent at all: there is
+        // no `memory_ids` tool argument, so the model can neither widen nor
+        // narrow this.
+        const memoryIds = searchOptions?.memoryIds;
 
         // useFusion:false callers want cosine-only — skip recall's fusion.
         if (searchOptions?.useFusion === false) {
@@ -2724,6 +2749,7 @@ export function createMemoryVaultSearchTool(
               useFusion: false,
               ...tuningForward,
               ...(folderId !== undefined && { folderId }),
+              ...(memoryIds !== undefined && { memoryIds }),
               ...(searchOptions?.scopes && { scopes: searchOptions.scopes }),
             }
           );
@@ -2764,6 +2790,7 @@ export function createMemoryVaultSearchTool(
             budget,
             ...tuningForward,
             ...(folderId !== undefined && { folderId }),
+            ...(memoryIds !== undefined && { memoryIds }),
             ...(searchOptions?.scopes && { scopes: searchOptions.scopes }),
             ...(subQueries && { subQueries }),
           }
