@@ -940,12 +940,6 @@ Re-exports [INFERENCE\_ID\_HEADER](../react/Internal/variables/INFERENCE_ID_HEAD
 
 ***
 
-### ingestPublishedPhotoMemoriesOp
-
-Re-exports [ingestPublishedPhotoMemoriesOp](../react/Internal/functions/ingestPublishedPhotoMemoriesOp.md)
-
-***
-
 ### InjectionClassifierOptions
 
 Re-exports [InjectionClassifierOptions](../react/Internal/interfaces/InjectionClassifierOptions.md)
@@ -1144,27 +1138,9 @@ Re-exports [onKeyAvailable](../react/Internal/functions/onKeyAvailable.md)
 
 ***
 
-### parseMedia
-
-Re-exports [parseMedia](../react/Internal/functions/parseMedia.md)
-
-***
-
 ### PAST\_EVENT\_GRACE\_MS
 
 Re-exports [PAST\_EVENT\_GRACE\_MS](../react/Internal/variables/PAST_EVENT_GRACE_MS.md)
-
-***
-
-### PhotoIngestResult
-
-Re-exports [PhotoIngestResult](../react/Internal/interfaces/PhotoIngestResult.md)
-
-***
-
-### PhotoMediaRef
-
-Re-exports [PhotoMediaRef](../react/Internal/interfaces/PhotoMediaRef.md)
 
 ***
 
@@ -1237,12 +1213,6 @@ Re-exports [PromptPreProcessor](../react/Internal/type-aliases/PromptPreProcesso
 ### PromptPreProcessorContext
 
 Re-exports [PromptPreProcessorContext](../react/Internal/type-aliases/PromptPreProcessorContext.md)
-
-***
-
-### PublishedPhotoMemory
-
-Re-exports [PublishedPhotoMemory](../react/Internal/interfaces/PublishedPhotoMemory.md)
 
 ***
 

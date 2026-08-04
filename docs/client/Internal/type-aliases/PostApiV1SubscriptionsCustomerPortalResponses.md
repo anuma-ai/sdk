@@ -2,7 +2,7 @@
 
 > **PostApiV1SubscriptionsCustomerPortalResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:9466](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9466)
+Defined in: [src/client/types.gen.ts:9928](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9928)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:9466](https://github.com/anuma-ai/sdk/blob/
 
 > **200**: [`HandlersCustomerPortalResponse`](HandlersCustomerPortalResponse.md)
 
-Defined in: [src/client/types.gen.ts:9470](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9470)
+Defined in: [src/client/types.gen.ts:9932](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9932)
 
 OK

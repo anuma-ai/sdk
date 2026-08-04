@@ -2,7 +2,7 @@
 
 > **postApiV1SubscriptionsScheduleDowngrade**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`PostApiV1SubscriptionsScheduleDowngradeData`](../type-aliases/PostApiV1SubscriptionsScheduleDowngradeData.md), `ThrowOnError`>): `RequestResult`<[`PostApiV1SubscriptionsScheduleDowngradeResponses`](../type-aliases/PostApiV1SubscriptionsScheduleDowngradeResponses.md), [`PostApiV1SubscriptionsScheduleDowngradeErrors`](../type-aliases/PostApiV1SubscriptionsScheduleDowngradeErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:1291](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1291)
+Defined in: [src/client/sdk.gen.ts:1350](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1350)
 
 Schedule subscription downgrade
 
