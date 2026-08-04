@@ -156,3 +156,44 @@ describe("foldToolResultsRows", () => {
     expect(folded[1]!.content).toContain('"documentId":"doc"');
   });
 });
+
+describe("foldToolResultsRows — link over position", () => {
+  const searchLine = 'Tool "search_people_nearby" returned: {"rows_returned":2}';
+
+  it("folds onto the assistant its parentMessageId names, whatever the row order", () => {
+    // `created_at` is not unique and the two rows are written back to back, so history can hand the
+    // tool-results row over BEFORE its assistant. Folding on position alone dropped the payload.
+    const folded = foldToolResultsRows([
+      { role: "user", content: "find people near me", uniqueId: "u1" },
+      { role: "user", content: `${TOOL_RESULTS_PREFIX}\n${searchLine}`, parentMessageId: "a1" },
+      { role: "assistant", content: "Found two.", uniqueId: "a1" },
+    ]);
+
+    expect(folded.map((m) => m.role)).toEqual(["user", "assistant"]);
+    expect(folded[1]!.content).toContain("Found two.");
+    expect(folded[1]!.content).toContain('Tool "search_people_nearby" returned:');
+  });
+
+  it("still folds a row that carries no parent, using position", () => {
+    const folded = foldToolResultsRows([
+      { role: "user", content: "write me a doc" },
+      { role: "assistant", content: "" },
+      {
+        role: "user",
+        content: `${TOOL_RESULTS_PREFIX}\nTool "display_document" returned: {"documentId":"d"}`,
+      },
+    ]);
+
+    expect(folded).toHaveLength(2);
+    expect(folded[1]!.content).toContain('"documentId":"d"');
+  });
+
+  it("drops a row whose parent assistant is outside the window", () => {
+    const folded = foldToolResultsRows([
+      { role: "user", content: "earlier prompt", uniqueId: "u9" },
+      { role: "user", content: `${TOOL_RESULTS_PREFIX}\n${searchLine}`, parentMessageId: "a-gone" },
+    ]);
+
+    expect(folded).toEqual([{ role: "user", content: "earlier prompt", uniqueId: "u9" }]);
+  });
+});

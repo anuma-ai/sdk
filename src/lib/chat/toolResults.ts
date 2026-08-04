@@ -54,6 +54,9 @@ export function buildToolResultsContent(
 interface ToolResultsRowLike {
   role: string;
   content: string;
+  /** Present on stored rows; lets the fold find its assistant by link rather than by position. */
+  uniqueId?: string;
+  parentMessageId?: string;
 }
 
 /**
@@ -106,24 +109,42 @@ export function foldToolResultsRows<T extends ToolResultsRowLike>(
 ): T[] {
   const exclude = new Set(options?.exclude ?? []);
   const out: T[] = [];
+  // Deferred to a second pass so the fold does not depend on the row landing after its assistant.
+  // History is sorted by `created_at`, which is NOT unique, and the assistant row and its tool-results
+  // row are written back to back — a tie can order the row first, and a position-only fold would then
+  // silently lose the tool output. Each entry keeps the durable link (`parentMessageId`) plus the
+  // positional fallback for a row written without one.
+  const pending: { row: T; fallbackIndex: number }[] = [];
+  const assistantIndexById = new Map<string, number>();
+
   for (const row of rows) {
-    if (!isToolResultsRow(row)) {
-      out.push(row);
+    if (isToolResultsRow(row)) {
+      pending.push({ row, fallbackIndex: out.length - 1 });
       continue;
     }
-    const kept = parseToolResultSegments(row.content).filter((s) => !exclude.has(s.name));
-    const previous = out[out.length - 1];
-    // Nothing to fold into (a row with no assistant before it — a corrupt or reordered thread): drop
-    // it rather than send a bare user turn, which is the failure mode this whole function exists for.
+    out.push(row);
+    if (row.role === "assistant" && row.uniqueId) {
+      assistantIndexById.set(row.uniqueId, out.length - 1);
+    }
+  }
+
+  for (const { row, fallbackIndex } of pending) {
+    const linked = row.parentMessageId ? assistantIndexById.get(row.parentMessageId) : undefined;
+    const target = linked ?? fallbackIndex;
+    const previous = out[target];
+    // Nothing to fold into (a corrupt or truncated thread, or a row whose assistant is outside the
+    // window): drop the row rather than send a bare user turn, which is the failure mode this whole
+    // function exists for.
     if (!previous || previous.role !== "assistant") continue;
+    const kept = parseToolResultSegments(row.content).filter((s) => !exclude.has(s.name));
     if (kept.length > 0) {
       const appendix = `${TOOL_RESULTS_PREFIX}\n${kept.map((s) => s.line).join("\n")}`;
-      out[out.length - 1] = {
+      out[target] = {
         ...previous,
         content: previous.content.trim() ? `${previous.content}\n\n${appendix}` : appendix,
       };
     } else if (!previous.content.trim() && options?.placeholder) {
-      out[out.length - 1] = { ...previous, content: options.placeholder };
+      out[target] = { ...previous, content: options.placeholder };
     }
   }
   return out;

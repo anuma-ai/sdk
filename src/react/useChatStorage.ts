@@ -1161,6 +1161,13 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
   // to allow intentional detector changes, but the useMemo below only depends on
   // piiRedaction and currentConversationId, so a new detector instance with the
   // same configuration won't trigger a fresh PiiRedactor.
+  // Read through a ref, not the closure: `sendMessage`'s dependency array intentionally omits config
+  // values, and a caller that swaps this list (a flag flip, a per-conversation policy) must not keep
+  // replaying a payload it has since withdrawn. A ref also avoids recreating `sendMessage` on every
+  // render for a caller that passes a fresh array literal.
+  const toolResultsHistoryExcludeRef = useRef(toolResultsHistoryExclude);
+  toolResultsHistoryExcludeRef.current = toolResultsHistoryExclude;
+
   const nerDetectorRef = useRef(nerDetector);
   nerDetectorRef.current = nerDetector;
 
@@ -2684,7 +2691,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         // model), and folding first stops the token-budget split from landing between an assistant row
         // and its tool-results row, which would drop that row for having no assistant to fold into.
         const foldedHistory = foldToolResultsRows(limitedMessages, {
-          exclude: toolResultsHistoryExclude,
+          exclude: toolResultsHistoryExcludeRef.current,
           placeholder: DISPLAY_CARD_PLACEHOLDER,
         });
 

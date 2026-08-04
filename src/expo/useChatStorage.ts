@@ -772,6 +772,13 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
   // replacement and lose placeholder mappings. Kept in a ref, updated each
   // render, so an intentional detector change is still honored via the identity
   // check in getConversationRedactor. Mirrors the react entry.
+  // Read through a ref, not the closure: `sendMessage`'s dependency array intentionally omits config
+  // values, and a caller that swaps this list (a flag flip, a per-conversation policy) must not keep
+  // replaying a payload it has since withdrawn. A ref also avoids recreating `sendMessage` on every
+  // render for a caller that passes a fresh array literal.
+  const toolResultsHistoryExcludeRef = useRef(toolResultsHistoryExclude);
+  toolResultsHistoryExcludeRef.current = toolResultsHistoryExclude;
+
   const nerDetectorRef = useRef(nerDetector);
   nerDetectorRef.current = nerDetector;
 
@@ -2126,7 +2133,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         // between an assistant row and its tool-results row, which would leave the row with no
         // assistant to fold into and silently drop the tool output.
         const foldedHistory = foldToolResultsRows(limitedMessages, {
-          exclude: toolResultsHistoryExclude,
+          exclude: toolResultsHistoryExcludeRef.current,
           placeholder: DISPLAY_CARD_PLACEHOLDER,
         });
 
