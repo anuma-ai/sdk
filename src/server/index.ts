@@ -103,6 +103,7 @@ export {
   type LazyStoredConversation,
   type MessageChunk,
   type MessageFeedback,
+  type MessageOrigin,
   type SearchSource,
   type StoredConversation,
   type StoredConversationSummary,

@@ -30,7 +30,7 @@ Clear all queued operations without writing them.
 
 > **conversationId**: `string` | `null`
 
-Defined in: [src/lib/db/chat/types.ts:941](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#941)
+Defined in: [src/lib/db/chat/types.ts:962](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#962)
 
 **Inherited from**
 
@@ -42,7 +42,7 @@ Defined in: [src/lib/db/chat/types.ts:941](https://github.com/anuma-ai/sdk/blob/
 
 > **createConversation**: (`options?`: [`CreateConversationOptions`](../../../react/Internal/interfaces/CreateConversationOptions.md)) => `Promise`<[`StoredConversation`](../../../react/Internal/interfaces/StoredConversation.md)>
 
-Defined in: [src/lib/db/chat/types.ts:943](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#943)
+Defined in: [src/lib/db/chat/types.ts:964](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#964)
 
 **Parameters**
 
@@ -233,7 +233,7 @@ Replaces the legacy createMemoryEngineTool / vault search pair.
 
 > **deleteConversation**: (`id`: `string`) => `Promise`<`boolean`>
 
-Defined in: [src/lib/db/chat/types.ts:948](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#948)
+Defined in: [src/lib/db/chat/types.ts:969](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#969)
 
 **Parameters**
 
@@ -344,7 +344,7 @@ Manually flush all queued operations for the current wallet.
 
 > **getConversation**: (`id`: `string`) => `Promise`<[`StoredConversation`](../../../react/Internal/interfaces/StoredConversation.md) | `null`>
 
-Defined in: [src/lib/db/chat/types.ts:944](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#944)
+Defined in: [src/lib/db/chat/types.ts:965](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#965)
 
 **Parameters**
 
@@ -385,7 +385,7 @@ Defined in: [src/lib/db/chat/types.ts:944](https://github.com/anuma-ai/sdk/blob/
 
 > **getConversations**: () => `Promise`<[`StoredConversation`](../../../react/Internal/interfaces/StoredConversation.md)\[]>
 
-Defined in: [src/lib/db/chat/types.ts:945](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#945)
+Defined in: [src/lib/db/chat/types.ts:966](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#966)
 
 **Returns**
 
@@ -401,7 +401,7 @@ Defined in: [src/lib/db/chat/types.ts:945](https://github.com/anuma-ai/sdk/blob/
 
 > **getMessageCount**: (`conversationId`: `string`) => `Promise`<`number`>
 
-Defined in: [src/lib/db/chat/types.ts:961](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#961)
+Defined in: [src/lib/db/chat/types.ts:982](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#982)
 
 Total message count for a conversation.
 
@@ -444,7 +444,7 @@ Total message count for a conversation.
 
 > **getMessages**: (`conversationId`: `string`) => `Promise`<[`StoredMessage`](../../../react/Internal/interfaces/StoredMessage.md)\[]>
 
-Defined in: [src/lib/db/chat/types.ts:949](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#949)
+Defined in: [src/lib/db/chat/types.ts:970](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#970)
 
 **Parameters**
 
@@ -485,7 +485,7 @@ Defined in: [src/lib/db/chat/types.ts:949](https://github.com/anuma-ai/sdk/blob/
 
 > **getMessageSkeletons**: (`conversationId`: `string`) => `Promise`<[`MessageSkeleton`](../../../react/Internal/interfaces/MessageSkeleton.md)\[]>
 
-Defined in: [src/lib/db/chat/types.ts:959](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#959)
+Defined in: [src/lib/db/chat/types.ts:980](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#980)
 
 Whole-thread branch-tree skeleton — no field decryption.
 
@@ -528,7 +528,7 @@ Whole-thread branch-tree skeleton — no field decryption.
 
 > **getMessagesPage**: (`conversationId`: `string`, `options`: [`GetMessagesPageOptions`](../../../react/Internal/interfaces/GetMessagesPageOptions.md)) => `Promise`<[`StoredMessage`](../../../react/Internal/interfaces/StoredMessage.md)\[]>
 
-Defined in: [src/lib/db/chat/types.ts:954](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#954)
+Defined in: [src/lib/db/chat/types.ts:975](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#975)
 
 Paginated display read: the newest `limit` messages (optionally below
 `beforeMessageId`), ascending, with embedding columns skipped.
@@ -648,7 +648,7 @@ excluded unless `includeDeleted` is set.
 
 > **isLoading**: `boolean`
 
-Defined in: [src/lib/db/chat/types.ts:939](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#939)
+Defined in: [src/lib/db/chat/types.ts:960](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#960)
 
 **Inherited from**
 
@@ -851,7 +851,7 @@ Send a message and automatically store it (Expo version)
 
 > **setConversationId**: (`id`: `string` | `null`) => `void`
 
-Defined in: [src/lib/db/chat/types.ts:942](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#942)
+Defined in: [src/lib/db/chat/types.ts:963](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#963)
 
 **Parameters**
 
@@ -892,7 +892,7 @@ Defined in: [src/lib/db/chat/types.ts:942](https://github.com/anuma-ai/sdk/blob/
 
 > **stop**: () => `void`
 
-Defined in: [src/lib/db/chat/types.ts:940](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#940)
+Defined in: [src/lib/db/chat/types.ts:961](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#961)
 
 **Returns**
 
@@ -908,7 +908,7 @@ Defined in: [src/lib/db/chat/types.ts:940](https://github.com/anuma-ai/sdk/blob/
 
 > **updateConversationPinned**: (`id`: `string`, `pinned`: `boolean`) => `Promise`<`boolean`>
 
-Defined in: [src/lib/db/chat/types.ts:947](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#947)
+Defined in: [src/lib/db/chat/types.ts:968](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#968)
 
 **Parameters**
 
@@ -961,7 +961,7 @@ Defined in: [src/lib/db/chat/types.ts:947](https://github.com/anuma-ai/sdk/blob/
 
 > **updateConversationTitle**: (`id`: `string`, `title`: `string`) => `Promise`<`boolean`>
 
-Defined in: [src/lib/db/chat/types.ts:946](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#946)
+Defined in: [src/lib/db/chat/types.ts:967](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#967)
 
 **Parameters**
 

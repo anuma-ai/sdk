@@ -102,6 +102,18 @@ import { VaultFolder } from "./vaultFolders/models";
  *   conversation list read filters is_deleted and orders by created_at DESC,
  *   which previously meant a temp B-tree sort of the whole live set on every
  *   read. Structural only — no column added, no data rewritten
+ * - v44: Added origin column to history — provenance of a row, set by the
+ *   producer that synthesised it (`tool_result` = the hidden
+ *   `[Tool Execution Results]` message written from autoExecutedToolResults).
+ *   The embedding sweep skips those rows: they are machine-readable API dumps
+ *   that are never rendered, and chunking one cost 52 MB of vectors (620
+ *   chunks) against 0.2 MB of content. A content-prefix test cannot do this
+ *   job — `content` is `enc:v3:` ciphertext by the time the sweep reads it, so
+ *   provenance has to be recorded at write time. Deliberately NOT encrypted:
+ *   the sweep that must honour it runs with no wallet context, and an
+ *   unreadable flag would fail open. Existing rows stay NULL (= legacy,
+ *   unknown provenance, embedded as before) with no backfill, matching the v37
+ *   read-time-fallback precedent
  * - v45: Added `media` to memory_vault — the photo(s) a server-extracted
  *   memory came from, as JSON `[{feed_item_id, object_key}]`. Null on every
  *   row that did not come from a photo, which is all of them before this
@@ -168,6 +180,7 @@ export const sdkSchema = appSchema({
         { name: "parent_message_id", type: "string", isOptional: true }, // Parent message for branching
         { name: "feedback", type: "string", isOptional: true }, // 'like' | 'dislike' | null
         { name: "tool_call_events", type: "string", isOptional: true }, // JSON stringified LlmapiToolCallEvent[]
+        { name: "origin", type: "string", isOptional: true }, // MessageOrigin — provenance, NOT encrypted (see v44)
       ],
     }),
     tableSchema({
@@ -523,6 +536,7 @@ export const sdkSchema = appSchema({
  * - v40 → v41: Added `visibility`, `twin_opt_in`, `published_at`, `geohash` columns to memory_vault for the People Nearby cross-user visibility axis (two-tier `private | public`; null/unknown grandfathered as 'private')
  * - v41 → v42: Added `topics` + `topics_updated_at` columns to memory_vault, making a memory's topics the durable synced record and `entity`/`memory_entity` a device-local index over it (null `topics` = pre-v42, backfilled from the row's current links by the sweep)
  * - v42 → v43: Added a composite `(is_deleted, created_at)` index to conversations so the list reads stop temp-sorting (structural only, no data rewritten)
+ * - v43 → v44: Added `origin` column to history recording which producer synthesised a row, so the embedding sweep can skip never-rendered tool-result dumps (plaintext by design — the sweep has no wallet context; null = legacy, embedded as before)
  */
 export const sdkMigrations = schemaMigrations({
   migrations: [
@@ -1152,6 +1166,19 @@ export const sdkMigrations = schemaMigrations({
         unsafeExecuteSql(
           "CREATE INDEX IF NOT EXISTS conversations_is_deleted_created_at ON conversations (is_deleted, created_at);"
         ),
+      ],
+    },
+    // v43 -> v44: Added origin column to history — the provenance tag the embedding
+    // sweep reads to skip never-rendered tool-result rows. No backfill: NULL means
+    // "legacy, provenance unknown" and keeps the pre-v44 behaviour of embedding the
+    // row, so the only rows that stop being embedded are ones a v44+ producer tagged.
+    {
+      toVersion: 44,
+      steps: [
+        addColumns({
+          table: "history",
+          columns: [{ name: "origin", type: "string", isOptional: true }],
+        }),
       ],
     },
     // v44 -> v45: `media` on memory_vault — the photo(s) a server-extracted

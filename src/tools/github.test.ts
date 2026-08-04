@@ -26,6 +26,9 @@ function errorResponse(status: number, message: string): Response {
 const getToken = () => "test-token";
 const requestAccess = async () => "test-token";
 
+// Mirrors MAX_RESPONSE_SIZE in github.ts
+const MAX_RESPONSE_SIZE = 100_000;
+
 function getTools() {
   return createGitHubTools(getToken, requestAccess);
 }
@@ -134,6 +137,20 @@ describe("github_api", () => {
     expect(parsed).toEqual([{ number: 1, title: "Fix bug" }]);
   });
 
+  it("returns compact JSON with no indentation", async () => {
+    const data = [{ number: 1, title: "Fix bug", user: { login: "peterlee" } }];
+    mockFetch.mockResolvedValueOnce(jsonResponse(data));
+
+    const tool = findTool("github_api");
+    const result = await tool.executor!({
+      method: "GET",
+      path: "/repos/owner/repo/pulls",
+    });
+
+    expect(result).toBe(JSON.stringify(data));
+    expect(result).not.toContain("\n");
+  });
+
   it("makes POST request with body", async () => {
     mockFetch.mockResolvedValueOnce(
       jsonResponse({
@@ -229,6 +246,50 @@ describe("github_api", () => {
 
     expect(result.length).toBeLessThan(110_000);
     expect(result).toContain("truncated");
+  });
+
+  it("fits more entries under the cap than the indented encoding would", async () => {
+    // Repo-listing shaped fixture: field-heavy and large enough that the cap binds either way.
+    // Measured against a real /user/repos listing (61 repos, 82 fields, 357 KB pretty-printed):
+    // indentation is ~12% of the payload, so survival goes 28% -> 33%. The win is real but small;
+    // this asserts the direction, not a magnitude.
+    const repos = Array.from({ length: 200 }, (_, i) => ({
+      id: 100_000 + i,
+      name: `repo-${i}`,
+      full_name: `owner/repo-${i}`,
+      private: false,
+      fork: false,
+      archived: false,
+      size: 1234,
+      stargazers_count: 7,
+      open_issues_count: 3,
+      default_branch: "main",
+      language: "TypeScript",
+      pushed_at: "2024-06-02T00:00:00Z",
+      owner: { login: "owner", id: 42, type: "Organization", site_admin: false },
+      license: { key: "mit", name: "MIT License", spdx_id: "MIT" },
+      ...Object.fromEntries(
+        ["forks", "keys", "hooks", "events", "tags", "blobs", "trees", "commits", "pulls"].map(
+          (f) => [`${f}_url`, `https://api.github.com/repos/owner/repo-${i}/${f}`]
+        )
+      ),
+    }));
+    mockFetch.mockResolvedValueOnce(jsonResponse(repos));
+
+    const tool = findTool("github_api");
+    const result = (await tool.executor!({
+      method: "GET",
+      path: "/user/repos",
+    })) as string;
+
+    // `"name"`'s value is the one `"repo-<n>"` token per entry in both encodings, so it counts
+    // survivors ("owner/repo-<n>" and the URL fields have no quote directly before `repo`).
+    const countEntries = (payload: string) => payload.match(/"repo-\d+"/g)?.length ?? 0;
+    const indented = JSON.stringify(repos, null, 2).slice(0, MAX_RESPONSE_SIZE);
+
+    expect(result).toContain("truncated");
+    expect(countEntries(indented)).toBeGreaterThan(0);
+    expect(countEntries(result)).toBeGreaterThan(countEntries(indented));
   });
 
   it("handles timeout", async () => {

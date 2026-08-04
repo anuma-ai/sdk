@@ -14,6 +14,7 @@ import {
   DEFAULT_SUMMARY_TOKEN_THRESHOLD,
   maybeSummarizeHistory,
 } from "../lib/chat/summarize";
+import { buildToolResultContent } from "../lib/chat/toolResultMessage";
 import { type ApiType, resolveApiType } from "../lib/chat/useChat";
 import {
   type ApiResponse,
@@ -3317,10 +3318,10 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         | { name: string; result: unknown }[]
         | undefined;
       if (autoToolResults && autoToolResults.length > 0) {
-        const toolSummary = autoToolResults
-          .map((r) => `Tool "${r.name}" returned: ${JSON.stringify(r.result)}`)
-          .join("\n\n");
-        const toolResultContent = `[Tool Execution Results]\n\n${toolSummary}\n\nBased on these results, continue with the task.`;
+        const toolResultContent = buildToolResultContent(autoToolResults);
+        // `origin` on all three payloads: the queued write replays through
+        // createMessageOp, and the synthetic message stands in for the row until
+        // it does. A tag on only one path loses it on the others.
         try {
           await writeOrQueue(
             "createMessage",
@@ -3330,6 +3331,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
               content: toolResultContent,
               model: "",
               parentMessageId: storedAssistantMessage.uniqueId,
+              origin: "tool_result",
             },
             () =>
               createMessageOp(storageCtx, {
@@ -3338,6 +3340,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
                 content: toolResultContent,
                 model: "",
                 parentMessageId: storedAssistantMessage.uniqueId,
+                origin: "tool_result",
               }),
             () =>
               makeSyntheticStoredMessage({
@@ -3346,6 +3349,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
                 content: toolResultContent,
                 model: "",
                 parentMessageId: storedAssistantMessage.uniqueId,
+                origin: "tool_result",
               }),
             assistantMsgQueueId ? [assistantMsgQueueId] : []
           );

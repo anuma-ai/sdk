@@ -72,6 +72,23 @@ export type ChatRole = "user" | "assistant" | "system";
 export type MessageFeedback = "like" | "dislike" | null;
 
 /**
+ * Which producer synthesised a message, for rows the user did not type and the
+ * UI does not render. Set at write time by that producer; a union so further
+ * synthetic kinds can be added without another column.
+ *
+ * - `tool_result`: the hidden `[Tool Execution Results]` row built from a
+ *   turn's auto-executed tool results. Skipped by the embedding sweep (see
+ *   `memoryEngine/embeddings`).
+ * - undefined/null: a normal message, or any row written before v44.
+ *
+ * Stored in the plaintext `origin` column — never encrypted. The deferred
+ * embedding sweep that has to honour it runs without wallet context, so an
+ * encrypted flag would be unreadable exactly where it matters and the skip
+ * would fail open.
+ */
+export type MessageOrigin = "tool_result";
+
+/**
  * Metadata for files attached to messages.
  *
  * Note the distinction between `url` and `sourceUrl`:
@@ -234,6 +251,8 @@ export interface StoredMessage {
   feedback?: MessageFeedback;
   /** Tool call events from the backend response (for reconstructing tool call history) */
   toolCallEvents?: LlmapiToolCallEvent[];
+  /** Provenance for synthetic rows; undefined for typed messages and pre-v44 rows */
+  origin?: MessageOrigin;
   /**
    * Set when `content` could not be decrypted on read (#561).
    * The `content` field still holds the original ciphertext — never a
@@ -382,6 +401,8 @@ export interface CreateMessageOptions {
   parentMessageId?: string;
   /** Tool call events from the backend response (for reconstructing tool call history) */
   toolCallEvents?: LlmapiToolCallEvent[];
+  /** Provenance for synthetic rows; set by the producer, never by user input */
+  origin?: MessageOrigin;
   /**
    * Optional pre-generated unique ID for this message.
    * When provided, used as the WatermelonDB record ID instead of auto-generating one.
