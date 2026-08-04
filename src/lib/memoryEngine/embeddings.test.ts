@@ -659,6 +659,36 @@ describe("origin: 'tool_result' is never embedded (sdk#861)", () => {
     expect(updateMessageEmbeddingOp).not.toHaveBeenCalled();
   });
 
+  it("embedMessage leaves a tagged row's vector unset but still embeds an untagged one", async () => {
+    // The fourth entry point, and the one with no internal caller — a consumer
+    // can hand it any message id, so the skip cannot rely on who calls it.
+    const fetchMock = stubFetchOk();
+    const dump = makeMessage({
+      uniqueId: "dump",
+      content: "tool output, long enough to embed",
+      origin: "tool_result",
+    });
+    vi.mocked(getMessageOp).mockResolvedValue(dump);
+
+    expect(await embedMessage(ctx, "dump", { apiKey: "k", baseUrl: BASE })).toBe(dump);
+    expect(dump.vector).toBeUndefined();
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(updateMessageEmbeddingOp).not.toHaveBeenCalled();
+
+    // Control: the same call on an untagged row still embeds and persists.
+    const prose = makeMessage({ uniqueId: "prose", content: "something the user typed" });
+    vi.mocked(getMessageOp).mockResolvedValue(prose);
+
+    await embedMessage(ctx, "prose", { apiKey: "k", baseUrl: BASE });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(updateMessageEmbeddingOp).toHaveBeenCalledWith(
+      ctx,
+      "prose",
+      embeddingFor("something the user typed"),
+      expect.any(String)
+    );
+  });
+
   it("embedAllMessages skips the dump but still embeds a normal message", async () => {
     const fetchMock = stubFetchOk();
     vi.mocked(getMessagesOp).mockResolvedValue([

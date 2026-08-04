@@ -46,8 +46,10 @@ export {
 export const DEFAULT_MIN_CONTENT_LENGTH = 10;
 
 /**
- * Message provenance that is never indexed, at any of the three entry points
- * below (sdk#861).
+ * Message provenance that is never indexed, at any of the four entry points
+ * below (sdk#861). All four are public API, so the skip has to be on each of
+ * them rather than only on the ones this repo happens to call: a consumer can
+ * hand any message id to `embedMessage` or `chunkAndEmbedMessage`.
  *
  * A turn's auto-executed tool results are persisted as a hidden `role: "user"`
  * row so later turns and other devices keep the context. That row is a
@@ -88,6 +90,12 @@ export async function embedMessage(
 
   // Skip if already has embedding
   if (message.vector && message.vector.length > 0) {
+    return message;
+  }
+
+  // Skip never-rendered tool-result dumps. Returned unchanged, not thrown: to a
+  // caller this is "nothing to embed here", the same as an already-embedded row.
+  if (message.origin === NON_EMBEDDABLE_ORIGIN) {
     return message;
   }
 
