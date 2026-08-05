@@ -22,6 +22,7 @@ import type {
   UpdateVaultMemoryOptions,
   VaultMemoryVisibility,
 } from "./types";
+import { FACET_SLOTS } from "./types";
 
 /** Coerce a stored visibility column to the enum — null/unknown reads as
  * "private" (grandfathered legacy rows; nothing is published without opt-in).
@@ -155,6 +156,87 @@ function normalizeTrustTier(value: string | null | undefined): string | null {
   return KNOWN_TRUST_TIERS.has(value) ? value : null;
 }
 
+/** Closed slot set for facet_key validation (facet slot+value supersede). */
+const FACET_SLOT_SET = new Set<string>(FACET_SLOTS);
+/** Max length for a normalized facet value token. A facet value is a short
+ * label (`dark`, `sf`, `vegan`), never a sentence — cap it so a mis-emitted
+ * long string can't masquerade as a value token. */
+const MAX_FACET_VALUE_LENGTH = 64;
+/** Allowed characters in a normalized facet value: lowercase alnum plus space /
+ * hyphen / underscore (must start alnum). Rejects punctuation-only garbage,
+ * embedded colons (which would corrupt the `key:self:slot` shape), etc. */
+const FACET_VALUE_RE = /^[a-z0-9][a-z0-9 _-]*$/;
+
+/**
+ * Coerce a caller-supplied facet key to the closed `"<factType>:self:<slot>"`
+ * shape, or `null` (garbage → null, like {@link normalizeTrustTier}). Lowercased
+ * and trimmed. Requires exactly three colon-separated parts, a `self` subject
+ * (SELF-ONLY in this increment), a `slot` in {@link FACET_SLOTS}, and a
+ * non-empty `factType` of `[a-z_]+`. Coerce (not throw) so a bad value degrades
+ * to the SAFE direction — a null facet key just means the fact takes the
+ * cosine+LLM dedup backstop instead of the deterministic path, never a wrong
+ * supersede. This is the single choke point every facet write funnels through.
+ */
+export function normalizeFacetKey(value: string | null | undefined): string | null {
+  if (value === undefined || value === null) return null;
+  const parts = value.trim().toLowerCase().split(":");
+  if (parts.length !== 3) return null;
+  const [factType, subject, slot] = parts;
+  if (!/^[a-z_]+$/.test(factType)) return null;
+  if (subject !== "self") return null;
+  if (!FACET_SLOT_SET.has(slot)) return null;
+  return `${factType}:self:${slot}`;
+}
+
+/**
+ * Coerce a caller-supplied facet value to a normalized token, or `null`
+ * (garbage → null). Lowercased + trimmed; rejects empty, over-cap, and anything
+ * outside {@link FACET_VALUE_RE}. Same fail-safe rationale as
+ * {@link normalizeFacetKey}: a null value drops the fact to the backstop path
+ * rather than letting an unusable token drive a supersede.
+ */
+export function normalizeFacetValue(value: string | null | undefined): string | null {
+  if (value === undefined || value === null) return null;
+  const v = value.trim().toLowerCase();
+  if (v.length === 0 || v.length > MAX_FACET_VALUE_LENGTH) return null;
+  return FACET_VALUE_RE.test(v) ? v : null;
+}
+
+/**
+ * Validate a caller-supplied facet key + value as a PAIR. A facet is only ever
+ * written when BOTH normalize to non-null — a key without a value (or vice
+ * versa) can't drive the value-equality discriminator, so it collapses to
+ * `null` (no facet). Returns the normalized pair, or `null`/`null` to write no
+ * facet. Every facet write path routes through this so the DB can never hold a
+ * half-facet or an unvalidated slot/value.
+ */
+function normalizeFacetPair(
+  key: string | null | undefined,
+  value: string | null | undefined
+): { facetKey: string; facetValue: string } | null {
+  const facetKey = normalizeFacetKey(key);
+  const facetValue = normalizeFacetValue(value);
+  if (facetKey === null || facetValue === null) return null;
+  return { facetKey, facetValue };
+}
+
+/**
+ * Stamp a validated facet pair onto a NEW record (every create path). No-op when
+ * the pair is invalid/absent, so the columns stay null (no facet). Re-validating
+ * here — not trusting the caller — mirrors the trust_tier pattern: this is the
+ * single write choke point, so the DB can never hold an unvalidated slot/value.
+ */
+function setFacetOnCreate(
+  record: { _setRaw: (name: string, value: string) => void },
+  opts: { facetKey?: string | null; facetValue?: string | null }
+): void {
+  const facet = normalizeFacetPair(opts.facetKey, opts.facetValue);
+  if (facet) {
+    record._setRaw("facet_key", facet.facetKey);
+    record._setRaw("facet_value", facet.facetValue);
+  }
+}
+
 /** Processes items in batches of 50 to avoid blocking the event loop. */
 async function mapInBatches<T, R>(items: T[], fn: (item: T) => Promise<R>): Promise<R[]> {
   const BATCH = 50;
@@ -206,6 +288,8 @@ function vaultMemoryToStoredRaw(memory: VaultMemory): StoredVaultMemory {
     twinOptIn: memory.twinOptIn ?? false,
     publishedAt: memory.publishedAt ?? null,
     geohash: memory.geohash ?? null,
+    facetKey: memory.facetKey ?? null,
+    facetValue: memory.facetValue ?? null,
     createdAt: memory.createdAt,
     updatedAt: memory.updatedAt,
     isDeleted: memory.isDeleted,
@@ -281,6 +365,10 @@ export async function createVaultMemoryOp(
       if (opts.geohash !== undefined) {
         record._setRaw("geohash", opts.geohash);
       }
+      // Facet slot+value supersede (v43) — stamp the validated pair (garbage /
+      // absent → left null). retain() writes this on every create path so the
+      // fresh row can drive the deterministic same-slot collision next time.
+      setFacetOnCreate(record, opts);
     });
   });
 
@@ -347,6 +435,10 @@ export async function createSupersedingMemoryOp(
         record._setRaw("event_time_end", opts.eventTime.end ?? null);
         record._setRaw("event_time_kind", opts.eventTime.kind ?? null);
       }
+      // Facet slot+value supersede (v43) — the value-changed retain() path routes
+      // its create through here, so the new (changed-value) row must carry the
+      // facet or the NEXT change wouldn't find it by key. Validated pair only.
+      setFacetOnCreate(record, opts);
     });
     await target.update((r) => {
       r._setRaw("superseded_by", createdRecord!.id);
@@ -518,6 +610,9 @@ export async function createVaultMemoriesBatchOp(
         if (opts.geohash !== undefined) {
           record._setRaw("geohash", opts.geohash);
         }
+        // Facet slot+value supersede (v43) — round-trip a validated pair through
+        // the bulk restore/import path (garbage / absent → left null).
+        setFacetOnCreate(record, opts);
       })
     );
     await ctx.database.batch(...prepared);
@@ -600,6 +695,8 @@ function vaultMemoryRawToStoredRaw(raw: Record<string, unknown>): StoredVaultMem
     twinOptIn: raw.twin_opt_in === true || raw.twin_opt_in === 1,
     publishedAt: (raw.published_at as number | null) ?? null,
     geohash: (raw.geohash as string | null) ?? null,
+    facetKey: (raw.facet_key as string | null) ?? null,
+    facetValue: (raw.facet_value as string | null) ?? null,
     createdAt: new Date(raw.created_at as number),
     updatedAt: new Date(raw.updated_at as number),
     isDeleted: raw.is_deleted === true || raw.is_deleted === 1,
@@ -948,6 +1045,52 @@ export async function getVaultMemoriesByIdsOp(
   );
 }
 
+/**
+ * Fetch every LIVE vault memory carrying an exact `facet_key`.
+ *
+ * NOT used by retain() — dedup goes through semantic search + the decide model,
+ * and this op is deliberately not part of that path (an exact-equality key lookup
+ * can never match the NULL facet_key that every pre-v43 row carries, so it cannot
+ * be a dedup mechanism on an existing vault). Kept as a read capability for
+ * consumers that want the rows in a given slot.
+ *
+ * Inherits {@link baseVaultConditions}, so the result is exactly the recall-live
+ * set for this key: soft-deleted, archived (unless `includeArchived`),
+ * quarantined, superseded, and cross-user rows are all excluded — the same
+ * choke point every other read lane uses. `unsafeFetchRaw` (no Model per row → no
+ * never-evicted RecordCache growth; web Pile-2), then the winners are decrypted
+ * like any other read.
+ */
+export async function getVaultMemoriesByFacetKeyOp(
+  ctx: VaultMemoryOperationsContext,
+  facetKey: string,
+  options?: { scope?: string; folderId?: string | null; includeArchived?: boolean }
+): Promise<StoredVaultMemory[]> {
+  // Normalize the caller's key the SAME way writes do (`normalizeFacetPair` →
+  // `normalizeFacetKey`): stored keys are always the trimmed, lowercased, closed
+  // `"<factType>:self:<slot>"` shape, so querying the raw string would miss every
+  // matching row for a differently-cased or padded key. A key that can't
+  // normalize (off-enum slot, wrong subject, malformed) matches nothing by
+  // definition, so it returns empty rather than issuing an unmatchable query.
+  const normalizedKey = normalizeFacetKey(facetKey);
+  if (!normalizedKey) return [];
+  const conditions = [
+    ...baseVaultConditions(ctx, {
+      ...(options?.includeArchived !== undefined && { includeArchived: options.includeArchived }),
+    }),
+    Q.where("facet_key", normalizedKey),
+    ...(options?.scope !== undefined ? [Q.where("scope", options.scope)] : []),
+    ...(options?.folderId !== undefined ? [Q.where("folder_id", options.folderId)] : []),
+  ];
+  const results = (await ctx.vaultMemoryCollection.query(...conditions).unsafeFetchRaw()) as Record<
+    string,
+    unknown
+  >[];
+  return mapInBatches(results, (raw) =>
+    vaultMemoryRawToStored(raw, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner)
+  );
+}
+
 export async function getAllVaultMemoryContentsOp(
   ctx: VaultMemoryOperationsContext,
   options?: { since?: Date }
@@ -1101,6 +1244,19 @@ export async function updateVaultMemoryOp(
         if (opts.trustTier !== undefined) {
           // Tier-0 (PR3): re-validate the loose string against the known set.
           r._setRaw("trust_tier", normalizeTrustTier(opts.trustTier));
+        }
+        // Facet slot+value (v43) — ADOPT-ONLY-WHEN-NULL. Stamp the validated
+        // pair ONLY when the row has no facet yet; NEVER overwrite a non-null
+        // facet_key, so an update can't flip a recorded facet's value. Written
+        // as a pair so key/value can't diverge. retain() does not pass these
+        // (it stamps facets on create only); this is here for callers that want
+        // to tag an existing keyless row.
+        if (opts.facetKey !== undefined && record.facetKey === null) {
+          const facet = normalizeFacetPair(opts.facetKey, opts.facetValue);
+          if (facet) {
+            r._setRaw("facet_key", facet.facetKey);
+            r._setRaw("facet_value", facet.facetValue);
+          }
         }
         // PR5 — un-archive on re-observe: clear archived_at so a decayed row a
         // new observation merged into re-enters recall. Ordering note: this runs

@@ -377,6 +377,15 @@ export async function retain(
     // this never lands on the merge/update path where it could flip a clean
     // memory's tier. The DB op re-validates against the known set.
     ...(options.trustTier !== undefined && { trustTier: options.trustTier }),
+    // Facet slot+value (v43) — record the facet on every fresh row (create path,
+    // and the create half of a supersede) so consumers can read a memory's slot
+    // and current value. Metadata only: dedup is decided by semantic search + the
+    // decide model, never by these columns. The DB op re-validates the pair; a
+    // garbage/absent facet is left null.
+    ...(options.facetKey !== undefined &&
+      options.facetKey !== null && { facetKey: options.facetKey }),
+    ...(options.facetValue !== undefined &&
+      options.facetValue !== null && { facetValue: options.facetValue }),
   };
 
   // A2 supersession: create the new fact AND retire the stale one it replaces

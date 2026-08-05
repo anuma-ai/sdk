@@ -432,6 +432,18 @@ export interface RetainOptions {
    * against the known set before writing.
    */
   trustTier?: string;
+  /**
+   * Facet slot key (v43) — the closed `"<factType>:self:<slot>"` shape of a
+   * single-valued SELF standing attribute (e.g. `preference:self:ui_theme`).
+   * RECORDED, NOT ACTED ON: retain() stamps the pair onto rows it creates so
+   * other consumers can read a memory's slot+value, but it does NOT drive dedup.
+   * Every write — facet-carrying or not — is deduped by the same semantic-search
+   * + decide-model path. The DB op re-validates the pair before writing.
+   */
+  facetKey?: string | null;
+  /** Facet value (v43) — the normalized current value token for {@link facetKey}
+   * (e.g. "dark"/"light"). Only persisted alongside a valid {@link facetKey}. */
+  facetValue?: string | null;
 }
 
 export interface RetainResult {
