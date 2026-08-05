@@ -2,7 +2,7 @@
 
 > **useChatStorage**(`options`: `object`): [`UseChatStorageResult`](../Internal/interfaces/UseChatStorageResult.md)
 
-Defined in: [src/expo/useChatStorage.ts:728](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChatStorage.ts#728)
+Defined in: [src/expo/useChatStorage.ts:729](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChatStorage.ts#729)
 
 A React hook that wraps useChat with automatic message persistence using WatermelonDB.
 
@@ -406,6 +406,37 @@ File preprocessors to use for automatic text extraction.
 * undefined (default): Use all built-in processors (PDF, Excel, Word)
 * null or \[]: Disable preprocessing
 * FileProcessor\[]: Use specific processors
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.foldToolResultsInHistory?`
+
+</td>
+<td>
+
+`boolean`
+
+</td>
+<td>
+
+Fold persisted `[Tool Execution Results]` rows onto the assistant turn that produced them
+when replaying stored history, instead of dropping them.
+
+**Defaults to `false`, and that default is deliberate.** Folding is the better behaviour —
+it is what lets a follow-up about a tool's output work after a reload — but it moves the
+payload from a `role: "user"` row onto an `assistant` row. Any consumer that scrubs these
+rows by checking `role === "user"` plus the content prefix (which is how both apps did it
+before this option existed) stops catching them the moment folding turns on, and starts
+replaying whatever the row held. Opting in is therefore a statement that the caller has
+checked its own filters and set [toolResultsHistoryExclude](../../react/Internal/interfaces/UseChatStorageOptions.md#toolresultshistoryexclude) for any payload that must
+not reach the model.
+
+With it off, rows are dropped from the replayed history rather than sent verbatim. Verbatim
+would put two consecutive `user` turns on the wire, and the model answers the previous turn
+instead of the new prompt.
 
 </td>
 </tr>
