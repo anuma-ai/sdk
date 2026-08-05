@@ -3373,9 +3373,9 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         // does, so a field set on only one path is lost on the others (that is why `origin` lives
         // here rather than being repeated). Byte-identical output across the two entries also
         // matters because the format is a contract the clients parse cards out of (#5519).
-        const toolResultsOpts = {
+        const toolResultsOpts: CreateMessageOptions = {
           conversationId: convId,
-          role: "user" as const,
+          role: "user",
           content: buildToolResultContent(autoToolResults),
           model: "",
           parentMessageId: storedAssistantMessage.uniqueId,
