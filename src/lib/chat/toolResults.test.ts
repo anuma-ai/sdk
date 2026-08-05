@@ -353,3 +353,50 @@ describe("isToolResultsRow — origin settles what shape cannot", () => {
     ).toBe(true);
   });
 });
+
+describe("resolveFoldTarget — nearest assistant, not a fixed direction", () => {
+  const deckLine = 'Tool "display_slides" returned: {"n":1}';
+
+  it("attributes a legacy row to ITS turn's reply, not the previous turn's", () => {
+    // kingpinXD: backwards-first found `a0` before it ever looked forward, so from turn two onward the
+    // payload was credited to the turn before the one that produced it — worse than dropping it.
+    const folded = foldToolResultsRows([
+      row("user", "hello"),
+      { role: "assistant", content: "TURN-ONE-REPLY", uniqueId: "a0" },
+      row("user", "make me a deck"),
+      row("user", `${TOOL_RESULTS_PREFIX}\n${deckLine}`),
+      { role: "assistant", content: "TURN-TWO-REPLY", uniqueId: "a1" },
+    ]);
+
+    const [, turnOne, , turnTwo] = folded;
+    expect(turnOne!.content).toBe("TURN-ONE-REPLY");
+    expect(turnOne!.content).not.toContain("display_slides");
+    expect(turnTwo!.content).toContain("TURN-TWO-REPLY");
+    expect(turnTwo!.content).toContain("display_slides");
+  });
+
+  it("still folds backwards for a parentless row that FOLLOWS its assistant", () => {
+    // The reverse case, and why searching forward first is not the fix either: `a1` is a turn that has
+    // not happened yet at the point the row was written.
+    const folded = foldToolResultsRows([
+      { role: "assistant", content: "TURN-ONE-REPLY", uniqueId: "a0" },
+      row("user", `${TOOL_RESULTS_PREFIX}\n${deckLine}`),
+      row("user", "and another"),
+      { role: "assistant", content: "TURN-TWO-REPLY", uniqueId: "a1" },
+    ]);
+
+    expect(folded[0]!.content).toContain("display_slides");
+    expect(folded[2]!.content).toBe("TURN-TWO-REPLY");
+  });
+
+  it("a resolvable parentMessageId still wins over both searches", () => {
+    const folded = foldToolResultsRows([
+      { role: "assistant", content: "NEARER", uniqueId: "a0" },
+      { role: "user", content: `${TOOL_RESULTS_PREFIX}\n${deckLine}`, parentMessageId: "a1" },
+      { role: "assistant", content: "LINKED", uniqueId: "a1" },
+    ]);
+
+    expect(folded[0]!.content).toBe("NEARER");
+    expect(folded[1]!.content).toContain("display_slides");
+  });
+});

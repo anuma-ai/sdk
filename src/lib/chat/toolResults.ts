@@ -216,11 +216,23 @@ export function foldToolResultsRows<T extends ToolResultsRowLike>(
 /**
  * Which assistant message this row's payload belongs to, as an index into `out`.
  *
- * By durable link first, then the nearest assistant BEFORE the row's position, then the nearest one
- * after. The forward search is for rows already in users' databases: mobile's `buildSlideDisplayMessage`
- * chained its row to "the preceding message", so a legacy row is parented to the USER prompt and sorts
- * ahead of the assistant reply. Looking only backwards dropped those rows, which silently denied the
- * follow-up-after-reload benefit to every conversation that predates this change.
+ * The durable link (`parentMessageId` → an assistant's `uniqueId`) settles it whenever it resolves,
+ * which is every row this SDK writes. Everything below is for rows it did not write: the ones already
+ * in users' databases, where mobile's `buildSlideDisplayMessage` chained to "the preceding message" and
+ * so parented the row to the USER prompt, or to nothing at all.
+ *
+ * For those, the target is the NEAREST assistant in either direction, not a fixed direction. Neither
+ * fixed order is correct:
+ *
+ * - Backwards-first breaks the legacy shape from turn two onward. `[u0, a0, u1, legacyRow, a1]` finds
+ *   `a0` before it ever looks forward, so the deck's payload is attributed to the turn BEFORE the one
+ *   that produced it, and the turn that did carries nothing. That is worse than the drop it replaced,
+ *   and mobile — which owns the legacy rows — is exactly who opts into folding.
+ * - Forwards-first breaks a parentless row that follows its assistant: `[a0, row, u1, a1]` would hand
+ *   the payload to `a1`, a turn that had not happened yet.
+ *
+ * Distance settles both, and a tie goes backwards because the preceding assistant is the historical
+ * meaning of these rows.
  */
 function resolveFoldTarget<T extends ToolResultsRowLike>(
   out: readonly T[],
@@ -230,13 +242,25 @@ function resolveFoldTarget<T extends ToolResultsRowLike>(
 ): number | undefined {
   const linked = row.parentMessageId ? assistantIndexById.get(row.parentMessageId) : undefined;
   if (linked !== undefined) return linked;
+
+  let previous: number | undefined;
   for (let i = insertionPoint - 1; i >= 0; i--) {
-    if (out[i].role === "assistant") return i;
+    if (out[i].role === "assistant") {
+      previous = i;
+      break;
+    }
   }
+  let next: number | undefined;
   for (let i = insertionPoint; i < out.length; i++) {
-    if (out[i].role === "assistant") return i;
+    if (out[i].role === "assistant") {
+      next = i;
+      break;
+    }
   }
-  return undefined;
+
+  if (previous === undefined) return next;
+  if (next === undefined) return previous;
+  return next - insertionPoint < insertionPoint - previous ? next : previous;
 }
 
 /**
