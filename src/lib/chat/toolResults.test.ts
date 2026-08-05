@@ -13,6 +13,7 @@ import {
   DISPLAY_CARD_PLACEHOLDER,
   foldToolResultsRows,
   isToolResultsRow,
+  MAX_FOLDED_APPENDIX_CHARS,
   parseToolResultSegments,
   prepareToolResultsForReplay,
   TOOL_RESULTS_PREFIX,
@@ -240,5 +241,115 @@ describe("prepareToolResultsForReplay", () => {
       const prepared = prepareToolResultsForReplay(history, { fold });
       expect(prepared.some((m) => isToolResultsRow(m))).toBe(false);
     }
+  });
+});
+
+describe("foldToolResultsRows — review findings (#868)", () => {
+  it("keeps a truncated entry's marker, so the model is told the output was cut", () => {
+    // kingpinXD: #866 appends its marker INSIDE an entry, so a capped entry spans several lines. A
+    // one-line-per-entry parser dropped the marker and handed the model JSON cut mid-value with
+    // nothing saying so.
+    const truncatedRow = row(
+      "user",
+      `${TOOL_RESULTS_PREFIX}\n\nTool "github_api" returned: {"a":"bbb\n\n... (tool output truncated, 4210 characters omitted)\n\nBased on these results, continue with the task.`
+    );
+
+    const segments = parseToolResultSegments(truncatedRow.content);
+    expect(segments).toHaveLength(1);
+    expect(segments[0]!.line).toContain("tool output truncated, 4210 characters omitted");
+    // The row's own footer belongs to the row, not to the last entry.
+    expect(segments[0]!.line).not.toContain("continue with the task");
+
+    // …and it survives the fold, which is where it was being lost.
+    const folded = foldToolResultsRows([row("assistant", "here you go"), truncatedRow]);
+    expect(folded).toHaveLength(1);
+    expect(folded[0]!.content).toContain("tool output truncated, 4210 characters omitted");
+  });
+
+  it("folds a legacy row parented to the USER prompt onto the following assistant", () => {
+    // morde08: mobile's `buildSlideDisplayMessage` chained to "the preceding message", so rows
+    // already in users' DBs sort before the assistant reply. Backwards-only search dropped them.
+    const folded = foldToolResultsRows([
+      { role: "user", content: "make me a deck", uniqueId: "u1" },
+      { role: "user", content: `${TOOL_RESULTS_PREFIX}\nTool "display_slides" returned: {"n":1}` },
+      { role: "assistant", content: "Here it is.", uniqueId: "a1" },
+    ]);
+
+    expect(folded.map((m) => m.role)).toEqual(["user", "assistant"]);
+    expect(folded[1]!.content).toContain('Tool "display_slides" returned:');
+  });
+
+  it("emits ONE appendix when two rows land on the same assistant", () => {
+    // morde08: reachable during the mobile transition, when a legacy hand-rolled row and the new SDK
+    // row coexist for one turn. Two blocks doubled the payload.
+    const folded = foldToolResultsRows([
+      { role: "user", content: "make both", uniqueId: "u1" },
+      { role: "assistant", content: "here you go", uniqueId: "a1" },
+      {
+        role: "user",
+        content: `${TOOL_RESULTS_PREFIX}\nTool "display_slides" returned: {"n":1}`,
+        parentMessageId: "a1",
+      },
+      {
+        role: "user",
+        content: `${TOOL_RESULTS_PREFIX}\nTool "display_document" returned: {"n":2}`,
+        parentMessageId: "a1",
+      },
+    ]);
+
+    expect(folded).toHaveLength(2);
+    const blocks = folded[1]!.content.split(TOOL_RESULTS_PREFIX).length - 1;
+    expect(blocks).toBe(1);
+    expect(folded[1]!.content).toContain('Tool "display_slides" returned:');
+    expect(folded[1]!.content).toContain('Tool "display_document" returned:');
+  });
+
+  it("caps the appendix, and the cap does not evict the small display entry", () => {
+    // morde08: `plan_deck + add_slide × 20` folds tens of KB onto one message, re-sent every turn.
+    // Water-filling is what keeps a small display payload alive beside an oversized one.
+    const huge = `Tool "plan_deck" returned: {"jsx":"${"x".repeat(40_000)}"}`;
+    const small = 'Tool "display_slides" returned: {"interaction_id":"s1"}';
+    const folded = foldToolResultsRows([
+      { role: "assistant", content: "done", uniqueId: "a1" },
+      {
+        role: "user",
+        content: `${TOOL_RESULTS_PREFIX}\n${huge}\n${small}`,
+        parentMessageId: "a1",
+      },
+    ]);
+
+    expect(folded[1] ?? folded[0]!).toBeDefined();
+    const content = folded[0]!.content;
+    expect(content.length).toBeLessThanOrEqual(MAX_FOLDED_APPENDIX_CHARS + "done\n\n".length + 8);
+    // The identifying field a follow-up needs survives.
+    expect(content).toContain('"interaction_id":"s1"');
+    expect(content).toContain("tool output truncated");
+  });
+});
+
+describe("isToolResultsRow — origin settles what shape cannot", () => {
+  it("keeps a pasted tool-shaped user turn when origin says it is not synthetic", () => {
+    // greptile: a user CAN paste the prefix plus a well-formed tool line, and no amount of content
+    // inspection can tell that from a real synthetic. The v44 column is what settles it — a composer
+    // message is written without `origin: "tool_result"`.
+    const pasted = {
+      role: "user",
+      content: `${TOOL_RESULTS_PREFIX}\nTool "github_api" returned: {"why":"does this show up?"}`,
+      origin: null,
+    };
+    // Shape alone still says "synthetic" — that is the documented pre-v44 limit.
+    expect(isToolResultsRow(pasted)).toBe(true);
+
+    // But once the SDK stamps provenance, the guess is never consulted.
+    expect(isToolResultsRow({ ...pasted, origin: "user_message" })).toBe(false);
+    expect(
+      foldToolResultsRows([row("assistant", "Sure."), { ...pasted, origin: "user_message" }])
+    ).toHaveLength(2);
+  });
+
+  it("trusts origin even when capping left no parseable tool line", () => {
+    expect(
+      isToolResultsRow({ role: "user", content: TOOL_RESULTS_PREFIX, origin: "tool_result" })
+    ).toBe(true);
   });
 });

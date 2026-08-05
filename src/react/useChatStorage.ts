@@ -15,7 +15,11 @@ import {
   maybeSummarizeHistory,
 } from "../lib/chat/summarize";
 import { buildToolResultContent } from "../lib/chat/toolResultMessage";
-import { DISPLAY_CARD_PLACEHOLDER, prepareToolResultsForReplay } from "../lib/chat/toolResults";
+import {
+  DISPLAY_CARD_PLACEHOLDER,
+  prepareToolResultsForReplay,
+  TOOL_RESULT_ORIGIN,
+} from "../lib/chat/toolResults";
 import { type ApiType, resolveApiType } from "../lib/chat/useChat";
 import {
   type ApiResponse,
@@ -2666,9 +2670,32 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
 
       // Include history if requested
       if (includeHistory) {
-        // Filter out errored messages and limit history to most recent messages
         const validMessages = storedMessages.filter((msg) => !msg.error);
-        const limitedMessages = validMessages.slice(-maxHistoryMessages);
+
+        // This conversation's own `[Tool Execution Results]` rows: folded onto the assistant turns
+        // that produced them when the caller opts in, dropped otherwise. Never verbatim — they are
+        // `role: "user"`, so each would put two consecutive user turns on the wire (the failure web's
+        // client-side filter exists to avoid).
+        //
+        // Off by default because folding relocates the payload onto an `assistant` row, and a caller
+        // whose own scrubbers key on `role === "user"` + prefix silently stops catching it. Opting in
+        // means the caller has checked its filters and named renderer-only payloads in
+        // `toolResultsHistoryExclude`.
+        //
+        // BEFORE the window slice AND before summarization, and both orderings matter:
+        // - Slice first and the synthetic rows spend window slots they are then removed from, so a
+        //   display-heavy thread replays fewer real turns than the caller asked for (a requested
+        //   window of 3 replayed 2). Worse, the slice boundary can keep a row while cutting the
+        //   assistant it belongs to, and the payload is then dropped for having nothing to fold into.
+        // - Summarize first and an excluded payload is still egress: it reaches the summary prompt,
+        //   and whatever the summary keeps comes back to the main model.
+        // Folding first closes both, and makes the window count only rows that actually travel.
+        const replayableMessages = prepareToolResultsForReplay(validMessages, {
+          fold: foldToolResultsInHistoryRef.current === true,
+          exclude: toolResultsHistoryExcludeRef.current,
+          placeholder: DISPLAY_CARD_PLACEHOLDER,
+        });
+        const limitedMessages = replayableMessages.slice(-maxHistoryMessages);
 
         // Collect file context from conversation history if we don't have it from current message
         // Look for the most recent message with extracted file content (stored in thinking field)
@@ -2682,25 +2709,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           }
         }
 
-        // This conversation's own `[Tool Execution Results]` rows: folded onto the assistant turns
-        // that produced them when the caller opts in, dropped otherwise. Never verbatim — they are
-        // `role: "user"`, so each would put two consecutive user turns on the wire (the failure web's
-        // client-side filter exists to avoid).
-        //
-        // Off by default because folding relocates the payload onto an `assistant` row, and a caller
-        // whose own scrubbers key on `role === "user"` + prefix silently stops catching it. Opting in
-        // means the caller has checked its filters and named renderer-only payloads in
-        // `toolResultsHistoryExclude`.
-        //
-        // BEFORE summarization, not after: an excluded payload handed to the summarizer is still
-        // egress (it reaches the summary prompt, and whatever the summary keeps returns to the main
-        // model), and folding first stops the token-budget split from landing between an assistant row
-        // and its tool-results row, which would drop that row for having no assistant to fold into.
-        const foldedHistory = prepareToolResultsForReplay(limitedMessages, {
-          fold: foldToolResultsInHistoryRef.current === true,
-          exclude: toolResultsHistoryExcludeRef.current,
-          placeholder: DISPLAY_CARD_PLACEHOLDER,
-        });
+        const foldedHistory = limitedMessages;
 
         // Convert stored messages to API format
         // Get encryption key if available for reading user files from OPFS
@@ -3370,7 +3379,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           content: buildToolResultContent(autoToolResults),
           model: "",
           parentMessageId: storedAssistantMessage.uniqueId,
-          origin: "tool_result" as const,
+          origin: TOOL_RESULT_ORIGIN,
         };
         try {
           const toolResultsWrite = await writeOrQueue(

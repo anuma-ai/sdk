@@ -17,6 +17,15 @@ const FOOTER = "\n\nBased on these results, continue with the task.";
 const ENTRY_SEPARATOR = "\n\n";
 
 /**
+ * The footer, without its leading blank line.
+ *
+ * Exported so the replay parser can tell it apart from an entry's own trailing lines: a truncated
+ * entry spans several lines, so the parser attaches trailing non-matching lines to the entry above —
+ * and this is the one trailing line that belongs to the row rather than to any entry.
+ */
+export const TOOL_RESULT_FOOTER_LINE = FOOTER.trim();
+
+/**
  * Hard ceiling on the persisted tool-result message, in characters. Bounds the
  * whole row, framing and per-entry prefixes included.
  *
@@ -54,6 +63,19 @@ export function buildToolResultContent(results: AutoExecutedToolResult[]): strin
   );
 
   return `${HEADER}${summary}${FOOTER}`;
+}
+
+/**
+ * Water-fill `budget` across already-assembled entries.
+ *
+ * Exported for the replay fold, which needs the same ceiling for the same reason on a different
+ * string: the appendix it builds accumulates every auto-executed tool of a turn, and `plan_deck` +
+ * 20 × `add_slide` folds tens of KB onto one assistant message that is then re-sent every turn.
+ * Sharing this rather than writing a second cap is what keeps the two from disagreeing about which
+ * entry gets evicted.
+ */
+export function capToolResultEntries(entries: string[], budget: number): string[] {
+  return capEntries(entries, budget);
 }
 
 /**

@@ -16,6 +16,8 @@
  * message, where it needs no turn of its own.
  */
 
+import { capToolResultEntries, TOOL_RESULT_FOOTER_LINE } from "./toolResultMessage";
+
 /** Marker the clients match on to tell this row apart from a real user turn. */
 export const TOOL_RESULTS_PREFIX = "[Tool Execution Results]";
 
@@ -42,37 +44,71 @@ interface ToolResultsRowLike {
   /** Present on stored rows; lets the fold find its assistant by link rather than by position. */
   uniqueId?: string;
   parentMessageId?: string;
+  /**
+   * Provenance, from the plaintext `origin` column added in schema v44 (#866). `"tool_result"` marks
+   * a row the SDK synthesised. Null on rows written before v44 and on rows a client wrote itself.
+   */
+  origin?: string | null;
 }
+
+/** Value of the `origin` column on a row the SDK synthesised for a turn's tool results (v44, #866). */
+export const TOOL_RESULT_ORIGIN = "tool_result";
 
 /**
  * Is this stored row one of the synthetic tool-results rows?
  *
- * The prefix alone is not enough: a person can type or paste "[Tool Execution Results]" into the
- * composer, and treating that as synthetic would fold their words into the previous assistant turn or
- * drop them outright. A real synthetic always carries at least one `Tool "<name>" returned: …` line —
- * `buildToolResultContent` is only called with a non-empty result list — so requiring one keeps a
- * human's message a human's message.
+ * Two signals, in order of trust:
  *
- * The `origin: "tool_result"` column added in v44 (#866) is the stronger signal, but it is absent on
- * every row written before then, so the shape check stays as the fallback rather than being replaced.
+ * 1. `origin === "tool_result"` — written by the SDK at the same moment as the row (v44, #866). A
+ *    person cannot produce it from the composer, so where it is present the question is settled and
+ *    the content is never consulted.
+ * 2. Shape — the prefix AND at least one `Tool "<name>" returned: …` line. The prefix alone is not
+ *    enough: a person can paste "[Tool Execution Results]" and treating that as synthetic would fold
+ *    their words into the previous assistant turn or drop them outright.
+ *
+ * The shape check is a FALLBACK, not a replacement, because `origin` is null on every row written
+ * before v44 and on the rows mobile still hand-writes for slides and documents. Its residual false
+ * positive is a user who pastes the prefix AND a well-formed tool line in one message: nothing in the
+ * content can distinguish that from a real synthetic, which is precisely why the column exists. That
+ * case shrinks to nothing as pre-v44 rows age out.
  */
 export function isToolResultsRow(row: ToolResultsRowLike): boolean {
+  if (row.origin === TOOL_RESULT_ORIGIN) return true;
+  // An origin the SDK set to something else is a positive statement that this is NOT a tool-results
+  // row, so the shape guess must not override it.
+  if (typeof row.origin === "string") return false;
   if (row.role !== "user" || !row.content.startsWith(TOOL_RESULTS_PREFIX)) return false;
   return parseToolResultSegments(row.content).length > 0;
 }
 
 /**
- * The per-tool lines inside a row.
+ * The per-tool entries inside a row.
  *
  * Line-based rather than split on the blank lines, because a client may write the same row with single
  * newlines (mobile's hand-written document card does) and `JSON.stringify` never emits a raw newline,
- * so one result is always exactly one line.
+ * so an entry's PAYLOAD is always exactly one line.
+ *
+ * An entry is not, though. `buildToolResultContent` appends its truncation marker inside the entry
+ * (`\n\n... (tool output truncated, N characters omitted)`), so a capped entry spans four lines. A
+ * strictly one-line-per-entry parser dropped that marker on the way through the fold, handing the
+ * model JSON cut mid-value with nothing saying it had been cut — the one thing the marker is worded
+ * for. So trailing lines that are not themselves a tool line stay attached to the entry above.
+ *
+ * The row's own footer is the single exception: it belongs to the row, not to the last entry.
  */
 export function parseToolResultSegments(content: string): ToolResultSegment[] {
   const segments: ToolResultSegment[] = [];
-  for (const line of content.split("\n")) {
-    const match = TOOL_LINE.exec(line.trim());
-    if (match) segments.push({ name: match[1], line: line.trim() });
+  for (const raw of content.split("\n")) {
+    const line = raw.trim();
+    const match = TOOL_LINE.exec(line);
+    if (match) {
+      segments.push({ name: match[1], line });
+      continue;
+    }
+    const current = segments[segments.length - 1];
+    if (!current || line === "" || line === TOOL_RESULT_FOOTER_LINE) continue;
+    if (line === TOOL_RESULTS_PREFIX) continue;
+    current.line = `${current.line}\n${line}`;
   }
   return segments;
 }
@@ -109,10 +145,17 @@ export function prepareToolResultsForReplay<T extends ToolResultsRowLike>(
  * - the row itself is removed, so history keeps strict user/assistant alternation;
  * - its tool lines are appended to the PRECEDING assistant message, which is where that turn's tool
  *   cycle happened — so "which of them likes chess" still has a referent after a reload;
- * - `exclude` drops named tools' lines entirely. Display payloads that exist only for the renderer
- *   belong here: mobile's People Nearby card carries third parties' snapped coordinates, which the
- *   search result deliberately strips before the model ever sees the people. Nothing in this module
- *   guesses that from the tool name — the app names the tools it will not replay.
+ * - `exclude` withholds named tools' lines from REPLAY. Display payloads that exist only for the
+ *   renderer belong here: mobile's People Nearby card carries third parties' snapped coordinates,
+ *   which the search result deliberately strips before the model ever sees the people. Nothing in this
+ *   module guesses that from the tool name — the app names the tools it will not replay.
+ *
+ *   Replay, and nothing more. An excluded payload is still built into the row by
+ *   `buildToolResultContent`, still written to `history`, still encrypted at rest and still uploaded
+ *   to the user's own backup — the card needs it to re-render after a reload, and #866's `origin` tag
+ *   keeps it out of the vector index. "Not replayed to the model" and "does not travel at all" are
+ *   different guarantees and only the first is on offer here; a persistence-level exclusion would cost
+ *   the card its data on reload and belongs in its own change.
  * - an assistant turn whose visible reply WAS the card is stored empty; when everything in the row is
  *   excluded, it gets `placeholder` so it survives the caller's own empty-message filtering and does
  *   not collapse the alternation it was keeping.
@@ -128,12 +171,12 @@ export function foldToolResultsRows<T extends ToolResultsRowLike>(
   // row are written back to back — a tie can order the row first, and a position-only fold would then
   // silently lose the tool output. Each entry keeps the durable link (`parentMessageId`) plus the
   // positional fallback for a row written without one.
-  const pending: { row: T; fallbackIndex: number }[] = [];
+  const pending: { row: T; insertionPoint: number }[] = [];
   const assistantIndexById = new Map<string, number>();
 
   for (const row of rows) {
     if (isToolResultsRow(row)) {
-      pending.push({ row, fallbackIndex: out.length - 1 });
+      pending.push({ row, insertionPoint: out.length });
       continue;
     }
     out.push(row);
@@ -142,24 +185,79 @@ export function foldToolResultsRows<T extends ToolResultsRowLike>(
     }
   }
 
-  for (const { row, fallbackIndex } of pending) {
-    const linked = row.parentMessageId ? assistantIndexById.get(row.parentMessageId) : undefined;
-    const target = linked ?? fallbackIndex;
-    const previous = out[target];
-    // Nothing to fold into (a corrupt or truncated thread, or a row whose assistant is outside the
-    // window): drop the row rather than send a bare user turn, which is the failure mode this whole
-    // function exists for.
-    if (!previous || previous.role !== "assistant") continue;
-    const kept = parseToolResultSegments(row.content).filter((s) => !exclude.has(s.name));
+  // Grouped by target, because two rows can land on ONE assistant during the mobile transition — a
+  // legacy hand-rolled row and the new SDK row for the same turn. Appending each separately produced
+  // two `[Tool Execution Results]` blocks on the same message and double the payload.
+  const byTarget = new Map<number, T[]>();
+  for (const { row, insertionPoint } of pending) {
+    const target = resolveFoldTarget(out, row, insertionPoint, assistantIndexById);
+    // Nothing to fold into (a corrupt thread, or a row whose assistant is outside the window): drop
+    // the row rather than send a bare user turn, which is the failure mode this function exists for.
+    if (target === undefined) continue;
+    const group = byTarget.get(target);
+    if (group) group.push(row);
+    else byTarget.set(target, [row]);
+  }
+
+  for (const [target, groupedRows] of byTarget) {
+    const assistant = out[target];
+    const kept = groupedRows
+      .flatMap((row) => parseToolResultSegments(row.content))
+      .filter((segment) => !exclude.has(segment.name));
     if (kept.length > 0) {
-      const appendix = `${TOOL_RESULTS_PREFIX}\n${kept.map((s) => s.line).join("\n")}`;
-      out[target] = {
-        ...previous,
-        content: previous.content.trim() ? `${previous.content}\n\n${appendix}` : appendix,
-      };
-    } else if (!previous.content.trim() && options?.placeholder) {
-      out[target] = { ...previous, content: options.placeholder };
+      out[target] = { ...assistant, content: appendToolResults(assistant.content, kept) };
+    } else if (!assistant.content.trim() && options?.placeholder) {
+      out[target] = { ...assistant, content: options.placeholder };
     }
   }
   return out;
+}
+
+/**
+ * Which assistant message this row's payload belongs to, as an index into `out`.
+ *
+ * By durable link first, then the nearest assistant BEFORE the row's position, then the nearest one
+ * after. The forward search is for rows already in users' databases: mobile's `buildSlideDisplayMessage`
+ * chained its row to "the preceding message", so a legacy row is parented to the USER prompt and sorts
+ * ahead of the assistant reply. Looking only backwards dropped those rows, which silently denied the
+ * follow-up-after-reload benefit to every conversation that predates this change.
+ */
+function resolveFoldTarget<T extends ToolResultsRowLike>(
+  out: readonly T[],
+  row: T,
+  insertionPoint: number,
+  assistantIndexById: ReadonlyMap<string, number>
+): number | undefined {
+  const linked = row.parentMessageId ? assistantIndexById.get(row.parentMessageId) : undefined;
+  if (linked !== undefined) return linked;
+  for (let i = insertionPoint - 1; i >= 0; i--) {
+    if (out[i].role === "assistant") return i;
+  }
+  for (let i = insertionPoint; i < out.length; i++) {
+    if (out[i].role === "assistant") return i;
+  }
+  return undefined;
+}
+
+/**
+ * Hard ceiling on the appendix folded onto one assistant message, in characters.
+ *
+ * Separate from — and much tighter than — `MAX_PERSISTED_TOOL_RESULT_CHARS`, because the economics
+ * differ: the persisted row is stored once, while this appendix is re-sent on EVERY subsequent turn.
+ * `toolLoop` accumulates every successful auto-executed tool across every round, so a
+ * `plan_deck + add_slide × 20` turn folds tens of KB onto a single message and then pays for it
+ * forever. 20k chars is roughly 5k tokens — enough to keep a display payload's identifying fields
+ * (which is what a follow-up needs) without carrying a full deck's JSX.
+ */
+export const MAX_FOLDED_APPENDIX_CHARS = 20_000;
+
+/** The assistant's content with the kept tool entries appended as one capped block. */
+function appendToolResults(assistantContent: string, kept: readonly ToolResultSegment[]): string {
+  const framing = TOOL_RESULTS_PREFIX.length + 1 + (kept.length - 1);
+  const capped = capToolResultEntries(
+    kept.map((segment) => segment.line),
+    MAX_FOLDED_APPENDIX_CHARS - framing
+  );
+  const appendix = `${TOOL_RESULTS_PREFIX}\n${capped.join("\n")}`;
+  return assistantContent.trim() ? `${assistantContent}\n\n${appendix}` : appendix;
 }

@@ -18,7 +18,11 @@ import {
   maybeSummarizeHistory,
 } from "../lib/chat/summarize";
 import { buildToolResultContent } from "../lib/chat/toolResultMessage";
-import { DISPLAY_CARD_PLACEHOLDER, prepareToolResultsForReplay } from "../lib/chat/toolResults";
+import {
+  DISPLAY_CARD_PLACEHOLDER,
+  prepareToolResultsForReplay,
+  TOOL_RESULT_ORIGIN,
+} from "../lib/chat/toolResults";
 import { type ApiType, resolveApiType, type RunToolLoopResult } from "../lib/chat/useChat";
 import {
   type ApiResponse,
@@ -2118,28 +2122,32 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
 
       // Include history if requested
       if (includeHistory) {
-        // Filter out errored messages and limit history to most recent messages
         const validMessages = storedMessages.filter((msg) => !msg.error);
-        const limitedMessages = validMessages.slice(-maxHistoryMessages);
 
         // This conversation's own `[Tool Execution Results]` rows: folded onto the assistant turns
         // that produced them when the caller opts in, dropped otherwise. Never verbatim — they are
         // `role: "user"`, so each one would put two consecutive user turns on the wire and the model
         // would answer the previous turn instead of the new prompt. Dropping is the conservative
         // branch: it costs the model what the tools returned, which is what folding exists to fix.
-        // `toolResultsHistoryExclude` names the display payloads that must not travel at all.
+        // `toolResultsHistoryExclude` withholds display payloads from replay (replay only — the row
+        // itself is still persisted and backed up; the card needs it to re-render).
         //
-        // BEFORE summarization, not after, for two reasons. An excluded payload handed to the
-        // summarizer is still egress — `formatMessagesForPrompt` would put those coordinates in the
-        // summary prompt, and anything the summary retains comes back to the main model through
-        // `summarySystemMessage`. And folding first means the token-budget split can no longer land
-        // between an assistant row and its tool-results row, which would leave the row with no
-        // assistant to fold into and silently drop the tool output.
-        const foldedHistory = prepareToolResultsForReplay(limitedMessages, {
+        // BEFORE the window slice AND before summarization, and both orderings matter:
+        // - Slice first and the synthetic rows spend window slots they are then removed from, so a
+        //   display-heavy thread replays fewer real turns than the caller asked for. Worse, the slice
+        //   boundary can keep a row while cutting the assistant it belongs to, and the payload is then
+        //   dropped for having nothing to fold into.
+        // - Summarize first and an excluded payload is still egress: `formatMessagesForPrompt` would
+        //   put those coordinates in the summary prompt, and anything the summary retains comes back
+        //   to the main model through `summarySystemMessage`.
+        // Folding first closes both, and makes the window count only rows that actually travel.
+        const replayableMessages = prepareToolResultsForReplay(validMessages, {
           fold: foldToolResultsInHistoryRef.current === true,
           exclude: toolResultsHistoryExcludeRef.current,
           placeholder: DISPLAY_CARD_PLACEHOLDER,
         });
+        const limitedMessages = replayableMessages.slice(-maxHistoryMessages);
+        const foldedHistory = limitedMessages;
 
         // Determine which messages to send: summarized + window or all verbatim.
         // Uses a direct fetch for the LLM call (not baseSendMessage) to avoid
@@ -2763,7 +2771,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           content: buildToolResultContent(autoToolResults),
           model: "",
           parentMessageId: storedAssistantMessage.uniqueId,
-          origin: "tool_result",
+          origin: TOOL_RESULT_ORIGIN,
         };
         try {
           const toolResultsWrite = await writeOrQueue(
