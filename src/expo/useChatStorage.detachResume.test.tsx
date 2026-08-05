@@ -325,7 +325,7 @@ describe("useChatStorage detach → resume reconciliation", () => {
         getThoughtProcess: () => phases,
       });
     });
-    const rowId = (detached as Extract<typeof detached, { detached: true }>).assistantUniqueId;
+    const rowId = (detached! as Extract<typeof detached, { detached: true }>).assistantUniqueId;
 
     mockResumeStream.mockResolvedValueOnce({
       data: responsesShape("partial answer, now complete"),

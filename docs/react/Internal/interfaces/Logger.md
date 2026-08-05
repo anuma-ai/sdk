@@ -66,7 +66,7 @@ Defined in: [src/lib/logger.ts:24](https://github.com/anuma-ai/sdk/blob/main/src
 
 > **error**: (...`args`: `unknown`\[]) => `void`
 
-Defined in: [src/lib/logger.ts:28](https://github.com/anuma-ai/sdk/blob/main/src/lib/logger.ts#28)
+Defined in: [src/lib/logger.ts:30](https://github.com/anuma-ai/sdk/blob/main/src/lib/logger.ts#30)
 
 **Parameters**
 
@@ -103,9 +103,11 @@ Defined in: [src/lib/logger.ts:28](https://github.com/anuma-ai/sdk/blob/main/src
 
 > **info**: (...`args`: `unknown`\[]) => `void`
 
-Defined in: [src/lib/logger.ts:26](https://github.com/anuma-ai/sdk/blob/main/src/lib/logger.ts#26)
+Defined in: [src/lib/logger.ts:28](https://github.com/anuma-ai/sdk/blob/main/src/lib/logger.ts#28)
 
-Not used internally by the SDK today, but included so custom loggers can receive all standard levels.
+Used for outcomes that are noteworthy but expected — a consolidation
+refusal that preserved a memory, for example. Keep genuinely-wrong things at
+`warn` so the two stay distinguishable in a log search.
 
 **Parameters**
 
@@ -142,7 +144,7 @@ Not used internally by the SDK today, but included so custom loggers can receive
 
 > **warn**: (...`args`: `unknown`\[]) => `void`
 
-Defined in: [src/lib/logger.ts:27](https://github.com/anuma-ai/sdk/blob/main/src/lib/logger.ts#27)
+Defined in: [src/lib/logger.ts:29](https://github.com/anuma-ai/sdk/blob/main/src/lib/logger.ts#29)
 
 **Parameters**
 

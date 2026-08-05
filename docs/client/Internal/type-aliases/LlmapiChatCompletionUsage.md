@@ -2,7 +2,7 @@
 
 > **LlmapiChatCompletionUsage** = [`OpenaiCompletionUsage`](OpenaiCompletionUsage.md) & `object`
 
-Defined in: [src/clientCompat.ts:49](https://github.com/anuma-ai/sdk/blob/main/src/clientCompat.ts#49)
+Defined in: [src/clientCompat.ts:50](https://github.com/anuma-ai/sdk/blob/main/src/clientCompat.ts#50)
 
 The pre-migration usage shape: standard OpenAI token counts plus the
 portal's cost/credit fields all on one flat object. The new schema splits

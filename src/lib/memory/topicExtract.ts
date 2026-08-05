@@ -133,16 +133,32 @@ export async function extractEntitiesForMemories(
   const out = new Map<string, ExtractedEntity[]>();
   if (memories.length === 0) return out;
   const redactor = resolvePiiRedactor(options.piiRedaction);
+  // Both redaction loops below are ASYNC and SEQUENTIAL, deliberately.
+  //
+  // Async because `redactText` is regex-only: a caller who configured an
+  // `nerDetector` gets names, locations and orgs masked only by
+  // `redactTextAsync`, and entity extraction is exactly the path where those
+  // values would otherwise egress in plain text. Without a detector
+  // `redactTextAsync` returns `redactText` directly, so the default is
+  // unchanged.
+  //
+  // Sequential rather than Promise.all because the redactor is stateful — it
+  // mints `[EMAIL_1]`, `[EMAIL_2]`, … in first-seen order and reuses them.
+  // Racing the calls would tie that numbering to promise resolution order, so
+  // a memory could stop matching its own vocabulary entry, and the same batch
+  // could produce a differently-numbered prompt run to run.
 
   // Vocabulary names are restored REAL values (that's the point of canonical
   // names), so under PII redaction they must go through the SAME redactor as
   // the contents — same redactor instance ⇒ same placeholder numbering, so a
   // redacted memory still anchors to its redacted vocabulary entry, and the
   // model's placeholder echoes restore alongside the content entities.
-  const vocabulary = (options.existingEntityNames ?? [])
+  const vocabulary: string[] = [];
+  for (const name of (options.existingEntityNames ?? [])
     .filter((n) => n.trim().length > 0)
-    .slice(0, MAX_VOCABULARY_NAMES)
-    .map((n) => (redactor ? redactor.redactText(n).text : n));
+    .slice(0, MAX_VOCABULARY_NAMES)) {
+    vocabulary.push(redactor ? (await redactor.redactTextAsync(name)).text : name);
+  }
   const vocabularyNote =
     vocabulary.length > 0
       ? `The user's existing topics: ${vocabulary.join(", ")}.\nWhen a memory refers to one of these, reuse the EXACT existing name (same spelling, casing, spacing and punctuation) instead of a variant — if "Foo.ai" is listed, never emit "Foo ai" or "Foo AI", and if "Jane Roe" is listed, emit that rather than a bare "Jane".\n\n`
@@ -150,17 +166,17 @@ export async function extractEntitiesForMemories(
 
   for (let i = 0; i < memories.length; i += TOPIC_EXTRACTION_BATCH_SIZE) {
     const batch = memories.slice(i, i + TOPIC_EXTRACTION_BATCH_SIZE);
-    const listing = batch
-      .map((m) => {
-        // Collapse whitespace so a memory whose content contains a newline
-        // (textarea entry, doc import) can't masquerade as extra "id: text"
-        // rows once "\n" is the row delimiter — that would split one memory
-        // into two, answer a phantom id, and leave the real id absent (hence
-        // unstamped and re-tried every sweep).
-        const content = m.content.slice(0, MAX_CHARS_PER_MEMORY).replace(/\s+/g, " ").trim();
-        return `${m.id}: ${redactor ? redactor.redactText(content).text : content}`;
-      })
-      .join("\n");
+    const rows: string[] = [];
+    for (const m of batch) {
+      // Collapse whitespace so a memory whose content contains a newline
+      // (textarea entry, doc import) can't masquerade as extra "id: text"
+      // rows once "\n" is the row delimiter — that would split one memory
+      // into two, answer a phantom id, and leave the real id absent (hence
+      // unstamped and re-tried every sweep).
+      const content = m.content.slice(0, MAX_CHARS_PER_MEMORY).replace(/\s+/g, " ").trim();
+      rows.push(`${m.id}: ${redactor ? (await redactor.redactTextAsync(content)).text : content}`);
+    }
+    const listing = rows.join("\n");
     const parsed = await callPortalJsonCompletion({
       ...(options.apiKey !== undefined && { apiKey: options.apiKey }),
       ...(options.getToken !== undefined && { getToken: options.getToken }),

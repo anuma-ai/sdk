@@ -32,16 +32,19 @@ vi.mock("../memory/reranker", async (importOriginal) => ({
   rerankPairs: vi.fn(),
 }));
 
-vi.mock("./decomposeQuery", () => ({
-  decomposeQuery: vi.fn(),
-}));
+vi.mock("./decomposeQuery", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("./decomposeQuery")>();
+  return {
+    ...actual,
+    decomposeQuery: vi.fn(),
+  };
+});
 
 import * as ops from "../db/memoryVault/operations";
 import * as embed from "../memoryEngine/embeddings";
 import { getAllVaultMemoriesOp } from "../db/memoryVault/operations";
 import { generateEmbedding, generateEmbeddings } from "../memoryEngine/embeddings";
 import { rerankPairs } from "../memory/reranker";
-import { decomposeQuery } from "./decomposeQuery";
 import { setLogger, noopLogger, type Logger } from "../logger";
 import { DEFAULT_API_EMBEDDING_MODEL } from "../memoryEngine/constants";
 
@@ -1129,6 +1132,8 @@ describe("buildProjectedCorpus", () => {
       queryEmbedding: [],
       vaultSize: 0,
       laneEmbedFailed: false,
+      // Nothing was fetched, so nothing was decrypt-attempted.
+      rowsDecrypted: 0,
     });
   });
 
@@ -1375,9 +1380,15 @@ describe("buildProjectedCorpus", () => {
 
     // Without the top-up only "warm" is vectored, so only "warm" gets decrypted
     // and a lexical hit in cold1/cold2 is unreachable. k=3, so all three admit.
-    const finalDecrypt = byIds.mock.calls[byIds.mock.calls.length - 1][1] as string[];
-    expect(finalDecrypt).toEqual(expect.arrayContaining(["warm", "cold1", "cold2"]));
+    // Across ALL fetches, not just the last: the admission batch now reuses rows
+    // the un-embedded lane already decrypted, so the work is split between two
+    // calls and the last one only asks for what the lane didn't cover ("warm").
+    const decryptedIds = byIds.mock.calls.flatMap((c) => c[1] as string[]);
+    expect(decryptedIds).toEqual(expect.arrayContaining(["warm", "cold1", "cold2"]));
+    // And each exactly once — this is the shape that used to double-fetch.
+    expect(decryptedIds.length).toBe(new Set(decryptedIds).size);
     expect(out.memories.map((m) => m.uniqueId).sort()).toEqual(["cold1", "cold2", "warm"]);
+    expect(out.rowsDecrypted).toBe(3);
   });
 });
 
@@ -1444,10 +1455,6 @@ describe("searchVaultMemoriesWithSize — embedding failures beyond the query em
     vi.spyOn(embed, "generateEmbedding").mockResolvedValue([1, 0, 0]);
     // Only the sub-query batch fails — the row vectors are already cached.
     vi.spyOn(embed, "generateEmbeddings").mockRejectedValue(new Error("429 rate limited"));
-    vi.mocked(decomposeQuery).mockResolvedValue({
-      mode: "composite",
-      subQueries: ["allergies", "food"],
-    } as any);
 
     const cache = createVaultEmbeddingCache();
     cache.set("m1", new Float32Array([1, 0, 0]));
@@ -1459,8 +1466,7 @@ describe("searchVaultMemoriesWithSize — embedding failures beyond the query em
       {
         limit: 5,
         useFusion: true,
-        decompose: "llm",
-        decomposeOptions: { apiKey: "k" } as any,
+        subQueries: ["allergies", "food"],
       }
     );
 
@@ -1634,6 +1640,135 @@ describe("searchVaultMemoriesWithSize — decryptLast branch", () => {
 
     expect(getAll).not.toHaveBeenCalled();
     expect(out.results.map((r) => r.uniqueId)).toContain("a");
+  });
+
+  it("counts an admitted row that came back ENCRYPTED as decrypt work", async () => {
+    // The #852 review finding (greptile P1 / cursor). `rowsDecrypted` used to be
+    // `memories.length` — the searchable set AFTER the still-encrypted filter — so
+    // a row that was fetched, decrypt-attempted, and came back as ciphertext was
+    // free work as far as the diagnostic was concerned. That under-reports in the
+    // one direction that misleads: `rowsDecrypted` far below `vaultSize` is
+    // supposed to mean "decrypt was never the cost".
+    const rows = [
+      { uniqueId: "a", content: "alpha" },
+      // Fetched and materialised, but the key was unavailable.
+      {
+        uniqueId: "b",
+        content: "enc:v3:deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef00",
+      },
+    ];
+    vi.spyOn(ops, "getVaultCandidateKeysOp").mockResolvedValue(
+      rows.map((r) => ({
+        uniqueId: r.uniqueId,
+        folderId: null,
+        scope: "private",
+        embeddingModel: "m",
+        updatedAt: new Date(),
+      })) as any
+    );
+    vi.spyOn(ops, "getVaultEmbeddingsByIdsOp").mockResolvedValue(
+      rows.map((r) => ({ uniqueId: r.uniqueId, embedding: "[1,0]", embeddingModel: "m" })) as any
+    );
+    vi.spyOn(ops, "getVaultMemoriesByIdsOp").mockResolvedValue(
+      rows.map((r) => ({
+        uniqueId: r.uniqueId,
+        content: r.content,
+        embedding: "[1,0]",
+        embeddingModel: "m",
+        scope: "private",
+        folderId: null,
+        userId: null,
+        isDeleted: false,
+        proofCount: 1,
+        sourceChunkIds: null,
+        eventTimeStart: null,
+        eventTimeEnd: null,
+        eventTimeKind: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      })) as any
+    );
+    vi.spyOn(embed, "generateEmbedding").mockResolvedValue([1, 0]);
+
+    const cache = createVaultEmbeddingCache();
+    const out = await searchVaultMemoriesWithSize("q", {} as any, { model: "m" } as any, cache, {
+      limit: 5,
+      decryptLast: true,
+    });
+
+    // Only "a" is searchable, but BOTH rows were decrypted.
+    expect(out.results.map((r) => r.uniqueId)).toEqual(["a"]);
+    expect(out.decryptLast).toBe(true);
+    expect(out.rowsDecrypted).toBe(2);
+  });
+
+  it("counts a row in BOTH the un-embedded lane and the admission window ONCE", async () => {
+    // Reported on #852 by @rutwik2001. Lane rows are pushed into `vectored`, and
+    // `admitVaultProjections` picks from `vectored` — so a lane row that scores
+    // well was re-fetched by the admission batch and decrypted a SECOND time
+    // (`getVaultMemoriesByIdsOp` decrypts per row). It was also counted twice, so
+    // on a cold vault `rowsDecrypted` could exceed `vaultSize` and an operator
+    // would blame the admission window for a bill the lane ran up.
+    //
+    // The perf fixture can never reach this: every row there has a stored vector,
+    // so the lane never fires.
+    const keys = [{ uniqueId: "novec" }].map((r) => ({
+      uniqueId: r.uniqueId,
+      folderId: null,
+      scope: "private",
+      embeddingModel: "m",
+      updatedAt: new Date(),
+    }));
+    vi.spyOn(ops, "getVaultCandidateKeysOp").mockResolvedValue(keys as any);
+    // No stored vector → the row falls into the un-embedded lane.
+    vi.spyOn(ops, "getVaultEmbeddingsByIdsOp").mockResolvedValue([
+      { uniqueId: "novec", embedding: null, embeddingModel: "m" },
+    ] as any);
+    const row = {
+      uniqueId: "novec",
+      content: "alpha",
+      embedding: null,
+      embeddingModel: "m",
+      scope: "private",
+      folderId: null,
+      userId: null,
+      isDeleted: false,
+      proofCount: 1,
+      sourceChunkIds: null,
+      eventTimeStart: null,
+      eventTimeEnd: null,
+      eventTimeKind: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    // Honours the requested ids, unlike a canned mockResolvedValue — otherwise an
+    // empty fetch still "returns" a row and the dedupe looks broken when it isn't.
+    const byIds = vi
+      .spyOn(ops, "getVaultMemoriesByIdsOp")
+      .mockImplementation(async (_ctx: any, ids: string[]) =>
+        ids.includes("novec") ? ([row] as any) : ([] as any)
+      );
+    vi.spyOn(embed, "generateEmbedding").mockResolvedValue([1, 0]);
+    vi.spyOn(embed, "generateEmbeddings").mockResolvedValue([[1, 0]]);
+    vi.spyOn(ops, "updateVaultMemoryEmbeddingOp").mockResolvedValue(undefined as any);
+
+    const cache = createVaultEmbeddingCache();
+    const out = await searchVaultMemoriesWithSize("q", {} as any, { model: "m" } as any, cache, {
+      limit: 5,
+      decryptLast: true,
+    });
+
+    // One row in the vault, so one decrypt — never two, and never above vaultSize.
+    expect(out.vaultSize).toBe(1);
+    expect(out.rowsDecrypted).toBe(1);
+    expect(out.rowsDecrypted).toBeLessThanOrEqual(out.vaultSize);
+    // And it is fetched once: the admission batch reuses the lane's row rather
+    // than paying `getVaultMemoriesByIdsOp` for it again.
+    // Exactly one fetch: the admission batch is skipped entirely because the lane
+    // already covered the window (no pointless round trip with an empty id list).
+    const fetchedIdBatches = byIds.mock.calls.map((c) => (c[1] as string[]).length);
+    expect(fetchedIdBatches).toEqual([1]);
+    expect(out.results.map((r) => r.uniqueId)).toEqual(["novec"]);
   });
 
   it("decryptLast OFF: legacy whole-vault path", async () => {
@@ -1846,12 +1981,10 @@ describe("searchVaultMemoriesWithSize — decryptLast branch", () => {
     const out = await searchVaultMemoriesWithSize("q", {} as any, { model: "m" } as any, cache, {
       limit: 5,
       decryptLast: true,
-      // If the corpus weren't empty-checked, this would drive decomposeQuery.
-      decompose: "llm",
-      decomposeOptions: { apiKey: "x" } as any,
+      // If the corpus weren't empty-checked, this would drive the composite path.
+      subQueries: ["facet a", "facet b"],
     });
 
-    expect(vi.mocked(decomposeQuery)).not.toHaveBeenCalled();
     expect(out.results).toEqual([]);
     expect(out.vaultSize).toBe(2);
     expect(out.reranked).toBe(false);
@@ -1871,10 +2004,6 @@ describe("composite sub-query embeds — degenerate responses fall through", () 
     vi.clearAllMocks();
     warnings = [];
     setLogger({ ...noopLogger, warn: (msg: string) => warnings.push(String(msg)) });
-    vi.mocked(decomposeQuery).mockResolvedValue({
-      mode: "composite",
-      subQueries: ["allergies", "food"],
-    } as any);
   });
   afterEach(() => setLogger(noopLogger));
 
@@ -1882,8 +2011,7 @@ describe("composite sub-query embeds — degenerate responses fall through", () 
     searchVaultMemoriesWithSize("shellfish", mockVaultCtx, mockEmbeddingOptions, seededCache(), {
       limit: 5,
       useFusion: true,
-      decompose: "llm",
-      decomposeOptions: { apiKey: "k" } as any,
+      subQueries: ["allergies", "food"],
     });
 
   // Both rows are pre-seeded so the row-(re)embed batch has nothing to do and the
@@ -1945,17 +2073,25 @@ describe("composite sub-query embeds — degenerate responses fall through", () 
     expect(out.results.map((r) => r.uniqueId)).toContain("m1");
   });
 
-  it("falls through on a zero-facet decomposition instead of returning nothing", async () => {
-    // Unreachable through decomposeQuery today (validate() rejects an empty
-    // subQueries), but the count check alone reads it as usable — `0 === 0` and
-    // `[].every()` is true — and rankComposite returns [] on an empty facet list.
-    // That flips this guard's failure mode from degrade to total recall miss, so
-    // the `subQueries.length > 0` clause is load-bearing, not defensive noise.
-    vi.mocked(decomposeQuery).mockResolvedValue({ mode: "composite", subQueries: [] } as any);
+  it("falls through on a zero-facet list instead of returning nothing", async () => {
+    // A zero-facet list must not enter the composite path: without the
+    // `length >= 2` gate, `0 === 0` and `[].every()` would read as usable and
+    // `rankComposite` would return [] — flipping degrade into a total miss.
     vi.spyOn(embed, "generateEmbeddings").mockResolvedValue([]);
 
-    const out = await search();
+    const out = await searchVaultMemoriesWithSize(
+      "shellfish",
+      mockVaultCtx,
+      mockEmbeddingOptions,
+      seededCache(),
+      {
+        limit: 5,
+        useFusion: true,
+        subQueries: [],
+      }
+    );
 
+    expect(vi.mocked(embed.generateEmbeddings)).not.toHaveBeenCalled();
     expect(out.results.map((r) => r.uniqueId)).toContain("m1");
   });
 

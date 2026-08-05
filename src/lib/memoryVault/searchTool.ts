@@ -28,7 +28,7 @@ import { generateEmbedding, generateEmbeddings } from "../memoryEngine/embedding
 import type { EmbeddingOptions } from "../memoryEngine/types";
 import { cosineSimilarity } from "../memoryEngine/vector";
 import { prepareBM25Corpus, type PreparedBM25Corpus, scoreBM25, scoreBM25Prepared } from "./bm25";
-import { decomposeQuery } from "./decomposeQuery";
+import { decomposeQuery, normalizeSubQueries } from "./decomposeQuery";
 
 export { createVaultEmbeddingCache, DEFAULT_VAULT_CACHE_SIZE } from "./lruCache";
 
@@ -37,6 +37,11 @@ export { createVaultEmbeddingCache, DEFAULT_VAULT_CACHE_SIZE } from "./lruCache"
  * so that search only needs to embed the query, not the vault entries.
  */
 export type VaultEmbeddingCache = Map<string, Float32Array>;
+
+/** One-time breadcrumb for callers still passing `decompose: "llm"` into the
+ * programmatic search path (719/B4). The tool executor still honors that flag;
+ * `searchVaultMemories*` ignores it. */
+let warnedProgrammaticDecomposeIgnored = false;
 
 /**
  * Options for the vault search tool.
@@ -102,15 +107,26 @@ export interface MemoryVaultSearchOptions {
   /** RRF smoothing constant for lane fusion. Default 60. */
   rrfK?: number;
   /**
-   * LLM-based query decomposition for composite/abstract queries. When set,
-   * each query is classified + (if composite) decomposed into 3–5 facet
-   * sub-queries via gpt-5-mini, then ranked via {@link rankComposite}.
-   * Requires `decomposeOptions` (auth) when set to "llm".
+   * Pre-decomposed facet queries for the composite ranker (719/B4). When
+   * ≥2 are supplied (and embeddings are available), runs {@link rankComposite}
+   * over them — no LLM call inside the search path. Callers that want LLM
+   * rewrite (e.g. `createRecallTool`) call `decomposeQuery` first and pass
+   * the facets here.
+   */
+  subQueries?: string[];
+  /**
+   * @deprecated 719/B4 — ignored by {@link searchVaultMemories} /
+   * {@link searchVaultMemoriesWithSize}. Pass {@link MemoryVaultSearchOptions.subQueries}
+   * (or use `createRecallTool`). The legacy {@link createMemoryVaultSearchTool}
+   * executor still honors `decompose: "llm"` + `decomposeOptions` for eval
+   * parity, then forwards facets into the LLM-free search path.
    */
   decompose?: "off" | "llm";
-  /** Auth + endpoint for the decomposition LLM call. Required when
-   * decompose="llm". Auth is the dual pattern — one of `apiKey` /
-   * `getToken`; see {@link PortalLlmAuth}. */
+  /**
+   * @deprecated 719/B4 — see `decompose`. Ignored on the programmatic search
+   * path; tool-layer rewrite still reads this from the search-tool options.
+   * Prefer `RecallToolOptions.decomposeOptions` with `createRecallTool`.
+   */
   decomposeOptions?: PortalLlmAuth & {
     baseUrl?: string;
     model?: string;
@@ -1471,7 +1487,29 @@ export async function buildProjectedCorpus(
    * {@link PreparedVaultCandidates.embeddingFailure}.
    */
   laneEmbedFailed: boolean;
+  /**
+   * Rows materialised through `decryptVaultMemoryFields` while building this
+   * corpus — the decrypt bill, counted where it is paid.
+   *
+   * Deliberately NOT `memories.length`. That is the searchable set AFTER the
+   * still-encrypted filter, and it misses two batches this function decrypts: the
+   * un-embedded lane (up to `unembeddedCap`) and any admitted row whose content
+   * came back encrypted. Inferring the count downstream from a different
+   * collection than the one that paid is how it came to under-report — the same
+   * container mismatch as #848.
+   *
+   * DISTINCT rows, and that is a guarantee callers rely on: the admission batch
+   * reuses whatever the lane already decrypted rather than re-fetching it, so this
+   * can never exceed `vaultSize`. Without that, a cold vault could report
+   * lane (≤ `unembeddedCap`) + admitted (k) and land ABOVE `vaultSize` — a shape
+   * neither the ratio reading below nor the #845 triage table contemplates, and an
+   * operator seeing 121/91 would blame the admission window when the bill was the
+   * lane. Opposite fixes, same number, which is the failure mode this diagnostic
+   * exists to end.
+   */
+  rowsDecrypted: number;
 }> {
+  let rowsDecrypted = 0;
   const keys = await getVaultCandidateKeysOp(
     vaultCtx,
     Object.keys(queryOpts).length > 0 ? queryOpts : undefined
@@ -1497,6 +1535,7 @@ export async function buildProjectedCorpus(
       queryEmbedding: [],
       vaultSize: 0,
       laneEmbedFailed: false,
+      rowsDecrypted: 0,
     };
   }
   const queryEmbedding = await embedQueryOrDegrade(
@@ -1554,6 +1593,18 @@ export async function buildProjectedCorpus(
   // Set when the un-embedded lane's batch embed failed, leaving rows in the
   // candidate set that a healthy pass would have given vectors to.
   let laneEmbedFailed = false;
+  /**
+   * Rows the un-embedded lane already fetched AND decrypted, kept so the
+   * admission batch below can reuse them instead of paying for them twice.
+   *
+   * Lane rows are pushed into `vectored`, and `admitVaultProjections` picks from
+   * `vectored` — so a lane row that scores well used to be re-fetched by the
+   * admission `getVaultMemoriesByIdsOp`, which decrypts per row
+   * (`vaultMemoryRawToStored` → `decryptVaultMemoryFields`). It was decrypted
+   * twice for real, not just counted twice. Pre-existing; surfaced by making the
+   * decrypt bill measurable.
+   */
+  const laneById = new Map<string, StoredVaultMemory>();
   // Un-embedded lane: bounded decrypt+embed so those rows can still rank.
   if (noVectorIds.length > 0) {
     const laneIds = noVectorIds.slice(0, opts.unembeddedCap);
@@ -1562,9 +1613,12 @@ export async function buildProjectedCorpus(
         `memoryVault: projected search un-embedded lane capped at ${laneIds.length}/${noVectorIds.length}`
       );
     }
-    const laneRows = (await getVaultMemoriesByIdsOp(vaultCtx, laneIds, hydrateOpts)).filter(
-      (m) => !isEncrypted(m.content)
-    );
+    // Count before filtering: every row this op returned was materialised, hence
+    // decrypt-attempted, whether or not its content came back readable.
+    const laneFetched = await getVaultMemoriesByIdsOp(vaultCtx, laneIds, hydrateOpts);
+    rowsDecrypted += laneFetched.length;
+    for (const row of laneFetched) laneById.set(row.uniqueId, row);
+    const laneRows = laneFetched.filter((m) => !isEncrypted(m.content));
     // Guarded like the query embed: an outage here must not throw out of the whole
     // search. These vectors only feed the cosine lane, so losing them costs cosine
     // ordering for these rows — the admission below falls back to recency when it
@@ -1636,7 +1690,23 @@ export async function buildProjectedCorpus(
       if (keyById.has(id)) admissionSet.add(id);
     }
   }
-  const admittedRows = await getVaultMemoriesByIdsOp(vaultCtx, [...admissionSet], hydrateOpts);
+  // Reuse anything the lane already decrypted; fetch only the rest. Two effects:
+  // the same row is no longer decrypted twice, and `rowsDecrypted` becomes a count
+  // of DISTINCT rows, so it can never exceed `vaultSize` — which is what makes the
+  // `≈ vaultSize` / `≪ vaultSize` reading in the field docs sound. Order shifts
+  // (reused rows land last); both rankers score independently of corpus order.
+  const idsToFetch = [...admissionSet].filter((id) => !laneById.has(id));
+  // Skip the round trip entirely when the lane already covered the window.
+  const fetched =
+    idsToFetch.length > 0 ? await getVaultMemoriesByIdsOp(vaultCtx, idsToFetch, hydrateOpts) : [];
+  rowsDecrypted += fetched.length;
+  const admittedRows = [
+    ...fetched,
+    ...[...admissionSet].flatMap((id) => {
+      const reused = laneById.get(id);
+      return reused ? [reused] : [];
+    }),
+  ];
   const memories = admittedRows.filter((m) => !isEncrypted(m.content));
   // Parity with the legacy path's key-unavailable diagnostic: warn when an
   // admitted row's content is still encrypted (decryption degraded) so the
@@ -1661,7 +1731,7 @@ export async function buildProjectedCorpus(
     eventTimeKind: normalizeEventTimeKind(m.eventTimeKind),
     factType: m.factType,
   }));
-  return { memories, embeddedItems, queryEmbedding, vaultSize, laneEmbedFailed };
+  return { memories, embeddedItems, queryEmbedding, vaultSize, laneEmbedFailed, rowsDecrypted };
 }
 
 /**
@@ -1757,6 +1827,28 @@ export interface PreparedVaultCandidates {
    * in `retain()`.
    */
   embeddingFailure: boolean;
+  /**
+   * Which read path produced this set: `true` for the projected key scan that
+   * decrypts only the admission window, `false` for the legacy whole-vault load.
+   *
+   * Reported rather than inferred from the caller's option because the two are
+   * not the same claim. anuma-ai/sdk#845 shipped the projected path, enabled it,
+   * and saw no latency change — and nothing downstream could say whether the
+   * branch had actually been taken. A flag set in a repo, a flag inlined into a
+   * bundle, and a branch executed are three different facts.
+   */
+  decryptLast: boolean;
+  /**
+   * Rows whose content was decrypted while preparing this set.
+   *
+   * The discriminator for #845, read against {@link PreparedVaultCandidates.vaultSize}:
+   * if `decryptLast` is true and this is ~`vaultSize`, the admission window is
+   * admitting the whole vault and the projection is buying nothing (look at
+   * `admitFactor` / `admitFloor` and the force-included side-lane ids). If it is
+   * far below `vaultSize` and the latency is unchanged anyway, the decrypt was
+   * never the cost and the search should move elsewhere.
+   */
+  rowsDecrypted: number;
 }
 
 /**
@@ -1796,6 +1888,8 @@ export async function prepareVaultCandidates(
       vaultSize: 0,
       embeddingsUnavailable: false,
       embeddingFailure: false,
+      decryptLast: !!searchOptions?.decryptLast,
+      rowsDecrypted: 0,
     };
   }
   // `limit` is read here only to size the projected decrypt-last admission
@@ -1825,6 +1919,11 @@ export async function prepareVaultCandidates(
   let embeddedItems: EmbeddedItem[];
   let queryEmbedding: number[];
   let vaultSize: number;
+  // Rows whose content we actually paid to decrypt. The projected path decrypts
+  // its admission window; the legacy path decrypts everything it loaded, so its
+  // count is the load size rather than the searchable size (a still-encrypted row
+  // was still attempted). Read against `vaultSize` — see the field docs.
+  let rowsDecrypted: number;
   // Set when the query embedding failed and this search fell back to BM25-only.
   // Reported out so recall() can surface `embeddings-unavailable` rather than
   // letting a whole-provider outage look like a run of poor-quality results.
@@ -1864,9 +1963,15 @@ export async function prepareVaultCandidates(
         vaultSize: 0,
         embeddingsUnavailable: false,
         embeddingFailure: false,
+        decryptLast: true,
+        rowsDecrypted: corpus.rowsDecrypted,
       };
     }
     ({ memories, embeddedItems, queryEmbedding, vaultSize } = corpus);
+    // From the corpus, not `memories.length`: the builder decrypts the un-embedded
+    // lane and every admitted row, including ones left encrypted, and none of that
+    // survives into the searchable set.
+    rowsDecrypted = corpus.rowsDecrypted;
     // The lane batch is the projected path's counterpart of the legacy row
     // (re)embed below: it leaves rows in the candidate set without the vector a
     // healthy pass would have given them, which is a partial failure and so
@@ -1884,6 +1989,10 @@ export async function prepareVaultCandidates(
         vaultSize,
         embeddingsUnavailable,
         embeddingFailure,
+        decryptLast: true,
+        // Rows WERE decrypt-attempted even though none came back readable — that
+        // is the whole point of reporting attempts rather than successes.
+        rowsDecrypted: corpus.rowsDecrypted,
       };
     }
   } else {
@@ -1892,6 +2001,9 @@ export async function prepareVaultCandidates(
       Object.keys(queryOpts).length > 0 ? queryOpts : undefined
     );
     vaultSize = loaded.length;
+    // Every loaded row was decrypt-ATTEMPTED, so the cost is the load size — not
+    // the searchable size below, which excludes rows whose key was unavailable.
+    rowsDecrypted = loaded.length;
     // Decryption is best-effort (decryptField returns the raw enc:vN:
     // payload when the key is unavailable). Still-encrypted content must
     // not reach ranking: BM25 would tokenize hex garbage, the embedder
@@ -1916,6 +2028,8 @@ export async function prepareVaultCandidates(
         vaultSize: loaded.length,
         embeddingsUnavailable: false,
         embeddingFailure: false,
+        decryptLast: false,
+        rowsDecrypted: loaded.length,
       };
     }
 
@@ -2046,6 +2160,8 @@ export async function prepareVaultCandidates(
     vaultSize,
     embeddingsUnavailable,
     embeddingFailure,
+    decryptLast: !!searchOptions?.decryptLast,
+    rowsDecrypted,
   };
 }
 
@@ -2171,105 +2287,98 @@ export async function rankPreparedVaultCandidates(
     ...(searchOptions?.factTypeWeights && { factTypeWeights: searchOptions.factTypeWeights }),
   };
 
-  // Composite path — LLM decomposes the query into sub-queries, embeds them,
-  // and runs the multi-facet RRF ranker. Falls through to V2/V2+CE on
-  // "specific" mode so single-fact queries don't pay the decomposition cost.
+  // Composite path — caller-supplied facet queries (719/B4). The LLM rewrite
+  // that used to live here moved to the tool/agent layer (`createRecallTool`);
+  // this path only embeds + RRF-fuses pre-built sub-queries. Falls through to
+  // V2/V2+CE when fewer than 2 facets remain after normalize (trim / dedupe /
+  // cap at 5).
   // Skipped entirely when embeddings are unavailable: every sub-query facet is a
   // cosine pass, so the composite ranker would fuse a set of all-zero lanes at the
-  // cost of an LLM decompose call plus N embedding calls against a provider that
-  // just failed. Fall through to the single-query path, which BM25 can still serve.
-  if (
-    useFusion &&
-    !embeddingsUnavailable &&
-    searchOptions?.decompose === "llm" &&
-    searchOptions.decomposeOptions
-  ) {
-    const decomp = await decomposeQuery(query, searchOptions.decomposeOptions);
-    if (decomp.mode === "composite") {
-      // A mid-flight outage here degrades the same way: drop to the single-query
-      // path rather than throwing out of the search.
-      let subEmbeddings: number[][];
-      try {
-        subEmbeddings = await generateEmbeddings(decomp.subQueries, embeddingOptions);
-      } catch (err) {
-        getLogger().warn(
-          "memoryVault: sub-query embedding failed — falling back to single-query ranking: " +
-            (err instanceof Error ? err.message : String(err))
-        );
-        // NOT reported as embeddingsUnavailable: the original query vector is
-        // still valid, so the single-query path below runs a real cosine lane.
-        // Flagging it would raise outage telemetry and tell the answer model
-        // only keyword matching ran, when full semantic ranking did — just
-        // without the multi-facet decomposition.
-        subEmbeddings = [];
-      }
-      // A successful-but-degenerate response is the same dead lane as a throw,
-      // and `subEmbeddings.length` alone can't see it: `[[], [], []]` for three
-      // facets has length 3. Every facet must have a REAL vector AT THE QUERY'S
-      // DIMENSION, because there are three ways to reach the same all-zero fusion:
-      //   - empty vector — cosineSimilarity's zero-magnitude branch returns 0;
-      //   - short response — `subEmbeddings[i]` indexes past the end and hands
-      //     `rankComposite` an undefined embedding;
-      //   - wrong dimension — cosineSimilarity bails at `a.length !== b.length`
-      //     and returns 0 (memoryEngine/vector.ts). Reachable via the embedding
-      //     cache, which `generateEmbeddings` keys on text alone, not on model:
-      //     vectors cached under a previous embedding model come back at the old
-      //     dimension while the query vector is current. The row-load path
-      //     dim-checks its cache hits for exactly this reason; facets get the
-      //     same check here.
-      // The `subQueries.length > 0` clause is not redundant: without it a
-      // zero-facet decomposition reads as usable (`0 === 0`, and `[].every()` is
-      // true), and `rankComposite` returns [] on an empty facet list — turning a
-      // degrade into a total recall miss. Unreachable today (decomposeQuery's
-      // validate() rejects an empty subQueries), but the old `length > 0` check
-      // made it safe by accident and this shape doesn't.
-      // Same reasoning as the empty-query guard in embedQueryOrDegrade, applied
-      // to the batch.
-      const subEmbeddingsUsable =
-        decomp.subQueries.length > 0 &&
-        subEmbeddings.length === decomp.subQueries.length &&
-        subEmbeddings.every((v) => v.length > 0 && v.length === queryEmbedding.length);
-      if (subEmbeddings.length > 0 && !subEmbeddingsUsable) {
-        getLogger().warn(
-          `memoryVault: sub-query embedding returned ${subEmbeddings.length} vectors ` +
-            `(dims ${subEmbeddings.map((v) => v.length).join(",")}) for ` +
-            `${decomp.subQueries.length} sub-queries against a ${queryEmbedding.length}-dim ` +
-            "query — falling back to single-query ranking"
-        );
-      }
-      // On a sub-query embed failure, fall through to the single-query path below
-      // — the same path "specific" mode takes — rather than fusing all-zero lanes.
-      if (subEmbeddingsUsable) {
-        const subQueries = decomp.subQueries.map((sq, i) => ({
-          query: sq,
-          embedding: subEmbeddings[i],
-        }));
-        const v2HeadStats = { hadResults: false };
-        const composite = await rankComposite(query, queryEmbedding, subQueries, embeddedItems, {
-          limit,
-          minSimilarity,
-          rerank: !!searchOptions.rerank,
-          ...(searchOptions.rerankTopN !== undefined && {
-            rerankTopN: searchOptions.rerankTopN,
-          }),
-          ...(searchOptions.ceWeight !== undefined && { ceWeight: searchOptions.ceWeight }),
-          ...(searchOptions.mmr !== undefined && { mmr: searchOptions.mmr }),
-          ...tuning,
-          ...(searchOptions.entityRanking && { entityRanking: searchOptions.entityRanking }),
-          ...(searchOptions.temporalRanking && { temporalRanking: searchOptions.temporalRanking }),
-          rerankStats,
-          v2HeadStats,
-        });
-        return stampTimestamps({
-          results: composite,
-          vaultSize,
-          reranked: rerankStats.applied,
-          hadV2Head: v2HeadStats.hadResults,
-        });
-      }
+  // cost of N embedding calls against a provider that just failed. Fall through
+  // to the single-query path, which BM25 can still serve.
+  const normalizedFacets = normalizeSubQueries(searchOptions?.subQueries);
+  const facetQueries = normalizedFacets.length >= 2 ? normalizedFacets : undefined;
+  if (useFusion && !embeddingsUnavailable && facetQueries) {
+    // A mid-flight outage here degrades the same way: drop to the single-query
+    // path rather than throwing out of the search.
+    let subEmbeddings: number[][];
+    try {
+      subEmbeddings = await generateEmbeddings(facetQueries, embeddingOptions);
+    } catch (err) {
+      getLogger().warn(
+        "memoryVault: sub-query embedding failed — falling back to single-query ranking: " +
+          (err instanceof Error ? err.message : String(err))
+      );
+      // NOT reported as embeddingsUnavailable: the original query vector is
+      // still valid, so the single-query path below runs a real cosine lane.
+      // Flagging it would raise outage telemetry and tell the answer model
+      // only keyword matching ran, when full semantic ranking did — just
+      // without the multi-facet decomposition.
+      subEmbeddings = [];
     }
-    // mode === "specific" (or a degraded sub-query embed) — fall through to
-    // V2/V2+CE below.
+    // A successful-but-degenerate response is the same dead lane as a throw,
+    // and `subEmbeddings.length` alone can't see it: `[[], [], []]` for three
+    // facets has length 3. Every facet must have a REAL vector AT THE QUERY'S
+    // DIMENSION, because there are three ways to reach the same all-zero fusion:
+    //   - empty vector — cosineSimilarity's zero-magnitude branch returns 0;
+    //   - short response — `subEmbeddings[i]` indexes past the end and hands
+    //     `rankComposite` an undefined embedding;
+    //   - wrong dimension — cosineSimilarity bails at `a.length !== b.length`
+    //     and returns 0 (memoryEngine/vector.ts). Reachable via the embedding
+    //     cache, which `generateEmbeddings` keys on text alone, not on model:
+    //     vectors cached under a previous embedding model come back at the old
+    //     dimension while the query vector is current. The row-load path
+    //     dim-checks its cache hits for exactly this reason; facets get the
+    //     same check here.
+    // The `facetQueries.length > 0` clause is not redundant: without it a
+    // zero-facet list reads as usable (`0 === 0`, and `[].every()` is true),
+    // and `rankComposite` returns [] on an empty facet list — turning a
+    // degrade into a total recall miss.
+    // Same reasoning as the empty-query guard in embedQueryOrDegrade, applied
+    // to the batch.
+    const subEmbeddingsUsable =
+      facetQueries.length > 0 &&
+      subEmbeddings.length === facetQueries.length &&
+      subEmbeddings.every((v) => v.length > 0 && v.length === queryEmbedding.length);
+    if (subEmbeddings.length > 0 && !subEmbeddingsUsable) {
+      getLogger().warn(
+        `memoryVault: sub-query embedding returned ${subEmbeddings.length} vectors ` +
+          `(dims ${subEmbeddings.map((v) => v.length).join(",")}) for ` +
+          `${facetQueries.length} sub-queries against a ${queryEmbedding.length}-dim ` +
+          "query — falling back to single-query ranking"
+      );
+    }
+    // On a sub-query embed failure, fall through to the single-query path below
+    // rather than fusing all-zero lanes.
+    if (subEmbeddingsUsable) {
+      const subQueries = facetQueries.map((sq, i) => ({
+        query: sq,
+        embedding: subEmbeddings[i],
+      }));
+      const v2HeadStats = { hadResults: false };
+      const composite = await rankComposite(query, queryEmbedding, subQueries, embeddedItems, {
+        limit,
+        minSimilarity,
+        rerank: !!searchOptions?.rerank,
+        ...(searchOptions?.rerankTopN !== undefined && {
+          rerankTopN: searchOptions.rerankTopN,
+        }),
+        ...(searchOptions?.ceWeight !== undefined && { ceWeight: searchOptions.ceWeight }),
+        ...(searchOptions?.mmr !== undefined && { mmr: searchOptions.mmr }),
+        ...tuning,
+        ...(searchOptions?.entityRanking && { entityRanking: searchOptions.entityRanking }),
+        ...(searchOptions?.temporalRanking && { temporalRanking: searchOptions.temporalRanking }),
+        rerankStats,
+        v2HeadStats,
+      });
+      return stampTimestamps({
+        results: composite,
+        vaultSize,
+        reranked: rerankStats.applied,
+        hadV2Head: v2HeadStats.hadResults,
+      });
+    }
+    // Degenerate sub-query embed — fall through to V2/V2+CE below.
   }
 
   if (useFusion && searchOptions?.rerank) {
@@ -2351,6 +2460,16 @@ export async function searchVaultMemoriesWithSize(
    * as a healthy cosine pass.
    */
   rankedOnCosine: boolean;
+  /**
+   * Which vault read path ran — projected key scan (`true`) or legacy whole-vault
+   * load (`false`). See {@link PreparedVaultCandidates.decryptLast}.
+   */
+  decryptLast: boolean;
+  /**
+   * Rows this search paid to decrypt. Read against `vaultSize` — see
+   * {@link PreparedVaultCandidates.rowsDecrypted}.
+   */
+  rowsDecrypted: number;
 }> {
   // Invalid query short-circuits BEFORE any storage read (the pre-split
   // behavior — a test pins that `getAllVaultMemoriesOp` is never called).
@@ -2362,8 +2481,28 @@ export async function searchVaultMemoriesWithSize(
       hadV2Head: false,
       embeddingsUnavailable: false,
       rankedOnCosine: false,
+      // No storage read happened, so nothing was decrypted; report the path the
+      // caller asked for so this turn is still attributable.
+      decryptLast: !!searchOptions?.decryptLast,
+      rowsDecrypted: 0,
     };
   }
+
+  // 719/B4 — programmatic path ignores `decompose: "llm"`; the legacy search
+  // tool executor still rewrites. Warn once when an un-updated caller would
+  // silently lose composite rewrite (no usable `subQueries` either).
+  if (
+    searchOptions?.decompose === "llm" &&
+    normalizeSubQueries(searchOptions.subQueries).length < 2 &&
+    !warnedProgrammaticDecomposeIgnored
+  ) {
+    warnedProgrammaticDecomposeIgnored = true;
+    getLogger().warn(
+      'memoryVault: decompose:"llm" is ignored by searchVaultMemories — pass subQueries ' +
+        "or use createMemoryVaultSearchTool / createRecallTool (719/B4)"
+    );
+  }
+
   const prepared = await prepareVaultCandidates(
     query,
     vaultCtx,
@@ -2384,6 +2523,8 @@ export async function searchVaultMemoriesWithSize(
       hadV2Head: false,
       embeddingsUnavailable: prepared.embeddingsUnavailable,
       rankedOnCosine: false,
+      decryptLast: prepared.decryptLast,
+      rowsDecrypted: prepared.rowsDecrypted,
     };
   }
   if (prepared.memories.length === 0) {
@@ -2394,6 +2535,8 @@ export async function searchVaultMemoriesWithSize(
       hadV2Head: false,
       embeddingsUnavailable: prepared.embeddingsUnavailable,
       rankedOnCosine: false,
+      decryptLast: prepared.decryptLast,
+      rowsDecrypted: prepared.rowsDecrypted,
     };
   }
   const ranked = await rankPreparedVaultCandidates(
@@ -2405,7 +2548,12 @@ export async function searchVaultMemoriesWithSize(
   // A real candidate set reached the ranker, so cosine ran iff it was usable.
   // `prepareVaultCandidates` already collapses "query vector missing" and "no
   // row vector to score it against" into `embeddingsUnavailable` for this set.
-  return { ...ranked, rankedOnCosine: !ranked.embeddingsUnavailable };
+  return {
+    ...ranked,
+    rankedOnCosine: !ranked.embeddingsUnavailable,
+    decryptLast: prepared.decryptLast,
+    rowsDecrypted: prepared.rowsDecrypted,
+  };
 }
 
 /**
@@ -2546,15 +2694,16 @@ export function createMemoryVaultSearchTool(
       try {
         // Route through the unified recall() API so the chat tool, the
         // SDK's programmatic surface, and any future consumer all share
-        // one ranking pipeline. searchOptions.rerank/decompose/decomposeOptions
-        // map onto recall's `budget` for the legacy MemoryVaultSearchOptions
-        // shape.
-        const budget: "low" | "mid" | "high" =
-          searchOptions?.decompose === "llm" && searchOptions.decomposeOptions
-            ? "high"
-            : searchOptions?.rerank
-              ? "mid"
-              : "low";
+        // one ranking pipeline. 719/B4: LLM rewrite (when opted in via
+        // the deprecated `decompose: "llm"` flag) runs HERE in the tool
+        // executor, then passes pre-built `subQueries` into LLM-free recall.
+        const wantsDecompose =
+          searchOptions?.decompose === "llm" && !!searchOptions.decomposeOptions;
+        const budget: "low" | "mid" | "high" = wantsDecompose
+          ? "high"
+          : searchOptions?.rerank
+            ? "mid"
+            : "low";
         // Host's configured folder wins — the LLM can't escape a host-
         // imposed scope. When the host has *not* set a folder, the LLM's
         // explicit folder_id (including `null` for unfiled) is used.
@@ -2588,6 +2737,16 @@ export function createMemoryVaultSearchTool(
           );
         }
 
+        // Tool-layer decompose (719/B4). Failure degrades to specific-mode
+        // (no subQueries) — same contract as the old in-search path.
+        let subQueries: string[] | undefined;
+        if (wantsDecompose && searchOptions?.decomposeOptions) {
+          const decomp = await decomposeQuery(query, searchOptions.decomposeOptions);
+          if (decomp.mode === "composite" && decomp.subQueries.length >= 2) {
+            subQueries = decomp.subQueries;
+          }
+        }
+
         const { recall } = await import("../memory/recall.js");
         // Read the degradation off the diagnostics seam rather than widening
         // RecallResult: it is the channel that already exists for exactly this.
@@ -2606,10 +2765,7 @@ export function createMemoryVaultSearchTool(
             ...tuningForward,
             ...(folderId !== undefined && { folderId }),
             ...(searchOptions?.scopes && { scopes: searchOptions.scopes }),
-            ...(searchOptions?.decompose === "llm" &&
-              searchOptions.decomposeOptions && {
-                decomposeOptions: searchOptions.decomposeOptions,
-              }),
+            ...(subQueries && { subQueries }),
           }
         );
 

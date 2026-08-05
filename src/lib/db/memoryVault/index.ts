@@ -37,9 +37,16 @@ export {
   type VaultMemoryOperationsContext,
 } from "./operations";
 export {
+  ingestPublishedPhotoMemoriesOp,
+  type PhotoIngestResult,
+  type PublishedPhotoMemory,
+} from "./photoIngest";
+export {
   type CreateVaultMemoryOptions,
   FACET_SLOTS,
   type FacetSlot,
+  parseMedia,
+  type PhotoMediaRef,
   type RankableVaultMemory,
   type StoredVaultMemory,
   type UpdateVaultMemoryOptions,

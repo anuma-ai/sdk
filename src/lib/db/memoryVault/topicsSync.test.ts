@@ -132,11 +132,13 @@ async function markAsRestored(
 // ---------------------------------------------------------------------------
 
 describe("schema v42", () => {
-  it("has SDK_SCHEMA_VERSION at the current head (43 after the v43 facet columns)", () => {
-    // Current-version pin. v43 added memory_vault.facet_key + facet_value (facet
-    // slot+value supersede) on top of the v42 topics columns tested below.
-    expect(SDK_SCHEMA_VERSION).toBe(43);
-    expect(sdkSchema.version).toBe(43);
+  // The topics columns arrived in v42; the version constant has since moved on
+  // (v43 added a conversations index). What matters to this suite is that the
+  // v42 migration step is still there and still additive, not that it is the
+  // newest — so the constant is only checked to be at or past v42.
+  it("keeps SDK_SCHEMA_VERSION at or past the v42 topics bump", () => {
+    expect(SDK_SCHEMA_VERSION).toBeGreaterThanOrEqual(42);
+    expect(sdkSchema.version).toBe(SDK_SCHEMA_VERSION);
   });
 
   it("exposes topics + topics_updated_at on a fresh database", async () => {
@@ -179,11 +181,12 @@ describe("schema v42", () => {
         unsafeSql: undefined,
       },
     ]);
+    // A v41 database reaches v42 through that step and nothing else:
     // WatermelonDB rejects a migration list with gaps or duplicates at load
-    // time, so a contiguous list IS the upgrade path. The list now heads at 43
-    // (the v43 facet columns), so this asserts the current max rather than a
-    // fixed 42.
-    expect(sdkMigrations.maxVersion).toBe(43);
+    // time, so a contiguous list containing 42 IS the v41 → v42 path. The list
+    // now extends past 42 (v43 indexes conversations), so this asserts the
+    // ladder still reaches at least 42 rather than ending there.
+    expect(sdkMigrations.maxVersion).toBeGreaterThanOrEqual(42);
     expect(sdkMigrations.minVersion).toBeLessThan(41);
   });
 });

@@ -2,7 +2,7 @@
 
 > **GetApiV1NotificationsPreferencesData** = `object`
 
-Defined in: [src/client/types.gen.ts:8746](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8746)
+Defined in: [src/client/types.gen.ts:9208](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9208)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:8746](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **body**: `never`
 
-Defined in: [src/client/types.gen.ts:8747](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8747)
+Defined in: [src/client/types.gen.ts:9209](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9209)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:8747](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **path**: `never`
 
-Defined in: [src/client/types.gen.ts:8748](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8748)
+Defined in: [src/client/types.gen.ts:9210](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9210)
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: [src/client/types.gen.ts:8748](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **query**: `never`
 
-Defined in: [src/client/types.gen.ts:8749](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8749)
+Defined in: [src/client/types.gen.ts:9211](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9211)
 
 ***
 
@@ -34,4 +34,4 @@ Defined in: [src/client/types.gen.ts:8749](https://github.com/anuma-ai/sdk/blob/
 
 > **url**: `"/api/v1/notifications/preferences"`
 
-Defined in: [src/client/types.gen.ts:8750](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8750)
+Defined in: [src/client/types.gen.ts:9212](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9212)

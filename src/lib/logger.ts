@@ -22,7 +22,9 @@
 
 export interface Logger {
   debug: (...args: unknown[]) => void;
-  /** Not used internally by the SDK today, but included so custom loggers can receive all standard levels. */
+  /** Used for outcomes that are noteworthy but expected — a consolidation
+   * refusal that preserved a memory, for example. Keep genuinely-wrong things at
+   * `warn` so the two stay distinguishable in a log search. */
   info: (...args: unknown[]) => void;
   warn: (...args: unknown[]) => void;
   error: (...args: unknown[]) => void;

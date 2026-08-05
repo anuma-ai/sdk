@@ -29,9 +29,11 @@ export type MemoryKind = "fact" | "chunk";
  * Budget controls retrieval depth/cost. Higher budgets enable more
  * candidate sources and the cross-encoder reranker.
  *
- * - `low`: cosine + BM25 fusion only. No reranker. Mobile default.
- * - `mid`: + recency boost. Demo default.
- * - `high`: + cross-encoder rerank stage. Demo `budget: high` path.
+ * - `low`: cosine + BM25 + recency. No reranker. Mobile default.
+ * - `mid`: + cross-encoder rerank.
+ * - `high`: + multi-hop graph traversal. LLM-free — query decomposition
+ *   (when wanted) lives in the tool/agent layer ({@link createRecallTool}),
+ *   not inside `recall()` itself (719/B4).
  */
 export type Budget = "low" | "mid" | "high";
 
@@ -139,10 +141,28 @@ export interface RecallOptions {
   /** Drop results below this score. Default: 0.1 for facts, 0.5 for chunks (mirrors today's defaults). */
   minScore?: number;
   /**
-   * Auth + endpoint for the LLM-based query decomposition pass. Without
-   * these, decompose is skipped even at `budget: 'high'`. Mirrors the
-   * shape used by `searchVaultMemories`. Auth is the dual pattern — one
-   * of `apiKey` / `getToken` is required; see {@link PortalLlmAuth}.
+   * Pre-decomposed facet queries for the composite ranker. When ≥2 are
+   * supplied, the vault lane runs `rankComposite` over them (no LLM call
+   * inside `recall()` — 719/B4). Callers that still want LLM rewrite
+   * (e.g. {@link createRecallTool} at `budget: 'high'`) call
+   * `decomposeQuery` themselves and pass the result here. A single entry
+   * (or omitting this) keeps the single-query path.
+   */
+  subQueries?: string[];
+  /**
+   * Auth + endpoint for optional LLM helpers that reuse portal auth —
+   * currently {@link RecallOptions.graphRefine} neighbor selection.
+   * Query decomposition is **not** driven by this field inside `recall()`
+   * (719/B4); {@link createRecallTool} reads the same shape from
+   * `RecallToolOptions.decomposeOptions` for tool-layer rewrite.
+   *
+   * Callers that still pass `{ budget: 'high', decomposeOptions }` without
+   * {@link RecallOptions.subQueries} keep compiling but no longer rewrite —
+   * `recall()` emits `decompose-moved` on {@link RecallDiagnostics.degraded}
+   * so upgrades without a changelog read still leave a telemetry breadcrumb.
+   *
+   * Auth is the dual pattern — one of `apiKey` / `getToken` is required;
+   * see {@link PortalLlmAuth}.
    */
   decomposeOptions?: PortalLlmAuth & {
     baseUrl?: string;
@@ -259,9 +279,22 @@ export type RecallDegradation =
   /** Rerank was requested (budget mid/high) but the cross-encoder didn't run
    *  this call — unavailable (e.g. React Native) or a transient failure. */
   | "rerank-unavailable"
-  /** `budget: 'high'` requested but no `decomposeOptions`, so query
-   *  decomposition was skipped and the budget downgraded to mid. */
+  /**
+   * @deprecated 719/B4 moved query decomposition out of `recall()`. Budget
+   * `high` no longer requires `decomposeOptions` and this signal is never
+   * emitted. Prefer `"decompose-moved"` for the upgrade breadcrumb. Kept in
+   * the union so existing telemetry consumers stay typed.
+   */
   | "decompose-unavailable"
+  /**
+   * `budget: 'high'` with `decomposeOptions` set but no usable
+   * {@link RecallOptions.subQueries}. Pre-B4 this call shape triggered LLM
+   * rewrite inside `recall()`; post-B4 it stays on the single-query high
+   * path (rerank + graph) and callers must pass facets (or use
+   * {@link createRecallTool}). Surfaced so silent quality regressions show
+   * up in diagnostics instead of looking healthier than before.
+   */
+  | "decompose-moved"
   /** There was no usable cosine lane, so results were ranked on BM25 (lexical)
    *  alone: either the query embedding failed (or came back empty), or no
    *  candidate had a vector to score against it because the row (re)embed failed.
@@ -290,6 +323,27 @@ export interface RecallDiagnostics {
   candidateCount: number;
   /** Total vault size when the fact lane ran (absent if it didn't). */
   vaultSize?: number;
+  /**
+   * Which vault read path the fact lane actually executed: `true` for the
+   * projected key scan that decrypts only the admission window, `false` for the
+   * legacy whole-vault load. Absent when the fact lane didn't run.
+   *
+   * Reported because "the option was passed" and "the branch ran" are different
+   * facts, and #845 needed the second one: the projected path was enabled in
+   * production and the p50 did not move, with no way to tell a flag that never
+   * reached the bundle from a projection that isn't cheaper at that vault size.
+   */
+  decryptLast?: boolean;
+  /**
+   * Rows the fact lane paid to decrypt. Absent when it didn't run.
+   *
+   * Read against {@link RecallDiagnostics.vaultSize} — that ratio is the whole
+   * point. `decryptLast` true with `vaultRowsDecrypted` ≈ `vaultSize` means the
+   * admission window is admitting the entire vault and the projection is buying
+   * nothing. Far below `vaultSize` with latency unchanged means the decrypt was
+   * never the cost.
+   */
+  vaultRowsDecrypted?: number;
   /** Facts the fact lane returned (post-dedupe, pre-fusion). */
   factCount: number;
   /** Chunks the chunk lane returned (post-dedupe, pre-fusion). */
@@ -333,9 +387,9 @@ export type RetainAction =
 export type RetainSource = "manual" | "auto-extracted" | "capsule";
 
 /**
- * Why a retain fell back to "create" instead of applying a consolidation
- * decision. Each value names a DIFFERENT thing to go fix, which is the point of
- * keeping them apart:
+ * Why a retain returned "create" instead of applying a consolidation decision.
+ * Each value names a DIFFERENT thing to go fix, which is the point of keeping
+ * them apart — and one of them is not a fault at all, see `subject_mismatch`:
  *
  * - `llm_error` — the consolidation call never produced a response (network,
  *   timeout, 5xx, 429, empty completion, or missing credentials). Look at the
@@ -350,8 +404,30 @@ export type RetainSource = "manual" | "auto-extracted" | "capsule";
  *   rate points at write contention (for example an auto-extraction worker and a
  *   manual write racing over the same vault), which quietly costs you the
  *   dedup that decision would have performed.
+ * - `subject_mismatch` — NOT a fault. The model returned a well-formed
+ *   `supersede` and we refused it because the two subjects it named were
+ *   different people, so retiring the target would have hidden a memory that is
+ *   still true (#822 — "User's sister lives in Denver" retiring "User lives in
+ *   Denver"). The refusal is the feature; do not alarm on it. What the rate does
+ *   tell you is how often the model reaches for a cross-subject supersede, and —
+ *   because the guard is inert unless the model fills in its subject fields — a
+ *   rate of exactly zero is as likely to mean "the fields are being omitted" as
+ *   "the mistake never happens". Check compliance before reading zero as health.
  */
-export type ConsolidationFallbackReason = "llm_error" | "invalid_response" | "target_vanished";
+export type ConsolidationFallbackReason =
+  | "llm_error"
+  | "invalid_response"
+  | "target_vanished"
+  /**
+   * A `supersede` was downgraded to `create` because the model's own stated
+   * subjects disagreed: the new fact is about someone other than the fact it
+   * wanted to retire (#822 — "User's sister lives in Denver" retiring "User
+   * lives in Denver"). NOT an error; the decision was refused on purpose, and
+   * the refusal preserved a true memory. Retiring a superseded row hides it from
+   * recall, so this is the one fallback that prevents data loss rather than
+   * reporting degraded quality.
+   */
+  | "subject_mismatch";
 
 export interface RetainOptions {
   source?: RetainSource;
@@ -388,6 +464,12 @@ export interface RetainOptions {
      * JSON that violates the schema (unknown action, bad targetId).
      * A flaky consolidator silently accumulates duplicate memories;
      * wire this to logging/metrics so the fallback rate is observable.
+     *
+     * `subject_mismatch` is the odd one out and worth reading separately: the
+     * model answered fine and we REFUSED its supersede because its own stated
+     * subjects disagreed (#822). A non-zero rate is the guard doing its job, not
+     * a problem — the rate to watch is how often it fires, which is also the
+     * only signal for how reliably the model fills the subject fields in at all.
      */
     onFallback?: (reason: ConsolidationFallbackReason) => void;
     /**

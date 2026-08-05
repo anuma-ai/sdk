@@ -360,29 +360,14 @@ const COMPOSITE_QUERY = "what tooling and drinks come up around provisioning wor
 const CHUNK_QUERY = "we reviewed the rollout and agreed to revisit onboarding";
 
 /**
- * Canned `decomposeQuery` response. The decomposer takes an injectable `fetchFn`
- * (that is how the repo's other tests drive portal LLM calls), so the real
- * classify/validate code runs — only the round-trip is faked.
+ * Canned composite facets for the high-budget path. 719/B4 moved LLM
+ * rewrite out of recall(), so the harness passes `subQueries` directly.
  */
-function decomposeFetch(subQueries: string[]): typeof fetch {
-  const content = JSON.stringify({ mode: "composite", subQueries });
-  return (async () => ({
-    ok: true,
-    status: 200,
-    json: async () => ({ choices: [{ message: { content } }] }),
-  })) as unknown as typeof fetch;
-}
-
 const SUB_QUERIES = [
   "which tooling is used for provisioning",
   "which drinks are preferred",
   "what happens on provisioning days",
 ];
-
-const DECOMPOSE_OPTIONS = {
-  apiKey: "perf-harness-no-network",
-  fetchFn: decomposeFetch(SUB_QUERIES),
-};
 
 /** One scenario's numbers: the counters plus the two cache-derived metrics. */
 type ScenarioNumbers = PerfCounters & {
@@ -499,6 +484,15 @@ describe("memory work-cost scenarios", () => {
     expect(warmNumbers.vaultCacheAdds).toBe(0);
     expect(warmNumbers.vaultFullRows).toBe(activeVaultSize());
     expect(warmNumbers.vaultDecrypts).toBe(activeVaultSize());
+
+    // The legacy half of the #845 discriminator, checked against the harness's
+    // INDEPENDENT counter. Asserting `vaultRowsDecrypted === vaultSize` on its own
+    // would be a tautology — both are `loaded.length` on this path — so it has to
+    // be compared to `vaultDecrypts`, which is counted by spying on
+    // `decryptVaultMemoryFields` rather than derived from the same variable.
+    const coldDiag = cold.read();
+    expect(coldDiag?.decryptLast).toBe(false);
+    expect(coldDiag?.vaultRowsDecrypted).toBe(coldNumbers.vaultDecrypts);
   });
 
   it("fact lane, projected decrypt-last read (cold then warm cache)", async () => {
@@ -547,17 +541,30 @@ describe("memory work-cost scenarios", () => {
     expect(coldNumbers.vaultRowRows).toBeGreaterThan(0);
     expect(coldNumbers.vaultDecrypts).toBeGreaterThan(0);
     expect(warmNumbers.vaultRowRows).toBeGreaterThan(0);
+
+    // The diagnostics must AGREE with the harness's own counters (#845). The
+    // point of `decryptLast` / `vaultRowsDecrypted` on RecallDiagnostics is that
+    // production can ask the question this harness answers offline: "did the
+    // projected branch run, and did it actually decrypt less than the vault?".
+    // Cross-checking them against `vaultDecrypts` here is what stops the reported
+    // number drifting from the real one — a diagnostic nobody validates is how
+    // #845 became unfalsifiable in the first place.
+    const coldDiag = cold.read();
+    expect(coldDiag?.decryptLast).toBe(true);
+    expect(coldDiag?.vaultRowsDecrypted).toBe(coldNumbers.vaultDecrypts);
+    expect(coldDiag?.vaultRowsDecrypted).toBeLessThan(coldDiag?.vaultSize ?? 0);
   });
 
   it("composite recall re-tokenizes the corpus once per facet", async () => {
     const vaultCache = freshVaultCache();
     const ctx = { vaultCtx: readWorld.vaultCtx, embeddingOptions: { apiKey: "x" }, vaultCache };
+    // 719/B4 — facets arrive pre-built; recall() never calls the decomposer.
     const run = withDiagnostics({
       types: ["fact"],
       budget: "high",
       limit: 8,
       now: NOW,
-      decomposeOptions: DECOMPOSE_OPTIONS,
+      subQueries: SUB_QUERIES,
     });
     const numbers = await scenario("compositeHigh", { vaultCache }, async () => {
       await recall(COMPOSITE_QUERY, ctx, run.options);

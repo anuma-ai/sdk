@@ -31,8 +31,8 @@ overrides:
   js-yaml@>=4 <4.2.0: '>=4.2.0 <5.0.0'
   js-yaml@>=3 <3.15.0: '>=3.15.0 <4.0.0'
   markdown-it@<14.2.0: '>=14.2.0'
-  brace-expansion@1: '>=1.1.16 <2.0.0'
-  brace-expansion@2: '>=2.1.2 <3.0.0'
+  brace-expansion@1: '>=1.1.18 <2.0.0'
+  brace-expansion@2: '>=2.1.4 <3.0.0'
 
 patchedDependencies:
   pdfjs-dist@4.10.38:
@@ -47,8 +47,8 @@ importers:
   .:
     dependencies:
       '@anuma/portal':
-        specifier: 1.0.0-next.20260728181242
-        version: 1.0.0-next.20260728181242
+        specifier: 1.0.0-next.20260801075204
+        version: 1.0.0-next.20260801075204
       '@babel/parser':
         specifier: ^7.29.2
         version: 7.29.2
@@ -307,8 +307,8 @@ packages:
   '@andrewbranch/untar.js@1.0.3':
     resolution: {integrity: sha512-Jh15/qVmrLGhkKJBdXlK1+9tY4lZruYjsgkDFj08ZmDiWVBLJcqkok7Z0/R0In+i1rScBpJlSvrTS2Lm41Pbnw==}
 
-  '@anuma/portal@1.0.0-next.20260728181242':
-    resolution: {integrity: sha512-AboYPVGyfhPNG3t9rrAKKtFZhlD7fdVmH1nxEkINEfA7Po6W0Z0EJEhjnE6zfiOhd5Q8WYMDkerYRE3DdgQXzQ==}
+  '@anuma/portal@1.0.0-next.20260801075204':
+    resolution: {integrity: sha512-3flmPXbC5FEggqx8wu1zEKyE7fIsmytciay4g7+HifMB3jkKvJS6pEyp9Kkbv7KhmzNTS95t25JUQnDT3LLfuw==}
 
   '@arethetypeswrong/cli@0.18.2':
     resolution: {integrity: sha512-PcFM20JNlevEDKBg4Re29Rtv2xvjvQZzg7ENnrWFSS0PHgdP2njibVFw+dRUhNkPgNfac9iUqO0ohAXqQL4hbw==}
@@ -3375,11 +3375,11 @@ packages:
   bowser@2.13.1:
     resolution: {integrity: sha512-OHawaAbjwx6rqICCKgSG0SAnT05bzd7ppyKLVUITZpANBaaMFBAsaNkto3LoQ31tyFP5kNujE8Cdx85G9VzOkw==}
 
-  brace-expansion@1.1.16:
-    resolution: {integrity: sha512-IDw48K2/2kRkg9LdJxurvq3lV3aBgq0REY89duEqFRthjlPdXHKMj7EnQOXVckxzgisinf3nHfrcE2FufFLXMw==}
+  brace-expansion@1.1.18:
+    resolution: {integrity: sha512-Edep/X9fGqVNmzKBVsDYIOtD+z1tuezV70LBjdCst9Tqu76lsnvRiZ6oTic1n+/BIwX6QDGAO94PN4N2SADvtw==}
 
-  brace-expansion@2.1.2:
-    resolution: {integrity: sha512-w5JZcKgdhDOgOwm8H+KgbosopHMuGcl6qbulwjtz3SM7I7P3yW1eAjzMPLrIE+NQ9vjgANKHWeMHnrT0OXW1oA==}
+  brace-expansion@2.1.4:
+    resolution: {integrity: sha512-hGfVzPxthbf3+2yjg/RBs60cB0FhqBS/zvdV/4wn4/BmN0bNMMHPc4V/BbFieqf1TKAGGAHnY4eSjajCl0f2Xg==}
 
   brace-expansion@5.0.5:
     resolution: {integrity: sha512-VZznLgtwhn+Mact9tfiwx64fA9erHH/MCXEUfB/0bX/6Fz6ny5EGTXYltMocqg4xFAQZtnO3DHWWXi8RiuN7cQ==}
@@ -7567,7 +7567,7 @@ snapshots:
 
   '@andrewbranch/untar.js@1.0.3': {}
 
-  '@anuma/portal@1.0.0-next.20260728181242': {}
+  '@anuma/portal@1.0.0-next.20260801075204': {}
 
   '@arethetypeswrong/cli@0.18.2':
     dependencies:
@@ -11135,7 +11135,7 @@ snapshots:
       obug: 2.1.1
       std-env: 4.1.0
       tinyrainbow: 3.1.0
-      vitest: 4.1.8(@opentelemetry/api@1.9.0)(@types/node@25.9.5)(@vitest/coverage-v8@4.1.8)(happy-dom@20.8.9(bufferutil@4.0.9)(utf-8-validate@5.0.10))(vite@7.3.6(@types/node@25.9.5)(jiti@2.7.0)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.3))
+      vitest: 4.1.8(@opentelemetry/api@1.9.0)(@types/node@25.0.3)(@vitest/coverage-v8@4.1.8)(happy-dom@20.8.9(bufferutil@4.0.9)(utf-8-validate@5.0.10))(vite@7.3.6(@types/node@25.0.3)(jiti@2.7.0)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.3))
 
   '@vitest/expect@4.1.8':
     dependencies:
@@ -12725,12 +12725,12 @@ snapshots:
 
   bowser@2.13.1: {}
 
-  brace-expansion@1.1.16:
+  brace-expansion@1.1.18:
     dependencies:
       balanced-match: 1.0.2
       concat-map: 0.0.1
 
-  brace-expansion@2.1.2:
+  brace-expansion@2.1.4:
     dependencies:
       balanced-match: 1.0.2
 
@@ -15140,15 +15140,15 @@ snapshots:
 
   minimatch@3.1.5:
     dependencies:
-      brace-expansion: 1.1.16
+      brace-expansion: 1.1.18
 
   minimatch@5.1.9:
     dependencies:
-      brace-expansion: 2.1.2
+      brace-expansion: 2.1.4
 
   minimatch@9.0.9:
     dependencies:
-      brace-expansion: 2.1.2
+      brace-expansion: 2.1.4
 
   minimist@1.2.8: {}
 

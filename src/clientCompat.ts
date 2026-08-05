@@ -13,6 +13,7 @@
 import type {
   LlmapiChatCompletionResponse as GeneratedLlmapiChatCompletionResponse,
   LlmapiMessage,
+  LlmapiResponseResponse as GeneratedLlmapiResponseResponse,
   LlmapiToolCallEvent,
   OpenaiCompletionUsage,
 } from "./client/types.gen";
@@ -74,6 +75,29 @@ export type LlmapiChatCompletionUsage = OpenaiCompletionUsage & {
  * strategies/completions.ts `buildFinalResponse`. See that TODO for the full
  * deprecation plan.
  */
+/**
+ * Add the Responses API's terminal-state fields, which the portal's generated
+ * schema does not declare.
+ *
+ * Without them the two transports are asymmetric: a completions consumer reads
+ * `choices[0].finish_reason` and can see a turn cut off at the output ceiling,
+ * while a Responses consumer has no field to read at all — the truncation the
+ * SDK *did* detect (see the normalization in `strategies/responses.ts`) died at
+ * the stream boundary. `runToolLoop` works around this with `terminalState` on
+ * its own result, but a caller holding only a response object cannot (#805).
+ *
+ * These are standard OpenAI Responses fields, so this widens the type toward
+ * the wire rather than inventing shape: they are optional because a
+ * non-streaming direct call returns only what the portal serializes today.
+ * Drop the override once the portal declares them upstream.
+ */
+export type LlmapiResponseResponse = GeneratedLlmapiResponseResponse & {
+  /** `"completed"` | `"incomplete"` — the turn's own status, not an output item's. */
+  status?: string;
+  /** Present when `status` is `"incomplete"`; `"max_output_tokens"` is a truncation. */
+  incomplete_details?: { reason?: string };
+};
+
 export type LlmapiChatCompletionResponse = Omit<GeneratedLlmapiChatCompletionResponse, "usage"> & {
   usage?: LlmapiChatCompletionUsage;
   inference_id?: string;

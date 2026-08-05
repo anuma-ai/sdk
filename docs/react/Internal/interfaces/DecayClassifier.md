@@ -1,6 +1,6 @@
 # DecayClassifier
 
-Defined in: [src/lib/memory/decayWorker.ts:74](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/decayWorker.ts#74)
+Defined in: [src/lib/memory/decayWorker.ts:75](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/decayWorker.ts#75)
 
 PR5 seam — an on-device classifier that refines the rule-based verdict for
 borderline rows (e.g. type `other`/null, or a `plan` without an event end).
@@ -39,7 +39,7 @@ never wall-clock `Date.now()` — keeping a fixed-`now` sweep deterministic.
 
 > **classify**(`input`: [`DecayInput`](DecayInput.md), `ruleVerdict`: [`DecayVerdict`](../type-aliases/DecayVerdict.md), `now`: `number`): [`DecayVerdict`](../type-aliases/DecayVerdict.md) | `Promise`<[`DecayVerdict`](../type-aliases/DecayVerdict.md)>
 
-Defined in: [src/lib/memory/decayWorker.ts:75](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/decayWorker.ts#75)
+Defined in: [src/lib/memory/decayWorker.ts:76](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/decayWorker.ts#76)
 
 **Parameters**
 

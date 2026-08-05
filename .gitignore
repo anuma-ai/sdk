@@ -160,3 +160,6 @@ test/memory/src/vault/embeddings-cache.json
 
 # gate-agent scratch (do not ship)
 *.qa.test.ts
+
+# Transient config written by scripts/assert-excluded-suites-still-fail.mjs
+.tsconfig.excl-check.*.json

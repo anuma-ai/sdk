@@ -27,6 +27,13 @@ vi.mock("../db/chat/summaryOperations", () => ({
   deleteConversationSummaryOp: vi.fn(() => Promise.resolve()),
 }));
 
+/**
+ * Monotonic stand-in for the DB's autoincrementing `messageId`. Nothing under
+ * test reads it, but it is a required field, so hand out distinct values rather
+ * than a constant that would make two fixtures look like the same row.
+ */
+let nextMessageId = 1;
+
 /** Helper to create a minimal StoredMessage for testing */
 function makeMsg(
   id: string,
@@ -35,6 +42,7 @@ function makeMsg(
 ): StoredMessage {
   return {
     uniqueId: id,
+    messageId: nextMessageId++,
     conversationId: "conv-1",
     role,
     content,
@@ -42,7 +50,7 @@ function makeMsg(
     updatedAt: new Date(),
     model: "test-model",
     fileIds: [],
-  } as StoredMessage;
+  };
 }
 
 /** Helper to create a message with a specific token count (chars = tokens * 4) */
@@ -831,10 +839,13 @@ describe("maybeSummarizeHistory", () => {
 
   it("returns cached summary when message count <= minWindowMessages", async () => {
     mockedGetSummary.mockResolvedValueOnce({
+      uniqueId: "summary-conv-1",
       conversationId: "conv-1",
       summary: "User discussed cross-chain DEX design with ZetaChain.",
       summarizedUpTo: "old-msg-96",
       tokenCount: 50,
+      createdAt: new Date(),
+      updatedAt: new Date(),
     });
     const msgs = [makeMsgWithTokens("97", "user", 100), makeMsgWithTokens("98", "assistant", 100)];
     const result = await maybeSummarizeHistory({

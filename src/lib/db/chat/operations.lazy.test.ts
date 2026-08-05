@@ -111,8 +111,10 @@ describe("getConversationsLazyOp", () => {
       isDeleted: false,
     });
     expect(result[1].encryptedTitle).toBe(enc2);
-    // Critical: no `title` field on the lazy result.
-    expect((result[0] as Record<string, unknown>).title).toBeUndefined();
+    // Critical: no `title` field on the lazy result. `LazyStoredConversation`
+    // omits `title` from the type, so this is a deliberate runtime peek — hence
+    // the trip through `unknown`.
+    expect((result[0] as unknown as Record<string, unknown>).title).toBeUndefined();
   });
 
   it("does not call crypto.subtle.decrypt on the lazy path", async () => {
@@ -196,7 +198,7 @@ describe("getConversationsPageOp lazy contract", () => {
 
     expect(result).toHaveLength(1);
     expect(result[0].encryptedTitle).toBe(enc);
-    expect((result[0] as Record<string, unknown>).title).toBeUndefined();
+    expect((result[0] as unknown as Record<string, unknown>).title).toBeUndefined();
     expect(decryptSpy).not.toHaveBeenCalled();
 
     decryptSpy.mockRestore();

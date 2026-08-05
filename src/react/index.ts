@@ -263,6 +263,7 @@ export {
   type LazyStoredConversation,
   type MessageChunk,
   type MessageFeedback,
+  type MessageOrigin,
   type MessageSkeleton,
   searchChunksOp,
   searchMessagesOp,
@@ -329,7 +330,12 @@ export {
   getVaultMemoryOp,
   getVaultRankingProjectionsOp,
   hardDeleteDecayedOp,
+  ingestPublishedPhotoMemoriesOp,
   type MemoriesNeedingTopicExtraction,
+  parseMedia,
+  type PhotoIngestResult,
+  type PhotoMediaRef,
+  type PublishedPhotoMemory,
   type RankableVaultMemory,
   relinkMemoryTopicsOp,
   restoreVaultMemoryOp,
@@ -457,9 +463,15 @@ export type {
   TurnSkippedEvent,
 } from "../lib/memory";
 export type {
+  MemoryToVerify,
+  MemoryVerification,
   TopicExtractionInput,
   TopicExtractionRunResult,
   TopicExtractOptions,
+  UncheckedReason,
+  UnverifiableReason,
+  VerificationSources,
+  VerifyMemoriesForPublishOptions,
 } from "../lib/memory";
 export {
   capHopsForDensity,
@@ -472,6 +484,7 @@ export {
   createDecaySweeper,
   createLlmDecayClassifier,
   createLlmNeighborRefiner,
+  createMessageSourceResolver,
   createPlatformCursorStore,
   createRecallTool,
   DEFAULT_CHUNK_CACHE_SIZE,
@@ -519,6 +532,7 @@ export {
   TREND_STALE_WINDOW_DAYS,
   ttlForType,
   VAULT_SIZE_HOP_CAP,
+  verifyMemoriesForPublish,
 } from "../lib/memory";
 
 // Entity / memory_entity tables — the W5 graph-lane storage that

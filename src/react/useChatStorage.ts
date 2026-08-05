@@ -14,6 +14,12 @@ import {
   DEFAULT_SUMMARY_TOKEN_THRESHOLD,
   maybeSummarizeHistory,
 } from "../lib/chat/summarize";
+import { buildToolResultContent } from "../lib/chat/toolResultMessage";
+import {
+  DISPLAY_CARD_PLACEHOLDER,
+  prepareToolResultsForReplay,
+  TOOL_RESULT_ORIGIN,
+} from "../lib/chat/toolResults";
 import { type ApiType, resolveApiType } from "../lib/chat/useChat";
 import {
   type ApiResponse,
@@ -741,6 +747,12 @@ export type SendMessageWithStorageResult =
       assistantMessage: StoredMessage;
       /** Results from tools that were auto-executed by the SDK (e.g. display tools) */
       autoExecutedToolResults?: { name: string; result: unknown }[];
+      /**
+       * The synthetic `[Tool Execution Results]` row those results were persisted as, so a caller can
+       * key its transient overlay on the id the SDK actually wrote instead of deriving one (#5519).
+       * Absent when no tool ran, or when that (non-fatal) write failed.
+       */
+      toolResultsMessage?: StoredMessage;
     }
   | {
       data: ApiResponse;
@@ -1136,6 +1148,8 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     piiRedaction,
     onPiiRedacted,
     nerDetector,
+    toolResultsHistoryExclude,
+    foldToolResultsInHistory,
   } = options;
 
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(
@@ -1149,6 +1163,17 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
   // to allow intentional detector changes, but the useMemo below only depends on
   // piiRedaction and currentConversationId, so a new detector instance with the
   // same configuration won't trigger a fresh PiiRedactor.
+  // Read through a ref, not the closure: `sendMessage`'s dependency array intentionally omits config
+  // values, and a caller that swaps this list (a flag flip, a per-conversation policy) must not keep
+  // replaying a payload it has since withdrawn. A ref also avoids recreating `sendMessage` on every
+  // render for a caller that passes a fresh array literal.
+  const toolResultsHistoryExcludeRef = useRef(toolResultsHistoryExclude);
+  toolResultsHistoryExcludeRef.current = toolResultsHistoryExclude;
+  // Same reasoning as the exclude list: read at send time, so flipping the flag off takes effect on
+  // the next send rather than whenever `sendMessage` happens to be recreated.
+  const foldToolResultsInHistoryRef = useRef(foldToolResultsInHistory);
+  foldToolResultsInHistoryRef.current = foldToolResultsInHistory;
+
   const nerDetectorRef = useRef(nerDetector);
   nerDetectorRef.current = nerDetector;
 
@@ -2645,9 +2670,32 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
 
       // Include history if requested
       if (includeHistory) {
-        // Filter out errored messages and limit history to most recent messages
         const validMessages = storedMessages.filter((msg) => !msg.error);
-        const limitedMessages = validMessages.slice(-maxHistoryMessages);
+
+        // This conversation's own `[Tool Execution Results]` rows: folded onto the assistant turns
+        // that produced them when the caller opts in, dropped otherwise. Never verbatim — they are
+        // `role: "user"`, so each would put two consecutive user turns on the wire (the failure web's
+        // client-side filter exists to avoid).
+        //
+        // Off by default because folding relocates the payload onto an `assistant` row, and a caller
+        // whose own scrubbers key on `role === "user"` + prefix silently stops catching it. Opting in
+        // means the caller has checked its filters and named renderer-only payloads in
+        // `toolResultsHistoryExclude`.
+        //
+        // BEFORE the window slice AND before summarization, and both orderings matter:
+        // - Slice first and the synthetic rows spend window slots they are then removed from, so a
+        //   display-heavy thread replays fewer real turns than the caller asked for (a requested
+        //   window of 3 replayed 2). Worse, the slice boundary can keep a row while cutting the
+        //   assistant it belongs to, and the payload is then dropped for having nothing to fold into.
+        // - Summarize first and an excluded payload is still egress: it reaches the summary prompt,
+        //   and whatever the summary keeps comes back to the main model.
+        // Folding first closes both, and makes the window count only rows that actually travel.
+        const replayableMessages = prepareToolResultsForReplay(validMessages, {
+          fold: foldToolResultsInHistoryRef.current === true,
+          exclude: toolResultsHistoryExcludeRef.current,
+          placeholder: DISPLAY_CARD_PLACEHOLDER,
+        });
+        const limitedMessages = replayableMessages.slice(-maxHistoryMessages);
 
         // Collect file context from conversation history if we don't have it from current message
         // Look for the most recent message with extracted file content (stored in thinking field)
@@ -2660,6 +2708,8 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
             }
           }
         }
+
+        const foldedHistory = limitedMessages;
 
         // Convert stored messages to API format
         // Get encryption key if available for reading user files from OPFS
@@ -2684,7 +2734,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         const { messagesToConvert, summarySystemMessage } = await maybeSummarizeHistory({
           database,
           conversationId: convId,
-          messages: limitedMessages,
+          messages: foldedHistory,
           summarizeHistory,
           summaryTokenThreshold,
           summaryMinWindowMessages,
@@ -3316,39 +3366,30 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       const autoToolResults = (result as Record<string, unknown>).autoExecutedToolResults as
         | { name: string; result: unknown }[]
         | undefined;
+      let storedToolResultsMessage: StoredMessage | undefined;
       if (autoToolResults && autoToolResults.length > 0) {
-        const toolSummary = autoToolResults
-          .map((r) => `Tool "${r.name}" returned: ${JSON.stringify(r.result)}`)
-          .join("\n\n");
-        const toolResultContent = `[Tool Execution Results]\n\n${toolSummary}\n\nBased on these results, continue with the task.`;
+        // One opts object, shared by all three payloads AND with the expo entry: the queued write
+        // replays through createMessageOp and the synthetic message stands in for the row until it
+        // does, so a field set on only one path is lost on the others (that is why `origin` lives
+        // here rather than being repeated). Byte-identical output across the two entries also
+        // matters because the format is a contract the clients parse cards out of (#5519).
+        const toolResultsOpts: CreateMessageOptions = {
+          conversationId: convId,
+          role: "user",
+          content: buildToolResultContent(autoToolResults),
+          model: "",
+          parentMessageId: storedAssistantMessage.uniqueId,
+          origin: TOOL_RESULT_ORIGIN,
+        };
         try {
-          await writeOrQueue(
+          const toolResultsWrite = await writeOrQueue(
             "createMessage",
-            {
-              conversationId: convId,
-              role: "user",
-              content: toolResultContent,
-              model: "",
-              parentMessageId: storedAssistantMessage.uniqueId,
-            },
-            () =>
-              createMessageOp(storageCtx, {
-                conversationId: convId,
-                role: "user",
-                content: toolResultContent,
-                model: "",
-                parentMessageId: storedAssistantMessage.uniqueId,
-              }),
-            () =>
-              makeSyntheticStoredMessage({
-                conversationId: convId,
-                role: "user",
-                content: toolResultContent,
-                model: "",
-                parentMessageId: storedAssistantMessage.uniqueId,
-              }),
+            toolResultsOpts,
+            () => createMessageOp(storageCtx, toolResultsOpts),
+            () => makeSyntheticStoredMessage(toolResultsOpts),
             assistantMsgQueueId ? [assistantMsgQueueId] : []
           );
+          storedToolResultsMessage = toolResultsWrite.result;
         } catch {
           // Non-critical — the tool result will still be available in memory
         }
@@ -3380,9 +3421,8 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         error: null,
         userMessage: storedUserMessage,
         assistantMessage: storedAssistantMessage,
-        autoExecutedToolResults: (result as Record<string, unknown>).autoExecutedToolResults as
-          | { name: string; result: unknown }[]
-          | undefined,
+        autoExecutedToolResults: autoToolResults,
+        toolResultsMessage: storedToolResultsMessage,
       };
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally omitting stable refs and config values that don't change identity

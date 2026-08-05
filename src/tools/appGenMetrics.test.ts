@@ -334,7 +334,14 @@ describe("compareRuns", () => {
   it("shows positive and negative deltas for tool counts", () => {
     const after: RunRecord = {
       ...baseRun,
-      totals: { toolCalls: { create_file: 5, patch_file: 2 }, failedPatches: 0, overwrites: 0 },
+      // Token totals match baseRun so the only deltas under test are the tool counts.
+      totals: {
+        toolCalls: { create_file: 5, patch_file: 2 },
+        failedPatches: 0,
+        overwrites: 0,
+        inputTokens: 110_000,
+        outputTokens: 17_000,
+      },
     };
     const out = compareRuns(baseRun, after);
     expect(out).toMatch(/create_file.*\(\+3\)/);
@@ -373,6 +380,10 @@ describe("compareRuns", () => {
           overwrites: 0,
           files: {},
           errored: false,
+          // Nothing to audit and no usage measured for this synthetic phase.
+          auditScore: null,
+          inputTokens: null,
+          outputTokens: null,
         },
       ],
     };

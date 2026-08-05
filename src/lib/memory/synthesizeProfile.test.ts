@@ -109,6 +109,12 @@ function mem(id: string, opts: Partial<StoredVaultMemory> = {}): StoredVaultMemo
     factType: null,
     archivedAt: null,
     trustTier: null,
+    topics: null,
+    topicsUpdatedAt: null,
+    visibility: "private",
+    twinOptIn: false,
+    publishedAt: null,
+    geohash: null,
     createdAt: opts.createdAt ?? new Date(500),
     updatedAt: opts.updatedAt ?? new Date(1000),
     isDeleted: false,
@@ -986,6 +992,122 @@ describe("synthesizeProfile", () => {
     expect(doc.sections[0].text).toBe("Narrow bio");
     expect(doc.sections[0].sourceMemoryIds).toEqual(["a"]);
     expect(mockReflect).toHaveBeenCalledTimes(2);
+  });
+
+  // Chat auto-extract writes unreviewed facts constantly, and they land in the
+  // changed-set (which tracks the whole scoped vault) — but the gate strips them
+  // from the evidence, so the section's actual input is unchanged. Attributing
+  // one would bill an identical re-synthesis.
+  it("does not regenerate a gated facet for an unreviewed changed fact", async () => {
+    mockGetAll.mockResolvedValue([
+      mem("a", { updatedAt: new Date(1000) }), // cited by bio, reviewed, unchanged
+      mem("b", { updatedAt: new Date(1000) }), // cited by interests, reviewed, unchanged
+      // Freshly auto-extracted, NOT reviewed. Embedding lines up with the bio
+      // query, so attribution would mark bio stale if it ever saw this fact.
+      mem("z", {
+        createdAt: new Date(6000),
+        updatedAt: new Date(6000),
+        embedding: JSON.stringify([1, 0]),
+      }),
+    ]);
+    mockEmbed.mockResolvedValue([
+      [1, 0],
+      [0, 1],
+    ]);
+    mockReflect.mockResolvedValue(reflectResult("rebilled bio", ["a"]));
+
+    const previous = priorDoc(
+      [section("bio", "old bio", ["a"]), section("interests", "old interests", ["b"])],
+      2000,
+      fingerprint(FACETS, false, ["a", "b"])
+    );
+
+    const doc = await synthesizeProfile(ctx, {
+      apiKey: "k",
+      facets: FACETS,
+      previous,
+      reviewedMemoryIds: ["a", "b"],
+    });
+
+    expect(mockReflect).not.toHaveBeenCalled();
+    expect(mockEmbed).not.toHaveBeenCalled(); // never even reached attribution
+    expect(doc.sections.find((s) => s.key === "bio")!.text).toBe("old bio");
+    expect(doc.sections.find((s) => s.key === "interests")!.text).toBe("old interests");
+    // The mark still advances past the unreviewed write, so the next call with a
+    // quiet vault takes the fast path instead of re-deriving this every time.
+    expect(doc.vaultWatermark).toBe(6000);
+  });
+
+  // The costliest shape of the same bug: a just-extracted fact usually has no
+  // embedding yet, and an unattributable candidate bails to "regenerate ALL".
+  // Under the gate that is the whole profile re-billed for evidence that never
+  // moved.
+  it("does not regenerate every gated facet for an unreviewed, unembedded fact", async () => {
+    mockGetAll.mockResolvedValue([
+      mem("a", { updatedAt: new Date(1000) }),
+      mem("b", { updatedAt: new Date(1000) }),
+      mem("z", { createdAt: new Date(6000), updatedAt: new Date(6000), embedding: null }),
+    ]);
+    mockReflect.mockResolvedValue(reflectResult("rebilled", ["a"]));
+
+    const previous = priorDoc(
+      [section("bio", "old bio", ["a"]), section("interests", "old interests", ["b"])],
+      2000,
+      fingerprint(FACETS, false, ["a", "b"])
+    );
+
+    const doc = await synthesizeProfile(ctx, {
+      apiKey: "k",
+      facets: FACETS,
+      previous,
+      reviewedMemoryIds: ["a", "b"],
+    });
+
+    expect(mockReflect).not.toHaveBeenCalled();
+    expect(doc.sections.map((s) => s.text)).toEqual(["old bio", "old interests"]);
+  });
+
+  // Guard on the filter above: it must narrow to the reviewed set, not disable
+  // attribution. A REVIEWED fact that no section cites yet is real new evidence
+  // — it clears the gate, so it can enter a facet's next synthesis.
+  it("still attributes a reviewed changed fact no section cites", async () => {
+    mockGetAll.mockResolvedValue([
+      mem("a", { updatedAt: new Date(1000) }),
+      mem("b", { updatedAt: new Date(1000) }),
+      mem("c", {
+        createdAt: new Date(6000),
+        updatedAt: new Date(6000),
+        embedding: JSON.stringify([1, 0]), // matches the bio query
+      }),
+    ]);
+    mockEmbed.mockResolvedValue([
+      [1, 0],
+      [0, 1],
+    ]);
+    mockRecall.mockResolvedValue({
+      memories: [ranked("a"), ranked("c")],
+      usedBudget: "low",
+      reranked: false,
+      candidateCount: 2,
+    });
+    mockReflect.mockResolvedValueOnce(reflectResult("bio with c", ["a", "c"]));
+
+    const previous = priorDoc(
+      [section("bio", "old bio", ["a"]), section("interests", "old interests", ["b"])],
+      2000,
+      fingerprint(FACETS, false, ["a", "b", "c"])
+    );
+
+    const doc = await synthesizeProfile(ctx, {
+      apiKey: "k",
+      facets: FACETS,
+      previous,
+      reviewedMemoryIds: ["a", "b", "c"],
+    });
+
+    expect(mockReflect).toHaveBeenCalledTimes(1); // bio only
+    expect(doc.sections.find((s) => s.key === "bio")!.text).toBe("bio with c");
+    expect(doc.sections.find((s) => s.key === "interests")!.text).toBe("old interests");
   });
 
   // The two facets that back a profile column emit a structured value BESIDE

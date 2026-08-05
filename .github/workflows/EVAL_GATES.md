@@ -2,13 +2,45 @@
 
 Five workflows (`extraction-eval`, `topic-eval`, `vault-search-eval`,
 `consolidation-eval`, `recall-eval`) run live-LLM quality benchmarks against a
-committed baseline. They share two non-obvious properties. This file is the one
-place they are explained; each workflow points here rather than repeating them.
+committed baseline. `memory-perf` measures work cost with deterministic
+stand-ins. They share two non-obvious properties. This file is the one place
+they are explained; each workflow points here rather than repeating them.
 
-## 1. They are ADVISORY, and must stay that way in their current shape
+## 0. Which gates can block a merge
 
-Each gate is paths-scoped on `pull_request`, so on a PR that touches none of its
-paths **no run is created at all** — the status context is *absent*, not skipped.
+Read this from the repo, not from the ruleset UI. **A gate not listed as
+required cannot fail your merge, whatever it reports.**
+
+| Gate | Required context | Why |
+| --- | --- | --- |
+| `memory-perf` | `memory-perf-status` — **workflow converted, ruleset entry pending (#797)** | Deterministic, no secrets, ~32s. Blocking as soon as the context is added to main's ruleset; until then it reports but does not block. |
+| `extraction-eval` | advisory | Live LLM, 2–4 min per queued merge |
+| `topic-eval` | advisory | ” |
+| `vault-search-eval` | advisory | ” |
+| `consolidation-eval` | advisory | ” |
+| `recall-eval` | advisory | ” |
+
+The advisory gates report red/green and nothing else: a regression one of them
+catches still needs a human to look at the check. That was the state of **all
+six** until #797 — the point of listing it here is that "we have a gate for
+that" and "that gate can stop a bad merge" were different claims, and only the
+ruleset knew which was which.
+
+Ordering, because it cannot be done in one step: the workflow conversion has to
+merge **before** the context is added to the ruleset, or every PR blocks on a
+context no workflow produces. So `memory-perf-status` is deliberately not
+blocking for the window between those two changes. **When the ruleset entry
+lands, update the row above** — a doc that claims a gate blocks when it does not
+is the same failure this file exists to prevent, one level up.
+
+Before adding one to the ruleset, do the conversion in §1 first. Requiring a
+paths-scoped context is the specific mistake that bricked #784.
+
+## 1. Live-LLM gates are ADVISORY, and must stay that way in their current shape
+
+Each of the five is paths-scoped on `pull_request`, so on a PR that touches none
+of its paths **no run is created at all** — the status context is *absent*, not
+skipped. (`memory-perf` no longer is; see §0.)
 
 That is fine while nothing requires it. It is fatal the moment one is marked
 required: a required context that never reports blocks the PR forever. That
@@ -28,6 +60,10 @@ that it passed — the real run happens in the queue.
 
 The cost is a full LLM eval on every queued merge (~2–4 min each), which is why
 all five are advisory today.
+
+`memory-perf` took a shorter route: it is deterministic and finishes in well
+under a minute, so it simply dropped `paths:` and kept running on every PR. Step
+3 is only needed when the run itself is too expensive to repeat.
 
 ## 2. The status jobs use an allowlist, not a failure check
 

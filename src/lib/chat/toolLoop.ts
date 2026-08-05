@@ -397,6 +397,21 @@ export type StepFinishEvent = {
   }>;
   /** Token usage for this round, if available. */
   usage: { inputTokens?: number; outputTokens?: number };
+  /**
+   * The round's own finish reason, as the provider sent it — `"length"` means
+   * this round hit the output ceiling.
+   *
+   * Per-round, not per-turn: a round can truncate and the loop still recover on
+   * the next one, which is why the loop does not treat it as an error on its
+   * own (see the truncation guard below). Without it a consumer watching steps
+   * cannot tell a round that said everything it meant to from one that was cut
+   * off mid-argument — they differ only in this field (#805).
+   *
+   * Absent when the provider sent no finish reason. Note that no step event
+   * fires for the round that *ends* a turn, so use {@link RunTerminalState} on
+   * the result for the final round.
+   */
+  finishReason?: string;
 };
 
 /**
@@ -612,13 +627,14 @@ export type RunToolLoopOptions = {
  * specific values). `undefined` when the stream carried no finish reason at all.
  *
  * Exposed because neither response shape reliably carries it out to a caller.
- * The Responses API shape has no field for it — `LlmapiResponseResponse` declares
- * neither `status` nor `incomplete_details` — so `buildFinalResponse` cannot
- * surface truncation there even though the loop detected it (`responses.ts`
- * normalizes it onto the accumulator). Completions does expose
- * `choices[0].finish_reason`, but omits `tool_calls` entirely when there are
- * none, so a caller sniffing the response cannot tell "no tool calls" from
- * "field absent".
+ * The Responses shape now carries `status` / `incomplete_details` — added in
+ * `clientCompat` and emitted by `buildFinalResponse` — but only in the
+ * Responses vocabulary, so a caller reading it has to translate
+ * `incomplete_details.reason === "max_output_tokens"` itself. Completions
+ * exposes `choices[0].finish_reason`, but omits `tool_calls` entirely when
+ * there are none, so a caller sniffing the response cannot tell "no tool calls"
+ * from "field absent". This field answers both questions in one vocabulary,
+ * for either transport.
  *
  * The loop already knows both, unambiguously and identically for either API.
  * Reporting them here means callers and test harnesses stop reverse-engineering
@@ -1804,6 +1820,9 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
             inputTokens: currentAccumulator.usage.prompt_tokens,
             outputTokens: currentAccumulator.usage.completion_tokens,
           },
+          ...(currentAccumulator.finishReason !== undefined && {
+            finishReason: currentAccumulator.finishReason,
+          }),
         });
       }
 

@@ -22,11 +22,19 @@ const baseOptions = {
   extract: { apiKey: "k" },
 };
 
-const EMPTY_RESULT = {
+/**
+ * `extractAndRetain` resolves to an inline object type, so derive it rather than
+ * restating it — a field added there (`quarantined` was the last one) then fails
+ * the fixtures below instead of being silently absent from what the worker sees.
+ */
+type ExtractAndRetainResult = Awaited<ReturnType<typeof extractAndRetain>>;
+
+const EMPTY_RESULT: ExtractAndRetainResult = {
   candidates: [],
   results: [],
   failedCount: 0,
-  outcome: "no-facts" as const,
+  outcome: "no-facts",
+  quarantined: [],
 };
 
 /** Build n messages with ids m0..m(n-1). Tests assert on `.id`, so role/content are filler. */
@@ -342,6 +350,7 @@ describe("createAutoExtractor", () => {
           confidence: 0.9,
           sourceMessageIds: ["m1"],
           entities: [],
+          eventTime: null,
         },
         {
           content: "fact 2",
@@ -349,6 +358,7 @@ describe("createAutoExtractor", () => {
           confidence: 0.85,
           sourceMessageIds: ["m1"],
           entities: [],
+          eventTime: null,
         },
       ],
       results: [
@@ -357,6 +367,7 @@ describe("createAutoExtractor", () => {
       ],
       failedCount: 0,
       outcome: "extracted",
+      quarantined: [],
     });
     const onMemoryExtracted = vi.fn();
     const onTurnComplete = vi.fn();

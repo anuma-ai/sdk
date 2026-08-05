@@ -155,7 +155,14 @@ export function createLlmDecayClassifier(options: LlmDecayClassifierOptions): De
       if (!content || content.trim().length === 0) return ruleVerdict;
 
       const trimmed = content.trim().slice(0, MAX_CONTENT_CHARS);
-      const safe = redactor ? redactor.redactText(trimmed).text : trimmed;
+      // ASYNC, deliberately. `redactText` is regex-only: a caller who handed us
+      // a redactor carrying an `nerDetector` would still egress names,
+      // locations and orgs in plain text, because NER runs only in
+      // `redactTextAsync`. Decrypted memory content leaves the device here, so
+      // it has to honour the redactor the caller configured rather than the
+      // cheaper half of it. Without a detector `redactTextAsync` returns
+      // `redactText` directly, so the default path is unchanged.
+      const safe = redactor ? (await redactor.redactTextAsync(trimmed)).text : trimmed;
       const meta = `factType: ${input.factType ?? "none"}; ageDays: ${ageDays(input.updatedAt, now)}`;
 
       let parsed: unknown;

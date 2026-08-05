@@ -66,11 +66,15 @@ function mockRecord(overrides: Record<string, any> = {}) {
     updated_at: new Date("2025-01-01"),
     ...overrides,
   };
+  // Snake_case raw row, as WatermelonDB's `unsafeFetchRaw` returns (incl. `id`). The bulk
+  // read ops now use unsafeFetchRaw, so the query mocks below serve `r._raw`.
+  // Annotated rather than inferred: spreading an index-signature type into an
+  // object literal contributes no known keys, so the inferred type would be
+  // `{ id: any }` and tests that poke a column on `_raw` would not compile.
+  const rawRow: Record<string, any> = { id: overrides.id ?? "mem_1", ...raw };
   return {
     id: overrides.id ?? "mem_1",
-    // Snake_case raw row, as WatermelonDB's `unsafeFetchRaw` returns (incl. `id`). The bulk
-    // read ops now use unsafeFetchRaw, so the query mocks below serve `r._raw`.
-    _raw: { id: overrides.id ?? "mem_1", ...raw },
+    _raw: rawRow,
     get content() {
       return raw.content;
     },
@@ -817,13 +821,16 @@ describe("updateVaultMemoryEmbeddingOp", () => {
       vaultMemoryCollection: { find: vi.fn(async () => record) } as any,
     });
 
-    const result = await updateVaultMemoryEmbeddingOp(ctx, "mem_1", "[1,0,0]");
+    const result = await updateVaultMemoryEmbeddingOp(ctx, "mem_1", "[1,0,0]", "test-embed-model");
 
     expect(result).toBe(true);
     const updater = updateFn.mock.calls[0][0];
     const setRawSpy = vi.fn();
     updater({ _setRaw: setRawSpy });
     expect(setRawSpy).toHaveBeenCalledWith("embedding", "[1,0,0]");
+    // The model tag is written alongside the vector — a stale tag would make
+    // search re-embed the row on every query.
+    expect(setRawSpy).toHaveBeenCalledWith("embedding_model", "test-embed-model");
   });
 
   it("returns false for soft-deleted records", async () => {
@@ -833,7 +840,7 @@ describe("updateVaultMemoryEmbeddingOp", () => {
       } as any,
     });
 
-    const result = await updateVaultMemoryEmbeddingOp(ctx, "mem_1", "[1,0,0]");
+    const result = await updateVaultMemoryEmbeddingOp(ctx, "mem_1", "[1,0,0]", "test-embed-model");
     expect(result).toBe(false);
   });
 
@@ -846,7 +853,12 @@ describe("updateVaultMemoryEmbeddingOp", () => {
       } as any,
     });
 
-    const result = await updateVaultMemoryEmbeddingOp(ctx, "nonexistent", "[1,0,0]");
+    const result = await updateVaultMemoryEmbeddingOp(
+      ctx,
+      "nonexistent",
+      "[1,0,0]",
+      "test-embed-model"
+    );
     expect(result).toBe(false);
   });
 
@@ -860,7 +872,7 @@ describe("updateVaultMemoryEmbeddingOp", () => {
       vaultMemoryCollection: { find: vi.fn(async () => record) } as any,
     });
 
-    const result = await updateVaultMemoryEmbeddingOp(ctx, "mem_1", "[1,0,0]");
+    const result = await updateVaultMemoryEmbeddingOp(ctx, "mem_1", "[1,0,0]", "test-embed-model");
     expect(result).toBe(false);
   });
 });

@@ -261,7 +261,12 @@ export {
   getVaultMemoriesByFacetKeyOp,
   getVaultMemoryOp,
   hardDeleteDecayedOp,
+  ingestPublishedPhotoMemoriesOp,
   type MemoriesNeedingTopicExtraction,
+  parseMedia,
+  type PhotoIngestResult,
+  type PhotoMediaRef,
+  type PublishedPhotoMemory,
   relinkMemoryTopicsOp,
   restoreVaultMemoryOp,
   setMemoryVisibilityOp,
@@ -400,6 +405,8 @@ export type {
   MemoryExtractedEvent,
   MemoryKind,
   MemoryQuarantinedEvent,
+  MemoryToVerify,
+  MemoryVerification,
   NeighborRefiner,
   NowSource,
   ObservationTrend,
@@ -439,6 +446,10 @@ export type {
   TopicExtractOptions,
   TurnCompleteEvent,
   TurnSkippedEvent,
+  UncheckedReason,
+  UnverifiableReason,
+  VerificationSources,
+  VerifyMemoriesForPublishOptions,
 } from "../lib/memory";
 export {
   capHopsForDensity,
@@ -451,6 +462,7 @@ export {
   createDecaySweeper,
   createLlmDecayClassifier,
   createLlmNeighborRefiner,
+  createMessageSourceResolver,
   createPlatformCursorStore,
   createRecallTool,
   DEFAULT_CHUNK_CACHE_SIZE,
@@ -498,6 +510,7 @@ export {
   TREND_STALE_WINDOW_DAYS,
   ttlForType,
   VAULT_SIZE_HOP_CAP,
+  verifyMemoriesForPublish,
 } from "../lib/memory";
 
 // Notion OAuth primitives (platform-agnostic, no browser globals)

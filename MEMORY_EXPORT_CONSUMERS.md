@@ -15,6 +15,24 @@ exists elsewhere and the scope can widen once this stays green.
 client really calls what a row claims. Keep it honest: when you unmount
 something on the client side, come back and change the row.
 
+It has already gone stale in the more dangerous direction. On 2026-07-31 three
+rows still read `dark` for exports the client had been calling for days
+(`synthesizeProfile`, `rankProfileCandidates`, `scoreProfileSalience`), and an
+audit reading this file concluded the launch-critical profile path was unmounted.
+A row saying `dark` is a lead to verify against the client tree, never evidence.
+
+Two limits worth knowing before trusting a green run:
+
+1. The check scopes "client-facing" to the memory barrels (`src/lib/memory`,
+   `src/lib/memoryVault`), NOT to the package entry points. An export that never
+   reaches `react`/`expo`/`server` still gets a row and still passes — which is
+   exactly how `verifyMemoriesForPublish` sat here as a declared export that no
+   client could import.
+2. Liveness is "some live module imports it", propagated to a fixpoint. A symbol
+   called only from a branch no client configuration can reach counts as live —
+   see `createLlmNeighborRefiner`, reachable solely at `budget: 'high'`, which no
+   client passes. Tracked in anuma-ai/sdk#844 §4.
+
 | Status           | Meaning                                                                                                                          |
 | ---------------- | -------------------------------------------------------------------------------------------------------------------------------- |
 | `client-mounted` | A client app calls it — the note names the file. Also marks the internals it pulls in as live, so they aren't reported twice.      |
@@ -37,10 +55,8 @@ Client paths are in `zeta-chain/ai-memoryless-client`.
 | `createPlatformCursorStore` | client-mounted | #768 C1. Web only: `apps/web/hooks/useAutoExtraction.ts:80` over `webPlatformStorage`, passed to `createAutoExtractor` at `:105`. Mobile implements `ExtractionCursorStore` itself (RN has no sync storage, and it owns the key prefix for its hydration scan), so it takes the type and not this factory — see zeta-chain/ai-memoryless-client#5221. |
 | `createConsolidationSweeper` | dark | Fix C. The bounded background sweep that heals the standing vault (near-duplicate dedup + junk purge + embedding backfill). Nothing mounts it yet: the client will drive it on a low-frequency interval like `createDecaySweeper` (`useMemoryDecay`), and it ships SDK-side first log-only (`dryRun` defaults true). Goes live with that host wiring. |
 | `createLlmDecayClassifier` | dark | The sweeper is mounted but neither client passes a `classifier`, so decay is deterministic-TTL only. Enabling it means per-sweep LLM cost and needs an eval first. |
-| `synthesizeProfile` | dark | #768 C3. 792 lines described as launch-critical for People Nearby, exported from all three barrels, called by nobody. Tracked by the C1 profile-synthesis plan in #719. |
-| `reflect` | dark | Dark with `synthesizeProfile` — its only caller. |
-| `summarizeObservationTrends` | dark | Same subtree — consumed only by `synthesizeProfile` and `profileSalience`. |
-| `rankProfileCandidates` | dark | Same subtree — profile-salience ranking for `synthesizeProfile`. |
-| `scoreProfileSalience` | dark | Same subtree — per-candidate half of that salience pass. |
-| `verifyMemoriesForPublish` | dark | #707. The publish-time support check for People Nearby. Nothing mounts it: there is no People Nearby publish flow in the client yet, and it is deliberately not wired into `setMemoryVisibilityOp` (that op is offline storage and also the revoke path). Goes live with the publish UI that has to render the verdicts. |
-| `createMessageSourceResolver` | dark | Dark with `verifyMemoriesForPublish` — the default `VerificationSources` wiring over the chat store, and its only caller. |
+| `synthesizeProfile` | client-mounted | #768 C3, mounted 2026-07 on BOTH platforms: `apps/web/hooks/useSuggestNearbyProfile.ts:101` and `apps/mobile/hooks/useSuggestNearbyProfile.ts:128`, each gating on the published set via `getAllVaultMemoriesOp(ctx, { visibility: ['public'] })` → `reviewedMemoryIds`. This row said `dark` until 2026-07-31 and misdirected an audit — see the header note. |
+| `rankProfileCandidates` | client-mounted | `packages/hooks/src/promptCoverage/computeCoverage.ts:359`, injected structurally as `ProfileRankFn` (see `promptCoverage/salience.ts`). Was `dark` until 2026-07-31. |
+| `scoreProfileSalience` | client-mounted | `packages/hooks/src/promptCoverage/computeCoverage.ts:345`. Was `dark` until 2026-07-31. |
+| `verifyMemoriesForPublish` | dark | #707. The publish-time support check for People Nearby. Deliberately NOT wired into `setMemoryVisibilityOp` (that op is offline storage and also the revoke path — a verdict there would gate taking a memory DOWN on an LLM being reachable). Until 2026-07-31 it was not exported from `react`/`expo`/`server` at all, so no client could call it whatever it wanted; those exports are added here. Goes live with the client gate in zeta-chain/ai-memoryless-client#5440. |
+| `createMessageSourceResolver` | dark | Dark with `verifyMemoriesForPublish` — the default `VerificationSources` wiring over the chat store. Same missing-barrel-export history as that row. |

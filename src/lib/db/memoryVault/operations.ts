@@ -22,7 +22,7 @@ import type {
   UpdateVaultMemoryOptions,
   VaultMemoryVisibility,
 } from "./types";
-import { FACET_SLOTS } from "./types";
+import { FACET_SLOTS, parseMedia } from "./types";
 
 /** Coerce a stored visibility column to the enum — null/unknown reads as
  * "private" (grandfathered legacy rows; nothing is published without opt-in).
@@ -270,6 +270,7 @@ function vaultMemoryToStoredRaw(memory: VaultMemory): StoredVaultMemory {
     sourceChunkIds,
     proofCount: memory.proofCount ?? null,
     source: memory.source ?? null,
+    media: parseMedia(memory.media),
     eventTimeStart: memory.eventTimeStart ?? null,
     eventTimeEnd: memory.eventTimeEnd ?? null,
     eventTimeKind: memory.eventTimeKind ?? null,
@@ -681,6 +682,7 @@ function vaultMemoryRawToStoredRaw(raw: Record<string, unknown>): StoredVaultMem
     eventTimeKind: (raw.event_time_kind as string | null) ?? null,
     // SQLite stores booleans as 0/1, LokiJS as true/false — coerce both.
     topicsUserManaged: raw.topics_user_managed === true || raw.topics_user_managed === 1,
+    media: parseMedia(raw.media as string | null),
     topics: parseTopics(raw.topics),
     topicsUpdatedAt: (raw.topics_updated_at as number | null) ?? null,
     topicsExtractedAt: (raw.topics_extracted_at as number | null) ?? null,

@@ -72,6 +72,23 @@ export type ChatRole = "user" | "assistant" | "system";
 export type MessageFeedback = "like" | "dislike" | null;
 
 /**
+ * Which producer synthesised a message, for rows the user did not type and the
+ * UI does not render. Set at write time by that producer; a union so further
+ * synthetic kinds can be added without another column.
+ *
+ * - `tool_result`: the hidden `[Tool Execution Results]` row built from a
+ *   turn's auto-executed tool results. Skipped by the embedding sweep (see
+ *   `memoryEngine/embeddings`).
+ * - undefined/null: a normal message, or any row written before v44.
+ *
+ * Stored in the plaintext `origin` column — never encrypted. The deferred
+ * embedding sweep that has to honour it runs without wallet context, so an
+ * encrypted flag would be unreadable exactly where it matters and the skip
+ * would fail open.
+ */
+export type MessageOrigin = "tool_result";
+
+/**
  * Metadata for files attached to messages.
  *
  * Note the distinction between `url` and `sourceUrl`:
@@ -234,6 +251,8 @@ export interface StoredMessage {
   feedback?: MessageFeedback;
   /** Tool call events from the backend response (for reconstructing tool call history) */
   toolCallEvents?: LlmapiToolCallEvent[];
+  /** Provenance for synthetic rows; undefined for typed messages and pre-v44 rows */
+  origin?: MessageOrigin;
   /**
    * Set when `content` could not be decrypted on read (#561).
    * The `content` field still holds the original ciphertext — never a
@@ -382,6 +401,8 @@ export interface CreateMessageOptions {
   parentMessageId?: string;
   /** Tool call events from the backend response (for reconstructing tool call history) */
   toolCallEvents?: LlmapiToolCallEvent[];
+  /** Provenance for synthetic rows; set by the producer, never by user input */
+  origin?: MessageOrigin;
   /**
    * Optional pre-generated unique ID for this message.
    * When provided, used as the WatermelonDB record ID instead of auto-generating one.
@@ -526,6 +547,40 @@ export interface BaseUseChatStorageOptions {
    * Defaults to the hardcoded MCP_R2_DOMAIN from clientConfig.
    */
   mcpR2Domain?: string;
+  /**
+   * Tool names whose persisted results must never be replayed to the model.
+   *
+   * A turn's auto-executed tool results are stored as a synthetic
+   * `[Tool Execution Results]` row and, on a replayed send, folded back onto the
+   * assistant turn they belong to — that is what lets a follow-up question about a
+   * tool's output work after a reload. Name a tool here when its payload exists for
+   * the RENDERER rather than the model: a display card can carry data the model was
+   * deliberately never given (People Nearby's card holds third parties' snapped
+   * coordinates, which the search result strips), and replaying it would hand that
+   * data straight back.
+   *
+   * Hook-level rather than per-send on purpose: an exclusion that has to be
+   * remembered at every call site is one bad send away from leaking.
+   */
+  toolResultsHistoryExclude?: string[];
+  /**
+   * Fold persisted `[Tool Execution Results]` rows onto the assistant turn that produced them
+   * when replaying stored history, instead of dropping them.
+   *
+   * **Defaults to `false`, and that default is deliberate.** Folding is the better behaviour —
+   * it is what lets a follow-up about a tool's output work after a reload — but it moves the
+   * payload from a `role: "user"` row onto an `assistant` row. Any consumer that scrubs these
+   * rows by checking `role === "user"` plus the content prefix (which is how both apps did it
+   * before this option existed) stops catching them the moment folding turns on, and starts
+   * replaying whatever the row held. Opting in is therefore a statement that the caller has
+   * checked its own filters and set {@link toolResultsHistoryExclude} for any payload that must
+   * not reach the model.
+   *
+   * With it off, rows are dropped from the replayed history rather than sent verbatim. Verbatim
+   * would put two consecutive `user` turns on the wire, and the model answers the previous turn
+   * instead of the new prompt.
+   */
+  foldToolResultsInHistory?: boolean;
   /**
    * Pre-processors run after the last user message is received but before
    * the first LLM request. Each receives the prompt text and a shared
@@ -912,6 +967,17 @@ export interface BaseSendMessageSuccessResult {
   error: null;
   userMessage: StoredMessage;
   assistantMessage: StoredMessage;
+  /** Results from tools the SDK auto-executed this turn (e.g. display tools). */
+  autoExecutedToolResults?: { name: string; result: unknown }[];
+  /**
+   * The synthetic `[Tool Execution Results]` row those results were persisted as.
+   *
+   * Returned so a caller can key its transient overlay on the id the SDK actually wrote instead of
+   * deriving one and hoping the two agree — that guesswork is what mobile's per-card persist
+   * workarounds existed to do (#5519). Absent when the turn executed no tools, or when the row write
+   * failed (non-fatal: the assistant reply is already stored).
+   */
+  toolResultsMessage?: StoredMessage;
 }
 
 export interface BaseSendMessageSkippedResult {

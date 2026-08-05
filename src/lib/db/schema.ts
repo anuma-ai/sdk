@@ -98,7 +98,26 @@ import { VaultFolder } from "./vaultFolders/models";
  *   `topics_updated_at` is a SECOND timestamp because every topic writer pins
  *   `updated_at` on purpose (recall's recency multiplier) and both sync paths
  *   key on `updated_at`, so a topic-only change would neither upload nor merge
- * - v43: Added facet_key, facet_value columns to memory_vault recording a
+ * - v43: Added a (is_deleted, created_at) index to conversations. Every
+ *   conversation list read filters is_deleted and orders by created_at DESC,
+ *   which previously meant a temp B-tree sort of the whole live set on every
+ *   read. Structural only — no column added, no data rewritten
+ * - v44: Added origin column to history — provenance of a row, set by the
+ *   producer that synthesised it (`tool_result` = the hidden
+ *   `[Tool Execution Results]` message written from autoExecutedToolResults).
+ *   The embedding sweep skips those rows: they are machine-readable API dumps
+ *   that are never rendered, and chunking one cost 52 MB of vectors (620
+ *   chunks) against 0.2 MB of content. A content-prefix test cannot do this
+ *   job — `content` is `enc:v3:` ciphertext by the time the sweep reads it, so
+ *   provenance has to be recorded at write time. Deliberately NOT encrypted:
+ *   the sweep that must honour it runs with no wallet context, and an
+ *   unreadable flag would fail open. Existing rows stay NULL (= legacy,
+ *   unknown provenance, embedded as before) with no backfill, matching the v37
+ *   read-time-fallback precedent
+ * - v45: Added `media` to memory_vault — the photo(s) a server-extracted
+ *   memory came from, as JSON `[{feed_item_id, object_key}]`. Null on every
+ *   row that did not come from a photo, which is all of them before this
+ * - v46: Added facet_key, facet_value columns to memory_vault recording a
  *   memory's facet slot and value. `facet_key` (indexed) is the closed
  *   `"<factType>:self:<slot>"` shape of a single-valued SELF standing attribute
  *   (e.g. `preference:self:ui_theme`); `facet_value` is the normalized current
@@ -111,7 +130,7 @@ import { VaultFolder } from "./vaultFolders/models";
  *   encryption; `facet_key` leaks the slot shape like `fact_type`. Encrypt (or
  *   otherwise protect) facet_value before ship — needs privacy sign-off.
  */
-export const SDK_SCHEMA_VERSION = 43;
+export const SDK_SCHEMA_VERSION = 46;
 
 /**
  * Combined WatermelonDB schema for all SDK storage modules.
@@ -173,6 +192,7 @@ export const sdkSchema = appSchema({
         { name: "parent_message_id", type: "string", isOptional: true }, // Parent message for branching
         { name: "feedback", type: "string", isOptional: true }, // 'like' | 'dislike' | null
         { name: "tool_call_events", type: "string", isOptional: true }, // JSON stringified LlmapiToolCallEvent[]
+        { name: "origin", type: "string", isOptional: true }, // MessageOrigin — provenance, NOT encrypted (see v44)
       ],
     }),
     tableSchema({
@@ -181,7 +201,16 @@ export const sdkSchema = appSchema({
         { name: "conversation_id", type: "string", isIndexed: true },
         { name: "title", type: "string" },
         { name: "project_id", type: "string", isOptional: true, isIndexed: true },
-        { name: "created_at", type: "number" },
+        // Indexed to match every other list-sorted created_at in this schema.
+        // Note this single-column index is NOT what makes the conversation list
+        // reads fast on native SQLite — they all filter is_deleted as well, and
+        // SQLite will not combine the two indexes, so the composite created by
+        // the v42 migration is what its planner actually uses. This declaration
+        // still earns its keep on the other two adapters: LokiJS builds its
+        // binary indices from `isIndexed` (and ignores `sql` migration steps
+        // outright), and Postgres gathers statistics via autovacuum, so its
+        // planner can use a single-column index the SQLite planner skips.
+        { name: "created_at", type: "number", isIndexed: true },
         { name: "updated_at", type: "number" },
         { name: "is_deleted", type: "boolean", isIndexed: true },
         { name: "pinned_at", type: "number", isOptional: true },
@@ -270,6 +299,18 @@ export const sdkSchema = appSchema({
         // paths key on `updated_at` — so without this a topic-only change would
         // neither upload nor merge. Null = `topics` never written.
         { name: "topics_updated_at", type: "number", isOptional: true },
+        // The photo(s) a SERVER-EXTRACTED memory was read out of, as a JSON
+        // array of `{feed_item_id, object_key}` — exactly what
+        // GET /api/memories/published returns in `media[]`. Enough to render the
+        // source image without a second round-trip per memory.
+        //
+        // A JSON column rather than a join table: nothing on the client ever
+        // queries BY photo (the only direction is memory -> render its image),
+        // so a table would add a sync lane and a local-id space to serve a
+        // question nobody asks. `topics` and `source_chunk_ids` set the
+        // precedent for a list that is only ever read back whole. Null on
+        // anything not extracted from a photo.
+        { name: "media", type: "string", isOptional: true },
         // Unix ms of the last LLM topic-extraction pass over this memory's
         // content. Null = never extracted standalone (legacy rows with entity
         // links are grandfathered — see getMemoriesNeedingTopicExtractionOp).
@@ -520,7 +561,9 @@ export const sdkSchema = appSchema({
  * - v39 → v40: Added `fact_type`, `archived_at`, `trust_tier` columns to memory_vault for typed memory + decay + Tier-0 security (all nullable + plaintext, NULL backfill)
  * - v40 → v41: Added `visibility`, `twin_opt_in`, `published_at`, `geohash` columns to memory_vault for the People Nearby cross-user visibility axis (two-tier `private | public`; null/unknown grandfathered as 'private')
  * - v41 → v42: Added `topics` + `topics_updated_at` columns to memory_vault, making a memory's topics the durable synced record and `entity`/`memory_entity` a device-local index over it (null `topics` = pre-v42, backfilled from the row's current links by the sweep)
- * - v42 → v43: Added `facet_key` (indexed) + `facet_value` columns to memory_vault recording a memory's facet slot+value, stamped by retain() on create for other consumers (they do NOT drive dedup — semantic search + the decide model does). All nullable, NO backfill — existing rows keep both NULL (= no facet recorded). Both PLAINTEXT (TEST) and need privacy sign-off before ship — see the column note and SDK_SCHEMA_VERSION doc.
+ * - v42 → v43: Added a composite `(is_deleted, created_at)` index to conversations so the list reads stop temp-sorting (structural only, no data rewritten)
+ * - v43 → v44: Added `origin` column to history recording which producer synthesised a row, so the embedding sweep can skip never-rendered tool-result dumps (plaintext by design — the sweep has no wallet context; null = legacy, embedded as before)
+ * - v45 → v46: Added `facet_key` (indexed) + `facet_value` columns to memory_vault recording a memory's facet slot+value, stamped by retain() on create for other consumers (they do NOT drive dedup — semantic search + the decide model does). All nullable, NO backfill — existing rows keep both NULL (= no facet recorded). Both PLAINTEXT (TEST) and need privacy sign-off before ship — see the column note and SDK_SCHEMA_VERSION doc.
  */
 export const sdkMigrations = schemaMigrations({
   migrations: [
@@ -1109,7 +1152,74 @@ export const sdkMigrations = schemaMigrations({
         }),
       ],
     },
-    // v42 -> v43: facet_key (indexed) + facet_value on memory_vault, recording a
+    // v42 -> v43: Give the conversation list reads an index they can actually
+    // sort on. All five of them (getConversationsOp, getConversationsLazyOp,
+    // getConversationsByProjectOp, getConversationsByProjectLazyOp and the
+    // keyset getConversationsPageOp) emit `where is_deleted is 0 ... order by
+    // created_at desc`, so before this they resolved is_deleted through its
+    // index and then built a temp B-tree over every live row just to return
+    // the newest page.
+    //
+    // The index is COMPOSITE, and that is the whole point — a bare index on
+    // created_at does not fix this. SQLite will not combine two single-column
+    // indexes here, so with `is_deleted` indexed and `created_at` indexed
+    // separately it still picks conversations_is_deleted and still temp-sorts.
+    // It only prefers a lone created_at index once ANALYZE has populated
+    // sqlite_stat1, and nothing ever runs ANALYZE: not WatermelonDB, not its
+    // native SQLite bindings, not this SDK. Every device is permanently in the
+    // no-statistics state, so the index has to satisfy the filter and the sort
+    // in one structure. `(is_deleted, created_at)` does: equality on the
+    // leading column, ordered scan on the second, and the keyset boundary
+    // becomes a range seek on the same index.
+    //
+    // unsafeExecuteSql, not addColumns: both columns already exist and
+    // WatermelonDB has no add-index migration step, so raw SQL is the only way
+    // to build one in place (same shape as the v19 -> v20 memory_vault
+    // migration). IF NOT EXISTS keeps the step idempotent.
+    //
+    // Two limits worth knowing before someone re-measures this and finds it
+    // missing. First, the LokiJS (web) adapter discards `sql` steps entirely,
+    // so existing browser databases gain nothing — web's only lever is the
+    // `isIndexed` flag on the column itself. Second, this index reaches
+    // MIGRATED databases only: WatermelonDB builds a fresh database purely from
+    // the encoded schema, and its schema format cannot express a composite
+    // index. The one hook that could (`unsafeSql` on the table) is a function,
+    // and the LokiJS adapter posts the schema to its worker, so attaching it
+    // makes the whole schema fail structuredClone and takes the database down
+    // at setup for anyone on `useWebWorker: true`. Not worth it for an index.
+    {
+      toVersion: 43,
+      steps: [
+        unsafeExecuteSql(
+          "CREATE INDEX IF NOT EXISTS conversations_is_deleted_created_at ON conversations (is_deleted, created_at);"
+        ),
+      ],
+    },
+    // v43 -> v44: Added origin column to history — the provenance tag the embedding
+    // sweep reads to skip never-rendered tool-result rows. No backfill: NULL means
+    // "legacy, provenance unknown" and keeps the pre-v44 behaviour of embedding the
+    // row, so the only rows that stop being embedded are ones a v44+ producer tagged.
+    {
+      toVersion: 44,
+      steps: [
+        addColumns({
+          table: "history",
+          columns: [{ name: "origin", type: "string", isOptional: true }],
+        }),
+      ],
+    },
+    // v44 -> v45: `media` on memory_vault — the photo(s) a server-extracted
+    // memory was read out of, as JSON `[{feed_item_id, object_key}]`, mirroring
+    // the `media[]` that GET /api/memories/published already returns. Existing
+    // rows keep NULL, which is the correct value for every memory that did not
+    // come from a photo (i.e. all of them until photo ingest runs).
+    {
+      toVersion: 45,
+      steps: [
+        addColumns({
+          table: "memory_vault",
+          columns: [{ name: "media", type: "string", isOptional: true }],
+    // v45 -> v46: facet_key (indexed) + facet_value on memory_vault, recording a
     // memory's facet slot+value for consumers that want it. Existing rows keep
     // both NULL — no backfill: a legacy row's content is encrypted, so its
     // slot/value can't be classified in-migration (exact fact_type /
@@ -1121,7 +1231,7 @@ export const sdkMigrations = schemaMigrations({
     // encryption; `facet_key` leaks the slot shape like `fact_type`. Encrypt /
     // protect facet_value before ship — needs privacy sign-off.
     {
-      toVersion: 43,
+      toVersion: 46,
       steps: [
         addColumns({
           table: "memory_vault",

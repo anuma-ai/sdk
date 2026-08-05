@@ -2,7 +2,7 @@
 
 > **postApiV1AuthMfaTotpEnrollInit**<`ThrowOnError`>(`options?`: [`Options`](../type-aliases/Options.md)<[`PostApiV1AuthMfaTotpEnrollInitData`](../type-aliases/PostApiV1AuthMfaTotpEnrollInitData.md), `ThrowOnError`, `unknown`>): `RequestResult`<[`PostApiV1AuthMfaTotpEnrollInitResponses`](../type-aliases/PostApiV1AuthMfaTotpEnrollInitResponses.md), [`PostApiV1AuthMfaTotpEnrollInitErrors`](../type-aliases/PostApiV1AuthMfaTotpEnrollInitErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:555](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#555)
+Defined in: [src/client/sdk.gen.ts:614](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#614)
 
 Begin TOTP enrollment
 

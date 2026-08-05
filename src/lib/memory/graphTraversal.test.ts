@@ -602,7 +602,7 @@ describe("recall graph lane — archived / quarantined never leak", () => {
       vaultCtx,
       entityCtx,
       embeddingOptions: { apiKey: "test-key" },
-      vaultCache: new Map<string, number[]>(),
+      vaultCache: new Map<string, Float32Array>(),
     };
     const result = await recall(QUERY, recallCtx, { budget: "low", minScore: 0 });
 
@@ -652,7 +652,7 @@ describe("recall graph lane — archived / quarantined never leak", () => {
       vaultCtx,
       entityCtx,
       embeddingOptions: { apiKey: "test-key" },
-      vaultCache: new Map<string, number[]>(),
+      vaultCache: new Map<string, Float32Array>(),
     };
     // budget:"low" → single-hop path (traverse=false), no reverse-edge expansion.
     await recall(QUERY, recallCtx, { budget: "low", minScore: 0 });

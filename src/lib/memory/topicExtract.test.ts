@@ -23,6 +23,8 @@ import {
   stampTopicsExtractedAtOp,
   type VaultMemoryOperationsContext,
 } from "../db/memoryVault/operations";
+import type { NerDetector, PiiSpan } from "../pii/ner";
+import { PiiRedactor } from "../pii/redactor";
 import {
   extractAndLinkEntitiesForMemoriesOp,
   extractEntitiesForMemories,
@@ -301,6 +303,54 @@ describe("extractEntitiesForMemories", () => {
     const rawBody = (fetchFn as ReturnType<typeof vi.fn>).mock.calls[0][1].body as string;
     expect(rawBody).not.toContain("sara@example.com");
     expect(rawBody).toContain("ZetaChain");
+  });
+
+  // The redactor a caller HANDS us may carry an NER detector, and NER runs only
+  // in `redactTextAsync` — the sync `redactText` is regex-only. Redacting this
+  // path synchronously shipped every name, location and org to the portal in
+  // plain text while emails and phones came back masked, so the leak looked like
+  // working redaction, and only for the callers who configured a detector. It
+  // hurt worst here: a person's name IS the entity this call is asking for, so
+  // the whole vocabulary of canonical names egressed raw too.
+  it("applies the caller's NER detector to contents AND vocabulary, not just the regex half", async () => {
+    // A bare personal name — deliberately something no redactor regex matches.
+    // If NER is skipped it survives into the request body.
+    const name = "Marguerite Okonkwo";
+    const detector: NerDetector = {
+      async detect(text: string): Promise<PiiSpan[]> {
+        const spans: PiiSpan[] = [];
+        let at = text.indexOf(name);
+        while (at !== -1) {
+          spans.push({ start: at, end: at + name.length, category: "PERSON" });
+          at = text.indexOf(name, at + 1);
+        }
+        return spans;
+      },
+    };
+    // The model answers with the placeholder it was shown; restoreEntities has
+    // to map it back to the real name for storage.
+    const fetchFn = mockFetch(
+      topicResponse([{ id: "mem_1", entities: [{ name: "[PERSON_1]", kind: "person" }] }])
+    );
+    const result = await extractEntitiesForMemories(
+      [{ id: "mem_1", content: `Reviewed the launch doc with ${name}` }],
+      {
+        apiKey: "k",
+        fetchFn,
+        piiRedaction: new PiiRedactor({ nerDetector: detector }),
+        existingEntityNames: [name, "ZetaChain"],
+      }
+    );
+    const rawBody = (fetchFn as unknown as ReturnType<typeof vi.fn>).mock.calls[0][1]
+      .body as string;
+    expect(rawBody).not.toContain(name);
+    // Same number in the vocabulary note and the listing row — that shared
+    // numbering is what lets the model reuse the canonical name instead of
+    // minting a variant, and it only holds with ONE redactor awaited in order.
+    expect(rawBody.match(/\[PERSON_\d+\]/g)).toEqual(["[PERSON_1]", "[PERSON_1]"]);
+    expect(rawBody).toContain("ZetaChain");
+    // Round-trip: the placeholder the model echoed is stored as the real name.
+    expect(result.get("mem_1")).toEqual([{ name, kind: "person" }]);
   });
 });
 

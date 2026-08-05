@@ -1,5 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
+import type { NerDetector, PiiSpan } from "../pii/ner";
+import { PiiRedactor } from "../pii/redactor";
 import type { DecayInput } from "./decay";
 import { createLlmDecayClassifier } from "./decayClassifier";
 
@@ -13,6 +15,9 @@ function mockFetch(body: unknown, ok = true): typeof fetch {
 const choices = (jsonContent: unknown) => ({
   choices: [{ message: { content: JSON.stringify(jsonContent) } }],
 });
+
+/** NER-only PII: a bare personal name, matched by no regex in the redactor. */
+const NAME = "Marguerite Okonkwo";
 
 const DAY = 24 * 60 * 60 * 1000;
 // Fixed sweep clock passed as the classifier's `now` — determinism, and it
@@ -147,6 +152,42 @@ describe("createLlmDecayClassifier", () => {
     await classifier.classify(input(), "archive", NOW);
     // Explicit opt-out → raw content egresses verbatim.
     expect(sentBody).toContain("bob@acme.com");
+  });
+
+  // The redactor a caller HANDS us may carry an NER detector, and NER runs only
+  // in `redactTextAsync` — the sync `redactText` is regex-only. Redacting this
+  // path synchronously shipped every name, location and org to the portal in
+  // plain text while emails and phones came back masked, so the leak looked
+  // like working redaction, and only for the callers who configured a detector.
+  it("applies the caller's NER detector, not just the regex half of it", async () => {
+    const detector: NerDetector = {
+      async detect(text: string): Promise<PiiSpan[]> {
+        // A bare personal name — deliberately something no redactor regex
+        // matches. If NER is skipped it survives into the request body.
+        const spans: PiiSpan[] = [];
+        let at = text.indexOf(NAME);
+        while (at !== -1) {
+          spans.push({ start: at, end: at + NAME.length, category: "PERSON" });
+          at = text.indexOf(NAME, at + 1);
+        }
+        return spans;
+      },
+    };
+    let sentBody = "";
+    const fetchFn = vi.fn(async (_url: unknown, init: { body?: unknown }) => {
+      sentBody = String(init?.body ?? "");
+      return { ok: true, json: async () => choices({ verdict: "keep" }) };
+    }) as unknown as typeof fetch;
+    const classifier = createLlmDecayClassifier({
+      apiKey: "k",
+      fetchFn,
+      piiRedaction: new PiiRedactor({ nerDetector: detector }),
+      getContent: async () => `Was interviewing at ${NAME}'s startup last spring`,
+      backoffMs: () => 0,
+    });
+    expect(await classifier.classify(input(), "archive", NOW)).toBe("keep");
+    expect(sentBody).not.toContain(NAME);
+    expect(sentBody).toContain("[PERSON_1]");
   });
 
   it("falls back to the rule verdict when the row has no id", async () => {
