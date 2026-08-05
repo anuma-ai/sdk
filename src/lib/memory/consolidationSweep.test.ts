@@ -144,7 +144,9 @@ describe("createConsolidationSweeper — dedup", () => {
     expect(result.clustersFound).toBe(1);
     expect(result.superseded).toBe(1);
     // The shorter paraphrase 'b' is retired under the richer survivor 'a'.
-    expect(supersedeVaultMemoryOp).toHaveBeenCalledWith(vaultCtx, "b", "a");
+    expect(supersedeVaultMemoryOp).toHaveBeenCalledWith(vaultCtx, "b", "a", {
+      expectedProofCount: 1,
+    });
     // Survivor rewritten to the merged content + re-embedded.
     expect(updateVaultMemoryOp).toHaveBeenCalledWith(vaultCtx, "a", { content: "MERGED" });
     expect(eagerEmbedContent).toHaveBeenCalledWith(
@@ -211,7 +213,9 @@ describe("createConsolidationSweeper — dedup", () => {
     // the default supersede verdict applies.
     await sweeper.sweep();
     expect(consolidateMemory).toHaveBeenCalledTimes(2);
-    expect(supersedeVaultMemoryOp).toHaveBeenCalledWith(vaultCtx, "b", "a");
+    expect(supersedeVaultMemoryOp).toHaveBeenCalledWith(vaultCtx, "b", "a", {
+      expectedProofCount: 1,
+    });
   });
 
   it("maps a noop decision's targetId to a retire under the survivor (no survivor rewrite)", async () => {
@@ -231,7 +235,9 @@ describe("createConsolidationSweeper — dedup", () => {
     const result = await makeSweeper().sweep();
 
     expect(result.superseded).toBe(1);
-    expect(supersedeVaultMemoryOp).toHaveBeenCalledWith(vaultCtx, "b", "a");
+    expect(supersedeVaultMemoryOp).toHaveBeenCalledWith(vaultCtx, "b", "a", {
+      expectedProofCount: 1,
+    });
     // noop carries no merged content → the survivor row is left untouched.
     expect(updateVaultMemoryOp).not.toHaveBeenCalled();
   });
@@ -253,7 +259,9 @@ describe("createConsolidationSweeper — dedup", () => {
     vi.mocked(getConsolidationScanRawOp).mockResolvedValue(p);
     setStore(pStore);
     await sweeper.sweep();
-    expect(supersedeVaultMemoryOp).toHaveBeenCalledWith(vaultCtx, "p2", "p1");
+    expect(supersedeVaultMemoryOp).toHaveBeenCalledWith(vaultCtx, "p2", "p1", {
+      expectedProofCount: 1,
+    });
 
     // Sweep 2: P is now already-processed + two FRESH clusters F1, F2 appear.
     // 1 processed + 2 fresh, cap = 2. Buggy order (cap then skip) would process
@@ -279,8 +287,12 @@ describe("createConsolidationSweeper — dedup", () => {
     expect(result.clustersFound).toBe(3);
     // Both fresh clusters healed; the already-processed one consumed no slot.
     expect(result.clustersDropped).toBe(0);
-    expect(supersedeVaultMemoryOp).toHaveBeenCalledWith(vaultCtx, "f1b", "f1a");
-    expect(supersedeVaultMemoryOp).toHaveBeenCalledWith(vaultCtx, "f2b", "f2a");
+    expect(supersedeVaultMemoryOp).toHaveBeenCalledWith(vaultCtx, "f1b", "f1a", {
+      expectedProofCount: 1,
+    });
+    expect(supersedeVaultMemoryOp).toHaveBeenCalledWith(vaultCtx, "f2b", "f2a", {
+      expectedProofCount: 1,
+    });
   });
 
   it("caps clusters per sweep and reports the dropped count (no silent truncation)", async () => {
@@ -399,6 +411,55 @@ describe("createConsolidationSweeper — dryRun", () => {
     expect(supersedeVaultMemoryOp).not.toHaveBeenCalled();
     expect(updateVaultMemoryOp).not.toHaveBeenCalled();
     expect(eagerEmbedContent).not.toHaveBeenCalled();
+  });
+
+  it("does NOT memoize clusters on a dry run, so repeat dry runs keep reporting them", async () => {
+    // The rollout is "watch the dry-run counts, then flip to apply". Memoizing a
+    // cluster that was only COUNTED would make the second dry run report
+    // superseded: 0 for the same still-unfixed duplicates.
+    vi.mocked(getConsolidationScanRawOp).mockResolvedValue([
+      scanRow("a", [1, 0, 0]),
+      scanRow("b", [0.95, 0.05, 0]),
+    ]);
+    setStore([
+      stored("a", "Prefers light mode for their interface."),
+      stored("b", "Prefers light mode."),
+    ]);
+
+    const sweeper = makeSweeper({ dryRun: true });
+    const first = await sweeper.sweep();
+    const second = await sweeper.sweep();
+
+    expect(first.superseded).toBe(1);
+    expect(second.clustersFound).toBe(1);
+    expect(second.superseded).toBe(1);
+    expect(supersedeVaultMemoryOp).not.toHaveBeenCalled();
+  });
+});
+
+describe("createConsolidationSweeper — concurrent re-observation", () => {
+  it("passes the scan-time proof count so a row reinforced after the scan is not retired", async () => {
+    // retain()'s merge on an active row pins updated_at (preserveUpdatedAt) and
+    // only moves proof_count, so the guard has to key on proof_count. The op
+    // itself does the comparison; the sweep's job is to forward what it saw.
+    vi.mocked(getConsolidationScanRawOp).mockResolvedValue([
+      scanRow("a", [1, 0, 0]),
+      { ...scanRow("b", [0.95, 0.05, 0]), proofCount: 4 },
+    ]);
+    setStore([
+      stored("a", "Prefers light mode for their interface."),
+      stored("b", "Prefers light mode."),
+    ]);
+    // The op reports "stale" (a concurrent merge bumped proof_count), so the
+    // sweep must not count a supersede it didn't get.
+    vi.mocked(supersedeVaultMemoryOp).mockResolvedValue(false);
+
+    const result = await makeSweeper().sweep();
+
+    expect(supersedeVaultMemoryOp).toHaveBeenCalledWith(vaultCtx, "b", "a", {
+      expectedProofCount: 4,
+    });
+    expect(result.superseded).toBe(0);
   });
 });
 

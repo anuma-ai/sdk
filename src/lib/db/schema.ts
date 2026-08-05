@@ -1219,6 +1219,9 @@ export const sdkMigrations = schemaMigrations({
         addColumns({
           table: "memory_vault",
           columns: [{ name: "media", type: "string", isOptional: true }],
+        }),
+      ],
+    },
     // v45 -> v46: facet_key (indexed) + facet_value on memory_vault, recording a
     // memory's facet slot+value for consumers that want it. Existing rows keep
     // both NULL — no backfill: a legacy row's content is encrypted, so its

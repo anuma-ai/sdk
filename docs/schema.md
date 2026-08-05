@@ -1,6 +1,6 @@
 # Database Schema
 
-Current version: **v45**
+Current version: **v46**
 
 ```mermaid
 graph LR
@@ -134,6 +134,8 @@ graph LR
 | `twin_opt_in` | boolean |  | ✓ |
 | `published_at` | number |  | ✓ |
 | `geohash` | string |  | ✓ |
+| `facet_key` | string | ✓ | ✓ |
+| `facet_value` | string |  | ✓ |
 
 ## entity
 
@@ -235,6 +237,7 @@ graph LR
 
 | Version | Changes |
 |---------|---------|
+| v46 | Added `facet_key`, `facet_value` to `memory_vault` |
 | v45 | Added `media` to `memory_vault` |
 | v44 | Added `origin` to `history` |
 | v43 | `CREATE INDEX IF NOT EXISTS conversations_is_deleted_created_at ON conversations (is_deleted, created_at);` |

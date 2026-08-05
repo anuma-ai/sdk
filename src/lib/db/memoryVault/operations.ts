@@ -1546,7 +1546,23 @@ export async function deleteVaultMemoryOp(
 export async function supersedeVaultMemoryOp(
   ctx: VaultMemoryOperationsContext,
   id: string,
-  supersededById: string
+  supersededById: string,
+  opts?: {
+    /**
+     * Optimistic-concurrency guard: skip the supersede if the row's
+     * `proof_count` moved since the caller observed it (a concurrent
+     * re-observation). Keyed on `proof_count` and NOT `updated_at` on purpose —
+     * retain()'s merge on an ACTIVE row passes `preserveUpdatedAt: true`, so a
+     * re-observation bumps `proof_count` + `last_observed_at` while
+     * `updated_at` stays pinned. An `expectedUpdatedAt`-style guard (see
+     * {@link archiveVaultMemoryOp}) therefore cannot see a merge at all, which
+     * is exactly the race a background sweep hits: it selects a cluster, retain
+     * reinforces one of the non-survivors, and the sweep would still retire the
+     * freshly-confirmed row. Omit for callers that have no scan to be stale
+     * against (retain's own supersede paths write in the same turn).
+     */
+    expectedProofCount?: number | null;
+  }
 ): Promise<boolean> {
   // A memory can't supersede itself.
   if (id === supersededById) return false;
@@ -1580,6 +1596,15 @@ export async function supersedeVaultMemoryOp(
         return;
       }
       if (successor.isDeleted || successor.supersededBy || !isOwnedByCtxUser(ctx, successor)) {
+        stale = true;
+        return;
+      }
+      if (
+        opts?.expectedProofCount !== undefined &&
+        (record.proofCount ?? 0) !== (opts.expectedProofCount ?? 0)
+      ) {
+        // A retain() merge reinforced this row between the caller's scan and
+        // this write — the fact was just re-observed, so it must NOT be retired.
         stale = true;
         return;
       }

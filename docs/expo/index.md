@@ -826,6 +826,18 @@ Re-exports [ExtractOutcome](../react/Internal/type-aliases/ExtractOutcome.md)
 
 ***
 
+### FACET\_SLOTS
+
+Re-exports [FACET\_SLOTS](../react/Internal/variables/FACET_SLOTS.md)
+
+***
+
+### FacetSlot
+
+Re-exports [FacetSlot](../react/Internal/type-aliases/FacetSlot.md)
+
+***
+
 ### FactType
 
 Re-exports [FactType](../react/Internal/type-aliases/FactType.md)
@@ -967,6 +979,12 @@ Re-exports [getUnfiledVaultMemoriesOp](../react/Internal/functions/getUnfiledVau
 ### getVaultFolderMemoryCountOp
 
 Re-exports [getVaultFolderMemoryCountOp](../react/Internal/functions/getVaultFolderMemoryCountOp.md)
+
+***
+
+### getVaultMemoriesByFacetKeyOp
+
+Re-exports [getVaultMemoriesByFacetKeyOp](../react/Internal/functions/getVaultMemoriesByFacetKeyOp.md)
 
 ***
 

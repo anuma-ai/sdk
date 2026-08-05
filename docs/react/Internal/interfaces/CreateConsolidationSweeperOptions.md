@@ -1,6 +1,6 @@
 # CreateConsolidationSweeperOptions
 
-Defined in: [src/lib/memory/types.ts:482](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#482)
+Defined in: [src/lib/memory/types.ts:576](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#576)
 
 ## Properties
 
@@ -8,7 +8,7 @@ Defined in: [src/lib/memory/types.ts:482](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **consolidateOptions**: [`PortalLlmAuth`](PortalLlmAuth.md) & `object`
 
-Defined in: [src/lib/memory/types.ts:504](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#504)
+Defined in: [src/lib/memory/types.ts:598](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#598)
 
 LLM decide-model auth/endpoint. REQUIRED for the dedup step — it egresses
 DECRYPTED cluster content to the portal decide model (same trust posture as
@@ -75,7 +75,7 @@ redactor.
 
 > `optional` **consolidateThreshold**: `number`
 
-Defined in: [src/lib/memory/types.ts:517](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#517)
+Defined in: [src/lib/memory/types.ts:611](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#611)
 
 Cosine floor to cluster near-duplicates. Default 0.55 — matches retain's
 `DEFAULT_CONSOLIDATE_THRESHOLD` (deliberately conservative: too low a floor
@@ -87,7 +87,7 @@ risks clustering distinct same-subject facts and retiring a correct one).
 
 > `optional` **dryRun**: `boolean`
 
-Defined in: [src/lib/memory/types.ts:532](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#532)
+Defined in: [src/lib/memory/types.ts:626](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#626)
 
 When true, compute + log/return what WOULD be superseded / junk-deleted /
 backfilled but apply NOTHING. **Default true** (safe): the sweep also drives
@@ -100,7 +100,7 @@ with `dryRun: false` to APPLY. Ship the first rollout log-only, then flip.
 
 > **embeddingOptions**: [`MemoryEngineEmbeddingOptions`](MemoryEngineEmbeddingOptions.md)
 
-Defined in: [src/lib/memory/types.ts:488](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#488)
+Defined in: [src/lib/memory/types.ts:582](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#582)
 
 Embedding API options — used to backfill un-embedded rows and to re-embed a
 merged survivor so its vector stays consistent with its new content.
@@ -111,7 +111,7 @@ merged survivor so its vector stays consistent with its new content.
 
 > `optional` **maxBackfillPerSweep**: `number`
 
-Defined in: [src/lib/memory/types.ts:520](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#520)
+Defined in: [src/lib/memory/types.ts:614](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#614)
 
 Max un-embedded rows to backfill per sweep. Default 50. Bounded so a large
 vault drains its backlog across sweeps rather than in one spike.
@@ -122,7 +122,7 @@ vault drains its backlog across sweeps rather than in one spike.
 
 > `optional` **maxClustersPerSweep**: `number`
 
-Defined in: [src/lib/memory/types.ts:527](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#527)
+Defined in: [src/lib/memory/types.ts:621](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#621)
 
 Max multi-row clusters to consolidate (i.e. portal calls) per sweep.
 Default 20. Excess clusters are deferred and counted in
@@ -134,7 +134,7 @@ Default 20. Excess clusters are deferred and counted in
 
 > `optional` **maxJunkChecksPerSweep**: `number`
 
-Defined in: [src/lib/memory/types.ts:523](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#523)
+Defined in: [src/lib/memory/types.ts:617](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#617)
 
 Max rows to decrypt + junk-check per sweep (a stable clean row is not
 re-checked until its `updated_at` changes). Default 50.
@@ -145,7 +145,7 @@ re-checked until its `updated_at` changes). Default 50.
 
 > `optional` **now**: `number` | () => `number`
 
-Defined in: [src/lib/memory/types.ts:497](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#497)
+Defined in: [src/lib/memory/types.ts:591](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#591)
 
 Reference "now". A number is fixed (deterministic tests); a function is
 re-evaluated per sweep. Default `Date.now`. (Reserved for future
@@ -157,7 +157,7 @@ time-based heuristics; the sweep is otherwise time-independent.)
 
 > `optional` **onError**: (`error`: `Error`) => `void`
 
-Defined in: [src/lib/memory/types.ts:536](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#536)
+Defined in: [src/lib/memory/types.ts:630](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#630)
 
 Diagnostic — fires on an unexpected sweep-level error.
 
@@ -196,7 +196,7 @@ Diagnostic — fires on an unexpected sweep-level error.
 
 > `optional` **onSwept**: (`result`: [`ConsolidationSweepResult`](ConsolidationSweepResult.md)) => `void`
 
-Defined in: [src/lib/memory/types.ts:534](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#534)
+Defined in: [src/lib/memory/types.ts:628](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#628)
 
 Fires once after each sweep with the counts (UI / telemetry).
 
@@ -235,7 +235,7 @@ Fires once after each sweep with the counts (UI / telemetry).
 
 > **vaultCache**: [`VaultEmbeddingCache`](../type-aliases/VaultEmbeddingCache.md)
 
-Defined in: [src/lib/memory/types.ts:491](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#491)
+Defined in: [src/lib/memory/types.ts:585](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#585)
 
 Vault embedding LRU cache shared with recall/retain — kept in sync on
 backfill / survivor re-embed.
@@ -246,7 +246,7 @@ backfill / survivor re-embed.
 
 > **vaultCtx**: [`VaultMemoryOperationsContext`](VaultMemoryOperationsContext.md)
 
-Defined in: [src/lib/memory/types.ts:485](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#485)
+Defined in: [src/lib/memory/types.ts:579](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#579)
 
 Vault write context — the same one recall/retain use. Must be scoped
 (userId) or explicitly `singleTenant` (per-wallet client DB).

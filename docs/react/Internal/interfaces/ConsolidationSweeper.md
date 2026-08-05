@@ -1,6 +1,6 @@
 # ConsolidationSweeper
 
-Defined in: [src/lib/memory/types.ts:540](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#540)
+Defined in: [src/lib/memory/types.ts:634](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#634)
 
 ## Methods
 
@@ -8,7 +8,7 @@ Defined in: [src/lib/memory/types.ts:540](https://github.com/anuma-ai/sdk/blob/m
 
 > **dispose**(): `void`
 
-Defined in: [src/lib/memory/types.ts:550](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#550)
+Defined in: [src/lib/memory/types.ts:644](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#644)
 
 Stop accepting sweeps. An in-flight `sweep()` resolves normally.
 
@@ -22,7 +22,7 @@ Stop accepting sweeps. An in-flight `sweep()` resolves normally.
 
 > **sweep**(): `Promise`<[`ConsolidationSweepResult`](ConsolidationSweepResult.md)>
 
-Defined in: [src/lib/memory/types.ts:548](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#548)
+Defined in: [src/lib/memory/types.ts:642](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#642)
 
 Scan the vault, backfill missing embeddings, purge junk, and collapse
 near-duplicate clusters (retiring stale rows as history). Safe to call

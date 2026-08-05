@@ -1692,6 +1692,86 @@ describe("retain — embeddings outage must not silently duplicate", () => {
   });
 });
 
+describe("retain — confirmed saves keep the richer wording on a cosine merge", () => {
+  it('source "manual": a longer confirmed fact rewrites the stored content + re-embeds', async () => {
+    // The memory_vault_save tool routes a user-CONFIRMED save through retain's
+    // strict cosine merge. Keeping the stored (shorter) text would silently drop
+    // the qualifier the user just confirmed.
+    mockVaultMatches([{ uniqueId: "short", content: "Prefers light mode.", similarity: 0.86 }]);
+    vi.mocked(getVaultMemoryOp).mockResolvedValue({
+      uniqueId: "short",
+      content: "Prefers light mode.",
+      proofCount: 1,
+    } as never);
+    vi.mocked(updateVaultMemoryOp).mockResolvedValue({
+      uniqueId: "short",
+      proofCount: 2,
+    } as never);
+
+    const result = await retain("Prefers light mode for their interface.", ctx, {
+      source: "manual",
+    });
+
+    expect(result).toMatchObject({ action: "merge", memoryId: "short" });
+    // Richer content wins, and the vector is refreshed with it (the prepared
+    // query embedding IS the vector for the incoming text).
+    expect(vi.mocked(updateVaultMemoryOp)).toHaveBeenCalledWith(
+      mockVaultCtx,
+      "short",
+      expect.objectContaining({
+        content: "Prefers light mode for their interface.",
+        embedding: JSON.stringify([0.1, 0.2, 0.3]),
+        proofCountIncrement: 1,
+      })
+    );
+  });
+
+  it("keeps the stored wording when the confirmed fact is SHORTER", async () => {
+    mockVaultMatches([
+      { uniqueId: "long", content: "Prefers light mode for their interface.", similarity: 0.86 },
+    ]);
+    vi.mocked(getVaultMemoryOp).mockResolvedValue({
+      uniqueId: "long",
+      content: "Prefers light mode for their interface.",
+      proofCount: 1,
+    } as never);
+    vi.mocked(updateVaultMemoryOp).mockResolvedValue({
+      uniqueId: "long",
+      proofCount: 2,
+    } as never);
+
+    await retain("Prefers light mode.", ctx, { source: "manual" });
+
+    const opts = vi.mocked(updateVaultMemoryOp).mock.calls[0]![2];
+    expect(opts).toMatchObject({ content: "Prefers light mode for their interface." });
+    // No content change → no re-embed.
+    expect(opts).not.toHaveProperty("embedding");
+  });
+
+  it("auto-extracted re-observations keep the stored wording (inferred, not confirmed)", async () => {
+    // Only a confirmed save is authoritative about phrasing; extraction stays on
+    // the previous behaviour so a paraphrase can't churn content every turn.
+    mockVaultMatches([{ uniqueId: "short", content: "Prefers light mode.", similarity: 0.86 }]);
+    vi.mocked(getVaultMemoryOp).mockResolvedValue({
+      uniqueId: "short",
+      content: "Prefers light mode.",
+      proofCount: 1,
+    } as never);
+    vi.mocked(updateVaultMemoryOp).mockResolvedValue({
+      uniqueId: "short",
+      proofCount: 2,
+    } as never);
+
+    await retain("Prefers light mode for their interface.", ctx, {
+      source: "auto-extracted",
+    });
+
+    const opts = vi.mocked(updateVaultMemoryOp).mock.calls[0]![2];
+    expect(opts).toMatchObject({ content: "Prefers light mode." });
+    expect(opts).not.toHaveProperty("embedding");
+  });
+});
+
 describe("retain — facet columns (v43 metadata, not a dedup path)", () => {
   const consolidateOptions = { apiKey: "k" };
   const UI_THEME = "preference:self:ui_theme";

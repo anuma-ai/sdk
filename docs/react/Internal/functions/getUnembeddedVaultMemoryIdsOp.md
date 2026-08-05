@@ -2,7 +2,7 @@
 
 > **getUnembeddedVaultMemoryIdsOp**(`ctx`: [`VaultMemoryOperationsContext`](../interfaces/VaultMemoryOperationsContext.md)): `Promise`<`string`\[]>
 
-Defined in: [src/lib/db/memoryVault/operations.ts:2177](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#2177)
+Defined in: [src/lib/db/memoryVault/operations.ts:2360](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#2360)
 
 Ids of ACTIVE vault rows that have NO embedding yet — the backfill targets for
 the consolidation sweep (a row without a vector can't be clustered). Same

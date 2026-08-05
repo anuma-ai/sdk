@@ -273,8 +273,30 @@ export async function retain(
           // `{ preserveUpdatedAt: true }`, exactly main's normal proof-count
           // re-observation path (bump proof_count without inflating recency).
           const resurrect = resurrectFields(existing);
+          // A user-CONFIRMED save (the `memory_vault_save` tool routes here with
+          // source "manual") is authoritative about wording. Keeping
+          // `existing.content` on a near-duplicate merge would silently discard
+          // the richer phrasing the user just confirmed — e.g. stored "Prefers
+          // light mode." absorbing a confirmed "Prefers light mode for their
+          // interface." and dropping the qualifier. Prefer the longer text on
+          // that path only; auto-extracted re-observations keep the stored
+          // wording as before (they're inferred, not confirmed). Same
+          // longest-wins notion `pickSurvivor` uses in the sweep.
+          const preferIncoming =
+            options.source === "manual" && trimmed.length > existing.content.length;
+          const contentForMerge = preferIncoming ? trimmed : existing.content;
+          // Rewriting content invalidates the stored vector, so re-embed exactly
+          // like the consolidate-update path does. The prepared query embedding
+          // IS the vector for `trimmed`, so this costs no extra API call.
+          const mergeEmbedding = preferIncoming ? prepared?.queryEmbedding : undefined;
           const updated = await updateVaultMemoryOp(ctx.vaultCtx, targetId, {
-            content: existing.content,
+            content: contentForMerge,
+            ...(mergeEmbedding?.length
+              ? {
+                  embedding: JSON.stringify(mergeEmbedding),
+                  embeddingModel: embeddingOptions.model ?? DEFAULT_API_EMBEDDING_MODEL,
+                }
+              : {}),
             proofCountIncrement: 1,
             sourceChunkIds: mergedSourceIds,
             // resurrect encodes the decay gate: ACTIVE target → { preserveUpdatedAt:
@@ -294,6 +316,12 @@ export async function retain(
             ...(factTypeUpdate !== undefined && { factType: factTypeUpdate }),
           });
           if (updated) {
+            // Keep the id-keyed cache in step with a rewritten row, same as the
+            // consolidate-update path — set only AFTER the write committed so a
+            // failed update can't poison the cache with a never-persisted vector.
+            if (mergeEmbedding?.length) {
+              ctx.vaultCache.set(targetId, Float32Array.from(mergeEmbedding));
+            }
             return {
               action: "merge",
               memoryId: targetId,

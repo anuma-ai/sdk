@@ -366,6 +366,12 @@ export function createConsolidationSweeper(
 
     const vecById = new Map(cluster.map((c) => [c.uniqueId, c.vec]));
     const scanUpdatedById = new Map(cluster.map((c) => [c.uniqueId, c.updatedAt]));
+    // Scan-time proof counts, so a row reinforced between the scan and the write
+    // is NOT retired. `proof_count` is the discriminator rather than `updatedAt`
+    // because retain()'s merge on an active row pins `updated_at`
+    // (`preserveUpdatedAt`) and only moves proof/last-observed — see the guard
+    // note on `supersedeVaultMemoryOp`.
+    const scanProofById = new Map(cluster.map((c) => [c.uniqueId, c.proofCount]));
     const survivor = pickSurvivor(live);
     const survivorVec = vecById.get(survivor.uniqueId);
     const candidates = live
@@ -395,7 +401,13 @@ export function createConsolidationSweeper(
 
     await applySurvivorMerge(survivor, mergedContent, scanUpdatedById.get(survivor.uniqueId));
     for (const staleId of staleIds) {
-      if (await supersedeVaultMemoryOp(vaultCtx, staleId, survivor.uniqueId)) result.superseded++;
+      if (
+        await supersedeVaultMemoryOp(vaultCtx, staleId, survivor.uniqueId, {
+          expectedProofCount: scanProofById.get(staleId) ?? null,
+        })
+      ) {
+        result.superseded++;
+      }
     }
   }
 
@@ -461,12 +473,15 @@ export function createConsolidationSweeper(
     for (const { cluster, sig } of toProcess) {
       try {
         await consolidateCluster(cluster, result);
-        // Memoize ONLY on a clean run. A stable create/no-op judgement is
-        // legitimately cached here so it isn't re-egressed next sweep; but a
-        // THROWN consolidate (a transient portal blip) must NOT be memoized —
-        // leave the cluster for the next sweep to retry, otherwise a one-off
-        // outage would permanently skip a real duplicate.
-        alreadyProcessed.add(sig);
+        // Memoize ONLY on a clean APPLY run. Two exclusions:
+        //  - a THROWN consolidate (transient portal blip) must not be memoized,
+        //    or a one-off outage would permanently skip a real duplicate;
+        //  - `dryRun` must not memoize either. A dry run counts what it WOULD
+        //    supersede and applies nothing, so caching the signature makes the
+        //    NEXT dry run report `superseded: 0` for the same still-unfixed
+        //    clusters — which breaks the "watch the dry-run counts, then flip to
+        //    apply" rollout this sweeper defaults to.
+        if (!dryRun) alreadyProcessed.add(sig);
       } catch (err) {
         reportError(err);
       }

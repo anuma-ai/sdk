@@ -351,6 +351,8 @@ describe("createAutoExtractor", () => {
           sourceMessageIds: ["m1"],
           entities: [],
           eventTime: null,
+          facetKey: null,
+          facetValue: null,
         },
         {
           content: "fact 2",
@@ -359,6 +361,8 @@ describe("createAutoExtractor", () => {
           sourceMessageIds: ["m1"],
           entities: [],
           eventTime: null,
+          facetKey: null,
+          facetValue: null,
         },
       ],
       results: [

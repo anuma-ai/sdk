@@ -2,7 +2,7 @@
 
 > **getConsolidationScanRawOp**(`ctx`: [`VaultMemoryOperationsContext`](../interfaces/VaultMemoryOperationsContext.md)): `Promise`<[`ConsolidationScanRaw`](../interfaces/ConsolidationScanRaw.md)\[]>
 
-Defined in: [src/lib/db/memoryVault/operations.ts:2152](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#2152)
+Defined in: [src/lib/db/memoryVault/operations.ts:2335](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#2335)
 
 Consolidation sweep candidate scan (Fix C). Selects the content-light columns
 the background dedup sweep clusters over, via `unsafeFetchRaw` — NO Model per

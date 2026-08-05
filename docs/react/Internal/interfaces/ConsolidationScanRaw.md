@@ -1,6 +1,6 @@
 # ConsolidationScanRaw
 
-Defined in: [src/lib/db/memoryVault/operations.ts:2123](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#2123)
+Defined in: [src/lib/db/memoryVault/operations.ts:2306](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#2306)
 
 The content-light shape the background CONSOLIDATION sweep (Fix C) needs to
 CLUSTER active rows by cosine before it decrypts anything. Mirrors
@@ -13,7 +13,7 @@ the sweep decrypts just the (small) clusters that actually near-duplicate.
 
 > **embedding**: `string` | `null`
 
-Defined in: [src/lib/db/memoryVault/operations.ts:2128](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#2128)
+Defined in: [src/lib/db/memoryVault/operations.ts:2311](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#2311)
 
 JSON-stringified embedding vector; null on rows not yet embedded. A row
 with no vector is invisible to cosine clustering — the sweep backfills those
@@ -25,7 +25,7 @@ separately (see [getUnembeddedVaultMemoryIdsOp](../functions/getUnembeddedVaultM
 
 > **embeddingModel**: `string` | `null`
 
-Defined in: [src/lib/db/memoryVault/operations.ts:2131](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#2131)
+Defined in: [src/lib/db/memoryVault/operations.ts:2314](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#2314)
 
 Model that produced `embedding`. Clustering only compares rows sharing a
 model (cosine across different embedding spaces is meaningless).
@@ -36,7 +36,7 @@ model (cosine across different embedding spaces is meaningless).
 
 > **folderId**: `string` | `null`
 
-Defined in: [src/lib/db/memoryVault/operations.ts:2133](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#2133)
+Defined in: [src/lib/db/memoryVault/operations.ts:2316](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#2316)
 
 ***
 
@@ -44,7 +44,7 @@ Defined in: [src/lib/db/memoryVault/operations.ts:2133](https://github.com/anuma
 
 > **proofCount**: `number` | `null`
 
-Defined in: [src/lib/db/memoryVault/operations.ts:2138](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#2138)
+Defined in: [src/lib/db/memoryVault/operations.ts:2321](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#2321)
 
 Re-observation count; the survivor picker prefers the most-reinforced row.
 
@@ -54,7 +54,7 @@ Re-observation count; the survivor picker prefers the most-reinforced row.
 
 > **scope**: `string`
 
-Defined in: [src/lib/db/memoryVault/operations.ts:2132](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#2132)
+Defined in: [src/lib/db/memoryVault/operations.ts:2315](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#2315)
 
 ***
 
@@ -62,7 +62,7 @@ Defined in: [src/lib/db/memoryVault/operations.ts:2132](https://github.com/anuma
 
 > **uniqueId**: `string`
 
-Defined in: [src/lib/db/memoryVault/operations.ts:2124](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#2124)
+Defined in: [src/lib/db/memoryVault/operations.ts:2307](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#2307)
 
 ***
 
@@ -70,7 +70,7 @@ Defined in: [src/lib/db/memoryVault/operations.ts:2124](https://github.com/anuma
 
 > **updatedAt**: `number`
 
-Defined in: [src/lib/db/memoryVault/operations.ts:2136](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#2136)
+Defined in: [src/lib/db/memoryVault/operations.ts:2319](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#2319)
 
 Unix ms `updated_at` — the cluster-cache version key: a re-observed row
 (bumped `updated_at`) re-enters its cluster's re-evaluation.
