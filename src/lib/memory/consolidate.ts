@@ -47,33 +47,34 @@ import { notifyConsolidationFallback } from "./consolidationFallback.js";
 import { callPortalJsonCompletion, type PortalLlmAuth } from "./portalLlm.js";
 import type { ConsolidationFallbackReason } from "./types.js";
 
-// Consolidation decide model. minimax-m3 is MiniMax's flagship model, routable
-// on the portal (the client already uses minimax elsewhere for image
-// orchestration), and it discriminates create/update/supersede/noop on the
-// benchmark cases. It reasons over the SAME chat-derived facts as extraction, so
-// it stays on a portal-routed provider rather than a closed third party that
-// would reopen the privacy gap the extractor default closes.
+// Consolidation decide model. ling-2.6-flash is portal-routed, so this reasons
+// over the SAME chat-derived facts as extraction without handing them to a
+// closed third party (the privacy gap the extractor default closes), and it is
+// in portalLlm.ts's `RESPONSE_FORMAT_OK` (openai / inclusionai / deepseek) — so
+// `supportsResponseFormat` returns true and the call gets a real
+// `response_format: json_object` rather than relying on prompt discipline alone.
+// The tolerant `extractJsonCandidate` parser stays as a second line of defence.
 //
-// PROMPT-INSTRUCTED, no `response_format`. minimax is NOT in portalLlm.ts's
-// `RESPONSE_FORMAT_OK` (openai / inclusionai / deepseek), so
-// `supportsResponseFormat("minimax/minimax-m3")` returns false and portalLlm.ts
-// OMITS the `response_format` field for this call. That is deliberate: it is
-// UNVERIFIED that minimax accepts `response_format: json_object`, and a wrong
-// add would 400 the whole request. Do NOT add minimax to RESPONSE_FORMAT_OK
-// without verifying it. Reliability instead rides on the strict-JSON system
-// prompt (`SYSTEM_PROMPT` below, "OUTPUT — strict JSON, no prose") plus the
-// tolerant `extractJsonCandidate` parser in portalLlm.ts, which extracts the
-// JSON object even when the model wraps it in prose or a code fence.
+// WHY NOT minimax-m3: it was tried here and reverted. On the committed 12-case
+// benchmark it scored 1/30 attempts on the `update` category (both update cases
+// failing ~97% of runs) for an overall 0.839, against ling's 1.0 over 25 runs
+// with stdDev 0. `update` is the "same facet, adds information → keep the richer
+// version" decision, so losing it means richer detail is silently dropped (the
+// case falls to `noop`) or duplicated (`create`) — the same failure mode as the
+// cosine merge keeping the poorer wording. m3 also sits OUTSIDE
+// `RESPONSE_FORMAT_OK`, so it ran on the prompt-instructed path with no schema
+// enforcement. Do not re-point this at m3 without a fresh baseline AND an
+// explicit accepted-regression note on `update`.
 //
 // GATE: the consolidation eval (test/memory/src/consolidation/benchmark.test.ts,
-// run as `pnpm eval:consolidation`) is what validates m3's decision accuracy AND
-// its fallback rate (schema violations that degrade to a create-fallback) on the
-// prompt-instructed path. The committed baseline must be regenerated for m3
-// before the CI gate describes the live path — see that file's header and this
-// PR's notes for the exact `--save-baseline` command.
+// run as `pnpm eval:consolidation`) validates this model's decision accuracy AND
+// its fallback rate (schema violations that degrade to a create-fallback). In
+// gate mode the eval runs exactly this constant, so the committed baseline always
+// describes the live path — change the model and the gate refuses until the
+// baseline is regenerated with `--save-baseline`.
 /** Exported so the consolidation eval gates the model production actually runs,
  * rather than a copy of this string that can drift out of sync. */
-export const DEFAULT_CONSOLIDATION_MODEL = "minimax/minimax-m3";
+export const DEFAULT_CONSOLIDATION_MODEL = "inclusionai/ling-2.6-flash";
 
 // Retry budget for TRANSIENT consolidation failures. A transient blip
 // (network/timeout/5xx/429/empty completion) that degrades straight to create
