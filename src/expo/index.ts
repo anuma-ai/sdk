@@ -249,6 +249,8 @@ export {
   type DecayCandidateRaw,
   deleteAllVaultMemoriesForUserOp,
   deleteVaultMemoryOp,
+  FACET_SLOTS,
+  type FacetSlot,
   getAllVaultMemoriesOp,
   getAllVaultMemoryContentsOp,
   getConsolidationScanRawOp,

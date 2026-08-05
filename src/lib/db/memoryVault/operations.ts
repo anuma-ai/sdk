@@ -1066,12 +1066,19 @@ export async function getVaultMemoriesByFacetKeyOp(
   facetKey: string,
   options?: { scope?: string; folderId?: string | null; includeArchived?: boolean }
 ): Promise<StoredVaultMemory[]> {
-  if (!facetKey) return [];
+  // Normalize the caller's key the SAME way writes do (`normalizeFacetPair` →
+  // `normalizeFacetKey`): stored keys are always the trimmed, lowercased, closed
+  // `"<factType>:self:<slot>"` shape, so querying the raw string would miss every
+  // matching row for a differently-cased or padded key. A key that can't
+  // normalize (off-enum slot, wrong subject, malformed) matches nothing by
+  // definition, so it returns empty rather than issuing an unmatchable query.
+  const normalizedKey = normalizeFacetKey(facetKey);
+  if (!normalizedKey) return [];
   const conditions = [
     ...baseVaultConditions(ctx, {
       ...(options?.includeArchived !== undefined && { includeArchived: options.includeArchived }),
     }),
-    Q.where("facet_key", facetKey),
+    Q.where("facet_key", normalizedKey),
     ...(options?.scope !== undefined ? [Q.where("scope", options.scope)] : []),
     ...(options?.folderId !== undefined ? [Q.where("folder_id", options.folderId)] : []),
   ];

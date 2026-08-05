@@ -2772,6 +2772,23 @@ describe("getVaultMemoriesByFacetKeyOp — real read semantics (in-memory LokiJS
     expect(rows.map((r) => r.uniqueId)).toEqual([priv.uniqueId]);
   });
 
+  it("normalizes the queried key so a differently-cased / padded key still matches", async () => {
+    // Writes store the normalized closed shape, so the read must normalize the
+    // caller's key the same way or it silently returns nothing.
+    const dark = await createVaultMemoryOp(ctx, {
+      content: "Prefers dark mode",
+      facetKey: UI_THEME,
+      facetValue: "dark",
+    });
+    for (const variant of [UI_THEME.toUpperCase(), `  ${UI_THEME}  `, "Preference:self:UI_Theme"]) {
+      const rows = await getVaultMemoriesByFacetKeyOp(ctx, variant);
+      expect(rows.map((r) => r.uniqueId)).toEqual([dark.uniqueId]);
+    }
+    // A key that cannot normalize (off-enum slot) matches nothing by definition.
+    expect(await getVaultMemoriesByFacetKeyOp(ctx, "preference:self:not_a_slot")).toEqual([]);
+    expect(await getVaultMemoriesByFacetKeyOp(ctx, "malformed")).toEqual([]);
+  });
+
   it("updateVaultMemoryOp adopts a facet ONLY when the row has none (never overwrites)", async () => {
     // Legacy keyless row adopts a facet on a facet-carrying update.
     const keyless = await createVaultMemoryOp(ctx, { content: "Prefers dark mode" });
