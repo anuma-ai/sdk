@@ -216,6 +216,31 @@ export interface QuarantinedMemoryInfo {
 export interface ExtractFactsOptions extends PortalLlmAuth {
   baseUrl?: string;
   model?: string;
+  /**
+   * Optional per-call request path override, forwarded to
+   * {@link callPortalJsonCompletion}. When set, the extraction call POSTs to
+   * `baseUrl + endpointOverride` instead of the default
+   * `/api/v1/chat/completions` — path only, body unchanged. Lets callers route
+   * this internal-utility pass to a dedicated endpoint. Invalid values throw at
+   * call time (see {@link validateEndpointOverride}).
+   *
+   * Why this exists (anuma-ai/ai-memoryless-client#5536): auto-extraction is the
+   * highest-volume first-party background call in the product — one per
+   * extracting turn, on every platform — and it carries no flow fingerprint, so
+   * the portal's freeloader detector classifies it as scripted abuse. In reject
+   * mode that 403s every basic-tier extraction, which surfaces here as
+   * `onExhaustedEmpty` → `empty-after-retry` and leaves free-tier vaults empty.
+   * {@link TopicExtractOptions.endpointOverride} already exists for the same
+   * reason on the topic pass; this is the fact pass catching up.
+   *
+   * IMPORTANT — the utility endpoint clamps to a PRICE CEILING and never
+   * rejects, so pointing this at `/api/v1/utility/chat/completions` while the
+   * portal's ceiling prices below {@link DEFAULT_EXTRACTION_MODEL} silently
+   * rewrites the model instead of 403-ing. That trades a visible failure for an
+   * invisible quality regression: raise `PORTAL_UTILITY_CEILING_MODEL` to at
+   * least the extraction model's rate BEFORE setting this in a client.
+   */
+  endpointOverride?: string;
   /** Override the global fetch implementation (useful for tests). */
   fetchFn?: typeof fetch;
   /**
@@ -370,6 +395,9 @@ export async function extractFacts(
     ...(options.apiKey !== undefined && { apiKey: options.apiKey }),
     ...(options.getToken !== undefined && { getToken: options.getToken }),
     ...(options.baseUrl !== undefined && { baseUrl: options.baseUrl }),
+    ...(options.endpointOverride !== undefined && {
+      endpointOverride: options.endpointOverride,
+    }),
     model: options.model ?? DEFAULT_EXTRACTION_MODEL,
     systemPrompt: SYSTEM_PROMPT,
     userMessage: `Today's date is ${today}. Resolve any relative dates ("yesterday", "next week") against it.\n\nRecent conversation:\n${transcript}\n\nExtract durable user facts.`,
