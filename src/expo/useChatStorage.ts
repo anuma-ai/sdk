@@ -17,6 +17,12 @@ import {
   DEFAULT_SUMMARY_TOKEN_THRESHOLD,
   maybeSummarizeHistory,
 } from "../lib/chat/summarize";
+import { buildToolResultContent } from "../lib/chat/toolResultMessage";
+import {
+  DISPLAY_CARD_PLACEHOLDER,
+  prepareToolResultsForReplay,
+  TOOL_RESULT_ORIGIN,
+} from "../lib/chat/toolResults";
 import { type ApiType, resolveApiType, type RunToolLoopResult } from "../lib/chat/useChat";
 import {
   type ApiResponse,
@@ -755,6 +761,8 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     nerDetector,
     onServerToolCall,
     onToolCallArgumentsDelta,
+    toolResultsHistoryExclude,
+    foldToolResultsInHistory,
   } = options;
 
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(
@@ -766,6 +774,17 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
   // replacement and lose placeholder mappings. Kept in a ref, updated each
   // render, so an intentional detector change is still honored via the identity
   // check in getConversationRedactor. Mirrors the react entry.
+  // Read through a ref, not the closure: `sendMessage`'s dependency array intentionally omits config
+  // values, and a caller that swaps this list (a flag flip, a per-conversation policy) must not keep
+  // replaying a payload it has since withdrawn. A ref also avoids recreating `sendMessage` on every
+  // render for a caller that passes a fresh array literal.
+  const toolResultsHistoryExcludeRef = useRef(toolResultsHistoryExclude);
+  toolResultsHistoryExcludeRef.current = toolResultsHistoryExclude;
+  // Same reasoning as the exclude list: read at send time, so flipping the flag off takes effect on
+  // the next send rather than whenever `sendMessage` happens to be recreated.
+  const foldToolResultsInHistoryRef = useRef(foldToolResultsInHistory);
+  foldToolResultsInHistoryRef.current = foldToolResultsInHistory;
+
   const nerDetectorRef = useRef(nerDetector);
   nerDetectorRef.current = nerDetector;
 
@@ -2103,9 +2122,32 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
 
       // Include history if requested
       if (includeHistory) {
-        // Filter out errored messages and limit history to most recent messages
         const validMessages = storedMessages.filter((msg) => !msg.error);
-        const limitedMessages = validMessages.slice(-maxHistoryMessages);
+
+        // This conversation's own `[Tool Execution Results]` rows: folded onto the assistant turns
+        // that produced them when the caller opts in, dropped otherwise. Never verbatim — they are
+        // `role: "user"`, so each one would put two consecutive user turns on the wire and the model
+        // would answer the previous turn instead of the new prompt. Dropping is the conservative
+        // branch: it costs the model what the tools returned, which is what folding exists to fix.
+        // `toolResultsHistoryExclude` withholds display payloads from replay (replay only — the row
+        // itself is still persisted and backed up; the card needs it to re-render).
+        //
+        // BEFORE the window slice AND before summarization, and both orderings matter:
+        // - Slice first and the synthetic rows spend window slots they are then removed from, so a
+        //   display-heavy thread replays fewer real turns than the caller asked for. Worse, the slice
+        //   boundary can keep a row while cutting the assistant it belongs to, and the payload is then
+        //   dropped for having nothing to fold into.
+        // - Summarize first and an excluded payload is still egress: `formatMessagesForPrompt` would
+        //   put those coordinates in the summary prompt, and anything the summary retains comes back
+        //   to the main model through `summarySystemMessage`.
+        // Folding first closes both, and makes the window count only rows that actually travel.
+        const replayableMessages = prepareToolResultsForReplay(validMessages, {
+          fold: foldToolResultsInHistoryRef.current === true,
+          exclude: toolResultsHistoryExcludeRef.current,
+          placeholder: DISPLAY_CARD_PLACEHOLDER,
+        });
+        const limitedMessages = replayableMessages.slice(-maxHistoryMessages);
+        const foldedHistory = limitedMessages;
 
         // Determine which messages to send: summarized + window or all verbatim.
         // Uses a direct fetch for the LLM call (not baseSendMessage) to avoid
@@ -2120,7 +2162,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         const { messagesToConvert, summarySystemMessage } = await maybeSummarizeHistory({
           database,
           conversationId: convId,
-          messages: limitedMessages,
+          messages: foldedHistory,
           summarizeHistory,
           summaryTokenThreshold,
           summaryMinWindowMessages,
@@ -2683,6 +2725,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       };
 
       let storedAssistantMessage: StoredMessage;
+      let assistantMsgQueueId: string | undefined;
       try {
         const assistantMsgResult = await writeOrQueue(
           "createMessage",
@@ -2692,6 +2735,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           userMsgQueueId ? [userMsgQueueId] : []
         );
         storedAssistantMessage = assistantMsgResult.result;
+        assistantMsgQueueId = assistantMsgResult.queueId;
 
         // Embed assistant message (non-blocking, only for direct writes)
         if (!assistantMsgResult.queued) {
@@ -2703,6 +2747,46 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           error: err instanceof Error ? err.message : "Failed to store assistant message",
           userMessage: storedUserMessage,
         };
+      }
+
+      // Persist the turn's auto-executed tool results (e.g. display_people_map) as a synthetic user
+      // message, exactly as the react entry does — this is the row a reopened conversation re-renders
+      // its cards from, and without it every mobile card had to write one itself (#5519). Parented to
+      // the assistant message so it continues the branch: mobile derives its visible list by walking a
+      // parent/child chain, and a row hung off the user prompt is written and never rendered.
+      const autoToolResults = (result as Record<string, unknown>).autoExecutedToolResults as
+        | { name: string; result: unknown }[]
+        | undefined;
+      let storedToolResultsMessage: StoredMessage | undefined;
+      if (autoToolResults && autoToolResults.length > 0) {
+        // `buildToolResultContent` (not a local copy) so the expo row is byte-identical to the react
+        // one — the format is a contract the clients parse cards out of — and so this row inherits
+        // the same MAX_PERSISTED_TOOL_RESULT_CHARS cap (#866). `origin` sits on the shared opts
+        // object because all three payloads below reuse it: the queued write replays through
+        // createMessageOp and the synthetic stands in until it does, so tagging one path loses it
+        // on the others. It is also what keeps the row out of the embedding sweep.
+        const toolResultsOpts: CreateMessageOptions = {
+          conversationId: convId,
+          role: "user",
+          content: buildToolResultContent(autoToolResults),
+          model: "",
+          parentMessageId: storedAssistantMessage.uniqueId,
+          origin: TOOL_RESULT_ORIGIN,
+        };
+        try {
+          const toolResultsWrite = await writeOrQueue(
+            "createMessage",
+            toolResultsOpts,
+            () => createMessageOp(storageCtx, toolResultsOpts),
+            () => makeSyntheticStoredMessage(toolResultsOpts),
+            assistantMsgQueueId ? [assistantMsgQueueId] : []
+          );
+          storedToolResultsMessage = toolResultsWrite.result;
+        } catch {
+          // Non-critical — the results are still returned in memory for this turn; only the reload
+          // render loses them. Failing the send here would discard an assistant reply that is
+          // already persisted.
+        }
       }
 
       // Refresh the cached server-tools catalog when the response checksum
@@ -2736,6 +2820,8 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         error: null,
         userMessage: storedUserMessage,
         assistantMessage: storedAssistantMessage,
+        autoExecutedToolResults: autoToolResults,
+        toolResultsMessage: storedToolResultsMessage,
       };
     },
     [
