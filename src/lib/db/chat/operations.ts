@@ -6,6 +6,7 @@ import type { EmbeddedWalletSignerFn, SignMessageFn } from "../../../react/useEn
 import { requestEncryptionKey } from "../../../react/useEncryption";
 import { getLogger } from "../../logger";
 import { cosineSimilarity } from "../../memoryEngine/vector";
+import { decodeChunkVector } from "../../memoryEngine/vectorEncoding";
 import { decryptJsonField } from "../encryption-utils";
 import { decryptConversationFields, encryptConversationFields } from "./conversationEncryption";
 import {
@@ -1149,6 +1150,12 @@ export async function updateMessageChunksOp(
 
   // Note: Chunks contain embeddings used for vector search, stored unencrypted
   // for the same reasons as updateMessageEmbeddingOp.
+  //
+  // This is the ONLY site that writes chunk vectors, so it is where the base64
+  // encoding switches on (sdk#862): map each `vector` through
+  // `encodeChunkVector` here. Held back deliberately until a build that can read
+  // both encodings has saturated — a device on an older build scores a base64
+  // vector as 0 without any error. Readers already accept both.
   await ctx.database.write(async () => {
     await message.update((msg) => {
       msg._setRaw("chunks", JSON.stringify(chunks));
@@ -1568,11 +1575,9 @@ export async function searchChunksOp(
       // them so a warm query pays neither the decrypt nor the parse. Empty
       // vectors are kept as zero-length placeholders to keep indices aligned
       // with the decrypted `chunks` array for pass-2 text resolution.
-      const vectors: Float32Array[] = chunks.map((chunk) =>
-        chunk.vector && chunk.vector.length > 0
-          ? Float32Array.from(chunk.vector)
-          : new Float32Array(0)
-      );
+      // decodeChunkVector reads either storage encoding (sdk#862) and returns a
+      // zero-length array for a missing or unreadable one.
+      const vectors: Float32Array[] = chunks.map((chunk) => decodeChunkVector(chunk.vector));
       chunkCache?.set(message.id, { version, chunks: vectors });
 
       for (let ci = 0; ci < chunks.length; ci++) {

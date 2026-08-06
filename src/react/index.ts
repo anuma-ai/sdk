@@ -723,12 +723,17 @@ export {
   // Int8 embedding quantization helpers (RAM reduction for client caches)
   cosineInt8,
   createMemoryEngineTool,
+  // Chunk-vector storage codec — read `MessageChunk.vector` through
+  // decodeChunkVector, which accepts both the legacy number[] and the base64
+  // float32 form (sdk#862).
+  decodeChunkVector,
   DEFAULT_CHUNK_OVERLAP,
   DEFAULT_CHUNK_SIZE,
   DEFAULT_MIN_CHUNK_SIZE,
   dequantizeEmbedding,
   embedAllMessages,
   embedMessage,
+  encodeChunkVector,
   generateEmbedding,
   generateEmbeddings,
   quantizeEmbedding,

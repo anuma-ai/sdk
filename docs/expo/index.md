@@ -574,6 +574,12 @@ Re-exports [DecayVerdict](../react/Internal/type-aliases/DecayVerdict.md)
 
 ***
 
+### decodeChunkVector
+
+Re-exports [decodeChunkVector](../react/Internal/functions/decodeChunkVector.md)
+
+***
+
 ### decryptConversationTitle
 
 Re-exports [decryptConversationTitle](../react/Internal/functions/decryptConversationTitle.md)
@@ -697,6 +703,12 @@ Re-exports [EmbeddedWalletSignerFn](../react/Internal/type-aliases/EmbeddedWalle
 ### embedMessage
 
 Re-exports [embedMessage](../react/Internal/functions/embedMessage.md)
+
+***
+
+### encodeChunkVector
+
+Re-exports [encodeChunkVector](../react/Internal/functions/encodeChunkVector.md)
 
 ***
 

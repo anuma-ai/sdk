@@ -9,6 +9,7 @@
  * `../memoryEngine/embeddings` and the `../memoryEngine` barrel keep working.
  */
 
+import { TOOL_RESULT_ORIGIN } from "../chat/toolResults";
 import {
   getConversationsOp,
   getMessageOp,
@@ -47,6 +48,25 @@ export {
 export const DEFAULT_MIN_CONTENT_LENGTH = 10;
 
 /**
+ * An ordinary message whose chunk vectors were built over `enc:v3:` ciphertext
+ * (sdk#864) and have been discarded instead of re-embedded.
+ *
+ * Re-embedding is the obvious repair and is the wrong one: the sweep calls the
+ * embedder with the user's own identity token, so healing these rows would
+ * silently spend a user's own credits — up to ~9k embedding calls on the
+ * worst-hit account — on a background repair nobody asked for (client#5618).
+ * Discarding costs semantic recall on rows whose vectors describe hex, i.e. on
+ * search that is already broken for them.
+ *
+ * Deliberately NOT `tool_result`, because that value does two jobs: it
+ * suppresses embedding AND hides the row (`isToolResultsRow` returns true on it
+ * alone, with no content check, and the clients render nothing for such a row).
+ * These are ~2k real user and assistant messages that must keep rendering, so
+ * they need the first job without the second.
+ */
+export const CHUNKS_DISCARDED_ORIGIN = "chunks_discarded";
+
+/**
  * Message provenance that is never indexed, at any of the four entry points
  * below (sdk#861). All four are public API, so the skip has to be on each of
  * them rather than only on the ones this repo happens to call: a consumer can
@@ -66,8 +86,17 @@ export const DEFAULT_MIN_CONTENT_LENGTH = 10;
  * Keyed on the plaintext `origin` column rather than a content prefix because
  * these passes read `content` straight out of the DB, where it is `enc:v3:`
  * ciphertext: a `startsWith("[Tool Execution Results]")` test can never match.
+ *
+ * Membership rather than equality: the set has two values now, and they differ
+ * in whether the row is also hidden — which is `isToolResultsRow`'s business,
+ * not this gate's.
  */
-const NON_EMBEDDABLE_ORIGIN = "tool_result";
+const NON_EMBEDDABLE_ORIGINS = new Set<string>([TOOL_RESULT_ORIGIN, CHUNKS_DISCARDED_ORIGIN]);
+
+/** Null on every pre-v44 row, and null is embeddable — only a known value skips. */
+function isNonEmbeddableOrigin(origin: string | null | undefined): boolean {
+  return typeof origin === "string" && NON_EMBEDDABLE_ORIGINS.has(origin);
+}
 
 /**
  * Embed a single message and store the embedding in the database
@@ -94,9 +123,10 @@ export async function embedMessage(
     return message;
   }
 
-  // Skip never-rendered tool-result dumps. Returned unchanged, not thrown: to a
-  // caller this is "nothing to embed here", the same as an already-embedded row.
-  if (message.origin === NON_EMBEDDABLE_ORIGIN) {
+  // Skip rows marked non-embeddable (hidden tool-result dumps, discarded-chunk
+  // rows). Returned unchanged, not thrown: to a caller this is "nothing to embed
+  // here", the same as an already-embedded row.
+  if (isNonEmbeddableOrigin(message.origin)) {
     return message;
   }
 
@@ -168,8 +198,8 @@ export async function embedAllMessages(
         continue;
       }
 
-      // Skip never-rendered tool-result dumps
-      if (message.origin === NON_EMBEDDABLE_ORIGIN) {
+      // Skip rows marked non-embeddable (see NON_EMBEDDABLE_ORIGINS)
+      if (isNonEmbeddableOrigin(message.origin)) {
         continue;
       }
 
@@ -246,9 +276,10 @@ export async function chunkAndEmbedMessage(
     return message;
   }
 
-  // Skip never-rendered tool-result dumps. Returned unchanged, not thrown: to a
-  // caller this is "nothing to embed here", the same as an already-chunked row.
-  if (message.origin === NON_EMBEDDABLE_ORIGIN) {
+  // Skip rows marked non-embeddable (hidden tool-result dumps, discarded-chunk
+  // rows). Returned unchanged, not thrown: to a caller this is "nothing to embed
+  // here", the same as an already-chunked row.
+  if (isNonEmbeddableOrigin(message.origin)) {
     return message;
   }
 
@@ -365,10 +396,12 @@ export async function chunkAndEmbedAllMessages(
       if (hasVector && !filter?.rechunkExisting && !isStale) continue;
       if (filter?.roles && !filter.roles.includes(message.role as "user" | "assistant")) continue;
       if (message.role === "system") continue;
-      // Skip never-rendered tool-result dumps. This is the site that fires in
+      // Skip rows marked non-embeddable. This is the site that fires in
       // production: consumers run this sweep on every session mount, and it picks
-      // up any row lacking chunks — which is exactly how each dump grew to 52 MB.
-      if (message.origin === NON_EMBEDDABLE_ORIGIN) continue;
+      // up any row lacking chunks — which is exactly how each dump grew to 52 MB,
+      // and why a discarded-chunk row needs a marker or it is re-embedded here on
+      // the next mount, at the user's expense.
+      if (isNonEmbeddableOrigin(message.origin)) continue;
       // Never chunk ciphertext (sdk#864) — see chunkAndEmbedMessage. Ahead of
       // the length check because a length test on hex means nothing.
       considered++;
