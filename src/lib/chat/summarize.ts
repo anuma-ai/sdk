@@ -19,6 +19,7 @@ import {
   upsertConversationSummaryOp,
 } from "../db/chat/summaryOperations";
 import type { StoredConversationSummary, StoredMessage } from "../db/chat/types";
+import { INTERNAL_FLOW_MARKER } from "../internalFlowMarker.js";
 import { getLogger } from "../logger";
 import type { PiiMatch, PiiRedactor } from "../pii/redactor";
 
@@ -416,7 +417,17 @@ export async function callSummarizationLlm(
       body: JSON.stringify({
         model,
         stream: false,
-        messages: [{ role: "user", content: prompt }],
+        // The marker rides a system message because this call has no other
+        // provenance: it posts to the MAIN chat endpoint (not /utility/*), carries no
+        // conversationId, and its prompt is neither the app's chat base prompt nor any
+        // registered flow fingerprint — so without this it reads as markerless, i.e.
+        // as a scripted abuser. Progressive summarization runs for every free-tier
+        // long conversation, so at the PORTAL_DETECTION_REJECT_MARKERLESS flip it
+        // would 403 and silently fall back to verbatim history (context bloat + cost).
+        messages: [
+          { role: "system", content: INTERNAL_FLOW_MARKER },
+          { role: "user", content: prompt },
+        ],
       }),
       signal: controller.signal,
     });

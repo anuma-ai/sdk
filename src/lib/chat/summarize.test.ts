@@ -6,6 +6,7 @@ import {
   upsertConversationSummaryOp,
 } from "../db/chat/summaryOperations";
 import { PiiRedactor } from "../pii/redactor";
+import { INTERNAL_FLOW_MARKER } from "../internalFlowMarker.js";
 
 import {
   callSummarizationLlm,
@@ -560,10 +561,17 @@ describe("callSummarizationLlm", () => {
           "Content-Type": "application/json",
           Authorization: "Bearer test-token",
         },
+        // The system message carries the internal-flow marker: this call has no other
+        // provenance (main endpoint, no conversationId, prompt matches no fingerprint),
+        // so without it summarization reads as markerless and gets 403'd once
+        // PORTAL_DETECTION_REJECT_MARKERLESS is on. See ../internalFlowMarker.
         body: JSON.stringify({
           model: "gemini-flash",
           stream: false,
-          messages: [{ role: "user", content: "summarize this" }],
+          messages: [
+            { role: "system", content: INTERNAL_FLOW_MARKER },
+            { role: "user", content: "summarize this" },
+          ],
         }),
         signal: expect.any(AbortSignal),
       })
