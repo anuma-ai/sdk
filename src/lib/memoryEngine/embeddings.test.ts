@@ -818,6 +818,115 @@ describe("origin: 'chunks_discarded' is never re-embedded (client#5618)", () => 
     );
   });
 
+  /**
+   * The door. Discard means "never automatically", not "never": once the client
+   * half of sdk#864 lands and `content` decrypts, an explicit user action can ask
+   * for these rows back. Off by default is what keeps the credit decision intact,
+   * so the flag has to be the only thing that opens them.
+   */
+  it("chunkAndEmbedAllMessages re-chunks a discarded row when reembedDiscarded is set", async () => {
+    const fetchMock = stubFetchOk();
+    vi.mocked(getMessagesOp).mockResolvedValue([
+      makeMessage({
+        uniqueId: "discarded",
+        content: longText("an ordinary message whose chunks were binned"),
+        origin: CHUNKS_DISCARDED_ORIGIN,
+      }),
+    ]);
+
+    expect(
+      await chunkAndEmbedAllMessages(
+        ctx,
+        { apiKey: "k", baseUrl: BASE },
+        { reembedDiscarded: true }
+      )
+    ).toBe(1);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(updateMessageChunksOp).toHaveBeenCalledWith(
+      ctx,
+      "discarded",
+      expect.any(Array),
+      expect.any(String)
+    );
+  });
+
+  it("embedAllMessages re-embeds a discarded row when reembedDiscarded is set", async () => {
+    const fetchMock = stubFetchOk();
+    vi.mocked(getMessagesOp).mockResolvedValue([
+      makeMessage({
+        uniqueId: "discarded",
+        content: "an ordinary message, long enough",
+        origin: CHUNKS_DISCARDED_ORIGIN,
+      }),
+    ]);
+
+    expect(
+      await embedAllMessages(ctx, { apiKey: "k", baseUrl: BASE }, { reembedDiscarded: true })
+    ).toBe(1);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(updateMessageEmbeddingOp).toHaveBeenCalledWith(
+      ctx,
+      "discarded",
+      expect.any(Array),
+      expect.any(String)
+    );
+  });
+
+  it("reembedDiscarded does NOT re-open tool-result rows on either sweep", async () => {
+    // Scoped deliberately. Tool-result rows are hidden machine-readable dumps
+    // that no UI renders and nobody searches for, and indexing them is the bug
+    // sdk#861 exists to fix — so asking for discarded user messages back must not
+    // drag 52 MB of `assignees_url` templates in with them.
+    const fetchMock = stubFetchOk();
+    const dump = { uniqueId: "dump", origin: "tool_result" as StoredMessage["origin"] };
+
+    vi.mocked(getMessagesOp).mockResolvedValue([
+      makeMessage({ ...dump, content: longText("tool output") }),
+    ]);
+    expect(
+      await chunkAndEmbedAllMessages(
+        ctx,
+        { apiKey: "k", baseUrl: BASE },
+        { reembedDiscarded: true }
+      )
+    ).toBe(0);
+
+    vi.mocked(getMessagesOp).mockResolvedValue([
+      makeMessage({ ...dump, content: "tool output, long enough" }),
+    ]);
+    expect(
+      await embedAllMessages(ctx, { apiKey: "k", baseUrl: BASE }, { reembedDiscarded: true })
+    ).toBe(0);
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(updateMessageChunksOp).not.toHaveBeenCalled();
+    expect(updateMessageEmbeddingOp).not.toHaveBeenCalled();
+  });
+
+  it("reembedDiscarded still refuses a discarded row whose content is ciphertext", async () => {
+    // The door opens the origin gate, not the sdk#864 guard behind it. A row that
+    // still reads back as `enc:v3:` has to stay unindexed however it was asked
+    // for, or the opt-in re-index just rebuilds the corruption it is repairing.
+    const fetchMock = stubFetchOk();
+    vi.mocked(getMessagesOp).mockResolvedValue([
+      makeMessage({
+        uniqueId: "sealed",
+        content: `enc:v3:${"a1b2c3d4e5f6".repeat(80)}`,
+        origin: CHUNKS_DISCARDED_ORIGIN,
+      }),
+    ]);
+
+    expect(
+      await chunkAndEmbedAllMessages(
+        ctx,
+        { apiKey: "k", baseUrl: BASE },
+        { reembedDiscarded: true }
+      )
+    ).toBe(0);
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(updateMessageChunksOp).not.toHaveBeenCalled();
+  });
+
   it("does not make every origin non-embeddable", async () => {
     // The gate went from an equality test to set membership, and a set that
     // accidentally matched anything truthy would pass every test above.

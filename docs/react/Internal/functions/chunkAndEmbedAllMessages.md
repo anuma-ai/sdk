@@ -2,7 +2,7 @@
 
 > **chunkAndEmbedAllMessages**(`ctx`: [`StorageOperationsContext`](../interfaces/StorageOperationsContext.md), `options`: [`MemoryEngineEmbeddingOptions`](../interfaces/MemoryEngineEmbeddingOptions.md) & [`ChunkingOptions`](../interfaces/ChunkingOptions.md), `filter?`: `object`): `Promise`<`number`>
 
-Defined in: [src/lib/memoryEngine/embeddings.ts:346](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryEngine/embeddings.ts#346)
+Defined in: [src/lib/memoryEngine/embeddings.ts:375](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryEngine/embeddings.ts#375)
 
 Chunk and embed messages that don't yet have embeddings/chunks in the
 database. Uses chunking for long messages, whole-message embedding for short
@@ -128,6 +128,30 @@ Minimum content length to embed (default: 30). Shorter messages are skipped.
 <td>
 
 Re-chunk messages that have whole-message embeddings but no chunks
+
+</td>
+</tr>
+<tr>
+<td>
+
+`filter.reembedDiscarded?`
+
+</td>
+<td>
+
+`boolean`
+
+</td>
+<td>
+
+Re-index rows the ciphertext sweep marked [CHUNKS\_DISCARDED\_ORIGIN](../variables/CHUNKS_DISCARDED_ORIGIN.md).
+Off by default: this spends the user's own embedding credits, so it belongs
+to an explicit user action, never to a background pass. Opens that marker
+only — `tool_result` rows stay excluded.
+
+`rechunkExisting` cannot substitute for it: a discarded row has neither
+chunks nor vector, so it never reaches that check and falls straight to the
+origin gate.
 
 </td>
 </tr>

@@ -1750,6 +1750,12 @@ Re-exports [TextChunk](../react/Internal/interfaces/TextChunk.md)
 
 ***
 
+### TOOL\_RESULT\_ORIGIN
+
+Re-exports [TOOL\_RESULT\_ORIGIN](../react/Internal/variables/TOOL_RESULT_ORIGIN.md)
+
+***
+
 ### TOPIC\_EXTRACTION\_BATCH\_SIZE
 
 Re-exports [TOPIC\_EXTRACTION\_BATCH\_SIZE](../react/Internal/variables/TOPIC_EXTRACTION_BATCH_SIZE.md)

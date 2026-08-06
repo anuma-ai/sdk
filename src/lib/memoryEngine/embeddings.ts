@@ -18,7 +18,7 @@ import {
   updateMessageChunksOp,
   updateMessageEmbeddingOp,
 } from "../db/chat/operations";
-import type { MessageChunk, StoredMessage } from "../db/chat/types";
+import type { MessageChunk, MessageOrigin, StoredMessage } from "../db/chat/types";
 import { isEncrypted } from "../db/encryption-utils";
 import { getLogger } from "../logger";
 import {
@@ -63,8 +63,17 @@ export const DEFAULT_MIN_CONTENT_LENGTH = 10;
  * alone, with no content check, and the clients render nothing for such a row).
  * These are ~2k real user and assistant messages that must keep rendering, so
  * they need the first job without the second.
+ *
+ * Suppression is "never automatically", not "never": `filter.reembedDiscarded`
+ * on either sweep re-opens these rows for an explicit, caller-initiated
+ * re-index. Off by default, so no background pass can spend a user's credits
+ * without being asked to.
+ *
+ * `satisfies MessageOrigin` so the constant and the union cannot drift apart
+ * silently — the column's type is the union, and a typo here would otherwise
+ * only surface as a marker nothing matches.
  */
-export const CHUNKS_DISCARDED_ORIGIN = "chunks_discarded";
+export const CHUNKS_DISCARDED_ORIGIN = "chunks_discarded" satisfies MessageOrigin;
 
 /**
  * Message provenance that is never indexed, at any of the four entry points
@@ -93,9 +102,22 @@ export const CHUNKS_DISCARDED_ORIGIN = "chunks_discarded";
  */
 const NON_EMBEDDABLE_ORIGINS = new Set<string>([TOOL_RESULT_ORIGIN, CHUNKS_DISCARDED_ORIGIN]);
 
-/** Null on every pre-v44 row, and null is embeddable — only a known value skips. */
-function isNonEmbeddableOrigin(origin: string | null | undefined): boolean {
-  return typeof origin === "string" && NON_EMBEDDABLE_ORIGINS.has(origin);
+/**
+ * Null on every pre-v44 row, and null is embeddable — only a known value skips.
+ *
+ * `reembedDiscarded` re-opens `chunks_discarded` and nothing else. `tool_result`
+ * has no door at all: those rows are hidden machine-readable dumps that no UI
+ * renders and nobody searches for, and indexing them is the bug #861 exists to
+ * fix, so a caller asking to recover discarded user messages must not drag them
+ * back in as a side effect.
+ */
+function isNonEmbeddableOrigin(
+  origin: string | null | undefined,
+  reembedDiscarded = false
+): boolean {
+  if (typeof origin !== "string") return false;
+  if (reembedDiscarded && origin === CHUNKS_DISCARDED_ORIGIN) return false;
+  return NON_EMBEDDABLE_ORIGINS.has(origin);
 }
 
 /**
@@ -165,6 +187,13 @@ export async function embedAllMessages(
     roles?: ("user" | "assistant")[];
     /** Minimum content length to embed (default: 30). Shorter messages are skipped. */
     minContentLength?: number;
+    /**
+     * Re-index rows the ciphertext sweep marked {@link CHUNKS_DISCARDED_ORIGIN}.
+     * Off by default: this spends the user's own embedding credits, so it belongs
+     * to an explicit user action, never to a background pass. Opens that marker
+     * only — `tool_result` rows stay excluded.
+     */
+    reembedDiscarded?: boolean;
   }
 ): Promise<number> {
   const embeddingModel = options.model ?? DEFAULT_API_EMBEDDING_MODEL;
@@ -199,7 +228,7 @@ export async function embedAllMessages(
       }
 
       // Skip rows marked non-embeddable (see NON_EMBEDDABLE_ORIGINS)
-      if (isNonEmbeddableOrigin(message.origin)) {
+      if (isNonEmbeddableOrigin(message.origin, filter?.reembedDiscarded)) {
         continue;
       }
 
@@ -355,6 +384,17 @@ export async function chunkAndEmbedAllMessages(
     rechunkExisting?: boolean;
     /** Minimum content length to embed (default: 30). Shorter messages are skipped. */
     minContentLength?: number;
+    /**
+     * Re-index rows the ciphertext sweep marked {@link CHUNKS_DISCARDED_ORIGIN}.
+     * Off by default: this spends the user's own embedding credits, so it belongs
+     * to an explicit user action, never to a background pass. Opens that marker
+     * only — `tool_result` rows stay excluded.
+     *
+     * `rechunkExisting` cannot substitute for it: a discarded row has neither
+     * chunks nor vector, so it never reaches that check and falls straight to the
+     * origin gate.
+     */
+    reembedDiscarded?: boolean;
   }
 ): Promise<number> {
   const embeddingModel = options.model ?? DEFAULT_API_EMBEDDING_MODEL;
@@ -401,7 +441,7 @@ export async function chunkAndEmbedAllMessages(
       // up any row lacking chunks — which is exactly how each dump grew to 52 MB,
       // and why a discarded-chunk row needs a marker or it is re-embedded here on
       // the next mount, at the user's expense.
-      if (isNonEmbeddableOrigin(message.origin)) continue;
+      if (isNonEmbeddableOrigin(message.origin, filter?.reembedDiscarded)) continue;
       // Never chunk ciphertext (sdk#864) — see chunkAndEmbedMessage. Ahead of
       // the length check because a length test on hex means nothing.
       considered++;
