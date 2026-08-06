@@ -23,6 +23,7 @@
 
 import { getAllVaultMemoriesOp } from "../db/memoryVault/operations.js";
 import type { StoredVaultMemory } from "../db/memoryVault/types.js";
+import { withInternalFlowMarker } from "../internalFlowMarker.js";
 import { getLogger } from "../logger.js";
 import { DEFAULT_API_EMBEDDING_MODEL } from "../memoryEngine/constants.js";
 import { generateEmbeddings } from "../memoryEngine/embeddings.js";
@@ -925,7 +926,10 @@ async function synthesizeFacet(
     limit,
     types: ["fact"],
     maxTokens: DEFAULT_FACET_MAX_TOKENS,
-    systemPrompt: buildFacetSystemPrompt(facet),
+    // Profile-facet synthesis is a background op, so it marks its own prompt.
+    // reflect() itself must NOT mark — it also serves the user's own questions,
+    // and that traffic is chat, not an internal flow. See ../internalFlowMarker.
+    systemPrompt: withInternalFlowMarker(buildFacetSystemPrompt(facet)),
     responseSchema: facetResponseSchema(facet.key),
     memories,
   });

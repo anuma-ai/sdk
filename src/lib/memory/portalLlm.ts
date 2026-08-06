@@ -38,6 +38,7 @@
 
 import { BASE_URL } from "../../clientConfig.js";
 import { validateEndpointOverride } from "../chat/endpointOverride.js";
+import { withInternalFlowMarker } from "../internalFlowMarker.js";
 import { getLogger } from "../logger.js";
 
 /** Read per-call so tests that mutate `process.env` between imports take effect. */
@@ -350,7 +351,12 @@ async function attemptPortalJson(req: PortalLlmRequest, endpoint: string): Promi
   const isAnthropic = req.model.startsWith("anthropic/");
   const prefill = isAnthropic ? "{" : "";
   const messages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [
-    { role: "system", content: req.systemPrompt },
+    // Every caller of this helper is a first-party BACKGROUND op (fact extraction,
+    // topic sweep, consolidation, classifiers, graph traversal, query
+    // decomposition). Marking here — the one place they all funnel through — is what
+    // keeps the portal's detector reading them as genuine rather than markerless.
+    // See ../internalFlowMarker.
+    { role: "system", content: withInternalFlowMarker(req.systemPrompt) },
     { role: "user", content: req.userMessage },
   ];
   if (prefill) messages.push({ role: "assistant", content: prefill });

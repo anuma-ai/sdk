@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { noopLogger, setLogger } from "../logger.js";
 
 import { callPortalJsonCompletion } from "./portalLlm.js";
+import { INTERNAL_FLOW_MARKER } from "../internalFlowMarker.js";
 
 function mockResponse(content: string): Response {
   return new Response(
@@ -112,6 +113,22 @@ describe("callPortalJsonCompletion — prose-tolerant JSON extraction", () => {
     const sentBody = JSON.parse(fetchFn.mock.calls[0][1].body as string);
     const messages = sentBody.messages as Array<{ role: string; content: string }>;
     expect(messages.map((m) => m.role)).toEqual(["system", "user"]);
+  });
+
+  it("marks the system prompt as a first-party internal flow", async () => {
+    // Every caller of this helper is a background op. Without the marker the portal's
+    // detector reads them as markerless — i.e. as a scripted abuser — and refuses
+    // them once PORTAL_DETECTION_REJECT_MARKERLESS is on. Asserted on the wire
+    // because the marking happens here, not in the callers.
+    const fetchFn = vi.fn().mockResolvedValue(mockResponse('{"ok":true}'));
+    await callPortalJsonCompletion({ ...baseArgs, model: "openai/gpt-5.4", fetchFn });
+
+    const sentBody = JSON.parse(fetchFn.mock.calls[0][1].body as string);
+    const messages = sentBody.messages as Array<{ role: string; content: string }>;
+    const system = messages.find((m) => m.role === "system");
+    expect(system?.content).toContain(INTERNAL_FLOW_MARKER);
+    // The caller's own prompt must survive intact underneath the marker.
+    expect(system?.content.endsWith(baseArgs.systemPrompt)).toBe(true);
   });
 
   it("sends response_format: json_object for models that accept it", async () => {
