@@ -196,6 +196,12 @@ Re-exports [ChunkingOptions](../react/Internal/interfaces/ChunkingOptions.md)
 
 ***
 
+### CHUNKS\_DISCARDED\_ORIGIN
+
+Re-exports [CHUNKS\_DISCARDED\_ORIGIN](../react/Internal/variables/CHUNKS_DISCARDED_ORIGIN.md)
+
+***
+
 ### chunkText
 
 Re-exports [chunkText](../react/Internal/functions/chunkText.md)

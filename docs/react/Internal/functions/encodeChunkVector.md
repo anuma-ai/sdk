@@ -2,7 +2,7 @@
 
 > **encodeChunkVector**(`vector`: `ArrayLike`<`number`>): `string`
 
-Defined in: [src/lib/memoryEngine/vectorEncoding.ts:45](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryEngine/vectorEncoding.ts#45)
+Defined in: [src/lib/memoryEngine/vectorEncoding.ts:60](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryEngine/vectorEncoding.ts#60)
 
 Encode an embedding as base64 float32 for storage.
 

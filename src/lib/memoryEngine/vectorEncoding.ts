@@ -36,6 +36,21 @@ import { base64ToUint8Array, uint8ArrayToBase64 } from "../processors/encoding";
 const BYTES_PER_FLOAT32 = 4;
 
 /**
+ * Canonical base64: the standard alphabet, a length that is a multiple of 4, and
+ * padding only at the very end — exactly what `uint8ArrayToBase64` emits on both
+ * of its paths.
+ *
+ * Checked before decoding because Node's `Buffer.from(value, "base64")` DROPS
+ * characters outside the alphabet instead of failing, so a corrupted string can
+ * still yield a four-byte-aligned payload and sail past the alignment check
+ * below as plausible-looking floats that then participate in ranking. Validating
+ * the string beats re-encoding the decoded bytes and comparing: no second copy
+ * of a 21 KB payload per chunk read, and it makes the two platform decoders
+ * agree, since the browser's `atob` already rejects this input.
+ */
+const CANONICAL_BASE64 = /^[A-Za-z0-9+/]+={0,2}$/;
+
+/**
  * Encode an embedding as base64 float32 for storage.
  *
  * Not yet called by the write path — see the rollout note above. Values are
@@ -61,6 +76,8 @@ export function decodeChunkVector(
 ): Float32Array<ArrayBuffer> {
   if (!vector || vector.length === 0) return new Float32Array(0);
   if (typeof vector !== "string") return Float32Array.from(vector);
+
+  if (vector.length % 4 !== 0 || !CANONICAL_BASE64.test(vector)) return new Float32Array(0);
 
   try {
     const bytes = base64ToUint8Array(vector);

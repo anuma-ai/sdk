@@ -92,6 +92,26 @@ describe("encodeChunkVector / decodeChunkVector", () => {
     expect(decodeChunkVector(twoFloats.slice(0, 4)).length).toBe(0); // 3 bytes
   });
 
+  it("rejects a corrupted string that Node's lenient base64 decode would accept", () => {
+    // `Buffer.from(value, "base64")` DROPS characters outside the alphabet rather
+    // than failing, so corruption that leaves a four-byte-aligned remainder used
+    // to decode into plausible-looking floats and then rank against a query.
+    // Four junk characters keep the string's length a multiple of 4, so the
+    // alignment check alone cannot catch this — only validating the alphabet can.
+    const good = encodeChunkVector([1, 2, 3]); // 12 bytes → 16 chars, unpadded
+    const corrupted = `${good.slice(0, 8)}****${good.slice(8)}`;
+
+    expect(corrupted.length % 4).toBe(0);
+    // What the lenient decoder does with it: the junk vanishes and the survivors
+    // still divide into whole floats. This is the trap, asserted rather than
+    // described.
+    expect(Buffer.from(corrupted, "base64").byteLength % 4).toBe(0);
+
+    expect(decodeChunkVector(corrupted).length).toBe(0);
+    // Control: the uncorrupted string still reads back.
+    expect(Array.from(decodeChunkVector(good))).toEqual([1, 2, 3]);
+  });
+
   it("stores a production-dimension vector far smaller than the JSON it replaces", () => {
     const vector = makeEmbedding(PRODUCTION_DIMS, 7);
     const asJson = JSON.stringify(Array.from(Float32Array.from(vector)));

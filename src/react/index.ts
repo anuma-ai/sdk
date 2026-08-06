@@ -719,6 +719,9 @@ export {
   chunkAndEmbedAllMessages,
   // Chunking functions for sub-message semantic search
   chunkAndEmbedMessage,
+  // Provenance marker for a row whose ciphertext-built chunks were discarded
+  // rather than re-embedded (client#5618).
+  CHUNKS_DISCARDED_ORIGIN,
   chunkText,
   // Int8 embedding quantization helpers (RAM reduction for client caches)
   cosineInt8,
