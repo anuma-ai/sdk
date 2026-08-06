@@ -41,6 +41,7 @@ import {
   isFatalEmbeddingError,
 } from "./embeddings";
 import { PiiRedactor } from "../pii/redactor";
+import { type Logger, noopLogger, setLogger } from "../logger";
 
 /** text → deterministic embedding the fake API returns. */
 function embeddingFor(text: string): number[] {
@@ -706,5 +707,158 @@ describe("origin: 'tool_result' is never embedded (sdk#861)", () => {
       expect.any(Array),
       expect.any(String)
     );
+  });
+});
+
+describe("ciphertext is never chunked or embedded (sdk#864)", () => {
+  const ctx = {} as StorageOperationsContext;
+  let warnings: string[] = [];
+  let errors: unknown[][] = [];
+
+  /**
+   * A row as the sweep actually reads it when its storage context has no wallet
+   * address: `decryptMessageFields` is a silent no-op, so `content` is the raw
+   * payload. Long enough to take the chunking branch (DEFAULT_CHUNK_SIZE 400),
+   * which is where the damage happened — 620+ uniform windows of hex.
+   */
+  const ciphertext = `enc:v3:${"a1b2c3d4e5f6".repeat(80)}`;
+
+  /** Long enough to take the same chunking branch, but real prose. */
+  const longText = (label: string): string => `${label}. `.repeat(120);
+
+  function makeMessage(overrides: Partial<StoredMessage>): StoredMessage {
+    return {
+      uniqueId: "m-default",
+      messageId: 1,
+      conversationId: "c1",
+      role: "user",
+      content: "default content long enough",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      ...overrides,
+    };
+  }
+
+  beforeEach(() => {
+    vi.mocked(getConversationsOp).mockResolvedValue([
+      { conversationId: "c1" } as StoredConversation,
+    ]);
+    vi.mocked(updateMessageEmbeddingOp).mockResolvedValue(null);
+    vi.mocked(updateMessageChunksOp).mockResolvedValue(null);
+    warnings = [];
+    errors = [];
+    const spy: Logger = {
+      ...noopLogger,
+      warn: (...args: unknown[]) => {
+        warnings.push(String(args[0]));
+      },
+      error: (...args: unknown[]) => {
+        errors.push(args);
+      },
+    };
+    setLogger(spy);
+  });
+  afterEach(() => setLogger(noopLogger));
+
+  it("chunkAndEmbedAllMessages skips the encrypted row but still chunks a plaintext one", async () => {
+    // The production path. The pair matters — a gate that skipped everything
+    // would pass a skip-only test.
+    const fetchMock = stubFetchOk();
+    vi.mocked(getMessagesOp).mockResolvedValue([
+      makeMessage({ uniqueId: "sealed", content: ciphertext }),
+      makeMessage({ uniqueId: "prose", content: longText("a long thing the user wrote") }),
+    ]);
+
+    const count = await chunkAndEmbedAllMessages(ctx, { apiKey: "k", baseUrl: BASE });
+
+    expect(count).toBe(1);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(updateMessageChunksOp).toHaveBeenCalledTimes(1);
+    expect(updateMessageChunksOp).toHaveBeenCalledWith(
+      ctx,
+      "prose",
+      expect.any(Array),
+      expect.any(String)
+    );
+    // Nothing derived from the ciphertext reached the API or the DB.
+    expect(JSON.stringify(recorded)).not.toContain("enc:v3:");
+  });
+
+  it("chunkAndEmbedAllMessages reports the skip on the error channel with structured counts", async () => {
+    // Deliberately `error` rather than `warn`: both consumer LoggerProviders
+    // drop warn-level logs in prod, so a warn here would be invisible in the
+    // only environment that matters. Downgrading it silences the whole feature.
+    stubFetchOk();
+    vi.mocked(getMessagesOp).mockResolvedValue([
+      makeMessage({ uniqueId: "sealed", content: ciphertext }),
+      makeMessage({ uniqueId: "prose", content: longText("readable") }),
+    ]);
+
+    await chunkAndEmbedAllMessages(ctx, { apiKey: "k", baseUrl: BASE });
+
+    expect(errors).toHaveLength(1);
+    expect(warnings).toEqual([]);
+    const [message, error, context] = errors[0];
+    expect(String(message)).toContain("still encrypted");
+    expect(error).toBeUndefined();
+    // Numbers in the context object, not interpolated into the message: the
+    // consumer spreads args[2] into the log payload, where they are facetable.
+    expect(context).toEqual({ stillEncrypted: 1, considered: 2 });
+  });
+
+  it("chunkAndEmbedAllMessages stays quiet when every row is readable", async () => {
+    // A guard that logged unconditionally would train readers to ignore it.
+    stubFetchOk();
+    vi.mocked(getMessagesOp).mockResolvedValue([
+      makeMessage({ uniqueId: "prose", content: longText("readable") }),
+    ]);
+
+    expect(await chunkAndEmbedAllMessages(ctx, { apiKey: "k", baseUrl: BASE })).toBe(1);
+    expect(warnings).toEqual([]);
+    expect(errors).toEqual([]);
+  });
+
+  it("chunkAndEmbedMessage returns the encrypted row unchanged without calling the API", async () => {
+    const fetchMock = stubFetchOk();
+    const sealed = makeMessage({ uniqueId: "sealed", content: ciphertext });
+    vi.mocked(getMessageOp).mockResolvedValue(sealed);
+
+    // Unchanged, not thrown — callers treat this like an already-chunked row.
+    expect(await chunkAndEmbedMessage(ctx, "sealed", { apiKey: "k", baseUrl: BASE })).toBe(sealed);
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(updateMessageChunksOp).not.toHaveBeenCalled();
+    expect(updateMessageEmbeddingOp).not.toHaveBeenCalled();
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0]).toContain("sealed");
+
+    // Control: the same call on a plaintext row still chunks and persists.
+    const prose = makeMessage({ uniqueId: "prose", content: longText("something the user typed") });
+    vi.mocked(getMessageOp).mockResolvedValue(prose);
+
+    await chunkAndEmbedMessage(ctx, "prose", { apiKey: "k", baseUrl: BASE });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(updateMessageChunksOp).toHaveBeenCalledWith(
+      ctx,
+      "prose",
+      expect.any(Array),
+      expect.any(String)
+    );
+  });
+
+  it("chunkAndEmbedMessage still embeds a short plaintext row that merely looks prefixed", async () => {
+    // isEncrypted requires a valid hex payload, so prose that happens to mention
+    // the prefix must not be caught by the guard.
+    const fetchMock = stubFetchOk();
+    const prose = makeMessage({
+      uniqueId: "prose",
+      content: "enc:v3: is the prefix we use for encrypted fields",
+    });
+    vi.mocked(getMessageOp).mockResolvedValue(prose);
+
+    await chunkAndEmbedMessage(ctx, "prose", { apiKey: "k", baseUrl: BASE });
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(updateMessageEmbeddingOp).toHaveBeenCalledTimes(1);
+    expect(warnings).toEqual([]);
   });
 });
