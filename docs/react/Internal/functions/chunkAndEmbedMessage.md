@@ -2,7 +2,7 @@
 
 > **chunkAndEmbedMessage**(`ctx`: [`StorageOperationsContext`](../interfaces/StorageOperationsContext.md), `messageId`: `string`, `options`: [`MemoryEngineEmbeddingOptions`](../interfaces/MemoryEngineEmbeddingOptions.md) & [`ChunkingOptions`](../interfaces/ChunkingOptions.md)): `Promise`<[`StoredMessage`](../interfaces/StoredMessage.md) | `null`>
 
-Defined in: [src/lib/memoryEngine/embeddings.ts:200](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryEngine/embeddings.ts#200)
+Defined in: [src/lib/memoryEngine/embeddings.ts:231](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryEngine/embeddings.ts#231)
 
 Chunk and embed a single message, storing chunk embeddings in the database.
 For messages shorter than chunkSize, falls back to whole-message embedding.

@@ -100,6 +100,15 @@ export async function embedMessage(
     return message;
   }
 
+  // Never embed ciphertext (sdk#864) — see chunkAndEmbedMessage for why the
+  // content can still be an `enc:v3:` payload at this point.
+  if (isEncrypted(message.content)) {
+    getLogger().warn(
+      `memoryEngine: message ${messageId} is still encrypted (key unavailable?) — not embedded`
+    );
+    return message;
+  }
+
   // Generate embedding for message content
   const embedding = await generateEmbedding(message.content, options);
   const embeddingModel = options.model ?? DEFAULT_API_EMBEDDING_MODEL;
@@ -130,6 +139,9 @@ export async function embedAllMessages(
 ): Promise<number> {
   const embeddingModel = options.model ?? DEFAULT_API_EMBEDDING_MODEL;
   let embeddedCount = 0;
+  // Counted as a ratio, not a bare tally — see chunkAndEmbedAllMessages.
+  let stillEncrypted = 0;
+  let considered = 0;
 
   // Get all conversations
   const conversations = await getConversationsOp(ctx);
@@ -161,6 +173,14 @@ export async function embedAllMessages(
         continue;
       }
 
+      // Never embed ciphertext (sdk#864) — see chunkAndEmbedMessage. Ahead of
+      // the length check because a length test on hex means nothing.
+      considered++;
+      if (isEncrypted(message.content)) {
+        stillEncrypted++;
+        continue;
+      }
+
       // Skip short messages that won't provide useful search context
       const minLength = filter?.minContentLength ?? DEFAULT_MIN_CONTENT_LENGTH;
       if (message.content.length < minLength) {
@@ -178,6 +198,17 @@ export async function embedAllMessages(
         getLogger().error(`Failed to embed message ${message.uniqueId}:`, error);
       }
     }
+  }
+
+  // Aggregate rather than per-row, on the error channel with the counts as
+  // structured fields — see chunkAndEmbedAllMessages for why `error` and not
+  // `warn`.
+  if (stillEncrypted > 0) {
+    getLogger().error(
+      "memoryEngine: messages still encrypted (key unavailable?) — excluded from embedding",
+      undefined,
+      { stillEncrypted, considered }
+    );
   }
 
   return embeddedCount;

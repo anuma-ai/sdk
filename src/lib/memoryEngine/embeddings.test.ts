@@ -861,4 +861,73 @@ describe("ciphertext is never chunked or embedded (sdk#864)", () => {
     expect(updateMessageEmbeddingOp).toHaveBeenCalledTimes(1);
     expect(warnings).toEqual([]);
   });
+
+  it("embedMessage returns the encrypted row unchanged without calling the API", async () => {
+    // The whole-message entry point is public API too, so it needs the same
+    // gate: a consumer can hand any message id straight to it.
+    const fetchMock = stubFetchOk();
+    const sealed = makeMessage({ uniqueId: "sealed", content: ciphertext });
+    vi.mocked(getMessageOp).mockResolvedValue(sealed);
+
+    expect(await embedMessage(ctx, "sealed", { apiKey: "k", baseUrl: BASE })).toBe(sealed);
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(updateMessageEmbeddingOp).not.toHaveBeenCalled();
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0]).toContain("sealed");
+
+    // Control: the same call on a plaintext row still embeds and persists.
+    const prose = makeMessage({ uniqueId: "prose", content: "something the user actually typed" });
+    vi.mocked(getMessageOp).mockResolvedValue(prose);
+
+    await embedMessage(ctx, "prose", { apiKey: "k", baseUrl: BASE });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(updateMessageEmbeddingOp).toHaveBeenCalledWith(
+      ctx,
+      "prose",
+      expect.any(Array),
+      expect.any(String)
+    );
+    expect(JSON.stringify(recorded)).not.toContain("enc:v3:");
+  });
+
+  it("embedAllMessages skips the encrypted row and reports the skip with structured counts", async () => {
+    const fetchMock = stubFetchOk();
+    vi.mocked(getMessagesOp).mockResolvedValue([
+      makeMessage({ uniqueId: "sealed", content: ciphertext }),
+      makeMessage({ uniqueId: "prose", content: "something the user actually typed" }),
+    ]);
+
+    const count = await embedAllMessages(ctx, { apiKey: "k", baseUrl: BASE });
+
+    expect(count).toBe(1);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(updateMessageEmbeddingOp).toHaveBeenCalledTimes(1);
+    expect(updateMessageEmbeddingOp).toHaveBeenCalledWith(
+      ctx,
+      "prose",
+      expect.any(Array),
+      expect.any(String)
+    );
+    expect(JSON.stringify(recorded)).not.toContain("enc:v3:");
+
+    // Aggregate, on the error channel, counts as structured fields — same
+    // contract as the chunking sweep, for the same prod-log reason.
+    expect(warnings).toEqual([]);
+    expect(errors).toHaveLength(1);
+    const [message, error, context] = errors[0];
+    expect(String(message)).toContain("still encrypted");
+    expect(error).toBeUndefined();
+    expect(context).toEqual({ stillEncrypted: 1, considered: 2 });
+  });
+
+  it("embedAllMessages stays quiet when every row is readable", async () => {
+    stubFetchOk();
+    vi.mocked(getMessagesOp).mockResolvedValue([
+      makeMessage({ uniqueId: "prose", content: "something the user actually typed" }),
+    ]);
+
+    expect(await embedAllMessages(ctx, { apiKey: "k", baseUrl: BASE })).toBe(1);
+    expect(warnings).toEqual([]);
+    expect(errors).toEqual([]);
+  });
 });
