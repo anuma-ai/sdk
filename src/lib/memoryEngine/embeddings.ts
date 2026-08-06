@@ -139,9 +139,13 @@ export async function embedAllMessages(
 ): Promise<number> {
   const embeddingModel = options.model ?? DEFAULT_API_EMBEDDING_MODEL;
   let embeddedCount = 0;
-  // Counted as a ratio, not a bare tally — see chunkAndEmbedAllMessages.
+  // Two ratios: candidate-scoped and pass-scoped. See chunkAndEmbedAllMessages
+  // for why both are needed and why neither can replace the other. Same blind
+  // spot here: a row with a ciphertext-derived vector exits at the first gate.
   let stillEncrypted = 0;
   let considered = 0;
+  let sealedRowsSeen = 0;
+  let rowsSeen = 0;
 
   // Get all conversations
   const conversations = await getConversationsOp(ctx);
@@ -153,6 +157,9 @@ export async function embedAllMessages(
     const messages = await getMessagesOp(ctx, conv.conversationId);
 
     for (const message of messages) {
+      rowsSeen++;
+      if (isEncrypted(message.content)) sealedRowsSeen++;
+
       // Skip if already has embedding
       if (message.vector && message.vector.length > 0) {
         continue;
@@ -202,12 +209,12 @@ export async function embedAllMessages(
 
   // Aggregate rather than per-row, on the error channel with the counts as
   // structured fields — see chunkAndEmbedAllMessages for why `error` and not
-  // `warn`.
-  if (stillEncrypted > 0) {
+  // `warn`, and why this fires on either tally.
+  if (stillEncrypted > 0 || sealedRowsSeen > 0) {
     getLogger().error(
       "memoryEngine: messages still encrypted (key unavailable?) — excluded from embedding",
       undefined,
-      { stillEncrypted, considered }
+      { stillEncrypted, considered, sealedRowsSeen, rowsSeen }
     );
   }
 
@@ -343,15 +350,34 @@ export async function chunkAndEmbedAllMessages(
   };
   const shortMessages: ShortMessage[] = [];
   const longMessages: LongMessage[] = [];
-  // Counted as a ratio, not a bare tally: 300/300 means the whole pass ran
-  // without a crypto context, 2/300 means a couple of odd rows.
+  // Two ratios, because they answer two different questions and they come apart
+  // on exactly the accounts that matter.
+  //
+  // `stillEncrypted / considered` is scoped to EMBEDDABLE CANDIDATES: `considered`
+  // counts only rows that survived the already-chunked, has-vector, role and
+  // origin gates below. It answers "of the rows this pass could have embedded,
+  // how many were sealed", i.e. what this pass refused to do.
+  //
+  // `sealedRowsSeen / rowsSeen` is scoped to THE WHOLE PASS, counted before any
+  // gate. It answers "is this pass reading without a crypto context right now".
+  // A device whose sealed rows ALL already carry ciphertext-built chunks exits at
+  // the first gate on every one of them, so the candidate ratio stays 0/0 and
+  // reports nothing — which is precisely the 25 affected accounts. Without the
+  // second pair, a broken context on the accounts we are chasing is invisible.
+  //
+  // Counting only. Neither tally moves the skip: rows are still refused at the
+  // gate below, so behaviour is unchanged and `considered` keeps its meaning.
   let stillEncrypted = 0;
   let considered = 0;
+  let sealedRowsSeen = 0;
+  let rowsSeen = 0;
 
   for (const conv of targetConversations) {
     const messages = await getMessagesOp(ctx, conv.conversationId);
 
     for (const message of messages) {
+      rowsSeen++;
+      if (isEncrypted(message.content)) sealedRowsSeen++;
       // A message whose stored embedding model differs from the current one is
       // stale — its vectors live in an incompatible space (and searchChunksOp
       // now skips them), so re-embed it even if it already has chunks/vector.
@@ -398,11 +424,16 @@ export async function chunkAndEmbedAllMessages(
   // here would be invisible in the one environment where it matters. Counts go
   // in the context object (forwarded as structured fields) rather than the
   // message, so they stay facetable and the message stays groupable.
-  if (stillEncrypted > 0) {
+  //
+  // Fires on EITHER tally. `sealedRowsSeen > 0` with `stillEncrypted === 0` is the
+  // interesting case, not a contradiction: it means every sealed row was already
+  // filtered out before the candidate counter, which is what a device reading
+  // wallet-less over an already-damaged history looks like.
+  if (stillEncrypted > 0 || sealedRowsSeen > 0) {
     getLogger().error(
       "memoryEngine: messages still encrypted (key unavailable?) — excluded from embedding",
       undefined,
-      { stillEncrypted, considered }
+      { stillEncrypted, considered, sealedRowsSeen, rowsSeen }
     );
   }
 

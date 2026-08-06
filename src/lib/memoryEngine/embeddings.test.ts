@@ -803,7 +803,41 @@ describe("ciphertext is never chunked or embedded (sdk#864)", () => {
     expect(error).toBeUndefined();
     // Numbers in the context object, not interpolated into the message: the
     // consumer spreads args[2] into the log payload, where they are facetable.
-    expect(context).toEqual({ stillEncrypted: 1, considered: 2 });
+    // Two ratios: candidate-scoped (what this pass refused) and pass-scoped (is
+    // this pass reading wallet-less at all).
+    expect(context).toEqual({
+      stillEncrypted: 1,
+      considered: 2,
+      sealedRowsSeen: 1,
+      rowsSeen: 2,
+    });
+  });
+
+  it("reports a sealed row that never reaches the candidate counter", async () => {
+    // The blind spot rutwik found, and the reason for the second pair. A row that
+    // already carries ciphertext-built chunks exits at the FIRST gate, so
+    // `considered` never sees it and the candidate ratio stays 0/0. That is
+    // exactly the shape of the 25 affected accounts, and before `sealedRowsSeen`
+    // it logged nothing at all.
+    stubFetchOk();
+    vi.mocked(getMessagesOp).mockResolvedValue([
+      makeMessage({
+        uniqueId: "sealed-and-chunked",
+        content: ciphertext,
+        chunks: [{ text: "a1b2c3", vector: [1, 2, 3], startOffset: 0, endOffset: 6 }],
+      }),
+    ]);
+
+    expect(await chunkAndEmbedAllMessages(ctx, { apiKey: "k", baseUrl: BASE })).toBe(0);
+
+    expect(errors).toHaveLength(1);
+    const [, , context] = errors[0];
+    expect(context).toEqual({
+      stillEncrypted: 0,
+      considered: 0,
+      sealedRowsSeen: 1,
+      rowsSeen: 1,
+    });
   });
 
   it("chunkAndEmbedAllMessages stays quiet when every row is readable", async () => {
@@ -917,7 +951,32 @@ describe("ciphertext is never chunked or embedded (sdk#864)", () => {
     const [message, error, context] = errors[0];
     expect(String(message)).toContain("still encrypted");
     expect(error).toBeUndefined();
-    expect(context).toEqual({ stillEncrypted: 1, considered: 2 });
+    expect(context).toEqual({
+      stillEncrypted: 1,
+      considered: 2,
+      sealedRowsSeen: 1,
+      rowsSeen: 2,
+    });
+  });
+
+  it("embedAllMessages reports a sealed row that already has a vector", async () => {
+    // Same blind spot as the chunking sweep: a ciphertext-derived vector makes the
+    // row exit at the first gate, so only the pass-scoped tally sees it.
+    stubFetchOk();
+    vi.mocked(getMessagesOp).mockResolvedValue([
+      makeMessage({ uniqueId: "sealed-and-vectored", content: ciphertext, vector: [1, 2, 3] }),
+    ]);
+
+    expect(await embedAllMessages(ctx, { apiKey: "k", baseUrl: BASE })).toBe(0);
+
+    expect(errors).toHaveLength(1);
+    const [, , context] = errors[0];
+    expect(context).toEqual({
+      stillEncrypted: 0,
+      considered: 0,
+      sealedRowsSeen: 1,
+      rowsSeen: 1,
+    });
   });
 
   it("embedAllMessages stays quiet when every row is readable", async () => {
