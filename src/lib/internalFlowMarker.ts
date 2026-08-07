@@ -18,8 +18,9 @@
  *
  * WHAT CARRIES IT: every caller of `callPortalJsonCompletion` (fact extraction, topic
  * extraction, consolidation, decay/injection classifiers, graph traversal, query
- * decomposition) plus profile-facet synthesis. All are background ops with no user
- * waiting on a chat turn.
+ * decomposition), profile-facet synthesis, and progressive history summarization
+ * (`chat/summarize.ts`, which needs its own system message because it sends none).
+ * All are background ops with no user waiting on a chat turn.
  *
  * WHAT DELIBERATELY DOES NOT: `reflect()` when it answers the user's own question.
  * That is a user-facing turn, not an internal flow, and mislabelling it would put the
