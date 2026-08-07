@@ -14,6 +14,7 @@ import {
 } from "./profileSalience.js";
 import { recall } from "./recall.js";
 import { RECALL_MAX_LIMIT } from "./recallConstants.js";
+import { INTERNAL_FLOW_MARKER } from "../internalFlowMarker.js";
 import { reflect } from "./reflect.js";
 import {
   facetsSignature,
@@ -221,6 +222,14 @@ describe("synthesizeProfile", () => {
       .mockResolvedValueOnce(reflectResult("Some interests", ["a"]));
 
     const doc = await synthesizeProfile(ctx, { apiKey: "k", facets: FACETS });
+
+    // Profile synthesis is a background op that reaches the portal through reflect(),
+    // which is NOT marked itself (it also serves the user's own questions). So the
+    // marker has to ride the facet prompt — without it these calls read as markerless
+    // and get 4xx'd once PORTAL_DETECTION_REJECT_MARKERLESS is on.
+    for (const call of mockReflect.mock.calls) {
+      expect(call[2]?.systemPrompt).toContain(INTERNAL_FLOW_MARKER);
+    }
 
     expect(doc.version).toBe(PROFILE_DOC_VERSION);
     expect(doc.sections.map((s) => s.key)).toEqual(["bio", "interests"]);
