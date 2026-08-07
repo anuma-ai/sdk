@@ -1,8 +1,9 @@
 // @vitest-environment happy-dom
 import { Database } from "@nozbe/watermelondb";
 import LokiJSAdapter from "@nozbe/watermelondb/adapters/lokijs";
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
+import { type Logger, noopLogger, setLogger } from "../../logger";
 import { encodeChunkVector } from "../../memoryEngine/vectorEncoding";
 import { sdkMigrations, sdkModelClasses, sdkSchema } from "../schema";
 import { Conversation } from "./models";
@@ -74,11 +75,24 @@ async function seed(
 
 describe("searchChunksOp — chunk vector storage encoding", () => {
   let ctx: StorageOperationsContext;
+  let warnings: string[];
 
   beforeEach(async () => {
     ctx = makeCtx(makeDatabase());
     await createConversationOp(ctx, { conversationId: "conv-1" });
+    warnings = [];
+    const spy: Logger = {
+      ...noopLogger,
+      warn: (...args: unknown[]) => {
+        warnings.push(String(args[0]));
+      },
+    };
+    setLogger(spy);
   });
+
+  afterEach(() => setLogger(noopLogger));
+
+  const unreadableWarnings = () => warnings.filter((w) => w.includes("could not read"));
 
   it("reads a legacy number[] vector — the encoding every stored row is in today", async () => {
     await seed(ctx, "legacy", [chunk("apples and oranges", [1, 0, 0])]);
@@ -133,5 +147,34 @@ describe("searchChunksOp — chunk vector storage encoding", () => {
     const results = await searchChunksOp(ctx, [1, 0, 0], { minSimilarity: 0 });
 
     expect(results.map((r) => r.chunkText)).toEqual(["apples and oranges"]);
+  });
+
+  it("says once per pass that it dropped unreadable vectors", async () => {
+    // Skipping the row silently is what made this hard to notice: the corrupt
+    // chunk just stops appearing in results and nothing anywhere says why. The
+    // count has to be in the message, or a one-bad-chunk pass and a whole-row
+    // corruption read the same.
+    await seed(ctx, "corrupt", [
+      chunk("truncated payload", "!!!not-base64!!!"),
+      chunk("also truncated", "@@@@"),
+    ]);
+    await seed(ctx, "healthy", [chunk("apples and oranges", encodeChunkVector([1, 0, 0]))]);
+
+    await searchChunksOp(ctx, [1, 0, 0], { minSimilarity: 0 });
+
+    expect(unreadableWarnings()).toHaveLength(1);
+    expect(unreadableWarnings()[0]).toContain("could not read 2 chunk vectors");
+  });
+
+  it("says nothing when every vector reads cleanly", async () => {
+    // The other half. A warning that fired on a healthy pass would be noise, and
+    // a chunk with no vector at all is healthy, not corrupt.
+    await seed(ctx, "healthy", [chunk("apples and oranges", encodeChunkVector([1, 0, 0]))]);
+    await seed(ctx, "legacy", [chunk("a distant topic", [0, 1, 0])]);
+    await seed(ctx, "no-vector", [chunk("never embedded", [])]);
+
+    await searchChunksOp(ctx, [1, 0, 0], { minSimilarity: 0 });
+
+    expect(unreadableWarnings()).toEqual([]);
   });
 });

@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { cosineSimilarity } from "./vector";
 import { decodeChunkVector, encodeChunkVector } from "./vectorEncoding";
@@ -122,5 +122,97 @@ describe("encodeChunkVector / decodeChunkVector", () => {
     // just its mechanics.
     expect(asBase64.length).toBe(Math.ceil((PRODUCTION_DIMS * 4) / 3) * 4);
     expect(asJson.length / asBase64.length).toBeGreaterThan(3);
+  });
+});
+
+/**
+ * A corrupt vector and an absent one both decode to a zero-length array, and the
+ * caller cannot act on the difference without a signal. `onMalformed` is that
+ * signal, so what matters is not only that it fires on corruption but that it
+ * stays quiet on a chunk that simply has no vector — a callback that fired on
+ * every empty would make the caller's count meaningless.
+ */
+describe("decodeChunkVector — malformed signal", () => {
+  afterEach(() => {
+    vi.doUnmock("../processors/encoding");
+    vi.resetModules();
+  });
+
+  it("fires once for a string whose length is not a multiple of 4", () => {
+    const onMalformed = vi.fn();
+
+    expect(decodeChunkVector("AAA", onMalformed).length).toBe(0);
+
+    expect(onMalformed).toHaveBeenCalledTimes(1);
+  });
+
+  it("fires for a corrupted string that Node's lenient decode would accept", () => {
+    // Same trap as the alphabet test above: the junk keeps the length aligned,
+    // so only the canonical check catches it. Without a signal this row would
+    // rank nothing and say nothing.
+    const good = encodeChunkVector([1, 2, 3]);
+    const corrupted = `${good.slice(0, 8)}****${good.slice(8)}`;
+    const onMalformed = vi.fn();
+
+    expect(decodeChunkVector(corrupted, onMalformed).length).toBe(0);
+
+    expect(onMalformed).toHaveBeenCalledTimes(1);
+  });
+
+  it("fires for a payload that does not divide into whole floats", () => {
+    // Canonical base64 and length-aligned, so it clears the string checks and is
+    // caught only by the byte arithmetic. Derived from a real encoding.
+    const truncated = encodeChunkVector([1, 2]).slice(0, 4); // 3 bytes
+    const onMalformed = vi.fn();
+
+    expect(decodeChunkVector(truncated, onMalformed).length).toBe(0);
+
+    expect(onMalformed).toHaveBeenCalledTimes(1);
+  });
+
+  it("fires when the decoder itself throws", async () => {
+    // Unreachable on Node, where `Buffer.from` never throws on this input, and
+    // reachable in a browser, where `atob` does. Mocked so the catch is covered
+    // on whichever runtime the suite happens to run on.
+    vi.resetModules();
+    vi.doMock("../processors/encoding", async () => {
+      const actual =
+        await vi.importActual<typeof import("../processors/encoding")>("../processors/encoding");
+      return {
+        ...actual,
+        base64ToUint8Array: () => {
+          throw new Error("decoder rejected the payload");
+        },
+      };
+    });
+    const { decodeChunkVector: decode, encodeChunkVector: encode } =
+      await import("./vectorEncoding");
+    const onMalformed = vi.fn();
+
+    expect(decode(encode([1, 2, 3]), onMalformed).length).toBe(0);
+
+    expect(onMalformed).toHaveBeenCalledTimes(1);
+  });
+
+  it("stays quiet for a chunk that simply has no vector", () => {
+    // The legitimately-absent shapes. These are normal, not corruption, and a
+    // caller counting corruption must not see them.
+    const onMalformed = vi.fn();
+
+    expect(decodeChunkVector(undefined, onMalformed).length).toBe(0);
+    expect(decodeChunkVector(null, onMalformed).length).toBe(0);
+    expect(decodeChunkVector([], onMalformed).length).toBe(0);
+    expect(decodeChunkVector("", onMalformed).length).toBe(0);
+
+    expect(onMalformed).not.toHaveBeenCalled();
+  });
+
+  it("stays quiet for either readable encoding", () => {
+    const onMalformed = vi.fn();
+
+    expect(decodeChunkVector([1, 2, 3], onMalformed).length).toBe(3);
+    expect(decodeChunkVector(encodeChunkVector([1, 2, 3]), onMalformed).length).toBe(3);
+
+    expect(onMalformed).not.toHaveBeenCalled();
   });
 });

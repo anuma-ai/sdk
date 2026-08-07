@@ -1520,6 +1520,10 @@ export async function searchChunksOp(
   };
   const candidates: Candidate[] = [];
   let staleSkipped = 0;
+  // Counted, not logged per chunk: one corrupt row can hold hundreds of chunks,
+  // and a line each would bury the pass in noise. Reported once at the end,
+  // alongside the stale-model warning.
+  let unreadableVectors = 0;
 
   for (const message of messages) {
     // Use _getRaw for reliable raw column access
@@ -1576,8 +1580,14 @@ export async function searchChunksOp(
       // vectors are kept as zero-length placeholders to keep indices aligned
       // with the decrypted `chunks` array for pass-2 text resolution.
       // decodeChunkVector reads either storage encoding (sdk#862) and returns a
-      // zero-length array for a missing or unreadable one.
-      const vectors: Float32Array[] = chunks.map((chunk) => decodeChunkVector(chunk.vector));
+      // zero-length array for a missing or unreadable one. The callback fires
+      // only on the unreadable half, so a chunk that simply has no vector is not
+      // counted as corruption.
+      const vectors: Float32Array[] = chunks.map((chunk) =>
+        decodeChunkVector(chunk.vector, () => {
+          unreadableVectors++;
+        })
+      );
       chunkCache?.set(message.id, { version, chunks: vectors });
 
       for (let ci = 0; ci < chunks.length; ci++) {
@@ -1613,6 +1623,14 @@ export async function searchChunksOp(
     getLogger().warn(
       `searchChunksOp: skipped ${staleSkipped} messages whose embedding model differs from ` +
         `the current model (${embeddingModel}) — re-embed via chunkAndEmbedAllMessages`
+    );
+  }
+
+  if (unreadableVectors > 0) {
+    getLogger().warn(
+      `searchChunksOp: could not read ${unreadableVectors} chunk vectors and left them out of ` +
+        `ranking — the stored value is corrupt, so those chunks stay unsearchable until the ` +
+        `message is re-embedded via chunkAndEmbedAllMessages`
     );
   }
 
