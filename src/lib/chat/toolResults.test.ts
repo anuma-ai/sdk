@@ -352,6 +352,48 @@ describe("isToolResultsRow — origin settles what shape cannot", () => {
       isToolResultsRow({ role: "user", content: TOOL_RESULTS_PREFIX, origin: "tool_result" })
     ).toBe(true);
   });
+
+  it("does not hide a 'chunks_discarded' row (client#5618)", () => {
+    // `origin` is an enum now, not a boolean, and only `tool_result` hides a row.
+    // The discard sweep marks ~2k ORDINARY user and assistant messages with
+    // `chunks_discarded` to stop them being re-embedded; if this predicate ever
+    // widened to "has a non-null origin", every one of them would vanish from
+    // the transcript while still sitting in the database and in backup. That is
+    // silent, user-visible history loss, so pin it rather than leave it as a
+    // property that happens to fall out of the early return below.
+    expect(
+      isToolResultsRow({ role: "user", content: "What did you mean by that?", origin: null })
+    ).toBe(false);
+    expect(
+      isToolResultsRow({
+        role: "user",
+        content: "What did you mean by that?",
+        origin: "chunks_discarded",
+      })
+    ).toBe(false);
+    expect(
+      isToolResultsRow({
+        role: "assistant",
+        content: "I meant the second option.",
+        origin: "chunks_discarded",
+      })
+    ).toBe(false);
+
+    // Even for a row whose CONTENT looks synthetic: the marker is a positive
+    // statement that this is not a tool-results row, so shape must not override.
+    expect(
+      isToolResultsRow({
+        role: "user",
+        content: `${TOOL_RESULTS_PREFIX}\nTool "github_api" returned: {"a":1}`,
+        origin: "chunks_discarded",
+      })
+    ).toBe(false);
+
+    // Control: the value that DOES hide a row still hides it.
+    expect(isToolResultsRow({ role: "user", content: "anything", origin: "tool_result" })).toBe(
+      true
+    );
+  });
 });
 
 describe("resolveFoldTarget — nearest assistant, not a fixed direction", () => {

@@ -72,13 +72,24 @@ export type ChatRole = "user" | "assistant" | "system";
 export type MessageFeedback = "like" | "dislike" | null;
 
 /**
- * Which producer synthesised a message, for rows the user did not type and the
- * UI does not render. Set at write time by that producer; a union so further
- * synthetic kinds can be added without another column.
+ * Provenance for a row that needs handling the content cannot justify. Set at
+ * write time by whoever produced or repaired the row; a union so further kinds
+ * can be added without another column.
+ *
+ * Read it as an enum, never as a boolean. The values do NOT share a meaning:
+ * `tool_result` marks a synthetic row that is both unindexed and hidden, while
+ * `chunks_discarded` marks an ordinary typed message that is unindexed and still
+ * rendered. Any predicate that collapses this to "has an origin" hides real
+ * messages (see `isToolResultsRow`).
  *
  * - `tool_result`: the hidden `[Tool Execution Results]` row built from a
  *   turn's auto-executed tool results. Skipped by the embedding sweep (see
- *   `memoryEngine/embeddings`).
+ *   `memoryEngine/embeddings`) AND hidden from the transcript.
+ * - `chunks_discarded`: an ordinary, still-rendered message whose chunk vectors
+ *   were built over `enc:v3:` ciphertext (sdk#864) and have been discarded
+ *   rather than re-embedded at the user's own expense (client#5618). Skipped by
+ *   the embedding sweep so nothing re-embeds it, but NOT hidden — only
+ *   `tool_result` hides a row, and `isToolResultsRow` is what draws that line.
  * - undefined/null: a normal message, or any row written before v44.
  *
  * Stored in the plaintext `origin` column — never encrypted. The deferred
@@ -86,7 +97,7 @@ export type MessageFeedback = "like" | "dislike" | null;
  * encrypted flag would be unreadable exactly where it matters and the skip
  * would fail open.
  */
-export type MessageOrigin = "tool_result";
+export type MessageOrigin = "tool_result" | "chunks_discarded";
 
 /**
  * Metadata for files attached to messages.
@@ -342,7 +353,18 @@ export interface StoredConversationSummary {
 export interface MessageChunk {
   /** The chunk text */
   text: string;
-  /** Embedding vector for this chunk */
+  /**
+   * Embedding vector for this chunk.
+   *
+   * Read it through `decodeChunkVector` rather than passing it straight to a
+   * numeric call site. This stays `number[]` only while the writer still emits
+   * JSON arrays; it widens to `number[] | string` in the release that flips the
+   * writer to base64 float32 (sdk#862), and that widening is the whole reason
+   * that release is a major. Readers already accept both, so code written
+   * against the decoder today needs no change when it happens — code written
+   * against the raw array degrades silently, because a string handed to
+   * `Float32Array.from` yields one NaN per character rather than an error.
+   */
   vector: number[];
   /** Character offset where this chunk starts in the original message */
   startOffset: number;

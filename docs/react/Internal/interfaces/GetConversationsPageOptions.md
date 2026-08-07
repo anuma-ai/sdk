@@ -1,6 +1,6 @@
 # GetConversationsPageOptions
 
-Defined in: [src/lib/db/chat/types.ts:172](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#172)
+Defined in: [src/lib/db/chat/types.ts:183](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#183)
 
 Options for keyset-paginated conversation-list reads ([getConversationsPageOp](../functions/getConversationsPageOp.md)).
 
@@ -10,7 +10,7 @@ Options for keyset-paginated conversation-list reads ([getConversationsPageOp](.
 
 > `optional` **before**: `number`
 
-Defined in: [src/lib/db/chat/types.ts:178](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#178)
+Defined in: [src/lib/db/chat/types.ts:189](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#189)
 
 Upper-bound `created_at` cursor (epoch ms). Without
 `boundaryExcludeUniqueIds` it is EXCLUSIVE: only conversations with
@@ -22,7 +22,7 @@ Upper-bound `created_at` cursor (epoch ms). Without
 
 > `optional` **boundaryExcludeUniqueIds**: `string`\[]
 
-Defined in: [src/lib/db/chat/types.ts:188](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#188)
+Defined in: [src/lib/db/chat/types.ts:199](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#199)
 
 uniqueIds of the rows the caller already holds AT the `before` boundary.
 `created_at` is NOT unique (a bulk restore/import writes many rows with the
@@ -38,7 +38,7 @@ filtered out, so a boundary-timestamp row is returned exactly once. Mirrors
 
 > `optional` **limit**: `number`
 
-Defined in: [src/lib/db/chat/types.ts:195](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#195)
+Defined in: [src/lib/db/chat/types.ts:206](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#206)
 
 Maximum rows to return — the NEWEST `limit` rows of the matching range.
 Defaults to 200. A non-positive or non-finite value yields an EMPTY page

@@ -719,21 +719,35 @@ export {
   chunkAndEmbedAllMessages,
   // Chunking functions for sub-message semantic search
   chunkAndEmbedMessage,
+  // Provenance marker for a row whose ciphertext-built chunks were discarded
+  // rather than re-embedded (client#5618). Its sibling TOOL_RESULT_ORIGIN is
+  // exported just below, from the module that owns it.
+  CHUNKS_DISCARDED_ORIGIN,
   chunkText,
   // Int8 embedding quantization helpers (RAM reduction for client caches)
   cosineInt8,
   createMemoryEngineTool,
+  // Chunk-vector storage codec — read `MessageChunk.vector` through
+  // decodeChunkVector, which accepts both the legacy number[] and the base64
+  // float32 form (sdk#862).
+  decodeChunkVector,
   DEFAULT_CHUNK_OVERLAP,
   DEFAULT_CHUNK_SIZE,
   DEFAULT_MIN_CHUNK_SIZE,
   dequantizeEmbedding,
   embedAllMessages,
   embedMessage,
+  encodeChunkVector,
   generateEmbedding,
   generateEmbeddings,
   quantizeEmbedding,
   shouldChunkMessage,
 } from "../lib/memoryEngine";
+
+// The other `origin` marker, from the module that owns it. Exported here for the
+// same reason as CHUNKS_DISCARDED_ORIGIN above: a client that cannot import the
+// constant hand-rolls the string instead.
+export { TOOL_RESULT_ORIGIN } from "../lib/chat/toolResults";
 
 // Server-side tools caching utilities
 export type { DropboxExportResult, DropboxImportResult } from "../lib/backup/dropbox/backup";
