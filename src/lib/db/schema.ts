@@ -117,8 +117,20 @@ import { VaultFolder } from "./vaultFolders/models";
  * - v45: Added `media` to memory_vault — the photo(s) a server-extracted
  *   memory came from, as JSON `[{feed_item_id, object_key}]`. Null on every
  *   row that did not come from a photo, which is all of them before this
+ * - v46: Added facet_key, facet_value columns to memory_vault recording a
+ *   memory's facet slot and value. `facet_key` (indexed) is the closed
+ *   `"<factType>:self:<slot>"` shape of a single-valued SELF standing attribute
+ *   (e.g. `preference:self:ui_theme`); `facet_value` is the normalized current
+ *   value token (e.g. `dark`/`light`). Stamped by retain() on rows it CREATES,
+ *   for consumers that want a memory's slot+value. They do NOT drive dedup:
+ *   every write is deduped by semantic search + the decide model. Both nullable,
+ *   no backfill (null = no facet recorded).
+ *   TODO(privacy): both columns are PLAINTEXT for now (TEST). `facet_value`
+ *   leaks the actual value ("vegan","sf") in cleartext, defeating content
+ *   encryption; `facet_key` leaks the slot shape like `fact_type`. Encrypt (or
+ *   otherwise protect) facet_value before ship — needs privacy sign-off.
  */
-export const SDK_SCHEMA_VERSION = 45;
+export const SDK_SCHEMA_VERSION = 46;
 
 /**
  * Combined WatermelonDB schema for all SDK storage modules.
@@ -368,6 +380,20 @@ export const sdkSchema = appSchema({
         // Reserved geo slot (coarse geohash) for landmark/Trail memories.
         // Unused at launch; populated by location-tagged memory sources.
         { name: "geohash", type: "string", isOptional: true },
+        // Facet slot+value (v43). `facet_key` is the closed
+        // `"<factType>:self:<slot>"` shape of a single-valued SELF standing
+        // attribute (e.g. `preference:self:ui_theme`); `facet_value` is the
+        // normalized current value token (e.g. `dark`/`light`). Indexed so a
+        // same-slot lookup stays cheap for consumers that want it. Stamped on
+        // create only; dedup is decided by semantic search + the decide model,
+        // NOT by these columns. Null = no facet recorded.
+        //
+        // TODO(privacy): both columns are PLAINTEXT for now (TEST). `facet_value`
+        // leaks the actual value ("vegan","sf") in cleartext, defeating content
+        // encryption — encrypt/protect before ship; `facet_key` leaks the slot
+        // shape like `fact_type`. Both need privacy sign-off before ship.
+        { name: "facet_key", type: "string", isOptional: true, isIndexed: true },
+        { name: "facet_value", type: "string", isOptional: true },
       ],
     }),
     // Entity table — canonical names extracted from auto-extraction (W5).
@@ -537,6 +563,7 @@ export const sdkSchema = appSchema({
  * - v41 → v42: Added `topics` + `topics_updated_at` columns to memory_vault, making a memory's topics the durable synced record and `entity`/`memory_entity` a device-local index over it (null `topics` = pre-v42, backfilled from the row's current links by the sweep)
  * - v42 → v43: Added a composite `(is_deleted, created_at)` index to conversations so the list reads stop temp-sorting (structural only, no data rewritten)
  * - v43 → v44: Added `origin` column to history recording which producer synthesised a row, so the embedding sweep can skip never-rendered tool-result dumps (plaintext by design — the sweep has no wallet context; null = legacy, embedded as before)
+ * - v45 → v46: Added `facet_key` (indexed) + `facet_value` columns to memory_vault recording a memory's facet slot+value, stamped by retain() on create for other consumers (they do NOT drive dedup — semantic search + the decide model does). All nullable, NO backfill — existing rows keep both NULL (= no facet recorded). Both PLAINTEXT (TEST) and need privacy sign-off before ship — see the column note and SDK_SCHEMA_VERSION doc.
  */
 export const sdkMigrations = schemaMigrations({
   migrations: [
@@ -1192,6 +1219,29 @@ export const sdkMigrations = schemaMigrations({
         addColumns({
           table: "memory_vault",
           columns: [{ name: "media", type: "string", isOptional: true }],
+        }),
+      ],
+    },
+    // v45 -> v46: facet_key (indexed) + facet_value on memory_vault, recording a
+    // memory's facet slot+value for consumers that want it. Existing rows keep
+    // both NULL — no backfill: a legacy row's content is encrypted, so its
+    // slot/value can't be classified in-migration (exact fact_type /
+    // embedding_model precedent). NULL is harmless: dedup never reads these
+    // columns, it goes through semantic search + the decide model either way.
+    //
+    // TODO(privacy): both columns are PLAINTEXT for now (TEST). `facet_value`
+    // leaks the actual value ("vegan","sf") in cleartext, defeating content
+    // encryption; `facet_key` leaks the slot shape like `fact_type`. Encrypt /
+    // protect facet_value before ship — needs privacy sign-off.
+    {
+      toVersion: 46,
+      steps: [
+        addColumns({
+          table: "memory_vault",
+          columns: [
+            { name: "facet_key", type: "string", isOptional: true, isIndexed: true },
+            { name: "facet_value", type: "string", isOptional: true },
+          ],
         }),
       ],
     },

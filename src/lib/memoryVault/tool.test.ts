@@ -14,11 +14,21 @@ vi.mock("./searchTool", () => ({
   eagerEmbedContent: vi.fn().mockResolvedValue(undefined),
 }));
 
+// The CREATE path dynamically imports retain() when embeddings are available;
+// mock it so we can assert routing/consolidation/fallback without the real
+// merge pipeline. Default resolve is set per-test (an undefined resolve would
+// make the tool fall through to the raw-create fallback).
+vi.mock("../memory/retain", () => ({
+  retain: vi.fn(),
+}));
+
 import {
   createVaultMemoryOp,
   getVaultMemoryOp,
   updateVaultMemoryOp,
 } from "../db/memoryVault/operations";
+import { retain } from "../memory/retain";
+import type { RetainResult } from "../memory/types";
 import { eagerEmbedContent } from "./searchTool";
 
 const mockVaultCtx = {} as VaultMemoryOperationsContext;
@@ -318,7 +328,195 @@ describe("createMemoryVaultTool", () => {
     });
   });
 
-  // ── Eager embedding ────────────────────────────────────────
+  // ── Junk gate ──────────────────────────────────────────────
+
+  describe("junk gate", () => {
+    it("rejects low-signal content before any create/update/retain", async () => {
+      const tool = createMemoryVaultTool(mockVaultCtx, autoConfirm);
+
+      for (const junk of ["1", "2", "42", "---"]) {
+        const result = await tool.executor!({ content: junk });
+        expect(result).toBe("Error: content too short or low-signal to save.");
+      }
+      expect(createVaultMemoryOp).not.toHaveBeenCalled();
+      expect(updateVaultMemoryOp).not.toHaveBeenCalled();
+      expect(retain).not.toHaveBeenCalled();
+    });
+  });
+
+  // ── CREATE routes through retain() (Fix A) ─────────────────
+
+  describe("create via retain (dedup)", () => {
+    const embeddingOptions = { apiKey: "test-key" };
+    const cache = createVaultEmbeddingCache();
+
+    const retainResult = (over: Partial<RetainResult> = {}): RetainResult => ({
+      action: "create",
+      memoryId: "ret-1",
+      proofCount: 1,
+      ...over,
+    });
+
+    beforeEach(() => {
+      cache.clear();
+    });
+
+    it("routes a new save through retain() (not a raw create) when embeddings are available", async () => {
+      vi.mocked(retain).mockResolvedValue(retainResult({ memoryId: "ret-1" }));
+
+      const tool = createMemoryVaultTool(mockVaultCtx, autoConfirm, embeddingOptions, cache);
+      const result = await tool.executor!({ content: "User likes dogs" });
+
+      expect(retain).toHaveBeenCalledWith(
+        "User likes dogs",
+        // ctx now carries a per-call AbortSignal bounding the create's embed —
+        // scoped to this call, never the shared recall/search/eval embed path.
+        {
+          vaultCtx: mockVaultCtx,
+          embeddingOptions,
+          vaultCache: cache,
+          signal: expect.any(AbortSignal),
+        },
+        expect.objectContaining({ source: "manual", scope: "private" })
+      );
+      // The raw create + fire-and-forget embed path is bypassed entirely.
+      expect(createVaultMemoryOp).not.toHaveBeenCalled();
+      expect(eagerEmbedContent).not.toHaveBeenCalled();
+      expect(result).toBe("Memory saved successfully (ID: ret-1).");
+    });
+
+    it("threads folderId and factType into retain options but NEVER consolidateOptions (strict cosine only)", async () => {
+      vi.mocked(retain).mockResolvedValue(retainResult());
+
+      const folderMap = new Map([["Work", "folder_1"]]);
+      const tool = createMemoryVaultTool(
+        mockVaultCtx,
+        { onSave: async () => true, folderMap },
+        embeddingOptions,
+        cache
+      );
+      await tool.executor!({
+        content: "Allergic to shellfish",
+        type: "constraint",
+        folderName: "Work",
+      });
+
+      expect(retain).toHaveBeenCalledWith(
+        "Allergic to shellfish",
+        expect.anything(),
+        expect.objectContaining({
+          source: "manual",
+          scope: "private",
+          folderId: "folder_1",
+          factType: "constraint",
+        })
+      );
+      // The create path must run retain's cosine auto-merge ONLY — passing
+      // consolidateOptions would re-enable Stage-1 LLM consolidation, which can
+      // noop-drop the new fact or rewrite a different row (the data-integrity
+      // footgun). Assert the option is never threaded.
+      const retainOpts = vi.mocked(retain).mock.calls[0][2];
+      expect(retainOpts).not.toHaveProperty("consolidateOptions");
+    });
+
+    it("merges into a true near-duplicate (retain 'merge') instead of storing twice", async () => {
+      // retain with no consolidateOptions folds a ≥0.8 cosine dup into the
+      // existing row and reports its id — the new content is not stored twice.
+      vi.mocked(retain).mockResolvedValue(retainResult({ action: "merge", memoryId: "dup-1" }));
+
+      const tool = createMemoryVaultTool(mockVaultCtx, autoConfirm, embeddingOptions, cache);
+      const result = await tool.executor!({ content: "User likes dogs" });
+
+      expect(createVaultMemoryOp).not.toHaveBeenCalled();
+      expect(result).toBe("Memory merged into an existing memory (ID: dup-1).");
+    });
+
+    it("creates + reports the new id for a genuinely distinct fact (never success without persisting)", async () => {
+      // A distinct fact clears no cosine threshold, so retain creates a new row
+      // and hands back its id — the tool never reports success without a persisted id.
+      vi.mocked(retain).mockResolvedValue(retainResult({ action: "create", memoryId: "fresh-1" }));
+
+      const tool = createMemoryVaultTool(mockVaultCtx, autoConfirm, embeddingOptions, cache);
+      const result = await tool.executor!({ content: "User is allergic to shellfish" });
+
+      expect(result).toBe("Memory saved successfully (ID: fresh-1).");
+    });
+
+    it("maps a retain merge/supersede result to an accurate message", async () => {
+      const tool = createMemoryVaultTool(mockVaultCtx, autoConfirm, embeddingOptions, cache);
+
+      vi.mocked(retain).mockResolvedValue(retainResult({ action: "merge", memoryId: "dup-1" }));
+      expect(await tool.executor!({ content: "User likes dogs and cats" })).toBe(
+        "Memory merged into an existing memory (ID: dup-1)."
+      );
+
+      vi.mocked(retain).mockResolvedValue(retainResult({ action: "supersede", memoryId: "new-2" }));
+      expect(await tool.executor!({ content: "User now prefers cats" })).toBe(
+        "Memory saved, replacing an outdated memory (ID: new-2)."
+      );
+    });
+
+    it("FALLS BACK to a raw create + eager embed when retain() throws (never lose a confirmed save)", async () => {
+      // retain() throws on an embedding outage; a user-confirmed save must still land.
+      vi.mocked(retain).mockRejectedValue(new Error("embeddings unavailable"));
+      vi.mocked(createVaultMemoryOp).mockResolvedValue(
+        makeStoredMemory({ uniqueId: "fallback-1" })
+      );
+
+      const tool = createMemoryVaultTool(mockVaultCtx, autoConfirm, embeddingOptions, cache);
+      const result = await tool.executor!({ content: "important fact" });
+
+      expect(createVaultMemoryOp).toHaveBeenCalledWith(mockVaultCtx, {
+        content: "important fact",
+        scope: "private",
+        folderId: undefined,
+      });
+      expect(eagerEmbedContent).toHaveBeenCalledWith(
+        "important fact",
+        embeddingOptions,
+        cache,
+        mockVaultCtx,
+        "fallback-1"
+      );
+      expect(result).toBe("Memory saved successfully (ID: fallback-1).");
+    });
+
+    it("writes exactly ONCE when the embedding aborts/times out (no double-write)", async () => {
+      // Regression: the old timeout RACE abandoned retain() without cancelling
+      // it, so retain could complete its OWN create AFTER the fallback raw-create
+      // already ran → a duplicate row. The embeddings fetch now aborts fast, so
+      // retain() rejects and the SINGLE catch runs the raw-create exactly once.
+      vi.mocked(retain).mockRejectedValue(
+        Object.assign(new Error("The operation was aborted"), { name: "AbortError" })
+      );
+      vi.mocked(createVaultMemoryOp).mockResolvedValue(makeStoredMemory({ uniqueId: "once-1" }));
+
+      const tool = createMemoryVaultTool(mockVaultCtx, autoConfirm, embeddingOptions, cache);
+      const result = await tool.executor!({ content: "a fact whose embedding hangs" });
+
+      // Retain was attempted with a per-call abort signal (the bound), then the
+      // fallback ran — but the vault was written exactly once (no lingering
+      // retain create racing the fallback).
+      expect(retain).toHaveBeenCalledTimes(1);
+      expect(vi.mocked(retain).mock.calls[0][1]).toHaveProperty("signal", expect.any(AbortSignal));
+      expect(createVaultMemoryOp).toHaveBeenCalledTimes(1);
+      expect(result).toBe("Memory saved successfully (ID: once-1).");
+    });
+
+    it("keeps the raw create path when no embeddings are configured (back-compat)", async () => {
+      vi.mocked(createVaultMemoryOp).mockResolvedValue(makeStoredMemory({ uniqueId: "raw-1" }));
+
+      // No embeddingOptions/cache → retain is never reached.
+      const tool = createMemoryVaultTool(mockVaultCtx, autoConfirm);
+      const result = await tool.executor!({ content: "no-embed fact" });
+
+      expect(retain).not.toHaveBeenCalled();
+      expect(createVaultMemoryOp).toHaveBeenCalled();
+      expect(result).toBe("Memory saved successfully (ID: raw-1).");
+    });
+  });
+
+  // ── Eager embedding (UPDATE path stays direct) ─────────────
 
   describe("eager embedding", () => {
     const embeddingOptions = { apiKey: "test-key" };
@@ -328,22 +526,7 @@ describe("createMemoryVaultTool", () => {
       cache.clear();
     });
 
-    it("eagerly embeds content after creating a new memory", async () => {
-      vi.mocked(createVaultMemoryOp).mockResolvedValue(makeStoredMemory({ uniqueId: "new-1" }));
-
-      const tool = createMemoryVaultTool(mockVaultCtx, autoConfirm, embeddingOptions, cache);
-      await tool.executor!({ content: "embed this" });
-
-      expect(eagerEmbedContent).toHaveBeenCalledWith(
-        "embed this",
-        embeddingOptions,
-        cache,
-        mockVaultCtx,
-        "new-1"
-      );
-    });
-
-    it("re-embeds new content on update (cache invalidation is by id via eagerEmbedContent)", async () => {
+    it("awaits re-embed of new content on update (id-update stays direct, no retain/consolidation)", async () => {
       vi.mocked(getVaultMemoryOp).mockResolvedValue(
         makeStoredMemory({ uniqueId: "mem-1", content: "old content" })
       );
@@ -351,10 +534,12 @@ describe("createMemoryVaultTool", () => {
         makeStoredMemory({ uniqueId: "mem-1", content: "new content" })
       );
       // Cache invalidation is by id: eagerEmbedContent overwrites the id-keyed
-      // entry with the new vector — no separate delete-by-content step.
+      // entry with the new vector — no separate delete-by-content step. An
+      // explicit id-update never routes through retain().
       const tool = createMemoryVaultTool(mockVaultCtx, autoConfirm, embeddingOptions, cache);
-      await tool.executor!({ content: "new content", id: "mem-1" });
+      const result = await tool.executor!({ content: "new content", id: "mem-1" });
 
+      expect(retain).not.toHaveBeenCalled();
       expect(eagerEmbedContent).toHaveBeenCalledWith(
         "new content",
         embeddingOptions,
@@ -362,6 +547,22 @@ describe("createMemoryVaultTool", () => {
         mockVaultCtx,
         "mem-1"
       );
+      expect(result).toBe("Memory updated successfully (ID: mem-1).");
+    });
+
+    it("still reports update success if the awaited re-embed fails (row already persisted)", async () => {
+      vi.mocked(getVaultMemoryOp).mockResolvedValue(
+        makeStoredMemory({ uniqueId: "mem-1", content: "old content" })
+      );
+      vi.mocked(updateVaultMemoryOp).mockResolvedValue(
+        makeStoredMemory({ uniqueId: "mem-1", content: "new content" })
+      );
+      vi.mocked(eagerEmbedContent).mockRejectedValueOnce(new Error("embed failed"));
+
+      const tool = createMemoryVaultTool(mockVaultCtx, autoConfirm, embeddingOptions, cache);
+      const result = await tool.executor!({ content: "new content", id: "mem-1" });
+
+      expect(result).toBe("Memory updated successfully (ID: mem-1).");
     });
   });
 });

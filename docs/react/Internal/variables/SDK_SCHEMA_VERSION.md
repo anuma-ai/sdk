@@ -1,8 +1,8 @@
 # SDK\_SCHEMA\_VERSION
 
-> `const` **SDK\_SCHEMA\_VERSION**: `45` = `45`
+> `const` **SDK\_SCHEMA\_VERSION**: `46` = `46`
 
-Defined in: [src/lib/db/schema.ts:121](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/schema.ts#121)
+Defined in: [src/lib/db/schema.ts:133](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/schema.ts#133)
 
 Current combined schema version for all SDK storage modules.
 
@@ -101,3 +101,15 @@ Version history:
 * v45: Added `media` to memory\_vault — the photo(s) a server-extracted
   memory came from, as JSON `[{feed_item_id, object_key}]`. Null on every
   row that did not come from a photo, which is all of them before this
+* v46: Added facet\_key, facet\_value columns to memory\_vault recording a
+  memory's facet slot and value. `facet_key` (indexed) is the closed
+  `"<factType>:self:<slot>"` shape of a single-valued SELF standing attribute
+  (e.g. `preference:self:ui_theme`); `facet_value` is the normalized current
+  value token (e.g. `dark`/`light`). Stamped by retain() on rows it CREATES,
+  for consumers that want a memory's slot+value. They do NOT drive dedup:
+  every write is deduped by semantic search + the decide model. Both nullable,
+  no backfill (null = no facet recorded).
+  TODO(privacy): both columns are PLAINTEXT for now (TEST). `facet_value`
+  leaks the actual value ("vegan","sf") in cleartext, defeating content
+  encryption; `facet_key` leaks the slot shape like `fact_type`. Encrypt (or
+  otherwise protect) facet\_value before ship — needs privacy sign-off.

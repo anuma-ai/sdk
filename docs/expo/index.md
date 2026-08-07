@@ -322,6 +322,24 @@ Re-exports [ConsolidationFallbackReason](../react/Internal/type-aliases/Consolid
 
 ***
 
+### ConsolidationScanRaw
+
+Re-exports [ConsolidationScanRaw](../react/Internal/interfaces/ConsolidationScanRaw.md)
+
+***
+
+### ConsolidationSweeper
+
+Re-exports [ConsolidationSweeper](../react/Internal/interfaces/ConsolidationSweeper.md)
+
+***
+
+### ConsolidationSweepResult
+
+Re-exports [ConsolidationSweepResult](../react/Internal/interfaces/ConsolidationSweepResult.md)
+
+***
+
 ### ConversationMemoryInput
 
 Re-exports [ConversationMemoryInput](../react/Internal/interfaces/ConversationMemoryInput.md)
@@ -367,6 +385,18 @@ Re-exports [CreateAutoExtractorOptions](../react/Internal/interfaces/CreateAutoE
 ### createChunkVectorCache
 
 Re-exports [createChunkVectorCache](../react/Internal/functions/createChunkVectorCache.md)
+
+***
+
+### createConsolidationSweeper
+
+Re-exports [createConsolidationSweeper](../react/Internal/functions/createConsolidationSweeper.md)
+
+***
+
+### CreateConsolidationSweeperOptions
+
+Re-exports [CreateConsolidationSweeperOptions](../react/Internal/interfaces/CreateConsolidationSweeperOptions.md)
 
 ***
 
@@ -604,15 +634,39 @@ Re-exports [DEFAULT\_CHUNK\_SIZE](../react/Internal/variables/DEFAULT_CHUNK_SIZE
 
 ***
 
+### DEFAULT\_CONSOLIDATION\_SWEEP\_THRESHOLD
+
+Re-exports [DEFAULT\_CONSOLIDATION\_SWEEP\_THRESHOLD](../react/Internal/variables/DEFAULT_CONSOLIDATION_SWEEP_THRESHOLD.md)
+
+***
+
 ### DEFAULT\_DECAY\_POLICY
 
 Re-exports [DEFAULT\_DECAY\_POLICY](../react/Internal/variables/DEFAULT_DECAY_POLICY.md)
 
 ***
 
+### DEFAULT\_MAX\_BACKFILL\_PER\_SWEEP
+
+Re-exports [DEFAULT\_MAX\_BACKFILL\_PER\_SWEEP](../react/Internal/variables/DEFAULT_MAX_BACKFILL_PER_SWEEP.md)
+
+***
+
 ### DEFAULT\_MAX\_CLASSIFIER\_CALLS\_PER\_SWEEP
 
 Re-exports [DEFAULT\_MAX\_CLASSIFIER\_CALLS\_PER\_SWEEP](../react/Internal/variables/DEFAULT_MAX_CLASSIFIER_CALLS_PER_SWEEP.md)
+
+***
+
+### DEFAULT\_MAX\_CLUSTERS\_PER\_SWEEP
+
+Re-exports [DEFAULT\_MAX\_CLUSTERS\_PER\_SWEEP](../react/Internal/variables/DEFAULT_MAX_CLUSTERS_PER_SWEEP.md)
+
+***
+
+### DEFAULT\_MAX\_JUNK\_CHECKS\_PER\_SWEEP
+
+Re-exports [DEFAULT\_MAX\_JUNK\_CHECKS\_PER\_SWEEP](../react/Internal/variables/DEFAULT_MAX_JUNK_CHECKS_PER_SWEEP.md)
 
 ***
 
@@ -772,6 +826,18 @@ Re-exports [ExtractOutcome](../react/Internal/type-aliases/ExtractOutcome.md)
 
 ***
 
+### FACET\_SLOTS
+
+Re-exports [FACET\_SLOTS](../react/Internal/variables/FACET_SLOTS.md)
+
+***
+
+### FacetSlot
+
+Re-exports [FacetSlot](../react/Internal/type-aliases/FacetSlot.md)
+
+***
+
 ### FactType
 
 Re-exports [FactType](../react/Internal/type-aliases/FactType.md)
@@ -829,6 +895,12 @@ Re-exports [getAllVaultMemoryContentsOp](../react/Internal/functions/getAllVault
 ### getCachedServerTools
 
 Re-exports [getCachedServerTools](../react/Internal/functions/getCachedServerTools.md)
+
+***
+
+### getConsolidationScanRawOp
+
+Re-exports [getConsolidationScanRawOp](../react/Internal/functions/getConsolidationScanRawOp.md)
 
 ***
 
@@ -892,6 +964,12 @@ Re-exports [getServerTools](../react/Internal/functions/getServerTools.md)
 
 ***
 
+### getUnembeddedVaultMemoryIdsOp
+
+Re-exports [getUnembeddedVaultMemoryIdsOp](../react/Internal/functions/getUnembeddedVaultMemoryIdsOp.md)
+
+***
+
 ### getUnfiledVaultMemoriesOp
 
 Re-exports [getUnfiledVaultMemoriesOp](../react/Internal/functions/getUnfiledVaultMemoriesOp.md)
@@ -901,6 +979,12 @@ Re-exports [getUnfiledVaultMemoriesOp](../react/Internal/functions/getUnfiledVau
 ### getVaultFolderMemoryCountOp
 
 Re-exports [getVaultFolderMemoryCountOp](../react/Internal/functions/getVaultFolderMemoryCountOp.md)
+
+***
+
+### getVaultMemoriesByFacetKeyOp
+
+Re-exports [getVaultMemoriesByFacetKeyOp](../react/Internal/functions/getVaultMemoriesByFacetKeyOp.md)
 
 ***
 
@@ -961,6 +1045,12 @@ Re-exports [InjectionReason](../react/Internal/type-aliases/InjectionReason.md)
 ### injectionSignatureCatalog
 
 Re-exports [injectionSignatureCatalog](../react/Internal/functions/injectionSignatureCatalog.md)
+
+***
+
+### isJunkMemoryContent
+
+Re-exports [isJunkMemoryContent](../react/Internal/functions/isJunkMemoryContent.md)
 
 ***
 
@@ -1087,6 +1177,12 @@ Re-exports [MemoryVerification](../react/Internal/type-aliases/MemoryVerificatio
 ### MessageSkeleton
 
 Re-exports [MessageSkeleton](../react/Internal/interfaces/MessageSkeleton.md)
+
+***
+
+### MIN\_CONTENT\_LENGTH
+
+Re-exports [MIN\_CONTENT\_LENGTH](../react/Internal/variables/MIN_CONTENT_LENGTH.md)
 
 ***
 

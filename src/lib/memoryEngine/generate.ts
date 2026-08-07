@@ -24,8 +24,16 @@ import type { EmbeddingOptions } from "./types";
  * a few attempts, then surface the final error. */
 const EMBED_MAX_ATTEMPTS = 4;
 
+/** True for a fetch/AbortController cancellation. An abort is TERMINAL — the
+ * caller cancelled (e.g. the memory_vault_save tool's bounded create timeout) —
+ * so it must never be retried like a transient network blip. */
+function isAbortError(err: unknown): boolean {
+  return err instanceof Error && err.name === "AbortError";
+}
+
 async function withEmbeddingRetry<T extends { error?: unknown; response?: Response }>(
-  call: () => Promise<T>
+  call: () => Promise<T>,
+  signal?: AbortSignal
 ): Promise<T> {
   let last: T | undefined;
   let lastThrown: unknown;
@@ -35,6 +43,13 @@ async function withEmbeddingRetry<T extends { error?: unknown; response?: Respon
       threw = false;
       last = await call();
       if (!last.error) return last;
+      // Some openapi-ts versions surface a fetch abort as a RESOLVED `{ error }`
+      // (no thrown rejection). Treat that as terminal too — rethrow so it lands
+      // in the catch's abort guard below instead of looping (status is undefined
+      // for a wrapped abort, which would otherwise read as retryable).
+      if (signal?.aborted || isAbortError(last.error)) {
+        throw last.error instanceof Error ? last.error : new Error("Embedding request aborted");
+      }
       // Resolved with an HTTP-level error ({ error } set). Only transient
       // statuses are worth retrying — a non-429 4xx (bad auth / bad request)
       // fails identically every attempt, so surface it immediately.
@@ -42,6 +57,13 @@ async function withEmbeddingRetry<T extends { error?: unknown; response?: Respon
       const retryable = status === undefined || status === 429 || status >= 500;
       if (!retryable) return last;
     } catch (err) {
+      // An abort is TERMINAL, not transient: a caller cancelled the request
+      // (e.g. the tool-create path's timeout). Retrying would fire fresh
+      // requests against an already-aborted signal and burn the backoff budget,
+      // so rethrow immediately → retain() fails fast and its single-write
+      // fallback runs. Only reachable when a caller opted into `signal`; the
+      // shared recall/search/eval path passes none and is unaffected.
+      if (signal?.aborted || isAbortError(err)) throw err;
       // fetch itself rejected — ECONNRESET, DNS failure, connection timeout.
       // These never come back as a `{ error }` object, so without this catch
       // a real network fault would skip the retry entirely and hard-fail on
@@ -123,7 +145,7 @@ export async function generateEmbedding(
   text: string,
   options: EmbeddingOptions
 ): Promise<number[]> {
-  const { baseUrl = BASE_URL, getToken, apiKey, model, cache } = options;
+  const { baseUrl = BASE_URL, getToken, apiKey, model, cache, signal } = options;
 
   // Check cache first. The cache holds Float32Array (native embedding
   // precision, half the resident RAM of a float64 number[]); the public
@@ -149,17 +171,22 @@ export async function generateEmbedding(
     throw new Error("Either apiKey or getToken must be provided");
   }
 
-  const response = await withEmbeddingRetry(() =>
-    postApiV1Embeddings({
-      baseUrl,
-      body: {
-        // Mask PII from the request body only — the cache above still keys on
-        // the original `text`, so callers keep their original values.
-        input: options.maskInput ? options.maskInput(text) : text,
-        model: model ?? DEFAULT_API_EMBEDDING_MODEL,
-      },
-      headers,
-    })
+  const response = await withEmbeddingRetry(
+    () =>
+      postApiV1Embeddings({
+        baseUrl,
+        body: {
+          // Mask PII from the request body only — the cache above still keys on
+          // the original `text`, so callers keep their original values.
+          input: options.maskInput ? options.maskInput(text) : text,
+          model: model ?? DEFAULT_API_EMBEDDING_MODEL,
+        },
+        headers,
+        // Only present when the caller passed one (e.g. the tool-create path).
+        // Omitted on the shared recall/search/eval path → no timeout, unchanged.
+        ...(signal && { signal }),
+      }),
+    signal
   );
 
   if (response.error) {
@@ -202,15 +229,21 @@ async function generateEmbeddingsBatch(
   baseUrl: string,
   model: string,
   onUsage?: EmbeddingOptions["onUsage"],
-  maskInput?: EmbeddingOptions["maskInput"]
+  maskInput?: EmbeddingOptions["maskInput"],
+  signal?: AbortSignal
 ): Promise<number[][]> {
-  const response = await withEmbeddingRetry(() =>
-    postApiV1Embeddings({
-      baseUrl,
-      // Mask PII from the request body only; cache/order still key on originals.
-      body: { input: maskInput ? texts.map(maskInput) : texts, model },
-      headers,
-    })
+  const response = await withEmbeddingRetry(
+    () =>
+      postApiV1Embeddings({
+        baseUrl,
+        // Mask PII from the request body only; cache/order still key on originals.
+        body: { input: maskInput ? texts.map(maskInput) : texts, model },
+        headers,
+        // Only present when the caller opted in (tool-create path); omitted on
+        // the shared recall/search/eval path → no timeout, behavior unchanged.
+        ...(signal && { signal }),
+      }),
+    signal
   );
 
   if (response.error) {
@@ -249,7 +282,7 @@ export async function generateEmbeddings(
 ): Promise<number[][]> {
   if (texts.length === 0) return [];
 
-  const { baseUrl = BASE_URL, getToken, apiKey, model, batchSize, cache } = options;
+  const { baseUrl = BASE_URL, getToken, apiKey, model, batchSize, cache, signal } = options;
   const chunkSize = batchSize ?? DEFAULT_EMBEDDING_BATCH_SIZE;
 
   // Separate cached and uncached texts
@@ -302,7 +335,8 @@ export async function generateEmbeddings(
       baseUrl,
       embeddingModel,
       options.onUsage,
-      options.maskInput
+      options.maskInput,
+      signal
     );
   } else {
     // Large inputs: chunk and process with bounded concurrency
@@ -323,7 +357,8 @@ export async function generateEmbeddings(
           baseUrl,
           embeddingModel,
           options.onUsage,
-          options.maskInput
+          options.maskInput,
+          signal
         );
       }
     };

@@ -243,6 +243,44 @@ describe("generateEmbedding", () => {
     expect(fetchMock).toHaveBeenCalledTimes(4);
   });
 
+  // ── Request abort scoping (recall/eval unaffected; tool-create can bound) ──
+
+  it("passes NO signal to fetch when the caller provides none (recall/eval path — no timeout)", async () => {
+    // The shared embedding path must never carry an AbortController: legit
+    // requests can exceed any fixed budget under eval load, and aborting them
+    // reddened the recall-eval gate. With no signal, fetch gets none.
+    const fetchMock = stubFetchOk();
+    await generateEmbedding("recall query", { apiKey: "k", baseUrl: BASE });
+    const init = fetchMock.mock.calls[0][1] as RequestInit | undefined;
+    expect(init?.signal == null).toBe(true);
+  });
+
+  it("forwards the caller's AbortSignal to fetch only when one is provided (tool-create path)", async () => {
+    const fetchMock = stubFetchOk();
+    const ac = new AbortController();
+    await generateEmbedding("tool save", { apiKey: "k", baseUrl: BASE, signal: ac.signal });
+    const init = fetchMock.mock.calls[0][1] as RequestInit | undefined;
+    expect(init?.signal).toBe(ac.signal);
+  });
+
+  it("does NOT retry an aborted request — abort is terminal, not a transient blip", async () => {
+    // Contrast with the ECONNRESET test above (4 attempts): an abort must fail
+    // fast on the FIRST attempt so retain() throws and the tool's single
+    // raw-create fallback runs (no burning the backoff budget on a cancelled op).
+    const abortErr = Object.assign(new Error("The operation was aborted"), {
+      name: "AbortError",
+    });
+    const fetchMock = vi.fn(async () => {
+      throw abortErr;
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const ac = new AbortController();
+    await expect(
+      generateEmbedding("tool save", { apiKey: "k", baseUrl: BASE, signal: ac.signal })
+    ).rejects.toThrow(/aborted/i);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
   it("fires onUsage with mapped token counts when the API reports usage", async () => {
     stubFetchOk({ prompt_tokens: 7, total_tokens: 9 });
     const onUsage = vi.fn();

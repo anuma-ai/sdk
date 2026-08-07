@@ -265,6 +265,8 @@ describe("classifyInjectionCandidates prompt prefix", () => {
     sourceMessageIds: ["msg_7f31"],
     entities: [],
     eventTime: null,
+    facetKey: null,
+    facetValue: null,
   });
 
   it("sends a byte-identical system message across calls with different candidate counts", async () => {
@@ -529,6 +531,8 @@ describe("system prompts are identical across module instantiations", () => {
               sourceMessageIds: ["msg_7f31"],
               entities: [],
               eventTime: null,
+              facetKey: null,
+              facetValue: null,
             },
           ],
           { apiKey: "k", fetchFn }

@@ -47,17 +47,31 @@ import { notifyConsolidationFallback } from "./consolidationFallback.js";
 import { callPortalJsonCompletion, type PortalLlmAuth } from "./portalLlm.js";
 import type { ConsolidationFallbackReason } from "./types.js";
 
-// Open-weights consolidator. Consolidation reasons over the SAME
-// chat-derived facts as extraction, so it stays on an open provider too —
-// routing it to a closed third party would reopen the privacy gap the
-// (global, open-weights) extractor default closes. NOT gpt-oss-120b (the
-// extraction default): gpt-oss returns empty completion content ~30% of the time on
-// this single-decision prompt (measured 3/10), which silently degrades every
-// affected merge to a create fallback and defeats facet-dedup. ling-2.6-flash
-// is reliable here (0/10 empty) and discriminates create/update/noop correctly
-// on the benchmark cases. Unlike gpt-oss, ling ACCEPTS `response_format:
-// json_object` (verified), so portalLlm.ts sends it — the reliability numbers
-// above were measured with response_format on, matching production.
+// Consolidation decide model. ling-2.6-flash is portal-routed, so this reasons
+// over the SAME chat-derived facts as extraction without handing them to a
+// closed third party (the privacy gap the extractor default closes), and it is
+// in portalLlm.ts's `RESPONSE_FORMAT_OK` (openai / inclusionai / deepseek) — so
+// `supportsResponseFormat` returns true and the call gets a real
+// `response_format: json_object` rather than relying on prompt discipline alone.
+// The tolerant `extractJsonCandidate` parser stays as a second line of defence.
+//
+// WHY NOT minimax-m3: it was tried here and reverted. On the committed 12-case
+// benchmark it scored 1/30 attempts on the `update` category (both update cases
+// failing ~97% of runs) for an overall 0.839, against ling's 1.0 over 25 runs
+// with stdDev 0. `update` is the "same facet, adds information → keep the richer
+// version" decision, so losing it means richer detail is silently dropped (the
+// case falls to `noop`) or duplicated (`create`) — the same failure mode as the
+// cosine merge keeping the poorer wording. m3 also sits OUTSIDE
+// `RESPONSE_FORMAT_OK`, so it ran on the prompt-instructed path with no schema
+// enforcement. Do not re-point this at m3 without a fresh baseline AND an
+// explicit accepted-regression note on `update`.
+//
+// GATE: the consolidation eval (test/memory/src/consolidation/benchmark.test.ts,
+// run as `pnpm eval:consolidation`) validates this model's decision accuracy AND
+// its fallback rate (schema violations that degrade to a create-fallback). In
+// gate mode the eval runs exactly this constant, so the committed baseline always
+// describes the live path — change the model and the gate refuses until the
+// baseline is regenerated with `--save-baseline`.
 /** Exported so the consolidation eval gates the model production actually runs,
  * rather than a copy of this string that can drift out of sync. */
 export const DEFAULT_CONSOLIDATION_MODEL = "inclusionai/ling-2.6-flash";

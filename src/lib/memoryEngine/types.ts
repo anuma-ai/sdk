@@ -89,6 +89,17 @@ export interface EmbeddingOptions {
    * while real PII never reaches the server. Used when PII redaction is active.
    */
   maskInput?: (text: string) => string;
+  /**
+   * Optional AbortSignal for the embeddings HTTP request(s). When it aborts, the
+   * in-flight fetch is cancelled and the call rejects with an `AbortError`
+   * WITHOUT retrying — an abort is terminal, not a transient blip. Omitted by the
+   * shared recall / search / eval path, which must never time out (legit
+   * embeddings can exceed any fixed budget under load). Set ONLY by callers that
+   * need a bounded request: the `memory_vault_save` tool's create path caps the
+   * wait so a hung portal can't stall the chat turn, then falls back to a single
+   * raw-create on the resulting abort.
+   */
+  signal?: AbortSignal;
 }
 
 /**
