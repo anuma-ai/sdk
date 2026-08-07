@@ -18,6 +18,7 @@ import {
   updateMessageEmbeddingOp,
 } from "../db/chat/operations";
 import type { MessageChunk, StoredMessage } from "../db/chat/types";
+import { isEncrypted } from "../db/encryption-utils";
 import { getLogger } from "../logger";
 import {
   type ChunkingOptions,
@@ -99,6 +100,15 @@ export async function embedMessage(
     return message;
   }
 
+  // Never embed ciphertext (sdk#864) — see chunkAndEmbedMessage for why the
+  // content can still be an `enc:v3:` payload at this point.
+  if (isEncrypted(message.content)) {
+    getLogger().warn(
+      `memoryEngine: message ${messageId} is still encrypted (key unavailable?) — not embedded`
+    );
+    return message;
+  }
+
   // Generate embedding for message content
   const embedding = await generateEmbedding(message.content, options);
   const embeddingModel = options.model ?? DEFAULT_API_EMBEDDING_MODEL;
@@ -129,6 +139,13 @@ export async function embedAllMessages(
 ): Promise<number> {
   const embeddingModel = options.model ?? DEFAULT_API_EMBEDDING_MODEL;
   let embeddedCount = 0;
+  // Two ratios: candidate-scoped and pass-scoped. See chunkAndEmbedAllMessages
+  // for why both are needed and why neither can replace the other. Same blind
+  // spot here: a row with a ciphertext-derived vector exits at the first gate.
+  let stillEncrypted = 0;
+  let considered = 0;
+  let sealedRowsSeen = 0;
+  let rowsSeen = 0;
 
   // Get all conversations
   const conversations = await getConversationsOp(ctx);
@@ -140,6 +157,9 @@ export async function embedAllMessages(
     const messages = await getMessagesOp(ctx, conv.conversationId);
 
     for (const message of messages) {
+      rowsSeen++;
+      if (isEncrypted(message.content)) sealedRowsSeen++;
+
       // Skip if already has embedding
       if (message.vector && message.vector.length > 0) {
         continue;
@@ -160,6 +180,14 @@ export async function embedAllMessages(
         continue;
       }
 
+      // Never embed ciphertext (sdk#864) — see chunkAndEmbedMessage. Ahead of
+      // the length check because a length test on hex means nothing.
+      considered++;
+      if (isEncrypted(message.content)) {
+        stillEncrypted++;
+        continue;
+      }
+
       // Skip short messages that won't provide useful search context
       const minLength = filter?.minContentLength ?? DEFAULT_MIN_CONTENT_LENGTH;
       if (message.content.length < minLength) {
@@ -177,6 +205,17 @@ export async function embedAllMessages(
         getLogger().error(`Failed to embed message ${message.uniqueId}:`, error);
       }
     }
+  }
+
+  // Aggregate rather than per-row, on the error channel with the counts as
+  // structured fields — see chunkAndEmbedAllMessages for why `error` and not
+  // `warn`, and why this fires on either tally.
+  if (stillEncrypted > 0 || sealedRowsSeen > 0) {
+    getLogger().error(
+      "memoryEngine: messages still encrypted (key unavailable?) — excluded from embedding",
+      undefined,
+      { stillEncrypted, considered, sealedRowsSeen, rowsSeen }
+    );
   }
 
   return embeddedCount;
@@ -217,6 +256,19 @@ export async function chunkAndEmbedMessage(
   // Skip never-rendered tool-result dumps. Returned unchanged, not thrown: to a
   // caller this is "nothing to embed here", the same as an already-chunked row.
   if (message.origin === NON_EMBEDDABLE_ORIGIN) {
+    return message;
+  }
+
+  // Never embed ciphertext (sdk#864). Same guard as the memory vault's search
+  // path: `decryptMessageFields` is a silent no-op without a wallet address, so
+  // a caller whose storage context lacks one reads back the raw `enc:v3:`
+  // payload. Chunking that hard-splits hex into uniform windows and persists
+  // vectors that describe the ciphertext — silent, unrecoverable corruption.
+  // Warned rather than swallowed so a skipped sweep is diagnosable.
+  if (isEncrypted(message.content)) {
+    getLogger().warn(
+      `memoryEngine: message ${messageId} is still encrypted (key unavailable?) — not embedded`
+    );
     return message;
   }
 
@@ -298,11 +350,34 @@ export async function chunkAndEmbedAllMessages(
   };
   const shortMessages: ShortMessage[] = [];
   const longMessages: LongMessage[] = [];
+  // Two ratios, because they answer two different questions and they come apart
+  // on exactly the accounts that matter.
+  //
+  // `stillEncrypted / considered` is scoped to EMBEDDABLE CANDIDATES: `considered`
+  // counts only rows that survived the already-chunked, has-vector, role and
+  // origin gates below. It answers "of the rows this pass could have embedded,
+  // how many were sealed", i.e. what this pass refused to do.
+  //
+  // `sealedRowsSeen / rowsSeen` is scoped to THE WHOLE PASS, counted before any
+  // gate. It answers "is this pass reading without a crypto context right now".
+  // A device whose sealed rows ALL already carry ciphertext-built chunks exits at
+  // the first gate on every one of them, so the candidate ratio stays 0/0 and
+  // reports nothing — which is precisely the 25 affected accounts. Without the
+  // second pair, a broken context on the accounts we are chasing is invisible.
+  //
+  // Counting only. Neither tally moves the skip: rows are still refused at the
+  // gate below, so behaviour is unchanged and `considered` keeps its meaning.
+  let stillEncrypted = 0;
+  let considered = 0;
+  let sealedRowsSeen = 0;
+  let rowsSeen = 0;
 
   for (const conv of targetConversations) {
     const messages = await getMessagesOp(ctx, conv.conversationId);
 
     for (const message of messages) {
+      rowsSeen++;
+      if (isEncrypted(message.content)) sealedRowsSeen++;
       // A message whose stored embedding model differs from the current one is
       // stale — its vectors live in an incompatible space (and searchChunksOp
       // now skips them), so re-embed it even if it already has chunks/vector.
@@ -320,6 +395,13 @@ export async function chunkAndEmbedAllMessages(
       // production: consumers run this sweep on every session mount, and it picks
       // up any row lacking chunks — which is exactly how each dump grew to 52 MB.
       if (message.origin === NON_EMBEDDABLE_ORIGIN) continue;
+      // Never chunk ciphertext (sdk#864) — see chunkAndEmbedMessage. Ahead of
+      // the length check because a length test on hex means nothing.
+      considered++;
+      if (isEncrypted(message.content)) {
+        stillEncrypted++;
+        continue;
+      }
       if (message.content.length < minLength) continue;
 
       if (shouldChunkMessage(message.content, chunkSize)) {
@@ -331,6 +413,28 @@ export async function chunkAndEmbedAllMessages(
         shortMessages.push({ uniqueId: message.uniqueId, content: message.content });
       }
     }
+  }
+
+  // Loud, not swallowed: the return value counts what was embedded, so without
+  // this a refusal to embed 300 encrypted rows is indistinguishable from a pass
+  // that found nothing to do.
+  //
+  // `error`, not `warn`, despite this being a skip rather than a failure: both
+  // consumer LoggerProviders ship only error-level logs in prod, so a `warn`
+  // here would be invisible in the one environment where it matters. Counts go
+  // in the context object (forwarded as structured fields) rather than the
+  // message, so they stay facetable and the message stays groupable.
+  //
+  // Fires on EITHER tally. `sealedRowsSeen > 0` with `stillEncrypted === 0` is the
+  // interesting case, not a contradiction: it means every sealed row was already
+  // filtered out before the candidate counter, which is what a device reading
+  // wallet-less over an already-damaged history looks like.
+  if (stillEncrypted > 0 || sealedRowsSeen > 0) {
+    getLogger().error(
+      "memoryEngine: messages still encrypted (key unavailable?) — excluded from embedding",
+      undefined,
+      { stillEncrypted, considered, sealedRowsSeen, rowsSeen }
+    );
   }
 
   let embeddedCount = 0;
