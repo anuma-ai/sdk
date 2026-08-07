@@ -76,7 +76,7 @@ export const DEFAULT_MIN_CONTENT_LENGTH = 10;
  * before it can do anything, so the repaired rows stay on the old model, and
  * `searchChunksOp` already drops stale-model vectors — they go quiet with
  * nothing telling them apart from rows that were never repaired. Clearing the
- * marker on a successful re-index is the real fix and is tracked separately.
+ * marker on a successful re-index is the real fix, tracked in #879.
  *
  * `satisfies MessageOrigin` so the constant and the union cannot drift apart
  * silently — the column's type is the union, and a typo here would otherwise
