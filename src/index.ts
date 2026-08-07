@@ -844,6 +844,22 @@ export {
 export type { QuantizedEmbedding } from "./lib/memoryEngine";
 export { cosineInt8, dequantizeEmbedding, quantizeEmbedding } from "./lib/memoryEngine";
 
+// Chunk-vector storage encoding (sdk#862). Clients that read `chunks` JSON
+// themselves — rather than through `searchChunks` — must take every
+// `MessageChunk.vector` through `decodeChunkVector`, which accepts both the
+// legacy `number[]` and the base64 float32 form. `encodeChunkVector` is exported
+// for tests and for the later writer flip; nothing writes base64 yet.
+export { decodeChunkVector, encodeChunkVector } from "./lib/memoryEngine";
+
+// Provenance markers for the `origin` column. CHUNKS_DISCARDED_ORIGIN marks a
+// row whose ciphertext-built chunks were discarded rather than re-embedded
+// (client#5618): it suppresses embedding without hiding the row, unlike
+// TOOL_RESULT_ORIGIN, which does both. Both are exported from all three app
+// entrypoints, because a client that cannot import the constant hand-rolls the
+// string instead, which is the drift they exist to prevent.
+export { TOOL_RESULT_ORIGIN } from "./lib/chat/toolResults";
+export { CHUNKS_DISCARDED_ORIGIN } from "./lib/memoryEngine";
+
 // Lazy conversation-title decryption (RAM reduction for chat sidebars).
 // Pair with the lazy ConversationMeta variant exported from
 // "@anuma/sdk/react" / "@anuma/sdk/expo" to defer per-row decrypt

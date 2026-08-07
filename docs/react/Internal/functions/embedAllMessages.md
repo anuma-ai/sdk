@@ -2,7 +2,7 @@
 
 > **embedAllMessages**(`ctx`: [`StorageOperationsContext`](../interfaces/StorageOperationsContext.md), `options`: [`MemoryEngineEmbeddingOptions`](../interfaces/MemoryEngineEmbeddingOptions.md), `filter?`: `object`): `Promise`<`number`>
 
-Defined in: [src/lib/memoryEngine/embeddings.ts:128](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryEngine/embeddings.ts#128)
+Defined in: [src/lib/memoryEngine/embeddings.ts:189](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryEngine/embeddings.ts#189)
 
 Embed all messages without embeddings in the database
 
@@ -99,6 +99,30 @@ Only embed messages from this conversation
 <td>
 
 Minimum content length to embed (default: 30). Shorter messages are skipped.
+
+</td>
+</tr>
+<tr>
+<td>
+
+`filter.reembedDiscarded?`
+
+</td>
+<td>
+
+`boolean`
+
+</td>
+<td>
+
+Re-index rows the ciphertext sweep marked [CHUNKS\_DISCARDED\_ORIGIN](../variables/CHUNKS_DISCARDED_ORIGIN.md).
+Off by default: this spends the user's own embedding credits, so it belongs
+to an explicit user action, never to a background pass. Opens that marker
+only — `tool_result` rows stay excluded.
+
+Per call, not a state change: a row that re-indexes successfully keeps its
+marker, so a later pass that omits this flag skips it again. See
+[CHUNKS\_DISCARDED\_ORIGIN](../variables/CHUNKS_DISCARDED_ORIGIN.md).
 
 </td>
 </tr>

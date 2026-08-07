@@ -196,6 +196,12 @@ Re-exports [ChunkingOptions](../react/Internal/interfaces/ChunkingOptions.md)
 
 ***
 
+### CHUNKS\_DISCARDED\_ORIGIN
+
+Re-exports [CHUNKS\_DISCARDED\_ORIGIN](../react/Internal/variables/CHUNKS_DISCARDED_ORIGIN.md)
+
+***
+
 ### chunkText
 
 Re-exports [chunkText](../react/Internal/functions/chunkText.md)
@@ -574,6 +580,12 @@ Re-exports [DecayVerdict](../react/Internal/type-aliases/DecayVerdict.md)
 
 ***
 
+### decodeChunkVector
+
+Re-exports [decodeChunkVector](../react/Internal/functions/decodeChunkVector.md)
+
+***
+
 ### decryptConversationTitle
 
 Re-exports [decryptConversationTitle](../react/Internal/functions/decryptConversationTitle.md)
@@ -697,6 +709,12 @@ Re-exports [EmbeddedWalletSignerFn](../react/Internal/type-aliases/EmbeddedWalle
 ### embedMessage
 
 Re-exports [embedMessage](../react/Internal/functions/embedMessage.md)
+
+***
+
+### encodeChunkVector
+
+Re-exports [encodeChunkVector](../react/Internal/functions/encodeChunkVector.md)
 
 ***
 
@@ -1729,6 +1747,12 @@ Re-exports [SynthesizeProfileOptions](../react/Internal/interfaces/SynthesizePro
 ### TextChunk
 
 Re-exports [TextChunk](../react/Internal/interfaces/TextChunk.md)
+
+***
+
+### TOOL\_RESULT\_ORIGIN
+
+Re-exports [TOOL\_RESULT\_ORIGIN](../react/Internal/variables/TOOL_RESULT_ORIGIN.md)
 
 ***
 

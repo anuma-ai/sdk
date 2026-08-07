@@ -237,7 +237,7 @@ Defined in: [src/lib/db/chat/models.ts:29](https://github.com/anuma-ai/sdk/blob/
 
 ### origin?
 
-> `optional` **origin**: `"tool_result"`
+> `optional` **origin**: [`MessageOrigin`](../type-aliases/MessageOrigin.md)
 
 Defined in: [src/lib/db/chat/models.ts:53](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/models.ts#53)
 

@@ -38,6 +38,7 @@ export {
 export {
   chunkAndEmbedAllMessages,
   chunkAndEmbedMessage,
+  CHUNKS_DISCARDED_ORIGIN,
   DEFAULT_MIN_CONTENT_LENGTH,
   embedAllMessages,
   embedMessage,
@@ -48,3 +49,4 @@ export type { QuantizedEmbedding } from "./quantization";
 export { cosineInt8, dequantizeEmbedding, quantizeEmbedding } from "./quantization";
 export { createMemoryEngineTool } from "./tool";
 export type { EmbeddingOptions, MemoryEngineResult, MemoryEngineSearchOptions } from "./types";
+export { decodeChunkVector, encodeChunkVector } from "./vectorEncoding";

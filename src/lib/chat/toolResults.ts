@@ -16,6 +16,7 @@
  * message, where it needs no turn of its own.
  */
 
+import type { MessageOrigin } from "../db/chat/types";
 import { capToolResultEntries, TOOL_RESULT_FOOTER_LINE } from "./toolResultMessage";
 
 /** Marker the clients match on to tell this row apart from a real user turn. */
@@ -51,8 +52,12 @@ interface ToolResultsRowLike {
   origin?: string | null;
 }
 
-/** Value of the `origin` column on a row the SDK synthesised for a turn's tool results (v44, #866). */
-export const TOOL_RESULT_ORIGIN = "tool_result";
+/**
+ * Value of the `origin` column on a row the SDK synthesised for a turn's tool results (v44, #866).
+ *
+ * `satisfies MessageOrigin` so this constant and the column's union cannot drift apart silently.
+ */
+export const TOOL_RESULT_ORIGIN = "tool_result" satisfies MessageOrigin;
 
 /**
  * Is this stored row one of the synthetic tool-results rows?
