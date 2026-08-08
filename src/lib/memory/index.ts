@@ -23,6 +23,13 @@ export {
 } from "./autoExtractWorker.js";
 export { createChunkVectorCache, DEFAULT_CHUNK_CACHE_SIZE } from "./chunkVectorCache.js";
 export {
+  createConsolidationSweeper,
+  DEFAULT_CONSOLIDATION_SWEEP_THRESHOLD,
+  DEFAULT_MAX_BACKFILL_PER_SWEEP,
+  DEFAULT_MAX_CLUSTERS_PER_SWEEP,
+  DEFAULT_MAX_JUNK_CHECKS_PER_SWEEP,
+} from "./consolidationSweep.js";
+export {
   classifyDecay,
   type DecayInput,
   type DecayPolicy,
@@ -68,6 +75,7 @@ export {
   type ScreenedCandidate,
   type ScreenResult,
 } from "./injectionScreen.js";
+export { isJunkMemoryContent, MIN_CONTENT_LENGTH } from "./junkGate.js";
 export {
   classifyObservationTrend,
   type ObservationTrend,
@@ -120,6 +128,9 @@ export {
 export type {
   Budget,
   ConsolidationFallbackReason,
+  ConsolidationSweeper,
+  ConsolidationSweepResult,
+  CreateConsolidationSweeperOptions,
   MemoryKind,
   PortalLlmAuth,
   RankedMemory,

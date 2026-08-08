@@ -8,6 +8,9 @@ import {
   createVaultMemoriesBatchOp,
   getVaultMemoryOp,
   getVaultMemoriesByIdsOp,
+  getVaultMemoriesByFacetKeyOp,
+  normalizeFacetKey,
+  normalizeFacetValue,
   getAllVaultMemoriesOp,
   getVaultRankingProjectionsOp,
   getVaultCandidateKeysOp,
@@ -2642,5 +2645,181 @@ describe("visibility — batch create + raw mapper", () => {
       expect(stored.twinOptIn).toBe(false);
       expect(stored.publishedAt).toBe(null);
     }
+  });
+});
+
+describe("normalizeFacetKey / normalizeFacetValue (facet slot+value supersede, v43)", () => {
+  it("normalizeFacetKey accepts the closed <type>:self:<slot> shape and lowercases it", () => {
+    expect(normalizeFacetKey("preference:self:ui_theme")).toBe("preference:self:ui_theme");
+    expect(normalizeFacetKey("  PREFERENCE:SELF:UI_THEME  ")).toBe("preference:self:ui_theme");
+    expect(normalizeFacetKey("identity:self:residence")).toBe("identity:self:residence");
+  });
+
+  it("normalizeFacetKey rejects malformed keys → null", () => {
+    // Off-enum slot.
+    expect(normalizeFacetKey("preference:self:favorite_color")).toBeNull();
+    // Non-self subject (SELF-ONLY in this increment).
+    expect(normalizeFacetKey("preference:sara:ui_theme")).toBeNull();
+    // Wrong part count.
+    expect(normalizeFacetKey("preference:ui_theme")).toBeNull();
+    expect(normalizeFacetKey("ui_theme")).toBeNull();
+    expect(normalizeFacetKey("a:self:ui_theme:extra")).toBeNull();
+    // Empty / garbage factType.
+    expect(normalizeFacetKey(":self:ui_theme")).toBeNull();
+    expect(normalizeFacetKey("pref 1:self:ui_theme")).toBeNull();
+    // Nullish.
+    expect(normalizeFacetKey(null)).toBeNull();
+    expect(normalizeFacetKey(undefined)).toBeNull();
+    expect(normalizeFacetKey("")).toBeNull();
+  });
+
+  it("normalizeFacetValue lowercases/trims a token and rejects garbage → null", () => {
+    expect(normalizeFacetValue("Dark")).toBe("dark");
+    expect(normalizeFacetValue("  SF ")).toBe("sf");
+    expect(normalizeFacetValue("new york")).toBe("new york");
+    expect(normalizeFacetValue("single")).toBe("single");
+    // Garbage: empty, colon (would corrupt the key shape), over-cap, punctuation-only.
+    expect(normalizeFacetValue("")).toBeNull();
+    expect(normalizeFacetValue("   ")).toBeNull();
+    expect(normalizeFacetValue("a:b")).toBeNull();
+    expect(normalizeFacetValue("!!!")).toBeNull();
+    expect(normalizeFacetValue("x".repeat(65))).toBeNull();
+    expect(normalizeFacetValue(null)).toBeNull();
+    expect(normalizeFacetValue(undefined)).toBeNull();
+  });
+});
+
+describe("getVaultMemoriesByFacetKeyOp — real read semantics (in-memory LokiJS)", () => {
+  function makeRealDatabase(): Database {
+    const adapter = new LokiJSAdapter({
+      schema: sdkSchema,
+      migrations: sdkMigrations,
+      useWebWorker: false,
+      useIncrementalIndexedDB: false,
+      dbName: `facet-test-${Math.random().toString(36).slice(2)}`,
+    });
+    return new Database({ adapter, modelClasses: sdkModelClasses });
+  }
+
+  let db: Database;
+  let ctx: VaultMemoryOperationsContext;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    db = makeRealDatabase();
+    ctx = { database: db, vaultMemoryCollection: db.get<VaultMemory>("memory_vault") };
+  });
+
+  const UI_THEME = "preference:self:ui_theme";
+
+  it("round-trips facet_key/facet_value on create and returns only live same-key rows", async () => {
+    const dark = await createVaultMemoryOp(ctx, {
+      content: "Prefers dark mode",
+      facetKey: UI_THEME,
+      facetValue: "dark",
+    });
+    // Different key — must NOT match.
+    await createVaultMemoryOp(ctx, {
+      content: "Lives in SF",
+      facetKey: "identity:self:residence",
+      facetValue: "sf",
+    });
+    // No facet at all — must NOT match.
+    await createVaultMemoryOp(ctx, { content: "Allergic to shellfish" });
+
+    // Round-trip through getVaultMemoryOp.
+    const stored = await getVaultMemoryOp(ctx, dark.uniqueId);
+    expect(stored?.facetKey).toBe(UI_THEME);
+    expect(stored?.facetValue).toBe("dark");
+
+    const rows = await getVaultMemoriesByFacetKeyOp(ctx, UI_THEME);
+    expect(rows.map((r) => r.uniqueId)).toEqual([dark.uniqueId]);
+    expect(rows[0].facetValue).toBe("dark");
+  });
+
+  it("drops garbage facet pairs on create (off-enum slot → no facet written)", async () => {
+    const bad = await createVaultMemoryOp(ctx, {
+      content: "Favorite color is blue",
+      facetKey: "preference:self:favorite_color",
+      facetValue: "blue",
+    });
+    const stored = await getVaultMemoryOp(ctx, bad.uniqueId);
+    expect(stored?.facetKey).toBeNull();
+    expect(stored?.facetValue).toBeNull();
+    expect(await getVaultMemoriesByFacetKeyOp(ctx, "preference:self:favorite_color")).toEqual([]);
+  });
+
+  it("excludes superseded same-key rows (default) so a retired value is never re-collided", async () => {
+    const dark = await createVaultMemoryOp(ctx, {
+      content: "Prefers dark mode",
+      facetKey: UI_THEME,
+      facetValue: "dark",
+    });
+    const light = await createVaultMemoryOp(ctx, {
+      content: "Prefers light mode",
+      facetKey: UI_THEME,
+      facetValue: "light",
+    });
+    await supersedeVaultMemoryOp(ctx, dark.uniqueId, light.uniqueId);
+
+    const rows = await getVaultMemoriesByFacetKeyOp(ctx, UI_THEME);
+    // Only the live (light) row survives the superseded_by filter.
+    expect(rows.map((r) => r.uniqueId)).toEqual([light.uniqueId]);
+  });
+
+  it("scope filter narrows the same-key set", async () => {
+    const priv = await createVaultMemoryOp(ctx, {
+      content: "Prefers dark mode",
+      scope: "private",
+      facetKey: UI_THEME,
+      facetValue: "dark",
+    });
+    await createVaultMemoryOp(ctx, {
+      content: "Prefers dark mode (shared)",
+      scope: "shared",
+      facetKey: UI_THEME,
+      facetValue: "dark",
+    });
+    const rows = await getVaultMemoriesByFacetKeyOp(ctx, UI_THEME, { scope: "private" });
+    expect(rows.map((r) => r.uniqueId)).toEqual([priv.uniqueId]);
+  });
+
+  it("normalizes the queried key so a differently-cased / padded key still matches", async () => {
+    // Writes store the normalized closed shape, so the read must normalize the
+    // caller's key the same way or it silently returns nothing.
+    const dark = await createVaultMemoryOp(ctx, {
+      content: "Prefers dark mode",
+      facetKey: UI_THEME,
+      facetValue: "dark",
+    });
+    for (const variant of [UI_THEME.toUpperCase(), `  ${UI_THEME}  `, "Preference:self:UI_Theme"]) {
+      const rows = await getVaultMemoriesByFacetKeyOp(ctx, variant);
+      expect(rows.map((r) => r.uniqueId)).toEqual([dark.uniqueId]);
+    }
+    // A key that cannot normalize (off-enum slot) matches nothing by definition.
+    expect(await getVaultMemoriesByFacetKeyOp(ctx, "preference:self:not_a_slot")).toEqual([]);
+    expect(await getVaultMemoriesByFacetKeyOp(ctx, "malformed")).toEqual([]);
+  });
+
+  it("updateVaultMemoryOp adopts a facet ONLY when the row has none (never overwrites)", async () => {
+    // Legacy keyless row adopts a facet on a facet-carrying update.
+    const keyless = await createVaultMemoryOp(ctx, { content: "Prefers dark mode" });
+    await updateVaultMemoryOp(ctx, keyless.uniqueId, {
+      content: "Prefers dark mode",
+      facetKey: UI_THEME,
+      facetValue: "dark",
+    });
+    const adopted = await getVaultMemoryOp(ctx, keyless.uniqueId);
+    expect(adopted?.facetKey).toBe(UI_THEME);
+    expect(adopted?.facetValue).toBe("dark");
+
+    // A subsequent update with a DIFFERENT value must NOT overwrite the facet.
+    await updateVaultMemoryOp(ctx, keyless.uniqueId, {
+      content: "Prefers dark mode",
+      facetKey: UI_THEME,
+      facetValue: "light",
+    });
+    const unchanged = await getVaultMemoryOp(ctx, keyless.uniqueId);
+    expect(unchanged?.facetValue).toBe("dark");
   });
 });

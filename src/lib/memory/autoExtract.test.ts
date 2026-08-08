@@ -149,6 +149,93 @@ describe("extractFacts", () => {
     ]);
   });
 
+  it("builds facetKey/facetValue for an in-enum SELF slot; drops off-enum + list-valued to null", async () => {
+    const candidates = {
+      candidates: [
+        // In-enum single-valued SELF slot → facetKey "<type>:self:<slot>".
+        {
+          content: "Prefers dark mode",
+          type: "preference",
+          confidence: 0.9,
+          sourceMessageIds: ["m1"],
+          facetSlot: "ui_theme",
+          facetValue: "Dark", // mixed-case → normalized to "dark"
+        },
+        // Off-enum slot → hard-dropped to null (falls back to cosine+LLM path).
+        {
+          content: "Favorite color is blue",
+          type: "preference",
+          confidence: 0.9,
+          sourceMessageIds: ["m1"],
+          facetSlot: "favorite_color",
+          facetValue: "blue",
+        },
+        // List-valued / additive fact the model left facet-less → both null.
+        {
+          content: "Allergic to shellfish",
+          type: "constraint",
+          confidence: 0.9,
+          sourceMessageIds: ["m1"],
+        },
+      ],
+    };
+    const result = await extractFacts(messages, {
+      apiKey: "k",
+      fetchFn: mockFetch(JSON.stringify(candidates)),
+    });
+    expect(result).toHaveLength(3);
+    expect(result[0].facetKey).toBe("preference:self:ui_theme");
+    expect(result[0].facetValue).toBe("dark");
+    // Off-enum slot → null; the fact still survives (via the cosine+LLM backstop).
+    expect(result[1].facetKey).toBeNull();
+    expect(result[1].facetValue).toBeNull();
+    // No facet fields at all → null.
+    expect(result[2].facetKey).toBeNull();
+    expect(result[2].facetValue).toBeNull();
+  });
+
+  it("the same slot with a DIFFERENT value keeps the same facetKey (the supersede discriminator)", async () => {
+    const dark = await extractFacts(messages, {
+      apiKey: "k",
+      fetchFn: mockFetch(
+        JSON.stringify({
+          candidates: [
+            {
+              content: "Prefers dark mode",
+              type: "preference",
+              confidence: 0.9,
+              sourceMessageIds: ["m1"],
+              facetSlot: "ui_theme",
+              facetValue: "dark",
+            },
+          ],
+        })
+      ),
+    });
+    const light = await extractFacts(messages, {
+      apiKey: "k",
+      fetchFn: mockFetch(
+        JSON.stringify({
+          candidates: [
+            {
+              content: "Prefers light mode",
+              type: "preference",
+              confidence: 0.9,
+              sourceMessageIds: ["m1"],
+              facetSlot: "ui_theme",
+              facetValue: "light",
+            },
+          ],
+        })
+      ),
+    });
+    // SAME facetKey → they collide in retain; DIFFERENT facetValue → supersede.
+    expect(dark[0].facetKey).toBe("preference:self:ui_theme");
+    expect(light[0].facetKey).toBe("preference:self:ui_theme");
+    expect(dark[0].facetValue).toBe("dark");
+    expect(light[0].facetValue).toBe("light");
+  });
+
   it("injects the reference date so relative temporal phrases have an anchor", async () => {
     let capturedUserMessage = "";
     const fetchFn = vi.fn().mockImplementation(async (_url: string, init: RequestInit) => {
@@ -498,6 +585,46 @@ describe("extractAndRetain", () => {
         respectTombstones: true,
       })
     );
+  });
+
+  it("forwards facetKey/facetValue to retain for an in-enum slot, omits them otherwise", async () => {
+    const candidates = {
+      candidates: [
+        {
+          content: "Prefers dark mode",
+          type: "preference",
+          confidence: 0.9,
+          sourceMessageIds: ["m1"],
+          facetSlot: "ui_theme",
+          facetValue: "dark",
+        },
+        {
+          content: "Allergic to shellfish",
+          type: "constraint",
+          confidence: 0.9,
+          sourceMessageIds: ["m1"],
+        },
+      ],
+    };
+    vi.mocked(retain).mockResolvedValue({ action: "create", memoryId: "x", proofCount: 1 });
+
+    await extractAndRetain(
+      messages,
+      { vaultCtx: {} as never, embeddingOptions: { apiKey: "embed-k" }, vaultCache: new Map() },
+      { extract: { apiKey: "k", fetchFn: mockFetch(JSON.stringify(candidates)) } }
+    );
+
+    // Facet fact → facetKey/facetValue forwarded.
+    expect(vi.mocked(retain)).toHaveBeenNthCalledWith(
+      1,
+      "Prefers dark mode",
+      expect.anything(),
+      expect.objectContaining({ facetKey: "preference:self:ui_theme", facetValue: "dark" })
+    );
+    // Non-facet fact → the keys are absent (not passed as null/undefined).
+    const secondOpts = vi.mocked(retain).mock.calls[1][2] as Record<string, unknown>;
+    expect(secondOpts).not.toHaveProperty("facetKey");
+    expect(secondOpts).not.toHaveProperty("facetValue");
   });
 
   it("reports outcome 'no-facts' on a legitimate empty extraction (H3)", async () => {

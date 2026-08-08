@@ -24,6 +24,8 @@ function candidate(content: string): ExtractedCandidate {
     sourceMessageIds: ["m1"],
     entities: [],
     eventTime: null,
+    facetKey: null,
+    facetValue: null,
   };
 }
 

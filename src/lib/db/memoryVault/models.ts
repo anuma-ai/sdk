@@ -62,6 +62,16 @@ export class VaultMemory extends Model {
   @field("published_at") publishedAt!: number | null;
   /** Reserved coarse-geohash slot for landmark/Trail memories. */
   @field("geohash") geohash!: string | null;
+  /** Facet slot (v43) — the closed `"<factType>:self:<slot>"` shape of a
+   *  single-valued SELF standing attribute (e.g. `preference:self:ui_theme`).
+   *  Null = no facet recorded. Indexed so a same-slot lookup stays cheap.
+   *  PLAINTEXT (TEST) — needs privacy sign-off before ship. */
+  @field("facet_key") facetKey!: string | null;
+  /** Facet value (v43) — the normalized current value token for
+   *  {@link facetKey} (e.g. `dark`/`light`, `sf`, `vegan`). Recorded metadata
+   *  only: dedup does not read it. Null = no facet recorded.
+   *  PLAINTEXT (TEST) — leaks the value; needs privacy sign-off. */
+  @field("facet_value") facetValue!: string | null;
   @readonly @date("created_at") createdAt!: Date;
   @date("updated_at") updatedAt!: Date;
   @field("is_deleted") isDeleted!: boolean;

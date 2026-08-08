@@ -155,7 +155,7 @@ Defined in: [src/lib/db/memoryVault/models.ts:7](https://github.com/anuma-ai/sdk
 
 > **createdAt**: `Date`
 
-Defined in: [src/lib/db/memoryVault/models.ts:65](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/models.ts#65)
+Defined in: [src/lib/db/memoryVault/models.ts:75](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/models.ts#75)
 
 ***
 
@@ -207,6 +207,32 @@ W6 temporal lane — Unix ms timestamp of when the event occurred.
 
 ***
 
+### facetKey
+
+> **facetKey**: `string` | `null`
+
+Defined in: [src/lib/db/memoryVault/models.ts:69](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/models.ts#69)
+
+Facet slot (v43) — the closed `"<factType>:self:<slot>"` shape of a
+single-valued SELF standing attribute (e.g. `preference:self:ui_theme`).
+Null = no facet recorded. Indexed so a same-slot lookup stays cheap.
+PLAINTEXT (TEST) — needs privacy sign-off before ship.
+
+***
+
+### facetValue
+
+> **facetValue**: `string` | `null`
+
+Defined in: [src/lib/db/memoryVault/models.ts:74](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/models.ts#74)
+
+Facet value (v43) — the normalized current value token for
+[facetKey](#facetkey) (e.g. `dark`/`light`, `sf`, `vegan`). Recorded metadata
+only: dedup does not read it. Null = no facet recorded.
+PLAINTEXT (TEST) — leaks the value; needs privacy sign-off.
+
+***
+
 ### factType
 
 > **factType**: `string` | `null`
@@ -239,7 +265,7 @@ Reserved coarse-geohash slot for landmark/Trail memories.
 
 > **isDeleted**: `boolean`
 
-Defined in: [src/lib/db/memoryVault/models.ts:67](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/models.ts#67)
+Defined in: [src/lib/db/memoryVault/models.ts:77](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/models.ts#77)
 
 ***
 
@@ -407,7 +433,7 @@ Owner opted this memory into their own digital twin (twin-scoped only).
 
 > **updatedAt**: `Date`
 
-Defined in: [src/lib/db/memoryVault/models.ts:66](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/models.ts#66)
+Defined in: [src/lib/db/memoryVault/models.ts:76](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/models.ts#76)
 
 ***
 

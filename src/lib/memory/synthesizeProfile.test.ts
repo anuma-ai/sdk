@@ -116,6 +116,8 @@ function mem(id: string, opts: Partial<StoredVaultMemory> = {}): StoredVaultMemo
     twinOptIn: false,
     publishedAt: null,
     geohash: null,
+    facetKey: null,
+    facetValue: null,
     createdAt: opts.createdAt ?? new Date(500),
     updatedAt: opts.updatedAt ?? new Date(1000),
     isDeleted: false,

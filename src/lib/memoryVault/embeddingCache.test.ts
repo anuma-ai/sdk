@@ -66,6 +66,8 @@ function makeMemory(id: string, content: string): StoredVaultMemory {
     twinOptIn: false,
     publishedAt: null,
     geohash: null,
+    facetKey: null,
+    facetValue: null,
     createdAt: new Date(),
     updatedAt: new Date(),
     isDeleted: false,

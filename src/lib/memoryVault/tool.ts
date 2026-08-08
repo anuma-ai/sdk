@@ -12,6 +12,8 @@ import {
   getVaultMemoryOp,
   updateVaultMemoryOp,
 } from "../db/memoryVault/operations";
+import { isJunkMemoryContent } from "../memory/junkGate";
+import type { RetainResult } from "../memory/types";
 import type { EmbeddingOptions } from "../memoryEngine/types";
 import { eagerEmbedContent, type VaultEmbeddingCache } from "./searchTool";
 
@@ -32,11 +34,52 @@ const MANUAL_FACT_TYPES = [
   "other",
 ] as const;
 
+/**
+ * Max wall-clock the CREATE path waits on `retain()`'s embedding call before
+ * aborting it. `generateEmbedding` has bounded retry but no per-request timeout,
+ * so a hung portal could otherwise stall the chat turn. We abort THIS call's
+ * embedding (via a signal threaded into retain) — never the shared
+ * recall/search/eval embedding path — so on timeout retain throws and the
+ * tool's single try/catch runs exactly one raw-create.
+ */
+const RETAIN_CREATE_TIMEOUT_MS = 10_000;
+
 /** Validate a caller/LLM-supplied `type` arg to a known FactType, or undefined. */
 function normalizeManualFactType(value: unknown): (typeof MANUAL_FACT_TYPES)[number] | undefined {
   return typeof value === "string" && (MANUAL_FACT_TYPES as readonly string[]).includes(value)
     ? (value as (typeof MANUAL_FACT_TYPES)[number])
     : undefined;
+}
+
+/**
+ * Map a {@link RetainResult} to the tool's success string. The create path
+ * routes through `retain()` WITHOUT a consolidation stage, so in practice it
+ * only ever `merge`s into a true ≥0.8 cosine duplicate or `create`s a new row.
+ * The `update`/`supersede` branches are defensive — reachable only if a caller
+ * ever re-enables Stage-1 consolidation — and every branch names the memory's
+ * id so the model can reference it in a later update. `create` keeps the
+ * original wording so the common case reads identically to before.
+ */
+function describeRetainResult(result: RetainResult): string {
+  const id = result.memoryId;
+  switch (result.action) {
+    case "merge":
+      return `Memory merged into an existing memory (ID: ${id}).`;
+    case "update":
+      return `Memory updated an existing memory (ID: ${id}).`;
+    case "supersede":
+      return `Memory saved, replacing an outdated memory (ID: ${id}).`;
+    case "suppressed":
+      // Unreachable from this tool (manual writes don't set respectTombstones),
+      // but handled so a future opt-in doesn't silently mis-report.
+      return "Memory was not saved: it matches a memory you previously deleted.";
+    case "rejected":
+      // Unreachable — junk is gated before retain() is called — but kept honest.
+      return "Error: content too short or low-signal to save.";
+    case "create":
+    default:
+      return `Memory saved successfully (ID: ${id}).`;
+  }
 }
 
 /**
@@ -123,9 +166,12 @@ export function createMemoryVaultTool(
       description:
         "Save or update a memory in the user's persistent memory vault. " +
         "Use this to remember important facts, preferences, or context about the user. " +
-        "When the vault already contains a related memory, provide its ID to update it " +
-        "rather than creating a duplicate. Merge new information into existing entries " +
-        "to keep the vault compact and non-redundant.",
+        "New saves are automatically de-duplicated against true near-duplicates: if an " +
+        "almost-identical memory already exists it is reinforced rather than stored twice, " +
+        "so you do not need to search first to avoid exact duplicates. Semantic (reworded) " +
+        "dedup is left to background auto-extraction and the consolidation sweep. Provide " +
+        "an existing memory's ID only when you intend to overwrite that specific memory's " +
+        "content.",
       arguments: {
         type: "object",
         properties: {
@@ -184,6 +230,13 @@ export function createMemoryVaultTool(
             return "Error: content is required and must be a string.";
           }
 
+          // Shared junk gate (same predicate the extraction path uses): reject
+          // low-signal scraps like "1"/"2"/"---" before any create OR update, so
+          // the model can't smuggle junk into the vault through this tool.
+          if (isJunkMemoryContent(content)) {
+            return "Error: content too short or low-signal to save.";
+          }
+
           try {
             const isUpdate = !!id;
             let previousContent: string | undefined;
@@ -234,18 +287,83 @@ export function createMemoryVaultTool(
               // keyed by this memory's id (same id → new vector replaces the
               // stale one), so no explicit evict-by-content is needed.
               if (embeddingOptions && cache) {
-                // Drop the stale vector first: if the async re-embed fails, the
-                // id has no entry (next search re-embeds from DB) instead of
-                // serving the pre-edit vector under this id.
+                // Drop the stale vector first: if the re-embed fails, the id has
+                // no entry (next search re-embeds from DB) instead of serving the
+                // pre-edit vector under this id.
                 cache.delete(id);
-                eagerEmbedContent(content, embeddingOptions, cache, vaultCtx, id).catch(
-                  // Silently swallow – SDK must not use console.*; embedding will be retried on next search
-                  () => {}
-                );
+                // AWAIT (not fire-and-forget) so the updated row is embedded
+                // before we return — the caller/UI can search it immediately and
+                // tests are deterministic. An embed failure must NOT turn an
+                // already-persisted update into an error, so swallow it here (the
+                // vector is retried on the next search); we do NOT run
+                // consolidation on an explicit id-update.
+                try {
+                  await eagerEmbedContent(content, embeddingOptions, cache, vaultCtx, id);
+                } catch {
+                  // Best-effort embed; the DB update already committed. Retried on
+                  // next search. SDK must not use console.*.
+                }
               }
               return `Memory updated successfully (ID: ${updated.uniqueId}).`;
             } else {
               const folderId = folderName ? options?.folderMap?.get(folderName) : undefined;
+
+              // Fix A — route CREATE through retain()'s STRICT COSINE AUTO-MERGE
+              // ONLY (no consolidateOptions → retain skips its Stage-1 LLM
+              // consolidation). That dedups against a TRUE near-duplicate (≥0.8
+              // cosine → reinforce the existing row) and otherwise creates a new
+              // row; it NEVER noop-drops a distinct fact and NEVER rewrites an
+              // unrelated row. Semantic (reworded) dedup is deliberately left to
+              // background auto-extraction + the consolidation sweep — a
+              // model/user-confirmed save must never silently store nothing or
+              // overwrite a different memory. Only runs when we have the embedding
+              // pieces retain needs (embeddingOptions + cache); without them we
+              // keep the raw create for back-compat.
+              if (embeddingOptions && cache) {
+                let retainResult: RetainResult | undefined;
+                // Bound THIS create's wait with a per-call AbortController rather
+                // than a Promise.race: a race would leave the abandoned retain()
+                // running to complete its OWN create/merge after the fallback
+                // raw-create already ran → a duplicate row. Aborting the signal
+                // makes retain()'s embedding call reject fast (terminal, no
+                // retry), retain throws, and the single catch below runs the
+                // raw-create exactly once. Exactly one write on every path:
+                // retain resolves → its write; retain throws/aborts → one
+                // raw-create. Scoped to this call only (ctx.signal), so the
+                // shared recall/search/eval embedding path is never aborted.
+                const controller = new AbortController();
+                const timer = setTimeout(() => controller.abort(), RETAIN_CREATE_TIMEOUT_MS);
+                try {
+                  // Dynamic import mirrors this module's cycle-avoidance stance
+                  // (see the FactType note above): memoryVault must not statically
+                  // pull the heavier memory/* graph at module load.
+                  const { retain } = await import("../memory/retain");
+                  retainResult = await retain(
+                    content,
+                    { vaultCtx, embeddingOptions, vaultCache: cache, signal: controller.signal },
+                    {
+                      source: "manual",
+                      scope,
+                      ...(folderId !== undefined && { folderId }),
+                      ...(factType && { factType }),
+                    }
+                  );
+                } catch {
+                  // retain() THROWS on an embedding outage/timeout/abort (it
+                  // refuses to auto-merge against an inert cosine lane, which
+                  // would create a duplicate). A user-CONFIRMED save must never be
+                  // lost to that, so fall through to the raw create + eager embed
+                  // below (the pre-retain behavior). Any rare duplicate
+                  // self-reconciles at the next consolidation pass.
+                } finally {
+                  clearTimeout(timer);
+                }
+                if (retainResult) {
+                  return describeRetainResult(retainResult);
+                }
+              }
+
+              // Fallback / no-embeddings path: raw create + best-effort eager embed.
               const created = await createVaultMemoryOp(vaultCtx, {
                 content,
                 scope,

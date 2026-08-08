@@ -2,7 +2,7 @@
 
 > `const` **sdkMigrations**: `Readonly`<{ `maxVersion`: `number`; `minVersion`: `number`; `sortedMigrations`: `Readonly`<{ `steps`: `MigrationStep`\[]; `toVersion`: `number`; }>\[]; `validated`: `true`; }>
 
-Defined in: [src/lib/db/schema.ts:541](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/schema.ts#541)
+Defined in: [src/lib/db/schema.ts:568](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/schema.ts#568)
 
 Combined migrations for all SDK storage modules.
 
@@ -57,3 +57,4 @@ Migration history:
 * v41 → v42: Added `topics` + `topics_updated_at` columns to memory\_vault, making a memory's topics the durable synced record and `entity`/`memory_entity` a device-local index over it (null `topics` = pre-v42, backfilled from the row's current links by the sweep)
 * v42 → v43: Added a composite `(is_deleted, created_at)` index to conversations so the list reads stop temp-sorting (structural only, no data rewritten)
 * v43 → v44: Added `origin` column to history recording which producer synthesised a row, so the embedding sweep can skip never-rendered tool-result dumps (plaintext by design — the sweep has no wallet context; null = legacy, embedded as before)
+* v45 → v46: Added `facet_key` (indexed) + `facet_value` columns to memory\_vault recording a memory's facet slot+value, stamped by retain() on create for other consumers (they do NOT drive dedup — semantic search + the decide model does). All nullable, NO backfill — existing rows keep both NULL (= no facet recorded). Both PLAINTEXT (TEST) and need privacy sign-off before ship — see the column note and SDK\_SCHEMA\_VERSION doc.
