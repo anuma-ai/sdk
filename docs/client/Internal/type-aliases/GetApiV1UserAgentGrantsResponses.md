@@ -2,7 +2,7 @@
 
 > **GetApiV1UserAgentGrantsResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:10453](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10453)
+Defined in: [src/client/types.gen.ts:10623](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10623)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:10453](https://github.com/anuma-ai/sdk/blob
 
 > **200**: [`HandlersGrantLookupResponse`](HandlersGrantLookupResponse.md)
 
-Defined in: [src/client/types.gen.ts:10457](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10457)
+Defined in: [src/client/types.gen.ts:10627](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10627)
 
 OK

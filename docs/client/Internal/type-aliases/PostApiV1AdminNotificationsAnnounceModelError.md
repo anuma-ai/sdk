@@ -2,4 +2,4 @@
 
 > **PostApiV1AdminNotificationsAnnounceModelError** = [`PostApiV1AdminNotificationsAnnounceModelErrors`](PostApiV1AdminNotificationsAnnounceModelErrors.md)\[keyof [`PostApiV1AdminNotificationsAnnounceModelErrors`](PostApiV1AdminNotificationsAnnounceModelErrors.md)]
 
-Defined in: [src/client/types.gen.ts:5508](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5508)
+Defined in: [src/client/types.gen.ts:5678](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5678)

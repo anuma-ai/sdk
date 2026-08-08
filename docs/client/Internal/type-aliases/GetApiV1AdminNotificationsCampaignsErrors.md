@@ -2,7 +2,7 @@
 
 > **GetApiV1AdminNotificationsCampaignsErrors** = `object`
 
-Defined in: [src/client/types.gen.ts:5541](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5541)
+Defined in: [src/client/types.gen.ts:5711](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5711)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:5541](https://github.com/anuma-ai/sdk/blob/
 
 > **401**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:5545](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5545)
+Defined in: [src/client/types.gen.ts:5715](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5715)
 
 Unauthorized

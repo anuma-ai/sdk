@@ -2,7 +2,7 @@
 
 > **OpenaiChatCompletionAudioParamFormat** = `string`
 
-Defined in: [src/client/types.gen.ts:3607](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3607)
+Defined in: [src/client/types.gen.ts:3777](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3777)
 
 Specifies the output audio format. Must be one of `wav`, `mp3`, `flac`, `opus`,
 or `pcm16`.

@@ -2,7 +2,7 @@
 
 > **PostApiV1AdminUsersSuspendResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:6675](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6675)
+Defined in: [src/client/types.gen.ts:6845](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6845)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:6675](https://github.com/anuma-ai/sdk/blob/
 
 > **200**: [`HandlersSuspendAccountResponse`](HandlersSuspendAccountResponse.md)
 
-Defined in: [src/client/types.gen.ts:6679](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6679)
+Defined in: [src/client/types.gen.ts:6849](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6849)
 
 OK
