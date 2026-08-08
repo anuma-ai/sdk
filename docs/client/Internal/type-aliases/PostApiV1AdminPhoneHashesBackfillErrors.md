@@ -2,7 +2,7 @@
 
 > **PostApiV1AdminPhoneHashesBackfillErrors** = `object`
 
-Defined in: [src/client/types.gen.ts:6171](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6171)
+Defined in: [src/client/types.gen.ts:6341](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6341)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:6171](https://github.com/anuma-ai/sdk/blob/
 
 > **401**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:6175](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6175)
+Defined in: [src/client/types.gen.ts:6345](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6345)
 
 Unauthorized
 
@@ -20,6 +20,6 @@ Unauthorized
 
 > **500**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:6179](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6179)
+Defined in: [src/client/types.gen.ts:6349](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6349)
 
 Internal Server Error

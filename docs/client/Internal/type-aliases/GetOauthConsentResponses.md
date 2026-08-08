@@ -2,7 +2,7 @@
 
 > **GetOauthConsentResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:11470](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11470)
+Defined in: [src/client/types.gen.ts:11760](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11760)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:11470](https://github.com/anuma-ai/sdk/blob
 
 > **200**: `string`
 
-Defined in: [src/client/types.gen.ts:11474](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11474)
+Defined in: [src/client/types.gen.ts:11764](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11764)
 
 OK

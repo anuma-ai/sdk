@@ -2,7 +2,7 @@
 
 > **OpenaiCompletionUsagePromptTokensDetails** = `object`
 
-Defined in: [src/client/types.gen.ts:4344](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4344)
+Defined in: [src/client/types.gen.ts:4514](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4514)
 
 Breakdown of tokens used in the prompt.
 
@@ -12,7 +12,7 @@ Breakdown of tokens used in the prompt.
 
 > `optional` **audio\_tokens**: `number`
 
-Defined in: [src/client/types.gen.ts:4348](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4348)
+Defined in: [src/client/types.gen.ts:4518](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4518)
 
 Audio input tokens present in the prompt.
 
@@ -22,6 +22,6 @@ Audio input tokens present in the prompt.
 
 > `optional` **cached\_tokens**: `number`
 
-Defined in: [src/client/types.gen.ts:4352](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4352)
+Defined in: [src/client/types.gen.ts:4522](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4522)
 
 Cached tokens present in the prompt.

@@ -2,7 +2,7 @@
 
 > **OpenaiChatCompletionContentPartFileFileParam** = `object`
 
-Defined in: [src/client/types.gen.ts:3649](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3649)
+Defined in: [src/client/types.gen.ts:3819](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3819)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:3649](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **any**: `unknown`
 
-Defined in: [src/client/types.gen.ts:3650](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3650)
+Defined in: [src/client/types.gen.ts:3820](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3820)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:3650](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **file\_data**: [`ParamOptString`](ParamOptString.md)
 
-Defined in: [src/client/types.gen.ts:3651](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3651)
+Defined in: [src/client/types.gen.ts:3821](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3821)
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: [src/client/types.gen.ts:3651](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **file\_id**: [`ParamOptString`](ParamOptString.md)
 
-Defined in: [src/client/types.gen.ts:3652](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3652)
+Defined in: [src/client/types.gen.ts:3822](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3822)
 
 ***
 
@@ -34,4 +34,4 @@ Defined in: [src/client/types.gen.ts:3652](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **filename**: [`ParamOptString`](ParamOptString.md)
 
-Defined in: [src/client/types.gen.ts:3653](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3653)
+Defined in: [src/client/types.gen.ts:3823](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3823)

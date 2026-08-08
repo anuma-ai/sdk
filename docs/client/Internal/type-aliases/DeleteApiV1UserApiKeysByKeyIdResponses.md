@@ -2,7 +2,7 @@
 
 > **DeleteApiV1UserApiKeysByKeyIdResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:10564](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10564)
+Defined in: [src/client/types.gen.ts:10734](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10734)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:10564](https://github.com/anuma-ai/sdk/blob
 
 > **200**: `object`
 
-Defined in: [src/client/types.gen.ts:10568](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10568)
+Defined in: [src/client/types.gen.ts:10738](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10738)
 
 OK
 

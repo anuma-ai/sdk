@@ -2,7 +2,7 @@
 
 > **GetApiV1AgentPreferencesResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:6750](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6750)
+Defined in: [src/client/types.gen.ts:6920](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6920)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:6750](https://github.com/anuma-ai/sdk/blob/
 
 > **200**: [`HandlersUserAgentPreferencesListResponse`](HandlersUserAgentPreferencesListResponse.md)
 
-Defined in: [src/client/types.gen.ts:6754](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6754)
+Defined in: [src/client/types.gen.ts:6924](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6924)
 
 OK

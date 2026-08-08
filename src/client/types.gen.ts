@@ -1615,6 +1615,17 @@ export type HandlersCheckoutSessionResponse = {
     url: string;
 };
 
+export type HandlersClaimTokenMintRequest = {
+    tester_id?: number;
+    ttl_seconds?: number;
+};
+
+export type HandlersClaimTokenMintResponse = {
+    claim_token?: string;
+    expires_at?: string;
+    tester_id?: number;
+};
+
 export type HandlersConfigResponse = {
     /**
      * Apps is the list of active apps
@@ -2084,6 +2095,83 @@ export type HandlersExpiringCredits = {
     expires_at?: string;
 };
 
+export type HandlersExtractPhotoFactsRequest = {
+    /**
+     * Caption is the user's own text for the photo. Optional. It is grounding
+     * context for extraction, not a second source to reconcile against the photo.
+     */
+    caption?: string;
+    /**
+     * ImageURL is a publicly reachable http(s) URL. The provider fetches it
+     * server-side, so it must be reachable from the internet, not from us.
+     */
+    image_url?: string;
+};
+
+export type HandlersExtractPhotoFactsResponse = {
+    /**
+     * Facts is never null — a photo yielding nothing answers [], which is a valid
+     * outcome (see the prompt), not an error the caller must special-case.
+     * Ordered most-confident-first, as the model emitted them.
+     */
+    facts?: Array<string>;
+    /**
+     * FilterPromptSHA identifies the red-line FILTER prompt that screened these facts — the second
+     * pinned prompt in the pipeline. Separate from PromptSHA on purpose: the returned facts are shaped
+     * by both, so one combined hash would say something moved while hiding WHICH, and telling an
+     * extraction change from a filter change is the point of recording a sha.
+     */
+    filter_prompt_sha?: string;
+    /**
+     * Model is the alias that was used, echoed so the caller can label its own
+     * metrics per anuma-ai/nearby#114 §3.5 without hardcoding the model name.
+     *
+     * It is the alias we ASKED FOR, always — deliberately, and it must stay that way. See
+     * ServingProvider below for who answered; the two are different questions and collapsing them
+     * into one field would break both.
+     */
+    model?: string;
+    /**
+     * PromptSHA identifies the extraction prompt that produced these facts — the first 12 hex
+     * characters of its sha256, computed from the prompt this route actually sends (see
+     * photoFactsPromptSHA). It exists so a recorded run can be attributed to a prompt version:
+     * without it a caller comparing two graded runs cannot separate a prompt change from sampling
+     * noise or a provider failover, and the scoring harness had to leave its own
+     * extraction_prompt_sha empty rather than hash a local copy that would silently drift from this.
+     *
+     * ALWAYS PRESENT, unlike ServingProvider. That field can be genuinely unknown, so its absence
+     * carries meaning; this value is ours and is never unknown, so there is nothing for an omitempty
+     * to express and a missing key would only look like an older portal.
+     *
+     * Additive and optional for callers: nearby ignores unknown JSON fields, so recording it there is
+     * a separate change and this needs no coordinated deploy.
+     */
+    prompt_sha?: string;
+    /**
+     * ServingProvider is who ACTUALLY answered — "fireworks", "deepinfra" — and it exists because
+     * Model cannot say. The photo alias carries a DeepInfra fallback behind Fireworks
+     * (internal/llmgateway/model_aliases.go), so from #1565 onward "which provider served this" has a
+     * second possible answer, and a caller comparing runs needs to know which one it got: a result
+     * that changed because the request failed over is a different finding from one that changed
+     * because the prompt did.
+     *
+     * EMPTY MEANS UNKNOWN, NOT FIREWORKS. It is populated only when Bifrost reported a provider, and
+     * is never defaulted to the primary — see llmapi.ChatCompletionExtraFields.ServingProvider for
+     * why that distinction has to be preserved rather than smoothed over. Omitted from the JSON when
+     * unknown, so a caller sees absence rather than a confident wrong answer.
+     *
+     * Additive and optional: a caller that does not read it is unaffected.
+     */
+    serving_provider?: string;
+    usage?: HandlersExtractPhotoFactsUsage;
+};
+
+export type HandlersExtractPhotoFactsUsage = {
+    completion_tokens?: number;
+    prompt_tokens?: number;
+    total_tokens?: number;
+};
+
 export type HandlersFundDeveloperAppRequest = {
     /**
      * URL to redirect if payment is cancelled
@@ -2503,6 +2591,10 @@ export type HandlersPreProcessorRequest = {
     q?: string;
 };
 
+export type HandlersPrefineryWebhookAck = {
+    received?: boolean;
+};
+
 export type HandlersPrivyIdentifierAuditEntry = {
     account_id?: number;
     current_address?: string;
@@ -2609,6 +2701,63 @@ export type HandlersRedeemTokensResponse = {
     message?: string;
     redemption_id?: number;
     success?: boolean;
+};
+
+export type HandlersReferralClaimRequest = {
+    claim_token?: string;
+};
+
+export type HandlersReferralClaimResponse = {
+    bound?: boolean;
+    promoted_referrals?: number;
+    reward?: HandlersReferralRewardResponse;
+    tester?: HandlersReferralTesterResponse;
+};
+
+export type HandlersReferralIdentityResponse = {
+    hash?: string;
+    identifier?: string;
+};
+
+export type HandlersReferralInviteRequest = {
+    message?: string;
+    recipient_email?: string;
+};
+
+export type HandlersReferralInviteResponse = {
+    invitations_remaining?: number;
+};
+
+export type HandlersReferralMeResponse = {
+    bound?: boolean;
+    reward?: HandlersReferralRewardResponse;
+    tester?: HandlersReferralTesterResponse;
+};
+
+export type HandlersReferralRewardResponse = {
+    status?: string;
+    threshold?: number;
+};
+
+export type HandlersReferralTesterResponse = {
+    bound_via?: string;
+    referral_code?: string;
+    referral_count?: number;
+    /**
+     * ShareURL is built server-side. Clients must use it verbatim — Prefinery's
+     * own share_link points at their domain, and ours is the one users see.
+     */
+    share_url?: string;
+    status?: string;
+    /**
+     * UpdatedAt is the mirror-freshness signal: the last webhook, reconcile or
+     * write-through that touched the row.
+     */
+    updated_at?: string;
+    /**
+     * WaitlistPosition is null once the tester is invited/active.
+     */
+    waitlist_position?: number;
 };
 
 export type HandlersRefreshRequest = {
@@ -3290,6 +3439,27 @@ export type HandlersUserUsageResponse = {
      * consumed from active grants, excludes in-flight holds
      */
     used_credits: number;
+};
+
+export type HandlersWaitlistJoinRequest = {
+    area_freeform?: string;
+    area_slug?: string;
+    email?: string;
+    referred_by_code?: string;
+};
+
+export type HandlersWaitlistJoinResponse = {
+    bound?: boolean;
+    /**
+     * ReferredByApplied is null when no code was sent, false when a code WAS
+     * sent but did not attribute this signup to anyone — malformed, a
+     * self-referral, unresolvable, or sent on an account that is already bound
+     * (Prefinery attributes on create and never re-parents). The join succeeds
+     * either way.
+     */
+    referred_by_applied?: boolean;
+    reward?: HandlersReferralRewardResponse;
+    tester?: HandlersReferralTesterResponse;
 };
 
 /**
@@ -11337,6 +11507,42 @@ export type PostInternalEmbeddingsResponses = {
 
 export type PostInternalEmbeddingsResponse = PostInternalEmbeddingsResponses[keyof PostInternalEmbeddingsResponses];
 
+export type PostInternalExtractPhotoFactsData = {
+    /**
+     * Public image URL and optional caption
+     */
+    body: HandlersExtractPhotoFactsRequest;
+    path?: never;
+    query?: never;
+    url: '/internal/extract-photo-facts';
+};
+
+export type PostInternalExtractPhotoFactsErrors = {
+    /**
+     * Bad Request
+     */
+    400: ResponseErrorResponse;
+    /**
+     * Model provider rate limit exceeded
+     */
+    429: ResponseErrorResponse;
+    /**
+     * Internal Server Error
+     */
+    500: ResponseErrorResponse;
+};
+
+export type PostInternalExtractPhotoFactsError = PostInternalExtractPhotoFactsErrors[keyof PostInternalExtractPhotoFactsErrors];
+
+export type PostInternalExtractPhotoFactsResponses = {
+    /**
+     * OK
+     */
+    200: HandlersExtractPhotoFactsResponse;
+};
+
+export type PostInternalExtractPhotoFactsResponse = PostInternalExtractPhotoFactsResponses[keyof PostInternalExtractPhotoFactsResponses];
+
 export type PostInternalModerateData = {
     /**
      * Texts and image URLs to moderate
@@ -11368,6 +11574,90 @@ export type PostInternalModerateResponses = {
 };
 
 export type PostInternalModerateResponse = PostInternalModerateResponses[keyof PostInternalModerateResponses];
+
+export type PostInternalPrefineryClaimTokensData = {
+    /**
+     * Mint request
+     */
+    body: HandlersClaimTokenMintRequest;
+    path?: never;
+    query?: never;
+    url: '/internal/prefinery/claim-tokens';
+};
+
+export type PostInternalPrefineryClaimTokensErrors = {
+    /**
+     * Bad Request
+     */
+    400: ResponseErrorResponse;
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+    /**
+     * Service Unavailable
+     */
+    503: ResponseErrorResponse;
+};
+
+export type PostInternalPrefineryClaimTokensError = PostInternalPrefineryClaimTokensErrors[keyof PostInternalPrefineryClaimTokensErrors];
+
+export type PostInternalPrefineryClaimTokensResponses = {
+    /**
+     * OK
+     */
+    200: HandlersClaimTokenMintResponse;
+};
+
+export type PostInternalPrefineryClaimTokensResponse = PostInternalPrefineryClaimTokensResponses[keyof PostInternalPrefineryClaimTokensResponses];
+
+export type PostNearbyWaitlistData = {
+    /**
+     * Waitlist join
+     */
+    body: HandlersWaitlistJoinRequest;
+    path?: never;
+    query?: never;
+    url: '/nearby/waitlist';
+};
+
+export type PostNearbyWaitlistErrors = {
+    /**
+     * Bad Request
+     */
+    400: ResponseErrorResponse;
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+    /**
+     * Conflict
+     */
+    409: ResponseErrorResponse;
+    /**
+     * Too Many Requests
+     */
+    429: ResponseErrorResponse;
+    /**
+     * Bad Gateway
+     */
+    502: ResponseErrorResponse;
+    /**
+     * Service Unavailable
+     */
+    503: ResponseErrorResponse;
+};
+
+export type PostNearbyWaitlistError = PostNearbyWaitlistErrors[keyof PostNearbyWaitlistErrors];
+
+export type PostNearbyWaitlistResponses = {
+    /**
+     * OK
+     */
+    200: HandlersWaitlistJoinResponse;
+};
+
+export type PostNearbyWaitlistResponse = PostNearbyWaitlistResponses[keyof PostNearbyWaitlistResponses];
 
 export type GetOauthAuthorizeData = {
     body?: never;
@@ -11569,3 +11859,192 @@ export type PostOauthTokenResponses = {
 };
 
 export type PostOauthTokenResponse = PostOauthTokenResponses[keyof PostOauthTokenResponses];
+
+export type PostReferralClaimData = {
+    /**
+     * Claim token
+     */
+    body: HandlersReferralClaimRequest;
+    path?: never;
+    query?: never;
+    url: '/referral/claim';
+};
+
+export type PostReferralClaimErrors = {
+    /**
+     * Bad Request
+     */
+    400: ResponseErrorResponse;
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+    /**
+     * Conflict
+     */
+    409: ResponseErrorResponse;
+    /**
+     * Gone
+     */
+    410: ResponseErrorResponse;
+    /**
+     * Bad Gateway
+     */
+    502: ResponseErrorResponse;
+    /**
+     * Service Unavailable
+     */
+    503: ResponseErrorResponse;
+};
+
+export type PostReferralClaimError = PostReferralClaimErrors[keyof PostReferralClaimErrors];
+
+export type PostReferralClaimResponses = {
+    /**
+     * OK
+     */
+    200: HandlersReferralClaimResponse;
+};
+
+export type PostReferralClaimResponse = PostReferralClaimResponses[keyof PostReferralClaimResponses];
+
+export type PostReferralIdentityData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/referral/identity';
+};
+
+export type PostReferralIdentityErrors = {
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+    /**
+     * Conflict
+     */
+    409: ResponseErrorResponse;
+    /**
+     * Service Unavailable
+     */
+    503: ResponseErrorResponse;
+};
+
+export type PostReferralIdentityError = PostReferralIdentityErrors[keyof PostReferralIdentityErrors];
+
+export type PostReferralIdentityResponses = {
+    /**
+     * OK
+     */
+    200: HandlersReferralIdentityResponse;
+};
+
+export type PostReferralIdentityResponse = PostReferralIdentityResponses[keyof PostReferralIdentityResponses];
+
+export type PostReferralInviteData = {
+    /**
+     * Invitation
+     */
+    body: HandlersReferralInviteRequest;
+    path?: never;
+    query?: never;
+    url: '/referral/invite';
+};
+
+export type PostReferralInviteErrors = {
+    /**
+     * Bad Request
+     */
+    400: ResponseErrorResponse;
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+    /**
+     * Conflict
+     */
+    409: ResponseErrorResponse;
+    /**
+     * Too Many Requests
+     */
+    429: ResponseErrorResponse;
+    /**
+     * Bad Gateway
+     */
+    502: ResponseErrorResponse;
+    /**
+     * Service Unavailable
+     */
+    503: ResponseErrorResponse;
+};
+
+export type PostReferralInviteError = PostReferralInviteErrors[keyof PostReferralInviteErrors];
+
+export type PostReferralInviteResponses = {
+    /**
+     * OK
+     */
+    200: HandlersReferralInviteResponse;
+};
+
+export type PostReferralInviteResponse = PostReferralInviteResponses[keyof PostReferralInviteResponses];
+
+export type GetReferralMeData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/referral/me';
+};
+
+export type GetReferralMeErrors = {
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+    /**
+     * Service Unavailable
+     */
+    503: ResponseErrorResponse;
+};
+
+export type GetReferralMeError = GetReferralMeErrors[keyof GetReferralMeErrors];
+
+export type GetReferralMeResponses = {
+    /**
+     * OK
+     */
+    200: HandlersReferralMeResponse;
+};
+
+export type GetReferralMeResponse = GetReferralMeResponses[keyof GetReferralMeResponses];
+
+export type PostWebhooksPrefineryData = {
+    body?: {
+        [key: string]: unknown;
+    };
+    path?: never;
+    query?: never;
+    url: '/webhooks/prefinery';
+};
+
+export type PostWebhooksPrefineryErrors = {
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+    /**
+     * Service Unavailable
+     */
+    503: ResponseErrorResponse;
+};
+
+export type PostWebhooksPrefineryError = PostWebhooksPrefineryErrors[keyof PostWebhooksPrefineryErrors];
+
+export type PostWebhooksPrefineryResponses = {
+    /**
+     * OK
+     */
+    200: HandlersPrefineryWebhookAck;
+};
+
+export type PostWebhooksPrefineryResponse = PostWebhooksPrefineryResponses[keyof PostWebhooksPrefineryResponses];

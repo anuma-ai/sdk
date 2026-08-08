@@ -2,7 +2,7 @@
 
 > **HandlersCreateCustomerPortalRequest** = `object`
 
-Defined in: [src/client/types.gen.ts:1857](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1857)
+Defined in: [src/client/types.gen.ts:1868](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1868)
 
 ## Properties
 
@@ -10,4 +10,4 @@ Defined in: [src/client/types.gen.ts:1857](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **return\_url**: `string`
 
-Defined in: [src/client/types.gen.ts:1858](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1858)
+Defined in: [src/client/types.gen.ts:1869](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1869)

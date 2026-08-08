@@ -2,7 +2,7 @@
 
 > **HandlersCreditRateResponse** = `object`
 
-Defined in: [src/client/types.gen.ts:1973](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1973)
+Defined in: [src/client/types.gen.ts:1984](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1984)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:1973](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **apy\_bps**: `number`
 
-Defined in: [src/client/types.gen.ts:1974](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1974)
+Defined in: [src/client/types.gen.ts:1985](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1985)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:1974](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **apy\_percent**: `number`
 
-Defined in: [src/client/types.gen.ts:1975](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1975)
+Defined in: [src/client/types.gen.ts:1986](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1986)
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: [src/client/types.gen.ts:1975](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **credits\_per\_zeta\_per\_year**: `number`
 
-Defined in: [src/client/types.gen.ts:1976](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1976)
+Defined in: [src/client/types.gen.ts:1987](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1987)
 
 ***
 
@@ -34,7 +34,7 @@ Defined in: [src/client/types.gen.ts:1976](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **staking\_apr\_bps**: `number`
 
-Defined in: [src/client/types.gen.ts:1977](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1977)
+Defined in: [src/client/types.gen.ts:1988](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1988)
 
 ***
 
@@ -42,7 +42,7 @@ Defined in: [src/client/types.gen.ts:1977](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **staking\_apr\_percent**: `number`
 
-Defined in: [src/client/types.gen.ts:1978](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1978)
+Defined in: [src/client/types.gen.ts:1989](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1989)
 
 ***
 
@@ -50,4 +50,4 @@ Defined in: [src/client/types.gen.ts:1978](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **zeta\_price\_usd**: `number`
 
-Defined in: [src/client/types.gen.ts:1979](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1979)
+Defined in: [src/client/types.gen.ts:1990](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1990)
