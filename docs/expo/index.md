@@ -922,9 +922,21 @@ Re-exports [getVaultFolderMemoryCountOp](../react/Internal/functions/getVaultFol
 
 ***
 
+### getVaultMemoriesByIdsOp
+
+Re-exports [getVaultMemoriesByIdsOp](../react/Internal/functions/getVaultMemoriesByIdsOp.md)
+
+***
+
 ### getVaultMemoryOp
 
 Re-exports [getVaultMemoryOp](../react/Internal/functions/getVaultMemoryOp.md)
+
+***
+
+### getVaultRankingProjectionsOp
+
+Re-exports [getVaultRankingProjectionsOp](../react/Internal/functions/getVaultRankingProjectionsOp.md)
 
 ***
 
@@ -1297,6 +1309,12 @@ Re-exports [QueueManager](../react/Internal/classes/QueueManager.md)
 ### QueueStatus
 
 Re-exports [QueueStatus](../react/Internal/interfaces/QueueStatus.md)
+
+***
+
+### RankableVaultMemory
+
+Re-exports [RankableVaultMemory](../react/Internal/interfaces/RankableVaultMemory.md)
 
 ***
 
