@@ -2,7 +2,7 @@
 
 > **PostApiV1UserAgentConsentsResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:10354](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10354)
+Defined in: [src/client/types.gen.ts:10524](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10524)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:10354](https://github.com/anuma-ai/sdk/blob
 
 > **200**: [`HandlersConsentResponse`](HandlersConsentResponse.md)
 
-Defined in: [src/client/types.gen.ts:10358](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10358)
+Defined in: [src/client/types.gen.ts:10528](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10528)
 
 OK
 
@@ -20,6 +20,6 @@ OK
 
 > **201**: [`HandlersConsentResponse`](HandlersConsentResponse.md)
 
-Defined in: [src/client/types.gen.ts:10362](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10362)
+Defined in: [src/client/types.gen.ts:10532](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10532)
 
 Created

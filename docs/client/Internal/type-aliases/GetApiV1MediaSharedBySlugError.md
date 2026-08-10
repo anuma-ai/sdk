@@ -2,4 +2,4 @@
 
 > **GetApiV1MediaSharedBySlugError** = [`GetApiV1MediaSharedBySlugErrors`](GetApiV1MediaSharedBySlugErrors.md)\[keyof [`GetApiV1MediaSharedBySlugErrors`](GetApiV1MediaSharedBySlugErrors.md)]
 
-Defined in: [src/client/types.gen.ts:9035](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9035)
+Defined in: [src/client/types.gen.ts:9205](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9205)

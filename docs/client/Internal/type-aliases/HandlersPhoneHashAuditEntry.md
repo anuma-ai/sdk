@@ -2,7 +2,7 @@
 
 > **HandlersPhoneHashAuditEntry** = `object`
 
-Defined in: [src/client/types.gen.ts:2426](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2426)
+Defined in: [src/client/types.gen.ts:2514](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2514)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:2426](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **account\_id**: `number`
 
-Defined in: [src/client/types.gen.ts:2427](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2427)
+Defined in: [src/client/types.gen.ts:2515](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2515)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:2427](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **reason**: `string`
 
-Defined in: [src/client/types.gen.ts:2434](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2434)
+Defined in: [src/client/types.gen.ts:2522](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2522)
 
 Reason is "pending" (Privy has a phone, stored hash missing or stale),
 "api\_error" (transient Privy fetch / DB write failure — batch will retry), or

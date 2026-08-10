@@ -2,7 +2,7 @@
 
 > **DeleteApiV1UserAgentConsentsByAgentIdErrors** = `object`
 
-Defined in: [src/client/types.gen.ts:10384](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10384)
+Defined in: [src/client/types.gen.ts:10554](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10554)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:10384](https://github.com/anuma-ai/sdk/blob
 
 > **400**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:10388](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10388)
+Defined in: [src/client/types.gen.ts:10558](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10558)
 
 Bad Request
 
@@ -20,7 +20,7 @@ Bad Request
 
 > **401**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:10392](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10392)
+Defined in: [src/client/types.gen.ts:10562](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10562)
 
 Unauthorized
 
@@ -30,6 +30,6 @@ Unauthorized
 
 > **500**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:10396](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10396)
+Defined in: [src/client/types.gen.ts:10566](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10566)
 
 Internal Server Error

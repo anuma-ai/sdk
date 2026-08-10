@@ -403,6 +403,11 @@
 | [GetOauthConsentErrors](Internal/type-aliases/GetOauthConsentErrors.md) | - |
 | [GetOauthConsentResponse](Internal/type-aliases/GetOauthConsentResponse.md) | - |
 | [GetOauthConsentResponses](Internal/type-aliases/GetOauthConsentResponses.md) | - |
+| [GetReferralMeData](Internal/type-aliases/GetReferralMeData.md) | - |
+| [GetReferralMeError](Internal/type-aliases/GetReferralMeError.md) | - |
+| [GetReferralMeErrors](Internal/type-aliases/GetReferralMeErrors.md) | - |
+| [GetReferralMeResponse](Internal/type-aliases/GetReferralMeResponse.md) | - |
+| [GetReferralMeResponses](Internal/type-aliases/GetReferralMeResponses.md) | - |
 | [GetWellKnownJwksJsonData](Internal/type-aliases/GetWellKnownJwksJsonData.md) | - |
 | [GetWellKnownJwksJsonResponse](Internal/type-aliases/GetWellKnownJwksJsonResponse.md) | - |
 | [GetWellKnownJwksJsonResponses](Internal/type-aliases/GetWellKnownJwksJsonResponses.md) | - |
@@ -436,6 +441,8 @@
 | [HandlersCancelSubscriptionRequest](Internal/type-aliases/HandlersCancelSubscriptionRequest.md) | - |
 | [HandlersCancelSubscriptionResponse](Internal/type-aliases/HandlersCancelSubscriptionResponse.md) | - |
 | [HandlersCheckoutSessionResponse](Internal/type-aliases/HandlersCheckoutSessionResponse.md) | - |
+| [HandlersClaimTokenMintRequest](Internal/type-aliases/HandlersClaimTokenMintRequest.md) | - |
+| [HandlersClaimTokenMintResponse](Internal/type-aliases/HandlersClaimTokenMintResponse.md) | - |
 | [HandlersConfigResponse](Internal/type-aliases/HandlersConfigResponse.md) | - |
 | [HandlersConfigurePrivyRequest](Internal/type-aliases/HandlersConfigurePrivyRequest.md) | - |
 | [HandlersConnectorCapability](Internal/type-aliases/HandlersConnectorCapability.md) | - |
@@ -481,6 +488,9 @@
 | [HandlersDisableRequest](Internal/type-aliases/HandlersDisableRequest.md) | - |
 | [HandlersExchangeRequest](Internal/type-aliases/HandlersExchangeRequest.md) | - |
 | [HandlersExpiringCredits](Internal/type-aliases/HandlersExpiringCredits.md) | - |
+| [HandlersExtractPhotoFactsRequest](Internal/type-aliases/HandlersExtractPhotoFactsRequest.md) | - |
+| [HandlersExtractPhotoFactsResponse](Internal/type-aliases/HandlersExtractPhotoFactsResponse.md) | - |
+| [HandlersExtractPhotoFactsUsage](Internal/type-aliases/HandlersExtractPhotoFactsUsage.md) | - |
 | [HandlersFundDeveloperAppRequest](Internal/type-aliases/HandlersFundDeveloperAppRequest.md) | - |
 | [HandlersGeneratedApiKey](Internal/type-aliases/HandlersGeneratedApiKey.md) | - |
 | [HandlersGetToolsResponse](Internal/type-aliases/HandlersGetToolsResponse.md) | - |
@@ -534,6 +544,7 @@
 | [HandlersPhoneHashAuditEntry](Internal/type-aliases/HandlersPhoneHashAuditEntry.md) | - |
 | [HandlersPhoneHashAuditResponse](Internal/type-aliases/HandlersPhoneHashAuditResponse.md) | - |
 | [HandlersPhoneHashMatchResult](Internal/type-aliases/HandlersPhoneHashMatchResult.md) | - |
+| [HandlersPrefineryWebhookAck](Internal/type-aliases/HandlersPrefineryWebhookAck.md) | - |
 | [HandlersPreProcessorRequest](Internal/type-aliases/HandlersPreProcessorRequest.md) | - |
 | [HandlersPrivyIdentifierAuditEntry](Internal/type-aliases/HandlersPrivyIdentifierAuditEntry.md) | - |
 | [HandlersPrivyIdentifierAuditResponse](Internal/type-aliases/HandlersPrivyIdentifierAuditResponse.md) | - |
@@ -542,6 +553,14 @@
 | [HandlersProInfo](Internal/type-aliases/HandlersProInfo.md) | - |
 | [HandlersRedeemTokensRequest](Internal/type-aliases/HandlersRedeemTokensRequest.md) | - |
 | [HandlersRedeemTokensResponse](Internal/type-aliases/HandlersRedeemTokensResponse.md) | - |
+| [HandlersReferralClaimRequest](Internal/type-aliases/HandlersReferralClaimRequest.md) | - |
+| [HandlersReferralClaimResponse](Internal/type-aliases/HandlersReferralClaimResponse.md) | - |
+| [HandlersReferralIdentityResponse](Internal/type-aliases/HandlersReferralIdentityResponse.md) | - |
+| [HandlersReferralInviteRequest](Internal/type-aliases/HandlersReferralInviteRequest.md) | - |
+| [HandlersReferralInviteResponse](Internal/type-aliases/HandlersReferralInviteResponse.md) | - |
+| [HandlersReferralMeResponse](Internal/type-aliases/HandlersReferralMeResponse.md) | - |
+| [HandlersReferralRewardResponse](Internal/type-aliases/HandlersReferralRewardResponse.md) | - |
+| [HandlersReferralTesterResponse](Internal/type-aliases/HandlersReferralTesterResponse.md) | - |
 | [HandlersRefreshRequest](Internal/type-aliases/HandlersRefreshRequest.md) | - |
 | [HandlersRegisterDeviceRequest](Internal/type-aliases/HandlersRegisterDeviceRequest.md) | - |
 | [HandlersRenewSubscriptionResponse](Internal/type-aliases/HandlersRenewSubscriptionResponse.md) | - |
@@ -610,6 +629,8 @@
 | [HandlersUserLookupTextReg](Internal/type-aliases/HandlersUserLookupTextReg.md) | - |
 | [HandlersUserUsageResponse](Internal/type-aliases/HandlersUserUsageResponse.md) | - |
 | [HandlersVerifyRequest](Internal/type-aliases/HandlersVerifyRequest.md) | - |
+| [HandlersWaitlistJoinRequest](Internal/type-aliases/HandlersWaitlistJoinRequest.md) | - |
+| [HandlersWaitlistJoinResponse](Internal/type-aliases/HandlersWaitlistJoinResponse.md) | - |
 | [HandlersWalletDetails](Internal/type-aliases/HandlersWalletDetails.md) | Wallet account details |
 | [HandlersWeatherResponse](Internal/type-aliases/HandlersWeatherResponse.md) | - |
 | [HandlersWeeklyInferenceItem](Internal/type-aliases/HandlersWeeklyInferenceItem.md) | - |
@@ -1129,11 +1150,26 @@
 | [PostInternalEmbeddingsErrors](Internal/type-aliases/PostInternalEmbeddingsErrors.md) | - |
 | [PostInternalEmbeddingsResponse](Internal/type-aliases/PostInternalEmbeddingsResponse.md) | - |
 | [PostInternalEmbeddingsResponses](Internal/type-aliases/PostInternalEmbeddingsResponses.md) | - |
+| [PostInternalExtractPhotoFactsData](Internal/type-aliases/PostInternalExtractPhotoFactsData.md) | - |
+| [PostInternalExtractPhotoFactsError](Internal/type-aliases/PostInternalExtractPhotoFactsError.md) | - |
+| [PostInternalExtractPhotoFactsErrors](Internal/type-aliases/PostInternalExtractPhotoFactsErrors.md) | - |
+| [PostInternalExtractPhotoFactsResponse](Internal/type-aliases/PostInternalExtractPhotoFactsResponse.md) | - |
+| [PostInternalExtractPhotoFactsResponses](Internal/type-aliases/PostInternalExtractPhotoFactsResponses.md) | - |
 | [PostInternalModerateData](Internal/type-aliases/PostInternalModerateData.md) | - |
 | [PostInternalModerateError](Internal/type-aliases/PostInternalModerateError.md) | - |
 | [PostInternalModerateErrors](Internal/type-aliases/PostInternalModerateErrors.md) | - |
 | [PostInternalModerateResponse](Internal/type-aliases/PostInternalModerateResponse.md) | - |
 | [PostInternalModerateResponses](Internal/type-aliases/PostInternalModerateResponses.md) | - |
+| [PostInternalPrefineryClaimTokensData](Internal/type-aliases/PostInternalPrefineryClaimTokensData.md) | - |
+| [PostInternalPrefineryClaimTokensError](Internal/type-aliases/PostInternalPrefineryClaimTokensError.md) | - |
+| [PostInternalPrefineryClaimTokensErrors](Internal/type-aliases/PostInternalPrefineryClaimTokensErrors.md) | - |
+| [PostInternalPrefineryClaimTokensResponse](Internal/type-aliases/PostInternalPrefineryClaimTokensResponse.md) | - |
+| [PostInternalPrefineryClaimTokensResponses](Internal/type-aliases/PostInternalPrefineryClaimTokensResponses.md) | - |
+| [PostNearbyWaitlistData](Internal/type-aliases/PostNearbyWaitlistData.md) | - |
+| [PostNearbyWaitlistError](Internal/type-aliases/PostNearbyWaitlistError.md) | - |
+| [PostNearbyWaitlistErrors](Internal/type-aliases/PostNearbyWaitlistErrors.md) | - |
+| [PostNearbyWaitlistResponse](Internal/type-aliases/PostNearbyWaitlistResponse.md) | - |
+| [PostNearbyWaitlistResponses](Internal/type-aliases/PostNearbyWaitlistResponses.md) | - |
 | [PostOauthConsentData](Internal/type-aliases/PostOauthConsentData.md) | - |
 | [PostOauthConsentError](Internal/type-aliases/PostOauthConsentError.md) | - |
 | [PostOauthConsentErrors](Internal/type-aliases/PostOauthConsentErrors.md) | - |
@@ -1149,6 +1185,26 @@
 | [PostOauthTokenErrors](Internal/type-aliases/PostOauthTokenErrors.md) | - |
 | [PostOauthTokenResponse](Internal/type-aliases/PostOauthTokenResponse.md) | - |
 | [PostOauthTokenResponses](Internal/type-aliases/PostOauthTokenResponses.md) | - |
+| [PostReferralClaimData](Internal/type-aliases/PostReferralClaimData.md) | - |
+| [PostReferralClaimError](Internal/type-aliases/PostReferralClaimError.md) | - |
+| [PostReferralClaimErrors](Internal/type-aliases/PostReferralClaimErrors.md) | - |
+| [PostReferralClaimResponse](Internal/type-aliases/PostReferralClaimResponse.md) | - |
+| [PostReferralClaimResponses](Internal/type-aliases/PostReferralClaimResponses.md) | - |
+| [PostReferralIdentityData](Internal/type-aliases/PostReferralIdentityData.md) | - |
+| [PostReferralIdentityError](Internal/type-aliases/PostReferralIdentityError.md) | - |
+| [PostReferralIdentityErrors](Internal/type-aliases/PostReferralIdentityErrors.md) | - |
+| [PostReferralIdentityResponse](Internal/type-aliases/PostReferralIdentityResponse.md) | - |
+| [PostReferralIdentityResponses](Internal/type-aliases/PostReferralIdentityResponses.md) | - |
+| [PostReferralInviteData](Internal/type-aliases/PostReferralInviteData.md) | - |
+| [PostReferralInviteError](Internal/type-aliases/PostReferralInviteError.md) | - |
+| [PostReferralInviteErrors](Internal/type-aliases/PostReferralInviteErrors.md) | - |
+| [PostReferralInviteResponse](Internal/type-aliases/PostReferralInviteResponse.md) | - |
+| [PostReferralInviteResponses](Internal/type-aliases/PostReferralInviteResponses.md) | - |
+| [PostWebhooksPrefineryData](Internal/type-aliases/PostWebhooksPrefineryData.md) | - |
+| [PostWebhooksPrefineryError](Internal/type-aliases/PostWebhooksPrefineryError.md) | - |
+| [PostWebhooksPrefineryErrors](Internal/type-aliases/PostWebhooksPrefineryErrors.md) | - |
+| [PostWebhooksPrefineryResponse](Internal/type-aliases/PostWebhooksPrefineryResponse.md) | - |
+| [PostWebhooksPrefineryResponses](Internal/type-aliases/PostWebhooksPrefineryResponses.md) | - |
 | [PutApiV1AdminAgentsByIdData](Internal/type-aliases/PutApiV1AdminAgentsByIdData.md) | - |
 | [PutApiV1AdminAgentsByIdError](Internal/type-aliases/PutApiV1AdminAgentsByIdError.md) | - |
 | [PutApiV1AdminAgentsByIdErrors](Internal/type-aliases/PutApiV1AdminAgentsByIdErrors.md) | - |
@@ -1298,6 +1354,7 @@
 | [getInternalAccountsByDidByDid](Internal/functions/getInternalAccountsByDidByDid.md) | Resolve a Privy DID to an account ID |
 | [getOauthAuthorize](Internal/functions/getOauthAuthorize.md) | OAuth 2.0 authorization endpoint |
 | [getOauthConsent](Internal/functions/getOauthConsent.md) | OAuth consent screen |
+| [getReferralMe](Internal/functions/getReferralMe.md) | Read the caller's waitlist and referral state |
 | [getWellKnownJwksJson](Internal/functions/getWellKnownJwksJson.md) | OAuth 2.0 JSON Web Key Set |
 | [patchApiV1AdminNotificationsCampaignsByCampaignId](Internal/functions/patchApiV1AdminNotificationsCampaignsByCampaignId.md) | Edit a draft/scheduled announcement campaign (admin) |
 | [patchApiV1AdminOauthClientsByClientId](Internal/functions/patchApiV1AdminOauthClientsByClientId.md) | Update an OAuth client |
@@ -1380,10 +1437,17 @@
 | [postInternalAccountsByPhoneHashes](Internal/functions/postInternalAccountsByPhoneHashes.md) | Resolve phone hashes to account IDs (batch) |
 | [postInternalComplete](Internal/functions/postInternalComplete.md) | Create a chat completion (internal) |
 | [postInternalEmbeddings](Internal/functions/postInternalEmbeddings.md) | Create embeddings (internal) |
+| [postInternalExtractPhotoFacts](Internal/functions/postInternalExtractPhotoFacts.md) | Extract user facts from a photo (internal) |
 | [postInternalModerate](Internal/functions/postInternalModerate.md) | Moderate content (internal) |
+| [postInternalPrefineryClaimTokens](Internal/functions/postInternalPrefineryClaimTokens.md) | Mint a waitlist claim token (internal) |
+| [postNearbyWaitlist](Internal/functions/postNearbyWaitlist.md) | Join the Prefinery waitlist |
 | [postOauthConsent](Internal/functions/postOauthConsent.md) | Process OAuth consent |
 | [postOauthRevoke](Internal/functions/postOauthRevoke.md) | OAuth 2.0 token revocation (RFC 7009) |
 | [postOauthToken](Internal/functions/postOauthToken.md) | OAuth 2.0 token endpoint |
+| [postReferralClaim](Internal/functions/postReferralClaim.md) | Redeem a waitlist claim token |
+| [postReferralIdentity](Internal/functions/postReferralIdentity.md) | Mint the Prefinery widget identity proof |
+| [postReferralInvite](Internal/functions/postReferralInvite.md) | Send a Prefinery friend invitation |
+| [postWebhooksPrefinery](Internal/functions/postWebhooksPrefinery.md) | Prefinery webhook receiver |
 | [putApiV1AdminAgentsById](Internal/functions/putApiV1AdminAgentsById.md) | Update agent |
 | [putApiV1AdminAppsByAppIdApiKeysById](Internal/functions/putApiV1AdminAppsByAppIdApiKeysById.md) | Update API key |
 | [putApiV1AdminAppsById](Internal/functions/putApiV1AdminAppsById.md) | Update app |

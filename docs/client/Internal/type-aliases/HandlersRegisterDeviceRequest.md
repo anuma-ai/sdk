@@ -2,7 +2,7 @@
 
 > **HandlersRegisterDeviceRequest** = `object`
 
-Defined in: [src/client/types.gen.ts:2618](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2618)
+Defined in: [src/client/types.gen.ts:2767](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2767)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:2618](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **app\_version**: `string`
 
-Defined in: [src/client/types.gen.ts:2619](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2619)
+Defined in: [src/client/types.gen.ts:2768](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2768)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:2619](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **locale**: `string`
 
-Defined in: [src/client/types.gen.ts:2624](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2624)
+Defined in: [src/client/types.gen.ts:2773](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2773)
 
 Locale is the optional BCP-47 language tag of the device (e.g.
 "en-US"); used for announcement-campaign locale segmentation.
@@ -29,7 +29,7 @@ Locale is the optional BCP-47 language tag of the device (e.g.
 
 > `optional` **platform**: `string`
 
-Defined in: [src/client/types.gen.ts:2625](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2625)
+Defined in: [src/client/types.gen.ts:2774](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2774)
 
 ***
 
@@ -37,4 +37,4 @@ Defined in: [src/client/types.gen.ts:2625](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **token**: `string`
 
-Defined in: [src/client/types.gen.ts:2626](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2626)
+Defined in: [src/client/types.gen.ts:2775](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2775)

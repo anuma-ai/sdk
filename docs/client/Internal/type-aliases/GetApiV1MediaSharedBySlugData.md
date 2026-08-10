@@ -2,7 +2,7 @@
 
 > **GetApiV1MediaSharedBySlugData** = `object`
 
-Defined in: [src/client/types.gen.ts:9016](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9016)
+Defined in: [src/client/types.gen.ts:9186](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9186)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:9016](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **body**: `never`
 
-Defined in: [src/client/types.gen.ts:9017](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9017)
+Defined in: [src/client/types.gen.ts:9187](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9187)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:9017](https://github.com/anuma-ai/sdk/blob/
 
 > **path**: `object`
 
-Defined in: [src/client/types.gen.ts:9018](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9018)
+Defined in: [src/client/types.gen.ts:9188](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9188)
 
 **slug**
 
@@ -32,7 +32,7 @@ Share slug
 
 > `optional` **query**: `never`
 
-Defined in: [src/client/types.gen.ts:9024](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9024)
+Defined in: [src/client/types.gen.ts:9194](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9194)
 
 ***
 
@@ -40,4 +40,4 @@ Defined in: [src/client/types.gen.ts:9024](https://github.com/anuma-ai/sdk/blob/
 
 > **url**: `"/api/v1/media/shared/{slug}"`
 
-Defined in: [src/client/types.gen.ts:9025](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9025)
+Defined in: [src/client/types.gen.ts:9195](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9195)

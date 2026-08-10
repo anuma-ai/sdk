@@ -2,7 +2,7 @@
 
 > **DeleteApiV1WalletsBindingByAddressErrors** = `object`
 
-Defined in: [src/client/types.gen.ts:10897](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10897)
+Defined in: [src/client/types.gen.ts:11067](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11067)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:10897](https://github.com/anuma-ai/sdk/blob
 
 > **401**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:10901](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10901)
+Defined in: [src/client/types.gen.ts:11071](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11071)
 
 Unauthorized
 
@@ -20,6 +20,6 @@ Unauthorized
 
 > **404**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:10905](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10905)
+Defined in: [src/client/types.gen.ts:11075](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11075)
 
 Not Found

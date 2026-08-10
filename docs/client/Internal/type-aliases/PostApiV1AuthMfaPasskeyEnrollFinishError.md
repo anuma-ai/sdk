@@ -2,4 +2,4 @@
 
 > **PostApiV1AuthMfaPasskeyEnrollFinishError** = [`PostApiV1AuthMfaPasskeyEnrollFinishErrors`](PostApiV1AuthMfaPasskeyEnrollFinishErrors.md)\[keyof [`PostApiV1AuthMfaPasskeyEnrollFinishErrors`](PostApiV1AuthMfaPasskeyEnrollFinishErrors.md)]
 
-Defined in: [src/client/types.gen.ts:6987](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6987)
+Defined in: [src/client/types.gen.ts:7157](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7157)

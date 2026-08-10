@@ -2,7 +2,7 @@
 
 > **OpenaiChatCompletionMessageParamUnion** = `object`
 
-Defined in: [src/client/types.gen.ts:3877](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3877)
+Defined in: [src/client/types.gen.ts:4047](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4047)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:3877](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **any**: `unknown`
 
-Defined in: [src/client/types.gen.ts:3878](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3878)
+Defined in: [src/client/types.gen.ts:4048](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4048)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:3878](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **ofAssistant**: [`OpenaiChatCompletionAssistantMessageParam`](OpenaiChatCompletionAssistantMessageParam.md)
 
-Defined in: [src/client/types.gen.ts:3879](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3879)
+Defined in: [src/client/types.gen.ts:4049](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4049)
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: [src/client/types.gen.ts:3879](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **ofDeveloper**: [`OpenaiChatCompletionDeveloperMessageParam`](OpenaiChatCompletionDeveloperMessageParam.md)
 
-Defined in: [src/client/types.gen.ts:3880](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3880)
+Defined in: [src/client/types.gen.ts:4050](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4050)
 
 ***
 
@@ -34,7 +34,7 @@ Defined in: [src/client/types.gen.ts:3880](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **ofFunction**: [`OpenaiChatCompletionFunctionMessageParam`](OpenaiChatCompletionFunctionMessageParam.md)
 
-Defined in: [src/client/types.gen.ts:3881](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3881)
+Defined in: [src/client/types.gen.ts:4051](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4051)
 
 ***
 
@@ -42,7 +42,7 @@ Defined in: [src/client/types.gen.ts:3881](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **ofSystem**: [`OpenaiChatCompletionSystemMessageParam`](OpenaiChatCompletionSystemMessageParam.md)
 
-Defined in: [src/client/types.gen.ts:3882](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3882)
+Defined in: [src/client/types.gen.ts:4052](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4052)
 
 ***
 
@@ -50,7 +50,7 @@ Defined in: [src/client/types.gen.ts:3882](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **ofTool**: [`OpenaiChatCompletionToolMessageParam`](OpenaiChatCompletionToolMessageParam.md)
 
-Defined in: [src/client/types.gen.ts:3883](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3883)
+Defined in: [src/client/types.gen.ts:4053](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4053)
 
 ***
 
@@ -58,4 +58,4 @@ Defined in: [src/client/types.gen.ts:3883](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **ofUser**: [`OpenaiChatCompletionUserMessageParam`](OpenaiChatCompletionUserMessageParam.md)
 
-Defined in: [src/client/types.gen.ts:3884](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3884)
+Defined in: [src/client/types.gen.ts:4054](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4054)

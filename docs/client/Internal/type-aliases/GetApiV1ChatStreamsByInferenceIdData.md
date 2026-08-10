@@ -2,7 +2,7 @@
 
 > **GetApiV1ChatStreamsByInferenceIdData** = `object`
 
-Defined in: [src/client/types.gen.ts:7297](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7297)
+Defined in: [src/client/types.gen.ts:7467](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7467)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:7297](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **body**: `never`
 
-Defined in: [src/client/types.gen.ts:7298](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7298)
+Defined in: [src/client/types.gen.ts:7468](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7468)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:7298](https://github.com/anuma-ai/sdk/blob/
 
 > **path**: `object`
 
-Defined in: [src/client/types.gen.ts:7299](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7299)
+Defined in: [src/client/types.gen.ts:7469](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7469)
 
 **inference\_id**
 
@@ -32,7 +32,7 @@ Inference ID (the X-Inference-ID returned on the original stream)
 
 > `optional` **query**: `object`
 
-Defined in: [src/client/types.gen.ts:7305](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7305)
+Defined in: [src/client/types.gen.ts:7475](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7475)
 
 **starting\_after?**
 
@@ -46,4 +46,4 @@ Replay frames with sequence strictly greater than this value (reserved; accepted
 
 > **url**: `"/api/v1/chat/streams/{inference_id}"`
 
-Defined in: [src/client/types.gen.ts:7311](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7311)
+Defined in: [src/client/types.gen.ts:7481](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7481)
