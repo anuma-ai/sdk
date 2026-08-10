@@ -25,15 +25,41 @@ const BULK_ENDPOINT = "https://registry.npmjs.org/-/npm/v1/security/advisories/b
  * Fields: `id` (GHSA), `package`, `reason`, `expires` (YYYY-MM-DD, UTC).
  */
 const ALLOWLIST = [
-  // Empty. The brace-expansion DoS entry (GHSA-mh99-v99m-4gvg) was removed once
-  // the 1.x/2.x maintenance lines got the backport its own reason was waiting on
-  // — 1.1.18 / 2.1.4 patch both that advisory and GHSA-rgw5-rvv9-x895, and the
-  // pnpm.overrides now pin those. The audit reported the entry as matching no
-  // finding, which is the signal to delete rather than extend.
+  // image-size DoS pair, published 2026-06-10 and picked up by npm's bulk
+  // endpoint on 2026-08-10 — which is why a run that passed on 2026-08-07
+  // started failing on main with no change to the lockfile.
   //
-  // Keep it empty when you can. An allowlist entry is a time-boxed admission that
-  // a known-vulnerable version ships; the exit condition belongs in `reason` so a
-  // later reader knows what to re-check, as that one did.
+  // NO OVERRIDE IS POSSIBLE. Both advisories cover `<= 2.0.2` and report
+  // `first_patched_version: null`; 2.0.2 is the newest version published, so
+  // there is no version to pin to. Re-check with:
+  //   gh api /advisories/GHSA-w3rx-r6r6-pgpr --jq '.vulnerabilities[].first_patched_version'
+  //
+  // Reachability is bundler-only: `image-size@1.2.1` arrives via
+  // react-native -> @react-native/community-cli-plugin -> metro, i.e. the RN
+  // dev server and bundler. The SDK never imports it and it is not part of any
+  // shipped bundle; `pnpm list --prod` cannot tell that apart from runtime code,
+  // which is what puts it in front of this audit at all. The DoS is a parser
+  // infinite loop on hostile ICNS/JXL/HEIF input — reachable only by someone
+  // feeding malicious images to their own build.
+  //
+  // Exit condition: image-size publishes a fix (then delete this and let the
+  // resolved tree pick it up, or add a pnpm.overrides pin), or metro stops
+  // depending on it. Either way this entry should be REMOVED, not extended —
+  // the audit reports an entry that matches nothing, which is the signal.
+  {
+    id: "GHSA-w3rx-r6r6-pgpr",
+    package: "image-size",
+    reason:
+      "ICNS parser DoS. No patched version exists (advisory range <= 2.0.2, first_patched_version null, 2.0.2 is latest published), so pnpm.overrides cannot resolve it. Reachable only via react-native -> community-cli-plugin -> metro (build-time bundler), never in a shipped bundle.",
+    expires: "2026-11-10",
+  },
+  {
+    id: "GHSA-5p2g-fcmc-qvqq",
+    package: "image-size",
+    reason:
+      "JXL/HEIF parser DoS in the same package and version as GHSA-w3rx-r6r6-pgpr; identical no-fix and build-time-only reachability evidence.",
+    expires: "2026-11-10",
+  },
 ];
 
 function collectPackages() {
