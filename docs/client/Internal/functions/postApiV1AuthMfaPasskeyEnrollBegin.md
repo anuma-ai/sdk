@@ -2,7 +2,7 @@
 
 > **postApiV1AuthMfaPasskeyEnrollBegin**<`ThrowOnError`>(`options?`: [`Options`](../type-aliases/Options.md)<[`PostApiV1AuthMfaPasskeyEnrollBeginData`](../type-aliases/PostApiV1AuthMfaPasskeyEnrollBeginData.md), `ThrowOnError`, `unknown`>): `RequestResult`<[`PostApiV1AuthMfaPasskeyEnrollBeginResponses`](../type-aliases/PostApiV1AuthMfaPasskeyEnrollBeginResponses.md), [`PostApiV1AuthMfaPasskeyEnrollBeginErrors`](../type-aliases/PostApiV1AuthMfaPasskeyEnrollBeginErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:568](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#568)
+Defined in: [src/client/sdk.gen.ts:582](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#582)
 
 Begin passkey enrollment
 

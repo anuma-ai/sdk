@@ -2,7 +2,7 @@
 
 > **GetConnectorsByProviderConnectErrors** = `object`
 
-Defined in: [src/client/types.gen.ts:11322](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11322)
+Defined in: [src/client/types.gen.ts:11401](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11401)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:11322](https://github.com/anuma-ai/sdk/blob
 
 > **400**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:11326](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11326)
+Defined in: [src/client/types.gen.ts:11405](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11405)
 
 Bad Request
 
@@ -20,7 +20,7 @@ Bad Request
 
 > **410**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:11330](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11330)
+Defined in: [src/client/types.gen.ts:11409](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11409)
 
 Gone
 
@@ -30,6 +30,6 @@ Gone
 
 > **500**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:11334](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11334)
+Defined in: [src/client/types.gen.ts:11413](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11413)
 
 Internal Server Error

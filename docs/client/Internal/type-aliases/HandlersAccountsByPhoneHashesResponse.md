@@ -2,7 +2,7 @@
 
 > **HandlersAccountsByPhoneHashesResponse** = `object`
 
-Defined in: [src/client/types.gen.ts:1139](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1139)
+Defined in: [src/client/types.gen.ts:1152](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1152)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:1139](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **matches**: [`HandlersPhoneHashMatchResult`](HandlersPhoneHashMatchResult.md)\[]
 
-Defined in: [src/client/types.gen.ts:1143](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1143)
+Defined in: [src/client/types.gen.ts:1156](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1156)
 
 Matches is never null — an empty batch answers \[], so a caller need not special-case it.

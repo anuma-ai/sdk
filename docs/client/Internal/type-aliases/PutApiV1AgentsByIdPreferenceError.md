@@ -2,4 +2,4 @@
 
 > **PutApiV1AgentsByIdPreferenceError** = [`PutApiV1AgentsByIdPreferenceErrors`](PutApiV1AgentsByIdPreferenceErrors.md)\[keyof [`PutApiV1AgentsByIdPreferenceErrors`](PutApiV1AgentsByIdPreferenceErrors.md)]
 
-Defined in: [src/client/types.gen.ts:7026](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7026)
+Defined in: [src/client/types.gen.ts:7105](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7105)

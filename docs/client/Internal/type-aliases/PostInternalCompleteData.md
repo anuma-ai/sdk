@@ -2,7 +2,7 @@
 
 > **PostInternalCompleteData** = `object`
 
-Defined in: [src/client/types.gen.ts:11438](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11438)
+Defined in: [src/client/types.gen.ts:11517](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11517)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:11438](https://github.com/anuma-ai/sdk/blob
 
 > **body**: [`LlmapiChatCompletionRequest`](LlmapiChatCompletionRequest.md)
 
-Defined in: [src/client/types.gen.ts:11442](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11442)
+Defined in: [src/client/types.gen.ts:11521](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11521)
 
 Chat completion request (model is ignored and pinned server-side)
 
@@ -20,7 +20,7 @@ Chat completion request (model is ignored and pinned server-side)
 
 > `optional` **path**: `never`
 
-Defined in: [src/client/types.gen.ts:11443](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11443)
+Defined in: [src/client/types.gen.ts:11522](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11522)
 
 ***
 
@@ -28,7 +28,7 @@ Defined in: [src/client/types.gen.ts:11443](https://github.com/anuma-ai/sdk/blob
 
 > `optional` **query**: `never`
 
-Defined in: [src/client/types.gen.ts:11444](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11444)
+Defined in: [src/client/types.gen.ts:11523](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11523)
 
 ***
 
@@ -36,4 +36,4 @@ Defined in: [src/client/types.gen.ts:11444](https://github.com/anuma-ai/sdk/blob
 
 > **url**: `"/internal/complete"`
 
-Defined in: [src/client/types.gen.ts:11445](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11445)
+Defined in: [src/client/types.gen.ts:11524](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11524)

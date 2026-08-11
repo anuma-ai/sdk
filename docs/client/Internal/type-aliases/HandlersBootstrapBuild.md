@@ -2,7 +2,7 @@
 
 > **HandlersBootstrapBuild** = `object`
 
-Defined in: [src/client/types.gen.ts:1460](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1460)
+Defined in: [src/client/types.gen.ts:1473](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1473)
 
 Build is the server build metadata at the time of bootstrap.
 
@@ -12,7 +12,7 @@ Build is the server build metadata at the time of bootstrap.
 
 > `optional` **env**: `string`
 
-Defined in: [src/client/types.gen.ts:1464](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1464)
+Defined in: [src/client/types.gen.ts:1477](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1477)
 
 Env is the deployment environment (e.g., "dev", "prod").
 
@@ -22,6 +22,6 @@ Env is the deployment environment (e.g., "dev", "prod").
 
 > `optional` **version**: `string`
 
-Defined in: [src/client/types.gen.ts:1468](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1468)
+Defined in: [src/client/types.gen.ts:1481](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1481)
 
 Version is the server build version (set via ldflags at compile time).

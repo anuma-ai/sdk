@@ -2,7 +2,7 @@
 
 > **PostWebhooksPrefineryErrors** = `object`
 
-Defined in: [src/client/types.gen.ts:12030](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#12030)
+Defined in: [src/client/types.gen.ts:12109](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#12109)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:12030](https://github.com/anuma-ai/sdk/blob
 
 > **401**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:12034](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#12034)
+Defined in: [src/client/types.gen.ts:12113](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#12113)
 
 Unauthorized
 
@@ -20,6 +20,6 @@ Unauthorized
 
 > **503**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:12038](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#12038)
+Defined in: [src/client/types.gen.ts:12117](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#12117)
 
 Service Unavailable

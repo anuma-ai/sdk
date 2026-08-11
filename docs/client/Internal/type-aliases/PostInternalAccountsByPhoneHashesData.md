@@ -2,7 +2,7 @@
 
 > **PostInternalAccountsByPhoneHashesData** = `object`
 
-Defined in: [src/client/types.gen.ts:11402](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11402)
+Defined in: [src/client/types.gen.ts:11481](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11481)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:11402](https://github.com/anuma-ai/sdk/blob
 
 > **body**: [`HandlersAccountsByPhoneHashesRequest`](HandlersAccountsByPhoneHashesRequest.md)
 
-Defined in: [src/client/types.gen.ts:11406](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11406)
+Defined in: [src/client/types.gen.ts:11485](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11485)
 
 Phone hashes to resolve (base64-encoded HMAC-SHA256, max 1000)
 
@@ -20,7 +20,7 @@ Phone hashes to resolve (base64-encoded HMAC-SHA256, max 1000)
 
 > `optional` **path**: `never`
 
-Defined in: [src/client/types.gen.ts:11407](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11407)
+Defined in: [src/client/types.gen.ts:11486](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11486)
 
 ***
 
@@ -28,7 +28,7 @@ Defined in: [src/client/types.gen.ts:11407](https://github.com/anuma-ai/sdk/blob
 
 > `optional` **query**: `never`
 
-Defined in: [src/client/types.gen.ts:11408](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11408)
+Defined in: [src/client/types.gen.ts:11487](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11487)
 
 ***
 
@@ -36,4 +36,4 @@ Defined in: [src/client/types.gen.ts:11408](https://github.com/anuma-ai/sdk/blob
 
 > **url**: `"/internal/accounts/by-phone-hashes"`
 
-Defined in: [src/client/types.gen.ts:11409](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11409)
+Defined in: [src/client/types.gen.ts:11488](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11488)

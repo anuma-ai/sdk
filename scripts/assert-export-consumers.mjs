@@ -23,6 +23,78 @@ const BARRELS = ["src/lib/memory/index.ts", "src/lib/memoryVault/index.ts"];
 // behavior here — it seeds liveness (see the fixpoint below).
 const STATUSES = new Set(["client-mounted", "public-utility", "dark"]);
 
+/**
+ * CONFIG-LEVEL reachability (#844 §4).
+ *
+ * The export gate below proves "some live module imports it", propagated to a
+ * fixpoint. That is blind by construction to a symbol imported by a live module
+ * and called from a branch no client configuration reaches — which is how
+ * `budget: 'high'` (graph traversal, LLM decomposition, the neighbor refiner),
+ * `options.mmr` and `nerDetector` all sat unreachable in production for months
+ * while this script printed green.
+ *
+ * What this section can and cannot do, stated plainly so a green run isn't
+ * over-read: this repo cannot see the client tree, so it CANNOT verify a call
+ * site. It forces the same thing the export manifest forces one level up — a
+ * human declaring, in a reviewed diff, whether each gating knob is reachable.
+ * The teeth are that a NEW tier or a RENAMED knob fails immediately rather than
+ * silently dropping out of coverage.
+ *
+ * (A real call-site check needs both trees at once. The natural home is
+ * `.github/workflows/integration-check.yml`, which already clones the client —
+ * noted in the manifest as the follow-up.)
+ *
+ * SECOND KNOWN GAP, stated so a green run isn't over-read: only the Budget tiers
+ * are DERIVED (from `export type Budget`). The ranking knobs below are a hand-
+ * maintained list, so a NEW option that gates a ranking branch does not force a
+ * declaration and reopens exactly the hole this check exists to close. Deriving
+ * them would mean identifying "an option that gates a branch" from the type
+ * alone, which is not decidable from the option list — every attempt either
+ * misses booleans that merely tune (`ceWeight`, `rrfK`) or demands rows for
+ * them. Until there is a better discriminator, adding a gating knob means adding
+ * it here; the two mutation guards below at least ensure a knob already listed
+ * cannot silently stop being checked.
+ *
+ * Each knob names the file and a PATTERN matching the expression that actually
+ * gates its branch, asserted to still match so a rename can't quietly un-cover a
+ * knob.
+ *
+ * These are regexes, not substrings, because the first version of this used
+ * `includes()` and three of the four tokens were toothless — caught in review on
+ * #890, and the mutation test I ran had passed for the wrong reason:
+ *
+ *   - `"options.mmr"` never appears. The gate is `options?.mmr` (optional
+ *     chaining). The substring matched only `options.mmrLambda` /
+ *     `options.mmrTopN`, so renaming the boolean knob alone left the check green
+ *     — and the mutation that "proved" it worked was a blanket
+ *     `options.mmr` → `options.diversify`, which also renamed those two and so
+ *     removed the very substrings the check depended on.
+ *   - `"rerank"` bare matches 78 times in searchTool.ts: type declarations,
+ *     comments, `rerankTopN`, `rerankStats`, `rerankPairs`.
+ *   - `"subQueries"` bare also matches the local const and the parameter, so a
+ *     rename of the OPTION would not fail it.
+ *
+ * Pin the conditional (or the `options.` read) and nothing else. `codeOf()`
+ * strips comments before matching, so prose mentioning a knob can't hold a row
+ * up on its own. No `/g` — a global regex carries `lastIndex` between `.test()`
+ * calls and would flip false on alternate runs.
+ */
+const KNOB_PREFIX = "config:";
+const RANKING_KNOBS = [
+  {
+    knob: "mmr",
+    file: "src/lib/memoryVault/searchTool.ts",
+    pattern: /if\s*\(\s*options\?\.mmr\s*\)/,
+  },
+  { knob: "graphRefine", file: "src/lib/memory/recall.ts", pattern: /options\.graphRefine\b/ },
+  { knob: "subQueries", file: "src/lib/memory/recall.ts", pattern: /options\.subQueries\b/ },
+  {
+    knob: "rerank",
+    file: "src/lib/memoryVault/searchTool.ts",
+    pattern: /if\s*\(\s*options\?\.rerank\b/,
+  },
+];
+
 /** Named specifiers of every `import {…} from "…"` / `export {…} from "…"`. */
 const SPECIFIER = /\b(import|export)\s+(type\s+)?\{([\s\S]*?)\}\s*from\s*["']([^"']+)["']/g;
 
@@ -133,14 +205,47 @@ try {
 // parsing as declarations.
 /** @type {Map<string, string>} export name → declared status */
 const declared = new Map();
+/** @type {Map<string, string>} config knob (sans prefix) → declared status */
+const declaredKnobs = new Map();
 const malformed = [];
 for (const [, name, statusCell] of manifest.matchAll(
   /^\|\s*`([^`\n]+)`\s*\|([^|\n]*)\|([^|\n]*)\|/gm
 )) {
   const status = statusCell.trim().replace(/`/g, "");
   if (!STATUSES.has(status)) malformed.push(`${name} (status "${status}")`);
-  declared.set(name, status);
+  // `config:` rows describe a CONFIGURATION knob, not an export. Kept in the
+  // same table syntax (so one parser serves both) but a separate map, or they
+  // would trip the "no longer describes a client-facing export" check.
+  if (name.startsWith(KNOB_PREFIX)) declaredKnobs.set(name.slice(KNOB_PREFIX.length), status);
+  else declared.set(name, status);
 }
+
+// --- 3b. the config-level knobs (#844 §4) -----------------------------------
+// Budget tiers are DERIVED from the type, not listed here: adding a tier must
+// fail this gate until someone declares whether a client can select it. That is
+// the whole lesson of `high`, which shipped as the only tier enabling traversal
+// and was never selectable.
+const budgetSrc = codeOf("src/lib/memory/types.ts");
+const budgetDecl = /export\s+type\s+Budget\s*=\s*([^;]+);/.exec(budgetSrc);
+const knobProblems = [];
+if (!budgetDecl) {
+  knobProblems.push([
+    ["Budget"],
+    "could not parse `export type Budget` from src/lib/memory/types.ts — the tier list is derived from it, so this gate is blind until the pattern is fixed:",
+  ]);
+}
+const budgetTiers = budgetDecl
+  ? [...budgetDecl[1].matchAll(/"([^"]+)"/g)].map((m) => `budget=${m[1]}`)
+  : [];
+
+// A knob whose read-site token vanished is a rename: the row still passes but
+// covers nothing, so fail loudly instead.
+const renamedKnobs = RANKING_KNOBS.filter(({ file, pattern }) => {
+  if (!existsSync(join(ROOT, file))) return true;
+  return !pattern.test(codeOf(file));
+}).map(({ knob, file, pattern }) => `${knob}  (no match for ${pattern} in ${file})`);
+
+const expectedKnobs = [...budgetTiers, ...RANKING_KNOBS.map((k) => k.knob)];
 
 // --- 4. fixpoint: consumption by a dark module doesn't count -----------------
 // Seed: everything outside the memory layer is live SDK code (hooks, tools, the
@@ -191,6 +296,24 @@ const problems = [
     "manifest row(s) no longer describe a client-facing export (renamed, unexported, or now called inside the SDK) — remove them:",
   ],
   [malformed, `manifest row(s) carry an unknown status — use one of ${[...STATUSES].join(" | ")}:`],
+  ...knobProblems,
+  [
+    renamedKnobs,
+    "config knob(s) no longer read where this gate expects, so their manifest row covers nothing.\n" +
+      "  Update RANKING_KNOBS in this script to the new read site (a rename must not silently drop coverage):",
+  ],
+  [
+    expectedKnobs.filter((k) => !declaredKnobs.has(k)).map((k) => `${KNOB_PREFIX}${k}`),
+    `config knob(s) gate a ranking branch and have no entry in ${MANIFEST_NAME}.\n` +
+      "  This gate cannot see the client tree, so it cannot prove a call site — declare whether one exists.\n" +
+      "  `client-mounted` (the note names the client file), or `dark` with the reason + tracking issue:",
+  ],
+  [
+    [...declaredKnobs.keys()]
+      .filter((k) => !expectedKnobs.includes(k))
+      .map((k) => `${KNOB_PREFIX}${k}`),
+    "manifest row(s) declare a config knob this gate no longer knows about (removed tier, or dropped from RANKING_KNOBS) — remove them:",
+  ],
 ];
 
 let failed = false;

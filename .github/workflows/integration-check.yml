@@ -55,6 +55,16 @@ jobs:
       TEST_USER_EMAIL: ${{ secrets.TEST_USER_EMAIL }}
       TEST_USER_OTP: ${{ secrets.TEST_USER_OTP }}
       NEXT_PUBLIC_DROPBOX_APP_KEY: ${{ secrets.NEXT_PUBLIC_DROPBOX_APP_KEY }}
+      # ai-memoryless-client's .npmrc reads //registry.npmjs.org/:_authToken=${NPM_TOKEN}
+      # for @anuma/nearby, which became a PRIVATE package in that repo's #5718
+      # (merged 2026-08-11). Without this the install fails
+      # ERR_PNPM_FETCH_404 with "No authorization header was set for the
+      # request" — a 404 is what npm answers for a restricted package an
+      # anonymous request may not see — so BOTH the `main` and `pr` legs of that
+      # matrix entry go red on every SDK PR and the cross-repo signal is lost
+      # exactly when it matters. Harmless for the other repos, whose
+      # dependencies are all public.
+      NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -107,7 +117,24 @@ jobs:
 
       - name: Install SDK from tarball
         working-directory: /tmp/${{ matrix.repo }}
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
+          # Some integration targets depend on private @anuma packages (the client
+          # pins @anuma/nearby), and a bare install fetches them anonymously and
+          # 404s — failing the leg before any SDK code is exercised. Authenticate
+          # for the scope when a token is available; unauthenticated runs behave
+          # exactly as before.
+          #
+          # The credential lives only for the two installs below: the trap restores
+          # the original .npmrc when this step exits, on success or failure alike.
+          # It must not survive into the Build / E2E steps, which execute the cloned
+          # repo's OWN scripts — anything readable there is effectively disclosed.
+          if [ -n "$NPM_TOKEN" ]; then
+            cp .npmrc /tmp/npmrc.orig 2>/dev/null || : > /tmp/npmrc.orig
+            trap 'cp /tmp/npmrc.orig .npmrc; rm -f /tmp/npmrc.orig' EXIT
+            echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" >> .npmrc
+          fi
           ${{ steps.pm.outputs.cmd }} install
           SDK_TARBALL=$(ls /tmp/sdk-pack/*.tgz)
           WORKSPACE_FLAG=""

@@ -40,7 +40,31 @@ function makeCtx(db: Database): StorageOperationsContext {
 const MODEL = "qwen/qwen3-embedding-8b";
 
 function chunk(text: string, vector: number[]): MessageChunk {
+  // Offsets are filled in by `seedMessageWithChunks`, which is the only place
+  // that knows how these are joined into the message content.
   return { text, vector, startOffset: 0, endOffset: text.length };
+}
+
+/**
+ * Seed a message plus its chunks, with offsets that actually describe where each
+ * chunk sits in the joined content.
+ *
+ * They used to be `{ startOffset: 0, endOffset: text.length }` for every chunk,
+ * which no real chunking produces — `chunkText` tiles a message end to end, so
+ * only the first chunk starts at 0. That was harmless while chunk text was
+ * stored and read back verbatim, but sdk#880 stopped persisting the text and
+ * rebuilds each snippet from these offsets, so a fixture with fictional offsets
+ * now describes a row that could never exist and exercises the wrong branch
+ * (`resolveChunkText`'s coverage guard correctly rejects it).
+ */
+function placeChunks(chunks: MessageChunk[]): MessageChunk[] {
+  let cursor = 0;
+  return chunks.map((c) => {
+    const startOffset = cursor;
+    const endOffset = startOffset + (c.text?.length ?? 0);
+    cursor = endOffset + 1; // the joining space
+    return { ...c, startOffset, endOffset };
+  });
 }
 
 async function seedMessageWithChunks(
@@ -49,13 +73,15 @@ async function seedMessageWithChunks(
   uniqueId: string,
   chunks: MessageChunk[]
 ): Promise<void> {
+  const content = chunks.map((c) => c.text).join(" ");
+  const placed = placeChunks(chunks);
   await createMessageOp(ctx, {
     conversationId,
     role: "assistant",
-    content: chunks.map((c) => c.text).join(" "),
+    content,
     uniqueId,
   });
-  await updateMessageChunksOp(ctx, uniqueId, chunks, MODEL);
+  await updateMessageChunksOp(ctx, uniqueId, placed, MODEL);
 }
 
 describe("searchChunksOp — chunk vector cache", () => {
@@ -106,10 +132,12 @@ describe("searchChunksOp — chunk vector cache", () => {
 
     // Re-embed msg-a so its top chunk now points the other way. This bumps
     // updated_at, so the cached (stale) vectors must be discarded.
+    // `placeChunks` for the same reason as the seeder: the re-embed rewrites the
+    // row, so its offsets have to keep describing the (unchanged) content.
     await updateMessageChunksOp(
       ctx,
       "msg-a",
-      [chunk("apples and oranges", [0, 0, 1]), chunk("the weather today", [0, 1, 0])],
+      placeChunks([chunk("apples and oranges", [0, 0, 1]), chunk("the weather today", [0, 1, 0])]),
       MODEL
     );
 

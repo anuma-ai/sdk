@@ -2,7 +2,7 @@
 
 > **PostInternalPrefineryClaimTokensData** = `object`
 
-Defined in: [src/client/types.gen.ts:11578](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11578)
+Defined in: [src/client/types.gen.ts:11657](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11657)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:11578](https://github.com/anuma-ai/sdk/blob
 
 > **body**: [`HandlersClaimTokenMintRequest`](HandlersClaimTokenMintRequest.md)
 
-Defined in: [src/client/types.gen.ts:11582](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11582)
+Defined in: [src/client/types.gen.ts:11661](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11661)
 
 Mint request
 
@@ -20,7 +20,7 @@ Mint request
 
 > `optional` **path**: `never`
 
-Defined in: [src/client/types.gen.ts:11583](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11583)
+Defined in: [src/client/types.gen.ts:11662](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11662)
 
 ***
 
@@ -28,7 +28,7 @@ Defined in: [src/client/types.gen.ts:11583](https://github.com/anuma-ai/sdk/blob
 
 > `optional` **query**: `never`
 
-Defined in: [src/client/types.gen.ts:11584](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11584)
+Defined in: [src/client/types.gen.ts:11663](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11663)
 
 ***
 
@@ -36,4 +36,4 @@ Defined in: [src/client/types.gen.ts:11584](https://github.com/anuma-ai/sdk/blob
 
 > **url**: `"/internal/prefinery/claim-tokens"`
 
-Defined in: [src/client/types.gen.ts:11585](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11585)
+Defined in: [src/client/types.gen.ts:11664](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11664)

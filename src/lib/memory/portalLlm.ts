@@ -40,6 +40,7 @@ import { BASE_URL } from "../../clientConfig.js";
 import { validateEndpointOverride } from "../chat/endpointOverride.js";
 import { withInternalFlowMarker } from "../internalFlowMarker.js";
 import { getLogger } from "../logger.js";
+import { type TaskType, taskTypeHeader } from "../taskType.js";
 
 /** Read per-call so tests that mutate `process.env` between imports take effect. */
 function defaultBaseUrl(): string {
@@ -115,6 +116,62 @@ export interface PortalLlmAuth {
   getToken?: () => Promise<string | null>;
 }
 
+/**
+ * Why a portal JSON completion gave up, as a STABLE low-cardinality code.
+ *
+ * The retry loop has always classified its failures precisely, but only as an
+ * interpolated `reason` string for `log.warn` — and prod ships no SDK log
+ * (sdk#883), so in production every one of these collapsed into a single
+ * `empty-after-retry` with no way to tell them apart. That is what made the
+ * 2026-08-11 audit need a Prometheus cross-check to discover that the portal
+ * was returning HTTP 200 with an empty body on ~60% of extraction turns.
+ *
+ * Codes are deliberately an enum, not the `reason` string: the strings embed
+ * status codes and error messages, so they are unbounded and useless as an
+ * analytics property. Keep this list SHORT and stable — it is a telemetry
+ * contract, and a value added here has to mean the same thing in six months.
+ *
+ * @public
+ */
+export type PortalLlmFailureReason =
+  /** No usable credential — `getToken` returned null or threw. Terminal. */
+  | "auth-unavailable"
+  /** Non-retryable HTTP status (400/403/404, or 401 on the static-apiKey path). */
+  | "http-terminal"
+  /** Retryable status (408/409/425/429/5xx) that never succeeded. */
+  | "http-retryable"
+  /** Network error or the per-attempt timeout aborted the fetch. */
+  | "network"
+  /** HTTP 200 but the envelope itself wasn't JSON. */
+  | "body-parse-failed"
+  /**
+   * HTTP 200 with NO completion content. The reasoning-class failure mode:
+   * the model spends its budget on unreturned thinking and answers empty.
+   */
+  | "empty-content"
+  /** Content present, but no parseable JSON in it (prose, a clarifying question). */
+  | "invalid-json"
+  /** Content parsed to a literal `null`, which is never a valid response. */
+  | "null-completion"
+  /** `totalTimeoutMs` was spent before the next attempt could run. */
+  | "time-budget-exhausted";
+
+/**
+ * A give-up report: the classified {@link PortalLlmFailureReason} plus the
+ * little context worth carrying into telemetry. Both extra fields are bounded
+ * (a status code, a small attempt count), so both are safe as event properties.
+ *
+ * @public
+ */
+export interface PortalLlmFailure {
+  /** Stable code for the last failure observed. */
+  reason: PortalLlmFailureReason;
+  /** HTTP status, when the failure was an HTTP one. */
+  httpStatus?: number;
+  /** How many attempts ran before giving up (1-based, ≥ 1). */
+  attempts: number;
+}
+
 interface PortalLlmRequest extends PortalLlmAuth {
   baseUrl?: string;
   model: string;
@@ -168,17 +225,44 @@ interface PortalLlmRequest extends PortalLlmAuth {
    * to a dedicated endpoint (e.g. `/api/v1/utility/chat/completions`).
    */
   endpointOverride?: string;
+  /**
+   * The Class-B task this call performs, sent as `X-Anuma-Task-Type`. Naming the
+   * task is what lets the portal own the system prompt for it instead of trusting
+   * whatever `systemPrompt` we send (see {@link TaskType}). Omitted → no header,
+   * which is the pre-existing behavior.
+   */
+  taskType?: TaskType;
+  /**
+   * Invoked at most ONCE, immediately before this call gives up and returns
+   * `null`, with the classified last failure. Never invoked on success.
+   *
+   * This exists because `null` is not a diagnosis. Callers surface extraction
+   * failures to users and to analytics, and until this hook existed they could
+   * only report "empty", which is indistinguishable from a model that answered
+   * `{candidates: []}` for good reason. See {@link PortalLlmFailureReason}.
+   */
+  onFailure?: (failure: PortalLlmFailure) => void;
 }
 
 /**
  * Outcome of a single attempt — distinguishes retryable from terminal.
  * `retryAfterMs` carries a server-provided `Retry-After` (429) so the wrapper
  * can honor it instead of the fixed backoff.
+ *
+ * `code` is the stable telemetry classification and `reason` the human log
+ * line; they are deliberately separate, because `reason` interpolates status
+ * codes and error messages and so can't be grouped by.
  */
 type AttemptOutcome =
   | { kind: "ok"; value: unknown }
-  | { kind: "retryable"; reason: string; retryAfterMs?: number }
-  | { kind: "terminal"; reason: string };
+  | {
+      kind: "retryable";
+      code: PortalLlmFailureReason;
+      reason: string;
+      retryAfterMs?: number;
+      httpStatus?: number;
+    }
+  | { kind: "terminal"; code: PortalLlmFailureReason; reason: string; httpStatus?: number };
 
 // Transient 4xx only. 400 is deliberately EXCLUDED — it's a bad request that
 // won't succeed on retry. (gpt-oss's response_format 400 is already prevented
@@ -270,10 +354,27 @@ export async function callPortalJsonCompletion(req: PortalLlmRequest): Promise<u
   const overBudget = () =>
     req.totalTimeoutMs !== undefined && Date.now() - startedAt >= req.totalTimeoutMs;
 
+  // Last classified failure, reported to `onFailure` at whichever give-up point
+  // we reach. Tracked rather than reported inline because the loop has four
+  // separate exits (terminal, retries exhausted, and two budget breaks) and the
+  // hook must fire exactly once on all of them.
+  let lastFailure: PortalLlmFailure | undefined;
+  const giveUp = (): null => {
+    // A `null` return with no recorded failure would mean maxAttempts <= 0,
+    // which `Math.max(1, …)` above forbids. Report something rather than
+    // silently skipping the hook if that invariant ever changes.
+    req.onFailure?.(lastFailure ?? { reason: "network", attempts: maxAttempts });
+    return null;
+  };
+
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     // Stop if already over budget before starting a retry (allow first attempt)
     if (attempt > 1 && overBudget()) {
       log.warn(`[${req.tag}] over time budget before attempt ${attempt}, giving up`);
+      // The budget, not the previous attempt's cause, is why we stopped — a
+      // retryable blip that ran out of clock is a different operational problem
+      // from one that exhausted its retries.
+      lastFailure = { reason: "time-budget-exhausted", attempts: attempt - 1 };
       break;
     }
     // Cap this attempt's timeout to the remaining budget (floored at 1ms so a
@@ -291,9 +392,14 @@ export async function callPortalJsonCompletion(req: PortalLlmRequest): Promise<u
         : req;
     const outcome = await attemptPortalJson(attemptReq, endpoint);
     if (outcome.kind === "ok") return outcome.value;
+    lastFailure = {
+      reason: outcome.code,
+      ...(outcome.httpStatus !== undefined && { httpStatus: outcome.httpStatus }),
+      attempts: attempt,
+    };
     if (outcome.kind === "terminal") {
       log.warn(`[${req.tag}] ${outcome.reason}`);
-      return null;
+      return giveUp();
     }
     // Retryable. Log with attempt context; back off before the next try.
     if (attempt >= maxAttempts) {
@@ -312,12 +418,14 @@ export async function callPortalJsonCompletion(req: PortalLlmRequest): Promise<u
       log.warn(
         `[${req.tag}] ${outcome.reason} — attempt ${attempt}/${maxAttempts}, over time budget, giving up`
       );
+      // Same reasoning as the pre-attempt budget break: the clock is the cause.
+      lastFailure = { reason: "time-budget-exhausted", attempts: attempt };
       break;
     }
     log.warn(`[${req.tag}] ${outcome.reason} — attempt ${attempt}/${maxAttempts}, retrying`);
     if (delay > 0) await sleep(delay);
   }
-  return null;
+  return giveUp();
 }
 
 /**
@@ -341,7 +449,8 @@ async function attemptPortalJson(req: PortalLlmRequest, endpoint: string): Promi
   // service that rejects us won't be fixed by hammering it 3× in a tight loop,
   // and it matches the documented contract. (Token EXPIRY across retries is a
   // separate concern, already handled by resolving auth per attempt.)
-  if (authHeaders === null) return { kind: "terminal", reason: "auth unavailable (no token)" };
+  if (authHeaders === null)
+    return { kind: "terminal", code: "auth-unavailable", reason: "auth unavailable (no token)" };
 
   // Anthropic models ignore OpenAI-style response_format and frequently
   // respond conversationally to bare user queries. The canonical fix is
@@ -384,14 +493,24 @@ async function attemptPortalJson(req: PortalLlmRequest, endpoint: string): Promi
   try {
     response = await fetchImpl(`${baseUrl}${endpoint}`, {
       method: "POST",
-      headers: { ...authHeaders, "Content-Type": "application/json" },
+      // Attached HERE, at the one transport every background memory op shares, so
+      // a new flow gets the provenance by construction rather than by remembering.
+      headers: {
+        ...authHeaders,
+        ...taskTypeHeader(req.taskType),
+        "Content-Type": "application/json",
+      },
       body: JSON.stringify(requestBody),
       signal: controller.signal,
     });
   } catch (err) {
     clearTimeout(timer);
     // Network error or timeout abort — transient by nature.
-    return { kind: "retryable", reason: `fetch failed: ${(err as Error).message}` };
+    return {
+      kind: "retryable",
+      code: "network",
+      reason: `fetch failed: ${(err as Error).message}`,
+    };
   }
 
   if (!response.ok) {
@@ -404,14 +523,24 @@ async function attemptPortalJson(req: PortalLlmRequest, endpoint: string): Promi
     if (response.status === 401) {
       const tokenAuth = !req.apiKey && !!req.getToken;
       return tokenAuth
-        ? { kind: "retryable", reason: `${reason} (token may be expired; refreshing)` }
-        : { kind: "terminal", reason };
+        ? {
+            kind: "retryable",
+            code: "http-retryable",
+            reason: `${reason} (token may be expired; refreshing)`,
+            httpStatus: response.status,
+          }
+        : { kind: "terminal", code: "http-terminal", reason, httpStatus: response.status };
     }
-    if (!isRetryableStatus(response.status)) return { kind: "terminal", reason };
+    if (!isRetryableStatus(response.status))
+      return { kind: "terminal", code: "http-terminal", reason, httpStatus: response.status };
     const retryAfterMs = parseRetryAfterMs(response.headers.get("retry-after"));
-    return retryAfterMs !== null
-      ? { kind: "retryable", reason, retryAfterMs }
-      : { kind: "retryable", reason };
+    return {
+      kind: "retryable",
+      code: "http-retryable",
+      reason,
+      httpStatus: response.status,
+      ...(retryAfterMs !== null && { retryAfterMs }),
+    };
   }
 
   let body: unknown;
@@ -419,7 +548,11 @@ async function attemptPortalJson(req: PortalLlmRequest, endpoint: string): Promi
     body = await response.json();
   } catch (err) {
     clearTimeout(timer);
-    return { kind: "retryable", reason: `response body parse failed: ${(err as Error).message}` };
+    return {
+      kind: "retryable",
+      code: "body-parse-failed",
+      reason: `response body parse failed: ${(err as Error).message}`,
+    };
   }
   clearTimeout(timer);
 
@@ -431,7 +564,17 @@ async function attemptPortalJson(req: PortalLlmRequest, endpoint: string): Promi
   const rawContent = extractCompletionContent(body);
   if (!rawContent) {
     // Empty completion — reasoning-class models do this intermittently.
-    return { kind: "retryable", reason: "portal response had no completion content" };
+    //
+    // The portal counts this response as a SUCCESS (it is a 200), so this
+    // branch is the only place in the system that knows it happened. The
+    // 2026-08-11 audit measured it as the dominant extraction failure in
+    // production; `empty-content` is what makes that visible without a
+    // Prometheus cross-check.
+    return {
+      kind: "retryable",
+      code: "empty-content",
+      reason: "portal response had no completion content",
+    };
   }
 
   // Anthropic prefill (`{`) isn't echoed in the response — the model
@@ -459,6 +602,7 @@ async function attemptPortalJson(req: PortalLlmRequest, endpoint: string): Promi
     // one-off of the model's nondeterminism.
     return {
       kind: "retryable",
+      code: "invalid-json",
       reason: `completion was not valid JSON: ${(err as Error).message}`,
     };
   }
@@ -466,7 +610,7 @@ async function attemptPortalJson(req: PortalLlmRequest, endpoint: string): Promi
   // `null` as their failure sentinel — treat it as a transient miss to retry,
   // not a successful empty (otherwise callers short-circuit without retrying).
   if (value === null) {
-    return { kind: "retryable", reason: "completion parsed to null" };
+    return { kind: "retryable", code: "null-completion", reason: "completion parsed to null" };
   }
   return { kind: "ok", value };
 }

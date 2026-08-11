@@ -1210,6 +1210,18 @@ Re-exports [PortalLlmAuth](../react/Internal/interfaces/PortalLlmAuth.md)
 
 ***
 
+### PortalLlmFailure
+
+Re-exports [PortalLlmFailure](../react/Internal/interfaces/PortalLlmFailure.md)
+
+***
+
+### PortalLlmFailureReason
+
+Re-exports [PortalLlmFailureReason](../react/Internal/type-aliases/PortalLlmFailureReason.md)
+
+***
+
 ### preEmbedVaultMemories
 
 Re-exports [preEmbedVaultMemories](../react/Internal/functions/preEmbedVaultMemories.md)

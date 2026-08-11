@@ -2,7 +2,7 @@
 
 > **postInternalComplete**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`PostInternalCompleteData`](../type-aliases/PostInternalCompleteData.md), `ThrowOnError`>): `RequestResult`<[`PostInternalCompleteResponses`](../type-aliases/PostInternalCompleteResponses.md), [`PostInternalCompleteErrors`](../type-aliases/PostInternalCompleteErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:1679](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1679)
+Defined in: [src/client/sdk.gen.ts:1693](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1693)
 
 Create a chat completion (internal)
 

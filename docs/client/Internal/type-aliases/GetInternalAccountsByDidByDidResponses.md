@@ -2,7 +2,7 @@
 
 > **GetInternalAccountsByDidByDidResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:11393](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11393)
+Defined in: [src/client/types.gen.ts:11472](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11472)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:11393](https://github.com/anuma-ai/sdk/blob
 
 > **200**: [`HandlersAccountByDidResponse`](HandlersAccountByDidResponse.md)
 
-Defined in: [src/client/types.gen.ts:11397](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11397)
+Defined in: [src/client/types.gen.ts:11476](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11476)
 
 OK

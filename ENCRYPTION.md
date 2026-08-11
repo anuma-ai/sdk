@@ -8,7 +8,7 @@ This guide explains how to enable field-level encryption at rest in applications
 
 | Data | Fields Encrypted | Encryption Type |
 |------|-----------------|-----------------|
-| Messages | `content`, `thinking`, `vector`, `chunks`, `sources`, `thoughtProcess` | Random IV (AES-GCM) |
+| Messages | `content`, `thinking`, `vector`, `sources`, `thoughtProcess` | Random IV (AES-GCM) |
 | Conversations | `title` | Random IV (AES-GCM) |
 | Media | `name`, `sourceUrl`, `metadata` | Random IV (AES-GCM) |
 | Memory | `namespace`, `key`, `value`, `rawEvidence` | Deterministic (AES-GCM) |
@@ -20,7 +20,7 @@ This guide explains how to enable field-level encryption at rest in applications
 - Roles, models, MIME types
 - Timestamps, token counts, flags (`isDeleted`, `wasStopped`, `error`)
 - Dimensions, duration, file sizes
-- Embeddings stored via `updateMessageEmbeddingOp` / `updateMessageChunksOp` (needed for vector search)
+- Embeddings stored via `updateMessageEmbeddingOp` / `updateMessageChunksOp` (needed for vector search). These columns hold **vectors and character offsets only** — nothing readable. Chunk TEXT used to be stored alongside the vectors, which made the `chunks` column a plaintext copy of any message over 400 characters; it is no longer persisted at all (sdk#880), and search snippets are rebuilt by slicing the message's own encrypted-at-rest `content` at those offsets.
 
 ## Quick Start
 
@@ -310,6 +310,8 @@ Yes. The SDK fetches all media records, decrypts names in memory, and then filte
 ### What about vector search (`searchMessagesOp`)?
 
 Vector search works because embeddings stored via `updateMessageEmbeddingOp` / `updateMessageChunksOp` are **not encrypted**. These dedicated ops write embeddings in plaintext specifically so cosine similarity search works. However, when embeddings are passed as part of `createMessageOp` (via the `vector` field in `CreateMessageOptions`), they are encrypted along with other sensitive fields.
+
+That plaintext is deliberate and load-bearing — clients read the `chunks` column directly and `JSON.parse` it, so writing ciphertext there does not fail loudly, it silently scores every chunk 0 and quietly degrades search. What these columns must therefore never contain is anything *readable*. They hold vectors and offsets; chunk text is not persisted (sdk#880) and a snippet is reconstructed on read from the message's own decrypted `content`. Keep it that way: protect readable data by not storing it here, not by encrypting this column.
 
 ### Can I encrypt some conversations but not others?
 

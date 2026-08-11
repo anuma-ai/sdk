@@ -2,7 +2,7 @@
 
 > **postApiV1SubscriptionsCancelScheduledDowngrade**<`ThrowOnError`>(`options?`: [`Options`](../type-aliases/Options.md)<[`PostApiV1SubscriptionsCancelScheduledDowngradeData`](../type-aliases/PostApiV1SubscriptionsCancelScheduledDowngradeData.md), `ThrowOnError`, `unknown`>): `RequestResult`<[`PostApiV1SubscriptionsCancelScheduledDowngradeResponses`](../type-aliases/PostApiV1SubscriptionsCancelScheduledDowngradeResponses.md), [`PostApiV1SubscriptionsCancelScheduledDowngradeErrors`](../type-aliases/PostApiV1SubscriptionsCancelScheduledDowngradeErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:1301](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1301)
+Defined in: [src/client/sdk.gen.ts:1315](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1315)
 
 Cancel scheduled downgrade
 

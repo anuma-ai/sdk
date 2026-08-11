@@ -171,6 +171,7 @@ export function createLlmDecayClassifier(options: LlmDecayClassifierOptions): De
           ...(options.apiKey !== undefined && { apiKey: options.apiKey }),
           ...(options.getToken !== undefined && { getToken: options.getToken }),
           ...(options.baseUrl !== undefined && { baseUrl: options.baseUrl }),
+          taskType: "memory_decay",
           model: options.model ?? DEFAULT_MODEL,
           systemPrompt: SYSTEM_PROMPT,
           userMessage: `Memory content:\n  ${safe}\n\nMetadata: ${meta}\n\nShould this be kept or archived?`,

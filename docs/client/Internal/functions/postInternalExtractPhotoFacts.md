@@ -2,7 +2,7 @@
 
 > **postInternalExtractPhotoFacts**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`PostInternalExtractPhotoFactsData`](../type-aliases/PostInternalExtractPhotoFactsData.md), `ThrowOnError`>): `RequestResult`<[`PostInternalExtractPhotoFactsResponses`](../type-aliases/PostInternalExtractPhotoFactsResponses.md), [`PostInternalExtractPhotoFactsErrors`](../type-aliases/PostInternalExtractPhotoFactsErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:1707](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1707)
+Defined in: [src/client/sdk.gen.ts:1721](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1721)
 
 Extract user facts from a photo (internal)
 

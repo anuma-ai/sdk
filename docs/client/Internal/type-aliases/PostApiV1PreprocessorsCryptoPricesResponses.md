@@ -2,7 +2,7 @@
 
 > **PostApiV1PreprocessorsCryptoPricesResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:9631](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9631)
+Defined in: [src/client/types.gen.ts:9710](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9710)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:9631](https://github.com/anuma-ai/sdk/blob/
 
 > **200**: [`HandlersCryptoPricesResponse`](HandlersCryptoPricesResponse.md)
 
-Defined in: [src/client/types.gen.ts:9635](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9635)
+Defined in: [src/client/types.gen.ts:9714](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9714)
 
 OK

@@ -2,4 +2,4 @@
 
 > **PostApiV1SubscriptionsUpgradeError** = [`PostApiV1SubscriptionsUpgradeErrors`](PostApiV1SubscriptionsUpgradeErrors.md)\[keyof [`PostApiV1SubscriptionsUpgradeErrors`](PostApiV1SubscriptionsUpgradeErrors.md)]
 
-Defined in: [src/client/types.gen.ts:10275](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10275)
+Defined in: [src/client/types.gen.ts:10354](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10354)

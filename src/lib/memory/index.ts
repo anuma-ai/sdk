@@ -122,6 +122,8 @@ export type {
   ConsolidationFallbackReason,
   MemoryKind,
   PortalLlmAuth,
+  PortalLlmFailure,
+  PortalLlmFailureReason,
   RankedMemory,
   RecallContext,
   RecallDegradation,
