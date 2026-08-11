@@ -2,7 +2,7 @@
 
 > **postInternalPrefineryClaimTokens**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`PostInternalPrefineryClaimTokensData`](../type-aliases/PostInternalPrefineryClaimTokensData.md), `ThrowOnError`>): `RequestResult`<[`PostInternalPrefineryClaimTokensResponses`](../type-aliases/PostInternalPrefineryClaimTokensResponses.md), [`PostInternalPrefineryClaimTokensErrors`](../type-aliases/PostInternalPrefineryClaimTokensErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:1735](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1735)
+Defined in: [src/client/sdk.gen.ts:1749](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1749)
 
 Mint a waitlist claim token (internal)
 

@@ -2,7 +2,7 @@
 
 > **PostInternalPrefineryClaimTokensErrors** = `object`
 
-Defined in: [src/client/types.gen.ts:11588](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11588)
+Defined in: [src/client/types.gen.ts:11667](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11667)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:11588](https://github.com/anuma-ai/sdk/blob
 
 > **400**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:11592](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11592)
+Defined in: [src/client/types.gen.ts:11671](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11671)
 
 Bad Request
 
@@ -20,7 +20,7 @@ Bad Request
 
 > **401**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:11596](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11596)
+Defined in: [src/client/types.gen.ts:11675](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11675)
 
 Unauthorized
 
@@ -30,6 +30,6 @@ Unauthorized
 
 > **503**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:11600](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11600)
+Defined in: [src/client/types.gen.ts:11679](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11679)
 
 Service Unavailable

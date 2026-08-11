@@ -2,7 +2,7 @@
 
 > **PostApiV1AdminNotificationsCampaignsByCampaignIdCancelErrors** = `object`
 
-Defined in: [src/client/types.gen.ts:5872](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5872)
+Defined in: [src/client/types.gen.ts:5905](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5905)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:5872](https://github.com/anuma-ai/sdk/blob/
 
 > **404**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:5876](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5876)
+Defined in: [src/client/types.gen.ts:5909](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5909)
 
 Not Found
 
@@ -20,6 +20,6 @@ Not Found
 
 > **409**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:5880](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5880)
+Defined in: [src/client/types.gen.ts:5913](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5913)
 
 Conflict

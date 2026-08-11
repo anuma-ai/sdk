@@ -2,7 +2,7 @@
 
 > **DeleteApiV1AdminTextResetData** = `object`
 
-Defined in: [src/client/types.gen.ts:6634](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6634)
+Defined in: [src/client/types.gen.ts:6667](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6667)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:6634](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **body**: `never`
 
-Defined in: [src/client/types.gen.ts:6635](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6635)
+Defined in: [src/client/types.gen.ts:6668](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6668)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:6635](https://github.com/anuma-ai/sdk/blob/
 
 > **headers**: `object`
 
-Defined in: [src/client/types.gen.ts:6636](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6636)
+Defined in: [src/client/types.gen.ts:6669](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6669)
 
 **X-Admin-API-Key**
 
@@ -32,7 +32,7 @@ Admin API key
 
 > `optional` **path**: `never`
 
-Defined in: [src/client/types.gen.ts:6642](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6642)
+Defined in: [src/client/types.gen.ts:6675](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6675)
 
 ***
 
@@ -40,7 +40,7 @@ Defined in: [src/client/types.gen.ts:6642](https://github.com/anuma-ai/sdk/blob/
 
 > **query**: `object`
 
-Defined in: [src/client/types.gen.ts:6643](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6643)
+Defined in: [src/client/types.gen.ts:6676](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6676)
 
 **wallet\_address**
 
@@ -54,4 +54,4 @@ User wallet address
 
 > **url**: `"/api/v1/admin/text/reset"`
 
-Defined in: [src/client/types.gen.ts:6649](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6649)
+Defined in: [src/client/types.gen.ts:6682](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6682)

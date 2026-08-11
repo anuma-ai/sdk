@@ -2,7 +2,7 @@
 
 > **PostApiV1UtilityChatCompletionsData** = `object`
 
-Defined in: [src/client/types.gen.ts:10853](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10853)
+Defined in: [src/client/types.gen.ts:10932](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10932)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:10853](https://github.com/anuma-ai/sdk/blob
 
 > **body**: [`LlmapiChatCompletionRequest`](LlmapiChatCompletionRequest.md)
 
-Defined in: [src/client/types.gen.ts:10857](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10857)
+Defined in: [src/client/types.gen.ts:10936](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10936)
 
 Chat completion request
 
@@ -20,7 +20,7 @@ Chat completion request
 
 > `optional` **headers**: `object`
 
-Defined in: [src/client/types.gen.ts:10858](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10858)
+Defined in: [src/client/types.gen.ts:10937](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10937)
 
 **X-Anuma-Stream-Format?**
 
@@ -40,7 +40,7 @@ Set to 1 to opt this stream into detach-on-disconnect (resumable streaming)
 
 > `optional` **path**: `never`
 
-Defined in: [src/client/types.gen.ts:10868](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10868)
+Defined in: [src/client/types.gen.ts:10947](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10947)
 
 ***
 
@@ -48,7 +48,7 @@ Defined in: [src/client/types.gen.ts:10868](https://github.com/anuma-ai/sdk/blob
 
 > `optional` **query**: `never`
 
-Defined in: [src/client/types.gen.ts:10869](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10869)
+Defined in: [src/client/types.gen.ts:10948](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10948)
 
 ***
 
@@ -56,4 +56,4 @@ Defined in: [src/client/types.gen.ts:10869](https://github.com/anuma-ai/sdk/blob
 
 > **url**: `"/api/v1/utility/chat/completions"`
 
-Defined in: [src/client/types.gen.ts:10870](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10870)
+Defined in: [src/client/types.gen.ts:10949](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10949)

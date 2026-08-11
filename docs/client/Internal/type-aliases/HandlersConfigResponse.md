@@ -2,7 +2,7 @@
 
 > **HandlersConfigResponse** = `object`
 
-Defined in: [src/client/types.gen.ts:1629](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1629)
+Defined in: [src/client/types.gen.ts:1642](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1642)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:1629](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **apps**: [`HandlersAppConfig`](HandlersAppConfig.md)\[]
 
-Defined in: [src/client/types.gen.ts:1633](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1633)
+Defined in: [src/client/types.gen.ts:1646](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1646)
 
 Apps is the list of active apps
 
@@ -20,7 +20,7 @@ Apps is the list of active apps
 
 > `optional` **mobile\_app**: [`HandlersMobileAppVersions`](HandlersMobileAppVersions.md)
 
-Defined in: [src/client/types.gen.ts:1634](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1634)
+Defined in: [src/client/types.gen.ts:1647](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1647)
 
 ***
 
@@ -28,6 +28,6 @@ Defined in: [src/client/types.gen.ts:1634](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **phone\_calls\_enabled**: `boolean`
 
-Defined in: [src/client/types.gen.ts:1638](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1638)
+Defined in: [src/client/types.gen.ts:1651](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1651)
 
 PhoneCallsEnabled indicates whether Bland phone calling is available

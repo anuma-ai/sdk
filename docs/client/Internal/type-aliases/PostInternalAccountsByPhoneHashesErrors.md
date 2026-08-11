@@ -2,7 +2,7 @@
 
 > **PostInternalAccountsByPhoneHashesErrors** = `object`
 
-Defined in: [src/client/types.gen.ts:11412](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11412)
+Defined in: [src/client/types.gen.ts:11491](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11491)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:11412](https://github.com/anuma-ai/sdk/blob
 
 > **400**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:11416](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11416)
+Defined in: [src/client/types.gen.ts:11495](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11495)
 
 Bad Request
 
@@ -20,7 +20,7 @@ Bad Request
 
 > **429**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:11420](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11420)
+Defined in: [src/client/types.gen.ts:11499](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11499)
 
 Rate limit exceeded
 
@@ -30,6 +30,6 @@ Rate limit exceeded
 
 > **500**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:11424](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11424)
+Defined in: [src/client/types.gen.ts:11503](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11503)
 
 Internal Server Error

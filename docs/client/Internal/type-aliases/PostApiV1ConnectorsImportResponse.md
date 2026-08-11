@@ -2,4 +2,4 @@
 
 > **PostApiV1ConnectorsImportResponse** = [`PostApiV1ConnectorsImportResponses`](PostApiV1ConnectorsImportResponses.md)\[keyof [`PostApiV1ConnectorsImportResponses`](PostApiV1ConnectorsImportResponses.md)]
 
-Defined in: [src/client/types.gen.ts:7735](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7735)
+Defined in: [src/client/types.gen.ts:7814](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7814)

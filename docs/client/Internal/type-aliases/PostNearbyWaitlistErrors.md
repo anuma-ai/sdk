@@ -2,7 +2,7 @@
 
 > **PostNearbyWaitlistErrors** = `object`
 
-Defined in: [src/client/types.gen.ts:11624](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11624)
+Defined in: [src/client/types.gen.ts:11703](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11703)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:11624](https://github.com/anuma-ai/sdk/blob
 
 > **400**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:11628](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11628)
+Defined in: [src/client/types.gen.ts:11707](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11707)
 
 Bad Request
 
@@ -20,7 +20,7 @@ Bad Request
 
 > **401**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:11632](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11632)
+Defined in: [src/client/types.gen.ts:11711](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11711)
 
 Unauthorized
 
@@ -30,7 +30,7 @@ Unauthorized
 
 > **409**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:11636](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11636)
+Defined in: [src/client/types.gen.ts:11715](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11715)
 
 Conflict
 
@@ -40,7 +40,7 @@ Conflict
 
 > **429**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:11640](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11640)
+Defined in: [src/client/types.gen.ts:11719](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11719)
 
 Too Many Requests
 
@@ -50,7 +50,7 @@ Too Many Requests
 
 > **502**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:11644](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11644)
+Defined in: [src/client/types.gen.ts:11723](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11723)
 
 Bad Gateway
 
@@ -60,6 +60,6 @@ Bad Gateway
 
 > **503**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:11648](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11648)
+Defined in: [src/client/types.gen.ts:11727](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11727)
 
 Service Unavailable

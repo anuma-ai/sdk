@@ -2,4 +2,4 @@
 
 > **GetApiV1UsageInferenceWeeklyResponse** = [`GetApiV1UsageInferenceWeeklyResponses`](GetApiV1UsageInferenceWeeklyResponses.md)\[keyof [`GetApiV1UsageInferenceWeeklyResponses`](GetApiV1UsageInferenceWeeklyResponses.md)]
 
-Defined in: [src/client/types.gen.ts:10411](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10411)
+Defined in: [src/client/types.gen.ts:10490](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10490)

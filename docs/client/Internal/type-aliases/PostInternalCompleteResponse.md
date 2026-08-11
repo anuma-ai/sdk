@@ -2,4 +2,4 @@
 
 > **PostInternalCompleteResponse** = [`PostInternalCompleteResponses`](PostInternalCompleteResponses.md)\[keyof [`PostInternalCompleteResponses`](PostInternalCompleteResponses.md)]
 
-Defined in: [src/client/types.gen.ts:11472](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11472)
+Defined in: [src/client/types.gen.ts:11551](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11551)

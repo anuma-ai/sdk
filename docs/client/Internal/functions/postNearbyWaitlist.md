@@ -2,7 +2,7 @@
 
 > **postNearbyWaitlist**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`PostNearbyWaitlistData`](../type-aliases/PostNearbyWaitlistData.md), `ThrowOnError`>): `RequestResult`<[`PostNearbyWaitlistResponses`](../type-aliases/PostNearbyWaitlistResponses.md), [`PostNearbyWaitlistErrors`](../type-aliases/PostNearbyWaitlistErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:1749](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1749)
+Defined in: [src/client/sdk.gen.ts:1763](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1763)
 
 Join the Prefinery waitlist
 
