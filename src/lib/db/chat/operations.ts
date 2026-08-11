@@ -1148,17 +1148,43 @@ export async function updateMessageChunksOp(
     return null;
   }
 
-  // Note: Chunks contain embeddings used for vector search, stored unencrypted
-  // for the same reasons as updateMessageEmbeddingOp.
+  // Chunk TEXT is not persisted (sdk#880). `chunkText` covers a message end to
+  // end with a 50-character overlap, so the chunk set of any message over 400
+  // characters reconstructs the whole thing — writing it here put a fully
+  // readable copy of the message next to its own ciphertext `content`, with
+  // offsets, on devices where the user had explicitly enabled at-rest
+  // encryption. Readers rebuild the snippet from the offsets against the
+  // message's own decrypted `content`, so the text exists exactly once and
+  // inherits the protection `content` already has.
   //
-  // This is the ONLY site that writes chunk vectors, so it is where the base64
-  // encoding switches on (sdk#862): map each `vector` through
+  // Encrypting the column instead was the first attempt and is the wrong answer
+  // here: the CLIENT never calls `searchChunksOp`. It reads this column raw and
+  // `JSON.parse`s it in four places (web + mobile `embeddingPaging.ts`,
+  // `useConversationAdapters.ts`, `useConversationSearchAdapters.ts`), each
+  // inside a `try` whose catch returns 0 / []. An `enc:` string there does not
+  // throw anywhere visible — chunk scoring silently drops to zero and search
+  // quietly falls back to whole-message vectors. That is the same silent-reader
+  // failure the sdk#862 note below describes, and `chunkAndEmbedAllMessages`
+  // re-indexes every row whenever `embeddingModel` changes, so one constant
+  // change would walk the entire history through this writer in a single pass.
+  //
+  // What remains here is only vectors and offsets, which reveal nothing readable
+  // — the original `updateMessageEmbeddingOp` rationale, now actually true of
+  // this column.
+  //
+  // Rows written before this keep their `text` and are still read from it; they
+  // shed it whenever they are re-indexed. sdk#880 tracks the residual.
+  //
+  // This is the ONLY site that writes chunk vectors, so it is also where the
+  // base64 encoding switches on (sdk#862): map each `vector` through
   // `encodeChunkVector` here. Held back deliberately until a build that can read
   // both encodings has saturated — a device on an older build scores a base64
   // vector as 0 without any error. Readers already accept both.
+  const storedChunks = chunks.map(({ text: _text, ...rest }) => rest);
+
   await ctx.database.write(async () => {
     await message.update((msg) => {
-      msg._setRaw("chunks", JSON.stringify(chunks));
+      msg._setRaw("chunks", JSON.stringify(storedChunks));
       msg._setRaw("embedding_model", embeddingModel);
     });
   });
@@ -1323,6 +1349,48 @@ async function _updateMessageOp(
   });
 
   return messageToStored(message, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner);
+}
+
+/**
+ * Rebuild one chunk's text from the message content it was cut from (sdk#880).
+ *
+ * Chunk text is no longer persisted, so a snippet is recovered by slicing the
+ * message's own decrypted `content` at the stored offsets. A row written before
+ * that change still carries `text`; that wins, so legacy rows read exactly as
+ * they always did and need no migration.
+ *
+ * OFFSETS ARE UNTRUSTED. `upsertMessageOp` rewrites `content` without touching
+ * `chunks`, so a row's offsets can outlive the text they described. Two guards,
+ * and both fall back to the whole `content` — the pre-existing behaviour for a
+ * chunk with no resolvable text — rather than returning a wrong excerpt:
+ *
+ *  1. Structural: finite, in-order, within bounds.
+ *  2. Coverage: `chunkText` tiles the message end to end, so the LAST chunk's
+ *     `endOffset` equals the content length it was cut from. When that doesn't
+ *     match, `content` was rewritten after chunking and every offset in the row
+ *     is suspect — even the in-bounds ones, which would otherwise slice a
+ *     plausible-looking excerpt out of the wrong text. That is the failure worth
+ *     spending a comparison on: out-of-bounds is loud, subtly-wrong is not.
+ */
+function resolveChunkText(
+  content: string,
+  chunk: Pick<MessageChunk, "text" | "startOffset" | "endOffset"> | undefined,
+  chunksInRow: readonly Pick<MessageChunk, "endOffset">[] | undefined
+): string {
+  if (!chunk) return content;
+  // A stored (legacy) value is authoritative — it was cut from the content of
+  // the day, which is a better answer than slicing today's.
+  if (typeof chunk.text === "string" && chunk.text.length > 0) return chunk.text;
+
+  const { startOffset: start, endOffset: end } = chunk;
+  if (!Number.isInteger(start) || !Number.isInteger(end)) return content;
+  if (start < 0 || end <= start || end > content.length) return content;
+
+  // Coverage check — see (2) above.
+  const covered = chunksInRow?.reduce((max, c) => Math.max(max, c.endOffset ?? 0), 0) ?? 0;
+  if (covered !== content.length) return content;
+
+  return content.slice(start, end);
 }
 
 /**
@@ -1513,8 +1581,15 @@ export async function searchChunksOp(
   type Candidate = {
     message: Message;
     similarity: number;
-    chunkTextSource:
-      | { kind: "chunk"; text: string }
+    chunkTextSource: // `chunk` carries the chunk itself rather than a resolved string: the text
+      // is rebuilt from its offsets in pass 2, where the DECRYPTED content is in
+      // hand (sdk#880). `siblings` is the row's full chunk array, needed for the
+      // coverage guard in `resolveChunkText`.
+      | {
+          kind: "chunk";
+          chunk: MessageChunk;
+          siblings: readonly Pick<MessageChunk, "endOffset">[];
+        }
       | { kind: "chunk-cached"; chunkIndex: number; version: number }
       | { kind: "message" };
   };
@@ -1600,7 +1675,7 @@ export async function searchChunksOp(
           candidates.push({
             message,
             similarity,
-            chunkTextSource: { kind: "chunk", text: chunks[ci].text },
+            chunkTextSource: { kind: "chunk", chunk: chunks[ci], siblings: chunks },
           });
         }
       }
@@ -1692,7 +1767,8 @@ export async function searchChunksOp(
     const stored = { ...storedById.get(message.id)! };
     let chunkText: string;
     if (chunkTextSource.kind === "chunk") {
-      chunkText = chunkTextSource.text;
+      // Rebuilt here, not at scoring time: `stored.content` is decrypted by now.
+      chunkText = resolveChunkText(stored.content, chunkTextSource.chunk, chunkTextSource.siblings);
     } else if (chunkTextSource.kind === "chunk-cached") {
       // Trust the scored index only if the row is unchanged since scoring
       // (version match) and the index is still in range; otherwise a concurrent
@@ -1703,7 +1779,7 @@ export async function searchChunksOp(
         state && state.version === chunkTextSource.version
           ? state.chunks[chunkTextSource.chunkIndex]
           : undefined;
-      chunkText = chunk?.text ?? stored.content;
+      chunkText = resolveChunkText(stored.content, chunk, state?.chunks);
     } else {
       chunkText = stored.content;
     }

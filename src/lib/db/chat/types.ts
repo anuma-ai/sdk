@@ -351,8 +351,26 @@ export interface StoredConversationSummary {
  * A chunk of a message with its own embedding for fine-grained search
  */
 export interface MessageChunk {
-  /** The chunk text */
-  text: string;
+  /**
+   * The chunk text — IN MEMORY ONLY. Not persisted (sdk#880).
+   *
+   * `chunkText` covers a message end to end with a 50-character overlap, so the
+   * chunk set of any message over 400 characters reconstructs the whole thing.
+   * Storing it put a fully readable copy of the message next to its own
+   * ciphertext `content` on devices with at-rest encryption enabled.
+   *
+   * `updateMessageChunksOp` now strips this before writing and readers rebuild
+   * the snippet from {@link startOffset}/{@link endOffset} against the message's
+   * own (decrypted) `content` — so the text exists exactly once, under the
+   * protection `content` already has. Encrypting the column instead was
+   * rejected: the client reads this column raw and `JSON.parse`s it in four
+   * places, each swallowing the throw and silently scoring 0.
+   *
+   * Optional because rows written before that change still carry it, and
+   * readers prefer a stored value when present. It is populated in memory by
+   * `chunkText()` and on the way out of a search.
+   */
+  text?: string;
   /**
    * Embedding vector for this chunk.
    *
