@@ -421,6 +421,8 @@ export type {
   ObservationTrend,
   ObservationTrendInput,
   PortalLlmAuth,
+  PortalLlmFailure,
+  PortalLlmFailureReason,
   ProfileConfigFingerprint,
   ProfileDoc,
   ProfileFacet,

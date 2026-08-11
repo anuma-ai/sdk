@@ -21,7 +21,7 @@ import type { RecencyOptions } from "./recency.js";
 
 // Re-exported here so the public types surface is one module; the
 // interface lives next to the fetch helper that enforces it.
-export type { PortalLlmAuth } from "./portalLlm.js";
+export type { PortalLlmAuth, PortalLlmFailure, PortalLlmFailureReason } from "./portalLlm.js";
 
 export type MemoryKind = "fact" | "chunk";
 
