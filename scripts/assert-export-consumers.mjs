@@ -44,15 +44,55 @@ const STATUSES = new Set(["client-mounted", "public-utility", "dark"]);
  * `.github/workflows/integration-check.yml`, which already clones the client —
  * noted in the manifest as the follow-up.)
  *
- * Each knob names the file and the source-level token where it is READ. The
- * token existing is asserted, so a rename can't quietly un-cover a knob.
+ * SECOND KNOWN GAP, stated so a green run isn't over-read: only the Budget tiers
+ * are DERIVED (from `export type Budget`). The ranking knobs below are a hand-
+ * maintained list, so a NEW option that gates a ranking branch does not force a
+ * declaration and reopens exactly the hole this check exists to close. Deriving
+ * them would mean identifying "an option that gates a branch" from the type
+ * alone, which is not decidable from the option list — every attempt either
+ * misses booleans that merely tune (`ceWeight`, `rrfK`) or demands rows for
+ * them. Until there is a better discriminator, adding a gating knob means adding
+ * it here; the two mutation guards below at least ensure a knob already listed
+ * cannot silently stop being checked.
+ *
+ * Each knob names the file and a PATTERN matching the expression that actually
+ * gates its branch, asserted to still match so a rename can't quietly un-cover a
+ * knob.
+ *
+ * These are regexes, not substrings, because the first version of this used
+ * `includes()` and three of the four tokens were toothless — caught in review on
+ * #890, and the mutation test I ran had passed for the wrong reason:
+ *
+ *   - `"options.mmr"` never appears. The gate is `options?.mmr` (optional
+ *     chaining). The substring matched only `options.mmrLambda` /
+ *     `options.mmrTopN`, so renaming the boolean knob alone left the check green
+ *     — and the mutation that "proved" it worked was a blanket
+ *     `options.mmr` → `options.diversify`, which also renamed those two and so
+ *     removed the very substrings the check depended on.
+ *   - `"rerank"` bare matches 78 times in searchTool.ts: type declarations,
+ *     comments, `rerankTopN`, `rerankStats`, `rerankPairs`.
+ *   - `"subQueries"` bare also matches the local const and the parameter, so a
+ *     rename of the OPTION would not fail it.
+ *
+ * Pin the conditional (or the `options.` read) and nothing else. `codeOf()`
+ * strips comments before matching, so prose mentioning a knob can't hold a row
+ * up on its own. No `/g` — a global regex carries `lastIndex` between `.test()`
+ * calls and would flip false on alternate runs.
  */
 const KNOB_PREFIX = "config:";
 const RANKING_KNOBS = [
-  { knob: "mmr", file: "src/lib/memoryVault/searchTool.ts", token: "options.mmr" },
-  { knob: "graphRefine", file: "src/lib/memory/recall.ts", token: "options.graphRefine" },
-  { knob: "subQueries", file: "src/lib/memory/recall.ts", token: "subQueries" },
-  { knob: "rerank", file: "src/lib/memoryVault/searchTool.ts", token: "rerank" },
+  {
+    knob: "mmr",
+    file: "src/lib/memoryVault/searchTool.ts",
+    pattern: /if\s*\(\s*options\?\.mmr\s*\)/,
+  },
+  { knob: "graphRefine", file: "src/lib/memory/recall.ts", pattern: /options\.graphRefine\b/ },
+  { knob: "subQueries", file: "src/lib/memory/recall.ts", pattern: /options\.subQueries\b/ },
+  {
+    knob: "rerank",
+    file: "src/lib/memoryVault/searchTool.ts",
+    pattern: /if\s*\(\s*options\?\.rerank\b/,
+  },
 ];
 
 /** Named specifiers of every `import {…} from "…"` / `export {…} from "…"`. */
@@ -200,10 +240,10 @@ const budgetTiers = budgetDecl
 
 // A knob whose read-site token vanished is a rename: the row still passes but
 // covers nothing, so fail loudly instead.
-const renamedKnobs = RANKING_KNOBS.filter(({ file, token }) => {
+const renamedKnobs = RANKING_KNOBS.filter(({ file, pattern }) => {
   if (!existsSync(join(ROOT, file))) return true;
-  return !codeOf(file).includes(token);
-}).map(({ knob, file, token }) => `${knob}  (expected \`${token}\` in ${file})`);
+  return !pattern.test(codeOf(file));
+}).map(({ knob, file, pattern }) => `${knob}  (no match for ${pattern} in ${file})`);
 
 const expectedKnobs = [...budgetTiers, ...RANKING_KNOBS.map((k) => k.knob)];
 
