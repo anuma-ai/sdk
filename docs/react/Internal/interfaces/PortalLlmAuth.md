@@ -1,6 +1,6 @@
 # PortalLlmAuth
 
-Defined in: [src/lib/memory/portalLlm.ts:111](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/portalLlm.ts#111)
+Defined in: [src/lib/memory/portalLlm.ts:112](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/portalLlm.ts#112)
 
 Auth for portal LLM calls (extraction, consolidation, decomposition,
 reflection). Mirrors `memoryEngine`'s `EmbeddingOptions` dual-auth:
@@ -28,7 +28,7 @@ runtime); `apiKey` takes precedence when both are set.
 
 > `optional` **apiKey**: `string`
 
-Defined in: [src/lib/memory/portalLlm.ts:113](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/portalLlm.ts#113)
+Defined in: [src/lib/memory/portalLlm.ts:114](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/portalLlm.ts#114)
 
 Direct API key — sent as `x-api-key` (server-side / CLI usage). Wins when both are provided.
 
@@ -38,7 +38,7 @@ Direct API key — sent as `x-api-key` (server-side / CLI usage). Wins when both
 
 > `optional` **getToken**: () => `Promise`<`string` | `null`>
 
-Defined in: [src/lib/memory/portalLlm.ts:115](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/portalLlm.ts#115)
+Defined in: [src/lib/memory/portalLlm.ts:116](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/portalLlm.ts#116)
 
 Function to get an auth token (e.g., Privy's getIdentityToken). Token is sent as `Authorization: Bearer`.
 

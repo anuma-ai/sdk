@@ -2,7 +2,7 @@
 
 > **createMessageSourceResolver**(`ctx`: [`StorageOperationsContext`](../interfaces/StorageOperationsContext.md)): [`VerificationSources`](../interfaces/VerificationSources.md)
 
-Defined in: [src/lib/memory/verifySupport.ts:710](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/verifySupport.ts#710)
+Defined in: [src/lib/memory/verifySupport.ts:711](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/verifySupport.ts#711)
 
 Default [VerificationSources](../interfaces/VerificationSources.md) over the chat store: resolves a source id
 to its message text, role-prefixed per LINE so the verifier can apply the same

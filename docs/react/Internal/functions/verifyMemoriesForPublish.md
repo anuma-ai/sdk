@@ -2,7 +2,7 @@
 
 > **verifyMemoriesForPublish**(`memories`: readonly [`MemoryToVerify`](../type-aliases/MemoryToVerify.md)\[], `sources`: [`VerificationSources`](../interfaces/VerificationSources.md), `options`: [`VerifyMemoriesForPublishOptions`](../interfaces/VerifyMemoriesForPublishOptions.md)): `Promise`<[`MemoryVerification`](../type-aliases/MemoryVerification.md)\[]>
 
-Defined in: [src/lib/memory/verifySupport.ts:482](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/verifySupport.ts#482)
+Defined in: [src/lib/memory/verifySupport.ts:483](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/verifySupport.ts#483)
 
 Verify each memory against the messages it was extracted from, in input
 order. Makes at most ONE portal call, and none at all when every memory can

@@ -659,3 +659,46 @@ describe("callPortalJsonCompletion — reported token usage", () => {
     );
   });
 });
+
+describe("callPortalJsonCompletion — X-Anuma-Task-Type", () => {
+  const baseArgs = {
+    apiKey: "test-key",
+    model: "anthropic/claude-sonnet-4-6",
+    systemPrompt: "system",
+    userMessage: "user",
+    tag: "test",
+  } as const;
+
+  afterEach(() => {
+    setLogger(noopLogger);
+  });
+
+  function headersOf(fetchFn: ReturnType<typeof vi.fn>): Record<string, string> {
+    return (fetchFn.mock.calls[0][1] as RequestInit).headers as Record<string, string>;
+  }
+
+  it("sends the declared task type so the portal can own the prompt for it", async () => {
+    setLogger(noopLogger);
+    const fetchFn = vi.fn().mockResolvedValue(mockResponse('{"a":1}'));
+    await callPortalJsonCompletion({ ...baseArgs, taskType: "memory_extract", fetchFn });
+    expect(headersOf(fetchFn)["X-Anuma-Task-Type"]).toBe("memory_extract");
+  });
+
+  it("omits the header entirely when no task is declared", async () => {
+    setLogger(noopLogger);
+    const fetchFn = vi.fn().mockResolvedValue(mockResponse('{"a":1}'));
+    await callPortalJsonCompletion({ ...baseArgs, fetchFn });
+    expect(headersOf(fetchFn)).not.toHaveProperty("X-Anuma-Task-Type");
+  });
+
+  it("keeps auth and content-type intact alongside it", async () => {
+    setLogger(noopLogger);
+    const fetchFn = vi.fn().mockResolvedValue(mockResponse('{"a":1}'));
+    await callPortalJsonCompletion({ ...baseArgs, taskType: "memory_topic", fetchFn });
+    expect(headersOf(fetchFn)).toMatchObject({
+      "x-api-key": "test-key",
+      "Content-Type": "application/json",
+      "X-Anuma-Task-Type": "memory_topic",
+    });
+  });
+});
