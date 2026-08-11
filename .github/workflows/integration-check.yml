@@ -107,7 +107,17 @@ jobs:
 
       - name: Install SDK from tarball
         working-directory: /tmp/${{ matrix.repo }}
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
+          # Some integration targets depend on private @anuma packages (the client
+          # pins @anuma/nearby), and a bare install fetches them anonymously and
+          # 404s — failing the leg before any SDK code is exercised. Authenticate
+          # for the scope when a token is available; unauthenticated runs behave
+          # exactly as before.
+          if [ -n "$NPM_TOKEN" ]; then
+            echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" >> .npmrc
+          fi
           ${{ steps.pm.outputs.cmd }} install
           SDK_TARBALL=$(ls /tmp/sdk-pack/*.tgz)
           WORKSPACE_FLAG=""
