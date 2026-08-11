@@ -533,6 +533,109 @@ describe("extractAndRetain", () => {
     expect(vi.mocked(retain)).not.toHaveBeenCalled();
   });
 
+  // The 2026-08-11 audit found ~60% of production extraction turns ending in
+  // `empty-after-retry` and could not tell, from telemetry alone, whether the
+  // cause was the freeloader 403 everyone assumed or something else — because
+  // every cause collapsed into that one outcome. It took a Prometheus
+  // cross-check to find the real one: HTTP 200 with an empty body.
+  //
+  // These tests pin the DISTINCTION, not just the failure. Collapse the reason
+  // back into a single value and the http-vs-empty pair below fails.
+  describe("classifies WHY extraction gave up (audit 2026-08-11)", () => {
+    const failureFor = async (fetchFn: typeof fetch) => {
+      const onExhaustedEmpty = vi.fn();
+      const result = await extractAndRetain(
+        messages,
+        { vaultCtx: {} as never, embeddingOptions: { apiKey: "embed-k" }, vaultCache: new Map() },
+        {
+          extract: { apiKey: "k", fetchFn, maxAttempts: 1, backoffMs: () => 0, onExhaustedEmpty },
+        }
+      );
+      expect(result.outcome).toBe("empty-after-retry");
+      // Both carriers must agree: the hook is for analytics, the returned field
+      // is for a consumer that only inspects the result.
+      expect(onExhaustedEmpty).toHaveBeenCalledTimes(1);
+      expect(onExhaustedEmpty.mock.calls[0]?.[0]).toEqual(result.failure);
+      return result.failure;
+    };
+
+    it("reports 'empty-content' for a 200 with no completion content", async () => {
+      // THE production case. The portal counts this a success, so this classification
+      // is the only signal that distinguishes it from a healthy quiet turn.
+      expect(await failureFor(mockFetch(""))).toEqual({
+        reason: "empty-content",
+        attempts: 1,
+      });
+    });
+
+    it("reports 'invalid-json' when the model answers prose instead of JSON", async () => {
+      expect(await failureFor(mockFetch("Sure! Which facts would you like?"))).toEqual({
+        reason: "invalid-json",
+        attempts: 1,
+      });
+    });
+
+    it("reports 'null-completion' when the model answers a literal null", async () => {
+      expect(await failureFor(mockFetch("null"))).toEqual({
+        reason: "null-completion",
+        attempts: 1,
+      });
+    });
+
+    it("reports 'http-terminal' with the status for a 403 (the freeloader reject)", async () => {
+      const fetch403 = vi.fn().mockResolvedValue({
+        ok: false,
+        status: 403,
+        headers: { get: () => null },
+        json: async () => ({}),
+      }) as unknown as typeof fetch;
+      expect(await failureFor(fetch403)).toEqual({
+        reason: "http-terminal",
+        httpStatus: 403,
+        attempts: 1,
+      });
+    });
+
+    it("reports 'network' when the fetch itself fails", async () => {
+      const fetchBoom = vi
+        .fn()
+        .mockRejectedValue(new Error("connection reset")) as unknown as typeof fetch;
+      expect(await failureFor(fetchBoom)).toEqual({ reason: "network", attempts: 1 });
+    });
+
+    it("counts the attempts it actually spent, so a retried failure is distinguishable", async () => {
+      expect(await failureFor(mockFetch(""))).toMatchObject({ attempts: 1 });
+      const onExhaustedEmpty = vi.fn();
+      await extractAndRetain(
+        messages,
+        { vaultCtx: {} as never, embeddingOptions: { apiKey: "embed-k" }, vaultCache: new Map() },
+        {
+          extract: {
+            apiKey: "k",
+            fetchFn: mockFetch(""),
+            maxAttempts: 3,
+            backoffMs: () => 0,
+            onExhaustedEmpty,
+          },
+        }
+      );
+      expect(onExhaustedEmpty.mock.calls[0]?.[0]).toEqual({
+        reason: "empty-content",
+        attempts: 3,
+      });
+    });
+
+    it("leaves `failure` absent on a healthy turn", async () => {
+      const result = await extractAndRetain(
+        messages,
+        { vaultCtx: {} as never, embeddingOptions: { apiKey: "embed-k" }, vaultCache: new Map() },
+        { extract: { apiKey: "k", fetchFn: mockFetch(JSON.stringify({ candidates: [] })) } }
+      );
+      expect(result.outcome).toBe("no-facts");
+      expect(result.failure).toBeUndefined();
+    });
+  });
+
   it("reports outcome 'dropped-after-redaction' when PII restore drops all facts (H3)", async () => {
     // Extractor found a fact, but its placeholder was never minted (the message
     // had unrelated PII) → unresolved → dropped before retain. Must NOT look
