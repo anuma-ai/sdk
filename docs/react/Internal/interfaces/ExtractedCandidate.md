@@ -1,6 +1,6 @@
 # ExtractedCandidate
 
-Defined in: [src/lib/memory/autoExtract.ts:177](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#177)
+Defined in: [src/lib/memory/autoExtract.ts:181](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#181)
 
 ## Properties
 
@@ -8,7 +8,7 @@ Defined in: [src/lib/memory/autoExtract.ts:177](https://github.com/anuma-ai/sdk/
 
 > **confidence**: `number`
 
-Defined in: [src/lib/memory/autoExtract.ts:180](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#180)
+Defined in: [src/lib/memory/autoExtract.ts:184](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#184)
 
 ***
 
@@ -16,7 +16,7 @@ Defined in: [src/lib/memory/autoExtract.ts:180](https://github.com/anuma-ai/sdk/
 
 > **content**: `string`
 
-Defined in: [src/lib/memory/autoExtract.ts:178](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#178)
+Defined in: [src/lib/memory/autoExtract.ts:182](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#182)
 
 ***
 
@@ -24,7 +24,7 @@ Defined in: [src/lib/memory/autoExtract.ts:178](https://github.com/anuma-ai/sdk/
 
 > **entities**: [`ExtractedEntity`](ExtractedEntity.md)\[]
 
-Defined in: [src/lib/memory/autoExtract.ts:182](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#182)
+Defined in: [src/lib/memory/autoExtract.ts:186](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#186)
 
 ***
 
@@ -32,7 +32,7 @@ Defined in: [src/lib/memory/autoExtract.ts:182](https://github.com/anuma-ai/sdk/
 
 > **eventTime**: { `end`: `number` | `null`; `kind`: `"point"` | `"range"` | `"ongoing"`; `start`: `number`; } | `null`
 
-Defined in: [src/lib/memory/autoExtract.ts:186](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#186)
+Defined in: [src/lib/memory/autoExtract.ts:190](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#190)
 
 W6 temporal lane — when the event in this fact occurred. Resolved
 to absolute timestamps by the LLM; null when the fact has no
@@ -66,7 +66,7 @@ Unix ms timestamp of the event start (or point).
 
 > **sourceMessageIds**: `string`\[]
 
-Defined in: [src/lib/memory/autoExtract.ts:181](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#181)
+Defined in: [src/lib/memory/autoExtract.ts:185](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#185)
 
 ***
 
@@ -74,4 +74,4 @@ Defined in: [src/lib/memory/autoExtract.ts:181](https://github.com/anuma-ai/sdk/
 
 > **type**: `"other"` | `"identity"` | `"preference"` | `"relationship"` | `"plan"` | `"ongoing_context"` | `"constraint"`
 
-Defined in: [src/lib/memory/autoExtract.ts:179](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#179)
+Defined in: [src/lib/memory/autoExtract.ts:183](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#183)
