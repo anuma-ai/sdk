@@ -7,7 +7,7 @@ import { requestEncryptionKey } from "../../../react/useEncryption";
 import { getLogger } from "../../logger";
 import { cosineSimilarity } from "../../memoryEngine/vector";
 import { decodeChunkVector } from "../../memoryEngine/vectorEncoding";
-import { decryptJsonField } from "../encryption-utils";
+import { decryptJsonField, encryptJsonField } from "../encryption-utils";
 import { decryptConversationFields, encryptConversationFields } from "./conversationEncryption";
 import {
   decryptField,
@@ -1148,17 +1148,56 @@ export async function updateMessageChunksOp(
     return null;
   }
 
-  // Note: Chunks contain embeddings used for vector search, stored unencrypted
-  // for the same reasons as updateMessageEmbeddingOp.
+  // ENCRYPTED AT REST (sdk#880). A `MessageChunk` carries `text`, not just a
+  // vector, and `chunkText` covers the message end to end with a 50-char overlap
+  // — so every sentence of a >400-char message appears in some chunk. Writing
+  // this column in the clear put a fully readable copy of the message next to its
+  // own ciphertext `content`, with offsets, on a device where the user had
+  // explicitly enabled at-rest encryption.
   //
-  // This is the ONLY site that writes chunk vectors, so it is where the base64
-  // encoding switches on (sdk#862): map each `vector` through
+  // The comment this replaces justified plaintext "for the same reasons as
+  // updateMessageEmbeddingOp". That reason is real but it is about the VECTOR:
+  // `updateMessageEmbeddingOp` stores a bare `number[]`, which reveals nothing
+  // readable. It does not carry over to chunk text.
+  //
+  // No reader migration is needed and no backfill is required: `readJsonField`
+  // (the chunk-search path) branches on `isEncrypted`, and `messageToStoredRaw`'s
+  // `parseJsonField` deliberately passes `enc:`-prefixed values through for
+  // `decryptMessageFields` to resolve. Both encodings are already understood, so
+  // legacy plaintext rows keep working and are upgraded whenever they are
+  // re-indexed.
+  //
+  // Encrypting the WHOLE array rather than each `text` in place: it matches the
+  // dormant `chunks` branch in `encryptMessageFields` that this column was always
+  // meant to use, and it keeps `isEncrypted` meaningful for the column as a unit.
+  // The cost is a decrypt on the chunk-recall lane, which `chunkVectorCache`
+  // amortises per message per session.
+  //
+  // `skipKeyRequest: true` — never prompt for a signature from a background
+  // indexing write. With no signer configured `encryptField` returns the value
+  // unchanged, so an unencrypted deployment is byte-identical to before.
+  //
+  // Computed BEFORE `database.write` so the crypto doesn't run inside the write
+  // transaction and hold the lock.
+  //
+  // This is the ONLY site that writes chunk vectors, so it is also where the
+  // base64 encoding switches on (sdk#862): map each `vector` through
   // `encodeChunkVector` here. Held back deliberately until a build that can read
   // both encodings has saturated — a device on an older build scores a base64
-  // vector as 0 without any error. Readers already accept both.
+  // vector as 0 without any error. Readers already accept both. Note that #862
+  // now has to encode BEFORE this encrypt step.
+  const chunksRaw =
+    (await encryptJsonField(
+      chunks,
+      ctx.walletAddress ?? "",
+      ctx.signMessage,
+      ctx.embeddedWalletSigner,
+      true
+    )) ?? JSON.stringify(chunks);
+
   await ctx.database.write(async () => {
     await message.update((msg) => {
-      msg._setRaw("chunks", JSON.stringify(chunks));
+      msg._setRaw("chunks", chunksRaw);
       msg._setRaw("embedding_model", embeddingModel);
     });
   });
