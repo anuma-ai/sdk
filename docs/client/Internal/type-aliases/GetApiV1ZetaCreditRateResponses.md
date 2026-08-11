@@ -2,7 +2,7 @@
 
 > **GetApiV1ZetaCreditRateResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:10959](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10959)
+Defined in: [src/client/types.gen.ts:11129](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11129)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:10959](https://github.com/anuma-ai/sdk/blob
 
 > **200**: [`HandlersCreditRateResponse`](HandlersCreditRateResponse.md)
 
-Defined in: [src/client/types.gen.ts:10963](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10963)
+Defined in: [src/client/types.gen.ts:11133](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11133)
 
 OK

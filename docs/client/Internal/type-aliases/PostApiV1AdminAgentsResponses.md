@@ -2,7 +2,7 @@
 
 > **PostApiV1AdminAgentsResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:4632](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4632)
+Defined in: [src/client/types.gen.ts:4802](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4802)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:4632](https://github.com/anuma-ai/sdk/blob/
 
 > **201**: [`HandlersAgentResponse`](HandlersAgentResponse.md)
 
-Defined in: [src/client/types.gen.ts:4636](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4636)
+Defined in: [src/client/types.gen.ts:4806](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4806)
 
 Created

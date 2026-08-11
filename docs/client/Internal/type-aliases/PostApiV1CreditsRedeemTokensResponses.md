@@ -2,7 +2,7 @@
 
 > **PostApiV1CreditsRedeemTokensResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:7963](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7963)
+Defined in: [src/client/types.gen.ts:8133](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8133)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:7963](https://github.com/anuma-ai/sdk/blob/
 
 > **200**: [`HandlersRedeemTokensResponse`](HandlersRedeemTokensResponse.md)
 
-Defined in: [src/client/types.gen.ts:7967](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7967)
+Defined in: [src/client/types.gen.ts:8137](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8137)
 
 OK

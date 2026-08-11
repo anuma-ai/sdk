@@ -2,7 +2,7 @@
 
 > **HandlersMobileAppVersions** = `object`
 
-Defined in: [src/client/types.gen.ts:2273](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2273)
+Defined in: [src/client/types.gen.ts:2361](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2361)
 
 MobileApp is the mobile app version info; absent when not configured
 
@@ -12,7 +12,7 @@ MobileApp is the mobile app version info; absent when not configured
 
 > `optional` **android**: [`HandlersMobilePlatformVersions`](HandlersMobilePlatformVersions.md)
 
-Defined in: [src/client/types.gen.ts:2274](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2274)
+Defined in: [src/client/types.gen.ts:2362](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2362)
 
 ***
 
@@ -20,4 +20,4 @@ Defined in: [src/client/types.gen.ts:2274](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **ios**: [`HandlersMobilePlatformVersions`](HandlersMobilePlatformVersions.md)
 
-Defined in: [src/client/types.gen.ts:2275](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2275)
+Defined in: [src/client/types.gen.ts:2363](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2363)

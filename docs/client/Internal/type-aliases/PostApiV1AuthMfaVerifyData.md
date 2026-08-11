@@ -2,7 +2,7 @@
 
 > **PostApiV1AuthMfaVerifyData** = `object`
 
-Defined in: [src/client/types.gen.ts:7178](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7178)
+Defined in: [src/client/types.gen.ts:7348](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7348)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:7178](https://github.com/anuma-ai/sdk/blob/
 
 > **body**: [`HandlersVerifyRequest`](HandlersVerifyRequest.md)
 
-Defined in: [src/client/types.gen.ts:7182](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7182)
+Defined in: [src/client/types.gen.ts:7352](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7352)
 
 method + code
 
@@ -20,7 +20,7 @@ method + code
 
 > `optional` **path**: `never`
 
-Defined in: [src/client/types.gen.ts:7183](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7183)
+Defined in: [src/client/types.gen.ts:7353](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7353)
 
 ***
 
@@ -28,7 +28,7 @@ Defined in: [src/client/types.gen.ts:7183](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **query**: `never`
 
-Defined in: [src/client/types.gen.ts:7184](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7184)
+Defined in: [src/client/types.gen.ts:7354](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7354)
 
 ***
 
@@ -36,4 +36,4 @@ Defined in: [src/client/types.gen.ts:7184](https://github.com/anuma-ai/sdk/blob/
 
 > **url**: `"/api/v1/auth/mfa/verify"`
 
-Defined in: [src/client/types.gen.ts:7185](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7185)
+Defined in: [src/client/types.gen.ts:7355](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7355)

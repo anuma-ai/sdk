@@ -2,4 +2,4 @@
 
 > **PostApiV1WalletsBindingNonceResponse** = [`PostApiV1WalletsBindingNonceResponses`](PostApiV1WalletsBindingNonceResponses.md)\[keyof [`PostApiV1WalletsBindingNonceResponses`](PostApiV1WalletsBindingNonceResponses.md)]
 
-Defined in: [src/client/types.gen.ts:10883](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10883)
+Defined in: [src/client/types.gen.ts:11053](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11053)

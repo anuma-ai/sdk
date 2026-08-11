@@ -2,4 +2,4 @@
 
 > **GetApiV1ChatStreamsByInferenceIdResponse** = [`GetApiV1ChatStreamsByInferenceIdResponses`](GetApiV1ChatStreamsByInferenceIdResponses.md)\[keyof [`GetApiV1ChatStreamsByInferenceIdResponses`](GetApiV1ChatStreamsByInferenceIdResponses.md)]
 
-Defined in: [src/client/types.gen.ts:7342](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7342)
+Defined in: [src/client/types.gen.ts:7512](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7512)
