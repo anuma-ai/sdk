@@ -59,3 +59,41 @@ Client paths are in `zeta-chain/ai-memoryless-client`.
 | `scoreProfileSalience` | client-mounted | `packages/hooks/src/promptCoverage/computeCoverage.ts:345`. Was `dark` until 2026-07-31. |
 | `verifyMemoriesForPublish` | dark | #707. The publish-time support check for People Nearby. Deliberately NOT wired into `setMemoryVisibilityOp` (that op is offline storage and also the revoke path — a verdict there would gate taking a memory DOWN on an LLM being reachable). Until 2026-07-31 it was not exported from `react`/`expo`/`server` at all, so no client could call it whatever it wanted; those exports are added here. Goes live with the client gate in zeta-chain/ai-memoryless-client#5440. |
 | `createMessageSourceResolver` | dark | Dark with `verifyMemoriesForPublish` — the default `VerificationSources` wiring over the chat store. Same missing-barrel-export history as that row. |
+
+## Config-level knobs
+
+The table above proves an export is *imported* by a live module. It is blind, by
+construction, to a symbol that is imported and then called from a branch **no
+client configuration reaches** — the fixpoint counts the dead branch's import as
+consumption. That blind spot is how `budget: 'high'` (multi-hop graph traversal,
+LLM query decomposition, the neighbor refiner) and `options.mmr` stayed
+unreachable in production for months while `pnpm check:export-consumers` printed
+green, and it is limit 2 in the header.
+
+So the knobs that gate a ranking branch get declared here too, same statuses,
+`config:` prefix. Two things this buys that the export table alone does not:
+
+- **A new `Budget` tier fails the gate until someone declares it.** The tier list
+  is derived from `export type Budget` in `src/lib/memory/types.ts`, not written
+  here, so it cannot drift. `high` shipped as the only tier enabling traversal and
+  was never selectable by any client; the next tier cannot repeat that silently.
+- **A renamed knob fails instead of quietly un-covering itself.** Each knob names
+  the file and token where it is read, and the gate asserts the token still
+  exists.
+
+**What this does NOT do:** this repo cannot see the client tree, so it cannot
+verify a call site — exactly the limit the header states for the export table. It
+forces a declaration in a reviewed diff, nothing more. A real call-site check
+needs both trees at once; the natural home is
+`.github/workflows/integration-check.yml`, which already clones the client. Until
+that exists, a `client-mounted` row here is a lead to verify, never evidence.
+
+| Knob                 | Status         | Where                                                                                                                              |
+| -------------------- | -------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| `config:budget=low`  | client-mounted | `DEFAULT_BUDGET` in `recallTool.ts:34`, so every `createRecallTool` caller that passes no budget lands here — and web's does not (`apps/web/hooks/useChatTools.tsx`). Also the documented mobile default. |
+| `config:budget=mid`  | client-mounted | Web's per-turn injection path once the cross-encoder is warm: `apps/web/hooks/useChatSetup.tsx:300`, with the reranker repo pinned in `apps/web/worker.ts:1053` and preloaded by `useBackgroundRerankerPreload.ts`. |
+| `config:budget=high` | dark           | #844 §1. **Zero client call sites** — an exhaustive search of `apps` + `packages` for a `'high'` budget literal returns nothing, re-verified 2026-08-11. `flagsForBudget` (`recall.ts:77`) makes `high` the only tier with `traverse: true`, so `graphTraversal.ts` (436 LOC), `capHopsForDensity`, `createLlmNeighborRefiner` and the composite `rankComposite` path cannot execute in production. Decide: mount it or delete it. |
+| `config:mmr`         | dark           | #844 §2. Zero client references (a case-insensitive search for `mmr` across the client returns nothing). **Measured 2026-08-11** on `eval:vault-search --ranker fused`: MMR is below the no-MMR control at every λ (recall@k 0.835 → 0.812 at the 0.7 default, 0.727 at λ=0.3), and improves monotonically as λ→1, i.e. as it diversifies less. Recommendation on the issue is to keep it dark rather than arm it. |
+| `config:graphRefine` | dark           | Gated behind `flags.traverse && options.graphRefine && options.decomposeOptions` (`recall.ts:243`), so it is unreachable for as long as `config:budget=high` is. `createLlmNeighborRefiner` is exported from all four barrels with no client consumer. |
+| `config:subQueries`  | dark           | 719/B4 moved decomposition to the tool layer, which computes `subQueries` only at `budget: 'high'` (`recallTool.ts`). No client passes `subQueries` or `decomposeOptions` directly either — verified 2026-08-11 — so the composite multi-facet ranker never runs. |
+| `config:rerank`      | client-mounted | Not passed explicitly by any client; reached via `config:budget=mid`, which `flagsForBudget` maps to `{ rerank: true }` (documented at `packages/hooks/src/memoryRecall/config.ts:63`). Listed so that decoupling rerank from the budget tiers cannot silently strand it. |
