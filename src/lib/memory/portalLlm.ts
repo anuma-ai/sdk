@@ -40,6 +40,7 @@ import { BASE_URL } from "../../clientConfig.js";
 import { validateEndpointOverride } from "../chat/endpointOverride.js";
 import { withInternalFlowMarker } from "../internalFlowMarker.js";
 import { getLogger } from "../logger.js";
+import { type TaskType, taskTypeHeader } from "../taskType.js";
 
 /** Read per-call so tests that mutate `process.env` between imports take effect. */
 function defaultBaseUrl(): string {
@@ -224,6 +225,13 @@ interface PortalLlmRequest extends PortalLlmAuth {
    * to a dedicated endpoint (e.g. `/api/v1/utility/chat/completions`).
    */
   endpointOverride?: string;
+  /**
+   * The Class-B task this call performs, sent as `X-Anuma-Task-Type`. Naming the
+   * task is what lets the portal own the system prompt for it instead of trusting
+   * whatever `systemPrompt` we send (see {@link TaskType}). Omitted → no header,
+   * which is the pre-existing behavior.
+   */
+  taskType?: TaskType;
   /**
    * Invoked at most ONCE, immediately before this call gives up and returns
    * `null`, with the classified last failure. Never invoked on success.
@@ -485,7 +493,13 @@ async function attemptPortalJson(req: PortalLlmRequest, endpoint: string): Promi
   try {
     response = await fetchImpl(`${baseUrl}${endpoint}`, {
       method: "POST",
-      headers: { ...authHeaders, "Content-Type": "application/json" },
+      // Attached HERE, at the one transport every background memory op shares, so
+      // a new flow gets the provenance by construction rather than by remembering.
+      headers: {
+        ...authHeaders,
+        ...taskTypeHeader(req.taskType),
+        "Content-Type": "application/json",
+      },
       body: JSON.stringify(requestBody),
       signal: controller.signal,
     });
