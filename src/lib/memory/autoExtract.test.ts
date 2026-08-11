@@ -402,6 +402,57 @@ describe("extractFacts", () => {
     expect(result.map((c) => c.content)).toEqual(["Lives in Portland"]);
   });
 
+  // The client rejected these on its import path and deleted them in its
+  // retroactive vault sweep, while this gate — guarding the far higher-volume
+  // per-turn path — let them through. The sweep was deleting rows extraction
+  // kept re-writing.
+  describe("utterance-echo gate", () => {
+    const extractOne = async (content: string) => {
+      const result = await extractFacts(messages, {
+        apiKey: "k",
+        fetchFn: mockFetch(
+          JSON.stringify({
+            candidates: [
+              { content, type: "other", confidence: 0.95, sourceMessageIds: ["m1"] },
+              // Control: proves the call itself succeeded, so an empty result
+              // means the gate dropped the candidate rather than the fetch failing.
+              {
+                content: "Lives in Portland",
+                type: "identity",
+                confidence: 0.9,
+                sourceMessageIds: ["m1"],
+              },
+            ],
+          })
+        ),
+      });
+      return result.map((c) => c.content);
+    };
+
+    it.each([
+      "Said: 'tiger'",
+      'Asked: "what time is it"',
+      "Guessed: 'elephant'",
+      "Typed: 'hello'",
+      "SAID: 'tiger'",
+      "Said: 'tiger'.",
+      "Said: “tiger”",
+    ])("drops the word-game echo %j", async (content) => {
+      expect(await extractOne(content)).toEqual(["Lives in Portland"]);
+    });
+
+    it.each([
+      // Merely STARTS with a speech verb — no verb:"…" structure.
+      "Asked her father for permission before proposing",
+      "Typed the manuscript by hand",
+      // Quotes, then adds the durable part. The trailing context is the fact.
+      "Said: 'I do' at her wedding",
+      'Answered: "yes" when asked to relocate',
+    ])("keeps the durable fact %j", async (content) => {
+      expect(await extractOne(content)).toEqual([content, "Lives in Portland"]);
+    });
+  });
+
   it("re-applies the own-name gate after PII restore (redacted name placeholder must not leak)", async () => {
     // validateCandidates only sees the redacted form, so a placeholder-shaped
     // fact passes the own-name check, then de-anonymizes into the real name.

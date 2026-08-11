@@ -851,10 +851,40 @@ export async function extractAndRetain(
 // ---------------------------------------------------------------------------
 
 /**
+ * Utterance-echo artifact: the WHOLE content is a leading speech verb + colon +
+ * a quoted phrase and nothing else, e.g. `Said: 'tiger'` / `Asked: "what time is
+ * it"`. These are verbatim echoes of a literal user turn (word games, roleplay)
+ * that the extractor recorded as a durable "fact".
+ *
+ * Added here on 2026-08-11 because the CLIENT already rejected these on its
+ * import path and in its retroactive vault sweep, while this gate — which guards
+ * the far higher-volume per-turn auto-extraction path — did not. The sweep was
+ * therefore deleting rows that auto-extraction kept writing: the client's own
+ * `memoryQuality.ts` claimed "admission and cleanup stay in lockstep", and for
+ * the live path that was not true.
+ *
+ * Deliberately high-precision, because the client sweep auto-deletes matches
+ * without review:
+ * - the `verb:"…"` structure is required, so a fact that merely STARTS with one
+ *   of these words ("Asked her father for permission") does NOT match;
+ * - the quote must be a MATCHED pair spanning to the end save trailing sentence
+ *   punctuation, so a fact that quotes and then adds context ("Said: 'I do' at
+ *   her wedding") is KEPT — the trailing text is the durable part.
+ *
+ * Keep in sync with `filterJunkMemories` in the client
+ * (`packages/hooks/src/helper/memoryQuality.ts`). Two copies across two repos is
+ * the deliberate trade: the sweep must be able to run without this SDK version,
+ * and the alternative (a caller-supplied predicate) puts a security-relevant
+ * default in the caller's hands.
+ */
+const UTTERANCE_ECHO_RE =
+  /^(?:said|says|asked|answered|replied|guessed|typed)\s*:\s*(?:'[^']*'|"[^"]*"|‘[^’]*’|“[^”]*”)[\s.!?]*$/iu;
+
+/**
  * Reject degenerate candidates that aren't durable facts about the user:
- * too-short scraps and the user's own name ("Peter Lee"), which come from the
+ * too-short scraps, the user's own name ("Peter Lee") — which come from the
  * extractor mining a profile field or tool output rather than something the
- * user said.
+ * user said — and utterance echoes (see {@link UTTERANCE_ECHO_RE}).
  *
  * NOTE: deliberately NO "single token / no whitespace" heuristic. It was an
  * English-only signal that silently dropped every CJK-language fact (Japanese
@@ -865,11 +895,13 @@ export async function extractAndRetain(
  * window on the client. This gate stays language-agnostic.
  */
 function isLowSignalContent(content: string, ownNames: readonly string[]): boolean {
-  const normalized = content
-    .trim()
-    .replace(/[.!?]+$/, "")
-    .toLowerCase();
+  const trimmed = content.trim();
+  const normalized = trimmed.replace(/[.!?]+$/, "").toLowerCase();
   if (normalized.length < MIN_CONTENT_LENGTH) return true;
+  // Tested against the TRIMMED text, not `normalized`: the pattern is already
+  // case-insensitive and already tolerates trailing punctuation, and matching
+  // the client's predicate input exactly is what keeps the two copies aligned.
+  if (UTTERANCE_ECHO_RE.test(trimmed)) return true;
   // The user's own name is circular for a personal memory system.
   if (
     ownNames.some(
