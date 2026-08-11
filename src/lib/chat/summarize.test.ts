@@ -560,6 +560,9 @@ describe("callSummarizationLlm", () => {
         headers: {
           "Content-Type": "application/json",
           Authorization: "Bearer test-token",
+          // Names the task so the portal can own this prompt server-side; asserted
+          // here because it is the only place summarization's provenance is set.
+          "X-Anuma-Task-Type": "summarize",
         },
         // The system message carries the internal-flow marker: this call has no other
         // provenance (main endpoint, no conversationId, prompt matches no fingerprint),

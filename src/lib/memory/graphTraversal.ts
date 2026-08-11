@@ -408,6 +408,7 @@ Output strict JSON, no prose: { "expand": [<entity names to expand, verbatim fro
         ...(options.apiKey !== undefined && { apiKey: options.apiKey }),
         ...(options.getToken !== undefined && { getToken: options.getToken }),
         ...(options.baseUrl !== undefined && { baseUrl: options.baseUrl }),
+        taskType: "memory_graph",
         model: options.model ?? DEFAULT_REFINER_MODEL,
         systemPrompt,
         userMessage: `Question: ${query}\n\nCandidate topics:\n${numbered}\n\nWhich should be expanded?`,
