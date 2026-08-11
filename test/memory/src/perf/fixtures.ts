@@ -27,10 +27,8 @@ import {
   deleteVaultMemoryOp,
 } from "../../../../src/lib/db/memoryVault/operations";
 import type { VaultMemoryOperationsContext } from "../../../../src/lib/db/memoryVault/operations";
-import { encryptJsonField } from "../../../../src/lib/db/encryption-utils";
 import { sdkMigrations, sdkModelClasses, sdkSchema } from "../../../../src/lib/db/schema";
 import { parseQueryTimeWindow } from "../../../../src/lib/memory/queryTemporal";
-import { requestEncryptionKey, type SignMessageFn } from "../../../../src/react/useEncryption";
 import { DEFAULT_API_EMBEDDING_MODEL } from "../../../../src/lib/memoryEngine/constants";
 
 /**
@@ -361,13 +359,6 @@ export function createWorld(): PerfWorld {
       database,
       messagesCollection: database.get<Message>("history"),
       conversationsCollection: database.get<Conversation>("conversations"),
-      // Needed for the chunk column, which `seedChunks` stores encrypted
-      // (sdk#880): `readJsonField` only takes its decrypt branch when an address
-      // is present, so without this the seeded ciphertext would fail `JSON.parse`
-      // and the chunk lane would silently see NO chunks. Still no `signMessage` —
-      // reads decrypt from the key store, and adding a signer here would flip the
-      // whole fixture out of its read-only posture.
-      walletAddress: CHUNK_ENC_ADDRESS,
     },
     deletedIds: [],
   };
@@ -415,84 +406,14 @@ export async function seedTombstones(world: PerfWorld, ids: string[]): Promise<v
 }
 
 /**
- * Address + signer used ONLY to encrypt the seeded chunk column. Deliberately
- * not on `storageCtx` — see `seedChunks`.
- */
-// Real hex, unlike the vault fixture's cosmetic "0xperf…" address: this one is
-// passed to `requestEncryptionKey`, which validates the format (the vault's is
-// only ever a map key, so it is never checked).
-const CHUNK_ENC_ADDRESS = "0x00000000000000000000000000000000000000c2";
-const chunkEncSigner = (async (message: string) =>
-  `0x${Buffer.from(message).toString("hex").padStart(130, "0")}`) as unknown as SignMessageFn;
-
-/**
  * Seed the chunk corpus the chunk lane scans. Written straight through the
  * collection in one transaction rather than via `createMessageOp` +
  * `updateMessageChunksOp`: seeding cost is not what is being measured, and one
  * batched write keeps the fixture build off the critical path.
- *
- * The chunk column is seeded as real CIPHERTEXT (sdk#880). This matters for
- * coverage, not realism-for-its-own-sake: `readJsonField` only decrypts when
- * `isEncrypted(raw)` is true, so while this fixture wrote plaintext the chunk
- * lane's decrypt branch never executed and `chunkFieldDecrypts` was structurally
- * 0 — the gate could not see the cost of the encrypted read at all.
- *
- * Note the asymmetry with the vault, which is why only this seeder encrypts:
- * `decryptVaultMemoryFields` is called per materialised row whether or not the
- * row is ciphertext, so `vaultDecrypts` counts the fan-out honestly against
- * plaintext rows. `readJsonField` branches first. Encrypting here and nowhere
- * else keeps every vault scenario's counters untouched.
- *
- * Uses its own address + signer rather than putting them on `storageCtx`: adding
- * a `signMessage` to the shared world would flip the whole fixture out of its
- * read-only posture and move counters in scenarios that have nothing to do with
- * chunks. Reads decrypt via `ctx.walletAddress`, so the read path needs no signer.
  */
 export async function seedChunks(world: PerfWorld): Promise<void> {
   const rnd = mulberry32(PERF_CONFIG.seed ^ 0x5eed);
   const convId = "perf-conversation";
-  // One key derivation for the whole seed, before the write transaction — the
-  // encryption below runs per message and must not derive a key 300 times, nor
-  // hold the DB lock while doing crypto.
-  await requestEncryptionKey(CHUNK_ENC_ADDRESS, chunkEncSigner);
-  // Built outside `database.write` for the same reason: 300 encrypts inside the
-  // transaction would serialise crypto against the batched insert.
-  const encryptedByIndex: string[] = [];
-  const contentByIndex: string[] = [];
-  for (let m = 0; m < PERF_CONFIG.chunkMessages; m++) {
-    const chunks: MessageChunk[] = [];
-    let offset = 0;
-    for (let c = 0; c < PERF_CONFIG.chunksPerMessage; c++) {
-      const text =
-        `We reviewed ${PROJECTS[Math.floor(rnd() * PROJECTS.length) % PROJECTS.length]} ` +
-        `with ${PEOPLE[Math.floor(rnd() * PEOPLE.length) % PEOPLE.length]} and agreed to ` +
-        `revisit ${CHORES[Math.floor(rnd() * CHORES.length) % CHORES.length]} in ${m}-${c}`;
-      chunks.push({
-        text,
-        vector: embedText(text),
-        startOffset: offset,
-        endOffset: offset + text.length,
-      });
-      offset += text.length + 1;
-    }
-    contentByIndex.push(chunks.map((c) => c.text).join(" "));
-    const encrypted = await encryptJsonField(
-      chunks,
-      CHUNK_ENC_ADDRESS,
-      chunkEncSigner,
-      undefined,
-      true
-    );
-    // `encryptJsonField` returns undefined only for an empty value, which cannot
-    // happen here — fail loudly rather than seeding a plaintext row that would
-    // silently zero `chunkFieldDecrypts` and make the gate blind again.
-    if (encrypted === undefined || !encrypted.startsWith("enc:")) {
-      throw new Error(
-        `seedChunks: chunk column did not encrypt (message ${m}) — the chunk-decrypt gate would read 0`
-      );
-    }
-    encryptedByIndex.push(encrypted);
-  }
   await world.database.write(async () => {
     await world.storageCtx.conversationsCollection.create((record) => {
       record._setRaw("conversation_id", convId);
@@ -504,16 +425,29 @@ export async function seedChunks(world: PerfWorld): Promise<void> {
 
     const prepared = [];
     for (let m = 0; m < PERF_CONFIG.chunkMessages; m++) {
+      const chunks: MessageChunk[] = [];
+      let offset = 0;
+      for (let c = 0; c < PERF_CONFIG.chunksPerMessage; c++) {
+        const text =
+          `We reviewed ${PROJECTS[Math.floor(rnd() * PROJECTS.length) % PROJECTS.length]} ` +
+          `with ${PEOPLE[Math.floor(rnd() * PEOPLE.length) % PEOPLE.length]} and agreed to ` +
+          `revisit ${CHORES[Math.floor(rnd() * CHORES.length) % CHORES.length]} in ${m}-${c}`;
+        chunks.push({
+          text,
+          vector: embedText(text),
+          startOffset: offset,
+          endOffset: offset + text.length,
+        });
+        offset += text.length + 1;
+      }
+      const content = chunks.map((c) => c.text).join(" ");
       prepared.push(
         world.storageCtx.messagesCollection.prepareCreate((record) => {
           record._setRaw("message_id", m + 1);
           record._setRaw("conversation_id", convId);
           record._setRaw("role", m % 2 === 0 ? "user" : "assistant");
-          // `content` stays PLAINTEXT: the message read path resolves it through
-          // `decryptMaybeJsonFieldDetailed`, which handles either, and encrypting
-          // it would move counters in scenarios that aren't about chunks.
-          record._setRaw("content", contentByIndex[m]);
-          record._setRaw("chunks", encryptedByIndex[m]);
+          record._setRaw("content", content);
+          record._setRaw("chunks", JSON.stringify(chunks));
           record._setRaw("embedding_model", DEFAULT_API_EMBEDDING_MODEL);
           record._setRaw("created_at", NOW - (PERF_CONFIG.chunkMessages - m) * 1000);
           record._setRaw("updated_at", NOW - (PERF_CONFIG.chunkMessages - m) * 1000);

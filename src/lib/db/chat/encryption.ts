@@ -71,15 +71,6 @@ export async function encryptMessageFields(
       ? await encryptJsonField(msg.vector, address, signMessage, embeddedWalletSigner, true)
       : undefined;
 
-    // NOTE: this branch does not fire on any current path, and reading it as
-    // "chunks are encrypted" is what let sdk#880 sit open. Neither
-    // `CreateMessageOptions` nor `UpdateMessageOptions` declares `chunks` (it
-    // lives on `StoredMessage`), and `applyMessageFields` never writes the
-    // column, so nothing reaches here with a `chunks` key. Chunks are encrypted
-    // at their actual and only writer, `updateMessageChunksOp` in operations.ts.
-    // Kept because this function reads a `Record<string, unknown>` and encrypting
-    // any `chunks` it is ever handed is the correct behavior — but do not treat
-    // its presence as evidence the column is protected.
     const encryptedChunks = msg.chunks
       ? await encryptJsonField(msg.chunks, address, signMessage, embeddedWalletSigner, true)
       : undefined;

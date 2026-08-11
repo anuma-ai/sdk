@@ -103,20 +103,6 @@ export interface PerfCounters {
   chunkSearches: number;
   /** Chunk hits returned. */
   chunkHits: number;
-  /**
-   * `decryptJsonField` calls — the chunk COLUMN decrypt (sdk#880).
-   *
-   * Chunk text is encrypted at rest, so `readJsonField` decrypts the whole
-   * `MessageChunk[]` per message it touches. Counted on its own axis because it
-   * scales with messages-touched, which is a different axis from `chunkSearches`
-   * (calls) and `chunkHits` (results) — a change that widened the chunk scan
-   * would move this without moving either of those.
-   *
-   * Before #880 this was structurally 0: the fixture seeded plaintext chunks, so
-   * `readJsonField`'s `isEncrypted` branch never fired and the gate could not see
-   * the decrypt cost at all. The fixture now seeds real ciphertext.
-   */
-  chunkFieldDecrypts: number;
 
   /** Vault row creates (`createVaultMemoryOp` + `createSupersedingMemoryOp`). */
   vaultCreates: number;
@@ -158,7 +144,6 @@ function zeroed(): PerfCounters {
     rerankPairs: 0,
     chunkSearches: 0,
     chunkHits: 0,
-    chunkFieldDecrypts: 0,
     vaultCreates: 0,
     vaultUpdates: 0,
     vaultVectorWrites: 0,
