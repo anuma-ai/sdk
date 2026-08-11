@@ -600,6 +600,13 @@
       "stdDev": 0,
       "tolerance": 0
     },
+    "chunkLaneCold.chunkFieldDecrypts": {
+      "mean": 300,
+      "min": 300,
+      "max": 300,
+      "stdDev": 0,
+      "tolerance": 0
+    },
     "chunkLaneCold.embedQueries": {
       "mean": 2,
       "min": 2,
@@ -688,6 +695,13 @@
       "mean": 0,
       "min": 0,
       "max": 0,
+      "stdDev": 0,
+      "tolerance": 0
+    },
+    "chunkLaneWarm.chunkFieldDecrypts": {
+      "mean": 16,
+      "min": 16,
+      "max": 16,
       "stdDev": 0,
       "tolerance": 0
     },

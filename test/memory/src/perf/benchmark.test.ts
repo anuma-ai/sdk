@@ -50,10 +50,18 @@
  *     itself is a stand-in here, so that counter describes pipeline structure
  *     (how many pairs the rerank stage is plumbed to score), not CE inference
  *     cost.
- * Likewise the per-row decrypt is counted as INVOCATIONS: the fixture stores
- * plaintext, so each call returns immediately. The fan-out — one call per
- * materialised row — is the part that scales with vault size and the part the
- * decrypt-last path removes; the AES cost per call is constant and orthogonal.
+ * Likewise the per-row VAULT decrypt is counted as INVOCATIONS: the fixture
+ * stores vault rows in plaintext, so each call returns immediately. The fan-out —
+ * one call per materialised row — is the part that scales with vault size and the
+ * part the decrypt-last path removes; the AES cost per call is constant and
+ * orthogonal.
+ *
+ * The CHUNK column is the exception, and deliberately so (sdk#880). It is seeded
+ * as real ciphertext, because `readJsonField` branches on `isEncrypted` before
+ * decrypting — so with plaintext chunks that branch never ran and the encrypted
+ * chunk read had NO gated metric at all. `chunkFieldDecrypts` now reads 300 cold
+ * (one per message in the corpus) and 16 warm (only the hit messages, since
+ * `chunkVectorCache` serves the vectors), which is the real shape of the cost.
  *
  * The printed wall-clock is a floor, not a forecast: the corpus is ~1000 facts
  * at 1024 dimensions, where a mature vault is larger and production embeds at
@@ -251,6 +259,30 @@ vi.mock("../../../../src/lib/db/chat/operations", async (importActual) => {
       const results = await (actual.searchChunksOp as Search)(...args);
       c.chunkHits += results.length;
       return results;
+    },
+  };
+});
+
+// The chunk COLUMN decrypt (sdk#880). `readJsonField` calls this once per message
+// whose chunk column it touches, so it is the axis the encrypted-at-rest chunk
+// read moves. Wrapped here rather than counted inside the chunk-op wrapper above
+// because it is a per-MESSAGE cost inside one `searchChunksOp` call.
+//
+// In these scenarios `decryptJsonField` has exactly one caller — `readJsonField`
+// on the chunk column. The message read path resolves its own JSON fields through
+// `decryptMaybeJsonFieldDetailed` → `decryptFieldDetailed` instead, so this
+// counter stays specific despite wrapping a generic helper. If a second caller
+// ever appears in a scenario, the count stops meaning "chunk decrypts" and this
+// wrapper needs narrowing.
+vi.mock("../../../../src/lib/db/encryption-utils", async (importActual) => {
+  const actual = await importActual<Record<string, unknown>>();
+  const { counters: c } = await import("./counters");
+  type Decrypt = (...args: unknown[]) => Promise<unknown>;
+  return {
+    ...actual,
+    decryptJsonField: async (...args: unknown[]) => {
+      c.chunkFieldDecrypts++;
+      return (actual.decryptJsonField as Decrypt)(...args);
     },
   };
 });
@@ -1044,6 +1076,7 @@ const GATED: ReadonlyArray<readonly [string, readonly (keyof ScenarioNumbers)[]]
       "vaultCacheAdds",
       "chunkSearches",
       "chunkCacheAdds",
+      "chunkFieldDecrypts",
       "embedQueries",
       "embedBatches",
       "embedTexts",
@@ -1062,6 +1095,7 @@ const GATED: ReadonlyArray<readonly [string, readonly (keyof ScenarioNumbers)[]]
       "vaultCacheAdds",
       "chunkSearches",
       "chunkCacheAdds",
+      "chunkFieldDecrypts",
       "vaultDecrypts",
       "entityLookups",
       "bm25Passes",
