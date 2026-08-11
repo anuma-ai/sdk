@@ -55,6 +55,16 @@ jobs:
       TEST_USER_EMAIL: ${{ secrets.TEST_USER_EMAIL }}
       TEST_USER_OTP: ${{ secrets.TEST_USER_OTP }}
       NEXT_PUBLIC_DROPBOX_APP_KEY: ${{ secrets.NEXT_PUBLIC_DROPBOX_APP_KEY }}
+      # ai-memoryless-client's .npmrc reads //registry.npmjs.org/:_authToken=${NPM_TOKEN}
+      # for @anuma/nearby, which became a PRIVATE package in that repo's #5718
+      # (merged 2026-08-11). Without this the install fails
+      # ERR_PNPM_FETCH_404 with "No authorization header was set for the
+      # request" — a 404 is what npm answers for a restricted package an
+      # anonymous request may not see — so BOTH the `main` and `pr` legs of that
+      # matrix entry go red on every SDK PR and the cross-repo signal is lost
+      # exactly when it matters. Harmless for the other repos, whose
+      # dependencies are all public.
+      NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:

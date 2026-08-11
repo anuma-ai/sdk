@@ -26,7 +26,11 @@ import {
   type InjectionClassifierOptions,
 } from "./injectionClassifier.js";
 import { type InjectionReason, screenCandidatesForInjection } from "./injectionScreen.js";
-import { callPortalJsonCompletion, type PortalLlmAuth } from "./portalLlm.js";
+import {
+  callPortalJsonCompletion,
+  type PortalLlmAuth,
+  type PortalLlmFailure,
+} from "./portalLlm.js";
 import { retain, type RetainContext } from "./retain.js";
 import type { RetainOptions, RetainResult } from "./types.js";
 
@@ -310,8 +314,14 @@ export interface ExtractFactsOptions extends PortalLlmAuth {
    * `{candidates: []}` "nothing durable here". Lets callers distinguish a
    * silently-degrading extractor from quiet turns (the two are otherwise
    * indistinguishable). See {@link extractAndRetain}'s `outcome`.
+   *
+   * Receives the classified {@link PortalLlmFailure}. Knowing THAT extraction
+   * failed was not enough: the 2026-08-11 audit found ~60% of production turns
+   * ending here and had to cross-check Prometheus to learn that the cause was
+   * HTTP-200-with-empty-body rather than the 403 everyone assumed. Forward
+   * `failure.reason` into analytics so the next such question is a query.
    */
-  onExhaustedEmpty?: () => void;
+  onExhaustedEmpty?: (failure: PortalLlmFailure) => void;
   /**
    * Called when the extractor DID produce candidates but PII de-anonymization
    * dropped every one of them — the model mangled its placeholders (so they
@@ -391,7 +401,14 @@ export async function extractFacts(
   // training-cutoff guess (see ExtractFactsOptions.now). Local-midnight basis
   // matches parseLocalCalendarDay so round-tripped anchors stay consistent.
   const today = formatLocalDate(options.now ?? Date.now());
+  // Captured from `onFailure` so the null below can be reported WITH its cause.
+  // `callPortalJsonCompletion` returns a bare null, so this is the only way to
+  // recover the classification it already computed.
+  let failure: PortalLlmFailure | undefined;
   const parsed = await callPortalJsonCompletion({
+    onFailure: (f) => {
+      failure = f;
+    },
     ...(options.apiKey !== undefined && { apiKey: options.apiKey }),
     ...(options.getToken !== undefined && { getToken: options.getToken }),
     ...(options.baseUrl !== undefined && { baseUrl: options.baseUrl }),
@@ -411,7 +428,9 @@ export async function extractFacts(
   // A successful "no facts" response parses to {candidates: []} (non-null),
   // so a null strictly signals failure after retries, never a legit empty.
   if (parsed === null) {
-    options.onExhaustedEmpty?.();
+    // `onFailure` always fires before a null return, so the fallback is
+    // unreachable defensiveness rather than an expected path.
+    options.onExhaustedEmpty?.(failure ?? { reason: "empty-content", attempts: 1 });
     return [];
   }
 
@@ -595,6 +614,11 @@ export async function extractAndRetain(
    * "extracted but held for review".
    */
   quarantined: QuarantinedMemoryInfo[];
+  /**
+   * Present only when `outcome` is `empty-after-retry` — the classified cause of
+   * the give-up, so "extraction is failing" can be reported as *why* it failed.
+   */
+  failure?: PortalLlmFailure;
 }> {
   const minConfidence = options.minConfidence ?? DEFAULT_MIN_CONFIDENCE;
 
@@ -617,14 +641,16 @@ export async function extractAndRetain(
   // retries; `droppedAfterRedaction` = facts were found but PII restore dropped
   // them all. Chain any caller-supplied hooks.
   let exhaustedEmpty = false;
+  let exhaustedFailure: PortalLlmFailure | undefined;
   let droppedAfterRedaction = false;
   const callerOnExhaustedEmpty = options.extract.onExhaustedEmpty;
   const callerOnCandidatesDropped = options.extract.onCandidatesDropped;
   const candidates = await extractFacts(messages, {
     ...options.extract,
-    onExhaustedEmpty: () => {
+    onExhaustedEmpty: (failure) => {
       exhaustedEmpty = true;
-      callerOnExhaustedEmpty?.();
+      exhaustedFailure = failure;
+      callerOnExhaustedEmpty?.(failure);
     },
     onCandidatesDropped: () => {
       droppedAfterRedaction = true;
@@ -813,6 +839,10 @@ export async function extractAndRetain(
     failedCount: failedWrites,
     outcome,
     quarantined: quarantinedInfo,
+    // Only meaningful alongside `outcome: "empty-after-retry"`. Returned as well
+    // as pushed through the callback so a consumer that only inspects the result
+    // (rather than wiring a hook) can still report WHY.
+    ...(exhaustedFailure !== undefined && { failure: exhaustedFailure }),
   };
 }
 
@@ -821,10 +851,40 @@ export async function extractAndRetain(
 // ---------------------------------------------------------------------------
 
 /**
+ * Utterance-echo artifact: the WHOLE content is a leading speech verb + colon +
+ * a quoted phrase and nothing else, e.g. `Said: 'tiger'` / `Asked: "what time is
+ * it"`. These are verbatim echoes of a literal user turn (word games, roleplay)
+ * that the extractor recorded as a durable "fact".
+ *
+ * Added here on 2026-08-11 because the CLIENT already rejected these on its
+ * import path and in its retroactive vault sweep, while this gate — which guards
+ * the far higher-volume per-turn auto-extraction path — did not. The sweep was
+ * therefore deleting rows that auto-extraction kept writing: the client's own
+ * `memoryQuality.ts` claimed "admission and cleanup stay in lockstep", and for
+ * the live path that was not true.
+ *
+ * Deliberately high-precision, because the client sweep auto-deletes matches
+ * without review:
+ * - the `verb:"…"` structure is required, so a fact that merely STARTS with one
+ *   of these words ("Asked her father for permission") does NOT match;
+ * - the quote must be a MATCHED pair spanning to the end save trailing sentence
+ *   punctuation, so a fact that quotes and then adds context ("Said: 'I do' at
+ *   her wedding") is KEPT — the trailing text is the durable part.
+ *
+ * Keep in sync with `filterJunkMemories` in the client
+ * (`packages/hooks/src/helper/memoryQuality.ts`). Two copies across two repos is
+ * the deliberate trade: the sweep must be able to run without this SDK version,
+ * and the alternative (a caller-supplied predicate) puts a security-relevant
+ * default in the caller's hands.
+ */
+const UTTERANCE_ECHO_RE =
+  /^(?:said|says|asked|answered|replied|guessed|typed)\s*:\s*(?:'[^']*'|"[^"]*"|‘[^’]*’|“[^”]*”)[\s.!?]*$/iu;
+
+/**
  * Reject degenerate candidates that aren't durable facts about the user:
- * too-short scraps and the user's own name ("Peter Lee"), which come from the
+ * too-short scraps, the user's own name ("Peter Lee") — which come from the
  * extractor mining a profile field or tool output rather than something the
- * user said.
+ * user said — and utterance echoes (see {@link UTTERANCE_ECHO_RE}).
  *
  * NOTE: deliberately NO "single token / no whitespace" heuristic. It was an
  * English-only signal that silently dropped every CJK-language fact (Japanese
@@ -835,11 +895,13 @@ export async function extractAndRetain(
  * window on the client. This gate stays language-agnostic.
  */
 function isLowSignalContent(content: string, ownNames: readonly string[]): boolean {
-  const normalized = content
-    .trim()
-    .replace(/[.!?]+$/, "")
-    .toLowerCase();
+  const trimmed = content.trim();
+  const normalized = trimmed.replace(/[.!?]+$/, "").toLowerCase();
   if (normalized.length < MIN_CONTENT_LENGTH) return true;
+  // Tested against the TRIMMED text, not `normalized`: the pattern is already
+  // case-insensitive and already tolerates trailing punctuation, and matching
+  // the client's predicate input exactly is what keeps the two copies aligned.
+  if (UTTERANCE_ECHO_RE.test(trimmed)) return true;
   // The user's own name is circular for a personal memory system.
   if (
     ownNames.some(
