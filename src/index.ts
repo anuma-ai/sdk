@@ -904,3 +904,9 @@ export {
   getImageModel,
   getToolCallEvents,
 } from "./lib/chat/useChat/strategies/types";
+
+// Class-B task vocabulary for the X-Anuma-Task-Type header. Exported so the web
+// and mobile apps declare their own background tasks with the same strings the
+// portal allowlists, instead of each repo keeping a copy that can drift.
+export type { TaskType } from "./lib/taskType";
+export { TASK_TYPE_HEADER, taskTypeHeader } from "./lib/taskType";

@@ -20,6 +20,7 @@ import {
 } from "../db/chat/summaryOperations";
 import type { StoredConversationSummary, StoredMessage } from "../db/chat/types";
 import { INTERNAL_FLOW_MARKER } from "../internalFlowMarker.js";
+import { taskTypeHeader } from "../taskType.js";
 import { getLogger } from "../logger";
 import type { PiiMatch, PiiRedactor } from "../pii/redactor";
 
@@ -413,6 +414,11 @@ export async function callSummarizationLlm(
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${token}`,
+        // Names the task so the portal can own this prompt server-side instead of
+        // trusting the one we build. Summarization is the archetypal Class-B flow:
+        // one fixed purpose, no conversation, and today its instructions are ours
+        // to reword.
+        ...taskTypeHeader("summarize"),
       },
       body: JSON.stringify({
         model,

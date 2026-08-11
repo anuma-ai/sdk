@@ -419,6 +419,7 @@ async function verifyFactSupport(
       ...(options.apiKey !== undefined && { apiKey: options.apiKey }),
       ...(options.getToken !== undefined && { getToken: options.getToken }),
       ...(options.baseUrl !== undefined && { baseUrl: options.baseUrl }),
+      taskType: "memory_verify_support",
       model: options.model ?? DEFAULT_MODEL,
       systemPrompt: SYSTEM_PROMPT,
       userMessage: `Stored facts and their sources:\n\n${numbered}\n\nWhich item numbers are supported?`,

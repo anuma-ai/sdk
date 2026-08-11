@@ -181,6 +181,7 @@ export async function extractEntitiesForMemories(
       ...(options.apiKey !== undefined && { apiKey: options.apiKey }),
       ...(options.getToken !== undefined && { getToken: options.getToken }),
       ...(options.baseUrl !== undefined && { baseUrl: options.baseUrl }),
+      taskType: "memory_topic",
       ...(options.endpointOverride !== undefined && {
         endpointOverride: options.endpointOverride,
       }),
