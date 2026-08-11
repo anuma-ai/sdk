@@ -97,7 +97,6 @@ function chunk(text: string): MessageChunk {
 async function seedMessage(ctx: StorageOperationsContext): Promise<string> {
   await createConversationOp(ctx, { conversationId: "conv_1", title: "T" });
   const msg = await createMessageOp(ctx, {
-    messageId: "m1",
     conversationId: "conv_1",
     role: "user",
     content: `Some preamble. ${SECRET}. Some trailer.`,
