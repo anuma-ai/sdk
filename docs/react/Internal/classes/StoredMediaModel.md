@@ -15,7 +15,7 @@ Represents files stored in the library (images, videos, audio, documents).
 
 > **new StoredMediaModel**(`collection`: `Collection`<`Model`>, `raw`: `_RawRecord`): `Media`
 
-Defined in: ../../../../Users/charliechen/zt/sdk/node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/watermelondb/Model/index.d.ts:117
+Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/watermelondb/Model/index.d.ts:117
 
 **Parameters**
 
@@ -68,7 +68,7 @@ Defined in: ../../../../Users/charliechen/zt/sdk/node\_modules/.pnpm/@nozbe+wate
 
 > `optional` **\_\_changes**: `BehaviorSubject`<`any`>
 
-Defined in: ../../../../Users/charliechen/zt/sdk/node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/watermelondb/Model/index.d.ts:40
+Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/watermelondb/Model/index.d.ts:40
 
 **Inherited from**
 
@@ -80,7 +80,7 @@ Defined in: ../../../../Users/charliechen/zt/sdk/node\_modules/.pnpm/@nozbe+wate
 
 > **\_isEditing**: `boolean`
 
-Defined in: ../../../../Users/charliechen/zt/sdk/node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/watermelondb/Model/index.d.ts:36
+Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/watermelondb/Model/index.d.ts:36
 
 **Inherited from**
 
@@ -92,7 +92,7 @@ Defined in: ../../../../Users/charliechen/zt/sdk/node\_modules/.pnpm/@nozbe+wate
 
 > **\_preparedState**: `"create"` | `"update"` | `"markAsDeleted"` | `"destroyPermanently"` | `null`
 
-Defined in: ../../../../Users/charliechen/zt/sdk/node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/watermelondb/Model/index.d.ts:38
+Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/watermelondb/Model/index.d.ts:38
 
 **Inherited from**
 
@@ -104,7 +104,7 @@ Defined in: ../../../../Users/charliechen/zt/sdk/node\_modules/.pnpm/@nozbe+wate
 
 > **\_raw**: `_RawRecord`
 
-Defined in: ../../../../Users/charliechen/zt/sdk/node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/watermelondb/Model/index.d.ts:34
+Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/watermelondb/Model/index.d.ts:34
 
 **Inherited from**
 
@@ -116,7 +116,7 @@ Defined in: ../../../../Users/charliechen/zt/sdk/node\_modules/.pnpm/@nozbe+wate
 
 > **\_subscribers**: \[(`isDeleted`: `boolean`) => `void`, `any`]\[]
 
-Defined in: ../../../../Users/charliechen/zt/sdk/node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/watermelondb/Model/index.d.ts:125
+Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/watermelondb/Model/index.d.ts:125
 
 **Inherited from**
 
@@ -128,7 +128,7 @@ Defined in: ../../../../Users/charliechen/zt/sdk/node\_modules/.pnpm/@nozbe+wate
 
 > **collection**: `Collection`<`Model`>
 
-Defined in: ../../../../Users/charliechen/zt/sdk/node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/watermelondb/Model/index.d.ts:88
+Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/watermelondb/Model/index.d.ts:88
 
 **Inherited from**
 
@@ -276,7 +276,7 @@ Defined in: [src/lib/db/media/models.ts:21](https://github.com/anuma-ai/sdk/blob
 
 > `static` **\_wmelonTag**: `string`
 
-Defined in: ../../../../Users/charliechen/zt/sdk/node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/watermelondb/Model/index.d.ts:32
+Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/watermelondb/Model/index.d.ts:32
 
 **Inherited from**
 
@@ -314,7 +314,7 @@ Defined in: [src/lib/db/media/models.ts:12](https://github.com/anuma-ai/sdk/blob
 
 > **get** **asModel**(): `this`
 
-Defined in: ../../../../Users/charliechen/zt/sdk/node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/watermelondb/Model/index.d.ts:97
+Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/watermelondb/Model/index.d.ts:97
 
 **Returns**
 
@@ -332,7 +332,7 @@ Defined in: ../../../../Users/charliechen/zt/sdk/node\_modules/.pnpm/@nozbe+wate
 
 > **get** **collections**(): `CollectionMap`
 
-Defined in: ../../../../Users/charliechen/zt/sdk/node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/watermelondb/Model/index.d.ts:91
+Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/watermelondb/Model/index.d.ts:91
 
 **Returns**
 
@@ -350,7 +350,7 @@ Defined in: ../../../../Users/charliechen/zt/sdk/node\_modules/.pnpm/@nozbe+wate
 
 > **get** **database**(): `Database`
 
-Defined in: ../../../../Users/charliechen/zt/sdk/node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/watermelondb/Model/index.d.ts:93
+Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/watermelondb/Model/index.d.ts:93
 
 **Returns**
 
@@ -368,7 +368,7 @@ Defined in: ../../../../Users/charliechen/zt/sdk/node\_modules/.pnpm/@nozbe+wate
 
 > **get** **db**(): `Database`
 
-Defined in: ../../../../Users/charliechen/zt/sdk/node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/watermelondb/Model/index.d.ts:95
+Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/watermelondb/Model/index.d.ts:95
 
 **Returns**
 
@@ -386,7 +386,7 @@ Defined in: ../../../../Users/charliechen/zt/sdk/node\_modules/.pnpm/@nozbe+wate
 
 > **get** **id**(): `string`
 
-Defined in: ../../../../Users/charliechen/zt/sdk/node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/watermelondb/Model/index.d.ts:44
+Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/watermelondb/Model/index.d.ts:44
 
 **Returns**
 
@@ -404,7 +404,7 @@ Defined in: ../../../../Users/charliechen/zt/sdk/node\_modules/.pnpm/@nozbe+wate
 
 > **get** **syncStatus**(): `SyncStatus`
 
-Defined in: ../../../../Users/charliechen/zt/sdk/node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/watermelondb/Model/index.d.ts:46
+Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/watermelondb/Model/index.d.ts:46
 
 **Returns**
 
@@ -422,7 +422,7 @@ Defined in: ../../../../Users/charliechen/zt/sdk/node\_modules/.pnpm/@nozbe+wate
 
 > **get** **table**(): `string`
 
-Defined in: ../../../../Users/charliechen/zt/sdk/node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/watermelondb/Model/index.d.ts:113
+Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/watermelondb/Model/index.d.ts:113
 
 **Returns**
 
@@ -438,7 +438,7 @@ Defined in: ../../../../Users/charliechen/zt/sdk/node\_modules/.pnpm/@nozbe+wate
 
 > **\_\_ensureCanSetRaw**(): `void`
 
-Defined in: ../../../../Users/charliechen/zt/sdk/node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/watermelondb/Model/index.d.ts:141
+Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/watermelondb/Model/index.d.ts:141
 
 **Returns**
 
@@ -454,7 +454,7 @@ Defined in: ../../../../Users/charliechen/zt/sdk/node\_modules/.pnpm/@nozbe+wate
 
 > **\_\_ensureNotDisposable**(`debugName`: `string`): `void`
 
-Defined in: ../../../../Users/charliechen/zt/sdk/node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/watermelondb/Model/index.d.ts:143
+Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/watermelondb/Model/index.d.ts:143
 
 **Parameters**
 
@@ -495,7 +495,7 @@ Defined in: ../../../../Users/charliechen/zt/sdk/node\_modules/.pnpm/@nozbe+wate
 
 > **\_dangerouslySetRawWithoutMarkingColumnChange**(`rawFieldName`: `string`, `rawValue`: `Value`): `void`
 
-Defined in: ../../../../Users/charliechen/zt/sdk/node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/watermelondb/Model/index.d.ts:139
+Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/watermelondb/Model/index.d.ts:139
 
 **Parameters**
 
@@ -548,7 +548,7 @@ Defined in: ../../../../Users/charliechen/zt/sdk/node\_modules/.pnpm/@nozbe+wate
 
 > **\_getChanges**(): `BehaviorSubject`<`any`>
 
-Defined in: ../../../../Users/charliechen/zt/sdk/node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/watermelondb/Model/index.d.ts:42
+Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/watermelondb/Model/index.d.ts:42
 
 **Returns**
 
@@ -564,7 +564,7 @@ Defined in: ../../../../Users/charliechen/zt/sdk/node\_modules/.pnpm/@nozbe+wate
 
 > **\_getRaw**(`rawFieldName`: `string`): `Value`
 
-Defined in: ../../../../Users/charliechen/zt/sdk/node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/watermelondb/Model/index.d.ts:133
+Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/watermelondb/Model/index.d.ts:133
 
 **Parameters**
 
@@ -605,7 +605,7 @@ Defined in: ../../../../Users/charliechen/zt/sdk/node\_modules/.pnpm/@nozbe+wate
 
 > **\_notifyChanged**(): `void`
 
-Defined in: ../../../../Users/charliechen/zt/sdk/node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/watermelondb/Model/index.d.ts:129
+Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/watermelondb/Model/index.d.ts:129
 
 **Returns**
 
@@ -621,7 +621,7 @@ Defined in: ../../../../Users/charliechen/zt/sdk/node\_modules/.pnpm/@nozbe+wate
 
 > **\_notifyDestroyed**(): `void`
 
-Defined in: ../../../../Users/charliechen/zt/sdk/node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/watermelondb/Model/index.d.ts:131
+Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/watermelondb/Model/index.d.ts:131
 
 **Returns**
 
@@ -637,7 +637,7 @@ Defined in: ../../../../Users/charliechen/zt/sdk/node\_modules/.pnpm/@nozbe+wate
 
 > **\_setRaw**(`rawFieldName`: `string`, `rawValue`: `Value`): `void`
 
-Defined in: ../../../../Users/charliechen/zt/sdk/node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/watermelondb/Model/index.d.ts:135
+Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/watermelondb/Model/index.d.ts:135
 
 **Parameters**
 
@@ -690,7 +690,7 @@ Defined in: ../../../../Users/charliechen/zt/sdk/node\_modules/.pnpm/@nozbe+wate
 
 > **batch**(...`records`: `$ReadOnlyArray`<`false` | `void` | `Model` | `null`>): `Promise`<`void`>
 
-Defined in: ../../../../Users/charliechen/zt/sdk/node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/watermelondb/Model/index.d.ts:102
+Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/watermelondb/Model/index.d.ts:102
 
 **Parameters**
 
@@ -731,7 +731,7 @@ Defined in: ../../../../Users/charliechen/zt/sdk/node\_modules/.pnpm/@nozbe+wate
 
 > **callReader**<`T`>(`action`: () => `Promise`<`T`>): `Promise`<`T`>
 
-Defined in: ../../../../Users/charliechen/zt/sdk/node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/watermelondb/Model/index.d.ts:108
+Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/watermelondb/Model/index.d.ts:108
 
 **Type Parameters**
 
@@ -791,7 +791,7 @@ Defined in: ../../../../Users/charliechen/zt/sdk/node\_modules/.pnpm/@nozbe+wate
 
 > **callWriter**<`T`>(`action`: () => `Promise`<`T`>): `Promise`<`T`>
 
-Defined in: ../../../../Users/charliechen/zt/sdk/node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/watermelondb/Model/index.d.ts:105
+Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/watermelondb/Model/index.d.ts:105
 
 **Type Parameters**
 
@@ -851,7 +851,7 @@ Defined in: ../../../../Users/charliechen/zt/sdk/node\_modules/.pnpm/@nozbe+wate
 
 > **destroyPermanently**(): `Promise`<`void`>
 
-Defined in: ../../../../Users/charliechen/zt/sdk/node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/watermelondb/Model/index.d.ts:74
+Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/watermelondb/Model/index.d.ts:74
 
 **Returns**
 
@@ -867,7 +867,7 @@ Defined in: ../../../../Users/charliechen/zt/sdk/node\_modules/.pnpm/@nozbe+wate
 
 > **experimentalDestroyPermanently**(): `Promise`<`void`>
 
-Defined in: ../../../../Users/charliechen/zt/sdk/node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/watermelondb/Model/index.d.ts:78
+Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/watermelondb/Model/index.d.ts:78
 
 **Returns**
 
@@ -883,7 +883,7 @@ Defined in: ../../../../Users/charliechen/zt/sdk/node\_modules/.pnpm/@nozbe+wate
 
 > **experimentalMarkAsDeleted**(): `Promise`<`void`>
 
-Defined in: ../../../../Users/charliechen/zt/sdk/node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/watermelondb/Model/index.d.ts:76
+Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/watermelondb/Model/index.d.ts:76
 
 **Returns**
 
@@ -899,7 +899,7 @@ Defined in: ../../../../Users/charliechen/zt/sdk/node\_modules/.pnpm/@nozbe+wate
 
 > **experimentalSubscribe**(`subscriber`: (`isDeleted`: `boolean`) => `void`, `debugInfo?`: `any`): `Unsubscribe`
 
-Defined in: ../../../../Users/charliechen/zt/sdk/node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/watermelondb/Model/index.d.ts:127
+Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/watermelondb/Model/index.d.ts:127
 
 **Parameters**
 
@@ -952,7 +952,7 @@ Defined in: ../../../../Users/charliechen/zt/sdk/node\_modules/.pnpm/@nozbe+wate
 
 > **markAsDeleted**(): `Promise`<`void`>
 
-Defined in: ../../../../Users/charliechen/zt/sdk/node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/watermelondb/Model/index.d.ts:70
+Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/watermelondb/Model/index.d.ts:70
 
 **Returns**
 
@@ -968,7 +968,7 @@ Defined in: ../../../../Users/charliechen/zt/sdk/node\_modules/.pnpm/@nozbe+wate
 
 > **observe**(): `Observable`<`Media`>
 
-Defined in: ../../../../Users/charliechen/zt/sdk/node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/watermelondb/Model/index.d.ts:84
+Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/watermelondb/Model/index.d.ts:84
 
 **Returns**
 
@@ -984,7 +984,7 @@ Defined in: ../../../../Users/charliechen/zt/sdk/node\_modules/.pnpm/@nozbe+wate
 
 > **prepareDestroyPermanently**(): `this`
 
-Defined in: ../../../../Users/charliechen/zt/sdk/node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/watermelondb/Model/index.d.ts:66
+Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/watermelondb/Model/index.d.ts:66
 
 **Returns**
 
@@ -1000,7 +1000,7 @@ Defined in: ../../../../Users/charliechen/zt/sdk/node\_modules/.pnpm/@nozbe+wate
 
 > **prepareMarkAsDeleted**(): `this`
 
-Defined in: ../../../../Users/charliechen/zt/sdk/node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/watermelondb/Model/index.d.ts:64
+Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/watermelondb/Model/index.d.ts:64
 
 **Returns**
 
@@ -1016,7 +1016,7 @@ Defined in: ../../../../Users/charliechen/zt/sdk/node\_modules/.pnpm/@nozbe+wate
 
 > **prepareUpdate**(`recordUpdater?`: (`_`: `this`) => `void`): `this`
 
-Defined in: ../../../../Users/charliechen/zt/sdk/node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/watermelondb/Model/index.d.ts:62
+Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/watermelondb/Model/index.d.ts:62
 
 **Parameters**
 
@@ -1057,7 +1057,7 @@ Defined in: ../../../../Users/charliechen/zt/sdk/node\_modules/.pnpm/@nozbe+wate
 
 > **subAction**<`T`>(`action`: () => `Promise`<`T`>): `Promise`<`T`>
 
-Defined in: ../../../../Users/charliechen/zt/sdk/node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/watermelondb/Model/index.d.ts:111
+Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/watermelondb/Model/index.d.ts:111
 
 **Type Parameters**
 
@@ -1117,7 +1117,7 @@ Defined in: ../../../../Users/charliechen/zt/sdk/node\_modules/.pnpm/@nozbe+wate
 
 > **update**(`recordUpdater?`: (`_`: `this`) => `void`): `Promise`<`Media`>
 
-Defined in: ../../../../Users/charliechen/zt/sdk/node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/watermelondb/Model/index.d.ts:55
+Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/watermelondb/Model/index.d.ts:55
 
 **Parameters**
 
@@ -1158,7 +1158,7 @@ Defined in: ../../../../Users/charliechen/zt/sdk/node\_modules/.pnpm/@nozbe+wate
 
 > `static` **\_disposableFromDirtyRaw**(`collection`: `Collection`<`Model`>, `dirtyRaw`: `DirtyRaw`): `Model`
 
-Defined in: ../../../../Users/charliechen/zt/sdk/node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/watermelondb/Model/index.d.ts:123
+Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/watermelondb/Model/index.d.ts:123
 
 **Parameters**
 
@@ -1211,7 +1211,7 @@ Defined in: ../../../../Users/charliechen/zt/sdk/node\_modules/.pnpm/@nozbe+wate
 
 > `static` **\_prepareCreate**(`collection`: `Collection`<`Model`>, `recordBuilder`: (`_`: `Model`) => `void`): `Model`
 
-Defined in: ../../../../Users/charliechen/zt/sdk/node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/watermelondb/Model/index.d.ts:119
+Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/watermelondb/Model/index.d.ts:119
 
 **Parameters**
 
@@ -1264,7 +1264,7 @@ Defined in: ../../../../Users/charliechen/zt/sdk/node\_modules/.pnpm/@nozbe+wate
 
 > `static` **\_prepareCreateFromDirtyRaw**(`collection`: `Collection`<`Model`>, `dirtyRaw`: `DirtyRaw`): `Model`
 
-Defined in: ../../../../Users/charliechen/zt/sdk/node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/watermelondb/Model/index.d.ts:121
+Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/watermelondb/Model/index.d.ts:121
 
 **Parameters**
 
