@@ -2,7 +2,7 @@
 
 > **OpenaiChatCompletionNewParamsWebSearchOptionsUserLocation** = `object`
 
-Defined in: [src/client/types.gen.ts:4245](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4245)
+Defined in: [src/client/types.gen.ts:4278](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4278)
 
 Approximate location parameters for the search.
 
@@ -12,7 +12,7 @@ Approximate location parameters for the search.
 
 > `optional` **any**: `unknown`
 
-Defined in: [src/client/types.gen.ts:4246](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4246)
+Defined in: [src/client/types.gen.ts:4279](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4279)
 
 ***
 
@@ -20,7 +20,7 @@ Defined in: [src/client/types.gen.ts:4246](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **approximate**: [`OpenaiChatCompletionNewParamsWebSearchOptionsUserLocationApproximate`](OpenaiChatCompletionNewParamsWebSearchOptionsUserLocationApproximate.md)
 
-Defined in: [src/client/types.gen.ts:4247](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4247)
+Defined in: [src/client/types.gen.ts:4280](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4280)
 
 ***
 
@@ -28,7 +28,7 @@ Defined in: [src/client/types.gen.ts:4247](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **type**: `string`
 
-Defined in: [src/client/types.gen.ts:4253](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4253)
+Defined in: [src/client/types.gen.ts:4286](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4286)
 
 The type of location approximation. Always `approximate`.
 

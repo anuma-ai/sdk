@@ -2,4 +2,4 @@
 
 > **PostApiV1SubscriptionsCustomerPortalResponse** = [`PostApiV1SubscriptionsCustomerPortalResponses`](PostApiV1SubscriptionsCustomerPortalResponses.md)\[keyof [`PostApiV1SubscriptionsCustomerPortalResponses`](PostApiV1SubscriptionsCustomerPortalResponses.md)]
 
-Defined in: [src/client/types.gen.ts:10105](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10105)
+Defined in: [src/client/types.gen.ts:10184](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10184)

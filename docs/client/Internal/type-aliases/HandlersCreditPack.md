@@ -2,7 +2,7 @@
 
 > **HandlersCreditPack** = `object`
 
-Defined in: [src/client/types.gen.ts:1974](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1974)
+Defined in: [src/client/types.gen.ts:1987](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1987)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:1974](https://github.com/anuma-ai/sdk/blob/
 
 > **credits**: `number`
 
-Defined in: [src/client/types.gen.ts:1975](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1975)
+Defined in: [src/client/types.gen.ts:1988](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1988)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:1975](https://github.com/anuma-ai/sdk/blob/
 
 > **currency**: `string`
 
-Defined in: [src/client/types.gen.ts:1976](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1976)
+Defined in: [src/client/types.gen.ts:1989](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1989)
 
 ***
 
@@ -26,4 +26,4 @@ Defined in: [src/client/types.gen.ts:1976](https://github.com/anuma-ai/sdk/blob/
 
 > **unit\_amount**: `number`
 
-Defined in: [src/client/types.gen.ts:1977](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1977)
+Defined in: [src/client/types.gen.ts:1990](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1990)

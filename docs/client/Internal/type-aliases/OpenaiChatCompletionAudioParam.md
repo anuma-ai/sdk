@@ -2,7 +2,7 @@
 
 > **OpenaiChatCompletionAudioParam** = `object`
 
-Defined in: [src/client/types.gen.ts:3765](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3765)
+Defined in: [src/client/types.gen.ts:3798](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3798)
 
 Parameters for audio output. Required when audio output is requested with
 `modalities: ["audio"]`.
@@ -14,7 +14,7 @@ Parameters for audio output. Required when audio output is requested with
 
 > `optional` **any**: `unknown`
 
-Defined in: [src/client/types.gen.ts:3766](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3766)
+Defined in: [src/client/types.gen.ts:3799](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3799)
 
 ***
 
@@ -22,7 +22,7 @@ Defined in: [src/client/types.gen.ts:3766](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **format**: [`OpenaiChatCompletionAudioParamFormat`](OpenaiChatCompletionAudioParamFormat.md)
 
-Defined in: [src/client/types.gen.ts:3767](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3767)
+Defined in: [src/client/types.gen.ts:3800](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3800)
 
 ***
 
@@ -30,4 +30,4 @@ Defined in: [src/client/types.gen.ts:3767](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **voice**: [`OpenaiChatCompletionAudioParamVoice`](OpenaiChatCompletionAudioParamVoice.md)
 
-Defined in: [src/client/types.gen.ts:3768](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3768)
+Defined in: [src/client/types.gen.ts:3801](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3801)

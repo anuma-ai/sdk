@@ -2,7 +2,7 @@
 
 > **HandlersCancelSubscriptionRequest** = `object`
 
-Defined in: [src/client/types.gen.ts:1589](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1589)
+Defined in: [src/client/types.gen.ts:1602](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1602)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:1589](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **comment**: `string`
 
-Defined in: [src/client/types.gen.ts:1593](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1593)
+Defined in: [src/client/types.gen.ts:1606](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1606)
 
 free-text from the survey's "Other" option
 
@@ -20,7 +20,7 @@ free-text from the survey's "Other" option
 
 > `optional` **reason**: `string`
 
-Defined in: [src/client/types.gen.ts:1597](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1597)
+Defined in: [src/client/types.gen.ts:1610](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1610)
 
 Stripe cancellation\_details.feedback enum value
 
@@ -30,7 +30,7 @@ Stripe cancellation\_details.feedback enum value
 
 > `optional` **reason\_detail**: `string`
 
-Defined in: [src/client/types.gen.ts:1601](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1601)
+Defined in: [src/client/types.gen.ts:1614](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1614)
 
 granular survey taxonomy (no native Stripe field)
 
@@ -40,6 +40,6 @@ granular survey taxonomy (no native Stripe field)
 
 > `optional` **switched\_to**: `string`
 
-Defined in: [src/client/types.gen.ts:1605](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1605)
+Defined in: [src/client/types.gen.ts:1618](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1618)
 
 competitor, when the user switched to another AI

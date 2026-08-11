@@ -2,7 +2,7 @@
 
 > **HandlersUsageByModelResponse** = `object`
 
-Defined in: [src/client/types.gen.ts:3290](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3290)
+Defined in: [src/client/types.gen.ts:3315](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3315)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:3290](https://github.com/anuma-ai/sdk/blob/
 
 > **models**: [`HandlersModelUsageItem`](HandlersModelUsageItem.md)\[]
 
-Defined in: [src/client/types.gen.ts:3291](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3291)
+Defined in: [src/client/types.gen.ts:3316](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3316)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:3291](https://github.com/anuma-ai/sdk/blob/
 
 > **period**: [`HandlersUsagePeriod`](HandlersUsagePeriod.md)
 
-Defined in: [src/client/types.gen.ts:3292](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3292)
+Defined in: [src/client/types.gen.ts:3317](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3317)
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: [src/client/types.gen.ts:3292](https://github.com/anuma-ai/sdk/blob/
 
 > **tool\_usage**: [`HandlersModelToolUsageItem`](HandlersModelToolUsageItem.md)\[]
 
-Defined in: [src/client/types.gen.ts:3293](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3293)
+Defined in: [src/client/types.gen.ts:3318](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3318)
 
 ***
 
@@ -34,4 +34,4 @@ Defined in: [src/client/types.gen.ts:3293](https://github.com/anuma-ai/sdk/blob/
 
 > **totals**: [`HandlersUsageTotals`](HandlersUsageTotals.md)
 
-Defined in: [src/client/types.gen.ts:3294](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3294)
+Defined in: [src/client/types.gen.ts:3319](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3319)

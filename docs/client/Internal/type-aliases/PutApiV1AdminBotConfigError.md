@@ -2,4 +2,4 @@
 
 > **PutApiV1AdminBotConfigError** = [`PutApiV1AdminBotConfigErrors`](PutApiV1AdminBotConfigErrors.md)\[keyof [`PutApiV1AdminBotConfigErrors`](PutApiV1AdminBotConfigErrors.md)]
 
-Defined in: [src/client/types.gen.ts:5433](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5433)
+Defined in: [src/client/types.gen.ts:5466](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5466)

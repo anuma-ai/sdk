@@ -2,7 +2,7 @@
 
 > **PostInternalCompleteResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:11465](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11465)
+Defined in: [src/client/types.gen.ts:11544](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11544)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:11465](https://github.com/anuma-ai/sdk/blob
 
 > **200**: `LlmapiChatCompletionResponse`
 
-Defined in: [src/client/types.gen.ts:11469](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11469)
+Defined in: [src/client/types.gen.ts:11548](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11548)
 
 OK

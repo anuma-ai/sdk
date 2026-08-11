@@ -1128,6 +1128,19 @@ export type HandlersApiKeyWithKeyResponse = {
 
 export type HandlersAccountByDidResponse = {
     account_id?: number;
+    /**
+     * InternalTester exempts the account from the People Nearby onboarding geofence (#1578).
+     *
+     * A sibling boolean rather than a field inside an `entitlements` object, following PhoneVerified:
+     * this is a per-account GRANT, not a tier-derived cap, and nearby consumes it as an authorization
+     * input on its own. The per-tier entitlements matrix is deferred — People Nearby has no pricing
+     * yet — so shipping an entitlements object now would mean inventing values for four caps nobody
+     * has decided.
+     *
+     * Absent/false is the safe answer, and that is what an older portal build serves to a newer
+     * nearby: the field simply unmarshals to false and nobody is exempt.
+     */
+    internal_tester?: boolean;
     phone_verified?: boolean;
     privy_did?: string;
 };
@@ -2901,6 +2914,18 @@ export type HandlersSetConnectorEnabledRequest = {
     enabled?: boolean;
 };
 
+export type HandlersSetInternalTesterRequest = {
+    grant?: boolean;
+    user_address?: string;
+};
+
+export type HandlersSetInternalTesterResponse = {
+    internal_tester?: boolean;
+    message?: string;
+    success: boolean;
+    user_address: string;
+};
+
 export type HandlersSetNotificationPreferenceInput = {
     enabled?: boolean;
     id?: string;
@@ -3366,6 +3391,14 @@ export type HandlersUserLookupAccount = {
     fraud_notes?: string;
     id?: number;
     identifier?: string;
+    /**
+     * InternalTester and InternalTesterAt report the People Nearby internal-tester grant (#1578), so
+     * the console renders the toggle's CURRENT state instead of guessing. Always emitted (no omitempty)
+     * because false is meaningful here — an absent field would be indistinguishable from an older
+     * portal build, on a security-relevant flag.
+     */
+    internal_tester?: boolean;
+    internal_tester_at?: string;
     stripe_customer_id?: string;
     type?: string;
 };
@@ -6744,6 +6777,52 @@ export type DeleteApiV1AdminUsersDeleteResponses = {
 };
 
 export type DeleteApiV1AdminUsersDeleteResponse = DeleteApiV1AdminUsersDeleteResponses[keyof DeleteApiV1AdminUsersDeleteResponses];
+
+export type PostApiV1AdminUsersInternalTesterData = {
+    /**
+     * Set internal tester request
+     */
+    body: HandlersSetInternalTesterRequest;
+    headers: {
+        /**
+         * Admin API key
+         */
+        'X-Admin-API-Key': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/admin/users/internal-tester';
+};
+
+export type PostApiV1AdminUsersInternalTesterErrors = {
+    /**
+     * Bad Request
+     */
+    400: ResponseErrorResponse;
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+    /**
+     * Not Found
+     */
+    404: ResponseErrorResponse;
+    /**
+     * Internal Server Error
+     */
+    500: ResponseErrorResponse;
+};
+
+export type PostApiV1AdminUsersInternalTesterError = PostApiV1AdminUsersInternalTesterErrors[keyof PostApiV1AdminUsersInternalTesterErrors];
+
+export type PostApiV1AdminUsersInternalTesterResponses = {
+    /**
+     * OK
+     */
+    200: HandlersSetInternalTesterResponse;
+};
+
+export type PostApiV1AdminUsersInternalTesterResponse = PostApiV1AdminUsersInternalTesterResponses[keyof PostApiV1AdminUsersInternalTesterResponses];
 
 export type GetApiV1AdminUsersLookupData = {
     body?: never;

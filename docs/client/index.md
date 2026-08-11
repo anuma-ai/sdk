@@ -576,6 +576,8 @@
 | [HandlersSendTestPushRequest](Internal/type-aliases/HandlersSendTestPushRequest.md) | - |
 | [HandlersSendTestPushResponse](Internal/type-aliases/HandlersSendTestPushResponse.md) | - |
 | [HandlersSetConnectorEnabledRequest](Internal/type-aliases/HandlersSetConnectorEnabledRequest.md) | - |
+| [HandlersSetInternalTesterRequest](Internal/type-aliases/HandlersSetInternalTesterRequest.md) | - |
+| [HandlersSetInternalTesterResponse](Internal/type-aliases/HandlersSetInternalTesterResponse.md) | - |
 | [HandlersSetNotificationPreferenceInput](Internal/type-aliases/HandlersSetNotificationPreferenceInput.md) | - |
 | [HandlersSetNotificationPreferencesRequest](Internal/type-aliases/HandlersSetNotificationPreferencesRequest.md) | - |
 | [HandlersSetScopeItem](Internal/type-aliases/HandlersSetScopeItem.md) | - |
@@ -858,6 +860,11 @@
 | [PostApiV1AdminSubscriptionTierErrors](Internal/type-aliases/PostApiV1AdminSubscriptionTierErrors.md) | - |
 | [PostApiV1AdminSubscriptionTierResponse](Internal/type-aliases/PostApiV1AdminSubscriptionTierResponse.md) | - |
 | [PostApiV1AdminSubscriptionTierResponses](Internal/type-aliases/PostApiV1AdminSubscriptionTierResponses.md) | - |
+| [PostApiV1AdminUsersInternalTesterData](Internal/type-aliases/PostApiV1AdminUsersInternalTesterData.md) | - |
+| [PostApiV1AdminUsersInternalTesterError](Internal/type-aliases/PostApiV1AdminUsersInternalTesterError.md) | - |
+| [PostApiV1AdminUsersInternalTesterErrors](Internal/type-aliases/PostApiV1AdminUsersInternalTesterErrors.md) | - |
+| [PostApiV1AdminUsersInternalTesterResponse](Internal/type-aliases/PostApiV1AdminUsersInternalTesterResponse.md) | - |
+| [PostApiV1AdminUsersInternalTesterResponses](Internal/type-aliases/PostApiV1AdminUsersInternalTesterResponses.md) | - |
 | [PostApiV1AdminUsersSuspendData](Internal/type-aliases/PostApiV1AdminUsersSuspendData.md) | - |
 | [PostApiV1AdminUsersSuspendError](Internal/type-aliases/PostApiV1AdminUsersSuspendError.md) | - |
 | [PostApiV1AdminUsersSuspendErrors](Internal/type-aliases/PostApiV1AdminUsersSuspendErrors.md) | - |
@@ -1378,6 +1385,7 @@
 | [postApiV1AdminPrivyIdentifiersMigrate](Internal/functions/postApiV1AdminPrivyIdentifiersMigrate.md) | Migrate Privy wallet identifiers |
 | [postApiV1AdminSeedApps](Internal/functions/postApiV1AdminSeedApps.md) | Seed apps and API keys |
 | [postApiV1AdminSubscriptionTier](Internal/functions/postApiV1AdminSubscriptionTier.md) | Set user subscription tier |
+| [postApiV1AdminUsersInternalTester](Internal/functions/postApiV1AdminUsersInternalTester.md) | Grant or revoke the People Nearby internal-tester flag |
 | [postApiV1AdminUsersSuspend](Internal/functions/postApiV1AdminUsersSuspend.md) | Suspend a user account |
 | [postApiV1AdminUsersUnsuspend](Internal/functions/postApiV1AdminUsersUnsuspend.md) | Unsuspend a user account |
 | [postApiV1AuthMfaDisable](Internal/functions/postApiV1AuthMfaDisable.md) | Disable MFA |

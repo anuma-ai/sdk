@@ -2,7 +2,7 @@
 
 > **HandlersClaimTokenMintRequest** = `object`
 
-Defined in: [src/client/types.gen.ts:1618](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1618)
+Defined in: [src/client/types.gen.ts:1631](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1631)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:1618](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **tester\_id**: `number`
 
-Defined in: [src/client/types.gen.ts:1619](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1619)
+Defined in: [src/client/types.gen.ts:1632](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1632)
 
 ***
 
@@ -18,4 +18,4 @@ Defined in: [src/client/types.gen.ts:1619](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **ttl\_seconds**: `number`
 
-Defined in: [src/client/types.gen.ts:1620](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1620)
+Defined in: [src/client/types.gen.ts:1633](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1633)

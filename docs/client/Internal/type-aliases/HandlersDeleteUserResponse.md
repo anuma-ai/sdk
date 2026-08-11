@@ -2,7 +2,7 @@
 
 > **HandlersDeleteUserResponse** = `object`
 
-Defined in: [src/client/types.gen.ts:2001](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2001)
+Defined in: [src/client/types.gen.ts:2014](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2014)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:2001](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **account\_id**: `number`
 
-Defined in: [src/client/types.gen.ts:2002](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2002)
+Defined in: [src/client/types.gen.ts:2015](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2015)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:2002](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **message**: `string`
 
-Defined in: [src/client/types.gen.ts:2003](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2003)
+Defined in: [src/client/types.gen.ts:2016](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2016)
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: [src/client/types.gen.ts:2003](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **portal\_account\_deleted**: `boolean`
 
-Defined in: [src/client/types.gen.ts:2004](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2004)
+Defined in: [src/client/types.gen.ts:2017](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2017)
 
 ***
 
@@ -34,7 +34,7 @@ Defined in: [src/client/types.gen.ts:2004](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **privy\_user\_deleted**: `boolean`
 
-Defined in: [src/client/types.gen.ts:2005](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2005)
+Defined in: [src/client/types.gen.ts:2018](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2018)
 
 ***
 
@@ -42,7 +42,7 @@ Defined in: [src/client/types.gen.ts:2005](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **stripe\_cleanup\_succeeded**: `boolean`
 
-Defined in: [src/client/types.gen.ts:2006](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2006)
+Defined in: [src/client/types.gen.ts:2019](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2019)
 
 ***
 
@@ -50,4 +50,4 @@ Defined in: [src/client/types.gen.ts:2006](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **wallet\_address**: `string`
 
-Defined in: [src/client/types.gen.ts:2007](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2007)
+Defined in: [src/client/types.gen.ts:2020](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2020)

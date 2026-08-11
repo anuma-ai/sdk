@@ -2,7 +2,7 @@
 
 > **postApiV1AuthMfaRecoveryCodesRegenerate**<`ThrowOnError`>(`options?`: [`Options`](../type-aliases/Options.md)<[`PostApiV1AuthMfaRecoveryCodesRegenerateData`](../type-aliases/PostApiV1AuthMfaRecoveryCodesRegenerateData.md), `ThrowOnError`, `unknown`>): `RequestResult`<[`PostApiV1AuthMfaRecoveryCodesRegenerateResponses`](../type-aliases/PostApiV1AuthMfaRecoveryCodesRegenerateResponses.md), [`PostApiV1AuthMfaRecoveryCodesRegenerateErrors`](../type-aliases/PostApiV1AuthMfaRecoveryCodesRegenerateErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:602](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#602)
+Defined in: [src/client/sdk.gen.ts:616](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#616)
 
 Regenerate recovery codes
 

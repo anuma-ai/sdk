@@ -2,4 +2,4 @@
 
 > **PostApiV1GuestChatCompletionsResponse** = [`PostApiV1GuestChatCompletionsResponses`](PostApiV1GuestChatCompletionsResponses.md)\[keyof [`PostApiV1GuestChatCompletionsResponses`](PostApiV1GuestChatCompletionsResponses.md)]
 
-Defined in: [src/client/types.gen.ts:9159](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9159)
+Defined in: [src/client/types.gen.ts:9238](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9238)

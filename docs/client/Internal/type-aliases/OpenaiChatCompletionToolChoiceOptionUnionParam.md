@@ -2,7 +2,7 @@
 
 > **OpenaiChatCompletionToolChoiceOptionUnionParam** = `object`
 
-Defined in: [src/client/types.gen.ts:4403](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4403)
+Defined in: [src/client/types.gen.ts:4436](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4436)
 
 Controls which (if any) tool is called by the model. `none` means the model will
 not call any tool and instead generates a message. `auto` means the model can
@@ -20,7 +20,7 @@ are present.
 
 > `optional` **any**: `unknown`
 
-Defined in: [src/client/types.gen.ts:4404](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4404)
+Defined in: [src/client/types.gen.ts:4437](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4437)
 
 ***
 
@@ -28,7 +28,7 @@ Defined in: [src/client/types.gen.ts:4404](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **ofAuto**: [`ParamOptString`](ParamOptString.md)
 
-Defined in: [src/client/types.gen.ts:4405](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4405)
+Defined in: [src/client/types.gen.ts:4438](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4438)
 
 ***
 
@@ -36,4 +36,4 @@ Defined in: [src/client/types.gen.ts:4405](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **ofChatCompletionNamedToolChoice**: [`OpenaiChatCompletionNamedToolChoiceParam`](OpenaiChatCompletionNamedToolChoiceParam.md)
 
-Defined in: [src/client/types.gen.ts:4406](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4406)
+Defined in: [src/client/types.gen.ts:4439](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4439)

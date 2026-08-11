@@ -2,7 +2,7 @@
 
 > **GetApiV1AdminAppsByAppIdApiKeysData** = `object`
 
-Defined in: [src/client/types.gen.ts:5002](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5002)
+Defined in: [src/client/types.gen.ts:5035](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5035)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:5002](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **body**: `never`
 
-Defined in: [src/client/types.gen.ts:5003](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5003)
+Defined in: [src/client/types.gen.ts:5036](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5036)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:5003](https://github.com/anuma-ai/sdk/blob/
 
 > **headers**: `object`
 
-Defined in: [src/client/types.gen.ts:5004](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5004)
+Defined in: [src/client/types.gen.ts:5037](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5037)
 
 **X-Admin-API-Key**
 
@@ -32,7 +32,7 @@ Admin API key
 
 > **path**: `object`
 
-Defined in: [src/client/types.gen.ts:5010](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5010)
+Defined in: [src/client/types.gen.ts:5043](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5043)
 
 **app\_id**
 
@@ -46,7 +46,7 @@ App ID
 
 > `optional` **query**: `object`
 
-Defined in: [src/client/types.gen.ts:5016](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5016)
+Defined in: [src/client/types.gen.ts:5049](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5049)
 
 **limit?**
 
@@ -66,4 +66,4 @@ Number of API keys to skip (default 0)
 
 > **url**: `"/api/v1/admin/apps/{app_id}/api-keys"`
 
-Defined in: [src/client/types.gen.ts:5026](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5026)
+Defined in: [src/client/types.gen.ts:5059](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5059)

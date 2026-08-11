@@ -2,7 +2,7 @@
 
 > **GetReferralMeResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:12012](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#12012)
+Defined in: [src/client/types.gen.ts:12091](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#12091)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:12012](https://github.com/anuma-ai/sdk/blob
 
 > **200**: [`HandlersReferralMeResponse`](HandlersReferralMeResponse.md)
 
-Defined in: [src/client/types.gen.ts:12016](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#12016)
+Defined in: [src/client/types.gen.ts:12095](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#12095)
 
 OK

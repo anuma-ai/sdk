@@ -2,7 +2,7 @@
 
 > **GetApiV1DeveloperAppsData** = `object`
 
-Defined in: [src/client/types.gen.ts:8158](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8158)
+Defined in: [src/client/types.gen.ts:8237](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8237)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:8158](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **body**: `never`
 
-Defined in: [src/client/types.gen.ts:8159](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8159)
+Defined in: [src/client/types.gen.ts:8238](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8238)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:8159](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **path**: `never`
 
-Defined in: [src/client/types.gen.ts:8160](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8160)
+Defined in: [src/client/types.gen.ts:8239](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8239)
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: [src/client/types.gen.ts:8160](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **query**: `object`
 
-Defined in: [src/client/types.gen.ts:8161](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8161)
+Defined in: [src/client/types.gen.ts:8240](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8240)
 
 **limit?**
 
@@ -46,4 +46,4 @@ Number of apps to skip (default 0)
 
 > **url**: `"/api/v1/developer/apps"`
 
-Defined in: [src/client/types.gen.ts:8171](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8171)
+Defined in: [src/client/types.gen.ts:8250](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8250)

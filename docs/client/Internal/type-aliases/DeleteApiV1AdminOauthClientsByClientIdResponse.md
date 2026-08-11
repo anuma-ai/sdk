@@ -2,4 +2,4 @@
 
 > **DeleteApiV1AdminOauthClientsByClientIdResponse** = [`DeleteApiV1AdminOauthClientsByClientIdResponses`](DeleteApiV1AdminOauthClientsByClientIdResponses.md)\[keyof [`DeleteApiV1AdminOauthClientsByClientIdResponses`](DeleteApiV1AdminOauthClientsByClientIdResponses.md)]
 
-Defined in: [src/client/types.gen.ts:6055](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6055)
+Defined in: [src/client/types.gen.ts:6088](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6088)

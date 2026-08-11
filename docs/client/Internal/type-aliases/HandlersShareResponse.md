@@ -2,7 +2,7 @@
 
 > **HandlersShareResponse** = `object`
 
-Defined in: [src/client/types.gen.ts:2966](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2966)
+Defined in: [src/client/types.gen.ts:2991](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2991)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:2966](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **caption**: `string`
 
-Defined in: [src/client/types.gen.ts:2967](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2967)
+Defined in: [src/client/types.gen.ts:2992](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2992)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:2967](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **created\_at**: `string`
 
-Defined in: [src/client/types.gen.ts:2968](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2968)
+Defined in: [src/client/types.gen.ts:2993](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2993)
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: [src/client/types.gen.ts:2968](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **height**: `number`
 
-Defined in: [src/client/types.gen.ts:2972](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2972)
+Defined in: [src/client/types.gen.ts:2997](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2997)
 
 pixel height, when known
 
@@ -36,7 +36,7 @@ pixel height, when known
 
 > `optional` **media\_type**: `string`
 
-Defined in: [src/client/types.gen.ts:2973](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2973)
+Defined in: [src/client/types.gen.ts:2998](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2998)
 
 ***
 
@@ -44,7 +44,7 @@ Defined in: [src/client/types.gen.ts:2973](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **media\_url**: `string`
 
-Defined in: [src/client/types.gen.ts:2977](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2977)
+Defined in: [src/client/types.gen.ts:3002](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3002)
 
 public, slug-gated media read (portal indirection)
 
@@ -54,7 +54,7 @@ public, slug-gated media read (portal indirection)
 
 > `optional` **mime\_type**: `string`
 
-Defined in: [src/client/types.gen.ts:2978](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2978)
+Defined in: [src/client/types.gen.ts:3003](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3003)
 
 ***
 
@@ -62,7 +62,7 @@ Defined in: [src/client/types.gen.ts:2978](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **model**: `string`
 
-Defined in: [src/client/types.gen.ts:2979](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2979)
+Defined in: [src/client/types.gen.ts:3004](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3004)
 
 ***
 
@@ -70,7 +70,7 @@ Defined in: [src/client/types.gen.ts:2979](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **slug**: `string`
 
-Defined in: [src/client/types.gen.ts:2980](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2980)
+Defined in: [src/client/types.gen.ts:3005](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3005)
 
 ***
 
@@ -78,7 +78,7 @@ Defined in: [src/client/types.gen.ts:2980](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **url**: `string`
 
-Defined in: [src/client/types.gen.ts:2984](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2984)
+Defined in: [src/client/types.gen.ts:3009](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3009)
 
 public card page link
 
@@ -88,7 +88,7 @@ public card page link
 
 > `optional` **view\_count**: `number`
 
-Defined in: [src/client/types.gen.ts:2985](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2985)
+Defined in: [src/client/types.gen.ts:3010](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3010)
 
 ***
 
@@ -96,7 +96,7 @@ Defined in: [src/client/types.gen.ts:2985](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **visibility**: `string`
 
-Defined in: [src/client/types.gen.ts:2986](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2986)
+Defined in: [src/client/types.gen.ts:3011](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3011)
 
 ***
 
@@ -104,6 +104,6 @@ Defined in: [src/client/types.gen.ts:2986](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **width**: `number`
 
-Defined in: [src/client/types.gen.ts:2990](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2990)
+Defined in: [src/client/types.gen.ts:3015](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3015)
 
 pixel width, when known (for OG image dimensions)

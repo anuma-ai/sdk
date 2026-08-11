@@ -2,7 +2,7 @@
 
 > **PostReferralIdentityResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:11935](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11935)
+Defined in: [src/client/types.gen.ts:12014](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#12014)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:11935](https://github.com/anuma-ai/sdk/blob
 
 > **200**: [`HandlersReferralIdentityResponse`](HandlersReferralIdentityResponse.md)
 
-Defined in: [src/client/types.gen.ts:11939](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11939)
+Defined in: [src/client/types.gen.ts:12018](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#12018)
 
 OK

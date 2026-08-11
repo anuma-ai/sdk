@@ -2,7 +2,7 @@
 
 > **PutApiV1AdminAgentsByIdData** = `object`
 
-Defined in: [src/client/types.gen.ts:4861](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4861)
+Defined in: [src/client/types.gen.ts:4894](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4894)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:4861](https://github.com/anuma-ai/sdk/blob/
 
 > **body**: [`HandlersUpdateAgentRequest`](HandlersUpdateAgentRequest.md)
 
-Defined in: [src/client/types.gen.ts:4865](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4865)
+Defined in: [src/client/types.gen.ts:4898](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4898)
 
 Update agent request
 
@@ -20,7 +20,7 @@ Update agent request
 
 > **headers**: `object`
 
-Defined in: [src/client/types.gen.ts:4866](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4866)
+Defined in: [src/client/types.gen.ts:4899](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4899)
 
 **X-Admin-API-Key**
 
@@ -34,7 +34,7 @@ Admin API key
 
 > **path**: `object`
 
-Defined in: [src/client/types.gen.ts:4872](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4872)
+Defined in: [src/client/types.gen.ts:4905](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4905)
 
 **id**
 
@@ -48,7 +48,7 @@ Agent ID
 
 > `optional` **query**: `never`
 
-Defined in: [src/client/types.gen.ts:4878](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4878)
+Defined in: [src/client/types.gen.ts:4911](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4911)
 
 ***
 
@@ -56,4 +56,4 @@ Defined in: [src/client/types.gen.ts:4878](https://github.com/anuma-ai/sdk/blob/
 
 > **url**: `"/api/v1/admin/agents/{id}"`
 
-Defined in: [src/client/types.gen.ts:4879](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4879)
+Defined in: [src/client/types.gen.ts:4912](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4912)

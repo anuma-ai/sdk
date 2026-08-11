@@ -2,7 +2,7 @@
 
 > **HandlersPrivyIdentifierAuditEntry** = `object`
 
-Defined in: [src/client/types.gen.ts:2598](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2598)
+Defined in: [src/client/types.gen.ts:2611](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2611)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:2598](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **account\_id**: `number`
 
-Defined in: [src/client/types.gen.ts:2599](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2599)
+Defined in: [src/client/types.gen.ts:2612](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2612)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:2599](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **current\_address**: `string`
 
-Defined in: [src/client/types.gen.ts:2600](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2600)
+Defined in: [src/client/types.gen.ts:2613](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2613)
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: [src/client/types.gen.ts:2600](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **embedded\_address**: `string`
 
-Defined in: [src/client/types.gen.ts:2601](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2601)
+Defined in: [src/client/types.gen.ts:2614](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2614)
 
 ***
 
@@ -34,4 +34,4 @@ Defined in: [src/client/types.gen.ts:2601](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **privy\_did**: `string`
 
-Defined in: [src/client/types.gen.ts:2602](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2602)
+Defined in: [src/client/types.gen.ts:2615](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2615)

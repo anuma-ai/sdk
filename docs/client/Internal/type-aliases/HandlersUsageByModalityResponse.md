@@ -2,7 +2,7 @@
 
 > **HandlersUsageByModalityResponse** = `object`
 
-Defined in: [src/client/types.gen.ts:3278](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3278)
+Defined in: [src/client/types.gen.ts:3303](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3303)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:3278](https://github.com/anuma-ai/sdk/blob/
 
 > **modalities**: [`HandlersModalityUsageItem`](HandlersModalityUsageItem.md)\[]
 
-Defined in: [src/client/types.gen.ts:3279](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3279)
+Defined in: [src/client/types.gen.ts:3304](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3304)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:3279](https://github.com/anuma-ai/sdk/blob/
 
 > **period**: [`HandlersUsagePeriod`](HandlersUsagePeriod.md)
 
-Defined in: [src/client/types.gen.ts:3280](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3280)
+Defined in: [src/client/types.gen.ts:3305](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3305)
 
 ***
 
@@ -26,4 +26,4 @@ Defined in: [src/client/types.gen.ts:3280](https://github.com/anuma-ai/sdk/blob/
 
 > **totals**: [`HandlersUsageByModalityTotals`](HandlersUsageByModalityTotals.md)
 
-Defined in: [src/client/types.gen.ts:3281](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3281)
+Defined in: [src/client/types.gen.ts:3306](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3306)

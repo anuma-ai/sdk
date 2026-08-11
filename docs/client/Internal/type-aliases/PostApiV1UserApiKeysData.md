@@ -2,7 +2,7 @@
 
 > **PostApiV1UserApiKeysData** = `object`
 
-Defined in: [src/client/types.gen.ts:10661](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10661)
+Defined in: [src/client/types.gen.ts:10740](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10740)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:10661](https://github.com/anuma-ai/sdk/blob
 
 > **body**: [`HandlersUserApiKeyRequest`](HandlersUserApiKeyRequest.md)
 
-Defined in: [src/client/types.gen.ts:10665](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10665)
+Defined in: [src/client/types.gen.ts:10744](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10744)
 
 API key request
 
@@ -20,7 +20,7 @@ API key request
 
 > `optional` **path**: `never`
 
-Defined in: [src/client/types.gen.ts:10666](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10666)
+Defined in: [src/client/types.gen.ts:10745](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10745)
 
 ***
 
@@ -28,7 +28,7 @@ Defined in: [src/client/types.gen.ts:10666](https://github.com/anuma-ai/sdk/blob
 
 > `optional` **query**: `never`
 
-Defined in: [src/client/types.gen.ts:10667](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10667)
+Defined in: [src/client/types.gen.ts:10746](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10746)
 
 ***
 
@@ -36,4 +36,4 @@ Defined in: [src/client/types.gen.ts:10667](https://github.com/anuma-ai/sdk/blob
 
 > **url**: `"/api/v1/user/api-keys"`
 
-Defined in: [src/client/types.gen.ts:10668](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10668)
+Defined in: [src/client/types.gen.ts:10747](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10747)

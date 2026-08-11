@@ -2,7 +2,7 @@
 
 > **PostApiV1NotificationsDevicesUnregisterResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:9367](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9367)
+Defined in: [src/client/types.gen.ts:9446](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9446)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:9367](https://github.com/anuma-ai/sdk/blob/
 
 > **200**: `object`
 
-Defined in: [src/client/types.gen.ts:9371](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9371)
+Defined in: [src/client/types.gen.ts:9450](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9450)
 
 OK
 

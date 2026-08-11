@@ -2,7 +2,7 @@
 
 > **postApiV1SubscriptionsUpgrade**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`PostApiV1SubscriptionsUpgradeData`](../type-aliases/PostApiV1SubscriptionsUpgradeData.md), `ThrowOnError`>): `RequestResult`<[`PostApiV1SubscriptionsUpgradeResponses`](../type-aliases/PostApiV1SubscriptionsUpgradeResponses.md), [`PostApiV1SubscriptionsUpgradeErrors`](../type-aliases/PostApiV1SubscriptionsUpgradeErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:1371](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1371)
+Defined in: [src/client/sdk.gen.ts:1385](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1385)
 
 Upgrade subscription
 
