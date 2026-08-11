@@ -20,9 +20,9 @@ import {
 } from "../db/chat/summaryOperations";
 import type { StoredConversationSummary, StoredMessage } from "../db/chat/types";
 import { INTERNAL_FLOW_MARKER } from "../internalFlowMarker.js";
-import { taskTypeHeader } from "../taskType.js";
 import { getLogger } from "../logger";
 import type { PiiMatch, PiiRedactor } from "../pii/redactor";
+import { taskTypeHeader } from "../taskType.js";
 
 /** Default token threshold before summarization triggers */
 export const DEFAULT_SUMMARY_TOKEN_THRESHOLD = 4000;

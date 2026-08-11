@@ -38,9 +38,9 @@
 
 import { BASE_URL } from "../../clientConfig.js";
 import { validateEndpointOverride } from "../chat/endpointOverride.js";
-import { taskTypeHeader, type TaskType } from "../taskType.js";
 import { withInternalFlowMarker } from "../internalFlowMarker.js";
 import { getLogger } from "../logger.js";
+import { type TaskType, taskTypeHeader } from "../taskType.js";
 
 /** Read per-call so tests that mutate `process.env` between imports take effect. */
 function defaultBaseUrl(): string {
