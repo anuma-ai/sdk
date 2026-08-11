@@ -115,7 +115,14 @@ jobs:
           # 404s — failing the leg before any SDK code is exercised. Authenticate
           # for the scope when a token is available; unauthenticated runs behave
           # exactly as before.
+          #
+          # The credential lives only for the two installs below: the trap restores
+          # the original .npmrc when this step exits, on success or failure alike.
+          # It must not survive into the Build / E2E steps, which execute the cloned
+          # repo's OWN scripts — anything readable there is effectively disclosed.
           if [ -n "$NPM_TOKEN" ]; then
+            cp .npmrc /tmp/npmrc.orig 2>/dev/null || : > /tmp/npmrc.orig
+            trap 'cp /tmp/npmrc.orig .npmrc; rm -f /tmp/npmrc.orig' EXIT
             echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" >> .npmrc
           fi
           ${{ steps.pm.outputs.cmd }} install
