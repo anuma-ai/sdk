@@ -1965,50 +1965,58 @@ export async function backfillMemoryTopicsOp(
   if (uniqueIds.length === 0) return [];
 
   const filled: string[] = [];
-  await ctx.database.write(async () => {
-    // Phase 1 — every await happens here, before anything is prepared. The row
-    // reads stay INSIDE the writer (writers are serialized, so a committed
-    // delete or topic edit is visible), exactly as they were per-row before.
-    const writes: Array<{ id: string; write: MemoryTopicsWrite }> = [];
-    for (const id of uniqueIds) {
-      let record: VaultMemory;
-      try {
-        record = await ctx.vaultMemoryCollection.find(id);
-      } catch {
-        continue;
+  // Chunked like stampTopicsExtractedAtOp: one writer per chunk bounds both the
+  // batch size and how long this holds the (serialized) writer lock against a
+  // user's own save, without going back to a writer per row.
+  const CHUNK = 500;
+  for (let i = 0; i < uniqueIds.length; i += CHUNK) {
+    const chunkIds = uniqueIds.slice(i, i + CHUNK);
+    await ctx.database.write(async () => {
+      // Phase 1 — every await happens here, before anything is prepared. The row
+      // reads stay INSIDE the writer (writers are serialized, so a committed
+      // delete or topic edit is visible), exactly as they were per-row before.
+      const writes: MemoryTopicsWrite[] = [];
+      for (const id of chunkIds) {
+        let record: VaultMemory;
+        try {
+          record = await ctx.vaultMemoryCollection.find(id);
+        } catch {
+          continue;
+        }
+        if (record.isDeleted || !isOwnedByCtxUser(ctx, record)) continue;
+        if (parseTopics(record.topics) !== null) continue;
+        const links = await entityCtx.memoryEntityCollection
+          .query(Q.where("memory_id", id))
+          .unsafeFetchRaw();
+        const entityIds = (links as Record<string, unknown>[]).map((l) => String(l.entity_id));
+        if (entityIds.length === 0) continue;
+        const entities = await entityCtx.entityCollection
+          .query(Q.where("id", Q.oneOf(entityIds)))
+          .fetch();
+        if (entities.length === 0) continue;
+        // IMPRECISE BY CONSTRUCTION, and safe only because nothing reads `source`
+        // yet. `topics_user_managed` is per-MEMORY, so a curated legacy row stamps
+        // every one of its topics `user` — including auto-derived ones the user
+        // merely kept when they added one of their own. Per-topic provenance simply
+        // wasn't recorded before v42 and cannot be recovered. The later
+        // partial-refresh feature (refresh `auto` entries, leave `user` alone) must
+        // therefore NOT treat a backfilled `source` as ground truth: it would
+        // freeze stale auto topics on every pre-v42 curated memory.
+        const source = record.topicsUserManaged ? "user" : "auto";
+        // Names come from `entity.canonical_name`, so there's no display casing to
+        // pass — a pre-v42 row never recorded one. Hence the empty `inputs`.
+        const write = await resolveMemoryTopicsWrite(entityCtx, id, entities, [], source);
+        if (write) writes.push(write);
       }
-      if (record.isDeleted || !isOwnedByCtxUser(ctx, record)) continue;
-      if (parseTopics(record.topics) !== null) continue;
-      const links = await entityCtx.memoryEntityCollection
-        .query(Q.where("memory_id", id))
-        .unsafeFetchRaw();
-      const entityIds = (links as Record<string, unknown>[]).map((l) => String(l.entity_id));
-      if (entityIds.length === 0) continue;
-      const entities = await entityCtx.entityCollection
-        .query(Q.where("id", Q.oneOf(entityIds)))
-        .fetch();
-      if (entities.length === 0) continue;
-      // IMPRECISE BY CONSTRUCTION, and safe only because nothing reads `source`
-      // yet. `topics_user_managed` is per-MEMORY, so a curated legacy row stamps
-      // every one of its topics `user` — including auto-derived ones the user
-      // merely kept when they added one of their own. Per-topic provenance simply
-      // wasn't recorded before v42 and cannot be recovered. The later
-      // partial-refresh feature (refresh `auto` entries, leave `user` alone) must
-      // therefore NOT treat a backfilled `source` as ground truth: it would
-      // freeze stale auto topics on every pre-v42 curated memory.
-      const source = record.topicsUserManaged ? "user" : "auto";
-      // Names come from `entity.canonical_name`, so there's no display casing to
-      // pass — a pre-v42 row never recorded one. Hence the empty `inputs`.
-      const write = await resolveMemoryTopicsWrite(entityCtx, id, entities, [], source);
-      if (write) writes.push({ id, write });
-    }
-    if (writes.length === 0) return;
+      if (writes.length === 0) return;
 
-    // Phase 2 — synchronous from here to the batch. Keep this a `.map()`.
-    const prepared = writes.map((w) => prepareMemoryTopicsUpdate(w.write));
-    await ctx.database.batch(...prepared);
-    for (const w of writes) filled.push(w.id);
-  });
+      // Phase 2 — synchronous from here to the batch. Keep this a `.map()`.
+      const prepared = writes.map(prepareMemoryTopicsUpdate);
+      await ctx.database.batch(...prepared);
+      // `row.id` IS the memory id — the row was resolved by it.
+      for (const write of writes) filled.push(write.row.id);
+    });
+  }
   return filled;
 }
 

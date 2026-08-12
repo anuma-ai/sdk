@@ -114,7 +114,6 @@ async function upsertEntitiesInWrite(
       return incoming !== undefined && (e.kind === null || e.kind === undefined || e.kind === "");
     })
     .map((record) => ({ record, kind: kindByName.get(record.canonicalName) as string }));
-  const backfilledKinds = new Map(kindBackfills.map((b) => [b.record.canonicalName, b.kind]));
 
   const missing = unique.filter((n) => !existingNames.has(n));
   const created = missing.map((name) =>
@@ -125,16 +124,15 @@ async function upsertEntitiesInWrite(
     })
   );
 
+  for (const e of existing) out.set(e.canonicalName, entityToStored(e));
+  for (const record of created) out.set(record.canonicalName, entityToStored(record));
   // A back-filled kind is applied to the RETURNED entity here rather than read
   // back off the record: the `prepareUpdate` that writes it to the row is
   // deferred to batch time, and callers use these values (topicsForEntities
   // included) before then.
-  for (const e of existing) {
-    const stored = entityToStored(e);
-    const backfilled = backfilledKinds.get(e.canonicalName);
-    out.set(e.canonicalName, backfilled === undefined ? stored : { ...stored, kind: backfilled });
+  for (const { record, kind } of kindBackfills) {
+    out.set(record.canonicalName, { ...entityToStored(record), kind });
   }
-  for (const record of created) out.set(record.canonicalName, entityToStored(record));
 
   return { entities: out, operations: created, kindBackfills };
 }
@@ -247,12 +245,15 @@ function topicsEqual(stored: StoredTopic[] | null, computed: readonly StoredTopi
  * change. Resolves without PREPARING, so callers can do their remaining awaits
  * and then prepare adjacent to their `batch` (see {@link prepareTopicsUpdate}).
  */
+export type MemoryTopicsWrite = { row: VaultMemory; topics: StoredTopic[] };
+
+/** @see {@link MemoryTopicsWrite} for what this resolves and why it doesn't prepare. */
 function resolveTopicsWrite(
   row: VaultMemory | null,
   linked: ReadonlyArray<NamedEntity>,
   displayNames: Map<string, string>,
   source: TopicSource | null
-): { row: VaultMemory; topics: StoredTopic[] } | null {
+): MemoryTopicsWrite | null {
   if (row === null || source === null) return null;
   const topics = topicsForEntities(linked, displayNames, source);
   if (topicsEqual(parseTopics(row.topics), topics)) return null;
@@ -282,9 +283,6 @@ function toEntityObjects(
 ): Array<{ name: string; kind?: string }> {
   return entityInputs.map((e) => (typeof e === "string" ? { name: e } : e));
 }
-
-/** A resolved-but-unprepared topics write — see {@link resolveMemoryTopicsWrite}. */
-export type MemoryTopicsWrite = { row: VaultMemory; topics: StoredTopic[] };
 
 /**
  * {@link resolveTopicsWrite} for callers OUTSIDE this module that own a link

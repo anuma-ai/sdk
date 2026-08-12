@@ -2,7 +2,7 @@
 
 > **getEntitiesByMemoryIdsOp**(`ctx`: [`EntityOperationsContext`](../interfaces/EntityOperationsContext.md), `memoryIds`: readonly `string`\[]): `Promise`<`Map`<`string`, `Set`<`string`>>>
 
-Defined in: [src/lib/db/entities/operations.ts:799](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/entities/operations.ts#799)
+Defined in: [src/lib/db/entities/operations.ts:797](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/entities/operations.ts#797)
 
 Reverse of [getMemoriesByEntityNamesOp](getMemoriesByEntityNamesOp.md): given a set of memory IDs
 (e.g. the current BFS frontier), return each memory's set of linked
