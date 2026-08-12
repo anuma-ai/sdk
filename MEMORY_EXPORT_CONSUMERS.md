@@ -58,6 +58,7 @@ Client paths are in `zeta-chain/ai-memoryless-client`.
 | `rankProfileCandidates` | client-mounted | `packages/hooks/src/promptCoverage/computeCoverage.ts:359`, injected structurally as `ProfileRankFn` (see `promptCoverage/salience.ts`). Was `dark` until 2026-07-31. |
 | `scoreProfileSalience` | client-mounted | `packages/hooks/src/promptCoverage/computeCoverage.ts:345`. Was `dark` until 2026-07-31. |
 | `verifyMemoriesForPublish` | dark | #707. The publish-time support check for People Nearby. Deliberately NOT wired into `setMemoryVisibilityOp` (that op is offline storage and also the revoke path — a verdict there would gate taking a memory DOWN on an LLM being reachable). Until 2026-07-31 it was not exported from `react`/`expo`/`server` at all, so no client could call it whatever it wanted; those exports are added here. Goes live with the client gate in zeta-chain/ai-memoryless-client#5440. |
+| `isDegradedTopicSkip` | dark | Classifies a `TopicSkipReason` as "the sweep broke" vs "the sweep deliberately declined". Exported so callers can't each re-derive that split — one wrong grouping turns a wholly failed sweep back into a healthy-looking one. Dark until the client emits topic-sweep telemetry; goes live with that wiring. |
 | `createMessageSourceResolver` | dark | Dark with `verifyMemoriesForPublish` — the default `VerificationSources` wiring over the chat store. Same missing-barrel-export history as that row. |
 
 ## Config-level knobs

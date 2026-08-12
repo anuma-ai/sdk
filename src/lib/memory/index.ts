@@ -112,10 +112,12 @@ export {
 export {
   extractAndLinkEntitiesForMemoriesOp,
   extractEntitiesForMemories,
+  isDegradedTopicSkip,
   TOPIC_EXTRACTION_BATCH_SIZE,
   type TopicExtractionInput,
   type TopicExtractionRunResult,
   type TopicExtractOptions,
+  type TopicSkipReason,
 } from "./topicExtract.js";
 export type {
   Budget,
