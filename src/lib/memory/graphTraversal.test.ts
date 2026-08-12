@@ -485,6 +485,50 @@ describe("createLlmNeighborRefiner", () => {
     expect(await refiner.refine("q", [], 2)).toEqual([]);
     expect(fetchFn).not.toHaveBeenCalled();
   });
+
+  // The two halves of making this flow's prompt server-ownable, asserted on the
+  // WIRE rather than at the call site:
+  //
+  //   - the portal selects its registered `memory_graph` text off
+  //     `X-Anuma-Task-Type` alone, and a dropped/renamed header still returns a
+  //     working refinement — the request just goes untyped, so attribution and
+  //     prompt ownership fail silently while every other test here passes;
+  //   - the registered copy is matched by strings.Contains against the system
+  //     message, so the moment a per-request value is interpolated back into the
+  //     system half the match breaks and the portal appends a SECOND copy of the
+  //     instruction. The per-hop cap was the last such value; it now rides the
+  //     user turn, which is what "fixed" is asserted to mean below — two refines
+  //     differing in query AND limit must produce the same system bytes.
+  it("declares memory_graph and keeps the per-hop cap out of the system turn", async () => {
+    const fetchFn = mockFetch(choices({ expand: [] }));
+    const refiner = createLlmNeighborRefiner({ apiKey: "k", fetchFn, backoffMs: () => 0 });
+    await refiner.refine("who is Sara", ["beta", "gamma"], 2);
+    await refiner.refine("where is Kyoto", ["delta"], 7);
+
+    const calls = (fetchFn as unknown as ReturnType<typeof vi.fn>).mock.calls;
+    expect(calls).toHaveLength(2);
+    const turn = (i: number, role: "system" | "user"): string => {
+      const messages = JSON.parse(calls[i][1].body as string).messages as Array<{
+        role: string;
+        content: string;
+      }>;
+      return messages.find((m) => m.role === role)!.content;
+    };
+
+    for (const call of calls) {
+      expect((call[1].headers as Record<string, string>)["X-Anuma-Task-Type"]).toBe("memory_graph");
+    }
+
+    expect(turn(0, "system")).toBe(turn(1, "system"));
+    // Nothing per-request survives in it: no cap, no query, no candidate name.
+    expect(turn(0, "system")).not.toMatch(/\d/);
+    expect(turn(0, "system")).not.toContain("Sara");
+    expect(turn(0, "system")).not.toContain("beta");
+    // …and the cap still reaches the model, on the turn that carries the rest of
+    // the per-request payload.
+    expect(turn(0, "user")).toContain("Choose at most 2.");
+    expect(turn(1, "user")).toContain("Choose at most 7.");
+  });
 });
 
 describe("traverseGraphLane — forgotten memories don't steer or egress", () => {
