@@ -345,7 +345,7 @@ describe("createRecallTool executor — embeddings outage on an empty result", (
         candidateCount: 0,
         factCount: 0,
         chunkCount: 0,
-        timings: { total: 1, prep: 0, factLane: 1, chunkLane: 0, fuse: 0 },
+        timings: { total: 1, prep: 0, factLane: 1, rerank: 0, chunkLane: 0, fuse: 0 },
         degraded: ["embeddings-unavailable"],
       });
       return recallResult([]);
@@ -367,7 +367,7 @@ describe("createRecallTool executor — embeddings outage on an empty result", (
         candidateCount: 3,
         factCount: 0,
         chunkCount: 0,
-        timings: { total: 1, prep: 0, factLane: 1, chunkLane: 0, fuse: 0 },
+        timings: { total: 1, prep: 0, factLane: 1, rerank: 0, chunkLane: 0, fuse: 0 },
         degraded: [],
       });
       return recallResult([]);
@@ -389,7 +389,7 @@ describe("createRecallTool executor — embeddings outage on an empty result", (
         candidateCount: 1,
         factCount: 1,
         chunkCount: 0,
-        timings: { total: 1, prep: 0, factLane: 1, chunkLane: 0, fuse: 0 },
+        timings: { total: 1, prep: 0, factLane: 1, rerank: 0, chunkLane: 0, fuse: 0 },
         degraded: ["embeddings-unavailable"],
       });
       return recallResult([fact("m1", "Allergic to shellfish")]);
