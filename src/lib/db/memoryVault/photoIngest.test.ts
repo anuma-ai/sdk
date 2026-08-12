@@ -98,7 +98,7 @@ describe("ingestPublishedPhotoMemoriesOp", () => {
     // outside this read can NEVER be revoked: the user's off-toggle and delete
     // do nothing server-side while nearby keeps serving the memory.
     const published = await getVaultRankingProjectionsOp(ctx, { scopes: ["shared"] });
-    expect(published.map(m => m.uniqueId)).toContain(FACT_ID);
+    expect(published.map((m) => m.uniqueId)).toContain(FACT_ID);
   });
 
   it("is a no-op on re-run — the same rows a second time insert nothing", async () => {
@@ -161,7 +161,7 @@ describe("ingestPublishedPhotoMemoriesOp", () => {
 
     // And it is out of the published-set read, which is what lets the revoke run.
     const published = await getVaultRankingProjectionsOp(ctx, { scopes: ["shared"] });
-    expect(published.map(m => m.uniqueId)).not.toContain(FACT_ID);
+    expect(published.map((m) => m.uniqueId)).not.toContain(FACT_ID);
   });
 
   it("accepts a row with no media", async () => {
