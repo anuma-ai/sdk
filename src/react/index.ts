@@ -452,6 +452,7 @@ export type {
   ScreenedCandidate,
   ScreenResult,
   SynthesizeProfileOptions,
+  TopicSkipReason,
   TurnCompleteEvent,
   TurnSkippedEvent,
 } from "../lib/memory";
@@ -493,6 +494,7 @@ export {
   extractFacts,
   HARD_DELETE_WINDOW_MS,
   injectionSignatureCatalog,
+  isDegradedTopicSkip,
   isRerankerAvailable,
   MAX_HOPS,
   MEDIUM_TTL_MS,

@@ -282,6 +282,69 @@ function parseTopicResponse(
   return out;
 }
 
+/**
+ * Why one memory was skipped by a topic sweep.
+ *
+ * Split along the line that actually matters operationally — did the sweep
+ * DECLINE this row on purpose, or did something BREAK:
+ *
+ * Deliberate (healthy; a sweep of nothing but these is a success):
+ * - `excluded`        — deleted, owned by another user, or `topicsUserManaged`.
+ * - `link-declined`   — the entity-link write's in-row guard declined (the row
+ *                       became user-managed / deleted / absent mid-run).
+ * - `stamp-declined`  — same, caught by the stamp op's own re-check.
+ *
+ * Degraded (something is wrong; see {@link isDegradedTopicSkip}):
+ * - `llm-unanswered`  — the batch failed or the model omitted this id. THE one
+ *                       to alarm on: it is how a wholly broken sweep looks.
+ * - `unreadable`      — the row could not be loaded/decrypted.
+ * - `not-found`       — the lookup threw (absent row or read fault).
+ * - `link-failed`     — the entity-link write threw.
+ *
+ * @public
+ */
+export type TopicSkipReason =
+  | "excluded"
+  | "link-declined"
+  | "stamp-declined"
+  | "llm-unanswered"
+  | "unreadable"
+  | "not-found"
+  | "link-failed";
+
+/**
+ * The classification itself, as a total table rather than a condition chain.
+ *
+ * A chain fails OPEN: a reason added to {@link TopicSkipReason} but not to the
+ * chain returns `false` and rejoins the healthy pile — the exact regression
+ * reason-tagging exists to prevent. `Record<TopicSkipReason, boolean>` makes
+ * that omission a type error here, at the definition site, rather than
+ * something only a test's `satisfies` happens to catch.
+ */
+const DEGRADED_TOPIC_SKIP: Record<TopicSkipReason, boolean> = {
+  excluded: false,
+  "link-declined": false,
+  "stamp-declined": false,
+  "llm-unanswered": true,
+  unreadable: true,
+  "not-found": true,
+  "link-failed": true,
+};
+
+/**
+ * Whether a skip reason means the sweep FAILED on that row, rather than
+ * deliberately passing over it.
+ *
+ * Exported so callers classify identically instead of each re-deriving the
+ * split — the reason this type exists is that one wrong grouping turns a broken
+ * sweep back into a healthy-looking one.
+ *
+ * @public
+ */
+export function isDegradedTopicSkip(reason: TopicSkipReason): boolean {
+  return DEGRADED_TOPIC_SKIP[reason] === true;
+}
+
 /** Outcome of one {@link extractAndLinkEntitiesForMemoriesOp} run. */
 export interface TopicExtractionRunResult {
   /** memoryId → entities the LLM returned (post-validation, post-linking). */
@@ -294,6 +357,24 @@ export interface TopicExtractionRunResult {
    * LLM batches. Skipped ids are not stamped, so failed batches are retried
    * by a later sweep — callers should apply their own attempt caps. */
   skippedIds: string[];
+  /**
+   * Why each id in {@link skippedIds} was skipped.
+   *
+   * `skippedIds` alone cannot distinguish a sweep that deliberately declined
+   * work from one that FAILED: a run where every LLM batch errored and a run
+   * over rows the user has taken manual control of produce an identical array.
+   * That is the same blindness `outcome: 'empty-after-retry'` had before #888 —
+   * a degradation wearing the shape of normal control flow.
+   *
+   * It matters here because topics feed the entity recall lane, so a silently
+   * failing sweep means memories that exist but cannot be found by entity, with
+   * nothing in production saying so.
+   *
+   * Populated in lockstep with `skippedIds` (single `skip()` helper), so the two
+   * cannot drift. Group by {@link isDegradedTopicSkip} to separate "declined" from
+   * "broke".
+   */
+  skippedReasons: Map<string, TopicSkipReason>;
 }
 
 /**
@@ -333,13 +414,39 @@ export async function extractAndLinkEntitiesForMemoriesOp(
   const extractedAt = options.now ?? Date.now();
 
   const skippedIds: string[] = [];
+  // One writer for both, so a new skip site cannot add an id without a reason —
+  // which is exactly how `skippedIds` became unreadable in the first place.
+  const skippedReasons = new Map<string, TopicSkipReason>();
+  const skip = (id: string, reason: TopicSkipReason): void => {
+    // Idempotent, FIRST reason wins — defence in depth. Within a single id the
+    // control flow can only reach ONE skip site (each `continue`s past the
+    // later ones), and the input is deduped below, so this should never fire.
+    // It stays because the failure it prevents is silent: a double push would
+    // break the lockstep these two document, and a later benign reason
+    // overwriting an earlier degraded one hides a failure rather than showing
+    // one.
+    if (skippedReasons.has(id)) return;
+    skippedIds.push(id);
+    skippedReasons.set(id, reason);
+  };
   const inputs: TopicExtractionInput[] = [];
-  for (const id of memoryIds) {
+  // Dedupe up front: `memoryIds` is caller-supplied. A repeat otherwise gets
+  // sent twice in the LLM batch and linked twice, and — since `toStamp` keeps
+  // the id from the first pass — a second link write that throws puts the SAME
+  // id in `stampedIds` and in `skippedIds` as degraded, i.e. an alarm count for
+  // a row that actually landed. Set preserves insertion order.
+  for (const id of new Set(memoryIds)) {
     let record;
     try {
       record = await ctx.vaultMemoryCollection.find(id);
-    } catch {
-      skippedIds.push(id);
+    } catch (err) {
+      // The only degraded path that would otherwise leave no trace, and the
+      // reason bundles two situations the alarm can't separate after the fact:
+      // an absent row (a delete racing the caller's pending query — an ordinary
+      // event, so the degraded count has a nonzero floor) versus a genuine read
+      // fault. Log so the two can be told apart in production.
+      log.warn("[memory/topics] vault lookup failed for extraction", err);
+      skip(id, "not-found");
       continue;
     }
     // Truthiness (not `=== true`) on the flag so an unsanitized SQLite `1`
@@ -349,7 +456,7 @@ export async function extractAndLinkEntitiesForMemoriesOp(
       (ctx.userId !== undefined && record.userId !== ctx.userId) ||
       record.topicsUserManaged
     ) {
-      skippedIds.push(id);
+      skip(id, "excluded");
       continue;
     }
     try {
@@ -364,7 +471,7 @@ export async function extractAndLinkEntitiesForMemoriesOp(
       // A single undecryptable/corrupt row must not abort the whole sweep —
       // skip it (retried next sweep; callers cap attempts) and keep going.
       log.warn("[memory/topics] failed to load memory for extraction", err);
-      skippedIds.push(id);
+      skip(id, "unreadable");
     }
   }
 
@@ -374,8 +481,9 @@ export async function extractAndLinkEntitiesForMemoriesOp(
   for (const input of inputs) {
     const entities = entitiesByMemory.get(input.id);
     if (entities === undefined) {
-      // Unanswered (failed batch or omitted id) — retry next sweep.
-      skippedIds.push(input.id);
+      // Unanswered (failed batch or omitted id) — retry next sweep. This is the
+      // reason a wholly broken sweep reports, so it is the one to alarm on.
+      skip(input.id, "llm-unanswered");
       continue;
     }
     try {
@@ -386,7 +494,7 @@ export async function extractAndLinkEntitiesForMemoriesOp(
       // nothing persisted, so don't stamp.
       const linked = await replaceMemoryEntitiesGuardedOp(entityCtx, input.id, entities);
       if (linked === null) {
-        skippedIds.push(input.id);
+        skip(input.id, "link-declined");
         entitiesByMemory.delete(input.id);
         continue;
       }
@@ -394,7 +502,7 @@ export async function extractAndLinkEntitiesForMemoriesOp(
       // Don't stamp a memory whose links failed to persist — leave it for
       // the next sweep rather than recording a pass that didn't land.
       log.warn("[memory/topics] replaceMemoryEntitiesGuardedOp failed", err);
-      skippedIds.push(input.id);
+      skip(input.id, "link-failed");
       entitiesByMemory.delete(input.id);
       continue;
     }
@@ -408,10 +516,10 @@ export async function extractAndLinkEntitiesForMemoriesOp(
   const stampedSet = new Set(stampedIds);
   for (const id of toStamp) {
     if (!stampedSet.has(id)) {
-      skippedIds.push(id);
+      skip(id, "stamp-declined");
       entitiesByMemory.delete(id);
     }
   }
 
-  return { entitiesByMemory, stampedIds, skippedIds };
+  return { entitiesByMemory, stampedIds, skippedIds, skippedReasons };
 }
