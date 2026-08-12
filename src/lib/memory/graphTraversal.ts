@@ -355,6 +355,27 @@ const DEFAULT_REFINER_MODEL = "inclusionai/ling-2.6-flash";
 const DEFAULT_REFINER_ATTEMPTS = 1;
 const DEFAULT_REFINER_TOTAL_TIMEOUT_MS = 8_000;
 
+/**
+ * The neighbor-refiner instruction — FIXED, and it has to stay that way.
+ *
+ * Every per-request value this flow has (the question, the candidate list, and
+ * the per-hop expansion cap) rides the USER turn, so this text is the whole of
+ * the system message and the portal can own it: it is registered verbatim as
+ * `memory_graph` in ai-portal `internal/systemprompt/tasks.go`, matched there by
+ * `strings.Contains` against what we send. Interpolating anything back into it
+ * breaks that match, and the portal then appends its own copy — the model gets
+ * the same instruction twice, in two wordings.
+ *
+ * The cap used to read "Choose at most ${limit}." here; the sentence below points
+ * at the user turn's cap instead, which carries the same instruction with the
+ * number moved rather than dropped.
+ */
+const REFINER_SYSTEM_PROMPT = `You help a memory-retrieval system decide which related topics to explore.
+
+Given a user's question and a numbered list of candidate topics/entities linked to memories found so far, pick the ones most likely to lead to memories that help ANSWER the question. Never return more than the maximum the user turn asks for. Prefer topics semantically related to the question; ignore incidental ones.
+
+Output strict JSON, no prose: { "expand": [<entity names to expand, verbatim from the list>] }`;
+
 /** Auth + tuning for {@link createLlmNeighborRefiner}. Reuses the recall
  * `decomposeOptions` shape (dual auth — one of `apiKey`/`getToken`). @public */
 export interface LlmNeighborRefinerOptions extends PortalLlmAuth {
@@ -399,19 +420,14 @@ export function createLlmNeighborRefiner(options: LlmNeighborRefinerOptions): Ne
     async refine(query: string, candidates: string[], limit: number): Promise<string[]> {
       if (candidates.length === 0) return [];
       const numbered = candidates.map((name, i) => `[${i + 1}] ${name}`).join("\n");
-      const systemPrompt = `You help a memory-retrieval system decide which related topics to explore.
-
-Given a user's question and a numbered list of candidate topics/entities linked to memories found so far, pick the ones most likely to lead to memories that help ANSWER the question. Choose at most ${limit}. Prefer topics semantically related to the question; ignore incidental ones.
-
-Output strict JSON, no prose: { "expand": [<entity names to expand, verbatim from the list>] }`;
       const parsed = await callPortalJsonCompletion({
         ...(options.apiKey !== undefined && { apiKey: options.apiKey }),
         ...(options.getToken !== undefined && { getToken: options.getToken }),
         ...(options.baseUrl !== undefined && { baseUrl: options.baseUrl }),
         taskType: "memory_graph",
         model: options.model ?? DEFAULT_REFINER_MODEL,
-        systemPrompt,
-        userMessage: `Question: ${query}\n\nCandidate topics:\n${numbered}\n\nWhich should be expanded?`,
+        systemPrompt: REFINER_SYSTEM_PROMPT,
+        userMessage: `Question: ${query}\n\nCandidate topics:\n${numbered}\n\nWhich should be expanded? Choose at most ${limit}.`,
         tag: "memory/graph-refine",
         maxAttempts: options.maxAttempts ?? DEFAULT_REFINER_ATTEMPTS,
         totalTimeoutMs: options.totalTimeoutMs ?? DEFAULT_REFINER_TOTAL_TIMEOUT_MS,

@@ -20,6 +20,7 @@
 
 import { BASE_URL } from "../../clientConfig.js";
 import { getLogger } from "../logger.js";
+import { type TaskType, taskTypeHeader } from "../taskType.js";
 import {
   extractJsonCandidate,
   type PortalLlmAuth,
@@ -58,6 +59,28 @@ export interface ReflectOptions extends RecallOptions, PortalLlmAuth {
   maxTokens?: number;
   /** Override the grounding system prompt. */
   systemPrompt?: string;
+  /**
+   * Extra caller instruction to carry on the USER turn, between the question and
+   * the evidence block (see the `userMessage` assembly below). This is the slot a
+   * background caller uses to keep its per-request data OUT of the system message
+   * without colliding with the numbered evidence list — profile-facet synthesis
+   * puts its section label, guidance and response-field hint here so its system
+   * half can stay fixed and server-ownable.
+   */
+  userInstructions?: string;
+  /**
+   * Class-B task name for the `X-Anuma-Task-Type` header, or nothing.
+   *
+   * Deliberately OPTIONAL and unset by default. reflect() also answers the user's
+   * OWN question, and that traffic is chat, not an internal flow — declaring a
+   * task type unconditionally here would put an internal-flow name on real
+   * conversation, which is the same boundary `INTERNAL_FLOW_MARKER` draws
+   * (reflect is deliberately unmarked; its background caller marks its own
+   * prompt — see ../internalFlowMarker.ts). So the name is per call: only a
+   * caller with ONE fixed purpose passes
+   * one, and today that is profile-facet synthesis (`memory_profile_synth`).
+   */
+  taskType?: TaskType;
   /** Endpoint for the answer LLM. */
   baseUrl?: string;
   /** Override fetch (for tests). */
@@ -166,7 +189,16 @@ export async function reflect(
           options.responseSchema
         )}`
       : basePrompt;
-  const userMessage = `Question:\n${trimmed}\n\nMemories (use only these as evidence):\n${evidence}`;
+  // The caller's extra instruction sits BETWEEN the question and the evidence:
+  // the evidence block has to stay the last thing in the turn (it is a numbered
+  // list the model cites back by index, and appending after it would read as a
+  // further entry), and putting it ahead of the question would bury the thing
+  // being answered. See ReflectOptions.userInstructions.
+  const userMessage = [
+    `Question:\n${trimmed}`,
+    ...(options.userInstructions ? [options.userInstructions] : []),
+    `Memories (use only these as evidence):\n${evidence}`,
+  ].join("\n\n");
   const maxTokens = options.maxTokens ?? DEFAULT_MAX_TOKENS;
   const fetchImpl = options.fetchFn ?? fetch;
 
@@ -189,7 +221,13 @@ export async function reflect(
   try {
     response = await fetchImpl(`${baseUrl}/api/v1/chat/completions`, {
       method: "POST",
-      headers: { ...authHeaders, "Content-Type": "application/json" },
+      // No task type unless the caller named one — an undeclared task adds no
+      // header at all, which is what keeps user-facing reflect() unlabelled.
+      headers: {
+        ...authHeaders,
+        ...taskTypeHeader(options.taskType),
+        "Content-Type": "application/json",
+      },
       body: JSON.stringify({
         model,
         // Modern OpenAI field; the portal reads only `max_completion_tokens`

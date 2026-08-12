@@ -89,6 +89,35 @@ describe("reflect", () => {
     expect(fetchFn).toHaveBeenCalledTimes(1);
   });
 
+  // reflect answers the USER's own question here, which is chat, not an internal
+  // flow. `taskType` is optional for exactly that reason — a name declared
+  // unconditionally would tag real conversation as a Class-B internal task and
+  // hand the portal a fixed prompt for it. Only a background caller with one
+  // fixed purpose (profile-facet synthesis) passes one, so the default must send
+  // no header at all.
+  it("declares no task type by default, so user-facing answers stay unlabelled", async () => {
+    mockRecall.mockResolvedValueOnce({
+      memories: [
+        {
+          id: "m1",
+          kind: "fact",
+          content: "User has a dog named Mochi.",
+          score: 0.9,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+      ],
+      usedBudget: "low",
+      reranked: false,
+      candidateCount: 1,
+    });
+    const fetchFn = mockFetch(completionResponse("Mochi."));
+    await reflect("What's my dog's name?", ctx, { apiKey: "k", fetchFn });
+    const headers = (fetchFn as unknown as ReturnType<typeof vi.fn>).mock.calls[0][1]
+      .headers as Record<string, string>;
+    expect(headers).not.toHaveProperty("X-Anuma-Task-Type");
+  });
+
   it("forwards budget + decompose options to recall()", async () => {
     mockRecall.mockResolvedValueOnce({
       memories: [],

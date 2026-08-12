@@ -926,10 +926,15 @@ async function synthesizeFacet(
     limit,
     types: ["fact"],
     maxTokens: DEFAULT_FACET_MAX_TOKENS,
-    // Profile-facet synthesis is a background op, so it marks its own prompt.
-    // reflect() itself must NOT mark — it also serves the user's own questions,
-    // and that traffic is chat, not an internal flow. See ../internalFlowMarker.
-    systemPrompt: withInternalFlowMarker(buildFacetSystemPrompt(facet)),
+    // Profile-facet synthesis is a background op, so it marks its own prompt AND
+    // names its own task. reflect() itself must do neither — it also serves the
+    // user's own questions, and that traffic is chat, not an internal flow. See
+    // ../internalFlowMarker and ReflectOptions.taskType.
+    taskType: "memory_profile_synth",
+    systemPrompt: withInternalFlowMarker(FACET_SYSTEM_PROMPT),
+    // The facet's label/guidance/response-fields, on the user turn — what keeps
+    // the system half fixed and therefore server-ownable.
+    userInstructions: buildFacetUserInstructions(facet),
     responseSchema: facetResponseSchema(facet.key),
     memories,
   });
@@ -1016,21 +1021,46 @@ function fallbackSection(facet: ProfileFacet, prior: ProfileSection | undefined)
   };
 }
 
-/** Grounding system prompt for a facet — reuses reflect's evidence discipline
- * and layers the facet-specific guidance + structured-output contract. */
-function buildFacetSystemPrompt(facet: ProfileFacet): string {
-  const structuredField = FACET_STRUCTURED_RESPONSE_HINT[facet.key] ?? "";
-  return `You are writing the "${facet.label}" section of a person's shareable profile, using their private memories (supplied as evidence) as the only source of truth.
-
-Task for this section:
-${facet.guidance}
+/**
+ * Grounding system prompt for facet synthesis — FIXED and facet-agnostic, and it
+ * has to stay that way.
+ *
+ * It used to open with the facet's label and carry its guidance and its
+ * structured-response hint inline, which made the system message a different
+ * string per facet. All three now ride the USER turn (see
+ * {@link buildFacetUserInstructions}), so what is left is one constant the portal
+ * can own: it is registered verbatim as `memory_profile_synth` in ai-portal
+ * `internal/systemprompt/tasks.go` and matched there by `strings.Contains`
+ * against the system message we send. The message is this text plus a prefix
+ * ({@link withInternalFlowMarker}) and, for models that cannot take
+ * `response_format`, a JSON-Schema tail that reflect() appends — a substring
+ * match holds through both. Interpolating a facet value back in would not.
+ *
+ * The rules are unchanged from the per-facet version except the response line,
+ * which now points at the shape the user turn gives rather than spelling one out.
+ */
+const FACET_SYSTEM_PROMPT = `You are writing one section of a person's shareable profile, using their private memories (supplied as evidence) as the only source of truth. The user turn names the section, states the task for it, and gives the exact JSON shape to respond in.
 
 Rules:
 - Ground every claim in the supplied memories — never invent, infer beyond, or embellish what they support.
 - If the memories don't cover this section, return an empty summary with hasEvidence=false. Do not pad or guess.
 - Write in third person about the person, in a natural voice suitable for a public profile (no "I"/"you", no name repetition).
 - Be concise and specific; no preamble, hedging, or meta-commentary.
-- Respond as JSON: { "summary": <the section text, or "">, "hasEvidence": <true|false>${structuredField} }.`;
+- Respond as JSON in exactly the shape the user turn states, with no extra fields.`;
+
+/** The facet-specific half of the synthesis prompt: which section this is, what
+ * to write for it, and which JSON fields to emit. Rides the USER turn (reflect's
+ * `userInstructions`, placed between the question and the evidence block) so
+ * {@link FACET_SYSTEM_PROMPT} can stay fixed. Same three values the system
+ * prompt used to interpolate — label, guidance, structured-response hint. */
+function buildFacetUserInstructions(facet: ProfileFacet): string {
+  const structuredField = FACET_STRUCTURED_RESPONSE_HINT[facet.key] ?? "";
+  return `Section: "${facet.label}"
+
+Task for this section:
+${facet.guidance}
+
+Respond as JSON: { "summary": <the section text, or "">, "hasEvidence": <true|false>${structuredField} }.`;
 }
 
 /** Pull section text from the structured output only. Returns `legitimateEmpty`
