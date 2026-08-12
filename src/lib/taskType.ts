@@ -53,14 +53,23 @@ export type TaskType =
   | "app_inspiration_trends"
   | "app_inspiration_remix"
   | "spotlight_image"
+  // Split from a single "slide_image": the slide/inline media generator sends a
+  // DIFFERENT fixed prompt per media kind, so one name could never be registered
+  // server-side without breaking three of them.
   | "slide_image"
+  | "slide_video"
+  | "slide_music"
+  | "slide_sfx"
   | "media_video"
   | "media_audio"
   | "media_bg_removal"
   | "media_image_preset"
   | "tool_app_builder"
   | "tool_document_builder"
+  // Split by whether an image generator is bound to the slide loop —
+  // buildSlideSystemPrompt emits two texts differing in the image-source clause.
   | "tool_slides"
+  | "tool_slides_image_gen"
   | "connector_guidance"
   | "cf_task"
   | "xbot_intent"
