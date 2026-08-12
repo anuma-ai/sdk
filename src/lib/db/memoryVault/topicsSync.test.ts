@@ -9,7 +9,7 @@
  * mocked collection would let a broken writer pass by returning whatever the
  * assertion wanted.
  */
-import { Database, Q } from "@nozbe/watermelondb";
+import { Database, Model, Q } from "@nozbe/watermelondb";
 import type { WriterInterface } from "@nozbe/watermelondb/Database/WorkQueue";
 import LokiJSAdapter from "@nozbe/watermelondb/adapters/lokijs";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -407,9 +407,13 @@ describe("topics is written by every link path", () => {
    */
   it("DRIFT: the entity-ops export surface is unchanged", () => {
     // Covered by the drift table above (directly or via setMemoryEntitiesOp).
+    // `resolveMemoryTopicsWrite` decides the write and `prepareMemoryTopicsUpdate`
+    // realizes it — two halves of one writer, split so the prepare can share a
+    // tick with the caller's batch (sdk#891).
     const writesLinksAndTopics = [
       "linkMemoryEntitiesOp",
       "replaceMemoryEntitiesGuardedOp",
+      "resolveMemoryTopicsWrite",
       "prepareMemoryTopicsUpdate",
     ];
     // Exempt, each for a stated reason:
@@ -865,11 +869,11 @@ describe("topics backfill", () => {
     // equal to a computed one, so the writer always has something to write. The
     // contract ("returns the ids filled") still has to hold if that changes —
     // callers log this list as the migration's progress.
-    const prepareSpy = vi.spyOn(entityOps, "prepareMemoryTopicsUpdate").mockResolvedValue(null);
+    const resolveSpy = vi.spyOn(entityOps, "resolveMemoryTopicsWrite").mockResolvedValue(null);
     try {
       expect(await backfillMemoryTopicsOp(ctx, [id])).toEqual([]);
     } finally {
-      prepareSpy.mockRestore();
+      resolveSpy.mockRestore();
     }
     expect(await topicsOf(id)).toBeNull();
   });
@@ -1210,5 +1214,154 @@ describe("pre-v42 restore damage", () => {
       await getMemoriesNeedingTopicExtractionOp(ctx, { limit: 2 });
     }
     for (const id of ids) expect((await rowOf(id)).topicsUserManaged).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// T7 — prepareUpdate/batch must share a tick (sdk#891)
+// ---------------------------------------------------------------------------
+
+/**
+ * WatermelonDB requires every `prepareUpdate` to reach a `batch()` in the same
+ * tick, and fires a dev diagnostic — "wasn't sent to batch() synchronously" —
+ * on the very next `process.nextTick` when it doesn't. On a ~110-memory vault
+ * the launch backfill fired it once per memory (sdk#891).
+ *
+ * This suite cannot lean on the real diagnostic: it hinges on WHERE the prepare
+ * lands. On device the row read resolves from a native callback (a macrotask),
+ * so the nextTick queue drains before the awaiting continuation reaches its
+ * batch and the invariant throws. Under vitest the LokiJS adapter resolves
+ * through microtasks, which Node drains to exhaustion BEFORE the nextTick queue
+ * — the batch gets in first and the same defective code stays silent. Asserting
+ * on the diagnostic here would assert nothing.
+ *
+ * So the requirement itself is instrumented instead, one level up: a microtask
+ * checkpoint is queued at every `prepareUpdate`, and `batch` fails the record if
+ * that checkpoint has already run. Any `await` between the two — the whole
+ * defect class — lets it run first. Verified to fail against the pre-fix ops.
+ */
+describe("prepareUpdate is batched in the tick it was prepared (sdk#891)", () => {
+  type TickWatch = { violations: string[]; batches: number; restore: () => void };
+
+  function watchPrepareBatchTicks(): TickWatch {
+    const violations: string[] = [];
+    let epoch = 0;
+    // Model → the epoch its prepareUpdate ran in.
+    const preparedAt = new Map<Model, number>();
+
+    // Patched on Model.prototype so EVERY table's prepareUpdate is seen —
+    // the vault row, the entity kind back-fill, whatever a path adds next.
+    const realPrepare = Model.prototype.prepareUpdate;
+    const prepareSpy = vi.spyOn(Model.prototype, "prepareUpdate").mockImplementation(function (
+      this: Model,
+      updater?: (record: never) => void
+    ) {
+      const out = realPrepare.call(this, updater as (record: Model) => void);
+      preparedAt.set(this, epoch);
+      // The checkpoint. It runs before any continuation queued after this
+      // point, so an await between here and `batch` advances the epoch.
+      queueMicrotask(() => void epoch++);
+      return out;
+    });
+
+    type BatchArg = Model | Model[] | null | void | false;
+    let batches = 0;
+    const realBatch = db.batch.bind(db);
+    const batchSpy = vi.spyOn(db, "batch").mockImplementation(async (...args: BatchArg[]) => {
+      batches++;
+      for (const record of args.flat()) {
+        if (!record || !preparedAt.has(record)) continue;
+        if (preparedAt.get(record) !== epoch) violations.push(record.id);
+        preparedAt.delete(record);
+      }
+      return realBatch(...args);
+    });
+
+    return {
+      violations,
+      get batches() {
+        return batches;
+      },
+      restore: () => {
+        prepareSpy.mockRestore();
+        batchSpy.mockRestore();
+      },
+    } as TickWatch;
+  }
+
+  /** A pre-v42 row: entity links exist, no `topics` record. */
+  async function seedLegacyRow(content: string, names: string[]): Promise<string> {
+    const id = await seedMemory(content);
+    await replaceMemoryEntitiesGuardedOp(entityCtx, id, names);
+    await markAsRestored(id, {
+      topics: null,
+      topics_updated_at: null,
+      topics_extracted_at: Date.now() + 10_000,
+      topics_extracted_version: TOPICS_EXTRACTION_VERSION,
+    });
+    return id;
+  }
+
+  it("backfills a multi-row vault without a single late batch", async () => {
+    const ids: string[] = [];
+    for (let i = 0; i < 5; i++) ids.push(await seedLegacyRow(`memory ${i}`, [`Entity${i}`]));
+
+    const watch = watchPrepareBatchTicks();
+    try {
+      expect(await backfillMemoryTopicsOp(ctx, ids)).toEqual(ids);
+    } finally {
+      watch.restore();
+    }
+
+    expect(watch.violations).toEqual([]);
+    // One writer, one batch for the whole pass — not one per memory.
+    expect(watch.batches).toBe(1);
+    // …and the rows are still actually filled.
+    for (const id of ids) expect(await topicsOf(id)).not.toBeNull();
+  });
+
+  it("relinks a restored row whose entity kind needs back-filling", async () => {
+    // The relink path's only prepareUpdate is the entity kind back-fill, which
+    // sat behind the `findOrphanedEntities` await before the fix.
+    const id = await seedMemory("works at Acme");
+    await db.write(async () => {
+      await entityCtx.entityCollection.create((r) => {
+        r._setRaw("canonical_name", "acme");
+        r._setRaw("kind", null);
+      });
+    });
+    await markAsRestored(id, {
+      topics: JSON.stringify([{ name: "Acme", kind: "org", source: "auto" }]),
+    });
+
+    const watch = watchPrepareBatchTicks();
+    try {
+      expect(await relinkMemoryTopicsOp(ctx, [id])).toEqual([id]);
+    } finally {
+      watch.restore();
+    }
+
+    expect(watch.violations).toEqual([]);
+    expect(await linkedNamesOf(id)).toEqual(["acme"]);
+    const entity = await entityCtx.entityCollection
+      .query(Q.where("canonical_name", "acme"))
+      .fetch();
+    expect(entity[0]?.kind).toBe("org");
+  });
+
+  it("prunes stale links on a user topic edit in one tick", async () => {
+    const id = await seedMemory("lives in Tokyo and Paris");
+    await replaceMemoryEntitiesGuardedOp(entityCtx, id, ["Tokyo", "Paris"]);
+
+    const watch = watchPrepareBatchTicks();
+    try {
+      await setMemoryEntitiesOp(ctx, id, ["Tokyo"]);
+    } finally {
+      watch.restore();
+    }
+
+    expect(watch.violations).toEqual([]);
+    expect(await linkedNamesOf(id)).toEqual(["tokyo"]);
+    expect(topicNames(await topicsOf(id))).toEqual(["tokyo"]);
   });
 });

@@ -7,8 +7,10 @@ import {
   type EntityInput,
   type EntityOperationsContext,
   linkMemoryEntitiesOp,
+  type MemoryTopicsWrite,
   prepareMemoryTopicsUpdate,
   relinkMemoryEntitiesFromTopicsOp,
+  resolveMemoryTopicsWrite,
   unlinkAllMemoryEntitiesForUserOp,
   unlinkMemoryEntitiesOp,
 } from "../entities/operations";
@@ -1206,10 +1208,18 @@ export async function setMemoryEntitiesOp(
     // explicit `[]` — the record of "the user removed every topic", which is not
     // the same as the null column that means "no record yet" (see parseTopics).
     if (staleLinks.length === 0 && entities.length > 0) return;
-    const topicsOp = await prepareMemoryTopicsUpdate(entityCtx, memoryId, linked, entities, "user");
+    const topicsWrite = await resolveMemoryTopicsWrite(
+      entityCtx,
+      memoryId,
+      linked,
+      entities,
+      "user"
+    );
+    // Resolved above, PREPARED here: the prepare must share a tick with the
+    // batch (sdk#891).
     await ctx.database.batch(
       ...staleLinks.map((l) => l.prepareDestroyPermanently()),
-      ...(topicsOp ? [topicsOp] : [])
+      ...(topicsWrite ? [prepareMemoryTopicsUpdate(topicsWrite)] : [])
     );
   });
   if (stale) return null;
@@ -1934,6 +1944,14 @@ export async function relinkMemoryTopicsOp(
  * row has: a curated memory's topics are recorded as `user`, everything else as
  * `auto`. Skips deleted, foreign-user, unlinked rows, and rows that already have
  * a record. Returns the ids filled.
+ *
+ * Runs as ONE writer over the whole (caller-bounded) list, in two phases:
+ * resolve every row's write — all the awaits — and only then prepare and batch,
+ * synchronously. Resolving and preparing per row inside its own writer is what
+ * fired WatermelonDB's "wasn't sent to batch() synchronously" diagnostic once
+ * per memory (~107 on a single dev launch, sdk#891); it also cost N writes.
+ * Same treatment as {@link stampTopicsExtractedAtOp}, including its
+ * transpilation hazard — the prepare pass MUST stay a `.map()`.
  */
 export async function backfillMemoryTopicsOp(
   ctx: VaultMemoryOperationsContext,
@@ -1943,43 +1961,54 @@ export async function backfillMemoryTopicsOp(
   if (!entityCtx) {
     throw new Error("backfillMemoryTopicsOp requires ctx.entityCtx");
   }
+  const uniqueIds = Array.from(new Set(memoryIds));
+  if (uniqueIds.length === 0) return [];
+
   const filled: string[] = [];
-  for (const id of Array.from(new Set(memoryIds))) {
-    let record: VaultMemory;
-    try {
-      record = await ctx.vaultMemoryCollection.find(id);
-    } catch {
-      continue;
-    }
-    if (record.isDeleted || !isOwnedByCtxUser(ctx, record)) continue;
-    if (parseTopics(record.topics) !== null) continue;
-    const links = await entityCtx.memoryEntityCollection
-      .query(Q.where("memory_id", id))
-      .unsafeFetchRaw();
-    const entityIds = (links as Record<string, unknown>[]).map((l) => String(l.entity_id));
-    if (entityIds.length === 0) continue;
-    const entities = await entityCtx.entityCollection
-      .query(Q.where("id", Q.oneOf(entityIds)))
-      .fetch();
-    if (entities.length === 0) continue;
-    // IMPRECISE BY CONSTRUCTION, and safe only because nothing reads `source`
-    // yet. `topics_user_managed` is per-MEMORY, so a curated legacy row stamps
-    // every one of its topics `user` — including auto-derived ones the user
-    // merely kept when they added one of their own. Per-topic provenance simply
-    // wasn't recorded before v42 and cannot be recovered. The later
-    // partial-refresh feature (refresh `auto` entries, leave `user` alone) must
-    // therefore NOT treat a backfilled `source` as ground truth: it would
-    // freeze stale auto topics on every pre-v42 curated memory.
-    const source = record.topicsUserManaged ? "user" : "auto";
-    await ctx.database.write(async () => {
+  await ctx.database.write(async () => {
+    // Phase 1 — every await happens here, before anything is prepared. The row
+    // reads stay INSIDE the writer (writers are serialized, so a committed
+    // delete or topic edit is visible), exactly as they were per-row before.
+    const writes: Array<{ id: string; write: MemoryTopicsWrite }> = [];
+    for (const id of uniqueIds) {
+      let record: VaultMemory;
+      try {
+        record = await ctx.vaultMemoryCollection.find(id);
+      } catch {
+        continue;
+      }
+      if (record.isDeleted || !isOwnedByCtxUser(ctx, record)) continue;
+      if (parseTopics(record.topics) !== null) continue;
+      const links = await entityCtx.memoryEntityCollection
+        .query(Q.where("memory_id", id))
+        .unsafeFetchRaw();
+      const entityIds = (links as Record<string, unknown>[]).map((l) => String(l.entity_id));
+      if (entityIds.length === 0) continue;
+      const entities = await entityCtx.entityCollection
+        .query(Q.where("id", Q.oneOf(entityIds)))
+        .fetch();
+      if (entities.length === 0) continue;
+      // IMPRECISE BY CONSTRUCTION, and safe only because nothing reads `source`
+      // yet. `topics_user_managed` is per-MEMORY, so a curated legacy row stamps
+      // every one of its topics `user` — including auto-derived ones the user
+      // merely kept when they added one of their own. Per-topic provenance simply
+      // wasn't recorded before v42 and cannot be recovered. The later
+      // partial-refresh feature (refresh `auto` entries, leave `user` alone) must
+      // therefore NOT treat a backfilled `source` as ground truth: it would
+      // freeze stale auto topics on every pre-v42 curated memory.
+      const source = record.topicsUserManaged ? "user" : "auto";
       // Names come from `entity.canonical_name`, so there's no display casing to
       // pass — a pre-v42 row never recorded one. Hence the empty `inputs`.
-      const topicsOp = await prepareMemoryTopicsUpdate(entityCtx, id, entities, [], source);
-      if (!topicsOp) return;
-      await ctx.database.batch(topicsOp);
-      filled.push(id);
-    });
-  }
+      const write = await resolveMemoryTopicsWrite(entityCtx, id, entities, [], source);
+      if (write) writes.push({ id, write });
+    }
+    if (writes.length === 0) return;
+
+    // Phase 2 — synchronous from here to the batch. Keep this a `.map()`.
+    const prepared = writes.map((w) => prepareMemoryTopicsUpdate(w.write));
+    await ctx.database.batch(...prepared);
+    for (const w of writes) filled.push(w.id);
+  });
   return filled;
 }
 
