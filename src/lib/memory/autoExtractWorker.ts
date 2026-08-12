@@ -68,6 +68,7 @@ import {
   type QuarantinedMemoryInfo,
 } from "./autoExtract.js";
 import type { InjectionClassifierOptions } from "./injectionClassifier.js";
+import type { PortalLlmFailure } from "./portalLlm.js";
 import type { RetainContext } from "./retain.js";
 import type {
   ConsolidationFallbackReason,
@@ -128,6 +129,22 @@ export interface TurnCompleteEvent {
    * previously indistinguishable (both surfaced as zero candidates).
    */
   outcome: ExtractOutcome;
+  /**
+   * Present only alongside `outcome: "empty-after-retry"` — WHICH failure ended
+   * the turn (#888).
+   *
+   * `outcome` says extraction gave up; this says why, from a stable enum. The
+   * distinction is the whole point: a 2026-08-11 audit measured ~63% of
+   * production extraction turns ending in `empty-after-retry` and could not tell
+   * from telemetry whether the cause was the freeloader 403 everyone assumed or
+   * something else. It took a Prometheus cross-check to find the real one — the
+   * portal returning HTTP 200 with an empty body, which it counts as a success.
+   *
+   * Forward `failure.reason` into your extraction analytics event; all three
+   * fields are bounded (an enum, an HTTP status, a small attempt count) and none
+   * carries content.
+   */
+  failure?: PortalLlmFailure;
 }
 
 /** @public */
@@ -631,7 +648,7 @@ export function createAutoExtractor(options: CreateAutoExtractorOptions): AutoEx
 
     void (async () => {
       try {
-        const { candidates, results, failedCount, outcome } = await extractAndRetain(
+        const { candidates, results, failedCount, outcome, failure } = await extractAndRetain(
           window,
           retainCtx,
           {
@@ -698,6 +715,10 @@ export function createAutoExtractor(options: CreateAutoExtractorOptions): AutoEx
           durationMs: Date.now() - t0,
           conversationId,
           outcome,
+          // Only set alongside `outcome: "empty-after-retry"`. Spread so the key
+          // is absent rather than explicitly undefined on a healthy turn —
+          // analytics backends store an explicit undefined as a real value.
+          ...(failure !== undefined && { failure }),
         });
       } catch (err) {
         options.onError?.(err instanceof Error ? err : new Error(String(err)), conversationId);
