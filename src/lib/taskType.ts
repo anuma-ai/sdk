@@ -46,7 +46,12 @@ export type TaskType =
   | "summarize"
   | "style_analysis"
   | "classify_search"
-  | "app_inspiration"
+  // Split from a single "app_inspiration": generate / trends / remix each send a
+  // DIFFERENT fixed prompt, so one name could never be registered server-side
+  // without breaking two of them. Mirrors ai-portal AllTaskTypes.
+  | "app_inspiration_generate"
+  | "app_inspiration_trends"
+  | "app_inspiration_remix"
   | "spotlight_image"
   | "slide_image"
   | "media_video"

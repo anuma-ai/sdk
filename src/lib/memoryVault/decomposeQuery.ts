@@ -112,6 +112,9 @@ export async function decomposeQuery(
       ...(options.baseUrl !== undefined && { baseUrl: options.baseUrl }),
       model: options.model ?? DEFAULT_MODEL,
       systemPrompt: SYSTEM_PROMPT,
+      // The query itself rides the user turn below, so SYSTEM_PROMPT is the whole
+      // fixed instruction — which is what lets the portal own it outright.
+      taskType: "memory_decompose",
       // Wrap the bare query in a task framing so the model treats it as
       // input to classify, not as a question to answer conversationally.
       // Bare-query inputs caused Anthropic models to respond with prose
