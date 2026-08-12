@@ -490,6 +490,7 @@ export {
   extractAndLinkEntitiesForMemoriesOp,
   extractAndRetain,
   extractEntitiesForMemories,
+  isDegradedTopicSkip,
   extractFacts,
   HARD_DELETE_WINDOW_MS,
   injectionSignatureCatalog,

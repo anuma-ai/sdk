@@ -994,6 +994,12 @@ Re-exports [injectionSignatureCatalog](../react/Internal/functions/injectionSign
 
 ***
 
+### isDegradedTopicSkip
+
+Re-exports [isDegradedTopicSkip](../react/Internal/functions/isDegradedTopicSkip.md)
+
+***
+
 ### isRerankerAvailable
 
 Re-exports [isRerankerAvailable](../react/Internal/functions/isRerankerAvailable.md)

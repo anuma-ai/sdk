@@ -27,6 +27,7 @@ import type { NerDetector, PiiSpan } from "../pii/ner";
 import { PiiRedactor } from "../pii/redactor";
 import {
   extractAndLinkEntitiesForMemoriesOp,
+  isDegradedTopicSkip,
   extractEntitiesForMemories,
   TOPIC_EXTRACTION_BATCH_SIZE,
   type TopicExtractionInput,
@@ -580,5 +581,71 @@ describe("extractAndLinkEntitiesForMemoriesOp", () => {
     expect(result.stampedIds).toEqual(["mem_2"]);
     expect(result.skippedIds).toEqual(["mem_1"]);
     expect(result.entitiesByMemory.has("mem_1")).toBe(false);
+  });
+  // The point of `skippedReasons`: `skippedIds` alone cannot tell a sweep that
+  // deliberately declined work from one that FAILED. Both produce an identical
+  // array, which is how a wholly broken sweep looked healthy in production.
+  describe("skippedReasons distinguishes a broken sweep from a deliberate one", () => {
+    it("reports llm-unanswered when the batch fails, and marks it degraded", async () => {
+      const ctx = makeOpCtx({ mem_1: mockVaultRecord({ id: "mem_1" }) });
+      // A response with no `memories` for this id — the shape a failed/omitted
+      // batch produces.
+      const fetchFn = mockFetch(topicResponse([]));
+
+      const result = await extractAndLinkEntitiesForMemoriesOp(ctx, ["mem_1"], {
+        apiKey: "k",
+        fetchFn,
+        maxAttempts: 1,
+        backoffMs: () => 0,
+      });
+
+      expect(result.skippedIds).toEqual(["mem_1"]);
+      expect(result.skippedReasons.get("mem_1")).toBe("llm-unanswered");
+      expect(isDegradedTopicSkip("llm-unanswered")).toBe(true);
+    });
+
+    it("reports excluded for a user-managed row, and does NOT mark it degraded", async () => {
+      // Same skippedIds as the failure above — only the reason separates them.
+      const ctx = makeOpCtx({
+        mem_1: mockVaultRecord({ id: "mem_1", topicsUserManaged: true }),
+      });
+
+      const result = await extractAndLinkEntitiesForMemoriesOp(ctx, ["mem_1"], {
+        apiKey: "k",
+        fetchFn: mockFetch(topicResponse([])),
+      });
+
+      expect(result.skippedIds).toEqual(["mem_1"]);
+      expect(result.skippedReasons.get("mem_1")).toBe("excluded");
+      expect(isDegradedTopicSkip("excluded")).toBe(false);
+    });
+
+    it("reports not-found when the row lookup throws", async () => {
+      const ctx = makeOpCtx({});
+      const result = await extractAndLinkEntitiesForMemoriesOp(ctx, ["gone"], {
+        apiKey: "k",
+        fetchFn: mockFetch(topicResponse([])),
+      });
+      expect(result.skippedReasons.get("gone")).toBe("not-found");
+      expect(isDegradedTopicSkip("not-found")).toBe(true);
+    });
+
+    it("keeps skippedIds and skippedReasons in lockstep", async () => {
+      // They are written by one helper; this is the invariant that makes the
+      // reasons safe to group by without re-checking the ids.
+      const ctx = makeOpCtx({
+        ok: mockVaultRecord({ id: "ok" }),
+        managed: mockVaultRecord({ id: "managed", topicsUserManaged: true }),
+      });
+      const result = await extractAndLinkEntitiesForMemoriesOp(ctx, ["ok", "managed", "missing"], {
+        apiKey: "k",
+        fetchFn: mockFetch(topicResponse([{ id: "ok", entities: [] }])),
+      });
+
+      expect(result.skippedReasons.size).toBe(result.skippedIds.length);
+      for (const id of result.skippedIds) {
+        expect(result.skippedReasons.has(id)).toBe(true);
+      }
+    });
   });
 });
