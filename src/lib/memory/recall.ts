@@ -153,6 +153,12 @@ export async function recall(
   // The CE's share of `factLaneMs`. Zero unless the fact lane ran and reached
   // the rerank stage — see RecallDiagnostics.timings.rerank.
   let rerankMs = 0;
+  // The query embed's share of `factLaneMs`, and the rows the lane had to
+  // re-embed. Both stay at their initial values unless the fact lane ran; the
+  // count is `undefined` until then so a chunk-only recall reports absence
+  // rather than a misleading 0 (same posture as `vaultRowsDecrypted`).
+  let queryEmbedMs = 0;
+  let vaultRowsEmbedded: number | undefined;
   // Whether the V2 head (cosine/BM25 fusion before side lanes) was non-empty.
   // Used to distinguish "CE skipped on empty head (lane-only hits)" from
   // "CE failed on a non-empty head (actual outage)".
@@ -208,6 +214,7 @@ export async function recall(
       ...(vaultSize !== undefined && { vaultSize }),
       ...(decryptLastRan !== undefined && { decryptLast: decryptLastRan }),
       ...(vaultRowsDecrypted !== undefined && { vaultRowsDecrypted }),
+      ...(vaultRowsEmbedded !== undefined && { vaultRowsEmbedded }),
       factCount: factResults.length,
       chunkCount: chunkResults.length,
       timings: {
@@ -215,6 +222,7 @@ export async function recall(
         prep: prepMs,
         factLane: factLaneMs,
         rerank: rerankMs,
+        queryEmbed: queryEmbedMs,
         chunkLane: chunkLaneMs,
         fuse: fuseMs,
       },
@@ -312,6 +320,8 @@ export async function recall(
       vaultSize: size,
       reranked,
       rerankMs: factRerankMs,
+      queryEmbedMs: factQueryEmbedMs,
+      rowsEmbedded: factRowsEmbedded,
       hadV2Head: v2Head,
       embeddingsUnavailable: factEmbeddingsUnavailable,
       rankedOnCosine: factRankedOnCosine,
@@ -371,6 +381,8 @@ export async function recall(
     vaultSize = size;
     didRerank = reranked;
     rerankMs = factRerankMs;
+    queryEmbedMs = factQueryEmbedMs;
+    vaultRowsEmbedded = factRowsEmbedded;
     hadV2Head = v2Head;
     if (factEmbeddingsUnavailable) embeddingsUnavailable = true;
     // Read the lane's own answer rather than inverting `embeddingsUnavailable`:

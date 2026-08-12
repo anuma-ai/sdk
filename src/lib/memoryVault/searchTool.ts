@@ -69,6 +69,32 @@ interface RerankStats {
   ms: number;
 }
 
+/**
+ * The fact lane's PORTAL EMBEDDING bill — the other half of decomposing
+ * `fact_lane_ms` (see {@link RerankStats}).
+ *
+ * Both fields exist because the lane makes two very different embedding calls
+ * and conflating them is a misdiagnosis waiting to happen:
+ *
+ * - `queryMs` is ONE round trip for the query. It is the floor every non-empty
+ *   vault pays, and it is invisible in the fast `vault_size = 0` bucket because
+ *   `prepareVaultCandidates` returns before embedding when the vault is empty —
+ *   so production has never had a baseline for it.
+ * - `rowsEmbedded` counts ROWS the lane had to (re-)embed because their stored
+ *   vector was unusable (stale `embedding_model`, wrong dimension, unparseable).
+ *   A count, not a timing, and deliberately reported even though it is not a
+ *   duration: on the legacy read path that batch is UNCAPPED, so a vault whose
+ *   rows carry a stale model tag re-embeds the WHOLE vault every turn. Without
+ *   this number that cost lands in the unexplained residual and reads as "the
+ *   vault read is slow", which is exactly the wrong thing to go fix.
+ */
+interface EmbedStats {
+  /** Wall-clock ms for the query embed. 0 when the lane returned before it. */
+  queryMs: number;
+  /** Rows whose stored vector was unusable and had to be re-embedded. */
+  rowsEmbedded: number;
+}
+
 /** Monotonic wall clock in ms; `performance.now()` where available (browser /
  * RN / Node), else `Date.now()`. Best-effort stage timings only. */
 const nowMs = (): number =>
@@ -1528,6 +1554,12 @@ export async function buildProjectedCorpus(
     forceIncludeIds?: string[];
     /** Invoked when the query embedding failed and this search degraded to BM25-only. */
     onEmbeddingDegraded?: () => void;
+    /**
+     * Optional out-param. Accumulates this call's portal-embedding bill — see
+     * {@link EmbedStats}. Written even on the degraded paths, because an embed
+     * that failed slowly still cost the turn its latency.
+     */
+    embedStats?: EmbedStats;
   }
 ): Promise<{
   memories: StoredVaultMemory[];
@@ -1592,11 +1624,16 @@ export async function buildProjectedCorpus(
       rowsDecrypted: 0,
     };
   }
+  // Billed around the await, not inside embedQueryOrDegrade: that helper swallows
+  // the throw and returns [], so a slow FAILING embed would otherwise report as
+  // free — the same "cost hides in the degraded path" trap as the CE.
+  const queryEmbedStart = nowMs();
   const queryEmbedding = await embedQueryOrDegrade(
     query,
     embeddingOptions,
     opts.onEmbeddingDegraded
   );
+  if (opts.embedStats) opts.embedStats.queryMs += nowMs() - queryEmbedStart;
   // With no query vector, every vector-resolution step below is dead work: a
   // stored or cached vector is only usable if it dim-matches the query, and
   // nothing matches length 0. Skip straight to a recency admission (see the
@@ -1679,6 +1716,9 @@ export async function buildProjectedCorpus(
     // ends up with nothing vectored, and BM25 still ranks whatever is decrypted.
     if (laneRows.length > 0) {
       let laneVecs: number[][] | undefined;
+      // Counted at the ATTEMPT, not on success: these rows cost a portal round
+      // trip whether or not it came back usable.
+      if (opts.embedStats) opts.embedStats.rowsEmbedded += laneRows.length;
       try {
         laneVecs = await generateEmbeddings(
           laneRows.map((m) => m.content),
@@ -1903,6 +1943,16 @@ export interface PreparedVaultCandidates {
    * never the cost and the search should move elsewhere.
    */
   rowsDecrypted: number;
+  /**
+   * Wall-clock ms this candidate build spent embedding the QUERY — see
+   * {@link EmbedStats}. 0 on the empty-vault return, which never embeds.
+   */
+  queryEmbedMs: number;
+  /**
+   * Rows whose stored vector was unusable and had to be re-embedded through the
+   * portal — see {@link EmbedStats}. Uncapped on the legacy read path.
+   */
+  rowsEmbedded: number;
 }
 
 /**
@@ -1936,6 +1986,10 @@ export async function prepareVaultCandidates(
   // short-circuit on a degenerate query.
   if (!query || typeof query !== "string") {
     return {
+      // Nothing was read and nothing was embedded — the short-circuit fires
+      // before either.
+      queryEmbedMs: 0,
+      rowsEmbedded: 0,
       memories: [],
       embeddedItems: [],
       queryEmbedding: [],
@@ -1992,6 +2046,13 @@ export async function prepareVaultCandidates(
     embeddingFailure = true;
   };
 
+  /**
+   * This call's portal-embedding bill. Declared here (not per branch) so both
+   * read paths report it identically — the #845 lesson being that a diagnostic
+   * which only exists on one branch cannot answer "which branch is expensive".
+   */
+  const embedStats: EmbedStats = { queryMs: 0, rowsEmbedded: 0 };
+
   if (searchOptions?.decryptLast) {
     // Side-lane candidate ids (graph W5 + temporal W6) forwarded by recall().
     // Both option fields are id-only rankings (memory uniqueIds), so they map
@@ -2008,6 +2069,7 @@ export async function prepareVaultCandidates(
       unembeddedCap: UNEMBEDDED_CAP,
       ...(forceIncludeIds.length > 0 && { forceIncludeIds }),
       onEmbeddingDegraded,
+      embedStats,
     });
     if (corpus.vaultSize === 0) {
       return {
@@ -2019,6 +2081,8 @@ export async function prepareVaultCandidates(
         embeddingFailure: false,
         decryptLast: true,
         rowsDecrypted: corpus.rowsDecrypted,
+        queryEmbedMs: embedStats.queryMs,
+        rowsEmbedded: embedStats.rowsEmbedded,
       };
     }
     ({ memories, embeddedItems, queryEmbedding, vaultSize } = corpus);
@@ -2047,6 +2111,8 @@ export async function prepareVaultCandidates(
         // Rows WERE decrypt-attempted even though none came back readable — that
         // is the whole point of reporting attempts rather than successes.
         rowsDecrypted: corpus.rowsDecrypted,
+        queryEmbedMs: embedStats.queryMs,
+        rowsEmbedded: embedStats.rowsEmbedded,
       };
     }
   } else {
@@ -2084,12 +2150,17 @@ export async function prepareVaultCandidates(
         embeddingFailure: false,
         decryptLast: false,
         rowsDecrypted: loaded.length,
+        queryEmbedMs: embedStats.queryMs,
+        rowsEmbedded: embedStats.rowsEmbedded,
       };
     }
 
     // Embed the query. Degrades to [] on an embeddings outage rather than throwing
-    // out of the whole search — see embedQueryOrDegrade.
+    // out of the whole search — see embedQueryOrDegrade. Billed around the await
+    // for the same reason as the projected path's copy.
+    const legacyEmbedStart = nowMs();
     queryEmbedding = await embedQueryOrDegrade(query, embeddingOptions, onEmbeddingDegraded);
+    embedStats.queryMs += nowMs() - legacyEmbedStart;
     const currentModel = embeddingOptions.model ?? DEFAULT_API_EMBEDDING_MODEL;
 
     // Batch-(re)embed any vault entries that aren't cached with a usable vector.
@@ -2153,6 +2224,10 @@ export async function prepareVaultCandidates(
       // — the exact failure this function exists to prevent. A row left without a
       // vector just scores cosine 0, and BM25 still ranks it.
       let newEmbeddings: number[][] | undefined;
+      // Counted at the attempt. NOTE this batch has no `unembeddedCap` — unlike
+      // the projected path's lane it is the full set of rows without a usable
+      // vector, so on a stale-model vault this is the ENTIRE vault, every turn.
+      embedStats.rowsEmbedded += uncachedTexts.length;
       try {
         newEmbeddings = await generateEmbeddings(uncachedTexts, embeddingOptions);
       } catch (err) {
@@ -2208,6 +2283,8 @@ export async function prepareVaultCandidates(
   }
 
   return {
+    queryEmbedMs: embedStats.queryMs,
+    rowsEmbedded: embedStats.rowsEmbedded,
     memories,
     embeddedItems,
     queryEmbedding,
@@ -2540,6 +2617,13 @@ export async function searchVaultMemoriesWithSize(
    * {@link PreparedVaultCandidates.rowsDecrypted}.
    */
   rowsDecrypted: number;
+  /**
+   * Wall-clock ms spent embedding the query, and rows the lane had to re-embed
+   * because their stored vector was unusable — see
+   * {@link PreparedVaultCandidates.queryEmbedMs} and `rowsEmbedded`.
+   */
+  queryEmbedMs: number;
+  rowsEmbedded: number;
 }> {
   // Invalid query short-circuits BEFORE any storage read (the pre-split
   // behavior — a test pins that `getAllVaultMemoriesOp` is never called).
@@ -2556,6 +2640,8 @@ export async function searchVaultMemoriesWithSize(
       // caller asked for so this turn is still attributable.
       decryptLast: !!searchOptions?.decryptLast,
       rowsDecrypted: 0,
+      queryEmbedMs: 0,
+      rowsEmbedded: 0,
     };
   }
 
@@ -2597,6 +2683,8 @@ export async function searchVaultMemoriesWithSize(
       rankedOnCosine: false,
       decryptLast: prepared.decryptLast,
       rowsDecrypted: prepared.rowsDecrypted,
+      queryEmbedMs: prepared.queryEmbedMs,
+      rowsEmbedded: prepared.rowsEmbedded,
     };
   }
   if (prepared.memories.length === 0) {
@@ -2610,6 +2698,8 @@ export async function searchVaultMemoriesWithSize(
       rankedOnCosine: false,
       decryptLast: prepared.decryptLast,
       rowsDecrypted: prepared.rowsDecrypted,
+      queryEmbedMs: prepared.queryEmbedMs,
+      rowsEmbedded: prepared.rowsEmbedded,
     };
   }
   const ranked = await rankPreparedVaultCandidates(
@@ -2626,6 +2716,8 @@ export async function searchVaultMemoriesWithSize(
     rankedOnCosine: !ranked.embeddingsUnavailable,
     decryptLast: prepared.decryptLast,
     rowsDecrypted: prepared.rowsDecrypted,
+    queryEmbedMs: prepared.queryEmbedMs,
+    rowsEmbedded: prepared.rowsEmbedded,
   };
 }
 

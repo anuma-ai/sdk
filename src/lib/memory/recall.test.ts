@@ -1055,6 +1055,70 @@ describe("recall — diagnostics (onDiagnostics)", () => {
     expect(seen[0].timings.rerank).toBeGreaterThanOrEqual(CE_DELAY_MS);
   });
 
+  it("attributes the query embed to timings.queryEmbed, inside the fact lane", async () => {
+    const seen: RecallDiagnostics[] = [];
+    vi.mocked(generateEmbedding).mockImplementation(async (text) => {
+      const until = performance.now() + CE_DELAY_MS;
+      while (performance.now() < until) {
+        /* spin */
+      }
+      return vecFor(text);
+    });
+
+    await recall(QUERY, makeCtx(), { budget: "low", onDiagnostics: (d) => seen.push(d) });
+
+    expect(seen[0].timings.queryEmbed).toBeGreaterThanOrEqual(CE_DELAY_MS);
+    // Another subset of the fact lane, so the two splits must both fit inside it.
+    expect(seen[0].timings.queryEmbed).toBeLessThanOrEqual(seen[0].timings.factLane);
+    expect(seen[0].timings.queryEmbed + seen[0].timings.rerank).toBeLessThanOrEqual(
+      seen[0].timings.factLane
+    );
+  });
+
+  // The asymmetry that made #845's ~850ms floor unattributable: the fast
+  // `vault_size = 0` population never embeds at all, so it could never serve as
+  // a baseline for what the embed costs everyone else.
+  it("reports queryEmbed = 0 on an empty vault, which returns before embedding", async () => {
+    vi.mocked(getAllVaultMemoriesOp).mockResolvedValue([]);
+    const seen: RecallDiagnostics[] = [];
+
+    await recall(QUERY, makeCtx(), { budget: "low", onDiagnostics: (d) => seen.push(d) });
+
+    expect(seen[0].vaultSize).toBe(0);
+    expect(seen[0].timings.queryEmbed).toBe(0);
+    expect(generateEmbedding).not.toHaveBeenCalled();
+  });
+
+  it("counts rows the lane had to re-embed, uncapped, on the legacy read path", async () => {
+    // A vault whose stored vectors carry a stale embedding-model tag: every row
+    // is unusable, so the legacy path re-embeds ALL of them in one batch — with
+    // no `unembeddedCap`. Left uncounted, that cost lands in the unexplained
+    // residual and reads as a slow vault read.
+    const stale = Array.from({ length: 12 }, (_, i) => ({
+      ...makeMemory(`m${i}`, `fact number ${i}`),
+      // The real shape of this in production: a model RENAME (sdk#482 dropped the
+      // provider prefix) leaves every row written before it tagged with a string
+      // that no longer equals the current model, so none of their stored vectors
+      // are considered usable.
+      embeddingModel: "provider/retired-model-v1",
+    }));
+    vi.mocked(getAllVaultMemoriesOp).mockResolvedValue(stale);
+    const seen: RecallDiagnostics[] = [];
+
+    await recall(QUERY, makeCtx(), { budget: "low", onDiagnostics: (d) => seen.push(d) });
+
+    expect(seen[0].vaultSize).toBe(12);
+    expect(seen[0].vaultRowsEmbedded).toBe(12);
+  });
+
+  it("reports vaultRowsEmbedded = 0 when every stored vector is usable", async () => {
+    const seen: RecallDiagnostics[] = [];
+
+    await recall(QUERY, makeCtx(), { budget: "low", onDiagnostics: (d) => seen.push(d) });
+
+    expect(seen[0].vaultRowsEmbedded).toBe(0);
+  });
+
   it("flags rerank-unavailable when the cross-encoder fails", async () => {
     vi.mocked(rerankPairs).mockRejectedValue(new RerankerUnavailableError(undefined));
     const seen: RecallDiagnostics[] = [];

@@ -1,6 +1,6 @@
 # VaultSearchResult
 
-Defined in: [src/lib/memoryVault/searchTool.ts:1794](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/searchTool.ts#1794)
+Defined in: [src/lib/memoryVault/searchTool.ts:1834](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/searchTool.ts#1834)
 
 A single vault search result with its similarity score.
 
@@ -10,7 +10,7 @@ A single vault search result with its similarity score.
 
 > **content**: `string`
 
-Defined in: [src/lib/memoryVault/searchTool.ts:1796](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/searchTool.ts#1796)
+Defined in: [src/lib/memoryVault/searchTool.ts:1836](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/searchTool.ts#1836)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/lib/memoryVault/searchTool.ts:1796](https://github.com/anuma-ai
 
 > `optional` **createdAt**: `Date`
 
-Defined in: [src/lib/memoryVault/searchTool.ts:1800](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/searchTool.ts#1800)
+Defined in: [src/lib/memoryVault/searchTool.ts:1840](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/searchTool.ts#1840)
 
 Optional — surfaced by the rankers so downstream `RankedMemory` carries
 real timestamps. Omitted when an item lacks the field upstream.
@@ -29,7 +29,7 @@ real timestamps. Omitted when an item lacks the field upstream.
 
 > `optional` **eventTimeEnd**: `number` | `null`
 
-Defined in: [src/lib/memoryVault/searchTool.ts:1811](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/searchTool.ts#1811)
+Defined in: [src/lib/memoryVault/searchTool.ts:1851](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/searchTool.ts#1851)
 
 ***
 
@@ -37,7 +37,7 @@ Defined in: [src/lib/memoryVault/searchTool.ts:1811](https://github.com/anuma-ai
 
 > `optional` **eventTimeKind**: `"point"` | `"range"` | `"ongoing"` | `null`
 
-Defined in: [src/lib/memoryVault/searchTool.ts:1812](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/searchTool.ts#1812)
+Defined in: [src/lib/memoryVault/searchTool.ts:1852](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/searchTool.ts#1852)
 
 ***
 
@@ -45,7 +45,7 @@ Defined in: [src/lib/memoryVault/searchTool.ts:1812](https://github.com/anuma-ai
 
 > `optional` **eventTimeStart**: `number` | `null`
 
-Defined in: [src/lib/memoryVault/searchTool.ts:1810](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/searchTool.ts#1810)
+Defined in: [src/lib/memoryVault/searchTool.ts:1850](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/searchTool.ts#1850)
 
 W6 temporal-lane anchors carried through to downstream `RankedMemory`
 so the recall executor can surface dates to the answer model without
@@ -58,7 +58,7 @@ has no anchored event time.
 
 > `optional` **factType**: `string` | `null`
 
-Defined in: [src/lib/memoryVault/searchTool.ts:1816](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/searchTool.ts#1816)
+Defined in: [src/lib/memoryVault/searchTool.ts:1856](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/searchTool.ts#1856)
 
 Typed memory (PR1) — the fact's FactType, threaded through from the
 storage row alongside the event-time anchors. Null/undefined when
@@ -70,7 +70,7 @@ untyped. Loose string (originates from a stored column).
 
 > `optional` **lastObservedAt**: `number` | `null`
 
-Defined in: [src/lib/memoryVault/searchTool.ts:1805](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/searchTool.ts#1805)
+Defined in: [src/lib/memoryVault/searchTool.ts:1845](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/searchTool.ts#1845)
 
 C3 re-observation watermark (Unix ms) — for C2 trends + C4 CE dates.
 
@@ -80,7 +80,7 @@ C3 re-observation watermark (Unix ms) — for C2 trends + C4 CE dates.
 
 > `optional` **proofCount**: `number` | `null`
 
-Defined in: [src/lib/memoryVault/searchTool.ts:1803](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/searchTool.ts#1803)
+Defined in: [src/lib/memoryVault/searchTool.ts:1843](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/searchTool.ts#1843)
 
 Times this fact has been re-observed — for C2 trend labels.
 
@@ -90,7 +90,7 @@ Times this fact has been re-observed — for C2 trend labels.
 
 > **similarity**: `number`
 
-Defined in: [src/lib/memoryVault/searchTool.ts:1797](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/searchTool.ts#1797)
+Defined in: [src/lib/memoryVault/searchTool.ts:1837](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/searchTool.ts#1837)
 
 ***
 
@@ -98,7 +98,7 @@ Defined in: [src/lib/memoryVault/searchTool.ts:1797](https://github.com/anuma-ai
 
 > `optional` **sourceChunkIds**: `string`\[] | `null`
 
-Defined in: [src/lib/memoryVault/searchTool.ts:1819](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/searchTool.ts#1819)
+Defined in: [src/lib/memoryVault/searchTool.ts:1859](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/searchTool.ts#1859)
 
 Message ids this fact was extracted from (provenance). recall() uses
 these to suppress the originating chunk in the chunk lane.
@@ -109,7 +109,7 @@ these to suppress the originating chunk in the chunk lane.
 
 > **uniqueId**: `string`
 
-Defined in: [src/lib/memoryVault/searchTool.ts:1795](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/searchTool.ts#1795)
+Defined in: [src/lib/memoryVault/searchTool.ts:1835](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/searchTool.ts#1835)
 
 ***
 
@@ -117,4 +117,4 @@ Defined in: [src/lib/memoryVault/searchTool.ts:1795](https://github.com/anuma-ai
 
 > `optional` **updatedAt**: `Date`
 
-Defined in: [src/lib/memoryVault/searchTool.ts:1801](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/searchTool.ts#1801)
+Defined in: [src/lib/memoryVault/searchTool.ts:1841](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/searchTool.ts#1841)
