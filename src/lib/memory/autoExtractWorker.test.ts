@@ -554,6 +554,38 @@ describe("createAutoExtractor", () => {
     expect(onTurnComplete.mock.calls[0][0]).toMatchObject({ outcome: "empty-after-retry" });
   });
 
+  // `outcome` says extraction gave up; `failure` says which failure. Without it
+  // reaching this event the client cannot tell an HTTP-200-with-empty-body from
+  // a 403 from a timeout — which is exactly the gap that made ~63% of production
+  // extraction turns undiagnosable in the 2026-08-11 audit.
+  it("forwards the failure reason alongside empty-after-retry (#888)", async () => {
+    vi.mocked(extractAndRetain).mockResolvedValue({
+      ...EMPTY_RESULT,
+      outcome: "empty-after-retry",
+      failure: { reason: "empty-content", attempts: 3 },
+    });
+    const onTurnComplete = vi.fn();
+    const extractor = createAutoExtractor({ ...baseOptions, onTurnComplete });
+    extractor.processTurn(messages, "c1");
+    await flush();
+    expect(onTurnComplete.mock.calls[0][0]).toMatchObject({
+      outcome: "empty-after-retry",
+      failure: { reason: "empty-content", attempts: 3 },
+    });
+  });
+
+  it("omits the failure KEY entirely on a healthy turn", async () => {
+    // Not `failure: undefined` — analytics backends store an explicit undefined
+    // as a real value, so a quiet turn would ship a null-ish reason and pollute
+    // every breakdown this field exists to produce.
+    vi.mocked(extractAndRetain).mockResolvedValue({ ...EMPTY_RESULT, outcome: "no-facts" });
+    const onTurnComplete = vi.fn();
+    const extractor = createAutoExtractor({ ...baseOptions, onTurnComplete });
+    extractor.processTurn(messages, "c1");
+    await flush();
+    expect(onTurnComplete.mock.calls[0][0]).not.toHaveProperty("failure");
+  });
+
   it("auto-wires embeddingOptions.maskInput when piiRedaction is on but maskInput is unset (M2)", async () => {
     vi.mocked(extractAndRetain).mockResolvedValue(EMPTY_RESULT);
     const extractor = createAutoExtractor({

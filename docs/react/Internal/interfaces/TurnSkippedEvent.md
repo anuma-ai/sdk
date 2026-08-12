@@ -1,6 +1,6 @@
 # TurnSkippedEvent
 
-Defined in: [src/lib/memory/autoExtractWorker.ts:98](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#98)
+Defined in: [src/lib/memory/autoExtractWorker.ts:99](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#99)
 
 ## Properties
 
@@ -8,7 +8,7 @@ Defined in: [src/lib/memory/autoExtractWorker.ts:98](https://github.com/anuma-ai
 
 > `optional` **conversationId**: `string`
 
-Defined in: [src/lib/memory/autoExtractWorker.ts:113](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#113)
+Defined in: [src/lib/memory/autoExtractWorker.ts:114](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#114)
 
 ***
 
@@ -16,7 +16,7 @@ Defined in: [src/lib/memory/autoExtractWorker.ts:113](https://github.com/anuma-a
 
 > **reason**: `"superseded"` | `"no-messages"` | `"no-new-content"` | `"in-flight"`
 
-Defined in: [src/lib/memory/autoExtractWorker.ts:112](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#112)
+Defined in: [src/lib/memory/autoExtractWorker.ts:113](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#113)
 
 Why the turn produced no extraction call:
 

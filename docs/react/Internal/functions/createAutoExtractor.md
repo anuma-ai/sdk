@@ -2,7 +2,7 @@
 
 > **createAutoExtractor**(`options`: [`CreateAutoExtractorOptions`](../interfaces/CreateAutoExtractorOptions.md)): [`AutoExtractor`](../interfaces/AutoExtractor.md)
 
-Defined in: [src/lib/memory/autoExtractWorker.ts:378](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#378)
+Defined in: [src/lib/memory/autoExtractWorker.ts:395](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#395)
 
 Create a per-session auto-extractor. See module docstring for usage.
 
