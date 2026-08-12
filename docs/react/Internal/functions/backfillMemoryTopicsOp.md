@@ -2,7 +2,7 @@
 
 > **backfillMemoryTopicsOp**(`ctx`: [`VaultMemoryOperationsContext`](../interfaces/VaultMemoryOperationsContext.md), `memoryIds`: readonly `string`\[]): `Promise`<`string`\[]>
 
-Defined in: [src/lib/db/memoryVault/operations.ts:1938](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#1938)
+Defined in: [src/lib/db/memoryVault/operations.ts:1956](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#1956)
 
 Fill `topics` for the sweep's `topicsBackfill` rows from the links they
 already carry — the one-time migration of pre-v42 rows, whose topics exist
@@ -17,6 +17,14 @@ an unbounded pass re-uploads the entire vault at once.
 row has: a curated memory's topics are recorded as `user`, everything else as
 `auto`. Skips deleted, foreign-user, unlinked rows, and rows that already have
 a record. Returns the ids filled.
+
+Runs as ONE writer over the whole (caller-bounded) list, in two phases:
+resolve every row's write — all the awaits — and only then prepare and batch,
+synchronously. Resolving and preparing per row inside its own writer is what
+fired WatermelonDB's "wasn't sent to batch() synchronously" diagnostic once
+per memory (~107 on a single dev launch, sdk#891); it also cost N writes.
+Same treatment as [stampTopicsExtractedAtOp](stampTopicsExtractedAtOp.md), including its
+transpilation hazard — the prepare pass MUST stay a `.map()`.
 
 ## Parameters
 

@@ -72,11 +72,22 @@ function entityToStored(e: Entity): StoredEntity {
  * overwritten (an earlier, likely-more-confident classification wins over a
  * later one). If the same name appears twice with different kinds in one
  * batch, the first non-null kind wins.
+ *
+ * Creates are PREPARED here (`prepareCreate` carries no same-tick
+ * requirement, and callers need the generated ids to build their link rows).
+ * Kind back-fills are NOT: they are `prepareUpdate`s, which must be batched in
+ * the same tick they're prepared, and every caller still has awaits to do
+ * before its batch. They come back as {@link EntityKindBackfill} descriptors
+ * for {@link prepareKindBackfills} to realize adjacent to the batch.
  */
 async function upsertEntitiesInWrite(
   ctx: EntityOperationsContext,
   entities: ReadonlyArray<{ name: string; kind?: string }>
-): Promise<{ entities: Map<string, StoredEntity>; operations: Model[] }> {
+): Promise<{
+  entities: Map<string, StoredEntity>;
+  operations: Model[];
+  kindBackfills: EntityKindBackfill[];
+}> {
   const kindByName = new Map<string, string | undefined>();
   for (const e of entities) {
     const name = normalizeName(e.name);
@@ -90,17 +101,19 @@ async function upsertEntitiesInWrite(
   }
   const unique = Array.from(kindByName.keys());
   const out = new Map<string, StoredEntity>();
-  if (unique.length === 0) return { entities: out, operations: [] };
+  if (unique.length === 0) return { entities: out, operations: [], kindBackfills: [] };
 
   const existing = await ctx.entityCollection
     .query(Q.where("canonical_name", Q.oneOf(unique)))
     .fetch();
   const existingNames = new Set(existing.map((e) => e.canonicalName));
 
-  const updates = existing.filter((e) => {
-    const incoming = kindByName.get(e.canonicalName);
-    return incoming !== undefined && (e.kind === null || e.kind === undefined || e.kind === "");
-  });
+  const kindBackfills: EntityKindBackfill[] = existing
+    .filter((e) => {
+      const incoming = kindByName.get(e.canonicalName);
+      return incoming !== undefined && (e.kind === null || e.kind === undefined || e.kind === "");
+    })
+    .map((record) => ({ record, kind: kindByName.get(record.canonicalName) as string }));
 
   const missing = unique.filter((n) => !existingNames.has(n));
   const created = missing.map((name) =>
@@ -110,16 +123,40 @@ async function upsertEntitiesInWrite(
       if (kind !== undefined) record._setRaw("kind", kind);
     })
   );
-  const updated = updates.map((e) =>
-    e.prepareUpdate((record) => {
-      record._setRaw("kind", kindByName.get(e.canonicalName) as string);
-    })
-  );
 
   for (const e of existing) out.set(e.canonicalName, entityToStored(e));
   for (const record of created) out.set(record.canonicalName, entityToStored(record));
+  // A back-filled kind is applied to the RETURNED entity here rather than read
+  // back off the record: the `prepareUpdate` that writes it to the row is
+  // deferred to batch time, and callers use these values (topicsForEntities
+  // included) before then.
+  for (const { record, kind } of kindBackfills) {
+    out.set(record.canonicalName, { ...entityToStored(record), kind });
+  }
 
-  return { entities: out, operations: [...created, ...updated] };
+  return { entities: out, operations: created, kindBackfills };
+}
+
+/**
+ * A kind back-fill waiting to be prepared — see {@link upsertEntitiesInWrite}.
+ */
+type EntityKindBackfill = { record: Entity; kind: string };
+
+/**
+ * Realize the deferred kind back-fills. MUST be called in the same tick as the
+ * `batch` that consumes them (ideally inline in its argument list): each is a
+ * `prepareUpdate`, and WatermelonDB's dev diagnostic fires on the very next
+ * `process.nextTick` if the record hasn't reached a batch by then.
+ *
+ * `.map()` rather than a loop is deliberate — see the transpilation hazard
+ * documented on `stampTopicsExtractedAtOp`.
+ */
+function prepareKindBackfills(backfills: readonly EntityKindBackfill[]): Model[] {
+  return backfills.map(({ record, kind }) =>
+    record.prepareUpdate((r) => {
+      r._setRaw("kind", kind);
+    })
+  );
 }
 
 /**
@@ -208,12 +245,15 @@ function topicsEqual(stored: StoredTopic[] | null, computed: readonly StoredTopi
  * change. Resolves without PREPARING, so callers can do their remaining awaits
  * and then prepare adjacent to their `batch` (see {@link prepareTopicsUpdate}).
  */
+export type MemoryTopicsWrite = { row: VaultMemory; topics: StoredTopic[] };
+
+/** @see {@link MemoryTopicsWrite} for what this resolves and why it doesn't prepare. */
 function resolveTopicsWrite(
   row: VaultMemory | null,
   linked: ReadonlyArray<NamedEntity>,
   displayNames: Map<string, string>,
   source: TopicSource | null
-): { row: VaultMemory; topics: StoredTopic[] } | null {
+): MemoryTopicsWrite | null {
   if (row === null || source === null) return null;
   const topics = topicsForEntities(linked, displayNames, source);
   if (topicsEqual(parseTopics(row.topics), topics)) return null;
@@ -245,27 +285,37 @@ function toEntityObjects(
 }
 
 /**
- * {@link prepareTopicsUpdate} for callers OUTSIDE this module that own a link
+ * {@link resolveTopicsWrite} for callers OUTSIDE this module that own a link
  * write of their own — `setMemoryEntitiesOp`'s stale-link prune and the sweep's
  * topics backfill. `linked` is the memory's FINAL link set; `inputs` supplies
  * display casing for whichever of those names the caller spelled out (pass `[]`
  * when the names come from the DB, which only has canonical lowercase).
  *
- * Awaits the row load and prepares in one call, so the caller's next statement
- * can be its `batch` — see the same-tick requirement on
- * {@link prepareTopicsUpdate}. Returns null when the row is gone or already
- * records exactly this set (see {@link resolveTopicsWrite}).
+ * Loads the row and decides the write WITHOUT preparing it, so the caller can
+ * finish its remaining awaits and then prepare adjacent to its batch — the
+ * same-tick requirement on {@link prepareTopicsUpdate}. Awaiting a combined
+ * resolve-and-prepare is exactly what trips the dev diagnostic (sdk#891), which
+ * is why this half and {@link prepareMemoryTopicsUpdate} are separate calls.
+ *
+ * Returns null when the row is gone or already records exactly this set.
  */
-export async function prepareMemoryTopicsUpdate(
+export async function resolveMemoryTopicsWrite(
   ctx: EntityOperationsContext,
   memoryId: string,
   linked: ReadonlyArray<NamedEntity>,
   inputs: ReadonlyArray<EntityInput>,
   source: TopicSource
-): Promise<Model | null> {
+): Promise<MemoryTopicsWrite | null> {
   const row = await findVaultRowInWrite(ctx, memoryId);
-  const write = resolveTopicsWrite(row, linked, displayNamesOf(toEntityObjects(inputs)), source);
-  return write === null ? null : prepareTopicsUpdate(write.row, write.topics, Date.now());
+  return resolveTopicsWrite(row, linked, displayNamesOf(toEntityObjects(inputs)), source);
+}
+
+/**
+ * Prepare a write resolved by {@link resolveMemoryTopicsWrite}. Synchronous by
+ * design: call it in the same tick as the `batch` that consumes it.
+ */
+export function prepareMemoryTopicsUpdate(write: MemoryTopicsWrite): Model {
+  return prepareTopicsUpdate(write.row, write.topics, Date.now());
 }
 
 /**
@@ -306,16 +356,17 @@ export async function linkMemoryEntitiesOp(
   let entities: StoredEntity[] = [];
 
   await ctx.database.write(async () => {
-    const { entities: byName, operations: entityOps } = await upsertEntitiesInWrite(
-      ctx,
-      normalized
-    );
+    const {
+      entities: byName,
+      operations: entityOps,
+      kindBackfills,
+    } = await upsertEntitiesInWrite(ctx, normalized);
     entities = Array.from(byName.values());
 
     const vaultRow = await findVaultRowInWrite(ctx, memoryId);
     if (options?.unlessTopicsUserManaged && autoLinkBlocked(vaultRow)) {
-      if (entityOps.length > 0) {
-        await ctx.database.batch(...entityOps);
+      if (entityOps.length > 0 || kindBackfills.length > 0) {
+        await ctx.database.batch(...entityOps, ...prepareKindBackfills(kindBackfills));
       }
       skipped = true;
       return;
@@ -342,7 +393,14 @@ export async function linkMemoryEntitiesOp(
       displayNamesOf(normalized),
       options?.topicsSource ?? "auto"
     );
-    if (entityOps.length === 0 && toCreate.length === 0 && topicsWrite === null) return;
+    if (
+      entityOps.length === 0 &&
+      kindBackfills.length === 0 &&
+      toCreate.length === 0 &&
+      topicsWrite === null
+    ) {
+      return;
+    }
 
     const linkOps = toCreate.map((e) =>
       ctx.memoryEntityCollection.prepareCreate((record) => {
@@ -351,8 +409,11 @@ export async function linkMemoryEntitiesOp(
         if (userId !== undefined) record._setRaw("user_id", userId);
       })
     );
+    // Every `prepareUpdate` below is realized HERE, inline in the batch
+    // arguments, with no await between prepare and batch.
     await ctx.database.batch(
       ...entityOps,
+      ...prepareKindBackfills(kindBackfills),
       ...linkOps,
       ...(topicsWrite ? [prepareTopicsUpdate(topicsWrite.row, topicsWrite.topics, Date.now())] : [])
     );
@@ -471,10 +532,11 @@ async function replaceMemoryEntities(
       return;
     }
 
-    const { entities: byName, operations: entityOps } = await upsertEntitiesInWrite(
-      ctx,
-      normalized
-    );
+    const {
+      entities: byName,
+      operations: entityOps,
+      kindBackfills,
+    } = await upsertEntitiesInWrite(ctx, normalized);
     entities = Array.from(byName.values());
 
     const existingLinks = await ctx.memoryEntityCollection
@@ -492,6 +554,7 @@ async function replaceMemoryEntities(
     );
     if (
       entityOps.length === 0 &&
+      kindBackfills.length === 0 &&
       toCreate.length === 0 &&
       toDestroy.length === 0 &&
       topicsWrite === null
@@ -499,8 +562,12 @@ async function replaceMemoryEntities(
       return;
     }
     const orphans = await findOrphanedEntities(ctx, memoryId, toDestroy);
+    // Every `prepareUpdate` below is realized HERE, inline in the batch
+    // arguments — `findOrphanedEntities` above is the await that made preparing
+    // the kind back-fills any earlier a diagnostic (sdk#891).
     await ctx.database.batch(
       ...entityOps,
+      ...prepareKindBackfills(kindBackfills),
       ...toCreate.map((e) =>
         ctx.memoryEntityCollection.prepareCreate((record) => {
           record._setRaw("memory_id", memoryId);

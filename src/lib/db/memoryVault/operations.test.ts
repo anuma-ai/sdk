@@ -26,7 +26,7 @@ import {
   TOPICS_EXTRACTION_VERSION,
   vaultMemoryToStored,
 } from "./operations";
-import { linkMemoryEntitiesOp, prepareMemoryTopicsUpdate } from "../entities/operations";
+import { linkMemoryEntitiesOp, resolveMemoryTopicsWrite } from "../entities/operations";
 import { sdkMigrations, sdkModelClasses, sdkSchema } from "../schema";
 import type { VaultMemory } from "./models";
 
@@ -43,7 +43,10 @@ vi.mock("./encryption", () => ({
 // without a real WatermelonDB.
 vi.mock("../entities/operations", () => ({
   linkMemoryEntitiesOp: vi.fn(async () => []),
-  prepareMemoryTopicsUpdate: vi.fn(async () => ({ _op: "vault-topics" })),
+  // Two halves of the topics write: resolve (async) then prepare (sync, in the
+  // caller's batch tick).
+  resolveMemoryTopicsWrite: vi.fn(async () => ({ row: {}, topics: [] })),
+  prepareMemoryTopicsUpdate: vi.fn(() => ({ _op: "vault-topics" })),
   relinkMemoryEntitiesFromTopicsOp: vi.fn(async () => []),
   unlinkMemoryEntitiesOp: vi.fn(async () => undefined),
   unlinkAllMemoryEntitiesForUserOp: vi.fn(async () => undefined),
@@ -1160,7 +1163,7 @@ describe("setMemoryEntitiesOp", () => {
     // old ∪ new set the link op wrote to the user's set.
     expect(batch).toHaveBeenCalledTimes(1);
     expect(batch.mock.calls[0]).toHaveLength(2);
-    expect(vi.mocked(prepareMemoryTopicsUpdate).mock.calls[0]?.[4]).toBe("user");
+    expect(vi.mocked(resolveMemoryTopicsWrite).mock.calls[0]?.[4]).toBe("user");
     expect(result?.topicsUserManaged).toBe(true);
   });
 
@@ -1186,7 +1189,7 @@ describe("setMemoryEntitiesOp", () => {
     expect(linkMemoryEntitiesOp).not.toHaveBeenCalled();
     expect(batch).toHaveBeenCalledTimes(1);
     expect(batch.mock.calls[0]).toHaveLength(2);
-    expect(vi.mocked(prepareMemoryTopicsUpdate).mock.calls[0]?.[2]).toEqual([]);
+    expect(vi.mocked(resolveMemoryTopicsWrite).mock.calls[0]?.[2]).toEqual([]);
     expect(result?.topicsUserManaged).toBe(true);
   });
 

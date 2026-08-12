@@ -1,6 +1,6 @@
 # VaultMemoryOperationsContext
 
-Defined in: [src/lib/db/memoryVault/operations.ts:58](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#58)
+Defined in: [src/lib/db/memoryVault/operations.ts:60](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#60)
 
 ## Properties
 
@@ -8,7 +8,7 @@ Defined in: [src/lib/db/memoryVault/operations.ts:58](https://github.com/anuma-a
 
 > **database**: `Database`
 
-Defined in: [src/lib/db/memoryVault/operations.ts:59](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#59)
+Defined in: [src/lib/db/memoryVault/operations.ts:61](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#61)
 
 ***
 
@@ -16,7 +16,7 @@ Defined in: [src/lib/db/memoryVault/operations.ts:59](https://github.com/anuma-a
 
 > `optional` **embeddedWalletSigner**: [`EmbeddedWalletSignerFn`](../type-aliases/EmbeddedWalletSignerFn.md)
 
-Defined in: [src/lib/db/memoryVault/operations.ts:63](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#63)
+Defined in: [src/lib/db/memoryVault/operations.ts:65](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#65)
 
 ***
 
@@ -24,7 +24,7 @@ Defined in: [src/lib/db/memoryVault/operations.ts:63](https://github.com/anuma-a
 
 > `optional` **entityCtx**: [`EntityOperationsContext`](EntityOperationsContext.md)
 
-Defined in: [src/lib/db/memoryVault/operations.ts:83](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#83)
+Defined in: [src/lib/db/memoryVault/operations.ts:85](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#85)
 
 When set, vault delete ops cascade to memory\_entity rows pointing at
 the deleted memories. Without this the W5 graph lane keeps returning
@@ -36,7 +36,7 @@ IDs of soft-deleted memories and the join table grows unbounded.
 
 > `optional` **signMessage**: [`SignMessageFn`](../type-aliases/SignMessageFn.md)
 
-Defined in: [src/lib/db/memoryVault/operations.ts:62](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#62)
+Defined in: [src/lib/db/memoryVault/operations.ts:64](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#64)
 
 ***
 
@@ -44,7 +44,7 @@ Defined in: [src/lib/db/memoryVault/operations.ts:62](https://github.com/anuma-a
 
 > `optional` **singleTenant**: `boolean`
 
-Defined in: [src/lib/db/memoryVault/operations.ts:77](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#77)
+Defined in: [src/lib/db/memoryVault/operations.ts:79](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#79)
 
 Asserts this context runs against a physically single-tenant database — one
 where every row belongs to the same owner (the per-wallet client DBs, which
@@ -62,7 +62,7 @@ every tenant).
 
 > `optional` **userId**: `string`
 
-Defined in: [src/lib/db/memoryVault/operations.ts:65](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#65)
+Defined in: [src/lib/db/memoryVault/operations.ts:67](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#67)
 
 When set, operations scope to this user (server-side multi-user).
 
@@ -72,7 +72,7 @@ When set, operations scope to this user (server-side multi-user).
 
 > **vaultMemoryCollection**: `Collection`<[`StoredVaultMemoryModel`](../classes/StoredVaultMemoryModel.md)>
 
-Defined in: [src/lib/db/memoryVault/operations.ts:60](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#60)
+Defined in: [src/lib/db/memoryVault/operations.ts:62](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#62)
 
 ***
 
@@ -80,4 +80,4 @@ Defined in: [src/lib/db/memoryVault/operations.ts:60](https://github.com/anuma-a
 
 > `optional` **walletAddress**: `string`
 
-Defined in: [src/lib/db/memoryVault/operations.ts:61](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#61)
+Defined in: [src/lib/db/memoryVault/operations.ts:63](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#63)
