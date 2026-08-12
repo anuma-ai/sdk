@@ -995,10 +995,23 @@ describe("recall — diagnostics (onDiagnostics)", () => {
   // ranking and the cross-encoder into one number, and three rounds of triage on
   // that issue argued about which of them dominated without being able to tell.
   // These pin the split so the question stays answerable from telemetry.
-  const CE_DELAY_MS = 40;
+  const CE_DELAY_MS = 25;
+  /**
+   * Burn CE_DELAY_MS by SPINNING on `performance.now()`, not by `setTimeout`.
+   *
+   * A sleep is measured against a different clock than it is scheduled on, so
+   * `setTimeout(40)` routinely yields 39.7ms of `performance.now()` elapsed and
+   * a `>= 40` assertion is a coin flip — this test failed exactly that way in
+   * CI's coverage job while passing locally. The spin cannot exit early: it
+   * reads the same monotonic source the code under test bills with, so
+   * `elapsed >= CE_DELAY_MS` holds by construction rather than by luck.
+   */
   const slowCe = (outcome: "resolve" | "reject") =>
     vi.mocked(rerankPairs).mockImplementation(async (_query, items) => {
-      await new Promise((r) => setTimeout(r, CE_DELAY_MS));
+      const until = performance.now() + CE_DELAY_MS;
+      while (performance.now() < until) {
+        /* spin */
+      }
       if (outcome === "reject") throw new Error("CE died mid-inference");
       return items.map((item) => ({ ...item, score: 0.5 }));
     });

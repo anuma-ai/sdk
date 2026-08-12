@@ -358,7 +358,8 @@ export interface RecallDiagnostics {
     factLane: number;
     /**
      * The cross-encoder's share of {@link factLane} — wall-clock spent inside
-     * `rerankPairs`, summed over facets on the composite path.
+     * `rerankPairs`. Billed even when the CE threw partway through, because a
+     * rerank that burned three seconds and then failed still cost them.
      *
      * A SUBSET of `factLane`, not a sibling: read `factLane - rerank` for
      * everything else the lane did (query embed, vault read, fused ranking).

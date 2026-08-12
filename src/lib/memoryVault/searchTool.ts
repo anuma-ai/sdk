@@ -47,18 +47,25 @@ export type VaultEmbeddingCache = Map<string, Float32Array>;
  * about which stage dominates was an inference from an aggregate — the same
  * unfalsifiable shape that `decryptLast` was added to break.
  *
- * `ms` ACCUMULATES rather than assigns. The composite (`budget: 'high'`) path
- * calls a ranker once per facet with one shared stats object, so the total CE
- * bill for the call is the sum over facets, not the last facet's slice.
+ * Deliberately NOT exported: nothing outside this module names the type, and the
+ * two rankers that take it are the only writers.
+ *
+ * `ms` ACCUMULATES rather than assigns, for two reasons that are both about not
+ * silently losing a bill. Today each ranker path reranks exactly once per call —
+ * `rankComposite` reranks ONCE over the fused facet head (its per-facet stage 1
+ * uses the sync, non-reranking ranker), so this is not a sum over facets. But
+ * the object is SHARED between the two rankers, and `=` would let a second
+ * writer overwrite a first one's time instead of adding to it; and a path that
+ * ever reranks more than once stays correct without anyone revisiting this.
  *
  * It is billed whether or not the rerank succeeded: a CE that throws after
  * spending three seconds still spent them, and attributing that to "no rerank"
  * is how the cost hides.
  */
-export interface RerankStats {
+interface RerankStats {
   /** True iff the CE ran over a non-empty head at least once this call. */
   applied: boolean;
-  /** Total wall-clock ms spent inside `rerankPairs`, summed across facets. */
+  /** Total wall-clock ms spent inside `rerankPairs` on this call. */
   ms: number;
 }
 
@@ -1108,8 +1115,9 @@ export async function rankComposite(
      * Optional out-param. Set `{ applied: true }` iff the cross-encoder rerank
      * actually ran over a non-empty head, and accumulate the CE's wall-clock
      * into `ms`. Same semantics as {@link rankFusedVaultMemoriesAsync}'s
-     * `rerankStats` — including that `ms` sums across this path's per-facet
-     * rerank calls.
+     * `rerankStats`. Note this path reranks ONCE, over the fused facet head —
+     * stage 1's per-facet ranking is the sync ranker and never reaches the CE —
+     * so `ms` here is a single rerank's cost, not a sum over facets.
      */
     rerankStats?: RerankStats;
     /**
@@ -1251,7 +1259,8 @@ export async function rankComposite(
     const headSlice = combined.slice(0, rerankTopN);
     const tailSlice = combined.slice(rerankTopN);
 
-    // Billed in `finally`, and accumulated across facets — see RerankStats.
+    // Billed in `finally` — see RerankStats. One rerank per call: this runs over
+    // the already-fused facet head, not once per facet.
     const ceStart = nowMs();
     try {
       const reranked = await rerankPairs(

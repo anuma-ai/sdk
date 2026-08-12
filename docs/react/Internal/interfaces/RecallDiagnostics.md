@@ -49,7 +49,7 @@ reached the bundle from a projection that isn't cheaper at that vault size.
 
 > **degraded**: [`RecallDegradation`](../type-aliases/RecallDegradation.md)\[]
 
-Defined in: [src/lib/memory/types.ts:365](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#365)
+Defined in: [src/lib/memory/types.ts:381](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#381)
 
 Soft-degradation signals that fired this call (empty when clean).
 
@@ -106,6 +106,24 @@ Cross-lane RRF fusion + provenance dedup after both lanes.
 > **prep**: `number`
 
 Parallel query-embed + graph/temporal side-lane build.
+
+**rerank**
+
+> **rerank**: `number`
+
+The cross-encoder's share of [factLane](#timings) — wall-clock spent inside
+`rerankPairs`. Billed even when the CE threw partway through, because a
+rerank that burned three seconds and then failed still cost them.
+
+A SUBSET of `factLane`, not a sibling: read `factLane - rerank` for
+everything else the lane did (query embed, vault read, fused ranking).
+0 when the CE did not run; `reranked` is what distinguishes that from a
+rerank that cost nothing.
+
+Exists because #845 spent three rounds arguing about which stage inside
+the fact lane dominated — whole-vault read, then admission window, then
+the CE — with one aggregate number for all of them. Every hypothesis was
+an inference; this makes the question a query.
 
 **total**
 
