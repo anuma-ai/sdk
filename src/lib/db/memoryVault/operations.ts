@@ -6,8 +6,9 @@ import type { EmbeddedWalletSignerFn, SignMessageFn } from "../encryption-utils"
 import {
   type EntityInput,
   type EntityOperationsContext,
+  findMemoryTopicsRow,
   linkMemoryEntitiesOp,
-  prepareMemoryTopicsUpdate,
+  prepareMemoryTopicsUpdateFromRow,
   relinkMemoryEntitiesFromTopicsOp,
   unlinkAllMemoryEntitiesForUserOp,
   unlinkMemoryEntitiesOp,
@@ -1206,7 +1207,12 @@ export async function setMemoryEntitiesOp(
     // explicit `[]` — the record of "the user removed every topic", which is not
     // the same as the null column that means "no record yet" (see parseTopics).
     if (staleLinks.length === 0 && entities.length > 0) return;
-    const topicsOp = await prepareMemoryTopicsUpdate(entityCtx, memoryId, linked, entities, "user");
+    // Row resolved BEFORE the prepare, so prepare → batch has no await between
+    // them (#891). The link destroys below are prepared inline for the same
+    // reason; this one used to be prepared behind an await and tripped
+    // WatermelonDB's nextTick diagnostic every time.
+    const topicsRow = await findMemoryTopicsRow(entityCtx, memoryId);
+    const topicsOp = prepareMemoryTopicsUpdateFromRow(topicsRow, linked, entities, "user");
     await ctx.database.batch(
       ...staleLinks.map((l) => l.prepareDestroyPermanently()),
       ...(topicsOp ? [topicsOp] : [])
@@ -1972,9 +1978,14 @@ export async function backfillMemoryTopicsOp(
     // freeze stale auto topics on every pre-v42 curated memory.
     const source = record.topicsUserManaged ? "user" : "auto";
     await ctx.database.write(async () => {
+      // Resolve the row first, THEN prepare and batch with nothing awaited in
+      // between (#891). This loop is where the diagnostic was loudest: one
+      // "wasn't sent to batch() synchronously" per memory, so a ~110-memory
+      // vault produced ~110 red LogBox toasts on a single dev launch.
+      const topicsRow = await findMemoryTopicsRow(entityCtx, id);
       // Names come from `entity.canonical_name`, so there's no display casing to
       // pass — a pre-v42 row never recorded one. Hence the empty `inputs`.
-      const topicsOp = await prepareMemoryTopicsUpdate(entityCtx, id, entities, [], source);
+      const topicsOp = prepareMemoryTopicsUpdateFromRow(topicsRow, entities, [], source);
       if (!topicsOp) return;
       await ctx.database.batch(topicsOp);
       filled.push(id);

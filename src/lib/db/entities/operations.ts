@@ -256,14 +256,39 @@ function toEntityObjects(
  * {@link prepareTopicsUpdate}. Returns null when the row is gone or already
  * records exactly this set (see {@link resolveTopicsWrite}).
  */
-export async function prepareMemoryTopicsUpdate(
+/**
+ * Resolve the vault row a topics update will be prepared from.
+ *
+ * SPLIT FROM THE PREPARE ON PURPOSE (#891), and the two halves must stay split.
+ * WatermelonDB checks "was this prepared record batched?" on `process.nextTick`,
+ * which in Node runs BEFORE promise continuations — so a single `await` between
+ * `prepareUpdate` and `batch` is enough to trip the diagnostic. Fetching the row
+ * inside the same function that prepares meant every caller necessarily awaited
+ * after the prepare, once per memory, which is where the ~100-per-launch
+ * "wasn't sent to batch() synchronously" spam came from.
+ *
+ * Await THIS first, then call {@link prepareMemoryTopicsUpdateFromRow} and
+ * `batch` with nothing awaited in between.
+ */
+export async function findMemoryTopicsRow(
   ctx: EntityOperationsContext,
-  memoryId: string,
+  memoryId: string
+): Promise<VaultMemory | null> {
+  return findVaultRowInWrite(ctx, memoryId);
+}
+
+/**
+ * Prepare the topics update for an already-resolved row. SYNCHRONOUS, and must
+ * stay so — see {@link findMemoryTopicsRow}. Returns null when there is nothing
+ * to write (no row, or no resolvable topics), in which case the caller batches
+ * nothing.
+ */
+export function prepareMemoryTopicsUpdateFromRow(
+  row: VaultMemory | null,
   linked: ReadonlyArray<NamedEntity>,
   inputs: ReadonlyArray<EntityInput>,
   source: TopicSource
-): Promise<Model | null> {
-  const row = await findVaultRowInWrite(ctx, memoryId);
+): Model | null {
   const write = resolveTopicsWrite(row, linked, displayNamesOf(toEntityObjects(inputs)), source);
   return write === null ? null : prepareTopicsUpdate(write.row, write.topics, Date.now());
 }

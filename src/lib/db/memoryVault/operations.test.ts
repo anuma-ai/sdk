@@ -26,7 +26,7 @@ import {
   TOPICS_EXTRACTION_VERSION,
   vaultMemoryToStored,
 } from "./operations";
-import { linkMemoryEntitiesOp, prepareMemoryTopicsUpdate } from "../entities/operations";
+import { linkMemoryEntitiesOp, prepareMemoryTopicsUpdateFromRow } from "../entities/operations";
 import { sdkMigrations, sdkModelClasses, sdkSchema } from "../schema";
 import type { VaultMemory } from "./models";
 
@@ -43,7 +43,10 @@ vi.mock("./encryption", () => ({
 // without a real WatermelonDB.
 vi.mock("../entities/operations", () => ({
   linkMemoryEntitiesOp: vi.fn(async () => []),
-  prepareMemoryTopicsUpdate: vi.fn(async () => ({ _op: "vault-topics" })),
+  findMemoryTopicsRow: vi.fn(async () => ({ _row: "vault-row" })),
+  // Synchronous now (#891) — the row is resolved by findMemoryTopicsRow above,
+  // so the prepare can sit in the same tick as the batch that consumes it.
+  prepareMemoryTopicsUpdateFromRow: vi.fn(() => ({ _op: "vault-topics" })),
   relinkMemoryEntitiesFromTopicsOp: vi.fn(async () => []),
   unlinkMemoryEntitiesOp: vi.fn(async () => undefined),
   unlinkAllMemoryEntitiesForUserOp: vi.fn(async () => undefined),
@@ -1160,7 +1163,8 @@ describe("setMemoryEntitiesOp", () => {
     // old ∪ new set the link op wrote to the user's set.
     expect(batch).toHaveBeenCalledTimes(1);
     expect(batch.mock.calls[0]).toHaveLength(2);
-    expect(vi.mocked(prepareMemoryTopicsUpdate).mock.calls[0]?.[4]).toBe("user");
+    // arg 3 is `source` on (row, linked, inputs, source) — was 4 before #891
+    expect(vi.mocked(prepareMemoryTopicsUpdateFromRow).mock.calls[0]?.[3]).toBe("user");
     expect(result?.topicsUserManaged).toBe(true);
   });
 
@@ -1186,7 +1190,8 @@ describe("setMemoryEntitiesOp", () => {
     expect(linkMemoryEntitiesOp).not.toHaveBeenCalled();
     expect(batch).toHaveBeenCalledTimes(1);
     expect(batch.mock.calls[0]).toHaveLength(2);
-    expect(vi.mocked(prepareMemoryTopicsUpdate).mock.calls[0]?.[2]).toEqual([]);
+    // arg 1 is `linked`, the resulting topic set — was 2 before #891
+    expect(vi.mocked(prepareMemoryTopicsUpdateFromRow).mock.calls[0]?.[1]).toEqual([]);
     expect(result?.topicsUserManaged).toBe(true);
   });
 

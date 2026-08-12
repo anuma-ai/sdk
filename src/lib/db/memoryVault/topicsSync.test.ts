@@ -410,14 +410,18 @@ describe("topics is written by every link path", () => {
     const writesLinksAndTopics = [
       "linkMemoryEntitiesOp",
       "replaceMemoryEntitiesGuardedOp",
-      "prepareMemoryTopicsUpdate",
+      "prepareMemoryTopicsUpdateFromRow",
     ];
     // Exempt, each for a stated reason:
     //  - relinkMemoryEntitiesFromTopicsOp: `topics` is its INPUT; writing the
     //    vault row would dirty a restored memory and re-upload the vault.
     //  - unlink* : the memory is being deleted, so there is no record to keep.
     //  - backfillMemoryEntityUserIdsOp: stamps user_id on existing links only.
+    //  - findMemoryTopicsRow: a READ. It resolves the row that
+    //    prepareMemoryTopicsUpdateFromRow then prepares, split out so the
+    //    prepare stays synchronous with batch (#891).
     const exempt = [
+      "findMemoryTopicsRow",
       "relinkMemoryEntitiesFromTopicsOp",
       "unlinkMemoryEntitiesOp",
       "unlinkAllMemoryEntitiesForUserOp",
@@ -865,7 +869,10 @@ describe("topics backfill", () => {
     // equal to a computed one, so the writer always has something to write. The
     // contract ("returns the ids filled") still has to hold if that changes —
     // callers log this list as the migration's progress.
-    const prepareSpy = vi.spyOn(entityOps, "prepareMemoryTopicsUpdate").mockResolvedValue(null);
+    // Now SYNCHRONOUS (#891), so a return value rather than a resolved promise.
+    const prepareSpy = vi
+      .spyOn(entityOps, "prepareMemoryTopicsUpdateFromRow")
+      .mockReturnValue(null);
     try {
       expect(await backfillMemoryTopicsOp(ctx, [id])).toEqual([]);
     } finally {
