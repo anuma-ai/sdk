@@ -28,6 +28,7 @@ import { PiiRedactor } from "../pii/redactor";
 import {
   extractAndLinkEntitiesForMemoriesOp,
   isDegradedTopicSkip,
+  type TopicSkipReason,
   extractEntitiesForMemories,
   TOPIC_EXTRACTION_BATCH_SIZE,
   type TopicExtractionInput,
@@ -628,6 +629,28 @@ describe("extractAndLinkEntitiesForMemoriesOp", () => {
       });
       expect(result.skippedReasons.get("gone")).toBe("not-found");
       expect(isDegradedTopicSkip("not-found")).toBe(true);
+    });
+
+    // Exhaustive by CONSTRUCTION: `satisfies Record<TopicSkipReason, boolean>`
+    // makes adding a reason to the union without classifying it here a type
+    // error. Without that, a new skip reason defaults to "not degraded" simply
+    // by being absent from `isDegradedTopicSkip`'s list — a broken sweep would
+    // silently rejoin the healthy pile, which is the exact regression this whole
+    // change exists to prevent.
+    it("classifies every reason, and cannot gain one silently", () => {
+      const expected = {
+        excluded: false,
+        "link-declined": false,
+        "stamp-declined": false,
+        "llm-unanswered": true,
+        unreadable: true,
+        "not-found": true,
+        "link-failed": true,
+      } satisfies Record<TopicSkipReason, boolean>;
+
+      for (const [reason, degraded] of Object.entries(expected)) {
+        expect(isDegradedTopicSkip(reason as TopicSkipReason)).toBe(degraded);
+      }
     });
 
     it("keeps skippedIds and skippedReasons in lockstep", async () => {

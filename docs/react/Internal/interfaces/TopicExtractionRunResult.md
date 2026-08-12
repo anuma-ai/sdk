@@ -29,7 +29,7 @@ by a later sweep — callers should apply their own attempt caps.
 
 ### skippedReasons
 
-> **skippedReasons**: `Map`<`string`, `TopicSkipReason`>
+> **skippedReasons**: `Map`<`string`, [`TopicSkipReason`](../type-aliases/TopicSkipReason.md)>
 
 Defined in: [src/lib/memory/topicExtract.ts:363](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/topicExtract.ts#363)
 

@@ -1,6 +1,6 @@
 # isDegradedTopicSkip
 
-> **isDegradedTopicSkip**(`reason`: `TopicSkipReason`): `boolean`
+> **isDegradedTopicSkip**(`reason`: [`TopicSkipReason`](../type-aliases/TopicSkipReason.md)): `boolean`
 
 Defined in: [src/lib/memory/topicExtract.ts:326](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/topicExtract.ts#326)
 
@@ -29,7 +29,7 @@ sweep back into a healthy-looking one.
 </td>
 <td>
 
-`TopicSkipReason`
+[`TopicSkipReason`](../type-aliases/TopicSkipReason.md)
 
 </td>
 </tr>
