@@ -20,6 +20,20 @@
  * `AllTaskTypes` on the portal side, and see ai-portal
  * `docs/BACKEND_OWNED_TASK_PROMPTS.md` for the rollout.
  *
+ * ⚠ RELEASE ORDER. This union is a PUBLIC type, so a split is breaking in both
+ * directions and has to be sequenced:
+ *
+ *   1. merge + publish this package;
+ *   2. bump `@anuma/sdk` in the consumer and switch its call sites to the new
+ *      names in the same commit.
+ *
+ * A consumer on the OLD version cannot compile the new names, and a consumer on
+ * the NEW version cannot compile the retired ones (`app_inspiration` is gone
+ * here, replaced by the three `app_inspiration_*` names). Both halves of that
+ * are type-only — the wire itself always degrades safely, because the portal
+ * drops any value it does not recognise. Concretely: ai-memoryless-client#5782
+ * is blocked on this publish for exactly that reason.
+ *
  * Deliberately ABSENT: agent personas, `reflect()` when it answers the user, and
  * the app-idea chat. Those carry an open conversation with the user, so a fixed
  * server-owned prompt would be wrong rather than merely premature — the same
@@ -56,6 +70,11 @@ export type TaskType =
   // Split from a single "slide_image": the slide/inline media generator sends a
   // DIFFERENT fixed prompt per media kind, so one name could never be registered
   // server-side without breaking three of them.
+  //
+  // Declaring a name here does NOT make anyone send it. The client sent
+  // "slide_image" for all four kinds until ai-memoryless-client#5782 mapped kind
+  // -> name in `apps/web/lib/slide-image-gen.ts`; until that ships, the portal's
+  // per-kind entries for video/music/sfx are simply never selected.
   | "slide_image"
   | "slide_video"
   | "slide_music"
@@ -68,6 +87,10 @@ export type TaskType =
   | "tool_document_builder"
   // Split by whether an image generator is bound to the slide loop —
   // buildSlideSystemPrompt emits two texts differing in the image-source clause.
+  // Same caveat as the slide_* block: the web client declared the bare
+  // "tool_slides" while shipping the hasImageGenerator:true text, and only starts
+  // declaring "_image_gen" with ai-memoryless-client#5782. Mobile builds the
+  // false variant and declares no task type at all.
   | "tool_slides"
   | "tool_slides_image_gen"
   | "connector_guidance"
