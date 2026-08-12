@@ -150,6 +150,9 @@ export async function recall(
   // threaded from the search layer (not the requested budget flag, which lied
   // on RN, and not a module-global, which couldn't see per-call degradation).
   let didRerank = false;
+  // The CE's share of `factLaneMs`. Zero unless the fact lane ran and reached
+  // the rerank stage — see RecallDiagnostics.timings.rerank.
+  let rerankMs = 0;
   // Whether the V2 head (cosine/BM25 fusion before side lanes) was non-empty.
   // Used to distinguish "CE skipped on empty head (lane-only hits)" from
   // "CE failed on a non-empty head (actual outage)".
@@ -211,6 +214,7 @@ export async function recall(
         total: nowMs() - t0,
         prep: prepMs,
         factLane: factLaneMs,
+        rerank: rerankMs,
         chunkLane: chunkLaneMs,
         fuse: fuseMs,
       },
@@ -307,6 +311,7 @@ export async function recall(
       results,
       vaultSize: size,
       reranked,
+      rerankMs: factRerankMs,
       hadV2Head: v2Head,
       embeddingsUnavailable: factEmbeddingsUnavailable,
       rankedOnCosine: factRankedOnCosine,
@@ -365,6 +370,7 @@ export async function recall(
     );
     vaultSize = size;
     didRerank = reranked;
+    rerankMs = factRerankMs;
     hadV2Head = v2Head;
     if (factEmbeddingsUnavailable) embeddingsUnavailable = true;
     // Read the lane's own answer rather than inverting `embeddingsUnavailable`:

@@ -38,6 +38,37 @@ export { createVaultEmbeddingCache, DEFAULT_VAULT_CACHE_SIZE } from "./lruCache"
  */
 export type VaultEmbeddingCache = Map<string, Float32Array>;
 
+/**
+ * Out-param the async rankers use to report what the cross-encoder actually did.
+ *
+ * `applied` answers "did it run"; `ms` answers "what did it cost". They are
+ * separate facts and #845 needed both: `fact_lane_ms` lumps the query embed, the
+ * vault read, the fused ranking and the CE into one number, so every hypothesis
+ * about which stage dominates was an inference from an aggregate — the same
+ * unfalsifiable shape that `decryptLast` was added to break.
+ *
+ * `ms` ACCUMULATES rather than assigns. The composite (`budget: 'high'`) path
+ * calls a ranker once per facet with one shared stats object, so the total CE
+ * bill for the call is the sum over facets, not the last facet's slice.
+ *
+ * It is billed whether or not the rerank succeeded: a CE that throws after
+ * spending three seconds still spent them, and attributing that to "no rerank"
+ * is how the cost hides.
+ */
+export interface RerankStats {
+  /** True iff the CE ran over a non-empty head at least once this call. */
+  applied: boolean;
+  /** Total wall-clock ms spent inside `rerankPairs`, summed across facets. */
+  ms: number;
+}
+
+/** Monotonic wall clock in ms; `performance.now()` where available (browser /
+ * RN / Node), else `Date.now()`. Best-effort stage timings only. */
+const nowMs = (): number =>
+  typeof performance !== "undefined" && typeof performance.now === "function"
+    ? performance.now()
+    : Date.now();
+
 /** One-time breadcrumb for callers still passing `decompose: "llm"` into the
  * programmatic search path (719/B4). The tool executor still honors that flag;
  * `searchVaultMemories*` ignores it. */
@@ -789,8 +820,11 @@ export async function rankFusedVaultMemoriesAsync(
      * actually ran over a non-empty head (not merely requested-then-degraded,
      * and not skipped on an empty V2 head). Lets callers report an honest
      * `reranked` diagnostic per call.
+     *
+     * `ms` ACCUMULATES the wall-clock spent inside `rerankPairs` — see
+     * {@link RerankStats}.
      */
-    rerankStats?: { applied: boolean };
+    rerankStats?: RerankStats;
     /**
      * Optional out-param. Set `{ hadResults: true }` iff the V2 head (cosine/BM25
      * fusion before side lanes) was non-empty. Lets callers distinguish "CE skipped
@@ -845,6 +879,9 @@ export async function rankFusedVaultMemoriesAsync(
     // (RN) is the expected-unavailable case and logs at debug; genuine
     // transient failures warn. recall() reports the honest `reranked` flag via
     // isRerankerAvailable().
+    // Billed in `finally` so a CE that throws mid-inference still reports the
+    // time it burned — see RerankStats.
+    const ceStart = nowMs();
     try {
       const reranked = await rerankPairs(
         query,
@@ -880,6 +917,8 @@ export async function rankFusedVaultMemoriesAsync(
         getLogger().warn("[memory/search] cross-encoder rerank failed; using V2 ranking", err);
       }
       combined = v2Ranked;
+    } finally {
+      if (options.rerankStats) options.rerankStats.ms += nowMs() - ceStart;
     }
   } else {
     combined = v2Ranked;
@@ -1067,10 +1106,12 @@ export async function rankComposite(
     includeUnrankedTail?: boolean;
     /**
      * Optional out-param. Set `{ applied: true }` iff the cross-encoder rerank
-     * actually ran over a non-empty head. Same semantics as
-     * {@link rankFusedVaultMemoriesAsync}'s `rerankStats`.
+     * actually ran over a non-empty head, and accumulate the CE's wall-clock
+     * into `ms`. Same semantics as {@link rankFusedVaultMemoriesAsync}'s
+     * `rerankStats` — including that `ms` sums across this path's per-facet
+     * rerank calls.
      */
-    rerankStats?: { applied: boolean };
+    rerankStats?: RerankStats;
     /**
      * Optional out-param. Set `{ hadResults: true }` iff there were facet fusion
      * results before rerank. Lets callers distinguish "CE skipped on empty head"
@@ -1210,6 +1251,8 @@ export async function rankComposite(
     const headSlice = combined.slice(0, rerankTopN);
     const tailSlice = combined.slice(rerankTopN);
 
+    // Billed in `finally`, and accumulated across facets — see RerankStats.
+    const ceStart = nowMs();
     try {
       const reranked = await rerankPairs(
         originalQuery,
@@ -1238,6 +1281,8 @@ export async function rankComposite(
           err
         );
       }
+    } finally {
+      if (options.rerankStats) options.rerankStats.ms += nowMs() - ceStart;
     }
   }
 
@@ -2185,6 +2230,8 @@ export async function rankPreparedVaultCandidates(
   results: VaultSearchResult[];
   vaultSize: number;
   reranked: boolean;
+  /** Wall-clock ms spent in the cross-encoder — see {@link RerankStats}. */
+  rerankMs: number;
   hadV2Head: boolean;
   /** Forwarded from the prepared set — see {@link PreparedVaultCandidates.embeddingsUnavailable}. */
   embeddingsUnavailable: boolean;
@@ -2235,6 +2282,7 @@ export async function rankPreparedVaultCandidates(
     results: VaultSearchResult[];
     vaultSize: number;
     reranked: boolean;
+    rerankMs: number;
     hadV2Head: boolean;
     embeddingsUnavailable: boolean;
   } => {
@@ -2254,6 +2302,10 @@ export async function rankPreparedVaultCandidates(
       results,
       vaultSize: out.vaultSize,
       reranked: out.reranked ?? false,
+      // Read straight off the shared stats object rather than being passed in at
+      // each call site: every return in this function funnels through here, so a
+      // path added later reports the CE bill without having to remember to.
+      rerankMs: rerankStats.ms,
       hadV2Head: out.hadV2Head ?? false,
       embeddingsUnavailable,
     };
@@ -2262,7 +2314,7 @@ export async function rankPreparedVaultCandidates(
   // Records whether the cross-encoder actually ran (set by the async rankers
   // on a real, non-empty head). Threaded up so recall() reports reranked
   // per-call — not "requested" (which lied on RN) and not "ever loaded".
-  const rerankStats = { applied: false };
+  const rerankStats: RerankStats = { applied: false, ms: 0 };
 
   const useFusion = searchOptions?.useFusion ?? true;
 
@@ -2446,6 +2498,15 @@ export async function searchVaultMemoriesWithSize(
   results: VaultSearchResult[];
   vaultSize: number;
   reranked: boolean;
+  /**
+   * Wall-clock ms this search spent inside the cross-encoder.
+   *
+   * 0 on every path that did not reach the CE, which `reranked` already
+   * distinguishes from "ran and cost nothing". Reported because `factLane`
+   * timing alone could not separate the rerank from the query embed, the vault
+   * read and the fused ranking — see {@link RerankStats}.
+   */
+  rerankMs: number;
   hadV2Head: boolean;
   /** True when this search had no usable cosine lane and ranked on BM25 alone. */
   embeddingsUnavailable: boolean;
@@ -2478,6 +2539,7 @@ export async function searchVaultMemoriesWithSize(
       results: [],
       vaultSize: 0,
       reranked: false,
+      rerankMs: 0,
       hadV2Head: false,
       embeddingsUnavailable: false,
       rankedOnCosine: false,
@@ -2520,6 +2582,7 @@ export async function searchVaultMemoriesWithSize(
       results: [],
       vaultSize: 0,
       reranked: false,
+      rerankMs: 0,
       hadV2Head: false,
       embeddingsUnavailable: prepared.embeddingsUnavailable,
       rankedOnCosine: false,
@@ -2532,6 +2595,7 @@ export async function searchVaultMemoriesWithSize(
       results: [],
       vaultSize: prepared.vaultSize,
       reranked: false,
+      rerankMs: 0,
       hadV2Head: false,
       embeddingsUnavailable: prepared.embeddingsUnavailable,
       rankedOnCosine: false,

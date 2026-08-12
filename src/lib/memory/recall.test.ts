@@ -991,6 +991,57 @@ describe("recall — diagnostics (onDiagnostics)", () => {
     expect(typeof d.vaultSize).toBe("number");
   });
 
+  // #845. `fact_lane_ms` lumped the query embed, the vault read, the fused
+  // ranking and the cross-encoder into one number, and three rounds of triage on
+  // that issue argued about which of them dominated without being able to tell.
+  // These pin the split so the question stays answerable from telemetry.
+  const CE_DELAY_MS = 40;
+  const slowCe = (outcome: "resolve" | "reject") =>
+    vi.mocked(rerankPairs).mockImplementation(async (_query, items) => {
+      await new Promise((r) => setTimeout(r, CE_DELAY_MS));
+      if (outcome === "reject") throw new Error("CE died mid-inference");
+      return items.map((item) => ({ ...item, score: 0.5 }));
+    });
+
+  it("attributes the cross-encoder's wall-clock to timings.rerank", async () => {
+    slowCe("resolve");
+    const seen: RecallDiagnostics[] = [];
+
+    await recall(QUERY, makeCtx(), { budget: "mid", onDiagnostics: (d) => seen.push(d) });
+
+    expect(seen[0].reranked).toBe(true);
+    expect(seen[0].timings.rerank).toBeGreaterThanOrEqual(CE_DELAY_MS);
+    // A SUBSET of the fact lane, not a sibling — the whole point is that
+    // `factLane - rerank` is readable as "everything else the lane did".
+    expect(seen[0].timings.rerank).toBeLessThanOrEqual(seen[0].timings.factLane);
+  });
+
+  it("reports timings.rerank = 0 when no rerank was requested", async () => {
+    slowCe("resolve");
+    const seen: RecallDiagnostics[] = [];
+
+    await recall(QUERY, makeCtx(), { budget: "low", onDiagnostics: (d) => seen.push(d) });
+
+    expect(seen[0].reranked).toBe(false);
+    expect(rerankPairs).not.toHaveBeenCalled();
+    expect(seen[0].timings.rerank).toBe(0);
+  });
+
+  it("still bills a cross-encoder that threw after burning the time", async () => {
+    // The failure mode this exists to prevent: a CE that spends three seconds
+    // and then throws is the WORST case, and if the elapsed time is only
+    // recorded on the success path it reports as `reranked: false, rerank: 0` —
+    // a stage that cost the user everything and the telemetry nothing.
+    slowCe("reject");
+    const seen: RecallDiagnostics[] = [];
+
+    await recall(QUERY, makeCtx(), { budget: "mid", onDiagnostics: (d) => seen.push(d) });
+
+    expect(seen[0].reranked).toBe(false);
+    expect(seen[0].degraded).toContain("rerank-unavailable");
+    expect(seen[0].timings.rerank).toBeGreaterThanOrEqual(CE_DELAY_MS);
+  });
+
   it("flags rerank-unavailable when the cross-encoder fails", async () => {
     vi.mocked(rerankPairs).mockRejectedValue(new RerankerUnavailableError(undefined));
     const seen: RecallDiagnostics[] = [];
