@@ -2,7 +2,7 @@
 
 > **TopicSkipReason** = `"excluded"` | `"link-declined"` | `"stamp-declined"` | `"llm-unanswered"` | `"unreadable"` | `"not-found"` | `"link-failed"`
 
-Defined in: [src/lib/memory/topicExtract.ts:307](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/topicExtract.ts#307)
+Defined in: [src/lib/memory/topicExtract.ts:306](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/topicExtract.ts#306)
 
 Why one memory was skipped by a topic sweep.
 

@@ -1,6 +1,8 @@
 # TopicExtractionRunResult
 
-Defined in: [src/lib/memory/topicExtract.ts:335](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/topicExtract.ts#335)
+Defined in: [src/lib/memory/topicExtract.ts:349](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/topicExtract.ts#349)
+
+Outcome of one [extractAndLinkEntitiesForMemoriesOp](../functions/extractAndLinkEntitiesForMemoriesOp.md) run.
 
 ## Properties
 
@@ -8,7 +10,7 @@ Defined in: [src/lib/memory/topicExtract.ts:335](https://github.com/anuma-ai/sdk
 
 > **entitiesByMemory**: `Map`<`string`, [`ExtractedEntity`](ExtractedEntity.md)\[]>
 
-Defined in: [src/lib/memory/topicExtract.ts:337](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/topicExtract.ts#337)
+Defined in: [src/lib/memory/topicExtract.ts:351](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/topicExtract.ts#351)
 
 memoryId → entities the LLM returned (post-validation, post-linking).
 
@@ -18,7 +20,7 @@ memoryId → entities the LLM returned (post-validation, post-linking).
 
 > **skippedIds**: `string`\[]
 
-Defined in: [src/lib/memory/topicExtract.ts:345](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/topicExtract.ts#345)
+Defined in: [src/lib/memory/topicExtract.ts:359](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/topicExtract.ts#359)
 
 Memories NOT processed: missing/deleted/foreign rows, user-managed rows
 (including ones that became user-managed mid-run), and members of failed
@@ -31,7 +33,7 @@ by a later sweep — callers should apply their own attempt caps.
 
 > **skippedReasons**: `Map`<`string`, [`TopicSkipReason`](../type-aliases/TopicSkipReason.md)>
 
-Defined in: [src/lib/memory/topicExtract.ts:363](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/topicExtract.ts#363)
+Defined in: [src/lib/memory/topicExtract.ts:377](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/topicExtract.ts#377)
 
 Why each id in [skippedIds](#skippedids) was skipped.
 
@@ -55,7 +57,7 @@ cannot drift. Group by [isDegradedTopicSkip](../functions/isDegradedTopicSkip.md
 
 > **stampedIds**: `string`\[]
 
-Defined in: [src/lib/memory/topicExtract.ts:340](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/topicExtract.ts#340)
+Defined in: [src/lib/memory/topicExtract.ts:354](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/topicExtract.ts#354)
 
 Memories stamped `topics_extracted_at` this run — includes zero-entity
 results so quiet memories aren't re-asked every sweep.

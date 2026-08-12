@@ -2,7 +2,7 @@
 
 > **isDegradedTopicSkip**(`reason`: [`TopicSkipReason`](../type-aliases/TopicSkipReason.md)): `boolean`
 
-Defined in: [src/lib/memory/topicExtract.ts:326](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/topicExtract.ts#326)
+Defined in: [src/lib/memory/topicExtract.ts:344](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/topicExtract.ts#344)
 
 Whether a skip reason means the sweep FAILED on that row, rather than
 deliberately passing over it.

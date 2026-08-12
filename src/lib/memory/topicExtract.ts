@@ -282,7 +282,6 @@ function parseTopicResponse(
   return out;
 }
 
-/** Outcome of one {@link extractAndLinkEntitiesForMemoriesOp} run. */
 /**
  * Why one memory was skipped by a topic sweep.
  *
@@ -314,6 +313,25 @@ export type TopicSkipReason =
   | "link-failed";
 
 /**
+ * The classification itself, as a total table rather than a condition chain.
+ *
+ * A chain fails OPEN: a reason added to {@link TopicSkipReason} but not to the
+ * chain returns `false` and rejoins the healthy pile — the exact regression
+ * reason-tagging exists to prevent. `Record<TopicSkipReason, boolean>` makes
+ * that omission a type error here, at the definition site, rather than
+ * something only a test's `satisfies` happens to catch.
+ */
+const DEGRADED_TOPIC_SKIP: Record<TopicSkipReason, boolean> = {
+  excluded: false,
+  "link-declined": false,
+  "stamp-declined": false,
+  "llm-unanswered": true,
+  unreadable: true,
+  "not-found": true,
+  "link-failed": true,
+};
+
+/**
  * Whether a skip reason means the sweep FAILED on that row, rather than
  * deliberately passing over it.
  *
@@ -324,14 +342,10 @@ export type TopicSkipReason =
  * @public
  */
 export function isDegradedTopicSkip(reason: TopicSkipReason): boolean {
-  return (
-    reason === "llm-unanswered" ||
-    reason === "unreadable" ||
-    reason === "not-found" ||
-    reason === "link-failed"
-  );
+  return DEGRADED_TOPIC_SKIP[reason] === true;
 }
 
+/** Outcome of one {@link extractAndLinkEntitiesForMemoriesOp} run. */
 export interface TopicExtractionRunResult {
   /** memoryId → entities the LLM returned (post-validation, post-linking). */
   entitiesByMemory: Map<string, ExtractedEntity[]>;
@@ -404,25 +418,34 @@ export async function extractAndLinkEntitiesForMemoriesOp(
   // which is exactly how `skippedIds` became unreadable in the first place.
   const skippedReasons = new Map<string, TopicSkipReason>();
   const skip = (id: string, reason: TopicSkipReason): void => {
-    // Idempotent, FIRST reason wins. `memoryIds` is caller-supplied and not
-    // deduped, so a repeated id would otherwise push twice while `Map.set`
-    // kept one entry — breaking the lockstep this pair documents, and letting a
-    // later benign reason overwrite an earlier degraded one, which is the
-    // direction that hides a failure.
-    //
-    // Within a single id the control flow can only reach ONE skip site (each
-    // `continue`s past the later ones), so a second call here always means a
-    // duplicate in the input.
+    // Idempotent, FIRST reason wins — defence in depth. Within a single id the
+    // control flow can only reach ONE skip site (each `continue`s past the
+    // later ones), and the input is deduped below, so this should never fire.
+    // It stays because the failure it prevents is silent: a double push would
+    // break the lockstep these two document, and a later benign reason
+    // overwriting an earlier degraded one hides a failure rather than showing
+    // one.
     if (skippedReasons.has(id)) return;
     skippedIds.push(id);
     skippedReasons.set(id, reason);
   };
   const inputs: TopicExtractionInput[] = [];
-  for (const id of memoryIds) {
+  // Dedupe up front: `memoryIds` is caller-supplied. A repeat otherwise gets
+  // sent twice in the LLM batch and linked twice, and — since `toStamp` keeps
+  // the id from the first pass — a second link write that throws puts the SAME
+  // id in `stampedIds` and in `skippedIds` as degraded, i.e. an alarm count for
+  // a row that actually landed. Set preserves insertion order.
+  for (const id of new Set(memoryIds)) {
     let record;
     try {
       record = await ctx.vaultMemoryCollection.find(id);
-    } catch {
+    } catch (err) {
+      // The only degraded path that would otherwise leave no trace, and the
+      // reason bundles two situations the alarm can't separate after the fact:
+      // an absent row (a delete racing the caller's pending query — an ordinary
+      // event, so the degraded count has a nonzero floor) versus a genuine read
+      // fault. Log so the two can be told apart in production.
+      log.warn("[memory/topics] vault lookup failed for extraction", err);
       skip(id, "not-found");
       continue;
     }
