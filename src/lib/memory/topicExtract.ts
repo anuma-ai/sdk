@@ -404,6 +404,16 @@ export async function extractAndLinkEntitiesForMemoriesOp(
   // which is exactly how `skippedIds` became unreadable in the first place.
   const skippedReasons = new Map<string, TopicSkipReason>();
   const skip = (id: string, reason: TopicSkipReason): void => {
+    // Idempotent, FIRST reason wins. `memoryIds` is caller-supplied and not
+    // deduped, so a repeated id would otherwise push twice while `Map.set`
+    // kept one entry — breaking the lockstep this pair documents, and letting a
+    // later benign reason overwrite an earlier degraded one, which is the
+    // direction that hides a failure.
+    //
+    // Within a single id the control flow can only reach ONE skip site (each
+    // `continue`s past the later ones), so a second call here always means a
+    // duplicate in the input.
+    if (skippedReasons.has(id)) return;
     skippedIds.push(id);
     skippedReasons.set(id, reason);
   };

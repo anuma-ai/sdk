@@ -653,6 +653,36 @@ describe("extractAndLinkEntitiesForMemoriesOp", () => {
       }
     });
 
+    // `memoryIds` is caller-supplied and not deduped. A repeated id used to push
+    // twice while the Map kept one entry, so the documented lockstep broke and a
+    // later benign reason could overwrite an earlier degraded one — the
+    // direction that hides a failure. Caught in review on #896.
+    it("holds the lockstep when the caller passes a duplicate id", async () => {
+      const ctx = makeOpCtx({ dup: mockVaultRecord({ id: "dup", topicsUserManaged: true }) });
+
+      const result = await extractAndLinkEntitiesForMemoriesOp(ctx, ["dup", "dup"], {
+        apiKey: "k",
+        fetchFn: mockFetch(topicResponse([])),
+      });
+
+      expect(result.skippedIds).toEqual(["dup"]);
+      expect(result.skippedReasons.size).toBe(result.skippedIds.length);
+      expect(result.skippedReasons.get("dup")).toBe("excluded");
+    });
+
+    it("keeps the FIRST reason for a duplicate id, so a degraded one is not overwritten", async () => {
+      // "missing" is absent from the ctx → not-found (degraded) on both passes.
+      // The guard must not let a later call replace it.
+      const ctx = makeOpCtx({});
+      const result = await extractAndLinkEntitiesForMemoriesOp(ctx, ["missing", "missing"], {
+        apiKey: "k",
+        fetchFn: mockFetch(topicResponse([])),
+      });
+      expect(result.skippedIds).toEqual(["missing"]);
+      expect(result.skippedReasons.get("missing")).toBe("not-found");
+      expect(isDegradedTopicSkip(result.skippedReasons.get("missing")!)).toBe(true);
+    });
+
     it("keeps skippedIds and skippedReasons in lockstep", async () => {
       // They are written by one helper; this is the invariant that makes the
       // reasons safe to group by without re-checking the ids.
