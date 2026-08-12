@@ -994,6 +994,12 @@ Re-exports [injectionSignatureCatalog](../react/Internal/functions/injectionSign
 
 ***
 
+### isDegradedTopicSkip
+
+Re-exports [isDegradedTopicSkip](../react/Internal/functions/isDegradedTopicSkip.md)
+
+***
+
 ### isRerankerAvailable
 
 Re-exports [isRerankerAvailable](../react/Internal/functions/isRerankerAvailable.md)
@@ -1813,6 +1819,12 @@ Re-exports [TopicExtractOptions](../react/Internal/interfaces/TopicExtractOption
 ### TOPICS\_EXTRACTION\_VERSION
 
 Re-exports [TOPICS\_EXTRACTION\_VERSION](../react/Internal/variables/TOPICS_EXTRACTION_VERSION.md)
+
+***
+
+### TopicSkipReason
+
+Re-exports [TopicSkipReason](../react/Internal/type-aliases/TopicSkipReason.md)
 
 ***
 

@@ -1179,8 +1179,12 @@ function printReport(run: GateRun): void {
     const t = timings.get(name);
     if (!t) continue;
     // Advisory only — see the file header for why wall-clock is never gated.
+    // `rerank` and `queryEmbed` are SUBSETS of `fact`, printed nested as
+    // `fact N(ce X, embed Y)` rather than as siblings so the top-level columns
+    // still sum to the whole.
     const phases = t.phases
-      ? `  (prep ${t.phases.prep.toFixed(0)} / fact ${t.phases.factLane.toFixed(0)} / ` +
+      ? `  (prep ${t.phases.prep.toFixed(0)} / fact ${t.phases.factLane.toFixed(0)}` +
+        `(ce ${t.phases.rerank.toFixed(0)}, embed ${t.phases.queryEmbed.toFixed(0)}) / ` +
         `chunk ${t.phases.chunkLane.toFixed(0)} / fuse ${t.phases.fuse.toFixed(0)})`
       : "";
     console.error(`  ${" ".repeat(width)}  ~${t.wallMs.toFixed(0)}ms wall, ungated${phases}`);

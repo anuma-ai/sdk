@@ -23,13 +23,16 @@ import {
   stampTopicsExtractedAtOp,
   type VaultMemoryOperationsContext,
 } from "../db/memoryVault/operations";
+import { noopLogger, setLogger } from "../logger";
 import type { NerDetector, PiiSpan } from "../pii/ner";
 import { PiiRedactor } from "../pii/redactor";
 import {
   extractAndLinkEntitiesForMemoriesOp,
   extractEntitiesForMemories,
+  isDegradedTopicSkip,
   TOPIC_EXTRACTION_BATCH_SIZE,
   type TopicExtractionInput,
+  type TopicSkipReason,
 } from "./topicExtract";
 
 function topicResponse(memories: Array<{ id: string; entities?: unknown[] }>): string {
@@ -580,5 +583,184 @@ describe("extractAndLinkEntitiesForMemoriesOp", () => {
     expect(result.stampedIds).toEqual(["mem_2"]);
     expect(result.skippedIds).toEqual(["mem_1"]);
     expect(result.entitiesByMemory.has("mem_1")).toBe(false);
+  });
+  // The point of `skippedReasons`: `skippedIds` alone cannot tell a sweep that
+  // deliberately declined work from one that FAILED. Both produce an identical
+  // array, which is how a wholly broken sweep looked healthy in production.
+  describe("skippedReasons distinguishes a broken sweep from a deliberate one", () => {
+    it("reports llm-unanswered when the batch fails, and marks it degraded", async () => {
+      const ctx = makeOpCtx({ mem_1: mockVaultRecord({ id: "mem_1" }) });
+      // A response with no `memories` for this id — the shape a failed/omitted
+      // batch produces.
+      const fetchFn = mockFetch(topicResponse([]));
+
+      const result = await extractAndLinkEntitiesForMemoriesOp(ctx, ["mem_1"], {
+        apiKey: "k",
+        fetchFn,
+        maxAttempts: 1,
+        backoffMs: () => 0,
+      });
+
+      expect(result.skippedIds).toEqual(["mem_1"]);
+      expect(result.skippedReasons.get("mem_1")).toBe("llm-unanswered");
+      expect(isDegradedTopicSkip("llm-unanswered")).toBe(true);
+    });
+
+    it("reports excluded for a user-managed row, and does NOT mark it degraded", async () => {
+      // Same skippedIds as the failure above — only the reason separates them.
+      const ctx = makeOpCtx({
+        mem_1: mockVaultRecord({ id: "mem_1", topicsUserManaged: true }),
+      });
+
+      const result = await extractAndLinkEntitiesForMemoriesOp(ctx, ["mem_1"], {
+        apiKey: "k",
+        fetchFn: mockFetch(topicResponse([])),
+      });
+
+      expect(result.skippedIds).toEqual(["mem_1"]);
+      expect(result.skippedReasons.get("mem_1")).toBe("excluded");
+      expect(isDegradedTopicSkip("excluded")).toBe(false);
+    });
+
+    it("reports not-found when the row lookup throws", async () => {
+      const ctx = makeOpCtx({});
+      const result = await extractAndLinkEntitiesForMemoriesOp(ctx, ["gone"], {
+        apiKey: "k",
+        fetchFn: mockFetch(topicResponse([])),
+      });
+      expect(result.skippedReasons.get("gone")).toBe("not-found");
+      expect(isDegradedTopicSkip("not-found")).toBe(true);
+    });
+
+    // `not-found` is the reason you'd alarm on alongside `llm-unanswered`, and
+    // it bundles an absent row (an ordinary delete racing the caller's pending
+    // query) with a genuine read fault. Without the log there is nothing to tell
+    // the two apart after the fact — it was the only degraded path that
+    // swallowed its error. Caught in review on #896.
+    it("logs the underlying error for not-found, like the other degraded paths", async () => {
+      const warn = vi.fn();
+      setLogger({ debug: vi.fn(), info: vi.fn(), warn, error: vi.fn() });
+      try {
+        await extractAndLinkEntitiesForMemoriesOp(makeOpCtx({}), ["gone"], {
+          apiKey: "k",
+          fetchFn: mockFetch(topicResponse([])),
+        });
+
+        expect(warn).toHaveBeenCalledTimes(1);
+        expect(String(warn.mock.calls[0]?.[0])).toContain("vault lookup failed");
+        expect(String(warn.mock.calls[0]?.[1])).toContain("not found");
+      } finally {
+        setLogger(noopLogger);
+      }
+    });
+
+    // Exhaustiveness is enforced in src — `isDegradedTopicSkip` reads a
+    // `Record<TopicSkipReason, boolean>`, so a reason added to the union without
+    // a classification is a type error at the definition site. This test pins
+    // the VALUES (a wrong grouping is not a type error) and would otherwise be
+    // the only guard, which is one tsconfig change away from not running.
+    it("classifies every reason, and cannot gain one silently", () => {
+      const expected = {
+        excluded: false,
+        "link-declined": false,
+        "stamp-declined": false,
+        "llm-unanswered": true,
+        unreadable: true,
+        "not-found": true,
+        "link-failed": true,
+      } satisfies Record<TopicSkipReason, boolean>;
+
+      for (const [reason, degraded] of Object.entries(expected)) {
+        expect(isDegradedTopicSkip(reason as TopicSkipReason)).toBe(degraded);
+      }
+    });
+
+    // `memoryIds` is caller-supplied. A repeated id used to push twice while the
+    // Map kept one entry, so the documented lockstep broke and a later benign
+    // reason could overwrite an earlier degraded one — the direction that hides
+    // a failure. Caught in review on #896.
+    it("holds the lockstep when the caller passes a duplicate id", async () => {
+      const ctx = makeOpCtx({ dup: mockVaultRecord({ id: "dup", topicsUserManaged: true }) });
+
+      const result = await extractAndLinkEntitiesForMemoriesOp(ctx, ["dup", "dup"], {
+        apiKey: "k",
+        fetchFn: mockFetch(topicResponse([])),
+      });
+
+      expect(result.skippedIds).toEqual(["dup"]);
+      expect(result.skippedReasons.size).toBe(result.skippedIds.length);
+      expect(result.skippedReasons.get("dup")).toBe("excluded");
+    });
+
+    it("keeps the FIRST reason for a duplicate id, so a degraded one is not overwritten", async () => {
+      // "missing" is absent from the ctx → not-found (degraded).
+      const ctx = makeOpCtx({});
+      const result = await extractAndLinkEntitiesForMemoriesOp(ctx, ["missing", "missing"], {
+        apiKey: "k",
+        fetchFn: mockFetch(topicResponse([])),
+      });
+      expect(result.skippedIds).toEqual(["missing"]);
+      expect(result.skippedReasons.get("missing")).toBe("not-found");
+      expect(isDegradedTopicSkip(result.skippedReasons.get("missing")!)).toBe(true);
+    });
+
+    // The half the idempotent `skip()` alone did NOT fix: a duplicate reached
+    // the link path twice, and because `toStamp` still held the id from the
+    // first (successful) pass, a second link write that threw put the SAME id in
+    // `stampedIds` and in `skippedIds` as degraded — an alarm count for a row
+    // that actually landed. Caught in review on #896.
+    it("never reports an id as both stamped and degraded-skipped on a duplicate", async () => {
+      const ctx = makeOpCtx({ dup: mockVaultRecord({ id: "dup" }) });
+
+      const result = await extractAndLinkEntitiesForMemoriesOp(ctx, ["dup", "dup"], {
+        apiKey: "k",
+        fetchFn: mockFetch(topicResponse([{ id: "dup", entities: [] }])),
+      });
+
+      // One pass over the id: one link write, one stamp entry, nothing skipped.
+      // Pre-fix this ran twice, and a second write that threw left "dup" in
+      // BOTH collections (verified against the branch before the dedupe).
+      expect(replaceMemoryEntitiesGuardedOp).toHaveBeenCalledTimes(1);
+      expect(result.stampedIds).toEqual(["dup"]);
+      expect(result.skippedIds).toEqual([]);
+      // The invariant the double pass could break, asserted directly.
+      for (const id of result.stampedIds) {
+        expect(result.skippedReasons.has(id)).toBe(false);
+      }
+    });
+
+    it("sends a duplicated id to the LLM once", async () => {
+      const ctx = makeOpCtx({ dup: mockVaultRecord({ id: "dup" }) });
+      const fetchFn = mockFetch(topicResponse([{ id: "dup", entities: [] }]));
+
+      await extractAndLinkEntitiesForMemoriesOp(ctx, ["dup", "dup", "dup"], {
+        apiKey: "k",
+        fetchFn,
+      });
+
+      const body = JSON.parse(vi.mocked(fetchFn).mock.calls[0]![1]!.body as string) as {
+        messages: Array<{ content: string }>;
+      };
+      const prompt = body.messages.map((m) => m.content).join("\n");
+      expect(prompt.match(/dup/g)).toHaveLength(1);
+    });
+
+    it("keeps skippedIds and skippedReasons in lockstep", async () => {
+      // They are written by one helper; this is the invariant that makes the
+      // reasons safe to group by without re-checking the ids.
+      const ctx = makeOpCtx({
+        ok: mockVaultRecord({ id: "ok" }),
+        managed: mockVaultRecord({ id: "managed", topicsUserManaged: true }),
+      });
+      const result = await extractAndLinkEntitiesForMemoriesOp(ctx, ["ok", "managed", "missing"], {
+        apiKey: "k",
+        fetchFn: mockFetch(topicResponse([{ id: "ok", entities: [] }])),
+      });
+
+      expect(result.skippedReasons.size).toBe(result.skippedIds.length);
+      for (const id of result.skippedIds) {
+        expect(result.skippedReasons.has(id)).toBe(true);
+      }
+    });
   });
 });

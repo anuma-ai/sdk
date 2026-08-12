@@ -991,6 +991,134 @@ describe("recall — diagnostics (onDiagnostics)", () => {
     expect(typeof d.vaultSize).toBe("number");
   });
 
+  // #845. `fact_lane_ms` lumped the query embed, the vault read, the fused
+  // ranking and the cross-encoder into one number, and three rounds of triage on
+  // that issue argued about which of them dominated without being able to tell.
+  // These pin the split so the question stays answerable from telemetry.
+  const CE_DELAY_MS = 25;
+  /**
+   * Burn CE_DELAY_MS by SPINNING on `performance.now()`, not by `setTimeout`.
+   *
+   * A sleep is measured against a different clock than it is scheduled on, so
+   * `setTimeout(40)` routinely yields 39.7ms of `performance.now()` elapsed and
+   * a `>= 40` assertion is a coin flip — this test failed exactly that way in
+   * CI's coverage job while passing locally. The spin cannot exit early: it
+   * reads the same monotonic source the code under test bills with, so
+   * `elapsed >= CE_DELAY_MS` holds by construction rather than by luck.
+   */
+  const slowCe = (outcome: "resolve" | "reject") =>
+    vi.mocked(rerankPairs).mockImplementation(async (_query, items) => {
+      const until = performance.now() + CE_DELAY_MS;
+      while (performance.now() < until) {
+        /* spin */
+      }
+      if (outcome === "reject") throw new Error("CE died mid-inference");
+      return items.map((item) => ({ ...item, score: 0.5 }));
+    });
+
+  it("attributes the cross-encoder's wall-clock to timings.rerank", async () => {
+    slowCe("resolve");
+    const seen: RecallDiagnostics[] = [];
+
+    await recall(QUERY, makeCtx(), { budget: "mid", onDiagnostics: (d) => seen.push(d) });
+
+    expect(seen[0].reranked).toBe(true);
+    expect(seen[0].timings.rerank).toBeGreaterThanOrEqual(CE_DELAY_MS);
+    // A SUBSET of the fact lane, not a sibling — the whole point is that
+    // `factLane - rerank` is readable as "everything else the lane did".
+    expect(seen[0].timings.rerank).toBeLessThanOrEqual(seen[0].timings.factLane);
+  });
+
+  it("reports timings.rerank = 0 when no rerank was requested", async () => {
+    slowCe("resolve");
+    const seen: RecallDiagnostics[] = [];
+
+    await recall(QUERY, makeCtx(), { budget: "low", onDiagnostics: (d) => seen.push(d) });
+
+    expect(seen[0].reranked).toBe(false);
+    expect(rerankPairs).not.toHaveBeenCalled();
+    expect(seen[0].timings.rerank).toBe(0);
+  });
+
+  it("still bills a cross-encoder that threw after burning the time", async () => {
+    // The failure mode this exists to prevent: a CE that spends three seconds
+    // and then throws is the WORST case, and if the elapsed time is only
+    // recorded on the success path it reports as `reranked: false, rerank: 0` —
+    // a stage that cost the user everything and the telemetry nothing.
+    slowCe("reject");
+    const seen: RecallDiagnostics[] = [];
+
+    await recall(QUERY, makeCtx(), { budget: "mid", onDiagnostics: (d) => seen.push(d) });
+
+    expect(seen[0].reranked).toBe(false);
+    expect(seen[0].degraded).toContain("rerank-unavailable");
+    expect(seen[0].timings.rerank).toBeGreaterThanOrEqual(CE_DELAY_MS);
+  });
+
+  it("attributes the query embed to timings.queryEmbed, inside the fact lane", async () => {
+    const seen: RecallDiagnostics[] = [];
+    vi.mocked(generateEmbedding).mockImplementation(async (text) => {
+      const until = performance.now() + CE_DELAY_MS;
+      while (performance.now() < until) {
+        /* spin */
+      }
+      return vecFor(text);
+    });
+
+    await recall(QUERY, makeCtx(), { budget: "low", onDiagnostics: (d) => seen.push(d) });
+
+    expect(seen[0].timings.queryEmbed).toBeGreaterThanOrEqual(CE_DELAY_MS);
+    // Another subset of the fact lane, so the two splits must both fit inside it.
+    expect(seen[0].timings.queryEmbed).toBeLessThanOrEqual(seen[0].timings.factLane);
+    expect(seen[0].timings.queryEmbed + seen[0].timings.rerank).toBeLessThanOrEqual(
+      seen[0].timings.factLane
+    );
+  });
+
+  // The asymmetry that made #845's ~850ms floor unattributable: the fast
+  // `vault_size = 0` population never embeds at all, so it could never serve as
+  // a baseline for what the embed costs everyone else.
+  it("reports queryEmbed = 0 on an empty vault, which returns before embedding", async () => {
+    vi.mocked(getAllVaultMemoriesOp).mockResolvedValue([]);
+    const seen: RecallDiagnostics[] = [];
+
+    await recall(QUERY, makeCtx(), { budget: "low", onDiagnostics: (d) => seen.push(d) });
+
+    expect(seen[0].vaultSize).toBe(0);
+    expect(seen[0].timings.queryEmbed).toBe(0);
+    expect(generateEmbedding).not.toHaveBeenCalled();
+  });
+
+  it("counts rows the lane had to re-embed, uncapped, on the legacy read path", async () => {
+    // A vault whose stored vectors carry a stale embedding-model tag: every row
+    // is unusable, so the legacy path re-embeds ALL of them in one batch — with
+    // no `unembeddedCap`. Left uncounted, that cost lands in the unexplained
+    // residual and reads as a slow vault read.
+    const stale = Array.from({ length: 12 }, (_, i) => ({
+      ...makeMemory(`m${i}`, `fact number ${i}`),
+      // The real shape of this in production: a model RENAME (sdk#482 dropped the
+      // provider prefix) leaves every row written before it tagged with a string
+      // that no longer equals the current model, so none of their stored vectors
+      // are considered usable.
+      embeddingModel: "provider/retired-model-v1",
+    }));
+    vi.mocked(getAllVaultMemoriesOp).mockResolvedValue(stale);
+    const seen: RecallDiagnostics[] = [];
+
+    await recall(QUERY, makeCtx(), { budget: "low", onDiagnostics: (d) => seen.push(d) });
+
+    expect(seen[0].vaultSize).toBe(12);
+    expect(seen[0].vaultRowsEmbedded).toBe(12);
+  });
+
+  it("reports vaultRowsEmbedded = 0 when every stored vector is usable", async () => {
+    const seen: RecallDiagnostics[] = [];
+
+    await recall(QUERY, makeCtx(), { budget: "low", onDiagnostics: (d) => seen.push(d) });
+
+    expect(seen[0].vaultRowsEmbedded).toBe(0);
+  });
+
   it("flags rerank-unavailable when the cross-encoder fails", async () => {
     vi.mocked(rerankPairs).mockRejectedValue(new RerankerUnavailableError(undefined));
     const seen: RecallDiagnostics[] = [];
