@@ -597,6 +597,20 @@ export function candidateToMemory(
  * `extractFacts`, matching where the harness path stops, so the arms differ in
  * the extractor and nothing else. Closing those two is separate work.
  */
+/**
+ * Returns `null` — not `[]` — when extraction FAILED, so the caller cannot
+ * cache a failure as a successful empty result.
+ *
+ * The distinction is load-bearing and the reason this is a nullable return
+ * rather than a comment: `[]` is a legitimate outcome ("this session held
+ * nothing worth keeping") and is worth caching, while a failure must retry on
+ * the next run. Collapsing the two pins an empty extraction for that session
+ * until someone clears the cache or bumps the key — the harness path calls this
+ * out explicitly and avoids it, and the first version of this function
+ * reintroduced it while carrying a comment claiming otherwise. Caught by
+ * Greptile on #908. The type is what prevents the regression now; a comment
+ * demonstrably did not.
+ */
 async function extractViaSdk(
   session: LongMemEvalSession,
   sessionIndex: number,
@@ -604,7 +618,7 @@ async function extractViaSdk(
   api: ApiConfig,
   extractionModel: string,
   obsDate: string
-): Promise<ExtractedMemory[]> {
+): Promise<ExtractedMemory[] | null> {
   const messages = session.map((msg, i) => ({
     id: `${sessionId}#${i}`,
     role: msg.role,
@@ -631,9 +645,7 @@ async function extractViaSdk(
 
   if (failureReason) {
     console.warn(`Extraction failed (session ${sessionId}): ${failureReason} [sdk extractor]`);
-    // Not cached: a failure must retry on the next run rather than pinning an
-    // empty result, matching the harness path's contract.
-    return [];
+    return null;
   }
 
   return candidates.map((c) => candidateToMemory(c, sessionIndex, sessionId));
@@ -672,10 +684,10 @@ export async function extractMemoriesFromSession(
       extractionModel,
       obsDate
     );
-    // Same rule as the harness path: only a successful extraction is cached.
-    // An empty result here is indistinguishable from "this session held nothing
-    // worth keeping", which is a legitimate outcome worth caching; a *failure*
-    // returned early above and never reaches this line.
+    // Same rule as the harness path: only a SUCCESSFUL extraction is cached. A
+    // failure returns null above and must retry next run; caching it would pin
+    // an empty vault for this session until someone clears the cache.
+    if (extracted === null) return [];
     cache.set(
       cacheKey,
       extracted.map(({ sessionIndex: _i, sessionId: _s, ...rest }) => rest)

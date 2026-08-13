@@ -580,7 +580,11 @@ function recallGateConfig(): Record<string, string | number | boolean> {
     // produce different memories from the same session, so two runs that agree
     // on every other knob are still incomparable across this one — a stronger
     // invalidator than `extractLlm` above.
-    extractor: args.extractor ?? "",
+    // The RESOLVED extractor, not the raw flag: omitting `--extractor` and
+    // passing `--extractor harness` run identical code, so recording "" for one
+    // and "harness" for the other would make the gate refuse a valid comparison
+    // on a difference that does not exist. Caught by Greptile on #908.
+    extractor: args.extractor ?? "harness",
     // Every gated score is a cosine over these vectors, so a model swap changes
     // the embedding space itself — the most total way to invalidate a
     // comparison. The sibling vault-search gate records it for the same reason.
