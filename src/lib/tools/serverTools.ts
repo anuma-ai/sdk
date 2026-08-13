@@ -781,6 +781,38 @@ export function resolveDeferredServerTools(
   return allowed.filter((tool) => !excluded.has(tool.name));
 }
 
+/**
+ * The defer config {@link mergeTools} should FORMAT this request with — `undefined` when defer
+ * formatting must be skipped even though defer-loading is enabled.
+ *
+ * Scoping the selection to a caller's explicit static array (see {@link resolveDeferredServerTools})
+ * is only half the job. `formatServerToolsWithDefer` still marks every non-hot tool `defer_loading`
+ * and prepends the tool-search tool, so for a one-tool array whose tool isn't hot — every creation
+ * mode: video, music, sfx, image, slides — the search tool becomes the ONLY directly callable entry
+ * in the request. Callers pair those arrays with `tool_choice:'required'`, so "you must call the video
+ * generator" silently degrades to "you must call tool-search", and a caller scanning tool-call events
+ * for the generator's name never sees it.
+ *
+ * An explicit array is a closed set the caller already narrowed: there is nothing left to discover, so
+ * defer has no work to do and its formatting is pure downside. Sending those tools normally is exactly
+ * today's (defer-off) behavior for that request.
+ *
+ * Note this is NOT the same as treating the array as `hotToolNames`: hot tools are non-deferred, but
+ * `formatServerToolsWithDefer` prepends the tool-search tool unconditionally, so a `required` turn
+ * could still satisfy the constraint by calling it. Skipping the formatting is what actually fixes it.
+ *
+ * The catalog path (a filter function, or no filter) is untouched — full tool-search + hot + deferred.
+ */
+export function deferFormattingConfig(
+  serverToolsFilter: readonly string[] | ServerToolsFilterFunction | undefined,
+  config: DeferLoadingConfig | undefined
+): DeferLoadingConfig | undefined {
+  if (!config?.enabled) return config;
+  // `typeof`, not `Array.isArray` — narrowing a union whose other arm is callable yields `any[]`.
+  const isExplicitList = serverToolsFilter !== undefined && typeof serverToolsFilter !== "function";
+  return isExplicitList ? undefined : config;
+}
+
 // Deterministic, locale-independent name order (codepoint) so the deferred block is byte-identical
 // across turns regardless of the runtime's locale.
 function byNameAscending(a: ServerTool, b: ServerTool): number {

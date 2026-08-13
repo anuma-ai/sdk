@@ -153,6 +153,7 @@ import {
 import {
   autoFilterClientTools,
   computeToolGuidance,
+  deferFormattingConfig,
   type DeferLoadingConfig,
   filterServerTools,
   getServerTools,
@@ -2423,7 +2424,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
             filteredServerTools,
             filteredClientTools,
             effectiveApiType,
-            serverToolsConfig?.deferLoading
+            deferFormattingConfig(serverToolsFilter, serverToolsConfig?.deferLoading)
           );
         }
 
@@ -3078,7 +3079,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           filteredServerTools,
           filteredClientTools,
           effectiveApiType,
-          serverToolsConfig?.deferLoading
+          deferFormattingConfig(serverToolsFilter, serverToolsConfig?.deferLoading)
         );
       }
 

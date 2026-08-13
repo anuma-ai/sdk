@@ -1,6 +1,6 @@
 # SelectServerToolsForPromptOptions
 
-Defined in: [src/lib/tools/serverTools.ts:1700](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#1700)
+Defined in: [src/lib/tools/serverTools.ts:1732](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#1732)
 
 Options for `selectServerToolsForPrompt`.
 
@@ -10,7 +10,7 @@ Options for `selectServerToolsForPrompt`.
 
 > `optional` **baseUrl**: `string`
 
-Defined in: [src/lib/tools/serverTools.ts:1713](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#1713)
+Defined in: [src/lib/tools/serverTools.ts:1745](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#1745)
 
 Base URL for the API.
 
@@ -20,7 +20,7 @@ Base URL for the API.
 
 > `optional` **cache**: `ToolsCacheBackend`
 
-Defined in: [src/lib/tools/serverTools.ts:1722](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#1722)
+Defined in: [src/lib/tools/serverTools.ts:1754](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#1754)
 
 Where to read/write the cached catalog. Defaults to browser `localStorage`
 (a no-op on Node/RN); pass a backend to persist on those platforms.
@@ -31,7 +31,7 @@ Where to read/write the cached catalog. Defaults to browser `localStorage`
 
 > `optional` **cacheExpirationMs**: `number`
 
-Defined in: [src/lib/tools/serverTools.ts:1717](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#1717)
+Defined in: [src/lib/tools/serverTools.ts:1749](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#1749)
 
 Cache expiration in ms for the server-tools catalog fetch.
 
@@ -41,7 +41,7 @@ Cache expiration in ms for the server-tools catalog fetch.
 
 > `optional` **deferLoading**: `DeferLoadingConfig`
 
-Defined in: [src/lib/tools/serverTools.ts:1729](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#1729)
+Defined in: [src/lib/tools/serverTools.ts:1761](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#1761)
 
 Phase 3 defer-loading. When `enabled`, this helper skips SEMANTIC filtering to mirror
 useChatStorage's responses send path, which hands the catalog to mergeTools + tool-search. The
@@ -54,7 +54,7 @@ resolveDeferredServerTools). Omit/disabled → today's filtered selection.
 
 > `optional` **embeddingModel**: `string`
 
-Defined in: [src/lib/tools/serverTools.ts:1715](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#1715)
+Defined in: [src/lib/tools/serverTools.ts:1747](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#1747)
 
 Embedding model override. Falls back to the SDK default.
 
@@ -64,7 +64,7 @@ Embedding model override. Falls back to the SDK default.
 
 > **getToken**: () => `Promise`<`string` | `null`>
 
-Defined in: [src/lib/tools/serverTools.ts:1711](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#1711)
+Defined in: [src/lib/tools/serverTools.ts:1743](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#1743)
 
 Function that resolves an auth token (Bearer).
 
@@ -78,7 +78,7 @@ Function that resolves an auth token (Bearer).
 
 > **prompt**: `string`
 
-Defined in: [src/lib/tools/serverTools.ts:1702](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#1702)
+Defined in: [src/lib/tools/serverTools.ts:1734](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#1734)
 
 User prompt to match tools against.
 
@@ -88,7 +88,7 @@ User prompt to match tools against.
 
 > `optional` **serverToolsFilter**: `string`\[] | [`ServerToolsFilterFunction`](../type-aliases/ServerToolsFilterFunction.md)
 
-Defined in: [src/lib/tools/serverTools.ts:1709](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#1709)
+Defined in: [src/lib/tools/serverTools.ts:1741](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#1741)
 
 Filter to apply: either a function (called with the prompt embedding +
 full catalog) or a static list of tool names. Same shape `useChatStorage`

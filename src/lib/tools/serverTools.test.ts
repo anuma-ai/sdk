@@ -8,6 +8,7 @@ import {
   type CachedServerTools,
   clearServerToolsCache,
   createServerToolsFilter,
+  deferFormattingConfig,
   getToolsChecksum,
   mergeTools,
   resolveDeferredServerTools,
@@ -515,5 +516,84 @@ describe("resolveDeferredServerTools — defer keeps the caller's unconditional 
       excludeTools: ["OpenMeteoMCP-weather_forecast"],
     });
     expect(names(catalog)).toEqual(before);
+  });
+});
+
+describe("deferFormattingConfig — an explicit static array skips defer formatting (I-3)", () => {
+  const st = (name: string): ServerTool => ({
+    type: "function",
+    name,
+    description: `desc ${name}`,
+    parameters: { type: "object", properties: {}, required: [] },
+  });
+  // Mirrors the real creation modes: a one-tool list whose tool is NOT hot.
+  const VIDEO = [st("AnumaMediaMCP-anuma_create_video")];
+  const hot = ["AnumaJinaMCP-search_web", "AnumaSearchMCP-anuma_text_search"];
+  const on = { enabled: true, hotToolNames: hot };
+  const catalog = [
+    st("AnumaJinaMCP-search_web"),
+    st("AnumaSearchMCP-anuma_text_search"),
+    st("AnumaMediaMCP-anuma_create_video"),
+    st("ZetaMCP-z_tool"),
+  ];
+
+  it("a required-tool creation turn can actually call its generator, not just tool-search", () => {
+    // The bug: with defer formatting the ONLY directly callable entry was tool_search, so
+    // tool_choice:'required' could only be satisfied by calling tool-search — never the generator.
+    const cfg = deferFormattingConfig(["AnumaMediaMCP-anuma_create_video"], on);
+    expect(cfg).toBeUndefined();
+
+    const merged = mergeTools(VIDEO, undefined, "responses", cfg) as Array<Record<string, unknown>>;
+    expect(merged).toHaveLength(1);
+    expect(merged[0].name).toBe("AnumaMediaMCP-anuma_create_video");
+    expect(merged[0].defer_loading).toBeUndefined();
+    expect(merged.some((t) => String(t.type ?? "").startsWith("tool_search_tool_"))).toBe(false);
+  });
+
+  it("is byte-identical to defer-off for that request", () => {
+    const off = JSON.stringify(mergeTools(VIDEO, undefined, "responses"));
+    const viaHelper = JSON.stringify(
+      mergeTools(VIDEO, undefined, "responses", deferFormattingConfig(["x"], on))
+    );
+    expect(viaHelper).toBe(off);
+  });
+
+  it("REGRESSION: a filter function still gets the full defer treatment", () => {
+    const cfg = deferFormattingConfig(() => [], on);
+    expect(cfg).toBe(on);
+
+    const merged = mergeTools(catalog, undefined, "responses", cfg) as Array<
+      Record<string, unknown>
+    >;
+    // [tool-search] -> [hot in order] -> [deferred name-sorted, flagged]
+    expect(merged[0].type).toBe("tool_search_tool_regex_20251119");
+    expect(merged.slice(1, 3).map((t) => t.name)).toEqual(hot);
+    expect(merged.slice(1, 3).every((t) => t.defer_loading === undefined)).toBe(true);
+    expect(merged.slice(3).every((t) => t.defer_loading === true)).toBe(true);
+  });
+
+  it("REGRESSION: no filter at all still gets the full defer treatment", () => {
+    expect(deferFormattingConfig(undefined, on)).toBe(on);
+  });
+
+  it("defer disabled stays disabled regardless of the filter shape", () => {
+    const off = { enabled: false, hotToolNames: hot };
+    expect(deferFormattingConfig(["x"], off)).toBe(off);
+    expect(deferFormattingConfig(undefined, off)).toBe(off);
+    expect(deferFormattingConfig(["x"], undefined)).toBeUndefined();
+  });
+
+  it("membership scoping and the I-2 exclusion union are untouched", () => {
+    // resolveDeferredServerTools still narrows to the array and still unions exclusions —
+    // this change only affects FORMATTING, not selection.
+    const tagged = createServerToolsFilter({ excludeTools: ["ZetaMCP-z_tool"] });
+    expect(
+      resolveDeferredServerTools(catalog, ["AnumaMediaMCP-anuma_create_video"], on).map(
+        (t) => t.name
+      )
+    ).toEqual(["AnumaMediaMCP-anuma_create_video"]);
+    expect(resolveDeferredServerTools(catalog, tagged, on).map((t) => t.name)).not.toContain(
+      "ZetaMCP-z_tool"
+    );
   });
 });

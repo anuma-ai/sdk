@@ -126,6 +126,7 @@ import { IMAGE_TOOL_NAMES } from "../lib/storage/mcpImages";
 import {
   autoFilterClientTools,
   computeToolGuidance,
+  deferFormattingConfig,
   filterServerTools,
   getServerTools,
   getToolName,
@@ -1903,7 +1904,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
             filteredServerTools,
             narrowedClientTools,
             effectiveApiType,
-            serverToolsConfig?.deferLoading
+            deferFormattingConfig(serverToolsFilter, serverToolsConfig?.deferLoading)
           );
         }
 
@@ -2306,7 +2307,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
               filteredServerTools,
               clientTools,
               effectiveApiType,
-              serverToolsConfig?.deferLoading
+              deferFormattingConfig(serverToolsFilter, serverToolsConfig?.deferLoading)
             );
           }
         } catch (error) {
@@ -2391,7 +2392,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
                   filteredServerTools,
                   narrowedClientTools,
                   effectiveApiType,
-                  serverToolsConfig?.deferLoading
+                  deferFormattingConfig(serverToolsFilter, serverToolsConfig?.deferLoading)
                 )
               : undefined;
         } catch (error) {
