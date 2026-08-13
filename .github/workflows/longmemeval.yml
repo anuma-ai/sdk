@@ -59,6 +59,23 @@ on:
           - anthropic/claude-sonnet-4-5
           - anthropic/claude-haiku-4-5-20251001
           - fireworks/accounts/fireworks/models/minimax-m2p5
+      extract_llm:
+        # Extraction is NOT the answer model. Production always extracts with
+        # `DEFAULT_EXTRACTION_MODEL` (gpt-oss/gpt-oss-120b, autoExtract.ts)
+        # regardless of which model the user is chatting with, but the harness
+        # resolves `extractionModel ?? llmModel` — so with no override, changing
+        # the answer model silently changes the extractor too, and the run stops
+        # describing production's write path.
+        #
+        # That is how a dispatch on the (then-default) retired Cerebras slug
+        # produced `HTTP 500 after 6 attempts` on every session: the dead model
+        # was doing the extracting. `recall-eval` already pins both; this makes
+        # the same pinning reachable here. Blank = follow the answer model, which
+        # is the historical behaviour.
+        description: "Extraction model (blank = same as `model`). Pin to gpt-oss/gpt-oss-120b to match production."
+        required: false
+        type: string
+        default: "gpt-oss/gpt-oss-120b"
       max:
         description: "Max questions (blank = all)"
         required: false
@@ -236,6 +253,7 @@ jobs:
           INPUTS_RECALL_LANE_MODE: ${{ inputs.recall_lane_mode }}
           INPUTS_RERANK: ${{ inputs.rerank }}
           INPUTS_RERANK_CANDIDATES: ${{ inputs.rerank_candidates }}
+          INPUTS_EXTRACT_LLM: ${{ inputs.extract_llm }}
           INPUTS_DECOMPOSE: ${{ inputs.decompose }}
           INPUTS_CONSOLIDATE: ${{ inputs.consolidate }}
           INPUTS_STRATEGY: ${{ matrix.strategy }}
@@ -256,6 +274,11 @@ jobs:
           )
           if [ -n "$EVAL_MAX" ]; then
             args+=(--max "$EVAL_MAX")
+          fi
+          # Strategy-independent: every strategy that builds a vault extracts,
+          # so this is not gated on `vault` the way the ranking knobs are.
+          if [ -n "$INPUTS_EXTRACT_LLM" ]; then
+            args+=(--extract-llm "$INPUTS_EXTRACT_LLM")
           fi
           if [ "$INPUTS_STRATEGY" = "vault" ]; then
             args+=(
