@@ -33,6 +33,35 @@ import { decomposeQuery, normalizeSubQueries } from "./decomposeQuery";
 export { createVaultEmbeddingCache, DEFAULT_VAULT_CACHE_SIZE } from "./lruCache";
 
 /**
+ * How many fused-ranked candidates reach the cross-encoder.
+ *
+ * **5, not 30** (changed 2026-08-13). The head size is what sets the CE's cost,
+ * and the CE is the dominant cost of production recall: measured on real turns,
+ * rerank is **8,668ms of a 9,267ms `fact_lane_ms` p50** at 50-199 memories —
+ * 93% — because browser WASM runs it at ~380ms fixed plus ~110ms per pair,
+ * roughly 50x the ~2ms/pair a Node process with native onnxruntime sees
+ * (anuma-ai/sdk#845). At 30 that is ~26 pairs of work past the point it stops
+ * changing the answer.
+ *
+ * Two independent corpora declined to find a cost:
+ * - `eval:vault-search`, 108 memories / 100 queries: heads 5, 10, 20 and 30 are
+ *   **identical to four decimals on every query** — paired bootstrap Δ = 0.00pp
+ *   with a zero-width CI. The CE's entire benefit arrives at a head of 4.
+ * - LongMemEval, `_s`, 50 questions: head 5 scored 66.0% accuracy / 94.8%
+ *   retrieval recall against head 30's 61.2% / 94.3%. Nominally better, but
+ *   those arms had independently cold extraction caches so the delta carries
+ *   extraction noise — read it as "no harm found", not as an improvement.
+ *
+ * A null result on an underpowered corpus cannot prove equivalence, so this is
+ * a judgement, not a proof: two benchmarks find no cost, one of them per-query
+ * identical, against ~75% off the dominant term of the slowest thing on the
+ * send path. Callers that want the old behaviour pass `rerankTopN: 30`.
+ *
+ * @public
+ */
+export const DEFAULT_RERANK_TOP_N = 5;
+
+/**
  * Embedding cache keyed by content string. Stores pre-computed embeddings
  * so that search only needs to embed the query, not the vault entries.
  */
@@ -147,7 +176,7 @@ export interface MemoryVaultSearchOptions {
    * When true, switches to the async pipeline (rankFusedVaultMemoriesAsync).
    */
   rerank?: boolean;
-  /** Number of CE rerank candidates. Default 30. */
+  /** Number of CE rerank candidates. Defaults to {@link DEFAULT_RERANK_TOP_N}. */
   rerankTopN?: number;
   /** Multiplicative cross-encoder blend weight. Default 0.1. Only used when `rerank` is true. */
   ceWeight?: number;
@@ -790,7 +819,8 @@ export function rankByEntityOverlap(
  *  3. final = v2_score * (1 + ceWeight * ce_score)
  *  4. Sort, take top-K
  *
- * @param rerankTopN - how many V2 candidates to feed the reranker. Default 30.
+ * @param rerankTopN - how many V2 candidates to feed the reranker.
+ *   Defaults to {@link DEFAULT_RERANK_TOP_N}.
  * @param ceWeight - multiplicative blend weight on the CE score. Default 0.1
  *   (tuned by sweep — ce=0.1 captures the precision/specificity wins from
  *   the CE without introducing the ranking-violation regressions that
@@ -900,7 +930,7 @@ export async function rankFusedVaultMemoriesAsync(
   const itemById = new Map(items.map((i) => [i.id, i]));
 
   if (options?.rerank) {
-    const rerankTopN = options.rerankTopN ?? 30;
+    const rerankTopN = options.rerankTopN ?? DEFAULT_RERANK_TOP_N;
     const ceWeight = options.ceWeight ?? 0.1;
     const headSlice = v2Ranked.slice(0, rerankTopN);
 
@@ -1280,7 +1310,7 @@ export async function rankComposite(
   // CE failure, keep the already-computed fused ordering rather than letting
   // the throw bubble to the executor and zero the recall.
   if (options?.rerank && combined.length > 0) {
-    const rerankTopN = options.rerankTopN ?? 30;
+    const rerankTopN = options.rerankTopN ?? DEFAULT_RERANK_TOP_N;
     const ceWeight = options.ceWeight ?? 0.1;
     const headSlice = combined.slice(0, rerankTopN);
     const tailSlice = combined.slice(rerankTopN);

@@ -189,7 +189,8 @@ export interface RecallOptions {
   // All optional; defaults below match the pipeline's hardcoded behavior, so
   // omitting them is a no-op. Exposed for evaluation / ablation sweeps.
   // -------------------------------------------------------------------------
-  /** Number of candidates fed to the cross-encoder rerank stage. Default: 30. */
+  /** Number of candidates fed to the cross-encoder rerank stage. Default: 5
+   *  (`DEFAULT_RERANK_TOP_N`); was 30 until 2026-08-13 — see anuma-ai/sdk#845. */
   rerankTopN?: number;
   /** Multiplicative cross-encoder blend weight. Default: 0.1. */
   ceWeight?: number;
