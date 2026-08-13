@@ -76,6 +76,23 @@ on:
         required: false
         type: string
         default: "gpt-oss/gpt-oss-120b"
+      extractor:
+        # Which CODE PATH produces session memories (anuma-ai/sdk#907). The suite
+        # has always used the SDK for retrieval and retention but never for
+        # extraction, so a run measured a different extractor from the one users
+        # get — including a 6000-token cap where production sends none, which is
+        # the exact failure mode production suffers. `sdk` routes candidate
+        # generation through extractFacts().
+        #
+        # Blank = the CLI default (`harness`), i.e. historical behaviour.
+        description: "Extraction code path: harness (default) or sdk. See #907."
+        required: false
+        type: choice
+        default: ""
+        options:
+          - ""
+          - "harness"
+          - "sdk"
       max:
         description: "Max questions (blank = all)"
         required: false
@@ -254,6 +271,7 @@ jobs:
           INPUTS_RERANK: ${{ inputs.rerank }}
           INPUTS_RERANK_CANDIDATES: ${{ inputs.rerank_candidates }}
           INPUTS_EXTRACT_LLM: ${{ inputs.extract_llm }}
+          INPUTS_EXTRACTOR: ${{ inputs.extractor }}
           INPUTS_DECOMPOSE: ${{ inputs.decompose }}
           INPUTS_CONSOLIDATE: ${{ inputs.consolidate }}
           INPUTS_STRATEGY: ${{ matrix.strategy }}
@@ -279,6 +297,9 @@ jobs:
           # so this is not gated on `vault` the way the ranking knobs are.
           if [ -n "$INPUTS_EXTRACT_LLM" ]; then
             args+=(--extract-llm "$INPUTS_EXTRACT_LLM")
+          fi
+          if [ -n "$INPUTS_EXTRACTOR" ]; then
+            args+=(--extractor "$INPUTS_EXTRACTOR")
           fi
           if [ "$INPUTS_STRATEGY" = "vault" ]; then
             args+=(
