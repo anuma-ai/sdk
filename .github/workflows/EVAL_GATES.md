@@ -65,6 +65,52 @@ all five are advisory today.
 under a minute, so it simply dropped `paths:` and kept running on every PR. Step
 3 is only needed when the run itself is too expensive to repeat.
 
+## 1a. `vault-search-eval` runs TWO arms, and one of them is what we ship
+
+A gate that measures a configuration nobody runs protects nothing. Until
+2026-08-13 this suite had a single committed baseline at `ranker: cosine,
+rerank: false`, while production web resolves `budget: 'mid'` — fused ranking
+plus the cross-encoder — on **98.7%** of recall turns. A change that broke
+fusion or the reranker scored green because neither was switched on.
+
+Two baselines are committed and the gate runs both:
+
+| File | Config | What it protects |
+| --- | --- | --- |
+| `baseline.json` | `ranker: cosine, rerank: false` | the cheap arm (`budget: 'low'`, mobile) |
+| `baseline-production.json` | `ranker: fused, rerank: true` | `budget: 'mid'` — web's send path |
+
+Regenerate them **as a pair** (`mode: save-baseline` does this). Capturing one
+alone leaves the other pinned to an older corpus or embedding model, and the
+recorded `config` block no longer explains the divergence.
+
+`--save-baseline` writes to whatever `--baseline` names, defaulting to
+`baseline.json`. It used to hardcode that path, so capturing the production arm
+silently overwrote the control with fused+CE numbers.
+
+### What the arms are worth (measured 2026-08-13, 108 memories / 100 queries)
+
+| Arm | recall@k | nDCG |
+| --- | --- | --- |
+| cosine control | 0.825 | 0.786 |
+| fused, no CE | 0.835 | 0.782 |
+| fused + CE (head ≥ 4) | 0.845 | 0.792 |
+
+Paired bootstrap over the same 100 queries: fused+CE vs control is
+**+2.00pp recall, 95% CI [0.00, 5.00] — not significant**; CE vs fused-alone is
+**+1.00pp, CI [0.00, 3.00] — not significant**. Every delta this corpus can
+produce has a confidence interval containing zero, so **this suite cannot
+resolve a 1-2pp change.** Treat it as a guard against breakage, not as evidence
+that a ranking idea works. A claim of the form "X improves retrieval by 1pp" is
+not supportable here and needs a bigger corpus or LongMemEval.
+
+`--rerank-top-n` sweeps the cross-encoder head. Measured: **the CE's entire
+benefit is delivered by a head of 4** — heads 5, 10, 20 and 30 are identical to
+four decimals on all 100 queries (paired Δ = 0.00pp, CI [0.00, 0.00]), and a
+head of 1 reproduces the no-rerank arm exactly, which is what proves the flag is
+plumbed. The default is 30. In a browser that is ~26 pairs of pure cost — see
+anuma-ai/sdk#845.
+
 ## 2. The status jobs use an allowlist, not a failure check
 
 A job killed by `timeout-minutes` concludes **`cancelled`**, not `failure`. An
