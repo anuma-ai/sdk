@@ -65,6 +65,13 @@ on:
         options:
           - "true"
           - "false"
+      rerank_candidates:
+        # Blank = the harness default (30), so an unset run is byte-identical to
+        # one dispatched before this input existed.
+        description: "Vault: candidates fed to the CE reranker (blank = 30). Needs rerank=true."
+        required: false
+        type: string
+        default: ""
       decompose:
         description: "Vault: query decomposition for composite questions"
         required: false
@@ -217,6 +224,7 @@ jobs:
           INPUTS_RECALL_EMIT: ${{ inputs.recall_emit }}
           INPUTS_RECALL_LANE_MODE: ${{ inputs.recall_lane_mode }}
           INPUTS_RERANK: ${{ inputs.rerank }}
+          INPUTS_RERANK_CANDIDATES: ${{ inputs.rerank_candidates }}
           INPUTS_DECOMPOSE: ${{ inputs.decompose }}
           INPUTS_CONSOLIDATE: ${{ inputs.consolidate }}
           INPUTS_STRATEGY: ${{ matrix.strategy }}
@@ -249,6 +257,13 @@ jobs:
             fi
             if [ -n "$INPUTS_EXCERPT_CAP" ]; then
               args+=("--excerpt-cap=$INPUTS_EXCERPT_CAP")
+            fi
+            # Only forwarded when rerank is on. Passing a head size alongside
+            # `rerank=false` would read as a configured sweep whose arms are all
+            # the same run — the same failure the vault benchmark's
+            # `--rerank-top-n` guard rejects outright (#904).
+            if [ -n "$INPUTS_RERANK_CANDIDATES" ] && [ "$INPUTS_RERANK" = "true" ]; then
+              args+=("--rerank-candidates=$INPUTS_RERANK_CANDIDATES")
             fi
           fi
           if [ "$INPUTS_STRATEGY" = "recall" ] && [ -n "$INPUTS_RECALL_TYPES" ]; then
