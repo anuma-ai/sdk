@@ -874,7 +874,21 @@ async function main() {
   // Baseline comparison
   // ---------------------------------------------------------------------------
 
-  if (args.baseline) {
+  // Gating and regenerating are opposite intents, so `--save-baseline` suppresses
+  // the gate. Without this, `--save-baseline --baseline <path>` gates against the
+  // file it is about to replace: in non-JSON mode the comparison runs FIRST and
+  // `process.exit(1)`s on a config mismatch or a drop, so the write never
+  // happens — which makes the one operation you need after a corpus or embedding
+  // -model change (recapturing both arms) impossible, since the numbers moving is
+  // exactly why you are recapturing. Caught by Bugbot on #904; the two flags
+  // could not be combined at all before this PR, because `--save-baseline`
+  // ignored `--baseline`.
+  //
+  // It also makes the two output modes agree. In `--json` the save happens
+  // earlier, so that path wrote and then gated; now neither gates.
+  if (args["save-baseline"]) {
+    console.error("  Baseline comparison skipped: --save-baseline regenerates it.\n");
+  } else if (args.baseline) {
     try {
       const baselineRaw = await readFile(args.baseline, "utf-8");
       const baselineData = JSON.parse(baselineRaw);

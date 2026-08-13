@@ -242,7 +242,13 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: vault-search-eval-results
-          path: results.json
+          # BOTH arms. The production document carries its own `perQuery` rows,
+          # which are what a later run needs as a `--compare` target for a paired
+          # bootstrap — uploading only the control silently makes the shipped
+          # arm the one you cannot analyse after the fact.
+          path: |
+            results.json
+            results-production.json
           if-no-files-found: ignore
 
   # Reports this gate's outcome as one stable line. See the advisory note on
