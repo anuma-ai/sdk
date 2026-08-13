@@ -254,4 +254,18 @@ export interface ApiConfig {
    *  comparable with every historical run, but overridable (`--judge-llm`)
    *  when the answer model is a poor grader or is the thing that's broken. */
   judgeModel?: string;
+  /**
+   * Which code path produces session memories (#907).
+   *
+   * - `"harness"` (default) — this suite's own prompt and `fetch`, the historical
+   *   behaviour. Retrieval and retention have always used the SDK, but extraction
+   *   never has, so a run measures a *different extractor* from the one users get.
+   * - `"sdk"` — `extractFacts` from `src/lib/memory/autoExtract.ts`, i.e. the
+   *   production write path: production's prompt, request shape, retry policy and
+   *   classified failure reporting.
+   *
+   * Kept as an option rather than a swap so the two can be run against the same
+   * corpus and the delta published before the default moves.
+   */
+  extractor?: "harness" | "sdk";
 }

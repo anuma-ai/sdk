@@ -83,6 +83,7 @@ const { values: args } = parseArgs({
     llm: { type: "string" },
     "extract-llm": { type: "string" },
     "judge-llm": { type: "string" },
+    extractor: { type: "string" },
     "skip-existing": { type: "boolean", default: false },
     "question-id": { type: "string" },
     max: { type: "string", short: "m" },
@@ -215,6 +216,11 @@ Options:
                               Use a JSON-reliable model when the answer model
                               is reasoning-heavy (extraction results are cached
                               per model)
+  --extractor <harness|sdk>   Which code path produces session memories.
+                              harness = this suite's own prompt + fetch (default,
+                                historical behaviour)
+                              sdk     = extractFacts() from the SDK, i.e. the
+                                production write path. See anuma-ai/sdk#907.
   --judge-llm <model>         Override the answer-judging model (default: --llm,
                               i.e. the model under evaluation grades itself)
   --skip-existing             Skip entries with existing transcript for same model
@@ -431,6 +437,16 @@ async function main(): Promise<void> {
     console.log(`Loaded ${dataset.length} entries`);
 
     const llmModel = args.llm || "cerebras/qwen-3-235b-a22b-instruct-2507";
+    // Validated here rather than defaulted silently: a typo'd `--extractor sdkk`
+    // that fell through to the harness path would produce a run labelled as the
+    // SDK arm in the config record while measuring the other extractor — the
+    // exact class of mislabelled comparison this flag exists to prevent.
+    const extractorMode = args.extractor;
+    if (extractorMode !== undefined && extractorMode !== "harness" && extractorMode !== "sdk") {
+      console.error(`Invalid --extractor "${extractorMode}". Expected "harness" or "sdk".`);
+      process.exit(1);
+    }
+
     // judgeModel lives inside the closure so every `--baseline-repeat` capture
     // is judged by the same model as the first one.
     const runSuite = () =>
@@ -439,6 +455,7 @@ async function main(): Promise<void> {
         baseUrl,
         llmModel,
         ...(args["judge-llm"] && { judgeModel: args["judge-llm"] }),
+        ...(extractorMode && { extractor: extractorMode }),
       });
     const result = await runSuite();
 
@@ -559,6 +576,11 @@ function recallGateConfig(): Record<string, string | number | boolean> {
     // it recorded, swapping only `--extract-llm` would sail past the config
     // check and compare two materially different vaults.
     extractLlm: args["extract-llm"] ?? "",
+    // Which EXTRACTOR, not just which model. The harness prompt and the SDK's
+    // produce different memories from the same session, so two runs that agree
+    // on every other knob are still incomparable across this one — a stronger
+    // invalidator than `extractLlm` above.
+    extractor: args.extractor ?? "",
     // Every gated score is a cosine over these vectors, so a model swap changes
     // the embedding space itself — the most total way to invalidate a
     // comparison. The sibling vault-search gate records it for the same reason.
