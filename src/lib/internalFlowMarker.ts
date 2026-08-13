@@ -29,10 +29,13 @@
  *
  * ⚠ {@link INTERNAL_FLOW_MARKER} must stay BYTE-IDENTICAL to
  * `detection.FingerprintInternalUtility` in ai-portal `internal/detection/markers.go`
- * and to `INTERNAL_FLOW_MARKER` in ai-memoryless-client
- * `packages/hooks/src/internalFlowMarker.ts`. The server does a plain substring
- * match, so a stray edit in any one of the three silently turns these flows back into
- * suspects. All three carry a literal-pinning test.
+ * and to `INTERNAL_FLOW_MARKER` in ai-memoryless-client — which now holds TWO
+ * copies, `packages/hooks/src/internalFlowMarker.ts` for the app and
+ * `apps/cf-tasks/src/internalFlowMarker.ts` for the workers (a separate copy on
+ * purpose: a Worker bundle must not pull `@memoryless/hooks` in for one string).
+ * The server does a plain substring match, so a stray edit in any one of the four
+ * silently turns those flows back into suspects. All four carry a literal-pinning
+ * test.
  *
  * HONEST SCOPE: this raises the bar (it kills scripted farms that don't bother
  * copying our prompts) but it is client-supplied text and therefore copyable by
