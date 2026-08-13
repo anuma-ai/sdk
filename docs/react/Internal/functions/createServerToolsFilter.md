@@ -1,8 +1,8 @@
 # createServerToolsFilter
 
-> **createServerToolsFilter**(`options`: [`CreateServerToolsFilterOptions`](../interfaces/CreateServerToolsFilterOptions.md)): (`embeddings`: `number`\[] | `number`\[]\[], `tools`: [`ServerTool`](../interfaces/ServerTool.md)\[]) => `string`\[]
+> **createServerToolsFilter**(`options`: [`CreateServerToolsFilterOptions`](../interfaces/CreateServerToolsFilterOptions.md)): [`ServerToolsFilterFunction`](../type-aliases/ServerToolsFilterFunction.md)
 
-Defined in: [src/lib/tools/serverTools.ts:1483](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#1483)
+Defined in: [src/lib/tools/serverTools.ts:1494](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#1494)
 
 Build a server-tools filter function for use with `useChatStorage`'s
 `serverTools` option. Composes `findMatchingTools`, `expandToolSetsAdditive`,
@@ -35,48 +35,7 @@ and an exclude-list into a single (embeddings, tools) → string\[] callback.
 
 ## Returns
 
-> (`embeddings`: `number`\[] | `number`\[]\[], `tools`: [`ServerTool`](../interfaces/ServerTool.md)\[]): `string`\[]
-
-### Parameters
-
-<table>
-<thead>
-<tr>
-<th>Parameter</th>
-<th>Type</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>
-
-`embeddings`
-
-</td>
-<td>
-
-`number`\[] | `number`\[]\[]
-
-</td>
-</tr>
-<tr>
-<td>
-
-`tools`
-
-</td>
-<td>
-
-[`ServerTool`](../interfaces/ServerTool.md)\[]
-
-</td>
-</tr>
-</tbody>
-</table>
-
-### Returns
-
-`string`\[]
+[`ServerToolsFilterFunction`](../type-aliases/ServerToolsFilterFunction.md)
 
 ## Example
 

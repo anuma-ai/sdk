@@ -131,6 +131,7 @@ import {
   getToolName,
   mergeTools,
   MIN_CONTENT_LENGTH_FOR_TOOLS,
+  resolveDeferredServerTools,
   type ServerTool,
   shouldRefreshTools,
   type ToolSet,
@@ -1805,9 +1806,15 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
             });
 
             if (serverToolsConfig?.deferLoading?.enabled) {
-              // Defer-loading: emit the FULL catalog (mergeTools orders + flags it
-              // and prepends tool-search); do NOT semantically filter here.
-              filteredServerTools = allServerTools;
+              // Defer-loading: emit the catalog (mergeTools orders + flags it and
+              // prepends tool-search); do NOT semantically filter here. The caller's
+              // unconditional constraints still hold — an explicit static array, and
+              // excludeTools. Parity with react.
+              filteredServerTools = resolveDeferredServerTools(
+                allServerTools,
+                serverToolsFilter,
+                serverToolsConfig.deferLoading
+              );
             } else if (isServerToolsFunction) {
               // Function-based filtering: embed with the CURRENT token getter (the
               // embedding is reused by the client filter below) and call the filter.
@@ -2256,9 +2263,15 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           const allServerTools = settledTools.tools;
 
           if (serverToolsConfig?.deferLoading?.enabled && effectiveApiType === "responses") {
-            // Defer-loading (responses only): emit the FULL catalog — mergeTools
-            // orders + flags it and prepends tool-search — so do NOT filter here.
-            filteredServerTools = allServerTools;
+            // Defer-loading (responses only): emit the catalog — mergeTools orders +
+            // flags it and prepends tool-search — so do NOT semantically filter here.
+            // The caller's unconditional constraints still hold: an explicit static
+            // array, and excludeTools. Parity with react.
+            filteredServerTools = resolveDeferredServerTools(
+              allServerTools,
+              serverToolsFilter,
+              serverToolsConfig.deferLoading
+            );
           } else if (isServerToolsFunction) {
             // Function-based filtering: collect the embedding started at the top
             // of the send (the embedding is reused by the client filter + message

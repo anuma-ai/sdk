@@ -753,15 +753,26 @@ export interface DeferLoadingConfig {
  */
 export function resolveDeferredServerTools(
   allServerTools: ServerTool[],
-  serverToolsFilter: unknown,
+  serverToolsFilter: readonly string[] | ServerToolsFilterFunction | undefined,
   config: DeferLoadingConfig
 ): ServerTool[] {
-  const allowed = Array.isArray(serverToolsFilter)
-    ? filterServerTools(allServerTools, serverToolsFilter as string[])
-    : allServerTools;
+  // Discriminate on `typeof`, not `Array.isArray`: narrowing a union whose other arm is callable
+  // gives `any[]` and costs the array element type.
+  const allowed =
+    serverToolsFilter === undefined || typeof serverToolsFilter === "function"
+      ? allServerTools
+      : filterServerTools(allServerTools, [...serverToolsFilter]);
 
-  if (!config.excludeTools?.length) return allowed;
-  const excluded = new Set(config.excludeTools);
+  // Explicit config wins; otherwise fall back to the exclusions a filter built by
+  // `createServerToolsFilter` carries, so the common path is right without the caller
+  // having to repeat the list. A filter wrapped in a plain closure loses the tag — that
+  // is what `DeferLoadingConfig.excludeTools` is for.
+  const exclusions =
+    config.excludeTools ??
+    (typeof serverToolsFilter === "function" ? serverToolsFilter.excludeTools : undefined);
+
+  if (!exclusions?.length) return allowed;
+  const excluded = new Set(exclusions);
   return allowed.filter((tool) => !excluded.has(tool.name));
 }
 
@@ -1482,12 +1493,12 @@ export interface CreateServerToolsFilterOptions {
  */
 export function createServerToolsFilter(
   options: CreateServerToolsFilterOptions = {}
-): (embeddings: number[] | number[][], tools: ServerTool[]) => string[] {
+): ServerToolsFilterFunction {
   const exclude = new Set(options.excludeTools ?? []);
   const sets = options.toolSets ?? [];
   const matchOpts = options.matchOptions;
 
-  return (embeddings, tools) => {
+  const filter = (embeddings: number[] | number[][], tools: ServerTool[]): string[] => {
     const matches = findMatchingTools(embeddings, tools, matchOpts);
     if (matches.length === 0) return [];
 
@@ -1522,6 +1533,14 @@ export function createServerToolsFilter(
     for (const name of exclude) finalNames.delete(name);
     return [...finalNames];
   };
+
+  // Tag the filter with its exclusions so defer-loading can honour them without the caller
+  // repeating the list (see resolveDeferredServerTools). Non-enumerable so the tag can't
+  // leak into JSON/spreads of anything holding this function.
+  return Object.defineProperty(filter, "excludeTools", {
+    value: Object.freeze([...exclude]),
+    enumerable: false,
+  }) as ServerToolsFilterFunction;
 }
 
 // ── Default server-tools filter ─────────────────────────────────────────────
@@ -1657,10 +1676,18 @@ export const defaultServerToolsFilter = createServerToolsFilter({
  * and the full server tool catalog and returns the names of tools to keep.
  * Matches `useChatStorage`'s `serverTools` callback signature.
  */
-export type ServerToolsFilterFunction = (
+export type ServerToolsFilterFunction = ((
   embeddings: number[] | number[][],
   tools: ServerTool[]
-) => string[];
+) => string[]) & {
+  /**
+   * The unconditional exclusions this filter applies, exposed by
+   * {@link createServerToolsFilter} so defer-loading can honour them without the caller
+   * repeating the list — see {@link resolveDeferredServerTools}. Absent on a hand-written
+   * filter, or on one wrapped in a plain closure.
+   */
+  readonly excludeTools?: readonly string[];
+};
 
 /**
  * Options for `selectServerToolsForPrompt`.
@@ -1747,9 +1774,11 @@ export async function selectServerToolsForPrompt(
   }
   if (allServerTools.length === 0) return [];
 
-  // Defer-loading: mirror useChatStorage's responses send path — emit the FULL catalog (no semantic/
-  // static filtering), since mergeTools orders + flags it and tool-search loads the rest on demand.
-  if (deferLoading?.enabled) return allServerTools;
+  // Defer-loading: mirror useChatStorage's responses send path via the same helper — emit the catalog
+  // without semantic filtering (mergeTools orders + flags it and tool-search loads the rest on demand),
+  // minus the caller's unconditional constraints.
+  if (deferLoading?.enabled)
+    return resolveDeferredServerTools(allServerTools, serverToolsFilter, deferLoading);
 
   if (typeof serverToolsFilter === "function") {
     // Mirror useChatStorage's short-prompt gate: below

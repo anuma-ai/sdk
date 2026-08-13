@@ -1,6 +1,6 @@
 # ToolMatchResult
 
-Defined in: [src/lib/tools/serverTools.ts:871](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#871)
+Defined in: [src/lib/tools/serverTools.ts:882](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#882)
 
 Result of tool matching with similarity score
 
@@ -10,7 +10,7 @@ Result of tool matching with similarity score
 
 > **similarity**: `number`
 
-Defined in: [src/lib/tools/serverTools.ts:873](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#873)
+Defined in: [src/lib/tools/serverTools.ts:884](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#884)
 
 ***
 
@@ -18,4 +18,4 @@ Defined in: [src/lib/tools/serverTools.ts:873](https://github.com/anuma-ai/sdk/b
 
 > **tool**: [`ServerTool`](ServerTool.md)
 
-Defined in: [src/lib/tools/serverTools.ts:872](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#872)
+Defined in: [src/lib/tools/serverTools.ts:883](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#883)

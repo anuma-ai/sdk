@@ -7,6 +7,7 @@ import {
   BUILT_IN_TOOL_SETS,
   type CachedServerTools,
   clearServerToolsCache,
+  createServerToolsFilter,
   getToolsChecksum,
   mergeTools,
   resolveDeferredServerTools,
@@ -466,6 +467,35 @@ describe("resolveDeferredServerTools — defer keeps the caller's unconditional 
       excludeTools: ["NotInCatalog-nope"],
     });
     expect(names(result)).toEqual(names(catalog));
+  });
+
+  it("picks up exclusions from a createServerToolsFilter filter without repeating the list", () => {
+    // The footgun this closes: defaultServerToolsFilter already carries
+    // DEFAULT_EXCLUDED_SERVER_TOOLS, so defer must not silently re-admit them just because
+    // the caller didn't repeat the list in DeferLoadingConfig.
+    const tagged = createServerToolsFilter({ excludeTools: ["OpenMeteoMCP-weather_forecast"] });
+    expect(names(resolveDeferredServerTools(catalog, tagged, on))).toEqual([
+      "AnumaJinaMCP-search_web",
+      "AnumaMediaMCP-anuma_create_image",
+      "AnumaVisionMCP-anuma_analyze_image",
+    ]);
+  });
+
+  it("explicit config excludeTools wins over the filter's own tag", () => {
+    const tagged = createServerToolsFilter({ excludeTools: ["OpenMeteoMCP-weather_forecast"] });
+    const result = resolveDeferredServerTools(catalog, tagged, {
+      ...on,
+      excludeTools: ["AnumaJinaMCP-search_web"],
+    });
+    // weather survives (the tag is overridden), search_web is dropped (the explicit list applies).
+    expect(names(result)).toContain("OpenMeteoMCP-weather_forecast");
+    expect(names(result)).not.toContain("AnumaJinaMCP-search_web");
+  });
+
+  it("the exclusions tag is non-enumerable so it can't leak into spreads", () => {
+    const tagged = createServerToolsFilter({ excludeTools: ["x"] });
+    expect(Object.keys(tagged)).not.toContain("excludeTools");
+    expect(tagged.excludeTools).toEqual(["x"]);
   });
 
   it("does not mutate the input catalog", () => {

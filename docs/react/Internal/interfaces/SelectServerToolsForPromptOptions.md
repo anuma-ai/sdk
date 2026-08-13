@@ -1,6 +1,6 @@
 # SelectServerToolsForPromptOptions
 
-Defined in: [src/lib/tools/serverTools.ts:1668](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#1668)
+Defined in: [src/lib/tools/serverTools.ts:1695](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#1695)
 
 Options for `selectServerToolsForPrompt`.
 
@@ -10,7 +10,7 @@ Options for `selectServerToolsForPrompt`.
 
 > `optional` **baseUrl**: `string`
 
-Defined in: [src/lib/tools/serverTools.ts:1681](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#1681)
+Defined in: [src/lib/tools/serverTools.ts:1708](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#1708)
 
 Base URL for the API.
 
@@ -20,7 +20,7 @@ Base URL for the API.
 
 > `optional` **cache**: `ToolsCacheBackend`
 
-Defined in: [src/lib/tools/serverTools.ts:1690](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#1690)
+Defined in: [src/lib/tools/serverTools.ts:1717](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#1717)
 
 Where to read/write the cached catalog. Defaults to browser `localStorage`
 (a no-op on Node/RN); pass a backend to persist on those platforms.
@@ -31,7 +31,7 @@ Where to read/write the cached catalog. Defaults to browser `localStorage`
 
 > `optional` **cacheExpirationMs**: `number`
 
-Defined in: [src/lib/tools/serverTools.ts:1685](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#1685)
+Defined in: [src/lib/tools/serverTools.ts:1712](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#1712)
 
 Cache expiration in ms for the server-tools catalog fetch.
 
@@ -41,7 +41,7 @@ Cache expiration in ms for the server-tools catalog fetch.
 
 > `optional` **deferLoading**: `DeferLoadingConfig`
 
-Defined in: [src/lib/tools/serverTools.ts:1696](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#1696)
+Defined in: [src/lib/tools/serverTools.ts:1723](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#1723)
 
 Phase 3 defer-loading. When `enabled`, this helper returns the FULL catalog (skipping semantic/
 static filtering) to mirror useChatStorage's responses send path, which swaps in the full catalog
@@ -53,7 +53,7 @@ for mergeTools + tool-search. Omit/disabled → today's filtered selection.
 
 > `optional` **embeddingModel**: `string`
 
-Defined in: [src/lib/tools/serverTools.ts:1683](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#1683)
+Defined in: [src/lib/tools/serverTools.ts:1710](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#1710)
 
 Embedding model override. Falls back to the SDK default.
 
@@ -63,7 +63,7 @@ Embedding model override. Falls back to the SDK default.
 
 > **getToken**: () => `Promise`<`string` | `null`>
 
-Defined in: [src/lib/tools/serverTools.ts:1679](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#1679)
+Defined in: [src/lib/tools/serverTools.ts:1706](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#1706)
 
 Function that resolves an auth token (Bearer).
 
@@ -77,7 +77,7 @@ Function that resolves an auth token (Bearer).
 
 > **prompt**: `string`
 
-Defined in: [src/lib/tools/serverTools.ts:1670](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#1670)
+Defined in: [src/lib/tools/serverTools.ts:1697](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#1697)
 
 User prompt to match tools against.
 
@@ -87,7 +87,7 @@ User prompt to match tools against.
 
 > `optional` **serverToolsFilter**: `string`\[] | [`ServerToolsFilterFunction`](../type-aliases/ServerToolsFilterFunction.md)
 
-Defined in: [src/lib/tools/serverTools.ts:1677](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#1677)
+Defined in: [src/lib/tools/serverTools.ts:1704](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#1704)
 
 Filter to apply: either a function (called with the prompt embedding +
 full catalog) or a static list of tool names. Same shape `useChatStorage`
