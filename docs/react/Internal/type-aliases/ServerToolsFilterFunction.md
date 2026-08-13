@@ -1,50 +1,20 @@
 # ServerToolsFilterFunction
 
-> **ServerToolsFilterFunction** = (`embeddings`: `number`\[] | `number`\[]\[], `tools`: [`ServerTool`](../interfaces/ServerTool.md)\[]) => `string`\[]
+> **ServerToolsFilterFunction** = (`embeddings`: `number`\[] | `number`\[]\[], `tools`: [`ServerTool`](../interfaces/ServerTool.md)\[]) => `string`\[] & `object`
 
-Defined in: [src/lib/tools/serverTools.ts:1618](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#1618)
+Defined in: [src/lib/tools/serverTools.ts:1716](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#1716)
 
 Type for a server-tools filter — a function that takes prompt embeddings
 and the full server tool catalog and returns the names of tools to keep.
 Matches `useChatStorage`'s `serverTools` callback signature.
 
-## Parameters
+## Type Declaration
 
-<table>
-<thead>
-<tr>
-<th>Parameter</th>
-<th>Type</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>
+### excludeTools?
 
-`embeddings`
+> `readonly` `optional` **excludeTools**: readonly `string`\[]
 
-</td>
-<td>
-
-`number`\[] | `number`\[]\[]
-
-</td>
-</tr>
-<tr>
-<td>
-
-`tools`
-
-</td>
-<td>
-
-[`ServerTool`](../interfaces/ServerTool.md)\[]
-
-</td>
-</tr>
-</tbody>
-</table>
-
-## Returns
-
-`string`\[]
+The unconditional exclusions this filter applies, exposed by
+[createServerToolsFilter](../functions/createServerToolsFilter.md) so defer-loading can honour them without the caller
+repeating the list — see resolveDeferredServerTools. Absent on a hand-written
+filter, or on one wrapped in a plain closure.

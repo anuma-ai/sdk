@@ -1,6 +1,6 @@
 # SearchMessagesOptions
 
-Defined in: [src/react/useChatStorage.ts:775](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#775)
+Defined in: [src/react/useChatStorage.ts:791](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#791)
 
 Options for searching messages
 
@@ -10,7 +10,7 @@ Options for searching messages
 
 > `optional` **conversationId**: `string`
 
-Defined in: [src/react/useChatStorage.ts:781](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#781)
+Defined in: [src/react/useChatStorage.ts:797](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#797)
 
 Filter by conversation ID
 
@@ -20,7 +20,7 @@ Filter by conversation ID
 
 > `optional` **limit**: `number`
 
-Defined in: [src/react/useChatStorage.ts:777](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#777)
+Defined in: [src/react/useChatStorage.ts:793](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#793)
 
 Limit the number of results (default: 10)
 
@@ -30,6 +30,6 @@ Limit the number of results (default: 10)
 
 > `optional` **minSimilarity**: `number`
 
-Defined in: [src/react/useChatStorage.ts:779](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#779)
+Defined in: [src/react/useChatStorage.ts:795](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#795)
 
 Minimum similarity threshold (default: 0.5)

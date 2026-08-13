@@ -7,8 +7,12 @@ import {
   BUILT_IN_TOOL_SETS,
   type CachedServerTools,
   clearServerToolsCache,
+  createServerToolsFilter,
+  deferFormattingConfig,
   getToolsChecksum,
   mergeTools,
+  resolveDeferredServerTools,
+  type ServerTool,
   shouldRefreshTools,
   type ToolsCacheBackend,
   type ToolSet,
@@ -398,5 +402,198 @@ describe("server-tools cache — pluggable backend (checksum + clear)", () => {
 
   it("clearServerToolsCache is a silent no-op for a backend without clear", () => {
     expect(() => clearServerToolsCache(backendWith(() => null))).not.toThrow();
+  });
+});
+
+describe("resolveDeferredServerTools — defer keeps the caller's unconditional constraints", () => {
+  const st = (name: string): ServerTool => ({
+    type: "function",
+    name,
+    description: `desc ${name}`,
+    parameters: { type: "object", properties: {}, required: [] },
+  });
+  const catalog = [
+    st("AnumaJinaMCP-search_web"),
+    st("AnumaMediaMCP-anuma_create_image"),
+    st("OpenMeteoMCP-weather_forecast"),
+    st("AnumaVisionMCP-anuma_analyze_image"),
+  ];
+  const names = (tools: ServerTool[]) => tools.map((t) => t.name);
+  const on = { enabled: true, hotToolNames: [] as string[] };
+  // A filter FUNCTION stands in for the semantic per-prompt narrowing defer intentionally skips.
+  const semanticFilter = () => ["AnumaJinaMCP-search_web"];
+
+  it("filter function + no exclusions → the whole catalog (defer's core behavior, unchanged)", () => {
+    expect(names(resolveDeferredServerTools(catalog, semanticFilter, on))).toEqual(names(catalog));
+  });
+
+  it("filter function + excludeTools → catalog MINUS the exclusions", () => {
+    // The regression this guards: defer used to hand back tools the app excludes unconditionally
+    // (a native model capability, or one the app renders with its own UI).
+    const result = resolveDeferredServerTools(catalog, semanticFilter, {
+      ...on,
+      excludeTools: ["OpenMeteoMCP-weather_forecast", "AnumaVisionMCP-anuma_analyze_image"],
+    });
+    expect(names(result)).toEqual(["AnumaJinaMCP-search_web", "AnumaMediaMCP-anuma_create_image"]);
+  });
+
+  it("explicit static array → defer stays INSIDE it, never widens to the catalog", () => {
+    // The sharper regression: creation modes pass a one-tool array AND coerce tool_choice:'required'.
+    // Widening to the catalog turns "you must call the image generator" into "you must call something".
+    const result = resolveDeferredServerTools(catalog, ["AnumaMediaMCP-anuma_create_image"], on);
+    expect(names(result)).toEqual(["AnumaMediaMCP-anuma_create_image"]);
+  });
+
+  it("static array + excludeTools → both constraints apply", () => {
+    const result = resolveDeferredServerTools(
+      catalog,
+      ["AnumaMediaMCP-anuma_create_image", "OpenMeteoMCP-weather_forecast"],
+      { ...on, excludeTools: ["OpenMeteoMCP-weather_forecast"] }
+    );
+    expect(names(result)).toEqual(["AnumaMediaMCP-anuma_create_image"]);
+  });
+
+  it("undefined filter → the whole catalog (no constraint to honor)", () => {
+    expect(names(resolveDeferredServerTools(catalog, undefined, on))).toEqual(names(catalog));
+  });
+
+  it("empty static array → empty, not the catalog", () => {
+    // `[]` is an explicit 'no server tools'; defer must not read it as 'unset' and send everything.
+    expect(resolveDeferredServerTools(catalog, [], on)).toEqual([]);
+  });
+
+  it("excludeTools naming a tool that isn't in the catalog is a no-op", () => {
+    const result = resolveDeferredServerTools(catalog, semanticFilter, {
+      ...on,
+      excludeTools: ["NotInCatalog-nope"],
+    });
+    expect(names(result)).toEqual(names(catalog));
+  });
+
+  it("picks up exclusions from a createServerToolsFilter filter without repeating the list", () => {
+    // The footgun this closes: defaultServerToolsFilter already carries
+    // DEFAULT_EXCLUDED_SERVER_TOOLS, so defer must not silently re-admit them just because
+    // the caller didn't repeat the list in DeferLoadingConfig.
+    const tagged = createServerToolsFilter({ excludeTools: ["OpenMeteoMCP-weather_forecast"] });
+    expect(names(resolveDeferredServerTools(catalog, tagged, on))).toEqual([
+      "AnumaJinaMCP-search_web",
+      "AnumaMediaMCP-anuma_create_image",
+      "AnumaVisionMCP-anuma_analyze_image",
+    ]);
+  });
+
+  it("config excludeTools UNIONS with the filter's tag — it never overrides it", () => {
+    // The regression this pins: if config replaced the tag, naming one extra tool here would
+    // silently re-admit everything the filter already excludes — this PR's own bug, brought back
+    // by supplying more configuration.
+    const tagged = createServerToolsFilter({ excludeTools: ["OpenMeteoMCP-weather_forecast"] });
+    const result = resolveDeferredServerTools(catalog, tagged, {
+      ...on,
+      excludeTools: ["AnumaJinaMCP-search_web"],
+    });
+    expect(names(result)).toEqual([
+      "AnumaMediaMCP-anuma_create_image",
+      "AnumaVisionMCP-anuma_analyze_image",
+    ]);
+  });
+
+  it("an empty config excludeTools does not disarm the filter's tag", () => {
+    const tagged = createServerToolsFilter({ excludeTools: ["OpenMeteoMCP-weather_forecast"] });
+    const result = resolveDeferredServerTools(catalog, tagged, { ...on, excludeTools: [] });
+    expect(names(result)).not.toContain("OpenMeteoMCP-weather_forecast");
+  });
+
+  it("the exclusions tag is non-enumerable so it can't leak into spreads", () => {
+    const tagged = createServerToolsFilter({ excludeTools: ["x"] });
+    expect(Object.keys(tagged)).not.toContain("excludeTools");
+    expect(tagged.excludeTools).toEqual(["x"]);
+  });
+
+  it("does not mutate the input catalog", () => {
+    const before = names(catalog);
+    resolveDeferredServerTools(catalog, ["AnumaJinaMCP-search_web"], {
+      ...on,
+      excludeTools: ["OpenMeteoMCP-weather_forecast"],
+    });
+    expect(names(catalog)).toEqual(before);
+  });
+});
+
+describe("deferFormattingConfig — an explicit static array skips defer formatting (I-3)", () => {
+  const st = (name: string): ServerTool => ({
+    type: "function",
+    name,
+    description: `desc ${name}`,
+    parameters: { type: "object", properties: {}, required: [] },
+  });
+  // Mirrors the real creation modes: a one-tool list whose tool is NOT hot.
+  const VIDEO = [st("AnumaMediaMCP-anuma_create_video")];
+  const hot = ["AnumaJinaMCP-search_web", "AnumaSearchMCP-anuma_text_search"];
+  const on = { enabled: true, hotToolNames: hot };
+  const catalog = [
+    st("AnumaJinaMCP-search_web"),
+    st("AnumaSearchMCP-anuma_text_search"),
+    st("AnumaMediaMCP-anuma_create_video"),
+    st("ZetaMCP-z_tool"),
+  ];
+
+  it("a required-tool creation turn can actually call its generator, not just tool-search", () => {
+    // The bug: with defer formatting the ONLY directly callable entry was tool_search, so
+    // tool_choice:'required' could only be satisfied by calling tool-search — never the generator.
+    const cfg = deferFormattingConfig(["AnumaMediaMCP-anuma_create_video"], on);
+    expect(cfg).toBeUndefined();
+
+    const merged = mergeTools(VIDEO, undefined, "responses", cfg) as Array<Record<string, unknown>>;
+    expect(merged).toHaveLength(1);
+    expect(merged[0].name).toBe("AnumaMediaMCP-anuma_create_video");
+    expect(merged[0].defer_loading).toBeUndefined();
+    expect(merged.some((t) => String(t.type ?? "").startsWith("tool_search_tool_"))).toBe(false);
+  });
+
+  it("is byte-identical to defer-off for that request", () => {
+    const off = JSON.stringify(mergeTools(VIDEO, undefined, "responses"));
+    const viaHelper = JSON.stringify(
+      mergeTools(VIDEO, undefined, "responses", deferFormattingConfig(["x"], on))
+    );
+    expect(viaHelper).toBe(off);
+  });
+
+  it("REGRESSION: a filter function still gets the full defer treatment", () => {
+    const cfg = deferFormattingConfig(() => [], on);
+    expect(cfg).toBe(on);
+
+    const merged = mergeTools(catalog, undefined, "responses", cfg) as Array<
+      Record<string, unknown>
+    >;
+    // [tool-search] -> [hot in order] -> [deferred name-sorted, flagged]
+    expect(merged[0].type).toBe("tool_search_tool_regex_20251119");
+    expect(merged.slice(1, 3).map((t) => t.name)).toEqual(hot);
+    expect(merged.slice(1, 3).every((t) => t.defer_loading === undefined)).toBe(true);
+    expect(merged.slice(3).every((t) => t.defer_loading === true)).toBe(true);
+  });
+
+  it("REGRESSION: no filter at all still gets the full defer treatment", () => {
+    expect(deferFormattingConfig(undefined, on)).toBe(on);
+  });
+
+  it("defer disabled stays disabled regardless of the filter shape", () => {
+    const off = { enabled: false, hotToolNames: hot };
+    expect(deferFormattingConfig(["x"], off)).toBe(off);
+    expect(deferFormattingConfig(undefined, off)).toBe(off);
+    expect(deferFormattingConfig(["x"], undefined)).toBeUndefined();
+  });
+
+  it("membership scoping and the I-2 exclusion union are untouched", () => {
+    // resolveDeferredServerTools still narrows to the array and still unions exclusions —
+    // this change only affects FORMATTING, not selection.
+    const tagged = createServerToolsFilter({ excludeTools: ["ZetaMCP-z_tool"] });
+    expect(
+      resolveDeferredServerTools(catalog, ["AnumaMediaMCP-anuma_create_video"], on).map(
+        (t) => t.name
+      )
+    ).toEqual(["AnumaMediaMCP-anuma_create_video"]);
+    expect(resolveDeferredServerTools(catalog, tagged, on).map((t) => t.name)).not.toContain(
+      "ZetaMCP-z_tool"
+    );
   });
 });

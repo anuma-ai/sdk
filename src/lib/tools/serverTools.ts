@@ -721,6 +721,96 @@ export interface DeferLoadingConfig {
   enabled: boolean;
   /** Server-tool names to keep non-deferred (besides the tool-search tool), in priority order. */
   hotToolNames: readonly string[];
+  /**
+   * Server-tool names to drop entirely while defer-loading is on.
+   *
+   * Defer widens the per-turn selection to the whole catalog, which also bypasses the `excludeTools`
+   * baked into a caller's semantic filter. A filter built by {@link createServerToolsFilter} tags itself
+   * with its own exclusions and those are honoured automatically — so most callers need nothing here.
+   *
+   * Set this when the filter's tag can't be seen: a hand-written filter, a filter wrapped in a plain
+   * closure (the wrapper drops the tag), or a static-array `serverToolsFilter`. Anything excluded
+   * UNCONDITIONALLY (a tool the app replaces with its own UI, a capability the model already has
+   * natively) belongs in one of the two places, or defer quietly hands it back to the model.
+   *
+   * This list is UNIONED with the filter's own tag, never a replacement for it — so adding one name
+   * here cannot re-admit the tools the filter already excludes.
+   */
+  excludeTools?: readonly string[];
+}
+
+/**
+ * The server-tool set defer-loading should format for one turn.
+ *
+ * Defer changes how tools are SENT (full definitions + `defer_loading` + a tool-search tool, for a
+ * byte-stable cacheable prefix). It must not change WHICH tools the caller allowed, so two things
+ * survive that a plain "just use the whole catalog" discards:
+ *
+ * 1. **an explicit static array** — `serverToolsFilter: ['x']` is a deliberate scoping, and callers
+ *    commonly pair it with `tool_choice:'required'`. Replacing it with the catalog turns "you must
+ *    call x" into "you must call something, here is everything". Defer still applies, within the array.
+ * 2. **unconditional exclusions** — see {@link DeferLoadingConfig.excludeTools}.
+ *
+ * A filter FUNCTION is deliberately NOT consulted: it is per-prompt semantic narrowing, and skipping it
+ * is the whole point of defer (the model reaches everything else through tool-search). Only the
+ * caller's unconditional constraints survive.
+ */
+export function resolveDeferredServerTools(
+  allServerTools: ServerTool[],
+  serverToolsFilter: readonly string[] | ServerToolsFilterFunction | undefined,
+  config: DeferLoadingConfig
+): ServerTool[] {
+  // Discriminate on `typeof`, not `Array.isArray`: narrowing a union whose other arm is callable
+  // gives `any[]` and costs the array element type.
+  const allowed =
+    serverToolsFilter === undefined || typeof serverToolsFilter === "function"
+      ? allServerTools
+      : filterServerTools(allServerTools, [...serverToolsFilter]);
+
+  // UNION, not override. Both sources are exclusions the caller already asked for: the config list,
+  // and the list a filter built by `createServerToolsFilter` tags itself with. Letting config replace
+  // the tag would mean adding one name silently re-admits everything the filter excludes — this bug,
+  // reintroduced by supplying MORE configuration. A filter wrapped in a plain closure loses its tag,
+  // which is what the config field is for.
+  const excluded = new Set(config.excludeTools ?? []);
+  if (typeof serverToolsFilter === "function") {
+    for (const name of serverToolsFilter.excludeTools ?? []) excluded.add(name);
+  }
+
+  if (excluded.size === 0) return allowed;
+  return allowed.filter((tool) => !excluded.has(tool.name));
+}
+
+/**
+ * The defer config {@link mergeTools} should FORMAT this request with — `undefined` when defer
+ * formatting must be skipped even though defer-loading is enabled.
+ *
+ * Scoping the selection to a caller's explicit static array (see {@link resolveDeferredServerTools})
+ * is only half the job. `formatServerToolsWithDefer` still marks every non-hot tool `defer_loading`
+ * and prepends the tool-search tool, so for a one-tool array whose tool isn't hot — every creation
+ * mode: video, music, sfx, image, slides — the search tool becomes the ONLY directly callable entry
+ * in the request. Callers pair those arrays with `tool_choice:'required'`, so "you must call the video
+ * generator" silently degrades to "you must call tool-search", and a caller scanning tool-call events
+ * for the generator's name never sees it.
+ *
+ * An explicit array is a closed set the caller already narrowed: there is nothing left to discover, so
+ * defer has no work to do and its formatting is pure downside. Sending those tools normally is exactly
+ * today's (defer-off) behavior for that request.
+ *
+ * Note this is NOT the same as treating the array as `hotToolNames`: hot tools are non-deferred, but
+ * `formatServerToolsWithDefer` prepends the tool-search tool unconditionally, so a `required` turn
+ * could still satisfy the constraint by calling it. Skipping the formatting is what actually fixes it.
+ *
+ * The catalog path (a filter function, or no filter) is untouched — full tool-search + hot + deferred.
+ */
+export function deferFormattingConfig(
+  serverToolsFilter: readonly string[] | ServerToolsFilterFunction | undefined,
+  config: DeferLoadingConfig | undefined
+): DeferLoadingConfig | undefined {
+  if (!config?.enabled) return config;
+  // `typeof`, not `Array.isArray` — narrowing a union whose other arm is callable yields `any[]`.
+  const isExplicitList = serverToolsFilter !== undefined && typeof serverToolsFilter !== "function";
+  return isExplicitList ? undefined : config;
 }
 
 // Deterministic, locale-independent name order (codepoint) so the deferred block is byte-identical
@@ -1440,12 +1530,12 @@ export interface CreateServerToolsFilterOptions {
  */
 export function createServerToolsFilter(
   options: CreateServerToolsFilterOptions = {}
-): (embeddings: number[] | number[][], tools: ServerTool[]) => string[] {
+): ServerToolsFilterFunction {
   const exclude = new Set(options.excludeTools ?? []);
   const sets = options.toolSets ?? [];
   const matchOpts = options.matchOptions;
 
-  return (embeddings, tools) => {
+  const filter = (embeddings: number[] | number[][], tools: ServerTool[]): string[] => {
     const matches = findMatchingTools(embeddings, tools, matchOpts);
     if (matches.length === 0) return [];
 
@@ -1480,6 +1570,14 @@ export function createServerToolsFilter(
     for (const name of exclude) finalNames.delete(name);
     return [...finalNames];
   };
+
+  // Tag the filter with its exclusions so defer-loading can honour them without the caller
+  // repeating the list (see resolveDeferredServerTools). Non-enumerable so the tag can't
+  // leak into JSON/spreads of anything holding this function.
+  return Object.defineProperty(filter, "excludeTools", {
+    value: Object.freeze([...exclude]),
+    enumerable: false,
+  }) as ServerToolsFilterFunction;
 }
 
 // ── Default server-tools filter ─────────────────────────────────────────────
@@ -1615,10 +1713,18 @@ export const defaultServerToolsFilter = createServerToolsFilter({
  * and the full server tool catalog and returns the names of tools to keep.
  * Matches `useChatStorage`'s `serverTools` callback signature.
  */
-export type ServerToolsFilterFunction = (
+export type ServerToolsFilterFunction = ((
   embeddings: number[] | number[][],
   tools: ServerTool[]
-) => string[];
+) => string[]) & {
+  /**
+   * The unconditional exclusions this filter applies, exposed by
+   * {@link createServerToolsFilter} so defer-loading can honour them without the caller
+   * repeating the list — see {@link resolveDeferredServerTools}. Absent on a hand-written
+   * filter, or on one wrapped in a plain closure.
+   */
+  readonly excludeTools?: readonly string[];
+};
 
 /**
  * Options for `selectServerToolsForPrompt`.
@@ -1647,9 +1753,10 @@ export interface SelectServerToolsForPromptOptions {
    */
   cache?: ToolsCacheBackend;
   /**
-   * Phase 3 defer-loading. When `enabled`, this helper returns the FULL catalog (skipping semantic/
-   * static filtering) to mirror useChatStorage's responses send path, which swaps in the full catalog
-   * for mergeTools + tool-search. Omit/disabled → today's filtered selection.
+   * Phase 3 defer-loading. When `enabled`, this helper skips SEMANTIC filtering to mirror
+   * useChatStorage's responses send path, which hands the catalog to mergeTools + tool-search. The
+   * caller's unconditional constraints still apply — an explicit static array, and exclusions (see
+   * {@link resolveDeferredServerTools}). Omit/disabled → today's filtered selection.
    */
   deferLoading?: DeferLoadingConfig;
 }
@@ -1705,9 +1812,11 @@ export async function selectServerToolsForPrompt(
   }
   if (allServerTools.length === 0) return [];
 
-  // Defer-loading: mirror useChatStorage's responses send path — emit the FULL catalog (no semantic/
-  // static filtering), since mergeTools orders + flags it and tool-search loads the rest on demand.
-  if (deferLoading?.enabled) return allServerTools;
+  // Defer-loading: mirror useChatStorage's responses send path via the same helper — emit the catalog
+  // without semantic filtering (mergeTools orders + flags it and tool-search loads the rest on demand),
+  // minus the caller's unconditional constraints.
+  if (deferLoading?.enabled)
+    return resolveDeferredServerTools(allServerTools, serverToolsFilter, deferLoading);
 
   if (typeof serverToolsFilter === "function") {
     // Mirror useChatStorage's short-prompt gate: below
