@@ -18,6 +18,7 @@ import { VaultMemory } from "../../../../src/lib/db/memoryVault/models.js";
 import { Entity, MemoryEntity } from "../../../../src/lib/db/entities/models.js";
 import { type EntityOperationsContext } from "../../../../src/lib/db/entities/operations.js";
 import { type ConsolidationFallbackReason } from "../../../../src/lib/memory/types.js";
+import { extractFacts, type ExtractedCandidate } from "../../../../src/lib/memory/autoExtract.js";
 import type {
   LongMemEvalEntry,
   LongMemEvalSession,
@@ -547,6 +548,109 @@ export async function callChatCompletion(
   throw lastError instanceof Error ? lastError : new Error("Chat completion failed");
 }
 
+/**
+ * Map an SDK {@link ExtractedCandidate} onto this suite's {@link ExtractedMemory}.
+ *
+ * The SDK schema is a strict superset in richness, so every field here is a
+ * narrowing:
+ * - `eventTime: null` ⟺ `kind: "state"`; anything else is an `"event"`.
+ * - `eventTime.start` is Unix ms and may carry a range; `occurredAt` keeps only
+ *   the start date. `recallStrategy` reconstructs an `eventTime` from it for
+ *   `retain()`, so an SDK-extracted range makes a round trip through a date
+ *   string and comes back as a point. Acceptable for now — LongMemEval's
+ *   temporal questions are day-granular — but it is the one place this mapping
+ *   loses information, and the reason to eventually thread candidates through
+ *   whole rather than via `ExtractedMemory`.
+ * - `entities` are typed (`{ name, kind }`) in the SDK and bare strings here, so
+ *   the kind is dropped. The graph lane keys on name only, so nothing downstream
+ *   reads it today.
+ */
+export function candidateToMemory(
+  candidate: ExtractedCandidate,
+  sessionIndex: number,
+  sessionId: string
+): ExtractedMemory {
+  const eventTime = candidate.eventTime;
+  return {
+    sessionIndex,
+    sessionId,
+    content: candidate.content,
+    kind: eventTime ? "event" : "state",
+    occurredAt: eventTime ? new Date(eventTime.start).toISOString().split("T")[0] : null,
+    confidence: candidate.confidence,
+    entities: candidate.entities.map((e) => e.name).filter((n) => n.trim().length > 0),
+  };
+}
+
+/**
+ * Extract via the SDK's production path (#907).
+ *
+ * Deliberately passes almost nothing: `extractFacts` owns the prompt, the
+ * request shape, the retry policy and the failure classification, and the whole
+ * point is to measure those rather than this file's versions of them. `now` is
+ * the one substantive input — the SDK resolves relative dates ("yesterday")
+ * against it, which is what `observationDate` exists for on the harness path.
+ *
+ * Note what is NOT replicated: production reaches extraction through
+ * `extractAndRetain`, which additionally applies `DEFAULT_MIN_CONFIDENCE` (0.7)
+ * and the injection screen before retaining. This function stops at
+ * `extractFacts`, matching where the harness path stops, so the arms differ in
+ * the extractor and nothing else. Closing those two is separate work.
+ */
+/**
+ * Returns `null` — not `[]` — when extraction FAILED, so the caller cannot
+ * cache a failure as a successful empty result.
+ *
+ * The distinction is load-bearing and the reason this is a nullable return
+ * rather than a comment: `[]` is a legitimate outcome ("this session held
+ * nothing worth keeping") and is worth caching, while a failure must retry on
+ * the next run. Collapsing the two pins an empty extraction for that session
+ * until someone clears the cache or bumps the key — the harness path calls this
+ * out explicitly and avoids it, and the first version of this function
+ * reintroduced it while carrying a comment claiming otherwise. Caught by
+ * Greptile on #908. The type is what prevents the regression now; a comment
+ * demonstrably did not.
+ */
+async function extractViaSdk(
+  session: LongMemEvalSession,
+  sessionIndex: number,
+  sessionId: string,
+  api: ApiConfig,
+  extractionModel: string,
+  obsDate: string
+): Promise<ExtractedMemory[] | null> {
+  const messages = session.map((msg, i) => ({
+    id: `${sessionId}#${i}`,
+    role: msg.role,
+    content: msg.content,
+  }));
+
+  let failureReason: string | undefined;
+  const candidates = await extractFacts(messages, {
+    apiKey: api.apiKey,
+    baseUrl: api.baseUrl,
+    model: extractionModel,
+    // Midday UTC, not midnight: `obsDate` is a bare calendar date, and anchoring
+    // at 00:00Z puts every timezone west of UTC on the previous day when the SDK
+    // resolves "today".
+    now: Date.parse(`${obsDate}T12:00:00Z`),
+    // Reported rather than swallowed. The harness path returns `[]` for every
+    // failure mode alike, which is exactly the blindness `PortalLlmFailure`
+    // (#888) exists to remove — surfacing it here is a strict gain over the
+    // path this replaces.
+    onExhaustedEmpty: (failure) => {
+      failureReason = failure.reason;
+    },
+  });
+
+  if (failureReason) {
+    console.warn(`Extraction failed (session ${sessionId}): ${failureReason} [sdk extractor]`);
+    return null;
+  }
+
+  return candidates.map((c) => candidateToMemory(c, sessionIndex, sessionId));
+}
+
 export async function extractMemoriesFromSession(
   session: LongMemEvalSession,
   sessionIndex: number,
@@ -559,10 +663,38 @@ export async function extractMemoriesFromSession(
 
   const extractionModel = api.extractionModel ?? api.llmModel;
   const cache = await getExtractionCache();
-  const cacheKey = `${sessionId}|${obsDate}|${extractionModel}|${EXTRACTION_PROMPT_VERSION}`;
+  // The extractor is part of the cache identity, not just the prompt version:
+  // the two paths produce different memories from the same session, and sharing
+  // a key would let one arm silently answer for the other. Keeping the harness
+  // tag as-is means the existing 22 MB cache stays valid for the default path —
+  // landing this invalidates nothing.
+  const extractorTag = api.extractor === "sdk" ? "sdk-v1" : EXTRACTION_PROMPT_VERSION;
+  const cacheKey = `${sessionId}|${obsDate}|${extractionModel}|${extractorTag}`;
   const cached = cache.get(cacheKey);
   if (cached) {
     return cached.map((item) => ({ ...item, sessionIndex, sessionId }));
+  }
+
+  if (api.extractor === "sdk") {
+    const extracted = await extractViaSdk(
+      session,
+      sessionIndex,
+      sessionId,
+      api,
+      extractionModel,
+      obsDate
+    );
+    // Same rule as the harness path: only a SUCCESSFUL extraction is cached. A
+    // failure returns null above and must retry next run; caching it would pin
+    // an empty vault for this session until someone clears the cache.
+    if (extracted === null) return [];
+    cache.set(
+      cacheKey,
+      extracted.map(({ sessionIndex: _i, sessionId: _s, ...rest }) => rest)
+    );
+    extractionCacheUnsaved++;
+    await persistExtractionCache();
+    return extracted;
   }
 
   // Extraction prompt — adapted from Mem0 (contextual richness, absolute

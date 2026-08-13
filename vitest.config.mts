@@ -35,6 +35,11 @@ export default defineConfig({
       // This is what keeps a few infrastructure crashes from firing the recall
       // gate as a ranking regression.
       "test/memory/src/longmemeval/aggregate.test.ts",
+      // The SDK-extractor mapping (#907): ExtractedCandidate → ExtractedMemory.
+      // Pure, no PORTAL_API_KEY. Every field is a narrowing, so a wrong branch
+      // yields a plausible memory with the wrong temporal anchor — it moves the
+      // temporal category's score without failing anything.
+      "test/memory/src/longmemeval/extractor.test.ts",
     ],
     // Browser tests need Playwright's Chromium binary and ~3-5s per case.
     // Skipped by default so `vitest run` stays fast; run via
