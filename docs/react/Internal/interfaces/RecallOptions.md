@@ -325,8 +325,8 @@ Recency boost slope in the fused ranker. Default: 1.0.
 
 Defined in: [src/lib/memory/types.ts:194](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#194)
 
-Number of candidates fed to the cross-encoder rerank stage. Default: 5
-(`DEFAULT_RERANK_TOP_N`); was 30 until 2026-08-13 — see anuma-ai/sdk#845.
+Number of candidates fed to the cross-encoder rerank stage. Default: 5;
+was 30 until 2026-08-13 — see anuma-ai/sdk#845.
 
 ***
 

@@ -57,9 +57,12 @@ export { createVaultEmbeddingCache, DEFAULT_VAULT_CACHE_SIZE } from "./lruCache"
  * identical, against ~75% off the dominant term of the slowest thing on the
  * send path. Callers that want the old behaviour pass `rerankTopN: 30`.
  *
- * @public
+ * Deliberately NOT exported, and deliberately not `@public`: both readers are in
+ * this file, and adding a barrel export with no consumer is the shipped-but-
+ * unreachable pattern #768 exists to prevent. It is named rather than repeated
+ * only so the two call sites cannot drift.
  */
-export const DEFAULT_RERANK_TOP_N = 5;
+const DEFAULT_RERANK_TOP_N = 5;
 
 /**
  * Embedding cache keyed by content string. Stores pre-computed embeddings

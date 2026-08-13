@@ -426,9 +426,9 @@
       "tolerance": 0
     },
     "compositeHigh.rerankPairs": {
-      "mean": 30,
-      "min": 30,
-      "max": 30,
+      "mean": 5,
+      "min": 5,
+      "max": 5,
       "stdDev": 0,
       "tolerance": 0
     },
