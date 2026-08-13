@@ -21,6 +21,13 @@
  *   pnpm eval:vault-search --verbose
  *   pnpm eval:vault-search --save-baseline
  *   pnpm eval:vault-search --baseline test/memory/src/vault/baseline.json
+ *
+ * Two baselines are committed, and which one you compare against matters:
+ *   - `baseline.json`            cosine, no rerank — the cheap arm
+ *   - `baseline-production.json` fused + cross-encoder — what web actually runs
+ *     (`budget: 'mid'`, 98.7% of production recall turns as of 2026-08-13)
+ * Run both when you change ranking. Until 2026-08-13 only the first existed, so
+ * no gate measured the shipped configuration.
  */
 
 import "dotenv/config";
@@ -77,6 +84,7 @@ const { values: args } = parseArgs({
     ranker: { type: "string", default: "cosine" },
     "recency-alpha": { type: "string" },
     rerank: { type: "boolean", default: false },
+    "rerank-top-n": { type: "string" },
     "ce-weight": { type: "string" },
     mmr: { type: "boolean", default: false },
     "mmr-lambda": { type: "string" },
@@ -97,6 +105,17 @@ function progress(line: string): void {
   else console.log(line);
 }
 
+/**
+ * Where `--save-baseline` writes, and what `--baseline` defaults to reading.
+ *
+ * `--save-baseline` used to hardcode {@link DEFAULT_BASELINE_PATH}, which made
+ * capturing any second baseline a footgun: running the production config with
+ * `--save-baseline` silently overwrote the cosine control with fused+CE numbers,
+ * and the gate would then compare every future control run against the wrong
+ * arm. Honouring `--baseline` on the write side keeps one flag meaning one file.
+ */
+const BASELINE_PATH = args.baseline ?? DEFAULT_BASELINE_PATH;
+
 const RANKER_NAME = (args.ranker ?? "cosine").toLowerCase();
 if (RANKER_NAME !== "cosine" && RANKER_NAME !== "fused") {
   console.error(`Invalid --ranker "${RANKER_NAME}". Expected "cosine" or "fused".`);
@@ -105,6 +124,28 @@ if (RANKER_NAME !== "cosine" && RANKER_NAME !== "fused") {
 
 const RECENCY_ALPHA = args["recency-alpha"] ? parseFloat(args["recency-alpha"]) : undefined;
 const RERANK = !!args.rerank;
+/**
+ * How many fused-ranked candidates reach the cross-encoder. `undefined` = the
+ * SDK default (30, `searchTool.ts`).
+ *
+ * Exists because the CE head is the dominant cost of production recall and was
+ * not tunable from here. Measured on prod turns 2026-08-13: browser WASM runs
+ * the cross-encoder at ~380 ms fixed + ~110 ms per pair, so a full 30-pair head
+ * is ~8.7 s of the 9.3 s `fact_lane_ms` p50 at 50-199 memories (anuma-ai/sdk#845).
+ * Node with native onnxruntime is ~2 ms/pair, i.e. ~50x cheaper — which is why
+ * this flag measures QUALITY only. It cannot tell you what the cut costs a
+ * browser; that number has to come from `rerank_ms` in production telemetry.
+ */
+const RERANK_TOP_N = args["rerank-top-n"] ? parseInt(args["rerank-top-n"], 10) : undefined;
+if (RERANK_TOP_N !== undefined && (!Number.isInteger(RERANK_TOP_N) || RERANK_TOP_N < 1)) {
+  console.error(`Invalid --rerank-top-n "${args["rerank-top-n"]}". Expected a positive integer.`);
+  process.exit(1);
+}
+if (RERANK_TOP_N !== undefined && !RERANK) {
+  // Silently ignoring it would report a "top-n sweep" whose arms are identical.
+  console.error("--rerank-top-n has no effect without --rerank.");
+  process.exit(1);
+}
 const CE_WEIGHT = args["ce-weight"] ? parseFloat(args["ce-weight"]) : undefined;
 const USE_MMR = !!args.mmr;
 const MMR_LAMBDA = args["mmr-lambda"] ? parseFloat(args["mmr-lambda"]) : undefined;
@@ -459,6 +500,9 @@ function gateConfig(): Record<string, string | number | boolean> {
   return {
     ranker: RANKER_NAME,
     rerank: RERANK,
+    // -1 = "SDK default", distinct from any real head size — same sentinel
+    // convention as `recencyAlpha` below.
+    rerankTopN: RERANK_TOP_N ?? -1,
     mmr: USE_MMR,
     graph: USE_GRAPH,
     entities: ENTITY_MODE,
@@ -647,6 +691,7 @@ async function main() {
           // out — the sibling fused path above surfaces it via limit.
           includeUnrankedTail: true,
           ...(RECENCY_ALPHA !== undefined && { recencyAlpha: RECENCY_ALPHA }),
+          ...(RERANK_TOP_N !== undefined && { rerankTopN: RERANK_TOP_N }),
           ...(CE_WEIGHT !== undefined && { ceWeight: CE_WEIGHT }),
           ...(entityRanking && { entityRanking }),
         }
@@ -662,6 +707,7 @@ async function main() {
         rerank: RERANK,
         mmr: USE_MMR,
         ...(RECENCY_ALPHA !== undefined && { recencyAlpha: RECENCY_ALPHA }),
+        ...(RERANK_TOP_N !== undefined && { rerankTopN: RERANK_TOP_N }),
         ...(CE_WEIGHT !== undefined && { ceWeight: CE_WEIGHT }),
         ...(MMR_LAMBDA !== undefined && { mmrLambda: MMR_LAMBDA }),
         ...(entityRanking && { entityRanking }),
@@ -780,10 +826,10 @@ async function main() {
     // Save baseline without verbose details to keep the file small
     if (args["save-baseline"]) {
       await writeFile(
-        DEFAULT_BASELINE_PATH,
+        BASELINE_PATH,
         JSON.stringify(buildBaselinePayload(overall, byCategory, elapsed), null, 2)
       );
-      console.error(`Baseline saved to ${DEFAULT_BASELINE_PATH}`);
+      console.error(`Baseline saved to ${BASELINE_PATH}`);
     }
 
     const output = {
@@ -828,7 +874,21 @@ async function main() {
   // Baseline comparison
   // ---------------------------------------------------------------------------
 
-  if (args.baseline) {
+  // Gating and regenerating are opposite intents, so `--save-baseline` suppresses
+  // the gate. Without this, `--save-baseline --baseline <path>` gates against the
+  // file it is about to replace: in non-JSON mode the comparison runs FIRST and
+  // `process.exit(1)`s on a config mismatch or a drop, so the write never
+  // happens — which makes the one operation you need after a corpus or embedding
+  // -model change (recapturing both arms) impossible, since the numbers moving is
+  // exactly why you are recapturing. Caught by Bugbot on #904; the two flags
+  // could not be combined at all before this PR, because `--save-baseline`
+  // ignored `--baseline`.
+  //
+  // It also makes the two output modes agree. In `--json` the save happens
+  // earlier, so that path wrote and then gated; now neither gates.
+  if (args["save-baseline"]) {
+    console.error("  Baseline comparison skipped: --save-baseline regenerates it.\n");
+  } else if (args.baseline) {
     try {
       const baselineRaw = await readFile(args.baseline, "utf-8");
       const baselineData = JSON.parse(baselineRaw);
@@ -879,10 +939,10 @@ async function main() {
 
   if (args["save-baseline"]) {
     await writeFile(
-      DEFAULT_BASELINE_PATH,
+      BASELINE_PATH,
       JSON.stringify(buildBaselinePayload(overall, byCategory, elapsed), null, 2)
     );
-    console.log(`Baseline saved to ${DEFAULT_BASELINE_PATH}`);
+    console.log(`Baseline saved to ${BASELINE_PATH}`);
   }
 
   // ---------------------------------------------------------------------------

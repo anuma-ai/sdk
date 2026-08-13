@@ -146,33 +146,67 @@ jobs:
       - name: Run eval (regression gate)
         if: env.INPUT_MODE == 'gate'
         run: |
+          # TWO arms, because one of them is the configuration we actually ship.
+          #
+          #   control    cosine, no rerank        — the cheap arm
+          #   production fused + cross-encoder    — `budget: 'mid'`, which web
+          #              resolves to on 98.7% of production recall turns
+          #
+          # Until 2026-08-13 only `control` ran here, so the shipped ranking path
+          # had no regression gate at all: a change that broke fusion or the
+          # cross-encoder scored green because neither was switched on.
+          #
           # `--output` rather than `| tee`: the benchmark writes the result
           # document to the file itself and logs only to stderr, so the summary
           # below gets clean JSON. Piping stdout also can't work on the path that
           # matters — the gate exits non-zero on a regression, and the file must
           # already exist by then (it's written before the comparison runs).
-          args=(--json --output results.json --baseline test/memory/src/vault/baseline.json)
-          [ "$INPUT_REFRESH" = "true" ] && args+=(--refresh-embeddings)
-          pnpm --silent eval:vault-search "${args[@]}"
+          extra=()
+          [ "$INPUT_REFRESH" = "true" ] && extra+=(--refresh-embeddings)
+
+          # Both arms run even when the first regresses, then the step fails at
+          # the end. Chaining with `&&` would hide the production result behind a
+          # control regression — the two are independent questions and a reviewer
+          # needs both numbers to tell "ranking got worse" from "fusion broke".
+          rc=0
+          pnpm --silent eval:vault-search --json \
+            --output results.json \
+            --baseline test/memory/src/vault/baseline.json \
+            "${extra[@]}" || rc=1
+          pnpm --silent eval:vault-search --json --ranker fused --rerank \
+            --output results-production.json \
+            --baseline test/memory/src/vault/baseline-production.json \
+            "${extra[@]}" || rc=1
+          exit $rc
 
       - name: Run eval (save baseline)
         if: env.INPUT_MODE == 'save-baseline'
         run: |
           set -o pipefail
-          args=(--save-baseline)
-          [ "$INPUT_REFRESH" = "true" ] && args+=(--refresh-embeddings)
-          pnpm --silent eval:vault-search "${args[@]}"
-          echo "### Generated baseline" >> "$GITHUB_STEP_SUMMARY"
-          echo '```json' >> "$GITHUB_STEP_SUMMARY"
-          cat test/memory/src/vault/baseline.json >> "$GITHUB_STEP_SUMMARY"
-          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          extra=()
+          [ "$INPUT_REFRESH" = "true" ] && extra+=(--refresh-embeddings)
+          # Regenerate BOTH arms together. Capturing only one leaves the other
+          # pinned to an older corpus/model, and the config block would no longer
+          # explain the divergence — they must move as a pair.
+          pnpm --silent eval:vault-search --save-baseline \
+            --baseline test/memory/src/vault/baseline.json "${extra[@]}"
+          pnpm --silent eval:vault-search --save-baseline --ranker fused --rerank \
+            --baseline test/memory/src/vault/baseline-production.json "${extra[@]}"
+          for f in baseline baseline-production; do
+            echo "### Generated $f" >> "$GITHUB_STEP_SUMMARY"
+            echo '```json' >> "$GITHUB_STEP_SUMMARY"
+            cat "test/memory/src/vault/$f.json" >> "$GITHUB_STEP_SUMMARY"
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+          done
 
       - name: Upload generated baseline
         if: env.INPUT_MODE == 'save-baseline'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: vault-search-baseline
-          path: test/memory/src/vault/baseline.json
+          path: |
+            test/memory/src/vault/baseline.json
+            test/memory/src/vault/baseline-production.json
           if-no-files-found: error
 
       - name: Summarize
@@ -180,7 +214,10 @@ jobs:
         run: |
           {
             echo "## Vault search eval — retrieval quality vs committed baseline"
-            if [ -f results.json ]; then
+            for arm in "control:results.json" "production (fused+CE):results-production.json"; do
+            label="${arm%%:*}"; file="${arm##*:}"
+            echo "### $label"
+            if [ -f "$file" ]; then
               echo '```'
               jq -r '
                 .overall as $o |
@@ -192,11 +229,12 @@ jobs:
                 "",
                 "  by category:",
                 (.byCategory[] | "    \(.category | . + (" " * (16 - length)))recall \((.recallAtK*1000|round/10))%  ndcg \((.ndcg*1000|round/10))%")
-              ' results.json 2>/dev/null || echo "  (could not parse results.json)"
+              ' "$file" 2>/dev/null || echo "  (could not parse $file)"
               echo '```'
             else
-              echo "_Gate did not produce a result (eval step failed before writing results.json)._"
+              echo "_Gate did not produce a result (eval step failed before writing $file)._"
             fi
+            done
           } | tee -a "$GITHUB_STEP_SUMMARY"
 
       - name: Upload results
@@ -204,7 +242,13 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: vault-search-eval-results
-          path: results.json
+          # BOTH arms. The production document carries its own `perQuery` rows,
+          # which are what a later run needs as a `--compare` target for a paired
+          # bootstrap — uploading only the control silently makes the shipped
+          # arm the one you cannot analyse after the fact.
+          path: |
+            results.json
+            results-production.json
           if-no-files-found: ignore
 
   # Reports this gate's outcome as one stable line. See the advisory note on
