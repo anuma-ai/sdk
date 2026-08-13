@@ -23,12 +23,23 @@ on:
           - s
           - m
       model:
+        # Default is what every other memory eval gate runs (`recall-eval`,
+        # `extraction-eval`) and what production extraction uses, so a
+        # default dispatch is comparable to the gates and is known to serve.
+        #
+        # It replaced `cerebras/qwen-3-235b-a22b-instruct-2507`, which had been
+        # the default while RETIRED: Cerebras stopped serving that slug
+        # (ai-portal#1193) and the portal surfaces the upstream 404 as a 500, so
+        # every extraction failed `HTTP 500 after 6 attempts` and the run scored
+        # 0/50 after ~40 minutes of runner time. A default that cannot work is
+        # worse than no default — the option is removed rather than demoted so
+        # it cannot be picked again.
         description: "LLM model for answer generation and evaluation"
         required: true
         type: choice
-        default: "cerebras/qwen-3-235b-a22b-instruct-2507"
+        default: "gpt-oss/gpt-oss-120b"
         options:
-          - cerebras/qwen-3-235b-a22b-instruct-2507
+          - gpt-oss/gpt-oss-120b
           - deepinfra/moonshotai/Kimi-K2.6
           - fireworks/accounts/fireworks/models/kimi-k2p6
           - fireworks/accounts/fireworks/models/deepseek-v3p2
