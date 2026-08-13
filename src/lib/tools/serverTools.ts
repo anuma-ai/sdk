@@ -725,12 +725,16 @@ export interface DeferLoadingConfig {
    * Server-tool names to drop entirely while defer-loading is on.
    *
    * Defer widens the per-turn selection to the whole catalog, which also bypasses the `excludeTools`
-   * baked into a caller's semantic filter — that list lives inside the filter closure and is invisible
-   * from here. Anything excluded UNCONDITIONALLY (a tool the app replaces with its own UI, a capability
-   * the model already has natively) must be repeated here, or defer quietly hands it back to the model.
+   * baked into a caller's semantic filter. A filter built by {@link createServerToolsFilter} tags itself
+   * with its own exclusions and those are honoured automatically — so most callers need nothing here.
    *
-   * Pass the same list given to {@link createServerToolsFilter}'s `excludeTools`. Omitted ⇒ nothing is
-   * dropped, the right default for a caller whose filter has no exclusions.
+   * Set this when the filter's tag can't be seen: a hand-written filter, a filter wrapped in a plain
+   * closure (the wrapper drops the tag), or a static-array `serverToolsFilter`. Anything excluded
+   * UNCONDITIONALLY (a tool the app replaces with its own UI, a capability the model already has
+   * natively) belongs in one of the two places, or defer quietly hands it back to the model.
+   *
+   * This list is UNIONED with the filter's own tag, never a replacement for it — so adding one name
+   * here cannot re-admit the tools the filter already excludes.
    */
   excludeTools?: readonly string[];
 }
@@ -763,16 +767,17 @@ export function resolveDeferredServerTools(
       ? allServerTools
       : filterServerTools(allServerTools, [...serverToolsFilter]);
 
-  // Explicit config wins; otherwise fall back to the exclusions a filter built by
-  // `createServerToolsFilter` carries, so the common path is right without the caller
-  // having to repeat the list. A filter wrapped in a plain closure loses the tag — that
-  // is what `DeferLoadingConfig.excludeTools` is for.
-  const exclusions =
-    config.excludeTools ??
-    (typeof serverToolsFilter === "function" ? serverToolsFilter.excludeTools : undefined);
+  // UNION, not override. Both sources are exclusions the caller already asked for: the config list,
+  // and the list a filter built by `createServerToolsFilter` tags itself with. Letting config replace
+  // the tag would mean adding one name silently re-admits everything the filter excludes — this bug,
+  // reintroduced by supplying MORE configuration. A filter wrapped in a plain closure loses its tag,
+  // which is what the config field is for.
+  const excluded = new Set(config.excludeTools ?? []);
+  if (typeof serverToolsFilter === "function") {
+    for (const name of serverToolsFilter.excludeTools ?? []) excluded.add(name);
+  }
 
-  if (!exclusions?.length) return allowed;
-  const excluded = new Set(exclusions);
+  if (excluded.size === 0) return allowed;
   return allowed.filter((tool) => !excluded.has(tool.name));
 }
 
@@ -1716,9 +1721,10 @@ export interface SelectServerToolsForPromptOptions {
    */
   cache?: ToolsCacheBackend;
   /**
-   * Phase 3 defer-loading. When `enabled`, this helper returns the FULL catalog (skipping semantic/
-   * static filtering) to mirror useChatStorage's responses send path, which swaps in the full catalog
-   * for mergeTools + tool-search. Omit/disabled → today's filtered selection.
+   * Phase 3 defer-loading. When `enabled`, this helper skips SEMANTIC filtering to mirror
+   * useChatStorage's responses send path, which hands the catalog to mergeTools + tool-search. The
+   * caller's unconditional constraints still apply — an explicit static array, and exclusions (see
+   * {@link resolveDeferredServerTools}). Omit/disabled → today's filtered selection.
    */
   deferLoading?: DeferLoadingConfig;
 }

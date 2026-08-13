@@ -481,15 +481,25 @@ describe("resolveDeferredServerTools — defer keeps the caller's unconditional 
     ]);
   });
 
-  it("explicit config excludeTools wins over the filter's own tag", () => {
+  it("config excludeTools UNIONS with the filter's tag — it never overrides it", () => {
+    // The regression this pins: if config replaced the tag, naming one extra tool here would
+    // silently re-admit everything the filter already excludes — this PR's own bug, brought back
+    // by supplying more configuration.
     const tagged = createServerToolsFilter({ excludeTools: ["OpenMeteoMCP-weather_forecast"] });
     const result = resolveDeferredServerTools(catalog, tagged, {
       ...on,
       excludeTools: ["AnumaJinaMCP-search_web"],
     });
-    // weather survives (the tag is overridden), search_web is dropped (the explicit list applies).
-    expect(names(result)).toContain("OpenMeteoMCP-weather_forecast");
-    expect(names(result)).not.toContain("AnumaJinaMCP-search_web");
+    expect(names(result)).toEqual([
+      "AnumaMediaMCP-anuma_create_image",
+      "AnumaVisionMCP-anuma_analyze_image",
+    ]);
+  });
+
+  it("an empty config excludeTools does not disarm the filter's tag", () => {
+    const tagged = createServerToolsFilter({ excludeTools: ["OpenMeteoMCP-weather_forecast"] });
+    const result = resolveDeferredServerTools(catalog, tagged, { ...on, excludeTools: [] });
+    expect(names(result)).not.toContain("OpenMeteoMCP-weather_forecast");
   });
 
   it("the exclusions tag is non-enumerable so it can't leak into spreads", () => {

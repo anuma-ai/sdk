@@ -281,7 +281,14 @@ export async function previewToolSelection(options: {
           cache: serverToolsConfig?.cache,
         });
         const allow = new Set(serverToolsFilter);
-        gatedServerNames = allServerTools.filter((t) => allow.has(t.name)).map((t) => t.name);
+        const gated = allServerTools.filter((t) => allow.has(t.name));
+        // Static lists survive the short-prompt gate, so defer's exclusions have to survive with
+        // them — otherwise the preview reports a tool the deferred send would drop.
+        gatedServerNames = (
+          serverToolsConfig?.deferLoading?.enabled
+            ? resolveDeferredServerTools(gated, serverToolsFilter, serverToolsConfig.deferLoading)
+            : gated
+        ).map((t) => t.name);
       } catch {
         // Server tools optional; leave empty on fetch failure.
       }
@@ -343,8 +350,10 @@ export async function previewToolSelection(options: {
         cache: serverToolsConfig?.cache,
       });
       if (serverToolsConfig?.deferLoading?.enabled) {
-        // Defer-loading: mirror the real responses send exactly — same helper, same inputs — or the
-        // preview quietly stops predicting what the send will do.
+        // Defer-loading: run the same helper the real send runs, so the deferred selection is
+        // predicted rather than re-derived. (Two pre-existing preview/send asymmetries remain, both
+        // older than defer: an `undefined` filter bails to [] here but sends the whole catalog, and
+        // the short-prompt gate above returns early.)
         serverToolNames = resolveDeferredServerTools(
           allServerTools,
           serverToolsFilter,
