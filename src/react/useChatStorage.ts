@@ -159,6 +159,7 @@ import {
   getToolName,
   mergeTools,
   MIN_CONTENT_LENGTH_FOR_TOOLS,
+  resolveDeferredServerTools,
   type ServerTool,
   shouldRefreshTools,
   type ToolsCacheBackend,
@@ -342,8 +343,13 @@ export async function previewToolSelection(options: {
         cache: serverToolsConfig?.cache,
       });
       if (serverToolsConfig?.deferLoading?.enabled) {
-        // Defer-loading: the real responses send emits the full catalog, so the preview must too.
-        serverToolNames = allServerTools.map((t) => t.name);
+        // Defer-loading: mirror the real responses send exactly — same helper, same inputs — or the
+        // preview quietly stops predicting what the send will do.
+        serverToolNames = resolveDeferredServerTools(
+          allServerTools,
+          serverToolsFilter,
+          serverToolsConfig.deferLoading
+        ).map((t) => t.name);
       } else if (typeof serverToolsFilter === "function") {
         serverToolNames = serverToolsFilter(promptEmbedding, allServerTools);
       } else {
@@ -2344,11 +2350,16 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
             });
 
             if (serverToolsConfig?.deferLoading?.enabled) {
-              // Defer-loading: emit the FULL catalog every turn. The whole point is a byte-stable
-              // `tools` prefix, so we must NOT semantically filter to a per-prompt subset here —
-              // mergeTools orders + flags it and prepends tool-search, which loads the deferred tools
-              // on demand. Bypasses the serverToolsFilter result (incl. the short-prompt empty case).
-              filteredServerTools = allServerTools;
+              // Defer-loading: emit the catalog every turn. The whole point is a byte-stable `tools`
+              // prefix, so we must NOT semantically filter to a per-prompt subset here — mergeTools
+              // orders + flags it and prepends tool-search, which loads the deferred tools on demand.
+              // Bypasses a filter FUNCTION's result (incl. the short-prompt empty case) but keeps the
+              // caller's unconditional constraints — an explicit static array, and excludeTools.
+              filteredServerTools = resolveDeferredServerTools(
+                allServerTools,
+                serverToolsFilter,
+                serverToolsConfig.deferLoading
+              );
             } else if (isServerToolsFunction) {
               if (skipStorageEmbeddings) {
                 const toolNames = serverToolsFilter(skipStorageEmbeddings, allServerTools);
@@ -2943,11 +2954,17 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         if (allServerTools) {
           try {
             if (serverToolsConfig?.deferLoading?.enabled && effectiveApiType === "responses") {
-              // Defer-loading (RESPONSES-ONLY): emit the FULL catalog every turn (byte-stable prefix). Do
-              // NOT semantically filter — mergeTools orders + flags it and prepends tool-search to load
-              // deferred tools on demand. On completions (the responses-breaker fallback) defer can't work
-              // (toolsToApiFormat mangles the flat tool-search type), so fall through to today's filtering.
-              filteredServerTools = allServerTools;
+              // Defer-loading (RESPONSES-ONLY): emit the catalog every turn (byte-stable prefix). Do NOT
+              // semantically filter — mergeTools orders + flags it and prepends tool-search to load
+              // deferred tools on demand. The caller's unconditional constraints still hold (an explicit
+              // static array, and excludeTools). On completions (the responses-breaker fallback) defer
+              // can't work (toolsToApiFormat mangles the flat tool-search type), so fall through to
+              // today's filtering.
+              filteredServerTools = resolveDeferredServerTools(
+                allServerTools,
+                serverToolsFilter,
+                serverToolsConfig.deferLoading
+              );
             } else if (isServerToolsFunction) {
               // Call the filter function with embeddings and all tools
               if (userMessageEmbeddings) {

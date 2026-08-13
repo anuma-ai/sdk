@@ -38,6 +38,7 @@ export {
   mergeTools,
   MIN_CONTENT_LENGTH_FOR_TOOLS,
   type ParsedServerToolsResponse,
+  resolveDeferredServerTools,
   scoreTools,
   selectServerSideTools,
   type SelectServerSideToolsOptions,

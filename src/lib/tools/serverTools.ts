@@ -721,6 +721,48 @@ export interface DeferLoadingConfig {
   enabled: boolean;
   /** Server-tool names to keep non-deferred (besides the tool-search tool), in priority order. */
   hotToolNames: readonly string[];
+  /**
+   * Server-tool names to drop entirely while defer-loading is on.
+   *
+   * Defer widens the per-turn selection to the whole catalog, which also bypasses the `excludeTools`
+   * baked into a caller's semantic filter — that list lives inside the filter closure and is invisible
+   * from here. Anything excluded UNCONDITIONALLY (a tool the app replaces with its own UI, a capability
+   * the model already has natively) must be repeated here, or defer quietly hands it back to the model.
+   *
+   * Pass the same list given to {@link createServerToolsFilter}'s `excludeTools`. Omitted ⇒ nothing is
+   * dropped, the right default for a caller whose filter has no exclusions.
+   */
+  excludeTools?: readonly string[];
+}
+
+/**
+ * The server-tool set defer-loading should format for one turn.
+ *
+ * Defer changes how tools are SENT (full definitions + `defer_loading` + a tool-search tool, for a
+ * byte-stable cacheable prefix). It must not change WHICH tools the caller allowed, so two things
+ * survive that a plain "just use the whole catalog" discards:
+ *
+ * 1. **an explicit static array** — `serverToolsFilter: ['x']` is a deliberate scoping, and callers
+ *    commonly pair it with `tool_choice:'required'`. Replacing it with the catalog turns "you must
+ *    call x" into "you must call something, here is everything". Defer still applies, within the array.
+ * 2. **unconditional exclusions** — see {@link DeferLoadingConfig.excludeTools}.
+ *
+ * A filter FUNCTION is deliberately NOT consulted: it is per-prompt semantic narrowing, and skipping it
+ * is the whole point of defer (the model reaches everything else through tool-search). Only the
+ * caller's unconditional constraints survive.
+ */
+export function resolveDeferredServerTools(
+  allServerTools: ServerTool[],
+  serverToolsFilter: unknown,
+  config: DeferLoadingConfig
+): ServerTool[] {
+  const allowed = Array.isArray(serverToolsFilter)
+    ? filterServerTools(allServerTools, serverToolsFilter as string[])
+    : allServerTools;
+
+  if (!config.excludeTools?.length) return allowed;
+  const excluded = new Set(config.excludeTools);
+  return allowed.filter((tool) => !excluded.has(tool.name));
 }
 
 // Deterministic, locale-independent name order (codepoint) so the deferred block is byte-identical
