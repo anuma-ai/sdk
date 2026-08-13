@@ -1,0 +1,89 @@
+{
+  "timestamp": "2026-08-13T23:04:44.291Z",
+  "datasetName": "longmemeval_s_memory-vault",
+  "strategy": "memory-vault",
+  "totalQuestions": 50,
+  "correctAnswers": 33,
+  "judgeFailures": 0,
+  "answerFailures": 0,
+  "harnessFailures": 0,
+  "accuracy": 0.66,
+  "byQuestionType": {
+    "single-session-user": {
+      "total": 9,
+      "correct": 8,
+      "judgeFailures": 0,
+      "answerFailures": 0,
+      "harnessFailures": 0,
+      "accuracy": 0.8888888888888888
+    },
+    "single-session-assistant": {
+      "total": 8,
+      "correct": 8,
+      "judgeFailures": 0,
+      "answerFailures": 0,
+      "harnessFailures": 0,
+      "accuracy": 1
+    },
+    "single-session-preference": {
+      "total": 8,
+      "correct": 1,
+      "judgeFailures": 0,
+      "answerFailures": 0,
+      "harnessFailures": 0,
+      "accuracy": 0.125
+    },
+    "temporal-reasoning": {
+      "total": 8,
+      "correct": 4,
+      "judgeFailures": 0,
+      "answerFailures": 0,
+      "harnessFailures": 0,
+      "accuracy": 0.5
+    },
+    "knowledge-update": {
+      "total": 8,
+      "correct": 6,
+      "judgeFailures": 0,
+      "answerFailures": 0,
+      "harnessFailures": 0,
+      "accuracy": 0.75
+    },
+    "multi-session": {
+      "total": 9,
+      "correct": 6,
+      "judgeFailures": 0,
+      "answerFailures": 0,
+      "harnessFailures": 0,
+      "accuracy": 0.6666666666666666
+    }
+  },
+  "retrieval": {
+    "avgPrecision": 0.18445770895770897,
+    "avgRecall": 0.9483333333333333,
+    "measuredQuestions": 50
+  },
+  "latency": {
+    "p50": 4596901.239162,
+    "p95": 4982298.11123695,
+    "p99": 5001573.956462869,
+    "mean": 4368174.3765394
+  },
+  "tokenUsage": {
+    "promptTokens": 1821055,
+    "completionTokens": 239285,
+    "totalTokens": 2060340,
+    "embeddingTokens": 0
+  },
+  "cost": null,
+  "meta": {
+    "commit": "47a7c152a7e9a99c969dd66136aca1b297f5960e",
+    "commitShort": "47a7c15",
+    "branch": "feat/longmemeval-rerank-candidates",
+    "model": "gpt-oss/gpt-oss-120b",
+    "variant": "s",
+    "concurrency": 50,
+    "runUrl": "https://github.com/anuma-ai/sdk/actions/runs/31744185431",
+    "runId": 31744185431
+  }
+}
