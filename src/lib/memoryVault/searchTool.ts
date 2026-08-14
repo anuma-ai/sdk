@@ -1010,13 +1010,43 @@ export async function rankFusedVaultMemoriesAsync(
   }
   if (sideLanesAsync.length > 0) {
     const headIds = combined.map((r) => r.uniqueId);
-    const fused = rrfFuse([headIds, headIds, ...sideLanesAsync], options?.rrfK);
-    const fusedHead = combined
+    // The V2-ranked tail joins the fusion pool at ONE lane's weight, at its
+    // true rank — it is not stapled on afterwards.
+    //
+    // Before this, `rerankTopN` silently doubled as the fusion pool size: the
+    // tail was excluded from `rrfFuse` entirely and appended after everything
+    // at the end, so V2 candidate #(rerankTopN + 1) landed below every
+    // side-lane-only hit, including zero-cosine ones. With `DEFAULT_LIMIT = 8`
+    // and `recall()` supplying both entity and temporal lanes, that decided
+    // slots 6-8 of a `budget: 'mid'` recall. Caught in review on #909.
+    //
+    // The 2x weight belongs to the PRIMARY RANKING, not to "whatever the CE
+    // happened to see". Its purpose (see the comment above) is that side lanes
+    // stay tiebreakers which surface what the primary ranking missed, rather
+    // than overruling it — and a V2 candidate at rank 6 was never something the
+    // primary ranking missed. It only stopped being CE-seen because the head
+    // shrank, which is a cost decision and must not move ranks.
+    //
+    // Weighting the tail at 1x instead was tried and is not enough: at rrfK 60,
+    // V2 #6 scores 1/66 = 0.0152 and still loses to any rank-1 side-lane hit at
+    // 1/61 = 0.0164, including a zero-cosine one. Only weighting the full
+    // ranking restores it to 2/66 = 0.0303.
+    //
+    // When the tail is empty (rerank off, or a head covering every item)
+    // `rankedIds` IS `headIds` and this reduces to the previous
+    // `[headIds, headIds, ...lanes]` exactly — so the paths that were already
+    // correct are untouched.
+    const tailIds = tailSlice.map((r) => r.uniqueId);
+    const rankedIds = tailIds.length > 0 ? [...headIds, ...tailIds] : headIds;
+    const fused = rrfFuse([rankedIds, rankedIds, ...sideLanesAsync], options?.rrfK);
+    const fusedHead = [...combined, ...tailSlice]
       .map((r) => ({ ...r, similarity: fused.get(r.uniqueId) ?? r.similarity }))
       .sort((a, b) => b.similarity - a.similarity);
+    // Absorbed into the pool above; must not also be appended at the end.
+    tailSlice = [];
     // Items in side lanes but absent from the CE head re-enter the pipeline
     // at the bottom so they're available to RRF even if CE didn't see them.
-    const seen = new Set(combined.map((r) => r.uniqueId));
+    const seen = new Set(fusedHead.map((r) => r.uniqueId));
     const itemById = new Map(items.map((i) => [i.id, i]));
     for (const lane of sideLanesAsync) {
       for (const id of lane) {
@@ -1042,7 +1072,11 @@ export async function rankFusedVaultMemoriesAsync(
     const lambda = options.mmrLambda ?? 0.7;
     const mmrTopN = options.mmrTopN ?? 20;
     const itemById = new Map(items.map((i) => [i.id, i]));
-    const mmrCandidates = combined.slice(0, mmrTopN).map((r) => ({
+    // Includes the tail: `combined` is only the CE head when no side lane ran,
+    // so slicing it alone silently capped MMR at `rerankTopN` candidates
+    // instead of `mmrTopN`. Not a live regression (nothing in production sets
+    // `mmr`) but it redefined the knob for anyone sweeping it. Also #909.
+    const mmrCandidates = [...combined, ...tailSlice].slice(0, mmrTopN).map((r) => ({
       id: r.uniqueId,
       score: r.similarity,
       embedding: itemById.get(r.uniqueId)?.embedding ?? [],
