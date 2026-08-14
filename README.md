@@ -2,6 +2,7 @@
 
 | Date | Strategy | Variant | Model | Accuracy | Correct | Precision | Recall | Commit | Run |
 | --- | --- | --- | --- | ---: | ---: | ---: | ---: | --- | --- |
+| 2026-08-14 | memory-vault | s | gpt-oss-120b | 58% | 29/50 | 17.1% | 93.8% | [`596a5d5`](https://github.com/anuma-ai/sdk/commit/596a5d58995f920cfe3b27cd8b8069371d3ad468) | [link](https://github.com/anuma-ai/sdk/actions/runs/31753997381) |
 | 2026-08-13 | memory-vault | s | gpt-oss-120b | 66% | 33/50 | 18.4% | 94.8% | [`47a7c15`](https://github.com/anuma-ai/sdk/commit/47a7c152a7e9a99c969dd66136aca1b297f5960e) | [link](https://github.com/anuma-ai/sdk/actions/runs/31744185431) |
 | 2026-06-03 | memory-recall | oracle | claude-sonnet-4-6 | 1.8% | 9/500 | 0% | 0% | [`fab1635`](https://github.com/anuma-ai/sdk/commit/fab1635b3b587813f9462c44b9e475676c01225c) | [link](https://github.com/anuma-ai/sdk/actions/runs/26908527355) |
 | 2026-06-03 | memory-recall | oracle | claude-sonnet-4-6 | 81.7% | 49/60 | 98.3% | 97.9% | [`fab1635`](https://github.com/anuma-ai/sdk/commit/fab1635b3b587813f9462c44b9e475676c01225c) | [link](https://github.com/anuma-ai/sdk/actions/runs/26904570699) |

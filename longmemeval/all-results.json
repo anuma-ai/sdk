@@ -4843,5 +4843,94 @@
       "runUrl": "https://github.com/anuma-ai/sdk/actions/runs/31744185431",
       "runId": 31744185431
     }
+  },
+  {
+    "timestamp": "2026-08-14T00:33:25.618Z",
+    "datasetName": "longmemeval_s_memory-vault",
+    "strategy": "memory-vault",
+    "totalQuestions": 50,
+    "correctAnswers": 29,
+    "judgeFailures": 0,
+    "answerFailures": 0,
+    "harnessFailures": 0,
+    "accuracy": 0.58,
+    "byQuestionType": {
+      "single-session-user": {
+        "total": 9,
+        "correct": 7,
+        "judgeFailures": 0,
+        "answerFailures": 0,
+        "harnessFailures": 0,
+        "accuracy": 0.7777777777777778
+      },
+      "single-session-assistant": {
+        "total": 8,
+        "correct": 7,
+        "judgeFailures": 0,
+        "answerFailures": 0,
+        "harnessFailures": 0,
+        "accuracy": 0.875
+      },
+      "single-session-preference": {
+        "total": 8,
+        "correct": 3,
+        "judgeFailures": 0,
+        "answerFailures": 0,
+        "harnessFailures": 0,
+        "accuracy": 0.375
+      },
+      "temporal-reasoning": {
+        "total": 8,
+        "correct": 2,
+        "judgeFailures": 0,
+        "answerFailures": 0,
+        "harnessFailures": 0,
+        "accuracy": 0.25
+      },
+      "knowledge-update": {
+        "total": 8,
+        "correct": 4,
+        "judgeFailures": 0,
+        "answerFailures": 0,
+        "harnessFailures": 0,
+        "accuracy": 0.5
+      },
+      "multi-session": {
+        "total": 9,
+        "correct": 6,
+        "judgeFailures": 0,
+        "answerFailures": 0,
+        "harnessFailures": 0,
+        "accuracy": 0.6666666666666666
+      }
+    },
+    "retrieval": {
+      "avgPrecision": 0.17115574862014488,
+      "avgRecall": 0.9383333333333332,
+      "measuredQuestions": 50
+    },
+    "latency": {
+      "p50": 2619536.9429874998,
+      "p95": 3070399.52316025,
+      "p99": 3231251.44970546,
+      "mean": 2667178.99049388
+    },
+    "tokenUsage": {
+      "promptTokens": 1762300,
+      "completionTokens": 271473,
+      "totalTokens": 2033773,
+      "embeddingTokens": 0
+    },
+    "cost": null,
+    "meta": {
+      "commit": "596a5d58995f920cfe3b27cd8b8069371d3ad468",
+      "commitShort": "596a5d5",
+      "branch": "ci/longmemeval-907-dispatch",
+      "model": "gpt-oss/gpt-oss-120b",
+      "variant": "s",
+      "concurrency": 50,
+      "runUrl": "https://github.com/anuma-ai/sdk/actions/runs/31753997381",
+      "runId": 31753997381
+    }
   }
 ]
