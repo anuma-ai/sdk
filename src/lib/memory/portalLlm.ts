@@ -74,6 +74,31 @@ const RESPONSE_FORMAT_OK = new Set(["openai", "inclusionai", "deepseek"]);
 const RESPONSE_SCHEMA_OK = new Set(["openai"]);
 
 /**
+ * Prepended as a second system message on a retry that follows a PARSE failure.
+ *
+ * Retrying a parse failure with a byte-identical request is the weakest recovery
+ * available: the model has already seen this exact prompt and answered with
+ * prose, so the only thing varying between attempts is sampling noise. Changing
+ * the request is what makes the retry mean something.
+ *
+ * This matters most for models that get no {@link supportsResponseFormat} gate —
+ * `gpt-oss/gpt-oss-120b` (Cerebras) is the production extraction default and is
+ * NOT in {@link RESPONSE_FORMAT_OK}, so its JSON correctness rests entirely on
+ * the prompt plus a tolerant parser, with nothing structural to fall back on.
+ *
+ * Measured: a LongMemEval arm running this path failed 667 of its sessions,
+ * **358 of them `invalid-json`**, against 3 failures for the eval harness's own
+ * extractor — which carries exactly this reminder and had done for a year
+ * (anuma-ai/sdk#911). The first `failure_reason` ever emitted in production was
+ * also `invalid-json`.
+ *
+ * Wording is lifted from the harness rather than reinvented, so the two paths
+ * fail and recover the same way.
+ */
+const JSON_CONTRACT_REMINDER =
+  "Output ONLY the strict JSON object requested. No prose, no explanation, no markdown.";
+
+/**
  * Whether `model` accepts an OpenAI-style `response_format` request field. Use
  * this to gate the flag on any direct portal `/chat/completions` call so models
  * that 400 on it (e.g. Cerebras gpt-oss) or silently ignore it (Anthropic)
@@ -242,6 +267,17 @@ interface PortalLlmRequest extends PortalLlmAuth {
    * `{candidates: []}` for good reason. See {@link PortalLlmFailureReason}.
    */
   onFailure?: (failure: PortalLlmFailure) => void;
+  /**
+   * Internal, set by the retry loop — not part of the caller-facing contract.
+   *
+   * When the previous attempt returned prose instead of JSON, the next one
+   * prepends an explicit output-contract reminder. A retry that replays the
+   * identical request is the weakest possible recovery from a parse failure:
+   * the model already saw this prompt and answered with prose, so the only
+   * thing varying is sampling noise. Changing the request is what makes the
+   * retry mean something.
+   */
+  reinforceJsonContract?: boolean;
 }
 
 /**
@@ -359,6 +395,18 @@ export async function callPortalJsonCompletion(req: PortalLlmRequest): Promise<u
   // separate exits (terminal, retries exhausted, and two budget breaks) and the
   // hook must fire exactly once on all of them.
   let lastFailure: PortalLlmFailure | undefined;
+  /**
+   * Set once the model has answered with something unparseable, so every
+   * SUBSEQUENT attempt carries {@link JSON_CONTRACT_REMINDER}.
+   *
+   * Sticky on purpose: a model that produced prose once is a model whose
+   * instructions did not land, and un-setting it after one clean-but-still-bad
+   * attempt would drop the reminder exactly when it is still needed. Scoped to
+   * the two PARSE failures — `network` and the HTTP codes say nothing about the
+   * request's shape, and a reminder there would be noise in the prompt for a
+   * problem it cannot fix.
+   */
+  let reinforce = false;
   const giveUp = (): null => {
     // A `null` return with no recorded failure would mean maxAttempts <= 0,
     // which `Math.max(1, …)` above forbids. Report something rather than
@@ -388,8 +436,11 @@ export async function callPortalJsonCompletion(req: PortalLlmRequest): Promise<u
               1,
               Math.min(req.timeoutMs ?? 60_000, req.totalTimeoutMs - (Date.now() - startedAt))
             ),
+            ...(reinforce && { reinforceJsonContract: true }),
           }
-        : req;
+        : reinforce
+          ? { ...req, reinforceJsonContract: true }
+          : req;
     const outcome = await attemptPortalJson(attemptReq, endpoint);
     if (outcome.kind === "ok") return outcome.value;
     lastFailure = {
@@ -397,6 +448,7 @@ export async function callPortalJsonCompletion(req: PortalLlmRequest): Promise<u
       ...(outcome.httpStatus !== undefined && { httpStatus: outcome.httpStatus }),
       attempts: attempt,
     };
+    if (outcome.code === "invalid-json" || outcome.code === "null-completion") reinforce = true;
     if (outcome.kind === "terminal") {
       log.warn(`[${req.tag}] ${outcome.reason}`);
       return giveUp();
@@ -466,6 +518,13 @@ async function attemptPortalJson(req: PortalLlmRequest, endpoint: string): Promi
     // keeps the portal's detector reading them as genuine rather than markerless.
     // See ../internalFlowMarker.
     { role: "system", content: withInternalFlowMarker(req.systemPrompt) },
+    // Retry-only. Kept as a SEPARATE message rather than appended to the system
+    // prompt so the marked prompt above stays byte-identical across attempts —
+    // the portal's internal-flow detector reads that one, and rewriting it on a
+    // retry would change what the detector sees for reasons unrelated to auth.
+    ...(req.reinforceJsonContract
+      ? [{ role: "system" as const, content: JSON_CONTRACT_REMINDER }]
+      : []),
     { role: "user", content: req.userMessage },
   ];
   if (prefill) messages.push({ role: "assistant", content: prefill });

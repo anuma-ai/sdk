@@ -2,7 +2,7 @@
 
 > **PortalLlmFailureReason** = `"auth-unavailable"` | `"http-terminal"` | `"http-retryable"` | `"network"` | `"body-parse-failed"` | `"empty-content"` | `"invalid-json"` | `"null-completion"` | `"time-budget-exhausted"`
 
-Defined in: [src/lib/memory/portalLlm.ts:136](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/portalLlm.ts#136)
+Defined in: [src/lib/memory/portalLlm.ts:161](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/portalLlm.ts#161)
 
 Why a portal JSON completion gave up, as a STABLE low-cardinality code.
 
