@@ -702,3 +702,106 @@ describe("callPortalJsonCompletion — X-Anuma-Task-Type", () => {
     });
   });
 });
+
+describe("callPortalJsonCompletion — JSON contract reinforcement on retry (#911)", () => {
+  const baseArgs = {
+    apiKey: "test-key",
+    // Deliberately NOT anthropic: that path gets the `{` assistant prefill, which
+    // is a different recovery mechanism. This is the production extraction model,
+    // which is in neither RESPONSE_FORMAT_OK nor the prefill path — so the
+    // reminder is the only structural help it gets.
+    model: "gpt-oss/gpt-oss-120b",
+    systemPrompt: "system",
+    userMessage: "user",
+    tag: "test",
+    backoffMs: () => 0,
+  } as const;
+
+  /** System-message contents of the Nth fetch call, in order. */
+  function systemsOf(fetchFn: ReturnType<typeof vi.fn>, callIndex: number): string[] {
+    const body = JSON.parse(fetchFn.mock.calls[callIndex][1].body as string) as {
+      messages: { role: string; content: string }[];
+    };
+    return body.messages.filter((m) => m.role === "system").map((m) => m.content);
+  }
+
+  it("does not send the reminder on the first attempt", async () => {
+    const fetchFn = vi.fn().mockResolvedValue(mockResponse('{"ok":1}'));
+    await callPortalJsonCompletion({ ...baseArgs, fetchFn });
+
+    expect(fetchFn).toHaveBeenCalledTimes(1);
+    expect(systemsOf(fetchFn, 0)).toHaveLength(1);
+  });
+
+  it("adds the reminder to the attempt AFTER a prose answer", async () => {
+    // The whole point: attempt 2 must differ from attempt 1. A byte-identical
+    // retry re-asks a model that already answered with prose.
+    const fetchFn = vi
+      .fn()
+      .mockResolvedValueOnce(mockResponse("Sure! Here's what I found:"))
+      .mockResolvedValueOnce(mockResponse('{"ok":1}'));
+
+    const result = await callPortalJsonCompletion({ ...baseArgs, fetchFn });
+
+    expect(result).toEqual({ ok: 1 });
+    expect(fetchFn).toHaveBeenCalledTimes(2);
+    expect(systemsOf(fetchFn, 0)).toHaveLength(1);
+    const retrySystems = systemsOf(fetchFn, 1);
+    expect(retrySystems).toHaveLength(2);
+    expect(retrySystems[1]).toContain("Output ONLY the strict JSON object");
+  });
+
+  it("leaves the marked system prompt byte-identical across attempts", async () => {
+    // The portal's internal-flow detector reads the FIRST system message. The
+    // reminder is a separate message specifically so a retry cannot change what
+    // the detector sees — that would turn a parse failure into an auth problem.
+    const fetchFn = vi
+      .fn()
+      .mockResolvedValueOnce(mockResponse("nope"))
+      .mockResolvedValueOnce(mockResponse('{"ok":1}'));
+
+    await callPortalJsonCompletion({ ...baseArgs, fetchFn });
+
+    expect(systemsOf(fetchFn, 0)[0]).toBe(systemsOf(fetchFn, 1)[0]);
+    expect(systemsOf(fetchFn, 1)[0]).toContain(INTERNAL_FLOW_MARKER);
+  });
+
+  it("stays on for every later attempt once a parse has failed", async () => {
+    // Sticky: a model whose instructions did not land the first time is not
+    // helped by dropping the reminder on attempt 3.
+    const fetchFn = vi.fn().mockResolvedValue(mockResponse("still prose"));
+
+    await callPortalJsonCompletion({ ...baseArgs, fetchFn, maxAttempts: 3 });
+
+    expect(fetchFn).toHaveBeenCalledTimes(3);
+    expect(systemsOf(fetchFn, 0)).toHaveLength(1);
+    expect(systemsOf(fetchFn, 1)).toHaveLength(2);
+    expect(systemsOf(fetchFn, 2)).toHaveLength(2);
+  });
+
+  it("does NOT reinforce after a network failure", async () => {
+    // A transport error says nothing about the request's shape, so the reminder
+    // would be prompt noise for a problem it cannot fix.
+    const fetchFn = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("connection reset"))
+      .mockResolvedValueOnce(mockResponse('{"ok":1}'));
+
+    await callPortalJsonCompletion({ ...baseArgs, fetchFn });
+
+    expect(fetchFn).toHaveBeenCalledTimes(2);
+    expect(systemsOf(fetchFn, 1)).toHaveLength(1);
+  });
+
+  it("does NOT reinforce after a retryable HTTP status", async () => {
+    const fetchFn = vi
+      .fn()
+      .mockResolvedValueOnce(new Response("upstream boom", { status: 503 }))
+      .mockResolvedValueOnce(mockResponse('{"ok":1}'));
+
+    await callPortalJsonCompletion({ ...baseArgs, fetchFn });
+
+    expect(fetchFn).toHaveBeenCalledTimes(2);
+    expect(systemsOf(fetchFn, 1)).toHaveLength(1);
+  });
+});
