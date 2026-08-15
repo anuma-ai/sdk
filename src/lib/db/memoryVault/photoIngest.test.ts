@@ -5,7 +5,12 @@ import { SOURCE_PHOTO } from "../../memory/decay";
 import { sdkMigrations, sdkModelClasses, sdkSchema } from "../schema";
 import type { VaultMemory } from "./models";
 import type { VaultMemoryOperationsContext } from "./operations";
-import { getAllVaultMemoriesOp, getVaultMemoryOp } from "./operations";
+import {
+  getAllVaultMemoriesOp,
+  getVaultMemoryOp,
+  getVaultRankingProjectionsOp,
+  updateVaultMemoryOp,
+} from "./operations";
 import { ingestPublishedPhotoMemoriesOp, type PublishedPhotoMemory } from "./photoIngest";
 
 // Mock encryption so these tests need no wallet or real crypto. The ctx below
@@ -72,13 +77,28 @@ describe("ingestPublishedPhotoMemoriesOp", () => {
     expect(stored?.uniqueId).toBe(FACT_ID);
 
     expect(stored?.content).toBe("Hikes mountain trails");
-    // Genuinely published — anything else and the reconciler would immediately
-    // revoke a memory the user never turned off.
+    // Genuinely published, and `scope` is the field that says so — it is the
+    // publication axis the reconciler reads. `visibility` is the legacy column,
+    // stamped only so an older build still reads the row as published.
+    expect(stored?.scope).toBe("shared");
     expect(stored?.visibility).toBe("public");
     expect(stored?.publishedAt).not.toBeNull();
     // Not "manual": that would make it immortal by accident. See the decay test.
     expect(stored?.source).toBe(SOURCE_PHOTO);
     expect(stored?.media).toEqual([{ feedItemId: 42, objectKey: "nearby/1/feed/a.jpg" }]);
+  });
+
+  it("lands in the published-set read, so the consent switch can revoke it", async () => {
+    await ingestPublishedPhotoMemoriesOp(ctx, [publishedRow()]);
+
+    // This mirrors the client's publishedSetQuery() — {scopes:['shared']} — the
+    // exact read the publish reconciler builds its `local` set from. A row that
+    // is absent here never reaches `desired`, is never adopted into the ledger,
+    // and `toRevoke` only ever holds ids the ledger already has. So a row
+    // outside this read can NEVER be revoked: the user's off-toggle and delete
+    // do nothing server-side while nearby keeps serving the memory.
+    const published = await getVaultRankingProjectionsOp(ctx, { scopes: ["shared"] });
+    expect(published.map((m) => m.uniqueId)).toContain(FACT_ID);
   });
 
   it("is a no-op on re-run — the same rows a second time insert nothing", async () => {
@@ -112,6 +132,36 @@ describe("ingestPublishedPhotoMemoriesOp", () => {
     // needs a merge decision, which is a follow-up, not a clobber.
     const stored = await getVaultMemoryOp(ctx, FACT_ID);
     expect(stored?.content).toBe("original text");
+  });
+
+  it("does not re-stamp the scope of a row the user turned off", async () => {
+    await ingestPublishedPhotoMemoriesOp(ctx, [publishedRow()]);
+    // The user turns the memory off. This is the real toggle path: the sheet
+    // calls updateVaultMemoryOp with the new scope.
+    await updateVaultMemoryOp(ctx, FACT_ID, {
+      content: "Hikes mountain trails",
+      scope: "private",
+    });
+
+    // The server has not dropped it yet — the revoke happens later in the same
+    // pass — so the next pass still receives the row in its published set.
+    const result = await ingestPublishedPhotoMemoriesOp(ctx, [publishedRow()]);
+    expect(result).toEqual({ inserted: 0, skipped: 1 });
+
+    // Ingest MUST leave it private. Repairing an old mis-stamped row from here
+    // is unsound and this is the case that proves it: the toggle writes `scope`
+    // and never touches `visibility`, so a row the user just turned off carries
+    // the exact columns a mis-stamped row does. A repair here could not tell
+    // them apart, and because the pass runs ingest BEFORE it reads the vault,
+    // re-stamping would put the row back in the desired set, `toRevoke` would
+    // never see it, and the switch would spring back to "on".
+    const stored = await getVaultMemoryOp(ctx, FACT_ID);
+    expect(stored?.scope).toBe("private");
+    expect(stored?.visibility).toBe("public");
+
+    // And it is out of the published-set read, which is what lets the revoke run.
+    const published = await getVaultRankingProjectionsOp(ctx, { scopes: ["shared"] });
+    expect(published.map((m) => m.uniqueId)).not.toContain(FACT_ID);
   });
 
   it("accepts a row with no media", async () => {
