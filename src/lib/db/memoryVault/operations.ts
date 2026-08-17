@@ -1479,10 +1479,7 @@ export async function getUnfiledVaultMemoriesOp(
  * LLM. Never reach for it to repair a subset — see the pre-v42-restore repair in
  * {@link getMemoriesNeedingTopicExtractionOp}, which targets the damaged rows.
  */
-// v4 (2026-08): DEFAULT_EXTRACTION_MODEL moved off gpt-oss-120b, which was
-// truncating its JSON mid-batch and losing whole batches — so a re-extraction
-// here is a repair, not just a refresh.
-export const TOPICS_EXTRACTION_VERSION = 4;
+export const TOPICS_EXTRACTION_VERSION = 3;
 
 /**
  * Result of {@link getMemoriesNeedingTopicExtractionOp}: which memories the

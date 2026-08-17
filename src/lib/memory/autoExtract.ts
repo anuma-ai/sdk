@@ -98,8 +98,12 @@ async function isMemoryTopicsUserManaged(
 // stay OFF (portalLlm.ts pins `reasoning_effort: "none"` for OpenAI models on
 // these JSON calls), or reasoning tokens re-inflate the output and walk this
 // straight back into the truncation above.
-// Exported so the standalone topic-extraction pass (topicExtract.ts) uses the
-// same sanctioned model — do NOT introduce a second extraction model constant.
+// This is the FACT lane's model. The topic lane pins its own
+// (DEFAULT_TOPIC_MODEL in topicExtract.ts) and deliberately does NOT follow this
+// one: measured 2026-08-17, the two lanes want opposite models — luna sweeps the
+// extraction eval while regressing topic precision past that suite's tolerance,
+// and gpt-oss is the mirror image. A third constant still needs the same bar:
+// its own eval run, not an assumption.
 export const DEFAULT_EXTRACTION_MODEL = "openai/gpt-5.6-luna";
 const DEFAULT_MIN_CONFIDENCE = 0.7;
 const MAX_CONTENT_LENGTH = 200;

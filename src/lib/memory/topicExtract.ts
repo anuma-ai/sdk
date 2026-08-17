@@ -24,7 +24,6 @@ import {
 import { getLogger } from "../logger.js";
 import { type PiiRedactor, resolvePiiRedactor } from "../pii/redactor.js";
 import {
-  DEFAULT_EXTRACTION_MODEL,
   ENTITY_KIND_GUIDELINES,
   type ExtractedEntity,
   parseEntities,
@@ -55,11 +54,46 @@ const MAX_VOCABULARY_NAMES = 100;
  * value above the cap is clamped rather than honored. A batch whose JSON needs
  * more than 1024 tokens is therefore still lost for free-tier users no matter
  * what is set here — keep the batch size and per-memory char cap small enough
- * that it doesn't, and see DEFAULT_EXTRACTION_MODEL for the portal-side fix. */
+ * that it doesn't, and see DEFAULT_TOPIC_MODEL for why this lane's model is
+ * pinned separately. */
 const MAX_COMPLETION_TOKENS = 8192;
 
+/**
+ * The topic lane runs a DIFFERENT model from the fact lane, and this is the one
+ * place in the memory pipeline where that is deliberate.
+ *
+ * `autoExtract.ts` says "do NOT introduce a second extraction model constant".
+ * That held while one model served both lanes well. It no longer does — the two
+ * lanes want opposite things, measured on this repo's own eval corpora:
+ *
+ *   fact lane   gpt-oss truncates ~26.8% of production turns (runaway reasoning:
+ *               49% of eval calls consume the whole output budget). luna scores
+ *               recall 1.00 / precision 1.00 / kindAccuracy 1.00 / junk 0.
+ *   topic lane  gpt-oss is PERFECT (recall, precision, f1, junkCleanRate all
+ *               1.00). luna regresses precision to 0.964 — past this suite's own
+ *               0.03 tolerance, i.e. it fails the gate — and junkCleanRate to
+ *               0.914, meaning it pollutes the knowledge graph with topics the
+ *               gold set rejects. (10 runs each, 2026-08-17.)
+ *
+ * So the fact lane moved to luna and this one did not. Three things follow, and
+ * all three are why this is a constant rather than a caller-side override:
+ *
+ *  1. The committed topic baseline stays valid — no regeneration, and the gate
+ *     keeps guarding the lane instead of being re-pointed at a worse model.
+ *  2. Private-mode memories keep an open-weights model. The sweep runs over the
+ *     WHOLE vault regardless of the session mode in force, so it cannot be gated
+ *     on session mode the way the fact lane is; pinning it here is what keeps
+ *     stored private memories off a closed provider.
+ *  3. Don't point this at a second model without an eval — the instruction that
+ *     was already on `TopicExtractOptions.model` and that this constant honours.
+ *
+ * If gpt-oss is ever retired, the replacement needs its own topic-eval run
+ * BEFORE it lands here; inheriting the fact lane's choice is what this prevents.
+ */
+export const DEFAULT_TOPIC_MODEL = "gpt-oss/gpt-oss-120b";
+
 // NOTE: bump TOPICS_EXTRACTION_VERSION (db/memoryVault/operations.ts) whenever
-// this prompt or DEFAULT_EXTRACTION_MODEL changes, so the sweep re-extracts the
+// this prompt or DEFAULT_TOPIC_MODEL changes, so the sweep re-extracts the
 // existing vault under the improved logic instead of keeping stale topics.
 const SYSTEM_PROMPT = `You assign topics to saved memories for a personal memory system.
 
@@ -97,8 +131,9 @@ export interface TopicExtractOptions extends PortalLlmAuth {
    * call time (see {@link validateEndpointOverride}).
    */
   endpointOverride?: string;
-  /** Defaults to {@link DEFAULT_EXTRACTION_MODEL} — the sanctioned extraction
-   * model. Don't point this at a second model without an eval. */
+  /** Defaults to {@link DEFAULT_TOPIC_MODEL} — the sanctioned TOPIC model,
+   * which is deliberately not the fact lane's. Don't point this at a second
+   * model without an eval. */
   model?: string;
   /** Override the global fetch implementation (useful for tests). */
   fetchFn?: typeof fetch;
@@ -193,7 +228,7 @@ export async function extractEntitiesForMemories(
       ...(options.endpointOverride !== undefined && {
         endpointOverride: options.endpointOverride,
       }),
-      model: options.model ?? DEFAULT_EXTRACTION_MODEL,
+      model: options.model ?? DEFAULT_TOPIC_MODEL,
       systemPrompt: SYSTEM_PROMPT,
       userMessage: `${vocabularyNote}Memories:\n${listing}\n\nList each memory's named entities.`,
       tag: "memory/topics",
