@@ -47,11 +47,18 @@ import { notifyConsolidationFallback } from "./consolidationFallback.js";
 import { callPortalJsonCompletion, type PortalLlmAuth } from "./portalLlm.js";
 import type { ConsolidationFallbackReason } from "./types.js";
 
-// Open-weights consolidator. Consolidation reasons over the SAME
-// chat-derived facts as extraction, so it stays on an open provider too —
-// routing it to a closed third party would reopen the privacy gap the
-// (global, open-weights) extractor default closes. NOT gpt-oss-120b (the
-// extraction default): gpt-oss returns empty completion content ~30% of the time on
+// Open-weights consolidator. NOTE the original rationale no longer holds: this
+// used to stay open-weights because the EXTRACTOR was open-weights and routing
+// consolidation to a closed third party would have reopened a gap extraction
+// had already closed. Extraction moved to a closed model in 2026-08 (see
+// DEFAULT_EXTRACTION_MODEL), so that argument is gone — the same chat-derived
+// facts now reach a closed provider one step earlier. ling stays on the
+// independent merits below (reliability and ~35× lower input cost), NOT as a
+// privacy boundary. Anyone reinstating a privacy boundary here has to start
+// with extraction, not this call.
+//
+// NOT gpt-oss-120b (the former extraction default):
+// gpt-oss returns empty completion content ~30% of the time on
 // this single-decision prompt (measured 3/10), which silently degrades every
 // affected merge to a create fallback and defeats facet-dedup. ling-2.6-flash
 // is reliable here (0/10 empty) and discriminates create/update/noop correctly

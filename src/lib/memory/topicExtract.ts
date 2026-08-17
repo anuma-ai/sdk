@@ -23,12 +23,7 @@ import {
 } from "../db/memoryVault/operations.js";
 import { getLogger } from "../logger.js";
 import { type PiiRedactor, resolvePiiRedactor } from "../pii/redactor.js";
-import {
-  DEFAULT_EXTRACTION_MODEL,
-  ENTITY_KIND_GUIDELINES,
-  type ExtractedEntity,
-  parseEntities,
-} from "./autoExtract.js";
+import { ENTITY_KIND_GUIDELINES, type ExtractedEntity, parseEntities } from "./autoExtract.js";
 import { callPortalJsonCompletion, type PortalLlmAuth } from "./portalLlm.js";
 
 /** Memories per LLM call. Mirrors the folder Auto-Sort batch size — the cost
@@ -45,13 +40,66 @@ const MAX_VOCABULARY_NAMES = 100;
  * deprecated `max_tokens`: the portal reads only the former, so a `max_tokens`
  * value is silently dropped and the request falls back to the portal's 4096
  * per-step default — which truncates a verbose 10-memory batch mid-JSON and
- * drops the whole batch (Cerebras honors `max_completion_tokens` and stops at
- * 4096 with `finish_reason=length`). Cerebras allows ~41k; 8192 is generous
- * headroom over the ~1-2k the batch's JSON actually needs. */
+ * drops the whole batch (providers stop at the cap with `finish_reason=length`,
+ * and a half-written JSON object parses to nothing). 8192 is generous headroom
+ * over the ~1-2k the batch's JSON actually needs.
+ *
+ * This value is a REQUEST, not a guarantee: the portal clamps basic/free-tier
+ * callers down to 1024 output tokens (`BasicTierMaxOutputTokens`, applied in
+ * ai-portal's shared chat service, so `/api/v1/utility/*` inherits it) and a
+ * value above the cap is clamped rather than honored. A batch whose JSON needs
+ * more than 1024 tokens is therefore still lost for free-tier users no matter
+ * what is set here — keep the batch size and per-memory char cap small enough
+ * that it doesn't, and see DEFAULT_TOPIC_MODEL for why this lane's model is
+ * pinned separately. */
 const MAX_COMPLETION_TOKENS = 8192;
 
+/**
+ * The topic lane runs a DIFFERENT model from the fact lane, and this is the one
+ * place in the memory pipeline where that is deliberate.
+ *
+ * `autoExtract.ts` says "do NOT introduce a second extraction model constant".
+ * That held while one model served both lanes well; it no longer does.
+ *
+ * THE REASON IS PRIVACY, NOT QUALITY. The topic sweep runs over the WHOLE vault
+ * regardless of which session mode is in force, so — unlike the fact lane — it
+ * cannot be gated on session mode by a client. Pinning an open-weights model
+ * here is the only thing that keeps STORED private-mode memories off a closed
+ * provider. That argument stands on its own and is why this constant exists.
+ *
+ * ON QUALITY THE TWO ARE INDISTINGUISHABLE, and an earlier version of this
+ * comment claimed otherwise. It read: gpt-oss perfect (all metrics 1.00) vs luna
+ * regressing precision to 0.964 and junkCleanRate to 0.914. Those luna numbers
+ * are real, but the gpt-oss side was a committed baseline the model itself
+ * cannot reproduce — a fresh gate run on gpt-oss (sdk#915, which changes no
+ * model) scored precision 0.969 and junkCleanRate 0.886, i.e. it FAILED its own
+ * baseline and landed slightly WORSE than luna on junk. There is no measured
+ * quality gap here in either direction.
+ *
+ * The suite cannot currently settle it: 7 junk traps means one miss moves
+ * junkCleanRate by 14.3pp against a 9pp tolerance, so the tolerance is narrower
+ * than the measurement quantum. Do not cite this lane's eval as evidence for a
+ * model choice until that corpus is bigger — see the eval-robustness issue.
+ *
+ * Two further consequences of pinning, both still true:
+ *
+ *  1. The committed topic baseline stays applicable — no regeneration needed as
+ *     part of the fact lane's move to luna.
+ *  2. Don't point this at a second model without an eval — the instruction that
+ *     was already on `TopicExtractOptions.model` and that this constant honours.
+ *
+ * If gpt-oss is ever retired, the replacement needs its own topic-eval run
+ * BEFORE it lands here — and that run needs a corpus that can actually resolve
+ * the difference. Note luna WITH reasoning enabled (only reachable on the
+ * Responses transport, sdk#915) scored 7/7 junk traps clean on 3/3 hand runs,
+ * so a future consolidation onto one model is plausible; it just isn't measured.
+ */
+// Not exported: only this module resolves it, and knip flags an export nothing
+// imports. Widen if a caller ever needs to name the topic model explicitly.
+const DEFAULT_TOPIC_MODEL = "gpt-oss/gpt-oss-120b";
+
 // NOTE: bump TOPICS_EXTRACTION_VERSION (db/memoryVault/operations.ts) whenever
-// this prompt or DEFAULT_EXTRACTION_MODEL changes, so the sweep re-extracts the
+// this prompt or DEFAULT_TOPIC_MODEL changes, so the sweep re-extracts the
 // existing vault under the improved logic instead of keeping stale topics.
 const SYSTEM_PROMPT = `You assign topics to saved memories for a personal memory system.
 
@@ -89,8 +137,9 @@ export interface TopicExtractOptions extends PortalLlmAuth {
    * call time (see {@link validateEndpointOverride}).
    */
   endpointOverride?: string;
-  /** Defaults to {@link DEFAULT_EXTRACTION_MODEL} — the sanctioned extraction
-   * model. Don't point this at a second model without an eval. */
+  /** Defaults to {@link DEFAULT_TOPIC_MODEL} — the sanctioned TOPIC model,
+   * which is deliberately not the fact lane's. Don't point this at a second
+   * model without an eval. */
   model?: string;
   /** Override the global fetch implementation (useful for tests). */
   fetchFn?: typeof fetch;
@@ -185,7 +234,7 @@ export async function extractEntitiesForMemories(
       ...(options.endpointOverride !== undefined && {
         endpointOverride: options.endpointOverride,
       }),
-      model: options.model ?? DEFAULT_EXTRACTION_MODEL,
+      model: options.model ?? DEFAULT_TOPIC_MODEL,
       systemPrompt: SYSTEM_PROMPT,
       userMessage: `${vocabularyNote}Memories:\n${listing}\n\nList each memory's named entities.`,
       tag: "memory/topics",

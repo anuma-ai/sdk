@@ -12,10 +12,13 @@
  * `anthropic/` models. Its request schema does carry OpenAI's
  * `prompt_cache_key`, but that is a routing hint for OpenAI's own implicit
  * cache rather than a switch that enables caching, and we deliberately don't
- * send it: the memory pipeline runs open-weights models by default (gpt-oss for
- * extraction/topics, ling for consolidation), and this module already has one
- * hard lesson about OpenAI-standard fields a non-OpenAI provider hard-400s on
- * (`response_format`, below). Revisit only with a verified per-provider gate.
+ * send it: consolidation still runs an open-weights model (ling), and this
+ * module already has one hard lesson about OpenAI-standard fields a non-OpenAI
+ * provider hard-400s on (`response_format`, below). Revisit only with a
+ * verified per-provider gate — extraction/topics moved to an OpenAI model in
+ * 2026-08 (see DEFAULT_EXTRACTION_MODEL), whose published cached-input rate is
+ * 10× below its normal input rate, so a gate for that lane is now worth real
+ * money on the ~1.1k-token constant system prefix.
  *
  * So on the models this pipeline actually uses, the only cache that can hit is
  * the provider's own implicit prefix cache — which makes prefix stability the
@@ -120,6 +123,47 @@ export function supportsResponseFormat(
 ): boolean {
   const allow = variant === "json_schema" ? RESPONSE_SCHEMA_OK : RESPONSE_FORMAT_OK;
   return model.split("/").some((seg) => allow.has(seg));
+}
+
+/**
+ * Providers whose models take an OpenAI-style `reasoning_effort`, which every
+ * call through this helper wants pinned OFF.
+ *
+ * These are structured-extraction calls: the model fills a fixed JSON schema
+ * from a transcript it was handed. There is nothing to reason about, and
+ * reasoning tokens are billed as output AND count against the completion cap —
+ * so leaving effort at a provider's server-side default is what turns a
+ * ~380-token response into a truncated one. That is exactly how the previous
+ * extraction default (gpt-oss-120b) failed: ~4,000 tokens of reasoning, output
+ * cut off at the cap, unparseable JSON, three retries, nothing retained. See
+ * DEFAULT_EXTRACTION_MODEL in autoExtract.ts for the measurements.
+ *
+ * Matched on path SEGMENTS for the same reason as {@link supportsResponseFormat}
+ * (`openai/x` and `openrouter/openai/x` both qualify; `someprovider-openai/x`
+ * does not). Deliberately narrow: a provider that does not document the field
+ * gets nothing rather than a 400 — this module already has one hard lesson
+ * about sending OpenAI-standard fields to non-OpenAI providers.
+ *
+ * NOTE on "none" specifically: the portal REWRITES an explicitly-sent effort to
+ * "none" for the gpt-5.6 family anyway (ai-portal#1553, which exists because
+ * that family 400s on `reasoning_effort` + function tools). So this sends what
+ * the portal would have forced — verified 2026-08-14, `low` and `none` returned
+ * byte-identical token counts.
+ *
+ * It is therefore a CHAT-TRANSPORT gate, and only that. An earlier version of
+ * this note added "a caller cannot dial these calls' reasoning back UP through
+ * the portal today", which sdk#915 made false: the responses transport reaches
+ * `/api/v1/responses`, where no such rewrite exists and `reasoning` passes
+ * through. Wanting reasoning is the reason to choose that transport, so this
+ * gate must never be applied there.
+ */
+const REASONING_EFFORT_OFF = new Set(["openai"]);
+
+/** Whether `model` should have reasoning explicitly disabled on these calls.
+ *  Internal — unlike {@link supportsResponseFormat} there is no direct portal
+ *  caller outside this module that needs to replicate the gate. */
+function pinsReasoningEffortOff(model: string): boolean {
+  return model.split("/").some((seg) => REASONING_EFFORT_OFF.has(seg));
 }
 
 /**
@@ -739,6 +783,12 @@ async function attemptPortalJson(req: PortalLlmRequest, endpoint: string): Promi
           model: req.model,
           messages,
           ...(supportsJsonObjectFormat && { response_format: { type: "json_object" } }),
+          // Chat only, and only here: the portal rewrites any effort on this
+          // transport to "none" anyway, so sending it explicitly is sending what
+          // it would have forced. The responses branch above deliberately does
+          // NOT get this — passing `reasoning` through is the entire reason that
+          // transport exists.
+          ...(pinsReasoningEffortOff(req.model) && { reasoning_effort: "none" }),
           ...req.extra,
         };
   // The gate has final say over `extra` on BOTH transports — the comment above
