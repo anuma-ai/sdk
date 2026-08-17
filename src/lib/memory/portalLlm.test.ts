@@ -177,6 +177,58 @@ describe("callPortalJsonCompletion — prose-tolerant JSON extraction", () => {
   });
 });
 
+describe("callPortalJsonCompletion — reasoning_effort gate", () => {
+  const baseArgs = {
+    apiKey: "test-key",
+    systemPrompt: "system",
+    userMessage: "user",
+    tag: "test",
+  } as const;
+
+  it("pins reasoning off for OpenAI models, direct and proxied", async () => {
+    // These are fill-a-JSON-schema calls with nothing to reason about, and
+    // reasoning tokens count against the completion cap — leaving effort at the
+    // provider default is what truncates the response. See
+    // DEFAULT_EXTRACTION_MODEL.
+    for (const model of ["openai/gpt-5.6-luna", "openrouter/openai/gpt-5-mini"]) {
+      const fetchFn = vi.fn().mockResolvedValue(mockResponse('{"ok":true}'));
+      await callPortalJsonCompletion({ ...baseArgs, model, fetchFn });
+      const sentBody = JSON.parse(fetchFn.mock.calls[0][1].body as string);
+      expect(sentBody.reasoning_effort, model).toBe("none");
+    }
+  });
+
+  it("omits reasoning_effort for non-OpenAI providers", async () => {
+    // Narrow by design: a provider that doesn't document the field gets
+    // nothing rather than a 400.
+    for (const model of [
+      "gpt-oss/gpt-oss-120b",
+      "inclusionai/ling-2.6-flash",
+      "anthropic/claude-sonnet-4",
+      "someprovider-openai/x",
+    ]) {
+      const fetchFn = vi.fn().mockResolvedValue(mockResponse('{"ok":true}'));
+      await callPortalJsonCompletion({ ...baseArgs, model, fetchFn });
+      const sentBody = JSON.parse(fetchFn.mock.calls[0][1].body as string);
+      expect(sentBody.reasoning_effort, model).toBeUndefined();
+    }
+  });
+
+  it("lets an explicit caller override win", async () => {
+    // Unlike response_format (which the gate force-deletes because a rejecting
+    // model 400s), effort is a tuning knob — `extra` is merged after it.
+    const fetchFn = vi.fn().mockResolvedValue(mockResponse('{"ok":true}'));
+    await callPortalJsonCompletion({
+      ...baseArgs,
+      model: "openai/gpt-5.6-luna",
+      extra: { reasoning_effort: "low" },
+      fetchFn,
+    });
+    const sentBody = JSON.parse(fetchFn.mock.calls[0][1].body as string);
+    expect(sentBody.reasoning_effort).toBe("low");
+  });
+});
+
 describe("callPortalJsonCompletion — dual auth (apiKey / getToken)", () => {
   // No credentials — each test supplies apiKey and/or getToken.
   const noAuthArgs = {

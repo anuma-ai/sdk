@@ -45,9 +45,17 @@ const MAX_VOCABULARY_NAMES = 100;
  * deprecated `max_tokens`: the portal reads only the former, so a `max_tokens`
  * value is silently dropped and the request falls back to the portal's 4096
  * per-step default — which truncates a verbose 10-memory batch mid-JSON and
- * drops the whole batch (Cerebras honors `max_completion_tokens` and stops at
- * 4096 with `finish_reason=length`). Cerebras allows ~41k; 8192 is generous
- * headroom over the ~1-2k the batch's JSON actually needs. */
+ * drops the whole batch (providers stop at the cap with `finish_reason=length`,
+ * and a half-written JSON object parses to nothing). 8192 is generous headroom
+ * over the ~1-2k the batch's JSON actually needs.
+ *
+ * This value is a REQUEST, not a guarantee: the portal clamps basic/free-tier
+ * callers down to 1024 output tokens (`BasicTierMaxOutputTokens`, applied in
+ * ai-portal's shared chat service, so `/api/v1/utility/*` inherits it) and a
+ * value above the cap is clamped rather than honored. A batch whose JSON needs
+ * more than 1024 tokens is therefore still lost for free-tier users no matter
+ * what is set here — keep the batch size and per-memory char cap small enough
+ * that it doesn't, and see DEFAULT_EXTRACTION_MODEL for the portal-side fix. */
 const MAX_COMPLETION_TOKENS = 8192;
 
 // NOTE: bump TOPICS_EXTRACTION_VERSION (db/memoryVault/operations.ts) whenever

@@ -59,28 +59,48 @@ async function isMemoryTopicsUserManaged(
   }
 }
 
-// GLOBAL default for ALL background extraction (not gated on privacy mode):
-// every conversation's auto-extract runs on this open-weights model
-// (Apache-2.0, hosted on Cerebras via the portal). The motivating win is
-// privacy-mode chats — where the user deliberately picked an open model and
-// shouldn't have their content quietly shipped to a closed provider for
-// background work — but the switch is intentionally repo-wide rather than
-// conditional. Note "open-weights provider" ≠ on-device: content still goes
-// to a third-party inference host (Cerebras), it's just not a closed model.
+// GLOBAL default for ALL background extraction (not gated on privacy mode or
+// session mode): every conversation's auto-extract runs on this model.
 //
-// Yield vs gpt-5-mini: on the LongMemEval extraction bench gpt-oss pulled ~19%
-// fewer facts (55 vs 68) at ~7× lower latency, but the downstream A/B shows
-// that doesn't cost recall — a paired LongMemEval run (vault, variant s, n=50,
-// same answer model) scored 92% (gpt-oss) vs 94% (gpt-5-mini): 45/50 identical,
-// 3 discordant (gpt-oss −2 +1), McNemar non-significant. gpt-oss extracts the
-// facts that matter, just fewer of them.
+// WAS gpt-oss/gpt-oss-120b (open-weights, Cerebras) so that privacy-mode chats
+// wouldn't have their content shipped to a closed provider for background work.
+// That default was measurably broken in prod and is retired. Do not restore it
+// without re-running the numbers below.
 //
-// NOTE: gpt-oss rejects `response_format: json_object` (see portalLlm.ts) and
-// is a reasoning model, so callers must NOT impose a small `max_tokens` cap —
-// reasoning tokens count against it and would starve the JSON output.
+// WHY IT WAS RETIRED — gpt-oss burns its whole output budget on reasoning. On
+// the real extraction prompt it emits ~4,000 completion tokens for ~2KB of JSON
+// and stops at `finish_reason=length` on most turns. That interacts fatally
+// with the portal's basic/free-tier clamp (ai-portal `BasicTierMaxOutputTokens`
+// = 1024, applied in the SHARED chat service, so `/api/v1/utility/*` inherits
+// it): under a 1024 cap, measured 2026-08-14, gpt-oss produced UNPARSEABLE
+// output on 3/3 runs of a typical 8-message window, while this model produced
+// clean JSON on 3/3. Prod agreed — `memory_extraction_completed` over 14d ran
+// 54.3% `empty-after-retry` (2,722 of 5,015 turns), i.e. every one of those
+// turns paid for three truncated completions and retained nothing.
+//
+// It is also CHEAPER, which is not the intuition. Per extraction call, measured
+// on the same prompt: gpt-oss 3,813 in / ~4,096 out = $0.00441 at Cerebras'
+// $0.35-in/$0.75-out per M; this model 3,826 in / ~380 out = $0.00122 at
+// $0.20-in/$1.20-out per M. The 1.6× output premium never bites because the
+// output is ~10× smaller — break-even is above 3,000 completion tokens. Its
+// input rate (2e-07) also sits BELOW the portal's freeloader reject floor and
+// the utility price ceiling, so unlike gpt-oss (3.5e-07, just above both) it
+// can't be 403'd or silently clamped to a cheaper model.
+//
+// STILL A TAIL, NOT A CURE. The 1024 clamp is a portal-side bug and this only
+// shrinks it: on a maxed-out 20-message window yielding 20+ facts, this model's
+// JSON reaches ~1,000-1,100 tokens and truncated on 1 of 3 runs. The durable
+// fix is to exempt the first-party utility endpoint from the basic-tier clamp
+// (it has its own price ceiling already); until then, keep the extraction
+// window and the output small.
+//
+// NOTE: callers must NOT impose a small `max_tokens` cap — and reasoning must
+// stay OFF (portalLlm.ts pins `reasoning_effort: "none"` for OpenAI models on
+// these JSON calls), or reasoning tokens re-inflate the output and walk this
+// straight back into the truncation above.
 // Exported so the standalone topic-extraction pass (topicExtract.ts) uses the
 // same sanctioned model — do NOT introduce a second extraction model constant.
-export const DEFAULT_EXTRACTION_MODEL = "gpt-oss/gpt-oss-120b";
+export const DEFAULT_EXTRACTION_MODEL = "openai/gpt-5.6-luna";
 const DEFAULT_MIN_CONFIDENCE = 0.7;
 const MAX_CONTENT_LENGTH = 200;
 // Floor to drop empty-ish fragments that survive the non-empty check but carry
