@@ -2,7 +2,7 @@
 
 > **GetApiV1AdminConnectorsResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:5616](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5616)
+Defined in: [src/client/types.gen.ts:5769](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5769)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:5616](https://github.com/anuma-ai/sdk/blob/
 
 > **200**: [`HandlersConnectorSettingResponse`](HandlersConnectorSettingResponse.md)\[]
 
-Defined in: [src/client/types.gen.ts:5620](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5620)
+Defined in: [src/client/types.gen.ts:5773](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5773)
 
 OK

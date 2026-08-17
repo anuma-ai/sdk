@@ -2,7 +2,7 @@
 
 > **PostWebhooksPrefineryResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:12122](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#12122)
+Defined in: [src/client/types.gen.ts:12311](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#12311)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:12122](https://github.com/anuma-ai/sdk/blob
 
 > **200**: [`HandlersPrefineryWebhookAck`](HandlersPrefineryWebhookAck.md)
 
-Defined in: [src/client/types.gen.ts:12126](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#12126)
+Defined in: [src/client/types.gen.ts:12315](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#12315)
 
 OK

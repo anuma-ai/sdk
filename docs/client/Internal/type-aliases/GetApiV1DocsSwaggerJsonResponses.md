@@ -2,7 +2,7 @@
 
 > **GetApiV1DocsSwaggerJsonResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:9116](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9116)
+Defined in: [src/client/types.gen.ts:9269](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9269)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:9116](https://github.com/anuma-ai/sdk/blob/
 
 > **200**: `object`
 
-Defined in: [src/client/types.gen.ts:9120](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9120)
+Defined in: [src/client/types.gen.ts:9273](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9273)
 
 OK
 

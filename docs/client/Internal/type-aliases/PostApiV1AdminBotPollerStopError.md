@@ -2,4 +2,4 @@
 
 > **PostApiV1AdminBotPollerStopError** = [`PostApiV1AdminBotPollerStopErrors`](PostApiV1AdminBotPollerStopErrors.md)\[keyof [`PostApiV1AdminBotPollerStopErrors`](PostApiV1AdminBotPollerStopErrors.md)]
 
-Defined in: [src/client/types.gen.ts:5540](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5540)
+Defined in: [src/client/types.gen.ts:5693](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5693)

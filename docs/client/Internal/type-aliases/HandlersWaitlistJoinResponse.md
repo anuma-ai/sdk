@@ -2,7 +2,7 @@
 
 > **HandlersWaitlistJoinResponse** = `object`
 
-Defined in: [src/client/types.gen.ts:3484](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3484)
+Defined in: [src/client/types.gen.ts:3599](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3599)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:3484](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **bound**: `boolean`
 
-Defined in: [src/client/types.gen.ts:3485](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3485)
+Defined in: [src/client/types.gen.ts:3600](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3600)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:3485](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **referred\_by\_applied**: `boolean`
 
-Defined in: [src/client/types.gen.ts:3493](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3493)
+Defined in: [src/client/types.gen.ts:3608](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3608)
 
 ReferredByApplied is null when no code was sent, false when a code WAS
 sent but did not attribute this signup to anyone — malformed, a
@@ -32,7 +32,7 @@ either way.
 
 > `optional` **reward**: [`HandlersReferralRewardResponse`](HandlersReferralRewardResponse.md)
 
-Defined in: [src/client/types.gen.ts:3494](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3494)
+Defined in: [src/client/types.gen.ts:3609](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3609)
 
 ***
 
@@ -40,4 +40,4 @@ Defined in: [src/client/types.gen.ts:3494](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **tester**: [`HandlersReferralTesterResponse`](HandlersReferralTesterResponse.md)
 
-Defined in: [src/client/types.gen.ts:3495](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3495)
+Defined in: [src/client/types.gen.ts:3610](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3610)

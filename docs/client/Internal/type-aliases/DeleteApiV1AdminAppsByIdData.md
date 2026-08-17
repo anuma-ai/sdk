@@ -2,7 +2,7 @@
 
 > **DeleteApiV1AdminAppsByIdData** = `object`
 
-Defined in: [src/client/types.gen.ts:5296](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5296)
+Defined in: [src/client/types.gen.ts:5449](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5449)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:5296](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **body**: `never`
 
-Defined in: [src/client/types.gen.ts:5297](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5297)
+Defined in: [src/client/types.gen.ts:5450](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5450)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:5297](https://github.com/anuma-ai/sdk/blob/
 
 > **headers**: `object`
 
-Defined in: [src/client/types.gen.ts:5298](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5298)
+Defined in: [src/client/types.gen.ts:5451](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5451)
 
 **X-Admin-API-Key**
 
@@ -32,7 +32,7 @@ Admin API key
 
 > **path**: `object`
 
-Defined in: [src/client/types.gen.ts:5304](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5304)
+Defined in: [src/client/types.gen.ts:5457](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5457)
 
 **id**
 
@@ -46,7 +46,7 @@ App ID
 
 > `optional` **query**: `never`
 
-Defined in: [src/client/types.gen.ts:5310](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5310)
+Defined in: [src/client/types.gen.ts:5463](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5463)
 
 ***
 
@@ -54,4 +54,4 @@ Defined in: [src/client/types.gen.ts:5310](https://github.com/anuma-ai/sdk/blob/
 
 > **url**: `"/api/v1/admin/apps/{id}"`
 
-Defined in: [src/client/types.gen.ts:5311](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5311)
+Defined in: [src/client/types.gen.ts:5464](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5464)

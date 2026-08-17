@@ -2,7 +2,7 @@
 
 > **postApiV1AdminNotificationsCampaigns**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`PostApiV1AdminNotificationsCampaignsData`](../type-aliases/PostApiV1AdminNotificationsCampaignsData.md), `ThrowOnError`>): `RequestResult`<[`PostApiV1AdminNotificationsCampaignsResponses`](../type-aliases/PostApiV1AdminNotificationsCampaignsResponses.md), [`PostApiV1AdminNotificationsCampaignsErrors`](../type-aliases/PostApiV1AdminNotificationsCampaignsErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:262](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#262)
+Defined in: [src/client/sdk.gen.ts:269](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#269)
 
 Create an announcement campaign (admin)
 

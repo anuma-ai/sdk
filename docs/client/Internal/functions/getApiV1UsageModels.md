@@ -2,7 +2,7 @@
 
 > **getApiV1UsageModels**<`ThrowOnError`>(`options?`: [`Options`](../type-aliases/Options.md)<[`GetApiV1UsageModelsData`](../type-aliases/GetApiV1UsageModelsData.md), `ThrowOnError`, `unknown`>): `RequestResult`<[`GetApiV1UsageModelsResponses`](../type-aliases/GetApiV1UsageModelsResponses.md), [`GetApiV1UsageModelsErrors`](../type-aliases/GetApiV1UsageModelsErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:1432](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1432)
+Defined in: [src/client/sdk.gen.ts:1439](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1439)
 
 Get usage by model
 

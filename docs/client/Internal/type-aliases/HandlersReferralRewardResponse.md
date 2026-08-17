@@ -2,7 +2,7 @@
 
 > **HandlersReferralRewardResponse** = `object`
 
-Defined in: [src/client/types.gen.ts:2750](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2750)
+Defined in: [src/client/types.gen.ts:2865](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2865)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:2750](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **status**: `string`
 
-Defined in: [src/client/types.gen.ts:2751](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2751)
+Defined in: [src/client/types.gen.ts:2866](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2866)
 
 ***
 
@@ -18,4 +18,4 @@ Defined in: [src/client/types.gen.ts:2751](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **threshold**: `number`
 
-Defined in: [src/client/types.gen.ts:2752](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2752)
+Defined in: [src/client/types.gen.ts:2867](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2867)

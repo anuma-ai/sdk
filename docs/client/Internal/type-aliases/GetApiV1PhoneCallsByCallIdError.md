@@ -2,4 +2,4 @@
 
 > **GetApiV1PhoneCallsByCallIdError** = [`GetApiV1PhoneCallsByCallIdErrors`](GetApiV1PhoneCallsByCallIdErrors.md)\[keyof [`GetApiV1PhoneCallsByCallIdErrors`](GetApiV1PhoneCallsByCallIdErrors.md)]
 
-Defined in: [src/client/types.gen.ts:9668](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9668)
+Defined in: [src/client/types.gen.ts:9821](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9821)

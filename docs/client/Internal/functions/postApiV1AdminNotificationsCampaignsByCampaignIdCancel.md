@@ -2,7 +2,7 @@
 
 > **postApiV1AdminNotificationsCampaignsByCampaignIdCancel**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`PostApiV1AdminNotificationsCampaignsByCampaignIdCancelData`](../type-aliases/PostApiV1AdminNotificationsCampaignsByCampaignIdCancelData.md), `ThrowOnError`>): `RequestResult`<[`PostApiV1AdminNotificationsCampaignsByCampaignIdCancelResponses`](../type-aliases/PostApiV1AdminNotificationsCampaignsByCampaignIdCancelResponses.md), [`PostApiV1AdminNotificationsCampaignsByCampaignIdCancelErrors`](../type-aliases/PostApiV1AdminNotificationsCampaignsByCampaignIdCancelErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:295](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#295)
+Defined in: [src/client/sdk.gen.ts:302](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#302)
 
 Cancel an announcement campaign (admin)
 

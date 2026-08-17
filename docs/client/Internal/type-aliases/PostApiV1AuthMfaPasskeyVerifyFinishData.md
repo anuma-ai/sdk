@@ -2,7 +2,7 @@
 
 > **PostApiV1AuthMfaPasskeyVerifyFinishData** = `object`
 
-Defined in: [src/client/types.gen.ts:7278](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7278)
+Defined in: [src/client/types.gen.ts:7431](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7431)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:7278](https://github.com/anuma-ai/sdk/blob/
 
 > **body**: [`HandlersPasskeyVerifyFinishRequest`](HandlersPasskeyVerifyFinishRequest.md)
 
-Defined in: [src/client/types.gen.ts:7282](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7282)
+Defined in: [src/client/types.gen.ts:7435](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7435)
 
 credential
 
@@ -20,7 +20,7 @@ credential
 
 > `optional` **path**: `never`
 
-Defined in: [src/client/types.gen.ts:7283](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7283)
+Defined in: [src/client/types.gen.ts:7436](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7436)
 
 ***
 
@@ -28,7 +28,7 @@ Defined in: [src/client/types.gen.ts:7283](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **query**: `never`
 
-Defined in: [src/client/types.gen.ts:7284](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7284)
+Defined in: [src/client/types.gen.ts:7437](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7437)
 
 ***
 
@@ -36,4 +36,4 @@ Defined in: [src/client/types.gen.ts:7284](https://github.com/anuma-ai/sdk/blob/
 
 > **url**: `"/api/v1/auth/mfa/passkey/verify/finish"`
 
-Defined in: [src/client/types.gen.ts:7285](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7285)
+Defined in: [src/client/types.gen.ts:7438](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7438)

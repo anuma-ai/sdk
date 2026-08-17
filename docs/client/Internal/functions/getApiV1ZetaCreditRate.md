@@ -2,7 +2,7 @@
 
 > **getApiV1ZetaCreditRate**<`ThrowOnError`>(`options?`: [`Options`](../type-aliases/Options.md)<[`GetApiV1ZetaCreditRateData`](../type-aliases/GetApiV1ZetaCreditRateData.md), `ThrowOnError`, `unknown`>): `RequestResult`<[`GetApiV1ZetaCreditRateResponses`](../type-aliases/GetApiV1ZetaCreditRateResponses.md), `unknown`, `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:1597](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1597)
+Defined in: [src/client/sdk.gen.ts:1604](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1604)
 
 Stake-to-earn credit rate
 

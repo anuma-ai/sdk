@@ -2,7 +2,7 @@
 
 > **GetConnectorsByProviderConnectData** = `object`
 
-Defined in: [src/client/types.gen.ts:11384](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11384)
+Defined in: [src/client/types.gen.ts:11537](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11537)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:11384](https://github.com/anuma-ai/sdk/blob
 
 > `optional` **body**: `never`
 
-Defined in: [src/client/types.gen.ts:11385](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11385)
+Defined in: [src/client/types.gen.ts:11538](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11538)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:11385](https://github.com/anuma-ai/sdk/blob
 
 > **path**: `object`
 
-Defined in: [src/client/types.gen.ts:11386](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11386)
+Defined in: [src/client/types.gen.ts:11539](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11539)
 
 **provider**
 
@@ -32,7 +32,7 @@ Logical connector provider (gmail, gdrive, gcalendar, github, notion, dropbox)
 
 > **query**: `object`
 
-Defined in: [src/client/types.gen.ts:11392](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11392)
+Defined in: [src/client/types.gen.ts:11545](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11545)
 
 **ticket**
 
@@ -46,4 +46,4 @@ Ticket ID from POST /api/v1/connect-tickets
 
 > **url**: `"/connectors/{provider}/connect"`
 
-Defined in: [src/client/types.gen.ts:11398](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11398)
+Defined in: [src/client/types.gen.ts:11551](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11551)

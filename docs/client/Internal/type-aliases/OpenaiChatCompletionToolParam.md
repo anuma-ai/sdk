@@ -2,7 +2,7 @@
 
 > **OpenaiChatCompletionToolParam** = `object`
 
-Defined in: [src/client/types.gen.ts:4466](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4466)
+Defined in: [src/client/types.gen.ts:4581](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4581)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:4466](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **any**: `unknown`
 
-Defined in: [src/client/types.gen.ts:4467](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4467)
+Defined in: [src/client/types.gen.ts:4582](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4582)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:4467](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **function**: [`SharedFunctionDefinitionParam`](SharedFunctionDefinitionParam.md)
 
-Defined in: [src/client/types.gen.ts:4468](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4468)
+Defined in: [src/client/types.gen.ts:4583](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4583)
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: [src/client/types.gen.ts:4468](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **type**: `string`
 
-Defined in: [src/client/types.gen.ts:4474](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4474)
+Defined in: [src/client/types.gen.ts:4589](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4589)
 
 The type of the tool. Currently, only `function` is supported.
 

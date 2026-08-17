@@ -2,7 +2,7 @@
 
 > **PostInternalExtractPhotoFactsData** = `object`
 
-Defined in: [src/client/types.gen.ts:11589](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11589)
+Defined in: [src/client/types.gen.ts:11742](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11742)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:11589](https://github.com/anuma-ai/sdk/blob
 
 > **body**: [`HandlersExtractPhotoFactsRequest`](HandlersExtractPhotoFactsRequest.md)
 
-Defined in: [src/client/types.gen.ts:11593](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11593)
+Defined in: [src/client/types.gen.ts:11746](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11746)
 
 Public image URL and optional caption
 
@@ -20,7 +20,7 @@ Public image URL and optional caption
 
 > `optional` **path**: `never`
 
-Defined in: [src/client/types.gen.ts:11594](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11594)
+Defined in: [src/client/types.gen.ts:11747](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11747)
 
 ***
 
@@ -28,7 +28,7 @@ Defined in: [src/client/types.gen.ts:11594](https://github.com/anuma-ai/sdk/blob
 
 > `optional` **query**: `never`
 
-Defined in: [src/client/types.gen.ts:11595](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11595)
+Defined in: [src/client/types.gen.ts:11748](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11748)
 
 ***
 
@@ -36,4 +36,4 @@ Defined in: [src/client/types.gen.ts:11595](https://github.com/anuma-ai/sdk/blob
 
 > **url**: `"/internal/extract-photo-facts"`
 
-Defined in: [src/client/types.gen.ts:11596](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11596)
+Defined in: [src/client/types.gen.ts:11749](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11749)
