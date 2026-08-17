@@ -240,18 +240,31 @@ type PortalLlmTransport = "chat" | "responses";
  * call site (flip both fields together) and cannot be misread.
  */
 type PortalLlmTransportOptions =
-  | { transport?: "chat"; reasoning?: never }
-  | { transport: "responses"; reasoning?: { effort: "low" | "medium" | "high" } };
+  | {
+      /**
+       * Transport for this call. Default `"chat"` — every existing caller keeps
+       * the chat-completions shape and endpoint unchanged. See
+       * {@link PortalLlmTransport} for why the other one exists.
+       */
+      transport?: Extract<PortalLlmTransport, "chat">;
+      /** Not available on `"chat"` — the portal rewrites it to `"none"`. */
+      reasoning?: never;
+    }
+  | {
+      /**
+       * Transport for this call. `"responses"` POSTs a Responses-API body to
+       * `/api/v1/responses`; see {@link PortalLlmTransport}.
+       */
+      transport: Extract<PortalLlmTransport, "responses">;
+      /** Reasoning effort. Only reachable on this transport — see above. */
+      reasoning?: { effort: "low" | "medium" | "high" };
+    };
 
 interface PortalLlmRequestBase extends PortalLlmAuth {
   baseUrl?: string;
   model: string;
   systemPrompt: string;
   userMessage: string;
-  /**
-   * Transport for this call. Default `"chat"` — every existing caller keeps
-   * the chat-completions shape and endpoint unchanged.
-   */
   /** Tag prefix for log lines, e.g. `"memory/extract"`. */
   tag: string;
   /** Per-request timeout. Covers fetch headers AND body read. Default
@@ -1029,7 +1042,15 @@ function extractCompletionContent(body: unknown): string | null {
 function extractResponsesContent(body: unknown): string | null {
   const root = asRecord(body);
   if (!root) return null;
-  if (typeof root.output_text === "string") return root.output_text;
+  // Present-but-EMPTY must fall through to the walk below, not win. A Go
+  // `string` without `omitempty` marshals to `""` when unset — the default you
+  // get for free — so a deployment that serializes the field unconditionally
+  // would short-circuit every response here, the walk would never run, and a
+  // reasoning model's text (which lives in `output[]`) would read as empty:
+  // three retries, then null. Falling through is never worse, because an
+  // `output[]` with no message text returns "" from the walk and lands on the
+  // identical empty-content retry.
+  if (typeof root.output_text === "string" && root.output_text !== "") return root.output_text;
   if (!Array.isArray(root.output)) return null;
   const text = root.output
     .filter((item): item is Record<string, unknown> => asRecord(item)?.type === "message")

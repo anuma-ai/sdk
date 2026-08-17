@@ -1128,4 +1128,25 @@ describe("callPortalJsonCompletion — responses transport misuse guards", () =>
     });
     expect(out).toEqual({ a: 1 });
   });
+
+  it("falls through to the output[] walk when output_text is present but empty", async () => {
+    // A Go `string` without `omitempty` marshals to "" when unset, so a
+    // deployment serializing the field unconditionally would short-circuit every
+    // response on it. The walk below is where a reasoning model's text lives —
+    // short-circuiting reads it as empty and burns three retries to null.
+    const body = new Response(
+      JSON.stringify({
+        output_text: "",
+        output: [
+          { id: "rs_1", type: "reasoning" },
+          { id: "msg_1", type: "message", content: [{ type: "output_text", text: '{"ok":true}' }] },
+        ],
+      }),
+      { status: 200, headers: { "Content-Type": "application/json" } }
+    );
+    const fetchFn = vi.fn().mockResolvedValue(body);
+    const out = await callPortalJsonCompletion({ ...baseArgs, transport: "responses", fetchFn });
+    expect(out).toEqual({ ok: true });
+    expect(fetchFn, "must not have retried").toHaveBeenCalledTimes(1);
+  });
 });
