@@ -197,7 +197,70 @@ export interface PortalLlmFailure {
   attempts: number;
 }
 
-interface PortalLlmRequest extends PortalLlmAuth {
+/**
+ * Which portal transport carries the call.
+ *
+ * `"chat"` (default) POSTs a chat-completions body to
+ * `/api/v1/chat/completions`. `"responses"` POSTs a Responses-API body to
+ * `/api/v1/responses`. Everything that makes this module worth having — retries,
+ * backoff, the wall-clock budget, auth resolution, tolerant JSON salvage, usage
+ * logging — is shared; only the request shape and the place the text comes back
+ * differ, so those are the only two things that branch.
+ *
+ * WHY "responses" EXISTS HERE, since chat-completions works for most models:
+ * it is the only transport on which a reasoning model can actually reason.
+ * `/chat/completions` rejects the gpt-5.6 family outright when an explicit
+ * `reasoning_effort` is present, and ai-portal's `neutralizeChatReasoningEffort`
+ * rewrites any effort the caller did send to `"none"` to avoid that 400 — it
+ * takes a `ChatCompletionRequest` and has no Responses-API counterpart, so the
+ * Responses path passes the effort through untouched. Verified 2026-08-17
+ * against dev: identical prompt, `/utility/responses` with `reasoning.effort`
+ * returns a `type: "reasoning"` output item, `/utility/chat/completions` with
+ * `reasoning_effort: "low"` comes back with `reasoning_tokens: 0`.
+ *
+ * That is not academic. On the topic-assignment prompt — judging whether a
+ * memory names a real entity — gpt-5.6-luna scored 7/7 junk traps clean on 3/3
+ * runs WITH reasoning, against 6/7 on 2 of 3 runs without it (and one of those
+ * misses emitted an entity whose `name` was `undefined`).
+ */
+// Not exported: no caller selects a transport yet, and knip rightly flags an
+// export nothing imports. Widen to `export` when the first lane switches.
+type PortalLlmTransport = "chat" | "responses";
+
+/**
+ * Reasoning is `"responses"`-only, and the TYPE enforces that rather than a
+ * paragraph asking nicely.
+ *
+ * On `"chat"` the portal rewrites any effort to `"none"`, so accepting the field
+ * there would hand a caller the exact outcome this transport exists to prevent:
+ * they believe they asked for reasoning, everything returns 200, nothing logs,
+ * and the only symptom is the eval numbers being quietly worse. The first draft
+ * of this file "silently ignored" it on chat and documented that in prose —
+ * which is the same bug wearing a comment. A compile error costs one line at the
+ * call site (flip both fields together) and cannot be misread.
+ */
+type PortalLlmTransportOptions =
+  | {
+      /**
+       * Transport for this call. Default `"chat"` — every existing caller keeps
+       * the chat-completions shape and endpoint unchanged. See
+       * {@link PortalLlmTransport} for why the other one exists.
+       */
+      transport?: Extract<PortalLlmTransport, "chat">;
+      /** Not available on `"chat"` — the portal rewrites it to `"none"`. */
+      reasoning?: never;
+    }
+  | {
+      /**
+       * Transport for this call. `"responses"` POSTs a Responses-API body to
+       * `/api/v1/responses`; see {@link PortalLlmTransport}.
+       */
+      transport: Extract<PortalLlmTransport, "responses">;
+      /** Reasoning effort. Only reachable on this transport — see above. */
+      reasoning?: { effort: "low" | "medium" | "high" };
+    };
+
+interface PortalLlmRequestBase extends PortalLlmAuth {
   baseUrl?: string;
   model: string;
   systemPrompt: string;
@@ -243,11 +306,20 @@ interface PortalLlmRequest extends PortalLlmAuth {
   backoffMs?: (attempt: number) => number;
   /**
    * Optional per-call request path override. When set, the completion POSTs to
-   * `baseUrl + endpointOverride` instead of the default `/api/v1/chat/completions`
-   * — path only, the request body is unchanged. Must be a non-empty root-relative
-   * path (validated via {@link validateEndpointOverride}); an invalid value throws
-   * at call time before any request is sent. Used to route internal-utility calls
-   * to a dedicated endpoint (e.g. `/api/v1/utility/chat/completions`).
+   * `baseUrl + endpointOverride` instead of the TRANSPORT'S default
+   * (`/api/v1/chat/completions` for `"chat"`, `/api/v1/responses` for
+   * `"responses"`) — path only, but note the body is still built for the
+   * transport, so the two have to agree.
+   *
+   * Must be a non-empty root-relative path (validated via
+   * {@link validateEndpointOverride}), and must not point at the OTHER
+   * transport's endpoint. Either violation throws at call time before any
+   * request is sent, because a mismatched path sends the wrong body shape and
+   * 400s without retry.
+   *
+   * Used to route internal-utility calls to a dedicated endpoint (e.g.
+   * `/api/v1/utility/chat/completions` on `"chat"`,
+   * `/api/v1/utility/responses` on `"responses"`).
    */
   endpointOverride?: string;
   /**
@@ -278,6 +350,85 @@ interface PortalLlmRequest extends PortalLlmAuth {
    * retry mean something.
    */
   reinforceJsonContract?: boolean;
+}
+
+/**
+ * A portal JSON call: the shared request fields, intersected with the
+ * transport-dependent pair. The split is not cosmetic — it is what makes
+ * `reasoning` unrepresentable on the chat transport (see
+ * {@link PortalLlmTransportOptions}).
+ */
+type PortalLlmRequest = PortalLlmRequestBase & PortalLlmTransportOptions;
+
+/**
+ * Chat-completions field names that the Responses API spells differently, mapped
+ * to their Responses equivalents.
+ *
+ * `extra` is a passthrough and every value in it today is written in
+ * chat-completions spelling, because until now that was the only transport. The
+ * one that matters is the output cap: `topicExtract` passes
+ * `max_completion_tokens: 8192` and is the first lane pointed at this transport.
+ * The Responses API reads `max_output_tokens` (see
+ * chat/useChat/strategies/responses.ts) — so spreading `extra` verbatim would
+ * post a field the endpoint ignores, silently drop the cap back to the portal's
+ * 4096 default, and reproduce exactly the truncate-mid-JSON-and-lose-the-batch
+ * failure that topicExtract's own comment was written about. Silently, because a
+ * typed Go `ResponseRequest` discards the unknown field rather than 400ing.
+ *
+ * Translating beats documenting "respell it yourself": the caller's intent is
+ * unambiguous, and the failure mode of forgetting is invisible.
+ */
+const CHAT_TO_RESPONSES_FIELDS: Record<string, string> = {
+  max_completion_tokens: "max_output_tokens",
+};
+
+/**
+ * Re-spell caller `extra` for the Responses transport. Known chat-only fields
+ * are translated; everything else passes through untouched, so this cannot
+ * become a silent allowlist that swallows a field a caller needs.
+ */
+function responsesExtra(extra: Record<string, unknown> | undefined): Record<string, unknown> {
+  if (!extra) return {};
+  const out: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(extra)) {
+    const target = CHAT_TO_RESPONSES_FIELDS[key] ?? key;
+    // A caller passing BOTH spellings must not have the winner decided by
+    // Object.entries order. The already-correct Responses name wins; the
+    // translated chat one never overwrites it.
+    if (target !== key && target in extra) continue;
+    out[target] = value;
+  }
+  return out;
+}
+
+/** The endpoint suffix belonging to the OTHER transport — the one an override
+ *  must not point at. */
+const FOREIGN_ENDPOINT_SUFFIX: Record<PortalLlmTransport, string> = {
+  chat: "/responses",
+  responses: "/chat/completions",
+};
+
+/**
+ * Throw when an `endpointOverride` points at the other transport's endpoint.
+ * Body shape and path are chosen independently and only one of them is visible
+ * to the person flipping a lane — see the call site for why that asymmetry is
+ * the whole point.
+ *
+ * Rejects the KNOWN-WRONG pairing rather than requiring the transport's own
+ * suffix. The stricter version also threw on chat overrides that were legal
+ * before this existed — a consumer proxying through e.g. `/api/llm-proxy` has a
+ * perfectly good reason to pass a path that ends in neither, and breaking that
+ * is not what this guard is for. Anything ambiguous stays the caller's call, as
+ * it was.
+ */
+function assertTransportMatchesEndpoint(transport: PortalLlmTransport, endpoint: string): void {
+  const foreign = FOREIGN_ENDPOINT_SUFFIX[transport];
+  if (!endpoint.endsWith(foreign)) return;
+  throw new Error(
+    `endpointOverride "${endpoint}" is the other transport's endpoint, but transport is ` +
+      `"${transport}". The request body is built for the transport, so this sends the ` +
+      `wrong shape and 400s without retry.`
+  );
 }
 
 /**
@@ -377,13 +528,26 @@ export async function callPortalJsonCompletion(req: PortalLlmRequest): Promise<u
   // an endpointOverride is validated here (root-relative, no off-origin) and an
   // invalid value throws immediately — a caller bug, not a transient batch
   // failure, so it must not be swallowed into the null-on-failure path.
-  let endpoint = "/api/v1/chat/completions";
+  let endpoint = req.transport === "responses" ? "/api/v1/responses" : "/api/v1/chat/completions";
   if (req.endpointOverride !== undefined) {
     const overrideValidation = validateEndpointOverride(req.endpointOverride);
     if (!overrideValidation.valid) {
       throw new Error(overrideValidation.message);
     }
     endpoint = overrideValidation.endpoint;
+    // The override and the transport have to agree, and nothing else checks.
+    // `endpointOverride` wins outright, so `transport: "responses"` plus a chat
+    // path POSTs an `input`-shaped body at /chat/completions — which the portal
+    // accepts at the edge (ChatCompletionRequest.Validate only checks the model
+    // string) and the provider then 400s. That is classified http-terminal, so
+    // it does not even retry: one hard null, no signal.
+    //
+    // NOT hypothetical. The override exists so apps can route background work to
+    // /api/v1/utility/chat/completions, and the APP sets it (ai-memoryless-client
+    // #5536) — so whoever flips a lane to "responses" in this repo cannot see the
+    // stale path. Throw for the same reason an invalid override throws: a caller
+    // bug must not be laundered into the null-on-failure path.
+    assertTransportMatchesEndpoint(req.transport ?? "chat", endpoint);
   }
   const maxAttempts = Math.max(1, req.maxAttempts ?? 3);
   const startedAt = Date.now();
@@ -509,8 +673,17 @@ async function attemptPortalJson(req: PortalLlmRequest, endpoint: string): Promi
   // to "prefill" the assistant turn with `{` so the model has no choice
   // but to continue valid JSON. We prepend the prefill back onto the
   // returned content before parsing.
-  const isAnthropic = req.model.startsWith("anthropic/");
-  const prefill = isAnthropic ? "{" : "";
+  //
+  // Gated on the TRANSPORT as well as the model, and that is the whole point of
+  // deriving it here rather than at the two use sites. Prefill is a
+  // chat-completions trick: it is a request-side push (below) AND a response-side
+  // restore (`looksLikeContinuation`), and those two have to agree. Keying only
+  // off the model left the restore armed on a path that never sent the prefill —
+  // so a `"`-leading answer would have had a `{` glued to the front of content
+  // that never lost one. Deciding once, here, makes both halves true by
+  // construction instead of by a comment at each end.
+  const usesPrefill = req.transport !== "responses" && req.model.startsWith("anthropic/");
+  const prefill = usesPrefill ? "{" : "";
   const messages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [
     // Every caller of this helper is a first-party BACKGROUND op (fact extraction,
     // topic sweep, consolidation, classifiers, graph traversal, query
@@ -540,13 +713,41 @@ async function attemptPortalJson(req: PortalLlmRequest, endpoint: string): Promi
   // Build the body explicitly so the gate has final say: callers can pass
   // arbitrary overrides via `extra`, but a model that 400s on response_format
   // must never receive it — not even through an accidental `extra` override.
-  const requestBody: Record<string, unknown> = {
-    model: req.model,
-    messages,
-    ...(supportsJsonObjectFormat && { response_format: { type: "json_object" } }),
-    ...req.extra,
-  };
-  if (!supportsJsonObjectFormat) delete requestBody.response_format;
+  const requestBody: Record<string, unknown> =
+    req.transport === "responses"
+      ? {
+          model: req.model,
+          // Same system+user pair under the Responses-API field name. No prefill
+          // entry to strip: `usesPrefill` is false on this transport, so it was
+          // never pushed and the response-side restore is disarmed with it. An
+          // earlier version pushed it and sliced it back off here, which left
+          // `prefill` truthy and the restore still armed — the fix belonged at
+          // the decision, not at the two symptoms.
+          input: messages,
+          ...(req.reasoning && { reasoning: req.reasoning }),
+          // NO response_format. The Responses API spells structured output
+          // differently (`text.format`), and it is unverified against this
+          // portal — so this transport relies on the same strict-JSON system
+          // prompt plus `extractJsonCandidate` that every response_format-
+          // rejecting model already relies on. Verified end to end on dev:
+          // luna returns clean parseable JSON here without it. Add the field
+          // only with a per-provider check, exactly as RESPONSE_FORMAT_OK was
+          // earned.
+          ...responsesExtra(req.extra),
+        }
+      : {
+          model: req.model,
+          messages,
+          ...(supportsJsonObjectFormat && { response_format: { type: "json_object" } }),
+          ...req.extra,
+        };
+  // The gate has final say over `extra` on BOTH transports — the comment above
+  // promises the responses branch never sends response_format, and a promise the
+  // code does not keep is how the next reader gets it wrong. Chat drops it for
+  // models that 400 on it; responses drops it unconditionally.
+  if (req.transport === "responses" || !supportsJsonObjectFormat) {
+    delete requestBody.response_format;
+  }
 
   let response: Response;
   try {
@@ -777,16 +978,30 @@ function logPortalUsage(body: unknown, tag: string): void {
     const root = asRecord(body);
     if (!root) return;
     const usage = asRecord(root.usage);
-    const promptTokens = asCount(usage?.prompt_tokens);
-    const completionTokens = asCount(usage?.completion_tokens);
+    // The Responses API spec names these input_tokens/output_tokens, so accept
+    // both spellings. NOT load-bearing against ai-portal today, and an earlier
+    // version of this comment wrongly claimed it was: the portal's ResponseUsage
+    // emits prompt_tokens/completion_tokens/cached_tokens and carries no
+    // *_tokens_details at all (pkg/llmapi/requests.go), so the fallback is
+    // defensive for other deployments and the reasoning line below cannot print
+    // yet. Don't plan a cost check around reasoning= until the portal sends it.
+    const promptTokens = asCount(usage?.prompt_tokens) ?? asCount(usage?.input_tokens);
+    const completionTokens = asCount(usage?.completion_tokens) ?? asCount(usage?.output_tokens);
     if (promptTokens === undefined && completionTokens === undefined) return;
     const cachedTokens =
       asCount(asRecord(root.portal)?.cached_tokens) ??
       asCount(asRecord(usage?.prompt_tokens_details)?.cached_tokens) ??
+      asCount(asRecord(usage?.input_tokens_details)?.cached_tokens) ??
       0;
+    // Reasoning tokens are billed as output and count against the cap, so on the
+    // one transport that can actually reason they are the number worth seeing.
+    const reasoningTokens =
+      asCount(asRecord(usage?.output_tokens_details)?.reasoning_tokens) ??
+      asCount(asRecord(usage?.completion_tokens_details)?.reasoning_tokens);
     const parts: string[] = [];
     if (promptTokens !== undefined) parts.push(`prompt=${promptTokens}`);
     if (completionTokens !== undefined) parts.push(`completion=${completionTokens}`);
+    if (reasoningTokens !== undefined) parts.push(`reasoning=${reasoningTokens}`);
     parts.push(`cached=${cachedTokens}`);
     getLogger().debug(`[${tag}] usage ${parts.join(" ")}`);
   } catch {
@@ -796,9 +1011,55 @@ function logPortalUsage(body: unknown, tag: string): void {
 
 function extractCompletionContent(body: unknown): string | null {
   if (typeof body !== "object" || body === null) return null;
+
+  // Responses API first — its shape is unambiguous, and a body carrying
+  // `output`/`output_text` is never a chat completion, so sniffing costs
+  // nothing and keeps the caller from having to tell us which it asked for.
+  const responsesText = extractResponsesContent(body);
+  if (responsesText !== null) return responsesText;
+
   const choices = (body as { choices?: unknown }).choices;
   if (!Array.isArray(choices) || choices.length === 0) return null;
   const first = choices[0] as { message?: { content?: unknown } };
   const content = first?.message?.content;
   return typeof content === "string" ? content : null;
+}
+
+/**
+ * Pull assistant text out of a Responses-API body.
+ *
+ * `output_text` is the convenience field and is preferred when present. When it
+ * is absent the walk over `output[]` is NOT optional: that array interleaves
+ * `type: "reasoning"` items with `type: "message"` items, and the reasoning
+ * entries carry no text. Taking `output[0]` would return the reasoning item on
+ * exactly the calls this transport exists to enable — a reasoning model — and
+ * report an empty completion, which the retry loop would then burn three
+ * attempts on.
+ *
+ * Returns null (not "") when the body is not Responses-shaped, so the caller can
+ * fall through to the chat-completions shape.
+ */
+function extractResponsesContent(body: unknown): string | null {
+  const root = asRecord(body);
+  if (!root) return null;
+  // Present-but-EMPTY must fall through to the walk below, not win. A Go
+  // `string` without `omitempty` marshals to `""` when unset — the default you
+  // get for free — so a deployment that serializes the field unconditionally
+  // would short-circuit every response here, the walk would never run, and a
+  // reasoning model's text (which lives in `output[]`) would read as empty:
+  // three retries, then null. Falling through is never worse, because an
+  // `output[]` with no message text returns "" from the walk and lands on the
+  // identical empty-content retry.
+  if (typeof root.output_text === "string" && root.output_text !== "") return root.output_text;
+  if (!Array.isArray(root.output)) return null;
+  const text = root.output
+    .filter((item): item is Record<string, unknown> => asRecord(item)?.type === "message")
+    .flatMap((item): unknown[] => (Array.isArray(item.content) ? (item.content as unknown[]) : []))
+    .map((part) => asRecord(part)?.text)
+    .filter((t): t is string => typeof t === "string")
+    .join("");
+  // An `output` array with no message text is a real (empty) answer from this
+  // transport, not a wrong-shape body — return "" so the empty-completion retry
+  // fires instead of falling through to the chat parse and reporting null.
+  return text;
 }

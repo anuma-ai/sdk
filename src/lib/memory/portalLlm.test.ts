@@ -805,3 +805,348 @@ describe("callPortalJsonCompletion — JSON contract reinforcement on retry (#91
     expect(systemsOf(fetchFn, 1)).toHaveLength(1);
   });
 });
+
+// ── Responses transport ──────────────────────────────────────────────────────
+// The transport exists so a reasoning model can actually reason: /chat/completions
+// rejects the gpt-5.6 family with an explicit reasoning_effort, and ai-portal's
+// neutralizeChatReasoningEffort rewrites any effort the caller did send to "none".
+// It takes a ChatCompletionRequest and has no Responses-API counterpart.
+
+/** A Responses-API body: `output` interleaves reasoning and message items. */
+function mockResponsesBody(
+  text: string,
+  opts: { withReasoningItem?: boolean; outputText?: boolean } = {}
+): Response {
+  const body: Record<string, unknown> = opts.outputText
+    ? { output_text: text }
+    : {
+        output: [
+          ...(opts.withReasoningItem ? [{ id: "rs_1", type: "reasoning", summary: [] }] : []),
+          { id: "msg_1", type: "message", content: [{ type: "output_text", text }] },
+        ],
+      };
+  return new Response(JSON.stringify(body), {
+    status: 200,
+    headers: { "Content-Type": "application/json" },
+  });
+}
+
+describe("callPortalJsonCompletion — responses transport", () => {
+  const baseArgs = {
+    apiKey: "test-key",
+    model: "openai/gpt-5.6-luna",
+    systemPrompt: "system",
+    userMessage: "user",
+    tag: "test",
+  } as const;
+
+  it("posts a Responses-shaped body to the responses endpoint", async () => {
+    const fetchFn = vi.fn().mockResolvedValue(mockResponsesBody('{"ok":true}'));
+    const out = await callPortalJsonCompletion({
+      ...baseArgs,
+      transport: "responses",
+      reasoning: { effort: "medium" },
+      fetchFn,
+    });
+
+    const [url, init] = fetchFn.mock.calls[0];
+    expect(String(url)).toContain("/api/v1/responses");
+    const sent = JSON.parse(init.body as string);
+    // Roles and order, not exact text: the system prompt carries the internal
+    // first-party flow marker that every portal call gets.
+    expect(
+      sent.input.map((m: { role: string }) => m.role),
+      "Responses takes `input`, not `messages`"
+    ).toEqual(["system", "user"]);
+    expect(sent.input[0].content).toContain("system");
+    expect(sent.input[1].content).toBe("user");
+    expect(sent.messages).toBeUndefined();
+    expect(sent.reasoning).toEqual({ effort: "medium" });
+    expect(out).toEqual({ ok: true });
+  });
+
+  it("does not send response_format on this transport", async () => {
+    // The Responses API spells structured output differently (`text.format`) and
+    // that is unverified against the portal — sending the chat field would be a
+    // guess. Parsing leans on the strict-JSON prompt + extractJsonCandidate,
+    // exactly as it already does for every response_format-rejecting model.
+    const fetchFn = vi.fn().mockResolvedValue(mockResponsesBody('{"ok":true}'));
+    await callPortalJsonCompletion({ ...baseArgs, transport: "responses", fetchFn });
+    const sent = JSON.parse(fetchFn.mock.calls[0][1].body as string);
+    expect(sent.response_format).toBeUndefined();
+    expect(sent.text).toBeUndefined();
+  });
+
+  it("reads text past a leading reasoning item", async () => {
+    // THE bug this walk exists to prevent. `output` interleaves reasoning and
+    // message items; taking output[0] returns the reasoning entry, which carries
+    // no text — so a reasoning model would report an empty completion and burn
+    // all three retries on exactly the calls this transport was built for.
+    const fetchFn = vi
+      .fn()
+      .mockResolvedValue(mockResponsesBody('{"facts":[1]}', { withReasoningItem: true }));
+    const out = await callPortalJsonCompletion({
+      ...baseArgs,
+      transport: "responses",
+      reasoning: { effort: "low" },
+      fetchFn,
+    });
+    expect(out).toEqual({ facts: [1] });
+    expect(fetchFn).toHaveBeenCalledTimes(1);
+  });
+
+  it("prefers output_text when the portal provides it", async () => {
+    const fetchFn = vi.fn().mockResolvedValue(mockResponsesBody('{"ok":1}', { outputText: true }));
+    expect(
+      await callPortalJsonCompletion({ ...baseArgs, transport: "responses", fetchFn })
+    ).toEqual({ ok: 1 });
+  });
+
+  it("defaults to the chat transport and leaves it byte-identical", async () => {
+    // Every existing caller must be unaffected by the branch.
+    const fetchFn = vi.fn().mockResolvedValue(mockResponse('{"ok":true}'));
+    await callPortalJsonCompletion({ ...baseArgs, model: "openai/gpt-5-mini", fetchFn });
+    const [url, init] = fetchFn.mock.calls[0];
+    expect(String(url)).toContain("/api/v1/chat/completions");
+    const sent = JSON.parse(init.body as string);
+    expect(sent.messages).toHaveLength(2);
+    expect(sent.input).toBeUndefined();
+    expect(sent.response_format).toEqual({ type: "json_object" });
+  });
+
+  it("still honours an endpointOverride on the responses transport", async () => {
+    const fetchFn = vi.fn().mockResolvedValue(mockResponsesBody('{"ok":true}'));
+    await callPortalJsonCompletion({
+      ...baseArgs,
+      transport: "responses",
+      endpointOverride: "/api/v1/utility/responses",
+      fetchFn,
+    });
+    expect(String(fetchFn.mock.calls[0][0])).toContain("/api/v1/utility/responses");
+  });
+
+  it("retries an empty responses answer rather than accepting it", async () => {
+    // An `output` array with no message text is a real empty answer from this
+    // transport, so it must reach the empty-completion retry — not fall through
+    // to the chat parse and surface as a wrong-shape null.
+    const empty = () =>
+      new Response(JSON.stringify({ output: [{ id: "rs_1", type: "reasoning" }] }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    const fetchFn = vi
+      .fn()
+      .mockResolvedValueOnce(empty())
+      .mockResolvedValue(mockResponsesBody('{"ok":true}'));
+    const out = await callPortalJsonCompletion({
+      ...baseArgs,
+      transport: "responses",
+      fetchFn,
+      backoffMs: () => 1,
+    });
+    expect(out).toEqual({ ok: true });
+    expect(fetchFn).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("callPortalJsonCompletion — responses transport misuse guards", () => {
+  const baseArgs = {
+    apiKey: "test-key",
+    model: "openai/gpt-5.6-luna",
+    systemPrompt: "system",
+    userMessage: "user",
+    tag: "test",
+  } as const;
+
+  it("translates the chat-spelled output cap that topicExtract passes", async () => {
+    // `extra` is a passthrough and everything in it today is chat-spelled,
+    // because until now chat was the only transport. topicExtract sends
+    // `max_completion_tokens: 8192` and is the first lane pointed here; the
+    // Responses API reads `max_output_tokens`. Spreading it verbatim would post
+    // a field the endpoint ignores, silently drop the cap to the portal's 4096
+    // default, and reproduce the truncate-mid-JSON-and-lose-the-batch failure
+    // topicExtract's own comment documents — silently, since a typed Go
+    // ResponseRequest discards the unknown field rather than 400ing.
+    const fetchFn = vi.fn().mockResolvedValue(mockResponsesBody('{"ok":true}'));
+    await callPortalJsonCompletion({
+      ...baseArgs,
+      transport: "responses",
+      extra: { max_completion_tokens: 8192 },
+      fetchFn,
+    });
+    const sent = JSON.parse(fetchFn.mock.calls[0][1].body as string);
+    expect(sent.max_output_tokens).toBe(8192);
+    expect(sent.max_completion_tokens, "the chat spelling must not survive").toBeUndefined();
+  });
+
+  it("passes unknown extra keys through untranslated", async () => {
+    // The map must not become a silent allowlist that swallows a field a caller
+    // needs — only known chat-only spellings are rewritten.
+    const fetchFn = vi.fn().mockResolvedValue(mockResponsesBody('{"ok":true}'));
+    await callPortalJsonCompletion({
+      ...baseArgs,
+      transport: "responses",
+      extra: { metadata: { lane: "topic" } },
+      fetchFn,
+    });
+    const sent = JSON.parse(fetchFn.mock.calls[0][1].body as string);
+    expect(sent.metadata).toEqual({ lane: "topic" });
+  });
+
+  it("strips a caller-supplied response_format on the responses branch", async () => {
+    // The branch comment promises it never sends response_format. Before this
+    // guard the `delete` was chat-only, so `extra` walked straight past the
+    // promise — the asymmetry greptile and the human review both landed on.
+    const fetchFn = vi.fn().mockResolvedValue(mockResponsesBody('{"ok":true}'));
+    await callPortalJsonCompletion({
+      ...baseArgs,
+      transport: "responses",
+      extra: { response_format: { type: "json_object" } },
+      fetchFn,
+    });
+    const sent = JSON.parse(fetchFn.mock.calls[0][1].body as string);
+    expect(sent.response_format).toBeUndefined();
+  });
+
+  it("throws when an endpointOverride contradicts the transport", async () => {
+    // The override wins outright, so a responses body would be POSTed at a chat
+    // path: accepted at the portal edge, 400'd by the provider, classified
+    // http-terminal, no retry, one silent null. The app sets that override in
+    // another repo (#5536), so whoever flips a lane here cannot see it.
+    const fetchFn = vi.fn();
+    await expect(
+      callPortalJsonCompletion({
+        ...baseArgs,
+        transport: "responses",
+        endpointOverride: "/api/v1/utility/chat/completions",
+        fetchFn,
+      })
+    ).rejects.toThrow(/is the other transport's endpoint, but transport is "responses"/);
+    expect(fetchFn, "must fail before any request is sent").not.toHaveBeenCalled();
+  });
+
+  it("throws for the mirror mismatch on the chat transport", async () => {
+    const fetchFn = vi.fn();
+    await expect(
+      callPortalJsonCompletion({
+        ...baseArgs,
+        endpointOverride: "/api/v1/utility/responses",
+        fetchFn,
+      })
+    ).rejects.toThrow(/is the other transport's endpoint, but transport is "chat"/);
+    expect(fetchFn).not.toHaveBeenCalled();
+  });
+
+  it("accepts the matching utility override on each transport", async () => {
+    const responsesFetch = vi.fn().mockResolvedValue(mockResponsesBody('{"ok":true}'));
+    await callPortalJsonCompletion({
+      ...baseArgs,
+      transport: "responses",
+      endpointOverride: "/api/v1/utility/responses",
+      fetchFn: responsesFetch,
+    });
+    expect(String(responsesFetch.mock.calls[0][0])).toContain("/api/v1/utility/responses");
+
+    const chatFetch = vi.fn().mockResolvedValue(mockResponse('{"ok":true}'));
+    await callPortalJsonCompletion({
+      ...baseArgs,
+      endpointOverride: "/api/v1/utility/chat/completions",
+      fetchFn: chatFetch,
+    });
+    expect(String(chatFetch.mock.calls[0][0])).toContain("/api/v1/utility/chat/completions");
+  });
+
+  it("does not carry the Anthropic prefill into `input`", async () => {
+    // The prefill is a chat-completions trick. It was being carried because
+    // `messages` has it pushed on before the branch — and the response-side
+    // continuation-restore keys off the MODEL, not the transport, so leaving it
+    // would arm a prefill-restore on a path with no prefill semantics.
+    const fetchFn = vi.fn().mockResolvedValue(mockResponsesBody('{"ok":true}'));
+    await callPortalJsonCompletion({
+      ...baseArgs,
+      model: "anthropic/claude-sonnet-5",
+      transport: "responses",
+      fetchFn,
+    });
+    const sent = JSON.parse(fetchFn.mock.calls[0][1].body as string);
+    expect(sent.input.map((m: { role: string }) => m.role)).toEqual(["system", "user"]);
+  });
+
+  it("leaves a neutral proxy path alone — the guard rejects only the wrong endpoint", async () => {
+    // The first version required the transport's OWN suffix, which also threw on
+    // chat overrides that were legal before this PR existed. A consumer proxying
+    // through something that ends in neither has a good reason to, and breaking
+    // that is not what this guard is for.
+    const fetchFn = vi.fn().mockResolvedValue(mockResponse('{"ok":true}'));
+    await callPortalJsonCompletion({ ...baseArgs, endpointOverride: "/api/llm-proxy", fetchFn });
+    expect(String(fetchFn.mock.calls[0][0])).toContain("/api/llm-proxy");
+  });
+
+  it("does not let key order decide when both cap spellings are passed", async () => {
+    // The already-correct Responses name wins; the translated chat one must never
+    // overwrite it, whichever way Object.entries happens to iterate.
+    const fetchFn = vi.fn().mockResolvedValue(mockResponsesBody('{"ok":true}'));
+    await callPortalJsonCompletion({
+      ...baseArgs,
+      transport: "responses",
+      extra: { max_completion_tokens: 1024, max_output_tokens: 8192 },
+      fetchFn,
+    });
+    const sent = JSON.parse(fetchFn.mock.calls[0][1].body as string);
+    expect(sent.max_output_tokens).toBe(8192);
+    expect(sent.max_completion_tokens).toBeUndefined();
+  });
+
+  it("disarms the prefill RESTORE on the responses transport, not just the push", async () => {
+    // The half that stayed open when the fix only sliced the request side.
+    // `looksLikeContinuation` fires on a `"`-leading answer and glues `{` onto
+    // the front — correct on chat, where we sent the prefill and the model
+    // continued from it; wrong here, where nothing was ever sent, so the content
+    // never lost a brace. A bare JSON string is the discriminator: armed, it
+    // becomes `{"hello"` and dies through three retries to null; disarmed, it
+    // parses as itself.
+    const fetchFn = vi.fn().mockResolvedValue(mockResponsesBody('"hello"'));
+    const out = await callPortalJsonCompletion({
+      ...baseArgs,
+      model: "anthropic/claude-sonnet-5",
+      transport: "responses",
+      fetchFn,
+    });
+    expect(out).toBe("hello");
+    expect(fetchFn, "must not have retried").toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps the prefill restore on the chat transport", async () => {
+    // The control: gating on transport must not disturb the chat behaviour the
+    // prefill exists for. Anthropic continues FROM the `{` we sent, so the
+    // response legitimately starts mid-object and needs it prepended back.
+    const fetchFn = vi.fn().mockResolvedValue(mockResponse('"a": 1}'));
+    const out = await callPortalJsonCompletion({
+      ...baseArgs,
+      model: "anthropic/claude-sonnet-5",
+      fetchFn,
+    });
+    expect(out).toEqual({ a: 1 });
+  });
+
+  it("falls through to the output[] walk when output_text is present but empty", async () => {
+    // A Go `string` without `omitempty` marshals to "" when unset, so a
+    // deployment serializing the field unconditionally would short-circuit every
+    // response on it. The walk below is where a reasoning model's text lives —
+    // short-circuiting reads it as empty and burns three retries to null.
+    const body = new Response(
+      JSON.stringify({
+        output_text: "",
+        output: [
+          { id: "rs_1", type: "reasoning" },
+          { id: "msg_1", type: "message", content: [{ type: "output_text", text: '{"ok":true}' }] },
+        ],
+      }),
+      { status: 200, headers: { "Content-Type": "application/json" } }
+    );
+    const fetchFn = vi.fn().mockResolvedValue(body);
+    const out = await callPortalJsonCompletion({ ...baseArgs, transport: "responses", fetchFn });
+    expect(out).toEqual({ ok: true });
+    expect(fetchFn, "must not have retried").toHaveBeenCalledTimes(1);
+  });
+});
