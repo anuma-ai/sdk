@@ -660,8 +660,17 @@ async function attemptPortalJson(req: PortalLlmRequest, endpoint: string): Promi
   // to "prefill" the assistant turn with `{` so the model has no choice
   // but to continue valid JSON. We prepend the prefill back onto the
   // returned content before parsing.
-  const isAnthropic = req.model.startsWith("anthropic/");
-  const prefill = isAnthropic ? "{" : "";
+  //
+  // Gated on the TRANSPORT as well as the model, and that is the whole point of
+  // deriving it here rather than at the two use sites. Prefill is a
+  // chat-completions trick: it is a request-side push (below) AND a response-side
+  // restore (`looksLikeContinuation`), and those two have to agree. Keying only
+  // off the model left the restore armed on a path that never sent the prefill —
+  // so a `"`-leading answer would have had a `{` glued to the front of content
+  // that never lost one. Deciding once, here, makes both halves true by
+  // construction instead of by a comment at each end.
+  const usesPrefill = req.transport !== "responses" && req.model.startsWith("anthropic/");
+  const prefill = usesPrefill ? "{" : "";
   const messages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [
     // Every caller of this helper is a first-party BACKGROUND op (fact extraction,
     // topic sweep, consolidation, classifiers, graph traversal, query
@@ -695,16 +704,13 @@ async function attemptPortalJson(req: PortalLlmRequest, endpoint: string): Promi
     req.transport === "responses"
       ? {
           model: req.model,
-          // Same system+user pair under the Responses-API field name, MINUS the
-          // Anthropic prefill. `messages` already has it pushed on (above), and
-          // an earlier version of this comment claimed the prefill "is
-          // deliberately not carried here" while handing over the very array
-          // that carried it — the comment was wrong, not the code. Slice it off
-          // so the statement is true: a trailing assistant `{` is a
-          // chat-completions trick, and `looksLikeContinuation` on the response
-          // side keys off the MODEL, not the transport, so leaving it on would
-          // arm a prefill-restore on a path with no prefill semantics.
-          input: prefill ? messages.slice(0, -1) : messages,
+          // Same system+user pair under the Responses-API field name. No prefill
+          // entry to strip: `usesPrefill` is false on this transport, so it was
+          // never pushed and the response-side restore is disarmed with it. An
+          // earlier version pushed it and sliced it back off here, which left
+          // `prefill` truthy and the restore still armed — the fix belonged at
+          // the decision, not at the two symptoms.
+          input: messages,
           ...(req.reasoning && { reasoning: req.reasoning }),
           // NO response_format. The Responses API spells structured output
           // differently (`text.format`), and it is unverified against this

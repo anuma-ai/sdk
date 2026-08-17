@@ -1096,4 +1096,36 @@ describe("callPortalJsonCompletion — responses transport misuse guards", () =>
     expect(sent.max_output_tokens).toBe(8192);
     expect(sent.max_completion_tokens).toBeUndefined();
   });
+
+  it("disarms the prefill RESTORE on the responses transport, not just the push", async () => {
+    // The half that stayed open when the fix only sliced the request side.
+    // `looksLikeContinuation` fires on a `"`-leading answer and glues `{` onto
+    // the front — correct on chat, where we sent the prefill and the model
+    // continued from it; wrong here, where nothing was ever sent, so the content
+    // never lost a brace. A bare JSON string is the discriminator: armed, it
+    // becomes `{"hello"` and dies through three retries to null; disarmed, it
+    // parses as itself.
+    const fetchFn = vi.fn().mockResolvedValue(mockResponsesBody('"hello"'));
+    const out = await callPortalJsonCompletion({
+      ...baseArgs,
+      model: "anthropic/claude-sonnet-5",
+      transport: "responses",
+      fetchFn,
+    });
+    expect(out).toBe("hello");
+    expect(fetchFn, "must not have retried").toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps the prefill restore on the chat transport", async () => {
+    // The control: gating on transport must not disturb the chat behaviour the
+    // prefill exists for. Anthropic continues FROM the `{` we sent, so the
+    // response legitimately starts mid-object and needs it prepended back.
+    const fetchFn = vi.fn().mockResolvedValue(mockResponse('"a": 1}'));
+    const out = await callPortalJsonCompletion({
+      ...baseArgs,
+      model: "anthropic/claude-sonnet-5",
+      fetchFn,
+    });
+    expect(out).toEqual({ a: 1 });
+  });
 });
