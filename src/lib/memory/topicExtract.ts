@@ -23,11 +23,7 @@ import {
 } from "../db/memoryVault/operations.js";
 import { getLogger } from "../logger.js";
 import { type PiiRedactor, resolvePiiRedactor } from "../pii/redactor.js";
-import {
-  ENTITY_KIND_GUIDELINES,
-  type ExtractedEntity,
-  parseEntities,
-} from "./autoExtract.js";
+import { ENTITY_KIND_GUIDELINES, type ExtractedEntity, parseEntities } from "./autoExtract.js";
 import { callPortalJsonCompletion, type PortalLlmAuth } from "./portalLlm.js";
 
 /** Memories per LLM call. Mirrors the folder Auto-Sort batch size — the cost
@@ -63,32 +59,40 @@ const MAX_COMPLETION_TOKENS = 8192;
  * place in the memory pipeline where that is deliberate.
  *
  * `autoExtract.ts` says "do NOT introduce a second extraction model constant".
- * That held while one model served both lanes well. It no longer does — the two
- * lanes want opposite things, measured on this repo's own eval corpora:
+ * That held while one model served both lanes well; it no longer does.
  *
- *   fact lane   gpt-oss truncates ~26.8% of production turns (runaway reasoning:
- *               49% of eval calls consume the whole output budget). luna scores
- *               recall 1.00 / precision 1.00 / kindAccuracy 1.00 / junk 0.
- *   topic lane  gpt-oss is PERFECT (recall, precision, f1, junkCleanRate all
- *               1.00). luna regresses precision to 0.964 — past this suite's own
- *               0.03 tolerance, i.e. it fails the gate — and junkCleanRate to
- *               0.914, meaning it pollutes the knowledge graph with topics the
- *               gold set rejects. (10 runs each, 2026-08-17.)
+ * THE REASON IS PRIVACY, NOT QUALITY. The topic sweep runs over the WHOLE vault
+ * regardless of which session mode is in force, so — unlike the fact lane — it
+ * cannot be gated on session mode by a client. Pinning an open-weights model
+ * here is the only thing that keeps STORED private-mode memories off a closed
+ * provider. That argument stands on its own and is why this constant exists.
  *
- * So the fact lane moved to luna and this one did not. Three things follow, and
- * all three are why this is a constant rather than a caller-side override:
+ * ON QUALITY THE TWO ARE INDISTINGUISHABLE, and an earlier version of this
+ * comment claimed otherwise. It read: gpt-oss perfect (all metrics 1.00) vs luna
+ * regressing precision to 0.964 and junkCleanRate to 0.914. Those luna numbers
+ * are real, but the gpt-oss side was a committed baseline the model itself
+ * cannot reproduce — a fresh gate run on gpt-oss (sdk#915, which changes no
+ * model) scored precision 0.969 and junkCleanRate 0.886, i.e. it FAILED its own
+ * baseline and landed slightly WORSE than luna on junk. There is no measured
+ * quality gap here in either direction.
  *
- *  1. The committed topic baseline stays valid — no regeneration, and the gate
- *     keeps guarding the lane instead of being re-pointed at a worse model.
- *  2. Private-mode memories keep an open-weights model. The sweep runs over the
- *     WHOLE vault regardless of the session mode in force, so it cannot be gated
- *     on session mode the way the fact lane is; pinning it here is what keeps
- *     stored private memories off a closed provider.
- *  3. Don't point this at a second model without an eval — the instruction that
+ * The suite cannot currently settle it: 7 junk traps means one miss moves
+ * junkCleanRate by 14.3pp against a 9pp tolerance, so the tolerance is narrower
+ * than the measurement quantum. Do not cite this lane's eval as evidence for a
+ * model choice until that corpus is bigger — see the eval-robustness issue.
+ *
+ * Two further consequences of pinning, both still true:
+ *
+ *  1. The committed topic baseline stays applicable — no regeneration needed as
+ *     part of the fact lane's move to luna.
+ *  2. Don't point this at a second model without an eval — the instruction that
  *     was already on `TopicExtractOptions.model` and that this constant honours.
  *
  * If gpt-oss is ever retired, the replacement needs its own topic-eval run
- * BEFORE it lands here; inheriting the fact lane's choice is what this prevents.
+ * BEFORE it lands here — and that run needs a corpus that can actually resolve
+ * the difference. Note luna WITH reasoning enabled (only reachable on the
+ * Responses transport, sdk#915) scored 7/7 junk traps clean on 3/3 hand runs,
+ * so a future consolidation onto one model is plausible; it just isn't measured.
  */
 export const DEFAULT_TOPIC_MODEL = "gpt-oss/gpt-oss-120b";
 
