@@ -2,7 +2,7 @@
 
 > **PatchApiV1AdminNotificationsCampaignsByCampaignIdErrors** = `object`
 
-Defined in: [src/client/types.gen.ts:5861](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5861)
+Defined in: [src/client/types.gen.ts:6014](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6014)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:5861](https://github.com/anuma-ai/sdk/blob/
 
 > **400**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:5865](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5865)
+Defined in: [src/client/types.gen.ts:6018](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6018)
 
 Bad Request
 
@@ -20,7 +20,7 @@ Bad Request
 
 > **404**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:5869](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5869)
+Defined in: [src/client/types.gen.ts:6022](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6022)
 
 Not Found
 
@@ -30,6 +30,6 @@ Not Found
 
 > **409**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:5873](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5873)
+Defined in: [src/client/types.gen.ts:6026](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6026)
 
 Conflict

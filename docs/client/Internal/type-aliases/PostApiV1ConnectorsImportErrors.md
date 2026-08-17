@@ -2,7 +2,7 @@
 
 > **PostApiV1ConnectorsImportErrors** = `object`
 
-Defined in: [src/client/types.gen.ts:7788](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7788)
+Defined in: [src/client/types.gen.ts:7941](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7941)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:7788](https://github.com/anuma-ai/sdk/blob/
 
 > **400**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:7792](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7792)
+Defined in: [src/client/types.gen.ts:7945](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7945)
 
 invalid\_grant or bad request
 
@@ -20,7 +20,7 @@ invalid\_grant or bad request
 
 > **401**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:7796](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7796)
+Defined in: [src/client/types.gen.ts:7949](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7949)
 
 Unauthorized
 
@@ -30,6 +30,6 @@ Unauthorized
 
 > **500**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:7800](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7800)
+Defined in: [src/client/types.gen.ts:7953](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7953)
 
 Internal Server Error

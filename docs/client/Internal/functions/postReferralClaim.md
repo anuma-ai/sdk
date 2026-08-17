@@ -2,7 +2,7 @@
 
 > **postReferralClaim**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`PostReferralClaimData`](../type-aliases/PostReferralClaimData.md), `ThrowOnError`>): `RequestResult`<[`PostReferralClaimResponses`](../type-aliases/PostReferralClaimResponses.md), [`PostReferralClaimErrors`](../type-aliases/PostReferralClaimErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:1836](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1836)
+Defined in: [src/client/sdk.gen.ts:1857](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1857)
 
 Redeem a waitlist claim token
 

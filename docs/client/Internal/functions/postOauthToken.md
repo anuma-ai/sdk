@@ -2,7 +2,7 @@
 
 > **postOauthToken**<`ThrowOnError`>(`options?`: [`Options`](../type-aliases/Options.md)<[`PostOauthTokenData`](../type-aliases/PostOauthTokenData.md), `ThrowOnError`, `unknown`>): `RequestResult`<[`PostOauthTokenResponses`](../type-aliases/PostOauthTokenResponses.md), [`PostOauthTokenErrors`](../type-aliases/PostOauthTokenErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:1821](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1821)
+Defined in: [src/client/sdk.gen.ts:1842](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1842)
 
 OAuth 2.0 token endpoint
 

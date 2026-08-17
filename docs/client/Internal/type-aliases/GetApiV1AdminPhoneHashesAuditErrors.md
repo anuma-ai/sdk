@@ -2,7 +2,7 @@
 
 > **GetApiV1AdminPhoneHashesAuditErrors** = `object`
 
-Defined in: [src/client/types.gen.ts:6330](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6330)
+Defined in: [src/client/types.gen.ts:6483](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6483)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:6330](https://github.com/anuma-ai/sdk/blob/
 
 > **401**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:6334](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6334)
+Defined in: [src/client/types.gen.ts:6487](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6487)
 
 Unauthorized
 
@@ -20,6 +20,6 @@ Unauthorized
 
 > **500**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:6338](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6338)
+Defined in: [src/client/types.gen.ts:6491](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6491)
 
 Internal Server Error

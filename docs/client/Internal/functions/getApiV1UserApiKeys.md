@@ -2,7 +2,7 @@
 
 > **getApiV1UserApiKeys**<`ThrowOnError`>(`options?`: [`Options`](../type-aliases/Options.md)<[`GetApiV1UserApiKeysData`](../type-aliases/GetApiV1UserApiKeysData.md), `ThrowOnError`, `unknown`>): `RequestResult`<[`GetApiV1UserApiKeysResponses`](../type-aliases/GetApiV1UserApiKeysResponses.md), [`GetApiV1UserApiKeysErrors`](../type-aliases/GetApiV1UserApiKeysErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:1474](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1474)
+Defined in: [src/client/sdk.gen.ts:1481](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1481)
 
 List user API keys
 

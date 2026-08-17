@@ -2,7 +2,7 @@
 
 > **putApiV1AdminAppsById**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`PutApiV1AdminAppsByIdData`](../type-aliases/PutApiV1AdminAppsByIdData.md), `ThrowOnError`>): `RequestResult`<[`PutApiV1AdminAppsByIdResponses`](../type-aliases/PutApiV1AdminAppsByIdResponses.md), [`PutApiV1AdminAppsByIdErrors`](../type-aliases/PutApiV1AdminAppsByIdErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:173](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#173)
+Defined in: [src/client/sdk.gen.ts:180](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#180)
 
 Update app
 

@@ -2,7 +2,7 @@
 
 > **PostApiV1AdminUsersInternalTesterData** = `object`
 
-Defined in: [src/client/types.gen.ts:6781](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6781)
+Defined in: [src/client/types.gen.ts:6934](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6934)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:6781](https://github.com/anuma-ai/sdk/blob/
 
 > **body**: [`HandlersSetInternalTesterRequest`](HandlersSetInternalTesterRequest.md)
 
-Defined in: [src/client/types.gen.ts:6785](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6785)
+Defined in: [src/client/types.gen.ts:6938](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6938)
 
 Set internal tester request
 
@@ -20,7 +20,7 @@ Set internal tester request
 
 > **headers**: `object`
 
-Defined in: [src/client/types.gen.ts:6786](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6786)
+Defined in: [src/client/types.gen.ts:6939](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6939)
 
 **X-Admin-API-Key**
 
@@ -34,7 +34,7 @@ Admin API key
 
 > `optional` **path**: `never`
 
-Defined in: [src/client/types.gen.ts:6792](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6792)
+Defined in: [src/client/types.gen.ts:6945](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6945)
 
 ***
 
@@ -42,7 +42,7 @@ Defined in: [src/client/types.gen.ts:6792](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **query**: `never`
 
-Defined in: [src/client/types.gen.ts:6793](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6793)
+Defined in: [src/client/types.gen.ts:6946](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6946)
 
 ***
 
@@ -50,4 +50,4 @@ Defined in: [src/client/types.gen.ts:6793](https://github.com/anuma-ai/sdk/blob/
 
 > **url**: `"/api/v1/admin/users/internal-tester"`
 
-Defined in: [src/client/types.gen.ts:6794](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6794)
+Defined in: [src/client/types.gen.ts:6947](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6947)

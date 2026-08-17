@@ -2,7 +2,7 @@
 
 > **HandlersReferralClaimRequest** = `object`
 
-Defined in: [src/client/types.gen.ts:2719](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2719)
+Defined in: [src/client/types.gen.ts:2788](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2788)
 
 ## Properties
 
@@ -10,4 +10,4 @@ Defined in: [src/client/types.gen.ts:2719](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **claim\_token**: `string`
 
-Defined in: [src/client/types.gen.ts:2720](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2720)
+Defined in: [src/client/types.gen.ts:2789](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2789)

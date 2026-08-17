@@ -2,7 +2,7 @@
 
 > **PostApiV1AuthMfaTotpEnrollInitData** = `object`
 
-Defined in: [src/client/types.gen.ts:7366](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7366)
+Defined in: [src/client/types.gen.ts:7519](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7519)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:7366](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **body**: `never`
 
-Defined in: [src/client/types.gen.ts:7367](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7367)
+Defined in: [src/client/types.gen.ts:7520](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7520)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:7367](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **path**: `never`
 
-Defined in: [src/client/types.gen.ts:7368](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7368)
+Defined in: [src/client/types.gen.ts:7521](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7521)
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: [src/client/types.gen.ts:7368](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **query**: `never`
 
-Defined in: [src/client/types.gen.ts:7369](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7369)
+Defined in: [src/client/types.gen.ts:7522](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7522)
 
 ***
 
@@ -34,4 +34,4 @@ Defined in: [src/client/types.gen.ts:7369](https://github.com/anuma-ai/sdk/blob/
 
 > **url**: `"/api/v1/auth/mfa/totp/enroll/init"`
 
-Defined in: [src/client/types.gen.ts:7370](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7370)
+Defined in: [src/client/types.gen.ts:7523](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7523)

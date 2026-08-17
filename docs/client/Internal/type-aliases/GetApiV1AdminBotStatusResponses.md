@@ -2,7 +2,7 @@
 
 > **GetApiV1AdminBotStatusResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:5579](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5579)
+Defined in: [src/client/types.gen.ts:5732](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5732)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:5579](https://github.com/anuma-ai/sdk/blob/
 
 > **200**: `object`
 
-Defined in: [src/client/types.gen.ts:5583](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5583)
+Defined in: [src/client/types.gen.ts:5736](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5736)
 
 OK
 

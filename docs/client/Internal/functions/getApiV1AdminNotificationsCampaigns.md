@@ -2,7 +2,7 @@
 
 > **getApiV1AdminNotificationsCampaigns**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`GetApiV1AdminNotificationsCampaignsData`](../type-aliases/GetApiV1AdminNotificationsCampaignsData.md), `ThrowOnError`>): `RequestResult`<[`GetApiV1AdminNotificationsCampaignsResponses`](../type-aliases/GetApiV1AdminNotificationsCampaignsResponses.md), [`GetApiV1AdminNotificationsCampaignsErrors`](../type-aliases/GetApiV1AdminNotificationsCampaignsErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:255](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#255)
+Defined in: [src/client/sdk.gen.ts:262](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#262)
 
 List announcement campaigns (admin)
 

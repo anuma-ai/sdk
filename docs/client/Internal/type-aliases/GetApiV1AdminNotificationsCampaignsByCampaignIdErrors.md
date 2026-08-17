@@ -2,7 +2,7 @@
 
 > **GetApiV1AdminNotificationsCampaignsByCampaignIdErrors** = `object`
 
-Defined in: [src/client/types.gen.ts:5822](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5822)
+Defined in: [src/client/types.gen.ts:5975](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5975)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:5822](https://github.com/anuma-ai/sdk/blob/
 
 > **404**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:5826](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5826)
+Defined in: [src/client/types.gen.ts:5979](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5979)
 
 Not Found

@@ -2,7 +2,7 @@
 
 > **HandlersReferralTesterResponse** = `object`
 
-Defined in: [src/client/types.gen.ts:2755](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2755)
+Defined in: [src/client/types.gen.ts:2870](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2870)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:2755](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **bound\_via**: `string`
 
-Defined in: [src/client/types.gen.ts:2756](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2756)
+Defined in: [src/client/types.gen.ts:2871](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2871)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:2756](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **referral\_code**: `string`
 
-Defined in: [src/client/types.gen.ts:2757](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2757)
+Defined in: [src/client/types.gen.ts:2872](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2872)
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: [src/client/types.gen.ts:2757](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **referral\_count**: `number`
 
-Defined in: [src/client/types.gen.ts:2758](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2758)
+Defined in: [src/client/types.gen.ts:2873](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2873)
 
 ***
 
@@ -34,7 +34,7 @@ Defined in: [src/client/types.gen.ts:2758](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **share\_url**: `string`
 
-Defined in: [src/client/types.gen.ts:2763](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2763)
+Defined in: [src/client/types.gen.ts:2878](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2878)
 
 ShareURL is built server-side. Clients must use it verbatim — Prefinery's
 own share\_link points at their domain, and ours is the one users see.
@@ -45,7 +45,7 @@ own share\_link points at their domain, and ours is the one users see.
 
 > `optional` **status**: `string`
 
-Defined in: [src/client/types.gen.ts:2764](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2764)
+Defined in: [src/client/types.gen.ts:2879](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2879)
 
 ***
 
@@ -53,7 +53,7 @@ Defined in: [src/client/types.gen.ts:2764](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **updated\_at**: `string`
 
-Defined in: [src/client/types.gen.ts:2769](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2769)
+Defined in: [src/client/types.gen.ts:2884](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2884)
 
 UpdatedAt is the mirror-freshness signal: the last webhook, reconcile or
 write-through that touched the row.
@@ -64,6 +64,6 @@ write-through that touched the row.
 
 > `optional` **waitlist\_position**: `number`
 
-Defined in: [src/client/types.gen.ts:2773](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2773)
+Defined in: [src/client/types.gen.ts:2888](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2888)
 
 WaitlistPosition is null once the tester is invited/active.

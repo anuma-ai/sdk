@@ -2,7 +2,7 @@
 
 > **PostReferralIdentityData** = `object`
 
-Defined in: [src/client/types.gen.ts:11990](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11990)
+Defined in: [src/client/types.gen.ts:12179](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#12179)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:11990](https://github.com/anuma-ai/sdk/blob
 
 > `optional` **body**: `never`
 
-Defined in: [src/client/types.gen.ts:11991](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11991)
+Defined in: [src/client/types.gen.ts:12180](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#12180)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:11991](https://github.com/anuma-ai/sdk/blob
 
 > `optional` **path**: `never`
 
-Defined in: [src/client/types.gen.ts:11992](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11992)
+Defined in: [src/client/types.gen.ts:12181](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#12181)
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: [src/client/types.gen.ts:11992](https://github.com/anuma-ai/sdk/blob
 
 > `optional` **query**: `never`
 
-Defined in: [src/client/types.gen.ts:11993](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11993)
+Defined in: [src/client/types.gen.ts:12182](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#12182)
 
 ***
 
@@ -34,4 +34,4 @@ Defined in: [src/client/types.gen.ts:11993](https://github.com/anuma-ai/sdk/blob
 
 > **url**: `"/referral/identity"`
 
-Defined in: [src/client/types.gen.ts:11994](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11994)
+Defined in: [src/client/types.gen.ts:12183](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#12183)

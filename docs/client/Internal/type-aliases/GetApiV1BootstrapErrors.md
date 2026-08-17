@@ -2,7 +2,7 @@
 
 > **GetApiV1BootstrapErrors** = `object`
 
-Defined in: [src/client/types.gen.ts:7470](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7470)
+Defined in: [src/client/types.gen.ts:7623](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7623)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:7470](https://github.com/anuma-ai/sdk/blob/
 
 > **401**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:7474](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7474)
+Defined in: [src/client/types.gen.ts:7627](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7627)
 
 Unauthorized

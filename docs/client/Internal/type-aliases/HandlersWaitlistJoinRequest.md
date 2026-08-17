@@ -2,7 +2,7 @@
 
 > **HandlersWaitlistJoinRequest** = `object`
 
-Defined in: [src/client/types.gen.ts:3477](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3477)
+Defined in: [src/client/types.gen.ts:3592](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3592)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:3477](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **area\_freeform**: `string`
 
-Defined in: [src/client/types.gen.ts:3478](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3478)
+Defined in: [src/client/types.gen.ts:3593](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3593)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:3478](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **area\_slug**: `string`
 
-Defined in: [src/client/types.gen.ts:3479](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3479)
+Defined in: [src/client/types.gen.ts:3594](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3594)
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: [src/client/types.gen.ts:3479](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **email**: `string`
 
-Defined in: [src/client/types.gen.ts:3480](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3480)
+Defined in: [src/client/types.gen.ts:3595](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3595)
 
 ***
 
@@ -34,4 +34,4 @@ Defined in: [src/client/types.gen.ts:3480](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **referred\_by\_code**: `string`
 
-Defined in: [src/client/types.gen.ts:3481](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3481)
+Defined in: [src/client/types.gen.ts:3596](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3596)
