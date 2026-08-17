@@ -293,11 +293,20 @@ interface PortalLlmRequestBase extends PortalLlmAuth {
   backoffMs?: (attempt: number) => number;
   /**
    * Optional per-call request path override. When set, the completion POSTs to
-   * `baseUrl + endpointOverride` instead of the default `/api/v1/chat/completions`
-   * — path only, the request body is unchanged. Must be a non-empty root-relative
-   * path (validated via {@link validateEndpointOverride}); an invalid value throws
-   * at call time before any request is sent. Used to route internal-utility calls
-   * to a dedicated endpoint (e.g. `/api/v1/utility/chat/completions`).
+   * `baseUrl + endpointOverride` instead of the TRANSPORT'S default
+   * (`/api/v1/chat/completions` for `"chat"`, `/api/v1/responses` for
+   * `"responses"`) — path only, but note the body is still built for the
+   * transport, so the two have to agree.
+   *
+   * Must be a non-empty root-relative path (validated via
+   * {@link validateEndpointOverride}), and must not point at the OTHER
+   * transport's endpoint. Either violation throws at call time before any
+   * request is sent, because a mismatched path sends the wrong body shape and
+   * 400s without retry.
+   *
+   * Used to route internal-utility calls to a dedicated endpoint (e.g.
+   * `/api/v1/utility/chat/completions` on `"chat"`,
+   * `/api/v1/utility/responses` on `"responses"`).
    */
   endpointOverride?: string;
   /**
@@ -331,13 +340,10 @@ interface PortalLlmRequestBase extends PortalLlmAuth {
 }
 
 /**
- * Outcome of a single attempt — distinguishes retryable from terminal.
- * `retryAfterMs` carries a server-provided `Retry-After` (429) so the wrapper
- * can honor it instead of the fixed backoff.
- *
- * `code` is the stable telemetry classification and `reason` the human log
- * line; they are deliberately separate, because `reason` interpolates status
- * codes and error messages and so can't be grouped by.
+ * A portal JSON call: the shared request fields, intersected with the
+ * transport-dependent pair. The split is not cosmetic — it is what makes
+ * `reasoning` unrepresentable on the chat transport (see
+ * {@link PortalLlmTransportOptions}).
  */
 type PortalLlmRequest = PortalLlmRequestBase & PortalLlmTransportOptions;
 
@@ -372,32 +378,55 @@ function responsesExtra(extra: Record<string, unknown> | undefined): Record<stri
   if (!extra) return {};
   const out: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(extra)) {
-    out[CHAT_TO_RESPONSES_FIELDS[key] ?? key] = value;
+    const target = CHAT_TO_RESPONSES_FIELDS[key] ?? key;
+    // A caller passing BOTH spellings must not have the winner decided by
+    // Object.entries order. The already-correct Responses name wins; the
+    // translated chat one never overwrites it.
+    if (target !== key && target in extra) continue;
+    out[target] = value;
   }
   return out;
 }
 
-/** Terminal path segment a transport's endpoint must end with. */
-const TRANSPORT_ENDPOINT_SUFFIX: Record<PortalLlmTransport, string> = {
-  chat: "/chat/completions",
-  responses: "/responses",
+/** The endpoint suffix belonging to the OTHER transport — the one an override
+ *  must not point at. */
+const FOREIGN_ENDPOINT_SUFFIX: Record<PortalLlmTransport, string> = {
+  chat: "/responses",
+  responses: "/chat/completions",
 };
 
 /**
- * Throw when an `endpointOverride` contradicts the transport. Body shape and
- * path are chosen independently and only one of them is visible to the person
- * flipping a lane — see the call site for why that asymmetry is the whole point.
+ * Throw when an `endpointOverride` points at the other transport's endpoint.
+ * Body shape and path are chosen independently and only one of them is visible
+ * to the person flipping a lane — see the call site for why that asymmetry is
+ * the whole point.
+ *
+ * Rejects the KNOWN-WRONG pairing rather than requiring the transport's own
+ * suffix. The stricter version also threw on chat overrides that were legal
+ * before this existed — a consumer proxying through e.g. `/api/llm-proxy` has a
+ * perfectly good reason to pass a path that ends in neither, and breaking that
+ * is not what this guard is for. Anything ambiguous stays the caller's call, as
+ * it was.
  */
 function assertTransportMatchesEndpoint(transport: PortalLlmTransport, endpoint: string): void {
-  const expected = TRANSPORT_ENDPOINT_SUFFIX[transport];
-  if (endpoint.endsWith(expected)) return;
+  const foreign = FOREIGN_ENDPOINT_SUFFIX[transport];
+  if (!endpoint.endsWith(foreign)) return;
   throw new Error(
-    `endpointOverride "${endpoint}" does not match transport "${transport}" ` +
-      `(expected a path ending in "${expected}"). The request body is built for ` +
-      `the transport, so a mismatched path sends the wrong shape and 400s without retry.`
+    `endpointOverride "${endpoint}" is the other transport's endpoint, but transport is ` +
+      `"${transport}". The request body is built for the transport, so this sends the ` +
+      `wrong shape and 400s without retry.`
   );
 }
 
+/**
+ * Outcome of a single attempt — distinguishes retryable from terminal.
+ * `retryAfterMs` carries a server-provided `Retry-After` (429) so the wrapper
+ * can honor it instead of the fixed backoff.
+ *
+ * `code` is the stable telemetry classification and `reason` the human log
+ * line; they are deliberately separate, because `reason` interpolates status
+ * codes and error messages and so can't be grouped by.
+ */
 type AttemptOutcome =
   | { kind: "ok"; value: unknown }
   | {
@@ -930,9 +959,13 @@ function logPortalUsage(body: unknown, tag: string): void {
     const root = asRecord(body);
     if (!root) return;
     const usage = asRecord(root.usage);
-    // The Responses API names the same two counters input_tokens/output_tokens.
-    // Without the fallback every responses-transport call logs nothing at all,
-    // which is how a cost or truncation regression on that path would go unseen.
+    // The Responses API spec names these input_tokens/output_tokens, so accept
+    // both spellings. NOT load-bearing against ai-portal today, and an earlier
+    // version of this comment wrongly claimed it was: the portal's ResponseUsage
+    // emits prompt_tokens/completion_tokens/cached_tokens and carries no
+    // *_tokens_details at all (pkg/llmapi/requests.go), so the fallback is
+    // defensive for other deployments and the reasoning line below cannot print
+    // yet. Don't plan a cost check around reasoning= until the portal sends it.
     const promptTokens = asCount(usage?.prompt_tokens) ?? asCount(usage?.input_tokens);
     const completionTokens = asCount(usage?.completion_tokens) ?? asCount(usage?.output_tokens);
     if (promptTokens === undefined && completionTokens === undefined) return;

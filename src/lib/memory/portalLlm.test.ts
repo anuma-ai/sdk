@@ -1021,7 +1021,7 @@ describe("callPortalJsonCompletion — responses transport misuse guards", () =>
         endpointOverride: "/api/v1/utility/chat/completions",
         fetchFn,
       })
-    ).rejects.toThrow(/does not match transport "responses"/);
+    ).rejects.toThrow(/is the other transport's endpoint, but transport is "responses"/);
     expect(fetchFn, "must fail before any request is sent").not.toHaveBeenCalled();
   });
 
@@ -1033,7 +1033,7 @@ describe("callPortalJsonCompletion — responses transport misuse guards", () =>
         endpointOverride: "/api/v1/utility/responses",
         fetchFn,
       })
-    ).rejects.toThrow(/does not match transport "chat"/);
+    ).rejects.toThrow(/is the other transport's endpoint, but transport is "chat"/);
     expect(fetchFn).not.toHaveBeenCalled();
   });
 
@@ -1070,5 +1070,30 @@ describe("callPortalJsonCompletion — responses transport misuse guards", () =>
     });
     const sent = JSON.parse(fetchFn.mock.calls[0][1].body as string);
     expect(sent.input.map((m: { role: string }) => m.role)).toEqual(["system", "user"]);
+  });
+
+  it("leaves a neutral proxy path alone — the guard rejects only the wrong endpoint", async () => {
+    // The first version required the transport's OWN suffix, which also threw on
+    // chat overrides that were legal before this PR existed. A consumer proxying
+    // through something that ends in neither has a good reason to, and breaking
+    // that is not what this guard is for.
+    const fetchFn = vi.fn().mockResolvedValue(mockResponse('{"ok":true}'));
+    await callPortalJsonCompletion({ ...baseArgs, endpointOverride: "/api/llm-proxy", fetchFn });
+    expect(String(fetchFn.mock.calls[0][0])).toContain("/api/llm-proxy");
+  });
+
+  it("does not let key order decide when both cap spellings are passed", async () => {
+    // The already-correct Responses name wins; the translated chat one must never
+    // overwrite it, whichever way Object.entries happens to iterate.
+    const fetchFn = vi.fn().mockResolvedValue(mockResponsesBody('{"ok":true}'));
+    await callPortalJsonCompletion({
+      ...baseArgs,
+      transport: "responses",
+      extra: { max_completion_tokens: 1024, max_output_tokens: 8192 },
+      fetchFn,
+    });
+    const sent = JSON.parse(fetchFn.mock.calls[0][1].body as string);
+    expect(sent.max_output_tokens).toBe(8192);
+    expect(sent.max_completion_tokens).toBeUndefined();
   });
 });
