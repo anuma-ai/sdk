@@ -15,7 +15,7 @@ Auth + tuning for [createLlmNeighborRefiner](../functions/createLlmNeighborRefin
 
 > `optional` **apiKey**: `string`
 
-Defined in: [src/lib/memory/portalLlm.ts:139](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/portalLlm.ts#139)
+Defined in: [src/lib/memory/portalLlm.ts:177](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/portalLlm.ts#177)
 
 Direct API key — sent as `x-api-key` (server-side / CLI usage). Wins when both are provided.
 
@@ -176,7 +176,7 @@ Defined in: [src/lib/memory/graphTraversal.ts:384](https://github.com/anuma-ai/s
 
 > `optional` **getToken**: () => `Promise`<`string` | `null`>
 
-Defined in: [src/lib/memory/portalLlm.ts:141](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/portalLlm.ts#141)
+Defined in: [src/lib/memory/portalLlm.ts:179](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/portalLlm.ts#179)
 
 Function to get an auth token (e.g., Privy's getIdentityToken). Token is sent as `Authorization: Bearer`.
 
