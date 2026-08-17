@@ -197,11 +197,54 @@ export interface PortalLlmFailure {
   attempts: number;
 }
 
+/**
+ * Which portal transport carries the call.
+ *
+ * `"chat"` (default) POSTs a chat-completions body to
+ * `/api/v1/chat/completions`. `"responses"` POSTs a Responses-API body to
+ * `/api/v1/responses`. Everything that makes this module worth having — retries,
+ * backoff, the wall-clock budget, auth resolution, tolerant JSON salvage, usage
+ * logging — is shared; only the request shape and the place the text comes back
+ * differ, so those are the only two things that branch.
+ *
+ * WHY "responses" EXISTS HERE, since chat-completions works for most models:
+ * it is the only transport on which a reasoning model can actually reason.
+ * `/chat/completions` rejects the gpt-5.6 family outright when an explicit
+ * `reasoning_effort` is present, and ai-portal's `neutralizeChatReasoningEffort`
+ * rewrites any effort the caller did send to `"none"` to avoid that 400 — it
+ * takes a `ChatCompletionRequest` and has no Responses-API counterpart, so the
+ * Responses path passes the effort through untouched. Verified 2026-08-17
+ * against dev: identical prompt, `/utility/responses` with `reasoning.effort`
+ * returns a `type: "reasoning"` output item, `/utility/chat/completions` with
+ * `reasoning_effort: "low"` comes back with `reasoning_tokens: 0`.
+ *
+ * That is not academic. On the topic-assignment prompt — judging whether a
+ * memory names a real entity — gpt-5.6-luna scored 7/7 junk traps clean on 3/3
+ * runs WITH reasoning, against 6/7 on 2 of 3 runs without it (and one of those
+ * misses emitted an entity whose `name` was `undefined`).
+ */
+export type PortalLlmTransport = "chat" | "responses";
+
 interface PortalLlmRequest extends PortalLlmAuth {
   baseUrl?: string;
   model: string;
   systemPrompt: string;
   userMessage: string;
+  /**
+   * Transport for this call. Default `"chat"` — every existing caller keeps
+   * the chat-completions shape and endpoint unchanged.
+   */
+  transport?: PortalLlmTransport;
+  /**
+   * Reasoning effort, `"responses"` transport ONLY.
+   *
+   * Deliberately not plumbed for `"chat"`: the portal would rewrite it to
+   * `"none"` (see {@link PortalLlmTransport}), so accepting it there would let a
+   * caller believe they had asked for reasoning and get none. Silently ignored
+   * on the chat transport rather than thrown on, so a caller can set it once and
+   * switch transports without a crash — but the type doc is the contract.
+   */
+  reasoning?: { effort: "low" | "medium" | "high" };
   /** Tag prefix for log lines, e.g. `"memory/extract"`. */
   tag: string;
   /** Per-request timeout. Covers fetch headers AND body read. Default
@@ -377,7 +420,8 @@ export async function callPortalJsonCompletion(req: PortalLlmRequest): Promise<u
   // an endpointOverride is validated here (root-relative, no off-origin) and an
   // invalid value throws immediately — a caller bug, not a transient batch
   // failure, so it must not be swallowed into the null-on-failure path.
-  let endpoint = "/api/v1/chat/completions";
+  let endpoint =
+    req.transport === "responses" ? "/api/v1/responses" : "/api/v1/chat/completions";
   if (req.endpointOverride !== undefined) {
     const overrideValidation = validateEndpointOverride(req.endpointOverride);
     if (!overrideValidation.valid) {
@@ -540,13 +584,36 @@ async function attemptPortalJson(req: PortalLlmRequest, endpoint: string): Promi
   // Build the body explicitly so the gate has final say: callers can pass
   // arbitrary overrides via `extra`, but a model that 400s on response_format
   // must never receive it — not even through an accidental `extra` override.
-  const requestBody: Record<string, unknown> = {
-    model: req.model,
-    messages,
-    ...(supportsJsonObjectFormat && { response_format: { type: "json_object" } }),
-    ...req.extra,
-  };
-  if (!supportsJsonObjectFormat) delete requestBody.response_format;
+  const requestBody: Record<string, unknown> =
+    req.transport === "responses"
+      ? {
+          model: req.model,
+          // Same system+user pair, under the Responses-API field name. The
+          // prefill entry the Anthropic path appends above is chat-only and is
+          // deliberately not carried here: Anthropic goes through `"chat"`.
+          input: messages,
+          ...(req.reasoning && { reasoning: req.reasoning }),
+          // NO response_format. The Responses API spells structured output
+          // differently (`text.format`), and it is unverified against this
+          // portal — so this transport relies on the same strict-JSON system
+          // prompt plus `extractJsonCandidate` that every response_format-
+          // rejecting model already relies on. Verified end to end on dev:
+          // luna returns clean parseable JSON here without it. Add the field
+          // only with a per-provider check, exactly as RESPONSE_FORMAT_OK was
+          // earned.
+          ...req.extra,
+        }
+      : {
+          model: req.model,
+          messages,
+          ...(supportsJsonObjectFormat && { response_format: { type: "json_object" } }),
+          ...req.extra,
+        };
+  // Chat only: the gate has final say over `extra`, so a model that 400s on
+  // response_format can never receive it, not even through an override.
+  if (req.transport !== "responses" && !supportsJsonObjectFormat) {
+    delete requestBody.response_format;
+  }
 
   let response: Response;
   try {
@@ -777,16 +844,26 @@ function logPortalUsage(body: unknown, tag: string): void {
     const root = asRecord(body);
     if (!root) return;
     const usage = asRecord(root.usage);
-    const promptTokens = asCount(usage?.prompt_tokens);
-    const completionTokens = asCount(usage?.completion_tokens);
+    // The Responses API names the same two counters input_tokens/output_tokens.
+    // Without the fallback every responses-transport call logs nothing at all,
+    // which is how a cost or truncation regression on that path would go unseen.
+    const promptTokens = asCount(usage?.prompt_tokens) ?? asCount(usage?.input_tokens);
+    const completionTokens = asCount(usage?.completion_tokens) ?? asCount(usage?.output_tokens);
     if (promptTokens === undefined && completionTokens === undefined) return;
     const cachedTokens =
       asCount(asRecord(root.portal)?.cached_tokens) ??
       asCount(asRecord(usage?.prompt_tokens_details)?.cached_tokens) ??
+      asCount(asRecord(usage?.input_tokens_details)?.cached_tokens) ??
       0;
+    // Reasoning tokens are billed as output and count against the cap, so on the
+    // one transport that can actually reason they are the number worth seeing.
+    const reasoningTokens =
+      asCount(asRecord(usage?.output_tokens_details)?.reasoning_tokens) ??
+      asCount(asRecord(usage?.completion_tokens_details)?.reasoning_tokens);
     const parts: string[] = [];
     if (promptTokens !== undefined) parts.push(`prompt=${promptTokens}`);
     if (completionTokens !== undefined) parts.push(`completion=${completionTokens}`);
+    if (reasoningTokens !== undefined) parts.push(`reasoning=${reasoningTokens}`);
     parts.push(`cached=${cachedTokens}`);
     getLogger().debug(`[${tag}] usage ${parts.join(" ")}`);
   } catch {
@@ -796,9 +873,47 @@ function logPortalUsage(body: unknown, tag: string): void {
 
 function extractCompletionContent(body: unknown): string | null {
   if (typeof body !== "object" || body === null) return null;
+
+  // Responses API first — its shape is unambiguous, and a body carrying
+  // `output`/`output_text` is never a chat completion, so sniffing costs
+  // nothing and keeps the caller from having to tell us which it asked for.
+  const responsesText = extractResponsesContent(body);
+  if (responsesText !== null) return responsesText;
+
   const choices = (body as { choices?: unknown }).choices;
   if (!Array.isArray(choices) || choices.length === 0) return null;
   const first = choices[0] as { message?: { content?: unknown } };
   const content = first?.message?.content;
   return typeof content === "string" ? content : null;
+}
+
+/**
+ * Pull assistant text out of a Responses-API body.
+ *
+ * `output_text` is the convenience field and is preferred when present. When it
+ * is absent the walk over `output[]` is NOT optional: that array interleaves
+ * `type: "reasoning"` items with `type: "message"` items, and the reasoning
+ * entries carry no text. Taking `output[0]` would return the reasoning item on
+ * exactly the calls this transport exists to enable — a reasoning model — and
+ * report an empty completion, which the retry loop would then burn three
+ * attempts on.
+ *
+ * Returns null (not "") when the body is not Responses-shaped, so the caller can
+ * fall through to the chat-completions shape.
+ */
+function extractResponsesContent(body: unknown): string | null {
+  const root = asRecord(body);
+  if (!root) return null;
+  if (typeof root.output_text === "string") return root.output_text;
+  if (!Array.isArray(root.output)) return null;
+  const text = root.output
+    .filter((item): item is Record<string, unknown> => asRecord(item)?.type === "message")
+    .flatMap((item) => (Array.isArray(item.content) ? item.content : []))
+    .map((part) => asRecord(part)?.text)
+    .filter((t): t is string => typeof t === "string")
+    .join("");
+  // An `output` array with no message text is a real (empty) answer from this
+  // transport, not a wrong-shape body — return "" so the empty-completion retry
+  // fires instead of falling through to the chat parse and reporting null.
+  return text;
 }

@@ -805,3 +805,148 @@ describe("callPortalJsonCompletion — JSON contract reinforcement on retry (#91
     expect(systemsOf(fetchFn, 1)).toHaveLength(1);
   });
 });
+
+// ── Responses transport ──────────────────────────────────────────────────────
+// The transport exists so a reasoning model can actually reason: /chat/completions
+// rejects the gpt-5.6 family with an explicit reasoning_effort, and ai-portal's
+// neutralizeChatReasoningEffort rewrites any effort the caller did send to "none".
+// It takes a ChatCompletionRequest and has no Responses-API counterpart.
+
+/** A Responses-API body: `output` interleaves reasoning and message items. */
+function mockResponsesBody(
+  text: string,
+  opts: { withReasoningItem?: boolean; outputText?: boolean } = {}
+): Response {
+  const body: Record<string, unknown> = opts.outputText
+    ? { output_text: text }
+    : {
+        output: [
+          ...(opts.withReasoningItem ? [{ id: "rs_1", type: "reasoning", summary: [] }] : []),
+          { id: "msg_1", type: "message", content: [{ type: "output_text", text }] },
+        ],
+      };
+  return new Response(JSON.stringify(body), {
+    status: 200,
+    headers: { "Content-Type": "application/json" },
+  });
+}
+
+describe("callPortalJsonCompletion — responses transport", () => {
+  const baseArgs = {
+    apiKey: "test-key",
+    model: "openai/gpt-5.6-luna",
+    systemPrompt: "system",
+    userMessage: "user",
+    tag: "test",
+  } as const;
+
+  it("posts a Responses-shaped body to the responses endpoint", async () => {
+    const fetchFn = vi.fn().mockResolvedValue(mockResponsesBody('{"ok":true}'));
+    const out = await callPortalJsonCompletion({
+      ...baseArgs,
+      transport: "responses",
+      reasoning: { effort: "medium" },
+      fetchFn,
+    });
+
+    const [url, init] = fetchFn.mock.calls[0];
+    expect(String(url)).toContain("/api/v1/responses");
+    const sent = JSON.parse(init.body as string);
+    // Roles and order, not exact text: the system prompt carries the internal
+    // first-party flow marker that every portal call gets.
+    expect(sent.input.map((m: { role: string }) => m.role), "Responses takes `input`, not `messages`").toEqual([
+      "system",
+      "user",
+    ]);
+    expect(sent.input[0].content).toContain("system");
+    expect(sent.input[1].content).toBe("user");
+    expect(sent.messages).toBeUndefined();
+    expect(sent.reasoning).toEqual({ effort: "medium" });
+    expect(out).toEqual({ ok: true });
+  });
+
+  it("does not send response_format on this transport", async () => {
+    // The Responses API spells structured output differently (`text.format`) and
+    // that is unverified against the portal — sending the chat field would be a
+    // guess. Parsing leans on the strict-JSON prompt + extractJsonCandidate,
+    // exactly as it already does for every response_format-rejecting model.
+    const fetchFn = vi.fn().mockResolvedValue(mockResponsesBody('{"ok":true}'));
+    await callPortalJsonCompletion({ ...baseArgs, transport: "responses", fetchFn });
+    const sent = JSON.parse(fetchFn.mock.calls[0][1].body as string);
+    expect(sent.response_format).toBeUndefined();
+    expect(sent.text).toBeUndefined();
+  });
+
+  it("reads text past a leading reasoning item", async () => {
+    // THE bug this walk exists to prevent. `output` interleaves reasoning and
+    // message items; taking output[0] returns the reasoning entry, which carries
+    // no text — so a reasoning model would report an empty completion and burn
+    // all three retries on exactly the calls this transport was built for.
+    const fetchFn = vi
+      .fn()
+      .mockResolvedValue(mockResponsesBody('{"facts":[1]}', { withReasoningItem: true }));
+    const out = await callPortalJsonCompletion({
+      ...baseArgs,
+      transport: "responses",
+      reasoning: { effort: "low" },
+      fetchFn,
+    });
+    expect(out).toEqual({ facts: [1] });
+    expect(fetchFn).toHaveBeenCalledTimes(1);
+  });
+
+  it("prefers output_text when the portal provides it", async () => {
+    const fetchFn = vi
+      .fn()
+      .mockResolvedValue(mockResponsesBody('{"ok":1}', { outputText: true }));
+    expect(
+      await callPortalJsonCompletion({ ...baseArgs, transport: "responses", fetchFn })
+    ).toEqual({ ok: 1 });
+  });
+
+  it("defaults to the chat transport and leaves it byte-identical", async () => {
+    // Every existing caller must be unaffected by the branch.
+    const fetchFn = vi.fn().mockResolvedValue(mockResponse('{"ok":true}'));
+    await callPortalJsonCompletion({ ...baseArgs, model: "openai/gpt-5-mini", fetchFn });
+    const [url, init] = fetchFn.mock.calls[0];
+    expect(String(url)).toContain("/api/v1/chat/completions");
+    const sent = JSON.parse(init.body as string);
+    expect(sent.messages).toHaveLength(2);
+    expect(sent.input).toBeUndefined();
+    expect(sent.response_format).toEqual({ type: "json_object" });
+  });
+
+  it("still honours an endpointOverride on the responses transport", async () => {
+    const fetchFn = vi.fn().mockResolvedValue(mockResponsesBody('{"ok":true}'));
+    await callPortalJsonCompletion({
+      ...baseArgs,
+      transport: "responses",
+      endpointOverride: "/api/v1/utility/responses",
+      fetchFn,
+    });
+    expect(String(fetchFn.mock.calls[0][0])).toContain("/api/v1/utility/responses");
+  });
+
+  it("retries an empty responses answer rather than accepting it", async () => {
+    // An `output` array with no message text is a real empty answer from this
+    // transport, so it must reach the empty-completion retry — not fall through
+    // to the chat parse and surface as a wrong-shape null.
+    const empty = () =>
+      new Response(JSON.stringify({ output: [{ id: "rs_1", type: "reasoning" }] }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    const fetchFn = vi
+      .fn()
+      .mockResolvedValueOnce(empty())
+      .mockResolvedValue(mockResponsesBody('{"ok":true}'));
+    const out = await callPortalJsonCompletion({
+      ...baseArgs,
+      transport: "responses",
+      fetchFn,
+      backoffMs: () => 1,
+    });
+    expect(out).toEqual({ ok: true });
+    expect(fetchFn).toHaveBeenCalledTimes(2);
+  });
+});
