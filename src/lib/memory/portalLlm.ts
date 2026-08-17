@@ -227,7 +227,23 @@ export interface PortalLlmFailure {
 // export nothing imports. Widen to `export` when the first lane switches.
 type PortalLlmTransport = "chat" | "responses";
 
-interface PortalLlmRequest extends PortalLlmAuth {
+/**
+ * Reasoning is `"responses"`-only, and the TYPE enforces that rather than a
+ * paragraph asking nicely.
+ *
+ * On `"chat"` the portal rewrites any effort to `"none"`, so accepting the field
+ * there would hand a caller the exact outcome this transport exists to prevent:
+ * they believe they asked for reasoning, everything returns 200, nothing logs,
+ * and the only symptom is the eval numbers being quietly worse. The first draft
+ * of this file "silently ignored" it on chat and documented that in prose —
+ * which is the same bug wearing a comment. A compile error costs one line at the
+ * call site (flip both fields together) and cannot be misread.
+ */
+type PortalLlmTransportOptions =
+  | { transport?: "chat"; reasoning?: never }
+  | { transport: "responses"; reasoning?: { effort: "low" | "medium" | "high" } };
+
+interface PortalLlmRequestBase extends PortalLlmAuth {
   baseUrl?: string;
   model: string;
   systemPrompt: string;
@@ -236,17 +252,6 @@ interface PortalLlmRequest extends PortalLlmAuth {
    * Transport for this call. Default `"chat"` — every existing caller keeps
    * the chat-completions shape and endpoint unchanged.
    */
-  transport?: PortalLlmTransport;
-  /**
-   * Reasoning effort, `"responses"` transport ONLY.
-   *
-   * Deliberately not plumbed for `"chat"`: the portal would rewrite it to
-   * `"none"` (see {@link PortalLlmTransport}), so accepting it there would let a
-   * caller believe they had asked for reasoning and get none. Silently ignored
-   * on the chat transport rather than thrown on, so a caller can set it once and
-   * switch transports without a crash — but the type doc is the contract.
-   */
-  reasoning?: { effort: "low" | "medium" | "high" };
   /** Tag prefix for log lines, e.g. `"memory/extract"`. */
   tag: string;
   /** Per-request timeout. Covers fetch headers AND body read. Default
@@ -334,6 +339,65 @@ interface PortalLlmRequest extends PortalLlmAuth {
  * line; they are deliberately separate, because `reason` interpolates status
  * codes and error messages and so can't be grouped by.
  */
+type PortalLlmRequest = PortalLlmRequestBase & PortalLlmTransportOptions;
+
+/**
+ * Chat-completions field names that the Responses API spells differently, mapped
+ * to their Responses equivalents.
+ *
+ * `extra` is a passthrough and every value in it today is written in
+ * chat-completions spelling, because until now that was the only transport. The
+ * one that matters is the output cap: `topicExtract` passes
+ * `max_completion_tokens: 8192` and is the first lane pointed at this transport.
+ * The Responses API reads `max_output_tokens` (see
+ * chat/useChat/strategies/responses.ts) — so spreading `extra` verbatim would
+ * post a field the endpoint ignores, silently drop the cap back to the portal's
+ * 4096 default, and reproduce exactly the truncate-mid-JSON-and-lose-the-batch
+ * failure that topicExtract's own comment was written about. Silently, because a
+ * typed Go `ResponseRequest` discards the unknown field rather than 400ing.
+ *
+ * Translating beats documenting "respell it yourself": the caller's intent is
+ * unambiguous, and the failure mode of forgetting is invisible.
+ */
+const CHAT_TO_RESPONSES_FIELDS: Record<string, string> = {
+  max_completion_tokens: "max_output_tokens",
+};
+
+/**
+ * Re-spell caller `extra` for the Responses transport. Known chat-only fields
+ * are translated; everything else passes through untouched, so this cannot
+ * become a silent allowlist that swallows a field a caller needs.
+ */
+function responsesExtra(extra: Record<string, unknown> | undefined): Record<string, unknown> {
+  if (!extra) return {};
+  const out: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(extra)) {
+    out[CHAT_TO_RESPONSES_FIELDS[key] ?? key] = value;
+  }
+  return out;
+}
+
+/** Terminal path segment a transport's endpoint must end with. */
+const TRANSPORT_ENDPOINT_SUFFIX: Record<PortalLlmTransport, string> = {
+  chat: "/chat/completions",
+  responses: "/responses",
+};
+
+/**
+ * Throw when an `endpointOverride` contradicts the transport. Body shape and
+ * path are chosen independently and only one of them is visible to the person
+ * flipping a lane — see the call site for why that asymmetry is the whole point.
+ */
+function assertTransportMatchesEndpoint(transport: PortalLlmTransport, endpoint: string): void {
+  const expected = TRANSPORT_ENDPOINT_SUFFIX[transport];
+  if (endpoint.endsWith(expected)) return;
+  throw new Error(
+    `endpointOverride "${endpoint}" does not match transport "${transport}" ` +
+      `(expected a path ending in "${expected}"). The request body is built for ` +
+      `the transport, so a mismatched path sends the wrong shape and 400s without retry.`
+  );
+}
+
 type AttemptOutcome =
   | { kind: "ok"; value: unknown }
   | {
@@ -429,6 +493,19 @@ export async function callPortalJsonCompletion(req: PortalLlmRequest): Promise<u
       throw new Error(overrideValidation.message);
     }
     endpoint = overrideValidation.endpoint;
+    // The override and the transport have to agree, and nothing else checks.
+    // `endpointOverride` wins outright, so `transport: "responses"` plus a chat
+    // path POSTs an `input`-shaped body at /chat/completions — which the portal
+    // accepts at the edge (ChatCompletionRequest.Validate only checks the model
+    // string) and the provider then 400s. That is classified http-terminal, so
+    // it does not even retry: one hard null, no signal.
+    //
+    // NOT hypothetical. The override exists so apps can route background work to
+    // /api/v1/utility/chat/completions, and the APP sets it (ai-memoryless-client
+    // #5536) — so whoever flips a lane to "responses" in this repo cannot see the
+    // stale path. Throw for the same reason an invalid override throws: a caller
+    // bug must not be laundered into the null-on-failure path.
+    assertTransportMatchesEndpoint(req.transport ?? "chat", endpoint);
   }
   const maxAttempts = Math.max(1, req.maxAttempts ?? 3);
   const startedAt = Date.now();
@@ -589,10 +666,16 @@ async function attemptPortalJson(req: PortalLlmRequest, endpoint: string): Promi
     req.transport === "responses"
       ? {
           model: req.model,
-          // Same system+user pair, under the Responses-API field name. The
-          // prefill entry the Anthropic path appends above is chat-only and is
-          // deliberately not carried here: Anthropic goes through `"chat"`.
-          input: messages,
+          // Same system+user pair under the Responses-API field name, MINUS the
+          // Anthropic prefill. `messages` already has it pushed on (above), and
+          // an earlier version of this comment claimed the prefill "is
+          // deliberately not carried here" while handing over the very array
+          // that carried it — the comment was wrong, not the code. Slice it off
+          // so the statement is true: a trailing assistant `{` is a
+          // chat-completions trick, and `looksLikeContinuation` on the response
+          // side keys off the MODEL, not the transport, so leaving it on would
+          // arm a prefill-restore on a path with no prefill semantics.
+          input: prefill ? messages.slice(0, -1) : messages,
           ...(req.reasoning && { reasoning: req.reasoning }),
           // NO response_format. The Responses API spells structured output
           // differently (`text.format`), and it is unverified against this
@@ -602,7 +685,7 @@ async function attemptPortalJson(req: PortalLlmRequest, endpoint: string): Promi
           // luna returns clean parseable JSON here without it. Add the field
           // only with a per-provider check, exactly as RESPONSE_FORMAT_OK was
           // earned.
-          ...req.extra,
+          ...responsesExtra(req.extra),
         }
       : {
           model: req.model,
@@ -610,9 +693,11 @@ async function attemptPortalJson(req: PortalLlmRequest, endpoint: string): Promi
           ...(supportsJsonObjectFormat && { response_format: { type: "json_object" } }),
           ...req.extra,
         };
-  // Chat only: the gate has final say over `extra`, so a model that 400s on
-  // response_format can never receive it, not even through an override.
-  if (req.transport !== "responses" && !supportsJsonObjectFormat) {
+  // The gate has final say over `extra` on BOTH transports — the comment above
+  // promises the responses branch never sends response_format, and a promise the
+  // code does not keep is how the next reader gets it wrong. Chat drops it for
+  // models that 400 on it; responses drops it unconditionally.
+  if (req.transport === "responses" || !supportsJsonObjectFormat) {
     delete requestBody.response_format;
   }
 
