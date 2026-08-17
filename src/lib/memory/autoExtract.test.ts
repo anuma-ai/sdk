@@ -1785,3 +1785,31 @@ describe("extractAndRetain — Tier-0 injection screening (PR3)", () => {
     );
   });
 });
+
+describe("extractFacts output budget", () => {
+  it("asks for an explicit max_completion_tokens", async () => {
+    // Regression guard for the truncation bug: sending NOTHING is not "no cap".
+    // The portal forwards its own 4096 default when the field is absent, and
+    // gpt-oss-120b emits up to 4,096 tokens on this prompt — landing exactly on
+    // that ceiling, returning truncated JSON, and retaining nothing. The turn
+    // then burns three retries producing the same truncation.
+    const fetchFn = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ choices: [{ message: { content: '{"candidates":[]}' } }] }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      })
+    );
+
+    await extractFacts([{ id: "m1", role: "user", content: "I live in Portland" }], {
+      apiKey: "k",
+      fetchFn: fetchFn as unknown as typeof fetch,
+    });
+
+    const body = JSON.parse(fetchFn.mock.calls[0][1].body as string);
+    expect(
+      body.max_completion_tokens,
+      "must use max_completion_tokens — the portal ignores the deprecated max_tokens"
+    ).toBe(8192);
+    expect(body.max_tokens, "the deprecated field is silently dropped").toBeUndefined();
+  });
+});

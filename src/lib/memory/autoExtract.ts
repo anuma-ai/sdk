@@ -81,6 +81,37 @@ async function isMemoryTopicsUserManaged(
 // Exported so the standalone topic-extraction pass (topicExtract.ts) uses the
 // same sanctioned model — do NOT introduce a second extraction model constant.
 export const DEFAULT_EXTRACTION_MODEL = "gpt-oss/gpt-oss-120b";
+
+/**
+ * Output-token ceiling for one extraction response, sent as the modern
+ * `max_completion_tokens` field (the portal reads only that — see topicExtract's
+ * copy of this note for what happens to the deprecated `max_tokens`).
+ *
+ * SENDING NOTHING IS NOT "NO CAP". That was the bug. The portal supplies its own
+ * default when the request omits the field, and with per-step metering enabled
+ * (on in dev and prod) that default is FORWARDED upstream as the real ceiling:
+ * `perStepDefaultMaxOutputTokens` = 4096, in ai-portal's budget_controller.go.
+ * So the comment above — "callers must NOT impose a small cap" — was satisfied
+ * to the letter and violated in effect: we imposed 4096 by saying nothing.
+ *
+ * 4096 is not enough for this prompt. Measured 2026-08-16 against the real
+ * extraction call, gpt-oss-120b emits 2,938–4,096 completion tokens, most of it
+ * unshown reasoning, and lands exactly on the ceiling — `finish_reason=length`,
+ * truncated JSON, nothing retained, three retries. In production it is the
+ * fleet's third-worst truncator at 26.8% `finish_reason=length` over 7d, and
+ * that rate is essentially tier-independent because this default applies to
+ * everyone, not just the basic-tier clamp.
+ *
+ * 8192 matches what topicExtract already asks for (it hit this same wall first)
+ * and leaves real headroom over the ~4k the reasoning pass actually needs.
+ *
+ * STILL NOT A GUARANTEE: the portal clamps basic/free-tier callers down to
+ * `UtilityBasicTierMaxOutputTokens` on `/api/v1/utility/*` and to
+ * `BasicTierMaxOutputTokens` (1024) elsewhere, and a value above the applicable
+ * cap is clamped rather than honored. Free-tier extraction therefore needs the
+ * portal-side ceiling raised to match this number, or it stays truncated.
+ */
+const MAX_COMPLETION_TOKENS = 8192;
 const DEFAULT_MIN_CONFIDENCE = 0.7;
 const MAX_CONTENT_LENGTH = 200;
 // Floor to drop empty-ish fragments that survive the non-empty check but carry
@@ -420,6 +451,9 @@ export async function extractFacts(
     systemPrompt: SYSTEM_PROMPT,
     userMessage: `Today's date is ${today}. Resolve any relative dates ("yesterday", "next week") against it.\n\nRecent conversation:\n${transcript}\n\nExtract durable user facts.`,
     tag: "memory/extract",
+    // Ask for the output budget this prompt actually needs. Omitting it does
+    // not mean "unbounded" — see MAX_COMPLETION_TOKENS.
+    extra: { max_completion_tokens: MAX_COMPLETION_TOKENS },
     ...(options.fetchFn && { fetchFn: options.fetchFn }),
     ...(options.maxAttempts !== undefined && { maxAttempts: options.maxAttempts }),
     ...(options.timeoutMs !== undefined && { timeoutMs: options.timeoutMs }),
