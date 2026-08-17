@@ -2,7 +2,7 @@
 
 > **postInternalEmbeddings**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`PostInternalEmbeddingsData`](../type-aliases/PostInternalEmbeddingsData.md), `ThrowOnError`>): `RequestResult`<[`PostInternalEmbeddingsResponses`](../type-aliases/PostInternalEmbeddingsResponses.md), [`PostInternalEmbeddingsErrors`](../type-aliases/PostInternalEmbeddingsErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:1707](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1707)
+Defined in: [src/client/sdk.gen.ts:1714](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1714)
 
 Create embeddings (internal)
 

@@ -2,7 +2,7 @@
 
 > **getApiV1AdminPhoneHashesAudit**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`GetApiV1AdminPhoneHashesAuditData`](../type-aliases/GetApiV1AdminPhoneHashesAuditData.md), `ThrowOnError`>): `RequestResult`<[`GetApiV1AdminPhoneHashesAuditResponses`](../type-aliases/GetApiV1AdminPhoneHashesAuditResponses.md), [`GetApiV1AdminPhoneHashesAuditErrors`](../type-aliases/GetApiV1AdminPhoneHashesAuditErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:394](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#394)
+Defined in: [src/client/sdk.gen.ts:401](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#401)
 
 Audit phone-hash coverage
 

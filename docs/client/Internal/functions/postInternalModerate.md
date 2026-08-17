@@ -2,7 +2,7 @@
 
 > **postInternalModerate**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`PostInternalModerateData`](../type-aliases/PostInternalModerateData.md), `ThrowOnError`>): `RequestResult`<[`PostInternalModerateResponses`](../type-aliases/PostInternalModerateResponses.md), [`PostInternalModerateErrors`](../type-aliases/PostInternalModerateErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:1735](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1735)
+Defined in: [src/client/sdk.gen.ts:1742](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1742)
 
 Moderate content (internal)
 

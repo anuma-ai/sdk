@@ -2,7 +2,7 @@
 
 > **HandlersUserAgentPreferencesListResponse** = `object`
 
-Defined in: [src/client/types.gen.ts:3376](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3376)
+Defined in: [src/client/types.gen.ts:3491](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3491)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:3376](https://github.com/anuma-ai/sdk/blob/
 
 > **preferences**: [`HandlersUserAgentPreferenceResponse`](HandlersUserAgentPreferenceResponse.md)\[]
 
-Defined in: [src/client/types.gen.ts:3380](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3380)
+Defined in: [src/client/types.gen.ts:3495](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3495)
 
 Preferences is the list of user agent preferences.

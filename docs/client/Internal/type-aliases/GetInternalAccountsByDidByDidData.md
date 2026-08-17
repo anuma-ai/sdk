@@ -2,7 +2,7 @@
 
 > **GetInternalAccountsByDidByDidData** = `object`
 
-Defined in: [src/client/types.gen.ts:11443](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11443)
+Defined in: [src/client/types.gen.ts:11596](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11596)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:11443](https://github.com/anuma-ai/sdk/blob
 
 > `optional` **body**: `never`
 
-Defined in: [src/client/types.gen.ts:11444](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11444)
+Defined in: [src/client/types.gen.ts:11597](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11597)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:11444](https://github.com/anuma-ai/sdk/blob
 
 > **path**: `object`
 
-Defined in: [src/client/types.gen.ts:11445](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11445)
+Defined in: [src/client/types.gen.ts:11598](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11598)
 
 **did**
 
@@ -32,7 +32,7 @@ Privy DID (did:privy:<id>)
 
 > `optional` **query**: `never`
 
-Defined in: [src/client/types.gen.ts:11451](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11451)
+Defined in: [src/client/types.gen.ts:11604](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11604)
 
 ***
 
@@ -40,4 +40,4 @@ Defined in: [src/client/types.gen.ts:11451](https://github.com/anuma-ai/sdk/blob
 
 > **url**: `"/internal/accounts/by-did/{did}"`
 
-Defined in: [src/client/types.gen.ts:11452](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11452)
+Defined in: [src/client/types.gen.ts:11605](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11605)

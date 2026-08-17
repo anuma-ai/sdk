@@ -2,7 +2,7 @@
 
 > **getApiV1AdminPrivyIdentifiersAudit**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`GetApiV1AdminPrivyIdentifiersAuditData`](../type-aliases/GetApiV1AdminPrivyIdentifiersAuditData.md), `ThrowOnError`>): `RequestResult`<[`GetApiV1AdminPrivyIdentifiersAuditResponses`](../type-aliases/GetApiV1AdminPrivyIdentifiersAuditResponses.md), [`GetApiV1AdminPrivyIdentifiersAuditErrors`](../type-aliases/GetApiV1AdminPrivyIdentifiersAuditErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:422](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#422)
+Defined in: [src/client/sdk.gen.ts:429](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#429)
 
 Audit Privy wallet identifiers
 

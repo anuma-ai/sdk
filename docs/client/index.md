@@ -102,6 +102,11 @@
 | [DeleteApiV1WalletsBindingByAddressErrors](Internal/type-aliases/DeleteApiV1WalletsBindingByAddressErrors.md) | - |
 | [DeleteApiV1WalletsBindingByAddressResponse](Internal/type-aliases/DeleteApiV1WalletsBindingByAddressResponse.md) | - |
 | [DeleteApiV1WalletsBindingByAddressResponses](Internal/type-aliases/DeleteApiV1WalletsBindingByAddressResponses.md) | - |
+| [GetAdminReferralGrantsStatsData](Internal/type-aliases/GetAdminReferralGrantsStatsData.md) | - |
+| [GetAdminReferralGrantsStatsError](Internal/type-aliases/GetAdminReferralGrantsStatsError.md) | - |
+| [GetAdminReferralGrantsStatsErrors](Internal/type-aliases/GetAdminReferralGrantsStatsErrors.md) | - |
+| [GetAdminReferralGrantsStatsResponse](Internal/type-aliases/GetAdminReferralGrantsStatsResponse.md) | - |
+| [GetAdminReferralGrantsStatsResponses](Internal/type-aliases/GetAdminReferralGrantsStatsResponses.md) | - |
 | [GetApiV1AdminAppsByAppIdApiKeysByIdData](Internal/type-aliases/GetApiV1AdminAppsByAppIdApiKeysByIdData.md) | - |
 | [GetApiV1AdminAppsByAppIdApiKeysByIdError](Internal/type-aliases/GetApiV1AdminAppsByAppIdApiKeysByIdError.md) | - |
 | [GetApiV1AdminAppsByAppIdApiKeysByIdErrors](Internal/type-aliases/GetApiV1AdminAppsByAppIdApiKeysByIdErrors.md) | - |
@@ -523,6 +528,9 @@
 | [HandlersModelUsageItem](Internal/type-aliases/HandlersModelUsageItem.md) | - |
 | [HandlersModerateRequest](Internal/type-aliases/HandlersModerateRequest.md) | - |
 | [HandlersModerateResponse](Internal/type-aliases/HandlersModerateResponse.md) | - |
+| [HandlersNearbyActivationGrantResponse](Internal/type-aliases/HandlersNearbyActivationGrantResponse.md) | - |
+| [HandlersNearbyActivationRequest](Internal/type-aliases/HandlersNearbyActivationRequest.md) | - |
+| [HandlersNearbyActivationResponse](Internal/type-aliases/HandlersNearbyActivationResponse.md) | - |
 | [HandlersNearbyModerateRequest](Internal/type-aliases/HandlersNearbyModerateRequest.md) | - |
 | [HandlersNonceResponse](Internal/type-aliases/HandlersNonceResponse.md) | - |
 | [HandlersNotificationDeviceResponse](Internal/type-aliases/HandlersNotificationDeviceResponse.md) | - |
@@ -555,6 +563,8 @@
 | [HandlersRedeemTokensResponse](Internal/type-aliases/HandlersRedeemTokensResponse.md) | - |
 | [HandlersReferralClaimRequest](Internal/type-aliases/HandlersReferralClaimRequest.md) | - |
 | [HandlersReferralClaimResponse](Internal/type-aliases/HandlersReferralClaimResponse.md) | - |
+| [HandlersReferralGrantReferrerStatResponse](Internal/type-aliases/HandlersReferralGrantReferrerStatResponse.md) | - |
+| [HandlersReferralGrantStatsResponse](Internal/type-aliases/HandlersReferralGrantStatsResponse.md) | - |
 | [HandlersReferralIdentityResponse](Internal/type-aliases/HandlersReferralIdentityResponse.md) | - |
 | [HandlersReferralInviteRequest](Internal/type-aliases/HandlersReferralInviteRequest.md) | - |
 | [HandlersReferralInviteResponse](Internal/type-aliases/HandlersReferralInviteResponse.md) | - |
@@ -1167,6 +1177,11 @@
 | [PostInternalModerateErrors](Internal/type-aliases/PostInternalModerateErrors.md) | - |
 | [PostInternalModerateResponse](Internal/type-aliases/PostInternalModerateResponse.md) | - |
 | [PostInternalModerateResponses](Internal/type-aliases/PostInternalModerateResponses.md) | - |
+| [PostInternalNearbyActivationsData](Internal/type-aliases/PostInternalNearbyActivationsData.md) | - |
+| [PostInternalNearbyActivationsError](Internal/type-aliases/PostInternalNearbyActivationsError.md) | - |
+| [PostInternalNearbyActivationsErrors](Internal/type-aliases/PostInternalNearbyActivationsErrors.md) | - |
+| [PostInternalNearbyActivationsResponse](Internal/type-aliases/PostInternalNearbyActivationsResponse.md) | - |
+| [PostInternalNearbyActivationsResponses](Internal/type-aliases/PostInternalNearbyActivationsResponses.md) | - |
 | [PostInternalPrefineryClaimTokensData](Internal/type-aliases/PostInternalPrefineryClaimTokensData.md) | - |
 | [PostInternalPrefineryClaimTokensError](Internal/type-aliases/PostInternalPrefineryClaimTokensError.md) | - |
 | [PostInternalPrefineryClaimTokensErrors](Internal/type-aliases/PostInternalPrefineryClaimTokensErrors.md) | - |
@@ -1297,6 +1312,7 @@
 | [deleteApiV1UserApiKeysByKeyId](Internal/functions/deleteApiV1UserApiKeysByKeyId.md) | Delete user API key |
 | [deleteApiV1UserOauthGrantsById](Internal/functions/deleteApiV1UserOauthGrantsById.md) | Revoke OAuth grant |
 | [deleteApiV1WalletsBindingByAddress](Internal/functions/deleteApiV1WalletsBindingByAddress.md) | Unbind a wallet |
+| [getAdminReferralGrantsStats](Internal/functions/getAdminReferralGrantsStats.md) | Referral grant abuse statistics |
 | [getApiV1AdminApps](Internal/functions/getApiV1AdminApps.md) | List all apps |
 | [getApiV1AdminAppsByAppIdApiKeys](Internal/functions/getApiV1AdminAppsByAppIdApiKeys.md) | List API keys for an app |
 | [getApiV1AdminAppsByAppIdApiKeysById](Internal/functions/getApiV1AdminAppsByAppIdApiKeysById.md) | Get API key by ID |
@@ -1447,6 +1463,7 @@
 | [postInternalEmbeddings](Internal/functions/postInternalEmbeddings.md) | Create embeddings (internal) |
 | [postInternalExtractPhotoFacts](Internal/functions/postInternalExtractPhotoFacts.md) | Extract user facts from a photo (internal) |
 | [postInternalModerate](Internal/functions/postInternalModerate.md) | Moderate content (internal) |
+| [postInternalNearbyActivations](Internal/functions/postInternalNearbyActivations.md) | Record a People Nearby activation |
 | [postInternalPrefineryClaimTokens](Internal/functions/postInternalPrefineryClaimTokens.md) | Mint a waitlist claim token (internal) |
 | [postNearbyWaitlist](Internal/functions/postNearbyWaitlist.md) | Join the Prefinery waitlist |
 | [postOauthConsent](Internal/functions/postOauthConsent.md) | Process OAuth consent |

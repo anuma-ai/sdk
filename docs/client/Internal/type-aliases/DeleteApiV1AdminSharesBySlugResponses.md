@@ -2,7 +2,7 @@
 
 > **DeleteApiV1AdminSharesBySlugResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:6594](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6594)
+Defined in: [src/client/types.gen.ts:6747](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6747)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:6594](https://github.com/anuma-ai/sdk/blob/
 
 > **200**: `object`
 
-Defined in: [src/client/types.gen.ts:6598](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6598)
+Defined in: [src/client/types.gen.ts:6751](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6751)
 
 OK
 

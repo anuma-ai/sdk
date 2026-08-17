@@ -94,7 +94,9 @@ const MAX_COMPLETION_TOKENS = 8192;
  * Responses transport, sdk#915) scored 7/7 junk traps clean on 3/3 hand runs,
  * so a future consolidation onto one model is plausible; it just isn't measured.
  */
-export const DEFAULT_TOPIC_MODEL = "gpt-oss/gpt-oss-120b";
+// Not exported: only this module resolves it, and knip flags an export nothing
+// imports. Widen if a caller ever needs to name the topic model explicitly.
+const DEFAULT_TOPIC_MODEL = "gpt-oss/gpt-oss-120b";
 
 // NOTE: bump TOPICS_EXTRACTION_VERSION (db/memoryVault/operations.ts) whenever
 // this prompt or DEFAULT_TOPIC_MODEL changes, so the sweep re-extracts the
