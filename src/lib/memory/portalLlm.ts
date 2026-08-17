@@ -223,7 +223,9 @@ export interface PortalLlmFailure {
  * runs WITH reasoning, against 6/7 on 2 of 3 runs without it (and one of those
  * misses emitted an entity whose `name` was `undefined`).
  */
-export type PortalLlmTransport = "chat" | "responses";
+// Not exported: no caller selects a transport yet, and knip rightly flags an
+// export nothing imports. Widen to `export` when the first lane switches.
+type PortalLlmTransport = "chat" | "responses";
 
 interface PortalLlmRequest extends PortalLlmAuth {
   baseUrl?: string;
@@ -420,8 +422,7 @@ export async function callPortalJsonCompletion(req: PortalLlmRequest): Promise<u
   // an endpointOverride is validated here (root-relative, no off-origin) and an
   // invalid value throws immediately — a caller bug, not a transient batch
   // failure, so it must not be swallowed into the null-on-failure path.
-  let endpoint =
-    req.transport === "responses" ? "/api/v1/responses" : "/api/v1/chat/completions";
+  let endpoint = req.transport === "responses" ? "/api/v1/responses" : "/api/v1/chat/completions";
   if (req.endpointOverride !== undefined) {
     const overrideValidation = validateEndpointOverride(req.endpointOverride);
     if (!overrideValidation.valid) {
@@ -908,7 +909,7 @@ function extractResponsesContent(body: unknown): string | null {
   if (!Array.isArray(root.output)) return null;
   const text = root.output
     .filter((item): item is Record<string, unknown> => asRecord(item)?.type === "message")
-    .flatMap((item) => (Array.isArray(item.content) ? item.content : []))
+    .flatMap((item): unknown[] => (Array.isArray(item.content) ? (item.content as unknown[]) : []))
     .map((part) => asRecord(part)?.text)
     .filter((t): t is string => typeof t === "string")
     .join("");

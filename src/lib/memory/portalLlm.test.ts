@@ -854,10 +854,10 @@ describe("callPortalJsonCompletion — responses transport", () => {
     const sent = JSON.parse(init.body as string);
     // Roles and order, not exact text: the system prompt carries the internal
     // first-party flow marker that every portal call gets.
-    expect(sent.input.map((m: { role: string }) => m.role), "Responses takes `input`, not `messages`").toEqual([
-      "system",
-      "user",
-    ]);
+    expect(
+      sent.input.map((m: { role: string }) => m.role),
+      "Responses takes `input`, not `messages`"
+    ).toEqual(["system", "user"]);
     expect(sent.input[0].content).toContain("system");
     expect(sent.input[1].content).toBe("user");
     expect(sent.messages).toBeUndefined();
@@ -896,9 +896,7 @@ describe("callPortalJsonCompletion — responses transport", () => {
   });
 
   it("prefers output_text when the portal provides it", async () => {
-    const fetchFn = vi
-      .fn()
-      .mockResolvedValue(mockResponsesBody('{"ok":1}', { outputText: true }));
+    const fetchFn = vi.fn().mockResolvedValue(mockResponsesBody('{"ok":1}', { outputText: true }));
     expect(
       await callPortalJsonCompletion({ ...baseArgs, transport: "responses", fetchFn })
     ).toEqual({ ok: 1 });
