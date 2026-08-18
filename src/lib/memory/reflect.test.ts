@@ -323,6 +323,104 @@ describe("reflect", () => {
     expect(system.content).toContain("JSON Schema");
   });
 
+  describe("responses transport", () => {
+    const SCHEMA = { type: "object", properties: { name: { type: "string" } } };
+    const urlOf = (fetchFn: typeof fetch, index = 0) =>
+      (fetchFn as unknown as ReturnType<typeof vi.fn>).mock.calls[index][0] as string;
+
+    it("posts a Responses-API body to /api/v1/responses for a gpt-5.6 model", async () => {
+      oneMemory();
+      const fetchFn = mockFetchSequence([{ body: { output_text: '{"name":"Peter"}' } }]);
+
+      const result = await reflect("q", ctx, {
+        apiKey: "k",
+        fetchFn,
+        llmModel: "openai/gpt-5.6-luna",
+        responseSchema: SCHEMA,
+      });
+
+      expect(fetchFn).toHaveBeenCalledTimes(1);
+      expect(urlOf(fetchFn)).toContain("/api/v1/responses");
+      const body = sentBody(fetchFn, 0);
+      // Responses spelling only — the chat names are silently ignored there.
+      expect(body.input).toBeDefined();
+      expect(body.messages).toBeUndefined();
+      expect(body.max_completion_tokens).toBeUndefined();
+      expect(body.max_output_tokens).toBeDefined();
+      // The Responses API spells structured output differently, so the schema
+      // must ride in the prompt instead.
+      expect(body.response_format).toBeUndefined();
+      expect((body.input as Array<{ content: string }>)[0].content).toContain("JSON Schema");
+      expect(result.structuredOutput).toEqual({ name: "Peter" });
+    });
+
+    it("floors the output cap so reasoning tokens cannot eat the whole budget", async () => {
+      oneMemory();
+      const fetchFn = mockFetchSequence([{ body: { output_text: "{}" } }]);
+
+      await reflect("q", ctx, {
+        apiKey: "k",
+        fetchFn,
+        llmModel: "openai/gpt-5.6-luna",
+        maxTokens: 512,
+        responseSchema: SCHEMA,
+      });
+
+      expect(sentBody(fetchFn, 0).max_output_tokens).toBe(2048);
+    });
+
+    it("keeps a caller cap that already clears the floor", async () => {
+      oneMemory();
+      const fetchFn = mockFetchSequence([{ body: { output_text: "{}" } }]);
+
+      await reflect("q", ctx, {
+        apiKey: "k",
+        fetchFn,
+        llmModel: "openai/gpt-5.6-luna",
+        maxTokens: 8192,
+      });
+
+      expect(sentBody(fetchFn, 0).max_output_tokens).toBe(8192);
+    });
+
+    it("reads the answer out of output[] past the reasoning items", async () => {
+      oneMemory();
+      const fetchFn = mockFetchSequence([
+        {
+          body: {
+            output: [
+              { type: "reasoning", summary: [] },
+              { type: "message", content: [{ type: "output_text", text: "Mochi." }] },
+            ],
+            usage: { input_tokens: 11, output_tokens: 3 },
+          },
+        },
+      ]);
+
+      const result = await reflect("q", ctx, {
+        apiKey: "k",
+        fetchFn,
+        llmModel: "openai/gpt-5.6-luna",
+      });
+
+      expect(result.text).toBe("Mochi.");
+      // Responses spells usage input/output — reading only the chat names would
+      // report zeros for every call on this transport.
+      expect(result.usage.promptTokens).toBe(11);
+      expect(result.usage.completionTokens).toBe(3);
+    });
+
+    it("still uses chat/completions for a non-reasoning model", async () => {
+      oneMemory();
+      const fetchFn = mockFetchSequence([{ body: completionResponse("hi") }]);
+
+      await reflect("q", ctx, { apiKey: "k", fetchFn, llmModel: "openai/gpt-4o" });
+
+      expect(urlOf(fetchFn)).toContain("/api/v1/chat/completions");
+      expect(sentBody(fetchFn, 0).messages).toBeDefined();
+    });
+  });
+
   describe("json_schema rejection fallback", () => {
     const SCHEMA = { type: "object", properties: { name: { type: "string" } } };
     // An allowlisted provider whose model is NOT on the json_schema denylist,
@@ -496,23 +594,6 @@ describe("reflect", () => {
       } finally {
         vi.useRealTimers();
       }
-    });
-
-    it("never sends json_schema to a denylisted model, so there is nothing to retry", async () => {
-      oneMemory();
-      const fetchFn = mockFetchSequence([{ body: completionResponse("{}") }]);
-
-      await reflect("q", ctx, {
-        apiKey: "k",
-        fetchFn,
-        llmModel: "openai/gpt-5.6-luna",
-        responseSchema: SCHEMA,
-      });
-
-      expect(fetchFn).toHaveBeenCalledTimes(1);
-      const body = sentBody(fetchFn, 0);
-      expect(body.response_format).toBeUndefined();
-      expect(systemOf(body)).toContain("JSON Schema");
     });
   });
 

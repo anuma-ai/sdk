@@ -74,28 +74,6 @@ const RESPONSE_FORMAT_OK = new Set(["openai", "inclusionai", "deepseek"]);
 const RESPONSE_SCHEMA_OK = new Set(["openai"]);
 
 /**
- * Model segments that reject `json_schema` DESPITE their provider being in
- * {@link RESPONSE_SCHEMA_OK}.
- *
- * The allowlist above is keyed per PROVIDER, but acceptance is per MODEL — so a
- * provider-level "yes" can still be wrong for one of its models. `gpt-5.6-luna`
- * is the case that proved it: the portal answered every `json_schema` request
- * with "The upstream model provider rejected the request", which silently
- * emptied every profile-synthesis facet on People Nearby.
- *
- * Dropping the field is safe for exactly this model — the responses-transport
- * comment below already records it: "Verified end to end on dev: luna returns
- * clean parseable JSON here without it." Without the field, reflect() puts the
- * schema in the system prompt instead, which is the path every non-allowlisted
- * model already takes.
- *
- * This is prevention, not recovery: reflect() also falls back on a rejection,
- * so an unknown model still degrades gracefully. Listing a known-bad model here
- * just stops paying for the doomed first attempt.
- */
-const RESPONSE_SCHEMA_DENY = new Set(["gpt-5.6-luna"]);
-
-/**
  * Prepended as a second system message on a retry that follows a PARSE failure.
  *
  * Retrying a parse failure with a byte-identical request is the weakest recovery
@@ -140,15 +118,39 @@ export function supportsResponseFormat(
   model: string,
   variant: "json_object" | "json_schema" = "json_object"
 ): boolean {
-  const segments = model.split("/");
-  // The per-model denylist overrides the per-provider allowlist, never the
-  // other way round: a model known to reject the variant cannot be rescued by
-  // its provider being listed. json_object has no denied models today.
-  if (variant === "json_schema" && segments.some((seg) => RESPONSE_SCHEMA_DENY.has(seg))) {
-    return false;
-  }
   const allow = variant === "json_schema" ? RESPONSE_SCHEMA_OK : RESPONSE_FORMAT_OK;
-  return segments.some((seg) => allow.has(seg));
+  return model.split("/").some((seg) => allow.has(seg));
+}
+
+/**
+ * Model families that must be called on `/api/v1/responses`, never on
+ * `/api/v1/chat/completions`.
+ *
+ * The gpt-5.6 family is a reasoning family, and the chat-completions lane
+ * rejects it at the provider — observed as the portal's masked "The upstream
+ * model provider rejected the request" on a MINIMAL body (model + messages +
+ * max_completion_tokens, no `response_format` at all), which is what ruled the
+ * request shape out as the cause. The Responses transport is the one this SDK
+ * already verified against dev for `gpt-5.6-luna`; see
+ * {@link PortalLlmTransport} for the reasoning-effort half of the story.
+ *
+ * Matched on the model half of the id (`provider/model`), by PREFIX, because
+ * the family shares the `gpt-5.6-` stem across variants.
+ */
+const RESPONSES_ONLY_MODEL_PREFIXES = ["gpt-5.6"];
+
+/**
+ * Whether `model` must be called on the Responses transport.
+ *
+ * A caller that hand-rolls its own portal fetch (today: `reflect`) uses this to
+ * pick the endpoint and the body shape. {@link callPortalJsonCompletion} does
+ * NOT consult it — there the transport is an explicit request field, because
+ * that path also carries `reasoning`, which only one transport can represent.
+ */
+export function requiresResponsesTransport(model: string): boolean {
+  return model
+    .split("/")
+    .some((seg) => RESPONSES_ONLY_MODEL_PREFIXES.some((prefix) => seg.startsWith(prefix)));
 }
 
 /**
@@ -1038,7 +1040,14 @@ function logPortalUsage(body: unknown, tag: string): void {
   }
 }
 
-function extractCompletionContent(body: unknown): string | null {
+/**
+ * Pull assistant text out of EITHER transport's body, sniffing the shape.
+ *
+ * Exported so `reflect` — which hand-rolls its own fetch rather than going
+ * through {@link callPortalJsonCompletion} — parses Responses bodies exactly
+ * the way this module does, instead of growing a second, drifting copy.
+ */
+export function extractCompletionContent(body: unknown): string | null {
   if (typeof body !== "object" || body === null) return null;
 
   // Responses API first — its shape is unambiguous, and a body carrying

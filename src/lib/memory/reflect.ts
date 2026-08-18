@@ -22,8 +22,10 @@ import { BASE_URL } from "../../clientConfig.js";
 import { getLogger } from "../logger.js";
 import { type TaskType, taskTypeHeader } from "../taskType.js";
 import {
+  extractCompletionContent,
   extractJsonCandidate,
   type PortalLlmAuth,
+  requiresResponsesTransport,
   resolvePortalAuthHeaders,
   supportsResponseFormat,
 } from "./portalLlm.js";
@@ -45,6 +47,18 @@ const REQUEST_TIMEOUT_MS = 60_000;
  * a portal call and then aborts mid-flight.
  */
 const MIN_RETRY_BUDGET_MS = 2_000;
+
+/**
+ * Floor for the output cap on the Responses transport.
+ *
+ * That transport exists for reasoning models, and reasoning tokens are billed
+ * as OUTPUT — they come out of the same cap the answer does. A caller cap tuned
+ * for a chat model (profile synthesis passes 512) can be spent entirely on
+ * reasoning, which returns a 200 carrying no message text: a success that looks
+ * exactly like "the model had nothing to say". Raise the floor rather than
+ * rewrite every caller, and leave caps ABOVE the floor untouched.
+ */
+const MIN_RESPONSES_OUTPUT_TOKENS = 2_048;
 
 /**
  * Non-OK statuses where dropping `response_format` cannot be the fix, so the
@@ -214,7 +228,15 @@ export async function reflect(
   // (OpenAI structured outputs), not the broader json_object allowlist, so a
   // model that takes json_object but not json_schema falls back to the
   // prompt-instruction path instead of 400-ing.
-  const sendResponseFormat = wantsStructured && supportsResponseFormat(model, "json_schema");
+  // Some models are only reachable on the Responses transport — the chat lane
+  // rejects them at the provider, whatever the body looks like. That decides
+  // the endpoint AND the body shape below, and it forecloses `response_format`
+  // outright: the Responses API spells structured output differently
+  // (`text.format`) and this portal has never been verified on it, so a schema
+  // always rides in the system prompt there.
+  const useResponsesTransport = requiresResponsesTransport(model);
+  const sendResponseFormat =
+    wantsStructured && !useResponsesTransport && supportsResponseFormat(model, "json_schema");
   const basePrompt = options.systemPrompt ?? DEFAULT_SYSTEM_PROMPT;
   // The caller's extra instruction sits BETWEEN the question and the evidence:
   // the evidence block has to stay the last thing in the turn (it is a numbered
@@ -249,16 +271,28 @@ export async function reflect(
             options.responseSchema
           )}`
         : basePrompt;
+    const messages = [
+      { role: "system", content: systemPrompt },
+      { role: "user", content: userMessage },
+    ];
+    if (useResponsesTransport) {
+      return JSON.stringify({
+        model,
+        // Same system+user pair under the Responses-API field names: `input`
+        // for the turns, `max_output_tokens` for the cap. Sending the
+        // chat-completions spelling here is silently ignored, which caps the
+        // answer at the portal default.
+        input: messages,
+        max_output_tokens: Math.max(maxTokens, MIN_RESPONSES_OUTPUT_TOKENS),
+      });
+    }
     return JSON.stringify({
       model,
       // Modern OpenAI field; the portal reads only `max_completion_tokens`
       // (the deprecated `max_tokens` is silently ignored → falls back to the
       // portal's default output cap and truncates the answer).
       max_completion_tokens: maxTokens,
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userMessage },
-      ],
+      messages,
       ...(useResponseFormat && {
         response_format: {
           type: "json_schema",
@@ -284,13 +318,15 @@ export async function reflect(
   const deadline = Date.now() + REQUEST_TIMEOUT_MS;
   const remaining = () => Math.max(0, deadline - Date.now());
 
+  const endpoint = useResponsesTransport ? "/api/v1/responses" : "/api/v1/chat/completions";
+
   const sendOnce = async (useResponseFormat: boolean): Promise<ReflectAttempt> => {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), remaining());
 
     let response: Response;
     try {
-      response = await fetchImpl(`${baseUrl}/api/v1/chat/completions`, {
+      response = await fetchImpl(`${baseUrl}${endpoint}`, {
         method: "POST",
         // No task type unless the caller named one — an undeclared task adds no
         // header at all, which is what keeps user-facing reflect() unlabelled.
@@ -387,18 +423,23 @@ export async function reflect(
 function parseAnswer(body: unknown, base: ReflectResult, parseSchema: boolean): ReflectResult {
   if (typeof body !== "object" || body === null) return base;
   const obj = body as Record<string, unknown>;
-  const choices = obj.choices;
-  let text = "";
-  if (Array.isArray(choices) && choices.length > 0) {
-    const message = (choices[0] as Record<string, unknown>).message;
-    if (typeof message === "object" && message !== null) {
-      const content = (message as Record<string, unknown>).content;
-      if (typeof content === "string") text = content;
-    }
-  }
+  // Shape-sniffing, shared with the rest of the memory pipeline: a Responses
+  // body carries the answer in `output_text` / `output[]` (interleaved with
+  // `type: "reasoning"` items that hold no text), a chat body in
+  // `choices[0].message.content`.
+  const text = extractCompletionContent(obj) ?? "";
 
+  // The two transports spell usage differently — `prompt`/`completion` on chat,
+  // `input`/`output` on Responses. Reading only the chat names would report
+  // zeros for every Responses call and quietly break cost accounting.
   const usage = obj.usage as
-    | { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number }
+    | {
+        prompt_tokens?: number;
+        completion_tokens?: number;
+        total_tokens?: number;
+        input_tokens?: number;
+        output_tokens?: number;
+      }
     | undefined;
 
   let structuredOutput: unknown;
@@ -423,8 +464,8 @@ function parseAnswer(body: unknown, base: ReflectResult, parseSchema: boolean): 
     ...(structuredOutput !== undefined && { structuredOutput }),
     basedOn: base.basedOn,
     usage: {
-      promptTokens: usage?.prompt_tokens ?? 0,
-      completionTokens: usage?.completion_tokens ?? 0,
+      promptTokens: usage?.prompt_tokens ?? usage?.input_tokens ?? 0,
+      completionTokens: usage?.completion_tokens ?? usage?.output_tokens ?? 0,
       totalTokens: usage?.total_tokens ?? 0,
     },
   };
