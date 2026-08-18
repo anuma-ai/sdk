@@ -74,6 +74,28 @@ const RESPONSE_FORMAT_OK = new Set(["openai", "inclusionai", "deepseek"]);
 const RESPONSE_SCHEMA_OK = new Set(["openai"]);
 
 /**
+ * Model segments that reject `json_schema` DESPITE their provider being in
+ * {@link RESPONSE_SCHEMA_OK}.
+ *
+ * The allowlist above is keyed per PROVIDER, but acceptance is per MODEL — so a
+ * provider-level "yes" can still be wrong for one of its models. `gpt-5.6-luna`
+ * is the case that proved it: the portal answered every `json_schema` request
+ * with "The upstream model provider rejected the request", which silently
+ * emptied every profile-synthesis facet on People Nearby.
+ *
+ * Dropping the field is safe for exactly this model — the responses-transport
+ * comment below already records it: "Verified end to end on dev: luna returns
+ * clean parseable JSON here without it." Without the field, reflect() puts the
+ * schema in the system prompt instead, which is the path every non-allowlisted
+ * model already takes.
+ *
+ * This is prevention, not recovery: reflect() also falls back on a rejection,
+ * so an unknown model still degrades gracefully. Listing a known-bad model here
+ * just stops paying for the doomed first attempt.
+ */
+const RESPONSE_SCHEMA_DENY = new Set(["gpt-5.6-luna"]);
+
+/**
  * Prepended as a second system message on a retry that follows a PARSE failure.
  *
  * Retrying a parse failure with a byte-identical request is the weakest recovery
@@ -118,8 +140,15 @@ export function supportsResponseFormat(
   model: string,
   variant: "json_object" | "json_schema" = "json_object"
 ): boolean {
+  const segments = model.split("/");
+  // The per-model denylist overrides the per-provider allowlist, never the
+  // other way round: a model known to reject the variant cannot be rescued by
+  // its provider being listed. json_object has no denied models today.
+  if (variant === "json_schema" && segments.some((seg) => RESPONSE_SCHEMA_DENY.has(seg))) {
+    return false;
+  }
   const allow = variant === "json_schema" ? RESPONSE_SCHEMA_OK : RESPONSE_FORMAT_OK;
-  return model.split("/").some((seg) => allow.has(seg));
+  return segments.some((seg) => allow.has(seg));
 }
 
 /**
