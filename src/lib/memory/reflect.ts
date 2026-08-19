@@ -360,7 +360,10 @@ export async function reflect(
     // granting a new budget.
     const bodyTimer = setTimeout(() => controller.abort(), remaining());
     try {
-      const body = await response.json();
+      // Annotated, not inferred: `Response.json()` is typed `any`, and letting
+      // that flow into `ReflectAttempt` both trips no-unsafe-assignment and
+      // silently disarms the shape checks in `parseAnswer`.
+      const body: unknown = await response.json();
       clearTimeout(bodyTimer);
       return { kind: "ok", body };
     } catch (err) {
