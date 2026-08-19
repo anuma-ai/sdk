@@ -408,6 +408,9 @@ describe("reflect", () => {
       // report zeros for every call on this transport.
       expect(result.usage.promptTokens).toBe(11);
       expect(result.usage.completionTokens).toBe(3);
+      // Responses does not always send a total — deriving it keeps a real cost
+      // from being reported as zero spend.
+      expect(result.usage.totalTokens).toBe(14);
     });
 
     it("still uses chat/completions for a non-reasoning model", async () => {

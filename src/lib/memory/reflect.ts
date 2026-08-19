@@ -459,14 +459,20 @@ function parseAnswer(body: unknown, base: ReflectResult, parseSchema: boolean): 
     }
   }
 
+  const promptTokens = usage?.prompt_tokens ?? usage?.input_tokens ?? 0;
+  const completionTokens = usage?.completion_tokens ?? usage?.output_tokens ?? 0;
+
   return {
     text,
     ...(structuredOutput !== undefined && { structuredOutput }),
     basedOn: base.basedOn,
     usage: {
-      promptTokens: usage?.prompt_tokens ?? usage?.input_tokens ?? 0,
-      completionTokens: usage?.completion_tokens ?? usage?.output_tokens ?? 0,
-      totalTokens: usage?.total_tokens ?? 0,
+      promptTokens,
+      completionTokens,
+      // Derived when absent: the Responses API reports the two component counts
+      // and does not always send a total, which would otherwise report zero
+      // spend for a call that plainly cost something.
+      totalTokens: usage?.total_tokens ?? promptTokens + completionTokens,
     },
   };
 }
