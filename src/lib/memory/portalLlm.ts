@@ -123,6 +123,37 @@ export function supportsResponseFormat(
 }
 
 /**
+ * Model families that must be called on `/api/v1/responses`, never on
+ * `/api/v1/chat/completions`.
+ *
+ * The gpt-5.6 family is a reasoning family, and the chat-completions lane
+ * rejects it at the provider — observed as the portal's masked "The upstream
+ * model provider rejected the request" on a MINIMAL body (model + messages +
+ * max_completion_tokens, no `response_format` at all), which is what ruled the
+ * request shape out as the cause. The Responses transport is the one this SDK
+ * already verified against dev for `gpt-5.6-luna`; see
+ * {@link PortalLlmTransport} for the reasoning-effort half of the story.
+ *
+ * Matched on the model half of the id (`provider/model`), by PREFIX, because
+ * the family shares the `gpt-5.6-` stem across variants.
+ */
+const RESPONSES_ONLY_MODEL_PREFIXES = ["gpt-5.6"];
+
+/**
+ * Whether `model` must be called on the Responses transport.
+ *
+ * A caller that hand-rolls its own portal fetch (today: `reflect`) uses this to
+ * pick the endpoint and the body shape. {@link callPortalJsonCompletion} does
+ * NOT consult it — there the transport is an explicit request field, because
+ * that path also carries `reasoning`, which only one transport can represent.
+ */
+export function requiresResponsesTransport(model: string): boolean {
+  return model
+    .split("/")
+    .some((seg) => RESPONSES_ONLY_MODEL_PREFIXES.some((prefix) => seg.startsWith(prefix)));
+}
+
+/**
  * Auth for portal LLM calls (extraction, consolidation, decomposition,
  * reflection). Mirrors `memoryEngine`'s `EmbeddingOptions` dual-auth:
  *
@@ -1009,7 +1040,14 @@ function logPortalUsage(body: unknown, tag: string): void {
   }
 }
 
-function extractCompletionContent(body: unknown): string | null {
+/**
+ * Pull assistant text out of EITHER transport's body, sniffing the shape.
+ *
+ * Exported so `reflect` — which hand-rolls its own fetch rather than going
+ * through {@link callPortalJsonCompletion} — parses Responses bodies exactly
+ * the way this module does, instead of growing a second, drifting copy.
+ */
+export function extractCompletionContent(body: unknown): string | null {
   if (typeof body !== "object" || body === null) return null;
 
   // Responses API first — its shape is unambiguous, and a body carrying
