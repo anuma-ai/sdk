@@ -2,7 +2,7 @@
 
 > **LlmapiMessageContentFile** = `object`
 
-Defined in: [src/client/types.gen.ts:464](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#464)
+Defined in: [src/client/types.gen.ts:494](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#494)
 
 File is used when Type=input\_file (for Responses API)
 
@@ -12,7 +12,7 @@ File is used when Type=input\_file (for Responses API)
 
 > `optional` **file\_data**: `string`
 
-Defined in: [src/client/types.gen.ts:468](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#468)
+Defined in: [src/client/types.gen.ts:498](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#498)
 
 FileData is the base64-encoded file content
 
@@ -22,7 +22,7 @@ FileData is the base64-encoded file content
 
 > `optional` **file\_id**: `string`
 
-Defined in: [src/client/types.gen.ts:472](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#472)
+Defined in: [src/client/types.gen.ts:502](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#502)
 
 FileID is the ID of an uploaded file
 
@@ -32,7 +32,7 @@ FileID is the ID of an uploaded file
 
 > `optional` **file\_url**: `string`
 
-Defined in: [src/client/types.gen.ts:476](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#476)
+Defined in: [src/client/types.gen.ts:506](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#506)
 
 FileURL is the URL to the file
 
@@ -42,6 +42,6 @@ FileURL is the URL to the file
 
 > `optional` **filename**: `string`
 
-Defined in: [src/client/types.gen.ts:480](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#480)
+Defined in: [src/client/types.gen.ts:510](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#510)
 
 Filename is the name of the file

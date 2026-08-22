@@ -2,7 +2,7 @@
 
 > **HandlersScheduleDowngradeResponse** = `object`
 
-Defined in: [src/client/types.gen.ts:2926](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2926)
+Defined in: [src/client/types.gen.ts:3000](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3000)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:2926](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **current\_period\_end**: `number`
 
-Defined in: [src/client/types.gen.ts:2927](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2927)
+Defined in: [src/client/types.gen.ts:3001](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3001)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:2927](https://github.com/anuma-ai/sdk/blob/
 
 > **message**: `string`
 
-Defined in: [src/client/types.gen.ts:2928](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2928)
+Defined in: [src/client/types.gen.ts:3002](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3002)
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: [src/client/types.gen.ts:2928](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **scheduled\_interval**: `string`
 
-Defined in: [src/client/types.gen.ts:2932](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2932)
+Defined in: [src/client/types.gen.ts:3006](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3006)
 
 "month" or "year"
 
@@ -36,4 +36,4 @@ Defined in: [src/client/types.gen.ts:2932](https://github.com/anuma-ai/sdk/blob/
 
 > **scheduled\_plan**: `string`
 
-Defined in: [src/client/types.gen.ts:2933](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2933)
+Defined in: [src/client/types.gen.ts:3007](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3007)

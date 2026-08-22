@@ -2,7 +2,7 @@
 
 > **HandlersRefreshRequest** = `object`
 
-Defined in: [src/client/types.gen.ts:2891](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2891)
+Defined in: [src/client/types.gen.ts:2965](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2965)
 
 ## Properties
 
@@ -10,4 +10,4 @@ Defined in: [src/client/types.gen.ts:2891](https://github.com/anuma-ai/sdk/blob/
 
 > **refresh\_token**: `string`
 
-Defined in: [src/client/types.gen.ts:2892](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2892)
+Defined in: [src/client/types.gen.ts:2966](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2966)

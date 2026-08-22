@@ -2,7 +2,7 @@
 
 > **putApiV1NotificationsPreferences**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`PutApiV1NotificationsPreferencesData`](../type-aliases/PutApiV1NotificationsPreferencesData.md), `ThrowOnError`>): `RequestResult`<[`PutApiV1NotificationsPreferencesResponses`](../type-aliases/PutApiV1NotificationsPreferencesResponses.md), [`PutApiV1NotificationsPreferencesErrors`](../type-aliases/PutApiV1NotificationsPreferencesErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:1154](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1154)
+Defined in: [src/client/sdk.gen.ts:1168](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1168)
 
 Set notification preferences
 

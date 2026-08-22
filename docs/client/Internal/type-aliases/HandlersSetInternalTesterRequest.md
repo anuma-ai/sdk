@@ -2,7 +2,7 @@
 
 > **HandlersSetInternalTesterRequest** = `object`
 
-Defined in: [src/client/types.gen.ts:3032](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3032)
+Defined in: [src/client/types.gen.ts:3106](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3106)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:3032](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **grant**: `boolean`
 
-Defined in: [src/client/types.gen.ts:3033](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3033)
+Defined in: [src/client/types.gen.ts:3107](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3107)
 
 ***
 
@@ -18,4 +18,4 @@ Defined in: [src/client/types.gen.ts:3033](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **user\_address**: `string`
 
-Defined in: [src/client/types.gen.ts:3034](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3034)
+Defined in: [src/client/types.gen.ts:3108](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3108)

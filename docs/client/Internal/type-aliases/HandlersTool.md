@@ -2,7 +2,7 @@
 
 > **HandlersTool** = `object`
 
-Defined in: [src/client/types.gen.ts:3219](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3219)
+Defined in: [src/client/types.gen.ts:3293](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3293)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:3219](https://github.com/anuma-ai/sdk/blob/
 
 > **cost**: `number`
 
-Defined in: [src/client/types.gen.ts:3220](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3220)
+Defined in: [src/client/types.gen.ts:3294](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3294)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:3220](https://github.com/anuma-ai/sdk/blob/
 
 > **embedding**: `number`\[]
 
-Defined in: [src/client/types.gen.ts:3221](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3221)
+Defined in: [src/client/types.gen.ts:3295](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3295)
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: [src/client/types.gen.ts:3221](https://github.com/anuma-ai/sdk/blob/
 
 > **name**: `string`
 
-Defined in: [src/client/types.gen.ts:3222](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3222)
+Defined in: [src/client/types.gen.ts:3296](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3296)
 
 ***
 
@@ -34,4 +34,4 @@ Defined in: [src/client/types.gen.ts:3222](https://github.com/anuma-ai/sdk/blob/
 
 > **schema**: [`McpToolSchema`](McpToolSchema.md)
 
-Defined in: [src/client/types.gen.ts:3223](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3223)
+Defined in: [src/client/types.gen.ts:3297](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3297)

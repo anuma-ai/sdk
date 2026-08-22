@@ -2,7 +2,7 @@
 
 > **GetApiV1BootstrapResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:7632](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7632)
+Defined in: [src/client/types.gen.ts:7862](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7862)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:7632](https://github.com/anuma-ai/sdk/blob/
 
 > **200**: [`HandlersBootstrapResponse`](HandlersBootstrapResponse.md)
 
-Defined in: [src/client/types.gen.ts:7636](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7636)
+Defined in: [src/client/types.gen.ts:7866](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7866)
 
 OK

@@ -2,7 +2,7 @@
 
 > **GetApiV1SharesBySlugErrors** = `object`
 
-Defined in: [src/client/types.gen.ts:10153](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10153)
+Defined in: [src/client/types.gen.ts:10351](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10351)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:10153](https://github.com/anuma-ai/sdk/blob
 
 > **404**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:10157](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10157)
+Defined in: [src/client/types.gen.ts:10355](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10355)
 
 Not Found

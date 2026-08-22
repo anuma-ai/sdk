@@ -2,7 +2,7 @@
 
 > **HandlersDisableRequest** = `object`
 
-Defined in: [src/client/types.gen.ts:3712](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3712)
+Defined in: [src/client/types.gen.ts:3791](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3791)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:3712](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **code**: `string`
 
-Defined in: [src/client/types.gen.ts:3713](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3713)
+Defined in: [src/client/types.gen.ts:3792](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3792)
 
 ***
 
@@ -18,4 +18,4 @@ Defined in: [src/client/types.gen.ts:3713](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **method**: `string`
 
-Defined in: [src/client/types.gen.ts:3714](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3714)
+Defined in: [src/client/types.gen.ts:3793](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3793)

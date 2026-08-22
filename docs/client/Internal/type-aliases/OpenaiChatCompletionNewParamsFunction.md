@@ -2,7 +2,7 @@
 
 > **OpenaiChatCompletionNewParamsFunction** = `object`
 
-Defined in: [src/client/types.gen.ts:4286](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4286)
+Defined in: [src/client/types.gen.ts:4365](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4365)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:4286](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **any**: `unknown`
 
-Defined in: [src/client/types.gen.ts:4287](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4287)
+Defined in: [src/client/types.gen.ts:4366](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4366)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:4287](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **description**: [`ParamOptString`](ParamOptString.md)
 
-Defined in: [src/client/types.gen.ts:4288](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4288)
+Defined in: [src/client/types.gen.ts:4367](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4367)
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: [src/client/types.gen.ts:4288](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **name**: `string`
 
-Defined in: [src/client/types.gen.ts:4293](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4293)
+Defined in: [src/client/types.gen.ts:4372](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4372)
 
 The name of the function to be called. Must be a-z, A-Z, 0-9, or contain
 underscores and dashes, with a maximum length of 64.
@@ -37,4 +37,4 @@ underscores and dashes, with a maximum length of 64.
 
 > `optional` **parameters**: [`SharedFunctionParameters`](SharedFunctionParameters.md)
 
-Defined in: [src/client/types.gen.ts:4294](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4294)
+Defined in: [src/client/types.gen.ts:4373](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4373)

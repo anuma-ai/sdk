@@ -2,7 +2,7 @@
 
 > **LlmapiEmbeddingRequest** = `object`
 
-Defined in: [src/client/types.gen.ts:350](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#350)
+Defined in: [src/client/types.gen.ts:380](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#380)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:350](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **conversation\_id**: `string`
 
-Defined in: [src/client/types.gen.ts:355](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#355)
+Defined in: [src/client/types.gen.ts:385](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#385)
 
 ConversationID groups requests belonging to the same conversation for observability.
 Pass-through only — not forwarded to the LLM provider.
@@ -21,7 +21,7 @@ Pass-through only — not forwarded to the LLM provider.
 
 > `optional` **dimensions**: `number`
 
-Defined in: [src/client/types.gen.ts:359](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#359)
+Defined in: [src/client/types.gen.ts:389](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#389)
 
 Dimensions is the number of dimensions the resulting output embeddings should have (optional)
 
@@ -31,7 +31,7 @@ Dimensions is the number of dimensions the resulting output embeddings should ha
 
 > `optional` **encoding\_format**: `string`
 
-Defined in: [src/client/types.gen.ts:363](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#363)
+Defined in: [src/client/types.gen.ts:393](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#393)
 
 EncodingFormat is the format to return the embeddings in (optional: "float" or "base64")
 
@@ -41,7 +41,7 @@ EncodingFormat is the format to return the embeddings in (optional: "float" or "
 
 > **input**: `unknown`
 
-Defined in: [src/client/types.gen.ts:367](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#367)
+Defined in: [src/client/types.gen.ts:397](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#397)
 
 Input text or tokens to embed (can be string, \[]string, \[]int, or \[]\[]int)
 
@@ -51,6 +51,6 @@ Input text or tokens to embed (can be string, \[]string, \[]int, or \[]\[]int)
 
 > **model**: `string`
 
-Defined in: [src/client/types.gen.ts:371](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#371)
+Defined in: [src/client/types.gen.ts:401](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#401)
 
 Model identifier in 'provider/model' format

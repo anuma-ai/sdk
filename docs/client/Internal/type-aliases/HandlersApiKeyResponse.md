@@ -2,7 +2,7 @@
 
 > **HandlersApiKeyResponse** = `object`
 
-Defined in: [src/client/types.gen.ts:1100](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1100)
+Defined in: [src/client/types.gen.ts:1130](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1130)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:1100](https://github.com/anuma-ai/sdk/blob/
 
 > **app\_id**: `number`
 
-Defined in: [src/client/types.gen.ts:1101](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1101)
+Defined in: [src/client/types.gen.ts:1131](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1131)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:1101](https://github.com/anuma-ai/sdk/blob/
 
 > **created\_at**: `string`
 
-Defined in: [src/client/types.gen.ts:1102](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1102)
+Defined in: [src/client/types.gen.ts:1132](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1132)
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: [src/client/types.gen.ts:1102](https://github.com/anuma-ai/sdk/blob/
 
 > **has\_key**: `boolean`
 
-Defined in: [src/client/types.gen.ts:1106](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1106)
+Defined in: [src/client/types.gen.ts:1136](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1136)
 
 Indicates if key is set, but doesn't expose it
 
@@ -36,7 +36,7 @@ Indicates if key is set, but doesn't expose it
 
 > **id**: `number`
 
-Defined in: [src/client/types.gen.ts:1107](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1107)
+Defined in: [src/client/types.gen.ts:1137](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1137)
 
 ***
 
@@ -44,7 +44,7 @@ Defined in: [src/client/types.gen.ts:1107](https://github.com/anuma-ai/sdk/blob/
 
 > **is\_active**: `boolean`
 
-Defined in: [src/client/types.gen.ts:1108](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1108)
+Defined in: [src/client/types.gen.ts:1138](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1138)
 
 ***
 
@@ -52,7 +52,7 @@ Defined in: [src/client/types.gen.ts:1108](https://github.com/anuma-ai/sdk/blob/
 
 > **name**: `string`
 
-Defined in: [src/client/types.gen.ts:1109](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1109)
+Defined in: [src/client/types.gen.ts:1139](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1139)
 
 ***
 
@@ -60,7 +60,7 @@ Defined in: [src/client/types.gen.ts:1109](https://github.com/anuma-ai/sdk/blob/
 
 > **updated\_at**: `string`
 
-Defined in: [src/client/types.gen.ts:1110](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1110)
+Defined in: [src/client/types.gen.ts:1140](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1140)
 
 ***
 
@@ -68,7 +68,7 @@ Defined in: [src/client/types.gen.ts:1110](https://github.com/anuma-ai/sdk/blob/
 
 > **wallet\_address**: `string`
 
-Defined in: [src/client/types.gen.ts:1111](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1111)
+Defined in: [src/client/types.gen.ts:1141](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1141)
 
 ***
 
@@ -76,4 +76,4 @@ Defined in: [src/client/types.gen.ts:1111](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **wallet\_details**: [`HandlersWalletDetails`](HandlersWalletDetails.md)
 
-Defined in: [src/client/types.gen.ts:1112](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1112)
+Defined in: [src/client/types.gen.ts:1142](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1142)

@@ -2,7 +2,7 @@
 
 > **HandlersSuspendAccountRequest** = `object`
 
-Defined in: [src/client/types.gen.ts:3185](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3185)
+Defined in: [src/client/types.gen.ts:3259](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3259)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:3185](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **reason**: `string`
 
-Defined in: [src/client/types.gen.ts:3189](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3189)
+Defined in: [src/client/types.gen.ts:3263](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3263)
 
 Optional human-readable note stored on the account.
 
@@ -20,4 +20,4 @@ Optional human-readable note stored on the account.
 
 > `optional` **user\_address**: `string`
 
-Defined in: [src/client/types.gen.ts:3190](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3190)
+Defined in: [src/client/types.gen.ts:3264](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3264)

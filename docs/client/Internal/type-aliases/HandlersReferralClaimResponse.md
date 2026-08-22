@@ -2,7 +2,7 @@
 
 > **HandlersReferralClaimResponse** = `object`
 
-Defined in: [src/client/types.gen.ts:2792](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2792)
+Defined in: [src/client/types.gen.ts:2814](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2814)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:2792](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **bound**: `boolean`
 
-Defined in: [src/client/types.gen.ts:2793](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2793)
+Defined in: [src/client/types.gen.ts:2815](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2815)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:2793](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **promoted\_referrals**: `number`
 
-Defined in: [src/client/types.gen.ts:2794](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2794)
+Defined in: [src/client/types.gen.ts:2816](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2816)
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: [src/client/types.gen.ts:2794](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **reward**: [`HandlersReferralRewardResponse`](HandlersReferralRewardResponse.md)
 
-Defined in: [src/client/types.gen.ts:2795](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2795)
+Defined in: [src/client/types.gen.ts:2817](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2817)
 
 ***
 
@@ -34,4 +34,4 @@ Defined in: [src/client/types.gen.ts:2795](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **tester**: [`HandlersReferralTesterResponse`](HandlersReferralTesterResponse.md)
 
-Defined in: [src/client/types.gen.ts:2796](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2796)
+Defined in: [src/client/types.gen.ts:2818](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2818)

@@ -2,7 +2,7 @@
 
 > **OpenaiChatCompletionNewParamsResponseFormatUnion** = `object`
 
-Defined in: [src/client/types.gen.ts:4331](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4331)
+Defined in: [src/client/types.gen.ts:4410](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4410)
 
 An object specifying the format that the model must output.
 
@@ -21,7 +21,7 @@ preferred for models that support it.
 
 > `optional` **any**: `unknown`
 
-Defined in: [src/client/types.gen.ts:4332](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4332)
+Defined in: [src/client/types.gen.ts:4411](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4411)
 
 ***
 
@@ -29,7 +29,7 @@ Defined in: [src/client/types.gen.ts:4332](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **ofJSONObject**: [`SharedResponseFormatJsonObjectParam`](SharedResponseFormatJsonObjectParam.md)
 
-Defined in: [src/client/types.gen.ts:4333](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4333)
+Defined in: [src/client/types.gen.ts:4412](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4412)
 
 ***
 
@@ -37,7 +37,7 @@ Defined in: [src/client/types.gen.ts:4333](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **ofJSONSchema**: [`SharedResponseFormatJsonSchemaParam`](SharedResponseFormatJsonSchemaParam.md)
 
-Defined in: [src/client/types.gen.ts:4334](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4334)
+Defined in: [src/client/types.gen.ts:4413](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4413)
 
 ***
 
@@ -45,4 +45,4 @@ Defined in: [src/client/types.gen.ts:4334](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **ofText**: [`SharedResponseFormatTextParam`](SharedResponseFormatTextParam.md)
 
-Defined in: [src/client/types.gen.ts:4335](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4335)
+Defined in: [src/client/types.gen.ts:4414](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4414)

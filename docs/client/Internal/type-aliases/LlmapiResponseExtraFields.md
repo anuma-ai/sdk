@@ -2,7 +2,7 @@
 
 > **LlmapiResponseExtraFields** = `object`
 
-Defined in: [src/client/types.gen.ts:736](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#736)
+Defined in: [src/client/types.gen.ts:766](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#766)
 
 ExtraFields contains additional metadata
 
@@ -12,7 +12,7 @@ ExtraFields contains additional metadata
 
 > `optional` **latency**: `number`
 
-Defined in: [src/client/types.gen.ts:740](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#740)
+Defined in: [src/client/types.gen.ts:770](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#770)
 
 Latency is the request latency in milliseconds
 
@@ -22,7 +22,7 @@ Latency is the request latency in milliseconds
 
 > `optional` **model\_requested**: `string`
 
-Defined in: [src/client/types.gen.ts:744](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#744)
+Defined in: [src/client/types.gen.ts:774](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#774)
 
 ModelRequested is the model that was requested
 
@@ -32,7 +32,7 @@ ModelRequested is the model that was requested
 
 > `optional` **provider**: `string`
 
-Defined in: [src/client/types.gen.ts:748](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#748)
+Defined in: [src/client/types.gen.ts:778](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#778)
 
 Provider is the LLM provider used (e.g., "openai", "anthropic")
 
@@ -42,6 +42,6 @@ Provider is the LLM provider used (e.g., "openai", "anthropic")
 
 > `optional` **request\_type**: `string`
 
-Defined in: [src/client/types.gen.ts:752](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#752)
+Defined in: [src/client/types.gen.ts:782](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#782)
 
 RequestType is always "responses"

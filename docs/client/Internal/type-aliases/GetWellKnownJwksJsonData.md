@@ -2,7 +2,7 @@
 
 > **GetWellKnownJwksJsonData** = `object`
 
-Defined in: [src/client/types.gen.ts:4816](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4816)
+Defined in: [src/client/types.gen.ts:4895](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4895)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:4816](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **body**: `never`
 
-Defined in: [src/client/types.gen.ts:4817](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4817)
+Defined in: [src/client/types.gen.ts:4896](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4896)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:4817](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **path**: `never`
 
-Defined in: [src/client/types.gen.ts:4818](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4818)
+Defined in: [src/client/types.gen.ts:4897](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4897)
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: [src/client/types.gen.ts:4818](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **query**: `never`
 
-Defined in: [src/client/types.gen.ts:4819](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4819)
+Defined in: [src/client/types.gen.ts:4898](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4898)
 
 ***
 
@@ -34,4 +34,4 @@ Defined in: [src/client/types.gen.ts:4819](https://github.com/anuma-ai/sdk/blob/
 
 > **url**: `"/.well-known/jwks.json"`
 
-Defined in: [src/client/types.gen.ts:4820](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4820)
+Defined in: [src/client/types.gen.ts:4899](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4899)

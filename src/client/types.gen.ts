@@ -125,6 +125,19 @@ export type McpToolSchema = {
     parameters?: unknown;
 };
 
+/**
+ * Side is which half of the two-sided reward this is: "referrer" for
+ * inviting someone who activated, "referee" for activating yourself.
+ */
+export type ModelsGrantSide = string;
+
+/**
+ * Status is where this grant sits in its payout lifecycle: "owed", "sent"
+ * or "failed". A "failed" grant is still owed money — the payout path
+ * retries it — and its amount is counted in OwedZeta accordingly.
+ */
+export type ModelsGrantStatus = string;
+
 export type OpenmeteoDayData = {
     date?: string;
     precipitationMm?: number;
@@ -157,6 +170,23 @@ export type OpenmeteoSnapshot = {
     time?: string;
     weatherCode?: number;
     windSpeedKmh?: number;
+};
+
+export type ServicesNearbyCsamEvent = {
+    account_id?: number;
+    id?: number;
+    object_key?: string;
+    occurred_at?: string;
+    photodna_tracking_ids?: Array<string>;
+    preserve_until?: string;
+    review?: ServicesNearbyCsamReview;
+};
+
+export type ServicesNearbyCsamReview = {
+    disposition?: string;
+    note?: string;
+    reviewed_at?: string;
+    reviewed_by?: string;
 };
 
 export type TwelvedataQuote = {
@@ -2007,6 +2037,10 @@ export type HandlersCryptoPricesResponse = {
     quotes?: Array<CryptocompareQuote>;
 };
 
+export type HandlersCsamHistoryResponse = {
+    history?: Array<ServicesNearbyCsamReview>;
+};
+
 export type HandlersCustomerPortalResponse = {
     url: string;
 };
@@ -2309,6 +2343,10 @@ export type HandlersListCampaignsResponse = {
     pagination?: HandlersPaginationResponse;
 };
 
+export type HandlersListCsamEventsResponse = {
+    events?: Array<ServicesNearbyCsamEvent>;
+};
+
 export type HandlersListDeveloperApiKeysResponse = {
     api_keys: Array<HandlersDeveloperApiKeyResponse>;
     pagination: HandlersPaginationResponse;
@@ -2414,18 +2452,6 @@ export type HandlersModelUsageItem = {
     response_tokens: number;
 };
 
-export type HandlersModerateRequest = {
-    texts?: Array<string>;
-};
-
-export type HandlersModerateResponse = {
-    categories?: Array<string>;
-    flagged?: boolean;
-    scores?: {
-        [key: string]: number;
-    };
-};
-
 export type HandlersNearbyActivationGrantResponse = {
     /**
      * AmountAzeta is the reward in aZETA, as a decimal STRING: 10 ZETA is 1e19
@@ -2482,7 +2508,8 @@ export type HandlersNearbyActivationResponse = {
     grants?: Array<HandlersNearbyActivationGrantResponse>;
     /**
      * Reason explains an empty Grants ("grants_disabled", "inactive_area",
-     * "referrer_not_resolved", "self_referral"). Empty when grants exist.
+     * "referrer_not_resolved", "price_unavailable", "self_referral"). Empty when
+     * grants exist.
      *
      * Informational: none of these values is an error and none of them should
      * make the caller retry differently.
@@ -2493,11 +2520,6 @@ export type HandlersNearbyActivationResponse = {
      * was already known — a replay, which is expected.
      */
     recorded?: boolean;
-};
-
-export type HandlersNearbyModerateRequest = {
-    image_urls?: Array<string>;
-    texts?: Array<string>;
 };
 
 export type HandlersNonceResponse = {
@@ -2862,9 +2884,61 @@ export type HandlersReferralMeResponse = {
     tester?: HandlersReferralTesterResponse;
 };
 
+export type HandlersReferralRewardGrant = {
+    /**
+     * AmountZeta is the reward in whole ZETA as a decimal string. See
+     * ReferralRewardsResponse for why every amount here is a string.
+     */
+    amount_zeta?: string;
+    /**
+     * CreatedAt is when the reward was earned, RFC 3339 UTC.
+     */
+    created_at?: string;
+    side?: ModelsGrantSide;
+    status?: ModelsGrantStatus;
+    /**
+     * TxHash is the payout transaction, null until one is submitted.
+     */
+    tx_hash?: string;
+};
+
 export type HandlersReferralRewardResponse = {
     status?: string;
     threshold?: number;
+};
+
+export type HandlersReferralRewardsResponse = {
+    /**
+     * Grants is the individual rewards, newest first. NEVER null: a client that
+     * maps over this crashes on a null, and "no rewards yet" is the majority
+     * case, not an error case.
+     */
+    grants?: Array<HandlersReferralRewardGrant>;
+    /**
+     * OwedZeta is earned and not yet paid — statuses "owed" and "failed".
+     */
+    owed_zeta?: string;
+    /**
+     * Payable reports whether this account currently has an address a reward
+     * can be sent to. False is a normal, recoverable state: the grant stays
+     * owed indefinitely and becomes payable the moment a wallet is bound.
+     */
+    payable?: boolean;
+    /**
+     * PayoutsEnabled reports whether the treasury is paying grants out at all.
+     * False means nobody is being paid yet, regardless of Payable. It is false
+     * in every current build: no deployment can transfer ZETA yet.
+     */
+    payouts_enabled?: boolean;
+    /**
+     * SentZeta is paid — status "sent".
+     */
+    sent_zeta?: string;
+    /**
+     * TotalEarnedZeta is every grant this account holds, whatever its status.
+     * It always equals OwedZeta + SentZeta.
+     */
+    total_earned_zeta?: string;
 };
 
 export type HandlersReferralTesterResponse = {
@@ -3707,6 +3781,11 @@ export type HandlersConsentResponse = {
 export type HandlersCreateConsentRequest = {
     agent_id?: string;
     platform?: string;
+};
+
+export type HandlersCsamReviewRequest = {
+    disposition?: string;
+    note?: string;
 };
 
 export type HandlersDisableRequest = {
@@ -5821,6 +5900,157 @@ export type PutApiV1AdminConnectorsByProviderResponses = {
 };
 
 export type PutApiV1AdminConnectorsByProviderResponse = PutApiV1AdminConnectorsByProviderResponses[keyof PutApiV1AdminConnectorsByProviderResponses];
+
+export type GetApiV1AdminModerationCsamData = {
+    body?: never;
+    headers: {
+        /**
+         * Admin API key
+         */
+        'X-Admin-API-Key': string;
+    };
+    path?: never;
+    query?: {
+        /**
+         * Queue filter: 'open' (default) or 'all'
+         */
+        state?: string;
+        /**
+         * Maximum events to return
+         */
+        limit?: number;
+    };
+    url: '/api/v1/admin/moderation/csam';
+};
+
+export type GetApiV1AdminModerationCsamErrors = {
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+    /**
+     * Bad Gateway
+     */
+    502: ResponseErrorResponse;
+    /**
+     * Service Unavailable
+     */
+    503: ResponseErrorResponse;
+};
+
+export type GetApiV1AdminModerationCsamError = GetApiV1AdminModerationCsamErrors[keyof GetApiV1AdminModerationCsamErrors];
+
+export type GetApiV1AdminModerationCsamResponses = {
+    /**
+     * OK
+     */
+    200: HandlersListCsamEventsResponse;
+};
+
+export type GetApiV1AdminModerationCsamResponse = GetApiV1AdminModerationCsamResponses[keyof GetApiV1AdminModerationCsamResponses];
+
+export type GetApiV1AdminModerationCsamByIdHistoryData = {
+    body?: never;
+    headers: {
+        /**
+         * Admin API key
+         */
+        'X-Admin-API-Key': string;
+    };
+    path: {
+        /**
+         * CSAM event id
+         */
+        id: number;
+    };
+    query?: never;
+    url: '/api/v1/admin/moderation/csam/{id}/history';
+};
+
+export type GetApiV1AdminModerationCsamByIdHistoryErrors = {
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+    /**
+     * Not Found
+     */
+    404: ResponseErrorResponse;
+    /**
+     * Bad Gateway
+     */
+    502: ResponseErrorResponse;
+    /**
+     * Service Unavailable
+     */
+    503: ResponseErrorResponse;
+};
+
+export type GetApiV1AdminModerationCsamByIdHistoryError = GetApiV1AdminModerationCsamByIdHistoryErrors[keyof GetApiV1AdminModerationCsamByIdHistoryErrors];
+
+export type GetApiV1AdminModerationCsamByIdHistoryResponses = {
+    /**
+     * OK
+     */
+    200: HandlersCsamHistoryResponse;
+};
+
+export type GetApiV1AdminModerationCsamByIdHistoryResponse = GetApiV1AdminModerationCsamByIdHistoryResponses[keyof GetApiV1AdminModerationCsamByIdHistoryResponses];
+
+export type PutApiV1AdminModerationCsamByIdReviewData = {
+    /**
+     * Review disposition and note
+     */
+    body: HandlersCsamReviewRequest;
+    headers: {
+        /**
+         * Admin API key
+         */
+        'X-Admin-API-Key': string;
+        /**
+         * Operator identity recorded as reviewer (defaults to ai-portal-admin)
+         */
+        'X-Operator'?: string;
+    };
+    path: {
+        /**
+         * CSAM event id
+         */
+        id: number;
+    };
+    query?: never;
+    url: '/api/v1/admin/moderation/csam/{id}/review';
+};
+
+export type PutApiV1AdminModerationCsamByIdReviewErrors = {
+    /**
+     * Bad Request
+     */
+    400: ResponseErrorResponse;
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+    /**
+     * Bad Gateway
+     */
+    502: ResponseErrorResponse;
+    /**
+     * Service Unavailable
+     */
+    503: ResponseErrorResponse;
+};
+
+export type PutApiV1AdminModerationCsamByIdReviewError = PutApiV1AdminModerationCsamByIdReviewErrors[keyof PutApiV1AdminModerationCsamByIdReviewErrors];
+
+export type PutApiV1AdminModerationCsamByIdReviewResponses = {
+    /**
+     * OK
+     */
+    200: ServicesNearbyCsamEvent;
+};
+
+export type PutApiV1AdminModerationCsamByIdReviewResponse = PutApiV1AdminModerationCsamByIdReviewResponses[keyof PutApiV1AdminModerationCsamByIdReviewResponses];
 
 export type PostApiV1AdminNotificationsAnnounceModelData = {
     /**
@@ -9489,38 +9719,6 @@ export type GetApiV1ModelsResponses = {
 
 export type GetApiV1ModelsResponse = GetApiV1ModelsResponses[keyof GetApiV1ModelsResponses];
 
-export type PostApiV1ModerateData = {
-    /**
-     * Texts to moderate
-     */
-    body: HandlersModerateRequest;
-    path?: never;
-    query?: never;
-    url: '/api/v1/moderate';
-};
-
-export type PostApiV1ModerateErrors = {
-    /**
-     * Bad Request
-     */
-    400: ResponseErrorResponse;
-    /**
-     * Moderation backend error
-     */
-    502: ResponseErrorResponse;
-};
-
-export type PostApiV1ModerateError = PostApiV1ModerateErrors[keyof PostApiV1ModerateErrors];
-
-export type PostApiV1ModerateResponses = {
-    /**
-     * OK
-     */
-    200: HandlersModerateResponse;
-};
-
-export type PostApiV1ModerateResponse = PostApiV1ModerateResponses[keyof PostApiV1ModerateResponses];
-
 export type PostApiV1NotificationsDevicesData = {
     /**
      * Device registration
@@ -11775,38 +11973,6 @@ export type PostInternalExtractPhotoFactsResponses = {
 
 export type PostInternalExtractPhotoFactsResponse = PostInternalExtractPhotoFactsResponses[keyof PostInternalExtractPhotoFactsResponses];
 
-export type PostInternalModerateData = {
-    /**
-     * Texts and image URLs to moderate
-     */
-    body: HandlersNearbyModerateRequest;
-    path?: never;
-    query?: never;
-    url: '/internal/moderate';
-};
-
-export type PostInternalModerateErrors = {
-    /**
-     * Bad Request
-     */
-    400: ResponseErrorResponse;
-    /**
-     * Moderation backend error
-     */
-    502: ResponseErrorResponse;
-};
-
-export type PostInternalModerateError = PostInternalModerateErrors[keyof PostInternalModerateErrors];
-
-export type PostInternalModerateResponses = {
-    /**
-     * OK
-     */
-    200: HandlersModerateResponse;
-};
-
-export type PostInternalModerateResponse = PostInternalModerateResponses[keyof PostInternalModerateResponses];
-
 export type PostInternalNearbyActivationsData = {
     /**
      * Activation to record
@@ -11898,6 +12064,10 @@ export type PostNearbyWaitlistErrors = {
      * Unauthorized
      */
     401: ResponseErrorResponse;
+    /**
+     * Forbidden
+     */
+    403: ResponseErrorResponse;
     /**
      * Conflict
      */
@@ -12148,6 +12318,10 @@ export type PostReferralClaimErrors = {
      */
     401: ResponseErrorResponse;
     /**
+     * Forbidden
+     */
+    403: ResponseErrorResponse;
+    /**
      * Conflict
      */
     409: ResponseErrorResponse;
@@ -12189,6 +12363,10 @@ export type PostReferralIdentityErrors = {
      */
     401: ResponseErrorResponse;
     /**
+     * Forbidden
+     */
+    403: ResponseErrorResponse;
+    /**
      * Conflict
      */
     409: ResponseErrorResponse;
@@ -12228,6 +12406,10 @@ export type PostReferralInviteErrors = {
      * Unauthorized
      */
     401: ResponseErrorResponse;
+    /**
+     * Forbidden
+     */
+    403: ResponseErrorResponse;
     /**
      * Conflict
      */
@@ -12270,6 +12452,10 @@ export type GetReferralMeErrors = {
      */
     401: ResponseErrorResponse;
     /**
+     * Forbidden
+     */
+    403: ResponseErrorResponse;
+    /**
      * Service Unavailable
      */
     503: ResponseErrorResponse;
@@ -12285,6 +12471,35 @@ export type GetReferralMeResponses = {
 };
 
 export type GetReferralMeResponse = GetReferralMeResponses[keyof GetReferralMeResponses];
+
+export type GetReferralRewardsData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/referral/rewards';
+};
+
+export type GetReferralRewardsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+    /**
+     * Internal Server Error
+     */
+    500: ResponseErrorResponse;
+};
+
+export type GetReferralRewardsError = GetReferralRewardsErrors[keyof GetReferralRewardsErrors];
+
+export type GetReferralRewardsResponses = {
+    /**
+     * OK
+     */
+    200: HandlersReferralRewardsResponse;
+};
+
+export type GetReferralRewardsResponse = GetReferralRewardsResponses[keyof GetReferralRewardsResponses];
 
 export type PostWebhooksPrefineryData = {
     body?: {

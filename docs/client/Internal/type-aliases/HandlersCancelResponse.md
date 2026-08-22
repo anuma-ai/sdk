@@ -2,7 +2,7 @@
 
 > **HandlersCancelResponse** = `object`
 
-Defined in: [src/client/types.gen.ts:3693](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3693)
+Defined in: [src/client/types.gen.ts:3767](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3767)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:3693](https://github.com/anuma-ai/sdk/blob/
 
 > **status**: `string`
 
-Defined in: [src/client/types.gen.ts:3697](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3697)
+Defined in: [src/client/types.gen.ts:3771](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3771)
 
 "cancelled" | "noop"

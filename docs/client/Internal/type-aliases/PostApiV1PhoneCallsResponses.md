@@ -2,7 +2,7 @@
 
 > **PostApiV1PhoneCallsResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:9777](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9777)
+Defined in: [src/client/types.gen.ts:9975](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9975)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:9777](https://github.com/anuma-ai/sdk/blob/
 
 > **200**: [`HandlersPhoneCallResponse`](HandlersPhoneCallResponse.md)
 
-Defined in: [src/client/types.gen.ts:9781](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9781)
+Defined in: [src/client/types.gen.ts:9979](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9979)
 
 OK

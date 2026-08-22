@@ -2,7 +2,7 @@
 
 > **OpenaiChatCompletionContentPartImageParam** = `object`
 
-Defined in: [src/client/types.gen.ts:4000](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4000)
+Defined in: [src/client/types.gen.ts:4079](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4079)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:4000](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **any**: `unknown`
 
-Defined in: [src/client/types.gen.ts:4001](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4001)
+Defined in: [src/client/types.gen.ts:4080](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4080)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:4001](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **image\_url**: [`OpenaiChatCompletionContentPartImageImageUrlParam`](OpenaiChatCompletionContentPartImageImageUrlParam.md)
 
-Defined in: [src/client/types.gen.ts:4002](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4002)
+Defined in: [src/client/types.gen.ts:4081](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4081)
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: [src/client/types.gen.ts:4002](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **type**: `string`
 
-Defined in: [src/client/types.gen.ts:4008](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4008)
+Defined in: [src/client/types.gen.ts:4087](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4087)
 
 The type of the content part.
 

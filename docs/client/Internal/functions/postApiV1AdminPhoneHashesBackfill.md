@@ -2,7 +2,7 @@
 
 > **postApiV1AdminPhoneHashesBackfill**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`PostApiV1AdminPhoneHashesBackfillData`](../type-aliases/PostApiV1AdminPhoneHashesBackfillData.md), `ThrowOnError`>): `RequestResult`<[`PostApiV1AdminPhoneHashesBackfillResponses`](../type-aliases/PostApiV1AdminPhoneHashesBackfillResponses.md), [`PostApiV1AdminPhoneHashesBackfillErrors`](../type-aliases/PostApiV1AdminPhoneHashesBackfillErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:408](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#408)
+Defined in: [src/client/sdk.gen.ts:436](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#436)
 
 Backfill phone hashes from Privy
 

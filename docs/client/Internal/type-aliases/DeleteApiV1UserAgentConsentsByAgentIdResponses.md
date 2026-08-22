@@ -2,7 +2,7 @@
 
 > **DeleteApiV1UserAgentConsentsByAgentIdResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:10803](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10803)
+Defined in: [src/client/types.gen.ts:11001](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11001)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:10803](https://github.com/anuma-ai/sdk/blob
 
 > **200**: `object`
 
-Defined in: [src/client/types.gen.ts:10807](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10807)
+Defined in: [src/client/types.gen.ts:11005](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11005)
 
 OK
 

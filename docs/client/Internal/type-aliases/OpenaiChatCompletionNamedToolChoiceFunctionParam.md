@@ -2,7 +2,7 @@
 
 > **OpenaiChatCompletionNamedToolChoiceFunctionParam** = `object`
 
-Defined in: [src/client/types.gen.ts:4267](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4267)
+Defined in: [src/client/types.gen.ts:4346](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4346)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:4267](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **any**: `unknown`
 
-Defined in: [src/client/types.gen.ts:4268](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4268)
+Defined in: [src/client/types.gen.ts:4347](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4347)
 
 ***
 
@@ -18,6 +18,6 @@ Defined in: [src/client/types.gen.ts:4268](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **name**: `string`
 
-Defined in: [src/client/types.gen.ts:4272](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4272)
+Defined in: [src/client/types.gen.ts:4351](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4351)
 
 The name of the function to call.

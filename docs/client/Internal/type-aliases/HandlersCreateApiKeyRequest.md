@@ -2,7 +2,7 @@
 
 > **HandlersCreateApiKeyRequest** = `object`
 
-Defined in: [src/client/types.gen.ts:1754](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1754)
+Defined in: [src/client/types.gen.ts:1784](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1784)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:1754](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **is\_active**: `boolean`
 
-Defined in: [src/client/types.gen.ts:1755](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1755)
+Defined in: [src/client/types.gen.ts:1785](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1785)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:1755](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **is\_test**: `boolean`
 
-Defined in: [src/client/types.gen.ts:1759](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1759)
+Defined in: [src/client/types.gen.ts:1789](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1789)
 
 If true, generates anuma\_test\_ prefix; otherwise anuma\_live\_
 
@@ -28,7 +28,7 @@ If true, generates anuma\_test\_ prefix; otherwise anuma\_live\_
 
 > `optional` **name**: `string`
 
-Defined in: [src/client/types.gen.ts:1760](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1760)
+Defined in: [src/client/types.gen.ts:1790](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1790)
 
 ***
 
@@ -36,4 +36,4 @@ Defined in: [src/client/types.gen.ts:1760](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **wallet\_address**: `string`
 
-Defined in: [src/client/types.gen.ts:1761](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1761)
+Defined in: [src/client/types.gen.ts:1791](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1791)

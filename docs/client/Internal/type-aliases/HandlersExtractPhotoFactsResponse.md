@@ -2,7 +2,7 @@
 
 > **HandlersExtractPhotoFactsResponse** = `object`
 
-Defined in: [src/client/types.gen.ts:2124](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2124)
+Defined in: [src/client/types.gen.ts:2158](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2158)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:2124](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **facts**: `string`\[]
 
-Defined in: [src/client/types.gen.ts:2130](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2130)
+Defined in: [src/client/types.gen.ts:2164](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2164)
 
 Facts is never null — a photo yielding nothing answers \[], which is a valid
 outcome (see the prompt), not an error the caller must special-case.
@@ -22,7 +22,7 @@ Ordered most-confident-first, as the model emitted them.
 
 > `optional` **filter\_prompt\_sha**: `string`
 
-Defined in: [src/client/types.gen.ts:2137](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2137)
+Defined in: [src/client/types.gen.ts:2171](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2171)
 
 FilterPromptSHA identifies the red-line FILTER prompt that screened these facts — the second
 pinned prompt in the pipeline. Separate from PromptSHA on purpose: the returned facts are shaped
@@ -35,7 +35,7 @@ extraction change from a filter change is the point of recording a sha.
 
 > `optional` **model**: `string`
 
-Defined in: [src/client/types.gen.ts:2146](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2146)
+Defined in: [src/client/types.gen.ts:2180](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2180)
 
 Model is the alias that was used, echoed so the caller can label its own
 metrics per anuma-ai/nearby#114 §3.5 without hardcoding the model name.
@@ -50,7 +50,7 @@ into one field would break both.
 
 > `optional` **prompt\_sha**: `string`
 
-Defined in: [src/client/types.gen.ts:2162](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2162)
+Defined in: [src/client/types.gen.ts:2196](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2196)
 
 PromptSHA identifies the extraction prompt that produced these facts — the first 12 hex
 characters of its sha256, computed from the prompt this route actually sends (see
@@ -72,7 +72,7 @@ a separate change and this needs no coordinated deploy.
 
 > `optional` **serving\_provider**: `string`
 
-Defined in: [src/client/types.gen.ts:2178](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2178)
+Defined in: [src/client/types.gen.ts:2212](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2212)
 
 ServingProvider is who ACTUALLY answered — "fireworks", "deepinfra" — and it exists because
 Model cannot say. The photo alias carries a DeepInfra fallback behind Fireworks
@@ -94,4 +94,4 @@ Additive and optional: a caller that does not read it is unaffected.
 
 > `optional` **usage**: [`HandlersExtractPhotoFactsUsage`](HandlersExtractPhotoFactsUsage.md)
 
-Defined in: [src/client/types.gen.ts:2179](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2179)
+Defined in: [src/client/types.gen.ts:2213](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2213)

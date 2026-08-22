@@ -2,7 +2,7 @@
 
 > **DeleteApiV1AuthMfaPasskeyCredentialsByCredentialIdErrors** = `object`
 
-Defined in: [src/client/types.gen.ts:7319](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7319)
+Defined in: [src/client/types.gen.ts:7549](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7549)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:7319](https://github.com/anuma-ai/sdk/blob/
 
 > **401**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:7323](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7323)
+Defined in: [src/client/types.gen.ts:7553](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7553)
 
 Unauthorized
 
@@ -20,6 +20,6 @@ Unauthorized
 
 > **404**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:7327](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7327)
+Defined in: [src/client/types.gen.ts:7557](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7557)
 
 Not Found

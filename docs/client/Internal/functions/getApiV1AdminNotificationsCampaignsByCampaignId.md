@@ -2,7 +2,7 @@
 
 > **getApiV1AdminNotificationsCampaignsByCampaignId**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`GetApiV1AdminNotificationsCampaignsByCampaignIdData`](../type-aliases/GetApiV1AdminNotificationsCampaignsByCampaignIdData.md), `ThrowOnError`>): `RequestResult`<[`GetApiV1AdminNotificationsCampaignsByCampaignIdResponses`](../type-aliases/GetApiV1AdminNotificationsCampaignsByCampaignIdResponses.md), [`GetApiV1AdminNotificationsCampaignsByCampaignIdErrors`](../type-aliases/GetApiV1AdminNotificationsCampaignsByCampaignIdErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:281](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#281)
+Defined in: [src/client/sdk.gen.ts:309](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#309)
 
 Get an announcement campaign with delivery counters (admin)
 

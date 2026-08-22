@@ -2,7 +2,7 @@
 
 > **PostApiV1PreprocessorsCryptoPricesErrors** = `object`
 
-Defined in: [src/client/types.gen.ts:9842](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9842)
+Defined in: [src/client/types.gen.ts:10040](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10040)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:9842](https://github.com/anuma-ai/sdk/blob/
 
 > **400**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:9846](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9846)
+Defined in: [src/client/types.gen.ts:10044](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10044)
 
 Bad Request
 
@@ -20,7 +20,7 @@ Bad Request
 
 > **401**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:9850](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9850)
+Defined in: [src/client/types.gen.ts:10048](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10048)
 
 Unauthorized
 
@@ -30,7 +30,7 @@ Unauthorized
 
 > **502**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:9854](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9854)
+Defined in: [src/client/types.gen.ts:10052](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10052)
 
 Bad Gateway
 
@@ -40,6 +40,6 @@ Bad Gateway
 
 > **503**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:9858](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9858)
+Defined in: [src/client/types.gen.ts:10056](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10056)
 
 Service Unavailable

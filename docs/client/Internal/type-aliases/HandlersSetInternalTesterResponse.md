@@ -2,7 +2,7 @@
 
 > **HandlersSetInternalTesterResponse** = `object`
 
-Defined in: [src/client/types.gen.ts:3037](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3037)
+Defined in: [src/client/types.gen.ts:3111](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3111)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:3037](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **internal\_tester**: `boolean`
 
-Defined in: [src/client/types.gen.ts:3038](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3038)
+Defined in: [src/client/types.gen.ts:3112](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3112)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:3038](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **message**: `string`
 
-Defined in: [src/client/types.gen.ts:3039](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3039)
+Defined in: [src/client/types.gen.ts:3113](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3113)
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: [src/client/types.gen.ts:3039](https://github.com/anuma-ai/sdk/blob/
 
 > **success**: `boolean`
 
-Defined in: [src/client/types.gen.ts:3040](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3040)
+Defined in: [src/client/types.gen.ts:3114](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3114)
 
 ***
 
@@ -34,4 +34,4 @@ Defined in: [src/client/types.gen.ts:3040](https://github.com/anuma-ai/sdk/blob/
 
 > **user\_address**: `string`
 
-Defined in: [src/client/types.gen.ts:3041](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3041)
+Defined in: [src/client/types.gen.ts:3115](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3115)

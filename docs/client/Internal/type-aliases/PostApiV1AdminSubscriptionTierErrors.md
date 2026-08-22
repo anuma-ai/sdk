@@ -2,7 +2,7 @@
 
 > **PostApiV1AdminSubscriptionTierErrors** = `object`
 
-Defined in: [src/client/types.gen.ts:6774](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6774)
+Defined in: [src/client/types.gen.ts:7004](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7004)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:6774](https://github.com/anuma-ai/sdk/blob/
 
 > **400**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:6778](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6778)
+Defined in: [src/client/types.gen.ts:7008](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7008)
 
 Bad Request
 
@@ -20,7 +20,7 @@ Bad Request
 
 > **401**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:6782](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6782)
+Defined in: [src/client/types.gen.ts:7012](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7012)
 
 Unauthorized
 
@@ -30,7 +30,7 @@ Unauthorized
 
 > **402**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:6786](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6786)
+Defined in: [src/client/types.gen.ts:7016](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7016)
 
 Payment Required
 
@@ -40,7 +40,7 @@ Payment Required
 
 > **404**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:6790](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6790)
+Defined in: [src/client/types.gen.ts:7020](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7020)
 
 Not Found
 
@@ -50,7 +50,7 @@ Not Found
 
 > **409**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:6794](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6794)
+Defined in: [src/client/types.gen.ts:7024](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7024)
 
 Conflict
 
@@ -60,7 +60,7 @@ Conflict
 
 > **500**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:6798](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6798)
+Defined in: [src/client/types.gen.ts:7028](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7028)
 
 Internal Server Error
 
@@ -70,7 +70,7 @@ Internal Server Error
 
 > **502**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:6802](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6802)
+Defined in: [src/client/types.gen.ts:7032](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7032)
 
 Bad Gateway
 
@@ -80,6 +80,6 @@ Bad Gateway
 
 > **503**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:6806](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6806)
+Defined in: [src/client/types.gen.ts:7036](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7036)
 
 Service Unavailable

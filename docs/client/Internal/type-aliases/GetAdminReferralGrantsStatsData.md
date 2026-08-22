@@ -2,7 +2,7 @@
 
 > **GetAdminReferralGrantsStatsData** = `object`
 
-Defined in: [src/client/types.gen.ts:4832](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4832)
+Defined in: [src/client/types.gen.ts:4911](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4911)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:4832](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **body**: `never`
 
-Defined in: [src/client/types.gen.ts:4833](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4833)
+Defined in: [src/client/types.gen.ts:4912](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4912)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:4833](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **path**: `never`
 
-Defined in: [src/client/types.gen.ts:4834](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4834)
+Defined in: [src/client/types.gen.ts:4913](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4913)
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: [src/client/types.gen.ts:4834](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **query**: `object`
 
-Defined in: [src/client/types.gen.ts:4835](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4835)
+Defined in: [src/client/types.gen.ts:4914](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4914)
 
 **limit?**
 
@@ -46,4 +46,4 @@ Only include referrers with at least this many granted referees (default 2)
 
 > **url**: `"/admin/referral-grants/stats"`
 
-Defined in: [src/client/types.gen.ts:4845](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4845)
+Defined in: [src/client/types.gen.ts:4924](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4924)

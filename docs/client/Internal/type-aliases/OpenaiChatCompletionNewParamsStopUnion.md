@@ -2,7 +2,7 @@
 
 > **OpenaiChatCompletionNewParamsStopUnion** = `object`
 
-Defined in: [src/client/types.gen.ts:4367](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4367)
+Defined in: [src/client/types.gen.ts:4446](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4446)
 
 Not supported with latest reasoning models `o3` and `o4-mini`.
 
@@ -15,7 +15,7 @@ returned text will not contain the stop sequence.
 
 > `optional` **any**: `unknown`
 
-Defined in: [src/client/types.gen.ts:4368](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4368)
+Defined in: [src/client/types.gen.ts:4447](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4447)
 
 ***
 
@@ -23,7 +23,7 @@ Defined in: [src/client/types.gen.ts:4368](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **ofString**: [`ParamOptString`](ParamOptString.md)
 
-Defined in: [src/client/types.gen.ts:4369](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4369)
+Defined in: [src/client/types.gen.ts:4448](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4448)
 
 ***
 
@@ -31,4 +31,4 @@ Defined in: [src/client/types.gen.ts:4369](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **ofStringArray**: `string`\[]
 
-Defined in: [src/client/types.gen.ts:4370](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4370)
+Defined in: [src/client/types.gen.ts:4449](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4449)

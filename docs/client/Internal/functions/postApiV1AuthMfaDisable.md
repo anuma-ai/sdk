@@ -2,7 +2,7 @@
 
 > **postApiV1AuthMfaDisable**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`PostApiV1AuthMfaDisableData`](../type-aliases/PostApiV1AuthMfaDisableData.md), `ThrowOnError`>): `RequestResult`<[`PostApiV1AuthMfaDisableResponses`](../type-aliases/PostApiV1AuthMfaDisableResponses.md), [`PostApiV1AuthMfaDisableErrors`](../type-aliases/PostApiV1AuthMfaDisableErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:572](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#572)
+Defined in: [src/client/sdk.gen.ts:600](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#600)
 
 Disable MFA
 

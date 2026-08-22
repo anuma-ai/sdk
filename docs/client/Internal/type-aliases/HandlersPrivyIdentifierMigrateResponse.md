@@ -2,7 +2,7 @@
 
 > **HandlersPrivyIdentifierMigrateResponse** = `object`
 
-Defined in: [src/client/types.gen.ts:2736](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2736)
+Defined in: [src/client/types.gen.ts:2758](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2758)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:2736](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **changes**: [`HandlersPrivyIdentifierAuditEntry`](HandlersPrivyIdentifierAuditEntry.md)\[]
 
-Defined in: [src/client/types.gen.ts:2740](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2740)
+Defined in: [src/client/types.gen.ts:2762](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2762)
 
 accounts whose identifier was rewritten
 
@@ -20,7 +20,7 @@ accounts whose identifier was rewritten
 
 > `optional` **failed**: `number`
 
-Defined in: [src/client/types.gen.ts:2744](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2744)
+Defined in: [src/client/types.gen.ts:2766](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2766)
 
 DB update or constraint failure
 
@@ -30,7 +30,7 @@ DB update or constraint failure
 
 > `optional` **failures**: [`HandlersPrivyIdentifierMigrateFailure`](HandlersPrivyIdentifierMigrateFailure.md)\[]
 
-Defined in: [src/client/types.gen.ts:2745](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2745)
+Defined in: [src/client/types.gen.ts:2767](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2767)
 
 ***
 
@@ -38,7 +38,7 @@ Defined in: [src/client/types.gen.ts:2745](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **limit**: `number`
 
-Defined in: [src/client/types.gen.ts:2746](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2746)
+Defined in: [src/client/types.gen.ts:2768](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2768)
 
 ***
 
@@ -46,7 +46,7 @@ Defined in: [src/client/types.gen.ts:2746](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **migrated**: `number`
 
-Defined in: [src/client/types.gen.ts:2747](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2747)
+Defined in: [src/client/types.gen.ts:2769](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2769)
 
 ***
 
@@ -54,7 +54,7 @@ Defined in: [src/client/types.gen.ts:2747](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **next\_offset**: `number`
 
-Defined in: [src/client/types.gen.ts:2748](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2748)
+Defined in: [src/client/types.gen.ts:2770](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2770)
 
 ***
 
@@ -62,7 +62,7 @@ Defined in: [src/client/types.gen.ts:2748](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **offset**: `number`
 
-Defined in: [src/client/types.gen.ts:2749](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2749)
+Defined in: [src/client/types.gen.ts:2771](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2771)
 
 ***
 
@@ -70,7 +70,7 @@ Defined in: [src/client/types.gen.ts:2749](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **skipped**: `number`
 
-Defined in: [src/client/types.gen.ts:2753](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2753)
+Defined in: [src/client/types.gen.ts:2775](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2775)
 
 already correct, no embedded, or Privy API miss
 
@@ -80,4 +80,4 @@ already correct, no embedded, or Privy API miss
 
 > `optional` **total**: `number`
 
-Defined in: [src/client/types.gen.ts:2754](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2754)
+Defined in: [src/client/types.gen.ts:2776](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2776)

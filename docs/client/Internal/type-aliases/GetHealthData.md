@@ -2,7 +2,7 @@
 
 > **GetHealthData** = `object`
 
-Defined in: [src/client/types.gen.ts:11571](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11571)
+Defined in: [src/client/types.gen.ts:11769](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11769)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:11571](https://github.com/anuma-ai/sdk/blob
 
 > `optional` **body**: `never`
 
-Defined in: [src/client/types.gen.ts:11572](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11572)
+Defined in: [src/client/types.gen.ts:11770](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11770)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:11572](https://github.com/anuma-ai/sdk/blob
 
 > `optional` **path**: `never`
 
-Defined in: [src/client/types.gen.ts:11573](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11573)
+Defined in: [src/client/types.gen.ts:11771](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11771)
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: [src/client/types.gen.ts:11573](https://github.com/anuma-ai/sdk/blob
 
 > `optional` **query**: `never`
 
-Defined in: [src/client/types.gen.ts:11574](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11574)
+Defined in: [src/client/types.gen.ts:11772](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11772)
 
 ***
 
@@ -34,4 +34,4 @@ Defined in: [src/client/types.gen.ts:11574](https://github.com/anuma-ai/sdk/blob
 
 > **url**: `"/health"`
 
-Defined in: [src/client/types.gen.ts:11575](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11575)
+Defined in: [src/client/types.gen.ts:11773](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11773)

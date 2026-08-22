@@ -2,7 +2,7 @@
 
 > **GetAdminReferralGrantsStatsErrors** = `object`
 
-Defined in: [src/client/types.gen.ts:4848](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4848)
+Defined in: [src/client/types.gen.ts:4927](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4927)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:4848](https://github.com/anuma-ai/sdk/blob/
 
 > **400**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:4852](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4852)
+Defined in: [src/client/types.gen.ts:4931](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4931)
 
 Bad Request
 
@@ -20,6 +20,6 @@ Bad Request
 
 > **500**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:4856](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4856)
+Defined in: [src/client/types.gen.ts:4935](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4935)
 
 Internal Server Error

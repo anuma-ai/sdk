@@ -2,7 +2,7 @@
 
 > **HandlersAccountByDidResponse** = `object`
 
-Defined in: [src/client/types.gen.ts:1129](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1129)
+Defined in: [src/client/types.gen.ts:1159](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1159)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:1129](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **account\_id**: `number`
 
-Defined in: [src/client/types.gen.ts:1130](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1130)
+Defined in: [src/client/types.gen.ts:1160](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1160)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:1130](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **internal\_tester**: `boolean`
 
-Defined in: [src/client/types.gen.ts:1143](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1143)
+Defined in: [src/client/types.gen.ts:1173](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1173)
 
 InternalTester exempts the account from the People Nearby onboarding geofence (#1578).
 
@@ -37,7 +37,7 @@ nearby: the field simply unmarshals to false and nobody is exempt.
 
 > `optional` **phone\_verified**: `boolean`
 
-Defined in: [src/client/types.gen.ts:1144](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1144)
+Defined in: [src/client/types.gen.ts:1174](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1174)
 
 ***
 
@@ -45,4 +45,4 @@ Defined in: [src/client/types.gen.ts:1144](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **privy\_did**: `string`
 
-Defined in: [src/client/types.gen.ts:1145](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1145)
+Defined in: [src/client/types.gen.ts:1175](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1175)
