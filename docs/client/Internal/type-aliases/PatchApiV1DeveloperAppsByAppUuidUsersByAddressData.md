@@ -2,7 +2,7 @@
 
 > **PatchApiV1DeveloperAppsByAppUuidUsersByAddressData** = `object`
 
-Defined in: [src/client/types.gen.ts:9114](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9114)
+Defined in: [src/client/types.gen.ts:9344](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9344)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:9114](https://github.com/anuma-ai/sdk/blob/
 
 > **body**: [`HandlersUpdateUserLimitRequest`](HandlersUpdateUserLimitRequest.md)
 
-Defined in: [src/client/types.gen.ts:9118](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9118)
+Defined in: [src/client/types.gen.ts:9348](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9348)
 
 Update limit request
 
@@ -20,7 +20,7 @@ Update limit request
 
 > **path**: `object`
 
-Defined in: [src/client/types.gen.ts:9119](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9119)
+Defined in: [src/client/types.gen.ts:9349](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9349)
 
 **address**
 
@@ -40,7 +40,7 @@ App UUID
 
 > `optional` **query**: `never`
 
-Defined in: [src/client/types.gen.ts:9129](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9129)
+Defined in: [src/client/types.gen.ts:9359](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9359)
 
 ***
 
@@ -48,4 +48,4 @@ Defined in: [src/client/types.gen.ts:9129](https://github.com/anuma-ai/sdk/blob/
 
 > **url**: `"/api/v1/developer/apps/{app_uuid}/users/{address}"`
 
-Defined in: [src/client/types.gen.ts:9130](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9130)
+Defined in: [src/client/types.gen.ts:9360](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9360)

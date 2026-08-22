@@ -2,7 +2,7 @@
 
 > **DeleteApiV1AdminUsersDeleteResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:6925](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6925)
+Defined in: [src/client/types.gen.ts:7155](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7155)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:6925](https://github.com/anuma-ai/sdk/blob/
 
 > **200**: [`HandlersDeleteUserResponse`](HandlersDeleteUserResponse.md)
 
-Defined in: [src/client/types.gen.ts:6929](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6929)
+Defined in: [src/client/types.gen.ts:7159](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7159)
 
 OK

@@ -2,4 +2,4 @@
 
 > **PatchApiV1DeveloperAppsByAppUuidUsersByAddressResponse** = [`PatchApiV1DeveloperAppsByAppUuidUsersByAddressResponses`](PatchApiV1DeveloperAppsByAppUuidUsersByAddressResponses.md)\[keyof [`PatchApiV1DeveloperAppsByAppUuidUsersByAddressResponses`](PatchApiV1DeveloperAppsByAppUuidUsersByAddressResponses.md)]
 
-Defined in: [src/client/types.gen.ts:9165](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9165)
+Defined in: [src/client/types.gen.ts:9395](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9395)

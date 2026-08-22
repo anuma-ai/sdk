@@ -2,7 +2,7 @@
 
 > **PostApiV1ConnectorsImportData** = `object`
 
-Defined in: [src/client/types.gen.ts:7931](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7931)
+Defined in: [src/client/types.gen.ts:8161](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8161)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:7931](https://github.com/anuma-ai/sdk/blob/
 
 > **body**: [`HandlersConnectorImportRequest`](HandlersConnectorImportRequest.md)
 
-Defined in: [src/client/types.gen.ts:7935](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7935)
+Defined in: [src/client/types.gen.ts:8165](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8165)
 
 Import request
 
@@ -20,7 +20,7 @@ Import request
 
 > `optional` **path**: `never`
 
-Defined in: [src/client/types.gen.ts:7936](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7936)
+Defined in: [src/client/types.gen.ts:8166](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8166)
 
 ***
 
@@ -28,7 +28,7 @@ Defined in: [src/client/types.gen.ts:7936](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **query**: `never`
 
-Defined in: [src/client/types.gen.ts:7937](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7937)
+Defined in: [src/client/types.gen.ts:8167](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8167)
 
 ***
 
@@ -36,4 +36,4 @@ Defined in: [src/client/types.gen.ts:7937](https://github.com/anuma-ai/sdk/blob/
 
 > **url**: `"/api/v1/connectors/import"`
 
-Defined in: [src/client/types.gen.ts:7938](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7938)
+Defined in: [src/client/types.gen.ts:8168](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8168)

@@ -2,7 +2,7 @@
 
 > **HandlersSetScopesRequest** = `object`
 
-Defined in: [src/client/types.gen.ts:3058](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3058)
+Defined in: [src/client/types.gen.ts:3132](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3132)
 
 ## Properties
 
@@ -10,4 +10,4 @@ Defined in: [src/client/types.gen.ts:3058](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **capabilities**: [`HandlersSetScopeItem`](HandlersSetScopeItem.md)\[]
 
-Defined in: [src/client/types.gen.ts:3059](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3059)
+Defined in: [src/client/types.gen.ts:3133](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3133)

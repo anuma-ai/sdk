@@ -2,4 +2,4 @@
 
 > **PostApiV1UserAgentConsentsResponse** = [`PostApiV1UserAgentConsentsResponses`](PostApiV1UserAgentConsentsResponses.md)\[keyof [`PostApiV1UserAgentConsentsResponses`](PostApiV1UserAgentConsentsResponses.md)]
 
-Defined in: [src/client/types.gen.ts:10767](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10767)
+Defined in: [src/client/types.gen.ts:10965](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10965)

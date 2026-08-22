@@ -2,7 +2,7 @@
 
 > **GetApiV1MediaSharedBySlugResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:9439](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9439)
+Defined in: [src/client/types.gen.ts:9669](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9669)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:9439](https://github.com/anuma-ai/sdk/blob/
 
 > **200**: `unknown`
 
-Defined in: [src/client/types.gen.ts:9443](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9443)
+Defined in: [src/client/types.gen.ts:9673](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9673)
 
 OK

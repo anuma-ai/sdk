@@ -2,7 +2,7 @@
 
 > **DeleteApiV1AccountResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:4898](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4898)
+Defined in: [src/client/types.gen.ts:4977](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4977)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:4898](https://github.com/anuma-ai/sdk/blob/
 
 > **200**: `object`
 
-Defined in: [src/client/types.gen.ts:4902](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4902)
+Defined in: [src/client/types.gen.ts:4981](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4981)
 
 Account deleted
 

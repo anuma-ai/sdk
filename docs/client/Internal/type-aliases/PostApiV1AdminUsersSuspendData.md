@@ -2,7 +2,7 @@
 
 > **PostApiV1AdminUsersSuspendData** = `object`
 
-Defined in: [src/client/types.gen.ts:7040](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7040)
+Defined in: [src/client/types.gen.ts:7270](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7270)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:7040](https://github.com/anuma-ai/sdk/blob/
 
 > **body**: [`HandlersSuspendAccountRequest`](HandlersSuspendAccountRequest.md)
 
-Defined in: [src/client/types.gen.ts:7044](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7044)
+Defined in: [src/client/types.gen.ts:7274](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7274)
 
 Suspend account request
 
@@ -20,7 +20,7 @@ Suspend account request
 
 > **headers**: `object`
 
-Defined in: [src/client/types.gen.ts:7045](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7045)
+Defined in: [src/client/types.gen.ts:7275](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7275)
 
 **X-Admin-API-Key**
 
@@ -34,7 +34,7 @@ Admin API key
 
 > `optional` **path**: `never`
 
-Defined in: [src/client/types.gen.ts:7051](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7051)
+Defined in: [src/client/types.gen.ts:7281](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7281)
 
 ***
 
@@ -42,7 +42,7 @@ Defined in: [src/client/types.gen.ts:7051](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **query**: `never`
 
-Defined in: [src/client/types.gen.ts:7052](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7052)
+Defined in: [src/client/types.gen.ts:7282](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7282)
 
 ***
 
@@ -50,4 +50,4 @@ Defined in: [src/client/types.gen.ts:7052](https://github.com/anuma-ai/sdk/blob/
 
 > **url**: `"/api/v1/admin/users/suspend"`
 
-Defined in: [src/client/types.gen.ts:7053](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7053)
+Defined in: [src/client/types.gen.ts:7283](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7283)

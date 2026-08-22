@@ -2,7 +2,7 @@
 
 > **OpenaiChatCompletionTokenLogprobTopLogprob** = `object`
 
-Defined in: [src/client/types.gen.ts:4520](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4520)
+Defined in: [src/client/types.gen.ts:4599](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4599)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:4520](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **bytes**: `number`\[]
 
-Defined in: [src/client/types.gen.ts:4527](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4527)
+Defined in: [src/client/types.gen.ts:4606](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4606)
 
 A list of integers representing the UTF-8 bytes representation of the token.
 Useful in instances where characters are represented by multiple tokens and
@@ -23,7 +23,7 @@ representation. Can be `null` if there is no bytes representation for the token.
 
 > `optional` **logprob**: `number`
 
-Defined in: [src/client/types.gen.ts:4533](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4533)
+Defined in: [src/client/types.gen.ts:4612](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4612)
 
 The log probability of this token, if it is within the top 20 most likely
 tokens. Otherwise, the value `-9999.0` is used to signify that the token is very
@@ -35,6 +35,6 @@ unlikely.
 
 > `optional` **token**: `string`
 
-Defined in: [src/client/types.gen.ts:4537](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4537)
+Defined in: [src/client/types.gen.ts:4616](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4616)
 
 The token.

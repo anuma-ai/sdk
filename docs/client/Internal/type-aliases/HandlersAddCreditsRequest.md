@@ -2,7 +2,7 @@
 
 > **HandlersAddCreditsRequest** = `object`
 
-Defined in: [src/client/types.gen.ts:1159](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1159)
+Defined in: [src/client/types.gen.ts:1189](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1189)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:1159](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **app\_id**: `number`
 
-Defined in: [src/client/types.gen.ts:1163](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1163)
+Defined in: [src/client/types.gen.ts:1193](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1193)
 
 App ID to use
 
@@ -20,7 +20,7 @@ App ID to use
 
 > `optional` **credits**: `number`
 
-Defined in: [src/client/types.gen.ts:1167](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1167)
+Defined in: [src/client/types.gen.ts:1197](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1197)
 
 Number of credits to add (1 credit = 1 cent)
 
@@ -30,4 +30,4 @@ Number of credits to add (1 credit = 1 cent)
 
 > `optional` **user\_address**: `string`
 
-Defined in: [src/client/types.gen.ts:1168](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1168)
+Defined in: [src/client/types.gen.ts:1198](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1198)

@@ -2,7 +2,7 @@
 
 > **PostApiV1SharesData** = `object`
 
-Defined in: [src/client/types.gen.ts:10071](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10071)
+Defined in: [src/client/types.gen.ts:10269](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10269)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:10071](https://github.com/anuma-ai/sdk/blob
 
 > **body**: [`HandlersCreateShareRequest`](HandlersCreateShareRequest.md)
 
-Defined in: [src/client/types.gen.ts:10075](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10075)
+Defined in: [src/client/types.gen.ts:10273](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10273)
 
 Share to create
 
@@ -20,7 +20,7 @@ Share to create
 
 > `optional` **path**: `never`
 
-Defined in: [src/client/types.gen.ts:10076](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10076)
+Defined in: [src/client/types.gen.ts:10274](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10274)
 
 ***
 
@@ -28,7 +28,7 @@ Defined in: [src/client/types.gen.ts:10076](https://github.com/anuma-ai/sdk/blob
 
 > `optional` **query**: `never`
 
-Defined in: [src/client/types.gen.ts:10077](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10077)
+Defined in: [src/client/types.gen.ts:10275](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10275)
 
 ***
 
@@ -36,4 +36,4 @@ Defined in: [src/client/types.gen.ts:10077](https://github.com/anuma-ai/sdk/blob
 
 > **url**: `"/api/v1/shares"`
 
-Defined in: [src/client/types.gen.ts:10078](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10078)
+Defined in: [src/client/types.gen.ts:10276](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10276)

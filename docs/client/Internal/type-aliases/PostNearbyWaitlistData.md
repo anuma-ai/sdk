@@ -2,7 +2,7 @@
 
 > **PostNearbyWaitlistData** = `object`
 
-Defined in: [src/client/types.gen.ts:11882](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11882)
+Defined in: [src/client/types.gen.ts:12048](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#12048)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:11882](https://github.com/anuma-ai/sdk/blob
 
 > **body**: [`HandlersWaitlistJoinRequest`](HandlersWaitlistJoinRequest.md)
 
-Defined in: [src/client/types.gen.ts:11886](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11886)
+Defined in: [src/client/types.gen.ts:12052](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#12052)
 
 Waitlist join
 
@@ -20,7 +20,7 @@ Waitlist join
 
 > `optional` **path**: `never`
 
-Defined in: [src/client/types.gen.ts:11887](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11887)
+Defined in: [src/client/types.gen.ts:12053](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#12053)
 
 ***
 
@@ -28,7 +28,7 @@ Defined in: [src/client/types.gen.ts:11887](https://github.com/anuma-ai/sdk/blob
 
 > `optional` **query**: `never`
 
-Defined in: [src/client/types.gen.ts:11888](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11888)
+Defined in: [src/client/types.gen.ts:12054](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#12054)
 
 ***
 
@@ -36,4 +36,4 @@ Defined in: [src/client/types.gen.ts:11888](https://github.com/anuma-ai/sdk/blob
 
 > **url**: `"/nearby/waitlist"`
 
-Defined in: [src/client/types.gen.ts:11889](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11889)
+Defined in: [src/client/types.gen.ts:12055](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#12055)

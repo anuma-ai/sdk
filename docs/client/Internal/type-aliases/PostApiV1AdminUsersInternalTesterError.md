@@ -2,4 +2,4 @@
 
 > **PostApiV1AdminUsersInternalTesterError** = [`PostApiV1AdminUsersInternalTesterErrors`](PostApiV1AdminUsersInternalTesterErrors.md)\[keyof [`PostApiV1AdminUsersInternalTesterErrors`](PostApiV1AdminUsersInternalTesterErrors.md)]
 
-Defined in: [src/client/types.gen.ts:6969](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6969)
+Defined in: [src/client/types.gen.ts:7199](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7199)

@@ -2,7 +2,7 @@
 
 > **HandlersPrefineryWebhookAck** = `object`
 
-Defined in: [src/client/types.gen.ts:2676](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2676)
+Defined in: [src/client/types.gen.ts:2698](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2698)
 
 ## Properties
 
@@ -10,4 +10,4 @@ Defined in: [src/client/types.gen.ts:2676](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **received**: `boolean`
 
-Defined in: [src/client/types.gen.ts:2677](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2677)
+Defined in: [src/client/types.gen.ts:2699](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2699)

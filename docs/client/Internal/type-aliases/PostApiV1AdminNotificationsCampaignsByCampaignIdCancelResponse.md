@@ -2,4 +2,4 @@
 
 > **PostApiV1AdminNotificationsCampaignsByCampaignIdCancelResponse** = [`PostApiV1AdminNotificationsCampaignsByCampaignIdCancelResponses`](PostApiV1AdminNotificationsCampaignsByCampaignIdCancelResponses.md)\[keyof [`PostApiV1AdminNotificationsCampaignsByCampaignIdCancelResponses`](PostApiV1AdminNotificationsCampaignsByCampaignIdCancelResponses.md)]
 
-Defined in: [src/client/types.gen.ts:6078](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6078)
+Defined in: [src/client/types.gen.ts:6308](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6308)

@@ -2,7 +2,7 @@
 
 > **GetOauthAuthorizeData** = `object`
 
-Defined in: [src/client/types.gen.ts:11930](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11930)
+Defined in: [src/client/types.gen.ts:12100](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#12100)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:11930](https://github.com/anuma-ai/sdk/blob
 
 > `optional` **body**: `never`
 
-Defined in: [src/client/types.gen.ts:11931](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11931)
+Defined in: [src/client/types.gen.ts:12101](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#12101)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:11931](https://github.com/anuma-ai/sdk/blob
 
 > `optional` **path**: `never`
 
-Defined in: [src/client/types.gen.ts:11932](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11932)
+Defined in: [src/client/types.gen.ts:12102](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#12102)
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: [src/client/types.gen.ts:11932](https://github.com/anuma-ai/sdk/blob
 
 > **query**: `object`
 
-Defined in: [src/client/types.gen.ts:11933](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11933)
+Defined in: [src/client/types.gen.ts:12103](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#12103)
 
 **client\_id**
 
@@ -76,4 +76,4 @@ Opaque client state round-tripped to redirect\_uri
 
 > **url**: `"/oauth/authorize"`
 
-Defined in: [src/client/types.gen.ts:11963](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11963)
+Defined in: [src/client/types.gen.ts:12133](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#12133)

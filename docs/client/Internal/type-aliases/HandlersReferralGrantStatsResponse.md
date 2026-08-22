@@ -2,7 +2,7 @@
 
 > **HandlersReferralGrantStatsResponse** = `object`
 
-Defined in: [src/client/types.gen.ts:2821](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2821)
+Defined in: [src/client/types.gen.ts:2843](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2843)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:2821](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **limitations**: `string`\[]
 
-Defined in: [src/client/types.gen.ts:2827](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2827)
+Defined in: [src/client/types.gen.ts:2849](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2849)
 
 Limitations states what this report cannot establish. Served in the
 response, not just documented, because the numbers above invite a
@@ -22,7 +22,7 @@ stronger reading than they support.
 
 > `optional` **owed\_azeta**: `string`
 
-Defined in: [src/client/types.gen.ts:2832](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2832)
+Defined in: [src/client/types.gen.ts:2854](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2854)
 
 OwedAzeta is total outstanding liability across all grants, as a decimal
 string.
@@ -33,7 +33,7 @@ string.
 
 > `optional` **referrers**: [`HandlersReferralGrantReferrerStatResponse`](HandlersReferralGrantReferrerStatResponse.md)\[]
 
-Defined in: [src/client/types.gen.ts:2836](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2836)
+Defined in: [src/client/types.gen.ts:2858](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2858)
 
 Referrers is never null.
 
@@ -43,7 +43,7 @@ Referrers is never null.
 
 > `optional` **ungranted\_activations**: `number`
 
-Defined in: [src/client/types.gen.ts:2842](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2842)
+Defined in: [src/client/types.gen.ts:2864](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2864)
 
 UngrantedActivations counts activations that produced no grant. Expected
 to be non-zero for legitimate reasons (inactive area, no referrer); a

@@ -2,7 +2,7 @@
 
 > **PostReferralIdentityErrors** = `object`
 
-Defined in: [src/client/types.gen.ts:12186](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#12186)
+Defined in: [src/client/types.gen.ts:12360](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#12360)
 
 ## Properties
 
@@ -10,9 +10,19 @@ Defined in: [src/client/types.gen.ts:12186](https://github.com/anuma-ai/sdk/blob
 
 > **401**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:12190](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#12190)
+Defined in: [src/client/types.gen.ts:12364](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#12364)
 
 Unauthorized
+
+***
+
+### 403
+
+> **403**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
+
+Defined in: [src/client/types.gen.ts:12368](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#12368)
+
+Forbidden
 
 ***
 
@@ -20,7 +30,7 @@ Unauthorized
 
 > **409**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:12194](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#12194)
+Defined in: [src/client/types.gen.ts:12372](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#12372)
 
 Conflict
 
@@ -30,6 +40,6 @@ Conflict
 
 > **503**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:12198](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#12198)
+Defined in: [src/client/types.gen.ts:12376](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#12376)
 
 Service Unavailable

@@ -2,7 +2,7 @@
 
 > **PostApiV1AuthMfaDisableResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:7296](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7296)
+Defined in: [src/client/types.gen.ts:7526](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7526)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:7296](https://github.com/anuma-ai/sdk/blob/
 
 > **200**: `object`
 
-Defined in: [src/client/types.gen.ts:7300](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7300)
+Defined in: [src/client/types.gen.ts:7530](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7530)
 
 OK
 
