@@ -209,4 +209,88 @@ describe("useChatStorage send history read", () => {
     expect(texts[2]).toContain("answer-3");
     expect(texts[texts.length - 1]).toContain("next");
   });
+
+  it("does not duplicate a held boundary row when legacy rows share the boundary message_id", async () => {
+    // Legacy data: message_id was assigned count-based, so a mid-thread
+    // delete let the next create reuse a freed id — two rows can share one
+    // message_id. getMessagesPageOp's cursor is INCLUSIVE at the boundary
+    // when boundaryExcludeUniqueIds is given, so the pager must exclude
+    // EVERY row it already holds at that boundary. Excluding only page[0]
+    // re-fetches the other held boundary row into the tail (duplicated
+    // history) — that is the regression this pins.
+    const ctx = {
+      database: db,
+      messagesCollection: db.get("history"),
+      conversationsCollection: db.get("conversations"),
+    } as never;
+    await createMessageOp(ctx, {
+      conversationId: "conv_dup",
+      role: "user",
+      content: "dup-1",
+      uniqueId: "d-1",
+    });
+    await createMessageOp(ctx, {
+      conversationId: "conv_dup",
+      role: "assistant",
+      content: "dup-2",
+      uniqueId: "d-2",
+    });
+    // The id-3 pair: two held rows sharing the boundary message_id.
+    await createMessageOp(ctx, {
+      conversationId: "conv_dup",
+      role: "user",
+      content: "dup-3a",
+      uniqueId: "d-3a",
+    });
+    const twin = await createMessageOp(ctx, {
+      conversationId: "conv_dup",
+      role: "assistant",
+      content: "dup-3b",
+      uniqueId: "d-3b",
+    });
+    const twinRow = await db.get("history").find(twin.uniqueId);
+    await db.write(async () => {
+      await twinRow.update((msg: never) => {
+        (msg as { _setRaw: (k: string, v: unknown) => void })._setRaw("message_id", 3);
+      });
+    });
+    // Error row at the top of the window: filtered from replay, so the
+    // first page underfills the folded window and the pager fetches a
+    // second page (where the boundary duplication would strike).
+    const err = await createMessageOp(ctx, {
+      conversationId: "conv_dup",
+      role: "assistant",
+      content: "dup-err",
+      uniqueId: "d-err",
+    });
+    const errRow = await db.get("history").find(err.uniqueId);
+    await db.write(async () => {
+      await errRow.update((msg: never) => {
+        (msg as { _setRaw: (k: string, v: unknown) => void })._setRaw("error", "send failed");
+      });
+    });
+    mockRunToolLoop.mockResolvedValue(loopResult());
+
+    const { result } = renderHook(() =>
+      useChatStorage({ database: db, conversationId: "conv_dup", getToken: async () => "tok" })
+    );
+
+    await act(async () => {
+      await result.current.sendMessage({
+        messages: [{ role: "user", content: [{ type: "text", text: "after dup" }] }],
+        model: "test-model",
+        maxHistoryMessages: 3,
+      });
+    });
+
+    expect(mockGetMessagesOp).not.toHaveBeenCalled();
+
+    const texts = replayedTexts(0);
+    const count = (needle: string) => texts.filter((t) => t.includes(needle)).length;
+    // Each held boundary row replays exactly once — pre-fix, whichever id-3
+    // row was NOT page[0] is re-fetched and appears twice.
+    expect(count("dup-3a")).toBe(1);
+    expect(count("dup-3b")).toBe(1);
+    expect(texts[texts.length - 1]).toContain("after dup");
+  });
 });

@@ -1435,30 +1435,7 @@ function resolveChunkText(
 }
 
 /**
- * Reads a JSON field from a WatermelonDB model using _getRaw, handling encrypted values.
- * The @json decorator fails on encrypted strings, so this uses _getRaw + manual parsing.
- */
-async function readJsonField<T>(
-  model: Message,
-  column: string,
-  walletAddress?: string
-): Promise<T | undefined> {
-  const raw = model._getRaw(column) as string | undefined;
-  if (!raw) return undefined;
-
-  if (walletAddress && isEncrypted(raw)) {
-    return await decryptJsonField<T>(raw, walletAddress);
-  }
-
-  try {
-    return JSON.parse(raw) as T;
-  } catch {
-    return undefined;
-  }
-}
-
-/**
- * Raw-row variant of {@link readJsonField} for `unsafeFetchRaw` results: same
+ * Reads a JSON field from a WatermelonDB raw row (`unsafeFetchRaw` results): same
  * encrypted-string handling, but the column comes straight off the raw record
  * so no WatermelonDB Model is needed.
  */

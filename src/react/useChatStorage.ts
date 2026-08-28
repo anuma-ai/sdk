@@ -51,8 +51,8 @@ import {
   getMessageSkeletonsOp,
   getMessagesOp,
   getMessagesPageOp,
-  getToolCallEventIdsOp,
   type GetMessagesPageOptions,
+  getToolCallEventIdsOp,
   makeSyntheticStoredConversation,
   makeSyntheticStoredMessage,
   Message,
@@ -2732,10 +2732,15 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           });
           if (replayableMessages.length >= maxHistoryMessages) break;
           if (page.length < maxHistoryMessages) break; // thread exhausted
-          // `message_id` is not unique in legacy data — exclude the boundary
-          // row by uniqueId so a duplicated boundary id is not skipped.
+          // `message_id` is not unique in legacy data (count-based ids +
+          // deletes) and the cursor is INCLUSIVE at the boundary when
+          // exclusions are given — exclude EVERY already-held row at the
+          // boundary message_id, not just page[0], or a duplicated boundary
+          // row is re-fetched into the tail on the next page.
           beforeMessageId = page[0].messageId;
-          boundaryExcludeUniqueIds = [page[0].uniqueId];
+          boundaryExcludeUniqueIds = tail
+            .filter((msg) => msg.messageId === beforeMessageId)
+            .map((msg) => msg.uniqueId);
         }
         const limitedMessages = replayableMessages.slice(-maxHistoryMessages);
 
