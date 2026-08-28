@@ -250,8 +250,8 @@ describe("useChatStorage send history read", () => {
     });
     const twinRow = await db.get("history").find(twin.uniqueId);
     await db.write(async () => {
-      await twinRow.update((msg: never) => {
-        (msg as { _setRaw: (k: string, v: unknown) => void })._setRaw("message_id", 3);
+      await twinRow.update((msg) => {
+        msg._setRaw("message_id", 3);
       });
     });
     // Error row at the top of the window: filtered from replay, so the
@@ -265,8 +265,8 @@ describe("useChatStorage send history read", () => {
     });
     const errRow = await db.get("history").find(err.uniqueId);
     await db.write(async () => {
-      await errRow.update((msg: never) => {
-        (msg as { _setRaw: (k: string, v: unknown) => void })._setRaw("error", "send failed");
+      await errRow.update((msg) => {
+        msg._setRaw("error", "send failed");
       });
     });
     mockRunToolLoop.mockResolvedValue(loopResult());
