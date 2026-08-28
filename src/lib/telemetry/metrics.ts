@@ -73,19 +73,24 @@ export function createMetricsHooks(sink: TelemetrySink, opts?: MetricsHooksOptio
   const now = opts?.now ?? (() => Date.now());
   const runs = new Map<string, RunState>();
 
-  const track = (event: string, properties: Record<string, unknown>): void => {
+  // Sink methods are typed `void`, but an async implementation still type
+  // checks — and its rejected Promise would escape the try/catch below as an
+  // unhandled rejection. Detect a thenable return and swallow it too.
+  const swallow = (call: () => void): void => {
     try {
-      sink.track?.(event, properties);
+      const result: unknown = call();
+      if (result && typeof (result as PromiseLike<unknown>).then === "function") {
+        void Promise.resolve(result).catch(() => {});
+      }
     } catch {
       // Telemetry must never break the loop.
     }
   };
+  const track = (event: string, properties: Record<string, unknown>): void => {
+    swallow(() => sink.track?.(event, properties));
+  };
   const metric = (name: string, value: number, tags: Record<string, string>): void => {
-    try {
-      sink.metric?.(name, value, tags);
-    } catch {
-      // Telemetry must never break the loop.
-    }
+    swallow(() => sink.metric?.(name, value, tags));
   };
 
   const stateFor = (runId: string): RunState => {

@@ -371,6 +371,27 @@ describe("createMetricsHooks", () => {
     hooks.onRunEnd?.({ runId: "run-1", finalContent: "", totalSteps: 0 });
     expect(events).toEqual(["run.started", "run.completed"]);
   });
+
+  it("swallows rejections from an async sink so no unhandled rejection escapes", async () => {
+    const rejections: unknown[] = [];
+    const onUnhandled = (reason: unknown) => {
+      rejections.push(reason);
+    };
+    process.on("unhandledRejection", onUnhandled);
+    try {
+      const bad: TelemetrySink = {
+        track: () => Promise.reject(new Error("async track exploded")) as unknown as void,
+        metric: () => Promise.reject(new Error("async metric exploded")) as unknown as void,
+      };
+      const hooks = createMetricsHooks(bad, { now: clock.now });
+      hooks.onRunStart?.(runStart);
+      hooks.onRunEnd?.({ runId: "run-1", finalContent: "", totalSteps: 1 });
+      await new Promise((resolve) => setTimeout(resolve, 10));
+      expect(rejections).toEqual([]);
+    } finally {
+      process.off("unhandledRejection", onUnhandled);
+    }
+  });
 });
 
 describe("createRecallDiagnosticsHandler", () => {
@@ -470,6 +491,25 @@ describe("createRecallDiagnosticsHandler", () => {
       },
     };
     expect(() => createRecallDiagnosticsHandler(bad)(diagnostics)).not.toThrow();
+  });
+
+  it("swallows rejections from an async sink so no unhandled rejection escapes", async () => {
+    const rejections: unknown[] = [];
+    const onUnhandled = (reason: unknown) => {
+      rejections.push(reason);
+    };
+    process.on("unhandledRejection", onUnhandled);
+    try {
+      const bad: TelemetrySink = {
+        track: () => Promise.reject(new Error("async track exploded")) as unknown as void,
+        metric: () => Promise.reject(new Error("async metric exploded")) as unknown as void,
+      };
+      createRecallDiagnosticsHandler(bad)(diagnostics);
+      await new Promise((resolve) => setTimeout(resolve, 10));
+      expect(rejections).toEqual([]);
+    } finally {
+      process.off("unhandledRejection", onUnhandled);
+    }
   });
 });
 

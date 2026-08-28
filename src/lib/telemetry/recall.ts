@@ -31,19 +31,24 @@ import type { TelemetrySink } from "./types";
 export function createRecallDiagnosticsHandler(
   sink: TelemetrySink
 ): (diagnostics: RecallDiagnostics) => void {
-  const track = (event: string, properties: Record<string, unknown>): void => {
+  // See createMetricsHooks: an async sink method's rejected Promise would
+  // escape a plain try/catch as an unhandled rejection, so swallow thenables
+  // too.
+  const swallow = (call: () => void): void => {
     try {
-      sink.track?.(event, properties);
+      const result: unknown = call();
+      if (result && typeof (result as PromiseLike<unknown>).then === "function") {
+        void Promise.resolve(result).catch(() => {});
+      }
     } catch {
       // Diagnostics must never break retrieval.
     }
   };
+  const track = (event: string, properties: Record<string, unknown>): void => {
+    swallow(() => sink.track?.(event, properties));
+  };
   const metric = (name: string, value: number, tags: Record<string, string>): void => {
-    try {
-      sink.metric?.(name, value, tags);
-    } catch {
-      // Diagnostics must never break retrieval.
-    }
+    swallow(() => sink.metric?.(name, value, tags));
   };
 
   return (diagnostics: RecallDiagnostics) => {
