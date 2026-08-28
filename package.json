@@ -102,6 +102,12 @@
       "require": "./dist/utils/index.cjs",
       "default": "./dist/utils/index.cjs"
     },
+    "./telemetry": {
+      "types": "./dist/telemetry/index.d.ts",
+      "import": "./dist/telemetry/index.mjs",
+      "require": "./dist/telemetry/index.cjs",
+      "default": "./dist/telemetry/index.cjs"
+    },
     "./pii/transformers": {
       "types": "./dist/pii/transformers.d.ts",
       "import": "./dist/pii/transformers.mjs",

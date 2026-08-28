@@ -1,0 +1,80 @@
+/**
+ * Adapter that turns {@link RecallDiagnostics} (the `onDiagnostics` hook on
+ * {@link RecallOptions}) into telemetry events and metrics on a
+ * {@link TelemetrySink}.
+ *
+ * Events emitted:
+ *
+ * - `recall.completed` — once per `recall()` call with budget, lane counts,
+ *   and whether the cross-encoder reranked.
+ * - `recall.degraded` — once per entry in `diagnostics.degraded`, with the
+ *   degradation reason. A clean recall emits none.
+ *
+ * Metrics emitted (all tagged `lane`):
+ *
+ * - `recall.duration` (ms) for each timing lane: `total`, `prep`, `factLane`,
+ *   `rerank`, `queryEmbed`, `chunkLane`, `fuse`. `rerank` and `queryEmbed`
+ *   are SUBSETS of `factLane` — do not sum the lanes.
+ * - `recall.candidates` (count), `recall.facts` (count), `recall.chunks` (count)
+ * - `recall.vault.size`, `recall.vault.rows_decrypted`,
+ *   `recall.vault.rows_embedded` when the fact lane reported them.
+ */
+
+import type { RecallDiagnostics } from "../memory/types";
+import type { TelemetrySink } from "./types";
+
+/**
+ * Build an `onDiagnostics` callback that forwards recall diagnostics to
+ * `sink`. Never throws — a throwing sink method is swallowed, matching the
+ * `recall()` contract that diagnostics must not break retrieval.
+ */
+export function createRecallDiagnosticsHandler(
+  sink: TelemetrySink
+): (diagnostics: RecallDiagnostics) => void {
+  const track = (event: string, properties: Record<string, unknown>): void => {
+    try {
+      sink.track?.(event, properties);
+    } catch {
+      // Diagnostics must never break retrieval.
+    }
+  };
+  const metric = (name: string, value: number, tags: Record<string, string>): void => {
+    try {
+      sink.metric?.(name, value, tags);
+    } catch {
+      // Diagnostics must never break retrieval.
+    }
+  };
+
+  return (diagnostics: RecallDiagnostics) => {
+    track("recall.completed", {
+      usedBudget: diagnostics.usedBudget,
+      reranked: diagnostics.reranked,
+      candidateCount: diagnostics.candidateCount,
+      factCount: diagnostics.factCount,
+      chunkCount: diagnostics.chunkCount,
+      ...(diagnostics.decryptLast !== undefined ? { decryptLast: diagnostics.decryptLast } : {}),
+      degradedCount: diagnostics.degraded.length,
+    });
+
+    for (const reason of diagnostics.degraded) {
+      track("recall.degraded", { reason, usedBudget: diagnostics.usedBudget });
+    }
+
+    for (const [lane, ms] of Object.entries(diagnostics.timings)) {
+      metric("recall.duration", ms, { lane });
+    }
+    metric("recall.candidates", diagnostics.candidateCount, {});
+    metric("recall.facts", diagnostics.factCount, {});
+    metric("recall.chunks", diagnostics.chunkCount, {});
+    if (diagnostics.vaultSize !== undefined) {
+      metric("recall.vault.size", diagnostics.vaultSize, {});
+    }
+    if (diagnostics.vaultRowsDecrypted !== undefined) {
+      metric("recall.vault.rows_decrypted", diagnostics.vaultRowsDecrypted, {});
+    }
+    if (diagnostics.vaultRowsEmbedded !== undefined) {
+      metric("recall.vault.rows_embedded", diagnostics.vaultRowsEmbedded, {});
+    }
+  };
+}
