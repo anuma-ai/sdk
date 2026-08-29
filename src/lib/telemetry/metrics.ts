@@ -6,11 +6,16 @@
  *
  * - `run.started` — `{ runId, model }`
  * - `run.completed` — `{ runId, totalSteps, durationMs }`
- * - `run.failed` — `{ runId, durationMs, errorType, error, stage }`
+ * - `run.failed` — `{ runId, durationMs, errorType, stage }`
  * - `model.call.completed` — `{ runId, stepIndex, latencyMs, model?, inputTokens?, outputTokens?, finishReason? }`
- * - `model.call.failed` — `{ runId, stepIndex, latencyMs, model?, error }`
+ * - `model.call.failed` — `{ runId, stepIndex, latencyMs, model? }`
  * - `tool.call.completed` — `{ runId, stepIndex, toolCallId, toolName, durationMs }`
- * - `tool.call.failed` — `{ runId, stepIndex, toolCallId, toolName, durationMs, errorType, error }`
+ * - `tool.call.failed` — `{ runId, stepIndex, toolCallId, toolName, durationMs, errorType }`
+ *
+ * The raw `error` message string is NOT reported unless the caller opts in
+ * with {@link MetricsHooksOptions.includeErrorMessages} — see that option for
+ * why. `errorType` is always safe and always reported where the source event
+ * carries one.
  *
  * Metrics emitted:
  *
@@ -29,7 +34,10 @@
  * - `afterToolUse` without a matching `beforeToolUse` (defensive — not a
  *   documented case) is still reported, with `durationMs` omitted.
  * - Per-run state is keyed by `runId` and cleared on the terminal hook, so
- *   concurrent runs and long-lived adapter instances do not leak timers.
+ *   concurrent runs and long-lived adapter instances do not leak timers. The
+ *   `after*` hooks read that state without creating it, so a hook arriving
+ *   after the terminal one cannot resurrect an entry nothing would delete
+ *   again.
  */
 
 import type {
@@ -51,6 +59,22 @@ export interface MetricsHooksOptions {
    * matters).
    */
   now?: () => number;
+  /**
+   * Report the raw `error` message string on `run.failed`,
+   * `model.call.failed`, and `tool.call.failed`. Default `false`.
+   *
+   * Off by default because those strings are free text and routinely quote
+   * the input that caused the failure. `JSON.parse` echoes the offending tool
+   * arguments verbatim (`Unexpected token 'h', "hunter2pass"... is not valid
+   * JSON`), `executeToolCall` wraps whatever a host executor threw, and an
+   * executor with `deAnonymizeArgs` runs on de-redacted PII. Sending them to
+   * a sink contradicts {@link TelemetrySink}, which states that properties
+   * carry only identifiers, counts, and timings.
+   *
+   * Turn it on when the sink is infrastructure you own and you accept the
+   * exposure. Prefer `errorType`, which is always reported and always safe.
+   */
+  includeErrorMessages?: boolean;
 }
 
 /** Internal per-run state. Not exported; one instance per adapter. */
@@ -71,6 +95,7 @@ interface RunState {
  */
 export function createMetricsHooks(sink: TelemetrySink, opts?: MetricsHooksOptions): RunHooks {
   const now = opts?.now ?? (() => Date.now());
+  const includeErrorMessages = opts?.includeErrorMessages ?? false;
   const runs = new Map<string, RunState>();
 
   // Sink methods are typed `void`, but an async implementation still type
@@ -92,6 +117,9 @@ export function createMetricsHooks(sink: TelemetrySink, opts?: MetricsHooksOptio
   const metric = (name: string, value: number, tags: Record<string, string>): void => {
     swallow(() => sink.metric?.(name, value, tags));
   };
+  // Free-text error messages are opt-in; see `includeErrorMessages`.
+  const errorProps = (error: string | undefined): { error?: string } =>
+    includeErrorMessages && error !== undefined ? { error } : {};
 
   const stateFor = (runId: string): RunState => {
     let state = runs.get(runId);
@@ -140,7 +168,7 @@ export function createMetricsHooks(sink: TelemetrySink, opts?: MetricsHooksOptio
         runId: e.runId,
         durationMs,
         errorType,
-        error: e.error,
+        ...errorProps(e.error),
         stage: e.stage,
       });
       metric("run.duration", durationMs, {
@@ -156,9 +184,12 @@ export function createMetricsHooks(sink: TelemetrySink, opts?: MetricsHooksOptio
     },
 
     afterModelCall: (e: ModelCallEndEvent) => {
-      const state = stateFor(e.runId);
-      const pending = state.modelCalls.get(e.stepIndex);
-      state.modelCalls.delete(e.stepIndex);
+      // `runs.get`, not `stateFor`: creating state here would resurrect a run
+      // that already fired its terminal hook, and nothing deletes it twice.
+      // The event still emits; only `latencyMs` is lost.
+      const state = runs.get(e.runId);
+      const pending = state?.modelCalls.get(e.stepIndex);
+      state?.modelCalls.delete(e.stepIndex);
       const latencyMs = pending ? now() - pending.startedAt : undefined;
       const base = {
         runId: e.runId,
@@ -167,7 +198,7 @@ export function createMetricsHooks(sink: TelemetrySink, opts?: MetricsHooksOptio
         ...(pending?.model ? { model: pending.model } : {}),
       };
       if (e.error !== undefined) {
-        track("model.call.failed", { ...base, error: e.error });
+        track("model.call.failed", { ...base, ...errorProps(e.error) });
         if (latencyMs !== undefined) {
           metric("model.call.latency", latencyMs, {
             ...(pending?.model ? { model: pending.model } : {}),
@@ -208,9 +239,10 @@ export function createMetricsHooks(sink: TelemetrySink, opts?: MetricsHooksOptio
     },
 
     afterToolUse: (e: ToolUseEndEvent) => {
-      const state = stateFor(e.runId);
-      const pending = state.toolCalls.get(e.toolCallId);
-      state.toolCalls.delete(e.toolCallId);
+      // Read-only for the same reason as `afterModelCall` above.
+      const state = runs.get(e.runId);
+      const pending = state?.toolCalls.get(e.toolCallId);
+      state?.toolCalls.delete(e.toolCallId);
       const durationMs = pending ? now() - pending.startedAt : undefined;
       const base = {
         runId: e.runId,
@@ -222,7 +254,7 @@ export function createMetricsHooks(sink: TelemetrySink, opts?: MetricsHooksOptio
       if (e.error !== undefined || e.errorType !== undefined) {
         track("tool.call.failed", {
           ...base,
-          ...(e.error !== undefined ? { error: e.error } : {}),
+          ...errorProps(e.error),
           ...(e.errorType !== undefined ? { errorType: e.errorType } : {}),
         });
         if (durationMs !== undefined) {

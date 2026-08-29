@@ -5,6 +5,7 @@ import type {
   ModelCallStartEvent,
   RunEndEvent,
   RunErrorEvent,
+  RunHooks,
   RunStartEvent,
   ToolUseEndEvent,
   ToolUseStartEvent,
@@ -131,7 +132,6 @@ describe("createMetricsHooks", () => {
         runId: "run-1",
         durationMs: 5,
         errorType: "TypeError",
-        error: "stream exploded",
         stage: "model",
       },
     });
@@ -212,7 +212,6 @@ describe("createMetricsHooks", () => {
         stepIndex: 0,
         latencyMs: 5,
         model: "gpt-test",
-        error: "provider 500",
       },
     });
     expect(sink.metrics).toContainEqual({
@@ -259,7 +258,6 @@ describe("createMetricsHooks", () => {
         toolCallId: "tc-1",
         toolName: "web_search",
         durationMs: 5,
-        error: "boom",
         errorType: "execution",
       },
     });
@@ -298,7 +296,7 @@ describe("createMetricsHooks", () => {
       hooks.onRunEnd?.({ runId: "run-1", finalContent: "done", totalSteps: 1 });
 
       // afterToolUse arriving after the run terminated finds no pending timer:
-      // still reported (run state recreated), but durationMs omitted.
+      // still reported, but durationMs omitted. The run state stays deleted.
       hooks.afterToolUse?.(toolEnd({ toolCallId: "tc-dangling" }));
       const evt = sink.events.find((e) => e.event === "tool.call.completed");
       expect(evt?.properties.toolCallId).toBe("tc-dangling");
@@ -325,6 +323,95 @@ describe("createMetricsHooks", () => {
       expect(evt).toBeDefined();
       expect(evt?.properties).not.toHaveProperty("latencyMs");
     });
+  });
+
+  describe("raw error messages", () => {
+    // Tool-argument parse failures quote the offending arguments: JSON.parse
+    // reports `Unexpected token 'h', "hunter2pass" is not valid JSON`, and
+    // executeToolCall prefixes it. Executor failures wrap whatever the host
+    // threw, which for a deAnonymizeArgs tool has real PII in scope.
+    const leaky =
+      "Failed to parse tool arguments: Unexpected token 'h', \"hunter2pass\" is not valid JSON";
+
+    function driveFailures(hooks: RunHooks): void {
+      hooks.onRunStart?.(runStart);
+      hooks.beforeModelCall?.(modelStart());
+      hooks.afterModelCall?.(modelEnd({ error: leaky }));
+      hooks.beforeToolUse?.(toolStart());
+      hooks.afterToolUse?.(toolEnd({ result: undefined, error: leaky, errorType: "parse" }));
+      hooks.onRunError?.({ runId: "run-1", error: leaky, stage: "model" });
+    }
+
+    it("omits the raw error string from every failure event by default", () => {
+      driveFailures(createMetricsHooks(sink, { now: clock.now }));
+
+      const failed = sink.events.filter((e) => e.event.endsWith(".failed"));
+      expect(failed.map((e) => e.event)).toEqual([
+        "model.call.failed",
+        "tool.call.failed",
+        "run.failed",
+      ]);
+      for (const e of failed) {
+        expect(e.properties).not.toHaveProperty("error");
+      }
+      expect(JSON.stringify(sink.events)).not.toContain("hunter2pass");
+    });
+
+    it("still reports the safe categorical errorType when the message is withheld", () => {
+      driveFailures(createMetricsHooks(sink, { now: clock.now }));
+
+      expect(sink.events.find((e) => e.event === "tool.call.failed")?.properties.errorType).toBe(
+        "parse"
+      );
+      expect(sink.events.find((e) => e.event === "run.failed")?.properties.errorType).toBe("Error");
+      expect(sink.metrics).toContainEqual({
+        name: "tool.call.duration",
+        value: 5,
+        tags: { toolName: "web_search", outcome: "failed", errorType: "parse" },
+      });
+    });
+
+    it("reports the raw error string when the caller opts in", () => {
+      driveFailures(createMetricsHooks(sink, { now: clock.now, includeErrorMessages: true }));
+
+      const failed = sink.events.filter((e) => e.event.endsWith(".failed"));
+      expect(failed).toHaveLength(3);
+      for (const e of failed) {
+        expect(e.properties.error).toBe(leaky);
+      }
+    });
+  });
+
+  it("retains no run state after the terminal hook, even if a late hook arrives", () => {
+    let t = 0;
+    const hooks = createMetricsHooks(sink, { now: () => t });
+
+    hooks.onRunStart?.(runStart);
+    t = 10;
+    hooks.onRunEnd?.({ runId: "run-1", finalContent: "done", totalSteps: 1 });
+
+    // These arrive after the run is over. They must report, but must not
+    // recreate the run state — nothing would ever delete it a second time.
+    t = 100;
+    hooks.afterToolUse?.(toolEnd({ toolCallId: "tc-late" }));
+    t = 200;
+    hooks.afterModelCall?.(modelEnd());
+
+    // A second terminal hook for the same run now measures from its own
+    // arrival (0ms), not from a resurrected startedAt (400ms).
+    t = 500;
+    hooks.onRunEnd?.({ runId: "run-1", finalContent: "done", totalSteps: 1 });
+
+    const completions = sink.events.filter((e) => e.event === "run.completed");
+    expect(completions[0]?.properties.durationMs).toBe(10);
+    expect(completions[1]?.properties.durationMs).toBe(0);
+
+    // The late hooks are still reported, without duration fields.
+    const lateTool = sink.events.find((e) => e.properties.toolCallId === "tc-late");
+    expect(lateTool?.event).toBe("tool.call.completed");
+    expect(lateTool?.properties).not.toHaveProperty("durationMs");
+    const lateModel = sink.events.find((e) => e.event === "model.call.completed");
+    expect(lateModel?.properties).not.toHaveProperty("latencyMs");
   });
 
   it("keeps concurrent runs isolated by runId", () => {
