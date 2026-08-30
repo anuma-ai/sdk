@@ -19,6 +19,21 @@
  * - `recall.vault.size`, `recall.vault.rows_decrypted`,
  *   `recall.vault.rows_embedded` when the fact lane reported them.
  *
+ * The handler does not observe every recall in the process. See
+ * {@link createRecallDiagnosticsHandler} for the coverage boundary — that
+ * note lives on the function, not here, because a file header is a floating
+ * comment: it is not attached to the symbol, so it never reaches an editor
+ * hover or the generated API surface.
+ */
+
+import type { RecallDiagnostics } from "../lib/memory/types";
+import type { TelemetrySink } from "./types";
+
+/**
+ * Build an `onDiagnostics` callback that forwards recall diagnostics to
+ * `sink`. Never throws — a throwing sink method is swallowed, matching the
+ * `recall()` contract that diagnostics must not break retrieval.
+ *
  * COVERAGE — this handler only sees recalls the host starts itself: a direct
  * `recall()` call, or `reflect()` (`ReflectOptions extends RecallOptions`, and
  * reflect forwards the options object). It does NOT see recalls that happen
@@ -43,15 +58,6 @@
  * change: wrap the sink rather than the handler, and put it on `track`
  * properties only. A metric tag of that cardinality is a problem for the
  * backend — see {@link TelemetrySink} on keeping tags low-cardinality.
- */
-
-import type { RecallDiagnostics } from "../lib/memory/types";
-import type { TelemetrySink } from "./types";
-
-/**
- * Build an `onDiagnostics` callback that forwards recall diagnostics to
- * `sink`. Never throws — a throwing sink method is swallowed, matching the
- * `recall()` contract that diagnostics must not break retrieval.
  */
 export function createRecallDiagnosticsHandler(
   sink: TelemetrySink

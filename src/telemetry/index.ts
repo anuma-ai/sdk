@@ -8,6 +8,13 @@
  *
  * Exposed as `@anuma/sdk/telemetry`.
  *
+ * The two adapters do NOT have the same reach, and the difference is not
+ * obvious from the wiring. {@link createMetricsHooks} sees every run that
+ * goes through the tool loop. {@link createRecallDiagnosticsHandler} sees
+ * only the recalls the host starts itself — the in-run recall paths already
+ * hold the single `onDiagnostics` slot. Read its doc before you draw a
+ * conclusion from recall event volume.
+ *
  * @example
  * ```ts
  * import { createMetricsHooks, createRecallDiagnosticsHandler } from "@anuma/sdk/telemetry";
@@ -19,6 +26,8 @@
  * //   { track: (event, properties) => posthog.capture({ distinctId, event, properties }) }
  * const sink = { track: posthog.capture.bind(posthog) };
  * const hooks = createMetricsHooks(sink);
+ * // Host-initiated recall only. Recalls inside a tool-loop run never reach
+ * // this handler — see createRecallDiagnosticsHandler for why.
  * const onDiagnostics = createRecallDiagnosticsHandler(sink);
  * ```
  */
