@@ -197,7 +197,7 @@ export default defineConfig([
   // to a vendor-neutral TelemetrySink. Zero runtime deps; platform-neutral so
   // no "react-native"/"react-server" conditions on the export.
   {
-    entry: ["src/lib/telemetry/index.ts"],
+    entry: ["src/telemetry/index.ts"],
     format: ["esm", "cjs"],
     dts: true,
     outDir: "dist/telemetry",

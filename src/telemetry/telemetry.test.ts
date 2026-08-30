@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type {
   ModelCallEndEvent,
@@ -9,8 +9,8 @@ import type {
   RunStartEvent,
   ToolUseEndEvent,
   ToolUseStartEvent,
-} from "../chat/runHooks";
-import type { RecallDiagnostics } from "../memory/types";
+} from "../lib/chat/runHooks";
+import type { RecallDiagnostics } from "../lib/memory/types";
 import { createMetricsHooks } from "./metrics";
 import { createRecallDiagnosticsHandler } from "./recall";
 import { noopTelemetrySink, type TelemetrySink } from "./types";
@@ -481,6 +481,34 @@ describe("createMetricsHooks", () => {
   });
 });
 
+// Durations must never go backward. Date.now() is wall clock and steps BACKWARD
+// on an NTP correction or a VM resume, and dogstatsd ingests a negative
+// histogram sample rather than rejecting it — permanently corrupting the
+// percentiles for that bucket. The default clock is therefore monotonic where
+// the runtime has performance.now(), matching lib/memory/recall.ts.
+describe("the default clock", () => {
+  it("never reports a negative duration when the wall clock steps backward", () => {
+    const sink = makeSink();
+    const realNow = Date.now;
+    let wall = 1_000_000;
+    Date.now = () => wall;
+    try {
+      const hooks = createMetricsHooks(sink);
+      hooks.onRunStart?.(runStart);
+      // An NTP correction lands mid-run: two minutes backward.
+      wall -= 120_000;
+      hooks.onRunEnd?.({ runId: "run-1", finalContent: "done", totalSteps: 1 });
+    } finally {
+      Date.now = realNow;
+    }
+
+    const durationMs = sink.events.find((e) => e.event === "run.completed")?.properties.durationMs;
+    expect(typeof durationMs).toBe("number");
+    expect(durationMs as number).toBeGreaterThanOrEqual(0);
+    expect(sink.metrics.find((m) => m.name === "run.duration")?.value).toBeGreaterThanOrEqual(0);
+  });
+});
+
 describe("createRecallDiagnosticsHandler", () => {
   const diagnostics: RecallDiagnostics = {
     usedBudget: "mid",
@@ -517,6 +545,7 @@ describe("createRecallDiagnosticsHandler", () => {
         candidateCount: 42,
         factCount: 5,
         chunkCount: 3,
+        totalMs: 120,
         decryptLast: true,
         degradedCount: 2,
       },
@@ -526,6 +555,19 @@ describe("createRecallDiagnosticsHandler", () => {
       { event: "recall.degraded", properties: { reason: "rerank-unavailable", usedBudget: "mid" } },
       { event: "recall.degraded", properties: { reason: "decompose-moved", usedBudget: "mid" } },
     ]);
+  });
+
+  // A track-only sink is supported, tested below, and what the module's own
+  // PostHog example builds — so the headline recall latency has to survive
+  // without `metric`, or that consumer sees events arriving and concludes recall
+  // observability works while every latency number goes on the floor.
+  it("carries totalMs on recall.completed for a sink that implements only track", () => {
+    const events: TrackedEvent[] = [];
+    createRecallDiagnosticsHandler({
+      track: (event, properties) => events.push({ event, properties }),
+    })(diagnostics);
+
+    expect(events.find((e) => e.event === "recall.completed")?.properties.totalMs).toBe(120);
   });
 
   it("emits one recall.duration metric per timing lane plus count metrics", () => {
@@ -635,5 +677,19 @@ describe("noopTelemetrySink", () => {
         degraded: [],
       })
     ).not.toThrow();
+  });
+
+  // Published, shared singleton: createMetricsHooks closes over the OBJECT, not
+  // its methods, so a mutation here reroutes every adapter already built from it.
+  it("is frozen, so one module cannot reroute every other holder's telemetry", () => {
+    expect(Object.isFrozen(noopTelemetrySink)).toBe(true);
+
+    // Reflect.set returns false on a frozen target instead of throwing, so the
+    // refusal is directly assertable and no type assertion is needed to attempt
+    // the write.
+    const hijack = vi.fn();
+    expect(Reflect.set(noopTelemetrySink, "track", hijack)).toBe(false);
+    noopTelemetrySink.track?.("run.started", { runId: "r" });
+    expect(hijack).not.toHaveBeenCalled();
   });
 });

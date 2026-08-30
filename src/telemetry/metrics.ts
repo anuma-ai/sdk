@@ -49,14 +49,23 @@ import type {
   RunStartEvent,
   ToolUseEndEvent,
   ToolUseStartEvent,
-} from "../chat/runHooks";
+} from "../lib/chat/runHooks";
 import type { TelemetrySink } from "./types";
 
 export interface MetricsHooksOptions {
   /**
-   * Clock used for all durations, in milliseconds. Defaults to `Date.now`.
-   * Inject a fake in tests (or `performance.now` where sub-ms precision
-   * matters).
+   * Override the clock used for every duration this adapter reports.
+   *
+   * The default is monotonic where the runtime has `performance.now()`
+   * (browser / RN / Node), falling back to `Date.now()`. That is about
+   * monotonicity, not precision: `Date.now()` steps BACKWARD on an NTP
+   * correction, a VM resume from snapshot, or a container host clock sync, and
+   * a step landing mid-run makes `now() - startedAt` negative. dogstatsd
+   * accepts a negative histogram sample, so it is ingested and corrupts the
+   * min/p50/p95 for that bucket — silently wrong data, which is the one thing
+   * this module exists to prevent.
+   *
+   * Supply your own only to make durations deterministic in a test.
    */
   now?: () => number;
   /**
@@ -88,13 +97,24 @@ interface RunState {
 }
 
 /**
+ * Monotonic where the runtime provides it, else wall clock. Mirrors the helper
+ * in `lib/memory/recall.ts` and `lib/memoryVault/searchTool.ts`, duplicated
+ * rather than imported so this subpath keeps its zero-runtime-dependency
+ * surface instead of pulling in the recall graph.
+ */
+const defaultNowMs = (): number =>
+  typeof performance !== "undefined" && typeof performance.now === "function"
+    ? performance.now()
+    : Date.now();
+
+/**
  * Build {@link RunHooks} that report run lifecycle, model calls, and tool
  * calls to `sink`. The returned hooks are synchronous and never throw — a
  * throwing sink method is swallowed with a console-free `noop` (the tool loop
  * already swallows hook errors; we avoid double-logging here).
  */
 export function createMetricsHooks(sink: TelemetrySink, opts?: MetricsHooksOptions): RunHooks {
-  const now = opts?.now ?? (() => Date.now());
+  const now = opts?.now ?? defaultNowMs;
   const includeErrorMessages = opts?.includeErrorMessages ?? false;
   const runs = new Map<string, RunState>();
 

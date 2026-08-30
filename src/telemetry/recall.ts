@@ -20,7 +20,7 @@
  *   `recall.vault.rows_embedded` when the fact lane reported them.
  */
 
-import type { RecallDiagnostics } from "../memory/types";
+import type { RecallDiagnostics } from "../lib/memory/types";
 import type { TelemetrySink } from "./types";
 
 /**
@@ -52,12 +52,20 @@ export function createRecallDiagnosticsHandler(
   };
 
   return (diagnostics: RecallDiagnostics) => {
+    // totalMs rides the EVENT as well as the `recall.duration` metric. Both
+    // TelemetrySink methods are optional and a track-only sink is supported and
+    // documented (the module's own PostHog example is exactly that shape), so
+    // without this the headline recall latency silently vanishes for anyone who
+    // wired up `track` alone — they see recall.completed arriving and conclude
+    // recall observability works. The run adapter already puts durationMs on
+    // run.completed for the same reason; this removes the asymmetry.
     track("recall.completed", {
       usedBudget: diagnostics.usedBudget,
       reranked: diagnostics.reranked,
       candidateCount: diagnostics.candidateCount,
       factCount: diagnostics.factCount,
       chunkCount: diagnostics.chunkCount,
+      totalMs: diagnostics.timings.total,
       ...(diagnostics.decryptLast !== undefined ? { decryptLast: diagnostics.decryptLast } : {}),
       degradedCount: diagnostics.degraded.length,
     });

@@ -15,10 +15,14 @@
  * ```ts
  * import { createMetricsHooks, type TelemetrySink } from "@anuma/sdk/telemetry";
  *
+ * // posthog-js: capture(event, properties)
  * const sink: TelemetrySink = {
  *   track: (event, properties) => posthog.capture(event, properties),
  *   metric: (name, value, tags) => statsd.histogram(name, value, tags),
  * };
+ *
+ * // posthog-node takes ONE object, so the arguments do not line up:
+ * // track: (event, properties) => posthog.capture({ distinctId, event, properties })
  *
  * const hooks = createMetricsHooks(sink);
  * // pass `hooks` wherever RunHooks are accepted, or compose with your own:
@@ -42,8 +46,15 @@ export interface TelemetrySink {
 /**
  * Default sink that discards everything. Useful as a fallback when telemetry
  * is configured off, and as the base for sinks that override one method.
+ *
+ * Frozen. It is a published singleton, and `createMetricsHooks` closes over the
+ * object rather than its methods, so one module assigning `noopTelemetrySink.track`
+ * would reroute every already-constructed adapter that shares the reference — a
+ * test stub that forgets to restore changes behaviour for the rest of the suite.
+ * Freezing now rather than later: adding it later is the breaking direction,
+ * because it turns a silent assignment into a strict-mode TypeError.
  */
-export const noopTelemetrySink: TelemetrySink = {
+export const noopTelemetrySink: TelemetrySink = Object.freeze({
   track: () => {},
   metric: () => {},
-};
+});
