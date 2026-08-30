@@ -17,6 +17,7 @@ export {
   getMessageSkeletonsOp,
   getMessagesOp,
   getMessagesPageOp,
+  getToolCallEventIdsOp,
   makeSyntheticStoredConversation,
   makeSyntheticStoredMessage,
   searchChunksOp,

@@ -821,6 +821,47 @@ export async function getMessageSkeletonsOp(
 }
 
 /**
+ * Tool-call-event id scan for the send hot path: collect every stored
+ * `toolCallEvents[].id` across a conversation WITHOUT building StoredMessages
+ * and WITHOUT any field decryption — `tool_call_events` is a plaintext JSON
+ * column (encryptMessageFields never touches it), so the dedup set the sender
+ * needs is a cheap column read. The previous shape (getMessagesOp) parsed and
+ * decrypted every embedding column in the thread just to build this set.
+ * unsafeFetchRaw (NOT fetch): never pin a Model per row (web Pile-2).
+ */
+export async function getToolCallEventIdsOp(
+  ctx: StorageOperationsContext,
+  convId: string
+): Promise<Set<string>> {
+  const results = (await ctx.messagesCollection
+    .query(Q.where("conversation_id", convId))
+    .unsafeFetchRaw()) as Record<string, unknown>[];
+
+  const ids = new Set<string>();
+  for (const raw of results) {
+    const value = raw.tool_call_events;
+    if (!value) continue;
+    // Plaintext column: a string on both adapters; tolerate an already-parsed
+    // array defensively (mirrors parseJsonField in messageRawToStoredRaw).
+    let events: { id?: string | null }[] | undefined;
+    if (typeof value === "string") {
+      try {
+        events = JSON.parse(value) as { id?: string | null }[];
+      } catch {
+        continue;
+      }
+    } else if (Array.isArray(value)) {
+      events = value as { id?: string | null }[];
+    }
+    if (!Array.isArray(events)) continue;
+    for (const evt of events) {
+      if (evt && evt.id) ids.add(evt.id);
+    }
+  }
+  return ids;
+}
+
+/**
  * Clear all messages in a conversation.
  * Clears file_ids before deletion.
  * Note: useChatStorage hooks automatically cascade delete media.
@@ -1394,23 +1435,24 @@ function resolveChunkText(
 }
 
 /**
- * Reads a JSON field from a WatermelonDB model using _getRaw, handling encrypted values.
- * The @json decorator fails on encrypted strings, so this uses _getRaw + manual parsing.
+ * Reads a JSON field from a WatermelonDB raw row (`unsafeFetchRaw` results): same
+ * encrypted-string handling, but the column comes straight off the raw record
+ * so no WatermelonDB Model is needed.
  */
-async function readJsonField<T>(
-  model: Message,
+async function readRawJsonField<T>(
+  raw: Record<string, unknown>,
   column: string,
   walletAddress?: string
 ): Promise<T | undefined> {
-  const raw = model._getRaw(column) as string | undefined;
-  if (!raw) return undefined;
+  const value = raw[column] as string | undefined;
+  if (!value) return undefined;
 
-  if (walletAddress && isEncrypted(raw)) {
-    return await decryptJsonField<T>(raw, walletAddress);
+  if (walletAddress && isEncrypted(value)) {
+    return await decryptJsonField<T>(value, walletAddress);
   }
 
   try {
-    return JSON.parse(raw) as T;
+    return JSON.parse(value) as T;
   } catch {
     return undefined;
   }
@@ -1437,7 +1479,12 @@ export async function searchMessagesOp(
 
   const queryConditions = conversationId ? [Q.where("conversation_id", conversationId)] : [];
 
-  const messages = await ctx.messagesCollection.query(...queryConditions).fetch();
+  // unsafeFetchRaw (NOT fetch): this whole-table scan must not pin a Model per row into the
+  // never-evicted RecordCache (web Pile-2). Same SQL; scoring reads raw columns and only the
+  // top-K survivors are mapped to StoredMessages.
+  const messages = (await ctx.messagesCollection
+    .query(...queryConditions)
+    .unsafeFetchRaw()) as Record<string, unknown>[];
 
   // First pass: score every candidate by similarity. Decrypting just
   // the vector field is unavoidable here since vectors are stored
@@ -1451,14 +1498,13 @@ export async function searchMessagesOp(
   // The two-pass version below decrypts only the surviving K. The
   // sort key, set of returned messages, and the externally-observable
   // shape are identical to the eager version.
-  const candidates: { message: Message; similarity: number }[] = [];
+  const candidates: { message: Record<string, unknown>; similarity: number }[] = [];
 
   for (const message of messages) {
-    // Use _getRaw for reliable raw column access
-    const msgConvId = String(message._getRaw("conversation_id"));
+    const msgConvId = String(message.conversation_id);
     if (!activeConversationIds.has(msgConvId)) continue;
 
-    const messageVector = await readJsonField<number[]>(message, "vector", ctx.walletAddress);
+    const messageVector = await readRawJsonField<number[]>(message, "vector", ctx.walletAddress);
     if (!messageVector || messageVector.length === 0) continue;
 
     const similarity = cosineSimilarity(queryVector, messageVector);
@@ -1475,7 +1521,7 @@ export async function searchMessagesOp(
   // Decrypt only the top-K survivors.
   return Promise.all(
     topK.map(async ({ message, similarity }) => {
-      const stored = await messageToStored(
+      const stored = await messageRawToStored(
         message,
         ctx.walletAddress,
         ctx.signMessage,
@@ -1566,7 +1612,12 @@ export async function searchChunksOp(
 
   const queryConditions = conversationId ? [Q.where("conversation_id", conversationId)] : [];
 
-  const messages = await ctx.messagesCollection.query(...queryConditions).fetch();
+  // unsafeFetchRaw (NOT fetch): this whole-table scan must not pin a Model per row into the
+  // never-evicted RecordCache (web Pile-2). Same SQL; scoring reads raw columns and only the
+  // top-K survivors are mapped to StoredMessages.
+  const messages = (await ctx.messagesCollection
+    .query(...queryConditions)
+    .unsafeFetchRaw()) as Record<string, unknown>[];
 
   // Same two-pass shape as searchMessagesOp: score everything first,
   // then decrypt only the survivors of the top-K cut.
@@ -1579,7 +1630,7 @@ export async function searchChunksOp(
   //     in pass 2, so cache hits never decrypt below-top-K messages.
   //   - "message": whole-message fallback; uses the decrypted message content.
   type Candidate = {
-    message: Message;
+    message: Record<string, unknown>;
     similarity: number;
     chunkTextSource: // `chunk` carries the chunk itself rather than a resolved string: the text
       // is rebuilt from its offsets in pass 2, where the DECRYPTED content is in
@@ -1601,15 +1652,14 @@ export async function searchChunksOp(
   let unreadableVectors = 0;
 
   for (const message of messages) {
-    // Use _getRaw for reliable raw column access
-    const msgConvId = String(message._getRaw("conversation_id"));
+    const msgConvId = String(message.conversation_id);
     if (!activeConversationIds.has(msgConvId)) continue;
 
     // Skip stale-model vectors: a non-null embedding_model that differs from
     // the current model lives in an incompatible vector space. Null is
     // grandfathered (legacy rows were embedded with the current model).
     if (embeddingModel) {
-      const storedModel = message._getRaw("embedding_model") as string | null | undefined;
+      const storedModel = message.embedding_model as string | null | undefined;
       if (storedModel !== null && storedModel !== undefined && storedModel !== embeddingModel) {
         staleSkipped++;
         continue;
@@ -1619,8 +1669,8 @@ export async function searchChunksOp(
     // Cache hit: score from cached vectors, no decrypt / JSON.parse. Validated
     // by updated_at so a re-embed (which bumps it) falls through to the miss
     // path below and repopulates.
-    const version = Number(message._getRaw("updated_at")) || 0;
-    const cached = chunkCache?.get(message.id);
+    const version = Number(message.updated_at) || 0;
+    const cached = chunkCache?.get(message.id as string);
     if (cached && cached.version === version) {
       if (cached.chunks.length > 0) {
         for (let ci = 0; ci < cached.chunks.length; ci++) {
@@ -1644,9 +1694,9 @@ export async function searchChunksOp(
       continue;
     }
 
-    // Cache miss. Use _getRaw to read JSON fields that may be encrypted — the
-    // @json decorator fails on encrypted strings.
-    const chunks = await readJsonField<MessageChunk[]>(message, "chunks", ctx.walletAddress);
+    // Cache miss. Read the raw JSON columns directly — they may be encrypted,
+    // so parse/decrypt by hand rather than relying on the @json decorator.
+    const chunks = await readRawJsonField<MessageChunk[]>(message, "chunks", ctx.walletAddress);
 
     // If message has chunks, search through them
     if (chunks && chunks.length > 0) {
@@ -1663,7 +1713,7 @@ export async function searchChunksOp(
           unreadableVectors++;
         })
       );
-      chunkCache?.set(message.id, { version, chunks: vectors });
+      chunkCache?.set(message.id as string, { version, chunks: vectors });
 
       for (let ci = 0; ci < chunks.length; ci++) {
         const vec = vectors[ci];
@@ -1681,11 +1731,11 @@ export async function searchChunksOp(
       }
     } else {
       // Fallback to whole message vector if no chunks
-      const messageVector = await readJsonField<number[]>(message, "vector", ctx.walletAddress);
+      const messageVector = await readRawJsonField<number[]>(message, "vector", ctx.walletAddress);
       if (!messageVector || messageVector.length === 0) continue;
 
       const fallback = Float32Array.from(messageVector);
-      chunkCache?.set(message.id, { version, chunks: [], fallback });
+      chunkCache?.set(message.id as string, { version, chunks: [], fallback });
 
       const similarity = cosineSimilarity(queryVector, fallback);
       if (similarity >= minSimilarity) {
@@ -1715,13 +1765,13 @@ export async function searchChunksOp(
   // message whose multiple chunks survive top-K is decrypted exactly
   // once instead of once per surviving chunk. This collapses the
   // worst-case N×messageToStored fan-out the prior shape had.
-  const uniqueMessages = new Map<string, Message>();
-  for (const c of topK) uniqueMessages.set(c.message.id, c.message);
+  const uniqueMessages = new Map<string, Record<string, unknown>>();
+  for (const c of topK) uniqueMessages.set(c.message.id as string, c.message);
 
   const storedById = new Map<string, StoredMessage>(
     await Promise.all(
       Array.from(uniqueMessages, async ([id, m]) => {
-        const stored = await messageToStored(
+        const stored = await messageRawToStored(
           m,
           ctx.walletAddress,
           ctx.signMessage,
@@ -1746,13 +1796,13 @@ export async function searchChunksOp(
   const chunkStateByMsgId = new Map<string, { version: number; chunks: MessageChunk[] }>();
   const needsChunkText = new Set<string>();
   for (const c of topK) {
-    if (c.chunkTextSource.kind === "chunk-cached") needsChunkText.add(c.message.id);
+    if (c.chunkTextSource.kind === "chunk-cached") needsChunkText.add(c.message.id as string);
   }
   await Promise.all(
     Array.from(needsChunkText, async (id) => {
       const m = uniqueMessages.get(id)!;
-      const parsed = await readJsonField<MessageChunk[]>(m, "chunks", ctx.walletAddress);
-      const version = Number(m._getRaw("updated_at")) || 0;
+      const parsed = await readRawJsonField<MessageChunk[]>(m, "chunks", ctx.walletAddress);
+      const version = Number(m.updated_at) || 0;
       if (parsed) chunkStateByMsgId.set(id, { version, chunks: parsed });
     })
   );
@@ -1764,7 +1814,7 @@ export async function searchChunksOp(
   // the prior shape called `messageToStored` independently per chunk
   // and returned distinct objects, so we preserve that contract.
   return topK.map(({ message, similarity, chunkTextSource }) => {
-    const stored = { ...storedById.get(message.id)! };
+    const stored = { ...storedById.get(message.id as string)! };
     let chunkText: string;
     if (chunkTextSource.kind === "chunk") {
       // Rebuilt here, not at scoring time: `stored.content` is decrypted by now.
@@ -1774,7 +1824,7 @@ export async function searchChunksOp(
       // (version match) and the index is still in range; otherwise a concurrent
       // re-embed may have reordered/resized the array, so fall back to message
       // content rather than returning unrelated chunk text.
-      const state = chunkStateByMsgId.get(message.id);
+      const state = chunkStateByMsgId.get(message.id as string);
       const chunk =
         state && state.version === chunkTextSource.version
           ? state.chunks[chunkTextSource.chunkIndex]
@@ -1801,12 +1851,17 @@ async function _getMessagesWithEmbeddingsOp(
 
   const queryConditions = conversationId ? [Q.where("conversation_id", conversationId)] : [];
 
-  const messages = await ctx.messagesCollection.query(...queryConditions).fetch();
+  // unsafeFetchRaw (NOT fetch): this whole-table scan must not pin a Model per row into the
+  // never-evicted RecordCache (web Pile-2). Same SQL; scoring reads raw columns and only the
+  // top-K survivors are mapped to StoredMessages.
+  const messages = (await ctx.messagesCollection
+    .query(...queryConditions)
+    .unsafeFetchRaw()) as Record<string, unknown>[];
 
   const filtered = messages.filter((m) => {
-    // Use _getRaw for reliable raw column access - the @json decorator fails on encrypted strings
-    const msgConvId = String(m._getRaw("conversation_id"));
-    const vectorRaw = m._getRaw("vector");
+    // Read raw columns directly - the @json decorator fails on encrypted strings
+    const msgConvId = String(m.conversation_id);
+    const vectorRaw = m.vector;
     return (
       vectorRaw &&
       typeof vectorRaw === "string" &&
@@ -1817,7 +1872,7 @@ async function _getMessagesWithEmbeddingsOp(
 
   return Promise.all(
     filtered.map((msg) =>
-      messageToStored(msg, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner)
+      messageRawToStored(msg, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner)
     )
   );
 }
