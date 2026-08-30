@@ -193,6 +193,20 @@ export default defineConfig([
       };
     },
   },
+  // Telemetry — official observability adapter: RunHooks + recall diagnostics
+  // to a vendor-neutral TelemetrySink. Zero runtime deps; platform-neutral so
+  // no "react-native"/"react-server" conditions on the export.
+  {
+    entry: ["src/telemetry/index.ts"],
+    format: ["esm", "cjs"],
+    dts: true,
+    outDir: "dist/telemetry",
+    outExtension({ format }) {
+      return {
+        js: format === "esm" ? ".mjs" : ".cjs",
+      };
+    },
+  },
   // Server entry - no React, no browser APIs
   // Use this for Node.js servers: import { ... } from "@anuma/sdk/server"
   {
