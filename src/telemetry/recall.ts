@@ -18,6 +18,31 @@
  * - `recall.candidates` (count), `recall.facts` (count), `recall.chunks` (count)
  * - `recall.vault.size`, `recall.vault.rows_decrypted`,
  *   `recall.vault.rows_embedded` when the fact lane reported them.
+ *
+ * COVERAGE — this handler only sees recalls the host starts itself: a direct
+ * `recall()` call, or `reflect()` (`ReflectOptions extends RecallOptions`, and
+ * reflect forwards the options object). It does NOT see recalls that happen
+ * inside a tool-loop run. `RecallOptions.onDiagnostics` is a single slot, not a
+ * composable hook list, and both in-run paths already occupy it to read
+ * `degraded` for themselves — the recall tool (`lib/memory/recallTool.ts`) and
+ * the vault search tool (`lib/memoryVault/searchTool.ts`). Neither forwards a
+ * caller's callback, and neither exposes the slot on its own options.
+ *
+ * Two consequences to plan for:
+ *
+ * - Event volume reports host-initiated recall only. A near-empty
+ *   `recall.completed` stream means the app recalls through the tools. It does
+ *   not mean recall is broken or that the sink is misconfigured.
+ * - These events carry no `runId`, so you cannot join them to `run.failed` from
+ *   `createMetricsHooks`. That join needs two changes in the memory layer, not
+ *   here: make `onDiagnostics` forwardable through both tools, and thread the
+ *   loop's `runId` (minted in `lib/chat/toolLoop.ts`) across the executor
+ *   boundary onto `RecallDiagnostics`.
+ *
+ * A host that already holds a `runId` can stamp it today with no signature
+ * change: wrap the sink rather than the handler, and put it on `track`
+ * properties only. A metric tag of that cardinality is a problem for the
+ * backend — see {@link TelemetrySink} on keeping tags low-cardinality.
  */
 
 import type { RecallDiagnostics } from "../lib/memory/types";
