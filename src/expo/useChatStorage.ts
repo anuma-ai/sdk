@@ -73,6 +73,7 @@ import {
   upsertMessageOp,
 } from "../lib/db/chat";
 import { updateMessageEmbeddingOp } from "../lib/db/chat";
+import { maskScopedEmbeddingCache } from "../lib/db/chat/embeddingCache";
 import {
   createMediaBatchOp,
   type CreateMediaOptions,
@@ -1685,6 +1686,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         summaryModel = DEFAULT_SUMMARY_MODEL,
         files,
         storedUserContent,
+        embeddingCache,
         onData: perRequestOnData,
         onThinking: perRequestOnThinking,
         memoryContext,
@@ -1744,18 +1746,31 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       // a single vector for short prompts, one vector per chunk for long ones so
       // tool scoring uses max similarity across chunks. Both shapes are accepted
       // by the server/client tool filters and by chunked message-embedding storage.
+      //
+      // `masked` is separate from `mask` because the caller-shared `embeddingCache` is namespaced by
+      // the masking DECISION, not by the masker (see maskScopedEmbeddingCache). And the text goes in
+      // RAW with `maskInput` doing the masking, so the cache key is the string a caller holding the
+      // user's text would use — pre-masking the argument keys on the masked text and a shared Map
+      // never hits. Both mirror the react path.
       const embedToolText = (
         text: string,
         mask: (t: string) => string,
+        masked: boolean,
         token: (() => Promise<string | null>) | undefined
       ): Promise<number[] | number[][]> => {
-        const opts = { getToken: token, baseUrl, model: embeddingModel };
+        const opts = {
+          getToken: token,
+          baseUrl,
+          model: embeddingModel,
+          maskInput: mask,
+          cache: embeddingCache ? maskScopedEmbeddingCache(embeddingCache, masked) : undefined,
+        };
         return shouldChunkMessage(text, DEFAULT_CHUNK_SIZE)
           ? generateEmbeddings(
-              chunkText(text).map((c) => mask(c.text)),
+              chunkText(text).map((c) => c.text),
               opts
             )
-          : generateEmbedding(mask(text), opts);
+          : generateEmbedding(text, opts);
       };
 
       // Eager key derivation: if wallet is present but key isn't, try to derive it now
@@ -1827,6 +1842,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
                 skipUserEmbedding = await embedToolText(
                   messageContent,
                   maskForCall,
+                  Boolean(callPiiRedaction),
                   getTokenRef.current
                 );
                 const toolNames = serverToolsFilter(skipUserEmbedding, allServerTools);
@@ -1863,6 +1879,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
                 skipUserEmbedding = await embedToolText(
                   messageContent,
                   maskForCall,
+                  Boolean(callPiiRedaction),
                   getTokenRef.current
                 );
               } catch {
@@ -2085,7 +2102,14 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         token: () => Promise<string | null>
       ): Promise<{ embedding: number[] | number[][] } | { error: unknown }> => {
         try {
-          return { embedding: await embedToolText(contentForStorage, maskForCall, token) };
+          return {
+            embedding: await embedToolText(
+              contentForStorage,
+              maskForCall,
+              Boolean(callPiiRedaction),
+              token
+            ),
+          };
         } catch (error) {
           return { error };
         }

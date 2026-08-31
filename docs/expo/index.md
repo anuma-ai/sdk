@@ -1042,6 +1042,12 @@ Re-exports [LoggerProviderProps](../react/Internal/interfaces/LoggerProviderProp
 
 ***
 
+### maskScopedEmbeddingCache
+
+Re-exports [maskScopedEmbeddingCache](../react/Internal/functions/maskScopedEmbeddingCache.md)
+
+***
+
 ### MAX\_HOPS
 
 Re-exports [MAX\_HOPS](../react/Internal/variables/MAX_HOPS.md)

@@ -859,6 +859,12 @@ export interface BaseSendMessageWithStorageArgs {
    * your call writes `"hello"` while this one reads `"r:hello"` — no hit, and the second embedding
    * you were trying to avoid still happens.
    *
+   * **Long messages are not deduped.** Past `DEFAULT_CHUNK_SIZE` (400 chars) the send embeds one
+   * vector per chunk and keys each entry on its chunk text, so a caller that embedded the whole
+   * prompt in one call finds nothing and both sides still pay. Making that hit would mean the caller
+   * reproducing the SDK's chunking, which is a worse contract than admitting the gap: short prompts
+   * — the overwhelming majority — dedupe, long ones do not.
+   *
    * Omit it and nothing changes: every send embeds independently, exactly as before.
    */
   embeddingCache?: Map<string, Float32Array>;

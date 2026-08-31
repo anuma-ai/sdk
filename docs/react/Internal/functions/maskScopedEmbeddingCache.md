@@ -2,7 +2,7 @@
 
 > **maskScopedEmbeddingCache**(`cache`: `Map`<`string`, `Float32Array`<`ArrayBufferLike`>>, `masked`: `boolean`): `Map`<`string`, `Float32Array`<`ArrayBufferLike`>>
 
-Defined in: [src/react/useChatStorage.ts:1191](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#1191)
+Defined in: src/lib/db/chat/embeddingCache.ts:67
 
 Build the same namespaced view over `cache` that a send with this masking decision uses.
 
