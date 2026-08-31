@@ -838,6 +838,38 @@ export interface BaseSendMessageWithStorageArgs {
   storedUserContent?: string;
 
   /**
+   * Optional embedding cache, shared with the caller.
+   *
+   * Every send that needs tool selection embeds the user text once (see
+   * `storedUserContent`). A caller that ALSO needs that vector — to rank tools itself, say, or to
+   * hand a server a prompt-aware shortlist — otherwise pays for a second, identical embedding of
+   * the same text in the same turn. Pass a `Map` here and into your own
+   * `generateEmbedding`/`generateEmbeddings` call and whichever runs first fills it; the other is a
+   * cache hit, so the turn embeds once.
+   *
+   * Keyed on the text **as passed in** (before `maskInput` is applied to the request body), prefixed
+   * with a marker for this send's masking decision — `"r:"` raw, `"m:"` masked — so a mismatched
+   * masking decision cannot silently serve the wrong vector: masked and unmasked occupy different
+   * entries. `generateEmbedding`'s own contract is unchanged; it still keys on the text alone, and
+   * the prefixing is a view this send wraps around the `Map` you hand it.
+   *
+   * WHICH MEANS SHARING TAKES ONE MORE STEP, and skipping it costs you the dedupe silently: pass
+   * the plain `Map` here, and wrap it with `maskScopedEmbeddingCache(map, masked)` for your OWN
+   * `generateEmbedding` call, so both sides look under the same key. Hand the raw `Map` to both and
+   * your call writes `"hello"` while this one reads `"r:hello"` — no hit, and the second embedding
+   * you were trying to avoid still happens.
+   *
+   * **Long messages are not deduped.** Past `DEFAULT_CHUNK_SIZE` (400 chars) the send embeds one
+   * vector per chunk and keys each entry on its chunk text, so a caller that embedded the whole
+   * prompt in one call finds nothing and both sides still pay. Making that hit would mean the caller
+   * reproducing the SDK's chunking, which is a worse contract than admitting the gap: short prompts
+   * — the overwhelming majority — dedupe, long ones do not.
+   *
+   * Omit it and nothing changes: every send embeds independently, exactly as before.
+   */
+  embeddingCache?: Map<string, Float32Array>;
+
+  /**
    * Per-request callback invoked with each streamed response chunk.
    * Overrides the hook-level `onData` callback for this request only.
    * Use this to update UI as the response streams in.

@@ -71,6 +71,7 @@ import {
   updateMessageEmbeddingOp,
   updateMessageErrorOp,
 } from "../lib/db/chat";
+import { maskScopedEmbeddingCache } from "../lib/db/chat/embeddingCache";
 import {
   Entity as EntityModel,
   MemoryEntity as MemoryEntityModel,
@@ -1129,6 +1130,8 @@ export function resolveCallPii(
         : undefined;
   return { redactor, forInnerSend: redactor ?? false };
 }
+
+export { maskScopedEmbeddingCache };
 
 export function useChatStorage(options: UseChatStorageOptions): UseChatStorageResult {
   const {
@@ -2236,6 +2239,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         summaryModel = DEFAULT_SUMMARY_MODEL,
         files,
         storedUserContent,
+        embeddingCache,
         onData: perRequestOnData,
         headers,
         memoryContext,
@@ -2324,19 +2328,28 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
             extracted?.content ?? ""
           );
           if (messageContent.length >= MIN_CONTENT_LENGTH_FOR_TOOLS) {
-            const embeddingOptions = { getToken, baseUrl, model: embeddingModel };
+            // maskInput rather than a pre-masked argument: the request body is masked either way,
+            // but `generateEmbedding` keys its cache on the text AS PASSED, so passing the raw text
+            // is what lets a caller-supplied `embeddingCache` be shared with a caller that has the
+            // raw text and its own masker. See BaseSendMessageWithStorageArgs.embeddingCache.
+            const embeddingOptions = {
+              getToken,
+              baseUrl,
+              model: embeddingModel,
+              maskInput: maskForCall,
+              cache: embeddingCache
+                ? maskScopedEmbeddingCache(embeddingCache, Boolean(callPiiRedaction))
+                : undefined,
+            };
             try {
               if (shouldChunkMessage(messageContent, DEFAULT_CHUNK_SIZE)) {
                 const textChunks = chunkText(messageContent);
                 skipStorageEmbeddings = await generateEmbeddings(
-                  textChunks.map((c) => maskForCall(c.text)),
+                  textChunks.map((c) => c.text),
                   embeddingOptions
                 );
               } else {
-                skipStorageEmbeddings = await generateEmbedding(
-                  maskForCall(messageContent),
-                  embeddingOptions
-                );
+                skipStorageEmbeddings = await generateEmbedding(messageContent, embeddingOptions);
               }
             } catch {
               // Embedding generation failed — continue without semantic
@@ -2627,21 +2640,30 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         needsEmbeddings && getToken
           ? (async () => {
               try {
-                const embeddingOptions = { getToken, baseUrl, model: embeddingModel };
+                // See the note on the skipStorage path above: raw text + maskInput, so the shared
+                // `embeddingCache` keys on the same string a caller with the raw text would use.
+                const embeddingOptions = {
+                  getToken,
+                  baseUrl,
+                  model: embeddingModel,
+                  maskInput: maskForCall,
+                  cache: embeddingCache
+                    ? maskScopedEmbeddingCache(embeddingCache, Boolean(callPiiRedaction))
+                    : undefined,
+                };
                 if (shouldChunkMessage(contentForStorage, DEFAULT_CHUNK_SIZE)) {
                   const textChunks = chunkText(contentForStorage);
-                  const chunkTexts = textChunks.map((c) => maskForCall(c.text));
                   return {
-                    embeddings: await generateEmbeddings(chunkTexts, embeddingOptions),
+                    embeddings: await generateEmbeddings(
+                      textChunks.map((c) => c.text),
+                      embeddingOptions
+                    ),
                     failed: false,
                   };
                 }
                 if (contentForStorage.length >= MIN_CONTENT_LENGTH_FOR_TOOLS) {
                   return {
-                    embeddings: await generateEmbedding(
-                      maskForCall(contentForStorage),
-                      embeddingOptions
-                    ),
+                    embeddings: await generateEmbedding(contentForStorage, embeddingOptions),
                     failed: false,
                   };
                 }
