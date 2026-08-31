@@ -1130,6 +1130,41 @@ export function resolveCallPii(
   return { redactor, forInnerSend: redactor ?? false };
 }
 
+/**
+ * View over a caller-supplied embedding cache that namespaces entries by whether masking is applied.
+ *
+ * `generateEmbedding` keys its cache on the text as passed and does not record `maskInput` — a
+ * deliberate, tested contract (see `embeddings.test.ts`, "keeps the cache keyed by original"), so it
+ * is not the place to change. But masking changes what is actually embedded: the same words masked
+ * and unmasked are two different vectors. A Map shared between this send and a caller that masks
+ * differently would otherwise hand one side the other's vector, silently, the moment a user toggles
+ * redaction mid-session.
+ *
+ * Subclassing Map keeps `EmbeddingOptions.cache`'s type as-is; only get/set are ever used, and both
+ * go through to the caller's Map under a prefixed key.
+ */
+class MaskScopedEmbeddingCache extends Map<string, Float32Array> {
+  constructor(
+    private readonly inner: Map<string, Float32Array>,
+    private readonly masked: boolean
+  ) {
+    super();
+  }
+
+  private key(text: string): string {
+    return `${this.masked ? "m" : "r"}:${text}`;
+  }
+
+  override get(text: string): Float32Array | undefined {
+    return this.inner.get(this.key(text));
+  }
+
+  override set(text: string, value: Float32Array): this {
+    this.inner.set(this.key(text), value);
+    return this;
+  }
+}
+
 export function useChatStorage(options: UseChatStorageOptions): UseChatStorageResult {
   const {
     database,
@@ -2334,7 +2369,9 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
               baseUrl,
               model: embeddingModel,
               maskInput: maskForCall,
-              cache: embeddingCache,
+              cache: embeddingCache
+                ? new MaskScopedEmbeddingCache(embeddingCache, Boolean(callPiiRedaction))
+                : undefined,
             };
             try {
               if (shouldChunkMessage(messageContent, DEFAULT_CHUNK_SIZE)) {
@@ -2642,7 +2679,9 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
                   baseUrl,
                   model: embeddingModel,
                   maskInput: maskForCall,
-                  cache: embeddingCache,
+                  cache: embeddingCache
+                    ? new MaskScopedEmbeddingCache(embeddingCache, Boolean(callPiiRedaction))
+                    : undefined,
                 };
                 if (shouldChunkMessage(contentForStorage, DEFAULT_CHUNK_SIZE)) {
                   const textChunks = chunkText(contentForStorage);

@@ -127,7 +127,12 @@ describe("useChatStorage embeddingCache passthrough", () => {
     expect(res.error).toBeNull();
 
     expect(embedCalls).toHaveLength(1);
-    expect(embedCalls[0]!.options.cache).toBe(cache);
+    // Not the Map itself but a view onto it, namespaced by this send's masking decision (see
+    // MaskScopedEmbeddingCache) -- reads and writes go through to the caller's Map.
+    const view = embedCalls[0]!.options.cache as Map<string, Float32Array>;
+    view.set("hello", Float32Array.from([1]));
+    expect(view.get("hello")).toEqual(Float32Array.from([1]));
+    expect([...cache.keys()]).toEqual(["r:hello"]);
   });
 
   it("keys the cache on the RAW text, masking only the request body", async () => {
@@ -217,7 +222,7 @@ describe("generateEmbedding with a shared cache", () => {
     expect(second).toEqual(first);
   });
 
-  it("keeps masked and unmasked vectors in separate entries", async () => {
+  it("keys on the text alone -- the caller namespaces, not this helper", async () => {
     const { generateEmbedding } = await vi.importActual<
       typeof import("../lib/memoryEngine/generate")
     >("../lib/memoryEngine/generate");
@@ -225,9 +230,55 @@ describe("generateEmbedding with a shared cache", () => {
     const base = { getToken: async () => "tok", cache };
 
     await generateEmbedding(USER_TEXT, base);
-    // Same text, but the body is masked — a different vector, so a different entry is required.
-    await generateEmbedding(`masked:${USER_TEXT}`, { ...base, maskInput: (t: string) => t });
-    expect(fetchCalls).toBe(2);
-    expect(cache.size).toBe(2);
+    // Same text, same key: masking is NOT part of generateEmbedding's key, and that is a pinned
+    // contract (embeddings.test.ts, "keeps the cache keyed by original"). Which is exactly why the
+    // send namespaces the Map it is handed rather than changing this -- see the suite below.
+    await generateEmbedding(USER_TEXT, { ...base, maskInput: (x: string) => `[MASKED] ${x}` });
+    expect(fetchCalls).toBe(1);
+    expect(cache.size).toBe(1);
+  });
+});
+
+// I-7: two callers sharing one Map must not be able to exchange a masked vector for an unmasked one.
+// The send namespaces the Map it is handed, so the entries it writes carry the masking decision.
+describe("shared cache is namespaced by masking decision", () => {
+  let db: Database;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    embedCalls.length = 0;
+    db = makeDatabase();
+    mockRunToolLoop.mockResolvedValue({
+      data: responsesShape("done"),
+      error: null,
+    } as never);
+  });
+
+  it("writes under a different key when redaction is on", async () => {
+    const cache = new Map<string, Float32Array>();
+
+    const { result } = renderHook(() =>
+      useChatStorage({
+        database: db,
+        conversationId: "conv_mask_scope",
+        getToken: async () => "tok",
+      })
+    );
+    await result.current.sendMessage({
+      messages: USER_MESSAGE,
+      model: "test-model",
+      clientTools: CLIENT_TOOLS,
+      embeddingCache: cache,
+      piiRedaction: true,
+    } as never);
+
+    // The mocked generateEmbedding never writes, so drive the returned view directly: what matters
+    // is which key the send's cache view uses.
+    const view = embedCalls[0]!.options.cache as Map<string, Float32Array>;
+    view.set(USER_TEXT, Float32Array.from([1, 2, 3]));
+    expect([...cache.keys()]).toEqual([`m:${USER_TEXT}`]);
+    expect(view.get(USER_TEXT)).toEqual(Float32Array.from([1, 2, 3]));
+    // An unmasked reader of the same Map does not see it.
+    expect(cache.get(`r:${USER_TEXT}`)).toBeUndefined();
   });
 });
