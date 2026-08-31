@@ -838,6 +838,25 @@ export interface BaseSendMessageWithStorageArgs {
   storedUserContent?: string;
 
   /**
+   * Optional embedding cache, shared with the caller.
+   *
+   * Every send that needs tool selection embeds the user text once (see
+   * `storedUserContent`). A caller that ALSO needs that vector — to rank tools itself, say, or to
+   * hand a server a prompt-aware shortlist — otherwise pays for a second, identical embedding of
+   * the same text in the same turn. Pass a `Map` here and into your own
+   * `generateEmbedding`/`generateEmbeddings` call and whichever runs first fills it; the other is a
+   * cache hit, so the turn embeds once.
+   *
+   * Keyed exactly as `generateEmbedding` keys it: on the text **as passed in**, before
+   * `maskInput` is applied to the request body. So a caller sharing this cache must pass the same
+   * text and the same masking decision — a masked and an unmasked vector for the same words are
+   * different vectors and deliberately do not share an entry.
+   *
+   * Omit it and nothing changes: every send embeds independently, exactly as before.
+   */
+  embeddingCache?: Map<string, Float32Array>;
+
+  /**
    * Per-request callback invoked with each streamed response chunk.
    * Overrides the hook-level `onData` callback for this request only.
    * Use this to update UI as the response streams in.
