@@ -48,7 +48,7 @@ vi.mock("../lib/tools", async (importOriginal) => {
 
 import { runToolLoop } from "../lib/chat/toolLoop";
 
-import { useChatStorage } from "./useChatStorage";
+import { maskScopedEmbeddingCache, useChatStorage } from "./useChatStorage";
 
 const mockRunToolLoop = vi.mocked(runToolLoop);
 
@@ -280,5 +280,46 @@ describe("shared cache is namespaced by masking decision", () => {
     expect(view.get(USER_TEXT)).toEqual(Float32Array.from([1, 2, 3]));
     // An unmasked reader of the same Map does not see it.
     expect(cache.get(`r:${USER_TEXT}`)).toBeUndefined();
+  });
+
+  // ...and the caller can actually reach that key, which is the whole point of the option. Greptile
+  // P1 on #923: the view was private, so a caller following the documented contract handed the RAW
+  // Map to its own `generateEmbedding` and wrote `USER_TEXT` where the send reads `r:USER_TEXT` --
+  // shared Map, zero hits, and the duplicate embedding the option exists to remove still happened.
+  it("shares with a caller that wraps the same Map via maskScopedEmbeddingCache", async () => {
+    const shared = new Map<string, Float32Array>();
+    const vector = Float32Array.from([9, 9, 9]);
+
+    // The caller's own ranking embed, same masking decision as the send below.
+    maskScopedEmbeddingCache(shared, false).set(USER_TEXT, vector);
+
+    const { result } = renderHook(() =>
+      useChatStorage({
+        database: db,
+        conversationId: "conv_mask_share",
+        getToken: async () => "tok",
+      })
+    );
+    await result.current.sendMessage({
+      messages: USER_MESSAGE,
+      model: "test-model",
+      clientTools: CLIENT_TOOLS,
+      embeddingCache: shared,
+    } as never);
+
+    // The send's own view finds what the caller wrote -- one entry, one embedding for the turn.
+    const view = embedCalls[0]!.options.cache as Map<string, Float32Array>;
+    expect(view.get(USER_TEXT)).toEqual(vector);
+    expect([...shared.keys()]).toEqual([`r:${USER_TEXT}`]);
+  });
+
+  it("does not cross masking decisions, even through the exported view", async () => {
+    const shared = new Map<string, Float32Array>();
+    maskScopedEmbeddingCache(shared, true).set(USER_TEXT, Float32Array.from([1]));
+
+    // A raw-side reader of the same Map sees nothing: that is the I-7 guarantee, preserved now that
+    // the view is reachable from outside.
+    expect(maskScopedEmbeddingCache(shared, false).get(USER_TEXT)).toBeUndefined();
+    expect(maskScopedEmbeddingCache(shared, true).get(USER_TEXT)).toEqual(Float32Array.from([1]));
   });
 });

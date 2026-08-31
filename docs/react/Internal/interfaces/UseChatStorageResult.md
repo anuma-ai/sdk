@@ -31,7 +31,7 @@ Discards pending operations without writing them.
 
 > **conversationId**: `string` | `null`
 
-Defined in: [src/lib/db/chat/types.ts:1047](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#1047)
+Defined in: [src/lib/db/chat/types.ts:1073](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#1073)
 
 **Inherited from**
 
@@ -43,7 +43,7 @@ Defined in: [src/lib/db/chat/types.ts:1047](https://github.com/anuma-ai/sdk/blob
 
 > **createConversation**: (`options?`: [`CreateConversationOptions`](CreateConversationOptions.md)) => `Promise`<[`StoredConversation`](StoredConversation.md)>
 
-Defined in: [src/lib/db/chat/types.ts:1049](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#1049)
+Defined in: [src/lib/db/chat/types.ts:1075](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#1075)
 
 **Parameters**
 
@@ -355,7 +355,7 @@ Optional scope (defaults to "private")
 
 > **deleteConversation**: (`id`: `string`) => `Promise`<`boolean`>
 
-Defined in: [src/lib/db/chat/types.ts:1054](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#1054)
+Defined in: [src/lib/db/chat/types.ts:1080](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#1080)
 
 **Parameters**
 
@@ -517,7 +517,7 @@ Returns files with conversation context for building file browser UIs.
 
 > **getConversation**: (`id`: `string`) => `Promise`<[`StoredConversation`](StoredConversation.md) | `null`>
 
-Defined in: [src/lib/db/chat/types.ts:1050](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#1050)
+Defined in: [src/lib/db/chat/types.ts:1076](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#1076)
 
 **Parameters**
 
@@ -558,7 +558,7 @@ Defined in: [src/lib/db/chat/types.ts:1050](https://github.com/anuma-ai/sdk/blob
 
 > **getConversations**: () => `Promise`<[`StoredConversation`](StoredConversation.md)\[]>
 
-Defined in: [src/lib/db/chat/types.ts:1051](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#1051)
+Defined in: [src/lib/db/chat/types.ts:1077](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#1077)
 
 **Returns**
 
@@ -574,7 +574,7 @@ Defined in: [src/lib/db/chat/types.ts:1051](https://github.com/anuma-ai/sdk/blob
 
 > **getMessageCount**: (`conversationId`: `string`) => `Promise`<`number`>
 
-Defined in: [src/lib/db/chat/types.ts:1067](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#1067)
+Defined in: [src/lib/db/chat/types.ts:1093](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#1093)
 
 Total message count for a conversation.
 
@@ -617,7 +617,7 @@ Total message count for a conversation.
 
 > **getMessages**: (`conversationId`: `string`) => `Promise`<[`StoredMessage`](StoredMessage.md)\[]>
 
-Defined in: [src/lib/db/chat/types.ts:1055](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#1055)
+Defined in: [src/lib/db/chat/types.ts:1081](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#1081)
 
 **Parameters**
 
@@ -658,7 +658,7 @@ Defined in: [src/lib/db/chat/types.ts:1055](https://github.com/anuma-ai/sdk/blob
 
 > **getMessageSkeletons**: (`conversationId`: `string`) => `Promise`<[`MessageSkeleton`](MessageSkeleton.md)\[]>
 
-Defined in: [src/lib/db/chat/types.ts:1065](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#1065)
+Defined in: [src/lib/db/chat/types.ts:1091](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#1091)
 
 Whole-thread branch-tree skeleton — no field decryption.
 
@@ -701,7 +701,7 @@ Whole-thread branch-tree skeleton — no field decryption.
 
 > **getMessagesPage**: (`conversationId`: `string`, `options`: [`GetMessagesPageOptions`](GetMessagesPageOptions.md)) => `Promise`<[`StoredMessage`](StoredMessage.md)\[]>
 
-Defined in: [src/lib/db/chat/types.ts:1060](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#1060)
+Defined in: [src/lib/db/chat/types.ts:1086](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#1086)
 
 Paginated display read: the newest `limit` messages (optionally below
 `beforeMessageId`), ascending, with embedding columns skipped.
@@ -839,7 +839,7 @@ include soft-deleted memories)
 
 > **isLoading**: `boolean`
 
-Defined in: [src/lib/db/chat/types.ts:1045](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#1045)
+Defined in: [src/lib/db/chat/types.ts:1071](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#1071)
 
 **Inherited from**
 
@@ -1143,6 +1143,44 @@ Explicitly specify the conversation ID to send this message to.
 If provided, bypasses the automatic conversation detection/creation.
 Useful when sending a message immediately after creating a conversation,
 to avoid race conditions with React state updates.
+
+</td>
+</tr>
+<tr>
+<td>
+
+`args.embeddingCache?`
+
+</td>
+<td>
+
+`Map`<`string`, `Float32Array`<`ArrayBufferLike`>>
+
+</td>
+<td>
+
+Optional embedding cache, shared with the caller.
+
+Every send that needs tool selection embeds the user text once (see
+`storedUserContent`). A caller that ALSO needs that vector — to rank tools itself, say, or to
+hand a server a prompt-aware shortlist — otherwise pays for a second, identical embedding of
+the same text in the same turn. Pass a `Map` here and into your own
+`generateEmbedding`/`generateEmbeddings` call and whichever runs first fills it; the other is a
+cache hit, so the turn embeds once.
+
+Keyed on the text **as passed in** (before `maskInput` is applied to the request body), prefixed
+with a marker for this send's masking decision — `"r:"` raw, `"m:"` masked — so a mismatched
+masking decision cannot silently serve the wrong vector: masked and unmasked occupy different
+entries. `generateEmbedding`'s own contract is unchanged; it still keys on the text alone, and
+the prefixing is a view this send wraps around the `Map` you hand it.
+
+WHICH MEANS SHARING TAKES ONE MORE STEP, and skipping it costs you the dedupe silently: pass
+the plain `Map` here, and wrap it with `maskScopedEmbeddingCache(map, masked)` for your OWN
+`generateEmbedding` call, so both sides look under the same key. Hand the raw `Map` to both and
+your call writes `"hello"` while this one reads `"r:hello"` — no hit, and the second embedding
+you were trying to avoid still happens.
+
+Omit it and nothing changes: every send embeds independently, exactly as before.
 
 </td>
 </tr>
@@ -1903,7 +1941,7 @@ if (result.error) {
 
 > **setConversationId**: (`id`: `string` | `null`) => `void`
 
-Defined in: [src/lib/db/chat/types.ts:1048](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#1048)
+Defined in: [src/lib/db/chat/types.ts:1074](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#1074)
 
 **Parameters**
 
@@ -1944,7 +1982,7 @@ Defined in: [src/lib/db/chat/types.ts:1048](https://github.com/anuma-ai/sdk/blob
 
 > **stop**: () => `void`
 
-Defined in: [src/lib/db/chat/types.ts:1046](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#1046)
+Defined in: [src/lib/db/chat/types.ts:1072](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#1072)
 
 **Returns**
 
@@ -1960,7 +1998,7 @@ Defined in: [src/lib/db/chat/types.ts:1046](https://github.com/anuma-ai/sdk/blob
 
 > **updateConversationPinned**: (`id`: `string`, `pinned`: `boolean`) => `Promise`<`boolean`>
 
-Defined in: [src/lib/db/chat/types.ts:1053](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#1053)
+Defined in: [src/lib/db/chat/types.ts:1079](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#1079)
 
 **Parameters**
 
@@ -2013,7 +2051,7 @@ Defined in: [src/lib/db/chat/types.ts:1053](https://github.com/anuma-ai/sdk/blob
 
 > **updateConversationTitle**: (`id`: `string`, `title`: `string`) => `Promise`<`boolean`>
 
-Defined in: [src/lib/db/chat/types.ts:1052](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#1052)
+Defined in: [src/lib/db/chat/types.ts:1078](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#1078)
 
 **Parameters**
 

@@ -848,11 +848,16 @@ export interface BaseSendMessageWithStorageArgs {
    * cache hit, so the turn embeds once.
    *
    * Keyed on the text **as passed in** (before `maskInput` is applied to the request body), prefixed
-   * with a marker for this send's masking decision — `"r:"` raw, `"m:"` masked. So a caller sharing
-   * this cache passes the same text and reads/writes under the same prefix; a mismatched masking
-   * decision cannot silently serve the wrong vector, because masked and unmasked occupy different
-   * entries. (`generateEmbedding`'s own cache contract is unchanged — it still keys on the text
-   * alone; the prefixing is a view this send wraps around the Map you hand it.)
+   * with a marker for this send's masking decision — `"r:"` raw, `"m:"` masked — so a mismatched
+   * masking decision cannot silently serve the wrong vector: masked and unmasked occupy different
+   * entries. `generateEmbedding`'s own contract is unchanged; it still keys on the text alone, and
+   * the prefixing is a view this send wraps around the `Map` you hand it.
+   *
+   * WHICH MEANS SHARING TAKES ONE MORE STEP, and skipping it costs you the dedupe silently: pass
+   * the plain `Map` here, and wrap it with `maskScopedEmbeddingCache(map, masked)` for your OWN
+   * `generateEmbedding` call, so both sides look under the same key. Hand the raw `Map` to both and
+   * your call writes `"hello"` while this one reads `"r:hello"` — no hit, and the second embedding
+   * you were trying to avoid still happens.
    *
    * Omit it and nothing changes: every send embeds independently, exactly as before.
    */
