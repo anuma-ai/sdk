@@ -1372,7 +1372,7 @@ export function applyToolSets(
  * precision.
  *
  * Use this for server-side toolkit suites where the LLM needs the full
- * call chain (e.g. search_web → read_url / parallel_read_url, or
+ * call chain (e.g. search_web → anuma_scrape_url, or
  * geocoding before the OpenMeteo data tools). Differs from `applyToolSets`,
  * which replaces non-set matches when a set activates.
  *
@@ -1518,7 +1518,7 @@ export interface CreateServerToolsFilterOptions {
  *   toolSets: [
  *     {
  *       name: "research",
- *       members: ["AnumaJinaMCP-search_web", "AnumaJinaMCP-read_url", ...],
+ *       members: ["AnumaJinaMCP-search_web", "AnumaSearchMCP-anuma_scrape_url", ...],
  *       anchors: ["AnumaJinaMCP-search_web"],
  *       anchorMinSimilarity: 0.7,
  *     },
@@ -1624,7 +1624,7 @@ export const DEFAULT_SERVER_TOOLS_MATCH_OPTIONS: ToolMatchOptions = {
  * These exist because semantic selection structurally cannot reach a tool
  * whose job is step 2 of a call-chain. Measured against the live catalog
  * (June 2026): on "research the latest news on X", `search_web` scores 0.64
- * but `parallel_read_url` scores 0.33 and `parallel_search_web` 0.47 — below
+ * but the readers score 0.33 and `parallel_search_web` 0.47 — below
  * the 0.5 floor, unreachable at ANY match limit. No threshold or limit tuning
  * fixes this; an explicit edge is the only mechanism that does.
  *
@@ -1642,12 +1642,14 @@ export const DEFAULT_SERVER_TOOLS_MATCH_OPTIONS: ToolMatchOptions = {
  */
 export const SERVER_TOOL_DEPENDENCY_SETS: ToolSet[] = [
   {
-    // search finds links; reading them is always the next step.
-    name: "jina-research",
+    // search finds links; reading them is always the next step. The reader now
+    // lives on the search server — Jina's read_url / parallel_read_url were
+    // removed in favour of anuma_scrape_url, which takes a batch of URLs — so
+    // this edge deliberately spans two MCP servers.
+    name: "web-research",
     members: [
       "AnumaJinaMCP-search_web",
-      "AnumaJinaMCP-read_url",
-      "AnumaJinaMCP-parallel_read_url",
+      "AnumaSearchMCP-anuma_scrape_url",
       "AnumaJinaMCP-parallel_search_web",
     ],
     anchors: ["AnumaJinaMCP-search_web"],

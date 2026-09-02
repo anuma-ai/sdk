@@ -628,22 +628,21 @@ const cases: ToolSelectionCase[] = [
   {
     label: "web search includes search tools",
     prompt: "Search the web for recent news about AI regulation",
-    // search_web matches semantically; the read/parallel continuation tools
+    // search_web matches semantically; the scrape/parallel continuation tools
     // score below the 0.5 floor (measured 0.33-0.47) and can only arrive via
-    // the jina-research dependency set. This asserts the call-chain expansion
+    // the web-research dependency set. This asserts the call-chain expansion
     // works end-to-end: search results are useless if the model can't open them.
     serverMustInclude: [
       "AnumaJinaMCP-search_web",
-      "AnumaJinaMCP-read_url",
-      "AnumaJinaMCP-parallel_read_url",
+      "AnumaSearchMCP-anuma_scrape_url",
       "AnumaJinaMCP-parallel_search_web",
     ],
     serverMustExclude: ["AnumaMediaMCP-anuma_create_image", "AnumaMediaMCP-anuma_create_music"],
   },
   {
-    label: "URL reading includes read_url tool",
+    label: "URL reading includes the scrape tool",
     prompt: "Read the content of https://example.com/article",
-    serverMustInclude: ["AnumaJinaMCP-read_url"],
+    serverMustInclude: ["AnumaSearchMCP-anuma_scrape_url"],
   },
 
   // ── Server-side: Finance / Crypto ────────────────────────────────────
