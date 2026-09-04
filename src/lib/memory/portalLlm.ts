@@ -559,7 +559,18 @@ export async function callPortalJsonCompletion(req: PortalLlmRequest): Promise<u
   // an endpointOverride is validated here (root-relative, no off-origin) and an
   // invalid value throws immediately — a caller bug, not a transient batch
   // failure, so it must not be swallowed into the null-on-failure path.
-  let endpoint = req.transport === "responses" ? "/api/v1/responses" : "/api/v1/chat/completions";
+  // Pick the transport when the caller did not. A reasoning family is rejected
+  // OUTRIGHT by chat/completions (see RESPONSES_ONLY_MODEL_PREFIXES), so leaving the
+  // default at "chat" means every background memory op on such a model 400s and
+  // returns null — no memories extracted, nothing on screen, and the portal's masked
+  // "upstream model provider rejected the request" as the only trace.
+  //
+  // An EXPLICIT `transport` still wins, so the documented property that this is a
+  // request field the caller owns is unchanged; only the DEFAULT moves.
+  const transport: PortalLlmTransport =
+    req.transport ?? (requiresResponsesTransport(req.model) ? "responses" : "chat");
+  const autoUpgraded = req.transport === undefined && transport === "responses";
+  let endpoint = transport === "responses" ? "/api/v1/responses" : "/api/v1/chat/completions";
   if (req.endpointOverride !== undefined) {
     const overrideValidation = validateEndpointOverride(req.endpointOverride);
     if (!overrideValidation.valid) {
@@ -578,7 +589,17 @@ export async function callPortalJsonCompletion(req: PortalLlmRequest): Promise<u
     // #5536) — so whoever flips a lane to "responses" in this repo cannot see the
     // stale path. Throw for the same reason an invalid override throws: a caller
     // bug must not be laundered into the null-on-failure path.
-    assertTransportMatchesEndpoint(req.transport ?? "chat", endpoint);
+    if (autoUpgraded && endpoint.endsWith("/chat/completions")) {
+      // The app pins the override to a LANE, not to a transport: ai-memoryless-client
+      // routes background work to `/api/v1/utility/chat/completions` (#5536) and knows
+      // nothing about which models need the other shape. Throwing here would turn a 400
+      // into a hard crash for an app that did nothing wrong, so the sibling path is
+      // derived instead — the two endpoints of a lane differ only by this suffix, the
+      // same pairing FOREIGN_ENDPOINT_SUFFIX already encodes.
+      endpoint = `${endpoint.slice(0, -"/chat/completions".length)}/responses`;
+    }
+    // An EXPLICIT transport that disagrees with the override is still a caller bug.
+    assertTransportMatchesEndpoint(transport, endpoint);
   }
   const maxAttempts = Math.max(1, req.maxAttempts ?? 3);
   const startedAt = Date.now();
@@ -636,7 +657,13 @@ export async function callPortalJsonCompletion(req: PortalLlmRequest): Promise<u
         : reinforce
           ? { ...req, reinforceJsonContract: true }
           : req;
-    const outcome = await attemptPortalJson(attemptReq, endpoint);
+    // The RESOLVED transport, not the caller's field: `attemptPortalJson` branches the
+    // BODY on it, and a responses endpoint carrying a chat-shaped body is exactly the
+    // http-terminal mismatch `assertTransportMatchesEndpoint` exists to prevent.
+    const outcome = await attemptPortalJson(
+      { ...attemptReq, transport } as PortalLlmRequest,
+      endpoint
+    );
     if (outcome.kind === "ok") return outcome.value;
     lastFailure = {
       reason: outcome.code,

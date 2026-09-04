@@ -475,6 +475,62 @@ describe("callPortalJsonCompletion — endpointOverride", () => {
     expect(fetchFn.mock.calls[0][0]).toBe("https://portal.test/api/v1/utility/chat/completions");
   });
 
+  // The bug these pin: extraction on a gpt-5.6 model 400d on every call, so the vault
+  // silently stopped filling. `requiresResponsesTransport` already existed and nothing
+  // on this path consulted it — the transport was an explicit request field and no
+  // caller ever set one.
+  it("routes a reasoning-family model to /responses without being asked", async () => {
+    const fetchFn = vi.fn().mockResolvedValue(mockResponse('{"a":1}'));
+    await callPortalJsonCompletion({
+      ...baseArgs,
+      model: "openai/gpt-5.6-luna",
+      fetchFn,
+    });
+    expect(fetchFn.mock.calls[0][0]).toBe("https://portal.test/api/v1/responses");
+  });
+
+  it("moves an override to the sibling lane rather than throwing", async () => {
+    // The app pins the override to a LANE and knows nothing about transports
+    // (ai-memoryless-client #5536 sets the utility chat path for ALL background work).
+    // Left alone this pairing throws, which would be worse than the 400 it replaces.
+    const fetchFn = vi.fn().mockResolvedValue(mockResponse('{"a":1}'));
+    await callPortalJsonCompletion({
+      ...baseArgs,
+      model: "openai/gpt-5.6-luna",
+      endpointOverride: "/api/v1/utility/chat/completions",
+      fetchFn,
+    });
+    expect(fetchFn.mock.calls[0][0]).toBe("https://portal.test/api/v1/utility/responses");
+  });
+
+  it("sends a Responses-shaped body once it has auto-upgraded", async () => {
+    // The endpoint and the body are chosen separately, and a responses path carrying a
+    // chat body is an http-terminal mismatch that never retries.
+    const fetchFn = vi.fn().mockResolvedValue(mockResponse('{"a":1}'));
+    await callPortalJsonCompletion({
+      ...baseArgs,
+      model: "openai/gpt-5.6-luna",
+      endpointOverride: "/api/v1/utility/chat/completions",
+      fetchFn,
+    });
+    const body = JSON.parse(String(fetchFn.mock.calls[0][1].body));
+    expect(body.input).toBeDefined();
+    expect(body.messages).toBeUndefined();
+  });
+
+  it("leaves a non-reasoning model on the chat lane", async () => {
+    // The default only moves for the families that cannot use it — gpt-oss (the SDK's
+    // own extraction default) must be untouched.
+    const fetchFn = vi.fn().mockResolvedValue(mockResponse('{"a":1}'));
+    await callPortalJsonCompletion({
+      ...baseArgs,
+      model: "gpt-oss/gpt-oss-120b",
+      endpointOverride: "/api/v1/utility/chat/completions",
+      fetchFn,
+    });
+    expect(fetchFn.mock.calls[0][0]).toBe("https://portal.test/api/v1/utility/chat/completions");
+  });
+
   it("normalizes a missing leading slash onto the override path", async () => {
     const fetchFn = vi.fn().mockResolvedValue(mockResponse('{"a":1}'));
     await callPortalJsonCompletion({
@@ -1026,10 +1082,14 @@ describe("callPortalJsonCompletion — responses transport misuse guards", () =>
   });
 
   it("throws for the mirror mismatch on the chat transport", async () => {
+    // A non-reasoning model on purpose: this block's baseArgs model is gpt-5.6, which
+    // now auto-selects the responses transport, so the chat-lane half of this guard has
+    // to be stated with a model that actually lands on that lane.
     const fetchFn = vi.fn();
     await expect(
       callPortalJsonCompletion({
         ...baseArgs,
+        model: "anthropic/claude-sonnet-4-6",
         endpointOverride: "/api/v1/utility/responses",
         fetchFn,
       })
@@ -1047,9 +1107,11 @@ describe("callPortalJsonCompletion — responses transport misuse guards", () =>
     });
     expect(String(responsesFetch.mock.calls[0][0])).toContain("/api/v1/utility/responses");
 
+    // Same reason as the mirror-mismatch test: gpt-5.6 no longer defaults to this lane.
     const chatFetch = vi.fn().mockResolvedValue(mockResponse('{"ok":true}'));
     await callPortalJsonCompletion({
       ...baseArgs,
+      model: "anthropic/claude-sonnet-4-6",
       endpointOverride: "/api/v1/utility/chat/completions",
       fetchFn: chatFetch,
     });
