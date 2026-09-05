@@ -1,0 +1,19 @@
+# PostApiV1AdminNearbyAccessCodesRevokeResponses
+
+> **PostApiV1AdminNearbyAccessCodesRevokeResponses** = `object`
+
+Defined in: [src/client/types.gen.ts:6429](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6429)
+
+## Properties
+
+### 200
+
+> **200**: `object`
+
+Defined in: [src/client/types.gen.ts:6433](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6433)
+
+OK
+
+**Index Signature**
+
+\[`key`: `string`]: `unknown`

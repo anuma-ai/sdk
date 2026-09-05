@@ -2,7 +2,7 @@
 
 > **PostApiV1AdminSubscriptionTierResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:6811](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6811)
+Defined in: [src/client/types.gen.ts:7478](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7478)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:6811](https://github.com/anuma-ai/sdk/blob/
 
 > **200**: [`HandlersSetSubscriptionTierResponse`](HandlersSetSubscriptionTierResponse.md)
 
-Defined in: [src/client/types.gen.ts:6815](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6815)
+Defined in: [src/client/types.gen.ts:7482](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7482)
 
 OK

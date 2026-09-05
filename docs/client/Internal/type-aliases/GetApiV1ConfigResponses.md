@@ -2,7 +2,7 @@
 
 > **GetApiV1ConfigResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:7800](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7800)
+Defined in: [src/client/types.gen.ts:8525](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8525)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:7800](https://github.com/anuma-ai/sdk/blob/
 
 > **200**: [`HandlersConfigResponse`](HandlersConfigResponse.md)
 
-Defined in: [src/client/types.gen.ts:7804](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7804)
+Defined in: [src/client/types.gen.ts:8529](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8529)
 
 OK

@@ -2,7 +2,7 @@
 
 > **getApiV1UsageInferenceWeekly**<`ThrowOnError`>(`options?`: [`Options`](../type-aliases/Options.md)<[`GetApiV1UsageInferenceWeeklyData`](../type-aliases/GetApiV1UsageInferenceWeeklyData.md), `ThrowOnError`, `unknown`>): `RequestResult`<[`GetApiV1UsageInferenceWeeklyResponses`](../type-aliases/GetApiV1UsageInferenceWeeklyResponses.md), `unknown`, `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:1432](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1432)
+Defined in: [src/client/sdk.gen.ts:1509](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1509)
 
 Weekly inference volume
 

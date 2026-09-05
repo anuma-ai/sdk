@@ -2,7 +2,7 @@
 
 > **PostInternalNearbyActivationsData** = `object`
 
-Defined in: [src/client/types.gen.ts:11810](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11810)
+Defined in: [src/client/types.gen.ts:12559](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#12559)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:11810](https://github.com/anuma-ai/sdk/blob
 
 > **body**: [`HandlersNearbyActivationRequest`](HandlersNearbyActivationRequest.md)
 
-Defined in: [src/client/types.gen.ts:11814](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11814)
+Defined in: [src/client/types.gen.ts:12563](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#12563)
 
 Activation to record
 
@@ -20,7 +20,7 @@ Activation to record
 
 > `optional` **path**: `never`
 
-Defined in: [src/client/types.gen.ts:11815](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11815)
+Defined in: [src/client/types.gen.ts:12564](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#12564)
 
 ***
 
@@ -28,7 +28,7 @@ Defined in: [src/client/types.gen.ts:11815](https://github.com/anuma-ai/sdk/blob
 
 > `optional` **query**: `never`
 
-Defined in: [src/client/types.gen.ts:11816](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11816)
+Defined in: [src/client/types.gen.ts:12565](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#12565)
 
 ***
 
@@ -36,4 +36,4 @@ Defined in: [src/client/types.gen.ts:11816](https://github.com/anuma-ai/sdk/blob
 
 > **url**: `"/internal/nearby/activations"`
 
-Defined in: [src/client/types.gen.ts:11817](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11817)
+Defined in: [src/client/types.gen.ts:12566](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#12566)

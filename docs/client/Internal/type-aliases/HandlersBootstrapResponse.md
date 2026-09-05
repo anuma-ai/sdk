@@ -2,7 +2,7 @@
 
 > **HandlersBootstrapResponse** = `object`
 
-Defined in: [src/client/types.gen.ts:1484](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1484)
+Defined in: [src/client/types.gen.ts:1612](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1612)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:1484](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **build**: [`HandlersBootstrapBuild`](HandlersBootstrapBuild.md)
 
-Defined in: [src/client/types.gen.ts:1485](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1485)
+Defined in: [src/client/types.gen.ts:1613](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1613)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:1485](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **connectors**: [`HandlersConnectorSettingResponse`](HandlersConnectorSettingResponse.md)\[]
 
-Defined in: [src/client/types.gen.ts:1491](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1491)
+Defined in: [src/client/types.gen.ts:1619](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1619)
 
 Connectors lists every known connector with its effective enabled state for
 this environment. The client uses it to decide which connectors to surface;
@@ -30,7 +30,7 @@ per-user connection state stays on GET /api/v1/connectors. Defaults to \[].
 
 > `optional` **flags**: `object`
 
-Defined in: [src/client/types.gen.ts:1496](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1496)
+Defined in: [src/client/types.gen.ts:1624](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1624)
 
 Flags maps registered feature-flag keys to the variant assigned to this user.
 Variant values are typed by PostHog: bool for boolean flags, string for multivariate.
@@ -45,4 +45,4 @@ Variant values are typed by PostHog: bool for boolean flags, string for multivar
 
 > `optional` **user**: [`HandlersBootstrapUser`](HandlersBootstrapUser.md)
 
-Defined in: [src/client/types.gen.ts:1499](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1499)
+Defined in: [src/client/types.gen.ts:1627](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1627)

@@ -2,7 +2,7 @@
 
 > **HandlersCreateCheckoutSessionRequest** = `object`
 
-Defined in: [src/client/types.gen.ts:1853](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1853)
+Defined in: [src/client/types.gen.ts:1981](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1981)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:1853](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **cancel\_url**: `string`
 
-Defined in: [src/client/types.gen.ts:1854](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1854)
+Defined in: [src/client/types.gen.ts:1982](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1982)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:1854](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **interval**: `string`
 
-Defined in: [src/client/types.gen.ts:1858](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1858)
+Defined in: [src/client/types.gen.ts:1986](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1986)
 
 "month" or "year"
 
@@ -28,7 +28,7 @@ Defined in: [src/client/types.gen.ts:1858](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **price\_id**: `string`
 
-Defined in: [src/client/types.gen.ts:1859](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1859)
+Defined in: [src/client/types.gen.ts:1987](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1987)
 
 ***
 
@@ -36,7 +36,7 @@ Defined in: [src/client/types.gen.ts:1859](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **referral**: `string`
 
-Defined in: [src/client/types.gen.ts:1863](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1863)
+Defined in: [src/client/types.gen.ts:1991](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1991)
 
 Rewardful referral ID for affiliate tracking
 
@@ -46,7 +46,7 @@ Rewardful referral ID for affiliate tracking
 
 > `optional` **success\_url**: `string`
 
-Defined in: [src/client/types.gen.ts:1864](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1864)
+Defined in: [src/client/types.gen.ts:1992](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1992)
 
 ***
 
@@ -54,6 +54,6 @@ Defined in: [src/client/types.gen.ts:1864](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **tier**: `string`
 
-Defined in: [src/client/types.gen.ts:1868](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1868)
+Defined in: [src/client/types.gen.ts:1996](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1996)
 
 "starter" or "pro"

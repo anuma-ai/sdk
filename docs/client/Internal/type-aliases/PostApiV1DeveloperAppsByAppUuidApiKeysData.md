@@ -2,7 +2,7 @@
 
 > **PostApiV1DeveloperAppsByAppUuidApiKeysData** = `object`
 
-Defined in: [src/client/types.gen.ts:8658](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8658)
+Defined in: [src/client/types.gen.ts:9383](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9383)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:8658](https://github.com/anuma-ai/sdk/blob/
 
 > **body**: [`HandlersDeveloperApiKeyRequest`](HandlersDeveloperApiKeyRequest.md)
 
-Defined in: [src/client/types.gen.ts:8662](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8662)
+Defined in: [src/client/types.gen.ts:9387](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9387)
 
 API key request
 
@@ -20,7 +20,7 @@ API key request
 
 > **path**: `object`
 
-Defined in: [src/client/types.gen.ts:8663](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8663)
+Defined in: [src/client/types.gen.ts:9388](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9388)
 
 **app\_uuid**
 
@@ -34,7 +34,7 @@ App UUID
 
 > `optional` **query**: `never`
 
-Defined in: [src/client/types.gen.ts:8669](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8669)
+Defined in: [src/client/types.gen.ts:9394](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9394)
 
 ***
 
@@ -42,4 +42,4 @@ Defined in: [src/client/types.gen.ts:8669](https://github.com/anuma-ai/sdk/blob/
 
 > **url**: `"/api/v1/developer/apps/{app_uuid}/api-keys"`
 
-Defined in: [src/client/types.gen.ts:8670](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8670)
+Defined in: [src/client/types.gen.ts:9395](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9395)

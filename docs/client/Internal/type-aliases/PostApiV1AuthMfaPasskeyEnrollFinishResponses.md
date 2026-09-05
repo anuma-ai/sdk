@@ -2,7 +2,7 @@
 
 > **PostApiV1AuthMfaPasskeyEnrollFinishResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:7391](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7391)
+Defined in: [src/client/types.gen.ts:8112](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8112)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:7391](https://github.com/anuma-ai/sdk/blob/
 
 > **200**: [`HandlersPasskeyEnrollFinishResponse`](HandlersPasskeyEnrollFinishResponse.md)
 
-Defined in: [src/client/types.gen.ts:7395](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7395)
+Defined in: [src/client/types.gen.ts:8116](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8116)
 
 OK

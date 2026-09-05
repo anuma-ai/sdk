@@ -2,7 +2,7 @@
 
 > **PostApiV1AuthMfaTotpEnrollInitResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:7535](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7535)
+Defined in: [src/client/types.gen.ts:8256](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8256)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:7535](https://github.com/anuma-ai/sdk/blob/
 
 > **200**: [`HandlersTotpEnrollInitResponse`](HandlersTotpEnrollInitResponse.md)
 
-Defined in: [src/client/types.gen.ts:7539](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7539)
+Defined in: [src/client/types.gen.ts:8260](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8260)
 
 OK

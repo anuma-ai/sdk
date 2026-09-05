@@ -2,7 +2,7 @@
 
 > **HandlersPreProcessorRequest** = `object`
 
-Defined in: [src/client/types.gen.ts:2671](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2671)
+Defined in: [src/client/types.gen.ts:2867](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2867)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:2671](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **limit**: `number`
 
-Defined in: [src/client/types.gen.ts:2672](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2672)
+Defined in: [src/client/types.gen.ts:2868](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2868)
 
 ***
 
@@ -18,4 +18,4 @@ Defined in: [src/client/types.gen.ts:2672](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **q**: `string`
 
-Defined in: [src/client/types.gen.ts:2673](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2673)
+Defined in: [src/client/types.gen.ts:2869](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2869)
