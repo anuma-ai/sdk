@@ -2,7 +2,7 @@
 
 > **GetApiV1NotificationsPreferencesErrors** = `object`
 
-Defined in: [src/client/types.gen.ts:9617](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9617)
+Defined in: [src/client/types.gen.ts:10314](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10314)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:9617](https://github.com/anuma-ai/sdk/blob/
 
 > **401**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:9621](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9621)
+Defined in: [src/client/types.gen.ts:10318](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10318)
 
 Unauthorized
 
@@ -20,7 +20,7 @@ Unauthorized
 
 > **403**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:9625](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9625)
+Defined in: [src/client/types.gen.ts:10322](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10322)
 
 Forbidden
 
@@ -30,6 +30,6 @@ Forbidden
 
 > **500**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:9629](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9629)
+Defined in: [src/client/types.gen.ts:10326](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10326)
 
 Internal Server Error

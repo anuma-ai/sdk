@@ -2,7 +2,7 @@
 
 > **postInternalAccountsByPhoneHashes**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`PostInternalAccountsByPhoneHashesData`](../type-aliases/PostInternalAccountsByPhoneHashesData.md), `ThrowOnError`>): `RequestResult`<[`PostInternalAccountsByPhoneHashesResponses`](../type-aliases/PostInternalAccountsByPhoneHashesResponses.md), [`PostInternalAccountsByPhoneHashesErrors`](../type-aliases/PostInternalAccountsByPhoneHashesErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:1686](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1686)
+Defined in: [src/client/sdk.gen.ts:1763](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1763)
 
 Resolve phone hashes to account IDs (batch)
 

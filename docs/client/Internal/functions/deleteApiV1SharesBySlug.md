@@ -2,7 +2,7 @@
 
 > **deleteApiV1SharesBySlug**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`DeleteApiV1SharesBySlugData`](../type-aliases/DeleteApiV1SharesBySlugData.md), `ThrowOnError`>): `RequestResult`<[`DeleteApiV1SharesBySlugResponses`](../type-aliases/DeleteApiV1SharesBySlugResponses.md), [`DeleteApiV1SharesBySlugErrors`](../type-aliases/DeleteApiV1SharesBySlugErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:1291](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1291)
+Defined in: [src/client/sdk.gen.ts:1368](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1368)
 
 Unpublish a shared artifact
 

@@ -2,7 +2,7 @@
 
 > **getApiV1UserAgentConsents**<`ThrowOnError`>(`options?`: [`Options`](../type-aliases/Options.md)<[`GetApiV1UserAgentConsentsData`](../type-aliases/GetApiV1UserAgentConsentsData.md), `ThrowOnError`, `unknown`>): `RequestResult`<[`GetApiV1UserAgentConsentsResponses`](../type-aliases/GetApiV1UserAgentConsentsResponses.md), [`GetApiV1UserAgentConsentsErrors`](../type-aliases/GetApiV1UserAgentConsentsErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:1446](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1446)
+Defined in: [src/client/sdk.gen.ts:1523](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1523)
 
 List active per-platform agent consents
 

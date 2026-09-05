@@ -2,4 +2,4 @@
 
 > **GetApiV1PersonasResponse** = [`GetApiV1PersonasResponses`](GetApiV1PersonasResponses.md)\[keyof [`GetApiV1PersonasResponses`](GetApiV1PersonasResponses.md)]
 
-Defined in: [src/client/types.gen.ts:9706](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9706)
+Defined in: [src/client/types.gen.ts:10403](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10403)

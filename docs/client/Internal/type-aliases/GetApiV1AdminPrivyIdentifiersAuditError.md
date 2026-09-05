@@ -2,4 +2,4 @@
 
 > **GetApiV1AdminPrivyIdentifiersAuditError** = [`GetApiV1AdminPrivyIdentifiersAuditErrors`](GetApiV1AdminPrivyIdentifiersAuditErrors.md)\[keyof [`GetApiV1AdminPrivyIdentifiersAuditErrors`](GetApiV1AdminPrivyIdentifiersAuditErrors.md)]
 
-Defined in: [src/client/types.gen.ts:6619](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6619)
+Defined in: [src/client/types.gen.ts:7286](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7286)

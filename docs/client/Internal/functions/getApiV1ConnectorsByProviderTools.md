@@ -2,7 +2,7 @@
 
 > **getApiV1ConnectorsByProviderTools**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`GetApiV1ConnectorsByProviderToolsData`](../type-aliases/GetApiV1ConnectorsByProviderToolsData.md), `ThrowOnError`>): `RequestResult`<[`GetApiV1ConnectorsByProviderToolsResponses`](../type-aliases/GetApiV1ConnectorsByProviderToolsResponses.md), [`GetApiV1ConnectorsByProviderToolsErrors`](../type-aliases/GetApiV1ConnectorsByProviderToolsErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:799](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#799)
+Defined in: [src/client/sdk.gen.ts:890](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#890)
 
 Denied tools for a connector
 

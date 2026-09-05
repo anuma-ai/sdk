@@ -2,7 +2,7 @@
 
 > **getApiV1DocsSwaggerJson**<`ThrowOnError`>(`options?`: [`Options`](../type-aliases/Options.md)<[`GetApiV1DocsSwaggerJsonData`](../type-aliases/GetApiV1DocsSwaggerJsonData.md), `ThrowOnError`, `unknown`>): `RequestResult`<[`GetApiV1DocsSwaggerJsonResponses`](../type-aliases/GetApiV1DocsSwaggerJsonResponses.md), `unknown`, `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:1044](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1044)
+Defined in: [src/client/sdk.gen.ts:1135](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1135)
 
 Get OpenAPI specification
 

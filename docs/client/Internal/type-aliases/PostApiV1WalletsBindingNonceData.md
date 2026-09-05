@@ -2,7 +2,7 @@
 
 > **PostApiV1WalletsBindingNonceData** = `object`
 
-Defined in: [src/client/types.gen.ts:11262](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11262)
+Defined in: [src/client/types.gen.ts:11971](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11971)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:11262](https://github.com/anuma-ai/sdk/blob
 
 > `optional` **body**: `never`
 
-Defined in: [src/client/types.gen.ts:11263](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11263)
+Defined in: [src/client/types.gen.ts:11972](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11972)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:11263](https://github.com/anuma-ai/sdk/blob
 
 > `optional` **path**: `never`
 
-Defined in: [src/client/types.gen.ts:11264](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11264)
+Defined in: [src/client/types.gen.ts:11973](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11973)
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: [src/client/types.gen.ts:11264](https://github.com/anuma-ai/sdk/blob
 
 > `optional` **query**: `never`
 
-Defined in: [src/client/types.gen.ts:11265](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11265)
+Defined in: [src/client/types.gen.ts:11974](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11974)
 
 ***
 
@@ -34,4 +34,4 @@ Defined in: [src/client/types.gen.ts:11265](https://github.com/anuma-ai/sdk/blob
 
 > **url**: `"/api/v1/wallets/binding/nonce"`
 
-Defined in: [src/client/types.gen.ts:11266](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11266)
+Defined in: [src/client/types.gen.ts:11975](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11975)
