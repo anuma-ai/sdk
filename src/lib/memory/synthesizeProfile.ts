@@ -275,8 +275,7 @@ export interface ProfileSection {
   interests?: string[];
   /** Unix ms this section was generated. */
   generatedAt: number;
-  /** True when regeneration failed and a prior section value was carried
-   * forward (e.g. LLM returned empty) — the caller may choose to retry. */
+  /** True when regeneration failed (e.g. LLM returned empty) — the caller may choose to retry. */
   stale?: boolean;
 }
 
@@ -506,13 +505,37 @@ export async function synthesizeProfile(
     options.reviewedMemoryIds
   );
 
+  // Preserve a failed section only while all its source facts remain eligible and unchanged.
+  const memoriesById = new Map(memories.map((memory) => [memory.uniqueId, memory]));
+  const fallbackPriors = new Map<ProfileFacetKey, ProfileSection>();
+  if (previous && watermark >= previous.vaultWatermark) {
+    for (const section of previous.sections) {
+      if (
+        section.sourceMemoryIds.length > 0 &&
+        section.sourceMemoryIds.every((id) => {
+          const memory = memoriesById.get(id);
+          return (
+            memory &&
+            !memory.isDeleted &&
+            !memory.supersededBy &&
+            scopes.includes(memory.scope) &&
+            (options.reviewedMemoryIds === undefined || options.reviewedMemoryIds.includes(id)) &&
+            changeTime(memory) <= previous.vaultWatermark
+          );
+        })
+      ) {
+        fallbackPriors.set(section.key, section);
+      }
+    }
+  }
+
   const settled = await Promise.allSettled(
     facets.map(async (facet) => {
       const prior = previous?.sections.find((s) => s.key === facet.key);
       if (prior && !staleKeys.has(facet.key)) {
         return prior; // reuse verbatim — its source facts are unchanged
       }
-      return synthesizeFacet(facet, ctx, options, prior);
+      return synthesizeFacet(facet, ctx, options, fallbackPriors.get(facet.key));
     })
   );
 
@@ -530,7 +553,7 @@ export async function synthesizeProfile(
     );
     return fallbackSection(
       facet,
-      previous?.sections.find((s) => s.key === facet.key)
+      fallbackPriors.get(facet.key)
     );
   });
 
@@ -844,8 +867,8 @@ async function attributeFacts(
 /** One grounded synthesis pass for a single facet. Gates its own fresh text
  * through the PII redactor when supplied, so the returned section is
  * publish-safe. On a DEGRADED-empty result (LLM failure, empty text despite
- * evidence) it falls back to the prior section (marked stale) rather than
- * wiping a previously-good section (#3). A legitimate "no evidence" verdict
+ * evidence) it uses the eligible, unchanged prior section, marked stale, or an empty stale section.
+ * A legitimate "no evidence" verdict
  * (hasEvidence=false) clears the section as intended.
  *
  * Evidence path: recall with profile-worthiness knobs → optional
@@ -946,9 +969,9 @@ async function synthesizeFacet(
 
   if (!text && !legitimateEmpty && !noEvidence) {
     // Degraded empty (LLM produced nothing but not an explicit no-evidence
-    // verdict, and recall did return evidence) — keep the prior section, stale.
+    // verdict, and recall did return evidence) uses the validated fallback.
     getLogger().warn(
-      "[memory/synthesizeProfile] facet synthesis returned degraded-empty; keeping prior section",
+      "[memory/synthesizeProfile] facet synthesis returned degraded-empty; using fallback section",
       { facet: facet.key, recalledCount: result.basedOn.memoryIds.length }
     );
     return fallbackSection(facet, prior);
@@ -1000,8 +1023,7 @@ async function synthesizeFacet(
 }
 
 /** Fallback when a facet's synthesis failed (rejected or degraded-empty): keep
- * the prior section (marked stale) so a previously-good section survives; only
- * emit an empty section when there was no prior. */
+ * an eligible, unchanged prior section, marked stale. Otherwise emit an empty stale section. */
 function fallbackSection(facet: ProfileFacet, prior: ProfileSection | undefined): ProfileSection {
   // fallbackSection is only reached on a FAILURE (rejected or degraded-empty),
   // never on a legitimate no-evidence verdict — so always mark the result stale

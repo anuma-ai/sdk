@@ -490,8 +490,8 @@ describe("synthesizeProfile", () => {
   });
 
   // Finding #3: one facet's reflect() rejecting must not fail the whole profile,
-  // and must keep the prior section (marked stale) rather than wiping it.
-  it("survives a facet failure and keeps the prior section marked stale", async () => {
+  // and must clear claims whose source facts changed.
+  it("survives a facet failure and clears the changed prior section", async () => {
     // Both facts changed → both facets stale → both regenerate.
     mockGetAll.mockResolvedValue([
       mem("a", { updatedAt: new Date(5000), createdAt: new Date(500) }),
@@ -509,7 +509,7 @@ describe("synthesizeProfile", () => {
     const doc = await synthesizeProfile(ctx, { apiKey: "k", facets: FACETS, previous });
 
     const bio = doc.sections.find((s) => s.key === "bio")!;
-    expect(bio.text).toBe("good old bio"); // prior preserved, not wiped
+    expect(bio.text).toBe("");
     expect(bio.stale).toBe(true);
     expect(doc.sections.find((s) => s.key === "interests")!.text).toBe("fresh interests");
   });
@@ -518,7 +518,7 @@ describe("synthesizeProfile", () => {
   // keeps the prior section stale rather than clearing it.
   it("keeps the prior section on a degraded-empty result", async () => {
     mockGetAll.mockResolvedValue([
-      mem("a", { updatedAt: new Date(5000), createdAt: new Date(500) }),
+      mem("a", { updatedAt: new Date(2000), createdAt: new Date(500) }),
     ]);
     // Empty text, NO structuredOutput → degraded, not a legitimate no-evidence verdict.
     mockReflect.mockResolvedValueOnce({
@@ -528,7 +528,7 @@ describe("synthesizeProfile", () => {
     } as never);
 
     const previous = priorDoc(
-      [section("bio", "good old bio", ["a"])],
+      [{ ...section("bio", "good old bio", ["a"]), stale: true }],
       2000,
       fingerprint([FACETS[0]])
     );
@@ -541,6 +541,59 @@ describe("synthesizeProfile", () => {
 
     expect(doc.sections[0].text).toBe("good old bio");
     expect(doc.sections[0].stale).toBe(true);
+  });
+
+  it.each([
+    ["deleted", "recall"],
+    ["deleted", "degraded"],
+    ["corrected", "recall"],
+    ["corrected", "degraded"],
+    ["superseded", "recall"],
+    ["superseded", "degraded"],
+  ])("clears %s source claims after a %s failure", async (change, failure) => {
+    const source = mem("a", {
+      content: "The corrected role",
+      updatedAt: new Date(5000),
+      ...(change === "superseded" ? { supersededBy: "b", supersededAt: 5000 } : {}),
+    });
+    mockGetAll.mockResolvedValue([
+      ...(change === "deleted" ? [] : [source]),
+      mem("b", { updatedAt: new Date(5000) }),
+    ]);
+    if (failure === "recall") {
+      mockRecall.mockRejectedValue(new Error("Recall failed"));
+    } else {
+      mockRecall.mockResolvedValue({
+        memories: [ranked("b")],
+        usedBudget: "low",
+        reranked: false,
+        candidateCount: 1,
+      });
+      mockReflect.mockResolvedValue({
+        text: "",
+        basedOn: { memoryIds: ["b"] },
+        usage: { promptTokens: 0, completionTokens: 0, totalTokens: 0 },
+      } as never);
+    }
+    const previous = priorDoc(
+      [{
+        ...section("work_role", "Old role", ["a"]),
+        occupation: "Old role",
+      }],
+      2000,
+      fingerprint([WORK_ROLE])
+    );
+
+    const doc = await synthesizeProfile(ctx, { apiKey: "k", facets: [WORK_ROLE], previous });
+
+    expect(doc.sections[0]).toMatchObject({ text: "", sourceMemoryIds: [], stale: true });
+    expect(doc.sections[0].occupation).toBeUndefined();
+    expect(doc.sections[0].interests).toBeUndefined();
+    // A retry against the SAME previous (claims still present, evidence still gone) must clear
+    // them again: pre-fix the unguarded fallback restored "Old role" here, so this fails pre-fix.
+    const retry = await synthesizeProfile(ctx, { apiKey: "k", facets: [WORK_ROLE], previous });
+    expect(retry.sections[0]).toMatchObject({ text: "", sourceMemoryIds: [], stale: true });
+    expect(retry.sections[0].occupation).toBeUndefined();
   });
 
   // A section left stale by a prior failed regeneration must be retried on the
@@ -753,7 +806,7 @@ describe("synthesizeProfile", () => {
 
     const doc = await synthesizeProfile(ctx, { apiKey: "k", facets: [FACETS[0]], previous });
 
-    expect(doc.sections[0].text).toBe("good prior bio"); // prior kept, not the JSON fragment
+    expect(doc.sections[0].text).toBe(""); // Changed evidence cannot support the prior text.
     expect(doc.sections[0].stale).toBe(true);
   });
 
@@ -1407,7 +1460,7 @@ describe("synthesizeProfile", () => {
   // column shouldn't empty out because one LLM call fell over.
   it("carries a prior section's structured values forward when regeneration fails", async () => {
     mockGetAll.mockResolvedValue([
-      mem("a", { updatedAt: new Date(5000), createdAt: new Date(500) }),
+      mem("a", { updatedAt: new Date(2000), createdAt: new Date(500) }),
     ]);
     mockReflect.mockRejectedValueOnce(new Error("LLM down"));
 
@@ -1416,6 +1469,7 @@ describe("synthesizeProfile", () => {
         {
           ...section("work_role", "Backend engineer at a fintech startup.", ["a"]),
           occupation: "Backend engineer, fintech",
+          stale: true,
         },
       ],
       2000,
