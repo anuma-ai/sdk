@@ -225,13 +225,19 @@ jobs:
             extra+=(--ce-weight "$INPUT_CE_WEIGHT")
           fi
 
-          IFS=',' read -r -a heads <<< "$INPUT_HEADS"
-          [ "${#heads[@]}" -ge 2 ] || { echo "heads needs at least two values, got '$INPUT_HEADS'"; exit 1; }
-          for h in "${heads[@]}"; do
+          IFS=',' read -r -a raw_heads <<< "$INPUT_HEADS"
+          [ "${#raw_heads[@]}" -ge 2 ] || { echo "heads needs at least two values, got '$INPUT_HEADS'"; exit 1; }
+          # Trim whitespace before validating and write the trimmed value back:
+          # `30, 5` is the normal way to type a list, and rejecting it would cost
+          # a whole dispatch round-trip to discover.
+          heads=()
+          for h in "${raw_heads[@]}"; do
+            h="${h//[[:space:]]/}"
             case "$h" in
               ''|*[!0-9]*) echo "Invalid head '$h' in '$INPUT_HEADS'. Expected positive integers."; exit 1 ;;
             esac
             [ "$h" -ge 1 ] || { echo "Invalid head '$h'. Must be >= 1."; exit 1; }
+            heads+=("$h")
           done
           # Duplicates would silently defeat the sweep: a repeated head equals
           # the reference, so it skips `--compare` and overwrites the reference's
@@ -278,6 +284,20 @@ jobs:
             rc=${PIPESTATUS[0]}
             echo "::endgroup::"
             [ "$rc" -eq 0 ] || { echo "head $h failed (exit $rc)"; exit "$rc"; }
+
+            # The benchmark swallows a `--compare` read/parse failure — it logs
+            # `--compare failed to load "..."` and exits 0 — and that message
+            # contains no "paired", so the lift below would render a metrics
+            # block with nothing after it, indistinguishable from the reference
+            # arm. The paired delta is the only statistic this corpus can state
+            # with confidence, so an arm that produced none has to fail loudly.
+            # (`no-prior-data` and `no-overlap` do say "paired test" and are
+            # therefore visible in the summary, but they are not results either,
+            # so match the success line specifically.)
+            if [ "$h" != "$ref" ] && ! grep -q "Paired comparison vs" "arm-head-$h.log"; then
+              echo "head $h produced no paired comparison against $ref — see arm-head-$h.log"
+              exit 1
+            fi
 
             {
               echo

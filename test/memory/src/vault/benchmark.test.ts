@@ -511,6 +511,11 @@ function gateConfig(): Record<string, string | number | boolean> {
     // -1 = "SDK default", distinct from any real head size — same sentinel
     // convention as `recencyAlpha` below.
     rerankTopN: RERANK_TOP_N ?? -1,
+    // Recorded so a result document says what CE weight produced it. Without
+    // this, a `--compare` target cannot be told apart from one run at a
+    // different weight — the precise reason the ce-weight-0.3 figure in
+    // anuma-ai/sdk#845 is unusable today. -1 = SDK default (0.1).
+    ceWeight: CE_WEIGHT ?? -1,
     mmr: USE_MMR,
     graph: USE_GRAPH,
     entities: ENTITY_MODE,
