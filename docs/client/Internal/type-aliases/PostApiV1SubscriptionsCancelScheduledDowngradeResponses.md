@@ -2,7 +2,7 @@
 
 > **PostApiV1SubscriptionsCancelScheduledDowngradeResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:10097](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10097)
+Defined in: [src/client/types.gen.ts:10250](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10250)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:10097](https://github.com/anuma-ai/sdk/blob
 
 > **200**: [`HandlersCancelScheduledDowngradeResponse`](HandlersCancelScheduledDowngradeResponse.md)
 
-Defined in: [src/client/types.gen.ts:10101](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10101)
+Defined in: [src/client/types.gen.ts:10254](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10254)
 
 OK

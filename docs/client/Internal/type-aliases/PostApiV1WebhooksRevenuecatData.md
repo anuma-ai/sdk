@@ -2,7 +2,7 @@
 
 > **PostApiV1WebhooksRevenuecatData** = `object`
 
-Defined in: [src/client/types.gen.ts:11168](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11168)
+Defined in: [src/client/types.gen.ts:11321](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11321)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:11168](https://github.com/anuma-ai/sdk/blob
 
 > `optional` **body**: `object`
 
-Defined in: [src/client/types.gen.ts:11169](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11169)
+Defined in: [src/client/types.gen.ts:11322](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11322)
 
 **Index Signature**
 
@@ -22,7 +22,7 @@ Defined in: [src/client/types.gen.ts:11169](https://github.com/anuma-ai/sdk/blob
 
 > `optional` **path**: `never`
 
-Defined in: [src/client/types.gen.ts:11172](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11172)
+Defined in: [src/client/types.gen.ts:11325](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11325)
 
 ***
 
@@ -30,7 +30,7 @@ Defined in: [src/client/types.gen.ts:11172](https://github.com/anuma-ai/sdk/blob
 
 > `optional` **query**: `never`
 
-Defined in: [src/client/types.gen.ts:11173](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11173)
+Defined in: [src/client/types.gen.ts:11326](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11326)
 
 ***
 
@@ -38,4 +38,4 @@ Defined in: [src/client/types.gen.ts:11173](https://github.com/anuma-ai/sdk/blob
 
 > **url**: `"/api/v1/webhooks/revenuecat"`
 
-Defined in: [src/client/types.gen.ts:11174](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11174)
+Defined in: [src/client/types.gen.ts:11327](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11327)

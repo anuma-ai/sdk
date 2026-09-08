@@ -55,6 +55,7 @@ import {
   getMessagesOp,
   getMessagesPageOp,
   type GetMessagesPageOptions,
+  getToolCallEventIdsOp,
   makeSyntheticStoredConversation,
   makeSyntheticStoredMessage,
   Message,
@@ -72,6 +73,7 @@ import {
   upsertMessageOp,
 } from "../lib/db/chat";
 import { updateMessageEmbeddingOp } from "../lib/db/chat";
+import { maskScopedEmbeddingCache } from "../lib/db/chat/embeddingCache";
 import {
   createMediaBatchOp,
   type CreateMediaOptions,
@@ -1684,6 +1686,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         summaryModel = DEFAULT_SUMMARY_MODEL,
         files,
         storedUserContent,
+        embeddingCache,
         onData: perRequestOnData,
         onThinking: perRequestOnThinking,
         memoryContext,
@@ -1743,18 +1746,31 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       // a single vector for short prompts, one vector per chunk for long ones so
       // tool scoring uses max similarity across chunks. Both shapes are accepted
       // by the server/client tool filters and by chunked message-embedding storage.
+      //
+      // `masked` is separate from `mask` because the caller-shared `embeddingCache` is namespaced by
+      // the masking DECISION, not by the masker (see maskScopedEmbeddingCache). And the text goes in
+      // RAW with `maskInput` doing the masking, so the cache key is the string a caller holding the
+      // user's text would use — pre-masking the argument keys on the masked text and a shared Map
+      // never hits. Both mirror the react path.
       const embedToolText = (
         text: string,
         mask: (t: string) => string,
+        masked: boolean,
         token: (() => Promise<string | null>) | undefined
       ): Promise<number[] | number[][]> => {
-        const opts = { getToken: token, baseUrl, model: embeddingModel };
+        const opts = {
+          getToken: token,
+          baseUrl,
+          model: embeddingModel,
+          maskInput: mask,
+          cache: embeddingCache ? maskScopedEmbeddingCache(embeddingCache, masked) : undefined,
+        };
         return shouldChunkMessage(text, DEFAULT_CHUNK_SIZE)
           ? generateEmbeddings(
-              chunkText(text).map((c) => mask(c.text)),
+              chunkText(text).map((c) => c.text),
               opts
             )
-          : generateEmbedding(mask(text), opts);
+          : generateEmbedding(text, opts);
       };
 
       // Eager key derivation: if wallet is present but key isn't, try to derive it now
@@ -1826,6 +1842,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
                 skipUserEmbedding = await embedToolText(
                   messageContent,
                   maskForCall,
+                  Boolean(callPiiRedaction),
                   getTokenRef.current
                 );
                 const toolNames = serverToolsFilter(skipUserEmbedding, allServerTools);
@@ -1862,6 +1879,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
                 skipUserEmbedding = await embedToolText(
                   messageContent,
                   maskForCall,
+                  Boolean(callPiiRedaction),
                   getTokenRef.current
                 );
               } catch {
@@ -2084,7 +2102,14 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         token: () => Promise<string | null>
       ): Promise<{ embedding: number[] | number[][] } | { error: unknown }> => {
         try {
-          return { embedding: await embedToolText(contentForStorage, maskForCall, token) };
+          return {
+            embedding: await embedToolText(
+              contentForStorage,
+              maskForCall,
+              Boolean(callPiiRedaction),
+              token
+            ),
+          };
         } catch (error) {
           return { error };
         }
@@ -2118,29 +2143,18 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       // deduplicate the backend's accumulated tool_call_events later.
       // This must run unconditionally — even when includeHistory is false, the
       // backend still returns accumulated events across the entire conversation.
-      const storedMessages = await getMessages(convId);
-      const knownToolCallEventIds = new Set<string>();
-      for (const msg of storedMessages) {
-        if (msg.toolCallEvents) {
-          for (const evt of msg.toolCallEvents) {
-            if (evt.id) knownToolCallEventIds.add(evt.id);
-          }
-        }
-      }
+      const knownToolCallEventIds = await getToolCallEventIdsOp(storageCtx, convId);
 
       // Include history if requested
       if (includeHistory) {
-        const validMessages = storedMessages.filter((msg) => !msg.error);
-
-        // This conversation's own `[Tool Execution Results]` rows: folded onto the assistant turns
-        // that produced them when the caller opts in, dropped otherwise. Never verbatim — they are
-        // `role: "user"`, so each one would put two consecutive user turns on the wire and the model
-        // would answer the previous turn instead of the new prompt. Dropping is the conservative
-        // branch: it costs the model what the tools returned, which is what folding exists to fix.
-        // `toolResultsHistoryExclude` withholds display payloads from replay (replay only — the row
-        // itself is still persisted and backed up; the card needs it to re-render).
+        // Page backward newest-first instead of reading the whole thread: a
+        // full-thread getMessagesOp parses + decrypts every embedding column
+        // (vector/chunks, tens of KB per row) only to slice all but the last
+        // maxHistoryMessages away. getMessagesPageOp skips those columns, and
+        // the loop stops as soon as the folded window is full.
         //
-        // BEFORE the window slice AND before summarization, and both orderings matter:
+        // The fold below still runs over the ENTIRE fetched tail BEFORE the
+        // window slice, and both orderings matter:
         // - Slice first and the synthetic rows spend window slots they are then removed from, so a
         //   display-heavy thread replays fewer real turns than the caller asked for. Worse, the slice
         //   boundary can keep a row while cutting the assistant it belongs to, and the payload is then
@@ -2149,11 +2163,47 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         //   put those coordinates in the summary prompt, and anything the summary retains comes back
         //   to the main model through `summarySystemMessage`.
         // Folding first closes both, and makes the window count only rows that actually travel.
-        const replayableMessages = prepareToolResultsForReplay(validMessages, {
-          fold: foldToolResultsInHistoryRef.current === true,
-          exclude: toolResultsHistoryExcludeRef.current,
-          placeholder: DISPLAY_CARD_PLACEHOLDER,
-        });
+        // A synthetic row always follows the assistant turn that produced it, so
+        // any pairing whose payload survives the final slice has its fold target
+        // inside the fetched tail.
+        let tail: StoredMessage[] = [];
+        let replayableMessages: StoredMessage[] = [];
+        let beforeMessageId: number | undefined;
+        let boundaryExcludeUniqueIds: string[] | undefined;
+        for (;;) {
+          const page = await getMessagesPageOp(storageCtx, convId, {
+            limit: maxHistoryMessages,
+            beforeMessageId,
+            boundaryExcludeUniqueIds,
+          });
+          if (page.length === 0) break;
+          tail = [...page, ...tail];
+
+          // This conversation's own `[Tool Execution Results]` rows: folded onto the assistant turns
+          // that produced them when the caller opts in, dropped otherwise. Never verbatim — they are
+          // `role: "user"`, so each one would put two consecutive user turns on the wire and the model
+          // would answer the previous turn instead of the new prompt. Dropping is the conservative
+          // branch: it costs the model what the tools returned, which is what folding exists to fix.
+          // `toolResultsHistoryExclude` withholds display payloads from replay (replay only — the row
+          // itself is still persisted and backed up; the card needs it to re-render).
+          const validMessages = tail.filter((msg) => !msg.error);
+          replayableMessages = prepareToolResultsForReplay(validMessages, {
+            fold: foldToolResultsInHistoryRef.current === true,
+            exclude: toolResultsHistoryExcludeRef.current,
+            placeholder: DISPLAY_CARD_PLACEHOLDER,
+          });
+          if (replayableMessages.length >= maxHistoryMessages) break;
+          if (page.length < maxHistoryMessages) break; // thread exhausted
+          // `message_id` is not unique in legacy data (count-based ids +
+          // deletes) and the cursor is INCLUSIVE at the boundary when
+          // exclusions are given — exclude EVERY already-held row at the
+          // boundary message_id, not just page[0], or a duplicated boundary
+          // row is re-fetched into the tail on the next page.
+          beforeMessageId = page[0].messageId;
+          boundaryExcludeUniqueIds = tail
+            .filter((msg) => msg.messageId === beforeMessageId)
+            .map((msg) => msg.uniqueId);
+        }
         const limitedMessages = replayableMessages.slice(-maxHistoryMessages);
         const foldedHistory = limitedMessages;
 

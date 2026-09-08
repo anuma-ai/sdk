@@ -2,4 +2,4 @@
 
 > **GetApiV1CuratedModelsResponse** = [`GetApiV1CuratedModelsResponses`](GetApiV1CuratedModelsResponses.md)\[keyof [`GetApiV1CuratedModelsResponses`](GetApiV1CuratedModelsResponses.md)]
 
-Defined in: [src/client/types.gen.ts:8235](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8235)
+Defined in: [src/client/types.gen.ts:8388](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8388)

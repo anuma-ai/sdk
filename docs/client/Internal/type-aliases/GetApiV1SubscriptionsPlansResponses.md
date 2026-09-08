@@ -2,7 +2,7 @@
 
 > **GetApiV1SubscriptionsPlansResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:10202](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10202)
+Defined in: [src/client/types.gen.ts:10355](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10355)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:10202](https://github.com/anuma-ai/sdk/blob
 
 > **200**: [`HandlersSubscriptionPlansResponse`](HandlersSubscriptionPlansResponse.md)
 
-Defined in: [src/client/types.gen.ts:10206](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10206)
+Defined in: [src/client/types.gen.ts:10359](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10359)
 
 OK

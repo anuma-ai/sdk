@@ -2,7 +2,7 @@
 
 > **getApiV1Agents**<`ThrowOnError`>(`options?`: [`Options`](../type-aliases/Options.md)<[`GetApiV1AgentsData`](../type-aliases/GetApiV1AgentsData.md), `ThrowOnError`, `unknown`>): `RequestResult`<[`GetApiV1AgentsResponses`](../type-aliases/GetApiV1AgentsResponses.md), [`GetApiV1AgentsErrors`](../type-aliases/GetApiV1AgentsErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:539](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#539)
+Defined in: [src/client/sdk.gen.ts:546](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#546)
 
 List agents
 

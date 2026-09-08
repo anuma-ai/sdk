@@ -2,4 +2,4 @@
 
 > **PostApiV1AdminOauthClientsResponse** = [`PostApiV1AdminOauthClientsResponses`](PostApiV1AdminOauthClientsResponses.md)\[keyof [`PostApiV1AdminOauthClientsResponses`](PostApiV1AdminOauthClientsResponses.md)]
 
-Defined in: [src/client/types.gen.ts:6052](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6052)
+Defined in: [src/client/types.gen.ts:6205](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6205)

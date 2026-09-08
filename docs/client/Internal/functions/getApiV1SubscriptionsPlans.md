@@ -2,7 +2,7 @@
 
 > **getApiV1SubscriptionsPlans**<`ThrowOnError`>(`options?`: [`Options`](../type-aliases/Options.md)<[`GetApiV1SubscriptionsPlansData`](../type-aliases/GetApiV1SubscriptionsPlansData.md), `ThrowOnError`, `unknown`>): `RequestResult`<[`GetApiV1SubscriptionsPlansResponses`](../type-aliases/GetApiV1SubscriptionsPlansResponses.md), [`GetApiV1SubscriptionsPlansErrors`](../type-aliases/GetApiV1SubscriptionsPlansErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:1350](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1350)
+Defined in: [src/client/sdk.gen.ts:1357](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1357)
 
 List available subscription plans
 

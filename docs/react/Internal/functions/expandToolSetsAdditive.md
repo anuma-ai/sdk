@@ -17,7 +17,7 @@ anchor threshold would silently break app-creation flows. Recall over
 precision.
 
 Use this for server-side toolkit suites where the LLM needs the full
-call chain (e.g. search\_web → read\_url / parallel\_read\_url, or
+call chain (e.g. search\_web → anuma\_scrape\_url, or
 geocoding before the OpenMeteo data tools). Differs from `applyToolSets`,
 which replaces non-set matches when a set activates.
 

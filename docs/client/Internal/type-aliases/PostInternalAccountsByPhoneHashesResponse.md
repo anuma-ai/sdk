@@ -2,4 +2,4 @@
 
 > **PostInternalAccountsByPhoneHashesResponse** = [`PostInternalAccountsByPhoneHashesResponses`](PostInternalAccountsByPhoneHashesResponses.md)\[keyof [`PostInternalAccountsByPhoneHashesResponses`](PostInternalAccountsByPhoneHashesResponses.md)]
 
-Defined in: [src/client/types.gen.ts:11515](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11515)
+Defined in: [src/client/types.gen.ts:11668](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11668)

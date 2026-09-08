@@ -23,12 +23,23 @@ on:
           - s
           - m
       model:
+        # Default is what every other memory eval gate runs (`recall-eval`,
+        # `extraction-eval`) and what production extraction uses, so a
+        # default dispatch is comparable to the gates and is known to serve.
+        #
+        # It replaced `cerebras/qwen-3-235b-a22b-instruct-2507`, which had been
+        # the default while RETIRED: Cerebras stopped serving that slug
+        # (ai-portal#1193) and the portal surfaces the upstream 404 as a 500, so
+        # every extraction failed `HTTP 500 after 6 attempts` and the run scored
+        # 0/50 after ~40 minutes of runner time. A default that cannot work is
+        # worse than no default — the option is removed rather than demoted so
+        # it cannot be picked again.
         description: "LLM model for answer generation and evaluation"
         required: true
         type: choice
-        default: "cerebras/qwen-3-235b-a22b-instruct-2507"
+        default: "gpt-oss/gpt-oss-120b"
         options:
-          - cerebras/qwen-3-235b-a22b-instruct-2507
+          - gpt-oss/gpt-oss-120b
           - deepinfra/moonshotai/Kimi-K2.6
           - fireworks/accounts/fireworks/models/kimi-k2p6
           - fireworks/accounts/fireworks/models/deepseek-v3p2
@@ -48,6 +59,40 @@ on:
           - anthropic/claude-sonnet-4-5
           - anthropic/claude-haiku-4-5-20251001
           - fireworks/accounts/fireworks/models/minimax-m2p5
+      extract_llm:
+        # Extraction is NOT the answer model. Production always extracts with
+        # `DEFAULT_EXTRACTION_MODEL` (gpt-oss/gpt-oss-120b, autoExtract.ts)
+        # regardless of which model the user is chatting with, but the harness
+        # resolves `extractionModel ?? llmModel` — so with no override, changing
+        # the answer model silently changes the extractor too, and the run stops
+        # describing production's write path.
+        #
+        # That is how a dispatch on the (then-default) retired Cerebras slug
+        # produced `HTTP 500 after 6 attempts` on every session: the dead model
+        # was doing the extracting. `recall-eval` already pins both; this makes
+        # the same pinning reachable here. Blank = follow the answer model, which
+        # is the historical behaviour.
+        description: "Extraction model (blank = same as `model`). Pin to gpt-oss/gpt-oss-120b to match production."
+        required: false
+        type: string
+        default: "gpt-oss/gpt-oss-120b"
+      extractor:
+        # Which CODE PATH produces session memories (anuma-ai/sdk#907). The suite
+        # has always used the SDK for retrieval and retention but never for
+        # extraction, so a run measured a different extractor from the one users
+        # get — including a 6000-token cap where production sends none, which is
+        # the exact failure mode production suffers. `sdk` routes candidate
+        # generation through extractFacts().
+        #
+        # Blank = the CLI default (`harness`), i.e. historical behaviour.
+        description: "Extraction code path: harness (default) or sdk. See #907."
+        required: false
+        type: choice
+        default: ""
+        options:
+          - ""
+          - "harness"
+          - "sdk"
       max:
         description: "Max questions (blank = all)"
         required: false
@@ -65,6 +110,13 @@ on:
         options:
           - "true"
           - "false"
+      rerank_candidates:
+        # Blank = the harness default (30), so an unset run is byte-identical to
+        # one dispatched before this input existed.
+        description: "Vault: candidates fed to the CE reranker (blank = 30). Needs rerank=true."
+        required: false
+        type: string
+        default: ""
       decompose:
         description: "Vault: query decomposition for composite questions"
         required: false
@@ -217,6 +269,9 @@ jobs:
           INPUTS_RECALL_EMIT: ${{ inputs.recall_emit }}
           INPUTS_RECALL_LANE_MODE: ${{ inputs.recall_lane_mode }}
           INPUTS_RERANK: ${{ inputs.rerank }}
+          INPUTS_RERANK_CANDIDATES: ${{ inputs.rerank_candidates }}
+          INPUTS_EXTRACT_LLM: ${{ inputs.extract_llm }}
+          INPUTS_EXTRACTOR: ${{ inputs.extractor }}
           INPUTS_DECOMPOSE: ${{ inputs.decompose }}
           INPUTS_CONSOLIDATE: ${{ inputs.consolidate }}
           INPUTS_STRATEGY: ${{ matrix.strategy }}
@@ -238,6 +293,14 @@ jobs:
           if [ -n "$EVAL_MAX" ]; then
             args+=(--max "$EVAL_MAX")
           fi
+          # Strategy-independent: every strategy that builds a vault extracts,
+          # so this is not gated on `vault` the way the ranking knobs are.
+          if [ -n "$INPUTS_EXTRACT_LLM" ]; then
+            args+=(--extract-llm "$INPUTS_EXTRACT_LLM")
+          fi
+          if [ -n "$INPUTS_EXTRACTOR" ]; then
+            args+=(--extractor "$INPUTS_EXTRACTOR")
+          fi
           if [ "$INPUTS_STRATEGY" = "vault" ]; then
             args+=(
               "--rerank=$INPUTS_RERANK"
@@ -249,6 +312,13 @@ jobs:
             fi
             if [ -n "$INPUTS_EXCERPT_CAP" ]; then
               args+=("--excerpt-cap=$INPUTS_EXCERPT_CAP")
+            fi
+            # Only forwarded when rerank is on. Passing a head size alongside
+            # `rerank=false` would read as a configured sweep whose arms are all
+            # the same run — the same failure the vault benchmark's
+            # `--rerank-top-n` guard rejects outright (#904).
+            if [ -n "$INPUTS_RERANK_CANDIDATES" ] && [ "$INPUTS_RERANK" = "true" ]; then
+              args+=("--rerank-candidates=$INPUTS_RERANK_CANDIDATES")
             fi
           fi
           if [ "$INPUTS_STRATEGY" = "recall" ] && [ -n "$INPUTS_RECALL_TYPES" ]; then

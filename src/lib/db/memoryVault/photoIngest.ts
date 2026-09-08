@@ -28,12 +28,16 @@
  *     candidate to be reconciled against the vault — it is an already-decided
  *     fact the server has published.
  *
- * The rows are written `visibility: "public"` because they genuinely ARE
- * published — the reconciler reads local visibility as the user's intent, and
- * anything else would make it immediately revoke a memory the user never turned
- * off. They carry `source: SOURCE_PHOTO`, which is what exempts them from
- * decay's auto-archive; see the note there for why archiving one would silently
- * unpublish it.
+ * The rows are written `scope: "shared"` because they genuinely ARE published.
+ * `scope === 'shared'` is the publication axis — the single one. The reconciler
+ * reads local scope as the user's intent, and it builds its `local` set from a
+ * vault read narrowed to `{scopes: ['shared']}`. A row stamped anything else
+ * never enters that read, so it is never adopted into the publish ledger, and
+ * `toRevoke` is computed only over ids the ledger holds. The user's off-toggle
+ * would then do nothing server-side while nearby kept serving the memory. The
+ * `visibility` column is legacy: nothing reads it any more. They carry
+ * `source: SOURCE_PHOTO`, which is what exempts them from decay's auto-archive;
+ * see the note there for why archiving one would silently unpublish it.
  *
  * No embedding is computed here. `searchTool`'s un-embedded lane embeds any row
  * lacking a vector at search time, uses it in that same search and persists it
@@ -90,6 +94,29 @@ export interface PhotoIngestResult {
  * it, and silently overwriting an edit to match the server would be the same
  * class of bug as publishing a version the user has since changed. Re-ingesting
  * changed text is a follow-up that needs a merge decision, not a clobber.
+ *
+ * That skip is also why this op does NOT repair a row an older build stamped
+ * `scope: "private"`. Such a row is present, so ingest leaves it alone, and it
+ * stays outside the published-set read. The user's switch cannot revoke it.
+ * Repair belongs in a one-time pass at upgrade. Do not add it here, for two
+ * reasons:
+ *
+ *  - **The two states are indistinguishable from this op.** After this build a
+ *    `photo:` row with `scope: "private"` is also exactly what the user's own
+ *    off-toggle produces. The toggle calls `updateVaultMemoryOp`, which writes
+ *    `scope` and never touches `visibility`, so the mis-stamped row and the
+ *    turned-off row carry identical columns. No test here can tell them apart.
+ *
+ *  - **A re-stamp here would revert the off-toggle.** The pass runs ingest
+ *    BEFORE it reads the vault, so a row re-stamped `shared` re-enters the
+ *    desired set on that same pass and never reaches `toRevoke`. The switch
+ *    would spring back to "on" and nearby would keep serving the memory. That
+ *    is worse than the bug it repairs.
+ *
+ * A one-time pass does not have the ambiguity. Before this build the switch
+ * already read "off" for these rows, because it reads `scope`, so no user can
+ * have turned one off. Every `private` photo row at that instant came from the
+ * old stamp.
  *
  * Non-`photo:` ids are ignored: everything else in the published set is a
  * client-published memory that by definition already lives in this vault (or in
@@ -163,7 +190,11 @@ export async function ingestPublishedPhotoMemoriesOp(
         // hook to override it, so the raw handle is the only way in.
         (record._raw as { id: string }).id = row.memoryId;
         record._setRaw("content", content);
-        record._setRaw("scope", "private");
+        // Published, so `shared` — see the header. This is the field the
+        // reconciler's published-set read (`{scopes:['shared']}`) and its
+        // `isPublic` both key on. A row outside that read can never reach the
+        // ledger, and therefore can never be revoked.
+        record._setRaw("scope", "shared");
         record._setRaw("folder_id", null);
         record._setRaw("user_id", ctx.userId ?? null);
         record._setRaw("is_deleted", false);
@@ -173,8 +204,11 @@ export async function ingestPublishedPhotoMemoriesOp(
           "media",
           row.media && row.media.length > 0 ? JSON.stringify(row.media) : null
         );
-        // Already published, by the server, before this device ever saw it —
-        // and published_at must be non-null whenever visibility is not private.
+        // `visibility` is a dead column — the scope above is what publication
+        // reads. It is still stamped for stored-data compatibility: rows travel
+        // between devices by backup sync, and a build old enough to still read
+        // this column must see the row as published, not revoke it as private.
+        // `published_at` records when the SERVER published it.
         record._setRaw("visibility", "public");
         record._setRaw("published_at", now);
         if (row.eventTime) {

@@ -2,7 +2,7 @@
 
 > **PostNearbyWaitlistResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:11732](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11732)
+Defined in: [src/client/types.gen.ts:11921](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11921)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:11732](https://github.com/anuma-ai/sdk/blob
 
 > **200**: [`HandlersWaitlistJoinResponse`](HandlersWaitlistJoinResponse.md)
 
-Defined in: [src/client/types.gen.ts:11736](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11736)
+Defined in: [src/client/types.gen.ts:11925](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11925)
 
 OK

@@ -2,7 +2,7 @@
 
 > **postApiV1AdminUsersInternalTester**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`PostApiV1AdminUsersInternalTesterData`](../type-aliases/PostApiV1AdminUsersInternalTesterData.md), `ThrowOnError`>): `RequestResult`<[`PostApiV1AdminUsersInternalTesterResponses`](../type-aliases/PostApiV1AdminUsersInternalTesterResponses.md), [`PostApiV1AdminUsersInternalTesterErrors`](../type-aliases/PostApiV1AdminUsersInternalTesterErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:483](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#483)
+Defined in: [src/client/sdk.gen.ts:490](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#490)
 
 Grant or revoke the People Nearby internal-tester flag
 

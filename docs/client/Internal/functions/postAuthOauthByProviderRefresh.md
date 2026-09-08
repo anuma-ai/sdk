@@ -2,7 +2,7 @@
 
 > **postAuthOauthByProviderRefresh**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`PostAuthOauthByProviderRefreshData`](../type-aliases/PostAuthOauthByProviderRefreshData.md), `ThrowOnError`>): `RequestResult`<[`PostAuthOauthByProviderRefreshResponses`](../type-aliases/PostAuthOauthByProviderRefreshResponses.md), [`PostAuthOauthByProviderRefreshErrors`](../type-aliases/PostAuthOauthByProviderRefreshErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:1623](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1623)
+Defined in: [src/client/sdk.gen.ts:1630](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1630)
 
 Refresh access token
 

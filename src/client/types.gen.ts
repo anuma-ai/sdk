@@ -2426,6 +2426,75 @@ export type HandlersModerateResponse = {
     };
 };
 
+export type HandlersNearbyActivationGrantResponse = {
+    /**
+     * AmountAzeta is the reward in aZETA, as a decimal STRING: 10 ZETA is 1e19
+     * aZETA, which exceeds what a JSON number survives intact in a JavaScript
+     * caller.
+     */
+    amount_azeta?: string;
+    /**
+     * BeneficiaryAccountID is who is owed.
+     */
+    beneficiary_account_id?: number;
+    /**
+     * Created reports whether THIS call produced the grant. False on a replay,
+     * which is still a success.
+     */
+    created?: boolean;
+    /**
+     * Side is "referrer" or "referee".
+     */
+    side?: string;
+    /**
+     * Status is the payout lifecycle state. Always "owed" today — portal
+     * records what it owes and has no ZETA sender yet.
+     */
+    status?: string;
+};
+
+export type HandlersNearbyActivationRequest = {
+    /**
+     * AccountID is the portal account that activated.
+     */
+    account_id?: number;
+    /**
+     * ActivatedAt is when the activation happened. Optional — omitted means
+     * "now", since a caller reporting an activation as it happens has nothing
+     * more accurate to send.
+     */
+    activated_at?: string;
+    /**
+     * AreaSlug is the People Nearby area the account activated in. Optional: an
+     * empty slug means the account resolved into no known market, which is a
+     * normal state and is recorded as an activation that earns nothing. The
+     * reward is only payable in an active area, and portal has no way to derive
+     * the area itself.
+     */
+    area_slug?: string;
+};
+
+export type HandlersNearbyActivationResponse = {
+    /**
+     * Grants is never null; an empty array means the activation earned
+     * nothing, and Reason says why.
+     */
+    grants?: Array<HandlersNearbyActivationGrantResponse>;
+    /**
+     * Reason explains an empty Grants ("grants_disabled", "inactive_area",
+     * "referrer_not_resolved", "self_referral"). Empty when grants exist.
+     *
+     * Informational: none of these values is an error and none of them should
+     * make the caller retry differently.
+     */
+    reason?: string;
+    /**
+     * Recorded reports whether this call stored the activation. False means it
+     * was already known — a replay, which is expected.
+     */
+    recorded?: boolean;
+};
+
 export type HandlersNearbyModerateRequest = {
     image_urls?: Array<string>;
     texts?: Array<string>;
@@ -2725,6 +2794,52 @@ export type HandlersReferralClaimResponse = {
     promoted_referrals?: number;
     reward?: HandlersReferralRewardResponse;
     tester?: HandlersReferralTesterResponse;
+};
+
+export type HandlersReferralGrantReferrerStatResponse = {
+    /**
+     * RefereeCount is how many distinct referees earned this referrer a grant.
+     */
+    referee_count?: number;
+    referrer_account_id?: number;
+    /**
+     * ReferrerPhoneVerified reports whether the referrer verified their own phone.
+     */
+    referrer_phone_verified?: boolean;
+    /**
+     * TotalAzeta is what this referrer has been granted, in aZETA, as a
+     * decimal string (the values exceed a safe JSON number).
+     */
+    total_azeta?: string;
+    /**
+     * UnverifiedRefereeCount is how many of those referees have no verified
+     * phone. A high ratio is the strongest signal this data supports.
+     */
+    unverified_referee_count?: number;
+};
+
+export type HandlersReferralGrantStatsResponse = {
+    /**
+     * Limitations states what this report cannot establish. Served in the
+     * response, not just documented, because the numbers above invite a
+     * stronger reading than they support.
+     */
+    limitations?: Array<string>;
+    /**
+     * OwedAzeta is total outstanding liability across all grants, as a decimal
+     * string.
+     */
+    owed_azeta?: string;
+    /**
+     * Referrers is never null.
+     */
+    referrers?: Array<HandlersReferralGrantReferrerStatResponse>;
+    /**
+     * UngrantedActivations counts activations that produced no grant. Expected
+     * to be non-zero for legitimate reasons (inactive area, no referrer); a
+     * value tracking total activations means grants are not landing.
+     */
+    ungranted_activations?: number;
 };
 
 export type HandlersReferralIdentityResponse = {
@@ -4713,6 +4828,44 @@ export type GetWellKnownJwksJsonResponses = {
 };
 
 export type GetWellKnownJwksJsonResponse = GetWellKnownJwksJsonResponses[keyof GetWellKnownJwksJsonResponses];
+
+export type GetAdminReferralGrantsStatsData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Only include referrers with at least this many granted referees (default 2)
+         */
+        min_referees?: number;
+        /**
+         * Maximum referrers to return (default 50, max 500)
+         */
+        limit?: number;
+    };
+    url: '/admin/referral-grants/stats';
+};
+
+export type GetAdminReferralGrantsStatsErrors = {
+    /**
+     * Bad Request
+     */
+    400: ResponseErrorResponse;
+    /**
+     * Internal Server Error
+     */
+    500: ResponseErrorResponse;
+};
+
+export type GetAdminReferralGrantsStatsError = GetAdminReferralGrantsStatsErrors[keyof GetAdminReferralGrantsStatsErrors];
+
+export type GetAdminReferralGrantsStatsResponses = {
+    /**
+     * OK
+     */
+    200: HandlersReferralGrantStatsResponse;
+};
+
+export type GetAdminReferralGrantsStatsResponse = GetAdminReferralGrantsStatsResponses[keyof GetAdminReferralGrantsStatsResponses];
 
 export type DeleteApiV1AccountData = {
     body?: never;
@@ -11653,6 +11806,42 @@ export type PostInternalModerateResponses = {
 };
 
 export type PostInternalModerateResponse = PostInternalModerateResponses[keyof PostInternalModerateResponses];
+
+export type PostInternalNearbyActivationsData = {
+    /**
+     * Activation to record
+     */
+    body: HandlersNearbyActivationRequest;
+    path?: never;
+    query?: never;
+    url: '/internal/nearby/activations';
+};
+
+export type PostInternalNearbyActivationsErrors = {
+    /**
+     * Bad Request
+     */
+    400: ResponseErrorResponse;
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+    /**
+     * Internal Server Error
+     */
+    500: ResponseErrorResponse;
+};
+
+export type PostInternalNearbyActivationsError = PostInternalNearbyActivationsErrors[keyof PostInternalNearbyActivationsErrors];
+
+export type PostInternalNearbyActivationsResponses = {
+    /**
+     * OK
+     */
+    200: HandlersNearbyActivationResponse;
+};
+
+export type PostInternalNearbyActivationsResponse = PostInternalNearbyActivationsResponses[keyof PostInternalNearbyActivationsResponses];
 
 export type PostInternalPrefineryClaimTokensData = {
     /**

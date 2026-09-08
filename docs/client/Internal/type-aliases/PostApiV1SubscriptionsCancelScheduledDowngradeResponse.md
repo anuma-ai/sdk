@@ -2,4 +2,4 @@
 
 > **PostApiV1SubscriptionsCancelScheduledDowngradeResponse** = [`PostApiV1SubscriptionsCancelScheduledDowngradeResponses`](PostApiV1SubscriptionsCancelScheduledDowngradeResponses.md)\[keyof [`PostApiV1SubscriptionsCancelScheduledDowngradeResponses`](PostApiV1SubscriptionsCancelScheduledDowngradeResponses.md)]
 
-Defined in: [src/client/types.gen.ts:10104](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10104)
+Defined in: [src/client/types.gen.ts:10257](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10257)

@@ -46,7 +46,7 @@ const serverTools = createServerToolsFilter({
   toolSets: [
     {
       name: "research",
-      members: ["AnumaJinaMCP-search_web", "AnumaJinaMCP-read_url", ...],
+      members: ["AnumaJinaMCP-search_web", "AnumaSearchMCP-anuma_scrape_url", ...],
       anchors: ["AnumaJinaMCP-search_web"],
       anchorMinSimilarity: 0.7,
     },

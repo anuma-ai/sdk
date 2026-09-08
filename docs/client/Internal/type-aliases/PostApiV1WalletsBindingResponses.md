@@ -2,7 +2,7 @@
 
 > **PostApiV1WalletsBindingResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:11100](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11100)
+Defined in: [src/client/types.gen.ts:11253](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11253)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:11100](https://github.com/anuma-ai/sdk/blob
 
 > **201**: [`HandlersBoundWalletResponse`](HandlersBoundWalletResponse.md)
 
-Defined in: [src/client/types.gen.ts:11104](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11104)
+Defined in: [src/client/types.gen.ts:11257](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11257)
 
 Created

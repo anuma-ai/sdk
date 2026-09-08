@@ -2,7 +2,7 @@
 
 > **GetReferralMeErrors** = `object`
 
-Defined in: [src/client/types.gen.ts:12078](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#12078)
+Defined in: [src/client/types.gen.ts:12267](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#12267)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:12078](https://github.com/anuma-ai/sdk/blob
 
 > **401**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:12082](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#12082)
+Defined in: [src/client/types.gen.ts:12271](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#12271)
 
 Unauthorized
 
@@ -20,6 +20,6 @@ Unauthorized
 
 > **503**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:12086](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#12086)
+Defined in: [src/client/types.gen.ts:12275](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#12275)
 
 Service Unavailable

@@ -2,7 +2,7 @@
 
 > **PutApiV1AdminBotConfigResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:5468](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5468)
+Defined in: [src/client/types.gen.ts:5621](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5621)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:5468](https://github.com/anuma-ai/sdk/blob/
 
 > **200**: `object`
 
-Defined in: [src/client/types.gen.ts:5472](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5472)
+Defined in: [src/client/types.gen.ts:5625](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5625)
 
 OK
 

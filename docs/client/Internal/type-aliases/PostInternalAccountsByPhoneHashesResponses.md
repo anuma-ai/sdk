@@ -2,7 +2,7 @@
 
 > **PostInternalAccountsByPhoneHashesResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:11508](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11508)
+Defined in: [src/client/types.gen.ts:11661](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11661)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:11508](https://github.com/anuma-ai/sdk/blob
 
 > **200**: [`HandlersAccountsByPhoneHashesResponse`](HandlersAccountsByPhoneHashesResponse.md)
 
-Defined in: [src/client/types.gen.ts:11512](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11512)
+Defined in: [src/client/types.gen.ts:11665](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11665)
 
 OK

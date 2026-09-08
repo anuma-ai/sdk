@@ -2,7 +2,7 @@
 
 > **parseMedia**(`value`: `unknown`): [`PhotoMediaRef`](../interfaces/PhotoMediaRef.md)\[] | `null`
 
-Defined in: [src/lib/db/memoryVault/types.ts:152](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#152)
+Defined in: [src/lib/db/memoryVault/types.ts:163](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#163)
 
 Decode the stored `media` column. Returns null for "no photo behind this
 memory" (the column is null on every non-photo row) and tolerates a corrupt

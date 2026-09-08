@@ -22,8 +22,10 @@ import { BASE_URL } from "../../clientConfig.js";
 import { getLogger } from "../logger.js";
 import { type TaskType, taskTypeHeader } from "../taskType.js";
 import {
+  extractCompletionContent,
   extractJsonCandidate,
   type PortalLlmAuth,
+  requiresResponsesTransport,
   resolvePortalAuthHeaders,
   supportsResponseFormat,
 } from "./portalLlm.js";
@@ -38,6 +40,51 @@ const DEFAULT_BASE_URL = BASE_URL;
 const DEFAULT_MODEL = "anthropic/claude-sonnet-4-6";
 const DEFAULT_MAX_TOKENS = 4096;
 const REQUEST_TIMEOUT_MS = 60_000;
+
+/**
+ * Minimum clock left on the shared deadline before the schema fallback retry is
+ * worth issuing. A request that cannot plausibly finish is pure cost — it bills
+ * a portal call and then aborts mid-flight.
+ */
+const MIN_RETRY_BUDGET_MS = 2_000;
+
+/**
+ * Floor for the output cap on the Responses transport.
+ *
+ * That transport exists for reasoning models, and reasoning tokens are billed
+ * as OUTPUT — they come out of the same cap the answer does. A caller cap tuned
+ * for a chat model (profile synthesis passes 512) can be spent entirely on
+ * reasoning, which returns a 200 carrying no message text: a success that looks
+ * exactly like "the model had nothing to say". Raise the floor rather than
+ * rewrite every caller, and leave caps ABOVE the floor untouched.
+ */
+const MIN_RESPONSES_OUTPUT_TOKENS = 2_048;
+
+/**
+ * Non-OK statuses where dropping `response_format` cannot be the fix, so the
+ * schema fallback is NOT attempted.
+ *
+ * Auth (401/403) and routing (404) are configuration, not request shape.
+ * Transient/rate (408/409/425/429) say nothing about the body, and a same-tick
+ * retry makes the pressure worse. 413 is excluded because the fallback moves
+ * the schema INTO the prompt, which makes the body larger, not smaller.
+ *
+ * Everything else non-OK — 400, 422, and the 5xx range — is treated as
+ * possibly-schema-caused. 5xx is IN deliberately: the portal masks upstream
+ * provider rejections behind its own generic error, so the status the SDK sees
+ * is not necessarily the status the provider returned.
+ */
+const SCHEMA_FALLBACK_SKIP_STATUSES = new Set([401, 403, 404, 408, 409, 413, 425, 429]);
+
+/**
+ * The outcome of one portal round-trip. `http` is split out from `error`
+ * because only a server-issued status is evidence about the REQUEST's shape — a
+ * network throw or an abort says nothing, and must never trigger a retry.
+ */
+type ReflectAttempt =
+  | { kind: "ok"; body: unknown }
+  | { kind: "http"; status: number; statusText: string }
+  | { kind: "error" };
 
 const DEFAULT_SYSTEM_PROMPT = `You are a personal assistant with access to the user's memory. Answer the user's question using the supplied memories as evidence.
 
@@ -181,14 +228,16 @@ export async function reflect(
   // (OpenAI structured outputs), not the broader json_object allowlist, so a
   // model that takes json_object but not json_schema falls back to the
   // prompt-instruction path instead of 400-ing.
-  const sendResponseFormat = wantsStructured && supportsResponseFormat(model, "json_schema");
+  // Some models are only reachable on the Responses transport — the chat lane
+  // rejects them at the provider, whatever the body looks like. That decides
+  // the endpoint AND the body shape below, and it forecloses `response_format`
+  // outright: the Responses API spells structured output differently
+  // (`text.format`) and this portal has never been verified on it, so a schema
+  // always rides in the system prompt there.
+  const useResponsesTransport = requiresResponsesTransport(model);
+  const sendResponseFormat =
+    wantsStructured && !useResponsesTransport && supportsResponseFormat(model, "json_schema");
   const basePrompt = options.systemPrompt ?? DEFAULT_SYSTEM_PROMPT;
-  const systemPrompt =
-    wantsStructured && !sendResponseFormat
-      ? `${basePrompt}\n\nRespond with ONLY a single JSON object conforming to this JSON Schema, with no prose, comments, or code fences:\n${JSON.stringify(
-          options.responseSchema
-        )}`
-      : basePrompt;
   // The caller's extra instruction sits BETWEEN the question and the evidence:
   // the evidence block has to stay the last thing in the turn (it is a numbered
   // list the model cites back by index, and appending after it would read as a
@@ -202,6 +251,57 @@ export async function reflect(
   const maxTokens = options.maxTokens ?? DEFAULT_MAX_TOKENS;
   const fetchImpl = options.fetchFn ?? fetch;
 
+  /**
+   * The request body for one attempt. `useResponseFormat` is the ONLY axis that
+   * varies between the first attempt and the schema fallback, and it moves BOTH
+   * halves together: the schema rides either the `response_format` field or the
+   * system prompt, never both and never neither. Splitting them is how a retry
+   * that merely dropped the field would leave the model with no JSON
+   * instruction at all.
+   *
+   * The base prompt stays a strict PREFIX in the fallback shape. The portal
+   * matches internal task types (e.g. `memory_profile_synth`) with a substring
+   * check against the system message, so appending the schema as a tail keeps
+   * that match intact.
+   */
+  const buildBody = (useResponseFormat: boolean): string => {
+    const systemPrompt =
+      wantsStructured && !useResponseFormat
+        ? `${basePrompt}\n\nRespond with ONLY a single JSON object conforming to this JSON Schema, with no prose, comments, or code fences:\n${JSON.stringify(
+            options.responseSchema
+          )}`
+        : basePrompt;
+    const messages = [
+      { role: "system", content: systemPrompt },
+      { role: "user", content: userMessage },
+    ];
+    if (useResponsesTransport) {
+      return JSON.stringify({
+        model,
+        // Same system+user pair under the Responses-API field names: `input`
+        // for the turns, `max_output_tokens` for the cap. Sending the
+        // chat-completions spelling here is silently ignored, which caps the
+        // answer at the portal default.
+        input: messages,
+        max_output_tokens: Math.max(maxTokens, MIN_RESPONSES_OUTPUT_TOKENS),
+      });
+    }
+    return JSON.stringify({
+      model,
+      // Modern OpenAI field; the portal reads only `max_completion_tokens`
+      // (the deprecated `max_tokens` is silently ignored → falls back to the
+      // portal's default output cap and truncates the answer).
+      max_completion_tokens: maxTokens,
+      messages,
+      ...(useResponseFormat && {
+        response_format: {
+          type: "json_schema",
+          json_schema: { name: "reflect_output", schema: options.responseSchema },
+        },
+      }),
+    });
+  };
+
   const log = getLogger();
 
   // Dual-auth resolution (apiKey → x-api-key, else getToken → Bearer).
@@ -210,95 +310,139 @@ export async function reflect(
   const authHeaders = await resolvePortalAuthHeaders(options, "memory/reflect");
   if (authHeaders === null) return baseResult;
 
-  const controller = new AbortController();
-  // Single end-to-end deadline so the header timer + body timer can't
-  // double the budget (was up to ~2×REQUEST_TIMEOUT_MS before).
+  // ONE absolute end-to-end deadline for the whole call, INCLUDING the schema
+  // fallback retry. The controller is per-ATTEMPT (a retry cannot reuse the
+  // first attempt's — it may already be aborted and its timer cleared), but
+  // every timer is armed off `remaining()`, so two attempts share the single
+  // budget instead of getting one each.
   const deadline = Date.now() + REQUEST_TIMEOUT_MS;
   const remaining = () => Math.max(0, deadline - Date.now());
-  const timer = setTimeout(() => controller.abort(), remaining());
 
-  let response: Response;
-  try {
-    response = await fetchImpl(`${baseUrl}/api/v1/chat/completions`, {
-      method: "POST",
-      // No task type unless the caller named one — an undeclared task adds no
-      // header at all, which is what keeps user-facing reflect() unlabelled.
-      headers: {
-        ...authHeaders,
-        ...taskTypeHeader(options.taskType),
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model,
-        // Modern OpenAI field; the portal reads only `max_completion_tokens`
-        // (the deprecated `max_tokens` is silently ignored → falls back to the
-        // portal's default output cap and truncates the answer).
-        max_completion_tokens: maxTokens,
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userMessage },
-        ],
-        ...(sendResponseFormat && {
-          response_format: {
-            type: "json_schema",
-            json_schema: { name: "reflect_output", schema: options.responseSchema },
-          },
-        }),
-      }),
-      signal: controller.signal,
-    });
-  } catch (err) {
+  const endpoint = useResponsesTransport ? "/api/v1/responses" : "/api/v1/chat/completions";
+
+  const sendOnce = async (useResponseFormat: boolean): Promise<ReflectAttempt> => {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), remaining());
+
+    let response: Response;
+    try {
+      response = await fetchImpl(`${baseUrl}${endpoint}`, {
+        method: "POST",
+        // No task type unless the caller named one — an undeclared task adds no
+        // header at all, which is what keeps user-facing reflect() unlabelled.
+        headers: {
+          ...authHeaders,
+          ...taskTypeHeader(options.taskType),
+          "Content-Type": "application/json",
+        },
+        body: buildBody(useResponseFormat),
+        signal: controller.signal,
+      });
+    } catch (err) {
+      clearTimeout(timer);
+      log.warn("[memory/reflect] portal request failed", {
+        err: err instanceof Error ? err.message : String(err),
+        baseUrl,
+      });
+      return { kind: "error" };
+    }
     clearTimeout(timer);
-    log.warn("[memory/reflect] portal request failed", {
-      err: err instanceof Error ? err.message : String(err),
-      baseUrl,
-    });
-    return baseResult;
-  }
-  clearTimeout(timer);
 
-  if (!response.ok) {
+    // Reported, not logged: whether a non-OK is recoverable is the caller's
+    // decision, and logging here would emit two near-identical lines on a
+    // double rejection.
+    if (!response.ok) {
+      return { kind: "http", status: response.status, statusText: response.statusText };
+    }
+
+    // Re-arm a fresh timer on THIS attempt's controller against the remaining
+    // slice of the shared deadline — covers slow body streaming without
+    // granting a new budget.
+    const bodyTimer = setTimeout(() => controller.abort(), remaining());
+    try {
+      // Annotated, not inferred: `Response.json()` is typed `any`, and letting
+      // that flow into `ReflectAttempt` both trips no-unsafe-assignment and
+      // silently disarms the shape checks in `parseAnswer`.
+      const body: unknown = await response.json();
+      clearTimeout(bodyTimer);
+      return { kind: "ok", body };
+    } catch (err) {
+      clearTimeout(bodyTimer);
+      log.warn("[memory/reflect] failed to parse portal response body", {
+        err: err instanceof Error ? err.message : String(err),
+      });
+      return { kind: "error" };
+    }
+  };
+
+  let attempt = await sendOnce(sendResponseFormat);
+  let schemaFallbackUsed = false;
+
+  // The one recoverable failure: we asked for `response_format: json_schema`
+  // and the portal refused the whole request.
+  //
+  // The gate that let us send it is per-PROVIDER (`RESPONSE_SCHEMA_OK` holds
+  // "openai"), so a specific model under an allowed provider can still reject
+  // the field. The portal masks the provider's reason, so the SDK cannot tell a
+  // field rejection from a schema-keyword rejection from anything else — so
+  // don't diagnose: retry once with the schema moved into the system prompt.
+  // That is the request the SDK already sends to every model outside the
+  // allowlist, on a path with existing coverage (`extractJsonCandidate`
+  // tolerates the prose/fence wrapping it invites). Without it the caller gets
+  // a degraded-empty result, which synthesizeProfile can only answer by keeping
+  // a stale section.
+  const budgetLeftMs = remaining();
+  if (
+    attempt.kind === "http" &&
+    sendResponseFormat &&
+    !SCHEMA_FALLBACK_SKIP_STATUSES.has(attempt.status) &&
+    budgetLeftMs >= MIN_RETRY_BUDGET_MS
+  ) {
+    log.warn("[memory/reflect] response_format json_schema rejected; retrying schema-in-prompt", {
+      status: attempt.status,
+      statusText: attempt.statusText,
+      model,
+      taskType: options.taskType,
+      budgetLeftMs,
+    });
+    schemaFallbackUsed = true;
+    attempt = await sendOnce(false);
+  }
+
+  if (attempt.kind === "error") return baseResult;
+  if (attempt.kind === "http") {
     log.warn("[memory/reflect] portal returned non-OK", {
-      status: response.status,
-      statusText: response.statusText,
+      status: attempt.status,
+      statusText: attempt.statusText,
+      // Distinguishes "the fallback ran and still failed" from "never tried".
+      schemaFallbackUsed,
     });
     return baseResult;
   }
 
-  // Re-arm the same controller against the remaining slice of the
-  // single deadline — covers slow body streaming without granting a
-  // fresh 60s budget.
-  const bodyTimer = setTimeout(() => controller.abort(), remaining());
-  let body: unknown;
-  try {
-    body = await response.json();
-  } catch (err) {
-    clearTimeout(bodyTimer);
-    log.warn("[memory/reflect] failed to parse portal response body", {
-      err: err instanceof Error ? err.message : String(err),
-    });
-    return baseResult;
-  }
-  clearTimeout(bodyTimer);
-
-  return parseAnswer(body, baseResult, !!options.responseSchema);
+  return parseAnswer(attempt.body, baseResult, !!options.responseSchema);
 }
 
 function parseAnswer(body: unknown, base: ReflectResult, parseSchema: boolean): ReflectResult {
   if (typeof body !== "object" || body === null) return base;
   const obj = body as Record<string, unknown>;
-  const choices = obj.choices;
-  let text = "";
-  if (Array.isArray(choices) && choices.length > 0) {
-    const message = (choices[0] as Record<string, unknown>).message;
-    if (typeof message === "object" && message !== null) {
-      const content = (message as Record<string, unknown>).content;
-      if (typeof content === "string") text = content;
-    }
-  }
+  // Shape-sniffing, shared with the rest of the memory pipeline: a Responses
+  // body carries the answer in `output_text` / `output[]` (interleaved with
+  // `type: "reasoning"` items that hold no text), a chat body in
+  // `choices[0].message.content`.
+  const text = extractCompletionContent(obj) ?? "";
 
+  // The two transports spell usage differently — `prompt`/`completion` on chat,
+  // `input`/`output` on Responses. Reading only the chat names would report
+  // zeros for every Responses call and quietly break cost accounting.
   const usage = obj.usage as
-    | { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number }
+    | {
+        prompt_tokens?: number;
+        completion_tokens?: number;
+        total_tokens?: number;
+        input_tokens?: number;
+        output_tokens?: number;
+      }
     | undefined;
 
   let structuredOutput: unknown;
@@ -318,14 +462,20 @@ function parseAnswer(body: unknown, base: ReflectResult, parseSchema: boolean): 
     }
   }
 
+  const promptTokens = usage?.prompt_tokens ?? usage?.input_tokens ?? 0;
+  const completionTokens = usage?.completion_tokens ?? usage?.output_tokens ?? 0;
+
   return {
     text,
     ...(structuredOutput !== undefined && { structuredOutput }),
     basedOn: base.basedOn,
     usage: {
-      promptTokens: usage?.prompt_tokens ?? 0,
-      completionTokens: usage?.completion_tokens ?? 0,
-      totalTokens: usage?.total_tokens ?? 0,
+      promptTokens,
+      completionTokens,
+      // Derived when absent: the Responses API reports the two component counts
+      // and does not always send a total, which would otherwise report zero
+      // spend for a call that plainly cost something.
+      totalTokens: usage?.total_tokens ?? promptTokens + completionTokens,
     },
   };
 }

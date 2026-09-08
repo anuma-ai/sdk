@@ -2,7 +2,7 @@
 
 > **postReferralInvite**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`PostReferralInviteData`](../type-aliases/PostReferralInviteData.md), `ThrowOnError`>): `RequestResult`<[`PostReferralInviteResponses`](../type-aliases/PostReferralInviteResponses.md), [`PostReferralInviteErrors`](../type-aliases/PostReferralInviteErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:1857](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1857)
+Defined in: [src/client/sdk.gen.ts:1878](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1878)
 
 Send a Prefinery friend invitation
 

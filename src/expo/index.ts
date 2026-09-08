@@ -141,6 +141,7 @@ export {
 } from "../lib/chat/resumeStream";
 export type { StreamMetaEvent, StreamResumeHandle } from "../lib/chat/toolLoop";
 export { xhrTransport } from "../lib/chat/xhrTransport";
+export { maskScopedEmbeddingCache } from "../lib/db/chat/embeddingCache";
 export type { UseCreditsOptions, UseCreditsResult } from "../react/useCredits";
 export { useCredits } from "../react/useCredits";
 export type { UseModelsOptions, UseModelsResult } from "../react/useModels";
