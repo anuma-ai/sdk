@@ -213,8 +213,15 @@ jobs:
           # baseline describes, and gating them would only ever report the
           # config mismatch.
           extra=()
-          [ "$INPUT_REFRESH" = "true" ] && extra+=(--refresh-embeddings)
+          # Validated here as well as in the benchmark, so a typo'd dispatch
+          # fails in seconds instead of after the embedding restore. The
+          # benchmark's own guard is the load-bearing one — it protects every
+          # caller, not just this workflow.
           if [ -n "$INPUT_CE_WEIGHT" ]; then
+            case "$INPUT_CE_WEIGHT" in
+              *[!0-9.]*|''|.|*.*.*)
+                echo "Invalid ce_weight '$INPUT_CE_WEIGHT'. Expected a non-negative decimal number."; exit 1 ;;
+            esac
             extra+=(--ce-weight "$INPUT_CE_WEIGHT")
           fi
 
@@ -226,6 +233,12 @@ jobs:
             esac
             [ "$h" -ge 1 ] || { echo "Invalid head '$h'. Must be >= 1."; exit 1; }
           done
+          # Duplicates would silently defeat the sweep: a repeated head equals
+          # the reference, so it skips `--compare` and overwrites the reference's
+          # own output file. The run would then pass having measured nothing.
+          if [ "$(printf '%s\n' "${heads[@]}" | sort -u | wc -l)" -ne "${#heads[@]}" ]; then
+            echo "Duplicate head in '$INPUT_HEADS'. Every arm must be a distinct size."; exit 1
+          fi
 
           # The first head is the reference; every later arm is `--compare`d
           # against it for a paired bootstrap over the same 100 queries. That
@@ -242,7 +255,18 @@ jobs:
 
           for h in "${heads[@]}"; do
             cmp=()
-            [ "$h" != "$ref" ] && cmp+=(--compare "arm-head-$ref.json")
+            # `--refresh-embeddings` goes to the REFERENCE ARM ONLY. Passed to
+            # every arm it re-embeds the corpus per arm, and `--compare` would
+            # then mix head-size effects with embedding jitter — destroying the
+            # determinism the paired test depends on. One refresh rebuilds the
+            # frozen cache; the later arms reuse it, which is the whole point of
+            # freezing it.
+            refresh=()
+            if [ "$h" = "$ref" ]; then
+              [ "$INPUT_REFRESH" = "true" ] && refresh+=(--refresh-embeddings)
+            else
+              cmp+=(--compare "arm-head-$ref.json")
+            fi
             echo "::group::head $h"
             # stderr carries progress AND the paired-bootstrap block (stdout is
             # reserved for the result document, which --output redirects to a
@@ -250,7 +274,7 @@ jobs:
             pnpm --silent eval:vault-search --json --ranker fused --rerank \
               --rerank-top-n "$h" \
               --output "arm-head-$h.json" \
-              "${extra[@]}" "${cmp[@]}" 2>&1 | tee "arm-head-$h.log"
+              "${extra[@]}" "${refresh[@]}" "${cmp[@]}" 2>&1 | tee "arm-head-$h.log"
             rc=${PIPESTATUS[0]}
             echo "::endgroup::"
             [ "$rc" -eq 0 ] || { echo "head $h failed (exit $rc)"; exit "$rc"; }

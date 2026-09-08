@@ -147,6 +147,14 @@ if (RERANK_TOP_N !== undefined && !RERANK) {
   process.exit(1);
 }
 const CE_WEIGHT = args["ce-weight"] ? parseFloat(args["ce-weight"]) : undefined;
+if (CE_WEIGHT !== undefined && (!Number.isFinite(CE_WEIGHT) || CE_WEIGHT < 0)) {
+  // `parseFloat("abc")` is NaN, and ceWeight lands in `v2 * (1 + ceWeight * ce)`
+  // — so an unvalidated typo makes every reranked similarity NaN and the suite
+  // reports a full set of plausible-looking but meaningless metrics instead of
+  // failing. Same reason --rerank-top-n and --entities are checked above.
+  console.error(`Invalid --ce-weight "${args["ce-weight"]}". Expected a number >= 0.`);
+  process.exit(1);
+}
 const USE_MMR = !!args.mmr;
 const MMR_LAMBDA = args["mmr-lambda"] ? parseFloat(args["mmr-lambda"]) : undefined;
 const USE_GRAPH = !!args.graph;
