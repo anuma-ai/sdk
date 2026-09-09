@@ -28,6 +28,7 @@ import {
 import { type InjectionReason, screenCandidatesForInjection } from "./injectionScreen.js";
 import {
   callPortalJsonCompletion,
+  type PortalLlmAttempt,
   type PortalLlmAuth,
   type PortalLlmFailure,
 } from "./portalLlm.js";
@@ -332,6 +333,12 @@ export interface ExtractFactsOptions extends PortalLlmAuth {
    * (i.e. redaction silently eating facts) is alarmable.
    */
   onCandidatesDropped?: () => void;
+  /**
+   * Per-attempt wire diagnostic, forwarded to {@link callPortalJsonCompletion}.
+   * The extraction eval gates on it (first-attempt clean rate); production
+   * callers may leave it unset.
+   */
+  onAttempt?: (attempt: PortalLlmAttempt) => void;
 }
 
 /**
@@ -425,6 +432,7 @@ export async function extractFacts(
     ...(options.timeoutMs !== undefined && { timeoutMs: options.timeoutMs }),
     ...(options.totalTimeoutMs !== undefined && { totalTimeoutMs: options.totalTimeoutMs }),
     ...(options.backoffMs && { backoffMs: options.backoffMs }),
+    ...(options.onAttempt && { onAttempt: options.onAttempt }),
   });
   // A successful "no facts" response parses to {candidates: []} (non-null),
   // so a null strictly signals failure after retries, never a legit empty.

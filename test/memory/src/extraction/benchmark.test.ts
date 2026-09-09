@@ -149,6 +149,12 @@ interface CaseResult {
   id: string;
   category: ExtractionCategory;
   expectedCount: number;
+  /** Completions this case cost (1 = clean first try). */
+  attempts: number;
+  /** Whether the first completion parsed. */
+  firstAttemptClean: boolean;
+  /** Classified reason of every failed attempt, in order. */
+  attemptFailures: string[];
   candidates: string[]; // extracted contents
   matchedExpected: number; // gold facts a candidate matched
   goodCandidates: number; // candidates that matched a gold fact
@@ -182,9 +188,19 @@ interface CaseResult {
 const PROD_MIN_CONFIDENCE = 0.7;
 
 async function scoreCase(c: ExtractionCase): Promise<CaseResult> {
+  // Wire-level record of the call: how many completions it took and why the
+  // failed ones failed. Kept separate from the fact scoring because a call that
+  // succeeds on its third try scores identically to a clean one on every
+  // fact metric while costing 3x and hiding a prompt-contract problem.
+  const attemptLog: { ok: boolean; reason?: string }[] = [];
   const rawCandidates = await extractFacts(
     c.messages.map((m) => ({ id: m.id, role: m.role, content: m.content })),
-    { apiKey: API_KEY, baseUrl: BASE_URL, ...(args.model && { model: args.model }) }
+    {
+      apiKey: API_KEY,
+      baseUrl: BASE_URL,
+      ...(args.model && { model: args.model }),
+      onAttempt: (a) => attemptLog.push({ ok: a.ok, ...(a.reason && { reason: a.reason }) }),
+    }
   );
   const candidates = rawCandidates.filter((c2) => c2.confidence >= PROD_MIN_CONFIDENCE);
   const candTexts = candidates.map((c2) => c2.content);
@@ -261,6 +277,9 @@ async function scoreCase(c: ExtractionCase): Promise<CaseResult> {
   return {
     id: c.id,
     category: c.category,
+    attempts: Math.max(1, attemptLog.length),
+    firstAttemptClean: attemptLog[0]?.ok === true,
+    attemptFailures: attemptLog.filter((a) => !a.ok).map((a) => a.reason ?? "unknown"),
     expectedCount: c.expected.length,
     candidates: candTexts,
     matchedExpected: expectedDetail.filter((e) => e.matched).length,
@@ -299,6 +318,12 @@ interface RunSummary {
     /** Fraction of EXTRACTED gold entities given the correct kind (isolates
      * classification quality from extraction coverage). */
     kindAccuracy: number;
+    /** Share of cases whose first completion parsed — the wire-level gate. */
+    firstAttemptCleanRate: number;
+    /** Completions per case (1.0 = no retries anywhere). */
+    callsPerCase: number;
+    /** Tally of failed-attempt reasons across the run (e.g. invalid-json: 47). */
+    attemptFailures: Record<string, number>;
   };
   /** Per expected kind: correct/covered/total + predicted-bucket tally. */
   kindConfusion: {
@@ -358,6 +383,15 @@ async function runOnce(): Promise<RunSummary> {
     .map(([kind, v]) => ({ kind, ...v }))
     .sort((a, b) => b.total - a.total);
 
+  const firstAttemptClean = results.filter((r) => r.firstAttemptClean).length;
+  const totalAttempts = results.reduce((s, r) => s + r.attempts, 0);
+  const attemptFailures: Record<string, number> = {};
+  for (const r of results) {
+    for (const reason of r.attemptFailures) {
+      attemptFailures[reason] = (attemptFailures[reason] ?? 0) + 1;
+    }
+  }
+
   const overall = {
     recall: totalMatchedExpected / (totalExpected || 1),
     precision: totalGoodCandidates / (totalCandidates || 1),
@@ -375,6 +409,9 @@ async function runOnce(): Promise<RunSummary> {
     // explicit) and the human report renders "—" via pct(); with any labeled
     // corpus coverage is ≥1 so it never actually hits.
     kindAccuracy: kindCorrect / (coveredEntities || 1),
+    firstAttemptCleanRate: firstAttemptClean / (results.length || 1),
+    callsPerCase: totalAttempts / (results.length || 1),
+    attemptFailures,
   };
 
   const categories: ExtractionCategory[] = [
@@ -432,6 +469,7 @@ function computeVariance(runs: RunSummary[]): Record<string, VarianceBand> {
     forbiddenHits: band(runs.map((r) => r.overall.forbiddenHits)),
     entityCoverage: band(runs.map((r) => r.overall.entityCoverage)),
     kindAccuracy: band(runs.map((r) => r.overall.kindAccuracy)),
+    firstAttemptCleanRate: band(runs.map((r) => r.overall.firstAttemptCleanRate)),
   };
 }
 
@@ -535,6 +573,14 @@ function printRunHuman(run: RunSummary): void {
     `  Forbidden-fact hits            ${overall.forbiddenHits} (matched a known junk pattern)`
   );
   console.log(`  Avg candidates/case            ${overall.avgCandidatesPerCase.toFixed(2)}`);
+  const failTally = Object.entries(overall.attemptFailures)
+    .sort((a, b) => b[1] - a[1])
+    .map(([k, v]) => `${k} ${v}`)
+    .join(", ");
+  console.log(
+    `  Clean on 1st attempt           ${pct(overall.firstAttemptCleanRate, 1)} ` +
+      `(${overall.callsPerCase.toFixed(2)} calls/case${failTally ? `; failed attempts: ${failTally}` : ""})`
+  );
   printKindReport(run);
 }
 
@@ -612,6 +658,7 @@ function printVarianceHuman(variance: Record<string, VarianceBand>): void {
   line("Recall", variance.recall);
   line("Precision", variance.precision);
   line("Negative clean rate", variance.negativeCleanRate);
+  line("Clean on 1st attempt", variance.firstAttemptCleanRate);
   line("Forbidden-fact hits", variance.forbiddenHits, false);
   line("Entity coverage", variance.entityCoverage);
   line("Kind accuracy", variance.kindAccuracy);

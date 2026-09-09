@@ -17,17 +17,34 @@ on:
   workflow_dispatch:
     inputs:
       mode:
-        description: "gate = fail on regression vs committed baseline; save-baseline = write a new baseline artifact"
+        description: "gate = fail on regression vs committed baseline; save-baseline = write a new baseline artifact; sweep = ungated ablation, paired against the first head"
         required: false
         type: choice
         default: "gate"
-        options: ["gate", "save-baseline"]
+        options: ["gate", "save-baseline", "sweep"]
       refresh_embeddings:
         description: "Re-embed from scratch instead of reusing the frozen cache (use after an embedding-model change)"
         required: false
         type: choice
         default: "false"
         options: ["false", "true"]
+      # `sweep` only. The gate arms stay pinned to the committed baselines'
+      # config — a knob passed there would be refused as a config mismatch,
+      # which is the correct behaviour and not what these are for.
+      ce_weight:
+        # anuma-ai/sdk#845 asked for the head sweep to be repeated at a higher
+        # CE weight before the default head moves (#909). At the shipped 0.1 the
+        # cross-encoder barely moves a score, so "heads 5 and 30 are identical"
+        # may only mean the CE is near-inert — not that its head size is free.
+        description: "sweep: cross-encoder blend weight (blank = SDK default 0.1)"
+        required: false
+        type: string
+        default: ""
+      heads:
+        description: "sweep: comma-separated rerank head sizes. The FIRST is the reference every later arm is paired against."
+        required: false
+        type: string
+        default: "30,5"
   # ADVISORY gate — see .github/workflows/EVAL_GATES.md for why, and for the
   # three-step recipe to make it blocking. In short: paths-scoped means no run
   # (and so NO status) on an unrelated PR, which is why `vault-search-eval-status` must not
@@ -111,6 +128,12 @@ jobs:
       PORTAL_API_KEY: ${{ secrets.PORTAL_API_KEY }}
       INPUT_MODE: ${{ inputs.mode || 'gate' }}
       INPUT_REFRESH: ${{ inputs.refresh_embeddings || 'false' }}
+      # Free-form string inputs reach the shell as env vars, never as ${{ }}
+      # interpolation, so the value is tokenized after substitution rather than
+      # spliced into the script — same reason longmemeval.yml routes its string
+      # inputs this way.
+      INPUT_CE_WEIGHT: ${{ inputs.ce_weight }}
+      INPUT_HEADS: ${{ inputs.heads || '30,5' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -178,6 +201,135 @@ jobs:
             --baseline test/memory/src/vault/baseline-production.json \
             "${extra[@]}" || rc=1
           exit $rc
+
+      - name: Run eval (ablation sweep)
+        if: env.INPUT_MODE == 'sweep'
+        run: |
+          set -uo pipefail
+
+          # No `--baseline`. The gate branch in benchmark.test.ts is `else if
+          # (args.baseline)`, so omitting the flag skips regression gating
+          # outright — a sweep deliberately runs configurations no committed
+          # baseline describes, and gating them would only ever report the
+          # config mismatch.
+          extra=()
+          # Validated here as well as in the benchmark, so a typo'd dispatch
+          # fails in seconds instead of after the embedding restore. The
+          # benchmark's own guard is the load-bearing one — it protects every
+          # caller, not just this workflow.
+          if [ -n "$INPUT_CE_WEIGHT" ]; then
+            case "$INPUT_CE_WEIGHT" in
+              *[!0-9.]*|''|.|*.*.*)
+                echo "Invalid ce_weight '$INPUT_CE_WEIGHT'. Expected a non-negative decimal number."; exit 1 ;;
+            esac
+            extra+=(--ce-weight "$INPUT_CE_WEIGHT")
+          fi
+
+          IFS=',' read -r -a raw_heads <<< "$INPUT_HEADS"
+          [ "${#raw_heads[@]}" -ge 2 ] || { echo "heads needs at least two values, got '$INPUT_HEADS'"; exit 1; }
+          # Trim whitespace before validating and write the trimmed value back:
+          # `30, 5` is the normal way to type a list, and rejecting it would cost
+          # a whole dispatch round-trip to discover.
+          heads=()
+          for h in "${raw_heads[@]}"; do
+            h="${h//[[:space:]]/}"
+            case "$h" in
+              ''|*[!0-9]*) echo "Invalid head '$h' in '$INPUT_HEADS'. Expected positive integers."; exit 1 ;;
+            esac
+            [ "$h" -ge 1 ] || { echo "Invalid head '$h'. Must be >= 1."; exit 1; }
+            heads+=("$h")
+          done
+          # Duplicates would silently defeat the sweep: a repeated head equals
+          # the reference, so it skips `--compare` and overwrites the reference's
+          # own output file. The run would then pass having measured nothing.
+          if [ "$(printf '%s\n' "${heads[@]}" | sort -u | wc -l)" -ne "${#heads[@]}" ]; then
+            echo "Duplicate head in '$INPUT_HEADS'. Every arm must be a distinct size."; exit 1
+          fi
+
+          # The first head is the reference; every later arm is `--compare`d
+          # against it for a paired bootstrap over the same 100 queries. That
+          # paired delta is the only statistic this corpus can state with
+          # confidence — per EVAL_GATES.md it cannot resolve a 1-2pp change in
+          # absolute terms, but it CAN say whether two heads score each query
+          # identically.
+          ref="${heads[0]}"
+          {
+            echo "## Vault search eval — ablation sweep"
+            echo
+            echo "\`ce-weight\`: \`${INPUT_CE_WEIGHT:-0.1 (SDK default)}\` · heads: \`$INPUT_HEADS\` · reference: \`$ref\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          for h in "${heads[@]}"; do
+            cmp=()
+            # `--refresh-embeddings` goes to the REFERENCE ARM ONLY. Passed to
+            # every arm it re-embeds the corpus per arm, and `--compare` would
+            # then mix head-size effects with embedding jitter — destroying the
+            # determinism the paired test depends on. One refresh rebuilds the
+            # frozen cache; the later arms reuse it, which is the whole point of
+            # freezing it.
+            refresh=()
+            if [ "$h" = "$ref" ]; then
+              [ "$INPUT_REFRESH" = "true" ] && refresh+=(--refresh-embeddings)
+            else
+              cmp+=(--compare "arm-head-$ref.json")
+            fi
+            echo "::group::head $h"
+            # stderr carries progress AND the paired-bootstrap block (stdout is
+            # reserved for the result document, which --output redirects to a
+            # file), so merge it to capture the delta in the log and summary.
+            pnpm --silent eval:vault-search --json --ranker fused --rerank \
+              --rerank-top-n "$h" \
+              --output "arm-head-$h.json" \
+              "${extra[@]}" "${refresh[@]}" "${cmp[@]}" 2>&1 | tee "arm-head-$h.log"
+            rc=${PIPESTATUS[0]}
+            echo "::endgroup::"
+            [ "$rc" -eq 0 ] || { echo "head $h failed (exit $rc)"; exit "$rc"; }
+
+            # The benchmark swallows a `--compare` read/parse failure — it logs
+            # `--compare failed to load "..."` and exits 0 — and that message
+            # contains no "paired", so the lift below would render a metrics
+            # block with nothing after it, indistinguishable from the reference
+            # arm. The paired delta is the only statistic this corpus can state
+            # with confidence, so an arm that produced none has to fail loudly.
+            # (`no-prior-data` and `no-overlap` do say "paired test" and are
+            # therefore visible in the summary, but they are not results either,
+            # so match the success line specifically.)
+            if [ "$h" != "$ref" ] && ! grep -q "Paired comparison vs" "arm-head-$h.log"; then
+              echo "head $h produced no paired comparison against $ref — see arm-head-$h.log"
+              exit 1
+            fi
+
+            {
+              echo
+              echo "### head $h$([ "$h" = "$ref" ] && echo ' (reference)')"
+              echo '```'
+              jq -r '
+                .overall as $o |
+                "  recall@k   : \(($o.recallAtK*1000|round/10))%",
+                "  precision@k: \(($o.precisionAtK*1000|round/10))%",
+                "  MRR        : \(($o.mrr*1000|round/10))%",
+                "  NDCG       : \(($o.ndcg*1000|round/10))%",
+                "  ranking violations: \(($o.rankingViolationRate*1000|round/10))%"
+              ' "arm-head-$h.json" 2>/dev/null || echo "  (could not parse arm-head-$h.json)"
+              # The paired block is the point of the sweep, so lift it out of
+              # the log rather than making a reader open the raw step output.
+              sed -n '/[Pp]aired/,$p' "arm-head-$h.log" | head -20
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
+          done
+
+      - name: Upload sweep results
+        if: always() && env.INPUT_MODE == 'sweep'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: vault-search-sweep-results
+          # The per-arm documents carry `perQuery` rows, which is what a later
+          # run needs as a `--compare` target — without them a follow-up sweep
+          # cannot be paired against this one.
+          path: |
+            arm-head-*.json
+            arm-head-*.log
+          if-no-files-found: ignore
 
       - name: Run eval (save baseline)
         if: env.INPUT_MODE == 'save-baseline'
