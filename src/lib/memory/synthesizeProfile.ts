@@ -551,10 +551,7 @@ export async function synthesizeProfile(
         error: r.reason instanceof Error ? r.reason.message : String(r.reason),
       }
     );
-    return fallbackSection(
-      facet,
-      fallbackPriors.get(facet.key)
-    );
+    return fallbackSection(facet, fallbackPriors.get(facet.key));
   });
 
   return {

@@ -576,10 +576,12 @@ describe("synthesizeProfile", () => {
       } as never);
     }
     const previous = priorDoc(
-      [{
-        ...section("work_role", "Old role", ["a"]),
-        occupation: "Old role",
-      }],
+      [
+        {
+          ...section("work_role", "Old role", ["a"]),
+          occupation: "Old role",
+        },
+      ],
       2000,
       fingerprint([WORK_ROLE])
     );
