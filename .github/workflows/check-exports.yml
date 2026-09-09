@@ -46,10 +46,17 @@ jobs:
 
       - uses: pnpm/action-setup@v6.0.10
 
-      # No `cache: "pnpm"` here on purpose. This job installs nothing, so the
-      # pnpm store never exists for the post-run step to save. A cache hit hides
-      # that, but any change to pnpm-lock.yaml misses the key and the save step
-      # then fails the job on a path that was never created.
+      # No `cache: "pnpm"` here on purpose. This job has no install step, so
+      # nothing ever creates the pnpm store - and setup-node's post-job save
+      # then fails with "Path Validation Error: Path(s) specified in the action
+      # for caching do(es) not exist" whenever the cache key MISSES. The key is
+      # hashed from pnpm-lock.yaml, so the job passed only because most PRs
+      # leave the lockfile alone; every lockfile-touching PR, such as a
+      # dependency bump, failed a check it has nothing to do with.
+      #
+      # Caching is pointless here regardless:
+      # `scripts/assert-export-consumers.mjs` imports only node:fs /
+      # node:path / node:url and passes with node_modules absent entirely.
       - name: Setup Node.js
         uses: actions/setup-node@v7.0.0
         with:

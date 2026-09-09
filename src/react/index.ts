@@ -377,13 +377,18 @@ export {
   createVaultEmbeddingCache,
   DEFAULT_VAULT_CACHE_SIZE,
   eagerEmbedContent,
+  type ManualFactType,
   type MemoryVaultSearchOptions,
   type MemoryVaultToolOptions,
   preEmbedVaultMemories,
   searchVaultMemories,
   type VaultEmbeddingCache,
+  type VaultMemoryWriter,
   type VaultSaveOperation,
   type VaultSearchResult,
+  type VaultWriteAction,
+  type VaultWriteInput,
+  type VaultWriteOutcome,
 } from "../lib/memoryVault";
 
 // Unified memory API surface — recall + retain + auto-extraction.
