@@ -32,11 +32,64 @@ const MANUAL_FACT_TYPES = [
   "other",
 ] as const;
 
+/** A FactType the save tool's optional `type` argument may carry. */
+export type ManualFactType = (typeof MANUAL_FACT_TYPES)[number];
+
 /** Validate a caller/LLM-supplied `type` arg to a known FactType, or undefined. */
-function normalizeManualFactType(value: unknown): (typeof MANUAL_FACT_TYPES)[number] | undefined {
+function normalizeManualFactType(value: unknown): ManualFactType | undefined {
   return typeof value === "string" && (MANUAL_FACT_TYPES as readonly string[]).includes(value)
-    ? (value as (typeof MANUAL_FACT_TYPES)[number])
+    ? (value as ManualFactType)
     : undefined;
+}
+
+/**
+ * What a {@link VaultMemoryWriter} reports back. The action set mirrors
+ * `RetainResult.action` in `memory/retain` — restated here rather than imported
+ * for the same reason MANUAL_FACT_TYPES is (memoryVault → memory import cycle).
+ */
+export type VaultWriteAction = "create" | "merge" | "update" | "supersede" | "suppressed" | "skip";
+
+export interface VaultWriteOutcome {
+  /** The memory the write landed on: the fresh row, or the existing one it merged into. */
+  memoryId: string;
+  action: VaultWriteAction;
+}
+
+/** A NEW memory the tool wants written — `id`-addressed updates never come here. */
+export interface VaultWriteInput {
+  content: string;
+  scope: string;
+  folderId?: string;
+  factType?: ManualFactType;
+}
+
+/**
+ * The seam through which the tool writes NEW memories when the host supplies one.
+ * `useChatStorage` (react + expo) passes a `retain()`-backed writer so a
+ * model-initiated save gets the same cosine auto-merge the background extractor
+ * gets, instead of a bare insert that trusts the model to have de-duplicated.
+ */
+export type VaultMemoryWriter = (input: VaultWriteInput) => Promise<VaultWriteOutcome>;
+
+/**
+ * Phrase a write outcome for the model. A merge is deliberately reported as
+ * "already known" rather than "saved": the two documented failure loops of this
+ * tool — re-saving what a search just returned, and save→verify→save — both run
+ * on the model believing each call created something new.
+ */
+function describeWriteOutcome(outcome: VaultWriteOutcome): string {
+  switch (outcome.action) {
+    case "create":
+      return `Memory saved successfully (ID: ${outcome.memoryId}).`;
+    case "update":
+    case "supersede":
+      return `Memory saved successfully (ID: ${outcome.memoryId}); it replaces an earlier version of this fact.`;
+    case "merge":
+    case "skip":
+      return `The vault already holds this fact (ID: ${outcome.memoryId}); it was noted as re-observed. Nothing new was created — do not save it again.`;
+    case "suppressed":
+      return "Not saved: this matches a memory the user previously deleted. Do not re-save it.";
+  }
 }
 
 /**
@@ -80,6 +133,30 @@ export interface MemoryVaultToolOptions {
    * When provided, the LLM can specify a folderName argument.
    */
   folderMap?: Map<string, string>;
+  /**
+   * Writer for NEW memories. When set, a save without an `id` goes through it
+   * instead of a bare `createVaultMemoryOp`, and the tool phrases its reply from
+   * the reported action (a merge reads as "already known", not "saved").
+   *
+   * The hooks supply a `retain()`-backed writer, which is what makes this tool
+   * stop being a dedup bypass: until then the only thing standing between the
+   * model and a duplicate row was the prompt asking it to pass an `id`. Omit it
+   * (as a bare `createMemoryVaultTool(vaultCtx, …)` caller must — retain needs
+   * embeddings) and the direct insert path is unchanged.
+   *
+   * Updates addressed by `id` never come here: the model has already named the
+   * row, so there is nothing to de-duplicate against.
+   */
+  write?: VaultMemoryWriter;
+  /**
+   * Fires after a NEW memory's write settles, with what was asked and what the
+   * writer did. The host's analytics hook: `onSave` runs BEFORE the write and so
+   * cannot tell a fresh create from a merge into an existing memory — and that
+   * split is the one number that says whether model-initiated saves duplicate
+   * the vault. Not called for `id`-addressed updates or cancelled saves. Errors
+   * thrown here are swallowed so a listener can never fail the tool call.
+   */
+  onWritten?: (event: { input: VaultWriteInput; outcome: VaultWriteOutcome }) => void;
 }
 
 /**
@@ -246,6 +323,23 @@ export function createMemoryVaultTool(
               return `Memory updated successfully (ID: ${updated.uniqueId}).`;
             } else {
               const folderId = folderName ? options?.folderMap?.get(folderName) : undefined;
+              if (options?.write) {
+                // retain() embeds and persists the vector itself, so the eager
+                // cache warm below is not needed on this path.
+                const input: VaultWriteInput = {
+                  content,
+                  scope,
+                  ...(folderId !== undefined && { folderId }),
+                  ...(factType !== undefined && { factType }),
+                };
+                const outcome = await options.write(input);
+                try {
+                  options.onWritten?.({ input, outcome });
+                } catch {
+                  // A listener must never fail a write that already landed.
+                }
+                return describeWriteOutcome(outcome);
+              }
               const created = await createVaultMemoryOp(vaultCtx, {
                 content,
                 scope,
