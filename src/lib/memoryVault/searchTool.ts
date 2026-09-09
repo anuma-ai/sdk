@@ -179,7 +179,7 @@ export interface MemoryVaultSearchOptions {
    * When true, switches to the async pipeline (rankFusedVaultMemoriesAsync).
    */
   rerank?: boolean;
-  /** Number of CE rerank candidates. Defaults to {@link DEFAULT_RERANK_TOP_N}. */
+  /** Number of CE rerank candidates. Default 5 ({@link DEFAULT_RERANK_TOP_N}). */
   rerankTopN?: number;
   /** Multiplicative cross-encoder blend weight. Default 0.1. Only used when `rerank` is true. */
   ceWeight?: number;
@@ -823,7 +823,7 @@ export function rankByEntityOverlap(
  *  4. Sort, take top-K
  *
  * @param rerankTopN - how many V2 candidates to feed the reranker.
- *   Defaults to {@link DEFAULT_RERANK_TOP_N}.
+ *   Default 5 ({@link DEFAULT_RERANK_TOP_N}).
  * @param ceWeight - multiplicative blend weight on the CE score. Default 0.1
  *   (tuned by sweep — ce=0.1 captures the precision/specificity wins from
  *   the CE without introducing the ranking-violation regressions that
@@ -1084,7 +1084,11 @@ export async function rankFusedVaultMemoriesAsync(
     }));
     const picked = applyMMR(mmrCandidates, limit, lambda);
     const pickedIds = new Set(picked.map((p) => p.id));
-    const resultMap = new Map(combined.map((r) => [r.uniqueId, r]));
+    // Must cover the same pool the candidates came from: a tail-origin pick
+    // missing here is rebuilt without `sourceChunkIds`, so recall()'s
+    // fact->chunk suppression can't fire, and without its event-time anchor
+    // and `factType`, which `stampTimestamps` does not restore.
+    const resultMap = new Map([...combined, ...tailSlice].map((r) => [r.uniqueId, r]));
     const pickedResults: VaultSearchResult[] = picked.map((p) => {
       const orig = resultMap.get(p.id);
       return {

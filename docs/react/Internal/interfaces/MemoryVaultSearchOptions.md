@@ -238,7 +238,7 @@ When true, switches to the async pipeline (rankFusedVaultMemoriesAsync).
 
 Defined in: [src/lib/memoryVault/searchTool.ts:183](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/searchTool.ts#183)
 
-Number of CE rerank candidates. Defaults to DEFAULT\_RERANK\_TOP\_N.
+Number of CE rerank candidates. Default 5 (DEFAULT\_RERANK\_TOP\_N).
 
 ***
 

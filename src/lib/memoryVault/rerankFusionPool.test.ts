@@ -218,3 +218,101 @@ describe("rerankTopN is a cross-encoder budget", () => {
     expect(ranked.map((r) => r.uniqueId)).toEqual(descendingItems().map((i) => i.id));
   });
 });
+
+/**
+ * The MMR pool and the metadata map have to be drawn from the SAME set.
+ *
+ * Widening `mmrCandidates` to `[...combined, ...tailSlice]` (so MMR is capped by
+ * `mmrTopN` rather than silently by `rerankTopN`) left `resultMap` built from
+ * `combined` alone. With no side lane, `combined` IS just the CE head — so a
+ * tail-origin pick found no `orig` and was rebuilt bare, losing
+ * `sourceChunkIds`. `recall()`'s provenance fixpoint then cannot suppress the
+ * originating chunk, and the answer model sees the same content twice: once as
+ * a fact, once as the chunk it was extracted from.
+ *
+ * Asserted as "MMR changes nothing but the ordering" rather than against a
+ * field list, because the field list is not stable: `rankVaultMemories`
+ * (searchTool.ts:536) rebuilds cosine-admitted rows carrying only
+ * `sourceChunkIds`, so `eventTimeStart/End/Kind` and `factType` never reach
+ * this code on the cosine path at all — a separate upstream gap, and one this
+ * test starts covering for free if it is ever closed.
+ */
+describe("MMR keeps provenance on picks that come from the V2 tail", () => {
+  /**
+   * Five near-duplicate head items on dim 0, plus one tail item that is mostly
+   * dim 2. It scores below the head, so V2 ranks it past a head of 5 — and it is
+   * far enough away that MMR reaches for it over a fifth near-duplicate, which
+   * is what puts a tail id in front of `resultMap`.
+   */
+  function itemsWithDiverseTail() {
+    const head = Array.from({ length: 5 }, (_, i) => ({
+      id: `head-${i}`,
+      content: `alpha bravo near duplicate ${i}`,
+      embedding: emb({ 0: 1 - i * 0.01 }),
+      updatedAt: NOW,
+      createdAt: NOW,
+      sourceChunkIds: [`head-chunk-${i}`],
+    }));
+    return [
+      ...head,
+      {
+        id: "tail-diverse",
+        content: "alpha charlie a different theme entirely",
+        embedding: emb({ 0: 0.4, 2: 1 }),
+        updatedAt: NOW,
+        createdAt: NOW,
+        sourceChunkIds: ["chunk-a", "chunk-b"],
+        eventTimeStart: Date.UTC(2026, 3, 1),
+        eventTimeEnd: Date.UTC(2026, 3, 1),
+        eventTimeKind: "point" as const,
+        factType: "preference",
+      },
+    ];
+  }
+
+  /** Everything except the score, which MMR is expected to rewrite. */
+  function provenanceOf<T extends { similarity: number }>(r: T | undefined) {
+    if (!r) return undefined;
+    const { similarity: _similarity, ...rest } = r;
+    return rest;
+  }
+
+  const SEARCH_OPTS = {
+    minSimilarity: 0,
+    rerank: true,
+    rerankTopN: 5,
+    // No entity/temporal lane on purpose: a side lane absorbs the tail into
+    // `combined`, which restores the invariant and makes this pass vacuously.
+  };
+
+  it("returns a tail-origin pick with the same fields the non-MMR path gives it", async () => {
+    const withoutMmr = await rankFusedVaultMemoriesAsync(
+      "alpha",
+      QUERY_EMB,
+      itemsWithDiverseTail(),
+      { ...SEARCH_OPTS, limit: 10 }
+    );
+
+    const withMmr = await rankFusedVaultMemoriesAsync("alpha", QUERY_EMB, itemsWithDiverseTail(), {
+      ...SEARCH_OPTS,
+      limit: 3,
+      mmr: true,
+      // Diversity-leaning on purpose. At the default λ=0.7 the near-duplicate
+      // head outscores the tail item on relevance alone and MMR never reaches
+      // past the head, so the path under test would not run.
+      mmrLambda: 0.3,
+    });
+
+    const picked = withMmr.find((r) => r.uniqueId === "tail-diverse");
+    // Guards the guard: were MMR to stop picking the tail item, every assertion
+    // below would pass vacuously against `undefined`.
+    expect(
+      picked,
+      "MMR did not pick the tail item; this test no longer exercises the path"
+    ).toBeDefined();
+
+    const reference = withoutMmr.find((r) => r.uniqueId === "tail-diverse");
+    expect(reference?.sourceChunkIds).toEqual(["chunk-a", "chunk-b"]);
+    expect(provenanceOf(picked)).toEqual(provenanceOf(reference));
+  });
+});
