@@ -158,3 +158,4 @@ export {
 // are surfaced from the react entry point directly, next to the Entity models.
 // The recall-time traversal built on them (traverseGraphLane, PR4) is a
 // memory-layer concern and IS re-exported above.
+export type { PortalLlmAttempt } from "./portalLlm.js";
