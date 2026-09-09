@@ -204,6 +204,134 @@ describe("createMemoryVaultTool", () => {
 
   // ── folderName handling ─────────────────────────────────────
 
+  describe("write seam (retain-backed hosts)", () => {
+    it("routes a NEW memory through `write` instead of createVaultMemoryOp, with folder + type", async () => {
+      const write = vi.fn().mockResolvedValue({ memoryId: "kept-1", action: "create" });
+      const folderMap = new Map([["Work", "folder-work"]]);
+      const tool = createMemoryVaultTool(mockVaultCtx, {
+        ...autoConfirm,
+        write,
+        folderMap,
+        scope: "shared",
+      });
+
+      const result = await tool.executor!({
+        content: "User works at Riverbend",
+        folderName: "Work",
+        type: "identity",
+      });
+
+      expect(write).toHaveBeenCalledWith({
+        content: "User works at Riverbend",
+        scope: "shared",
+        folderId: "folder-work",
+        factType: "identity",
+      });
+      expect(createVaultMemoryOp).not.toHaveBeenCalled();
+      expect(eagerEmbedContent).not.toHaveBeenCalled();
+      expect(result).toBe("Memory saved successfully (ID: kept-1).");
+    });
+
+    it("tells the model a merge is 'already known', not a new save", async () => {
+      // The two documented failure loops (re-saving a search result, save→verify→
+      // save) both run on the model believing each call created something.
+      const write = vi.fn().mockResolvedValue({ memoryId: "existing-7", action: "merge" });
+      const tool = createMemoryVaultTool(mockVaultCtx, { ...autoConfirm, write });
+
+      const result = await tool.executor!({ content: "User likes cats" });
+
+      expect(result).toContain("already holds this fact (ID: existing-7)");
+      expect(result).toContain("do not save it again");
+      expect(result).not.toMatch(/^Memory saved/);
+    });
+
+    it("reports a suppressed write as refused, and a supersede as a replacement", async () => {
+      const write = vi
+        .fn()
+        .mockResolvedValueOnce({ memoryId: "tomb-1", action: "suppressed" })
+        .mockResolvedValueOnce({ memoryId: "new-2", action: "supersede" });
+      const tool = createMemoryVaultTool(mockVaultCtx, { ...autoConfirm, write });
+
+      expect(await tool.executor!({ content: "A" })).toBe(
+        "Not saved: this matches a memory the user previously deleted. Do not re-save it."
+      );
+      expect(await tool.executor!({ content: "B" })).toBe(
+        "Memory saved successfully (ID: new-2); it replaces an earlier version of this fact."
+      );
+    });
+
+    it("still asks onSave first and honours a cancel before writing", async () => {
+      const write = vi.fn();
+      const onSave = vi.fn().mockResolvedValue(false);
+      const tool = createMemoryVaultTool(mockVaultCtx, { onSave, write });
+
+      const result = await tool.executor!({ content: "User likes cats" });
+
+      expect(onSave).toHaveBeenCalledWith({
+        action: "add",
+        content: "User likes cats",
+        scope: "private",
+      });
+      expect(write).not.toHaveBeenCalled();
+      expect(result).toContain("cancelled");
+    });
+
+    it("does NOT use `write` for an id-addressed update", async () => {
+      const write = vi.fn();
+      vi.mocked(getVaultMemoryOp).mockResolvedValue(makeStoredMemory({ uniqueId: "mem-1" }));
+      vi.mocked(updateVaultMemoryOp).mockResolvedValue(
+        makeStoredMemory({ uniqueId: "mem-1", content: "new" })
+      );
+      const tool = createMemoryVaultTool(mockVaultCtx, { ...autoConfirm, write });
+
+      await tool.executor!({ id: "mem-1", content: "new" });
+
+      expect(write).not.toHaveBeenCalled();
+      expect(updateVaultMemoryOp).toHaveBeenCalled();
+    });
+
+    it("reports the settled outcome to onWritten, and a rejecting async listener cannot fail the save", async () => {
+      const write = vi.fn().mockResolvedValue({ memoryId: "kept-9", action: "merge" });
+      // Async so the rejection would surface as an unhandled promise if the
+      // tool did not await it (greptile P1 on #931).
+      const onWritten = vi.fn(async () => {
+        throw new Error("listener bug");
+      });
+      const tool = createMemoryVaultTool(mockVaultCtx, { ...autoConfirm, write, onWritten });
+
+      const result = await tool.executor!({ content: "User likes cats" });
+
+      expect(onWritten).toHaveBeenCalledWith({
+        input: { content: "User likes cats", scope: "private" },
+        outcome: { memoryId: "kept-9", action: "merge" },
+      });
+      expect(result).toContain("already holds this fact");
+    });
+
+    it("fires onWritten as `create` on the direct-insert path too, so a bare caller's analytics see every save", async () => {
+      vi.mocked(createVaultMemoryOp).mockResolvedValue(makeStoredMemory({ uniqueId: "direct-3" }));
+      const onWritten = vi.fn();
+      const tool = createMemoryVaultTool(mockVaultCtx, { ...autoConfirm, onWritten });
+
+      const result = await tool.executor!({ content: "User likes dogs", type: "preference" });
+
+      expect(onWritten).toHaveBeenCalledWith({
+        input: { content: "User likes dogs", scope: "private", factType: "preference" },
+        outcome: { memoryId: "direct-3", action: "create" },
+      });
+      expect(result).toBe("Memory saved successfully (ID: direct-3).");
+    });
+
+    it("surfaces a writer failure as the tool's error string", async () => {
+      const write = vi.fn().mockRejectedValue(new Error("embedding endpoint down"));
+      const tool = createMemoryVaultTool(mockVaultCtx, { ...autoConfirm, write });
+
+      expect(await tool.executor!({ content: "X" })).toBe(
+        "Error saving memory: embedding endpoint down"
+      );
+    });
+  });
+
   describe("folderName handling", () => {
     const autoConfirm = async () => true;
 

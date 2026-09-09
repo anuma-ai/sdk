@@ -1042,6 +1042,12 @@ Re-exports [LoggerProviderProps](../react/Internal/interfaces/LoggerProviderProp
 
 ***
 
+### ManualFactType
+
+Re-exports [ManualFactType](../react/Internal/type-aliases/ManualFactType.md)
+
+***
+
 ### maskScopedEmbeddingCache
 
 Re-exports [maskScopedEmbeddingCache](../react/Internal/functions/maskScopedEmbeddingCache.md)
@@ -1984,6 +1990,12 @@ Re-exports [VaultMemoryVisibility](../react/Internal/type-aliases/VaultMemoryVis
 
 ***
 
+### VaultMemoryWriter
+
+Re-exports [VaultMemoryWriter](../react/Internal/type-aliases/VaultMemoryWriter.md)
+
+***
+
 ### VaultSaveOperation
 
 Re-exports [VaultSaveOperation](../react/Internal/interfaces/VaultSaveOperation.md)
@@ -1993,6 +2005,24 @@ Re-exports [VaultSaveOperation](../react/Internal/interfaces/VaultSaveOperation.
 ### VaultSearchResult
 
 Re-exports [VaultSearchResult](../react/Internal/interfaces/VaultSearchResult.md)
+
+***
+
+### VaultWriteAction
+
+Re-exports [VaultWriteAction](../react/Internal/type-aliases/VaultWriteAction.md)
+
+***
+
+### VaultWriteInput
+
+Re-exports [VaultWriteInput](../react/Internal/interfaces/VaultWriteInput.md)
+
+***
+
+### VaultWriteOutcome
+
+Re-exports [VaultWriteOutcome](../react/Internal/interfaces/VaultWriteOutcome.md)
 
 ***
 
