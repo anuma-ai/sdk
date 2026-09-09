@@ -72,6 +72,23 @@ export interface VaultWriteInput {
 export type VaultMemoryWriter = (input: VaultWriteInput) => Promise<VaultWriteOutcome>;
 
 /**
+ * Deliver `onWritten` after a write has landed. Awaited so an async listener's
+ * rejection is caught here too — a listener must never fail a write that
+ * already happened, whichever path wrote it.
+ */
+async function notifyWritten(
+  options: MemoryVaultToolOptions | undefined,
+  input: VaultWriteInput,
+  outcome: VaultWriteOutcome
+): Promise<void> {
+  try {
+    await options?.onWritten?.({ input, outcome });
+  } catch {
+    // Swallowed on purpose; see above.
+  }
+}
+
+/**
  * Phrase a write outcome for the model. A merge is deliberately reported as
  * "already known" rather than "saved": the two documented failure loops of this
  * tool — re-saving what a search just returned, and save→verify→save — both run
@@ -153,10 +170,15 @@ export interface MemoryVaultToolOptions {
    * writer did. The host's analytics hook: `onSave` runs BEFORE the write and so
    * cannot tell a fresh create from a merge into an existing memory — and that
    * split is the one number that says whether model-initiated saves duplicate
-   * the vault. Not called for `id`-addressed updates or cancelled saves. Errors
-   * thrown here are swallowed so a listener can never fail the tool call.
+   * the vault. Fires on both write paths (a `write` seam, or the direct insert
+   * when none is supplied — reported as `create`). Not called for
+   * `id`-addressed updates or cancelled saves. A throwing or rejecting listener
+   * is awaited and swallowed so it can never fail the tool call.
    */
-  onWritten?: (event: { input: VaultWriteInput; outcome: VaultWriteOutcome }) => void;
+  onWritten?: (event: {
+    input: VaultWriteInput;
+    outcome: VaultWriteOutcome;
+  }) => void | Promise<void>;
 }
 
 /**
@@ -333,11 +355,7 @@ export function createMemoryVaultTool(
                   ...(factType !== undefined && { factType }),
                 };
                 const outcome = await options.write(input);
-                try {
-                  options.onWritten?.({ input, outcome });
-                } catch {
-                  // A listener must never fail a write that already landed.
-                }
+                await notifyWritten(options, input, outcome);
                 return describeWriteOutcome(outcome);
               }
               const created = await createVaultMemoryOp(vaultCtx, {
@@ -359,6 +377,16 @@ export function createMemoryVaultTool(
                   () => {}
                 );
               }
+              await notifyWritten(
+                options,
+                {
+                  content,
+                  scope,
+                  ...(folderId !== undefined && { folderId }),
+                  ...(factType !== undefined && { factType }),
+                },
+                { memoryId: created.uniqueId, action: "create" }
+              );
               return `Memory saved successfully (ID: ${created.uniqueId}).`;
             }
           } catch (error) {

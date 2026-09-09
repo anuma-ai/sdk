@@ -290,9 +290,11 @@ describe("createMemoryVaultTool", () => {
       expect(updateVaultMemoryOp).toHaveBeenCalled();
     });
 
-    it("reports the settled outcome to onWritten, and a throwing listener cannot fail the save", async () => {
+    it("reports the settled outcome to onWritten, and a rejecting async listener cannot fail the save", async () => {
       const write = vi.fn().mockResolvedValue({ memoryId: "kept-9", action: "merge" });
-      const onWritten = vi.fn(() => {
+      // Async so the rejection would surface as an unhandled promise if the
+      // tool did not await it (greptile P1 on #931).
+      const onWritten = vi.fn(async () => {
         throw new Error("listener bug");
       });
       const tool = createMemoryVaultTool(mockVaultCtx, { ...autoConfirm, write, onWritten });
@@ -304,6 +306,20 @@ describe("createMemoryVaultTool", () => {
         outcome: { memoryId: "kept-9", action: "merge" },
       });
       expect(result).toContain("already holds this fact");
+    });
+
+    it("fires onWritten as `create` on the direct-insert path too, so a bare caller's analytics see every save", async () => {
+      vi.mocked(createVaultMemoryOp).mockResolvedValue(makeStoredMemory({ uniqueId: "direct-3" }));
+      const onWritten = vi.fn();
+      const tool = createMemoryVaultTool(mockVaultCtx, { ...autoConfirm, onWritten });
+
+      const result = await tool.executor!({ content: "User likes dogs", type: "preference" });
+
+      expect(onWritten).toHaveBeenCalledWith({
+        input: { content: "User likes dogs", scope: "private", factType: "preference" },
+        outcome: { memoryId: "direct-3", action: "create" },
+      });
+      expect(result).toBe("Memory saved successfully (ID: direct-3).");
     });
 
     it("surfaces a writer failure as the tool's error string", async () => {
