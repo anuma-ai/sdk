@@ -213,6 +213,27 @@ export type PortalLlmFailureReason =
   | "time-budget-exhausted";
 
 /**
+ * One attempt of a {@link callPortalJsonCompletion} call, reported to
+ * `onAttempt` as it settles — success included. The wire-level diagnostic the
+ * give-up hook cannot provide: a call that succeeds on its third try returns a
+ * value and fires no `onFailure`, yet it cost three completions and its first
+ * two answers were unusable. Extraction quality regressions have hidden in
+ * exactly that shape (a prompt change that made the model answer `NONE` first,
+ * JSON on retry), so the extraction eval gates on the first-attempt clean rate.
+ *
+ * @public
+ */
+export interface PortalLlmAttempt {
+  /** 1-based attempt index. */
+  attempt: number;
+  /** Whether this attempt produced a parseable JSON value. */
+  ok: boolean;
+  /** Classification when `ok` is false. */
+  reason?: PortalLlmFailureReason;
+  httpStatus?: number;
+}
+
+/**
  * A give-up report: the classified {@link PortalLlmFailureReason} plus the
  * little context worth carrying into telemetry. Both extra fields are bounded
  * (a status code, a small attempt count), so both are safe as event properties.
@@ -370,6 +391,12 @@ interface PortalLlmRequestBase extends PortalLlmAuth {
    * `{candidates: []}` for good reason. See {@link PortalLlmFailureReason}.
    */
   onFailure?: (failure: PortalLlmFailure) => void;
+  /**
+   * Invoked once per attempt as it settles, success included — see
+   * {@link PortalLlmAttempt}. Diagnostic only; a throwing listener is not
+   * guarded, so keep it side-effect-light (a counter, a push onto an array).
+   */
+  onAttempt?: (attempt: PortalLlmAttempt) => void;
   /**
    * Internal, set by the retry loop — not part of the caller-facing contract.
    *
@@ -637,7 +664,16 @@ export async function callPortalJsonCompletion(req: PortalLlmRequest): Promise<u
           ? { ...req, reinforceJsonContract: true }
           : req;
     const outcome = await attemptPortalJson(attemptReq, endpoint);
-    if (outcome.kind === "ok") return outcome.value;
+    if (outcome.kind === "ok") {
+      req.onAttempt?.({ attempt, ok: true });
+      return outcome.value;
+    }
+    req.onAttempt?.({
+      attempt,
+      ok: false,
+      reason: outcome.code,
+      ...(outcome.httpStatus !== undefined && { httpStatus: outcome.httpStatus }),
+    });
     lastFailure = {
       reason: outcome.code,
       ...(outcome.httpStatus !== undefined && { httpStatus: outcome.httpStatus }),

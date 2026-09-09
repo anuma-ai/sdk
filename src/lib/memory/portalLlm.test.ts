@@ -315,6 +315,31 @@ describe("callPortalJsonCompletion — retry on transient failure", () => {
     }
   });
 
+  it("reports every attempt to onAttempt, success included, so a retry-then-succeed call is visible", async () => {
+    // The exact production shape behind the 2026-09 prompt collision: the model
+    // answered the literal `NONE` first, then JSON on the reminded retry. The
+    // call returns a value and fires no onFailure — only onAttempt sees the cost.
+    const fetchFn = vi
+      .fn()
+      .mockResolvedValueOnce(mockResponse("NONE"))
+      .mockResolvedValueOnce(mockResponse('{"candidates":[]}'));
+    const onAttempt = vi.fn();
+    const onFailure = vi.fn();
+    const result = await callPortalJsonCompletion({
+      ...baseArgs,
+      fetchFn,
+      onAttempt,
+      onFailure,
+      backoffMs: () => 0,
+    });
+    expect(result).toEqual({ candidates: [] });
+    expect(onFailure).not.toHaveBeenCalled();
+    expect(onAttempt.mock.calls.map((c) => c[0])).toEqual([
+      { attempt: 1, ok: false, reason: "invalid-json" },
+      { attempt: 2, ok: true },
+    ]);
+  });
+
   it("stops retrying once the absolute totalTimeoutMs budget is spent", async () => {
     const fetchFn = vi.fn().mockResolvedValue(new Response("upstream error", { status: 503 }));
     // totalTimeoutMs: 0 → the budget is already spent after the first failure,
