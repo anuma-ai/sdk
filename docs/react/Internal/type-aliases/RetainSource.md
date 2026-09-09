@@ -2,4 +2,4 @@
 
 > **RetainSource** = `"manual"` | `"auto-extracted"` | `"capsule"`
 
-Defined in: [src/lib/memory/types.ts:415](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#415)
+Defined in: [src/lib/memory/types.ts:416](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#416)

@@ -1,6 +1,6 @@
 # RecallResult
 
-Defined in: [src/lib/memory/types.ts:265](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#265)
+Defined in: [src/lib/memory/types.ts:266](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#266)
 
 ## Properties
 
@@ -8,7 +8,7 @@ Defined in: [src/lib/memory/types.ts:265](https://github.com/anuma-ai/sdk/blob/m
 
 > **candidateCount**: `number`
 
-Defined in: [src/lib/memory/types.ts:272](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#272)
+Defined in: [src/lib/memory/types.ts:273](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#273)
 
 Diagnostic: total candidates considered before truncation.
 
@@ -18,7 +18,7 @@ Diagnostic: total candidates considered before truncation.
 
 > **memories**: [`RankedMemory`](RankedMemory.md)\[]
 
-Defined in: [src/lib/memory/types.ts:266](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#266)
+Defined in: [src/lib/memory/types.ts:267](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#267)
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: [src/lib/memory/types.ts:266](https://github.com/anuma-ai/sdk/blob/m
 
 > **reranked**: `boolean`
 
-Defined in: [src/lib/memory/types.ts:270](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#270)
+Defined in: [src/lib/memory/types.ts:271](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#271)
 
 Diagnostic: was the reranker invoked?
 
@@ -36,7 +36,7 @@ Diagnostic: was the reranker invoked?
 
 > **usedBudget**: [`Budget`](../type-aliases/Budget.md)
 
-Defined in: [src/lib/memory/types.ts:268](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#268)
+Defined in: [src/lib/memory/types.ts:269](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#269)
 
 Diagnostic: budget actually used (may downgrade if reranker fails).
 
@@ -46,6 +46,6 @@ Diagnostic: budget actually used (may downgrade if reranker fails).
 
 > `optional` **vaultSize**: `number`
 
-Defined in: [src/lib/memory/types.ts:274](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#274)
+Defined in: [src/lib/memory/types.ts:275](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#275)
 
 Diagnostic: total memories in the vault when fact lane was queried.
