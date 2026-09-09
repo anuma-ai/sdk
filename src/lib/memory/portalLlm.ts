@@ -213,13 +213,6 @@ export type PortalLlmFailureReason =
   | "time-budget-exhausted";
 
 /**
- * A give-up report: the classified {@link PortalLlmFailureReason} plus the
- * little context worth carrying into telemetry. Both extra fields are bounded
- * (a status code, a small attempt count), so both are safe as event properties.
- *
- * @public
- */
-/**
  * One attempt of a {@link callPortalJsonCompletion} call, reported to
  * `onAttempt` as it settles — success included. The wire-level diagnostic the
  * give-up hook cannot provide: a call that succeeds on its third try returns a
@@ -240,6 +233,13 @@ export interface PortalLlmAttempt {
   httpStatus?: number;
 }
 
+/**
+ * A give-up report: the classified {@link PortalLlmFailureReason} plus the
+ * little context worth carrying into telemetry. Both extra fields are bounded
+ * (a status code, a small attempt count), so both are safe as event properties.
+ *
+ * @public
+ */
 export interface PortalLlmFailure {
   /** Stable code for the last failure observed. */
   reason: PortalLlmFailureReason;
