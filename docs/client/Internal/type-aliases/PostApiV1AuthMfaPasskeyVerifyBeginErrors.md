@@ -2,7 +2,7 @@
 
 > **PostApiV1AuthMfaPasskeyVerifyBeginErrors** = `object`
 
-Defined in: [src/client/types.gen.ts:7407](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7407)
+Defined in: [src/client/types.gen.ts:8128](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8128)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:7407](https://github.com/anuma-ai/sdk/blob/
 
 > **401**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:7411](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7411)
+Defined in: [src/client/types.gen.ts:8132](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8132)
 
 Unauthorized
 
@@ -20,6 +20,6 @@ Unauthorized
 
 > **404**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:7415](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7415)
+Defined in: [src/client/types.gen.ts:8136](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8136)
 
 Not Found

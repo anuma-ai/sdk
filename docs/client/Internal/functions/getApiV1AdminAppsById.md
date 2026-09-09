@@ -2,7 +2,7 @@
 
 > **getApiV1AdminAppsById**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`GetApiV1AdminAppsByIdData`](../type-aliases/GetApiV1AdminAppsByIdData.md), `ThrowOnError`>): `RequestResult`<[`GetApiV1AdminAppsByIdResponses`](../type-aliases/GetApiV1AdminAppsByIdResponses.md), [`GetApiV1AdminAppsByIdErrors`](../type-aliases/GetApiV1AdminAppsByIdErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:173](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#173)
+Defined in: [src/client/sdk.gen.ts:180](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#180)
 
 Get app by ID
 

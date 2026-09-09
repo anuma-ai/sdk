@@ -2,7 +2,7 @@
 
 > **getApiV1AdminConnectors**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`GetApiV1AdminConnectorsData`](../type-aliases/GetApiV1AdminConnectorsData.md), `ThrowOnError`>): `RequestResult`<[`GetApiV1AdminConnectorsResponses`](../type-aliases/GetApiV1AdminConnectorsResponses.md), [`GetApiV1AdminConnectorsErrors`](../type-aliases/GetApiV1AdminConnectorsErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:229](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#229)
+Defined in: [src/client/sdk.gen.ts:236](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#236)
 
 List connector enable/disable state (admin)
 

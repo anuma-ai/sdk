@@ -2,4 +2,4 @@
 
 > **PostApiV1ConnectorsByProviderDisconnectResponse** = [`PostApiV1ConnectorsByProviderDisconnectResponses`](PostApiV1ConnectorsByProviderDisconnectResponses.md)\[keyof [`PostApiV1ConnectorsByProviderDisconnectResponses`](PostApiV1ConnectorsByProviderDisconnectResponses.md)]
 
-Defined in: [src/client/types.gen.ts:8007](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8007)
+Defined in: [src/client/types.gen.ts:8732](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8732)

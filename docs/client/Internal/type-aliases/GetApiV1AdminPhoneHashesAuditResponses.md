@@ -2,7 +2,7 @@
 
 > **GetApiV1AdminPhoneHashesAuditResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:6496](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6496)
+Defined in: [src/client/types.gen.ts:7163](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7163)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:6496](https://github.com/anuma-ai/sdk/blob/
 
 > **200**: [`HandlersPhoneHashAuditResponse`](HandlersPhoneHashAuditResponse.md)
 
-Defined in: [src/client/types.gen.ts:6500](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6500)
+Defined in: [src/client/types.gen.ts:7167](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7167)
 
 OK

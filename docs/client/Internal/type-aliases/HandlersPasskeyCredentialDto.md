@@ -2,7 +2,7 @@
 
 > **HandlersPasskeyCredentialDto** = `object`
 
-Defined in: [src/client/types.gen.ts:3758](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3758)
+Defined in: [src/client/types.gen.ts:4064](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4064)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:3758](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **created\_at**: `string`
 
-Defined in: [src/client/types.gen.ts:3759](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3759)
+Defined in: [src/client/types.gen.ts:4065](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4065)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:3759](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **id**: `string`
 
-Defined in: [src/client/types.gen.ts:3760](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3760)
+Defined in: [src/client/types.gen.ts:4066](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4066)
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: [src/client/types.gen.ts:3760](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **label**: `string`
 
-Defined in: [src/client/types.gen.ts:3761](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3761)
+Defined in: [src/client/types.gen.ts:4067](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4067)
 
 ***
 
@@ -34,4 +34,4 @@ Defined in: [src/client/types.gen.ts:3761](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **last\_used\_at**: `string`
 
-Defined in: [src/client/types.gen.ts:3762](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3762)
+Defined in: [src/client/types.gen.ts:4068](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4068)

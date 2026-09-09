@@ -2,7 +2,7 @@
 
 > **GetApiV1AdminUsersLookupData** = `object`
 
-Defined in: [src/client/types.gen.ts:6980](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6980)
+Defined in: [src/client/types.gen.ts:7651](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7651)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:6980](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **body**: `never`
 
-Defined in: [src/client/types.gen.ts:6981](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6981)
+Defined in: [src/client/types.gen.ts:7652](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7652)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:6981](https://github.com/anuma-ai/sdk/blob/
 
 > **headers**: `object`
 
-Defined in: [src/client/types.gen.ts:6982](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6982)
+Defined in: [src/client/types.gen.ts:7653](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7653)
 
 **X-Admin-API-Key**
 
@@ -32,7 +32,7 @@ Admin API key
 
 > `optional` **path**: `never`
 
-Defined in: [src/client/types.gen.ts:6988](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6988)
+Defined in: [src/client/types.gen.ts:7659](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7659)
 
 ***
 
@@ -40,7 +40,13 @@ Defined in: [src/client/types.gen.ts:6988](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **query**: `object`
 
-Defined in: [src/client/types.gen.ts:6989](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6989)
+Defined in: [src/client/types.gen.ts:7660](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7660)
+
+**account\_id?**
+
+> `optional` **account\_id**: `number`
+
+Portal account id
 
 **email?**
 
@@ -72,4 +78,4 @@ User wallet address (0x...)
 
 > **url**: `"/api/v1/admin/users/lookup"`
 
-Defined in: [src/client/types.gen.ts:7007](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7007)
+Defined in: [src/client/types.gen.ts:7682](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7682)

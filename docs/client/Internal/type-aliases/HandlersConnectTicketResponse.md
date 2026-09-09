@@ -2,7 +2,7 @@
 
 > **HandlersConnectTicketResponse** = `object`
 
-Defined in: [src/client/types.gen.ts:1673](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1673)
+Defined in: [src/client/types.gen.ts:1801](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1801)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:1673](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **expires\_in**: `number`
 
-Defined in: [src/client/types.gen.ts:1674](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1674)
+Defined in: [src/client/types.gen.ts:1802](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1802)
 
 ***
 
@@ -18,4 +18,4 @@ Defined in: [src/client/types.gen.ts:1674](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **ticket\_id**: `string`
 
-Defined in: [src/client/types.gen.ts:1675](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1675)
+Defined in: [src/client/types.gen.ts:1803](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1803)

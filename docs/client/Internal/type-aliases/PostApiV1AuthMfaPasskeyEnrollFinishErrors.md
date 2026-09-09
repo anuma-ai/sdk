@@ -2,7 +2,7 @@
 
 > **PostApiV1AuthMfaPasskeyEnrollFinishErrors** = `object`
 
-Defined in: [src/client/types.gen.ts:7378](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7378)
+Defined in: [src/client/types.gen.ts:8099](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8099)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:7378](https://github.com/anuma-ai/sdk/blob/
 
 > **400**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:7382](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7382)
+Defined in: [src/client/types.gen.ts:8103](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8103)
 
 Bad Request
 
@@ -20,6 +20,6 @@ Bad Request
 
 > **401**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:7386](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7386)
+Defined in: [src/client/types.gen.ts:8107](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8107)
 
 Unauthorized

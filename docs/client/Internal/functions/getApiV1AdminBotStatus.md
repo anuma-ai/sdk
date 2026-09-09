@@ -2,7 +2,7 @@
 
 > **getApiV1AdminBotStatus**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`GetApiV1AdminBotStatusData`](../type-aliases/GetApiV1AdminBotStatusData.md), `ThrowOnError`>): `RequestResult`<[`GetApiV1AdminBotStatusResponses`](../type-aliases/GetApiV1AdminBotStatusResponses.md), [`GetApiV1AdminBotStatusErrors`](../type-aliases/GetApiV1AdminBotStatusErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:222](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#222)
+Defined in: [src/client/sdk.gen.ts:229](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#229)
 
 Get X-bot status (admin)
 

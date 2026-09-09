@@ -2,7 +2,7 @@
 
 > **HandlersUpdateDeveloperAppRequest** = `object`
 
-Defined in: [src/client/types.gen.ts:3351](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3351)
+Defined in: [src/client/types.gen.ts:3648](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3648)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:3351](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **allowed\_origins**: `string`\[]
 
-Defined in: [src/client/types.gen.ts:3355](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3355)
+Defined in: [src/client/types.gen.ts:3652](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3652)
 
 nil=skip, \[]=clear, populated=set
 
@@ -20,7 +20,7 @@ nil=skip, \[]=clear, populated=set
 
 > `optional` **default\_user\_credits**: `number`
 
-Defined in: [src/client/types.gen.ts:3359](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3359)
+Defined in: [src/client/types.gen.ts:3656](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3656)
 
 credits per new user (1 credit = $0.01)
 
@@ -30,4 +30,4 @@ credits per new user (1 credit = $0.01)
 
 > `optional` **name**: `string`
 
-Defined in: [src/client/types.gen.ts:3360](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3360)
+Defined in: [src/client/types.gen.ts:3657](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3657)

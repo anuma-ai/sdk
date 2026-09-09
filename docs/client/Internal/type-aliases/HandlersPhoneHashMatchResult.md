@@ -2,7 +2,7 @@
 
 > **HandlersPhoneHashMatchResult** = `object`
 
-Defined in: [src/client/types.gen.ts:2666](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2666)
+Defined in: [src/client/types.gen.ts:2862](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2862)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:2666](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **account\_id**: `number`
 
-Defined in: [src/client/types.gen.ts:2667](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2667)
+Defined in: [src/client/types.gen.ts:2863](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2863)
 
 ***
 
@@ -18,4 +18,4 @@ Defined in: [src/client/types.gen.ts:2667](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **phone\_hash**: `number`\[]
 
-Defined in: [src/client/types.gen.ts:2668](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2668)
+Defined in: [src/client/types.gen.ts:2864](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2864)

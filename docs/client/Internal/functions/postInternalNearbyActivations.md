@@ -2,7 +2,7 @@
 
 > **postInternalNearbyActivations**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`PostInternalNearbyActivationsData`](../type-aliases/PostInternalNearbyActivationsData.md), `ThrowOnError`>): `RequestResult`<[`PostInternalNearbyActivationsResponses`](../type-aliases/PostInternalNearbyActivationsResponses.md), [`PostInternalNearbyActivationsErrors`](../type-aliases/PostInternalNearbyActivationsErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:1756](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1756)
+Defined in: [src/client/sdk.gen.ts:1847](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1847)
 
 Record a People Nearby activation
 

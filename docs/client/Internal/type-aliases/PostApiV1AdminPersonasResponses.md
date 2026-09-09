@@ -2,7 +2,7 @@
 
 > **PostApiV1AdminPersonasResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:6351](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6351)
+Defined in: [src/client/types.gen.ts:7018](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7018)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:6351](https://github.com/anuma-ai/sdk/blob/
 
 > **201**: [`HandlersPersonaResponse`](HandlersPersonaResponse.md)
 
-Defined in: [src/client/types.gen.ts:6355](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6355)
+Defined in: [src/client/types.gen.ts:7022](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7022)
 
 Created

@@ -2,7 +2,7 @@
 
 > **HandlersCampaignRequest** = `object`
 
-Defined in: [src/client/types.gen.ts:1532](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1532)
+Defined in: [src/client/types.gen.ts:1660](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1660)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:1532](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **body**: `string`
 
-Defined in: [src/client/types.gen.ts:1533](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1533)
+Defined in: [src/client/types.gen.ts:1661](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1661)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:1533](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **data**: `number`\[]
 
-Defined in: [src/client/types.gen.ts:1534](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1534)
+Defined in: [src/client/types.gen.ts:1662](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1662)
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: [src/client/types.gen.ts:1534](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **event\_type**: `string`
 
-Defined in: [src/client/types.gen.ts:1540](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1540)
+Defined in: [src/client/types.gen.ts:1668](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1668)
 
 EventType is the dispatch event type (create-only; defaults to
 "announcement.campaign"). Must map to the announcements category —
@@ -38,7 +38,7 @@ campaigns are marketing and may never ride a default-on category.
 
 > `optional` **locales**: `string`\[]
 
-Defined in: [src/client/types.gen.ts:1541](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1541)
+Defined in: [src/client/types.gen.ts:1669](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1669)
 
 ***
 
@@ -46,7 +46,7 @@ Defined in: [src/client/types.gen.ts:1541](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **min\_app\_version**: `string`
 
-Defined in: [src/client/types.gen.ts:1545](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1545)
+Defined in: [src/client/types.gen.ts:1673](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1673)
 
 MinAppVersion is a dotted numeric version ("1.4.2").
 
@@ -56,7 +56,7 @@ MinAppVersion is a dotted numeric version ("1.4.2").
 
 > `optional` **platforms**: `string`\[]
 
-Defined in: [src/client/types.gen.ts:1546](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1546)
+Defined in: [src/client/types.gen.ts:1674](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1674)
 
 ***
 
@@ -64,7 +64,7 @@ Defined in: [src/client/types.gen.ts:1546](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **scheduled\_at**: `string`
 
-Defined in: [src/client/types.gen.ts:1551](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1551)
+Defined in: [src/client/types.gen.ts:1679](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1679)
 
 ScheduledAt (RFC 3339) is when the worker may start draining.
 Required when status is "scheduled".
@@ -75,7 +75,7 @@ Required when status is "scheduled".
 
 > `optional` **status**: `string`
 
-Defined in: [src/client/types.gen.ts:1556](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1556)
+Defined in: [src/client/types.gen.ts:1684](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1684)
 
 Status may be "draft" (default on create) or "scheduled". Every
 other transition belongs to the worker or the cancel endpoint.
@@ -86,7 +86,7 @@ other transition belongs to the worker or the cancel endpoint.
 
 > `optional` **tiers**: `string`\[]
 
-Defined in: [src/client/types.gen.ts:1562](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1562)
+Defined in: [src/client/types.gen.ts:1690](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1690)
 
 Segment dimensions, AND-combined; empty list = no filter. Tiers are
 subscription tiers ("basic"/"starter"/"pro"); platforms are
@@ -98,7 +98,7 @@ subscription tiers ("basic"/"starter"/"pro"); platforms are
 
 > `optional` **title**: `string`
 
-Defined in: [src/client/types.gen.ts:1563](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1563)
+Defined in: [src/client/types.gen.ts:1691](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1691)
 
 ***
 
@@ -106,7 +106,7 @@ Defined in: [src/client/types.gen.ts:1563](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **url**: `string`
 
-Defined in: [src/client/types.gen.ts:1568](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1568)
+Defined in: [src/client/types.gen.ts:1696](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1696)
 
 URL is the client deep link opened on tap. Must match the mobile
 client's allowed shape: "/(auth)/" prefix and no "..".
