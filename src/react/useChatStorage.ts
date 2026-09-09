@@ -114,6 +114,8 @@ import {
   type RecallResult,
   type RecallToolCallbacks,
   type RecallToolOptions,
+  retain,
+  type RetainResult,
 } from "../lib/memory";
 import {
   chunkText,
@@ -137,6 +139,7 @@ import {
   searchVaultMemories as searchVaultMemoriesBase,
   type VaultEmbeddingCache,
   type VaultSearchResult,
+  type VaultWriteInput,
 } from "../lib/memoryVault";
 import type { NerDetector } from "../lib/pii/ner";
 import { isPiiRedactor, PiiRedactor } from "../lib/pii/redactor";
@@ -868,6 +871,15 @@ export interface UseChatStorageResult extends BaseUseChatStorageResult {
    * @returns A ToolConfig that can be passed to sendMessage's clientTools
    */
   createMemoryVaultTool: (options?: MemoryVaultToolOptions) => ToolConfig;
+
+  /**
+   * Write one memory through `retain()` — cosine auto-merge against the vault,
+   * so an explicit "save this" from a host surface (selection → memory, a
+   * manual add) lands as a re-observation of an existing memory instead of a
+   * duplicate row when the vault already holds the fact. The
+   * `memory_vault_save` tool writes through this too. Throws without `getToken`.
+   */
+  retainVaultMemory: (input: VaultWriteInput) => Promise<RetainResult>;
 
   /**
    * Create a memory vault search tool for LLM to search vault memories
@@ -1657,6 +1669,46 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
   /**
    * Create a memory vault tool pre-configured with hook's vault context and encryption
    */
+  /**
+   * Write one memory through `retain()` — the same cosine auto-merge the
+   * background extractor gets, so an explicit save (the `memory_vault_save`
+   * tool, a host's "save to memory" affordance) cannot land a paraphrase of a
+   * fact the vault already holds as a second row. Returns the disposition, so
+   * the caller can tell a fresh create from a merge into an existing memory.
+   *
+   * `source: "manual"` and no tombstone gate: these writes are user- or
+   * model-directed, and refusing to re-save a fact the user deleted earlier is
+   * the extractor's rule for UNPROMPTED writes, not this path's.
+   *
+   * TODO(ceiling): cosine-only — no LLM consolidation, so a paraphrase in the
+   * 0.55–0.8 band is still created rather than merged/superseded. Deliberate:
+   * this runs inline in a chat turn (tool executor), and consolidation is a
+   * second LLM round-trip with a 20s budget. Upgrade path is passing
+   * `consolidateOptions` here once the tool executor can run it off the turn.
+   */
+  const retainVaultMemory = useCallback(
+    async (input: VaultWriteInput): Promise<RetainResult> => {
+      if (!getToken) {
+        throw new Error("getToken is required to retain a vault memory");
+      }
+      return retain(
+        input.content,
+        {
+          vaultCtx,
+          embeddingOptions: vaultEmbeddingOptions,
+          vaultCache: vaultEmbeddingCache,
+        },
+        {
+          source: "manual",
+          scope: input.scope,
+          ...(input.folderId !== undefined && { folderId: input.folderId }),
+          ...(input.factType !== undefined && { factType: input.factType }),
+        }
+      );
+    },
+    [vaultCtx, getToken, vaultEmbeddingOptions, vaultEmbeddingCache]
+  );
+
   const createMemoryVaultTool = useCallback(
     (options?: MemoryVaultToolOptions): ToolConfig => {
       // PII de-anonymization of the saved content is handled generically by
@@ -1667,12 +1719,15 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       const embOpts = getToken ? vaultEmbeddingOptions : undefined;
       return createMemoryVaultToolBase(
         vaultCtx,
-        options,
+        // New memories go through retain() (auto-merge) whenever embeddings are
+        // available; a caller-supplied `write` still wins. Without a token the
+        // tool keeps its direct-insert path — retain cannot embed.
+        embOpts ? { write: retainVaultMemory, ...options } : options,
         embOpts,
         embOpts ? vaultEmbeddingCache : undefined
       );
     },
-    [vaultCtx, getToken, vaultEmbeddingOptions, vaultEmbeddingCache]
+    [vaultCtx, getToken, vaultEmbeddingOptions, vaultEmbeddingCache, retainVaultMemory]
   );
 
   /**
@@ -3552,6 +3607,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     getAllFiles,
     createMemoryEngineTool,
     createMemoryVaultTool,
+    retainVaultMemory,
     createMemoryVaultSearchTool,
     createRecallTool,
     recall: recallFn,

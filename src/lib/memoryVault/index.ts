@@ -29,5 +29,13 @@ export {
   preEmbedVaultMemories,
   searchVaultMemories,
 } from "./searchTool";
-export type { MemoryVaultToolOptions, VaultSaveOperation } from "./tool";
+export type {
+  ManualFactType,
+  MemoryVaultToolOptions,
+  VaultMemoryWriter,
+  VaultSaveOperation,
+  VaultWriteAction,
+  VaultWriteInput,
+  VaultWriteOutcome,
+} from "./tool";
 export { createMemoryVaultTool } from "./tool";

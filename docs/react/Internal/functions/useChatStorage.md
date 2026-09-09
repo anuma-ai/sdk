@@ -2,7 +2,7 @@
 
 > **useChatStorage**(`options`: `object`): [`UseChatStorageResult`](../interfaces/UseChatStorageResult.md)
 
-Defined in: [src/react/useChatStorage.ts:1136](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#1136)
+Defined in: [src/react/useChatStorage.ts:1148](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#1148)
 
 ## Parameters
 
