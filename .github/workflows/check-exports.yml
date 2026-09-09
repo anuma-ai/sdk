@@ -46,11 +46,14 @@ jobs:
 
       - uses: pnpm/action-setup@v6.0.10
 
+      # No `cache: "pnpm"` here on purpose. This job installs nothing, so the
+      # pnpm store never exists for the post-run step to save. A cache hit hides
+      # that, but any change to pnpm-lock.yaml misses the key and the save step
+      # then fails the job on a path that was never created.
       - name: Setup Node.js
         uses: actions/setup-node@v7.0.0
         with:
           node-version: "22"
-          cache: "pnpm"
 
       - name: Check Memory Export Consumers
         run: pnpm check:export-consumers
