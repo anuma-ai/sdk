@@ -2,7 +2,7 @@
 
 > **PostApiV1GuestChatCompletionsErrors** = `object`
 
-Defined in: [src/client/types.gen.ts:9363](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9363)
+Defined in: [src/client/types.gen.ts:10092](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10092)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:9363](https://github.com/anuma-ai/sdk/blob/
 
 > **400**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:9367](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9367)
+Defined in: [src/client/types.gen.ts:10096](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10096)
 
 Bad Request
 
@@ -20,7 +20,7 @@ Bad Request
 
 > **402**: [`HandlersGuestLimitResponse`](HandlersGuestLimitResponse.md)
 
-Defined in: [src/client/types.gen.ts:9371](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9371)
+Defined in: [src/client/types.gen.ts:10100](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10100)
 
 Payment Required
 
@@ -30,7 +30,7 @@ Payment Required
 
 > **429**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:9375](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9375)
+Defined in: [src/client/types.gen.ts:10104](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10104)
 
 Too Many Requests
 
@@ -40,6 +40,6 @@ Too Many Requests
 
 > **503**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:9379](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9379)
+Defined in: [src/client/types.gen.ts:10108](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10108)
 
 Service Unavailable

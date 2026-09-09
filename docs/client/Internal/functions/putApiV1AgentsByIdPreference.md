@@ -2,7 +2,7 @@
 
 > **putApiV1AgentsByIdPreference**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`PutApiV1AgentsByIdPreferenceData`](../type-aliases/PutApiV1AgentsByIdPreferenceData.md), `ThrowOnError`>): `RequestResult`<[`PutApiV1AgentsByIdPreferenceResponses`](../type-aliases/PutApiV1AgentsByIdPreferenceResponses.md), [`PutApiV1AgentsByIdPreferenceErrors`](../type-aliases/PutApiV1AgentsByIdPreferenceErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:560](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#560)
+Defined in: [src/client/sdk.gen.ts:651](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#651)
 
 Set user agent preference
 

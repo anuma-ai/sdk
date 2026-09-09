@@ -2,7 +2,7 @@
 
 > **postOauthConsent**<`ThrowOnError`>(`options?`: [`Options`](../type-aliases/Options.md)<[`PostOauthConsentData`](../type-aliases/PostOauthConsentData.md), `ThrowOnError`, `unknown`>): `RequestResult`<[`PostOauthConsentResponses`](../type-aliases/PostOauthConsentResponses.md), [`PostOauthConsentErrors`](../type-aliases/PostOauthConsentErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:1812](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1812)
+Defined in: [src/client/sdk.gen.ts:1924](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1924)
 
 Process OAuth consent
 

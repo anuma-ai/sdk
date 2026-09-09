@@ -2,7 +2,7 @@
 
 > **HandlersBoundWalletResponse** = `object`
 
-Defined in: [src/client/types.gen.ts:1516](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1516)
+Defined in: [src/client/types.gen.ts:1644](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1644)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:1516](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **address\_evm**: `string`
 
-Defined in: [src/client/types.gen.ts:1517](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1517)
+Defined in: [src/client/types.gen.ts:1645](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1645)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:1517](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **address\_zeta**: `string`
 
-Defined in: [src/client/types.gen.ts:1518](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1518)
+Defined in: [src/client/types.gen.ts:1646](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1646)
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: [src/client/types.gen.ts:1518](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **bound\_at**: `string`
 
-Defined in: [src/client/types.gen.ts:1519](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1519)
+Defined in: [src/client/types.gen.ts:1647](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1647)
 
 ***
 
@@ -34,7 +34,7 @@ Defined in: [src/client/types.gen.ts:1519](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **credits\_per\_day**: `string`
 
-Defined in: [src/client/types.gen.ts:1520](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1520)
+Defined in: [src/client/types.gen.ts:1648](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1648)
 
 ***
 
@@ -42,7 +42,7 @@ Defined in: [src/client/types.gen.ts:1520](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **is\_validator**: `boolean`
 
-Defined in: [src/client/types.gen.ts:1521](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1521)
+Defined in: [src/client/types.gen.ts:1649](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1649)
 
 ***
 
@@ -50,7 +50,7 @@ Defined in: [src/client/types.gen.ts:1521](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **last\_polled\_at**: `string`
 
-Defined in: [src/client/types.gen.ts:1522](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1522)
+Defined in: [src/client/types.gen.ts:1650](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1650)
 
 ***
 
@@ -58,7 +58,7 @@ Defined in: [src/client/types.gen.ts:1522](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **staked\_zeta**: `string`
 
-Defined in: [src/client/types.gen.ts:1523](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1523)
+Defined in: [src/client/types.gen.ts:1651](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1651)
 
 ***
 
@@ -66,7 +66,7 @@ Defined in: [src/client/types.gen.ts:1523](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **wallet\_type**: `string`
 
-Defined in: [src/client/types.gen.ts:1524](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1524)
+Defined in: [src/client/types.gen.ts:1652](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1652)
 
 ***
 
@@ -74,7 +74,7 @@ Defined in: [src/client/types.gen.ts:1524](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **zeta\_rewards**: `string`
 
-Defined in: [src/client/types.gen.ts:1529](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1529)
+Defined in: [src/client/types.gen.ts:1657](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1657)
 
 ZetaRewards is this wallet's pending (unclaimed) on-chain staking rewards, in ZETA. Omitted
 when the chain reader is unavailable for this request.

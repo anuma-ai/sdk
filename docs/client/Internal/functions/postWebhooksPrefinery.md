@@ -2,7 +2,7 @@
 
 > **postWebhooksPrefinery**<`ThrowOnError`>(`options?`: [`Options`](../type-aliases/Options.md)<[`PostWebhooksPrefineryData`](../type-aliases/PostWebhooksPrefineryData.md), `ThrowOnError`, `unknown`>): `RequestResult`<[`PostWebhooksPrefineryResponses`](../type-aliases/PostWebhooksPrefineryResponses.md), [`PostWebhooksPrefineryErrors`](../type-aliases/PostWebhooksPrefineryErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:1899](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1899)
+Defined in: [src/client/sdk.gen.ts:2018](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#2018)
 
 Prefinery webhook receiver
 

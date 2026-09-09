@@ -2,7 +2,7 @@
 
 > **GetApiV1UsageByModalityData** = `object`
 
-Defined in: [src/client/types.gen.ts:10578](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10578)
+Defined in: [src/client/types.gen.ts:11279](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11279)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:10578](https://github.com/anuma-ai/sdk/blob
 
 > `optional` **body**: `never`
 
-Defined in: [src/client/types.gen.ts:10579](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10579)
+Defined in: [src/client/types.gen.ts:11280](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11280)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:10579](https://github.com/anuma-ai/sdk/blob
 
 > `optional` **path**: `never`
 
-Defined in: [src/client/types.gen.ts:10580](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10580)
+Defined in: [src/client/types.gen.ts:11281](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11281)
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: [src/client/types.gen.ts:10580](https://github.com/anuma-ai/sdk/blob
 
 > `optional` **query**: `object`
 
-Defined in: [src/client/types.gen.ts:10581](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10581)
+Defined in: [src/client/types.gen.ts:11282](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11282)
 
 **end?**
 
@@ -52,4 +52,4 @@ Start of date range in RFC 3339 format (e.g. 2024-01-01T00:00:00Z). Must be used
 
 > **url**: `"/api/v1/usage/by-modality"`
 
-Defined in: [src/client/types.gen.ts:10595](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10595)
+Defined in: [src/client/types.gen.ts:11296](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11296)

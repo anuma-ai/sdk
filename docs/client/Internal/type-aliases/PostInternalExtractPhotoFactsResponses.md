@@ -2,7 +2,7 @@
 
 > **PostInternalExtractPhotoFactsResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:11769](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11769)
+Defined in: [src/client/types.gen.ts:12514](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#12514)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:11769](https://github.com/anuma-ai/sdk/blob
 
 > **200**: [`HandlersExtractPhotoFactsResponse`](HandlersExtractPhotoFactsResponse.md)
 
-Defined in: [src/client/types.gen.ts:11773](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11773)
+Defined in: [src/client/types.gen.ts:12518](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#12518)
 
 OK

@@ -2,7 +2,7 @@
 
 > **PostApiV1AdminUsersInternalTesterResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:6971](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6971)
+Defined in: [src/client/types.gen.ts:7642](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7642)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:6971](https://github.com/anuma-ai/sdk/blob/
 
 > **200**: [`HandlersSetInternalTesterResponse`](HandlersSetInternalTesterResponse.md)
 
-Defined in: [src/client/types.gen.ts:6975](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6975)
+Defined in: [src/client/types.gen.ts:7646](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7646)
 
 OK
