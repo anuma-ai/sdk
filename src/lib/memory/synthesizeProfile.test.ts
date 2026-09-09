@@ -598,6 +598,64 @@ describe("synthesizeProfile", () => {
     expect(retry.sections[0].occupation).toBeUndefined();
   });
 
+  // The mirror of the cases above: a watermark ROLLBACK is not evidence that any
+  // particular section moved. An unrelated newest fact that is hard-deleted (or
+  // that leaves the queried scopes) drops the scoped max, which regenerates every
+  // facet - so it is exactly when a transient failure is most likely to hit. A
+  // section whose own sources are all still present, eligible, and unchanged has
+  // to survive that.
+  it("keeps an intact prior section when an unrelated delete rolls the watermark back", async () => {
+    // "z" set the previous mark at 5000 and is now hard-deleted, so the scoped max
+    // falls to 2000. "a", work_role's only source, is untouched.
+    mockGetAll.mockResolvedValue([
+      mem("a", { updatedAt: new Date(2000), createdAt: new Date(500) }),
+    ]);
+    mockReflect.mockRejectedValueOnce(new Error("LLM down"));
+
+    const previous = priorDoc(
+      [
+        {
+          ...section("work_role", "Backend engineer at a fintech startup.", ["a"]),
+          occupation: "Backend engineer, fintech",
+        },
+      ],
+      5000,
+      fingerprint([WORK_ROLE])
+    );
+
+    const doc = await synthesizeProfile(ctx, { apiKey: "k", facets: [WORK_ROLE], previous });
+
+    expect(doc.vaultWatermark).toBe(2000); // rollback recorded, baseline restored
+    expect(doc.sections[0].text).toBe("Backend engineer at a fintech startup.");
+    expect(doc.sections[0].occupation).toBe("Backend engineer, fintech");
+    expect(doc.sections[0].stale).toBe(true);
+  });
+
+  // The rollback must not become a loophole either: a section whose own source is
+  // gone still clears, even though the SAME delete is what rolled the mark back.
+  it("still clears a section whose own source is the delete that rolled the watermark back", async () => {
+    mockGetAll.mockResolvedValue([
+      mem("b", { updatedAt: new Date(2000), createdAt: new Date(500) }),
+    ]);
+    mockReflect.mockRejectedValueOnce(new Error("LLM down"));
+
+    const previous = priorDoc(
+      [
+        {
+          ...section("work_role", "Old role", ["a"]),
+          occupation: "Old role",
+        },
+      ],
+      5000,
+      fingerprint([WORK_ROLE])
+    );
+
+    const doc = await synthesizeProfile(ctx, { apiKey: "k", facets: [WORK_ROLE], previous });
+
+    expect(doc.sections[0]).toMatchObject({ text: "", sourceMemoryIds: [], stale: true });
+    expect(doc.sections[0].occupation).toBeUndefined();
+  });
+
   // A section left stale by a prior failed regeneration must be retried on the
   // next call even when the vault hasn't advanced (the failure was transient) —
   // the fast path is skipped and the stale facet regenerates.

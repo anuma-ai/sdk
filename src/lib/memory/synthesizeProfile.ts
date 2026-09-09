@@ -506,9 +506,23 @@ export async function synthesizeProfile(
   );
 
   // Preserve a failed section only while all its source facts remain eligible and unchanged.
+  //
+  // Deliberately NOT gated on the watermark ROLLBACK that makes
+  // computeStaleFacetKeys regenerate every facet. The two passes read the same
+  // mark in opposite directions. The delta pass uses it as a lower bound to
+  // DETECT change, so an inflated mark under-detects and has to bail to a full
+  // regen. Here it is an upper bound in a per-source admission test, so an
+  // inflated mark cannot admit a source that moved: on a rollback every present
+  // memory satisfies changeTime <= watermark < previous.vaultWatermark, and a
+  // write that landed after the previous doc carries a timestamp above that
+  // doc's mark, so it cannot sit below the current lower max. Gating the whole
+  // map on a rollback only discarded priors whose own evidence was intact, and a
+  // rollback regenerates ALL facets, which is when a transient failure is most
+  // likely to blank a section. A section whose own source is the fact that
+  // vanished still clears - it fails the presence check below.
   const memoriesById = new Map(memories.map((memory) => [memory.uniqueId, memory]));
   const fallbackPriors = new Map<ProfileFacetKey, ProfileSection>();
-  if (previous && watermark >= previous.vaultWatermark) {
+  if (previous) {
     for (const section of previous.sections) {
       if (
         section.sourceMemoryIds.length > 0 &&
