@@ -363,4 +363,182 @@ export const EXTRACTION_CASES: ExtractionCase[] = [
     expected: [],
     forbidden: ["User wants to buy a laptop.", "User needs a new laptop."],
   },
+
+  // ---- prod-shaped hard cases (2026-09 quality audit) ----
+  //
+  // The 30 cases above sat at ~99% recall / ~99% precision for two months, which
+  // is a corpus that can no longer see a regression. Each case below is a shape
+  // that produced junk or a miss in PRODUCTION vaults, or a shape the extraction
+  // prompt explicitly rules on and nothing here exercised:
+  //   - the assistant restating the user's profile back to them (prompt: NOT durable)
+  //   - a connector/tool payload the assistant surfaced (prompt: bare labels are NOT durable)
+  //   - the user's own name alone (prompt: NOT durable)
+  //   - past-tense gossip about other people wrapped around a real fact (keep the fact)
+  //   - a fact confirmed by the user after the assistant proposed it (prompt: IS durable)
+  //   - a hedge wrapped around a real fact (keep the fact, drop the hedge)
+  //   - coreference across the 2-message overlap the worker re-sends
+  //   - a realistic long window with one fact in six messages
+  //   - a state change with a distractor location
+  //   - a non-English turn (the low-signal gate once killed CJK facts)
+  {
+    id: "n-assistant-restates-profile",
+    category: "negative",
+    messages: [
+      {
+        id: "p1-u",
+        role: "user",
+        content: "Can you suggest a weekend project?",
+      },
+      {
+        id: "p1-a",
+        role: "assistant",
+        content:
+          "As a backend engineer living in Denver who prefers Go, you might enjoy building a small CLI that pulls RTD transit times.",
+      },
+      { id: "p1-u2", role: "user", content: "sure, sounds fun" },
+    ],
+    expected: [],
+    forbidden: ["User is a backend engineer.", "User lives in Denver.", "User prefers Go."],
+  },
+  {
+    id: "n-connector-payload",
+    category: "negative",
+    messages: [
+      { id: "c1-u", role: "user", content: "what does my slack profile say?" },
+      {
+        id: "c1-a",
+        role: "assistant",
+        content:
+          "From your Slack profile: Title: Staff Engineer. Team: Payments. Timezone: America/Los_Angeles. Status: OOO.",
+      },
+      { id: "c1-u2", role: "user", content: "ok thanks" },
+    ],
+    expected: [],
+    forbidden: [
+      "User is a Staff Engineer.",
+      "User is on the Payments team.",
+      "User is out of office.",
+    ],
+  },
+  {
+    id: "n-own-name-only",
+    category: "negative",
+    messages: turn("nm1", "hey it's Peter Lee again, back with more questions", "Welcome back!"),
+    expected: [],
+    forbidden: ["User's name is Peter Lee.", "User is Peter Lee."],
+  },
+  {
+    id: "b-gossip-about-others",
+    category: "buried",
+    // The durable part is the user's own world (they have a coworker Dave);
+    // the gossip about Dave's Tesla history is what the prompt rules out.
+    messages: turn(
+      "g1",
+      "lol my coworker Dave used to work at Tesla before they let him go, wild story",
+      "That does sound like a story."
+    ),
+    expected: ["User has a coworker named Dave."],
+    forbidden: ["User worked at Tesla.", "User's coworker was fired from Tesla."],
+    expectedEntities: [{ name: "Dave", kind: "person" }],
+  },
+  {
+    id: "d-user-confirms-assistant",
+    category: "durable",
+    messages: [
+      { id: "cf1-u", role: "user", content: "dinner ideas for tonight?" },
+      {
+        id: "cf1-a",
+        role: "assistant",
+        content: "You mentioned you're vegan, right? I'll keep it plant-based.",
+      },
+      { id: "cf1-u2", role: "user", content: "Yes, exactly — strictly vegan, no exceptions." },
+    ],
+    expected: ["User is vegan."],
+  },
+  {
+    id: "b-hedge-wraps-fact",
+    category: "buried",
+    messages: turn(
+      "h1",
+      "Maybe someday I'll get a dog, who knows. For now it's just me and my two cats, Pixel and Byte."
+    ),
+    expected: ["User has two cats named Pixel and Byte."],
+    forbidden: ["User is getting a dog.", "User wants a dog."],
+    // No expectedEntities: pet names fit no kind cleanly (the model says
+    // `thing`, the taxonomy's `person` is a human), so a golden here would be a
+    // subjective target — the same reason `other` is unlabeled corpus-wide.
+  },
+  {
+    id: "b-fact-inside-question",
+    category: "buried",
+    messages: turn("q1", "As a type 1 diabetic, what snacks travel well on a long road trip?"),
+    expected: ["User has type 1 diabetes."],
+    forbidden: ["User is going on a road trip."],
+  },
+  {
+    id: "m-coreference-across-turns",
+    category: "multi-fact",
+    // The worker re-sends 2 already-extracted messages for exactly this: "she"
+    // in the second user turn resolves only through the first.
+    messages: [
+      { id: "cr1-u", role: "user", content: "My manager is Priya, she runs the platform org." },
+      { id: "cr1-a", role: "assistant", content: "Got it." },
+      { id: "cr1-u2", role: "user", content: "She's moving me onto the infra team next month." },
+      { id: "cr1-a2", role: "assistant", content: "Congratulations on the move." },
+    ],
+    expected: ["User's manager is Priya.", "User is moving to the infra team next month."],
+    expectedEntities: [{ name: "Priya", kind: "person" }],
+  },
+  {
+    id: "b-long-window-one-fact",
+    category: "buried",
+    // A realistic six-message window: small talk, a task, one durable fact.
+    messages: [
+      {
+        id: "lw-u1",
+        role: "user",
+        content: "morning! can you help me draft a reply to a landlord email?",
+      },
+      {
+        id: "lw-a1",
+        role: "assistant",
+        content: "Of course — paste the email and tell me the tone you want.",
+      },
+      {
+        id: "lw-u2",
+        role: "user",
+        content: "polite but firm. the heating has been broken for a week",
+      },
+      { id: "lw-a2", role: "assistant", content: "Here's a draft: …" },
+      {
+        id: "lw-u3",
+        role: "user",
+        content: "perfect. oh — sign it from both of us, my husband Tomás and me",
+      },
+      { id: "lw-a3", role: "assistant", content: "Updated to sign from you both." },
+    ],
+    expected: ["User's husband is named Tomás."],
+    forbidden: ["User's heating is broken.", "User wants a polite but firm reply."],
+    expectedEntities: [{ name: "Tomás", kind: "person" }],
+  },
+  {
+    id: "u-moved-with-distractor",
+    category: "update",
+    messages: turn(
+      "ud1",
+      "We finally sold the Austin house and we're renting in Denver now, a few blocks from my sister."
+    ),
+    expected: ["User lives in Denver."],
+    forbidden: ["User lives in Austin."],
+    expectedEntities: [{ name: "Denver", kind: "place" }],
+  },
+  {
+    id: "d-non-english-turn",
+    category: "durable",
+    // Gold is written in English like every other case; the extractor's own
+    // convention is third-person English regardless of input language.
+    messages: turn("jp1", "私は東京に住んでいて、猫を2匹飼っています。", "了解しました。"),
+    expected: ["User lives in Tokyo.", "User has two cats."],
+    expectedEntities: [{ name: "Tokyo", kind: "place" }],
+  },
 ];

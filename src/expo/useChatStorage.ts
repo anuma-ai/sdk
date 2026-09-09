@@ -105,6 +105,8 @@ import {
   type RecallResult,
   type RecallToolCallbacks,
   type RecallToolOptions,
+  retain,
+  type RetainResult,
 } from "../lib/memory";
 import {
   chunkText,
@@ -121,6 +123,7 @@ import {
   createMemoryVaultTool as createMemoryVaultToolBase,
   getVaultEmbeddingCache,
   type MemoryVaultToolOptions,
+  type VaultWriteInput,
 } from "../lib/memoryVault";
 import type { NerDetector } from "../lib/pii/ner";
 import { isPiiRedactor, PiiRedactor } from "../lib/pii/redactor";
@@ -646,6 +649,15 @@ export interface UseChatStorageResult extends BaseUseChatStorageResult {
   createMemoryVaultTool: (options?: MemoryVaultToolOptions) => ToolConfig;
 
   /**
+   * Write one memory through `retain()` — cosine auto-merge against the vault,
+   * so an explicit "save this" from a host surface (selection → memory, a
+   * manual add) lands as a re-observation of an existing memory instead of a
+   * duplicate row when the vault already holds the fact. The
+   * `memory_vault_save` tool writes through this too. Throws without `getToken`.
+   */
+  retainVaultMemory: (input: VaultWriteInput) => Promise<RetainResult>;
+
+  /**
    * Create the unified recall tool — single chat-completion tool that
    * searches both vault facts and conversation chunks via recall().
    * Replaces the legacy createMemoryEngineTool / vault search pair.
@@ -1131,16 +1143,6 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
   );
 
   /**
-   * Create a memory vault tool pre-configured with hook's vault context and encryption
-   */
-  const createMemoryVaultTool = useCallback(
-    (options?: MemoryVaultToolOptions): ToolConfig => {
-      return createMemoryVaultToolBase(vaultCtx, options);
-    },
-    [vaultCtx]
-  );
-
-  /**
    * Shared embedding cache for vault memories on the recall path.
    *
    * Resolved from the process-wide registry, so the Expo client's several
@@ -1182,6 +1184,53 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       chunkVectorCacheRef.current.clear();
     });
   }, [vaultEmbeddingCache]);
+
+  /**
+   * Write one memory through `retain()` — see the React hook's counterpart for
+   * the rationale (auto-merge for explicit saves; `source: "manual"`; no
+   * tombstone gate; cosine-only, TODO(ceiling) on consolidation). Mirrors the
+   * recall tool's embedding options below, including the PII mask.
+   */
+  const retainVaultMemory = useCallback(
+    async (input: VaultWriteInput): Promise<RetainResult> => {
+      if (!getToken) {
+        throw new Error("getToken is required to retain a vault memory");
+      }
+      return retain(
+        input.content,
+        {
+          vaultCtx,
+          embeddingOptions: {
+            getToken,
+            baseUrl,
+            model: embeddingModel,
+            maskInput: maskEmbeddingInput,
+          },
+          vaultCache: vaultEmbeddingCache,
+        },
+        {
+          source: "manual",
+          scope: input.scope,
+          ...(input.folderId !== undefined && { folderId: input.folderId }),
+          ...(input.factType !== undefined && { factType: input.factType }),
+        }
+      );
+    },
+    [vaultCtx, getToken, baseUrl, embeddingModel, maskEmbeddingInput, vaultEmbeddingCache]
+  );
+
+  const createMemoryVaultTool = useCallback(
+    (options?: MemoryVaultToolOptions): ToolConfig => {
+      // New memories go through retain() (auto-merge) whenever a token is
+      // available to embed with; a caller-supplied `write` still wins. Without
+      // one the tool keeps its direct-insert path.
+      return createMemoryVaultToolBase(
+        vaultCtx,
+        getToken ? { write: retainVaultMemory, ...options } : options
+      );
+    },
+    [vaultCtx, getToken, retainVaultMemory]
+  );
 
   /**
    * Create the unified recall tool — fact + chunk fused via RRF in one
@@ -3364,6 +3413,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     getMessageCount,
     createMemoryEngineTool,
     createMemoryVaultTool,
+    retainVaultMemory,
     createRecallTool,
     recall: recallFn,
     getVaultMemories,
