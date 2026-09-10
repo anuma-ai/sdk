@@ -394,15 +394,22 @@ export interface RecallDiagnostics {
   /** Lowest score among the returned memories; -1 when none were returned. */
   lowestAdmittedScore: number;
   /**
-   * The fact lane's similarity floor for this call (`options.minScore` or the
-   * default). Reported next to the scores so a threshold change is legible in
-   * the same series it moves — the scores alone can't say what they cleared.
+   * The similarity floor the lane that produced these scores actually applied:
+   * the fact lane's when it ran, otherwise the chunk lane's, and **-1 when
+   * neither ran** (empty query, unwired context).
+   *
+   * Per-lane rather than one constant because the two defaults differ (0.1 fact
+   * / 0.5 chunk), so a single seeded value reported a floor that a chunk-only
+   * recall never applied. Reported next to the scores because the scores alone
+   * cannot say what they cleared.
    */
   minScoreApplied: number;
   /**
-   * Whether the `limit` slice actually cut something (`candidateCount > limit`).
-   * A caller seeing exactly `limit` memories cannot otherwise tell a lucky fit
-   * from a truncation.
+   * Whether the `limit` cut an ELIGIBLE result — recorded at the cut, not
+   * derived from `candidateCount > limit`. In the fused path `candidateCount`
+   * counts before provenance suppression, so a recall whose suppressed chunks
+   * brought it under the limit would otherwise report a truncation that never
+   * happened.
    */
   truncated: boolean;
   /** Memory ids the W5 graph (entity) side lane contributed to the fusion. */

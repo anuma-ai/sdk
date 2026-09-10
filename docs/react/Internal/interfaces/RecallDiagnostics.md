@@ -65,7 +65,7 @@ reached the bundle from a projection that isn't cheaper at that vault size.
 
 > **degraded**: [`RecallDegradation`](../type-aliases/RecallDegradation.md)\[]
 
-Defined in: [src/lib/memory/types.ts:459](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#459)
+Defined in: [src/lib/memory/types.ts:466](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#466)
 
 Soft-degradation signals that fired this call (empty when clean).
 
@@ -75,7 +75,7 @@ Soft-degradation signals that fired this call (empty when clean).
 
 > **emptyReason**: [`RecallEmptyReason`](../type-aliases/RecallEmptyReason.md)
 
-Defined in: [src/lib/memory/types.ts:413](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#413)
+Defined in: [src/lib/memory/types.ts:420](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#420)
 
 Why nothing came back — see [RecallEmptyReason](../type-aliases/RecallEmptyReason.md). `""` when something did.
 
@@ -95,7 +95,7 @@ Facts the fact lane returned (post-dedupe, pre-fusion).
 
 > **graphLaneCount**: `number`
 
-Defined in: [src/lib/memory/types.ts:409](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#409)
+Defined in: [src/lib/memory/types.ts:416](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#416)
 
 Memory ids the W5 graph (entity) side lane contributed to the fusion.
 
@@ -115,11 +115,16 @@ Lowest score among the returned memories; -1 when none were returned.
 
 > **minScoreApplied**: `number`
 
-Defined in: [src/lib/memory/types.ts:401](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#401)
+Defined in: [src/lib/memory/types.ts:406](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#406)
 
-The fact lane's similarity floor for this call (`options.minScore` or the
-default). Reported next to the scores so a threshold change is legible in
-the same series it moves — the scores alone can't say what they cleared.
+The similarity floor the lane that produced these scores actually applied:
+the fact lane's when it ran, otherwise the chunk lane's, and **-1 when
+neither ran** (empty query, unwired context).
+
+Per-lane rather than one constant because the two defaults differ (0.1 fact
+/ 0.5 chunk), so a single seeded value reported a floor that a chunk-only
+recall never applied. Reported next to the scores because the scores alone
+cannot say what they cleared.
 
 ***
 
@@ -137,7 +142,7 @@ Whether the cross-encoder actually reranked the fact lane this call.
 
 > **temporalLaneCount**: `number`
 
-Defined in: [src/lib/memory/types.ts:411](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#411)
+Defined in: [src/lib/memory/types.ts:418](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#418)
 
 Memory ids the W6 temporal side lane contributed to the fusion.
 
@@ -147,7 +152,7 @@ Memory ids the W6 temporal side lane contributed to the fusion.
 
 > **timings**: `object`
 
-Defined in: [src/lib/memory/types.ts:415](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#415)
+Defined in: [src/lib/memory/types.ts:422](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#422)
 
 Wall-clock phase timings (ms).
 
@@ -232,11 +237,13 @@ Highest score among the returned memories; -1 when none were returned.
 
 > **truncated**: `boolean`
 
-Defined in: [src/lib/memory/types.ts:407](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#407)
+Defined in: [src/lib/memory/types.ts:414](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#414)
 
-Whether the `limit` slice actually cut something (`candidateCount > limit`).
-A caller seeing exactly `limit` memories cannot otherwise tell a lucky fit
-from a truncation.
+Whether the `limit` cut an ELIGIBLE result — recorded at the cut, not
+derived from `candidateCount > limit`. In the fused path `candidateCount`
+counts before provenance suppression, so a recall whose suppressed chunks
+brought it under the limit would otherwise report a truncation that never
+happened.
 
 ***
 

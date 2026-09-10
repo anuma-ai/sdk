@@ -1438,6 +1438,23 @@ describe("recall — diagnostics: what was admitted", () => {
     expect(result.memories).toHaveLength(0);
     expect(seen[0]).toMatchObject({ admittedCount: 0, topScore: -1, lowestAdmittedScore: -1 });
   });
+
+  it("reports the floor of the lane that ran, and -1 when none did", async () => {
+    // The two lanes have different defaults (0.1 fact / 0.5 chunk), so a single
+    // seeded value reported a floor a chunk-only recall never applied.
+    const factOnly: RecallDiagnostics[] = [];
+    await recall(QUERY, makeCtx(), { types: ["fact"], onDiagnostics: (d) => factOnly.push(d) });
+    expect(factOnly[0].minScoreApplied).toBe(0.1);
+
+    const chunkOnly: RecallDiagnostics[] = [];
+    await recall(QUERY, makeCtx(), { types: ["chunk"], onDiagnostics: (d) => chunkOnly.push(d) });
+    expect(chunkOnly[0].minScoreApplied).toBe(0.5);
+
+    // No lane ran at all — reporting any floor would be a fiction.
+    const none: RecallDiagnostics[] = [];
+    await recall("   ", makeCtx(), { onDiagnostics: (d) => none.push(d) });
+    expect(none[0].minScoreApplied).toBe(-1);
+  });
 });
 
 describe("recall — diagnostics: emptyReason", () => {
@@ -1531,5 +1548,79 @@ describe("recall — diagnostics: side lanes", () => {
 
     expect(result.memories.length).toBeGreaterThanOrEqual(0);
     expect(seen[0].degraded).toContain("temporal-lane-failed");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Review follow-ups (Greptile P1s on #937). Each of these passed before the
+// fix by reporting something that had not happened.
+// ---------------------------------------------------------------------------
+
+describe("recall — diagnostics: truncation is recorded at the cut", () => {
+  it("does not claim truncation when provenance suppression brought the result under the limit", async () => {
+    // The fused path's `candidateCount` is byId.size, counted BEFORE a surfaced
+    // fact suppresses its source chunk. Deriving `truncated` from it reported a
+    // cut on a recall that fit comfortably.
+    const factWithProvenance = makeMemory("m1", M1);
+    factWithProvenance.sourceChunkIds = ["c1"];
+    vi.mocked(getAllVaultMemoriesOp).mockResolvedValue([factWithProvenance]);
+    vi.mocked(countActiveVaultMemoriesOp).mockResolvedValue(1);
+    vi.mocked(searchChunksOp).mockResolvedValue([makeChunk("c1", "conv-1", 0.9)]);
+
+    const seen: RecallDiagnostics[] = [];
+    const result = await recall(QUERY, makeCtx(), {
+      types: ["fact", "chunk"],
+      limit: 1,
+      onDiagnostics: (d) => seen.push(d),
+    });
+
+    // Two candidates fused, the chunk is suppressed by its own fact, one result
+    // fills the limit — and nothing eligible was left over.
+    expect(seen[0].candidateCount).toBe(2);
+    expect(result.memories).toHaveLength(1);
+    expect(seen[0].truncated).toBe(false);
+  });
+
+  it("still reports truncation when an eligible result had no room", async () => {
+    const seen: RecallDiagnostics[] = [];
+    vi.mocked(searchChunksOp).mockResolvedValue([
+      makeChunk("c1", "conv-1", 0.9),
+      makeChunk("c2", "conv-1", 0.8),
+    ]);
+
+    await recall(QUERY, makeCtx(), {
+      types: ["fact", "chunk"],
+      limit: 1,
+      onDiagnostics: (d) => seen.push(d),
+    });
+
+    expect(seen[0].truncated).toBe(true);
+  });
+});
+
+describe("recall — diagnostics: emptyReason on a mixed recall", () => {
+  it("does not blame an empty vault when the chunk lane also had a say", async () => {
+    // An empty vault does not explain a chunk-lane miss, and filing one under
+    // "new user" hides a real retrieval-quality result.
+    vi.mocked(getAllVaultMemoriesOp).mockResolvedValue([]);
+    vi.mocked(countActiveVaultMemoriesOp).mockResolvedValue(0);
+    vi.mocked(searchChunksOp).mockResolvedValue([]);
+
+    const seen: RecallDiagnostics[] = [];
+    await recall(QUERY, makeCtx(), {
+      types: ["fact", "chunk"],
+      onDiagnostics: (d) => seen.push(d),
+    });
+
+    expect(seen[0]).toMatchObject({ admittedCount: 0, emptyReason: "no-candidates" });
+  });
+
+  it("still blames the vault on a fact-only recall", async () => {
+    vi.mocked(getAllVaultMemoriesOp).mockResolvedValue([]);
+    vi.mocked(countActiveVaultMemoriesOp).mockResolvedValue(0);
+
+    const seen: RecallDiagnostics[] = [];
+    await recall(QUERY, makeCtx(), { types: ["fact"], onDiagnostics: (d) => seen.push(d) });
+    expect(seen[0].emptyReason).toBe("vault-empty");
   });
 });

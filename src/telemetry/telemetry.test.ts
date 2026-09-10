@@ -555,9 +555,12 @@ describe("createRecallDiagnosticsHandler", () => {
         // stops a consumer reading candidateCount as "memories received".
         admittedCount: 8,
         topScore: 0.91,
+        lowestAdmittedScore: 0.42,
         minScoreApplied: 0.1,
         truncated: true,
         emptyReason: "",
+        graphLaneCount: 2,
+        temporalLaneCount: 0,
         factCount: 5,
         chunkCount: 3,
         totalMs: 120,

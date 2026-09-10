@@ -93,10 +93,18 @@ export function createRecallDiagnosticsHandler(
       // when fusing — so a consumer reading candidateCount as "memories this
       // turn received" overcounts.
       admittedCount: diagnostics.admittedCount,
+      // Both ends of the admitted range, and the lane counts, ride the EVENT as
+      // well as the metrics: a track-only sink is a supported configuration
+      // (the module's own PostHog example is exactly that shape), and it could
+      // otherwise see neither the bottom of the score range nor which side lane
+      // contributed.
       topScore: diagnostics.topScore,
+      lowestAdmittedScore: diagnostics.lowestAdmittedScore,
       minScoreApplied: diagnostics.minScoreApplied,
       truncated: diagnostics.truncated,
       emptyReason: diagnostics.emptyReason,
+      graphLaneCount: diagnostics.graphLaneCount,
+      temporalLaneCount: diagnostics.temporalLaneCount,
       factCount: diagnostics.factCount,
       chunkCount: diagnostics.chunkCount,
       totalMs: diagnostics.timings.total,

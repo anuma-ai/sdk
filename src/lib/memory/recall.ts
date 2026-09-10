@@ -190,9 +190,16 @@ export async function recall(
   let temporalLaneCount = 0;
   let graphLaneFailed = false;
   let temporalLaneFailed = false;
-  // The fact lane's similarity floor for this call, resolved where the lane runs
-  // and reported so a threshold change is legible alongside the scores it moves.
-  let minScoreApplied = options.minScore ?? DEFAULT_FACT_MIN_SCORE;
+  // Whether the `limit` slice actually dropped an eligible result. Recorded at
+  // the cut rather than derived from `candidateCount > limit`: in the fused path
+  // that count is pre-provenance-suppression, so a recall whose suppressed
+  // chunks brought it under the limit reported a truncation that never happened.
+  let hitLimit = false;
+  // The floor the lane that produced these scores actually applied. -1 until a
+  // lane runs: the two lanes have DIFFERENT defaults (0.1 fact / 0.5 chunk), so
+  // pre-seeding the fact default reported a threshold a chunk-only recall never
+  // applied — and reported one at all for an empty query or an unwired context.
+  let minScoreApplied = -1;
 
   /**
    * Why this call returned nothing, from the cheapest explanation to the most
@@ -202,7 +209,12 @@ export async function recall(
     if (admitted > 0) return "";
     if (!query || typeof query !== "string" || query.trim().length === 0) return "empty-query";
     if (!laneRan) return "no-lanes";
-    if (vaultSize === 0) return "vault-empty";
+    // Only when the vault was the ONLY thing that could have answered. On a
+    // mixed fact+chunk recall an empty vault does not explain the chunk lane
+    // coming back empty too, and reporting it would file a real retrieval miss
+    // under the "new user" bucket.
+    const chunkLaneCouldAnswer = types.includes("chunk") && !!ctx.storageCtx;
+    if (vaultSize === 0 && !chunkLaneCouldAnswer) return "vault-empty";
     return "no-candidates";
   };
 
@@ -256,7 +268,7 @@ export async function recall(
       topScore: scores.length > 0 ? Math.max(...scores) : -1,
       lowestAdmittedScore: scores.length > 0 ? Math.min(...scores) : -1,
       minScoreApplied,
-      truncated: candidateCount > limit,
+      truncated: hitLimit,
       graphLaneCount,
       temporalLaneCount,
       emptyReason: emptyReasonFor(admitted.length, laneRan),
@@ -462,6 +474,10 @@ export async function recall(
   if (types.includes("chunk") && ctx.storageCtx && queryEmbedding) {
     const chunkStart = nowMs();
     const chunkMinScore = options.minScore ?? DEFAULT_CHUNK_MIN_SCORE;
+    // Only when the fact lane did not already report its own floor: on a mixed
+    // recall the fact scores dominate the payload, so its floor is the one worth
+    // reading them against.
+    if (minScoreApplied < 0) minScoreApplied = chunkMinScore;
     const results = await searchChunksOp(ctx.storageCtx, queryEmbedding, {
       limit: types.includes("fact") ? Math.max(limit * 2, 16) : limit,
       minSimilarity: chunkMinScore,
@@ -496,6 +512,7 @@ export async function recall(
     const candidateCount = factResults.length + chunkResults.length;
     fuseMs = nowMs() - fuseStart;
     const admitted = memories.slice(0, limit);
+    hitLimit = memories.length > limit;
     emitDiagnostics(candidateCount, admitted);
     return {
       memories: admitted,
@@ -551,14 +568,21 @@ export async function recall(
   // monotonically and converges. Start from "nothing suppressed" and iterate
   // provenance(survivors) until stable; in practice this settles in 1–2 rounds.
   const ordered = [...byId.values()].sort((a, b) => b.score - a.score);
-  const selectWith = (suppressed: Set<string>): RankedMemory[] => {
+  const selectWith = (suppressed: Set<string>): { out: RankedMemory[]; cut: boolean } => {
     const out: RankedMemory[] = [];
+    let cut = false;
     for (const m of ordered) {
-      if (out.length >= limit) break;
       if (m.kind === "chunk" && m.messageId && suppressed.has(m.messageId)) continue;
+      if (out.length >= limit) {
+        // An ELIGIBLE result we had no room for — the only honest definition of
+        // truncation here. Checked after the suppression filter so a suppressed
+        // chunk never counts as something the limit cut.
+        cut = true;
+        break;
+      }
       out.push(m);
     }
-    return out;
+    return { out, cut };
   };
   const provenanceOf = (selected: RankedMemory[]): Set<string> => {
     const s = new Set<string>();
@@ -568,13 +592,16 @@ export async function recall(
     return s;
   };
   let suppressed = new Set<string>();
-  let memories = selectWith(suppressed);
+  let selection = selectWith(suppressed);
+  let memories = selection.out;
   for (let i = 0; i < ordered.length; i++) {
     const next = provenanceOf(memories);
     if (next.size === suppressed.size && [...next].every((id) => suppressed.has(id))) break;
     suppressed = next;
-    memories = selectWith(suppressed);
+    selection = selectWith(suppressed);
+    memories = selection.out;
   }
+  hitLimit = selection.cut;
   fuseMs = nowMs() - fuseStart;
   emitDiagnostics(byId.size, memories);
   return {
