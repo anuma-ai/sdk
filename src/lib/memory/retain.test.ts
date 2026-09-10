@@ -1533,3 +1533,34 @@ describe("retain — the consolidation decision is reported on the result", () =
     expect(result.consolidation).toBeUndefined();
   });
 });
+
+describe("retain — a consolidator `create` survives the strict cosine stage", () => {
+  // Greptile caught this: Stage 1 saying `create` only set an internal flag,
+  // and the flag was read on the final create path only. When Stage 2's strict
+  // cosine merge won, the model's decision vanished from the distribution the
+  // field exists to report — and the DISAGREEMENT between the two stages is
+  // exactly the interesting case.
+  it("stamps the decision on a Stage-2 merge, so the two stages' disagreement is visible", async () => {
+    mockVaultMatchesOnce([{ uniqueId: "other", content: "Owns a rope", similarity: 0.6 }]);
+    mockVaultMatchesOnce([{ uniqueId: "close", content: "Climbs at Movement", similarity: 0.93 }]);
+    vi.mocked(consolidateMemory).mockResolvedValue({ action: "create" });
+    vi.mocked(getVaultMemoryOp).mockResolvedValue({
+      uniqueId: "close",
+      content: "Climbs at Movement",
+      proofCount: 1,
+      sourceChunkIds: [],
+      eventTimeStart: null,
+    } as never);
+    vi.mocked(updateVaultMemoryOp).mockResolvedValue({ proofCount: 2 } as never);
+
+    const result = await retain("Climbs at Movement gym", ctx, {
+      consolidateOptions: { apiKey: "k" },
+    });
+
+    expect(result).toMatchObject({
+      action: "merge",
+      memoryId: "close",
+      consolidation: "create",
+    });
+  });
+});

@@ -36,7 +36,7 @@ Survivors of PII de-anonymization (equals `validCandidateCount` when redaction i
 
 > **failedCount**: `number`
 
-Defined in: [src/lib/memory/autoExtract.ts:379](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#379)
+Defined in: [src/lib/memory/autoExtract.ts:383](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#383)
 
 `retain()` threw.
 
@@ -46,9 +46,11 @@ Defined in: [src/lib/memory/autoExtract.ts:379](https://github.com/anuma-ai/sdk/
 
 > **quarantinedCount**: `number`
 
-Defined in: [src/lib/memory/autoExtract.ts:375](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#375)
+Defined in: [src/lib/memory/autoExtract.ts:379](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#379)
 
-Held for review by the injection screen (deterministic + optional LLM layer).
+Held for review by the injection screen and SUCCESSFULLY persisted — the
+same set as `extractAndRetain`'s `quarantined`. A screened candidate whose
+`retain()` threw is in `failedCount` instead, never both.
 
 ***
 
@@ -66,7 +68,7 @@ Candidates in the model's completion, before any validation.
 
 > **retainedCount**: `number`
 
-Defined in: [src/lib/memory/autoExtract.ts:377](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#377)
+Defined in: [src/lib/memory/autoExtract.ts:381](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#381)
 
 Written through `retain()` (any disposition).
 

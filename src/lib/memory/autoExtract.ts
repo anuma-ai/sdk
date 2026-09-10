@@ -371,7 +371,11 @@ export interface ExtractionFunnel {
   afterRedactionCount: number;
   /** Survivors of the `minConfidence` floor — the candidates that reached the injection screen. */
   aboveConfidenceCount: number;
-  /** Held for review by the injection screen (deterministic + optional LLM layer). */
+  /**
+   * Held for review by the injection screen and SUCCESSFULLY persisted — the
+   * same set as `extractAndRetain`'s `quarantined`. A screened candidate whose
+   * `retain()` threw is in `failedCount` instead, never both.
+   */
   quarantinedCount: number;
   /** Written through `retain()` (any disposition). */
   retainedCount: number;
@@ -926,7 +930,11 @@ export async function extractAndRetain(
       validCandidateCount,
       afterRedactionCount: candidates.length,
       aboveConfidenceCount: filtered.length,
-      quarantinedCount: quarantined.length,
+      // The PERSISTED quarantines (`quarantinedInfo`), not the screened list: a
+      // screened candidate whose retain() throws is counted in `failedCount`,
+      // and counting it here too would double it and break the identity below.
+      // This also keeps the count equal to `quarantined.length` on the result.
+      quarantinedCount: quarantinedInfo.length,
       retainedCount: results.length,
       failedCount: failedWrites,
     },

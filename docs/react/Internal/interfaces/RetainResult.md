@@ -16,9 +16,16 @@ Defined in: [src/lib/memory/types.ts:559](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **consolidation**: [`ConsolidationAction`](../type-aliases/ConsolidationAction.md)
 
-Defined in: [src/lib/memory/types.ts:578](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#578)
+Defined in: [src/lib/memory/types.ts:597](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#597)
 
-The consolidation LLM's decision, when the write followed one — see [ConsolidationAction](../type-aliases/ConsolidationAction.md).
+What the consolidation LLM decided for this candidate, when consolidation
+ran — see [ConsolidationAction](../type-aliases/ConsolidationAction.md).
+
+Reported for the DECISION, not for what the write ended up doing, so the
+two can disagree and be read as such: a `merge` carrying
+`consolidation: "create"` is the model saying "new fact" and the strict
+cosine stage merging anyway. Absent when consolidation did not run, and
+absent on a degraded fallback create (`onFallback` owns that signal).
 
 ***
 
@@ -44,11 +51,21 @@ Updated proof\_count after this write. 0 when nothing was written (suppressed).
 
 > `optional` **similarity**: `number`
 
-Defined in: [src/lib/memory/types.ts:576](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#576)
+Defined in: [src/lib/memory/types.ts:586](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#586)
 
-The cosine similarity that decided a `merge` (against the target) or a
-`suppressed` (against the tombstone). Absent on the other actions. Lets a
-host read how close to the threshold the merges it sees actually are.
+How close the write was to the threshold that allowed it. Absent on the
+actions that have no such score (`create`, `update`, `supersede`, `skip`).
+
+The two paths report DIFFERENT things and a dashboard has to know which:
+
+* `suppressed` — an exact cosine against the tombstone, computed in
+  `findTombstoneMatch`.
+* `merge` — the RANKER's score for the target, not a pure cosine. The
+  cosine is what cleared `minSimilarity`, but the supersession pass may
+  then adjust it (`oldScore - delta` / `newScore + delta`) before this
+  value is read, and can in principle reorder the winner. Read it as
+  "the score the merge was chosen on", within the supersession delta of
+  the cosine — not as the raw pairwise similarity.
 
 ***
 

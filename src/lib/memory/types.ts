@@ -569,11 +569,30 @@ export interface RetainResult {
   /** Updated proof_count after this write. 0 when nothing was written (suppressed). */
   proofCount: number;
   /**
-   * The cosine similarity that decided a `merge` (against the target) or a
-   * `suppressed` (against the tombstone). Absent on the other actions. Lets a
-   * host read how close to the threshold the merges it sees actually are.
+   * How close the write was to the threshold that allowed it. Absent on the
+   * actions that have no such score (`create`, `update`, `supersede`, `skip`).
+   *
+   * The two paths report DIFFERENT things and a dashboard has to know which:
+   *
+   * - `suppressed` — an exact cosine against the tombstone, computed in
+   *   `findTombstoneMatch`.
+   * - `merge` — the RANKER's score for the target, not a pure cosine. The
+   *   cosine is what cleared `minSimilarity`, but the supersession pass may
+   *   then adjust it (`oldScore - delta` / `newScore + delta`) before this
+   *   value is read, and can in principle reorder the winner. Read it as
+   *   "the score the merge was chosen on", within the supersession delta of
+   *   the cosine — not as the raw pairwise similarity.
    */
   similarity?: number;
-  /** The consolidation LLM's decision, when the write followed one — see {@link ConsolidationAction}. */
+  /**
+   * What the consolidation LLM decided for this candidate, when consolidation
+   * ran — see {@link ConsolidationAction}.
+   *
+   * Reported for the DECISION, not for what the write ended up doing, so the
+   * two can disagree and be read as such: a `merge` carrying
+   * `consolidation: "create"` is the model saying "new fact" and the strict
+   * cosine stage merging anyway. Absent when consolidation did not run, and
+   * absent on a degraded fallback create (`onFallback` owns that signal).
+   */
   consolidation?: ConsolidationAction;
 }

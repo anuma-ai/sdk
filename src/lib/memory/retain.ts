@@ -258,6 +258,12 @@ export async function retain(
               targetId,
               proofCount: updated.proofCount ?? (existing.proofCount ?? 1) + 1,
               similarity: matches[0].similarity,
+              // Stage 1 may have run and explicitly said `create`, and Stage 2
+              // then found a strict-cosine match anyway. Reporting the decision
+              // here is what makes that DISAGREEMENT visible — without it the
+              // model's create silently vanished from the distribution whenever
+              // the cosine stage won.
+              ...(consolidationDecidedCreate && { consolidation: "create" as const }),
             };
           }
           // A null result collapses two very different outcomes: the target was
