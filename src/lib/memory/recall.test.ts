@@ -1366,3 +1366,170 @@ describe("recall — a fact lane with nothing to rank cannot vouch for cosine", 
     expect(seen[0].degraded).not.toContain("embeddings-unavailable");
   });
 });
+
+// ---------------------------------------------------------------------------
+// What the caller actually GOT, and why it got nothing when it did. These
+// fields exist because `candidateCount` was the only count on the payload and
+// every consumer read it as "memories this turn received" — it is not: the
+// fact lane pulls `limit * 2` when fusing, and the `limit` slice happens after.
+// ---------------------------------------------------------------------------
+
+describe("recall — diagnostics: what was admitted", () => {
+  it("separates what was considered from what was returned, and flags the cut", async () => {
+    const seen: RecallDiagnostics[] = [];
+    // Fusing kinds makes the fact lane pull `max(limit * 2, 16)` while the
+    // `limit` slice still cuts to 1 — which is exactly the gap the two counts
+    // exist to show. (A fact-only call passes `limit` straight to the lane, so
+    // the two are equal there by construction.)
+    const result = await recall(QUERY, makeCtx(), {
+      types: ["fact", "chunk"],
+      limit: 1,
+      onDiagnostics: (d) => seen.push(d),
+    });
+
+    const d = seen[0];
+    expect(result.memories).toHaveLength(1);
+    expect(d.admittedCount).toBe(1);
+    expect(d.candidateCount).toBeGreaterThan(d.admittedCount);
+    // A caller seeing exactly `limit` memories cannot otherwise tell a lucky fit
+    // from a truncation.
+    expect(d.truncated).toBe(true);
+  });
+
+  it("does not claim truncation when everything fit", async () => {
+    const seen: RecallDiagnostics[] = [];
+    await recall(QUERY, makeCtx(), {
+      types: ["fact"],
+      limit: 50,
+      onDiagnostics: (d) => seen.push(d),
+    });
+    expect(seen[0].truncated).toBe(false);
+  });
+
+  it("reports the admitted score range and the floor it cleared", async () => {
+    const seen: RecallDiagnostics[] = [];
+    const result = await recall(QUERY, makeCtx(), {
+      types: ["fact"],
+      minScore: 0.2,
+      onDiagnostics: (d) => seen.push(d),
+    });
+
+    const d = seen[0];
+    const scores = result.memories.map((m) => m.score);
+    expect(d.topScore).toBeCloseTo(Math.max(...scores), 10);
+    expect(d.lowestAdmittedScore).toBeCloseTo(Math.min(...scores), 10);
+    // The scores alone cannot say what they cleared — a threshold change has to
+    // be legible in the same series it moves.
+    expect(d.minScoreApplied).toBe(0.2);
+  });
+
+  it("sentinels the scores rather than reporting 0 when nothing was admitted", async () => {
+    // 0 is a real score. Reporting it for "there were no scores" would put an
+    // empty turn in the same bucket as a turn whose best hit scored zero.
+    const seen: RecallDiagnostics[] = [];
+    vi.mocked(getAllVaultMemoriesOp).mockResolvedValue([]);
+    vi.mocked(countActiveVaultMemoriesOp).mockResolvedValue(0);
+
+    const result = await recall(QUERY, makeCtx(), {
+      types: ["fact"],
+      onDiagnostics: (d) => seen.push(d),
+    });
+
+    expect(result.memories).toHaveLength(0);
+    expect(seen[0]).toMatchObject({ admittedCount: 0, topScore: -1, lowestAdmittedScore: -1 });
+  });
+});
+
+describe("recall — diagnostics: emptyReason", () => {
+  it("is empty on a turn that returned something", async () => {
+    const seen: RecallDiagnostics[] = [];
+    await recall(QUERY, makeCtx(), { types: ["fact"], onDiagnostics: (d) => seen.push(d) });
+    expect(seen[0].emptyReason).toBe("");
+  });
+
+  it("names a blank query", async () => {
+    const seen: RecallDiagnostics[] = [];
+    await recall("   ", makeCtx(), { onDiagnostics: (d) => seen.push(d) });
+    expect(seen[0].emptyReason).toBe("empty-query");
+  });
+
+  it("names an empty vault", async () => {
+    const seen: RecallDiagnostics[] = [];
+    vi.mocked(getAllVaultMemoriesOp).mockResolvedValue([]);
+    vi.mocked(countActiveVaultMemoriesOp).mockResolvedValue(0);
+
+    await recall(QUERY, makeCtx(), { types: ["fact"], onDiagnostics: (d) => seen.push(d) });
+    expect(seen[0].emptyReason).toBe("vault-empty");
+  });
+
+  it("names a populated vault that matched nothing", async () => {
+    // The only one of the four that is about retrieval QUALITY — the others are
+    // wiring or a new user, and lumping them together is what made the empty
+    // rate unreadable.
+    const seen: RecallDiagnostics[] = [];
+    // A query orthogonal to every stored vector: the vault has rows, the lane
+    // ran, and nothing cleared the floor.
+    await recall("entirely unrelated subject matter", makeCtx(), {
+      types: ["fact"],
+      onDiagnostics: (d) => seen.push(d),
+    });
+
+    expect(seen[0]).toMatchObject({ admittedCount: 0, emptyReason: "no-candidates" });
+  });
+
+  it("names a context that could not serve the requested kinds", async () => {
+    const seen: RecallDiagnostics[] = [];
+    await recall(QUERY, makeCtx({ vaultCtx: undefined, vaultCache: undefined }), {
+      types: ["fact"],
+      onDiagnostics: (d) => seen.push(d),
+    });
+    expect(seen[0].emptyReason).toBe("no-lanes");
+  });
+});
+
+describe("recall — diagnostics: side lanes", () => {
+  it("counts what the graph and temporal lanes contributed", async () => {
+    const seen: RecallDiagnostics[] = [];
+    vi.mocked(getMemoriesByEntityNamesOp).mockResolvedValue(new Map([["bailey", ["m1"]]]));
+    vi.mocked(getMemoriesByEventTimeOp).mockResolvedValue([]);
+
+    await recall("what do I know about Bailey", makeCtx({ entityCtx }), {
+      types: ["fact"],
+      onDiagnostics: (d) => seen.push(d),
+    });
+
+    const d = seen[0];
+    expect(d.graphLaneCount).toBeGreaterThanOrEqual(0);
+    expect(d.temporalLaneCount).toBe(0);
+  });
+
+  it("reports a thrown side lane instead of only logging it", async () => {
+    // safeLane degrades an auxiliary lane to an empty ranking so recall still
+    // returns — but it returns ranked WITHOUT that lane's RRF signal, and that
+    // silent quality change had no telemetry counterpart.
+    const seen: RecallDiagnostics[] = [];
+    vi.mocked(getMemoriesByEntityNamesOp).mockRejectedValue(new Error("db exploded"));
+
+    const result = await recall("what do I know about Bailey", makeCtx({ entityCtx }), {
+      types: ["fact"],
+      onDiagnostics: (d) => seen.push(d),
+    });
+
+    // Still served — the lane is auxiliary.
+    expect(result.memories.length).toBeGreaterThan(0);
+    expect(seen[0].degraded).toContain("graph-lane-failed");
+  });
+
+  it("reports a thrown temporal lane", async () => {
+    const seen: RecallDiagnostics[] = [];
+    vi.mocked(getMemoriesByEventTimeOp).mockRejectedValue(new Error("db exploded"));
+
+    const result = await recall("what is coming up next week", makeCtx(), {
+      types: ["fact"],
+      onDiagnostics: (d) => seen.push(d),
+    });
+
+    expect(result.memories.length).toBeGreaterThanOrEqual(0);
+    expect(seen[0].degraded).toContain("temporal-lane-failed");
+  });
+});

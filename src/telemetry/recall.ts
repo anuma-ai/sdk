@@ -88,6 +88,15 @@ export function createRecallDiagnosticsHandler(
       usedBudget: diagnostics.usedBudget,
       reranked: diagnostics.reranked,
       candidateCount: diagnostics.candidateCount,
+      // What the caller actually GOT. `candidateCount` is what was considered,
+      // and the two are routinely far apart — the fact lane pulls `limit * 2`
+      // when fusing — so a consumer reading candidateCount as "memories this
+      // turn received" overcounts.
+      admittedCount: diagnostics.admittedCount,
+      topScore: diagnostics.topScore,
+      minScoreApplied: diagnostics.minScoreApplied,
+      truncated: diagnostics.truncated,
+      emptyReason: diagnostics.emptyReason,
       factCount: diagnostics.factCount,
       chunkCount: diagnostics.chunkCount,
       totalMs: diagnostics.timings.total,
@@ -103,8 +112,11 @@ export function createRecallDiagnosticsHandler(
       metric("recall.duration", ms, { lane });
     }
     metric("recall.candidates", diagnostics.candidateCount, {});
+    metric("recall.admitted", diagnostics.admittedCount, {});
     metric("recall.facts", diagnostics.factCount, {});
     metric("recall.chunks", diagnostics.chunkCount, {});
+    metric("recall.lane.graph", diagnostics.graphLaneCount, {});
+    metric("recall.lane.temporal", diagnostics.temporalLaneCount, {});
     if (diagnostics.vaultSize !== undefined) {
       metric("recall.vault.size", diagnostics.vaultSize, {});
     }

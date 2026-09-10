@@ -1402,6 +1402,12 @@ Re-exports [RecallDiagnostics](../react/Internal/interfaces/RecallDiagnostics.md
 
 ***
 
+### RecallEmptyReason
+
+Re-exports [RecallEmptyReason](../react/Internal/type-aliases/RecallEmptyReason.md)
+
+***
+
 ### RecallOptions
 
 Re-exports [RecallOptions](../react/Internal/interfaces/RecallOptions.md)

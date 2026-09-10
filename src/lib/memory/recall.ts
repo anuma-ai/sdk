@@ -47,6 +47,7 @@ import type {
   RecallContext,
   RecallDegradation,
   RecallDiagnostics,
+  RecallEmptyReason,
   RecallOptions,
   RecallResult,
 } from "./types.js";
@@ -182,8 +183,30 @@ export async function recall(
   // reported instead of echoed from the caller's option (#845).
   let decryptLastRan: boolean | undefined;
   let vaultRowsDecrypted: number | undefined;
+  // Side-lane sizes and failures. `safeLane` degrades a throwing auxiliary lane
+  // to an empty ranking, which used to be indistinguishable from "the lane ran
+  // and matched nothing" — the count says which, and the flag says it failed.
+  let graphLaneCount = 0;
+  let temporalLaneCount = 0;
+  let graphLaneFailed = false;
+  let temporalLaneFailed = false;
+  // The fact lane's similarity floor for this call, resolved where the lane runs
+  // and reported so a threshold change is legible alongside the scores it moves.
+  let minScoreApplied = options.minScore ?? DEFAULT_FACT_MIN_SCORE;
 
-  const emitDiagnostics = (candidateCount: number): void => {
+  /**
+   * Why this call returned nothing, from the cheapest explanation to the most
+   * specific. Only ever consulted when `admitted` is empty.
+   */
+  const emptyReasonFor = (admitted: number, laneRan: boolean): RecallEmptyReason => {
+    if (admitted > 0) return "";
+    if (!query || typeof query !== "string" || query.trim().length === 0) return "empty-query";
+    if (!laneRan) return "no-lanes";
+    if (vaultSize === 0) return "vault-empty";
+    return "no-candidates";
+  };
+
+  const emitDiagnostics = (candidateCount: number, admitted: readonly RankedMemory[]): void => {
     const cb = options.onDiagnostics;
     if (!cb) return;
     const degraded: RecallDegradation[] = [];
@@ -207,6 +230,18 @@ export async function recall(
       degraded.push("decompose-moved");
     }
     if (embeddingsUnavailable) degraded.push("embeddings-unavailable");
+    // An auxiliary lane that threw still let recall return, so it is a soft
+    // degradation — but it silently removed an RRF signal from the ranking, and
+    // before this it was a log line with no counterpart in telemetry.
+    if (graphLaneFailed) degraded.push("graph-lane-failed");
+    if (temporalLaneFailed) degraded.push("temporal-lane-failed");
+    // `laneRan` is "some store was wired for the kinds asked for". False means
+    // the context could not serve this request at all, which is a different
+    // problem from finding nothing.
+    const laneRan =
+      (types.includes("fact") && !!ctx.vaultCtx && !!ctx.vaultCache) ||
+      (types.includes("chunk") && !!ctx.storageCtx);
+    const scores = admitted.map((m) => m.score);
     const diagnostics: RecallDiagnostics = {
       usedBudget,
       reranked: didRerank,
@@ -217,6 +252,14 @@ export async function recall(
       ...(vaultRowsEmbedded !== undefined && { vaultRowsEmbedded }),
       factCount: factResults.length,
       chunkCount: chunkResults.length,
+      admittedCount: admitted.length,
+      topScore: scores.length > 0 ? Math.max(...scores) : -1,
+      lowestAdmittedScore: scores.length > 0 ? Math.min(...scores) : -1,
+      minScoreApplied,
+      truncated: candidateCount > limit,
+      graphLaneCount,
+      temporalLaneCount,
+      emptyReason: emptyReasonFor(admitted.length, laneRan),
       timings: {
         total: nowMs() - t0,
         prep: prepMs,
@@ -238,7 +281,7 @@ export async function recall(
   };
 
   if (!query || typeof query !== "string" || query.trim().length === 0) {
-    emitDiagnostics(0);
+    emitDiagnostics(0, []);
     return { memories: [], usedBudget, reranked: false, candidateCount: 0 };
   }
 
@@ -297,24 +340,34 @@ export async function recall(
     // WatermelonDB throw in either must NOT reject this Promise.all and take
     // PRIMARY cosine/BM25 recall down with it — degrade the failing lane to an
     // empty ranking instead (mirrors safeCountVault's fail-soft posture).
-    safeLane("graph", () =>
-      buildGraphLaneRanking(query, ctx, flags.traverse, {
-        ...(options.maxHops !== undefined && { maxHops: options.maxHops }),
-        ...(options.entityFanout !== undefined && { entityFanout: options.entityFanout }),
-        ...(options.nodeBudget !== undefined && { nodeBudget: options.nodeBudget }),
-        ...(options.rrfK !== undefined && { rrfK: options.rrfK }),
-        ...(graphRefiner && { refineNeighbors: graphRefiner }),
-      })
+    safeLane(
+      "graph",
+      () => (graphLaneFailed = true),
+      () =>
+        buildGraphLaneRanking(query, ctx, flags.traverse, {
+          ...(options.maxHops !== undefined && { maxHops: options.maxHops }),
+          ...(options.entityFanout !== undefined && { entityFanout: options.entityFanout }),
+          ...(options.nodeBudget !== undefined && { nodeBudget: options.nodeBudget }),
+          ...(options.rrfK !== undefined && { rrfK: options.rrfK }),
+          ...(graphRefiner && { refineNeighbors: graphRefiner }),
+        })
     ),
     wantsTemporal
-      ? safeLane("temporal", () => buildTemporalLaneRanking(query, ctx.vaultCtx!, options.now))
+      ? safeLane(
+          "temporal",
+          () => (temporalLaneFailed = true),
+          () => buildTemporalLaneRanking(query, ctx.vaultCtx!, options.now)
+        )
       : Promise.resolve([] as string[]),
   ]);
   prepMs = nowMs() - prepStart;
+  graphLaneCount = entityRanking.length;
+  temporalLaneCount = temporalRanking.length;
 
   if (types.includes("fact") && ctx.vaultCtx && ctx.vaultCache) {
     const factStart = nowMs();
     const vaultMinScore = options.minScore ?? DEFAULT_FACT_MIN_SCORE;
+    minScoreApplied = vaultMinScore;
     const {
       results,
       vaultSize: size,
@@ -442,9 +495,10 @@ export async function recall(
     memories.sort((a, b) => b.score - a.score);
     const candidateCount = factResults.length + chunkResults.length;
     fuseMs = nowMs() - fuseStart;
-    emitDiagnostics(candidateCount);
+    const admitted = memories.slice(0, limit);
+    emitDiagnostics(candidateCount, admitted);
     return {
-      memories: memories.slice(0, limit),
+      memories: admitted,
       usedBudget,
       reranked: didRerank,
       candidateCount,
@@ -522,7 +576,7 @@ export async function recall(
     memories = selectWith(suppressed);
   }
   fuseMs = nowMs() - fuseStart;
-  emitDiagnostics(byId.size);
+  emitDiagnostics(byId.size, memories);
   return {
     memories,
     usedBudget,
@@ -692,10 +746,19 @@ async function safeCountVault(ctx: RecallContext): Promise<number | undefined> {
  * fail-soft posture, but logs a warning so a persistently-broken lane is
  * observable rather than silently disabled.
  */
-async function safeLane(label: string, run: () => Promise<string[]>): Promise<string[]> {
+async function safeLane(
+  label: string,
+  onFailure: () => void,
+  run: () => Promise<string[]>
+): Promise<string[]> {
   try {
     return await run();
   } catch (err) {
+    // Report as well as log. The lane is auxiliary so recall still returns, but
+    // it returns ranked WITHOUT this lane's signal — a silent quality change
+    // that had no telemetry counterpart until `graph-lane-failed` /
+    // `temporal-lane-failed` joined RecallDegradation.
+    onFailure();
     getLogger().warn(
       `[memory/recall] ${label} lane failed; continuing without it: ${
         err instanceof Error ? err.message : String(err)

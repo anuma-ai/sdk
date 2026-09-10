@@ -308,7 +308,26 @@ export type RecallDegradation =
    *  failing back to the single-query path, or a row batch failing while other
    *  rows keep usable vectors) — those are logged, not reported, so this stays a
    *  reliable outage signal rather than a general embedding-error counter. */
-  | "embeddings-unavailable";
+  | "embeddings-unavailable"
+  /** The W5 graph (entity) side lane threw and was dropped. Auxiliary, so recall
+   *  still returned — but its RRF signal is missing from the ranking, and until
+   *  this existed the drop was a log line and nothing else. */
+  | "graph-lane-failed"
+  /** The W6 temporal side lane threw and was dropped. Same posture as the graph
+   *  lane: recall still returned, ranked without the temporal signal. */
+  | "temporal-lane-failed";
+
+/**
+ * Why a recall returned nothing. `""` when it returned something, so the field
+ * is always present and groupable rather than being absent on the healthy path.
+ *
+ * The four are different problems: an empty query is a caller bug, no-lanes is a
+ * context wiring bug (the requested kinds have no store), vault-empty is a new
+ * user, and no-candidates is the only one that is about retrieval quality. They
+ * were previously indistinguishable from outside — every one reported
+ * `candidateCount: 0`.
+ */
+export type RecallEmptyReason = "" | "empty-query" | "no-lanes" | "vault-empty" | "no-candidates";
 
 /**
  * Per-call recall observability payload (see {@link RecallOptions.onDiagnostics}).
@@ -360,6 +379,38 @@ export interface RecallDiagnostics {
   factCount: number;
   /** Chunks the chunk lane returned (post-dedupe, pre-fusion). */
   chunkCount: number;
+  /**
+   * Memories actually RETURNED — `memories.length` after fusion, cross-lane
+   * dedup and the `limit` slice.
+   *
+   * `candidateCount` is what was considered; this is what the caller got, and
+   * the two are routinely far apart (the fact lane pulls `limit * 2` when fusing).
+   * Every consumer that wanted "how many memories did this turn actually get"
+   * was reading `candidateCount` and overcounting.
+   */
+  admittedCount: number;
+  /** Highest score among the returned memories; -1 when none were returned. */
+  topScore: number;
+  /** Lowest score among the returned memories; -1 when none were returned. */
+  lowestAdmittedScore: number;
+  /**
+   * The fact lane's similarity floor for this call (`options.minScore` or the
+   * default). Reported next to the scores so a threshold change is legible in
+   * the same series it moves — the scores alone can't say what they cleared.
+   */
+  minScoreApplied: number;
+  /**
+   * Whether the `limit` slice actually cut something (`candidateCount > limit`).
+   * A caller seeing exactly `limit` memories cannot otherwise tell a lucky fit
+   * from a truncation.
+   */
+  truncated: boolean;
+  /** Memory ids the W5 graph (entity) side lane contributed to the fusion. */
+  graphLaneCount: number;
+  /** Memory ids the W6 temporal side lane contributed to the fusion. */
+  temporalLaneCount: number;
+  /** Why nothing came back — see {@link RecallEmptyReason}. `""` when something did. */
+  emptyReason: RecallEmptyReason;
   /** Wall-clock phase timings (ms). */
   timings: {
     /** Whole `recall()` call. */
