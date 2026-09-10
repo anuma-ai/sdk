@@ -97,6 +97,8 @@ export async function retain(
   // All stale memories the consolidator wants retired (every duplicate of a
   // now-changed standing value), and the refined new-fact content.
   let supersedeTargetIds: string[] = [];
+  // The consolidator explicitly chose `create` (not a fallback) — reported on the result.
+  let consolidationDecidedCreate = false;
   let supersedeContent: string | undefined;
   // Shared candidate set for both merge stages, built once below when
   // auto-merge is on. Kept in the outer scope so the create path can reuse its
@@ -173,8 +175,12 @@ export async function retain(
       const outcome = await tryConsolidate(trimmed, ctx, options, prepared);
       if (outcome) {
         if ("done" in outcome) return outcome.done;
-        supersedeTargetIds = outcome.supersede;
-        supersedeContent = outcome.content;
+        if ("create" in outcome) {
+          consolidationDecidedCreate = true;
+        } else {
+          supersedeTargetIds = outcome.supersede;
+          supersedeContent = outcome.content;
+        }
       }
     }
 
@@ -251,6 +257,7 @@ export async function retain(
               memoryId: targetId,
               targetId,
               proofCount: updated.proofCount ?? (existing.proofCount ?? 1) + 1,
+              similarity: matches[0].similarity,
             };
           }
           // A null result collapses two very different outcomes: the target was
@@ -291,12 +298,18 @@ export async function retain(
   // target that vanished mid-flight is now soft-deleted, so it's suppressed
   // here instead of re-created.
   if (options.respectTombstones) {
-    const tombstoneId = await findTombstoneMatch(embedding, embeddingModel, resolvedScope, ctx, {
+    const tombstone = await findTombstoneMatch(embedding, embeddingModel, resolvedScope, ctx, {
       threshold,
       folderId: options.folderId,
     });
-    if (tombstoneId) {
-      return { action: "suppressed", memoryId: tombstoneId, tombstoneId, proofCount: 0 };
+    if (tombstone) {
+      return {
+        action: "suppressed",
+        memoryId: tombstone.id,
+        tombstoneId: tombstone.id,
+        proofCount: 0,
+        similarity: tombstone.similarity,
+      };
     }
   }
 
@@ -391,6 +404,7 @@ export async function retain(
         memoryId: created.uniqueId,
         targetId: primaryTargetId,
         proofCount: 1,
+        consolidation: "supersede",
       };
     }
     // Primary lost the race (already retired/deleted by a concurrent
@@ -423,6 +437,7 @@ export async function retain(
     action: "create",
     memoryId: created.uniqueId,
     proofCount: 1,
+    ...(consolidationDecidedCreate && { consolidation: "create" as const }),
   };
 }
 
@@ -452,7 +467,7 @@ async function findTombstoneMatch(
   scope: string,
   ctx: RetainContext,
   opts: { threshold: number; folderId?: string | null }
-): Promise<string | null> {
+): Promise<{ id: string; similarity: number } | null> {
   const rows = await getAllVaultMemoriesOp(ctx.vaultCtx, {
     includeDeleted: true,
     scopes: [scope],
@@ -477,7 +492,7 @@ async function findTombstoneMatch(
       bestId = row.uniqueId;
     }
   }
-  return bestId;
+  return bestId === null ? null : { id: bestId, similarity: bestSim };
 }
 
 /**
@@ -562,7 +577,12 @@ function resurrectFields(existing: {
  *   stale `supersede` id. `content` is the refined new fact from the consolidator.
  * - `null` — no consolidation decision; fall through to strict merge / create.
  */
-type ConsolidateOutcome = { done: RetainResult } | { supersede: string[]; content: string } | null;
+type ConsolidateOutcome =
+  | { done: RetainResult }
+  | { supersede: string[]; content: string }
+  /** The LLM explicitly chose `create` — not a fallback, which returns null. */
+  | { create: true }
+  | null;
 
 /**
  * Report a consolidation decision that was dropped because the row it named was
@@ -620,7 +640,9 @@ async function tryConsolidate(
   const { consolidateMemory: doConsolidate } = await import("./consolidate.js");
   const decision = await doConsolidate(trimmed, candidates, consolidateOptions);
 
-  if (decision.action === "create") return null; // fall through to insert
+  // Fall through to insert either way; the flag distinguishes a real `create`
+  // decision from a degraded fallback (`fallbackReason` set, reported via onFallback).
+  if (decision.action === "create") return decision.fallbackReason ? null : { create: true };
 
   // supersede — the new fact replaces a standing value that changed. Validate
   // the stale target still exists AND isn't already retired (a concurrent
@@ -704,6 +726,7 @@ async function tryConsolidate(
         memoryId: decision.targetId,
         targetId: decision.targetId,
         proofCount: updated.proofCount ?? (existing.proofCount ?? 1) + 1,
+        consolidation: "noop",
       },
     };
   }
@@ -767,6 +790,7 @@ async function tryConsolidate(
         memoryId: decision.targetId,
         targetId: decision.targetId,
         proofCount: updated.proofCount ?? (existing.proofCount ?? 1) + 1,
+        consolidation: "update",
       },
     };
   }

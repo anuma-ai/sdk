@@ -413,6 +413,16 @@ export interface RecallDiagnostics {
 // ---------------------------------------------------------------------------
 
 export type RetainAction = "create" | "merge" | "update" | "skip" | "suppressed" | "supersede";
+
+/**
+ * The consolidation LLM's decision for a candidate, when it made one. Reported
+ * on {@link RetainResult.consolidation} so a host can tell an LLM `noop` (the
+ * fact already exists) from a cosine auto-merge — both arrive as
+ * `action: "merge"` — and can read how often the model reaches for `supersede`
+ * or `update` versus `create`. A degraded fallback create (LLM error, bad
+ * response) carries no decision; `onFallback` reports those.
+ */
+export type ConsolidationAction = "create" | "update" | "noop" | "supersede";
 export type RetainSource = "manual" | "auto-extracted" | "capsule";
 
 /**
@@ -558,4 +568,12 @@ export interface RetainResult {
   tombstoneId?: string;
   /** Updated proof_count after this write. 0 when nothing was written (suppressed). */
   proofCount: number;
+  /**
+   * The cosine similarity that decided a `merge` (against the target) or a
+   * `suppressed` (against the tombstone). Absent on the other actions. Lets a
+   * host read how close to the threshold the merges it sees actually are.
+   */
+  similarity?: number;
+  /** The consolidation LLM's decision, when the write followed one — see {@link ConsolidationAction}. */
+  consolidation?: ConsolidationAction;
 }

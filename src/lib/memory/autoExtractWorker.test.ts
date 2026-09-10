@@ -29,12 +29,28 @@ const baseOptions = {
  */
 type ExtractAndRetainResult = Awaited<ReturnType<typeof extractAndRetain>>;
 
+/** A funnel/timings/model triple for fixtures; the worker forwards these verbatim. */
+const TELEMETRY_FIXTURE = {
+  funnel: {
+    rawCandidateCount: 0,
+    validCandidateCount: 0,
+    afterRedactionCount: 0,
+    aboveConfidenceCount: 0,
+    quarantinedCount: 0,
+    retainedCount: 0,
+    failedCount: 0,
+  },
+  timings: { extractMs: 7, retainMs: 3 },
+  model: "gpt-oss/gpt-oss-120b",
+} satisfies Pick<ExtractAndRetainResult, "funnel" | "timings" | "model">;
+
 const EMPTY_RESULT: ExtractAndRetainResult = {
   candidates: [],
   results: [],
   failedCount: 0,
   outcome: "no-facts",
   quarantined: [],
+  ...TELEMETRY_FIXTURE,
 };
 
 /** Build n messages with ids m0..m(n-1). Tests assert on `.id`, so role/content are filler. */
@@ -368,6 +384,8 @@ describe("createAutoExtractor", () => {
       failedCount: 0,
       outcome: "extracted",
       quarantined: [],
+      ...TELEMETRY_FIXTURE,
+      funnel: { ...TELEMETRY_FIXTURE.funnel, rawCandidateCount: 3, validCandidateCount: 2 },
     });
     const onMemoryExtracted = vi.fn();
     const onTurnComplete = vi.fn();
@@ -392,6 +410,11 @@ describe("createAutoExtractor", () => {
       candidates: expect.arrayContaining([expect.objectContaining({ content: "fact 1" })]),
       results: expect.any(Array),
       conversationId: "c1",
+      // The pre-retain funnel, the extract/retain split and the model ride along
+      // verbatim — a host emits them, so a drop here would silently zero a dashboard.
+      funnel: expect.objectContaining({ rawCandidateCount: 3, validCandidateCount: 2 }),
+      timings: { extractMs: 7, retainMs: 3 },
+      model: "gpt-oss/gpt-oss-120b",
     });
   });
 

@@ -64,6 +64,8 @@ import {
   extractAndRetain,
   type ExtractedCandidate,
   type ExtractFactsOptions,
+  type ExtractionFunnel,
+  type ExtractionTimings,
   type ExtractOutcome,
   type QuarantinedMemoryInfo,
 } from "./autoExtract.js";
@@ -145,6 +147,16 @@ export interface TurnCompleteEvent {
    * carries content.
    */
   failure?: PortalLlmFailure;
+  /**
+   * Where the candidates went between the model and the vault, as counts — the
+   * drops before `retain()` that `candidates`/`results` cannot show. See
+   * {@link ExtractionFunnel}.
+   */
+  funnel?: ExtractionFunnel;
+  /** Extract vs. retain wall-clock split of `durationMs`. See {@link ExtractionTimings}. */
+  timings?: ExtractionTimings;
+  /** The extraction model this turn asked for. */
+  model?: string;
 }
 
 /** @public */
@@ -648,10 +660,8 @@ export function createAutoExtractor(options: CreateAutoExtractorOptions): AutoEx
 
     void (async () => {
       try {
-        const { candidates, results, failedCount, outcome, failure } = await extractAndRetain(
-          window,
-          retainCtx,
-          {
+        const { candidates, results, failedCount, outcome, failure, funnel, timings, model } =
+          await extractAndRetain(window, retainCtx, {
             extract,
             ...(options.minConfidence !== undefined && { minConfidence: options.minConfidence }),
             ...(options.entityCtx !== undefined && { entityCtx: options.entityCtx }),
@@ -668,8 +678,7 @@ export function createAutoExtractor(options: CreateAutoExtractorOptions): AutoEx
             ...(options.onMemoryQuarantined && {
               onQuarantined: (info) => options.onMemoryQuarantined?.({ ...info, conversationId }),
             }),
-          }
-        );
+          });
 
         // Extraction EXAMINED the window (even zero facts is a legit "examined,
         // nothing durable") → advance the watermark past everything we sent, so
@@ -715,6 +724,9 @@ export function createAutoExtractor(options: CreateAutoExtractorOptions): AutoEx
           durationMs: Date.now() - t0,
           conversationId,
           outcome,
+          funnel,
+          timings,
+          model,
           // Only set alongside `outcome: "empty-after-retry"`. Spread so the key
           // is absent rather than explicitly undefined on a healthy turn —
           // analytics backends store an explicit undefined as a real value.

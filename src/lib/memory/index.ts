@@ -6,6 +6,8 @@ export {
   type ExtractedEntity,
   extractFacts,
   type ExtractFactsOptions,
+  type ExtractionFunnel,
+  type ExtractionTimings,
   type ExtractOutcome,
   type FactType,
   type QuarantinedMemoryInfo,
@@ -121,6 +123,7 @@ export {
 } from "./topicExtract.js";
 export type {
   Budget,
+  ConsolidationAction,
   ConsolidationFallbackReason,
   MemoryKind,
   PortalLlmAuth,

@@ -339,6 +339,56 @@ export interface ExtractFactsOptions extends PortalLlmAuth {
    * callers may leave it unset.
    */
   onAttempt?: (attempt: PortalLlmAttempt) => void;
+  /**
+   * Fired once per successful completion with how many candidates the model
+   * emitted (`rawCount`) and how many survived {@link validateCandidates}
+   * (`validCount`) — the non-string / empty / over-cap / low-signal / bad-
+   * confidence drops that until now were a bare `continue` nobody counted.
+   *
+   * Without it a `no-facts` turn cannot be split into "the model found nothing"
+   * and "the model found things we threw away", which is the difference between
+   * a prompt problem and a validator problem. Counts only; never content.
+   */
+  onCandidatesParsed?: (stats: { rawCount: number; validCount: number }) => void;
+}
+
+/**
+ * Where a turn's candidates went between the model's completion and the vault —
+ * every stage that can drop one, as a count. Returned by {@link extractAndRetain}
+ * and forwarded on `TurnCompleteEvent` so a host can emit it; nothing here is
+ * content.
+ *
+ * Reads as a funnel: `raw ≥ valid ≥ afterRedaction ≥ aboveConfidence`, then
+ * `aboveConfidence = quarantined + retained + failed`.
+ * @public
+ */
+export interface ExtractionFunnel {
+  /** Candidates in the model's completion, before any validation. */
+  rawCandidateCount: number;
+  /** Survivors of {@link validateCandidates} (shape, length, low-signal, confidence-is-a-number). */
+  validCandidateCount: number;
+  /** Survivors of PII de-anonymization (equals `validCandidateCount` when redaction is off). */
+  afterRedactionCount: number;
+  /** Survivors of the `minConfidence` floor — the candidates that reached the injection screen. */
+  aboveConfidenceCount: number;
+  /** Held for review by the injection screen (deterministic + optional LLM layer). */
+  quarantinedCount: number;
+  /** Written through `retain()` (any disposition). */
+  retainedCount: number;
+  /** `retain()` threw. */
+  failedCount: number;
+}
+
+/**
+ * Wall-clock split of one {@link extractAndRetain} call. The worker's
+ * `durationMs` is the sum plus the screen; these say which half is slow.
+ * @public
+ */
+export interface ExtractionTimings {
+  /** The extraction LLM call, all attempts and backoff included. */
+  extractMs: number;
+  /** The retain loop — embeddings, consolidation LLM calls, writes — over every candidate. */
+  retainMs: number;
 }
 
 /**
@@ -453,6 +503,11 @@ export async function extractFacts(
     fallbackSourceId,
     options.userIdentity ?? []
   );
+  const rawCandidates = (parsed as { candidates?: unknown }).candidates;
+  options.onCandidatesParsed?.({
+    rawCount: Array.isArray(rawCandidates) ? rawCandidates.length : 0,
+    validCount: candidates.length,
+  });
   if (!redactor) return candidates;
   const restored = restoreCandidates(candidates, redactor, options.userIdentity ?? []);
   // H3: the extractor found facts but de-anonymization dropped every one
@@ -628,6 +683,12 @@ export async function extractAndRetain(
    * the give-up, so "extraction is failing" can be reported as *why* it failed.
    */
   failure?: PortalLlmFailure;
+  /** Where the candidates went, stage by stage — see {@link ExtractionFunnel}. */
+  funnel: ExtractionFunnel;
+  /** Extract vs. retain wall-clock — see {@link ExtractionTimings}. */
+  timings: ExtractionTimings;
+  /** The extraction model this call asked for (the resolved default when unset). */
+  model: string;
 }> {
   const minConfidence = options.minConfidence ?? DEFAULT_MIN_CONFIDENCE;
 
@@ -652,8 +713,13 @@ export async function extractAndRetain(
   let exhaustedEmpty = false;
   let exhaustedFailure: PortalLlmFailure | undefined;
   let droppedAfterRedaction = false;
+  // Funnel counts the extractor decides before we see its result.
+  let rawCandidateCount = 0;
+  let validCandidateCount = 0;
   const callerOnExhaustedEmpty = options.extract.onExhaustedEmpty;
   const callerOnCandidatesDropped = options.extract.onCandidatesDropped;
+  const callerOnCandidatesParsed = options.extract.onCandidatesParsed;
+  const tExtract = Date.now();
   const candidates = await extractFacts(messages, {
     ...options.extract,
     onExhaustedEmpty: (failure) => {
@@ -665,7 +731,13 @@ export async function extractAndRetain(
       droppedAfterRedaction = true;
       callerOnCandidatesDropped?.();
     },
+    onCandidatesParsed: (stats) => {
+      rawCandidateCount = stats.rawCount;
+      validCandidateCount = stats.validCount;
+      callerOnCandidatesParsed?.(stats);
+    },
   });
+  const extractMs = Date.now() - tExtract;
   const filtered = candidates.filter((c) => c.confidence >= minConfidence);
 
   const log = getLogger();
@@ -741,6 +813,7 @@ export async function extractAndRetain(
   const results: RetainResult[] = [];
   const quarantinedInfo: QuarantinedMemoryInfo[] = [];
   let failedWrites = 0;
+  const tRetain = Date.now();
   for (const { candidate, isQuarantined, reason, signature } of toRetain) {
     try {
       const result = await retain(candidate.content, retainCtx, {
@@ -848,6 +921,17 @@ export async function extractAndRetain(
     failedCount: failedWrites,
     outcome,
     quarantined: quarantinedInfo,
+    funnel: {
+      rawCandidateCount,
+      validCandidateCount,
+      afterRedactionCount: candidates.length,
+      aboveConfidenceCount: filtered.length,
+      quarantinedCount: quarantined.length,
+      retainedCount: results.length,
+      failedCount: failedWrites,
+    },
+    timings: { extractMs, retainMs: Date.now() - tRetain },
+    model: options.extract.model ?? DEFAULT_EXTRACTION_MODEL,
     // Only meaningful alongside `outcome: "empty-after-retry"`. Returned as well
     // as pushed through the callback so a consumer that only inspects the result
     // (rather than wiring a hook) can still report WHY.
