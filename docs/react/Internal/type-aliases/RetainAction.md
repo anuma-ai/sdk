@@ -2,4 +2,4 @@
 
 > **RetainAction** = `"create"` | `"merge"` | `"update"` | `"skip"` | `"suppressed"` | `"supersede"`
 
-Defined in: [src/lib/memory/types.ts:473](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#473)
+Defined in: [src/lib/memory/types.ts:478](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#478)

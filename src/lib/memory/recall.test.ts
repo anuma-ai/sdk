@@ -1455,6 +1455,39 @@ describe("recall — diagnostics: what was admitted", () => {
     await recall("   ", makeCtx(), { onDiagnostics: (d) => none.push(d) });
     expect(none[0].minScoreApplied).toBe(-1);
   });
+
+  it("reports the CHUNK floor when a mixed recall's fact lane returns nothing", async () => {
+    // A lane that ran but came back empty filtered none of the returned scores.
+    // Latching the floor on lane ENTRY reported the fact default of 0.1 for a
+    // payload made entirely of chunks that had cleared 0.5.
+    vi.mocked(getAllVaultMemoriesOp).mockResolvedValue([]);
+    vi.mocked(countActiveVaultMemoriesOp).mockResolvedValue(0);
+    vi.mocked(searchChunksOp).mockResolvedValue([makeChunk("c1", "conv-1", 0.9)]);
+
+    const seen: RecallDiagnostics[] = [];
+    const result = await recall(QUERY, makeCtx(), {
+      types: ["fact", "chunk"],
+      onDiagnostics: (d) => seen.push(d),
+    });
+
+    // Guard the premise: chunks carried the payload, the fact lane added none.
+    expect(seen[0].factCount).toBe(0);
+    expect(result.memories.length).toBeGreaterThan(0);
+    expect(seen[0].minScoreApplied).toBe(0.5);
+  });
+
+  it("still reports the floor a lane applied when nothing was admitted", async () => {
+    // "Searched at 0.1 and found nothing" is the useful reading; -1 is reserved
+    // for a recall where no lane ran at all.
+    vi.mocked(getAllVaultMemoriesOp).mockResolvedValue([]);
+    vi.mocked(countActiveVaultMemoriesOp).mockResolvedValue(0);
+
+    const seen: RecallDiagnostics[] = [];
+    await recall(QUERY, makeCtx(), { types: ["fact"], onDiagnostics: (d) => seen.push(d) });
+
+    expect(seen[0].admittedCount).toBe(0);
+    expect(seen[0].minScoreApplied).toBe(0.1);
+  });
 });
 
 describe("recall — diagnostics: emptyReason", () => {

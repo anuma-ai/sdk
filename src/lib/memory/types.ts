@@ -395,8 +395,13 @@ export interface RecallDiagnostics {
   lowestAdmittedScore: number;
   /**
    * The similarity floor the lane that produced these scores actually applied:
-   * the fact lane's when it ran, otherwise the chunk lane's, and **-1 when
-   * neither ran** (empty query, unwired context).
+   * the fact lane's when it RETURNED results, otherwise the chunk lane's, and
+   * **-1 when neither ran** (empty query, unwired context). Gated on results
+   * rather than on the lane running, because a fact lane that ran and came
+   * back empty filtered none of the scores in the payload — reporting its
+   * 0.1 default against chunks that cleared 0.5 corrupted the telemetry.
+   * When NOTHING was admitted, the floor a lane did apply is still reported:
+   * "searched at this floor, found nothing" is the useful reading.
    *
    * Per-lane rather than one constant because the two defaults differ (0.1 fact
    * / 0.5 chunk), so a single seeded value reported a floor that a chunk-only

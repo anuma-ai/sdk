@@ -195,11 +195,15 @@ export async function recall(
   // that count is pre-provenance-suppression, so a recall whose suppressed
   // chunks brought it under the limit reported a truncation that never happened.
   let hitLimit = false;
-  // The floor the lane that produced these scores actually applied. -1 until a
-  // lane runs: the two lanes have DIFFERENT defaults (0.1 fact / 0.5 chunk), so
-  // pre-seeding the fact default reported a threshold a chunk-only recall never
-  // applied — and reported one at all for an empty query or an unwired context.
-  let minScoreApplied = -1;
+  // The floor each lane actually applied; -1 when that lane did not run. The
+  // two lanes have DIFFERENT defaults (0.1 fact / 0.5 chunk), so there is no
+  // one value to pre-seed: the fact default reported a threshold a chunk-only
+  // recall never applied, and reported one at all for an empty query or an
+  // unwired context. WHICH floor gets reported is decided at emit, from the
+  // lane that produced the scores — a lane can run and return nothing, and
+  // then it filtered none of the scores in the payload.
+  let factFloor = -1;
+  let chunkFloor = -1;
 
   /**
    * Why this call returned nothing, from the cheapest explanation to the most
@@ -254,6 +258,23 @@ export async function recall(
       (types.includes("fact") && !!ctx.vaultCtx && !!ctx.vaultCache) ||
       (types.includes("chunk") && !!ctx.storageCtx);
     const scores = admitted.map((m) => m.score);
+    // The floor the scores in THIS payload actually cleared. A lane that ran
+    // but returned nothing filtered none of them, so it must not claim the
+    // floor: on a mixed recall whose fact lane came back empty, every admitted
+    // memory is a chunk that cleared the CHUNK floor, and reporting the fact
+    // default (0.1) against scores filtered at 0.5 corrupts the telemetry.
+    // Facts first when they contributed — on a mixed recall their scores
+    // dominate the payload, so theirs is the floor worth reading them against.
+    // When nothing was admitted, the floor a lane DID apply is still the useful
+    // reading ("searched at 0.1, found nothing"); -1 only when neither ran.
+    const minScoreApplied =
+      factResults.length > 0
+        ? factFloor
+        : chunkResults.length > 0
+          ? chunkFloor
+          : factFloor >= 0
+            ? factFloor
+            : chunkFloor;
     const diagnostics: RecallDiagnostics = {
       usedBudget,
       reranked: didRerank,
@@ -379,7 +400,7 @@ export async function recall(
   if (types.includes("fact") && ctx.vaultCtx && ctx.vaultCache) {
     const factStart = nowMs();
     const vaultMinScore = options.minScore ?? DEFAULT_FACT_MIN_SCORE;
-    minScoreApplied = vaultMinScore;
+    factFloor = vaultMinScore;
     const {
       results,
       vaultSize: size,
@@ -474,10 +495,7 @@ export async function recall(
   if (types.includes("chunk") && ctx.storageCtx && queryEmbedding) {
     const chunkStart = nowMs();
     const chunkMinScore = options.minScore ?? DEFAULT_CHUNK_MIN_SCORE;
-    // Only when the fact lane did not already report its own floor: on a mixed
-    // recall the fact scores dominate the payload, so its floor is the one worth
-    // reading them against.
-    if (minScoreApplied < 0) minScoreApplied = chunkMinScore;
+    chunkFloor = chunkMinScore;
     const results = await searchChunksOp(ctx.storageCtx, queryEmbedding, {
       limit: types.includes("fact") ? Math.max(limit * 2, 16) : limit,
       minSimilarity: chunkMinScore,

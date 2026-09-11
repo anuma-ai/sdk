@@ -65,7 +65,7 @@ reached the bundle from a projection that isn't cheaper at that vault size.
 
 > **degraded**: [`RecallDegradation`](../type-aliases/RecallDegradation.md)\[]
 
-Defined in: [src/lib/memory/types.ts:466](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#466)
+Defined in: [src/lib/memory/types.ts:471](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#471)
 
 Soft-degradation signals that fired this call (empty when clean).
 
@@ -75,7 +75,7 @@ Soft-degradation signals that fired this call (empty when clean).
 
 > **emptyReason**: [`RecallEmptyReason`](../type-aliases/RecallEmptyReason.md)
 
-Defined in: [src/lib/memory/types.ts:420](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#420)
+Defined in: [src/lib/memory/types.ts:425](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#425)
 
 Why nothing came back — see [RecallEmptyReason](../type-aliases/RecallEmptyReason.md). `""` when something did.
 
@@ -95,7 +95,7 @@ Facts the fact lane returned (post-dedupe, pre-fusion).
 
 > **graphLaneCount**: `number`
 
-Defined in: [src/lib/memory/types.ts:416](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#416)
+Defined in: [src/lib/memory/types.ts:421](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#421)
 
 Memory ids the W5 graph (entity) side lane contributed to the fusion.
 
@@ -115,11 +115,16 @@ Lowest score among the returned memories; -1 when none were returned.
 
 > **minScoreApplied**: `number`
 
-Defined in: [src/lib/memory/types.ts:406](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#406)
+Defined in: [src/lib/memory/types.ts:411](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#411)
 
 The similarity floor the lane that produced these scores actually applied:
-the fact lane's when it ran, otherwise the chunk lane's, and **-1 when
-neither ran** (empty query, unwired context).
+the fact lane's when it RETURNED results, otherwise the chunk lane's, and
+**-1 when neither ran** (empty query, unwired context). Gated on results
+rather than on the lane running, because a fact lane that ran and came
+back empty filtered none of the scores in the payload — reporting its
+0.1 default against chunks that cleared 0.5 corrupted the telemetry.
+When NOTHING was admitted, the floor a lane did apply is still reported:
+"searched at this floor, found nothing" is the useful reading.
 
 Per-lane rather than one constant because the two defaults differ (0.1 fact
 / 0.5 chunk), so a single seeded value reported a floor that a chunk-only
@@ -142,7 +147,7 @@ Whether the cross-encoder actually reranked the fact lane this call.
 
 > **temporalLaneCount**: `number`
 
-Defined in: [src/lib/memory/types.ts:418](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#418)
+Defined in: [src/lib/memory/types.ts:423](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#423)
 
 Memory ids the W6 temporal side lane contributed to the fusion.
 
@@ -152,7 +157,7 @@ Memory ids the W6 temporal side lane contributed to the fusion.
 
 > **timings**: `object`
 
-Defined in: [src/lib/memory/types.ts:422](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#422)
+Defined in: [src/lib/memory/types.ts:427](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#427)
 
 Wall-clock phase timings (ms).
 
@@ -237,7 +242,7 @@ Highest score among the returned memories; -1 when none were returned.
 
 > **truncated**: `boolean`
 
-Defined in: [src/lib/memory/types.ts:414](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#414)
+Defined in: [src/lib/memory/types.ts:419](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#419)
 
 Whether the `limit` cut an ELIGIBLE result — recorded at the cut, not
 derived from `candidateCount > limit`. In the fused path `candidateCount`
