@@ -1,6 +1,6 @@
 # RecallDiagnostics
 
-Defined in: [src/lib/memory/types.ts:318](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#318)
+Defined in: [src/lib/memory/types.ts:337](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#337)
 
 Per-call recall observability payload (see [RecallOptions.onDiagnostics](RecallOptions.md#ondiagnostics)).
 All timings are wall-clock milliseconds. Lane counts are post-dedupe,
@@ -8,11 +8,27 @@ pre-fusion. Intended to be forwarded to a metrics sink (e.g. PostHog).
 
 ## Properties
 
+### admittedCount
+
+> **admittedCount**: `number`
+
+Defined in: [src/lib/memory/types.ts:391](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#391)
+
+Memories actually RETURNED — `memories.length` after fusion, cross-lane
+dedup and the `limit` slice.
+
+`candidateCount` is what was considered; this is what the caller got, and
+the two are routinely far apart (the fact lane pulls `limit * 2` when fusing).
+Every consumer that wanted "how many memories did this turn actually get"
+was reading `candidateCount` and overcounting.
+
+***
+
 ### candidateCount
 
 > **candidateCount**: `number`
 
-Defined in: [src/lib/memory/types.ts:324](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#324)
+Defined in: [src/lib/memory/types.ts:343](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#343)
 
 Total candidates considered before truncation.
 
@@ -22,7 +38,7 @@ Total candidates considered before truncation.
 
 > **chunkCount**: `number`
 
-Defined in: [src/lib/memory/types.ts:362](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#362)
+Defined in: [src/lib/memory/types.ts:381](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#381)
 
 Chunks the chunk lane returned (post-dedupe, pre-fusion).
 
@@ -32,7 +48,7 @@ Chunks the chunk lane returned (post-dedupe, pre-fusion).
 
 > `optional` **decryptLast**: `boolean`
 
-Defined in: [src/lib/memory/types.ts:337](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#337)
+Defined in: [src/lib/memory/types.ts:356](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#356)
 
 Which vault read path the fact lane actually executed: `true` for the
 projected key scan that decrypts only the admission window, `false` for the
@@ -49,9 +65,19 @@ reached the bundle from a projection that isn't cheaper at that vault size.
 
 > **degraded**: [`RecallDegradation`](../type-aliases/RecallDegradation.md)\[]
 
-Defined in: [src/lib/memory/types.ts:408](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#408)
+Defined in: [src/lib/memory/types.ts:471](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#471)
 
 Soft-degradation signals that fired this call (empty when clean).
+
+***
+
+### emptyReason
+
+> **emptyReason**: [`RecallEmptyReason`](../type-aliases/RecallEmptyReason.md)
+
+Defined in: [src/lib/memory/types.ts:425](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#425)
+
+Why nothing came back — see [RecallEmptyReason](../type-aliases/RecallEmptyReason.md). `""` when something did.
 
 ***
 
@@ -59,9 +85,51 @@ Soft-degradation signals that fired this call (empty when clean).
 
 > **factCount**: `number`
 
-Defined in: [src/lib/memory/types.ts:360](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#360)
+Defined in: [src/lib/memory/types.ts:379](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#379)
 
 Facts the fact lane returned (post-dedupe, pre-fusion).
+
+***
+
+### graphLaneCount
+
+> **graphLaneCount**: `number`
+
+Defined in: [src/lib/memory/types.ts:421](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#421)
+
+Memory ids the W5 graph (entity) side lane contributed to the fusion.
+
+***
+
+### lowestAdmittedScore
+
+> **lowestAdmittedScore**: `number`
+
+Defined in: [src/lib/memory/types.ts:395](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#395)
+
+Lowest score among the returned memories; -1 when none were returned.
+
+***
+
+### minScoreApplied
+
+> **minScoreApplied**: `number`
+
+Defined in: [src/lib/memory/types.ts:411](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#411)
+
+The similarity floor the lane that produced these scores actually applied:
+the fact lane's when it RETURNED results, otherwise the chunk lane's, and
+**-1 when neither ran** (empty query, unwired context). Gated on results
+rather than on the lane running, because a fact lane that ran and came
+back empty filtered none of the scores in the payload — reporting its
+0.1 default against chunks that cleared 0.5 corrupted the telemetry.
+When NOTHING was admitted, the floor a lane did apply is still reported:
+"searched at this floor, found nothing" is the useful reading.
+
+Per-lane rather than one constant because the two defaults differ (0.1 fact
+/ 0.5 chunk), so a single seeded value reported a floor that a chunk-only
+recall never applied. Reported next to the scores because the scores alone
+cannot say what they cleared.
 
 ***
 
@@ -69,9 +137,19 @@ Facts the fact lane returned (post-dedupe, pre-fusion).
 
 > **reranked**: `boolean`
 
-Defined in: [src/lib/memory/types.ts:322](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#322)
+Defined in: [src/lib/memory/types.ts:341](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#341)
 
 Whether the cross-encoder actually reranked the fact lane this call.
+
+***
+
+### temporalLaneCount
+
+> **temporalLaneCount**: `number`
+
+Defined in: [src/lib/memory/types.ts:423](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#423)
+
+Memory ids the W6 temporal side lane contributed to the fusion.
 
 ***
 
@@ -79,7 +157,7 @@ Whether the cross-encoder actually reranked the fact lane this call.
 
 > **timings**: `object`
 
-Defined in: [src/lib/memory/types.ts:364](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#364)
+Defined in: [src/lib/memory/types.ts:427](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#427)
 
 Wall-clock phase timings (ms).
 
@@ -150,11 +228,35 @@ Whole `recall()` call.
 
 ***
 
+### topScore
+
+> **topScore**: `number`
+
+Defined in: [src/lib/memory/types.ts:393](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#393)
+
+Highest score among the returned memories; -1 when none were returned.
+
+***
+
+### truncated
+
+> **truncated**: `boolean`
+
+Defined in: [src/lib/memory/types.ts:419](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#419)
+
+Whether the `limit` cut an ELIGIBLE result — recorded at the cut, not
+derived from `candidateCount > limit`. In the fused path `candidateCount`
+counts before provenance suppression, so a recall whose suppressed chunks
+brought it under the limit would otherwise report a truncation that never
+happened.
+
+***
+
 ### usedBudget
 
 > **usedBudget**: [`Budget`](../type-aliases/Budget.md)
 
-Defined in: [src/lib/memory/types.ts:320](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#320)
+Defined in: [src/lib/memory/types.ts:339](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#339)
 
 Budget actually executed (may have downgraded from the requested one).
 
@@ -164,7 +266,7 @@ Budget actually executed (may have downgraded from the requested one).
 
 > `optional` **vaultRowsDecrypted**: `number`
 
-Defined in: [src/lib/memory/types.ts:347](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#347)
+Defined in: [src/lib/memory/types.ts:366](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#366)
 
 Rows the fact lane paid to decrypt. Absent when it didn't run.
 
@@ -180,7 +282,7 @@ never the cost.
 
 > `optional` **vaultRowsEmbedded**: `number`
 
-Defined in: [src/lib/memory/types.ts:358](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#358)
+Defined in: [src/lib/memory/types.ts:377](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#377)
 
 Rows the fact lane had to re-embed through the portal because their stored
 vector was unusable — stale `embedding_model`, wrong dimension, or
@@ -197,6 +299,6 @@ LEGACY read path this batch is uncapped, so it can be the whole vault.
 
 > `optional` **vaultSize**: `number`
 
-Defined in: [src/lib/memory/types.ts:326](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#326)
+Defined in: [src/lib/memory/types.ts:345](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#345)
 
 Total vault size when the fact lane ran (absent if it didn't).

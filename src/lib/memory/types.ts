@@ -308,7 +308,26 @@ export type RecallDegradation =
    *  failing back to the single-query path, or a row batch failing while other
    *  rows keep usable vectors) — those are logged, not reported, so this stays a
    *  reliable outage signal rather than a general embedding-error counter. */
-  | "embeddings-unavailable";
+  | "embeddings-unavailable"
+  /** The W5 graph (entity) side lane threw and was dropped. Auxiliary, so recall
+   *  still returned — but its RRF signal is missing from the ranking, and until
+   *  this existed the drop was a log line and nothing else. */
+  | "graph-lane-failed"
+  /** The W6 temporal side lane threw and was dropped. Same posture as the graph
+   *  lane: recall still returned, ranked without the temporal signal. */
+  | "temporal-lane-failed";
+
+/**
+ * Why a recall returned nothing. `""` when it returned something, so the field
+ * is always present and groupable rather than being absent on the healthy path.
+ *
+ * The four are different problems: an empty query is a caller bug, no-lanes is a
+ * context wiring bug (the requested kinds have no store), vault-empty is a new
+ * user, and no-candidates is the only one that is about retrieval quality. They
+ * were previously indistinguishable from outside — every one reported
+ * `candidateCount: 0`.
+ */
+export type RecallEmptyReason = "" | "empty-query" | "no-lanes" | "vault-empty" | "no-candidates";
 
 /**
  * Per-call recall observability payload (see {@link RecallOptions.onDiagnostics}).
@@ -360,6 +379,50 @@ export interface RecallDiagnostics {
   factCount: number;
   /** Chunks the chunk lane returned (post-dedupe, pre-fusion). */
   chunkCount: number;
+  /**
+   * Memories actually RETURNED — `memories.length` after fusion, cross-lane
+   * dedup and the `limit` slice.
+   *
+   * `candidateCount` is what was considered; this is what the caller got, and
+   * the two are routinely far apart (the fact lane pulls `limit * 2` when fusing).
+   * Every consumer that wanted "how many memories did this turn actually get"
+   * was reading `candidateCount` and overcounting.
+   */
+  admittedCount: number;
+  /** Highest score among the returned memories; -1 when none were returned. */
+  topScore: number;
+  /** Lowest score among the returned memories; -1 when none were returned. */
+  lowestAdmittedScore: number;
+  /**
+   * The similarity floor the lane that produced these scores actually applied:
+   * the fact lane's when it RETURNED results, otherwise the chunk lane's, and
+   * **-1 when neither ran** (empty query, unwired context). Gated on results
+   * rather than on the lane running, because a fact lane that ran and came
+   * back empty filtered none of the scores in the payload — reporting its
+   * 0.1 default against chunks that cleared 0.5 corrupted the telemetry.
+   * When NOTHING was admitted, the floor a lane did apply is still reported:
+   * "searched at this floor, found nothing" is the useful reading.
+   *
+   * Per-lane rather than one constant because the two defaults differ (0.1 fact
+   * / 0.5 chunk), so a single seeded value reported a floor that a chunk-only
+   * recall never applied. Reported next to the scores because the scores alone
+   * cannot say what they cleared.
+   */
+  minScoreApplied: number;
+  /**
+   * Whether the `limit` cut an ELIGIBLE result — recorded at the cut, not
+   * derived from `candidateCount > limit`. In the fused path `candidateCount`
+   * counts before provenance suppression, so a recall whose suppressed chunks
+   * brought it under the limit would otherwise report a truncation that never
+   * happened.
+   */
+  truncated: boolean;
+  /** Memory ids the W5 graph (entity) side lane contributed to the fusion. */
+  graphLaneCount: number;
+  /** Memory ids the W6 temporal side lane contributed to the fusion. */
+  temporalLaneCount: number;
+  /** Why nothing came back — see {@link RecallEmptyReason}. `""` when something did. */
+  emptyReason: RecallEmptyReason;
   /** Wall-clock phase timings (ms). */
   timings: {
     /** Whole `recall()` call. */
