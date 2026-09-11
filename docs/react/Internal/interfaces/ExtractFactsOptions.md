@@ -332,6 +332,76 @@ H3's `outcome` surface `dropped-after-redaction` so a rising PII-drop rate
 
 ***
 
+### onCandidatesParsed()?
+
+> `optional` **onCandidatesParsed**: (`stats`: `object`) => `void`
+
+Defined in: [src/lib/memory/autoExtract.ts:352](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#352)
+
+Fired once per successful completion with how many candidates the model
+emitted (`rawCount`) and how many survived validateCandidates
+(`validCount`) — the non-string / empty / over-cap / low-signal / bad-
+confidence drops that until now were a bare `continue` nobody counted.
+
+Without it a `no-facts` turn cannot be split into "the model found nothing"
+and "the model found things we threw away", which is the difference between
+a prompt problem and a validator problem. Counts only; never content.
+
+**Parameters**
+
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`stats`
+
+</td>
+<td>
+
+`object`
+
+</td>
+</tr>
+<tr>
+<td>
+
+`stats.rawCount`
+
+</td>
+<td>
+
+`number`
+
+</td>
+</tr>
+<tr>
+<td>
+
+`stats.validCount`
+
+</td>
+<td>
+
+`number`
+
+</td>
+</tr>
+</tbody>
+</table>
+
+**Returns**
+
+`void`
+
+***
+
 ### onExhaustedEmpty()?
 
 > `optional` **onExhaustedEmpty**: (`failure`: [`PortalLlmFailure`](PortalLlmFailure.md)) => `void`

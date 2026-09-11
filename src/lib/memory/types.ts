@@ -471,6 +471,16 @@ export interface RecallDiagnostics {
 // ---------------------------------------------------------------------------
 
 export type RetainAction = "create" | "merge" | "update" | "skip" | "suppressed" | "supersede";
+
+/**
+ * The consolidation LLM's decision for a candidate, when it made one. Reported
+ * on {@link RetainResult.consolidation} so a host can tell an LLM `noop` (the
+ * fact already exists) from a cosine auto-merge — both arrive as
+ * `action: "merge"` — and can read how often the model reaches for `supersede`
+ * or `update` versus `create`. A degraded fallback create (LLM error, bad
+ * response) carries no decision; `onFallback` reports those.
+ */
+export type ConsolidationAction = "create" | "update" | "noop" | "supersede";
 export type RetainSource = "manual" | "auto-extracted" | "capsule";
 
 /**
@@ -616,4 +626,31 @@ export interface RetainResult {
   tombstoneId?: string;
   /** Updated proof_count after this write. 0 when nothing was written (suppressed). */
   proofCount: number;
+  /**
+   * How close the write was to the threshold that allowed it. Absent on the
+   * actions that have no such score (`create`, `update`, `supersede`, `skip`).
+   *
+   * The two paths report DIFFERENT things and a dashboard has to know which:
+   *
+   * - `suppressed` — an exact cosine against the tombstone, computed in
+   *   `findTombstoneMatch`.
+   * - `merge` — the RANKER's score for the target, not a pure cosine. The
+   *   cosine is what cleared `minSimilarity`, but the supersession pass may
+   *   then adjust it (`oldScore - delta` / `newScore + delta`) before this
+   *   value is read, and can in principle reorder the winner. Read it as
+   *   "the score the merge was chosen on", within the supersession delta of
+   *   the cosine — not as the raw pairwise similarity.
+   */
+  similarity?: number;
+  /**
+   * What the consolidation LLM decided for this candidate, when consolidation
+   * ran — see {@link ConsolidationAction}.
+   *
+   * Reported for the DECISION, not for what the write ended up doing, so the
+   * two can disagree and be read as such: a `merge` carrying
+   * `consolidation: "create"` is the model saying "new fact" and the strict
+   * cosine stage merging anyway. Absent when consolidation did not run, and
+   * absent on a degraded fallback create (`onFallback` owns that signal).
+   */
+  consolidation?: ConsolidationAction;
 }
