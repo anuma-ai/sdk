@@ -322,6 +322,12 @@ Re-exports [consoleLogger](../react/Internal/variables/consoleLogger.md)
 
 ***
 
+### ConsolidationAction
+
+Re-exports [ConsolidationAction](../react/Internal/type-aliases/ConsolidationAction.md)
+
+***
+
 ### ConsolidationFallbackReason
 
 Re-exports [ConsolidationFallbackReason](../react/Internal/type-aliases/ConsolidationFallbackReason.md)
@@ -781,6 +787,18 @@ Re-exports [ExtractFactsOptions](../react/Internal/interfaces/ExtractFactsOption
 ### ExtractionCursorStore
 
 Re-exports [ExtractionCursorStore](../react/Internal/interfaces/ExtractionCursorStore.md)
+
+***
+
+### ExtractionFunnel
+
+Re-exports [ExtractionFunnel](../react/Internal/interfaces/ExtractionFunnel.md)
+
+***
+
+### ExtractionTimings
+
+Re-exports [ExtractionTimings](../react/Internal/interfaces/ExtractionTimings.md)
 
 ***
 

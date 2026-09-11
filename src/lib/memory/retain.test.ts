@@ -195,6 +195,11 @@ describe("retain", () => {
     expect(result.memoryId).toBe("existing-id");
     expect(result.targetId).toBe("existing-id");
     expect(result.proofCount).toBe(4);
+    // The cosine that decided the merge, so a host can see how close to the
+    // 0.8 floor its merges run. Was read for the id and discarded.
+    expect(result.similarity).toBe(0.92);
+    // A cosine auto-merge is NOT a consolidation decision.
+    expect(result.consolidation).toBeUndefined();
     expect(vi.mocked(createVaultMemoryOp)).not.toHaveBeenCalled();
     expect(vi.mocked(updateVaultMemoryOp)).toHaveBeenCalledWith(
       mockVaultCtx,
@@ -345,6 +350,8 @@ describe("retain", () => {
     expect(vi.mocked(createVaultMemoryOp)).not.toHaveBeenCalled();
     expect(result.action).toBe("suppressed");
     expect(result.tombstoneId).toBe("dead-id");
+    // Identical vectors → cosine 1; the tombstone match reports the score that suppressed.
+    expect(result.similarity).toBeCloseTo(1, 5);
   });
 
   it("persists factType on the create path (PR1)", async () => {
@@ -737,6 +744,7 @@ describe("retain — write-time supersession (A2)", () => {
       action: "supersede",
       memoryId: "new-sf",
       targetId: "old-portland",
+      consolidation: "supersede",
     });
     // Create + retire happen atomically in one op; the successor's content is
     // the consolidator's refined value, and the target is the stale id.
@@ -1467,5 +1475,92 @@ describe("retain — embeddings outage must not silently duplicate", () => {
 
     expect(result.action).toBe("create");
     expect(result.memoryId).toBe("healthy");
+  });
+});
+
+describe("retain — the consolidation decision is reported on the result", () => {
+  // A model `noop` and a cosine auto-merge both arrive as `action: "merge"`; a
+  // model `create` and a no-candidates create both arrive as `action: "create"`.
+  // The `consolidation` field is what tells them apart, and it is what lets a
+  // host read the decision distribution the consolidator actually produces.
+  const consolidateOptions = { apiKey: "k" };
+
+  it("stamps noop on the merge the consolidator asked for", async () => {
+    mockVaultMatches([{ uniqueId: "live", content: "Lives in Portland", similarity: 0.7 }]);
+    vi.mocked(consolidateMemory).mockResolvedValue({ action: "noop", targetId: "live" });
+    vi.mocked(getVaultMemoryOp).mockResolvedValue({
+      uniqueId: "live",
+      content: "Lives in Portland",
+      proofCount: 2,
+      sourceChunkIds: [],
+      eventTimeStart: null,
+    } as never);
+    vi.mocked(updateVaultMemoryOp).mockResolvedValue({ proofCount: 3 } as never);
+
+    const result = await retain("Lives in Portland, OR", ctx, { consolidateOptions });
+
+    expect(result).toMatchObject({ action: "merge", memoryId: "live", consolidation: "noop" });
+    // Not a cosine merge, so no similarity is claimed for it.
+    expect(result.similarity).toBeUndefined();
+  });
+
+  it("stamps create when the consolidator explicitly chose it", async () => {
+    // Stage 1 surfaces a candidate the model rules unrelated; Stage 2 finds no strict match.
+    mockVaultMatchesOnce([{ uniqueId: "other", content: "Owns a rope", similarity: 0.6 }]);
+    mockVaultMatchesOnce([]);
+    vi.mocked(consolidateMemory).mockResolvedValue({ action: "create" });
+    vi.mocked(generateEmbedding).mockResolvedValue([0.1, 0.2, 0.3]);
+    vi.mocked(createVaultMemoryOp).mockResolvedValue({ uniqueId: "fresh" } as never);
+
+    const result = await retain("Climbs at Movement", ctx, { consolidateOptions });
+
+    expect(result).toMatchObject({ action: "create", memoryId: "fresh", consolidation: "create" });
+  });
+
+  it("leaves a degraded fallback create unstamped — onFallback owns that signal", async () => {
+    mockVaultMatchesOnce([{ uniqueId: "other", content: "Owns a rope", similarity: 0.6 }]);
+    mockVaultMatchesOnce([]);
+    vi.mocked(consolidateMemory).mockResolvedValue({
+      action: "create",
+      fallbackReason: "llm_error",
+    });
+    vi.mocked(generateEmbedding).mockResolvedValue([0.1, 0.2, 0.3]);
+    vi.mocked(createVaultMemoryOp).mockResolvedValue({ uniqueId: "fresh" } as never);
+
+    const result = await retain("Climbs at Movement", ctx, { consolidateOptions });
+
+    expect(result.action).toBe("create");
+    expect(result.consolidation).toBeUndefined();
+  });
+});
+
+describe("retain — a consolidator `create` survives the strict cosine stage", () => {
+  // Greptile caught this: Stage 1 saying `create` only set an internal flag,
+  // and the flag was read on the final create path only. When Stage 2's strict
+  // cosine merge won, the model's decision vanished from the distribution the
+  // field exists to report — and the DISAGREEMENT between the two stages is
+  // exactly the interesting case.
+  it("stamps the decision on a Stage-2 merge, so the two stages' disagreement is visible", async () => {
+    mockVaultMatchesOnce([{ uniqueId: "other", content: "Owns a rope", similarity: 0.6 }]);
+    mockVaultMatchesOnce([{ uniqueId: "close", content: "Climbs at Movement", similarity: 0.93 }]);
+    vi.mocked(consolidateMemory).mockResolvedValue({ action: "create" });
+    vi.mocked(getVaultMemoryOp).mockResolvedValue({
+      uniqueId: "close",
+      content: "Climbs at Movement",
+      proofCount: 1,
+      sourceChunkIds: [],
+      eventTimeStart: null,
+    } as never);
+    vi.mocked(updateVaultMemoryOp).mockResolvedValue({ proofCount: 2 } as never);
+
+    const result = await retain("Climbs at Movement gym", ctx, {
+      consolidateOptions: { apiKey: "k" },
+    });
+
+    expect(result).toMatchObject({
+      action: "merge",
+      memoryId: "close",
+      consolidation: "create",
+    });
   });
 });
