@@ -661,6 +661,7 @@ describe("useEncryption - Key Pair Generation", () => {
         "0xGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG", // Invalid hex
         "", // Empty
         "0x12345678901234567890123456789012345678901234567890", // Too long
+        "7EcDhSYGxXyscszYEp35KHN8vvw3svAuLKTzXwCFLtV", // Solana base58 (enc:v4)
       ];
 
       for (const invalidAddress of invalidAddresses) {
