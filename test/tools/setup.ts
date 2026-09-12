@@ -163,9 +163,12 @@ export async function runToolLoop(
     finalText: extractText(result),
     error: result.error ?? null,
     // Straight off the loop's own normalized terminal state — NOT re-derived from
-    // the response shape. Neither shape can answer: the Responses API has no
-    // field for a finish reason at all, and completions omits `tool_calls` when
-    // there are none, so "no calls" is indistinguishable from "field absent".
+    // the response shape. Re-deriving does not work: completions omits
+    // `tool_calls` when there are none, so "no calls" is indistinguishable from
+    // "field absent", and while the Responses shape now carries `status` /
+    // `incomplete_details` (#805/#840), reading it means translating
+    // `max_output_tokens` yourself. This field is already normalized, and it is
+    // the one that separates "model declined" from "turn was cut off".
     finishReason:
       ("terminalState" in result ? result.terminalState?.finishReason : undefined) ?? null,
     finalToolCallCount:

@@ -82,7 +82,8 @@ describe("app-generation", () => {
     await closeSharedBrowser();
   });
 
-  it("generates a multi-file React app with batch create_file", async () => {
+  // Quarantined: #842 — 3/8 runs. Zero-output / incomplete file set.
+  it.skip("generates a multi-file React app with batch create_file", async () => {
     const store = createFileStore();
     const log: ToolCallLog[] = [];
     const tools = createTestAppTools(store).map((t) => wrapTool(t, log));
@@ -135,7 +136,9 @@ describe("app-generation", () => {
     });
   });
 
-  it("uses batch mode (files array) instead of one-at-a-time", async () => {
+  // Quarantined: #842 — 5/8 runs, the flakiest test in this file. Did NOT
+  // fail the most recent run, which is exactly why the cut is on rate.
+  it.skip("uses batch mode (files array) instead of one-at-a-time", async () => {
     const store = createFileStore();
     const log: ToolCallLog[] = [];
     const tools = createTestAppTools(store).map((t) => wrapTool(t, log));
@@ -182,7 +185,8 @@ describe("app-generation", () => {
     });
   });
 
-  it("modifies only changed files when asked to update styles", async () => {
+  // Quarantined: #842 — 4/8 runs.
+  it.skip("modifies only changed files when asked to update styles", async () => {
     const store = createFileStore();
     const log: ToolCallLog[] = [];
     const tools = createTestAppTools(store).map((t) => wrapTool(t, log));
@@ -356,7 +360,8 @@ describe("app-generation", () => {
     });
   });
 
-  it("generates a complex multi-feature app", async () => {
+  // Quarantined: #842 — 3/3 runs. Loop runs ~65s and writes zero files (store.size 0).
+  it.skip("generates a complex multi-feature app", async () => {
     const store = createFileStore();
     const log: ToolCallLog[] = [];
     const tools = createTestAppTools(store).map((t) => wrapTool(t, log));

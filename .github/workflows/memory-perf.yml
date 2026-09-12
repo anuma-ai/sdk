@@ -26,10 +26,8 @@ on:
         type: choice
         default: "gate"
         options: ["gate", "save-baseline"]
-  # Gate intended to BLOCK (#797). `memory-perf-status` becomes a required
-  # check on main once the ruleset entry is added — which has to happen AFTER
-  # this merges, since requiring a context no workflow produces would block
-  # every PR. Until then it reports without blocking.
+  # BLOCKING gate (#797) — `memory-perf-status` has been a required check on
+  # main since 2026-07-31. A work-cost regression fails the merge.
   #
   # Deliberately NOT paths-scoped, and this is the whole reason it can be
   # required at all: a paths-scoped workflow creates no run on a PR that touches

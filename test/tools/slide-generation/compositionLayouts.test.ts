@@ -43,6 +43,12 @@ function makeMessages(userText: string, systemPrompt?: string): Message[] {
   return msgs;
 }
 
+/**
+ * NOTE: this whole file is excluded from the e2e run pending #842 — see the
+ * exclude list in `vitest.e2e.config.mts` for the measurement and reasoning.
+ * Individual tests are deliberately NOT skipped, so re-enabling the file is
+ * one action and brings back every case with it.
+ */
 describe("composition-layouts wire-in", () => {
   it("generates a deck using design-system composition layouts", async () => {
     const store = createFileStore();
