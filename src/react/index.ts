@@ -171,6 +171,11 @@ export {
   seedEncryptionKeys,
   useEncryption,
 } from "./useEncryption";
+// Detects a still-sealed `enc:v2:` / `enc:v3:` field. A failed decrypt returns
+// the original ciphertext (never a placeholder), so a consumer that forwards
+// vault text off-device (the Nearby publish reconciler) must check this
+// before it sends — otherwise it publishes hex.
+export { isEncrypted } from "../lib/db/encryption-utils";
 export type {
   InteractionType,
   PendingInteraction,

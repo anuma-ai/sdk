@@ -138,6 +138,14 @@ export interface RankableVaultMemory {
   embeddingModel: string | null;
   createdAt: Date;
   updatedAt: Date;
+  /** C3 re-observation watermark (`last_observed_at`), Unix ms or null — the
+   * same column {@link StoredVaultMemory.lastObservedAt} carries. A retain()
+   * consolidation `update` rewrites `content` under `preserveUpdatedAt`, so
+   * `updatedAt` stays pinned and only this column moves. A consumer that
+   * decides "has this row changed since I last sent it" from `updatedAt` alone
+   * (the Nearby publish reconciler) never sees that rewrite; it must take
+   * `max(updatedAt, lastObservedAt)`. */
+  lastObservedAt: number | null;
 }
 
 /**

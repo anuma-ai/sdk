@@ -696,6 +696,10 @@ function vaultMemoryRawToRankable(raw: Record<string, unknown>): RankableVaultMe
     embeddingModel: (raw.embedding_model as string | null) ?? null,
     createdAt: new Date(raw.created_at as number),
     updatedAt: new Date(raw.updated_at as number),
+    // Same mapping as vaultMemoryRawToStoredRaw. A consolidation rewrite moves
+    // ONLY this column (preserveUpdatedAt pins updated_at), so a change-since
+    // check that reads this projection needs it — see the type doc.
+    lastObservedAt: (raw.last_observed_at as number | null) ?? null,
   };
 }
 
