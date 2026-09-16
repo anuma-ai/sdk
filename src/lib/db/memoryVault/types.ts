@@ -144,8 +144,15 @@ export interface RankableVaultMemory {
    * `updatedAt` stays pinned and only this column moves. A consumer that
    * decides "has this row changed since I last sent it" from `updatedAt` alone
    * (the Nearby publish reconciler) never sees that rewrite; it must take
-   * `max(updatedAt, lastObservedAt)`. */
-  lastObservedAt: number | null;
+   * `max(updatedAt, lastObservedAt)`.
+   *
+   * OPTIONAL, not just nullable: `RankableVaultMemory` is a public exported
+   * type, and this field is new. Required would break any existing consumer
+   * constructing a literal of this shape (a test fixture, a mock) — the same
+   * reason every other watermark field of this kind in this package
+   * (memory/types.ts, memoryVault/searchTool.ts) is optional rather than
+   * required. `vaultMemoryRawToRankable` still always sets it. */
+  lastObservedAt?: number | null;
 }
 
 /**
