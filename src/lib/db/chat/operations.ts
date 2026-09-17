@@ -8,6 +8,7 @@ import { getLogger } from "../../logger";
 import { cosineSimilarity } from "../../memoryEngine/vector";
 import { decodeChunkVector } from "../../memoryEngine/vectorEncoding";
 import { decryptJsonField } from "../encryption-utils";
+import { ExtractionJob } from "../extractionJobs/models";
 import { decryptConversationFields, encryptConversationFields } from "./conversationEncryption";
 import {
   decryptField,
@@ -870,9 +871,20 @@ export async function clearMessagesOp(
   ctx: StorageOperationsContext,
   convId: string
 ): Promise<void> {
-  const messages = await ctx.messagesCollection.query(Q.where("conversation_id", convId)).fetch();
-
   await ctx.database.write(async () => {
+    const messages = await ctx.messagesCollection.query(Q.where("conversation_id", convId)).fetch();
+    const jobs = ctx.database.schema?.tables[ExtractionJob.table]
+      ? await ctx.database
+          .get<ExtractionJob>(ExtractionJob.table)
+          .query(Q.where("conversation_id", convId))
+          .fetch()
+      : [];
+    for (const job of jobs) {
+      await job.update((row) => {
+        row._setRaw("message_ids", "[]");
+        row._setRaw("watermark", null);
+      });
+    }
     for (const message of messages) {
       // Clear file references before deletion
       await message.update((msg) => {
@@ -889,7 +901,7 @@ export async function clearMessagesOp(
  * Clears file_ids before deletion and returns the unique ID.
  * Note: Callers should use deleteMediaByMessageOp to cascade delete media.
  */
-async function _deleteMessageOp(
+export async function deleteMessageOp(
   ctx: StorageOperationsContext,
   uniqueId: string
 ): Promise<string | null> {
@@ -901,6 +913,19 @@ async function _deleteMessageOp(
   }
 
   await ctx.database.write(async () => {
+    const jobs = ctx.database.schema?.tables[ExtractionJob.table]
+      ? await ctx.database
+          .get<ExtractionJob>(ExtractionJob.table)
+          .query(Q.where("conversation_id", message.conversationId))
+          .fetch()
+      : [];
+    for (const job of jobs) {
+      const ids = JSON.parse(String(job._getRaw("message_ids"))) as string[];
+      await job.update((row) => {
+        row._setRaw("message_ids", JSON.stringify(ids.filter((id) => id !== uniqueId)));
+        if (row._getRaw("watermark") === uniqueId) row._setRaw("watermark", null);
+      });
+    }
     // Clear file references before deletion
     await message.update((msg) => {
       msg._setRaw("file_ids", null);

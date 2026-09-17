@@ -16,7 +16,7 @@ Extends base result with Expo-specific sendMessage signature.
 
 > **clearQueue**: () => `void`
 
-Defined in: [src/expo/useChatStorage.ts:695](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChatStorage.ts#695)
+Defined in: [src/expo/useChatStorage.ts:694](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChatStorage.ts#694)
 
 Clear all queued operations without writing them.
 
@@ -274,7 +274,7 @@ Defined in: [src/lib/db/chat/types.ts:1086](https://github.com/anuma-ai/sdk/blob
 
 > **deleteVaultMemory**: (`id`: `string`) => `Promise`<`boolean`>
 
-Defined in: [src/expo/useChatStorage.ts:689](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChatStorage.ts#689)
+Defined in: [src/expo/useChatStorage.ts:688](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChatStorage.ts#688)
 
 Delete a vault memory by its ID (soft delete).
 
@@ -330,7 +330,7 @@ row's `assistantUniqueId` to complete it via `resumeStream`.
 
 > **flushQueue**: () => `Promise`<[`FlushResult`](../../../react/Internal/interfaces/FlushResult.md)>
 
-Defined in: [src/expo/useChatStorage.ts:692](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChatStorage.ts#692)
+Defined in: [src/expo/useChatStorage.ts:691](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChatStorage.ts#691)
 
 Manually flush all queued operations for the current wallet.
 
@@ -596,6 +596,7 @@ excluded unless `includeDeleted` is set.
 <tr>
 <th>Parameter</th>
 <th>Type</th>
+<th>Description</th>
 </tr>
 </thead>
 <tbody>
@@ -610,6 +611,62 @@ excluded unless `includeDeleted` is set.
 `object`
 
 </td>
+<td>
+
+‐
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.factTypes?`
+
+</td>
+<td>
+
+`string`\[]
+
+</td>
+<td>
+
+Typed memory (PR1) — restrict to these fact types. Omit for no filter.
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.folderId?`
+
+</td>
+<td>
+
+`string` | `null`
+
+</td>
+<td>
+
+‐
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.includeArchived?`
+
+</td>
+<td>
+
+`boolean`
+
+</td>
+<td>
+
+Include archived (decayed) memories. Default `false` (PR1 choke point).
+
+</td>
 </tr>
 <tr>
 <td>
@@ -622,6 +679,84 @@ excluded unless `includeDeleted` is set.
 `boolean`
 
 </td>
+<td>
+
+Include soft-deleted memories in the result (each carries
+`isDeleted: true`). Default `false` — deleted rows are excluded, as
+they are from every other read path. Used by the Memory Graph to
+render "forgotten" nodes; ordinary consumers should leave this off.
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.includeQuarantined?`
+
+</td>
+<td>
+
+`boolean`
+
+</td>
+<td>
+
+Include quarantined memories. Default `false` (PR1 choke point).
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.includeSuperseded?`
+
+</td>
+<td>
+
+`boolean`
+
+</td>
+<td>
+
+Include A2-superseded memories (each carries `supersededBy`). Default
+`false` — superseded rows are excluded, as they are from recall/dedup.
+Used by a "memory history" view to render retired facts.
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.limit?`
+
+</td>
+<td>
+
+`number`
+
+</td>
+<td>
+
+‐
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.memoryIds?`
+
+</td>
+<td>
+
+`string`\[]
+
+</td>
+<td>
+
+‐
+
+</td>
 </tr>
 <tr>
 <td>
@@ -632,6 +767,47 @@ excluded unless `includeDeleted` is set.
 <td>
 
 `string`\[]
+
+</td>
+<td>
+
+‐
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.since?`
+
+</td>
+<td>
+
+`Date`
+
+</td>
+<td>
+
+‐
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.visibility?`
+
+</td>
+<td>
+
+[`VaultMemoryVisibility`](../../../react/Internal/type-aliases/VaultMemoryVisibility.md)\[]
+
+</td>
+<td>
+
+Filter by People Nearby visibility. Legacy rows with a NULL column
+count as "private". Used by the publish reconciler to fetch the
+published set to diff against the server index.
 
 </td>
 </tr>
@@ -660,7 +836,7 @@ Defined in: [src/lib/db/chat/types.ts:1077](https://github.com/anuma-ai/sdk/blob
 
 > **queueStatus**: [`QueueStatus`](../../../react/Internal/interfaces/QueueStatus.md)
 
-Defined in: [src/expo/useChatStorage.ts:698](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChatStorage.ts#698)
+Defined in: [src/expo/useChatStorage.ts:697](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChatStorage.ts#697)
 
 Current status of the write queue.
 

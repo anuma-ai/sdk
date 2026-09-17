@@ -127,7 +127,10 @@ export async function recall(
   ctx: RecallContext,
   options: RecallOptions = {}
 ): Promise<RecallResult> {
-  const types: MemoryKind[] = options.types ?? ["fact"];
+  const types: MemoryKind[] =
+    options.memoryIds !== undefined
+      ? (options.types ?? ["fact"]).filter((kind) => kind === "fact")
+      : (options.types ?? ["fact"]);
   const limit = options.limit ?? DEFAULT_LIMIT;
   const usedBudget = options.budget ?? DEFAULT_BUDGET;
   const flags = flagsForBudget(usedBudget);
@@ -452,6 +455,7 @@ export async function recall(
         ...(options.scopes && { scopes: options.scopes }),
         ...(options.folderId !== undefined && { folderId: options.folderId }),
         ...(options.factTypes?.length && { factTypes: options.factTypes }),
+        ...(options.memoryIds !== undefined && { memoryIds: options.memoryIds }),
         ...(options.factTypeWeights && { factTypeWeights: options.factTypeWeights }),
         ...(entityRanking.length > 0 && { entityRanking }),
         ...(temporalRanking.length > 0 && { temporalRanking }),

@@ -508,6 +508,15 @@ describe("recall — filters and pass-through", () => {
     expect(result.memories.map((m) => m.id)).toEqual(["c2"]);
   });
 
+  it("restricts topic membership before ranking and excludes unscoped chunks", async () => {
+    vi.mocked(getAllVaultMemoriesOp).mockResolvedValue([makeMemory("m2", M2)]);
+    vi.mocked(searchChunksOp).mockResolvedValue([makeChunk("c1", "other", 0.99)]);
+    const result = await recall(QUERY, makeCtx(), { memoryIds: ["m2"], types: ["fact", "chunk"] });
+    expect(getAllVaultMemoriesOp).toHaveBeenCalledWith(vaultCtx, { memoryIds: ["m2"] });
+    expect(searchChunksOp).not.toHaveBeenCalled();
+    expect(result.memories.map((m) => m.id)).toEqual(["m2"]);
+  });
+
   it("passes scopes and folderId through to the vault query", async () => {
     await recall(QUERY, makeCtx(), { scopes: ["work"], folderId: null });
     expect(getAllVaultMemoriesOp).toHaveBeenCalledWith(vaultCtx, {

@@ -127,6 +127,9 @@ export interface RecallOptions {
    * and no-op when unset (all types are eligible). Vault-only.
    */
   factTypes?: FactType[];
+  /** Restrict fact candidates BEFORE ranking. Empty means no facts. When set,
+   * unrestricted chunk search is disabled; it must not escape a topic scope. */
+  memoryIds?: string[];
   /**
    * PR5 — optional per-FactType score multiplier applied in the fusion boost
    * stage (e.g. boost `identity`/`constraint`, down-weight `ongoing_context`).

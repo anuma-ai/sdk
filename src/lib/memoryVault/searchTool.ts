@@ -155,6 +155,7 @@ export interface MemoryVaultSearchOptions {
    * types. Applied at load time via `Q.oneOf` on the indexed `fact_type`
    * column. Omit for no type filter. */
   factTypes?: string[];
+  memoryIds?: string[];
   /**
    * PR5 — optional per-FactType score multiplier applied in the boost stage
    * (e.g. `{ identity: 1.2, ongoing_context: 0.8 }`). Empty/omitted = uniform
@@ -1609,6 +1610,7 @@ export async function buildProjectedCorpus(
     scopes?: string[];
     folderId?: string | null;
     factTypes?: string[];
+    memoryIds?: string[];
     includeArchived?: boolean;
   },
   opts: {
@@ -2081,8 +2083,10 @@ export async function prepareVaultCandidates(
     scopes?: string[];
     folderId?: string | null;
     factTypes?: string[];
+    memoryIds?: string[];
     includeArchived?: boolean;
   } = {};
+  if (searchOptions?.memoryIds !== undefined) queryOpts.memoryIds = searchOptions.memoryIds;
   if (scopes?.length) queryOpts.scopes = scopes;
   if (folderId !== undefined) queryOpts.folderId = folderId;
   if (searchOptions?.factTypes?.length) queryOpts.factTypes = searchOptions.factTypes;

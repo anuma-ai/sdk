@@ -243,6 +243,10 @@ export interface UpdateVaultMemoryOptions {
    * two parallel retain() calls observe each other's commits and neither
    * loses its increment. Wins over `proofCount` when both are set. */
   proofCountIncrement?: number;
+  /** Source ids for an observation. Unioned inside the writer; a replay whose
+   * ids are all present is a no-op (including content, freshness and restore).
+   * Omit for unkeyed/manual observations. */
+  observationSourceIds?: string[];
   /** Set source ("manual" | "auto-extracted" | "capsule"). */
   source?: string;
   /**

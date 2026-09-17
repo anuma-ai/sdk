@@ -222,6 +222,7 @@ export {
   type CreateConversationOptions,
   type CreateMessageOptions,
   decryptConversationTitle,
+  deleteMessageOp,
   type FileMetadata,
   generateConversationId,
   getConversationsByProjectLazyOp,
@@ -549,4 +550,13 @@ export {
 } from "../lib/auth/notion-primitives";
 
 // Notion MCP tools (platform-agnostic)
+export {
+  assembleMemoryContext,
+  type MemoryContextItem,
+  type MemoryContextLane,
+  type MemoryContextOptions,
+  type MemoryContextResult,
+  shouldRecallMemory,
+} from "../lib/memory";
+export { createDurableAutoExtractor, type DurableAutoExtractorOptions } from "../lib/memory";
 export { createNotionTools } from "../tools/notion";

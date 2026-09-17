@@ -106,6 +106,12 @@ Re-exports [archiveVaultMemoryOp](../react/Internal/functions/archiveVaultMemory
 
 ***
 
+### assembleMemoryContext
+
+Re-exports [assembleMemoryContext](../react/Internal/functions/assembleMemoryContext.md)
+
+***
+
 ### AutoExtractMessage
 
 Re-exports [AutoExtractMessage](../react/Internal/interfaces/AutoExtractMessage.md)
@@ -406,6 +412,12 @@ Re-exports [CreateDecaySweeperOptions](../react/Internal/interfaces/CreateDecayS
 
 ***
 
+### createDurableAutoExtractor
+
+Re-exports [createDurableAutoExtractor](../react/Internal/functions/createDurableAutoExtractor.md)
+
+***
+
 ### createLlmDecayClassifier
 
 Re-exports [createLlmDecayClassifier](../react/Internal/functions/createLlmDecayClassifier.md)
@@ -676,6 +688,12 @@ Re-exports [deleteAllVaultMemoriesForUserOp](../react/Internal/functions/deleteA
 
 ***
 
+### deleteMessageOp
+
+Re-exports [deleteMessageOp](../react/Internal/functions/deleteMessageOp.md)
+
+***
+
 ### deleteVaultFolderOp
 
 Re-exports [deleteVaultFolderOp](../react/Internal/functions/deleteVaultFolderOp.md)
@@ -691,6 +709,12 @@ Re-exports [deleteVaultMemoryOp](../react/Internal/functions/deleteVaultMemoryOp
 ### dequantizeEmbedding
 
 Re-exports [dequantizeEmbedding](../react/Internal/functions/dequantizeEmbedding.md)
+
+***
+
+### DurableAutoExtractorOptions
+
+Re-exports [DurableAutoExtractorOptions](../react/Internal/interfaces/DurableAutoExtractorOptions.md)
 
 ***
 
@@ -1087,6 +1111,30 @@ Re-exports [MEDIUM\_TTL\_MS](../react/Internal/variables/MEDIUM_TTL_MS.md)
 ### MemoriesNeedingTopicExtraction
 
 Re-exports [MemoriesNeedingTopicExtraction](../react/Internal/interfaces/MemoriesNeedingTopicExtraction.md)
+
+***
+
+### MemoryContextItem
+
+Re-exports [MemoryContextItem](../react/Internal/interfaces/MemoryContextItem.md)
+
+***
+
+### MemoryContextLane
+
+Re-exports [MemoryContextLane](../react/Internal/type-aliases/MemoryContextLane.md)
+
+***
+
+### MemoryContextOptions
+
+Re-exports [MemoryContextOptions](../react/Internal/interfaces/MemoryContextOptions.md)
+
+***
+
+### MemoryContextResult
+
+Re-exports [MemoryContextResult](../react/Internal/interfaces/MemoryContextResult.md)
 
 ***
 
@@ -1675,6 +1723,12 @@ Re-exports [SHORT\_TTL\_MS](../react/Internal/variables/SHORT_TTL_MS.md)
 ### shouldChunkMessage
 
 Re-exports [shouldChunkMessage](../react/Internal/functions/shouldChunkMessage.md)
+
+***
+
+### shouldRecallMemory
+
+Re-exports [shouldRecallMemory](../react/Internal/functions/shouldRecallMemory.md)
 
 ***
 

@@ -65,6 +65,9 @@ export interface VaultMemoryOperationsContext {
   embeddedWalletSigner?: EmbeddedWalletSignerFn;
   /** When set, operations scope to this user (server-side multi-user). */
   userId?: string;
+  /** Optional extraction source eligibility check, executed inside the writer.
+   * Must only read the database (must not start another writer). */
+  canWrite?: () => Promise<boolean>;
   /**
    * Asserts this context runs against a physically single-tenant database — one
    * where every row belongs to the same owner (the per-wallet client DBs, which
@@ -115,6 +118,7 @@ function baseVaultConditions(
   ctx: VaultMemoryOperationsContext,
   options?: {
     since?: Date;
+    memoryIds?: string[];
     includeDeleted?: boolean;
     includeArchived?: boolean;
     includeQuarantined?: boolean;
@@ -122,6 +126,7 @@ function baseVaultConditions(
   }
 ) {
   return [
+    ...(options?.memoryIds !== undefined ? [Q.where("id", Q.oneOf(options.memoryIds))] : []),
     ...(options?.includeDeleted ? [] : [Q.where("is_deleted", false)]),
     ...(options?.includeArchived ? [] : [Q.where("archived_at", Q.eq(null))]),
     ...(options?.includeQuarantined ? [] : [Q.where("trust_tier", Q.notEq("quarantined"))]),
@@ -245,6 +250,8 @@ export async function createVaultMemoryOp(
       : opts.content;
 
   const created = await ctx.database.write(async () => {
+    if (ctx.canWrite && !(await ctx.canWrite()))
+      throw new Error("Memory source is no longer eligible");
     return ctx.vaultMemoryCollection.create((record) => {
       record._setRaw("content", encryptedContent);
       record._setRaw("scope", scope);
@@ -322,6 +329,8 @@ export async function createSupersedingMemoryOp(
 
   let createdRecord: VaultMemory | null = null;
   await ctx.database.write(async () => {
+    if (ctx.canWrite && !(await ctx.canWrite()))
+      throw new Error("Memory source is no longer eligible");
     let target: VaultMemory;
     try {
       target = await ctx.vaultMemoryCollection.find(targetId);
@@ -483,6 +492,8 @@ export async function createVaultMemoriesBatchOp(
 
   // Single write transaction with batch create
   const created = await ctx.database.write(async () => {
+    if (ctx.canWrite && !(await ctx.canWrite()))
+      throw new Error("Memory source is no longer eligible");
     const prepared = optionsArray.map((opts, i) =>
       ctx.vaultMemoryCollection.prepareCreate((record) => {
         record._setRaw("content", encryptedContents[i]);
@@ -645,6 +656,7 @@ export async function getAllVaultMemoriesOp(
     includeQuarantined?: boolean;
     /** Typed memory (PR1) — restrict to these fact types. Omit for no filter. */
     factTypes?: string[];
+    memoryIds?: string[];
     /**
      * Include A2-superseded memories (each carries `supersededBy`). Default
      * `false` — superseded rows are excluded, as they are from recall/dedup.
@@ -798,6 +810,7 @@ export async function getVaultCandidateKeysOp(
      * silently path-dependent (#779).
      */
     factTypes?: string[];
+    memoryIds?: string[];
     /** Include archived (decayed) memories. Default `false`, as elsewhere. */
     includeArchived?: boolean;
   }
@@ -817,6 +830,11 @@ export async function getVaultCandidateKeysOp(
     });
     const clauses = [base.sql];
     const args = [...base.args];
+    if (options?.memoryIds !== undefined) {
+      if (options.memoryIds.length === 0) return [];
+      clauses.push(`"id" in (${options.memoryIds.map(() => "?").join(",")})`);
+      args.push(...options.memoryIds);
+    }
     if (options?.scopes?.length) {
       clauses.push(`"scope" in (${options.scopes.map(() => "?").join(",")})`);
       args.push(...options.scopes);
@@ -847,6 +865,7 @@ export async function getVaultCandidateKeysOp(
     );
     const conditions = [
       ...baseVaultConditions(ctx, {
+        memoryIds: options?.memoryIds,
         ...(options?.includeArchived !== undefined && { includeArchived: options.includeArchived }),
       }),
       ...(options?.scopes?.length ? [Q.where("scope", Q.oneOf(options.scopes))] : []),
@@ -1043,12 +1062,25 @@ export async function updateVaultMemoryOp(
     const record = probe;
     const originalUpdatedAt = record.updatedAt.getTime();
     await ctx.database.write(async () => {
+      if (ctx.canWrite && !(await ctx.canWrite()))
+        throw new Error("Memory source is no longer eligible");
       // Re-check inside the serialized writer: a delete that committed
       // after the probe must win — updating a soft-deleted row would
       // silently resurrect content on an invisible record.
       if (record.isDeleted || record.supersededBy || !isOwnedByCtxUser(ctx, record)) {
         stale = true;
         return;
+      }
+      let observedSources: string[] = [];
+      if (opts.observationSourceIds?.length) {
+        try {
+          const parsed: unknown = JSON.parse(record.sourceChunkIds ?? "[]");
+          if (Array.isArray(parsed))
+            observedSources = parsed.filter((id): id is string => typeof id === "string");
+        } catch {
+          /* Legacy malformed provenance is repaired by the next observation. */
+        }
+        if (opts.observationSourceIds.every((id) => observedSources.includes(id))) return;
       }
       await record.update((r) => {
         r._setRaw("content", encryptedContent);
@@ -1067,7 +1099,14 @@ export async function updateVaultMemoryOp(
           r._setRaw("embedding_model", opts.embeddingModel ?? null);
         }
         if (opts.sourceChunkIds !== undefined) {
-          r._setRaw("source_chunk_ids", JSON.stringify(opts.sourceChunkIds));
+          r._setRaw(
+            "source_chunk_ids",
+            JSON.stringify(
+              opts.observationSourceIds?.length
+                ? [...new Set([...observedSources, ...opts.sourceChunkIds])]
+                : opts.sourceChunkIds
+            )
+          );
         }
         if (opts.proofCountIncrement !== undefined) {
           // Read inside the writer so two parallel retain() calls observe
@@ -1425,6 +1464,8 @@ export async function supersedeVaultMemoryOp(
 
     let stale = false;
     await ctx.database.write(async () => {
+      if (ctx.canWrite && !(await ctx.canWrite()))
+        throw new Error("Memory source is no longer eligible");
       // Re-check BOTH rows inside the serialized writer. The live models
       // reflect the latest committed state, so a concurrent delete/supersede of
       // the target OR the successor between the validation above and this write
@@ -2075,6 +2116,7 @@ export interface DecayCandidateRaw {
   /** Unix ms — the raw `updated_at`, used both for the age rule and as the
    * optimistic-concurrency guard passed back to {@link archiveVaultMemoryOp}. */
   updatedAt: number;
+  lastObservedAt?: number | null;
   archivedAt: number | null;
   source: string | null;
   /** `trusted` | `quarantined` | null. Quarantined rows still decay by RULE, but
@@ -2148,6 +2190,7 @@ export async function getDecayCandidatesRawOp(
     eventTimeEnd: (raw.event_time_end as number | null) ?? null,
     eventTimeKind: (raw.event_time_kind as string | null) ?? null,
     updatedAt: raw.updated_at as number,
+    lastObservedAt: (raw.last_observed_at as number | null) ?? null,
     archivedAt: (raw.archived_at as number | null) ?? null,
     source: (raw.source as string | null) ?? null,
     trustTier: (raw.trust_tier as string | null) ?? null,
@@ -2180,6 +2223,8 @@ export async function archiveVaultMemoryOp(
     /** Optimistic-concurrency guard: skip if the row's `updated_at` changed
      * since the sweep observed it (a concurrent re-observation). */
     expectedUpdatedAt?: number;
+    /** Also guard re-observations, which deliberately preserve updated_at. */
+    expectedLastObservedAt?: number | null;
   }
 ): Promise<boolean> {
   try {
@@ -2196,8 +2241,10 @@ export async function archiveVaultMemoryOp(
         return;
       }
       if (
-        opts?.expectedUpdatedAt !== undefined &&
-        record.updatedAt.getTime() !== opts.expectedUpdatedAt
+        (opts?.expectedUpdatedAt !== undefined &&
+          record.updatedAt.getTime() !== opts.expectedUpdatedAt) ||
+        (opts?.expectedLastObservedAt !== undefined &&
+          (record.lastObservedAt ?? null) !== opts.expectedLastObservedAt)
       ) {
         // A retain() merge refreshed this row between scan and write — the fact
         // was just re-observed, so leave it active.

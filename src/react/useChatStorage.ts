@@ -950,10 +950,9 @@ export interface UseChatStorageResult extends BaseUseChatStorageResult {
    * @param options - Optional filtering (scopes to include, whether to
    *   include soft-deleted memories)
    */
-  getVaultMemories: (options?: {
-    scopes?: string[];
-    includeDeleted?: boolean;
-  }) => Promise<StoredVaultMemory[]>;
+  getVaultMemories: (
+    options?: Parameters<typeof getAllVaultMemoriesOp>[1]
+  ) => Promise<StoredVaultMemory[]>;
 
   /**
    * Create a new vault memory with the given content.
@@ -1734,7 +1733,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
    * Get all vault memories (for injecting as context into messages)
    */
   const getVaultMemories = useCallback(
-    (options?: { scopes?: string[]; includeDeleted?: boolean }): Promise<StoredVaultMemory[]> => {
+    (options?: Parameters<typeof getAllVaultMemoriesOp>[1]): Promise<StoredVaultMemory[]> => {
       return getAllVaultMemoriesOp(vaultCtx, options);
     },
     [vaultCtx]

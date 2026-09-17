@@ -791,3 +791,20 @@ describe("createAutoExtractor — durable cursor store (A3)", () => {
     expect(set).not.toHaveBeenCalled();
   });
 });
+
+describe("partial retention failures", () => {
+  it("does not acknowledge a window with failed facts", async () => {
+    const cursorStore = { get: vi.fn(), set: vi.fn() };
+    vi.mocked(extractAndRetain)
+      .mockResolvedValueOnce({ ...EMPTY_RESULT, outcome: "extracted", failedCount: 1 })
+      .mockResolvedValue(EMPTY_RESULT);
+    const worker = createAutoExtractor({ ...baseOptions, cursorStore });
+    worker.processTurn(messages, "conv1");
+    await flush();
+    expect(cursorStore.set).not.toHaveBeenCalled();
+    worker.processTurn(messages, "conv1");
+    await flush();
+    expect(extractAndRetain).toHaveBeenCalledTimes(2);
+    expect(cursorStore.set).toHaveBeenCalledWith("conv1", "m2");
+  });
+});

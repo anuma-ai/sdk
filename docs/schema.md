@@ -1,6 +1,6 @@
 # Database Schema
 
-Current version: **v45**
+Current version: **v46**
 
 ```mermaid
 graph LR
@@ -13,6 +13,7 @@ graph LR
 
 ## Tables
 
+- [memory_extraction_jobs](#memory_extraction_jobs)
 - [history](#history)
 - [conversations](#conversations)
 - [projects](#projects)
@@ -27,6 +28,17 @@ graph LR
 - [app_files](#app_files)
 - [saved_tools](#saved_tools)
 - [conversation_memory](#conversation_memory)
+
+## memory_extraction_jobs
+
+| Column | Type | Indexed | Optional |
+|--------|------|---------|----------|
+| `owner_key` | string | ✓ |  |
+| `conversation_id` | string | ✓ |  |
+| `scope` | string |  |  |
+| `message_ids` | string |  |  |
+| `watermark` | string |  | ✓ |
+| `folder_id` | string |  | ✓ |
 
 ## history
 
@@ -235,6 +247,7 @@ graph LR
 
 | Version | Changes |
 |---------|---------|
+| v46 | Added `memory_extraction_jobs` table |
 | v45 | Added `media` to `memory_vault` |
 | v44 | Added `origin` to `history` |
 | v43 | `CREATE INDEX IF NOT EXISTS conversations_is_deleted_created_at ON conversations (is_deleted, created_at);` |

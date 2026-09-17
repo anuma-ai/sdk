@@ -453,6 +453,7 @@ describe("getDecayCandidatesRawOp — scan shape and inclusion", () => {
         "eventTimeEnd",
         "eventTimeKind",
         "factType",
+        "lastObservedAt",
         "source",
         "trustTier",
         "uniqueId",

@@ -16,7 +16,7 @@ Extends base result with React-specific sendMessage signature.
 
 > **clearQueue**: () => `void`
 
-Defined in: [src/react/useChatStorage.ts:993](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#993)
+Defined in: [src/react/useChatStorage.ts:992](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#992)
 
 Clear all queued operations for the current wallet.
 Discards pending operations without writing them.
@@ -293,7 +293,7 @@ separately; the LLM no longer has to route between two surfaces.
 
 > **createVaultMemory**: (`content`: `string`, `scope?`: `string`) => `Promise`<[`StoredVaultMemory`](StoredVaultMemory.md)>
 
-Defined in: [src/react/useChatStorage.ts:963](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#963)
+Defined in: [src/react/useChatStorage.ts:962](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#962)
 
 Create a new vault memory with the given content.
 
@@ -396,7 +396,7 @@ Defined in: [src/lib/db/chat/types.ts:1086](https://github.com/anuma-ai/sdk/blob
 
 > **deleteVaultMemory**: (`id`: `string`) => `Promise`<`boolean`>
 
-Defined in: [src/react/useChatStorage.ts:980](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#980)
+Defined in: [src/react/useChatStorage.ts:979](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#979)
 
 Delete a vault memory by its ID (soft delete).
 
@@ -437,7 +437,7 @@ true if the memory was found and deleted
 
 > **flushQueue**: () => `Promise`<[`FlushResult`](FlushResult.md)>
 
-Defined in: [src/react/useChatStorage.ts:987](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#987)
+Defined in: [src/react/useChatStorage.ts:986](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#986)
 
 Manually flush all queued operations for the current wallet.
 Operations are encrypted and written to the database.
@@ -795,12 +795,136 @@ include soft-deleted memories)
 <tr>
 <td>
 
+`options.factTypes?`
+
+</td>
+<td>
+
+`string`\[]
+
+</td>
+<td>
+
+Typed memory (PR1) — restrict to these fact types. Omit for no filter.
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.folderId?`
+
+</td>
+<td>
+
+`string` | `null`
+
+</td>
+<td>
+
+‐
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.includeArchived?`
+
+</td>
+<td>
+
+`boolean`
+
+</td>
+<td>
+
+Include archived (decayed) memories. Default `false` (PR1 choke point).
+
+</td>
+</tr>
+<tr>
+<td>
+
 `options.includeDeleted?`
 
 </td>
 <td>
 
 `boolean`
+
+</td>
+<td>
+
+Include soft-deleted memories in the result (each carries
+`isDeleted: true`). Default `false` — deleted rows are excluded, as
+they are from every other read path. Used by the Memory Graph to
+render "forgotten" nodes; ordinary consumers should leave this off.
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.includeQuarantined?`
+
+</td>
+<td>
+
+`boolean`
+
+</td>
+<td>
+
+Include quarantined memories. Default `false` (PR1 choke point).
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.includeSuperseded?`
+
+</td>
+<td>
+
+`boolean`
+
+</td>
+<td>
+
+Include A2-superseded memories (each carries `supersededBy`). Default
+`false` — superseded rows are excluded, as they are from recall/dedup.
+Used by a "memory history" view to render retired facts.
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.limit?`
+
+</td>
+<td>
+
+`number`
+
+</td>
+<td>
+
+‐
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.memoryIds?`
+
+</td>
+<td>
+
+`string`\[]
 
 </td>
 <td>
@@ -823,6 +947,42 @@ include soft-deleted memories)
 <td>
 
 ‐
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.since?`
+
+</td>
+<td>
+
+`Date`
+
+</td>
+<td>
+
+‐
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.visibility?`
+
+</td>
+<td>
+
+[`VaultMemoryVisibility`](../type-aliases/VaultMemoryVisibility.md)\[]
+
+</td>
+<td>
+
+Filter by People Nearby visibility. Legacy rows with a NULL column
+count as "private". Used by the publish reconciler to fetch the
+published set to diff against the server index.
 
 </td>
 </tr>
@@ -851,7 +1011,7 @@ Defined in: [src/lib/db/chat/types.ts:1077](https://github.com/anuma-ai/sdk/blob
 
 > **queueStatus**: [`QueueStatus`](QueueStatus.md)
 
-Defined in: [src/react/useChatStorage.ts:998](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#998)
+Defined in: [src/react/useChatStorage.ts:997](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#997)
 
 Current status of the write queue.
 
@@ -2153,7 +2313,7 @@ Defined in: [src/lib/db/chat/types.ts:1084](https://github.com/anuma-ai/sdk/blob
 
 > **updateVaultMemory**: (`id`: `string`, `content`: `string`, `scope?`: `string`) => `Promise`<[`StoredVaultMemory`](StoredVaultMemory.md) | `null`>
 
-Defined in: [src/react/useChatStorage.ts:970](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#970)
+Defined in: [src/react/useChatStorage.ts:969](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#969)
 
 Update an existing vault memory's content.
 

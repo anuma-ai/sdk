@@ -234,6 +234,7 @@ export async function retain(
           const updated = await updateVaultMemoryOp(ctx.vaultCtx, targetId, {
             content: existing.content,
             proofCountIncrement: 1,
+            observationSourceIds: options.sourceChunkIds,
             sourceChunkIds: mergedSourceIds,
             // resurrect encodes the decay gate: ACTIVE target → { preserveUpdatedAt:
             // true } (main's normal re-observation path — bump proof_count without
@@ -705,6 +706,7 @@ async function tryConsolidate(
     const updated = await updateVaultMemoryOp(ctx.vaultCtx, decision.targetId, {
       content: existing.content,
       proofCountIncrement: 1,
+      observationSourceIds: options.sourceChunkIds,
       sourceChunkIds: mergedSourceIds,
       // ACTIVE target → { preserveUpdatedAt: true } (main's normal re-observation
       // path); ARCHIVED (non-superseded, non-deleted) → { restore: true } and no
@@ -761,6 +763,7 @@ async function tryConsolidate(
     const updated = await updateVaultMemoryOp(ctx.vaultCtx, decision.targetId, {
       content: decision.content,
       proofCountIncrement: 1,
+      observationSourceIds: options.sourceChunkIds,
       sourceChunkIds: mergedSourceIds,
       embedding: JSON.stringify(newEmbedding),
       embeddingModel: consolidatedModel,

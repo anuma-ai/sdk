@@ -1,8 +1,8 @@
 # SDK\_SCHEMA\_VERSION
 
-> `const` **SDK\_SCHEMA\_VERSION**: `45` = `45`
+> `const` **SDK\_SCHEMA\_VERSION**: `46` = `46`
 
-Defined in: [src/lib/db/schema.ts:121](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/schema.ts#121)
+Defined in: [src/lib/db/schema.ts:123](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/schema.ts#123)
 
 Current combined schema version for all SDK storage modules.
 
@@ -101,3 +101,4 @@ Version history:
 * v45: Added `media` to memory\_vault — the photo(s) a server-extracted
   memory came from, as JSON `[{feed_item_id, object_key}]`. Null on every
   row that did not come from a photo, which is all of them before this
+* v46: Added device-local memory\_extraction\_jobs outbox for restart-safe extraction.

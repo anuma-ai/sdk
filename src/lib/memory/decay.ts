@@ -128,6 +128,8 @@ export interface DecayInput {
   eventTimeKind: string | null;
   /** Unix ms of the row's last write (re-observation resets this). */
   updatedAt: number;
+  /** Last distinct observation; does not change the edit timestamp. */
+  lastObservedAt?: number | null;
   /** Unix ms when archived, or null when active. */
   archivedAt: number | null;
   /** `manual` | `auto-extracted` | `capsule` | null. Manual is never decayed. */
@@ -250,7 +252,8 @@ export function classifyDecay(
   }
 
   // (4) Age fallback — stale past its per-type TTL. Infinity for durable types.
-  if (now - m.updatedAt > ttlForType(m.factType, resolved)) return "archive";
+  const observedAt = Number.isFinite(m.lastObservedAt) ? (m.lastObservedAt as number) : m.updatedAt;
+  if (now - Math.max(m.updatedAt, observedAt) > ttlForType(m.factType, resolved)) return "archive";
 
   // (5) Still fresh / durable.
   return "keep";
