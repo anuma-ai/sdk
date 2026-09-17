@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { INTERNAL_FLOW_MARKER, withInternalFlowMarker } from "../internalFlowMarker.js";
 import { reflect } from "./reflect.js";
 import type { RecallContext } from "./types.js";
 
@@ -767,5 +768,42 @@ describe("reflect", () => {
     expect(systemOf(sentBody(fetchFn))).not.toContain(
       "You are a personal assistant with access to the user's memory."
     );
+  });
+
+  // The two SUPPORTED ways to override without losing provenance, which is what makes the
+  // negative case above a documented limit rather than a trap. A background caller marks its
+  // prompt; a user-facing caller appends to the default instead of replacing it. Both are spelled
+  // out on ReflectOptions.systemPrompt, and withInternalFlowMarker is exported for the first.
+  it("keeps provenance when a background caller marks its overridden prompt", async () => {
+    oneMemory();
+    const fetchFn = mockFetch(completionResponse("answer"));
+    await reflect("q", ctx, {
+      apiKey: "k",
+      fetchFn,
+      systemPrompt: withInternalFlowMarker("Summarize the evidence into one sentence."),
+    });
+    expect(systemOf(sentBody(fetchFn))).toContain(INTERNAL_FLOW_MARKER);
+  });
+
+  it("keeps the fingerprint when a user-facing caller appends instead of replacing", async () => {
+    oneMemory();
+    const fetchFn = mockFetch(completionResponse("answer"));
+    // The default is not exported, so a caller appends by reading it off an unoverridden call.
+    // Pinning the prefix shape here is what makes that advice safe to give.
+    const base = await (async () => {
+      const probe = mockFetch(completionResponse("x"));
+      oneMemory();
+      await reflect("q", ctx, { apiKey: "k", fetchFn: probe });
+      return systemOf(sentBody(probe));
+    })();
+    await reflect("q", ctx, {
+      apiKey: "k",
+      fetchFn,
+      systemPrompt: `${base}\n\nAlso answer in French.`,
+    });
+    const system = systemOf(sentBody(fetchFn));
+    expect(system).toContain("You are a personal assistant with access to the user's memory.");
+    expect(system).toContain("Also answer in French.");
+    expect(system).not.toContain(INTERNAL_FLOW_MARKER);
   });
 });

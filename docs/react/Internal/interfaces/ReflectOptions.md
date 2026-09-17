@@ -30,7 +30,7 @@ Direct API key — sent as `x-api-key` (server-side / CLI usage). Wins when both
 
 > `optional` **baseUrl**: `string`
 
-Defined in: [src/lib/memory/reflect.ts:161](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/reflect.ts#161)
+Defined in: [src/lib/memory/reflect.ts:184](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/reflect.ts#184)
 
 Endpoint for the answer LLM.
 
@@ -209,7 +209,7 @@ map is a no-op (uniform weighting). Vault-only.
 
 > `optional` **fetchFn**: {(`input`: `RequestInfo` | `URL`, `init?`: `RequestInit`): `Promise`<`Response`>; (`input`: `string` | `Request` | `URL`, `init?`: `RequestInit`): `Promise`<`Response`>; }
 
-Defined in: [src/lib/memory/reflect.ts:163](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/reflect.ts#163)
+Defined in: [src/lib/memory/reflect.ts:186](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/reflect.ts#186)
 
 Override fetch (for tests).
 
@@ -430,7 +430,7 @@ Cap response length. Default: 4096.
 
 > `optional` **memories**: [`RankedMemory`](RankedMemory.md)\[]
 
-Defined in: [src/lib/memory/reflect.ts:171](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/reflect.ts#171)
+Defined in: [src/lib/memory/reflect.ts:194](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/reflect.ts#194)
 
 Skip Stage-1 [recall](../functions/recall.md) and synthesize from these memories instead.
 Used by `synthesizeProfile` after intersecting recall with a
@@ -606,7 +606,7 @@ was 30 until 2026-08-13 — see anuma-ai/sdk#845.
 
 > `optional` **responseSchema**: `Record`<`string`, `unknown`>
 
-Defined in: [src/lib/memory/reflect.ts:165](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/reflect.ts#165)
+Defined in: [src/lib/memory/reflect.ts:188](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/reflect.ts#188)
 
 Optional JSON Schema to coerce structured outputs.
 
@@ -691,9 +691,30 @@ Hard cap on the supersession candidate window. Default: 50.
 
 > `optional` **systemPrompt**: `string`
 
-Defined in: [src/lib/memory/reflect.ts:137](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/reflect.ts#137)
+Defined in: [src/lib/memory/reflect.ts:160](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/reflect.ts#160)
 
 Override the grounding system prompt.
+
+⚠ DOING THIS MAKES THE REQUEST'S PROVENANCE YOURS. The default prompt's first sentence is
+this flow's fingerprint in the portal's freeloader (anti-bot) detector (see
+DEFAULT\_SYSTEM\_PROMPT); replacing it wholesale removes that, and a free-tier request
+carrying no recognised provenance is rejected outright once the portal's markerless reject is
+enabled — a 403, not a degraded answer.
+
+Which replacement is correct depends on what the call IS, and there is no safe default:
+
+* **A background/internal call** (a fixed-purpose helper, not a user's own question): prepend
+  [withInternalFlowMarker](../functions/withInternalFlowMarker.md), which is exported for exactly this. That is what
+  profile-facet synthesis does.
+* **A user-facing call** (the person is asking their own question and expects an answer):
+  do NOT use the internal marker — it asserts "not user chat" and would be false. Keep the
+  default prompt, or append your instructions to it rather than replacing it, so the
+  fingerprint survives. A genuinely distinct user-facing flow needs its own fingerprint
+  registered in ai-portal `internal/detection/markers.go`.
+
+Appending is the cheap way to stay safe: `${DEFAULT_SYSTEM_PROMPT}\n\n${yourInstructions}`
+keeps the fingerprint as a prefix. `reflect.test.ts` pins both the marked and the bare
+override paths so this stays true.
 
 ***
 
@@ -701,7 +722,7 @@ Override the grounding system prompt.
 
 > `optional` **taskType**: `TaskType`
 
-Defined in: [src/lib/memory/reflect.ts:159](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/reflect.ts#159)
+Defined in: [src/lib/memory/reflect.ts:182](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/reflect.ts#182)
 
 Class-B task name for the `X-Anuma-Task-Type` header, or nothing.
 
@@ -734,7 +755,7 @@ Which kinds to search. Default: \['fact'].
 
 > `optional` **userInstructions**: `string`
 
-Defined in: [src/lib/memory/reflect.ts:146](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/reflect.ts#146)
+Defined in: [src/lib/memory/reflect.ts:169](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/reflect.ts#169)
 
 Extra caller instruction to carry on the USER turn, between the question and
 the evidence block (see the `userMessage` assembly below). This is the slot a

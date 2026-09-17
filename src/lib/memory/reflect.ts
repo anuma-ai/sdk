@@ -133,7 +133,30 @@ export interface ReflectOptions extends RecallOptions, PortalLlmAuth {
   llmModel?: string;
   /** Cap response length. Default: 4096. */
   maxTokens?: number;
-  /** Override the grounding system prompt. */
+  /**
+   * Override the grounding system prompt.
+   *
+   * ⚠ DOING THIS MAKES THE REQUEST'S PROVENANCE YOURS. The default prompt's first sentence is
+   * this flow's fingerprint in the portal's freeloader (anti-bot) detector (see
+   * {@link DEFAULT_SYSTEM_PROMPT}); replacing it wholesale removes that, and a free-tier request
+   * carrying no recognised provenance is rejected outright once the portal's markerless reject is
+   * enabled — a 403, not a degraded answer.
+   *
+   * Which replacement is correct depends on what the call IS, and there is no safe default:
+   *
+   * - **A background/internal call** (a fixed-purpose helper, not a user's own question): prepend
+   *   {@link withInternalFlowMarker}, which is exported for exactly this. That is what
+   *   profile-facet synthesis does.
+   * - **A user-facing call** (the person is asking their own question and expects an answer):
+   *   do NOT use the internal marker — it asserts "not user chat" and would be false. Keep the
+   *   default prompt, or append your instructions to it rather than replacing it, so the
+   *   fingerprint survives. A genuinely distinct user-facing flow needs its own fingerprint
+   *   registered in ai-portal `internal/detection/markers.go`.
+   *
+   * Appending is the cheap way to stay safe: `${DEFAULT_SYSTEM_PROMPT}\n\n${yourInstructions}`
+   * keeps the fingerprint as a prefix. `reflect.test.ts` pins both the marked and the bare
+   * override paths so this stays true.
+   */
   systemPrompt?: string;
   /**
    * Extra caller instruction to carry on the USER turn, between the question and

@@ -503,6 +503,7 @@ export {
   extractFacts,
   HARD_DELETE_WINDOW_MS,
   injectionSignatureCatalog,
+  INTERNAL_FLOW_MARKER,
   isDegradedTopicSkip,
   isRerankerAvailable,
   MAX_HOPS,
@@ -530,6 +531,7 @@ export {
   ttlForType,
   VAULT_SIZE_HOP_CAP,
   verifyMemoriesForPublish,
+  withInternalFlowMarker,
 } from "../lib/memory";
 
 // Entity / memory_entity tables — the W5 graph-lane storage that
