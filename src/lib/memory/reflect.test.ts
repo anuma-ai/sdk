@@ -718,4 +718,54 @@ describe("reflect", () => {
     expect(body.max_completion_tokens).toBe(512);
     expect(body).not.toHaveProperty("max_tokens");
   });
+
+  // The portal's freeloader detector does a plain case-sensitive substring match on the raw
+  // system text, so this literal IS the cross-repo contract. It must stay byte-identical to
+  // detection.FingerprintReflect in ai-portal internal/detection/markers.go. reflect() is
+  // deliberately NOT stamped with INTERNAL_FLOW_MARKER (it answers the user's own question), so
+  // this sentence is the only thing identifying the call as first-party — drop it and a
+  // free-tier reflect() 403s once PORTAL_DETECTION_REJECT_MARKERLESS is on.
+  //
+  // Asserted against the SENT BODY rather than the constant, so it proves what actually reaches
+  // the portal, not merely that a string exists in this file.
+  it("freeloader fingerprint must stay in sync with ai-portal detection/markers.go", async () => {
+    const FINGERPRINT = "You are a personal assistant with access to the user's memory.";
+
+    oneMemory();
+    const fetchFn = mockFetch(completionResponse("answer"));
+    await reflect("q", ctx, { apiKey: "k", fetchFn });
+    const system = systemOf(sentBody(fetchFn));
+    expect(system).toContain(FINGERPRINT);
+    // A strict PREFIX: the structured-output fallback appends its schema instruction as a tail,
+    // and anything prepended ahead of the sentence would be fine for the substring match but is
+    // worth noticing here, because it would mean the prompt is no longer the default.
+    expect(system.startsWith(FINGERPRINT)).toBe(true);
+  });
+
+  // The schema fallback rewrites the system prompt, so the fingerprint has to survive that path
+  // too — it is the shape a structured reflect() call actually sends.
+  it("keeps the fingerprint when the JSON schema rides in the system prompt", async () => {
+    oneMemory();
+    const fetchFn = mockFetch(completionResponse(JSON.stringify({ name: "Peter" })));
+    await reflect("q", ctx, {
+      apiKey: "k",
+      fetchFn,
+      responseSchema: { type: "object", properties: { name: { type: "string" } } },
+    });
+    const system = systemOf(sentBody(fetchFn));
+    expect(system).toContain("You are a personal assistant with access to the user's memory.");
+    expect(system).toContain("JSON Schema");
+  });
+
+  // The documented scope limit, pinned so nobody later reads the registration as covering every
+  // reflect() call: an overriding caller drops the default and owns its own provenance (which is
+  // what profile-facet synthesis does, via withInternalFlowMarker).
+  it("sends no fingerprint when the caller overrides the system prompt", async () => {
+    oneMemory();
+    const fetchFn = mockFetch(completionResponse("answer"));
+    await reflect("q", ctx, { apiKey: "k", fetchFn, systemPrompt: "Answer from the evidence." });
+    expect(systemOf(sentBody(fetchFn))).not.toContain(
+      "You are a personal assistant with access to the user's memory."
+    );
+  });
 });

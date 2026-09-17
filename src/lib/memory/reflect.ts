@@ -86,6 +86,35 @@ type ReflectAttempt =
   | { kind: "http"; status: number; statusText: string }
   | { kind: "error" };
 
+/**
+ * The grounding prompt for a reflect() call the caller did not override.
+ *
+ * ⚠ ITS FIRST SENTENCE IS THIS FLOW'S FINGERPRINT in the portal's freeloader (anti-bot)
+ * detector — `detection.FingerprintReflect`, ai-portal `internal/detection/markers.go`. The
+ * portal judges a request genuine from its RAW system text: user chat carries fragments of the
+ * client's base chat prompt, and every other first-party flow carries its own verbatim string.
+ * This prompt is neither, so without the pinned sentence a reflect() call on a free-tier token
+ * reads as anonymous script traffic — a 403, not a downgrade, once
+ * `PORTAL_DETECTION_REJECT_MARKERLESS` is on. The match is a plain case-sensitive substring, so
+ * rewording the first sentence without the portal constant is what breaks it.
+ *
+ * Only the FIRST SENTENCE is the contract; the Rules block below is ordinary prompt copy and
+ * free to change. `reflect.test.ts` pins this half, and the portal carries the matching warning
+ * and its own assertion.
+ *
+ * Registered ahead of traffic, deliberately: no app calls the unoverridden reflect() today, so
+ * the fingerprint costs nothing now and spares the first consumer the month of silent 403s the
+ * Nearby image lane went through for exactly this reason.
+ *
+ * SCOPE — this covers the DEFAULT only. A caller passing {@link ReflectOptions.systemPrompt}
+ * replaces it wholesale and owns its own provenance; profile-facet synthesis does that correctly
+ * by wrapping its prompt in `withInternalFlowMarker`. A structured call appends the JSON-Schema
+ * instruction as a TAIL (see `buildBody`), which keeps this a strict prefix and the match intact.
+ *
+ * NOT marked with {@link INTERNAL_FLOW_MARKER}, and that is the point: reflect() answers the
+ * user's OWN question, so stamping it "not user chat" would be false on a genuine turn. Its own
+ * fingerprint is the correct shape — see ../internalFlowMarker.ts and ReflectOptions.taskType.
+ */
 const DEFAULT_SYSTEM_PROMPT = `You are a personal assistant with access to the user's memory. Answer the user's question using the supplied memories as evidence.
 
 Rules:
