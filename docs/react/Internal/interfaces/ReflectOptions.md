@@ -1,6 +1,6 @@
 # ReflectOptions
 
-Defined in: [src/lib/memory/reflect.ts:102](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/reflect.ts#102)
+Defined in: [src/lib/memory/reflect.ts:131](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/reflect.ts#131)
 
 Options for [reflect](../functions/reflect.md). Auth for the answer LLM is the dual pattern
 inherited from [PortalLlmAuth](PortalLlmAuth.md) — one of `apiKey` / `getToken` is
@@ -30,7 +30,7 @@ Direct API key — sent as `x-api-key` (server-side / CLI usage). Wins when both
 
 > `optional` **baseUrl**: `string`
 
-Defined in: [src/lib/memory/reflect.ts:132](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/reflect.ts#132)
+Defined in: [src/lib/memory/reflect.ts:161](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/reflect.ts#161)
 
 Endpoint for the answer LLM.
 
@@ -209,7 +209,7 @@ map is a no-op (uniform weighting). Vault-only.
 
 > `optional` **fetchFn**: {(`input`: `RequestInfo` | `URL`, `init?`: `RequestInit`): `Promise`<`Response`>; (`input`: `string` | `Request` | `URL`, `init?`: `RequestInit`): `Promise`<`Response`>; }
 
-Defined in: [src/lib/memory/reflect.ts:134](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/reflect.ts#134)
+Defined in: [src/lib/memory/reflect.ts:163](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/reflect.ts#163)
 
 Override fetch (for tests).
 
@@ -392,7 +392,7 @@ Max items returned. Default: 8.
 
 > `optional` **llmModel**: `string`
 
-Defined in: [src/lib/memory/reflect.ts:104](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/reflect.ts#104)
+Defined in: [src/lib/memory/reflect.ts:133](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/reflect.ts#133)
 
 Override the answer model. Default: anthropic/claude-sonnet-4-6.
 
@@ -416,7 +416,7 @@ Total graph hops incl. the seed lookup (hop 1). Default: 1 (seed only).
 
 > `optional` **maxTokens**: `number`
 
-Defined in: [src/lib/memory/reflect.ts:106](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/reflect.ts#106)
+Defined in: [src/lib/memory/reflect.ts:135](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/reflect.ts#135)
 
 Cap response length. Default: 4096.
 
@@ -430,7 +430,7 @@ Cap response length. Default: 4096.
 
 > `optional` **memories**: [`RankedMemory`](RankedMemory.md)\[]
 
-Defined in: [src/lib/memory/reflect.ts:142](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/reflect.ts#142)
+Defined in: [src/lib/memory/reflect.ts:171](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/reflect.ts#171)
 
 Skip Stage-1 [recall](../functions/recall.md) and synthesize from these memories instead.
 Used by `synthesizeProfile` after intersecting recall with a
@@ -606,7 +606,7 @@ was 30 until 2026-08-13 — see anuma-ai/sdk#845.
 
 > `optional` **responseSchema**: `Record`<`string`, `unknown`>
 
-Defined in: [src/lib/memory/reflect.ts:136](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/reflect.ts#136)
+Defined in: [src/lib/memory/reflect.ts:165](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/reflect.ts#165)
 
 Optional JSON Schema to coerce structured outputs.
 
@@ -691,7 +691,7 @@ Hard cap on the supersession candidate window. Default: 50.
 
 > `optional` **systemPrompt**: `string`
 
-Defined in: [src/lib/memory/reflect.ts:108](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/reflect.ts#108)
+Defined in: [src/lib/memory/reflect.ts:137](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/reflect.ts#137)
 
 Override the grounding system prompt.
 
@@ -701,7 +701,7 @@ Override the grounding system prompt.
 
 > `optional` **taskType**: `TaskType`
 
-Defined in: [src/lib/memory/reflect.ts:130](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/reflect.ts#130)
+Defined in: [src/lib/memory/reflect.ts:159](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/reflect.ts#159)
 
 Class-B task name for the `X-Anuma-Task-Type` header, or nothing.
 
@@ -734,7 +734,7 @@ Which kinds to search. Default: \['fact'].
 
 > `optional` **userInstructions**: `string`
 
-Defined in: [src/lib/memory/reflect.ts:117](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/reflect.ts#117)
+Defined in: [src/lib/memory/reflect.ts:146](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/reflect.ts#146)
 
 Extra caller instruction to carry on the USER turn, between the question and
 the evidence block (see the `userMessage` assembly below). This is the slot a
