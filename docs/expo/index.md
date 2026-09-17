@@ -1018,6 +1018,12 @@ Re-exports [isDegradedTopicSkip](../react/Internal/functions/isDegradedTopicSkip
 
 ***
 
+### isEncrypted
+
+Re-exports [isEncrypted](../react/Internal/functions/isEncrypted.md)
+
+***
+
 ### isRerankerAvailable
 
 Re-exports [isRerankerAvailable](../react/Internal/functions/isRerankerAvailable.md)
