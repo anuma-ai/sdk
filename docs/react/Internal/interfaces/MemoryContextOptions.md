@@ -1,6 +1,6 @@
 # MemoryContextOptions
 
-Defined in: src/lib/memory/context.ts:15
+Defined in: [src/lib/memory/context.ts:15](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/context.ts#15)
 
 ## Properties
 
@@ -8,7 +8,7 @@ Defined in: src/lib/memory/context.ts:15
 
 > `optional` **includeEpisodes**: `boolean`
 
-Defined in: src/lib/memory/context.ts:27
+Defined in: [src/lib/memory/context.ts:27](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/context.ts#27)
 
 ***
 
@@ -16,7 +16,7 @@ Defined in: src/lib/memory/context.ts:27
 
 > `optional` **loadFacts**: (`options`: { `factTypes?`: `string`\[]; `folderId?`: `string` | `null`; `includeArchived?`: `boolean`; `includeDeleted?`: `boolean`; `includeQuarantined?`: `boolean`; `includeSuperseded?`: `boolean`; `limit?`: `number`; `memoryIds?`: `string`\[]; `scopes?`: `string`\[]; `since?`: `Date`; `visibility?`: [`VaultMemoryVisibility`](../type-aliases/VaultMemoryVisibility.md)\[]; } | `undefined`) => `Promise`<[`StoredVaultMemory`](StoredVaultMemory.md)\[]> | `null`
 
-Defined in: src/lib/memory/context.ts:18
+Defined in: [src/lib/memory/context.ts:18](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/context.ts#18)
 
 ***
 
@@ -24,7 +24,7 @@ Defined in: src/lib/memory/context.ts:18
 
 > `optional` **loadSessionRefs**: () => `Promise`<`object`\[]> | `null`
 
-Defined in: src/lib/memory/context.ts:21
+Defined in: [src/lib/memory/context.ts:21](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/context.ts#21)
 
 ***
 
@@ -32,7 +32,7 @@ Defined in: src/lib/memory/context.ts:21
 
 > `optional` **maxChars**: `number`
 
-Defined in: src/lib/memory/context.ts:26
+Defined in: [src/lib/memory/context.ts:26](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/context.ts#26)
 
 Character budget for contents (formatting overhead is excluded). Default 12000.
 
@@ -42,7 +42,7 @@ Character budget for contents (formatting overhead is excluded). Default 12000.
 
 > `optional` **memoryIds**: `string`\[]
 
-Defined in: src/lib/memory/context.ts:24
+Defined in: [src/lib/memory/context.ts:24](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/context.ts#24)
 
 Topic membership is applied before ranking and to every context lane.
 
@@ -52,7 +52,7 @@ Topic membership is applied before ranking and to every context lane.
 
 > `optional` **onDegraded**: (`lane`: [`MemoryContextLane`](../type-aliases/MemoryContextLane.md), `error`: `unknown`) => `void`
 
-Defined in: src/lib/memory/context.ts:28
+Defined in: [src/lib/memory/context.ts:28](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/context.ts#28)
 
 **Parameters**
 
@@ -101,7 +101,7 @@ Defined in: src/lib/memory/context.ts:28
 
 > **query**: `string`
 
-Defined in: src/lib/memory/context.ts:16
+Defined in: [src/lib/memory/context.ts:16](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/context.ts#16)
 
 ***
 
@@ -109,7 +109,7 @@ Defined in: src/lib/memory/context.ts:16
 
 > **recall**: (`query`: `string`, `options`: [`RecallOptions`](RecallOptions.md)) => `Promise`<[`RecallResult`](RecallResult.md)>
 
-Defined in: src/lib/memory/context.ts:17
+Defined in: [src/lib/memory/context.ts:17](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/context.ts#17)
 
 **Parameters**
 
@@ -158,4 +158,4 @@ Defined in: src/lib/memory/context.ts:17
 
 > `optional` **recallOptions**: [`RecallOptions`](RecallOptions.md)
 
-Defined in: src/lib/memory/context.ts:22
+Defined in: [src/lib/memory/context.ts:22](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/context.ts#22)

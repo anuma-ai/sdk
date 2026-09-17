@@ -1,6 +1,6 @@
 # MemoryContextItem
 
-Defined in: src/lib/memory/context.ts:6
+Defined in: [src/lib/memory/context.ts:6](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/context.ts#6)
 
 ## Properties
 
@@ -8,7 +8,7 @@ Defined in: src/lib/memory/context.ts:6
 
 > **content**: `string`
 
-Defined in: src/lib/memory/context.ts:8
+Defined in: [src/lib/memory/context.ts:8](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/context.ts#8)
 
 ***
 
@@ -16,7 +16,7 @@ Defined in: src/lib/memory/context.ts:8
 
 > **id**: `string`
 
-Defined in: src/lib/memory/context.ts:7
+Defined in: [src/lib/memory/context.ts:7](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/context.ts#7)
 
 ***
 
@@ -24,7 +24,7 @@ Defined in: src/lib/memory/context.ts:7
 
 > **lane**: [`MemoryContextLane`](../type-aliases/MemoryContextLane.md)
 
-Defined in: src/lib/memory/context.ts:10
+Defined in: [src/lib/memory/context.ts:10](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/context.ts#10)
 
 ***
 
@@ -32,7 +32,7 @@ Defined in: src/lib/memory/context.ts:10
 
 > `optional` **recalled**: `boolean`
 
-Defined in: src/lib/memory/context.ts:13
+Defined in: [src/lib/memory/context.ts:13](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/context.ts#13)
 
 Ranked fact evidence, retained when profile deduplication wins placement.
 
@@ -42,7 +42,7 @@ Ranked fact evidence, retained when profile deduplication wins placement.
 
 > **score**: `number`
 
-Defined in: src/lib/memory/context.ts:9
+Defined in: [src/lib/memory/context.ts:9](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/context.ts#9)
 
 ***
 
@@ -50,4 +50,4 @@ Defined in: src/lib/memory/context.ts:9
 
 > **sourceIds**: `string`\[]
 
-Defined in: src/lib/memory/context.ts:11
+Defined in: [src/lib/memory/context.ts:11](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/context.ts#11)

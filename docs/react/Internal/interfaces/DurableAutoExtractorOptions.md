@@ -1,6 +1,6 @@
 # DurableAutoExtractorOptions
 
-Defined in: src/lib/memory/durableExtraction.ts:15
+Defined in: [src/lib/memory/durableExtraction.ts:15](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/durableExtraction.ts#15)
 
 ## Extends
 
@@ -99,7 +99,7 @@ Omit for in-memory-only (legacy) behavior.
 
 > `optional` **debounceMs**: `number`
 
-Defined in: src/lib/memory/durableExtraction.ts:17
+Defined in: [src/lib/memory/durableExtraction.ts:17](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/durableExtraction.ts#17)
 
 Coalesce arrivals after durably recording them. Defaults to 20 seconds.
 
@@ -563,7 +563,7 @@ Defined in: [src/lib/memory/autoExtractWorker.ts:219](https://github.com/anuma-a
 
 > `optional` **retryDelayMs**: `number`
 
-Defined in: src/lib/memory/durableExtraction.ts:20
+Defined in: [src/lib/memory/durableExtraction.ts:20](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/durableExtraction.ts#20)
 
 Retry delay for a failed batch. Defaults to 30 seconds; max three attempts
 per session. Unfinished jobs remain available on the next resume.

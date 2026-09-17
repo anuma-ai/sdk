@@ -106,6 +106,31 @@ describe("shared context assembly", () => {
     expect(context.items.find((item) => item.id === "name")).not.toHaveProperty("recalled");
     expect(context.rankedCount).toBe(1);
   });
+  it("preserves the highest recalled score when different IDs share trimmed profile content", async () => {
+    const context = await assembleMemoryContext({
+      query: "My allergies?",
+      includeEpisodes: false,
+      recall: async () =>
+        result([
+          { ...rankedFact("first-duplicate"), content: "Peanut allergy", score: 0.6 },
+          { ...rankedFact("duplicate"), content: "  Peanut allergy  ", score: 0.9 },
+          { ...rankedFact("another"), content: "Peanut allergy", score: 0.7 },
+        ]),
+      loadFacts: async (options) =>
+        options?.factTypes?.includes("identity")
+          ? [fact("profile", "Peanut allergy"), fact("unrelated", "Name is Alice")]
+          : [],
+    });
+    expect(context.items).toHaveLength(2);
+    expect(context.items[0]).toMatchObject({
+      id: "profile",
+      lane: "profile",
+      content: "Peanut allergy",
+      recalled: true,
+      score: 0.9,
+    });
+    expect(context.items[1]).not.toHaveProperty("recalled");
+  });
   it("does not bulk-load unrelated memories after a legitimate empty search", async () => {
     const loadFacts = vi.fn(async () => []);
     const context = await assembleMemoryContext({

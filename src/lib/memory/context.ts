@@ -183,12 +183,22 @@ export async function assembleMemoryContext(
       }));
   const recalledFacts = toItems(facts, "fact");
   const recalledScores = new Map<string, number>();
+  const recalledContentScores = new Map<string, number>();
   for (const item of recalledFacts) {
     recalledScores.set(item.id, Math.max(recalledScores.get(item.id) ?? -Infinity, item.score));
+    const content = item.content.trim();
+    recalledContentScores.set(
+      content,
+      Math.max(recalledContentScores.get(content) ?? -Infinity, item.score)
+    );
   }
   const rankedProfile = profile.map((item) => {
-    const score = recalledScores.get(item.id);
-    return score === undefined ? item : { ...item, score, recalled: true };
+    // Match both identities used by the final deduplication pass.
+    const score = Math.max(
+      recalledScores.get(item.id) ?? -Infinity,
+      recalledContentScores.get(item.content.trim()) ?? -Infinity
+    );
+    return score === -Infinity ? item : { ...item, score, recalled: true };
   });
   const lanes: Array<[MemoryContextItem[], number]> = [
     [rankedProfile, 2000],
