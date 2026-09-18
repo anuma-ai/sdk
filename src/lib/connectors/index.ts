@@ -7,10 +7,26 @@
  * - {@link buildConnectorErrorResult} produces the canonical
  *   `__anuma_connector_error_v1` JSON shape every tool factory emits when
  *   the mint endpoint signals a missing connector or insufficient scope.
+ * - {@link createAgentresClient} is the one connector that holds no vault
+ *   credential: agentres.dev binds a Resy account to the user's own Solana
+ *   wallet, proved per call by a message signature. Its SIWX challenge parsing
+ *   and message building stay inside `agentres/siwx.ts` — a consumer that
+ *   assembles the proof by hand loses the fresh-nonce-per-call guarantee.
  *
  * @module lib/connectors
  */
 
+export type {
+  AgentresAccount,
+  AgentresClient,
+  AgentresClientOptions,
+  AgentresLinkStatus,
+  AgentresLinkStep,
+  SolanaSignMessageFn,
+} from "./agentres/client.js";
+export { createAgentresClient } from "./agentres/client.js";
+export type { AgentresErrorCode } from "./agentres/errors.js";
+export { AgentresError, SiwxChallengeError, SiwxUnsupportedError } from "./agentres/errors.js";
 export type {
   ConnectorMintError,
   ConnectorMintResult,
