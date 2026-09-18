@@ -314,13 +314,40 @@ export function clearAllEncryptionKeys(): void {
 }
 
 /**
- * Converts a hex string to Uint8Array bytes
+ * Decode one ASCII hex character to its 0–15 nibble, or -1 if invalid.
+ * Digits are checked first so `| 32` case-folding cannot misread `0-9`.
  */
-function hexToBytes(hex: string): Uint8Array {
-  const cleanHex = hex.startsWith("0x") ? hex.slice(2) : hex;
-  const bytes = new Uint8Array(cleanHex.length / 2);
-  for (let i = 0; i < cleanHex.length; i += 2) {
-    bytes[i / 2] = parseInt(cleanHex.slice(i, i + 2), 16);
+function hexNibble(charCode: number): number {
+  if (charCode >= 48 && charCode <= 57) return charCode - 48;
+  const folded = charCode | 32;
+  if (folded >= 97 && folded <= 102) return folded - 87;
+  return -1;
+}
+
+/**
+ * Converts a hex string to Uint8Array bytes.
+ *
+ * Throws on invalid input (non-hex characters, odd length). Previously
+ * `parseInt(..., 16)` turned every invalid pair into `NaN → 0`, silently
+ * yielding a zero-filled (or near-zero) buffer — a low-entropy AES key if a
+ * non-hex signature (e.g. a stringified Solana `Uint8Array`) was passed in.
+ *
+ * @internal Exported for unit tests.
+ */
+export function hexToBytes(hex: string): Uint8Array {
+  const offset = hex.startsWith("0x") || hex.startsWith("0X") ? 2 : 0;
+  const length = hex.length - offset;
+  if (length === 0 || length % 2 !== 0) {
+    throw new Error("Invalid hex string: empty or odd length");
+  }
+  const bytes = new Uint8Array(length / 2);
+  for (let i = 0; i < length; i += 2) {
+    const hi = hexNibble(hex.charCodeAt(offset + i));
+    const lo = hexNibble(hex.charCodeAt(offset + i + 1));
+    if (hi < 0 || lo < 0) {
+      throw new Error("Invalid hex string: non-hex character");
+    }
+    bytes[i / 2] = (hi << 4) | lo;
   }
   return bytes;
 }
@@ -346,48 +373,85 @@ const SHARED_TEXT_ENCODER = new TextEncoder();
 const SHARED_TEXT_DECODER = new TextDecoder();
 
 /**
- * Validates a wallet address format
- * @param address - The wallet address to validate
- * @returns true if the address is valid (starts with 0x and is 42 characters)
+ * EVM address format: `0x` + 40 hex chars.
+ *
+ * Solana base58 addresses are intentionally rejected until `enc:v4`. Accepting
+ * them here while derivation still hex-decodes the signature would let a
+ * naive Solana adapter encrypt under an unreproducible (or, before
+ * {@link hexToBytes} started throwing, near-zero-entropy) key.
  */
 function isValidWalletAddress(address: string): boolean {
-  // Must start with 0x and be exactly 42 characters (0x + 40 hex chars)
   return /^0x[a-fA-F0-9]{40}$/.test(address);
 }
 
-/**
- * Derives a 32-byte encryption key from a signature using SHA-256
- */
-async function deriveKeyFromSignature(signature: string): Promise<string> {
-  // 1. Convert hex signature to bytes
-  const sigBytes = hexToBytes(signature);
-
-  // 2. Hash with SHA-256 to get 32-byte key
-  const hashBuffer = await crypto.subtle.digest("SHA-256", sigBytes.buffer as ArrayBuffer);
-  const hashBytes = new Uint8Array(hashBuffer);
-
-  // 3. Return as hex string
-  return bytesToHex(hashBytes);
+function assertValidWalletAddress(address: string): void {
+  if (!isValidWalletAddress(address)) {
+    throw new Error(
+      `Invalid wallet address: ${address}. Address must start with 0x and be 42 characters (0x + 40 hex characters).`
+    );
+  }
 }
 
 /**
- * Derives a 32-byte encryption key from a signature using HKDF with domain separation.
- * Uses SHA-256(signature) as IKM, then HKDF-Expand with app-specific info string.
- * This provides proper key derivation and prevents cross-app key reuse.
+ * SHA-256 over the given bytes. Passes the view (not `.buffer`) so a
+ * `subarray` cannot hash adjacent memory in the backing ArrayBuffer.
  */
-async function deriveKeyFromSignatureV3(signature: string): Promise<string> {
-  // 1. Convert hex signature to bytes
-  const sigBytes = hexToBytes(signature);
+async function sha256(bytes: Uint8Array): Promise<Uint8Array> {
+  const digest = await crypto.subtle.digest("SHA-256", bytes as Uint8Array<ArrayBuffer>);
+  return new Uint8Array(digest);
+}
 
-  // 2. SHA-256 as IKM (input keying material)
-  const ikm = await crypto.subtle.digest("SHA-256", sigBytes.buffer as ArrayBuffer);
+/**
+ * Decode a hex wallet signature, throwing a signature-specific error on
+ * invalid hex so a stringified `Uint8Array` (Privy Solana `signMessage`)
+ * cannot silently enter the v2/v3 hex derive path.
+ */
+function signatureBytesFromHex(signature: string): Uint8Array {
+  try {
+    return hexToBytes(signature);
+  } catch {
+    throw new Error(
+      "Invalid wallet signature: expected a hex string. " +
+        "A Uint8Array signature (e.g. Privy Solana signMessage) must use the bytes derivation path; " +
+        "stringifying it produces a low-entropy key."
+    );
+  }
+}
 
-  // 3. Import as HKDF key
-  const hkdfKey = await crypto.subtle.importKey("raw", ikm, { name: "HKDF" }, false, [
-    "deriveBits",
-  ]);
+function assertNonEmptySignature(signature: Uint8Array): void {
+  if (signature.byteLength === 0) {
+    throw new Error("Invalid wallet signature: empty");
+  }
+}
 
-  // 4. HKDF extract + expand with domain-specific info
+/**
+ * Derives a 32-byte encryption key from raw signature bytes using SHA-256 (v2).
+ * No string round-trip — hash the bytes as provided.
+ *
+ * @internal Exported for unit tests and the forthcoming `enc:v4` bytes-in path.
+ */
+export async function deriveKeyFromSignatureBytes(signature: Uint8Array): Promise<string> {
+  assertNonEmptySignature(signature);
+  return bytesToHex(await sha256(signature));
+}
+
+/**
+ * Derives a 32-byte encryption key from raw signature bytes using HKDF (v3).
+ * No string round-trip — hash the bytes as provided, then HKDF-Expand with
+ * the app-specific info string `anuma-sdk-aes-gcm-v3`.
+ *
+ * @internal Exported for unit tests and the forthcoming `enc:v4` bytes-in path.
+ */
+export async function deriveKeyFromSignatureV3Bytes(signature: Uint8Array): Promise<string> {
+  assertNonEmptySignature(signature);
+  const ikm = await sha256(signature);
+  const hkdfKey = await crypto.subtle.importKey(
+    "raw",
+    ikm as Uint8Array<ArrayBuffer>,
+    { name: "HKDF" },
+    false,
+    ["deriveBits"]
+  );
   const derivedBits = await crypto.subtle.deriveBits(
     {
       name: "HKDF",
@@ -398,9 +462,23 @@ async function deriveKeyFromSignatureV3(signature: string): Promise<string> {
     hkdfKey,
     256
   );
-
-  // 5. Return as hex string
   return bytesToHex(new Uint8Array(derivedBits));
+}
+
+/**
+ * Derives a 32-byte encryption key from a hex signature using SHA-256
+ */
+async function deriveKeyFromSignature(signature: string): Promise<string> {
+  return deriveKeyFromSignatureBytes(signatureBytesFromHex(signature));
+}
+
+/**
+ * Derives a 32-byte encryption key from a hex signature using HKDF with domain separation.
+ * Uses SHA-256(signature bytes) as IKM, then HKDF-Expand with app-specific info string.
+ * This provides proper key derivation and prevents cross-app key reuse.
+ */
+async function deriveKeyFromSignatureV3(signature: string): Promise<string> {
+  return deriveKeyFromSignatureV3Bytes(signatureBytesFromHex(signature));
 }
 
 /**
@@ -431,25 +509,27 @@ async function deriveKeyPairFromSignature(
   signature: string,
   address: string
 ): Promise<CryptoKeyPair> {
-  // 1. Convert hex signature to bytes
-  const sigBytes = hexToBytes(signature);
+  const seed = await sha256(signatureBytesFromHex(signature));
 
-  // 2. Hash with SHA-256 to get 32-byte seed
-  const seedBuffer = await crypto.subtle.digest("SHA-256", sigBytes.buffer as ArrayBuffer);
-  const seed = new Uint8Array(seedBuffer);
+  // Use HKDF to derive key material for ECDH private key
+  const hkdfKey = await crypto.subtle.importKey(
+    "raw",
+    seed as Uint8Array<ArrayBuffer>,
+    { name: "HKDF" },
+    false,
+    ["deriveBits"]
+  );
 
-  // 3. Use HKDF to derive key material for ECDH private key
-  const hkdfKey = await crypto.subtle.importKey("raw", seed.buffer, { name: "HKDF" }, false, [
-    "deriveBits",
-  ]);
-
-  // 4. Derive 32 bytes for ECDH P-256 private key
-  // Use wallet address as salt for domain separation while maintaining determinism
+  // Derive 32 bytes for ECDH P-256 private key.
+  // Wallet address as salt for domain separation. EVM addresses are
+  // case-insensitive so we lowercase; do not lowercase base58 (Solana) —
+  // it is case-sensitive. Those addresses are rejected by
+  // assertValidWalletAddress until enc:v4.
   const derivedBits = await crypto.subtle.deriveBits(
     {
       name: "HKDF",
       hash: "SHA-256",
-      salt: SHARED_TEXT_ENCODER.encode(address.toLowerCase()), // Wallet address as salt
+      salt: SHARED_TEXT_ENCODER.encode(address.toLowerCase()),
       info: SHARED_TEXT_ENCODER.encode("ECDH-P256-KeyPair"), // Context info
     },
     hkdfKey,
@@ -638,12 +718,7 @@ export async function encryptData(
   plaintext: string | Uint8Array,
   address: string
 ): Promise<string> {
-  // Validate wallet address format
-  if (!isValidWalletAddress(address)) {
-    throw new Error(
-      `Invalid wallet address: ${address}. Address must start with 0x and be 42 characters (0x + 40 hex characters).`
-    );
-  }
+  assertValidWalletAddress(address);
 
   const key = await getEncryptionKey(address);
   return encryptDataWithKey(plaintext, key);
@@ -665,11 +740,7 @@ export async function encryptDataBytes(
   plaintext: Uint8Array,
   address: string
 ): Promise<Uint8Array> {
-  if (!isValidWalletAddress(address)) {
-    throw new Error(
-      `Invalid wallet address: ${address}. Address must start with 0x and be 42 characters (0x + 40 hex characters).`
-    );
-  }
+  assertValidWalletAddress(address);
 
   const key = await getEncryptionKey(address);
   return encryptBytesWithKey(plaintext, key);
@@ -818,11 +889,7 @@ export function seedEncryptionKeys(
   address: string,
   keys: { legacy?: string; current?: string }
 ): void {
-  if (!isValidWalletAddress(address)) {
-    throw new Error(
-      `Invalid wallet address: ${address}. Address must start with 0x and be 42 characters (0x + 40 hex characters).`
-    );
-  }
+  assertValidWalletAddress(address);
   if (!keys.legacy && !keys.current) {
     throw new Error("seedEncryptionKeys: at least one of legacy or current is required");
   }
@@ -976,12 +1043,7 @@ export async function encryptDataBatch(
   values: (string | Uint8Array)[],
   address: string
 ): Promise<string[]> {
-  // Validate wallet address format
-  if (!isValidWalletAddress(address)) {
-    throw new Error(
-      `Invalid wallet address: ${address}. Address must start with 0x and be 42 characters (0x + 40 hex characters).`
-    );
-  }
+  assertValidWalletAddress(address);
 
   // Get key once for all operations
   const key = await getEncryptionKey(address);
@@ -1072,12 +1134,7 @@ export async function requestEncryptionKey(
   embeddedWalletSigner?: EmbeddedWalletSignerFn,
   options?: RequestEncryptionKeyOptions
 ): Promise<boolean> {
-  // Validate wallet address format
-  if (!isValidWalletAddress(walletAddress)) {
-    throw new Error(
-      `Invalid wallet address: ${walletAddress}. Address must start with 0x and be 42 characters (0x + 40 hex characters).`
-    );
-  }
+  assertValidWalletAddress(walletAddress);
 
   // Short-circuit only when BOTH versions are present. A partial store
   // (e.g. SecureStore missing v2) must still derive so the absent version
@@ -1209,11 +1266,7 @@ export async function refreshEncryptionKeyIfMatches(
   signMessage: SignMessageFn,
   embeddedWalletSigner?: EmbeddedWalletSignerFn
 ): Promise<boolean> {
-  if (!isValidWalletAddress(walletAddress)) {
-    throw new Error(
-      `Invalid wallet address: ${walletAddress}. Address must start with 0x and be 42 characters (0x + 40 hex characters).`
-    );
-  }
+  assertValidWalletAddress(walletAddress);
 
   const parsed = parsePrefixedCiphertext(probeCiphertext);
   if (!parsed) {
@@ -1584,12 +1637,7 @@ export async function requestKeyPair(
   signMessage: SignMessageFn,
   embeddedWalletSigner?: EmbeddedWalletSignerFn
 ): Promise<void> {
-  // Validate wallet address format
-  if (!isValidWalletAddress(walletAddress)) {
-    throw new Error(
-      `Invalid wallet address: ${walletAddress}. Address must start with 0x and be 42 characters (0x + 40 hex characters).`
-    );
-  }
+  assertValidWalletAddress(walletAddress);
 
   // Check if key pair already exists in memory
   const existingKeyPair = getStoredKeyPair(walletAddress);
