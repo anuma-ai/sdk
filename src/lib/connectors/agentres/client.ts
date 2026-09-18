@@ -136,6 +136,14 @@ export function createAgentresClient(options: AgentresClientOptions): AgentresCl
       return readBody<T>(challenged);
     }
 
+    // Release the challenge body before the retry. Everything we need is in the
+    // header, and some fetch implementations hold the underlying connection open
+    // until an unread body is consumed or cancelled — so a registration flow,
+    // which makes a fresh challenged request per call, would accumulate them.
+    // Cancelling can reject on an already-disturbed or errored stream, and that
+    // is not a reason to fail a call whose challenge we have already read.
+    await challenged.body?.cancel().catch(() => {});
+
     const header = challenged.headers.get(PAYMENT_REQUIRED_HEADER);
     if (!header) {
       throw new SiwxChallengeError(

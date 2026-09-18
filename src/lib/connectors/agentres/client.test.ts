@@ -379,3 +379,45 @@ describe("createAgentresClient options", () => {
     expect(h.requests[0].url).toBe("https://staging.agentres.dev/api/me");
   });
 });
+
+describe("challenge body handling", () => {
+  test("releases the challenge body before retrying with the proof", async () => {
+    // Some fetch implementations hold the connection until an unread body is
+    // consumed or cancelled. Registration makes a fresh challenged request per
+    // call, so leaking one per call is the shape of the problem.
+    const h = harness([{ body: { resy_linked: false } }]);
+    const cancelled: string[] = [];
+
+    const original = h.fetchImpl.getMockImplementation()!;
+    h.fetchImpl.mockImplementation(async (url: string, init?: RequestInit) => {
+      const response = await original(url, init);
+      if (response.status === 402 && response.body) {
+        const realCancel = response.body.cancel.bind(response.body);
+        response.body.cancel = (reason?: unknown) => {
+          cancelled.push(url);
+          return realCancel(reason);
+        };
+      }
+      return response;
+    });
+
+    await clientFor(h).getLinkStatus();
+
+    expect(cancelled).toHaveLength(1);
+  });
+
+  test("a challenge body that refuses to cancel does not fail the call", async () => {
+    const h = harness([{ body: { resy_linked: true } }]);
+
+    const original = h.fetchImpl.getMockImplementation()!;
+    h.fetchImpl.mockImplementation(async (url: string, init?: RequestInit) => {
+      const response = await original(url, init);
+      if (response.status === 402 && response.body) {
+        response.body.cancel = () => Promise.reject(new Error("already disturbed"));
+      }
+      return response;
+    });
+
+    await expect(clientFor(h).getLinkStatus()).resolves.toMatchObject({ resyLinked: true });
+  });
+});
