@@ -340,6 +340,10 @@ export function createDurableAutoExtractor(options: DurableAutoExtractorOptions)
             const positions = new Map(ids.map((id, index) => [id, index]));
             // `history.message_id` is the conversation ordinal, assigned max+1
             // and never reused, so it orders the window even after a delete.
+            // Legacy rows can hold duplicated ordinals (count-based assignment,
+            // see getMessagesPageOp); a collision at the boundary skips that one
+            // message rather than re-observing it — the safe direction — and the
+            // next message takes max+1, which clears the boundary again.
             const rows = await storage.messagesCollection
               .query(Q.where("id", Q.oneOf(ids)))
               .fetch();
