@@ -388,7 +388,7 @@ describe("challenge body handling", () => {
     const h = harness([{ body: { resy_linked: false } }]);
     const cancelled: string[] = [];
 
-    const original = h.fetchImpl.getMockImplementation()!;
+    const original = h.fetchImpl.getMockImplementation() as unknown as FetchLike;
     h.fetchImpl.mockImplementation(async (url: string, init?: RequestInit) => {
       const response = await original(url, init);
       if (response.status === 402 && response.body) {
@@ -409,7 +409,7 @@ describe("challenge body handling", () => {
   test("a challenge body that refuses to cancel does not fail the call", async () => {
     const h = harness([{ body: { resy_linked: true } }]);
 
-    const original = h.fetchImpl.getMockImplementation()!;
+    const original = h.fetchImpl.getMockImplementation() as unknown as FetchLike;
     h.fetchImpl.mockImplementation(async (url: string, init?: RequestInit) => {
       const response = await original(url, init);
       if (response.status === 402 && response.body) {
