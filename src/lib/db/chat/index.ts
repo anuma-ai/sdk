@@ -5,6 +5,7 @@ export {
   createConversationOp,
   createMessageOp,
   deleteConversationOp,
+  deleteMessageOp,
   getAllFilesOp,
   getConversationOp,
   getConversationsByProjectLazyOp,

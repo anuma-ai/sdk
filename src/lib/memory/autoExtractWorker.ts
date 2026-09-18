@@ -27,7 +27,8 @@
  *
  * The watermark advances only when the extractor genuinely EXAMINED the window.
  * A pipeline throw and an `empty-after-retry` outcome (the extraction LLM
- * returned empty/malformed after exhausting its retries) both leave it in place,
+ * returned empty/malformed after exhausting its retries), or any failed retain
+ * operation leave it in place,
  * so the next turn's window re-covers those messages instead of stranding them.
  * A quiet turn that legitimately yielded no facts *does* advance it.
  *
@@ -693,7 +694,9 @@ export function createAutoExtractor(options: CreateAutoExtractorOptions): AutoEx
         // re-examined. Leave the watermark where it is so the next turn's window
         // re-covers them, exactly as a throw does. The window keeps widening
         // until an extraction genuinely lands (bounded by `maxWindowSize`).
-        if (outcome !== "empty-after-retry") {
+        // Partial retention must also replay: successful candidates are deduped,
+        // while acknowledging here would permanently lose failed candidates.
+        if (outcome !== "empty-after-retry" && failedCount === 0) {
           const advancedTo = window[window.length - 1].id;
           stateFor(conversationId).watermark = advancedTo;
           // Persist through the durable cursor so a later session resumes here —

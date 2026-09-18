@@ -66,6 +66,7 @@ export {
   decryptConversationTitle,
   deleteConversationOp,
   deleteConversationSummaryOp,
+  deleteMessageOp,
   getAllFilesOp,
   getConversationOp,
   getConversationsByProjectLazyOp,
@@ -643,6 +644,15 @@ export {
 } from "../lib/chat/webSearchClassifier";
 
 // Persona (prompt building + style analysis)
+export {
+  assembleMemoryContext,
+  type MemoryContextItem,
+  type MemoryContextLane,
+  type MemoryContextOptions,
+  type MemoryContextResult,
+  shouldRecallMemory,
+} from "../lib/memory";
+export { createDurableAutoExtractor, type DurableAutoExtractorOptions } from "../lib/memory";
 export type {
   AnalyzeStyleOptions,
   AnalyzeStyleResult,

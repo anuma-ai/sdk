@@ -8,6 +8,7 @@ import { getLogger } from "../../logger";
 import { cosineSimilarity } from "../../memoryEngine/vector";
 import { decodeChunkVector } from "../../memoryEngine/vectorEncoding";
 import { decryptJsonField } from "../encryption-utils";
+import { ExtractionJob } from "../extractionJobs/models";
 import { decryptConversationFields, encryptConversationFields } from "./conversationEncryption";
 import {
   decryptField,
@@ -586,6 +587,18 @@ export async function deleteConversationOp(
       await results[0].update((conv) => {
         conv._setRaw("is_deleted", true);
       });
+      // Prune the outbox in the same writer. A drained job keeps its row and
+      // its source-id provenance indefinitely — the drain only destroys jobs
+      // it still has work for, and nothing else collected them — so deleting
+      // the conversation would otherwise leave one row per (scope, folder)
+      // holding message ids for history the user asked us to forget.
+      const jobs = ctx.database.schema?.tables[ExtractionJob.table]
+        ? await ctx.database
+            .get<ExtractionJob>(ExtractionJob.table)
+            .query(Q.where("conversation_id", id))
+            .fetch()
+        : [];
+      for (const job of jobs) await job.destroyPermanently();
     });
     return true;
   }
@@ -870,9 +883,25 @@ export async function clearMessagesOp(
   ctx: StorageOperationsContext,
   convId: string
 ): Promise<void> {
-  const messages = await ctx.messagesCollection.query(Q.where("conversation_id", convId)).fetch();
-
   await ctx.database.write(async () => {
+    const messages = await ctx.messagesCollection.query(Q.where("conversation_id", convId)).fetch();
+    const jobs = ctx.database.schema?.tables[ExtractionJob.table]
+      ? await ctx.database
+          .get<ExtractionJob>(ExtractionJob.table)
+          .query(Q.where("conversation_id", convId))
+          .fetch()
+      : [];
+    for (const job of jobs) {
+      await job.update((row) => {
+        row._setRaw("message_ids", "[]");
+        row._setRaw("watermark", null);
+        // Clearing restarts createMessageOp's per-conversation message_id at 1,
+        // so a surviving sequence anchor would read every new message as
+        // already observed and extraction would never run again here. Unlike a
+        // single delete, this is a deliberate reset of the whole conversation.
+        row._setRaw("watermark_seq", null);
+      });
+    }
     for (const message of messages) {
       // Clear file references before deletion
       await message.update((msg) => {
@@ -889,7 +918,7 @@ export async function clearMessagesOp(
  * Clears file_ids before deletion and returns the unique ID.
  * Note: Callers should use deleteMediaByMessageOp to cascade delete media.
  */
-async function _deleteMessageOp(
+export async function deleteMessageOp(
   ctx: StorageOperationsContext,
   uniqueId: string
 ): Promise<string | null> {
@@ -901,6 +930,23 @@ async function _deleteMessageOp(
   }
 
   await ctx.database.write(async () => {
+    const jobs = ctx.database.schema?.tables[ExtractionJob.table]
+      ? await ctx.database
+          .get<ExtractionJob>(ExtractionJob.table)
+          .query(Q.where("conversation_id", message.conversationId))
+          .fetch()
+      : [];
+    for (const job of jobs) {
+      const ids = JSON.parse(String(job._getRaw("message_ids"))) as string[];
+      await job.update((row) => {
+        row._setRaw("message_ids", JSON.stringify(ids.filter((id) => id !== uniqueId)));
+        // Drop the id but KEEP `watermark_seq`. The sequence is what makes the
+        // boundary survive this deletion; clearing both let the next turn fall
+        // back to the trailing window and re-enqueue already observed sources
+        // under whatever scope was current (a private→shared republish).
+        if (row._getRaw("watermark") === uniqueId) row._setRaw("watermark", null);
+      });
+    }
     // Clear file references before deletion
     await message.update((msg) => {
       msg._setRaw("file_ids", null);

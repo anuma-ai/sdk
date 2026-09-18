@@ -127,6 +127,11 @@ export interface RecallOptions {
    * and no-op when unset (all types are eligible). Vault-only.
    */
   factTypes?: FactType[];
+  /** Restrict fact candidates BEFORE ranking. Empty means no facts. When set,
+   * unrestricted chunk search is disabled; it must not escape a topic scope.
+   * Asking for `"chunk"` alongside this yields no excerpts and reports
+   * `"chunks-scope-restricted"` on {@link RecallDiagnostics.degraded}. */
+  memoryIds?: string[];
   /**
    * PR5 — optional per-FactType score multiplier applied in the fusion boost
    * stage (e.g. boost `identity`/`constraint`, down-weight `ongoing_context`).
@@ -315,7 +320,13 @@ export type RecallDegradation =
   | "graph-lane-failed"
   /** The W6 temporal side lane threw and was dropped. Same posture as the graph
    *  lane: recall still returned, ranked without the temporal signal. */
-  | "temporal-lane-failed";
+  | "temporal-lane-failed"
+  /** {@link RecallOptions.memoryIds} was set and `types` asked for `"chunk"`.
+   *  Conversation excerpts have no equivalent membership filter, so running the
+   *  chunk lane would escape the topic/folder scope — it is dropped instead.
+   *  Without this signal a scoped caller asking for excerpts got an empty
+   *  result indistinguishable from "the vault had no match". */
+  | "chunks-scope-restricted";
 
 /**
  * Why a recall returned nothing. `""` when it returned something, so the field

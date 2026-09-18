@@ -252,6 +252,7 @@ export {
   type CreateConversationOptions,
   type CreateMessageOptions,
   decryptConversationTitle,
+  deleteMessageOp,
   type FileMetadata,
   generateConversationId,
   getConversationsByProjectLazyOp,
@@ -969,6 +970,15 @@ export {
 
 // Re-export the AST types and tree helpers so consumers of the React
 // runtime can read/walk decks without a parallel import from /tools.
+export {
+  assembleMemoryContext,
+  type MemoryContextItem,
+  type MemoryContextLane,
+  type MemoryContextOptions,
+  type MemoryContextResult,
+  shouldRecallMemory,
+} from "../lib/memory";
+export { createDurableAutoExtractor, type DurableAutoExtractorOptions } from "../lib/memory";
 export type { AnumaChild, AnumaNode, AttrValue, KnownTag, ThemeAttr } from "../tools/slides";
 export {
   AnumaJsxError,

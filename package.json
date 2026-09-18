@@ -113,6 +113,13 @@
       "import": "./dist/pii/transformers.mjs",
       "require": "./dist/pii/transformers.cjs",
       "default": "./dist/pii/transformers.cjs"
+    },
+    "./memory/context": {
+      "types": "./dist/memory/context.d.ts",
+      "react-native": "./dist/memory/context.cjs",
+      "import": "./dist/memory/context.mjs",
+      "require": "./dist/memory/context.cjs",
+      "default": "./dist/memory/context.cjs"
     }
   },
   "files": [
