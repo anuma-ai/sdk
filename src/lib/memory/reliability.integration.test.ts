@@ -49,6 +49,9 @@ const empty = {
   timings: { extractMs: 0, retainMs: 0 },
   model: "test",
 };
+// The mock wraps the real op, so tests that stub it per-id have to delegate to
+// this rather than re-importing the (mocked) module and recursing into itself.
+const realGetMessageOp = vi.mocked(getMessageOp).getMockImplementation()!;
 let db: Database;
 let ctx: VaultMemoryOperationsContext;
 beforeEach(() => {
@@ -63,7 +66,7 @@ beforeEach(() => {
   });
   ctx = { database: db, vaultMemoryCollection: db.get("memory_vault"), userId: "owner" };
   vi.mocked(extractAndRetain).mockReset().mockResolvedValue(empty);
-  vi.mocked(getMessageOp).mockClear();
+  vi.mocked(getMessageOp).mockReset().mockImplementation(realGetMessageOp);
 });
 
 describe("memory persistence reliability", () => {
@@ -80,7 +83,7 @@ describe("memory persistence reliability", () => {
     expect(rows.map((row) => row.content)).toEqual(["Lives in Paris"]);
     expect(rows[0].supersededBy).toBeFalsy();
   });
-  it("replayed source ids change neither proof, content, nor freshness", async () => {
+  it("replayed source ids add no evidence but still apply the write", async () => {
     const memory = await createVaultMemoryOp(ctx, {
       content: "Works at Acme",
       sourceChunkIds: ["m1"],
@@ -95,17 +98,58 @@ describe("memory persistence reliability", () => {
       preserveUpdatedAt: true,
     });
     const replay = await updateVaultMemoryOp(ctx, memory!.uniqueId, {
-      content: "Old extracted paraphrase",
+      content: "Works at Acme Corp as a staff engineer",
+      embedding: JSON.stringify([0.5, 0.25]),
+      embeddingModel: "test-embed",
       sourceChunkIds: ["m2"],
       observationSourceIds: ["m2"],
       proofCountIncrement: 1,
       lastObservedAt: 200,
       preserveUpdatedAt: true,
     });
+    // No new evidence: the same sources seen again must not inflate the proof
+    // count or refresh the decay watermark off our own retry traffic.
     expect(replay!.proofCount).toBe(fresh!.proofCount);
-    expect(replay!.content).toBe("Works at Acme");
     expect(replay!.lastObservedAt).toBe(100);
     expect(replay!.sourceChunkIds).toEqual(["m1", "m2"]);
+    // The write itself still lands. A consolidation rewrite carries the ids of
+    // the observation that triggered it, so dropping it here lost the content
+    // and its embedding while the caller saw a successful merge.
+    expect(replay!.content).toBe("Works at Acme Corp as a staff engineer");
+    expect(replay!.embedding).toBe("[0.5,0.25]");
+  });
+  it("applies both rewrites when two candidates from one turn share source ids", async () => {
+    const memory = await createVaultMemoryOp(ctx, {
+      content: "Works at Acme",
+      sourceChunkIds: ["m7"],
+    });
+    // autoExtract passes per-candidate sourceMessageIds and two candidates from
+    // one turn routinely overlap; both consolidating onto this row is ordinary.
+    for (const content of ["Works at Acme in Berlin", "Works at Acme in Berlin as a designer"])
+      await updateVaultMemoryOp(ctx, memory!.uniqueId, {
+        content,
+        sourceChunkIds: ["m7"],
+        observationSourceIds: ["m7"],
+        proofCountIncrement: 1,
+        preserveUpdatedAt: true,
+      });
+    const [row] = await getAllVaultMemoriesOp(ctx);
+    expect(row.content).toBe("Works at Acme in Berlin as a designer");
+  });
+  it("restores an archived target that a replayed observation consolidates into", async () => {
+    const memory = await createVaultMemoryOp(ctx, {
+      content: "Runs every morning",
+      sourceChunkIds: ["m3"],
+    });
+    expect(await archiveVaultMemoryOp(ctx, memory!.uniqueId, {})).toBe(true);
+    const restored = await updateVaultMemoryOp(ctx, memory!.uniqueId, {
+      content: "Runs every morning before work",
+      sourceChunkIds: ["m3"],
+      observationSourceIds: ["m3"],
+      restore: true,
+    });
+    expect(restored!.archivedAt).toBeFalsy();
+    expect(restored!.content).toBe("Runs every morning before work");
   });
   it("unions concurrent provenance in the serialized writer", async () => {
     const memory = await createVaultMemoryOp(ctx, { content: "Same fact", sourceChunkIds: ["m1"] });
@@ -172,10 +216,13 @@ describe("durable extraction outbox", () => {
       })
     );
     await db.write(async () => {
-      for (const message of messages) {
+      for (const [index, message] of messages.entries()) {
         await db.get<Message>("history").create((row) => {
           row._raw.id = message.id;
           row._setRaw("conversation_id", "conversation");
+          // createMessageOp assigns max(message_id) + 1 per conversation. The
+          // outbox anchors its boundary on it, so the fixture has to carry it.
+          row._setRaw("message_id", index + 1);
           row._setRaw("role", message.role);
           row._setRaw("content", message.content);
         });
@@ -421,6 +468,230 @@ describe("durable extraction outbox", () => {
     const all = vi.mocked(extractAndRetain).mock.calls.flatMap((call) => call[0].map((m) => m.id));
     expect([...new Set(all)]).toEqual(messages.slice(4).map((m) => m.id));
     resumed.dispose();
+  });
+
+  it("never republishes shared sources after switching back to private", async () => {
+    await conversation();
+    const shared = createDurableAutoExtractor({ ...options(), scope: "shared" });
+    shared.processTurn(messages.slice(0, 10), "conversation");
+    await vi.waitFor(async () =>
+      expect(await db.get<ExtractionJob>(ExtractionJob.table).query().fetchCount()).toBe(1)
+    );
+    const [job] = await db.get<ExtractionJob>(ExtractionJob.table).query().fetch();
+    await vi.waitFor(() => expect(job._getRaw("message_ids")).toBe("[]"));
+    shared.dispose();
+    const private_ = createDurableAutoExtractor(options());
+    private_.processTurn(messages.slice(0, 12), "conversation");
+    await vi.waitFor(() =>
+      expect(
+        vi.mocked(extractAndRetain).mock.calls.some((call) => call[2].scope === "private")
+      ).toBe(true)
+    );
+    const relearned = vi
+      .mocked(extractAndRetain)
+      .mock.calls.filter((call) => call[2].scope === "private")
+      .flatMap((call) => call[0].map((m) => m.id));
+    expect(relearned).toEqual(["m10", "m11"]);
+    private_.dispose();
+  });
+
+  it("reads the scope accessor at write time so a mode flip needs no new extractor", async () => {
+    await conversation();
+    let scope = "private";
+    const worker = createDurableAutoExtractor({ ...options(), scope: () => scope });
+    worker.processTurn(messages.slice(0, 1), "conversation");
+    await vi.waitFor(() => expect(extractAndRetain).toHaveBeenCalledOnce());
+    expect(vi.mocked(extractAndRetain).mock.calls[0][2].scope).toBe("private");
+    scope = "shared";
+    worker.processTurn(messages.slice(0, 2), "conversation");
+    await vi.waitFor(() => expect(extractAndRetain).toHaveBeenCalledTimes(2));
+    expect(vi.mocked(extractAndRetain).mock.calls[1][2].scope).toBe("shared");
+    expect(vi.mocked(extractAndRetain).mock.calls[1][0].map((m) => m.id)).toEqual(["m1"]);
+    worker.dispose();
+  });
+
+  it("treats a throwing scope accessor as private", async () => {
+    await conversation();
+    const onError = vi.fn();
+    const worker = createDurableAutoExtractor({
+      ...options(),
+      onError,
+      scope: () => {
+        throw new Error("privacy mode unavailable");
+      },
+    });
+    worker.processTurn(messages.slice(0, 1), "conversation");
+    await vi.waitFor(() => expect(extractAndRetain).toHaveBeenCalledOnce());
+    expect(vi.mocked(extractAndRetain).mock.calls[0][2].scope).toBe("private");
+    expect(onError).toHaveBeenCalled();
+    worker.dispose();
+  });
+
+  it("drains a turn that arrives while a pass is ending with nothing to do", async () => {
+    // A pass that neither retried nor acknowledged anything used to end without
+    // rescheduling, so a job written during it waited for the next turn.
+    // A job whose conversation is gone: the pass destroys it and so ends
+    // having neither retried nor acknowledged anything.
+    await db.write(() =>
+      db.get<ExtractionJob>(ExtractionJob.table).create((r) => {
+        r._setRaw("owner_key", "owner");
+        r._setRaw("conversation_id", "orphaned-conversation");
+        r._setRaw("scope", "private");
+        r._setRaw("message_ids", '["ghost"]');
+      })
+    );
+    // Hold the pass open inside its first conversation lookup, after it has
+    // already read the pending list — a job created now cannot be in that list.
+    const conversations = db.get<Conversation>("conversations");
+    let release!: () => void;
+    const blocked = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const realQuery = conversations.query.bind(conversations);
+    let held = false;
+    vi.spyOn(conversations, "query").mockImplementation((...args) => {
+      const query = realQuery(...args);
+      if (!held) {
+        held = true;
+        const realCount = query.fetchCount.bind(query);
+        query.fetchCount = async () => {
+          await blocked;
+          return realCount();
+        };
+      }
+      return query;
+    });
+    const worker = createDurableAutoExtractor(options());
+    await vi.waitFor(() => expect(held).toBe(true));
+    await conversation();
+    worker.processTurn(messages.slice(0, 2), "conversation");
+    await vi.waitFor(async () =>
+      expect(await db.get<ExtractionJob>(ExtractionJob.table).query().fetchCount()).toBe(2)
+    );
+    expect(worker.isProcessing()).toBe(true);
+    release();
+    // The orphaned job is destroyed, so this pass acknowledges nothing. The
+    // refused wake-up is what has to bring the pass back for the new job.
+    await vi.waitFor(() => expect(extractAndRetain).toHaveBeenCalledOnce());
+    expect(vi.mocked(extractAndRetain).mock.calls[0][0].map((m) => m.id)).toEqual(["m0", "m1"]);
+    worker.dispose();
+  });
+
+  it("drops an unresolvable source id instead of wedging the job behind it", async () => {
+    await conversation();
+    vi.mocked(getMessageOp).mockImplementation(async (storageCtx, id) =>
+      id === "m0" ? null : realGetMessageOp(storageCtx, id)
+    );
+    const onError = vi.fn();
+    const worker = createDurableAutoExtractor({ ...options(), onError });
+    worker.processTurn(messages.slice(0, 3), "conversation");
+    await vi.waitFor(() => expect(extractAndRetain).toHaveBeenCalledOnce(), { timeout: 2000 });
+    expect(vi.mocked(extractAndRetain).mock.calls[0][0].map((m) => m.id)).toEqual(["m1", "m2"]);
+    const [job] = await db.get<ExtractionJob>(ExtractionJob.table).query().fetch();
+    await vi.waitFor(() => expect(job._getRaw("message_ids")).toBe("[]"));
+    expect(onError.mock.calls.map(([error]) => String(error.message))).toContain(
+      "Dropped 1 unresolvable source id(s) to unblock extraction"
+    );
+    worker.dispose();
+  });
+
+  it("reschedules the remainder when a pass hits its job cap", async () => {
+    for (const id of ["c1", "c2", "c3", "c4"]) {
+      await db.write(async () => {
+        await db.get<Conversation>("conversations").create((r) => {
+          r._setRaw("conversation_id", id);
+          r._setRaw("is_deleted", false);
+        });
+        await db.get<Message>("history").create((row) => {
+          row._raw.id = `${id}-m0`;
+          row._setRaw("conversation_id", id);
+          row._setRaw("message_id", 1);
+          row._setRaw("role", "user");
+          row._setRaw("content", `content for ${id}`);
+        });
+      });
+    }
+    const first = createDurableAutoExtractor({ ...options(), debounceMs: 60_000 });
+    for (const id of ["c1", "c2", "c3", "c4"])
+      first.processTurn([{ id: `${id}-m0`, role: "user", content: `content for ${id}` }], id);
+    await vi.waitFor(async () =>
+      expect(await db.get<ExtractionJob>(ExtractionJob.table).query().fetchCount()).toBe(4)
+    );
+    first.dispose();
+    // Four jobs against a cap of three: the fourth only lands if the capped
+    // pass reschedules the remainder instead of dropping it.
+    const resumed = createDurableAutoExtractor(options());
+    await vi.waitFor(() => expect(extractAndRetain).toHaveBeenCalledTimes(4), { timeout: 2000 });
+    const drained = vi
+      .mocked(extractAndRetain)
+      .mock.calls.flatMap((call) => call[0].map((m) => m.id));
+    expect(new Set(drained)).toEqual(new Set(["c1-m0", "c2-m0", "c3-m0", "c4-m0"]));
+    resumed.dispose();
+  });
+
+  it("prunes the outbox when the conversation is deleted after draining", async () => {
+    await conversation();
+    const worker = createDurableAutoExtractor(options());
+    worker.processTurn(messages.slice(0, 2), "conversation");
+    await vi.waitFor(async () =>
+      expect(await db.get<ExtractionJob>(ExtractionJob.table).query().fetchCount()).toBe(1)
+    );
+    const [job] = await db.get<ExtractionJob>(ExtractionJob.table).query().fetch();
+    await vi.waitFor(() => expect(job._getRaw("message_ids")).toBe("[]"));
+    worker.dispose();
+    // A drained job is invisible to the drain's own sweep (it only queries jobs
+    // with work left), so deleting the conversation is what has to collect it.
+    await deleteConversationOp(storage(), "conversation");
+    expect(await db.get<ExtractionJob>(ExtractionJob.table).query().fetchCount()).toBe(0);
+  });
+
+  it("retains the batch when extraction never settles", async () => {
+    await conversation();
+    vi.mocked(extractAndRetain).mockImplementationOnce(() => new Promise(() => {}));
+    const onError = vi.fn();
+    const worker = createDurableAutoExtractor({
+      ...options(),
+      batchTimeoutMs: 20,
+      retryDelayMs: 5,
+      onError,
+    });
+    worker.processTurn(messages.slice(0, 1), "conversation");
+    await vi.waitFor(() => expect(extractAndRetain).toHaveBeenCalledTimes(2), { timeout: 2000 });
+    expect(onError.mock.calls.map(([error]) => String(error.message))).toContain(
+      "Extraction did not settle in time; retained for retry"
+    );
+    const [job] = await db.get<ExtractionJob>(ExtractionJob.table).query().fetch();
+    await vi.waitFor(() => expect(job._getRaw("message_ids")).toBe("[]"));
+    worker.dispose();
+  });
+
+  it("keeps the boundary when the watermark message is deleted before a scope flip", async () => {
+    await conversation();
+    const first = createDurableAutoExtractor(options());
+    first.processTurn(messages.slice(0, 10), "conversation");
+    await vi.waitFor(async () =>
+      expect(await db.get<ExtractionJob>(ExtractionJob.table).query().fetchCount()).toBe(1)
+    );
+    const [job] = await db.get<ExtractionJob>(ExtractionJob.table).query().fetch();
+    await vi.waitFor(() => expect(job._getRaw("message_ids")).toBe("[]"));
+    first.dispose();
+    await deleteMessageOp(storage(), "m9");
+    const shared = createDurableAutoExtractor({ ...options(), scope: "shared" });
+    shared.processTurn(
+      messages.slice(0, 12).filter((m) => m.id !== "m9"),
+      "conversation"
+    );
+    await vi.waitFor(() =>
+      expect(
+        vi.mocked(extractAndRetain).mock.calls.some((call) => call[2].scope === "shared")
+      ).toBe(true)
+    );
+    const published = vi
+      .mocked(extractAndRetain)
+      .mock.calls.filter((call) => call[2].scope === "shared")
+      .flatMap((call) => call[0].map((m) => m.id));
+    expect(published).toEqual(["m10", "m11"]);
+    shared.dispose();
   });
 
   it.each(["pending", "acknowledged"] as const)(

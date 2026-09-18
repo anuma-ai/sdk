@@ -2,7 +2,7 @@
 
 > `const` **SDK\_SCHEMA\_VERSION**: `46` = `46`
 
-Defined in: [src/lib/db/schema.ts:123](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/schema.ts#123)
+Defined in: [src/lib/db/schema.ts:129](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/schema.ts#129)
 
 Current combined schema version for all SDK storage modules.
 
@@ -101,4 +101,10 @@ Version history:
 * v45: Added `media` to memory\_vault — the photo(s) a server-extracted
   memory came from, as JSON `[{feed_item_id, object_key}]`. Null on every
   row that did not come from a photo, which is all of them before this
-* v46: Added device-local memory\_extraction\_jobs outbox for restart-safe extraction.
+  migration ran
+* v46: Added device-local memory\_extraction\_jobs outbox for restart-safe
+  extraction. Additive (a single createTable, no backfill), so a v45 database
+  upgrades cleanly. NOT reversible: WatermelonDB has no downgrade path, so
+  rolling a release back past v46 after a device has run it resets that
+  device's local database. Relevant to OTA, where a JS-only rollback can
+  land on a database the newer build already migrated

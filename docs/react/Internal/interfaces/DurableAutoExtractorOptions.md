@@ -4,9 +4,25 @@ Defined in: [src/lib/memory/durableExtraction.ts:15](https://github.com/anuma-ai
 
 ## Extends
 
-* [`CreateAutoExtractorOptions`](CreateAutoExtractorOptions.md)
+* `Omit`<[`CreateAutoExtractorOptions`](CreateAutoExtractorOptions.md), `"scope"`>
 
 ## Properties
+
+### batchTimeoutMs?
+
+> `optional` **batchTimeoutMs**: `number`
+
+Defined in: [src/lib/memory/durableExtraction.ts:38](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/durableExtraction.ts#38)
+
+Ceiling on one batch, from the extraction call through retention. Defaults
+to 180 seconds — deliberately above the extraction call's own budget
+(`timeoutMs`, 60s per attempt, x `maxAttempts`), so this is a backstop
+against a promise that never settles at all rather than a second timeout
+competing with that one. Use `timeoutMs`/`totalTimeoutMs` to bound the LLM
+call itself. Without a ceiling here, one unsettled promise latched the
+drain and killed the outbox for the rest of the session.
+
+***
 
 ### consolidate?
 
@@ -99,7 +115,7 @@ Omit for in-memory-only (legacy) behavior.
 
 > `optional` **debounceMs**: `number`
 
-Defined in: [src/lib/memory/durableExtraction.ts:17](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/durableExtraction.ts#17)
+Defined in: [src/lib/memory/durableExtraction.ts:25](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/durableExtraction.ts#25)
 
 Coalesce arrivals after durably recording them. Defaults to 20 seconds.
 
@@ -563,7 +579,7 @@ Defined in: [src/lib/memory/autoExtractWorker.ts:219](https://github.com/anuma-a
 
 > `optional` **retryDelayMs**: `number`
 
-Defined in: [src/lib/memory/durableExtraction.ts:20](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/durableExtraction.ts#20)
+Defined in: [src/lib/memory/durableExtraction.ts:28](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/durableExtraction.ts#28)
 
 Retry delay for a failed batch. Defaults to 30 seconds; max three attempts
 per session. Unfinished jobs remain available on the next resume.
@@ -572,15 +588,15 @@ per session. Unfinished jobs remain available on the next resume.
 
 ### scope?
 
-> `optional` **scope**: `string`
+> `optional` **scope**: `string` | () => `string`
 
-Defined in: [src/lib/memory/autoExtractWorker.ts:265](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#265)
+Defined in: [src/lib/memory/durableExtraction.ts:23](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/durableExtraction.ts#23)
 
-Override scope for all retained facts.
-
-**Inherited from**
-
-[`CreateAutoExtractorOptions`](CreateAutoExtractorOptions.md).[`scope`](CreateAutoExtractorOptions.md#scope)
+Scope for facts retained from newly queued turns. Pass an accessor to have
+a privacy-mode flip observed at write time: a plain string is sampled once
+at construction, which makes correctness depend on the caller disposing and
+recreating the extractor on every flip. An accessor that throws is treated
+as `"private"` — the direction that cannot publish.
 
 ***
 

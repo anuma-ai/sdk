@@ -35,6 +35,14 @@ describe("shared context assembly", () => {
   it.each(["", "thanks!", "你好", "ok"])("skips trivial query %s", (query) =>
     expect(shouldRecallMemory(query)).toBe(false)
   );
+  it.each(["hola", "¿Hola?", "gracias", "merci", "Danke!", "obrigado", "감사합니다"])(
+    "skips the non-English acknowledgment %s",
+    (query) => expect(shouldRecallMemory(query)).toBe(false)
+  );
+  it.each(["hola, que recuerdas de mi?", "merci de te souvenir", "danke für die Notiz"])(
+    "still recalls when an acknowledgment leads a real question: %s",
+    (query) => expect(shouldRecallMemory(query)).toBe(true)
+  );
   it("keeps profile and prior-turn context when retrieval fails", async () => {
     const loadFacts = vi.fn(async (opts) =>
       opts.memoryIds
@@ -68,6 +76,9 @@ describe("shared context assembly", () => {
       expect.objectContaining({ memoryIds: ["allowed"], types: ["fact"] })
     );
     expect(context.items.map((m) => m.id)).toEqual(["allowed"]);
+    // Counted after the topic filter: `rankedCount` is read as "how much ranked
+    // evidence is in items", and the raw payload held one more.
+    expect(context.rankedCount).toBe(1);
   });
   it("empty scope stays closed across profile, session and retrieval", async () => {
     const context = await assembleMemoryContext({

@@ -517,6 +517,23 @@ describe("recall — filters and pass-through", () => {
     expect(result.memories.map((m) => m.id)).toEqual(["m2"]);
   });
 
+  it("reports the dropped chunk lane so a scoped caller can tell it from an empty vault", async () => {
+    vi.mocked(getAllVaultMemoriesOp).mockResolvedValue([]);
+    const onDiagnostics = vi.fn();
+    const result = await recall(QUERY, makeCtx(), {
+      memoryIds: ["m2"],
+      types: ["chunk"],
+      onDiagnostics,
+    });
+    expect(result.memories).toEqual([]);
+    expect(searchChunksOp).not.toHaveBeenCalled();
+    const [diagnostics] = onDiagnostics.mock.calls[0];
+    expect(diagnostics.degraded).toContain("chunks-scope-restricted");
+    // Not a context-wiring bug: the chunk store was present and deliberately
+    // skipped, so this must not report as `no-lanes`.
+    expect(diagnostics.emptyReason).not.toBe("no-lanes");
+  });
+
   it("passes scopes and folderId through to the vault query", async () => {
     await recall(QUERY, makeCtx(), { scopes: ["work"], folderId: null });
     expect(getAllVaultMemoriesOp).toHaveBeenCalledWith(vaultCtx, {

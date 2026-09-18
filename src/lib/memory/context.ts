@@ -36,15 +36,21 @@ export interface MemoryContextResult {
 }
 
 /** Only skip confidently trivial utterances. Word counts reject useful short
- * queries and languages whose writing does not separate words with spaces. */
+ * queries and languages whose writing does not separate words with spaces.
+ *
+ * The stoplist is an exact-match allowance for greetings and acknowledgments,
+ * not a language model: anything not listed still recalls, so a missing
+ * language costs a wasted lookup, never a missed memory. Kept to the handful of
+ * forms that cannot carry a fact in the languages the app ships in. */
 export function shouldRecallMemory(query: string): boolean {
   const normalized = query
     .trim()
     .toLowerCase()
-    .replace(/[.!?。！？]+$/u, "");
+    .replace(/[.!?。！？¡¿]+$/u, "")
+    .replace(/^[¡¿]+/u, "");
   return (
     normalized.length > 0 &&
-    !/^(hi|hi there|hello|hey|yes|no|yep|nope|sure|k|ok|okay|thanks|thank you|thank you very much|thanks a lot|cool|great|got it|sounds good|你好|谢谢|好的|こんにちは|ありがとう)$/u.test(
+    !/^(hi|hi there|hello|hey|yes|no|yep|nope|sure|k|ok|okay|thanks|thank you|thank you very much|thanks a lot|cool|great|got it|sounds good|hola|buenos días|buenas|sí|si|gracias|muchas gracias|vale|bonjour|salut|oui|non|merci|merci beaucoup|d'accord|hallo|guten tag|ja|nein|danke|danke schön|alles klar|olá|obrigado|obrigada|ciao|grazie|sì|你好|谢谢|好的|こんにちは|ありがとう|안녕하세요|감사합니다)$/u.test(
       normalized
     )
   );
@@ -229,5 +235,8 @@ export async function assembleMemoryContext(
       laneRemaining -= content.length;
     }
   }
-  return { items, ranked, rankedCount: facts.memories.length, degraded, truncated };
+  // Count what survived the topic filter, not the raw recall payload: on a
+  // scoped assembly the two differ and the caller reads this as "how much
+  // ranked evidence is in `items`".
+  return { items, ranked, rankedCount: recalledFacts.length, degraded, truncated };
 }

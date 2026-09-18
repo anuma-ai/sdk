@@ -38,6 +38,7 @@ graph LR
 | `scope` | string |  |  |
 | `message_ids` | string |  |  |
 | `watermark` | string |  | ✓ |
+| `watermark_seq` | number |  | ✓ |
 | `folder_id` | string |  | ✓ |
 
 ## history

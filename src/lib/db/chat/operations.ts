@@ -587,6 +587,18 @@ export async function deleteConversationOp(
       await results[0].update((conv) => {
         conv._setRaw("is_deleted", true);
       });
+      // Prune the outbox in the same writer. A drained job keeps its row and
+      // its source-id provenance indefinitely — the drain only destroys jobs
+      // it still has work for, and nothing else collected them — so deleting
+      // the conversation would otherwise leave one row per (scope, folder)
+      // holding message ids for history the user asked us to forget.
+      const jobs = ctx.database.schema?.tables[ExtractionJob.table]
+        ? await ctx.database
+            .get<ExtractionJob>(ExtractionJob.table)
+            .query(Q.where("conversation_id", id))
+            .fetch()
+        : [];
+      for (const job of jobs) await job.destroyPermanently();
     });
     return true;
   }
@@ -883,6 +895,11 @@ export async function clearMessagesOp(
       await job.update((row) => {
         row._setRaw("message_ids", "[]");
         row._setRaw("watermark", null);
+        // Clearing restarts createMessageOp's per-conversation message_id at 1,
+        // so a surviving sequence anchor would read every new message as
+        // already observed and extraction would never run again here. Unlike a
+        // single delete, this is a deliberate reset of the whole conversation.
+        row._setRaw("watermark_seq", null);
       });
     }
     for (const message of messages) {
@@ -923,6 +940,10 @@ export async function deleteMessageOp(
       const ids = JSON.parse(String(job._getRaw("message_ids"))) as string[];
       await job.update((row) => {
         row._setRaw("message_ids", JSON.stringify(ids.filter((id) => id !== uniqueId)));
+        // Drop the id but KEEP `watermark_seq`. The sequence is what makes the
+        // boundary survive this deletion; clearing both let the next turn fall
+        // back to the trailing window and re-enqueue already observed sources
+        // under whatever scope was current (a private→shared republish).
         if (row._getRaw("watermark") === uniqueId) row._setRaw("watermark", null);
       });
     }

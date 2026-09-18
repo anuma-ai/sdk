@@ -1072,6 +1072,20 @@ export async function updateVaultMemoryOp(
         return;
       }
       let observedSources: string[] = [];
+      // A replayed observation must not inflate evidence. It must not swallow
+      // the write either: this returned from inside the writer before
+      // record.update(), so content, embedding, restore, entities and eventTime
+      // were all dropped while the caller still saw a successful merge.
+      // Reachable on two ordinary paths — two candidates from one turn
+      // routinely share sourceMessageIds (autoExtract passes per-candidate
+      // ids), so the second one's consolidated rewrite was discarded; and
+      // tryConsolidate sends a rewritten content plus a fresh embedding under
+      // the ids that triggered it, which the durable retry path always has on
+      // file. Losing that write also poisoned vaultCache with a vector for
+      // content that was never persisted. So suppress only the evidence
+      // fields — proof count and the re-observation watermark — and let the
+      // content the caller computed land.
+      let replayedObservation = false;
       if (opts.observationSourceIds?.length) {
         try {
           const parsed: unknown = JSON.parse(record.sourceChunkIds ?? "[]");
@@ -1080,7 +1094,7 @@ export async function updateVaultMemoryOp(
         } catch {
           /* Legacy malformed provenance is repaired by the next observation. */
         }
-        if (opts.observationSourceIds.every((id) => observedSources.includes(id))) return;
+        replayedObservation = opts.observationSourceIds.every((id) => observedSources.includes(id));
       }
       await record.update((r) => {
         r._setRaw("content", encryptedContent);
@@ -1108,7 +1122,9 @@ export async function updateVaultMemoryOp(
             )
           );
         }
-        if (opts.proofCountIncrement !== undefined) {
+        if (replayedObservation) {
+          /* Same sources seen again: no new evidence, so no proof bump. */
+        } else if (opts.proofCountIncrement !== undefined) {
           // Read inside the writer so two parallel retain() calls observe
           // each other's commits and neither loses its increment. Reading
           // `r.proofCount` reflects the latest committed _raw value (the
@@ -1130,10 +1146,12 @@ export async function updateVaultMemoryOp(
         if (opts.topicsUserManaged !== undefined) {
           r._setRaw("topics_user_managed", opts.topicsUserManaged);
         }
-        if (opts.lastObservedAt !== undefined) {
+        if (opts.lastObservedAt !== undefined && !replayedObservation) {
           // C3 re-observation watermark. Set independently of updated_at so a
           // merge records "seen again now" while preserveUpdatedAt keeps the
-          // edit-time recency signal pinned.
+          // edit-time recency signal pinned. Skipped for a replay: re-reading
+          // the same sources is not a fresh sighting, and refreshing here would
+          // hold a decayed fact alive off its own retry traffic.
           r._setRaw("last_observed_at", opts.lastObservedAt);
         }
         // Typed memory (PR1) — retain()'s lazy backfill sets this only when the

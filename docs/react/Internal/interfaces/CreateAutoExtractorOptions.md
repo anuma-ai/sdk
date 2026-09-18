@@ -2,10 +2,6 @@
 
 Defined in: [src/lib/memory/autoExtractWorker.ts:218](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#218)
 
-## Extended by
-
-* [`DurableAutoExtractorOptions`](DurableAutoExtractorOptions.md)
-
 ## Properties
 
 ### consolidate?
