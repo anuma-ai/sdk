@@ -21,7 +21,7 @@ import { applyMMR } from "../memory/mmr";
 import type { PortalLlmAuth } from "../memory/portalLlm";
 import { EMBEDDINGS_DEGRADED_EMPTY } from "../memory/recallConstants";
 import { recencyMultiplier, type RecencyOptions } from "../memory/recency";
-import { RerankerUnavailableError, rerankPairs } from "../memory/reranker";
+import { RerankerUnavailableError, type RerankFn,rerankPairs } from "../memory/reranker";
 import { rrfFuse } from "../memory/rrf";
 import { DEFAULT_API_EMBEDDING_MODEL } from "../memoryEngine/constants";
 import { generateEmbedding, generateEmbeddings } from "../memoryEngine/embeddings";
@@ -184,6 +184,12 @@ export interface MemoryVaultSearchOptions {
   rerankTopN?: number;
   /** Multiplicative cross-encoder blend weight. Default 0.1. Only used when `rerank` is true. */
   ceWeight?: number;
+  /**
+   * Reranker implementation. Defaults to the on-device cross-encoder, which
+   * does not exist on React Native; pass a network one (see
+   * `memory/jevReranker`) to rerank on mobile. Only used when `rerank` is true.
+   */
+  rerankFn?: RerankFn;
   /** Recency boost slope applied in the fused ranker. Default 1.0. */
   recencyAlpha?: number;
   /** Recency decay curve overrides (per-year decay slope, floor, no-date multiplier). */
@@ -845,6 +851,13 @@ export async function rankFusedVaultMemoriesAsync(
     rerank?: boolean;
     rerankTopN?: number;
     ceWeight?: number;
+    /**
+     * Reranker to use. Defaults to the on-device cross-encoder
+     * ({@link rerankPairs}), which is unavailable on React Native — pass a
+     * network implementation (see `memory/jevReranker`) to rerank there.
+     * Both honor {@link RerankFn}, so the blend below is unchanged either way.
+     */
+    rerankFn?: RerankFn;
     /** Fraction of the score gap transferred old→new on supersession. Default 0.8. */
     supersessionBoost?: number;
     /** Hard cap on the supersession candidate window. Default 50. */
@@ -950,7 +963,7 @@ export async function rankFusedVaultMemoriesAsync(
     // time it burned — see RerankStats.
     const ceStart = nowMs();
     try {
-      const reranked = await rerankPairs(
+      const reranked = await (options.rerankFn ?? rerankPairs)(
         query,
         headSlice.map((r) => ({
           id: r.uniqueId,
@@ -1157,6 +1170,13 @@ export async function rankComposite(
     rerank?: boolean;
     rerankTopN?: number;
     ceWeight?: number;
+    /**
+     * Reranker to use. Defaults to the on-device cross-encoder
+     * ({@link rerankPairs}), which is unavailable on React Native — pass a
+     * network implementation (see `memory/jevReranker`) to rerank there.
+     * Both honor {@link RerankFn}, so the blend below is unchanged either way.
+     */
+    rerankFn?: RerankFn;
     rrfK?: number;
     /** Fraction of the score gap transferred old→new on supersession. Default 0.8. */
     supersessionBoost?: number;
@@ -1361,7 +1381,7 @@ export async function rankComposite(
     // the already-fused facet head, not once per facet.
     const ceStart = nowMs();
     try {
-      const reranked = await rerankPairs(
+      const reranked = await (options.rerankFn ?? rerankPairs)(
         originalQuery,
         headSlice.map((r) => ({
           id: r.uniqueId,
@@ -2577,6 +2597,7 @@ export async function rankPreparedVaultCandidates(
           rerankTopN: searchOptions.rerankTopN,
         }),
         ...(searchOptions?.ceWeight !== undefined && { ceWeight: searchOptions.ceWeight }),
+        ...(searchOptions?.rerankFn && { rerankFn: searchOptions.rerankFn }),
         ...(searchOptions?.mmr !== undefined && { mmr: searchOptions.mmr }),
         ...tuning,
         ...(searchOptions?.entityRanking && { entityRanking: searchOptions.entityRanking }),
@@ -2604,6 +2625,7 @@ export async function rankPreparedVaultCandidates(
         rerankTopN: searchOptions.rerankTopN,
       }),
       ...(searchOptions.ceWeight !== undefined && { ceWeight: searchOptions.ceWeight }),
+      ...(searchOptions.rerankFn && { rerankFn: searchOptions.rerankFn }),
       ...(searchOptions.mmr !== undefined && { mmr: searchOptions.mmr }),
       ...tuning,
       ...(searchOptions.entityRanking && { entityRanking: searchOptions.entityRanking }),
@@ -2873,6 +2895,7 @@ export function createMemoryVaultSearchTool(
   const tuningForward = {
     ...(searchOptions?.rerankTopN !== undefined && { rerankTopN: searchOptions.rerankTopN }),
     ...(searchOptions?.ceWeight !== undefined && { ceWeight: searchOptions.ceWeight }),
+    ...(searchOptions?.rerankFn && { rerankFn: searchOptions.rerankFn }),
     ...(searchOptions?.recencyAlpha !== undefined && { recencyAlpha: searchOptions.recencyAlpha }),
     ...(searchOptions?.recency && { recency: searchOptions.recency }),
     ...(searchOptions?.mmr !== undefined && { mmr: searchOptions.mmr }),

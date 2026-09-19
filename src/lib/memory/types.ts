@@ -18,6 +18,7 @@ import type { FactType } from "./autoExtract.js";
 import type { ObservationTrend } from "./observationTrend.js";
 import type { PortalLlmAuth } from "./portalLlm.js";
 import type { RecencyOptions } from "./recency.js";
+import type { RerankFn } from "./reranker.js";
 
 // Re-exported here so the public types surface is one module; the
 // interface lives next to the fetch helper that enforces it.
@@ -199,6 +200,12 @@ export interface RecallOptions {
   rerankTopN?: number;
   /** Multiplicative cross-encoder blend weight. Default: 0.1. */
   ceWeight?: number;
+  /**
+   * Reranker implementation for the fact lane. Default: the on-device
+   * cross-encoder, which is absent on React Native — pass a network one (see
+   * `jevReranker`) to rerank there. Only used when the budget enables rerank.
+   */
+  rerankFn?: RerankFn;
   /** Recency boost slope in the fused ranker. Default: 1.0. */
   recencyAlpha?: number;
   /** Recency decay curve overrides (per-year decay slope, floor, no-date multiplier). */
