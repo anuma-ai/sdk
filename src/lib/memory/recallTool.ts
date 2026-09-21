@@ -44,6 +44,8 @@ export interface RecallToolOptions {
   minScore?: number;
   /** Vault scope filter. */
   scopes?: string[];
+  /** Topic membership, enforced before fact ranking; disables unrestricted chunks. */
+  memoryIds?: string[];
   /** Vault folder filter. */
   folderId?: string | null;
   /** Exclude one conversation from chunk results (typically the active one). */
@@ -472,6 +474,7 @@ export function createRecallTool(
           budget: defaultBudget,
           ...(toolOptions?.minScore !== undefined && { minScore: toolOptions.minScore }),
           ...(toolOptions?.scopes && { scopes: toolOptions.scopes }),
+          ...(toolOptions?.memoryIds !== undefined && { memoryIds: toolOptions.memoryIds }),
           ...(toolOptions?.folderId !== undefined && { folderId: toolOptions.folderId }),
           ...(toolOptions?.excludeConversationId && {
             excludeConversationId: toolOptions.excludeConversationId,

@@ -389,3 +389,30 @@ describe("classifyDecay — policy override", () => {
     expect(DEFAULT_DECAY_POLICY.fallbackTtlMs).toBe(MEDIUM_TTL_MS);
   });
 });
+
+describe("distinct re-observation freshness", () => {
+  it("keeps old ongoing context confirmed today without changing its edit timestamp", () => {
+    expect(
+      classifyDecay(
+        input({ factType: "ongoing_context", updatedAt: NOW - 60 * DAY, lastObservedAt: NOW }),
+        NOW
+      )
+    ).toBe("keep");
+  });
+  it("still expires an event that ended, even if mentioned again", () => {
+    expect(
+      classifyDecay(
+        input({ factType: "plan", eventTimeEnd: NOW - 30 * DAY, lastObservedAt: NOW }),
+        NOW
+      )
+    ).toBe("archive");
+  });
+  it("ignores malformed observation timestamps", () => {
+    expect(
+      classifyDecay(
+        input({ factType: "ongoing_context", updatedAt: NOW - 60 * DAY, lastObservedAt: NaN }),
+        NOW
+      )
+    ).toBe("archive");
+  });
+});

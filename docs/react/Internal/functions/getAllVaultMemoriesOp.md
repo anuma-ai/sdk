@@ -2,7 +2,7 @@
 
 > **getAllVaultMemoriesOp**(`ctx`: [`VaultMemoryOperationsContext`](../interfaces/VaultMemoryOperationsContext.md), `options?`: `object`): `Promise`<[`StoredVaultMemory`](../interfaces/StoredVaultMemory.md)\[]>
 
-Defined in: [src/lib/db/memoryVault/operations.ts:628](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#628)
+Defined in: [src/lib/db/memoryVault/operations.ts:639](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#639)
 
 ## Parameters
 
@@ -165,6 +165,23 @@ Used by a "memory history" view to render retired facts.
 <td>
 
 `number`
+
+</td>
+<td>
+
+‐
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.memoryIds?`
+
+</td>
+<td>
+
+`string`\[]
 
 </td>
 <td>

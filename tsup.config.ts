@@ -1,6 +1,16 @@
 import { defineConfig } from "tsup";
 
 export default defineConfig([
+  // Pure context assembly: no React, native, database, or server runtime imports.
+  {
+    entry: ["src/lib/memory/context.ts"],
+    format: ["esm", "cjs"],
+    dts: true,
+    outDir: "dist/memory",
+    outExtension({ format }) {
+      return { js: format === "esm" ? ".mjs" : ".cjs" };
+    },
+  },
   {
     entry: ["src/index.ts"],
     format: ["esm", "cjs"],

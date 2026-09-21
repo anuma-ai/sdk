@@ -127,7 +127,15 @@ export async function recall(
   ctx: RecallContext,
   options: RecallOptions = {}
 ): Promise<RecallResult> {
-  const types: MemoryKind[] = options.types ?? ["fact"];
+  const requestedTypes: MemoryKind[] = options.types ?? ["fact"];
+  // `memoryIds` restricts facts before ranking; chunks have no equivalent
+  // membership filter, so the chunk lane is dropped rather than allowed to
+  // escape the scope. Recorded so the caller can tell that from an empty vault.
+  const chunksScopeRestricted = options.memoryIds !== undefined && requestedTypes.includes("chunk");
+  const types: MemoryKind[] =
+    options.memoryIds !== undefined
+      ? requestedTypes.filter((kind) => kind === "fact")
+      : requestedTypes;
   const limit = options.limit ?? DEFAULT_LIMIT;
   const usedBudget = options.budget ?? DEFAULT_BUDGET;
   const flags = flagsForBudget(usedBudget);
@@ -251,12 +259,16 @@ export async function recall(
     // before this it was a log line with no counterpart in telemetry.
     if (graphLaneFailed) degraded.push("graph-lane-failed");
     if (temporalLaneFailed) degraded.push("temporal-lane-failed");
+    if (chunksScopeRestricted) degraded.push("chunks-scope-restricted");
     // `laneRan` is "some store was wired for the kinds asked for". False means
     // the context could not serve this request at all, which is a different
     // problem from finding nothing.
     const laneRan =
       (types.includes("fact") && !!ctx.vaultCtx && !!ctx.vaultCache) ||
-      (types.includes("chunk") && !!ctx.storageCtx);
+      (types.includes("chunk") && !!ctx.storageCtx) ||
+      // The chunk lane was wired and deliberately dropped for the scope, which
+      // is not the "requested kinds have no store" wiring bug `no-lanes` means.
+      (chunksScopeRestricted && !!ctx.storageCtx);
     const scores = admitted.map((m) => m.score);
     // The floor the scores in THIS payload actually cleared. A lane that ran
     // but returned nothing filtered none of them, so it must not claim the
@@ -452,6 +464,7 @@ export async function recall(
         ...(options.scopes && { scopes: options.scopes }),
         ...(options.folderId !== undefined && { folderId: options.folderId }),
         ...(options.factTypes?.length && { factTypes: options.factTypes }),
+        ...(options.memoryIds !== undefined && { memoryIds: options.memoryIds }),
         ...(options.factTypeWeights && { factTypeWeights: options.factTypeWeights }),
         ...(entityRanking.length > 0 && { entityRanking }),
         ...(temporalRanking.length > 0 && { temporalRanking }),

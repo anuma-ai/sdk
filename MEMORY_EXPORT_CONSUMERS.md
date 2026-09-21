@@ -43,7 +43,9 @@ Client paths are in `zeta-chain/ai-memoryless-client`.
 
 | Export | Status | Consumer / why it is dark |
 | --- | --- | --- |
-| `createAutoExtractor` | client-mounted | `packages/hooks/src/useAutoExtraction.ts` — the shared `useAutoExtractionCore`, wrapped by both `apps/web` and `apps/mobile`. The only extraction entry point either app uses. |
+| `createDurableAutoExtractor` | client-mounted | `packages/hooks/src/autoExtract/index.ts` aliases this for shared `useAutoExtractionCore` on web and mobile; pending source IDs survive restarts. |
+| `assembleMemoryContext` | client-mounted | `packages/hooks/src/memoryRecall/preRetrieve.ts`, shared web/mobile prompt assembly through `@anuma/sdk/memory/context`. |
+| `shouldRecallMemory` | client-mounted | `packages/hooks/src/memoryRecall/shouldPreRetrieve.ts`; the same gate also runs within SDK assembly. |
 | `extractAndLinkEntitiesForMemoriesOp` | client-mounted | `packages/hooks/src/useTopicExtractionWorker.ts` — the background topic sweep (mobile mounts it from `app/(auth)/chat.tsx`). |
 | `createDecaySweeper` | client-mounted | `apps/web/hooks/useMemoryDecay.ts:51` and `apps/mobile/hooks/useMemoryDecay.ts:72`, both through `packages/hooks/src/useMemoryDecay.ts` (hosts: `MemoryDecayHost.tsx:21`, `app/(auth)/_layout.tsx:163`). |
 | `extractFacts` | public-utility | Direct-call extractor, re-exported by the client's own barrel (`packages/hooks/src/autoExtract/index.ts`) and exercised by web e2e. The chat path itself goes through `createAutoExtractor`. |

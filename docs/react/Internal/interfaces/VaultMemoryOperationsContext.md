@@ -4,6 +4,21 @@ Defined in: [src/lib/db/memoryVault/operations.ts:60](https://github.com/anuma-a
 
 ## Properties
 
+### canWrite()?
+
+> `optional` **canWrite**: () => `Promise`<`boolean`>
+
+Defined in: [src/lib/db/memoryVault/operations.ts:70](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#70)
+
+Optional extraction source eligibility check, executed inside the writer.
+Must only read the database (must not start another writer).
+
+**Returns**
+
+`Promise`<`boolean`>
+
+***
+
 ### database
 
 > **database**: `Database`
@@ -24,7 +39,7 @@ Defined in: [src/lib/db/memoryVault/operations.ts:65](https://github.com/anuma-a
 
 > `optional` **entityCtx**: [`EntityOperationsContext`](EntityOperationsContext.md)
 
-Defined in: [src/lib/db/memoryVault/operations.ts:85](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#85)
+Defined in: [src/lib/db/memoryVault/operations.ts:88](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#88)
 
 When set, vault delete ops cascade to memory\_entity rows pointing at
 the deleted memories. Without this the W5 graph lane keeps returning
@@ -44,7 +59,7 @@ Defined in: [src/lib/db/memoryVault/operations.ts:64](https://github.com/anuma-a
 
 > `optional` **singleTenant**: `boolean`
 
-Defined in: [src/lib/db/memoryVault/operations.ts:79](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#79)
+Defined in: [src/lib/db/memoryVault/operations.ts:82](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#82)
 
 Asserts this context runs against a physically single-tenant database — one
 where every row belongs to the same owner (the per-wallet client DBs, which

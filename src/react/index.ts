@@ -257,6 +257,7 @@ export {
   type CreateConversationOptions,
   type CreateMessageOptions,
   decryptConversationTitle,
+  deleteMessageOp,
   type FileMetadata,
   generateConversationId,
   getConversationsByProjectLazyOp,
@@ -508,6 +509,7 @@ export {
   extractFacts,
   HARD_DELETE_WINDOW_MS,
   injectionSignatureCatalog,
+  INTERNAL_FLOW_MARKER,
   isDegradedTopicSkip,
   isRerankerAvailable,
   MAX_HOPS,
@@ -535,6 +537,7 @@ export {
   ttlForType,
   VAULT_SIZE_HOP_CAP,
   verifyMemoriesForPublish,
+  withInternalFlowMarker,
 } from "../lib/memory";
 
 // Entity / memory_entity tables — the W5 graph-lane storage that
@@ -972,6 +975,15 @@ export {
 
 // Re-export the AST types and tree helpers so consumers of the React
 // runtime can read/walk decks without a parallel import from /tools.
+export {
+  assembleMemoryContext,
+  type MemoryContextItem,
+  type MemoryContextLane,
+  type MemoryContextOptions,
+  type MemoryContextResult,
+  shouldRecallMemory,
+} from "../lib/memory";
+export { createDurableAutoExtractor, type DurableAutoExtractorOptions } from "../lib/memory";
 export type { AnumaChild, AnumaNode, AttrValue, KnownTag, ThemeAttr } from "../tools/slides";
 export {
   AnumaJsxError,

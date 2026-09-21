@@ -1,6 +1,6 @@
 # ExtractionCursorStore
 
-Defined in: [src/lib/memory/autoExtractWorker.ts:173](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#173)
+Defined in: [src/lib/memory/autoExtractWorker.ts:174](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#174)
 
 Durable per-conversation extraction cursor. Synchronous by contract (both
 SDK platform stores — web `localStorage`, mobile MMKV — are sync), so the
@@ -15,7 +15,7 @@ extraction.
 
 > **get**(`conversationId`: `string`): `string` | `undefined`
 
-Defined in: [src/lib/memory/autoExtractWorker.ts:175](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#175)
+Defined in: [src/lib/memory/autoExtractWorker.ts:176](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#176)
 
 Last message id extracted through for `conversationId`, or undefined.
 
@@ -54,7 +54,7 @@ Last message id extracted through for `conversationId`, or undefined.
 
 > **set**(`conversationId`: `string`, `messageId`: `string`): `void`
 
-Defined in: [src/lib/memory/autoExtractWorker.ts:177](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#177)
+Defined in: [src/lib/memory/autoExtractWorker.ts:178](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#178)
 
 Persist the last-extracted message id for `conversationId`.
 

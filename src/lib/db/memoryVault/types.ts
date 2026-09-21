@@ -258,6 +258,14 @@ export interface UpdateVaultMemoryOptions {
    * two parallel retain() calls observe each other's commits and neither
    * loses its increment. Wins over `proofCount` when both are set. */
   proofCountIncrement?: number;
+  /** Source ids for an observation. Unioned inside the writer. A replay whose
+   * ids are all already on the row contributes no new evidence, so
+   * `proofCount`/`proofCountIncrement` and {@link lastObservedAt} are skipped —
+   * but the write still lands: `content`, `embedding`, `restore`, `eventTime`
+   * and the rest apply, because a consolidation rewrite legitimately carries
+   * the same source ids as the observation that triggered it.
+   * Omit for unkeyed/manual observations. */
+  observationSourceIds?: string[];
   /** Set source ("manual" | "auto-extracted" | "capsule"). */
   source?: string;
   /**

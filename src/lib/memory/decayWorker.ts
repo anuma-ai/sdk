@@ -156,6 +156,7 @@ function toDecayInput(c: DecayCandidateRaw): DecayInput {
     eventTimeEnd: c.eventTimeEnd,
     eventTimeKind: c.eventTimeKind,
     updatedAt: c.updatedAt,
+    lastObservedAt: c.lastObservedAt,
     archivedAt: c.archivedAt,
     source: c.source,
     trustTier: c.trustTier,
@@ -339,6 +340,7 @@ export function createDecaySweeper(options: CreateDecaySweeperOptions): DecaySwe
         const ok = await archiveVaultMemoryOp(vaultCtx, c.uniqueId, {
           now,
           expectedUpdatedAt: c.updatedAt,
+          expectedLastObservedAt: c.lastObservedAt ?? null,
         });
         if (ok) archived++;
       }

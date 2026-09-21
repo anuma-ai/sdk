@@ -12,6 +12,7 @@ import { AppFile } from "./appFiles/models";
 import { Conversation, ConversationSummary, Message } from "./chat/models";
 import { ConversationMemory } from "./conversationMemory/models";
 import { Entity, MemoryEntity } from "./entities/models";
+import { ExtractionJob } from "./extractionJobs/models";
 import { Media } from "./media/models";
 import { VaultMemory } from "./memoryVault/models";
 import { Project } from "./project/models";
@@ -117,8 +118,15 @@ import { VaultFolder } from "./vaultFolders/models";
  * - v45: Added `media` to memory_vault — the photo(s) a server-extracted
  *   memory came from, as JSON `[{feed_item_id, object_key}]`. Null on every
  *   row that did not come from a photo, which is all of them before this
+ *   migration ran
+ * - v46: Added device-local memory_extraction_jobs outbox for restart-safe
+ *   extraction. Additive (a single createTable, no backfill), so a v45 database
+ *   upgrades cleanly. NOT reversible: WatermelonDB has no downgrade path, so
+ *   rolling a release back past v46 after a device has run it resets that
+ *   device's local database. Relevant to OTA, where a JS-only rollback can
+ *   land on a database the newer build already migrated
  */
-export const SDK_SCHEMA_VERSION = 45;
+export const SDK_SCHEMA_VERSION = 46;
 
 /**
  * Combined WatermelonDB schema for all SDK storage modules.
@@ -153,6 +161,21 @@ export const SDK_SCHEMA_VERSION = 45;
 export const sdkSchema = appSchema({
   version: SDK_SCHEMA_VERSION,
   tables: [
+    tableSchema({
+      name: "memory_extraction_jobs",
+      columns: [
+        { name: "owner_key", type: "string", isIndexed: true },
+        { name: "conversation_id", type: "string", isIndexed: true },
+        { name: "scope", type: "string" },
+        { name: "message_ids", type: "string" },
+        { name: "watermark", type: "string", isOptional: true },
+        // Deletion-proof anchor: history.message_id of the newest acknowledged
+        // source. `watermark` alone is an id, and deleting that message erased
+        // the anchor — see the column note in extractionJobs/models.ts.
+        { name: "watermark_seq", type: "number", isOptional: true },
+        { name: "folder_id", type: "string", isOptional: true },
+      ],
+    }),
     // Chat storage tables
     tableSchema({
       name: "history",
@@ -1195,6 +1218,23 @@ export const sdkMigrations = schemaMigrations({
         }),
       ],
     },
+    {
+      toVersion: 46,
+      steps: [
+        createTable({
+          name: "memory_extraction_jobs",
+          columns: [
+            { name: "owner_key", type: "string", isIndexed: true },
+            { name: "conversation_id", type: "string", isIndexed: true },
+            { name: "scope", type: "string" },
+            { name: "message_ids", type: "string" },
+            { name: "watermark", type: "string", isOptional: true },
+            { name: "watermark_seq", type: "number", isOptional: true },
+            { name: "folder_id", type: "string", isOptional: true },
+          ],
+        }),
+      ],
+    },
   ],
 });
 
@@ -1216,6 +1256,7 @@ export const sdkMigrations = schemaMigrations({
  * ```
  */
 export const sdkModelClasses: Class<Model>[] = [
+  ExtractionJob,
   Message,
   Conversation,
   ConversationSummary,

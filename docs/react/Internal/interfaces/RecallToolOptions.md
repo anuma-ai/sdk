@@ -18,7 +18,7 @@ Retrieval depth. Default: "low".
 
 > `optional` **decomposeOptions**: [`PortalLlmAuth`](PortalLlmAuth.md) & `object`
 
-Defined in: [src/lib/memory/recallTool.ts:55](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/recallTool.ts#55)
+Defined in: [src/lib/memory/recallTool.ts:57](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/recallTool.ts#57)
 
 LLM-decompose options; only used at budget="high". Runs in THIS tool
 executor (719/B4) — `recall()` itself is LLM-free. Auth follows the
@@ -41,7 +41,7 @@ tokens) — at least one required.
 
 > `optional` **excludeConversationId**: `string`
 
-Defined in: [src/lib/memory/recallTool.ts:50](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/recallTool.ts#50)
+Defined in: [src/lib/memory/recallTool.ts:52](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/recallTool.ts#52)
 
 Exclude one conversation from chunk results (typically the active one).
 
@@ -51,7 +51,7 @@ Exclude one conversation from chunk results (typically the active one).
 
 > `optional` **folderId**: `string` | `null`
 
-Defined in: [src/lib/memory/recallTool.ts:48](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/recallTool.ts#48)
+Defined in: [src/lib/memory/recallTool.ts:50](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/recallTool.ts#50)
 
 Vault folder filter.
 
@@ -64,6 +64,16 @@ Vault folder filter.
 Defined in: [src/lib/memory/recallTool.ts:40](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/recallTool.ts#40)
 
 Max items returned to the LLM. Default: 8.
+
+***
+
+### memoryIds?
+
+> `optional` **memoryIds**: `string`\[]
+
+Defined in: [src/lib/memory/recallTool.ts:48](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/recallTool.ts#48)
+
+Topic membership, enforced before fact ranking; disables unrestricted chunks.
 
 ***
 
@@ -81,7 +91,7 @@ Min score threshold. Defaults to recall()'s per-lane defaults.
 
 > `optional` **now**: `number`
 
-Defined in: [src/lib/memory/recallTool.ts:64](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/recallTool.ts#64)
+Defined in: [src/lib/memory/recallTool.ts:66](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/recallTool.ts#66)
 
 Reference "now" for resolving relative temporal phrases in the
 query ("last week", "yesterday", "N days ago"). Default: `Date.now()`.
