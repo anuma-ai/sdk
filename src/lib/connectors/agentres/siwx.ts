@@ -24,6 +24,10 @@
  * the server answers with a bare 401. That is why the message builder is
  * covered by a byte-for-byte golden test rather than by shape assertions.
  *
+ * Nothing the challenge carries is trusted to name its own scope: a CAIP-122
+ * proof is portable, so {@link parseChallenge} takes the origin we are actually
+ * talking to and refuses a challenge minted for anywhere else.
+ *
  * @module lib/connectors/agentres/siwx
  */
 
@@ -75,14 +79,22 @@ export interface SiwxChallenge {
  * Decode a `PAYMENT-REQUIRED` header into the Solana SIWX challenge it offers.
  *
  * @param paymentRequiredHeader The raw header value from a 402 response.
+ * @param expectedOrigin The origin this client talks to, e.g.
+ *   `https://agentres.dev`. Required rather than optional: the returned
+ *   challenge is about to be signed, and a challenge nobody scoped is a
+ *   signature waiting to be spent elsewhere. See {@link assertScopedTo}.
  * @throws {SiwxUnsupportedError} when the 402 carries no `sign-in-with-x`
  *   extension. That means a PAID endpoint: SIWX cannot satisfy it, and signing
  *   anything here would produce a proof the server answers with a 401 rather
  *   than an error naming the real cause.
  * @throws {SiwxChallengeError} when the header is not base64 JSON, when a field
- *   the signed message needs is missing, or when no Solana chain is offered.
+ *   the signed message needs is missing, when no Solana chain is offered, or
+ *   when the challenge names a host other than `expectedOrigin`.
  */
-export function parseChallenge(paymentRequiredHeader: string): SiwxChallenge {
+export function parseChallenge(
+  paymentRequiredHeader: string,
+  expectedOrigin: string
+): SiwxChallenge {
   const decoded = decodeHeader(paymentRequiredHeader);
 
   const extensions = asRecord(decoded.extensions);
@@ -100,7 +112,7 @@ export function parseChallenge(paymentRequiredHeader: string): SiwxChallenge {
 
   const chain = solanaChain(extension.supportedChains);
 
-  return {
+  const challenge: SiwxChallenge = {
     domain: requireString(info, "domain"),
     uri: requireString(info, "uri"),
     version: requireString(info, "version"),
@@ -111,6 +123,54 @@ export function parseChallenge(paymentRequiredHeader: string): SiwxChallenge {
     chainId: chain.chainId,
     signingType: chain.signingType,
   };
+
+  assertScopedTo(challenge, expectedOrigin);
+  return challenge;
+}
+
+/**
+ * Refuse a challenge that names a host other than the one we are talking to.
+ *
+ * A CAIP-122 proof is portable by design: the signed message names the site it
+ * is for, and any SIWX verifier accepts one addressed to itself. So whoever
+ * mints our challenges can mint one naming SOMEBODY ELSE, hand it back through
+ * a perfectly ordinary 402, and replay the resulting proof there to sign in as
+ * the user. The victim site cannot tell — it sees a valid signature over its
+ * own domain, from a key that really does own it.
+ *
+ * The only party positioned to catch that is the one holding the key, and here
+ * that is us. So the scope is checked rather than trusted, before anything is
+ * signed.
+ *
+ * `domain` and `uri` are the two fields a verifier keys on, so pinning them is
+ * what makes the proof unusable elsewhere. The resources block is deliberately
+ * left alone: a proof no verifier will accept cannot be spent whatever it
+ * lists, and agentres is free to reference resources we do not host.
+ */
+function assertScopedTo(challenge: SiwxChallenge, expectedOrigin: string): void {
+  const expected = parseUrl(expectedOrigin, `the agentres base URL "${expectedOrigin}"`);
+
+  if (challenge.domain !== expected.host) {
+    throw new SiwxChallengeError(
+      `the challenge is scoped to "${challenge.domain}" but this client talks to "${expected.host}" — refusing to sign it`
+    );
+  }
+
+  const uri = parseUrl(challenge.uri, `the sign-in-with-x uri "${challenge.uri}"`);
+  if (uri.origin !== expected.origin) {
+    throw new SiwxChallengeError(
+      `the challenge addresses "${uri.origin}" but this client talks to "${expected.origin}" — refusing to sign it`
+    );
+  }
+}
+
+/** Parse a URL, naming what failed rather than leaking a bare TypeError. */
+function parseUrl(value: string, description: string): URL {
+  try {
+    return new URL(value);
+  } catch (cause) {
+    throw new SiwxChallengeError(`${description} is not a URL`, { cause });
+  }
 }
 
 /**

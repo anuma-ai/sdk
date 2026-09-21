@@ -11,12 +11,21 @@ const ADDRESS = "FuHqTKA1BeznpbJ7S2FzcPhXcdxssBNJXnJgxT3Tt9AY";
 const SIGNATURE_BASE58 =
   "2AXDGYSE4f2sz7tvMMzyHvUfcoJmxudvdhBcmiUSo6ijwfYmfZYsKRxboQMPh3R4kUhXRVdtSXFXMheka4Rc4P2";
 
-/** The recorded 402, re-minted with a fresh nonce the way agentres does. */
-function challengeHeader(nonce: string): string {
+/**
+ * The recorded 402, re-minted with a fresh nonce the way agentres does, scoped
+ * to the resource the request actually asked for. Scoping it to `url` rather
+ * than to the fixture's host is what a real server does, and it is what lets
+ * the injected-baseUrl test drive a different host without tripping the
+ * client's origin check.
+ */
+function challengeHeader(nonce: string, url: string): string {
   const payload = JSON.parse(JSON.stringify(recorded402)) as {
-    extensions: { "sign-in-with-x": { info: { nonce: string } } };
+    extensions: { "sign-in-with-x": { info: { nonce: string; domain: string; uri: string } } };
   };
-  payload.extensions["sign-in-with-x"].info.nonce = nonce;
+  const info = payload.extensions["sign-in-with-x"].info;
+  info.nonce = nonce;
+  info.domain = new URL(url).host;
+  info.uri = url;
   return Buffer.from(JSON.stringify(payload), "utf-8").toString("base64");
 }
 
@@ -52,7 +61,7 @@ function harness(replies: Reply[] = []): Harness {
       return Promise.resolve(
         new Response("{}", {
           status: 402,
-          headers: { "PAYMENT-REQUIRED": challengeHeader(`nonce-${minted}`) },
+          headers: { "PAYMENT-REQUIRED": challengeHeader(`nonce-${minted}`, url) },
         })
       );
     }
@@ -174,6 +183,24 @@ describe("withSiwx", () => {
 
     await expect(clientFor(h).withSiwx(PROFILE_READ)).rejects.toThrow(SiwxChallengeError);
     expect(h.signMessage).not.toHaveBeenCalled();
+  });
+
+  // The whole point of the origin check: a compromised agentres hands back a
+  // challenge minted for somewhere else, and the wallet must never sign it.
+  // Asserting the refusal is not enough — a signature that exists has already
+  // left the building.
+  test("never signs a challenge scoped to another host", async () => {
+    const h = harness();
+    h.fetchImpl.mockResolvedValue(
+      new Response("{}", {
+        status: 402,
+        headers: { "PAYMENT-REQUIRED": challengeHeader("nonce-1", "https://evil.example/login") },
+      })
+    );
+
+    await expect(clientFor(h).withSiwx(PROFILE_READ)).rejects.toThrow(/refusing to sign it/);
+    expect(h.signMessage).not.toHaveBeenCalled();
+    expect(h.fetchImpl).toHaveBeenCalledTimes(1);
   });
 
   test("returns the body without signing when the route answers without a 402", async () => {

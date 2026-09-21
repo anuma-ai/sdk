@@ -151,7 +151,10 @@ export function createAgentresClient(options: AgentresClientOptions): AgentresCl
       );
     }
 
-    const challenge = parseChallenge(header);
+    // Scoped to baseUrl, not to whatever the challenge says about itself: the
+    // proof we are about to sign would otherwise be replayable at any SIWX site
+    // the challenge chose to name.
+    const challenge = parseChallenge(header, baseUrl);
     const signature = await signMessage(new TextEncoder().encode(buildMessage(challenge, address)));
 
     const authorized = await fetchImpl(url, {
