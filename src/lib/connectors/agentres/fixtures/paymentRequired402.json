@@ -1,0 +1,31 @@
+{
+  "x402Version": 1,
+  "resource": "https://agentres.dev/api/me",
+  "accepts": [
+    {
+      "scheme": "exact",
+      "network": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+      "amount": "0",
+      "payTo": "FCFgb8Z63uwim2QpDJW4TGwLqZoENjckwGosLmg26zBS",
+      "maxTimeoutSeconds": 60,
+      "asset": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
+    }
+  ],
+  "extensions": {
+    "sign-in-with-x": {
+      "info": {
+        "domain": "agentres.dev",
+        "uri": "https://agentres.dev/api/me",
+        "version": "1",
+        "statement": "Verify wallet ownership with Agentic Reservations",
+        "nonce": "cf14451647c551a13177e9be523a4875",
+        "issuedAt": "2026-09-17T22:38:42.566Z",
+        "resources": ["https://agentres.dev/api/me"]
+      },
+      "supportedChains": [
+        { "chainId": "eip155:8453", "type": "eip191" },
+        { "chainId": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp", "type": "ed25519" }
+      ]
+    }
+  }
+}

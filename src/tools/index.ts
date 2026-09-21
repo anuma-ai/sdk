@@ -202,6 +202,28 @@ export {
   createConnectorTokenGetter,
 } from "../lib/connectors";
 
+// agentres registration
+//
+// The one connector with no vault credential: the user's own Solana wallet
+// proves ownership of their Resy account, per call, by signature. The SIWX
+// message and payload builders stay inside the module — a consumer that
+// assembles the flow by hand loses the single-use-nonce guarantee.
+export type {
+  AgentresAccount,
+  AgentresClient,
+  AgentresClientOptions,
+  AgentresErrorCode,
+  AgentresLinkStatus,
+  AgentresLinkStep,
+  SolanaSignMessageFn,
+} from "../lib/connectors";
+export {
+  AgentresError,
+  createAgentresClient,
+  SiwxChallengeError,
+  SiwxUnsupportedError,
+} from "../lib/connectors";
+
 // App generation tools
 export type {
   AuditIssue,
