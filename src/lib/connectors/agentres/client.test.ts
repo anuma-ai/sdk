@@ -2,7 +2,7 @@ import { describe, expect, test, vi } from "vitest";
 
 import type { AgentresRequest, FetchLike, SolanaSignMessageFn } from "./client.js";
 import { createAgentresClient } from "./client.js";
-import { AgentresError, SiwxChallengeError } from "./errors.js";
+import { AgentresError, AgentresPathError, SiwxChallengeError } from "./errors.js";
 import recorded402 from "./fixtures/paymentRequired402.json";
 
 const ADDRESS = "FuHqTKA1BeznpbJ7S2FzcPhXcdxssBNJXnJgxT3Tt9AY";
@@ -213,6 +213,22 @@ describe("withSiwx", () => {
     expect(h.signMessage).not.toHaveBeenCalled();
   });
 
+  // A 2xx is not a promise of JSON — a proxy in front of agentres answers 200
+  // with an HTML page. Parsed bare, that leaves as a raw SyntaxError, past
+  // every typed error the caller is set up to handle.
+  test("a 2xx body that is not JSON comes back typed, not as a SyntaxError", async () => {
+    const h = harness();
+    h.fetchImpl.mockResolvedValue(
+      new Response("<html><body>502 Bad Gateway</body></html>", { status: 200 })
+    );
+
+    const failure = clientFor(h).withSiwx(PROFILE_READ);
+
+    await expect(failure).rejects.toBeInstanceOf(AgentresError);
+    await expect(failure).rejects.not.toBeInstanceOf(SyntaxError);
+    await expect(failure).rejects.toMatchObject({ status: 200, code: "INVALID_JSON" });
+  });
+
   test("throws the provider's refusal from the authenticated response", async () => {
     const h = harness([NO_LINKED_ACCOUNT]);
 
@@ -404,6 +420,60 @@ describe("createAgentresClient options", () => {
     await clientFor(h, "https://staging.agentres.dev/").withSiwx(PROFILE_READ);
 
     expect(h.requests[0].url).toBe("https://staging.agentres.dev/api/me");
+  });
+});
+
+/**
+ * A path is a caller-supplied string, and agentres's own routes carry path
+ * parameters (`/api/discover/restaurants/{id}`), so one is eventually going to
+ * be built by interpolation. Concatenating it onto the base URL lets it move
+ * the request to another host — and the 402 that comes back from there is the
+ * challenge this client signs.
+ *
+ * Every assertion below checks that NOTHING was fetched, not merely that the
+ * call rejected. A request that left the building has already carried our
+ * headers to the attacker's host.
+ */
+describe("request paths that would leave the agentres origin", () => {
+  test.each([
+    // `https://agentres.dev` + this is `https://agentres.dev@evil.com/x`, where
+    // the base URL has become userinfo and the host is evil.com.
+    ["a userinfo path", "@evil.com/x"],
+    // Concatenation extends the host itself: `agentres.dev.evil.com`.
+    ["a host-suffix path", ".evil.com/x"],
+    // `new URL(path, base)` resolves this protocol-relative, to
+    // `https://evil.com/x`. This is the one the obvious fix misses.
+    ["a protocol-relative path", "//evil.com/x"],
+    // Single leading slash, so a shape check alone lets it through — the URL
+    // parser folds the backslash into a second slash and the host is evil.com.
+    ["a backslash path", "/\\evil.com/x"],
+    ["a control-character path", "/\t//evil.com/x"],
+  ])("refuses %s before making any request", async (_name, path) => {
+    const h = harness([{ body: { ok: true } }]);
+
+    await expect(clientFor(h).withSiwx({ method: "GET", path })).rejects.toBeInstanceOf(
+      AgentresPathError
+    );
+    expect(h.fetchImpl).not.toHaveBeenCalled();
+    expect(h.signMessage).not.toHaveBeenCalled();
+  });
+
+  test("still serves a legitimate path-parameter route", async () => {
+    const h = harness([{ body: { id: "42" } }]);
+
+    await expect(
+      clientFor(h).withSiwx({ method: "GET", path: "/api/discover/restaurants/42" })
+    ).resolves.toEqual({ id: "42" });
+    expect(h.requests[0].url).toBe("https://agentres.dev/api/discover/restaurants/42");
+  });
+
+  test("scopes the check to the injected baseUrl, not to agentres.dev", async () => {
+    const h = harness([{ body: { ok: true } }]);
+
+    await expect(
+      clientFor(h, "https://staging.agentres.dev").withSiwx({ method: "GET", path: "@evil.com/x" })
+    ).rejects.toBeInstanceOf(AgentresPathError);
+    expect(h.fetchImpl).not.toHaveBeenCalled();
   });
 });
 

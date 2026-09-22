@@ -100,6 +100,10 @@ export { createConnectorOfferTool } from "./connectorOffer";
 export type { ChoiceOption } from "./choice";
 export { createChoiceTool } from "./choice";
 
+// Confirmation interaction tool
+export type { ConfirmParameter, ConfirmToolResult } from "./confirm";
+export { createConfirmTool } from "./confirm";
+
 // Form interaction tool
 export type { FormField, FormFieldOption, FormFieldType } from "./form";
 export { createFormTool } from "./form";
@@ -219,6 +223,7 @@ export type {
 } from "../lib/connectors";
 export {
   AgentresError,
+  AgentresPathError,
   createAgentresClient,
   SiwxChallengeError,
   SiwxUnsupportedError,

@@ -16,6 +16,8 @@
  *
  * The SIWX errors are separate because they are ours, not the provider's: they
  * mean the challenge never became a usable proof, so no request was authorized.
+ * {@link AgentresPathError} is ours too, and earlier still — it means the call
+ * was refused before it was ever made.
  *
  * @module lib/connectors/agentres/errors
  */
@@ -71,6 +73,20 @@ export class SiwxUnsupportedError extends Error {
   constructor(message: string) {
     super(message);
     this.name = "SiwxUnsupportedError";
+  }
+}
+
+/**
+ * The request path would have sent the call somewhere other than agentres.
+ *
+ * Thrown before the first fetch, because the first fetch is already the damage:
+ * it carries the caller's headers to whatever host the path resolved to, and
+ * the 402 that comes back is the challenge we are about to sign.
+ */
+export class AgentresPathError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "AgentresPathError";
   }
 }
 

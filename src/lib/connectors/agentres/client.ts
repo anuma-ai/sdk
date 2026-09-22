@@ -27,7 +27,12 @@
  * @module lib/connectors/agentres/client
  */
 
-import { parseAgentresError, SiwxChallengeError } from "./errors.js";
+import {
+  AgentresError,
+  AgentresPathError,
+  parseAgentresError,
+  SiwxChallengeError,
+} from "./errors.js";
 import {
   buildMessage,
   buildPayload,
@@ -128,7 +133,7 @@ export function createAgentresClient(options: AgentresClientOptions): AgentresCl
   const { address, signMessage } = options;
 
   async function withSiwx<T>(request: AgentresRequest): Promise<T> {
-    const url = `${baseUrl}${request.path}`;
+    const url = resolveUrl(baseUrl, request.path);
     const init = requestInit(request);
 
     const challenged = await fetchImpl(url, init);
@@ -153,7 +158,8 @@ export function createAgentresClient(options: AgentresClientOptions): AgentresCl
 
     // Scoped to baseUrl, not to whatever the challenge says about itself: the
     // proof we are about to sign would otherwise be replayable at any SIWX site
-    // the challenge chose to name.
+    // the challenge chose to name. baseUrl is the right thing to scope to only
+    // because resolveUrl has already refused any path that left that origin.
     const challenge = parseChallenge(header, baseUrl);
     const signature = await signMessage(new TextEncoder().encode(buildMessage(challenge, address)));
 
@@ -221,6 +227,47 @@ export function createAgentresClient(options: AgentresClientOptions): AgentresCl
   };
 }
 
+/**
+ * Resolve a request path against the base URL, refusing one that moves host.
+ *
+ * Two layers, and each catches what the other misses.
+ *
+ * The shape check refuses anything that is not a host-rooted path. `"@evil.com/x"`
+ * and `".evil.com/x"` concatenate straight onto the base as an authority
+ * (`evil.com` and `agentres.dev.evil.com` respectively), and `"//evil.com/x"`
+ * resolves protocol-relative to `https://evil.com/x`. Refusing them is better
+ * than the rewrite {@link URL} would otherwise do quietly: a caller that wrote
+ * `"@evil.com/x"` did not mean `/@evil.com/x` either, and should hear about it.
+ *
+ * The origin assertion is the backstop, and it is not redundant. `"/\\evil.com/x"`
+ * passes the shape check — it starts with a single slash — and still resolves to
+ * `https://evil.com/x`, because the URL parser treats a backslash as a slash for
+ * special schemes. Leading control characters do the same thing.
+ *
+ * This runs before the first fetch, which is the only place it helps: that fetch
+ * carries our headers to whatever host it reached, and the 402 it answers with is
+ * the challenge we then sign.
+ *
+ * @throws {AgentresPathError} when the path is not a path on the agentres host.
+ */
+function resolveUrl(baseUrl: string, path: string): string {
+  if (!path.startsWith("/") || path.startsWith("//")) {
+    throw new AgentresPathError(
+      `"${path}" is not a path on ${baseUrl} — it must start with a single "/"`
+    );
+  }
+
+  const base = new URL(baseUrl);
+  const resolved = new URL(path, base);
+  if (resolved.origin !== base.origin) {
+    throw new AgentresPathError(
+      `"${path}" resolves to ${resolved.origin} but this client talks to ${base.origin} — refusing to send it`
+    );
+  }
+
+  return resolved.toString();
+}
+
 function requestInit(request: AgentresRequest): RequestInit & { headers: Record<string, string> } {
   const headers: Record<string, string> = { Accept: "application/json" };
   if (request.body === undefined) {
@@ -237,5 +284,18 @@ async function readBody<T>(response: Response): Promise<T> {
   if (!response.ok) {
     throw parseAgentresError(response.status, body);
   }
-  return JSON.parse(body) as T;
+
+  // A 2xx is not a promise of JSON: a proxy or a WAF in front of agentres can
+  // answer 200 with an HTML page. Parsed bare, that leaves the module through a
+  // raw SyntaxError, past the typed surface every other failure here uses.
+  try {
+    return JSON.parse(body) as T;
+  } catch {
+    throw new AgentresError(
+      response.status,
+      "INVALID_JSON",
+      `agentres answered ${response.status} with a body that is not JSON`,
+      response.status >= 500
+    );
+  }
 }
