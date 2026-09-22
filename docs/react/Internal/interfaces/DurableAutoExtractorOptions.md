@@ -12,7 +12,7 @@ Defined in: [src/lib/memory/durableExtraction.ts:15](https://github.com/anuma-ai
 
 > `optional` **batchTimeoutMs**: `number`
 
-Defined in: [src/lib/memory/durableExtraction.ts:38](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/durableExtraction.ts#38)
+Defined in: [src/lib/memory/durableExtraction.ts:48](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/durableExtraction.ts#48)
 
 Ceiling on one batch, from the extraction call through retention. Defaults
 to 180 seconds — deliberately above the extraction call's own budget
@@ -115,7 +115,7 @@ Omit for in-memory-only (legacy) behavior.
 
 > `optional` **debounceMs**: `number`
 
-Defined in: [src/lib/memory/durableExtraction.ts:25](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/durableExtraction.ts#25)
+Defined in: [src/lib/memory/durableExtraction.ts:35](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/durableExtraction.ts#35)
 
 Coalesce arrivals after durably recording them. Defaults to 20 seconds.
 
@@ -249,6 +249,51 @@ Confidence floor for retained facts. Default 0.7.
 **Inherited from**
 
 [`CreateAutoExtractorOptions`](CreateAutoExtractorOptions.md).[`minConfidence`](CreateAutoExtractorOptions.md#minconfidence)
+
+***
+
+### modelForScope()?
+
+> `optional` **modelForScope**: (`scope`: `string`) => `string` | `undefined`
+
+Defined in: [src/lib/memory/durableExtraction.ts:33](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/durableExtraction.ts#33)
+
+Extraction model for a batch, chosen from the scope that batch will be
+retained under. A queued job keeps its scope across a privacy-mode flip but
+`extract.model` is whatever this instance was built with, so without this a
+turn queued in private mode is drained by a public-mode extractor on that
+extractor's model. Returning `undefined` keeps `extract.model`. A resolver
+that throws fails the batch, which stays queued for retry: guessing a model
+is exactly the mistake this exists to prevent.
+
+**Parameters**
+
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`scope`
+
+</td>
+<td>
+
+`string`
+
+</td>
+</tr>
+</tbody>
+</table>
+
+**Returns**
+
+`string` | `undefined`
 
 ***
 
@@ -579,7 +624,7 @@ Defined in: [src/lib/memory/autoExtractWorker.ts:219](https://github.com/anuma-a
 
 > `optional` **retryDelayMs**: `number`
 
-Defined in: [src/lib/memory/durableExtraction.ts:28](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/durableExtraction.ts#28)
+Defined in: [src/lib/memory/durableExtraction.ts:38](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/durableExtraction.ts#38)
 
 Retry delay for a failed batch. Defaults to 30 seconds; max three attempts
 per session. Unfinished jobs remain available on the next resume.

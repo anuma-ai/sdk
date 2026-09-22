@@ -21,6 +21,16 @@ export interface DurableAutoExtractorOptions extends Omit<CreateAutoExtractorOpt
    * as `"private"` — the direction that cannot publish.
    */
   scope?: string | (() => string);
+  /**
+   * Extraction model for a batch, chosen from the scope that batch will be
+   * retained under. A queued job keeps its scope across a privacy-mode flip but
+   * `extract.model` is whatever this instance was built with, so without this a
+   * turn queued in private mode is drained by a public-mode extractor on that
+   * extractor's model. Returning `undefined` keeps `extract.model`. A resolver
+   * that throws fails the batch, which stays queued for retry: guessing a model
+   * is exactly the mistake this exists to prevent.
+   */
+  modelForScope?: (scope: string) => string | undefined;
   /** Coalesce arrivals after durably recording them. Defaults to 20 seconds. */
   debounceMs?: number;
   /** Retry delay for a failed batch. Defaults to 30 seconds; max three attempts
@@ -126,6 +136,7 @@ export function createDurableAutoExtractor(options: DurableAutoExtractorOptions)
     jobFolderId: string | null
   ): Promise<TurnCompleteEvent> {
     let watchdog: ReturnType<typeof setTimeout> | undefined;
+    const model = options.modelForScope?.(jobScope) ?? options.extract.model;
     try {
       return await Promise.race([
         new Promise<TurnCompleteEvent>((resolve, reject) => {
@@ -147,6 +158,8 @@ export function createDurableAutoExtractor(options: DurableAutoExtractorOptions)
                   !disposed,
               },
             },
+            // The model follows the job's scope, not the mode alive at drain time.
+            extract: { ...options.extract, ...(model !== undefined && { model }) },
             // Never publish a private queued observation after a mode flip.
             scope: jobScope,
             folderId: jobFolderId,
