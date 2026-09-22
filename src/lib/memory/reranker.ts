@@ -129,7 +129,7 @@ async function getModel(): Promise<ModelHandle> {
   return modelPromise;
 }
 
-interface RerankerItem {
+export interface RerankerItem {
   id: string;
   content: string;
   /**
@@ -141,12 +141,26 @@ interface RerankerItem {
   dateMs?: number | null;
 }
 
-interface RerankedItem {
+export interface RerankedItem {
   id: string;
   content: string;
   /** Cross-encoder score in [0, 1] (sigmoid of the model's logit). */
   score: number;
 }
+
+/**
+ * The contract a reranker honors, so the vault search layer can be handed a
+ * different implementation without knowing which one it got.
+ *
+ * Both implementations return a score in [0, 1] and sort descending, which is
+ * what lets `searchTool` blend it the same way (`v2 * (1 + ceWeight * score)`)
+ * regardless of provider. Both also signal "not available in this environment"
+ * by throwing {@link RerankerUnavailableError}, which the caller treats as an
+ * expected degradation to the fused ranking rather than an error.
+ *
+ * @public
+ */
+export type RerankFn = (query: string, items: RerankerItem[]) => Promise<RerankedItem[]>;
 
 function sigmoid(x: number): number {
   return 1 / (1 + Math.exp(-x));

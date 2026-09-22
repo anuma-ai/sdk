@@ -442,6 +442,7 @@ export async function recall(
         // pipeline's own defaults stay authoritative.
         ...(options.rerankTopN !== undefined && { rerankTopN: options.rerankTopN }),
         ...(options.ceWeight !== undefined && { ceWeight: options.ceWeight }),
+        ...(options.rerankFn && { rerankFn: options.rerankFn }),
         ...(options.recencyAlpha !== undefined && { recencyAlpha: options.recencyAlpha }),
         ...(options.recency && { recency: options.recency }),
         ...(options.mmr !== undefined && { mmr: options.mmr }),

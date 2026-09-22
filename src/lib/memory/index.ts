@@ -72,6 +72,11 @@ export {
   type ScreenResult,
 } from "./injectionScreen.js";
 export {
+  type JevRerankOptions,
+  makeJevReranker,
+  rerankPairsWithJev,
+} from "./jevReranker.js";
+export {
   classifyObservationTrend,
   type ObservationTrend,
   type ObservationTrendInput,
@@ -99,6 +104,7 @@ export {
 } from "./recallTool.js";
 export type { RecencyOptions } from "./recency.js";
 export { reflect, type ReflectOptions, type ReflectResult } from "./reflect.js";
+export type { RerankedItem, RerankerItem, RerankFn } from "./reranker.js";
 export { isRerankerAvailable, RerankerUnavailableError } from "./reranker.js";
 export { retain, type RetainContext } from "./retain.js";
 export {
