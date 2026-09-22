@@ -510,6 +510,61 @@ describe("durable extraction outbox", () => {
     worker.dispose();
   });
 
+  it("runs a private job queued before a mode flip on the private model", async () => {
+    await conversation();
+    let scope = "private";
+    const modelForScope = (s: string) => (s === "private" ? "open-model" : "closed-model");
+    const queued = createDurableAutoExtractor({
+      ...options(),
+      debounceMs: 60_000,
+      scope: () => scope,
+      extract: { apiKey: "k", model: "open-model" },
+      modelForScope,
+    });
+    // Let the start-up pass finish, or it drains the job on this instance.
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    queued.processTurn(messages.slice(0, 1), "conversation");
+    await vi.waitFor(async () =>
+      expect(await db.get<ExtractionJob>(ExtractionJob.table).query().fetchCount()).toBe(1)
+    );
+    queued.dispose();
+    expect(extractAndRetain).not.toHaveBeenCalled();
+    scope = "shared";
+    // The public-mode extractor that drains it is built with the closed model.
+    const drainer = createDurableAutoExtractor({
+      ...options(),
+      scope: () => scope,
+      extract: { apiKey: "k", model: "closed-model" },
+      modelForScope,
+    });
+    await vi.waitFor(() => expect(extractAndRetain).toHaveBeenCalledOnce());
+    expect(vi.mocked(extractAndRetain).mock.calls[0][2].scope).toBe("private");
+    expect(vi.mocked(extractAndRetain).mock.calls[0][2].extract.model).toBe("open-model");
+    drainer.processTurn(messages.slice(0, 2), "conversation");
+    await vi.waitFor(() => expect(extractAndRetain).toHaveBeenCalledTimes(2));
+    expect(vi.mocked(extractAndRetain).mock.calls[1][2].scope).toBe("shared");
+    expect(vi.mocked(extractAndRetain).mock.calls[1][2].extract.model).toBe("closed-model");
+    drainer.dispose();
+  });
+
+  it("keeps the job queued when the model resolver throws", async () => {
+    await conversation();
+    const onError = vi.fn();
+    const worker = createDurableAutoExtractor({
+      ...options(),
+      onError,
+      modelForScope: () => {
+        throw new Error("model policy unavailable");
+      },
+    });
+    worker.processTurn(messages.slice(0, 1), "conversation");
+    await vi.waitFor(() => expect(onError).toHaveBeenCalled());
+    expect(extractAndRetain).not.toHaveBeenCalled();
+    const [job] = await db.get<ExtractionJob>(ExtractionJob.table).query().fetch();
+    expect(job._getRaw("message_ids")).toBe(JSON.stringify(["m0"]));
+    worker.dispose();
+  });
+
   it("treats a throwing scope accessor as private", async () => {
     await conversation();
     const onError = vi.fn();
