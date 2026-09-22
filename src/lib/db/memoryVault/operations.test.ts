@@ -1641,6 +1641,33 @@ describe("getVaultRankingProjectionsOp", () => {
     expect(results[0].uniqueId).toBe("mem_vec");
   });
 
+  it("carries last_observed_at through as lastObservedAt (null when unset)", async () => {
+    // A consolidation `update` rewrites content under preserveUpdatedAt, so
+    // updated_at stays pinned and ONLY last_observed_at moves. The Nearby
+    // publish reconciler reads this projection to decide what to re-send; if
+    // the column is dropped here, that rewrite is invisible to it forever.
+    const pinned = new Date("2025-01-01").getTime();
+    const reobserved = pinned + 60_000;
+    const consolidated = mockRecord({ id: "mem_consolidated", updated_at: pinned });
+    consolidated._raw.last_observed_at = reobserved;
+    const untouched = mockRecord({ id: "mem_untouched", updated_at: pinned });
+    const queryFn = vi.fn((..._conditions: any[]) => ({
+      fetch: vi.fn(async () => [consolidated, untouched]),
+      unsafeFetchRaw: vi.fn(async () => [consolidated._raw, untouched._raw]),
+    }));
+    const ctx = makeCtx({ vaultMemoryCollection: { query: queryFn } as any });
+
+    const results = await getVaultRankingProjectionsOp(ctx, { scopes: ["shared"] });
+
+    expect(results[0].uniqueId).toBe("mem_consolidated");
+    expect(results[0].updatedAt.getTime()).toBe(pinned);
+    expect(results[0].lastObservedAt).toBe(reobserved);
+    expect(results[1].uniqueId).toBe("mem_untouched");
+    expect(results[1].lastObservedAt).toBeNull();
+    // Still content-free — the new field must not smuggle the decrypt back in.
+    expect(results[0]).not.toHaveProperty("content");
+  });
+
   it("reuses baseVaultConditions — excludes deleted + superseded like the recall read", async () => {
     const fetchFn = vi.fn(async () => []);
     const queryFn = vi.fn((..._conditions: any[]) => ({

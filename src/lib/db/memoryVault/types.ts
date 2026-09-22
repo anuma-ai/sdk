@@ -138,6 +138,21 @@ export interface RankableVaultMemory {
   embeddingModel: string | null;
   createdAt: Date;
   updatedAt: Date;
+  /** C3 re-observation watermark (`last_observed_at`), Unix ms or null — the
+   * same column {@link StoredVaultMemory.lastObservedAt} carries. A retain()
+   * consolidation `update` rewrites `content` under `preserveUpdatedAt`, so
+   * `updatedAt` stays pinned and only this column moves. A consumer that
+   * decides "has this row changed since I last sent it" from `updatedAt` alone
+   * (the Nearby publish reconciler) never sees that rewrite; it must take
+   * `max(updatedAt, lastObservedAt)`.
+   *
+   * OPTIONAL, not just nullable: `RankableVaultMemory` is a public exported
+   * type, and this field is new. Required would break any existing consumer
+   * constructing a literal of this shape (a test fixture, a mock) — the same
+   * reason every other watermark field of this kind in this package
+   * (memory/types.ts, memoryVault/searchTool.ts) is optional rather than
+   * required. `vaultMemoryRawToRankable` still always sets it. */
+  lastObservedAt?: number | null;
 }
 
 /**

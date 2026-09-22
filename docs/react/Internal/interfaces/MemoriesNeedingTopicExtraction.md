@@ -1,6 +1,6 @@
 # MemoriesNeedingTopicExtraction
 
-Defined in: [src/lib/db/memoryVault/operations.ts:1548](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#1548)
+Defined in: [src/lib/db/memoryVault/operations.ts:1552](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#1552)
 
 Result of [getMemoriesNeedingTopicExtractionOp](../functions/getMemoriesNeedingTopicExtractionOp.md): which memories the
 background topic worker should run LLM entity extraction on, and which it
@@ -12,7 +12,7 @@ should merely stamp as already-extracted.
 
 > **linkedUnstamped**: `string`\[]
 
-Defined in: [src/lib/db/memoryVault/operations.ts:1567](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#1567)
+Defined in: [src/lib/db/memoryVault/operations.ts:1571](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#1571)
 
 IDs of rows that already have entity links but no watermark — legacy rows
 extracted by the conversation pipeline before v36. Grandfather these with
@@ -27,7 +27,7 @@ grandfather backlog is drained across sweeps rather than in one spike.
 
 > **pending**: [`StoredVaultMemory`](StoredVaultMemory.md)\[]
 
-Defined in: [src/lib/db/memoryVault/operations.ts:1558](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#1558)
+Defined in: [src/lib/db/memoryVault/operations.ts:1562](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#1562)
 
 Memories to run LLM topic extraction on (decrypted): never-extracted rows
 with no entity links, plus stamped rows edited since their last pass
@@ -43,7 +43,7 @@ first (they get priority under `limit`), each group newest-created first.
 
 > **topicsBackfill**: `string`\[]
 
-Defined in: [src/lib/db/memoryVault/operations.ts:1594](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#1594)
+Defined in: [src/lib/db/memoryVault/operations.ts:1598](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#1598)
 
 IDs that have links but no `topics` record at all — rows predating v42,
 whose topics would otherwise never reach the server. Fill with
@@ -63,7 +63,7 @@ excluded: their imminent LLM pass writes `topics` anyway.
 
 > **topicsToRelink**: `string`\[]
 
-Defined in: [src/lib/db/memoryVault/operations.ts:1580](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#1580)
+Defined in: [src/lib/db/memoryVault/operations.ts:1584](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#1584)
 
 IDs whose `topics` record disagrees with their `memory_entity` links — the
 restored-device case, where the synced record arrived but the device-local
