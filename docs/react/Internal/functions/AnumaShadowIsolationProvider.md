@@ -2,7 +2,7 @@
 
 > **AnumaShadowIsolationProvider**(`__namedParameters`: [`AnumaShadowIsolationProviderProps`](../interfaces/AnumaShadowIsolationProviderProps.md)): `ReactElement`
 
-Defined in: [src/react/anumaRuntime.tsx:102](https://github.com/anuma-ai/sdk/blob/main/src/react/anumaRuntime.tsx#102)
+Defined in: [src/react/anumaRuntime.tsx:103](https://github.com/anuma-ai/sdk/blob/main/src/react/anumaRuntime.tsx#103)
 
 Toggle shadow-DOM isolation for any `<Anuma.Slide>` rendered inside
 the children. The default for slides is isolation ON — pass
