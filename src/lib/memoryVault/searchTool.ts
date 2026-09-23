@@ -449,14 +449,6 @@ function fuseSideLanes(
 }
 
 /**
- * Cap on the BM25 lift blended into a row the cosine lane already admitted
- * (see `blendBM25` in {@link rankFusedVaultMemories}). Equal to the default
- * cosine floor — the most a BM25-only admission can score on a healthy search —
- * so a lexical match lifts a row by at most what it could have earned alone.
- */
-const BM25_BLEND_CAP = 0.1;
-
-/**
  * C4 date for cross-encoder pairs: prefer the fact's anchored event time,
  * then the C3 re-observation watermark, then write-time stamps.
  *
@@ -815,21 +807,19 @@ export function rankFusedVaultMemories(
         items.map((i) => ({ id: i.id, content: i.content }))
       );
   // BM25 normally only ADMITS rows cosine missed, at a floor capped under the
-  // cosine threshold. Two states break that, and in both BM25 must be BLENDED:
-  //  - no query vector (embeddings outage): every cosine is 0, so the cap would
-  //    flatten every lexical hit to the same score and rank them by recency
-  //    alone. Uncapped, BM25 is the ranking.
-  //  - `minSimilarity <= 0`: every row clears the cosine floor, so NOTHING is
-  //    left for BM25 to admit — a lexical match counted for nothing at all.
-  //    Blend a capped lift into the rows cosine already holds instead.
+  // cosine threshold. With no query vector (embeddings outage) every cosine is
+  // 0, so that cap would flatten every lexical hit to one score and rank them
+  // by recency alone — and at `minSimilarity <= 0` every row sits in the cosine
+  // set, leaving BM25 nothing to admit at all. Either way BM25 is the only real
+  // signal, so it is BLENDED in uncapped and becomes the ranking.
+  //
+  // Deliberately NOT extended to a healthy vector at `minSimilarity <= 0`:
+  // blending a capped lift there regressed the production-mode vault-search
+  // eval (paraphrase MRR 90.7% -> 88.0%) — see anuma-ai/sdk#949.
   const cosineInert = queryEmbedding.length === 0;
-  const blendBM25 = cosineInert || minSimilarity <= 0;
-  const bm25Lift = (bm25: number): number =>
-    cosineInert
-      ? bm25 / bm25AdmissionDivisor
-      : Math.min(BM25_BLEND_CAP, bm25 / bm25AdmissionDivisor);
+  const bm25Lift = (bm25: number): number => bm25 / bm25AdmissionDivisor;
   const itemById = new Map(items.map((i) => [i.id, i]));
-  const base = blendBM25
+  const base = cosineInert
     ? baseRanked.map((r) => {
         const bm25 = bm25Scores.get(r.uniqueId) ?? 0;
         return bm25 > 0 ? { ...r, similarity: r.similarity + bm25Lift(bm25) } : r;

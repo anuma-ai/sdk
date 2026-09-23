@@ -92,6 +92,26 @@ describe("event-time anchors and factType survive every lane", () => {
     expect(top).toMatchObject({ uniqueId: "m1", ...dated });
   });
 
+  it("carries proofCount and lastObservedAt, which the C2 trend labels read", () => {
+    const [top] = rankFusedVaultMemories(
+      "party",
+      [1, 0, 0],
+      [
+        {
+          id: "m1",
+          content: "went to the party",
+          embedding: [1, 0, 0],
+          updatedAt: NOW,
+          proofCount: 4,
+          lastObservedAt: EVENT_MS,
+        },
+      ],
+      { minSimilarity: 0.1 }
+    );
+
+    expect(top).toMatchObject({ uniqueId: "m1", proofCount: 4, lastObservedAt: EVENT_MS });
+  });
+
   it("carries them on a side-lane tail admission (sync and async)", async () => {
     // Zero cosine, no lexical overlap: only the entity lane can admit `lane`.
     const items = [
@@ -161,19 +181,21 @@ describe("side-lane fusion applies the recency/proof boost on both rankers", () 
 // BM25 is blended when cosine can't carry the ranking
 // ---------------------------------------------------------------------------
 
-describe("BM25 still counts when minSimilarity <= 0 or the query vector is empty", () => {
-  it("lets a lexical match break a cosine tie at minSimilarity 0", () => {
+describe("BM25 carries the ranking when the query vector is empty", () => {
+  it("lets BM25 rank an empty-vector search even at minSimilarity 0", () => {
+    // At minSimilarity 0 every row clears the (all-zero) cosine floor, so the
+    // old code left BM25 nothing to admit and the ranking was recency alone.
     const items = [
-      { id: "plain", content: "a plain row", embedding: [1, 0, 0], updatedAt: NOW },
-      { id: "match", content: "the zebra crossing", embedding: [1, 0, 0], updatedAt: NOW },
+      { id: "plain", content: "a plain row", embedding: [], updatedAt: NOW },
+      { id: "match", content: "the zebra crossing", embedding: [], updatedAt: NOW },
     ];
 
-    const ranked = rankFusedVaultMemories("zebra", [1, 0, 0], items, {
+    const ranked = rankFusedVaultMemories("zebra", [], items, {
       minSimilarity: 0,
       recency: { now: NOW },
     });
 
-    expect(ranked.map((r) => r.uniqueId)).toEqual(["match", "plain"]);
+    expect(ranked[0].uniqueId).toBe("match");
   });
 
   it("ranks by BM25 strength, not a flat floor, when the query vector is empty", () => {
