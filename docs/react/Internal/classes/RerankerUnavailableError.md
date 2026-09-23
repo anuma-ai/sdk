@@ -16,7 +16,7 @@ than a transient error worth warning about on every recall.
 
 ### Constructor
 
-> **new RerankerUnavailableError**(`reason`: `unknown`): `RerankerUnavailableError`
+> **new RerankerUnavailableError**(`reason`: `unknown`, `message`: `string`): `RerankerUnavailableError`
 
 Defined in: [src/lib/memory/reranker.ts:40](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/reranker.ts#40)
 
@@ -27,6 +27,7 @@ Defined in: [src/lib/memory/reranker.ts:40](https://github.com/anuma-ai/sdk/blob
 <tr>
 <th>Parameter</th>
 <th>Type</th>
+<th>Default value</th>
 </tr>
 </thead>
 <tbody>
@@ -39,6 +40,28 @@ Defined in: [src/lib/memory/reranker.ts:40](https://github.com/anuma-ai/sdk/blob
 <td>
 
 `unknown`
+
+</td>
+<td>
+
+`undefined`
+
+</td>
+</tr>
+<tr>
+<td>
+
+`message`
+
+</td>
+<td>
+
+`string`
+
+</td>
+<td>
+
+`"cross-encoder reranker unavailable (@huggingface/transformers not installed)"`
 
 </td>
 </tr>

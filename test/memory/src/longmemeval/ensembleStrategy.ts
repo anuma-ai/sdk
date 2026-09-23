@@ -15,10 +15,10 @@ import { chunkAndEmbedAllMessages } from "../../../../src/lib/memoryEngine/embed
 import { createMemoryEngineTool } from "../../../../src/lib/memoryEngine/tool.js";
 import { retain } from "../../../../src/lib/memory/retain.js";
 import {
-  createMemoryVaultSearchTool,
   preEmbedVaultMemories,
   type VaultEmbeddingCache,
 } from "../../../../src/lib/memoryVault/searchTool.js";
+import { createMemoryVaultSearchTool } from "../../../../src/lib/memoryVault/searchToolExecutor.js";
 import { answerFailureReason, evaluateAnswer } from "./judge.js";
 import {
   ANSWER_MAX_COMPLETION_TOKENS,

@@ -34,6 +34,7 @@ import { searchVaultMemoriesWithSize } from "../memoryVault/searchTool.js";
 import {
   createLlmNeighborRefiner,
   type NeighborRefiner,
+  NODE_BUDGET,
   traverseGraphLane,
 } from "./graphTraversal.js";
 import { classifyObservationTrend } from "./observationTrend.js";
@@ -58,11 +59,17 @@ const DEFAULT_FACT_MIN_SCORE = 0.1;
 
 /** Monotonic wall clock in ms; `performance.now()` where available (browser /
  * RN / Node), else `Date.now()`. Used only for best-effort recall timings. */
-const nowMs = (): number =>
-  typeof performance !== "undefined" && typeof performance.now === "function"
+// A function DECLARATION, not a `const` arrow: declarations are initialized
+// when the module is instantiated, so a call that lands while this module is
+// still mid-evaluation (an import cycle) can't hit the TDZ.
+function nowMs(): number {
+  return typeof performance !== "undefined" && typeof performance.now === "function"
     ? performance.now()
     : Date.now();
+}
 const DEFAULT_CHUNK_MIN_SCORE = 0.5;
+/** See {@link RecallOptions.queryEmbedTotalTimeoutMs}. */
+const DEFAULT_QUERY_EMBED_TOTAL_TIMEOUT_MS = 8_000;
 
 interface BudgetFlags {
   rerank: boolean;
@@ -330,9 +337,12 @@ export async function recall(
     return { memories: [], usedBudget, reranked: false, candidateCount: 0 };
   }
 
-  // Embed once, share across stores. Vault path embeds internally too —
-  // it's keyed off the cache so we don't pay twice. Run in parallel with
-  // the side-lane builds since none of the three depends on the others.
+  // Embed once, share across stores: when the chunk lane needs a query vector
+  // it is computed here and handed to the vault search too (its
+  // `queryEmbedding` option), so a mixed recall pays one embedding round trip,
+  // not two. A fact-only recall leaves the embed to the vault search, which
+  // skips it entirely on an empty vault. Run in parallel with the side-lane
+  // builds since none of the three depends on the others.
   //
   // W5 graph lane: when the recall context carries an entityCtx, extract
   // candidate entities from the query and look up memories that share any
@@ -350,14 +360,27 @@ export async function recall(
     flags.traverse && options.graphRefine && options.decomposeOptions
       ? createLlmNeighborRefiner(options.decomposeOptions)
       : undefined;
+  // The query embed sits on the chat hot path, so it gets ONE budget across
+  // every attempt — the per-attempt deadline alone would let an outage stall
+  // each turn ~4 x timeoutMs before degrading.
+  const queryEmbedTotalTimeoutMs =
+    options.queryEmbedTotalTimeoutMs ?? DEFAULT_QUERY_EMBED_TOTAL_TIMEOUT_MS;
   const prepStart = nowMs();
+  // Wall-clock of the shared query embed above; stays 0 when it did not run.
+  let sharedEmbedMs = 0;
   const [queryEmbedding, entityRanking, temporalRanking] = await Promise.all([
     // The chunk lane is cosine-only — `searchChunksOp` needs a real vector, and
     // there is no lexical fallback for it — so an embeddings outage must SKIP the
     // lane, not reject this shared Promise.all and take the primary fact lane
     // (which BM25 can still serve) down with it. Mirrors safeLane's posture.
     needsChunkEmbedding
-      ? generateEmbedding(query, ctx.embeddingOptions)
+      ? generateEmbedding(query, {
+          ...ctx.embeddingOptions,
+          totalTimeoutMs: queryEmbedTotalTimeoutMs,
+        })
+          .finally(() => {
+            sharedEmbedMs = nowMs() - prepStart;
+          })
           .then((vec) => {
             // An empty vector is as dead as a throw here: `searchChunksOp` would
             // run a cosine pass that can only score 0. Empty arrays are truthy,
@@ -442,6 +465,9 @@ export async function recall(
         // pipeline's own defaults stay authoritative.
         ...(options.rerankTopN !== undefined && { rerankTopN: options.rerankTopN }),
         ...(options.ceWeight !== undefined && { ceWeight: options.ceWeight }),
+        ...(options.rerankLoadTimeoutMs !== undefined && {
+          rerankLoadTimeoutMs: options.rerankLoadTimeoutMs,
+        }),
         ...(options.recencyAlpha !== undefined && { recencyAlpha: options.recencyAlpha }),
         ...(options.recency && { recency: options.recency }),
         ...(options.mmr !== undefined && { mmr: options.mmr }),
@@ -468,6 +494,10 @@ export async function recall(
         ...(options.factTypeWeights && { factTypeWeights: options.factTypeWeights }),
         ...(entityRanking.length > 0 && { entityRanking }),
         ...(temporalRanking.length > 0 && { temporalRanking }),
+        // The shared embed from prep. `[]` when it failed, so the vault lane
+        // degrades to BM25 at once instead of re-trying the provider.
+        ...(needsChunkEmbedding && { queryEmbedding: queryEmbedding ?? [] }),
+        queryEmbedTotalTimeoutMs,
       }
     );
     factResults.push(
@@ -480,7 +510,9 @@ export async function recall(
     vaultSize = size;
     didRerank = reranked;
     rerankMs = factRerankMs;
-    queryEmbedMs = factQueryEmbedMs;
+    // With a shared embed the vault lane embedded nothing itself (0), and the
+    // real cost is the prep-time embed — see RecallDiagnostics.timings.queryEmbed.
+    queryEmbedMs = needsChunkEmbedding ? sharedEmbedMs : factQueryEmbedMs;
     vaultRowsEmbedded = factRowsEmbedded;
     hadV2Head = v2Head;
     if (factEmbeddingsUnavailable) embeddingsUnavailable = true;
@@ -514,18 +546,15 @@ export async function recall(
       minSimilarity: chunkMinScore,
       embeddingModel: ctx.embeddingOptions.model ?? DEFAULT_API_EMBEDDING_MODEL,
       ...(options.conversationId && { conversationId: options.conversationId }),
+      // Excluded inside the scan, before scoring and the top-K cut — filtering
+      // the returned slice instead let the current conversation fill every
+      // slot, so a long chat recalled nothing from past conversations.
+      ...(options.excludeConversationId && {
+        excludeConversationId: options.excludeConversationId,
+      }),
       ...(ctx.chunkCache && { chunkCache: ctx.chunkCache }),
     });
-    chunkResults.push(
-      ...dedupeBy(
-        results.filter((r) =>
-          options.excludeConversationId
-            ? r.message.conversationId !== options.excludeConversationId
-            : true
-        ),
-        (r) => r.chunkText.trim()
-      )
-    );
+    chunkResults.push(...dedupeBy(results, (r) => r.chunkText.trim()));
     chunkLaneMs = nowMs() - chunkStart;
   }
 
@@ -775,10 +804,22 @@ async function buildGraphLaneRanking(
   // same indexed active-id read the high-budget path already pays. Only wired
   // when a vaultCtx is present (the same context the final recall gate filters
   // against); without it the lane keeps its pre-fix behavior.
+  //
+  // Then cap at the node budget, the same bound the multi-hop branch applies to
+  // its emitted pool: a common entity ("I", the user's own name) can be shared
+  // by hundreds of memories, and every id here becomes an RRF entry and a
+  // forced decrypt on the decrypt-last path. Cut AFTER the active filter so
+  // inactive ids can't use up budget slots.
+  const budget =
+    traversalOptions.nodeBudget !== undefined &&
+    Number.isFinite(traversalOptions.nodeBudget) &&
+    traversalOptions.nodeBudget >= 1
+      ? Math.floor(traversalOptions.nodeBudget)
+      : NODE_BUDGET;
   const vaultCtx = ctx.vaultCtx;
-  if (!vaultCtx) return ranked;
+  if (!vaultCtx) return ranked.slice(0, budget);
   const activeIds = await getActiveVaultMemoryIdsOp(vaultCtx, ranked);
-  return ranked.filter((id) => activeIds.has(id));
+  return ranked.filter((id) => activeIds.has(id)).slice(0, budget);
 }
 
 /**

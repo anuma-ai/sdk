@@ -89,6 +89,28 @@ export interface EmbeddingOptions {
    * while real PII never reaches the server. Used when PII redaction is active.
    */
   maskInput?: (text: string) => string;
+  /**
+   * Deadline, in ms, for EACH embeddings HTTP attempt (default 15000). An
+   * attempt that exceeds it is aborted and counts as a transient failure, so the
+   * bounded retry still applies. `0` disables the deadline.
+   */
+  timeoutMs?: number;
+  /**
+   * Deadline, in ms, for the `getToken()` read that precedes a request (default
+   * 10000). A provider that never settles rejects instead of hanging the
+   * embedding — and the recall waiting on it. `0` disables the deadline.
+   */
+  tokenTimeoutMs?: number;
+  /**
+   * Overall deadline, in ms, for one `generateEmbedding` call — the token read,
+   * every retry attempt and the backoff between them. Unset (the default) means
+   * only the per-attempt deadlines apply, which is right for background/bulk
+   * embeds. The recall query path sets it (see
+   * `RecallOptions.queryEmbedTotalTimeoutMs`) so an outage degrades a turn to
+   * BM25 within a few seconds instead of ~4 x `timeoutMs`. Not applied by
+   * `generateEmbeddings`.
+   */
+  totalTimeoutMs?: number;
 }
 
 /**

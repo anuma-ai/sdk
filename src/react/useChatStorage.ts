@@ -1751,7 +1751,8 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           vaultEmbeddingOptions,
           vaultEmbeddingCache,
           vaultCtx,
-          result.uniqueId
+          result.uniqueId,
+          result.updatedAt
         ).catch((err) => {
           getLogger().warn("[useChatStorage] Failed to eagerly embed new vault memory:", err);
         });
@@ -1774,11 +1775,16 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           // async re-embed overwrites it under the same id.
           vaultEmbeddingCache.delete(id);
         }
-        eagerEmbedContent(content, vaultEmbeddingOptions, vaultEmbeddingCache, vaultCtx, id).catch(
-          (err) => {
-            getLogger().warn("[useChatStorage] Failed to eagerly embed updated vault memory:", err);
-          }
-        );
+        eagerEmbedContent(
+          content,
+          vaultEmbeddingOptions,
+          vaultEmbeddingCache,
+          vaultCtx,
+          id,
+          result.updatedAt
+        ).catch((err) => {
+          getLogger().warn("[useChatStorage] Failed to eagerly embed updated vault memory:", err);
+        });
       }
       return result;
     },

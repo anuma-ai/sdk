@@ -230,12 +230,10 @@ describe("rerankTopN is a cross-encoder budget", () => {
  * originating chunk, and the answer model sees the same content twice: once as
  * a fact, once as the chunk it was extracted from.
  *
- * Asserted as "MMR changes nothing but the ordering" rather than against a
- * field list, because the field list is not stable: `rankVaultMemories`
- * (searchTool.ts:536) rebuilds cosine-admitted rows carrying only
- * `sourceChunkIds`, so `eventTimeStart/End/Kind` and `factType` never reach
- * this code on the cosine path at all — a separate upstream gap, and one this
- * test starts covering for free if it is ever closed.
+ * Asserted as "MMR changes nothing but the ordering", and — now that the cosine
+ * path carries them (sdk#949: `rankVaultMemories` used to rebuild rows with
+ * only `sourceChunkIds`) — also against the event-time anchors and `factType`
+ * directly, so a lane that drops them again fails here too.
  */
 describe("MMR keeps provenance on picks that come from the V2 tail", () => {
   /**
@@ -313,6 +311,12 @@ describe("MMR keeps provenance on picks that come from the V2 tail", () => {
 
     const reference = withoutMmr.find((r) => r.uniqueId === "tail-diverse");
     expect(reference?.sourceChunkIds).toEqual(["chunk-a", "chunk-b"]);
+    expect(reference).toMatchObject({
+      eventTimeStart: Date.UTC(2026, 3, 1),
+      eventTimeEnd: Date.UTC(2026, 3, 1),
+      eventTimeKind: "point",
+      factType: "preference",
+    });
     expect(provenanceOf(picked)).toEqual(provenanceOf(reference));
   });
 });
