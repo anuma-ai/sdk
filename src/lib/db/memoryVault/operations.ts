@@ -2360,22 +2360,30 @@ export async function updateVaultMemoryEmbeddingOp(
   try {
     const record = await ctx.vaultMemoryCollection.find(id);
     if (record.isDeleted || !isOwnedByCtxUser(ctx, record)) return false;
+    const readUpdatedAt = record.updatedAt.getTime();
+    const readStoredContent = record._getRaw("content");
+    if (expected?.updatedAt !== undefined && expected.updatedAt !== readUpdatedAt) return false;
+    if (expected?.content !== undefined) {
+      // Decrypted OUTSIDE the writer: it can reach signMessage / a key prompt,
+      // and a slow signer inside database.write would stall every other write.
+      const current = await vaultMemoryToStored(
+        record,
+        ctx.walletAddress,
+        ctx.signMessage,
+        ctx.embeddedWalletSigner
+      );
+      if (current.content !== expected.content) return false;
+    }
     let written = false;
     await ctx.database.write(async () => {
-      // Checked inside the serialized writer so an edit that committed after
-      // the find above is seen.
+      // Re-checked inside the serialized writer so an edit that committed
+      // after the reads above is seen — without decrypting again. A
+      // preserveUpdatedAt rewrite keeps updated_at, so the stored (cipher)text
+      // is compared as well: any content write replaces it.
       if (record.isDeleted || !isOwnedByCtxUser(ctx, record)) return;
       const originalUpdatedAt = record.updatedAt.getTime();
-      if (expected?.updatedAt !== undefined && expected.updatedAt !== originalUpdatedAt) return;
-      if (expected?.content !== undefined) {
-        const current = await vaultMemoryToStored(
-          record,
-          ctx.walletAddress,
-          ctx.signMessage,
-          ctx.embeddedWalletSigner
-        );
-        if (current.content !== expected.content) return;
-      }
+      if (originalUpdatedAt !== readUpdatedAt || record._getRaw("content") !== readStoredContent)
+        return;
       await record.update((r) => {
         r._setRaw("embedding", embedding);
         r._setRaw("embedding_model", embeddingModel);

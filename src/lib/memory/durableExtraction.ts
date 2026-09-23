@@ -49,6 +49,8 @@ export interface DurableAutoExtractorOptions extends Omit<CreateAutoExtractorOpt
    * the rest of the session.
    */
   batchTimeoutMs?: number;
+  /** Clock for the failed-session spacing. Defaults to `Date.now`. */
+  now?: () => number;
 }
 
 /** Jobs drained per pass. Each one costs a conversation lookup, up to 20
@@ -60,6 +62,26 @@ const MAX_ATTEMPTS = 3;
 /** Sessions a head batch may fail in before it is abandoned. Persisted on the
  * job row, so neither a new turn nor a restart resets it. */
 const MAX_FAILED_SESSIONS = 3;
+/**
+ * Minimum wall-clock gap between two counted failed sessions. A "session" is
+ * one extractor instance, and three tabs or three remounts on a scope/wallet
+ * change are three instances within minutes; without the gap they could
+ * abandon a batch before anything had a chance to change. A session inside the
+ * gap still stops spending on the batch, it just does not count again.
+ */
+const MIN_FAILED_SESSION_GAP_MS = 60 * 60 * 1000;
+/** Statuses that reject the request as sent — the batch itself — as opposed to
+ * the account (401/402/403), which a top-up or re-login fixes. */
+const REQUEST_REJECTED_STATUSES = new Set([400, 404, 413, 422]);
+/** Give-up reasons that say the model could not answer THIS batch. Transport
+ * and budget failures (network, http-retryable, auth-unavailable,
+ * time-budget-exhausted) say nothing about the batch and are never counted. */
+const CONTENT_FAILURE_REASONS = new Set([
+  "empty-content",
+  "invalid-json",
+  "null-completion",
+  "body-parse-failed",
+]);
 /** Worst-case wait before a retry under the portal helper's default backoff. */
 const BACKOFF_ALLOWANCE_MS = 2_100;
 // TODO(ceiling): a fixed allowance for retain(): each candidate can run a
@@ -77,12 +99,31 @@ function defaultBatchTimeoutMs(extract: DurableAutoExtractorOptions["extract"]):
   return extraction + RETAIN_BUDGET_MS;
 }
 
-/** A failure that retrying cannot fix: a non-retryable HTTP status. */
-class TerminalExtractionError extends Error {}
+/**
+ * A failure that points at the batch itself and counts toward abandoning it:
+ * a content-shaped give-up or a retain failure (`terminal: false`, retried up
+ * to MAX_ATTEMPTS this session), or a request-shaped HTTP rejection
+ * (`terminal: true`, not retried this session).
+ */
+class BatchFailureError extends Error {
+  constructor(
+    message: string,
+    readonly terminal: boolean
+  ) {
+    super(message);
+  }
+}
 
-/** Sources that did not decrypt. `persistentIds` are the ones the store gave a
- * per-message cause (`decryptionStatus`); the rest are ciphertext read with no
- * key in this session, which says nothing about the message itself. */
+/** An account-level rejection (401/402/403 and other non-request statuses):
+ * the batch is skipped for the rest of this session and not counted, so a
+ * later session — after a top-up or re-login — extracts it. */
+class AccountFailureError extends Error {}
+
+/** Sources whose content did not decrypt. `persistentIds` are the ones the
+ * store reported as undecryptable for good (`auth_mismatch`,
+ * `invalid_payload`). `key_missing` is also what a session whose key is not
+ * loaded yet reports, so it is never counted, and neither is ciphertext read
+ * with no key at all. */
 class LockedSourcesError extends Error {
   constructor(readonly persistentIds: string[]) {
     super("Source messages are locked; retained for retry");
@@ -103,6 +144,13 @@ function failedSessionsOf(job: ExtractionJob, head: string): number {
   if (job._getRaw("failed_head") !== head) return 0;
   const raw = job._getRaw("failed_sessions");
   return typeof raw === "number" && raw > 0 ? raw : 0;
+}
+
+/** When the batch that starts at `head` last had a failed session counted. */
+function failedAtOf(job: ExtractionJob, head: string): number | undefined {
+  if (job._getRaw("failed_head") !== head) return undefined;
+  const raw = job._getRaw("failed_at");
+  return typeof raw === "number" ? raw : undefined;
 }
 
 /** Durable client extraction. Call once per authenticated database session.
@@ -133,12 +181,16 @@ export function createDurableAutoExtractor(options: DurableAutoExtractorOptions)
   // TODO(ceiling): Three attempts per session bound outage traffic. Persist a
   // next-attempt timestamp with backoff for unattended recovery in long-lived sessions.
   const attempts = new Map<string, number>();
-  // Jobs whose persisted failed-session count already moved this session: a new
-  // turn resets `attempts`, and must not also advance the poison count.
-  const failedThisSession = new Set<string>();
-  // Jobs that hit a non-retryable failure: skipped until the next session, and
-  // unlike `attempts` a new turn does not re-arm them.
-  const terminalThisSession = new Set<string>();
+  // Counted (batch-shaped) failures per job head this session. Unlike
+  // `attempts`, a new turn does not reset it: someone chatting once a minute
+  // would otherwise re-arm the poison head forever and pay an LLM call for it
+  // on every turn without the session ever counting.
+  const sessionFailures = new Map<string, { head: string; count: number }>();
+  // Jobs this session has stopped spending on: the head failed MAX_ATTEMPTS
+  // counted times, was rejected as a request, or hit an account-level status.
+  // A new turn does not re-arm them; the next session does.
+  const skippedThisSession = new Set<string>();
+  const clock = options.now ?? Date.now;
   const reportError = (error: unknown, conversationId?: string) => {
     try {
       options.onError?.(error instanceof Error ? error : new Error(String(error)), conversationId);
@@ -252,7 +304,8 @@ export function createDurableAutoExtractor(options: DurableAutoExtractorOptions)
     abandoned: boolean
   ): Promise<void> {
     attempts.delete(job.id);
-    failedThisSession.delete(job.id);
+    sessionFailures.delete(job.id);
+    skippedThisSession.delete(job.id);
     const sequences = new Map<string, number>();
     for (const message of loaded)
       if (message && message.messageId > 0) sequences.set(message.uniqueId, message.messageId);
@@ -285,17 +338,23 @@ export function createDurableAutoExtractor(options: DurableAutoExtractorOptions)
         }
         r._setRaw("failed_sessions", abandoned ? MAX_FAILED_SESSIONS : null);
         r._setRaw("failed_head", abandoned ? newest : null);
+        r._setRaw("failed_at", null);
       });
     });
   }
 
   /**
-   * Account for a failed batch. The first time a batch gives up in a session
-   * (its attempts are spent, or the failure is terminal) the persisted count
-   * for that head batch goes up by one; at {@link MAX_FAILED_SESSIONS} the batch
-   * is abandoned so everything queued behind it can still extract. Locked
-   * sources cost only their own ids, and only when the store named a
-   * per-message cause — no key at all this session is not the batch's fault.
+   * Account for a failed batch. Only failures that point at the batch count:
+   * content-shaped give-ups and retain failures (after MAX_ATTEMPTS of them
+   * this session, however many turns they span), request-shaped HTTP
+   * rejections (at once), and sources the store reports as undecryptable for
+   * good. Transport, budget, watchdog and read failures never count, and an
+   * account-level rejection only pauses the job for this session.
+   *
+   * A counted session moves the persisted count for that head batch up by one,
+   * provided the previous counted session was at least
+   * {@link MIN_FAILED_SESSION_GAP_MS} earlier. At {@link MAX_FAILED_SESSIONS}
+   * the batch is abandoned so everything queued behind it can still extract.
    * Returns true when the head moved and the job should be drained again.
    */
   async function recordFailure(
@@ -303,27 +362,41 @@ export function createDurableAutoExtractor(options: DurableAutoExtractorOptions)
     ids: string[],
     loaded: (StoredMessage | null)[],
     error: unknown,
-    attempted: number,
     conversationId: string
   ): Promise<boolean> {
     const head = ids[0];
-    if (!head || failedThisSession.has(job.id)) return false;
-    if (error instanceof LockedSourcesError && !error.persistentIds.length) return false;
-    const terminal = error instanceof TerminalExtractionError;
-    if (terminal) terminalThisSession.add(job.id);
-    if (!terminal && attempted < MAX_ATTEMPTS) return false;
-    failedThisSession.add(job.id);
+    // Nothing was read (the lookup itself threw): there is no batch to blame,
+    // and no sequences to advance the watermark with.
+    if (!head || !loaded.some(Boolean)) return false;
+    if (error instanceof AccountFailureError) {
+      skippedThisSession.add(job.id);
+      return false;
+    }
+    const counted =
+      error instanceof BatchFailureError ||
+      (error instanceof LockedSourcesError && error.persistentIds.length > 0);
+    if (!counted) return false;
+    const prior = sessionFailures.get(job.id);
+    const count = prior?.head === head ? prior.count + 1 : 1;
+    sessionFailures.set(job.id, { head, count });
+    const terminal = error instanceof BatchFailureError && error.terminal;
+    if (!terminal && count < MAX_ATTEMPTS) return false;
+    // This session is done with the head either way.
+    skippedThisSession.add(job.id);
+    const now = clock();
+    const lastCounted = failedAtOf(job, head);
+    if (lastCounted !== undefined && now - lastCounted < MIN_FAILED_SESSION_GAP_MS) return false;
     const failures = failedSessionsOf(job, head) + 1;
     if (failures < MAX_FAILED_SESSIONS) {
       await database.write(() =>
         job.update((r) => {
           r._setRaw("failed_sessions", failures);
           r._setRaw("failed_head", head);
+          r._setRaw("failed_at", now);
         })
       );
       return false;
     }
-    terminalThisSession.delete(job.id);
     if (error instanceof LockedSourcesError) {
       const dropped = new Set(error.persistentIds);
       // A dropped source counts as observed: removing it from the queue alone
@@ -345,10 +418,12 @@ export function createDurableAutoExtractor(options: DurableAutoExtractorOptions)
           }
           r._setRaw("failed_sessions", advance ? MAX_FAILED_SESSIONS : null);
           r._setRaw("failed_head", advance ? advance.id : null);
+          r._setRaw("failed_at", null);
         })
       );
       attempts.delete(job.id);
-      failedThisSession.delete(job.id);
+      sessionFailures.delete(job.id);
+      skippedThisSession.delete(job.id);
       reportError(
         new Error(
           `Dropped ${dropped.size} source id(s) that stayed locked for ${failures} sessions to unblock extraction`
@@ -383,7 +458,7 @@ export function createDurableAutoExtractor(options: DurableAutoExtractorOptions)
       for (const job of pending) {
         if (disposed) break;
         const attempted = attempts.get(job.id) ?? 0;
-        if (attempted >= MAX_ATTEMPTS || terminalThisSession.has(job.id)) continue;
+        if (attempted >= MAX_ATTEMPTS || skippedThisSession.has(job.id)) continue;
         if (processed >= MAX_JOBS_PER_PASS) {
           scheduleAfterSuccess = true;
           break;
@@ -429,14 +504,20 @@ export function createDurableAutoExtractor(options: DurableAutoExtractorOptions)
             );
             continue;
           }
-          const locked = loaded.filter(
-            (message) => message && (message.decryptionStatus || isEncrypted(message.content))
-          );
+          // Locked means the CONTENT is still ciphertext: a failed vector,
+          // chunks or sources field sets decryptionStatus too, and says nothing
+          // about whether the message can be extracted.
+          const locked = loaded.filter((message) => message && isEncrypted(message.content));
           if (locked.length) {
-            // Per id: one no-key message in the batch must not stop a
+            // Per id: one not-yet-unlocked message in the batch must not stop a
             // persistently undecryptable one from being counted.
             throw new LockedSourcesError(
-              locked.flatMap((message) => (message!.decryptionStatus ? [message!.uniqueId] : []))
+              locked.flatMap((message) =>
+                message!.decryptionStatus === "auth_mismatch" ||
+                message!.decryptionStatus === "invalid_payload"
+                  ? [message!.uniqueId]
+                  : []
+              )
             );
           }
           const messages: AutoExtractMessage[] = loaded.flatMap((m) =>
@@ -460,12 +541,23 @@ export function createDurableAutoExtractor(options: DurableAutoExtractorOptions)
             options.onTurnComplete?.(result);
           }
           if (!success) {
-            // A non-retryable status (400/403/404) rejects this request as
-            // sent; retrying it in the same session only spends calls.
-            if (result?.failure?.reason === "http-terminal")
-              throw new TerminalExtractionError(
-                `Extraction rejected the batch (HTTP ${result.failure.httpStatus ?? "4xx"}); not retried this session`
+            const failure = result?.failure;
+            if (failure?.reason === "http-terminal") {
+              const status = failure.httpStatus;
+              if (status !== undefined && REQUEST_REJECTED_STATUSES.has(status))
+                throw new BatchFailureError(
+                  `Extraction rejected the batch (HTTP ${status}); not retried this session`,
+                  true
+                );
+              throw new AccountFailureError(
+                `Extraction refused for the account (HTTP ${status ?? "unknown"}); retried next session`
               );
+            }
+            if (
+              (result?.failedCount ?? 0) > 0 ||
+              (failure !== undefined && CONTENT_FAILURE_REASONS.has(failure.reason))
+            )
+              throw new BatchFailureError("Extraction batch incomplete; retained for retry", false);
             throw new Error("Extraction batch incomplete; retained for retry");
           }
           await acknowledge(job, ids, loaded, false);
@@ -475,7 +567,7 @@ export function createDurableAutoExtractor(options: DurableAutoExtractorOptions)
           retry = true;
           reportError(error, conversationId);
           try {
-            if (await recordFailure(job, ids, loaded, error, attempted + 1, conversationId))
+            if (await recordFailure(job, ids, loaded, error, conversationId))
               scheduleAfterSuccess = true;
           } catch (recordError) {
             reportError(recordError, conversationId);

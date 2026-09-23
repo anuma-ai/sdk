@@ -55,6 +55,7 @@ const empty = {
 // The mock wraps the real op, so tests that stub it per-id have to delegate to
 // this rather than re-importing the (mocked) module and recursing into itself.
 const realGetMessageOp = vi.mocked(getMessageOp).getMockImplementation()!;
+class BatchReadError extends Error {}
 let db: Database;
 let ctx: VaultMemoryOperationsContext;
 beforeEach(() => {
@@ -279,7 +280,14 @@ describe("memory persistence reliability", () => {
 });
 
 describe("durable extraction outbox", () => {
+  // Failed sessions only count an hour or more apart; tests move this clock
+  // forward between sessions instead of waiting.
+  const HOUR = 60 * 60 * 1000;
+  let clockNow = Date.UTC(2026, 8, 1);
+  const nextSession = () => (clockNow += 2 * HOUR);
+  const CIPHERTEXT = `enc:v2:${"a".repeat(64)}`;
   const options = () => ({
+    now: () => clockNow,
     retainCtx: {
       vaultCtx: ctx,
       embeddingOptions: { apiKey: "k" },
@@ -371,7 +379,9 @@ describe("durable extraction outbox", () => {
       await conversation();
       const stored = await getMessageOp(storage(), "m0");
       vi.mocked(getMessageOp).mockResolvedValueOnce(
-        reason === "missing" ? null : { ...stored!, decryptionStatus: "key_missing" }
+        reason === "missing"
+          ? null
+          : { ...stored!, content: CIPHERTEXT, decryptionStatus: "key_missing" }
       );
       const onError = vi.fn(() => {
         throw new Error("diagnostics failed");
@@ -824,21 +834,24 @@ describe("durable extraction outbox", () => {
     await vi.waitFor(() => expect(calls()).toBe(3), { timeout: 2000 });
     await settle();
     expect((await jobRow())._getRaw("failed_sessions")).toBe(1);
-    // A new turn re-arms this session's retries but is not another failed session.
+    // This session is done with the head: a new turn does not spend on it again.
     first.processTurn(messages.slice(0, 3), "conversation");
-    await vi.waitFor(() => expect(calls()).toBe(6), { timeout: 2000 });
     await settle();
+    await settle();
+    expect(calls()).toBe(3);
     expect((await jobRow())._getRaw("failed_sessions")).toBe(1);
     first.dispose();
 
+    nextSession();
     const second = createDurableAutoExtractor({ ...options(), onError });
-    await vi.waitFor(() => expect(calls()).toBe(9), { timeout: 2000 });
+    await vi.waitFor(() => expect(calls()).toBe(6), { timeout: 2000 });
     await settle();
     expect((await jobRow())._getRaw("failed_sessions")).toBe(2);
     second.dispose();
 
+    nextSession();
     const third = createDurableAutoExtractor({ ...options(), onError });
-    await vi.waitFor(() => expect(calls()).toBe(12), { timeout: 2000 });
+    await vi.waitFor(() => expect(calls()).toBe(9), { timeout: 2000 });
     await vi.waitFor(async () => expect((await jobRow())._getRaw("message_ids")).toBe("[]"));
     expect(onError.mock.calls.map(([error]) => String(error.message))).toContain(
       "Abandoned an extraction batch of 3 source id(s) after it failed in 3 sessions"
@@ -846,8 +859,8 @@ describe("durable extraction outbox", () => {
     // The next turn extracts only what is new: the abandoned sources are neither
     // re-enqueued nor re-sent as context, or the poison would fail it too.
     third.processTurn(messages.slice(0, 5), "conversation");
-    await vi.waitFor(() => expect(calls()).toBe(13), { timeout: 2000 });
-    expect(vi.mocked(extractAndRetain).mock.calls[12][0].map((m) => m.id)).toEqual(["m3", "m4"]);
+    await vi.waitFor(() => expect(calls()).toBe(10), { timeout: 2000 });
+    expect(vi.mocked(extractAndRetain).mock.calls[9][0].map((m) => m.id)).toEqual(["m3", "m4"]);
     await vi.waitFor(async () => expect((await jobRow())._getRaw("message_ids")).toBe("[]"));
     third.dispose();
   });
@@ -873,7 +886,9 @@ describe("durable extraction outbox", () => {
     await conversation();
     vi.mocked(getMessageOp).mockImplementation(async (storageCtx, id) => {
       const message = await realGetMessageOp(storageCtx, id);
-      return message && id === "m0" ? { ...message, decryptionStatus: "auth_mismatch" } : message;
+      return message && id === "m0"
+        ? { ...message, content: CIPHERTEXT, decryptionStatus: "auth_mismatch" }
+        : message;
     });
     const onError = vi.fn();
     const lockedReads = () =>
@@ -883,10 +898,12 @@ describe("durable extraction outbox", () => {
     await vi.waitFor(() => expect(lockedReads()).toBe(3), { timeout: 2000 });
     await settle();
     first.dispose();
+    nextSession();
     const second = createDurableAutoExtractor({ ...options(), onError });
     await vi.waitFor(() => expect(lockedReads()).toBe(6), { timeout: 2000 });
     await settle();
     second.dispose();
+    nextSession();
     const third = createDurableAutoExtractor({ ...options(), onError });
     await vi.waitFor(() => expect(extractAndRetain).toHaveBeenCalledOnce(), { timeout: 2000 });
     expect(vi.mocked(extractAndRetain).mock.calls[0][0].map((m) => m.id)).toEqual(["m1"]);
@@ -900,11 +917,14 @@ describe("durable extraction outbox", () => {
     await conversation();
     vi.mocked(getMessageOp).mockImplementation(async (storageCtx, id) => {
       const message = await realGetMessageOp(storageCtx, id);
-      return message && id === "m0" ? { ...message, decryptionStatus: "auth_mismatch" } : message;
+      return message && id === "m0"
+        ? { ...message, content: CIPHERTEXT, decryptionStatus: "auth_mismatch" }
+        : message;
     });
     const lockedReads = () =>
       vi.mocked(getMessageOp).mock.calls.filter(([, id]) => id === "m0").length;
     for (let session = 1; session <= 3; session++) {
+      nextSession();
       const worker = createDurableAutoExtractor(options());
       if (session === 1) worker.processTurn(messages.slice(0, 1), "conversation");
       await vi.waitFor(() => expect(lockedReads()).toBe(3 * session), { timeout: 2000 });
@@ -926,14 +946,17 @@ describe("durable extraction outbox", () => {
     vi.mocked(getMessageOp).mockImplementation(async (storageCtx, id) => {
       const message = await realGetMessageOp(storageCtx, id);
       if (!message) return message;
-      if (id === "m0") return { ...message, decryptionStatus: "auth_mismatch" };
-      if (id === "m1") return { ...message, content: `enc:v3:${"a".repeat(64)}` };
+      if (id === "m0")
+        return { ...message, content: CIPHERTEXT, decryptionStatus: "auth_mismatch" };
+      // The "key not loaded yet" shape a wallet session reports.
+      if (id === "m1") return { ...message, content: CIPHERTEXT, decryptionStatus: "key_missing" };
       return message;
     });
     const onError = vi.fn();
     const lockedReads = () =>
       vi.mocked(getMessageOp).mock.calls.filter(([, id]) => id === "m0").length;
     for (let session = 1; session <= 3; session++) {
+      nextSession();
       const worker = createDurableAutoExtractor({ ...options(), onError });
       if (session === 1) worker.processTurn(messages.slice(0, 2), "conversation");
       await vi.waitFor(() => expect(lockedReads()).toBeGreaterThanOrEqual(3 * session), {
@@ -957,6 +980,7 @@ describe("durable extraction outbox", () => {
       return message && id === "m0" ? { ...message, content: `enc:v3:${"a".repeat(64)}` } : message;
     });
     for (let session = 1; session <= 4; session++) {
+      nextSession();
       const worker = createDurableAutoExtractor(options());
       if (session === 1) worker.processTurn(messages.slice(0, 2), "conversation");
       await vi.waitFor(
@@ -971,6 +995,164 @@ describe("durable extraction outbox", () => {
     }
     expect(extractAndRetain).not.toHaveBeenCalled();
     expect(JSON.parse(String((await jobRow())._getRaw("message_ids")))).toEqual(["m0", "m1"]);
+  });
+
+  it("never counts key_missing: the key may just not be loaded this session", async () => {
+    await conversation();
+    // What a wallet session reports while its signer is unavailable.
+    vi.mocked(getMessageOp).mockImplementation(async (storageCtx, id) => {
+      const message = await realGetMessageOp(storageCtx, id);
+      return message && { ...message, content: CIPHERTEXT, decryptionStatus: "key_missing" };
+    });
+    const reads = () => vi.mocked(getMessageOp).mock.calls.filter(([, id]) => id === "m0").length;
+    for (let session = 1; session <= 4; session++) {
+      nextSession();
+      const worker = createDurableAutoExtractor(options());
+      if (session === 1) worker.processTurn(messages.slice(0, 2), "conversation");
+      await vi.waitFor(() => expect(reads()).toBe(3 * session), { timeout: 2000 });
+      await settle();
+      worker.dispose();
+    }
+    const job = await jobRow();
+    expect(JSON.parse(String(job._getRaw("message_ids")))).toEqual(["m0", "m1"]);
+    expect(job._getRaw("watermark") ?? null).toBeNull();
+    expect(job._getRaw("failed_sessions") ?? null).toBeNull();
+    expect(extractAndRetain).not.toHaveBeenCalled();
+  });
+
+  it("does not treat a failed non-content field as a locked message", async () => {
+    await conversation();
+    // e.g. the vector field failed to decrypt; content is readable.
+    vi.mocked(getMessageOp).mockImplementation(async (storageCtx, id) => {
+      const message = await realGetMessageOp(storageCtx, id);
+      return message && { ...message, decryptionStatus: "auth_mismatch" };
+    });
+    const worker = createDurableAutoExtractor(options());
+    worker.processTurn(messages.slice(0, 2), "conversation");
+    await vi.waitFor(() => expect(extractAndRetain).toHaveBeenCalledOnce(), { timeout: 2000 });
+    worker.dispose();
+  });
+
+  it("an account-level rejection (402) pauses the session but never abandons", async () => {
+    await conversation();
+    vi.mocked(extractAndRetain).mockResolvedValue(
+      failedExtraction({ reason: "http-terminal", httpStatus: 402 })
+    );
+    for (let session = 1; session <= 4; session++) {
+      nextSession();
+      const worker = createDurableAutoExtractor(options());
+      if (session === 1) worker.processTurn(messages.slice(0, 2), "conversation");
+      // One call per session: skipped for the rest of it, retried by the next.
+      await vi.waitFor(() => expect(extractAndRetain).toHaveBeenCalledTimes(session), {
+        timeout: 2000,
+      });
+      await settle();
+      expect(extractAndRetain).toHaveBeenCalledTimes(session);
+      worker.dispose();
+    }
+    const job = await jobRow();
+    expect(JSON.parse(String(job._getRaw("message_ids")))).toEqual(["m0", "m1"]);
+    expect(job._getRaw("failed_sessions") ?? null).toBeNull();
+  });
+
+  it("never counts transport failures toward abandoning a batch", async () => {
+    await conversation();
+    vi.mocked(extractAndRetain).mockResolvedValue(failedExtraction({ reason: "network" }));
+    for (let session = 1; session <= 3; session++) {
+      nextSession();
+      const worker = createDurableAutoExtractor(options());
+      if (session === 1) worker.processTurn(messages.slice(0, 2), "conversation");
+      await vi.waitFor(() => expect(extractAndRetain).toHaveBeenCalledTimes(3 * session), {
+        timeout: 2000,
+      });
+      await settle();
+      worker.dispose();
+    }
+    const job = await jobRow();
+    expect(JSON.parse(String(job._getRaw("message_ids")))).toEqual(["m0", "m1"]);
+    expect(job._getRaw("failed_sessions") ?? null).toBeNull();
+  });
+
+  it("never counts a failed source read toward abandoning a batch", async () => {
+    await conversation();
+    vi.mocked(getMessageOp).mockRejectedValue(new BatchReadError());
+    for (let session = 1; session <= 3; session++) {
+      nextSession();
+      const worker = createDurableAutoExtractor(options());
+      if (session === 1) worker.processTurn(messages.slice(0, 2), "conversation");
+      await vi.waitFor(
+        () =>
+          expect(vi.mocked(getMessageOp).mock.calls.filter(([, id]) => id === "m0").length).toBe(
+            3 * session
+          ),
+        { timeout: 2000 }
+      );
+      await settle();
+      worker.dispose();
+    }
+    const job = await jobRow();
+    expect(JSON.parse(String(job._getRaw("message_ids")))).toEqual(["m0", "m1"]);
+    expect(job._getRaw("watermark") ?? null).toBeNull();
+  });
+
+  it("counts a poison head once per session however many turns re-arm its retries", async () => {
+    await conversation();
+    vi.mocked(extractAndRetain).mockImplementation(async (batch) =>
+      batch.some((m) => m.id === "m0") ? failedExtraction({ reason: "invalid-json" }) : empty
+    );
+    const onError = vi.fn();
+    const calls = () => vi.mocked(extractAndRetain).mock.calls.length;
+    const poisonCalls = () =>
+      vi.mocked(extractAndRetain).mock.calls.filter(([batch]) => batch.some((m) => m.id === "m0"))
+        .length;
+    const settleOrCall = async (n: number) => {
+      try {
+        await vi.waitFor(() => expect(calls()).toBeGreaterThanOrEqual(n), { timeout: 200 });
+      } catch {
+        /* No call came: the session has stopped spending on this head. */
+      }
+    };
+    let turn = 2;
+    for (let session = 1; session <= 3; session++) {
+      nextSession();
+      const start = calls();
+      const poisonStart = poisonCalls();
+      const worker = createDurableAutoExtractor({ ...options(), retryDelayMs: 30, onError });
+      // A turn after every attempt resets the in-memory retry count each time.
+      for (let i = 1; i <= 6; i++) {
+        worker.processTurn(messages.slice(0, turn++), "conversation");
+        await settleOrCall(start + i);
+      }
+      await settle();
+      // Bounded spend: three attempts on the poison head per session, not one per turn.
+      expect(poisonCalls() - poisonStart).toBe(3);
+      worker.dispose();
+    }
+    expect(onError.mock.calls.map(([error]) => String(error.message))).toContainEqual(
+      expect.stringMatching(
+        /^Abandoned an extraction batch of \d+ source id\(s\) after it failed in 3 sessions$/
+      )
+    );
+  });
+
+  it("counts sessions closer together than the minimum gap once", async () => {
+    await conversation();
+    vi.mocked(extractAndRetain).mockResolvedValue(failedExtraction({ reason: "invalid-json" }));
+    nextSession();
+    // Three remounts within the same few minutes.
+    for (let session = 1; session <= 3; session++) {
+      clockNow += 60_000;
+      const worker = createDurableAutoExtractor(options());
+      if (session === 1) worker.processTurn(messages.slice(0, 2), "conversation");
+      await vi.waitFor(() => expect(extractAndRetain).toHaveBeenCalledTimes(3 * session), {
+        timeout: 2000,
+      });
+      await settle();
+      worker.dispose();
+    }
+    const job = await jobRow();
+    expect(job._getRaw("failed_sessions")).toBe(1);
+    expect(JSON.parse(String(job._getRaw("message_ids")))).toEqual(["m0", "m1"]);
   });
 
   it("refuses the late writes of a batch the watchdog gave up on", async () => {

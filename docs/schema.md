@@ -42,6 +42,7 @@ graph LR
 | `folder_id` | string |  | ✓ |
 | `failed_sessions` | number |  | ✓ |
 | `failed_head` | string |  | ✓ |
+| `failed_at` | number |  | ✓ |
 
 ## history
 
@@ -250,7 +251,7 @@ graph LR
 
 | Version | Changes |
 |---------|---------|
-| v47 | Added `failed_sessions`, `failed_head` to `memory_extraction_jobs` |
+| v47 | Added `failed_sessions`, `failed_head`, `failed_at` to `memory_extraction_jobs` |
 | v46 | Added `memory_extraction_jobs` table |
 | v45 | Added `media` to `memory_vault` |
 | v44 | Added `origin` to `history` |

@@ -21,7 +21,9 @@ import { Model } from "@nozbe/watermelondb";
  * (the oldest source ids, read 20 at a time) failed to extract; `failed_head`
  * is the first id of the batch that count belongs to, so a count never carries
  * over to a different batch after the head is acknowledged, dropped or pruned.
- * Past the limit the batch is abandoned so later messages still extract. */
+ * `failed_at` is when the last failed session was counted: sessions closer
+ * together than an hour count once. Past the limit the batch is abandoned so
+ * later messages still extract. */
 export class ExtractionJob extends Model {
   static table = "memory_extraction_jobs";
 }

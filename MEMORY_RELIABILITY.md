@@ -30,19 +30,36 @@ per authenticated database session. It requires the SDK v47 schema and models.
   the next worker session. This is not an operating-system background service.
   A source ID that stays unresolvable across those attempts is dropped from the
   job (reported via `onError`) rather than blocking everything queued behind it.
-- A batch that cannot extract does not block its conversation forever. The job
-  row persists how many worker sessions its head batch has failed in
-  (`failed_sessions`, keyed to that batch by `failed_head`), so neither a new
-  turn nor a restart resets it; a new turn re-arms that session's retries
-  without counting as another failed session. A non-retryable HTTP status
-  (400/403/404) is not retried in the session that saw it, and a new turn does
-  not re-arm it. After three failed sessions the batch is abandoned: its
-  sources are acknowledged unextracted, reported via `onError`, and not re-sent
-  as context for the next batch, so later messages still extract. Sources the
-  store reports as undecryptable (`decryptionStatus`) for three sessions are
-  dropped individually the same way, and count as observed so a later turn
-  does not queue them again. Ciphertext read without any key in the
-  session is not counted — that is the session's state, not the batch's.
+- A batch that cannot extract does not block its conversation forever, and a
+  failure that says nothing about the batch never costs it. Only failures that
+  point at the batch count toward abandoning it:
+  - content-shaped give-ups (`empty-content`, `invalid-json`,
+    `null-completion`, `body-parse-failed`) and retain failures, after three of
+    them in a session, however many turns they span;
+  - request-shaped rejections (HTTP 400/404/413/422), at once and without a
+    retry in that session;
+  - sources the store reports as undecryptable for good (`auth_mismatch`,
+    `invalid_payload`). Only the content field decides whether a message is
+    locked; a failed vector, chunks or sources field does not.
+
+  Never counted: network, retryable HTTP, `auth-unavailable`,
+  `time-budget-exhausted`, the batch watchdog, a failed source read, and
+  `key_missing` or plain ciphertext (the key is simply not loaded in this
+  session). An account-level status (401/402/403) skips the job for the rest of
+  the session and is retried by the next one, so a top-up or re-login recovers
+  it.
+
+  Once a session counts the head, it stops spending on it: a new turn re-arms
+  transient retries but not a counted head. The count is persisted on the job
+  row (`failed_sessions`, `failed_head`, `failed_at`), so a restart does not
+  reset it. A "session" is one extractor instance, and three tabs or remounts
+  can be three instances within minutes, so a counted session only moves the
+  count if the previous one was at least an hour earlier. After three counted
+  sessions the batch is abandoned: its sources are acknowledged unextracted,
+  reported via `onError`, and not re-sent as context for the next batch, so
+  later messages still extract. Undecryptable sources are dropped individually
+  the same way, and count as observed so a later turn does not queue them
+  again.
 - `batchTimeoutMs` bounds a batch that never settles. By default it is the
   extraction call's own worst case — `extract.timeoutMs` (60s) ×
   `extract.maxAttempts` (3) plus backoff, or `extract.totalTimeoutMs` when
@@ -110,7 +127,7 @@ client integration. Local validation uses a filesystem SDK override; that
 override is development wiring, not a publishable dependency.
 
 Schema v46 is additive (one `createTable`, no backfill), so a v45 database
-upgrades cleanly; v47 adds two nullable columns to the same table (NULL reads
+upgrades cleanly; v47 adds three nullable columns to the same table (NULL reads
 as "never failed"). Neither is reversible: WatermelonDB has no downgrade path,
 so rolling a release back past a version after a device has run it resets that
 device's local database. That matters for OTA, where a JS-only rollback can

@@ -125,9 +125,10 @@ import { VaultFolder } from "./vaultFolders/models";
  *   rolling a release back past v46 after a device has run it resets that
  *   device's local database. Relevant to OTA, where a JS-only rollback can
  *   land on a database the newer build already migrated
- * - v47: Added failed_sessions + failed_head to memory_extraction_jobs — the
- *   persisted poison count for a job's head batch (how many worker sessions it
- *   failed in, and which batch that count belongs to). Without it the retry
+ * - v47: Added failed_sessions, failed_head, failed_at to
+ *   memory_extraction_jobs — the persisted poison count for a job's head batch
+ *   (how many worker sessions it failed in, which batch that count belongs to,
+ *   and when the last one was counted, so sessions minutes apart count once). Without it the retry
  *   budget was in memory and reset on every turn, so one batch that could never
  *   extract blocked its conversation's extraction forever. Additive, both
  *   nullable, no backfill: NULL reads as "never failed"
@@ -183,6 +184,7 @@ export const sdkSchema = appSchema({
         // Poison accounting for the head batch; see extractionJobs/models.ts.
         { name: "failed_sessions", type: "number", isOptional: true },
         { name: "failed_head", type: "string", isOptional: true },
+        { name: "failed_at", type: "number", isOptional: true },
       ],
     }),
     // Chat storage tables
@@ -1244,8 +1246,9 @@ export const sdkMigrations = schemaMigrations({
         }),
       ],
     },
-    // v46 -> v47: persisted poison count for a durable-extraction job's head
-    // batch. NULL = never failed, which is right for every existing row.
+    // v46 -> v47: persisted poison count (and when it was last counted) for a
+    // durable-extraction job's head batch. NULL = never failed, which is right
+    // for every existing row.
     {
       toVersion: 47,
       steps: [
@@ -1254,6 +1257,7 @@ export const sdkMigrations = schemaMigrations({
           columns: [
             { name: "failed_sessions", type: "number", isOptional: true },
             { name: "failed_head", type: "string", isOptional: true },
+            { name: "failed_at", type: "number", isOptional: true },
           ],
         }),
       ],

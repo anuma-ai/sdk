@@ -2,7 +2,7 @@
 
 > `const` **SDK\_SCHEMA\_VERSION**: `47` = `47`
 
-Defined in: [src/lib/db/schema.ts:135](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/schema.ts#135)
+Defined in: [src/lib/db/schema.ts:136](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/schema.ts#136)
 
 Current combined schema version for all SDK storage modules.
 
@@ -108,9 +108,10 @@ Version history:
   rolling a release back past v46 after a device has run it resets that
   device's local database. Relevant to OTA, where a JS-only rollback can
   land on a database the newer build already migrated
-* v47: Added failed\_sessions + failed\_head to memory\_extraction\_jobs — the
-  persisted poison count for a job's head batch (how many worker sessions it
-  failed in, and which batch that count belongs to). Without it the retry
+* v47: Added failed\_sessions, failed\_head, failed\_at to
+  memory\_extraction\_jobs — the persisted poison count for a job's head batch
+  (how many worker sessions it failed in, which batch that count belongs to,
+  and when the last one was counted, so sessions minutes apart count once). Without it the retry
   budget was in memory and reset on every turn, so one batch that could never
   extract blocked its conversation's extraction forever. Additive, both
   nullable, no backfill: NULL reads as "never failed"

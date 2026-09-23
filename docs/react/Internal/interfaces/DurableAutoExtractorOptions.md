@@ -299,6 +299,20 @@ is exactly the mistake this exists to prevent.
 
 ***
 
+### now()?
+
+> `optional` **now**: () => `number`
+
+Defined in: [src/lib/memory/durableExtraction.ts:53](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/durableExtraction.ts#53)
+
+Clock for the failed-session spacing. Defaults to `Date.now`.
+
+**Returns**
+
+`number`
+
+***
+
 ### onCandidateFailed()?
 
 > `optional` **onCandidateFailed**: (`event`: `object`) => `void`
