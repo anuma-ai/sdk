@@ -1,6 +1,6 @@
 # Database Schema
 
-Current version: **v46**
+Current version: **v47**
 
 ```mermaid
 graph LR
@@ -40,6 +40,8 @@ graph LR
 | `watermark` | string |  | ✓ |
 | `watermark_seq` | number |  | ✓ |
 | `folder_id` | string |  | ✓ |
+| `failed_sessions` | number |  | ✓ |
+| `failed_head` | string |  | ✓ |
 
 ## history
 
@@ -248,6 +250,7 @@ graph LR
 
 | Version | Changes |
 |---------|---------|
+| v47 | Added `failed_sessions`, `failed_head` to `memory_extraction_jobs` |
 | v46 | Added `memory_extraction_jobs` table |
 | v45 | Added `media` to `memory_vault` |
 | v44 | Added `origin` to `history` |

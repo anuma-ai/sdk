@@ -129,10 +129,53 @@ describe("createMemoryVaultTool", () => {
     });
   });
 
-  it("does NOT pass scope to updateVaultMemoryOp", async () => {
+  it("refuses a private session's update of a shared (published) row", async () => {
+    vi.mocked(getVaultMemoryOp).mockResolvedValue(
+      makeStoredMemory({ uniqueId: "mem-1", content: "Likes hiking", scope: "shared" })
+    );
+    const onSave = vi.fn().mockResolvedValue(true);
+
+    const tool = createMemoryVaultTool(mockVaultCtx, { onSave, scope: "private" });
+    const result = await tool.executor!({
+      content: "Likes hiking; diagnosed with asthma",
+      id: "mem-1",
+    });
+
+    expect(updateVaultMemoryOp).not.toHaveBeenCalled();
+    expect(onSave).not.toHaveBeenCalled();
+    expect(result).toContain("different scope");
+    expect(result).toContain("was not modified");
+  });
+
+  it("refuses a shared session's update of a private row", async () => {
+    vi.mocked(getVaultMemoryOp).mockResolvedValue(
+      makeStoredMemory({ uniqueId: "mem-1", scope: "private" })
+    );
+
+    const tool = createMemoryVaultTool(mockVaultCtx, { ...autoConfirm, scope: "shared" });
+    const result = await tool.executor!({ content: "new content", id: "mem-1" });
+
+    expect(updateVaultMemoryOp).not.toHaveBeenCalled();
+    expect(result).toContain("different scope");
+  });
+
+  it("treats a default-scope session as private when checking an update", async () => {
+    vi.mocked(getVaultMemoryOp).mockResolvedValue(
+      makeStoredMemory({ uniqueId: "mem-1", scope: "shared" })
+    );
+
+    const tool = createMemoryVaultTool(mockVaultCtx, autoConfirm);
+    const result = await tool.executor!({ content: "new content", id: "mem-1" });
+
+    expect(updateVaultMemoryOp).not.toHaveBeenCalled();
+    expect(result).toContain("different scope");
+  });
+
+  it("does NOT pass scope to updateVaultMemoryOp for a same-scope update", async () => {
     const existing = makeStoredMemory({
       uniqueId: "mem-1",
       content: "old content",
+      scope: "shared",
     });
     const updated = makeStoredMemory({
       uniqueId: "mem-1",
@@ -404,7 +447,7 @@ describe("createMemoryVaultTool", () => {
     it("does NOT include scope in onSave for update operations", async () => {
       const onSave = vi.fn().mockResolvedValue(true);
       vi.mocked(getVaultMemoryOp).mockResolvedValue(
-        makeStoredMemory({ uniqueId: "mem-1", content: "old preference" })
+        makeStoredMemory({ uniqueId: "mem-1", content: "old preference", scope: "shared" })
       );
       vi.mocked(updateVaultMemoryOp).mockResolvedValue(
         makeStoredMemory({ uniqueId: "mem-1", content: "new preference" })

@@ -725,6 +725,25 @@ describe("createDecaySweeper — PR5 classifier seam", () => {
     expect(classify).toHaveBeenCalledTimes(2);
   });
 
+  it("a re-observation that moves only lastObservedAt IS re-classified", async () => {
+    const id = await seed({ content: "re-observed fact", factType: "other", updatedAt: NOW });
+    const classify = vi.fn((): DecayVerdict => "keep");
+    const sweeper = createDecaySweeper({ vaultCtx, now: NOW, classifier: { classify } });
+
+    await sweeper.runSweep();
+    // A retain merge under preserveUpdatedAt: updated_at stays, the sighting lands here.
+    const rec = await vaultCtx.vaultMemoryCollection.find(id);
+    await database.write(async () => {
+      await rec.update((r) => {
+        r._setRaw("updated_at", NOW);
+        r._setRaw("last_observed_at", NOW + DAY);
+      });
+    });
+    await sweeper.runSweep();
+
+    expect(classify).toHaveBeenCalledTimes(2);
+  });
+
   it("falls back to the rule verdict when the classifier throws", async () => {
     // A FRESH borderline `other` row → rule verdict is KEEP, so the classifier
     // IS consulted (a rule archive/delete short-circuits before it). It throws;

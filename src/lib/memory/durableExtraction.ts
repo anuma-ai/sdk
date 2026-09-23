@@ -3,6 +3,7 @@ import { Q } from "@nozbe/watermelondb";
 import { isEncrypted } from "../db/chat/encryption.js";
 import type { Conversation, Message } from "../db/chat/models.js";
 import { getMessageOp, type StorageOperationsContext } from "../db/chat/operations.js";
+import type { StoredMessage } from "../db/chat/types.js";
 import { ExtractionJob } from "../db/extractionJobs/models.js";
 import type { AutoExtractMessage } from "./autoExtract.js";
 import {
@@ -38,12 +39,14 @@ export interface DurableAutoExtractorOptions extends Omit<CreateAutoExtractorOpt
   retryDelayMs?: number;
   /**
    * Ceiling on one batch, from the extraction call through retention. Defaults
-   * to 180 seconds — deliberately above the extraction call's own budget
-   * (`timeoutMs`, 60s per attempt, x `maxAttempts`), so this is a backstop
-   * against a promise that never settles at all rather than a second timeout
-   * competing with that one. Use `timeoutMs`/`totalTimeoutMs` to bound the LLM
-   * call itself. Without a ceiling here, one unsettled promise latched the
-   * drain and killed the outbox for the rest of the session.
+   * to the extraction call's own worst case — `extract.timeoutMs` (60s) x
+   * `extract.maxAttempts` (3) plus backoff, or `extract.totalTimeoutMs` when
+   * that is smaller — plus a fixed retain budget, so this is a backstop against
+   * a promise that never settles rather than a second timeout competing with
+   * the call's own. A batch past its ceiling is cancelled: its late writes are
+   * refused, so the retry cannot race it into duplicate rows. Without a
+   * ceiling, one unsettled promise latched the drain and killed the outbox for
+   * the rest of the session.
    */
   batchTimeoutMs?: number;
 }
@@ -54,6 +57,39 @@ export interface DurableAutoExtractorOptions extends Omit<CreateAutoExtractorOpt
 const MAX_JOBS_PER_PASS = 3;
 /** Attempts per job per session before the batch is treated as unrecoverable. */
 const MAX_ATTEMPTS = 3;
+/** Sessions a head batch may fail in before it is abandoned. Persisted on the
+ * job row, so neither a new turn nor a restart resets it. */
+const MAX_FAILED_SESSIONS = 3;
+/** Worst-case wait before a retry under the portal helper's default backoff. */
+const BACKOFF_ALLOWANCE_MS = 2_100;
+// TODO(ceiling): a fixed allowance for retain(): each candidate can run a
+// consolidation call (20s budget) sequentially, so a batch with many candidates
+// can outlast it. Upgrade path: derive it from the candidate count once
+// extraction reports it, or give retain a single batch deadline.
+const RETAIN_BUDGET_MS = 120_000;
+
+/** Default batch ceiling: the extraction call's worst case plus retention. */
+function defaultBatchTimeoutMs(extract: DurableAutoExtractorOptions["extract"]): number {
+  const attempts = Math.max(1, extract.maxAttempts ?? 3);
+  const calls = (extract.timeoutMs ?? 60_000) * attempts + BACKOFF_ALLOWANCE_MS * (attempts - 1);
+  const extraction =
+    extract.totalTimeoutMs !== undefined ? Math.min(extract.totalTimeoutMs, calls) : calls;
+  return extraction + RETAIN_BUDGET_MS;
+}
+
+/** A failure that retrying cannot fix: a non-retryable HTTP status. */
+class TerminalExtractionError extends Error {}
+
+/** Sources that did not decrypt. `persistent` is set when the store reported a
+ * per-message cause (`decryptionStatus`), as opposed to no key in this session. */
+class LockedSourcesError extends Error {
+  constructor(
+    readonly lockedIds: string[],
+    readonly persistent: boolean
+  ) {
+    super("Source messages are locked; retained for retry");
+  }
+}
 
 function idsOf(job: ExtractionJob): string[] {
   return JSON.parse(String(job._getRaw("message_ids"))) as string[];
@@ -62,6 +98,13 @@ function idsOf(job: ExtractionJob): string[] {
 function seqOf(job: ExtractionJob): number | undefined {
   const raw = job._getRaw("watermark_seq");
   return typeof raw === "number" && raw > 0 ? raw : undefined;
+}
+
+/** Persisted failed-session count for the batch that starts at `head`. */
+function failedSessionsOf(job: ExtractionJob, head: string): number {
+  if (job._getRaw("failed_head") !== head) return 0;
+  const raw = job._getRaw("failed_sessions");
+  return typeof raw === "number" && raw > 0 ? raw : 0;
 }
 
 /** Durable client extraction. Call once per authenticated database session.
@@ -92,6 +135,12 @@ export function createDurableAutoExtractor(options: DurableAutoExtractorOptions)
   // TODO(ceiling): Three attempts per session bound outage traffic. Persist a
   // next-attempt timestamp with backoff for unattended recovery in long-lived sessions.
   const attempts = new Map<string, number>();
+  // Jobs whose persisted failed-session count already moved this session: a new
+  // turn resets `attempts`, and must not also advance the poison count.
+  const failedThisSession = new Set<string>();
+  // Jobs that hit a non-retryable failure: skipped until the next session, and
+  // unlike `attempts` a new turn does not re-arm them.
+  const terminalThisSession = new Set<string>();
   const reportError = (error: unknown, conversationId?: string) => {
     try {
       options.onError?.(error instanceof Error ? error : new Error(String(error)), conversationId);
@@ -136,6 +185,10 @@ export function createDurableAutoExtractor(options: DurableAutoExtractorOptions)
     jobFolderId: string | null
   ): Promise<TurnCompleteEvent> {
     let watchdog: ReturnType<typeof setTimeout> | undefined;
+    // Set once this batch has settled either way. The watchdog abandons a batch
+    // without stopping it, and its late retain() writes would otherwise race the
+    // retry into duplicate rows.
+    let cancelled = false;
     const model = options.modelForScope?.(jobScope) ?? options.extract.model;
     try {
       return await Promise.race([
@@ -148,6 +201,7 @@ export function createDurableAutoExtractor(options: DurableAutoExtractorOptions)
                 ...vault,
                 canWrite: async () =>
                   !disposed &&
+                  !cancelled &&
                   (await storage.conversationsCollection
                     .query(Q.where("conversation_id", conversationId), Q.where("is_deleted", false))
                     .fetchCount()) > 0 &&
@@ -155,7 +209,8 @@ export function createDurableAutoExtractor(options: DurableAutoExtractorOptions)
                     .query(Q.where("conversation_id", conversationId), Q.where("id", Q.oneOf(ids)))
                     .fetchCount()) === ids.length &&
                   (!vault.canWrite || (await vault.canWrite())) &&
-                  !disposed,
+                  !disposed &&
+                  !cancelled,
               },
             },
             // The model follows the job's scope, not the mode alive at drain time.
@@ -175,14 +230,129 @@ export function createDurableAutoExtractor(options: DurableAutoExtractorOptions)
         new Promise<never>((_resolve, reject) => {
           watchdog = setTimeout(
             () => reject(new Error("Extraction did not settle in time; retained for retry")),
-            options.batchTimeoutMs ?? 180_000
+            options.batchTimeoutMs ?? defaultBatchTimeoutMs(options.extract)
           );
         }),
       ]);
     } finally {
+      cancelled = true;
       // Cleared on the winning path too, so the loser never rejects unhandled.
       if (watchdog !== undefined) clearTimeout(watchdog);
     }
+  }
+
+  /** Acknowledge a head batch: remove its ids and advance the watermark. An
+   * extracted batch leaves its last two ids queued as pronoun context for the
+   * next one. An abandoned batch leaves none, and is marked (the limit count
+   * against its newest id, which is now the watermark) so `processTurn` does
+   * not add that context back either — re-sending the poison as context would
+   * fail the next batch the same way. */
+  async function acknowledge(
+    job: ExtractionJob,
+    ids: string[],
+    loaded: (StoredMessage | null)[],
+    abandoned: boolean
+  ): Promise<void> {
+    attempts.delete(job.id);
+    failedThisSession.delete(job.id);
+    const sequences = new Map<string, number>();
+    for (const message of loaded)
+      if (message && message.messageId > 0) sequences.set(message.uniqueId, message.messageId);
+    await database.write(async () => {
+      // Re-read within the writer: arrivals during extraction must survive.
+      const current = idsOf(job);
+      // Clearing/deleting history prunes the outbox in the same writer.
+      // Never restore removed source ids as overlap or as a watermark.
+      const acknowledged = ids.filter((id) => current.includes(id));
+      if (!acknowledged.length) return;
+      const done = new Set(acknowledged);
+      const remaining = current.filter((id) => !done.has(id));
+      await job.update((r) => {
+        // Keep two source messages for pronoun resolution, not as new evidence.
+        r._setRaw(
+          "message_ids",
+          JSON.stringify(
+            remaining.length ? [...(abandoned ? [] : acknowledged.slice(-2)), ...remaining] : []
+          )
+        );
+        const newest = acknowledged[acknowledged.length - 1];
+        r._setRaw("watermark", newest);
+        // The sequence is the durable half of the anchor and only ever
+        // advances: a later batch that acknowledges an older tail must
+        // not walk the boundary backwards.
+        const sequence = sequences.get(newest);
+        if (sequence !== undefined) {
+          const prior = seqOf(job);
+          r._setRaw("watermark_seq", prior === undefined ? sequence : Math.max(prior, sequence));
+        }
+        r._setRaw("failed_sessions", abandoned ? MAX_FAILED_SESSIONS : null);
+        r._setRaw("failed_head", abandoned ? newest : null);
+      });
+    });
+  }
+
+  /**
+   * Account for a failed batch. The first time a batch gives up in a session
+   * (its attempts are spent, or the failure is terminal) the persisted count
+   * for that head batch goes up by one; at {@link MAX_FAILED_SESSIONS} the batch
+   * is abandoned so everything queued behind it can still extract. Locked
+   * sources cost only their own ids, and only when the store named a
+   * per-message cause — no key at all this session is not the batch's fault.
+   * Returns true when the head moved and the job should be drained again.
+   */
+  async function recordFailure(
+    job: ExtractionJob,
+    ids: string[],
+    loaded: (StoredMessage | null)[],
+    error: unknown,
+    attempted: number,
+    conversationId: string
+  ): Promise<boolean> {
+    const head = ids[0];
+    if (!head || failedThisSession.has(job.id)) return false;
+    if (error instanceof LockedSourcesError && !error.persistent) return false;
+    const terminal = error instanceof TerminalExtractionError;
+    if (terminal) terminalThisSession.add(job.id);
+    if (!terminal && attempted < MAX_ATTEMPTS) return false;
+    failedThisSession.add(job.id);
+    const failures = failedSessionsOf(job, head) + 1;
+    if (failures < MAX_FAILED_SESSIONS) {
+      await database.write(() =>
+        job.update((r) => {
+          r._setRaw("failed_sessions", failures);
+          r._setRaw("failed_head", head);
+        })
+      );
+      return false;
+    }
+    terminalThisSession.delete(job.id);
+    if (error instanceof LockedSourcesError) {
+      const dropped = new Set(error.lockedIds);
+      await database.write(() =>
+        job.update((r) => {
+          r._setRaw("message_ids", JSON.stringify(idsOf(job).filter((id) => !dropped.has(id))));
+          r._setRaw("failed_sessions", null);
+          r._setRaw("failed_head", null);
+        })
+      );
+      attempts.delete(job.id);
+      failedThisSession.delete(job.id);
+      reportError(
+        new Error(
+          `Dropped ${dropped.size} source id(s) that stayed locked for ${failures} sessions to unblock extraction`
+        ),
+        conversationId
+      );
+      return true;
+    }
+    await acknowledge(job, ids, loaded, true);
+    reportError(
+      new Error(
+        `Abandoned an extraction batch of ${ids.length} source id(s) after it failed in ${failures} sessions`
+      ),
+      conversationId
+    );
+    return true;
   }
 
   async function drain(): Promise<void> {
@@ -201,13 +371,15 @@ export function createDurableAutoExtractor(options: DurableAutoExtractorOptions)
       for (const job of pending) {
         if (disposed) break;
         const attempted = attempts.get(job.id) ?? 0;
-        if (attempted >= MAX_ATTEMPTS) continue;
+        if (attempted >= MAX_ATTEMPTS || terminalThisSession.has(job.id)) continue;
         if (processed >= MAX_JOBS_PER_PASS) {
           scheduleAfterSuccess = true;
           break;
         }
         processed++;
         const conversationId = String(job._getRaw("conversation_id"));
+        let ids: string[] = [];
+        let loaded: (StoredMessage | null)[] = [];
         try {
           // A deleted conversation must never be re-learned by a surviving job.
           const conversations = await storage.conversationsCollection
@@ -217,8 +389,8 @@ export function createDurableAutoExtractor(options: DurableAutoExtractorOptions)
             await database.write(() => job.destroyPermanently());
             continue;
           }
-          const ids = idsOf(job).slice(0, 20);
-          const loaded = await Promise.all(ids.map((id) => getMessageOp(storage, id)));
+          ids = idsOf(job).slice(0, 20);
+          loaded = await Promise.all(ids.map((id) => getMessageOp(storage, id)));
           const missing = ids.filter((_id, index) => loaded[index] === null);
           if (missing.length) {
             // A write-ordering gap resolves on retry; an id destroyed outside
@@ -245,12 +417,14 @@ export function createDurableAutoExtractor(options: DurableAutoExtractorOptions)
             );
             continue;
           }
-          if (
-            loaded.some(
-              (message) => message && (message.decryptionStatus || isEncrypted(message.content))
-            )
-          ) {
-            throw new Error("Source messages are locked; retained for retry");
+          const locked = loaded.filter(
+            (message) => message && (message.decryptionStatus || isEncrypted(message.content))
+          );
+          if (locked.length) {
+            throw new LockedSourcesError(
+              locked.map((message) => message!.uniqueId),
+              locked.every((message) => !!message!.decryptionStatus)
+            );
           }
           const messages: AutoExtractMessage[] = loaded.flatMap((m) =>
             m &&
@@ -260,8 +434,9 @@ export function createDurableAutoExtractor(options: DurableAutoExtractorOptions)
               : []
           );
           let success = messages.length === 0;
+          let result: TurnCompleteEvent | undefined;
           if (messages.length) {
-            const result = await extractBatch(
+            result = await extractBatch(
               messages,
               conversationId,
               ids,
@@ -271,48 +446,27 @@ export function createDurableAutoExtractor(options: DurableAutoExtractorOptions)
             success = result.failedCount === 0 && result.outcome !== "empty-after-retry";
             options.onTurnComplete?.(result);
           }
-          if (!success) throw new Error("Extraction batch incomplete; retained for retry");
-          attempts.delete(job.id);
-          const sequences = new Map<string, number>();
-          for (const message of loaded)
-            if (message && message.messageId > 0)
-              sequences.set(message.uniqueId, message.messageId);
-          await database.write(async () => {
-            // Re-read within the writer: arrivals during extraction must survive.
-            const current = idsOf(job);
-            // Clearing/deleting history prunes the outbox in the same writer.
-            // Never restore removed source ids as overlap or as a watermark.
-            const acknowledged = ids.filter((id) => current.includes(id));
-            if (!acknowledged.length) return;
-            const done = new Set(acknowledged);
-            const remaining = current.filter((id) => !done.has(id));
-            if (remaining.length) {
-              // Keep two source messages for pronoun resolution, not as new evidence.
-              await job.update((r) =>
-                r._setRaw("message_ids", JSON.stringify([...acknowledged.slice(-2), ...remaining]))
+          if (!success) {
+            // A non-retryable status (400/403/404) rejects this request as
+            // sent; retrying it in the same session only spends calls.
+            if (result?.failure?.reason === "http-terminal")
+              throw new TerminalExtractionError(
+                `Extraction rejected the batch (HTTP ${result.failure.httpStatus ?? "4xx"}); not retried this session`
               );
-            } else await job.update((r) => r._setRaw("message_ids", "[]"));
-            const newest = acknowledged[acknowledged.length - 1];
-            await job.update((r) => {
-              r._setRaw("watermark", newest);
-              // The sequence is the durable half of the anchor and only ever
-              // advances: a later batch that acknowledges an older tail must
-              // not walk the boundary backwards.
-              const sequence = sequences.get(newest);
-              if (sequence !== undefined) {
-                const prior = seqOf(job);
-                r._setRaw(
-                  "watermark_seq",
-                  prior === undefined ? sequence : Math.max(prior, sequence)
-                );
-              }
-            });
-          });
+            throw new Error("Extraction batch incomplete; retained for retry");
+          }
+          await acknowledge(job, ids, loaded, false);
           scheduleAfterSuccess = true;
         } catch (error) {
           attempts.set(job.id, attempted + 1);
           retry = true;
           reportError(error, conversationId);
+          try {
+            if (await recordFailure(job, ids, loaded, error, attempted + 1, conversationId))
+              scheduleAfterSuccess = true;
+          } catch (recordError) {
+            reportError(recordError, conversationId);
+          }
         }
       }
     } catch (error) {
@@ -420,6 +574,7 @@ export function createDurableAutoExtractor(options: DurableAutoExtractorOptions)
             const atOwnWatermark =
               !!job &&
               boundary >= 0 &&
+              failedSessionsOf(job, String(ownWatermark)) < MAX_FAILED_SESSIONS &&
               (ids[boundary] === ownWatermark ||
                 (sequences.get(ids[boundary]) !== undefined &&
                   sequences.get(ids[boundary]) === seqOf(job)));

@@ -350,6 +350,7 @@ export {
   updateVaultMemoryOp,
   type UpdateVaultMemoryOptions,
   type VaultCandidateKey,
+  type VaultEmbeddingExpectation,
   type VaultMemoryOperationsContext,
   type VaultMemoryVisibility,
 } from "../lib/db/memoryVault";

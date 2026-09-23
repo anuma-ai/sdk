@@ -34,6 +34,7 @@ import {
   type DecayPolicy,
   type DecayVerdict,
   DEFAULT_DECAY_POLICY,
+  lastActivityAt,
   SOURCE_PHOTO,
 } from "./decay.js";
 
@@ -226,7 +227,7 @@ export function createDecaySweeper(options: CreateDecaySweeperOptions): DecaySwe
   // verdict on later sweeps and is NEVER re-sent to the portal; a re-observed
   // row (bumped `updated_at`) misses the cache and is re-classified. Pruned each
   // sweep to the live candidate set so it can't grow unbounded.
-  const classifierCache = new Map<string, { updatedAt: number; verdict: DecayVerdict }>();
+  const classifierCache = new Map<string, { activityAt: number; verdict: DecayVerdict }>();
   let disposed = false;
 
   /** Per-sweep mutable egress budget, threaded into {@link verdictFor}. */
@@ -265,7 +266,9 @@ export function createDecaySweeper(options: CreateDecaySweeperOptions): DecaySwe
     // can only return a refinement of a row the rule STILL keeps.
     if (input.id) {
       const cached = classifierCache.get(input.id);
-      if (cached && cached.updatedAt === input.updatedAt) return cached.verdict;
+      // Keyed on the last edit OR re-observation: a merge moves only
+      // lastObservedAt, and a verdict cached before it must not outlive it.
+      if (cached && cached.activityAt === lastActivityAt(input)) return cached.verdict;
     }
 
     // Per-sweep egress ceiling: beyond it, fall back to the rule verdict (no
@@ -287,7 +290,7 @@ export function createDecaySweeper(options: CreateDecaySweeperOptions): DecaySwe
     sweep.classifierCalls++;
     try {
       const verdict = await classifier.classify(input, ruleVerdict, now);
-      if (input.id) classifierCache.set(input.id, { updatedAt: input.updatedAt, verdict });
+      if (input.id) classifierCache.set(input.id, { activityAt: lastActivityAt(input), verdict });
       return verdict;
     } catch (err) {
       getLogger().warn(

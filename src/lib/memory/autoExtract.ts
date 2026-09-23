@@ -18,6 +18,7 @@ import { Q } from "@nozbe/watermelondb";
 import { type EntityOperationsContext, linkMemoryEntitiesOp } from "../db/entities/operations.js";
 import { ENTITY_KINDS, type EntityKind } from "../db/entities/types.js";
 import { VaultMemory } from "../db/memoryVault/models.js";
+import { findQuarantinedDuplicateOp } from "../db/memoryVault/operations.js";
 import { getLogger } from "../logger.js";
 import { type PiiRedactor, resolvePiiRedactor } from "../pii/redactor.js";
 import { isGenericEntityName } from "./entitySalience.js";
@@ -820,6 +821,28 @@ export async function extractAndRetain(
   const tRetain = Date.now();
   for (const { candidate, isQuarantined, reason, signature } of toRetain) {
     try {
+      if (isQuarantined) {
+        // A durable batch is re-extracted on every retry, and quarantined rows
+        // are force-created (no auto-merge), so each retry used to add another
+        // copy of the same audit row. Reuse the one an earlier attempt wrote;
+        // its `onQuarantined` already fired, so it is not announced again.
+        // Best effort: a failed lookup must not cost the audit row, so it
+        // falls through to the create.
+        const existingId = await findQuarantinedDuplicateOp(
+          retainCtx.vaultCtx,
+          candidate.content,
+          candidate.sourceMessageIds
+        ).catch(() => null);
+        if (existingId) {
+          quarantinedInfo.push({
+            candidate,
+            memoryId: existingId,
+            reason: reason as InjectionReason,
+            signature: signature as string,
+          });
+          continue;
+        }
+      }
       const result = await retain(candidate.content, retainCtx, {
         source: "auto-extracted",
         sourceChunkIds: candidate.sourceMessageIds,
