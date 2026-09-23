@@ -98,4 +98,41 @@ describe("hung embeddings endpoint", () => {
     expect(done?.memories.map((m) => m.id)).toEqual(["m1"]);
     expect(seen[0]?.degraded).toContain("embeddings-unavailable");
   });
+
+  // The per-attempt deadline alone still lets an outage cost ~4 x 15s + backoff.
+  // recall() puts ONE budget (default 8s) on the query embed so a chat turn
+  // degrades within it.
+  it("recall degrades within the default 8s query-embed budget at the default per-attempt timeout", async () => {
+    const seen: RecallDiagnostics[] = [];
+    let done: Awaited<ReturnType<typeof recall>> | undefined;
+    void recall(
+      "shellfish",
+      {
+        vaultCtx,
+        embeddingOptions: { apiKey: "k", baseUrl: "https://portal.test" },
+        vaultCache: createVaultEmbeddingCache(),
+      },
+      { onDiagnostics: (d) => seen.push(d) }
+    ).then((r) => (done = r));
+
+    await vi.advanceTimersByTimeAsync(8_000);
+
+    expect(done?.memories.map((m) => m.id)).toEqual(["m1"]);
+    expect(seen[0]?.degraded).toContain("embeddings-unavailable");
+  });
+
+  it("leaves a direct vault search without a budget on the per-attempt deadlines", async () => {
+    let done = false;
+    void searchVaultMemoriesWithSize(
+      "shellfish",
+      vaultCtx,
+      { apiKey: "k", baseUrl: "https://portal.test" },
+      createVaultEmbeddingCache()
+    ).then(() => (done = true));
+
+    await vi.advanceTimersByTimeAsync(8_000);
+    expect(done).toBe(false);
+    await vi.advanceTimersByTimeAsync(120_000);
+    expect(done).toBe(true);
+  });
 });

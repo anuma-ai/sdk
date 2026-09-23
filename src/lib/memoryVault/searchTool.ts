@@ -268,6 +268,14 @@ export interface MemoryVaultSearchOptions {
    * provider that just failed.
    */
   queryEmbedding?: number[];
+  /**
+   * Overall deadline, in ms, for embedding the QUERY (token read + all attempts
+   * + backoff). On expiry the search degrades to BM25 and reports embeddings
+   * unavailable. Unset = only the per-attempt deadlines apply. `recall()` sets
+   * it (default 8000 — see `RecallOptions.queryEmbedTotalTimeoutMs`); row
+   * (re)embeds are never subject to it.
+   */
+  queryEmbedTotalTimeoutMs?: number;
   /** Admission window multiplier for decrypt-last (`limit * admitFactor`). Default 3. */
   admitFactor?: number;
   /** Admission window floor for decrypt-last. Default 30. */
@@ -1682,6 +1690,16 @@ export async function eagerEmbedContent(
  * `onDegraded` lets the caller surface it (recall reports `embeddings-unavailable`)
  * so this never becomes a silent quality drop.
  */
+/** `embeddingOptions` with the query-embed overall deadline applied, when one
+ * was asked for. Only ever used for the QUERY embed — row embeds keep the
+ * caller's options untouched. */
+function withQueryBudget(
+  embeddingOptions: EmbeddingOptions,
+  totalTimeoutMs: number | undefined
+): EmbeddingOptions {
+  return totalTimeoutMs === undefined ? embeddingOptions : { ...embeddingOptions, totalTimeoutMs };
+}
+
 async function embedQueryOrDegrade(
   query: string,
   embeddingOptions: EmbeddingOptions,
@@ -1777,6 +1795,8 @@ export async function buildProjectedCorpus(
     onEmbeddingDegraded?: () => void;
     /** Precomputed query vector — see {@link MemoryVaultSearchOptions.queryEmbedding}. */
     queryEmbedding?: number[];
+    /** See {@link MemoryVaultSearchOptions.queryEmbedTotalTimeoutMs}. */
+    queryEmbedTotalTimeoutMs?: number;
     /**
      * Optional out-param. Accumulates this call's portal-embedding bill — see
      * {@link EmbedStats}. Written even on the degraded paths, because an embed
@@ -1853,7 +1873,7 @@ export async function buildProjectedCorpus(
   const queryEmbedStart = nowMs();
   const queryEmbedding = await embedQueryOrDegrade(
     query,
-    embeddingOptions,
+    withQueryBudget(embeddingOptions, opts.queryEmbedTotalTimeoutMs),
     opts.onEmbeddingDegraded,
     opts.queryEmbedding
   );
@@ -2297,6 +2317,9 @@ export async function prepareVaultCandidates(
       ...(searchOptions.queryEmbedding !== undefined && {
         queryEmbedding: searchOptions.queryEmbedding,
       }),
+      ...(searchOptions.queryEmbedTotalTimeoutMs !== undefined && {
+        queryEmbedTotalTimeoutMs: searchOptions.queryEmbedTotalTimeoutMs,
+      }),
       onEmbeddingDegraded,
       embedStats,
     });
@@ -2390,7 +2413,7 @@ export async function prepareVaultCandidates(
     const legacyEmbedStart = nowMs();
     queryEmbedding = await embedQueryOrDegrade(
       query,
-      embeddingOptions,
+      withQueryBudget(embeddingOptions, searchOptions?.queryEmbedTotalTimeoutMs),
       onEmbeddingDegraded,
       searchOptions?.queryEmbedding
     );

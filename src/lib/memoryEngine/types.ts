@@ -101,6 +101,16 @@ export interface EmbeddingOptions {
    * embedding — and the recall waiting on it. `0` disables the deadline.
    */
   tokenTimeoutMs?: number;
+  /**
+   * Overall deadline, in ms, for one `generateEmbedding` call — the token read,
+   * every retry attempt and the backoff between them. Unset (the default) means
+   * only the per-attempt deadlines apply, which is right for background/bulk
+   * embeds. The recall query path sets it (see
+   * `RecallOptions.queryEmbedTotalTimeoutMs`) so an outage degrades a turn to
+   * BM25 within a few seconds instead of ~4 x `timeoutMs`. Not applied by
+   * `generateEmbeddings`.
+   */
+  totalTimeoutMs?: number;
 }
 
 /**

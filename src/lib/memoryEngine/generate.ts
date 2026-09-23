@@ -45,10 +45,16 @@ const DEFAULT_EMBEDDING_TOKEN_TIMEOUT_MS = 10_000;
 async function withDeadline<T>(
   run: (signal: AbortSignal | undefined) => Promise<T>,
   ms: number,
-  what: string
+  what: string,
+  parent?: AbortSignal
 ): Promise<T> {
-  if (!(ms > 0) || !Number.isFinite(ms)) return run(undefined);
+  if (!(ms > 0) || !Number.isFinite(ms)) return run(parent);
   const controller = new AbortController();
+  // An enclosing deadline (see `totalTimeoutMs`) that fires first aborts this
+  // attempt's request too, so it doesn't keep a socket open for nothing.
+  const onParentAbort = () => controller.abort(parent?.reason);
+  if (parent?.aborted) onParentAbort();
+  else parent?.addEventListener("abort", onParentAbort, { once: true });
   let timer: ReturnType<typeof setTimeout> | undefined;
   const deadline = new Promise<never>((_, reject) => {
     timer = setTimeout(() => {
@@ -62,20 +68,25 @@ async function withDeadline<T>(
     return await Promise.race([run(controller.signal), deadline]);
   } finally {
     clearTimeout(timer);
+    parent?.removeEventListener("abort", onParentAbort);
   }
 }
 
 /** Bounded `getToken()` read shared by both entry points. A token provider that
  * never settles (a stuck auth refresh) used to hang every embedding — and with
  * it the whole recall — forever. */
-async function resolveAuthHeaders(options: EmbeddingOptions): Promise<Record<string, string>> {
+async function resolveAuthHeaders(
+  options: EmbeddingOptions,
+  parent?: AbortSignal
+): Promise<Record<string, string>> {
   const { getToken, apiKey } = options;
   if (apiKey) return { "X-API-Key": apiKey };
   if (!getToken) throw new Error("Either apiKey or getToken must be provided");
   const token = await withDeadline(
     () => getToken(),
     options.tokenTimeoutMs ?? DEFAULT_EMBEDDING_TOKEN_TIMEOUT_MS,
-    "embedding auth token read"
+    "embedding auth token read",
+    parent
   );
   if (!token) {
     throw new Error("No token available for embedding generation");
@@ -84,12 +95,16 @@ async function resolveAuthHeaders(options: EmbeddingOptions): Promise<Record<str
 }
 
 async function withEmbeddingRetry<T extends { error?: unknown; response?: Response }>(
-  call: () => Promise<T>
+  call: () => Promise<T>,
+  // Once an enclosing deadline has fired nobody is waiting for the result, so
+  // stop instead of spending the remaining attempts in the background.
+  stop?: AbortSignal
 ): Promise<T> {
   let last: T | undefined;
   let lastThrown: unknown;
   let threw = false;
   for (let attempt = 1; attempt <= EMBED_MAX_ATTEMPTS; attempt++) {
+    if (stop?.aborted) throw stop.reason;
     try {
       threw = false;
       last = await call();
@@ -182,6 +197,18 @@ export async function generateEmbedding(
   text: string,
   options: EmbeddingOptions
 ): Promise<number[]> {
+  const total = options.totalTimeoutMs;
+  if (total === undefined) return embedOne(text, options, undefined);
+  // One budget over the token read, every attempt and every backoff — the
+  // per-attempt deadline alone still allows ~4 x timeoutMs + backoff.
+  return withDeadline((signal) => embedOne(text, options, signal), total, "embedding");
+}
+
+async function embedOne(
+  text: string,
+  options: EmbeddingOptions,
+  outer: AbortSignal | undefined
+): Promise<number[]> {
   const { baseUrl = BASE_URL, model, cache } = options;
   const timeoutMs = options.timeoutMs ?? DEFAULT_EMBEDDING_REQUEST_TIMEOUT_MS;
 
@@ -196,27 +223,30 @@ export async function generateEmbedding(
   }
 
   // Build auth headers - prefer apiKey if provided
-  const headers = await resolveAuthHeaders(options);
+  const headers = await resolveAuthHeaders(options, outer);
 
   // The deadline is PER ATTEMPT (inside the retry), so a hung request becomes
   // one retryable failure rather than a stall that outlives every retry.
-  const response = await withEmbeddingRetry(() =>
-    withDeadline(
-      (signal) =>
-        postApiV1Embeddings({
-          baseUrl,
-          body: {
-            // Mask PII from the request body only — the cache above still keys on
-            // the original `text`, so callers keep their original values.
-            input: options.maskInput ? options.maskInput(text) : text,
-            model: model ?? DEFAULT_API_EMBEDDING_MODEL,
-          },
-          headers,
-          ...(signal && { signal }),
-        }),
-      timeoutMs,
-      "embedding request"
-    )
+  const response = await withEmbeddingRetry(
+    () =>
+      withDeadline(
+        (signal) =>
+          postApiV1Embeddings({
+            baseUrl,
+            body: {
+              // Mask PII from the request body only — the cache above still keys on
+              // the original `text`, so callers keep their original values.
+              input: options.maskInput ? options.maskInput(text) : text,
+              model: model ?? DEFAULT_API_EMBEDDING_MODEL,
+            },
+            headers,
+            ...(signal && { signal }),
+          }),
+        timeoutMs,
+        "embedding request",
+        outer
+      ),
+    outer
   );
 
   if (response.error) {

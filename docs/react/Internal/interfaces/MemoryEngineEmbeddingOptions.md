@@ -212,3 +212,19 @@ Defined in: [src/lib/memoryEngine/types.ts:103](https://github.com/anuma-ai/sdk/
 Deadline, in ms, for the `getToken()` read that precedes a request (default
 10000\). A provider that never settles rejects instead of hanging the
 embedding — and the recall waiting on it. `0` disables the deadline.
+
+***
+
+### totalTimeoutMs?
+
+> `optional` **totalTimeoutMs**: `number`
+
+Defined in: [src/lib/memoryEngine/types.ts:113](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryEngine/types.ts#113)
+
+Overall deadline, in ms, for one `generateEmbedding` call — the token read,
+every retry attempt and the backoff between them. Unset (the default) means
+only the per-attempt deadlines apply, which is right for background/bulk
+embeds. The recall query path sets it (see
+`RecallOptions.queryEmbedTotalTimeoutMs`) so an outage degrades a turn to
+BM25 within a few seconds instead of ~4 x `timeoutMs`. Not applied by
+`generateEmbeddings`.

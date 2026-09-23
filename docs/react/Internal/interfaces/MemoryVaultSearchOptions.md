@@ -10,7 +10,7 @@ Options for the vault search tool.
 
 > `optional` **admitFactor**: `number`
 
-Defined in: [src/lib/memoryVault/searchTool.ts:272](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/searchTool.ts#272)
+Defined in: [src/lib/memoryVault/searchTool.ts:280](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/searchTool.ts#280)
 
 Admission window multiplier for decrypt-last (`limit * admitFactor`). Default 3.
 
@@ -20,7 +20,7 @@ Admission window multiplier for decrypt-last (`limit * admitFactor`). Default 3.
 
 > `optional` **admitFloor**: `number`
 
-Defined in: [src/lib/memoryVault/searchTool.ts:274](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/searchTool.ts#274)
+Defined in: [src/lib/memoryVault/searchTool.ts:282](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/searchTool.ts#282)
 
 Admission window floor for decrypt-last. Default 30.
 
@@ -221,6 +221,21 @@ query a second time — `recall()` embeds once for its chunk lane and passes
 the vector here. An EMPTY array means the caller's embed failed: the search
 degrades to BM25 (reported as embeddings unavailable) without re-trying a
 provider that just failed.
+
+***
+
+### queryEmbedTotalTimeoutMs?
+
+> `optional` **queryEmbedTotalTimeoutMs**: `number`
+
+Defined in: [src/lib/memoryVault/searchTool.ts:278](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/searchTool.ts#278)
+
+Overall deadline, in ms, for embedding the QUERY (token read + all attempts
+
+* backoff). On expiry the search degrades to BM25 and reports embeddings
+  unavailable. Unset = only the per-attempt deadlines apply. `recall()` sets
+  it (default 8000 — see `RecallOptions.queryEmbedTotalTimeoutMs`); row
+  (re)embeds are never subject to it.
 
 ***
 

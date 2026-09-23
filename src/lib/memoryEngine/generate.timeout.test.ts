@@ -111,4 +111,36 @@ describe("embedding deadlines", () => {
 
     expect(t.state).toBe("rejected");
   });
+
+  it("totalTimeoutMs bounds the whole call — every attempt and backoff — and stops retrying", async () => {
+    // Default 15s per attempt would allow ~60s+; the overall budget caps it.
+    const t = track(
+      generateEmbedding("hello", { apiKey: "k", baseUrl: BASE, totalTimeoutMs: 8000 })
+    );
+
+    await vi.advanceTimersByTimeAsync(7999);
+    expect(t.state).toBe("pending");
+    await vi.advanceTimersByTimeAsync(1);
+    expect(t.state).toBe("rejected");
+    expect((t.error as Error).name).toBe("TimeoutError");
+    expect(signals[0]?.aborted).toBe(true);
+
+    // Nobody is waiting any more: no further attempts are fired.
+    await vi.advanceTimersByTimeAsync(120_000);
+    expect(signals).toHaveLength(1);
+  });
+
+  it("totalTimeoutMs also covers a stuck token read", async () => {
+    const t = track(
+      generateEmbedding("hello", {
+        getToken: () => new Promise<string | null>(() => {}),
+        baseUrl: BASE,
+        totalTimeoutMs: 2000,
+      })
+    );
+
+    await vi.advanceTimersByTimeAsync(2000);
+
+    expect(t.state).toBe("rejected");
+  });
 });

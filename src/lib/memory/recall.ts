@@ -68,6 +68,8 @@ function nowMs(): number {
     : Date.now();
 }
 const DEFAULT_CHUNK_MIN_SCORE = 0.5;
+/** See {@link RecallOptions.queryEmbedTotalTimeoutMs}. */
+const DEFAULT_QUERY_EMBED_TOTAL_TIMEOUT_MS = 8_000;
 
 interface BudgetFlags {
   rerank: boolean;
@@ -358,6 +360,11 @@ export async function recall(
     flags.traverse && options.graphRefine && options.decomposeOptions
       ? createLlmNeighborRefiner(options.decomposeOptions)
       : undefined;
+  // The query embed sits on the chat hot path, so it gets ONE budget across
+  // every attempt — the per-attempt deadline alone would let an outage stall
+  // each turn ~4 x timeoutMs before degrading.
+  const queryEmbedTotalTimeoutMs =
+    options.queryEmbedTotalTimeoutMs ?? DEFAULT_QUERY_EMBED_TOTAL_TIMEOUT_MS;
   const prepStart = nowMs();
   // Wall-clock of the shared query embed above; stays 0 when it did not run.
   let sharedEmbedMs = 0;
@@ -367,7 +374,10 @@ export async function recall(
     // lane, not reject this shared Promise.all and take the primary fact lane
     // (which BM25 can still serve) down with it. Mirrors safeLane's posture.
     needsChunkEmbedding
-      ? generateEmbedding(query, ctx.embeddingOptions)
+      ? generateEmbedding(query, {
+          ...ctx.embeddingOptions,
+          totalTimeoutMs: queryEmbedTotalTimeoutMs,
+        })
           .finally(() => {
             sharedEmbedMs = nowMs() - prepStart;
           })
@@ -487,6 +497,7 @@ export async function recall(
         // The shared embed from prep. `[]` when it failed, so the vault lane
         // degrades to BM25 at once instead of re-trying the provider.
         ...(needsChunkEmbedding && { queryEmbedding: queryEmbedding ?? [] }),
+        queryEmbedTotalTimeoutMs,
       }
     );
     factResults.push(

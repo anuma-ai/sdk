@@ -205,6 +205,14 @@ export interface RecallOptions {
    * Default: 10000. The load keeps going in the background for later calls.
    */
   rerankLoadTimeoutMs?: number;
+  /**
+   * Overall deadline, in ms, for embedding the query — token read, every retry
+   * attempt and the backoff between them. Default: 8000. On expiry the fact lane
+   * degrades to BM25 and the (cosine-only) chunk lane is skipped, reported as
+   * `embeddings-unavailable`, so an embeddings outage costs a turn at most this
+   * long rather than ~4 x the per-attempt timeout. `0` disables it.
+   */
+  queryEmbedTotalTimeoutMs?: number;
   /** Recency boost slope in the fused ranker. Default: 1.0. */
   recencyAlpha?: number;
   /** Recency decay curve overrides (per-year decay slope, floor, no-date multiplier). */
