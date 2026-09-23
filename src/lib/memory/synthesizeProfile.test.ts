@@ -1598,10 +1598,15 @@ describe("synthesizeProfile", () => {
       .mockResolvedValueOnce(reflectResult("re bio", ["a"]))
       .mockResolvedValueOnce(reflectResult("re interests", ["a"]));
 
-    // The pre-change formula: key + label + query + guidance, no schema.
-    const legacySignature = FACETS.map((f) => JSON.stringify([f.key, f.label, f.query, f.guidance]))
-      .sort()
-      .join("\n");
+    // Today's formula minus the schema ONLY — the system-prompt line is kept, so
+    // this still fails if the schema stops being part of the signature.
+    const promptLines = facetsSignature(FACETS)
+      .split("\n")
+      .filter((line) => !Array.isArray(JSON.parse(line)));
+    const legacySignature = [
+      ...promptLines,
+      ...FACETS.map((f) => JSON.stringify([f.key, f.label, f.query, f.guidance])).sort(),
+    ].join("\n");
     const previous = priorDoc(
       [section("bio", "old bio", ["a"]), section("interests", "old interests", ["a"])],
       2000,
@@ -1613,5 +1618,44 @@ describe("synthesizeProfile", () => {
     expect(doc).not.toBe(previous);
     expect(mockReflect).toHaveBeenCalledTimes(2);
     expect(doc.config.facetsSignature).not.toBe(legacySignature);
+  });
+
+  // #8398: a doc cached under the third-person rules would otherwise keep serving
+  // "They value…" until the user's facts changed. The system prompt is folded
+  // into the signature so a rules edit regenerates it.
+  it("does not reuse a doc whose facet signature predates the system prompt", async () => {
+    mockGetAll.mockResolvedValue([mem("a", { updatedAt: new Date(2000) })]);
+    mockReflect
+      .mockResolvedValueOnce(reflectResult("re bio", ["a"]))
+      .mockResolvedValueOnce(reflectResult("re interests", ["a"]));
+
+    // The pre-change formula: only the per-facet lines (JSON arrays), no prompt line.
+    const legacySignature = facetsSignature(FACETS)
+      .split("\n")
+      .filter((line) => Array.isArray(JSON.parse(line)))
+      .join("\n");
+    const previous = priorDoc(
+      [section("bio", "old bio", ["a"]), section("interests", "old interests", ["a"])],
+      2000,
+      { ...cfg(), facetsSignature: legacySignature }
+    );
+
+    const doc = await synthesizeProfile(ctx, { apiKey: "k", facets: FACETS, previous });
+
+    expect(doc).not.toBe(previous);
+    expect(mockReflect).toHaveBeenCalledTimes(2);
+  });
+
+  it("asks for a pronoun-free voice, never third person", async () => {
+    mockGetAll.mockResolvedValue([mem("a")]);
+    mockReflect.mockResolvedValue(reflectResult("Values clear communication.", ["a"]));
+
+    await synthesizeProfile(ctx, { apiKey: "k", facets: FACETS });
+
+    for (const call of mockReflect.mock.calls) {
+      const systemPrompt = call[2]?.systemPrompt ?? "";
+      expect(systemPrompt).toContain("pronoun-free profile voice");
+      expect(systemPrompt).not.toContain("third person");
+    }
   });
 });
