@@ -33,11 +33,13 @@
  * |---|---|
  * | The user confirmed | `{ confirmed: true, action, parameters, answeredAt }` |
  * | The user declined | `{ confirmed: false, action, parameters, answeredAt }` |
- * | Timed out, cleared, or never shown | `{ cancelled: true }` |
+ * | Timed out, cleared, never shown, or a malformed reply | `{ cancelled: true }` |
  *
  * A decline is an ordinary answer, not a failure — the model should say so and
  * move on. Only the third row means nobody answered, and it is the shape every
- * interactive tool in this module already produces for that case.
+ * interactive tool in this module already produces for that case. A reply
+ * whose `confirmed` is not a boolean is not an answer either, so it lands there
+ * too rather than being reported as the user saying no.
  *
  * **The card must resolve the interaction for a decline, with
  * `{ confirmed: false }` — not cancel it.** Cancelling rejects the underlying
@@ -63,17 +65,25 @@ export type ConfirmParameter = {
   value: string;
 };
 
-/** What the tool returns once the user has answered. */
-export type ConfirmToolResult = {
-  /** True only when the user explicitly agreed. Anything else is a decline. */
-  confirmed: boolean;
-  /** The action that was confirmed, e.g. `book_restaurant`. */
-  action: string;
-  /** The parameters the card showed, verbatim — what the portal verifies. */
-  parameters: ConfirmParameter[];
-  /** ISO-8601 timestamp of the answer, for a server-side freshness window. */
-  answeredAt: string;
-};
+/**
+ * What the tool returns: the user's answer, or `{ cancelled: true }` when
+ * nobody answered.
+ */
+export type ConfirmToolResult =
+  | {
+      /** True when the user agreed, false when they declined. */
+      confirmed: boolean;
+      /** The action that was confirmed, e.g. `book_restaurant`. */
+      action: string;
+      /** The parameters the card showed, verbatim — what the portal verifies. */
+      parameters: ConfirmParameter[];
+      /** ISO-8601 timestamp of the answer, for a server-side freshness window. */
+      answeredAt: string;
+    }
+  | {
+      /** Timed out, cleared, never shown, or the card replied without a decision. */
+      cancelled: true;
+    };
 
 // ---------------------------------------------------------------------------
 // Tool factory
@@ -140,14 +150,6 @@ export function createConfirmTool(options: CreateUIToolsOptions): ToolConfig {
           description:
             "Every parameter of the action, with the exact values. The user sees these and nothing else.",
         },
-        confirmLabel: {
-          type: "string",
-          description: "Label for the confirm button (default: 'Confirm')",
-        },
-        declineLabel: {
-          type: "string",
-          description: "Label for the decline button (default: 'Cancel')",
-        },
       },
       required: ["title", "action", "parameters"],
     },
@@ -176,17 +178,20 @@ export function createConfirmTool(options: CreateUIToolsOptions): ToolConfig {
     mapResult: (
       result: Record<string, unknown>,
       args: Record<string, unknown>
-    ): ConfirmToolResult => ({
-      // Fails closed: only an explicit true is agreement, so a card that
-      // resolves with an unexpected shape reads as a decline rather than as
-      // permission to spend.
-      confirmed: result.confirmed === true,
-      // From the arguments rather than from the card's reply. The card was
-      // handed these to render, so echoing them back would only create a
-      // second copy that could disagree with what was on screen.
-      action: args.action as string,
-      parameters: args.parameters as ConfirmParameter[],
-      answeredAt: new Date().toISOString(),
-    }),
+    ): ConfirmToolResult => {
+      // Only an explicit boolean is an answer. Anything else is a card that
+      // replied without a decision, and reporting it as a decline would put
+      // words in the user's mouth.
+      if (typeof result.confirmed !== "boolean") return { cancelled: true };
+      return {
+        confirmed: result.confirmed,
+        // From the arguments rather than from the card's reply. The card was
+        // handed these to render, so echoing them back would only create a
+        // second copy that could disagree with what was on screen.
+        action: args.action as string,
+        parameters: args.parameters as ConfirmParameter[],
+        answeredAt: new Date().toISOString(),
+      };
+    },
   });
 }

@@ -52,6 +52,21 @@ describe("createConfirmTool", () => {
     expect(params.required).toEqual(["title", "action", "parameters"]);
   });
 
+  // The host renders its own button labels. A model-written label could put
+  // "Cancel" on the button that confirms, so the schema must not offer one.
+  it("does not let the model write the button labels", () => {
+    const tool = createConfirmTool({ getContext: () => null });
+
+    const params = (tool.function as { arguments: { properties: Record<string, unknown> } })
+      .arguments;
+    expect(Object.keys(params.properties)).toEqual([
+      "title",
+      "description",
+      "action",
+      "parameters",
+    ]);
+  });
+
   it("blocks until the user answers", async () => {
     const { context, settle } = pendingContext();
     const tool = createConfirmTool({ getContext: () => context, getLastMessageId: () => "msg-1" });
@@ -123,21 +138,23 @@ describe("createConfirmTool", () => {
     expect(result.cancelled).toBeUndefined();
   });
 
-  // Only an explicit `true` is agreement. A card that resolves with a truthy
-  // string, a missing field or an unrelated shape must not read as permission.
+  // Only an explicit boolean is an answer. A card that resolves with a string,
+  // a missing field or an unrelated shape made no decision, so it must read as
+  // nobody answering — neither as permission nor as the user saying no.
   it.each([
+    ["the string 'true'", { confirmed: "true" }],
     ["a truthy string", { confirmed: "yes" }],
     ["a truthy number", { confirmed: 1 }],
     ["no decision at all", {}],
     ["a differently named field", { accepted: true }],
-  ])("treats %s as a decline", async (_name, answer) => {
+  ])("treats %s as cancelled, not as an answer", async (_name, answer) => {
     const { context, settle } = pendingContext();
     const tool = createConfirmTool({ getContext: () => context });
 
     const pending = tool.executor?.(BOOKING_ARGS);
     settle().answer(answer);
 
-    expect((await pending) as Record<string, unknown>).toMatchObject({ confirmed: false });
+    expect(await pending).toEqual({ cancelled: true });
   });
 
   // The third outcome: nobody answered. Distinguishable from a decline, which
