@@ -1598,10 +1598,15 @@ describe("synthesizeProfile", () => {
       .mockResolvedValueOnce(reflectResult("re bio", ["a"]))
       .mockResolvedValueOnce(reflectResult("re interests", ["a"]));
 
-    // The pre-change formula: key + label + query + guidance, no schema.
-    const legacySignature = FACETS.map((f) => JSON.stringify([f.key, f.label, f.query, f.guidance]))
-      .sort()
-      .join("\n");
+    // Today's formula minus the schema ONLY — the system-prompt line is kept, so
+    // this still fails if the schema stops being part of the signature.
+    const promptLines = facetsSignature(FACETS)
+      .split("\n")
+      .filter((line) => !Array.isArray(JSON.parse(line)));
+    const legacySignature = [
+      ...promptLines,
+      ...FACETS.map((f) => JSON.stringify([f.key, f.label, f.query, f.guidance])).sort(),
+    ].join("\n");
     const previous = priorDoc(
       [section("bio", "old bio", ["a"]), section("interests", "old interests", ["a"])],
       2000,
