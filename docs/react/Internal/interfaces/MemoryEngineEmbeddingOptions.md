@@ -188,3 +188,27 @@ Called after each embedding API call with the token usage from the response.
 **Returns**
 
 `void`
+
+***
+
+### timeoutMs?
+
+> `optional` **timeoutMs**: `number`
+
+Defined in: [src/lib/memoryEngine/types.ts:97](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryEngine/types.ts#97)
+
+Deadline, in ms, for EACH embeddings HTTP attempt (default 15000). An
+attempt that exceeds it is aborted and counts as a transient failure, so the
+bounded retry still applies. `0` disables the deadline.
+
+***
+
+### tokenTimeoutMs?
+
+> `optional` **tokenTimeoutMs**: `number`
+
+Defined in: [src/lib/memoryEngine/types.ts:103](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryEngine/types.ts#103)
+
+Deadline, in ms, for the `getToken()` read that precedes a request (default
+10000\). A provider that never settles rejects instead of hanging the
+embedding — and the recall waiting on it. `0` disables the deadline.

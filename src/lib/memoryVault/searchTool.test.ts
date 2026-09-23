@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { createMemoryVaultSearchTool } from "./searchToolExecutor";
 import {
-  createMemoryVaultSearchTool,
   searchVaultMemories,
   searchVaultMemoriesWithSize,
   preEmbedVaultMemories,

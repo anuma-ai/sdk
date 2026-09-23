@@ -199,6 +199,12 @@ export interface RecallOptions {
   rerankTopN?: number;
   /** Multiplicative cross-encoder blend weight. Default: 0.1. */
   ceWeight?: number;
+  /**
+   * Max ms a `mid`/`high` recall waits for the cross-encoder's FIRST model load
+   * before degrading to the fused ranking (reported as `rerank-unavailable`).
+   * Default: 10000. The load keeps going in the background for later calls.
+   */
+  rerankLoadTimeoutMs?: number;
   /** Recency boost slope in the fused ranker. Default: 1.0. */
   recencyAlpha?: number;
   /** Recency decay curve overrides (per-year decay slope, floor, no-date multiplier). */
@@ -231,7 +237,8 @@ export interface RecallOptions {
   maxHops?: number;
   /** Max neighbor entities expanded per hop. Default: 8. */
   entityFanout?: number;
-  /** Hard cap on accumulated memory IDs across all hops. Default: 64. */
+  /** Hard cap on graph-lane memory IDs — across all hops, and on the single-hop
+   *  lane `low`/`mid` run. Default: 64. */
   nodeBudget?: number;
   /**
    * PR5 — enable LLM graph path-refinement: at each traversal hop a model picks
@@ -471,6 +478,10 @@ export interface RecallDiagnostics {
      * fast `vault_size = 0` population never established a baseline for this
      * cost, and why the ~850ms floor on the smallest NON-empty vaults had no
      * attributable owner.
+     *
+     * EXCEPTION — a mixed fact + chunk recall embeds the query ONCE, during
+     * {@link prep}, and hands the vector to both lanes. There `queryEmbed` is
+     * that shared embed and sits inside `prep`, not `factLane`.
      */
     queryEmbed: number;
     /** Chunk-lane search (`searchChunksOp`). */

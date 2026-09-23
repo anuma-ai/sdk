@@ -22,13 +22,13 @@ export type {
   VaultSearchResult,
 } from "./searchTool";
 export {
-  createMemoryVaultSearchTool,
   createVaultEmbeddingCache,
   DEFAULT_VAULT_CACHE_SIZE,
   eagerEmbedContent,
   preEmbedVaultMemories,
   searchVaultMemories,
 } from "./searchTool";
+export { createMemoryVaultSearchTool } from "./searchToolExecutor";
 export type {
   ManualFactType,
   MemoryVaultToolOptions,

@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { createMemoryVaultTool } from "./tool";
-import { createMemoryVaultSearchTool, preEmbedVaultMemories } from "./searchTool";
+import { preEmbedVaultMemories } from "./searchTool";
+import { createMemoryVaultSearchTool } from "./searchToolExecutor";
 import { createVaultEmbeddingCache } from "./lruCache";
 import type { VaultMemoryOperationsContext } from "../db/memoryVault/operations";
 import type { StoredVaultMemory } from "../db/memoryVault/types";

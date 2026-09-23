@@ -131,6 +131,26 @@ messages are re-embedded out-of-band by `chunkAndEmbedAllMessages`.
 <tr>
 <td>
 
+`options.excludeConversationId?`
+
+</td>
+<td>
+
+`string`
+
+</td>
+<td>
+
+Skip every message in this conversation BEFORE scoring, so it can't take
+top-K slots. Filtering after the cut (what recall() used to do) lets a
+long current conversation fill all `limit` slots and leaves
+past-conversation recall with nothing.
+
+</td>
+</tr>
+<tr>
+<td>
+
 `options.limit?`
 
 </td>

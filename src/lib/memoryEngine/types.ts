@@ -89,6 +89,18 @@ export interface EmbeddingOptions {
    * while real PII never reaches the server. Used when PII redaction is active.
    */
   maskInput?: (text: string) => string;
+  /**
+   * Deadline, in ms, for EACH embeddings HTTP attempt (default 15000). An
+   * attempt that exceeds it is aborted and counts as a transient failure, so the
+   * bounded retry still applies. `0` disables the deadline.
+   */
+  timeoutMs?: number;
+  /**
+   * Deadline, in ms, for the `getToken()` read that precedes a request (default
+   * 10000). A provider that never settles rejects instead of hanging the
+   * embedding — and the recall waiting on it. `0` disables the deadline.
+   */
+  tokenTimeoutMs?: number;
 }
 
 /**

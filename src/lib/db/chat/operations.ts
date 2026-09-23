@@ -1623,6 +1623,13 @@ export async function searchChunksOp(
     minSimilarity?: number;
     conversationId?: string;
     /**
+     * Skip every message in this conversation BEFORE scoring, so it can't take
+     * top-K slots. Filtering after the cut (what recall() used to do) lets a
+     * long current conversation fill all `limit` slots and leaves
+     * past-conversation recall with nothing.
+     */
+    excludeConversationId?: string;
+    /**
      * Current embedding model. When set, messages whose stored
      * `embedding_model` is non-null and differs are skipped — their vectors
      * live in a different space, so cosine against the current-model query is
@@ -1644,6 +1651,7 @@ export async function searchChunksOp(
     limit = 10,
     minSimilarity = 0.5,
     conversationId,
+    excludeConversationId,
     embeddingModel,
     chunkCache,
   } = options || {};
@@ -1700,6 +1708,7 @@ export async function searchChunksOp(
   for (const message of messages) {
     const msgConvId = String(message.conversation_id);
     if (!activeConversationIds.has(msgConvId)) continue;
+    if (excludeConversationId !== undefined && msgConvId === excludeConversationId) continue;
 
     // Skip stale-model vectors: a non-null embedding_model that differs from
     // the current model lives in an incompatible vector space. Null is

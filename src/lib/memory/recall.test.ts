@@ -494,17 +494,20 @@ describe("recall — filters and pass-through", () => {
     );
   });
 
-  it("filters out excludeConversationId chunks from the results", async () => {
-    vi.mocked(searchChunksOp).mockResolvedValue([
-      makeChunk("c1", "conv-current", 0.9),
-      makeChunk("c2", "conv-other", 0.8),
-    ]);
+  // The exclusion has to happen INSIDE the scan, before the top-K cut — see
+  // searchChunks.exclude.test.ts for the op side. Filtering the returned slice
+  // let a long current conversation fill every slot.
+  it("pushes excludeConversationId down into the chunk scan", async () => {
+    vi.mocked(searchChunksOp).mockResolvedValue([makeChunk("c2", "conv-other", 0.8)]);
 
     const result = await recall(QUERY, makeCtx(), {
       types: ["chunk"],
       excludeConversationId: "conv-current",
     });
 
+    expect(vi.mocked(searchChunksOp).mock.calls[0][2]).toMatchObject({
+      excludeConversationId: "conv-current",
+    });
     expect(result.memories.map((m) => m.id)).toEqual(["c2"]);
   });
 
@@ -1307,17 +1310,16 @@ describe("recall — embeddings outage degrades instead of throwing", () => {
     expect(seen[0].degraded).toContain("embeddings-unavailable");
   });
 
-  // The other direction: a chunk-lane embed failure alone is NOT a whole-provider
-  // outage when the fact lane went on to rank on a live cosine pass. Reporting one
-  // would be the same false signal the composite fall-through used to emit.
-  it("does not report an outage when the chunk embed fails but facts rank on cosine", async () => {
+  // The query is embedded ONCE per mixed recall and shared by both lanes, so a
+  // failed embed (after generateEmbedding's own retries) is a failed embed for
+  // the fact lane too: it must degrade to BM25 and report it, and must NOT fire
+  // a second request at a provider that just failed. The fact lane re-embedding
+  // on its own used to mask this — and cost every mixed recall two round trips.
+  it("degrades the fact lane too on a failed shared embed, without a second attempt", async () => {
     vi.mocked(getAllVaultMemoriesOp).mockResolvedValue([makeMemory("m1", "allergic to shellfish")]);
-    // Call 1 is the chunk lane (inside the shared Promise.all); the fact lane
-    // embeds afterwards and succeeds.
     vi.mocked(generateEmbedding)
-      .mockRejectedValueOnce(new Error("transient blip"))
+      .mockRejectedValueOnce(new Error("provider down"))
       .mockResolvedValue([1, 0, 0]);
-    vi.mocked(generateEmbeddings).mockResolvedValue([[1, 0, 0]]);
 
     const seen: RecallDiagnostics[] = [];
     const result = await recall("shellfish", makeCtx(), {
@@ -1325,9 +1327,11 @@ describe("recall — embeddings outage degrades instead of throwing", () => {
       onDiagnostics: (d) => seen.push(d),
     });
 
+    expect(vi.mocked(generateEmbedding)).toHaveBeenCalledTimes(1);
     expect(vi.mocked(searchChunksOp)).not.toHaveBeenCalled(); // lane still skipped
+    // BM25 still found it.
     expect(result.memories.map((m) => m.content)).toContain("allergic to shellfish");
-    expect(seen[0].degraded).not.toContain("embeddings-unavailable");
+    expect(seen[0].degraded).toContain("embeddings-unavailable");
   });
 });
 
@@ -1378,9 +1382,7 @@ describe("recall — a fact lane with nothing to rank cannot vouch for cosine", 
 
   it("still stays quiet when the fact lane genuinely ranked on cosine", async () => {
     vi.mocked(getAllVaultMemoriesOp).mockResolvedValue([makeMemory("m1", "allergic to shellfish")]);
-    vi.mocked(generateEmbedding)
-      .mockRejectedValueOnce(new Error("transient blip"))
-      .mockResolvedValue([1, 0, 0]);
+    vi.mocked(generateEmbedding).mockResolvedValue([1, 0, 0]);
     vi.mocked(generateEmbeddings).mockResolvedValue([[1, 0, 0]]);
 
     const seen: RecallDiagnostics[] = [];
@@ -1681,5 +1683,65 @@ describe("recall — diagnostics: emptyReason on a mixed recall", () => {
     const seen: RecallDiagnostics[] = [];
     await recall(QUERY, makeCtx(), { types: ["fact"], onDiagnostics: (d) => seen.push(d) });
     expect(seen[0].emptyReason).toBe("vault-empty");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// anuma-ai/sdk#949 — recall reliability
+// ---------------------------------------------------------------------------
+
+describe("recall — the single-hop graph lane is bounded", () => {
+  // A common entity (the user's own name) can be shared by hundreds of rows, and
+  // every id becomes an RRF entry — and, under decrypt-last, a forced decrypt.
+  // The multi-hop lane always capped at the node budget; low/mid did not.
+  function manyEntityHits(n: number) {
+    return new Map(
+      Array.from({ length: n }, (_, i) => [`e${i}`, new Set(["sara"])] as [string, Set<string>])
+    );
+  }
+
+  it("caps the single-hop lane at NODE_BUDGET by default", async () => {
+    vi.mocked(getMemoriesByEntityNamesOp).mockResolvedValue(manyEntityHits(200));
+    const seen: RecallDiagnostics[] = [];
+
+    await recall("Where is Sara traveling", makeCtx({ entityCtx }), {
+      onDiagnostics: (d) => seen.push(d),
+    });
+
+    expect(seen[0].graphLaneCount).toBe(64);
+  });
+
+  it("honors a caller nodeBudget on the single-hop lane", async () => {
+    vi.mocked(getMemoriesByEntityNamesOp).mockResolvedValue(manyEntityHits(200));
+    const seen: RecallDiagnostics[] = [];
+
+    await recall("Where is Sara traveling", makeCtx({ entityCtx }), {
+      nodeBudget: 5,
+      onDiagnostics: (d) => seen.push(d),
+    });
+
+    expect(seen[0].graphLaneCount).toBe(5);
+  });
+});
+
+describe("recall — a mixed recall embeds the query once", () => {
+  it("shares one query embedding between the chunk lane and the fact lane", async () => {
+    vi.mocked(searchChunksOp).mockResolvedValue([makeChunk("c1", "conv-a", 0.9)]);
+
+    await recall(QUERY, makeCtx(), { types: ["fact", "chunk"] });
+
+    expect(vi.mocked(generateEmbedding)).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(searchVaultMemoriesWithSize).mock.calls[0][4]).toMatchObject({
+      queryEmbedding: vecFor(QUERY),
+    });
+    expect(vi.mocked(searchChunksOp).mock.calls[0][1]).toEqual(vecFor(QUERY));
+  });
+
+  it("still lets a fact-only recall embed inside the vault search (skipped on an empty vault)", async () => {
+    vi.mocked(getAllVaultMemoriesOp).mockResolvedValue([]);
+
+    await recall(QUERY, makeCtx(), { types: ["fact"] });
+
+    expect(vi.mocked(generateEmbedding)).not.toHaveBeenCalled();
   });
 });

@@ -1,6 +1,6 @@
 # RecallContext
 
-Defined in: [src/lib/memory/types.ts:247](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#247)
+Defined in: [src/lib/memory/types.ts:254](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#254)
 
 ## Properties
 
@@ -8,7 +8,7 @@ Defined in: [src/lib/memory/types.ts:247](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **chunkCache**: [`ChunkVectorCache`](../type-aliases/ChunkVectorCache.md)
 
-Defined in: [src/lib/memory/types.ts:261](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#261)
+Defined in: [src/lib/memory/types.ts:268](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#268)
 
 Optional chunk-vector LRU cache. When provided, the chunk lane skips the
 per-query decrypt + JSON.parse of every message's chunk vectors on warm
@@ -20,7 +20,7 @@ entries. Build via `createChunkVectorCache`. Omit for legacy behavior.
 
 > **embeddingOptions**: [`MemoryEngineEmbeddingOptions`](MemoryEngineEmbeddingOptions.md)
 
-Defined in: [src/lib/memory/types.ts:253](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#253)
+Defined in: [src/lib/memory/types.ts:260](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#260)
 
 Embedding API options.
 
@@ -30,7 +30,7 @@ Embedding API options.
 
 > `optional` **entityCtx**: [`EntityOperationsContext`](EntityOperationsContext.md)
 
-Defined in: [src/lib/memory/types.ts:268](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#268)
+Defined in: [src/lib/memory/types.ts:275](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#275)
 
 Optional — when provided, recall extracts entities from the query
 and adds a graph lane to the RRF fusion (memories sharing entities
@@ -43,7 +43,7 @@ with the query rank higher). Build via `entityCollection` +
 
 > `optional` **storageCtx**: [`StorageOperationsContext`](StorageOperationsContext.md)
 
-Defined in: [src/lib/memory/types.ts:251](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#251)
+Defined in: [src/lib/memory/types.ts:258](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#258)
 
 Required when `types` includes 'chunk'.
 
@@ -53,7 +53,7 @@ Required when `types` includes 'chunk'.
 
 > `optional` **vaultCache**: [`VaultEmbeddingCache`](../type-aliases/VaultEmbeddingCache.md)
 
-Defined in: [src/lib/memory/types.ts:255](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#255)
+Defined in: [src/lib/memory/types.ts:262](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#262)
 
 Vault embedding LRU cache.
 
@@ -63,6 +63,6 @@ Vault embedding LRU cache.
 
 > `optional` **vaultCtx**: [`VaultMemoryOperationsContext`](VaultMemoryOperationsContext.md)
 
-Defined in: [src/lib/memory/types.ts:249](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#249)
+Defined in: [src/lib/memory/types.ts:256](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#256)
 
 Required when `types` includes 'fact'.

@@ -37,8 +37,11 @@ interface ModelHandle {
 export class RerankerUnavailableError extends Error {
   /** The underlying import failure, kept for debugging. */
   readonly reason: unknown;
-  constructor(reason: unknown) {
-    super("cross-encoder reranker unavailable (@huggingface/transformers not installed)");
+  constructor(
+    reason: unknown,
+    message = "cross-encoder reranker unavailable (@huggingface/transformers not installed)"
+  ) {
+    super(message);
     this.name = "RerankerUnavailableError";
     this.reason = reason;
   }
@@ -129,6 +132,55 @@ async function getModel(): Promise<ModelHandle> {
   return modelPromise;
 }
 
+/**
+ * How long a rerank waits for the model's FIRST load before degrading. The load
+ * is a ~25MB fetch plus WASM/ONNX init; on a slow or stalled network it could
+ * previously hold every `budget: 'mid' | 'high'` recall for as long as the fetch
+ * took, which on a dead connection is forever.
+ */
+const DEFAULT_RERANKER_LOAD_TIMEOUT_MS = 10_000;
+
+interface RerankOptions {
+  /**
+   * Max ms to wait for a not-yet-loaded model (default 10000). On expiry this
+   * call throws {@link RerankerUnavailableError} — callers already degrade that
+   * to the fused ranking — while the load keeps going in the background, so a
+   * later call can still use the model. `0` waits indefinitely.
+   */
+  loadTimeoutMs?: number;
+}
+
+/**
+ * {@link getModel}, bounded. Only a PENDING load is raced: once the model has
+ * resolved, the await is immediate and the deadline never matters.
+ *
+ * Deliberately does not touch `available` or `modelPromise` on expiry — a slow
+ * first load is neither the permanent "package missing" state nor a failure,
+ * and dropping the in-flight promise would restart the download next call.
+ */
+async function getModelWithin(loadTimeoutMs: number): Promise<ModelHandle> {
+  const load = getModel();
+  if (available === true || !(loadTimeoutMs > 0) || !Number.isFinite(loadTimeoutMs)) return load;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const deadline = new Promise<never>((_, reject) => {
+    timer = setTimeout(
+      () =>
+        reject(
+          new RerankerUnavailableError(
+            undefined,
+            `cross-encoder reranker unavailable (model load exceeded ${loadTimeoutMs}ms)`
+          )
+        ),
+      loadTimeoutMs
+    );
+  });
+  try {
+    return await Promise.race([load, deadline]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 interface RerankerItem {
   id: string;
   content: string;
@@ -184,10 +236,16 @@ export function formatRerankDoc(content: string, dateMs?: number | null): string
  * When an item carries {@link RerankerItem.dateMs}, the CE sees a
  * date-prefixed doc (C4) while the returned `content` stays unprefixed.
  */
-export async function rerankPairs(query: string, items: RerankerItem[]): Promise<RerankedItem[]> {
+export async function rerankPairs(
+  query: string,
+  items: RerankerItem[],
+  options?: RerankOptions
+): Promise<RerankedItem[]> {
   if (items.length === 0 || !query) return [];
 
-  const { tokenizer, model } = await getModel();
+  const { tokenizer, model } = await getModelWithin(
+    options?.loadTimeoutMs ?? DEFAULT_RERANKER_LOAD_TIMEOUT_MS
+  );
 
   // Tokenize each (query, doc) pair. transformers.js expects the pair
   // arm to come in via the `text_pair` option, not as a positional arg.

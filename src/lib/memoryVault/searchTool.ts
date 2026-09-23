@@ -5,7 +5,6 @@
  * using semantic similarity over pre-computed embeddings.
  */
 
-import type { ToolConfig } from "../chat/useChat/types";
 import { isEncrypted } from "../db/encryption-utils";
 import type { VaultMemoryOperationsContext } from "../db/memoryVault/operations";
 import {
@@ -19,7 +18,6 @@ import type { StoredVaultMemory } from "../db/memoryVault/types";
 import { getLogger } from "../logger";
 import { applyMMR } from "../memory/mmr";
 import type { PortalLlmAuth } from "../memory/portalLlm";
-import { EMBEDDINGS_DEGRADED_EMPTY } from "../memory/recallConstants";
 import { recencyMultiplier, type RecencyOptions } from "../memory/recency";
 import { RerankerUnavailableError, rerankPairs } from "../memory/reranker";
 import { rrfFuse } from "../memory/rrf";
@@ -28,7 +26,7 @@ import { generateEmbedding, generateEmbeddings } from "../memoryEngine/embedding
 import type { EmbeddingOptions } from "../memoryEngine/types";
 import { cosineSimilarity } from "../memoryEngine/vector";
 import { prepareBM25Corpus, type PreparedBM25Corpus, scoreBM25, scoreBM25Prepared } from "./bm25";
-import { decomposeQuery, normalizeSubQueries } from "./decomposeQuery";
+import { normalizeSubQueries } from "./decomposeQuery";
 
 export { createVaultEmbeddingCache, DEFAULT_VAULT_CACHE_SIZE } from "./lruCache";
 
@@ -129,10 +127,14 @@ interface EmbedStats {
 
 /** Monotonic wall clock in ms; `performance.now()` where available (browser /
  * RN / Node), else `Date.now()`. Best-effort stage timings only. */
-const nowMs = (): number =>
-  typeof performance !== "undefined" && typeof performance.now === "function"
+// A function DECLARATION, not a `const` arrow: declarations are initialized
+// when the module is instantiated, so a call that lands while this module is
+// still mid-evaluation (an import cycle) can't hit the TDZ.
+function nowMs(): number {
+  return typeof performance !== "undefined" && typeof performance.now === "function"
     ? performance.now()
     : Date.now();
+}
 
 /** One-time breadcrumb for callers still passing `decompose: "llm"` into the
  * programmatic search path (719/B4). The tool executor still honors that flag;
@@ -184,6 +186,12 @@ export interface MemoryVaultSearchOptions {
   rerankTopN?: number;
   /** Multiplicative cross-encoder blend weight. Default 0.1. Only used when `rerank` is true. */
   ceWeight?: number;
+  /**
+   * Max ms a rerank waits for the cross-encoder's FIRST model load (default
+   * 10000). On expiry the search degrades to the fused ranking and reports
+   * `reranked: false`; the load continues in the background for later calls.
+   */
+  rerankLoadTimeoutMs?: number;
   /** Recency boost slope applied in the fused ranker. Default 1.0. */
   recencyAlpha?: number;
   /** Recency decay curve overrides (per-year decay slope, floor, no-date multiplier). */
@@ -251,6 +259,15 @@ export interface MemoryVaultSearchOptions {
    * prefix stays byte-identical.
    */
   decryptLast?: boolean;
+  /**
+   * A vector the caller already computed for THIS query, with the model named in
+   * `embeddingOptions`. When set, the search uses it instead of embedding the
+   * query a second time — `recall()` embeds once for its chunk lane and passes
+   * the vector here. An EMPTY array means the caller's embed failed: the search
+   * degrades to BM25 (reported as embeddings unavailable) without re-trying a
+   * provider that just failed.
+   */
+  queryEmbedding?: number[];
   /** Admission window multiplier for decrypt-last (`limit * admitFactor`). Default 3. */
   admitFactor?: number;
   /** Admission window floor for decrypt-last. Default 30. */
@@ -300,6 +317,134 @@ interface EmbeddedItem {
    * chunk lane (a fact and the chunk it came from shouldn't both surface). */
   sourceChunkIds?: string[] | null;
 }
+
+/**
+ * A ranked row rebuilt from its source item. Every lane that (re)admits a row —
+ * the cosine ranker, BM25 admission, side-lane tail admission — goes through
+ * here, so none of them can drop the event-time anchors or `factType` again:
+ * `formatRecallResult` prints the event date from these fields, and a lane that
+ * rebuilt a bare row made the fact's date vanish for exactly the temporal
+ * questions that needed it.
+ */
+function resultFromItem(item: EmbeddedItem, similarity: number): VaultSearchResult {
+  return {
+    uniqueId: item.id,
+    content: item.content,
+    similarity,
+    createdAt: item.createdAt ?? item.updatedAt,
+    updatedAt: item.updatedAt,
+    eventTimeStart: item.eventTimeStart,
+    eventTimeEnd: item.eventTimeEnd,
+    eventTimeKind: item.eventTimeKind,
+    factType: item.factType,
+    sourceChunkIds: item.sourceChunkIds,
+  };
+}
+
+/** Tuning inputs to {@link makeBoostFor}. */
+interface BoostTuning {
+  recencyAlpha?: number;
+  recency?: RecencyOptions;
+  proofCountAlpha?: number;
+  factTypeWeights?: Record<string, number>;
+}
+
+/**
+ * Per-item recency · proof-count · fact-type multiplier (Stage 3 of the fused
+ * ranker). Built once per ranking call and shared by the base ranking and the
+ * side-lane fusion, so both rankers apply the identical multiplier.
+ */
+function makeBoostFor(
+  itemById: Map<string, EmbeddedItem>,
+  tuning: BoostTuning | undefined
+): (id: string) => number {
+  const recencyAlpha = tuning?.recencyAlpha ?? 1.0;
+  const proofCountAlpha = tuning?.proofCountAlpha ?? 0.1;
+  const factTypeWeights = tuning?.factTypeWeights;
+  return (id: string): number => {
+    const item = itemById.get(id);
+    const recency = recencyMultiplier(item?.updatedAt, tuning?.recency);
+    const recencyBoost = 1 + recencyAlpha * (recency - 0.5);
+    // proof_count: re-observed facts get a small log-curve lift (Hindsight α=0.1).
+    // Items with no proof_count (legacy / unset) treated as 1 → neutral.
+    const proofCount = Math.max(1, item?.proofCount ?? 1);
+    const proofBoost =
+      1 + proofCountAlpha * Math.log(1 + proofCount) - proofCountAlpha * Math.log(2);
+    // PR5 — optional per-type weight. Absent type / untyped row / bad weight → 1.0.
+    const rawTypeWeight = item?.factType ? factTypeWeights?.[item.factType] : undefined;
+    const typeWeight =
+      rawTypeWeight !== undefined && Number.isFinite(rawTypeWeight) && rawTypeWeight > 0
+        ? rawTypeWeight
+        : 1;
+    return recencyBoost * proofBoost * typeWeight;
+  };
+}
+
+/** The non-empty W5 (entity) / W6 (temporal) side-lane rankings. */
+function sideLanesOf(options?: {
+  entityRanking?: string[];
+  temporalRanking?: string[];
+}): string[][] {
+  const lanes: string[][] = [];
+  if (options?.entityRanking && options.entityRanking.length > 0) {
+    lanes.push(options.entityRanking);
+  }
+  if (options?.temporalRanking && options.temporalRanking.length > 0) {
+    lanes.push(options.temporalRanking);
+  }
+  return lanes;
+}
+
+/**
+ * W5/W6 side-lane fusion, shared by the sync ({@link rankFusedVaultMemories})
+ * and async ({@link rankFusedVaultMemoriesAsync}) rankers.
+ *
+ * RRF over `[primary, primary, ...sideLanes]` — the primary ranking weighted 2x
+ * so a side lane stays a tiebreaker that surfaces what the primary ranking
+ * missed, never an overrule — then `boostFor` multiplied back in, because the
+ * RRF score REPLACES the similarity and would otherwise discard Stage 3's
+ * recency · proof · type multiplier. Side-lane ids absent from `primary` are
+ * admitted at their fused score (graph/temporal are retrieval lanes).
+ *
+ * One helper because two copies had already diverged: the sync path multiplied
+ * `boostFor` back in and the async path did not, so `budget: 'low'` and
+ * `budget: 'mid'` ranked the same candidates in a different order.
+ *
+ * `primary` must be in rank order. Returns a new array sorted by fused score.
+ */
+function fuseSideLanes(
+  primary: VaultSearchResult[],
+  sideLanes: string[][],
+  itemById: Map<string, EmbeddedItem>,
+  boostFor: (id: string) => number,
+  rrfK: number | undefined
+): VaultSearchResult[] {
+  const primaryIds = primary.map((r) => r.uniqueId);
+  const fused = rrfFuse([primaryIds, primaryIds, ...sideLanes], rrfK);
+  const out = primary.map((r) => ({
+    ...r,
+    similarity: (fused.get(r.uniqueId) ?? 0) * boostFor(r.uniqueId),
+  }));
+  const seen = new Set(primaryIds);
+  for (const lane of sideLanes) {
+    for (const id of lane) {
+      if (seen.has(id)) continue;
+      const it = itemById.get(id);
+      if (!it) continue;
+      out.push(resultFromItem(it, (fused.get(id) ?? 0) * boostFor(id)));
+      seen.add(id);
+    }
+  }
+  return out.sort((a, b) => b.similarity - a.similarity);
+}
+
+/**
+ * Cap on the BM25 lift blended into a row the cosine lane already admitted
+ * (see `blendBM25` in {@link rankFusedVaultMemories}). Equal to the default
+ * cosine floor — the most a BM25-only admission can score on a healthy search —
+ * so a lexical match lifts a row by at most what it could have earned alone.
+ */
+const BM25_BLEND_CAP = 0.1;
 
 /**
  * C4 date for cross-encoder pairs: prefer the fact's anchored event time,
@@ -536,17 +681,9 @@ export function rankVaultMemories(
   }
 
   const itemById = new Map(items.map((i) => [i.id, i]));
-  return filtered.slice(0, limit).map((r) => {
-    const item = itemById.get(r.uniqueId);
-    return {
-      uniqueId: r.uniqueId,
-      content: r.content,
-      similarity: r.similarity,
-      createdAt: item?.createdAt ?? item?.updatedAt,
-      updatedAt: item?.updatedAt,
-      sourceChunkIds: item?.sourceChunkIds,
-    };
-  });
+  return filtered
+    .slice(0, limit)
+    .map((r) => resultFromItem(itemById.get(r.uniqueId)!, r.similarity));
 }
 
 /**
@@ -642,10 +779,7 @@ export function rankFusedVaultMemories(
 ): VaultSearchResult[] {
   const limit = options?.limit ?? 5;
   const minSimilarity = options?.minSimilarity ?? 0.1;
-  const recencyAlpha = options?.recencyAlpha ?? 1.0;
-  const proofCountAlpha = options?.proofCountAlpha ?? 0.1;
   const bm25AdmissionDivisor = options?.bm25AdmissionDivisor ?? 50;
-  const factTypeWeights = options?.factTypeWeights;
 
   if (items.length === 0) return [];
 
@@ -662,15 +796,35 @@ export function rankFusedVaultMemories(
   });
   const baseIds = new Set(baseRanked.map((r) => r.uniqueId));
 
-  // Stage 2 — BM25 admission for items not in the cosine ranking. Reuse a prepared corpus
-  // (B3) when the caller shares one across facet passes; otherwise tokenize inline as before.
+  // Stage 2 — BM25. Reuse a prepared corpus (B3) when the caller shares one
+  // across facet passes; otherwise tokenize inline as before.
   const bm25Scores = options?.preparedBM25Corpus
     ? scoreBM25Prepared(query, options.preparedBM25Corpus)
     : scoreBM25(
         query,
         items.map((i) => ({ id: i.id, content: i.content }))
       );
+  // BM25 normally only ADMITS rows cosine missed, at a floor capped under the
+  // cosine threshold. Two states break that, and in both BM25 must be BLENDED:
+  //  - no query vector (embeddings outage): every cosine is 0, so the cap would
+  //    flatten every lexical hit to the same score and rank them by recency
+  //    alone. Uncapped, BM25 is the ranking.
+  //  - `minSimilarity <= 0`: every row clears the cosine floor, so NOTHING is
+  //    left for BM25 to admit — a lexical match counted for nothing at all.
+  //    Blend a capped lift into the rows cosine already holds instead.
+  const cosineInert = queryEmbedding.length === 0;
+  const blendBM25 = cosineInert || minSimilarity <= 0;
+  const bm25Lift = (bm25: number): number =>
+    cosineInert
+      ? bm25 / bm25AdmissionDivisor
+      : Math.min(BM25_BLEND_CAP, bm25 / bm25AdmissionDivisor);
   const itemById = new Map(items.map((i) => [i.id, i]));
+  const base = blendBM25
+    ? baseRanked.map((r) => {
+        const bm25 = bm25Scores.get(r.uniqueId) ?? 0;
+        return bm25 > 0 ? { ...r, similarity: r.similarity + bm25Lift(bm25) } : r;
+      })
+    : baseRanked;
   const admitted: VaultSearchResult[] = [];
   for (const item of items) {
     if (baseIds.has(item.id)) continue;
@@ -678,85 +832,27 @@ export function rankFusedVaultMemories(
     if (bm25 <= 0) continue;
     // Map BM25 score to a small floor under the cosine threshold so
     // BM25-only hits enter the ranking but rarely outrank cosine winners.
-    admitted.push({
-      uniqueId: item.id,
-      content: item.content,
-      similarity: Math.min(minSimilarity, bm25 / bm25AdmissionDivisor),
-      createdAt: item.createdAt ?? item.updatedAt,
-      updatedAt: item.updatedAt,
-      eventTimeStart: item.eventTimeStart,
-      sourceChunkIds: item.sourceChunkIds,
-      eventTimeEnd: item.eventTimeEnd,
-      eventTimeKind: item.eventTimeKind,
-      factType: item.factType,
-    });
+    admitted.push(
+      resultFromItem(
+        item,
+        cosineInert ? bm25Lift(bm25) : Math.min(minSimilarity, bm25 / bm25AdmissionDivisor)
+      )
+    );
   }
 
-  // Stage 3 — recency + proof-count boosts on the union.
-  // proof_count: re-observed facts get a small log-curve lift (Hindsight α=0.1).
-  // Items with no proof_count (legacy / unset) treated as 1 → log(2)≈0.69 → boost ~7%.
-  const boostFor = (id: string): number => {
-    const item = itemById.get(id);
-    const recency = recencyMultiplier(item?.updatedAt, options?.recency);
-    const recencyBoost = 1 + recencyAlpha * (recency - 0.5);
-    const proofCount = Math.max(1, item?.proofCount ?? 1);
-    const proofBoost =
-      1 + proofCountAlpha * Math.log(1 + proofCount) - proofCountAlpha * Math.log(2);
-    // PR5 — optional per-type weight. Absent type / untyped row / bad weight → 1.0.
-    const rawTypeWeight = item?.factType ? factTypeWeights?.[item.factType] : undefined;
-    const typeWeight =
-      rawTypeWeight !== undefined && Number.isFinite(rawTypeWeight) && rawTypeWeight > 0
-        ? rawTypeWeight
-        : 1;
-    return recencyBoost * proofBoost * typeWeight;
-  };
-  let combined: VaultSearchResult[] = [...baseRanked, ...admitted].map((r) => ({
+  // Stage 3 — recency + proof-count + fact-type boosts on the union.
+  const boostFor = makeBoostFor(itemById, options);
+  let combined: VaultSearchResult[] = [...base, ...admitted].map((r) => ({
     ...r,
     similarity: r.similarity * boostFor(r.uniqueId),
   }));
 
-  // Stage 4 — W5 graph lane fusion. RRF the boosted cosine+BM25 head with
-  // the entity-overlap ranking. Same logic as the async/CE path: graph
-  // remains a retrieval lane (admits zero-cosine candidates with shared
-  // entities) without overruling cosine on items it has already seen.
-  // Cosine head weighted 2× via duplication so each side lane is a
-  // tiebreaker, not an overrule.
-  const sideLanes: string[][] = [];
-  if (options?.entityRanking && options.entityRanking.length > 0) {
-    sideLanes.push(options.entityRanking);
-  }
-  if (options?.temporalRanking && options.temporalRanking.length > 0) {
-    sideLanes.push(options.temporalRanking);
-  }
+  // Stage 4 — W5 graph / W6 temporal lane fusion. Same helper as the async/CE
+  // path, so both budgets rank a side-lane recall identically.
+  const sideLanes = sideLanesOf(options);
   if (sideLanes.length > 0) {
     combined.sort((a, b) => b.similarity - a.similarity);
-    const headIds = combined.map((r) => r.uniqueId);
-    const fused = rrfFuse([headIds, headIds, ...sideLanes], options?.rrfK);
-    // Multiply boostFor back in so the recency · proof multiplier from
-    // Stage 3 isn't discarded by the RRF score replacement. Without
-    // this, the high-budget side-lane path drops exactly the signal
-    // it's supposed to layer on top of cosine + BM25.
-    combined = combined.map((r) => ({
-      ...r,
-      similarity: (fused.get(r.uniqueId) ?? 0) * boostFor(r.uniqueId),
-    }));
-    const seen = new Set(combined.map((r) => r.uniqueId));
-    for (const lane of sideLanes) {
-      for (const id of lane) {
-        if (seen.has(id)) continue;
-        const it = itemById.get(id);
-        if (!it) continue;
-        combined.push({
-          uniqueId: id,
-          content: it.content,
-          similarity: (fused.get(id) ?? 0) * boostFor(id),
-          createdAt: it.createdAt ?? it.updatedAt,
-          updatedAt: it.updatedAt,
-          sourceChunkIds: it.sourceChunkIds,
-        });
-        seen.add(id);
-      }
-    }
+    combined = fuseSideLanes(combined, sideLanes, itemById, boostFor, options?.rrfK);
   }
 
   return combined.sort((a, b) => b.similarity - a.similarity).slice(0, limit);
@@ -845,6 +941,9 @@ export async function rankFusedVaultMemoriesAsync(
     rerank?: boolean;
     rerankTopN?: number;
     ceWeight?: number;
+    /** Max ms to wait for the cross-encoder's first model load before degrading
+     * to the V2 ranking. Default 10000 — see `rerankPairs`. */
+    rerankLoadTimeoutMs?: number;
     /** Fraction of the score gap transferred old→new on supersession. Default 0.8. */
     supersessionBoost?: number;
     /** Hard cap on the supersession candidate window. Default 50. */
@@ -957,7 +1056,10 @@ export async function rankFusedVaultMemoriesAsync(
           content: r.content,
           // C4: date-prefix the CE doc so temporal alignment influences rank.
           dateMs: rerankDateMs(itemById.get(r.uniqueId) ?? r),
-        }))
+        })),
+        options.rerankLoadTimeoutMs !== undefined
+          ? { loadTimeoutMs: options.rerankLoadTimeoutMs }
+          : undefined
       );
       tailSlice = v2Ranked.slice(rerankTopN);
 
@@ -1002,15 +1104,8 @@ export async function rankFusedVaultMemoriesAsync(
   // surfaces candidates V2 missed entirely (e.g. zero-cosine items with
   // shared entities — the hard_negatives win), without overruling the
   // CE's lexical decisions on items it has already seen.
-  const sideLanesAsync: string[][] = [];
-  if (options?.entityRanking && options.entityRanking.length > 0) {
-    sideLanesAsync.push(options.entityRanking);
-  }
-  if (options?.temporalRanking && options.temporalRanking.length > 0) {
-    sideLanesAsync.push(options.temporalRanking);
-  }
+  const sideLanesAsync = sideLanesOf(options);
   if (sideLanesAsync.length > 0) {
-    const headIds = combined.map((r) => r.uniqueId);
     // The V2-ranked tail joins the fusion pool at ONE lane's weight, at its
     // true rank — it is not stapled on afterwards.
     //
@@ -1033,40 +1128,22 @@ export async function rankFusedVaultMemoriesAsync(
     // 1/61 = 0.0164, including a zero-cosine one. Only weighting the full
     // ranking restores it to 2/66 = 0.0303.
     //
-    // When the tail is empty (rerank off, or a head covering every item)
-    // `rankedIds` IS `headIds` and this reduces to the previous
-    // `[headIds, headIds, ...lanes]` exactly — so the paths that were already
-    // correct are untouched.
-    const tailIds = tailSlice.map((r) => r.uniqueId);
-    const rankedIds = tailIds.length > 0 ? [...headIds, ...tailIds] : headIds;
-    const fused = rrfFuse([rankedIds, rankedIds, ...sideLanesAsync], options?.rrfK);
-    const fusedHead = [...combined, ...tailSlice]
-      .map((r) => ({ ...r, similarity: fused.get(r.uniqueId) ?? r.similarity }))
-      .sort((a, b) => b.similarity - a.similarity);
+    // When the tail is empty (rerank off, or a head covering every item) the
+    // pool IS the head and this reduces to the previous
+    // `[headIds, headIds, ...lanes]` exactly.
+    //
+    // Fused through the SAME helper as the sync ranker, which multiplies the
+    // recency · proof · type boost back in after RRF — this path used to drop
+    // it, so a side-lane recall ranked differently at `mid` than at `low`.
+    combined = fuseSideLanes(
+      [...combined, ...tailSlice],
+      sideLanesAsync,
+      itemById,
+      makeBoostFor(itemById, options),
+      options?.rrfK
+    );
     // Absorbed into the pool above; must not also be appended at the end.
     tailSlice = [];
-    // Items in side lanes but absent from the CE head re-enter the pipeline
-    // at the bottom so they're available to RRF even if CE didn't see them.
-    const seen = new Set(fusedHead.map((r) => r.uniqueId));
-    const itemById = new Map(items.map((i) => [i.id, i]));
-    for (const lane of sideLanesAsync) {
-      for (const id of lane) {
-        if (seen.has(id)) continue;
-        const it = itemById.get(id);
-        if (!it) continue;
-        fusedHead.push({
-          uniqueId: id,
-          content: it.content,
-          similarity: fused.get(id) ?? 0,
-          createdAt: it.createdAt ?? it.updatedAt,
-          updatedAt: it.updatedAt,
-          sourceChunkIds: it.sourceChunkIds,
-        });
-        seen.add(id);
-      }
-    }
-    fusedHead.sort((a, b) => b.similarity - a.similarity);
-    combined = fusedHead;
   }
 
   if (options?.mmr) {
@@ -1157,6 +1234,8 @@ export async function rankComposite(
     rerank?: boolean;
     rerankTopN?: number;
     ceWeight?: number;
+    /** See {@link rankFusedVaultMemoriesAsync}. */
+    rerankLoadTimeoutMs?: number;
     rrfK?: number;
     /** Fraction of the score gap transferred old→new on supersession. Default 0.8. */
     supersessionBoost?: number;
@@ -1368,7 +1447,10 @@ export async function rankComposite(
           content: r.content,
           // C4: date-prefix the CE doc so temporal alignment influences rank.
           dateMs: rerankDateMs(itemById.get(r.uniqueId) ?? r),
-        }))
+        })),
+        options.rerankLoadTimeoutMs !== undefined
+          ? { loadTimeoutMs: options.rerankLoadTimeoutMs }
+          : undefined
       );
       const ceById = new Map(reranked.map((r) => [r.id, r.score]));
 
@@ -1431,6 +1513,62 @@ export async function rankComposite(
 }
 
 /**
+ * The `updatedAt` (ms) of the row each cached vector was resolved from.
+ *
+ * The cache is keyed by memory id and was validated by dimension alone, so a
+ * row whose content changed underneath it — an edit synced from another
+ * device, a merge — kept ranking on the vector of its OLD content for the life
+ * of the cache. Every entry this module writes now carries the row version it
+ * came from, and a read against a newer (or older) row version is a miss.
+ *
+ * Keyed by the vector object rather than by id, and kept beside the cache
+ * rather than inside it, so {@link VaultEmbeddingCache} keeps its public
+ * `Map<string, Float32Array>` shape AND a writer elsewhere that replaces an
+ * entry (`retain()`, the vault tool) cannot inherit the stamp of the vector it
+ * replaced: its new vector is simply unstamped.
+ */
+const vectorRowVersion = new WeakMap<Float32Array, number>();
+
+/** `cache.set` that records which row version the vector belongs to. */
+function cacheRowVector(
+  cache: VaultEmbeddingCache,
+  id: string,
+  vec: Float32Array,
+  updatedAt: Date | undefined
+): void {
+  cache.set(id, vec);
+  const version = updatedAt?.getTime();
+  if (version !== undefined && Number.isFinite(version)) vectorRowVersion.set(vec, version);
+}
+
+/**
+ * `cache.get` for a row at `updatedAt`, or undefined when the entry belongs to a
+ * different version of the row (the stale entry is evicted). An UNSTAMPED entry
+ * — written outside this module, e.g. by `retain()` right after it saved the
+ * row — is trusted and adopts this version, so later edits invalidate it too.
+ */
+function cachedRowVector(
+  cache: VaultEmbeddingCache,
+  id: string,
+  updatedAt: Date | undefined
+): Float32Array | undefined {
+  const vec = cache.get(id);
+  if (!vec) return undefined;
+  const version = updatedAt?.getTime();
+  if (version === undefined || !Number.isFinite(version)) return vec;
+  const stamped = vectorRowVersion.get(vec);
+  if (stamped === undefined) {
+    vectorRowVersion.set(vec, version);
+    return vec;
+  }
+  if (stamped !== version) {
+    cache.delete(id);
+    return undefined;
+  }
+  return vec;
+}
+
+/**
  * Pre-embed all vault memories that are not yet in the cache.
  * Call this at init time so searches are instant.
  */
@@ -1445,6 +1583,7 @@ export async function preEmbedVaultMemories(
   const uncachedTexts: string[] = [];
   const uncachedKeys: string[] = [];
   const uncachedIds: string[] = [];
+  const uncachedVersions: Array<Date | undefined> = [];
   for (const m of memories) {
     const content = m.content;
     // Never embed (or cache) ciphertext — decryption is best-effort and
@@ -1452,7 +1591,7 @@ export async function preEmbedVaultMemories(
     if (isEncrypted(content)) continue;
     // Cache is keyed by memory id (not content): keeps plaintext out of the
     // key space and lets edits/deletes invalidate by id.
-    if (!cache.has(m.uniqueId)) {
+    if (!cachedRowVector(cache, m.uniqueId, m.updatedAt)) {
       // Use a persisted embedding only if it was produced by the current
       // model. null/undefined = legacy, grandfathered (coalesces to the
       // current model). Stale-model vectors are re-embedded so a model change
@@ -1462,7 +1601,7 @@ export async function preEmbedVaultMemories(
         try {
           const parsed = JSON.parse(m.embedding) as number[];
           if (Array.isArray(parsed)) {
-            cache.set(m.uniqueId, Float32Array.from(parsed));
+            cacheRowVector(cache, m.uniqueId, Float32Array.from(parsed), m.updatedAt);
             continue;
           }
         } catch {
@@ -1472,12 +1611,13 @@ export async function preEmbedVaultMemories(
       uncachedTexts.push(m.content);
       uncachedKeys.push(m.uniqueId);
       uncachedIds.push(m.uniqueId);
+      uncachedVersions.push(m.updatedAt);
     }
   }
   if (uncachedTexts.length > 0) {
     const embeddings = await generateEmbeddings(uncachedTexts, embeddingOptions);
     for (let i = 0; i < uncachedKeys.length; i++) {
-      cache.set(uncachedKeys[i], Float32Array.from(embeddings[i]));
+      cacheRowVector(cache, uncachedKeys[i], Float32Array.from(embeddings[i]), uncachedVersions[i]);
       // Persist embedding + model to DB (fire-and-forget)
       updateVaultMemoryEmbeddingOp(
         vaultCtx,
@@ -1545,8 +1685,16 @@ export async function eagerEmbedContent(
 async function embedQueryOrDegrade(
   query: string,
   embeddingOptions: EmbeddingOptions,
-  onDegraded?: () => void
+  onDegraded?: () => void,
+  precomputed?: number[]
 ): Promise<number[]> {
+  // The caller already paid for this query's embed (see
+  // MemoryVaultSearchOptions.queryEmbedding). An empty one is a failed embed,
+  // not a request to try again.
+  if (precomputed !== undefined) {
+    if (precomputed.length === 0) onDegraded?.();
+    return precomputed;
+  }
   try {
     const embedding = await generateEmbedding(query, embeddingOptions);
     // An empty vector is the same dead cosine lane as a thrown request — a
@@ -1627,6 +1775,8 @@ export async function buildProjectedCorpus(
     forceIncludeIds?: string[];
     /** Invoked when the query embedding failed and this search degraded to BM25-only. */
     onEmbeddingDegraded?: () => void;
+    /** Precomputed query vector — see {@link MemoryVaultSearchOptions.queryEmbedding}. */
+    queryEmbedding?: number[];
     /**
      * Optional out-param. Accumulates this call's portal-embedding bill — see
      * {@link EmbedStats}. Written even on the degraded paths, because an embed
@@ -1704,7 +1854,8 @@ export async function buildProjectedCorpus(
   const queryEmbedding = await embedQueryOrDegrade(
     query,
     embeddingOptions,
-    opts.onEmbeddingDegraded
+    opts.onEmbeddingDegraded,
+    opts.queryEmbedding
   );
   if (opts.embedStats) opts.embedStats.queryMs += nowMs() - queryEmbedStart;
   // With no query vector, every vector-resolution step below is dead work: a
@@ -1721,7 +1872,7 @@ export async function buildProjectedCorpus(
   const keyById = new Map(keys.map((k) => [k.uniqueId, k]));
   if (!embeddingsDegraded) {
     for (const k of keys) {
-      const cached = cache.get(k.uniqueId);
+      const cached = cachedRowVector(cache, k.uniqueId, k.updatedAt);
       if (cached && cached.length === queryEmbedding.length) {
         vectored.push({ uniqueId: k.uniqueId, embedding: cached, updatedAt: k.updatedAt });
         continue;
@@ -1742,8 +1893,8 @@ export async function buildProjectedCorpus(
         const parsed = JSON.parse(r.embedding) as number[];
         if (Array.isArray(parsed) && parsed.length === queryEmbedding.length) {
           const vec = Float32Array.from(parsed);
-          cache.set(r.uniqueId, vec);
           const k = keyById.get(r.uniqueId)!;
+          cacheRowVector(cache, r.uniqueId, vec, k.updatedAt);
           vectored.push({ uniqueId: r.uniqueId, embedding: vec, updatedAt: k.updatedAt });
           gotVector.add(r.uniqueId);
         }
@@ -1809,7 +1960,7 @@ export async function buildProjectedCorpus(
         const vecs = laneVecs;
         laneRows.forEach((m, i) => {
           const vec = Float32Array.from(vecs[i]);
-          cache.set(m.uniqueId, vec);
+          cacheRowVector(cache, m.uniqueId, vec, m.updatedAt);
           vectored.push({ uniqueId: m.uniqueId, embedding: vec, updatedAt: m.updatedAt });
           updateVaultMemoryEmbeddingOp(
             vaultCtx,
@@ -2143,6 +2294,9 @@ export async function prepareVaultCandidates(
       admitFloor: ADMIT_FLOOR,
       unembeddedCap: UNEMBEDDED_CAP,
       ...(forceIncludeIds.length > 0 && { forceIncludeIds }),
+      ...(searchOptions.queryEmbedding !== undefined && {
+        queryEmbedding: searchOptions.queryEmbedding,
+      }),
       onEmbeddingDegraded,
       embedStats,
     });
@@ -2234,7 +2388,12 @@ export async function prepareVaultCandidates(
     // out of the whole search — see embedQueryOrDegrade. Billed around the await
     // for the same reason as the projected path's copy.
     const legacyEmbedStart = nowMs();
-    queryEmbedding = await embedQueryOrDegrade(query, embeddingOptions, onEmbeddingDegraded);
+    queryEmbedding = await embedQueryOrDegrade(
+      query,
+      embeddingOptions,
+      onEmbeddingDegraded,
+      searchOptions?.queryEmbedding
+    );
     embedStats.queryMs += nowMs() - legacyEmbedStart;
     const currentModel = embeddingOptions.model ?? DEFAULT_API_EMBEDDING_MODEL;
 
@@ -2260,7 +2419,7 @@ export async function prepareVaultCandidates(
       // is keyed by memory id (not model) and can be seeded by preEmbedVaultMemories
       // — which has no query vector to dim-check against — so a grandfathered
       // wrong-dim vector could otherwise live in the cache and evade re-embed.
-      const cached = cache.get(memoryId);
+      const cached = cachedRowVector(cache, memoryId, memories[i].updatedAt);
       if (cached && cached.length === queryEmbedding.length) continue;
       if (cached) cache.delete(memoryId); // wrong-dim cache entry — drop and re-resolve
 
@@ -2272,7 +2431,7 @@ export async function prepareVaultCandidates(
         try {
           const parsed = JSON.parse(memories[i].embedding!) as number[];
           if (Array.isArray(parsed) && parsed.length === queryEmbedding.length) {
-            cache.set(memoryId, Float32Array.from(parsed));
+            cacheRowVector(cache, memoryId, Float32Array.from(parsed), memories[i].updatedAt);
             continue;
           }
           // Dimension mismatch — model changed dims (even a grandfathered
@@ -2315,7 +2474,12 @@ export async function prepareVaultCandidates(
       }
       if (newEmbeddings) {
         for (let j = 0; j < uncachedTexts.length; j++) {
-          cache.set(memories[uncachedIndices[j]].uniqueId, Float32Array.from(newEmbeddings[j]));
+          cacheRowVector(
+            cache,
+            memories[uncachedIndices[j]].uniqueId,
+            Float32Array.from(newEmbeddings[j]),
+            memories[uncachedIndices[j]].updatedAt
+          );
           // Persist embedding + model to DB (fire-and-forget)
           updateVaultMemoryEmbeddingOp(
             vaultCtx,
@@ -2418,11 +2582,13 @@ export async function rankPreparedVaultCandidates(
     }
   }
 
-  // The rankers below all return bare {uniqueId, content, similarity}
-  // — they're pure functions over EmbeddedItem and don't always carry the
-  // memory's timestamps / C2–C4 metadata. Stamp on the way out so
-  // downstream RankedMemory (and observationTrend) is complete even when
-  // a lane rebuilds a row.
+  // The rankers below are pure functions over EmbeddedItem and a lane that
+  // rebuilds a row may not carry the memory's timestamps / C2–C4 metadata.
+  // Stamp on the way out so downstream RankedMemory (observationTrend, and the
+  // event date `formatRecallResult` prints) is complete whichever lane
+  // admitted the row. The event-time anchors and `factType` are stamped too:
+  // the cosine path used to drop them, which left temporal questions with no
+  // date to answer from.
   const metaById = new Map(
     memories.map((m) => [
       m.uniqueId,
@@ -2431,6 +2597,10 @@ export async function rankPreparedVaultCandidates(
         updatedAt: m.updatedAt,
         proofCount: m.proofCount,
         lastObservedAt: m.lastObservedAt,
+        eventTimeStart: m.eventTimeStart,
+        eventTimeEnd: m.eventTimeEnd,
+        eventTimeKind: normalizeEventTimeKind(m.eventTimeKind),
+        factType: m.factType,
       },
     ])
   );
@@ -2456,6 +2626,10 @@ export async function rankPreparedVaultCandidates(
             updatedAt: meta.updatedAt,
             proofCount: meta.proofCount,
             lastObservedAt: meta.lastObservedAt,
+            eventTimeStart: meta.eventTimeStart,
+            eventTimeEnd: meta.eventTimeEnd,
+            eventTimeKind: meta.eventTimeKind,
+            factType: meta.factType,
           }
         : r;
     });
@@ -2577,6 +2751,9 @@ export async function rankPreparedVaultCandidates(
           rerankTopN: searchOptions.rerankTopN,
         }),
         ...(searchOptions?.ceWeight !== undefined && { ceWeight: searchOptions.ceWeight }),
+        ...(searchOptions?.rerankLoadTimeoutMs !== undefined && {
+          rerankLoadTimeoutMs: searchOptions.rerankLoadTimeoutMs,
+        }),
         ...(searchOptions?.mmr !== undefined && { mmr: searchOptions.mmr }),
         ...tuning,
         ...(searchOptions?.entityRanking && { entityRanking: searchOptions.entityRanking }),
@@ -2604,6 +2781,9 @@ export async function rankPreparedVaultCandidates(
         rerankTopN: searchOptions.rerankTopN,
       }),
       ...(searchOptions.ceWeight !== undefined && { ceWeight: searchOptions.ceWeight }),
+      ...(searchOptions.rerankLoadTimeoutMs !== undefined && {
+        rerankLoadTimeoutMs: searchOptions.rerankLoadTimeoutMs,
+      }),
       ...(searchOptions.mmr !== undefined && { mmr: searchOptions.mmr }),
       ...tuning,
       ...(searchOptions.entityRanking && { entityRanking: searchOptions.entityRanking }),
@@ -2820,227 +3000,4 @@ export async function searchVaultMemories(
     searchOptions
   );
   return results;
-}
-
-/**
- * The `useFusion: false` variant. That path ranks through `rankVaultMemories`,
- * which is cosine-ONLY — it doesn't even read the query text — so an embeddings
- * outage leaves no lane running at all.
- *
- * Telling the model to "retry with different keywords" there would be worse than
- * unhelpful: it invites retries this path cannot honor, and each one comes back
- * equally empty for a reason the model can't see.
- */
-const EMBEDDINGS_DEGRADED_EMPTY_NO_LEXICAL =
-  "Memory search is temporarily unavailable — the semantic lookup failed and this " +
-  "search mode has no keyword fallback, so no memory search ran at all. Do not " +
-  "conclude the user has no such memory; say the memory lookup was unavailable.";
-
-/** Numbered "[N] (id: …, similarity: …)\n<content>" rendering shared by the
- * chat-tool's recall-delegated and useFusion:false branches. */
-function formatVaultHits(hits: Array<{ id: string; content: string; score: number }>): string {
-  return hits
-    .map((h, i) => `[${i + 1}] (id: ${h.id}, similarity: ${h.score.toFixed(2)})\n${h.content}`)
-    .join("\n\n");
-}
-
-/**
- * Creates a memory vault search tool for use with chat completions.
- *
- * The tool allows the LLM to search through vault memories using semantic
- * similarity. Vault entries should have their embeddings pre-computed in the
- * cache (via preEmbedVaultMemories or eagerEmbedContent). Any missing
- * embeddings are computed on the fly as a fallback.
- *
- * @param vaultCtx - Vault operations context for database access
- * @param embeddingOptions - Options for embedding generation (auth, base URL)
- * @param cache - Pre-populated embedding cache
- * @param searchOptions - Optional search configuration
- * @returns A ToolConfig that can be passed to chat completion tools
- */
-export function createMemoryVaultSearchTool(
-  vaultCtx: VaultMemoryOperationsContext,
-  embeddingOptions: EmbeddingOptions,
-  cache: VaultEmbeddingCache,
-  searchOptions?: MemoryVaultSearchOptions
-): ToolConfig {
-  const limit = searchOptions?.limit ?? 5;
-  const minSimilarity = searchOptions?.minSimilarity ?? 0.1;
-
-  // Ranking tuning knobs forwarded verbatim to recall() (fusion path) and
-  // searchVaultMemories (legacy cosine path). Only defined fields are
-  // forwarded so the downstream defaults stay authoritative.
-  const tuningForward = {
-    ...(searchOptions?.rerankTopN !== undefined && { rerankTopN: searchOptions.rerankTopN }),
-    ...(searchOptions?.ceWeight !== undefined && { ceWeight: searchOptions.ceWeight }),
-    ...(searchOptions?.recencyAlpha !== undefined && { recencyAlpha: searchOptions.recencyAlpha }),
-    ...(searchOptions?.recency && { recency: searchOptions.recency }),
-    ...(searchOptions?.mmr !== undefined && { mmr: searchOptions.mmr }),
-    ...(searchOptions?.supersessionBoost !== undefined && {
-      supersessionBoost: searchOptions.supersessionBoost,
-    }),
-    ...(searchOptions?.supersessionWindow !== undefined && {
-      supersessionWindow: searchOptions.supersessionWindow,
-    }),
-    ...(searchOptions?.proofCountAlpha !== undefined && {
-      proofCountAlpha: searchOptions.proofCountAlpha,
-    }),
-    ...(searchOptions?.bm25AdmissionDivisor !== undefined && {
-      bm25AdmissionDivisor: searchOptions.bm25AdmissionDivisor,
-    }),
-    ...(searchOptions?.rrfK !== undefined && { rrfK: searchOptions.rrfK }),
-  };
-
-  return {
-    type: "function",
-    function: {
-      name: "memory_vault_search",
-      description:
-        "Search the user's memory vault for stored facts and preferences using semantic similarity. " +
-        "Use this before saving a new vault memory to check for duplicates, and whenever the user's " +
-        "question might relate to something previously stored (their name, preferences, important facts). " +
-        "Returns matching entries with their IDs for reference or updates.",
-      arguments: {
-        type: "object",
-        properties: {
-          query: {
-            type: "string",
-            description: "Natural language search query to match against vault memories.",
-          },
-          limit: {
-            type: "integer",
-            description: `Maximum number of results to return. Default: ${limit}.`,
-          },
-          folder_id: {
-            type: ["string", "null"],
-            description:
-              "Optional folder ID to scope the search to a specific folder. " +
-              "Pass null to search only unfiled memories. " +
-              "Omit to search all folders.",
-          },
-        },
-        required: ["query"],
-      },
-    },
-    executor: async (args: Record<string, unknown>): Promise<string> => {
-      const query = args.query as string;
-      const requestLimit = (args.limit as number) ?? limit;
-      const argFolderId = args.folder_id as string | null | undefined;
-
-      if (!query || typeof query !== "string") {
-        return "Error: A search query is required.";
-      }
-
-      try {
-        // Route through the unified recall() API so the chat tool, the
-        // SDK's programmatic surface, and any future consumer all share
-        // one ranking pipeline. 719/B4: LLM rewrite (when opted in via
-        // the deprecated `decompose: "llm"` flag) runs HERE in the tool
-        // executor, then passes pre-built `subQueries` into LLM-free recall.
-        const wantsDecompose =
-          searchOptions?.decompose === "llm" && !!searchOptions.decomposeOptions;
-        const budget: "low" | "mid" | "high" = wantsDecompose
-          ? "high"
-          : searchOptions?.rerank
-            ? "mid"
-            : "low";
-        // Host's configured folder wins — the LLM can't escape a host-
-        // imposed scope. When the host has *not* set a folder, the LLM's
-        // explicit folder_id (including `null` for unfiled) is used.
-        const folderId = searchOptions?.folderId ?? argFolderId;
-
-        // useFusion:false callers want cosine-only — skip recall's fusion.
-        if (searchOptions?.useFusion === false) {
-          // ...WithSize rather than searchVaultMemories: the wrapper discards
-          // `embeddingsUnavailable`, which decides the empty-result wording below.
-          const { results: legacy, embeddingsUnavailable } = await searchVaultMemoriesWithSize(
-            query,
-            vaultCtx,
-            embeddingOptions,
-            cache,
-            {
-              limit: requestLimit,
-              minSimilarity,
-              useFusion: false,
-              ...tuningForward,
-              ...(folderId !== undefined && { folderId }),
-              ...(searchOptions?.scopes && { scopes: searchOptions.scopes }),
-            }
-          );
-          if (legacy.length === 0) {
-            return embeddingsUnavailable
-              ? EMBEDDINGS_DEGRADED_EMPTY_NO_LEXICAL
-              : "No relevant memories found in the vault.";
-          }
-          return formatVaultHits(
-            legacy.map((r) => ({ id: r.uniqueId, content: r.content, score: r.similarity }))
-          );
-        }
-
-        // Tool-layer decompose (719/B4). Failure degrades to specific-mode
-        // (no subQueries) — same contract as the old in-search path.
-        let subQueries: string[] | undefined;
-        if (wantsDecompose && searchOptions?.decomposeOptions) {
-          const decomp = await decomposeQuery(query, searchOptions.decomposeOptions);
-          if (decomp.mode === "composite" && decomp.subQueries.length >= 2) {
-            subQueries = decomp.subQueries;
-          }
-        }
-
-        const { recall } = await import("../memory/recall.js");
-        // Read the degradation off the diagnostics seam rather than widening
-        // RecallResult: it is the channel that already exists for exactly this.
-        let recallDegraded: readonly string[] = [];
-        const result = await recall(
-          query,
-          { vaultCtx, embeddingOptions, vaultCache: cache },
-          {
-            onDiagnostics: (d) => {
-              recallDegraded = d.degraded;
-            },
-            types: ["fact"],
-            limit: requestLimit,
-            minScore: minSimilarity,
-            budget,
-            ...tuningForward,
-            ...(folderId !== undefined && { folderId }),
-            ...(searchOptions?.scopes && { scopes: searchOptions.scopes }),
-            ...(subQueries && { subQueries }),
-          }
-        );
-
-        if (result.vaultSize === 0) {
-          const hasFolderFilter =
-            searchOptions?.folderId !== undefined || argFolderId !== undefined;
-          if (hasFolderFilter) {
-            return "No memories found in this folder.";
-          }
-          return "The memory vault is empty. No memories have been saved yet.";
-        }
-
-        if (result.memories.length === 0) {
-          return recallDegraded.includes("embeddings-unavailable")
-            ? EMBEDDINGS_DEGRADED_EMPTY
-            : "No relevant memories found in the vault.";
-        }
-
-        // Surface whatever ranker score the pipeline produced (fused
-        // under useFusion=true, raw cosine when useFusion=false). The
-        // LLM sees a single "similarity" number on the same scale the
-        // legacy tool returned — the underlying metric just changes
-        // with the active ranking mode.
-        const formatted = formatVaultHits(
-          result.memories.map((m) => ({
-            id: m.id,
-            content: m.content,
-            score: m.scoreBreakdown?.fused ?? m.scoreBreakdown?.cosine ?? m.score,
-          }))
-        );
-        return `Found ${result.memories.length} vault memories:\n\n${formatted}`;
-      } catch (error) {
-        const message = error instanceof Error ? error.message : "Unknown error";
-        return `Error searching vault: ${message}`;
-      }
-    },
-  };
 }

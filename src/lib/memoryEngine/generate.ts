@@ -24,6 +24,65 @@ import type { EmbeddingOptions } from "./types";
  * a few attempts, then surface the final error. */
 const EMBED_MAX_ATTEMPTS = 4;
 
+/** Per-attempt ceiling for one embeddings HTTP request (see
+ * {@link EmbeddingOptions.timeoutMs}). */
+const DEFAULT_EMBEDDING_REQUEST_TIMEOUT_MS = 15_000;
+
+/** Ceiling for the `getToken()` read that precedes the request (see
+ * {@link EmbeddingOptions.tokenTimeoutMs}). */
+const DEFAULT_EMBEDDING_TOKEN_TIMEOUT_MS = 10_000;
+
+/**
+ * Run `run` with a deadline. On expiry the signal handed to `run` is aborted AND
+ * the returned promise rejects, so a transport that ignores `signal` still can't
+ * hold the caller: the race is what bounds the await, the abort only frees the
+ * socket. A non-positive or non-finite `ms` disables the deadline.
+ *
+ * Hand-rolled rather than `AbortSignal.timeout(ms)`: that static is missing from
+ * React Native's AbortSignal polyfill, and its timer is not one vitest's fake
+ * timers can advance, so a test of it would have to wait out the real deadline.
+ */
+async function withDeadline<T>(
+  run: (signal: AbortSignal | undefined) => Promise<T>,
+  ms: number,
+  what: string
+): Promise<T> {
+  if (!(ms > 0) || !Number.isFinite(ms)) return run(undefined);
+  const controller = new AbortController();
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const deadline = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => {
+      const err = new Error(`${what} timed out after ${ms}ms`);
+      err.name = "TimeoutError";
+      controller.abort(err);
+      reject(err);
+    }, ms);
+  });
+  try {
+    return await Promise.race([run(controller.signal), deadline]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/** Bounded `getToken()` read shared by both entry points. A token provider that
+ * never settles (a stuck auth refresh) used to hang every embedding — and with
+ * it the whole recall — forever. */
+async function resolveAuthHeaders(options: EmbeddingOptions): Promise<Record<string, string>> {
+  const { getToken, apiKey } = options;
+  if (apiKey) return { "X-API-Key": apiKey };
+  if (!getToken) throw new Error("Either apiKey or getToken must be provided");
+  const token = await withDeadline(
+    () => getToken(),
+    options.tokenTimeoutMs ?? DEFAULT_EMBEDDING_TOKEN_TIMEOUT_MS,
+    "embedding auth token read"
+  );
+  if (!token) {
+    throw new Error("No token available for embedding generation");
+  }
+  return { Authorization: `Bearer ${token}` };
+}
+
 async function withEmbeddingRetry<T extends { error?: unknown; response?: Response }>(
   call: () => Promise<T>
 ): Promise<T> {
@@ -123,7 +182,8 @@ export async function generateEmbedding(
   text: string,
   options: EmbeddingOptions
 ): Promise<number[]> {
-  const { baseUrl = BASE_URL, getToken, apiKey, model, cache } = options;
+  const { baseUrl = BASE_URL, model, cache } = options;
+  const timeoutMs = options.timeoutMs ?? DEFAULT_EMBEDDING_REQUEST_TIMEOUT_MS;
 
   // Check cache first. The cache holds Float32Array (native embedding
   // precision, half the resident RAM of a float64 number[]); the public
@@ -136,30 +196,27 @@ export async function generateEmbedding(
   }
 
   // Build auth headers - prefer apiKey if provided
-  let headers: Record<string, string>;
-  if (apiKey) {
-    headers = { "X-API-Key": apiKey };
-  } else if (getToken) {
-    const token = await getToken();
-    if (!token) {
-      throw new Error("No token available for embedding generation");
-    }
-    headers = { Authorization: `Bearer ${token}` };
-  } else {
-    throw new Error("Either apiKey or getToken must be provided");
-  }
+  const headers = await resolveAuthHeaders(options);
 
+  // The deadline is PER ATTEMPT (inside the retry), so a hung request becomes
+  // one retryable failure rather than a stall that outlives every retry.
   const response = await withEmbeddingRetry(() =>
-    postApiV1Embeddings({
-      baseUrl,
-      body: {
-        // Mask PII from the request body only — the cache above still keys on
-        // the original `text`, so callers keep their original values.
-        input: options.maskInput ? options.maskInput(text) : text,
-        model: model ?? DEFAULT_API_EMBEDDING_MODEL,
-      },
-      headers,
-    })
+    withDeadline(
+      (signal) =>
+        postApiV1Embeddings({
+          baseUrl,
+          body: {
+            // Mask PII from the request body only — the cache above still keys on
+            // the original `text`, so callers keep their original values.
+            input: options.maskInput ? options.maskInput(text) : text,
+            model: model ?? DEFAULT_API_EMBEDDING_MODEL,
+          },
+          headers,
+          ...(signal && { signal }),
+        }),
+      timeoutMs,
+      "embedding request"
+    )
   );
 
   if (response.error) {
@@ -201,16 +258,24 @@ async function generateEmbeddingsBatch(
   headers: Record<string, string>,
   baseUrl: string,
   model: string,
-  onUsage?: EmbeddingOptions["onUsage"],
-  maskInput?: EmbeddingOptions["maskInput"]
+  onUsage: EmbeddingOptions["onUsage"],
+  maskInput: EmbeddingOptions["maskInput"],
+  timeoutMs: number
 ): Promise<number[][]> {
+  // Per-attempt deadline — same contract as generateEmbedding.
   const response = await withEmbeddingRetry(() =>
-    postApiV1Embeddings({
-      baseUrl,
-      // Mask PII from the request body only; cache/order still key on originals.
-      body: { input: maskInput ? texts.map(maskInput) : texts, model },
-      headers,
-    })
+    withDeadline(
+      (signal) =>
+        postApiV1Embeddings({
+          baseUrl,
+          // Mask PII from the request body only; cache/order still key on originals.
+          body: { input: maskInput ? texts.map(maskInput) : texts, model },
+          headers,
+          ...(signal && { signal }),
+        }),
+      timeoutMs,
+      "embedding batch request"
+    )
   );
 
   if (response.error) {
@@ -249,7 +314,8 @@ export async function generateEmbeddings(
 ): Promise<number[][]> {
   if (texts.length === 0) return [];
 
-  const { baseUrl = BASE_URL, getToken, apiKey, model, batchSize, cache } = options;
+  const { baseUrl = BASE_URL, model, batchSize, cache } = options;
+  const timeoutMs = options.timeoutMs ?? DEFAULT_EMBEDDING_REQUEST_TIMEOUT_MS;
   const chunkSize = batchSize ?? DEFAULT_EMBEDDING_BATCH_SIZE;
 
   // Separate cached and uncached texts
@@ -277,18 +343,7 @@ export async function generateEmbeddings(
   }
 
   // Build auth headers - prefer apiKey if provided
-  let headers: Record<string, string>;
-  if (apiKey) {
-    headers = { "X-API-Key": apiKey };
-  } else if (getToken) {
-    const token = await getToken();
-    if (!token) {
-      throw new Error("No token available for embedding generation");
-    }
-    headers = { Authorization: `Bearer ${token}` };
-  } else {
-    throw new Error("Either apiKey or getToken must be provided");
-  }
+  const headers = await resolveAuthHeaders(options);
 
   const embeddingModel = model ?? DEFAULT_API_EMBEDDING_MODEL;
 
@@ -302,7 +357,8 @@ export async function generateEmbeddings(
       baseUrl,
       embeddingModel,
       options.onUsage,
-      options.maskInput
+      options.maskInput,
+      timeoutMs
     );
   } else {
     // Large inputs: chunk and process with bounded concurrency
@@ -323,7 +379,8 @@ export async function generateEmbeddings(
           baseUrl,
           embeddingModel,
           options.onUsage,
-          options.maskInput
+          options.maskInput,
+          timeoutMs
         );
       }
     };

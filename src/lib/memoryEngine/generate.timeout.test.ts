@@ -1,0 +1,114 @@
+/**
+ * Every await on the embedding path is bounded.
+ *
+ * Recall awaited `getToken()` and each `postApiV1Embeddings` attempt with no
+ * deadline, and its degrade-to-BM25 path only fires on a REJECTION — so a stuck
+ * token refresh or a request that never answered hung the whole recall (and the
+ * turn waiting on it) forever instead of degrading.
+ *
+ * Fake timers are installed BEFORE the call under test, so the deadline timers
+ * the code schedules are fake ones this test can advance. The hung fetch ignores
+ * its abort signal on purpose: the bound must hold even for a transport that
+ * doesn't honor `signal`.
+ */
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+import { generateEmbedding, generateEmbeddings } from "./generate";
+
+const BASE = "https://portal.test";
+
+/** Settlement state of a promise, observable without awaiting it. */
+function track<T>(p: Promise<T>): { state: "pending" | "resolved" | "rejected"; error?: unknown } {
+  const t: { state: "pending" | "resolved" | "rejected"; error?: unknown } = { state: "pending" };
+  p.then(
+    () => (t.state = "resolved"),
+    (err) => {
+      t.state = "rejected";
+      t.error = err;
+    }
+  );
+  return t;
+}
+
+let signals: Array<AbortSignal | undefined>;
+
+beforeEach(() => {
+  vi.useFakeTimers();
+  signals = [];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn((_url: unknown, init?: RequestInit) => {
+      signals.push(init?.signal ?? undefined);
+      return new Promise<Response>(() => {}); // never settles, ignores the signal
+    })
+  );
+});
+
+afterEach(() => {
+  vi.useRealTimers();
+  vi.unstubAllGlobals();
+});
+
+describe("embedding deadlines", () => {
+  it("rejects a single embed whose request never answers, after the bounded retries", async () => {
+    const t = track(generateEmbedding("hello", { apiKey: "k", baseUrl: BASE, timeoutMs: 1000 }));
+
+    // 4 attempts x 1s deadline + ~1.75s-2.5s of backoff between them.
+    await vi.advanceTimersByTimeAsync(10_000);
+
+    expect(t.state).toBe("rejected");
+    expect((t.error as Error).name).toBe("TimeoutError");
+    // Each attempt got its own signal, and each one was aborted at its deadline.
+    expect(signals).toHaveLength(4);
+    expect(signals.every((s) => s?.aborted)).toBe(true);
+  });
+
+  it("rejects a batch embed whose request never answers", async () => {
+    const t = track(
+      generateEmbeddings(["a", "b"], { apiKey: "k", baseUrl: BASE, timeoutMs: 1000 })
+    );
+
+    await vi.advanceTimersByTimeAsync(10_000);
+
+    expect(t.state).toBe("rejected");
+    expect((t.error as Error).name).toBe("TimeoutError");
+  });
+
+  it("uses a default deadline when none is configured", async () => {
+    const t = track(generateEmbedding("hello", { apiKey: "k", baseUrl: BASE }));
+
+    await vi.advanceTimersByTimeAsync(5 * 60_000);
+
+    expect(t.state).toBe("rejected");
+  });
+
+  it("rejects when getToken() never settles, without sending a request", async () => {
+    const t = track(
+      generateEmbedding("hello", {
+        getToken: () => new Promise<string | null>(() => {}),
+        baseUrl: BASE,
+        tokenTimeoutMs: 500,
+      })
+    );
+
+    await vi.advanceTimersByTimeAsync(1000);
+
+    expect(t.state).toBe("rejected");
+    expect((t.error as Error).message).toMatch(/token/i);
+    expect(signals).toHaveLength(0);
+  });
+
+  it("bounds the token read on the batch path too", async () => {
+    const t = track(
+      generateEmbeddings(["a"], {
+        getToken: () => new Promise<string | null>(() => {}),
+        baseUrl: BASE,
+        tokenTimeoutMs: 500,
+      })
+    );
+
+    await vi.advanceTimersByTimeAsync(1000);
+
+    expect(t.state).toBe("rejected");
+  });
+});
