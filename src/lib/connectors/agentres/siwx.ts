@@ -46,6 +46,9 @@ const SIWX_EXTENSION = "sign-in-with-x";
 /** CAIP-2 namespace prefix of every Solana chain id. */
 const SOLANA_NAMESPACE = "solana:";
 
+/** Length of an ed25519 signature, which is the only kind Solana produces. */
+const ED25519_SIGNATURE_BYTES = 64;
+
 /**
  * One SIWX challenge, flattened from the extension's `info` block plus the
  * Solana entry of its `supportedChains` list.
@@ -218,12 +221,24 @@ export function buildMessage(challenge: SiwxChallenge, address: string): string 
  * @param challenge A challenge from {@link parseChallenge}.
  * @param address   The signer's Solana address, base58.
  * @param signature The raw 64-byte ed25519 signature over {@link buildMessage}.
+ * @throws {SiwxChallengeError} when the signature is not 64 bytes.
  */
 export function buildPayload(
   challenge: SiwxChallenge,
   address: string,
   signature: Uint8Array
 ): string {
+  // Any length base58-encodes into a perfectly well-formed proof, which the
+  // server answers with a bare 401 — the same silent failure mode the message
+  // builder's golden test exists to prevent, reached from the other end. A
+  // signer that hands back the wrong bytes has to be named here or it surfaces
+  // as an authentication mystery.
+  if (signature.length !== ED25519_SIGNATURE_BYTES) {
+    throw new SiwxChallengeError(
+      `expected a ${ED25519_SIGNATURE_BYTES}-byte ed25519 signature, got ${signature.length} bytes`
+    );
+  }
+
   const payload = {
     domain: challenge.domain,
     address,
@@ -253,8 +268,13 @@ const BASE58_ALPHABET = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvw
  * a dozen lines. Each input byte is folded into a base-58 accumulator held as
  * little-endian digits; leading zero bytes are not part of that arithmetic and
  * are emitted separately as `1`s, which is what makes the encoding reversible.
+ *
+ * Exported for its own tests only, and not re-exported from the connectors
+ * index: {@link buildPayload} is now the only caller, and it rejects anything
+ * that is not a 64-byte signature, so the short reference vectors that pin the
+ * leading-zero and carry paths cannot reach the encoder through it.
  */
-function base58Encode(bytes: Uint8Array): string {
+export function base58Encode(bytes: Uint8Array): string {
   let zeros = 0;
   while (zeros < bytes.length && bytes[zeros] === 0) {
     zeros++;

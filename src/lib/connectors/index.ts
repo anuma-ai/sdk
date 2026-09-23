@@ -26,7 +26,12 @@ export type {
 } from "./agentres/client.js";
 export { createAgentresClient } from "./agentres/client.js";
 export type { AgentresErrorCode } from "./agentres/errors.js";
-export { AgentresError, SiwxChallengeError, SiwxUnsupportedError } from "./agentres/errors.js";
+export {
+  AgentresError,
+  AgentresPathError,
+  SiwxChallengeError,
+  SiwxUnsupportedError,
+} from "./agentres/errors.js";
 export type {
   ConnectorMintError,
   ConnectorMintResult,

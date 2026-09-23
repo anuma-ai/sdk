@@ -3,7 +3,7 @@ import { describe, expect, test } from "vitest";
 import { SiwxChallengeError, SiwxUnsupportedError } from "./errors.js";
 import recorded402 from "./fixtures/paymentRequired402.json";
 import type { SiwxChallenge } from "./siwx.js";
-import { buildMessage, buildPayload, parseChallenge } from "./siwx.js";
+import { base58Encode, buildMessage, buildPayload, parseChallenge } from "./siwx.js";
 
 /**
  * The address the accepted probe run signed with, and the message agentres
@@ -275,21 +275,40 @@ describe("buildPayload", () => {
     });
   });
 
+  // A wrong-length signature encodes into a payload that looks entirely
+  // correct, and agentres answers it with a bare 401 naming nothing. Booking
+  // signs server-side, where a signer returning the wrong shape is a real
+  // possibility rather than a typo, so the refusal has to name the cause.
+  test.each([
+    ["an empty signature", 0],
+    ["a 32-byte signature", 32],
+    ["a 63-byte signature", 63],
+    ["a 65-byte signature", 65],
+  ])("refuses %s", (_name, length) => {
+    const challenge = parse(header());
+
+    expect(() => buildPayload(challenge, PROBE_ADDRESS, new Uint8Array(length))).toThrow(
+      SiwxChallengeError
+    );
+    expect(() => buildPayload(challenge, PROBE_ADDRESS, new Uint8Array(length))).toThrow(
+      `got ${length} bytes`
+    );
+  });
+});
+
+// Driven directly rather than through buildPayload, which now takes only
+// 64-byte signatures: the short vectors are the ones that pin the leading-zero
+// and carry paths, and neither has a 64-byte equivalent whose base58 we can
+// state from the reference implementation.
+describe("base58Encode", () => {
   test.each([
     [[] as number[], ""],
     [[0], "1"],
     [[0, 0, 1], "112"],
     [[...Buffer.from("hello world", "utf-8")], "StV1DL6CwTryKyV"],
     [[255, 255, 255, 255], "7YXq9G"],
-  ])("base58-encodes %j as %s", (bytes, expected) => {
-    const challenge = parse(header());
-    const decoded = JSON.parse(
-      Buffer.from(buildPayload(challenge, PROBE_ADDRESS, new Uint8Array(bytes)), "base64").toString(
-        "utf-8"
-      )
-    ) as { signature: string };
-
-    expect(decoded.signature).toBe(expected);
+  ])("encodes %j as %s", (bytes, expected) => {
+    expect(base58Encode(new Uint8Array(bytes))).toBe(expected);
   });
 });
 
