@@ -79,6 +79,7 @@ function mockVaultMatchesOnce(results: VaultMatch[], queryEmbedding = [0.1, 0.2,
   vi.mocked(rankPreparedVaultCandidates).mockResolvedValueOnce(rankResult(results) as never);
 }
 
+import { cachedRowVector } from "../memoryVault/vectorVersion";
 import { retain } from "./retain";
 
 const mockVaultCtx = {} as VaultMemoryOperationsContext;
@@ -126,6 +127,24 @@ describe("retain", () => {
     expect(result.proofCount).toBe(1);
     expect(vi.mocked(createVaultMemoryOp)).toHaveBeenCalled();
     expect(vi.mocked(updateVaultMemoryOp)).not.toHaveBeenCalled();
+  });
+
+  // The vault embedding cache ignores entries that don't say which row version
+  // they belong to (see memoryVault/vectorVersion.ts). retain() knows the
+  // committed row, so its write must be tagged with it — or every fact it
+  // saves costs the next search a re-resolve.
+  it("tags its cache write with the committed row's version", async () => {
+    mockVaultMatches([]);
+    vi.mocked(generateEmbedding).mockResolvedValue([0.1, 0.2, 0.3]);
+    const committedAt = new Date("2026-09-01T00:00:00Z");
+    vi.mocked(createVaultMemoryOp).mockResolvedValue({
+      uniqueId: "new-id",
+      updatedAt: committedAt,
+    } as never);
+
+    await retain("Allergic to shellfish", ctx);
+
+    expect(cachedRowVector(ctx.vaultCache, "new-id", committedAt)).toBeDefined();
   });
 
   it("scopes the dedup search to the same scope it writes (H2)", async () => {

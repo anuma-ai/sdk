@@ -115,10 +115,13 @@ describe("embedding cache lifecycle", () => {
     expect(Array.from(cache.get("m1")!)).toEqual([0, 0, 1]); // vector replaced
     expect(cache.size).toBe(2); // m1 (updated) + m2
 
-    // Step 4: Search uses cached embeddings — no batch re-embedding
+    // Step 4: Search needs no batch re-embedding. The tool's eager cache write
+    // doesn't know which row version it belongs to, so the search re-resolves
+    // it from the vector eagerEmbedContent PERSISTED on the row (a DB read, not
+    // an embeddings call) rather than trusting an unversioned entry.
     vi.mocked(getAllVaultMemoriesOp).mockResolvedValue([
-      makeMemory("m1", "updated fact"),
-      makeMemory("m2", "new fact"),
+      { ...makeMemory("m1", "updated fact"), embedding: "[0,0,1]" },
+      { ...makeMemory("m2", "new fact"), embedding: "[0,1,0]" },
     ]);
     vi.mocked(generateEmbedding).mockResolvedValue([0, 0, 1]); // query
     vi.mocked(generateEmbeddings).mockClear();

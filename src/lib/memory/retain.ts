@@ -33,6 +33,7 @@ import {
   rankPreparedVaultCandidates,
   type VaultEmbeddingCache,
 } from "../memoryVault/searchTool.js";
+import { cacheRowVector } from "../memoryVault/vectorVersion.js";
 import { notifyConsolidationFallback } from "./consolidationFallback.js";
 import type { RetainOptions, RetainResult } from "./types.js";
 
@@ -370,7 +371,12 @@ export async function retain(
       primaryTargetId
     );
     if (created && retired) {
-      ctx.vaultCache.set(created.uniqueId, Float32Array.from(embedding));
+      cacheRowVector(
+        ctx.vaultCache,
+        created.uniqueId,
+        Float32Array.from(embedding),
+        created.updatedAt
+      );
       // Retire the remaining stale duplicates against the new memory. Best-effort,
       // but the boolean result is ambiguous — `supersedeVaultMemoryOp` returns
       // false BOTH for a row that is already gone/retired (benign — a concurrent
@@ -437,8 +443,9 @@ export async function retain(
   const created = await createVaultMemoryOp(ctx.vaultCtx, createOpts);
   // Cache is keyed by memory id (not content) — set after the create returns
   // the uniqueId. Float32Array = model-native precision, half the RAM of a
-  // float64 number[].
-  ctx.vaultCache.set(created.uniqueId, Float32Array.from(embedding));
+  // float64 number[]. Tagged with the committed row's version so a search can
+  // tell this vector from one for a later edit of the same row.
+  cacheRowVector(ctx.vaultCache, created.uniqueId, Float32Array.from(embedding), created.updatedAt);
 
   return {
     action: "create",
@@ -792,7 +799,12 @@ async function tryConsolidate(
     // Cache keyed by memory id (not content) — set only after the DB write
     // committed, so a failed update can't poison the cache with a vector for
     // content that was never persisted.
-    ctx.vaultCache.set(decision.targetId, Float32Array.from(newEmbedding));
+    cacheRowVector(
+      ctx.vaultCache,
+      decision.targetId,
+      Float32Array.from(newEmbedding),
+      updated.updatedAt
+    );
     return {
       done: {
         action: "update",

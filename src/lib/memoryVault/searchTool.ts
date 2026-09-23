@@ -27,6 +27,7 @@ import type { EmbeddingOptions } from "../memoryEngine/types";
 import { cosineSimilarity } from "../memoryEngine/vector";
 import { prepareBM25Corpus, type PreparedBM25Corpus, scoreBM25, scoreBM25Prepared } from "./bm25";
 import { normalizeSubQueries } from "./decomposeQuery";
+import { cachedRowVector, cacheRowVector } from "./vectorVersion";
 
 export { createVaultEmbeddingCache, DEFAULT_VAULT_CACHE_SIZE } from "./lruCache";
 
@@ -781,7 +782,12 @@ export function rankFusedVaultMemories(
 ): VaultSearchResult[] {
   const limit = options?.limit ?? 5;
   const minSimilarity = options?.minSimilarity ?? 0.1;
-  const bm25AdmissionDivisor = options?.bm25AdmissionDivisor ?? 50;
+  // A zero / negative / non-finite divisor turns every BM25 score into
+  // Infinity or NaN (or flips its sign), which then poisons the sort — and on
+  // an empty query vector BM25 is the WHOLE ranking. Fall back to the default.
+  const rawDivisor = options?.bm25AdmissionDivisor;
+  const bm25AdmissionDivisor =
+    rawDivisor !== undefined && Number.isFinite(rawDivisor) && rawDivisor > 0 ? rawDivisor : 50;
 
   if (items.length === 0) return [];
 
@@ -1513,62 +1519,6 @@ export async function rankComposite(
 }
 
 /**
- * The `updatedAt` (ms) of the row each cached vector was resolved from.
- *
- * The cache is keyed by memory id and was validated by dimension alone, so a
- * row whose content changed underneath it — an edit synced from another
- * device, a merge — kept ranking on the vector of its OLD content for the life
- * of the cache. Every entry this module writes now carries the row version it
- * came from, and a read against a newer (or older) row version is a miss.
- *
- * Keyed by the vector object rather than by id, and kept beside the cache
- * rather than inside it, so {@link VaultEmbeddingCache} keeps its public
- * `Map<string, Float32Array>` shape AND a writer elsewhere that replaces an
- * entry (`retain()`, the vault tool) cannot inherit the stamp of the vector it
- * replaced: its new vector is simply unstamped.
- */
-const vectorRowVersion = new WeakMap<Float32Array, number>();
-
-/** `cache.set` that records which row version the vector belongs to. */
-function cacheRowVector(
-  cache: VaultEmbeddingCache,
-  id: string,
-  vec: Float32Array,
-  updatedAt: Date | undefined
-): void {
-  cache.set(id, vec);
-  const version = updatedAt?.getTime();
-  if (version !== undefined && Number.isFinite(version)) vectorRowVersion.set(vec, version);
-}
-
-/**
- * `cache.get` for a row at `updatedAt`, or undefined when the entry belongs to a
- * different version of the row (the stale entry is evicted). An UNSTAMPED entry
- * — written outside this module, e.g. by `retain()` right after it saved the
- * row — is trusted and adopts this version, so later edits invalidate it too.
- */
-function cachedRowVector(
-  cache: VaultEmbeddingCache,
-  id: string,
-  updatedAt: Date | undefined
-): Float32Array | undefined {
-  const vec = cache.get(id);
-  if (!vec) return undefined;
-  const version = updatedAt?.getTime();
-  if (version === undefined || !Number.isFinite(version)) return vec;
-  const stamped = vectorRowVersion.get(vec);
-  if (stamped === undefined) {
-    vectorRowVersion.set(vec, version);
-    return vec;
-  }
-  if (stamped !== version) {
-    cache.delete(id);
-    return undefined;
-  }
-  return vec;
-}
-
-/**
  * Pre-embed all vault memories that are not yet in the cache.
  * Call this at init time so searches are instant.
  */
@@ -1638,7 +1588,14 @@ export async function eagerEmbedContent(
   embeddingOptions: EmbeddingOptions,
   cache: VaultEmbeddingCache,
   vaultCtx?: VaultMemoryOperationsContext,
-  memoryId?: string
+  memoryId?: string,
+  /**
+   * `updatedAt` of the committed row this content belongs to. When given, the
+   * cache entry is tied to that row version; without it the entry is
+   * unversioned and a search re-resolves it from the stored column instead of
+   * trusting it (see `vectorVersion.ts`).
+   */
+  updatedAt?: Date
 ): Promise<void> {
   // Same guard as preEmbedVaultMemories: never embed (or persist a
   // vector for) content that is still ciphertext — a caller passing DB
@@ -1649,7 +1606,7 @@ export async function eagerEmbedContent(
   // Cache is keyed by memory id (not content). Without an id there's nothing
   // to key on, so skip the cache write and rely on the DB-persist below /
   // next search to populate it.
-  if (memoryId) cache.set(memoryId, Float32Array.from(embedding));
+  if (memoryId) cacheRowVector(cache, memoryId, Float32Array.from(embedding), updatedAt);
   if (vaultCtx && memoryId) {
     const currentModel = embeddingOptions.model ?? DEFAULT_API_EMBEDDING_MODEL;
     updateVaultMemoryEmbeddingOp(vaultCtx, memoryId, JSON.stringify(embedding), currentModel).catch(

@@ -40,6 +40,7 @@ import {
   searchVaultMemoriesWithSize,
 } from "./searchTool";
 import { createMemoryVaultSearchTool } from "./searchToolExecutor";
+import { cacheRowVector } from "./vectorVersion";
 
 const vaultCtx = {} as VaultMemoryOperationsContext;
 const embeddingOptions: EmbeddingOptions = { apiKey: "test-key" };
@@ -133,7 +134,7 @@ describe("event-time anchors and factType survive every lane", () => {
     ]);
     vi.mocked(generateEmbedding).mockResolvedValue([1, 0, 0]);
     const cache = createVaultEmbeddingCache();
-    cache.set("m1", Float32Array.from([1, 0, 0]));
+    cacheRowVector(cache, "m1", Float32Array.from([1, 0, 0]), NOW);
 
     const { results } = await searchVaultMemoriesWithSize(
       "birthday",
@@ -198,6 +199,29 @@ describe("BM25 carries the ranking when the query vector is empty", () => {
     expect(ranked[0].uniqueId).toBe("match");
   });
 
+  it.each([0, -5, Number.NaN, Number.POSITIVE_INFINITY])(
+    "falls back to the default divisor for an invalid bm25AdmissionDivisor (%s)",
+    (divisor) => {
+      const items = [
+        { id: "weak", content: "zebra among many other words here", embedding: [], updatedAt: NOW },
+        { id: "strong", content: "zebra zebra zebra", embedding: [], updatedAt: NOW },
+        { id: "none-1", content: "unrelated text", embedding: [], updatedAt: NOW },
+      ];
+      const opts = { minSimilarity: 0.1, recency: { now: NOW } };
+
+      const ranked = rankFusedVaultMemories("zebra", [], items, {
+        ...opts,
+        bm25AdmissionDivisor: divisor,
+      });
+      const reference = rankFusedVaultMemories("zebra", [], items, opts);
+
+      expect(ranked.map((r) => [r.uniqueId, r.similarity])).toEqual(
+        reference.map((r) => [r.uniqueId, r.similarity])
+      );
+      expect(ranked.every((r) => Number.isFinite(r.similarity) && r.similarity > 0)).toBe(true);
+    }
+  );
+
   it("ranks by BM25 strength, not a flat floor, when the query vector is empty", () => {
     // A small divisor pushes both BM25 scores past the admission cap, which is
     // where the old code flattened them to one score and let input order win.
@@ -228,7 +252,8 @@ describe("memory_vault_search clamps the model-supplied limit", () => {
     vi.mocked(ops.getAllVaultMemoriesOp).mockResolvedValue(memories);
     vi.mocked(generateEmbedding).mockResolvedValue([1, 0, 0]);
     const cache = createVaultEmbeddingCache();
-    for (const m of memories) cache.set(m.uniqueId, Float32Array.from([1, 0, 0]));
+    for (const m of memories)
+      cacheRowVector(cache, m.uniqueId, Float32Array.from([1, 0, 0]), m.updatedAt);
     return cache;
   }
 
@@ -262,7 +287,7 @@ describe("searchVaultMemoriesWithSize reuses a caller-supplied query vector", ()
 
   it("ranks on the supplied vector without calling the embeddings endpoint", async () => {
     const cache = createVaultEmbeddingCache();
-    cache.set("m1", Float32Array.from([1, 0, 0]));
+    cacheRowVector(cache, "m1", Float32Array.from([1, 0, 0]), NOW);
 
     const out = await searchVaultMemoriesWithSize("cats", vaultCtx, embeddingOptions, cache, {
       queryEmbedding: [1, 0, 0],
@@ -348,13 +373,32 @@ describe("the embedding cache drops a vector once its row changes", () => {
     expect(Array.from(cache.get("m1")!)).toEqual([0, 1, 0]);
   });
 
-  it("keeps an entry written elsewhere (unstamped) and ties it to the row it is first read with", async () => {
+  it("does not adopt an unversioned entry: a stale vector written elsewhere is re-resolved", async () => {
+    // An entry written without a row version — e.g. an eager write for an OLDER
+    // edit — must not be blessed as the current row's vector just because a
+    // search read it first. The stored column is the source of truth.
     const cache = createVaultEmbeddingCache();
-    // e.g. retain() caching the vector of a row it just saved.
-    cache.set("m1", Float32Array.from([1, 0, 0]));
+    cache.set("m1", Float32Array.from([1, 0, 0])); // untagged, from the old content
+    vi.mocked(generateEmbedding).mockResolvedValue([0, 1, 0]);
+    vi.mocked(ops.getAllVaultMemoriesOp).mockResolvedValue([
+      makeMemory("m1", "moved to seattle", { embedding: "[0,1,0]", updatedAt: T2 }),
+    ]);
+
+    const { results } = await searchVaultMemoriesWithSize("q", vaultCtx, embeddingOptions, cache, {
+      minSimilarity: 0.5,
+    });
+
+    expect(results.map((r) => r.uniqueId)).toEqual(["m1"]);
+    expect(Array.from(cache.get("m1")!)).toEqual([0, 1, 0]);
+    expect(generateEmbeddings).not.toHaveBeenCalled(); // resolved from the column, no re-embed
+  });
+
+  it("retain()-style writes tagged with the committed row version stay warm", async () => {
+    const cache = createVaultEmbeddingCache();
+    cacheRowVector(cache, "m1", Float32Array.from([1, 0, 0]), T1);
     vi.mocked(generateEmbedding).mockResolvedValue([1, 0, 0]);
     vi.mocked(ops.getAllVaultMemoriesOp).mockResolvedValue([
-      makeMemory("m1", "lives in portland", { updatedAt: T1 }),
+      makeMemory("m1", "lives in portland", { updatedAt: T1 }), // no stored vector
     ]);
 
     const { results } = await searchVaultMemoriesWithSize("q", vaultCtx, embeddingOptions, cache, {
