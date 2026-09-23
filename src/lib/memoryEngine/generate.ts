@@ -64,11 +64,13 @@ async function withDeadline<T>(
       reject(err);
     }, ms);
   });
+  const work = run(controller.signal);
   try {
-    return await Promise.race([run(controller.signal), deadline]);
+    return await Promise.race([work, deadline]);
   } finally {
     clearTimeout(timer);
     parent?.removeEventListener("abort", onParentAbort);
+    work.catch(() => {});
   }
 }
 

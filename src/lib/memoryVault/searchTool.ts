@@ -341,6 +341,8 @@ function resultFromItem(item: EmbeddedItem, similarity: number): VaultSearchResu
     similarity,
     createdAt: item.createdAt ?? item.updatedAt,
     updatedAt: item.updatedAt,
+    proofCount: item.proofCount,
+    lastObservedAt: item.lastObservedAt,
     eventTimeStart: item.eventTimeStart,
     eventTimeEnd: item.eventTimeEnd,
     eventTimeKind: item.eventTimeKind,
