@@ -80,13 +80,11 @@ function defaultBatchTimeoutMs(extract: DurableAutoExtractorOptions["extract"]):
 /** A failure that retrying cannot fix: a non-retryable HTTP status. */
 class TerminalExtractionError extends Error {}
 
-/** Sources that did not decrypt. `persistent` is set when the store reported a
- * per-message cause (`decryptionStatus`), as opposed to no key in this session. */
+/** Sources that did not decrypt. `persistentIds` are the ones the store gave a
+ * per-message cause (`decryptionStatus`); the rest are ciphertext read with no
+ * key in this session, which says nothing about the message itself. */
 class LockedSourcesError extends Error {
-  constructor(
-    readonly lockedIds: string[],
-    readonly persistent: boolean
-  ) {
+  constructor(readonly persistentIds: string[]) {
     super("Source messages are locked; retained for retry");
   }
 }
@@ -310,7 +308,7 @@ export function createDurableAutoExtractor(options: DurableAutoExtractorOptions)
   ): Promise<boolean> {
     const head = ids[0];
     if (!head || failedThisSession.has(job.id)) return false;
-    if (error instanceof LockedSourcesError && !error.persistent) return false;
+    if (error instanceof LockedSourcesError && !error.persistentIds.length) return false;
     const terminal = error instanceof TerminalExtractionError;
     if (terminal) terminalThisSession.add(job.id);
     if (!terminal && attempted < MAX_ATTEMPTS) return false;
@@ -327,12 +325,26 @@ export function createDurableAutoExtractor(options: DurableAutoExtractorOptions)
     }
     terminalThisSession.delete(job.id);
     if (error instanceof LockedSourcesError) {
-      const dropped = new Set(error.lockedIds);
+      const dropped = new Set(error.persistentIds);
+      // A dropped source counts as observed: removing it from the queue alone
+      // left it past the watermark, so the next turn re-queued it as unseen and
+      // it blocked the head for three more sessions. Advance the watermark to
+      // the newest dropped id when that moves it forward, and mark it like an
+      // abandoned batch so processTurn does not re-send it as context.
+      let newest: { id: string; seq: number } | undefined;
+      for (const message of loaded)
+        if (message && dropped.has(message.uniqueId) && message.messageId > (newest?.seq ?? 0))
+          newest = { id: message.uniqueId, seq: message.messageId };
+      const advance = newest !== undefined && newest.seq > (seqOf(job) ?? 0) ? newest : undefined;
       await database.write(() =>
         job.update((r) => {
           r._setRaw("message_ids", JSON.stringify(idsOf(job).filter((id) => !dropped.has(id))));
-          r._setRaw("failed_sessions", null);
-          r._setRaw("failed_head", null);
+          if (advance) {
+            r._setRaw("watermark", advance.id);
+            r._setRaw("watermark_seq", advance.seq);
+          }
+          r._setRaw("failed_sessions", advance ? MAX_FAILED_SESSIONS : null);
+          r._setRaw("failed_head", advance ? advance.id : null);
         })
       );
       attempts.delete(job.id);
@@ -421,9 +433,10 @@ export function createDurableAutoExtractor(options: DurableAutoExtractorOptions)
             (message) => message && (message.decryptionStatus || isEncrypted(message.content))
           );
           if (locked.length) {
+            // Per id: one no-key message in the batch must not stop a
+            // persistently undecryptable one from being counted.
             throw new LockedSourcesError(
-              locked.map((message) => message!.uniqueId),
-              locked.every((message) => !!message!.decryptionStatus)
+              locked.flatMap((message) => (message!.decryptionStatus ? [message!.uniqueId] : []))
             );
           }
           const messages: AutoExtractMessage[] = loaded.flatMap((m) =>

@@ -831,7 +831,9 @@ export async function extractAndRetain(
         const existingId = await findQuarantinedDuplicateOp(
           retainCtx.vaultCtx,
           candidate.content,
-          candidate.sourceMessageIds
+          candidate.sourceMessageIds,
+          // The same defaults retain() writes the row with.
+          { scope: options.scope ?? "private", folderId: options.folderId ?? null }
         ).catch(() => null);
         if (existingId) {
           quarantinedInfo.push({

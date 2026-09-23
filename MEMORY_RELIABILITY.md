@@ -40,7 +40,8 @@ per authenticated database session. It requires the SDK v47 schema and models.
   sources are acknowledged unextracted, reported via `onError`, and not re-sent
   as context for the next batch, so later messages still extract. Sources the
   store reports as undecryptable (`decryptionStatus`) for three sessions are
-  dropped individually the same way. Ciphertext read without any key in the
+  dropped individually the same way, and count as observed so a later turn
+  does not queue them again. Ciphertext read without any key in the
   session is not counted — that is the session's state, not the batch's.
 - `batchTimeoutMs` bounds a batch that never settles. By default it is the
   extraction call's own worst case — `extract.timeoutMs` (60s) ×
@@ -50,7 +51,8 @@ per authenticated database session. It requires the SDK v47 schema and models.
   writes are refused, so the retry cannot race it into duplicate rows. Its LLM
   call is not aborted and may still complete.
 - A retried batch re-extracts, so a quarantined candidate reuses the audit row
-  an earlier attempt wrote (same source IDs and normalised content) instead of
+  an earlier attempt wrote (same scope, folder, source IDs and normalised
+  content) instead of
   adding another copy.
 - Source ownership is not symmetric across a privacy flip. A private extractor
   forces a queued shared job to `private` — the direction that cannot publish —

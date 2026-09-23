@@ -2399,8 +2399,10 @@ function normalizeForDedupe(content: string): string {
 }
 
 /**
- * Find a live quarantined row with the same source ids and (normalised)
- * content. Quarantined candidates are force-created with auto-merge off, so a
+ * Find a live quarantined row in the same scope and folder with the same
+ * source ids and (normalised) content. Scope and folder are part of the match
+ * because the audit row is written into them: after a mode or folder change
+ * the same sources must get their own row there. Quarantined candidates are force-created with auto-merge off, so a
  * retried extraction batch re-created the same audit row on every retry; the
  * caller checks this first and reuses the existing row instead.
  *
@@ -2410,7 +2412,8 @@ function normalizeForDedupe(content: string): string {
 export async function findQuarantinedDuplicateOp(
   ctx: VaultMemoryOperationsContext,
   content: string,
-  sourceIds: readonly string[]
+  sourceIds: readonly string[],
+  where: { scope: string; folderId: string | null }
 ): Promise<string | null> {
   const wanted = [...new Set(sourceIds)].sort().join("\u0000");
   const target = normalizeForDedupe(content);
@@ -2418,6 +2421,8 @@ export async function findQuarantinedDuplicateOp(
     .query(
       Q.where("trust_tier", "quarantined"),
       Q.where("is_deleted", false),
+      Q.where("scope", where.scope),
+      Q.where("folder_id", where.folderId),
       ...(ctx.userId !== undefined ? [Q.where("user_id", ctx.userId)] : [])
     )
     .unsafeFetchRaw()) as Record<string, unknown>[];
