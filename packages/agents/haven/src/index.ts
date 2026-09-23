@@ -86,7 +86,8 @@ const HAVEN_MARKETPLACE: AgentMarketplaceContent = {
 
 /** UI metadata used by renderers when richer portal data isn't available. */
 const HAVEN_UI_METADATA: AgentUiMetadata = {
-  color: "#C57741",
+  // Gray/800 — Anuma's own agent takes ink now that the brand orange is retired (#8419).
+  color: "#3b3d3e",
   icon: "users",
   features: [
     "agents.haven.feature1",
