@@ -336,7 +336,8 @@ describe("createMemoryVaultTool", () => {
     const autoConfirm = async () => true;
 
     it("resolves folderName to folderId via folderMap when creating a new memory", async () => {
-      vi.mocked(createVaultMemoryOp).mockResolvedValue(makeStoredMemory({ uniqueId: "new-1" }));
+      const created = makeStoredMemory({ uniqueId: "new-1" });
+      vi.mocked(createVaultMemoryOp).mockResolvedValue(created);
 
       const folderMap = new Map([["Work", "folder_1"]]);
       const tool = createMemoryVaultTool(mockVaultCtx, { folderMap, onSave: autoConfirm });
@@ -367,7 +368,8 @@ describe("createMemoryVaultTool", () => {
     });
 
     it("creates memory without folderId when folderName is not provided", async () => {
-      vi.mocked(createVaultMemoryOp).mockResolvedValue(makeStoredMemory({ uniqueId: "new-1" }));
+      const created = makeStoredMemory({ uniqueId: "new-1" });
+      vi.mocked(createVaultMemoryOp).mockResolvedValue(created);
 
       const tool = createMemoryVaultTool(mockVaultCtx, { onSave: autoConfirm });
       await tool.executor!({ content: "test" });
@@ -385,7 +387,8 @@ describe("createMemoryVaultTool", () => {
   describe("onSave confirmation flow", () => {
     it("calls onSave with add operation including scope and proceeds when accepted", async () => {
       const onSave = vi.fn().mockResolvedValue(true);
-      vi.mocked(createVaultMemoryOp).mockResolvedValue(makeStoredMemory({ uniqueId: "new-1" }));
+      const created = makeStoredMemory({ uniqueId: "new-1" });
+      vi.mocked(createVaultMemoryOp).mockResolvedValue(created);
 
       const tool = createMemoryVaultTool(mockVaultCtx, { onSave, scope: "shared" });
       const result = await tool.executor!({
@@ -457,7 +460,8 @@ describe("createMemoryVaultTool", () => {
     });
 
     it("eagerly embeds content after creating a new memory", async () => {
-      vi.mocked(createVaultMemoryOp).mockResolvedValue(makeStoredMemory({ uniqueId: "new-1" }));
+      const created = makeStoredMemory({ uniqueId: "new-1" });
+      vi.mocked(createVaultMemoryOp).mockResolvedValue(created);
 
       const tool = createMemoryVaultTool(mockVaultCtx, autoConfirm, embeddingOptions, cache);
       await tool.executor!({ content: "embed this" });
@@ -467,7 +471,9 @@ describe("createMemoryVaultTool", () => {
         embeddingOptions,
         cache,
         mockVaultCtx,
-        "new-1"
+        "new-1",
+        // The committed row's version, so the cache entry can be served as a hit.
+        created.updatedAt
       );
     });
 
@@ -475,9 +481,8 @@ describe("createMemoryVaultTool", () => {
       vi.mocked(getVaultMemoryOp).mockResolvedValue(
         makeStoredMemory({ uniqueId: "mem-1", content: "old content" })
       );
-      vi.mocked(updateVaultMemoryOp).mockResolvedValue(
-        makeStoredMemory({ uniqueId: "mem-1", content: "new content" })
-      );
+      const updated = makeStoredMemory({ uniqueId: "mem-1", content: "new content" });
+      vi.mocked(updateVaultMemoryOp).mockResolvedValue(updated);
       // Cache invalidation is by id: eagerEmbedContent overwrites the id-keyed
       // entry with the new vector — no separate delete-by-content step.
       const tool = createMemoryVaultTool(mockVaultCtx, autoConfirm, embeddingOptions, cache);
@@ -488,7 +493,8 @@ describe("createMemoryVaultTool", () => {
         embeddingOptions,
         cache,
         mockVaultCtx,
-        "mem-1"
+        "mem-1",
+        updated.updatedAt
       );
     });
   });

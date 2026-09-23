@@ -137,3 +137,37 @@ describe("embedding cache lifecycle", () => {
     expect(result).toContain("Found 2 vault memories");
   });
 });
+
+describe("eager warming is served from the cache", () => {
+  // Untagged entries are a miss, so an eager write that doesn't name the
+  // committed row's version would never be hit: a search that runs before the
+  // fire-and-forget persist lands finds no stored vector either, and pays an
+  // embeddings call — the exact cost eager embedding exists to avoid.
+  it("save then search before the persist lands: cache hit, no extra embeddings call", async () => {
+    const cache = createVaultEmbeddingCache();
+    const committedAt = new Date("2026-09-01T00:00:00Z");
+    const saved = { ...makeMemory("m9", "prefers window seats"), updatedAt: committedAt };
+    vi.mocked(createVaultMemoryOp).mockResolvedValue(saved);
+    vi.mocked(generateEmbedding).mockResolvedValue([0, 1, 0]);
+
+    const saveTool = createMemoryVaultTool(
+      mockVaultCtx,
+      { onSave: async () => true },
+      embeddingOptions,
+      cache
+    );
+    await saveTool.executor!({ content: "prefers window seats" });
+    await new Promise((r) => setTimeout(r, 10)); // let the eager embed settle
+
+    // The row as the search reads it: persist not landed yet (no stored vector).
+    vi.mocked(getAllVaultMemoriesOp).mockResolvedValue([{ ...saved, embedding: null }]);
+    vi.mocked(generateEmbeddings).mockClear();
+    const searchTool = createMemoryVaultSearchTool(mockVaultCtx, embeddingOptions, cache, {
+      minSimilarity: 0.5,
+    });
+    const result = (await searchTool.executor!({ query: "seats" })) as string;
+
+    expect(generateEmbeddings).not.toHaveBeenCalled();
+    expect(result).toContain("Found 1 vault memories");
+  });
+});

@@ -144,3 +144,59 @@ describe("embedding deadlines", () => {
     expect(t.state).toBe("rejected");
   });
 });
+
+/**
+ * A SYNCHRONOUS throw or a bare (non-promise) return from the wrapped call.
+ * The deadline timer used to be armed before the call and outside the `try`:
+ * a sync throw left it running, and when it fired it rejected with nobody
+ * listening — one unhandled rejection per retry attempt, which crashes Node.
+ */
+describe("embedding deadlines — synchronous callers", () => {
+  it("rejects with a sync maskInput throw, leaves no timer armed and no unhandled rejection", async () => {
+    const unhandled = vi.fn();
+    process.on("unhandledRejection", unhandled);
+    try {
+      const boom = new Error("redactor exploded");
+      const t = track(
+        generateEmbedding("hello", {
+          apiKey: "k",
+          baseUrl: BASE,
+          timeoutMs: 1000,
+          maskInput: () => {
+            throw boom;
+          },
+        })
+      );
+
+      // Past every backoff AND past every would-be deadline.
+      await vi.advanceTimersByTimeAsync(60_000);
+      await vi.advanceTimersByTimeAsync(0);
+
+      expect(t.state).toBe("rejected");
+      expect(t.error).toBe(boom);
+      expect(vi.getTimerCount()).toBe(0);
+      expect(unhandled).not.toHaveBeenCalled();
+    } finally {
+      process.off("unhandledRejection", unhandled);
+    }
+  });
+
+  it("resolves when getToken returns a bare string instead of a promise", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async () =>
+          new Response(JSON.stringify({ data: [{ embedding: [1, 2, 3], index: 0 }] }), {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          })
+      )
+    );
+    const getToken = (() => "tok") as unknown as () => Promise<string | null>;
+
+    const t = track(generateEmbedding("hello", { getToken, baseUrl: BASE }));
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(t.state).toBe("resolved");
+  });
+});

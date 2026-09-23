@@ -56,17 +56,21 @@ const mockVaultCtx = {} as VaultMemoryOperationsContext;
  * version they were computed for (see vectorVersion.ts), so fixtures seed the
  * cache through {@link seedVector}, which tags them with this version. */
 const ROW_VERSION = new Date("2026-06-01T00:00:00Z");
+/** Content of the latest fixture row built for each id — cache entries are also
+ * tagged with a content fingerprint, so a seed must name the row's content. */
+const fixtureContent = new Map<string, string>();
 function seedVector(
   cache: VaultEmbeddingCache,
   id: string,
   vec: Float32Array,
   version: Date = ROW_VERSION
 ): void {
-  cacheRowVector(cache, id, vec, version);
+  cacheRowVector(cache, id, vec, version, fixtureContent.get(id));
 }
 const mockEmbeddingOptions: EmbeddingOptions = { apiKey: "test-key" };
 
 function makeMemory(id: string, content: string, scope = "private"): StoredVaultMemory {
+  fixtureContent.set(id, content);
   return {
     uniqueId: id,
     content,
@@ -1856,7 +1860,9 @@ describe("searchVaultMemoriesWithSize — decryptLast branch", () => {
         FIXTURE.filter((f) => ids.includes(f.uniqueId)).map(toRow) as any
     );
     const cacheA = createVaultEmbeddingCache();
-    FIXTURE.forEach((f) => seedVector(cacheA, f.uniqueId, Float32Array.from(f.vec), now));
+    FIXTURE.forEach((f) =>
+      cacheRowVector(cacheA, f.uniqueId, Float32Array.from(f.vec), now, f.content)
+    );
 
     const decryptLastOut = await searchVaultMemoriesWithSize("cats", {} as any, embOpts, cacheA, {
       limit: 3,
@@ -1872,7 +1878,9 @@ describe("searchVaultMemoriesWithSize — decryptLast branch", () => {
     // --- legacy path: same fixture, same query, whole-vault load ---
     vi.spyOn(ops, "getAllVaultMemoriesOp").mockResolvedValue(FIXTURE.map(toRow) as any);
     const cacheB = createVaultEmbeddingCache();
-    FIXTURE.forEach((f) => seedVector(cacheB, f.uniqueId, Float32Array.from(f.vec), now));
+    FIXTURE.forEach((f) =>
+      cacheRowVector(cacheB, f.uniqueId, Float32Array.from(f.vec), now, f.content)
+    );
 
     const legacyOut = await searchVaultMemoriesWithSize("cats", {} as any, embOpts, cacheB, {
       limit: 3,

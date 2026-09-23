@@ -337,7 +337,14 @@ export function createMemoryVaultTool(
                 // id has no entry (next search re-embeds from DB) instead of
                 // serving the pre-edit vector under this id.
                 cache.delete(id);
-                eagerEmbedContent(content, embeddingOptions, cache, vaultCtx, id).catch(
+                eagerEmbedContent(
+                  content,
+                  embeddingOptions,
+                  cache,
+                  vaultCtx,
+                  id,
+                  updated.updatedAt
+                ).catch(
                   // Silently swallow – SDK must not use console.*; embedding will be retried on next search
                   () => {}
                 );
@@ -371,7 +378,8 @@ export function createMemoryVaultTool(
                   embeddingOptions,
                   cache,
                   vaultCtx,
-                  created.uniqueId
+                  created.uniqueId,
+                  created.updatedAt
                 ).catch(
                   // Silently swallow – SDK must not use console.*; embedding will be retried on next search
                   () => {}

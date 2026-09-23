@@ -134,7 +134,7 @@ describe("event-time anchors and factType survive every lane", () => {
     ]);
     vi.mocked(generateEmbedding).mockResolvedValue([1, 0, 0]);
     const cache = createVaultEmbeddingCache();
-    cacheRowVector(cache, "m1", Float32Array.from([1, 0, 0]), NOW);
+    cacheRowVector(cache, "m1", Float32Array.from([1, 0, 0]), NOW, "went to the party");
 
     const { results } = await searchVaultMemoriesWithSize(
       "birthday",
@@ -253,7 +253,7 @@ describe("memory_vault_search clamps the model-supplied limit", () => {
     vi.mocked(generateEmbedding).mockResolvedValue([1, 0, 0]);
     const cache = createVaultEmbeddingCache();
     for (const m of memories)
-      cacheRowVector(cache, m.uniqueId, Float32Array.from([1, 0, 0]), m.updatedAt);
+      cacheRowVector(cache, m.uniqueId, Float32Array.from([1, 0, 0]), m.updatedAt, m.content);
     return cache;
   }
 
@@ -287,7 +287,7 @@ describe("searchVaultMemoriesWithSize reuses a caller-supplied query vector", ()
 
   it("ranks on the supplied vector without calling the embeddings endpoint", async () => {
     const cache = createVaultEmbeddingCache();
-    cacheRowVector(cache, "m1", Float32Array.from([1, 0, 0]), NOW);
+    cacheRowVector(cache, "m1", Float32Array.from([1, 0, 0]), NOW, "cats");
 
     const out = await searchVaultMemoriesWithSize("cats", vaultCtx, embeddingOptions, cache, {
       queryEmbedding: [1, 0, 0],
@@ -393,9 +393,52 @@ describe("the embedding cache drops a vector once its row changes", () => {
     expect(generateEmbeddings).not.toHaveBeenCalled(); // resolved from the column, no re-embed
   });
 
+  // retain()'s consolidate-update rewrites content + embedding with
+  // preserveUpdatedAt, so a consolidation synced from another device arrives
+  // with NEW content under the SAME updatedAt. The content fingerprint is what
+  // catches it.
+  it("legacy path: new content under an unchanged updatedAt is a miss", async () => {
+    const cache = createVaultEmbeddingCache();
+    cacheRowVector(cache, "m1", Float32Array.from([1, 0, 0]), T1, "lives in portland");
+    vi.mocked(generateEmbedding).mockResolvedValue([0, 1, 0]);
+    vi.mocked(ops.getAllVaultMemoriesOp).mockResolvedValue([
+      makeMemory("m1", "moved to seattle", { embedding: "[0,1,0]", updatedAt: T1 }),
+    ]);
+
+    const { results } = await searchVaultMemoriesWithSize("q", vaultCtx, embeddingOptions, cache, {
+      minSimilarity: 0.5,
+    });
+
+    expect(results.map((r) => r.uniqueId)).toEqual(["m1"]);
+    expect(Array.from(cache.get("m1")!)).toEqual([0, 1, 0]);
+  });
+
+  it("projected path: re-checks the fingerprint after decrypt and re-reads a stale vector", async () => {
+    const cache = createVaultEmbeddingCache();
+    cacheRowVector(cache, "m1", Float32Array.from([1, 0, 0]), T1, "lives in portland");
+    vi.mocked(ops.getVaultCandidateKeysOp).mockResolvedValue([
+      { uniqueId: "m1", embeddingModel: null, updatedAt: T1 },
+    ] as never);
+    vi.mocked(ops.getVaultMemoriesByIdsOp).mockResolvedValue([
+      makeMemory("m1", "moved to seattle", { updatedAt: T1 }),
+    ]);
+    vi.mocked(ops.getVaultEmbeddingsByIdsOp).mockResolvedValue([
+      { uniqueId: "m1", embedding: "[0,1,0]" },
+    ] as never);
+    vi.mocked(generateEmbedding).mockResolvedValue([0, 1, 0]);
+
+    const { results } = await searchVaultMemoriesWithSize("q", vaultCtx, embeddingOptions, cache, {
+      decryptLast: true,
+      minSimilarity: 0.5,
+    });
+
+    expect(results.map((r) => r.uniqueId)).toEqual(["m1"]);
+    expect(Array.from(cache.get("m1")!)).toEqual([0, 1, 0]);
+  });
+
   it("retain()-style writes tagged with the committed row version stay warm", async () => {
     const cache = createVaultEmbeddingCache();
-    cacheRowVector(cache, "m1", Float32Array.from([1, 0, 0]), T1);
+    cacheRowVector(cache, "m1", Float32Array.from([1, 0, 0]), T1, "lives in portland");
     vi.mocked(generateEmbedding).mockResolvedValue([1, 0, 0]);
     vi.mocked(ops.getAllVaultMemoriesOp).mockResolvedValue([
       makeMemory("m1", "lives in portland", { updatedAt: T1 }), // no stored vector

@@ -375,7 +375,8 @@ export async function retain(
         ctx.vaultCache,
         created.uniqueId,
         Float32Array.from(embedding),
-        created.updatedAt
+        created.updatedAt,
+        createOpts.content
       );
       // Retire the remaining stale duplicates against the new memory. Best-effort,
       // but the boolean result is ambiguous — `supersedeVaultMemoryOp` returns
@@ -445,7 +446,13 @@ export async function retain(
   // the uniqueId. Float32Array = model-native precision, half the RAM of a
   // float64 number[]. Tagged with the committed row's version so a search can
   // tell this vector from one for a later edit of the same row.
-  cacheRowVector(ctx.vaultCache, created.uniqueId, Float32Array.from(embedding), created.updatedAt);
+  cacheRowVector(
+    ctx.vaultCache,
+    created.uniqueId,
+    Float32Array.from(embedding),
+    created.updatedAt,
+    createOpts.content
+  );
 
   return {
     action: "create",
@@ -803,7 +810,8 @@ async function tryConsolidate(
       ctx.vaultCache,
       decision.targetId,
       Float32Array.from(newEmbedding),
-      updated.updatedAt
+      updated.updatedAt,
+      decision.content
     );
     return {
       done: {

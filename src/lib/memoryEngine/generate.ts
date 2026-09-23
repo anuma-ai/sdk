@@ -43,34 +43,41 @@ const DEFAULT_EMBEDDING_TOKEN_TIMEOUT_MS = 10_000;
  * timers can advance, so a test of it would have to wait out the real deadline.
  */
 async function withDeadline<T>(
-  run: (signal: AbortSignal | undefined) => Promise<T>,
+  run: (signal: AbortSignal | undefined) => T | Promise<T>,
   ms: number,
   what: string,
   parent?: AbortSignal
 ): Promise<T> {
-  if (!(ms > 0) || !Number.isFinite(ms)) return run(parent);
+  // `run` is always invoked inside a promise chain, so a SYNCHRONOUS throw
+  // (a throwing `maskInput`, a non-async `getToken`) becomes a rejection of
+  // `work` and a bare non-promise return value resolves it — neither can escape
+  // past the cleanup below or leave a timer armed.
+  if (!(ms > 0) || !Number.isFinite(ms)) return Promise.resolve().then(() => run(parent));
   const controller = new AbortController();
   // An enclosing deadline (see `totalTimeoutMs`) that fires first aborts this
   // attempt's request too, so it doesn't keep a socket open for nothing.
   const onParentAbort = () => controller.abort(parent?.reason);
-  if (parent?.aborted) onParentAbort();
-  else parent?.addEventListener("abort", onParentAbort, { once: true });
   let timer: ReturnType<typeof setTimeout> | undefined;
-  const deadline = new Promise<never>((_, reject) => {
-    timer = setTimeout(() => {
-      const err = new Error(`${what} timed out after ${ms}ms`);
-      err.name = "TimeoutError";
-      controller.abort(err);
-      reject(err);
-    }, ms);
-  });
-  const work = run(controller.signal);
   try {
+    if (parent?.aborted) onParentAbort();
+    else parent?.addEventListener("abort", onParentAbort, { once: true });
+    const work = Promise.resolve().then(() => run(controller.signal));
+    // A late rejection after the deadline won the race has no other listener.
+    work.catch(() => {});
+    const deadline = new Promise<never>((_, reject) => {
+      timer = setTimeout(() => {
+        const err = new Error(`${what} timed out after ${ms}ms`);
+        err.name = "TimeoutError";
+        controller.abort(err);
+        reject(err);
+      }, ms);
+    });
     return await Promise.race([work, deadline]);
   } finally {
+    // Clearing the timer is what keeps the (then listener-less) `deadline`
+    // from ever rejecting once `work` has settled.
     clearTimeout(timer);
     parent?.removeEventListener("abort", onParentAbort);
-    work.catch(() => {});
   }
 }
 

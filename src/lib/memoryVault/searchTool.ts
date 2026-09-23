@@ -27,7 +27,7 @@ import type { EmbeddingOptions } from "../memoryEngine/types";
 import { cosineSimilarity } from "../memoryEngine/vector";
 import { prepareBM25Corpus, type PreparedBM25Corpus, scoreBM25, scoreBM25Prepared } from "./bm25";
 import { normalizeSubQueries } from "./decomposeQuery";
-import { cachedRowVector, cacheRowVector } from "./vectorVersion";
+import { cachedRowVector, cacheRowVector, rowVectorMatchesContent } from "./vectorVersion";
 
 export { createVaultEmbeddingCache, DEFAULT_VAULT_CACHE_SIZE } from "./lruCache";
 
@@ -1541,7 +1541,7 @@ export async function preEmbedVaultMemories(
     if (isEncrypted(content)) continue;
     // Cache is keyed by memory id (not content): keeps plaintext out of the
     // key space and lets edits/deletes invalidate by id.
-    if (!cachedRowVector(cache, m.uniqueId, m.updatedAt)) {
+    if (!cachedRowVector(cache, m.uniqueId, m.updatedAt, content)) {
       // Use a persisted embedding only if it was produced by the current
       // model. null/undefined = legacy, grandfathered (coalesces to the
       // current model). Stale-model vectors are re-embedded so a model change
@@ -1551,7 +1551,7 @@ export async function preEmbedVaultMemories(
         try {
           const parsed = JSON.parse(m.embedding) as number[];
           if (Array.isArray(parsed)) {
-            cacheRowVector(cache, m.uniqueId, Float32Array.from(parsed), m.updatedAt);
+            cacheRowVector(cache, m.uniqueId, Float32Array.from(parsed), m.updatedAt, content);
             continue;
           }
         } catch {
@@ -1567,7 +1567,13 @@ export async function preEmbedVaultMemories(
   if (uncachedTexts.length > 0) {
     const embeddings = await generateEmbeddings(uncachedTexts, embeddingOptions);
     for (let i = 0; i < uncachedKeys.length; i++) {
-      cacheRowVector(cache, uncachedKeys[i], Float32Array.from(embeddings[i]), uncachedVersions[i]);
+      cacheRowVector(
+        cache,
+        uncachedKeys[i],
+        Float32Array.from(embeddings[i]),
+        uncachedVersions[i],
+        uncachedTexts[i]
+      );
       // Persist embedding + model to DB (fire-and-forget)
       updateVaultMemoryEmbeddingOp(
         vaultCtx,
@@ -1606,7 +1612,7 @@ export async function eagerEmbedContent(
   // Cache is keyed by memory id (not content). Without an id there's nothing
   // to key on, so skip the cache write and rely on the DB-persist below /
   // next search to populate it.
-  if (memoryId) cacheRowVector(cache, memoryId, Float32Array.from(embedding), updatedAt);
+  if (memoryId) cacheRowVector(cache, memoryId, Float32Array.from(embedding), updatedAt, content);
   if (vaultCtx && memoryId) {
     const currentModel = embeddingOptions.model ?? DEFAULT_API_EMBEDDING_MODEL;
     updateVaultMemoryEmbeddingOp(vaultCtx, memoryId, JSON.stringify(embedding), currentModel).catch(
@@ -1839,6 +1845,10 @@ export async function buildProjectedCorpus(
   const missIds: string[] = []; // cache miss, has a compatible stored vector (load it)
   const noVectorIds: string[] = []; // no usable stored vector (un-embedded lane)
   const keyById = new Map(keys.map((k) => [k.uniqueId, k]));
+  // Vectors this call read from the row's own stored column / embedded from its
+  // content — the same row snapshot the admission decrypt reads, so they need
+  // no fingerprint re-check (only a content tag, added below).
+  const resolvedThisCall = new Set<string>();
   if (!embeddingsDegraded) {
     for (const k of keys) {
       const cached = cachedRowVector(cache, k.uniqueId, k.updatedAt);
@@ -1864,6 +1874,7 @@ export async function buildProjectedCorpus(
           const vec = Float32Array.from(parsed);
           const k = keyById.get(r.uniqueId)!;
           cacheRowVector(cache, r.uniqueId, vec, k.updatedAt);
+          resolvedThisCall.add(r.uniqueId);
           vectored.push({ uniqueId: r.uniqueId, embedding: vec, updatedAt: k.updatedAt });
           gotVector.add(r.uniqueId);
         }
@@ -1929,7 +1940,8 @@ export async function buildProjectedCorpus(
         const vecs = laneVecs;
         laneRows.forEach((m, i) => {
           const vec = Float32Array.from(vecs[i]);
-          cacheRowVector(cache, m.uniqueId, vec, m.updatedAt);
+          cacheRowVector(cache, m.uniqueId, vec, m.updatedAt, m.content);
+          resolvedThisCall.add(m.uniqueId);
           vectored.push({ uniqueId: m.uniqueId, embedding: vec, updatedAt: m.updatedAt });
           updateVaultMemoryEmbeddingOp(
             vaultCtx,
@@ -2003,6 +2015,46 @@ export async function buildProjectedCorpus(
       `memoryVault: ${admittedRows.length - memories.length}/${admittedRows.length} admitted ` +
         "memories still encrypted (key unavailable?) — excluded from projected search"
     );
+  }
+  // The hit test above could only compare `updatedAt` — the key scan carries no
+  // content. Now that the admitted rows are decrypted, re-check the content
+  // fingerprint of every vector that came from an EARLIER call: a consolidation
+  // synced from another device rewrites content under the same `updatedAt`.
+  // A stale one is re-read from the row's stored column (one DB read for just
+  // those ids, no network); vectors resolved this call only gain the content tag.
+  const staleIds: string[] = [];
+  for (const m of memories) {
+    const vec = cache.get(m.uniqueId);
+    if (!vec || rowVectorMatchesContent(vec, m.content)) continue;
+    // Tag with the KEY SCAN's updatedAt — the version the hit test compares.
+    const version = keyById.get(m.uniqueId)?.updatedAt ?? m.updatedAt;
+    if (resolvedThisCall.has(m.uniqueId)) {
+      cacheRowVector(cache, m.uniqueId, vec, version, m.content);
+    } else {
+      cache.delete(m.uniqueId);
+      staleIds.push(m.uniqueId);
+    }
+  }
+  if (staleIds.length > 0) {
+    const contentById = new Map(memories.map((m) => [m.uniqueId, m]));
+    for (const r of await getVaultEmbeddingsByIdsOp(vaultCtx, staleIds, hydrateOpts)) {
+      if (!r.embedding) continue;
+      try {
+        const parsed = JSON.parse(r.embedding) as number[];
+        const m = contentById.get(r.uniqueId);
+        if (m && Array.isArray(parsed) && parsed.length === queryEmbedding.length) {
+          cacheRowVector(
+            cache,
+            r.uniqueId,
+            Float32Array.from(parsed),
+            keyById.get(r.uniqueId)?.updatedAt ?? m.updatedAt,
+            m.content
+          );
+        }
+      } catch {
+        /* no usable stored vector: the row ranks on BM25 / side lanes this call */
+      }
+    }
   }
   const embeddedItems: EmbeddedItem[] = memories.map((m) => ({
     id: m.uniqueId,
@@ -2391,7 +2443,7 @@ export async function prepareVaultCandidates(
       // is keyed by memory id (not model) and can be seeded by preEmbedVaultMemories
       // — which has no query vector to dim-check against — so a grandfathered
       // wrong-dim vector could otherwise live in the cache and evade re-embed.
-      const cached = cachedRowVector(cache, memoryId, memories[i].updatedAt);
+      const cached = cachedRowVector(cache, memoryId, memories[i].updatedAt, content);
       if (cached && cached.length === queryEmbedding.length) continue;
       if (cached) cache.delete(memoryId); // wrong-dim cache entry — drop and re-resolve
 
@@ -2403,7 +2455,13 @@ export async function prepareVaultCandidates(
         try {
           const parsed = JSON.parse(memories[i].embedding!) as number[];
           if (Array.isArray(parsed) && parsed.length === queryEmbedding.length) {
-            cacheRowVector(cache, memoryId, Float32Array.from(parsed), memories[i].updatedAt);
+            cacheRowVector(
+              cache,
+              memoryId,
+              Float32Array.from(parsed),
+              memories[i].updatedAt,
+              content
+            );
             continue;
           }
           // Dimension mismatch — model changed dims (even a grandfathered
@@ -2450,7 +2508,8 @@ export async function prepareVaultCandidates(
             cache,
             memories[uncachedIndices[j]].uniqueId,
             Float32Array.from(newEmbeddings[j]),
-            memories[uncachedIndices[j]].updatedAt
+            memories[uncachedIndices[j]].updatedAt,
+            memories[uncachedIndices[j]].content
           );
           // Persist embedding + model to DB (fire-and-forget)
           updateVaultMemoryEmbeddingOp(
