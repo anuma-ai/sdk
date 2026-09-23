@@ -2056,6 +2056,12 @@ Re-exports [VaultEmbeddingCache](../react/Internal/type-aliases/VaultEmbeddingCa
 
 ***
 
+### VaultEmbeddingExpectation
+
+Re-exports [VaultEmbeddingExpectation](../react/Internal/interfaces/VaultEmbeddingExpectation.md)
+
+***
+
 ### VaultFolderOperationsContext
 
 Re-exports [VaultFolderOperationsContext](../react/Internal/interfaces/VaultFolderOperationsContext.md)

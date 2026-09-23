@@ -30,6 +30,7 @@ export {
   updateVaultMemoryEmbeddingOp,
   updateVaultMemoryOp,
   type VaultCandidateKey,
+  type VaultEmbeddingExpectation,
   type VaultMemoryOperationsContext,
 } from "./operations";
 export {

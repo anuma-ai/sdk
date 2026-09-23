@@ -2,7 +2,7 @@
 
 > `const` **sdkModelClasses**: `Class`<`Model`>\[]
 
-Defined in: [src/lib/db/schema.ts:1258](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/schema.ts#1258)
+Defined in: [src/lib/db/schema.ts:1285](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/schema.ts#1285)
 
 Model classes to register with the WatermelonDB database.
 

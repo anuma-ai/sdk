@@ -120,6 +120,9 @@ function mockRecord(overrides: Record<string, any> = {}) {
     _setRaw(key: string, value: any) {
       raw[key] = value;
     },
+    _getRaw(key: string) {
+      return raw[key];
+    },
     update: vi.fn(async (updater: (r: any) => void) => {
       updater({
         _setRaw: (k: string, v: any) => {
@@ -831,6 +834,41 @@ describe("updateVaultMemoryEmbeddingOp", () => {
     // The model tag is written alongside the vector — a stale tag would make
     // search re-embed the row on every query.
     expect(setRawSpy).toHaveBeenCalledWith("embedding_model", "test-embed-model");
+  });
+
+  it("decrypts for an expected-content check outside the writer", async () => {
+    const { decryptVaultMemoryFields } = await import("./encryption");
+    let inWriter = false;
+    const decryptedInWriter: boolean[] = [];
+    vi.mocked(decryptVaultMemoryFields).mockImplementation(async (memory: any) => {
+      decryptedInWriter.push(inWriter);
+      return { ...memory, content: String(memory.content).replace("encrypted:", "") };
+    });
+    const record = mockRecord({ content: "encrypted:Plays cello" });
+    const ctx = makeCtx({
+      walletAddress: "0xabc",
+      signMessage: vi.fn(),
+      database: {
+        write: vi.fn(async (cb: () => any) => {
+          inWriter = true;
+          try {
+            return await cb();
+          } finally {
+            inWriter = false;
+          }
+        }),
+      } as any,
+      vaultMemoryCollection: { find: vi.fn(async () => record) } as any,
+    });
+
+    const result = await updateVaultMemoryEmbeddingOp(ctx, "mem_1", "[1,0]", "m", {
+      content: "Plays cello",
+    });
+
+    expect(result).toBe(true);
+    // A decrypt can reach the signer; inside database.write it would stall
+    // every other write in the app behind a signature prompt.
+    expect(decryptedInWriter).toEqual([false]);
   });
 
   it("returns false for soft-deleted records", async () => {

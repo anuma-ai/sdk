@@ -125,8 +125,15 @@ import { VaultFolder } from "./vaultFolders/models";
  *   rolling a release back past v46 after a device has run it resets that
  *   device's local database. Relevant to OTA, where a JS-only rollback can
  *   land on a database the newer build already migrated
+ * - v47: Added failed_sessions, failed_head, failed_at to
+ *   memory_extraction_jobs — the persisted poison count for a job's head batch
+ *   (how many worker sessions it failed in, which batch that count belongs to,
+ *   and when the last one was counted, so sessions minutes apart count once). Without it the retry
+ *   budget was in memory and reset on every turn, so one batch that could never
+ *   extract blocked its conversation's extraction forever. Additive, both
+ *   nullable, no backfill: NULL reads as "never failed"
  */
-export const SDK_SCHEMA_VERSION = 46;
+export const SDK_SCHEMA_VERSION = 47;
 
 /**
  * Combined WatermelonDB schema for all SDK storage modules.
@@ -174,6 +181,10 @@ export const sdkSchema = appSchema({
         // the anchor — see the column note in extractionJobs/models.ts.
         { name: "watermark_seq", type: "number", isOptional: true },
         { name: "folder_id", type: "string", isOptional: true },
+        // Poison accounting for the head batch; see extractionJobs/models.ts.
+        { name: "failed_sessions", type: "number", isOptional: true },
+        { name: "failed_head", type: "string", isOptional: true },
+        { name: "failed_at", type: "number", isOptional: true },
       ],
     }),
     // Chat storage tables
@@ -1231,6 +1242,22 @@ export const sdkMigrations = schemaMigrations({
             { name: "watermark", type: "string", isOptional: true },
             { name: "watermark_seq", type: "number", isOptional: true },
             { name: "folder_id", type: "string", isOptional: true },
+          ],
+        }),
+      ],
+    },
+    // v46 -> v47: persisted poison count (and when it was last counted) for a
+    // durable-extraction job's head batch. NULL = never failed, which is right
+    // for every existing row.
+    {
+      toVersion: 47,
+      steps: [
+        addColumns({
+          table: "memory_extraction_jobs",
+          columns: [
+            { name: "failed_sessions", type: "number", isOptional: true },
+            { name: "failed_head", type: "string", isOptional: true },
+            { name: "failed_at", type: "number", isOptional: true },
           ],
         }),
       ],

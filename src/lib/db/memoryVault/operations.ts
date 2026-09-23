@@ -234,11 +234,64 @@ export async function vaultMemoryToStored(
   return raw;
 }
 
+/**
+ * Populate every column of a NEW vault row from its create options. The single
+ * source for create, batch create and superseding create: when these were three
+ * hand-copied blocks the superseding path silently dropped `fact_type`,
+ * `trust_tier`, visibility and `geohash`, so a corrected identity fact became
+ * untyped and aged out on the fallback TTL while its stale predecessor stayed.
+ */
+function populateNewVaultMemory(
+  record: VaultMemory,
+  ctx: VaultMemoryOperationsContext,
+  opts: CreateVaultMemoryOptions,
+  encryptedContent: string
+): void {
+  record._setRaw("content", encryptedContent);
+  record._setRaw("scope", opts.scope ?? "private");
+  record._setRaw("folder_id", opts.folderId ?? null);
+  record._setRaw("user_id", ctx.userId ?? null);
+  record._setRaw("is_deleted", false);
+  if (opts.embedding !== undefined) {
+    record._setRaw("embedding", opts.embedding);
+    record._setRaw("embedding_model", opts.embeddingModel ?? null);
+  }
+  if (opts.sourceChunkIds !== undefined) {
+    record._setRaw("source_chunk_ids", JSON.stringify(opts.sourceChunkIds));
+  }
+  record._setRaw("proof_count", opts.proofCount ?? 1);
+  record._setRaw("source", opts.source ?? "manual");
+  if (opts.eventTime) {
+    record._setRaw("event_time_start", opts.eventTime.start ?? null);
+    record._setRaw("event_time_end", opts.eventTime.end ?? null);
+    record._setRaw("event_time_kind", opts.eventTime.kind ?? null);
+  }
+  // Typed memory (PR1) — persist the classification when provided; leave
+  // null otherwise (legacy/manual/untyped). archived_at is never set on
+  // create — a fresh memory is always active.
+  if (opts.factType !== undefined) {
+    record._setRaw("fact_type", opts.factType);
+  }
+  if (opts.trustTier !== undefined) {
+    // Tier-0 (PR3): re-validate the loose string against the known set.
+    record._setRaw("trust_tier", normalizeTrustTier(opts.trustTier));
+  }
+  record._setRaw("visibility", opts.visibility ?? "private");
+  // Invariant: published_at is non-null iff visibility is non-private.
+  // A non-private restore/import without a stamp gets one now.
+  record._setRaw(
+    "published_at",
+    opts.visibility && opts.visibility !== "private" ? (opts.publishedAt ?? Date.now()) : null
+  );
+  if (opts.geohash !== undefined) {
+    record._setRaw("geohash", opts.geohash);
+  }
+}
+
 export async function createVaultMemoryOp(
   ctx: VaultMemoryOperationsContext,
   opts: CreateVaultMemoryOptions
 ): Promise<StoredVaultMemory> {
-  const scope = opts.scope ?? "private";
   const encryptedContent =
     ctx.walletAddress && ctx.signMessage
       ? await encryptVaultMemoryContent(
@@ -252,47 +305,9 @@ export async function createVaultMemoryOp(
   const created = await ctx.database.write(async () => {
     if (ctx.canWrite && !(await ctx.canWrite()))
       throw new Error("Memory source is no longer eligible");
-    return ctx.vaultMemoryCollection.create((record) => {
-      record._setRaw("content", encryptedContent);
-      record._setRaw("scope", scope);
-      record._setRaw("folder_id", opts.folderId ?? null);
-      record._setRaw("user_id", ctx.userId ?? null);
-      record._setRaw("is_deleted", false);
-      if (opts.embedding !== undefined) {
-        record._setRaw("embedding", opts.embedding);
-        record._setRaw("embedding_model", opts.embeddingModel ?? null);
-      }
-      if (opts.sourceChunkIds !== undefined) {
-        record._setRaw("source_chunk_ids", JSON.stringify(opts.sourceChunkIds));
-      }
-      record._setRaw("proof_count", opts.proofCount ?? 1);
-      record._setRaw("source", opts.source ?? "manual");
-      if (opts.eventTime) {
-        record._setRaw("event_time_start", opts.eventTime.start ?? null);
-        record._setRaw("event_time_end", opts.eventTime.end ?? null);
-        record._setRaw("event_time_kind", opts.eventTime.kind ?? null);
-      }
-      // Typed memory (PR1) — persist the classification when provided; leave
-      // null otherwise (legacy/manual/untyped). archived_at is never set on
-      // create — a fresh memory is always active.
-      if (opts.factType !== undefined) {
-        record._setRaw("fact_type", opts.factType);
-      }
-      if (opts.trustTier !== undefined) {
-        // Tier-0 (PR3): re-validate the loose string against the known set.
-        record._setRaw("trust_tier", normalizeTrustTier(opts.trustTier));
-      }
-      record._setRaw("visibility", opts.visibility ?? "private");
-      // Invariant: published_at is non-null iff visibility is non-private.
-      // A non-private restore/import without a stamp gets one now.
-      record._setRaw(
-        "published_at",
-        opts.visibility && opts.visibility !== "private" ? (opts.publishedAt ?? Date.now()) : null
-      );
-      if (opts.geohash !== undefined) {
-        record._setRaw("geohash", opts.geohash);
-      }
-    });
+    return ctx.vaultMemoryCollection.create((record) =>
+      populateNewVaultMemory(record, ctx, opts, encryptedContent)
+    );
   });
 
   return vaultMemoryToStored(created, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner);
@@ -316,7 +331,6 @@ export async function createSupersedingMemoryOp(
   targetId: string
 ): Promise<{ created: StoredVaultMemory | null; retired: boolean }> {
   if (!targetId) return { created: null, retired: false };
-  const scope = opts.scope ?? "private";
   const encryptedContent =
     ctx.walletAddress && ctx.signMessage
       ? await encryptVaultMemoryContent(
@@ -340,27 +354,9 @@ export async function createSupersedingMemoryOp(
     // Concurrent win / delete / cross-user → don't orphan a successor.
     if (target.isDeleted || target.supersededBy || !isOwnedByCtxUser(ctx, target)) return;
 
-    createdRecord = await ctx.vaultMemoryCollection.create((record) => {
-      record._setRaw("content", encryptedContent);
-      record._setRaw("scope", scope);
-      record._setRaw("folder_id", opts.folderId ?? null);
-      record._setRaw("user_id", ctx.userId ?? null);
-      record._setRaw("is_deleted", false);
-      if (opts.embedding !== undefined) {
-        record._setRaw("embedding", opts.embedding);
-        record._setRaw("embedding_model", opts.embeddingModel ?? null);
-      }
-      if (opts.sourceChunkIds !== undefined) {
-        record._setRaw("source_chunk_ids", JSON.stringify(opts.sourceChunkIds));
-      }
-      record._setRaw("proof_count", opts.proofCount ?? 1);
-      record._setRaw("source", opts.source ?? "manual");
-      if (opts.eventTime) {
-        record._setRaw("event_time_start", opts.eventTime.start ?? null);
-        record._setRaw("event_time_end", opts.eventTime.end ?? null);
-        record._setRaw("event_time_kind", opts.eventTime.kind ?? null);
-      }
-    });
+    createdRecord = await ctx.vaultMemoryCollection.create((record) =>
+      populateNewVaultMemory(record, ctx, opts, encryptedContent)
+    );
     await target.update((r) => {
       r._setRaw("superseded_by", createdRecord!.id);
       r._setRaw("superseded_at", Date.now());
@@ -495,45 +491,9 @@ export async function createVaultMemoriesBatchOp(
     if (ctx.canWrite && !(await ctx.canWrite()))
       throw new Error("Memory source is no longer eligible");
     const prepared = optionsArray.map((opts, i) =>
-      ctx.vaultMemoryCollection.prepareCreate((record) => {
-        record._setRaw("content", encryptedContents[i]);
-        record._setRaw("scope", opts.scope ?? "private");
-        record._setRaw("folder_id", opts.folderId ?? null);
-        record._setRaw("user_id", ctx.userId ?? null);
-        record._setRaw("is_deleted", false);
-        if (optionsArray[i].embedding !== undefined) {
-          record._setRaw("embedding", optionsArray[i].embedding);
-          record._setRaw("embedding_model", optionsArray[i].embeddingModel ?? null);
-        }
-        if (opts.sourceChunkIds !== undefined) {
-          record._setRaw("source_chunk_ids", JSON.stringify(opts.sourceChunkIds));
-        }
-        record._setRaw("proof_count", opts.proofCount ?? 1);
-        record._setRaw("source", opts.source ?? "manual");
-        if (opts.eventTime) {
-          record._setRaw("event_time_start", opts.eventTime.start ?? null);
-          record._setRaw("event_time_end", opts.eventTime.end ?? null);
-          record._setRaw("event_time_kind", opts.eventTime.kind ?? null);
-        }
-        // Typed memory (PR1) — see createVaultMemoryOp.
-        if (opts.factType !== undefined) {
-          record._setRaw("fact_type", opts.factType);
-        }
-        if (opts.trustTier !== undefined) {
-          // Tier-0 (PR3): re-validate the loose string against the known set.
-          record._setRaw("trust_tier", normalizeTrustTier(opts.trustTier));
-        }
-        record._setRaw("visibility", opts.visibility ?? "private");
-        // Invariant: published_at is non-null iff visibility is non-private
-        // (see createVaultMemoryOp).
-        record._setRaw(
-          "published_at",
-          opts.visibility && opts.visibility !== "private" ? (opts.publishedAt ?? Date.now()) : null
-        );
-        if (opts.geohash !== undefined) {
-          record._setRaw("geohash", opts.geohash);
-        }
-      })
+      ctx.vaultMemoryCollection.prepareCreate((record) =>
+        populateNewVaultMemory(record, ctx, opts, encryptedContents[i])
+      )
     );
     await ctx.database.batch(...prepared);
     return prepared;
@@ -2372,6 +2332,19 @@ export async function hardDeleteDecayedOp(
   }
 }
 
+/**
+ * What a re-embed was computed from. A search embeds a row it READ earlier, so
+ * by the time the vector lands the row may have been edited (the tool clears
+ * the embedding on an edit, a consolidation rewrites content under
+ * preserveUpdatedAt); writing then would pin a vector for text that is gone.
+ */
+export interface VaultEmbeddingExpectation {
+  /** Plaintext content the vector was computed from. */
+  content?: string;
+  /** `updatedAt` (ms) of the row as it was read. */
+  updatedAt?: number;
+}
+
 export async function updateVaultMemoryEmbeddingOp(
   ctx: VaultMemoryOperationsContext,
   id: string,
@@ -2380,19 +2353,106 @@ export async function updateVaultMemoryEmbeddingOp(
   // model-less write that left a stale tag would make search re-embed the row
   // every query. Matches the message-side updateMessageEmbeddingOp; compile
   // time catches any caller that forgets it.
-  embeddingModel: string
+  embeddingModel: string,
+  /** When given, the write lands only if the row still matches it. */
+  expected?: VaultEmbeddingExpectation
 ): Promise<boolean> {
   try {
     const record = await ctx.vaultMemoryCollection.find(id);
     if (record.isDeleted || !isOwnedByCtxUser(ctx, record)) return false;
+    const readUpdatedAt = record.updatedAt.getTime();
+    const readStoredContent = record._getRaw("content");
+    if (expected?.updatedAt !== undefined && expected.updatedAt !== readUpdatedAt) return false;
+    if (expected?.content !== undefined) {
+      // Decrypted OUTSIDE the writer: it can reach signMessage / a key prompt,
+      // and a slow signer inside database.write would stall every other write.
+      const current = await vaultMemoryToStored(
+        record,
+        ctx.walletAddress,
+        ctx.signMessage,
+        ctx.embeddedWalletSigner
+      );
+      if (current.content !== expected.content) return false;
+    }
+    let written = false;
     await ctx.database.write(async () => {
+      // Re-checked inside the serialized writer so an edit that committed
+      // after the reads above is seen — without decrypting again. A
+      // preserveUpdatedAt rewrite keeps updated_at, so the stored (cipher)text
+      // is compared as well: any content write replaces it.
+      if (record.isDeleted || !isOwnedByCtxUser(ctx, record)) return;
+      const originalUpdatedAt = record.updatedAt.getTime();
+      if (originalUpdatedAt !== readUpdatedAt || record._getRaw("content") !== readStoredContent)
+        return;
       await record.update((r) => {
         r._setRaw("embedding", embedding);
         r._setRaw("embedding_model", embeddingModel);
+        // A re-embed is not an edit. record.update() bumps updated_at, which
+        // after a model change or a vector-less restore rewrote every row's
+        // recency on the first search: flattened ranking, a reset decay clock
+        // and a disabled supersession gap. Same pattern as preserveUpdatedAt.
+        r._setRaw("updated_at", originalUpdatedAt);
       });
+      written = true;
     });
-    return true;
+    return written;
   } catch {
     return false;
   }
+}
+
+/** Whitespace/case/Unicode-insensitive form used to recognise the same text. */
+function normalizeForDedupe(content: string): string {
+  return content.normalize("NFKC").trim().replace(/\s+/g, " ").toLowerCase();
+}
+
+/**
+ * Find a live quarantined row in the same scope and folder with the same
+ * source ids and (normalised) content. Scope and folder are part of the match
+ * because the audit row is written into them: after a mode or folder change
+ * the same sources must get their own row there. Quarantined candidates are force-created with auto-merge off, so a
+ * retried extraction batch re-created the same audit row on every retry; the
+ * caller checks this first and reuses the existing row instead.
+ *
+ * Only quarantined rows are read (few by construction) and only the ones whose
+ * source ids match are decrypted.
+ */
+export async function findQuarantinedDuplicateOp(
+  ctx: VaultMemoryOperationsContext,
+  content: string,
+  sourceIds: readonly string[],
+  where: { scope: string; folderId: string | null }
+): Promise<string | null> {
+  const wanted = [...new Set(sourceIds)].sort().join("\u0000");
+  const target = normalizeForDedupe(content);
+  const rows = (await ctx.vaultMemoryCollection
+    .query(
+      Q.where("trust_tier", "quarantined"),
+      Q.where("is_deleted", false),
+      Q.where("scope", where.scope),
+      Q.where("folder_id", where.folderId),
+      ...(ctx.userId !== undefined ? [Q.where("user_id", ctx.userId)] : [])
+    )
+    .unsafeFetchRaw()) as Record<string, unknown>[];
+  for (const raw of rows) {
+    let ids: unknown;
+    try {
+      ids = JSON.parse((raw.source_chunk_ids as string | null) ?? "[]");
+    } catch {
+      continue;
+    }
+    if (!Array.isArray(ids)) continue;
+    const key = [...new Set(ids.filter((id): id is string => typeof id === "string"))]
+      .sort()
+      .join("\u0000");
+    if (key !== wanted) continue;
+    const stored = await vaultMemoryRawToStored(
+      raw,
+      ctx.walletAddress,
+      ctx.signMessage,
+      ctx.embeddedWalletSigner
+    );
+    if (normalizeForDedupe(stored.content) === target) return stored.uniqueId;
+  }
+  return null;
 }

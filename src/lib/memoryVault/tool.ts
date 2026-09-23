@@ -43,6 +43,14 @@ function normalizeManualFactType(value: unknown): ManualFactType | undefined {
 }
 
 /**
+ * `shared` is the only publishing scope; anything else (null, legacy values)
+ * reads as private — the fail-safe direction.
+ */
+function isSharedScope(scope: string | null | undefined): boolean {
+  return scope === "shared";
+}
+
+/**
  * What a {@link VaultMemoryWriter} reports back. The action set mirrors
  * `RetainResult.action` in `memory/retain` — restated here rather than imported
  * for the same reason MANUAL_FACT_TYPES is (memoryVault → memory import cycle).
@@ -287,17 +295,27 @@ export function createMemoryVaultTool(
             const isUpdate = !!id;
             let previousContent: string | undefined;
 
+            const scope = options?.scope ?? "private";
+
             // For updates, fetch the existing memory to get previous content
             if (isUpdate) {
               const existing = await getVaultMemoryOp(vaultCtx, id);
               if (!existing) {
                 return `Error: Memory with ID "${id}" not found. Creating a new memory instead would require a separate call without an ID.`;
               }
+              // Search is not scope-filtered, so the model can hold the id of a
+              // row outside this session's scope. An update-by-id keeps the ROW's
+              // scope, so a private session editing a shared row would publish
+              // private details (shared rows are on the People Nearby profile).
+              // Refuse any cross-scope update; the model can save a new memory,
+              // which lands in the session's own scope.
+              if (isSharedScope(existing.scope) !== isSharedScope(scope)) {
+                return `Error: Memory "${id}" belongs to a different scope than this conversation and cannot be updated from here. It was not modified. To record this fact, save it as a new memory without an ID.`;
+              }
               previousContent = existing.content;
             }
 
             // Build the operation descriptor for the confirmation callback
-            const scope = options?.scope ?? "private";
             const operation: VaultSaveOperation = {
               action: isUpdate ? "update" : "add",
               content,

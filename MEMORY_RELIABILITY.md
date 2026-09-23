@@ -1,7 +1,7 @@
 # Reliable extraction and shared context assembly
 
 `createDurableAutoExtractor` is the client extraction entry point. Create one
-per authenticated database session. It requires the SDK v46 schema and models.
+per authenticated database session. It requires the SDK v47 schema and models.
 
 - Accepted turns enqueue source message IDs in `memory_extraction_jobs`, a
   device-local outbox. Plaintext message snapshots are never stored there.
@@ -30,8 +30,47 @@ per authenticated database session. It requires the SDK v46 schema and models.
   the next worker session. This is not an operating-system background service.
   A source ID that stays unresolvable across those attempts is dropped from the
   job (reported via `onError`) rather than blocking everything queued behind it.
-  `batchTimeoutMs` (default 180s) bounds a batch that never settles; bound the
-  extraction call itself with `timeoutMs`/`totalTimeoutMs`.
+- A batch that cannot extract does not block its conversation forever, and a
+  failure that says nothing about the batch never costs it. Only failures that
+  point at the batch count toward abandoning it:
+  - content-shaped give-ups (`empty-content`, `invalid-json`,
+    `null-completion`, `body-parse-failed`) and retain failures, after three of
+    them in a session, however many turns they span;
+  - request-shaped rejections (HTTP 400/404/413/422), at once and without a
+    retry in that session;
+  - sources the store reports as undecryptable for good (`auth_mismatch`,
+    `invalid_payload`). Only the content field decides whether a message is
+    locked; a failed vector, chunks or sources field does not.
+
+  Never counted: network, retryable HTTP, `auth-unavailable`,
+  `time-budget-exhausted`, the batch watchdog, a failed source read, and
+  `key_missing` or plain ciphertext (the key is simply not loaded in this
+  session). An account-level status (401/402/403) skips the job for the rest of
+  the session and is retried by the next one, so a top-up or re-login recovers
+  it.
+
+  Once a session counts the head, it stops spending on it: a new turn re-arms
+  transient retries but not a counted head. The count is persisted on the job
+  row (`failed_sessions`, `failed_head`, `failed_at`), so a restart does not
+  reset it. A "session" is one extractor instance, and three tabs or remounts
+  can be three instances within minutes, so a counted session only moves the
+  count if the previous one was at least an hour earlier. After three counted
+  sessions the batch is abandoned: its sources are acknowledged unextracted,
+  reported via `onError`, and not re-sent as context for the next batch, so
+  later messages still extract. Undecryptable sources are dropped individually
+  the same way, and count as observed so a later turn does not queue them
+  again.
+- `batchTimeoutMs` bounds a batch that never settles. By default it is the
+  extraction call's own worst case — `extract.timeoutMs` (60s) ×
+  `extract.maxAttempts` (3) plus backoff, or `extract.totalTimeoutMs` when
+  smaller — plus a 120s retain budget, so it backstops the call's own timeouts
+  rather than racing them. A batch past its ceiling is cancelled: its late
+  writes are refused, so the retry cannot race it into duplicate rows. Its LLM
+  call is not aborted and may still complete.
+- A retried batch re-extracts, so a quarantined candidate reuses the audit row
+  an earlier attempt wrote (same scope, folder, source IDs and normalised
+  content) instead of
+  adding another copy.
 - Source ownership is not symmetric across a privacy flip. A private extractor
   forces a queued shared job to `private` — the direction that cannot publish —
   rather than honouring the job's own scope. A shared extractor never touches a
@@ -47,7 +86,9 @@ per authenticated database session. It requires the SDK v46 schema and models.
   `lastObservedAt` are skipped. The write itself still applies — a consolidation
   rewrite carries the same source IDs as the observation that triggered it, so
   discarding it lost the rewritten content and its embedding. Decay considers
-  `lastObservedAt` and checks it again before archiving.
+  `lastObservedAt` — the rule, the classifier's age hint and its per-row
+  verdict cache all age a row from the later of its last edit and last
+  observation — and checks it again before archiving.
 
 `assembleMemoryContext` and `shouldRecallMemory` are available from the pure
 `@anuma/sdk/memory/context` entry point, as well as the existing SDK entry
@@ -86,7 +127,8 @@ client integration. Local validation uses a filesystem SDK override; that
 override is development wiring, not a publishable dependency.
 
 Schema v46 is additive (one `createTable`, no backfill), so a v45 database
-upgrades cleanly. It is not reversible: WatermelonDB has no downgrade path, so
-rolling a release back past v46 after a device has run it resets that device's
-local database. That matters for OTA, where a JS-only rollback can land on a
-database the newer build already migrated.
+upgrades cleanly; v47 adds three nullable columns to the same table (NULL reads
+as "never failed"). Neither is reversible: WatermelonDB has no downgrade path,
+so rolling a release back past a version after a device has run it resets that
+device's local database. That matters for OTA, where a JS-only rollback can
+land on a database the newer build already migrated.

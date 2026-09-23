@@ -163,6 +163,7 @@ export {
   updateVaultMemoryEmbeddingOp,
   updateVaultMemoryOp,
   type UpdateVaultMemoryOptions,
+  type VaultEmbeddingExpectation,
   VaultMemory,
   type VaultMemoryOperationsContext,
   type VaultMemoryVisibility,

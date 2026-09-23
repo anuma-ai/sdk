@@ -1,6 +1,6 @@
 # QuarantinedMemoryInfo
 
-Defined in: [src/lib/memory/autoExtract.ts:206](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#206)
+Defined in: [src/lib/memory/autoExtract.ts:207](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#207)
 
 Tier-0 security (PR3) — describes a candidate the injection screen
 quarantined and persisted as an audit row. The client uses this to surface
@@ -17,7 +17,7 @@ a "held for review" state. `content` lives on `candidate` (same exposure as
 
 > **candidate**: [`ExtractedCandidate`](ExtractedCandidate.md)
 
-Defined in: [src/lib/memory/autoExtract.ts:207](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#207)
+Defined in: [src/lib/memory/autoExtract.ts:208](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#208)
 
 ***
 
@@ -25,7 +25,7 @@ Defined in: [src/lib/memory/autoExtract.ts:207](https://github.com/anuma-ai/sdk/
 
 > **memoryId**: `string`
 
-Defined in: [src/lib/memory/autoExtract.ts:209](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#209)
+Defined in: [src/lib/memory/autoExtract.ts:210](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#210)
 
 The persisted (quarantined) memory row id.
 
@@ -35,7 +35,7 @@ The persisted (quarantined) memory row id.
 
 > **reason**: [`InjectionReason`](../type-aliases/InjectionReason.md)
 
-Defined in: [src/lib/memory/autoExtract.ts:211](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#211)
+Defined in: [src/lib/memory/autoExtract.ts:212](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#212)
 
 Coarse reason bucket from the screen.
 
@@ -45,6 +45,6 @@ Coarse reason bucket from the screen.
 
 > **signature**: `string`
 
-Defined in: [src/lib/memory/autoExtract.ts:213](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#213)
+Defined in: [src/lib/memory/autoExtract.ts:214](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#214)
 
 Stable signature id that matched (safe to log; carries no content).
