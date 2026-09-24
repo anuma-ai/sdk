@@ -238,6 +238,20 @@ describe("ExcelProcessor (Node.js)", () => {
     );
   });
 
+  it("never gives a de-duplicated header a name another column already has", async () => {
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet("S");
+    sheet.addRow(["Amount", "Amount", "Amount_2", "Amount"]);
+    sheet.addRow([1, 2, 3, 4]);
+    const dataUrl = toDataUrl(
+      await workbook.xlsx.writeBuffer(),
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    );
+
+    const result = await new ExcelProcessor().process(makeFile("s.xlsx", "", dataUrl));
+    expect(result!.extractedText).toContain("Amount,Amount_3,Amount_2,Amount_4\n1,2,3,4");
+  });
+
   it("caps rows per sheet and says how many were dropped", async () => {
     const workbook = new ExcelJS.Workbook();
     const sheet = workbook.addWorksheet("Big");

@@ -29,18 +29,26 @@ function csvField(value: string): string {
 
 /**
  * Header names for a sheet: blank headers become `ColumnN`, and repeated names get a `_2`, `_3`…
- * suffix so no column silently shadows another.
+ * suffix so no column silently shadows another. A suffix never reuses a name already in the
+ * header row (`Amount, Amount, Amount_2` -> `Amount, Amount_3, Amount_2`).
  */
 function uniqueHeaders(raw: Array<string | undefined>, columnCount: number): string[] {
-  const seen = new Map<string, number>();
-  const headers: string[] = [];
-  for (let col = 1; col <= columnCount; col++) {
-    const base = raw[col]?.trim() || `Column${col}`;
-    const count = (seen.get(base) ?? 0) + 1;
-    seen.set(base, count);
-    headers.push(count === 1 ? base : `${base}_${count}`);
-  }
-  return headers;
+  const bases: string[] = [];
+  for (let col = 1; col <= columnCount; col++) bases.push(raw[col]?.trim() || `Column${col}`);
+  const taken = new Set(bases);
+  const emitted = new Set<string>();
+  return bases.map((base) => {
+    if (!emitted.has(base)) {
+      emitted.add(base);
+      return base;
+    }
+    let n = 2;
+    while (taken.has(`${base}_${n}`)) n++;
+    const name = `${base}_${n}`;
+    taken.add(name);
+    emitted.add(name);
+    return name;
+  });
 }
 
 /**
