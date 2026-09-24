@@ -50,6 +50,15 @@ Optional metadata about the extraction
 
 \[`key`: `string`]: `unknown`
 
+**imageNote?**
+
+> `optional` **imageNote**: `string`
+
+The exact sentence in `extractedText` that describes `imageDataUrls` (e.g. "pages 2-3
+rendered as images and included in this message"). A consumer that drops some or all of
+those images (the cross-file image budget, a zip archive) replaces this sentence so the
+model is never told an image was included when it was not.
+
 **pageCount?**
 
 > `optional` **pageCount**: `number`
@@ -61,6 +70,13 @@ Optional metadata about the extraction
 **sheetNames?**
 
 > `optional` **sheetNames**: `string`\[]
+
+**truncated?**
+
+> `optional` **truncated**: `boolean`
+
+True when the processor itself dropped part of the file (e.g. spreadsheet rows past the
+per-sheet cap). Surfaces as a `"truncated"` [FileProcessingStatus](FileProcessingStatus.md).
 
 **wordCount?**
 

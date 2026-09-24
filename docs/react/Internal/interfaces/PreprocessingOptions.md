@@ -1,6 +1,6 @@
 # PreprocessingOptions
 
-Defined in: [src/lib/processors/types.ts:62](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/types.ts#62)
+Defined in: [src/lib/processors/types.ts:74](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/types.ts#74)
 
 Options for file preprocessing
 
@@ -10,9 +10,31 @@ Options for file preprocessing
 
 > `optional` **keepOriginalFiles**: `boolean`
 
-Defined in: [src/lib/processors/types.ts:72](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/types.ts#72)
+Defined in: [src/lib/processors/types.ts:84](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/types.ts#84)
 
 Whether to keep original file attachments (default: true)
+
+***
+
+### maxExtractedCharsPerFile?
+
+> `optional` **maxExtractedCharsPerFile**: `number`
+
+Defined in: [src/lib/processors/types.ts:96](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/types.ts#96)
+
+Max characters of extracted text kept per file (default: 100,000). Longer text is cut and
+ends with a `[truncated: …]` marker naming how much was kept.
+
+***
+
+### maxExtractedCharsTotal?
+
+> `optional` **maxExtractedCharsTotal**: `number`
+
+Defined in: [src/lib/processors/types.ts:102](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/types.ts#102)
+
+Max characters of extracted text kept across all files of one preprocessing run
+(default: 200,000). Files past the budget are cut (or reduced to the marker) in order.
 
 ***
 
@@ -20,7 +42,7 @@ Whether to keep original file attachments (default: true)
 
 > `optional` **maxFileSizeBytes**: `number`
 
-Defined in: [src/lib/processors/types.ts:75](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/types.ts#75)
+Defined in: [src/lib/processors/types.ts:87](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/types.ts#87)
 
 Max file size to process in bytes (default: 10MB)
 
@@ -30,7 +52,7 @@ Max file size to process in bytes (default: 10MB)
 
 > `optional` **onError**: (`fileName`: `string`, `error`: `Error`) => `void`
 
-Defined in: [src/lib/processors/types.ts:84](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/types.ts#84)
+Defined in: [src/lib/processors/types.ts:108](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/types.ts#108)
 
 Callback for errors (non-fatal)
 
@@ -81,7 +103,7 @@ Callback for errors (non-fatal)
 
 > `optional` **onProgress**: (`current`: `number`, `total`: `number`, `fileName`: `string`) => `void`
 
-Defined in: [src/lib/processors/types.ts:81](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/types.ts#81)
+Defined in: [src/lib/processors/types.ts:105](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/types.ts#105)
 
 Callback for progress updates
 
@@ -144,7 +166,7 @@ Callback for progress updates
 
 > `optional` **processors**: [`FileProcessor`](FileProcessor.md)\[] | `null`
 
-Defined in: [src/lib/processors/types.ts:69](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/types.ts#69)
+Defined in: [src/lib/processors/types.ts:81](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/types.ts#81)
 
 Processors to use.
 
@@ -158,6 +180,6 @@ Processors to use.
 
 > `optional` **timeoutMs**: `number`
 
-Defined in: [src/lib/processors/types.ts:78](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/types.ts#78)
+Defined in: [src/lib/processors/types.ts:90](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/types.ts#90)
 
 Timeout per file in milliseconds (default: 30000). Prevents hangs from slow CDN workers or large files.
