@@ -66,8 +66,8 @@ export {
 } from "../lib/chat/resumeStream";
 export type { StepFinishEvent, StreamMetaEvent, StreamResumeHandle } from "../lib/chat/toolLoop";
 export { ProviderStreamError } from "../lib/chat/toolLoop";
-export type { ToolCallArgumentsDeltaEvent } from "../lib/chat/useChat/utils";
 export type { StreamSmoothingConfig } from "../lib/chat/useChat/StreamSmoother";
+export type { ToolCallArgumentsDeltaEvent } from "../lib/chat/useChat/utils";
 export { useChat } from "./useChat";
 
 // Pre-processor classifier factories. Also exported from `@anuma/sdk/server`;
