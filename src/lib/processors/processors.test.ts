@@ -761,6 +761,43 @@ describe("ZipProcessor limits", () => {
     expect(result!.metadata!.truncated).toBe(true);
   });
 
+  it("caps files and directories separately, so directories never crowd out the files", async () => {
+    const zip = new JSZip();
+    for (let i = 0; i < 1_005; i++) zip.folder(`dir${String(i).padStart(4, "0")}`);
+    zip.file("readme.txt", "the only file");
+    const buffer = await zip.generateAsync({ type: "uint8array" });
+    const registry = new ProcessorRegistry();
+    registry.register(new TextProcessor());
+    const zipProcessor = new ZipProcessor();
+    zipProcessor.setRegistry(registry);
+
+    const result = await zipProcessor.process(
+      makeFile("a.zip", "application/zip", toDataUrl(buffer, "application/zip"))
+    );
+    expect(result!.extractedText).toContain("### readme.txt");
+    expect(result!.extractedText).toContain("the only file");
+    expect(result!.extractedText).toContain(
+      "[truncated: listing the first 1000 of 1005 directories]"
+    );
+    expect(result!.metadata!.processedFiles).toBe(1);
+  });
+
+  it("says files were dropped when the archive has more than 1,000 files", async () => {
+    const zip = new JSZip();
+    for (let i = 0; i < 1_002; i++) zip.file(`f${String(i).padStart(4, "0")}.bin`, "x");
+    const buffer = await zip.generateAsync({ type: "uint8array" });
+    const zipProcessor = new ZipProcessor();
+    zipProcessor.setRegistry(new ProcessorRegistry());
+
+    const result = await zipProcessor.process(
+      makeFile("a.zip", "application/zip", toDataUrl(buffer, "application/zip"))
+    );
+    expect(result!.extractedText).toContain(
+      "[truncated: the archive has 1002 files; only the first 1000 were listed and considered for extraction, the other 2 files were dropped]"
+    );
+    expect(result!.metadata!.truncated).toBe(true);
+  });
+
   it("skips an entry whose declared size is over the limit without inflating it", async () => {
     const zip = new JSZip();
     zip.file("big.txt", "x".repeat(5_000));

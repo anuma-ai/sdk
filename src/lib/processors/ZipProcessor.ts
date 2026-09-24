@@ -9,7 +9,10 @@ import type { FileProcessor, FileWithData, ProcessedFileResult } from "./types";
 
 // TODO(ceiling): fixed entry/byte counts bound work, not what reaches the model; upgrade to a
 // token-based budget (or retrieval over the archive) if large archives become common.
-/** Maximum archive entries listed and considered for extraction. */
+/**
+ * Maximum files listed and considered for extraction, and separately the maximum directories
+ * listed — directories sort first, so a shared cap let them crowd out every file.
+ */
 const MAX_ZIP_ENTRIES = 1_000;
 /** Maximum total decompressed bytes read out of one archive. */
 const MAX_TOTAL_UNCOMPRESSED_BYTES = 50 * 1024 * 1024;
@@ -101,11 +104,20 @@ export class ZipProcessor implements FileProcessor {
         return a.path.localeCompare(b.path);
       });
 
-      const filteredEntries = visibleEntries.slice(0, MAX_ZIP_ENTRIES);
+      const visibleDirs = visibleEntries.filter((e) => e.isDirectory);
+      const visibleFiles = visibleEntries.filter((e) => !e.isDirectory);
+      const listedDirs = visibleDirs.slice(0, MAX_ZIP_ENTRIES);
+      const listedFiles = visibleFiles.slice(0, MAX_ZIP_ENTRIES);
+      const filteredEntries = [...listedDirs, ...listedFiles];
       const notes: string[] = [];
-      if (visibleEntries.length > filteredEntries.length) {
+      if (visibleFiles.length > listedFiles.length) {
         notes.push(
-          `[truncated: showing the first ${filteredEntries.length} of ${visibleEntries.length} archive entries]`
+          `[truncated: the archive has ${visibleFiles.length} files; only the first ${listedFiles.length} were listed and considered for extraction, the other ${visibleFiles.length - listedFiles.length} files were dropped]`
+        );
+      }
+      if (visibleDirs.length > listedDirs.length) {
+        notes.push(
+          `[truncated: listing the first ${listedDirs.length} of ${visibleDirs.length} directories]`
         );
       }
 
