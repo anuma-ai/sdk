@@ -771,6 +771,15 @@ export {
 // constant hand-rolls the string instead.
 export { TOOL_RESULT_ORIGIN } from "../lib/chat/toolResults";
 
+// The current turn's extracted attachment text rides on that turn's user message in this tagged
+// part. Exported from all three app entrypoints so a client that builds its own document context
+// (mobile) produces the same part — and so the pre-processor prompt skip recognises it.
+export {
+  attachFileContextToLastUserMessage,
+  buildAttachedFilesText,
+  isAttachedFilesText,
+} from "../lib/chat/fileContext";
+
 // Server-side tools caching utilities
 export type { DropboxExportResult, DropboxImportResult } from "../lib/backup/dropbox/backup";
 export type { GoogleDriveExportResult, GoogleDriveImportResult } from "../lib/backup/google/backup";

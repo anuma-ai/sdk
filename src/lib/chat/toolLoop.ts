@@ -15,6 +15,7 @@ import {
   resolvePiiRedactor,
 } from "../pii/redactor";
 import { validateEndpointOverride } from "./endpointOverride";
+import { isAttachedFilesText } from "./fileContext";
 import type { PromptPreProcessor } from "./preProcessor";
 import type {
   ModelCallEndEvent,
@@ -302,7 +303,13 @@ function measureRequest(
   };
 }
 
-/** Extract the text of the most recent user message. Empty string if none. */
+/**
+ * Extract the text of the most recent user message. Empty string if none.
+ *
+ * Skips the attached-file-contents part (see attachFileContextToLastUserMessage):
+ * pre-processors route on and embed this text, and some forward it to external
+ * endpoints, so it must be the user's prompt — never the document they attached.
+ */
 function extractLastUserText(messages: LlmapiMessage[]): string {
   const lastUserMsg = [...messages].reverse().find((m) => m.role === "user");
   if (!lastUserMsg) return "";
@@ -310,7 +317,7 @@ function extractLastUserText(messages: LlmapiMessage[]): string {
   if (typeof content === "string") return content;
   if (Array.isArray(content)) {
     return content
-      .filter((c) => c?.type === "text")
+      .filter((c) => c?.type === "text" && !isAttachedFilesText(c.text))
       .map((c) => c.text ?? "")
       .join(" ");
   }

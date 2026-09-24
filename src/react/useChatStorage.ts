@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { LlmapiChatCompletionTool, LlmapiMessage } from "../client";
 import { MCP_R2_DOMAIN } from "../clientConfig";
 import { assembleMessagesWithHistory } from "../lib/chat/assembleMessages";
+import { attachFileContextToLastUserMessage } from "../lib/chat/fileContext";
 import { isSendableImageURL } from "../lib/chat/imageParts";
 import { extractSourcesFromToolCallEvents } from "../lib/chat/sources";
 import {
@@ -2603,6 +2604,9 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
 
       // Preprocess files if present to generate file context
       let fileContextForRequest: string | undefined;
+      // True when fileContextForRequest was extracted from THIS turn's files (it then rides
+      // on this turn's user message); false when it is recalled from an earlier turn below.
+      let fileContextIsCurrentTurn = false;
       let preprocessedFileIds: string[] = [];
       let imageContentUrls: string[] | undefined;
       if (filesForStorage && filesForStorage.length > 0) {
@@ -2612,9 +2616,9 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
             ...fileProcessingOptions,
           });
 
-          // Store extracted content as file context (will be injected as system message)
           if (preprocessingResult.extractedContent) {
             fileContextForRequest = preprocessingResult.extractedContent;
+            fileContextIsCurrentTurn = true;
             preprocessedFileIds = preprocessingResult.preprocessedFileIds;
           }
 
@@ -2979,6 +2983,13 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         }
       }
 
+      // This turn's extracted attachment text rides on this turn's user message, next to the
+      // words that refer to it — see attachFileContextToLastUserMessage for why not a system
+      // message. Context recalled from an earlier turn still goes through `fileContext` below.
+      if (fileContextIsCurrentTurn && fileContextForRequest) {
+        messagesToSend = attachFileContextToLastUserMessage(messagesToSend, fileContextForRequest);
+      }
+
       // Store the user message
       // If wallet address is available and encryption is ready, store files in media table and OPFS
       // Skip file/media storage when encryption key isn't ready (queue window is 1-3s during signup)
@@ -3211,7 +3222,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         headers,
         memoryContext,
         searchContext,
-        fileContext: fileContextForRequest,
+        fileContext: fileContextIsCurrentTurn ? undefined : fileContextForRequest,
         toolGuidance: computeToolGuidance(
           filteredServerTools,
           filteredClientTools,

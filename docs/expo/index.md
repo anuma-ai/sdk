@@ -112,6 +112,12 @@ Re-exports [assembleMemoryContext](../react/Internal/functions/assembleMemoryCon
 
 ***
 
+### attachFileContextToLastUserMessage
+
+Re-exports [attachFileContextToLastUserMessage](../react/Internal/functions/attachFileContextToLastUserMessage.md)
+
+***
+
 ### AutoExtractMessage
 
 Re-exports [AutoExtractMessage](../react/Internal/interfaces/AutoExtractMessage.md)
@@ -133,6 +139,12 @@ Re-exports [backfillMemoryTopicsOp](../react/Internal/functions/backfillMemoryTo
 ### Budget
 
 Re-exports [Budget](../react/Internal/type-aliases/Budget.md)
+
+***
+
+### buildAttachedFilesText
+
+Re-exports [buildAttachedFilesText](../react/Internal/functions/buildAttachedFilesText.md)
 
 ***
 
@@ -1033,6 +1045,12 @@ Re-exports [InjectionReason](../react/Internal/type-aliases/InjectionReason.md)
 ### injectionSignatureCatalog
 
 Re-exports [injectionSignatureCatalog](../react/Internal/functions/injectionSignatureCatalog.md)
+
+***
+
+### isAttachedFilesText
+
+Re-exports [isAttachedFilesText](../react/Internal/functions/isAttachedFilesText.md)
 
 ***
 
