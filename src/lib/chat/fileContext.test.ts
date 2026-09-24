@@ -53,6 +53,31 @@ describe("attachFileContextToLastUserMessage", () => {
     expect(isAttachedFilesText(parts[1].text)).toBe(true);
   });
 
+  it("with interleaved parts, goes right after the LAST text part", () => {
+    const img = (url: string) => ({ type: "image_url" as const, image_url: { url } });
+    const messages: LlmapiMessage[] = [
+      {
+        role: "user",
+        content: [
+          { type: "text", text: "first" },
+          img("data:image/png;base64,A"),
+          { type: "text", text: "second" },
+          img("data:image/png;base64,B"),
+        ],
+      },
+    ];
+
+    const parts = attachFileContextToLastUserMessage(messages, FILE_CONTEXT)[0].content!;
+
+    expect(parts.map((p) => p.text ?? p.image_url?.url)).toEqual([
+      "first",
+      "data:image/png;base64,A",
+      "second",
+      buildAttachedFilesText(FILE_CONTEXT),
+      "data:image/png;base64,B",
+    ]);
+  });
+
   it("does not mutate its input", () => {
     const messages = [text("user", "hi")];
     const snapshot = structuredClone(messages);
@@ -75,6 +100,9 @@ describe("isAttachedFilesText", () => {
   it("recognises only the tagged part", () => {
     expect(isAttachedFilesText(buildAttachedFilesText(FILE_CONTEXT))).toBe(true);
     expect(isAttachedFilesText(`note: ${ATTACHED_FILES_OPEN_TAG}`)).toBe(false);
+    // User text that merely starts with the tag is still the user's prompt.
+    expect(isAttachedFilesText(`${ATTACHED_FILES_OPEN_TAG} how do I parse this tag?`)).toBe(false);
+    expect(isAttachedFilesText(`${ATTACHED_FILES_OPEN_TAG}\nnotes</attached_files>`)).toBe(false);
     expect(isAttachedFilesText("Please review the attached file(s).")).toBe(false);
     expect(isAttachedFilesText(undefined)).toBe(false);
   });

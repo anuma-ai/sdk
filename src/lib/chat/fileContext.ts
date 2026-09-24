@@ -3,15 +3,29 @@ import type { LlmapiMessage, LlmapiMessageContentPart } from "../../client";
 /**
  * Opening tag of the text part that carries a turn's extracted attachment
  * contents. Consumers that read "the user's prompt" out of the last user
- * message (pre-processor routing, embeddings) must skip parts that start with
- * it — see {@link isAttachedFilesText}.
+ * message (pre-processor routing, embeddings) must skip that part — detect it
+ * with {@link isAttachedFilesText}, not by this prefix alone.
  */
 export const ATTACHED_FILES_OPEN_TAG = "<attached_files>";
 const ATTACHED_FILES_CLOSE_TAG = "</attached_files>";
+const ATTACHED_FILES_PREFIX =
+  `${ATTACHED_FILES_OPEN_TAG}\n` +
+  "The user attached the following file(s) to this message. Their extracted contents are below; " +
+  'when the user refers to "the attached file", "this file" or "the document", they mean these.';
 
-/** True when a text part is the attachment-contents part built by {@link buildAttachedFilesText}. */
+/**
+ * True when a text part is the attachment-contents part built by {@link buildAttachedFilesText}.
+ *
+ * Matches the whole generated shape — opening tag plus the fixed header line, and the closing
+ * tag — not just the tag, so user text that merely starts with `<attached_files>` is still
+ * treated as the user's prompt.
+ */
 export function isAttachedFilesText(text: string | undefined | null): boolean {
-  return typeof text === "string" && text.startsWith(ATTACHED_FILES_OPEN_TAG);
+  return (
+    typeof text === "string" &&
+    text.startsWith(ATTACHED_FILES_PREFIX) &&
+    text.endsWith(ATTACHED_FILES_CLOSE_TAG)
+  );
 }
 
 /**
@@ -20,18 +34,15 @@ export function isAttachedFilesText(text: string | undefined | null): boolean {
  * user message.
  */
 export function buildAttachedFilesText(fileContext: string): string {
-  return (
-    `${ATTACHED_FILES_OPEN_TAG}\n` +
-    "The user attached the following file(s) to this message. Their extracted contents are below; " +
-    'when the user refers to "the attached file", "this file" or "the document", they mean these.\n\n' +
-    `${fileContext}\n${ATTACHED_FILES_CLOSE_TAG}`
-  );
+  return `${ATTACHED_FILES_PREFIX}\n\n${fileContext}\n${ATTACHED_FILES_CLOSE_TAG}`;
 }
 
 /**
  * Put the current turn's extracted attachment contents on the last user
- * message, as a text part placed after that message's own text parts (and
- * before any image parts).
+ * message, as a text part inserted right after that message's LAST text part:
+ * after everything the user wrote, and before any parts that follow it
+ * (typically images). With interleaved parts such as `[text, image, text,
+ * image]` it lands between the second text and the second image.
  *
  * Why not a system message: a detached system message at the front of the
  * request ("the user has attached files to this conversation") is separated
