@@ -907,7 +907,10 @@ describe("preprocessFiles caps", () => {
       "[truncated: the attachment text limit (200 characters) was reached; the contents of c.txt, d.txt were not included]"
     );
     // Everything but that one combined line fits the budget.
-    const withoutNote = content.slice(0, content.lastIndexOf("\n\n---\n\n[truncated: the attachment"));
+    const withoutNote = content.slice(
+      0,
+      content.lastIndexOf("\n\n---\n\n[truncated: the attachment")
+    );
     expect(withoutNote.length).toBeLessThanOrEqual(total);
     expect(result.fileStatuses.map((s) => s.status)).toEqual([
       "extracted",
@@ -929,9 +932,9 @@ describe("preprocessFiles caps", () => {
     );
     expect(beforeNote.length).toBeLessThanOrEqual(1_000);
     expect(content.match(/\[Extracted content from /g)!.length).toBeLessThan(10);
-    expect(result.fileStatuses.every((s) => s.status === "extracted" || s.status === "truncated")).toBe(
-      true
-    );
+    expect(
+      result.fileStatuses.every((s) => s.status === "extracted" || s.status === "truncated")
+    ).toBe(true);
   });
 
   it("applies the default per-file cap of 100,000 characters", async () => {
@@ -946,22 +949,31 @@ describe("preprocessFiles fileStatuses", () => {
   it.each([
     ["[]", [] as FileProcessor[]],
     ["null", null],
-  ])("reports every non-image file as skipped when preprocessing is disabled (%s)", async (_, processors) => {
-    const result = await preprocessFiles(
-      [
-        textFile("t", "notes.txt", "hello"),
-        { id: "img", name: "p.png", type: "image/png", size: 1, url: "data:image/png;base64,AA==" },
-        { id: "pdf", name: "a.pdf", type: "application/pdf", size: 1, url: "data:," },
-      ],
-      { processors }
-    );
-    expect(result.extractedContent).toBeNull();
-    expect(result.fileStatuses).toEqual([
-      { fileId: "t", fileName: "notes.txt", status: "skipped", reason: "unsupported_type" },
-      { fileId: "pdf", fileName: "a.pdf", status: "skipped", reason: "unsupported_type" },
-    ]);
-    expect(result.metadata.skippedCount).toBe(2);
-  });
+  ])(
+    "reports every non-image file as skipped when preprocessing is disabled (%s)",
+    async (_, processors) => {
+      const result = await preprocessFiles(
+        [
+          textFile("t", "notes.txt", "hello"),
+          {
+            id: "img",
+            name: "p.png",
+            type: "image/png",
+            size: 1,
+            url: "data:image/png;base64,AA==",
+          },
+          { id: "pdf", name: "a.pdf", type: "application/pdf", size: 1, url: "data:," },
+        ],
+        { processors }
+      );
+      expect(result.extractedContent).toBeNull();
+      expect(result.fileStatuses).toEqual([
+        { fileId: "t", fileName: "notes.txt", status: "skipped", reason: "unsupported_type" },
+        { fileId: "pdf", fileName: "a.pdf", status: "skipped", reason: "unsupported_type" },
+      ]);
+      expect(result.metadata.skippedCount).toBe(2);
+    }
+  );
 
   it("reports one status per non-image file, with the reason", async () => {
     const result = await preprocessFiles(
