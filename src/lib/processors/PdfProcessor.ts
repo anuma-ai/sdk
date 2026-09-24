@@ -1,5 +1,5 @@
 import { getLogger } from "../logger";
-import { convertPdfToImages, extractPdfPageTexts } from "../pdf";
+import { extractPdfPageTexts, type RenderedPdfPage, renderPdfPages } from "../pdf";
 import type { FileProcessor, FileWithData, ProcessedFileResult } from "./types";
 
 /**
@@ -97,7 +97,8 @@ export function rewriteImageNote(
     [...imagePages.slice(kept), ...omittedPages].sort((a, b) => a - b),
     pageCount
   );
-  return result.extractedText.replace(note, newNote);
+  // A replacer function: a replacement STRING would interpolate `$&`, `$'`, `$$` in a file name.
+  return result.extractedText.replace(note, () => newNote);
 }
 
 /**
@@ -138,26 +139,36 @@ export class PdfProcessor implements FileProcessor {
     }
 
     // --- Render the image-only pages for vision models ---
-    let images: string[];
+    let renderedPages: RenderedPdfPage[];
+    let pageCount = pageTexts?.length;
     try {
-      images = pageTexts
-        ? rendered.length > 0
-          ? await convertPdfToImages(file.dataUrl, undefined, rendered)
-          : []
-        : await convertPdfToImages(file.dataUrl, MAX_IMAGE_PAGES);
+      if (pageTexts) {
+        renderedPages = (await renderPdfPages(file.dataUrl, undefined, rendered)).pages;
+      } else {
+        const result = await renderPdfPages(file.dataUrl, MAX_IMAGE_PAGES);
+        renderedPages = result.pages;
+        pageCount = result.pageCount;
+      }
     } catch (imageError) {
       if (!text.trim()) {
         logger.error("[PdfProcessor] Image conversion also failed:", imageError);
         throw imageError;
       }
       logger.warn("[PdfProcessor] Image conversion failed — keeping text only:", imageError);
-      images = [];
+      renderedPages = [];
     }
 
-    const imagePages = pageTexts ? rendered.slice(0, images.length) : images.map((_, i) => i + 1);
-    const omittedPages = pageTexts
-      ? [...rendered.slice(images.length), ...omitted].sort((a, b) => a - b)
-      : [];
+    const images = renderedPages.map((p) => p.dataUrl);
+    // The pages the images actually are — a page that could not be rendered is skipped, so
+    // they are not necessarily the first pages asked for.
+    const imagePages = renderedPages.map((p) => p.pageNumber);
+    const included = new Set(imagePages);
+    // Every page that needed an image and is not in the message. With no text layer to go by
+    // (extraction threw), every page of the document needed one.
+    const needImage = pageTexts
+      ? [...rendered, ...omitted]
+      : Array.from({ length: pageCount ?? 0 }, (_, i) => i + 1);
+    const omittedPages = needImage.filter((n) => !included.has(n)).sort((a, b) => a - b);
 
     if (images.length === 0 && !text.trim()) {
       logger.warn("[PdfProcessor] Image conversion also returned empty");
@@ -171,13 +182,13 @@ export class PdfProcessor implements FileProcessor {
     // Contextual note for the LLM — keep it self-contained since the images are only injected
     // in the current request and not persisted for follow-up turns. It goes FIRST so a text
     // cap never cuts it off.
-    const imageNote = buildPdfImageNote(file.name, imagePages, omittedPages, pageTexts?.length);
+    const imageNote = buildPdfImageNote(file.name, imagePages, omittedPages, pageCount);
     return {
       extractedText: text.trim() ? `${imageNote}\n\n${text}` : imageNote,
       format: "plain",
       imageDataUrls: images.length > 0 ? images : undefined,
       metadata: {
-        pageCount: pageTexts?.length,
+        pageCount,
         imageNote,
         imagePages,
         omittedImagePages: omittedPages,

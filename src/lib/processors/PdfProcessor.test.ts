@@ -9,10 +9,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../pdf", () => ({
   extractPdfPageTexts: vi.fn(),
-  convertPdfToImages: vi.fn(),
+  renderPdfPages: vi.fn(),
 }));
 
-import { convertPdfToImages, extractPdfPageTexts } from "../pdf";
+import { extractPdfPageTexts, renderPdfPages } from "../pdf";
 import {
   buildPdfImageNote,
   formatPageList,
@@ -23,7 +23,7 @@ import {
 import type { FileWithData } from "./types";
 
 const mockTexts = vi.mocked(extractPdfPageTexts);
-const mockImages = vi.mocked(convertPdfToImages);
+const mockImages = vi.mocked(renderPdfPages);
 
 const FILE: FileWithData = {
   id: "f",
@@ -34,9 +34,20 @@ const FILE: FileWithData = {
 };
 const TEXT = "This page has a real text layer with plenty of characters.";
 
-function fakeImages(_url: string, _max?: number, pages?: number[]) {
-  return Promise.resolve((pages ?? []).map((n) => `data:image/jpeg;base64,p${n}`));
+/** Renders every requested page (or the first `max` of `docPages`), except those in `fail`. */
+function fakeRenderer(docPages = 0, fail: number[] = []) {
+  return (_url: string, max?: number, pages?: number[]) => {
+    const requested =
+      pages ?? Array.from({ length: Math.min(max ?? docPages, docPages) }, (_, i) => i + 1);
+    return Promise.resolve({
+      pageCount: docPages || Math.max(0, ...requested),
+      pages: requested
+        .filter((n) => !fail.includes(n))
+        .map((n) => ({ pageNumber: n, dataUrl: `data:image/jpeg;base64,p${n}` })),
+    });
+  };
 }
+const fakeImages = fakeRenderer();
 
 describe("selectPdfImagePages", () => {
   it("picks pages whose text is empty or near-empty, within the budget", () => {
@@ -103,6 +114,34 @@ describe("PdfProcessor", () => {
     expect(result!.extractedText).not.toContain("included in this message");
   });
 
+  it("names the pages actually rendered when an earlier page could not be", async () => {
+    mockTexts.mockResolvedValue([TEXT, "", TEXT, ""]);
+    mockImages.mockImplementation(fakeRenderer(4, [2]));
+    const result = await new PdfProcessor().process(FILE);
+
+    expect(result!.imageDataUrls).toEqual(["data:image/jpeg;base64,p4"]);
+    expect(result!.metadata!.imagePages).toEqual([4]);
+    expect(result!.metadata!.omittedImagePages).toEqual([2]);
+    expect(result!.extractedText).toContain(
+      "page 4 rendered as images and included in this message for visual analysis; page 2 not included"
+    );
+    expect(result!.metadata!.truncated).toBe(true);
+  });
+
+  it("reports the pages past the image budget when text extraction threw", async () => {
+    mockTexts.mockRejectedValue(new Error("bad xref"));
+    mockImages.mockImplementation(fakeRenderer(30));
+    const result = await new PdfProcessor().process(FILE);
+
+    expect(mockImages).toHaveBeenCalledWith(FILE.dataUrl, 20);
+    expect(result!.imageDataUrls).toHaveLength(20);
+    expect(result!.metadata!.pageCount).toBe(30);
+    expect(result!.metadata!.truncated).toBe(true);
+    expect(result!.extractedText).toBe(
+      "[report.pdf: scanned/image-based PDF (no extractable text) — pages 1-20 rendered as images and included in this message for visual analysis; pages 21-30 not included because of the image limit, so their content is not available]"
+    );
+  });
+
   it("throws when a PDF can be neither read nor rendered (password-protected, damaged)", async () => {
     mockTexts.mockRejectedValue(new Error("PasswordException"));
     mockImages.mockRejectedValue(new Error("PasswordException"));
@@ -111,6 +150,15 @@ describe("PdfProcessor", () => {
 });
 
 describe("rewriteImageNote", () => {
+  it("keeps a file name with $ replacement patterns literal", async () => {
+    mockImages.mockImplementation(fakeImages);
+    mockTexts.mockResolvedValue(["", ""]);
+    const name = "q$&1$'$$.pdf";
+    const result = (await new PdfProcessor().process({ ...FILE, name }))!;
+
+    expect(rewriteImageNote(result, name, 1)).toBe(buildPdfImageNote(name, [1], [2], 2));
+  });
+
   it("rewrites the note to match the images a consumer kept", async () => {
     mockImages.mockImplementation(fakeImages);
     mockTexts.mockResolvedValue([TEXT, "", ""]);
