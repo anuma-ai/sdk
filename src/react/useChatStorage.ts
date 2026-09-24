@@ -144,7 +144,8 @@ import {
 } from "../lib/memoryVault";
 import type { NerDetector } from "../lib/pii/ner";
 import { isPiiRedactor, PiiRedactor } from "../lib/pii/redactor";
-import { preprocessFiles } from "../lib/processors";
+import type { FileProcessingStatus } from "../lib/processors";
+import { formatFileProcessingNotes, preprocessFiles } from "../lib/processors";
 import {
   BlobUrlManager,
   createFilePlaceholder,
@@ -397,8 +398,10 @@ async function blobToDataUri(blob: Blob): Promise<string> {
  * If a file has a sourceUrl, includes it as an image_url part (only for non-assistant messages).
  * If encryptionKey is provided and files are stored in OPFS, reads them and converts to data URIs.
  * Internal placeholders are replaced with sourceUrls or removed.
+ *
+ * Exported for unit testing; not part of the public API.
  */
-async function storedToLlmapiMessage(
+export async function storedToLlmapiMessage(
   stored: StoredMessage,
   encryptionKey?: CryptoKey,
   resolveMediaByIds?: (ids: string[]) => Promise<Array<{ mediaId: string; sourceUrl?: string }>>
@@ -435,7 +438,9 @@ async function storedToLlmapiMessage(
         // This handles user-uploaded files stored in OPFS for history replay
         try {
           const result = await readEncryptedFile(file.id, encryptionKey);
-          if (result) {
+          // Only images can go out as image_url; a stored PDF/text attachment would be sent as
+          // a non-image data URI, which the backend rejects for the whole turn.
+          if (result && result.blob.type.startsWith("image/")) {
             // Convert blob to data URI for sending to API
             const dataUri = await blobToDataUri(result.blob);
             imageParts.push({
@@ -755,6 +760,15 @@ export interface SendMessageWithStorageArgs extends BaseSendMessageWithStorageAr
    * the conversation-shared redactor, matching the hook-level behavior.
    */
   piiRedaction?: boolean | PiiRedactor;
+
+  /**
+   * Called once, after the turn's attachments are preprocessed and before the request is sent,
+   * with one {@link FileProcessingStatus} per attached file (images sent as `image_url` are left
+   * out). Use it to tell the user which attachments the model could not read, or only partly
+   * read, and why. Not called when no files are attached. Errors thrown by the callback are
+   * logged and ignored.
+   */
+  onFileProcessingResult?: (statuses: FileProcessingStatus[]) => void;
 }
 
 /**
@@ -2324,6 +2338,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         parentMessageId,
         assistantUniqueId,
         piiRedaction: requestPiiRedaction,
+        onFileProcessingResult,
       } = args;
 
       // Resolve PII redaction for THIS call against a specific conversation id.
@@ -2609,7 +2624,11 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       let fileContextIsCurrentTurn = false;
       let preprocessedFileIds: string[] = [];
       let imageContentUrls: string[] | undefined;
+      // One line per attachment the model did not get, and why — rides in this turn's
+      // attached-files part even when nothing was extracted, so the model can say which file.
+      let fileProcessingNotes: string | null = null;
       if (filesForStorage && filesForStorage.length > 0) {
+        let fileStatuses: FileProcessingStatus[];
         try {
           const preprocessingResult = await preprocessFiles(filesForStorage, {
             processors: fileProcessors,
@@ -2626,11 +2645,23 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           if (preprocessingResult.imageContentUrls?.length) {
             imageContentUrls = preprocessingResult.imageContentUrls;
           }
+          fileStatuses = preprocessingResult.fileStatuses;
         } catch (err) {
           getLogger().error(
             "[sendMessage] File preprocessing failed — continuing without file context:",
             err
           );
+          fileStatuses = filesForStorage
+            .filter((f) => !(f.type ?? "").toLowerCase().startsWith("image/"))
+            .map((f) => ({ fileId: f.id, fileName: f.name, status: "failed", reason: "error" }));
+        }
+        fileProcessingNotes = formatFileProcessingNotes(fileStatuses, {
+          maxFileSizeBytes: fileProcessingOptions?.maxFileSizeBytes,
+        });
+        try {
+          onFileProcessingResult?.(fileStatuses);
+        } catch (err) {
+          getLogger().warn("[sendMessage] onFileProcessingResult threw — ignoring:", err);
         }
       }
 
@@ -2932,10 +2963,18 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
                 // Keep text parts
                 if (part.type === "text") return true;
 
-                // For input_file parts, check if this specific file was preprocessed
+                // For input_file parts, check if this specific file was preprocessed — by id, or
+                // (for parts built without a file_id) by the data/URL it carries.
                 if (part.type === "input_file" && part.file) {
                   const fileId = part.file.file_id;
-                  return !fileId || !preprocessedFileIds.includes(fileId);
+                  if (fileId) return !preprocessedFileIds.includes(fileId);
+                  const { file_data: fileData, file_url: fileUrl } = part.file;
+                  return !filesForStorage?.some(
+                    (f) =>
+                      preprocessedFileIds.includes(f.id) &&
+                      !!f.url &&
+                      (f.url === fileData || f.url === fileUrl)
+                  );
                 }
 
                 // For image_url parts, check if the URL matches a preprocessed file
@@ -2986,8 +3025,14 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       // This turn's extracted attachment text rides on this turn's user message, next to the
       // words that refer to it — see attachFileContextToLastUserMessage for why not a system
       // message. Context recalled from an earlier turn still goes through `fileContext` below.
-      if (fileContextIsCurrentTurn && fileContextForRequest) {
-        messagesToSend = attachFileContextToLastUserMessage(messagesToSend, fileContextForRequest);
+      const currentTurnFileText = [
+        fileContextIsCurrentTurn ? fileContextForRequest : undefined,
+        fileProcessingNotes,
+      ]
+        .filter(Boolean)
+        .join("\n\n");
+      if (currentTurnFileText) {
+        messagesToSend = attachFileContextToLastUserMessage(messagesToSend, currentTurnFileText);
       }
 
       // Store the user message
@@ -3005,8 +3050,11 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         content: contentForStorage,
         fileIds: userFileIds.length > 0 ? userFileIds : undefined,
         model,
-        // Store extracted file content in thinking field for retrieval in follow-up messages
-        thinking: fileContextForRequest,
+        // Store THIS turn's extracted file content in the thinking field for retrieval in
+        // follow-up messages. Context recalled from an earlier row is not stored again — it would
+        // otherwise be copied onto every follow-up row. Failure notes are not stored either:
+        // only real `[Extracted content from …]` text, which is what recall (and clients) key on.
+        thinking: fileContextIsCurrentTurn ? fileContextForRequest : undefined,
         parentMessageId,
       };
 

@@ -694,6 +694,8 @@ export { useVoice } from "./useVoice";
 
 // File processors for preprocessing attachments
 export type {
+  FileProcessingReason,
+  FileProcessingStatus,
   FileProcessor,
   FileTypeQuery,
   FileWithData,
@@ -704,6 +706,7 @@ export type {
 } from "../lib/processors";
 export {
   ExcelProcessor,
+  formatFileProcessingNotes,
   getSupportedFileTypes,
   isSupportedFile,
   PdfProcessor,

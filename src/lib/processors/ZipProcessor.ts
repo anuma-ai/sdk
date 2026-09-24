@@ -3,8 +3,27 @@ import JSZip from "jszip";
 import type { FileMetadata } from "../db/chat/types";
 import { getLogger } from "../logger";
 import { dataUrlToArrayBuffer, uint8ArrayToBase64 } from "./encoding";
+import { rewriteImageNote } from "./PdfProcessor";
 import { ProcessorRegistry } from "./registry";
 import type { FileProcessor, FileWithData, ProcessedFileResult } from "./types";
+
+// TODO(ceiling): fixed entry/byte counts bound work, not what reaches the model; upgrade to a
+// token-based budget (or retrieval over the archive) if large archives become common.
+/** Maximum archive entries listed and considered for extraction. */
+const MAX_ZIP_ENTRIES = 1_000;
+/** Maximum total decompressed bytes read out of one archive. */
+const MAX_TOTAL_UNCOMPRESSED_BYTES = 50 * 1024 * 1024;
+
+/**
+ * Size the archive's central directory declares for an entry, read BEFORE inflating it. JSZip
+ * keeps it on the private `_data` field; undefined when unavailable (then the post-inflate
+ * check still applies).
+ */
+function declaredUncompressedSize(zipObject: JSZip.JSZipObject): number | undefined {
+  const size = (zipObject as unknown as { _data?: { uncompressedSize?: unknown } })._data
+    ?.uncompressedSize;
+  return typeof size === "number" ? size : undefined;
+}
 
 /**
  * Options for configuring ZipProcessor behavior
@@ -70,20 +89,34 @@ export class ZipProcessor implements FileProcessor {
       });
 
       // Filter out hidden files/directories if includeHidden is false
-      const filteredEntries = this.includeHidden
+      const visibleEntries = this.includeHidden
         ? entries
         : entries.filter((entry) => !this.isHidden(entry.path));
 
       // Sort entries: directories first, then files, alphabetically
-      filteredEntries.sort((a, b) => {
+      visibleEntries.sort((a, b) => {
         if (a.isDirectory !== b.isDirectory) {
           return a.isDirectory ? -1 : 1;
         }
         return a.path.localeCompare(b.path);
       });
 
+      const filteredEntries = visibleEntries.slice(0, MAX_ZIP_ENTRIES);
+      const notes: string[] = [];
+      if (visibleEntries.length > filteredEntries.length) {
+        notes.push(
+          `[truncated: showing the first ${filteredEntries.length} of ${visibleEntries.length} archive entries]`
+        );
+      }
+
+      let totalBytes = 0;
+      let byteBudgetHit = false;
+      let truncated = notes.length > 0;
+      const logger = getLogger();
+
       // Process files that have matching processors
-      for (const entry of filteredEntries) {
+      for (let index = 0; index < filteredEntries.length; index++) {
+        const entry = filteredEntries[index];
         if (entry.isDirectory) continue;
 
         // Build file metadata for registry lookup
@@ -102,12 +135,26 @@ export class ZipProcessor implements FileProcessor {
         const processor = this.registry?.findProcessor(fileMetadata);
         if (!processor || processor.name === "zip") continue;
 
+        // Check the declared size before inflating, so one oversized (or zip-bomb) entry is
+        // never decompressed into memory.
+        const declared = declaredUncompressedSize(entry.zipObject);
+        if (declared !== undefined && declared > this.maxFileSize) continue;
+        if (totalBytes + (declared ?? 0) > MAX_TOTAL_UNCOMPRESSED_BYTES) {
+          byteBudgetHit = true;
+          break;
+        }
+
         try {
           // Read file content
           const data = await entry.zipObject.async("uint8array");
+          totalBytes += data.length;
 
           // Skip files that are too large
           if (data.length > this.maxFileSize) continue;
+          if (totalBytes > MAX_TOTAL_UNCOMPRESSED_BYTES) {
+            byteBudgetHit = true;
+            break;
+          }
 
           // Convert to data URL
           const base64 = uint8ArrayToBase64(data);
@@ -123,20 +170,33 @@ export class ZipProcessor implements FileProcessor {
           const result = await processor.process(fileWithData);
 
           if (result && result.extractedText.trim()) {
+            if (result.metadata?.truncated || result.imageDataUrls?.length) truncated = true;
             processedContents.push({
               path: entry.path,
               processorName: processor.name,
-              result,
+              // Page images of nested files are not forwarded, so their note must not claim them.
+              result: { ...result, extractedText: rewriteImageNote(result, fileName, 0) },
             });
           }
-        } catch {
-          // Silently skip files that fail to process
-          // Errors are expected for corrupted or unsupported files within archives
+        } catch (error) {
+          // Expected for corrupted or unsupported files within archives — keep going, but leave
+          // a trace. No entry path: it can carry user content.
+          logger.warn(
+            `[ZipProcessor] Failed to process archive entry #${index + 1} (${processor.name}, ${mimeType})`,
+            error
+          );
         }
       }
 
+      if (byteBudgetHit) {
+        truncated = true;
+        notes.push(
+          `[truncated: stopped reading the archive after ${Math.round(MAX_TOTAL_UNCOMPRESSED_BYTES / 1024 / 1024)} MB of decompressed content; later files were not extracted]`
+        );
+      }
+
       // Build output
-      const output = this.formatOutput(filteredEntries, processedContents);
+      const output = [this.formatOutput(filteredEntries, processedContents), ...notes].join("\n");
 
       return {
         extractedText: output,
@@ -145,6 +205,7 @@ export class ZipProcessor implements FileProcessor {
           fileCount: filteredEntries.filter((e) => !e.isDirectory).length,
           directoryCount: filteredEntries.filter((e) => e.isDirectory).length,
           processedFiles: processedContents.length,
+          truncated,
         },
       };
     } catch (error) {

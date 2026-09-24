@@ -202,4 +202,162 @@ describe("useChatStorage attachment text placement", () => {
     const userRow = rows.find((r) => r.role === "user")!;
     expect(userRow.content).toBe("Please review the attached file(s).");
   });
+
+  async function storedRows(conversationId: string) {
+    return getMessagesOp(
+      {
+        database: db,
+        messagesCollection: db.get("history"),
+        conversationsCollection: db.get("conversations"),
+      } as never,
+      conversationId
+    );
+  }
+
+  it("reports per-file statuses once and tells the model which file it could not read", async () => {
+    const onFileProcessingResult = vi.fn();
+    const { result } = renderHook(() =>
+      useChatStorage({ database: db, conversationId: "conv_status", getToken: async () => "tok" })
+    );
+
+    await act(async () => {
+      await result.current.sendMessage({
+        messages: [{ role: "user", content: [{ type: "text", text: "Review these." }] }],
+        model: "test-model",
+        files: [
+          FILE,
+          {
+            id: "file-bin",
+            name: "weird.bin",
+            type: "application/x-unknown",
+            size: 4,
+            url: "data:application/x-unknown;base64,AAAA",
+          },
+          {
+            id: "file-img",
+            name: "p.png",
+            type: "image/png",
+            size: 4,
+            url: "data:image/png;base64,AA==",
+          },
+        ],
+        onFileProcessingResult,
+      });
+    });
+
+    expect(onFileProcessingResult).toHaveBeenCalledTimes(1);
+    expect(onFileProcessingResult).toHaveBeenCalledWith([
+      { fileId: "file-order", fileName: "order-form.txt", status: "extracted" },
+      { fileId: "file-bin", fileName: "weird.bin", status: "skipped", reason: "unsupported_type" },
+    ]);
+    const filePart = lastUser(sentMessages(0)).content!.find((p) => isAttachedFilesText(p.text));
+    expect(filePart?.text).toContain(DOC_TEXT);
+    expect(filePart?.text).toContain(
+      "[weird.bin could not be read: its file type is not supported for reading]"
+    );
+  });
+
+  it("still sends when onFileProcessingResult throws", async () => {
+    const { result } = renderHook(() =>
+      useChatStorage({ database: db, conversationId: "conv_throw", getToken: async () => "tok" })
+    );
+
+    await act(async () => {
+      await result.current.sendMessage({
+        messages: [{ role: "user", content: [{ type: "text", text: "Review this." }] }],
+        model: "test-model",
+        files: [FILE],
+        onFileProcessingResult: () => {
+          throw new Error("observer bug");
+        },
+      });
+    });
+
+    expect(mockRunToolLoop).toHaveBeenCalledTimes(1);
+    expect(JSON.stringify(sentMessages(0))).toContain(DOC_TEXT);
+  });
+
+  it("attaches the note alone when no file could be read, and stores no file context", async () => {
+    const { result } = renderHook(() =>
+      useChatStorage({
+        database: db,
+        conversationId: "conv_all_failed",
+        getToken: async () => "tok",
+      })
+    );
+
+    await act(async () => {
+      await result.current.sendMessage({
+        messages: [{ role: "user", content: [{ type: "text", text: "Summarize order.pdf" }] }],
+        model: "test-model",
+        files: [{ ...FILE, id: "file-big", name: "order.pdf", size: 11 * 1024 * 1024 }],
+      });
+    });
+
+    const parts = lastUser(sentMessages(0)).content!;
+    expect(parts[0]).toEqual({ type: "text", text: "Summarize order.pdf" });
+    const filePart = parts.find((p) => isAttachedFilesText(p.text));
+    expect(filePart?.text).toContain(
+      "[order.pdf could not be read: the file is larger than 10 MB]"
+    );
+    expect(filePart?.text).not.toContain("[Extracted content from ");
+
+    const userRow = (await storedRows("conv_all_failed")).find((r) => r.role === "user")!;
+    expect(userRow.thinking ?? undefined).toBeUndefined();
+  });
+
+  it("stores file context only on the turn that attached the file, not on follow-ups", async () => {
+    const { result } = renderHook(() =>
+      useChatStorage({ database: db, conversationId: "conv_thinking", getToken: async () => "tok" })
+    );
+
+    await act(async () => {
+      await result.current.sendMessage({
+        messages: [{ role: "user", content: [{ type: "text", text: "Review this." }] }],
+        model: "test-model",
+        files: [FILE],
+      });
+    });
+    await act(async () => {
+      await result.current.sendMessage({
+        messages: [{ role: "user", content: [{ type: "text", text: "What is the term?" }] }],
+        model: "test-model",
+      });
+    });
+
+    const userRows = (await storedRows("conv_thinking")).filter((r) => r.role === "user");
+    expect(userRows).toHaveLength(2);
+    expect(userRows[0].thinking?.startsWith("[Extracted content from order-form.txt]")).toBe(true);
+    expect(userRows[1].thinking ?? undefined).toBeUndefined();
+  });
+
+  it("drops an input_file part without file_id that carries a preprocessed file's data", async () => {
+    const { result } = renderHook(() =>
+      useChatStorage({
+        database: db,
+        conversationId: "conv_input_file",
+        getToken: async () => "tok",
+      })
+    );
+
+    await act(async () => {
+      await result.current.sendMessage({
+        messages: [
+          {
+            role: "user",
+            content: [
+              { type: "text", text: "Review this." },
+              { type: "input_file", file: { filename: FILE.name, file_data: FILE.url } },
+            ],
+          },
+        ],
+        model: "test-model",
+        files: [FILE],
+      });
+    });
+
+    const parts = lastUser(sentMessages(0)).content!;
+    expect(parts.some((p) => p.type === "input_file")).toBe(false);
+    expect(parts.some((p) => isAttachedFilesText(p.text))).toBe(true);
+  });
 });
