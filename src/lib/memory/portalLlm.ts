@@ -137,12 +137,16 @@ export function supportsResponseFormat(
  * Matched on the model half of the id (`provider/model`), by PREFIX, because
  * the family shares the `gpt-5.6-` stem across variants.
  *
- * gpt-6-sol and gpt-6-luna are listed by NAME, not as a `gpt-6` stem: both were
- * probed against dev on 2026-09-24 and reject chat-completions exactly as
- * gpt-5.6-luna does in the same run (400 on any effort but "none", 200 on
- * /v1/responses). gpt-6-astra was not probed, so it is not swept in.
+ * The gpt-6 entries are listed per family, not as a `gpt-6` stem, because the
+ * families fail DIFFERENTLY — each was probed against dev on 2026-09-24:
+ * - gpt-6-sol / gpt-6-luna reject chat-completions exactly as gpt-5.6-luna does
+ *   in the same run: 400 on any effort but "none", 200 on /v1/responses.
+ * - gpt-6-astra (prefix covers -pro) is worse: chat-completions rejects "none"
+ *   too ("Supported values are: 'low', 'medium', 'high', and 'xhigh'"), so the
+ *   portal's rewrite-to-"none" cannot rescue it and /v1/responses is its ONLY
+ *   working transport. (astra-pro was not reachable on dev's virtual key.)
  */
-const RESPONSES_ONLY_MODEL_PREFIXES = ["gpt-5.6", "gpt-6-sol", "gpt-6-luna"];
+const RESPONSES_ONLY_MODEL_PREFIXES = ["gpt-5.6", "gpt-6-sol", "gpt-6-luna", "gpt-6-astra"];
 
 /**
  * Whether `model` must be called on the Responses transport.

@@ -1182,11 +1182,14 @@ describe("requiresResponsesTransport", () => {
     "openai/gpt-6-luna",
     "openai/gpt-6-sol",
     "openrouter/openai/gpt-6-luna",
+    // Astra rejects reasoning_effort "none" on chat, so responses is its only transport.
+    "openai/gpt-6-astra",
+    "openai/gpt-6-astra-pro",
   ])("routes %s to the responses transport", (model) => {
     expect(requiresResponsesTransport(model)).toBe(true);
   });
 
-  it.each(["openai/gpt-5.5", "openai/gpt-6-astra", "anthropic/claude-sonnet-5"])(
+  it.each(["openai/gpt-5.5", "anthropic/claude-sonnet-5"])(
     "leaves %s on chat completions",
     (model) => {
       expect(requiresResponsesTransport(model)).toBe(false);
