@@ -30,9 +30,11 @@ export class ProcessorRegistry {
    */
   findProcessor(file: FileTypeQuery): FileProcessor | null {
     // Try MIME type match first
-    if (file.type) {
+    // Compare the bare type: `text/csv; charset=utf-8` and `Application/PDF` are still CSV/PDF.
+    const mimeType = file.type?.split(";")[0].trim().toLowerCase();
+    if (mimeType) {
       for (const processor of this.processors.values()) {
-        if (processor.supportedMimeTypes.includes(file.type)) {
+        if (processor.supportedMimeTypes.includes(mimeType)) {
           return processor;
         }
       }

@@ -856,9 +856,27 @@ Re-exports [FileMetadata](../react/Internal/interfaces/FileMetadata.md)
 
 ***
 
+### FileProcessingReason
+
+Re-exports [FileProcessingReason](../react/Internal/type-aliases/FileProcessingReason.md)
+
+***
+
+### FileProcessingStatus
+
+Re-exports [FileProcessingStatus](../react/Internal/interfaces/FileProcessingStatus.md)
+
+***
+
 ### FlushResult
 
 Re-exports [FlushResult](../react/Internal/interfaces/FlushResult.md)
+
+***
+
+### formatFileProcessingNotes
+
+Re-exports [formatFileProcessingNotes](../react/Internal/functions/formatFileProcessingNotes.md)
 
 ***
 

@@ -11,10 +11,13 @@ export type { FileTypeQuery } from "./registry";
 export { ProcessorRegistry } from "./registry";
 
 // Orchestration
+export { formatFileProcessingNotes } from "./fileStatusNotes";
 export { getSupportedFileTypes, isSupportedFile, preprocessFiles } from "./preprocessor";
 
 // Types
 export type {
+  FileProcessingReason,
+  FileProcessingStatus,
   FileProcessor,
   FileWithData,
   PreprocessingOptions,

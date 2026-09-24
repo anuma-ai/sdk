@@ -393,6 +393,10 @@ export {
   buildAttachedFilesText,
   isAttachedFilesText,
 } from "../lib/chat/fileContext";
+// Per-file preprocessing outcome (see `onFileProcessingResult` on the React `sendMessage`), and
+// the one-line-per-unread-file notes that go into the same attached-files part.
+export { formatFileProcessingNotes } from "../lib/processors/fileStatusNotes";
+export type { FileProcessingReason, FileProcessingStatus } from "../lib/processors/types";
 
 // Structured logger — set a custom sink via setLogger (mobile must import
 // from this entrypoint or "@anuma/sdk/react", NOT the bare barrel, which
