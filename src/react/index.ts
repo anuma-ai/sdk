@@ -694,6 +694,8 @@ export { useVoice } from "./useVoice";
 
 // File processors for preprocessing attachments
 export type {
+  FileProcessingReason,
+  FileProcessingStatus,
   FileProcessor,
   FileTypeQuery,
   FileWithData,
@@ -704,6 +706,7 @@ export type {
 } from "../lib/processors";
 export {
   ExcelProcessor,
+  formatFileProcessingNotes,
   getSupportedFileTypes,
   isSupportedFile,
   PdfProcessor,
@@ -770,6 +773,15 @@ export {
 // same reason as CHUNKS_DISCARDED_ORIGIN above: a client that cannot import the
 // constant hand-rolls the string instead.
 export { TOOL_RESULT_ORIGIN } from "../lib/chat/toolResults";
+
+// The current turn's extracted attachment text rides on that turn's user message in this tagged
+// part. Exported from all three app entrypoints so a client that builds its own document context
+// (mobile) produces the same part — and so the pre-processor prompt skip recognises it.
+export {
+  attachFileContextToLastUserMessage,
+  buildAttachedFilesText,
+  isAttachedFilesText,
+} from "../lib/chat/fileContext";
 
 // Server-side tools caching utilities
 export type { DropboxExportResult, DropboxImportResult } from "../lib/backup/dropbox/backup";

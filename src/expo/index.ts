@@ -385,6 +385,19 @@ export {
 // constant hand-rolls the string instead, and mobile already keeps two copies.
 export { TOOL_RESULT_ORIGIN } from "../lib/chat/toolResults";
 
+// The current turn's extracted attachment text rides on that turn's user message in this tagged
+// part. Exported from all three app entrypoints so a client that builds its own document context
+// (mobile) produces the same part — and so the pre-processor prompt skip recognises it.
+export {
+  attachFileContextToLastUserMessage,
+  buildAttachedFilesText,
+  isAttachedFilesText,
+} from "../lib/chat/fileContext";
+// Per-file preprocessing outcome (see `onFileProcessingResult` on the React `sendMessage`), and
+// the one-line-per-unread-file notes that go into the same attached-files part.
+export { formatFileProcessingNotes } from "../lib/processors/fileStatusNotes";
+export type { FileProcessingReason, FileProcessingStatus } from "../lib/processors/types";
+
 // Structured logger — set a custom sink via setLogger (mobile must import
 // from this entrypoint or "@anuma/sdk/react", NOT the bare barrel, which
 // pulls server code and crashes under Hermes). Mirrors the react barrel.

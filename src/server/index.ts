@@ -546,6 +546,8 @@ export { QueueManager, queueManager, WalletPoller } from "../lib/db/queue";
 // ── File Processors (Node.js-compatible) ──
 
 export type {
+  FileProcessingReason,
+  FileProcessingStatus,
   FileProcessor,
   FileTypeQuery,
   FileWithData,
@@ -556,6 +558,7 @@ export type {
 } from "../lib/processors";
 export {
   ExcelProcessor,
+  formatFileProcessingNotes,
   getSupportedFileTypes,
   isSupportedFile,
   PdfProcessor,

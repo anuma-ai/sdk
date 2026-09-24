@@ -16,7 +16,46 @@ if (typeof process !== "undefined" && typeof process.umask !== "function") {
 }
 
 /**
- * Processor for Excel files (.xlsx) that converts to JSON structure.
+ * Maximum data rows emitted per sheet. Rows past it are dropped with a marker line.
+ */
+// TODO(ceiling): a fixed row count ignores row width; upgrade to a token-based budget, or to
+// retrieval (query the sheet on demand) for large workbooks.
+const MAX_ROWS_PER_SHEET = 2_000;
+
+/** Quote a CSV field when it contains a delimiter, quote or line break (RFC 4180). */
+function csvField(value: string): string {
+  return /[",\r\n]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value;
+}
+
+/**
+ * Header names for a sheet: blank headers become `ColumnN`, and repeated names get a `_2`, `_3`…
+ * suffix so no column silently shadows another. A suffix never reuses a name already in the
+ * header row (`Amount, Amount, Amount_2` -> `Amount, Amount_3, Amount_2`).
+ */
+function uniqueHeaders(raw: Array<string | undefined>, columnCount: number): string[] {
+  const bases: string[] = [];
+  for (let col = 1; col <= columnCount; col++) bases.push(raw[col]?.trim() || `Column${col}`);
+  const taken = new Set(bases);
+  const emitted = new Set<string>();
+  return bases.map((base) => {
+    if (!emitted.has(base)) {
+      emitted.add(base);
+      return base;
+    }
+    let n = 2;
+    while (taken.has(`${base}_${n}`)) n++;
+    const name = `${base}_${n}`;
+    taken.add(name);
+    emitted.add(name);
+    return name;
+  });
+}
+
+/**
+ * Processor for Excel files (.xlsx) that converts each sheet to CSV.
+ *
+ * CSV rather than JSON: JSON repeated every header on every row, several times the characters
+ * for the same data, and ran into the text caps long before the data did.
  *
  * Uses a dynamic import for exceljs so the heavy dependency tree is only
  * loaded when actually processing an Excel file.
@@ -27,6 +66,12 @@ export class ExcelProcessor implements FileProcessor {
     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", // .xlsx
   ];
   readonly supportedExtensions = [".xlsx"];
+
+  private readonly maxRowsPerSheet: number;
+
+  constructor(options: { maxRowsPerSheet?: number } = {}) {
+    this.maxRowsPerSheet = options.maxRowsPerSheet ?? MAX_ROWS_PER_SHEET;
+  }
 
   private async loadExcelJS(): Promise<typeof ExcelJS> {
     const mod = await import("exceljs");
@@ -45,34 +90,49 @@ export class ExcelProcessor implements FileProcessor {
         return null;
       }
 
-      const jsonData: Record<string, Record<string, unknown>[]> = {};
+      let truncated = false;
+      const sections: string[] = [];
       for (const worksheet of workbook.worksheets) {
-        const rows: Record<string, unknown>[] = [];
-        const headerRow = worksheet.getRow(1);
-        const headers: string[] = [];
-        headerRow.eachCell({ includeEmpty: true }, (cell, colNumber) => {
-          headers[colNumber] = cell.text || `Column${colNumber}`;
+        const rawHeaders: string[] = [];
+        let columnCount = 0;
+        worksheet.getRow(1).eachCell({ includeEmpty: true }, (cell, colNumber) => {
+          rawHeaders[colNumber] = cell.text;
+          columnCount = Math.max(columnCount, colNumber);
         });
 
+        const rows: string[][] = [];
+        let totalRows = 0;
         worksheet.eachRow({ includeEmpty: false }, (row, rowNumber) => {
-          if (rowNumber === 1) return; // skip header
-          const rowData: Record<string, unknown> = {};
+          if (rowNumber === 1) return; // header
+          totalRows++;
+          if (rows.length >= this.maxRowsPerSheet) return;
+          const values: string[] = [];
           row.eachCell({ includeEmpty: true }, (cell, colNumber) => {
-            const key = headers[colNumber] || `Column${colNumber}`;
-            rowData[key] = this.resolveCellValue(cell.value);
+            values[colNumber - 1] = String(this.resolveCellValue(cell.value));
+            columnCount = Math.max(columnCount, colNumber);
           });
-          rows.push(rowData);
+          rows.push(values);
         });
 
-        jsonData[worksheet.name] = rows;
+        const headers = uniqueHeaders(rawHeaders, columnCount);
+        const lines = [headers, ...rows].map((values) =>
+          headers.map((_, i) => csvField(values[i] ?? "")).join(",")
+        );
+        let section = `## Sheet: ${worksheet.name}\n\n\`\`\`csv\n${lines.join("\n")}\n\`\`\``;
+        if (totalRows > rows.length) {
+          truncated = true;
+          section += `\n[truncated: showing the first ${rows.length} of ${totalRows} data rows of sheet "${worksheet.name}"]`;
+        }
+        sections.push(section);
       }
 
       return {
-        extractedText: JSON.stringify(jsonData, null, 2),
-        format: "json",
+        extractedText: sections.join("\n\n"),
+        format: "markdown",
         metadata: {
           sheetCount: workbook.worksheets.length,
           sheetNames: workbook.worksheets.map((ws) => ws.name),
+          truncated,
         },
       };
     } catch (error) {

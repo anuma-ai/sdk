@@ -1,15 +1,69 @@
 import type { FileMetadata } from "../db/chat/types";
 import { getLogger } from "../logger";
 import { ExcelProcessor } from "./ExcelProcessor";
-import { PdfProcessor } from "./PdfProcessor";
+import { DEFAULT_MAX_FILE_SIZE_BYTES } from "./fileStatusNotes";
+import { PdfProcessor, rewriteImageNote } from "./PdfProcessor";
 import { type FileTypeQuery, ProcessorRegistry } from "./registry";
 import { TextProcessor } from "./TextProcessor";
-import type { FileWithData, PreprocessingOptions, PreprocessingResult } from "./types";
+import type {
+  FileProcessingReason,
+  FileProcessingStatus,
+  FileWithData,
+  PreprocessingOptions,
+  PreprocessingResult,
+} from "./types";
 import { WordProcessor } from "./WordProcessor";
 import { ZipProcessor } from "./ZipProcessor";
 
 /** Maximum total image fallback URLs across all files in a single preprocessing run */
+// TODO(ceiling): counts images, not their tokens; upgrade to a token-based budget shared with text.
 const MAX_TOTAL_IMAGES = 20;
+
+// TODO(ceiling): character caps are a proxy for the model's context window; upgrade to
+// token-based budgets sized to the selected model, or to retrieval over the document so long
+// files are searched instead of cut.
+/** Default max characters of extracted text kept per file. */
+const DEFAULT_MAX_EXTRACTED_CHARS_PER_FILE = 100_000;
+/** Default max characters of extracted text kept across all files of one run. */
+const DEFAULT_MAX_EXTRACTED_CHARS_TOTAL = 200_000;
+
+/** Error raised when a processor exceeds `timeoutMs`. */
+class ProcessingTimeoutError extends Error {
+  constructor(timeoutMs: number) {
+    super(`Timed out processing file after ${timeoutMs}ms`);
+    this.name = "ProcessingTimeoutError";
+  }
+}
+
+function truncationMarker(kept: number, total: number, fileName: string): string {
+  return `\n[truncated: showing the first ${kept} of ${total} characters of ${fileName}]`;
+}
+
+/**
+ * Keep at most `limit` characters of `text`, ending with a marker that names how much was kept.
+ * Never splits a surrogate pair.
+ */
+function truncateText(
+  text: string,
+  limit: number,
+  fileName: string
+): { text: string; truncated: boolean } {
+  if (text.length <= limit) return { text, truncated: false };
+  let end = Math.max(0, limit);
+  const code = text.charCodeAt(end - 1);
+  if (end > 0 && code >= 0xd800 && code <= 0xdbff) end--;
+  return {
+    text: `${text.slice(0, end)}${truncationMarker(end, text.length, fileName)}`,
+    truncated: true,
+  };
+}
+
+/** Separator between files in `extractedContent`. */
+const FILE_SEPARATOR = "\n\n---\n\n";
+
+function isImageFile(file: FileMetadata): boolean {
+  return (file.type ?? "").trim().toLowerCase().startsWith("image/");
+}
 
 /**
  * Build a registry containing all built-in processors.
@@ -122,8 +176,10 @@ export async function preprocessFiles(
   const {
     processors = undefined, // undefined means use defaults
     keepOriginalFiles = true,
-    maxFileSizeBytes = 10 * 1024 * 1024, // 10MB
+    maxFileSizeBytes = DEFAULT_MAX_FILE_SIZE_BYTES,
     timeoutMs = 30_000, // 30s per file
+    maxExtractedCharsPerFile = DEFAULT_MAX_EXTRACTED_CHARS_PER_FILE,
+    maxExtractedCharsTotal = DEFAULT_MAX_EXTRACTED_CHARS_TOTAL,
     onProgress,
     onError,
   } = options;
@@ -136,27 +192,29 @@ export async function preprocessFiles(
       extractedContent: null,
       originalFiles: files,
       preprocessedFileIds: [],
+      fileStatuses: [],
       metadata: { processedCount: 0, skippedCount: 0, errorCount: 0 },
     };
   }
 
-  if (processors !== undefined && processors !== null && processors.length === 0) {
-    // Explicit opt-out with empty array
+  if (processors === null || processors?.length === 0) {
+    // Explicit opt-out (null or []): nothing is read, but every non-image file still gets a
+    // status so the app (and the model, via formatFileProcessingNotes) knows it was not read.
+    // With no processors, no processor handles any type — hence `unsupported_type`.
+    const fileStatuses: FileProcessingStatus[] = files
+      .filter((file) => !isImageFile(file))
+      .map((file) => ({
+        fileId: file.id,
+        fileName: file.name,
+        status: "skipped",
+        reason: "unsupported_type",
+      }));
     return {
       extractedContent: null,
       originalFiles: files,
       preprocessedFileIds: [],
-      metadata: { processedCount: 0, skippedCount: 0, errorCount: 0 },
-    };
-  }
-
-  if (processors === null) {
-    // Explicit opt-out with null
-    return {
-      extractedContent: null,
-      originalFiles: files,
-      preprocessedFileIds: [],
-      metadata: { processedCount: 0, skippedCount: 0, errorCount: 0 },
+      fileStatuses,
+      metadata: { processedCount: 0, skippedCount: fileStatuses.length, errorCount: 0 },
     };
   }
 
@@ -179,36 +237,51 @@ export async function preprocessFiles(
   const extractedTexts: string[] = [];
   const allImageUrls: string[] = [];
   const preprocessedFileIds: string[] = [];
+  const fileStatuses: FileProcessingStatus[] = [];
   let processedCount = 0;
   let skippedCount = 0;
   let errorCount = 0;
+  let totalChars = 0;
+  // Files with text that found the budget already spent — named in one combined note.
+  const overBudgetFiles: string[] = [];
 
   for (let i = 0; i < files.length; i++) {
     const file = files[i];
+    // Log by position/type/size only — file names can carry user content, and clients forward
+    // these logs off-device.
+    const label = `#${i + 1} (${file.type || "unknown type"}, ${file.size} bytes)`;
+    const skip = (reason: FileProcessingReason) => {
+      skippedCount++;
+      fileStatuses.push({ fileId: file.id, fileName: file.name, status: "skipped", reason });
+    };
 
     onProgress?.(i + 1, files.length, file.name);
+
+    // Find appropriate processor. Images without one are sent to the model as image_url parts
+    // by the caller — they are neither skipped nor too large here.
+    const processor = registry.findProcessor(file);
+    if (!processor && isImageFile(file)) continue;
 
     // Skip files that are too large
     if (file.size > maxFileSizeBytes) {
       logger.info(
-        `[preprocessFiles] Skipping "${file.name}" — exceeds ${maxFileSizeBytes} byte limit`
+        `[preprocessFiles] Skipping file ${label} — exceeds ${maxFileSizeBytes} byte limit`
       );
-      skippedCount++;
+      skip("too_large");
       continue;
     }
 
-    // Find appropriate processor
-    const processor = registry.findProcessor(file);
     if (!processor) {
-      skippedCount++;
+      skip("unsupported_type");
       continue;
     }
 
+    let timer: ReturnType<typeof setTimeout> | undefined;
     try {
       // Ensure file has a data URL
       if (!file.url) {
-        logger.info(`[preprocessFiles] Skipping "${file.name}" — no data URL available`);
-        skippedCount++;
+        logger.info(`[preprocessFiles] Skipping file ${label} — no data URL available`);
+        skip("no_data");
         continue;
       }
 
@@ -220,47 +293,103 @@ export async function preprocessFiles(
 
       const result = await Promise.race([
         processor.process(fileWithData),
-        new Promise<null>((_, reject) =>
-          setTimeout(() => reject(new Error(`Timed out processing ${file.name}`)), timeoutMs)
-        ),
+        new Promise<null>((_, reject) => {
+          timer = setTimeout(() => reject(new ProcessingTimeoutError(timeoutMs)), timeoutMs);
+        }),
       ]);
 
       if (result && result.extractedText.trim()) {
-        // Format the extracted content
-        const formattedContent = formatExtractedContent(
-          file.name,
-          result.extractedText,
-          result.format
-        );
-        extractedTexts.push(formattedContent);
+        // The total budget counts everything this file adds to extractedContent — separator,
+        // header, format wrapper and truncation marker — not just the kept source text.
+        const separatorLength = extractedTexts.length > 0 ? FILE_SEPARATOR.length : 0;
+        const remaining =
+          maxExtractedCharsTotal -
+          totalChars -
+          separatorLength -
+          formatExtractedContent(file.name, "", result.format).length;
         preprocessedFileIds.push(file.id); // Track which files were preprocessed
         processedCount++;
-
-        // Collect image fallback URLs (e.g. scanned PDF pages rendered as images).
-        // Cap at 20 images total across all files to keep payload size reasonable.
-        if (result.imageDataUrls && result.imageDataUrls.length > 0) {
-          const remaining = MAX_TOTAL_IMAGES - allImageUrls.length;
-          if (remaining > 0) {
-            allImageUrls.push(...result.imageDataUrls.slice(0, remaining));
-          }
+        // Room for at least some text plus a marker (an upper bound: the kept count has no more
+        // digits than the total). Otherwise the budget is spent: no header + marker for this
+        // file, one combined note after the loop — and no page images the text cannot explain.
+        const fullLength = result.extractedText.length;
+        if (
+          fullLength > remaining &&
+          remaining - truncationMarker(fullLength, fullLength, file.name).length <= 0
+        ) {
+          overBudgetFiles.push(file.name);
+          fileStatuses.push({ fileId: file.id, fileName: file.name, status: "truncated" });
+          continue;
         }
+
+        // Collect image fallback URLs (e.g. scanned PDF pages rendered as images), capped
+        // across all files; when the cap drops some, rewrite the note that announced them.
+        const images = result.imageDataUrls ?? [];
+        const keptImages = Math.min(
+          images.length,
+          Math.max(0, MAX_TOTAL_IMAGES - allImageUrls.length)
+        );
+        allImageUrls.push(...images.slice(0, keptImages));
+        const text = rewriteImageNote(result, file.name, keptImages);
+
+        const fitsWhole = text.length <= Math.min(maxExtractedCharsPerFile, remaining);
+        const limit = fitsWhole
+          ? text.length
+          : Math.min(
+              maxExtractedCharsPerFile,
+              remaining - truncationMarker(text.length, text.length, file.name).length
+            );
+        const capped = truncateText(text, Math.max(0, limit), file.name);
+
+        // Format the extracted content
+        const formattedContent = formatExtractedContent(file.name, capped.text, result.format);
+        totalChars += separatorLength + formattedContent.length;
+        extractedTexts.push(formattedContent);
+
+        // Any lost content wins over "rendered_as_images" — the app should say "partially read".
+        const truncated =
+          capped.truncated || keptImages < images.length || result.metadata?.truncated === true;
+        fileStatuses.push({
+          fileId: file.id,
+          fileName: file.name,
+          status: truncated ? "truncated" : keptImages > 0 ? "rendered_as_images" : "extracted",
+        });
       } else {
-        skippedCount++;
+        skip("empty");
       }
     } catch (error) {
       errorCount++;
-      logger.error(`[preprocessFiles] Error processing "${file.name}":`, error);
+      const timedOut = error instanceof ProcessingTimeoutError;
+      fileStatuses.push({
+        fileId: file.id,
+        fileName: file.name,
+        status: "failed",
+        reason: timedOut ? "timeout" : "error",
+      });
+      logger.error(
+        `[preprocessFiles] Error processing file ${label} with ${processor.name}:`,
+        error
+      );
       onError?.(file.name, error instanceof Error ? error : new Error(String(error)));
+    } finally {
+      clearTimeout(timer);
     }
   }
 
-  const extractedContent = extractedTexts.length > 0 ? extractedTexts.join("\n\n---\n\n") : null;
+  if (overBudgetFiles.length > 0) {
+    extractedTexts.push(
+      `[truncated: the attachment text limit (${maxExtractedCharsTotal} characters) was reached; the contents of ${overBudgetFiles.join(", ")} were not included]`
+    );
+  }
+
+  const extractedContent = extractedTexts.length > 0 ? extractedTexts.join(FILE_SEPARATOR) : null;
 
   return {
     extractedContent,
     imageContentUrls: allImageUrls.length > 0 ? allImageUrls : undefined,
     originalFiles: keepOriginalFiles ? files : undefined,
     preprocessedFileIds,
+    fileStatuses,
     metadata: { processedCount, skippedCount, errorCount },
   };
 }
