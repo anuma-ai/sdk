@@ -3050,11 +3050,12 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         content: contentForStorage,
         fileIds: userFileIds.length > 0 ? userFileIds : undefined,
         model,
-        // Store THIS turn's extracted file content in the thinking field for retrieval in
-        // follow-up messages. Context recalled from an earlier row is not stored again — it would
-        // otherwise be copied onto every follow-up row. Failure notes are not stored either:
-        // only real `[Extracted content from …]` text, which is what recall (and clients) key on.
-        thinking: fileContextIsCurrentTurn ? fileContextForRequest : undefined,
+        // Store the file context — this turn's, or the one recalled from an earlier row — in the
+        // thinking field for retrieval in follow-up messages. Re-storing recalled context is the
+        // carry-forward: recall only scans the last `maxHistoryMessages` rows, so without it a
+        // file's text is lost once the turn that attached it scrolls out of the window. Failure
+        // notes are never stored: only `[Extracted content from …]` text, which recall keys on.
+        thinking: fileContextForRequest,
         parentMessageId,
       };
 

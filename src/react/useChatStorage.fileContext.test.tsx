@@ -306,29 +306,33 @@ describe("useChatStorage attachment text placement", () => {
     expect(userRow.thinking ?? undefined).toBeUndefined();
   });
 
-  it("stores file context only on the turn that attached the file, not on follow-ups", async () => {
+  it("carries file context forward past maxHistoryMessages", async () => {
     const { result } = renderHook(() =>
-      useChatStorage({ database: db, conversationId: "conv_thinking", getToken: async () => "tok" })
+      useChatStorage({ database: db, conversationId: "conv_carry", getToken: async () => "tok" })
     );
-
-    await act(async () => {
-      await result.current.sendMessage({
-        messages: [{ role: "user", content: [{ type: "text", text: "Review this." }] }],
-        model: "test-model",
-        files: [FILE],
+    const send = (text: string, extra: { files?: (typeof FILE)[] } = {}) =>
+      act(async () => {
+        await result.current.sendMessage({
+          messages: [{ role: "user", content: [{ type: "text", text }] }],
+          model: "test-model",
+          maxHistoryMessages: 2,
+          ...extra,
+        });
       });
-    });
-    await act(async () => {
-      await result.current.sendMessage({
-        messages: [{ role: "user", content: [{ type: "text", text: "What is the term?" }] }],
-        model: "test-model",
-      });
-    });
 
-    const userRows = (await storedRows("conv_thinking")).filter((r) => r.role === "user");
-    expect(userRows).toHaveLength(2);
-    expect(userRows[0].thinking?.startsWith("[Extracted content from order-form.txt]")).toBe(true);
-    expect(userRows[1].thinking ?? undefined).toBeUndefined();
+    await send("Review this.", { files: [FILE] });
+    await send("What is the quote number?");
+    await send("And the term?");
+    await send("Summarize it again.");
+
+    // By the fourth turn the attaching turn is far outside a 2-message window…
+    const userRows = (await storedRows("conv_carry")).filter((r) => r.role === "user");
+    expect(userRows).toHaveLength(4);
+    // …yet each follow-up row carried the context forward, so it still reaches the model.
+    for (const row of userRows) {
+      expect(row.thinking?.startsWith("[Extracted content from order-form.txt]")).toBe(true);
+    }
+    expect(systemText(sentMessages(3))).toContain(DOC_TEXT);
   });
 
   it("drops an input_file part without file_id that carries a preprocessed file's data", async () => {
