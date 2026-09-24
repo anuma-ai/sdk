@@ -2,11 +2,13 @@
 
 > **attachFileContextToLastUserMessage**(`messages`: [`LlmapiMessage`](../../../client/Internal/type-aliases/LlmapiMessage.md)\[], `fileContext`: `string`): [`LlmapiMessage`](../../../client/Internal/type-aliases/LlmapiMessage.md)\[]
 
-Defined in: src/lib/chat/fileContext.ts:52
+Defined in: [src/lib/chat/fileContext.ts:63](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/fileContext.ts#63)
 
 Put the current turn's extracted attachment contents on the last user
-message, as a text part placed after that message's own text parts (and
-before any image parts).
+message, as a text part inserted right after that message's LAST text part:
+after everything the user wrote, and before any parts that follow it
+(typically images). With interleaved parts such as `[text, image, text,
+image]` it lands between the second text and the second image.
 
 Why not a system message: a detached system message at the front of the
 request ("the user has attached files to this conversation") is separated

@@ -2,7 +2,7 @@
 
 > **buildAttachedFilesText**(`fileContext`: `string`): `string`
 
-Defined in: src/lib/chat/fileContext.ts:22
+Defined in: [src/lib/chat/fileContext.ts:36](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/fileContext.ts#36)
 
 Wrap a turn's extracted file contents (the `[Extracted content from <name>]`
 blocks `preprocessFiles` emits) in the tagged part that rides on that turn's

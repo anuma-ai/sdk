@@ -2,9 +2,13 @@
 
 > **isAttachedFilesText**(`text`: `string` | `null` | `undefined`): `boolean`
 
-Defined in: src/lib/chat/fileContext.ts:13
+Defined in: [src/lib/chat/fileContext.ts:23](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/fileContext.ts#23)
 
 True when a text part is the attachment-contents part built by [buildAttachedFilesText](buildAttachedFilesText.md).
+
+Matches the whole generated shape — opening tag plus the fixed header line, and the closing
+tag — not just the tag, so user text that merely starts with `<attached_files>` is still
+treated as the user's prompt.
 
 ## Parameters
 
