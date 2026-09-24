@@ -22,6 +22,7 @@ import {
   extractPdfPageTexts,
   extractTextFromPdf,
   joinPdfTextItems,
+  renderPdfPages,
 } from "./pdf";
 
 function fakePage(items: object[], width = 600, height = 800) {
@@ -31,8 +32,44 @@ function fakePage(items: object[], width = 600, height = 800) {
       width: width * scale,
       height: height * scale,
     }),
-    render: () => ({ promise: Promise.resolve() }),
+    render: vi.fn((_params: object) => ({ promise: Promise.resolve() })),
   };
+}
+
+interface FakeCanvas {
+  width: number;
+  height: number;
+  ops: string[];
+  toDataURL: ReturnType<typeof vi.fn>;
+}
+
+/** Stub `document.createElement("canvas")`; `noContextFor` canvases (by creation order) get none. */
+function stubCanvases(noContextFor: number[] = []) {
+  const canvases: FakeCanvas[] = [];
+  const spy = vi.spyOn(document, "createElement").mockImplementation(() => {
+    const index = canvases.length;
+    const ops: string[] = [];
+    const context = {
+      fillStyle: "",
+      fillRect: vi.fn(function (this: { fillStyle: string }) {
+        ops.push(`fillRect:${this.fillStyle}`);
+      }),
+    };
+    const canvas: FakeCanvas = {
+      width: 0,
+      height: 0,
+      ops,
+      toDataURL: vi.fn(function (this: { width: number }) {
+        return `data:image/jpeg;base64,w${this.width}`;
+      }),
+    };
+    Object.assign(canvas, {
+      getContext: () => (noContextFor.includes(index) ? null : context),
+    });
+    canvases.push(canvas);
+    return canvas as unknown as HTMLElement;
+  });
+  return { canvases, restore: () => spy.mockRestore() };
 }
 
 function fakeDoc(pages: ReturnType<typeof fakePage>[]) {
@@ -96,20 +133,7 @@ describe("pdf.js lifecycle", () => {
   });
 
   it("renders the requested pages as JPEG, capped in size, and releases each canvas", async () => {
-    const canvases: Array<{ width: number; height: number; toDataURL: ReturnType<typeof vi.fn> }> =
-      [];
-    const createElement = vi.spyOn(document, "createElement").mockImplementation(() => {
-      const canvas = {
-        width: 0,
-        height: 0,
-        getContext: () => ({}),
-        toDataURL: vi.fn(function (this: { width: number }) {
-          return `data:image/jpeg;base64,w${this.width}`;
-        }),
-      };
-      canvases.push(canvas);
-      return canvas as unknown as HTMLElement;
-    });
+    const { canvases, restore } = stubCanvases();
     try {
       getDocument.mockReturnValue({
         promise: Promise.resolve(fakeDoc([fakePage([]), fakePage([], 2000, 1000), fakePage([])])),
@@ -123,7 +147,45 @@ describe("pdf.js lifecycle", () => {
       expect(canvases[0].height).toBe(0);
       expect(destroyDoc).toHaveBeenCalledTimes(1);
     } finally {
-      createElement.mockRestore();
+      restore();
+    }
+  });
+
+  it("paints each page white before rendering, since JPEG turns transparent pixels black", async () => {
+    const { canvases, restore } = stubCanvases();
+    try {
+      const page = fakePage([]);
+      page.render.mockImplementation(() => {
+        canvases[0].ops.push("render");
+        return { promise: Promise.resolve() };
+      });
+      getDocument.mockReturnValue({
+        promise: Promise.resolve(fakeDoc([page])),
+        destroy: destroyTask,
+      });
+      await convertPdfToImages("data:");
+
+      expect(canvases[0].ops).toEqual(["fillRect:#ffffff", "render"]);
+      expect(page.render.mock.calls[0][0]).toMatchObject({ background: "#ffffff" });
+    } finally {
+      restore();
+    }
+  });
+
+  it("reports which page each image came from when a page cannot be rendered", async () => {
+    // The second canvas (page 2) has no 2d context.
+    const { restore } = stubCanvases([1]);
+    try {
+      getDocument.mockReturnValue({
+        promise: Promise.resolve(fakeDoc([fakePage([]), fakePage([]), fakePage([]), fakePage([])])),
+        destroy: destroyTask,
+      });
+      const result = await renderPdfPages("data:", undefined, [1, 2, 4]);
+
+      expect(result.pageCount).toBe(4);
+      expect(result.pages.map((p) => p.pageNumber)).toEqual([1, 4]);
+    } finally {
+      restore();
     }
   });
 });

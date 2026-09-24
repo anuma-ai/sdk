@@ -92,27 +92,35 @@ export async function extractTextFromPdf(pdfDataUrl: string): Promise<string> {
   return pageTexts.filter((text) => text.trim()).join("\n\n");
 }
 
+/** One rendered page: its 1-based number and its JPEG data URL. */
+export interface RenderedPdfPage {
+  pageNumber: number;
+  dataUrl: string;
+}
+
 /**
- * Render PDF pages to JPEG data URLs.
+ * Render PDF pages to JPEG, reporting which page each image came from — a page whose canvas
+ * cannot be created is skipped, so the images are not always the pages that were asked for.
  *
  * @param maxPages - Render at most the first `maxPages` pages (ignored when `pageNumbers` is set)
  * @param pageNumbers - 1-based pages to render, in order; out-of-range pages are skipped
+ * @returns the rendered pages, in order, and the document's total page count
  */
-export async function convertPdfToImages(
+export async function renderPdfPages(
   pdfDataUrl: string,
   maxPages?: number,
   pageNumbers?: number[]
-): Promise<string[]> {
+): Promise<{ pages: RenderedPdfPage[]; pageCount: number }> {
   return withPdfDocument(pdfDataUrl, async (pdf) => {
-    const pages =
+    const requested =
       pageNumbers?.filter((n) => n >= 1 && n <= pdf.numPages) ??
       Array.from(
         { length: maxPages !== undefined ? Math.min(maxPages, pdf.numPages) : pdf.numPages },
         (_, i) => i + 1
       );
 
-    const images: string[] = [];
-    for (const pageNumber of pages) {
+    const pages: RenderedPdfPage[] = [];
+    for (const pageNumber of requested) {
       const page = await pdf.getPage(pageNumber);
       const base = page.getViewport({ scale: 1 });
       const viewport = page.getViewport({ scale: computeRenderScale(base.width, base.height) });
@@ -125,17 +133,39 @@ export async function convertPdfToImages(
       canvas.height = Math.floor(viewport.height);
       canvas.width = Math.floor(viewport.width);
 
+      // JPEG has no alpha: any pixel left transparent encodes as black. Paint the page white
+      // ourselves rather than relying on pdf.js's default fill.
+      context.fillStyle = "#ffffff";
+      context.fillRect(0, 0, canvas.width, canvas.height);
+
       await page.render({
         canvasContext: context,
         viewport: viewport,
+        background: "#ffffff",
       }).promise;
 
-      images.push(canvas.toDataURL("image/jpeg", JPEG_QUALITY));
+      pages.push({ pageNumber, dataUrl: canvas.toDataURL("image/jpeg", JPEG_QUALITY) });
       // Release the backing store now rather than whenever GC gets to it — a 20-page scan
       // otherwise holds 20 full-size bitmaps (Safari caps total canvas memory).
       canvas.width = 0;
       canvas.height = 0;
     }
-    return images;
+    return { pages, pageCount: pdf.numPages };
   });
+}
+
+/**
+ * Render PDF pages to JPEG data URLs. See {@link renderPdfPages} to learn which page each image
+ * is (a page that cannot be rendered is skipped).
+ *
+ * @param maxPages - Render at most the first `maxPages` pages (ignored when `pageNumbers` is set)
+ * @param pageNumbers - 1-based pages to render, in order; out-of-range pages are skipped
+ */
+export async function convertPdfToImages(
+  pdfDataUrl: string,
+  maxPages?: number,
+  pageNumbers?: number[]
+): Promise<string[]> {
+  const { pages } = await renderPdfPages(pdfDataUrl, maxPages, pageNumbers);
+  return pages.map((p) => p.dataUrl);
 }
