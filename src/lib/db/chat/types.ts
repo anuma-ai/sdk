@@ -20,6 +20,7 @@ import {
   getCreditsExhausted,
   getCreditsUsed,
 } from "../../chat/useChat/strategies/types";
+import type { StreamSmoothingConfig } from "../../chat/useChat/StreamSmoother";
 import type { ServerToolCallEvent, ToolCallArgumentsDeltaEvent } from "../../chat/useChat/utils";
 import type { NerDetector } from "../../pii/ner";
 import type { PiiMatch, PiiRedactor } from "../../pii/redactor";
@@ -632,6 +633,8 @@ export interface BaseUseChatStorageOptions {
    * a custom one matching `PromptPreProcessor`.
    */
   preProcessors?: PromptPreProcessor[];
+  /** Output pacing forwarded to useChat. Set false when the UI batches streamed updates. */
+  smoothing?: StreamSmoothingConfig | boolean;
   /**
    * Enable best-effort, client-side PII obfuscation (NOT a compliance
    * guarantee). Outbound message text is scanned for personally identifiable
