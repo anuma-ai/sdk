@@ -136,8 +136,13 @@ export function supportsResponseFormat(
  *
  * Matched on the model half of the id (`provider/model`), by PREFIX, because
  * the family shares the `gpt-5.6-` stem across variants.
+ *
+ * gpt-6-sol and gpt-6-luna are listed by NAME, not as a `gpt-6` stem: both were
+ * probed against dev on 2026-09-24 and reject chat-completions exactly as
+ * gpt-5.6-luna does in the same run (400 on any effort but "none", 200 on
+ * /v1/responses). gpt-6-astra was not probed, so it is not swept in.
  */
-const RESPONSES_ONLY_MODEL_PREFIXES = ["gpt-5.6"];
+const RESPONSES_ONLY_MODEL_PREFIXES = ["gpt-5.6", "gpt-6-sol", "gpt-6-luna"];
 
 /**
  * Whether `model` must be called on the Responses transport.

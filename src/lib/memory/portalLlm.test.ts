@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { noopLogger, setLogger } from "../logger.js";
 
-import { callPortalJsonCompletion } from "./portalLlm.js";
+import { callPortalJsonCompletion, requiresResponsesTransport } from "./portalLlm.js";
 import { INTERNAL_FLOW_MARKER } from "../internalFlowMarker.js";
 
 function mockResponse(content: string): Response {
@@ -1174,4 +1174,22 @@ describe("callPortalJsonCompletion — responses transport misuse guards", () =>
     expect(out).toEqual({ ok: true });
     expect(fetchFn, "must not have retried").toHaveBeenCalledTimes(1);
   });
+});
+
+describe("requiresResponsesTransport", () => {
+  it.each([
+    "openai/gpt-5.6-luna",
+    "openai/gpt-6-luna",
+    "openai/gpt-6-sol",
+    "openrouter/openai/gpt-6-luna",
+  ])("routes %s to the responses transport", (model) => {
+    expect(requiresResponsesTransport(model)).toBe(true);
+  });
+
+  it.each(["openai/gpt-5.5", "openai/gpt-6-astra", "anthropic/claude-sonnet-5"])(
+    "leaves %s on chat completions",
+    (model) => {
+      expect(requiresResponsesTransport(model)).toBe(false);
+    }
+  );
 });
