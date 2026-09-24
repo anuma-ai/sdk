@@ -887,28 +887,51 @@ describe("preprocessFiles caps", () => {
     expect(result.fileStatuses).toEqual([{ fileId: "a", fileName: "a.txt", status: "truncated" }]);
   });
 
-  it("shares maxExtractedCharsTotal across files in order", async () => {
-    const result = await preprocessFiles(
-      [
-        textFile("a", "a.txt", "aaaaaa"),
-        textFile("b", "b.txt", "bbbbbb"),
-        textFile("c", "c.txt", "cccccc"),
-      ],
-      { maxExtractedCharsTotal: 9 }
+  it("shares maxExtractedCharsTotal across files in order, counting headers and markers", async () => {
+    const files = [
+      textFile("a", "a.txt", "a".repeat(40)),
+      textFile("b", "b.txt", "b".repeat(200)),
+      textFile("c", "c.txt", "c".repeat(40)),
+      textFile("d", "d.txt", "d".repeat(40)),
+    ];
+    const total = 200;
+    const result = await preprocessFiles(files, { maxExtractedCharsTotal: total });
+    const content = result.extractedContent!;
+
+    expect(content).toContain(`[Extracted content from a.txt]\n${"a".repeat(40)}`);
+    expect(content).toMatch(/b+\n\[truncated: showing the first \d+ of 200 characters of b\.txt\]/);
+    // No header + marker per file once the budget is spent — one combined note.
+    expect(content).not.toContain("[Extracted content from c.txt]");
+    expect(content).not.toContain("[Extracted content from d.txt]");
+    expect(content).toContain(
+      "[truncated: the attachment text limit (200 characters) was reached; the contents of c.txt, d.txt were not included]"
     );
-    expect(result.extractedContent).toContain("[Extracted content from a.txt]\naaaaaa");
-    expect(result.extractedContent).toContain(
-      "bbb\n[truncated: showing the first 3 of 6 characters of b.txt]"
-    );
-    expect(result.extractedContent).toContain(
-      "[truncated: showing the first 0 of 6 characters of c.txt]"
-    );
-    expect(result.extractedContent).not.toContain("ccc");
+    // Everything but that one combined line fits the budget.
+    const withoutNote = content.slice(0, content.lastIndexOf("\n\n---\n\n[truncated: the attachment"));
+    expect(withoutNote.length).toBeLessThanOrEqual(total);
     expect(result.fileStatuses.map((s) => s.status)).toEqual([
       "extracted",
       "truncated",
       "truncated",
+      "truncated",
     ]);
+  });
+
+  it("does not let per-file headers and markers exceed the budget with many files", async () => {
+    const files = Array.from({ length: 50 }, (_, i) =>
+      textFile(`f${i}`, `file-${i}.txt`, "x".repeat(100))
+    );
+    const result = await preprocessFiles(files, { maxExtractedCharsTotal: 1_000 });
+    const content = result.extractedContent!;
+    const beforeNote = content.slice(
+      0,
+      content.lastIndexOf("\n\n---\n\n[truncated: the attachment text limit")
+    );
+    expect(beforeNote.length).toBeLessThanOrEqual(1_000);
+    expect(content.match(/\[Extracted content from /g)!.length).toBeLessThan(10);
+    expect(result.fileStatuses.every((s) => s.status === "extracted" || s.status === "truncated")).toBe(
+      true
+    );
   });
 
   it("applies the default per-file cap of 100,000 characters", async () => {
@@ -920,6 +943,26 @@ describe("preprocessFiles caps", () => {
 });
 
 describe("preprocessFiles fileStatuses", () => {
+  it.each([
+    ["[]", [] as FileProcessor[]],
+    ["null", null],
+  ])("reports every non-image file as skipped when preprocessing is disabled (%s)", async (_, processors) => {
+    const result = await preprocessFiles(
+      [
+        textFile("t", "notes.txt", "hello"),
+        { id: "img", name: "p.png", type: "image/png", size: 1, url: "data:image/png;base64,AA==" },
+        { id: "pdf", name: "a.pdf", type: "application/pdf", size: 1, url: "data:," },
+      ],
+      { processors }
+    );
+    expect(result.extractedContent).toBeNull();
+    expect(result.fileStatuses).toEqual([
+      { fileId: "t", fileName: "notes.txt", status: "skipped", reason: "unsupported_type" },
+      { fileId: "pdf", fileName: "a.pdf", status: "skipped", reason: "unsupported_type" },
+    ]);
+    expect(result.metadata.skippedCount).toBe(2);
+  });
+
   it("reports one status per non-image file, with the reason", async () => {
     const result = await preprocessFiles(
       [

@@ -35,6 +35,10 @@ class ProcessingTimeoutError extends Error {
   }
 }
 
+function truncationMarker(kept: number, total: number, fileName: string): string {
+  return `\n[truncated: showing the first ${kept} of ${total} characters of ${fileName}]`;
+}
+
 /**
  * Keep at most `limit` characters of `text`, ending with a marker that names how much was kept.
  * Never splits a surrogate pair.
@@ -49,10 +53,13 @@ function truncateText(
   const code = text.charCodeAt(end - 1);
   if (end > 0 && code >= 0xd800 && code <= 0xdbff) end--;
   return {
-    text: `${text.slice(0, end)}\n[truncated: showing the first ${end} of ${text.length} characters of ${fileName}]`,
+    text: `${text.slice(0, end)}${truncationMarker(end, text.length, fileName)}`,
     truncated: true,
   };
 }
+
+/** Separator between files in `extractedContent`. */
+const FILE_SEPARATOR = "\n\n---\n\n";
 
 function isImageFile(file: FileMetadata): boolean {
   return (file.type ?? "").trim().toLowerCase().startsWith("image/");
@@ -190,25 +197,24 @@ export async function preprocessFiles(
     };
   }
 
-  if (processors !== undefined && processors !== null && processors.length === 0) {
-    // Explicit opt-out with empty array
+  if (processors === null || processors?.length === 0) {
+    // Explicit opt-out (null or []): nothing is read, but every non-image file still gets a
+    // status so the app (and the model, via formatFileProcessingNotes) knows it was not read.
+    // With no processors, no processor handles any type — hence `unsupported_type`.
+    const fileStatuses: FileProcessingStatus[] = files
+      .filter((file) => !isImageFile(file))
+      .map((file) => ({
+        fileId: file.id,
+        fileName: file.name,
+        status: "skipped",
+        reason: "unsupported_type",
+      }));
     return {
       extractedContent: null,
       originalFiles: files,
       preprocessedFileIds: [],
-      fileStatuses: [],
-      metadata: { processedCount: 0, skippedCount: 0, errorCount: 0 },
-    };
-  }
-
-  if (processors === null) {
-    // Explicit opt-out with null
-    return {
-      extractedContent: null,
-      originalFiles: files,
-      preprocessedFileIds: [],
-      fileStatuses: [],
-      metadata: { processedCount: 0, skippedCount: 0, errorCount: 0 },
+      fileStatuses,
+      metadata: { processedCount: 0, skippedCount: fileStatuses.length, errorCount: 0 },
     };
   }
 
@@ -236,6 +242,8 @@ export async function preprocessFiles(
   let skippedCount = 0;
   let errorCount = 0;
   let totalChars = 0;
+  // Files with text that found the budget already spent — named in one combined note.
+  const overBudgetFiles: string[] = [];
 
   for (let i = 0; i < files.length; i++) {
     const file = files[i];
@@ -291,6 +299,29 @@ export async function preprocessFiles(
       ]);
 
       if (result && result.extractedText.trim()) {
+        // The total budget counts everything this file adds to extractedContent — separator,
+        // header, format wrapper and truncation marker — not just the kept source text.
+        const separatorLength = extractedTexts.length > 0 ? FILE_SEPARATOR.length : 0;
+        const remaining =
+          maxExtractedCharsTotal -
+          totalChars -
+          separatorLength -
+          formatExtractedContent(file.name, "", result.format).length;
+        preprocessedFileIds.push(file.id); // Track which files were preprocessed
+        processedCount++;
+        // Room for at least some text plus a marker (an upper bound: the kept count has no more
+        // digits than the total). Otherwise the budget is spent: no header + marker for this
+        // file, one combined note after the loop — and no page images the text cannot explain.
+        const fullLength = result.extractedText.length;
+        if (
+          fullLength > remaining &&
+          remaining - truncationMarker(fullLength, fullLength, file.name).length <= 0
+        ) {
+          overBudgetFiles.push(file.name);
+          fileStatuses.push({ fileId: file.id, fileName: file.name, status: "truncated" });
+          continue;
+        }
+
         // Collect image fallback URLs (e.g. scanned PDF pages rendered as images), capped
         // across all files; when the cap drops some, rewrite the note that announced them.
         const images = result.imageDataUrls ?? [];
@@ -301,18 +332,19 @@ export async function preprocessFiles(
         allImageUrls.push(...images.slice(0, keptImages));
         const text = rewriteImageNote(result, file.name, keptImages);
 
-        const limit = Math.max(
-          0,
-          Math.min(maxExtractedCharsPerFile, maxExtractedCharsTotal - totalChars)
-        );
-        const capped = truncateText(text, limit, file.name);
-        totalChars += Math.min(text.length, limit);
+        const fitsWhole = text.length <= Math.min(maxExtractedCharsPerFile, remaining);
+        const limit = fitsWhole
+          ? text.length
+          : Math.min(
+              maxExtractedCharsPerFile,
+              remaining - truncationMarker(text.length, text.length, file.name).length
+            );
+        const capped = truncateText(text, Math.max(0, limit), file.name);
 
         // Format the extracted content
         const formattedContent = formatExtractedContent(file.name, capped.text, result.format);
+        totalChars += separatorLength + formattedContent.length;
         extractedTexts.push(formattedContent);
-        preprocessedFileIds.push(file.id); // Track which files were preprocessed
-        processedCount++;
 
         // Any lost content wins over "rendered_as_images" — the app should say "partially read".
         const truncated =
@@ -344,7 +376,13 @@ export async function preprocessFiles(
     }
   }
 
-  const extractedContent = extractedTexts.length > 0 ? extractedTexts.join("\n\n---\n\n") : null;
+  if (overBudgetFiles.length > 0) {
+    extractedTexts.push(
+      `[truncated: the attachment text limit (${maxExtractedCharsTotal} characters) was reached; the contents of ${overBudgetFiles.join(", ")} were not included]`
+    );
+  }
+
+  const extractedContent = extractedTexts.length > 0 ? extractedTexts.join(FILE_SEPARATOR) : null;
 
   return {
     extractedContent,

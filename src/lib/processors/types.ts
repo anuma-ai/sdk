@@ -75,7 +75,8 @@ export interface PreprocessingOptions {
   /**
    * Processors to use.
    * - undefined (default): Use all built-in processors
-   * - null or []: Disable preprocessing
+   * - null or []: Disable preprocessing (every non-image file is reported `skipped` /
+   *   `unsupported_type` in `fileStatuses`)
    * - FileProcessor[]: Use specific processors
    */
   processors?: FileProcessor[] | null;
@@ -96,8 +97,10 @@ export interface PreprocessingOptions {
   maxExtractedCharsPerFile?: number;
 
   /**
-   * Max characters of extracted text kept across all files of one preprocessing run
-   * (default: 200,000). Files past the budget are cut (or reduced to the marker) in order.
+   * Max characters of `extractedContent` across all files of one preprocessing run
+   * (default: 200,000), counting each file's header, separator and truncation marker, not just
+   * its text. Files are cut in order; files that find the budget already spent get no section of
+   * their own — one combined `[truncated: …]` line names them, and their status is `truncated`.
    */
   maxExtractedCharsTotal?: number;
 
