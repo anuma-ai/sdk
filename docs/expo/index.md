@@ -1888,6 +1888,12 @@ Re-exports [StreamResumeHandle](../react/Internal/type-aliases/StreamResumeHandl
 
 ***
 
+### StreamSmoothingConfig
+
+Re-exports [StreamSmoothingConfig](../react/Internal/type-aliases/StreamSmoothingConfig.md)
+
+***
+
 ### summarizeObservationTrends
 
 Re-exports [summarizeObservationTrends](../react/Internal/functions/summarizeObservationTrends.md)

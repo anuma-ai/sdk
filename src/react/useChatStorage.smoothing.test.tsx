@@ -15,7 +15,7 @@ vi.mock("./useChat", () => ({
 }));
 
 import { sdkMigrations, sdkModelClasses, sdkSchema } from "../lib/db/schema";
-import type { StreamSmoothingConfig } from "../lib/chat/useChat/StreamSmoother";
+import type { StreamSmoothingConfig } from "./index";
 import { useChat } from "./useChat";
 import { useChatStorage } from "./useChatStorage";
 

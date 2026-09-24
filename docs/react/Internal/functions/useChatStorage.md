@@ -835,7 +835,7 @@ Required together with walletAddress for field-level encryption.
 </td>
 <td>
 
-`boolean` | `StreamSmoothingConfig`
+`boolean` | [`StreamSmoothingConfig`](../type-aliases/StreamSmoothingConfig.md)
 
 </td>
 <td>

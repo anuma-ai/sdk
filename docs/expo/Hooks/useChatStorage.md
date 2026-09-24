@@ -898,7 +898,7 @@ Function to sign a message for encryption key derivation.
 </td>
 <td>
 
-`boolean` | `StreamSmoothingConfig`
+`boolean` | [`StreamSmoothingConfig`](../../react/Internal/type-aliases/StreamSmoothingConfig.md)
 
 </td>
 <td>

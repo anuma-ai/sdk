@@ -1158,7 +1158,7 @@ Function to sign a message for encryption key derivation.
 
 ### smoothing?
 
-> `optional` **smoothing**: `boolean` | `StreamSmoothingConfig`
+> `optional` **smoothing**: `boolean` | [`StreamSmoothingConfig`](../../../react/Internal/type-aliases/StreamSmoothingConfig.md)
 
 Defined in: [src/lib/db/chat/types.ts:637](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#637)
 
