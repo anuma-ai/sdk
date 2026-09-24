@@ -1,6 +1,6 @@
 # PdfProcessor
 
-Defined in: [src/lib/processors/PdfProcessor.ts:111](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/PdfProcessor.ts#111)
+Defined in: [src/lib/processors/PdfProcessor.ts:112](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/PdfProcessor.ts#112)
 
 Processor for PDF files that extracts text content page by page.
 
@@ -29,7 +29,7 @@ were left out.
 
 > `readonly` **name**: `"pdf"` = `"pdf"`
 
-Defined in: [src/lib/processors/PdfProcessor.ts:112](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/PdfProcessor.ts#112)
+Defined in: [src/lib/processors/PdfProcessor.ts:113](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/PdfProcessor.ts#113)
 
 Unique identifier for this processor
 
@@ -43,7 +43,7 @@ Unique identifier for this processor
 
 > `readonly` **supportedExtensions**: `string`\[]
 
-Defined in: [src/lib/processors/PdfProcessor.ts:114](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/PdfProcessor.ts#114)
+Defined in: [src/lib/processors/PdfProcessor.ts:115](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/PdfProcessor.ts#115)
 
 File extensions this processor can handle (fallback if MIME type unavailable)
 
@@ -57,7 +57,7 @@ File extensions this processor can handle (fallback if MIME type unavailable)
 
 > `readonly` **supportedMimeTypes**: `string`\[]
 
-Defined in: [src/lib/processors/PdfProcessor.ts:113](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/PdfProcessor.ts#113)
+Defined in: [src/lib/processors/PdfProcessor.ts:114](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/PdfProcessor.ts#114)
 
 MIME types this processor can handle
 
@@ -71,7 +71,7 @@ MIME types this processor can handle
 
 > **process**(`file`: [`FileWithData`](../interfaces/FileWithData.md)): `Promise`<[`ProcessedFileResult`](../interfaces/ProcessedFileResult.md) | `null`>
 
-Defined in: [src/lib/processors/PdfProcessor.ts:116](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/PdfProcessor.ts#116)
+Defined in: [src/lib/processors/PdfProcessor.ts:117](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/PdfProcessor.ts#117)
 
 Process a file and extract text content
 

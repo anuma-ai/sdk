@@ -1,6 +1,6 @@
 # FileProcessingStatus
 
-Defined in: [src/lib/processors/types.ts:139](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/types.ts#139)
+Defined in: [src/lib/processors/types.ts:142](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/types.ts#142)
 
 What happened to one attached file during preprocessing — so the app can tell the user
 precisely which attachment the model could not read, and why.
@@ -17,7 +17,7 @@ precisely which attachment the model could not read, and why.
 
 > **fileId**: `string`
 
-Defined in: [src/lib/processors/types.ts:140](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/types.ts#140)
+Defined in: [src/lib/processors/types.ts:143](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/types.ts#143)
 
 ***
 
@@ -25,7 +25,7 @@ Defined in: [src/lib/processors/types.ts:140](https://github.com/anuma-ai/sdk/bl
 
 > **fileName**: `string`
 
-Defined in: [src/lib/processors/types.ts:141](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/types.ts#141)
+Defined in: [src/lib/processors/types.ts:144](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/types.ts#144)
 
 ***
 
@@ -33,7 +33,7 @@ Defined in: [src/lib/processors/types.ts:141](https://github.com/anuma-ai/sdk/bl
 
 > `optional` **reason**: [`FileProcessingReason`](../type-aliases/FileProcessingReason.md)
 
-Defined in: [src/lib/processors/types.ts:143](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/types.ts#143)
+Defined in: [src/lib/processors/types.ts:146](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/types.ts#146)
 
 ***
 
@@ -41,4 +41,4 @@ Defined in: [src/lib/processors/types.ts:143](https://github.com/anuma-ai/sdk/bl
 
 > **status**: `"truncated"` | `"extracted"` | `"rendered_as_images"` | `"skipped"` | `"failed"`
 
-Defined in: [src/lib/processors/types.ts:142](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/types.ts#142)
+Defined in: [src/lib/processors/types.ts:145](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/types.ts#145)

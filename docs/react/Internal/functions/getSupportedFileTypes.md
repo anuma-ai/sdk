@@ -2,7 +2,7 @@
 
 > **getSupportedFileTypes**(): `object`
 
-Defined in: [src/lib/processors/preprocessor.ts:128](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/preprocessor.ts#128)
+Defined in: [src/lib/processors/preprocessor.ts:135](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/preprocessor.ts#135)
 
 Get the union of all MIME types and extensions handled by the SDK's
 default processors. Useful for building an `<input type="file" accept>`

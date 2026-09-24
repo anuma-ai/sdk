@@ -2,7 +2,7 @@
 
 > **FileProcessingReason** = `"too_large"` | `"unsupported_type"` | `"no_data"` | `"empty"` | `"timeout"` | `"error"`
 
-Defined in: [src/lib/processors/types.ts:121](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/types.ts#121)
+Defined in: [src/lib/processors/types.ts:124](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/types.ts#124)
 
 Why a file was not (fully) read. Paired with [FileProcessingStatus](../interfaces/FileProcessingStatus.md).
 
