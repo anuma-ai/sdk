@@ -98,6 +98,26 @@ https://docs.anuma.ai/
 Contributions are welcome. Please open an issue or pull request on
 [GitHub](https://github.com/anuma-ai/sdk).
 
+Before opening a PR, run `pnpm test` and `pnpm check`.
+
+### Tool, app-generation and slide e2e tests
+
+`pnpm e2e:tools` runs the live-model tests in `test/tools/` and
+`test/classifier/` (`vitest.e2e.config.mts`) against a real portal. Copy
+`.env.example` to `.env` and set `PORTAL_API_KEY` (and `ANUMA_API_URL` to
+point at a portal other than dev). Pass a file-name filter to run a subset:
+
+```sh
+pnpm e2e:tools              # everything
+pnpm e2e:tools weather      # test/tools/weather.ts only
+pnpm e2e:tools slide        # the slide-generation tests
+```
+
+CI runs the same suite on every PR that touches the tool, app-generation or
+slide code (see the `changes` job in `.github/workflows/e2e-tools.yml` for the
+exact paths) and again in the merge queue. On a PR the result is advisory; the
+queue run is the one that blocks.
+
 ## Modules
 
 | Module | Description |
