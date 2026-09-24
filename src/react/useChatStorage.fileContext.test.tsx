@@ -24,8 +24,9 @@ vi.mock("../lib/chat/toolLoop", async (importOriginal) => {
 });
 
 import type { LlmapiMessage } from "../client";
-import { isAttachedFilesText } from "../lib/chat/fileContext";
+import { buildAttachedFilesText, isAttachedFilesText } from "../lib/chat/fileContext";
 import { runToolLoop } from "../lib/chat/toolLoop";
+import { getMessagesOp } from "../lib/db/chat";
 import { useChatStorage } from "./useChatStorage";
 
 const mockRunToolLoop = vi.mocked(runToolLoop);
@@ -156,5 +157,49 @@ describe("useChatStorage attachment text placement", () => {
     expect(lastUser(followUp).content).toEqual([{ type: "text", text: "What is the term?" }]);
     // …and the earlier file's text is still available to answer it.
     expect(systemText(followUp)).toContain(DOC_TEXT);
+  });
+
+  it("never stores the attached-file part as the user's message when the caller puts it on messages", async () => {
+    // Mobile builds its own document context and sends the tagged part inside `messages`,
+    // without `storedUserContent`. The stored row must still be only what the user typed.
+    const { result } = renderHook(() =>
+      useChatStorage({
+        database: db,
+        conversationId: "conv_caller_part",
+        getToken: async () => "tok",
+      })
+    );
+
+    await act(async () => {
+      await result.current.sendMessage({
+        messages: [
+          {
+            role: "user",
+            content: [
+              { type: "text", text: "Please review the attached file(s)." },
+              {
+                type: "text",
+                text: buildAttachedFilesText(`[Extracted content from a.pdf]\n${DOC_TEXT}`),
+              },
+            ],
+          },
+        ],
+        model: "test-model",
+      });
+    });
+
+    // The wire still carries the document…
+    expect(JSON.stringify(sentMessages(0))).toContain(DOC_TEXT);
+    // …but the persisted user row is only the user's words.
+    const rows = await getMessagesOp(
+      {
+        database: db,
+        messagesCollection: db.get("history"),
+        conversationsCollection: db.get("conversations"),
+      } as never,
+      "conv_caller_part"
+    );
+    const userRow = rows.find((r) => r.role === "user")!;
+    expect(userRow.content).toBe("Please review the attached file(s).");
   });
 });

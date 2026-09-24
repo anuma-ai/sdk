@@ -9,6 +9,7 @@ import type {
   LlmapiThinkingOptions,
   LlmapiToolCallEvent,
 } from "../../../client";
+import { isAttachedFilesText } from "../../chat/fileContext";
 import type { PromptPreProcessor } from "../../chat/preProcessor";
 // Import the cost/credit extraction helpers (and the response union) directly
 // from the strategies type module — it's pure (type-only imports), so this
@@ -1214,7 +1215,11 @@ export function extractUserMessageFromMessages(
   const files: FileMetadata[] = [];
 
   for (const part of lastUserMessage.content) {
-    if (part.type === "text" && part.text) {
+    // The attached-file-contents part is wire-only: storing it would make the document the
+    // user's message — shown in the bubble after reload, pre-filled on edit, embedded, and
+    // mined by memory extraction. Callers that put it on `messages` themselves (mobile)
+    // don't pass `storedUserContent`, so this is the only place that can keep it out.
+    if (part.type === "text" && part.text && !isAttachedFilesText(part.text)) {
       textParts.push(part.text);
     } else if (part.type === "image_url" && part.image_url?.url) {
       // Generate a file ID for the image
