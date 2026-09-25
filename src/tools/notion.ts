@@ -370,14 +370,22 @@ function proxyRunner(callMcp: NotionMcpCaller): NotionToolRunner {
   return async (toolName, args) => {
     const { status, json } = await callMcp(toolName, args);
     if (status >= 200 && status < 300) {
-      return truncateToolResult(readField(json, "result"));
+      const result = readField(json, "result");
+      if (result === undefined) {
+        throw new Error(`Notion returned no result (${status})`);
+      }
+      return truncateToolResult(result);
     }
     if (status === 401 || status === 403 || status === 412) {
       const connectUrl = readField(json, "connect_url");
+      const missingScopes = readField(json, "missing_scopes");
       return buildConnectorErrorResult(
-        "connector_not_connected",
+        readField(json, "code") === "scope_not_covered"
+          ? "scope_not_covered"
+          : "connector_not_connected",
         NOTION_PROVIDER,
-        typeof connectUrl === "string" ? connectUrl : undefined
+        typeof connectUrl === "string" ? connectUrl : undefined,
+        Array.isArray(missingScopes) ? { missingScopes: missingScopes as string[] } : undefined
       );
     }
     const message = readField(json, "error");

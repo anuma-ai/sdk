@@ -49,7 +49,7 @@
  * Notion's hosted MCP server. No direct API calls needed.
  *
  * ```typescript
- * import { createNotionTools } from "@anuma/sdk/tools";
+ * import { createNotionProxyTools, createNotionTools } from "@anuma/sdk/tools";
  *
  * const notionTools = createNotionTools(
  *   () => getNotionAccessToken(walletAddress, clientId),
@@ -57,9 +57,14 @@
  * );
  *
  * // Browser/mobile: route through the portal, which runs the MCP call.
- * const proxiedNotionTools = createNotionProxyTools((tool, args) =>
- *   callPortalNotionMcp(tool, args)
- * );
+ * const proxiedNotionTools = createNotionProxyTools(async (tool, args) => {
+ *   const res = await fetch(`${portalBaseUrl}/api/v1/connectors/notion/mcp`, {
+ *     method: "POST",
+ *     headers: { Authorization: `Bearer ${privyToken}`, "Content-Type": "application/json" },
+ *     body: JSON.stringify({ tool, arguments: args }),
+ *   });
+ *   return { status: res.status, json: await res.json().catch(() => null) };
+ * });
  * ```
  *
  * @module tools

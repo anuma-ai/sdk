@@ -743,6 +743,35 @@ describe("Notion MCP Tools", () => {
       });
     });
 
+    it("carries scope_not_covered and its missing scopes through", async () => {
+      const callMcp = vi.fn<NotionMcpCaller>().mockResolvedValue({
+        status: 403,
+        json: {
+          code: "scope_not_covered",
+          connect_url: "https://portal/connect",
+          missing_scopes: ["notion.rw"],
+        },
+      });
+
+      const result = await proxyTool(callMcp)({ query: "x" });
+
+      expect(JSON.parse(result as string)).toEqual({
+        __anuma_connector_error_v1: true,
+        code: "scope_not_covered",
+        provider: "notion",
+        connect_url: "https://portal/connect",
+        missing_scopes: ["notion.rw"],
+      });
+    });
+
+    it("returns an error string when a 200 carries no result", async () => {
+      const callMcp = vi.fn<NotionMcpCaller>().mockResolvedValue({ status: 200, json: {} });
+
+      expect(await proxyTool(callMcp)({ query: "x" })).toBe(
+        "Error searching Notion: Notion returned no result (200)"
+      );
+    });
+
     it.each([
       [400, { error: "tool not allowed" }, "tool not allowed (400)"],
       [422, { error: "page not found", code: "mcp_tool_error" }, "page not found (422)"],

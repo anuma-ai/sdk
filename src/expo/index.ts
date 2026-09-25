@@ -579,4 +579,4 @@ export {
   shouldRecallMemory,
 } from "../lib/memory";
 export { createDurableAutoExtractor, type DurableAutoExtractorOptions } from "../lib/memory";
-export { createNotionTools } from "../tools/notion";
+export { createNotionProxyTools, createNotionTools, type NotionMcpCaller } from "../tools/notion";
