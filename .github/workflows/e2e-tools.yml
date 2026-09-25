@@ -65,16 +65,17 @@ jobs:
           TEST_FILTER: ${{ github.event.inputs.test_filter || '' }}
         run: pnpm e2e:tools "$TEST_FILTER" --reporter=default --reporter=json --outputFile.json=e2e-results.json
 
-      - name: Upload e2e traces
+      # Per-test status, duration and failure message. The raw loop traces in
+      # test/tools/.runs/ are deliberately not uploaded: they hold tool results
+      # verbatim (Calendar and Drive data from the service account), and this
+      # repo's artifacts are public.
+      - name: Upload e2e results
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: e2e-tools-results
-          include-hidden-files: true
           if-no-files-found: warn
-          path: |
-            e2e-results.json
-            test/tools/.runs/
+          path: e2e-results.json
 
   e2e-tools-compat:
     if: github.event_name == 'workflow_dispatch' && github.event.inputs.model == 'all'
