@@ -145,6 +145,11 @@ export async function runToolLoop(
 
   const result = await realRunToolLoop({
     ...params,
+    // What the web and mobile clients send on every chat turn (chatSend.ts,
+    // ChatInput.tsx). With no cap the portal applies 4096, so a slide or an
+    // App.js + App.css pair is cut off mid-argument, the call fails to parse or
+    // lands truncated, and the model spends its rounds rewriting it.
+    maxOutputTokens: params.maxOutputTokens ?? 32000,
     signal: params.signal ?? testContext?.signal,
     onStepFinish: (event: StepFinishEvent) => {
       const now = performance.now();
