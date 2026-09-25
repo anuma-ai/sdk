@@ -2,7 +2,7 @@
 
 > **refreshEncryptionKeyIfMatches**(`walletAddress`: `string`, `probeCiphertext`: `string`, `signMessage`: [`SignMessageFn`](../type-aliases/SignMessageFn.md), `embeddedWalletSigner?`: [`EmbeddedWalletSignerFn`](../type-aliases/EmbeddedWalletSignerFn.md)): `Promise`<`boolean`>
 
-Defined in: [src/react/useEncryption.ts:1206](https://github.com/anuma-ai/sdk/blob/main/src/react/useEncryption.ts#1206)
+Defined in: [src/react/useEncryption.ts:1313](https://github.com/anuma-ai/sdk/blob/main/src/react/useEncryption.ts#1313)
 
 Re-derive encryption keys from a fresh signature and commit them **only if**
 they successfully decrypt `probeCiphertext` (a prefixed `enc:v2:` / `enc:v3:`

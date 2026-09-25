@@ -190,6 +190,7 @@ export {
   clearAllEncryptionKeys,
   clearAllEncryptionState,
   clearEncryptionKey,
+  deriveKeyFromSignatureBytes,
   EncryptionKeyMissingError,
   hasEncryptionKey,
   onKeyAvailable,
