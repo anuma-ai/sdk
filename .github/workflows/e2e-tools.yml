@@ -37,7 +37,9 @@ jobs:
   e2e-tools:
     if: github.event_name == 'merge_group' || (github.event_name == 'workflow_dispatch' && github.event.inputs.model != 'all')
     runs-on: ubuntu-latest
-    timeout-minutes: ${{ github.event_name == 'workflow_dispatch' && 60 || 5 }}
+    # Measured 6.5-8.3 min end to end (anuma-ai/sdk#962). The ceiling covers the
+    # two 600s tests plus install. At 5 min every queue run was cancelled.
+    timeout-minutes: 20
     env:
       PORTAL_API_KEY: ${{ secrets.PORTAL_API_KEY }}
       ANUMA_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
@@ -77,7 +79,7 @@ jobs:
   e2e-tools-compat:
     if: github.event_name == 'workflow_dispatch' && github.event.inputs.model == 'all'
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:

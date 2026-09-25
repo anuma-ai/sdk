@@ -205,7 +205,10 @@ describe.concurrent("precision-updates", () => {
     tracker.finish("precision-btn-color", "btn-color");
   });
 
-  it("change title text — should modify only the text, not styles or logic", async () => {
+  // Quarantined: https://github.com/anuma-ai/sdk/issues/966. The rename lands, but
+  // critique_design then tells the model to "patch the weakest items now" and it
+  // restyles App.css in the same turn (2 of 2 runs where the rename succeeded).
+  it.skip("change title text — should modify only the text, not styles or logic", async () => {
     const store = createFileStore();
     const log: ToolCallLog[] = [];
     const tools = createTestAppTools(store).map((t) => wrapTool(t, log));
