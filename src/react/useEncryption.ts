@@ -421,6 +421,13 @@ const AES_GCM_V3_INFO = "anuma-sdk-aes-gcm-v3";
  * EVM signature under the same label.
  */
 const AES_GCM_V4_INFO = "anuma-sdk-aes-gcm-v4";
+/**
+ * Shortest signature {@link deriveKeyFromSignatureBytes} will accept.
+ * An ed25519 signature is 64 bytes and a secp256k1 signature is 65, so anything
+ * shorter is truncated. A one-byte buffer would otherwise derive successfully
+ * and produce one of only 256 keys.
+ */
+const MIN_SIGNATURE_BYTES = 64;
 
 /**
  * HKDF-SHA256 AES key from raw signature bytes.
@@ -479,16 +486,19 @@ export async function deriveKeyFromSignatureV3(signature: string): Promise<strin
  * hex-string path so existing ciphertext keeps decrypting. The return value
  * is the same 64-char hex form the in-memory store already uses.
  *
- * @param signature - Raw signature bytes, for example a 64-byte ed25519 signature.
+ * @param signature - Raw signature bytes. Must be at least 64 bytes.
  * @returns 32-byte AES-GCM key as hex, without a `0x` prefix.
+ * @throws Error when `signature` is shorter than 64 bytes.
  * @category Encryption
  */
 export async function deriveKeyFromSignatureBytes(signature: Uint8Array): Promise<string> {
   if (!(signature instanceof Uint8Array)) {
     throw new TypeError("deriveKeyFromSignatureBytes: expected a Uint8Array signature");
   }
-  if (signature.byteLength === 0) {
-    throw new Error("deriveKeyFromSignatureBytes: signature must be non-empty");
+  if (signature.byteLength < MIN_SIGNATURE_BYTES) {
+    throw new Error(
+      `deriveKeyFromSignatureBytes: signature must be at least ${MIN_SIGNATURE_BYTES} bytes, got ${signature.byteLength}`
+    );
   }
   return deriveHkdfAesKeyHex(signature, AES_GCM_V4_INFO);
 }

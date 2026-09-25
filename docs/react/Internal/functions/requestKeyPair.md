@@ -2,7 +2,7 @@
 
 > **requestKeyPair**(`walletAddress`: `string`, `signMessage`: [`SignMessageFn`](../type-aliases/SignMessageFn.md), `embeddedWalletSigner?`: [`EmbeddedWalletSignerFn`](../type-aliases/EmbeddedWalletSignerFn.md)): `Promise`<`void`>
 
-Defined in: [src/react/useEncryption.ts:1679](https://github.com/anuma-ai/sdk/blob/main/src/react/useEncryption.ts#1679)
+Defined in: [src/react/useEncryption.ts:1689](https://github.com/anuma-ai/sdk/blob/main/src/react/useEncryption.ts#1689)
 
 Requests the user to sign a message to generate an ECDH key pair.
 If a key pair already exists in memory for the given wallet, resolves immediately.

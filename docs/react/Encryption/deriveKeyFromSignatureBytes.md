@@ -2,7 +2,7 @@
 
 > **deriveKeyFromSignatureBytes**(`signature`: `Uint8Array`): `Promise`<`string`>
 
-Defined in: [src/react/useEncryption.ts:486](https://github.com/anuma-ai/sdk/blob/main/src/react/useEncryption.ts#486)
+Defined in: [src/react/useEncryption.ts:494](https://github.com/anuma-ai/sdk/blob/main/src/react/useEncryption.ts#494)
 
 Derives the bytes-native AES key from a raw signature.
 
@@ -40,7 +40,7 @@ is the same 64-char hex form the in-memory store already uses.
 </td>
 <td>
 
-Raw signature bytes, for example a 64-byte ed25519 signature.
+Raw signature bytes. Must be at least 64 bytes.
 
 </td>
 </tr>
@@ -52,3 +52,7 @@ Raw signature bytes, for example a 64-byte ed25519 signature.
 `Promise`<`string`>
 
 32-byte AES-GCM key as hex, without a `0x` prefix.
+
+## Throws
+
+Error when `signature` is shorter than 64 bytes.

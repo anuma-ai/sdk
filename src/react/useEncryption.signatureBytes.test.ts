@@ -127,17 +127,32 @@ describe("deriveKeyFromSignatureBytes", () => {
   });
 
   it("hashes a Uint8Array view, not its backing buffer", async () => {
-    const backing = new Uint8Array([0, 1, 2, 3, 4, 5, 6, 7]);
-    const view = backing.subarray(2, 6);
-    const tight = new Uint8Array([2, 3, 4, 5]);
+    const backing = new Uint8Array(80);
+    for (let i = 0; i < backing.length; i++) backing[i] = i;
+    const view = backing.subarray(8, 72);
+    const tight = new Uint8Array(view);
     expect(await deriveKeyFromSignatureBytes(view)).toBe(await deriveKeyFromSignatureBytes(tight));
     expect(await deriveKeyFromSignatureBytes(view)).not.toBe(
       await deriveKeyFromSignatureBytes(backing)
     );
   });
 
-  it("rejects an empty signature and a non-Uint8Array", async () => {
-    await expect(deriveKeyFromSignatureBytes(new Uint8Array(0))).rejects.toThrow(/non-empty/);
+  it("rejects an empty, short, or non-Uint8Array signature", async () => {
+    await expect(deriveKeyFromSignatureBytes(new Uint8Array(0))).rejects.toThrow(
+      /at least 64 bytes/
+    );
+    await expect(deriveKeyFromSignatureBytes(new Uint8Array([0xab]))).rejects.toThrow(
+      /at least 64 bytes, got 1/
+    );
+    await expect(deriveKeyFromSignatureBytes(new Uint8Array(63))).rejects.toThrow(
+      /at least 64 bytes, got 63/
+    );
+    await expect(deriveKeyFromSignatureBytes(new Uint8Array(64))).resolves.toMatch(
+      /^[0-9a-f]{64}$/
+    );
+    await expect(deriveKeyFromSignatureBytes(new Uint8Array(65))).resolves.toMatch(
+      /^[0-9a-f]{64}$/
+    );
     await expect(deriveKeyFromSignatureBytes("abcd" as unknown as Uint8Array)).rejects.toThrow(
       /Uint8Array/
     );
