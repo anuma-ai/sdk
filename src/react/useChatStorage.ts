@@ -1170,6 +1170,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     minContentLength = DEFAULT_MIN_CONTENT_LENGTH,
     mcpR2Domain = MCP_R2_DOMAIN,
     preProcessors,
+    smoothing,
     piiRedaction,
     onPiiRedacted,
     nerDetector,
@@ -2004,6 +2005,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     onToolCallArgumentsDelta,
     apiType,
     preProcessors,
+    smoothing,
     piiRedaction: resolvedPiiRedaction,
     onPiiRedacted,
   });

@@ -66,6 +66,7 @@ export {
 } from "../lib/chat/resumeStream";
 export type { StepFinishEvent, StreamMetaEvent, StreamResumeHandle } from "../lib/chat/toolLoop";
 export { ProviderStreamError } from "../lib/chat/toolLoop";
+export type { StreamSmoothingConfig } from "../lib/chat/useChat/StreamSmoother";
 export type { ToolCallArgumentsDeltaEvent } from "../lib/chat/useChat/utils";
 export { useChat } from "./useChat";
 
