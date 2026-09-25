@@ -260,7 +260,7 @@ import { getStrategy, resolveApiType } from "./useChat/strategies";
 import type { ApiResponse, ApiType } from "./useChat/strategies/types";
 import type { StreamSmoothingConfig } from "./useChat/StreamSmoother";
 import { StreamSmoother } from "./useChat/StreamSmoother";
-import type { AccumulatedToolCall, ToolConfig } from "./useChat/types";
+import type { AccumulatedToolCall, StreamAccumulator, ToolConfig } from "./useChat/types";
 import type {
   ServerToolCallEvent,
   ToolCallArgumentsDeltaEvent,
@@ -332,6 +332,51 @@ function isToolErrorResult(result: unknown): boolean {
     "error" in result &&
     typeof (result as { error: unknown }).error === "string"
   );
+}
+
+/**
+ * Rebuild the tool calls the portal already executed this round (events with
+ * an output) as one assistant `tool_calls` message plus a `tool` message per
+ * call — the chain useChatStorage rebuilds for stored history. Ids already in
+ * the conversation are skipped: the portal repeats earlier rounds' events.
+ */
+function serverToolCallMessages(
+  events: StreamAccumulator["toolCallEvents"],
+  messages: LlmapiMessage[],
+  skipIds: Set<string>
+): LlmapiMessage[] {
+  const seen = new Set(skipIds);
+  for (const m of messages) {
+    if (m.tool_call_id) seen.add(m.tool_call_id);
+    for (const tc of m.tool_calls ?? []) if (tc.id) seen.add(tc.id);
+  }
+  const executed: NonNullable<StreamAccumulator["toolCallEvents"]> = [];
+  for (const event of events ?? []) {
+    if (!event.id || !event.output || seen.has(event.id)) continue;
+    seen.add(event.id);
+    executed.push(event);
+  }
+  if (executed.length === 0) return [];
+
+  return [
+    {
+      role: "assistant",
+      content: undefined,
+      tool_calls: executed.map((event) => ({
+        id: event.id,
+        type: "function",
+        function: { name: event.name, arguments: event.arguments },
+      })),
+    },
+    ...executed.map(
+      (event) =>
+        ({
+          role: "tool",
+          tool_call_id: event.id,
+          content: [{ type: "text", text: event.output }],
+        }) as LlmapiMessage
+    ),
+  ];
 }
 
 /** Extract tool name from either nested (function.name) or flat (name) format. */
@@ -1892,7 +1937,16 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
           })),
       };
 
-      const toolResultMessages: LlmapiMessage[] = [assistantMessage];
+      // Server-executed calls from this round go first so the model sees the
+      // evidence (search results, availability) behind the client call.
+      const toolResultMessages: LlmapiMessage[] = [
+        ...serverToolCallMessages(
+          currentAccumulator.toolCallEvents,
+          currentMessages,
+          new Set(toolCallsToExecute.map((tc) => tc.id))
+        ),
+        assistantMessage,
+      ];
       for (const execResult of continueResults) {
         const resultContent = execResult.error
           ? `Error: ${execResult.error}`
