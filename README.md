@@ -113,7 +113,8 @@ pnpm e2e:tools weather      # test/tools/weather.ts only
 pnpm e2e:tools slide        # the slide-generation tests
 ```
 
-CI runs the same suite on every PR that touches the tool, app-generation or
-slide code (see the `changes` job in `.github/workflows/e2e-tools.yml` for the
-exact paths) and again in the merge queue. On a PR the result is advisory; the
-queue run is the one that blocks.
+CI runs the same suite on PRs that touch the tool, app-generation or slide code
+(see the `changes` job in `.github/workflows/e2e-tools.yml` for the exact paths)
+and again in the merge queue. PRs without access to the `PORTAL_API_KEY` secret
+(forks, Dependabot) skip it and get their result in the queue. On a PR the result
+is advisory; the queue run is the one that blocks.
