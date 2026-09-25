@@ -224,7 +224,16 @@ describe.concurrent("precision-updates", () => {
     );
     conversation.push(assistantMsg(gen.responseText));
     const snap1 = snapshot(store);
-    const titleFiles = [...store].filter(([, c]) => c.includes("BMI Calculator")).map(([p]) => p);
+    // Compare rendered text, not source: the model styles headings as
+    // `BMI <em>Calculator</em>` or `BMI<br /><em>Calculator</em>`.
+    const textOf = (src: string): string =>
+      src
+        .replace(/<[^>]*>/g, " ")
+        .replace(/\s+/g, " ")
+        .toLowerCase();
+    const titleFiles = [...store]
+      .filter(([, c]) => textOf(c).includes("bmi calculator"))
+      .map(([p]) => p);
     expect(titleFiles.length).toBeGreaterThan(0);
 
     // Step 2: Change only the title
@@ -256,7 +265,7 @@ describe.concurrent("precision-updates", () => {
 
     // The new title is in place wherever the old one was.
     for (const p of titleFiles) {
-      expect(store.get(p)).toContain("Body Mass Index Tool");
+      expect(textOf(store.get(p) ?? "")).toContain("body mass index tool");
     }
 
     // App.js should change by only 1-2 lines (the title string). Where the title

@@ -35,5 +35,9 @@ export default defineConfig({
     // their tests is one to five minutes of model time, and run one after
     // another a single file took longer than the whole CI budget.
     maxConcurrency: 6,
+    // Files are network-bound, so run more of them than the runner has cores.
+    // At the default (cores - 1 = 3 on ubuntu-latest) the six-minute slide
+    // prompts file sat queued for four minutes behind the other long files.
+    maxWorkers: 8,
   },
 });

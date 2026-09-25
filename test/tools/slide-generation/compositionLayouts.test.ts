@@ -22,6 +22,7 @@ import {
   printResult,
   slidesOf,
   timedToolLoop,
+  succeeded,
   wrapTool,
   type ToolCallLog,
 } from "./setup.js";
@@ -68,7 +69,7 @@ describe.concurrent("composition-layouts wire-in", () => {
     expect(result.error).toBeNull();
 
     // plan_deck must have been called with the composition layout names.
-    const planCalls = log.filter((l) => l.name === "plan_deck");
+    const planCalls = log.filter((l) => l.name === "plan_deck" && succeeded(l));
     expect(planCalls.length).toBe(1);
     const planLayouts = (planCalls[0]!.args.layouts as string[]) ?? [];
     expect(planLayouts).toContain("cover-split-portrait--editorial-warm");
@@ -123,7 +124,7 @@ describe.concurrent("composition-layouts wire-in", () => {
 
     // Multiple plan_deck calls are valid (the model may retry after a
     // validation error). Use the last successful one.
-    const planCalls = log.filter((l) => l.name === "plan_deck");
+    const planCalls = log.filter((l) => l.name === "plan_deck" && succeeded(l));
     expect(planCalls.length).toBeGreaterThanOrEqual(1);
     const planLayouts = (planCalls.at(-1)!.args.layouts as string[]) ?? [];
 
@@ -322,7 +323,7 @@ describe.concurrent("composition-layouts wire-in", () => {
     expect(result.error).toBeNull();
 
     // Inspect the deck's chosen system via the last successful plan_deck.
-    const planCalls = log.filter((l) => l.name === "plan_deck");
+    const planCalls = log.filter((l) => l.name === "plan_deck" && succeeded(l));
     expect(planCalls.length).toBeGreaterThanOrEqual(1);
     const planLayouts = (planCalls.at(-1)!.args.layouts as string[]) ?? [];
     expect(planLayouts.length).toBeGreaterThan(0);
