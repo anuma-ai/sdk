@@ -11,13 +11,13 @@ on:
   workflow_dispatch:
     inputs:
       model:
-        description: "Model to test (leave empty for default deepinfra/moonshotai/Kimi-K2.6)"
+        description: "Model to test (leave empty for default openai/gpt-6-luna)"
         required: false
         type: choice
         default: ""
         options:
           - ""
-          - "fireworks/accounts/fireworks/models/glm-5"
+          - "deepinfra/moonshotai/Kimi-K2.6"
           - "minimax/MiniMax-M2.7"
           - "anthropic/claude-sonnet-4-6"
           - "gemini/gemini-3.1-pro-preview"
@@ -82,7 +82,7 @@ jobs:
       fail-fast: false
       matrix:
         model:
-          - "fireworks/accounts/fireworks/models/glm-5"
+          - "deepinfra/moonshotai/Kimi-K2.6"
           - "minimax/MiniMax-M2.7"
           - "anthropic/claude-sonnet-4-6"
           - "gemini/gemini-3.1-pro-preview"

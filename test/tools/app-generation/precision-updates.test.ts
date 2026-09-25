@@ -113,7 +113,7 @@ async function runTurn(messages: Message[], tools: any[], maxRounds = 5) {
   return { result, responseText };
 }
 
-describe("precision-updates", () => {
+describe.concurrent("precision-updates", () => {
   afterAll(async () => {
     writeIndex();
     await closeSharedBrowser();
@@ -206,8 +206,12 @@ describe("precision-updates", () => {
     const conversation: Message[] = [systemMsg(SYSTEM_PROMPT)];
     const tracker = makeTracker(store, log);
 
-    // Step 1: Generate
-    conversation.push(userMsg("Build a BMI calculator with height and weight inputs."));
+    // Step 1: Generate. The title is named explicitly so step 2 has a string to
+    // rename. Without it the model picks its own heading, and a request to
+    // rename "BMI Calculator" can correctly change nothing.
+    conversation.push(
+      userMsg('Build a BMI calculator titled "BMI Calculator" with height and weight inputs.')
+    );
     const gen = await runTurn(conversation, tools);
     printResult(gen.result);
     expect(gen.result.error).toBeNull();
@@ -220,6 +224,8 @@ describe("precision-updates", () => {
     );
     conversation.push(assistantMsg(gen.responseText));
     const snap1 = snapshot(store);
+    const titleFiles = [...store].filter(([, c]) => c.includes("BMI Calculator")).map(([p]) => p);
+    expect(titleFiles.length).toBeGreaterThan(0);
 
     // Step 2: Change only the title
     conversation.push(userMsg('Change the title from "BMI Calculator" to "Body Mass Index Tool".'));
@@ -248,9 +254,14 @@ describe("precision-updates", () => {
       expect(cssDiff.status).toBe("unchanged");
     }
 
-    // App.js should change but only 1-2 lines (the title string)
+    // The new title is in place wherever the old one was.
+    for (const p of titleFiles) {
+      expect(store.get(p)).toContain("Body Mass Index Tool");
+    }
+
+    // App.js should change by only 1-2 lines (the title string). Where the title
+    // lives is the model's choice, so this is a warning; the loop above is the check.
     const jsDiff = diffs.find((d) => d.path === "App.js" || d.path === "App.jsx");
-    expect(jsDiff?.status).toBe("modified");
     console.log(`  JS lines changed: ${jsDiff?.linesChanged}`);
 
     if ((jsDiff?.linesChanged ?? 0) > 10) {

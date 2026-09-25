@@ -56,7 +56,7 @@ function isDeckShape(deck: unknown): deck is AnumaNode {
   return d.tag === "Deck" && typeof d.attrs === "object" && Array.isArray(d.children);
 }
 
-describe("slide-generation", () => {
+describe.concurrent("slide-generation", () => {
   it("generates a new slide deck via plan_deck + add_slide", async () => {
     const store = createFileStore();
     const log: ToolCallLog[] = [];

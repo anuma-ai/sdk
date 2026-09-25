@@ -7,6 +7,9 @@ export default defineConfig({
       "test/tools/setup.ts",
       "test/tools/index.ts",
       "test/tools/googleAuth.ts",
+      // JSONL trace writer used by setup.ts, not a test. Matching it made vitest
+      // report "No test suite found" and fail the run on every execution.
+      "test/tools/recorder.ts",
       "test/tools/**/setup.ts",
       "test/tools/**/tools.ts",
       // Pure unit test for dumpFiles — runs under the main vitest config.
@@ -17,6 +20,7 @@ export default defineConfig({
       // that's only useful when someone is actively investigating
       // perf. Run them via `pnpm perf:slides` (vitest.perf.config.mts)
       // when you need the numbers; otherwise skip.
+      "test/tools/requestProbe.ts",
       "test/tools/slide-generation/requestProbe.test.ts",
       "test/tools/slide-generation/editProbe.test.ts",
       "test/tools/slide-generation/deckEditingTimings.test.ts",
@@ -27,6 +31,9 @@ export default defineConfig({
     // Each test makes HTTP calls + waits on the LLM so the bottleneck is
     // wall time, not CPU. Kept at 6 because the portal rate-limits /
     // 500s / connection-fails when all models hammer it simultaneously.
+    // The app- and slide-generation suites use `describe.concurrent`: each of
+    // their tests is one to five minutes of model time, and run one after
+    // another a single file took longer than the whole CI budget.
     maxConcurrency: 6,
   },
 });

@@ -43,7 +43,7 @@ function makeMessages(userText: string, systemPrompt?: string): Message[] {
   return msgs;
 }
 
-describe("composition-layouts wire-in", () => {
+describe.concurrent("composition-layouts wire-in", () => {
   it("generates a deck using design-system composition layouts", async () => {
     const store = createFileStore();
     const log: ToolCallLog[] = [];
