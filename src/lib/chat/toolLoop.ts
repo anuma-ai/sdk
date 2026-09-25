@@ -14,6 +14,7 @@ import {
   type PiiRedactor,
   resolvePiiRedactor,
 } from "../pii/redactor";
+import { toolOutputForModel } from "../storage/mcpImages";
 import { validateEndpointOverride } from "./endpointOverride";
 import { isAttachedFilesText } from "./fileContext";
 import type { PromptPreProcessor } from "./preProcessor";
@@ -336,7 +337,7 @@ function isToolErrorResult(result: unknown): boolean {
 
 /**
  * Rebuild the tool calls the portal already executed this round (events with
- * an output) as one assistant `tool_calls` message plus a `tool` message per
+ * an output, even an empty one) as one assistant `tool_calls` message plus a `tool` message per
  * call — the chain useChatStorage rebuilds for stored history. Ids already in
  * the conversation are skipped: the portal repeats earlier rounds' events.
  */
@@ -352,7 +353,9 @@ function serverToolCallMessages(
   }
   const executed: NonNullable<StreamAccumulator["toolCallEvents"]> = [];
   for (const event of events ?? []) {
-    if (!event.id || !event.output || seen.has(event.id)) continue;
+    if (!event.id || event.output === undefined || event.output === null || seen.has(event.id)) {
+      continue;
+    }
     seen.add(event.id);
     executed.push(event);
   }
@@ -373,7 +376,7 @@ function serverToolCallMessages(
         ({
           role: "tool",
           tool_call_id: event.id,
-          content: [{ type: "text", text: event.output }],
+          content: [{ type: "text", text: toolOutputForModel(event.name, event.output ?? "") }],
         }) as LlmapiMessage
     ),
   ];

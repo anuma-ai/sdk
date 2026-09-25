@@ -161,6 +161,55 @@ describe("runToolLoop continuation keeps server-executed tool results", () => {
     expect(clientCall).toBeLessThan(clientResult);
   });
 
+  it("keeps a server tool that returned an empty result", async () => {
+    const emptyEvent: ToolCallEvent = {
+      id: "s3",
+      name: "AnumaPaymentsMCP-anuma_find_restaurant",
+      arguments: '{"query":"nothing"}',
+      output: "",
+    };
+    mockCreateSseClient
+      .mockReturnValueOnce({
+        stream: makeClientToolStream({
+          callId: "c1",
+          name: "prompt_user_confirm",
+          toolCallEvents: [emptyEvent, { id: "c1", name: "prompt_user_confirm", arguments: "{}" }],
+        }),
+      } as never)
+      .mockReturnValueOnce({ stream: makeTextStream("done") } as never);
+
+    const continuation = (await captureRequestInputs())[1];
+
+    expect(toolCallIndex(continuation, "s3")).toBeGreaterThan(-1);
+    expect(continuation[toolResultIndex(continuation, "s3")].content).toEqual([
+      { type: "text", text: "" },
+    ]);
+  });
+
+  it("strips generated image URLs from a server image tool's result", async () => {
+    const imageEvent: ToolCallEvent = {
+      id: "s4",
+      name: "AnumaMediaMCP-anuma_create_image",
+      arguments: '{"prompt":"a cat"}',
+      output: '{"output_images":[{"url":"https://x.test/cat.png"}],"model":"m1"}',
+    };
+    mockCreateSseClient
+      .mockReturnValueOnce({
+        stream: makeClientToolStream({
+          callId: "c1",
+          name: "prompt_user_confirm",
+          toolCallEvents: [imageEvent, { id: "c1", name: "prompt_user_confirm", arguments: "{}" }],
+        }),
+      } as never)
+      .mockReturnValueOnce({ stream: makeTextStream("done") } as never);
+
+    const continuation = (await captureRequestInputs())[1];
+
+    expect(continuation[toolResultIndex(continuation, "s4")].content).toEqual([
+      { type: "text", text: '{"model":"m1"}' },
+    ]);
+  });
+
   it("does not repeat a server tool call the portal reports again on a later round", async () => {
     const availabilityEvent: ToolCallEvent = {
       id: "s2",

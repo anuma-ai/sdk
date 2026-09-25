@@ -127,7 +127,7 @@ import {
 } from "../lib/memoryVault";
 import type { NerDetector } from "../lib/pii/ner";
 import { isPiiRedactor, PiiRedactor } from "../lib/pii/redactor";
-import { IMAGE_TOOL_NAMES } from "../lib/storage/mcpImages";
+import { IMAGE_TOOL_NAMES, toolOutputForModel } from "../lib/storage/mcpImages";
 import {
   autoFilterClientTools,
   computeToolGuidance,
@@ -305,31 +305,10 @@ function storedToLlmapiMessage(stored: StoredMessage): LlmapiMessage[] {
     // 2. Tool result messages
     for (const event of stored.toolCallEvents) {
       if (event.id && event.output !== undefined && event.output !== null) {
-        // For image tools, strip the URL from the output to prevent the model
-        // from echoing previous images and causing duplicate storage in the library.
-        let toolOutput = event.output;
-        if (event.name && IMAGE_TOOL_NAMES.has(event.name)) {
-          try {
-            const parsed = JSON.parse(toolOutput) as Record<string, unknown>;
-            // anuma_create_image returns `output_images: [{url,...}]`; the old
-            // tools returned a single `imageUrl`/`url`. Strip both so the model
-            // can't echo prior images back into the next turn.
-            const {
-              imageUrl: _imageUrl,
-              url: _url,
-              output_images: _outputImages,
-              ...rest
-            } = parsed;
-            toolOutput = JSON.stringify(rest);
-          } catch {
-            // Not JSON — use as-is
-          }
-        }
-
         messages.push({
           role: "tool" as LlmapiMessage["role"],
           tool_call_id: event.id,
-          content: [{ type: "text", text: toolOutput }],
+          content: [{ type: "text", text: toolOutputForModel(event.name, event.output) }],
         });
       }
     }
