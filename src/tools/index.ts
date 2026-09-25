@@ -55,6 +55,11 @@
  *   () => getNotionAccessToken(walletAddress, clientId),
  *   () => requestNotionAccess()
  * );
+ *
+ * // Browser/mobile: route through the portal, which runs the MCP call.
+ * const proxiedNotionTools = createNotionProxyTools((tool, args) =>
+ *   callPortalNotionMcp(tool, args)
+ * );
  * ```
  *
  * @module tools
@@ -134,6 +139,7 @@ export {
 export type {
   NotionCreatePagesArgs,
   NotionFetchArgs,
+  NotionMcpCaller,
   NotionMovePagesArgs,
   NotionSearchArgs,
   NotionUpdatePageArgs,
@@ -149,6 +155,7 @@ export {
   createNotionGetTeamsTool,
   createNotionGetUsersTool,
   createNotionMovePagesTool,
+  createNotionProxyTools,
   createNotionSearchTool,
   createNotionTools,
   createNotionUpdateDataSourceTool,

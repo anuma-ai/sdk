@@ -13,8 +13,10 @@ import {
   createNotionGetUsersTool,
   createNotionGetTeamsTool,
   createNotionTools,
+  createNotionProxyTools,
   getMCPEndpoints,
   callNotionMCPTool,
+  type NotionMcpCaller,
 } from "./notion";
 
 // ── Fetch mock ──
@@ -277,6 +279,28 @@ describe("Notion MCP Tools", () => {
 
       const initCall = mockFetch.mock.calls[0];
       expect(initCall[1].headers.Authorization).toBe(`Bearer ${requestedToken}`);
+    });
+
+    it("returns an error string when requestNotionAccess rejects", async () => {
+      mockGetAccessToken.mockReturnValue(null);
+      mockRequestNotionAccess.mockRejectedValue(new Error("Notion not connected"));
+
+      const tool = createNotionSearchTool(mockGetAccessToken, mockRequestNotionAccess);
+      const result = await tool.executor!({ query: "test" });
+
+      expect(result).toBe("Error searching Notion: Notion not connected");
+      expect(mockFetch).not.toHaveBeenCalled();
+    });
+
+    it("returns an error string when getAccessToken throws", async () => {
+      mockGetAccessToken.mockImplementation(() => {
+        throw new Error("mint failed");
+      });
+
+      const tool = createNotionFetchTool(mockGetAccessToken, mockRequestNotionAccess);
+      const result = await tool.executor!({ id: "page-123" });
+
+      expect(result).toBe("Error fetching Notion page: mint failed");
     });
   });
 
@@ -634,6 +658,109 @@ describe("Notion MCP Tools", () => {
       // Verify token was used
       const initCall = mockFetch.mock.calls[0];
       expect(initCall[1].headers.Authorization).toBe(`Bearer ${token}`);
+    });
+  });
+
+  // ── Portal proxy path ──
+
+  describe("createNotionProxyTools", () => {
+    function proxyTool(callMcp: NotionMcpCaller, name = "notion-search") {
+      const tool = createNotionProxyTools(callMcp).find(
+        (t) => (t.function as { name: string }).name === name
+      );
+      if (!tool?.executor) throw new Error(`no executor for ${name}`);
+      return tool.executor;
+    }
+
+    it("exposes the same 12 tool definitions as createNotionTools", () => {
+      const direct = createNotionTools(mockGetAccessToken, mockRequestNotionAccess);
+      const proxied = createNotionProxyTools(vi.fn<NotionMcpCaller>());
+
+      expect(proxied.map((t) => t.function)).toEqual(direct.map((t) => t.function));
+      expect(proxied).toHaveLength(12);
+    });
+
+    it("hands every tool's name and args to the caller without fetching", async () => {
+      const callMcp = vi
+        .fn<NotionMcpCaller>()
+        .mockResolvedValue({ status: 200, json: { result: { content: [] } } });
+      const args = { query: "roadmap" };
+
+      for (const tool of createNotionProxyTools(callMcp)) {
+        await tool.executor!(args);
+      }
+
+      const names = createNotionTools(mockGetAccessToken, mockRequestNotionAccess).map(
+        (t) => (t.function as { name: string }).name
+      );
+      expect(callMcp.mock.calls).toEqual(names.map((name) => [name, args]));
+      expect(mockFetch).not.toHaveBeenCalled();
+    });
+
+    it("returns the MCP result on 200", async () => {
+      const result = { content: [{ type: "text", text: "found" }] };
+      const callMcp = vi.fn<NotionMcpCaller>().mockResolvedValue({ status: 200, json: { result } });
+
+      expect(await proxyTool(callMcp)({ query: "x" })).toEqual(result);
+    });
+
+    it("truncates a 200 result over 50,000 characters", async () => {
+      const callMcp = vi
+        .fn<NotionMcpCaller>()
+        .mockResolvedValue({ status: 200, json: { result: "a".repeat(60000) } });
+
+      const result = (await proxyTool(callMcp)({ query: "x" })) as string;
+
+      expect(result.startsWith("a".repeat(50000))).toBe(true);
+      expect(result).toContain("content truncated");
+    });
+
+    it.each([401, 403, 412])("returns the connector error on %i", async (status) => {
+      const callMcp = vi
+        .fn<NotionMcpCaller>()
+        .mockResolvedValue({ status, json: { code: "connector_not_connected" } });
+
+      const result = await proxyTool(callMcp)({ query: "x" });
+
+      expect(JSON.parse(result as string)).toEqual({
+        __anuma_connector_error_v1: true,
+        code: "connector_not_connected",
+        provider: "notion",
+      });
+    });
+
+    it("keeps the portal's connect_url on the connector error", async () => {
+      const callMcp = vi.fn<NotionMcpCaller>().mockResolvedValue({
+        status: 412,
+        json: { code: "connector_not_connected", connect_url: "https://portal/connect" },
+      });
+
+      const result = await proxyTool(callMcp)({ query: "x" });
+
+      expect(JSON.parse(result as string)).toMatchObject({
+        provider: "notion",
+        connect_url: "https://portal/connect",
+      });
+    });
+
+    it.each([
+      [400, { error: "tool not allowed" }, "tool not allowed (400)"],
+      [422, { error: "page not found", code: "mcp_tool_error" }, "page not found (422)"],
+      [502, { error: "bad gateway", code: "upstream_error", status: 500 }, "bad gateway (502)"],
+      [503, { code: "upstream_unavailable" }, '{"code":"upstream_unavailable"} (503)'],
+      [500, null, "null (500)"],
+    ])("returns the tool's error string on %i", async (status, json, detail) => {
+      const callMcp = vi.fn<NotionMcpCaller>().mockResolvedValue({ status, json });
+
+      const result = await proxyTool(callMcp, "notion-update-page")({ data: {} });
+
+      expect(result).toBe(`Error updating Notion page: ${detail}`);
+    });
+
+    it("returns an error string when the caller rejects", async () => {
+      const callMcp = vi.fn<NotionMcpCaller>().mockRejectedValue(new Error("network down"));
+
+      expect(await proxyTool(callMcp)({ query: "x" })).toBe("Error searching Notion: network down");
     });
   });
 });
