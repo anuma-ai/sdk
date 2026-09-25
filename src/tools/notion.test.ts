@@ -764,6 +764,43 @@ describe("Notion MCP Tools", () => {
       });
     });
 
+    it.each([
+      [
+        403,
+        { code: "insufficient_scope", required: "connector:notion:rw" },
+        { code: "insufficient_scope", required: "connector:notion:rw" },
+      ],
+      [
+        403,
+        { code: "insufficient_scope", error: 'grant lacks "x"' },
+        { code: "insufficient_scope" },
+      ],
+      [412, { code: "upstream_unavailable" }, { code: "upstream_unavailable" }],
+      [
+        503,
+        { code: "upstream_unavailable", error: "upstream unavailable" },
+        { code: "upstream_unavailable" },
+      ],
+      [
+        412,
+        { code: "invalid_grant", connect_url: "https://portal/connect" },
+        { code: "connector_not_connected", connect_url: "https://portal/connect" },
+      ],
+      [403, { code: "connector_disabled" }, { code: "connector_not_connected" }],
+      [403, { code: "scope_disabled" }, { code: "connector_not_connected" }],
+      [401, { error: "unauthorized" }, { code: "connector_not_connected" }],
+    ])("maps %i %j to the matching connector error", async (status, json, expected) => {
+      const callMcp = vi.fn<NotionMcpCaller>().mockResolvedValue({ status, json });
+
+      const result = await proxyTool(callMcp)({ query: "x" });
+
+      expect(JSON.parse(result as string)).toEqual({
+        __anuma_connector_error_v1: true,
+        provider: "notion",
+        ...expected,
+      });
+    });
+
     it("returns an error string when a 200 carries no result", async () => {
       const callMcp = vi.fn<NotionMcpCaller>().mockResolvedValue({ status: 200, json: {} });
 
@@ -776,7 +813,7 @@ describe("Notion MCP Tools", () => {
       [400, { error: "tool not allowed" }, "tool not allowed (400)"],
       [422, { error: "page not found", code: "mcp_tool_error" }, "page not found (422)"],
       [502, { error: "bad gateway", code: "upstream_error", status: 500 }, "bad gateway (502)"],
-      [503, { code: "upstream_unavailable" }, '{"code":"upstream_unavailable"} (503)'],
+      [503, { error: "service unavailable" }, "service unavailable (503)"],
       [500, null, "null (500)"],
     ])("returns the tool's error string on %i", async (status, json, detail) => {
       const callMcp = vi.fn<NotionMcpCaller>().mockResolvedValue({ status, json });

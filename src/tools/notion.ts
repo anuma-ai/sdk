@@ -366,6 +366,51 @@ function readField(json: unknown, key: string): unknown {
     : undefined;
 }
 
+function readString(json: unknown, key: string): string | undefined {
+  const value = readField(json, key);
+  return typeof value === "string" ? value : undefined;
+}
+
+/**
+ * Map a portal connector failure to the canonical connector error, or null
+ * when the response is not one. 401/403/412 carry the mint error `code`;
+ * codes with no `ConnectorErrorCode` counterpart (`invalid_grant`,
+ * `connector_disabled`, `scope_disabled`, ...) read as not connected.
+ */
+function notionConnectorError(status: number, json: unknown): string | null {
+  const code = readField(json, "code");
+  if (status === 503) {
+    return code === "upstream_unavailable"
+      ? buildConnectorErrorResult("upstream_unavailable", NOTION_PROVIDER)
+      : null;
+  }
+  if (status !== 401 && status !== 403 && status !== 412) return null;
+
+  switch (code) {
+    case "scope_not_covered": {
+      const missingScopes = readField(json, "missing_scopes");
+      return buildConnectorErrorResult(
+        "scope_not_covered",
+        NOTION_PROVIDER,
+        readString(json, "connect_url"),
+        Array.isArray(missingScopes) ? { missingScopes: missingScopes as string[] } : undefined
+      );
+    }
+    case "insufficient_scope":
+      return buildConnectorErrorResult("insufficient_scope", NOTION_PROVIDER, undefined, {
+        required: readString(json, "required"),
+      });
+    case "upstream_unavailable":
+      return buildConnectorErrorResult("upstream_unavailable", NOTION_PROVIDER);
+    default:
+      return buildConnectorErrorResult(
+        "connector_not_connected",
+        NOTION_PROVIDER,
+        readString(json, "connect_url")
+      );
+  }
+}
+
 function proxyRunner(callMcp: NotionMcpCaller): NotionToolRunner {
   return async (toolName, args) => {
     const { status, json } = await callMcp(toolName, args);
@@ -376,18 +421,8 @@ function proxyRunner(callMcp: NotionMcpCaller): NotionToolRunner {
       }
       return truncateToolResult(result);
     }
-    if (status === 401 || status === 403 || status === 412) {
-      const connectUrl = readField(json, "connect_url");
-      const missingScopes = readField(json, "missing_scopes");
-      return buildConnectorErrorResult(
-        readField(json, "code") === "scope_not_covered"
-          ? "scope_not_covered"
-          : "connector_not_connected",
-        NOTION_PROVIDER,
-        typeof connectUrl === "string" ? connectUrl : undefined,
-        Array.isArray(missingScopes) ? { missingScopes: missingScopes as string[] } : undefined
-      );
-    }
+    const connectorError = notionConnectorError(status, json);
+    if (connectorError) return connectorError;
     const message = readField(json, "error");
     throw new Error(`${typeof message === "string" ? message : JSON.stringify(json)} (${status})`);
   };
