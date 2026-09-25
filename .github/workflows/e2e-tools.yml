@@ -121,8 +121,14 @@ jobs:
     steps:
       - name: Check e2e results
         run: |
-          if [[ "${{ needs.e2e-tools.result }}" == "failure" || "${{ needs.e2e-tools-compat.result }}" == "failure" ]]; then
-            echo "E2E tool tests failed"
-            exit 1
-          fi
+          # Allowlist, not a failure check: a job killed by timeout-minutes
+          # concludes `cancelled`, and the old `== "failure"` test posted green
+          # for runs that never finished (anuma-ai/sdk#962, EVAL_GATES.md §2).
+          # `skipped` stays green: e2e-tools does not run on pull_request.
+          for result in "${{ needs.e2e-tools.result }}" "${{ needs.e2e-tools-compat.result }}"; do
+            if [[ "$result" != "success" && "$result" != "skipped" ]]; then
+              echo "E2E tool tests did not pass (result: $result)"
+              exit 1
+            fi
+          done
           echo "E2E tool tests passed (or skipped)"
