@@ -1,7 +1,35 @@
 name: E2E Tools
 
+# Live-LLM tool / app-generation / slide tests (vitest.e2e.config.mts).
+#
+# Three ways in:
+#   - merge_group: always runs (the queue has no paths filter).
+#   - pull_request: runs only when the PR touches the paths `changes` lists
+#     below, so an author hears about a break before the queue does (#958).
+#     ADVISORY on a PR: the `e2e-tools` check goes red, but the required
+#     `e2e-tools-status` context does not, because the suite has been red or
+#     timing out on main since at least 2026-08-04 and a pre-existing failure
+#     must not block unrelated tool PRs. The blocking run is the queue's.
+#   - workflow_dispatch: pick a model (or "all" for the compat matrix).
+#
+# Deliberately NOT paths-scoped at the workflow level: `e2e-tools-status` is a
+# required context, and a paths-scoped workflow creates no run at all on a PR
+# outside its paths, so the context would never report and the PR would block
+# forever (see EVAL_GATES.md section 1). The filter lives in the `changes` job.
+#
+# Secrets: PORTAL_API_KEY (required; the portal key every test authenticates
+# with), NEXT_PUBLIC_API_URL (optional base-URL override), and the two
+# GOOGLE_* secrets (only the Drive/Calendar tests use them, and skip without).
+# Same-repo PR branches get them; fork and Dependabot PRs do not, so there the
+# PR run is skipped with a notice instead of failing on a missing key.
+#
+# Run it locally with a PORTAL_API_KEY in .env: `pnpm e2e:tools` (all), or
+# `pnpm e2e:tools weather` to filter by file name.
+
 permissions:
   contents: read
+  # `changes` lists the PR's files through the API.
+  pull-requests: read
 
 on:
   merge_group:
@@ -34,8 +62,61 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Decides whether a pull_request runs the suite. Always "true" for the queue
+  # and for dispatch, so those paths are unchanged.
+  changes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      run: ${{ steps.decide.outputs.run }}
+    steps:
+      - name: Decide whether to run
+        id: decide
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT: ${{ github.event_name }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          HAS_PORTAL_KEY: ${{ secrets.PORTAL_API_KEY != '' }}
+        run: |
+          if [[ "$EVENT" != "pull_request" ]]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # Both sides of a rename: moving a file OUT of a matched path changes the suite too.
+          files=$(gh api --paginate "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}/files" -q '.[] | .filename, (.previous_filename // empty)')
+
+          # What vitest.e2e.config.mts runs, and the source it exercises: the
+          # tool implementations (incl. app generation under src/tools/ and
+          # slides under src/tools/slides/), tool selection, the tool loop and
+          # the prompt classifiers, plus src/lib/chat/useChat/ because toolLoop.ts
+          # imports its strategies, utils, StreamSmoother and types. Unit tests under src/ are left out: they run
+          # in the main suite and cannot change an e2e result.
+          matched=$(printf '%s\n' "$files" \
+            | grep -E '^(src/tools/|src/lib/tools/|src/lib/chat/toolLoop\.ts$|src/lib/chat/useChat/|src/lib/chat/[A-Za-z]*Classifier\.ts$|src/lib/chat/preProcessor\.ts$|src/lib/memoryEngine/tool\.ts$|src/lib/memoryVault/(tool|searchToolExecutor)\.ts$|test/tools/|test/classifier/|vitest\.e2e\.config\.mts$|\.github/workflows/e2e-tools\.yml$)' \
+            | grep -vE '^src/.*\.test\.tsx?$' || true)
+
+          if [[ -z "$matched" ]]; then
+            echo "::notice::No tool / app-gen / slide paths changed; skipping the e2e tool tests on this PR (they still run in the merge queue)."
+            echo "run=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [[ "$HAS_PORTAL_KEY" != "true" ]]; then
+            echo "::notice::Tool paths changed but PORTAL_API_KEY is not available to this PR (fork or Dependabot); skipping here, the merge queue runs the suite with secrets."
+            echo "run=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "Tool paths changed:"
+          printf '  %s\n' "$matched"
+          echo "run=true" >> "$GITHUB_OUTPUT"
+
   e2e-tools:
-    if: github.event_name == 'merge_group' || (github.event_name == 'workflow_dispatch' && github.event.inputs.model != 'all')
+    needs: changes
+    if: >-
+      needs.changes.outputs.run == 'true' && (
+        github.event_name == 'merge_group' ||
+        github.event_name == 'pull_request' ||
+        (github.event_name == 'workflow_dispatch' && github.event.inputs.model != 'all'))
     runs-on: ubuntu-latest
     # Measured 6.5-8.3 min end to end (anuma-ai/sdk#962). The ceiling covers the
     # two 600s tests plus install. At 5 min every queue run was cancelled.
@@ -117,16 +198,33 @@ jobs:
 
   e2e-tools-status:
     if: always()
-    needs: [e2e-tools, e2e-tools-compat]
+    needs: [changes, e2e-tools, e2e-tools-compat]
     runs-on: ubuntu-latest
     steps:
       - name: Check e2e results
+        env:
+          EVENT: ${{ github.event_name }}
+          CHANGES: ${{ needs.changes.result }}
+          E2E: ${{ needs.e2e-tools.result }}
+          COMPAT: ${{ needs.e2e-tools-compat.result }}
         run: |
+          # The path/secret check itself must work, or a broken filter would
+          # silently skip the suite on every PR.
+          if [[ "$CHANGES" != "success" ]]; then
+            echo "changes job did not succeed ($CHANGES)"
+            exit 1
+          fi
+          # Advisory on pull_request (see the header): the e2e-tools check shows
+          # the result, this required context does not block on it.
+          if [[ "$EVENT" == "pull_request" ]]; then
+            echo "PR run is advisory; e2e-tools concluded: $E2E"
+            exit 0
+          fi
           # Allowlist, not a failure check: a job killed by timeout-minutes
           # concludes `cancelled`, and the old `== "failure"` test posted green
           # for runs that never finished (anuma-ai/sdk#962, EVAL_GATES.md §2).
-          # `skipped` stays green: e2e-tools does not run on pull_request.
-          for result in "${{ needs.e2e-tools.result }}" "${{ needs.e2e-tools-compat.result }}"; do
+          # `skipped` stays green: the compat job only runs on a `model=all` dispatch.
+          for result in "$E2E" "$COMPAT"; do
             if [[ "$result" != "success" && "$result" != "skipped" ]]; then
               echo "E2E tool tests did not pass (result: $result)"
               exit 1
