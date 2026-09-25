@@ -893,6 +893,23 @@ Function to sign a message for encryption key derivation.
 <tr>
 <td>
 
+`options.smoothing?`
+
+</td>
+<td>
+
+`boolean` | [`StreamSmoothingConfig`](../../react/Internal/type-aliases/StreamSmoothingConfig.md)
+
+</td>
+<td>
+
+Output pacing forwarded to useChat. Set false when the UI batches streamed updates.
+
+</td>
+</tr>
+<tr>
+<td>
+
 `options.toolResultsHistoryExclude?`
 
 </td>

@@ -830,6 +830,23 @@ Required together with walletAddress for field-level encryption.
 <tr>
 <td>
 
+`options.smoothing?`
+
+</td>
+<td>
+
+`boolean` | [`StreamSmoothingConfig`](../type-aliases/StreamSmoothingConfig.md)
+
+</td>
+<td>
+
+Output pacing forwarded to useChat. Set false when the UI batches streamed updates.
+
+</td>
+</tr>
+<tr>
+<td>
+
 `options.toolResultsHistoryExclude?`
 
 </td>

@@ -140,6 +140,7 @@ export {
   streamReplayPath,
 } from "../lib/chat/resumeStream";
 export type { StreamMetaEvent, StreamResumeHandle } from "../lib/chat/toolLoop";
+export type { StreamSmoothingConfig } from "../lib/chat/useChat/StreamSmoother";
 export { xhrTransport } from "../lib/chat/xhrTransport";
 export { maskScopedEmbeddingCache } from "../lib/db/chat/embeddingCache";
 export type { UseCreditsOptions, UseCreditsResult } from "../react/useCredits";
