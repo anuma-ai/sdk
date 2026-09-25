@@ -37,7 +37,17 @@ jobs:
   e2e-tools:
     if: github.event_name == 'merge_group' || (github.event_name == 'workflow_dispatch' && github.event.inputs.model != 'all')
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    # Derived, not guessed: must exceed the largest per-test budget the suite
+    # is allowed to use, plus checkout + `pnpm install`. The longest included
+    # test is test/tools/app-generation/kanban.test.ts at `timeout: 1_500_000`
+    # (25 min); photo-gallery.test.ts is at 900_000 (15 min). A job budget at
+    # or below those can kill a test that is still inside its own budget, and
+    # the allowlist below would then report that as a failure — which is the
+    # same class of bug this file is fixing, one level up.
+    #
+    # If you add a test with a larger `timeout:`, raise this with it. It was 5
+    # minutes, which every run hit; `cancelled` then read as pass.
+    timeout-minutes: 30
     env:
       PORTAL_API_KEY: ${{ secrets.PORTAL_API_KEY }}
       ANUMA_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
@@ -63,10 +73,39 @@ jobs:
           TEST_FILTER: ${{ github.event.inputs.test_filter || '' }}
         run: pnpm e2e:tools "$TEST_FILTER"
 
+      # The per-run traces the recorder writes (#808) — per-step usage, tool
+      # calls, and the loop's normalized terminal state. Without this they are
+      # written to the runner's disk and thrown away, which is why every #842
+      # investigation so far has needed a local re-run with a portal key: the
+      # one field that separates "model declined" from "turn was cut off" was
+      # recorded and then discarded.
+      #
+      # `always()` because a FAILING run is the one worth keeping.
+      - name: Upload run traces
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: e2e-tools-runs
+          path: test/tools/.runs/*.jsonl
+          # `.runs` is a HIDDEN directory, and upload-artifact has excluded
+          # dotted paths by default since v4.4 — without this the step still
+          # concludes `success`, warns "No files were found", and uploads
+          # nothing. Verified: run 30652472467 wrote 18 trace files and
+          # uploaded zero.
+          include-hidden-files: true
+          # `error`, not `warn`: a silent no-op upload is what this step exists
+          # to prevent, and a green step that uploaded nothing is the same
+          # class of lie as the green check this whole PR is fixing.
+          if-no-files-found: error
+
   e2e-tools-compat:
     if: github.event_name == 'workflow_dispatch' && github.event.inputs.model == 'all'
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    # Same suite, same per-test budgets as `e2e-tools` above — so the same
+    # figure. At 10 this matrix could not finish, and once the allowlist below
+    # stops passing `cancelled`, a dispatch with model=all would fail every
+    # time on the timeout alone.
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
@@ -108,8 +147,15 @@ jobs:
     steps:
       - name: Check e2e results
         run: |
-          if [[ "${{ needs.e2e-tools.result }}" == "failure" || "${{ needs.e2e-tools-compat.result }}" == "failure" ]]; then
-            echo "E2E tool tests failed"
-            exit 1
-          fi
+          # Allowlist, NOT a failure-check: a job killed by `timeout-minutes`
+          # concludes `cancelled`, and an `== "failure"` test lets that through.
+          # Observed on run 30302039028 — e2e-tools hit its 5m timeout, concluded
+          # `cancelled`, and this REQUIRED status went green 3s later with the
+          # tests never having run to completion.
+          for r in "${{ needs.e2e-tools.result }}" "${{ needs.e2e-tools-compat.result }}"; do
+            if [[ "$r" != "success" && "$r" != "skipped" ]]; then
+              echo "E2E tool tests did not pass (result: $r)"
+              exit 1
+            fi
+          done
           echo "E2E tool tests passed (or skipped)"
