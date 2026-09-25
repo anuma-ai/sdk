@@ -11,13 +11,13 @@ on:
   workflow_dispatch:
     inputs:
       model:
-        description: "Model to test (leave empty for default deepinfra/moonshotai/Kimi-K2.6)"
+        description: "Model to test (leave empty for default openai/gpt-6-luna)"
         required: false
         type: choice
         default: ""
         options:
           - ""
-          - "fireworks/accounts/fireworks/models/glm-5"
+          - "deepinfra/moonshotai/Kimi-K2.6"
           - "minimax/MiniMax-M2.7"
           - "anthropic/claude-sonnet-4-6"
           - "gemini/gemini-3.1-pro-preview"
@@ -37,7 +37,9 @@ jobs:
   e2e-tools:
     if: github.event_name == 'merge_group' || (github.event_name == 'workflow_dispatch' && github.event.inputs.model != 'all')
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    # Measured 6.5-8.3 min end to end (anuma-ai/sdk#962). The ceiling covers the
+    # two 600s tests plus install. At 5 min every queue run was cancelled.
+    timeout-minutes: 20
     env:
       PORTAL_API_KEY: ${{ secrets.PORTAL_API_KEY }}
       ANUMA_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
@@ -61,17 +63,29 @@ jobs:
       - name: Run e2e tool tests
         env:
           TEST_FILTER: ${{ github.event.inputs.test_filter || '' }}
-        run: pnpm e2e:tools "$TEST_FILTER"
+        run: pnpm e2e:tools "$TEST_FILTER" --reporter=default --reporter=json --outputFile.json=e2e-results.json
+
+      # Per-test status, duration and failure message. The raw loop traces in
+      # test/tools/.runs/ are deliberately not uploaded: they hold tool results
+      # verbatim (Calendar and Drive data from the service account), and this
+      # repo's artifacts are public.
+      - name: Upload e2e results
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: e2e-tools-results
+          if-no-files-found: warn
+          path: e2e-results.json
 
   e2e-tools-compat:
     if: github.event_name == 'workflow_dispatch' && github.event.inputs.model == 'all'
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
         model:
-          - "fireworks/accounts/fireworks/models/glm-5"
+          - "deepinfra/moonshotai/Kimi-K2.6"
           - "minimax/MiniMax-M2.7"
           - "anthropic/claude-sonnet-4-6"
           - "gemini/gemini-3.1-pro-preview"
@@ -108,8 +122,14 @@ jobs:
     steps:
       - name: Check e2e results
         run: |
-          if [[ "${{ needs.e2e-tools.result }}" == "failure" || "${{ needs.e2e-tools-compat.result }}" == "failure" ]]; then
-            echo "E2E tool tests failed"
-            exit 1
-          fi
+          # Allowlist, not a failure check: a job killed by timeout-minutes
+          # concludes `cancelled`, and the old `== "failure"` test posted green
+          # for runs that never finished (anuma-ai/sdk#962, EVAL_GATES.md §2).
+          # `skipped` stays green: e2e-tools does not run on pull_request.
+          for result in "${{ needs.e2e-tools.result }}" "${{ needs.e2e-tools-compat.result }}"; do
+            if [[ "$result" != "success" && "$result" != "skipped" ]]; then
+              echo "E2E tool tests did not pass (result: $result)"
+              exit 1
+            fi
+          done
           echo "E2E tool tests passed (or skipped)"
