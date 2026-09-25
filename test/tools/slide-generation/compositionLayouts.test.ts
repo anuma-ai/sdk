@@ -178,7 +178,10 @@ describe.concurrent("composition-layouts wire-in", () => {
   // so the model can populate image slots with real generated URLs instead
   // of placehold.co rectangles. Bumped maxToolRounds because image MCP
   // calls add round-trips before plan_deck/add_slide.
-  it("generates a 7-slide demo deck with real images", { timeout: 600_000 }, async () => {
+  // Quarantined: https://github.com/anuma-ai/sdk/issues/970. The portal drops the
+  // stream ("terminated") in the round that runs server-side image generation,
+  // 3 of 9 attempts; the SDK does not retry a stream once output has started.
+  it.skip("generates a 7-slide demo deck with real images", { timeout: 600_000 }, async () => {
     const store = createFileStore();
     const log: ToolCallLog[] = [];
     const slideTools = createTestSlideTools(store).map((t) => wrapTool(t, log));
