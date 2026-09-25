@@ -8,11 +8,16 @@
  * MCP Server: https://mcp.notion.com/mcp (Streamable HTTP)
  * Fallback: https://mcp.notion.com/sse (Server-Sent Events)
  *
+ * The MCP server rejects browser origins, so browser and mobile consumers use
+ * `createNotionProxyTools`, which hands each call to an injected
+ * {@link NotionMcpCaller} that goes through the portal instead.
+ *
  * @see https://developers.notion.com/guides/mcp/build-mcp-client
  * @see https://modelcontextprotocol.io
  */
 
 import type { ToolConfig } from "../lib/chat/useChat/types.js";
+import { buildConnectorErrorResult } from "../lib/connectors/index.js";
 
 // MCP Server configuration
 const MCP_HTTP_ENDPOINT = "https://mcp.notion.com/mcp";
@@ -322,6 +327,125 @@ export interface NotionMovePagesArgs {
 }
 
 // ============================================================================
+// TOOL RUNNERS
+// ============================================================================
+
+/**
+ * Calls the portal's Notion MCP endpoint with a tool name and its arguments,
+ * and resolves to the response status + parsed JSON. Consumers wire this to
+ * `POST {portalBaseUrl}/api/v1/connectors/notion/mcp` with the user's Privy
+ * bearer and a JSON body `{ tool, arguments }`; the portal mints the Notion
+ * token and runs the MCP handshake server-side.
+ */
+export type NotionMcpCaller = (
+  tool: string,
+  args: Record<string, unknown>
+) => Promise<{ status: number; json: unknown }>;
+
+/** Runs one Notion MCP tool call. May throw; the executor wrapper catches. */
+type NotionToolRunner = (toolName: string, args: Record<string, unknown>) => Promise<unknown>;
+
+const NOTION_PROVIDER = "notion";
+
+function directRunner(
+  getAccessToken: () => string | null,
+  requestNotionAccess: () => Promise<string>
+): NotionToolRunner {
+  return async (toolName, args) => {
+    let token = getAccessToken();
+    if (!token) {
+      token = await requestNotionAccess();
+    }
+    return callMCPTool(token, toolName, args);
+  };
+}
+
+function readField(json: unknown, key: string): unknown {
+  return typeof json === "object" && json !== null
+    ? (json as Record<string, unknown>)[key]
+    : undefined;
+}
+
+function readString(json: unknown, key: string): string | undefined {
+  const value = readField(json, key);
+  return typeof value === "string" ? value : undefined;
+}
+
+/**
+ * Map a portal connector failure to the canonical connector error, or null
+ * when the response is not one. 401/403/412 carry the mint error `code`;
+ * codes with no `ConnectorErrorCode` counterpart (`invalid_grant`,
+ * `connector_disabled`, `scope_disabled`, ...) read as not connected.
+ */
+function notionConnectorError(status: number, json: unknown): string | null {
+  const code = readField(json, "code");
+  if (status === 503) {
+    return code === "upstream_unavailable"
+      ? buildConnectorErrorResult("upstream_unavailable", NOTION_PROVIDER)
+      : null;
+  }
+  if (status !== 401 && status !== 403 && status !== 412) return null;
+
+  switch (code) {
+    case "scope_not_covered": {
+      const missingScopes = readField(json, "missing_scopes");
+      return buildConnectorErrorResult(
+        "scope_not_covered",
+        NOTION_PROVIDER,
+        readString(json, "connect_url"),
+        Array.isArray(missingScopes) ? { missingScopes: missingScopes as string[] } : undefined
+      );
+    }
+    case "insufficient_scope":
+      return buildConnectorErrorResult("insufficient_scope", NOTION_PROVIDER, undefined, {
+        required: readString(json, "required"),
+      });
+    case "upstream_unavailable":
+      return buildConnectorErrorResult("upstream_unavailable", NOTION_PROVIDER);
+    default:
+      return buildConnectorErrorResult(
+        "connector_not_connected",
+        NOTION_PROVIDER,
+        readString(json, "connect_url")
+      );
+  }
+}
+
+function proxyRunner(callMcp: NotionMcpCaller): NotionToolRunner {
+  return async (toolName, args) => {
+    const { status, json } = await callMcp(toolName, args);
+    if (status >= 200 && status < 300) {
+      const result = readField(json, "result");
+      if (result === undefined) {
+        throw new Error(`Notion returned no result (${status})`);
+      }
+      return truncateToolResult(result);
+    }
+    const connectorError = notionConnectorError(status, json);
+    if (connectorError) return connectorError;
+    const message = readField(json, "error");
+    throw new Error(`${typeof message === "string" ? message : JSON.stringify(json)} (${status})`);
+  };
+}
+
+function withNotionExecutor(
+  run: NotionToolRunner,
+  errorPrefix: string,
+  tool: { type: "function"; function: { name: string } & Record<string, unknown> }
+): ToolConfig {
+  return {
+    ...tool,
+    executor: async (args: Record<string, unknown>) => {
+      try {
+        return await run(tool.function.name, args);
+      } catch (error) {
+        return `${errorPrefix}: ${error instanceof Error ? error.message : String(error)}`;
+      }
+    },
+  };
+}
+
+// ============================================================================
 // SEARCH TOOL
 // ============================================================================
 
@@ -329,11 +453,8 @@ export interface NotionMovePagesArgs {
  * MCP Tool: notion-search
  * Semantic search over Notion workspace and connected sources, or user search
  */
-export function createNotionSearchTool(
-  getAccessToken: () => string | null,
-  requestNotionAccess: () => Promise<string>
-): ToolConfig {
-  return {
+function notionSearchTool(run: NotionToolRunner): ToolConfig {
+  return withNotionExecutor(run, "Error searching Notion", {
     type: "function",
     function: {
       name: "notion-search",
@@ -379,19 +500,14 @@ export function createNotionSearchTool(
         required: ["query"],
       },
     },
-    executor: async (args: Record<string, unknown>) => {
-      let token = getAccessToken();
-      if (!token) {
-        token = await requestNotionAccess();
-      }
+  });
+}
 
-      try {
-        return await callMCPTool(token, "notion-search", args);
-      } catch (error) {
-        return `Error searching Notion: ${error instanceof Error ? error.message : String(error)}`;
-      }
-    },
-  };
+export function createNotionSearchTool(
+  getAccessToken: () => string | null,
+  requestNotionAccess: () => Promise<string>
+): ToolConfig {
+  return notionSearchTool(directRunner(getAccessToken, requestNotionAccess));
 }
 
 // ============================================================================
@@ -402,11 +518,8 @@ export function createNotionSearchTool(
  * MCP Tool: notion-fetch
  * Retrieves details about a Notion entity (page or database) by URL or ID
  */
-export function createNotionFetchTool(
-  getAccessToken: () => string | null,
-  requestNotionAccess: () => Promise<string>
-): ToolConfig {
-  return {
+function notionFetchTool(run: NotionToolRunner): ToolConfig {
+  return withNotionExecutor(run, "Error fetching Notion page", {
     type: "function",
     function: {
       name: "notion-fetch",
@@ -432,19 +545,14 @@ export function createNotionFetchTool(
         required: ["id"],
       },
     },
-    executor: async (args: Record<string, unknown>) => {
-      let token = getAccessToken();
-      if (!token) {
-        token = await requestNotionAccess();
-      }
+  });
+}
 
-      try {
-        return await callMCPTool(token, "notion-fetch", args);
-      } catch (error) {
-        return `Error fetching Notion page: ${error instanceof Error ? error.message : String(error)}`;
-      }
-    },
-  };
+export function createNotionFetchTool(
+  getAccessToken: () => string | null,
+  requestNotionAccess: () => Promise<string>
+): ToolConfig {
+  return notionFetchTool(directRunner(getAccessToken, requestNotionAccess));
 }
 
 // ============================================================================
@@ -455,11 +563,8 @@ export function createNotionFetchTool(
  * MCP Tool: notion-create-pages
  * Creates one or more Notion pages with properties and content
  */
-export function createNotionCreatePagesTool(
-  getAccessToken: () => string | null,
-  requestNotionAccess: () => Promise<string>
-): ToolConfig {
-  return {
+function notionCreatePagesTool(run: NotionToolRunner): ToolConfig {
+  return withNotionExecutor(run, "Error creating Notion page", {
     type: "function",
     function: {
       name: "notion-create-pages",
@@ -500,19 +605,14 @@ export function createNotionCreatePagesTool(
         required: ["pages"],
       },
     },
-    executor: async (args: Record<string, unknown>) => {
-      let token = getAccessToken();
-      if (!token) {
-        token = await requestNotionAccess();
-      }
+  });
+}
 
-      try {
-        return await callMCPTool(token, "notion-create-pages", args);
-      } catch (error) {
-        return `Error creating Notion page: ${error instanceof Error ? error.message : String(error)}`;
-      }
-    },
-  };
+export function createNotionCreatePagesTool(
+  getAccessToken: () => string | null,
+  requestNotionAccess: () => Promise<string>
+): ToolConfig {
+  return notionCreatePagesTool(directRunner(getAccessToken, requestNotionAccess));
 }
 
 // ============================================================================
@@ -523,11 +623,8 @@ export function createNotionCreatePagesTool(
  * MCP Tool: notion-update-page
  * Update a page's properties or content using command-based operations
  */
-export function createNotionUpdatePageTool(
-  getAccessToken: () => string | null,
-  requestNotionAccess: () => Promise<string>
-): ToolConfig {
-  return {
+function notionUpdatePageTool(run: NotionToolRunner): ToolConfig {
+  return withNotionExecutor(run, "Error updating Notion page", {
     type: "function",
     function: {
       name: "notion-update-page",
@@ -583,19 +680,14 @@ export function createNotionUpdatePageTool(
         required: ["data"],
       },
     },
-    executor: async (args: Record<string, unknown>) => {
-      let token = getAccessToken();
-      if (!token) {
-        token = await requestNotionAccess();
-      }
+  });
+}
 
-      try {
-        return await callMCPTool(token, "notion-update-page", args);
-      } catch (error) {
-        return `Error updating Notion page: ${error instanceof Error ? error.message : String(error)}`;
-      }
-    },
-  };
+export function createNotionUpdatePageTool(
+  getAccessToken: () => string | null,
+  requestNotionAccess: () => Promise<string>
+): ToolConfig {
+  return notionUpdatePageTool(directRunner(getAccessToken, requestNotionAccess));
 }
 
 // ============================================================================
@@ -606,11 +698,8 @@ export function createNotionUpdatePageTool(
  * MCP Tool: notion-move-pages
  * Move one or more pages/databases to a new parent
  */
-export function createNotionMovePagesTool(
-  getAccessToken: () => string | null,
-  requestNotionAccess: () => Promise<string>
-): ToolConfig {
-  return {
+function notionMovePagesTool(run: NotionToolRunner): ToolConfig {
+  return withNotionExecutor(run, "Error moving Notion pages", {
     type: "function",
     function: {
       name: "notion-move-pages",
@@ -633,19 +722,14 @@ export function createNotionMovePagesTool(
         required: ["page_or_database_ids", "new_parent"],
       },
     },
-    executor: async (args: Record<string, unknown>) => {
-      let token = getAccessToken();
-      if (!token) {
-        token = await requestNotionAccess();
-      }
+  });
+}
 
-      try {
-        return await callMCPTool(token, "notion-move-pages", args);
-      } catch (error) {
-        return `Error moving Notion pages: ${error instanceof Error ? error.message : String(error)}`;
-      }
-    },
-  };
+export function createNotionMovePagesTool(
+  getAccessToken: () => string | null,
+  requestNotionAccess: () => Promise<string>
+): ToolConfig {
+  return notionMovePagesTool(directRunner(getAccessToken, requestNotionAccess));
 }
 
 // ============================================================================
@@ -656,11 +740,8 @@ export function createNotionMovePagesTool(
  * MCP Tool: notion-duplicate-page
  * Duplicate a Notion page (completes asynchronously)
  */
-export function createNotionDuplicatePageTool(
-  getAccessToken: () => string | null,
-  requestNotionAccess: () => Promise<string>
-): ToolConfig {
-  return {
+function notionDuplicatePageTool(run: NotionToolRunner): ToolConfig {
+  return withNotionExecutor(run, "Error duplicating Notion page", {
     type: "function",
     function: {
       name: "notion-duplicate-page",
@@ -676,19 +757,14 @@ export function createNotionDuplicatePageTool(
         required: ["page_id"],
       },
     },
-    executor: async (args: Record<string, unknown>) => {
-      let token = getAccessToken();
-      if (!token) {
-        token = await requestNotionAccess();
-      }
+  });
+}
 
-      try {
-        return await callMCPTool(token, "notion-duplicate-page", args);
-      } catch (error) {
-        return `Error duplicating Notion page: ${error instanceof Error ? error.message : String(error)}`;
-      }
-    },
-  };
+export function createNotionDuplicatePageTool(
+  getAccessToken: () => string | null,
+  requestNotionAccess: () => Promise<string>
+): ToolConfig {
+  return notionDuplicatePageTool(directRunner(getAccessToken, requestNotionAccess));
 }
 
 // ============================================================================
@@ -699,11 +775,8 @@ export function createNotionDuplicatePageTool(
  * MCP Tool: notion-create-database
  * Create a new Notion database with a properties schema
  */
-export function createNotionCreateDatabaseTool(
-  getAccessToken: () => string | null,
-  requestNotionAccess: () => Promise<string>
-): ToolConfig {
-  return {
+function notionCreateDatabaseTool(run: NotionToolRunner): ToolConfig {
+  return withNotionExecutor(run, "Error creating Notion database", {
     type: "function",
     function: {
       name: "notion-create-database",
@@ -738,19 +811,14 @@ export function createNotionCreateDatabaseTool(
         required: ["properties"],
       },
     },
-    executor: async (args: Record<string, unknown>) => {
-      let token = getAccessToken();
-      if (!token) {
-        token = await requestNotionAccess();
-      }
+  });
+}
 
-      try {
-        return await callMCPTool(token, "notion-create-database", args);
-      } catch (error) {
-        return `Error creating Notion database: ${error instanceof Error ? error.message : String(error)}`;
-      }
-    },
-  };
+export function createNotionCreateDatabaseTool(
+  getAccessToken: () => string | null,
+  requestNotionAccess: () => Promise<string>
+): ToolConfig {
+  return notionCreateDatabaseTool(directRunner(getAccessToken, requestNotionAccess));
 }
 
 // ============================================================================
@@ -761,11 +829,8 @@ export function createNotionCreateDatabaseTool(
  * MCP Tool: notion-update-data-source
  * Update a data source's properties, name, or other attributes
  */
-export function createNotionUpdateDataSourceTool(
-  getAccessToken: () => string | null,
-  requestNotionAccess: () => Promise<string>
-): ToolConfig {
-  return {
+function notionUpdateDataSourceTool(run: NotionToolRunner): ToolConfig {
+  return withNotionExecutor(run, "Error updating Notion data source", {
     type: "function",
     function: {
       name: "notion-update-data-source",
@@ -807,19 +872,14 @@ export function createNotionUpdateDataSourceTool(
         required: ["data_source_id"],
       },
     },
-    executor: async (args: Record<string, unknown>) => {
-      let token = getAccessToken();
-      if (!token) {
-        token = await requestNotionAccess();
-      }
+  });
+}
 
-      try {
-        return await callMCPTool(token, "notion-update-data-source", args);
-      } catch (error) {
-        return `Error updating Notion data source: ${error instanceof Error ? error.message : String(error)}`;
-      }
-    },
-  };
+export function createNotionUpdateDataSourceTool(
+  getAccessToken: () => string | null,
+  requestNotionAccess: () => Promise<string>
+): ToolConfig {
+  return notionUpdateDataSourceTool(directRunner(getAccessToken, requestNotionAccess));
 }
 
 // ============================================================================
@@ -830,11 +890,8 @@ export function createNotionUpdateDataSourceTool(
  * MCP Tool: notion-create-comment
  * Add a comment to a page, specific content, or reply to a discussion
  */
-export function createNotionCreateCommentTool(
-  getAccessToken: () => string | null,
-  requestNotionAccess: () => Promise<string>
-): ToolConfig {
-  return {
+function notionCreateCommentTool(run: NotionToolRunner): ToolConfig {
+  return withNotionExecutor(run, "Error creating Notion comment", {
     type: "function",
     function: {
       name: "notion-create-comment",
@@ -879,19 +936,14 @@ export function createNotionCreateCommentTool(
         required: ["page_id", "rich_text"],
       },
     },
-    executor: async (args: Record<string, unknown>) => {
-      let token = getAccessToken();
-      if (!token) {
-        token = await requestNotionAccess();
-      }
+  });
+}
 
-      try {
-        return await callMCPTool(token, "notion-create-comment", args);
-      } catch (error) {
-        return `Error creating Notion comment: ${error instanceof Error ? error.message : String(error)}`;
-      }
-    },
-  };
+export function createNotionCreateCommentTool(
+  getAccessToken: () => string | null,
+  requestNotionAccess: () => Promise<string>
+): ToolConfig {
+  return notionCreateCommentTool(directRunner(getAccessToken, requestNotionAccess));
 }
 
 // ============================================================================
@@ -902,11 +954,8 @@ export function createNotionCreateCommentTool(
  * MCP Tool: notion-get-comments
  * Get comments and discussions from a Notion page
  */
-export function createNotionGetCommentsTool(
-  getAccessToken: () => string | null,
-  requestNotionAccess: () => Promise<string>
-): ToolConfig {
-  return {
+function notionGetCommentsTool(run: NotionToolRunner): ToolConfig {
+  return withNotionExecutor(run, "Error retrieving Notion comments", {
     type: "function",
     function: {
       name: "notion-get-comments",
@@ -936,19 +985,14 @@ export function createNotionGetCommentsTool(
         required: ["page_id"],
       },
     },
-    executor: async (args: Record<string, unknown>) => {
-      let token = getAccessToken();
-      if (!token) {
-        token = await requestNotionAccess();
-      }
+  });
+}
 
-      try {
-        return await callMCPTool(token, "notion-get-comments", args);
-      } catch (error) {
-        return `Error retrieving Notion comments: ${error instanceof Error ? error.message : String(error)}`;
-      }
-    },
-  };
+export function createNotionGetCommentsTool(
+  getAccessToken: () => string | null,
+  requestNotionAccess: () => Promise<string>
+): ToolConfig {
+  return notionGetCommentsTool(directRunner(getAccessToken, requestNotionAccess));
 }
 
 // ============================================================================
@@ -959,11 +1003,8 @@ export function createNotionGetCommentsTool(
  * MCP Tool: notion-get-users
  * List users in the workspace, get a specific user, or get self
  */
-export function createNotionGetUsersTool(
-  getAccessToken: () => string | null,
-  requestNotionAccess: () => Promise<string>
-): ToolConfig {
-  return {
+function notionGetUsersTool(run: NotionToolRunner): ToolConfig {
+  return withNotionExecutor(run, "Error listing Notion users", {
     type: "function",
     function: {
       name: "notion-get-users",
@@ -994,19 +1035,14 @@ export function createNotionGetUsersTool(
         },
       },
     },
-    executor: async (args: Record<string, unknown>) => {
-      let token = getAccessToken();
-      if (!token) {
-        token = await requestNotionAccess();
-      }
+  });
+}
 
-      try {
-        return await callMCPTool(token, "notion-get-users", args);
-      } catch (error) {
-        return `Error listing Notion users: ${error instanceof Error ? error.message : String(error)}`;
-      }
-    },
-  };
+export function createNotionGetUsersTool(
+  getAccessToken: () => string | null,
+  requestNotionAccess: () => Promise<string>
+): ToolConfig {
+  return notionGetUsersTool(directRunner(getAccessToken, requestNotionAccess));
 }
 
 // ============================================================================
@@ -1017,11 +1053,8 @@ export function createNotionGetUsersTool(
  * MCP Tool: notion-get-teams
  * Retrieve teams (teamspaces) in the workspace
  */
-export function createNotionGetTeamsTool(
-  getAccessToken: () => string | null,
-  requestNotionAccess: () => Promise<string>
-): ToolConfig {
-  return {
+function notionGetTeamsTool(run: NotionToolRunner): ToolConfig {
+  return withNotionExecutor(run, "Error retrieving Notion teams", {
     type: "function",
     function: {
       name: "notion-get-teams",
@@ -1037,24 +1070,43 @@ export function createNotionGetTeamsTool(
         },
       },
     },
-    executor: async (args: Record<string, unknown>) => {
-      let token = getAccessToken();
-      if (!token) {
-        token = await requestNotionAccess();
-      }
+  });
+}
 
-      try {
-        return await callMCPTool(token, "notion-get-teams", args);
-      } catch (error) {
-        return `Error retrieving Notion teams: ${error instanceof Error ? error.message : String(error)}`;
-      }
-    },
-  };
+export function createNotionGetTeamsTool(
+  getAccessToken: () => string | null,
+  requestNotionAccess: () => Promise<string>
+): ToolConfig {
+  return notionGetTeamsTool(directRunner(getAccessToken, requestNotionAccess));
 }
 
 // ============================================================================
 // TOOL FACTORY
 // ============================================================================
+
+const NOTION_TOOLS: Array<(run: NotionToolRunner) => ToolConfig> = [
+  // Search
+  notionSearchTool,
+
+  // Pages
+  notionFetchTool,
+  notionCreatePagesTool,
+  notionUpdatePageTool,
+  notionMovePagesTool,
+  notionDuplicatePageTool,
+
+  // Data Sources (Databases)
+  notionCreateDatabaseTool,
+  notionUpdateDataSourceTool,
+
+  // Comments
+  notionCreateCommentTool,
+  notionGetCommentsTool,
+
+  // Users & Teams
+  notionGetUsersTool,
+  notionGetTeamsTool,
+];
 
 /**
  * Create all Notion MCP tools
@@ -1066,30 +1118,25 @@ export function createNotionTools(
   getAccessToken: () => string | null,
   requestNotionAccess: () => Promise<string>
 ): ToolConfig[] {
-  return [
-    // Search
-    createNotionSearchTool(getAccessToken, requestNotionAccess),
+  const run = directRunner(getAccessToken, requestNotionAccess);
+  return NOTION_TOOLS.map((tool) => tool(run));
+}
 
-    // Pages
-    createNotionFetchTool(getAccessToken, requestNotionAccess),
-    createNotionCreatePagesTool(getAccessToken, requestNotionAccess),
-    createNotionUpdatePageTool(getAccessToken, requestNotionAccess),
-    createNotionMovePagesTool(getAccessToken, requestNotionAccess),
-    createNotionDuplicatePageTool(getAccessToken, requestNotionAccess),
-
-    // Data Sources (Databases)
-
-    createNotionCreateDatabaseTool(getAccessToken, requestNotionAccess),
-    createNotionUpdateDataSourceTool(getAccessToken, requestNotionAccess),
-
-    // Comments
-    createNotionCreateCommentTool(getAccessToken, requestNotionAccess),
-    createNotionGetCommentsTool(getAccessToken, requestNotionAccess),
-
-    // Users & Teams
-    createNotionGetUsersTool(getAccessToken, requestNotionAccess),
-    createNotionGetTeamsTool(getAccessToken, requestNotionAccess),
-  ];
+/**
+ * Create all Notion MCP tools, routed through the portal.
+ *
+ * Same tools as {@link createNotionTools}, but no request reaches
+ * mcp.notion.com from this runtime: Notion's MCP server rejects browser
+ * origins, so the portal runs the call server-side. When the portal reports
+ * the connector is not connected (401, 403, 412), the tool returns the
+ * canonical `__anuma_connector_error_v1` result. Executors never throw.
+ *
+ * @param callMcp POSTs `{ tool, arguments }` to the portal's
+ *   `/api/v1/connectors/notion/mcp` endpoint and resolves to `{ status, json }`.
+ */
+export function createNotionProxyTools(callMcp: NotionMcpCaller): ToolConfig[] {
+  const run = proxyRunner(callMcp);
+  return NOTION_TOOLS.map((tool) => tool(run));
 }
 
 // ============================================================================
