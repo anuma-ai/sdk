@@ -2,7 +2,7 @@
 
 > **useChatStorage**(`options`: `object`): [`UseChatStorageResult`](../interfaces/UseChatStorageResult.md)
 
-Defined in: [src/react/useChatStorage.ts:1162](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#1162)
+Defined in: [src/react/useChatStorage.ts:1141](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#1141)
 
 ## Parameters
 
@@ -824,6 +824,23 @@ DeferLoadingConfig.
 Function to sign a message for encryption key derivation.
 Typically from Privy's useSignMessage hook.
 Required together with walletAddress for field-level encryption.
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.smoothing?`
+
+</td>
+<td>
+
+`boolean` | [`StreamSmoothingConfig`](../type-aliases/StreamSmoothingConfig.md)
+
+</td>
+<td>
+
+Output pacing forwarded to useChat. Set false when the UI batches streamed updates.
 
 </td>
 </tr>

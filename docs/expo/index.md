@@ -724,6 +724,12 @@ Re-exports [dequantizeEmbedding](../react/Internal/functions/dequantizeEmbedding
 
 ***
 
+### deriveKeyFromSignatureBytes
+
+Re-exports [deriveKeyFromSignatureBytes](../react/Encryption/deriveKeyFromSignatureBytes.md)
+
+***
+
 ### DurableAutoExtractorOptions
 
 Re-exports [DurableAutoExtractorOptions](../react/Internal/interfaces/DurableAutoExtractorOptions.md)
@@ -1885,6 +1891,12 @@ Re-exports [streamReplayPath](../react/Internal/functions/streamReplayPath.md)
 ### StreamResumeHandle
 
 Re-exports [StreamResumeHandle](../react/Internal/type-aliases/StreamResumeHandle.md)
+
+***
+
+### StreamSmoothingConfig
+
+Re-exports [StreamSmoothingConfig](../react/Internal/type-aliases/StreamSmoothingConfig.md)
 
 ***
 

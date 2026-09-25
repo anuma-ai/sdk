@@ -39,13 +39,13 @@ on:
   workflow_dispatch:
     inputs:
       model:
-        description: "Model to test (leave empty for default deepinfra/moonshotai/Kimi-K2.6)"
+        description: "Model to test (leave empty for default openai/gpt-6-luna)"
         required: false
         type: choice
         default: ""
         options:
           - ""
-          - "fireworks/accounts/fireworks/models/glm-5"
+          - "deepinfra/moonshotai/Kimi-K2.6"
           - "minimax/MiniMax-M2.7"
           - "anthropic/claude-sonnet-4-6"
           - "gemini/gemini-3.1-pro-preview"
@@ -116,10 +116,9 @@ jobs:
         github.event_name == 'pull_request' ||
         (github.event_name == 'workflow_dispatch' && github.event.inputs.model != 'all'))
     runs-on: ubuntu-latest
-    # 5 minutes in the queue is the long-standing budget (every queued run since
-    # 2026-08-04 has hit it; see the status job). A PR run gets room to actually
-    # finish, since reporting a real result to the author is its whole point.
-    timeout-minutes: ${{ github.event_name == 'pull_request' && 30 || 5 }}
+    # Measured 6.5-8.3 min end to end (anuma-ai/sdk#962). The ceiling covers the
+    # two 600s tests plus install. At 5 min every queue run was cancelled.
+    timeout-minutes: 20
     env:
       PORTAL_API_KEY: ${{ secrets.PORTAL_API_KEY }}
       ANUMA_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
@@ -143,17 +142,29 @@ jobs:
       - name: Run e2e tool tests
         env:
           TEST_FILTER: ${{ github.event.inputs.test_filter || '' }}
-        run: pnpm e2e:tools "$TEST_FILTER"
+        run: pnpm e2e:tools "$TEST_FILTER" --reporter=default --reporter=json --outputFile.json=e2e-results.json
+
+      # Per-test status, duration and failure message. The raw loop traces in
+      # test/tools/.runs/ are deliberately not uploaded: they hold tool results
+      # verbatim (Calendar and Drive data from the service account), and this
+      # repo's artifacts are public.
+      - name: Upload e2e results
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: e2e-tools-results
+          if-no-files-found: warn
+          path: e2e-results.json
 
   e2e-tools-compat:
     if: github.event_name == 'workflow_dispatch' && github.event.inputs.model == 'all'
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
         model:
-          - "fireworks/accounts/fireworks/models/glm-5"
+          - "deepinfra/moonshotai/Kimi-K2.6"
           - "minimax/MiniMax-M2.7"
           - "anthropic/claude-sonnet-4-6"
           - "gemini/gemini-3.1-pro-preview"
@@ -207,8 +218,14 @@ jobs:
             echo "PR run is advisory; e2e-tools concluded: $E2E"
             exit 0
           fi
-          if [[ "$E2E" == "failure" || "$COMPAT" == "failure" ]]; then
-            echo "E2E tool tests failed"
-            exit 1
-          fi
+          # Allowlist, not a failure check: a job killed by timeout-minutes
+          # concludes `cancelled`, and the old `== "failure"` test posted green
+          # for runs that never finished (anuma-ai/sdk#962, EVAL_GATES.md §2).
+          # `skipped` stays green: the compat job only runs on a `model=all` dispatch.
+          for result in "$E2E" "$COMPAT"; do
+            if [[ "$result" != "success" && "$result" != "skipped" ]]; then
+              echo "E2E tool tests did not pass (result: $result)"
+              exit 1
+            fi
+          done
           echo "E2E tool tests passed (or skipped)"

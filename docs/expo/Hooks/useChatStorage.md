@@ -2,7 +2,7 @@
 
 > **useChatStorage**(`options`: `object`): [`UseChatStorageResult`](../Internal/interfaces/UseChatStorageResult.md)
 
-Defined in: [src/expo/useChatStorage.ts:744](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChatStorage.ts#744)
+Defined in: [src/expo/useChatStorage.ts:723](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChatStorage.ts#723)
 
 A React hook that wraps useChat with automatic message persistence using WatermelonDB.
 
@@ -887,6 +887,23 @@ DeferLoadingConfig.
 <td>
 
 Function to sign a message for encryption key derivation.
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.smoothing?`
+
+</td>
+<td>
+
+`boolean` | [`StreamSmoothingConfig`](../../react/Internal/type-aliases/StreamSmoothingConfig.md)
+
+</td>
+<td>
+
+Output pacing forwarded to useChat. Set false when the UI batches streamed updates.
 
 </td>
 </tr>
