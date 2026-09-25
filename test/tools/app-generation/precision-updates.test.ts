@@ -97,8 +97,14 @@ function assistantMsg(text: string): Message {
   return { role: "assistant", content: [{ type: "text", text }] };
 }
 
-/** Run one turn of the tool loop and return the result + updated conversation. */
-async function runTurn(messages: Message[], tools: any[], maxRounds = 5) {
+/**
+ * Run one turn of the tool loop and return the result + updated conversation.
+ *
+ * 20 rounds is the SDK default the clients run app generation with. At 5, the
+ * app builder's create → audit_design → critique_design → patch loop ran out of
+ * rounds mid-build, and the unfinished work leaked into the next step's diff.
+ */
+async function runTurn(messages: Message[], tools: any[], maxRounds = 20) {
   const result = await timedToolLoop({
     messages,
     model: config.model,
