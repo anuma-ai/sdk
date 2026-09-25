@@ -155,6 +155,7 @@ export {
   decryptDataBytes,
   decryptDataBytesFromBytes,
   decryptDataWithKey,
+  deriveKeyFromSignatureBytes,
   encryptData,
   // Batch operations for performance (single key lookup)
   encryptDataBatch,

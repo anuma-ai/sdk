@@ -515,6 +515,7 @@ export {
   decryptDataBytes,
   decryptDataBytesFromBytes,
   decryptDataWithKey,
+  deriveKeyFromSignatureBytes,
   encryptData,
   encryptDataBatch,
   encryptDataBytes,

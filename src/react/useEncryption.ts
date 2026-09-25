@@ -8,6 +8,10 @@ export const SIGN_MESSAGE =
  * Encryption key version type.
  * - "v2": Legacy SHA-256 derived key (for reading enc:v2: data)
  * - "v3": HKDF derived key with domain separation (for new encryption)
+ *
+ * Raw signature bytes (Privy Solana `signMessage` returns a `Uint8Array`) are
+ * not a stored version. Derive them with {@link deriveKeyFromSignatureBytes}.
+ * {@link requestEncryptionKey} still derives v2 and v3 from a hex signature only.
  */
 export type EncryptionKeyVersion = "v2" | "v3";
 
@@ -314,13 +318,52 @@ export function clearAllEncryptionKeys(): void {
 }
 
 /**
- * Converts a hex string to Uint8Array bytes
+ * Decodes one hex character. Returns -1 when `code` is not `0-9`, `A-F`, or `a-f`.
+ *
+ * `parseInt(pair, 16)` is not safe here: `parseInt("1g", 16)` is `1`, and
+ * `parseInt("gg", 16)` is `NaN`. Assigning `NaN` into a `Uint8Array` stores `0`,
+ * so a non-hex signature (base58, or `String(uint8Array)`) used to become a
+ * low-entropy AES key with no error.
  */
-function hexToBytes(hex: string): Uint8Array {
+function hexNibble(code: number): number {
+  if (code >= 48 && code <= 57) return code - 48;
+  if (code >= 65 && code <= 70) return code - 55;
+  if (code >= 97 && code <= 102) return code - 87;
+  return -1;
+}
+
+/**
+ * Decodes a hex string into bytes.
+ *
+ * Throws on a non-string, an empty string, an odd length, or any non-hex
+ * character. Strips one leading `0x` prefix. Does not accept raw signature
+ * bytes — use {@link deriveKeyFromSignatureBytes} for those.
+ *
+ * Also used for ciphertext and stored key hex. Valid even-length hex,
+ * including a `0x` prefix, decodes to the same bytes as before.
+ *
+ * @internal Exported for the non-hex rejection test.
+ */
+export function hexToBytes(hex: string): Uint8Array {
+  if (typeof hex !== "string") {
+    throw new TypeError(
+      "hexToBytes: expected a hex string. Pass raw signature bytes to deriveKeyFromSignatureBytes instead of stringifying them."
+    );
+  }
   const cleanHex = hex.startsWith("0x") ? hex.slice(2) : hex;
+  if (cleanHex.length === 0 || cleanHex.length % 2 !== 0) {
+    throw new Error(
+      `hexToBytes: invalid hex string (expected a non-empty even length, got ${cleanHex.length})`
+    );
+  }
   const bytes = new Uint8Array(cleanHex.length / 2);
   for (let i = 0; i < cleanHex.length; i += 2) {
-    bytes[i / 2] = parseInt(cleanHex.slice(i, i + 2), 16);
+    const hi = hexNibble(cleanHex.charCodeAt(i));
+    const lo = hexNibble(cleanHex.charCodeAt(i + 1));
+    if (hi < 0 || lo < 0) {
+      throw new Error(`hexToBytes: invalid hex string (non-hex character at index ${i})`);
+    }
+    bytes[i / 2] = (hi << 4) | lo;
   }
   return bytes;
 }
@@ -346,61 +389,108 @@ const SHARED_TEXT_ENCODER = new TextEncoder();
 const SHARED_TEXT_DECODER = new TextDecoder();
 
 /**
- * Validates a wallet address format
+ * Validates an EVM wallet address (`0x` + 40 hex characters).
+ *
+ * Every throw site uses this helper and rejects a Solana base58 address:
+ * `encryptData`, `encryptDataBytes`, `encryptDataBatch`, `seedEncryptionKeys`,
+ * `requestEncryptionKey`, `refreshEncryptionKeyIfMatches`, `requestKeyPair`.
+ * That stays until {@link deriveKeyFromSignatureBytes} is stored as its own
+ * key version. Opening the gate now would put a base58 address through v2/v3,
+ * which still require a hex signature.
+ *
+ * `deriveKeyPairFromSignature` lowercases the address for its HKDF salt.
+ * Base58 is case-sensitive, so that salt must not see a Solana address.
+ *
+ * `decryptData`, `decryptDataBytes`, `decryptDataBytesFromBytes`,
+ * `decryptDataBatch`, `getEncryptionKey`, `hasEncryptionKey`, and
+ * `clearEncryptionKey` do not format-check. They use the address as a map key
+ * and fail closed when it was never stored.
+ *
  * @param address - The wallet address to validate
- * @returns true if the address is valid (starts with 0x and is 42 characters)
+ * @returns true when the address is `0x` plus 40 hex characters
  */
 function isValidWalletAddress(address: string): boolean {
-  // Must start with 0x and be exactly 42 characters (0x + 40 hex chars)
   return /^0x[a-fA-F0-9]{40}$/.test(address);
 }
 
+/** HKDF info for the enc:v3 AES key. Kept stable so existing ciphertext decrypts. */
+const AES_GCM_V3_INFO = "anuma-sdk-aes-gcm-v3";
 /**
- * Derives a 32-byte encryption key from a signature using SHA-256
+ * HKDF info for the bytes-native AES key (the future enc:v4 key).
+ * Separate from v3 so a raw signature cannot collide with a hex-decoded
+ * EVM signature under the same label.
  */
-async function deriveKeyFromSignature(signature: string): Promise<string> {
-  // 1. Convert hex signature to bytes
-  const sigBytes = hexToBytes(signature);
-
-  // 2. Hash with SHA-256 to get 32-byte key
-  const hashBuffer = await crypto.subtle.digest("SHA-256", sigBytes.buffer as ArrayBuffer);
-  const hashBytes = new Uint8Array(hashBuffer);
-
-  // 3. Return as hex string
-  return bytesToHex(hashBytes);
-}
+const AES_GCM_V4_INFO = "anuma-sdk-aes-gcm-v4";
 
 /**
- * Derives a 32-byte encryption key from a signature using HKDF with domain separation.
- * Uses SHA-256(signature) as IKM, then HKDF-Expand with app-specific info string.
- * This provides proper key derivation and prevents cross-app key reuse.
+ * HKDF-SHA256 AES key from raw signature bytes.
+ * Copies `signatureBytes` first so a view is hashed by its own window, not
+ * the backing buffer, and so the caller can keep the array.
  */
-async function deriveKeyFromSignatureV3(signature: string): Promise<string> {
-  // 1. Convert hex signature to bytes
-  const sigBytes = hexToBytes(signature);
-
-  // 2. SHA-256 as IKM (input keying material)
-  const ikm = await crypto.subtle.digest("SHA-256", sigBytes.buffer as ArrayBuffer);
-
-  // 3. Import as HKDF key
+async function deriveHkdfAesKeyHex(signatureBytes: Uint8Array, info: string): Promise<string> {
+  const sigBytes = new Uint8Array(signatureBytes);
+  const ikm = await crypto.subtle.digest("SHA-256", sigBytes);
   const hkdfKey = await crypto.subtle.importKey("raw", ikm, { name: "HKDF" }, false, [
     "deriveBits",
   ]);
-
-  // 4. HKDF extract + expand with domain-specific info
   const derivedBits = await crypto.subtle.deriveBits(
     {
       name: "HKDF",
       hash: "SHA-256",
       salt: new Uint8Array(32), // Zero salt (HKDF spec: uses hash-length zero buffer)
-      info: SHARED_TEXT_ENCODER.encode("anuma-sdk-aes-gcm-v3"),
+      info: SHARED_TEXT_ENCODER.encode(info),
     },
     hkdfKey,
     256
   );
-
-  // 5. Return as hex string
   return bytesToHex(new Uint8Array(derivedBits));
+}
+
+/**
+ * Derives a 32-byte encryption key from a hex signature using SHA-256.
+ * @internal Exported so a fixture test can pin enc:v2 output.
+ */
+export async function deriveKeyFromSignature(signature: string): Promise<string> {
+  const sigBytes = hexToBytes(signature);
+  const hashBuffer = await crypto.subtle.digest("SHA-256", sigBytes.buffer as ArrayBuffer);
+  return bytesToHex(new Uint8Array(hashBuffer));
+}
+
+/**
+ * Derives a 32-byte encryption key from a hex signature using HKDF with domain separation.
+ * Uses SHA-256(signature) as IKM, then HKDF-Expand with app-specific info string.
+ * This provides proper key derivation and prevents cross-app key reuse.
+ * @internal Exported so a fixture test can pin enc:v3 output.
+ */
+export async function deriveKeyFromSignatureV3(signature: string): Promise<string> {
+  return deriveHkdfAesKeyHex(hexToBytes(signature), AES_GCM_V3_INFO);
+}
+
+/**
+ * Derives the bytes-native AES key from a raw signature.
+ *
+ * Privy Solana `signMessage` returns a `Uint8Array`. Pass those bytes here.
+ * The signature is never hex-encoded, base58-encoded, or passed through
+ * `String()`. That string round-trip is what made {@link hexToBytes} store
+ * zeros for every non-hex pair and yield a low-entropy AES key.
+ *
+ * This is the derivation for the next key version (`anuma-sdk-aes-gcm-v4`).
+ * {@link requestEncryptionKey} does not install it; v2 and v3 stay on the
+ * hex-string path so existing ciphertext keeps decrypting. The return value
+ * is the same 64-char hex form the in-memory store already uses.
+ *
+ * @param signature - Raw signature bytes, for example a 64-byte ed25519 signature.
+ * @returns 32-byte AES-GCM key as hex, without a `0x` prefix.
+ * @category Encryption
+ */
+export async function deriveKeyFromSignatureBytes(signature: Uint8Array): Promise<string> {
+  if (!(signature instanceof Uint8Array)) {
+    throw new TypeError("deriveKeyFromSignatureBytes: expected a Uint8Array signature");
+  }
+  if (signature.byteLength === 0) {
+    throw new Error("deriveKeyFromSignatureBytes: signature must be non-empty");
+  }
+  return deriveHkdfAesKeyHex(signature, AES_GCM_V4_INFO);
 }
 
 /**
@@ -449,7 +539,9 @@ async function deriveKeyPairFromSignature(
     {
       name: "HKDF",
       hash: "SHA-256",
-      salt: SHARED_TEXT_ENCODER.encode(address.toLowerCase()), // Wallet address as salt
+      // EVM addresses are case-insensitive. Base58 is not — this salt stays
+      // behind the EVM address gate in requestKeyPair.
+      salt: SHARED_TEXT_ENCODER.encode(address.toLowerCase()),
       info: SHARED_TEXT_ENCODER.encode("ECDH-P256-KeyPair"), // Context info
     },
     hkdfKey,
@@ -1031,6 +1123,11 @@ export interface SignMessageOptions {
 /**
  * Type for the signMessage function that client must provide.
  * This is typically from Privy's useSignMessage hook.
+ *
+ * The resolved value must be a hex signature (`0x`-prefixed or bare). A
+ * non-hex string — including `String(uint8Array)` or a base58 signature —
+ * throws from key derivation instead of becoming a zero-filled AES key.
+ * Raw signature bytes go to {@link deriveKeyFromSignatureBytes}.
  */
 export type SignMessageFn = (message: string, options?: SignMessageOptions) => Promise<string>;
 

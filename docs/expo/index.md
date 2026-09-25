@@ -724,6 +724,12 @@ Re-exports [dequantizeEmbedding](../react/Internal/functions/dequantizeEmbedding
 
 ***
 
+### deriveKeyFromSignatureBytes
+
+Re-exports [deriveKeyFromSignatureBytes](../react/Encryption/deriveKeyFromSignatureBytes.md)
+
+***
+
 ### DurableAutoExtractorOptions
 
 Re-exports [DurableAutoExtractorOptions](../react/Internal/interfaces/DurableAutoExtractorOptions.md)
