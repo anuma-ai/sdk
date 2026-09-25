@@ -26,6 +26,11 @@ export default defineConfig({
       "test/tools/slide-generation/deckEditingTimings.test.ts",
     ],
     testTimeout: 300_000,
+    // One retry for live-model and live-portal noise. The SDK deliberately does
+    // not retry a stream that drops after output has started, and the portal
+    // does drop them: an undici "terminated" 27s into a slide round failed run
+    // 36168690288. A test that fails twice in a row still fails the run.
+    retry: 1,
     hookTimeout: 120_000,
     // Allow concurrent e2e tests so we can fan out across models.
     // Each test makes HTTP calls + waits on the LLM so the bottleneck is
