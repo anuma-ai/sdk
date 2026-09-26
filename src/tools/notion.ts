@@ -311,14 +311,22 @@ export interface NotionCreatePagesArgs {
 }
 
 export interface NotionUpdatePageArgs {
-  data: {
-    page_id: string;
-    command: string;
-    properties?: Record<string, unknown>;
-    new_str?: string;
-    selection_with_ellipsis?: string;
-    allow_deleting_content?: boolean;
-  };
+  page_id: string;
+  command:
+    | "update_properties"
+    | "update_content"
+    | "replace_content"
+    | "insert_content"
+    | "apply_template"
+    | "update_verification";
+  content?: string;
+  content_updates?: Array<{ old_str: string; new_str: string }>;
+  new_str?: string;
+  properties?: Record<string, unknown>;
+  allow_deleting_content?: boolean;
+  template_id?: string;
+  verification_status?: "verified" | "unverified";
+  verification_expiry_days?: number;
 }
 
 export interface NotionMovePagesArgs {
@@ -634,7 +642,9 @@ function notionUpdatePageTool(run: NotionToolRunner): ToolConfig {
         "'update_content' does search-and-replace edits (needs content_updates). " +
         "'replace_content' replaces all content (needs new_str). " +
         "'update_properties' changes properties (needs properties). " +
-        "'apply_template' and 'update_verification' are also supported.",
+        "'apply_template' applies a template page (needs template_id). " +
+        "'update_verification' marks the page verified or unverified (needs verification_status, " +
+        "plus optional verification_expiry_days only when verified).",
       arguments: {
         type: "object",
         properties: {
@@ -684,6 +694,20 @@ function notionUpdatePageTool(run: NotionToolRunner): ToolConfig {
             type: "boolean",
             description:
               "For replace_content/update_content: allow deletion of child pages/databases",
+          },
+          template_id: {
+            type: "string",
+            description: "For apply_template: the ID of the template page to apply",
+          },
+          verification_status: {
+            type: "string",
+            enum: ["verified", "unverified"],
+            description: "For update_verification: the new verification status",
+          },
+          verification_expiry_days: {
+            type: "number",
+            description:
+              "For update_verification: days until the verification expires. Only allowed when verification_status is 'verified'",
           },
         },
         required: ["page_id", "command"],

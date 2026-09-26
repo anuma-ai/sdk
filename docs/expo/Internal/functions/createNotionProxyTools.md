@@ -2,7 +2,7 @@
 
 > **createNotionProxyTools**(`callMcp`: [`NotionMcpCaller`](../type-aliases/NotionMcpCaller.md)): `ToolConfig`\[]
 
-Defined in: [src/tools/notion.ts:1134](https://github.com/anuma-ai/sdk/blob/main/src/tools/notion.ts#1134)
+Defined in: [src/tools/notion.ts:1158](https://github.com/anuma-ai/sdk/blob/main/src/tools/notion.ts#1158)
 
 Create all Notion MCP tools, routed through the portal.
 
