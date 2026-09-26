@@ -311,14 +311,16 @@ export interface NotionCreatePagesArgs {
 }
 
 export interface NotionUpdatePageArgs {
-  data: {
-    page_id: string;
-    command: string;
-    properties?: Record<string, unknown>;
-    new_str?: string;
-    selection_with_ellipsis?: string;
-    allow_deleting_content?: boolean;
-  };
+  page_id: string;
+  command: string;
+  content?: string;
+  content_updates?: Array<{ old_str: string; new_str: string }>;
+  new_str?: string;
+  properties?: Record<string, unknown>;
+  allow_deleting_content?: boolean;
+  template_id?: string;
+  verification_status?: string;
+  verification_expiry_days?: number;
 }
 
 export interface NotionMovePagesArgs {
@@ -684,6 +686,19 @@ function notionUpdatePageTool(run: NotionToolRunner): ToolConfig {
             type: "boolean",
             description:
               "For replace_content/update_content: allow deletion of child pages/databases",
+          },
+          template_id: {
+            type: "string",
+            description: "For apply_template: the ID of the template to apply",
+          },
+          verification_status: {
+            type: "string",
+            description: "For update_verification: the verification status to set",
+          },
+          verification_expiry_days: {
+            type: "number",
+            description:
+              "For update_verification: optional number of days until verification expires",
           },
         },
         required: ["page_id", "command"],

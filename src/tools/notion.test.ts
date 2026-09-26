@@ -581,6 +581,9 @@ describe("Notion MCP Tools", () => {
         "new_str",
         "properties",
         "allow_deleting_content",
+        "template_id",
+        "verification_status",
+        "verification_expiry_days",
       ]);
     });
 
