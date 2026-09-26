@@ -629,55 +629,64 @@ function notionUpdatePageTool(run: NotionToolRunner): ToolConfig {
     function: {
       name: "notion-update-page",
       description:
-        "Update a Notion page's properties or content. Uses command-based operations: " +
-        "'update_properties' to change properties, 'replace_content' to replace all content, " +
-        "'replace_content_range' to replace specific text, 'insert_content_after' to insert after text.",
+        "Update a Notion page's properties or content. Arguments are flat: page_id, command, and the " +
+        "parameter that command needs. 'insert_content' appends Markdown (needs content). " +
+        "'update_content' does search-and-replace edits (needs content_updates). " +
+        "'replace_content' replaces all content (needs new_str). " +
+        "'update_properties' changes properties (needs properties). " +
+        "'apply_template' and 'update_verification' are also supported.",
       arguments: {
         type: "object",
         properties: {
-          data: {
-            type: "object",
-            description: "Update data containing page_id and a command",
-            properties: {
-              page_id: {
-                type: "string",
-                description: "The ID of the page to update (with or without dashes)",
-              },
-              command: {
-                type: "string",
-                enum: [
-                  "update_properties",
-                  "replace_content",
-                  "replace_content_range",
-                  "insert_content_after",
-                ],
-                description: "The update command to execute",
-              },
+          page_id: {
+            type: "string",
+            description: "The ID of the page to update (with or without dashes)",
+          },
+          command: {
+            type: "string",
+            enum: [
+              "update_properties",
+              "update_content",
+              "replace_content",
+              "insert_content",
+              "apply_template",
+              "update_verification",
+            ],
+            description: "The update command to execute",
+          },
+          content: {
+            type: "string",
+            description: "For insert_content: the Notion-flavored Markdown to insert",
+          },
+          content_updates: {
+            type: "array",
+            description:
+              "For update_content: search-and-replace edits. Each old_str must match existing page text.",
+            items: {
+              type: "object",
               properties: {
-                type: "object",
-                description:
-                  "For update_properties: JSON map of property names to values. Use null to remove a value.",
+                old_str: { type: "string", description: "Existing text to replace" },
+                new_str: { type: "string", description: "Replacement text" },
               },
-              new_str: {
-                type: "string",
-                description:
-                  "For replace_content/replace_content_range/insert_content_after: the new content string",
-              },
-              selection_with_ellipsis: {
-                type: "string",
-                description:
-                  "For replace_content_range/insert_content_after: unique start and end snippet (~10 chars each with ellipsis)",
-              },
-              allow_deleting_content: {
-                type: "boolean",
-                description:
-                  "For replace_content/replace_content_range: allow deletion of child pages/databases",
-              },
+              required: ["old_str", "new_str"],
             },
-            required: ["page_id", "command"],
+          },
+          new_str: {
+            type: "string",
+            description: "For replace_content: the new page content in Notion-flavored Markdown",
+          },
+          properties: {
+            type: "object",
+            description:
+              "For update_properties: JSON map of property names to values. Use null to remove a value.",
+          },
+          allow_deleting_content: {
+            type: "boolean",
+            description:
+              "For replace_content/update_content: allow deletion of child pages/databases",
           },
         },
-        required: ["data"],
+        required: ["page_id", "command"],
       },
     },
   });
@@ -773,7 +782,7 @@ export function createNotionDuplicatePageTool(
 
 /**
  * MCP Tool: notion-create-database
- * Create a new Notion database with a properties schema
+ * Create a new Notion database from a SQL DDL schema
  */
 function notionCreateDatabaseTool(run: NotionToolRunner): ToolConfig {
   return withNotionExecutor(run, "Error creating Notion database", {
@@ -781,34 +790,29 @@ function notionCreateDatabaseTool(run: NotionToolRunner): ToolConfig {
     function: {
       name: "notion-create-database",
       description:
-        "Create a new Notion database with a properties schema. If no title property is provided, 'Name' is auto-added. " +
-        "Supports property types: title, rich_text, number, select, multi_select, date, people, checkbox, url, email, " +
-        "phone_number, formula, relation, rollup, status, unique_id, etc.",
+        "Create a new Notion database. Define the columns with a SQL DDL string in schema, for example " +
+        '\'CREATE TABLE ("Name" TITLE, "Notes" RICH_TEXT, "Done" CHECKBOX)\'.',
       arguments: {
         type: "object",
         properties: {
-          properties: {
-            type: "object",
+          schema: {
+            type: "string",
             description:
-              "Property schema for the database. Each key is a property name, value defines the type.",
+              "SQL DDL CREATE TABLE statement defining the columns, with quoted column names and types such as TITLE, RICH_TEXT, CHECKBOX",
+          },
+          title: {
+            type: "string",
+            description: "Title of the database",
           },
           parent: {
             type: "object",
-            description:
-              "Parent page: {type:'page_id', page_id:'...'}. Omit for private workspace-level database.",
-          },
-          title: {
-            type: "array",
-            description: "Title of the database as rich text array (max 100)",
-            items: { type: "object" },
-          },
-          description: {
-            type: "array",
-            description: "Description of the database as rich text array (max 100)",
-            items: { type: "object" },
+            description: "Parent page: {page_id:'...'}. Omit for private workspace-level database.",
+            properties: {
+              page_id: { type: "string", description: "The ID of the parent page" },
+            },
           },
         },
-        required: ["properties"],
+        required: ["schema"],
       },
     },
   });
@@ -827,7 +831,7 @@ export function createNotionCreateDatabaseTool(
 
 /**
  * MCP Tool: notion-update-data-source
- * Update a data source's properties, name, or other attributes
+ * Update a data source's columns (via SQL DDL), title, or other attributes
  */
 function notionUpdateDataSourceTool(run: NotionToolRunner): ToolConfig {
   return withNotionExecutor(run, "Error updating Notion data source", {
@@ -835,8 +839,8 @@ function notionUpdateDataSourceTool(run: NotionToolRunner): ToolConfig {
     function: {
       name: "notion-update-data-source",
       description:
-        "Update a Notion data source's title, description, property schema, or other attributes. " +
-        "Use null to remove a property. Provide only 'name' to rename a property.",
+        "Update a Notion data source's columns, title, or other attributes. Change columns with SQL DDL " +
+        "in statements, for example 'ADD COLUMN \"Owner\" RICH_TEXT' or 'ADD COLUMN \"Done\" CHECKBOX'.",
       arguments: {
         type: "object",
         properties: {
@@ -845,20 +849,13 @@ function notionUpdateDataSourceTool(run: NotionToolRunner): ToolConfig {
             description:
               "The ID of the data source to update (UUID). Can be a data source ID or database ID.",
           },
+          statements: {
+            type: "string",
+            description: "SQL DDL statements that change the columns, such as ADD COLUMN",
+          },
           title: {
-            type: "array",
-            description: "New title as rich text array (max 100)",
-            items: { type: "object" },
-          },
-          description: {
-            type: "array",
-            description: "New description as rich text array (max 100)",
-            items: { type: "object" },
-          },
-          properties: {
-            type: "object",
-            description:
-              "Property schema updates. Use null to remove, {name:'...'} to rename, or full definition to add/update.",
+            type: "string",
+            description: "New title of the data source",
           },
           is_inline: {
             type: "boolean",
