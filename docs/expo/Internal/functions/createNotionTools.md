@@ -2,7 +2,7 @@
 
 > **createNotionTools**(`getAccessToken`: () => `string` | `null`, `requestNotionAccess`: () => `Promise`<`string`>): `ToolConfig`\[]
 
-Defined in: [src/tools/notion.ts:1117](https://github.com/anuma-ai/sdk/blob/main/src/tools/notion.ts#1117)
+Defined in: [src/tools/notion.ts:1114](https://github.com/anuma-ai/sdk/blob/main/src/tools/notion.ts#1114)
 
 Create all Notion MCP tools
 

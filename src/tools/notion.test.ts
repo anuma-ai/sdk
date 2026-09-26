@@ -384,11 +384,9 @@ describe("Notion MCP Tools", () => {
         fn: createNotionUpdatePageTool,
         toolName: "notion-update-page",
         args: {
-          data: {
-            page_id: "page-123",
-            command: "replace_content",
-            new_str: "Updated",
-          },
+          page_id: "page-123",
+          command: "insert_content",
+          content: "Updated",
         },
         errorPrefix: "Error updating Notion page",
       },
@@ -413,14 +411,18 @@ describe("Notion MCP Tools", () => {
         name: "createNotionCreateDatabaseTool",
         fn: createNotionCreateDatabaseTool,
         toolName: "notion-create-database",
-        args: { properties: { Name: { title: {} } } },
+        args: {
+          parent: { page_id: "page-123" },
+          title: "Tasks",
+          schema: 'CREATE TABLE ("Name" TITLE, "Notes" RICH_TEXT)',
+        },
         errorPrefix: "Error creating Notion database",
       },
       {
         name: "createNotionUpdateDataSourceTool",
         fn: createNotionUpdateDataSourceTool,
         toolName: "notion-update-data-source",
-        args: { data_source_id: "ds-123" },
+        args: { data_source_id: "ds-123", statements: 'ADD COLUMN "Owner" RICH_TEXT' },
         errorPrefix: "Error updating Notion data source",
       },
       {
@@ -538,6 +540,68 @@ describe("Notion MCP Tools", () => {
         expect(tool.executor).toBeTypeOf("function");
         expect(tool.type).toBe("function");
       }
+    });
+  });
+
+  // ── Argument schemas match Notion's hosted MCP ──
+
+  describe("argument schemas", () => {
+    function schemaOf(toolName: string) {
+      const tool = createNotionTools(mockGetAccessToken, mockRequestNotionAccess).find(
+        (t) => (t.function as { name: string }).name === toolName
+      );
+      return (
+        tool!.function as {
+          arguments: {
+            properties: Record<string, { type: string; enum?: string[] }>;
+            required: string[];
+          };
+        }
+      ).arguments;
+    }
+
+    it("notion-update-page takes flat arguments with the live command set", () => {
+      const schema = schemaOf("notion-update-page");
+
+      expect(schema.properties).not.toHaveProperty("data");
+      expect(schema.required).toEqual(["page_id", "command"]);
+      expect(schema.properties.command.enum).toEqual([
+        "update_properties",
+        "update_content",
+        "replace_content",
+        "insert_content",
+        "apply_template",
+        "update_verification",
+      ]);
+      expect(Object.keys(schema.properties)).toEqual([
+        "page_id",
+        "command",
+        "content",
+        "content_updates",
+        "new_str",
+        "properties",
+        "allow_deleting_content",
+      ]);
+    });
+
+    it("notion-create-database takes a DDL schema string, not a properties object", () => {
+      const schema = schemaOf("notion-create-database");
+
+      expect(schema.properties).not.toHaveProperty("properties");
+      expect(schema.properties).not.toHaveProperty("description");
+      expect(schema.required).toEqual(["schema"]);
+      expect(schema.properties.schema.type).toBe("string");
+      expect(schema.properties.title.type).toBe("string");
+    });
+
+    it("notion-update-data-source takes DDL statements, not a properties object", () => {
+      const schema = schemaOf("notion-update-data-source");
+
+      expect(schema.properties).not.toHaveProperty("properties");
+      expect(schema.properties).not.toHaveProperty("description");
+      expect(schema.required).toEqual(["data_source_id"]);
+      expect(schema.properties.statements.type).toBe("string");
+      expect(schema.properties.title.type).toBe("string");
     });
   });
 
@@ -818,7 +882,14 @@ describe("Notion MCP Tools", () => {
     ])("returns the tool's error string on %i", async (status, json, detail) => {
       const callMcp = vi.fn<NotionMcpCaller>().mockResolvedValue({ status, json });
 
-      const result = await proxyTool(callMcp, "notion-update-page")({ data: {} });
+      const result = await proxyTool(
+        callMcp,
+        "notion-update-page"
+      )({
+        page_id: "p",
+        command: "insert_content",
+        content: "x",
+      });
 
       expect(result).toBe(`Error updating Notion page: ${detail}`);
     });
