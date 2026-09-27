@@ -16,7 +16,11 @@ import {
   createNotionProxyTools,
   getMCPEndpoints,
   callNotionMCPTool,
+  type NotionCreatePagesArgs,
+  type NotionFetchArgs,
   type NotionMcpCaller,
+  type NotionMovePagesArgs,
+  type NotionUpdatePageArgs,
 } from "./notion";
 
 // ── Fetch mock ──
@@ -384,11 +388,9 @@ describe("Notion MCP Tools", () => {
         fn: createNotionUpdatePageTool,
         toolName: "notion-update-page",
         args: {
-          data: {
-            page_id: "page-123",
-            command: "replace_content",
-            new_str: "Updated",
-          },
+          page_id: "page-123",
+          command: "insert_content",
+          content: "Updated",
         },
         errorPrefix: "Error updating Notion page",
       },
@@ -413,14 +415,18 @@ describe("Notion MCP Tools", () => {
         name: "createNotionCreateDatabaseTool",
         fn: createNotionCreateDatabaseTool,
         toolName: "notion-create-database",
-        args: { properties: { Name: { title: {} } } },
+        args: {
+          parent: { page_id: "page-123" },
+          title: "Tasks",
+          schema: 'CREATE TABLE ("Name" TITLE, "Notes" RICH_TEXT)',
+        },
         errorPrefix: "Error creating Notion database",
       },
       {
         name: "createNotionUpdateDataSourceTool",
         fn: createNotionUpdateDataSourceTool,
         toolName: "notion-update-data-source",
-        args: { data_source_id: "ds-123" },
+        args: { data_source_id: "ds-123", statements: 'ADD COLUMN "Owner" RICH_TEXT' },
         errorPrefix: "Error updating Notion data source",
       },
       {
@@ -538,6 +544,148 @@ describe("Notion MCP Tools", () => {
         expect(tool.executor).toBeTypeOf("function");
         expect(tool.type).toBe("function");
       }
+    });
+  });
+
+  // ── Argument schemas match Notion's hosted MCP ──
+
+  function schemaOf(toolName: string) {
+    const tool = createNotionTools(mockGetAccessToken, mockRequestNotionAccess).find(
+      (t) => (t.function as { name: string }).name === toolName
+    );
+    return (
+      tool!.function as {
+        arguments: {
+          properties: Record<string, { type: string; enum?: string[] }>;
+          required: string[];
+        };
+      }
+    ).arguments;
+  }
+
+  describe("argument schemas", () => {
+    it("notion-update-page takes flat arguments with the live command set", () => {
+      const schema = schemaOf("notion-update-page");
+
+      expect(schema.properties).not.toHaveProperty("data");
+      expect(schema.required).toEqual(["page_id", "command"]);
+      expect(schema.properties.command.enum).toEqual([
+        "update_properties",
+        "update_content",
+        "replace_content",
+        "insert_content",
+        "apply_template",
+        "update_verification",
+      ]);
+      expect(Object.keys(schema.properties)).toEqual([
+        "page_id",
+        "command",
+        "content",
+        "content_updates",
+        "new_str",
+        "properties",
+        "allow_deleting_content",
+        "template_id",
+        "verification_status",
+        "verification_expiry_days",
+      ]);
+      expect(schema.properties.template_id.type).toBe("string");
+      expect(schema.properties.verification_status.enum).toEqual(["verified", "unverified"]);
+      expect(schema.properties.verification_expiry_days.type).toBe("number");
+    });
+
+    // Each exported arg type is a hand-written copy of its tool's schema. The
+    // compiler checks every shape below against its type, and the test checks
+    // the same shape against the schema, so neither side can drift on its own.
+    // NotionSearchArgs is left out: it types only some of notion-search's
+    // optional filters.
+    type ArgShape<T> = { [K in keyof T]-?: undefined extends T[K] ? "optional" : "required" };
+
+    it.each([
+      [
+        "notion-fetch",
+        {
+          id: "required",
+          include_transcript: "optional",
+          include_discussions: "optional",
+        } satisfies ArgShape<NotionFetchArgs>,
+      ],
+      [
+        "notion-create-pages",
+        { pages: "required", parent: "optional" } satisfies ArgShape<NotionCreatePagesArgs>,
+      ],
+      [
+        "notion-update-page",
+        {
+          page_id: "required",
+          command: "required",
+          content: "optional",
+          content_updates: "optional",
+          new_str: "optional",
+          properties: "optional",
+          allow_deleting_content: "optional",
+          template_id: "optional",
+          verification_status: "optional",
+          verification_expiry_days: "optional",
+        } satisfies ArgShape<NotionUpdatePageArgs>,
+      ],
+      [
+        "notion-move-pages",
+        {
+          page_or_database_ids: "required",
+          new_parent: "required",
+        } satisfies ArgShape<NotionMovePagesArgs>,
+      ],
+    ])("%s matches its exported argument type", (toolName, shape) => {
+      const schema = schemaOf(toolName);
+      const entries = Object.entries(shape);
+
+      expect(Object.keys(schema.properties).sort()).toEqual(entries.map(([key]) => key).sort());
+      expect([...schema.required].sort()).toEqual(
+        entries
+          .filter(([, presence]) => presence === "required")
+          .map(([key]) => key)
+          .sort()
+      );
+    });
+
+    it("notion-update-page enums match NotionUpdatePageArgs", () => {
+      const commands = {
+        update_properties: true,
+        update_content: true,
+        replace_content: true,
+        insert_content: true,
+        apply_template: true,
+        update_verification: true,
+      } satisfies Record<NotionUpdatePageArgs["command"], true>;
+      const statuses = {
+        verified: true,
+        unverified: true,
+      } satisfies Record<NonNullable<NotionUpdatePageArgs["verification_status"]>, true>;
+      const schema = schemaOf("notion-update-page");
+
+      expect(schema.properties.command.enum).toEqual(Object.keys(commands));
+      expect(schema.properties.verification_status.enum).toEqual(Object.keys(statuses));
+    });
+
+    it("notion-create-database takes a DDL schema string, not a properties object", () => {
+      const schema = schemaOf("notion-create-database");
+
+      expect(schema.properties).not.toHaveProperty("properties");
+      expect(schema.properties).not.toHaveProperty("description");
+      expect(schema.required).toEqual(["schema"]);
+      expect(schema.properties.schema.type).toBe("string");
+      expect(schema.properties.title.type).toBe("string");
+    });
+
+    it("notion-update-data-source takes DDL statements, not a properties object", () => {
+      const schema = schemaOf("notion-update-data-source");
+
+      expect(schema.properties).not.toHaveProperty("properties");
+      expect(schema.properties).not.toHaveProperty("description");
+      expect(schema.required).toEqual(["data_source_id"]);
+      expect(schema.properties.statements.type).toBe("string");
+      expect(schema.properties.title.type).toBe("string");
     });
   });
 
@@ -801,6 +949,33 @@ describe("Notion MCP Tools", () => {
       });
     });
 
+    it.each<NotionUpdatePageArgs>([
+      { page_id: "p", command: "insert_content", content: "## Notes" },
+      {
+        page_id: "p",
+        command: "update_content",
+        content_updates: [{ old_str: "draft", new_str: "final" }],
+      },
+      { page_id: "p", command: "replace_content", new_str: "# Fresh start" },
+      { page_id: "p", command: "update_properties", properties: { Status: "Done" } },
+      { page_id: "p", command: "apply_template", template_id: "template-page-1" },
+      {
+        page_id: "p",
+        command: "update_verification",
+        verification_status: "verified",
+        verification_expiry_days: 30,
+      },
+      { page_id: "p", command: "update_verification", verification_status: "unverified" },
+    ])("sends update-page $command with declared arguments only", async (args) => {
+      const result = { content: [{ type: "text", text: "updated" }] };
+      const callMcp = vi.fn<NotionMcpCaller>().mockResolvedValue({ status: 200, json: { result } });
+      const declared = Object.keys(schemaOf("notion-update-page").properties);
+
+      expect(Object.keys(args).filter((key) => !declared.includes(key))).toEqual([]);
+      expect(await proxyTool(callMcp, "notion-update-page")({ ...args })).toEqual(result);
+      expect(callMcp).toHaveBeenCalledWith("notion-update-page", args);
+    });
+
     it("returns an error string when a 200 carries no result", async () => {
       const callMcp = vi.fn<NotionMcpCaller>().mockResolvedValue({ status: 200, json: {} });
 
@@ -818,7 +993,14 @@ describe("Notion MCP Tools", () => {
     ])("returns the tool's error string on %i", async (status, json, detail) => {
       const callMcp = vi.fn<NotionMcpCaller>().mockResolvedValue({ status, json });
 
-      const result = await proxyTool(callMcp, "notion-update-page")({ data: {} });
+      const result = await proxyTool(
+        callMcp,
+        "notion-update-page"
+      )({
+        page_id: "p",
+        command: "insert_content",
+        content: "x",
+      });
 
       expect(result).toBe(`Error updating Notion page: ${detail}`);
     });
