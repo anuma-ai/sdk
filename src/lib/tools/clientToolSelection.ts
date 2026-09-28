@@ -10,13 +10,13 @@
  *
  * Dependency-safe by construction: `generateEmbeddings` comes from the db-free
  * `../memoryEngine/generate` core, `RECALL_TOOL_NAME` from the
- * dependency-free `../memory/recallConstants`, and `CONFIRM_TOOL_NAME` from
- * `../../tools/confirm`, whose only runtime import is `uiInteraction`, so
- * nothing here drags in the WatermelonDB data layer.
+ * dependency-free `../memory/recallConstants`, and `CONFIRM_TOOL_NAME` from the
+ * dependency-free `../../tools/confirmConstants`, so nothing here drags in the
+ * WatermelonDB data layer.
  */
 
 import type { LlmapiChatCompletionTool } from "../../client";
-import { CONFIRM_TOOL_NAME } from "../../tools/confirm";
+import { CONFIRM_TOOL_NAME } from "../../tools/confirmConstants";
 import { RECALL_TOOL_NAME } from "../memory/recallConstants";
 import { generateEmbeddings } from "../memoryEngine/generate";
 import {

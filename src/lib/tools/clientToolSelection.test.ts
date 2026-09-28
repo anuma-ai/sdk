@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { LlmapiChatCompletionTool } from "../../client";
-import { CONFIRM_TOOL_NAME } from "../../tools/confirm";
+import { CONFIRM_TOOL_NAME } from "../../tools/confirmConstants";
 import { autoFilterClientTools, getToolDescription, getToolName } from "./clientToolSelection";
 
 /** Build a flat-shape client tool. */

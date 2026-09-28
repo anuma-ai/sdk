@@ -48,6 +48,7 @@
  */
 
 import type { ToolConfig } from "../lib/chat/useChat/types.js";
+import { CONFIRM_TOOL_NAME } from "./confirmConstants";
 import type { CreateUIToolsOptions } from "./uiInteraction";
 import { createInteractiveTool } from "./uiInteraction";
 
@@ -88,9 +89,6 @@ export type ConfirmToolResult =
 // ---------------------------------------------------------------------------
 // Tool factory
 // ---------------------------------------------------------------------------
-
-/** Tool name surfaced to the LLM. */
-export const CONFIRM_TOOL_NAME = "prompt_user_confirm";
 
 /**
  * Create a prompt_user_confirm tool that asks the user to approve an action.
