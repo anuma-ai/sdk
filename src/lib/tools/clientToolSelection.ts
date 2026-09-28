@@ -9,12 +9,14 @@
  * these — behavior is unchanged from when they lived inline.
  *
  * Dependency-safe by construction: `generateEmbeddings` comes from the db-free
- * `../memoryEngine/generate` core and `RECALL_TOOL_NAME` from the
- * dependency-free `../memory/recallConstants`, so nothing here drags in the
- * WatermelonDB data layer.
+ * `../memoryEngine/generate` core, `RECALL_TOOL_NAME` from the
+ * dependency-free `../memory/recallConstants`, and `CONFIRM_TOOL_NAME` from
+ * `../../tools/confirm`, whose only runtime import is `uiInteraction`, so
+ * nothing here drags in the WatermelonDB data layer.
  */
 
 import type { LlmapiChatCompletionTool } from "../../client";
+import { CONFIRM_TOOL_NAME } from "../../tools/confirm";
 import { RECALL_TOOL_NAME } from "../memory/recallConstants";
 import { generateEmbeddings } from "../memoryEngine/generate";
 import {
@@ -100,18 +102,23 @@ export async function autoFilterClientTools(
    */
   noEmbeddingsReason: "short-prompt" | "error" = "short-prompt"
 ): Promise<{ tools: LlmapiChatCompletionTool[]; activatedSetNames?: ReadonlySet<string> }> {
-  // Memory tools are always included — only filter connector tools
-  // (Notion, Google). Matches both the legacy memory_vault_* surface and
-  // the unified recall_memory tool from createRecallTool. The
-  // memory_engine_* prefix is intentionally NOT matched — it is not an
-  // owned SDK namespace and would let any third-party tool bypass the
-  // similarity filter by name alone.
-  const isMemoryTool = (t: LlmapiChatCompletionTool) => {
+  // Memory tools and the confirm tool are always included — only filter
+  // connector tools (Notion, Google). Memory matches both the legacy
+  // memory_vault_* surface and the unified recall_memory tool from
+  // createRecallTool. The memory_engine_* prefix is intentionally NOT matched
+  // — it is not an owned SDK namespace and would let any third-party tool
+  // bypass the similarity filter by name alone. The confirm tool rides along
+  // because server tools that spend money refuse to act without a completed
+  // confirmation, and its description can score under the similarity floor
+  // for the very prompt that needs it.
+  const isAlwaysIncluded = (t: LlmapiChatCompletionTool) => {
     const name = getToolName(t);
-    return name.startsWith("memory_vault_") || name === RECALL_TOOL_NAME;
+    return (
+      name.startsWith("memory_vault_") || name === RECALL_TOOL_NAME || name === CONFIRM_TOOL_NAME
+    );
   };
-  const alwaysInclude = clientTools.filter(isMemoryTool);
-  const filterCandidates = clientTools.filter((t) => !isMemoryTool(t));
+  const alwaysInclude = clientTools.filter(isAlwaysIncluded);
+  const filterCandidates = clientTools.filter((t) => !isAlwaysIncluded(t));
 
   // Nothing to filter (e.g. a memory-tools-only catalog): pass everything
   // through. Distinct from the no-embeddings case below.
@@ -133,7 +140,7 @@ export async function autoFilterClientTools(
   // tool-definition tokens on every "ok"/"thx". The one exception is sticky
   // tool sets from conversation state: a terse confirmation ("yes", "fix")
   // inside an app/slide conversation must keep that toolkit (plus the memory
-  // tools that accompany every tool-carrying request), or the model cannot
+  // and confirm tools that accompany every tool-carrying request), or the model cannot
   // act on what was just discussed. Those sets count as genuinely activated
   // (forced), so their persona rides in — same as the semantic path treats
   // `activeToolSets`.
