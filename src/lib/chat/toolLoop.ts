@@ -1735,7 +1735,8 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
             const { result, error, errorType } = await executeToolCall(
               toolCallForExec,
               executorConfig.executor,
-              executorConfig.executorTimeout
+              executorConfig.executorTimeout,
+              combinedSignal
             );
             await safeAwait(() =>
               hooks?.afterToolUse?.({
