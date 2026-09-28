@@ -640,7 +640,8 @@ export type ToolExecutionResult = {
  * Applies a timeout (default 30s) to prevent hanging executors from blocking the loop.
  * Pass `Infinity` as timeoutMs to disable the timeout (e.g. for interactive tools).
  * When `signal` aborts, the call stops waiting and returns a "cancelled" error
- * result. The executor itself is not interrupted, so a tool that never settles
+ * result. The executor receives the signal so it can release its own resources;
+ * it is not interrupted otherwise, so a tool that never settles
  * (an interactive prompt) cannot keep the caller parked after the user cancels.
  */
 export async function executeToolCall(
@@ -666,19 +667,23 @@ export async function executeToolCall(
   let timer: ReturnType<typeof setTimeout> | undefined;
   let onAbort: (() => void) | undefined;
   try {
-    const racers: Promise<unknown>[] = [Promise.resolve(executor(args))];
-    if (isFinite(timeoutMs)) {
-      racers.push(
-        new Promise<never>((_, reject) => {
-          timer = setTimeout(() => reject(new ToolTimeoutError()), timeoutMs);
-        })
-      );
-    }
+    const racers: Promise<unknown>[] = [];
+    // Register the abort listener before calling the executor. An executor that
+    // aborts the signal synchronously would otherwise fire the event before
+    // anything listens, and a never-settling promise would park the caller.
     if (signal) {
       racers.push(
         new Promise<never>((_, reject) => {
           onAbort = () => reject(new ToolCancelledError());
           signal.addEventListener("abort", onAbort, { once: true });
+        })
+      );
+    }
+    racers.push(Promise.resolve(signal ? executor(args, signal) : executor(args)));
+    if (isFinite(timeoutMs)) {
+      racers.push(
+        new Promise<never>((_, reject) => {
+          timer = setTimeout(() => reject(new ToolTimeoutError()), timeoutMs);
         })
       );
     }

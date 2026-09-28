@@ -160,4 +160,21 @@ describe("executeToolCall abort handling", () => {
     expect(result).toEqual({ result: "ok" });
     expect(remove).toHaveBeenCalledWith("abort", expect.any(Function));
   });
+
+  it("stops waiting when the executor aborts the signal synchronously and never settles", async () => {
+    const controller = new AbortController();
+    const executor = vi.fn(() => {
+      controller.abort();
+      return new Promise<never>(() => {});
+    });
+    const result = await executeToolCall(makeToolCall("{}"), executor, Infinity, controller.signal);
+    expect(result.errorType).toBe("cancelled");
+  });
+
+  it("passes the signal to the executor", async () => {
+    const controller = new AbortController();
+    const executor = vi.fn().mockResolvedValue("ok");
+    await executeToolCall(makeToolCall("{}"), executor, Infinity, controller.signal);
+    expect(executor).toHaveBeenCalledWith({}, controller.signal);
+  });
 });
