@@ -89,6 +89,9 @@ export type ConfirmToolResult =
 // Tool factory
 // ---------------------------------------------------------------------------
 
+/** Tool name surfaced to the LLM. */
+export const CONFIRM_TOOL_NAME = "prompt_user_confirm";
+
 /**
  * Create a prompt_user_confirm tool that asks the user to approve an action.
  *
@@ -107,7 +110,7 @@ export type ConfirmToolResult =
  */
 export function createConfirmTool(options: CreateUIToolsOptions): ToolConfig {
   return createInteractiveTool(options, {
-    name: "prompt_user_confirm",
+    name: CONFIRM_TOOL_NAME,
     description:
       "Ask the user to approve a specific action before it happens. Use before anything that spends money or is hard to undo, such as booking a restaurant table or placing an order. List every parameter of the action, with the exact values you are about to use — the user approves what this card shows, and nothing else. Returns whether they confirmed. Do not use for ordinary yes/no questions; use prompt_user_choice for those.",
     parameters: {

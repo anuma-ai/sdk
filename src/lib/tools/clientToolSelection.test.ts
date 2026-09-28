@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { LlmapiChatCompletionTool } from "../../client";
+import { CONFIRM_TOOL_NAME } from "../../tools/confirm";
 import { autoFilterClientTools, getToolDescription, getToolName } from "./clientToolSelection";
 
 /** Build a flat-shape client tool. */
@@ -97,5 +98,61 @@ describe("autoFilterClientTools — gate outcomes (parity)", () => {
     expect(got).toContain("recall_memory"); // memory always kept
     expect(got).toContain("display_weather"); // aligned → selected
     expect(got).not.toContain("display_chart"); // orthogonal → dropped
+  });
+});
+
+describe("autoFilterClientTools — the confirm tool is always included", () => {
+  // Unit vector whose cosine against the [1, 0] prompt is `score`.
+  const scoring = (score: number) => [score, Math.sqrt(1 - score * score)];
+
+  it("keeps prompt_user_confirm when nothing clears the similarity floor", async () => {
+    // 0.498 is what the confirm tool scored for a real booking prompt on dev.
+    const c = new Map<string, number[]>([
+      [CONFIRM_TOOL_NAME, scoring(0.498)],
+      ["notion_search", scoring(0.3)],
+    ]);
+    const clientTools = [
+      tool("recall_memory"),
+      tool("memory_vault_save"),
+      tool(CONFIRM_TOOL_NAME),
+      tool("notion_search"),
+    ];
+    const { tools } = await autoFilterClientTools(clientTools, [1, 0], c, {});
+    expect(names(tools).sort()).toEqual(["memory_vault_save", CONFIRM_TOOL_NAME, "recall_memory"]);
+  });
+
+  it("keeps prompt_user_confirm alongside a strong match that would cut it", async () => {
+    const c = new Map<string, number[]>([
+      [CONFIRM_TOOL_NAME, scoring(0.498)],
+      ["display_weather", scoring(1)],
+    ]);
+    const clientTools = [tool("recall_memory"), tool(CONFIRM_TOOL_NAME), tool("display_weather")];
+    const { tools } = await autoFilterClientTools(clientTools, [1, 0], c, {});
+    expect(names(tools).sort()).toEqual(["display_weather", CONFIRM_TOOL_NAME, "recall_memory"]);
+  });
+
+  it("short-prompt + sticky ['slides'] → confirm rides along with memory and the set", async () => {
+    const clientTools = [
+      tool("recall_memory"),
+      tool(CONFIRM_TOOL_NAME),
+      tool("plan_deck"), // a 'slides' set member
+      tool("notion_search"), // unrelated connector — should be dropped
+    ];
+    const { tools } = await autoFilterClientTools(
+      clientTools,
+      null,
+      new Map(),
+      {},
+      [],
+      ["slides"],
+      "short-prompt"
+    );
+    expect(names(tools).sort()).toEqual(["plan_deck", CONFIRM_TOOL_NAME, "recall_memory"]);
+  });
+
+  it("short-prompt + no active sets → still zero tools", async () => {
+    const clientTools = [tool("recall_memory"), tool(CONFIRM_TOOL_NAME), tool("notion_search")];
+    const { tools } = await autoFilterClientTools(clientTools, null, new Map(), {});
+    expect(tools).toEqual([]);
   });
 });
