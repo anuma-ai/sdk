@@ -2,7 +2,7 @@
 
 > **migrateDisplayResult**(`result`: `unknown`, `fromVersion`: `number`, `toVersion`: `number`, `migrations`: [`DisplayToolMigrations`](../type-aliases/DisplayToolMigrations.md)): `unknown`
 
-Defined in: [src/tools/uiInteraction.ts:122](https://github.com/anuma-ai/sdk/blob/main/src/tools/uiInteraction.ts#122)
+Defined in: [src/tools/uiInteraction.ts:124](https://github.com/anuma-ai/sdk/blob/main/src/tools/uiInteraction.ts#124)
 
 Migrate a stored display result from an older version to the current version.
 
