@@ -250,6 +250,10 @@ export function useChat(options?: UseChatOptions): UseChatResult {
   // from onStreamMeta as soon as the portal issues an X-Inference-ID. Read by
   // stop() (to POST cancel) and detach() (to return the handle synchronously).
   const pendingResumeRef = useRef<StreamResumeHandle | null>(null);
+  // Monotonic id of the latest send. Unlike abortControllerRef it is never
+  // reset by stop() or a settling request, so "a newer send exists" cannot be
+  // confused with "the ref is null".
+  const requestIdRef = useRef(0);
 
   // Fire-and-forget cancel POST: tells the portal to stop generating into the
   // buffer and release it. Errors are swallowed — a failed cancel must never
@@ -444,8 +448,8 @@ export function useChat(options?: UseChatOptions): UseChatResult {
       // Fresh detach controller + resume state for this request.
       const detachController = new AbortController();
       detachControllerRef.current = detachController;
-      const superseded = () =>
-        abortControllerRef.current !== null && abortControllerRef.current !== abortController;
+      const requestId = ++requestIdRef.current;
+      const superseded = () => requestIdRef.current !== requestId;
       pendingResumeRef.current = null;
 
       setIsLoading(true);

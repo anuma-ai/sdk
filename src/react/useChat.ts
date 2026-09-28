@@ -167,6 +167,10 @@ export function useChat(options?: UseChatOptions): UseChatResult {
   } = options || {};
   const [isLoading, setIsLoading] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
+  // Monotonic id of the latest send. Unlike abortControllerRef it is never
+  // reset by stop() or a settling request, so "a newer send exists" cannot be
+  // confused with "the ref is null".
+  const requestIdRef = useRef(0);
 
   // When piiRedaction is `true`, upgrade it to a single redactor instance kept
   // for the lifetime of this hook so placeholder state is shared across turns
@@ -227,6 +231,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
 
       const abortController = new AbortController();
       abortControllerRef.current = abortController;
+      const requestId = ++requestIdRef.current;
 
       setIsLoading(true);
 
@@ -341,9 +346,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
       } finally {
         // A newer request owns the ref and the loading flag once it replaces
         // this one; the aborted call settles later and must not clear them.
-        const superseded =
-          abortControllerRef.current !== null && abortControllerRef.current !== abortController;
-        if (!superseded) {
+        if (requestIdRef.current === requestId) {
           setIsLoading(false);
           abortControllerRef.current = null;
         }

@@ -184,6 +184,60 @@ describe("useChat resumable surface", () => {
     await waitFor(() => expect(result.current.isLoading).toBe(false));
   });
 
+  it("an older send settling after a newer send detached does not drop the newer resume handle", async () => {
+    const fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(new Response(null, { status: 200 }));
+
+    transportImpl = (options) => {
+      options.onStreamMeta?.({ inferenceId: "inf-B" });
+      return { stream: makeBlockingStream(options.signal, "b") };
+    };
+
+    // The first (older) send stalls in getToken until released.
+    let releaseA!: () => void;
+    const gateA = new Promise<void>((resolve) => {
+      releaseA = resolve;
+    });
+    let tokenCalls = 0;
+    const getToken = async () => {
+      if (tokenCalls++ === 0) await gateA;
+      return "tok";
+    };
+
+    const { result } = renderHook(() => useChat({ getToken, resumable: true }));
+
+    let sendA: Promise<unknown>;
+    let sendB: Promise<unknown>;
+    await act(async () => {
+      sendA = result.current.sendMessage({ messages: userMessages, model: "test-model" });
+      await new Promise((r) => setTimeout(r, 10));
+      sendB = result.current.sendMessage({ messages: userMessages, model: "test-model" });
+      await new Promise((r) => setTimeout(r, 10));
+    });
+    await act(async () => {
+      result.current.detach();
+      await sendB;
+    });
+
+    // A settles only now, after B detached and the abort ref is back to null.
+    await act(async () => {
+      releaseA();
+      await sendA;
+    });
+
+    await act(async () => {
+      result.current.stop();
+    });
+
+    await waitFor(() => {
+      const cancelCall = fetchSpy.mock.calls.find(
+        ([url]) => typeof url === "string" && url.includes("/cancel")
+      );
+      expect(String(cancelCall?.[0])).toContain("/inf-B/cancel");
+    });
+  });
+
   it("stop() fires a cancel POST for a resumable stream with a captured id", async () => {
     const fetchSpy = vi
       .spyOn(globalThis, "fetch")
