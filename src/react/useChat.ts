@@ -339,8 +339,12 @@ export function useChat(options?: UseChatOptions): UseChatResult {
           onError
         );
       } finally {
-        setIsLoading(false);
-        if (abortControllerRef.current === abortController) {
+        // A newer request owns the ref and the loading flag once it replaces
+        // this one; the aborted call settles later and must not clear them.
+        const superseded =
+          abortControllerRef.current !== null && abortControllerRef.current !== abortController;
+        if (!superseded) {
+          setIsLoading(false);
           abortControllerRef.current = null;
         }
       }
