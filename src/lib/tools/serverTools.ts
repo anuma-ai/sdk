@@ -706,7 +706,7 @@ const TOOL_SEARCH_TOOL_TYPE = "tool_search_tool_regex_20251119";
  * ("Input should be 'tool_search_tool_regex'", confirmed via docs + a direct Messages API test).
  * Bound to the regex variant alongside the type above; a future bm25 variant pairs
  * `tool_search_tool_bm25_*` with name `tool_search_tool_bm25`. (Was "tool_search", which Anthropic 400s.) */
-const TOOL_SEARCH_TOOL_NAME = "tool_search_tool_regex";
+export const TOOL_SEARCH_TOOL_NAME = "tool_search_tool_regex";
 
 /**
  * Opt-in defer-loading config for {@link mergeTools}. OFF by default — when absent or `enabled:false`,
@@ -1313,6 +1313,17 @@ export const BUILT_IN_TOOL_SETS: ToolSet[] = [
     anchors: [],
   },
 ];
+
+/**
+ * Confirm-card actions (lowercase) whose approval narrows the rest of the turn
+ * to one of {@link BUILT_IN_TOOL_SETS}. The keys are every spelling the portal
+ * accepts for the booking action.
+ */
+export const CONFIRMED_ACTION_TOOL_SETS: ReadonlyMap<string, string> = new Map([
+  ["book_restaurant", "restaurant-booking"],
+  ["anuma_book_restaurant", "restaurant-booking"],
+  ["anumapaymentsmcp-anuma_book_restaurant", "restaurant-booking"],
+]);
 
 /**
  * Apply tool set logic to a set of semantic match results.

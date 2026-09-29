@@ -7,6 +7,7 @@ import type {
 } from "../../client";
 import { createSseClient } from "../../client/core/serverSentEvents.gen";
 import { BASE_URL } from "../../clientConfig";
+import { CONFIRM_TOOL_NAME } from "../../tools/confirmConstants";
 import { generateEmbedding } from "../memoryEngine/embeddings";
 import {
   createStreamingDeAnonymizer,
@@ -15,6 +16,11 @@ import {
   resolvePiiRedactor,
 } from "../pii/redactor";
 import { toolOutputForModel } from "../storage/mcpImages";
+import {
+  BUILT_IN_TOOL_SETS,
+  CONFIRMED_ACTION_TOOL_SETS,
+  TOOL_SEARCH_TOOL_NAME,
+} from "../tools/serverTools";
 import { validateEndpointOverride } from "./endpointOverride";
 import { isAttachedFilesText } from "./fileContext";
 import type { PromptPreProcessor } from "./preProcessor";
@@ -390,6 +396,34 @@ function getToolName(tool: Record<string, unknown>): string | undefined {
   const flatName = tool.name;
   if (typeof flatName === "string") return flatName;
   return undefined;
+}
+
+/**
+ * The tools to keep once the user approves a confirm card whose action maps to
+ * a tool set: the set's members, the confirm tool (an early card can lack ids
+ * the action needs, so the model may have to show a complete one), and the
+ * tool-search tool that loads deferred members. Returns undefined to leave the
+ * tools alone: nothing was confirmed, the action maps to no set, or none of the
+ * set's members is on offer.
+ */
+export function toolsAfterConfirmation(
+  apiTools: Array<Record<string, unknown>>,
+  executionResults: ReadonlyArray<{ name?: string; result?: unknown }>
+): Array<Record<string, unknown>> | undefined {
+  const members = new Set<string>();
+  for (const r of executionResults) {
+    if (r.name !== CONFIRM_TOOL_NAME) continue;
+    const answer = r.result as { confirmed?: unknown; action?: unknown } | null | undefined;
+    if (answer?.confirmed !== true || typeof answer.action !== "string") continue;
+    const setName = CONFIRMED_ACTION_TOOL_SETS.get(answer.action.trim().toLowerCase());
+    const set = BUILT_IN_TOOL_SETS.find((s) => s.name === setName);
+    for (const member of set?.members ?? []) members.add(member);
+  }
+  if (!apiTools.some((t) => members.has(getToolName(t) ?? ""))) return undefined;
+  return apiTools.filter((t) => {
+    const name = getToolName(t) ?? "";
+    return members.has(name) || name === CONFIRM_TOOL_NAME || name === TOOL_SEARCH_TOOL_NAME;
+  });
 }
 
 /** A tool result from an auto-executed tool. */
@@ -1833,6 +1867,28 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
             for (const name of toolsToRemove) {
               executorMap.delete(name);
             }
+          }
+        }
+      }
+
+      // After the user confirmed a booking, a model has wandered to unrelated
+      // tools (a local search, the weather) instead of booking, and a prompt
+      // line did not stop it. So a confirmed action narrows the rest of the
+      // turn to its tool set; apiTools carries the narrowing into later rounds.
+      if (apiTools) {
+        const confirmedTools = toolsAfterConfirmation(apiTools, executionResults);
+        if (confirmedTools) {
+          const kept = new Set(confirmedTools.map(getToolName));
+          if (
+            typeof toolChoice === "string" &&
+            !kept.has(toolChoice) &&
+            apiTools.some((t) => getToolName(t) === toolChoice)
+          ) {
+            toolChoice = "auto";
+          }
+          apiTools = confirmedTools;
+          for (const [name] of executorMap) {
+            if (!kept.has(name)) executorMap.delete(name);
           }
         }
       }
