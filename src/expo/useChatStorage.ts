@@ -141,6 +141,7 @@ import {
   type ServerTool,
   shouldRefreshTools,
   type ToolSet,
+  withActiveToolSetServerTools,
 } from "../lib/tools";
 import type { EmbeddedWalletSignerFn, SignMessageFn } from "../react/useEncryption";
 import {
@@ -1865,7 +1866,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
               // Function-based filtering: embed with the CURRENT token getter (the
               // embedding is reused by the client filter below) and call the filter.
               // Tool-selection floor MIN_CONTENT_LENGTH_FOR_TOOLS (5), NOT the storage
-              // floor. Too short to embed → send NO server tools (leave []); an
+              // floor. Too short to embed → send only the sticky sets' server tools; an
               // explicit filter must never degrade to the full catalog. Parity with react.
               if (messageContent.length >= MIN_CONTENT_LENGTH_FOR_TOOLS) {
                 skipUserEmbedding = await embedToolText(
@@ -1877,6 +1878,13 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
                 const toolNames = serverToolsFilter(skipUserEmbedding, allServerTools);
                 filteredServerTools = filterServerTools(allServerTools, toolNames);
               }
+              filteredServerTools = withActiveToolSetServerTools(
+                filteredServerTools,
+                allServerTools,
+                serverToolsFilter,
+                activeToolSetsRef.current,
+                extraToolSets
+              );
             } else {
               // Static filtering
               filteredServerTools = filterServerTools(allServerTools, serverToolsFilter);
@@ -2357,9 +2365,9 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
             // of the send (the embedding is reused by the client filter + message
             // storage below) and call the filter. Tool-selection floor
             // MIN_CONTENT_LENGTH_FOR_TOOLS (5), NOT the storage floor
-            // `minContentLength` (10). Too short to embed → send NO server tools
-            // (leave []); an explicit semantic filter must never degrade to the
-            // full catalog. Parity with react.
+            // `minContentLength` (10). Too short to embed → send only the sticky
+            // sets' server tools; an explicit semantic filter must never degrade
+            // to the full catalog. Parity with react.
             if (contentForStorage.length >= MIN_CONTENT_LENGTH_FOR_TOOLS) {
               // Same late-token fallback as the catalog fetch above.
               const settledEmbedding = await (userMessageEmbeddingPromise ??
@@ -2376,6 +2384,13 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
               const toolNames = serverToolsFilter(userMessageEmbedding, allServerTools);
               filteredServerTools = filterServerTools(allServerTools, toolNames);
             }
+            filteredServerTools = withActiveToolSetServerTools(
+              filteredServerTools,
+              allServerTools,
+              serverToolsFilter,
+              activeToolSetsRef.current,
+              extraToolSets
+            );
           } else {
             // Static filtering
             filteredServerTools = filterServerTools(allServerTools, serverToolsFilter);

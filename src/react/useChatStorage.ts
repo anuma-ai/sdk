@@ -172,6 +172,7 @@ import {
   shouldRefreshTools,
   type ToolsCacheBackend,
   type ToolSet,
+  withActiveToolSetServerTools,
 } from "../lib/tools";
 import { useChat } from "./useChat";
 import { useChatMedia } from "./useChatMedia";
@@ -279,7 +280,13 @@ export async function previewToolSelection(options: {
       activeToolSets ?? []
     );
     let gatedServerNames: string[] = [];
-    if (Array.isArray(serverToolsFilter) && serverToolsFilter.length > 0) {
+    // A filter function selects nothing here but the sticky sets (none under defer, whose send
+    // path does not reach this gate's selection).
+    const stickyOnly =
+      typeof serverToolsFilter === "function" &&
+      !!activeToolSets?.length &&
+      !serverToolsConfig?.deferLoading?.enabled;
+    if ((Array.isArray(serverToolsFilter) && serverToolsFilter.length > 0) || stickyOnly) {
       try {
         const allServerTools = await getServerTools({
           baseUrl,
@@ -288,15 +295,25 @@ export async function previewToolSelection(options: {
           apiKey,
           cache: serverToolsConfig?.cache,
         });
-        const allow = new Set(serverToolsFilter);
-        const gated = allServerTools.filter((t) => allow.has(t.name));
-        // Static lists survive the short-prompt gate, so defer's exclusions have to survive with
-        // them — otherwise the preview reports a tool the deferred send would drop.
-        gatedServerNames = (
-          serverToolsConfig?.deferLoading?.enabled
-            ? resolveDeferredServerTools(gated, serverToolsFilter, serverToolsConfig.deferLoading)
-            : gated
-        ).map((t) => t.name);
+        if (typeof serverToolsFilter === "function") {
+          gatedServerNames = withActiveToolSetServerTools(
+            [],
+            allServerTools,
+            serverToolsFilter,
+            activeToolSets,
+            extraToolSets
+          ).map((t) => t.name);
+        } else {
+          const allow = new Set(serverToolsFilter);
+          const gated = allServerTools.filter((t) => allow.has(t.name));
+          // Static lists survive the short-prompt gate, so defer's exclusions have to survive with
+          // them — otherwise the preview reports a tool the deferred send would drop.
+          gatedServerNames = (
+            serverToolsConfig?.deferLoading?.enabled
+              ? resolveDeferredServerTools(gated, serverToolsFilter, serverToolsConfig.deferLoading)
+              : gated
+          ).map((t) => t.name);
+        }
       } catch {
         // Server tools optional; leave empty on fetch failure.
       }
@@ -368,7 +385,16 @@ export async function previewToolSelection(options: {
           serverToolsConfig.deferLoading
         ).map((t) => t.name);
       } else if (typeof serverToolsFilter === "function") {
-        serverToolNames = serverToolsFilter(promptEmbedding, allServerTools);
+        const sticky = withActiveToolSetServerTools(
+          [],
+          allServerTools,
+          serverToolsFilter,
+          activeToolSets,
+          extraToolSets
+        ).map((t) => t.name);
+        serverToolNames = [
+          ...new Set([...serverToolsFilter(promptEmbedding, allServerTools), ...sticky]),
+        ];
       } else {
         const allow = new Set(serverToolsFilter);
         serverToolNames = allServerTools.filter((t) => allow.has(t.name)).map((t) => t.name);
@@ -2446,8 +2472,15 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
                 const toolNames = serverToolsFilter(skipStorageEmbeddings, allServerTools);
                 filteredServerTools = filterServerTools(allServerTools, toolNames);
               }
-              // If message is too short for embeddings, don't include any server tools
-              // (user explicitly provided a filter function for semantic matching)
+              // If message is too short for embeddings, include only the sticky sets'
+              // server tools (user explicitly provided a filter function for semantic matching)
+              filteredServerTools = withActiveToolSetServerTools(
+                filteredServerTools,
+                allServerTools,
+                serverToolsFilter,
+                activeToolSetsRef.current,
+                extraToolSets
+              );
             } else {
               // Static filtering
               filteredServerTools = filterServerTools(allServerTools, serverToolsFilter);
@@ -3130,8 +3163,16 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
                 const toolNames = serverToolsFilter(userMessageEmbeddings, allServerTools);
                 filteredServerTools = filterServerTools(allServerTools, toolNames);
               }
-              // If message is too short for embeddings, don't include any server tools
-              // (user explicitly provided a filter, so sending all tools defeats the purpose)
+              // If message is too short for embeddings, include only the sticky sets'
+              // server tools (user explicitly provided a filter, so sending all tools
+              // defeats the purpose)
+              filteredServerTools = withActiveToolSetServerTools(
+                filteredServerTools,
+                allServerTools,
+                serverToolsFilter,
+                activeToolSetsRef.current,
+                extraToolSets
+              );
             } else {
               // Static filtering: use string array directly
               filteredServerTools = filterServerTools(allServerTools, serverToolsFilter);

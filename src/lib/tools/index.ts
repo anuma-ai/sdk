@@ -57,6 +57,7 @@ export {
   type ToolsCacheBackend,
   type ToolSet,
   toolSetSystemPrompts,
+  withActiveToolSetServerTools,
 } from "./serverTools";
 export {
   buildConnectorGuidance,
