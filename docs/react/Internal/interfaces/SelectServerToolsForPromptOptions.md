@@ -74,6 +74,18 @@ Embedding model override. Falls back to the SDK default.
 
 ***
 
+### extraToolSets?
+
+> `optional` **extraToolSets**: [`ToolSet`](ToolSet.md)\[]
+
+Defined in: [src/lib/tools/serverTools.ts:1831](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#1831)
+
+The caller's sets beyond [BUILT\_IN\_TOOL\_SETS](../variables/BUILT_IN_TOOL_SETS.md) — the same list you pass
+to `useChatStorage`'s `extraToolSets` — so a custom set named in
+`activeToolSets` stays sticky here too.
+
+***
+
 ### getToken()
 
 > **getToken**: () => `Promise`<`string` | `null`>

@@ -1823,6 +1823,12 @@ export interface SelectServerToolsForPromptOptions {
    * short to embed. Omit for selection from the prompt alone.
    */
   activeToolSets?: string[];
+  /**
+   * The caller's sets beyond {@link BUILT_IN_TOOL_SETS} — the same list you pass
+   * to `useChatStorage`'s `extraToolSets` — so a custom set named in
+   * `activeToolSets` stays sticky here too.
+   */
+  extraToolSets?: ToolSet[];
 }
 
 /**
@@ -1864,6 +1870,7 @@ export async function selectServerToolsForPrompt(
     cache,
     deferLoading,
     activeToolSets,
+    extraToolSets,
   } = options;
 
   if (serverToolsFilter === undefined) return [];
@@ -1885,7 +1892,13 @@ export async function selectServerToolsForPrompt(
 
   if (typeof serverToolsFilter === "function") {
     const withSticky = (selected: ServerTool[]) =>
-      withActiveToolSetServerTools(selected, allServerTools, serverToolsFilter, activeToolSets);
+      withActiveToolSetServerTools(
+        selected,
+        allServerTools,
+        serverToolsFilter,
+        activeToolSets,
+        extraToolSets
+      );
     // Mirror useChatStorage's short-prompt gate: below
     // MIN_CONTENT_LENGTH_FOR_TOOLS no embeddings are generated and a
     // function filter selects nothing but the sticky sets. (Static lists above
