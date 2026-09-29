@@ -444,4 +444,61 @@ describe("useChat", () => {
       expect(result.current.isLoading).toBe(false);
     });
   });
+
+  describe("overlapping requests", () => {
+    it("keeps isLoading true when an aborted older request settles while a newer one streams", async () => {
+      let releaseB: () => void = () => {};
+      const blockedB = new Promise<void>((resolve) => {
+        releaseB = resolve;
+      });
+      let call = 0;
+      mockCreateSseClient.mockImplementation(((opts: { signal?: AbortSignal }) => {
+        const isFirst = call++ === 0;
+        return {
+          stream: (async function* () {
+            yield { type: "response.created", response: { id: "r", model: "m" } };
+            if (isFirst) {
+              await new Promise<void>((resolve) => {
+                if (opts.signal?.aborted) return resolve();
+                opts.signal?.addEventListener("abort", () => resolve(), { once: true });
+              });
+              const err = new Error("The operation was aborted");
+              err.name = "AbortError";
+              throw err;
+            }
+            await blockedB;
+            yield {
+              type: "response.completed",
+              response: { usage: { input_tokens: 1, output_tokens: 1 } },
+            };
+          })(),
+        };
+      }) as any);
+
+      const { result } = renderHook(() => useChat({ getToken: async () => "fake-token" }));
+      const messages = [
+        { role: "user" as const, content: [{ type: "text" as const, text: "Hi" }] },
+      ];
+
+      let sendA: Promise<unknown>;
+      let sendB: Promise<unknown>;
+      await act(async () => {
+        sendA = result.current.sendMessage({ messages, model: "m" });
+        await new Promise((r) => setTimeout(r, 10));
+      });
+      await act(async () => {
+        sendB = result.current.sendMessage({ messages, model: "m" });
+        // Let the aborted request A settle while B is still streaming.
+        await sendA;
+      });
+
+      expect(result.current.isLoading).toBe(true);
+
+      await act(async () => {
+        releaseB();
+        await sendB;
+      });
+      expect(result.current.isLoading).toBe(false);
+    });
+  });
 });
