@@ -606,6 +606,14 @@ class ToolTimeoutError extends Error {
   }
 }
 
+/** Sentinel error for tool calls cancelled through an abort signal. */
+class ToolCancelledError extends Error {
+  constructor() {
+    super("Tool execution cancelled");
+    this.name = "ToolCancelledError";
+  }
+}
+
 /**
  * Safely serializes a value to JSON, returning a fallback string on failure
  * (e.g. circular references, BigInt, or non-serializable types).
@@ -618,7 +626,7 @@ export function safeJsonStringify(value: unknown): string {
   }
 }
 
-export type ToolExecutionErrorType = "parse" | "timeout" | "execution";
+export type ToolExecutionErrorType = "parse" | "timeout" | "execution" | "cancelled";
 
 export type ToolExecutionResult = {
   result?: unknown;
@@ -631,11 +639,16 @@ export type ToolExecutionResult = {
  * Executes a tool call with the provided executor.
  * Applies a timeout (default 30s) to prevent hanging executors from blocking the loop.
  * Pass `Infinity` as timeoutMs to disable the timeout (e.g. for interactive tools).
+ * When `signal` aborts, the call stops waiting and returns a "cancelled" error
+ * result. The executor receives the signal so it can release its own resources;
+ * it is not interrupted otherwise, so a tool that never settles
+ * (an interactive prompt) cannot keep the caller parked after the user cancels.
  */
 export async function executeToolCall(
   toolCall: AccumulatedToolCall,
   executor: ToolExecutor,
-  timeoutMs: number = TOOL_EXECUTOR_TIMEOUT_MS
+  timeoutMs: number = TOOL_EXECUTOR_TIMEOUT_MS,
+  signal?: AbortSignal
 ): Promise<ToolExecutionResult> {
   // Parse arguments (with JSON repair fallback for malformed LLM output).
   let args: Record<string, unknown> = {};
@@ -647,30 +660,46 @@ export async function executeToolCall(
     args = parsed.args;
   }
 
-  try {
-    // Execute the tool, optionally with a timeout
-    if (!isFinite(timeoutMs)) {
-      return { result: await executor(args) };
-    }
+  if (signal?.aborted) {
+    return { error: "Tool execution cancelled", errorType: "cancelled" };
+  }
 
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    try {
-      const result = await Promise.race([
-        executor(args),
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  let onAbort: (() => void) | undefined;
+  try {
+    const racers: Promise<unknown>[] = [];
+    // Register the abort listener before calling the executor. An executor that
+    // aborts the signal synchronously would otherwise fire the event before
+    // anything listens, and a never-settling promise would park the caller.
+    if (signal) {
+      racers.push(
+        new Promise<never>((_, reject) => {
+          onAbort = () => reject(new ToolCancelledError());
+          signal.addEventListener("abort", onAbort, { once: true });
+        })
+      );
+    }
+    racers.push(Promise.resolve(signal ? executor(args, signal) : executor(args)));
+    if (isFinite(timeoutMs)) {
+      racers.push(
         new Promise<never>((_, reject) => {
           timer = setTimeout(() => reject(new ToolTimeoutError()), timeoutMs);
-        }),
-      ]);
-      return { result };
-    } finally {
-      clearTimeout(timer);
+        })
+      );
     }
+    return { result: await Promise.race(racers) };
   } catch (e) {
+    if (e instanceof ToolCancelledError) {
+      return { error: "Tool execution cancelled", errorType: "cancelled" };
+    }
     const message = e instanceof Error ? e.message : String(e);
     return {
       error: `Tool execution failed: ${message}`,
       errorType: e instanceof ToolTimeoutError ? "timeout" : "execution",
     };
+  } finally {
+    clearTimeout(timer);
+    if (onAbort) signal?.removeEventListener("abort", onAbort);
   }
 }
 

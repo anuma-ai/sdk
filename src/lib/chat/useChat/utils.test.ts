@@ -117,3 +117,64 @@ describe("executeToolCall argument parsing", () => {
     expect(executor).not.toHaveBeenCalled();
   });
 });
+
+describe("executeToolCall abort handling", () => {
+  it("stops waiting on a never-settling executor with no timeout when aborted", async () => {
+    const controller = new AbortController();
+    const executor = vi.fn(() => new Promise<never>(() => {}));
+    const pending = executeToolCall(makeToolCall("{}"), executor, Infinity, controller.signal);
+    controller.abort();
+    await expect(pending).resolves.toEqual({
+      error: "Tool execution cancelled",
+      errorType: "cancelled",
+    });
+  });
+
+  it("stops waiting on a slow executor with a finite timeout when aborted", async () => {
+    const controller = new AbortController();
+    const executor = vi.fn(() => new Promise<never>(() => {}));
+    const pending = executeToolCall(makeToolCall("{}"), executor, 60_000, controller.signal);
+    controller.abort();
+    const result = await pending;
+    expect(result.errorType).toBe("cancelled");
+  });
+
+  it("does not run the executor when already aborted", async () => {
+    const controller = new AbortController();
+    controller.abort();
+    const executor = vi.fn();
+    const result = await executeToolCall(makeToolCall("{}"), executor, 1000, controller.signal);
+    expect(result.errorType).toBe("cancelled");
+    expect(executor).not.toHaveBeenCalled();
+  });
+
+  it("returns the result and removes the abort listener when the executor settles", async () => {
+    const controller = new AbortController();
+    const remove = vi.spyOn(controller.signal, "removeEventListener");
+    const result = await executeToolCall(
+      makeToolCall("{}"),
+      vi.fn().mockResolvedValue("ok"),
+      Infinity,
+      controller.signal
+    );
+    expect(result).toEqual({ result: "ok" });
+    expect(remove).toHaveBeenCalledWith("abort", expect.any(Function));
+  });
+
+  it("stops waiting when the executor aborts the signal synchronously and never settles", async () => {
+    const controller = new AbortController();
+    const executor = vi.fn(() => {
+      controller.abort();
+      return new Promise<never>(() => {});
+    });
+    const result = await executeToolCall(makeToolCall("{}"), executor, Infinity, controller.signal);
+    expect(result.errorType).toBe("cancelled");
+  });
+
+  it("passes the signal to the executor", async () => {
+    const controller = new AbortController();
+    const executor = vi.fn().mockResolvedValue("ok");
+    await executeToolCall(makeToolCall("{}"), executor, Infinity, controller.signal);
+    expect(executor).toHaveBeenCalledWith({}, controller.signal);
+  });
+});

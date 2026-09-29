@@ -198,4 +198,17 @@ describe("createConfirmTool", () => {
     await expect(tool.executor?.(args)).resolves.toEqual({ cancelled: true });
     expect(createInteraction).not.toHaveBeenCalled();
   });
+
+  it("cancels the pending prompt when the run is aborted", async () => {
+    const { context, createInteraction, settle } = pendingContext();
+    const cancelInteraction = vi.fn((_id: string) => settle().fail(new Error("cancelled")));
+    const tool = createConfirmTool({ getContext: () => ({ ...context, cancelInteraction }) });
+    const controller = new AbortController();
+
+    const pending = tool.executor!(BOOKING_ARGS, controller.signal);
+    controller.abort();
+
+    await expect(pending).resolves.toEqual({ cancelled: true });
+    expect(cancelInteraction).toHaveBeenCalledWith(createInteraction.mock.calls[0][0]);
+  });
 });

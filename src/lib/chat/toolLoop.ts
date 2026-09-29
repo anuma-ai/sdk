@@ -1692,11 +1692,13 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
               ? `failed dependencies: ${failedDeps.join(", ")}`
               : "a dependency cycle";
             const errorMsg = `Tool "${tc.name}" was not executed due to ${reason}`;
+            // Work skipped because the user pressed Stop is a cancellation, not a tool failure.
+            const skipErrorType = combinedSignal?.aborted ? "cancelled" : "execution";
             executionResults.push({
               id: tc.id,
               name: tc.name,
               error: errorMsg,
-              errorType: "execution",
+              errorType: skipErrorType,
             });
             await safeAwait(() =>
               hooks?.afterToolUse?.({
@@ -1705,7 +1707,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
                 toolCallId: tc.id,
                 name: tc.name,
                 error: errorMsg,
-                errorType: "execution",
+                errorType: skipErrorType,
               } satisfies ToolUseEndEvent)
             );
           }
@@ -1735,7 +1737,8 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
             const { result, error, errorType } = await executeToolCall(
               toolCallForExec,
               executorConfig.executor,
-              executorConfig.executorTimeout
+              executorConfig.executorTimeout,
+              combinedSignal
             );
             await safeAwait(() =>
               hooks?.afterToolUse?.({
