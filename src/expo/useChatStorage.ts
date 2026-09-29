@@ -1869,14 +1869,20 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
               // floor. Too short to embed → send only the sticky sets' server tools; an
               // explicit filter must never degrade to the full catalog. Parity with react.
               if (messageContent.length >= MIN_CONTENT_LENGTH_FOR_TOOLS) {
-                skipUserEmbedding = await embedToolText(
-                  messageContent,
-                  maskForCall,
-                  Boolean(callPiiRedaction),
-                  getTokenRef.current
-                );
-                const toolNames = serverToolsFilter(skipUserEmbedding, allServerTools);
-                filteredServerTools = filterServerTools(allServerTools, toolNames);
+                try {
+                  skipUserEmbedding = await embedToolText(
+                    messageContent,
+                    maskForCall,
+                    Boolean(callPiiRedaction),
+                    getTokenRef.current
+                  );
+                  const toolNames = serverToolsFilter(skipUserEmbedding, allServerTools);
+                  filteredServerTools = filterServerTools(allServerTools, toolNames);
+                } catch {
+                  // Embedding failed: no semantic server tools, but the sticky sets'
+                  // still go (parity with react). skipEmbeddingFailed stays unset so
+                  // the client block below retries the embedding.
+                }
               }
               filteredServerTools = withActiveToolSetServerTools(
                 filteredServerTools,
@@ -2373,16 +2379,15 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
               const settledEmbedding = await (userMessageEmbeddingPromise ??
                 embedForToolsSettled(getTokenRef.current));
               if ("error" in settledEmbedding) {
+                // No semantic server tools, but the sticky sets' still go (parity
+                // with react). userMessageEmbeddingFailed stays unset so the client
+                // block retries the embedding.
                 serverFilterEmbeddingFailed = true;
-                // Re-raise: the embedding used to run inside this try, so a
-                // failure logged "Failed to fetch server tools", discarded the
-                // catalog we just fetched and left userMessageEmbeddingFailed
-                // unset — the client block then retried the embedding.
-                throw settledEmbedding.error;
+              } else {
+                userMessageEmbedding = settledEmbedding.embedding;
+                const toolNames = serverToolsFilter(userMessageEmbedding, allServerTools);
+                filteredServerTools = filterServerTools(allServerTools, toolNames);
               }
-              userMessageEmbedding = settledEmbedding.embedding;
-              const toolNames = serverToolsFilter(userMessageEmbedding, allServerTools);
-              filteredServerTools = filterServerTools(allServerTools, toolNames);
             }
             filteredServerTools = withActiveToolSetServerTools(
               filteredServerTools,

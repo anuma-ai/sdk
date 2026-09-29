@@ -7,8 +7,8 @@
  * the model said the reservation tool was unavailable. With `activeToolSets`
  * naming `restaurant-booking`, the set's server tools must ride along whatever
  * the prompt scored — including below the short-prompt gate, where no embedding
- * is made at all. Runs against the react and expo hooks, persisted and
- * skipStorage paths, and the react preview.
+ * is made at all, and when the embedding fails. Runs against the react and expo
+ * hooks, persisted and skipStorage paths, and the react preview.
  */
 
 import { Database } from "@nozbe/watermelondb";
@@ -20,6 +20,7 @@ import { sdkMigrations, sdkModelClasses, sdkSchema } from "../lib/db/schema";
 import type { ServerTool } from "../lib/tools";
 
 const embedCalls: string[] = [];
+let embedFails = false;
 
 vi.mock("../lib/chat/toolLoop", async (importOriginal) => {
   const orig = await importOriginal<typeof import("../lib/chat/toolLoop")>();
@@ -31,6 +32,7 @@ vi.mock("../lib/memoryEngine/generate", async (importOriginal) => {
     ...orig,
     generateEmbedding: async (text: string) => {
       embedCalls.push(text);
+      if (embedFails) throw new Error("embeddings down");
       return [0.1, 0.2, 0.3];
     },
     generateEmbeddings: async (texts: string[]) => texts.map(() => [0.1, 0.2, 0.3]),
@@ -75,6 +77,10 @@ function makeDatabase(): Database {
   });
   return new Database({ adapter, modelClasses: sdkModelClasses });
 }
+
+beforeEach(() => {
+  embedFails = false;
+});
 
 const hooks = [
   ["react", useReactChatStorage],
@@ -148,6 +154,19 @@ describe.each(hooks)("useChatStorage sticky server-tool sets (%s)", (_label, use
 
     it("sends no server tools on 'okay' when no set is active", async () => {
       expect(await selectedServerTools("okay", [], skipStorage)).toEqual([]);
+    });
+
+    it("keeps the booking tools when the embedding fails and the set is active", async () => {
+      embedFails = true;
+      expect(await selectedServerTools("Retry", ["restaurant-booking"], skipStorage)).toEqual(
+        RESTAURANT_TOOLS
+      );
+      expect(embedCalls).not.toEqual([]);
+    });
+
+    it("sends no server tools when the embedding fails and no set is active", async () => {
+      embedFails = true;
+      expect(await selectedServerTools("Retry", undefined, skipStorage)).toEqual([]);
     });
   });
 });

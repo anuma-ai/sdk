@@ -9,12 +9,12 @@
  * start right after the per-call redactor is resolved.
  *
  * Expo is NOT a copy of the react path here, so this file guards its specific
- * shape: the embedding used to run INSIDE the server-tools try, which means an
- * embeddings failure logged "Failed to fetch server tools", discarded the
- * catalog it had just fetched, left the failure flag unset, and let the client
- * block retry the embedding. Every one of those is asserted below, because the
- * hoist turns one lazy call into one settled result and the retry only survives
- * if it is reproduced deliberately.
+ * shape: an embeddings failure in the server filter leaves the failure flag
+ * unset and lets the client block retry the embedding. That is asserted below,
+ * because the hoist turns one lazy call into one settled result and the retry
+ * only survives if it is reproduced deliberately. The failure no longer lands in
+ * the "Failed to fetch server tools" catch, so a sticky set's server tools
+ * survive it (parity with react).
  *
  * Run against the pre-hoist file, three of these five pass — the retry, the
  * catalog-failure reuse and the defer-loading gate — which is the evidence that
@@ -280,11 +280,11 @@ describe("useChatStorage hoisted tool-selection work (expo)", () => {
     });
 
     expect(res.error).toBeNull();
-    // The failure lands in the server-tools catch exactly as before: same log
-    // line, and the catalog that DID come back is discarded.
-    expect(warn).toHaveBeenCalledWith(
+    // The failure no longer lands in the server-tools catch: the catalog is kept
+    // for the sticky sets, and with none active no server tool is sent.
+    expect(warn).not.toHaveBeenCalledWith(
       "[useChatStorage] Failed to fetch server tools:",
-      expect.objectContaining({ message: "embeddings blip" })
+      expect.anything()
     );
     // Two attempts — the retry is what lets the client filter still narrow.
     expect(embedCalls).toHaveLength(2);
