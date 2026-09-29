@@ -2,7 +2,7 @@
 
 > **withActiveToolSetServerTools**(`selected`: [`ServerTool`](../interfaces/ServerTool.md)\[], `allServerTools`: [`ServerTool`](../interfaces/ServerTool.md)\[], `serverToolsFilter`: [`ServerToolsFilterFunction`](../type-aliases/ServerToolsFilterFunction.md), `activeToolSets`: readonly `string`\[], `extraToolSets`: readonly [`ToolSet`](../interfaces/ToolSet.md)\[]): [`ServerTool`](../interfaces/ServerTool.md)\[]
 
-Defined in: [src/lib/tools/serverTools.ts:1483](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#1483)
+Defined in: [src/lib/tools/serverTools.ts:1494](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#1494)
 
 Add the server-tool members of every set named in `activeToolSets` to a
 semantic server-tool selection.
