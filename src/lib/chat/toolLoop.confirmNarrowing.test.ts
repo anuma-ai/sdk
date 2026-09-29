@@ -257,6 +257,17 @@ describe("toolsAfterConfirmation", () => {
     }
   );
 
+  it.each(["book_restaurant", "anuma_book_restaurant", "AnumaPaymentsMCP-anuma_book_restaurant"])(
+    "does not offer the discovery or cancel tools after %s",
+    (action) => {
+      const withCancel = [...apiTools, ...[LIST, CANCEL, DISCOVER].map(serverTool)];
+      const narrowed = toolsAfterConfirmation(withCancel, [
+        { name: CONFIRM, result: answer(true, action) },
+      ]);
+      expect(names(narrowed)).toEqual([...RESTAURANT_TOOLS, CONFIRM]);
+    }
+  );
+
   it.each([
     "cancel_reservation",
     "anuma_cancel_reservation",

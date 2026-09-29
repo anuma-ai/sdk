@@ -635,6 +635,14 @@ describe("withActiveToolSetServerTools — sticky sets keep their server tools",
     expect(names(selected)).toEqual(RESTAURANT_TOOLS);
   });
 
+  it("adds nothing more when restaurant-book is active alongside restaurant-booking", () => {
+    const selected = withActiveToolSetServerTools([], catalog, noMatch, [
+      "restaurant-booking",
+      "restaurant-book",
+    ]);
+    expect(names(selected)).toEqual(RESTAURANT_TOOLS);
+  });
+
   it("returns the selection unchanged when no set is active", () => {
     const selected = [st("AnumaJinaMCP-search_web")];
     expect(withActiveToolSetServerTools(selected, catalog, noMatch)).toBe(selected);

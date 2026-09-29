@@ -2,7 +2,7 @@
 
 > `const` **defaultServerToolsFilter**: [`ServerToolsFilterFunction`](../type-aliases/ServerToolsFilterFunction.md)
 
-Defined in: [src/lib/tools/serverTools.ts:1803](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#1803)
+Defined in: [src/lib/tools/serverTools.ts:1816](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#1816)
 
 Pre-configured server-tools filter ready to drop into `useChatStorage`'s
 `serverTools` option. Semantic matching against the user prompt with the

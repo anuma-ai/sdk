@@ -1317,6 +1317,19 @@ export const BUILT_IN_TOOL_SETS: ToolSet[] = [
     anchors: [],
   },
   {
+    // What a confirmed booking card narrows the rest of the turn to (see
+    // CONFIRMED_ACTION_TOOL_SETS): the booking chain only, without the
+    // discovery and cancel tools that restaurant-booking keeps sticky.
+    // Anchors are empty for the same reason as restaurant-cancel below.
+    name: "restaurant-book",
+    members: [
+      "AnumaPaymentsMCP-anuma_find_restaurant",
+      "AnumaPaymentsMCP-anuma_check_restaurant_availability",
+      "AnumaPaymentsMCP-anuma_book_restaurant",
+    ],
+    anchors: [],
+  },
+  {
     // What a confirmed cancel card narrows the rest of the turn to (see
     // CONFIRMED_ACTION_TOOL_SETS). Anchors are empty for the same reason as
     // restaurant-booking: anchors here are scored against client tools only,
@@ -1338,9 +1351,9 @@ export const BUILT_IN_TOOL_SETS: ToolSet[] = [
  * accepts for the booking and cancel actions.
  */
 export const CONFIRMED_ACTION_TOOL_SETS: ReadonlyMap<string, string> = new Map([
-  ["book_restaurant", "restaurant-booking"],
-  ["anuma_book_restaurant", "restaurant-booking"],
-  ["anumapaymentsmcp-anuma_book_restaurant", "restaurant-booking"],
+  ["book_restaurant", "restaurant-book"],
+  ["anuma_book_restaurant", "restaurant-book"],
+  ["anumapaymentsmcp-anuma_book_restaurant", "restaurant-book"],
   ["cancel_reservation", "restaurant-cancel"],
   ["anuma_cancel_reservation", "restaurant-cancel"],
   ["anumapaymentsmcp-anuma_cancel_reservation", "restaurant-cancel"],
