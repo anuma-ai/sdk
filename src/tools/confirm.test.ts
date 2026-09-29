@@ -52,6 +52,16 @@ describe("createConfirmTool", () => {
     expect(params.required).toEqual(["title", "action", "parameters"]);
   });
 
+  // A card shown before a lookup finishes lacks the ids the action needs, and
+  // the user would have to confirm a second time.
+  it("tells the model to call it only once every value is known", () => {
+    const tool = createConfirmTool({ getContext: () => null });
+
+    expect((tool.function as { description: string }).description).toContain(
+      "including any ids from earlier lookups"
+    );
+  });
+
   // The host renders its own button labels. A model-written label could put
   // "Cancel" on the button that confirms, so the schema must not offer one.
   it("does not let the model write the button labels", () => {
@@ -120,6 +130,19 @@ describe("createConfirmTool", () => {
     expect(Date.parse(result.answeredAt as string)).not.toBeNaN();
   });
 
+  // Without a pointer back to the action, a model has wandered off to
+  // unrelated tools after the user confirmed and never carried it out.
+  it("tells the model to carry out the action once the user confirms", async () => {
+    const { context, settle } = pendingContext();
+    const tool = createConfirmTool({ getContext: () => context });
+
+    const pending = tool.executor?.(BOOKING_ARGS);
+    settle().answer({ confirmed: true });
+
+    const result = (await pending) as Record<string, unknown>;
+    expect(result.next_step).toContain("Carry out the action now");
+  });
+
   // A decline is an answer, so it keeps the same shape — the portal and the
   // model both read `confirmed`, and neither has to treat it as a failure.
   it("reports a decline as an answer, with the parameters still attached", async () => {
@@ -136,6 +159,7 @@ describe("createConfirmTool", () => {
       parameters: RESERVATION,
     });
     expect(result.cancelled).toBeUndefined();
+    expect(result).not.toHaveProperty("next_step");
   });
 
   // Only an explicit boolean is an answer. A card that resolves with a string,
@@ -169,6 +193,7 @@ describe("createConfirmTool", () => {
     const result = (await pending) as Record<string, unknown>;
     expect(result).toEqual({ cancelled: true });
     expect(result.confirmed).toBeUndefined();
+    expect(result).not.toHaveProperty("next_step");
   });
 
   it("cancels when no UI is mounted, rather than assuming agreement", async () => {
