@@ -1295,6 +1295,23 @@ export const BUILT_IN_TOOL_SETS: ToolSet[] = [
     anchors: ["dropbox_list_folders", "dropbox_search"],
     anchorMinSimilarity: 0.53,
   },
+  {
+    // Server tools, so this set does its work through
+    // withActiveToolSetServerTools: once a restaurant tool has run, terse
+    // follow-ups ("okay", "same as before") keep the booking chain. Each tool
+    // still reaches a fresh booking request on its own description.
+    // Anchors are deliberately empty (like the client's Nearby set): the set
+    // is only for stickiness, not a new way to activate on a prompt.
+    // prompt_user_confirm is left out of members: autoFilterClientTools always
+    // sends it, and as a member any unrelated confirmation would pin this set.
+    name: "restaurant-booking",
+    members: [
+      "AnumaPaymentsMCP-anuma_find_restaurant",
+      "AnumaPaymentsMCP-anuma_check_restaurant_availability",
+      "AnumaPaymentsMCP-anuma_book_restaurant",
+    ],
+    anchors: [],
+  },
 ];
 
 /**
@@ -1443,6 +1460,43 @@ export function activatedToolSetNames(
     }
   }
   return activated;
+}
+
+/**
+ * Add the server-tool members of every set named in `activeToolSets` to a
+ * semantic server-tool selection.
+ *
+ * A semantic filter ranks only the latest prompt, so a terse follow-up inside a
+ * flow ("okay", "retry") drops the flow's server tools. This is the server-side
+ * half of what `autoFilterClientTools` does for client tools: an active set's
+ * members that are in the catalog are kept whatever the prompt scored, even
+ * below the short-prompt gate, where `selected` is empty. Exclusions tagged on
+ * the filter still win.
+ *
+ * @param selected - What the semantic filter picked (`[]` when it did not run).
+ * @param allServerTools - The full server-tool catalog.
+ * @param serverToolsFilter - The filter function, read only for its `excludeTools` tag.
+ * @param activeToolSets - Set names that are sticky for this conversation.
+ * @param extraToolSets - The caller's sets beyond {@link BUILT_IN_TOOL_SETS}.
+ * @returns `selected`, followed by any active-set members it was missing.
+ */
+export function withActiveToolSetServerTools(
+  selected: ServerTool[],
+  allServerTools: ServerTool[],
+  serverToolsFilter: ServerToolsFilterFunction,
+  activeToolSets: readonly string[] = [],
+  extraToolSets: readonly ToolSet[] = []
+): ServerTool[] {
+  if (activeToolSets.length === 0) return selected;
+  const sticky = new Set(
+    [...BUILT_IN_TOOL_SETS, ...extraToolSets]
+      .filter((ts) => activeToolSets.includes(ts.name))
+      .flatMap((ts) => ts.members)
+  );
+  for (const name of serverToolsFilter.excludeTools ?? []) sticky.delete(name);
+  for (const tool of selected) sticky.delete(tool.name);
+  const added = allServerTools.filter((tool) => sticky.has(tool.name));
+  return added.length > 0 ? [...selected, ...added] : selected;
 }
 
 /**
@@ -1761,6 +1815,20 @@ export interface SelectServerToolsForPromptOptions {
    * {@link resolveDeferredServerTools}). Omit/disabled → today's filtered selection.
    */
   deferLoading?: DeferLoadingConfig;
+  /**
+   * Tool-set names that are sticky for this conversation — the same list you
+   * pass to `useChatStorage`'s `activeToolSets`, e.g. from
+   * `deriveActiveToolSets`. With a filter function, the server-tool members of
+   * these sets are selected whatever the prompt scored, even on a prompt too
+   * short to embed. Omit for selection from the prompt alone.
+   */
+  activeToolSets?: string[];
+  /**
+   * The caller's sets beyond {@link BUILT_IN_TOOL_SETS} — the same list you pass
+   * to `useChatStorage`'s `extraToolSets` — so a custom set named in
+   * `activeToolSets` stays sticky here too.
+   */
+  extraToolSets?: ToolSet[];
 }
 
 /**
@@ -1801,6 +1869,8 @@ export async function selectServerToolsForPrompt(
     cacheExpirationMs,
     cache,
     deferLoading,
+    activeToolSets,
+    extraToolSets,
   } = options;
 
   if (serverToolsFilter === undefined) return [];
@@ -1821,12 +1891,20 @@ export async function selectServerToolsForPrompt(
     return resolveDeferredServerTools(allServerTools, serverToolsFilter, deferLoading);
 
   if (typeof serverToolsFilter === "function") {
+    const withSticky = (selected: ServerTool[]) =>
+      withActiveToolSetServerTools(
+        selected,
+        allServerTools,
+        serverToolsFilter,
+        activeToolSets,
+        extraToolSets
+      );
     // Mirror useChatStorage's short-prompt gate: below
     // MIN_CONTENT_LENGTH_FOR_TOOLS no embeddings are generated and a
-    // function filter selects nothing. (Static lists above don't depend on
-    // embeddings and still apply.) Without this, the helper embedded "hey"
-    // and ran a selection the chat flow never performs.
-    if (prompt.length < MIN_CONTENT_LENGTH_FOR_TOOLS) return [];
+    // function filter selects nothing but the sticky sets. (Static lists above
+    // don't depend on embeddings and still apply.) Without this, the helper
+    // embedded "hey" and ran a selection the chat flow never performs.
+    if (prompt.length < MIN_CONTENT_LENGTH_FOR_TOOLS) return withSticky([]);
     let promptEmbedding: number[];
     try {
       promptEmbedding = await generateEmbedding(prompt, {
@@ -1835,10 +1913,10 @@ export async function selectServerToolsForPrompt(
         model: embeddingModel,
       });
     } catch {
-      return [];
+      return withSticky([]);
     }
     const names = serverToolsFilter(promptEmbedding, allServerTools);
-    return filterServerTools(allServerTools, names);
+    return withSticky(filterServerTools(allServerTools, names));
   }
 
   return filterServerTools(allServerTools, serverToolsFilter);
