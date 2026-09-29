@@ -31,7 +31,7 @@
  *
  * | Outcome | Result |
  * |---|---|
- * | The user confirmed | `{ confirmed: true, action, parameters, answeredAt, next_step }` |
+ * | The user confirmed | `{ confirmed: true, action, parameters, answeredAt }` |
  * | The user declined | `{ confirmed: false, action, parameters, answeredAt }` |
  * | Timed out, cleared, never shown, or a malformed reply | `{ cancelled: true }` |
  *
@@ -80,11 +80,6 @@ export type ConfirmToolResult =
       parameters: ConfirmParameter[];
       /** ISO-8601 timestamp of the answer, for a server-side freshness window. */
       answeredAt: string;
-      /**
-       * Only when the user confirmed: tells the model to carry out the action
-       * now, with these values, before doing anything else.
-       */
-      next_step?: string;
     }
   | {
       /** Timed out, cleared, never shown, or the card replied without a decision. */
@@ -115,7 +110,7 @@ export function createConfirmTool(options: CreateUIToolsOptions): ToolConfig {
   return createInteractiveTool(options, {
     name: CONFIRM_TOOL_NAME,
     description:
-      "Ask the user to approve a specific action before it happens. Use before anything that spends money or is hard to undo, such as booking a restaurant table or placing an order. List every parameter of the action, with the exact values you are about to use — the user approves what this card shows, and nothing else. Call it only once you have every value the action needs, including any ids from earlier lookups. Returns whether they confirmed. Do not use for ordinary yes/no questions; use prompt_user_choice for those.",
+      "Ask the user to approve a specific action before it happens. Use before anything that spends money or is hard to undo, such as booking a restaurant table or placing an order. List every parameter of the action, with the exact values you are about to use — the user approves what this card shows, and nothing else. Returns whether they confirmed. Do not use for ordinary yes/no questions; use prompt_user_choice for those.",
     parameters: {
       type: "object",
       properties: {
@@ -197,10 +192,6 @@ export function createConfirmTool(options: CreateUIToolsOptions): ToolConfig {
         action: args.action as string,
         parameters: args.parameters as ConfirmParameter[],
         answeredAt: new Date().toISOString(),
-        ...(result.confirmed && {
-          next_step:
-            "The user approved exactly these values. Carry out the action now, using them unchanged. Call only the tools needed to complete it, and nothing unrelated first.",
-        }),
       };
     },
   });
