@@ -58,6 +58,13 @@ describe("deriveActiveToolSets — event-shape-agnostic", () => {
     expect(deriveActiveToolSets(events)).toEqual(["restaurant-booking"]);
   });
 
+  it("pins both restaurant sets once the cancel tool has run", () => {
+    const events: ToolActivationEvent[] = [
+      { kind: "tool-result", toolName: "AnumaPaymentsMCP-anuma_cancel_reservation" },
+    ];
+    expect(deriveActiveToolSets(events)).toEqual(["restaurant-booking", "restaurant-cancel"]);
+  });
+
   it("does not pin restaurant-booking on a confirmation alone", () => {
     const events: ToolActivationEvent[] = [
       { kind: "tool-result", toolName: "prompt_user_confirm" },

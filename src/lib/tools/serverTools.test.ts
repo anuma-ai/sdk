@@ -9,6 +9,7 @@ import {
   type CachedServerTools,
   clearServerToolsCache,
   createServerToolsFilter,
+  defaultServerToolsFilter,
   deferFormattingConfig,
   getToolsChecksum,
   mergeTools,
@@ -611,12 +612,15 @@ describe("withActiveToolSetServerTools — sticky sets keep their server tools",
     "AnumaPaymentsMCP-anuma_find_restaurant",
     "AnumaPaymentsMCP-anuma_check_restaurant_availability",
     "AnumaPaymentsMCP-anuma_book_restaurant",
+    "AnumaPaymentsMCP-anuma_list_reservations",
+    "AnumaPaymentsMCP-anuma_cancel_reservation",
+    "AnumaPaymentsMCP-anuma_discover_restaurants",
   ];
   const catalog = [st("AnumaJinaMCP-search_web"), ...RESTAURANT_TOOLS.map(st)];
   const names = (tools: ServerTool[]) => tools.map((t) => t.name);
   const noMatch = () => [];
 
-  it("defines restaurant-booking with the three server tools, no anchors and no confirm member", () => {
+  it("defines restaurant-booking with every restaurant server tool, no anchors and no confirm member", () => {
     const set = BUILT_IN_TOOL_SETS.find((s) => s.name === "restaurant-booking");
     expect(set?.members).toEqual(RESTAURANT_TOOLS);
     // No anchors: the set only makes the tools sticky, it never activates on a prompt.
@@ -647,6 +651,9 @@ describe("withActiveToolSetServerTools — sticky sets keep their server tools",
       "AnumaPaymentsMCP-anuma_book_restaurant",
       "AnumaPaymentsMCP-anuma_find_restaurant",
       "AnumaPaymentsMCP-anuma_check_restaurant_availability",
+      "AnumaPaymentsMCP-anuma_list_reservations",
+      "AnumaPaymentsMCP-anuma_cancel_reservation",
+      "AnumaPaymentsMCP-anuma_discover_restaurants",
     ]);
   });
 
@@ -663,10 +670,7 @@ describe("withActiveToolSetServerTools — sticky sets keep their server tools",
     });
     expect(
       names(withActiveToolSetServerTools([], catalog, filter, ["restaurant-booking"]))
-    ).toEqual([
-      "AnumaPaymentsMCP-anuma_find_restaurant",
-      "AnumaPaymentsMCP-anuma_check_restaurant_availability",
-    ]);
+    ).toEqual(RESTAURANT_TOOLS.filter((n) => n !== "AnumaPaymentsMCP-anuma_book_restaurant"));
   });
 
   it("resolves a set named only in extraToolSets", () => {
@@ -674,5 +678,33 @@ describe("withActiveToolSetServerTools — sticky sets keep their server tools",
     expect(
       names(withActiveToolSetServerTools([], catalog, noMatch, ["research"], [extra]))
     ).toEqual(["AnumaJinaMCP-search_web"]);
+  });
+});
+
+describe("restaurant cancel — the cancel tool always brings the list tool", () => {
+  const LIST = "AnumaPaymentsMCP-anuma_list_reservations";
+  const CANCEL = "AnumaPaymentsMCP-anuma_cancel_reservation";
+  const st = (name: string, embedding: number[]): ServerTool => ({
+    type: "function",
+    name,
+    description: `desc ${name}`,
+    parameters: { type: "object", properties: {}, required: [] },
+    embedding,
+  });
+  // The list tool never scores on a cancel prompt, so only the dependency edge can add it.
+  const catalog = [st(CANCEL, [1, 0]), st(LIST, [0, 1])];
+
+  it("defines restaurant-cancel as list + cancel, with no anchors", () => {
+    const set = BUILT_IN_TOOL_SETS.find((s) => s.name === "restaurant-cancel");
+    expect(set?.members).toEqual([LIST, CANCEL]);
+    expect(set?.anchors).toEqual([]);
+  });
+
+  it("adds the list tool when the default filter selects the cancel tool", () => {
+    expect(defaultServerToolsFilter([1, 0], catalog)).toEqual([CANCEL, LIST]);
+  });
+
+  it("does not add the cancel tool when only the list tool is selected", () => {
+    expect(defaultServerToolsFilter([0, 1], catalog)).toEqual([LIST]);
   });
 });

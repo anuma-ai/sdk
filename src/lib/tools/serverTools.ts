@@ -1297,9 +1297,10 @@ export const BUILT_IN_TOOL_SETS: ToolSet[] = [
   },
   {
     // Server tools, so this set does its work through
-    // withActiveToolSetServerTools: once a restaurant tool has run, terse
-    // follow-ups ("okay", "same as before") keep the booking chain. Each tool
-    // still reaches a fresh booking request on its own description.
+    // withActiveToolSetServerTools: once any restaurant tool has run, terse
+    // follow-ups ("okay", "same as before", "cancel it") keep every restaurant
+    // tool — discovery, booking and cancelling. Each tool still reaches a fresh
+    // request on its own description.
     // Anchors are deliberately empty (like the client's Nearby set): the set
     // is only for stickiness, not a new way to activate on a prompt.
     // prompt_user_confirm is left out of members: autoFilterClientTools always
@@ -1309,6 +1310,23 @@ export const BUILT_IN_TOOL_SETS: ToolSet[] = [
       "AnumaPaymentsMCP-anuma_find_restaurant",
       "AnumaPaymentsMCP-anuma_check_restaurant_availability",
       "AnumaPaymentsMCP-anuma_book_restaurant",
+      "AnumaPaymentsMCP-anuma_list_reservations",
+      "AnumaPaymentsMCP-anuma_cancel_reservation",
+      "AnumaPaymentsMCP-anuma_discover_restaurants",
+    ],
+    anchors: [],
+  },
+  {
+    // What a confirmed cancel card narrows the rest of the turn to (see
+    // CONFIRMED_ACTION_TOOL_SETS). Anchors are empty for the same reason as
+    // restaurant-booking: anchors here are scored against client tools only,
+    // so a server-tool anchor could never fire. The "cancel brings list"
+    // edge on a fresh prompt is restaurant-cancel-lookup in
+    // SERVER_TOOL_DEPENDENCY_SETS.
+    name: "restaurant-cancel",
+    members: [
+      "AnumaPaymentsMCP-anuma_list_reservations",
+      "AnumaPaymentsMCP-anuma_cancel_reservation",
     ],
     anchors: [],
   },
@@ -1317,12 +1335,15 @@ export const BUILT_IN_TOOL_SETS: ToolSet[] = [
 /**
  * Confirm-card actions (lowercase) whose approval narrows the rest of the turn
  * to one of {@link BUILT_IN_TOOL_SETS}. The keys are every spelling the portal
- * accepts for the booking action.
+ * accepts for the booking and cancel actions.
  */
 export const CONFIRMED_ACTION_TOOL_SETS: ReadonlyMap<string, string> = new Map([
   ["book_restaurant", "restaurant-booking"],
   ["anuma_book_restaurant", "restaurant-booking"],
   ["anumapaymentsmcp-anuma_book_restaurant", "restaurant-booking"],
+  ["cancel_reservation", "restaurant-cancel"],
+  ["anuma_cancel_reservation", "restaurant-cancel"],
+  ["anumapaymentsmcp-anuma_cancel_reservation", "restaurant-cancel"],
 ]);
 
 /**
@@ -1745,6 +1766,16 @@ export const SERVER_TOOL_DEPENDENCY_SETS: ToolSet[] = [
       "OpenMeteoMCP-climate_projection",
       "OpenMeteoMCP-elevation",
     ],
+    anchorMinSimilarity: 0.5,
+  },
+  {
+    // The cancel tool takes its resy_token and the other values only from a
+    // live anuma_list_reservations result in the same turn, never from
+    // memory, so the list tool must ride in whenever cancel is offered.
+    // Members hold only the dependency, like openmeteo-geocode.
+    name: "restaurant-cancel-lookup",
+    members: ["AnumaPaymentsMCP-anuma_list_reservations"],
+    anchors: ["AnumaPaymentsMCP-anuma_cancel_reservation"],
     anchorMinSimilarity: 0.5,
   },
 ];
