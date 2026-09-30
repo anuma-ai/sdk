@@ -1682,18 +1682,16 @@ export async function getMemoriesNeedingTopicExtractionOp(
     const topics = parseTopics(raw.topics);
     const linked = linkedNames.get(id);
 
-    // A non-empty record the index doesn't match: rebuild the index, and route
+    // A record the index doesn't match: rebuild the index, and route
     // the row NOWHERE else. It needs neither the LLM nor a vault write, and a
     // restored row that `linkMemoryEntitiesOp` wrote topics for without stamping
     // (the auto path doesn't stamp) would otherwise ALSO read as never-extracted
     // with no links and get sent to the LLM — paying for extraction of topics we
     // already have. The rebuild makes links match, so the next sweep classifies
     // the row normally.
-    if (
-      topics !== null &&
-      topics.length > 0 &&
-      linksDivergeFromTopics(topics, linked ?? new Set())
-    ) {
+    //
+    // Empty topics clear stale links. A matching empty index needs no relink.
+    if (topics !== null && linksDivergeFromTopics(topics, linked ?? new Set())) {
       topicsToRelinkAll.push(id);
       continue;
     }
@@ -1920,7 +1918,8 @@ export async function stampTopicsExtractedAtOp(
  * `topics_user_managed` in particular is left exactly as it arrived, so the
  * autotagger stays off a curated memory whose links this just restored.
  *
- * Skips deleted, foreign-user, and record-less rows. Returns the ids relinked.
+ * Skips deleted rows, foreign-user rows, and rows with null topics.
+ * Empty topics remove stale links. Returns the relinked IDs.
  */
 export async function relinkMemoryTopicsOp(
   ctx: VaultMemoryOperationsContext,
@@ -1932,21 +1931,23 @@ export async function relinkMemoryTopicsOp(
   }
   const relinked: string[] = [];
   for (const id of Array.from(new Set(memoryIds))) {
-    let record: VaultMemory;
     try {
-      record = await ctx.vaultMemoryCollection.find(id);
-    } catch {
-      continue;
-    }
-    if (record.isDeleted || !isOwnedByCtxUser(ctx, record)) continue;
-    const topics = parseTopics(record.topics);
-    if (topics === null || topics.length === 0) continue;
-    try {
-      await relinkMemoryEntitiesFromTopicsOp(entityCtx, id, topics);
-      relinked.push(id);
+      await ctx.database.write(async (writer) => {
+        let record: VaultMemory;
+        try {
+          record = await ctx.vaultMemoryCollection.find(id);
+        } catch {
+          return;
+        }
+        if (record.isDeleted || !isOwnedByCtxUser(ctx, record)) return;
+        // Read the latest topics after the writer acquires the database lock.
+        const topics = parseTopics(record.topics);
+        if (topics === null) return;
+        await writer.callWriter(() => relinkMemoryEntitiesFromTopicsOp(entityCtx, id, topics));
+        relinked.push(id);
+      });
     } catch (err) {
-      // One unreadable row must not abort the rest of the rebuild — the sweep
-      // will offer it again next pass.
+      // Retry unreadable rows in the next repair pass.
       getLogger().warn("[memory/topics] relink failed", err);
     }
   }

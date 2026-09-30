@@ -765,6 +765,70 @@ describe("getMemoriesNeedingTopicExtractionOp — topicsToRelink", () => {
     expect(result.topicsToRelink).toEqual([id]);
   });
 
+  it("routes an EMPTY record with stale links to topicsToRelink, which clears them", async () => {
+    // Empty topics require removal of stale links without topic extraction.
+    const id = await seedMemory("likes tea");
+    await replaceMemoryEntitiesGuardedOp(entityCtx, id, ["Tea"]);
+    await markAsRestored(id, {
+      topics: "[]",
+      topics_updated_at: 5_000,
+      topics_extracted_at: Date.now() + 10_000,
+      topics_extracted_version: TOPICS_EXTRACTION_VERSION,
+    });
+
+    const result = await getMemoriesNeedingTopicExtractionOp(ctx);
+
+    expect(result.topicsToRelink).toEqual([id]);
+    expect(result.pending).toEqual([]);
+    expect(result.linkedUnstamped).toEqual([]);
+    expect(result.topicsBackfill).toEqual([]);
+
+    // The next sweep does not repeat the repair.
+    await relinkMemoryTopicsOp(ctx, result.topicsToRelink);
+    expect(await linkedNamesOf(id)).toEqual([]);
+    const next = await getMemoriesNeedingTopicExtractionOp(ctx);
+    expect(next.topicsToRelink).toEqual([]);
+    expect(next.pending).toEqual([]);
+  });
+
+  it("routes a CURATED empty record with stale links too, flag intact", async () => {
+    // The repair preserves the user-managed flag and does not extract topics.
+    const id = await seedMemory("follows ZetaChain");
+    await replaceMemoryEntitiesGuardedOp(entityCtx, id, ["ZetaChain"]);
+    await markAsRestored(id, {
+      topics: "[]",
+      topics_updated_at: 5_000,
+      topics_extracted_at: Date.now() + 10_000,
+      topics_extracted_version: TOPICS_EXTRACTION_VERSION,
+      topics_user_managed: true,
+    });
+
+    const result = await getMemoriesNeedingTopicExtractionOp(ctx);
+
+    expect(result.topicsToRelink).toEqual([id]);
+    expect(result.pending).toEqual([]);
+    expect(result.linkedUnstamped).toEqual([]);
+
+    await relinkMemoryTopicsOp(ctx, result.topicsToRelink);
+
+    expect(await linkedNamesOf(id)).toEqual([]);
+    // Still curated - the autotagger must keep its hands off the row.
+    expect((await rowOf(id)).topicsUserManaged).toBe(true);
+  });
+
+  it("leaves an EMPTY record with NO links in no bucket", async () => {
+    // `[]` and an empty index already agree - nothing to rebuild from, nothing
+    // to clear - so the row must not churn through any bucket.
+    await seedRestored("likes tea", []);
+
+    const result = await getMemoriesNeedingTopicExtractionOp(ctx);
+
+    expect(result.pending).toEqual([]);
+    expect(result.linkedUnstamped).toEqual([]);
+    expect(result.topicsToRelink).toEqual([]);
+    expect(result.topicsBackfill).toEqual([]);
+  });
+
   it("caps topicsToRelink under limit", async () => {
     for (let i = 0; i < 5; i++) {
       await seedRestored(`memory ${i}`, [{ name: `Entity${i}`, source: "auto" }]);
@@ -848,14 +912,56 @@ describe("relinkMemoryTopicsOp", () => {
     expect((after._raw as Record<string, unknown>)._status).toBe("synced");
   });
 
-  it("skips rows with no record to rebuild from", async () => {
+  it("clears stale links off an empty record without dirtying the vault row", async () => {
+    const id = await seedMemory("works at Acme");
+    await replaceMemoryEntitiesGuardedOp(entityCtx, id, ["Acme"]);
+    await markAsRestored(id, {
+      topics: "[]",
+      topics_updated_at: 5_000,
+    });
+    const updatedAtBefore = (await rowOf(id)).updatedAt.getTime();
+
+    expect(await relinkMemoryTopicsOp(ctx, [id])).toEqual([id]);
+
+    expect(await linkedNamesOf(id)).toEqual([]);
+    // The index repair does not change the synced memory row.
+    expect(await topicsOf(id)).toEqual([]);
+    expect((await rowOf(id)).topicsUpdatedAt).toBe(5_000);
+    expect((await rowOf(id)).updatedAt.getTime()).toBe(updatedAtBefore);
+    expect(((await rowOf(id))._raw as Record<string, unknown>)._status).toBe("synced");
+  });
+
+  it("preserves a topic added before the repair acquires the writer", async () => {
+    const id = await seedMemory("works at Acme");
+    await markAsRestored(id, { topics: "[]", topics_updated_at: 5_000 });
+    const realWrite = db.write.bind(db);
+    const writeSpy = vi.spyOn(db, "write").mockImplementationOnce(async (work, description) => {
+      await setMemoryEntitiesOp(ctx, id, ["Acme"]);
+      return realWrite(work, description);
+    });
+
+    try {
+      expect(await relinkMemoryTopicsOp(ctx, [id])).toEqual([id]);
+    } finally {
+      writeSpy.mockRestore();
+    }
+
+    expect(await linkedNamesOf(id)).toEqual(["acme"]);
+    expect(topicNames(await topicsOf(id))).toEqual(["acme"]);
+    expect((await rowOf(id)).topicsUserManaged).toBe(true);
+  });
+
+  it("skips a row with no record, and an empty record with no links writes nothing", async () => {
     const noRecord = await seedMemory("no topics record");
     const emptyRecord = await seedMemory("deliberately topicless");
     await markAsRestored(emptyRecord, { topics: "[]", topics_updated_at: 5_000 });
 
-    expect(await relinkMemoryTopicsOp(ctx, [noRecord, emptyRecord])).toEqual([]);
+    // Null topics skip the repair. An empty index requires no write.
+    expect(await relinkMemoryTopicsOp(ctx, [noRecord, emptyRecord])).toEqual([emptyRecord]);
     expect(await linkedNamesOf(noRecord)).toEqual([]);
     expect(await linkedNamesOf(emptyRecord)).toEqual([]);
+    expect((await rowOf(emptyRecord)).topicsUpdatedAt).toBe(5_000);
+    expect(((await rowOf(emptyRecord))._raw as Record<string, unknown>)._status).toBe("synced");
   });
 });
 
