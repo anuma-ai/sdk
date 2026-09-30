@@ -2,7 +2,7 @@
 
 > `const` **CHUNKS\_DISCARDED\_ORIGIN**: `"chunks_discarded"`
 
-Defined in: [src/lib/memoryEngine/embeddings.ts:80](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryEngine/embeddings.ts#80)
+Defined in: [src/lib/memoryEngine/embeddings.ts:81](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryEngine/embeddings.ts#81)
 
 An ordinary message whose chunk vectors were built over `enc:v3:` ciphertext
 (sdk#864) and have been discarded instead of re-embedded.
@@ -25,7 +25,8 @@ on either sweep re-opens these rows for an explicit, caller-initiated
 re-index. Off by default, so no background pass can spend a user's credits
 without being asked to.
 
-A successful repair clears the marker in the same write as the new index.
+A successful repair replaces the marker with `message` in the index write.
+The new marker preserves ordinary message provenance during chat replay.
 Later model migrations can then include the repaired row without this flag.
 Failed embedding requests and empty index data do not clear the marker.
 

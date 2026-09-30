@@ -69,7 +69,8 @@ export const DEFAULT_MIN_CONTENT_LENGTH = 10;
  * re-index. Off by default, so no background pass can spend a user's credits
  * without being asked to.
  *
- * A successful repair clears the marker in the same write as the new index.
+ * A successful repair replaces the marker with `message` in the index write.
+ * The new marker preserves ordinary message provenance during chat replay.
  * Later model migrations can then include the repaired row without this flag.
  * Failed embedding requests and empty index data do not clear the marker.
  *

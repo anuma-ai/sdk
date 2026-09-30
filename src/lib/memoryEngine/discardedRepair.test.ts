@@ -3,10 +3,12 @@ import { Database } from "@nozbe/watermelondb";
 import LokiJSAdapter from "@nozbe/watermelondb/adapters/lokijs";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { foldToolResultsRows, isToolResultsRow, TOOL_RESULTS_PREFIX } from "../chat/toolResults";
 import { Conversation, Message } from "../db/chat/models";
 import {
   createConversationOp,
   createMessageOp,
+  getMessageOp,
   type StorageOperationsContext,
   updateMessageChunksOp,
   updateMessageEmbeddingOp,
@@ -56,11 +58,15 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-async function seed(content = "a searchable message", origin?: MessageOrigin) {
+async function seed(
+  content = "a searchable message",
+  origin?: MessageOrigin,
+  role: "user" | "assistant" = "user"
+) {
   await createMessageOp(ctx, {
     uniqueId: "message",
     conversationId: "conversation",
-    role: "user",
+    role,
     content,
     origin,
   });
@@ -76,7 +82,7 @@ describe("discarded history repair", () => {
     expect(await chunkAndEmbedAllMessages(ctx, options)).toBe(0);
 
     expect(await chunkAndEmbedAllMessages(ctx, options, { reembedDiscarded: true })).toBe(1);
-    expect(row.origin).toBeNull();
+    expect(row.origin).toBe("message");
     expect(row.embeddingModel).toBe("model-a");
     const hadChunks = Boolean(row.chunks?.length);
 
@@ -86,13 +92,36 @@ describe("discarded history repair", () => {
     expect(row.vector?.length || row.chunks?.[0]?.vector.length).toBeGreaterThan(0);
   });
 
-  it.each(["vector", "chunks"])("clears the marker in the successful %s writer", async (kind) => {
-    const row = await seed(undefined, "chunks_discarded");
-    if (kind === "vector") await updateMessageEmbeddingOp(ctx, row.id, [1, 2], "model-a");
-    else await updateMessageChunksOp(ctx, row.id, [chunk], "model-a");
-    expect(row.origin).toBeNull();
-    expect(row.embeddingModel).toBe("model-a");
+  it.each([
+    ["user", false],
+    ["user", true],
+    ["assistant", false],
+    ["assistant", true],
+  ] as const)("keeps a repaired %s message in replay (chunks=%s)", async (role, long) => {
+    const content = `${TOOL_RESULTS_PREFIX}\nTool "github_api" returned: {"why":"does this show up?"}${long ? "\n" + "additional context. ".repeat(40) : ""}`;
+    const row = await seed(content, "chunks_discarded", role);
+    if (role === "user") expect(isToolResultsRow({ role, content, origin: null })).toBe(true);
+
+    await chunkAndEmbedAllMessages(ctx, options, { reembedDiscarded: true });
+    const stored = await getMessageOp(ctx, row.id);
+    expect(stored).not.toBeNull();
+    expect(isToolResultsRow(stored!)).toBe(false);
+    expect(foldToolResultsRows([{ role: "assistant", content: "Sure." }, stored!])).toEqual([
+      { role: "assistant", content: "Sure." },
+      stored,
+    ]);
   });
+
+  it.each(["vector", "chunks"])(
+    "replaces the discarded marker in the successful %s writer",
+    async (kind) => {
+      const row = await seed(undefined, "chunks_discarded");
+      if (kind === "vector") await updateMessageEmbeddingOp(ctx, row.id, [1, 2], "model-a");
+      else await updateMessageChunksOp(ctx, row.id, [chunk], "model-a");
+      expect(row.origin).toBe("message");
+      expect(row.embeddingModel).toBe("model-a");
+    }
+  );
 
   it("retains the marker when no index data is stored", async () => {
     const row = await seed(undefined, "chunks_discarded");
