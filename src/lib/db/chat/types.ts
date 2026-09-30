@@ -87,6 +87,7 @@ export type MessageFeedback = "like" | "dislike" | null;
  * - `tool_result`: the hidden `[Tool Execution Results]` row built from a
  *   turn's auto-executed tool results. Skipped by the embedding sweep (see
  *   `memoryEngine/embeddings`) AND hidden from the transcript.
+ * - `message`: an ordinary message with an index after explicit repair.
  * - `chunks_discarded`: an ordinary, still-rendered message whose chunk vectors
  *   were built over `enc:v3:` ciphertext (sdk#864) and have been discarded
  *   rather than re-embedded at the user's own expense (client#5618). Skipped by
@@ -99,7 +100,7 @@ export type MessageFeedback = "like" | "dislike" | null;
  * encrypted flag would be unreadable exactly where it matters and the skip
  * would fail open.
  */
-export type MessageOrigin = "tool_result" | "chunks_discarded";
+export type MessageOrigin = "tool_result" | "chunks_discarded" | "message";
 
 /**
  * Metadata for files attached to messages.

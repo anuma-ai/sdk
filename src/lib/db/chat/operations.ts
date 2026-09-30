@@ -1216,7 +1216,7 @@ export async function updateMessageEmbeddingOp(
     await message.update((msg) => {
       msg._setRaw("vector", JSON.stringify(vector));
       if (msg.origin === "chunks_discarded" && vector.length > 0) {
-        msg._setRaw("origin", null);
+        msg._setRaw("origin", "message");
       }
       msg._setRaw("embedding_model", embeddingModel);
     });
@@ -1280,7 +1280,7 @@ export async function updateMessageChunksOp(
         storedChunks.length > 0 &&
         storedChunks.every((chunk) => chunk.vector.length > 0)
       ) {
-        msg._setRaw("origin", null);
+        msg._setRaw("origin", "message");
       }
       msg._setRaw("embedding_model", embeddingModel);
     });
