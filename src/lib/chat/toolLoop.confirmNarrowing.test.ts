@@ -1,8 +1,9 @@
 /**
- * Narrowing the tool list after a confirmed booking in runToolLoop.
+ * Narrowing the tool list after a confirmed booking or cancel in runToolLoop.
  *
  * Once the user approves a booking card, the rest of the turn offers only the
- * restaurant tools and the confirm tool. A declined, cancelled or unrelated
+ * restaurant tools and the confirm tool; a cancel card narrows to the list and
+ * cancel tools. A declined, cancelled or unrelated
  * confirmation leaves the tools alone, and so does a list that carries no
  * restaurant tool at all.
  */
@@ -31,6 +32,9 @@ const CONFIRM = "prompt_user_confirm";
 const FIND = "AnumaPaymentsMCP-anuma_find_restaurant";
 const AVAILABILITY = "AnumaPaymentsMCP-anuma_check_restaurant_availability";
 const BOOK = "AnumaPaymentsMCP-anuma_book_restaurant";
+const LIST = "AnumaPaymentsMCP-anuma_list_reservations";
+const CANCEL = "AnumaPaymentsMCP-anuma_cancel_reservation";
+const DISCOVER = "AnumaPaymentsMCP-anuma_discover_restaurants";
 const NEARBY = "AnumaNearbyMCP-nearby_search";
 const WEATHER = "get_weather";
 const RESTAURANT_TOOLS = [FIND, AVAILABILITY, BOOK];
@@ -164,6 +168,24 @@ describe("runToolLoop after a confirmed booking", () => {
     expect(requests[2].tools).toEqual([...RESTAURANT_TOOLS, CONFIRM]);
   });
 
+  it("offers only the list and cancel tools after a confirmed cancel", async () => {
+    const tools = [
+      serverTool(FIND),
+      serverTool(AVAILABILITY),
+      serverTool(BOOK),
+      serverTool(DISCOVER),
+      serverTool(LIST),
+      serverTool(CANCEL),
+      serverTool(NEARBY),
+      clientTool(CONFIRM, async () => answer(true, "cancel_reservation")),
+    ];
+    scriptConfirmThenText();
+
+    const requests = await captureRequests(tools);
+
+    expect(requests[1].tools).toEqual([LIST, CANCEL, CONFIRM]);
+  });
+
   it("no longer runs a client tool the narrowing removed", async () => {
     const weatherExecutor = vi.fn().mockResolvedValue({ temp: 20 });
     const tools = [
@@ -234,6 +256,29 @@ describe("toolsAfterConfirmation", () => {
       expect(names(narrowed)).toEqual([...RESTAURANT_TOOLS, CONFIRM]);
     }
   );
+
+  it.each(["book_restaurant", "anuma_book_restaurant", "AnumaPaymentsMCP-anuma_book_restaurant"])(
+    "does not offer the discovery or cancel tools after %s",
+    (action) => {
+      const withCancel = [...apiTools, ...[LIST, CANCEL, DISCOVER].map(serverTool)];
+      const narrowed = toolsAfterConfirmation(withCancel, [
+        { name: CONFIRM, result: answer(true, action) },
+      ]);
+      expect(names(narrowed)).toEqual([...RESTAURANT_TOOLS, CONFIRM]);
+    }
+  );
+
+  it.each([
+    "cancel_reservation",
+    "anuma_cancel_reservation",
+    "AnumaPaymentsMCP-anuma_cancel_reservation",
+  ])("narrows to the list and cancel tools for %s", (action) => {
+    const withCancel = [...apiTools, ...[LIST, CANCEL, DISCOVER].map(serverTool)];
+    const narrowed = toolsAfterConfirmation(withCancel, [
+      { name: CONFIRM, result: answer(true, action) },
+    ]);
+    expect(names(narrowed)).toEqual([CONFIRM, LIST, CANCEL]);
+  });
 
   it("matches the action case-insensitively and ignores surrounding spaces", () => {
     const narrowed = toolsAfterConfirmation(apiTools, [

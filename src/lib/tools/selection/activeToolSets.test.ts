@@ -48,14 +48,23 @@ describe("deriveActiveToolSets — event-shape-agnostic", () => {
         phaseId: "server-tool-AnumaPaymentsMCP-anuma_find_restaurant-0",
       },
     ];
-    expect(deriveActiveToolSets(events)).toEqual(["restaurant-booking"]);
+    // restaurant-book is a subset of restaurant-booking, so it adds nothing sticky.
+    expect(deriveActiveToolSets(events)).toEqual(["restaurant-booking", "restaurant-book"]);
   });
 
   it("detects restaurant-booking from a tool-result event", () => {
     const events: ToolActivationEvent[] = [
       { kind: "tool-result", toolName: "AnumaPaymentsMCP-anuma_check_restaurant_availability" },
     ];
-    expect(deriveActiveToolSets(events)).toEqual(["restaurant-booking"]);
+    // restaurant-book is a subset of restaurant-booking, so it adds nothing sticky.
+    expect(deriveActiveToolSets(events)).toEqual(["restaurant-booking", "restaurant-book"]);
+  });
+
+  it("pins both restaurant sets once the cancel tool has run", () => {
+    const events: ToolActivationEvent[] = [
+      { kind: "tool-result", toolName: "AnumaPaymentsMCP-anuma_cancel_reservation" },
+    ];
+    expect(deriveActiveToolSets(events)).toEqual(["restaurant-booking", "restaurant-cancel"]);
   });
 
   it("does not pin restaurant-booking on a confirmation alone", () => {

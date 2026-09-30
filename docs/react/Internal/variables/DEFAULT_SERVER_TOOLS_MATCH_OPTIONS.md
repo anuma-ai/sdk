@@ -2,6 +2,6 @@
 
 > `const` **DEFAULT\_SERVER\_TOOLS\_MATCH\_OPTIONS**: [`ToolMatchOptions`](../interfaces/ToolMatchOptions.md)
 
-Defined in: [src/lib/tools/serverTools.ts:1679](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#1679)
+Defined in: [src/lib/tools/serverTools.ts:1713](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#1713)
 
 Default match options for the server-tools filter (limit 5, minSim 0.5).

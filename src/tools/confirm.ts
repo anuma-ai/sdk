@@ -110,7 +110,7 @@ export function createConfirmTool(options: CreateUIToolsOptions): ToolConfig {
   return createInteractiveTool(options, {
     name: CONFIRM_TOOL_NAME,
     description:
-      "Ask the user to approve a specific action before it happens. Use before anything that spends money or is hard to undo, such as booking a restaurant table or placing an order. List every parameter of the action, with the exact values you are about to use — the user approves what this card shows, and nothing else. Returns whether they confirmed. Do not use for ordinary yes/no questions; use prompt_user_choice for those.",
+      "Ask the user to approve a specific action before it happens. Use before anything that spends money or is hard to undo, such as booking or cancelling a restaurant table, or placing an order. List every parameter of the action, with the exact values you are about to use — the user approves what this card shows, and nothing else. Returns whether they confirmed. Do not use for ordinary yes/no questions; use prompt_user_choice for those.",
     parameters: {
       type: "object",
       properties: {
