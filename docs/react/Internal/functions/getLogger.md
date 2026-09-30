@@ -2,7 +2,7 @@
 
 > **getLogger**(): [`Logger`](../interfaces/Logger.md)
 
-Defined in: [src/lib/logger.ts:59](https://github.com/anuma-ai/sdk/blob/main/src/lib/logger.ts#59)
+Defined in: [src/lib/logger.ts:72](https://github.com/anuma-ai/sdk/blob/main/src/lib/logger.ts#72)
 
 Return the active SDK logger.
 
