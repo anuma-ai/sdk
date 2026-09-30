@@ -1937,22 +1937,23 @@ export async function relinkMemoryTopicsOp(
   }
   const relinked: string[] = [];
   for (const id of Array.from(new Set(memoryIds))) {
-    let record: VaultMemory;
     try {
-      record = await ctx.vaultMemoryCollection.find(id);
-    } catch {
-      continue;
-    }
-    if (record.isDeleted || !isOwnedByCtxUser(ctx, record)) continue;
-    const topics = parseTopics(record.topics);
-    // Null topics provide no record. Empty topics remove stale links.
-    if (topics === null) continue;
-    try {
-      await relinkMemoryEntitiesFromTopicsOp(entityCtx, id, topics);
-      relinked.push(id);
+      await ctx.database.write(async (writer) => {
+        let record: VaultMemory;
+        try {
+          record = await ctx.vaultMemoryCollection.find(id);
+        } catch {
+          return;
+        }
+        if (record.isDeleted || !isOwnedByCtxUser(ctx, record)) return;
+        // Read the latest topics after the writer acquires the database lock.
+        const topics = parseTopics(record.topics);
+        if (topics === null) return;
+        await writer.callWriter(() => relinkMemoryEntitiesFromTopicsOp(entityCtx, id, topics));
+        relinked.push(id);
+      });
     } catch (err) {
-      // One unreadable row must not abort the rest of the rebuild — the sweep
-      // will offer it again next pass.
+      // Retry unreadable rows in the next repair pass.
       getLogger().warn("[memory/topics] relink failed", err);
     }
   }

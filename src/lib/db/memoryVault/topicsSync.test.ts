@@ -931,6 +931,26 @@ describe("relinkMemoryTopicsOp", () => {
     expect(((await rowOf(id))._raw as Record<string, unknown>)._status).toBe("synced");
   });
 
+  it("preserves a topic added before the repair acquires the writer", async () => {
+    const id = await seedMemory("works at Acme");
+    await markAsRestored(id, { topics: "[]", topics_updated_at: 5_000 });
+    const realWrite = db.write.bind(db);
+    const writeSpy = vi.spyOn(db, "write").mockImplementationOnce(async (work, description) => {
+      await setMemoryEntitiesOp(ctx, id, ["Acme"]);
+      return realWrite(work, description);
+    });
+
+    try {
+      expect(await relinkMemoryTopicsOp(ctx, [id])).toEqual([id]);
+    } finally {
+      writeSpy.mockRestore();
+    }
+
+    expect(await linkedNamesOf(id)).toEqual(["acme"]);
+    expect(topicNames(await topicsOf(id))).toEqual(["acme"]);
+    expect((await rowOf(id)).topicsUserManaged).toBe(true);
+  });
+
   it("skips a row with no record, and an empty record with no links writes nothing", async () => {
     const noRecord = await seedMemory("no topics record");
     const emptyRecord = await seedMemory("deliberately topicless");
