@@ -1826,7 +1826,14 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     const pending = pendingResumeRef.current;
     // Cold recovery owns its context until the replay finalizes it.
     // Only a warm detached turn has the original stored user message ID.
-    if (!pending?.userMessageUniqueId) return null;
+    // An idle synthesized handle is not that replay: a thrown cold resume
+    // keeps it after activeResumeRef clears, and a later bare resumeStream()
+    // would parent the old stream under the turn this send replaces. Cold
+    // retry does not need the slot — the row id re-derives from inferenceId.
+    if (!pending?.userMessageUniqueId) {
+      if (pending && active?.context !== pending) pendingResumeRef.current = null;
+      return null;
+    }
     if (active?.context === pending) return "Resume already in progress";
     pendingResumeRef.current = null;
 

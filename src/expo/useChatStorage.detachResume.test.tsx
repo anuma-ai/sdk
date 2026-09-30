@@ -1631,6 +1631,66 @@ describe("useChatStorage detach → resume reconciliation", () => {
       expect(fetchSpy).not.toHaveBeenCalled();
     });
 
+    it("drops an idle cold resume after a thrown replay so a later bare resume cannot replay it", async () => {
+      const ctx = makeCtx(db);
+      await createConversationOp(ctx, { conversationId: "conv_idle_cold" });
+      await upsertMessageOp(ctx, {
+        conversationId: "conv_idle_cold",
+        role: "user",
+        content: "original question",
+        uniqueId: "user-original",
+      });
+      const { result } = renderHook(() =>
+        useChatStorage({
+          database: db,
+          conversationId: "conv_idle_cold",
+          getToken: async () => "tok",
+          resumable: true,
+          autoEmbedMessages: false,
+        })
+      );
+
+      // A non-expiry throw retains the synthesized cold context and only
+      // clears the in-flight marker. The next send must drop that idle handle.
+      mockResumeStream.mockRejectedValueOnce(new Error("socket reset"));
+      await act(async () => {
+        await expect(
+          result.current.resumeStream({
+            inferenceId: "inf-idle-cold",
+            apiType: "responses",
+            model: "test-model",
+            conversationId: "conv_idle_cold",
+          })
+        ).rejects.toThrow("socket reset");
+      });
+
+      completedSend("replacement answer");
+      await act(async () => {
+        expect(
+          (await result.current.sendMessage(nextArgs("replacement question"))).error
+        ).toBeNull();
+      });
+
+      mockResumeStream.mockResolvedValueOnce({
+        data: responsesShape("stale cold replay"),
+        error: null,
+        interrupted: false,
+      } as never);
+      let bare: Awaited<ReturnType<typeof result.current.resumeStream>>;
+      await act(async () => {
+        bare = await result.current.resumeStream();
+      });
+      expect(bare!.error).toBe("No resumable stream");
+      expect(mockResumeStream).toHaveBeenCalledTimes(1);
+
+      const rows = await getMessagesOp(ctx, "conv_idle_cold");
+      expect(rows.map((row) => row.content)).toEqual([
+        "original question",
+        "replacement question",
+        "replacement answer",
+      ]);
+    });
+
     it("retires the warm turn without aborting a foreign headless resume", async () => {
       const { result } = renderHook(() =>
         useChatStorage({
