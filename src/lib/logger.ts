@@ -48,14 +48,34 @@ export const noopLogger: Logger = {
   error: () => {},
 };
 
-let currentLogger: Logger = consoleLogger;
+const LOGGER_STATE_KEY = Symbol.for("@anuma/sdk/logger/v1");
+
+interface LoggerState {
+  logger: Logger;
+}
+
+const loggerGlobal = globalThis as typeof globalThis & {
+  [LOGGER_STATE_KEY]?: LoggerState;
+};
+
+const fallbackLoggerState: LoggerState = { logger: consoleLogger };
+
+// Separate entrypoint bundles share one logger in each JavaScript realm.
+// Each bundle uses its local state when the global blocks a new property.
+function getLoggerState(): LoggerState {
+  try {
+    return (loggerGlobal[LOGGER_STATE_KEY] ??= fallbackLoggerState);
+  } catch {
+    return fallbackLoggerState;
+  }
+}
 
 /** Replace the active SDK logger. Pass {@link consoleLogger} to restore defaults. */
 export function setLogger(logger: Logger): void {
-  currentLogger = logger;
+  getLoggerState().logger = logger;
 }
 
 /** Return the active SDK logger. */
 export function getLogger(): Logger {
-  return currentLogger;
+  return getLoggerState().logger;
 }

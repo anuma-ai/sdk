@@ -154,7 +154,7 @@
     "check:excluded-suites": "node scripts/assert-excluded-suites-still-fail.mjs",
     "knip": "knip",
     "check:export-consumers": "node scripts/assert-export-consumers.mjs",
-    "check-exports": "publint && attw --pack --ignore-rules no-resolution false-cjs && node scripts/assert-no-client-self-import.mjs",
+    "check-exports": "publint && attw --pack --ignore-rules no-resolution false-cjs && node scripts/assert-no-client-self-import.mjs && node scripts/assert-shared-logger.mjs",
     "check": "pnpm run lint && pnpm run knip && pnpm run check:export-consumers && pnpm run format && pnpm run generate",
     "eval:extraction": "tsx test/memory/src/extraction/benchmark.test.ts",
     "eval:topic": "tsx test/memory/src/topic/benchmark.ts",
@@ -290,8 +290,8 @@
       "js-yaml@>=4 <4.3.2": ">=4.3.2 <5.0.0",
       "js-yaml@>=3 <3.15.2": ">=3.15.2 <4.0.0",
       "markdown-it@<14.2.0": ">=14.2.0",
-      "brace-expansion@1": ">=1.1.18 <2.0.0",
-      "brace-expansion@2": ">=2.1.4 <3.0.0"
+      "brace-expansion@1": ">=1.1.20 <2.0.0",
+      "brace-expansion@2": ">=2.1.6 <3.0.0"
     },
     "patchedDependencies": {
       "tesseract.js@6.0.1": "patches/tesseract.js@6.0.1.patch",
