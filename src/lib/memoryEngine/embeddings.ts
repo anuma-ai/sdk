@@ -69,14 +69,9 @@ export const DEFAULT_MIN_CONTENT_LENGTH = 10;
  * re-index. Off by default, so no background pass can spend a user's credits
  * without being asked to.
  *
- * That flag opens the gate for one call and nothing more. It does not heal the
- * row: a message that re-indexes successfully still carries `chunks_discarded`
- * afterwards, so the next pass skips it again unless that pass sets the flag
- * too. An embedding-model migration is where this bites. It reaches this gate
- * before it can do anything, so the repaired rows stay on the old model, and
- * `searchChunksOp` already drops stale-model vectors — they go quiet with
- * nothing telling them apart from rows that were never repaired. Clearing the
- * marker on a successful re-index is the real fix, tracked in #879.
+ * A successful repair clears the marker in the same write as the new index.
+ * Later model migrations can then include the repaired row without this flag.
+ * Failed embedding requests and empty index data do not clear the marker.
  *
  * `satisfies MessageOrigin` so the constant and the union cannot drift apart
  * silently — the column's type is the union, and a typo here would otherwise
@@ -202,9 +197,8 @@ export async function embedAllMessages(
      * to an explicit user action, never to a background pass. Opens that marker
      * only — `tool_result` rows stay excluded.
      *
-     * Per call, not a state change: a row that re-indexes successfully keeps its
-     * marker, so a later pass that omits this flag skips it again. See
-     * {@link CHUNKS_DISCARDED_ORIGIN}.
+     * A successful repair clears the marker. Later model migrations include
+     * the repaired row without this flag. See {@link CHUNKS_DISCARDED_ORIGIN}.
      */
     reembedDiscarded?: boolean;
   }
@@ -414,9 +408,8 @@ export async function chunkAndEmbedAllMessages(
      * chunks nor vector, so it never reaches that check and falls straight to the
      * origin gate.
      *
-     * Per call, not a state change: a row that re-indexes successfully keeps its
-     * marker, so a later pass that omits this flag skips it again. See
-     * {@link CHUNKS_DISCARDED_ORIGIN}.
+     * A successful repair clears the marker. Later model migrations include
+     * the repaired row without this flag. See {@link CHUNKS_DISCARDED_ORIGIN}.
      */
     reembedDiscarded?: boolean;
   }

@@ -2,7 +2,7 @@
 
 > **chunkAndEmbedAllMessages**(`ctx`: [`StorageOperationsContext`](../interfaces/StorageOperationsContext.md), `options`: [`MemoryEngineEmbeddingOptions`](../interfaces/MemoryEngineEmbeddingOptions.md) & [`ChunkingOptions`](../interfaces/ChunkingOptions.md), `filter?`: `object`): `Promise`<`number`>
 
-Defined in: [src/lib/memoryEngine/embeddings.ts:395](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryEngine/embeddings.ts#395)
+Defined in: [src/lib/memoryEngine/embeddings.ts:389](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryEngine/embeddings.ts#389)
 
 Chunk and embed messages that don't yet have embeddings/chunks in the
 database. Uses chunking for long messages, whole-message embedding for short
@@ -153,9 +153,8 @@ only — `tool_result` rows stay excluded.
 chunks nor vector, so it never reaches that check and falls straight to the
 origin gate.
 
-Per call, not a state change: a row that re-indexes successfully keeps its
-marker, so a later pass that omits this flag skips it again. See
-[CHUNKS\_DISCARDED\_ORIGIN](../variables/CHUNKS_DISCARDED_ORIGIN.md).
+A successful repair clears the marker. Later model migrations include
+the repaired row without this flag. See [CHUNKS\_DISCARDED\_ORIGIN](../variables/CHUNKS_DISCARDED_ORIGIN.md).
 
 </td>
 </tr>
