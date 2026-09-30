@@ -4,20 +4,20 @@
  *
  * The non-negotiable invariant: for a single `assistantUniqueId`, a detach
  * followed by a resume yields exactly ONE assistant row — the partial is
- * persisted on detach and the resumed completion UPDATES that same row in place
- * (find→update via upsertMessageOp), never creating a second one.
+ * kept in memory on detach. The terminal creates or updates one assistant row.
+ * A new send saves the detached partial before it starts the next turn.
  *
  * Two layers:
  * 1. upsertMessageOp directly against a real WatermelonDB (LokiJS) — the
  *    create-then-update single-row guarantee in isolation.
  * 2. The hook end to end with runToolLoop / resumeStream mocked — detach
- *    persists a partial, resume reconciles to the final text on one row.
+ *    keeps a partial in memory, then saves one row at the terminal.
  */
 
 import { Database } from "@nozbe/watermelondb";
 import LokiJSAdapter from "@nozbe/watermelondb/adapters/lokijs";
 import { act, renderHook, waitFor } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, type MockInstance, vi } from "vitest";
 
 import { sdkMigrations, sdkModelClasses, sdkSchema } from "../lib/db/schema";
 import {
@@ -42,6 +42,7 @@ vi.mock("../lib/chat/resumeStream", async (importOriginal) => {
 import { MCP_R2_DOMAIN } from "../clientConfig";
 import { runToolLoop } from "../lib/chat/toolLoop";
 import { resumeStream as libResumeStream, StreamExpiredError } from "../lib/chat/resumeStream";
+import { streamCancelPath } from "../lib/chat/resumeStream";
 import { useChatStorage } from "./useChatStorage";
 
 const mockRunToolLoop = vi.mocked(runToolLoop);
@@ -213,6 +214,7 @@ describe("useChatStorage detach → resume reconciliation", () => {
       sendResult = await result.current.sendMessage({
         messages: [{ role: "user", content: [{ type: "text", text: "question" }] }],
         model: "test-model",
+        serverTools: [],
       });
     });
     return sendResult! as Extract<
@@ -1210,36 +1212,399 @@ describe("useChatStorage detach → resume reconciliation", () => {
     ).toHaveLength(1);
   });
 
-  it("clears a pending handle when a new sendMessage is dispatched", async () => {
-    const { result } = renderHook(() =>
-      useChatStorage({
-        database: db,
-        conversationId: "conv_clear",
-        getToken: async () => "tok",
-        resumable: true,
-      })
+  describe("pending turn supersession", () => {
+    let fetchSpy: MockInstance<typeof globalThis.fetch>;
+
+    beforeEach(() => {
+      mockRunToolLoop.mockReset();
+      mockResumeStream.mockReset();
+      fetchSpy = vi
+        .spyOn(globalThis, "fetch")
+        .mockResolvedValue(new Response(null, { status: 200 }));
+    });
+
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    function deferred<T>() {
+      let resolve!: (value: T) => void;
+      const promise = new Promise<T>((done) => {
+        resolve = done;
+      });
+      return { promise, resolve };
+    }
+
+    function nextArgs(text = "new question") {
+      return {
+        messages: [{ role: "user" as const, content: [{ type: "text" as const, text }] }],
+        model: "test-model",
+        serverTools: [],
+      };
+    }
+
+    function cancelCalls(inferenceId: string) {
+      return fetchSpy.mock.calls.filter(([url]) =>
+        String(url).endsWith(streamCancelPath(inferenceId))
+      );
+    }
+
+    function completedSend(text = "fresh answer") {
+      mockRunToolLoop.mockResolvedValueOnce({ data: responsesShape(text), error: null } as never);
+    }
+
+    it("saves one stopped partial before the next turn and cancels only the old buffer", async () => {
+      const onCancelResult = vi.fn();
+      let token = "old-token";
+      const { result } = renderHook(() =>
+        useChatStorage({
+          database: db,
+          conversationId: "conv_supersede",
+          getToken: async () => token,
+          resumable: true,
+          autoEmbedMessages: false,
+          onCancelResult,
+        })
+      );
+      const detached = await detachSend(result, "conv_supersede", "visible partial", "inf-old");
+      token = "fresh-token";
+      completedSend();
+      let next!: Awaited<ReturnType<typeof result.current.sendMessage>>;
+      await act(async () => {
+        next = await result.current.sendMessage(nextArgs());
+      });
+      expect(next.error).toBeNull();
+
+      const rows = await getMessagesOp(makeCtx(db), "conv_supersede");
+      expect(rows.map((row) => row.content)).toEqual([
+        "question",
+        "visible partial",
+        "new question",
+        "fresh answer",
+      ]);
+      expect(rows.map((row) => row.messageId)).toEqual([1, 2, 3, 4]);
+      expect(rows[1]).toMatchObject({
+        uniqueId: detached.assistantUniqueId,
+        parentMessageId: detached.userMessage?.uniqueId,
+        conversationId: "conv_supersede",
+        wasStopped: true,
+      });
+      expect(rows[3].uniqueId).not.toBe(detached.assistantUniqueId);
+      expect(rows[3].wasStopped).toBeFalsy();
+      const prompt = JSON.stringify(mockRunToolLoop.mock.calls[1][0].messages);
+      expect(prompt.split("visible partial")).toHaveLength(2);
+      await waitFor(() => expect(onCancelResult).toHaveBeenCalledTimes(1));
+      expect(cancelCalls("inf-old")).toHaveLength(1);
+      expect(cancelCalls("inf-old")[0][1]).toMatchObject({
+        method: "POST",
+        headers: { Authorization: "Bearer fresh-token" },
+      });
+      expect((await result.current.resumeStream()).error).toBe("No resumable stream");
+    });
+
+    it("retains the old turn after a real writer failure and retries without duplicate rows", async () => {
+      const { result } = renderHook(() =>
+        useChatStorage({
+          database: db,
+          conversationId: "conv_retry",
+          getToken: async () => "tok",
+          resumable: true,
+          autoEmbedMessages: false,
+        })
+      );
+      const detached = await detachSend(result, "conv_retry", "retry partial", "inf-retry");
+      const writer = vi.spyOn(db, "write").mockRejectedValueOnce(new Error("writer unavailable"));
+      completedSend();
+      let failed!: Awaited<ReturnType<typeof result.current.sendMessage>>;
+      await act(async () => {
+        failed = await result.current.sendMessage(nextArgs());
+      });
+      expect(failed).toMatchObject({ data: null, error: "writer unavailable" });
+      expect(mockRunToolLoop).toHaveBeenCalledTimes(1);
+      expect(cancelCalls("inf-retry")).toHaveLength(0);
+      expect((await getMessagesOp(makeCtx(db), "conv_retry")).map((row) => row.content)).toEqual([
+        "question",
+      ]);
+      writer.mockRestore();
+
+      await act(async () => {
+        expect((await result.current.sendMessage(nextArgs())).error).toBeNull();
+      });
+      const rows = await getMessagesOp(makeCtx(db), "conv_retry");
+      expect(rows.map((row) => row.content)).toEqual([
+        "question",
+        "retry partial",
+        "new question",
+        "fresh answer",
+      ]);
+      expect(rows.filter((row) => row.uniqueId === detached.assistantUniqueId)).toHaveLength(1);
+      expect(rows[1].wasStopped).toBe(true);
+      await waitFor(() => expect(cancelCalls("inf-retry")).toHaveLength(1));
+    });
+
+    it("holds new sends and explicit resumes behind the old writer", async () => {
+      const { result } = renderHook(() =>
+        useChatStorage({
+          database: db,
+          conversationId: "conv_writer_gate",
+          getToken: async () => "tok",
+          resumable: true,
+          autoEmbedMessages: false,
+        })
+      );
+      const detached = await detachSend(result, "conv_writer_gate", "gated partial", "inf-gated");
+      const entered = deferred<void>();
+      const release = deferred<void>();
+      const write = db.write.bind(db);
+      vi.spyOn(db, "write").mockImplementationOnce(async (work) => {
+        entered.resolve();
+        await release.promise;
+        return write(work);
+      });
+      completedSend();
+      let next!: ReturnType<typeof result.current.sendMessage>;
+      let resume!: Awaited<ReturnType<typeof result.current.resumeStream>>;
+      await act(async () => {
+        next = result.current.sendMessage(nextArgs());
+        await entered.promise;
+        try {
+          expect(mockRunToolLoop).toHaveBeenCalledTimes(1);
+          expect(cancelCalls("inf-gated")).toHaveLength(0);
+          expect(await getMessagesOp(makeCtx(db), "conv_writer_gate")).toHaveLength(1);
+          resume = await result.current.resumeStream(detached.resume!);
+          // Stop cannot race a second old-row write or cancel before the commit.
+          result.current.stop();
+          expect(cancelCalls("inf-gated")).toHaveLength(0);
+        } finally {
+          release.resolve();
+          await next;
+        }
+      });
+      expect(resume.error).toBe("Resume already in progress");
+      expect(mockResumeStream).not.toHaveBeenCalled();
+      const rows = await getMessagesOp(makeCtx(db), "conv_writer_gate");
+      expect(rows.map((row) => row.messageId)).toEqual([1, 2, 3, 4]);
+      expect(rows.filter((row) => row.uniqueId === detached.assistantUniqueId)).toHaveLength(1);
+      await waitFor(() => expect(cancelCalls("inf-gated")).toHaveLength(1));
+    });
+
+    it("holds a second new send behind the same partial commit", async () => {
+      const { result } = renderHook(() =>
+        useChatStorage({
+          database: db,
+          conversationId: "conv_two_sends",
+          getToken: async () => "tok",
+          resumable: true,
+          autoEmbedMessages: false,
+        })
+      );
+      const detached = await detachSend(result, "conv_two_sends", "shared partial", "inf-shared");
+      const entered = deferred<void>();
+      const release = deferred<void>();
+      const write = db.write.bind(db);
+      vi.spyOn(db, "write").mockImplementationOnce(async (work) => {
+        entered.resolve();
+        await release.promise;
+        return write(work);
+      });
+      completedSend();
+      completedSend();
+      await act(async () => {
+        const first = result.current.sendMessage(nextArgs("stored next"));
+        await entered.promise;
+        const second = result.current.sendMessage({
+          ...nextArgs("unstored next"),
+          skipStorage: true,
+        });
+        try {
+          // Drain the second caller's microtasks while the real writer stays held.
+          await Promise.resolve();
+          await Promise.resolve();
+          expect(mockRunToolLoop).toHaveBeenCalledTimes(1);
+          expect(await getMessagesOp(makeCtx(db), "conv_two_sends")).toHaveLength(1);
+        } finally {
+          release.resolve();
+          await Promise.all([first, second]);
+        }
+      });
+      const rows = await getMessagesOp(makeCtx(db), "conv_two_sends");
+      expect(rows.filter((row) => row.uniqueId === detached.assistantUniqueId)).toHaveLength(1);
+      expect(rows[1]).toMatchObject({ content: "shared partial", wasStopped: true });
+      expect(rows.map((row) => row.messageId)).toEqual([1, 2, 3, 4]);
+      await waitFor(() => expect(cancelCalls("inf-shared")).toHaveLength(1));
+    });
+
+    it("rejects a new send while the same turn resumes, then preserves its complete row", async () => {
+      const { result } = renderHook(() =>
+        useChatStorage({
+          database: db,
+          conversationId: "conv_active",
+          getToken: async () => "tok",
+          resumable: true,
+          autoEmbedMessages: false,
+        })
+      );
+      const detached = await detachSend(result, "conv_active", "old partial", "inf-active");
+      const entered = deferred<void>();
+      const release = deferred<void>();
+      mockResumeStream.mockImplementationOnce(async () => {
+        entered.resolve();
+        await release.promise;
+        return {
+          data: responsesShape("complete old answer"),
+          error: null,
+          interrupted: false,
+        } as never;
+      });
+      completedSend();
+      await act(async () => {
+        const resume = result.current.resumeStream();
+        await entered.promise;
+        try {
+          const next = await result.current.sendMessage(nextArgs());
+          expect(next).toMatchObject({ data: null, error: "Resume already in progress" });
+          expect(mockRunToolLoop).toHaveBeenCalledTimes(1);
+        } finally {
+          release.resolve();
+          await resume;
+        }
+      });
+      await act(async () => {
+        await result.current.sendMessage(nextArgs());
+      });
+      const rows = await getMessagesOp(makeCtx(db), "conv_active");
+      expect(rows.filter((row) => row.uniqueId === detached.assistantUniqueId)).toHaveLength(1);
+      expect(rows[1].content).toBe("complete old answer");
+      expect(rows[1].wasStopped).toBeFalsy();
+      expect(cancelCalls("inf-active")).toHaveLength(0);
+    });
+
+    it.each([null, responsesShape("")])(
+      "does not save a blank detached row (%s)",
+      async (partial) => {
+        const onCancelResult = vi.fn();
+        const { result } = renderHook(() =>
+          useChatStorage({
+            database: db,
+            conversationId: "conv_empty_pending",
+            getToken: async () => "tok",
+            resumable: true,
+            autoEmbedMessages: false,
+            onCancelResult,
+          })
+        );
+        mockRunToolLoop.mockResolvedValueOnce({
+          data: partial,
+          error: "Request detached",
+          detached: true,
+          resume: {
+            inferenceId: "inf-empty",
+            apiType: "responses",
+            model: "test-model",
+            conversationId: "conv_empty_pending",
+          },
+        } as never);
+        await act(async () => {
+          await result.current.sendMessage(nextArgs("first question"));
+        });
+        completedSend();
+        await act(async () => {
+          await result.current.sendMessage(nextArgs());
+        });
+        const rows = await getMessagesOp(makeCtx(db), "conv_empty_pending");
+        expect(rows.map((row) => row.content)).toEqual([
+          "first question",
+          "new question",
+          "fresh answer",
+        ]);
+        await waitFor(() => expect(onCancelResult).toHaveBeenCalledTimes(1));
+        expect(cancelCalls("inf-empty")).toHaveLength(1);
+      }
     );
 
-    await detachSend(result, "conv_clear", "partial", "inf-5");
-
-    // A new (non-detached) send supersedes the pending detach.
-    mockRunToolLoop.mockResolvedValueOnce({
-      data: responsesShape("a fresh answer"),
-      error: null,
-    } as never);
-    await act(async () => {
-      await result.current.sendMessage({
-        messages: [{ role: "user", content: [{ type: "text", text: "new question" }] }],
-        model: "test-model",
+    it("reports a failed cancel once and still completes the new send", async () => {
+      const onCancelResult = vi.fn();
+      const { result } = renderHook(() =>
+        useChatStorage({
+          database: db,
+          conversationId: "conv_cancel_failure",
+          getToken: async () => "tok",
+          resumable: true,
+          autoEmbedMessages: false,
+          onCancelResult,
+        })
+      );
+      await detachSend(result, "conv_cancel_failure", "kept partial", "inf-cancel-failure");
+      fetchSpy.mockRejectedValueOnce(new Error("cancel unavailable"));
+      completedSend();
+      await act(async () => {
+        expect((await result.current.sendMessage(nextArgs())).error).toBeNull();
+      });
+      await waitFor(() => expect(onCancelResult).toHaveBeenCalledTimes(1));
+      expect(onCancelResult.mock.calls[0][0]).toMatchObject({
+        inferenceId: "inf-cancel-failure",
+        ok: false,
+      });
+      expect((await getMessagesOp(makeCtx(db), "conv_cancel_failure"))[1]).toMatchObject({
+        content: "kept partial",
+        wasStopped: true,
       });
     });
 
-    // The stale handle is gone.
-    let resumeResult: Awaited<ReturnType<typeof result.current.resumeStream>>;
-    await act(async () => {
-      resumeResult = await result.current.resumeStream();
+    it("retires the warm turn without aborting a foreign headless resume", async () => {
+      const { result } = renderHook(() =>
+        useChatStorage({
+          database: db,
+          conversationId: "conv_visible",
+          getToken: async () => "tok",
+          resumable: true,
+          autoEmbedMessages: false,
+        })
+      );
+      const detached = await detachSend(result, "conv_visible", "visible partial", "inf-visible");
+      await createConversationOp(makeCtx(db), { conversationId: "conv_foreign" });
+      const entered = deferred<void>();
+      const release = deferred<void>();
+      let replaySignal!: AbortSignal;
+      mockResumeStream.mockImplementationOnce(async (opts) => {
+        replaySignal = opts.signal!;
+        entered.resolve();
+        await release.promise;
+        return {
+          data: responsesShape("foreign complete"),
+          error: null,
+          interrupted: false,
+        } as never;
+      });
+      completedSend();
+      await act(async () => {
+        const foreign = result.current.resumeStream(
+          {
+            inferenceId: "inf-foreign",
+            apiType: "responses",
+            model: "test-model",
+            conversationId: "conv_foreign",
+          },
+          { headless: true }
+        );
+        await entered.promise;
+        try {
+          expect((await result.current.sendMessage(nextArgs())).error).toBeNull();
+          expect(replaySignal.aborted).toBe(false);
+        } finally {
+          release.resolve();
+          expect((await foreign).error).toBeNull();
+        }
+      });
+      const visible = await getMessagesOp(makeCtx(db), "conv_visible");
+      expect(visible.filter((row) => row.uniqueId === detached.assistantUniqueId)).toHaveLength(1);
+      expect(visible[1]).toMatchObject({ content: "visible partial", wasStopped: true });
+      expect((await getMessagesOp(makeCtx(db), "conv_foreign"))[0].content).toBe(
+        "foreign complete"
+      );
+      await waitFor(() => expect(cancelCalls("inf-visible")).toHaveLength(1));
+      expect(cancelCalls("inf-foreign")).toHaveLength(0);
     });
-    expect(resumeResult!.error).toBe("No resumable stream");
   });
 
   it("skipStorage forwards a detached resumable send instead of collapsing it to an error", async () => {
