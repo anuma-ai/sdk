@@ -58,9 +58,16 @@ const loggerGlobal = globalThis as typeof globalThis & {
   [LOGGER_STATE_KEY]?: LoggerState;
 };
 
+const fallbackLoggerState: LoggerState = { logger: consoleLogger };
+
 // Separate entrypoint bundles share one logger in each JavaScript realm.
+// Each bundle uses its local state when the global blocks a new property.
 function getLoggerState(): LoggerState {
-  return (loggerGlobal[LOGGER_STATE_KEY] ??= { logger: consoleLogger });
+  try {
+    return (loggerGlobal[LOGGER_STATE_KEY] ??= fallbackLoggerState);
+  } catch {
+    return fallbackLoggerState;
+  }
 }
 
 /** Replace the active SDK logger. Pass {@link consoleLogger} to restore defaults. */
