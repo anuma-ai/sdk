@@ -1215,6 +1215,9 @@ export async function updateMessageEmbeddingOp(
   await ctx.database.write(async () => {
     await message.update((msg) => {
       msg._setRaw("vector", JSON.stringify(vector));
+      if (msg.origin === "chunks_discarded" && vector.length > 0) {
+        msg._setRaw("origin", "message");
+      }
       msg._setRaw("embedding_model", embeddingModel);
     });
   });
@@ -1272,6 +1275,13 @@ export async function updateMessageChunksOp(
   await ctx.database.write(async () => {
     await message.update((msg) => {
       msg._setRaw("chunks", JSON.stringify(storedChunks));
+      if (
+        msg.origin === "chunks_discarded" &&
+        storedChunks.length > 0 &&
+        storedChunks.every((chunk) => chunk.vector.length > 0)
+      ) {
+        msg._setRaw("origin", "message");
+      }
       msg._setRaw("embedding_model", embeddingModel);
     });
   });
