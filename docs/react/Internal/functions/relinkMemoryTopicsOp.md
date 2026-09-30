@@ -2,7 +2,7 @@
 
 > **relinkMemoryTopicsOp**(`ctx`: [`VaultMemoryOperationsContext`](../interfaces/VaultMemoryOperationsContext.md), `memoryIds`: readonly `string`\[]): `Promise`<`string`\[]>
 
-Defined in: [src/lib/db/memoryVault/operations.ts:1925](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#1925)
+Defined in: [src/lib/db/memoryVault/operations.ts:1924](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#1924)
 
 Rebuild the `memory_entity` index for the sweep's `topicsToRelink` rows from
 each row's `topics` record — the restored-device repair. No LLM call: every
@@ -15,7 +15,8 @@ device-local state and rebuilding it is not a change to the memory.
 `topics_user_managed` in particular is left exactly as it arrived, so the
 autotagger stays off a curated memory whose links this just restored.
 
-Skips deleted, foreign-user, and record-less rows. Returns the ids relinked.
+Skips deleted rows, foreign-user rows, and rows with null topics.
+Empty topics remove stale links. Returns the relinked IDs.
 
 ## Parameters
 
