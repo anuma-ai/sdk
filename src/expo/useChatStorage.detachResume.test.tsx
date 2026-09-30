@@ -1551,6 +1551,86 @@ describe("useChatStorage detach → resume reconciliation", () => {
       });
     });
 
+    it("preserves a cold foreign headless resume while the visible send completes", async () => {
+      const ctx = makeCtx(db);
+      await createConversationOp(ctx, { conversationId: "conv_cold_foreign" });
+      await upsertMessageOp(ctx, {
+        conversationId: "conv_cold_foreign",
+        role: "user",
+        content: "foreign question",
+        uniqueId: "foreign-user",
+      });
+      const { result } = renderHook(() =>
+        useChatStorage({
+          database: db,
+          conversationId: "conv_cold_visible",
+          getToken: async () => "tok",
+          resumable: true,
+          autoEmbedMessages: false,
+        })
+      );
+      const entered = deferred<void>();
+      const release = deferred<void>();
+      let replaySignal!: AbortSignal;
+      mockResumeStream.mockImplementationOnce(async (opts) => {
+        replaySignal = opts.signal!;
+        entered.resolve();
+        await release.promise;
+        return {
+          data: responsesShape("cold foreign complete"),
+          error: null,
+          interrupted: false,
+        } as never;
+      });
+      completedSend("visible complete");
+      await act(async () => {
+        const foreign = result.current.resumeStream(
+          {
+            inferenceId: "inf-cold-foreign",
+            apiType: "responses",
+            model: "test-model",
+            conversationId: "conv_cold_foreign",
+          },
+          { headless: true }
+        );
+        await entered.promise;
+        try {
+          const visible = await result.current.sendMessage(nextArgs("visible question"));
+          expect(visible.error).toBeNull();
+          expect(replaySignal.aborted).toBe(false);
+          expect(mockRunToolLoop).toHaveBeenCalledTimes(1);
+        } finally {
+          release.resolve();
+          const resumed = await foreign;
+          expect(resumed.error).toBeNull();
+          expect(resumed.assistantMessage?.uniqueId).toBe("msg_resume_inf-cold-foreign");
+        }
+      });
+      const foreignRows = await getMessagesOp(ctx, "conv_cold_foreign");
+      expect(foreignRows.map((row) => row.content)).toEqual([
+        "foreign question",
+        "cold foreign complete",
+      ]);
+      expect(foreignRows[1]).toMatchObject({
+        conversationId: "conv_cold_foreign",
+        parentMessageId: "foreign-user",
+        uniqueId: "msg_resume_inf-cold-foreign",
+      });
+      expect(foreignRows[1].wasStopped).toBeFalsy();
+      const visibleRows = await getMessagesOp(ctx, "conv_cold_visible");
+      expect(visibleRows.map((row) => row.content)).toEqual([
+        "visible question",
+        "visible complete",
+      ]);
+      expect(visibleRows[1]).toMatchObject({
+        conversationId: "conv_cold_visible",
+        parentMessageId: visibleRows[0].uniqueId,
+      });
+      expect(visibleRows[1].wasStopped).toBeFalsy();
+      expect(replaySignal.aborted).toBe(false);
+      expect(fetchSpy).not.toHaveBeenCalled();
+    });
+
     it("retires the warm turn without aborting a foreign headless resume", async () => {
       const { result } = renderHook(() =>
         useChatStorage({

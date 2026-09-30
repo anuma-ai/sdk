@@ -1821,12 +1821,13 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     // Every new send waits for the same write. The claimed context leaves the
     // shared slot before the first await, so a resume cannot adopt it mid-write.
     if (retirementRef.current) return retirementRef.current;
-    const pending = pendingResumeRef.current;
-    if (!pending) return null;
     const active = activeResumeRef.current;
-    if (active && (active.context === pending || !active.headless)) {
-      return "Resume already in progress";
-    }
+    if (active && !active.headless) return "Resume already in progress";
+    const pending = pendingResumeRef.current;
+    // Cold recovery owns its context until the replay finalizes it.
+    // Only a warm detached turn has the original stored user message ID.
+    if (!pending?.userMessageUniqueId) return null;
+    if (active?.context === pending) return "Resume already in progress";
     pendingResumeRef.current = null;
 
     const retirement = Promise.resolve().then(async (): Promise<string | null> => {
