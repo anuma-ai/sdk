@@ -37,6 +37,25 @@ export function runMemoryStoreContract(makeStore: () => MemoryStore | Promise<Me
       ]);
     });
 
+    it("never keeps a stale vector across a content edit", async () => {
+      const store = await makeStore();
+      const m = await store.create({ content: "Likes green tea", embedding: "[1,0]" });
+
+      // No fresh vector supplied: the old one must go (a backend may re-embed).
+      const edited = await store.update(m.uniqueId, { content: "Likes oolong tea" });
+      expect(edited?.embedding).not.toBe("[1,0]");
+      expect((await store.get(m.uniqueId))?.embedding).not.toBe("[1,0]");
+      expect((await store.list()).map((r) => r.embedding)).not.toContain("[1,0]");
+
+      // A supplied vector is stored as given.
+      const reembedded = await store.update(m.uniqueId, {
+        content: "Likes black tea",
+        embedding: "[0,1]",
+        embeddingModel: "test-model",
+      });
+      expect(reembedded).toMatchObject({ embedding: "[0,1]", embeddingModel: "test-model" });
+    });
+
     it("creates many in one call", async () => {
       const store = await makeStore();
       const created = await store.createMany([{ content: "Has a cat" }, { content: "Has a dog" }]);

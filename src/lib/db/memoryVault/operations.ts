@@ -2065,6 +2065,51 @@ export async function backfillMemoryTopicsOp(
   return filled;
 }
 
+/**
+ * Stamp `user_id = userId` on every `memory_vault` row that has none — the
+ * one-time claim that lets a `userId`-scoped context see rows an unscoped one
+ * wrote (useChatStorage's vault ctx sets no `userId`, so every client row so
+ * far is `user_id = null`). Idempotent: only null rows are touched, so a
+ * second run is one indexed query. Deleted and archived rows are stamped too,
+ * so the opt-in reads (`includeDeleted`, `listArchived`) keep seeing them.
+ * Pins `updated_at`, like every other maintenance writer, so the claim never
+ * moves a row's recency or its place in a change-since read.
+ *
+ * ONLY for a database that holds one owner's rows (the per-wallet client DBs):
+ * on a shared database the null rows could belong to anyone, and this hands
+ * them all to `userId`. Returns the number of rows stamped.
+ */
+export async function backfillVaultMemoryUserIdsOp(
+  ctx: VaultMemoryOperationsContext,
+  userId: string
+): Promise<number> {
+  if (!userId) return 0;
+  // Chunked like stampTopicsExtractedAtOp. Each pass re-queries the null rows
+  // inside its writer, so the loop ends once nothing is left to stamp.
+  const CHUNK = 500;
+  let stamped = 0;
+  for (;;) {
+    const count = await ctx.database.write(async () => {
+      const records = await ctx.vaultMemoryCollection
+        .query(Q.where("user_id", null), Q.take(CHUNK))
+        .fetch();
+      // Same-tick prepare → batch (see stampTopicsExtractedAtOp); keep it a `.map()`.
+      const prepared = records.map((record) => {
+        // Capture BEFORE prepareUpdate, which touches `updated_at`.
+        const originalUpdatedAt = record.updatedAt.getTime();
+        return record.prepareUpdate((r) => {
+          r._setRaw("user_id", userId);
+          r._setRaw("updated_at", originalUpdatedAt);
+        });
+      });
+      if (prepared.length > 0) await ctx.database.batch(...prepared);
+      return prepared.length;
+    });
+    stamped += count;
+    if (count < CHUNK) return stamped;
+  }
+}
+
 export async function deleteAllVaultMemoriesForUserOp(
   ctx: VaultMemoryOperationsContext,
   userId: string
