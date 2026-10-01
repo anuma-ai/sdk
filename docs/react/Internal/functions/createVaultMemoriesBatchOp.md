@@ -1,8 +1,8 @@
-# createVaultMemoriesBatchOp
+# ~~createVaultMemoriesBatchOp()~~
 
 > **createVaultMemoriesBatchOp**(`ctx`: [`VaultMemoryOperationsContext`](../interfaces/VaultMemoryOperationsContext.md), `optionsArray`: [`CreateVaultMemoryOptions`](../interfaces/CreateVaultMemoryOptions.md)\[]): `Promise`<[`StoredVaultMemory`](../interfaces/StoredVaultMemory.md)\[]>
 
-Defined in: [src/lib/db/memoryVault/operations.ts:468](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#468)
+Defined in: [src/lib/db/memoryVault/operations.ts:470](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#470)
 
 ## Parameters
 
@@ -44,3 +44,7 @@ Defined in: [src/lib/db/memoryVault/operations.ts:468](https://github.com/anuma-
 ## Returns
 
 `Promise`<[`StoredVaultMemory`](../interfaces/StoredVaultMemory.md)\[]>
+
+## Deprecated
+
+App code: use `MemoryStore.createMany` (`createLocalMemoryStore`).

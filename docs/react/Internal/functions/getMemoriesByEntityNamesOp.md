@@ -1,8 +1,8 @@
-# getMemoriesByEntityNamesOp
+# ~~getMemoriesByEntityNamesOp()~~
 
 > **getMemoriesByEntityNamesOp**(`ctx`: [`EntityOperationsContext`](../interfaces/EntityOperationsContext.md), `entityNames`: readonly `string`\[]): `Promise`<`Map`<`string`, `Set`<`string`>>>
 
-Defined in: [src/lib/db/entities/operations.ts:736](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/entities/operations.ts#736)
+Defined in: [src/lib/db/entities/operations.ts:740](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/entities/operations.ts#740)
 
 W5 graph-lane read: given a set of entity names (e.g. extracted from
 a query), return the set of memory IDs linked to *any* of them, with
@@ -61,3 +61,7 @@ readonly `string`\[]
 ## Returns
 
 `Promise`<`Map`<`string`, `Set`<`string`>>>
+
+## Deprecated
+
+App code: use `MemoryStore.memoriesByTopics` (`createLocalMemoryStore`).

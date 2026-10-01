@@ -1,8 +1,8 @@
-# stampTopicsExtractedAtOp
+# ~~stampTopicsExtractedAtOp()~~
 
 > **stampTopicsExtractedAtOp**(`ctx`: [`VaultMemoryOperationsContext`](../interfaces/VaultMemoryOperationsContext.md), `memoryIds`: readonly `string`\[], `extractedAt`: `number`, `version`: `number`): `Promise`<`string`\[]>
 
-Defined in: [src/lib/db/memoryVault/operations.ts:1845](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#1845)
+Defined in: [src/lib/db/memoryVault/operations.ts:1863](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#1863)
 
 Stamp `topics_extracted_at` (and `topics_extracted_version`) on the given
 memories — both DEPRECATED (v42), subsumed by `topics_updated_at`; see the
@@ -114,3 +114,7 @@ readonly `string`\[]
 ## Returns
 
 `Promise`<`string`\[]>
+
+## Deprecated
+
+App code: use `MemoryStore.maintenance.stampTopicsExtracted` (`createLocalMemoryStore`).

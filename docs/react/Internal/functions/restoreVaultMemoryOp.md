@@ -1,8 +1,8 @@
-# restoreVaultMemoryOp
+# ~~restoreVaultMemoryOp()~~
 
 > **restoreVaultMemoryOp**(`ctx`: [`VaultMemoryOperationsContext`](../interfaces/VaultMemoryOperationsContext.md), `id`: `string`): `Promise`<`boolean`>
 
-Defined in: [src/lib/db/memoryVault/operations.ts:2254](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#2254)
+Defined in: [src/lib/db/memoryVault/operations.ts:2280](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#2280)
 
 Restore an archived memory (PR2) — clear `archived_at` so it re-enters recall.
 Re-checks `is_deleted` / ownership inside the writer. Idempotent on an
@@ -51,3 +51,7 @@ already-active row (clearing null → null is harmless).
 
 `true` if the row was restored (or already active); `false` if it was
 deleted / not owned / missing.
+
+## Deprecated
+
+App code: use `MemoryStore.restore` (`createLocalMemoryStore`).
