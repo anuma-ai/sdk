@@ -288,6 +288,7 @@ function populateNewVaultMemory(
   }
 }
 
+/** @deprecated App code: use `MemoryStore.create` (`createLocalMemoryStore`). */
 export async function createVaultMemoryOp(
   ctx: VaultMemoryOperationsContext,
   opts: CreateVaultMemoryOptions
@@ -465,6 +466,7 @@ export async function getMemoriesByEventTimeOp(
   return out;
 }
 
+/** @deprecated App code: use `MemoryStore.createMany` (`createLocalMemoryStore`). */
 export async function createVaultMemoriesBatchOp(
   ctx: VaultMemoryOperationsContext,
   optionsArray: CreateVaultMemoryOptions[]
@@ -506,6 +508,7 @@ export async function createVaultMemoriesBatchOp(
   );
 }
 
+/** @deprecated App code: use `MemoryStore.get` (`createLocalMemoryStore`). */
 export async function getVaultMemoryOp(
   ctx: VaultMemoryOperationsContext,
   id: string
@@ -596,6 +599,7 @@ async function vaultMemoryRawToStored(
   return stored;
 }
 
+/** @deprecated App code: use `MemoryStore.list` (`createLocalMemoryStore`). */
 export async function getAllVaultMemoriesOp(
   ctx: VaultMemoryOperationsContext,
   options?: {
@@ -913,6 +917,8 @@ export async function getVaultEmbeddingsByIdsOp(
  * Reuses `baseVaultConditions`, so deleted / superseded / cross-user rows are
  * excluded exactly as they are from recall — a caller can pass any id list and
  * only its own live rows come back.
+ *
+ * @deprecated App code: use `MemoryStore.list({ memoryIds })` (`createLocalMemoryStore`).
  */
 export async function getVaultMemoriesByIdsOp(
   ctx: VaultMemoryOperationsContext,
@@ -999,6 +1005,7 @@ export async function getActiveVaultMemoryIdsOp(
   return new Set(rows.map((r) => r.id as string));
 }
 
+/** @deprecated App code: use `MemoryStore.update` (`createLocalMemoryStore`). */
 export async function updateVaultMemoryOp(
   ctx: VaultMemoryOperationsContext,
   id: string,
@@ -1165,6 +1172,8 @@ export async function updateVaultMemoryOp(
  * unclustered). Requires `ctx.entityCtx`. Preserves `updated_at` so a topic
  * edit doesn't inflate the recency multiplier — `topics_updated_at` is what
  * carries the edit to the user's other devices.
+ *
+ * @deprecated App code: use `MemoryStore.setTopics` (`createLocalMemoryStore`).
  */
 export async function setMemoryEntitiesOp(
   ctx: VaultMemoryOperationsContext,
@@ -1316,6 +1325,8 @@ export async function clearMemoryTopicsOverrideOp(
  * Preserves `updated_at`: a visibility change is metadata, not a
  * re-observation, so it must not inflate the recency multiplier (mirrors
  * {@link setMemoryEntitiesOp}).
+ *
+ * @deprecated App code: use `MemoryStore.setVisibility` (`createLocalMemoryStore`).
  */
 export async function setMemoryVisibilityOp(
   ctx: VaultMemoryOperationsContext,
@@ -1370,6 +1381,7 @@ export async function setMemoryVisibilityOp(
   return vaultMemoryToStored(record, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner);
 }
 
+/** @deprecated App code: use `MemoryStore.delete` (`createLocalMemoryStore`). */
 export async function deleteVaultMemoryOp(
   ctx: VaultMemoryOperationsContext,
   id: string
@@ -1418,6 +1430,8 @@ export async function deleteVaultMemoryOp(
  *
  * @param id - the memory being retired (e.g. "Lives in Portland")
  * @param supersededById - the newer memory that replaced it (e.g. "Lives in SF")
+ *
+ * @deprecated App code: use `MemoryStore.supersede` (`createLocalMemoryStore`).
  */
 export async function supersedeVaultMemoryOp(
   ctx: VaultMemoryOperationsContext,
@@ -1644,6 +1658,8 @@ function linksDivergeFromTopics(topics: readonly StoredTopic[], linked: Set<stri
  * a contradiction only a pre-v42 restore produces, and this is the one place
  * that can see all three facts at once, so it clears the flag there (capped by
  * `limit`) before returning. See the branch for why that's safe.
+ *
+ * @deprecated App code: use `MemoryStore.maintenance.getTopicBacklog` (`createLocalMemoryStore`).
  */
 export async function getMemoriesNeedingTopicExtractionOp(
   ctx: VaultMemoryOperationsContext,
@@ -1841,6 +1857,8 @@ export async function getMemoriesNeedingTopicExtractionOp(
  * Callers bound the input via `getMemoriesNeedingTopicExtractionOp`'s `limit`
  * (both `pending` and `linkedUnstamped` are capped), so the per-row Model load
  * needed to `prepareUpdate` stays bounded and never spikes the RecordCache.
+ *
+ * @deprecated App code: use `MemoryStore.maintenance.stampTopicsExtracted` (`createLocalMemoryStore`).
  */
 export async function stampTopicsExtractedAtOp(
   ctx: VaultMemoryOperationsContext,
@@ -1921,6 +1939,8 @@ export async function stampTopicsExtractedAtOp(
  * autotagger stays off a curated memory whose links this just restored.
  *
  * Skips deleted, foreign-user, and record-less rows. Returns the ids relinked.
+ *
+ * @deprecated App code: use `MemoryStore.maintenance.relinkTopics` (`createLocalMemoryStore`).
  */
 export async function relinkMemoryTopicsOp(
   ctx: VaultMemoryOperationsContext,
@@ -1975,6 +1995,8 @@ export async function relinkMemoryTopicsOp(
  * per memory (~107 on a single dev launch, sdk#891); it also cost N writes.
  * Same treatment as {@link stampTopicsExtractedAtOp}, including its
  * transpilation hazard — the prepare pass MUST stay a `.map()`.
+ *
+ * @deprecated App code: use `MemoryStore.maintenance.backfillTopics` (`createLocalMemoryStore`).
  */
 export async function backfillMemoryTopicsOp(
   ctx: VaultMemoryOperationsContext,
@@ -2041,6 +2063,51 @@ export async function backfillMemoryTopicsOp(
     });
   }
   return filled;
+}
+
+/**
+ * Stamp `user_id = userId` on every `memory_vault` row that has none — the
+ * one-time claim that lets a `userId`-scoped context see rows an unscoped one
+ * wrote (useChatStorage's vault ctx sets no `userId`, so every client row so
+ * far is `user_id = null`). Idempotent: only null rows are touched, so a
+ * second run is one indexed query. Deleted and archived rows are stamped too,
+ * so the opt-in reads (`includeDeleted`, `listArchived`) keep seeing them.
+ * Pins `updated_at`, like every other maintenance writer, so the claim never
+ * moves a row's recency or its place in a change-since read.
+ *
+ * ONLY for a database that holds one owner's rows (the per-wallet client DBs):
+ * on a shared database the null rows could belong to anyone, and this hands
+ * them all to `userId`. Returns the number of rows stamped.
+ */
+export async function backfillVaultMemoryUserIdsOp(
+  ctx: VaultMemoryOperationsContext,
+  userId: string
+): Promise<number> {
+  if (!userId) return 0;
+  // Chunked like stampTopicsExtractedAtOp. Each pass re-queries the null rows
+  // inside its writer, so the loop ends once nothing is left to stamp.
+  const CHUNK = 500;
+  let stamped = 0;
+  for (;;) {
+    const count = await ctx.database.write(async () => {
+      const records = await ctx.vaultMemoryCollection
+        .query(Q.where("user_id", null), Q.take(CHUNK))
+        .fetch();
+      // Same-tick prepare → batch (see stampTopicsExtractedAtOp); keep it a `.map()`.
+      const prepared = records.map((record) => {
+        // Capture BEFORE prepareUpdate, which touches `updated_at`.
+        const originalUpdatedAt = record.updatedAt.getTime();
+        return record.prepareUpdate((r) => {
+          r._setRaw("user_id", userId);
+          r._setRaw("updated_at", originalUpdatedAt);
+        });
+      });
+      if (prepared.length > 0) await ctx.database.batch(...prepared);
+      return prepared.length;
+    });
+    stamped += count;
+    if (count < CHUNK) return stamped;
+  }
 }
 
 export async function deleteAllVaultMemoriesForUserOp(
@@ -2195,6 +2262,8 @@ export async function getDecayCandidatesRawOp(
  *
  * @returns `true` if this call archived the row; `false` if it was stale
  *   (deleted / not owned / already archived / refreshed under us).
+ *
+ * @deprecated App code: use `MemoryStore.archive` (`createLocalMemoryStore`).
  */
 export async function archiveVaultMemoryOp(
   ctx: VaultMemoryOperationsContext,
@@ -2250,6 +2319,8 @@ export async function archiveVaultMemoryOp(
  *
  * @returns `true` if the row was restored (or already active); `false` if it was
  *   deleted / not owned / missing.
+ *
+ * @deprecated App code: use `MemoryStore.restore` (`createLocalMemoryStore`).
  */
 export async function restoreVaultMemoryOp(
   ctx: VaultMemoryOperationsContext,

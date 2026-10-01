@@ -1,8 +1,8 @@
-# backfillMemoryTopicsOp
+# ~~backfillMemoryTopicsOp()~~
 
 > **backfillMemoryTopicsOp**(`ctx`: [`VaultMemoryOperationsContext`](../interfaces/VaultMemoryOperationsContext.md), `memoryIds`: readonly `string`\[]): `Promise`<`string`\[]>
 
-Defined in: [src/lib/db/memoryVault/operations.ts:1979](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#1979)
+Defined in: [src/lib/db/memoryVault/operations.ts:2001](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#2001)
 
 Fill `topics` for the sweep's `topicsBackfill` rows from the links they
 already carry — the one-time migration of pre-v42 rows, whose topics exist
@@ -66,3 +66,7 @@ readonly `string`\[]
 ## Returns
 
 `Promise`<`string`\[]>
+
+## Deprecated
+
+App code: use `MemoryStore.maintenance.backfillTopics` (`createLocalMemoryStore`).

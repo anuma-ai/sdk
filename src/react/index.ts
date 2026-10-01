@@ -400,6 +400,20 @@ export {
   type VaultWriteOutcome,
 } from "../lib/memoryVault";
 
+// MemoryStore — one app-intent surface over memories, topics and recall/retain,
+// so the backend (on-device vault today, server-side later) can change under it.
+// The raw vault/entity ops it covers are marked @deprecated at their declarations.
+export {
+  createLocalMemoryStore,
+  type LocalMemoryStoreOptions,
+  type MemoryListOptions,
+  type MemoryMaintenance,
+  type MemoryRecallOptions,
+  type MemoryStore,
+  type MemorySubscribeOptions,
+  type MemoryUpdate,
+} from "../lib/memory";
+
 // Unified memory API surface — recall + retain + auto-extraction.
 export type {
   AutoExtractMessage,

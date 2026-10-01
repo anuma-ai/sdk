@@ -442,6 +442,12 @@ Re-exports [createLlmNeighborRefiner](../react/Internal/functions/createLlmNeigh
 
 ***
 
+### createLocalMemoryStore
+
+Re-exports [createLocalMemoryStore](../react/Internal/functions/createLocalMemoryStore.md)
+
+***
+
 ### createMemoryEngineTool
 
 Re-exports [createMemoryEngineTool](../react/Internal/functions/createMemoryEngineTool.md)
@@ -1114,6 +1120,12 @@ Re-exports [LlmNeighborRefinerOptions](../react/Internal/interfaces/LlmNeighborR
 
 ***
 
+### LocalMemoryStoreOptions
+
+Re-exports [LocalMemoryStoreOptions](../react/Internal/interfaces/LocalMemoryStoreOptions.md)
+
+***
+
 ### Logger
 
 Re-exports [Logger](../react/Internal/interfaces/Logger.md)
@@ -1216,15 +1228,51 @@ Re-exports [MemoryKind](../react/Internal/type-aliases/MemoryKind.md)
 
 ***
 
+### MemoryListOptions
+
+Re-exports [MemoryListOptions](../react/Internal/interfaces/MemoryListOptions.md)
+
+***
+
+### MemoryMaintenance
+
+Re-exports [MemoryMaintenance](../react/Internal/interfaces/MemoryMaintenance.md)
+
+***
+
 ### MemoryQuarantinedEvent
 
 Re-exports [MemoryQuarantinedEvent](../react/Internal/interfaces/MemoryQuarantinedEvent.md)
 
 ***
 
+### MemoryRecallOptions
+
+Re-exports [MemoryRecallOptions](../react/Internal/type-aliases/MemoryRecallOptions.md)
+
+***
+
+### MemoryStore
+
+Re-exports [MemoryStore](../react/Internal/interfaces/MemoryStore.md)
+
+***
+
+### MemorySubscribeOptions
+
+Re-exports [MemorySubscribeOptions](../react/Internal/interfaces/MemorySubscribeOptions.md)
+
+***
+
 ### MemoryToVerify
 
 Re-exports [MemoryToVerify](../react/Internal/type-aliases/MemoryToVerify.md)
+
+***
+
+### MemoryUpdate
+
+Re-exports [MemoryUpdate](../react/Internal/type-aliases/MemoryUpdate.md)
 
 ***
 

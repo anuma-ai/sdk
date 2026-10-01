@@ -341,6 +341,8 @@ export function prepareMemoryTopicsUpdate(write: MemoryTopicsWrite): Model {
  * `memory_vault.topics`, which this rewrites from the memory's FULL resulting
  * link set — see {@link prepareTopicsUpdate}. Add semantics mean that set is
  * old ∪ new, so already-linked entities are resolved for their names too.
+ *
+ * @deprecated App code: use `MemoryStore.addTopics` (`createLocalMemoryStore`).
  */
 export async function linkMemoryEntitiesOp(
   ctx: EntityOperationsContext,
@@ -732,6 +734,8 @@ export async function backfillMemoryEntityUserIdsOp(
  * Multi-user safety: when `ctx.userId` is set, results are filtered to
  * memory_entity rows whose `user_id` matches. Without this filter the
  * lane returns IDs from every user who tagged a matching entity.
+ *
+ * @deprecated App code: use `MemoryStore.memoriesByTopics` (`createLocalMemoryStore`).
  */
 export async function getMemoriesByEntityNamesOp(
   ctx: EntityOperationsContext,
@@ -793,6 +797,8 @@ export async function getMemoriesByEntityNamesOp(
  * lookup would leak entity links written by other users.
  *
  * @public
+ *
+ * @deprecated App code: use `MemoryStore.topicsByMemories` (`createLocalMemoryStore`).
  */
 export async function getEntitiesByMemoryIdsOp(
   ctx: EntityOperationsContext,
