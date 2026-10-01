@@ -1,4 +1,4 @@
-# getVaultMemoriesByIdsOp
+# ~~getVaultMemoriesByIdsOp()~~
 
 > **getVaultMemoriesByIdsOp**(`ctx`: [`VaultMemoryOperationsContext`](../interfaces/VaultMemoryOperationsContext.md), `ids`: `string`\[], `options?`: `object`): `Promise`<[`StoredVaultMemory`](../interfaces/StoredVaultMemory.md)\[]>
 
@@ -101,3 +101,7 @@ See [getVaultEmbeddingsByIdsOp](getVaultEmbeddingsByIdsOp.md) — must match wha
 ## Returns
 
 `Promise`<[`StoredVaultMemory`](../interfaces/StoredVaultMemory.md)\[]>
+
+## Deprecated
+
+App code: use `MemoryStore.list({ memoryIds })` (`createLocalMemoryStore`).

@@ -1,4 +1,4 @@
-# extractAndLinkEntitiesForMemoriesOp
+# ~~extractAndLinkEntitiesForMemoriesOp()~~
 
 > **extractAndLinkEntitiesForMemoriesOp**(`ctx`: [`VaultMemoryOperationsContext`](../interfaces/VaultMemoryOperationsContext.md), `memoryIds`: readonly `string`\[], `options`: [`TopicExtractOptions`](../interfaces/TopicExtractOptions.md) & `object`): `Promise`<[`TopicExtractionRunResult`](../interfaces/TopicExtractionRunResult.md)>
 
@@ -74,3 +74,7 @@ readonly `string`\[]
 ## Returns
 
 `Promise`<[`TopicExtractionRunResult`](../interfaces/TopicExtractionRunResult.md)>
+
+## Deprecated
+
+App code: use `MemoryStore.maintenance.extractTopics` (`createLocalMemoryStore`).
