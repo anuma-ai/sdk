@@ -41,15 +41,19 @@ export interface MemoryListOptions {
  * {@link UpdateVaultMemoryOptions}: the re-observation knobs (`proofCountIncrement`,
  * `observationSourceIds`, `preserveUpdatedAt`, `restore`, `lastObservedAt`, …)
  * belong to `retain()` and backup sync, and an HTTP backend should never have
- * to accept them from a client.
+ * to accept them from a client. No `folderId` either: vault folders are gone
+ * from the server surface (they leaked across tenants), so a remote backend
+ * could not honour it.
  *
- * As with the op, omitting `embedding` keeps the stored vector: a content edit
- * should pass a fresh one, or `null` so recall re-embeds.
+ * Omitting `embedding` drops the stored vector (and its model tag) and the
+ * store re-embeds the new content in the background — useChatStorage's edit
+ * behaviour, so an edit never keeps a vector for text that is gone. Pass
+ * `embedding` (with `embeddingModel`) only when you already have the new one.
  * @public
  */
 export type MemoryUpdate = Pick<
   UpdateVaultMemoryOptions,
-  "content" | "scope" | "folderId" | "factType" | "eventTime" | "embedding" | "embeddingModel"
+  "content" | "scope" | "factType" | "eventTime" | "embedding" | "embeddingModel"
 >;
 
 /**

@@ -1,6 +1,6 @@
 # MemoryListOptions
 
-Defined in: src/lib/memory/store/types.ts:20
+Defined in: [src/lib/memory/store/types.ts:20](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#20)
 
 Read filter for [MemoryStore.list](MemoryStore.md#list). Same semantics as the vault read
 ops: every non-visible state (deleted, archived, quarantined, superseded) is
@@ -12,7 +12,7 @@ hidden by default and has its own opt-in flag.
 
 > `optional` **factTypes**: `string`\[]
 
-Defined in: src/lib/memory/store/types.ts:28
+Defined in: [src/lib/memory/store/types.ts:28](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#28)
 
 ***
 
@@ -20,7 +20,7 @@ Defined in: src/lib/memory/store/types.ts:28
 
 > `optional` **folderId**: `string` | `null`
 
-Defined in: src/lib/memory/store/types.ts:22
+Defined in: [src/lib/memory/store/types.ts:22](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#22)
 
 ***
 
@@ -28,7 +28,7 @@ Defined in: src/lib/memory/store/types.ts:22
 
 > `optional` **includeArchived**: `boolean`
 
-Defined in: src/lib/memory/store/types.ts:33
+Defined in: [src/lib/memory/store/types.ts:33](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#33)
 
 ***
 
@@ -36,7 +36,7 @@ Defined in: src/lib/memory/store/types.ts:33
 
 > `optional` **includeDeleted**: `boolean`
 
-Defined in: src/lib/memory/store/types.ts:32
+Defined in: [src/lib/memory/store/types.ts:32](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#32)
 
 Memory Graph "forgotten" nodes — rows carry `isDeleted: true`.
 
@@ -46,7 +46,7 @@ Memory Graph "forgotten" nodes — rows carry `isDeleted: true`.
 
 > `optional` **includeQuarantined**: `boolean`
 
-Defined in: src/lib/memory/store/types.ts:34
+Defined in: [src/lib/memory/store/types.ts:34](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#34)
 
 ***
 
@@ -54,7 +54,7 @@ Defined in: src/lib/memory/store/types.ts:34
 
 > `optional` **includeSuperseded**: `boolean`
 
-Defined in: src/lib/memory/store/types.ts:36
+Defined in: [src/lib/memory/store/types.ts:36](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#36)
 
 Memory history — rows carry `supersededBy`.
 
@@ -64,7 +64,7 @@ Memory history — rows carry `supersededBy`.
 
 > `optional` **limit**: `number`
 
-Defined in: src/lib/memory/store/types.ts:25
+Defined in: [src/lib/memory/store/types.ts:25](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#25)
 
 ***
 
@@ -72,7 +72,7 @@ Defined in: src/lib/memory/store/types.ts:25
 
 > `optional` **memoryIds**: `string`\[]
 
-Defined in: src/lib/memory/store/types.ts:27
+Defined in: [src/lib/memory/store/types.ts:27](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#27)
 
 Restrict to these ids. Absent or foreign ids are dropped, never an error.
 
@@ -82,7 +82,7 @@ Restrict to these ids. Absent or foreign ids are dropped, never an error.
 
 > `optional` **scopes**: `string`\[]
 
-Defined in: src/lib/memory/store/types.ts:21
+Defined in: [src/lib/memory/store/types.ts:21](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#21)
 
 ***
 
@@ -90,7 +90,7 @@ Defined in: src/lib/memory/store/types.ts:21
 
 > `optional` **since**: `Date`
 
-Defined in: src/lib/memory/store/types.ts:24
+Defined in: [src/lib/memory/store/types.ts:24](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#24)
 
 Only memories updated after this instant (results then sort by `updatedAt`).
 
@@ -100,6 +100,6 @@ Only memories updated after this instant (results then sort by `updatedAt`).
 
 > `optional` **visibility**: [`VaultMemoryVisibility`](../type-aliases/VaultMemoryVisibility.md)\[]
 
-Defined in: src/lib/memory/store/types.ts:30
+Defined in: [src/lib/memory/store/types.ts:30](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#30)
 
 People Nearby visibility filter; a legacy NULL column reads as "private".
