@@ -79,6 +79,18 @@ that skipped these would leak embeddings for rows the caller can't see.
 <tr>
 <td>
 
+`options.memoryIds?`
+
+</td>
+<td>
+
+`string`\[]
+
+</td>
+</tr>
+<tr>
+<td>
+
 `options.scopes?`
 
 </td>

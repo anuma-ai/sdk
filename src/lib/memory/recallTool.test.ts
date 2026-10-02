@@ -13,10 +13,14 @@ vi.mock("../memoryVault/decomposeQuery", () => ({
   decomposeQuery: vi.fn(),
 }));
 vi.mock("../db/memoryVault/operations", () => ({
-  getAllVaultMemoriesOp: vi.fn(),
+  getVaultRankingProjectionsOp: vi.fn(),
+  getVaultMemoriesByIdsOp: vi.fn(),
 }));
 
-import { getAllVaultMemoriesOp } from "../db/memoryVault/operations";
+import {
+  getVaultMemoriesByIdsOp,
+  getVaultRankingProjectionsOp,
+} from "../db/memoryVault/operations";
 import type { VaultMemoryOperationsContext } from "../db/memoryVault/operations";
 import type { StoredVaultMemory } from "../db/memoryVault/types";
 import { decomposeQuery } from "../memoryVault/decomposeQuery";
@@ -522,6 +526,7 @@ describe("formatRecallResult — saved date", () => {
 describe("createRecallTool executor — sort: recent", () => {
   const vaultCtx = {} as VaultMemoryOperationsContext;
   const recentCtx = { vaultCtx } as RecallContext;
+  const LOCKED = `enc:v3:${"a".repeat(64)}`;
 
   function stored(id: string, content: string, createdAt: string): StoredVaultMemory {
     return {
@@ -537,15 +542,25 @@ describe("createRecallTool executor — sort: recent", () => {
     } as StoredVaultMemory;
   }
 
+  /** A newest-first vault: projections give the order, by-ids decrypts (unordered). */
+  function seedVault(rows: StoredVaultMemory[]) {
+    vi.mocked(getVaultRankingProjectionsOp).mockResolvedValue(
+      rows.map((r) => ({ uniqueId: r.uniqueId }) as never)
+    );
+    vi.mocked(getVaultMemoriesByIdsOp).mockImplementation(async (_ctx, ids) =>
+      rows.filter((r) => ids.includes(r.uniqueId)).reverse()
+    );
+  }
+
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(getAllVaultMemoriesOp).mockResolvedValue([
+    seedVault([
       stored("new", "Daily hackathon tweet campaign", "2026-10-01T12:00:00Z"),
       stored("old", "Likes espresso", "2026-08-01T12:00:00Z"),
     ]);
   });
 
-  it("lists the newest saved facts without a relevance search", async () => {
+  it("lists the newest saved facts, newest first, without a relevance search", async () => {
     const tool = createRecallTool(recentCtx, {
       types: ["fact", "chunk"],
       scopes: ["private"],
@@ -554,8 +569,7 @@ describe("createRecallTool executor — sort: recent", () => {
     const out = await tool.executor!({ query: "my recent memories", sort: "recent", limit: 5 });
 
     expect(recall).not.toHaveBeenCalled();
-    expect(getAllVaultMemoriesOp).toHaveBeenCalledWith(vaultCtx, {
-      limit: 5,
+    expect(getVaultRankingProjectionsOp).toHaveBeenCalledWith(vaultCtx, {
       scopes: ["private"],
       folderId: "f1",
     });
@@ -566,24 +580,30 @@ describe("createRecallTool executor — sort: recent", () => {
   it("keeps a topic scope's memoryIds restriction", async () => {
     const tool = createRecallTool(recentCtx, { types: ["fact"], memoryIds: ["new"] });
     await tool.executor!({ query: "latest", sort: "recent" });
-    expect(getAllVaultMemoriesOp).toHaveBeenCalledWith(
+    expect(getVaultRankingProjectionsOp).toHaveBeenCalledWith(
       vaultCtx,
       expect.objectContaining({ memoryIds: ["new"] })
     );
   });
 
-  it("counts listed facts against the per-turn volume budget", async () => {
-    const tool = createRecallTool(recentCtx, { types: ["fact"] });
-    await tool.executor!({ query: "latest", sort: "recent", limit: 100 });
-    expect(getAllVaultMemoriesOp).toHaveBeenCalledWith(
-      vaultCtx,
-      expect.objectContaining({ limit: RECALL_MAX_MEMORIES_PER_TURN })
+  it("decrypts no more than the per-turn volume budget in one batch", async () => {
+    seedVault(
+      Array.from({ length: 60 }, (_, i) =>
+        stored(`m${i}`, `fact ${i}`, new Date(Date.UTC(2026, 9, 1) - i * 60_000).toISOString())
+      )
     );
+    const tool = createRecallTool(recentCtx, { types: ["fact"] });
+    const out = await tool.executor!({ query: "latest", sort: "recent", limit: 100 });
+    expect(getVaultMemoriesByIdsOp).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(getVaultMemoriesByIdsOp).mock.calls[0]![1]).toHaveLength(
+      RECALL_MAX_MEMORIES_PER_TURN
+    );
+    expect(out).toContain(`Found ${RECALL_MAX_MEMORIES_PER_TURN} relevant memories`);
   });
 
   it("drops facts that are still ciphertext (vault key unavailable)", async () => {
-    vi.mocked(getAllVaultMemoriesOp).mockResolvedValue([
-      stored("locked", `enc:v3:${"a".repeat(64)}`, "2026-10-01T12:00:00Z"),
+    seedVault([
+      stored("locked", LOCKED, "2026-10-01T12:00:00Z"),
       stored("open", "Likes espresso", "2026-09-01T12:00:00Z"),
     ]);
     const tool = createRecallTool(recentCtx, { types: ["fact"] });
@@ -591,6 +611,25 @@ describe("createRecallTool executor — sort: recent", () => {
     expect(out).not.toContain("enc:v3:");
     expect(out).not.toContain("id: locked");
     expect(out).toContain("id: open");
+  });
+
+  it("fills the limit from older readable facts when the newest rows are locked", async () => {
+    // v2/v3 key skew: the newest (v3) rows fail to decrypt, older v2 rows are readable.
+    seedVault([
+      stored("v3a", LOCKED, "2026-10-01T12:00:00Z"),
+      stored("v3b", LOCKED, "2026-09-30T12:00:00Z"),
+      stored("v2a", "Bar crawl in the West Village", "2026-09-20T12:00:00Z"),
+      stored("v2b", "Likes espresso", "2026-09-10T12:00:00Z"),
+      stored("v2c", "Uses Neovim", "2026-09-01T12:00:00Z"),
+    ]);
+    const tool = createRecallTool(recentCtx, { types: ["fact"] });
+    const out = await tool.executor!({ query: "latest", sort: "recent", limit: 2 });
+
+    expect(out).toContain("Found 2 relevant memories");
+    expect(out.indexOf("id: v2a")).toBeGreaterThan(-1);
+    expect(out.indexOf("id: v2a")).toBeLessThan(out.indexOf("id: v2b"));
+    expect(out).not.toContain("id: v2c");
+    expect(getVaultMemoriesByIdsOp).toHaveBeenCalledTimes(2);
   });
 
   it("reports listed ids but no relevance scores", async () => {
@@ -610,7 +649,7 @@ describe("createRecallTool executor — sort: recent", () => {
     vi.mocked(recall).mockResolvedValue(recallResult([fact("m1", "Works in engineering")]));
     const tool = createRecallTool(ctx, { types: ["fact"] });
     await tool.executor!({ query: "latest", sort: "recent" });
-    expect(getAllVaultMemoriesOp).not.toHaveBeenCalled();
+    expect(getVaultRankingProjectionsOp).not.toHaveBeenCalled();
     expect(recall).toHaveBeenCalledTimes(1);
   });
 

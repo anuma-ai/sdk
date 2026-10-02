@@ -9,7 +9,11 @@
 
 import type { ToolConfig } from "../chat/useChat/types.js";
 import { isEncrypted } from "../db/encryption-utils.js";
-import { getAllVaultMemoriesOp } from "../db/memoryVault/operations.js";
+import {
+  getVaultMemoriesByIdsOp,
+  getVaultRankingProjectionsOp,
+} from "../db/memoryVault/operations.js";
+import type { StoredVaultMemory } from "../db/memoryVault/types.js";
 import { decomposeQuery } from "../memoryVault/decomposeQuery.js";
 import { normalizeForScreen } from "./injectionScreen.js";
 import { recall } from "./recall.js";
@@ -334,37 +338,51 @@ function isDumpQuery(query: string): boolean {
  * cannot answer "what did I save recently": the query carries no topic, and
  * recall's recency multiplier only nudges ties. Honors the same scope /
  * topic / folder filters as the ranked path; deleted, archived, quarantined
- * and superseded rows are excluded by the op's base conditions. Rows that
- * failed to decrypt come back as ciphertext and are dropped, as the ranked
- * vault search does.
+ * and superseded rows are excluded by the ops' base conditions.
+ *
+ * Rows that fail to decrypt come back as ciphertext and are dropped, as the
+ * ranked vault search does. Under v2/v3 key skew the NEWEST rows are the ones
+ * that fail, so a single `take(limit)` read could come back empty while
+ * readable facts sit just past the cut. Order ids without decrypting, then
+ * decrypt `limit`-sized batches until `limit` readable facts are found.
  */
 async function listRecentFacts(
   ctx: RecallContext,
   limit: number,
   toolOptions: RecallToolOptions | undefined
 ): Promise<RankedMemory[]> {
-  if (!ctx.vaultCtx) return [];
-  const rows = await getAllVaultMemoriesOp(ctx.vaultCtx, {
-    limit,
+  const vaultCtx = ctx.vaultCtx;
+  if (!vaultCtx) return [];
+  const ordered = await getVaultRankingProjectionsOp(vaultCtx, {
     ...(toolOptions?.scopes && { scopes: toolOptions.scopes }),
     ...(toolOptions?.memoryIds !== undefined && { memoryIds: toolOptions.memoryIds }),
     ...(toolOptions?.folderId !== undefined && { folderId: toolOptions.folderId }),
   });
-  return rows
-    .filter((m) => !isEncrypted(m.content))
-    .map((m) => ({
-      id: m.uniqueId,
-      kind: "fact" as const,
-      content: m.content,
-      score: 0,
-      folderId: m.folderId,
-      eventTimeStart: m.eventTimeStart,
-      eventTimeEnd: m.eventTimeEnd,
-      eventTimeKind: m.eventTimeKind as RankedMemory["eventTimeKind"],
-      factType: m.factType,
-      createdAt: m.createdAt,
-      updatedAt: m.updatedAt,
-    }));
+  const readable: StoredVaultMemory[] = [];
+  for (let i = 0; i < ordered.length && readable.length < limit; i += limit) {
+    const batch = ordered.slice(i, i + limit).map((p) => p.uniqueId);
+    const byId = new Map(
+      (await getVaultMemoriesByIdsOp(vaultCtx, batch)).map((m) => [m.uniqueId, m])
+    );
+    for (const id of batch) {
+      const m = byId.get(id);
+      if (m && !isEncrypted(m.content)) readable.push(m);
+      if (readable.length >= limit) break;
+    }
+  }
+  return readable.map((m) => ({
+    id: m.uniqueId,
+    kind: "fact" as const,
+    content: m.content,
+    score: 0,
+    folderId: m.folderId,
+    eventTimeStart: m.eventTimeStart,
+    eventTimeEnd: m.eventTimeEnd,
+    eventTimeKind: m.eventTimeKind as RankedMemory["eventTimeKind"],
+    factType: m.factType,
+    createdAt: m.createdAt,
+    updatedAt: m.updatedAt,
+  }));
 }
 
 /**

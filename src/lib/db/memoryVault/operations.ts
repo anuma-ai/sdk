@@ -692,7 +692,13 @@ function vaultMemoryRawToRankable(raw: Record<string, unknown>): RankableVaultMe
  */
 export async function getVaultRankingProjectionsOp(
   ctx: VaultMemoryOperationsContext,
-  options?: { scopes?: string[]; since?: Date; limit?: number; folderId?: string | null }
+  options?: {
+    scopes?: string[];
+    since?: Date;
+    limit?: number;
+    folderId?: string | null;
+    memoryIds?: string[];
+  }
 ): Promise<RankableVaultMemory[]> {
   const conditions = [
     ...baseVaultConditions(ctx, options),

@@ -1,6 +1,6 @@
 # DecayCandidateRaw
 
-Defined in: [src/lib/db/memoryVault/operations.ts:2093](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#2093)
+Defined in: [src/lib/db/memoryVault/operations.ts:2099](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#2099)
 
 The minimal plaintext shape the decay sweep needs — mirrors the `DecayInput`
 shape in `memory/decay` plus the row id. Deliberately omits `content`
@@ -12,7 +12,7 @@ shape in `memory/decay` plus the row id. Deliberately omits `content`
 
 > **archivedAt**: `number` | `null`
 
-Defined in: [src/lib/db/memoryVault/operations.ts:2102](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#2102)
+Defined in: [src/lib/db/memoryVault/operations.ts:2108](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#2108)
 
 ***
 
@@ -20,7 +20,7 @@ Defined in: [src/lib/db/memoryVault/operations.ts:2102](https://github.com/anuma
 
 > **eventTimeEnd**: `number` | `null`
 
-Defined in: [src/lib/db/memoryVault/operations.ts:2096](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#2096)
+Defined in: [src/lib/db/memoryVault/operations.ts:2102](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#2102)
 
 ***
 
@@ -28,7 +28,7 @@ Defined in: [src/lib/db/memoryVault/operations.ts:2096](https://github.com/anuma
 
 > **eventTimeKind**: `string` | `null`
 
-Defined in: [src/lib/db/memoryVault/operations.ts:2097](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#2097)
+Defined in: [src/lib/db/memoryVault/operations.ts:2103](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#2103)
 
 ***
 
@@ -36,7 +36,7 @@ Defined in: [src/lib/db/memoryVault/operations.ts:2097](https://github.com/anuma
 
 > **factType**: `string` | `null`
 
-Defined in: [src/lib/db/memoryVault/operations.ts:2095](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#2095)
+Defined in: [src/lib/db/memoryVault/operations.ts:2101](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#2101)
 
 ***
 
@@ -44,7 +44,7 @@ Defined in: [src/lib/db/memoryVault/operations.ts:2095](https://github.com/anuma
 
 > `optional` **lastObservedAt**: `number` | `null`
 
-Defined in: [src/lib/db/memoryVault/operations.ts:2101](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#2101)
+Defined in: [src/lib/db/memoryVault/operations.ts:2107](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#2107)
 
 ***
 
@@ -52,7 +52,7 @@ Defined in: [src/lib/db/memoryVault/operations.ts:2101](https://github.com/anuma
 
 > **source**: `string` | `null`
 
-Defined in: [src/lib/db/memoryVault/operations.ts:2103](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#2103)
+Defined in: [src/lib/db/memoryVault/operations.ts:2109](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#2109)
 
 ***
 
@@ -60,7 +60,7 @@ Defined in: [src/lib/db/memoryVault/operations.ts:2103](https://github.com/anuma
 
 > **trustTier**: `string` | `null`
 
-Defined in: [src/lib/db/memoryVault/operations.ts:2107](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#2107)
+Defined in: [src/lib/db/memoryVault/operations.ts:2113](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#2113)
 
 `trusted` | `quarantined` | null. Quarantined rows still decay by RULE, but
 are never handed to the optional content-reading decay classifier (they must
@@ -72,7 +72,7 @@ not egress poison content — see the decay sweeper's `isBorderline`).
 
 > **uniqueId**: `string`
 
-Defined in: [src/lib/db/memoryVault/operations.ts:2094](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#2094)
+Defined in: [src/lib/db/memoryVault/operations.ts:2100](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#2100)
 
 ***
 
@@ -80,7 +80,7 @@ Defined in: [src/lib/db/memoryVault/operations.ts:2094](https://github.com/anuma
 
 > **updatedAt**: `number`
 
-Defined in: [src/lib/db/memoryVault/operations.ts:2100](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#2100)
+Defined in: [src/lib/db/memoryVault/operations.ts:2106](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#2106)
 
 Unix ms — the raw `updated_at`, used both for the age rule and as the
 optimistic-concurrency guard passed back to [archiveVaultMemoryOp](../functions/archiveVaultMemoryOp.md).
