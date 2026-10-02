@@ -29,10 +29,12 @@ const ALLOWLIST = [
   // endpoint on 2026-08-10 — which is why a run that passed on 2026-08-07
   // started failing on main with no change to the lockfile.
   //
-  // NO OVERRIDE IS POSSIBLE. Both advisories cover `<= 2.0.2` and report
-  // `first_patched_version: null`; 2.0.2 is the newest version published, so
-  // there is no version to pin to. Re-check with:
-  //   gh api /advisories/GHSA-w3rx-r6r6-pgpr --jq '.vulnerabilities[].first_patched_version'
+  // NO COMPATIBLE OVERRIDE. image-size 2.0.3 (2026-09) fixes both, but there is
+  // still no patched 1.x, and metro 0.83 — the line react-native 0.82 pins —
+  // calls `imageSize(filePath)` with a path string (metro/src/Assets.js), which
+  // v2 rejects ("The \"list\" argument must be an instance of ... ArrayBuffer").
+  // Forcing `image-size@2` via pnpm.overrides breaks metro asset resolution
+  // (tried and reverted in anuma-ai/sdk#989). Current metro (0.87) no longer depends on image-size.
   //
   // Reachability is bundler-only: `image-size@1.2.1` arrives via
   // react-native -> @react-native/community-cli-plugin -> metro, i.e. the RN
@@ -42,22 +44,22 @@ const ALLOWLIST = [
   // infinite loop on hostile ICNS/JXL/HEIF input — reachable only by someone
   // feeding malicious images to their own build.
   //
-  // Exit condition: image-size publishes a fix (then delete this and let the
-  // resolved tree pick it up, or add a pnpm.overrides pin), or metro stops
-  // depending on it. Either way this entry should be REMOVED, not extended —
+  // Exit condition: image-size publishes a patched 1.x (then add a
+  // pnpm.overrides pin), or the react-native devDep moves to a metro that no
+  // longer depends on it. Either way this entry should be REMOVED, not extended —
   // the audit reports an entry that matches nothing, which is the signal.
   {
     id: "GHSA-w3rx-r6r6-pgpr",
     package: "image-size",
     reason:
-      "ICNS parser DoS. No patched version exists (advisory range <= 2.0.2, first_patched_version null, 2.0.2 is latest published), so pnpm.overrides cannot resolve it. Reachable only via react-native -> community-cli-plugin -> metro (build-time bundler), never in a shipped bundle.",
+      "ICNS parser DoS. Only fixed in image-size 2.0.3; no patched 1.x, and metro 0.83 (react-native 0.82) calls the v1 path-string API that v2 removed, so a pnpm.overrides pin breaks metro. Reachable only via react-native -> community-cli-plugin -> metro (build-time bundler), never in a shipped bundle.",
     expires: "2026-11-10",
   },
   {
     id: "GHSA-5p2g-fcmc-qvqq",
     package: "image-size",
     reason:
-      "JXL/HEIF parser DoS in the same package and version as GHSA-w3rx-r6r6-pgpr; identical no-fix and build-time-only reachability evidence.",
+      "JXL/HEIF parser DoS in the same package and version as GHSA-w3rx-r6r6-pgpr; identical v1-only-compatible and build-time-only reachability evidence.",
     expires: "2026-11-10",
   },
 ];
