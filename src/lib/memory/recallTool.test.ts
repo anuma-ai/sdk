@@ -581,6 +581,31 @@ describe("createRecallTool executor — sort: recent", () => {
     );
   });
 
+  it("drops facts that are still ciphertext (vault key unavailable)", async () => {
+    vi.mocked(getAllVaultMemoriesOp).mockResolvedValue([
+      stored("locked", `enc:v3:${"a".repeat(64)}`, "2026-10-01T12:00:00Z"),
+      stored("open", "Likes espresso", "2026-09-01T12:00:00Z"),
+    ]);
+    const tool = createRecallTool(recentCtx, { types: ["fact"] });
+    const out = await tool.executor!({ query: "latest", sort: "recent" });
+    expect(out).not.toContain("enc:v3:");
+    expect(out).not.toContain("id: locked");
+    expect(out).toContain("id: open");
+  });
+
+  it("reports listed ids but no relevance scores", async () => {
+    const onFactsRetrieved = vi.fn();
+    const onFactsRanked = vi.fn();
+    const tool = createRecallTool(
+      recentCtx,
+      { types: ["fact"] },
+      { onFactsRetrieved, onFactsRanked }
+    );
+    await tool.executor!({ query: "latest", sort: "recent" });
+    expect(onFactsRetrieved).toHaveBeenCalledWith(["new", "old"]);
+    expect(onFactsRanked).not.toHaveBeenCalled();
+  });
+
   it("falls back to the ranked search when the tool has no vault", async () => {
     vi.mocked(recall).mockResolvedValue(recallResult([fact("m1", "Works in engineering")]));
     const tool = createRecallTool(ctx, { types: ["fact"] });

@@ -8,6 +8,7 @@
  */
 
 import type { ToolConfig } from "../chat/useChat/types.js";
+import { isEncrypted } from "../db/encryption-utils.js";
 import { getAllVaultMemoriesOp } from "../db/memoryVault/operations.js";
 import { decomposeQuery } from "../memoryVault/decomposeQuery.js";
 import { normalizeForScreen } from "./injectionScreen.js";
@@ -333,7 +334,9 @@ function isDumpQuery(query: string): boolean {
  * cannot answer "what did I save recently": the query carries no topic, and
  * recall's recency multiplier only nudges ties. Honors the same scope /
  * topic / folder filters as the ranked path; deleted, archived, quarantined
- * and superseded rows are excluded by the op's base conditions.
+ * and superseded rows are excluded by the op's base conditions. Rows that
+ * failed to decrypt come back as ciphertext and are dropped, as the ranked
+ * vault search does.
  */
 async function listRecentFacts(
   ctx: RecallContext,
@@ -347,19 +350,21 @@ async function listRecentFacts(
     ...(toolOptions?.memoryIds !== undefined && { memoryIds: toolOptions.memoryIds }),
     ...(toolOptions?.folderId !== undefined && { folderId: toolOptions.folderId }),
   });
-  return rows.map((m) => ({
-    id: m.uniqueId,
-    kind: "fact" as const,
-    content: m.content,
-    score: 0,
-    folderId: m.folderId,
-    eventTimeStart: m.eventTimeStart,
-    eventTimeEnd: m.eventTimeEnd,
-    eventTimeKind: m.eventTimeKind as RankedMemory["eventTimeKind"],
-    factType: m.factType,
-    createdAt: m.createdAt,
-    updatedAt: m.updatedAt,
-  }));
+  return rows
+    .filter((m) => !isEncrypted(m.content))
+    .map((m) => ({
+      id: m.uniqueId,
+      kind: "fact" as const,
+      content: m.content,
+      score: 0,
+      folderId: m.folderId,
+      eventTimeStart: m.eventTimeStart,
+      eventTimeEnd: m.eventTimeEnd,
+      eventTimeKind: m.eventTimeKind as RankedMemory["eventTimeKind"],
+      factType: m.factType,
+      createdAt: m.createdAt,
+      updatedAt: m.updatedAt,
+    }));
 }
 
 /**
@@ -571,7 +576,9 @@ export function createRecallTool(
             .map((m) => ({ id: m.id, score: m.score }));
           if (facts.length > 0) {
             callbacks.onFactsRetrieved?.(facts.map((f) => f.id));
-            callbacks.onFactsRanked?.(facts);
+            // A recent listing has no relevance scores — its zeros would read
+            // as weak matches to consumers that scale UI by score.
+            if (!wantsRecent) callbacks.onFactsRanked?.(facts);
           }
         }
 

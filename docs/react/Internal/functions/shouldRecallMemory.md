@@ -2,7 +2,7 @@
 
 > **shouldRecallMemory**(`query`: `string`): `boolean`
 
-Defined in: [src/lib/memory/context.ts:48](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/context.ts#48)
+Defined in: [src/lib/memory/context.ts:54](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/context.ts#54)
 
 Only skip confidently trivial utterances. Word counts reject useful short
 queries and languages whose writing does not separate words with spaces.

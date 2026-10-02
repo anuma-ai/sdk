@@ -15,6 +15,12 @@ export interface MemoryContextItem {
    * model can answer "what did I save recently". */
   createdAt?: Date;
 }
+/** Omit a missing / invalid / sentinel-zero write time rather than date it 1970-01-01. */
+function savedAt(createdAt: Date | undefined): { createdAt?: Date } {
+  const ms = createdAt?.getTime();
+  return ms !== undefined && Number.isFinite(ms) && ms > 0 ? { createdAt } : {};
+}
+
 export interface MemoryContextOptions {
   query: string;
   recall: (query: string, options: RecallOptions) => Promise<RecallResult>;
@@ -109,7 +115,7 @@ export async function assembleMemoryContext(
     score,
     lane,
     sourceIds: m.sourceChunkIds ?? [],
-    createdAt: m.createdAt,
+    ...savedAt(m.createdAt),
   });
   const empty: RecallResult = {
     memories: [],
@@ -190,7 +196,7 @@ export async function assembleMemoryContext(
         lane,
         ...(lane === "fact" && { recalled: true }),
         sourceIds: m.sourceChunkIds ?? (m.messageId ? [m.messageId] : []),
-        createdAt: m.createdAt,
+        ...savedAt(m.createdAt),
       }));
   const recalledFacts = toItems(facts, "fact");
   const recalledScores = new Map<string, number>();
