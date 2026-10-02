@@ -12,6 +12,17 @@ Defined in: [src/lib/memory/context.ts:8](https://github.com/anuma-ai/sdk/blob/m
 
 ***
 
+### createdAt?
+
+> `optional` **createdAt**: `Date`
+
+Defined in: [src/lib/memory/context.ts:16](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/context.ts#16)
+
+When the memory was written — lets the prompt show a saved date so the
+model can answer "what did I save recently".
+
+***
+
 ### id
 
 > **id**: `string`

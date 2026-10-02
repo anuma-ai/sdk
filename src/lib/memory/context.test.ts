@@ -28,6 +28,29 @@ const rankedFact = (id: string): RankedMemory => ({
 });
 
 describe("shared context assembly", () => {
+  it("carries each item's saved date so the prompt can show it", async () => {
+    const saved = new Date("2026-09-30T12:00:00Z");
+    const context = await assembleMemoryContext({
+      query: "What are my plans?",
+      recall: vi.fn().mockResolvedValue(result([{ ...rankedFact("ranked"), createdAt: saved }])),
+      loadFacts: vi.fn(async (opts) =>
+        opts.factTypes?.includes("identity") ? [{ ...fact("profile"), createdAt: saved }] : []
+      ),
+    });
+    expect(context.items.length).toBeGreaterThan(0);
+    for (const item of context.items) expect(item.createdAt).toEqual(saved);
+  });
+
+  it("leaves out a sentinel-zero saved date instead of dating it 1970", async () => {
+    const context = await assembleMemoryContext({
+      query: "What are my plans?",
+      recall: vi
+        .fn()
+        .mockResolvedValue(result([{ ...rankedFact("ranked"), createdAt: new Date(0) }])),
+    });
+    expect(context.items.map((m) => m.id)).toEqual(["ranked"]);
+    expect(context.items[0]).not.toHaveProperty("createdAt");
+  });
   it.each(["My allergies?", "我之前提到过对什么食物过敏？", "私の好きな食べ物は？", "Boston?"])(
     "recalls short or unsegmented query %s",
     (query) => expect(shouldRecallMemory(query)).toBe(true)

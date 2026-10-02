@@ -2,7 +2,7 @@
 
 > **assembleMemoryContext**(`options`: [`MemoryContextOptions`](../interfaces/MemoryContextOptions.md)): `Promise`<[`MemoryContextResult`](../interfaces/MemoryContextResult.md)>
 
-Defined in: [src/lib/memory/context.ts:62](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/context.ts#62)
+Defined in: [src/lib/memory/context.ts:71](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/context.ts#71)
 
 Assemble bounded stable/dynamic profile, relevant facts, source excerpts and
 prior-turn facts. Lane failures are isolated: an outage cannot replace a
