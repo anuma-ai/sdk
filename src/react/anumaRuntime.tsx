@@ -71,7 +71,8 @@ const DEFAULT_THEME: AnumaTheme = {
     textPrimary: "#ffffff",
     textSecondary: "#ffffff",
     textMuted: "#9a9592",
-    accent: "#e67519",
+    // White on the dark default deck — the brand orange is retired (#8419).
+    accent: "#ffffff",
     card: "#1a1a21",
     border: "#434242",
   },
