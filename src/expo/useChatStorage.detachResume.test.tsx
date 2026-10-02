@@ -43,6 +43,11 @@ import { MCP_R2_DOMAIN } from "../clientConfig";
 import { runToolLoop } from "../lib/chat/toolLoop";
 import { resumeStream as libResumeStream, StreamExpiredError } from "../lib/chat/resumeStream";
 import { streamCancelPath } from "../lib/chat/resumeStream";
+import {
+  clearAllEncryptionKeys,
+  hasEncryptionKey,
+  requestEncryptionKey,
+} from "../react/useEncryption";
 import { useChatStorage } from "./useChatStorage";
 
 const mockRunToolLoop = vi.mocked(runToolLoop);
@@ -1252,6 +1257,427 @@ describe("useChatStorage detach → resume reconciliation", () => {
     function completedSend(text = "fresh answer") {
       mockRunToolLoop.mockResolvedValueOnce({ data: responsesShape(text), error: null } as never);
     }
+
+    it.each(["warm", "cold"] as const)(
+      "saves the latest %s replay after a failed write before the next send",
+      async (kind) => {
+        const conversationId = `conv_latest_replay_${kind}`;
+        const inferenceId = `inf-latest-replay-${kind}`;
+        const { result } = renderHook(() =>
+          useChatStorage({
+            database: db,
+            conversationId,
+            getToken: async () => "tok",
+            resumable: true,
+            autoEmbedMessages: false,
+          })
+        );
+        let assistantUniqueId: string;
+        if (kind === "warm") {
+          const detached = await detachSend(
+            result,
+            conversationId,
+            "original partial",
+            inferenceId
+          );
+          assistantUniqueId = detached.assistantUniqueId!;
+        } else {
+          await createConversationOp(makeCtx(db), { conversationId });
+          await upsertMessageOp(makeCtx(db), {
+            conversationId,
+            role: "user",
+            content: "question",
+            uniqueId: "latest-replay-user",
+          });
+          assistantUniqueId = `msg_resume_${inferenceId}`;
+        }
+        const event = {
+          id: "evt_latest_replay",
+          name: "lookup",
+          output: "latest tool result",
+        };
+        mockResumeStream.mockResolvedValueOnce({
+          data: {
+            ...responsesShape("original partial plus recovered text"),
+            tool_call_events: [event],
+          },
+          error: null,
+          interrupted: false,
+        } as never);
+        vi.spyOn(db, "write").mockImplementationOnce(async () => {
+          throw new Error("replay writer unavailable");
+        });
+        await act(async () => {
+          const resumed = await result.current.resumeStream(
+            kind === "cold"
+              ? { inferenceId, conversationId, model: "test-model", apiType: "responses" }
+              : undefined
+          );
+          expect(resumed.error).toBe("replay writer unavailable");
+          expect(resumed.assistantMessage).toBeNull();
+        });
+        completedSend();
+        await act(async () => {
+          expect((await result.current.sendMessage(nextArgs())).error).toBeNull();
+        });
+        const rows = await getMessagesOp(makeCtx(db), conversationId);
+        expect(rows.map((row) => row.content)).toEqual([
+          "question",
+          "original partial plus recovered text",
+          "new question",
+          "fresh answer",
+        ]);
+        expect(rows[1]).toMatchObject({
+          uniqueId: assistantUniqueId,
+          parentMessageId: rows[0].uniqueId,
+          wasStopped: true,
+          toolCallEvents: [event],
+        });
+        const prompt = mockRunToolLoop.mock.calls[kind === "warm" ? 1 : 0][0].messages;
+        expect(JSON.stringify(prompt)).toContain("original partial plus recovered text");
+        expect(prompt.filter((message) => message.role === "tool")).toEqual([
+          { role: "tool", tool_call_id: event.id, content: [{ type: "text", text: event.output }] },
+        ]);
+      }
+    );
+
+    it("retains detached tool events in the stopped row and the next model request", async () => {
+      const { result } = renderHook(() =>
+        useChatStorage({
+          database: db,
+          conversationId: "conv_detached_tools",
+          getToken: async () => "tok",
+          resumable: true,
+          autoEmbedMessages: false,
+        })
+      );
+      const event = {
+        id: "evt_detached_lookup",
+        name: "lookup",
+        arguments: '{"query":"saved result"}',
+        output: '{"answer":"tool context"}',
+      };
+      mockRunToolLoop.mockResolvedValueOnce({
+        data: { ...responsesShape("partial with tools"), tool_call_events: [event] },
+        error: "Request detached",
+        detached: true,
+        resume: {
+          inferenceId: "inf-detached-tools",
+          apiType: "responses",
+          model: "test-model",
+          conversationId: "conv_detached_tools",
+        },
+      } as never);
+      await act(async () => {
+        await result.current.sendMessage(nextArgs("first question"));
+      });
+      completedSend();
+      await act(async () => {
+        expect((await result.current.sendMessage(nextArgs())).error).toBeNull();
+      });
+      const rows = await getMessagesOp(makeCtx(db), "conv_detached_tools");
+      expect(rows[1]).toMatchObject({ wasStopped: true, toolCallEvents: [event] });
+      const prompt = mockRunToolLoop.mock.calls[1][0].messages;
+      expect(prompt.filter((message) => message.role === "tool")).toEqual([
+        {
+          role: "tool",
+          tool_call_id: event.id,
+          content: [{ type: "text", text: event.output }],
+        },
+      ]);
+      expect(prompt.flatMap((message) => message.tool_calls ?? [])).toEqual([
+        {
+          id: event.id,
+          type: "function",
+          function: { name: event.name, arguments: event.arguments },
+        },
+      ]);
+    });
+
+    it("retains all current-turn events when a cold replay updates the same row", async () => {
+      const ctx = makeCtx(db);
+      await createConversationOp(ctx, { conversationId: "conv_cold_tools" });
+      const previousEvent = { id: "evt_previous", name: "lookup", output: "previous result" };
+      await upsertMessageOp(ctx, {
+        conversationId: "conv_cold_tools",
+        role: "user",
+        content: "previous question",
+        uniqueId: "cold-tools-previous-user",
+      });
+      await upsertMessageOp(ctx, {
+        conversationId: "conv_cold_tools",
+        role: "assistant",
+        content: "previous answer",
+        uniqueId: "cold-tools-previous-assistant",
+        parentMessageId: "cold-tools-previous-user",
+        toolCallEvents: [previousEvent],
+      });
+      await upsertMessageOp(ctx, {
+        conversationId: "conv_cold_tools",
+        role: "user",
+        content: "current question",
+        uniqueId: "cold-tools-current-user",
+        parentMessageId: "cold-tools-previous-assistant",
+      });
+      const { result } = renderHook(() =>
+        useChatStorage({
+          database: db,
+          conversationId: "conv_cold_tools",
+          getToken: async () => "tok",
+          resumable: true,
+          autoEmbedMessages: false,
+        })
+      );
+      const override = {
+        inferenceId: "inf-cold-tools",
+        apiType: "responses" as const,
+        model: "test-model",
+        conversationId: "conv_cold_tools",
+      };
+      const firstEvent = { id: "evt_current_first", name: "lookup", output: "first result" };
+      const secondEvent = { id: "evt_current_second", name: "lookup", output: "second result" };
+      mockResumeStream.mockResolvedValueOnce({
+        data: {
+          ...responsesShape("partial tool reply"),
+          tool_call_events: [previousEvent, firstEvent],
+        },
+        error: "Request stopped",
+        interrupted: true,
+      } as never);
+      let ordinal: number | undefined;
+      await act(async () => {
+        const partial = await result.current.resumeStream(override);
+        expect(partial.assistantMessage?.toolCallEvents).toEqual([firstEvent]);
+        ordinal = partial.assistantMessage?.messageId;
+      });
+      mockResumeStream.mockResolvedValueOnce({
+        data: {
+          ...responsesShape("complete tool reply"),
+          tool_call_events: [previousEvent, firstEvent, secondEvent],
+        },
+        error: null,
+        interrupted: false,
+      } as never);
+      await act(async () => {
+        const complete = await result.current.resumeStream(override);
+        expect(complete.error).toBeNull();
+        expect(complete.assistantMessage).toMatchObject({
+          uniqueId: "msg_resume_inf-cold-tools",
+          messageId: ordinal,
+          parentMessageId: "cold-tools-current-user",
+          toolCallEvents: [firstEvent, secondEvent],
+          wasStopped: false,
+        });
+      });
+      const rows = await getMessagesOp(ctx, "conv_cold_tools");
+      expect(rows.filter((row) => row.uniqueId === "msg_resume_inf-cold-tools")).toHaveLength(1);
+    });
+
+    it("honors stop during a failed retirement write and retains the partial for retry", async () => {
+      const { result } = renderHook(() =>
+        useChatStorage({
+          database: db,
+          conversationId: "conv_stop_failed_retirement",
+          getToken: async () => "tok",
+          resumable: true,
+          autoEmbedMessages: false,
+        })
+      );
+      const detached = await detachSend(
+        result,
+        "conv_stop_failed_retirement",
+        "partial before stop",
+        "inf-stop-failed-retirement"
+      );
+      const entered = deferred<void>();
+      const release = deferred<void>();
+      vi.spyOn(db, "write").mockImplementationOnce(async () => {
+        entered.resolve();
+        await release.promise;
+        throw new Error("retirement writer unavailable");
+      });
+      completedSend();
+      await act(async () => {
+        const next = result.current.sendMessage(nextArgs());
+        await entered.promise;
+        try {
+          result.current.stop();
+          result.current.stop();
+          expect(cancelCalls("inf-stop-failed-retirement")).toHaveLength(0);
+        } finally {
+          release.resolve();
+        }
+        expect(await next).toMatchObject({
+          data: null,
+          error: "retirement writer unavailable",
+        });
+      });
+      await waitFor(() => expect(cancelCalls("inf-stop-failed-retirement")).toHaveLength(1));
+      expect(mockRunToolLoop).toHaveBeenCalledTimes(1);
+      expect(await getMessagesOp(makeCtx(db), "conv_stop_failed_retirement")).toHaveLength(1);
+      await act(async () => {
+        expect((await result.current.sendMessage(nextArgs())).error).toBeNull();
+      });
+      const rows = await getMessagesOp(makeCtx(db), "conv_stop_failed_retirement");
+      expect(rows.filter((row) => row.uniqueId === detached.assistantUniqueId)).toHaveLength(1);
+      expect(rows[1]).toMatchObject({ content: "partial before stop", wasStopped: true });
+      expect(cancelCalls("inf-stop-failed-retirement")).toHaveLength(1);
+    });
+
+    it("clears an idle cold context after a thrown replay when a new send replaces it", async () => {
+      const { result } = renderHook(() =>
+        useChatStorage({
+          database: db,
+          conversationId: "conv_idle_cold",
+          getToken: async () => "tok",
+          resumable: true,
+          autoEmbedMessages: false,
+        })
+      );
+      const override = {
+        inferenceId: "inf-idle-cold",
+        apiType: "responses" as const,
+        model: "test-model",
+        conversationId: "conv_idle_cold",
+      };
+      mockResumeStream.mockRejectedValueOnce(new Error("replay transport unavailable"));
+      await act(async () => {
+        await expect(result.current.resumeStream(override)).rejects.toThrow(
+          "replay transport unavailable"
+        );
+      });
+      completedSend();
+      await act(async () => {
+        expect((await result.current.sendMessage(nextArgs())).error).toBeNull();
+      });
+      mockResumeStream.mockResolvedValueOnce({
+        data: responsesShape("stale cold reply"),
+        error: null,
+        interrupted: false,
+      } as never);
+      await act(async () => {
+        expect(await result.current.resumeStream()).toMatchObject({
+          data: null,
+          error: "No resumable stream",
+          assistantMessage: null,
+        });
+      });
+      expect(mockResumeStream).toHaveBeenCalledTimes(1);
+      expect(fetchSpy).not.toHaveBeenCalled();
+      expect(
+        (await getMessagesOp(makeCtx(db), "conv_idle_cold")).map((row) => row.content)
+      ).toEqual(["new question", "fresh answer"]);
+    });
+
+    it.each([false, true])(
+      "preserves encrypted retirement after key recovery, with an initial key failure: %s",
+      async (failKey) => {
+        const address = "0x1234567890123456789012345678901234567890";
+        const signature = `0x${"ab".repeat(65)}`;
+        const signMessage = vi.fn(async () => signature);
+        clearAllEncryptionKeys();
+        try {
+          await requestEncryptionKey(address, signMessage);
+          const { result } = renderHook(() =>
+            useChatStorage({
+              database: db,
+              conversationId: "conv_encrypted_retirement",
+              getToken: async () => "tok",
+              walletAddress: address,
+              signMessage,
+              enableQueue: true,
+              autoFlushOnKeyAvailable: false,
+              resumable: true,
+              autoEmbedMessages: false,
+            })
+          );
+          const detached = await detachSend(
+            result,
+            "conv_encrypted_retirement",
+            "encrypted partial",
+            "inf-encrypted-retirement"
+          );
+          clearAllEncryptionKeys();
+          expect(hasEncryptionKey(address)).toBe(false);
+          completedSend();
+          if (failKey) {
+            signMessage.mockRejectedValue(new Error("wallet key unavailable"));
+            await act(async () => {
+              expect(await result.current.sendMessage(nextArgs())).toMatchObject({
+                data: null,
+                error: "wallet key unavailable",
+              });
+            });
+            expect(mockRunToolLoop).toHaveBeenCalledTimes(1);
+            expect(fetchSpy).not.toHaveBeenCalled();
+            expect(await db.get("history").query().fetch()).toHaveLength(1);
+            expect(result.current.queueStatus.pending).toBe(0);
+            signMessage.mockResolvedValue(signature);
+          }
+          await act(async () => {
+            expect((await result.current.sendMessage(nextArgs())).error).toBeNull();
+          });
+          const rows = await getMessagesOp(
+            { ...makeCtx(db), walletAddress: address, signMessage },
+            "conv_encrypted_retirement"
+          );
+          expect(rows.map((row) => row.content)).toEqual([
+            "question",
+            "encrypted partial",
+            "new question",
+            "fresh answer",
+          ]);
+          expect(rows[1]).toMatchObject({
+            uniqueId: detached.assistantUniqueId,
+            parentMessageId: detached.userMessage?.uniqueId,
+            wasStopped: true,
+          });
+          expect(rows.filter((row) => row.uniqueId === detached.assistantUniqueId)).toHaveLength(1);
+          const raw = await db.get("history").find(detached.assistantUniqueId!);
+          expect(raw._getRaw("content")).toMatch(/^enc:v3:/);
+          expect(JSON.stringify(mockRunToolLoop.mock.calls[1][0].messages)).toContain(
+            "encrypted partial"
+          );
+          await waitFor(() => expect(cancelCalls("inf-encrypted-retirement")).toHaveLength(1));
+        } finally {
+          clearAllEncryptionKeys();
+        }
+      }
+    );
+
+    it("keeps ordinary sends queued when a wallet key is unavailable", async () => {
+      const address = "0x2234567890123456789012345678901234567890";
+      const signMessage = vi.fn(async (): Promise<string> => {
+        throw new Error("wallet key unavailable");
+      });
+      clearAllEncryptionKeys();
+      try {
+        await createConversationOp(makeCtx(db), { conversationId: "conv_ordinary_queue" });
+        const { result } = renderHook(() =>
+          useChatStorage({
+            database: db,
+            conversationId: "conv_ordinary_queue",
+            getToken: async () => "tok",
+            walletAddress: address,
+            signMessage,
+            enableQueue: true,
+            autoFlushOnKeyAvailable: false,
+            resumable: true,
+            autoEmbedMessages: false,
+          })
+        );
+        completedSend();
+        await act(async () => {
+          expect((await result.current.sendMessage(nextArgs())).error).toBeNull();
+        });
+        expect(mockRunToolLoop).toHaveBeenCalledTimes(1);
+        expect(result.current.queueStatus.pending).toBe(2);
+        expect(await db.get("history").query().fetch()).toHaveLength(0);
+        act(() => result.current.clearQueue());
+      } finally {
+        clearAllEncryptionKeys();
+      }
+    });
 
     it("saves one stopped partial before the next turn and cancels only the old buffer", async () => {
       const onCancelResult = vi.fn();
