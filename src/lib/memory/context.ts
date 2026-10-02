@@ -11,6 +11,9 @@ export interface MemoryContextItem {
   sourceIds: string[];
   /** Ranked fact evidence, retained when profile deduplication wins placement. */
   recalled?: boolean;
+  /** When the memory was written — lets the prompt show a saved date so the
+   * model can answer "what did I save recently". */
+  createdAt?: Date;
 }
 export interface MemoryContextOptions {
   query: string;
@@ -106,6 +109,7 @@ export async function assembleMemoryContext(
     score,
     lane,
     sourceIds: m.sourceChunkIds ?? [],
+    createdAt: m.createdAt,
   });
   const empty: RecallResult = {
     memories: [],
@@ -186,6 +190,7 @@ export async function assembleMemoryContext(
         lane,
         ...(lane === "fact" && { recalled: true }),
         sourceIds: m.sourceChunkIds ?? (m.messageId ? [m.messageId] : []),
+        createdAt: m.createdAt,
       }));
   const recalledFacts = toItems(facts, "fact");
   const recalledScores = new Map<string, number>();

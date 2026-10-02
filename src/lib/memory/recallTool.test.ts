@@ -12,7 +12,13 @@ vi.mock("./recall", () => ({ recall: vi.fn() }));
 vi.mock("../memoryVault/decomposeQuery", () => ({
   decomposeQuery: vi.fn(),
 }));
+vi.mock("../db/memoryVault/operations", () => ({
+  getAllVaultMemoriesOp: vi.fn(),
+}));
 
+import { getAllVaultMemoriesOp } from "../db/memoryVault/operations";
+import type { VaultMemoryOperationsContext } from "../db/memoryVault/operations";
+import type { StoredVaultMemory } from "../db/memoryVault/types";
 import { decomposeQuery } from "../memoryVault/decomposeQuery";
 import { recall } from "./recall";
 import {
@@ -488,5 +494,105 @@ describe("createRecallTool executor — tool-layer decompose (719/B4)", () => {
   it("tool description nudges multi-facet asks toward several targeted searches", () => {
     const tool = createRecallTool(ctx, { types: ["fact"] });
     expect(tool.function.description).toMatch(/several targeted searches/i);
+  });
+});
+
+// ── Saved dates + recency listing ───────────────────────────────────────
+describe("formatRecallResult — saved date", () => {
+  it("surfaces a fact's saved date alongside its event date", () => {
+    const out = formatRecallResult([
+      {
+        ...fact("m1", "Bar crawl in the West Village"),
+        createdAt: new Date("2026-09-30T18:00:00Z"),
+        eventTimeStart: Date.parse("2026-10-04T00:00:00Z"),
+        eventTimeKind: "point",
+      },
+    ]);
+    expect(out).toContain("fact (id: m1, saved: 2026-09-30, event: 2026-10-04)");
+  });
+
+  it("omits the saved date when createdAt is missing or a sentinel zero", () => {
+    expect(formatRecallResult([fact("m1", "x")])).toContain("fact (id: m1)");
+    expect(formatRecallResult([{ ...fact("m1", "x"), createdAt: new Date(0) }])).toContain(
+      "fact (id: m1)"
+    );
+  });
+});
+
+describe("createRecallTool executor — sort: recent", () => {
+  const vaultCtx = {} as VaultMemoryOperationsContext;
+  const recentCtx = { vaultCtx } as RecallContext;
+
+  function stored(id: string, content: string, createdAt: string): StoredVaultMemory {
+    return {
+      uniqueId: id,
+      content,
+      folderId: null,
+      eventTimeStart: null,
+      eventTimeEnd: null,
+      eventTimeKind: null,
+      factType: null,
+      createdAt: new Date(createdAt),
+      updatedAt: new Date(createdAt),
+    } as StoredVaultMemory;
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(getAllVaultMemoriesOp).mockResolvedValue([
+      stored("new", "Daily hackathon tweet campaign", "2026-10-01T12:00:00Z"),
+      stored("old", "Likes espresso", "2026-08-01T12:00:00Z"),
+    ]);
+  });
+
+  it("lists the newest saved facts without a relevance search", async () => {
+    const tool = createRecallTool(recentCtx, {
+      types: ["fact", "chunk"],
+      scopes: ["private"],
+      folderId: "f1",
+    });
+    const out = await tool.executor!({ query: "my recent memories", sort: "recent", limit: 5 });
+
+    expect(recall).not.toHaveBeenCalled();
+    expect(getAllVaultMemoriesOp).toHaveBeenCalledWith(vaultCtx, {
+      limit: 5,
+      scopes: ["private"],
+      folderId: "f1",
+    });
+    expect(out).toContain("fact (id: new, saved: 2026-10-01)");
+    expect(out.indexOf("id: new")).toBeLessThan(out.indexOf("id: old"));
+  });
+
+  it("keeps a topic scope's memoryIds restriction", async () => {
+    const tool = createRecallTool(recentCtx, { types: ["fact"], memoryIds: ["new"] });
+    await tool.executor!({ query: "latest", sort: "recent" });
+    expect(getAllVaultMemoriesOp).toHaveBeenCalledWith(
+      vaultCtx,
+      expect.objectContaining({ memoryIds: ["new"] })
+    );
+  });
+
+  it("counts listed facts against the per-turn volume budget", async () => {
+    const tool = createRecallTool(recentCtx, { types: ["fact"] });
+    await tool.executor!({ query: "latest", sort: "recent", limit: 100 });
+    expect(getAllVaultMemoriesOp).toHaveBeenCalledWith(
+      vaultCtx,
+      expect.objectContaining({ limit: RECALL_MAX_MEMORIES_PER_TURN })
+    );
+  });
+
+  it("falls back to the ranked search when the tool has no vault", async () => {
+    vi.mocked(recall).mockResolvedValue(recallResult([fact("m1", "Works in engineering")]));
+    const tool = createRecallTool(ctx, { types: ["fact"] });
+    await tool.executor!({ query: "latest", sort: "recent" });
+    expect(getAllVaultMemoriesOp).not.toHaveBeenCalled();
+    expect(recall).toHaveBeenCalledTimes(1);
+  });
+
+  it("advertises the recent sort in the tool schema", () => {
+    const tool = createRecallTool(recentCtx, { types: ["fact"] });
+    const props = (tool.function.arguments as { properties: Record<string, { enum?: string[] }> })
+      .properties;
+    expect(props.sort?.enum).toEqual(["relevance", "recent"]);
   });
 });
