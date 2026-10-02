@@ -1615,7 +1615,15 @@ export async function eagerEmbedContent(
   if (memoryId) cacheRowVector(cache, memoryId, Float32Array.from(embedding), updatedAt, content);
   if (vaultCtx && memoryId) {
     const currentModel = embeddingOptions.model ?? DEFAULT_API_EMBEDDING_MODEL;
-    updateVaultMemoryEmbeddingOp(vaultCtx, memoryId, JSON.stringify(embedding), currentModel).catch(
+    updateVaultMemoryEmbeddingOp(
+      vaultCtx,
+      memoryId,
+      JSON.stringify(embedding),
+      currentModel,
+      // Guard against concurrent edits: only persist if the row still has the
+      // content and updatedAt this vector was computed from.
+      updatedAt ? { content, updatedAt: updatedAt.getTime() } : undefined
+    ).catch(
       // Silently swallow – SDK must not use console.*; embedding will be retried on next search
       () => {}
     );

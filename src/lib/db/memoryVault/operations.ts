@@ -2090,9 +2090,20 @@ export async function backfillVaultMemoryUserIdsOp(
   let stamped = 0;
   for (;;) {
     const count = await ctx.database.write(async () => {
-      const records = await ctx.vaultMemoryCollection
+      // unsafeFetchRaw (NOT fetch): avoid pinning Models into the never-evicted
+      // RecordCache (web Pile-2 OOM). Only load Models for the rows we're updating.
+      const rawRecords = (await ctx.vaultMemoryCollection
         .query(Q.where("user_id", null), Q.take(CHUNK))
-        .fetch();
+        .unsafeFetchRaw()) as Record<string, unknown>[];
+      // Load Models BEFORE preparing any update (see stampTopicsExtractedAtOp).
+      const records: VaultMemory[] = [];
+      for (const raw of rawRecords) {
+        try {
+          records.push(await ctx.vaultMemoryCollection.find(raw.id as string));
+        } catch {
+          // Missing row — skip.
+        }
+      }
       // Same-tick prepare → batch (see stampTopicsExtractedAtOp); keep it a `.map()`.
       const prepared = records.map((record) => {
         // Capture BEFORE prepareUpdate, which touches `updated_at`.
