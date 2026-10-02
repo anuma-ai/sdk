@@ -1391,6 +1391,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     headless: boolean;
   } | null>(null);
   const retirementRef = useRef<Promise<string | null> | null>(null);
+  const retirementStopRequestedRef = useRef(false);
 
   /**
    * Create a new conversation
@@ -1759,6 +1760,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           if (!knownIds) {
             knownIds = new Set<string>();
             for (const msg of storedMessages) {
+              if (msg.uniqueId === ctx.assistantUniqueId) continue;
               if (msg.toolCallEvents) {
                 for (const evt of msg.toolCallEvents) {
                   if (evt.id) knownIds.add(evt.id);
@@ -1810,6 +1812,10 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         thinking,
         wasStopped,
         parentMessageId,
+        toolCallEvents:
+          currentTurnToolCallEvents && currentTurnToolCallEvents.length > 0
+            ? currentTurnToolCallEvents
+            : undefined,
         uniqueId: ctx.assistantUniqueId!,
       });
     },
@@ -1824,11 +1830,18 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     const active = activeResumeRef.current;
     if (active && !active.headless) return "Resume already in progress";
     const pending = pendingResumeRef.current;
-    // Cold recovery owns its context until the replay finalizes it.
-    // Only a warm detached turn has the original stored user message ID.
-    if (!pending?.userMessageUniqueId) return null;
+    // An active cold replay owns its context. A new send clears an idle cold context.
+    if (!pending) return null;
+    if (!pending.userMessageUniqueId) {
+      if (active?.context === pending) return null;
+      if (!pending.partialData) {
+        pendingResumeRef.current = null;
+        return null;
+      }
+    }
     if (active?.context === pending) return "Resume already in progress";
     pendingResumeRef.current = null;
+    retirementStopRequestedRef.current = false;
 
     const retirement = Promise.resolve().then(async (): Promise<string | null> => {
       try {
@@ -1846,6 +1859,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         return null;
       } catch (err) {
         pendingResumeRef.current = pending;
+        if (retirementStopRequestedRef.current) baseStop();
         return err instanceof Error ? err.message : "Failed to store detached message";
       }
     });
@@ -1853,7 +1867,10 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     try {
       return await retirement;
     } finally {
-      if (retirementRef.current === retirement) retirementRef.current = null;
+      if (retirementRef.current === retirement) {
+        retirementRef.current = null;
+        retirementStopRequestedRef.current = false;
+      }
     }
   }, [baseStop, finalizeResumedRow]);
 
@@ -3240,6 +3257,8 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         wasStopped: boolean,
         responseDuration: number
       ): Promise<{ message: StoredMessage } | { error: string }> => {
+        // Retain the latest replay if the write fails and a new send replaces it.
+        rctx.partialData = data;
         try {
           return { message: await finalizeResumedRow(rctx, data, wasStopped, responseDuration) };
         } catch (writeErr) {
@@ -3404,8 +3423,11 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
    * streamMeta ref survives the detach).
    */
   const stop = useCallback(() => {
-    // The new send owns the old-row write and cancels after that write commits.
-    if (retirementRef.current) return;
+    // The new send owns the write. Preserve stop intent if that write fails.
+    if (retirementRef.current) {
+      retirementStopRequestedRef.current = true;
+      return;
+    }
     const pending = pendingResumeRef.current;
     if (pending && pending.assistantUniqueId && !isResumingRef.current) {
       const finalize = pending;
