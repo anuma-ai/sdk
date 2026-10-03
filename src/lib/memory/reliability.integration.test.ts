@@ -865,6 +865,50 @@ describe("durable extraction outbox", () => {
     third.dispose();
   });
 
+  it("abandons a moderation-refused single turn at once without retrying it", async () => {
+    await conversation();
+    vi.mocked(extractAndRetain).mockImplementation(async (batch) =>
+      batch.some((m) => m.id === "m0") ? failedExtraction({ reason: "content-flagged" }) : empty
+    );
+    const worker = createDurableAutoExtractor(options());
+    worker.processTurn(messages.slice(0, 1), "conversation");
+    await vi.waitFor(() => expect(extractAndRetain).toHaveBeenCalledOnce(), { timeout: 2000 });
+    await vi.waitFor(async () => expect((await jobRow())._getRaw("message_ids")).toBe("[]"));
+    // The flagged source is neither retried nor re-sent as context.
+    worker.processTurn(messages.slice(0, 3), "conversation");
+    await vi.waitFor(() => expect(extractAndRetain).toHaveBeenCalledTimes(2), { timeout: 2000 });
+    expect(vi.mocked(extractAndRetain).mock.calls[1][0].map((m) => m.id)).toEqual(["m1", "m2"]);
+    worker.dispose();
+  });
+
+  it("extracts the other turns of a moderation-refused batch and drops only the refused one", async () => {
+    await conversation();
+    vi.mocked(extractAndRetain).mockImplementation(async (batch) =>
+      batch.some((m) => m.id === "m1") ? failedExtraction({ reason: "content-flagged" }) : empty
+    );
+    const onError = vi.fn();
+    const worker = createDurableAutoExtractor({ ...options(), onError });
+    worker.processTurn(messages.slice(0, 3), "conversation");
+    await vi.waitFor(async () => expect((await jobRow())._getRaw("message_ids")).toBe("[]"), {
+      timeout: 2000,
+    });
+    // The refused batch, then one call per turn: m0 and m2 extract, m1 is
+    // refused once and never retried.
+    expect(vi.mocked(extractAndRetain).mock.calls.map(([batch]) => batch.map((m) => m.id))).toEqual(
+      [["m0", "m1", "m2"], ["m0"], ["m1"], ["m2"]]
+    );
+    expect(onError.mock.calls.map(([error]) => String(error.message))).toContain(
+      "Dropped 1 source id(s) of an extraction batch refused by moderation"
+    );
+    await settle();
+    expect(extractAndRetain).toHaveBeenCalledTimes(4);
+    // The refused source is not re-sent as pronoun context for the next batch.
+    worker.processTurn(messages.slice(0, 5), "conversation");
+    await vi.waitFor(() => expect(extractAndRetain).toHaveBeenCalledTimes(5), { timeout: 2000 });
+    expect(vi.mocked(extractAndRetain).mock.calls[4][0].map((m) => m.id)).toEqual(["m3", "m4"]);
+    worker.dispose();
+  });
+
   it("does not retry a non-retryable HTTP failure in the same session", async () => {
     await conversation();
     vi.mocked(extractAndRetain).mockResolvedValue(

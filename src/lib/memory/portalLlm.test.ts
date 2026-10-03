@@ -340,6 +340,34 @@ describe("callPortalJsonCompletion — retry on transient failure", () => {
     ]);
   });
 
+  it("gives up at once on the portal's moderation refusal instead of retrying it", async () => {
+    // ai-portal's newModerationChatResponse: HTTP 200, id "moderation", a
+    // Terms-of-Service sentence as content. Retrying re-sends the same input
+    // to be flagged again.
+    const refusal = {
+      id: "moderation",
+      choices: [
+        {
+          index: 0,
+          message: { role: "assistant", content: "Your message violates our Terms of Service." },
+          finish_reason: "stop",
+        },
+      ],
+    };
+    const fetchFn = vi.fn().mockResolvedValue(new Response(JSON.stringify(refusal)));
+    const onFailure = vi.fn();
+    const result = await callPortalJsonCompletion({
+      ...baseArgs,
+      fetchFn,
+      onFailure,
+      maxAttempts: 3,
+      backoffMs: () => 0,
+    });
+    expect(result).toBeNull();
+    expect(fetchFn).toHaveBeenCalledOnce();
+    expect(onFailure).toHaveBeenCalledWith({ reason: "content-flagged", attempts: 1 });
+  });
+
   it("stops retrying once the absolute totalTimeoutMs budget is spent", async () => {
     const fetchFn = vi.fn().mockResolvedValue(new Response("upstream error", { status: 503 }));
     // totalTimeoutMs: 0 → the budget is already spent after the first failure,

@@ -114,6 +114,41 @@ class BatchFailureError extends Error {
   }
 }
 
+/** The portal's moderation gate refused the batch. Moderation is deterministic
+ * for the same text, so retrying — this session or a later one — only re-sends
+ * the same input to be flagged again, while the head blocks every newer turn in
+ * the conversation. A refused batch of several turns is re-extracted turn by
+ * turn so only the refused turns are dropped; a refused single turn is
+ * abandoned on the first refusal. */
+class FlaggedBatchError extends Error {}
+
+/** Whether an extraction examined its whole batch and retained every candidate. */
+function extracted(result: TurnCompleteEvent): boolean {
+  return result.failedCount === 0 && result.outcome !== "empty-after-retry";
+}
+
+/** The error a failed (not moderation-refused) extraction is retried or counted as. */
+function batchError(result: TurnCompleteEvent): Error {
+  const failure = result.failure;
+  if (failure?.reason === "http-terminal") {
+    const status = failure.httpStatus;
+    if (status !== undefined && REQUEST_REJECTED_STATUSES.has(status))
+      return new BatchFailureError(
+        `Extraction rejected the batch (HTTP ${status}); not retried this session`,
+        true
+      );
+    return new AccountFailureError(
+      `Extraction refused for the account (HTTP ${status ?? "unknown"}); retried next session`
+    );
+  }
+  if (
+    result.failedCount > 0 ||
+    (failure !== undefined && CONTENT_FAILURE_REASONS.has(failure.reason))
+  )
+    return new BatchFailureError("Extraction batch incomplete; retained for retry", false);
+  return new Error("Extraction batch incomplete; retained for retry");
+}
+
 /** An account-level rejection (401/402/403 and other non-request statuses):
  * the batch is skipped for the rest of this session and not counted, so a
  * later session — after a top-up or re-login — extracts it. */
@@ -128,6 +163,20 @@ class LockedSourcesError extends Error {
   constructor(readonly persistentIds: string[]) {
     super("Source messages are locked; retained for retry");
   }
+}
+
+/** Split a batch into turns at each user message. Messages ahead of the first
+ * user message (context carried over from the previous batch) stay with the
+ * first turn, as they were context for the batch. */
+function splitTurns(messages: AutoExtractMessage[]): AutoExtractMessage[][] {
+  const turns: AutoExtractMessage[][] = [];
+  for (const message of messages) {
+    const last = turns[turns.length - 1];
+    if (!last || (message.role === "user" && last.some((m) => m.role === "user")))
+      turns.push([message]);
+    else last.push(message);
+  }
+  return turns;
 }
 
 function idsOf(job: ExtractionJob): string[] {
@@ -372,6 +421,10 @@ export function createDurableAutoExtractor(options: DurableAutoExtractorOptions)
       skippedThisSession.add(job.id);
       return false;
     }
+    if (error instanceof FlaggedBatchError) {
+      await acknowledge(job, ids, loaded, true);
+      return true;
+    }
     const counted =
       error instanceof BatchFailureError ||
       (error instanceof LockedSourcesError && error.persistentIds.length > 0);
@@ -527,40 +580,56 @@ export function createDurableAutoExtractor(options: DurableAutoExtractorOptions)
               ? [{ id: m.uniqueId, role: m.role, content: m.content }]
               : []
           );
-          let success = messages.length === 0;
-          let result: TurnCompleteEvent | undefined;
-          if (messages.length) {
-            result = await extractBatch(
-              messages,
+          const jobScope = currentScope() === "private" ? "private" : String(job._getRaw("scope"));
+          const jobFolderId = (job._getRaw("folder_id") as string | null) ?? null;
+          const runExtraction = async (batch: AutoExtractMessage[], batchIds: string[]) => {
+            const result = await extractBatch(
+              batch,
               conversationId,
-              ids,
-              currentScope() === "private" ? "private" : String(job._getRaw("scope")),
-              (job._getRaw("folder_id") as string | null) ?? null
+              batchIds,
+              jobScope,
+              jobFolderId
             );
-            success = result.failedCount === 0 && result.outcome !== "empty-after-retry";
             options.onTurnComplete?.(result);
-          }
-          if (!success) {
-            const failure = result?.failure;
-            if (failure?.reason === "http-terminal") {
-              const status = failure.httpStatus;
-              if (status !== undefined && REQUEST_REJECTED_STATUSES.has(status))
-                throw new BatchFailureError(
-                  `Extraction rejected the batch (HTTP ${status}); not retried this session`,
-                  true
+            return result;
+          };
+          // Ids whose turn moderation refused. They are dropped, never retried.
+          const flaggedIds = new Set<string>();
+          if (messages.length) {
+            const result = await runExtraction(messages, ids);
+            if (result.failure?.reason === "content-flagged") {
+              const turns = splitTurns(messages);
+              // One refused turn must not take the batch's other turns with it.
+              // Extracting each turn on its own costs at most one moderated call
+              // per turn, and pins the refusal on the turn(s) that caused it.
+              if (turns.length < 2)
+                throw new FlaggedBatchError("Extraction batch refused by moderation; abandoned");
+              for (const turn of turns) {
+                const turnResult = await runExtraction(
+                  turn,
+                  turn.map((m) => m.id)
                 );
-              throw new AccountFailureError(
-                `Extraction refused for the account (HTTP ${status ?? "unknown"}); retried next session`
-              );
-            }
-            if (
-              (result?.failedCount ?? 0) > 0 ||
-              (failure !== undefined && CONTENT_FAILURE_REASONS.has(failure.reason))
-            )
-              throw new BatchFailureError("Extraction batch incomplete; retained for retry", false);
-            throw new Error("Extraction batch incomplete; retained for retry");
+                if (turnResult.failure?.reason === "content-flagged")
+                  for (const m of turn) flaggedIds.add(m.id);
+                else if (!extracted(turnResult)) throw batchError(turnResult);
+              }
+              if (flaggedIds.size)
+                reportError(
+                  new Error(
+                    `Dropped ${flaggedIds.size} source id(s) of an extraction batch refused by moderation`
+                  ),
+                  conversationId
+                );
+            } else if (!extracted(result)) throw batchError(result);
           }
-          await acknowledge(job, ids, loaded, false);
+          // A refused message must not ride along as pronoun context for the
+          // next batch, so it ends the batch the way an abandoned one does.
+          await acknowledge(
+            job,
+            ids,
+            loaded,
+            ids.slice(-2).some((id) => flaggedIds.has(id))
+          );
           scheduleAfterSuccess = true;
         } catch (error) {
           attempts.set(job.id, attempted + 1);
