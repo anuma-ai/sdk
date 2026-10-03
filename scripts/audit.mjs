@@ -62,6 +62,30 @@ const ALLOWLIST = [
       "JXL/HEIF parser DoS in the same package and version as GHSA-w3rx-r6r6-pgpr; identical v1-only-compatible and build-time-only reachability evidence.",
     expires: "2026-11-10",
   },
+  // braces stack-exhaustion DoS, published 2026-09-18 — main's audit last passed
+  // 2026-10-02, before npm's bulk endpoint picked it up, with no lockfile change.
+  //
+  // NO FIX TO OVERRIDE TO. The advisory covers every release (<= 3.0.3, no first
+  // patched version) and 3.0.3 is the latest braces on npm, so there is nothing
+  // for a pnpm.overrides pin to point at. Its only parent, micromatch 4.0.8,
+  // depends on braces ^3.0.3.
+  //
+  // Reachability is build- and test-tooling only, all under the react-native
+  // dependency: react-native -> @react-native/community-cli-plugin -> metro ->
+  // metro-file-map -> micromatch, and react-native -> babel-jest /
+  // jest-environment-node -> micromatch. The SDK never imports braces or
+  // micromatch, and neither is in a shipped bundle. The DoS needs a deeply nested
+  // glob pattern, which only the developer's own build config supplies.
+  //
+  // Exit condition: braces publishes a fix (then add a pnpm.overrides pin) —
+  // REMOVE this entry then; the audit reports an entry that matches nothing.
+  {
+    id: "GHSA-vfj7-8cjw-p6xm",
+    package: "braces",
+    reason:
+      "Stack-exhaustion DoS on deeply nested patterns. No patched release exists (advisory covers <= 3.0.3, the latest). Reachable only via react-native's metro bundler and jest tooling (micromatch), never imported by the SDK or in a shipped bundle.",
+    expires: "2026-11-10",
+  },
 ];
 
 function collectPackages() {
