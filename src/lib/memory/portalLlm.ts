@@ -151,10 +151,10 @@ const RESPONSES_ONLY_MODEL_PREFIXES = ["gpt-5.6", "gpt-6-sol", "gpt-6-luna", "gp
 /**
  * Whether `model` must be called on the Responses transport.
  *
- * A caller that hand-rolls its own portal fetch (today: `reflect`) uses this to
- * pick the endpoint and the body shape. {@link callPortalJsonCompletion} does
- * NOT consult it — there the transport is an explicit request field, because
- * that path also carries `reasoning`, which only one transport can represent.
+ * {@link callPortalJsonCompletion} consults it to pick the DEFAULT transport
+ * when the caller sets none (an explicit `transport` still wins), and a caller
+ * that hand-rolls its own portal fetch (today: `reflect`) uses it to pick the
+ * endpoint and the body shape.
  */
 export function requiresResponsesTransport(model: string): boolean {
   return model
@@ -468,6 +468,21 @@ function responsesExtra(extra: Record<string, unknown> | undefined): Record<stri
   return out;
 }
 
+/**
+ * Split an override into the path the transport checks compare and whatever
+ * follows it (`?query` / `#fragment`), with trailing slashes dropped from the
+ * path. Comparing the raw string let `/chat/completions?x=1` or
+ * `/chat/completions/` miss both the sibling rewrite and the mismatch guard.
+ */
+function splitEndpoint(endpoint: string): { path: string; rest: string } {
+  const cut = endpoint.search(/[?#]/);
+  const rawPath = cut === -1 ? endpoint : endpoint.slice(0, cut);
+  return {
+    path: rawPath.replace(/\/+$/, ""),
+    rest: cut === -1 ? "" : endpoint.slice(cut),
+  };
+}
+
 /** The endpoint suffix belonging to the OTHER transport — the one an override
  *  must not point at. */
 const FOREIGN_ENDPOINT_SUFFIX: Record<PortalLlmTransport, string> = {
@@ -490,7 +505,7 @@ const FOREIGN_ENDPOINT_SUFFIX: Record<PortalLlmTransport, string> = {
  */
 function assertTransportMatchesEndpoint(transport: PortalLlmTransport, endpoint: string): void {
   const foreign = FOREIGN_ENDPOINT_SUFFIX[transport];
-  if (!endpoint.endsWith(foreign)) return;
+  if (!splitEndpoint(endpoint).path.endsWith(foreign)) return;
   throw new Error(
     `endpointOverride "${endpoint}" is the other transport's endpoint, but transport is ` +
       `"${transport}". The request body is built for the transport, so this sends the ` +
@@ -614,25 +629,22 @@ export async function callPortalJsonCompletion(req: PortalLlmRequest): Promise<u
     }
     endpoint = overrideValidation.endpoint;
     // The override and the transport have to agree, and nothing else checks.
-    // `endpointOverride` wins outright, so `transport: "responses"` plus a chat
-    // path POSTs an `input`-shaped body at /chat/completions — which the portal
-    // accepts at the edge (ChatCompletionRequest.Validate only checks the model
-    // string) and the provider then 400s. That is classified http-terminal, so
-    // it does not even retry: one hard null, no signal.
+    // `endpointOverride` wins outright, so a responses body POSTed at a chat path
+    // is accepted at the portal's edge (ChatCompletionRequest.Validate only checks
+    // the model string) and then 400s upstream — classified http-terminal, so one
+    // hard null and no retry.
     //
-    // NOT hypothetical. The override exists so apps can route background work to
-    // /api/v1/utility/chat/completions, and the APP sets it (ai-memoryless-client
-    // #5536) — so whoever flips a lane to "responses" in this repo cannot see the
-    // stale path. Throw for the same reason an invalid override throws: a caller
-    // bug must not be laundered into the null-on-failure path.
-    if (autoUpgraded && endpoint.endsWith("/chat/completions")) {
-      // The app pins the override to a LANE, not to a transport: ai-memoryless-client
-      // routes background work to `/api/v1/utility/chat/completions` (#5536) and knows
-      // nothing about which models need the other shape. Throwing here would turn a 400
-      // into a hard crash for an app that did nothing wrong, so the sibling path is
-      // derived instead — the two endpoints of a lane differ only by this suffix, the
-      // same pairing FOREIGN_ENDPOINT_SUFFIX already encodes.
-      endpoint = `${endpoint.slice(0, -"/chat/completions".length)}/responses`;
+    // An AUTO-upgrade under a chat override is the expected case, not a caller bug:
+    // the app pins the override to a LANE, not a transport (ai-memoryless-client
+    // #5536 routes all background work to `/api/v1/utility/chat/completions`) and
+    // knows nothing about which models need the other shape. So the sibling path is
+    // derived — a lane's two endpoints differ only by this suffix, the pairing
+    // FOREIGN_ENDPOINT_SUFFIX encodes. Matched on the PATH, so a query string,
+    // fragment or trailing slash cannot slip a near-miss past both this and the
+    // guard below.
+    const { path, rest } = splitEndpoint(endpoint);
+    if (autoUpgraded && path.endsWith("/chat/completions")) {
+      endpoint = `${path.slice(0, -"/chat/completions".length)}/responses${rest}`;
     }
     // An EXPLICIT transport that disagrees with the override is still a caller bug.
     assertTransportMatchesEndpoint(transport, endpoint);

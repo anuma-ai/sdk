@@ -572,6 +572,37 @@ describe("callPortalJsonCompletion — endpointOverride", () => {
     expect(result).toEqual({ candidates: [] });
   });
 
+  it.each([
+    ["/api/v1/utility/chat/completions?x=1", "/api/v1/utility/responses?x=1"],
+    ["/api/v1/utility/chat/completions/", "/api/v1/utility/responses"],
+    ["/api/v1/utility/chat/completions#frag", "/api/v1/utility/responses#frag"],
+  ])("moves a near-miss override %s to the sibling lane", async (override, expected) => {
+    // A raw `endsWith` missed all three, skipping the rewrite AND the mismatch guard
+    // and POSTing an `input` body at the chat path.
+    const fetchFn = vi.fn().mockResolvedValue(mockResponsesBody('{"a":1}'));
+    await callPortalJsonCompletion({
+      ...baseArgs,
+      model: "openai/gpt-6-luna",
+      endpointOverride: override,
+      fetchFn,
+    });
+    expect(fetchFn.mock.calls[0][0]).toBe(`https://portal.test${expected}`);
+  });
+
+  it("still throws for an explicit chat transport on a near-miss responses override", async () => {
+    const fetchFn = vi.fn();
+    await expect(
+      callPortalJsonCompletion({
+        ...baseArgs,
+        model: "gpt-oss/gpt-oss-120b",
+        transport: "chat",
+        endpointOverride: "/api/v1/utility/responses?x=1",
+        fetchFn,
+      })
+    ).rejects.toThrow(/other transport's endpoint/);
+    expect(fetchFn).not.toHaveBeenCalled();
+  });
+
   it("translates a chat-spelled output cap after auto-upgrading", async () => {
     // topicExtract passes `max_completion_tokens: 8192` and never chose a transport;
     // left untranslated, the Responses endpoint drops it and falls back to 4096.

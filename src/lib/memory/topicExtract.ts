@@ -84,7 +84,9 @@ export interface TopicExtractOptions extends PortalLlmAuth {
    * Optional per-call request path override, forwarded to
    * {@link callPortalJsonCompletion}. When set, topic extraction POSTs to
    * `baseUrl + endpointOverride` instead of the default
-   * `/api/v1/chat/completions` — path only, body unchanged. Lets callers route
+   * `/api/v1/chat/completions`. The body follows the transport, not the path: a
+   * model that needs the Responses API is moved from a `.../chat/completions`
+   * override to its sibling `.../responses` with a Responses-shaped body. Lets callers route
    * this internal-utility pass to a dedicated endpoint. Invalid values throw at
    * call time (see {@link validateEndpointOverride}).
    */
