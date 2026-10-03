@@ -114,6 +114,12 @@ class BatchFailureError extends Error {
   }
 }
 
+/** The portal's moderation gate refused the batch. Moderation is deterministic
+ * for the same text, so retrying — this session or a later one — only re-sends
+ * the same input to be flagged again, while the head blocks every newer turn in
+ * the conversation. The batch is abandoned on the first refusal. */
+class FlaggedBatchError extends Error {}
+
 /** An account-level rejection (401/402/403 and other non-request statuses):
  * the batch is skipped for the rest of this session and not counted, so a
  * later session — after a top-up or re-login — extracts it. */
@@ -372,6 +378,10 @@ export function createDurableAutoExtractor(options: DurableAutoExtractorOptions)
       skippedThisSession.add(job.id);
       return false;
     }
+    if (error instanceof FlaggedBatchError) {
+      await acknowledge(job, ids, loaded, true);
+      return true;
+    }
     const counted =
       error instanceof BatchFailureError ||
       (error instanceof LockedSourcesError && error.persistentIds.length > 0);
@@ -542,6 +552,8 @@ export function createDurableAutoExtractor(options: DurableAutoExtractorOptions)
           }
           if (!success) {
             const failure = result?.failure;
+            if (failure?.reason === "content-flagged")
+              throw new FlaggedBatchError("Extraction batch refused by moderation; abandoned");
             if (failure?.reason === "http-terminal") {
               const status = failure.httpStatus;
               if (status !== undefined && REQUEST_REJECTED_STATUSES.has(status))

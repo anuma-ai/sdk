@@ -219,7 +219,12 @@ export type PortalLlmFailureReason =
   /** Content parsed to a literal `null`, which is never a valid response. */
   | "null-completion"
   /** `totalTimeoutMs` was spent before the next attempt could run. */
-  | "time-budget-exhausted";
+  | "time-budget-exhausted"
+  /**
+   * The portal's moderation gate refused the request. Terminal: the same input
+   * is flagged again on every retry. See {@link isModerationResponse}.
+   */
+  | "content-flagged";
 
 /**
  * One attempt of a {@link callPortalJsonCompletion} call, reported to
@@ -897,6 +902,14 @@ async function attemptPortalJson(req: PortalLlmRequest, endpoint: string): Promi
   // cached is worth something.
   logPortalUsage(body, req.tag);
 
+  if (isModerationResponse(body)) {
+    return {
+      kind: "terminal",
+      code: "content-flagged",
+      reason: "portal moderation refused the request",
+    };
+  }
+
   const rawContent = extractCompletionContent(body);
   if (!rawContent) {
     // Empty completion — reasoning-class models do this intermittently.
@@ -1092,6 +1105,26 @@ function logPortalUsage(body: unknown, tag: string): void {
  * through {@link callPortalJsonCompletion} — parses Responses bodies exactly
  * the way this module does, instead of growing a second, drifting copy.
  */
+/**
+ * Whether `body` is the portal's synthetic moderation refusal rather than a
+ * model answer.
+ *
+ * When its moderation gate flags a request, ai-portal answers HTTP 200 with a
+ * canned Terms-of-Service message in an envelope whose `id` is `"moderation"`
+ * (`newModerationChatResponse` / `newModerationResponseResponse` in
+ * internal/api/handlers/chat.go). Read as content, that message is prose, so it
+ * used to classify as `invalid-json` and be retried — and the gate flags the
+ * identical input every time. Gating is per provider (`openai/*` is moderated,
+ * Cerebras gpt-oss is not), so in production this hit only Public-mode
+ * extraction on gpt-6-luna: 77 flags in 7 days ending 2026-10-03, every one a
+ * background extraction, each failed turn costing three flagged calls.
+ */
+function isModerationResponse(body: unknown): boolean {
+  return (
+    typeof body === "object" && body !== null && (body as { id?: unknown }).id === "moderation"
+  );
+}
+
 export function extractCompletionContent(body: unknown): string | null {
   if (typeof body !== "object" || body === null) return null;
 

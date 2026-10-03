@@ -865,6 +865,22 @@ describe("durable extraction outbox", () => {
     third.dispose();
   });
 
+  it("abandons a moderation-refused batch at once so later messages still extract", async () => {
+    await conversation();
+    vi.mocked(extractAndRetain).mockImplementation(async (batch) =>
+      batch.some((m) => m.id === "m0") ? failedExtraction({ reason: "content-flagged" }) : empty
+    );
+    const worker = createDurableAutoExtractor(options());
+    worker.processTurn(messages.slice(0, 2), "conversation");
+    await vi.waitFor(() => expect(extractAndRetain).toHaveBeenCalledOnce(), { timeout: 2000 });
+    await vi.waitFor(async () => expect((await jobRow())._getRaw("message_ids")).toBe("[]"));
+    // The flagged sources are neither retried nor re-sent as context.
+    worker.processTurn(messages.slice(0, 4), "conversation");
+    await vi.waitFor(() => expect(extractAndRetain).toHaveBeenCalledTimes(2), { timeout: 2000 });
+    expect(vi.mocked(extractAndRetain).mock.calls[1][0].map((m) => m.id)).toEqual(["m2", "m3"]);
+    worker.dispose();
+  });
+
   it("does not retry a non-retryable HTTP failure in the same session", async () => {
     await conversation();
     vi.mocked(extractAndRetain).mockResolvedValue(
