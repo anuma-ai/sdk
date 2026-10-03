@@ -151,10 +151,10 @@ const RESPONSES_ONLY_MODEL_PREFIXES = ["gpt-5.6", "gpt-6-sol", "gpt-6-luna", "gp
 /**
  * Whether `model` must be called on the Responses transport.
  *
- * A caller that hand-rolls its own portal fetch (today: `reflect`) uses this to
- * pick the endpoint and the body shape. {@link callPortalJsonCompletion} does
- * NOT consult it — there the transport is an explicit request field, because
- * that path also carries `reasoning`, which only one transport can represent.
+ * {@link callPortalJsonCompletion} consults it to pick the DEFAULT transport
+ * when the caller sets none (an explicit `transport` still wins), and a caller
+ * that hand-rolls its own portal fetch (today: `reflect`) uses it to pick the
+ * endpoint and the body shape.
  */
 export function requiresResponsesTransport(model: string): boolean {
   return model
@@ -284,8 +284,8 @@ export interface PortalLlmFailure {
  * runs WITH reasoning, against 6/7 on 2 of 3 runs without it (and one of those
  * misses emitted an entity whose `name` was `undefined`).
  */
-// Not exported: no caller selects a transport yet, and knip rightly flags an
-// export nothing imports. Widen to `export` when the first lane switches.
+// Not exported: no caller selects a transport explicitly (callPortalJsonCompletion
+// picks it from the model), and knip rightly flags an export nothing imports.
 type PortalLlmTransport = "chat" | "responses";
 
 /**
@@ -303,9 +303,9 @@ type PortalLlmTransport = "chat" | "responses";
 type PortalLlmTransportOptions =
   | {
       /**
-       * Transport for this call. Default `"chat"` — every existing caller keeps
-       * the chat-completions shape and endpoint unchanged. See
-       * {@link PortalLlmTransport} for why the other one exists.
+       * Transport for this call. Omitted, it is chosen from the model: `"responses"`
+       * for a {@link requiresResponsesTransport} family, `"chat"` for everything
+       * else. See {@link PortalLlmTransport} for why the other one exists.
        */
       transport?: Extract<PortalLlmTransport, "chat">;
       /** Not available on `"chat"` — the portal rewrites it to `"none"`. */
@@ -468,6 +468,21 @@ function responsesExtra(extra: Record<string, unknown> | undefined): Record<stri
   return out;
 }
 
+/**
+ * Split an override into the path the transport checks compare and whatever
+ * follows it (`?query` / `#fragment`), with trailing slashes dropped from the
+ * path. Comparing the raw string let `/chat/completions?x=1` or
+ * `/chat/completions/` miss both the sibling rewrite and the mismatch guard.
+ */
+function splitEndpoint(endpoint: string): { path: string; rest: string } {
+  const cut = endpoint.search(/[?#]/);
+  const rawPath = cut === -1 ? endpoint : endpoint.slice(0, cut);
+  return {
+    path: rawPath.replace(/\/+$/, ""),
+    rest: cut === -1 ? "" : endpoint.slice(cut),
+  };
+}
+
 /** The endpoint suffix belonging to the OTHER transport — the one an override
  *  must not point at. */
 const FOREIGN_ENDPOINT_SUFFIX: Record<PortalLlmTransport, string> = {
@@ -490,7 +505,7 @@ const FOREIGN_ENDPOINT_SUFFIX: Record<PortalLlmTransport, string> = {
  */
 function assertTransportMatchesEndpoint(transport: PortalLlmTransport, endpoint: string): void {
   const foreign = FOREIGN_ENDPOINT_SUFFIX[transport];
-  if (!endpoint.endsWith(foreign)) return;
+  if (!splitEndpoint(endpoint).path.endsWith(foreign)) return;
   throw new Error(
     `endpointOverride "${endpoint}" is the other transport's endpoint, but transport is ` +
       `"${transport}". The request body is built for the transport, so this sends the ` +
@@ -595,7 +610,18 @@ export async function callPortalJsonCompletion(req: PortalLlmRequest): Promise<u
   // an endpointOverride is validated here (root-relative, no off-origin) and an
   // invalid value throws immediately — a caller bug, not a transient batch
   // failure, so it must not be swallowed into the null-on-failure path.
-  let endpoint = req.transport === "responses" ? "/api/v1/responses" : "/api/v1/chat/completions";
+  // Pick the transport when the caller did not. A reasoning family is rejected
+  // OUTRIGHT by chat/completions (see RESPONSES_ONLY_MODEL_PREFIXES), so leaving the
+  // default at "chat" means every background memory op on such a model 400s and
+  // returns null — no memories extracted, nothing on screen, and the portal's masked
+  // "upstream model provider rejected the request" as the only trace.
+  //
+  // An EXPLICIT `transport` still wins, so the documented property that this is a
+  // request field the caller owns is unchanged; only the DEFAULT moves.
+  const transport: PortalLlmTransport =
+    req.transport ?? (requiresResponsesTransport(req.model) ? "responses" : "chat");
+  const autoUpgraded = req.transport === undefined && transport === "responses";
+  let endpoint = transport === "responses" ? "/api/v1/responses" : "/api/v1/chat/completions";
   if (req.endpointOverride !== undefined) {
     const overrideValidation = validateEndpointOverride(req.endpointOverride);
     if (!overrideValidation.valid) {
@@ -603,18 +629,25 @@ export async function callPortalJsonCompletion(req: PortalLlmRequest): Promise<u
     }
     endpoint = overrideValidation.endpoint;
     // The override and the transport have to agree, and nothing else checks.
-    // `endpointOverride` wins outright, so `transport: "responses"` plus a chat
-    // path POSTs an `input`-shaped body at /chat/completions — which the portal
-    // accepts at the edge (ChatCompletionRequest.Validate only checks the model
-    // string) and the provider then 400s. That is classified http-terminal, so
-    // it does not even retry: one hard null, no signal.
+    // `endpointOverride` wins outright, so a responses body POSTed at a chat path
+    // is accepted at the portal's edge (ChatCompletionRequest.Validate only checks
+    // the model string) and then 400s upstream — classified http-terminal, so one
+    // hard null and no retry.
     //
-    // NOT hypothetical. The override exists so apps can route background work to
-    // /api/v1/utility/chat/completions, and the APP sets it (ai-memoryless-client
-    // #5536) — so whoever flips a lane to "responses" in this repo cannot see the
-    // stale path. Throw for the same reason an invalid override throws: a caller
-    // bug must not be laundered into the null-on-failure path.
-    assertTransportMatchesEndpoint(req.transport ?? "chat", endpoint);
+    // An AUTO-upgrade under a chat override is the expected case, not a caller bug:
+    // the app pins the override to a LANE, not a transport (ai-memoryless-client
+    // #5536 routes all background work to `/api/v1/utility/chat/completions`) and
+    // knows nothing about which models need the other shape. So the sibling path is
+    // derived — a lane's two endpoints differ only by this suffix, the pairing
+    // FOREIGN_ENDPOINT_SUFFIX encodes. Matched on the PATH, so a query string,
+    // fragment or trailing slash cannot slip a near-miss past both this and the
+    // guard below.
+    const { path, rest } = splitEndpoint(endpoint);
+    if (autoUpgraded && path.endsWith("/chat/completions")) {
+      endpoint = `${path.slice(0, -"/chat/completions".length)}/responses${rest}`;
+    }
+    // An EXPLICIT transport that disagrees with the override is still a caller bug.
+    assertTransportMatchesEndpoint(transport, endpoint);
   }
   const maxAttempts = Math.max(1, req.maxAttempts ?? 3);
   const startedAt = Date.now();
@@ -672,7 +705,13 @@ export async function callPortalJsonCompletion(req: PortalLlmRequest): Promise<u
         : reinforce
           ? { ...req, reinforceJsonContract: true }
           : req;
-    const outcome = await attemptPortalJson(attemptReq, endpoint);
+    // The RESOLVED transport, not the caller's field: `attemptPortalJson` branches the
+    // BODY on it, and a responses endpoint carrying a chat-shaped body is exactly the
+    // http-terminal mismatch `assertTransportMatchesEndpoint` exists to prevent.
+    const outcome = await attemptPortalJson(
+      { ...attemptReq, transport } as PortalLlmRequest,
+      endpoint
+    );
     if (outcome.kind === "ok") {
       req.onAttempt?.({ attempt, ok: true });
       return outcome.value;
