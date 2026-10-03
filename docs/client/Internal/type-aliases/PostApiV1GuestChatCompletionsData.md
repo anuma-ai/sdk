@@ -2,7 +2,7 @@
 
 > **PostApiV1GuestChatCompletionsData** = `object`
 
-Defined in: [src/client/types.gen.ts:9347](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9347)
+Defined in: [src/client/types.gen.ts:10076](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10076)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:9347](https://github.com/anuma-ai/sdk/blob/
 
 > **body**: [`LlmapiChatCompletionRequest`](LlmapiChatCompletionRequest.md)
 
-Defined in: [src/client/types.gen.ts:9351](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9351)
+Defined in: [src/client/types.gen.ts:10080](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10080)
 
 Chat request (model/tools/stream fields are ignored server-side)
 
@@ -20,7 +20,7 @@ Chat request (model/tools/stream fields are ignored server-side)
 
 > **headers**: `object`
 
-Defined in: [src/client/types.gen.ts:9352](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9352)
+Defined in: [src/client/types.gen.ts:10081](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10081)
 
 **X-Guest-ID**
 
@@ -34,7 +34,7 @@ Client-generated UUID v4 identifying the guest session
 
 > `optional` **path**: `never`
 
-Defined in: [src/client/types.gen.ts:9358](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9358)
+Defined in: [src/client/types.gen.ts:10087](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10087)
 
 ***
 
@@ -42,7 +42,7 @@ Defined in: [src/client/types.gen.ts:9358](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **query**: `never`
 
-Defined in: [src/client/types.gen.ts:9359](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9359)
+Defined in: [src/client/types.gen.ts:10088](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10088)
 
 ***
 
@@ -50,4 +50,4 @@ Defined in: [src/client/types.gen.ts:9359](https://github.com/anuma-ai/sdk/blob/
 
 > **url**: `"/api/v1/guest/chat/completions"`
 
-Defined in: [src/client/types.gen.ts:9360](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9360)
+Defined in: [src/client/types.gen.ts:10089](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10089)

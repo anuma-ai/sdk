@@ -2,4 +2,4 @@
 
 > **PostApiV1CreditsPurchaseResponse** = [`PostApiV1CreditsPurchaseResponses`](PostApiV1CreditsPurchaseResponses.md)\[keyof [`PostApiV1CreditsPurchaseResponses`](PostApiV1CreditsPurchaseResponses.md)]
 
-Defined in: [src/client/types.gen.ts:8332](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8332)
+Defined in: [src/client/types.gen.ts:9057](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9057)

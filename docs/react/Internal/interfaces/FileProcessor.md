@@ -1,6 +1,6 @@
 # FileProcessor
 
-Defined in: [src/lib/processors/types.ts:41](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/types.ts#41)
+Defined in: [src/lib/processors/types.ts:53](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/types.ts#53)
 
 Interface that all file processors must implement
 
@@ -10,7 +10,7 @@ Interface that all file processors must implement
 
 > `readonly` **name**: `string`
 
-Defined in: [src/lib/processors/types.ts:43](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/types.ts#43)
+Defined in: [src/lib/processors/types.ts:55](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/types.ts#55)
 
 Unique identifier for this processor
 
@@ -20,7 +20,7 @@ Unique identifier for this processor
 
 > `readonly` **supportedExtensions**: `string`\[]
 
-Defined in: [src/lib/processors/types.ts:49](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/types.ts#49)
+Defined in: [src/lib/processors/types.ts:61](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/types.ts#61)
 
 File extensions this processor can handle (fallback if MIME type unavailable)
 
@@ -30,7 +30,7 @@ File extensions this processor can handle (fallback if MIME type unavailable)
 
 > `readonly` **supportedMimeTypes**: `string`\[]
 
-Defined in: [src/lib/processors/types.ts:46](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/types.ts#46)
+Defined in: [src/lib/processors/types.ts:58](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/types.ts#58)
 
 MIME types this processor can handle
 
@@ -40,7 +40,7 @@ MIME types this processor can handle
 
 > **process**(`file`: [`FileWithData`](FileWithData.md)): `Promise`<[`ProcessedFileResult`](ProcessedFileResult.md) | `null`>
 
-Defined in: [src/lib/processors/types.ts:56](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/types.ts#56)
+Defined in: [src/lib/processors/types.ts:68](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/types.ts#68)
 
 Process a file and extract text content
 

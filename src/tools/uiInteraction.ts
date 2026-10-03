@@ -14,6 +14,8 @@ import type { ToolConfig } from "../lib/chat/useChat/types.js";
  */
 export type UIInteractionContext = {
   createInteraction: (id: string, type: string, data: unknown) => Promise<unknown>;
+  /** Rejects and removes a pending interaction. Optional for older contexts. */
+  cancelInteraction?: (id: string) => void;
   createDisplayInteraction: (
     id: string,
     displayType: string,
@@ -173,7 +175,7 @@ export function createInteractiveTool(
       description: config.description,
       arguments: config.parameters,
     },
-    executor: async (args: Record<string, unknown>): Promise<unknown> => {
+    executor: async (args: Record<string, unknown>, signal?: AbortSignal): Promise<unknown> => {
       if (config.validate && !config.validate(args)) {
         return { cancelled: true };
       }
@@ -185,6 +187,11 @@ export function createInteractiveTool(
 
       const interactionId = generateInteractionId(config.interactionType);
       const interactionData = config.mapArgs ? config.mapArgs(args) : args;
+
+      // When the user stops the run, remove the prompt so it does not stay
+      // pending for a result the stopped run will never read.
+      const onAbort = () => context.cancelInteraction?.(interactionId);
+      signal?.addEventListener("abort", onAbort, { once: true });
 
       try {
         const result = await context.createInteraction(interactionId, config.interactionType, {
@@ -199,6 +206,8 @@ export function createInteractiveTool(
         return result;
       } catch {
         return { cancelled: true };
+      } finally {
+        signal?.removeEventListener("abort", onAbort);
       }
     },
     // Interactive tools wait for user input and should not be subject

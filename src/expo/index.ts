@@ -140,7 +140,9 @@ export {
   streamReplayPath,
 } from "../lib/chat/resumeStream";
 export type { StreamMetaEvent, StreamResumeHandle } from "../lib/chat/toolLoop";
+export type { StreamSmoothingConfig } from "../lib/chat/useChat/StreamSmoother";
 export { xhrTransport } from "../lib/chat/xhrTransport";
+export { maskScopedEmbeddingCache } from "../lib/db/chat/embeddingCache";
 export type { UseCreditsOptions, UseCreditsResult } from "../react/useCredits";
 export { useCredits } from "../react/useCredits";
 export type { UseModelsOptions, UseModelsResult } from "../react/useModels";
@@ -188,6 +190,7 @@ export {
   clearAllEncryptionKeys,
   clearAllEncryptionState,
   clearEncryptionKey,
+  deriveKeyFromSignatureBytes,
   EncryptionKeyMissingError,
   hasEncryptionKey,
   onKeyAvailable,
@@ -196,6 +199,11 @@ export {
   seedEncryptionKeys,
   useEncryption,
 } from "../react/useEncryption";
+// Detects a still-sealed `enc:v2:` / `enc:v3:` field. A failed decrypt returns
+// the original ciphertext (never a placeholder), so a consumer that forwards
+// vault text off-device (the Nearby publish reconciler) must check this
+// before it sends — otherwise it publishes hex.
+export { isEncrypted } from "../lib/db/encryption-utils";
 
 // Consolidated SDK schema exports (recommended)
 export { SDK_SCHEMA_VERSION, sdkMigrations, sdkModelClasses, sdkSchema } from "../lib/db/schema";
@@ -221,6 +229,7 @@ export {
   type CreateConversationOptions,
   type CreateMessageOptions,
   decryptConversationTitle,
+  deleteMessageOp,
   type FileMetadata,
   generateConversationId,
   getConversationsByProjectLazyOp,
@@ -275,6 +284,7 @@ export {
   updateVaultMemoryEmbeddingOp,
   updateVaultMemoryOp,
   type UpdateVaultMemoryOptions,
+  type VaultEmbeddingExpectation,
   type VaultMemoryOperationsContext,
   type VaultMemoryVisibility,
 } from "../lib/db/memoryVault";
@@ -311,13 +321,18 @@ export {
   createVaultEmbeddingCache,
   DEFAULT_VAULT_CACHE_SIZE,
   eagerEmbedContent,
+  type ManualFactType,
   type MemoryVaultSearchOptions,
   type MemoryVaultToolOptions,
   preEmbedVaultMemories,
   searchVaultMemories,
   type VaultEmbeddingCache,
+  type VaultMemoryWriter,
   type VaultSaveOperation,
   type VaultSearchResult,
+  type VaultWriteAction,
+  type VaultWriteInput,
+  type VaultWriteOutcome,
 } from "../lib/memoryVault";
 
 // Server-side tools caching utilities
@@ -372,6 +387,19 @@ export {
 // constant hand-rolls the string instead, and mobile already keeps two copies.
 export { TOOL_RESULT_ORIGIN } from "../lib/chat/toolResults";
 
+// The current turn's extracted attachment text rides on that turn's user message in this tagged
+// part. Exported from all three app entrypoints so a client that builds its own document context
+// (mobile) produces the same part — and so the pre-processor prompt skip recognises it.
+export {
+  attachFileContextToLastUserMessage,
+  buildAttachedFilesText,
+  isAttachedFilesText,
+} from "../lib/chat/fileContext";
+// Per-file preprocessing outcome (see `onFileProcessingResult` on the React `sendMessage`), and
+// the one-line-per-unread-file notes that go into the same attached-files part.
+export { formatFileProcessingNotes } from "../lib/processors/fileStatusNotes";
+export type { FileProcessingReason, FileProcessingStatus } from "../lib/processors/types";
+
 // Structured logger — set a custom sink via setLogger (mobile must import
 // from this entrypoint or "@anuma/sdk/react", NOT the bare barrel, which
 // pulls server code and crashes under Hermes). Mirrors the react barrel.
@@ -390,6 +418,7 @@ export type {
   Budget,
   CachedChunkVectors,
   ChunkVectorCache,
+  ConsolidationAction,
   ConsolidationFallbackReason,
   CreateAutoExtractorOptions,
   CreateDecaySweeperOptions,
@@ -403,6 +432,8 @@ export type {
   ExtractedEntity,
   ExtractFactsOptions,
   ExtractionCursorStore,
+  ExtractionFunnel,
+  ExtractionTimings,
   ExtractOutcome,
   FactType,
   GraphTraversalOptions,
@@ -434,6 +465,7 @@ export type {
   RecallContext,
   RecallDegradation,
   RecallDiagnostics,
+  RecallEmptyReason,
   RecallOptions,
   RecallResult,
   RecallToolCallbacks,
@@ -539,4 +571,13 @@ export {
 } from "../lib/auth/notion-primitives";
 
 // Notion MCP tools (platform-agnostic)
-export { createNotionTools } from "../tools/notion";
+export {
+  assembleMemoryContext,
+  type MemoryContextItem,
+  type MemoryContextLane,
+  type MemoryContextOptions,
+  type MemoryContextResult,
+  shouldRecallMemory,
+} from "../lib/memory";
+export { createDurableAutoExtractor, type DurableAutoExtractorOptions } from "../lib/memory";
+export { createNotionProxyTools, createNotionTools, type NotionMcpCaller } from "../tools/notion";

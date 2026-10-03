@@ -1297,8 +1297,8 @@ describe("read_slides", () => {
       content?: string;
     };
     expect(result.content).toContain("DECK SUMMARY");
-    expect(result.content).toContain("Slide 1 (s1)");
-    expect(result.content).toContain("Slide 2 (s2)");
+    expect(result.content).toContain('Slide 1 — id: "s1"');
+    expect(result.content).toContain('Slide 2 — id: "s2"');
     expect(result.content).toContain("elements: t1");
     expect(result.content).toContain("elements: t2");
     expect(result.content).toContain('t1="First"');

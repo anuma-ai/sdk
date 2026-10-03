@@ -1,6 +1,6 @@
 # AnumaShadowIsolationProviderProps
 
-Defined in: [src/react/anumaRuntime.tsx:92](https://github.com/anuma-ai/sdk/blob/main/src/react/anumaRuntime.tsx#92)
+Defined in: [src/react/anumaRuntime.tsx:93](https://github.com/anuma-ai/sdk/blob/main/src/react/anumaRuntime.tsx#93)
 
 ## Properties
 
@@ -8,7 +8,7 @@ Defined in: [src/react/anumaRuntime.tsx:92](https://github.com/anuma-ai/sdk/blob
 
 > **children**: `ReactNode`
 
-Defined in: [src/react/anumaRuntime.tsx:94](https://github.com/anuma-ai/sdk/blob/main/src/react/anumaRuntime.tsx#94)
+Defined in: [src/react/anumaRuntime.tsx:95](https://github.com/anuma-ai/sdk/blob/main/src/react/anumaRuntime.tsx#95)
 
 ***
 
@@ -16,4 +16,4 @@ Defined in: [src/react/anumaRuntime.tsx:94](https://github.com/anuma-ai/sdk/blob
 
 > `optional` **enabled**: `boolean`
 
-Defined in: [src/react/anumaRuntime.tsx:93](https://github.com/anuma-ai/sdk/blob/main/src/react/anumaRuntime.tsx#93)
+Defined in: [src/react/anumaRuntime.tsx:94](https://github.com/anuma-ai/sdk/blob/main/src/react/anumaRuntime.tsx#94)

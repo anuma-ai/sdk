@@ -49,12 +49,22 @@
  * Notion's hosted MCP server. No direct API calls needed.
  *
  * ```typescript
- * import { createNotionTools } from "@anuma/sdk/tools";
+ * import { createNotionProxyTools, createNotionTools } from "@anuma/sdk/tools";
  *
  * const notionTools = createNotionTools(
  *   () => getNotionAccessToken(walletAddress, clientId),
  *   () => requestNotionAccess()
  * );
+ *
+ * // Browser/mobile: route through the portal, which runs the MCP call.
+ * const proxiedNotionTools = createNotionProxyTools(async (tool, args) => {
+ *   const res = await fetch(`${portalBaseUrl}/api/v1/connectors/notion/mcp`, {
+ *     method: "POST",
+ *     headers: { Authorization: `Bearer ${privyToken}`, "Content-Type": "application/json" },
+ *     body: JSON.stringify({ tool, arguments: args }),
+ *   });
+ *   return { status: res.status, json: await res.json().catch(() => null) };
+ * });
  * ```
  *
  * @module tools
@@ -100,6 +110,10 @@ export { createConnectorOfferTool } from "./connectorOffer";
 export type { ChoiceOption } from "./choice";
 export { createChoiceTool } from "./choice";
 
+// Confirmation interaction tool
+export type { ConfirmParameter, ConfirmToolResult } from "./confirm";
+export { createConfirmTool } from "./confirm";
+
 // Form interaction tool
 export type { FormField, FormFieldOption, FormFieldType } from "./form";
 export { createFormTool } from "./form";
@@ -130,6 +144,7 @@ export {
 export type {
   NotionCreatePagesArgs,
   NotionFetchArgs,
+  NotionMcpCaller,
   NotionMovePagesArgs,
   NotionSearchArgs,
   NotionUpdatePageArgs,
@@ -145,6 +160,7 @@ export {
   createNotionGetTeamsTool,
   createNotionGetUsersTool,
   createNotionMovePagesTool,
+  createNotionProxyTools,
   createNotionSearchTool,
   createNotionTools,
   createNotionUpdateDataSourceTool,
@@ -200,6 +216,29 @@ export {
   buildConnectorErrorResult,
   CONNECTOR_ERROR_MARKER,
   createConnectorTokenGetter,
+} from "../lib/connectors";
+
+// agentres registration
+//
+// The one connector with no vault credential: the user's own Solana wallet
+// proves ownership of their Resy account, per call, by signature. The SIWX
+// message and payload builders stay inside the module — a consumer that
+// assembles the flow by hand loses the single-use-nonce guarantee.
+export type {
+  AgentresAccount,
+  AgentresClient,
+  AgentresClientOptions,
+  AgentresErrorCode,
+  AgentresLinkStatus,
+  AgentresLinkStep,
+  SolanaSignMessageFn,
+} from "../lib/connectors";
+export {
+  AgentresError,
+  AgentresPathError,
+  createAgentresClient,
+  SiwxChallengeError,
+  SiwxUnsupportedError,
 } from "../lib/connectors";
 
 // App generation tools

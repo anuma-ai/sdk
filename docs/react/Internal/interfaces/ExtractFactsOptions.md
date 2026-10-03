@@ -1,6 +1,6 @@
 # ExtractFactsOptions
 
-Defined in: [src/lib/memory/autoExtract.ts:220](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#220)
+Defined in: [src/lib/memory/autoExtract.ts:222](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#222)
 
 Auth + endpoint for the extraction LLM call. Auth is the dual pattern —
 one of `apiKey` / `getToken` is required at runtime; see
@@ -16,7 +16,7 @@ one of `apiKey` / `getToken` is required at runtime; see
 
 > `optional` **apiKey**: `string`
 
-Defined in: [src/lib/memory/portalLlm.ts:170](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/portalLlm.ts#170)
+Defined in: [src/lib/memory/portalLlm.ts:179](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/portalLlm.ts#179)
 
 Direct API key — sent as `x-api-key` (server-side / CLI usage). Wins when both are provided.
 
@@ -30,7 +30,7 @@ Direct API key — sent as `x-api-key` (server-side / CLI usage). Wins when both
 
 > `optional` **backoffMs**: (`attempt`: `number`) => `number`
 
-Defined in: [src/lib/memory/autoExtract.ts:294](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#294)
+Defined in: [src/lib/memory/autoExtract.ts:296](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#296)
 
 Override the retry backoff (ms) for a given 1-based attempt index. The
 extraction call retries transient failures internally (default exponential
@@ -71,7 +71,7 @@ backoff); pass `() => 0` to retry without delay (useful for tests).
 
 > `optional` **baseUrl**: `string`
 
-Defined in: [src/lib/memory/autoExtract.ts:221](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#221)
+Defined in: [src/lib/memory/autoExtract.ts:223](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#223)
 
 ***
 
@@ -79,7 +79,7 @@ Defined in: [src/lib/memory/autoExtract.ts:221](https://github.com/anuma-ai/sdk/
 
 > `optional` **endpointOverride**: `string`
 
-Defined in: [src/lib/memory/autoExtract.ts:247](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#247)
+Defined in: [src/lib/memory/autoExtract.ts:249](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#249)
 
 Optional per-call request path override, forwarded to
 callPortalJsonCompletion. When set, the extraction call POSTs to
@@ -110,7 +110,7 @@ least the extraction model's rate BEFORE setting this in a client.
 
 > `optional` **fetchFn**: {(`input`: `RequestInfo` | `URL`, `init?`: `RequestInit`): `Promise`<`Response`>; (`input`: `string` | `Request` | `URL`, `init?`: `RequestInit`): `Promise`<`Response`>; }
 
-Defined in: [src/lib/memory/autoExtract.ts:249](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#249)
+Defined in: [src/lib/memory/autoExtract.ts:251](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#251)
 
 Override the global fetch implementation (useful for tests).
 
@@ -214,7 +214,7 @@ Override the global fetch implementation (useful for tests).
 
 > `optional` **getToken**: () => `Promise`<`string` | `null`>
 
-Defined in: [src/lib/memory/portalLlm.ts:172](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/portalLlm.ts#172)
+Defined in: [src/lib/memory/portalLlm.ts:181](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/portalLlm.ts#181)
 
 Function to get an auth token (e.g., Privy's getIdentityToken). Token is sent as `Authorization: Bearer`.
 
@@ -232,7 +232,7 @@ Function to get an auth token (e.g., Privy's getIdentityToken). Token is sent as
 
 > `optional` **maxAttempts**: `number`
 
-Defined in: [src/lib/memory/autoExtract.ts:279](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#279)
+Defined in: [src/lib/memory/autoExtract.ts:281](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#281)
 
 Max attempts for the extraction call on a transient failure (default 3).
 Lower it to bound how long extraction can hold a turn open — e.g. a worker
@@ -245,7 +245,7 @@ repeated failures from delaying later turns.
 
 > `optional` **model**: `string`
 
-Defined in: [src/lib/memory/autoExtract.ts:222](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#222)
+Defined in: [src/lib/memory/autoExtract.ts:224](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#224)
 
 ***
 
@@ -253,7 +253,7 @@ Defined in: [src/lib/memory/autoExtract.ts:222](https://github.com/anuma-ai/sdk/
 
 > `optional` **now**: `number`
 
-Defined in: [src/lib/memory/autoExtract.ts:272](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#272)
+Defined in: [src/lib/memory/autoExtract.ts:274](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#274)
 
 Reference "now" (Unix ms) for resolving relative temporal phrases in the
 transcript ("yesterday", "next week", "in two days") into the absolute
@@ -271,11 +271,52 @@ process timezone doesn't match the user's.
 
 ***
 
+### onAttempt()?
+
+> `optional` **onAttempt**: (`attempt`: `PortalLlmAttempt`) => `void`
+
+Defined in: [src/lib/memory/autoExtract.ts:342](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#342)
+
+Per-attempt wire diagnostic, forwarded to callPortalJsonCompletion.
+The extraction eval gates on it (first-attempt clean rate); production
+callers may leave it unset.
+
+**Parameters**
+
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`attempt`
+
+</td>
+<td>
+
+`PortalLlmAttempt`
+
+</td>
+</tr>
+</tbody>
+</table>
+
+**Returns**
+
+`void`
+
+***
+
 ### onCandidatesDropped()?
 
 > `optional` **onCandidatesDropped**: () => `void`
 
-Defined in: [src/lib/memory/autoExtract.ts:334](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#334)
+Defined in: [src/lib/memory/autoExtract.ts:336](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#336)
 
 Called when the extractor DID produce candidates but PII de-anonymization
 dropped every one of them — the model mangled its placeholders (so they
@@ -291,11 +332,81 @@ H3's `outcome` surface `dropped-after-redaction` so a rising PII-drop rate
 
 ***
 
+### onCandidatesParsed()?
+
+> `optional` **onCandidatesParsed**: (`stats`: `object`) => `void`
+
+Defined in: [src/lib/memory/autoExtract.ts:353](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#353)
+
+Fired once per successful completion with how many candidates the model
+emitted (`rawCount`) and how many survived validateCandidates
+(`validCount`) — the non-string / empty / over-cap / low-signal / bad-
+confidence drops that until now were a bare `continue` nobody counted.
+
+Without it a `no-facts` turn cannot be split into "the model found nothing"
+and "the model found things we threw away", which is the difference between
+a prompt problem and a validator problem. Counts only; never content.
+
+**Parameters**
+
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`stats`
+
+</td>
+<td>
+
+`object`
+
+</td>
+</tr>
+<tr>
+<td>
+
+`stats.rawCount`
+
+</td>
+<td>
+
+`number`
+
+</td>
+</tr>
+<tr>
+<td>
+
+`stats.validCount`
+
+</td>
+<td>
+
+`number`
+
+</td>
+</tr>
+</tbody>
+</table>
+
+**Returns**
+
+`void`
+
+***
+
 ### onExhaustedEmpty()?
 
 > `optional` **onExhaustedEmpty**: (`failure`: [`PortalLlmFailure`](PortalLlmFailure.md)) => `void`
 
-Defined in: [src/lib/memory/autoExtract.ts:324](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#324)
+Defined in: [src/lib/memory/autoExtract.ts:326](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#326)
 
 Called when the extraction LLM returned no usable result after exhausting
 its retries (empty/malformed completion, network/HTTP error) — i.e. a
@@ -345,7 +456,7 @@ HTTP-200-with-empty-body rather than the 403 everyone assumed. Forward
 
 > `optional` **piiRedaction**: `boolean` | [`PiiRedactor`](../../../expo/Internal/classes/PiiRedactor.md)
 
-Defined in: [src/lib/memory/autoExtract.ts:309](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#309)
+Defined in: [src/lib/memory/autoExtract.ts:311](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#311)
 
 When set, PII (emails, phones, SSNs, cards, IPs, API keys, …) in the
 conversation transcript is replaced with tagged placeholders before the
@@ -366,7 +477,7 @@ as well — the two are independent switches.
 
 > `optional` **timeoutMs**: `number`
 
-Defined in: [src/lib/memory/autoExtract.ts:282](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#282)
+Defined in: [src/lib/memory/autoExtract.ts:284](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#284)
 
 Per-attempt timeout (ms) for the extraction call. Defaults to the portal
 helper's 60s. Combine with [maxAttempts](#maxattempts) to cap the total time budget.
@@ -377,7 +488,7 @@ helper's 60s. Combine with [maxAttempts](#maxattempts) to cap the total time bud
 
 > `optional` **totalTimeoutMs**: `number`
 
-Defined in: [src/lib/memory/autoExtract.ts:288](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#288)
+Defined in: [src/lib/memory/autoExtract.ts:290](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#290)
 
 Absolute wall-clock budget (ms) across ALL extraction attempts incl. backoff.
 When set, the loop stops before an attempt that would exceed it, so worst-case
@@ -389,7 +500,7 @@ latency is bounded rather than `maxAttempts × timeoutMs`.
 
 > `optional` **userIdentity**: `string`\[]
 
-Defined in: [src/lib/memory/autoExtract.ts:256](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#256)
+Defined in: [src/lib/memory/autoExtract.ts:258](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#258)
 
 The user's own name(s) / handle(s) (e.g. profile nickname, wallet display
 name). Candidates whose entire content is just one of these are dropped —

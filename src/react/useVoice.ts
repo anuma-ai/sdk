@@ -237,7 +237,13 @@ export function useVoice(options?: UseVoiceOptions): UseVoiceResult {
         dtype: "q4",
         device: "wasm",
         progress_callback: options?.onModelProgress
-          ? (progress: { file?: string; progress?: number; loaded?: number; total?: number }) => {
+          ? (progress: {
+              status: string;
+              file?: string;
+              progress?: number;
+              loaded?: number;
+              total?: number;
+            }) => {
               if (progress.file && progress.progress !== null && progress.progress !== undefined) {
                 options.onModelProgress!({
                   file: progress.file,

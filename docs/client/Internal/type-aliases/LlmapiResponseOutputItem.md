@@ -2,7 +2,7 @@
 
 > **LlmapiResponseOutputItem** = `object`
 
-Defined in: [src/client/types.gen.ts:781](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#781)
+Defined in: [src/client/types.gen.ts:894](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#894)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:781](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **arguments**: `string`
 
-Defined in: [src/client/types.gen.ts:785](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#785)
+Defined in: [src/client/types.gen.ts:898](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#898)
 
 Arguments is the function arguments for function\_call and mcp\_call types
 
@@ -20,7 +20,7 @@ Arguments is the function arguments for function\_call and mcp\_call types
 
 > `optional` **call\_id**: `string`
 
-Defined in: [src/client/types.gen.ts:789](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#789)
+Defined in: [src/client/types.gen.ts:902](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#902)
 
 CallID is the call ID for function\_call and mcp\_call types
 
@@ -30,7 +30,7 @@ CallID is the call ID for function\_call and mcp\_call types
 
 > `optional` **content**: [`LlmapiResponseOutputContent`](LlmapiResponseOutputContent.md)\[]
 
-Defined in: [src/client/types.gen.ts:793](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#793)
+Defined in: [src/client/types.gen.ts:906](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#906)
 
 Content is the content array for message and reasoning types
 
@@ -40,7 +40,7 @@ Content is the content array for message and reasoning types
 
 > `optional` **error**: `string`
 
-Defined in: [src/client/types.gen.ts:797](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#797)
+Defined in: [src/client/types.gen.ts:910](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#910)
 
 Error is the MCP error message for mcp\_call types
 
@@ -50,7 +50,7 @@ Error is the MCP error message for mcp\_call types
 
 > `optional` **id**: `string`
 
-Defined in: [src/client/types.gen.ts:801](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#801)
+Defined in: [src/client/types.gen.ts:914](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#914)
 
 ID is the unique identifier for this output item
 
@@ -60,7 +60,7 @@ ID is the unique identifier for this output item
 
 > `optional` **name**: `string`
 
-Defined in: [src/client/types.gen.ts:805](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#805)
+Defined in: [src/client/types.gen.ts:918](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#918)
 
 Name is the function name for function\_call and mcp\_call types
 
@@ -70,7 +70,7 @@ Name is the function name for function\_call and mcp\_call types
 
 > `optional` **output**: `string`
 
-Defined in: [src/client/types.gen.ts:809](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#809)
+Defined in: [src/client/types.gen.ts:922](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#922)
 
 Output is the MCP tool output for mcp\_call types
 
@@ -80,7 +80,7 @@ Output is the MCP tool output for mcp\_call types
 
 > `optional` **role**: `string`
 
-Defined in: [src/client/types.gen.ts:813](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#813)
+Defined in: [src/client/types.gen.ts:926](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#926)
 
 Role is the role for message types (e.g., "assistant")
 
@@ -90,7 +90,7 @@ Role is the role for message types (e.g., "assistant")
 
 > `optional` **server\_label**: `string`
 
-Defined in: [src/client/types.gen.ts:817](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#817)
+Defined in: [src/client/types.gen.ts:930](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#930)
 
 ServerLabel is the MCP server label for mcp\_call and mcp\_list\_tools types
 
@@ -100,7 +100,7 @@ ServerLabel is the MCP server label for mcp\_call and mcp\_list\_tools types
 
 > `optional` **status**: `string`
 
-Defined in: [src/client/types.gen.ts:821](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#821)
+Defined in: [src/client/types.gen.ts:934](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#934)
 
 Status is the status of this output item (e.g., "completed")
 
@@ -110,7 +110,7 @@ Status is the status of this output item (e.g., "completed")
 
 > `optional` **summary**: [`LlmapiResponseOutputContent`](LlmapiResponseOutputContent.md)\[]
 
-Defined in: [src/client/types.gen.ts:825](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#825)
+Defined in: [src/client/types.gen.ts:938](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#938)
 
 Summary is the reasoning summary for reasoning types
 
@@ -120,7 +120,7 @@ Summary is the reasoning summary for reasoning types
 
 > `optional` **tools**: [`LlmapiMcpTool`](LlmapiMcpTool.md)\[]
 
-Defined in: [src/client/types.gen.ts:829](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#829)
+Defined in: [src/client/types.gen.ts:942](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#942)
 
 Tools is the list of available tools for mcp\_list\_tools types
 
@@ -130,6 +130,6 @@ Tools is the list of available tools for mcp\_list\_tools types
 
 > `optional` **type**: `string`
 
-Defined in: [src/client/types.gen.ts:833](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#833)
+Defined in: [src/client/types.gen.ts:946](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#946)
 
 Type is the output item type (e.g., "message", "function\_call", "reasoning", "mcp\_call")

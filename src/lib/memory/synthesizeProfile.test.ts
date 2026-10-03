@@ -490,8 +490,8 @@ describe("synthesizeProfile", () => {
   });
 
   // Finding #3: one facet's reflect() rejecting must not fail the whole profile,
-  // and must keep the prior section (marked stale) rather than wiping it.
-  it("survives a facet failure and keeps the prior section marked stale", async () => {
+  // and must clear claims whose source facts changed.
+  it("survives a facet failure and clears the changed prior section", async () => {
     // Both facts changed → both facets stale → both regenerate.
     mockGetAll.mockResolvedValue([
       mem("a", { updatedAt: new Date(5000), createdAt: new Date(500) }),
@@ -509,7 +509,7 @@ describe("synthesizeProfile", () => {
     const doc = await synthesizeProfile(ctx, { apiKey: "k", facets: FACETS, previous });
 
     const bio = doc.sections.find((s) => s.key === "bio")!;
-    expect(bio.text).toBe("good old bio"); // prior preserved, not wiped
+    expect(bio.text).toBe("");
     expect(bio.stale).toBe(true);
     expect(doc.sections.find((s) => s.key === "interests")!.text).toBe("fresh interests");
   });
@@ -518,7 +518,7 @@ describe("synthesizeProfile", () => {
   // keeps the prior section stale rather than clearing it.
   it("keeps the prior section on a degraded-empty result", async () => {
     mockGetAll.mockResolvedValue([
-      mem("a", { updatedAt: new Date(5000), createdAt: new Date(500) }),
+      mem("a", { updatedAt: new Date(2000), createdAt: new Date(500) }),
     ]);
     // Empty text, NO structuredOutput → degraded, not a legitimate no-evidence verdict.
     mockReflect.mockResolvedValueOnce({
@@ -528,7 +528,7 @@ describe("synthesizeProfile", () => {
     } as never);
 
     const previous = priorDoc(
-      [section("bio", "good old bio", ["a"])],
+      [{ ...section("bio", "good old bio", ["a"]), stale: true }],
       2000,
       fingerprint([FACETS[0]])
     );
@@ -541,6 +541,119 @@ describe("synthesizeProfile", () => {
 
     expect(doc.sections[0].text).toBe("good old bio");
     expect(doc.sections[0].stale).toBe(true);
+  });
+
+  it.each([
+    ["deleted", "recall"],
+    ["deleted", "degraded"],
+    ["corrected", "recall"],
+    ["corrected", "degraded"],
+    ["superseded", "recall"],
+    ["superseded", "degraded"],
+  ])("clears %s source claims after a %s failure", async (change, failure) => {
+    const source = mem("a", {
+      content: "The corrected role",
+      updatedAt: new Date(5000),
+      ...(change === "superseded" ? { supersededBy: "b", supersededAt: 5000 } : {}),
+    });
+    mockGetAll.mockResolvedValue([
+      ...(change === "deleted" ? [] : [source]),
+      mem("b", { updatedAt: new Date(5000) }),
+    ]);
+    if (failure === "recall") {
+      mockRecall.mockRejectedValue(new Error("Recall failed"));
+    } else {
+      mockRecall.mockResolvedValue({
+        memories: [ranked("b")],
+        usedBudget: "low",
+        reranked: false,
+        candidateCount: 1,
+      });
+      mockReflect.mockResolvedValue({
+        text: "",
+        basedOn: { memoryIds: ["b"] },
+        usage: { promptTokens: 0, completionTokens: 0, totalTokens: 0 },
+      } as never);
+    }
+    const previous = priorDoc(
+      [
+        {
+          ...section("work_role", "Old role", ["a"]),
+          occupation: "Old role",
+        },
+      ],
+      2000,
+      fingerprint([WORK_ROLE])
+    );
+
+    const doc = await synthesizeProfile(ctx, { apiKey: "k", facets: [WORK_ROLE], previous });
+
+    expect(doc.sections[0]).toMatchObject({ text: "", sourceMemoryIds: [], stale: true });
+    expect(doc.sections[0].occupation).toBeUndefined();
+    expect(doc.sections[0].interests).toBeUndefined();
+    // A retry against the SAME previous (claims still present, evidence still gone) must clear
+    // them again: pre-fix the unguarded fallback restored "Old role" here, so this fails pre-fix.
+    const retry = await synthesizeProfile(ctx, { apiKey: "k", facets: [WORK_ROLE], previous });
+    expect(retry.sections[0]).toMatchObject({ text: "", sourceMemoryIds: [], stale: true });
+    expect(retry.sections[0].occupation).toBeUndefined();
+  });
+
+  // The mirror of the cases above: a watermark ROLLBACK is not evidence that any
+  // particular section moved. An unrelated newest fact that is hard-deleted (or
+  // that leaves the queried scopes) drops the scoped max, which regenerates every
+  // facet - so it is exactly when a transient failure is most likely to hit. A
+  // section whose own sources are all still present, eligible, and unchanged has
+  // to survive that.
+  it("keeps an intact prior section when an unrelated delete rolls the watermark back", async () => {
+    // "z" set the previous mark at 5000 and is now hard-deleted, so the scoped max
+    // falls to 2000. "a", work_role's only source, is untouched.
+    mockGetAll.mockResolvedValue([
+      mem("a", { updatedAt: new Date(2000), createdAt: new Date(500) }),
+    ]);
+    mockReflect.mockRejectedValueOnce(new Error("LLM down"));
+
+    const previous = priorDoc(
+      [
+        {
+          ...section("work_role", "Backend engineer at a fintech startup.", ["a"]),
+          occupation: "Backend engineer, fintech",
+        },
+      ],
+      5000,
+      fingerprint([WORK_ROLE])
+    );
+
+    const doc = await synthesizeProfile(ctx, { apiKey: "k", facets: [WORK_ROLE], previous });
+
+    expect(doc.vaultWatermark).toBe(2000); // rollback recorded, baseline restored
+    expect(doc.sections[0].text).toBe("Backend engineer at a fintech startup.");
+    expect(doc.sections[0].occupation).toBe("Backend engineer, fintech");
+    expect(doc.sections[0].stale).toBe(true);
+  });
+
+  // The rollback must not become a loophole either: a section whose own source is
+  // gone still clears, even though the SAME delete is what rolled the mark back.
+  it("still clears a section whose own source is the delete that rolled the watermark back", async () => {
+    mockGetAll.mockResolvedValue([
+      mem("b", { updatedAt: new Date(2000), createdAt: new Date(500) }),
+    ]);
+    mockReflect.mockRejectedValueOnce(new Error("LLM down"));
+
+    const previous = priorDoc(
+      [
+        {
+          ...section("work_role", "Old role", ["a"]),
+          occupation: "Old role",
+        },
+      ],
+      5000,
+      fingerprint([WORK_ROLE])
+    );
+
+    const doc = await synthesizeProfile(ctx, { apiKey: "k", facets: [WORK_ROLE], previous });
+
+    expect(doc.sections[0]).toMatchObject({ text: "", sourceMemoryIds: [], stale: true });
+    expect(doc.sections[0].occupation).toBeUndefined();
   });
 
   // A section left stale by a prior failed regeneration must be retried on the
@@ -753,7 +866,7 @@ describe("synthesizeProfile", () => {
 
     const doc = await synthesizeProfile(ctx, { apiKey: "k", facets: [FACETS[0]], previous });
 
-    expect(doc.sections[0].text).toBe("good prior bio"); // prior kept, not the JSON fragment
+    expect(doc.sections[0].text).toBe(""); // Changed evidence cannot support the prior text.
     expect(doc.sections[0].stale).toBe(true);
   });
 
@@ -1407,7 +1520,7 @@ describe("synthesizeProfile", () => {
   // column shouldn't empty out because one LLM call fell over.
   it("carries a prior section's structured values forward when regeneration fails", async () => {
     mockGetAll.mockResolvedValue([
-      mem("a", { updatedAt: new Date(5000), createdAt: new Date(500) }),
+      mem("a", { updatedAt: new Date(2000), createdAt: new Date(500) }),
     ]);
     mockReflect.mockRejectedValueOnce(new Error("LLM down"));
 
@@ -1416,6 +1529,7 @@ describe("synthesizeProfile", () => {
         {
           ...section("work_role", "Backend engineer at a fintech startup.", ["a"]),
           occupation: "Backend engineer, fintech",
+          stale: true,
         },
       ],
       2000,
@@ -1484,10 +1598,15 @@ describe("synthesizeProfile", () => {
       .mockResolvedValueOnce(reflectResult("re bio", ["a"]))
       .mockResolvedValueOnce(reflectResult("re interests", ["a"]));
 
-    // The pre-change formula: key + label + query + guidance, no schema.
-    const legacySignature = FACETS.map((f) => JSON.stringify([f.key, f.label, f.query, f.guidance]))
-      .sort()
-      .join("\n");
+    // Today's formula minus the schema ONLY — the system-prompt line is kept, so
+    // this still fails if the schema stops being part of the signature.
+    const promptLines = facetsSignature(FACETS)
+      .split("\n")
+      .filter((line) => !Array.isArray(JSON.parse(line)));
+    const legacySignature = [
+      ...promptLines,
+      ...FACETS.map((f) => JSON.stringify([f.key, f.label, f.query, f.guidance])).sort(),
+    ].join("\n");
     const previous = priorDoc(
       [section("bio", "old bio", ["a"]), section("interests", "old interests", ["a"])],
       2000,
@@ -1499,5 +1618,44 @@ describe("synthesizeProfile", () => {
     expect(doc).not.toBe(previous);
     expect(mockReflect).toHaveBeenCalledTimes(2);
     expect(doc.config.facetsSignature).not.toBe(legacySignature);
+  });
+
+  // #8398: a doc cached under the third-person rules would otherwise keep serving
+  // "They value…" until the user's facts changed. The system prompt is folded
+  // into the signature so a rules edit regenerates it.
+  it("does not reuse a doc whose facet signature predates the system prompt", async () => {
+    mockGetAll.mockResolvedValue([mem("a", { updatedAt: new Date(2000) })]);
+    mockReflect
+      .mockResolvedValueOnce(reflectResult("re bio", ["a"]))
+      .mockResolvedValueOnce(reflectResult("re interests", ["a"]));
+
+    // The pre-change formula: only the per-facet lines (JSON arrays), no prompt line.
+    const legacySignature = facetsSignature(FACETS)
+      .split("\n")
+      .filter((line) => Array.isArray(JSON.parse(line)))
+      .join("\n");
+    const previous = priorDoc(
+      [section("bio", "old bio", ["a"]), section("interests", "old interests", ["a"])],
+      2000,
+      { ...cfg(), facetsSignature: legacySignature }
+    );
+
+    const doc = await synthesizeProfile(ctx, { apiKey: "k", facets: FACETS, previous });
+
+    expect(doc).not.toBe(previous);
+    expect(mockReflect).toHaveBeenCalledTimes(2);
+  });
+
+  it("asks for a pronoun-free voice, never third person", async () => {
+    mockGetAll.mockResolvedValue([mem("a")]);
+    mockReflect.mockResolvedValue(reflectResult("Values clear communication.", ["a"]));
+
+    await synthesizeProfile(ctx, { apiKey: "k", facets: FACETS });
+
+    for (const call of mockReflect.mock.calls) {
+      const systemPrompt = call[2]?.systemPrompt ?? "";
+      expect(systemPrompt).toContain("pronoun-free profile voice");
+      expect(systemPrompt).not.toContain("third person");
+    }
   });
 });

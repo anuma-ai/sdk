@@ -250,7 +250,7 @@ Retrieval tuning knobs (defaults match production; omit for a no-op):
   --proof-count-alpha <f>     Proof-count log-boost scale (default: 0.1)
   --mmr                       Enable MMR diversification on the rerank and
                               composite-decompose paths (default: off)
-  --rerank-candidates <n>     Candidates fed to the CE reranker (default: 30)
+  --rerank-candidates <n>     Candidates fed to the CE reranker (default: 5)
   --bm25-divisor <f>          BM25 admission floor divisor, bm25/divisor (default: 50)
 
 Shortcut scripts:

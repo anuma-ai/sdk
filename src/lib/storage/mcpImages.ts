@@ -34,6 +34,28 @@ export const IMAGE_TOOL_NAMES = new Set([
   "edit_cloud_image",
 ]);
 
+/**
+ * A tool's output as it is sent back to the model. An image tool's URLs are
+ * stripped so the model can't echo prior images into the next turn, which
+ * stores them twice. anuma_create_image returns `output_images: [{url,...}]`;
+ * the old tools returned a single `imageUrl`/`url`.
+ */
+export function toolOutputForModel(name: string | undefined, output: string): string {
+  if (!name || !IMAGE_TOOL_NAMES.has(name)) return output;
+  try {
+    const {
+      imageUrl: _imageUrl,
+      url: _url,
+      output_images: _outputImages,
+      ...rest
+    } = JSON.parse(output) as Record<string, unknown>;
+    return JSON.stringify(rest);
+  } catch {
+    // Not JSON — use as-is
+    return output;
+  }
+}
+
 /** Video tool names recognized by the MCP video pipeline. */
 const VIDEO_TOOL_NAMES = new Set([
   "AnumaMediaMCP-anuma_create_video",

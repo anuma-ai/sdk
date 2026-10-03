@@ -45,6 +45,14 @@ export type TaskType =
   | "title"
   | "commit_message"
   | "memory_extract"
+  // Split from "memory_extract": TWO senders declared that one name with two
+  // different fixed prompts — this SDK's per-turn auto-extractor (strict-JSON
+  // `candidates`) and the client's Import Chat History batch extractor ("- "
+  // bullet lines, NONE when empty). The portal registered the import text under
+  // the shared name and appended it to every SDK extraction call (ai-portal#1834
+  // has the measurement). "memory_extract" stays the SDK's; the import path
+  // declares this one. Mirrors ai-portal AllTaskTypes.
+  | "memory_import_extract"
   | "memory_dedup"
   | "memory_decay"
   | "memory_injection_check"

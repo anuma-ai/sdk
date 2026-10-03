@@ -2,4 +2,4 @@
 
 > **PostOauthTokenError** = [`PostOauthTokenErrors`](PostOauthTokenErrors.md)\[keyof [`PostOauthTokenErrors`](PostOauthTokenErrors.md)]
 
-Defined in: [src/client/types.gen.ts:12120](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#12120)
+Defined in: [src/client/types.gen.ts:12950](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#12950)

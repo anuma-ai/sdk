@@ -67,7 +67,7 @@ The matching processor, or null if none found
 
 > **getAll**(): [`FileProcessor`](../interfaces/FileProcessor.md)\[]
 
-Defined in: [src/lib/processors/registry.ts:97](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/registry.ts#97)
+Defined in: [src/lib/processors/registry.ts:99](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/registry.ts#99)
 
 Get all registered processors
 
@@ -81,7 +81,7 @@ Get all registered processors
 
 > **getSupportedExtensions**(): `string`\[]
 
-Defined in: [src/lib/processors/registry.ts:84](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/registry.ts#84)
+Defined in: [src/lib/processors/registry.ts:86](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/registry.ts#86)
 
 Get the union of all file extensions handled by registered processors.
 Includes the leading dot (e.g. `.md`, `.pdf`) so values can be passed
@@ -98,7 +98,7 @@ Result is deduplicated and sorted for stable output.
 
 > **getSupportedMimeTypes**(): `string`\[]
 
-Defined in: [src/lib/processors/registry.ts:68](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/registry.ts#68)
+Defined in: [src/lib/processors/registry.ts:70](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/registry.ts#70)
 
 Get the union of all MIME types handled by registered processors.
 Useful for building an `<input type="file" accept="...">` allowlist.
@@ -114,7 +114,7 @@ Result is deduplicated and sorted for stable output.
 
 > **isSupported**(`file`: [`FileTypeQuery`](../interfaces/FileTypeQuery.md)): `boolean`
 
-Defined in: [src/lib/processors/registry.ts:59](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/registry.ts#59)
+Defined in: [src/lib/processors/registry.ts:61](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/registry.ts#61)
 
 Test whether any registered processor can handle the given file.
 Convenience wrapper around `findProcessor` for upload-time validation

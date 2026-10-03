@@ -2,7 +2,7 @@
 
 > **HandlersExtractPhotoFactsUsage** = `object`
 
-Defined in: [src/client/types.gen.ts:2182](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2182)
+Defined in: [src/client/types.gen.ts:2354](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2354)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:2182](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **completion\_tokens**: `number`
 
-Defined in: [src/client/types.gen.ts:2183](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2183)
+Defined in: [src/client/types.gen.ts:2355](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2355)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:2183](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **prompt\_tokens**: `number`
 
-Defined in: [src/client/types.gen.ts:2184](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2184)
+Defined in: [src/client/types.gen.ts:2356](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2356)
 
 ***
 
@@ -26,4 +26,4 @@ Defined in: [src/client/types.gen.ts:2184](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **total\_tokens**: `number`
 
-Defined in: [src/client/types.gen.ts:2185](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2185)
+Defined in: [src/client/types.gen.ts:2357](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2357)

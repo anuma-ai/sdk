@@ -125,6 +125,56 @@ export type McpToolSchema = {
     parameters?: unknown;
 };
 
+/**
+ * Side is which half of the two-sided reward this is: "referrer" for
+ * inviting someone who activated, "referee" for activating yourself.
+ */
+export type ModelsGrantSide = string;
+
+/**
+ * Status is where this grant sits in its payout lifecycle: "owed", "sent"
+ * or "failed". A "failed" grant is still owed money — the payout path
+ * retries it — and its amount is counted in OwedZeta accordingly.
+ */
+export type ModelsGrantStatus = string;
+
+export type ModelsNearbyAccessCode = {
+    /**
+     * Code is the NORMALIZED form: upper-cased, non-alphanumerics stripped
+     * (db.NormalizeNearbyAccessCode). Stored in plaintext because an operator has to read it back
+     * to send it, and hashing a short human-typed string protects little that the cap, the expiry
+     * and the rate limit do not already bound.
+     */
+    code?: string;
+    created_at?: string;
+    /**
+     * ExpiresAt is nil for a code that never expires.
+     */
+    expires_at?: string;
+    id?: number;
+    /**
+     * Label names the cohort this code was cut for ("beta-aug-2026"), so a list of codes is
+     * readable months later without cross-referencing an email thread.
+     */
+    label?: string;
+    /**
+     * MaxRedemptions is the hard cap on how many accounts this code can admit. Enforced by the
+     * conditional UPDATE in ConsumeNearbyAccessCodeSeat, never by a read-then-write in Go.
+     */
+    max_redemptions?: number;
+    /**
+     * RedeemedCount moves only when a seat is actually consumed — that is, when the redeeming
+     * account was newly admitted. A repeat submit by an account already in the beta does not
+     * advance it, so the number stays readable as "people this code let in".
+     */
+    redeemed_count?: number;
+    /**
+     * RevokedAt is the kill switch: non-nil stops redemption immediately without deleting the row
+     * or orphaning the attributions it already produced.
+     */
+    revoked_at?: string;
+};
+
 export type OpenmeteoDayData = {
     date?: string;
     precipitationMm?: number;
@@ -157,6 +207,69 @@ export type OpenmeteoSnapshot = {
     time?: string;
     weatherCode?: number;
     windSpeedKmh?: number;
+};
+
+export type ServicesNearbyCsamEvent = {
+    account_id?: number;
+    id?: number;
+    object_key?: string;
+    occurred_at?: string;
+    photodna_tracking_ids?: Array<string>;
+    preserve_until?: string;
+    review?: ServicesNearbyCsamReview;
+};
+
+export type ServicesNearbyCsamReview = {
+    disposition?: string;
+    note?: string;
+    reviewed_at?: string;
+    reviewed_by?: string;
+};
+
+export type ServicesNearbyMeetup = {
+    area_slug?: string;
+    capacity?: number;
+    conversation_id?: number;
+    created_at?: string;
+    description?: string;
+    ends_at?: string;
+    host_account_id?: number;
+    id?: number;
+    join_policy?: string;
+    lat?: number;
+    lng?: number;
+    moderation_state?: string;
+    share_id?: string;
+    starts_at?: string;
+    state?: string;
+    title?: string;
+    updated_at?: string;
+    venue_label?: string;
+    visibility?: string;
+};
+
+export type ServicesNearbyMeetupAttendee = {
+    account_id?: number;
+    joined_at?: string;
+    role?: string;
+    rsvp?: string;
+};
+
+export type ServicesNearbyMeetupDetail = {
+    attendees?: Array<ServicesNearbyMeetupAttendee>;
+    meetup?: ServicesNearbyMeetup;
+    report_count?: number;
+    reports?: Array<ServicesNearbyMeetupReport>;
+};
+
+export type ServicesNearbyMeetupReport = {
+    created_at?: string;
+    reason?: string;
+};
+
+export type ServicesNearbyaccessAdmission = {
+    granted?: boolean;
+    granted_at?: string;
 };
 
 export type TwelvedataQuote = {
@@ -1141,6 +1254,21 @@ export type HandlersAccountByDidResponse = {
      * nearby: the field simply unmarshals to false and nobody is exempt.
      */
     internal_tester?: boolean;
+    /**
+     * NearbyBeta reports whether this account has been admitted to the People Nearby beta by
+     * redeeming an access code (or by an admin grant).
+     *
+     * It is what nearby's access gate reads. A SIBLING boolean rather than a second meaning loaded
+     * onto InternalTester, because the two grants are not the same fact: the tester flag is a
+     * standing staff bypass that also stands in for phone verification, while this one is an
+     * admission held by people outside the company who are expected to verify like anyone else.
+     *
+     * Absent/false is safe in BOTH directions here, and that is worth being explicit about because
+     * it is the opposite of PhoneVerified's asymmetry. An older portal serving no field means "not
+     * admitted", so a newer nearby with its gate armed refuses — visible, complained about, and
+     * fixed by a deploy. There is no reading of a missing field that silently lets someone in.
+     */
+    nearby_beta?: boolean;
     phone_verified?: boolean;
     privy_did?: string;
 };
@@ -1898,6 +2026,25 @@ export type HandlersCreateDeveloperAppRequest = {
     name?: string;
 };
 
+export type HandlersCreateNearbyAccessCodeRequest = {
+    /**
+     * Code is the human form; it is normalized (upper-cased, non-alphanumerics stripped) before
+     * storage, so "anuma-beta-7q4m" and "ANUMABETA7Q4M" create the same code — and the second
+     * attempt is a duplicate error rather than a second code nobody can tell apart.
+     */
+    code?: string;
+    /**
+     * ExpiresAt is optional but strongly recommended. Nil mints a code that never expires.
+     */
+    expires_at?: string;
+    label?: string;
+    /**
+     * MaxRedemptions is required and must be positive: a code with no cap is the one thing this
+     * design does not allow, because the cap is what bounds a leak.
+     */
+    max_redemptions?: number;
+};
+
 export type HandlersCreateOAuthClientRequest = {
     agent_server_url?: string;
     allowed_redirect_uris?: Array<string>;
@@ -2007,8 +2154,33 @@ export type HandlersCryptoPricesResponse = {
     quotes?: Array<CryptocompareQuote>;
 };
 
+export type HandlersCsamHistoryResponse = {
+    history?: Array<ServicesNearbyCsamReview>;
+};
+
 export type HandlersCustomerPortalResponse = {
     url: string;
+};
+
+export type HandlersDmRequestCreatedRequest = {
+    conversation_id?: number;
+    /**
+     * RecipientAccountID is who gets the push — nearby resolves this the same way
+     * MeetupJoinedRequest's HostAccountID is resolved.
+     */
+    recipient_account_id?: number;
+    /**
+     * SenderDisplayName MUST already be moderated by the caller — this handler renders it
+     * straight into push copy that lands on the recipient's lock screen, the same trust
+     * boundary MeetupJoinedRequest's GuestDisplayName documents.
+     */
+    sender_display_name?: string;
+};
+
+export type HandlersDmRequestCreatedResponse = {
+    delivered_count?: number;
+    error_count?: number;
+    pruned_count?: number;
 };
 
 export type HandlersDeleteUserResponse = {
@@ -2309,6 +2481,10 @@ export type HandlersListCampaignsResponse = {
     pagination?: HandlersPaginationResponse;
 };
 
+export type HandlersListCsamEventsResponse = {
+    events?: Array<ServicesNearbyCsamEvent>;
+};
+
 export type HandlersListDeveloperApiKeysResponse = {
     api_keys: Array<HandlersDeveloperApiKeyResponse>;
     pagination: HandlersPaginationResponse;
@@ -2368,6 +2544,29 @@ export type HandlersMeResponse = {
     user_address?: string;
 };
 
+export type HandlersMeetupJoinedRequest = {
+    /**
+     * GuestDisplayName MUST already be moderated by the caller — this handler renders it
+     * straight into push copy that lands on the host's lock screen, the same trust boundary
+     * ai-memoryless-client#1499 documents for message-request push copy.
+     */
+    guest_display_name?: string;
+    /**
+     * HostAccountID is who gets the push — nearby resolves this via
+     * GET /internal/accounts/by-did/{did} before calling here, same as
+     * NotifyNearbyActivation's caller-resolves-the-account-id shape.
+     */
+    host_account_id?: number;
+    meetup_id?: string;
+    meetup_title?: string;
+};
+
+export type HandlersMeetupJoinedResponse = {
+    delivered_count?: number;
+    error_count?: number;
+    pruned_count?: number;
+};
+
 /**
  * MobileApp is the mobile app version info; absent when not configured
  */
@@ -2414,16 +2613,17 @@ export type HandlersModelUsageItem = {
     response_tokens: number;
 };
 
-export type HandlersModerateRequest = {
-    texts?: Array<string>;
-};
-
-export type HandlersModerateResponse = {
-    categories?: Array<string>;
-    flagged?: boolean;
-    scores?: {
-        [key: string]: number;
-    };
+export type HandlersNearbyAccessResponse = {
+    /**
+     * Granted is the only field a client needs to decide whether to show the code screen.
+     */
+    granted?: boolean;
+    /**
+     * NewlyAdmitted distinguishes "this call let you in" from "you were already in" on the redeem
+     * path. Both are 200s. It exists for analytics and for copy — a second device redeeming the
+     * same code should not celebrate as if it were the first — and is always false on the read.
+     */
+    newly_admitted?: boolean;
 };
 
 export type HandlersNearbyActivationGrantResponse = {
@@ -2482,7 +2682,8 @@ export type HandlersNearbyActivationResponse = {
     grants?: Array<HandlersNearbyActivationGrantResponse>;
     /**
      * Reason explains an empty Grants ("grants_disabled", "inactive_area",
-     * "referrer_not_resolved", "self_referral"). Empty when grants exist.
+     * "referrer_not_resolved", "price_unavailable", "self_referral"). Empty when
+     * grants exist.
      *
      * Informational: none of these values is an error and none of them should
      * make the caller retry differently.
@@ -2493,11 +2694,6 @@ export type HandlersNearbyActivationResponse = {
      * was already known — a replay, which is expected.
      */
     recorded?: boolean;
-};
-
-export type HandlersNearbyModerateRequest = {
-    image_urls?: Array<string>;
-    texts?: Array<string>;
 };
 
 export type HandlersNonceResponse = {
@@ -2770,6 +2966,10 @@ export type HandlersProInfo = {
     threshold_zeta?: string;
 };
 
+export type HandlersRedeemNearbyAccessCodeRequest = {
+    code?: string;
+};
+
 export type HandlersRedeemTokensRequest = {
     /**
      * Amount is the number of Anuma Tokens to burn (as a decimal string to handle large values).
@@ -2862,9 +3062,74 @@ export type HandlersReferralMeResponse = {
     tester?: HandlersReferralTesterResponse;
 };
 
+export type HandlersReferralRewardGrant = {
+    /**
+     * AmountZeta is the reward in whole ZETA as a decimal string. See
+     * ReferralRewardsResponse for why every amount here is a string.
+     */
+    amount_zeta?: string;
+    /**
+     * CreatedAt is when the reward was earned, RFC 3339 UTC.
+     */
+    created_at?: string;
+    side?: ModelsGrantSide;
+    status?: ModelsGrantStatus;
+    /**
+     * TxHash is the payout transaction, null until one is submitted.
+     */
+    tx_hash?: string;
+};
+
 export type HandlersReferralRewardResponse = {
     status?: string;
     threshold?: number;
+};
+
+export type HandlersReferralRewardsResponse = {
+    /**
+     * Grants is the individual rewards, newest first. NEVER null: a client that
+     * maps over this crashes on a null, and "no rewards yet" is the majority
+     * case, not an error case.
+     */
+    grants?: Array<HandlersReferralRewardGrant>;
+    /**
+     * OwedZeta is earned and not yet paid — statuses "owed" and "failed".
+     */
+    owed_zeta?: string;
+    /**
+     * Payable reports whether this account currently has an address a reward
+     * can be sent to. False is a normal, recoverable state: the grant stays
+     * owed indefinitely and becomes payable the moment a wallet is bound.
+     */
+    payable?: boolean;
+    /**
+     * PayoutsEnabled reports whether the treasury is meant to pay grants out in
+     * this environment: PORTAL_REFERRAL_SENDER_ENABLED on the API process.
+     * False means nobody is being paid, regardless of Payable.
+     *
+     * TRUE IS OPERATOR INTENT, not proof that a transfer moved. A broadcast
+     * needs the payout signing key as well, and that key is worker-only - it
+     * never reaches this process, so this field cannot see it. The staged
+     * rollout therefore has a window, flag on and key not delivered yet, where
+     * this reads true while the sender dry-runs and pays nobody. That window is
+     * deliberate: it is the order the rollout is meant to happen in, and the
+     * alternative reading is worse, because a field that also demanded the key
+     * would be false in every API build including one whose worker is paying.
+     *
+     * So a client may say "the treasury is open" on true, and must not say
+     * "your reward is on its way". SentZeta and a grant's tx_hash are the
+     * per-grant truth, and they move only when a transfer really lands.
+     */
+    payouts_enabled?: boolean;
+    /**
+     * SentZeta is paid — status "sent".
+     */
+    sent_zeta?: string;
+    /**
+     * TotalEarnedZeta is every grant this account holds, whatever its status.
+     * It always equals OwedZeta + SentZeta.
+     */
+    total_earned_zeta?: string;
 };
 
 export type HandlersReferralTesterResponse = {
@@ -2906,6 +3171,16 @@ export type HandlersRegisterDeviceRequest = {
 export type HandlersRenewSubscriptionResponse = {
     current_period_end?: number;
     message: string;
+};
+
+export type HandlersRevokeNearbyAccessCodeRequest = {
+    code?: string;
+    /**
+     * Revoked is a POINTER for the same reason SetInternalTesterRequest.Grant is: this is a
+     * security mutation, and an omitted field must be an error rather than a default that quietly
+     * un-revokes a code someone deliberately killed.
+     */
+    revoked?: boolean;
 };
 
 export type HandlersRevokeRequest = {
@@ -3039,6 +3314,28 @@ export type HandlersSetInternalTesterResponse = {
     message?: string;
     success: boolean;
     user_address: string;
+};
+
+export type HandlersSetNearbyBetaRequest = {
+    /**
+     * Grant is a POINTER: an omitted field must not mean "revoke". Same reasoning as
+     * SetInternalTesterRequest.
+     */
+    grant?: boolean;
+    user_address?: string;
+};
+
+export type HandlersSetNearbyBetaResponse = {
+    message?: string;
+    nearby_beta?: boolean;
+    success?: boolean;
+    user_address?: string;
+    /**
+     * WasAdmitted is whether the account held admission BEFORE this call, so a console can tell a
+     * revoke that removed someone from one that pre-emptively blocked an account which was never in.
+     * Both are durable; only one of them is what an operator usually means by "revoke".
+     */
+    was_admitted?: boolean;
 };
 
 export type HandlersSetNotificationPreferenceInput = {
@@ -3589,6 +3886,10 @@ export type HandlersUserUsageResponse = {
     used_credits: number;
 };
 
+export type HandlersVerifyChallengeResponse = {
+    verified: boolean;
+};
+
 export type HandlersWaitlistJoinRequest = {
     area_freeform?: string;
     area_slug?: string;
@@ -3707,6 +4008,11 @@ export type HandlersConsentResponse = {
 export type HandlersCreateConsentRequest = {
     agent_id?: string;
     platform?: string;
+};
+
+export type HandlersCsamReviewRequest = {
+    disposition?: string;
+    note?: string;
 };
 
 export type HandlersDisableRequest = {
@@ -4906,6 +5212,39 @@ export type DeleteApiV1AccountResponses = {
 
 export type DeleteApiV1AccountResponse = DeleteApiV1AccountResponses[keyof DeleteApiV1AccountResponses];
 
+export type PostApiV1AccountVerifyChallengeData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/account/verify-challenge';
+};
+
+export type PostApiV1AccountVerifyChallengeErrors = {
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+    /**
+     * turnstile_token_missing / turnstile_failed / turnstile_verify_unavailable
+     */
+    403: ResponseErrorResponse;
+    /**
+     * Internal Server Error
+     */
+    500: ResponseErrorResponse;
+};
+
+export type PostApiV1AccountVerifyChallengeError = PostApiV1AccountVerifyChallengeErrors[keyof PostApiV1AccountVerifyChallengeErrors];
+
+export type PostApiV1AccountVerifyChallengeResponses = {
+    /**
+     * OK
+     */
+    200: HandlersVerifyChallengeResponse;
+};
+
+export type PostApiV1AccountVerifyChallengeResponse = PostApiV1AccountVerifyChallengeResponses[keyof PostApiV1AccountVerifyChallengeResponses];
+
 export type PostApiV1AdminAddCreditsData = {
     /**
      * Add credits request
@@ -5821,6 +6160,334 @@ export type PutApiV1AdminConnectorsByProviderResponses = {
 };
 
 export type PutApiV1AdminConnectorsByProviderResponse = PutApiV1AdminConnectorsByProviderResponses[keyof PutApiV1AdminConnectorsByProviderResponses];
+
+export type GetApiV1AdminModerationCsamData = {
+    body?: never;
+    headers: {
+        /**
+         * Admin API key
+         */
+        'X-Admin-API-Key': string;
+    };
+    path?: never;
+    query?: {
+        /**
+         * Queue filter: 'open' (default) or 'all'
+         */
+        state?: string;
+        /**
+         * Maximum events to return
+         */
+        limit?: number;
+    };
+    url: '/api/v1/admin/moderation/csam';
+};
+
+export type GetApiV1AdminModerationCsamErrors = {
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+    /**
+     * Bad Gateway
+     */
+    502: ResponseErrorResponse;
+    /**
+     * Service Unavailable
+     */
+    503: ResponseErrorResponse;
+};
+
+export type GetApiV1AdminModerationCsamError = GetApiV1AdminModerationCsamErrors[keyof GetApiV1AdminModerationCsamErrors];
+
+export type GetApiV1AdminModerationCsamResponses = {
+    /**
+     * OK
+     */
+    200: HandlersListCsamEventsResponse;
+};
+
+export type GetApiV1AdminModerationCsamResponse = GetApiV1AdminModerationCsamResponses[keyof GetApiV1AdminModerationCsamResponses];
+
+export type GetApiV1AdminModerationCsamByIdHistoryData = {
+    body?: never;
+    headers: {
+        /**
+         * Admin API key
+         */
+        'X-Admin-API-Key': string;
+    };
+    path: {
+        /**
+         * CSAM event id
+         */
+        id: number;
+    };
+    query?: never;
+    url: '/api/v1/admin/moderation/csam/{id}/history';
+};
+
+export type GetApiV1AdminModerationCsamByIdHistoryErrors = {
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+    /**
+     * Not Found
+     */
+    404: ResponseErrorResponse;
+    /**
+     * Bad Gateway
+     */
+    502: ResponseErrorResponse;
+    /**
+     * Service Unavailable
+     */
+    503: ResponseErrorResponse;
+};
+
+export type GetApiV1AdminModerationCsamByIdHistoryError = GetApiV1AdminModerationCsamByIdHistoryErrors[keyof GetApiV1AdminModerationCsamByIdHistoryErrors];
+
+export type GetApiV1AdminModerationCsamByIdHistoryResponses = {
+    /**
+     * OK
+     */
+    200: HandlersCsamHistoryResponse;
+};
+
+export type GetApiV1AdminModerationCsamByIdHistoryResponse = GetApiV1AdminModerationCsamByIdHistoryResponses[keyof GetApiV1AdminModerationCsamByIdHistoryResponses];
+
+export type PutApiV1AdminModerationCsamByIdReviewData = {
+    /**
+     * Review disposition and note
+     */
+    body: HandlersCsamReviewRequest;
+    headers: {
+        /**
+         * Admin API key
+         */
+        'X-Admin-API-Key': string;
+        /**
+         * Operator identity recorded as reviewer (defaults to ai-portal-admin)
+         */
+        'X-Operator'?: string;
+    };
+    path: {
+        /**
+         * CSAM event id
+         */
+        id: number;
+    };
+    query?: never;
+    url: '/api/v1/admin/moderation/csam/{id}/review';
+};
+
+export type PutApiV1AdminModerationCsamByIdReviewErrors = {
+    /**
+     * Bad Request
+     */
+    400: ResponseErrorResponse;
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+    /**
+     * Bad Gateway
+     */
+    502: ResponseErrorResponse;
+    /**
+     * Service Unavailable
+     */
+    503: ResponseErrorResponse;
+};
+
+export type PutApiV1AdminModerationCsamByIdReviewError = PutApiV1AdminModerationCsamByIdReviewErrors[keyof PutApiV1AdminModerationCsamByIdReviewErrors];
+
+export type PutApiV1AdminModerationCsamByIdReviewResponses = {
+    /**
+     * OK
+     */
+    200: ServicesNearbyCsamEvent;
+};
+
+export type PutApiV1AdminModerationCsamByIdReviewResponse = PutApiV1AdminModerationCsamByIdReviewResponses[keyof PutApiV1AdminModerationCsamByIdReviewResponses];
+
+export type GetApiV1AdminNearbyAccessCodesData = {
+    body?: never;
+    headers: {
+        /**
+         * Admin API key
+         */
+        'X-Admin-API-Key': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/admin/nearby/access-codes';
+};
+
+export type GetApiV1AdminNearbyAccessCodesErrors = {
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+    /**
+     * Internal Server Error
+     */
+    500: ResponseErrorResponse;
+};
+
+export type GetApiV1AdminNearbyAccessCodesError = GetApiV1AdminNearbyAccessCodesErrors[keyof GetApiV1AdminNearbyAccessCodesErrors];
+
+export type GetApiV1AdminNearbyAccessCodesResponses = {
+    /**
+     * OK
+     */
+    200: Array<ModelsNearbyAccessCode>;
+};
+
+export type GetApiV1AdminNearbyAccessCodesResponse = GetApiV1AdminNearbyAccessCodesResponses[keyof GetApiV1AdminNearbyAccessCodesResponses];
+
+export type PostApiV1AdminNearbyAccessCodesData = {
+    /**
+     * Code to create
+     */
+    body: HandlersCreateNearbyAccessCodeRequest;
+    headers: {
+        /**
+         * Admin API key
+         */
+        'X-Admin-API-Key': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/admin/nearby/access-codes';
+};
+
+export type PostApiV1AdminNearbyAccessCodesErrors = {
+    /**
+     * Bad Request
+     */
+    400: ResponseErrorResponse;
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+    /**
+     * Internal Server Error
+     */
+    500: ResponseErrorResponse;
+};
+
+export type PostApiV1AdminNearbyAccessCodesError = PostApiV1AdminNearbyAccessCodesErrors[keyof PostApiV1AdminNearbyAccessCodesErrors];
+
+export type PostApiV1AdminNearbyAccessCodesResponses = {
+    /**
+     * OK
+     */
+    200: ModelsNearbyAccessCode;
+};
+
+export type PostApiV1AdminNearbyAccessCodesResponse = PostApiV1AdminNearbyAccessCodesResponses[keyof PostApiV1AdminNearbyAccessCodesResponses];
+
+export type PostApiV1AdminNearbyAccessCodesRevokeData = {
+    /**
+     * Code and desired state
+     */
+    body: HandlersRevokeNearbyAccessCodeRequest;
+    headers: {
+        /**
+         * Admin API key
+         */
+        'X-Admin-API-Key': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/admin/nearby/access-codes/revoke';
+};
+
+export type PostApiV1AdminNearbyAccessCodesRevokeErrors = {
+    /**
+     * Bad Request
+     */
+    400: ResponseErrorResponse;
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+    /**
+     * Not Found
+     */
+    404: ResponseErrorResponse;
+    /**
+     * Internal Server Error
+     */
+    500: ResponseErrorResponse;
+};
+
+export type PostApiV1AdminNearbyAccessCodesRevokeError = PostApiV1AdminNearbyAccessCodesRevokeErrors[keyof PostApiV1AdminNearbyAccessCodesRevokeErrors];
+
+export type PostApiV1AdminNearbyAccessCodesRevokeResponses = {
+    /**
+     * OK
+     */
+    200: {
+        [key: string]: unknown;
+    };
+};
+
+export type PostApiV1AdminNearbyAccessCodesRevokeResponse = PostApiV1AdminNearbyAccessCodesRevokeResponses[keyof PostApiV1AdminNearbyAccessCodesRevokeResponses];
+
+export type GetApiV1AdminNearbyMeetupsByIdData = {
+    body?: never;
+    headers: {
+        /**
+         * Admin API key
+         */
+        'X-Admin-API-Key': string;
+    };
+    path: {
+        /**
+         * Meetup id
+         */
+        id: number;
+    };
+    query?: never;
+    url: '/api/v1/admin/nearby/meetups/{id}';
+};
+
+export type GetApiV1AdminNearbyMeetupsByIdErrors = {
+    /**
+     * Bad Request
+     */
+    400: ResponseErrorResponse;
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+    /**
+     * Not Found
+     */
+    404: ResponseErrorResponse;
+    /**
+     * Bad Gateway
+     */
+    502: ResponseErrorResponse;
+    /**
+     * Service Unavailable
+     */
+    503: ResponseErrorResponse;
+};
+
+export type GetApiV1AdminNearbyMeetupsByIdError = GetApiV1AdminNearbyMeetupsByIdErrors[keyof GetApiV1AdminNearbyMeetupsByIdErrors];
+
+export type GetApiV1AdminNearbyMeetupsByIdResponses = {
+    /**
+     * OK
+     */
+    200: ServicesNearbyMeetupDetail;
+};
+
+export type GetApiV1AdminNearbyMeetupsByIdResponse = GetApiV1AdminNearbyMeetupsByIdResponses[keyof GetApiV1AdminNearbyMeetupsByIdResponses];
 
 export type PostApiV1AdminNotificationsAnnounceModelData = {
     /**
@@ -6893,6 +7560,10 @@ export type DeleteApiV1AdminUsersDeleteData = {
          * Email address (requires Privy credentials)
          */
         email?: string;
+        /**
+         * Portal account id
+         */
+        account_id?: number;
     };
     url: '/api/v1/admin/users/delete';
 };
@@ -7003,6 +7674,10 @@ export type GetApiV1AdminUsersLookupData = {
          * Email address (requires Privy credentials)
          */
         email?: string;
+        /**
+         * Portal account id
+         */
+        account_id?: number;
     };
     url: '/api/v1/admin/users/lookup';
 };
@@ -7036,6 +7711,52 @@ export type GetApiV1AdminUsersLookupResponses = {
 };
 
 export type GetApiV1AdminUsersLookupResponse = GetApiV1AdminUsersLookupResponses[keyof GetApiV1AdminUsersLookupResponses];
+
+export type PostApiV1AdminUsersNearbyBetaData = {
+    /**
+     * Set nearby beta request
+     */
+    body: HandlersSetNearbyBetaRequest;
+    headers: {
+        /**
+         * Admin API key
+         */
+        'X-Admin-API-Key': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/admin/users/nearby-beta';
+};
+
+export type PostApiV1AdminUsersNearbyBetaErrors = {
+    /**
+     * Bad Request
+     */
+    400: ResponseErrorResponse;
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+    /**
+     * Not Found
+     */
+    404: ResponseErrorResponse;
+    /**
+     * Internal Server Error
+     */
+    500: ResponseErrorResponse;
+};
+
+export type PostApiV1AdminUsersNearbyBetaError = PostApiV1AdminUsersNearbyBetaErrors[keyof PostApiV1AdminUsersNearbyBetaErrors];
+
+export type PostApiV1AdminUsersNearbyBetaResponses = {
+    /**
+     * OK
+     */
+    200: HandlersSetNearbyBetaResponse;
+};
+
+export type PostApiV1AdminUsersNearbyBetaResponse = PostApiV1AdminUsersNearbyBetaResponses[keyof PostApiV1AdminUsersNearbyBetaResponses];
 
 export type PostApiV1AdminUsersSuspendData = {
     /**
@@ -7679,6 +8400,10 @@ export type PostApiV1ChatCompletionsErrors = {
      * Model provider rate limit exceeded
      */
     429: ResponseErrorResponse;
+    /**
+     * Client closed the request before a response was produced
+     */
+    499: ResponseErrorResponse;
     /**
      * Internal Server Error
      */
@@ -9297,6 +10022,10 @@ export type PostApiV1EmbeddingsErrors = {
      */
     429: ResponseErrorResponse;
     /**
+     * Client closed the request before a response was produced
+     */
+    499: ResponseErrorResponse;
+    /**
      * Internal Server Error
      */
     500: ResponseErrorResponse;
@@ -9488,38 +10217,6 @@ export type GetApiV1ModelsResponses = {
 };
 
 export type GetApiV1ModelsResponse = GetApiV1ModelsResponses[keyof GetApiV1ModelsResponses];
-
-export type PostApiV1ModerateData = {
-    /**
-     * Texts to moderate
-     */
-    body: HandlersModerateRequest;
-    path?: never;
-    query?: never;
-    url: '/api/v1/moderate';
-};
-
-export type PostApiV1ModerateErrors = {
-    /**
-     * Bad Request
-     */
-    400: ResponseErrorResponse;
-    /**
-     * Moderation backend error
-     */
-    502: ResponseErrorResponse;
-};
-
-export type PostApiV1ModerateError = PostApiV1ModerateErrors[keyof PostApiV1ModerateErrors];
-
-export type PostApiV1ModerateResponses = {
-    /**
-     * OK
-     */
-    200: HandlersModerateResponse;
-};
-
-export type PostApiV1ModerateResponse = PostApiV1ModerateResponses[keyof PostApiV1ModerateResponses];
 
 export type PostApiV1NotificationsDevicesData = {
     /**
@@ -10026,6 +10723,10 @@ export type PostApiV1ResponsesErrors = {
      * Model provider rate limit exceeded
      */
     429: ResponseErrorResponse;
+    /**
+     * Client closed the request before a response was produced
+     */
+    499: ResponseErrorResponse;
     /**
      * Internal Server Error
      */
@@ -11124,6 +11825,10 @@ export type PostApiV1UtilityChatCompletionsErrors = {
      */
     429: ResponseErrorResponse;
     /**
+     * Client closed the request before a response was produced
+     */
+    499: ResponseErrorResponse;
+    /**
      * Internal Server Error
      */
     500: ResponseErrorResponse;
@@ -11177,6 +11882,10 @@ export type PostApiV1UtilityResponsesErrors = {
      * Model provider rate limit exceeded
      */
     429: ResponseErrorResponse;
+    /**
+     * Client closed the request before a response was produced
+     */
+    499: ResponseErrorResponse;
     /**
      * Internal Server Error
      */
@@ -11703,6 +12412,42 @@ export type PostInternalCompleteResponses = {
 
 export type PostInternalCompleteResponse = PostInternalCompleteResponses[keyof PostInternalCompleteResponses];
 
+export type PostInternalDmRequestsData = {
+    /**
+     * The new DM request
+     */
+    body: HandlersDmRequestCreatedRequest;
+    path?: never;
+    query?: never;
+    url: '/internal/dm/requests';
+};
+
+export type PostInternalDmRequestsErrors = {
+    /**
+     * Bad Request
+     */
+    400: ResponseErrorResponse;
+    /**
+     * Internal Server Error
+     */
+    500: ResponseErrorResponse;
+    /**
+     * No push sender configured in this environment
+     */
+    503: ResponseErrorResponse;
+};
+
+export type PostInternalDmRequestsError = PostInternalDmRequestsErrors[keyof PostInternalDmRequestsErrors];
+
+export type PostInternalDmRequestsResponses = {
+    /**
+     * OK
+     */
+    200: HandlersDmRequestCreatedResponse;
+};
+
+export type PostInternalDmRequestsResponse = PostInternalDmRequestsResponses[keyof PostInternalDmRequestsResponses];
+
 export type PostInternalEmbeddingsData = {
     /**
      * Embedding request
@@ -11775,37 +12520,41 @@ export type PostInternalExtractPhotoFactsResponses = {
 
 export type PostInternalExtractPhotoFactsResponse = PostInternalExtractPhotoFactsResponses[keyof PostInternalExtractPhotoFactsResponses];
 
-export type PostInternalModerateData = {
+export type PostInternalMeetupsJoinsData = {
     /**
-     * Texts and image URLs to moderate
+     * The accepted join
      */
-    body: HandlersNearbyModerateRequest;
+    body: HandlersMeetupJoinedRequest;
     path?: never;
     query?: never;
-    url: '/internal/moderate';
+    url: '/internal/meetups/joins';
 };
 
-export type PostInternalModerateErrors = {
+export type PostInternalMeetupsJoinsErrors = {
     /**
      * Bad Request
      */
     400: ResponseErrorResponse;
     /**
-     * Moderation backend error
+     * Internal Server Error
      */
-    502: ResponseErrorResponse;
+    500: ResponseErrorResponse;
+    /**
+     * No push sender configured in this environment
+     */
+    503: ResponseErrorResponse;
 };
 
-export type PostInternalModerateError = PostInternalModerateErrors[keyof PostInternalModerateErrors];
+export type PostInternalMeetupsJoinsError = PostInternalMeetupsJoinsErrors[keyof PostInternalMeetupsJoinsErrors];
 
-export type PostInternalModerateResponses = {
+export type PostInternalMeetupsJoinsResponses = {
     /**
      * OK
      */
-    200: HandlersModerateResponse;
+    200: HandlersMeetupJoinedResponse;
 };
 
-export type PostInternalModerateResponse = PostInternalModerateResponses[keyof PostInternalModerateResponses];
+export type PostInternalMeetupsJoinsResponse = PostInternalMeetupsJoinsResponses[keyof PostInternalMeetupsJoinsResponses];
 
 export type PostInternalNearbyActivationsData = {
     /**
@@ -11879,6 +12628,83 @@ export type PostInternalPrefineryClaimTokensResponses = {
 
 export type PostInternalPrefineryClaimTokensResponse = PostInternalPrefineryClaimTokensResponses[keyof PostInternalPrefineryClaimTokensResponses];
 
+export type GetNearbyAccessData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/nearby/access';
+};
+
+export type GetNearbyAccessErrors = {
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+    /**
+     * Internal Server Error
+     */
+    500: ResponseErrorResponse;
+};
+
+export type GetNearbyAccessError = GetNearbyAccessErrors[keyof GetNearbyAccessErrors];
+
+export type GetNearbyAccessResponses = {
+    /**
+     * OK
+     */
+    200: ServicesNearbyaccessAdmission;
+};
+
+export type GetNearbyAccessResponse = GetNearbyAccessResponses[keyof GetNearbyAccessResponses];
+
+export type PostNearbyAccessCodeData = {
+    /**
+     * Access code
+     */
+    body: HandlersRedeemNearbyAccessCodeRequest;
+    path?: never;
+    query?: never;
+    url: '/nearby/access-code';
+};
+
+export type PostNearbyAccessCodeErrors = {
+    /**
+     * Bad Request
+     */
+    400: ResponseErrorResponse;
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+    /**
+     * Forbidden
+     */
+    403: ResponseErrorResponse;
+    /**
+     * Conflict
+     */
+    409: ResponseErrorResponse;
+    /**
+     * Too Many Requests
+     */
+    429: ResponseErrorResponse;
+    /**
+     * Internal Server Error
+     */
+    500: ResponseErrorResponse;
+};
+
+export type PostNearbyAccessCodeError = PostNearbyAccessCodeErrors[keyof PostNearbyAccessCodeErrors];
+
+export type PostNearbyAccessCodeResponses = {
+    /**
+     * OK
+     */
+    200: HandlersNearbyAccessResponse;
+};
+
+export type PostNearbyAccessCodeResponse = PostNearbyAccessCodeResponses[keyof PostNearbyAccessCodeResponses];
+
 export type PostNearbyWaitlistData = {
     /**
      * Waitlist join
@@ -11898,6 +12724,10 @@ export type PostNearbyWaitlistErrors = {
      * Unauthorized
      */
     401: ResponseErrorResponse;
+    /**
+     * Forbidden
+     */
+    403: ResponseErrorResponse;
     /**
      * Conflict
      */
@@ -12148,6 +12978,10 @@ export type PostReferralClaimErrors = {
      */
     401: ResponseErrorResponse;
     /**
+     * Forbidden
+     */
+    403: ResponseErrorResponse;
+    /**
      * Conflict
      */
     409: ResponseErrorResponse;
@@ -12189,6 +13023,10 @@ export type PostReferralIdentityErrors = {
      */
     401: ResponseErrorResponse;
     /**
+     * Forbidden
+     */
+    403: ResponseErrorResponse;
+    /**
      * Conflict
      */
     409: ResponseErrorResponse;
@@ -12228,6 +13066,10 @@ export type PostReferralInviteErrors = {
      * Unauthorized
      */
     401: ResponseErrorResponse;
+    /**
+     * Forbidden
+     */
+    403: ResponseErrorResponse;
     /**
      * Conflict
      */
@@ -12270,6 +13112,10 @@ export type GetReferralMeErrors = {
      */
     401: ResponseErrorResponse;
     /**
+     * Forbidden
+     */
+    403: ResponseErrorResponse;
+    /**
      * Service Unavailable
      */
     503: ResponseErrorResponse;
@@ -12285,6 +13131,35 @@ export type GetReferralMeResponses = {
 };
 
 export type GetReferralMeResponse = GetReferralMeResponses[keyof GetReferralMeResponses];
+
+export type GetReferralRewardsData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/referral/rewards';
+};
+
+export type GetReferralRewardsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+    /**
+     * Internal Server Error
+     */
+    500: ResponseErrorResponse;
+};
+
+export type GetReferralRewardsError = GetReferralRewardsErrors[keyof GetReferralRewardsErrors];
+
+export type GetReferralRewardsResponses = {
+    /**
+     * OK
+     */
+    200: HandlersReferralRewardsResponse;
+};
+
+export type GetReferralRewardsResponse = GetReferralRewardsResponses[keyof GetReferralRewardsResponses];
 
 export type PostWebhooksPrefineryData = {
     body?: {

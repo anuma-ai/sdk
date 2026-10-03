@@ -2,7 +2,7 @@
 
 > **PatchApiV1AdminNotificationsCampaignsByCampaignIdResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:6031](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6031)
+Defined in: [src/client/types.gen.ts:6698](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6698)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:6031](https://github.com/anuma-ai/sdk/blob/
 
 > **200**: [`HandlersCampaignResponse`](HandlersCampaignResponse.md)
 
-Defined in: [src/client/types.gen.ts:6035](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6035)
+Defined in: [src/client/types.gen.ts:6702](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6702)
 
 OK

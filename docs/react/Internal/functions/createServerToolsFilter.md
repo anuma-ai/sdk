@@ -2,7 +2,7 @@
 
 > **createServerToolsFilter**(`options`: [`CreateServerToolsFilterOptions`](../interfaces/CreateServerToolsFilterOptions.md)): [`ServerToolsFilterFunction`](../type-aliases/ServerToolsFilterFunction.md)
 
-Defined in: [src/lib/tools/serverTools.ts:1531](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#1531)
+Defined in: [src/lib/tools/serverTools.ts:1630](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#1630)
 
 Build a server-tools filter function for use with `useChatStorage`'s
 `serverTools` option. Composes `findMatchingTools`, `expandToolSetsAdditive`,
@@ -46,7 +46,7 @@ const serverTools = createServerToolsFilter({
   toolSets: [
     {
       name: "research",
-      members: ["AnumaJinaMCP-search_web", "AnumaJinaMCP-read_url", ...],
+      members: ["AnumaJinaMCP-search_web", "AnumaSearchMCP-anuma_scrape_url", ...],
       anchors: ["AnumaJinaMCP-search_web"],
       anchorMinSimilarity: 0.7,
     },

@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { LlmapiChatCompletionTool, LlmapiMessage } from "../client";
 import { MCP_R2_DOMAIN } from "../clientConfig";
 import { assembleMessagesWithHistory } from "../lib/chat/assembleMessages";
+import { attachFileContextToLastUserMessage } from "../lib/chat/fileContext";
 import { isSendableImageURL } from "../lib/chat/imageParts";
 import { extractSourcesFromToolCallEvents } from "../lib/chat/sources";
 import {
@@ -52,6 +53,7 @@ import {
   getMessagesOp,
   getMessagesPageOp,
   type GetMessagesPageOptions,
+  getToolCallEventIdsOp,
   makeSyntheticStoredConversation,
   makeSyntheticStoredMessage,
   Message,
@@ -70,6 +72,7 @@ import {
   updateMessageEmbeddingOp,
   updateMessageErrorOp,
 } from "../lib/db/chat";
+import { maskScopedEmbeddingCache } from "../lib/db/chat/embeddingCache";
 import {
   Entity as EntityModel,
   MemoryEntity as MemoryEntityModel,
@@ -112,6 +115,8 @@ import {
   type RecallResult,
   type RecallToolCallbacks,
   type RecallToolOptions,
+  retain,
+  type RetainResult,
 } from "../lib/memory";
 import {
   chunkText,
@@ -135,21 +140,23 @@ import {
   searchVaultMemories as searchVaultMemoriesBase,
   type VaultEmbeddingCache,
   type VaultSearchResult,
+  type VaultWriteInput,
 } from "../lib/memoryVault";
 import type { NerDetector } from "../lib/pii/ner";
 import { isPiiRedactor, PiiRedactor } from "../lib/pii/redactor";
-import { preprocessFiles } from "../lib/processors";
+import type { FileProcessingStatus } from "../lib/processors";
+import { formatFileProcessingNotes, preprocessFiles } from "../lib/processors";
 import {
   BlobUrlManager,
   createFilePlaceholder,
   deleteEncryptedFile,
   extractFileIds,
   extractMCPImageUrls,
-  IMAGE_TOOL_NAMES,
   isOPFSSupported,
   isR2UrlExpired,
   readEncryptedFile,
 } from "../lib/storage";
+import { toolOutputForModel } from "../lib/storage/mcpImages";
 import {
   autoFilterClientTools,
   computeToolGuidance,
@@ -165,6 +172,7 @@ import {
   shouldRefreshTools,
   type ToolsCacheBackend,
   type ToolSet,
+  withActiveToolSetServerTools,
 } from "../lib/tools";
 import { useChat } from "./useChat";
 import { useChatMedia } from "./useChatMedia";
@@ -272,7 +280,13 @@ export async function previewToolSelection(options: {
       activeToolSets ?? []
     );
     let gatedServerNames: string[] = [];
-    if (Array.isArray(serverToolsFilter) && serverToolsFilter.length > 0) {
+    // A filter function selects nothing here but the sticky sets (none under defer, whose send
+    // path does not reach this gate's selection).
+    const stickyOnly =
+      typeof serverToolsFilter === "function" &&
+      !!activeToolSets?.length &&
+      !serverToolsConfig?.deferLoading?.enabled;
+    if ((Array.isArray(serverToolsFilter) && serverToolsFilter.length > 0) || stickyOnly) {
       try {
         const allServerTools = await getServerTools({
           baseUrl,
@@ -281,15 +295,25 @@ export async function previewToolSelection(options: {
           apiKey,
           cache: serverToolsConfig?.cache,
         });
-        const allow = new Set(serverToolsFilter);
-        const gated = allServerTools.filter((t) => allow.has(t.name));
-        // Static lists survive the short-prompt gate, so defer's exclusions have to survive with
-        // them — otherwise the preview reports a tool the deferred send would drop.
-        gatedServerNames = (
-          serverToolsConfig?.deferLoading?.enabled
-            ? resolveDeferredServerTools(gated, serverToolsFilter, serverToolsConfig.deferLoading)
-            : gated
-        ).map((t) => t.name);
+        if (typeof serverToolsFilter === "function") {
+          gatedServerNames = withActiveToolSetServerTools(
+            [],
+            allServerTools,
+            serverToolsFilter,
+            activeToolSets,
+            extraToolSets
+          ).map((t) => t.name);
+        } else {
+          const allow = new Set(serverToolsFilter);
+          const gated = allServerTools.filter((t) => allow.has(t.name));
+          // Static lists survive the short-prompt gate, so defer's exclusions have to survive with
+          // them — otherwise the preview reports a tool the deferred send would drop.
+          gatedServerNames = (
+            serverToolsConfig?.deferLoading?.enabled
+              ? resolveDeferredServerTools(gated, serverToolsFilter, serverToolsConfig.deferLoading)
+              : gated
+          ).map((t) => t.name);
+        }
       } catch {
         // Server tools optional; leave empty on fetch failure.
       }
@@ -361,7 +385,16 @@ export async function previewToolSelection(options: {
           serverToolsConfig.deferLoading
         ).map((t) => t.name);
       } else if (typeof serverToolsFilter === "function") {
-        serverToolNames = serverToolsFilter(promptEmbedding, allServerTools);
+        const sticky = withActiveToolSetServerTools(
+          [],
+          allServerTools,
+          serverToolsFilter,
+          activeToolSets,
+          extraToolSets
+        ).map((t) => t.name);
+        serverToolNames = [
+          ...new Set([...serverToolsFilter(promptEmbedding, allServerTools), ...sticky]),
+        ];
       } else {
         const allow = new Set(serverToolsFilter);
         serverToolNames = allServerTools.filter((t) => allow.has(t.name)).map((t) => t.name);
@@ -391,8 +424,10 @@ async function blobToDataUri(blob: Blob): Promise<string> {
  * If a file has a sourceUrl, includes it as an image_url part (only for non-assistant messages).
  * If encryptionKey is provided and files are stored in OPFS, reads them and converts to data URIs.
  * Internal placeholders are replaced with sourceUrls or removed.
+ *
+ * Exported for unit testing; not part of the public API.
  */
-async function storedToLlmapiMessage(
+export async function storedToLlmapiMessage(
   stored: StoredMessage,
   encryptionKey?: CryptoKey,
   resolveMediaByIds?: (ids: string[]) => Promise<Array<{ mediaId: string; sourceUrl?: string }>>
@@ -429,7 +464,9 @@ async function storedToLlmapiMessage(
         // This handles user-uploaded files stored in OPFS for history replay
         try {
           const result = await readEncryptedFile(file.id, encryptionKey);
-          if (result) {
+          // Only images can go out as image_url; a stored PDF/text attachment would be sent as
+          // a non-image data URI, which the backend rejects for the whole turn.
+          if (result && result.blob.type.startsWith("image/")) {
             // Convert blob to data URI for sending to API
             const dataUri = await blobToDataUri(result.blob);
             imageParts.push({
@@ -545,31 +582,10 @@ async function storedToLlmapiMessage(
     // 2. Tool result messages for each event that has output
     for (const event of stored.toolCallEvents) {
       if (event.id && event.output !== undefined && event.output !== null) {
-        // For image tools, strip the URL from the output to prevent the model
-        // from echoing previous images and causing duplicate storage in the library.
-        let toolOutput = event.output;
-        if (event.name && IMAGE_TOOL_NAMES.has(event.name)) {
-          try {
-            const parsed = JSON.parse(toolOutput) as Record<string, unknown>;
-            // anuma_create_image returns `output_images: [{url,...}]`; the old
-            // tools returned a single `imageUrl`/`url`. Strip both so the model
-            // can't echo prior images back into the next turn.
-            const {
-              imageUrl: _imageUrl,
-              url: _url,
-              output_images: _outputImages,
-              ...rest
-            } = parsed;
-            toolOutput = JSON.stringify(rest);
-          } catch {
-            // Not JSON — use as-is
-          }
-        }
-
         messages.push({
           role: "tool" as LlmapiMessage["role"],
           tool_call_id: event.id,
-          content: [{ type: "text", text: toolOutput }],
+          content: [{ type: "text", text: toolOutputForModel(event.name, event.output) }],
         });
       }
     }
@@ -749,6 +765,15 @@ export interface SendMessageWithStorageArgs extends BaseSendMessageWithStorageAr
    * the conversation-shared redactor, matching the hook-level behavior.
    */
   piiRedaction?: boolean | PiiRedactor;
+
+  /**
+   * Called once, after the turn's attachments are preprocessed and before the request is sent,
+   * with one {@link FileProcessingStatus} per attached file (images sent as `image_url` are left
+   * out). Use it to tell the user which attachments the model could not read, or only partly
+   * read, and why. Not called when no files are attached. Errors thrown by the callback are
+   * logged and ignored.
+   */
+  onFileProcessingResult?: (statuses: FileProcessingStatus[]) => void;
 }
 
 /**
@@ -868,6 +893,15 @@ export interface UseChatStorageResult extends BaseUseChatStorageResult {
   createMemoryVaultTool: (options?: MemoryVaultToolOptions) => ToolConfig;
 
   /**
+   * Write one memory through `retain()` — cosine auto-merge against the vault,
+   * so an explicit "save this" from a host surface (selection → memory, a
+   * manual add) lands as a re-observation of an existing memory instead of a
+   * duplicate row when the vault already holds the fact. The
+   * `memory_vault_save` tool writes through this too. Throws without `getToken`.
+   */
+  retainVaultMemory: (input: VaultWriteInput) => Promise<RetainResult>;
+
+  /**
    * Create a memory vault search tool for LLM to search vault memories
    * using semantic similarity. Pre-configured with vault context, auth, and
    * a shared embedding cache that is pre-populated on init.
@@ -936,10 +970,9 @@ export interface UseChatStorageResult extends BaseUseChatStorageResult {
    * @param options - Optional filtering (scopes to include, whether to
    *   include soft-deleted memories)
    */
-  getVaultMemories: (options?: {
-    scopes?: string[];
-    includeDeleted?: boolean;
-  }) => Promise<StoredVaultMemory[]>;
+  getVaultMemories: (
+    options?: Parameters<typeof getAllVaultMemoriesOp>[1]
+  ) => Promise<StoredVaultMemory[]>;
 
   /**
    * Create a new vault memory with the given content.
@@ -1129,6 +1162,8 @@ export function resolveCallPii(
   return { redactor, forInnerSend: redactor ?? false };
 }
 
+export { maskScopedEmbeddingCache };
+
 export function useChatStorage(options: UseChatStorageOptions): UseChatStorageResult {
   const {
     database,
@@ -1161,6 +1196,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     minContentLength = DEFAULT_MIN_CONTENT_LENGTH,
     mcpR2Domain = MCP_R2_DOMAIN,
     preProcessors,
+    smoothing,
     piiRedaction,
     onPiiRedacted,
     nerDetector,
@@ -1653,6 +1689,46 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
   /**
    * Create a memory vault tool pre-configured with hook's vault context and encryption
    */
+  /**
+   * Write one memory through `retain()` — the same cosine auto-merge the
+   * background extractor gets, so an explicit save (the `memory_vault_save`
+   * tool, a host's "save to memory" affordance) cannot land a paraphrase of a
+   * fact the vault already holds as a second row. Returns the disposition, so
+   * the caller can tell a fresh create from a merge into an existing memory.
+   *
+   * `source: "manual"` and no tombstone gate: these writes are user- or
+   * model-directed, and refusing to re-save a fact the user deleted earlier is
+   * the extractor's rule for UNPROMPTED writes, not this path's.
+   *
+   * TODO(ceiling): cosine-only — no LLM consolidation, so a paraphrase in the
+   * 0.55–0.8 band is still created rather than merged/superseded. Deliberate:
+   * this runs inline in a chat turn (tool executor), and consolidation is a
+   * second LLM round-trip with a 20s budget. Upgrade path is passing
+   * `consolidateOptions` here once the tool executor can run it off the turn.
+   */
+  const retainVaultMemory = useCallback(
+    async (input: VaultWriteInput): Promise<RetainResult> => {
+      if (!getToken) {
+        throw new Error("getToken is required to retain a vault memory");
+      }
+      return retain(
+        input.content,
+        {
+          vaultCtx,
+          embeddingOptions: vaultEmbeddingOptions,
+          vaultCache: vaultEmbeddingCache,
+        },
+        {
+          source: "manual",
+          scope: input.scope,
+          ...(input.folderId !== undefined && { folderId: input.folderId }),
+          ...(input.factType !== undefined && { factType: input.factType }),
+        }
+      );
+    },
+    [vaultCtx, getToken, vaultEmbeddingOptions, vaultEmbeddingCache]
+  );
+
   const createMemoryVaultTool = useCallback(
     (options?: MemoryVaultToolOptions): ToolConfig => {
       // PII de-anonymization of the saved content is handled generically by
@@ -1663,19 +1739,22 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       const embOpts = getToken ? vaultEmbeddingOptions : undefined;
       return createMemoryVaultToolBase(
         vaultCtx,
-        options,
+        // New memories go through retain() (auto-merge) whenever embeddings are
+        // available; a caller-supplied `write` still wins. Without a token the
+        // tool keeps its direct-insert path — retain cannot embed.
+        embOpts ? { write: retainVaultMemory, ...options } : options,
         embOpts,
         embOpts ? vaultEmbeddingCache : undefined
       );
     },
-    [vaultCtx, getToken, vaultEmbeddingOptions, vaultEmbeddingCache]
+    [vaultCtx, getToken, vaultEmbeddingOptions, vaultEmbeddingCache, retainVaultMemory]
   );
 
   /**
    * Get all vault memories (for injecting as context into messages)
    */
   const getVaultMemories = useCallback(
-    (options?: { scopes?: string[]; includeDeleted?: boolean }): Promise<StoredVaultMemory[]> => {
+    (options?: Parameters<typeof getAllVaultMemoriesOp>[1]): Promise<StoredVaultMemory[]> => {
       return getAllVaultMemoriesOp(vaultCtx, options);
     },
     [vaultCtx]
@@ -1693,7 +1772,8 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           vaultEmbeddingOptions,
           vaultEmbeddingCache,
           vaultCtx,
-          result.uniqueId
+          result.uniqueId,
+          result.updatedAt
         ).catch((err) => {
           getLogger().warn("[useChatStorage] Failed to eagerly embed new vault memory:", err);
         });
@@ -1716,11 +1796,16 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           // async re-embed overwrites it under the same id.
           vaultEmbeddingCache.delete(id);
         }
-        eagerEmbedContent(content, vaultEmbeddingOptions, vaultEmbeddingCache, vaultCtx, id).catch(
-          (err) => {
-            getLogger().warn("[useChatStorage] Failed to eagerly embed updated vault memory:", err);
-          }
-        );
+        eagerEmbedContent(
+          content,
+          vaultEmbeddingOptions,
+          vaultEmbeddingCache,
+          vaultCtx,
+          id,
+          result.updatedAt
+        ).catch((err) => {
+          getLogger().warn("[useChatStorage] Failed to eagerly embed updated vault memory:", err);
+        });
       }
       return result;
     },
@@ -1946,6 +2031,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     onToolCallArgumentsDelta,
     apiType,
     preProcessors,
+    smoothing,
     piiRedaction: resolvedPiiRedaction,
     onPiiRedacted,
   });
@@ -2235,6 +2321,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         summaryModel = DEFAULT_SUMMARY_MODEL,
         files,
         storedUserContent,
+        embeddingCache,
         onData: perRequestOnData,
         headers,
         memoryContext,
@@ -2258,6 +2345,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         parentMessageId,
         assistantUniqueId,
         piiRedaction: requestPiiRedaction,
+        onFileProcessingResult,
       } = args;
 
       // Resolve PII redaction for THIS call against a specific conversation id.
@@ -2323,19 +2411,28 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
             extracted?.content ?? ""
           );
           if (messageContent.length >= MIN_CONTENT_LENGTH_FOR_TOOLS) {
-            const embeddingOptions = { getToken, baseUrl, model: embeddingModel };
+            // maskInput rather than a pre-masked argument: the request body is masked either way,
+            // but `generateEmbedding` keys its cache on the text AS PASSED, so passing the raw text
+            // is what lets a caller-supplied `embeddingCache` be shared with a caller that has the
+            // raw text and its own masker. See BaseSendMessageWithStorageArgs.embeddingCache.
+            const embeddingOptions = {
+              getToken,
+              baseUrl,
+              model: embeddingModel,
+              maskInput: maskForCall,
+              cache: embeddingCache
+                ? maskScopedEmbeddingCache(embeddingCache, Boolean(callPiiRedaction))
+                : undefined,
+            };
             try {
               if (shouldChunkMessage(messageContent, DEFAULT_CHUNK_SIZE)) {
                 const textChunks = chunkText(messageContent);
                 skipStorageEmbeddings = await generateEmbeddings(
-                  textChunks.map((c) => maskForCall(c.text)),
+                  textChunks.map((c) => c.text),
                   embeddingOptions
                 );
               } else {
-                skipStorageEmbeddings = await generateEmbedding(
-                  maskForCall(messageContent),
-                  embeddingOptions
-                );
+                skipStorageEmbeddings = await generateEmbedding(messageContent, embeddingOptions);
               }
             } catch {
               // Embedding generation failed — continue without semantic
@@ -2375,8 +2472,15 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
                 const toolNames = serverToolsFilter(skipStorageEmbeddings, allServerTools);
                 filteredServerTools = filterServerTools(allServerTools, toolNames);
               }
-              // If message is too short for embeddings, don't include any server tools
-              // (user explicitly provided a filter function for semantic matching)
+              // If message is too short for embeddings, include only the sticky sets'
+              // server tools (user explicitly provided a filter function for semantic matching)
+              filteredServerTools = withActiveToolSetServerTools(
+                filteredServerTools,
+                allServerTools,
+                serverToolsFilter,
+                activeToolSetsRef.current,
+                extraToolSets
+              );
             } else {
               // Static filtering
               filteredServerTools = filterServerTools(allServerTools, serverToolsFilter);
@@ -2529,18 +2633,25 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
 
       // Preprocess files if present to generate file context
       let fileContextForRequest: string | undefined;
+      // True when fileContextForRequest was extracted from THIS turn's files (it then rides
+      // on this turn's user message); false when it is recalled from an earlier turn below.
+      let fileContextIsCurrentTurn = false;
       let preprocessedFileIds: string[] = [];
       let imageContentUrls: string[] | undefined;
+      // One line per attachment the model did not get, and why — rides in this turn's
+      // attached-files part even when nothing was extracted, so the model can say which file.
+      let fileProcessingNotes: string | null = null;
       if (filesForStorage && filesForStorage.length > 0) {
+        let fileStatuses: FileProcessingStatus[];
         try {
           const preprocessingResult = await preprocessFiles(filesForStorage, {
             processors: fileProcessors,
             ...fileProcessingOptions,
           });
 
-          // Store extracted content as file context (will be injected as system message)
           if (preprocessingResult.extractedContent) {
             fileContextForRequest = preprocessingResult.extractedContent;
+            fileContextIsCurrentTurn = true;
             preprocessedFileIds = preprocessingResult.preprocessedFileIds;
           }
 
@@ -2548,11 +2659,23 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           if (preprocessingResult.imageContentUrls?.length) {
             imageContentUrls = preprocessingResult.imageContentUrls;
           }
+          fileStatuses = preprocessingResult.fileStatuses;
         } catch (err) {
           getLogger().error(
             "[sendMessage] File preprocessing failed — continuing without file context:",
             err
           );
+          fileStatuses = filesForStorage
+            .filter((f) => !(f.type ?? "").toLowerCase().startsWith("image/"))
+            .map((f) => ({ fileId: f.id, fileName: f.name, status: "failed", reason: "error" }));
+        }
+        fileProcessingNotes = formatFileProcessingNotes(fileStatuses, {
+          maxFileSizeBytes: fileProcessingOptions?.maxFileSizeBytes,
+        });
+        try {
+          onFileProcessingResult?.(fileStatuses);
+        } catch (err) {
+          getLogger().warn("[sendMessage] onFileProcessingResult threw — ignoring:", err);
         }
       }
 
@@ -2626,21 +2749,30 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         needsEmbeddings && getToken
           ? (async () => {
               try {
-                const embeddingOptions = { getToken, baseUrl, model: embeddingModel };
+                // See the note on the skipStorage path above: raw text + maskInput, so the shared
+                // `embeddingCache` keys on the same string a caller with the raw text would use.
+                const embeddingOptions = {
+                  getToken,
+                  baseUrl,
+                  model: embeddingModel,
+                  maskInput: maskForCall,
+                  cache: embeddingCache
+                    ? maskScopedEmbeddingCache(embeddingCache, Boolean(callPiiRedaction))
+                    : undefined,
+                };
                 if (shouldChunkMessage(contentForStorage, DEFAULT_CHUNK_SIZE)) {
                   const textChunks = chunkText(contentForStorage);
-                  const chunkTexts = textChunks.map((c) => maskForCall(c.text));
                   return {
-                    embeddings: await generateEmbeddings(chunkTexts, embeddingOptions),
+                    embeddings: await generateEmbeddings(
+                      textChunks.map((c) => c.text),
+                      embeddingOptions
+                    ),
                     failed: false,
                   };
                 }
                 if (contentForStorage.length >= MIN_CONTENT_LENGTH_FOR_TOOLS) {
                   return {
-                    embeddings: await generateEmbedding(
-                      maskForCall(contentForStorage),
-                      embeddingOptions
-                    ),
+                    embeddings: await generateEmbedding(contentForStorage, embeddingOptions),
                     failed: false,
                   };
                 }
@@ -2679,31 +2811,18 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       // deduplicate the backend's accumulated tool_call_events later.
       // This must run unconditionally — even when includeHistory is false, the
       // backend still returns accumulated events across the entire conversation.
-      const storedMessages = await getMessagesOp(storageCtx, convId);
-      const knownToolCallEventIds = new Set<string>();
-      for (const msg of storedMessages) {
-        if (msg.toolCallEvents) {
-          for (const evt of msg.toolCallEvents) {
-            if (evt.id) knownToolCallEventIds.add(evt.id);
-          }
-        }
-      }
+      const knownToolCallEventIds = await getToolCallEventIdsOp(storageCtx, convId);
 
       // Include history if requested
       if (includeHistory) {
-        const validMessages = storedMessages.filter((msg) => !msg.error);
-
-        // This conversation's own `[Tool Execution Results]` rows: folded onto the assistant turns
-        // that produced them when the caller opts in, dropped otherwise. Never verbatim — they are
-        // `role: "user"`, so each would put two consecutive user turns on the wire (the failure web's
-        // client-side filter exists to avoid).
+        // Page backward newest-first instead of reading the whole thread: a
+        // full-thread getMessagesOp parses + decrypts every embedding column
+        // (vector/chunks, tens of KB per row) only to slice all but the last
+        // maxHistoryMessages away. getMessagesPageOp skips those columns, and
+        // the loop stops as soon as the folded window is full.
         //
-        // Off by default because folding relocates the payload onto an `assistant` row, and a caller
-        // whose own scrubbers key on `role === "user"` + prefix silently stops catching it. Opting in
-        // means the caller has checked its filters and named renderer-only payloads in
-        // `toolResultsHistoryExclude`.
-        //
-        // BEFORE the window slice AND before summarization, and both orderings matter:
+        // The fold below still runs over the ENTIRE fetched tail BEFORE the
+        // window slice, and both orderings matter:
         // - Slice first and the synthetic rows spend window slots they are then removed from, so a
         //   display-heavy thread replays fewer real turns than the caller asked for (a requested
         //   window of 3 replayed 2). Worse, the slice boundary can keep a row while cutting the
@@ -2711,11 +2830,49 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         // - Summarize first and an excluded payload is still egress: it reaches the summary prompt,
         //   and whatever the summary keeps comes back to the main model.
         // Folding first closes both, and makes the window count only rows that actually travel.
-        const replayableMessages = prepareToolResultsForReplay(validMessages, {
-          fold: foldToolResultsInHistoryRef.current === true,
-          exclude: toolResultsHistoryExcludeRef.current,
-          placeholder: DISPLAY_CARD_PLACEHOLDER,
-        });
+        // A synthetic row always follows the assistant turn that produced it, so
+        // any pairing whose payload survives the final slice has its fold target
+        // inside the fetched tail.
+        let tail: StoredMessage[] = [];
+        let replayableMessages: StoredMessage[] = [];
+        let beforeMessageId: number | undefined;
+        let boundaryExcludeUniqueIds: string[] | undefined;
+        for (;;) {
+          const page = await getMessagesPageOp(storageCtx, convId, {
+            limit: maxHistoryMessages,
+            beforeMessageId,
+            boundaryExcludeUniqueIds,
+          });
+          if (page.length === 0) break;
+          tail = [...page, ...tail];
+
+          // This conversation's own `[Tool Execution Results]` rows: folded onto the assistant turns
+          // that produced them when the caller opts in, dropped otherwise. Never verbatim — they are
+          // `role: "user"`, so each would put two consecutive user turns on the wire (the failure web's
+          // client-side filter exists to avoid).
+          //
+          // Off by default because folding relocates the payload onto an `assistant` row, and a caller
+          // whose own scrubbers key on `role === "user"` + prefix silently stops catching it. Opting in
+          // means the caller has checked its filters and named renderer-only payloads in
+          // `toolResultsHistoryExclude`.
+          const validMessages = tail.filter((msg) => !msg.error);
+          replayableMessages = prepareToolResultsForReplay(validMessages, {
+            fold: foldToolResultsInHistoryRef.current === true,
+            exclude: toolResultsHistoryExcludeRef.current,
+            placeholder: DISPLAY_CARD_PLACEHOLDER,
+          });
+          if (replayableMessages.length >= maxHistoryMessages) break;
+          if (page.length < maxHistoryMessages) break; // thread exhausted
+          // `message_id` is not unique in legacy data (count-based ids +
+          // deletes) and the cursor is INCLUSIVE at the boundary when
+          // exclusions are given — exclude EVERY already-held row at the
+          // boundary message_id, not just page[0], or a duplicated boundary
+          // row is re-fetched into the tail on the next page.
+          beforeMessageId = page[0].messageId;
+          boundaryExcludeUniqueIds = tail
+            .filter((msg) => msg.messageId === beforeMessageId)
+            .map((msg) => msg.uniqueId);
+        }
         const limitedMessages = replayableMessages.slice(-maxHistoryMessages);
 
         // Collect file context from conversation history if we don't have it from current message
@@ -2820,10 +2977,18 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
                 // Keep text parts
                 if (part.type === "text") return true;
 
-                // For input_file parts, check if this specific file was preprocessed
+                // For input_file parts, check if this specific file was preprocessed — by id, or
+                // (for parts built without a file_id) by the data/URL it carries.
                 if (part.type === "input_file" && part.file) {
                   const fileId = part.file.file_id;
-                  return !fileId || !preprocessedFileIds.includes(fileId);
+                  if (fileId) return !preprocessedFileIds.includes(fileId);
+                  const { file_data: fileData, file_url: fileUrl } = part.file;
+                  return !filesForStorage?.some(
+                    (f) =>
+                      preprocessedFileIds.includes(f.id) &&
+                      !!f.url &&
+                      (f.url === fileData || f.url === fileUrl)
+                  );
                 }
 
                 // For image_url parts, check if the URL matches a preprocessed file
@@ -2871,6 +3036,19 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         }
       }
 
+      // This turn's extracted attachment text rides on this turn's user message, next to the
+      // words that refer to it — see attachFileContextToLastUserMessage for why not a system
+      // message. Context recalled from an earlier turn still goes through `fileContext` below.
+      const currentTurnFileText = [
+        fileContextIsCurrentTurn ? fileContextForRequest : undefined,
+        fileProcessingNotes,
+      ]
+        .filter(Boolean)
+        .join("\n\n");
+      if (currentTurnFileText) {
+        messagesToSend = attachFileContextToLastUserMessage(messagesToSend, currentTurnFileText);
+      }
+
       // Store the user message
       // If wallet address is available and encryption is ready, store files in media table and OPFS
       // Skip file/media storage when encryption key isn't ready (queue window is 1-3s during signup)
@@ -2886,7 +3064,11 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         content: contentForStorage,
         fileIds: userFileIds.length > 0 ? userFileIds : undefined,
         model,
-        // Store extracted file content in thinking field for retrieval in follow-up messages
+        // Store the file context — this turn's, or the one recalled from an earlier row — in the
+        // thinking field for retrieval in follow-up messages. Re-storing recalled context is the
+        // carry-forward: recall only scans the last `maxHistoryMessages` rows, so without it a
+        // file's text is lost once the turn that attached it scrolls out of the window. Failure
+        // notes are never stored: only `[Extracted content from …]` text, which recall keys on.
         thinking: fileContextForRequest,
         parentMessageId,
       };
@@ -2981,8 +3163,16 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
                 const toolNames = serverToolsFilter(userMessageEmbeddings, allServerTools);
                 filteredServerTools = filterServerTools(allServerTools, toolNames);
               }
-              // If message is too short for embeddings, don't include any server tools
-              // (user explicitly provided a filter, so sending all tools defeats the purpose)
+              // If message is too short for embeddings, include only the sticky sets'
+              // server tools (user explicitly provided a filter, so sending all tools
+              // defeats the purpose)
+              filteredServerTools = withActiveToolSetServerTools(
+                filteredServerTools,
+                allServerTools,
+                serverToolsFilter,
+                activeToolSetsRef.current,
+                extraToolSets
+              );
             } else {
               // Static filtering: use string array directly
               filteredServerTools = filterServerTools(allServerTools, serverToolsFilter);
@@ -3103,7 +3293,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         headers,
         memoryContext,
         searchContext,
-        fileContext: fileContextForRequest,
+        fileContext: fileContextIsCurrentTurn ? undefined : fileContextForRequest,
         toolGuidance: computeToolGuidance(
           filteredServerTools,
           filteredClientTools,
@@ -3504,6 +3694,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     getAllFiles,
     createMemoryEngineTool,
     createMemoryVaultTool,
+    retainVaultMemory,
     createMemoryVaultSearchTool,
     createRecallTool,
     recall: recallFn,

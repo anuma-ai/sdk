@@ -55,6 +55,7 @@ import {
   getMessagesOp,
   getMessagesPageOp,
   type GetMessagesPageOptions,
+  getToolCallEventIdsOp,
   makeSyntheticStoredConversation,
   makeSyntheticStoredMessage,
   Message,
@@ -72,6 +73,7 @@ import {
   upsertMessageOp,
 } from "../lib/db/chat";
 import { updateMessageEmbeddingOp } from "../lib/db/chat";
+import { maskScopedEmbeddingCache } from "../lib/db/chat/embeddingCache";
 import {
   createMediaBatchOp,
   type CreateMediaOptions,
@@ -103,6 +105,8 @@ import {
   type RecallResult,
   type RecallToolCallbacks,
   type RecallToolOptions,
+  retain,
+  type RetainResult,
 } from "../lib/memory";
 import {
   chunkText,
@@ -119,10 +123,11 @@ import {
   createMemoryVaultTool as createMemoryVaultToolBase,
   getVaultEmbeddingCache,
   type MemoryVaultToolOptions,
+  type VaultWriteInput,
 } from "../lib/memoryVault";
 import type { NerDetector } from "../lib/pii/ner";
 import { isPiiRedactor, PiiRedactor } from "../lib/pii/redactor";
-import { IMAGE_TOOL_NAMES } from "../lib/storage/mcpImages";
+import { IMAGE_TOOL_NAMES, toolOutputForModel } from "../lib/storage/mcpImages";
 import {
   autoFilterClientTools,
   computeToolGuidance,
@@ -136,6 +141,7 @@ import {
   type ServerTool,
   shouldRefreshTools,
   type ToolSet,
+  withActiveToolSetServerTools,
 } from "../lib/tools";
 import type { EmbeddedWalletSignerFn, SignMessageFn } from "../react/useEncryption";
 import {
@@ -300,31 +306,10 @@ function storedToLlmapiMessage(stored: StoredMessage): LlmapiMessage[] {
     // 2. Tool result messages
     for (const event of stored.toolCallEvents) {
       if (event.id && event.output !== undefined && event.output !== null) {
-        // For image tools, strip the URL from the output to prevent the model
-        // from echoing previous images and causing duplicate storage in the library.
-        let toolOutput = event.output;
-        if (event.name && IMAGE_TOOL_NAMES.has(event.name)) {
-          try {
-            const parsed = JSON.parse(toolOutput) as Record<string, unknown>;
-            // anuma_create_image returns `output_images: [{url,...}]`; the old
-            // tools returned a single `imageUrl`/`url`. Strip both so the model
-            // can't echo prior images back into the next turn.
-            const {
-              imageUrl: _imageUrl,
-              url: _url,
-              output_images: _outputImages,
-              ...rest
-            } = parsed;
-            toolOutput = JSON.stringify(rest);
-          } catch {
-            // Not JSON — use as-is
-          }
-        }
-
         messages.push({
           role: "tool" as LlmapiMessage["role"],
           tool_call_id: event.id,
-          content: [{ type: "text", text: toolOutput }],
+          content: [{ type: "text", text: toolOutputForModel(event.name, event.output) }],
         });
       }
     }
@@ -644,6 +629,15 @@ export interface UseChatStorageResult extends BaseUseChatStorageResult {
   createMemoryVaultTool: (options?: MemoryVaultToolOptions) => ToolConfig;
 
   /**
+   * Write one memory through `retain()` — cosine auto-merge against the vault,
+   * so an explicit "save this" from a host surface (selection → memory, a
+   * manual add) lands as a re-observation of an existing memory instead of a
+   * duplicate row when the vault already holds the fact. The
+   * `memory_vault_save` tool writes through this too. Throws without `getToken`.
+   */
+  retainVaultMemory: (input: VaultWriteInput) => Promise<RetainResult>;
+
+  /**
    * Create the unified recall tool — single chat-completion tool that
    * searches both vault facts and conversation chunks via recall().
    * Replaces the legacy createMemoryEngineTool / vault search pair.
@@ -666,10 +660,9 @@ export interface UseChatStorageResult extends BaseUseChatStorageResult {
 
   /** Get all vault memories for context injection. Soft-deleted memories are
    * excluded unless `includeDeleted` is set. */
-  getVaultMemories: (options?: {
-    scopes?: string[];
-    includeDeleted?: boolean;
-  }) => Promise<StoredVaultMemory[]>;
+  getVaultMemories: (
+    options?: Parameters<typeof getAllVaultMemoriesOp>[1]
+  ) => Promise<StoredVaultMemory[]>;
 
   /** Delete a vault memory by its ID (soft delete). */
   deleteVaultMemory: (id: string) => Promise<boolean>;
@@ -754,6 +747,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     embeddingModel = DEFAULT_API_EMBEDDING_MODEL,
     minContentLength = DEFAULT_MIN_CONTENT_LENGTH,
     preProcessors,
+    smoothing,
     resumable = false,
     onCancelResult,
     onStreamMeta,
@@ -1129,16 +1123,6 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
   );
 
   /**
-   * Create a memory vault tool pre-configured with hook's vault context and encryption
-   */
-  const createMemoryVaultTool = useCallback(
-    (options?: MemoryVaultToolOptions): ToolConfig => {
-      return createMemoryVaultToolBase(vaultCtx, options);
-    },
-    [vaultCtx]
-  );
-
-  /**
    * Shared embedding cache for vault memories on the recall path.
    *
    * Resolved from the process-wide registry, so the Expo client's several
@@ -1180,6 +1164,53 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       chunkVectorCacheRef.current.clear();
     });
   }, [vaultEmbeddingCache]);
+
+  /**
+   * Write one memory through `retain()` — see the React hook's counterpart for
+   * the rationale (auto-merge for explicit saves; `source: "manual"`; no
+   * tombstone gate; cosine-only, TODO(ceiling) on consolidation). Mirrors the
+   * recall tool's embedding options below, including the PII mask.
+   */
+  const retainVaultMemory = useCallback(
+    async (input: VaultWriteInput): Promise<RetainResult> => {
+      if (!getToken) {
+        throw new Error("getToken is required to retain a vault memory");
+      }
+      return retain(
+        input.content,
+        {
+          vaultCtx,
+          embeddingOptions: {
+            getToken,
+            baseUrl,
+            model: embeddingModel,
+            maskInput: maskEmbeddingInput,
+          },
+          vaultCache: vaultEmbeddingCache,
+        },
+        {
+          source: "manual",
+          scope: input.scope,
+          ...(input.folderId !== undefined && { folderId: input.folderId }),
+          ...(input.factType !== undefined && { factType: input.factType }),
+        }
+      );
+    },
+    [vaultCtx, getToken, baseUrl, embeddingModel, maskEmbeddingInput, vaultEmbeddingCache]
+  );
+
+  const createMemoryVaultTool = useCallback(
+    (options?: MemoryVaultToolOptions): ToolConfig => {
+      // New memories go through retain() (auto-merge) whenever a token is
+      // available to embed with; a caller-supplied `write` still wins. Without
+      // one the tool keeps its direct-insert path.
+      return createMemoryVaultToolBase(
+        vaultCtx,
+        getToken ? { write: retainVaultMemory, ...options } : options
+      );
+    },
+    [vaultCtx, getToken, retainVaultMemory]
+  );
 
   /**
    * Create the unified recall tool — fact + chunk fused via RRF in one
@@ -1288,7 +1319,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
    * Get all vault memories (for injecting as context into messages)
    */
   const getVaultMemories = useCallback(
-    (options?: { scopes?: string[]; includeDeleted?: boolean }): Promise<StoredVaultMemory[]> => {
+    (options?: Parameters<typeof getAllVaultMemoriesOp>[1]): Promise<StoredVaultMemory[]> => {
       return getAllVaultMemoriesOp(vaultCtx, options);
     },
     [vaultCtx]
@@ -1320,6 +1351,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     onError,
     apiType,
     preProcessors,
+    smoothing,
     resumable,
     onCancelResult,
     onStreamMeta,
@@ -1684,6 +1716,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         summaryModel = DEFAULT_SUMMARY_MODEL,
         files,
         storedUserContent,
+        embeddingCache,
         onData: perRequestOnData,
         onThinking: perRequestOnThinking,
         memoryContext,
@@ -1743,18 +1776,31 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       // a single vector for short prompts, one vector per chunk for long ones so
       // tool scoring uses max similarity across chunks. Both shapes are accepted
       // by the server/client tool filters and by chunked message-embedding storage.
+      //
+      // `masked` is separate from `mask` because the caller-shared `embeddingCache` is namespaced by
+      // the masking DECISION, not by the masker (see maskScopedEmbeddingCache). And the text goes in
+      // RAW with `maskInput` doing the masking, so the cache key is the string a caller holding the
+      // user's text would use — pre-masking the argument keys on the masked text and a shared Map
+      // never hits. Both mirror the react path.
       const embedToolText = (
         text: string,
         mask: (t: string) => string,
+        masked: boolean,
         token: (() => Promise<string | null>) | undefined
       ): Promise<number[] | number[][]> => {
-        const opts = { getToken: token, baseUrl, model: embeddingModel };
+        const opts = {
+          getToken: token,
+          baseUrl,
+          model: embeddingModel,
+          maskInput: mask,
+          cache: embeddingCache ? maskScopedEmbeddingCache(embeddingCache, masked) : undefined,
+        };
         return shouldChunkMessage(text, DEFAULT_CHUNK_SIZE)
           ? generateEmbeddings(
-              chunkText(text).map((c) => mask(c.text)),
+              chunkText(text).map((c) => c.text),
               opts
             )
-          : generateEmbedding(mask(text), opts);
+          : generateEmbedding(text, opts);
       };
 
       // Eager key derivation: if wallet is present but key isn't, try to derive it now
@@ -1820,17 +1866,31 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
               // Function-based filtering: embed with the CURRENT token getter (the
               // embedding is reused by the client filter below) and call the filter.
               // Tool-selection floor MIN_CONTENT_LENGTH_FOR_TOOLS (5), NOT the storage
-              // floor. Too short to embed → send NO server tools (leave []); an
+              // floor. Too short to embed → send only the sticky sets' server tools; an
               // explicit filter must never degrade to the full catalog. Parity with react.
               if (messageContent.length >= MIN_CONTENT_LENGTH_FOR_TOOLS) {
-                skipUserEmbedding = await embedToolText(
-                  messageContent,
-                  maskForCall,
-                  getTokenRef.current
-                );
-                const toolNames = serverToolsFilter(skipUserEmbedding, allServerTools);
-                filteredServerTools = filterServerTools(allServerTools, toolNames);
+                try {
+                  skipUserEmbedding = await embedToolText(
+                    messageContent,
+                    maskForCall,
+                    Boolean(callPiiRedaction),
+                    getTokenRef.current
+                  );
+                  const toolNames = serverToolsFilter(skipUserEmbedding, allServerTools);
+                  filteredServerTools = filterServerTools(allServerTools, toolNames);
+                } catch {
+                  // Embedding failed: no semantic server tools, but the sticky sets'
+                  // still go (parity with react). skipEmbeddingFailed stays unset so
+                  // the client block below retries the embedding.
+                }
               }
+              filteredServerTools = withActiveToolSetServerTools(
+                filteredServerTools,
+                allServerTools,
+                serverToolsFilter,
+                activeToolSetsRef.current,
+                extraToolSets
+              );
             } else {
               // Static filtering
               filteredServerTools = filterServerTools(allServerTools, serverToolsFilter);
@@ -1862,6 +1922,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
                 skipUserEmbedding = await embedToolText(
                   messageContent,
                   maskForCall,
+                  Boolean(callPiiRedaction),
                   getTokenRef.current
                 );
               } catch {
@@ -2084,7 +2145,14 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         token: () => Promise<string | null>
       ): Promise<{ embedding: number[] | number[][] } | { error: unknown }> => {
         try {
-          return { embedding: await embedToolText(contentForStorage, maskForCall, token) };
+          return {
+            embedding: await embedToolText(
+              contentForStorage,
+              maskForCall,
+              Boolean(callPiiRedaction),
+              token
+            ),
+          };
         } catch (error) {
           return { error };
         }
@@ -2118,29 +2186,18 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       // deduplicate the backend's accumulated tool_call_events later.
       // This must run unconditionally — even when includeHistory is false, the
       // backend still returns accumulated events across the entire conversation.
-      const storedMessages = await getMessages(convId);
-      const knownToolCallEventIds = new Set<string>();
-      for (const msg of storedMessages) {
-        if (msg.toolCallEvents) {
-          for (const evt of msg.toolCallEvents) {
-            if (evt.id) knownToolCallEventIds.add(evt.id);
-          }
-        }
-      }
+      const knownToolCallEventIds = await getToolCallEventIdsOp(storageCtx, convId);
 
       // Include history if requested
       if (includeHistory) {
-        const validMessages = storedMessages.filter((msg) => !msg.error);
-
-        // This conversation's own `[Tool Execution Results]` rows: folded onto the assistant turns
-        // that produced them when the caller opts in, dropped otherwise. Never verbatim — they are
-        // `role: "user"`, so each one would put two consecutive user turns on the wire and the model
-        // would answer the previous turn instead of the new prompt. Dropping is the conservative
-        // branch: it costs the model what the tools returned, which is what folding exists to fix.
-        // `toolResultsHistoryExclude` withholds display payloads from replay (replay only — the row
-        // itself is still persisted and backed up; the card needs it to re-render).
+        // Page backward newest-first instead of reading the whole thread: a
+        // full-thread getMessagesOp parses + decrypts every embedding column
+        // (vector/chunks, tens of KB per row) only to slice all but the last
+        // maxHistoryMessages away. getMessagesPageOp skips those columns, and
+        // the loop stops as soon as the folded window is full.
         //
-        // BEFORE the window slice AND before summarization, and both orderings matter:
+        // The fold below still runs over the ENTIRE fetched tail BEFORE the
+        // window slice, and both orderings matter:
         // - Slice first and the synthetic rows spend window slots they are then removed from, so a
         //   display-heavy thread replays fewer real turns than the caller asked for. Worse, the slice
         //   boundary can keep a row while cutting the assistant it belongs to, and the payload is then
@@ -2149,11 +2206,47 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         //   put those coordinates in the summary prompt, and anything the summary retains comes back
         //   to the main model through `summarySystemMessage`.
         // Folding first closes both, and makes the window count only rows that actually travel.
-        const replayableMessages = prepareToolResultsForReplay(validMessages, {
-          fold: foldToolResultsInHistoryRef.current === true,
-          exclude: toolResultsHistoryExcludeRef.current,
-          placeholder: DISPLAY_CARD_PLACEHOLDER,
-        });
+        // A synthetic row always follows the assistant turn that produced it, so
+        // any pairing whose payload survives the final slice has its fold target
+        // inside the fetched tail.
+        let tail: StoredMessage[] = [];
+        let replayableMessages: StoredMessage[] = [];
+        let beforeMessageId: number | undefined;
+        let boundaryExcludeUniqueIds: string[] | undefined;
+        for (;;) {
+          const page = await getMessagesPageOp(storageCtx, convId, {
+            limit: maxHistoryMessages,
+            beforeMessageId,
+            boundaryExcludeUniqueIds,
+          });
+          if (page.length === 0) break;
+          tail = [...page, ...tail];
+
+          // This conversation's own `[Tool Execution Results]` rows: folded onto the assistant turns
+          // that produced them when the caller opts in, dropped otherwise. Never verbatim — they are
+          // `role: "user"`, so each one would put two consecutive user turns on the wire and the model
+          // would answer the previous turn instead of the new prompt. Dropping is the conservative
+          // branch: it costs the model what the tools returned, which is what folding exists to fix.
+          // `toolResultsHistoryExclude` withholds display payloads from replay (replay only — the row
+          // itself is still persisted and backed up; the card needs it to re-render).
+          const validMessages = tail.filter((msg) => !msg.error);
+          replayableMessages = prepareToolResultsForReplay(validMessages, {
+            fold: foldToolResultsInHistoryRef.current === true,
+            exclude: toolResultsHistoryExcludeRef.current,
+            placeholder: DISPLAY_CARD_PLACEHOLDER,
+          });
+          if (replayableMessages.length >= maxHistoryMessages) break;
+          if (page.length < maxHistoryMessages) break; // thread exhausted
+          // `message_id` is not unique in legacy data (count-based ids +
+          // deletes) and the cursor is INCLUSIVE at the boundary when
+          // exclusions are given — exclude EVERY already-held row at the
+          // boundary message_id, not just page[0], or a duplicated boundary
+          // row is re-fetched into the tail on the next page.
+          beforeMessageId = page[0].messageId;
+          boundaryExcludeUniqueIds = tail
+            .filter((msg) => msg.messageId === beforeMessageId)
+            .map((msg) => msg.uniqueId);
+        }
         const limitedMessages = replayableMessages.slice(-maxHistoryMessages);
         const foldedHistory = limitedMessages;
 
@@ -2278,25 +2371,31 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
             // of the send (the embedding is reused by the client filter + message
             // storage below) and call the filter. Tool-selection floor
             // MIN_CONTENT_LENGTH_FOR_TOOLS (5), NOT the storage floor
-            // `minContentLength` (10). Too short to embed → send NO server tools
-            // (leave []); an explicit semantic filter must never degrade to the
-            // full catalog. Parity with react.
+            // `minContentLength` (10). Too short to embed → send only the sticky
+            // sets' server tools; an explicit semantic filter must never degrade
+            // to the full catalog. Parity with react.
             if (contentForStorage.length >= MIN_CONTENT_LENGTH_FOR_TOOLS) {
               // Same late-token fallback as the catalog fetch above.
               const settledEmbedding = await (userMessageEmbeddingPromise ??
                 embedForToolsSettled(getTokenRef.current));
               if ("error" in settledEmbedding) {
+                // No semantic server tools, but the sticky sets' still go (parity
+                // with react). userMessageEmbeddingFailed stays unset so the client
+                // block retries the embedding.
                 serverFilterEmbeddingFailed = true;
-                // Re-raise: the embedding used to run inside this try, so a
-                // failure logged "Failed to fetch server tools", discarded the
-                // catalog we just fetched and left userMessageEmbeddingFailed
-                // unset — the client block then retried the embedding.
-                throw settledEmbedding.error;
+              } else {
+                userMessageEmbedding = settledEmbedding.embedding;
+                const toolNames = serverToolsFilter(userMessageEmbedding, allServerTools);
+                filteredServerTools = filterServerTools(allServerTools, toolNames);
               }
-              userMessageEmbedding = settledEmbedding.embedding;
-              const toolNames = serverToolsFilter(userMessageEmbedding, allServerTools);
-              filteredServerTools = filterServerTools(allServerTools, toolNames);
             }
+            filteredServerTools = withActiveToolSetServerTools(
+              filteredServerTools,
+              allServerTools,
+              serverToolsFilter,
+              activeToolSetsRef.current,
+              extraToolSets
+            );
           } else {
             // Static filtering
             filteredServerTools = filterServerTools(allServerTools, serverToolsFilter);
@@ -3314,6 +3413,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     getMessageCount,
     createMemoryEngineTool,
     createMemoryVaultTool,
+    retainVaultMemory,
     createRecallTool,
     recall: recallFn,
     getVaultMemories,

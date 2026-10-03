@@ -1,6 +1,6 @@
 # StorageOperationsContext
 
-Defined in: [src/lib/db/chat/operations.ts:325](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/operations.ts#325)
+Defined in: [src/lib/db/chat/operations.ts:326](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/operations.ts#326)
 
 ## Properties
 
@@ -8,7 +8,7 @@ Defined in: [src/lib/db/chat/operations.ts:325](https://github.com/anuma-ai/sdk/
 
 > **conversationsCollection**: `Collection`<[`ChatConversation`](../classes/ChatConversation.md)>
 
-Defined in: [src/lib/db/chat/operations.ts:328](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/operations.ts#328)
+Defined in: [src/lib/db/chat/operations.ts:329](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/operations.ts#329)
 
 ***
 
@@ -16,7 +16,7 @@ Defined in: [src/lib/db/chat/operations.ts:328](https://github.com/anuma-ai/sdk/
 
 > **database**: `Database`
 
-Defined in: [src/lib/db/chat/operations.ts:326](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/operations.ts#326)
+Defined in: [src/lib/db/chat/operations.ts:327](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/operations.ts#327)
 
 ***
 
@@ -24,7 +24,7 @@ Defined in: [src/lib/db/chat/operations.ts:326](https://github.com/anuma-ai/sdk/
 
 > `optional` **embeddedWalletSigner**: [`EmbeddedWalletSignerFn`](../type-aliases/EmbeddedWalletSignerFn.md)
 
-Defined in: [src/lib/db/chat/operations.ts:334](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/operations.ts#334)
+Defined in: [src/lib/db/chat/operations.ts:335](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/operations.ts#335)
 
 Function for silent signing with embedded wallets
 
@@ -34,7 +34,7 @@ Function for silent signing with embedded wallets
 
 > **messagesCollection**: `Collection`<[`ChatMessage`](../classes/ChatMessage.md)>
 
-Defined in: [src/lib/db/chat/operations.ts:327](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/operations.ts#327)
+Defined in: [src/lib/db/chat/operations.ts:328](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/operations.ts#328)
 
 ***
 
@@ -42,7 +42,7 @@ Defined in: [src/lib/db/chat/operations.ts:327](https://github.com/anuma-ai/sdk/
 
 > `optional` **signMessage**: [`SignMessageFn`](../type-aliases/SignMessageFn.md)
 
-Defined in: [src/lib/db/chat/operations.ts:332](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/operations.ts#332)
+Defined in: [src/lib/db/chat/operations.ts:333](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/operations.ts#333)
 
 Function to sign a message for encryption key derivation
 
@@ -52,6 +52,6 @@ Function to sign a message for encryption key derivation
 
 > `optional` **walletAddress**: `string`
 
-Defined in: [src/lib/db/chat/operations.ts:330](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/operations.ts#330)
+Defined in: [src/lib/db/chat/operations.ts:331](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/operations.ts#331)
 
 Wallet address for encryption (optional - when present, enables field-level encryption)

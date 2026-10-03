@@ -51,7 +51,7 @@ export type ToolUseEndEvent = {
   name: string;
   result?: unknown;
   error?: string;
-  errorType?: "parse" | "timeout" | "execution";
+  errorType?: "parse" | "timeout" | "execution" | "cancelled";
 };
 
 export type RunStartEvent = {

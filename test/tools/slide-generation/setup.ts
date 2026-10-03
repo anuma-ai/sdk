@@ -31,7 +31,25 @@ export {
 } from "../setup.js";
 export type { StepFinishEvent };
 
-import { config as _config, requirePortalKey } from "../setup.js";
+import { config as _config, requirePortalKey, type ToolCallLog } from "../setup.js";
+
+/**
+ * True when a logged tool call was accepted by its executor. A rejected call
+ * changes nothing: `plan_deck({})` returns `{ error: "title is required" }` and
+ * the model moves on, so counting it as the deck's plan or as a re-init reads
+ * the wrong call.
+ */
+export function succeeded(entry: ToolCallLog): boolean {
+  let r = entry.result;
+  if (typeof r === "string") {
+    try {
+      r = JSON.parse(r);
+    } catch {
+      return true;
+    }
+  }
+  return !(r !== null && typeof r === "object" && "error" in r);
+}
 
 // ---------------------------------------------------------------------------
 // Portal server-tool schemas (e.g. AnumaMediaMCP-anuma_create_image)

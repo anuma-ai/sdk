@@ -8,10 +8,10 @@
  */
 
 import {
-  createMemoryVaultSearchTool,
   preEmbedVaultMemories,
   type VaultEmbeddingCache,
 } from "../../../../src/lib/memoryVault/searchTool.js";
+import { createMemoryVaultSearchTool } from "../../../../src/lib/memoryVault/searchToolExecutor.js";
 import { retain } from "../../../../src/lib/memory/retain.js";
 import { generateEmbeddings } from "../../../../src/lib/memoryEngine/embeddings.js";
 import type {

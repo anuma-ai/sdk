@@ -2,7 +2,7 @@
 
 > **getVaultRankingProjectionsOp**(`ctx`: [`VaultMemoryOperationsContext`](../interfaces/VaultMemoryOperationsContext.md), `options?`: `object`): `Promise`<[`RankableVaultMemory`](../interfaces/RankableVaultMemory.md)\[]>
 
-Defined in: [src/lib/db/memoryVault/operations.ts:717](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#717)
+Defined in: [src/lib/db/memoryVault/operations.ts:693](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#693)
 
 Return content-free [RankableVaultMemory](../interfaces/RankableVaultMemory.md) projections for recall
 ranking — the "rank first, decrypt last" half of on-demand recall (#5017).
@@ -73,6 +73,18 @@ that skipped these would leak embeddings for rows the caller can't see.
 <td>
 
 `number`
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.memoryIds?`
+
+</td>
+<td>
+
+`string`\[]
 
 </td>
 </tr>

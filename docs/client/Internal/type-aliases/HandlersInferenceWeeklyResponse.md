@@ -2,7 +2,7 @@
 
 > **HandlersInferenceWeeklyResponse** = `object`
 
-Defined in: [src/client/types.gen.ts:2287](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2287)
+Defined in: [src/client/types.gen.ts:2459](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2459)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:2287](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **total\_requests**: `number`
 
-Defined in: [src/client/types.gen.ts:2293](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2293)
+Defined in: [src/client/types.gen.ts:2465](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2465)
 
 TotalRequests is the all-time platform-wide inference request count (every row in `requests`),
 for the headline. Distinct from summing `weeks`, which covers only the recent window. 0 if the
@@ -22,4 +22,4 @@ count couldn't be fetched this request.
 
 > `optional` **weeks**: [`HandlersWeeklyInferenceItem`](HandlersWeeklyInferenceItem.md)\[]
 
-Defined in: [src/client/types.gen.ts:2294](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2294)
+Defined in: [src/client/types.gen.ts:2466](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2466)

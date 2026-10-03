@@ -120,6 +120,9 @@ function mockRecord(overrides: Record<string, any> = {}) {
     _setRaw(key: string, value: any) {
       raw[key] = value;
     },
+    _getRaw(key: string) {
+      return raw[key];
+    },
     update: vi.fn(async (updater: (r: any) => void) => {
       updater({
         _setRaw: (k: string, v: any) => {
@@ -831,6 +834,41 @@ describe("updateVaultMemoryEmbeddingOp", () => {
     // The model tag is written alongside the vector — a stale tag would make
     // search re-embed the row on every query.
     expect(setRawSpy).toHaveBeenCalledWith("embedding_model", "test-embed-model");
+  });
+
+  it("decrypts for an expected-content check outside the writer", async () => {
+    const { decryptVaultMemoryFields } = await import("./encryption");
+    let inWriter = false;
+    const decryptedInWriter: boolean[] = [];
+    vi.mocked(decryptVaultMemoryFields).mockImplementation(async (memory: any) => {
+      decryptedInWriter.push(inWriter);
+      return { ...memory, content: String(memory.content).replace("encrypted:", "") };
+    });
+    const record = mockRecord({ content: "encrypted:Plays cello" });
+    const ctx = makeCtx({
+      walletAddress: "0xabc",
+      signMessage: vi.fn(),
+      database: {
+        write: vi.fn(async (cb: () => any) => {
+          inWriter = true;
+          try {
+            return await cb();
+          } finally {
+            inWriter = false;
+          }
+        }),
+      } as any,
+      vaultMemoryCollection: { find: vi.fn(async () => record) } as any,
+    });
+
+    const result = await updateVaultMemoryEmbeddingOp(ctx, "mem_1", "[1,0]", "m", {
+      content: "Plays cello",
+    });
+
+    expect(result).toBe(true);
+    // A decrypt can reach the signer; inside database.write it would stall
+    // every other write in the app behind a signature prompt.
+    expect(decryptedInWriter).toEqual([false]);
   });
 
   it("returns false for soft-deleted records", async () => {
@@ -1639,6 +1677,33 @@ describe("getVaultRankingProjectionsOp", () => {
 
     expect(results[0].embedding).toBe("[0.1,0.2,0.3]");
     expect(results[0].uniqueId).toBe("mem_vec");
+  });
+
+  it("carries last_observed_at through as lastObservedAt (null when unset)", async () => {
+    // A consolidation `update` rewrites content under preserveUpdatedAt, so
+    // updated_at stays pinned and ONLY last_observed_at moves. The Nearby
+    // publish reconciler reads this projection to decide what to re-send; if
+    // the column is dropped here, that rewrite is invisible to it forever.
+    const pinned = new Date("2025-01-01").getTime();
+    const reobserved = pinned + 60_000;
+    const consolidated = mockRecord({ id: "mem_consolidated", updated_at: pinned });
+    consolidated._raw.last_observed_at = reobserved;
+    const untouched = mockRecord({ id: "mem_untouched", updated_at: pinned });
+    const queryFn = vi.fn((..._conditions: any[]) => ({
+      fetch: vi.fn(async () => [consolidated, untouched]),
+      unsafeFetchRaw: vi.fn(async () => [consolidated._raw, untouched._raw]),
+    }));
+    const ctx = makeCtx({ vaultMemoryCollection: { query: queryFn } as any });
+
+    const results = await getVaultRankingProjectionsOp(ctx, { scopes: ["shared"] });
+
+    expect(results[0].uniqueId).toBe("mem_consolidated");
+    expect(results[0].updatedAt.getTime()).toBe(pinned);
+    expect(results[0].lastObservedAt).toBe(reobserved);
+    expect(results[1].uniqueId).toBe("mem_untouched");
+    expect(results[1].lastObservedAt).toBeNull();
+    // Still content-free — the new field must not smuggle the decrypt back in.
+    expect(results[0]).not.toHaveProperty("content");
   });
 
   it("reuses baseVaultConditions — excludes deleted + superseded like the recall read", async () => {

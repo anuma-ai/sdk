@@ -14,6 +14,7 @@ import { defineConfig } from "vitest/config";
 export default defineConfig({
   test: {
     include: [
+      "test/tools/requestProbe.ts",
       "test/tools/slide-generation/*Probe.test.ts",
       // Diagnostic build+edits timing sweep — same weak-assertion +
       // detailed-log profile as the probes. Lives here so the default

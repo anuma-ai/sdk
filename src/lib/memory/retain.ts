@@ -33,6 +33,7 @@ import {
   rankPreparedVaultCandidates,
   type VaultEmbeddingCache,
 } from "../memoryVault/searchTool.js";
+import { cacheRowVector } from "../memoryVault/vectorVersion.js";
 import { notifyConsolidationFallback } from "./consolidationFallback.js";
 import type { RetainOptions, RetainResult } from "./types.js";
 
@@ -97,6 +98,8 @@ export async function retain(
   // All stale memories the consolidator wants retired (every duplicate of a
   // now-changed standing value), and the refined new-fact content.
   let supersedeTargetIds: string[] = [];
+  // The consolidator explicitly chose `create` (not a fallback) — reported on the result.
+  let consolidationDecidedCreate = false;
   let supersedeContent: string | undefined;
   // Shared candidate set for both merge stages, built once below when
   // auto-merge is on. Kept in the outer scope so the create path can reuse its
@@ -173,8 +176,12 @@ export async function retain(
       const outcome = await tryConsolidate(trimmed, ctx, options, prepared);
       if (outcome) {
         if ("done" in outcome) return outcome.done;
-        supersedeTargetIds = outcome.supersede;
-        supersedeContent = outcome.content;
+        if ("create" in outcome) {
+          consolidationDecidedCreate = true;
+        } else {
+          supersedeTargetIds = outcome.supersede;
+          supersedeContent = outcome.content;
+        }
       }
     }
 
@@ -228,6 +235,7 @@ export async function retain(
           const updated = await updateVaultMemoryOp(ctx.vaultCtx, targetId, {
             content: existing.content,
             proofCountIncrement: 1,
+            observationSourceIds: options.sourceChunkIds,
             sourceChunkIds: mergedSourceIds,
             // resurrect encodes the decay gate: ACTIVE target → { preserveUpdatedAt:
             // true } (main's normal re-observation path — bump proof_count without
@@ -251,6 +259,13 @@ export async function retain(
               memoryId: targetId,
               targetId,
               proofCount: updated.proofCount ?? (existing.proofCount ?? 1) + 1,
+              similarity: matches[0].similarity,
+              // Stage 1 may have run and explicitly said `create`, and Stage 2
+              // then found a strict-cosine match anyway. Reporting the decision
+              // here is what makes that DISAGREEMENT visible — without it the
+              // model's create silently vanished from the distribution whenever
+              // the cosine stage won.
+              ...(consolidationDecidedCreate && { consolidation: "create" as const }),
             };
           }
           // A null result collapses two very different outcomes: the target was
@@ -291,12 +306,18 @@ export async function retain(
   // target that vanished mid-flight is now soft-deleted, so it's suppressed
   // here instead of re-created.
   if (options.respectTombstones) {
-    const tombstoneId = await findTombstoneMatch(embedding, embeddingModel, resolvedScope, ctx, {
+    const tombstone = await findTombstoneMatch(embedding, embeddingModel, resolvedScope, ctx, {
       threshold,
       folderId: options.folderId,
     });
-    if (tombstoneId) {
-      return { action: "suppressed", memoryId: tombstoneId, tombstoneId, proofCount: 0 };
+    if (tombstone) {
+      return {
+        action: "suppressed",
+        memoryId: tombstone.id,
+        tombstoneId: tombstone.id,
+        proofCount: 0,
+        similarity: tombstone.similarity,
+      };
     }
   }
 
@@ -350,7 +371,13 @@ export async function retain(
       primaryTargetId
     );
     if (created && retired) {
-      ctx.vaultCache.set(created.uniqueId, Float32Array.from(embedding));
+      cacheRowVector(
+        ctx.vaultCache,
+        created.uniqueId,
+        Float32Array.from(embedding),
+        created.updatedAt,
+        createOpts.content
+      );
       // Retire the remaining stale duplicates against the new memory. Best-effort,
       // but the boolean result is ambiguous — `supersedeVaultMemoryOp` returns
       // false BOTH for a row that is already gone/retired (benign — a concurrent
@@ -391,6 +418,7 @@ export async function retain(
         memoryId: created.uniqueId,
         targetId: primaryTargetId,
         proofCount: 1,
+        consolidation: "supersede",
       };
     }
     // Primary lost the race (already retired/deleted by a concurrent
@@ -416,13 +444,21 @@ export async function retain(
   const created = await createVaultMemoryOp(ctx.vaultCtx, createOpts);
   // Cache is keyed by memory id (not content) — set after the create returns
   // the uniqueId. Float32Array = model-native precision, half the RAM of a
-  // float64 number[].
-  ctx.vaultCache.set(created.uniqueId, Float32Array.from(embedding));
+  // float64 number[]. Tagged with the committed row's version so a search can
+  // tell this vector from one for a later edit of the same row.
+  cacheRowVector(
+    ctx.vaultCache,
+    created.uniqueId,
+    Float32Array.from(embedding),
+    created.updatedAt,
+    createOpts.content
+  );
 
   return {
     action: "create",
     memoryId: created.uniqueId,
     proofCount: 1,
+    ...(consolidationDecidedCreate && { consolidation: "create" as const }),
   };
 }
 
@@ -452,7 +488,7 @@ async function findTombstoneMatch(
   scope: string,
   ctx: RetainContext,
   opts: { threshold: number; folderId?: string | null }
-): Promise<string | null> {
+): Promise<{ id: string; similarity: number } | null> {
   const rows = await getAllVaultMemoriesOp(ctx.vaultCtx, {
     includeDeleted: true,
     scopes: [scope],
@@ -477,7 +513,7 @@ async function findTombstoneMatch(
       bestId = row.uniqueId;
     }
   }
-  return bestId;
+  return bestId === null ? null : { id: bestId, similarity: bestSim };
 }
 
 /**
@@ -562,7 +598,12 @@ function resurrectFields(existing: {
  *   stale `supersede` id. `content` is the refined new fact from the consolidator.
  * - `null` — no consolidation decision; fall through to strict merge / create.
  */
-type ConsolidateOutcome = { done: RetainResult } | { supersede: string[]; content: string } | null;
+type ConsolidateOutcome =
+  | { done: RetainResult }
+  | { supersede: string[]; content: string }
+  /** The LLM explicitly chose `create` — not a fallback, which returns null. */
+  | { create: true }
+  | null;
 
 /**
  * Report a consolidation decision that was dropped because the row it named was
@@ -620,7 +661,9 @@ async function tryConsolidate(
   const { consolidateMemory: doConsolidate } = await import("./consolidate.js");
   const decision = await doConsolidate(trimmed, candidates, consolidateOptions);
 
-  if (decision.action === "create") return null; // fall through to insert
+  // Fall through to insert either way; the flag distinguishes a real `create`
+  // decision from a degraded fallback (`fallbackReason` set, reported via onFallback).
+  if (decision.action === "create") return decision.fallbackReason ? null : { create: true };
 
   // supersede — the new fact replaces a standing value that changed. Validate
   // the stale target still exists AND isn't already retired (a concurrent
@@ -677,6 +720,7 @@ async function tryConsolidate(
     const updated = await updateVaultMemoryOp(ctx.vaultCtx, decision.targetId, {
       content: existing.content,
       proofCountIncrement: 1,
+      observationSourceIds: options.sourceChunkIds,
       sourceChunkIds: mergedSourceIds,
       // ACTIVE target → { preserveUpdatedAt: true } (main's normal re-observation
       // path); ARCHIVED (non-superseded, non-deleted) → { restore: true } and no
@@ -704,6 +748,7 @@ async function tryConsolidate(
         memoryId: decision.targetId,
         targetId: decision.targetId,
         proofCount: updated.proofCount ?? (existing.proofCount ?? 1) + 1,
+        consolidation: "noop",
       },
     };
   }
@@ -732,6 +777,7 @@ async function tryConsolidate(
     const updated = await updateVaultMemoryOp(ctx.vaultCtx, decision.targetId, {
       content: decision.content,
       proofCountIncrement: 1,
+      observationSourceIds: options.sourceChunkIds,
       sourceChunkIds: mergedSourceIds,
       embedding: JSON.stringify(newEmbedding),
       embeddingModel: consolidatedModel,
@@ -760,13 +806,20 @@ async function tryConsolidate(
     // Cache keyed by memory id (not content) — set only after the DB write
     // committed, so a failed update can't poison the cache with a vector for
     // content that was never persisted.
-    ctx.vaultCache.set(decision.targetId, Float32Array.from(newEmbedding));
+    cacheRowVector(
+      ctx.vaultCache,
+      decision.targetId,
+      Float32Array.from(newEmbedding),
+      updated.updatedAt,
+      decision.content
+    );
     return {
       done: {
         action: "update",
         memoryId: decision.targetId,
         targetId: decision.targetId,
         proofCount: updated.proofCount ?? (existing.proofCount ?? 1) + 1,
+        consolidation: "update",
       },
     };
   }

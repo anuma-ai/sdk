@@ -85,8 +85,12 @@ export type StreamingChunk = {
 /**
  * Tool executor function type
  */
-// eslint-disable-next-line @typescript-eslint/no-redundant-type-constituents -- intentional: allows synchronous return values from tool executors
-export type ToolExecutor = (args: Record<string, unknown>) => Promise<unknown> | unknown;
+/* eslint-disable @typescript-eslint/no-redundant-type-constituents -- intentional: allows synchronous return values from tool executors */
+export type ToolExecutor = (
+  args: Record<string, unknown>,
+  signal?: AbortSignal
+) => Promise<unknown> | unknown;
+/* eslint-enable @typescript-eslint/no-redundant-type-constituents */
 
 /**
  * Tool configuration with optional executor

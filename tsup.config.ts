@@ -1,6 +1,16 @@
 import { defineConfig } from "tsup";
 
 export default defineConfig([
+  // Pure context assembly: no React, native, database, or server runtime imports.
+  {
+    entry: ["src/lib/memory/context.ts"],
+    format: ["esm", "cjs"],
+    dts: true,
+    outDir: "dist/memory",
+    outExtension({ format }) {
+      return { js: format === "esm" ? ".mjs" : ".cjs" };
+    },
+  },
   {
     entry: ["src/index.ts"],
     format: ["esm", "cjs"],
@@ -187,6 +197,20 @@ export default defineConfig([
     format: ["esm", "cjs"],
     dts: true,
     outDir: "dist/utils",
+    outExtension({ format }) {
+      return {
+        js: format === "esm" ? ".mjs" : ".cjs",
+      };
+    },
+  },
+  // Telemetry — official observability adapter: RunHooks + recall diagnostics
+  // to a vendor-neutral TelemetrySink. Zero runtime deps; platform-neutral so
+  // no "react-native"/"react-server" conditions on the export.
+  {
+    entry: ["src/telemetry/index.ts"],
+    format: ["esm", "cjs"],
+    dts: true,
+    outDir: "dist/telemetry",
     outExtension({ format }) {
       return {
         js: format === "esm" ? ".mjs" : ".cjs",

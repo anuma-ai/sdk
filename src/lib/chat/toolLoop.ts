@@ -7,6 +7,7 @@ import type {
 } from "../../client";
 import { createSseClient } from "../../client/core/serverSentEvents.gen";
 import { BASE_URL } from "../../clientConfig";
+import { CONFIRM_TOOL_NAME } from "../../tools/confirmConstants";
 import { generateEmbedding } from "../memoryEngine/embeddings";
 import {
   createStreamingDeAnonymizer,
@@ -14,7 +15,14 @@ import {
   type PiiRedactor,
   resolvePiiRedactor,
 } from "../pii/redactor";
+import { toolOutputForModel } from "../storage/mcpImages";
+import {
+  BUILT_IN_TOOL_SETS,
+  CONFIRMED_ACTION_TOOL_SETS,
+  TOOL_SEARCH_TOOL_NAME,
+} from "../tools/serverTools";
 import { validateEndpointOverride } from "./endpointOverride";
+import { isAttachedFilesText } from "./fileContext";
 import type { PromptPreProcessor } from "./preProcessor";
 import type {
   ModelCallEndEvent,
@@ -259,7 +267,7 @@ import { getStrategy, resolveApiType } from "./useChat/strategies";
 import type { ApiResponse, ApiType } from "./useChat/strategies/types";
 import type { StreamSmoothingConfig } from "./useChat/StreamSmoother";
 import { StreamSmoother } from "./useChat/StreamSmoother";
-import type { AccumulatedToolCall, ToolConfig } from "./useChat/types";
+import type { AccumulatedToolCall, StreamAccumulator, ToolConfig } from "./useChat/types";
 import type {
   ServerToolCallEvent,
   ToolCallArgumentsDeltaEvent,
@@ -302,7 +310,13 @@ function measureRequest(
   };
 }
 
-/** Extract the text of the most recent user message. Empty string if none. */
+/**
+ * Extract the text of the most recent user message. Empty string if none.
+ *
+ * Skips the attached-file-contents part (see attachFileContextToLastUserMessage):
+ * pre-processors route on and embed this text, and some forward it to external
+ * endpoints, so it must be the user's prompt — never the document they attached.
+ */
 function extractLastUserText(messages: LlmapiMessage[]): string {
   const lastUserMsg = [...messages].reverse().find((m) => m.role === "user");
   if (!lastUserMsg) return "";
@@ -310,7 +324,7 @@ function extractLastUserText(messages: LlmapiMessage[]): string {
   if (typeof content === "string") return content;
   if (Array.isArray(content)) {
     return content
-      .filter((c) => c?.type === "text")
+      .filter((c) => c?.type === "text" && !isAttachedFilesText(c.text))
       .map((c) => c.text ?? "")
       .join(" ");
   }
@@ -327,6 +341,53 @@ function isToolErrorResult(result: unknown): boolean {
   );
 }
 
+/**
+ * Rebuild the tool calls the portal already executed this round (events with
+ * an output, even an empty one) as one assistant `tool_calls` message plus a `tool` message per
+ * call — the chain useChatStorage rebuilds for stored history. Ids already in
+ * the conversation are skipped: the portal repeats earlier rounds' events.
+ */
+function serverToolCallMessages(
+  events: StreamAccumulator["toolCallEvents"],
+  messages: LlmapiMessage[],
+  skipIds: Set<string>
+): LlmapiMessage[] {
+  const seen = new Set(skipIds);
+  for (const m of messages) {
+    if (m.tool_call_id) seen.add(m.tool_call_id);
+    for (const tc of m.tool_calls ?? []) if (tc.id) seen.add(tc.id);
+  }
+  const executed: NonNullable<StreamAccumulator["toolCallEvents"]> = [];
+  for (const event of events ?? []) {
+    if (!event.id || event.output === undefined || event.output === null || seen.has(event.id)) {
+      continue;
+    }
+    seen.add(event.id);
+    executed.push(event);
+  }
+  if (executed.length === 0) return [];
+
+  return [
+    {
+      role: "assistant",
+      content: undefined,
+      tool_calls: executed.map((event) => ({
+        id: event.id,
+        type: "function",
+        function: { name: event.name, arguments: event.arguments },
+      })),
+    },
+    ...executed.map(
+      (event) =>
+        ({
+          role: "tool",
+          tool_call_id: event.id,
+          content: [{ type: "text", text: toolOutputForModel(event.name, event.output ?? "") }],
+        }) as LlmapiMessage
+    ),
+  ];
+}
+
 /** Extract tool name from either nested (function.name) or flat (name) format. */
 function getToolName(tool: Record<string, unknown>): string | undefined {
   const func = tool.function as Record<string, unknown> | undefined;
@@ -335,6 +396,34 @@ function getToolName(tool: Record<string, unknown>): string | undefined {
   const flatName = tool.name;
   if (typeof flatName === "string") return flatName;
   return undefined;
+}
+
+/**
+ * The tools to keep once the user approves a confirm card whose action maps to
+ * a tool set: the set's members, the confirm tool (an early card can lack ids
+ * the action needs, so the model may have to show a complete one), and the
+ * tool-search tool that loads deferred members. Returns undefined to leave the
+ * tools alone: nothing was confirmed, the action maps to no set, or none of the
+ * set's members is on offer.
+ */
+export function toolsAfterConfirmation(
+  apiTools: Array<Record<string, unknown>>,
+  executionResults: ReadonlyArray<{ name?: string; result?: unknown }>
+): Array<Record<string, unknown>> | undefined {
+  const members = new Set<string>();
+  for (const r of executionResults) {
+    if (r.name !== CONFIRM_TOOL_NAME) continue;
+    const answer = r.result as { confirmed?: unknown; action?: unknown } | null | undefined;
+    if (answer?.confirmed !== true || typeof answer.action !== "string") continue;
+    const setName = CONFIRMED_ACTION_TOOL_SETS.get(answer.action.trim().toLowerCase());
+    const set = BUILT_IN_TOOL_SETS.find((s) => s.name === setName);
+    for (const member of set?.members ?? []) members.add(member);
+  }
+  if (!apiTools.some((t) => members.has(getToolName(t) ?? ""))) return undefined;
+  return apiTools.filter((t) => {
+    const name = getToolName(t) ?? "";
+    return members.has(name) || name === CONFIRM_TOOL_NAME || name === TOOL_SEARCH_TOOL_NAME;
+  });
 }
 
 /** A tool result from an auto-executed tool. */
@@ -1637,11 +1726,13 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
               ? `failed dependencies: ${failedDeps.join(", ")}`
               : "a dependency cycle";
             const errorMsg = `Tool "${tc.name}" was not executed due to ${reason}`;
+            // Work skipped because the user pressed Stop is a cancellation, not a tool failure.
+            const skipErrorType = combinedSignal?.aborted ? "cancelled" : "execution";
             executionResults.push({
               id: tc.id,
               name: tc.name,
               error: errorMsg,
-              errorType: "execution",
+              errorType: skipErrorType,
             });
             await safeAwait(() =>
               hooks?.afterToolUse?.({
@@ -1650,7 +1741,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
                 toolCallId: tc.id,
                 name: tc.name,
                 error: errorMsg,
-                errorType: "execution",
+                errorType: skipErrorType,
               } satisfies ToolUseEndEvent)
             );
           }
@@ -1680,7 +1771,8 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
             const { result, error, errorType } = await executeToolCall(
               toolCallForExec,
               executorConfig.executor,
-              executorConfig.executorTimeout
+              executorConfig.executorTimeout,
+              combinedSignal
             );
             await safeAwait(() =>
               hooks?.afterToolUse?.({
@@ -1775,6 +1867,28 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
             for (const name of toolsToRemove) {
               executorMap.delete(name);
             }
+          }
+        }
+      }
+
+      // After the user confirmed a booking, a model has wandered to unrelated
+      // tools (a local search, the weather) instead of booking, and a prompt
+      // line did not stop it. So a confirmed action narrows the rest of the
+      // turn to its tool set; apiTools carries the narrowing into later rounds.
+      if (apiTools) {
+        const confirmedTools = toolsAfterConfirmation(apiTools, executionResults);
+        if (confirmedTools) {
+          const kept = new Set(confirmedTools.map(getToolName));
+          if (
+            typeof toolChoice === "string" &&
+            !kept.has(toolChoice) &&
+            apiTools.some((t) => getToolName(t) === toolChoice)
+          ) {
+            toolChoice = "auto";
+          }
+          apiTools = confirmedTools;
+          for (const [name] of executorMap) {
+            if (!kept.has(name)) executorMap.delete(name);
           }
         }
       }
@@ -1885,7 +1999,16 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
           })),
       };
 
-      const toolResultMessages: LlmapiMessage[] = [assistantMessage];
+      // Server-executed calls from this round go first so the model sees the
+      // evidence (search results, availability) behind the client call.
+      const toolResultMessages: LlmapiMessage[] = [
+        ...serverToolCallMessages(
+          currentAccumulator.toolCallEvents,
+          currentMessages,
+          new Set(toolCallsToExecute.map((tc) => tc.id))
+        ),
+        assistantMessage,
+      ];
       for (const execResult of continueResults) {
         const resultContent = execResult.error
           ? `Error: ${execResult.error}`

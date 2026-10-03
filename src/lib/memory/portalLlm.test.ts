@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { noopLogger, setLogger } from "../logger.js";
 
-import { callPortalJsonCompletion } from "./portalLlm.js";
+import { callPortalJsonCompletion, requiresResponsesTransport } from "./portalLlm.js";
 import { INTERNAL_FLOW_MARKER } from "../internalFlowMarker.js";
 
 function mockResponse(content: string): Response {
@@ -315,6 +315,31 @@ describe("callPortalJsonCompletion — retry on transient failure", () => {
     }
   });
 
+  it("reports every attempt to onAttempt, success included, so a retry-then-succeed call is visible", async () => {
+    // The exact production shape behind the 2026-09 prompt collision: the model
+    // answered the literal `NONE` first, then JSON on the reminded retry. The
+    // call returns a value and fires no onFailure — only onAttempt sees the cost.
+    const fetchFn = vi
+      .fn()
+      .mockResolvedValueOnce(mockResponse("NONE"))
+      .mockResolvedValueOnce(mockResponse('{"candidates":[]}'));
+    const onAttempt = vi.fn();
+    const onFailure = vi.fn();
+    const result = await callPortalJsonCompletion({
+      ...baseArgs,
+      fetchFn,
+      onAttempt,
+      onFailure,
+      backoffMs: () => 0,
+    });
+    expect(result).toEqual({ candidates: [] });
+    expect(onFailure).not.toHaveBeenCalled();
+    expect(onAttempt.mock.calls.map((c) => c[0])).toEqual([
+      { attempt: 1, ok: false, reason: "invalid-json" },
+      { attempt: 2, ok: true },
+    ]);
+  });
+
   it("stops retrying once the absolute totalTimeoutMs budget is spent", async () => {
     const fetchFn = vi.fn().mockResolvedValue(new Response("upstream error", { status: 503 }));
     // totalTimeoutMs: 0 → the budget is already spent after the first failure,
@@ -529,6 +554,38 @@ describe("callPortalJsonCompletion — endpointOverride", () => {
       fetchFn,
     });
     expect(fetchFn.mock.calls[0][0]).toBe("https://portal.test/api/v1/utility/chat/completions");
+  });
+
+  // gpt-6-luna is what the app actually pins for Public-mode extraction (and #9528
+  // proposes for topics), so the family the bug was found on is not enough coverage.
+  it("auto-upgrades gpt-6-luna under the app's utility override and parses the Responses reply", async () => {
+    const fetchFn = vi
+      .fn()
+      .mockResolvedValue(mockResponsesBody('{"candidates":[]}', { withReasoningItem: true }));
+    const result = await callPortalJsonCompletion({
+      ...baseArgs,
+      model: "openai/gpt-6-luna",
+      endpointOverride: "/api/v1/utility/chat/completions",
+      fetchFn,
+    });
+    expect(fetchFn.mock.calls[0][0]).toBe("https://portal.test/api/v1/utility/responses");
+    expect(result).toEqual({ candidates: [] });
+  });
+
+  it("translates a chat-spelled output cap after auto-upgrading", async () => {
+    // topicExtract passes `max_completion_tokens: 8192` and never chose a transport;
+    // left untranslated, the Responses endpoint drops it and falls back to 4096.
+    const fetchFn = vi.fn().mockResolvedValue(mockResponsesBody('{"a":1}'));
+    await callPortalJsonCompletion({
+      ...baseArgs,
+      model: "openai/gpt-6-luna",
+      endpointOverride: "/api/v1/utility/chat/completions",
+      extra: { max_completion_tokens: 8192 },
+      fetchFn,
+    });
+    const body = JSON.parse(String(fetchFn.mock.calls[0][1].body));
+    expect(body.max_output_tokens).toBe(8192);
+    expect(body.max_completion_tokens).toBeUndefined();
   });
 
   it("normalizes a missing leading slash onto the override path", async () => {
@@ -1211,4 +1268,25 @@ describe("callPortalJsonCompletion — responses transport misuse guards", () =>
     expect(out).toEqual({ ok: true });
     expect(fetchFn, "must not have retried").toHaveBeenCalledTimes(1);
   });
+});
+
+describe("requiresResponsesTransport", () => {
+  it.each([
+    "openai/gpt-5.6-luna",
+    "openai/gpt-6-luna",
+    "openai/gpt-6-sol",
+    "openrouter/openai/gpt-6-luna",
+    // Astra rejects reasoning_effort "none" on chat, so responses is its only transport.
+    "openai/gpt-6-astra",
+    "openai/gpt-6-astra-pro",
+  ])("routes %s to the responses transport", (model) => {
+    expect(requiresResponsesTransport(model)).toBe(true);
+  });
+
+  it.each(["openai/gpt-5.5", "anthropic/claude-sonnet-5"])(
+    "leaves %s on chat completions",
+    (model) => {
+      expect(requiresResponsesTransport(model)).toBe(false);
+    }
+  );
 });

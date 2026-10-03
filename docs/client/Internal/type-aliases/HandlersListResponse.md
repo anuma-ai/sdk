@@ -2,7 +2,7 @@
 
 > **HandlersListResponse** = `object`
 
-Defined in: [src/client/types.gen.ts:2327](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2327)
+Defined in: [src/client/types.gen.ts:2503](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2503)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:2327](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **totals**: [`HandlersListTotals`](HandlersListTotals.md)
 
-Defined in: [src/client/types.gen.ts:2328](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2328)
+Defined in: [src/client/types.gen.ts:2504](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2504)
 
 ***
 
@@ -18,4 +18,4 @@ Defined in: [src/client/types.gen.ts:2328](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **wallets**: [`HandlersBoundWalletResponse`](HandlersBoundWalletResponse.md)\[]
 
-Defined in: [src/client/types.gen.ts:2329](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2329)
+Defined in: [src/client/types.gen.ts:2505](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2505)

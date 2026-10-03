@@ -858,7 +858,20 @@ export { decodeChunkVector, encodeChunkVector } from "./lib/memoryEngine";
 // entrypoints, because a client that cannot import the constant hand-rolls the
 // string instead, which is the drift they exist to prevent.
 export { TOOL_RESULT_ORIGIN } from "./lib/chat/toolResults";
+
+// The current turn's extracted attachment text rides on that turn's user message in this tagged
+// part. Exported from all three app entrypoints so a client that builds its own document context
+// (mobile) produces the same part — and so the pre-processor prompt skip recognises it.
+export {
+  attachFileContextToLastUserMessage,
+  buildAttachedFilesText,
+  isAttachedFilesText,
+} from "./lib/chat/fileContext";
 export { CHUNKS_DISCARDED_ORIGIN } from "./lib/memoryEngine";
+// Per-file preprocessing outcome (see `onFileProcessingResult` on the React `sendMessage`), and
+// the one-line-per-unread-file notes that go into the same attached-files part.
+export { formatFileProcessingNotes } from "./lib/processors/fileStatusNotes";
+export type { FileProcessingReason, FileProcessingStatus } from "./lib/processors/types";
 
 // Lazy conversation-title decryption (RAM reduction for chat sidebars).
 // Pair with the lazy ConversationMeta variant exported from

@@ -2,7 +2,7 @@
 
 > **PostInternalNearbyActivationsResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:11837](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11837)
+Defined in: [src/client/types.gen.ts:12586](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#12586)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:11837](https://github.com/anuma-ai/sdk/blob
 
 > **200**: [`HandlersNearbyActivationResponse`](HandlersNearbyActivationResponse.md)
 
-Defined in: [src/client/types.gen.ts:11841](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11841)
+Defined in: [src/client/types.gen.ts:12590](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#12590)
 
 OK

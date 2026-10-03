@@ -66,6 +66,7 @@ export {
 } from "../lib/chat/resumeStream";
 export type { StepFinishEvent, StreamMetaEvent, StreamResumeHandle } from "../lib/chat/toolLoop";
 export { ProviderStreamError } from "../lib/chat/toolLoop";
+export type { StreamSmoothingConfig } from "../lib/chat/useChat/StreamSmoother";
 export type { ToolCallArgumentsDeltaEvent } from "../lib/chat/useChat/utils";
 export { useChat } from "./useChat";
 
@@ -154,6 +155,7 @@ export {
   decryptDataBytes,
   decryptDataBytesFromBytes,
   decryptDataWithKey,
+  deriveKeyFromSignatureBytes,
   encryptData,
   // Batch operations for performance (single key lookup)
   encryptDataBatch,
@@ -171,6 +173,11 @@ export {
   seedEncryptionKeys,
   useEncryption,
 } from "./useEncryption";
+// Detects a still-sealed `enc:v2:` / `enc:v3:` field. A failed decrypt returns
+// the original ciphertext (never a placeholder), so a consumer that forwards
+// vault text off-device (the Nearby publish reconciler) must check this
+// before it sends — otherwise it publishes hex.
+export { isEncrypted } from "../lib/db/encryption-utils";
 export type {
   InteractionType,
   PendingInteraction,
@@ -196,7 +203,7 @@ export type {
   UseChatStorageOptions,
   UseChatStorageResult,
 } from "./useChatStorage";
-export { previewToolSelection, useChatStorage } from "./useChatStorage";
+export { maskScopedEmbeddingCache, previewToolSelection, useChatStorage } from "./useChatStorage";
 
 // OPFS encrypted storage utilities
 export {
@@ -252,6 +259,7 @@ export {
   type CreateConversationOptions,
   type CreateMessageOptions,
   decryptConversationTitle,
+  deleteMessageOp,
   type FileMetadata,
   generateConversationId,
   getConversationsByProjectLazyOp,
@@ -344,6 +352,7 @@ export {
   updateVaultMemoryOp,
   type UpdateVaultMemoryOptions,
   type VaultCandidateKey,
+  type VaultEmbeddingExpectation,
   type VaultMemoryOperationsContext,
   type VaultMemoryVisibility,
 } from "../lib/db/memoryVault";
@@ -377,13 +386,18 @@ export {
   createVaultEmbeddingCache,
   DEFAULT_VAULT_CACHE_SIZE,
   eagerEmbedContent,
+  type ManualFactType,
   type MemoryVaultSearchOptions,
   type MemoryVaultToolOptions,
   preEmbedVaultMemories,
   searchVaultMemories,
   type VaultEmbeddingCache,
+  type VaultMemoryWriter,
   type VaultSaveOperation,
   type VaultSearchResult,
+  type VaultWriteAction,
+  type VaultWriteInput,
+  type VaultWriteOutcome,
 } from "../lib/memoryVault";
 
 // Unified memory API surface — recall + retain + auto-extraction.
@@ -393,6 +407,7 @@ export type {
   Budget,
   CachedChunkVectors,
   ChunkVectorCache,
+  ConsolidationAction,
   ConsolidationFallbackReason,
   CreateAutoExtractorOptions,
   CreateDecaySweeperOptions,
@@ -406,6 +421,8 @@ export type {
   ExtractedEntity,
   ExtractFactsOptions,
   ExtractionCursorStore,
+  ExtractionFunnel,
+  ExtractionTimings,
   ExtractOutcome,
   FactType,
   GraphTraversalOptions,
@@ -435,6 +452,7 @@ export type {
   RecallContext,
   RecallDegradation,
   RecallDiagnostics,
+  RecallEmptyReason,
   RecallOptions,
   RecallResult,
   RecallToolCallbacks,
@@ -494,6 +512,7 @@ export {
   extractFacts,
   HARD_DELETE_WINDOW_MS,
   injectionSignatureCatalog,
+  INTERNAL_FLOW_MARKER,
   isDegradedTopicSkip,
   isRerankerAvailable,
   MAX_HOPS,
@@ -521,6 +540,7 @@ export {
   ttlForType,
   VAULT_SIZE_HOP_CAP,
   verifyMemoriesForPublish,
+  withInternalFlowMarker,
 } from "../lib/memory";
 
 // Entity / memory_entity tables — the W5 graph-lane storage that
@@ -676,6 +696,8 @@ export { useVoice } from "./useVoice";
 
 // File processors for preprocessing attachments
 export type {
+  FileProcessingReason,
+  FileProcessingStatus,
   FileProcessor,
   FileTypeQuery,
   FileWithData,
@@ -686,6 +708,7 @@ export type {
 } from "../lib/processors";
 export {
   ExcelProcessor,
+  formatFileProcessingNotes,
   getSupportedFileTypes,
   isSupportedFile,
   PdfProcessor,
@@ -753,6 +776,15 @@ export {
 // constant hand-rolls the string instead.
 export { TOOL_RESULT_ORIGIN } from "../lib/chat/toolResults";
 
+// The current turn's extracted attachment text rides on that turn's user message in this tagged
+// part. Exported from all three app entrypoints so a client that builds its own document context
+// (mobile) produces the same part — and so the pre-processor prompt skip recognises it.
+export {
+  attachFileContextToLastUserMessage,
+  buildAttachedFilesText,
+  isAttachedFilesText,
+} from "../lib/chat/fileContext";
+
 // Server-side tools caching utilities
 export type { DropboxExportResult, DropboxImportResult } from "../lib/backup/dropbox/backup";
 export type { GoogleDriveExportResult, GoogleDriveImportResult } from "../lib/backup/google/backup";
@@ -784,6 +816,7 @@ export {
   selectServerToolsForPrompt,
   SERVER_TOOL_DEPENDENCY_SETS,
   shouldRefreshTools,
+  withActiveToolSetServerTools,
 } from "../lib/tools";
 export type { DropboxAuthContextValue, DropboxAuthProviderProps } from "./useDropboxAuth";
 export {
@@ -958,6 +991,15 @@ export {
 
 // Re-export the AST types and tree helpers so consumers of the React
 // runtime can read/walk decks without a parallel import from /tools.
+export {
+  assembleMemoryContext,
+  type MemoryContextItem,
+  type MemoryContextLane,
+  type MemoryContextOptions,
+  type MemoryContextResult,
+  shouldRecallMemory,
+} from "../lib/memory";
+export { createDurableAutoExtractor, type DurableAutoExtractorOptions } from "../lib/memory";
 export type { AnumaChild, AnumaNode, AttrValue, KnownTag, ThemeAttr } from "../tools/slides";
 export {
   AnumaJsxError,

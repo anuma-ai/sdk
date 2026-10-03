@@ -1,8 +1,8 @@
 # SDK\_SCHEMA\_VERSION
 
-> `const` **SDK\_SCHEMA\_VERSION**: `45` = `45`
+> `const` **SDK\_SCHEMA\_VERSION**: `47` = `47`
 
-Defined in: [src/lib/db/schema.ts:121](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/schema.ts#121)
+Defined in: [src/lib/db/schema.ts:136](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/schema.ts#136)
 
 Current combined schema version for all SDK storage modules.
 
@@ -101,3 +101,17 @@ Version history:
 * v45: Added `media` to memory\_vault — the photo(s) a server-extracted
   memory came from, as JSON `[{feed_item_id, object_key}]`. Null on every
   row that did not come from a photo, which is all of them before this
+  migration ran
+* v46: Added device-local memory\_extraction\_jobs outbox for restart-safe
+  extraction. Additive (a single createTable, no backfill), so a v45 database
+  upgrades cleanly. NOT reversible: WatermelonDB has no downgrade path, so
+  rolling a release back past v46 after a device has run it resets that
+  device's local database. Relevant to OTA, where a JS-only rollback can
+  land on a database the newer build already migrated
+* v47: Added failed\_sessions, failed\_head, failed\_at to
+  memory\_extraction\_jobs — the persisted poison count for a job's head batch
+  (how many worker sessions it failed in, which batch that count belongs to,
+  and when the last one was counted, so sessions minutes apart count once). Without it the retry
+  budget was in memory and reset on every turn, so one batch that could never
+  extract blocked its conversation's extraction forever. Additive, both
+  nullable, no backfill: NULL reads as "never failed"

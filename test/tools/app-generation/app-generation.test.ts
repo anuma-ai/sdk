@@ -76,7 +76,7 @@ function makeMessages(userText: string, systemPrompt?: string) {
   return msgs;
 }
 
-describe("app-generation", () => {
+describe.concurrent("app-generation", () => {
   afterAll(async () => {
     writeIndex();
     await closeSharedBrowser();

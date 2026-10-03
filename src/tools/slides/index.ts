@@ -511,7 +511,10 @@ function summarizeDeck(deck: AnumaNode): string {
           ? child.attrs.layout
           : "(layout unknown)";
     lines.push("");
-    lines.push(`Slide ${n} (${slideId}) — ${layout}`);
+    // Label the id explicitly. As `Slide 1 (cover-statement) — …` the id read as
+    // a caption, and models patched guessed ids ("s1", "slide-1") that match
+    // nothing (anuma-ai/sdk#962).
+    lines.push(`Slide ${n} — id: "${slideId}", layout: ${layout}`);
     // Element-id roll-up (one line). The model uses these for patch_slides
     // targeting. Group / region containers get an "items: N" suffix so
     // flex regions are scannable without dumping every inner slot id.

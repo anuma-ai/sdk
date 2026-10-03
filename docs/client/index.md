@@ -137,6 +137,26 @@
 | [GetApiV1AdminConnectorsErrors](Internal/type-aliases/GetApiV1AdminConnectorsErrors.md) | - |
 | [GetApiV1AdminConnectorsResponse](Internal/type-aliases/GetApiV1AdminConnectorsResponse.md) | - |
 | [GetApiV1AdminConnectorsResponses](Internal/type-aliases/GetApiV1AdminConnectorsResponses.md) | - |
+| [GetApiV1AdminModerationCsamByIdHistoryData](Internal/type-aliases/GetApiV1AdminModerationCsamByIdHistoryData.md) | - |
+| [GetApiV1AdminModerationCsamByIdHistoryError](Internal/type-aliases/GetApiV1AdminModerationCsamByIdHistoryError.md) | - |
+| [GetApiV1AdminModerationCsamByIdHistoryErrors](Internal/type-aliases/GetApiV1AdminModerationCsamByIdHistoryErrors.md) | - |
+| [GetApiV1AdminModerationCsamByIdHistoryResponse](Internal/type-aliases/GetApiV1AdminModerationCsamByIdHistoryResponse.md) | - |
+| [GetApiV1AdminModerationCsamByIdHistoryResponses](Internal/type-aliases/GetApiV1AdminModerationCsamByIdHistoryResponses.md) | - |
+| [GetApiV1AdminModerationCsamData](Internal/type-aliases/GetApiV1AdminModerationCsamData.md) | - |
+| [GetApiV1AdminModerationCsamError](Internal/type-aliases/GetApiV1AdminModerationCsamError.md) | - |
+| [GetApiV1AdminModerationCsamErrors](Internal/type-aliases/GetApiV1AdminModerationCsamErrors.md) | - |
+| [GetApiV1AdminModerationCsamResponse](Internal/type-aliases/GetApiV1AdminModerationCsamResponse.md) | - |
+| [GetApiV1AdminModerationCsamResponses](Internal/type-aliases/GetApiV1AdminModerationCsamResponses.md) | - |
+| [GetApiV1AdminNearbyAccessCodesData](Internal/type-aliases/GetApiV1AdminNearbyAccessCodesData.md) | - |
+| [GetApiV1AdminNearbyAccessCodesError](Internal/type-aliases/GetApiV1AdminNearbyAccessCodesError.md) | - |
+| [GetApiV1AdminNearbyAccessCodesErrors](Internal/type-aliases/GetApiV1AdminNearbyAccessCodesErrors.md) | - |
+| [GetApiV1AdminNearbyAccessCodesResponse](Internal/type-aliases/GetApiV1AdminNearbyAccessCodesResponse.md) | - |
+| [GetApiV1AdminNearbyAccessCodesResponses](Internal/type-aliases/GetApiV1AdminNearbyAccessCodesResponses.md) | - |
+| [GetApiV1AdminNearbyMeetupsByIdData](Internal/type-aliases/GetApiV1AdminNearbyMeetupsByIdData.md) | - |
+| [GetApiV1AdminNearbyMeetupsByIdError](Internal/type-aliases/GetApiV1AdminNearbyMeetupsByIdError.md) | - |
+| [GetApiV1AdminNearbyMeetupsByIdErrors](Internal/type-aliases/GetApiV1AdminNearbyMeetupsByIdErrors.md) | - |
+| [GetApiV1AdminNearbyMeetupsByIdResponse](Internal/type-aliases/GetApiV1AdminNearbyMeetupsByIdResponse.md) | - |
+| [GetApiV1AdminNearbyMeetupsByIdResponses](Internal/type-aliases/GetApiV1AdminNearbyMeetupsByIdResponses.md) | - |
 | [GetApiV1AdminNotificationsCampaignsByCampaignIdData](Internal/type-aliases/GetApiV1AdminNotificationsCampaignsByCampaignIdData.md) | - |
 | [GetApiV1AdminNotificationsCampaignsByCampaignIdError](Internal/type-aliases/GetApiV1AdminNotificationsCampaignsByCampaignIdError.md) | - |
 | [GetApiV1AdminNotificationsCampaignsByCampaignIdErrors](Internal/type-aliases/GetApiV1AdminNotificationsCampaignsByCampaignIdErrors.md) | - |
@@ -400,6 +420,11 @@
 | [GetInternalAccountsByDidByDidErrors](Internal/type-aliases/GetInternalAccountsByDidByDidErrors.md) | - |
 | [GetInternalAccountsByDidByDidResponse](Internal/type-aliases/GetInternalAccountsByDidByDidResponse.md) | - |
 | [GetInternalAccountsByDidByDidResponses](Internal/type-aliases/GetInternalAccountsByDidByDidResponses.md) | - |
+| [GetNearbyAccessData](Internal/type-aliases/GetNearbyAccessData.md) | - |
+| [GetNearbyAccessError](Internal/type-aliases/GetNearbyAccessError.md) | - |
+| [GetNearbyAccessErrors](Internal/type-aliases/GetNearbyAccessErrors.md) | - |
+| [GetNearbyAccessResponse](Internal/type-aliases/GetNearbyAccessResponse.md) | - |
+| [GetNearbyAccessResponses](Internal/type-aliases/GetNearbyAccessResponses.md) | - |
 | [GetOauthAuthorizeData](Internal/type-aliases/GetOauthAuthorizeData.md) | - |
 | [GetOauthAuthorizeError](Internal/type-aliases/GetOauthAuthorizeError.md) | - |
 | [GetOauthAuthorizeErrors](Internal/type-aliases/GetOauthAuthorizeErrors.md) | - |
@@ -413,6 +438,11 @@
 | [GetReferralMeErrors](Internal/type-aliases/GetReferralMeErrors.md) | - |
 | [GetReferralMeResponse](Internal/type-aliases/GetReferralMeResponse.md) | - |
 | [GetReferralMeResponses](Internal/type-aliases/GetReferralMeResponses.md) | - |
+| [GetReferralRewardsData](Internal/type-aliases/GetReferralRewardsData.md) | - |
+| [GetReferralRewardsError](Internal/type-aliases/GetReferralRewardsError.md) | - |
+| [GetReferralRewardsErrors](Internal/type-aliases/GetReferralRewardsErrors.md) | - |
+| [GetReferralRewardsResponse](Internal/type-aliases/GetReferralRewardsResponse.md) | - |
+| [GetReferralRewardsResponses](Internal/type-aliases/GetReferralRewardsResponses.md) | - |
 | [GetWellKnownJwksJsonData](Internal/type-aliases/GetWellKnownJwksJsonData.md) | - |
 | [GetWellKnownJwksJsonResponse](Internal/type-aliases/GetWellKnownJwksJsonResponse.md) | - |
 | [GetWellKnownJwksJsonResponses](Internal/type-aliases/GetWellKnownJwksJsonResponses.md) | - |
@@ -473,6 +503,7 @@
 | [HandlersCreateCreditPackCheckoutRequest](Internal/type-aliases/HandlersCreateCreditPackCheckoutRequest.md) | - |
 | [HandlersCreateCustomerPortalRequest](Internal/type-aliases/HandlersCreateCustomerPortalRequest.md) | - |
 | [HandlersCreateDeveloperAppRequest](Internal/type-aliases/HandlersCreateDeveloperAppRequest.md) | - |
+| [HandlersCreateNearbyAccessCodeRequest](Internal/type-aliases/HandlersCreateNearbyAccessCodeRequest.md) | - |
 | [HandlersCreateOAuthClientRequest](Internal/type-aliases/HandlersCreateOAuthClientRequest.md) | - |
 | [HandlersCreateOAuthClientResponse](Internal/type-aliases/HandlersCreateOAuthClientResponse.md) | - |
 | [HandlersCreatePersonaRequest](Internal/type-aliases/HandlersCreatePersonaRequest.md) | - |
@@ -483,6 +514,8 @@
 | [HandlersCreditPacksResponse](Internal/type-aliases/HandlersCreditPacksResponse.md) | - |
 | [HandlersCreditRateResponse](Internal/type-aliases/HandlersCreditRateResponse.md) | - |
 | [HandlersCryptoPricesResponse](Internal/type-aliases/HandlersCryptoPricesResponse.md) | - |
+| [HandlersCsamHistoryResponse](Internal/type-aliases/HandlersCsamHistoryResponse.md) | - |
+| [HandlersCsamReviewRequest](Internal/type-aliases/HandlersCsamReviewRequest.md) | - |
 | [HandlersCustomerPortalResponse](Internal/type-aliases/HandlersCustomerPortalResponse.md) | - |
 | [HandlersDeleteUserResponse](Internal/type-aliases/HandlersDeleteUserResponse.md) | - |
 | [HandlersDeveloperApiKeyRequest](Internal/type-aliases/HandlersDeveloperApiKeyRequest.md) | - |
@@ -491,6 +524,8 @@
 | [HandlersDeveloperAppResponse](Internal/type-aliases/HandlersDeveloperAppResponse.md) | - |
 | [HandlersDeveloperUserResponse](Internal/type-aliases/HandlersDeveloperUserResponse.md) | - |
 | [HandlersDisableRequest](Internal/type-aliases/HandlersDisableRequest.md) | - |
+| [HandlersDmRequestCreatedRequest](Internal/type-aliases/HandlersDmRequestCreatedRequest.md) | - |
+| [HandlersDmRequestCreatedResponse](Internal/type-aliases/HandlersDmRequestCreatedResponse.md) | - |
 | [HandlersExchangeRequest](Internal/type-aliases/HandlersExchangeRequest.md) | - |
 | [HandlersExpiringCredits](Internal/type-aliases/HandlersExpiringCredits.md) | - |
 | [HandlersExtractPhotoFactsRequest](Internal/type-aliases/HandlersExtractPhotoFactsRequest.md) | - |
@@ -511,6 +546,7 @@
 | [HandlersListAppsResponse](Internal/type-aliases/HandlersListAppsResponse.md) | - |
 | [HandlersListCampaignsResponse](Internal/type-aliases/HandlersListCampaignsResponse.md) | - |
 | [HandlersListConsentsResponse](Internal/type-aliases/HandlersListConsentsResponse.md) | - |
+| [HandlersListCsamEventsResponse](Internal/type-aliases/HandlersListCsamEventsResponse.md) | - |
 | [HandlersListDeveloperApiKeysResponse](Internal/type-aliases/HandlersListDeveloperApiKeysResponse.md) | - |
 | [HandlersListDeveloperAppsResponse](Internal/type-aliases/HandlersListDeveloperAppsResponse.md) | - |
 | [HandlersListOAuthClientsResponse](Internal/type-aliases/HandlersListOAuthClientsResponse.md) | - |
@@ -518,6 +554,8 @@
 | [HandlersListTotals](Internal/type-aliases/HandlersListTotals.md) | - |
 | [HandlersListUserApiKeysResponse](Internal/type-aliases/HandlersListUserApiKeysResponse.md) | - |
 | [HandlersListUsersResponse](Internal/type-aliases/HandlersListUsersResponse.md) | - |
+| [HandlersMeetupJoinedRequest](Internal/type-aliases/HandlersMeetupJoinedRequest.md) | - |
+| [HandlersMeetupJoinedResponse](Internal/type-aliases/HandlersMeetupJoinedResponse.md) | - |
 | [HandlersMeResponse](Internal/type-aliases/HandlersMeResponse.md) | - |
 | [HandlersMfaSessionResponse](Internal/type-aliases/HandlersMfaSessionResponse.md) | - |
 | [HandlersMfaStatusResponse](Internal/type-aliases/HandlersMfaStatusResponse.md) | - |
@@ -526,12 +564,10 @@
 | [HandlersModalityUsageItem](Internal/type-aliases/HandlersModalityUsageItem.md) | - |
 | [HandlersModelToolUsageItem](Internal/type-aliases/HandlersModelToolUsageItem.md) | - |
 | [HandlersModelUsageItem](Internal/type-aliases/HandlersModelUsageItem.md) | - |
-| [HandlersModerateRequest](Internal/type-aliases/HandlersModerateRequest.md) | - |
-| [HandlersModerateResponse](Internal/type-aliases/HandlersModerateResponse.md) | - |
+| [HandlersNearbyAccessResponse](Internal/type-aliases/HandlersNearbyAccessResponse.md) | - |
 | [HandlersNearbyActivationGrantResponse](Internal/type-aliases/HandlersNearbyActivationGrantResponse.md) | - |
 | [HandlersNearbyActivationRequest](Internal/type-aliases/HandlersNearbyActivationRequest.md) | - |
 | [HandlersNearbyActivationResponse](Internal/type-aliases/HandlersNearbyActivationResponse.md) | - |
-| [HandlersNearbyModerateRequest](Internal/type-aliases/HandlersNearbyModerateRequest.md) | - |
 | [HandlersNonceResponse](Internal/type-aliases/HandlersNonceResponse.md) | - |
 | [HandlersNotificationDeviceResponse](Internal/type-aliases/HandlersNotificationDeviceResponse.md) | - |
 | [HandlersNotificationPreferenceItem](Internal/type-aliases/HandlersNotificationPreferenceItem.md) | - |
@@ -559,6 +595,7 @@
 | [HandlersPrivyIdentifierMigrateFailure](Internal/type-aliases/HandlersPrivyIdentifierMigrateFailure.md) | - |
 | [HandlersPrivyIdentifierMigrateResponse](Internal/type-aliases/HandlersPrivyIdentifierMigrateResponse.md) | - |
 | [HandlersProInfo](Internal/type-aliases/HandlersProInfo.md) | - |
+| [HandlersRedeemNearbyAccessCodeRequest](Internal/type-aliases/HandlersRedeemNearbyAccessCodeRequest.md) | - |
 | [HandlersRedeemTokensRequest](Internal/type-aliases/HandlersRedeemTokensRequest.md) | - |
 | [HandlersRedeemTokensResponse](Internal/type-aliases/HandlersRedeemTokensResponse.md) | - |
 | [HandlersReferralClaimRequest](Internal/type-aliases/HandlersReferralClaimRequest.md) | - |
@@ -569,11 +606,14 @@
 | [HandlersReferralInviteRequest](Internal/type-aliases/HandlersReferralInviteRequest.md) | - |
 | [HandlersReferralInviteResponse](Internal/type-aliases/HandlersReferralInviteResponse.md) | - |
 | [HandlersReferralMeResponse](Internal/type-aliases/HandlersReferralMeResponse.md) | - |
+| [HandlersReferralRewardGrant](Internal/type-aliases/HandlersReferralRewardGrant.md) | - |
 | [HandlersReferralRewardResponse](Internal/type-aliases/HandlersReferralRewardResponse.md) | - |
+| [HandlersReferralRewardsResponse](Internal/type-aliases/HandlersReferralRewardsResponse.md) | - |
 | [HandlersReferralTesterResponse](Internal/type-aliases/HandlersReferralTesterResponse.md) | - |
 | [HandlersRefreshRequest](Internal/type-aliases/HandlersRefreshRequest.md) | - |
 | [HandlersRegisterDeviceRequest](Internal/type-aliases/HandlersRegisterDeviceRequest.md) | - |
 | [HandlersRenewSubscriptionResponse](Internal/type-aliases/HandlersRenewSubscriptionResponse.md) | - |
+| [HandlersRevokeNearbyAccessCodeRequest](Internal/type-aliases/HandlersRevokeNearbyAccessCodeRequest.md) | - |
 | [HandlersRevokeRequest](Internal/type-aliases/HandlersRevokeRequest.md) | - |
 | [HandlersScheduleDowngradeRequest](Internal/type-aliases/HandlersScheduleDowngradeRequest.md) | - |
 | [HandlersScheduleDowngradeResponse](Internal/type-aliases/HandlersScheduleDowngradeResponse.md) | - |
@@ -588,6 +628,8 @@
 | [HandlersSetConnectorEnabledRequest](Internal/type-aliases/HandlersSetConnectorEnabledRequest.md) | - |
 | [HandlersSetInternalTesterRequest](Internal/type-aliases/HandlersSetInternalTesterRequest.md) | - |
 | [HandlersSetInternalTesterResponse](Internal/type-aliases/HandlersSetInternalTesterResponse.md) | - |
+| [HandlersSetNearbyBetaRequest](Internal/type-aliases/HandlersSetNearbyBetaRequest.md) | - |
+| [HandlersSetNearbyBetaResponse](Internal/type-aliases/HandlersSetNearbyBetaResponse.md) | - |
 | [HandlersSetNotificationPreferenceInput](Internal/type-aliases/HandlersSetNotificationPreferenceInput.md) | - |
 | [HandlersSetNotificationPreferencesRequest](Internal/type-aliases/HandlersSetNotificationPreferencesRequest.md) | - |
 | [HandlersSetScopeItem](Internal/type-aliases/HandlersSetScopeItem.md) | - |
@@ -640,6 +682,7 @@
 | [HandlersUserLookupResponse](Internal/type-aliases/HandlersUserLookupResponse.md) | - |
 | [HandlersUserLookupTextReg](Internal/type-aliases/HandlersUserLookupTextReg.md) | - |
 | [HandlersUserUsageResponse](Internal/type-aliases/HandlersUserUsageResponse.md) | - |
+| [HandlersVerifyChallengeResponse](Internal/type-aliases/HandlersVerifyChallengeResponse.md) | - |
 | [HandlersVerifyRequest](Internal/type-aliases/HandlersVerifyRequest.md) | - |
 | [HandlersWaitlistJoinRequest](Internal/type-aliases/HandlersWaitlistJoinRequest.md) | - |
 | [HandlersWaitlistJoinResponse](Internal/type-aliases/HandlersWaitlistJoinResponse.md) | - |
@@ -691,6 +734,9 @@
 | [LlmapiToolCallEvent](Internal/type-aliases/LlmapiToolCallEvent.md) | - |
 | [LlmapiToolCallFunction](Internal/type-aliases/LlmapiToolCallFunction.md) | Function contains the function call details |
 | [McpToolSchema](Internal/type-aliases/McpToolSchema.md) | - |
+| [ModelsGrantSide](Internal/type-aliases/ModelsGrantSide.md) | Side is which half of the two-sided reward this is: "referrer" for inviting someone who activated, "referee" for activating yourself. |
+| [ModelsGrantStatus](Internal/type-aliases/ModelsGrantStatus.md) | Status is where this grant sits in its payout lifecycle: "owed", "sent" or "failed". A "failed" grant is still owed money — the payout path retries it — and its amount is counted in OwedZeta accordingly. |
+| [ModelsNearbyAccessCode](Internal/type-aliases/ModelsNearbyAccessCode.md) | - |
 | [OpenaiChatCompletionAssistantMessageParam](Internal/type-aliases/OpenaiChatCompletionAssistantMessageParam.md) | - |
 | [OpenaiChatCompletionAssistantMessageParamAudio](Internal/type-aliases/OpenaiChatCompletionAssistantMessageParamAudio.md) | Data about a previous audio response from the model. [Learn more](https://platform.openai.com/docs/guides/audio). |
 | [OpenaiChatCompletionAssistantMessageParamContentArrayOfContentPartUnion](Internal/type-aliases/OpenaiChatCompletionAssistantMessageParamContentArrayOfContentPartUnion.md) | - |
@@ -785,6 +831,11 @@
 | [PatchApiV1UserOauthGrantsByIdErrors](Internal/type-aliases/PatchApiV1UserOauthGrantsByIdErrors.md) | - |
 | [PatchApiV1UserOauthGrantsByIdResponse](Internal/type-aliases/PatchApiV1UserOauthGrantsByIdResponse.md) | - |
 | [PatchApiV1UserOauthGrantsByIdResponses](Internal/type-aliases/PatchApiV1UserOauthGrantsByIdResponses.md) | - |
+| [PostApiV1AccountVerifyChallengeData](Internal/type-aliases/PostApiV1AccountVerifyChallengeData.md) | - |
+| [PostApiV1AccountVerifyChallengeError](Internal/type-aliases/PostApiV1AccountVerifyChallengeError.md) | - |
+| [PostApiV1AccountVerifyChallengeErrors](Internal/type-aliases/PostApiV1AccountVerifyChallengeErrors.md) | - |
+| [PostApiV1AccountVerifyChallengeResponse](Internal/type-aliases/PostApiV1AccountVerifyChallengeResponse.md) | - |
+| [PostApiV1AccountVerifyChallengeResponses](Internal/type-aliases/PostApiV1AccountVerifyChallengeResponses.md) | - |
 | [PostApiV1AdminAddCreditsData](Internal/type-aliases/PostApiV1AdminAddCreditsData.md) | - |
 | [PostApiV1AdminAddCreditsError](Internal/type-aliases/PostApiV1AdminAddCreditsError.md) | - |
 | [PostApiV1AdminAddCreditsErrors](Internal/type-aliases/PostApiV1AdminAddCreditsErrors.md) | - |
@@ -815,6 +866,16 @@
 | [PostApiV1AdminBotPollerStopErrors](Internal/type-aliases/PostApiV1AdminBotPollerStopErrors.md) | - |
 | [PostApiV1AdminBotPollerStopResponse](Internal/type-aliases/PostApiV1AdminBotPollerStopResponse.md) | - |
 | [PostApiV1AdminBotPollerStopResponses](Internal/type-aliases/PostApiV1AdminBotPollerStopResponses.md) | - |
+| [PostApiV1AdminNearbyAccessCodesData](Internal/type-aliases/PostApiV1AdminNearbyAccessCodesData.md) | - |
+| [PostApiV1AdminNearbyAccessCodesError](Internal/type-aliases/PostApiV1AdminNearbyAccessCodesError.md) | - |
+| [PostApiV1AdminNearbyAccessCodesErrors](Internal/type-aliases/PostApiV1AdminNearbyAccessCodesErrors.md) | - |
+| [PostApiV1AdminNearbyAccessCodesResponse](Internal/type-aliases/PostApiV1AdminNearbyAccessCodesResponse.md) | - |
+| [PostApiV1AdminNearbyAccessCodesResponses](Internal/type-aliases/PostApiV1AdminNearbyAccessCodesResponses.md) | - |
+| [PostApiV1AdminNearbyAccessCodesRevokeData](Internal/type-aliases/PostApiV1AdminNearbyAccessCodesRevokeData.md) | - |
+| [PostApiV1AdminNearbyAccessCodesRevokeError](Internal/type-aliases/PostApiV1AdminNearbyAccessCodesRevokeError.md) | - |
+| [PostApiV1AdminNearbyAccessCodesRevokeErrors](Internal/type-aliases/PostApiV1AdminNearbyAccessCodesRevokeErrors.md) | - |
+| [PostApiV1AdminNearbyAccessCodesRevokeResponse](Internal/type-aliases/PostApiV1AdminNearbyAccessCodesRevokeResponse.md) | - |
+| [PostApiV1AdminNearbyAccessCodesRevokeResponses](Internal/type-aliases/PostApiV1AdminNearbyAccessCodesRevokeResponses.md) | - |
 | [PostApiV1AdminNotificationsAnnounceModelData](Internal/type-aliases/PostApiV1AdminNotificationsAnnounceModelData.md) | - |
 | [PostApiV1AdminNotificationsAnnounceModelError](Internal/type-aliases/PostApiV1AdminNotificationsAnnounceModelError.md) | - |
 | [PostApiV1AdminNotificationsAnnounceModelErrors](Internal/type-aliases/PostApiV1AdminNotificationsAnnounceModelErrors.md) | - |
@@ -875,6 +936,11 @@
 | [PostApiV1AdminUsersInternalTesterErrors](Internal/type-aliases/PostApiV1AdminUsersInternalTesterErrors.md) | - |
 | [PostApiV1AdminUsersInternalTesterResponse](Internal/type-aliases/PostApiV1AdminUsersInternalTesterResponse.md) | - |
 | [PostApiV1AdminUsersInternalTesterResponses](Internal/type-aliases/PostApiV1AdminUsersInternalTesterResponses.md) | - |
+| [PostApiV1AdminUsersNearbyBetaData](Internal/type-aliases/PostApiV1AdminUsersNearbyBetaData.md) | - |
+| [PostApiV1AdminUsersNearbyBetaError](Internal/type-aliases/PostApiV1AdminUsersNearbyBetaError.md) | - |
+| [PostApiV1AdminUsersNearbyBetaErrors](Internal/type-aliases/PostApiV1AdminUsersNearbyBetaErrors.md) | - |
+| [PostApiV1AdminUsersNearbyBetaResponse](Internal/type-aliases/PostApiV1AdminUsersNearbyBetaResponse.md) | - |
+| [PostApiV1AdminUsersNearbyBetaResponses](Internal/type-aliases/PostApiV1AdminUsersNearbyBetaResponses.md) | - |
 | [PostApiV1AdminUsersSuspendData](Internal/type-aliases/PostApiV1AdminUsersSuspendData.md) | - |
 | [PostApiV1AdminUsersSuspendError](Internal/type-aliases/PostApiV1AdminUsersSuspendError.md) | - |
 | [PostApiV1AdminUsersSuspendErrors](Internal/type-aliases/PostApiV1AdminUsersSuspendErrors.md) | - |
@@ -1010,11 +1076,6 @@
 | [PostApiV1GuestChatCompletionsErrors](Internal/type-aliases/PostApiV1GuestChatCompletionsErrors.md) | - |
 | [PostApiV1GuestChatCompletionsResponse](Internal/type-aliases/PostApiV1GuestChatCompletionsResponse.md) | - |
 | [PostApiV1GuestChatCompletionsResponses](Internal/type-aliases/PostApiV1GuestChatCompletionsResponses.md) | - |
-| [PostApiV1ModerateData](Internal/type-aliases/PostApiV1ModerateData.md) | - |
-| [PostApiV1ModerateError](Internal/type-aliases/PostApiV1ModerateError.md) | - |
-| [PostApiV1ModerateErrors](Internal/type-aliases/PostApiV1ModerateErrors.md) | - |
-| [PostApiV1ModerateResponse](Internal/type-aliases/PostApiV1ModerateResponse.md) | - |
-| [PostApiV1ModerateResponses](Internal/type-aliases/PostApiV1ModerateResponses.md) | - |
 | [PostApiV1NotificationsDevicesData](Internal/type-aliases/PostApiV1NotificationsDevicesData.md) | - |
 | [PostApiV1NotificationsDevicesError](Internal/type-aliases/PostApiV1NotificationsDevicesError.md) | - |
 | [PostApiV1NotificationsDevicesErrors](Internal/type-aliases/PostApiV1NotificationsDevicesErrors.md) | - |
@@ -1162,6 +1223,11 @@
 | [PostInternalCompleteErrors](Internal/type-aliases/PostInternalCompleteErrors.md) | - |
 | [PostInternalCompleteResponse](Internal/type-aliases/PostInternalCompleteResponse.md) | - |
 | [PostInternalCompleteResponses](Internal/type-aliases/PostInternalCompleteResponses.md) | - |
+| [PostInternalDmRequestsData](Internal/type-aliases/PostInternalDmRequestsData.md) | - |
+| [PostInternalDmRequestsError](Internal/type-aliases/PostInternalDmRequestsError.md) | - |
+| [PostInternalDmRequestsErrors](Internal/type-aliases/PostInternalDmRequestsErrors.md) | - |
+| [PostInternalDmRequestsResponse](Internal/type-aliases/PostInternalDmRequestsResponse.md) | - |
+| [PostInternalDmRequestsResponses](Internal/type-aliases/PostInternalDmRequestsResponses.md) | - |
 | [PostInternalEmbeddingsData](Internal/type-aliases/PostInternalEmbeddingsData.md) | - |
 | [PostInternalEmbeddingsError](Internal/type-aliases/PostInternalEmbeddingsError.md) | - |
 | [PostInternalEmbeddingsErrors](Internal/type-aliases/PostInternalEmbeddingsErrors.md) | - |
@@ -1172,11 +1238,11 @@
 | [PostInternalExtractPhotoFactsErrors](Internal/type-aliases/PostInternalExtractPhotoFactsErrors.md) | - |
 | [PostInternalExtractPhotoFactsResponse](Internal/type-aliases/PostInternalExtractPhotoFactsResponse.md) | - |
 | [PostInternalExtractPhotoFactsResponses](Internal/type-aliases/PostInternalExtractPhotoFactsResponses.md) | - |
-| [PostInternalModerateData](Internal/type-aliases/PostInternalModerateData.md) | - |
-| [PostInternalModerateError](Internal/type-aliases/PostInternalModerateError.md) | - |
-| [PostInternalModerateErrors](Internal/type-aliases/PostInternalModerateErrors.md) | - |
-| [PostInternalModerateResponse](Internal/type-aliases/PostInternalModerateResponse.md) | - |
-| [PostInternalModerateResponses](Internal/type-aliases/PostInternalModerateResponses.md) | - |
+| [PostInternalMeetupsJoinsData](Internal/type-aliases/PostInternalMeetupsJoinsData.md) | - |
+| [PostInternalMeetupsJoinsError](Internal/type-aliases/PostInternalMeetupsJoinsError.md) | - |
+| [PostInternalMeetupsJoinsErrors](Internal/type-aliases/PostInternalMeetupsJoinsErrors.md) | - |
+| [PostInternalMeetupsJoinsResponse](Internal/type-aliases/PostInternalMeetupsJoinsResponse.md) | - |
+| [PostInternalMeetupsJoinsResponses](Internal/type-aliases/PostInternalMeetupsJoinsResponses.md) | - |
 | [PostInternalNearbyActivationsData](Internal/type-aliases/PostInternalNearbyActivationsData.md) | - |
 | [PostInternalNearbyActivationsError](Internal/type-aliases/PostInternalNearbyActivationsError.md) | - |
 | [PostInternalNearbyActivationsErrors](Internal/type-aliases/PostInternalNearbyActivationsErrors.md) | - |
@@ -1187,6 +1253,11 @@
 | [PostInternalPrefineryClaimTokensErrors](Internal/type-aliases/PostInternalPrefineryClaimTokensErrors.md) | - |
 | [PostInternalPrefineryClaimTokensResponse](Internal/type-aliases/PostInternalPrefineryClaimTokensResponse.md) | - |
 | [PostInternalPrefineryClaimTokensResponses](Internal/type-aliases/PostInternalPrefineryClaimTokensResponses.md) | - |
+| [PostNearbyAccessCodeData](Internal/type-aliases/PostNearbyAccessCodeData.md) | - |
+| [PostNearbyAccessCodeError](Internal/type-aliases/PostNearbyAccessCodeError.md) | - |
+| [PostNearbyAccessCodeErrors](Internal/type-aliases/PostNearbyAccessCodeErrors.md) | - |
+| [PostNearbyAccessCodeResponse](Internal/type-aliases/PostNearbyAccessCodeResponse.md) | - |
+| [PostNearbyAccessCodeResponses](Internal/type-aliases/PostNearbyAccessCodeResponses.md) | - |
 | [PostNearbyWaitlistData](Internal/type-aliases/PostNearbyWaitlistData.md) | - |
 | [PostNearbyWaitlistError](Internal/type-aliases/PostNearbyWaitlistError.md) | - |
 | [PostNearbyWaitlistErrors](Internal/type-aliases/PostNearbyWaitlistErrors.md) | - |
@@ -1252,6 +1323,11 @@
 | [PutApiV1AdminConnectorsByProviderErrors](Internal/type-aliases/PutApiV1AdminConnectorsByProviderErrors.md) | - |
 | [PutApiV1AdminConnectorsByProviderResponse](Internal/type-aliases/PutApiV1AdminConnectorsByProviderResponse.md) | - |
 | [PutApiV1AdminConnectorsByProviderResponses](Internal/type-aliases/PutApiV1AdminConnectorsByProviderResponses.md) | - |
+| [PutApiV1AdminModerationCsamByIdReviewData](Internal/type-aliases/PutApiV1AdminModerationCsamByIdReviewData.md) | - |
+| [PutApiV1AdminModerationCsamByIdReviewError](Internal/type-aliases/PutApiV1AdminModerationCsamByIdReviewError.md) | - |
+| [PutApiV1AdminModerationCsamByIdReviewErrors](Internal/type-aliases/PutApiV1AdminModerationCsamByIdReviewErrors.md) | - |
+| [PutApiV1AdminModerationCsamByIdReviewResponse](Internal/type-aliases/PutApiV1AdminModerationCsamByIdReviewResponse.md) | - |
+| [PutApiV1AdminModerationCsamByIdReviewResponses](Internal/type-aliases/PutApiV1AdminModerationCsamByIdReviewResponses.md) | - |
 | [PutApiV1AdminPersonasByIdData](Internal/type-aliases/PutApiV1AdminPersonasByIdData.md) | - |
 | [PutApiV1AdminPersonasByIdError](Internal/type-aliases/PutApiV1AdminPersonasByIdError.md) | - |
 | [PutApiV1AdminPersonasByIdErrors](Internal/type-aliases/PutApiV1AdminPersonasByIdErrors.md) | - |
@@ -1279,6 +1355,13 @@
 | [PutApiV1NotificationsPreferencesResponses](Internal/type-aliases/PutApiV1NotificationsPreferencesResponses.md) | - |
 | [ResponseErrorResponse](Internal/type-aliases/ResponseErrorResponse.md) | - |
 | [ResponseInsufficientBalanceResponse](Internal/type-aliases/ResponseInsufficientBalanceResponse.md) | - |
+| [ServicesNearbyaccessAdmission](Internal/type-aliases/ServicesNearbyaccessAdmission.md) | - |
+| [ServicesNearbyCsamEvent](Internal/type-aliases/ServicesNearbyCsamEvent.md) | - |
+| [ServicesNearbyCsamReview](Internal/type-aliases/ServicesNearbyCsamReview.md) | - |
+| [ServicesNearbyMeetup](Internal/type-aliases/ServicesNearbyMeetup.md) | - |
+| [ServicesNearbyMeetupAttendee](Internal/type-aliases/ServicesNearbyMeetupAttendee.md) | - |
+| [ServicesNearbyMeetupDetail](Internal/type-aliases/ServicesNearbyMeetupDetail.md) | - |
+| [ServicesNearbyMeetupReport](Internal/type-aliases/ServicesNearbyMeetupReport.md) | - |
 | [SharedChatModel](Internal/type-aliases/SharedChatModel.md) | Model ID used to generate the response, like `gpt-4o` or `o3`. OpenAI offers a wide range of models with different capabilities, performance characteristics, and price points. Refer to the [model guide](https://platform.openai.com/docs/models) to browse and compare available models. |
 | [SharedFunctionDefinitionParam](Internal/type-aliases/SharedFunctionDefinitionParam.md) | - |
 | [SharedFunctionParameters](Internal/type-aliases/SharedFunctionParameters.md) | The parameters the functions accepts, described as a JSON Schema object. See the [guide](https://platform.openai.com/docs/guides/function-calling) for examples, and the [JSON Schema reference](https://json-schema.org/understanding-json-schema/) for documentation about the format. |
@@ -1319,6 +1402,10 @@
 | [getApiV1AdminAppsById](Internal/functions/getApiV1AdminAppsById.md) | Get app by ID |
 | [getApiV1AdminBotStatus](Internal/functions/getApiV1AdminBotStatus.md) | Get X-bot status (admin) |
 | [getApiV1AdminConnectors](Internal/functions/getApiV1AdminConnectors.md) | List connector enable/disable state (admin) |
+| [getApiV1AdminModerationCsam](Internal/functions/getApiV1AdminModerationCsam.md) | List CSAM moderation events (admin) |
+| [getApiV1AdminModerationCsamByIdHistory](Internal/functions/getApiV1AdminModerationCsamByIdHistory.md) | CSAM event review history (admin) |
+| [getApiV1AdminNearbyAccessCodes](Internal/functions/getApiV1AdminNearbyAccessCodes.md) | List People Nearby beta access codes |
+| [getApiV1AdminNearbyMeetupsById](Internal/functions/getApiV1AdminNearbyMeetupsById.md) | Get a nearby meetup (admin) |
 | [getApiV1AdminNotificationsCampaigns](Internal/functions/getApiV1AdminNotificationsCampaigns.md) | List announcement campaigns (admin) |
 | [getApiV1AdminNotificationsCampaignsByCampaignId](Internal/functions/getApiV1AdminNotificationsCampaignsByCampaignId.md) | Get an announcement campaign with delivery counters (admin) |
 | [getApiV1AdminOauthClients](Internal/functions/getApiV1AdminOauthClients.md) | List OAuth clients |
@@ -1375,21 +1462,26 @@
 | [getConnectorsByProviderConnect](Internal/functions/getConnectorsByProviderConnect.md) | Begin upstream OAuth connect flow |
 | [getHealth](Internal/functions/getHealth.md) | Health check |
 | [getInternalAccountsByDidByDid](Internal/functions/getInternalAccountsByDidByDid.md) | Resolve a Privy DID to an account ID |
+| [getNearbyAccess](Internal/functions/getNearbyAccess.md) | Read People Nearby beta admission for the caller |
 | [getOauthAuthorize](Internal/functions/getOauthAuthorize.md) | OAuth 2.0 authorization endpoint |
 | [getOauthConsent](Internal/functions/getOauthConsent.md) | OAuth consent screen |
 | [getReferralMe](Internal/functions/getReferralMe.md) | Read the caller's waitlist and referral state |
+| [getReferralRewards](Internal/functions/getReferralRewards.md) | Your referral rewards |
 | [getWellKnownJwksJson](Internal/functions/getWellKnownJwksJson.md) | OAuth 2.0 JSON Web Key Set |
 | [patchApiV1AdminNotificationsCampaignsByCampaignId](Internal/functions/patchApiV1AdminNotificationsCampaignsByCampaignId.md) | Edit a draft/scheduled announcement campaign (admin) |
 | [patchApiV1AdminOauthClientsByClientId](Internal/functions/patchApiV1AdminOauthClientsByClientId.md) | Update an OAuth client |
 | [patchApiV1DeveloperAppsByAppUuid](Internal/functions/patchApiV1DeveloperAppsByAppUuid.md) | Update app |
 | [patchApiV1DeveloperAppsByAppUuidUsersByAddress](Internal/functions/patchApiV1DeveloperAppsByAppUuidUsersByAddress.md) | Update user limit |
 | [patchApiV1UserOauthGrantsById](Internal/functions/patchApiV1UserOauthGrantsById.md) | Update OAuth grant |
+| [postApiV1AccountVerifyChallenge](Internal/functions/postApiV1AccountVerifyChallenge.md) | Verify the signup challenge |
 | [postApiV1AdminAddCredits](Internal/functions/postApiV1AdminAddCredits.md) | Add credits to user |
 | [postApiV1AdminAgents](Internal/functions/postApiV1AdminAgents.md) | Create agent |
 | [postApiV1AdminApps](Internal/functions/postApiV1AdminApps.md) | Create app |
 | [postApiV1AdminAppsByAppIdApiKeys](Internal/functions/postApiV1AdminAppsByAppIdApiKeys.md) | Create API key |
 | [postApiV1AdminBotPollerStart](Internal/functions/postApiV1AdminBotPollerStart.md) | Start the X-bot poller (admin) |
 | [postApiV1AdminBotPollerStop](Internal/functions/postApiV1AdminBotPollerStop.md) | Stop the X-bot poller (admin) |
+| [postApiV1AdminNearbyAccessCodes](Internal/functions/postApiV1AdminNearbyAccessCodes.md) | Create a People Nearby beta access code |
+| [postApiV1AdminNearbyAccessCodesRevoke](Internal/functions/postApiV1AdminNearbyAccessCodesRevoke.md) | Revoke or un-revoke a People Nearby beta access code |
 | [postApiV1AdminNotificationsAnnounceModel](Internal/functions/postApiV1AdminNotificationsAnnounceModel.md) | Announce a new model via push notification (admin) |
 | [postApiV1AdminNotificationsCampaigns](Internal/functions/postApiV1AdminNotificationsCampaigns.md) | Create an announcement campaign (admin) |
 | [postApiV1AdminNotificationsCampaignsByCampaignIdCancel](Internal/functions/postApiV1AdminNotificationsCampaignsByCampaignIdCancel.md) | Cancel an announcement campaign (admin) |
@@ -1402,6 +1494,7 @@
 | [postApiV1AdminSeedApps](Internal/functions/postApiV1AdminSeedApps.md) | Seed apps and API keys |
 | [postApiV1AdminSubscriptionTier](Internal/functions/postApiV1AdminSubscriptionTier.md) | Set user subscription tier |
 | [postApiV1AdminUsersInternalTester](Internal/functions/postApiV1AdminUsersInternalTester.md) | Grant or revoke the People Nearby internal-tester flag |
+| [postApiV1AdminUsersNearbyBeta](Internal/functions/postApiV1AdminUsersNearbyBeta.md) | Grant or revoke People Nearby beta admission for an account |
 | [postApiV1AdminUsersSuspend](Internal/functions/postApiV1AdminUsersSuspend.md) | Suspend a user account |
 | [postApiV1AdminUsersUnsuspend](Internal/functions/postApiV1AdminUsersUnsuspend.md) | Unsuspend a user account |
 | [postApiV1AuthMfaDisable](Internal/functions/postApiV1AuthMfaDisable.md) | Disable MFA |
@@ -1429,7 +1522,6 @@
 | [postApiV1DeveloperAppsByAppUuidUsersByAddressTopUp](Internal/functions/postApiV1DeveloperAppsByAppUuidUsersByAddressTopUp.md) | Top up user credits |
 | [postApiV1Embeddings](Internal/functions/postApiV1Embeddings.md) | Create embeddings |
 | [postApiV1GuestChatCompletions](Internal/functions/postApiV1GuestChatCompletions.md) | Guest chat completion (free trial) |
-| [postApiV1Moderate](Internal/functions/postApiV1Moderate.md) | Moderate content |
 | [postApiV1NotificationsDevices](Internal/functions/postApiV1NotificationsDevices.md) | Register push-notification device |
 | [postApiV1NotificationsDevicesUnregister](Internal/functions/postApiV1NotificationsDevicesUnregister.md) | Unregister push-notification device |
 | [postApiV1PhoneCalls](Internal/functions/postApiV1PhoneCalls.md) | Create phone call |
@@ -1460,11 +1552,13 @@
 | [postAuthOauthByProviderRevoke](Internal/functions/postAuthOauthByProviderRevoke.md) | Revoke OAuth token |
 | [postInternalAccountsByPhoneHashes](Internal/functions/postInternalAccountsByPhoneHashes.md) | Resolve phone hashes to account IDs (batch) |
 | [postInternalComplete](Internal/functions/postInternalComplete.md) | Create a chat completion (internal) |
+| [postInternalDmRequests](Internal/functions/postInternalDmRequests.md) | Report a new DM request (internal) |
 | [postInternalEmbeddings](Internal/functions/postInternalEmbeddings.md) | Create embeddings (internal) |
 | [postInternalExtractPhotoFacts](Internal/functions/postInternalExtractPhotoFacts.md) | Extract user facts from a photo (internal) |
-| [postInternalModerate](Internal/functions/postInternalModerate.md) | Moderate content (internal) |
+| [postInternalMeetupsJoins](Internal/functions/postInternalMeetupsJoins.md) | Report a meetup join (internal) |
 | [postInternalNearbyActivations](Internal/functions/postInternalNearbyActivations.md) | Record a People Nearby activation |
 | [postInternalPrefineryClaimTokens](Internal/functions/postInternalPrefineryClaimTokens.md) | Mint a waitlist claim token (internal) |
+| [postNearbyAccessCode](Internal/functions/postNearbyAccessCode.md) | Redeem a People Nearby beta access code |
 | [postNearbyWaitlist](Internal/functions/postNearbyWaitlist.md) | Join the Prefinery waitlist |
 | [postOauthConsent](Internal/functions/postOauthConsent.md) | Process OAuth consent |
 | [postOauthRevoke](Internal/functions/postOauthRevoke.md) | OAuth 2.0 token revocation (RFC 7009) |
@@ -1478,6 +1572,7 @@
 | [putApiV1AdminAppsById](Internal/functions/putApiV1AdminAppsById.md) | Update app |
 | [putApiV1AdminBotConfig](Internal/functions/putApiV1AdminBotConfig.md) | Update X-bot config (admin) |
 | [putApiV1AdminConnectorsByProvider](Internal/functions/putApiV1AdminConnectorsByProvider.md) | Enable or disable a connector (admin) |
+| [putApiV1AdminModerationCsamByIdReview](Internal/functions/putApiV1AdminModerationCsamByIdReview.md) | Record a CSAM event disposition (admin) |
 | [putApiV1AdminPersonasById](Internal/functions/putApiV1AdminPersonasById.md) | Update persona |
 | [putApiV1AgentsByIdPreference](Internal/functions/putApiV1AgentsByIdPreference.md) | Set user agent preference |
 | [putApiV1ConnectorsByProviderScopes](Internal/functions/putApiV1ConnectorsByProviderScopes.md) | Batch Allow/Disable connector capabilities |

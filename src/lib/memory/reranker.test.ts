@@ -13,6 +13,8 @@ const h = vi.hoisted(() => ({
   tokenizerLoads: 0,
   modelLoads: 0,
   failTokenizerLoads: 0,
+  /** When set, model loads wait on this promise (a stalled download). */
+  modelLoadGate: null as null | Promise<void>,
   /** Flat row-major logits + dims the fake model returns. */
   logitsData: [] as number[],
   logitsDims: [] as number[],
@@ -45,6 +47,7 @@ vi.mock("@huggingface/transformers", () => {
     AutoModelForSequenceClassification: {
       from_pretrained: async () => {
         h.modelLoads++;
+        if (h.modelLoadGate) await h.modelLoadGate;
         return model;
       },
     },
@@ -64,6 +67,7 @@ beforeEach(() => {
   h.tokenizerLoads = 0;
   h.modelLoads = 0;
   h.failTokenizerLoads = 0;
+  h.modelLoadGate = null;
   h.logitsData = [];
   h.logitsDims = [];
   h.lastTokenizeArgs = null;
@@ -224,6 +228,47 @@ describe("rerankPairs", () => {
     h.logitsData = [Number.NaN];
     const result = await rerankPairs("q", [{ id: "a", content: "x" }]);
     expect(result[0].score).toBe(0);
+  });
+});
+
+/**
+ * The first model load is a ~25MB download plus WASM init. On a stalled network
+ * it held every mid/high-budget recall for as long as the fetch took — forever,
+ * on a dead connection — because the load was awaited with no deadline.
+ */
+describe("reranker first-load deadline", () => {
+  it("degrades a stalled first load to RerankerUnavailableError and keeps the load for later calls", async () => {
+    let release!: () => void;
+    h.modelLoadGate = new Promise<void>((r) => (release = r));
+    h.logitsData = [2];
+    h.logitsDims = [1, 1];
+    vi.useFakeTimers();
+    try {
+      const { rerankPairs, isRerankerAvailable, RerankerUnavailableError } = await freshReranker();
+
+      let error: unknown;
+      const first = rerankPairs("q", [{ id: "a", content: "doc" }], {
+        loadTimeoutMs: 1000,
+      }).catch((err: unknown) => (error = err));
+      await vi.advanceTimersByTimeAsync(1000);
+      await first;
+
+      expect(error).toBeInstanceOf(RerankerUnavailableError);
+      // A slow load is not "package missing": availability stays unknown and a
+      // later call is still allowed to use the model.
+      expect(isRerankerAvailable()).toBeUndefined();
+
+      // The in-flight load was kept, not restarted: once it lands, the next
+      // call reranks without a second download.
+      release();
+      await vi.advanceTimersByTimeAsync(0);
+      const scored = await rerankPairs("q", [{ id: "a", content: "doc" }], { loadTimeoutMs: 1000 });
+      expect(scored.map((r) => r.id)).toEqual(["a"]);
+      expect(h.modelLoads).toBe(1);
+      expect(isRerankerAvailable()).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 

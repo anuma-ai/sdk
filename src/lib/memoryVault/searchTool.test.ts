@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { createMemoryVaultSearchTool } from "./searchToolExecutor";
 import {
-  createMemoryVaultSearchTool,
   searchVaultMemories,
   searchVaultMemoriesWithSize,
   preEmbedVaultMemories,
@@ -10,6 +10,8 @@ import {
   prepareVaultCandidates,
 } from "./searchTool";
 import { createVaultEmbeddingCache } from "./lruCache";
+import type { VaultEmbeddingCache } from "./searchTool";
+import { cacheRowVector } from "./vectorVersion";
 import type { VaultMemoryOperationsContext } from "../db/memoryVault/operations";
 import type { StoredVaultMemory } from "../db/memoryVault/types";
 import type { EmbeddingOptions } from "../memoryEngine/types";
@@ -49,9 +51,26 @@ import { setLogger, noopLogger, type Logger } from "../logger";
 import { DEFAULT_API_EMBEDDING_MODEL } from "../memoryEngine/constants";
 
 const mockVaultCtx = {} as VaultMemoryOperationsContext;
+
+/** Every `makeMemory` row's `updatedAt`. Cache entries are tied to the row
+ * version they were computed for (see vectorVersion.ts), so fixtures seed the
+ * cache through {@link seedVector}, which tags them with this version. */
+const ROW_VERSION = new Date("2026-06-01T00:00:00Z");
+/** Content of the latest fixture row built for each id — cache entries are also
+ * tagged with a content fingerprint, so a seed must name the row's content. */
+const fixtureContent = new Map<string, string>();
+function seedVector(
+  cache: VaultEmbeddingCache,
+  id: string,
+  vec: Float32Array,
+  version: Date = ROW_VERSION
+): void {
+  cacheRowVector(cache, id, vec, version, fixtureContent.get(id));
+}
 const mockEmbeddingOptions: EmbeddingOptions = { apiKey: "test-key" };
 
 function makeMemory(id: string, content: string, scope = "private"): StoredVaultMemory {
+  fixtureContent.set(id, content);
   return {
     uniqueId: id,
     content,
@@ -59,8 +78,8 @@ function makeMemory(id: string, content: string, scope = "private"): StoredVault
     folderId: null,
     userId: null,
     embedding: null,
-    createdAt: new Date(),
-    updatedAt: new Date(),
+    createdAt: ROW_VERSION,
+    updatedAt: ROW_VERSION,
     isDeleted: false,
   };
 }
@@ -83,7 +102,7 @@ describe("searchVaultMemories", () => {
     vi.mocked(generateEmbedding).mockResolvedValue([1, 0, 0]);
 
     const cache = createVaultEmbeddingCache();
-    cache.set("m1", new Float32Array([1, 0, 0]));
+    seedVector(cache, "m1", new Float32Array([1, 0, 0]));
 
     const results = await searchVaultMemories("cats", mockVaultCtx, mockEmbeddingOptions, cache, {
       minSimilarity: 0,
@@ -141,9 +160,9 @@ describe("searchVaultMemories", () => {
     vi.mocked(generateEmbedding).mockResolvedValue([1, 0, 0]);
 
     const cache = createVaultEmbeddingCache();
-    cache.set("m1", new Float32Array([1, 0, 0])); // cos = 1.0
-    cache.set("m2", new Float32Array([0.5, 0.5, 0])); // cos ≈ 0.71
-    cache.set("m3", new Float32Array([0, 1, 0])); // cos = 0.0
+    seedVector(cache, "m1", new Float32Array([1, 0, 0])); // cos = 1.0
+    seedVector(cache, "m2", new Float32Array([0.5, 0.5, 0])); // cos ≈ 0.71
+    seedVector(cache, "m3", new Float32Array([0, 1, 0])); // cos = 0.0
 
     // Test cosine-ranker semantics directly; the fusion ranker has its
     // own coverage in rankFusedVaultMemories.test.ts.
@@ -199,8 +218,8 @@ describe("searchVaultMemories", () => {
     vi.mocked(generateEmbedding).mockResolvedValue([1, 0, 0]);
 
     const cache = createVaultEmbeddingCache();
-    cache.set("m1", new Float32Array([1, 0, 0])); // similarity = 1.0
-    cache.set("m2", new Float32Array([0, 1, 0])); // similarity = 0.0
+    seedVector(cache, "m1", new Float32Array([1, 0, 0])); // similarity = 1.0
+    seedVector(cache, "m2", new Float32Array([0, 1, 0])); // similarity = 0.0
 
     const results = await searchVaultMemories("test", mockVaultCtx, mockEmbeddingOptions, cache, {
       minSimilarity: 0.5,
@@ -220,9 +239,9 @@ describe("searchVaultMemories", () => {
     vi.mocked(generateEmbedding).mockResolvedValue([1, 0, 0]);
 
     const cache = createVaultEmbeddingCache();
-    cache.set("m1", new Float32Array([1, 0, 0]));
-    cache.set("m2", new Float32Array([0.9, 0.1, 0]));
-    cache.set("m3", new Float32Array([0.8, 0.2, 0]));
+    seedVector(cache, "m1", new Float32Array([1, 0, 0]));
+    seedVector(cache, "m2", new Float32Array([0.9, 0.1, 0]));
+    seedVector(cache, "m3", new Float32Array([0.8, 0.2, 0]));
 
     const results = await searchVaultMemories("test", mockVaultCtx, mockEmbeddingOptions, cache, {
       limit: 2,
@@ -239,7 +258,7 @@ describe("searchVaultMemories", () => {
     vi.mocked(generateEmbedding).mockResolvedValue([1, 0, 0]);
 
     const cache = createVaultEmbeddingCache();
-    cache.set("m1", new Float32Array([1, 0, 0]));
+    seedVector(cache, "m1", new Float32Array([1, 0, 0]));
 
     await searchVaultMemories("test", mockVaultCtx, mockEmbeddingOptions, cache, {
       scopes: ["private"],
@@ -296,7 +315,7 @@ describe("searchVaultMemories", () => {
     vi.mocked(generateEmbeddings).mockResolvedValue([[0.9, 0.1, 0]]);
 
     const cache = createVaultEmbeddingCache();
-    cache.set("m1", new Float32Array([1, 0, 0]));
+    seedVector(cache, "m1", new Float32Array([1, 0, 0]));
 
     await searchVaultMemories("test", mockVaultCtx, mockEmbeddingOptions, cache, {
       minSimilarity: 0,
@@ -322,9 +341,9 @@ describe("createMemoryVaultSearchTool", () => {
     vi.mocked(generateEmbedding).mockResolvedValue([1, 0, 0]);
 
     const cache = createVaultEmbeddingCache();
-    cache.set("m1", new Float32Array([1, 0, 0])); // cos = 1.0
-    cache.set("m2", new Float32Array([0.5, 0.5, 0])); // cos ≈ 0.71
-    cache.set("m3", new Float32Array([0, 1, 0])); // cos = 0.0
+    seedVector(cache, "m1", new Float32Array([1, 0, 0])); // cos = 1.0
+    seedVector(cache, "m2", new Float32Array([0.5, 0.5, 0])); // cos ≈ 0.71
+    seedVector(cache, "m3", new Float32Array([0, 1, 0])); // cos = 0.0
 
     const tool = createMemoryVaultSearchTool(mockVaultCtx, mockEmbeddingOptions, cache, {
       minSimilarity: 0,
@@ -345,8 +364,8 @@ describe("createMemoryVaultSearchTool", () => {
     vi.mocked(generateEmbedding).mockResolvedValue([1, 0, 0]);
 
     const cache = createVaultEmbeddingCache();
-    cache.set("m1", new Float32Array([1, 0, 0])); // similarity = 1.0
-    cache.set("m2", new Float32Array([0, 1, 0])); // similarity = 0.0
+    seedVector(cache, "m1", new Float32Array([1, 0, 0])); // similarity = 1.0
+    seedVector(cache, "m2", new Float32Array([0, 1, 0])); // similarity = 0.0
 
     const tool = createMemoryVaultSearchTool(mockVaultCtx, mockEmbeddingOptions, cache, {
       minSimilarity: 0.5,
@@ -363,7 +382,7 @@ describe("createMemoryVaultSearchTool", () => {
     vi.mocked(generateEmbedding).mockResolvedValue([1, 0, 0]);
 
     const cache = createVaultEmbeddingCache();
-    cache.set("m1", new Float32Array([0, 1, 0]));
+    seedVector(cache, "m1", new Float32Array([0, 1, 0]));
 
     const tool = createMemoryVaultSearchTool(mockVaultCtx, mockEmbeddingOptions, cache, {
       minSimilarity: 0.5,
@@ -380,7 +399,7 @@ describe("createMemoryVaultSearchTool", () => {
     vi.mocked(generateEmbeddings).mockResolvedValue([[0.9, 0.1, 0]]);
 
     const cache = createVaultEmbeddingCache();
-    cache.set("m1", new Float32Array([1, 0, 0]));
+    seedVector(cache, "m1", new Float32Array([1, 0, 0]));
 
     const tool = createMemoryVaultSearchTool(mockVaultCtx, mockEmbeddingOptions, cache, {
       minSimilarity: 0,
@@ -478,7 +497,7 @@ describe("createMemoryVaultSearchTool", () => {
     vi.mocked(generateEmbedding).mockResolvedValue([0, 1, 0]);
 
     const cache = createVaultEmbeddingCache();
-    cache.set("m1", new Float32Array([1, 0, 0])); // orthogonal → no cosine hit
+    seedVector(cache, "m1", new Float32Array([1, 0, 0])); // orthogonal → no cosine hit
     const tool = createMemoryVaultSearchTool(mockVaultCtx, mockEmbeddingOptions, cache);
     const result = await tool.executor!({ query: "zzzz nonexistent" });
 
@@ -585,7 +604,7 @@ describe("preEmbedVaultMemories", () => {
     vi.mocked(generateEmbeddings).mockResolvedValue([[0, 1, 0]]);
 
     const cache = createVaultEmbeddingCache();
-    cache.set("m1", new Float32Array([1, 0, 0]));
+    seedVector(cache, "m1", new Float32Array([1, 0, 0]));
 
     await preEmbedVaultMemories(mockVaultCtx, mockEmbeddingOptions, cache);
 
@@ -778,8 +797,8 @@ describe("rerank graceful degradation", () => {
     vi.mocked(generateEmbedding).mockResolvedValue([1, 0, 0]);
 
     const cache = createVaultEmbeddingCache();
-    cache.set("m1", new Float32Array([1, 0, 0]));
-    cache.set("m2", new Float32Array([0, 1, 0]));
+    seedVector(cache, "m1", new Float32Array([1, 0, 0]));
+    seedVector(cache, "m2", new Float32Array([0, 1, 0]));
 
     const { results } = await searchVaultMemoriesWithSize(
       "cats",
@@ -828,7 +847,7 @@ describe("embedding dimension-mismatch guard", () => {
     vi.mocked(generateEmbedding).mockResolvedValue([1, 0, 0]);
 
     const cache = createVaultEmbeddingCache();
-    cache.set("m1", new Float32Array([1, 0, 0]));
+    seedVector(cache, "m1", new Float32Array([1, 0, 0]));
 
     await searchVaultMemoriesWithSize("anything", mockVaultCtx, mockEmbeddingOptions, cache, {
       minSimilarity: 0,
@@ -913,7 +932,7 @@ describe("embedding model versioning", () => {
     vi.mocked(generateEmbeddings).mockResolvedValue([[1, 0, 0]]);
 
     const cache = createVaultEmbeddingCache();
-    cache.set("m1", new Float32Array([1, 0])); // 2-dim — stale from an old model
+    seedVector(cache, "m1", new Float32Array([1, 0])); // 2-dim — stale from an old model
 
     const { results } = await searchVaultMemoriesWithSize(
       "q",
@@ -984,14 +1003,14 @@ describe("buildProjectedCorpus", () => {
         folderId: null,
         scope: "private",
         embeddingModel: "m",
-        updatedAt: new Date(),
+        updatedAt: ROW_VERSION,
       },
       {
         uniqueId: "miss",
         folderId: null,
         scope: "private",
         embeddingModel: "m",
-        updatedAt: new Date(),
+        updatedAt: ROW_VERSION,
       },
     ] as any);
     const embByIds = vi
@@ -1015,13 +1034,14 @@ describe("buildProjectedCorpus", () => {
         eventTimeEnd: null,
         eventTimeKind: null,
         createdAt: new Date(),
-        updatedAt: new Date(),
+        updatedAt: ROW_VERSION,
       },
     ] as any);
     const getAll = vi.spyOn(ops, "getAllVaultMemoriesOp");
     vi.spyOn(embed, "generateEmbedding").mockResolvedValue([1, 0]);
 
-    const cache = new Map([["cached", Float32Array.from([1, 0])]]); // warm hit
+    const cache: VaultEmbeddingCache = new Map();
+    seedVector(cache, "cached", Float32Array.from([1, 0])); // warm hit
     const out = await buildProjectedCorpus(
       "q",
       {} as any,
@@ -1055,7 +1075,7 @@ describe("buildProjectedCorpus", () => {
         folderId: null,
         scope: "private",
         embeddingModel: "m",
-        updatedAt: new Date(),
+        updatedAt: ROW_VERSION,
       },
     ] as any);
     const embByIds = vi
@@ -1077,7 +1097,7 @@ describe("buildProjectedCorpus", () => {
         eventTimeEnd: null,
         eventTimeKind: null,
         createdAt: new Date(),
-        updatedAt: new Date(),
+        updatedAt: ROW_VERSION,
       },
     ] as any);
     vi.spyOn(embed, "generateEmbedding").mockResolvedValue([1, 0]);
@@ -1148,14 +1168,14 @@ describe("buildProjectedCorpus", () => {
         folderId: null,
         scope: "private",
         embeddingModel: "m",
-        updatedAt: new Date(),
+        updatedAt: ROW_VERSION,
       },
       {
         uniqueId: "sidehit",
         folderId: null,
         scope: "private",
         embeddingModel: "m",
-        updatedAt: new Date(),
+        updatedAt: ROW_VERSION,
       },
     ] as any);
     vi.spyOn(ops, "getVaultEmbeddingsByIdsOp").mockResolvedValue([] as any); // both cached
@@ -1176,15 +1196,14 @@ describe("buildProjectedCorpus", () => {
           eventTimeEnd: null,
           eventTimeKind: null,
           createdAt: new Date(),
-          updatedAt: new Date(),
+          updatedAt: ROW_VERSION,
         })) as any
     );
     vi.spyOn(embed, "generateEmbedding").mockResolvedValue([1, 0]);
 
-    const cache = new Map([
-      ["top", Float32Array.from([1, 0])], // cosine 1
-      ["sidehit", Float32Array.from([0, 1])], // cosine 0 — outside K=1 window
-    ]);
+    const cache: VaultEmbeddingCache = new Map();
+    seedVector(cache, "top", Float32Array.from([1, 0])); // cosine 1
+    seedVector(cache, "sidehit", Float32Array.from([0, 1])); // cosine 0 — outside K=1 window
     const out = await buildProjectedCorpus(
       "q",
       {} as any,
@@ -1212,7 +1231,7 @@ describe("buildProjectedCorpus", () => {
         folderId: null,
         scope: "private",
         embeddingModel: "m",
-        updatedAt: new Date(),
+        updatedAt: ROW_VERSION,
       },
     ] as any);
     vi.spyOn(ops, "getVaultEmbeddingsByIdsOp").mockResolvedValue([] as any);
@@ -1233,12 +1252,13 @@ describe("buildProjectedCorpus", () => {
           eventTimeEnd: null,
           eventTimeKind: null,
           createdAt: new Date(),
-          updatedAt: new Date(),
+          updatedAt: ROW_VERSION,
         })) as any
     );
     vi.spyOn(embed, "generateEmbedding").mockResolvedValue([1, 0]);
 
-    const cache = new Map([["top", Float32Array.from([1, 0])]]);
+    const cache: VaultEmbeddingCache = new Map();
+    seedVector(cache, "top", Float32Array.from([1, 0]));
     await buildProjectedCorpus(
       "q",
       {} as any,
@@ -1296,7 +1316,8 @@ describe("buildProjectedCorpus", () => {
 
     // A warm cache entry must NOT rescue this: it can't dim-match the empty query
     // vector either, which is exactly why the window came back empty before.
-    const cache = new Map([["old", Float32Array.from([1, 0])]]);
+    const cache: VaultEmbeddingCache = new Map();
+    seedVector(cache, "old", Float32Array.from([1, 0]));
     const out = await buildProjectedCorpus(
       "q",
       {} as any,
@@ -1361,14 +1382,15 @@ describe("buildProjectedCorpus", () => {
           eventTimeEnd: null,
           eventTimeKind: null,
           createdAt: new Date(),
-          updatedAt: new Date(),
+          updatedAt: ROW_VERSION,
         })) as any
     );
     // Query embed fine; the lane batch that would vector cold1/cold2 is what fails.
     vi.spyOn(embed, "generateEmbedding").mockResolvedValue([1, 0]);
     vi.spyOn(embed, "generateEmbeddings").mockRejectedValue(new Error("429 rate limited"));
 
-    const cache = new Map([["warm", Float32Array.from([1, 0])]]);
+    const cache: VaultEmbeddingCache = new Map();
+    seedVector(cache, "warm", Float32Array.from([1, 0]));
     const out = await buildProjectedCorpus(
       "q",
       {} as any,
@@ -1433,7 +1455,7 @@ describe("searchVaultMemoriesWithSize — embedding failures beyond the query em
     vi.spyOn(embed, "generateEmbeddings").mockRejectedValue(new Error("429 rate limited"));
 
     const cache = createVaultEmbeddingCache();
-    cache.set("m1", new Float32Array([1, 0, 0])); // m1 still has a usable vector
+    seedVector(cache, "m1", new Float32Array([1, 0, 0])); // m1 still has a usable vector
     const out = await searchVaultMemoriesWithSize(
       "shellfish",
       mockVaultCtx,
@@ -1457,7 +1479,7 @@ describe("searchVaultMemoriesWithSize — embedding failures beyond the query em
     vi.spyOn(embed, "generateEmbeddings").mockRejectedValue(new Error("429 rate limited"));
 
     const cache = createVaultEmbeddingCache();
-    cache.set("m1", new Float32Array([1, 0, 0]));
+    seedVector(cache, "m1", new Float32Array([1, 0, 0]));
     const out = await searchVaultMemoriesWithSize(
       "shellfish",
       mockVaultCtx,
@@ -1511,7 +1533,7 @@ describe("prepareVaultCandidates — embeddingFailure", () => {
     vi.spyOn(embed, "generateEmbeddings").mockRejectedValue(new Error("429 rate limited"));
 
     const cache = createVaultEmbeddingCache();
-    cache.set("m1", new Float32Array([1, 0, 0])); // m1 keeps a usable vector, m2 does not
+    seedVector(cache, "m1", new Float32Array([1, 0, 0])); // m1 keeps a usable vector, m2 does not
 
     const prepared = await prepareVaultCandidates(
       "shellfish",
@@ -1567,7 +1589,7 @@ describe("prepareVaultCandidates — embeddingFailure", () => {
 
   it("reports the projected un-embedded lane's batch failure", async () => {
     vi.spyOn(ops, "getVaultCandidateKeysOp").mockResolvedValue([
-      { uniqueId: "m1", updatedAt: new Date(), embeddingModel: null },
+      { uniqueId: "m1", updatedAt: ROW_VERSION, embeddingModel: null },
     ] as any);
     vi.spyOn(ops, "getVaultEmbeddingsByIdsOp").mockResolvedValue([
       { uniqueId: "m1", embedding: null },
@@ -1604,7 +1626,7 @@ describe("searchVaultMemoriesWithSize — decryptLast branch", () => {
         folderId: null,
         scope: "private",
         embeddingModel: "m",
-        updatedAt: new Date(),
+        updatedAt: ROW_VERSION,
       },
     ] as any);
     vi.spyOn(ops, "getVaultEmbeddingsByIdsOp").mockResolvedValue([
@@ -1626,7 +1648,7 @@ describe("searchVaultMemoriesWithSize — decryptLast branch", () => {
         eventTimeEnd: null,
         eventTimeKind: null,
         createdAt: new Date(),
-        updatedAt: new Date(),
+        updatedAt: ROW_VERSION,
       },
     ] as any);
     const getAll = vi.spyOn(ops, "getAllVaultMemoriesOp");
@@ -1663,7 +1685,7 @@ describe("searchVaultMemoriesWithSize — decryptLast branch", () => {
         folderId: null,
         scope: "private",
         embeddingModel: "m",
-        updatedAt: new Date(),
+        updatedAt: ROW_VERSION,
       })) as any
     );
     vi.spyOn(ops, "getVaultEmbeddingsByIdsOp").mockResolvedValue(
@@ -1685,7 +1707,7 @@ describe("searchVaultMemoriesWithSize — decryptLast branch", () => {
         eventTimeEnd: null,
         eventTimeKind: null,
         createdAt: new Date(),
-        updatedAt: new Date(),
+        updatedAt: ROW_VERSION,
       })) as any
     );
     vi.spyOn(embed, "generateEmbedding").mockResolvedValue([1, 0]);
@@ -1717,7 +1739,7 @@ describe("searchVaultMemoriesWithSize — decryptLast branch", () => {
       folderId: null,
       scope: "private",
       embeddingModel: "m",
-      updatedAt: new Date(),
+      updatedAt: ROW_VERSION,
     }));
     vi.spyOn(ops, "getVaultCandidateKeysOp").mockResolvedValue(keys as any);
     // No stored vector → the row falls into the un-embedded lane.
@@ -1739,7 +1761,7 @@ describe("searchVaultMemoriesWithSize — decryptLast branch", () => {
       eventTimeEnd: null,
       eventTimeKind: null,
       createdAt: new Date(),
-      updatedAt: new Date(),
+      updatedAt: ROW_VERSION,
     };
     // Honours the requested ids, unlike a canned mockResolvedValue — otherwise an
     // empty fetch still "returns" a row and the dedupe looks broken when it isn't.
@@ -1838,7 +1860,9 @@ describe("searchVaultMemoriesWithSize — decryptLast branch", () => {
         FIXTURE.filter((f) => ids.includes(f.uniqueId)).map(toRow) as any
     );
     const cacheA = createVaultEmbeddingCache();
-    FIXTURE.forEach((f) => cacheA.set(f.uniqueId, Float32Array.from(f.vec)));
+    FIXTURE.forEach((f) =>
+      cacheRowVector(cacheA, f.uniqueId, Float32Array.from(f.vec), now, f.content)
+    );
 
     const decryptLastOut = await searchVaultMemoriesWithSize("cats", {} as any, embOpts, cacheA, {
       limit: 3,
@@ -1854,7 +1878,9 @@ describe("searchVaultMemoriesWithSize — decryptLast branch", () => {
     // --- legacy path: same fixture, same query, whole-vault load ---
     vi.spyOn(ops, "getAllVaultMemoriesOp").mockResolvedValue(FIXTURE.map(toRow) as any);
     const cacheB = createVaultEmbeddingCache();
-    FIXTURE.forEach((f) => cacheB.set(f.uniqueId, Float32Array.from(f.vec)));
+    FIXTURE.forEach((f) =>
+      cacheRowVector(cacheB, f.uniqueId, Float32Array.from(f.vec), now, f.content)
+    );
 
     const legacyOut = await searchVaultMemoriesWithSize("cats", {} as any, embOpts, cacheB, {
       limit: 3,
@@ -1878,14 +1904,14 @@ describe("searchVaultMemoriesWithSize — decryptLast branch", () => {
         folderId: null,
         scope: "private",
         embeddingModel: "m",
-        updatedAt: new Date(),
+        updatedAt: ROW_VERSION,
       },
       {
         uniqueId: "sidehit",
         folderId: null,
         scope: "private",
         embeddingModel: "m",
-        updatedAt: new Date(),
+        updatedAt: ROW_VERSION,
       },
     ];
     vi.spyOn(ops, "getVaultCandidateKeysOp").mockResolvedValue(rows as any);
@@ -1907,14 +1933,14 @@ describe("searchVaultMemoriesWithSize — decryptLast branch", () => {
           eventTimeEnd: null,
           eventTimeKind: null,
           createdAt: new Date(),
-          updatedAt: new Date(),
+          updatedAt: ROW_VERSION,
         })) as any
     );
     vi.spyOn(embed, "generateEmbedding").mockResolvedValue([1, 0]);
 
     const cache = createVaultEmbeddingCache();
-    cache.set("top", Float32Array.from([1, 0]));
-    cache.set("sidehit", Float32Array.from([0, 1]));
+    seedVector(cache, "top", Float32Array.from([1, 0]));
+    seedVector(cache, "sidehit", Float32Array.from([0, 1]));
 
     const out = await searchVaultMemoriesWithSize("cats", {} as any, { model: "m" } as any, cache, {
       limit: 5,
@@ -1940,14 +1966,14 @@ describe("searchVaultMemoriesWithSize — decryptLast branch", () => {
         folderId: null,
         scope: "private",
         embeddingModel: "m",
-        updatedAt: new Date(),
+        updatedAt: ROW_VERSION,
       },
       {
         uniqueId: "b",
         folderId: null,
         scope: "private",
         embeddingModel: "m",
-        updatedAt: new Date(),
+        updatedAt: ROW_VERSION,
       },
     ] as any);
     vi.spyOn(ops, "getVaultEmbeddingsByIdsOp").mockResolvedValue([] as any);
@@ -1969,14 +1995,14 @@ describe("searchVaultMemoriesWithSize — decryptLast branch", () => {
           eventTimeEnd: null,
           eventTimeKind: null,
           createdAt: new Date(),
-          updatedAt: new Date(),
+          updatedAt: ROW_VERSION,
         })) as any
     );
     vi.spyOn(embed, "generateEmbedding").mockResolvedValue([1, 0]);
 
     const cache = createVaultEmbeddingCache();
-    cache.set("a", Float32Array.from([1, 0]));
-    cache.set("b", Float32Array.from([0, 1]));
+    seedVector(cache, "a", Float32Array.from([1, 0]));
+    seedVector(cache, "b", Float32Array.from([0, 1]));
 
     const out = await searchVaultMemoriesWithSize("q", {} as any, { model: "m" } as any, cache, {
       limit: 5,
@@ -2020,8 +2046,8 @@ describe("composite sub-query embeds — degenerate responses fall through", () 
   // vector and no lexical overlap with "shellfish".
   function seededCache() {
     const cache = createVaultEmbeddingCache();
-    cache.set("m1", new Float32Array([1, 0, 0]));
-    cache.set("m2", new Float32Array([0, 1, 0]));
+    seedVector(cache, "m1", new Float32Array([1, 0, 0]));
+    seedVector(cache, "m2", new Float32Array([0, 1, 0]));
     return cache;
   }
 

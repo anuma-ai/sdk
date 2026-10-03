@@ -11,7 +11,7 @@ import { Database } from "@nozbe/watermelondb";
 import LokiJSAdapter from "@nozbe/watermelondb/adapters/lokijs";
 import { runToolLoop } from "./setup.js";
 import { createMemoryVaultTool } from "../../src/lib/memoryVault/tool.js";
-import { createMemoryVaultSearchTool } from "../../src/lib/memoryVault/searchTool.js";
+import { createMemoryVaultSearchTool } from "../../src/lib/memoryVault/searchToolExecutor.js";
 import { createVaultEmbeddingCache } from "../../src/lib/memoryVault/lruCache.js";
 import { sdkSchema, sdkModelClasses } from "../../src/lib/db/schema.js";
 import type { VaultMemoryOperationsContext } from "../../src/lib/db/memoryVault/operations.js";

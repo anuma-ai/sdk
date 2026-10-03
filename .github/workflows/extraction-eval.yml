@@ -60,6 +60,10 @@ on:
     paths:
       - ".github/workflows/extraction-eval.yml"
       - "src/lib/memory/autoExtract.ts"
+      # The transport the eval actually exercises: request body shape, the
+      # task header, JSON extraction/repair, retries. A regression here reads as
+      # an extraction regression and was previously invisible to this gate.
+      - "src/lib/memory/portalLlm.ts"
       - "src/lib/db/entities/types.ts"
       - "test/memory/src/extraction/**"
 

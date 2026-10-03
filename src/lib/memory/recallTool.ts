@@ -8,6 +8,12 @@
  */
 
 import type { ToolConfig } from "../chat/useChat/types.js";
+import { isEncrypted } from "../db/encryption-utils.js";
+import {
+  getVaultMemoriesByIdsOp,
+  getVaultRankingProjectionsOp,
+} from "../db/memoryVault/operations.js";
+import type { StoredVaultMemory } from "../db/memoryVault/types.js";
 import { decomposeQuery } from "../memoryVault/decomposeQuery.js";
 import { normalizeForScreen } from "./injectionScreen.js";
 import { recall } from "./recall.js";
@@ -44,6 +50,8 @@ export interface RecallToolOptions {
   minScore?: number;
   /** Vault scope filter. */
   scopes?: string[];
+  /** Topic membership, enforced before fact ranking; disables unrestricted chunks. */
+  memoryIds?: string[];
   /** Vault folder filter. */
   folderId?: string | null;
   /** Exclude one conversation from chunk results (typically the active one). */
@@ -102,6 +110,15 @@ function formatEventTime(
   }
   if (kind === "ongoing") return `, event: since ${startDate}`;
   return `, event: ${startDate}`;
+}
+
+/** When the fact was written to the vault — distinct from `event`, the date
+ * the underlying event happened. Without it the model cannot answer "what
+ * did I save recently". Same sentinel-zero / invalid guard as event time. */
+function formatSavedTime(createdAt: Date | undefined): string {
+  const ms = createdAt?.getTime();
+  if (ms === undefined || !Number.isFinite(ms) || ms <= 0) return "";
+  return `, saved: ${new Date(ms).toISOString().slice(0, 10)}`;
 }
 
 /**
@@ -168,15 +185,17 @@ export function formatRecallResult(memories: RankedMemory[]): string {
   // evidence. Items are already presented in rank order; that's the
   // ranking signal the model should use.
   //
-  // For facts, surface `event_time` as an ISO date when present — the
-  // answer model needs the date to handle temporal-reasoning questions
-  // ("how many days between X and Y", "what did I do before Z"). Chunk
-  // dates come from createdAt (the chunk's own message timestamp).
+  // For facts, surface the saved date (createdAt) and `event_time` as ISO
+  // dates — the answer model needs them for "what did I save recently" and
+  // temporal-reasoning questions ("how many days between X and Y", "what did
+  // I do before Z"). Chunk dates come from createdAt (the chunk's own message
+  // timestamp).
   const lines = memories.map((m, i) => {
     let body: string;
     if (m.kind === "fact") {
+      const savedSuffix = formatSavedTime(m.createdAt);
       const eventSuffix = formatEventTime(m.eventTimeStart, m.eventTimeEnd, m.eventTimeKind);
-      body = `[${i + 1}] fact (id: ${m.id}${eventSuffix})\n${m.content}`;
+      body = `[${i + 1}] fact (id: ${m.id}${savedSuffix}${eventSuffix})\n${m.content}`;
     } else {
       const date = m.createdAt.toISOString().slice(0, 10);
       const who = m.role === "assistant" ? "assistant" : "user";
@@ -315,6 +334,58 @@ function isDumpQuery(query: string): boolean {
 }
 
 /**
+ * `sort: "recent"` — the newest saved facts, newest first. Relevance ranking
+ * cannot answer "what did I save recently": the query carries no topic, and
+ * recall's recency multiplier only nudges ties. Honors the same scope /
+ * topic / folder filters as the ranked path; deleted, archived, quarantined
+ * and superseded rows are excluded by the ops' base conditions.
+ *
+ * Rows that fail to decrypt come back as ciphertext and are dropped, as the
+ * ranked vault search does. Under v2/v3 key skew the NEWEST rows are the ones
+ * that fail, so a single `take(limit)` read could come back empty while
+ * readable facts sit just past the cut. Order ids without decrypting, then
+ * decrypt `limit`-sized batches until `limit` readable facts are found.
+ */
+async function listRecentFacts(
+  ctx: RecallContext,
+  limit: number,
+  toolOptions: RecallToolOptions | undefined
+): Promise<RankedMemory[]> {
+  const vaultCtx = ctx.vaultCtx;
+  if (!vaultCtx) return [];
+  const ordered = await getVaultRankingProjectionsOp(vaultCtx, {
+    ...(toolOptions?.scopes && { scopes: toolOptions.scopes }),
+    ...(toolOptions?.memoryIds !== undefined && { memoryIds: toolOptions.memoryIds }),
+    ...(toolOptions?.folderId !== undefined && { folderId: toolOptions.folderId }),
+  });
+  const readable: StoredVaultMemory[] = [];
+  for (let i = 0; i < ordered.length && readable.length < limit; i += limit) {
+    const batch = ordered.slice(i, i + limit).map((p) => p.uniqueId);
+    const byId = new Map(
+      (await getVaultMemoriesByIdsOp(vaultCtx, batch)).map((m) => [m.uniqueId, m])
+    );
+    for (const id of batch) {
+      const m = byId.get(id);
+      if (m && !isEncrypted(m.content)) readable.push(m);
+      if (readable.length >= limit) break;
+    }
+  }
+  return readable.map((m) => ({
+    id: m.uniqueId,
+    kind: "fact" as const,
+    content: m.content,
+    score: 0,
+    folderId: m.folderId,
+    eventTimeStart: m.eventTimeStart,
+    eventTimeEnd: m.eventTimeEnd,
+    eventTimeKind: m.eventTimeKind as RankedMemory["eventTimeKind"],
+    factType: m.factType,
+    createdAt: m.createdAt,
+    updatedAt: m.updatedAt,
+  }));
+}
+
+/**
  * Creates the unified recall tool. Routes through `recall()` so vault
  * facts and conversation chunks are fused into a single ranked list via
  * RRF.
@@ -342,12 +413,15 @@ export function createRecallTool(
       name: RECALL_TOOL_NAME,
       description:
         "Search the user's memory across stored facts/preferences and past conversation excerpts. " +
-        "Returns a unified ranked list — facts carry an `id` you can reference; conversation excerpts " +
-        "carry a date and role. Use this whenever the user's question may relate to anything previously " +
-        "discussed or saved (preferences, prior decisions, past topics). Phrase the query naturally. " +
+        "Returns a unified ranked list — facts carry an `id` you can reference and the date they were " +
+        "saved; conversation excerpts carry a date and role. Use this whenever the user's question may " +
+        "relate to anything previously discussed or saved (preferences, prior decisions, past topics). " +
+        "Phrase the query naturally. " +
         'For multi-faceted / overview questions ("tell me about the user", "what\'s my tech stack"), ' +
         "prefer several targeted searches — one facet each (e.g. name, work, hobbies) — over a single " +
-        "broad query; fuse the results yourself.",
+        "broad query; fuse the results yourself. " +
+        'For "what did I save recently / latest memories" questions, set `sort` to "recent" to get the ' +
+        "newest saved facts, newest first, instead of a relevance search.",
       arguments: {
         type: "object",
         properties: {
@@ -358,6 +432,13 @@ export function createRecallTool(
           limit: {
             type: "integer",
             description: `Max number of results. Default: ${defaultLimit}.`,
+          },
+          sort: {
+            type: "string",
+            enum: ["relevance", "recent"],
+            description:
+              '"relevance" (default) ranks by match to the query. "recent" returns the newest saved ' +
+              "facts, newest first, and ignores the query's topic.",
           },
         },
         required: ["query"],
@@ -449,42 +530,53 @@ export function createRecallTool(
         // and the vault search tool reads it the same way.
         let recallDegraded: readonly string[] = [];
 
-        // 719/B4 — query decomposition lives in the tool layer, not inside
-        // recall(). At budget=high with auth, classify + (if composite) expand
-        // into facet sub-queries, then hand the facets to LLM-free recall.
-        // Failure / specific-mode degrades to a single-query recall (no
-        // subQueries) — same contract as the old in-pipeline path, but the
-        // 1–2s LLM RTT is no longer buried inside retrieval.
-        let subQueries: string[] | undefined;
-        if (defaultBudget === "high" && toolOptions?.decomposeOptions) {
-          const decomp = await decomposeQuery(query, toolOptions.decomposeOptions);
-          if (decomp.mode === "composite" && decomp.subQueries.length >= 2) {
-            subQueries = decomp.subQueries;
+        // "recent" is a listing, not a search — it skips ranking entirely.
+        // Fact-only, so a tool built without the fact lane (or without a
+        // vault) falls back to the ranked path rather than returning nothing.
+        const wantsRecent =
+          args.sort === "recent" && defaultTypes.includes("fact") && ctx.vaultCtx !== undefined;
+        let result: { memories: RankedMemory[] };
+        if (wantsRecent) {
+          result = { memories: await listRecentFacts(ctx, effectiveLimit, toolOptions) };
+        } else {
+          // 719/B4 — query decomposition lives in the tool layer, not inside
+          // recall(). At budget=high with auth, classify + (if composite) expand
+          // into facet sub-queries, then hand the facets to LLM-free recall.
+          // Failure / specific-mode degrades to a single-query recall (no
+          // subQueries) — same contract as the old in-pipeline path, but the
+          // 1–2s LLM RTT is no longer buried inside retrieval.
+          let subQueries: string[] | undefined;
+          if (defaultBudget === "high" && toolOptions?.decomposeOptions) {
+            const decomp = await decomposeQuery(query, toolOptions.decomposeOptions);
+            if (decomp.mode === "composite" && decomp.subQueries.length >= 2) {
+              subQueries = decomp.subQueries;
+            }
           }
+
+          const recallOpts: RecallOptions = {
+            onDiagnostics: (d) => {
+              recallDegraded = d.degraded;
+            },
+            types: defaultTypes,
+            limit: effectiveLimit,
+            budget: defaultBudget,
+            ...(toolOptions?.minScore !== undefined && { minScore: toolOptions.minScore }),
+            ...(toolOptions?.scopes && { scopes: toolOptions.scopes }),
+            ...(toolOptions?.memoryIds !== undefined && { memoryIds: toolOptions.memoryIds }),
+            ...(toolOptions?.folderId !== undefined && { folderId: toolOptions.folderId }),
+            ...(toolOptions?.excludeConversationId && {
+              excludeConversationId: toolOptions.excludeConversationId,
+            }),
+            // Do NOT forward decomposeOptions into recall() — rewrite already
+            // ran above, and forwarding would falsely trip `decompose-moved`
+            // on every specific-mode high-budget call. graphRefine auth can
+            // be threaded later when the tool opts into that path.
+            ...(toolOptions?.now !== undefined && { now: toolOptions.now }),
+            ...(subQueries && { subQueries }),
+          };
+
+          result = await recall(query, ctx, recallOpts);
         }
-
-        const recallOpts: RecallOptions = {
-          onDiagnostics: (d) => {
-            recallDegraded = d.degraded;
-          },
-          types: defaultTypes,
-          limit: effectiveLimit,
-          budget: defaultBudget,
-          ...(toolOptions?.minScore !== undefined && { minScore: toolOptions.minScore }),
-          ...(toolOptions?.scopes && { scopes: toolOptions.scopes }),
-          ...(toolOptions?.folderId !== undefined && { folderId: toolOptions.folderId }),
-          ...(toolOptions?.excludeConversationId && {
-            excludeConversationId: toolOptions.excludeConversationId,
-          }),
-          // Do NOT forward decomposeOptions into recall() — rewrite already
-          // ran above, and forwarding would falsely trip `decompose-moved`
-          // on every specific-mode high-budget call. graphRefine auth can
-          // be threaded later when the tool opts into that path.
-          ...(toolOptions?.now !== undefined && { now: toolOptions.now }),
-          ...(subQueries && { subQueries }),
-        };
-
-        const result = await recall(query, ctx, recallOpts);
 
         if (callbacks?.onChunksRetrieved) {
           const convIds = Array.from(
@@ -502,7 +594,9 @@ export function createRecallTool(
             .map((m) => ({ id: m.id, score: m.score }));
           if (facts.length > 0) {
             callbacks.onFactsRetrieved?.(facts.map((f) => f.id));
-            callbacks.onFactsRanked?.(facts);
+            // A recent listing has no relevance scores — its zeros would read
+            // as weak matches to consumers that scale UI by score.
+            if (!wantsRecent) callbacks.onFactsRanked?.(facts);
           }
         }
 

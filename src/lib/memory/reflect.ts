@@ -86,6 +86,35 @@ type ReflectAttempt =
   | { kind: "http"; status: number; statusText: string }
   | { kind: "error" };
 
+/**
+ * The grounding prompt for a reflect() call the caller did not override.
+ *
+ * ⚠ ITS FIRST SENTENCE IS THIS FLOW'S FINGERPRINT in the portal's freeloader (anti-bot)
+ * detector — `detection.FingerprintReflect`, ai-portal `internal/detection/markers.go`. The
+ * portal judges a request genuine from its RAW system text: user chat carries fragments of the
+ * client's base chat prompt, and every other first-party flow carries its own verbatim string.
+ * This prompt is neither, so without the pinned sentence a reflect() call on a free-tier token
+ * reads as anonymous script traffic — a 403, not a downgrade, once
+ * `PORTAL_DETECTION_REJECT_MARKERLESS` is on. The match is a plain case-sensitive substring, so
+ * rewording the first sentence without the portal constant is what breaks it.
+ *
+ * Only the FIRST SENTENCE is the contract; the Rules block below is ordinary prompt copy and
+ * free to change. `reflect.test.ts` pins this half, and the portal carries the matching warning
+ * and its own assertion.
+ *
+ * Registered ahead of traffic, deliberately: no app calls the unoverridden reflect() today, so
+ * the fingerprint costs nothing now and spares the first consumer the month of silent 403s the
+ * Nearby image lane went through for exactly this reason.
+ *
+ * SCOPE — this covers the DEFAULT only. A caller passing {@link ReflectOptions.systemPrompt}
+ * replaces it wholesale and owns its own provenance; profile-facet synthesis does that correctly
+ * by wrapping its prompt in `withInternalFlowMarker`. A structured call appends the JSON-Schema
+ * instruction as a TAIL (see `buildBody`), which keeps this a strict prefix and the match intact.
+ *
+ * NOT marked with {@link INTERNAL_FLOW_MARKER}, and that is the point: reflect() answers the
+ * user's OWN question, so stamping it "not user chat" would be false on a genuine turn. Its own
+ * fingerprint is the correct shape — see ../internalFlowMarker.ts and ReflectOptions.taskType.
+ */
 const DEFAULT_SYSTEM_PROMPT = `You are a personal assistant with access to the user's memory. Answer the user's question using the supplied memories as evidence.
 
 Rules:
@@ -104,7 +133,30 @@ export interface ReflectOptions extends RecallOptions, PortalLlmAuth {
   llmModel?: string;
   /** Cap response length. Default: 4096. */
   maxTokens?: number;
-  /** Override the grounding system prompt. */
+  /**
+   * Override the grounding system prompt.
+   *
+   * ⚠ DOING THIS MAKES THE REQUEST'S PROVENANCE YOURS. The default prompt's first sentence is
+   * this flow's fingerprint in the portal's freeloader (anti-bot) detector (see
+   * {@link DEFAULT_SYSTEM_PROMPT}); replacing it wholesale removes that, and a free-tier request
+   * carrying no recognised provenance is rejected outright once the portal's markerless reject is
+   * enabled — a 403, not a degraded answer.
+   *
+   * Which replacement is correct depends on what the call IS, and there is no safe default:
+   *
+   * - **A background/internal call** (a fixed-purpose helper, not a user's own question): prepend
+   *   {@link withInternalFlowMarker}, which is exported for exactly this. That is what
+   *   profile-facet synthesis does.
+   * - **A user-facing call** (the person is asking their own question and expects an answer):
+   *   do NOT use the internal marker — it asserts "not user chat" and would be false. Keep the
+   *   default prompt, or append your instructions to it rather than replacing it, so the
+   *   fingerprint survives. A genuinely distinct user-facing flow needs its own fingerprint
+   *   registered in ai-portal `internal/detection/markers.go`.
+   *
+   * Appending is the cheap way to stay safe: `${DEFAULT_SYSTEM_PROMPT}\n\n${yourInstructions}`
+   * keeps the fingerprint as a prefix. `reflect.test.ts` pins both the marked and the bare
+   * override paths so this stays true.
+   */
   systemPrompt?: string;
   /**
    * Extra caller instruction to carry on the USER turn, between the question and

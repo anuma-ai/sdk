@@ -1,6 +1,6 @@
 # EncryptionKeyMissingError
 
-Defined in: [src/react/useEncryption.ts:56](https://github.com/anuma-ai/sdk/blob/main/src/react/useEncryption.ts#56)
+Defined in: [src/react/useEncryption.ts:60](https://github.com/anuma-ai/sdk/blob/main/src/react/useEncryption.ts#60)
 
 Thrown by [getEncryptionKey](../functions/getEncryptionKey.md) when the requested version is absent.
 Distinct from AES-GCM auth-tag failures so decrypt callers can tell
@@ -16,7 +16,7 @@ Distinct from AES-GCM auth-tag failures so decrypt callers can tell
 
 > **new EncryptionKeyMissingError**(`address`: `string`, `version`: [`EncryptionKeyVersion`](../type-aliases/EncryptionKeyVersion.md)): `EncryptionKeyMissingError`
 
-Defined in: [src/react/useEncryption.ts:60](https://github.com/anuma-ai/sdk/blob/main/src/react/useEncryption.ts#60)
+Defined in: [src/react/useEncryption.ts:64](https://github.com/anuma-ai/sdk/blob/main/src/react/useEncryption.ts#64)
 
 **Parameters**
 
@@ -69,7 +69,7 @@ Defined in: [src/react/useEncryption.ts:60](https://github.com/anuma-ai/sdk/blob
 
 > `readonly` **address**: `string`
 
-Defined in: [src/react/useEncryption.ts:57](https://github.com/anuma-ai/sdk/blob/main/src/react/useEncryption.ts#57)
+Defined in: [src/react/useEncryption.ts:61](https://github.com/anuma-ai/sdk/blob/main/src/react/useEncryption.ts#61)
 
 ***
 
@@ -113,7 +113,7 @@ Defined in: node\_modules/.pnpm/typescript@5.9.3/node\_modules/typescript/lib/li
 
 > `readonly` **version**: [`EncryptionKeyVersion`](../type-aliases/EncryptionKeyVersion.md)
 
-Defined in: [src/react/useEncryption.ts:58](https://github.com/anuma-ai/sdk/blob/main/src/react/useEncryption.ts#58)
+Defined in: [src/react/useEncryption.ts:62](https://github.com/anuma-ai/sdk/blob/main/src/react/useEncryption.ts#62)
 
 ***
 

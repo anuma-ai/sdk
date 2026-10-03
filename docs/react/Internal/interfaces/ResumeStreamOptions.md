@@ -221,7 +221,7 @@ Aborts the replay; the partial is returned as an interrupted result.
 
 ### smoothing?
 
-> `optional` **smoothing**: `boolean` | `StreamSmoothingConfig`
+> `optional` **smoothing**: `boolean` | [`StreamSmoothingConfig`](../type-aliases/StreamSmoothingConfig.md)
 
 Defined in: [src/lib/chat/resumeStream.ts:82](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/resumeStream.ts#82)
 

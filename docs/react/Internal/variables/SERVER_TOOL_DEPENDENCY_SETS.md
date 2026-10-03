@@ -2,7 +2,7 @@
 
 > `const` **SERVER\_TOOL\_DEPENDENCY\_SETS**: [`ToolSet`](../interfaces/ToolSet.md)\[]
 
-Defined in: [src/lib/tools/serverTools.ts:1643](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#1643)
+Defined in: [src/lib/tools/serverTools.ts:1742](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#1742)
 
 Dependency edges between server tools: when an entry tool (anchor) matches
 a prompt, its continuation tools ride in even though they can never match
@@ -11,7 +11,7 @@ the prompt themselves.
 These exist because semantic selection structurally cannot reach a tool
 whose job is step 2 of a call-chain. Measured against the live catalog
 (June 2026): on "research the latest news on X", `search_web` scores 0.64
-but `parallel_read_url` scores 0.33 and `parallel_search_web` 0.47 — below
+but the readers score 0.33 and `parallel_search_web` 0.47 — below
 the 0.5 floor, unreachable at ANY match limit. No threshold or limit tuning
 fixes this; an explicit edge is the only mechanism that does.
 

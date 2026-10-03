@@ -1,6 +1,6 @@
 # PreprocessingResult
 
-Defined in: [src/lib/processors/types.ts:90](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/types.ts#90)
+Defined in: [src/lib/processors/types.ts:152](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/types.ts#152)
 
 Result from preprocessing files
 
@@ -10,9 +10,20 @@ Result from preprocessing files
 
 > **extractedContent**: `string` | `null`
 
-Defined in: [src/lib/processors/types.ts:92](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/types.ts#92)
+Defined in: [src/lib/processors/types.ts:154](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/types.ts#154)
 
 Extracted content to prepend to user message
+
+***
+
+### fileStatuses
+
+> **fileStatuses**: [`FileProcessingStatus`](FileProcessingStatus.md)\[]
+
+Defined in: [src/lib/processors/types.ts:173](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/types.ts#173)
+
+One entry per input file, in input order. Image files (`image/*`) with no processor are
+left out: callers send those directly as `image_url` parts, so they are not "skipped".
 
 ***
 
@@ -20,7 +31,7 @@ Extracted content to prepend to user message
 
 > `optional` **imageContentUrls**: `string`\[]
 
-Defined in: [src/lib/processors/types.ts:99](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/types.ts#99)
+Defined in: [src/lib/processors/types.ts:161](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/types.ts#161)
 
 Image data URLs for files where text extraction failed but page images were
 rendered (e.g. scanned PDFs). The caller should inject these as `image_url`
@@ -32,7 +43,7 @@ content parts in the user message so the vision model can read the document.
 
 > **metadata**: `object`
 
-Defined in: [src/lib/processors/types.ts:108](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/types.ts#108)
+Defined in: [src/lib/processors/types.ts:176](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/types.ts#176)
 
 Processing metadata
 
@@ -54,7 +65,7 @@ Processing metadata
 
 > `optional` **originalFiles**: [`FileMetadata`](FileMetadata.md)\[]
 
-Defined in: [src/lib/processors/types.ts:102](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/types.ts#102)
+Defined in: [src/lib/processors/types.ts:164](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/types.ts#164)
 
 Original files (if keepOriginalFiles = true)
 
@@ -64,6 +75,6 @@ Original files (if keepOriginalFiles = true)
 
 > **preprocessedFileIds**: `string`\[]
 
-Defined in: [src/lib/processors/types.ts:105](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/types.ts#105)
+Defined in: [src/lib/processors/types.ts:167](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/types.ts#167)
 
 IDs of files that were successfully preprocessed (used to remove from message)

@@ -22,6 +22,7 @@ import {
   printResult,
   slidesOf,
   timedToolLoop,
+  succeeded,
   wrapTool,
   type ToolCallLog,
 } from "./setup.js";
@@ -43,7 +44,7 @@ function makeMessages(userText: string, systemPrompt?: string): Message[] {
   return msgs;
 }
 
-describe("composition-layouts wire-in", () => {
+describe.concurrent("composition-layouts wire-in", () => {
   it("generates a deck using design-system composition layouts", async () => {
     const store = createFileStore();
     const log: ToolCallLog[] = [];
@@ -68,7 +69,7 @@ describe("composition-layouts wire-in", () => {
     expect(result.error).toBeNull();
 
     // plan_deck must have been called with the composition layout names.
-    const planCalls = log.filter((l) => l.name === "plan_deck");
+    const planCalls = log.filter((l) => l.name === "plan_deck" && succeeded(l));
     expect(planCalls.length).toBe(1);
     const planLayouts = (planCalls[0]!.args.layouts as string[]) ?? [];
     expect(planLayouts).toContain("cover-split-portrait--editorial-warm");
@@ -123,7 +124,7 @@ describe("composition-layouts wire-in", () => {
 
     // Multiple plan_deck calls are valid (the model may retry after a
     // validation error). Use the last successful one.
-    const planCalls = log.filter((l) => l.name === "plan_deck");
+    const planCalls = log.filter((l) => l.name === "plan_deck" && succeeded(l));
     expect(planCalls.length).toBeGreaterThanOrEqual(1);
     const planLayouts = (planCalls.at(-1)!.args.layouts as string[]) ?? [];
 
@@ -177,7 +178,11 @@ describe("composition-layouts wire-in", () => {
   // so the model can populate image slots with real generated URLs instead
   // of placehold.co rectangles. Bumped maxToolRounds because image MCP
   // calls add round-trips before plan_deck/add_slide.
-  it("generates a 7-slide demo deck with real images", { timeout: 600_000 }, async () => {
+  // Quarantined: https://github.com/anuma-ai/sdk/issues/970. The dev portal drops
+  // streams mid-output ("terminated"), and the SDK does not retry a stream once
+  // output has started. This test holds the stream longest, so it took 3 of the
+  // 5 drops seen across 10 runs, once on both attempts.
+  it.skip("generates a 7-slide demo deck with real images", { timeout: 600_000 }, async () => {
     const store = createFileStore();
     const log: ToolCallLog[] = [];
     const slideTools = createTestSlideTools(store).map((t) => wrapTool(t, log));
@@ -322,7 +327,7 @@ describe("composition-layouts wire-in", () => {
     expect(result.error).toBeNull();
 
     // Inspect the deck's chosen system via the last successful plan_deck.
-    const planCalls = log.filter((l) => l.name === "plan_deck");
+    const planCalls = log.filter((l) => l.name === "plan_deck" && succeeded(l));
     expect(planCalls.length).toBeGreaterThanOrEqual(1);
     const planLayouts = (planCalls.at(-1)!.args.layouts as string[]) ?? [];
     expect(planLayouts.length).toBeGreaterThan(0);

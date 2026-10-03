@@ -531,6 +531,47 @@ describe("runToolLoop lifecycle hooks", () => {
     expect((afterB?.event.error as string).toLowerCase()).toContain("failed dependencies");
   });
 
+  it("marks dependents skipped by an abort as 'cancelled', not 'execution'", async () => {
+    mockCreateSseClient
+      .mockReturnValueOnce({
+        stream: makeTwoToolCallStream(
+          { callId: "a", name: "tool_a", arguments: "{}" },
+          { callId: "b", name: "tool_b", arguments: "{}" }
+        ),
+      } as never)
+      .mockReturnValueOnce({ stream: makeTextStream("done") } as never);
+
+    const { hooks, calls } = makeHooksRecorder();
+    const controller = new AbortController();
+
+    await runToolLoop({
+      messages: [baseUserMsg],
+      model: "test-model",
+      token: "t",
+      hooks,
+      signal: controller.signal,
+      tools: [
+        {
+          type: "function",
+          function: { name: "tool_a", parameters: { type: "object", properties: {} } },
+          executor: () => {
+            controller.abort();
+            return new Promise(() => {});
+          },
+        },
+        {
+          type: "function",
+          function: { name: "tool_b", parameters: { type: "object", properties: {} } },
+          dependsOn: ["tool_a"],
+          executor: async () => "should not run",
+        },
+      ],
+    });
+
+    const afterB = calls.find((c) => c.hook === "afterToolUse" && c.event.name === "tool_b");
+    expect(afterB?.event.errorType).toBe("cancelled");
+  });
+
   it("composes multiple hook objects via composeHooks so every listener fires", async () => {
     mockCreateSseClient.mockReturnValueOnce({ stream: makeTextStream("hi") } as never);
 

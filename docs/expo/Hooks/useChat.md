@@ -392,7 +392,7 @@ false
 </td>
 <td>
 
-`boolean` | `StreamSmoothingConfig`
+`boolean` | [`StreamSmoothingConfig`](../../react/Internal/type-aliases/StreamSmoothingConfig.md)
 
 </td>
 <td>

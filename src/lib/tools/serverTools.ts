@@ -706,7 +706,7 @@ const TOOL_SEARCH_TOOL_TYPE = "tool_search_tool_regex_20251119";
  * ("Input should be 'tool_search_tool_regex'", confirmed via docs + a direct Messages API test).
  * Bound to the regex variant alongside the type above; a future bm25 variant pairs
  * `tool_search_tool_bm25_*` with name `tool_search_tool_bm25`. (Was "tool_search", which Anthropic 400s.) */
-const TOOL_SEARCH_TOOL_NAME = "tool_search_tool_regex";
+export const TOOL_SEARCH_TOOL_NAME = "tool_search_tool_regex";
 
 /**
  * Opt-in defer-loading config for {@link mergeTools}. OFF by default — when absent or `enabled:false`,
@@ -1295,7 +1295,69 @@ export const BUILT_IN_TOOL_SETS: ToolSet[] = [
     anchors: ["dropbox_list_folders", "dropbox_search"],
     anchorMinSimilarity: 0.53,
   },
+  {
+    // Server tools, so this set does its work through
+    // withActiveToolSetServerTools: once any restaurant tool has run, terse
+    // follow-ups ("okay", "same as before", "cancel it") keep every restaurant
+    // tool — discovery, booking and cancelling. Each tool still reaches a fresh
+    // request on its own description.
+    // Anchors are deliberately empty (like the client's Nearby set): the set
+    // is only for stickiness, not a new way to activate on a prompt.
+    // prompt_user_confirm is left out of members: autoFilterClientTools always
+    // sends it, and as a member any unrelated confirmation would pin this set.
+    name: "restaurant-booking",
+    members: [
+      "AnumaPaymentsMCP-anuma_find_restaurant",
+      "AnumaPaymentsMCP-anuma_check_restaurant_availability",
+      "AnumaPaymentsMCP-anuma_book_restaurant",
+      "AnumaPaymentsMCP-anuma_list_reservations",
+      "AnumaPaymentsMCP-anuma_cancel_reservation",
+      "AnumaPaymentsMCP-anuma_discover_restaurants",
+    ],
+    anchors: [],
+  },
+  {
+    // What a confirmed booking card narrows the rest of the turn to (see
+    // CONFIRMED_ACTION_TOOL_SETS): the booking chain only, without the
+    // discovery and cancel tools that restaurant-booking keeps sticky.
+    // Anchors are empty for the same reason as restaurant-cancel below.
+    name: "restaurant-book",
+    members: [
+      "AnumaPaymentsMCP-anuma_find_restaurant",
+      "AnumaPaymentsMCP-anuma_check_restaurant_availability",
+      "AnumaPaymentsMCP-anuma_book_restaurant",
+    ],
+    anchors: [],
+  },
+  {
+    // What a confirmed cancel card narrows the rest of the turn to (see
+    // CONFIRMED_ACTION_TOOL_SETS). Anchors are empty for the same reason as
+    // restaurant-booking: anchors here are scored against client tools only,
+    // so a server-tool anchor could never fire. The "cancel brings list"
+    // edge on a fresh prompt is restaurant-cancel-lookup in
+    // SERVER_TOOL_DEPENDENCY_SETS.
+    name: "restaurant-cancel",
+    members: [
+      "AnumaPaymentsMCP-anuma_list_reservations",
+      "AnumaPaymentsMCP-anuma_cancel_reservation",
+    ],
+    anchors: [],
+  },
 ];
+
+/**
+ * Confirm-card actions (lowercase) whose approval narrows the rest of the turn
+ * to one of {@link BUILT_IN_TOOL_SETS}. The keys are every spelling the portal
+ * accepts for the booking and cancel actions.
+ */
+export const CONFIRMED_ACTION_TOOL_SETS: ReadonlyMap<string, string> = new Map([
+  ["book_restaurant", "restaurant-book"],
+  ["anuma_book_restaurant", "restaurant-book"],
+  ["anumapaymentsmcp-anuma_book_restaurant", "restaurant-book"],
+  ["cancel_reservation", "restaurant-cancel"],
+  ["anuma_cancel_reservation", "restaurant-cancel"],
+  ["anumapaymentsmcp-anuma_cancel_reservation", "restaurant-cancel"],
+]);
 
 /**
  * Apply tool set logic to a set of semantic match results.
@@ -1372,7 +1434,7 @@ export function applyToolSets(
  * precision.
  *
  * Use this for server-side toolkit suites where the LLM needs the full
- * call chain (e.g. search_web → read_url / parallel_read_url, or
+ * call chain (e.g. search_web → anuma_scrape_url, or
  * geocoding before the OpenMeteo data tools). Differs from `applyToolSets`,
  * which replaces non-set matches when a set activates.
  *
@@ -1443,6 +1505,43 @@ export function activatedToolSetNames(
     }
   }
   return activated;
+}
+
+/**
+ * Add the server-tool members of every set named in `activeToolSets` to a
+ * semantic server-tool selection.
+ *
+ * A semantic filter ranks only the latest prompt, so a terse follow-up inside a
+ * flow ("okay", "retry") drops the flow's server tools. This is the server-side
+ * half of what `autoFilterClientTools` does for client tools: an active set's
+ * members that are in the catalog are kept whatever the prompt scored, even
+ * below the short-prompt gate, where `selected` is empty. Exclusions tagged on
+ * the filter still win.
+ *
+ * @param selected - What the semantic filter picked (`[]` when it did not run).
+ * @param allServerTools - The full server-tool catalog.
+ * @param serverToolsFilter - The filter function, read only for its `excludeTools` tag.
+ * @param activeToolSets - Set names that are sticky for this conversation.
+ * @param extraToolSets - The caller's sets beyond {@link BUILT_IN_TOOL_SETS}.
+ * @returns `selected`, followed by any active-set members it was missing.
+ */
+export function withActiveToolSetServerTools(
+  selected: ServerTool[],
+  allServerTools: ServerTool[],
+  serverToolsFilter: ServerToolsFilterFunction,
+  activeToolSets: readonly string[] = [],
+  extraToolSets: readonly ToolSet[] = []
+): ServerTool[] {
+  if (activeToolSets.length === 0) return selected;
+  const sticky = new Set(
+    [...BUILT_IN_TOOL_SETS, ...extraToolSets]
+      .filter((ts) => activeToolSets.includes(ts.name))
+      .flatMap((ts) => ts.members)
+  );
+  for (const name of serverToolsFilter.excludeTools ?? []) sticky.delete(name);
+  for (const tool of selected) sticky.delete(tool.name);
+  const added = allServerTools.filter((tool) => sticky.has(tool.name));
+  return added.length > 0 ? [...selected, ...added] : selected;
 }
 
 /**
@@ -1518,7 +1617,7 @@ export interface CreateServerToolsFilterOptions {
  *   toolSets: [
  *     {
  *       name: "research",
- *       members: ["AnumaJinaMCP-search_web", "AnumaJinaMCP-read_url", ...],
+ *       members: ["AnumaJinaMCP-search_web", "AnumaSearchMCP-anuma_scrape_url", ...],
  *       anchors: ["AnumaJinaMCP-search_web"],
  *       anchorMinSimilarity: 0.7,
  *     },
@@ -1624,7 +1723,7 @@ export const DEFAULT_SERVER_TOOLS_MATCH_OPTIONS: ToolMatchOptions = {
  * These exist because semantic selection structurally cannot reach a tool
  * whose job is step 2 of a call-chain. Measured against the live catalog
  * (June 2026): on "research the latest news on X", `search_web` scores 0.64
- * but `parallel_read_url` scores 0.33 and `parallel_search_web` 0.47 — below
+ * but the readers score 0.33 and `parallel_search_web` 0.47 — below
  * the 0.5 floor, unreachable at ANY match limit. No threshold or limit tuning
  * fixes this; an explicit edge is the only mechanism that does.
  *
@@ -1642,12 +1741,14 @@ export const DEFAULT_SERVER_TOOLS_MATCH_OPTIONS: ToolMatchOptions = {
  */
 export const SERVER_TOOL_DEPENDENCY_SETS: ToolSet[] = [
   {
-    // search finds links; reading them is always the next step.
-    name: "jina-research",
+    // search finds links; reading them is always the next step. The reader now
+    // lives on the search server — Jina's read_url / parallel_read_url were
+    // removed in favour of anuma_scrape_url, which takes a batch of URLs — so
+    // this edge deliberately spans two MCP servers.
+    name: "web-research",
     members: [
       "AnumaJinaMCP-search_web",
-      "AnumaJinaMCP-read_url",
-      "AnumaJinaMCP-parallel_read_url",
+      "AnumaSearchMCP-anuma_scrape_url",
       "AnumaJinaMCP-parallel_search_web",
     ],
     anchors: ["AnumaJinaMCP-search_web"],
@@ -1678,6 +1779,16 @@ export const SERVER_TOOL_DEPENDENCY_SETS: ToolSet[] = [
       "OpenMeteoMCP-climate_projection",
       "OpenMeteoMCP-elevation",
     ],
+    anchorMinSimilarity: 0.5,
+  },
+  {
+    // The cancel tool takes its resy_token and the other values only from a
+    // live anuma_list_reservations result in the same turn, never from
+    // memory, so the list tool must ride in whenever cancel is offered.
+    // Members hold only the dependency, like openmeteo-geocode.
+    name: "restaurant-cancel-lookup",
+    members: ["AnumaPaymentsMCP-anuma_list_reservations"],
+    anchors: ["AnumaPaymentsMCP-anuma_cancel_reservation"],
     anchorMinSimilarity: 0.5,
   },
 ];
@@ -1759,6 +1870,20 @@ export interface SelectServerToolsForPromptOptions {
    * {@link resolveDeferredServerTools}). Omit/disabled → today's filtered selection.
    */
   deferLoading?: DeferLoadingConfig;
+  /**
+   * Tool-set names that are sticky for this conversation — the same list you
+   * pass to `useChatStorage`'s `activeToolSets`, e.g. from
+   * `deriveActiveToolSets`. With a filter function, the server-tool members of
+   * these sets are selected whatever the prompt scored, even on a prompt too
+   * short to embed. Omit for selection from the prompt alone.
+   */
+  activeToolSets?: string[];
+  /**
+   * The caller's sets beyond {@link BUILT_IN_TOOL_SETS} — the same list you pass
+   * to `useChatStorage`'s `extraToolSets` — so a custom set named in
+   * `activeToolSets` stays sticky here too.
+   */
+  extraToolSets?: ToolSet[];
 }
 
 /**
@@ -1799,6 +1924,8 @@ export async function selectServerToolsForPrompt(
     cacheExpirationMs,
     cache,
     deferLoading,
+    activeToolSets,
+    extraToolSets,
   } = options;
 
   if (serverToolsFilter === undefined) return [];
@@ -1819,12 +1946,20 @@ export async function selectServerToolsForPrompt(
     return resolveDeferredServerTools(allServerTools, serverToolsFilter, deferLoading);
 
   if (typeof serverToolsFilter === "function") {
+    const withSticky = (selected: ServerTool[]) =>
+      withActiveToolSetServerTools(
+        selected,
+        allServerTools,
+        serverToolsFilter,
+        activeToolSets,
+        extraToolSets
+      );
     // Mirror useChatStorage's short-prompt gate: below
     // MIN_CONTENT_LENGTH_FOR_TOOLS no embeddings are generated and a
-    // function filter selects nothing. (Static lists above don't depend on
-    // embeddings and still apply.) Without this, the helper embedded "hey"
-    // and ran a selection the chat flow never performs.
-    if (prompt.length < MIN_CONTENT_LENGTH_FOR_TOOLS) return [];
+    // function filter selects nothing but the sticky sets. (Static lists above
+    // don't depend on embeddings and still apply.) Without this, the helper
+    // embedded "hey" and ran a selection the chat flow never performs.
+    if (prompt.length < MIN_CONTENT_LENGTH_FOR_TOOLS) return withSticky([]);
     let promptEmbedding: number[];
     try {
       promptEmbedding = await generateEmbedding(prompt, {
@@ -1833,10 +1968,10 @@ export async function selectServerToolsForPrompt(
         model: embeddingModel,
       });
     } catch {
-      return [];
+      return withSticky([]);
     }
     const names = serverToolsFilter(promptEmbedding, allServerTools);
-    return filterServerTools(allServerTools, names);
+    return withSticky(filterServerTools(allServerTools, names));
   }
 
   return filterServerTools(allServerTools, serverToolsFilter);

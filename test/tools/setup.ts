@@ -4,13 +4,14 @@
  * Environment:
  *   PORTAL_API_KEY   (required)  Portal API key
  *   ANUMA_API_URL    (optional)  Portal API base URL override
- *   E2E_MODEL        (optional)  Model to use (default: deepinfra Kimi-K2.6)
+ *   E2E_MODEL        (optional)  Model to use (default: openai/gpt-6-luna)
  *   E2E_API_TYPE     (optional)  "completions" or "responses" (default: completions)
  */
 
 import "dotenv/config";
+import { AsyncLocalStorage } from "node:async_hooks";
 import { performance } from "node:perf_hooks";
-import { expect } from "vitest";
+import { beforeEach, expect } from "vitest";
 import {
   runToolLoop as realRunToolLoop,
   type StepFinishEvent,
@@ -20,10 +21,13 @@ import type { ApiType } from "../../src/lib/chat/useChat/strategies/types.js";
 import { record, type RecordedStep } from "./recorder.js";
 
 export const config = {
-  // Successor to the retired fireworks kimi-k2p5 (Fireworks returns NOT_FOUND for
-  // it, which stalled the merge queue). Kimi 2.6 is served healthily via deepinfra
-  // in dev; there is no fireworks kimi-k2p6.
-  model: process.env.E2E_MODEL || "deepinfra/moonshotai/Kimi-K2.6",
+  // gpt-6-luna is the client's SYSTEM_TEXT_MODEL and one of its picker models.
+  // The previous default, deepinfra/moonshotai/Kimi-K2.6, is ~10x slower through
+  // the dev portal: a one-tool weather call took 50-110s against 6-8s for luna
+  // (measured 2026-09-25), so the generation tests hit their budgets before the
+  // model finished (anuma-ai/sdk#962). Kimi still runs in the compat matrix
+  // (workflow_dispatch with model=all).
+  model: process.env.E2E_MODEL || "openai/gpt-6-luna",
   // Default to "auto" so the SDK picks the best endpoint per model
   // (responses vs. completions) via `resolveApiType`. Many models
   // (Gemini, DeepSeek, MiniMax M2.7) 500 on the completions endpoint.
@@ -105,6 +109,23 @@ export function wrapTool(tool: ToolConfig, log: ToolCallLog[]): ToolConfig {
   return tool;
 }
 
+// ── Per-test context ─────────────────────────────────────────────────────────
+
+/**
+ * The running test's name and abort signal, tracked per async context.
+ *
+ * `expect.getState().currentTestName` is global, so under `describe.concurrent`
+ * it names whichever test started last. The generation suites run
+ * concurrently, and without this their traces would carry the wrong test name.
+ * The signal is aborted when vitest times the test out, so a timed-out loop
+ * stops calling the portal instead of competing with the tests after it.
+ */
+const currentTest = new AsyncLocalStorage<{ name: string; signal: AbortSignal }>();
+
+beforeEach((ctx) => {
+  currentTest.enterWith({ name: ctx.task.fullTestName ?? ctx.task.name, signal: ctx.signal });
+});
+
 // ── Recording wrapper ────────────────────────────────────────────────────────
 
 /**
@@ -120,9 +141,16 @@ export async function runToolLoop(
   let lastTs = start;
   const steps: RecordedStep[] = [];
   const userOnStepFinish = params.onStepFinish;
+  const testContext = currentTest.getStore();
 
   const result = await realRunToolLoop({
     ...params,
+    // What the web and mobile clients send on every chat turn (chatSend.ts,
+    // ChatInput.tsx). With no cap the portal applies 4096, so a slide or an
+    // App.js + App.css pair is cut off mid-argument, the call fails to parse or
+    // lands truncated, and the model spends its rounds rewriting it.
+    maxOutputTokens: params.maxOutputTokens ?? 32000,
+    signal: params.signal ?? testContext?.signal,
     onStepFinish: (event: StepFinishEvent) => {
       const now = performance.now();
       steps.push({
@@ -147,7 +175,7 @@ export async function runToolLoop(
   });
 
   const latencyMs = performance.now() - start;
-  const testName = expect.getState().currentTestName ?? "unknown";
+  const testName = testContext?.name ?? expect.getState().currentTestName ?? "unknown";
   const toolsRegistered = (params.tools ?? []).map(
     (t: any) => t?.function?.name ?? t?.name ?? "unknown"
   );

@@ -2,7 +2,7 @@
 
 > **getReferralMe**<`ThrowOnError`>(`options?`: [`Options`](../type-aliases/Options.md)<[`GetReferralMeData`](../type-aliases/GetReferralMeData.md), `ThrowOnError`, `unknown`>): `RequestResult`<[`GetReferralMeResponses`](../type-aliases/GetReferralMeResponses.md), [`GetReferralMeErrors`](../type-aliases/GetReferralMeErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:1892](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1892)
+Defined in: [src/client/sdk.gen.ts:2004](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#2004)
 
 Read the caller's waitlist and referral state
 

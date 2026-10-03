@@ -17,6 +17,7 @@ function overall(partial: Partial<BaselineOverall>): BaselineOverall {
     entityCoverage: 1,
     kindAccuracy: 1,
     negativeCleanRate: 1,
+    firstAttemptCleanRate: 1,
     forbiddenHits: 0,
     ...partial,
   };

@@ -250,6 +250,10 @@ export function useChat(options?: UseChatOptions): UseChatResult {
   // from onStreamMeta as soon as the portal issues an X-Inference-ID. Read by
   // stop() (to POST cancel) and detach() (to return the handle synchronously).
   const pendingResumeRef = useRef<StreamResumeHandle | null>(null);
+  // Monotonic id of the latest send. Unlike abortControllerRef it is never
+  // reset by stop() or a settling request, so "a newer send exists" cannot be
+  // confused with "the ref is null".
+  const requestIdRef = useRef(0);
 
   // Fire-and-forget cancel POST: tells the portal to stop generating into the
   // buffer and release it. Errors are swallowed — a failed cancel must never
@@ -444,6 +448,8 @@ export function useChat(options?: UseChatOptions): UseChatResult {
       // Fresh detach controller + resume state for this request.
       const detachController = new AbortController();
       detachControllerRef.current = detachController;
+      const requestId = ++requestIdRef.current;
+      const superseded = () => requestIdRef.current !== requestId;
       pendingResumeRef.current = null;
 
       setIsLoading(true);
@@ -592,7 +598,9 @@ export function useChat(options?: UseChatOptions): UseChatResult {
         // On a detach, runToolLoop returns the authoritative resume handle
         // (resolved api type, latest inference id). Prefer it over the
         // optimistic one we built from onStreamMeta.
-        if ("detached" in result && result.detached && result.resume) {
+        if (superseded()) {
+          // A newer request owns the resume handle; leave it alone.
+        } else if ("detached" in result && result.detached && result.resume) {
           pendingResumeRef.current = result.resume;
         } else {
           // Any non-detached terminal (clean completion or an error on THIS
@@ -611,7 +619,9 @@ export function useChat(options?: UseChatOptions): UseChatResult {
           onError
         );
       } finally {
-        setIsLoading(false);
+        // Only clear the loading flag when no newer request has replaced this
+        // one; a stop() nulls the ref and still resets it here.
+        if (!superseded()) setIsLoading(false);
         if (abortControllerRef.current === abortController) {
           abortControllerRef.current = null;
         }

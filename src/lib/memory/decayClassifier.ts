@@ -59,7 +59,7 @@
 
 import { getLogger } from "../logger.js";
 import { type PiiRedactor, resolvePiiRedactor } from "../pii/redactor.js";
-import type { DecayInput, DecayVerdict } from "./decay.js";
+import { type DecayInput, type DecayVerdict, lastActivityAt } from "./decay.js";
 import type { DecayClassifier } from "./decayWorker.js";
 import { callPortalJsonCompletion, type PortalLlmAuth } from "./portalLlm.js";
 
@@ -163,7 +163,7 @@ export function createLlmDecayClassifier(options: LlmDecayClassifierOptions): De
       // cheaper half of it. Without a detector `redactTextAsync` returns
       // `redactText` directly, so the default path is unchanged.
       const safe = redactor ? (await redactor.redactTextAsync(trimmed)).text : trimmed;
-      const meta = `factType: ${input.factType ?? "none"}; ageDays: ${ageDays(input.updatedAt, now)}`;
+      const meta = `factType: ${input.factType ?? "none"}; ageDays: ${ageDays(lastActivityAt(input), now)}`;
 
       let parsed: unknown;
       try {
@@ -197,12 +197,12 @@ export function createLlmDecayClassifier(options: LlmDecayClassifierOptions): De
   };
 }
 
-/** Whole days between `updatedAt` and the sweep's injected `now` (for the
+/** Whole days between the last edit/re-observation and the sweep's injected `now` (for the
  * prompt's age hint). Uses the injected clock — NOT wall-clock `Date.now()` — so
  * a fixed-`now` sweep is deterministic. */
-function ageDays(updatedAt: number, now: number): number {
-  if (!Number.isFinite(updatedAt) || !Number.isFinite(now)) return 0;
-  return Math.max(0, Math.floor((now - updatedAt) / (24 * 60 * 60 * 1000)));
+function ageDays(activityAt: number, now: number): number {
+  if (!Number.isFinite(activityAt) || !Number.isFinite(now)) return 0;
+  return Math.max(0, Math.floor((now - activityAt) / (24 * 60 * 60 * 1000)));
 }
 
 /** Parse `{ verdict: "keep" | "archive" }`. Returns null on anything else — the

@@ -2,7 +2,7 @@
 
 > **HandlersReferralGrantReferrerStatResponse** = `object`
 
-Defined in: [src/client/types.gen.ts:2799](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2799)
+Defined in: [src/client/types.gen.ts:2999](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2999)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:2799](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **referee\_count**: `number`
 
-Defined in: [src/client/types.gen.ts:2803](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2803)
+Defined in: [src/client/types.gen.ts:3003](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3003)
 
 RefereeCount is how many distinct referees earned this referrer a grant.
 
@@ -20,7 +20,7 @@ RefereeCount is how many distinct referees earned this referrer a grant.
 
 > `optional` **referrer\_account\_id**: `number`
 
-Defined in: [src/client/types.gen.ts:2804](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2804)
+Defined in: [src/client/types.gen.ts:3004](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3004)
 
 ***
 
@@ -28,7 +28,7 @@ Defined in: [src/client/types.gen.ts:2804](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **referrer\_phone\_verified**: `boolean`
 
-Defined in: [src/client/types.gen.ts:2808](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2808)
+Defined in: [src/client/types.gen.ts:3008](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3008)
 
 ReferrerPhoneVerified reports whether the referrer verified their own phone.
 
@@ -38,7 +38,7 @@ ReferrerPhoneVerified reports whether the referrer verified their own phone.
 
 > `optional` **total\_azeta**: `string`
 
-Defined in: [src/client/types.gen.ts:2813](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2813)
+Defined in: [src/client/types.gen.ts:3013](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3013)
 
 TotalAzeta is what this referrer has been granted, in aZETA, as a
 decimal string (the values exceed a safe JSON number).
@@ -49,7 +49,7 @@ decimal string (the values exceed a safe JSON number).
 
 > `optional` **unverified\_referee\_count**: `number`
 
-Defined in: [src/client/types.gen.ts:2818](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2818)
+Defined in: [src/client/types.gen.ts:3018](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3018)
 
 UnverifiedRefereeCount is how many of those referees have no verified
 phone. A high ratio is the strongest signal this data supports.

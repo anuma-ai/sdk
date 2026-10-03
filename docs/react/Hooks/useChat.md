@@ -323,7 +323,7 @@ conversation. See `createWebSearchPreProcessor`,
 </td>
 <td>
 
-`boolean` | `StreamSmoothingConfig`
+`boolean` | [`StreamSmoothingConfig`](../Internal/type-aliases/StreamSmoothingConfig.md)
 
 </td>
 <td>

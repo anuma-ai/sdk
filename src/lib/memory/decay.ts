@@ -128,6 +128,8 @@ export interface DecayInput {
   eventTimeKind: string | null;
   /** Unix ms of the row's last write (re-observation resets this). */
   updatedAt: number;
+  /** Last distinct observation; does not change the edit timestamp. */
+  lastObservedAt?: number | null;
   /** Unix ms when archived, or null when active. */
   archivedAt: number | null;
   /** `manual` | `auto-extracted` | `capsule` | null. Manual is never decayed. */
@@ -141,6 +143,17 @@ export interface DecayInput {
    * callers/tests can omit it (treated as not quarantined).
    */
   trustTier?: string | null;
+}
+
+/**
+ * When a memory was last edited OR re-observed — the timestamp its age runs
+ * from. A merge records a re-observation in `lastObservedAt` while
+ * preserveUpdatedAt pins `updated_at`, so `updatedAt` alone overstates the age
+ * of every fact the user keeps repeating.
+ */
+export function lastActivityAt(m: Pick<DecayInput, "updatedAt" | "lastObservedAt">): number {
+  const observedAt = Number.isFinite(m.lastObservedAt) ? (m.lastObservedAt as number) : m.updatedAt;
+  return Math.max(m.updatedAt, observedAt);
 }
 
 /** Merge a partial policy over the default. */
@@ -250,7 +263,7 @@ export function classifyDecay(
   }
 
   // (4) Age fallback — stale past its per-type TTL. Infinity for durable types.
-  if (now - m.updatedAt > ttlForType(m.factType, resolved)) return "archive";
+  if (now - lastActivityAt(m) > ttlForType(m.factType, resolved)) return "archive";
 
   // (5) Still fresh / durable.
   return "keep";

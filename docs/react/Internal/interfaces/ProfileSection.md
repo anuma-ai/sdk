@@ -75,10 +75,9 @@ Vault memory ids this section was grounded on — provenance + delta refresh.
 
 > `optional` **stale**: `boolean`
 
-Defined in: [src/lib/memory/synthesizeProfile.ts:280](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/synthesizeProfile.ts#280)
+Defined in: [src/lib/memory/synthesizeProfile.ts:279](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/synthesizeProfile.ts#279)
 
-True when regeneration failed and a prior section value was carried
-forward (e.g. LLM returned empty) — the caller may choose to retry.
+True when regeneration failed (e.g. LLM returned empty) — the caller may choose to retry.
 
 ***
 

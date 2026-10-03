@@ -106,6 +106,18 @@ Re-exports [archiveVaultMemoryOp](../react/Internal/functions/archiveVaultMemory
 
 ***
 
+### assembleMemoryContext
+
+Re-exports [assembleMemoryContext](../react/Internal/functions/assembleMemoryContext.md)
+
+***
+
+### attachFileContextToLastUserMessage
+
+Re-exports [attachFileContextToLastUserMessage](../react/Internal/functions/attachFileContextToLastUserMessage.md)
+
+***
+
 ### AutoExtractMessage
 
 Re-exports [AutoExtractMessage](../react/Internal/interfaces/AutoExtractMessage.md)
@@ -127,6 +139,12 @@ Re-exports [backfillMemoryTopicsOp](../react/Internal/functions/backfillMemoryTo
 ### Budget
 
 Re-exports [Budget](../react/Internal/type-aliases/Budget.md)
+
+***
+
+### buildAttachedFilesText
+
+Re-exports [buildAttachedFilesText](../react/Internal/functions/buildAttachedFilesText.md)
 
 ***
 
@@ -322,6 +340,12 @@ Re-exports [consoleLogger](../react/Internal/variables/consoleLogger.md)
 
 ***
 
+### ConsolidationAction
+
+Re-exports [ConsolidationAction](../react/Internal/type-aliases/ConsolidationAction.md)
+
+***
+
 ### ConsolidationFallbackReason
 
 Re-exports [ConsolidationFallbackReason](../react/Internal/type-aliases/ConsolidationFallbackReason.md)
@@ -397,6 +421,12 @@ Re-exports [createDecaySweeper](../react/Internal/functions/createDecaySweeper.m
 ### CreateDecaySweeperOptions
 
 Re-exports [CreateDecaySweeperOptions](../react/Internal/interfaces/CreateDecaySweeperOptions.md)
+
+***
+
+### createDurableAutoExtractor
+
+Re-exports [createDurableAutoExtractor](../react/Internal/functions/createDurableAutoExtractor.md)
 
 ***
 
@@ -670,6 +700,12 @@ Re-exports [deleteAllVaultMemoriesForUserOp](../react/Internal/functions/deleteA
 
 ***
 
+### deleteMessageOp
+
+Re-exports [deleteMessageOp](../react/Internal/functions/deleteMessageOp.md)
+
+***
+
 ### deleteVaultFolderOp
 
 Re-exports [deleteVaultFolderOp](../react/Internal/functions/deleteVaultFolderOp.md)
@@ -685,6 +721,18 @@ Re-exports [deleteVaultMemoryOp](../react/Internal/functions/deleteVaultMemoryOp
 ### dequantizeEmbedding
 
 Re-exports [dequantizeEmbedding](../react/Internal/functions/dequantizeEmbedding.md)
+
+***
+
+### deriveKeyFromSignatureBytes
+
+Re-exports [deriveKeyFromSignatureBytes](../react/Encryption/deriveKeyFromSignatureBytes.md)
+
+***
+
+### DurableAutoExtractorOptions
+
+Re-exports [DurableAutoExtractorOptions](../react/Internal/interfaces/DurableAutoExtractorOptions.md)
 
 ***
 
@@ -784,6 +832,18 @@ Re-exports [ExtractionCursorStore](../react/Internal/interfaces/ExtractionCursor
 
 ***
 
+### ExtractionFunnel
+
+Re-exports [ExtractionFunnel](../react/Internal/interfaces/ExtractionFunnel.md)
+
+***
+
+### ExtractionTimings
+
+Re-exports [ExtractionTimings](../react/Internal/interfaces/ExtractionTimings.md)
+
+***
+
 ### ExtractOutcome
 
 Re-exports [ExtractOutcome](../react/Internal/type-aliases/ExtractOutcome.md)
@@ -802,9 +862,27 @@ Re-exports [FileMetadata](../react/Internal/interfaces/FileMetadata.md)
 
 ***
 
+### FileProcessingReason
+
+Re-exports [FileProcessingReason](../react/Internal/type-aliases/FileProcessingReason.md)
+
+***
+
+### FileProcessingStatus
+
+Re-exports [FileProcessingStatus](../react/Internal/interfaces/FileProcessingStatus.md)
+
+***
+
 ### FlushResult
 
 Re-exports [FlushResult](../react/Internal/interfaces/FlushResult.md)
+
+***
+
+### formatFileProcessingNotes
+
+Re-exports [formatFileProcessingNotes](../react/Internal/functions/formatFileProcessingNotes.md)
 
 ***
 
@@ -994,9 +1072,21 @@ Re-exports [injectionSignatureCatalog](../react/Internal/functions/injectionSign
 
 ***
 
+### isAttachedFilesText
+
+Re-exports [isAttachedFilesText](../react/Internal/functions/isAttachedFilesText.md)
+
+***
+
 ### isDegradedTopicSkip
 
 Re-exports [isDegradedTopicSkip](../react/Internal/functions/isDegradedTopicSkip.md)
+
+***
+
+### isEncrypted
+
+Re-exports [isEncrypted](../react/Internal/functions/isEncrypted.md)
 
 ***
 
@@ -1042,6 +1132,18 @@ Re-exports [LoggerProviderProps](../react/Internal/interfaces/LoggerProviderProp
 
 ***
 
+### ManualFactType
+
+Re-exports [ManualFactType](../react/Internal/type-aliases/ManualFactType.md)
+
+***
+
+### maskScopedEmbeddingCache
+
+Re-exports [maskScopedEmbeddingCache](../react/Internal/functions/maskScopedEmbeddingCache.md)
+
+***
+
 ### MAX\_HOPS
 
 Re-exports [MAX\_HOPS](../react/Internal/variables/MAX_HOPS.md)
@@ -1057,6 +1159,30 @@ Re-exports [MEDIUM\_TTL\_MS](../react/Internal/variables/MEDIUM_TTL_MS.md)
 ### MemoriesNeedingTopicExtraction
 
 Re-exports [MemoriesNeedingTopicExtraction](../react/Internal/interfaces/MemoriesNeedingTopicExtraction.md)
+
+***
+
+### MemoryContextItem
+
+Re-exports [MemoryContextItem](../react/Internal/interfaces/MemoryContextItem.md)
+
+***
+
+### MemoryContextLane
+
+Re-exports [MemoryContextLane](../react/Internal/type-aliases/MemoryContextLane.md)
+
+***
+
+### MemoryContextOptions
+
+Re-exports [MemoryContextOptions](../react/Internal/interfaces/MemoryContextOptions.md)
+
+***
+
+### MemoryContextResult
+
+Re-exports [MemoryContextResult](../react/Internal/interfaces/MemoryContextResult.md)
 
 ***
 
@@ -1390,6 +1516,12 @@ Re-exports [RecallDiagnostics](../react/Internal/interfaces/RecallDiagnostics.md
 
 ***
 
+### RecallEmptyReason
+
+Re-exports [RecallEmptyReason](../react/Internal/type-aliases/RecallEmptyReason.md)
+
+***
+
 ### RecallOptions
 
 Re-exports [RecallOptions](../react/Internal/interfaces/RecallOptions.md)
@@ -1642,6 +1774,12 @@ Re-exports [shouldChunkMessage](../react/Internal/functions/shouldChunkMessage.m
 
 ***
 
+### shouldRecallMemory
+
+Re-exports [shouldRecallMemory](../react/Internal/functions/shouldRecallMemory.md)
+
+***
+
 ### SignMessageFn
 
 Re-exports [SignMessageFn](../react/Internal/type-aliases/SignMessageFn.md)
@@ -1753,6 +1891,12 @@ Re-exports [streamReplayPath](../react/Internal/functions/streamReplayPath.md)
 ### StreamResumeHandle
 
 Re-exports [StreamResumeHandle](../react/Internal/type-aliases/StreamResumeHandle.md)
+
+***
+
+### StreamSmoothingConfig
+
+Re-exports [StreamSmoothingConfig](../react/Internal/type-aliases/StreamSmoothingConfig.md)
 
 ***
 
@@ -1960,6 +2104,12 @@ Re-exports [VaultEmbeddingCache](../react/Internal/type-aliases/VaultEmbeddingCa
 
 ***
 
+### VaultEmbeddingExpectation
+
+Re-exports [VaultEmbeddingExpectation](../react/Internal/interfaces/VaultEmbeddingExpectation.md)
+
+***
+
 ### VaultFolderOperationsContext
 
 Re-exports [VaultFolderOperationsContext](../react/Internal/interfaces/VaultFolderOperationsContext.md)
@@ -1978,6 +2128,12 @@ Re-exports [VaultMemoryVisibility](../react/Internal/type-aliases/VaultMemoryVis
 
 ***
 
+### VaultMemoryWriter
+
+Re-exports [VaultMemoryWriter](../react/Internal/type-aliases/VaultMemoryWriter.md)
+
+***
+
 ### VaultSaveOperation
 
 Re-exports [VaultSaveOperation](../react/Internal/interfaces/VaultSaveOperation.md)
@@ -1987,6 +2143,24 @@ Re-exports [VaultSaveOperation](../react/Internal/interfaces/VaultSaveOperation.
 ### VaultSearchResult
 
 Re-exports [VaultSearchResult](../react/Internal/interfaces/VaultSearchResult.md)
+
+***
+
+### VaultWriteAction
+
+Re-exports [VaultWriteAction](../react/Internal/type-aliases/VaultWriteAction.md)
+
+***
+
+### VaultWriteInput
+
+Re-exports [VaultWriteInput](../react/Internal/interfaces/VaultWriteInput.md)
+
+***
+
+### VaultWriteOutcome
+
+Re-exports [VaultWriteOutcome](../react/Internal/interfaces/VaultWriteOutcome.md)
 
 ***
 

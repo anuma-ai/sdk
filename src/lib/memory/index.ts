@@ -1,4 +1,5 @@
 export type { CachedChunkVectors, ChunkVectorCache } from "../db/chat/operations.js";
+export { INTERNAL_FLOW_MARKER, withInternalFlowMarker } from "../internalFlowMarker.js";
 export {
   type AutoExtractMessage,
   extractAndRetain,
@@ -6,6 +7,8 @@ export {
   type ExtractedEntity,
   extractFacts,
   type ExtractFactsOptions,
+  type ExtractionFunnel,
+  type ExtractionTimings,
   type ExtractOutcome,
   type FactType,
   type QuarantinedMemoryInfo,
@@ -121,6 +124,7 @@ export {
 } from "./topicExtract.js";
 export type {
   Budget,
+  ConsolidationAction,
   ConsolidationFallbackReason,
   MemoryKind,
   PortalLlmAuth,
@@ -130,6 +134,7 @@ export type {
   RecallContext,
   RecallDegradation,
   RecallDiagnostics,
+  RecallEmptyReason,
   RecallOptions,
   RecallResult,
   RetainAction,
@@ -158,3 +163,16 @@ export {
 // are surfaced from the react entry point directly, next to the Entity models.
 // The recall-time traversal built on them (traverseGraphLane, PR4) is a
 // memory-layer concern and IS re-exported above.
+
+export {
+  assembleMemoryContext,
+  type MemoryContextItem,
+  type MemoryContextLane,
+  type MemoryContextOptions,
+  type MemoryContextResult,
+  shouldRecallMemory,
+} from "./context.js";
+export {
+  createDurableAutoExtractor,
+  type DurableAutoExtractorOptions,
+} from "./durableExtraction.js";

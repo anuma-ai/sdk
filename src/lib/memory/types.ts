@@ -127,6 +127,11 @@ export interface RecallOptions {
    * and no-op when unset (all types are eligible). Vault-only.
    */
   factTypes?: FactType[];
+  /** Restrict fact candidates BEFORE ranking. Empty means no facts. When set,
+   * unrestricted chunk search is disabled; it must not escape a topic scope.
+   * Asking for `"chunk"` alongside this yields no excerpts and reports
+   * `"chunks-scope-restricted"` on {@link RecallDiagnostics.degraded}. */
+  memoryIds?: string[];
   /**
    * PR5 — optional per-FactType score multiplier applied in the fusion boost
    * stage (e.g. boost `identity`/`constraint`, down-weight `ongoing_context`).
@@ -189,10 +194,25 @@ export interface RecallOptions {
   // All optional; defaults below match the pipeline's hardcoded behavior, so
   // omitting them is a no-op. Exposed for evaluation / ablation sweeps.
   // -------------------------------------------------------------------------
-  /** Number of candidates fed to the cross-encoder rerank stage. Default: 30. */
+  /** Number of candidates fed to the cross-encoder rerank stage. Default: 5;
+   *  was 30 until 2026-08-13 — see anuma-ai/sdk#845. */
   rerankTopN?: number;
   /** Multiplicative cross-encoder blend weight. Default: 0.1. */
   ceWeight?: number;
+  /**
+   * Max ms a `mid`/`high` recall waits for the cross-encoder's FIRST model load
+   * before degrading to the fused ranking (reported as `rerank-unavailable`).
+   * Default: 10000. The load keeps going in the background for later calls.
+   */
+  rerankLoadTimeoutMs?: number;
+  /**
+   * Overall deadline, in ms, for embedding the query — token read, every retry
+   * attempt and the backoff between them. Default: 8000. On expiry the fact lane
+   * degrades to BM25 and the (cosine-only) chunk lane is skipped, reported as
+   * `embeddings-unavailable`, so an embeddings outage costs a turn at most this
+   * long rather than ~4 x the per-attempt timeout. `0` disables it.
+   */
+  queryEmbedTotalTimeoutMs?: number;
   /** Recency boost slope in the fused ranker. Default: 1.0. */
   recencyAlpha?: number;
   /** Recency decay curve overrides (per-year decay slope, floor, no-date multiplier). */
@@ -225,7 +245,8 @@ export interface RecallOptions {
   maxHops?: number;
   /** Max neighbor entities expanded per hop. Default: 8. */
   entityFanout?: number;
-  /** Hard cap on accumulated memory IDs across all hops. Default: 64. */
+  /** Hard cap on graph-lane memory IDs — across all hops, and on the single-hop
+   *  lane `low`/`mid` run. Default: 64. */
   nodeBudget?: number;
   /**
    * PR5 — enable LLM graph path-refinement: at each traversal hop a model picks
@@ -307,7 +328,32 @@ export type RecallDegradation =
    *  failing back to the single-query path, or a row batch failing while other
    *  rows keep usable vectors) — those are logged, not reported, so this stays a
    *  reliable outage signal rather than a general embedding-error counter. */
-  | "embeddings-unavailable";
+  | "embeddings-unavailable"
+  /** The W5 graph (entity) side lane threw and was dropped. Auxiliary, so recall
+   *  still returned — but its RRF signal is missing from the ranking, and until
+   *  this existed the drop was a log line and nothing else. */
+  | "graph-lane-failed"
+  /** The W6 temporal side lane threw and was dropped. Same posture as the graph
+   *  lane: recall still returned, ranked without the temporal signal. */
+  | "temporal-lane-failed"
+  /** {@link RecallOptions.memoryIds} was set and `types` asked for `"chunk"`.
+   *  Conversation excerpts have no equivalent membership filter, so running the
+   *  chunk lane would escape the topic/folder scope — it is dropped instead.
+   *  Without this signal a scoped caller asking for excerpts got an empty
+   *  result indistinguishable from "the vault had no match". */
+  | "chunks-scope-restricted";
+
+/**
+ * Why a recall returned nothing. `""` when it returned something, so the field
+ * is always present and groupable rather than being absent on the healthy path.
+ *
+ * The four are different problems: an empty query is a caller bug, no-lanes is a
+ * context wiring bug (the requested kinds have no store), vault-empty is a new
+ * user, and no-candidates is the only one that is about retrieval quality. They
+ * were previously indistinguishable from outside — every one reported
+ * `candidateCount: 0`.
+ */
+export type RecallEmptyReason = "" | "empty-query" | "no-lanes" | "vault-empty" | "no-candidates";
 
 /**
  * Per-call recall observability payload (see {@link RecallOptions.onDiagnostics}).
@@ -359,6 +405,50 @@ export interface RecallDiagnostics {
   factCount: number;
   /** Chunks the chunk lane returned (post-dedupe, pre-fusion). */
   chunkCount: number;
+  /**
+   * Memories actually RETURNED — `memories.length` after fusion, cross-lane
+   * dedup and the `limit` slice.
+   *
+   * `candidateCount` is what was considered; this is what the caller got, and
+   * the two are routinely far apart (the fact lane pulls `limit * 2` when fusing).
+   * Every consumer that wanted "how many memories did this turn actually get"
+   * was reading `candidateCount` and overcounting.
+   */
+  admittedCount: number;
+  /** Highest score among the returned memories; -1 when none were returned. */
+  topScore: number;
+  /** Lowest score among the returned memories; -1 when none were returned. */
+  lowestAdmittedScore: number;
+  /**
+   * The similarity floor the lane that produced these scores actually applied:
+   * the fact lane's when it RETURNED results, otherwise the chunk lane's, and
+   * **-1 when neither ran** (empty query, unwired context). Gated on results
+   * rather than on the lane running, because a fact lane that ran and came
+   * back empty filtered none of the scores in the payload — reporting its
+   * 0.1 default against chunks that cleared 0.5 corrupted the telemetry.
+   * When NOTHING was admitted, the floor a lane did apply is still reported:
+   * "searched at this floor, found nothing" is the useful reading.
+   *
+   * Per-lane rather than one constant because the two defaults differ (0.1 fact
+   * / 0.5 chunk), so a single seeded value reported a floor that a chunk-only
+   * recall never applied. Reported next to the scores because the scores alone
+   * cannot say what they cleared.
+   */
+  minScoreApplied: number;
+  /**
+   * Whether the `limit` cut an ELIGIBLE result — recorded at the cut, not
+   * derived from `candidateCount > limit`. In the fused path `candidateCount`
+   * counts before provenance suppression, so a recall whose suppressed chunks
+   * brought it under the limit would otherwise report a truncation that never
+   * happened.
+   */
+  truncated: boolean;
+  /** Memory ids the W5 graph (entity) side lane contributed to the fusion. */
+  graphLaneCount: number;
+  /** Memory ids the W6 temporal side lane contributed to the fusion. */
+  temporalLaneCount: number;
+  /** Why nothing came back — see {@link RecallEmptyReason}. `""` when something did. */
+  emptyReason: RecallEmptyReason;
   /** Wall-clock phase timings (ms). */
   timings: {
     /** Whole `recall()` call. */
@@ -396,6 +486,10 @@ export interface RecallDiagnostics {
      * fast `vault_size = 0` population never established a baseline for this
      * cost, and why the ~850ms floor on the smallest NON-empty vaults had no
      * attributable owner.
+     *
+     * EXCEPTION — a mixed fact + chunk recall embeds the query ONCE, during
+     * {@link prep}, and hands the vector to both lanes. There `queryEmbed` is
+     * that shared embed and sits inside `prep`, not `factLane`.
      */
     queryEmbed: number;
     /** Chunk-lane search (`searchChunksOp`). */
@@ -412,6 +506,16 @@ export interface RecallDiagnostics {
 // ---------------------------------------------------------------------------
 
 export type RetainAction = "create" | "merge" | "update" | "skip" | "suppressed" | "supersede";
+
+/**
+ * The consolidation LLM's decision for a candidate, when it made one. Reported
+ * on {@link RetainResult.consolidation} so a host can tell an LLM `noop` (the
+ * fact already exists) from a cosine auto-merge — both arrive as
+ * `action: "merge"` — and can read how often the model reaches for `supersede`
+ * or `update` versus `create`. A degraded fallback create (LLM error, bad
+ * response) carries no decision; `onFallback` reports those.
+ */
+export type ConsolidationAction = "create" | "update" | "noop" | "supersede";
 export type RetainSource = "manual" | "auto-extracted" | "capsule";
 
 /**
@@ -557,4 +661,31 @@ export interface RetainResult {
   tombstoneId?: string;
   /** Updated proof_count after this write. 0 when nothing was written (suppressed). */
   proofCount: number;
+  /**
+   * How close the write was to the threshold that allowed it. Absent on the
+   * actions that have no such score (`create`, `update`, `supersede`, `skip`).
+   *
+   * The two paths report DIFFERENT things and a dashboard has to know which:
+   *
+   * - `suppressed` — an exact cosine against the tombstone, computed in
+   *   `findTombstoneMatch`.
+   * - `merge` — the RANKER's score for the target, not a pure cosine. The
+   *   cosine is what cleared `minSimilarity`, but the supersession pass may
+   *   then adjust it (`oldScore - delta` / `newScore + delta`) before this
+   *   value is read, and can in principle reorder the winner. Read it as
+   *   "the score the merge was chosen on", within the supersession delta of
+   *   the cosine — not as the raw pairwise similarity.
+   */
+  similarity?: number;
+  /**
+   * What the consolidation LLM decided for this candidate, when consolidation
+   * ran — see {@link ConsolidationAction}.
+   *
+   * Reported for the DECISION, not for what the write ended up doing, so the
+   * two can disagree and be read as such: a `merge` carrying
+   * `consolidation: "create"` is the model saying "new fact" and the strict
+   * cosine stage merging anyway. Absent when consolidation did not run, and
+   * absent on a degraded fallback create (`onFallback` owns that signal).
+   */
+  consolidation?: ConsolidationAction;
 }

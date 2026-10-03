@@ -2,7 +2,7 @@
 
 > **HandlersUserLookupResponse** = `object`
 
-Defined in: [src/client/types.gen.ts:3553](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3553)
+Defined in: [src/client/types.gen.ts:3850](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3850)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:3553](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **account**: [`HandlersUserLookupAccount`](HandlersUserLookupAccount.md)
 
-Defined in: [src/client/types.gen.ts:3554](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3554)
+Defined in: [src/client/types.gen.ts:3851](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3851)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:3554](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **enrollments**: [`HandlersUserLookupEnrollment`](HandlersUserLookupEnrollment.md)\[]
 
-Defined in: [src/client/types.gen.ts:3555](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3555)
+Defined in: [src/client/types.gen.ts:3852](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3852)
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: [src/client/types.gen.ts:3555](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **portal\_account\_exists**: `boolean`
 
-Defined in: [src/client/types.gen.ts:3556](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3556)
+Defined in: [src/client/types.gen.ts:3853](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3853)
 
 ***
 
@@ -34,7 +34,7 @@ Defined in: [src/client/types.gen.ts:3556](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **primary\_app\_id**: `number`
 
-Defined in: [src/client/types.gen.ts:3557](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3557)
+Defined in: [src/client/types.gen.ts:3854](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3854)
 
 ***
 
@@ -42,7 +42,7 @@ Defined in: [src/client/types.gen.ts:3557](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **privy**: [`HandlersUserLookupPrivy`](HandlersUserLookupPrivy.md)
 
-Defined in: [src/client/types.gen.ts:3558](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3558)
+Defined in: [src/client/types.gen.ts:3855](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3855)
 
 ***
 
@@ -50,7 +50,7 @@ Defined in: [src/client/types.gen.ts:3558](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **subscription**: [`HandlersSubscriptionStatusResponse`](HandlersSubscriptionStatusResponse.md)
 
-Defined in: [src/client/types.gen.ts:3559](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3559)
+Defined in: [src/client/types.gen.ts:3856](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3856)
 
 ***
 
@@ -58,7 +58,7 @@ Defined in: [src/client/types.gen.ts:3559](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **subscription\_error**: `string`
 
-Defined in: [src/client/types.gen.ts:3560](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3560)
+Defined in: [src/client/types.gen.ts:3857](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3857)
 
 ***
 
@@ -66,4 +66,4 @@ Defined in: [src/client/types.gen.ts:3560](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **text\_registrations**: [`HandlersUserLookupTextReg`](HandlersUserLookupTextReg.md)\[]
 
-Defined in: [src/client/types.gen.ts:3561](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3561)
+Defined in: [src/client/types.gen.ts:3858](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3858)

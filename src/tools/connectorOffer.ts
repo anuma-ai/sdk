@@ -15,7 +15,7 @@ export function createConnectorOfferTool(options: CreateUIToolsOptions): ToolCon
   return createDisplayTool(options, {
     name: "display_connector",
     description:
-      "Display an inline card that prompts the user to connect an app or service (for example Notion, Gmail, Google Drive, Google Calendar, GitHub, Dropbox). Call this when the user asks to connect, link, enable, or authorize one of these apps, or when answering their request requires access the user has not yet granted. The card renders the connect prompt visually; do NOT repeat the connection instructions in your text response.",
+      "Display an inline card that prompts the user to connect an app or service (for example Notion, Gmail, Google Drive, Google Calendar, GitHub, Dropbox, or Agentic Reservations for restaurant bookings, id 'agentres'). Call this when the user asks to connect, link, enable, or authorize one of these apps, or when answering their request requires access the user has not yet granted. The card renders the connect prompt visually; do NOT repeat the connection instructions in your text response.",
     parameters: {
       type: "object",
       properties: {

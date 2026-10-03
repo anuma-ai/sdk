@@ -221,4 +221,26 @@ describe("createLlmDecayClassifier", () => {
     expect(fetchFn).toHaveBeenCalled();
     expect(sentBody).toContain("ageDays: 42");
   });
+
+  it("ages a re-observed row from its last observation, not its last edit", async () => {
+    let sentBody = "";
+    const fetchFn = vi.fn(async (_url: unknown, init: { body?: unknown }) => {
+      sentBody = String(init?.body ?? "");
+      return { ok: true, json: async () => choices({ verdict: "keep" }) };
+    }) as unknown as typeof fetch;
+    const classifier = createLlmDecayClassifier({
+      apiKey: "k",
+      fetchFn,
+      getContent: async () => "durable fact",
+      backoffMs: () => 0,
+    });
+
+    // A merge pins updated_at and records the sighting in lastObservedAt.
+    await classifier.classify(
+      input({ updatedAt: NOW - 300 * DAY, lastObservedAt: NOW - 3 * DAY }),
+      "keep",
+      NOW
+    );
+    expect(sentBody).toMatch(/ageDays: 3(?!\d)/);
+  });
 });

@@ -2,7 +2,7 @@
 
 > **GetAdminReferralGrantsStatsResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:4861](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4861)
+Defined in: [src/client/types.gen.ts:5167](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5167)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:4861](https://github.com/anuma-ai/sdk/blob/
 
 > **200**: [`HandlersReferralGrantStatsResponse`](HandlersReferralGrantStatsResponse.md)
 
-Defined in: [src/client/types.gen.ts:4865](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4865)
+Defined in: [src/client/types.gen.ts:5171](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5171)
 
 OK

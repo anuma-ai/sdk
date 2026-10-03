@@ -188,7 +188,7 @@ export interface RetrievalTuningKnobs {
   proofCountAlpha?: number;
   /** Enable MMR diversification (rerank pipeline only). SDK default off. */
   mmr?: boolean;
-  /** Cross-encoder rerank candidate count (SDK `rerankTopN`). SDK default 30. */
+  /** Cross-encoder rerank candidate count (SDK `rerankTopN`). SDK default 5. */
   rerankTopN?: number;
   /** BM25 admission divisor (SDK `bm25AdmissionDivisor`). SDK default 50. */
   bm25AdmissionDivisor?: number;

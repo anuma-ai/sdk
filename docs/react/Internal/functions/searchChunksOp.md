@@ -2,7 +2,7 @@
 
 > **searchChunksOp**(`ctx`: [`StorageOperationsContext`](../interfaces/StorageOperationsContext.md), `queryVector`: `number`\[], `options?`: `object`): `Promise`<[`ChunkSearchResult`](../interfaces/ChunkSearchResult.md)\[]>
 
-Defined in: [src/lib/db/chat/operations.ts:1526](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/operations.ts#1526)
+Defined in: [src/lib/db/chat/operations.ts:1618](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/operations.ts#1618)
 
 Search through message chunks for fine-grained semantic search.
 Returns the matching chunk text along with the parent message.
@@ -125,6 +125,26 @@ live in a different space, so cosine against the current-model query is
 meaningless (and the dim-mismatch path returns 0 silently). Null/absent
 `embedding_model` is grandfathered as current-model-compatible. Skipped
 messages are re-embedded out-of-band by `chunkAndEmbedAllMessages`.
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.excludeConversationId?`
+
+</td>
+<td>
+
+`string`
+
+</td>
+<td>
+
+Skip every message in this conversation BEFORE scoring, so it can't take
+top-K slots. Filtering after the cut (what recall() used to do) lets a
+long current conversation fill all `limit` slots and leaves
+past-conversation recall with nothing.
 
 </td>
 </tr>

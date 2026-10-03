@@ -136,8 +136,17 @@ export function supportsResponseFormat(
  *
  * Matched on the model half of the id (`provider/model`), by PREFIX, because
  * the family shares the `gpt-5.6-` stem across variants.
+ *
+ * The gpt-6 entries are listed per family, not as a `gpt-6` stem, because the
+ * families fail DIFFERENTLY — each was probed against dev on 2026-09-24:
+ * - gpt-6-sol / gpt-6-luna reject chat-completions exactly as gpt-5.6-luna does
+ *   in the same run: 400 on any effort but "none", 200 on /v1/responses.
+ * - gpt-6-astra (prefix covers -pro) is worse: chat-completions rejects "none"
+ *   too ("Supported values are: 'low', 'medium', 'high', and 'xhigh'"), so the
+ *   portal's rewrite-to-"none" cannot rescue it and /v1/responses is its ONLY
+ *   working transport. (astra-pro was not reachable on dev's virtual key.)
  */
-const RESPONSES_ONLY_MODEL_PREFIXES = ["gpt-5.6"];
+const RESPONSES_ONLY_MODEL_PREFIXES = ["gpt-5.6", "gpt-6-sol", "gpt-6-luna", "gpt-6-astra"];
 
 /**
  * Whether `model` must be called on the Responses transport.
@@ -213,6 +222,27 @@ export type PortalLlmFailureReason =
   | "time-budget-exhausted";
 
 /**
+ * One attempt of a {@link callPortalJsonCompletion} call, reported to
+ * `onAttempt` as it settles — success included. The wire-level diagnostic the
+ * give-up hook cannot provide: a call that succeeds on its third try returns a
+ * value and fires no `onFailure`, yet it cost three completions and its first
+ * two answers were unusable. Extraction quality regressions have hidden in
+ * exactly that shape (a prompt change that made the model answer `NONE` first,
+ * JSON on retry), so the extraction eval gates on the first-attempt clean rate.
+ *
+ * @public
+ */
+export interface PortalLlmAttempt {
+  /** 1-based attempt index. */
+  attempt: number;
+  /** Whether this attempt produced a parseable JSON value. */
+  ok: boolean;
+  /** Classification when `ok` is false. */
+  reason?: PortalLlmFailureReason;
+  httpStatus?: number;
+}
+
+/**
  * A give-up report: the classified {@link PortalLlmFailureReason} plus the
  * little context worth carrying into telemetry. Both extra fields are bounded
  * (a status code, a small attempt count), so both are safe as event properties.
@@ -254,8 +284,8 @@ export interface PortalLlmFailure {
  * runs WITH reasoning, against 6/7 on 2 of 3 runs without it (and one of those
  * misses emitted an entity whose `name` was `undefined`).
  */
-// Not exported: no caller selects a transport yet, and knip rightly flags an
-// export nothing imports. Widen to `export` when the first lane switches.
+// Not exported: no caller selects a transport explicitly (callPortalJsonCompletion
+// picks it from the model), and knip rightly flags an export nothing imports.
 type PortalLlmTransport = "chat" | "responses";
 
 /**
@@ -273,9 +303,9 @@ type PortalLlmTransport = "chat" | "responses";
 type PortalLlmTransportOptions =
   | {
       /**
-       * Transport for this call. Default `"chat"` — every existing caller keeps
-       * the chat-completions shape and endpoint unchanged. See
-       * {@link PortalLlmTransport} for why the other one exists.
+       * Transport for this call. Omitted, it is chosen from the model: `"responses"`
+       * for a {@link requiresResponsesTransport} family, `"chat"` for everything
+       * else. See {@link PortalLlmTransport} for why the other one exists.
        */
       transport?: Extract<PortalLlmTransport, "chat">;
       /** Not available on `"chat"` — the portal rewrites it to `"none"`. */
@@ -370,6 +400,12 @@ interface PortalLlmRequestBase extends PortalLlmAuth {
    * `{candidates: []}` for good reason. See {@link PortalLlmFailureReason}.
    */
   onFailure?: (failure: PortalLlmFailure) => void;
+  /**
+   * Invoked once per attempt as it settles, success included — see
+   * {@link PortalLlmAttempt}. Diagnostic only; a throwing listener is not
+   * guarded, so keep it side-effect-light (a counter, a push onto an array).
+   */
+  onAttempt?: (attempt: PortalLlmAttempt) => void;
   /**
    * Internal, set by the retry loop — not part of the caller-facing contract.
    *
@@ -664,7 +700,16 @@ export async function callPortalJsonCompletion(req: PortalLlmRequest): Promise<u
       { ...attemptReq, transport } as PortalLlmRequest,
       endpoint
     );
-    if (outcome.kind === "ok") return outcome.value;
+    if (outcome.kind === "ok") {
+      req.onAttempt?.({ attempt, ok: true });
+      return outcome.value;
+    }
+    req.onAttempt?.({
+      attempt,
+      ok: false,
+      reason: outcome.code,
+      ...(outcome.httpStatus !== undefined && { httpStatus: outcome.httpStatus }),
+    });
     lastFailure = {
       reason: outcome.code,
       ...(outcome.httpStatus !== undefined && { httpStatus: outcome.httpStatus }),

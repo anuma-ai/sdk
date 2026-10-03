@@ -2,7 +2,7 @@
 
 > **PostApiV1AdminPhoneHashesBackfillData** = `object`
 
-Defined in: [src/client/types.gen.ts:6505](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6505)
+Defined in: [src/client/types.gen.ts:7172](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7172)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:6505](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **body**: `never`
 
-Defined in: [src/client/types.gen.ts:6506](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6506)
+Defined in: [src/client/types.gen.ts:7173](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7173)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:6506](https://github.com/anuma-ai/sdk/blob/
 
 > **headers**: `object`
 
-Defined in: [src/client/types.gen.ts:6507](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6507)
+Defined in: [src/client/types.gen.ts:7174](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7174)
 
 **X-Admin-API-Key**
 
@@ -32,7 +32,7 @@ Admin API key
 
 > `optional` **path**: `never`
 
-Defined in: [src/client/types.gen.ts:6513](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6513)
+Defined in: [src/client/types.gen.ts:7180](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7180)
 
 ***
 
@@ -40,7 +40,7 @@ Defined in: [src/client/types.gen.ts:6513](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **query**: `object`
 
-Defined in: [src/client/types.gen.ts:6514](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6514)
+Defined in: [src/client/types.gen.ts:7181](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7181)
 
 **limit?**
 
@@ -60,4 +60,4 @@ Offset into accounts ordered by id
 
 > **url**: `"/api/v1/admin/phone-hashes/backfill"`
 
-Defined in: [src/client/types.gen.ts:6524](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6524)
+Defined in: [src/client/types.gen.ts:7191](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7191)

@@ -275,8 +275,7 @@ export interface ProfileSection {
   interests?: string[];
   /** Unix ms this section was generated. */
   generatedAt: number;
-  /** True when regeneration failed and a prior section value was carried
-   * forward (e.g. LLM returned empty) — the caller may choose to retry. */
+  /** True when regeneration failed (e.g. LLM returned empty) — the caller may choose to retry. */
   stale?: boolean;
 }
 
@@ -506,13 +505,51 @@ export async function synthesizeProfile(
     options.reviewedMemoryIds
   );
 
+  // Preserve a failed section only while all its source facts remain eligible and unchanged.
+  //
+  // Deliberately NOT gated on the watermark ROLLBACK that makes
+  // computeStaleFacetKeys regenerate every facet. The two passes read the same
+  // mark in opposite directions. The delta pass uses it as a lower bound to
+  // DETECT change, so an inflated mark under-detects and has to bail to a full
+  // regen. Here it is an upper bound in a per-source admission test, so an
+  // inflated mark cannot admit a source that moved: on a rollback every present
+  // memory satisfies changeTime <= watermark < previous.vaultWatermark, and a
+  // write that landed after the previous doc carries a timestamp above that
+  // doc's mark, so it cannot sit below the current lower max. Gating the whole
+  // map on a rollback only discarded priors whose own evidence was intact, and a
+  // rollback regenerates ALL facets, which is when a transient failure is most
+  // likely to blank a section. A section whose own source is the fact that
+  // vanished still clears - it fails the presence check below.
+  const memoriesById = new Map(memories.map((memory) => [memory.uniqueId, memory]));
+  const fallbackPriors = new Map<ProfileFacetKey, ProfileSection>();
+  if (previous) {
+    for (const section of previous.sections) {
+      if (
+        section.sourceMemoryIds.length > 0 &&
+        section.sourceMemoryIds.every((id) => {
+          const memory = memoriesById.get(id);
+          return (
+            memory &&
+            !memory.isDeleted &&
+            !memory.supersededBy &&
+            scopes.includes(memory.scope) &&
+            (options.reviewedMemoryIds === undefined || options.reviewedMemoryIds.includes(id)) &&
+            changeTime(memory) <= previous.vaultWatermark
+          );
+        })
+      ) {
+        fallbackPriors.set(section.key, section);
+      }
+    }
+  }
+
   const settled = await Promise.allSettled(
     facets.map(async (facet) => {
       const prior = previous?.sections.find((s) => s.key === facet.key);
       if (prior && !staleKeys.has(facet.key)) {
         return prior; // reuse verbatim — its source facts are unchanged
       }
-      return synthesizeFacet(facet, ctx, options, prior);
+      return synthesizeFacet(facet, ctx, options, fallbackPriors.get(facet.key));
     })
   );
 
@@ -528,10 +565,7 @@ export async function synthesizeProfile(
         error: r.reason instanceof Error ? r.reason.message : String(r.reason),
       }
     );
-    return fallbackSection(
-      facet,
-      previous?.sections.find((s) => s.key === facet.key)
-    );
+    return fallbackSection(facet, fallbackPriors.get(facet.key));
   });
 
   return {
@@ -603,6 +637,11 @@ function reviewedMemoryIdsSignature(ids: readonly string[] | undefined): string 
  * cost and give back the guarantee, since a later edit to the shared prose
  * schema would then invalidate nothing at all.
  *
+ * {@link FACET_SYSTEM_PROMPT} is folded in on the same argument. It is shared by
+ * every facet, so leaving it out meant a rules edit (the third-person voice line,
+ * ai-memoryless-client#8398) reached no one with a cached doc until their facts
+ * happened to change.
+ *
  * Not exported through the barrels; `synthesizeProfile.test.ts` consumes it so
  * the test builds prior-doc fingerprints from the real algorithm rather than a
  * mirror of it — the schemas it folds in are module-private and a hand-copied
@@ -613,11 +652,14 @@ export function facetsSignature(facets: ProfileFacet[]): string {
   // display order doesn't matter (sections are rebuilt in facet order), join.
   // The schema stringifies deterministically — it's a module constant, so its
   // key order only moves when this file does, which is exactly when the
-  // signature should move.
-  return facets
-    .map((f) => JSON.stringify([f.key, f.label, f.query, f.guidance, facetResponseSchema(f.key)]))
-    .sort()
-    .join("\n");
+  // signature should move. The shared system prompt leads, for the same reason
+  // as the schema: it is what every section was asked for.
+  return [
+    JSON.stringify(FACET_SYSTEM_PROMPT),
+    ...facets
+      .map((f) => JSON.stringify([f.key, f.label, f.query, f.guidance, facetResponseSchema(f.key)]))
+      .sort(),
+  ].join("\n");
 }
 
 /** Whether two C2 trend-count maps are equal. Missing prior → not equal
@@ -844,8 +886,8 @@ async function attributeFacts(
 /** One grounded synthesis pass for a single facet. Gates its own fresh text
  * through the PII redactor when supplied, so the returned section is
  * publish-safe. On a DEGRADED-empty result (LLM failure, empty text despite
- * evidence) it falls back to the prior section (marked stale) rather than
- * wiping a previously-good section (#3). A legitimate "no evidence" verdict
+ * evidence) it uses the eligible, unchanged prior section, marked stale, or an empty stale section.
+ * A legitimate "no evidence" verdict
  * (hasEvidence=false) clears the section as intended.
  *
  * Evidence path: recall with profile-worthiness knobs → optional
@@ -946,9 +988,9 @@ async function synthesizeFacet(
 
   if (!text && !legitimateEmpty && !noEvidence) {
     // Degraded empty (LLM produced nothing but not an explicit no-evidence
-    // verdict, and recall did return evidence) — keep the prior section, stale.
+    // verdict, and recall did return evidence) uses the validated fallback.
     getLogger().warn(
-      "[memory/synthesizeProfile] facet synthesis returned degraded-empty; keeping prior section",
+      "[memory/synthesizeProfile] facet synthesis returned degraded-empty; using fallback section",
       { facet: facet.key, recalledCount: result.basedOn.memoryIds.length }
     );
     return fallbackSection(facet, prior);
@@ -1000,8 +1042,7 @@ async function synthesizeFacet(
 }
 
 /** Fallback when a facet's synthesis failed (rejected or degraded-empty): keep
- * the prior section (marked stale) so a previously-good section survives; only
- * emit an empty section when there was no prior. */
+ * an eligible, unchanged prior section, marked stale. Otherwise emit an empty stale section. */
 function fallbackSection(facet: ProfileFacet, prior: ProfileSection | undefined): ProfileSection {
   // fallbackSection is only reached on a FAILURE (rejected or degraded-empty),
   // never on a legitimate no-evidence verdict — so always mark the result stale
@@ -1037,14 +1078,21 @@ function fallbackSection(facet: ProfileFacet, prior: ProfileSection | undefined)
  * match holds through both. Interpolating a facet value back in would not.
  *
  * The rules are unchanged from the per-facet version except the response line,
- * which now points at the shape the user turn gives rather than spelling one out.
+ * which now points at the shape the user turn gives rather than spelling one out,
+ * and the voice line: it used to ask for third person, which put "They value…"
+ * into a bio the user publishes as their own (ai-memoryless-client#8398).
+ *
+ * Editing this text is a TWO-REPO change: register the new wording in ai-portal
+ * first, with the old one kept as a legacy text, or expand mode appends the old
+ * rules to every request this build sends. It also invalidates every cached doc
+ * once, via {@link facetsSignature}.
  */
 const FACET_SYSTEM_PROMPT = `You are writing one section of a person's shareable profile, using their private memories (supplied as evidence) as the only source of truth. The user turn names the section, states the task for it, and gives the exact JSON shape to respond in.
 
 Rules:
 - Ground every claim in the supplied memories — never invent, infer beyond, or embellish what they support.
 - If the memories don't cover this section, return an empty summary with hasEvidence=false. Do not pad or guess.
-- Write in third person about the person, in a natural voice suitable for a public profile (no "I"/"you", no name repetition).
+- Write in a pronoun-free profile voice: lead with the descriptor or the verb ("Thoughtful, detail-oriented builder. Values clear communication."). Never use "they"/"he"/"she", "I", "you", or the person's name — the person publishes this as their own profile, and strangers read it there.
 - Be concise and specific; no preamble, hedging, or meta-commentary.
 - Respond as JSON in exactly the shape the user turn states, with no extra fields.`;
 

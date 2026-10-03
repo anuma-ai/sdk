@@ -1,6 +1,6 @@
 # RequestEncryptionKeyOptions
 
-Defined in: [src/react/useEncryption.ts:74](https://github.com/anuma-ai/sdk/blob/main/src/react/useEncryption.ts#74)
+Defined in: [src/react/useEncryption.ts:78](https://github.com/anuma-ai/sdk/blob/main/src/react/useEncryption.ts#78)
 
 Options for [requestEncryptionKey](../functions/requestEncryptionKey.md).
 
@@ -10,7 +10,7 @@ Options for [requestEncryptionKey](../functions/requestEncryptionKey.md).
 
 > `optional` **force**: `boolean`
 
-Defined in: [src/react/useEncryption.ts:82](https://github.com/anuma-ai/sdk/blob/main/src/react/useEncryption.ts#82)
+Defined in: [src/react/useEncryption.ts:86](https://github.com/anuma-ai/sdk/blob/main/src/react/useEncryption.ts#86)
 
 When true, re-derive and replace any existing in-memory keys for this
 address. Default false preserves the historical "if present, return"

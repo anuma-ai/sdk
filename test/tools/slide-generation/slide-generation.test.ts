@@ -30,6 +30,7 @@ import {
   timedToolLoop,
   tryGetDeck,
   type ToolCallLog,
+  succeeded,
   wrapTool,
 } from "./setup.js";
 import { createTestSlideTools } from "./tools.js";
@@ -56,7 +57,7 @@ function isDeckShape(deck: unknown): deck is AnumaNode {
   return d.tag === "Deck" && typeof d.attrs === "object" && Array.isArray(d.children);
 }
 
-describe("slide-generation", () => {
+describe.concurrent("slide-generation", () => {
   it("generates a new slide deck via plan_deck + add_slide", async () => {
     const store = createFileStore();
     const log: ToolCallLog[] = [];
@@ -81,7 +82,7 @@ describe("slide-generation", () => {
     expect(result.error).toBeNull();
 
     // Generation flow: one plan_deck + one add_slide per slide.
-    const planCalls = log.filter((l) => l.name === "plan_deck");
+    const planCalls = log.filter((l) => l.name === "plan_deck" && succeeded(l));
     const addCalls = log.filter((l) => l.name === "add_slide");
     expect(planCalls.length).toBe(1);
     expect(addCalls.length).toBeGreaterThanOrEqual(2);
@@ -181,7 +182,7 @@ describe("slide-generation", () => {
     const updateCalls = log.slice(callsAfterGen);
     const readCalls = updateCalls.filter((l) => l.name === "read_slides");
     const patchCalls = updateCalls.filter((l) => l.name === "patch_slides");
-    const reinitCalls = updateCalls.filter((l) => l.name === "plan_deck");
+    const reinitCalls = updateCalls.filter((l) => l.name === "plan_deck" && succeeded(l));
 
     console.log(
       `  Update tools: ${readCalls.length} read_slides, ${patchCalls.length} patch_slides, ${reinitCalls.length} plan_deck (reinits)`
@@ -273,7 +274,7 @@ describe("slide-generation", () => {
 
     const updateCalls = log.slice(callsAfterGen);
     const patchCalls = updateCalls.filter((l) => l.name === "patch_slides");
-    const reinitCalls = updateCalls.filter((l) => l.name === "plan_deck");
+    const reinitCalls = updateCalls.filter((l) => l.name === "plan_deck" && succeeded(l));
     console.log(
       `  Theme update tools: ${patchCalls.length} patch_slides, ${reinitCalls.length} plan_deck (reinits)`
     );

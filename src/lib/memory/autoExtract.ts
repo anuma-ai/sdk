@@ -18,6 +18,7 @@ import { Q } from "@nozbe/watermelondb";
 import { type EntityOperationsContext, linkMemoryEntitiesOp } from "../db/entities/operations.js";
 import { ENTITY_KINDS, type EntityKind } from "../db/entities/types.js";
 import { VaultMemory } from "../db/memoryVault/models.js";
+import { findQuarantinedDuplicateOp } from "../db/memoryVault/operations.js";
 import { getLogger } from "../logger.js";
 import { type PiiRedactor, resolvePiiRedactor } from "../pii/redactor.js";
 import { isGenericEntityName } from "./entitySalience.js";
@@ -28,6 +29,7 @@ import {
 import { type InjectionReason, screenCandidatesForInjection } from "./injectionScreen.js";
 import {
   callPortalJsonCompletion,
+  type PortalLlmAttempt,
   type PortalLlmAuth,
   type PortalLlmFailure,
 } from "./portalLlm.js";
@@ -332,6 +334,66 @@ export interface ExtractFactsOptions extends PortalLlmAuth {
    * (i.e. redaction silently eating facts) is alarmable.
    */
   onCandidatesDropped?: () => void;
+  /**
+   * Per-attempt wire diagnostic, forwarded to {@link callPortalJsonCompletion}.
+   * The extraction eval gates on it (first-attempt clean rate); production
+   * callers may leave it unset.
+   */
+  onAttempt?: (attempt: PortalLlmAttempt) => void;
+  /**
+   * Fired once per successful completion with how many candidates the model
+   * emitted (`rawCount`) and how many survived {@link validateCandidates}
+   * (`validCount`) — the non-string / empty / over-cap / low-signal / bad-
+   * confidence drops that until now were a bare `continue` nobody counted.
+   *
+   * Without it a `no-facts` turn cannot be split into "the model found nothing"
+   * and "the model found things we threw away", which is the difference between
+   * a prompt problem and a validator problem. Counts only; never content.
+   */
+  onCandidatesParsed?: (stats: { rawCount: number; validCount: number }) => void;
+}
+
+/**
+ * Where a turn's candidates went between the model's completion and the vault —
+ * every stage that can drop one, as a count. Returned by {@link extractAndRetain}
+ * and forwarded on `TurnCompleteEvent` so a host can emit it; nothing here is
+ * content.
+ *
+ * Reads as a funnel: `raw ≥ valid ≥ afterRedaction ≥ aboveConfidence`, then
+ * `aboveConfidence = quarantined + retained + failed`.
+ * @public
+ */
+export interface ExtractionFunnel {
+  /** Candidates in the model's completion, before any validation. */
+  rawCandidateCount: number;
+  /** Survivors of {@link validateCandidates} (shape, length, low-signal, confidence-is-a-number). */
+  validCandidateCount: number;
+  /** Survivors of PII de-anonymization (equals `validCandidateCount` when redaction is off). */
+  afterRedactionCount: number;
+  /** Survivors of the `minConfidence` floor — the candidates that reached the injection screen. */
+  aboveConfidenceCount: number;
+  /**
+   * Held for review by the injection screen and SUCCESSFULLY persisted — the
+   * same set as `extractAndRetain`'s `quarantined`. A screened candidate whose
+   * `retain()` threw is in `failedCount` instead, never both.
+   */
+  quarantinedCount: number;
+  /** Written through `retain()` (any disposition). */
+  retainedCount: number;
+  /** `retain()` threw. */
+  failedCount: number;
+}
+
+/**
+ * Wall-clock split of one {@link extractAndRetain} call. The worker's
+ * `durationMs` is the sum plus the screen; these say which half is slow.
+ * @public
+ */
+export interface ExtractionTimings {
+  /** The extraction LLM call, all attempts and backoff included. */
+  extractMs: number;
+  /** The retain loop — embeddings, consolidation LLM calls, writes — over every candidate. */
+  retainMs: number;
 }
 
 /**
@@ -425,6 +487,7 @@ export async function extractFacts(
     ...(options.timeoutMs !== undefined && { timeoutMs: options.timeoutMs }),
     ...(options.totalTimeoutMs !== undefined && { totalTimeoutMs: options.totalTimeoutMs }),
     ...(options.backoffMs && { backoffMs: options.backoffMs }),
+    ...(options.onAttempt && { onAttempt: options.onAttempt }),
   });
   // A successful "no facts" response parses to {candidates: []} (non-null),
   // so a null strictly signals failure after retries, never a legit empty.
@@ -445,6 +508,11 @@ export async function extractFacts(
     fallbackSourceId,
     options.userIdentity ?? []
   );
+  const rawCandidates = (parsed as { candidates?: unknown }).candidates;
+  options.onCandidatesParsed?.({
+    rawCount: Array.isArray(rawCandidates) ? rawCandidates.length : 0,
+    validCount: candidates.length,
+  });
   if (!redactor) return candidates;
   const restored = restoreCandidates(candidates, redactor, options.userIdentity ?? []);
   // H3: the extractor found facts but de-anonymization dropped every one
@@ -620,6 +688,12 @@ export async function extractAndRetain(
    * the give-up, so "extraction is failing" can be reported as *why* it failed.
    */
   failure?: PortalLlmFailure;
+  /** Where the candidates went, stage by stage — see {@link ExtractionFunnel}. */
+  funnel: ExtractionFunnel;
+  /** Extract vs. retain wall-clock — see {@link ExtractionTimings}. */
+  timings: ExtractionTimings;
+  /** The extraction model this call asked for (the resolved default when unset). */
+  model: string;
 }> {
   const minConfidence = options.minConfidence ?? DEFAULT_MIN_CONFIDENCE;
 
@@ -644,8 +718,13 @@ export async function extractAndRetain(
   let exhaustedEmpty = false;
   let exhaustedFailure: PortalLlmFailure | undefined;
   let droppedAfterRedaction = false;
+  // Funnel counts the extractor decides before we see its result.
+  let rawCandidateCount = 0;
+  let validCandidateCount = 0;
   const callerOnExhaustedEmpty = options.extract.onExhaustedEmpty;
   const callerOnCandidatesDropped = options.extract.onCandidatesDropped;
+  const callerOnCandidatesParsed = options.extract.onCandidatesParsed;
+  const tExtract = Date.now();
   const candidates = await extractFacts(messages, {
     ...options.extract,
     onExhaustedEmpty: (failure) => {
@@ -657,7 +736,13 @@ export async function extractAndRetain(
       droppedAfterRedaction = true;
       callerOnCandidatesDropped?.();
     },
+    onCandidatesParsed: (stats) => {
+      rawCandidateCount = stats.rawCount;
+      validCandidateCount = stats.validCount;
+      callerOnCandidatesParsed?.(stats);
+    },
   });
+  const extractMs = Date.now() - tExtract;
   const filtered = candidates.filter((c) => c.confidence >= minConfidence);
 
   const log = getLogger();
@@ -733,8 +818,33 @@ export async function extractAndRetain(
   const results: RetainResult[] = [];
   const quarantinedInfo: QuarantinedMemoryInfo[] = [];
   let failedWrites = 0;
+  const tRetain = Date.now();
   for (const { candidate, isQuarantined, reason, signature } of toRetain) {
     try {
+      if (isQuarantined) {
+        // A durable batch is re-extracted on every retry, and quarantined rows
+        // are force-created (no auto-merge), so each retry used to add another
+        // copy of the same audit row. Reuse the one an earlier attempt wrote;
+        // its `onQuarantined` already fired, so it is not announced again.
+        // Best effort: a failed lookup must not cost the audit row, so it
+        // falls through to the create.
+        const existingId = await findQuarantinedDuplicateOp(
+          retainCtx.vaultCtx,
+          candidate.content,
+          candidate.sourceMessageIds,
+          // The same defaults retain() writes the row with.
+          { scope: options.scope ?? "private", folderId: options.folderId ?? null }
+        ).catch(() => null);
+        if (existingId) {
+          quarantinedInfo.push({
+            candidate,
+            memoryId: existingId,
+            reason: reason as InjectionReason,
+            signature: signature as string,
+          });
+          continue;
+        }
+      }
       const result = await retain(candidate.content, retainCtx, {
         source: "auto-extracted",
         sourceChunkIds: candidate.sourceMessageIds,
@@ -840,6 +950,21 @@ export async function extractAndRetain(
     failedCount: failedWrites,
     outcome,
     quarantined: quarantinedInfo,
+    funnel: {
+      rawCandidateCount,
+      validCandidateCount,
+      afterRedactionCount: candidates.length,
+      aboveConfidenceCount: filtered.length,
+      // The PERSISTED quarantines (`quarantinedInfo`), not the screened list: a
+      // screened candidate whose retain() throws is counted in `failedCount`,
+      // and counting it here too would double it and break the identity below.
+      // This also keeps the count equal to `quarantined.length` on the result.
+      quarantinedCount: quarantinedInfo.length,
+      retainedCount: results.length,
+      failedCount: failedWrites,
+    },
+    timings: { extractMs, retainMs: Date.now() - tRetain },
+    model: options.extract.model ?? DEFAULT_EXTRACTION_MODEL,
     // Only meaningful alongside `outcome: "empty-after-retry"`. Returned as well
     // as pushed through the callback so a consumer that only inspects the result
     // (rather than wiring a hook) can still report WHY.

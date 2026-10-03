@@ -6,6 +6,7 @@ declare module "@huggingface/transformers" {
       dtype?: string;
       device?: string;
       progress_callback?: (progress: {
+        status: string;
         file?: string;
         progress?: number;
         loaded?: number;

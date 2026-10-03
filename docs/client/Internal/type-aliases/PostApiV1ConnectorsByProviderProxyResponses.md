@@ -2,7 +2,7 @@
 
 > **PostApiV1ConnectorsByProviderProxyResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:8053](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8053)
+Defined in: [src/client/types.gen.ts:8778](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8778)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:8053](https://github.com/anuma-ai/sdk/blob/
 
 > **200**: `object`
 
-Defined in: [src/client/types.gen.ts:8057](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8057)
+Defined in: [src/client/types.gen.ts:8782](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8782)
 
 Upstream API response, verbatim
 

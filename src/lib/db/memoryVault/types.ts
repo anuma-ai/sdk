@@ -138,6 +138,21 @@ export interface RankableVaultMemory {
   embeddingModel: string | null;
   createdAt: Date;
   updatedAt: Date;
+  /** C3 re-observation watermark (`last_observed_at`), Unix ms or null — the
+   * same column {@link StoredVaultMemory.lastObservedAt} carries. A retain()
+   * consolidation `update` rewrites `content` under `preserveUpdatedAt`, so
+   * `updatedAt` stays pinned and only this column moves. A consumer that
+   * decides "has this row changed since I last sent it" from `updatedAt` alone
+   * (the Nearby publish reconciler) never sees that rewrite; it must take
+   * `max(updatedAt, lastObservedAt)`.
+   *
+   * OPTIONAL, not just nullable: `RankableVaultMemory` is a public exported
+   * type, and this field is new. Required would break any existing consumer
+   * constructing a literal of this shape (a test fixture, a mock) — the same
+   * reason every other watermark field of this kind in this package
+   * (memory/types.ts, memoryVault/searchTool.ts) is optional rather than
+   * required. `vaultMemoryRawToRankable` still always sets it. */
+  lastObservedAt?: number | null;
 }
 
 /**
@@ -243,6 +258,14 @@ export interface UpdateVaultMemoryOptions {
    * two parallel retain() calls observe each other's commits and neither
    * loses its increment. Wins over `proofCount` when both are set. */
   proofCountIncrement?: number;
+  /** Source ids for an observation. Unioned inside the writer. A replay whose
+   * ids are all already on the row contributes no new evidence, so
+   * `proofCount`/`proofCountIncrement` and {@link lastObservedAt} are skipped —
+   * but the write still lands: `content`, `embedding`, `restore`, `eventTime`
+   * and the rest apply, because a consolidation rewrite legitimately carries
+   * the same source ids as the observation that triggered it.
+   * Omit for unkeyed/manual observations. */
+  observationSourceIds?: string[];
   /** Set source ("manual" | "auto-extracted" | "capsule"). */
   source?: string;
   /**

@@ -2,12 +2,14 @@ import { describe, expect, it } from "vitest";
 
 import type { ToolConfig } from "../chat/useChat/types";
 import { APP_BUILDER_PROMPT } from "../../tools/appBuilderPrompt";
+import { CONFIRM_TOOL_NAME } from "../../tools/confirmConstants";
 import {
   activatedToolSetNames,
   BUILT_IN_TOOL_SETS,
   type CachedServerTools,
   clearServerToolsCache,
   createServerToolsFilter,
+  defaultServerToolsFilter,
   deferFormattingConfig,
   getToolsChecksum,
   mergeTools,
@@ -17,6 +19,7 @@ import {
   type ToolsCacheBackend,
   type ToolSet,
   toolSetSystemPrompts,
+  withActiveToolSetServerTools,
 } from "./serverTools";
 
 describe("mergeTools — client-side field preservation", () => {
@@ -595,5 +598,121 @@ describe("deferFormattingConfig — an explicit static array skips defer formatt
     expect(resolveDeferredServerTools(catalog, tagged, on).map((t) => t.name)).not.toContain(
       "ZetaMCP-z_tool"
     );
+  });
+});
+
+describe("withActiveToolSetServerTools — sticky sets keep their server tools", () => {
+  const st = (name: string): ServerTool => ({
+    type: "function",
+    name,
+    description: `desc ${name}`,
+    parameters: { type: "object", properties: {}, required: [] },
+  });
+  const RESTAURANT_TOOLS = [
+    "AnumaPaymentsMCP-anuma_find_restaurant",
+    "AnumaPaymentsMCP-anuma_check_restaurant_availability",
+    "AnumaPaymentsMCP-anuma_book_restaurant",
+    "AnumaPaymentsMCP-anuma_list_reservations",
+    "AnumaPaymentsMCP-anuma_cancel_reservation",
+    "AnumaPaymentsMCP-anuma_discover_restaurants",
+  ];
+  const catalog = [st("AnumaJinaMCP-search_web"), ...RESTAURANT_TOOLS.map(st)];
+  const names = (tools: ServerTool[]) => tools.map((t) => t.name);
+  const noMatch = () => [];
+
+  it("defines restaurant-booking with every restaurant server tool, no anchors and no confirm member", () => {
+    const set = BUILT_IN_TOOL_SETS.find((s) => s.name === "restaurant-booking");
+    expect(set?.members).toEqual(RESTAURANT_TOOLS);
+    // No anchors: the set only makes the tools sticky, it never activates on a prompt.
+    expect(set?.anchors).toEqual([]);
+    // As a member, any unrelated confirmation would pin the booking tools.
+    expect(set?.members).not.toContain(CONFIRM_TOOL_NAME);
+    expect(set?.systemPrompt).toBeUndefined();
+  });
+
+  it("adds an active set's catalog members that the semantic filter missed", () => {
+    const selected = withActiveToolSetServerTools([], catalog, noMatch, ["restaurant-booking"]);
+    expect(names(selected)).toEqual(RESTAURANT_TOOLS);
+  });
+
+  it("adds nothing more when restaurant-book is active alongside restaurant-booking", () => {
+    const selected = withActiveToolSetServerTools([], catalog, noMatch, [
+      "restaurant-booking",
+      "restaurant-book",
+    ]);
+    expect(names(selected)).toEqual(RESTAURANT_TOOLS);
+  });
+
+  it("returns the selection unchanged when no set is active", () => {
+    const selected = [st("AnumaJinaMCP-search_web")];
+    expect(withActiveToolSetServerTools(selected, catalog, noMatch)).toBe(selected);
+    expect(withActiveToolSetServerTools(selected, catalog, noMatch, [])).toBe(selected);
+    expect(withActiveToolSetServerTools(selected, catalog, noMatch, ["slides"])).toBe(selected);
+  });
+
+  it("keeps the semantic picks first and does not duplicate a member already picked", () => {
+    const selected = [st("AnumaJinaMCP-search_web"), st("AnumaPaymentsMCP-anuma_book_restaurant")];
+    expect(
+      names(withActiveToolSetServerTools(selected, catalog, noMatch, ["restaurant-booking"]))
+    ).toEqual([
+      "AnumaJinaMCP-search_web",
+      "AnumaPaymentsMCP-anuma_book_restaurant",
+      "AnumaPaymentsMCP-anuma_find_restaurant",
+      "AnumaPaymentsMCP-anuma_check_restaurant_availability",
+      "AnumaPaymentsMCP-anuma_list_reservations",
+      "AnumaPaymentsMCP-anuma_cancel_reservation",
+      "AnumaPaymentsMCP-anuma_discover_restaurants",
+    ]);
+  });
+
+  it("adds only members that are in the catalog", () => {
+    const partial = [st("AnumaPaymentsMCP-anuma_find_restaurant")];
+    expect(
+      names(withActiveToolSetServerTools([], partial, noMatch, ["restaurant-booking"]))
+    ).toEqual(["AnumaPaymentsMCP-anuma_find_restaurant"]);
+  });
+
+  it("honours the filter's excludeTools tag", () => {
+    const filter = createServerToolsFilter({
+      excludeTools: ["AnumaPaymentsMCP-anuma_book_restaurant"],
+    });
+    expect(
+      names(withActiveToolSetServerTools([], catalog, filter, ["restaurant-booking"]))
+    ).toEqual(RESTAURANT_TOOLS.filter((n) => n !== "AnumaPaymentsMCP-anuma_book_restaurant"));
+  });
+
+  it("resolves a set named only in extraToolSets", () => {
+    const extra: ToolSet = { name: "research", members: ["AnumaJinaMCP-search_web"], anchors: [] };
+    expect(
+      names(withActiveToolSetServerTools([], catalog, noMatch, ["research"], [extra]))
+    ).toEqual(["AnumaJinaMCP-search_web"]);
+  });
+});
+
+describe("restaurant cancel — the cancel tool always brings the list tool", () => {
+  const LIST = "AnumaPaymentsMCP-anuma_list_reservations";
+  const CANCEL = "AnumaPaymentsMCP-anuma_cancel_reservation";
+  const st = (name: string, embedding: number[]): ServerTool => ({
+    type: "function",
+    name,
+    description: `desc ${name}`,
+    parameters: { type: "object", properties: {}, required: [] },
+    embedding,
+  });
+  // The list tool never scores on a cancel prompt, so only the dependency edge can add it.
+  const catalog = [st(CANCEL, [1, 0]), st(LIST, [0, 1])];
+
+  it("defines restaurant-cancel as list + cancel, with no anchors", () => {
+    const set = BUILT_IN_TOOL_SETS.find((s) => s.name === "restaurant-cancel");
+    expect(set?.members).toEqual([LIST, CANCEL]);
+    expect(set?.anchors).toEqual([]);
+  });
+
+  it("adds the list tool when the default filter selects the cancel tool", () => {
+    expect(defaultServerToolsFilter([1, 0], catalog)).toEqual([CANCEL, LIST]);
+  });
+
+  it("does not add the cancel tool when only the list tool is selected", () => {
+    expect(defaultServerToolsFilter([0, 1], catalog)).toEqual([LIST]);
   });
 });

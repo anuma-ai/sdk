@@ -2,7 +2,7 @@
 
 > **PostApiV1AdminBotPollerStopResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:5695](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5695)
+Defined in: [src/client/types.gen.ts:6034](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6034)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:5695](https://github.com/anuma-ai/sdk/blob/
 
 > **200**: `object`
 
-Defined in: [src/client/types.gen.ts:5699](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5699)
+Defined in: [src/client/types.gen.ts:6038](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6038)
 
 OK
 

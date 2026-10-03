@@ -14,10 +14,12 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { base64ToUint8Array, dataUrlToArrayBuffer, uint8ArrayToBase64 } from "./encoding";
 import { ExcelProcessor } from "./ExcelProcessor";
+import { formatFileProcessingNotes } from "./fileStatusNotes";
+import { buildPdfImageNote } from "./PdfProcessor";
 import { getSupportedFileTypes, isSupportedFile, preprocessFiles } from "./preprocessor";
 import { ProcessorRegistry } from "./registry";
 import { TextProcessor } from "./TextProcessor";
-import type { FileWithData } from "./types";
+import type { FileProcessor, FileWithData, ProcessedFileResult } from "./types";
 import { WordProcessor } from "./WordProcessor";
 import { ZipProcessor } from "./ZipProcessor";
 
@@ -203,7 +205,7 @@ describe("encoding utilities (browser fallback, Buffer undefined)", () => {
 // ── ExcelProcessor tests ──
 
 describe("ExcelProcessor (Node.js)", () => {
-  it("extracts spreadsheet data as JSON", async () => {
+  it("extracts each sheet as CSV", async () => {
     const dataUrl = await createTestXlsx();
     const file = makeFile(
       "test.xlsx",
@@ -213,13 +215,62 @@ describe("ExcelProcessor (Node.js)", () => {
 
     const result = await new ExcelProcessor().process(file);
     expect(result).not.toBeNull();
-    expect(result!.format).toBe("json");
+    expect(result!.format).toBe("markdown");
+    expect(result!.extractedText).toBe(
+      "## Sheet: TestSheet\n\n```csv\nName,Value\nAlice,42\nBob,99\n```"
+    );
+    expect(result!.metadata!.truncated).toBe(false);
+  });
 
-    const parsed = JSON.parse(result!.extractedText);
-    expect(parsed).toHaveProperty("TestSheet");
-    expect(parsed.TestSheet).toHaveLength(2);
-    expect(parsed.TestSheet[0].Name).toBe("Alice");
-    expect(parsed.TestSheet[1].Value).toBe(99);
+  it("quotes CSV fields, de-duplicates header names and names blank headers", async () => {
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet("S");
+    sheet.addRow(["Amount", "Amount", "", "Note"]);
+    sheet.addRow([1, 2, 3, 'says "hi", then\nleaves']);
+    const dataUrl = toDataUrl(
+      await workbook.xlsx.writeBuffer(),
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    );
+
+    const result = await new ExcelProcessor().process(makeFile("s.xlsx", "", dataUrl));
+    expect(result!.extractedText).toContain(
+      'Amount,Amount_2,Column3,Note\n1,2,3,"says ""hi"", then\nleaves"'
+    );
+  });
+
+  it("never gives a de-duplicated header a name another column already has", async () => {
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet("S");
+    sheet.addRow(["Amount", "Amount", "Amount_2", "Amount"]);
+    sheet.addRow([1, 2, 3, 4]);
+    const dataUrl = toDataUrl(
+      await workbook.xlsx.writeBuffer(),
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    );
+
+    const result = await new ExcelProcessor().process(makeFile("s.xlsx", "", dataUrl));
+    expect(result!.extractedText).toContain("Amount,Amount_3,Amount_2,Amount_4\n1,2,3,4");
+  });
+
+  it("caps rows per sheet and says how many were dropped", async () => {
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet("Big");
+    sheet.addRow(["n"]);
+    for (let i = 1; i <= 5; i++) sheet.addRow([i]);
+    const dataUrl = toDataUrl(
+      await workbook.xlsx.writeBuffer(),
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    );
+
+    const result = await new ExcelProcessor({ maxRowsPerSheet: 2 }).process(
+      makeFile("big.xlsx", "", dataUrl)
+    );
+    expect(result!.extractedText).toContain("n\n1\n2\n```");
+    expect(result!.extractedText).not.toContain("\n3\n");
+    expect(result!.extractedText).toContain(
+      '[truncated: showing the first 2 of 5 data rows of sheet "Big"]'
+    );
+    expect(result!.metadata!.truncated).toBe(true);
   });
 
   it("returns metadata with sheet info", async () => {
@@ -626,5 +677,430 @@ describe("preprocessFiles (Node.js)", () => {
     expect(progressCalls[0]).toEqual([1, 1, "bad.xlsx"]);
     expect(errorCalls).toHaveLength(1);
     expect(errorCalls[0][0]).toBe("bad.xlsx");
+  });
+});
+
+// ── Robustness: encodings, MIME parameters, archive limits ──
+
+describe("TextProcessor byte-order marks", () => {
+  const text = "naïve café — 東京";
+
+  it("decodes UTF-16 LE with a BOM", async () => {
+    const bytes = Buffer.concat([Buffer.from([0xff, 0xfe]), Buffer.from(text, "utf16le")]);
+    const result = await new TextProcessor().process(
+      makeFile("u.csv", "text/csv", toDataUrl(bytes, "text/csv"))
+    );
+    expect(result!.extractedText).toBe(text);
+  });
+
+  it("decodes UTF-16 BE with a BOM", async () => {
+    const le = Buffer.from(text, "utf16le");
+    const be = Buffer.alloc(le.length);
+    for (let i = 0; i < le.length; i += 2) {
+      be[i] = le[i + 1];
+      be[i + 1] = le[i];
+    }
+    const bytes = Buffer.concat([Buffer.from([0xfe, 0xff]), be]);
+    const result = await new TextProcessor().process(
+      makeFile("u.txt", "text/plain", toDataUrl(bytes, "text/plain"))
+    );
+    expect(result!.extractedText).toBe(text);
+  });
+
+  it("strips a UTF-8 BOM", async () => {
+    const bytes = Buffer.concat([Buffer.from([0xef, 0xbb, 0xbf]), Buffer.from(text)]);
+    const result = await new TextProcessor().process(
+      makeFile("u.txt", "text/plain", toDataUrl(bytes, "text/plain"))
+    );
+    expect(result!.extractedText).toBe(text);
+  });
+});
+
+describe("ProcessorRegistry MIME matching", () => {
+  it("ignores MIME parameters and case", () => {
+    const registry = new ProcessorRegistry();
+    registry.register(new TextProcessor());
+    // Extension-less names so only the MIME type can match.
+    expect(registry.findProcessor({ name: "export", type: "text/csv; charset=utf-8" })?.name).toBe(
+      "text"
+    );
+    expect(registry.findProcessor({ name: "export", type: "Application/JSON" })?.name).toBe("text");
+  });
+
+  it("keeps the json format hint for a parameterized JSON type", async () => {
+    const result = await new TextProcessor().process(
+      makeFile("blob", "application/json; charset=utf-8", toDataUrl(Buffer.from("{}"), "x/y"))
+    );
+    expect(result!.format).toBe("json");
+  });
+});
+
+/** A stand-in for PdfProcessor that "renders" every page as an image (pdf.js can't run here). */
+function fakeScannedPdfProcessor(pages: number): FileProcessor {
+  return {
+    name: "pdf",
+    supportedMimeTypes: ["application/pdf"],
+    supportedExtensions: [".pdf"],
+    process: async (file): Promise<ProcessedFileResult> => {
+      const imagePages = Array.from({ length: pages }, (_, i) => i + 1);
+      const imageNote = buildPdfImageNote(file.name, imagePages, [], pages);
+      return {
+        extractedText: imageNote,
+        format: "plain",
+        imageDataUrls: imagePages.map((n) => `data:image/jpeg;base64,${n}`),
+        metadata: { pageCount: pages, imageNote, imagePages, omittedImagePages: [] },
+      };
+    },
+  };
+}
+
+describe("ZipProcessor limits", () => {
+  it("does not claim page images for a nested scanned PDF, since they are discarded", async () => {
+    const zip = new JSZip();
+    zip.file("scan.pdf", "%PDF-fake");
+    const buffer = await zip.generateAsync({ type: "uint8array" });
+
+    const registry = new ProcessorRegistry();
+    registry.register(fakeScannedPdfProcessor(2));
+    const zipProcessor = new ZipProcessor();
+    zipProcessor.setRegistry(registry);
+
+    const result = await zipProcessor.process(
+      makeFile("a.zip", "application/zip", toDataUrl(buffer, "application/zip"))
+    );
+    expect(result!.extractedText).not.toContain("included in this message");
+    expect(result!.extractedText).toContain(
+      "pages 1-2 could not be included as images because of the image limit"
+    );
+    expect(result!.metadata!.truncated).toBe(true);
+  });
+
+  it("caps files and directories separately, so directories never crowd out the files", async () => {
+    const zip = new JSZip();
+    for (let i = 0; i < 1_005; i++) zip.folder(`dir${String(i).padStart(4, "0")}`);
+    zip.file("readme.txt", "the only file");
+    const buffer = await zip.generateAsync({ type: "uint8array" });
+    const registry = new ProcessorRegistry();
+    registry.register(new TextProcessor());
+    const zipProcessor = new ZipProcessor();
+    zipProcessor.setRegistry(registry);
+
+    const result = await zipProcessor.process(
+      makeFile("a.zip", "application/zip", toDataUrl(buffer, "application/zip"))
+    );
+    expect(result!.extractedText).toContain("### readme.txt");
+    expect(result!.extractedText).toContain("the only file");
+    expect(result!.extractedText).toContain(
+      "[truncated: listing the first 1000 of 1005 directories]"
+    );
+    expect(result!.metadata!.processedFiles).toBe(1);
+  });
+
+  it("says files were dropped when the archive has more than 1,000 files", async () => {
+    const zip = new JSZip();
+    for (let i = 0; i < 1_002; i++) zip.file(`f${String(i).padStart(4, "0")}.bin`, "x");
+    const buffer = await zip.generateAsync({ type: "uint8array" });
+    const zipProcessor = new ZipProcessor();
+    zipProcessor.setRegistry(new ProcessorRegistry());
+
+    const result = await zipProcessor.process(
+      makeFile("a.zip", "application/zip", toDataUrl(buffer, "application/zip"))
+    );
+    expect(result!.extractedText).toContain(
+      "[truncated: the archive has 1002 files; only the first 1000 were listed and considered for extraction, the other 2 files were dropped]"
+    );
+    expect(result!.metadata!.truncated).toBe(true);
+  });
+
+  it("skips an entry whose declared size is over the limit without inflating it", async () => {
+    const zip = new JSZip();
+    zip.file("big.txt", "x".repeat(5_000));
+    zip.file("small.txt", "small content");
+    const buffer = await zip.generateAsync({ type: "uint8array", compression: "DEFLATE" });
+    const loaded = await JSZip.loadAsync(buffer);
+    const asyncSpy = vi.spyOn(Object.getPrototypeOf(loaded.file("big.txt")!), "async");
+
+    const registry = new ProcessorRegistry();
+    registry.register(new TextProcessor());
+    const zipProcessor = new ZipProcessor({ maxFileSize: 1_000 });
+    zipProcessor.setRegistry(registry);
+
+    const result = await zipProcessor.process(
+      makeFile("a.zip", "application/zip", toDataUrl(buffer, "application/zip"))
+    );
+    expect(result!.extractedText).toContain("small content");
+    expect(result!.extractedText).not.toContain("xxxxx");
+    // Only small.txt was inflated.
+    expect(asyncSpy).toHaveBeenCalledTimes(1);
+    asyncSpy.mockRestore();
+  });
+
+  it("logs a failed entry at warn without its path", async () => {
+    const warn = vi.fn();
+    const { consoleLogger, setLogger } = await import("../logger");
+    setLogger({ debug: vi.fn(), info: vi.fn(), warn, error: vi.fn() });
+    try {
+      const zip = new JSZip();
+      zip.file("secret-plan.txt", "hello");
+      const buffer = await zip.generateAsync({ type: "uint8array" });
+      const registry = new ProcessorRegistry();
+      registry.register({
+        name: "text",
+        supportedMimeTypes: ["text/plain"],
+        supportedExtensions: [".txt"],
+        process: () => Promise.reject(new Error("boom")),
+      });
+      const zipProcessor = new ZipProcessor();
+      zipProcessor.setRegistry(registry);
+      await zipProcessor.process(
+        makeFile("a.zip", "application/zip", toDataUrl(buffer, "application/zip"))
+      );
+      expect(warn).toHaveBeenCalledTimes(1);
+      expect(String(warn.mock.calls[0][0])).toContain("entry #1 (text, text/plain)");
+      expect(String(warn.mock.calls[0][0])).not.toContain("secret-plan");
+    } finally {
+      setLogger(consoleLogger);
+    }
+  });
+});
+
+// ── preprocessFiles: caps, statuses, image budget, timeout ──
+
+function textFile(id: string, name: string, content: string) {
+  return {
+    id,
+    name,
+    type: "text/plain",
+    size: content.length,
+    url: toDataUrl(Buffer.from(content), "text/plain"),
+  };
+}
+
+describe("preprocessFiles caps", () => {
+  it("cuts a file at maxExtractedCharsPerFile with a marker naming what was kept", async () => {
+    const result = await preprocessFiles([textFile("a", "a.txt", "abcdefghij")], {
+      maxExtractedCharsPerFile: 4,
+    });
+    expect(result.extractedContent).toBe(
+      "[Extracted content from a.txt]\nabcd\n[truncated: showing the first 4 of 10 characters of a.txt]"
+    );
+    expect(result.fileStatuses).toEqual([{ fileId: "a", fileName: "a.txt", status: "truncated" }]);
+  });
+
+  it("shares maxExtractedCharsTotal across files in order, counting headers and markers", async () => {
+    const files = [
+      textFile("a", "a.txt", "a".repeat(40)),
+      textFile("b", "b.txt", "b".repeat(200)),
+      textFile("c", "c.txt", "c".repeat(40)),
+      textFile("d", "d.txt", "d".repeat(40)),
+    ];
+    const total = 200;
+    const result = await preprocessFiles(files, { maxExtractedCharsTotal: total });
+    const content = result.extractedContent!;
+
+    expect(content).toContain(`[Extracted content from a.txt]\n${"a".repeat(40)}`);
+    expect(content).toMatch(/b+\n\[truncated: showing the first \d+ of 200 characters of b\.txt\]/);
+    // No header + marker per file once the budget is spent — one combined note.
+    expect(content).not.toContain("[Extracted content from c.txt]");
+    expect(content).not.toContain("[Extracted content from d.txt]");
+    expect(content).toContain(
+      "[truncated: the attachment text limit (200 characters) was reached; the contents of c.txt, d.txt were not included]"
+    );
+    // Everything but that one combined line fits the budget.
+    const withoutNote = content.slice(
+      0,
+      content.lastIndexOf("\n\n---\n\n[truncated: the attachment")
+    );
+    expect(withoutNote.length).toBeLessThanOrEqual(total);
+    expect(result.fileStatuses.map((s) => s.status)).toEqual([
+      "extracted",
+      "truncated",
+      "truncated",
+      "truncated",
+    ]);
+  });
+
+  it("does not let per-file headers and markers exceed the budget with many files", async () => {
+    const files = Array.from({ length: 50 }, (_, i) =>
+      textFile(`f${i}`, `file-${i}.txt`, "x".repeat(100))
+    );
+    const result = await preprocessFiles(files, { maxExtractedCharsTotal: 1_000 });
+    const content = result.extractedContent!;
+    const beforeNote = content.slice(
+      0,
+      content.lastIndexOf("\n\n---\n\n[truncated: the attachment text limit")
+    );
+    expect(beforeNote.length).toBeLessThanOrEqual(1_000);
+    expect(content.match(/\[Extracted content from /g)!.length).toBeLessThan(10);
+    expect(
+      result.fileStatuses.every((s) => s.status === "extracted" || s.status === "truncated")
+    ).toBe(true);
+  });
+
+  it("applies the default per-file cap of 100,000 characters", async () => {
+    const result = await preprocessFiles([textFile("a", "a.txt", "x".repeat(150_000))]);
+    expect(result.extractedContent).toContain(
+      "[truncated: showing the first 100000 of 150000 characters of a.txt]"
+    );
+  });
+});
+
+describe("preprocessFiles fileStatuses", () => {
+  it.each([
+    ["[]", [] as FileProcessor[]],
+    ["null", null],
+  ])(
+    "reports every non-image file as skipped when preprocessing is disabled (%s)",
+    async (_, processors) => {
+      const result = await preprocessFiles(
+        [
+          textFile("t", "notes.txt", "hello"),
+          {
+            id: "img",
+            name: "p.png",
+            type: "image/png",
+            size: 1,
+            url: "data:image/png;base64,AA==",
+          },
+          { id: "pdf", name: "a.pdf", type: "application/pdf", size: 1, url: "data:," },
+        ],
+        { processors }
+      );
+      expect(result.extractedContent).toBeNull();
+      expect(result.fileStatuses).toEqual([
+        { fileId: "t", fileName: "notes.txt", status: "skipped", reason: "unsupported_type" },
+        { fileId: "pdf", fileName: "a.pdf", status: "skipped", reason: "unsupported_type" },
+      ]);
+      expect(result.metadata.skippedCount).toBe(2);
+    }
+  );
+
+  it("reports one status per non-image file, with the reason", async () => {
+    const result = await preprocessFiles(
+      [
+        textFile("ok", "ok.txt", "hello"),
+        { ...textFile("big", "big.txt", "x"), size: 50 },
+        { id: "img", name: "p.png", type: "image/png", size: 1, url: "data:image/png;base64,AA==" },
+        {
+          id: "bigimg",
+          name: "q.jpg",
+          type: "image/jpeg",
+          size: 99,
+          url: "data:image/jpeg;base64,AA==",
+        },
+        { id: "bin", name: "a.bin", type: "application/x-unknown", size: 1, url: "data:," },
+        { id: "nourl", name: "n.txt", type: "text/plain", size: 1 },
+        textFile("blank", "blank.txt", "   "),
+        {
+          id: "bad",
+          name: "bad.xlsx",
+          type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+          size: 10,
+          url: "data:application/octet-stream;base64,bm90YXZhbGlk",
+        },
+      ],
+      { maxFileSizeBytes: 20 }
+    );
+    expect(result.fileStatuses).toEqual([
+      { fileId: "ok", fileName: "ok.txt", status: "extracted" },
+      { fileId: "big", fileName: "big.txt", status: "skipped", reason: "too_large" },
+      { fileId: "bin", fileName: "a.bin", status: "skipped", reason: "unsupported_type" },
+      { fileId: "nourl", fileName: "n.txt", status: "skipped", reason: "no_data" },
+      { fileId: "blank", fileName: "blank.txt", status: "skipped", reason: "empty" },
+      { fileId: "bad", fileName: "bad.xlsx", status: "failed", reason: "error" },
+    ]);
+  });
+
+  it("reports a timeout, and clears the timer once a file finishes", async () => {
+    vi.useFakeTimers();
+    try {
+      const hanging: FileProcessor = {
+        name: "text",
+        supportedMimeTypes: ["text/plain"],
+        supportedExtensions: [],
+        process: () => new Promise(() => undefined),
+      };
+      const pending = preprocessFiles([textFile("h", "h.txt", "x")], {
+        processors: [hanging],
+        timeoutMs: 1_000,
+      });
+      await vi.advanceTimersByTimeAsync(1_000);
+      const result = await pending;
+      expect(result.fileStatuses).toEqual([
+        { fileId: "h", fileName: "h.txt", status: "failed", reason: "timeout" },
+      ]);
+
+      await preprocessFiles([textFile("a", "a.txt", "fast")], { timeoutMs: 60_000 });
+      expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("marks a scanned PDF rendered_as_images, and rewrites its note when the image budget drops pages", async () => {
+    const pdf = (id: string) => ({
+      id,
+      name: `${id}.pdf`,
+      type: "application/pdf",
+      size: 10,
+      url: "data:application/pdf;base64,AA==",
+    });
+    const result = await preprocessFiles([pdf("one"), pdf("two")], {
+      processors: [fakeScannedPdfProcessor(15)],
+    });
+    // 20 images total: 15 from the first file, 5 from the second.
+    expect(result.imageContentUrls).toHaveLength(20);
+    expect(result.fileStatuses.map((s) => s.status)).toEqual(["rendered_as_images", "truncated"]);
+    expect(result.extractedContent).toContain(
+      "[one.pdf: scanned/image-based PDF (no extractable text) — pages 1-15 rendered as images and included in this message for visual analysis]"
+    );
+    expect(result.extractedContent).toContain(
+      "[two.pdf: scanned/image-based PDF (no extractable text) — pages 1-5 rendered as images and included in this message for visual analysis; pages 6-15 not included because of the image limit, so their content is not available]"
+    );
+  });
+
+  it("never logs file names", async () => {
+    const calls: unknown[][] = [];
+    const record = (...args: unknown[]) => calls.push(args);
+    const { consoleLogger, setLogger } = await import("../logger");
+    setLogger({ debug: record, info: record, warn: record, error: record });
+    try {
+      await preprocessFiles(
+        [
+          { ...textFile("big", "private-big.txt", "x"), size: 50 },
+          { id: "n", name: "private-nourl.txt", type: "text/plain", size: 1 },
+          {
+            id: "bad",
+            name: "private-bad.xlsx",
+            type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            size: 10,
+            url: "data:application/octet-stream;base64,bm90YXZhbGlk",
+          },
+        ],
+        { maxFileSizeBytes: 20 }
+      );
+      expect(calls.length).toBeGreaterThanOrEqual(3);
+      expect(JSON.stringify(calls.map((c) => String(c[0])))).not.toContain("private-");
+    } finally {
+      setLogger(consoleLogger);
+    }
+  });
+});
+
+describe("formatFileProcessingNotes", () => {
+  it("writes one line per unread file and nothing for read ones", () => {
+    expect(
+      formatFileProcessingNotes([
+        { fileId: "1", fileName: "ok.pdf", status: "extracted" },
+        { fileId: "2", fileName: "order.pdf", status: "skipped", reason: "too_large" },
+        { fileId: "3", fileName: "locked.pdf", status: "failed", reason: "error" },
+      ])
+    ).toBe(
+      "[order.pdf could not be read: the file is larger than 10 MB]\n" +
+        "[locked.pdf could not be read: its text could not be extracted (it may be password-protected or damaged)]"
+    );
+    expect(
+      formatFileProcessingNotes([{ fileId: "1", fileName: "a", status: "truncated" }])
+    ).toBeNull();
   });
 });

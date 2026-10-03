@@ -2,7 +2,7 @@
 
 > **HandlersScheduleDowngradeRequest** = `object`
 
-Defined in: [src/client/types.gen.ts:2915](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2915)
+Defined in: [src/client/types.gen.ts:3190](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3190)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:2915](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **interval**: `string`
 
-Defined in: [src/client/types.gen.ts:2919](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2919)
+Defined in: [src/client/types.gen.ts:3194](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3194)
 
 "month" or "year"; defaults to current interval
 
@@ -20,6 +20,6 @@ Defined in: [src/client/types.gen.ts:2919](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **tier**: `string`
 
-Defined in: [src/client/types.gen.ts:2923](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2923)
+Defined in: [src/client/types.gen.ts:3198](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3198)
 
 target tier, e.g. "starter"

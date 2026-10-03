@@ -18,6 +18,11 @@ export const BASELINE_METRICS = [
   "entityCoverage",
   "kindAccuracy",
   "negativeCleanRate",
+  /** Share of cases whose FIRST completion parsed. The wire-level metric: a
+   * change that makes the model answer prose/`NONE` first and JSON on retry
+   * leaves recall intact and triples the call count — invisible to every
+   * metric above. See PortalLlmAttempt. */
+  "firstAttemptCleanRate",
 ] as const;
 export type BaselineMetric = (typeof BASELINE_METRICS)[number];
 

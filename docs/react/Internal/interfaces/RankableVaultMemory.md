@@ -50,6 +50,29 @@ Folder ID for organization, null if unfiled.
 
 ***
 
+### lastObservedAt?
+
+> `optional` **lastObservedAt**: `number` | `null`
+
+Defined in: [src/lib/db/memoryVault/types.ts:155](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#155)
+
+C3 re-observation watermark (`last_observed_at`), Unix ms or null — the
+same column [StoredVaultMemory.lastObservedAt](StoredVaultMemory.md#lastobservedat) carries. A retain()
+consolidation `update` rewrites `content` under `preserveUpdatedAt`, so
+`updatedAt` stays pinned and only this column moves. A consumer that
+decides "has this row changed since I last sent it" from `updatedAt` alone
+(the Nearby publish reconciler) never sees that rewrite; it must take
+`max(updatedAt, lastObservedAt)`.
+
+OPTIONAL, not just nullable: `RankableVaultMemory` is a public exported
+type, and this field is new. Required would break any existing consumer
+constructing a literal of this shape (a test fixture, a mock) — the same
+reason every other watermark field of this kind in this package
+(memory/types.ts, memoryVault/searchTool.ts) is optional rather than
+required. `vaultMemoryRawToRankable` still always sets it.
+
+***
+
 ### scope
 
 > **scope**: `string`

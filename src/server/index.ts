@@ -66,6 +66,7 @@ export {
   decryptConversationTitle,
   deleteConversationOp,
   deleteConversationSummaryOp,
+  deleteMessageOp,
   getAllFilesOp,
   getConversationOp,
   getConversationsByProjectLazyOp,
@@ -162,6 +163,7 @@ export {
   updateVaultMemoryEmbeddingOp,
   updateVaultMemoryOp,
   type UpdateVaultMemoryOptions,
+  type VaultEmbeddingExpectation,
   VaultMemory,
   type VaultMemoryOperationsContext,
   type VaultMemoryVisibility,
@@ -329,6 +331,7 @@ export type {
   Budget,
   CachedChunkVectors,
   ChunkVectorCache,
+  ConsolidationAction,
   ConsolidationFallbackReason,
   CreateAutoExtractorOptions,
   CreateDecaySweeperOptions,
@@ -342,6 +345,8 @@ export type {
   ExtractedEntity,
   ExtractFactsOptions,
   ExtractionCursorStore,
+  ExtractionFunnel,
+  ExtractionTimings,
   ExtractOutcome,
   FactType,
   GraphTraversalOptions,
@@ -373,6 +378,7 @@ export type {
   RecallContext,
   RecallDegradation,
   RecallDiagnostics,
+  RecallEmptyReason,
   RecallOptions,
   RecallResult,
   RecallToolCallbacks,
@@ -509,6 +515,7 @@ export {
   decryptDataBytes,
   decryptDataBytesFromBytes,
   decryptDataWithKey,
+  deriveKeyFromSignatureBytes,
   encryptData,
   encryptDataBatch,
   encryptDataBytes,
@@ -540,6 +547,8 @@ export { QueueManager, queueManager, WalletPoller } from "../lib/db/queue";
 // ── File Processors (Node.js-compatible) ──
 
 export type {
+  FileProcessingReason,
+  FileProcessingStatus,
   FileProcessor,
   FileTypeQuery,
   FileWithData,
@@ -550,6 +559,7 @@ export type {
 } from "../lib/processors";
 export {
   ExcelProcessor,
+  formatFileProcessingNotes,
   getSupportedFileTypes,
   isSupportedFile,
   PdfProcessor,
@@ -639,6 +649,15 @@ export {
 } from "../lib/chat/webSearchClassifier";
 
 // Persona (prompt building + style analysis)
+export {
+  assembleMemoryContext,
+  type MemoryContextItem,
+  type MemoryContextLane,
+  type MemoryContextOptions,
+  type MemoryContextResult,
+  shouldRecallMemory,
+} from "../lib/memory";
+export { createDurableAutoExtractor, type DurableAutoExtractorOptions } from "../lib/memory";
 export type {
   AnalyzeStyleOptions,
   AnalyzeStyleResult,

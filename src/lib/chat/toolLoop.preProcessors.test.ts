@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import * as sseModule from "../../client/core/serverSentEvents.gen";
 import * as embeddingsModule from "../memoryEngine/embeddings";
+import { buildAttachedFilesText } from "./fileContext";
 import type { PromptPreProcessor } from "./preProcessor";
 import { runToolLoop } from "./toolLoop";
 
@@ -58,6 +59,31 @@ describe("runToolLoop pre-processors", () => {
     const expectedCtx = { prompt: "hello world", embedding: [0.1, 0.2, 0.3], signal: undefined };
     expect(a).toHaveBeenCalledWith(expectedCtx);
     expect(b).toHaveBeenCalledWith(expectedCtx);
+  });
+
+  it("routes on the user's prompt, never on the attached file contents", async () => {
+    const p = vi.fn<PromptPreProcessor>().mockResolvedValue(undefined);
+
+    await runToolLoop({
+      messages: [
+        {
+          role: "user",
+          content: [
+            { type: "text", text: "summarize this" },
+            {
+              type: "text",
+              text: buildAttachedFilesText("[Extracted content from a.pdf]\nsecret contract"),
+            },
+          ],
+        },
+      ],
+      model: "test-model",
+      token: "token",
+      preProcessors: [p],
+    });
+
+    expect(mockGenerateEmbedding).toHaveBeenCalledWith("summarize this", expect.any(Object));
+    expect(p).toHaveBeenCalledWith(expect.objectContaining({ prompt: "summarize this" }));
   });
 
   it("appends returned messages in array order to the LLM request", async () => {

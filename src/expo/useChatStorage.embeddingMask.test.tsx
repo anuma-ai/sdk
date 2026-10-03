@@ -150,3 +150,56 @@ describe("useChatStorage per-call embedding masking (expo)", () => {
     expect(texts.some((t) => t.includes("[EMAIL]"))).toBe(false);
   });
 });
+
+// The `embeddingCache` send-arg is on the SHARED args type, so it type-checks on expo too — it must
+// therefore actually be honoured here, or a mobile caller following the documented contract silently
+// pays for a second embedding. Raised by Cursor Bugbot on sdk#923.
+describe("useChatStorage embeddingCache passthrough (expo)", () => {
+  let db: Database;
+  let fetchSpy: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    db = makeDatabase();
+    fetchSpy = vi.spyOn(globalThis, "fetch").mockRejectedValue(new Error("no network"));
+    mockRunToolLoop.mockResolvedValue({ data: responsesShape("done"), error: null } as never);
+  });
+
+  afterEach(() => {
+    fetchSpy.mockRestore();
+    vi.clearAllMocks();
+  });
+
+  it("shares the caller's cache, namespaced by the masking decision", async () => {
+    const cache = new Map<string, Float32Array>();
+    const { result } = renderHook(() =>
+      useChatStorage({ database: db, conversationId: "conv_cache", getToken: async () => "tok" })
+    );
+
+    await act(async () => {
+      await result.current.sendMessage({
+        messages: [{ role: "user", content: [{ type: "text", text: USER_TEXT }] }],
+        model: "test-model",
+        // A function filter is what makes the send embed for TOOL SELECTION — the path that takes
+        // the shared cache. Without it the only embedding here is the stored-message one.
+        serverTools: (_e: unknown, tools: { name: string }[]) => tools.map((t) => t.name),
+        clientTools: [{ type: "function", function: { name: "client_a", description: "a" } }],
+        embeddingCache: cache,
+        piiRedaction: true,
+      } as never);
+    });
+
+    await waitFor(() => expect(mockGenerateEmbedding).toHaveBeenCalled());
+    const call = mockGenerateEmbedding.mock.calls.find(
+      (c) => (c[1] as { cache?: unknown } | undefined)?.cache !== undefined
+    );
+    expect(call, "no embedding call received a cache").toBeDefined();
+
+    // A view, not the Map: writes land under the masked prefix so an unmasked reader of the same Map
+    // cannot be served this vector.
+    const view = (call![1] as { cache: Map<string, Float32Array> }).cache;
+    view.set(USER_TEXT, Float32Array.from([1, 2, 3]));
+    expect([...cache.keys()]).toEqual([`m:${USER_TEXT}`]);
+    expect(cache.get(`r:${USER_TEXT}`)).toBeUndefined();
+  });
+});

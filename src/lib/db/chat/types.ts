@@ -9,6 +9,7 @@ import type {
   LlmapiThinkingOptions,
   LlmapiToolCallEvent,
 } from "../../../client";
+import { isAttachedFilesText } from "../../chat/fileContext";
 import type { PromptPreProcessor } from "../../chat/preProcessor";
 // Import the cost/credit extraction helpers (and the response union) directly
 // from the strategies type module — it's pure (type-only imports), so this
@@ -19,6 +20,7 @@ import {
   getCreditsExhausted,
   getCreditsUsed,
 } from "../../chat/useChat/strategies/types";
+import type { StreamSmoothingConfig } from "../../chat/useChat/StreamSmoother";
 import type { ServerToolCallEvent, ToolCallArgumentsDeltaEvent } from "../../chat/useChat/utils";
 import type { NerDetector } from "../../pii/ner";
 import type { PiiMatch, PiiRedactor } from "../../pii/redactor";
@@ -631,6 +633,8 @@ export interface BaseUseChatStorageOptions {
    * a custom one matching `PromptPreProcessor`.
    */
   preProcessors?: PromptPreProcessor[];
+  /** Output pacing forwarded to useChat. Set false when the UI batches streamed updates. */
+  smoothing?: StreamSmoothingConfig | boolean;
   /**
    * Enable best-effort, client-side PII obfuscation (NOT a compliance
    * guarantee). Outbound message text is scanned for personally identifiable
@@ -836,6 +840,38 @@ export interface BaseSendMessageWithStorageArgs {
    * user content (matching a textless turn), NOT a request to fall back.
    */
   storedUserContent?: string;
+
+  /**
+   * Optional embedding cache, shared with the caller.
+   *
+   * Every send that needs tool selection embeds the user text once (see
+   * `storedUserContent`). A caller that ALSO needs that vector — to rank tools itself, say, or to
+   * hand a server a prompt-aware shortlist — otherwise pays for a second, identical embedding of
+   * the same text in the same turn. Pass a `Map` here and into your own
+   * `generateEmbedding`/`generateEmbeddings` call and whichever runs first fills it; the other is a
+   * cache hit, so the turn embeds once.
+   *
+   * Keyed on the text **as passed in** (before `maskInput` is applied to the request body), prefixed
+   * with a marker for this send's masking decision — `"r:"` raw, `"m:"` masked — so a mismatched
+   * masking decision cannot silently serve the wrong vector: masked and unmasked occupy different
+   * entries. `generateEmbedding`'s own contract is unchanged; it still keys on the text alone, and
+   * the prefixing is a view this send wraps around the `Map` you hand it.
+   *
+   * WHICH MEANS SHARING TAKES ONE MORE STEP, and skipping it costs you the dedupe silently: pass
+   * the plain `Map` here, and wrap it with `maskScopedEmbeddingCache(map, masked)` for your OWN
+   * `generateEmbedding` call, so both sides look under the same key. Hand the raw `Map` to both and
+   * your call writes `"hello"` while this one reads `"r:hello"` — no hit, and the second embedding
+   * you were trying to avoid still happens.
+   *
+   * **Long messages are not deduped.** Past `DEFAULT_CHUNK_SIZE` (400 chars) the send embeds one
+   * vector per chunk and keys each entry on its chunk text, so a caller that embedded the whole
+   * prompt in one call finds nothing and both sides still pay. Making that hit would mean the caller
+   * reproducing the SDK's chunking, which is a worse contract than admitting the gap: short prompts
+   * — the overwhelming majority — dedupe, long ones do not.
+   *
+   * Omit it and nothing changes: every send embeds independently, exactly as before.
+   */
+  embeddingCache?: Map<string, Float32Array>;
 
   /**
    * Per-request callback invoked with each streamed response chunk.
@@ -1182,7 +1218,11 @@ export function extractUserMessageFromMessages(
   const files: FileMetadata[] = [];
 
   for (const part of lastUserMessage.content) {
-    if (part.type === "text" && part.text) {
+    // The attached-file-contents part is wire-only: storing it would make the document the
+    // user's message — shown in the bubble after reload, pre-filled on edit, embedded, and
+    // mined by memory extraction. Callers that put it on `messages` themselves (mobile)
+    // don't pass `storedUserContent`, so this is the only place that can keep it out.
+    if (part.type === "text" && part.text && !isAttachedFilesText(part.text)) {
       textParts.push(part.text);
     } else if (part.type === "image_url" && part.image_url?.url) {
       // Generate a file ID for the image
