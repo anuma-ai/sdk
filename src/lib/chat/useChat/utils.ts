@@ -721,6 +721,7 @@ export function toolsToApiFormat(
       executor: _executor,
       skipContinuation: _skipContinuation,
       removeAfterExecution: _removeAfterExecution,
+      removeAfterResult: _removeAfterResult,
       executorTimeout: _executorTimeout,
       dependsOn: _dependsOn,
       deAnonymizeArgs: _deAnonymizeArgs,
