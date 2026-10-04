@@ -123,6 +123,10 @@ export type ToolConfig = LlmapiChatCompletionTool & {
    * successful result this predicate accepts — its own or another's. Errors
    * never count, as for `removeAfterExecution`.
    *
+   * Only results of tools executed on this client are offered; tools the
+   * portal runs server-side never reach the predicate. A predicate that throws
+   * is treated as not matching.
+   *
    * For a family of tools that has to leave together: when one of them
    * declines an out-of-scope request, the model otherwise works through its
    * siblings round after round until the round cap. Give every member the same

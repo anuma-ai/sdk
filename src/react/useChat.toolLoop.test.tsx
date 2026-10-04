@@ -559,6 +559,27 @@ describe("useChat multi-turn tool loop", () => {
     expect(continuationToolNames()).toEqual(expect.arrayContaining(["search_a", "display_a"]));
   });
 
+  it("treats a predicate that throws on a sibling's result as not matching", async () => {
+    const fragile: ToolConfig = {
+      ...familyTool("display_a", () => "card"),
+      removeAfterResult: (result) => (result as { declined: boolean }).declined,
+    };
+    await runOneToolRound("other_tool", [
+      {
+        type: "function",
+        function: {
+          name: "other_tool",
+          description: "Other",
+          arguments: { type: "object", properties: {} },
+        },
+        executor: async () => undefined,
+      },
+      fragile,
+    ]);
+
+    expect(continuationToolNames()).toContain("display_a");
+  });
+
   it("does not send removeAfterResult to the API", async () => {
     await runOneToolRound("search_a", [familyTool("search_a", () => ({ rows: [1] }))]);
 
