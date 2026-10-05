@@ -18,15 +18,29 @@ vi.mock("../../react/useEncryption", () => ({
 }));
 
 import { hasEncryptionKey } from "../../react/useEncryption";
-import { getStoredTokenData, storeTokenData as storeBackupToken } from "../backup/oauth/storage";
+import {
+  getStoredTokenData,
+  migrateUnencryptedTokens,
+  storeTokenData as storeBackupToken,
+} from "../backup/oauth/storage";
 import {
   clearGithubToken,
   getValidGithubToken,
   migrateGithubToken,
   storeGithubToken,
 } from "./github";
-import { clearDriveToken, getValidDriveToken, storeDriveToken } from "./google-drive";
-import { clearCalendarToken, getValidCalendarToken, storeCalendarToken } from "./google-calendar";
+import {
+  clearDriveToken,
+  getValidDriveToken,
+  migrateDriveToken,
+  storeDriveToken,
+} from "./google-drive";
+import {
+  clearCalendarToken,
+  getValidCalendarToken,
+  migrateCalendarToken,
+  storeCalendarToken,
+} from "./google-calendar";
 import { getNotionAccessToken } from "./notion";
 
 const WALLET_A = "0xaaaa";
@@ -34,6 +48,8 @@ const WALLET_B = "0xbbbb";
 const GITHUB_KEY = "oauth_token_github";
 const NOTION_KEY = "oauth_token_notion";
 const DROPBOX_KEY = "oauth_token_dropbox";
+const DRIVE_KEY = "oauth_token_google-drive-full";
+const CALENDAR_KEY = "oauth_token_google-calendar";
 
 function resetOAuthStores(): void {
   localStorage.clear();
@@ -248,5 +264,62 @@ describe("wallet-scoped OAuth token rows", () => {
     // Wallet B still owns the row under the shared key.
     expect(sessionStorage.getItem(GITHUB_KEY)).toContain("tok-b");
     expect(await getValidGithubToken(WALLET_B)).toBe("tok-b");
+  });
+  it.each([
+    { name: "GitHub", key: GITHUB_KEY, read: getValidGithubToken, migrate: migrateGithubToken },
+    { name: "Drive", key: DRIVE_KEY, read: getValidDriveToken, migrate: migrateDriveToken },
+    {
+      name: "Calendar",
+      key: CALENDAR_KEY,
+      read: getValidCalendarToken,
+      migrate: migrateCalendarToken,
+    },
+  ])(
+    "encrypts a legacy localStorage row that a read moved first ($name)",
+    async ({ key, read, migrate }) => {
+      vi.mocked(hasEncryptionKey).mockReturnValue(false);
+      localStorage.setItem(key, JSON.stringify({ accessToken: "legacy-token" }));
+
+      // The read runs before the key is ready and moves the row to the wallet key.
+      expect(await read(WALLET_A)).toBe("legacy-token");
+      expect(localStorage.getItem(key)).toBeNull();
+      expect(localStorage.getItem(`${key}:${WALLET_A}`)).not.toMatch(/^enc:oauth:/);
+
+      vi.mocked(hasEncryptionKey).mockReturnValue(true);
+      expect(await migrate(WALLET_A)).toBe(true);
+
+      expect(localStorage.getItem(`${key}:${WALLET_A}`)).toMatch(/^enc:oauth:/);
+      expect(await read(WALLET_A)).toBe("legacy-token");
+    }
+  );
+
+  it("keeps the encrypted legacy backup row of another wallet during a migration", async () => {
+    // An older build wrote wallet A's encrypted row under the shared key.
+    await storeBackupToken("dropbox", { accessToken: "tok-a" }, WALLET_A);
+    const rowA = localStorage.getItem(`${DROPBOX_KEY}:${WALLET_A}`) ?? "";
+    localStorage.removeItem(`${DROPBOX_KEY}:${WALLET_A}`);
+    localStorage.setItem(DROPBOX_KEY, rowA);
+    sessionStorage.setItem(
+      `${DROPBOX_KEY}:${WALLET_B}`,
+      JSON.stringify({ wallet: WALLET_B, token: { accessToken: "tok-b" } })
+    );
+
+    expect(await migrateUnencryptedTokens("dropbox", WALLET_B)).toBe(true);
+
+    expect(localStorage.getItem(`${DROPBOX_KEY}:${WALLET_B}`)).toMatch(/^enc:oauth:/);
+    expect(localStorage.getItem(DROPBOX_KEY)).toBe(rowA);
+    expect(await getStoredTokenData("dropbox", WALLET_A)).toEqual({ accessToken: "tok-a" });
+  });
+
+  it("drops a plain text legacy backup row during a migration", async () => {
+    localStorage.setItem(DROPBOX_KEY, JSON.stringify({ accessToken: "legacy-token" }));
+    sessionStorage.setItem(
+      `${DROPBOX_KEY}:${WALLET_B}`,
+      JSON.stringify({ wallet: WALLET_B, token: { accessToken: "tok-b" } })
+    );
+
+    expect(await migrateUnencryptedTokens("dropbox", WALLET_B)).toBe(true);
+
+    expect(localStorage.getItem(DROPBOX_KEY)).toBeNull();
   });
 });

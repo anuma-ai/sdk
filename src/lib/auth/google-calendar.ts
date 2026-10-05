@@ -527,6 +527,8 @@ export async function migrateCalendarToken(walletAddress: string): Promise<boole
     const scopedKey = getTokenStorageKey(walletAddress);
     const sources: { key: string; store: Storage }[] = [
       { key: scopedKey, store: sessionStorage },
+      // A read moves a legacy localStorage row here as plain text.
+      { key: scopedKey, store: localStorage },
       { key: TOKEN_STORAGE_KEY, store: sessionStorage },
       { key: TOKEN_STORAGE_KEY, store: localStorage },
     ];
@@ -558,7 +560,10 @@ export async function migrateCalendarToken(walletAddress: string): Promise<boole
     if (!migrated?.startsWith(ENCRYPTED_PREFIX)) return false;
 
     // Clean up the row this call used. Rows of other wallets stay in place.
-    used.store.removeItem(used.key);
+    // The encrypted write replaced the scoped localStorage row, so keep it.
+    if (used.store !== localStorage || used.key !== scopedKey) {
+      used.store.removeItem(used.key);
+    }
     return true;
   } catch {
     return false;
