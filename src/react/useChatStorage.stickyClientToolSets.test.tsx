@@ -195,7 +195,33 @@ describe.each(hooks)("useChatStorage carried connector tool sets (%s)", (label, 
       });
     }
 
+    // Only the persisted paths save a stopped reply and report it as a success;
+    // skipStorage returns the abort as an error.
     if (!skipStorage) {
+      it("counts a stopped send whose partial reply was saved as one turn", async () => {
+        const send = openChat(newConversation());
+        vi.mocked(runToolLoop).mockResolvedValueOnce({
+          data: {
+            id: "resp-stopped",
+            model: "test-model",
+            object: "response",
+            output: [
+              {
+                type: "message",
+                role: "assistant",
+                content: [{ type: "output_text", text: "Shall I send it?" }],
+                status: "completed",
+              },
+            ],
+          },
+          error: "Request aborted",
+        } as never);
+        expect(await send("send an email to a@b.com saying hi")).toContain("gmail_send_message");
+        expect(await send("Yes")).toContain("gmail_send_message");
+        expect(await send("ok")).toContain("gmail_send_message");
+        expect(await send("ok")).not.toContain("gmail_send_message");
+      });
+
       it("keeps the Gmail tools on 'Yes' in a brand-new chat", async () => {
         const send = openChat();
         expect(await send("send an email to a@b.com saying hi")).toContain("gmail_send_message");

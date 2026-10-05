@@ -2715,6 +2715,9 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
               usage: undefined,
             };
 
+            // The stopped reply was saved, so for the tool-set carry this is a
+            // completed send.
+            recordToolSetTurn(convId, matchedToolSets);
             return {
               data: responseData,
               error: null, // Treat as success to the caller
