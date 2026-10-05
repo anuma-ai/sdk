@@ -172,6 +172,44 @@ export async function listDriveFiles(accessToken: string, folderId: string): Pro
   return data.files ?? [];
 }
 
+/** Largest page size that the Drive files.list endpoint accepts. */
+const DRIVE_MAX_PAGE_SIZE = 1000;
+
+/**
+ * List every file in a Google Drive folder, with no filter on file type.
+ * Follows nextPageToken until the last page. Use it to build one name index
+ * for a whole run, instead of one findDriveFile request for each file.
+ */
+export async function listAllDriveFiles(
+  accessToken: string,
+  folderId: string
+): Promise<DriveFile[]> {
+  const query = `'${escapeQueryValue(folderId)}' in parents and trashed=false`;
+  const fields = encodeURIComponent("nextPageToken,files(id,name,createdTime,modifiedTime,size)");
+  const files: DriveFile[] = [];
+  let pageToken: string | undefined;
+
+  do {
+    const tokenParam = pageToken ? `&pageToken=${encodeURIComponent(pageToken)}` : "";
+    const response = await fetch(
+      `${DRIVE_API_URL}/files?q=${encodeURIComponent(query)}&fields=${fields}&pageSize=${DRIVE_MAX_PAGE_SIZE}${tokenParam}`,
+      {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`Failed to list files: ${response.status}`);
+    }
+
+    const data = (await response.json()) as { files?: DriveFile[]; nextPageToken?: string };
+    files.push(...(data.files ?? []));
+    pageToken = data.nextPageToken;
+  } while (pageToken);
+
+  return files;
+}
+
 /**
  * Download a file from Google Drive
  */
@@ -185,30 +223,4 @@ export async function downloadDriveFile(accessToken: string, fileId: string): Pr
   }
 
   return response.blob();
-}
-
-/**
- * Find a specific file in a Google Drive folder
- */
-export async function findDriveFile(
-  accessToken: string,
-  folderId: string,
-  filename: string
-): Promise<DriveFile | null> {
-  const query = `'${escapeQueryValue(folderId)}' in parents and name='${escapeQueryValue(filename)}' and trashed=false`;
-  const fields = "files(id,name,createdTime,modifiedTime,size)";
-
-  const response = await fetch(
-    `${DRIVE_API_URL}/files?q=${encodeURIComponent(query)}&fields=${fields}&pageSize=1`,
-    {
-      headers: { Authorization: `Bearer ${accessToken}` },
-    }
-  );
-
-  if (!response.ok) {
-    throw new Error(`Failed to find file: ${response.status}`);
-  }
-
-  const data = (await response.json()) as { files?: DriveFile[] };
-  return data.files?.[0] ?? null;
 }

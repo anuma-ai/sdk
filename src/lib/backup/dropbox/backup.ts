@@ -13,7 +13,6 @@ import {
   DEFAULT_BACKUP_FOLDER,
   downloadDropboxFile,
   type DropboxFile,
-  findDropboxFile,
   listDropboxFiles,
   uploadFileToDropbox,
 } from "./api";
@@ -52,11 +51,47 @@ export interface DropboxImportResult {
   noBackupsFound?: boolean;
 }
 
+/**
+ * Index of the files in the backup folder, keyed by file name.
+ * One export run lists the folder once and reuses the result for every conversation.
+ */
+interface DropboxFileIndex {
+  get(token: string): Promise<Map<string, DropboxFile>>;
+}
+
+function createDropboxFileIndex(backupFolder: string): DropboxFileIndex {
+  let pending: Promise<Map<string, DropboxFile>> | undefined;
+
+  return {
+    get(token) {
+      if (!pending) {
+        pending = listDropboxFiles(token, backupFolder)
+          .then((files) => {
+            const byName = new Map<string, DropboxFile>();
+            for (const file of files) {
+              // Keep the first file for a name, as a single-result name lookup does.
+              if (!byName.has(file.name)) byName.set(file.name, file);
+            }
+            return byName;
+          })
+          .catch((err: unknown) => {
+            // Do not keep a failed listing. The next conversation lists again,
+            // so each conversation fails or succeeds on its own.
+            pending = undefined;
+            throw err;
+          });
+      }
+      return pending;
+    },
+  };
+}
+
 async function pushConversationToDropbox(
-  database: Database,
   conversationId: string,
+  localUpdatedAt: Date,
   userAddress: string,
   token: string,
+  fileIndex: DropboxFileIndex,
   deps: DropboxBackupDeps,
   backupFolder: string = DEFAULT_BACKUP_FOLDER,
   _retried: boolean = false
@@ -65,23 +100,14 @@ async function pushConversationToDropbox(
     await deps.requestEncryptionKey(userAddress);
 
     const filename = `${conversationId}.json`;
-    const existingFile = await findDropboxFile(token, filename, backupFolder);
+    const existingFile = (await fileIndex.get(token)).get(filename);
 
     // Check if we can skip upload based on timestamps
     if (existingFile) {
-      const { Q } = await import("@nozbe/watermelondb");
-      const conversationsCollection = database.get<Conversation>("conversations");
-      const records = await conversationsCollection
-        .query(Q.where("conversation_id", conversationId))
-        .fetch();
-
-      if (records.length > 0) {
-        const conversation = conversationToStoredRaw(records[0]);
-        const localUpdated = conversation.updatedAt.getTime();
-        const remoteModified = new Date(existingFile.server_modified).getTime();
-        if (localUpdated <= remoteModified) {
-          return "skipped";
-        }
+      const localUpdated = localUpdatedAt.getTime();
+      const remoteModified = new Date(existingFile.server_modified).getTime();
+      if (localUpdated <= remoteModified) {
+        return "skipped";
       }
     }
 
@@ -99,10 +125,11 @@ async function pushConversationToDropbox(
       try {
         const newToken = await deps.requestDropboxAccess();
         return pushConversationToDropbox(
-          database,
           conversationId,
+          localUpdatedAt,
           userAddress,
           newToken,
+          fileIndex,
           deps,
           backupFolder,
           true
@@ -138,16 +165,18 @@ export async function performDropboxExport(
 
   let uploaded = 0;
   let skipped = 0;
+  const fileIndex = createDropboxFileIndex(backupFolder);
 
   for (let i = 0; i < conversations.length; i++) {
     const conv = conversations[i];
     onProgress?.(i + 1, total);
 
     const result = await pushConversationToDropbox(
-      database,
       conv.conversationId,
+      conv.updatedAt,
       userAddress,
       token,
+      fileIndex,
       deps,
       backupFolder
     );

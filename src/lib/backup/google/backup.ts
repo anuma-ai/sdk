@@ -14,8 +14,8 @@ import {
   DEFAULT_ROOT_FOLDER,
   downloadDriveFile,
   type DriveFile,
-  findDriveFile,
   getBackupFolder,
+  listAllDriveFiles,
   listDriveFiles,
   updateDriveFile,
   uploadFileToDrive,
@@ -77,46 +77,63 @@ async function getConversationsFolder(
   }
 }
 
+/**
+ * Index of the files in the backup folder, keyed by file name.
+ * One export run lists the folder once and reuses the result for every conversation.
+ */
+interface DriveFileIndex {
+  get(token: string): Promise<Map<string, DriveFile>>;
+}
+
+function createDriveFileIndex(folderId: string): DriveFileIndex {
+  let pending: Promise<Map<string, DriveFile>> | undefined;
+
+  return {
+    get(token) {
+      if (!pending) {
+        pending = listAllDriveFiles(token, folderId)
+          .then((files) => {
+            const byName = new Map<string, DriveFile>();
+            for (const file of files) {
+              // Keep the first file for a name, as a single-result name lookup does.
+              if (!byName.has(file.name)) byName.set(file.name, file);
+            }
+            return byName;
+          })
+          .catch((err: unknown) => {
+            // Do not keep a failed listing. The next conversation lists again,
+            // so each conversation fails or succeeds on its own.
+            pending = undefined;
+            throw err;
+          });
+      }
+      return pending;
+    },
+  };
+}
+
 async function pushConversationToDrive(
-  database: Database,
   conversationId: string,
+  localUpdatedAt: Date,
   userAddress: string,
   token: string,
+  folderId: string,
+  fileIndex: DriveFileIndex,
   deps: GoogleDriveBackupDeps,
-  rootFolder: string = DEFAULT_ROOT_FOLDER,
-  subfolder: string = DEFAULT_CONVERSATIONS_FOLDER,
   _retried: boolean = false
 ): Promise<"uploaded" | "skipped" | "failed"> {
   try {
     await deps.requestEncryptionKey(userAddress);
 
-    const folderResult = await getConversationsFolder(
-      token,
-      deps.requestDriveAccess,
-      rootFolder,
-      subfolder
-    );
-    if (!folderResult) return "failed";
-    const { folderId, token: activeToken } = folderResult;
-
     const filename = `${conversationId}.json`;
-    const existingFile = await findDriveFile(activeToken, folderId, filename);
+    const existingFile = (await fileIndex.get(token)).get(filename);
 
     // Check if we can skip upload based on timestamps
     if (existingFile) {
-      const { Q } = await import("@nozbe/watermelondb");
-      const conversationsCollection = database.get<Conversation>("conversations");
-      const records = await conversationsCollection
-        .query(Q.where("conversation_id", conversationId))
-        .fetch();
-
-      if (records.length > 0) {
-        const conversation = conversationToStoredRaw(records[0]);
-        const localUpdated = conversation.updatedAt.getTime();
-        const remoteModified = new Date(existingFile.modifiedTime).getTime();
-        if (localUpdated <= remoteModified) {
-          return "skipped";
-        }
+      const localUpdated = localUpdatedAt.getTime();
+      const remoteModified = new Date(existingFile.modifiedTime).getTime();
+      if (localUpdated <= remoteModified) {
+        return "skipped";
       }
     }
 
@@ -127,9 +144,9 @@ async function pushConversationToDrive(
     }
 
     if (existingFile) {
-      await updateDriveFile(activeToken, existingFile.id, exportResult.blob);
+      await updateDriveFile(token, existingFile.id, exportResult.blob);
     } else {
-      await uploadFileToDrive(activeToken, folderId, exportResult.blob, filename);
+      await uploadFileToDrive(token, folderId, exportResult.blob, filename);
     }
     return "uploaded";
   } catch (err) {
@@ -138,13 +155,13 @@ async function pushConversationToDrive(
       try {
         const newToken = await deps.requestDriveAccess();
         return pushConversationToDrive(
-          database,
           conversationId,
+          localUpdatedAt,
           userAddress,
           newToken,
+          folderId,
+          fileIndex,
           deps,
-          rootFolder,
-          subfolder,
           true
         );
       } catch {
@@ -175,7 +192,8 @@ export async function performGoogleDriveExport(
   if (!folderResult) {
     return { success: false, uploaded: 0, skipped: 0, total: 0 };
   }
-  const { token: activeToken } = folderResult;
+  const { folderId, token: activeToken } = folderResult;
+  const fileIndex = createDriveFileIndex(folderId);
 
   const { Q } = await import("@nozbe/watermelondb");
   const conversationsCollection = database.get<Conversation>("conversations");
@@ -196,13 +214,13 @@ export async function performGoogleDriveExport(
     onProgress?.(i + 1, total);
 
     const result = await pushConversationToDrive(
-      database,
       conv.conversationId,
+      conv.updatedAt,
       userAddress,
       activeToken,
-      deps,
-      rootFolder,
-      subfolder
+      folderId,
+      fileIndex,
+      deps
     );
 
     if (result === "uploaded") uploaded++;

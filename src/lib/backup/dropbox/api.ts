@@ -209,15 +209,3 @@ export async function downloadDropboxFile(accessToken: string, path: string): Pr
 
   return response.blob();
 }
-
-/**
- * Find a specific file in Dropbox by filename
- */
-export async function findDropboxFile(
-  accessToken: string,
-  filename: string,
-  folder: string = DEFAULT_BACKUP_FOLDER
-): Promise<DropboxFile | null> {
-  const files = await listDropboxFiles(accessToken, folder);
-  return files.find((f) => f.name === filename) || null;
-}
