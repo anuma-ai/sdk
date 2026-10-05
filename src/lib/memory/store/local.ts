@@ -41,7 +41,6 @@ import { createDecaySweeper } from "../decayWorker.js";
 import { recall } from "../recall.js";
 import { retain } from "../retain.js";
 import { extractAndLinkEntitiesForMemoriesOp, type TopicExtractOptions } from "../topicExtract.js";
-
 import type {
   MemoryListOptions,
   MemoryRecallOptions,
