@@ -18,7 +18,7 @@ vi.mock("../../react/useEncryption", () => ({
 }));
 
 import { hasEncryptionKey } from "../../react/useEncryption";
-import { getStoredTokenData } from "../backup/oauth/storage";
+import { getStoredTokenData, storeTokenData as storeBackupToken } from "../backup/oauth/storage";
 import {
   clearGithubToken,
   getValidGithubToken,
@@ -151,6 +151,17 @@ describe("wallet-scoped OAuth token rows", () => {
 
     expect(await getStoredTokenData("dropbox", WALLET_A)).toEqual({ accessToken: "tok-a" });
     expect(await getStoredTokenData("dropbox", WALLET_B)).toBeNull();
+  });
+
+  it("keeps one encrypted backup row per wallet in the backup store", async () => {
+    await storeBackupToken("dropbox", { accessToken: "tok-a" }, WALLET_A);
+    await storeBackupToken("dropbox", { accessToken: "tok-b" }, WALLET_B);
+
+    // Each wallet has its own key, so neither write overwrites the other.
+    expect(localStorage.getItem(`${DROPBOX_KEY}:${WALLET_A}`)).toMatch(/^enc:oauth:/);
+    expect(localStorage.getItem(`${DROPBOX_KEY}:${WALLET_B}`)).toMatch(/^enc:oauth:/);
+    expect(await getStoredTokenData("dropbox", WALLET_A)).toEqual({ accessToken: "tok-a" });
+    expect(await getStoredTokenData("dropbox", WALLET_B)).toEqual({ accessToken: "tok-b" });
   });
 
   it("still reads a legacy row that carries no wallet field", async () => {
