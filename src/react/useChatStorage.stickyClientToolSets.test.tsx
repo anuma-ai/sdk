@@ -12,7 +12,7 @@
 
 import { Database } from "@nozbe/watermelondb";
 import LokiJSAdapter from "@nozbe/watermelondb/adapters/lokijs";
-import { renderHook } from "@testing-library/react";
+import { renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { LlmapiChatCompletionTool } from "../client";
@@ -116,8 +116,9 @@ describe.each(hooks)(
 
       // A chat on one conversation. Each send returns the tool names handed to
       // runToolLoop. Several chats may share a database and conversation id, like
-      // the several hook instances an app mounts for one conversation.
-      function openChat(conversationId: string, database: Database = makeDatabase()) {
+      // the several hook instances an app mounts for one conversation. Without an
+      // id, the hook creates the conversation on the first send.
+      function openChat(conversationId?: string, database: Database = makeDatabase()) {
         const { result } = renderHook(() =>
           useChatStorage({ database, conversationId, getToken: async () => "tok" })
         );
@@ -131,6 +132,9 @@ describe.each(hooks)(
             skipStorage,
             ...options,
           });
+          // A new chat's id reaches the hook on a re-render; the next send must
+          // see it, as it would in an app.
+          await waitFor(() => expect(result.current.conversationId).toBeTruthy());
           const calls = vi.mocked(runToolLoop).mock.calls;
           expect(calls.length).toBe(before + 1);
           const tools = (calls[calls.length - 1][0].tools ?? []) as LlmapiChatCompletionTool[];
@@ -154,13 +158,34 @@ describe.each(hooks)(
           { clientToolsFilter: (_e, tools) => tools.map(getToolName) },
         ],
         ["no client tools", { clientTools: [] }],
-      ])("counts a send with %s as a turn", async (_case, options) => {
+      ])("counts a successful send with %s as a turn", async (_case, options) => {
         const send = openChat(newConversation());
         expect(await send("send an email to a@b.com saying hi")).toContain("gmail_send_message");
         await send("make a slide deck", options);
         expect(await send("Yes")).toContain("gmail_send_message");
         expect(await send("ok")).not.toContain("gmail_send_message");
       });
+
+      it("does not count a failed send, so its retry keeps the Gmail tools", async () => {
+        const send = openChat(newConversation());
+        expect(await send("send an email to a@b.com saying hi")).toContain("gmail_send_message");
+        vi.mocked(runToolLoop).mockResolvedValueOnce({
+          data: null,
+          error: "Network error",
+        } as never);
+        expect(await send("Yes")).toContain("gmail_send_message");
+        expect(await send("Yes")).toContain("gmail_send_message");
+        expect(await send("ok")).toContain("gmail_send_message");
+        expect(await send("ok")).not.toContain("gmail_send_message");
+      });
+
+      if (!skipStorage) {
+        it("keeps the Gmail tools on 'Yes' in a brand-new chat", async () => {
+          const send = openChat();
+          expect(await send("send an email to a@b.com saying hi")).toContain("gmail_send_message");
+          expect(await send("Yes")).toContain("gmail_send_message");
+        });
+      }
 
       it("carries nothing after a prompt that matched no connector", async () => {
         const send = openChat(newConversation());

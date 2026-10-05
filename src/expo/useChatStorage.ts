@@ -1967,7 +1967,6 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
             getLogger().warn("[useChatStorage] client tool filtering failed (skipStorage):", error);
           }
         }
-        recordToolSetTurn(currentConversationId, matchedToolSets);
 
         if (
           filteredServerTools.length > 0 ||
@@ -2042,6 +2041,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
             error: result.error || "Unknown error",
           };
         }
+        recordToolSetTurn(currentConversationId, matchedToolSets);
 
         // Refresh the cached server-tools catalog when the response's checksum
         // differs from the cached one (react parity). The cache backend may be
@@ -2516,7 +2516,6 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           getLogger().warn("[useChatStorage] client tool filtering failed:", error);
         }
       }
-      recordToolSetTurn(convId, matchedToolSets);
 
       // Embed user message (skip for queued messages — embeddings can't be stored on synthetic IDs)
       if (!userMsgQueueId) {
@@ -2753,6 +2752,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           userMessage: { ...storedUserMessage, error: errorMessage },
         };
       }
+      recordToolSetTurn(convId, matchedToolSets);
 
       // Extract assistant response content and thinking/reasoning
       // Handle both Responses API (output[]) and Completions API (choices[]) formats

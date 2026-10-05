@@ -2529,7 +2529,6 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           clientActivatedSetNames = clientFilterResult.activatedSetNames;
           matchedToolSets = clientFilterResult.matchedSetNames;
         }
-        recordToolSetTurn(toolSetConversationId, matchedToolSets);
 
         if (
           filteredServerTools.length > 0 ||
@@ -2591,6 +2590,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
             error: result.error || "Unknown error",
           };
         }
+        recordToolSetTurn(toolSetConversationId, matchedToolSets);
 
         // Auto-refresh the server-tools cache if the checksum changed. Forward
         // the configured backend to shouldRefreshTools so the checksum comparison
@@ -3225,7 +3225,6 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         clientActivatedSetNames = clientFilterResult.activatedSetNames;
         matchedToolSets = clientFilterResult.matchedSetNames;
       }
-      recordToolSetTurn(convId, matchedToolSets);
 
       // Embed user message (skip for queued messages — embeddings can't be stored on synthetic IDs)
       if (!userMsgQueueId) {
@@ -3432,6 +3431,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           userMessage: { ...storedUserMessage, error: errorMessage },
         };
       }
+      recordToolSetTurn(convId, matchedToolSets);
 
       // Extract assistant response content and thinking/reasoning
       // Handle both Responses API (output[]) and Completions API (choices[]) formats
