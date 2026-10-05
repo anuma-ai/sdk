@@ -195,6 +195,9 @@ export async function ingestPublishedPhotoMemoriesOp(
         // `isPublic` both key on. A row outside that read can never reach the
         // ledger, and therefore can never be revoked.
         record._setRaw("scope", "shared");
+        // v48 level for the same published state (a photo memory is free-form,
+        // so never 'profile').
+        record._setRaw("level", "matching");
         record._setRaw("folder_id", null);
         record._setRaw("user_id", ctx.userId ?? null);
         record._setRaw("is_deleted", false);

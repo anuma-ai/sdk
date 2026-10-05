@@ -135,6 +135,9 @@ export async function retain(
         ...(options.folderId !== undefined && { folderId: options.folderId }),
       }
     );
+    // Kinded (profile) memories are never merged into, consolidated, or
+    // superseded by extraction — only the user's profile editor changes them.
+    prepared = withoutKindedRows(prepared);
 
     // An embedding failure is FATAL here, unlike on the read path.
     //
@@ -459,6 +462,20 @@ export async function retain(
     memoryId: created.uniqueId,
     proofCount: 1,
     ...(consolidationDecidedCreate && { consolidation: "create" as const }),
+  };
+}
+
+/** Drop kinded (profile) rows from a retain candidate set, so neither merge
+ * stage can match one. */
+function withoutKindedRows(prepared: PreparedVaultCandidates): PreparedVaultCandidates {
+  const kinded = new Set(
+    prepared.memories.filter((m) => m.kind !== null && m.kind !== undefined).map((m) => m.uniqueId)
+  );
+  if (kinded.size === 0) return prepared;
+  return {
+    ...prepared,
+    memories: prepared.memories.filter((m) => !kinded.has(m.uniqueId)),
+    embeddedItems: prepared.embeddedItems.filter((item) => !kinded.has(item.id)),
   };
 }
 

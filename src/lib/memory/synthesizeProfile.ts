@@ -373,8 +373,8 @@ export interface SynthesizeProfileOptions extends PortalLlmAuth {
    * on memories the user approved for publication. Empty intersection → empty
    * section (legitimate no-evidence), not a stale fallback.
    *
-   * Pass the user's published set (e.g. `getAllVaultMemoriesOp(ctx, { visibility:
-   * ["public"] })`) to keep a published profile derivable only from published
+   * Pass the user's published set (e.g. `getAllVaultMemoriesOp(ctx, { levels:
+   * ["matching", "profile"] })`) to keep a published profile derivable only from published
    * memories — People Nearby's two-tier model treats `private` memories as never
    * leaving the device, and a summary derived from them is a derivative that does.
    *
