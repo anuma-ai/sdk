@@ -1252,6 +1252,12 @@ Re-exports [MemoryRecallOptions](../react/Internal/type-aliases/MemoryRecallOpti
 
 ***
 
+### MemoryRetainOptions
+
+Re-exports [MemoryRetainOptions](../react/Internal/type-aliases/MemoryRetainOptions.md)
+
+***
+
 ### MemoryStore
 
 Re-exports [MemoryStore](../react/Internal/interfaces/MemoryStore.md)

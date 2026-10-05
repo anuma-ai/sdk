@@ -1,6 +1,6 @@
 # MemorySubscribeOptions
 
-Defined in: [src/lib/memory/store/types.ts:70](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#70)
+Defined in: [src/lib/memory/store/types.ts:88](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#88)
 
 ## Properties
 
@@ -8,7 +8,7 @@ Defined in: [src/lib/memory/store/types.ts:70](https://github.com/anuma-ai/sdk/b
 
 > `optional` **includeDeleted**: `boolean`
 
-Defined in: [src/lib/memory/store/types.ts:79](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#79)
+Defined in: [src/lib/memory/store/types.ts:97](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#97)
 
 Watch the whole table, soft-deleted rows included, and fire on row-SET
 changes only (create / delete / undelete) — the Memory Graph's mode. A
@@ -23,6 +23,6 @@ renders (`archived_at`, `trust_tier`, `scope`, `visibility`).
 
 > `optional` **topics**: `boolean`
 
-Defined in: [src/lib/memory/store/types.ts:81](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#81)
+Defined in: [src/lib/memory/store/types.ts:99](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#99)
 
 Also fire when topic (entity / link) state changes. Default `false`.

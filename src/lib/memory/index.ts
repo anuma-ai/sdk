@@ -106,6 +106,7 @@ export type {
   MemoryListOptions,
   MemoryMaintenance,
   MemoryRecallOptions,
+  MemoryRetainOptions,
   MemoryStore,
   MemorySubscribeOptions,
   MemoryUpdate,

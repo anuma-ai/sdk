@@ -58,13 +58,31 @@ export type MemoryUpdate = Pick<
 
 /**
  * Fact-only recall. Conversation chunks are message storage, not memory, so
- * the chunk-lane knobs are not part of this surface.
+ * the chunk-lane knobs are not part of this surface; nor is `folderId` (see
+ * {@link MemoryUpdate}).
+ *
+ * LOCAL-ONLY: `decomposeOptions` (portal credentials) and `onDiagnostics` (a
+ * callback) configure work the backend does in-process. A remote backend runs
+ * query decomposition server-side with its own credentials and ignores both;
+ * every other field is plain data it forwards.
  * @public
  */
 export type MemoryRecallOptions = Omit<
   RecallOptions,
-  "types" | "includeChunks" | "conversationId" | "excludeConversationId"
+  "types" | "includeChunks" | "conversationId" | "excludeConversationId" | "folderId"
 >;
+
+/**
+ * `retain()` options minus `folderId` (see {@link MemoryUpdate}).
+ *
+ * LOCAL-ONLY: `consolidateOptions` carries portal credentials, an `onFallback`
+ * callback and possibly a `PiiRedactor` instance — it configures the
+ * consolidation LLM call the backend makes. A remote backend makes that call
+ * server-side with its own credentials and redaction, and ignores the field;
+ * every other field is plain data it forwards.
+ * @public
+ */
+export type MemoryRetainOptions = Omit<RetainOptions, "folderId">;
 
 /** @public */
 export interface MemorySubscribeOptions {
@@ -123,7 +141,9 @@ export interface MemoryMaintenance {
  * client for the server-side store.
  *
  * Every value crossing this interface is plain data — no WatermelonDB Model,
- * Query or Collection — so a remote backend can serialize it. Reads are
+ * Query or Collection — so a remote backend can serialize it. The one
+ * exception is the LOCAL-ONLY LLM-call knobs on {@link MemoryRecallOptions}
+ * and {@link MemoryRetainOptions}, which a remote backend ignores. Reads are
  * whole-result rather than per-row so a chat turn costs a handful of calls
  * (`recall`, then `retain` per fact), not one per memory.
  *
@@ -163,7 +183,7 @@ export interface MemoryStore {
   ): Promise<StoredVaultMemory | null>;
 
   recall(query: string, options?: MemoryRecallOptions): Promise<RecallResult>;
-  retain(content: string, options?: RetainOptions): Promise<RetainResult>;
+  retain(content: string, options?: MemoryRetainOptions): Promise<RetainResult>;
 
   /**
    * Call `onChange` after the store's memories change; re-read to see what

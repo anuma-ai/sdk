@@ -417,6 +417,7 @@ export {
   type MemoryListOptions,
   type MemoryMaintenance,
   type MemoryRecallOptions,
+  type MemoryRetainOptions,
   type MemoryStore,
   type MemorySubscribeOptions,
   type MemoryUpdate,

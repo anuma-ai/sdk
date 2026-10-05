@@ -31,16 +31,16 @@ import {
   type EntityOperationsContext,
   getEntitiesByMemoryIdsOp,
   getMemoriesByEntityNamesOp,
-  linkMemoryEntitiesOp,
 } from "../../db/entities/operations";
 import type { VaultMemory } from "../../db/memoryVault/models";
 import {
   createVaultMemoryOp,
-  deleteVaultMemoryOp,
   getAllVaultMemoriesOp,
   getVaultMemoryOp,
+  updateVaultMemoryOp,
   type VaultMemoryOperationsContext,
 } from "../../db/memoryVault/operations";
+import { eagerEmbedContent } from "../../memoryVault/searchTool";
 import { sdkMigrations, sdkModelClasses, sdkSchema } from "../../db/schema";
 import { recall } from "../recall";
 import { runMemoryStoreContract } from "./contract";
@@ -145,34 +145,58 @@ describe("createLocalMemoryStore parity with the raw ops", () => {
     });
   });
 
-  it("claims rows written with no user_id for the store's userId", async () => {
+  it("never lands a re-embed for content an edit has since replaced", async () => {
+    const { store, vaultCtx } = setup();
+    const { uniqueId } = await store.create({ content: "Commutes by bike" });
+    const first = await updateVaultMemoryOp(vaultCtx, uniqueId, {
+      content: "Commutes by train",
+      embedding: null,
+    });
+    await updateVaultMemoryOp(vaultCtx, uniqueId, { content: "Commutes by bus", embedding: null });
+
+    // The first edit's embed finishes last: its row version is gone, so no write.
+    await eagerEmbedContent(
+      "Commutes by train",
+      embeddingOptions,
+      new Map(),
+      vaultCtx,
+      uniqueId,
+      first!.updatedAt
+    );
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect((await store.get(uniqueId))?.embedding).toBeNull();
+  });
+
+  it("sees rows an unscoped context wrote when single-tenant (the client's shape)", async () => {
     const database = makeDatabase();
-    // An unscoped context — what useChatStorage writes with today.
+    // useChatStorage's vault ctx: no userId, so rows are user_id = null.
     const { vaultCtx } = setup(database);
-    const live = await createVaultMemoryOp(vaultCtx, { content: "Lives in Lisbon" });
-    const gone = await createVaultMemoryOp(vaultCtx, { content: "Lived in Porto" });
-    await deleteVaultMemoryOp(vaultCtx, gone.uniqueId);
-    await linkMemoryEntitiesOp(vaultCtx.entityCtx!, live.uniqueId, ["Lisbon"]);
-    const updatedAt = (await getVaultMemoryOp(vaultCtx, live.uniqueId))?.updatedAt;
+    const row = await createVaultMemoryOp(vaultCtx, { content: "Lives in Lisbon" });
 
-    const store = createLocalMemoryStore({ database, embeddingOptions, userId: "user-1" });
-    expect((await store.list()).map((m) => m.uniqueId)).toEqual([live.uniqueId]);
-    expect((await store.list({ includeDeleted: true })).map((m) => m.uniqueId).sort()).toEqual(
-      [live.uniqueId, gone.uniqueId].sort()
-    );
-    // Topic links follow their parent row; the claim doesn't move recency.
-    expect(await store.memoriesByTopics(["lisbon"])).toEqual(
-      new Map([[live.uniqueId, new Set(["lisbon"])]])
-    );
-    const claimed = await store.get(live.uniqueId);
-    expect(claimed).toMatchObject({ userId: "user-1", updatedAt });
+    const store = createLocalMemoryStore({ database, embeddingOptions, singleTenant: true });
+    expect((await store.list()).map((m) => m.uniqueId)).toEqual([row.uniqueId]);
+    // Reads never rewrite rows: nothing claims them for a user.
+    expect((await getVaultMemoryOp(vaultCtx, row.uniqueId))?.userId ?? null).toBeNull();
+  });
 
-    // Idempotent: a second store finds nothing left to claim, and another
-    // user's store on the same database sees none of it.
-    const again = createLocalMemoryStore({ database, embeddingOptions, userId: "user-1" });
-    expect((await again.list()).map((m) => m.uniqueId)).toEqual([live.uniqueId]);
-    const other = createLocalMemoryStore({ database, embeddingOptions, userId: "user-2" });
-    expect(await other.list()).toEqual([]);
+  it("scopes topic writes and topic change events to the store's user", async () => {
+    const database = makeDatabase();
+    const mine = createLocalMemoryStore({ database, embeddingOptions, userId: "user-1" });
+    const theirs = createLocalMemoryStore({ database, embeddingOptions, userId: "user-2" });
+    const theirRow = await theirs.create({ content: "Plays the cello" });
+
+    expect(await mine.addTopics(theirRow.uniqueId, ["Cello"])).toEqual([]);
+    expect(await theirs.topicsByMemories([theirRow.uniqueId])).toEqual(new Map());
+
+    const onChange = vi.fn();
+    const unsubscribe = mine.subscribe(onChange, { topics: true });
+    await theirs.addTopics(theirRow.uniqueId, ["Cello"]);
+    expect(onChange).not.toHaveBeenCalled();
+    const myRow = await mine.create({ content: "Plays the viola" });
+    onChange.mockClear();
+    await mine.addTopics(myRow.uniqueId, ["Viola"]);
+    await vi.waitFor(() => expect(onChange).toHaveBeenCalled());
+    unsubscribe();
   });
 
   it("binds the decay sweeper to the store's vault", async () => {

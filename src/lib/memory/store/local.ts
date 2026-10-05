@@ -5,7 +5,6 @@ import type { EmbeddedWalletSignerFn, SignMessageFn } from "../../db/encryption-
 import type { Entity, MemoryEntity } from "../../db/entities/models.js";
 import type { EntityInput } from "../../db/entities/operations.js";
 import {
-  backfillMemoryEntityUserIdsOp,
   type EntityOperationsContext,
   getEntitiesByMemoryIdsOp,
   getMemoriesByEntityNamesOp,
@@ -15,7 +14,6 @@ import type { VaultMemory } from "../../db/memoryVault/models.js";
 import {
   archiveVaultMemoryOp,
   backfillMemoryTopicsOp,
-  backfillVaultMemoryUserIdsOp,
   createVaultMemoriesBatchOp,
   createVaultMemoryOp,
   deleteVaultMemoryOp,
@@ -43,8 +41,14 @@ import { createDecaySweeper } from "../decayWorker.js";
 import { recall } from "../recall.js";
 import { retain } from "../retain.js";
 import { extractAndLinkEntitiesForMemoriesOp, type TopicExtractOptions } from "../topicExtract.js";
-import type { RetainOptions } from "../types.js";
-import type { MemoryListOptions, MemoryRecallOptions, MemoryStore, MemoryUpdate } from "./types.js";
+
+import type {
+  MemoryListOptions,
+  MemoryRecallOptions,
+  MemoryRetainOptions,
+  MemoryStore,
+  MemoryUpdate,
+} from "./types.js";
 
 /** @public */
 export interface LocalMemoryStoreOptions {
@@ -55,12 +59,11 @@ export interface LocalMemoryStoreOptions {
   signMessage?: SignMessageFn;
   embeddedWalletSigner?: EmbeddedWalletSignerFn;
   /**
-   * Scope every read/write to this user. On creation the store first claims
-   * every row with no `user_id` for this user (vault rows, then their topic
-   * links), so rows an unscoped context wrote — every useChatStorage row —
-   * stay visible; each method waits for that claim. Safe on the per-wallet
-   * client DBs, which hold one owner's rows; on a shared, multi-tenant
-   * database every row must already carry its `user_id`.
+   * Scope every read/write to this user — for a shared, multi-tenant database
+   * whose rows all carry their `user_id`. Rows with no `user_id` are invisible
+   * to a scoped store, so the per-wallet client DBs (every useChatStorage row is
+   * `user_id = null`) use `singleTenant` instead, exactly like useChatStorage's
+   * vault ctx.
    */
   userId?: string;
   /**
@@ -115,31 +118,10 @@ export function createLocalMemoryStore(options: LocalMemoryStoreOptions): Memory
   const vaultCache = options.vaultCache ?? createVaultEmbeddingCache();
   const ownedBy = userId !== undefined ? [Q.where("user_id", userId)] : [];
 
-  // Claim the unscoped rows before anything reads, so `userId` scoping never
-  // hides them. A failure is logged, not rethrown: the store still works, and
-  // the next store built on this database retries.
-  const claimed: Promise<void> = userId
-    ? (async () => {
-        await backfillVaultMemoryUserIdsOp(vaultCtx, userId);
-        // Links take their parent's user_id — now this user's for the rows above.
-        await backfillMemoryEntityUserIdsOp(entityCtx, vaultCtx.vaultMemoryCollection);
-      })().catch((err: unknown) => {
-        getLogger().warn("[memory/store] user_id backfill failed", err);
-      })
-    : Promise.resolve();
-  const afterClaim =
-    <A extends unknown[], R>(fn: (...args: A) => Promise<R>) =>
-    async (...args: A): Promise<R> => {
-      await claimed;
-      return fn(...args);
-    };
-
   return {
-    list: afterClaim((listOptions?: MemoryListOptions) =>
-      getAllVaultMemoriesOp(vaultCtx, listOptions)
-    ),
-    get: afterClaim((id: string) => getVaultMemoryOp(vaultCtx, id)),
-    listArchived: afterClaim(async () => {
+    list: (listOptions?: MemoryListOptions) => getAllVaultMemoriesOp(vaultCtx, listOptions),
+    get: (id: string) => getVaultMemoryOp(vaultCtx, id),
+    listArchived: async () => {
       // Pick the archived ids off the plaintext columns first so only those
       // rows get decrypted, never the whole vault.
       const ids = await vaultCtx.vaultMemoryCollection
@@ -148,19 +130,15 @@ export function createLocalMemoryStore(options: LocalMemoryStoreOptions): Memory
       if (ids.length === 0) return [];
       const rows = await getAllVaultMemoriesOp(vaultCtx, { memoryIds: ids, includeArchived: true });
       return rows.sort((a, b) => (b.archivedAt ?? 0) - (a.archivedAt ?? 0));
-    }),
-    memoriesByTopics: afterClaim((names: readonly string[]) =>
-      getMemoriesByEntityNamesOp(entityCtx, names)
-    ),
-    topicsByMemories: afterClaim((memoryIds: readonly string[]) =>
-      getEntitiesByMemoryIdsOp(entityCtx, memoryIds)
-    ),
+    },
+    memoriesByTopics: (names: readonly string[]) => getMemoriesByEntityNamesOp(entityCtx, names),
+    topicsByMemories: (memoryIds: readonly string[]) =>
+      getEntitiesByMemoryIdsOp(entityCtx, memoryIds),
 
-    create: afterClaim((input: CreateVaultMemoryOptions) => createVaultMemoryOp(vaultCtx, input)),
-    createMany: afterClaim((inputs: CreateVaultMemoryOptions[]) =>
-      createVaultMemoriesBatchOp(vaultCtx, inputs)
-    ),
-    update: afterClaim(async (id: string, patch: MemoryUpdate) => {
+    create: (input: CreateVaultMemoryOptions) => createVaultMemoryOp(vaultCtx, input),
+    createMany: (inputs: CreateVaultMemoryOptions[]) =>
+      createVaultMemoriesBatchOp(vaultCtx, inputs),
+    update: async (id: string, patch: MemoryUpdate) => {
       // Same as useChatStorage's vault edit: an edit without a fresh vector
       // clears the stored one (and its model tag) rather than keep a vector
       // for text that is gone, then re-embeds in the background.
@@ -186,45 +164,46 @@ export function createLocalMemoryStore(options: LocalMemoryStoreOptions): Memory
         });
       }
       return updated;
-    }),
-    delete: afterClaim(async (id: string) => {
+    },
+    delete: async (id: string) => {
       const deleted = await deleteVaultMemoryOp(vaultCtx, id);
       if (deleted) vaultCache.delete(id);
       return deleted;
-    }),
-    supersede: afterClaim((id: string, supersededById: string) =>
-      supersedeVaultMemoryOp(vaultCtx, id, supersededById)
-    ),
-    archive: afterClaim((id: string) => archiveVaultMemoryOp(vaultCtx, id)),
-    restore: afterClaim((id: string) => restoreVaultMemoryOp(vaultCtx, id)),
-    setTopics: afterClaim((memoryId: string, topics: readonly EntityInput[]) =>
-      setMemoryEntitiesOp(vaultCtx, memoryId, topics)
-    ),
-    addTopics: afterClaim((memoryId: string, topics: readonly EntityInput[]) =>
-      linkMemoryEntitiesOp(entityCtx, memoryId, topics)
-    ),
-    setVisibility: afterClaim(
-      (
-        id: string,
-        visibility: VaultMemoryVisibility,
-        visibilityOptions?: { twinOptIn?: boolean }
-      ) => setMemoryVisibilityOp(vaultCtx, id, { visibility, ...visibilityOptions })
-    ),
+    },
+    supersede: (id: string, supersededById: string) =>
+      supersedeVaultMemoryOp(vaultCtx, id, supersededById),
+    archive: (id: string) => archiveVaultMemoryOp(vaultCtx, id),
+    restore: (id: string) => restoreVaultMemoryOp(vaultCtx, id),
+    setTopics: (memoryId: string, topics: readonly EntityInput[]) =>
+      setMemoryEntitiesOp(vaultCtx, memoryId, topics),
+    addTopics: async (memoryId: string, topics: readonly EntityInput[]) => {
+      // linkMemoryEntitiesOp takes any id and stamps the links with this
+      // store's user, so check the memory is live and ours first. Ownership
+      // never changes, so a check outside the writer is enough; a delete that
+      // races it leaves orphan links, which the delete cascade's sweep collects.
+      const owned = await vaultCtx.vaultMemoryCollection
+        .query(Q.where("id", memoryId), Q.where("is_deleted", false), ...ownedBy)
+        .fetchCount();
+      return owned > 0 ? linkMemoryEntitiesOp(entityCtx, memoryId, topics) : [];
+    },
+    setVisibility: (
+      id: string,
+      visibility: VaultMemoryVisibility,
+      visibilityOptions?: { twinOptIn?: boolean }
+    ) => setMemoryVisibilityOp(vaultCtx, id, { visibility, ...visibilityOptions }),
 
-    recall: afterClaim((query: string, recallOptions?: MemoryRecallOptions) =>
+    recall: (query: string, recallOptions?: MemoryRecallOptions) =>
       recall(
         query,
         { vaultCtx, entityCtx, embeddingOptions: options.embeddingOptions, vaultCache },
         { ...recallOptions, types: ["fact"] }
-      )
-    ),
-    retain: afterClaim((content: string, retainOptions?: RetainOptions) =>
+      ),
+    retain: (content: string, retainOptions?: MemoryRetainOptions) =>
       retain(
         content,
         { vaultCtx, embeddingOptions: options.embeddingOptions, vaultCache },
         retainOptions
-      )
-    ),
+      ),
 
     subscribe: (onChange, subscribeOptions) => {
       // WatermelonDB observables emit the current result on subscribe; drop
@@ -243,9 +222,21 @@ export function createLocalMemoryStore(options: LocalMemoryStoreOptions): Memory
             .observeWithColumns(WATCHED_COLUMNS);
       const subscriptions = [memories.subscribe(afterFirst())];
       if (subscribeOptions?.topics) {
+        // Links only: a topic read always goes through this user's links, and
+        // an entity row (shared vocabulary, no user_id) is only ever created
+        // alongside a link, so watching `entity` too would just add other
+        // users' writes.
+        const linksOwnedBy =
+          userId === undefined
+            ? []
+            : options.allowUnscopedRows
+              ? [Q.or(Q.where("user_id", userId), Q.where("user_id", null))]
+              : [Q.where("user_id", userId)];
         subscriptions.push(
-          entityCtx.entityCollection.query().observe().subscribe(afterFirst()),
-          entityCtx.memoryEntityCollection.query().observe().subscribe(afterFirst())
+          entityCtx.memoryEntityCollection
+            .query(...linksOwnedBy)
+            .observe()
+            .subscribe(afterFirst())
         );
       }
       return () => subscriptions.forEach((s) => s.unsubscribe());
@@ -253,23 +244,16 @@ export function createLocalMemoryStore(options: LocalMemoryStoreOptions): Memory
 
     maintenance: {
       createDecaySweeper: (sweeperOptions) => createDecaySweeper({ ...sweeperOptions, vaultCtx }),
-      getTopicBacklog: afterClaim((backlogOptions?: { limit?: number }) =>
-        getMemoriesNeedingTopicExtractionOp(vaultCtx, backlogOptions)
-      ),
-      extractTopics: afterClaim(
-        (memoryIds: readonly string[], extractOptions: TopicExtractOptions & { now?: number }) =>
-          extractAndLinkEntitiesForMemoriesOp(vaultCtx, memoryIds, extractOptions)
-      ),
-      stampTopicsExtracted: afterClaim(
-        (memoryIds: readonly string[], extractedAt: number, version?: number) =>
-          stampTopicsExtractedAtOp(vaultCtx, memoryIds, extractedAt, version)
-      ),
-      relinkTopics: afterClaim((memoryIds: readonly string[]) =>
-        relinkMemoryTopicsOp(vaultCtx, memoryIds)
-      ),
-      backfillTopics: afterClaim((memoryIds: readonly string[]) =>
-        backfillMemoryTopicsOp(vaultCtx, memoryIds)
-      ),
+      getTopicBacklog: (backlogOptions?: { limit?: number }) =>
+        getMemoriesNeedingTopicExtractionOp(vaultCtx, backlogOptions),
+      extractTopics: (
+        memoryIds: readonly string[],
+        extractOptions: TopicExtractOptions & { now?: number }
+      ) => extractAndLinkEntitiesForMemoriesOp(vaultCtx, memoryIds, extractOptions),
+      stampTopicsExtracted: (memoryIds: readonly string[], extractedAt: number, version?: number) =>
+        stampTopicsExtractedAtOp(vaultCtx, memoryIds, extractedAt, version),
+      relinkTopics: (memoryIds: readonly string[]) => relinkMemoryTopicsOp(vaultCtx, memoryIds),
+      backfillTopics: (memoryIds: readonly string[]) => backfillMemoryTopicsOp(vaultCtx, memoryIds),
     },
   };
 }
