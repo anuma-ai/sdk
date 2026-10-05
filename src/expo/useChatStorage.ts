@@ -143,6 +143,8 @@ import {
   type ToolSet,
   withActiveToolSetServerTools,
 } from "../lib/tools";
+import { mergeActiveToolSets } from "../lib/tools/selection/activeToolSets";
+import { carriedToolSets, recordToolSetTurn } from "../lib/tools/selection/recentToolSets";
 import type { EmbeddedWalletSignerFn, SignMessageFn } from "../react/useEncryption";
 import {
   hasEncryptionKey,
@@ -1907,6 +1909,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         // storage floor. Fully defensive: any failure leaves the full toolkit.
         let narrowedClientTools = clientTools;
         let clientActivatedSetNames: ReadonlySet<string> | undefined;
+        let matchedToolSets: ReadonlySet<string> = new Set();
         if (clientTools?.length) {
           try {
             // Ensure a prompt embedding exists before EITHER filter runs (matches
@@ -1940,22 +1943,31 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
                 narrowedClientTools = clientTools.filter((t) => keep.has(getToolName(t)));
               }
             } else if (getTokenRef.current) {
-              const { tools: autoTools, activatedSetNames } = await autoFilterClientTools(
+              const {
+                tools: autoTools,
+                activatedSetNames,
+                matchedSetNames,
+              } = await autoFilterClientTools(
                 clientTools,
                 skipUserEmbedding ?? null,
                 clientToolFilterCache,
                 { getToken: getTokenRef.current, baseUrl, model: embeddingModel },
                 extraToolSets ?? [],
-                activeToolSetsRef.current ?? [],
+                mergeActiveToolSets(
+                  activeToolSetsRef.current ?? [],
+                  carriedToolSets(currentConversationId)
+                ),
                 skipEmbeddingFailed ? "error" : "short-prompt"
               );
               narrowedClientTools = autoTools;
               clientActivatedSetNames = activatedSetNames;
+              matchedToolSets = matchedSetNames;
             }
           } catch (error) {
             getLogger().warn("[useChatStorage] client tool filtering failed (skipStorage):", error);
           }
         }
+        recordToolSetTurn(currentConversationId, matchedToolSets);
 
         if (
           filteredServerTools.length > 0 ||
@@ -2426,6 +2438,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       // computation at the send can see the narrowed set and which sets activated.
       let narrowedClientTools = clientTools;
       let clientActivatedSetNames: ReadonlySet<string> | undefined;
+      let matchedToolSets: ReadonlySet<string> = new Set();
       if (clientTools?.length) {
         try {
           // Ensure a prompt embedding exists before EITHER filter runs — react
@@ -2468,17 +2481,22 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
               narrowedClientTools = clientTools.filter((t) => keep.has(getToolName(t)));
             }
           } else if (getTokenRef.current) {
-            const { tools: autoTools, activatedSetNames } = await autoFilterClientTools(
+            const {
+              tools: autoTools,
+              activatedSetNames,
+              matchedSetNames,
+            } = await autoFilterClientTools(
               clientTools,
               userMessageEmbedding ?? null,
               clientToolFilterCache,
               { getToken: getTokenRef.current, baseUrl, model: embeddingModel },
               extraToolSets ?? [],
-              activeToolSetsRef.current ?? [],
+              mergeActiveToolSets(activeToolSetsRef.current ?? [], carriedToolSets(convId)),
               userMessageEmbeddingFailed ? "error" : "short-prompt"
             );
             narrowedClientTools = autoTools;
             clientActivatedSetNames = activatedSetNames;
+            matchedToolSets = matchedSetNames;
           }
           // Merge only when something survived — mirrors the skipStorage branch
           // and react. An empty `narrowedClientTools` (short prompt / a filter
@@ -2498,6 +2516,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           getLogger().warn("[useChatStorage] client tool filtering failed:", error);
         }
       }
+      recordToolSetTurn(convId, matchedToolSets);
 
       // Embed user message (skip for queued messages — embeddings can't be stored on synthetic IDs)
       if (!userMsgQueueId) {

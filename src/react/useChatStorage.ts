@@ -174,6 +174,8 @@ import {
   type ToolSet,
   withActiveToolSetServerTools,
 } from "../lib/tools";
+import { mergeActiveToolSets } from "../lib/tools/selection/activeToolSets";
+import { carriedToolSets, recordToolSetTurn } from "../lib/tools/selection/recentToolSets";
 import { useChat } from "./useChat";
 import { useChatMedia } from "./useChatMedia";
 import type { EmbeddedWalletSignerFn, SignMessageFn } from "./useEncryption";
@@ -214,6 +216,8 @@ import { onClearAllEncryptionState, onKeyAvailable } from "./useEncryption";
  * - Embedding generation hits the same `/embeddings` endpoint as the
  *   real request; pass a shared `clientToolEmbeddingsCache` if you call
  *   this repeatedly to avoid re-embedding tool descriptions.
+ * - A real follow-up may also include connector tool sets carried from the
+ *   previous two turns of the conversation, which this preview does not model.
  */
 export async function previewToolSelection(options: {
   prompt: string;
@@ -2493,6 +2497,8 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         // Filter client tools: use explicit filter if provided, otherwise auto-filter using embeddings
         let filteredClientTools = clientTools;
         let clientActivatedSetNames: ReadonlySet<string> | undefined;
+        let matchedToolSets: ReadonlySet<string> = new Set();
+        const toolSetConversationId = explicitConversationId ?? currentConversationId;
         if (clientToolsFilter && clientTools?.length) {
           // On a genuine embedding FAILURE (not the short-prompt gate), keep the
           // full toolkit rather than handing the filter null — an embeddings outage
@@ -2513,12 +2519,17 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
             clientToolEmbeddingsCacheRef.current,
             { getToken, baseUrl, model: embeddingModel },
             extraToolSets,
-            activeToolSetsRef.current,
+            mergeActiveToolSets(
+              activeToolSetsRef.current ?? [],
+              carriedToolSets(toolSetConversationId)
+            ),
             skipStorageEmbeddingsFailed ? "error" : "short-prompt"
           );
           filteredClientTools = clientFilterResult.tools;
           clientActivatedSetNames = clientFilterResult.activatedSetNames;
+          matchedToolSets = clientFilterResult.matchedSetNames;
         }
+        recordToolSetTurn(toolSetConversationId, matchedToolSets);
 
         if (
           filteredServerTools.length > 0 ||
@@ -3186,6 +3197,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       // Filter client tools: use explicit filter if provided, otherwise auto-filter using embeddings
       let filteredClientTools = clientTools;
       let clientActivatedSetNames: ReadonlySet<string> | undefined;
+      let matchedToolSets: ReadonlySet<string> = new Set();
       if (clientToolsFilter && clientTools?.length) {
         // On a genuine embedding FAILURE (not the short-prompt gate), keep the full
         // toolkit rather than handing the filter null — an embeddings outage must
@@ -3206,12 +3218,14 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           clientToolEmbeddingsCacheRef.current,
           { getToken, baseUrl, model: embeddingModel },
           extraToolSets,
-          activeToolSetsRef.current,
+          mergeActiveToolSets(activeToolSetsRef.current ?? [], carriedToolSets(convId)),
           userMessageEmbeddingsFailed ? "error" : "short-prompt"
         );
         filteredClientTools = clientFilterResult.tools;
         clientActivatedSetNames = clientFilterResult.activatedSetNames;
+        matchedToolSets = clientFilterResult.matchedSetNames;
       }
+      recordToolSetTurn(convId, matchedToolSets);
 
       // Embed user message (skip for queued messages — embeddings can't be stored on synthetic IDs)
       if (!userMsgQueueId) {

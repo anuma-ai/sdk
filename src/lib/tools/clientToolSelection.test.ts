@@ -156,3 +156,50 @@ describe("autoFilterClientTools — the confirm tool is always included", () => 
     expect(tools).toEqual([]);
   });
 });
+
+describe("autoFilterClientTools — matchedSetNames (score-based activation only)", () => {
+  // Each tool and prompt gets its own vector, so a set matches only when the
+  // prompt genuinely points at its anchor.
+  const clientTools = [
+    tool("recall_memory"),
+    tool("gmail_send_message", "send an email"),
+    tool("display_weather", "show the weather"),
+  ];
+  const cache = () =>
+    new Map<string, number[]>([
+      ["gmail_send_message", [1, 0]],
+      ["display_weather", [0, 1]],
+    ]);
+
+  it("names a set whose anchor cleared its floor on this prompt", async () => {
+    const { matchedSetNames } = await autoFilterClientTools(clientTools, [1, 0], cache(), {});
+    expect([...matchedSetNames]).toEqual(["gmail"]);
+  });
+
+  it("leaves out a set that is only forced active by activeToolSets", async () => {
+    const { activatedSetNames, matchedSetNames } = await autoFilterClientTools(
+      clientTools,
+      [0, 1],
+      cache(),
+      {},
+      [],
+      ["gmail"]
+    );
+    expect([...(activatedSetNames ?? [])]).toContain("gmail");
+    expect([...matchedSetNames]).not.toContain("gmail");
+  });
+
+  it("is empty on a short prompt, even with a sticky set", async () => {
+    const { activatedSetNames, matchedSetNames } = await autoFilterClientTools(
+      clientTools,
+      null,
+      cache(),
+      {},
+      [],
+      ["gmail"],
+      "short-prompt"
+    );
+    expect([...(activatedSetNames ?? [])]).toEqual(["gmail"]);
+    expect([...matchedSetNames]).toEqual([]);
+  });
+});
