@@ -81,140 +81,155 @@ const hooks = [
   ["expo", useExpoChatStorage],
 ] as const;
 
-describe.each(hooks)(
-  "useChatStorage carried connector tool sets (%s)",
-  (_label, useChatStorage) => {
-    beforeEach(() => {
-      vi.clearAllMocks();
-      resetRecentToolSets();
-      vi.mocked(runToolLoop).mockResolvedValue({
-        data: {
-          id: "resp-1",
+describe.each(hooks)("useChatStorage carried connector tool sets (%s)", (label, useChatStorage) => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    resetRecentToolSets();
+    vi.mocked(runToolLoop).mockResolvedValue({
+      data: {
+        id: "resp-1",
+        model: "test-model",
+        object: "response",
+        output: [
+          {
+            type: "message",
+            role: "assistant",
+            content: [{ type: "output_text", text: "done" }],
+            status: "completed",
+          },
+        ],
+      },
+      error: null,
+    } as never);
+  });
+
+  describe.each([false, true])("skipStorage=%s", (skipStorage) => {
+    type SendOptions = {
+      clientTools?: LlmapiChatCompletionTool[];
+      clientToolsFilter?: (
+        embedding: number[] | number[][] | null,
+        tools: LlmapiChatCompletionTool[]
+      ) => string[];
+    };
+
+    // A chat on one conversation. Each send returns the tool names handed to
+    // runToolLoop. Several chats may share a database and conversation id, like
+    // the several hook instances an app mounts for one conversation. Without an
+    // id, the hook creates the conversation on the first send.
+    function openChat(conversationId?: string, database: Database = makeDatabase()) {
+      const { result } = renderHook(() =>
+        useChatStorage({ database, conversationId, getToken: async () => "tok" })
+      );
+      return async (text: string, options: SendOptions = {}): Promise<string[]> => {
+        const before = vi.mocked(runToolLoop).mock.calls.length;
+        await result.current.sendMessage({
+          messages: [{ role: "user", content: [{ type: "text", text }] }],
           model: "test-model",
-          object: "response",
-          output: [
-            {
-              type: "message",
-              role: "assistant",
-              content: [{ type: "output_text", text: "done" }],
-              status: "completed",
-            },
-          ],
-        },
-        error: null,
-      } as never);
+          serverTools: [],
+          clientTools: CLIENT_TOOLS,
+          skipStorage,
+          ...options,
+        });
+        // A new chat's id reaches the hook on a re-render; the next send must
+        // see it, as it would in an app.
+        await waitFor(() => expect(result.current.conversationId).toBeTruthy());
+        const calls = vi.mocked(runToolLoop).mock.calls;
+        expect(calls.length).toBe(before + 1);
+        const tools = (calls[calls.length - 1][0].tools ?? []) as LlmapiChatCompletionTool[];
+        return tools.map(getToolName);
+      };
+    }
+
+    const newConversation = () => `conv_carry_${++conversationCount}`;
+
+    it("keeps the Gmail tools for the next two sends after an email request", async () => {
+      const send = openChat(newConversation());
+      expect(await send("send an email to a@b.com saying hi")).toContain("gmail_send_message");
+      expect(await send("Yes")).toContain("gmail_send_message");
+      expect(await send("ok")).toContain("gmail_send_message");
+      expect(await send("ok")).not.toContain("gmail_send_message");
     });
 
-    describe.each([false, true])("skipStorage=%s", (skipStorage) => {
-      type SendOptions = {
-        clientTools?: LlmapiChatCompletionTool[];
-        clientToolsFilter?: (
-          embedding: number[] | number[][] | null,
-          tools: LlmapiChatCompletionTool[]
-        ) => string[];
-      };
+    it.each<[string, SendOptions]>([
+      [
+        "an explicit client-tool filter",
+        { clientToolsFilter: (_e, tools) => tools.map(getToolName) },
+      ],
+      ["no client tools", { clientTools: [] }],
+    ])("counts a successful send with %s as a turn", async (_case, options) => {
+      const send = openChat(newConversation());
+      expect(await send("send an email to a@b.com saying hi")).toContain("gmail_send_message");
+      await send("make a slide deck", options);
+      expect(await send("Yes")).toContain("gmail_send_message");
+      expect(await send("ok")).not.toContain("gmail_send_message");
+    });
 
-      // A chat on one conversation. Each send returns the tool names handed to
-      // runToolLoop. Several chats may share a database and conversation id, like
-      // the several hook instances an app mounts for one conversation. Without an
-      // id, the hook creates the conversation on the first send.
-      function openChat(conversationId?: string, database: Database = makeDatabase()) {
-        const { result } = renderHook(() =>
-          useChatStorage({ database, conversationId, getToken: async () => "tok" })
-        );
-        return async (text: string, options: SendOptions = {}): Promise<string[]> => {
-          const before = vi.mocked(runToolLoop).mock.calls.length;
-          await result.current.sendMessage({
-            messages: [{ role: "user", content: [{ type: "text", text }] }],
-            model: "test-model",
-            serverTools: [],
-            clientTools: CLIENT_TOOLS,
-            skipStorage,
-            ...options,
-          });
-          // A new chat's id reaches the hook on a re-render; the next send must
-          // see it, as it would in an app.
-          await waitFor(() => expect(result.current.conversationId).toBeTruthy());
-          const calls = vi.mocked(runToolLoop).mock.calls;
-          expect(calls.length).toBe(before + 1);
-          const tools = (calls[calls.length - 1][0].tools ?? []) as LlmapiChatCompletionTool[];
-          return tools.map(getToolName);
-        };
-      }
+    it("does not count a failed send, so its retry keeps the Gmail tools", async () => {
+      const send = openChat(newConversation());
+      expect(await send("send an email to a@b.com saying hi")).toContain("gmail_send_message");
+      vi.mocked(runToolLoop).mockResolvedValueOnce({
+        data: null,
+        error: "Network error",
+      } as never);
+      expect(await send("Yes")).toContain("gmail_send_message");
+      expect(await send("Yes")).toContain("gmail_send_message");
+      expect(await send("ok")).toContain("gmail_send_message");
+      expect(await send("ok")).not.toContain("gmail_send_message");
+    });
 
-      const newConversation = () => `conv_carry_${++conversationCount}`;
-
-      it("keeps the Gmail tools for the next two sends after an email request", async () => {
+    // Only expo detaches: the app backgrounds while the reply streams, and the
+    // portal keeps generating.
+    if (label === "expo") {
+      it("counts a detached send as exactly one turn", async () => {
         const send = openChat(newConversation());
-        expect(await send("send an email to a@b.com saying hi")).toContain("gmail_send_message");
-        expect(await send("Yes")).toContain("gmail_send_message");
-        expect(await send("ok")).toContain("gmail_send_message");
-        expect(await send("ok")).not.toContain("gmail_send_message");
-      });
-
-      it.each<[string, SendOptions]>([
-        [
-          "an explicit client-tool filter",
-          { clientToolsFilter: (_e, tools) => tools.map(getToolName) },
-        ],
-        ["no client tools", { clientTools: [] }],
-      ])("counts a successful send with %s as a turn", async (_case, options) => {
-        const send = openChat(newConversation());
-        expect(await send("send an email to a@b.com saying hi")).toContain("gmail_send_message");
-        await send("make a slide deck", options);
-        expect(await send("Yes")).toContain("gmail_send_message");
-        expect(await send("ok")).not.toContain("gmail_send_message");
-      });
-
-      it("does not count a failed send, so its retry keeps the Gmail tools", async () => {
-        const send = openChat(newConversation());
-        expect(await send("send an email to a@b.com saying hi")).toContain("gmail_send_message");
         vi.mocked(runToolLoop).mockResolvedValueOnce({
           data: null,
-          error: "Network error",
+          error: "Request detached",
+          detached: true,
+          resume: null,
         } as never);
-        expect(await send("Yes")).toContain("gmail_send_message");
+        expect(await send("send an email to a@b.com saying hi")).toContain("gmail_send_message");
         expect(await send("Yes")).toContain("gmail_send_message");
         expect(await send("ok")).toContain("gmail_send_message");
         expect(await send("ok")).not.toContain("gmail_send_message");
       });
+    }
 
-      if (!skipStorage) {
-        it("keeps the Gmail tools on 'Yes' in a brand-new chat", async () => {
-          const send = openChat();
-          expect(await send("send an email to a@b.com saying hi")).toContain("gmail_send_message");
-          expect(await send("Yes")).toContain("gmail_send_message");
-        });
-      }
-
-      it("carries nothing after a prompt that matched no connector", async () => {
-        const send = openChat(newConversation());
-        expect(await send("what's the weather?")).toContain("display_weather");
-        expect(await send("Yes")).toEqual([]);
+    if (!skipStorage) {
+      it("keeps the Gmail tools on 'Yes' in a brand-new chat", async () => {
+        const send = openChat();
+        expect(await send("send an email to a@b.com saying hi")).toContain("gmail_send_message");
+        expect(await send("Yes")).toContain("gmail_send_message");
       });
+    }
 
-      it("does not carry the app-generation set", async () => {
-        const send = openChat(newConversation());
-        expect(await send("build me an app please")).toContain("create_file");
-        expect(await send("lol")).toEqual([]);
-      });
-
-      it("keeps one conversation's carry out of another", async () => {
-        const database = makeDatabase();
-        const sendA = openChat(newConversation(), database);
-        const sendB = openChat(newConversation(), database);
-        expect(await sendA("send an email to a@b.com saying hi")).toContain("gmail_send_message");
-        expect(await sendB("Yes")).toEqual([]);
-      });
-
-      it("shares the carry between hook instances on one conversation", async () => {
-        const database = makeDatabase();
-        const conversationId = newConversation();
-        const sendA = openChat(conversationId, database);
-        const sendB = openChat(conversationId, database);
-        expect(await sendA("send an email to a@b.com saying hi")).toContain("gmail_send_message");
-        expect(await sendB("Yes")).toContain("gmail_send_message");
-      });
+    it("carries nothing after a prompt that matched no connector", async () => {
+      const send = openChat(newConversation());
+      expect(await send("what's the weather?")).toContain("display_weather");
+      expect(await send("Yes")).toEqual([]);
     });
-  }
-);
+
+    it("does not carry the app-generation set", async () => {
+      const send = openChat(newConversation());
+      expect(await send("build me an app please")).toContain("create_file");
+      expect(await send("lol")).toEqual([]);
+    });
+
+    it("keeps one conversation's carry out of another", async () => {
+      const database = makeDatabase();
+      const sendA = openChat(newConversation(), database);
+      const sendB = openChat(newConversation(), database);
+      expect(await sendA("send an email to a@b.com saying hi")).toContain("gmail_send_message");
+      expect(await sendB("Yes")).toEqual([]);
+    });
+
+    it("shares the carry between hook instances on one conversation", async () => {
+      const database = makeDatabase();
+      const conversationId = newConversation();
+      const sendA = openChat(conversationId, database);
+      const sendB = openChat(conversationId, database);
+      expect(await sendA("send an email to a@b.com saying hi")).toContain("gmail_send_message");
+      expect(await sendB("Yes")).toContain("gmail_send_message");
+    });
+  });
+});

@@ -2027,6 +2027,10 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         // resume. skipStorage persists nothing, so there is no row to reconcile;
         // the caller drives resumeStream(resume) on the handle directly.
         if ("detached" in result && result.detached) {
+          // The portal accepted the request and keeps generating, so for the
+          // tool-set carry this is a completed send. resumeStream must not
+          // record it again.
+          recordToolSetTurn(currentConversationId, matchedToolSets);
           return {
             data: result.data,
             error: result.error,
@@ -2617,6 +2621,10 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         resume?: StreamResumeHandle | null;
       };
       if (detachedResult.detached) {
+        // The portal accepted the request and keeps generating, so for the
+        // tool-set carry this is a completed send. resumeStream must not record
+        // it again.
+        recordToolSetTurn(convId, matchedToolSets);
         const rowId = effectiveAssistantUniqueId ?? `msg_${uuidv7()}`;
         pendingResumeRef.current = {
           handle: detachedResult.resume ?? null,

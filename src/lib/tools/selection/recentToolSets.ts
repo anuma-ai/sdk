@@ -5,8 +5,9 @@
  * ("Yes") to a connector offer ("shall I send it?") loses that connector's
  * tools. A connector set that activated by score on one send is carried, as if
  * the app had marked it active, into the next {@link RECENT_TOOL_SET_TURNS}
- * sends of the same conversation. Only a send that succeeded counts, so a
- * retried request reads the same carry as the attempt that failed.
+ * sends of the same conversation. Only a send that succeeded or detached (the
+ * portal keeps generating) counts, so a retried request reads the same carry as
+ * the attempt that failed.
  *
  * Module-level so every `useChatStorage` instance mounted for one conversation
  * shares it; bounded so long sessions don't leak. In memory only.
@@ -46,9 +47,10 @@ export function carriedToolSets(conversationId: string | null | undefined): stri
 }
 
 /**
- * Count one successful send for a conversation: every carried set loses a turn,
- * then each connector set in `matched` (sets that activated by score on this
- * send) is carried for {@link RECENT_TOOL_SET_TURNS} more. No-op without an id.
+ * Count one completed send (succeeded or detached) for a conversation: every
+ * carried set loses a turn, then each connector set in `matched` (sets that
+ * activated by score on this send) is carried for {@link RECENT_TOOL_SET_TURNS}
+ * more. No-op without an id.
  */
 export function recordToolSetTurn(
   conversationId: string | null | undefined,
