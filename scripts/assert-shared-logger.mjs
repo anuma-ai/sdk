@@ -37,8 +37,11 @@ const require = createRequire(import.meta.url);
 const load = async (specifier) => (format === "esm" ? import(specifier) : require(specifier));
 const originalConsoleError = console.error;
 const originalFetch = globalThis.fetch;
+const originalConsoleWarn = console.warn;
 const consoleErrors = [];
+const consoleWarnings = [];
 console.error = (...args) => consoleErrors.push(args);
+console.warn = (...args) => consoleWarnings.push(args);
 globalThis.fetch = () => {
   throw new Error("The logger export check must not send a network request.");
 };
@@ -149,6 +152,10 @@ try {
       false,
       "The restricted global must retain no logger slot."
     );
+    assert.equal(consoleWarnings.length, 3, "Each entrypoint must warn once about the fallback.");
+    for (const [message] of consoleWarnings) {
+      assert.match(message, /rejects new properties/);
+    }
     assert.equal(await react.chunkAndEmbedAllMessages(context, {}), 0);
     assert.deepEqual(consoleErrors, [expectedError]);
     expo.setLogger(expo.noopLogger);
@@ -206,6 +213,7 @@ try {
 } finally {
   root?.setLogger(root.consoleLogger);
   console.error = originalConsoleError;
+  console.warn = originalConsoleWarn;
   // A restricted child exits after this check. A frozen fetch is read-only.
   if (!restriction) globalThis.fetch = originalFetch;
 }

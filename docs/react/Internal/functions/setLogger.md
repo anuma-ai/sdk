@@ -2,7 +2,7 @@
 
 > **setLogger**(`logger`: [`Logger`](../interfaces/Logger.md)): `void`
 
-Defined in: [src/lib/logger.ts:74](https://github.com/anuma-ai/sdk/blob/main/src/lib/logger.ts#74)
+Defined in: [src/lib/logger.ts:85](https://github.com/anuma-ai/sdk/blob/main/src/lib/logger.ts#85)
 
 Replace the active SDK logger. Pass [consoleLogger](../variables/consoleLogger.md) to restore defaults.
 
