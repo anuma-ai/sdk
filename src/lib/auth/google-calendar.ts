@@ -108,10 +108,14 @@ function parsePlaintextToken(raw: string, walletAddress?: string): StoredTokenDa
  */
 function readPlaintextToken(keys: string[], walletAddress?: string): StoredTokenData | null {
   for (const key of keys) {
-    const raw = localStorage.getItem(key) ?? sessionStorage.getItem(key);
-    if (!raw) continue;
-    const data = parsePlaintextToken(raw, walletAddress);
-    if (data) return data;
+    // One key can hold a row in either storage, so check both. An unreadable
+    // value in one of them must not hide a readable row in the other.
+    const candidates: (string | null)[] = [localStorage.getItem(key), sessionStorage.getItem(key)];
+    for (const raw of candidates) {
+      if (!raw) continue;
+      const data = parsePlaintextToken(raw, walletAddress);
+      if (data) return data;
+    }
   }
   return null;
 }

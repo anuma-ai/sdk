@@ -83,6 +83,21 @@ describe("wallet-scoped OAuth token rows", () => {
     expect(await getValidGithubToken(WALLET_B)).toBeNull();
   });
 
+  it("uses the sessionStorage row when the localStorage row under the same key is not readable", async () => {
+    vi.mocked(hasEncryptionKey).mockReturnValue(false);
+
+    // An older build left an encrypted row in localStorage and a plain text row
+    // under the same key in sessionStorage. The key is not ready, so only the
+    // plain text row can answer.
+    localStorage.setItem(`${GITHUB_KEY}:${WALLET_A}`, "enc:oauth:not-readable");
+    sessionStorage.setItem(
+      `${GITHUB_KEY}:${WALLET_A}`,
+      JSON.stringify({ wallet: WALLET_A, token: { accessToken: "tok-a" } })
+    );
+
+    expect(await getValidGithubToken(WALLET_A)).toBe("tok-a");
+  });
+
   it("migrates the plain text row of the same wallet into the encrypted copy", async () => {
     sessionStorage.setItem(
       `${GITHUB_KEY}:${WALLET_A}`,
