@@ -119,6 +119,21 @@ export type ToolConfig = LlmapiChatCompletionTool & {
    */
   removeAfterExecution?: boolean;
   /**
+   * Remove this tool for the rest of the turn once ANY tool returns a
+   * successful result this predicate accepts — its own or another's. Errors
+   * never count, as for `removeAfterExecution`.
+   *
+   * Only results of tools executed on this client are offered; tools the
+   * portal runs server-side never reach the predicate. A predicate that throws
+   * is treated as not matching.
+   *
+   * For a family of tools that has to leave together: when one of them
+   * declines an out-of-scope request, the model otherwise works through its
+   * siblings round after round until the round cap. Give every member the same
+   * predicate and the first refusal removes the whole family.
+   */
+  removeAfterResult?: (result: unknown) => boolean;
+  /**
    * Timeout in milliseconds for this tool's executor.
    * Overrides the default 30-second timeout.
    * Set to `Infinity` to disable the timeout (e.g. for interactive tools
