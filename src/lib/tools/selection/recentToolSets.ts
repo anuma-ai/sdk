@@ -13,6 +13,7 @@
  * shares it; bounded so long sessions don't leak. In memory only.
  */
 
+import { onClearAllEncryptionState } from "../../../react/useEncryption";
 import { BUILT_IN_TOOL_SETS } from "../serverTools";
 import { TOOL_CATALOG } from "../toolCatalog";
 
@@ -50,7 +51,8 @@ export function carriedToolSets(conversationId: string | null | undefined): stri
  * Count one completed send (succeeded or detached) for a conversation: every
  * carried set loses a turn, then each connector set in `matched` (sets that
  * activated by score on this send) is carried for {@link RECENT_TOOL_SET_TURNS}
- * more. No-op without an id.
+ * more. A turn is counted when its send finishes, not when it starts. No-op
+ * without an id.
  */
 export function recordToolSetTurn(
   conversationId: string | null | undefined,
@@ -76,7 +78,10 @@ export function recordToolSetTurn(
   }
 }
 
-/** Clear every conversation's carry. For tests. */
+/** Clear every conversation's carry. */
 export function resetRecentToolSets(): void {
   recentToolSets.clear();
 }
+
+// Drop the carry on sign-out so it never outlives the session.
+onClearAllEncryptionState(resetRecentToolSets);
