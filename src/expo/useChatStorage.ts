@@ -143,6 +143,8 @@ import {
   type ToolSet,
   withActiveToolSetServerTools,
 } from "../lib/tools";
+import { mergeActiveToolSets } from "../lib/tools/selection/activeToolSets";
+import { carriedToolSets, recordToolSetTurn } from "../lib/tools/selection/recentToolSets";
 import type { EmbeddedWalletSignerFn, SignMessageFn } from "../react/useEncryption";
 import {
   hasEncryptionKey,
@@ -1907,6 +1909,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         // storage floor. Fully defensive: any failure leaves the full toolkit.
         let narrowedClientTools = clientTools;
         let clientActivatedSetNames: ReadonlySet<string> | undefined;
+        let matchedToolSets: ReadonlySet<string> = new Set();
         if (clientTools?.length) {
           try {
             // Ensure a prompt embedding exists before EITHER filter runs (matches
@@ -1940,17 +1943,25 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
                 narrowedClientTools = clientTools.filter((t) => keep.has(getToolName(t)));
               }
             } else if (getTokenRef.current) {
-              const { tools: autoTools, activatedSetNames } = await autoFilterClientTools(
+              const {
+                tools: autoTools,
+                activatedSetNames,
+                matchedSetNames,
+              } = await autoFilterClientTools(
                 clientTools,
                 skipUserEmbedding ?? null,
                 clientToolFilterCache,
                 { getToken: getTokenRef.current, baseUrl, model: embeddingModel },
                 extraToolSets ?? [],
-                activeToolSetsRef.current ?? [],
+                mergeActiveToolSets(
+                  activeToolSetsRef.current ?? [],
+                  carriedToolSets(database, currentConversationId)
+                ),
                 skipEmbeddingFailed ? "error" : "short-prompt"
               );
               narrowedClientTools = autoTools;
               clientActivatedSetNames = activatedSetNames;
+              matchedToolSets = matchedSetNames;
             }
           } catch (error) {
             getLogger().warn("[useChatStorage] client tool filtering failed (skipStorage):", error);
@@ -2016,6 +2027,10 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         // resume. skipStorage persists nothing, so there is no row to reconcile;
         // the caller drives resumeStream(resume) on the handle directly.
         if ("detached" in result && result.detached) {
+          // The portal accepted the request and keeps generating, so for the
+          // tool-set carry this is a completed send. resumeStream must not
+          // record it again.
+          recordToolSetTurn(database, currentConversationId, matchedToolSets);
           return {
             data: result.data,
             error: result.error,
@@ -2030,6 +2045,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
             error: result.error || "Unknown error",
           };
         }
+        recordToolSetTurn(database, currentConversationId, matchedToolSets);
 
         // Refresh the cached server-tools catalog when the response's checksum
         // differs from the cached one (react parity). The cache backend may be
@@ -2426,6 +2442,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       // computation at the send can see the narrowed set and which sets activated.
       let narrowedClientTools = clientTools;
       let clientActivatedSetNames: ReadonlySet<string> | undefined;
+      let matchedToolSets: ReadonlySet<string> = new Set();
       if (clientTools?.length) {
         try {
           // Ensure a prompt embedding exists before EITHER filter runs — react
@@ -2468,17 +2485,25 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
               narrowedClientTools = clientTools.filter((t) => keep.has(getToolName(t)));
             }
           } else if (getTokenRef.current) {
-            const { tools: autoTools, activatedSetNames } = await autoFilterClientTools(
+            const {
+              tools: autoTools,
+              activatedSetNames,
+              matchedSetNames,
+            } = await autoFilterClientTools(
               clientTools,
               userMessageEmbedding ?? null,
               clientToolFilterCache,
               { getToken: getTokenRef.current, baseUrl, model: embeddingModel },
               extraToolSets ?? [],
-              activeToolSetsRef.current ?? [],
+              mergeActiveToolSets(
+                activeToolSetsRef.current ?? [],
+                carriedToolSets(database, convId)
+              ),
               userMessageEmbeddingFailed ? "error" : "short-prompt"
             );
             narrowedClientTools = autoTools;
             clientActivatedSetNames = activatedSetNames;
+            matchedToolSets = matchedSetNames;
           }
           // Merge only when something survived — mirrors the skipStorage branch
           // and react. An empty `narrowedClientTools` (short prompt / a filter
@@ -2599,6 +2624,10 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         resume?: StreamResumeHandle | null;
       };
       if (detachedResult.detached) {
+        // The portal accepted the request and keeps generating, so for the
+        // tool-set carry this is a completed send. resumeStream must not record
+        // it again.
+        recordToolSetTurn(database, convId, matchedToolSets);
         const rowId = effectiveAssistantUniqueId ?? `msg_${uuidv7()}`;
         pendingResumeRef.current = {
           handle: detachedResult.resume ?? null,
@@ -2689,6 +2718,9 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
               usage: undefined,
             };
 
+            // The stopped reply was saved, so for the tool-set carry this is a
+            // completed send.
+            recordToolSetTurn(database, convId, matchedToolSets);
             return {
               data: responseData,
               error: null, // Treat as success to the caller
@@ -2734,6 +2766,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           userMessage: { ...storedUserMessage, error: errorMessage },
         };
       }
+      recordToolSetTurn(database, convId, matchedToolSets);
 
       // Extract assistant response content and thinking/reasoning
       // Handle both Responses API (output[]) and Completions API (choices[]) formats

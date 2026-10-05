@@ -81,6 +81,9 @@ export function computeToolGuidance(
  * definitions that eat up the context window.
  *
  * @returns Filtered client tools, or the original array if filtering fails/skips.
+ *   `activatedSetNames` is every set that activated, forced ones included.
+ *   `matchedSetNames` is only the sets whose anchors cleared their floor on THIS
+ *   prompt, ignoring `activeToolSets`; it is empty whenever no scoring ran.
  */
 export async function autoFilterClientTools(
   clientTools: LlmapiChatCompletionTool[],
@@ -101,7 +104,11 @@ export async function autoFilterClientTools(
    * strips every tool from every request.
    */
   noEmbeddingsReason: "short-prompt" | "error" = "short-prompt"
-): Promise<{ tools: LlmapiChatCompletionTool[]; activatedSetNames?: ReadonlySet<string> }> {
+): Promise<{
+  tools: LlmapiChatCompletionTool[];
+  activatedSetNames?: ReadonlySet<string>;
+  matchedSetNames: ReadonlySet<string>;
+}> {
   // Memory tools and the confirm tool are always included — only filter
   // connector tools (Notion, Google). Memory matches both the legacy
   // memory_vault_* surface and the unified recall_memory tool from
@@ -123,7 +130,7 @@ export async function autoFilterClientTools(
   // Nothing to filter (e.g. a memory-tools-only catalog): pass everything
   // through. Distinct from the no-embeddings case below.
   if (filterCandidates.length === 0) {
-    return { tools: clientTools, activatedSetNames: new Set() };
+    return { tools: clientTools, activatedSetNames: new Set(), matchedSetNames: new Set() };
   }
 
   // No embeddings because generation FAILED (not the length gate): degrade
@@ -131,7 +138,7 @@ export async function autoFilterClientTools(
   // functional through a transient embeddings outage, just without semantic
   // trimming. Empty activation set: no set genuinely activated, no persona.
   if (!promptEmbeddings && noEmbeddingsReason === "error") {
-    return { tools: clientTools, activatedSetNames: new Set() };
+    return { tools: clientTools, activatedSetNames: new Set(), matchedSetNames: new Set() };
   }
 
   // No embeddings — a prompt below MIN_CONTENT_LENGTH_FOR_TOOLS like "hey".
@@ -146,7 +153,7 @@ export async function autoFilterClientTools(
   // `activeToolSets`.
   if (!promptEmbeddings) {
     if (activeToolSets.length === 0) {
-      return { tools: [], activatedSetNames: new Set() };
+      return { tools: [], activatedSetNames: new Set(), matchedSetNames: new Set() };
     }
     const allSets =
       extraToolSets.length > 0 ? [...BUILT_IN_TOOL_SETS, ...extraToolSets] : BUILT_IN_TOOL_SETS;
@@ -158,6 +165,7 @@ export async function autoFilterClientTools(
         ...filterCandidates.filter((t) => stickyMembers.has(getToolName(t))),
       ],
       activatedSetNames: new Set(activeSets.map((s) => s.name)),
+      matchedSetNames: new Set(),
     };
   }
 
@@ -181,7 +189,7 @@ export async function autoFilterClientTools(
       // Embedding generation failed — skip filtering, send all tools. No
       // semantic selection ran, so no set activated (empty, not undefined —
       // see the guard above) and no tool-set persona should be injected.
-      return { tools: clientTools, activatedSetNames: new Set() };
+      return { tools: clientTools, activatedSetNames: new Set(), matchedSetNames: new Set() };
     }
   }
 
@@ -247,16 +255,17 @@ export async function autoFilterClientTools(
   // APP_BUILDER_PROMPT) rides in only on real activation — not on a borderline
   // anchor that expandToolSetsAdditive kept in the selection for recall.
   const activatedSetNames = activatedToolSetNames(scores, toolSets, activeSetNames);
+  const matchedSetNames = activatedToolSetNames(scores, toolSets);
 
   // If nothing semantically matched AND no active sets pulled anything in,
   // return only always-included tools (e.g. memory).
   if (finalNames.size === 0) {
-    return { tools: alwaysInclude, activatedSetNames };
+    return { tools: alwaysInclude, activatedSetNames, matchedSetNames };
   }
 
   const filtered = filterCandidates.filter((t) => {
     const name = getToolName(t);
     return name && finalNames.has(name);
   });
-  return { tools: [...alwaysInclude, ...filtered], activatedSetNames };
+  return { tools: [...alwaysInclude, ...filtered], activatedSetNames, matchedSetNames };
 }

@@ -2,7 +2,7 @@
 
 > **previewToolSelection**(`options`: `object`): `Promise`<{ `clientToolNames`: `string`\[]; `serverToolNames`: `string`\[]; }>
 
-Defined in: [src/react/useChatStorage.ts:218](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#218)
+Defined in: [src/react/useChatStorage.ts:222](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#222)
 
 Preview which tools `useChatStorage` will include for a given prompt,
 without making the actual chat request.
@@ -27,6 +27,8 @@ Caveats:
 * Embedding generation hits the same `/embeddings` endpoint as the
   real request; pass a shared `clientToolEmbeddingsCache` if you call
   this repeatedly to avoid re-embedding tool descriptions.
+* A real follow-up may also include connector tool sets carried from the
+  previous two turns of the conversation, which this preview does not model.
 
 ## Parameters
 
