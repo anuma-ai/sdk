@@ -55,10 +55,12 @@ describe("migrateUnencryptedTokens", () => {
     const migrated = await migrateUnencryptedTokens(provider, walletAddress);
 
     expect(migrated).toBe(true);
-    // The fresh copy lands under the wallet-scoped key and the legacy rows go.
+    // The fresh copy lands under the wallet-scoped key and the plain text
+    // legacy row goes. The encrypted legacy row can belong to another wallet,
+    // so it stays.
     expect(localStorage.getItem(scopedKey)).toMatch(/^enc:oauth:/);
     expect(localStorage.getItem(scopedKey)).not.toBe("enc:oauth:already-encrypted");
-    expect(localStorage.getItem(key)).toBeNull();
+    expect(localStorage.getItem(key)).toBe("enc:oauth:already-encrypted");
     expect(sessionStorage.getItem(key)).toBeNull();
   });
 

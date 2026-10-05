@@ -321,11 +321,14 @@ export async function migrateUnencryptedTokens(
       // Encrypt and store in localStorage under the wallet-scoped key
       await storeTokenData(provider, data, walletAddress);
 
-      // Drop the rows the fresh copy replaced: the plaintext rows and the
-      // legacy unscoped row, so one row per wallet remains.
+      // Drop the rows the fresh copy replaced: the plaintext rows and a plain
+      // text legacy unscoped row. An encrypted legacy row can belong to
+      // another wallet, so it stays until that wallet reads and moves it.
       for (const key of keys) {
         if (plaintextAt(key)) sessionStorage.removeItem(key);
-        if (key === legacyKey) localStorage.removeItem(key);
+        if (key === legacyKey && !isEncrypted(localStorage.getItem(key))) {
+          localStorage.removeItem(key);
+        }
       }
 
       return true;
