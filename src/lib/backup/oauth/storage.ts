@@ -18,6 +18,13 @@ export interface StoredTokenData {
   scope?: string;
 }
 
+// Plaintext row shape. The owner wallet travels with the token, so one wallet
+// cannot read another wallet's row from the shared provider key.
+interface PlaintextTokenRecord {
+  wallet?: string;
+  token: StoredTokenData;
+}
+
 /**
  * OAuth error types for better error handling
  */
@@ -42,6 +49,27 @@ const ENCRYPTED_PREFIX = "enc:oauth:";
  */
 function getStorageKey(provider: OAuthProvider): string {
   return `${STORAGE_KEY_PREFIX}${provider}`;
+}
+
+/**
+ * Parse a plaintext token row and check its owner.
+ * Old rows hold the token object directly, so they carry no owner.
+ */
+function parsePlaintextToken(raw: string, walletAddress?: string): StoredTokenData | null {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return null;
+  }
+  if (!parsed || typeof parsed !== "object") return null;
+  const record = parsed as Partial<PlaintextTokenRecord> & Partial<StoredTokenData>;
+  const data: StoredTokenData | undefined = record.token?.accessToken
+    ? record.token
+    : (record as StoredTokenData);
+  if (!data?.accessToken) return null;
+  if (record.wallet && walletAddress && record.wallet !== walletAddress) return null;
+  return data;
 }
 
 /**
@@ -97,13 +125,9 @@ export async function getStoredTokenData(
       }
     }
 
-    // Plaintext token (backwards compatibility)
-    const data = JSON.parse(stored) as StoredTokenData;
-
-    // Validate that access token exists
-    if (!data.accessToken) return null;
-
-    return data;
+    // Plaintext row (backwards compatibility). A row that carries a wallet
+    // field is accepted only for that wallet.
+    return parsePlaintextToken(stored, walletAddress);
   } catch {
     return null;
   }
@@ -122,6 +146,10 @@ export async function storeTokenData(
 
   const key = getStorageKey(provider);
   const json = JSON.stringify(data);
+  const plaintextRecord = JSON.stringify({
+    wallet: walletAddress,
+    token: data,
+  } as PlaintextTokenRecord);
 
   if (walletAddress) {
     try {
@@ -134,7 +162,7 @@ export async function storeTokenData(
         `Failed to encrypt OAuth token for ${provider}, storing temporarily:`,
         error
       );
-      sessionStorage.setItem(key, json);
+      sessionStorage.setItem(key, plaintextRecord);
       // eslint-disable-next-line preserve-caught-error -- ES2020 target doesn't support ErrorOptions
       throw new Error(
         `OAuth token encryption failed: ${error instanceof Error ? error.message : String(error)}`
@@ -142,7 +170,7 @@ export async function storeTokenData(
     }
   } else {
     // No wallet address - store temporarily in sessionStorage (cleared on page close)
-    sessionStorage.setItem(key, json);
+    sessionStorage.setItem(key, plaintextRecord);
   }
 }
 
@@ -244,7 +272,8 @@ export async function migrateUnencryptedTokens(
     }
 
     try {
-      const data = JSON.parse(tokenToMigrate) as StoredTokenData;
+      const data = parsePlaintextToken(tokenToMigrate, walletAddress);
+      if (!data) return false;
 
       // Encrypt and store in localStorage
       await storeTokenData(provider, data, walletAddress);

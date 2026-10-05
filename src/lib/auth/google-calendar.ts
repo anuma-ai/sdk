@@ -62,6 +62,13 @@ interface StoredTokenData {
   scope?: string;
 }
 
+// Plaintext row shape. The owner wallet travels with the token, so one wallet
+// cannot read another wallet's row from the shared unscoped key.
+interface PlaintextTokenRecord {
+  wallet?: string;
+  token: StoredTokenData;
+}
+
 /**
  * Get the wallet-scoped storage key for token data.
  * When a walletAddress is provided, the key is scoped to that wallet
@@ -72,6 +79,41 @@ function getTokenStorageKey(walletAddress?: string): string {
     return `${TOKEN_STORAGE_KEY}:${walletAddress}`;
   }
   return TOKEN_STORAGE_KEY;
+}
+
+/**
+ * Parse a plaintext token row and check its owner.
+ * Old rows hold the token object directly, so they carry no owner.
+ */
+function parsePlaintextToken(raw: string, walletAddress?: string): StoredTokenData | null {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return null;
+  }
+  if (!parsed || typeof parsed !== "object") return null;
+  const record = parsed as Partial<PlaintextTokenRecord> & Partial<StoredTokenData>;
+  const data: StoredTokenData | undefined = record.token?.accessToken
+    ? record.token
+    : (record as StoredTokenData);
+  if (!data?.accessToken) return null;
+  if (record.wallet && walletAddress && record.wallet !== walletAddress) return null;
+  return data;
+}
+
+/**
+ * Read the first plaintext row under the given keys.
+ * The scoped key is checked before the legacy unscoped key.
+ */
+function readPlaintextToken(keys: string[], walletAddress?: string): StoredTokenData | null {
+  for (const key of keys) {
+    const raw = localStorage.getItem(key) ?? sessionStorage.getItem(key);
+    if (!raw) continue;
+    const data = parsePlaintextToken(raw, walletAddress);
+    if (data) return data;
+  }
+  return null;
 }
 
 /**
@@ -132,38 +174,20 @@ async function getStoredTokenData(walletAddress?: string): Promise<StoredTokenDa
       }
     }
 
-    // 2. Try legacy unencrypted localStorage (unscoped key, pre-encryption)
-    const legacyStored = localStorage.getItem(TOKEN_STORAGE_KEY);
-    if (legacyStored && !legacyStored.startsWith(ENCRYPTED_PREFIX)) {
-      try {
-        const data = JSON.parse(legacyStored) as StoredTokenData;
-        if (data.accessToken) {
-          cachedAccessToken = data.accessToken;
-          cachedExpiresAt = data.expiresAt ?? null;
-          cachedRefreshToken = data.refreshToken ?? null;
-          cachedWalletAddress = walletAddress ?? null;
-          return data;
-        }
-      } catch {
-        // Not valid JSON
-      }
-    }
-
-    // 3. Fall back to sessionStorage
-    const sessionStored = sessionStorage.getItem(TOKEN_STORAGE_KEY);
-    if (sessionStored) {
-      try {
-        const data = JSON.parse(sessionStored) as StoredTokenData;
-        if (!data.accessToken) return null;
-        cachedAccessToken = data.accessToken;
-        cachedExpiresAt = data.expiresAt ?? null;
-        cachedRefreshToken = data.refreshToken ?? null;
-        cachedScope = data.scope ?? null;
-        cachedWalletAddress = walletAddress ?? null;
-        return data;
-      } catch {
-        // Invalid JSON
-      }
+    // 2. Plain text rows. The wallet-scoped key comes first, then the legacy
+    //    unscoped key that older builds wrote. A row with a wallet field is
+    //    accepted only for that wallet.
+    const plaintext = readPlaintextToken(
+      [getTokenStorageKey(walletAddress), TOKEN_STORAGE_KEY],
+      walletAddress
+    );
+    if (plaintext) {
+      cachedAccessToken = plaintext.accessToken;
+      cachedExpiresAt = plaintext.expiresAt ?? null;
+      cachedRefreshToken = plaintext.refreshToken ?? null;
+      cachedScope = plaintext.scope ?? null;
+      cachedWalletAddress = walletAddress ?? null;
+      return plaintext;
     }
 
     return null;
@@ -192,19 +216,22 @@ async function storeTokenData(data: StoredTokenData, walletAddress?: string): Pr
 
   const json = JSON.stringify(data);
 
-  // Always write to sessionStorage as a safety net
-  sessionStorage.setItem(TOKEN_STORAGE_KEY, json);
-
-  // Additionally encrypt to localStorage when possible
+  // Encrypt to the wallet-scoped key in localStorage when the key is ready
   if (walletAddress && hasEncryptionKey(walletAddress)) {
     try {
       const cryptoKey = await getEncryptionKey(walletAddress);
       const encrypted = await encryptDataWithKey(json, cryptoKey);
       localStorage.setItem(getTokenStorageKey(walletAddress), ENCRYPTED_PREFIX + encrypted);
+      return;
     } catch (error) {
       getLogger().warn("Failed to encrypt Calendar OAuth token:", error);
     }
   }
+
+  // Fallback: write one plain text row under this wallet's key. The row keeps
+  // its owner, so a read for another wallet cannot pick it up.
+  const record: PlaintextTokenRecord = { wallet: walletAddress, token: data };
+  sessionStorage.setItem(getTokenStorageKey(walletAddress), JSON.stringify(record));
 }
 
 /**
@@ -223,6 +250,7 @@ export function clearCalendarToken(walletAddress?: string): void {
     localStorage.removeItem(TOKEN_STORAGE_KEY);
   }
   sessionStorage.removeItem(TOKEN_STORAGE_KEY);
+  sessionStorage.removeItem(getTokenStorageKey(walletAddress));
 }
 
 /**
@@ -534,23 +562,28 @@ export async function migrateCalendarToken(walletAddress: string): Promise<boole
   if (!walletAddress || !hasEncryptionKey(walletAddress)) return false;
 
   try {
-    const sessionStored = sessionStorage.getItem(TOKEN_STORAGE_KEY);
+    const scopedKey = getTokenStorageKey(walletAddress);
+    // Check for an unencrypted token: the wallet-scoped sessionStorage row,
+    // then the legacy unscoped rows in sessionStorage and localStorage.
     const legacyStored = localStorage.getItem(TOKEN_STORAGE_KEY);
-    const isLegacyUnencrypted = legacyStored && !legacyStored.startsWith(ENCRYPTED_PREFIX);
-
-    const unencryptedJson = sessionStored || (isLegacyUnencrypted ? legacyStored : null);
+    const isLegacyUnencrypted = !!legacyStored && !legacyStored.startsWith(ENCRYPTED_PREFIX);
+    const unencryptedJson =
+      sessionStorage.getItem(scopedKey) ||
+      sessionStorage.getItem(TOKEN_STORAGE_KEY) ||
+      (isLegacyUnencrypted ? legacyStored : null);
     if (!unencryptedJson) return false;
 
-    const scopedKey = getTokenStorageKey(walletAddress);
     const existingEncrypted = localStorage.getItem(scopedKey);
     if (existingEncrypted?.startsWith(ENCRYPTED_PREFIX)) {
       // Already migrated - just clean up plaintext remnants
+      sessionStorage.removeItem(scopedKey);
       sessionStorage.removeItem(TOKEN_STORAGE_KEY);
       if (isLegacyUnencrypted) localStorage.removeItem(TOKEN_STORAGE_KEY);
       return true;
     }
 
-    const data = JSON.parse(unencryptedJson) as StoredTokenData;
+    const data = parsePlaintextToken(unencryptedJson, walletAddress);
+    if (!data) return false;
     await storeTokenData(data, walletAddress);
 
     // Verify encryption succeeded
@@ -558,6 +591,7 @@ export async function migrateCalendarToken(walletAddress: string): Promise<boole
     if (!migrated?.startsWith(ENCRYPTED_PREFIX)) return false;
 
     // Clean up plaintext storage
+    sessionStorage.removeItem(scopedKey);
     sessionStorage.removeItem(TOKEN_STORAGE_KEY);
     if (isLegacyUnencrypted) localStorage.removeItem(TOKEN_STORAGE_KEY);
     return true;
