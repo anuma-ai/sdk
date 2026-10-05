@@ -2,7 +2,7 @@
 
 > **storeGithubToken**(`accessToken`: `string`, `expiresIn?`: `number`, `refreshToken?`: `string`, `scope?`: `string`, `walletAddress?`: `string`): `Promise`<`void`>
 
-Defined in: [src/lib/auth/github.ts:587](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/github.ts#587)
+Defined in: [src/lib/auth/github.ts:545](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/github.ts#545)
 
 Store GitHub token data (for external use)
 

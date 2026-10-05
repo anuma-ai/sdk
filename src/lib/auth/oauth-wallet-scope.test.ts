@@ -171,4 +171,82 @@ describe("wallet-scoped OAuth token rows", () => {
       accessToken: "legacy-token",
     });
   });
+
+  it("moves an untagged legacy row onto the wallet key that read it", async () => {
+    vi.mocked(hasEncryptionKey).mockReturnValue(false);
+    sessionStorage.setItem(GITHUB_KEY, JSON.stringify({ accessToken: "legacy-token" }));
+
+    // Wallet A reads first, so the row becomes A's and the shared key is gone.
+    expect(await getValidGithubToken(WALLET_A)).toBe("legacy-token");
+    expect(sessionStorage.getItem(GITHUB_KEY)).toBeNull();
+    const rowA = JSON.parse(sessionStorage.getItem(`${GITHUB_KEY}:${WALLET_A}`) ?? "{}");
+    expect(rowA).toEqual({ wallet: WALLET_A, token: { accessToken: "legacy-token" } });
+    // Wallet B has no row of its own, so it gets nothing.
+    expect(await getValidGithubToken(WALLET_B)).toBeNull();
+  });
+
+  it("moves an untagged legacy row in the backup store the same way", async () => {
+    sessionStorage.setItem(DROPBOX_KEY, JSON.stringify({ accessToken: "legacy-token" }));
+
+    expect(await getStoredTokenData("dropbox", WALLET_A)).toEqual({
+      accessToken: "legacy-token",
+    });
+    expect(sessionStorage.getItem(DROPBOX_KEY)).toBeNull();
+    expect(await getStoredTokenData("dropbox", WALLET_B)).toBeNull();
+  });
+
+  it("needs the wallet address to read an owner-tagged backup row", async () => {
+    sessionStorage.setItem(
+      DROPBOX_KEY,
+      JSON.stringify({ wallet: WALLET_A, token: { accessToken: "tok-a" } })
+    );
+
+    expect(await getStoredTokenData("dropbox")).toBeNull();
+    expect(await getStoredTokenData("dropbox", WALLET_A)).toEqual({ accessToken: "tok-a" });
+  });
+
+  it("drops the plain text row when the encrypted write lands", async () => {
+    sessionStorage.setItem(
+      `${GITHUB_KEY}:${WALLET_A}`,
+      JSON.stringify({ wallet: WALLET_A, token: { accessToken: "old-token" } })
+    );
+
+    await storeGithubToken("new-token", undefined, undefined, undefined, WALLET_A);
+
+    expect(localStorage.getItem(`${GITHUB_KEY}:${WALLET_A}`)).toMatch(/^enc:oauth:/);
+    expect(sessionStorage.getItem(`${GITHUB_KEY}:${WALLET_A}`)).toBeNull();
+    expect(await getValidGithubToken(WALLET_A)).toBe("new-token");
+  });
+
+  it("drops the plain text backup row when the encrypted write lands", async () => {
+    sessionStorage.setItem(
+      `${DROPBOX_KEY}:${WALLET_A}`,
+      JSON.stringify({ wallet: WALLET_A, token: { accessToken: "old-token" } })
+    );
+
+    await storeBackupToken("dropbox", { accessToken: "new-token" }, WALLET_A);
+
+    expect(localStorage.getItem(`${DROPBOX_KEY}:${WALLET_A}`)).toMatch(/^enc:oauth:/);
+    expect(sessionStorage.getItem(`${DROPBOX_KEY}:${WALLET_A}`)).toBeNull();
+    expect(await getStoredTokenData("dropbox", WALLET_A)).toEqual({ accessToken: "new-token" });
+  });
+
+  it("keeps the other wallet row when the migration uses the scoped row", async () => {
+    sessionStorage.setItem(
+      `${GITHUB_KEY}:${WALLET_A}`,
+      JSON.stringify({ wallet: WALLET_A, token: { accessToken: "tok-a" } })
+    );
+    sessionStorage.setItem(
+      GITHUB_KEY,
+      JSON.stringify({ wallet: WALLET_B, token: { accessToken: "tok-b" } })
+    );
+
+    expect(await migrateGithubToken(WALLET_A)).toBe(true);
+
+    expect(localStorage.getItem(`${GITHUB_KEY}:${WALLET_A}`)).toMatch(/^enc:oauth:/);
+    expect(sessionStorage.getItem(`${GITHUB_KEY}:${WALLET_A}`)).toBeNull();
+    // Wallet B still owns the row under the shared key.
+    expect(sessionStorage.getItem(GITHUB_KEY)).toContain("tok-b");
+    expect(await getValidGithubToken(WALLET_B)).toBe("tok-b");
+  });
 });

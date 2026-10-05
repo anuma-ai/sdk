@@ -2,7 +2,7 @@
 
 > **hasGithubCredentials**(`walletAddress?`: `string`): `Promise`<`boolean`>
 
-Defined in: [src/lib/auth/github.ts:601](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/github.ts#601)
+Defined in: [src/lib/auth/github.ts:559](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/github.ts#559)
 
 Check if we have any stored credentials
 

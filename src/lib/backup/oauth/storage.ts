@@ -7,6 +7,11 @@
  */
 
 import { decryptData, encryptData } from "../../../react/useEncryption";
+import {
+  parsePlaintextToken,
+  type PlaintextTokenRecord,
+  promoteUnscopedRow,
+} from "../../auth/tokenRows";
 import { getLogger } from "../../logger";
 
 type OAuthProvider = "google-drive" | "dropbox";
@@ -16,13 +21,6 @@ export interface StoredTokenData {
   refreshToken?: string;
   expiresAt?: number; // Unix timestamp in milliseconds
   scope?: string;
-}
-
-// Plaintext row shape. The owner wallet travels with the token, so one wallet
-// cannot read another wallet's row from the shared provider key.
-interface PlaintextTokenRecord {
-  wallet?: string;
-  token: StoredTokenData;
 }
 
 /**
@@ -56,35 +54,15 @@ function getStorageKey(provider: OAuthProvider, walletAddress?: string): string 
  * List the rows under the given keys, in order.
  * One key can hold a row in either storage, so check both per key.
  */
-function readRawRows(keys: string[]): string[] {
-  const rows: string[] = [];
+function readRawRows(keys: string[]): { raw: string; key: string; store: Storage }[] {
+  const rows: { raw: string; key: string; store: Storage }[] = [];
   for (const key of keys) {
-    for (const raw of [localStorage.getItem(key), sessionStorage.getItem(key)]) {
-      if (raw) rows.push(raw);
+    for (const store of [localStorage, sessionStorage]) {
+      const raw = store.getItem(key);
+      if (raw) rows.push({ raw, key, store });
     }
   }
   return rows;
-}
-
-/**
- * Parse a plaintext token row and check its owner.
- * Old rows hold the token object directly, so they carry no owner.
- */
-function parsePlaintextToken(raw: string, walletAddress?: string): StoredTokenData | null {
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(raw);
-  } catch {
-    return null;
-  }
-  if (!parsed || typeof parsed !== "object") return null;
-  const record = parsed as Partial<PlaintextTokenRecord> & Partial<StoredTokenData>;
-  const data: StoredTokenData | undefined = record.token?.accessToken
-    ? record.token
-    : (record as StoredTokenData);
-  if (!data?.accessToken) return null;
-  if (record.wallet && walletAddress && record.wallet !== walletAddress) return null;
-  return data;
 }
 
 /**
@@ -100,10 +78,18 @@ export async function getStoredTokenData(
   try {
     // The wallet-scoped key first, then the legacy unscoped key that older
     // builds wrote. Each key may hold its row in either storage.
-    const keys = [getStorageKey(provider, walletAddress), getStorageKey(provider)];
-    for (const stored of readRawRows(keys)) {
-      const data = await readTokenRow(stored, provider, walletAddress);
-      if (data) return data;
+    const scopedKey = getStorageKey(provider, walletAddress);
+    const legacyKey = getStorageKey(provider);
+    const keys = scopedKey === legacyKey ? [legacyKey] : [scopedKey, legacyKey];
+    for (const row of readRawRows(keys)) {
+      const data = await readTokenRow(row.raw, provider, walletAddress);
+      if (!data) continue;
+      // Move one legacy row onto the wallet's own key and drop the unscoped
+      // key, so a later read for another wallet cannot claim the same token.
+      if (walletAddress && row.key === legacyKey) {
+        promoteUnscopedRow(row.raw, data, row.store, scopedKey, legacyKey, walletAddress);
+      }
+      return data;
     }
 
     return null;
@@ -155,7 +141,7 @@ async function readTokenRow(
 
   // Plain text row (backwards compatibility). A row that carries a wallet
   // field is accepted only for that wallet.
-  return parsePlaintextToken(stored, walletAddress);
+  return parsePlaintextToken<StoredTokenData>(stored, walletAddress);
 }
 
 /**
@@ -174,13 +160,16 @@ export async function storeTokenData(
   const plaintextRecord = JSON.stringify({
     wallet: walletAddress,
     token: data,
-  } as PlaintextTokenRecord);
+  } as PlaintextTokenRecord<StoredTokenData>);
 
   if (walletAddress) {
     try {
       // Encrypt and store in localStorage
       const encrypted = await encryptData(json, walletAddress);
       localStorage.setItem(key, `${ENCRYPTED_PREFIX}${encrypted}`);
+      // The encrypted row is now the only row for this key, so a read cannot
+      // fall back to an older plain text value.
+      sessionStorage.removeItem(key);
     } catch (error) {
       // If encryption fails, store temporarily in sessionStorage as fallback
       getLogger().warn(

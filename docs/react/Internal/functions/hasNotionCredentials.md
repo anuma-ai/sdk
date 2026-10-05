@@ -2,7 +2,7 @@
 
 > **hasNotionCredentials**(`walletAddress?`: `string`): `Promise`<`boolean`>
 
-Defined in: [src/lib/auth/notion.ts:1028](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/notion.ts#1028)
+Defined in: [src/lib/auth/notion.ts:1005](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/notion.ts#1005)
 
 Check if we have any stored Notion credentials
 

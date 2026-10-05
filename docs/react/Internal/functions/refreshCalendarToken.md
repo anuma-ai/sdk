@@ -2,7 +2,7 @@
 
 > **refreshCalendarToken**(`apiClient?`: `Client`, `walletAddress?`: `string`): `Promise`<`string` | `null`>
 
-Defined in: [src/lib/auth/google-calendar.ts:392](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/google-calendar.ts#392)
+Defined in: [src/lib/auth/google-calendar.ts:350](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/google-calendar.ts#350)
 
 Refresh the access token using the stored refresh token
 
