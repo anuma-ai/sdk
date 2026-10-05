@@ -1,8 +1,8 @@
 # MessageOrigin
 
-> **MessageOrigin** = `"tool_result"` | `"chunks_discarded"`
+> **MessageOrigin** = `"tool_result"` | `"chunks_discarded"` | `"message"`
 
-Defined in: [src/lib/db/chat/types.ts:102](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#102)
+Defined in: [src/lib/db/chat/types.ts:103](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#103)
 
 Provenance for a row that needs handling the content cannot justify. Set at
 write time by whoever produced or repaired the row; a union so further kinds
@@ -17,6 +17,7 @@ messages (see `isToolResultsRow`).
 * `tool_result`: the hidden `[Tool Execution Results]` row built from a
   turn's auto-executed tool results. Skipped by the embedding sweep (see
   `memoryEngine/embeddings`) AND hidden from the transcript.
+* `message`: an ordinary message with an index after explicit repair.
 * `chunks_discarded`: an ordinary, still-rendered message whose chunk vectors
   were built over `enc:v3:` ciphertext (sdk#864) and have been discarded
   rather than re-embedded at the user's own expense (client#5618). Skipped by
