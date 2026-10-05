@@ -536,7 +536,7 @@ export {
   useEncryption,
 } from "../react/useEncryption";
 export type { UseModelsOptions, UseModelsResult } from "../react/useModels";
-export { useModels } from "../react/useModels";
+export { clearModelsCache, useModels } from "../react/useModels";
 export { createNotionProxyTools, createNotionTools, type NotionMcpCaller } from "../tools/notion";
 export { useChat } from "./useChat";
 export type {

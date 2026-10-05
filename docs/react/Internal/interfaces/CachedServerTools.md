@@ -16,6 +16,16 @@ Checksum from the server for cache invalidation
 
 ***
 
+### etag?
+
+> `optional` **etag**: `string`
+
+Defined in: [src/lib/tools/serverTools.ts:84](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#84)
+
+ETag from the server. The next refresh sends it in an If-None-Match header.
+
+***
+
 ### timestamp
 
 > **timestamp**: `number`
