@@ -2,7 +2,7 @@
 
 > **storeDriveToken**(`accessToken`: `string`, `expiresIn?`: `number`, `refreshToken?`: `string`, `scope?`: `string`, `walletAddress?`: `string`): `Promise`<`void`>
 
-Defined in: [src/lib/auth/google-drive.ts:509](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/google-drive.ts#509)
+Defined in: [src/lib/auth/google-drive.ts:541](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/google-drive.ts#541)
 
 Store Drive token data (for external use)
 

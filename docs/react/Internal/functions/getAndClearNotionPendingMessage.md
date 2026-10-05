@@ -2,7 +2,7 @@
 
 > **getAndClearNotionPendingMessage**(): `string` | `null`
 
-Defined in: [src/lib/auth/notion.ts:1035](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/notion.ts#1035)
+Defined in: [src/lib/auth/notion.ts:1088](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/notion.ts#1088)
 
 Get and clear the pending message
 
