@@ -23,25 +23,43 @@ import {
 } from "./serverTools";
 
 describe("mergeTools — client-side field preservation", () => {
+  const removeAfterResult = (result: unknown) => result === "declined";
   const clientTool: ToolConfig = {
     type: "function",
     function: { name: "memory_vault_save", parameters: { type: "object", properties: {} } },
     executor: async () => "ok",
     skipContinuation: true,
+    removeAfterExecution: true,
+    removeAfterResult,
     deAnonymizeArgs: true,
     dependsOn: ["other"],
   };
 
+  // Client tools in the parameters/arguments shapes take different branches through
+  // the completions normalizer, so each is covered separately.
+  const argumentsTool: ToolConfig = {
+    ...clientTool,
+    function: { name: "memory_vault_save", arguments: { type: "object", properties: {} } },
+  };
+
   for (const apiType of ["responses", "completions"] as const) {
-    it(`preserves executor/deAnonymizeArgs/dependsOn through ${apiType} normalization`, () => {
-      const [merged] = mergeTools([], [clientTool], apiType) as Array<Record<string, unknown>>;
-      // These client-side-only fields must survive normalization so runToolLoop
-      // can build the executor map (deAnonymizeArgs drives PII de-anonymization).
-      expect(typeof merged.executor).toBe("function");
-      expect(merged.deAnonymizeArgs).toBe(true);
-      expect(merged.skipContinuation).toBe(true);
-      expect(merged.dependsOn).toEqual(["other"]);
-    });
+    for (const [shape, tool] of [
+      ["parameters", clientTool],
+      ["arguments", argumentsTool],
+    ] as const) {
+      it(`preserves client-side fields through ${apiType} normalization (${shape})`, () => {
+        const [merged] = mergeTools([], [tool], apiType) as Array<Record<string, unknown>>;
+        // These client-side-only fields must survive normalization so runToolLoop
+        // can build the executor map (deAnonymizeArgs drives PII de-anonymization,
+        // removeAfterExecution / removeAfterResult drive mid-turn tool removal).
+        expect(typeof merged.executor).toBe("function");
+        expect(merged.deAnonymizeArgs).toBe(true);
+        expect(merged.skipContinuation).toBe(true);
+        expect(merged.removeAfterExecution).toBe(true);
+        expect(merged.removeAfterResult).toBe(removeAfterResult);
+        expect(merged.dependsOn).toEqual(["other"]);
+      });
+    }
   }
 });
 
