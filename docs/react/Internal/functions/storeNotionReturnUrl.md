@@ -2,7 +2,7 @@
 
 > **storeNotionReturnUrl**(): `void`
 
-Defined in: [src/lib/auth/notion.ts:1039](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/notion.ts#1039)
+Defined in: [src/lib/auth/notion.ts:1037](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/notion.ts#1037)
 
 Store the return URL for after OAuth completes
 

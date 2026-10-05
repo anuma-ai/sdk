@@ -2,7 +2,7 @@
 
 > **startNotionAuth**(`callbackPath`: `string`, `walletAddress?`: `string`): `Promise`<`never`>
 
-Defined in: [src/lib/auth/notion.ts:709](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/notion.ts#709)
+Defined in: [src/lib/auth/notion.ts:707](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/notion.ts#707)
 
 Start the Notion OAuth flow with PKCE and Dynamic Client Registration
 Redirects to Notion authorization page

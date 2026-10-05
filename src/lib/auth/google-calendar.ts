@@ -525,8 +525,6 @@ export async function migrateCalendarToken(walletAddress: string): Promise<boole
 
   try {
     const scopedKey = getTokenStorageKey(walletAddress);
-    // Check for an unencrypted token: the wallet-scoped sessionStorage row,
-    // then the legacy unscoped rows in sessionStorage and localStorage.
     const sources: { key: string; store: Storage }[] = [
       { key: scopedKey, store: sessionStorage },
       { key: TOKEN_STORAGE_KEY, store: sessionStorage },

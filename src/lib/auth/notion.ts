@@ -500,8 +500,6 @@ export async function migrateNotionToken(walletAddress: string): Promise<boolean
   if (!walletAddress || !hasEncryptionKey(walletAddress)) return false;
 
   try {
-    // Check for an unencrypted token: the wallet-scoped sessionStorage row,
-    // then the legacy unscoped sessionStorage row.
     const scopedKey = getTokenStorageKey(walletAddress);
     // Plain text sources in read order. Each entry names the storage that
     // holds the row, so the cleanup can drop exactly the row this call used.
