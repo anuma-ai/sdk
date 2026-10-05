@@ -491,6 +491,103 @@ describe("useChat multi-turn tool loop", () => {
     expect(continuationBody.tools).toBeUndefined();
   });
 
+  // ── removeAfterResult ─────────────────────────────────
+  // A family of tools that has to leave together: when one declines an out-of-scope request, the
+  // model otherwise works through its siblings round after round until the cap.
+
+  const declined = (result: unknown) =>
+    typeof result === "object" && result !== null && "declined" in result;
+  const familyTool = (name: string, executor: () => unknown): ToolConfig => ({
+    type: "function",
+    function: { name, description: name, arguments: { type: "object", properties: {} } },
+    executor: async () => executor(),
+    removeAfterResult: declined,
+  });
+  const continuationToolNames = () =>
+    getRequestBody(1).tools?.map((t: any) => t.function?.name ?? t.name) ?? [];
+
+  async function runOneToolRound(calledTool: string, tools: ToolConfig[]) {
+    mockCreateSseClient
+      .mockReturnValueOnce(makeMockStream(makeToolCallStream(calledTool, {})) as any)
+      .mockReturnValueOnce(makeMockStream(makeTextStream("Which neighbourhood?")) as any);
+    const { result } = renderHook(() => useChat({ getToken: async () => "token" }));
+    await act(async () => {
+      await result.current.sendMessage({
+        messages: [{ role: "user", content: [{ type: "text", text: "food near me" }] }],
+        model: "test-model",
+        tools,
+      });
+    });
+  }
+
+  it("removes every tool whose removeAfterResult accepts a result, not just the one that ran", async () => {
+    const other: ToolConfig = {
+      type: "function",
+      function: {
+        name: "other_tool",
+        description: "Other",
+        arguments: { type: "object", properties: {} },
+      },
+      executor: async () => "ok",
+    };
+    await runOneToolRound("search_a", [
+      familyTool("search_a", () => ({ declined: true })),
+      familyTool("display_a", () => "card"),
+      other,
+    ]);
+
+    expect(continuationToolNames()).not.toContain("search_a");
+    expect(continuationToolNames()).not.toContain("display_a");
+    expect(continuationToolNames()).toContain("other_tool");
+  });
+
+  it("keeps the family when no result matches", async () => {
+    await runOneToolRound("search_a", [
+      familyTool("search_a", () => ({ rows: [1] })),
+      familyTool("display_a", () => "card"),
+    ]);
+
+    expect(continuationToolNames()).toEqual(expect.arrayContaining(["search_a", "display_a"]));
+  });
+
+  it("never removes on an error result, even one the predicate would accept", async () => {
+    await runOneToolRound("search_a", [
+      familyTool("search_a", () => ({ declined: true, error: "Network error" })),
+      familyTool("display_a", () => "card"),
+    ]);
+
+    expect(continuationToolNames()).toEqual(expect.arrayContaining(["search_a", "display_a"]));
+  });
+
+  it("treats a predicate that throws on a sibling's result as not matching", async () => {
+    const fragile: ToolConfig = {
+      ...familyTool("display_a", () => "card"),
+      removeAfterResult: (result) => (result as { declined: boolean }).declined,
+    };
+    await runOneToolRound("other_tool", [
+      {
+        type: "function",
+        function: {
+          name: "other_tool",
+          description: "Other",
+          arguments: { type: "object", properties: {} },
+        },
+        executor: async () => undefined,
+      },
+      fragile,
+    ]);
+
+    expect(continuationToolNames()).toContain("display_a");
+  });
+
+  it("does not send removeAfterResult to the API", async () => {
+    await runOneToolRound("search_a", [familyTool("search_a", () => ({ rows: [1] }))]);
+
+    const firstTools = getRequestBody(0).tools ?? [];
+    expect(firstTools.length).toBe(1);
+    expect(firstTools[0]).not.toHaveProperty("removeAfterResult");
+  });
+
   it("keeps tool in continuation request when executor errors and removeAfterExecution is true", async () => {
     const failingRemovableTool: ToolConfig = {
       type: "function",
