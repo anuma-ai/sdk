@@ -249,6 +249,14 @@ describe.each(hooks)("useChatStorage carried connector tool sets (%s)", (label, 
       expect(await sendB("Yes")).toEqual([]);
     });
 
+    it("keeps the carry apart for the same conversation id in two databases", async () => {
+      const conversationId = newConversation();
+      const sendA = openChat(conversationId, makeDatabase());
+      const sendB = openChat(conversationId, makeDatabase());
+      expect(await sendA("send an email to a@b.com saying hi")).toContain("gmail_send_message");
+      expect(await sendB("Yes")).toEqual([]);
+    });
+
     it("shares the carry between hook instances on one conversation", async () => {
       const database = makeDatabase();
       const conversationId = newConversation();

@@ -2521,7 +2521,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
             extraToolSets,
             mergeActiveToolSets(
               activeToolSetsRef.current ?? [],
-              carriedToolSets(toolSetConversationId)
+              carriedToolSets(database, toolSetConversationId)
             ),
             skipStorageEmbeddingsFailed ? "error" : "short-prompt"
           );
@@ -2590,7 +2590,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
             error: result.error || "Unknown error",
           };
         }
-        recordToolSetTurn(toolSetConversationId, matchedToolSets);
+        recordToolSetTurn(database, toolSetConversationId, matchedToolSets);
 
         // Auto-refresh the server-tools cache if the checksum changed. Forward
         // the configured backend to shouldRefreshTools so the checksum comparison
@@ -3218,7 +3218,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           clientToolEmbeddingsCacheRef.current,
           { getToken, baseUrl, model: embeddingModel },
           extraToolSets,
-          mergeActiveToolSets(activeToolSetsRef.current ?? [], carriedToolSets(convId)),
+          mergeActiveToolSets(activeToolSetsRef.current ?? [], carriedToolSets(database, convId)),
           userMessageEmbeddingsFailed ? "error" : "short-prompt"
         );
         filteredClientTools = clientFilterResult.tools;
@@ -3389,7 +3389,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
 
             // The stopped reply was saved, so for the tool-set carry this is a
             // completed send.
-            recordToolSetTurn(convId, matchedToolSets);
+            recordToolSetTurn(database, convId, matchedToolSets);
             return {
               data: responseData,
               error: null, // Treat as success to the caller
@@ -3434,7 +3434,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           userMessage: { ...storedUserMessage, error: errorMessage },
         };
       }
-      recordToolSetTurn(convId, matchedToolSets);
+      recordToolSetTurn(database, convId, matchedToolSets);
 
       // Extract assistant response content and thinking/reasoning
       // Handle both Responses API (output[]) and Completions API (choices[]) formats

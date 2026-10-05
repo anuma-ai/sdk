@@ -1955,7 +1955,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
                 extraToolSets ?? [],
                 mergeActiveToolSets(
                   activeToolSetsRef.current ?? [],
-                  carriedToolSets(currentConversationId)
+                  carriedToolSets(database, currentConversationId)
                 ),
                 skipEmbeddingFailed ? "error" : "short-prompt"
               );
@@ -2030,7 +2030,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           // The portal accepted the request and keeps generating, so for the
           // tool-set carry this is a completed send. resumeStream must not
           // record it again.
-          recordToolSetTurn(currentConversationId, matchedToolSets);
+          recordToolSetTurn(database, currentConversationId, matchedToolSets);
           return {
             data: result.data,
             error: result.error,
@@ -2045,7 +2045,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
             error: result.error || "Unknown error",
           };
         }
-        recordToolSetTurn(currentConversationId, matchedToolSets);
+        recordToolSetTurn(database, currentConversationId, matchedToolSets);
 
         // Refresh the cached server-tools catalog when the response's checksum
         // differs from the cached one (react parity). The cache backend may be
@@ -2495,7 +2495,10 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
               clientToolFilterCache,
               { getToken: getTokenRef.current, baseUrl, model: embeddingModel },
               extraToolSets ?? [],
-              mergeActiveToolSets(activeToolSetsRef.current ?? [], carriedToolSets(convId)),
+              mergeActiveToolSets(
+                activeToolSetsRef.current ?? [],
+                carriedToolSets(database, convId)
+              ),
               userMessageEmbeddingFailed ? "error" : "short-prompt"
             );
             narrowedClientTools = autoTools;
@@ -2624,7 +2627,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         // The portal accepted the request and keeps generating, so for the
         // tool-set carry this is a completed send. resumeStream must not record
         // it again.
-        recordToolSetTurn(convId, matchedToolSets);
+        recordToolSetTurn(database, convId, matchedToolSets);
         const rowId = effectiveAssistantUniqueId ?? `msg_${uuidv7()}`;
         pendingResumeRef.current = {
           handle: detachedResult.resume ?? null,
@@ -2717,7 +2720,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
 
             // The stopped reply was saved, so for the tool-set carry this is a
             // completed send.
-            recordToolSetTurn(convId, matchedToolSets);
+            recordToolSetTurn(database, convId, matchedToolSets);
             return {
               data: responseData,
               error: null, // Treat as success to the caller
@@ -2763,7 +2766,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           userMessage: { ...storedUserMessage, error: errorMessage },
         };
       }
-      recordToolSetTurn(convId, matchedToolSets);
+      recordToolSetTurn(database, convId, matchedToolSets);
 
       // Extract assistant response content and thinking/reasoning
       // Handle both Responses API (output[]) and Completions API (choices[]) formats

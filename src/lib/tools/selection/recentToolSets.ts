@@ -10,8 +10,12 @@
  * so a retried request reads the same carry as the attempt that failed.
  *
  * Module-level so every `useChatStorage` instance mounted for one conversation
- * shares it; bounded so long sessions don't leak. In memory only.
+ * shares it, and scoped to the database, because two databases mounted at once
+ * can hold conversations with the same id. Bounded per database so long
+ * sessions don't leak. In memory only.
  */
+
+import type { Database } from "@nozbe/watermelondb";
 
 import { onClearAllEncryptionState } from "../../../react/useEncryption";
 import { BUILT_IN_TOOL_SETS } from "../serverTools";
@@ -30,21 +34,30 @@ const CARRYABLE_TOOL_SETS = new Set(
   ).map((s) => s.name)
 );
 
-// Conversation id → set name → sends left. Map order is recency order.
-const recentToolSets = new Map<string, Map<string, number>>();
+// Database → conversation id → set name → sends left. Map order is recency
+// order. A WeakMap so an unmounted database's carry is garbage-collected.
+let recentToolSets = new WeakMap<Database, Map<string, Map<string, number>>>();
 
-function touch(conversationId: string): Map<string, number> | undefined {
-  const turns = recentToolSets.get(conversationId);
+function touch(
+  conversations: Map<string, Map<string, number>>,
+  conversationId: string
+): Map<string, number> | undefined {
+  const turns = conversations.get(conversationId);
   if (!turns) return undefined;
-  recentToolSets.delete(conversationId);
-  recentToolSets.set(conversationId, turns);
+  conversations.delete(conversationId);
+  conversations.set(conversationId, turns);
   return turns;
 }
 
 /** Connector sets still carried for a conversation; `[]` without an id. */
-export function carriedToolSets(conversationId: string | null | undefined): string[] {
+export function carriedToolSets(
+  database: Database,
+  conversationId: string | null | undefined
+): string[] {
   if (!conversationId) return [];
-  return [...(touch(conversationId)?.keys() ?? [])];
+  const conversations = recentToolSets.get(database);
+  if (!conversations) return [];
+  return [...(touch(conversations, conversationId)?.keys() ?? [])];
 }
 
 /**
@@ -52,14 +65,20 @@ export function carriedToolSets(conversationId: string | null | undefined): stri
  * carried set loses a turn, then each connector set in `matched` (sets that
  * activated by score on this send) is carried for {@link RECENT_TOOL_SET_TURNS}
  * more. A turn is counted when its send finishes, not when it starts. No-op
- * without an id.
+ * without a conversation id.
  */
 export function recordToolSetTurn(
+  database: Database,
   conversationId: string | null | undefined,
   matched: ReadonlySet<string>
 ): void {
   if (!conversationId) return;
-  const turns = touch(conversationId) ?? new Map<string, number>();
+  let conversations = recentToolSets.get(database);
+  if (!conversations) {
+    conversations = new Map();
+    recentToolSets.set(database, conversations);
+  }
+  const turns = touch(conversations, conversationId) ?? new Map<string, number>();
   for (const [name, left] of turns) {
     if (left > 1) turns.set(name, left - 1);
     else turns.delete(name);
@@ -68,19 +87,19 @@ export function recordToolSetTurn(
     if (CARRYABLE_TOOL_SETS.has(name)) turns.set(name, RECENT_TOOL_SET_TURNS);
   }
   if (turns.size === 0) {
-    recentToolSets.delete(conversationId);
+    conversations.delete(conversationId);
     return;
   }
-  recentToolSets.set(conversationId, turns);
-  if (recentToolSets.size > RECENT_TOOL_SET_CONVERSATION_LIMIT) {
-    const oldest = recentToolSets.keys().next().value;
-    if (oldest !== undefined) recentToolSets.delete(oldest);
+  conversations.set(conversationId, turns);
+  if (conversations.size > RECENT_TOOL_SET_CONVERSATION_LIMIT) {
+    const oldest = conversations.keys().next().value;
+    if (oldest !== undefined) conversations.delete(oldest);
   }
 }
 
-/** Clear every conversation's carry. */
+/** Clear every database's carry. A WeakMap cannot be iterated, so swap it. */
 export function resetRecentToolSets(): void {
-  recentToolSets.clear();
+  recentToolSets = new WeakMap();
 }
 
 // Drop the carry on sign-out so it never outlives the session.
