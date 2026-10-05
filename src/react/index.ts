@@ -721,7 +721,7 @@ export {
 export type { UseCreditsOptions, UseCreditsResult } from "./useCredits";
 export { useCredits } from "./useCredits";
 export type { UseModelsResult } from "./useModels";
-export { useModels } from "./useModels";
+export { clearModelsCache, useModels } from "./useModels";
 export type {
   PhoneCallPollingOptions,
   UsePhoneCallsOptions,

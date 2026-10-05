@@ -146,7 +146,7 @@ export { maskScopedEmbeddingCache } from "../lib/db/chat/embeddingCache";
 export type { UseCreditsOptions, UseCreditsResult } from "../react/useCredits";
 export { useCredits } from "../react/useCredits";
 export type { UseModelsOptions, UseModelsResult } from "../react/useModels";
-export { useModels } from "../react/useModels";
+export { clearModelsCache, useModels } from "../react/useModels";
 export { useChat } from "./useChat";
 export type {
   ResumeStreamWithStorageResult,

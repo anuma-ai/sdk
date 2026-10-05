@@ -91,6 +91,8 @@ export interface CachedServerTools {
   version: string;
   /** Checksum from the server for cache invalidation */
   checksum?: string;
+  /** ETag from the server. The next refresh sends it in an If-None-Match header. */
+  etag?: string;
 }
 
 /**
@@ -206,6 +208,14 @@ export interface ParsedServerToolsResponse {
   tools: ServerTool[];
   checksum?: string;
 }
+
+/**
+ * Result of one request to the tools endpoint.
+ * `notModified` is true when the server answered 304 to our If-None-Match header.
+ */
+type ServerToolsFetchResult =
+  | { notModified: true }
+  | ({ notModified: false; etag?: string } & ParsedServerToolsResponse);
 
 /**
  * Convert server API response to ServerTool[] format.
@@ -331,12 +341,13 @@ function isCacheExpired(
  * Build a cache payload from a freshly fetched tools list, stamping it with the
  * current timestamp and cache-format version.
  */
-function buildCacheEntry(tools: ServerTool[], checksum?: string): CachedServerTools {
+function buildCacheEntry(tools: ServerTool[], checksum?: string, etag?: string): CachedServerTools {
   return {
     tools,
     timestamp: Date.now(),
     version: CACHE_VERSION,
     ...(checksum && { checksum }),
+    ...(etag && { etag }),
   };
 }
 
@@ -440,26 +451,54 @@ export function shouldRefreshTools(
 }
 
 /**
- * Fetch tools from the server API
+ * Request the tools list from the server.
+ *
+ * When `etag` is set, the request carries an If-None-Match header. A 304 answer
+ * means the cached list is current. A server that sends no ETag, or never sends
+ * 304, behaves as before: the caller gets a full body each time.
  */
 async function fetchServerToolsFromApi(
   baseUrl: string,
-  token: string
-): Promise<ParsedServerToolsResponse> {
-  const response = await fetch(`${baseUrl}/api/v1/tools`, {
-    method: "GET",
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-    },
-  });
+  authHeaders: Record<string, string>,
+  etag?: string
+): Promise<ServerToolsFetchResult> {
+  const request = (validator?: string): Promise<Response> =>
+    fetch(`${baseUrl}/api/v1/tools`, {
+      method: "GET",
+      headers: {
+        ...authHeaders,
+        "Content-Type": "application/json",
+        ...(validator && { "If-None-Match": validator }),
+      },
+    });
+
+  let response: Response;
+  try {
+    response = await request(etag);
+  } catch (error) {
+    // A browser rejects the request with a TypeError when a CORS rule blocks the
+    // If-None-Match header. Send the request again without it, so the refresh still works.
+    if (!etag || !(error instanceof TypeError)) throw error;
+    etag = undefined;
+    response = await request();
+  }
+
+  if (etag && response.status === 304) {
+    return { notModified: true };
+  }
 
   if (!response.ok) {
     throw new Error(`Failed to fetch server tools: ${response.status}`);
   }
 
   const data = (await response.json()) as ServerToolsResponse;
-  return convertServerToolsResponse(data);
+  // Some fetch mocks and runtimes give no headers object, so read it with care.
+  const responseEtag = response.headers?.get("ETag") ?? undefined;
+  return {
+    notModified: false,
+    ...convertServerToolsResponse(data),
+    ...(responseEtag && { etag: responseEtag }),
+  };
 }
 
 /**
@@ -468,7 +507,9 @@ async function fetchServerToolsFromApi(
  * Flow:
  * 1. Check the cache backend (localStorage by default; override via `cache`)
  * 2. If cache valid and not force refresh, return cached tools
- * 3. Otherwise, fetch from API, cache, and return
+ * 3. Otherwise, fetch from API, cache, and return. When the cache holds an ETag,
+ *    the request sends If-None-Match. On 304 the cached tools stay and only the
+ *    stored timestamp changes.
  * 4. On fetch failure, return cached tools if available (stale-while-error)
  */
 export async function getServerTools(options: ServerToolsOptions): Promise<ServerTool[]> {
@@ -515,40 +556,41 @@ export async function getServerTools(options: ServerToolsOptions): Promise<Serve
     const { BASE_URL } = await import("../../clientConfig");
     const effectiveBaseUrl = baseUrl ?? BASE_URL;
 
+    // Send the stored ETag only when a cached list exists and no forced refresh is set.
+    const validator = cached && !forceRefresh ? cached.etag : undefined;
+
+    let authHeaders: Record<string, string>;
     if (apiKey) {
       // API key auth: fetch directly with X-API-Key header
-      const response = await fetch(`${effectiveBaseUrl}/api/v1/tools`, {
-        method: "GET",
-        headers: {
-          "X-API-Key": apiKey,
-          "Content-Type": "application/json",
-        },
-      });
-      if (!response.ok) {
-        throw new Error(`Failed to fetch server tools: ${response.status}`);
+      authHeaders = { "X-API-Key": apiKey };
+    } else {
+      if (!getToken) {
+        getLogger().warn("[serverTools] No auth method available for fetching tools");
+        return cached?.tools ?? [];
       }
-      const data = (await response.json()) as ServerToolsResponse;
-      const { tools, checksum } = convertServerToolsResponse(data);
-      await persistCache(buildCacheEntry(tools, checksum));
-      return tools;
+
+      const token = await getToken();
+      if (!token) {
+        // No token available - return cached if available, otherwise empty
+
+        getLogger().warn("[serverTools] No auth token available for fetching tools");
+        return cached?.tools ?? [];
+      }
+      authHeaders = { Authorization: `Bearer ${token}` };
     }
 
-    if (!getToken) {
-      getLogger().warn("[serverTools] No auth method available for fetching tools");
-      return cached?.tools ?? [];
+    const result = await fetchServerToolsFromApi(effectiveBaseUrl, authHeaders, validator);
+
+    if (result.notModified) {
+      // The server confirmed the cached list. Refresh the timestamp only.
+      // `validator` is set only when `cached` exists, so `cached` is not null here.
+      const confirmed = cached as CachedServerTools;
+      await persistCache({ ...confirmed, timestamp: Date.now() });
+      return confirmed.tools;
     }
 
-    const token = await getToken();
-    if (!token) {
-      // No token available - return cached if available, otherwise empty
-
-      getLogger().warn("[serverTools] No auth token available for fetching tools");
-      return cached?.tools ?? [];
-    }
-
-    const { tools, checksum } = await fetchServerToolsFromApi(effectiveBaseUrl, token);
-    await persistCache(buildCacheEntry(tools, checksum));
-    return tools;
+    await persistCache(buildCacheEntry(result.tools, result.checksum, result.etag));
+    return result.tools;
   } catch (error) {
     getLogger().error("[serverTools] Failed to fetch server tools:", error);
 

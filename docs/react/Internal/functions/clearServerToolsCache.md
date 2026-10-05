@@ -4,7 +4,7 @@
 
 > **clearServerToolsCache**(): `void`
 
-Defined in: [src/lib/tools/serverTools.ts:384](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#384)
+Defined in: [src/lib/tools/serverTools.ts:395](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#395)
 
 Clear the cached server tools. Defaults to the browser-`localStorage` backend;
 pass the SAME ToolsCacheBackend you gave `getServerTools` to invalidate
@@ -19,7 +19,7 @@ backend's clear result, which may be async.
 
 > **clearServerToolsCache**(`cache`: `ToolsCacheBackend`): `void` | `Promise`<`void`>
 
-Defined in: [src/lib/tools/serverTools.ts:385](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#385)
+Defined in: [src/lib/tools/serverTools.ts:396](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#396)
 
 Clear the cached server tools. Defaults to the browser-`localStorage` backend;
 pass the SAME ToolsCacheBackend you gave `getServerTools` to invalidate

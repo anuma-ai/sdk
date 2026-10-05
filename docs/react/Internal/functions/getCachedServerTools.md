@@ -2,7 +2,7 @@
 
 > **getCachedServerTools**(): [`CachedServerTools`](../interfaces/CachedServerTools.md) | `null`
 
-Defined in: [src/lib/tools/serverTools.ts:298](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#298)
+Defined in: [src/lib/tools/serverTools.ts:308](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#308)
 
 Get cached tools from localStorage
 
