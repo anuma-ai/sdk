@@ -1341,6 +1341,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     isLoading,
     sendMessage: baseSendMessage,
     stop: baseStop,
+    cancel: baseCancel,
     detach,
     resumeStream: baseResumeStream,
   } = useChat({
@@ -1855,13 +1856,17 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           }
         }
         // Commit first. A failed write keeps the buffer available for retry.
-        // The inner hook still holds this warm handle. Its stop sends one
-        // cancel POST and does not abort a foreign headless replay.
-        baseStop();
+        // Cancel only this turn. The inner hook can hold a newer send, so
+        // baseStop() would abort that stream.
+        if (pending.handle) baseCancel(pending.handle);
         return null;
       } catch (err) {
         pendingResumeRef.current = pending;
-        if (retirementStopRequestedRef.current) baseStop();
+        if (retirementStopRequestedRef.current && pending.handle) {
+          // Cancel once. The retry must not send a second cancel POST.
+          baseCancel(pending.handle);
+          pendingResumeRef.current = { ...pending, handle: null };
+        }
         return err instanceof Error ? err.message : "Failed to store detached message";
       }
     });
@@ -1874,7 +1879,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         retirementStopRequestedRef.current = false;
       }
     }
-  }, [baseStop, finalizeResumedRow]);
+  }, [baseCancel, finalizeResumedRow]);
 
   /**
    * Send a message with automatic storage

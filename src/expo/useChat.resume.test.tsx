@@ -283,6 +283,38 @@ describe("useChat resumable surface", () => {
     );
   });
 
+  it("cancel(handle) cancels the old stream and leaves a newer send streaming", async () => {
+    const fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(new Response(null, { status: 200 }));
+    let liveSignal: AbortSignal | undefined;
+    transportImpl = (options) => {
+      liveSignal = options.signal;
+      options.onStreamMeta?.({ inferenceId: "inf-live" });
+      return { stream: makeBlockingStream(options.signal, "x") };
+    };
+
+    const { result } = renderHook(() => useChat({ getToken: async () => "tok", resumable: true }));
+
+    await act(async () => {
+      void result.current.sendMessage({ messages: userMessages, model: "test-model" });
+      await new Promise((r) => setTimeout(r, 10));
+    });
+
+    await act(async () => {
+      result.current.cancel({ inferenceId: "inf-old" } as never);
+    });
+
+    await waitFor(() => {
+      const urls = fetchSpy.mock.calls.map(([url]) => String(url));
+      expect(urls.some((url) => url.includes("/inf-old/cancel"))).toBe(true);
+    });
+    expect(fetchSpy.mock.calls.some(([url]) => String(url).includes("/inf-live/"))).toBe(false);
+    expect(liveSignal?.aborted).toBe(false);
+    expect(result.current.detach()?.inferenceId).toBe("inf-live");
+    result.current.stop();
+  });
+
   it("does NOT fire a cancel POST on stop() when resumable is off", async () => {
     const fetchSpy = vi
       .spyOn(globalThis, "fetch")
