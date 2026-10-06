@@ -25,15 +25,34 @@ type ModelsCacheEntry = {
 /** Session cache. The key covers the base URL, the provider filter and the auth identity. */
 const modelsCache = new Map<string, ModelsCacheEntry>();
 
-/** Requests in progress. Hooks that mount together share one request per key. */
-const modelsInFlight = new Map<string, Promise<LlmapiModel[]>>();
+/**
+ * A request in progress. Hooks that ask for the same key at the same time share one request.
+ * The request counts the hooks that wait for it. It stops when the last one leaves.
+ */
+type SharedRequest = {
+  promise: Promise<LlmapiModel[]>;
+  controller: AbortController;
+  waiters: number;
+};
+
+/** Requests in progress, one for each key. */
+const modelsInFlight = new Map<string, SharedRequest>();
+
+/**
+ * Counts the calls to clearModelsCache. A request that started before a clear must not write to the
+ * cache after it, because the caller cleared the cache to get a new list.
+ */
+let cacheGeneration = 0;
 
 /**
  * Remove all cached model lists.
  * Call this when the user signs in or out and the next list must come from the server.
  * The cache key also contains a hash of the auth token, so a token change misses the cache.
+ * A request that is in progress still ends for the hooks that wait for it, but it does not write
+ * its list to the cache.
  */
 export function clearModelsCache(): void {
+  cacheGeneration++;
   modelsCache.clear();
   modelsInFlight.clear();
 }
@@ -66,7 +85,8 @@ async function fetchAllModelPages(
   baseUrl: string,
   provider: string | undefined,
   headers: Record<string, string>,
-  previous: ModelsCacheEntry | undefined
+  previous: ModelsCacheEntry | undefined,
+  signal: AbortSignal
 ): Promise<ModelsCacheEntry> {
   const pages = new Map<string, CachedModelsPage>();
   const models: LlmapiModel[] = [];
@@ -81,6 +101,7 @@ async function fetchAllModelPages(
         baseUrl,
         headers: etag ? { ...headers, "If-None-Match": etag } : headers,
         query: { provider, page_token: pageToken },
+        signal,
       });
 
     let response = await request(stored?.etag);
@@ -118,32 +139,85 @@ async function fetchAllModelPages(
 /**
  * Get the model list for one cache key.
  * Fresh entries return with no request. Hooks that ask for the same key at the same time share one request.
+ * A forced call starts a new request and takes over the key, so a request that does not end cannot block it.
+ * The signal is the one of the calling hook. When every waiting hook has left, the request stops.
  */
 function loadModels(
   key: string,
   baseUrl: string,
   provider: string | undefined,
   headers: Record<string, string>,
-  force: boolean
+  force: boolean,
+  signal: AbortSignal
 ): Promise<LlmapiModel[]> {
   const cached = modelsCache.get(key);
   if (cached && !force && Date.now() - cached.fetchedAt < MODELS_CACHE_TTL_MS) {
     return Promise.resolve(cached.models);
   }
 
-  const pending = modelsInFlight.get(key);
-  if (pending) return pending;
+  const shared =
+    (force ? undefined : modelsInFlight.get(key)) ??
+    startSharedRequest(key, baseUrl, provider, headers, cached);
+  return waitForSharedRequest(key, shared, signal);
+}
 
-  const request = fetchAllModelPages(baseUrl, provider, headers, cached)
+function startSharedRequest(
+  key: string,
+  baseUrl: string,
+  provider: string | undefined,
+  headers: Record<string, string>,
+  previous: ModelsCacheEntry | undefined
+): SharedRequest {
+  const controller = new AbortController();
+  const generation = cacheGeneration;
+  const shared: SharedRequest = {
+    controller,
+    waiters: 0,
+    promise: Promise.resolve([]),
+  };
+  shared.promise = fetchAllModelPages(baseUrl, provider, headers, previous, controller.signal)
     .then((entry) => {
-      modelsCache.set(key, entry);
+      // Only the newest request for the key may write to the cache, and only if no clear ran since
+      // it started.
+      if (modelsInFlight.get(key) === shared && generation === cacheGeneration) {
+        modelsCache.set(key, entry);
+      }
       return entry.models;
     })
     .finally(() => {
-      if (modelsInFlight.get(key) === request) modelsInFlight.delete(key);
+      if (modelsInFlight.get(key) === shared) modelsInFlight.delete(key);
     });
-  modelsInFlight.set(key, request);
-  return request;
+  modelsInFlight.set(key, shared);
+  return shared;
+}
+
+function waitForSharedRequest(
+  key: string,
+  shared: SharedRequest,
+  signal: AbortSignal
+): Promise<LlmapiModel[]> {
+  shared.waiters++;
+  let left = false;
+  const leave = () => {
+    if (left) return;
+    left = true;
+    shared.waiters--;
+    if (shared.waiters === 0) {
+      // No hook waits for this request now. Stop the work.
+      shared.controller.abort();
+      if (modelsInFlight.get(key) === shared) modelsInFlight.delete(key);
+    }
+  };
+
+  if (signal.aborted) {
+    leave();
+  } else {
+    signal.addEventListener("abort", leave, { once: true });
+  }
+  return shared.promise.finally(() => {
+    left = true;
+    signal.removeEventListener("abort", leave);
+  });
 }
 
 /**
@@ -241,9 +315,9 @@ export function useModels(options: UseModelsOptions = {}): UseModelsResult {
       const provider = providerRef.current;
       const key = modelsCacheKey(baseUrl, provider, token);
 
-      // The shared request has no abort signal, because other hooks can wait on it.
-      // This hook checks its own signal after the request ends.
-      const allModels = await loadModels(key, baseUrl, provider, headers, force);
+      // The request is shared with other hooks. Aborting this hook's signal removes this hook from
+      // the wait. The request itself stops only when no hook waits for it.
+      const allModels = await loadModels(key, baseUrl, provider, headers, force, signal);
 
       // Check if aborted before setting state
       if (signal.aborted) return;
