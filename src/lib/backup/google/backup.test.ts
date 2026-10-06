@@ -285,6 +285,32 @@ describe("performGoogleDriveExport", () => {
     expect(result).toEqual({ success: true, uploaded: 1, skipped: 1, total: 2 });
   });
 
+  it("stops listing after three failed listings and fails the other conversations fast", async () => {
+    mocked.listAllDriveFiles.mockRejectedValue(new Error("Failed to list files: 503"));
+    const rows = Array.from({ length: 10 }, (_, i) => row(`c${i}`, T0));
+    const deps = makeDeps();
+
+    const result = await performGoogleDriveExport(fakeDatabase(rows), "0xabc", "tok", deps);
+
+    // Before the cap, each of the 10 conversations listed the whole folder again.
+    expect(mocked.listAllDriveFiles).toHaveBeenCalledTimes(3);
+    expect(result).toEqual({ success: true, uploaded: 0, skipped: 0, total: 10 });
+    expect(mocked.uploadFileToDrive).not.toHaveBeenCalled();
+  });
+
+  it("does not ask for a new token for each conversation when the listing keeps failing with 401", async () => {
+    mocked.listAllDriveFiles.mockRejectedValue(new Error("Failed to list files: 401"));
+    const rows = Array.from({ length: 10 }, (_, i) => row(`c${i}`, T0));
+    const deps = makeDeps();
+
+    await performGoogleDriveExport(fakeDatabase(rows), "0xabc", "tok", deps);
+
+    // The listing is tried three times. Each of the first conversations may ask once, but the
+    // conversations after the cap fail with an error that holds no status code.
+    expect(deps.requestDriveAccess.mock.calls.length).toBeLessThanOrEqual(3);
+    expect(mocked.listAllDriveFiles.mock.calls.length).toBeLessThanOrEqual(6);
+  });
+
   it("returns early with no listing when there are no conversations", async () => {
     const result = await performGoogleDriveExport(fakeDatabase([]), "0xabc", "tok", makeDeps());
     expect(mocked.listAllDriveFiles).not.toHaveBeenCalled();

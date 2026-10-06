@@ -185,4 +185,14 @@ describe("performDropboxExport", () => {
     expect(mocked.uploadFileToDropbox).toHaveBeenCalledTimes(1);
     expect(result).toEqual({ success: true, uploaded: 1, skipped: 1, total: 2 });
   });
+  it("stops listing after three failed listings and fails the other conversations fast", async () => {
+    mocked.listDropboxFiles.mockRejectedValue(new Error("Dropbox list failed: 503"));
+    const rows = Array.from({ length: 10 }, (_, i) => row(`c${i}`, T0));
+
+    const result = await performDropboxExport(fakeDatabase(rows), "0xabc", "tok", makeDeps());
+
+    expect(mocked.listDropboxFiles).toHaveBeenCalledTimes(3);
+    expect(result).toEqual({ success: true, uploaded: 0, skipped: 0, total: 10 });
+    expect(mocked.uploadFileToDropbox).not.toHaveBeenCalled();
+  });
 });

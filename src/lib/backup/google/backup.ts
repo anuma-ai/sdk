@@ -78,6 +78,9 @@ async function getConversationsFolder(
   }
 }
 
+/** How many failed listings one run accepts before it stops listing. */
+const MAX_LISTING_FAILURES = 3;
+
 /**
  * Index of the files in the backup folder, keyed by file name.
  * One export run lists the folder once and reuses the result for every conversation.
@@ -88,10 +91,20 @@ interface DriveFileIndex {
 
 function createDriveFileIndex(folderId: string): DriveFileIndex {
   let pending: Promise<Map<string, DriveFile>> | undefined;
+  let failures = 0;
 
   return {
     get(token) {
       if (!pending) {
+        // After a few failed listings, stop listing for this run. Every other conversation would
+        // list the whole folder again and fail the same way. The error is a new one and not the
+        // original. The message holds no status code, so a repeated auth error does not ask the
+        // user to sign in again for each conversation.
+        if (failures >= MAX_LISTING_FAILURES) {
+          return Promise.reject(
+            new Error("The backup folder listing failed repeatedly; skipped for this run")
+          );
+        }
         pending = listAllDriveFiles(token, folderId)
           .then((files) => {
             const byName = new Map<string, DriveFile>();
@@ -105,6 +118,7 @@ function createDriveFileIndex(folderId: string): DriveFileIndex {
             // Do not keep a failed listing. The next conversation lists again,
             // so each conversation fails or succeeds on its own.
             pending = undefined;
+            failures++;
             throw err;
           });
       }
