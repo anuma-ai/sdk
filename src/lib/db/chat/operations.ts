@@ -1289,6 +1289,94 @@ export async function updateMessageChunksOp(
   return messageToStored(message, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner);
 }
 
+const STRIP_CHUNK_TEXT_PAGE_SIZE = 100;
+
+/** The chunk array without stored text, or null when the column needs no change. */
+function chunksWithoutText(raw: unknown): object[] | null {
+  if (typeof raw !== "string") return null;
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return null;
+  }
+  if (!Array.isArray(parsed)) return null;
+  const hasText = parsed.some(
+    (chunk) =>
+      chunk !== null &&
+      typeof chunk === "object" &&
+      Object.prototype.hasOwnProperty.call(chunk, "text")
+  );
+  if (!hasText) return null;
+  return parsed.map((chunk: unknown) => {
+    if (chunk === null || typeof chunk !== "object") return chunk as object;
+    const { text: _text, ...rest } = chunk as Record<string, unknown>;
+    return rest;
+  });
+}
+
+/**
+ * Removes the plaintext `text` that rows chunked before sdk#889 still carry in
+ * their `chunks` column. Since #889 `updateMessageChunksOp` never writes it, so
+ * a stored `text` key identifies exactly the rows written before that change.
+ * Readers rebuild the snippet from the offsets every row already has; a row
+ * edited after it was chunked fails `resolveChunkText`'s coverage check and
+ * shows the whole message instead.
+ *
+ * Every device must call it: each strips only its own local copy. Backups hold
+ * whole rows encrypted, and a restore brings the text back until the next call.
+ * Idempotent: a stripped row no longer matches, so calling it once per session
+ * is safe. `updated_at` is kept as it was, so backup sync does not re-upload
+ * every old row (the chunk vectors are most of each row's size).
+ *
+ * Reads raw rows a page at a time and builds Models only for the rows it
+ * changes, so unchanged candidates never enter the record cache, and each
+ * write stays small enough not to hold up chat saves.
+ *
+ * @returns Number of rows stripped.
+ */
+export async function stripLegacyChunkTextOp(ctx: StorageOperationsContext): Promise<number> {
+  const candidateIds = await ctx.messagesCollection
+    .query(Q.where("chunks", Q.like(`%${Q.sanitizeLikeString('"text":')}%`)))
+    .fetchIds();
+
+  let stripped = 0;
+  for (let start = 0; start < candidateIds.length; start += STRIP_CHUNK_TEXT_PAGE_SIZE) {
+    const pageIds = candidateIds.slice(start, start + STRIP_CHUNK_TEXT_PAGE_SIZE);
+    const rows = (await ctx.messagesCollection
+      .query(Q.where("id", Q.oneOf(pageIds)))
+      .unsafeFetchRaw()) as Record<string, unknown>[];
+
+    const changedIds = rows
+      .filter((row) => chunksWithoutText(row.chunks) !== null)
+      .map((row) => String(row.id));
+    if (changedIds.length === 0) continue;
+
+    await ctx.database.write(async () => {
+      const messages = await ctx.messagesCollection
+        .query(Q.where("id", Q.oneOf(changedIds)))
+        .fetch();
+      // Re-derived inside the writer: a re-index between the read and this write
+      // has already dropped the text, and must not be overwritten with older chunks.
+      const updates = messages.flatMap((message) => {
+        const raw = message._raw as unknown as { chunks: unknown; updated_at: number };
+        const chunks = chunksWithoutText(raw.chunks);
+        if (!chunks) return [];
+        const updatedAt = raw.updated_at;
+        return [
+          message.prepareUpdate((msg) => {
+            msg._setRaw("chunks", JSON.stringify(chunks));
+            msg._setRaw("updated_at", updatedAt);
+          }),
+        ];
+      });
+      await ctx.database.batch(...updates);
+      stripped += updates.length;
+    });
+  }
+  return stripped;
+}
+
 export async function updateMessageErrorOp(
   ctx: StorageOperationsContext,
   uniqueId: string,

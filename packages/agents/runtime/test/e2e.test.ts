@@ -99,7 +99,7 @@ describe("agent-runtime e2e", () => {
     expect(stub.mintCount).toBe(1);
   });
 
-  test("412 path: missing connector_credentials surfaces a connect URL", async () => {
+  test("412 path: missing connector_credentials surfaces a connector error without the portal URL", async () => {
     stub = await startStubPortal({
       grants: { [HAVEN_BEARER]: havenGrant },
       credentials: { [havenGrant.userAddress]: [] },
@@ -155,6 +155,9 @@ describe("agent-runtime e2e", () => {
       : (toolResultMsg!.content as unknown as string);
     const parsedResult = JSON.parse(toolResultText) as Record<string, unknown>;
     expect(parsedResult.__anuma_connector_error_v1).toBe(true);
+    // The stub portal sends a connect_url; it must not reach the model.
+    expect(parsedResult).not.toHaveProperty("connect_url");
+    expect(result.toolErrors[0].error).not.toHaveProperty("connectUrl");
 
     // The agent's reply contains the connect URL.
     const tail = result.messages.at(-1);
@@ -213,8 +216,7 @@ describe("agent-runtime e2e", () => {
     // The mint-error code in the parsed payload depends on what the tool
     // factory wrote. Today it writes connector_not_connected because the
     // token-getter returns null after any mint failure when there's no
-    // onNotConnected. That's the documented v1 behavior — the connect URL
-    // is still surfaced via the same canonical shape.
+    // onNotConnected. That's the documented v1 behavior.
     expect(result.toolErrors[0].error.code).toBe("connector_not_connected");
   });
 

@@ -244,6 +244,7 @@ export {
   type StoredConversation,
   type StoredMessage,
   type StoredMessageWithSimilarity,
+  stripLegacyChunkTextOp,
   upsertMessageOp,
 } from "../lib/db/chat";
 

@@ -34,6 +34,7 @@ import type {
   ToolUseStartEvent,
 } from "./runHooks";
 import { composeHooks } from "./runHooks";
+import { wrapConnectorToolResult } from "./untrustedToolResult";
 
 /**
  * Fire-and-forget hook invocation. Takes a thunk so synchronous throws
@@ -2032,7 +2033,9 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
 
         toolResultMessages.push({
           role: "tool",
-          content: [{ type: "text", text: resultContent }],
+          content: [
+            { type: "text", text: wrapConnectorToolResult(execResult.name ?? "", resultContent) },
+          ],
           tool_call_id: execResult.id,
         } as LlmapiMessage);
       }

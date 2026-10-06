@@ -106,7 +106,6 @@ interface ParsedConnectorError {
   __anuma_connector_error_v1: true;
   code: string;
   provider?: string;
-  connect_url?: string;
   missing_scopes?: string[];
   required?: string;
 }
@@ -151,7 +150,6 @@ export function extractConnectorToolErrors(
       error: {
         code: parsed.code,
         provider: parsed.provider,
-        connectUrl: parsed.connect_url,
         missingScopes: parsed.missing_scopes,
         required: parsed.required,
       },

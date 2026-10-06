@@ -109,13 +109,12 @@ export interface IncomingRequest {
  */
 /**
  * Open shape so future tool-execution errors can lift into the same union
- * without breaking consumers. Connector errors populate `provider` +
- * `connectUrl`; other errors carry a `message`.
+ * without breaking consumers. Connector errors populate `provider`; other
+ * errors carry a `message`.
  */
 export interface ToolErrorInfo {
   code: string;
   provider?: string;
-  connectUrl?: string;
   missingScopes?: string[];
   required?: string;
   message?: string;

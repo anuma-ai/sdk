@@ -7,7 +7,7 @@
 
 import { describe, it, expect } from "vitest";
 import { runToolLoop } from "./setup.js";
-import { createIpGeolocationTool } from "../../src/tools/ipGeolocation.js";
+import { createIpGeolocationTool } from "./stubs/ipGeolocation.js";
 import { config, extractText, printResult, wrapTool, type ToolCallLog } from "./setup.js";
 
 describe("geolocate-ip", () => {

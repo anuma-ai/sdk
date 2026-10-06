@@ -240,13 +240,13 @@ function maybeConnectorError(status: number): string | null {
 export function connectorMintErrorToToolResult(err: ConnectorMintError, provider: string): string {
   switch (err.code) {
     case "connector_not_connected":
-      return buildConnectorErrorResult("connector_not_connected", err.provider, err.connectUrl);
+      return buildConnectorErrorResult("connector_not_connected", err.provider);
     case "scope_not_covered":
-      return buildConnectorErrorResult("scope_not_covered", err.provider, err.connectUrl, {
+      return buildConnectorErrorResult("scope_not_covered", err.provider, {
         missingScopes: err.missingScopes,
       });
     case "insufficient_scope":
-      return buildConnectorErrorResult("insufficient_scope", provider, undefined, {
+      return buildConnectorErrorResult("insufficient_scope", provider, {
         required: err.required,
       });
     case "upstream_unavailable":

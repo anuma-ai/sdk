@@ -2,6 +2,6 @@
 
 > `const` **STREAM\_RESUMABLE\_HEADER**: `"X-Stream-Resumable"` = `"X-Stream-Resumable"`
 
-Defined in: [src/lib/chat/toolLoop.ts:778](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/toolLoop.ts#778)
+Defined in: [src/lib/chat/toolLoop.ts:779](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/toolLoop.ts#779)
 
 Capability header: tells the portal this client can resume a detached stream. Pinned with zeta-chain/ai-portal#1139.

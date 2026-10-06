@@ -8,7 +8,7 @@
 import { describe, it, expect } from "vitest";
 import { runToolLoop } from "./setup.js";
 import type { StepFinishEvent } from "../../src/lib/chat/toolLoop.js";
-import { createIpGeolocationTool } from "../../src/tools/ipGeolocation.js";
+import { createIpGeolocationTool } from "./stubs/ipGeolocation.js";
 import { createTimezoneTool } from "../../src/tools/timezone.js";
 import { config, wrapTool, type ToolCallLog } from "./setup.js";
 

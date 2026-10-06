@@ -30,7 +30,6 @@ interface ConnectorErrorPayload {
   __anuma_connector_error_v1: true;
   code: ConnectorErrorCode;
   provider: string;
-  connect_url?: string;
   missing_scopes?: string[];
   required?: string;
 }
@@ -57,21 +56,18 @@ interface ConnectorErrorExtras {
  *
  * @param code       One of the recognized {@link ConnectorErrorCode} values.
  * @param provider   Logical provider name (`"gmail"`, `"gdrive"`, etc.).
- * @param connectUrl Optional connect URL surfaced to the user via the LLM reply.
  * @param extras     Optional `missingScopes` / `required` fields lifted by the
  *                   runtime parser into `ToolErrorInfo`.
  */
 export function buildConnectorErrorResult(
   code: ConnectorErrorCode,
   provider: string,
-  connectUrl?: string,
   extras?: ConnectorErrorExtras
 ): string {
   const payload: ConnectorErrorPayload = {
     __anuma_connector_error_v1: true,
     code,
     provider,
-    connect_url: connectUrl,
     missing_scopes: extras?.missingScopes,
     required: extras?.required,
   };

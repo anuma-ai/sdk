@@ -216,7 +216,7 @@ function maybeConnectorError(status: number, body: SlackBaseResponse | null): st
     return buildConnectorErrorResult("connector_not_connected", SLACK_PROVIDER);
   }
   if (body && body.ok === false && body.error === "missing_scope") {
-    return buildConnectorErrorResult("insufficient_scope", SLACK_PROVIDER, undefined, {
+    return buildConnectorErrorResult("insufficient_scope", SLACK_PROVIDER, {
       required: body.needed,
     });
   }

@@ -140,14 +140,14 @@ describe("createGmailTools", () => {
     });
   });
 
-  test("connectorMintErrorToToolResult preserves the embedded provider for variants that carry one", () => {
+  test("connectorMintErrorToToolResult preserves the embedded provider and drops connectUrl", () => {
     const raw = connectorMintErrorToToolResult(
       { code: "connector_not_connected", provider: "gmail", connectUrl: "https://x/connect" },
       "ignored"
     );
     const parsed = JSON.parse(raw) as Record<string, unknown>;
     expect(parsed.provider).toBe("gmail");
-    expect(parsed.connect_url).toBe("https://x/connect");
+    expect("connect_url" in parsed).toBe(false);
   });
 
   test("surfaces non-connector Gmail errors as raw error strings", async () => {

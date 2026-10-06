@@ -18,6 +18,7 @@
 
 import type { MessageOrigin } from "../db/chat/types";
 import { capToolResultEntries, TOOL_RESULT_FOOTER_LINE } from "./toolResultMessage";
+import { wrapConnectorToolResult } from "./untrustedToolResult";
 
 /** Marker the clients match on to tell this row apart from a real user turn. */
 export const TOOL_RESULTS_PREFIX = "[Tool Execution Results]";
@@ -280,13 +281,23 @@ function resolveFoldTarget<T extends ToolResultsRowLike>(
  */
 export const MAX_FOLDED_APPENDIX_CHARS = 20_000;
 
-/** The assistant's content with the kept tool entries appended as one capped block. */
+/**
+ * The assistant's content with the kept tool entries appended as one capped block.
+ *
+ * Connector entries are wrapped as untrusted data after capping, so a truncated entry keeps its
+ * closing marker; the budget is reduced by each wrapper's size first so the block stays under the
+ * ceiling. The stored row is unchanged: only this replay copy is wrapped.
+ */
 function appendToolResults(assistantContent: string, kept: readonly ToolResultSegment[]): string {
-  const framing = TOOL_RESULTS_PREFIX.length + 1 + (kept.length - 1);
+  const wrapperChars = kept.reduce(
+    (sum, segment) => sum + wrapConnectorToolResult(segment.name, "").length,
+    0
+  );
+  const framing = TOOL_RESULTS_PREFIX.length + 1 + (kept.length - 1) + wrapperChars;
   const capped = capToolResultEntries(
     kept.map((segment) => segment.line),
     MAX_FOLDED_APPENDIX_CHARS - framing
-  );
+  ).map((line, index) => wrapConnectorToolResult(kept[index].name, line));
   const appendix = `${TOOL_RESULTS_PREFIX}\n${capped.join("\n")}`;
   return assistantContent.trim() ? `${assistantContent}\n\n${appendix}` : appendix;
 }

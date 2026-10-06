@@ -134,6 +134,8 @@ describe("google-calendar", () => {
     expect(typeof args.end).toBe("string");
 
     expect(createResult.id).toBeDefined();
+    // google_calendar_update_event refuses ids outside this set, so a real id must fit it.
+    expect(createResult.id).toMatch(/^[A-Za-z0-9_]+$/);
     expect(createResult.summary).toContain("E2E Test");
   });
 

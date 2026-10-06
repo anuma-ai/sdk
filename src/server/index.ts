@@ -83,6 +83,7 @@ export {
   searchChunksOp,
   searchMessagesOp,
   type StorageOperationsContext,
+  stripLegacyChunkTextOp,
   updateConversationProjectOp,
   updateConversationTitleOp,
   updateMessageChunksOp,
