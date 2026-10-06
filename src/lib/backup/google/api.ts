@@ -211,6 +211,33 @@ export async function listAllDriveFiles(
 }
 
 /**
+ * Read the metadata of one Drive file.
+ * Returns null when the file does not exist or is in the trash. An export run uses it to read the
+ * file time again just before it replaces a file, because another client can write the file after
+ * the run listed the folder.
+ */
+export async function getDriveFileMetadata(
+  accessToken: string,
+  fileId: string
+): Promise<DriveFile | null> {
+  const fields = encodeURIComponent("id,name,createdTime,modifiedTime,size,trashed");
+  const response = await fetch(
+    `${DRIVE_API_URL}/files/${encodeURIComponent(fileId)}?fields=${fields}`,
+    {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    }
+  );
+
+  if (response.status === 404) return null;
+  if (!response.ok) {
+    throw new Error(`Failed to read file: ${response.status}`);
+  }
+
+  const data = (await response.json()) as DriveFile & { trashed?: boolean };
+  return data.trashed ? null : data;
+}
+
+/**
  * Download a file from Google Drive
  */
 export async function downloadDriveFile(accessToken: string, fileId: string): Promise<Blob> {

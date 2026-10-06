@@ -11,7 +11,12 @@ import { performDropboxExport } from "./backup";
 
 vi.mock("./api", async (importOriginal) => {
   const orig = await importOriginal<typeof import("./api")>();
-  return { ...orig, listDropboxFiles: vi.fn(), uploadFileToDropbox: vi.fn() };
+  return {
+    ...orig,
+    getDropboxFileMetadata: vi.fn(),
+    listDropboxFiles: vi.fn(),
+    uploadFileToDropbox: vi.fn(),
+  };
 });
 
 // A row stands in for a stored conversation, so the test needs no database.
@@ -39,6 +44,24 @@ const dropboxFile = (name: string, modified: number): api.DropboxFile => ({
 const fakeDatabase = (rows: unknown[]) =>
   ({ get: () => ({ query: () => ({ fetch: async () => rows }) }) }) as unknown as Database;
 
+// The first query lists the conversations at the start of the run. Later queries read one
+// conversation each, so they see an edit made after the run began.
+const fakeDatabaseEditedDuringRun = (atStart: unknown[], later: unknown[]) => {
+  let queries = 0;
+  return {
+    get: () => ({
+      query: () => ({ fetch: async () => (queries++ === 0 ? atStart : later) }),
+    }),
+  } as unknown as Database;
+};
+
+// What Dropbox holds now. The folder listing and the single-file read both answer from it.
+let remote: api.DropboxFile[] = [];
+const listing = (files: api.DropboxFile[]) => {
+  remote = files;
+  mocked.listDropboxFiles.mockResolvedValue(files);
+};
+
 function makeDeps() {
   return {
     requestDropboxAccess: vi.fn(async () => "new-token"),
@@ -55,6 +78,10 @@ describe("performDropboxExport", () => {
   beforeEach(() => {
     vi.resetAllMocks();
     mocked.uploadFileToDropbox.mockResolvedValue({} as never);
+    remote = [];
+    mocked.getDropboxFileMetadata.mockImplementation(
+      async (_token, filename) => remote.find((f) => f.name === filename) ?? null
+    );
   });
 
   it("lists the folder once for many conversations", async () => {
@@ -68,10 +95,7 @@ describe("performDropboxExport", () => {
   });
 
   it("skips unchanged conversations and uploads the others in order", async () => {
-    mocked.listDropboxFiles.mockResolvedValue([
-      dropboxFile("same.json", T0),
-      dropboxFile("newer.json", T0),
-    ]);
+    listing([dropboxFile("same.json", T0), dropboxFile("newer.json", T0)]);
     const deps = makeDeps();
     const progress = vi.fn();
 
@@ -102,5 +126,63 @@ describe("performDropboxExport", () => {
     expect(deps.requestDropboxAccess).toHaveBeenCalledTimes(1);
     expect(mocked.listDropboxFiles.mock.calls.map((c) => c[0])).toEqual(["tok", "new-token"]);
     expect(result.uploaded).toBe(1);
+  });
+
+  it("uploads a conversation that was edited after the run began", async () => {
+    listing([dropboxFile("a.json", T0)]);
+    const database = fakeDatabaseEditedDuringRun([row("a", T0)], [row("a", T0 + 1000)]);
+
+    const result = await performDropboxExport(database, "0xabc", "tok", makeDeps());
+
+    expect(result).toEqual({ success: true, uploaded: 1, skipped: 0, total: 1 });
+    expect(mocked.uploadFileToDropbox).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not overwrite a backup that another client wrote after the listing", async () => {
+    listing([dropboxFile("a.json", T0)]);
+    // Another client writes a newer file after the run listed the folder.
+    mocked.getDropboxFileMetadata.mockResolvedValue(dropboxFile("a.json", T0 + 5000));
+    const deps = makeDeps();
+
+    const result = await performDropboxExport(
+      fakeDatabase([row("a", T0 + 1000)]),
+      "0xabc",
+      "tok",
+      deps
+    );
+
+    expect(result).toEqual({ success: true, uploaded: 0, skipped: 1, total: 1 });
+    expect(mocked.uploadFileToDropbox).not.toHaveBeenCalled();
+    expect(deps.exportConversation).not.toHaveBeenCalled();
+  });
+
+  it("uploads again when the file was deleted after the listing", async () => {
+    listing([dropboxFile("a.json", T0)]);
+    mocked.getDropboxFileMetadata.mockResolvedValue(null);
+
+    const result = await performDropboxExport(
+      fakeDatabase([row("a", T0 + 1000)]),
+      "0xabc",
+      "tok",
+      makeDeps()
+    );
+
+    expect(result.uploaded).toBe(1);
+    expect(mocked.uploadFileToDropbox).toHaveBeenCalledTimes(1);
+  });
+
+  it("uploads once when two rows share a conversation id", async () => {
+    listing([]);
+    mocked.uploadFileToDropbox.mockResolvedValue(dropboxFile("dup.json", Date.now()) as never);
+
+    const result = await performDropboxExport(
+      fakeDatabase([row("dup", T0), row("dup", T0)]),
+      "0xabc",
+      "tok",
+      makeDeps()
+    );
+
+    expect(mocked.uploadFileToDropbox).toHaveBeenCalledTimes(1);
+    expect(result).toEqual({ success: true, uploaded: 1, skipped: 1, total: 2 });
   });
 });

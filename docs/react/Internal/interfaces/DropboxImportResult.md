@@ -1,6 +1,6 @@
 # DropboxImportResult
 
-Defined in: [src/lib/backup/dropbox/backup.ts:45](https://github.com/anuma-ai/sdk/blob/main/src/lib/backup/dropbox/backup.ts#45)
+Defined in: [src/lib/backup/dropbox/backup.ts:46](https://github.com/anuma-ai/sdk/blob/main/src/lib/backup/dropbox/backup.ts#46)
 
 ## Properties
 
@@ -8,7 +8,7 @@ Defined in: [src/lib/backup/dropbox/backup.ts:45](https://github.com/anuma-ai/sd
 
 > **failed**: `number`
 
-Defined in: [src/lib/backup/dropbox/backup.ts:48](https://github.com/anuma-ai/sdk/blob/main/src/lib/backup/dropbox/backup.ts#48)
+Defined in: [src/lib/backup/dropbox/backup.ts:49](https://github.com/anuma-ai/sdk/blob/main/src/lib/backup/dropbox/backup.ts#49)
 
 ***
 
@@ -16,7 +16,7 @@ Defined in: [src/lib/backup/dropbox/backup.ts:48](https://github.com/anuma-ai/sd
 
 > `optional` **noBackupsFound**: `boolean`
 
-Defined in: [src/lib/backup/dropbox/backup.ts:51](https://github.com/anuma-ai/sdk/blob/main/src/lib/backup/dropbox/backup.ts#51)
+Defined in: [src/lib/backup/dropbox/backup.ts:52](https://github.com/anuma-ai/sdk/blob/main/src/lib/backup/dropbox/backup.ts#52)
 
 True if no backups were found in Dropbox
 
@@ -26,7 +26,7 @@ True if no backups were found in Dropbox
 
 > **restored**: `number`
 
-Defined in: [src/lib/backup/dropbox/backup.ts:47](https://github.com/anuma-ai/sdk/blob/main/src/lib/backup/dropbox/backup.ts#47)
+Defined in: [src/lib/backup/dropbox/backup.ts:48](https://github.com/anuma-ai/sdk/blob/main/src/lib/backup/dropbox/backup.ts#48)
 
 ***
 
@@ -34,7 +34,7 @@ Defined in: [src/lib/backup/dropbox/backup.ts:47](https://github.com/anuma-ai/sd
 
 > **success**: `boolean`
 
-Defined in: [src/lib/backup/dropbox/backup.ts:46](https://github.com/anuma-ai/sdk/blob/main/src/lib/backup/dropbox/backup.ts#46)
+Defined in: [src/lib/backup/dropbox/backup.ts:47](https://github.com/anuma-ai/sdk/blob/main/src/lib/backup/dropbox/backup.ts#47)
 
 ***
 
@@ -42,4 +42,4 @@ Defined in: [src/lib/backup/dropbox/backup.ts:46](https://github.com/anuma-ai/sd
 
 > **total**: `number`
 
-Defined in: [src/lib/backup/dropbox/backup.ts:49](https://github.com/anuma-ai/sdk/blob/main/src/lib/backup/dropbox/backup.ts#49)
+Defined in: [src/lib/backup/dropbox/backup.ts:50](https://github.com/anuma-ai/sdk/blob/main/src/lib/backup/dropbox/backup.ts#50)

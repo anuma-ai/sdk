@@ -13,6 +13,7 @@ import {
   DEFAULT_BACKUP_FOLDER,
   downloadDropboxFile,
   type DropboxFile,
+  getDropboxFileMetadata,
   listDropboxFiles,
   uploadFileToDropbox,
 } from "./api";
@@ -86,9 +87,25 @@ function createDropboxFileIndex(backupFolder: string): DropboxFileIndex {
   };
 }
 
+/** Read the stored update time of one conversation from the local database now. */
+async function readLocalUpdatedAt(
+  database: Database,
+  conversationId: string
+): Promise<Date | null> {
+  const { Q } = await import("@nozbe/watermelondb");
+  const records = await database
+    .get<Conversation>("conversations")
+    .query(Q.where("conversation_id", conversationId))
+    .fetch();
+  const match = records
+    .map(conversationToStoredRaw)
+    .find((c) => c.conversationId === conversationId);
+  return match ? match.updatedAt : null;
+}
+
 async function pushConversationToDropbox(
+  database: Database,
   conversationId: string,
-  localUpdatedAt: Date,
   userAddress: string,
   token: string,
   fileIndex: DropboxFileIndex,
@@ -100,14 +117,33 @@ async function pushConversationToDropbox(
     await deps.requestEncryptionKey(userAddress);
 
     const filename = `${conversationId}.json`;
-    const existingFile = (await fileIndex.get(token)).get(filename);
+    const index = await fileIndex.get(token);
+    const existingFile = index.get(filename);
 
-    // Check if we can skip upload based on timestamps
     if (existingFile) {
-      const localUpdated = localUpdatedAt.getTime();
-      const remoteModified = new Date(existingFile.server_modified).getTime();
-      if (localUpdated <= remoteModified) {
+      // Read the update time now. A conversation edited after the run began must still upload.
+      const localUpdatedAt = await readLocalUpdatedAt(database, conversationId);
+      const localUpdated = localUpdatedAt ? localUpdatedAt.getTime() : null;
+
+      // Check if we can skip upload based on timestamps
+      if (
+        localUpdated !== null &&
+        localUpdated <= new Date(existingFile.server_modified).getTime()
+      ) {
         return "skipped";
+      }
+
+      // Another client can write the file after the run listed the folder. Read the file time
+      // again before the upload overwrites the file, so a newer backup is not lost.
+      const current = await getDropboxFileMetadata(token, filename, backupFolder);
+      if (!current) {
+        // The file is gone. The upload below creates it again.
+        index.delete(filename);
+      } else {
+        index.set(filename, current);
+        if (localUpdated !== null && localUpdated <= new Date(current.server_modified).getTime()) {
+          return "skipped";
+        }
       }
     }
 
@@ -117,7 +153,9 @@ async function pushConversationToDropbox(
       return "failed";
     }
 
-    await uploadFileToDropbox(token, filename, exportResult.blob, backupFolder);
+    // Keep the index current. A later row with the same conversation id then sees this upload.
+    const uploaded = await uploadFileToDropbox(token, filename, exportResult.blob, backupFolder);
+    index.set(filename, uploaded);
     return "uploaded";
   } catch (err) {
     if (isAuthError(err) && !_retried) {
@@ -125,8 +163,8 @@ async function pushConversationToDropbox(
       try {
         const newToken = await deps.requestDropboxAccess();
         return pushConversationToDropbox(
+          database,
           conversationId,
-          localUpdatedAt,
           userAddress,
           newToken,
           fileIndex,
@@ -172,8 +210,8 @@ export async function performDropboxExport(
     onProgress?.(i + 1, total);
 
     const result = await pushConversationToDropbox(
+      database,
       conv.conversationId,
-      conv.updatedAt,
       userAddress,
       token,
       fileIndex,

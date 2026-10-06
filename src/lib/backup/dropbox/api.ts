@@ -118,6 +118,36 @@ export async function uploadFileToDropbox(
 }
 
 /**
+ * Read the metadata of one backup file in Dropbox.
+ * Returns null when the file does not exist. An export run uses it to read the file time again
+ * just before it replaces a file, because another client can write the file after the run listed
+ * the folder.
+ */
+export async function getDropboxFileMetadata(
+  accessToken: string,
+  filename: string,
+  folder: string = DEFAULT_BACKUP_FOLDER
+): Promise<DropboxFile | null> {
+  const response = await fetch(`${DROPBOX_API_URL}/files/get_metadata`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ path: `${folder}/${filename}` }),
+  });
+
+  // Dropbox answers 409 with a path error when the file does not exist.
+  if (response.status === 409) return null;
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Dropbox get metadata failed: ${response.status} - ${errorText}`);
+  }
+
+  return response.json() as Promise<DropboxFile>;
+}
+
+/**
  * List all backup files in Dropbox
  */
 export async function listDropboxFiles(

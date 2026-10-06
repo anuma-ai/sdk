@@ -15,6 +15,7 @@ import {
   downloadDriveFile,
   type DriveFile,
   getBackupFolder,
+  getDriveFileMetadata,
   listAllDriveFiles,
   listDriveFiles,
   updateDriveFile,
@@ -112,9 +113,25 @@ function createDriveFileIndex(folderId: string): DriveFileIndex {
   };
 }
 
+/** Read the stored update time of one conversation from the local database now. */
+async function readLocalUpdatedAt(
+  database: Database,
+  conversationId: string
+): Promise<Date | null> {
+  const { Q } = await import("@nozbe/watermelondb");
+  const records = await database
+    .get<Conversation>("conversations")
+    .query(Q.where("conversation_id", conversationId))
+    .fetch();
+  const match = records
+    .map(conversationToStoredRaw)
+    .find((c) => c.conversationId === conversationId);
+  return match ? match.updatedAt : null;
+}
+
 async function pushConversationToDrive(
+  database: Database,
   conversationId: string,
-  localUpdatedAt: Date,
   userAddress: string,
   token: string,
   folderId: string,
@@ -126,14 +143,31 @@ async function pushConversationToDrive(
     await deps.requestEncryptionKey(userAddress);
 
     const filename = `${conversationId}.json`;
-    const existingFile = (await fileIndex.get(token)).get(filename);
+    const index = await fileIndex.get(token);
+    let existingFile = index.get(filename);
 
-    // Check if we can skip upload based on timestamps
     if (existingFile) {
-      const localUpdated = localUpdatedAt.getTime();
-      const remoteModified = new Date(existingFile.modifiedTime).getTime();
-      if (localUpdated <= remoteModified) {
+      // Read the update time now. A conversation edited after the run began must still upload.
+      const localUpdatedAt = await readLocalUpdatedAt(database, conversationId);
+      const localUpdated = localUpdatedAt ? localUpdatedAt.getTime() : null;
+
+      // Check if we can skip upload based on timestamps
+      if (localUpdated !== null && localUpdated <= new Date(existingFile.modifiedTime).getTime()) {
         return "skipped";
+      }
+
+      // Another client can write the file after the run listed the folder. Read the file time
+      // again before the run replaces the file, so a newer backup is not overwritten.
+      const current = await getDriveFileMetadata(token, existingFile.id);
+      if (!current) {
+        // The file is gone. Upload a new one.
+        index.delete(filename);
+        existingFile = undefined;
+      } else {
+        index.set(filename, current);
+        if (localUpdated !== null && localUpdated <= new Date(current.modifiedTime).getTime()) {
+          return "skipped";
+        }
       }
     }
 
@@ -143,10 +177,21 @@ async function pushConversationToDrive(
       return "failed";
     }
 
+    // Keep the index current. A later row with the same conversation id then finds this file and
+    // does not create a second backup.
+    const now = new Date().toISOString();
     if (existingFile) {
       await updateDriveFile(token, existingFile.id, exportResult.blob);
+      index.set(filename, { ...existingFile, modifiedTime: now });
     } else {
-      await uploadFileToDrive(token, folderId, exportResult.blob, filename);
+      const created = await uploadFileToDrive(token, folderId, exportResult.blob, filename);
+      index.set(filename, {
+        id: created.id,
+        name: created.name,
+        createdTime: now,
+        modifiedTime: now,
+        size: String(exportResult.blob.size),
+      });
     }
     return "uploaded";
   } catch (err) {
@@ -155,8 +200,8 @@ async function pushConversationToDrive(
       try {
         const newToken = await deps.requestDriveAccess();
         return pushConversationToDrive(
+          database,
           conversationId,
-          localUpdatedAt,
           userAddress,
           newToken,
           folderId,
@@ -214,8 +259,8 @@ export async function performGoogleDriveExport(
     onProgress?.(i + 1, total);
 
     const result = await pushConversationToDrive(
+      database,
       conv.conversationId,
-      conv.updatedAt,
       userAddress,
       activeToken,
       folderId,
