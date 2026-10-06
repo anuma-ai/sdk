@@ -2,7 +2,7 @@
 
 > **migrateDriveToken**(`walletAddress`: `string`): `Promise`<`boolean`>
 
-Defined in: [src/lib/auth/google-drive.ts:535](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/google-drive.ts#535)
+Defined in: [src/lib/auth/google-drive.ts:525](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/google-drive.ts#525)
 
 Migrate unencrypted Drive tokens to encrypted storage.
 Call this when a wallet address and encryption key become available

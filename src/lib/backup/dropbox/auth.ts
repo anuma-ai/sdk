@@ -245,7 +245,7 @@ async function refreshDropboxToken(
     return response.data.access_token;
   } catch {
     // If refresh fails, clear stored data
-    clearTokenData(PROVIDER);
+    clearTokenData(PROVIDER, walletAddress);
     return null;
   }
 }
@@ -271,7 +271,7 @@ export async function revokeDropboxToken(
   } catch {
     // Ignore errors on revocation
   } finally {
-    clearTokenData(PROVIDER);
+    clearTokenData(PROVIDER, walletAddress);
   }
 }
 

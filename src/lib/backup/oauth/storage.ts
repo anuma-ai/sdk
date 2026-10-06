@@ -7,6 +7,11 @@
  */
 
 import { decryptData, encryptData } from "../../../react/useEncryption";
+import {
+  parsePlaintextToken,
+  type PlaintextTokenRecord,
+  promoteUnscopedRow,
+} from "../../auth/tokenRows";
 import { getLogger } from "../../logger";
 
 type OAuthProvider = "google-drive" | "dropbox";
@@ -40,8 +45,24 @@ const ENCRYPTED_PREFIX = "enc:oauth:";
 /**
  * Get the storage key for a provider
  */
-function getStorageKey(provider: OAuthProvider): string {
-  return `${STORAGE_KEY_PREFIX}${provider}`;
+function getStorageKey(provider: OAuthProvider, walletAddress?: string): string {
+  const base = `${STORAGE_KEY_PREFIX}${provider}`;
+  return walletAddress ? `${base}:${walletAddress}` : base;
+}
+
+/**
+ * List the rows under the given keys, in order.
+ * One key can hold a row in either storage, so check both per key.
+ */
+function readRawRows(keys: string[]): { raw: string; key: string; store: Storage }[] {
+  const rows: { raw: string; key: string; store: Storage }[] = [];
+  for (const key of keys) {
+    for (const store of [localStorage, sessionStorage]) {
+      const raw = store.getItem(key);
+      if (raw) rows.push({ raw, key, store });
+    }
+  }
+  return rows;
 }
 
 /**
@@ -55,58 +76,72 @@ export async function getStoredTokenData(
   if (typeof window === "undefined") return null;
 
   try {
-    const key = getStorageKey(provider);
-    let stored = localStorage.getItem(key);
-
-    // Check sessionStorage for temporary unencrypted tokens
-    if (!stored) {
-      stored = sessionStorage.getItem(key);
+    // The wallet-scoped key first, then the legacy unscoped key that older
+    // builds wrote. Each key may hold its row in either storage.
+    const scopedKey = getStorageKey(provider, walletAddress);
+    const legacyKey = getStorageKey(provider);
+    const keys = scopedKey === legacyKey ? [legacyKey] : [scopedKey, legacyKey];
+    for (const row of readRawRows(keys)) {
+      const data = await readTokenRow(row.raw, provider, walletAddress);
+      if (!data) continue;
+      // Move one legacy row onto the wallet's own key and drop the unscoped
+      // key, so a later read for another wallet cannot claim the same token.
+      if (walletAddress && row.key === legacyKey) {
+        promoteUnscopedRow(row.raw, data, row.store, scopedKey, legacyKey, walletAddress);
+      }
+      return data;
     }
 
-    if (!stored) return null;
-
-    // Check if token is encrypted
-    if (stored.startsWith(ENCRYPTED_PREFIX)) {
-      if (!walletAddress) {
-        // Encrypted token but no wallet address - cannot decrypt
-        getLogger().warn(
-          `Encrypted OAuth token found for ${provider} but no wallet address provided`
-        );
-        return null;
-      }
-
-      try {
-        const encryptedData = stored.slice(ENCRYPTED_PREFIX.length);
-        let decryptedJson: string;
-        try {
-          // Try with current HKDF key (v3)
-          decryptedJson = await decryptData(encryptedData, walletAddress);
-        } catch {
-          // Fall back to legacy SHA-256 key (v2) for tokens encrypted before migration
-          decryptedJson = await decryptData(encryptedData, walletAddress, "v2");
-        }
-        const data = JSON.parse(decryptedJson) as StoredTokenData;
-
-        // Validate that access token exists
-        if (!data.accessToken) return null;
-
-        return data;
-      } catch (error) {
-        getLogger().error(`Failed to decrypt OAuth token for ${provider}:`, error);
-        return null;
-      }
-    }
-
-    // Plaintext token (backwards compatibility)
-    const data = JSON.parse(stored) as StoredTokenData;
-
-    // Validate that access token exists
-    if (!data.accessToken) return null;
-
-    return data;
+    return null;
   } catch {
     return null;
   }
+}
+
+/**
+ * Read one stored row: decrypt it when it carries the encrypted prefix,
+ * otherwise parse it as a plain text row.
+ */
+async function readTokenRow(
+  stored: string,
+  provider: OAuthProvider,
+  walletAddress?: string
+): Promise<StoredTokenData | null> {
+  // Check if token is encrypted
+  if (stored.startsWith(ENCRYPTED_PREFIX)) {
+    if (!walletAddress) {
+      // Encrypted token but no wallet address - cannot decrypt
+      getLogger().warn(
+        `Encrypted OAuth token found for ${provider} but no wallet address provided`
+      );
+      return null;
+    }
+
+    try {
+      const encryptedData = stored.slice(ENCRYPTED_PREFIX.length);
+      let decryptedJson: string;
+      try {
+        // Try with current HKDF key (v3)
+        decryptedJson = await decryptData(encryptedData, walletAddress);
+      } catch {
+        // Fall back to legacy SHA-256 key (v2) for tokens encrypted before migration
+        decryptedJson = await decryptData(encryptedData, walletAddress, "v2");
+      }
+      const data = JSON.parse(decryptedJson) as StoredTokenData;
+
+      // Validate that access token exists
+      if (!data.accessToken) return null;
+
+      return data;
+    } catch (error) {
+      getLogger().error(`Failed to decrypt OAuth token for ${provider}:`, error);
+      return null;
+    }
+  }
+
+  // Plain text row (backwards compatibility). A row that carries a wallet
+  // field is accepted only for that wallet.
+  return parsePlaintextToken<StoredTokenData>(stored, walletAddress);
 }
 
 /**
@@ -120,21 +155,28 @@ export async function storeTokenData(
 ): Promise<void> {
   if (typeof window === "undefined") return;
 
-  const key = getStorageKey(provider);
+  const key = getStorageKey(provider, walletAddress);
   const json = JSON.stringify(data);
+  const plaintextRecord = JSON.stringify({
+    wallet: walletAddress,
+    token: data,
+  } as PlaintextTokenRecord<StoredTokenData>);
 
   if (walletAddress) {
     try {
       // Encrypt and store in localStorage
       const encrypted = await encryptData(json, walletAddress);
       localStorage.setItem(key, `${ENCRYPTED_PREFIX}${encrypted}`);
+      // The encrypted row is now the only row for this key, so a read cannot
+      // fall back to an older plain text value.
+      sessionStorage.removeItem(key);
     } catch (error) {
       // If encryption fails, store temporarily in sessionStorage as fallback
       getLogger().warn(
         `Failed to encrypt OAuth token for ${provider}, storing temporarily:`,
         error
       );
-      sessionStorage.setItem(key, json);
+      sessionStorage.setItem(key, plaintextRecord);
       // eslint-disable-next-line preserve-caught-error -- ES2020 target doesn't support ErrorOptions
       throw new Error(
         `OAuth token encryption failed: ${error instanceof Error ? error.message : String(error)}`
@@ -142,21 +184,40 @@ export async function storeTokenData(
     }
   } else {
     // No wallet address - store temporarily in sessionStorage (cleared on page close)
-    sessionStorage.setItem(key, json);
+    sessionStorage.setItem(key, plaintextRecord);
   }
 }
 
 /**
  * Clear stored token data for a provider
  */
-export function clearTokenData(provider: OAuthProvider): void {
+export function clearTokenData(provider: OAuthProvider, walletAddress?: string): void {
   if (typeof window === "undefined") return;
 
-  const key = getStorageKey(provider);
-  localStorage.removeItem(key);
-  // Tokens may be stored temporarily in sessionStorage when walletAddress is missing
-  // or when encryption fails; logout must clear both.
-  sessionStorage.removeItem(key);
+  const base = getStorageKey(provider);
+  const keys = walletAddress ? [getStorageKey(provider, walletAddress), base] : [base];
+  if (!walletAddress) keys.push(...suffixedKeys(base));
+  for (const key of keys) {
+    localStorage.removeItem(key);
+    // Tokens may be stored temporarily in sessionStorage when walletAddress is
+    // missing or when encryption fails; logout must clear both.
+    sessionStorage.removeItem(key);
+  }
+}
+
+/**
+ * List the wallet-suffixed variants of one key across both storages.
+ * Used when a clear call has no wallet address in hand.
+ */
+function suffixedKeys(base: string): string[] {
+  const found: string[] = [];
+  for (const storage of [localStorage, sessionStorage]) {
+    for (let i = 0; i < storage.length; i++) {
+      const key = storage.key(i);
+      if (key && key.startsWith(`${base}:`) && !found.includes(key)) found.push(key);
+    }
+  }
+  return found;
 }
 
 /**
@@ -217,41 +278,57 @@ export async function migrateUnencryptedTokens(
   if (typeof window === "undefined") return false;
 
   try {
-    const key = getStorageKey(provider);
-
-    const localStored = localStorage.getItem(key);
-    const sessionStored = sessionStorage.getItem(key);
+    // The wallet-scoped key first, then the legacy unscoped key that older
+    // builds wrote. Each key may hold its row in either storage.
+    const scopedKey = getStorageKey(provider, walletAddress);
+    const legacyKey = getStorageKey(provider);
+    const keys = [scopedKey, legacyKey];
 
     const isEncrypted = (value: string | null): boolean =>
       !!value && value.startsWith(ENCRYPTED_PREFIX);
+    const plaintextAt = (key: string): string | null => {
+      const stored = sessionStorage.getItem(key) ?? localStorage.getItem(key);
+      return stored && !isEncrypted(stored) ? stored : null;
+    };
 
-    // Prefer migrating sessionStorage since that's where we store tokens
-    // when no wallet is available at initial OAuth callback.
-    const tokenToMigrate =
-      sessionStored && !isEncrypted(sessionStored)
-        ? sessionStored
-        : localStored && !isEncrypted(localStored)
-          ? localStored
-          : null;
+    // Prefer sessionStorage rows: that is where tokens land when no wallet is
+    // available at the initial OAuth callback.
+    let tokenToMigrate: string | null = null;
+    for (const key of keys) {
+      const value = plaintextAt(key);
+      if (value) {
+        tokenToMigrate = value;
+        break;
+      }
+    }
 
     if (!tokenToMigrate) {
       // Nothing to migrate. If we already have an encrypted token in localStorage,
       // clear any leftover plaintext token in sessionStorage.
-      if (isEncrypted(localStored) && sessionStored && !isEncrypted(sessionStored)) {
-        sessionStorage.removeItem(key);
+      for (const key of keys) {
+        const stored = sessionStorage.getItem(key);
+        if (isEncrypted(localStorage.getItem(key)) && stored && !isEncrypted(stored)) {
+          sessionStorage.removeItem(key);
+        }
       }
       return false;
     }
 
     try {
-      const data = JSON.parse(tokenToMigrate) as StoredTokenData;
+      const data = parsePlaintextToken(tokenToMigrate, walletAddress);
+      if (!data) return false;
 
-      // Encrypt and store in localStorage
+      // Encrypt and store in localStorage under the wallet-scoped key
       await storeTokenData(provider, data, walletAddress);
 
-      // Clear any temporary plaintext storage after successful migration
-      if (sessionStored && !isEncrypted(sessionStored)) {
-        sessionStorage.removeItem(key);
+      // Drop the rows the fresh copy replaced: the plaintext rows and a plain
+      // text legacy unscoped row. An encrypted legacy row can belong to
+      // another wallet, so it stays until that wallet reads and moves it.
+      for (const key of keys) {
+        if (plaintextAt(key)) sessionStorage.removeItem(key);
+        if (key === legacyKey && !isEncrypted(localStorage.getItem(key))) {
+          localStorage.removeItem(key);
+        }
       }
 
       return true;

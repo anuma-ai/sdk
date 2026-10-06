@@ -35,6 +35,7 @@ import {
   hasEncryptionKey,
 } from "../../react/useEncryption";
 import { getLogger } from "../logger";
+import { parsePlaintextToken, type PlaintextTokenRecord, readPlaintextToken } from "./tokenRows";
 
 // Use github provider for backend API calls
 const PROVIDER = "github";
@@ -82,8 +83,8 @@ function getTokenStorageKey(walletAddress?: string): string {
  *
  * Lookup order:
  * 1. Encrypted localStorage (wallet-scoped key)
- * 2. Unencrypted localStorage (legacy unscoped key, pre-encryption users)
- * 3. Unencrypted sessionStorage (temporary fallback)
+ * 2. Plain text row under the wallet-scoped key, then the legacy unscoped key
+ *    that older builds wrote (pre-encryption users)
  */
 async function getStoredTokenData(walletAddress?: string): Promise<StoredTokenData | null> {
   if (typeof window === "undefined") return null;
@@ -138,39 +139,21 @@ async function getStoredTokenData(walletAddress?: string): Promise<StoredTokenDa
       }
     }
 
-    // 2. Try legacy unencrypted localStorage (unscoped key, pre-encryption)
-    const legacyStored = localStorage.getItem(TOKEN_STORAGE_KEY);
-    if (legacyStored && !legacyStored.startsWith(ENCRYPTED_PREFIX)) {
-      try {
-        const data = JSON.parse(legacyStored) as StoredTokenData;
-        if (data.accessToken) {
-          cachedAccessToken = data.accessToken;
-          cachedExpiresAt = data.expiresAt ?? null;
-          cachedRefreshToken = data.refreshToken ?? null;
-          cachedScope = data.scope ?? null;
-          cachedWalletAddress = walletAddress ?? null;
-          return data;
-        }
-      } catch {
-        // Not valid JSON
-      }
-    }
-
-    // 3. Fall back to sessionStorage
-    const sessionStored = sessionStorage.getItem(TOKEN_STORAGE_KEY);
-    if (sessionStored) {
-      try {
-        const data = JSON.parse(sessionStored) as StoredTokenData;
-        if (!data.accessToken) return null;
-        cachedAccessToken = data.accessToken;
-        cachedExpiresAt = data.expiresAt ?? null;
-        cachedRefreshToken = data.refreshToken ?? null;
-        cachedScope = data.scope ?? null;
-        cachedWalletAddress = walletAddress ?? null;
-        return data;
-      } catch {
-        // Not valid JSON
-      }
+    // 2. Plain text rows. The wallet-scoped key comes first, then the legacy
+    //    unscoped key that older builds wrote. A row with a wallet field is
+    //    accepted only for that wallet.
+    const plaintext = readPlaintextToken<StoredTokenData>(
+      getTokenStorageKey(walletAddress),
+      TOKEN_STORAGE_KEY,
+      walletAddress
+    );
+    if (plaintext) {
+      cachedAccessToken = plaintext.accessToken;
+      cachedExpiresAt = plaintext.expiresAt ?? null;
+      cachedRefreshToken = plaintext.refreshToken ?? null;
+      cachedScope = plaintext.scope ?? null;
+      cachedWalletAddress = walletAddress ?? null;
+      return plaintext;
     }
 
     return null;
@@ -180,12 +163,11 @@ async function getStoredTokenData(walletAddress?: string): Promise<StoredTokenDa
 }
 
 /**
- * Store token data using dual-write strategy.
- * Always writes to sessionStorage so the token survives even if the
- * encryption key isn't available yet (e.g. right after OAuth redirect).
- * Additionally encrypts to localStorage when the key is ready.
- * migrateGithubToken will clean up the sessionStorage copy once
- * the encrypted localStorage copy is confirmed.
+ * Store token data for one wallet.
+ * When the encryption key is ready, write the encrypted row to this wallet's
+ * key in localStorage and drop the plain text row under the same key.
+ * Otherwise write one plain text row to sessionStorage, so the token survives
+ * the OAuth redirect before the key exists.
  */
 async function storeTokenData(data: StoredTokenData, walletAddress?: string): Promise<void> {
   if (typeof window === "undefined") return;
@@ -199,19 +181,25 @@ async function storeTokenData(data: StoredTokenData, walletAddress?: string): Pr
 
   const json = JSON.stringify(data);
 
-  // Always write to sessionStorage as a safety net
-  sessionStorage.setItem(TOKEN_STORAGE_KEY, json);
-
-  // Additionally encrypt to localStorage when possible
+  // Encrypt to the wallet-scoped key in localStorage when the key is ready
   if (walletAddress && hasEncryptionKey(walletAddress)) {
     try {
       const cryptoKey = await getEncryptionKey(walletAddress);
       const encrypted = await encryptDataWithKey(json, cryptoKey);
       localStorage.setItem(getTokenStorageKey(walletAddress), `${ENCRYPTED_PREFIX}${encrypted}`);
+      // The encrypted row is now the only row for this key, so a read cannot
+      // fall back to an older plain text value.
+      sessionStorage.removeItem(getTokenStorageKey(walletAddress));
+      return;
     } catch (error) {
       getLogger().warn("Failed to encrypt GitHub OAuth token:", error);
     }
   }
+
+  // Fallback: write one plain text row under this wallet's key. The row keeps
+  // its owner, so a read for another wallet cannot pick it up.
+  const record: PlaintextTokenRecord<StoredTokenData> = { wallet: walletAddress, token: data };
+  sessionStorage.setItem(getTokenStorageKey(walletAddress), JSON.stringify(record));
 }
 
 /**
@@ -231,6 +219,7 @@ export function clearGithubToken(walletAddress?: string): void {
     localStorage.removeItem(TOKEN_STORAGE_KEY);
   }
   sessionStorage.removeItem(TOKEN_STORAGE_KEY);
+  sessionStorage.removeItem(getTokenStorageKey(walletAddress));
 }
 
 /**
@@ -584,35 +573,49 @@ export async function migrateGithubToken(walletAddress: string): Promise<boolean
   if (!walletAddress || !hasEncryptionKey(walletAddress)) return false;
 
   try {
-    // Check for unencrypted token in sessionStorage
-    const sessionStored = sessionStorage.getItem(TOKEN_STORAGE_KEY);
-    // Also check legacy unencrypted localStorage
-    const legacyStored = localStorage.getItem(TOKEN_STORAGE_KEY);
-    const isLegacyUnencrypted = legacyStored && !legacyStored.startsWith(ENCRYPTED_PREFIX);
-
-    const unencryptedJson = sessionStored || (isLegacyUnencrypted ? legacyStored : null);
-    if (!unencryptedJson) return false;
-
-    // If already have encrypted version, just clean up
     const scopedKey = getTokenStorageKey(walletAddress);
+    // Plain text sources in read order. Each entry names the storage that
+    // holds the row, so the cleanup can drop exactly the row this call used.
+    const sources: { key: string; store: Storage }[] = [
+      { key: scopedKey, store: sessionStorage },
+      // A read moves a legacy localStorage row here as plain text.
+      { key: scopedKey, store: localStorage },
+      { key: TOKEN_STORAGE_KEY, store: sessionStorage },
+      { key: TOKEN_STORAGE_KEY, store: localStorage },
+    ];
+    let used: { key: string; store: Storage } | null = null;
+    let unencryptedJson = "";
+    for (const source of sources) {
+      const value = source.store.getItem(source.key);
+      if (value && !value.startsWith(ENCRYPTED_PREFIX)) {
+        unencryptedJson = value;
+        used = source;
+        break;
+      }
+    }
+    if (!used) return false;
+
+    // If this wallet already has an encrypted row, only the used row is stale.
     const existingEncrypted = localStorage.getItem(scopedKey);
     if (existingEncrypted?.startsWith(ENCRYPTED_PREFIX)) {
-      sessionStorage.removeItem(TOKEN_STORAGE_KEY);
-      if (isLegacyUnencrypted) localStorage.removeItem(TOKEN_STORAGE_KEY);
+      used.store.removeItem(used.key);
       return true;
     }
 
     // Parse and re-store encrypted
-    const data = JSON.parse(unencryptedJson) as StoredTokenData;
+    const data = parsePlaintextToken<StoredTokenData>(unencryptedJson, walletAddress);
+    if (!data) return false;
     await storeTokenData(data, walletAddress);
 
     // Verify
     const migrated = localStorage.getItem(scopedKey);
     if (!migrated?.startsWith(ENCRYPTED_PREFIX)) return false;
 
-    // Clean up unencrypted
-    sessionStorage.removeItem(TOKEN_STORAGE_KEY);
-    if (isLegacyUnencrypted) localStorage.removeItem(TOKEN_STORAGE_KEY);
+    // Clean up the row this call used. Rows of other wallets stay in place.
+    // The encrypted write replaced the scoped localStorage row, so keep it.
+    if (used.store !== localStorage || used.key !== scopedKey) {
+      used.store.removeItem(used.key);
+    }
     return true;
   } catch {
     return false;
