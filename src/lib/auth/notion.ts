@@ -32,6 +32,7 @@ import {
   hasEncryptionKey,
 } from "../../react/useEncryption";
 import { getLogger } from "../logger";
+import { parsePlaintextToken, type PlaintextTokenRecord, readPlaintextToken } from "./tokenRows";
 
 // Storage keys
 const TOKEN_STORAGE_KEY = "oauth_token_notion";
@@ -47,6 +48,7 @@ function getTokenStorageKey(walletAddress?: string): string {
   }
   return TOKEN_STORAGE_KEY;
 }
+
 const PKCE_STORAGE_KEY = "notion_oauth_pkce";
 const RETURN_URL_KEY = "notion_return_url";
 const PENDING_MESSAGE_KEY = "notion_pending_message";
@@ -367,6 +369,10 @@ function getAndClearPKCEState(): PKCEState | null {
 /**
  * Store token data with encryption using wallet-derived CryptoKey
  *
+ * When the key is ready, this writes the encrypted row to localStorage and
+ * drops the plain text row under the same key. Otherwise it writes one plain
+ * text row to sessionStorage.
+ *
  * @param data - Token data to store
  * @param walletAddress - Wallet address to get the encryption key
  */
@@ -383,18 +389,23 @@ async function storeTokenData(data: StoredTokenData, walletAddress?: string): Pr
       // Encrypt using the CryptoKey
       const encrypted = await encryptDataWithKey(json, cryptoKey);
       localStorage.setItem(getTokenStorageKey(walletAddress), `${ENCRYPTED_PREFIX}${encrypted}`);
+      // The encrypted row is now the only row for this key, so a read cannot
+      // fall back to an older plain text value.
+      sessionStorage.removeItem(getTokenStorageKey(walletAddress));
       return;
     } catch {
       // Encryption failed, fall through to sessionStorage
     }
   }
 
-  // Fallback: store in sessionStorage (cleared on page close)
+  // Fallback: write one plain text row under this wallet's key. The row keeps
+  // its owner, so a read for another wallet cannot pick it up.
   // This happens when:
-  // - No wallet address provided
+  // - No wallet address provided (then the key is the unscoped one)
   // - Encryption key not available yet
   // - Encryption failed
-  sessionStorage.setItem(TOKEN_STORAGE_KEY, json);
+  const record: PlaintextTokenRecord<StoredTokenData> = { wallet: walletAddress, token: data };
+  sessionStorage.setItem(getTokenStorageKey(walletAddress), JSON.stringify(record));
 }
 
 /**
@@ -441,13 +452,14 @@ async function getStoredTokenData(walletAddress?: string): Promise<StoredTokenDa
       // No wallet, key not ready, or decryption failed — fall through to sessionStorage
     }
 
-    // Check unencrypted storage (sessionStorage fallback)
-    const sessionStored = sessionStorage.getItem(TOKEN_STORAGE_KEY);
-    if (sessionStored) {
-      const data = JSON.parse(sessionStored) as StoredTokenData;
-      if (!data.accessToken) return null;
-      return data;
-    }
+    // Check the plain text row: the wallet-scoped key first, then the legacy
+    // unscoped key. A row with a wallet field is accepted only for that wallet.
+    const plaintext = readPlaintextToken<StoredTokenData>(
+      getTokenStorageKey(walletAddress),
+      TOKEN_STORAGE_KEY,
+      walletAddress
+    );
+    if (plaintext) return plaintext;
 
     return null;
   } catch {
@@ -462,6 +474,7 @@ export function clearNotionToken(walletAddress?: string): void {
   if (typeof window === "undefined") return;
   localStorage.removeItem(getTokenStorageKey(walletAddress));
   sessionStorage.removeItem(TOKEN_STORAGE_KEY);
+  sessionStorage.removeItem(getTokenStorageKey(walletAddress));
   cachedAccessToken = null;
   cachedExpiresAt = null;
   cachedWalletAddress = null;
@@ -487,20 +500,35 @@ export async function migrateNotionToken(walletAddress: string): Promise<boolean
   if (!walletAddress || !hasEncryptionKey(walletAddress)) return false;
 
   try {
-    // Check for unencrypted token in sessionStorage
-    const sessionStored = sessionStorage.getItem(TOKEN_STORAGE_KEY);
-    if (!sessionStored) return false;
+    const scopedKey = getTokenStorageKey(walletAddress);
+    // Plain text sources in read order. Each entry names the storage that
+    // holds the row, so the cleanup can drop exactly the row this call used.
+    const sources: { key: string; store: Storage }[] = [
+      { key: scopedKey, store: sessionStorage },
+      { key: TOKEN_STORAGE_KEY, store: sessionStorage },
+    ];
+    let used: { key: string; store: Storage } | null = null;
+    let unencryptedJson = "";
+    for (const source of sources) {
+      const value = source.store.getItem(source.key);
+      if (value && !value.startsWith(ENCRYPTED_PREFIX)) {
+        unencryptedJson = value;
+        used = source;
+        break;
+      }
+    }
+    if (!used) return false;
 
     // If localStorage has a stale encrypted token, remove it so the fresh
     // sessionStorage token takes precedence during migration.
-    const scopedKey = getTokenStorageKey(walletAddress);
     const localStored = localStorage.getItem(scopedKey);
     if (localStored?.startsWith(ENCRYPTED_PREFIX)) {
       localStorage.removeItem(scopedKey);
     }
 
     // Migrate: encrypt and move to localStorage
-    const data = JSON.parse(sessionStored) as StoredTokenData;
+    const data = parsePlaintextToken<StoredTokenData>(unencryptedJson, walletAddress);
+    if (!data) return false;
     await storeTokenData(data, walletAddress);
 
     // Verify encryption succeeded (token landed in localStorage, not sessionStorage fallback)
@@ -509,8 +537,8 @@ export async function migrateNotionToken(walletAddress: string): Promise<boolean
       return false;
     }
 
-    // Clear unencrypted version only after confirmed migration
-    sessionStorage.removeItem(TOKEN_STORAGE_KEY);
+    // Clear the row this call used. Rows of other wallets stay in place.
+    used.store.removeItem(used.key);
 
     return true;
   } catch {
