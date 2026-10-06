@@ -284,6 +284,7 @@ export {
   type StoredFileWithContext,
   type StoredMessage,
   type StoredMessageWithSimilarity,
+  stripLegacyChunkTextOp,
   updateConversationProjectOp,
   updateMessageFeedbackOp,
 } from "../lib/db/chat";

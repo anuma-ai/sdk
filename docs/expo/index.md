@@ -1900,6 +1900,12 @@ Re-exports [StreamSmoothingConfig](../react/Internal/type-aliases/StreamSmoothin
 
 ***
 
+### stripLegacyChunkTextOp
+
+Re-exports [stripLegacyChunkTextOp](../react/Internal/functions/stripLegacyChunkTextOp.md)
+
+***
+
 ### summarizeObservationTrends
 
 Re-exports [summarizeObservationTrends](../react/Internal/functions/summarizeObservationTrends.md)
