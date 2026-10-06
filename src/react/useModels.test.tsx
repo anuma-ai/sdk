@@ -242,4 +242,102 @@ describe("useModels session cache", () => {
     await waitFor(() => expect(second.result.current.models).toHaveLength(1));
     expect(mockedGet).toHaveBeenCalledTimes(2);
   });
+
+  /** A request that ends only when the caller aborts it, or when the test releases it. */
+  function pendingUntilReleased() {
+    const signals: AbortSignal[] = [];
+    const releases: Array<(v: unknown) => void> = [];
+    mockedGet.mockImplementationOnce(((opts: { signal: AbortSignal }) => {
+      signals.push(opts.signal);
+      return new Promise((resolve, reject) => {
+        releases.push(resolve);
+        opts.signal.addEventListener("abort", () =>
+          reject(new DOMException("The operation was aborted.", "AbortError"))
+        );
+      });
+    }) as never);
+    return { signals, releases };
+  }
+
+  it("does not put an old list back in the cache after clearModelsCache", async () => {
+    const first = pendingUntilReleased();
+    const a = renderHook(() => useModels());
+    await waitFor(() => expect(mockedGet).toHaveBeenCalledTimes(1));
+
+    // The caller clears the cache while the request is still in progress.
+    clearModelsCache();
+    await act(async () => first.releases[0](ok({ data: [model("old")] })));
+    await waitFor(() => expect(a.result.current.isLoading).toBe(false));
+    a.unmount();
+
+    mockedGet.mockResolvedValue(ok({ data: [model("new")] }) as never);
+    const b = renderHook(() => useModels());
+    await waitFor(() => expect(b.result.current.models).toEqual([model("new")]));
+
+    expect(mockedGet).toHaveBeenCalledTimes(2);
+  });
+
+  it("lets a refetch replace a request that does not end", async () => {
+    const stalled = pendingUntilReleased();
+    const hook = renderHook(() => useModels());
+    await waitFor(() => expect(mockedGet).toHaveBeenCalledTimes(1));
+
+    mockedGet.mockResolvedValue(ok({ data: [model("fresh")] }) as never);
+    await act(async () => {
+      await hook.result.current.refetch();
+    });
+
+    expect(hook.result.current.models).toEqual([model("fresh")]);
+    expect(hook.result.current.isLoading).toBe(false);
+    expect(mockedGet).toHaveBeenCalledTimes(2);
+    // The hook left the request that it replaced, so that request stopped.
+    expect(stalled.signals[0].aborted).toBe(true);
+  });
+
+  it("lets a refetch in one hook replace a request that another hook waits for", async () => {
+    const stalled = pendingUntilReleased();
+    const a = renderHook(() => useModels());
+    await waitFor(() => expect(mockedGet).toHaveBeenCalledTimes(1));
+
+    mockedGet.mockResolvedValue(ok({ data: [model("fresh")] }) as never);
+    const b = renderHook(() => useModels({ autoFetch: false }));
+    await act(async () => {
+      await b.result.current.refetch();
+    });
+
+    expect(b.result.current.models).toEqual([model("fresh")]);
+    expect(mockedGet).toHaveBeenCalledTimes(2);
+    // The first hook still waits for its own request, so that request keeps running.
+    expect(stalled.signals[0].aborted).toBe(false);
+
+    a.unmount();
+    expect(stalled.signals[0].aborted).toBe(true);
+  });
+
+  it("stops the shared request only when the last waiting hook leaves", async () => {
+    const shared = pendingUntilReleased();
+    const a = renderHook(() => useModels());
+    const b = renderHook(() => useModels());
+    await waitFor(() => expect(mockedGet).toHaveBeenCalledTimes(1));
+    const signal = shared.signals[0];
+
+    a.unmount();
+    expect(signal.aborted).toBe(false);
+
+    b.unmount();
+    expect(signal.aborted).toBe(true);
+  });
+
+  it("does not cache a request that stopped, and the next mount requests again", async () => {
+    pendingUntilReleased();
+    const a = renderHook(() => useModels());
+    await waitFor(() => expect(mockedGet).toHaveBeenCalledTimes(1));
+    a.unmount();
+
+    mockedGet.mockResolvedValue(ok({ data: [model("a")] }) as never);
+    const b = renderHook(() => useModels());
+    await waitFor(() => expect(b.result.current.models).toEqual([model("a")]));
+
+    expect(mockedGet).toHaveBeenCalledTimes(2);
+  });
 });

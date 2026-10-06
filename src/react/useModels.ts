@@ -21,10 +21,19 @@ type ModelsCacheEntry = {
 
 const modelsCache = new Map<string, ModelsCacheEntry>();
 
-const modelsInFlight = new Map<string, Promise<LlmapiModel[]>>();
+type SharedRequest = {
+  promise: Promise<LlmapiModel[]>;
+  controller: AbortController;
+  waiters: number;
+};
+
+const modelsInFlight = new Map<string, SharedRequest>();
+
+let cacheGeneration = 0;
 
 /** Clear all cached model lists. */
 export function clearModelsCache(): void {
+  cacheGeneration++;
   modelsCache.clear();
   modelsInFlight.clear();
 }
@@ -51,7 +60,8 @@ async function fetchAllModelPages(
   baseUrl: string,
   provider: string | undefined,
   headers: Record<string, string>,
-  previous: ModelsCacheEntry | undefined
+  previous: ModelsCacheEntry | undefined,
+  signal: AbortSignal
 ): Promise<ModelsCacheEntry> {
   const pages = new Map<string, CachedModelsPage>();
   const models: LlmapiModel[] = [];
@@ -66,6 +76,7 @@ async function fetchAllModelPages(
         baseUrl,
         headers: etag ? { ...headers, "If-None-Match": etag } : headers,
         query: { provider, page_token: pageToken },
+        signal,
       });
 
     let response = await request(stored?.etag);
@@ -101,26 +112,74 @@ function loadModels(
   baseUrl: string,
   provider: string | undefined,
   headers: Record<string, string>,
-  force: boolean
+  force: boolean,
+  signal: AbortSignal
 ): Promise<LlmapiModel[]> {
   const cached = modelsCache.get(key);
   if (cached && !force && Date.now() - cached.fetchedAt < MODELS_CACHE_TTL_MS) {
     return Promise.resolve(cached.models);
   }
 
-  const pending = modelsInFlight.get(key);
-  if (pending) return pending;
+  const shared =
+    (force ? undefined : modelsInFlight.get(key)) ??
+    startSharedRequest(key, baseUrl, provider, headers, cached);
+  return waitForSharedRequest(key, shared, signal);
+}
 
-  const request = fetchAllModelPages(baseUrl, provider, headers, cached)
+function startSharedRequest(
+  key: string,
+  baseUrl: string,
+  provider: string | undefined,
+  headers: Record<string, string>,
+  previous: ModelsCacheEntry | undefined
+): SharedRequest {
+  const controller = new AbortController();
+  const generation = cacheGeneration;
+  const shared: SharedRequest = {
+    controller,
+    waiters: 0,
+    promise: Promise.resolve([]),
+  };
+  shared.promise = fetchAllModelPages(baseUrl, provider, headers, previous, controller.signal)
     .then((entry) => {
-      modelsCache.set(key, entry);
+      if (modelsInFlight.get(key) === shared && generation === cacheGeneration) {
+        modelsCache.set(key, entry);
+      }
       return entry.models;
     })
     .finally(() => {
-      if (modelsInFlight.get(key) === request) modelsInFlight.delete(key);
+      if (modelsInFlight.get(key) === shared) modelsInFlight.delete(key);
     });
-  modelsInFlight.set(key, request);
-  return request;
+  modelsInFlight.set(key, shared);
+  return shared;
+}
+
+function waitForSharedRequest(
+  key: string,
+  shared: SharedRequest,
+  signal: AbortSignal
+): Promise<LlmapiModel[]> {
+  shared.waiters++;
+  let left = false;
+  const leave = () => {
+    if (left) return;
+    left = true;
+    shared.waiters--;
+    if (shared.waiters === 0) {
+      shared.controller.abort();
+      if (modelsInFlight.get(key) === shared) modelsInFlight.delete(key);
+    }
+  };
+
+  if (signal.aborted) {
+    leave();
+  } else {
+    signal.addEventListener("abort", leave, { once: true });
+  }
+  return shared.promise.finally(() => {
+    left = true;
+    signal.removeEventListener("abort", leave);
+  });
 }
 
 /**
@@ -212,7 +271,7 @@ export function useModels(options: UseModelsOptions = {}): UseModelsResult {
       const baseUrl = baseUrlRef.current;
       const provider = providerRef.current;
       const key = modelsCacheKey(baseUrl, provider, token);
-      const allModels = await loadModels(key, baseUrl, provider, headers, force);
+      const allModels = await loadModels(key, baseUrl, provider, headers, force, signal);
 
       if (signal.aborted) return;
 
