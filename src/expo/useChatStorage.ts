@@ -1370,6 +1370,9 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     handle: StreamResumeHandle | null;
     convId: string;
     userMessageUniqueId: string;
+    // Queue id of the user message when its write was queued. The queued
+    // stopped row depends on it.
+    userMessageQueueId?: string;
     assistantUniqueId?: string;
     model?: string;
     imageModel?: string;
@@ -1392,6 +1395,8 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
   const activeResumeRef = useRef<{
     context: NonNullable<typeof pendingResumeRef.current>;
     headless: boolean;
+    // Resolves when this resume settles.
+    settled: Promise<void>;
   } | null>(null);
   const retirementRef = useRef<Promise<string | null> | null>(null);
   const retirementStopRequestedRef = useRef(false);
@@ -1734,7 +1739,9 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       ctx: NonNullable<typeof pendingResumeRef.current>,
       data: ApiResponse,
       wasStopped: boolean,
-      responseDuration: number
+      responseDuration: number,
+      // Retirement writes through the queue so a missing key does not block the next send.
+      viaQueue = false
     ): Promise<StoredMessage> => {
       const { content, thinking } = extractAssistantText(data);
 
@@ -1802,7 +1809,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         ...toolEventSources.filter((s) => !s.url || !seenSourceUrls.has(s.url)),
       ].filter((source) => !source.url?.includes(MCP_R2_DOMAIN));
 
-      return upsertMessageOp(storageCtx, {
+      const rowOpts: CreateMessageOptions & { uniqueId: string } = {
         conversationId: ctx.convId,
         role: "assistant",
         content,
@@ -1820,15 +1827,31 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
             ? currentTurnToolCallEvents
             : undefined,
         uniqueId: ctx.assistantUniqueId!,
-      });
+      };
+      if (!viaQueue) return upsertMessageOp(storageCtx, rowOpts);
+      const { result } = await writeOrQueue(
+        "createMessage",
+        rowOpts,
+        () => upsertMessageOp(storageCtx, rowOpts),
+        () => makeSyntheticStoredMessage(rowOpts),
+        ctx.userMessageQueueId ? [ctx.userMessageQueueId] : []
+      );
+      return result;
     },
-    [storageCtx, getMessages]
+    [storageCtx, getMessages, writeOrQueue]
   );
 
   /** Save an idle detached turn before a new send uses the shared stream state. */
   const retirePendingTurn = useCallback(async (): Promise<string | null> => {
     // Every new send waits for the same write. The claimed context leaves the
     // shared slot before the first await, so a resume cannot adopt it mid-write.
+    // A visible resume yields to the new send. Stop aborts the replay. The
+    // replay then saves its own stopped row before this send continues.
+    const visible = activeResumeRef.current;
+    if (visible && !visible.headless) {
+      baseStop();
+      await visible.settled;
+    }
     if (retirementRef.current) return retirementRef.current;
     const active = activeResumeRef.current;
     if (active && !active.headless) return "Resume already in progress";
@@ -1852,7 +1875,22 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         if (data && pending.assistantUniqueId) {
           const { content, thinking } = extractAssistantText(data);
           if (content || thinking || (getToolCallEvents(data)?.length ?? 0) > 0) {
-            await finalizeResumedRow(pending, data, true, (Date.now() - pending.startTime) / 1000);
+            // Try to recover the wallet key first. If it stays unavailable,
+            // the row goes through the write queue.
+            if (walletAddress && signMessage && !hasEncryptionKey(walletAddress)) {
+              try {
+                await requestEncryptionKey(walletAddress, signMessage, embeddedWalletSigner);
+              } catch {
+                // Key derivation failed. writeOrQueue queues the row.
+              }
+            }
+            await finalizeResumedRow(
+              pending,
+              data,
+              true,
+              (Date.now() - pending.startTime) / 1000,
+              true
+            );
           }
         }
         // Commit first. A failed write keeps the buffer available for retry.
@@ -1879,7 +1917,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         retirementStopRequestedRef.current = false;
       }
     }
-  }, [baseCancel, finalizeResumedRow]);
+  }, [baseCancel, baseStop, finalizeResumedRow, walletAddress, signMessage, embeddedWalletSigner]);
 
   /**
    * Send a message with automatic storage
@@ -1945,7 +1983,12 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       // Save the detached partial before history, user storage, or network work.
       // A failed write leaves the old turn available and prevents the new send.
       const retirementError = await retirePendingTurn();
-      if (retirementError) return { data: null, error: retirementError };
+      if (retirementError) {
+        // skipStorage writes nothing, so a storage failure must not block it.
+        // The detached partial stays available for a later retry.
+        if (!skipStorage) return { data: null, error: retirementError };
+        getLogger().warn("[useChatStorage] detached partial not saved:", retirementError);
+      }
 
       // When resumable, the assistant row MUST have a stable id before the
       // stream starts so a detach and the later resume reconcile onto the SAME
@@ -2813,6 +2856,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           handle: detachedResult.resume ?? null,
           convId,
           userMessageUniqueId: storedUserMessage.uniqueId,
+          userMessageQueueId: userMsgQueueId,
           assistantUniqueId: rowId,
           model,
           imageModel,
@@ -3308,7 +3352,11 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       };
 
       isResumingRef.current = true;
-      const activeResume = { context: rctx, headless: opts?.headless === true };
+      let markSettled: () => void = () => {};
+      const settled = new Promise<void>((resolve) => {
+        markSettled = resolve;
+      });
+      const activeResume = { context: rctx, headless: opts?.headless === true, settled };
       activeResumeRef.current = activeResume;
       try {
         // baseResumeStream fetches a fresh token internally (at invocation time).
@@ -3446,6 +3494,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       } finally {
         isResumingRef.current = false;
         if (activeResumeRef.current === activeResume) activeResumeRef.current = null;
+        markSettled();
       }
     },
     [baseResumeStream, currentConversationId, finalizeResumedRow, embedMessageAsync]

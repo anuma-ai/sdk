@@ -1600,19 +1600,19 @@ describe("useChatStorage detach → resume reconciliation", () => {
           clearAllEncryptionKeys();
           expect(hasEncryptionKey(address)).toBe(false);
           completedSend();
+          completedSend();
           if (failKey) {
+            // A true key failure queues the stopped row. The send is not blocked.
             signMessage.mockRejectedValue(new Error("wallet key unavailable"));
             await act(async () => {
-              expect(await result.current.sendMessage(nextArgs())).toMatchObject({
-                data: null,
-                error: "wallet key unavailable",
-              });
+              expect((await result.current.sendMessage(nextArgs())).error).toBeNull();
             });
-            expect(mockRunToolLoop).toHaveBeenCalledTimes(1);
-            expect(fetchSpy).not.toHaveBeenCalled();
+            expect(mockRunToolLoop).toHaveBeenCalledTimes(2);
             expect(await db.get("history").query().fetch()).toHaveLength(1);
-            expect(result.current.queueStatus.pending).toBe(0);
-            signMessage.mockResolvedValue(signature);
+            // Stopped row, new user message, new assistant message.
+            expect(result.current.queueStatus.pending).toBe(3);
+            act(() => result.current.clearQueue());
+            return;
           }
           await act(async () => {
             expect((await result.current.sendMessage(nextArgs())).error).toBeNull();
@@ -1860,7 +1860,7 @@ describe("useChatStorage detach → resume reconciliation", () => {
       await waitFor(() => expect(cancelCalls("inf-shared")).toHaveLength(1));
     });
 
-    it("rejects a new send while the same turn resumes, then preserves its complete row", async () => {
+    it("a new send cancels a visible resume, waits for its stopped row, then continues", async () => {
       const { result } = renderHook(() =>
         useChatStorage({
           database: db,
@@ -1872,37 +1872,101 @@ describe("useChatStorage detach → resume reconciliation", () => {
       );
       const detached = await detachSend(result, "conv_active", "old partial", "inf-active");
       const entered = deferred<void>();
-      const release = deferred<void>();
-      mockResumeStream.mockImplementationOnce(async () => {
+      mockResumeStream.mockImplementationOnce((async (...args: unknown[]) => {
+        const signal = (args[0] as { signal?: AbortSignal }).signal;
         entered.resolve();
-        await release.promise;
+        await new Promise<void>((done) => {
+          if (signal?.aborted) done();
+          signal?.addEventListener("abort", () => done());
+        });
         return {
-          data: responsesShape("complete old answer"),
-          error: null,
-          interrupted: false,
-        } as never;
-      });
+          data: responsesShape("old partial and more"),
+          error: "aborted",
+          interrupted: true,
+        };
+      }) as never);
       completedSend();
+      let next!: Awaited<ReturnType<typeof result.current.sendMessage>>;
       await act(async () => {
         const resume = result.current.resumeStream();
         await entered.promise;
-        try {
-          const next = await result.current.sendMessage(nextArgs());
-          expect(next).toMatchObject({ data: null, error: "Resume already in progress" });
-          expect(mockRunToolLoop).toHaveBeenCalledTimes(1);
-        } finally {
-          release.resolve();
-          await resume;
-        }
+        next = await result.current.sendMessage(nextArgs());
+        await resume;
       });
-      await act(async () => {
-        await result.current.sendMessage(nextArgs());
-      });
+      expect(next.error).toBeNull();
+      expect(mockRunToolLoop).toHaveBeenCalledTimes(2);
       const rows = await getMessagesOp(makeCtx(db), "conv_active");
+      expect(rows.map((row) => row.content)).toEqual([
+        "question",
+        "old partial and more",
+        "new question",
+        "fresh answer",
+      ]);
       expect(rows.filter((row) => row.uniqueId === detached.assistantUniqueId)).toHaveLength(1);
-      expect(rows[1].content).toBe("complete old answer");
-      expect(rows[1].wasStopped).toBeFalsy();
-      expect(cancelCalls("inf-active")).toHaveLength(0);
+      expect(rows[1].wasStopped).toBe(true);
+    });
+
+    it("queues the stopped row behind a queued user message when the key is unavailable", async () => {
+      const address = "0x3234567890123456789012345678901234567890";
+      const signMessage = vi.fn(async (): Promise<string> => {
+        throw new Error("wallet key unavailable");
+      });
+      clearAllEncryptionKeys();
+      try {
+        await createConversationOp(makeCtx(db), { conversationId: "conv_queue_dep" });
+        const { result } = renderHook(() =>
+          useChatStorage({
+            database: db,
+            conversationId: "conv_queue_dep",
+            getToken: async () => "tok",
+            walletAddress: address,
+            signMessage,
+            enableQueue: true,
+            autoFlushOnKeyAvailable: false,
+            resumable: true,
+            autoEmbedMessages: false,
+          })
+        );
+        await detachSend(result, "conv_queue_dep", "queued partial", "inf-queue-dep");
+        expect(result.current.queueStatus.pending).toBe(1);
+        completedSend();
+        await act(async () => {
+          expect((await result.current.sendMessage(nextArgs())).error).toBeNull();
+        });
+        // User message, stopped row, next user message, next assistant message.
+        expect(result.current.queueStatus.pending).toBe(4);
+        expect(await db.get("history").query().fetch()).toHaveLength(0);
+        await waitFor(() => expect(cancelCalls("inf-queue-dep")).toHaveLength(1));
+        act(() => result.current.clearQueue());
+      } finally {
+        clearAllEncryptionKeys();
+      }
+    });
+
+    it("lets a skipStorage send proceed when the stopped row cannot be saved", async () => {
+      const { result } = renderHook(() =>
+        useChatStorage({
+          database: db,
+          conversationId: "conv_skip_storage_fail",
+          getToken: async () => "tok",
+          resumable: true,
+          autoEmbedMessages: false,
+        })
+      );
+      await detachSend(result, "conv_skip_storage_fail", "kept partial", "inf-skip-fail");
+      vi.spyOn(db, "write").mockRejectedValue(new Error("writer unavailable"));
+      completedSend();
+      await act(async () => {
+        expect((await result.current.sendMessage({ ...nextArgs(), skipStorage: true })).error).toBe(
+          null
+        );
+      });
+      expect(mockRunToolLoop).toHaveBeenCalledTimes(2);
+      // A stored send is still blocked, and the partial is still kept.
+      await act(async () => {
+        expect((await result.current.sendMessage(nextArgs())).error).toBe("writer unavailable");
+      });
+      expect(mockRunToolLoop).toHaveBeenCalledTimes(2);
     });
 
     it.each([null, responsesShape("")])(
