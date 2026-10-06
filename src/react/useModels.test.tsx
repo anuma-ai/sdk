@@ -340,4 +340,39 @@ describe("useModels session cache", () => {
 
     expect(mockedGet).toHaveBeenCalledTimes(2);
   });
+
+  it("returns a copy so in-place mutations do not pollute the cache", async () => {
+    mockedGet.mockResolvedValue(ok({ data: [model("a"), model("b")] }) as never);
+
+    const first = renderHook(() => useModels());
+    await waitFor(() => expect(first.result.current.models).toHaveLength(2));
+
+    // Mutate the returned array in place — sort and splice are common in pickers.
+    first.result.current.models.sort(() => 0);
+    first.result.current.models.push(model("c"));
+
+    first.unmount();
+
+    const second = renderHook(() => useModels());
+    await waitFor(() => expect(second.result.current.models).toHaveLength(2));
+    expect(second.result.current.models).toEqual([model("a"), model("b")]);
+  });
+
+  it("evicts the old token's cache entry when a new token is used", async () => {
+    mockedGet.mockResolvedValue(ok({ data: [model("a")] }) as never);
+
+    const first = renderHook(() => useModels({ getToken: async () => "token-a" }));
+    await waitFor(() => expect(first.result.current.models).toHaveLength(1));
+    first.unmount();
+
+    const second = renderHook(() => useModels({ getToken: async () => "token-b" }));
+    await waitFor(() => expect(second.result.current.models).toHaveLength(1));
+    second.unmount();
+
+    // token-a's entry was evicted when token-b's entry was written, so this is a cache miss.
+    const third = renderHook(() => useModels({ getToken: async () => "token-a" }));
+    await waitFor(() => expect(third.result.current.models).toHaveLength(1));
+
+    expect(mockedGet).toHaveBeenCalledTimes(3);
+  });
 });

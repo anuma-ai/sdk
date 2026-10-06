@@ -57,6 +57,18 @@ export function clearModelsCache(): void {
   modelsInFlight.clear();
 }
 
+/** Drop cached entries for a different token fingerprint on the same base URL and provider. */
+function pruneStaleTokenEntries(newKey: string): void {
+  const [newBaseUrl, newProvider] = JSON.parse(newKey) as [string, string | null, string];
+  for (const existingKey of modelsCache.keys()) {
+    if (existingKey === newKey) continue;
+    const [existingBaseUrl, existingProvider] = JSON.parse(existingKey) as [string, string | null, string];
+    if (existingBaseUrl === newBaseUrl && existingProvider === newProvider) {
+      modelsCache.delete(existingKey);
+    }
+  }
+}
+
 /** Make a short, non-reversible fingerprint of the token (cyrb53 hash). */
 function fingerprintToken(token: string | undefined): string {
   if (!token) return "anon";
@@ -152,13 +164,13 @@ function loadModels(
 ): Promise<LlmapiModel[]> {
   const cached = modelsCache.get(key);
   if (cached && !force && Date.now() - cached.fetchedAt < MODELS_CACHE_TTL_MS) {
-    return Promise.resolve(cached.models);
+    return Promise.resolve([...cached.models]);
   }
 
   const shared =
     (force ? undefined : modelsInFlight.get(key)) ??
     startSharedRequest(key, baseUrl, provider, headers, cached);
-  return waitForSharedRequest(key, shared, signal);
+  return waitForSharedRequest(key, shared, signal).then((models) => [...models]);
 }
 
 function startSharedRequest(
@@ -180,6 +192,7 @@ function startSharedRequest(
       // Only the newest request for the key may write to the cache, and only if no clear ran since
       // it started.
       if (modelsInFlight.get(key) === shared && generation === cacheGeneration) {
+        pruneStaleTokenEntries(key);
         modelsCache.set(key, entry);
       }
       return entry.models;
