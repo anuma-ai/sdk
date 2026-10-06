@@ -13,7 +13,7 @@ import {
   DEFAULT_BACKUP_FOLDER,
   downloadDropboxFile,
   type DropboxFile,
-  findDropboxFile,
+  getDropboxFileMetadata,
   listDropboxFiles,
   uploadFileToDropbox,
 } from "./api";
@@ -52,11 +52,77 @@ export interface DropboxImportResult {
   noBackupsFound?: boolean;
 }
 
+/** How many failed listings one run accepts before it stops listing. */
+const MAX_LISTING_FAILURES = 3;
+
+/**
+ * Index of the files in the backup folder, keyed by file name.
+ * One export run lists the folder once and reuses the result for every conversation.
+ */
+interface DropboxFileIndex {
+  get(token: string): Promise<Map<string, DropboxFile>>;
+}
+
+function createDropboxFileIndex(backupFolder: string): DropboxFileIndex {
+  let pending: Promise<Map<string, DropboxFile>> | undefined;
+  let failures = 0;
+
+  return {
+    get(token) {
+      if (!pending) {
+        // After a few failed listings, stop listing for this run. Every other conversation would
+        // list the whole folder again and fail the same way. The error is a new one and not the
+        // original. The message holds no status code, so a repeated auth error does not ask the
+        // user to sign in again for each conversation.
+        if (failures >= MAX_LISTING_FAILURES) {
+          return Promise.reject(
+            new Error("The backup folder listing failed repeatedly; skipped for this run")
+          );
+        }
+        pending = listDropboxFiles(token, backupFolder)
+          .then((files) => {
+            const byName = new Map<string, DropboxFile>();
+            for (const file of files) {
+              // Keep the first file for a name, as a single-result name lookup does.
+              if (!byName.has(file.name)) byName.set(file.name, file);
+            }
+            return byName;
+          })
+          .catch((err: unknown) => {
+            // Do not keep a failed listing. The next conversation lists again,
+            // so each conversation fails or succeeds on its own.
+            pending = undefined;
+            failures++;
+            throw err;
+          });
+      }
+      return pending;
+    },
+  };
+}
+
+/** Read the stored update time of one conversation from the local database now. */
+async function readLocalUpdatedAt(
+  database: Database,
+  conversationId: string
+): Promise<Date | null> {
+  const { Q } = await import("@nozbe/watermelondb");
+  const records = await database
+    .get<Conversation>("conversations")
+    .query(Q.where("conversation_id", conversationId))
+    .fetch();
+  const match = records
+    .map(conversationToStoredRaw)
+    .find((c) => c.conversationId === conversationId);
+  return match ? match.updatedAt : null;
+}
+
 async function pushConversationToDropbox(
   database: Database,
   conversationId: string,
   userAddress: string,
   token: string,
+  fileIndex: DropboxFileIndex,
   deps: DropboxBackupDeps,
   backupFolder: string = DEFAULT_BACKUP_FOLDER,
   _retried: boolean = false
@@ -65,21 +131,31 @@ async function pushConversationToDropbox(
     await deps.requestEncryptionKey(userAddress);
 
     const filename = `${conversationId}.json`;
-    const existingFile = await findDropboxFile(token, filename, backupFolder);
+    const index = await fileIndex.get(token);
+    const existingFile = index.get(filename);
 
-    // Check if we can skip upload based on timestamps
     if (existingFile) {
-      const { Q } = await import("@nozbe/watermelondb");
-      const conversationsCollection = database.get<Conversation>("conversations");
-      const records = await conversationsCollection
-        .query(Q.where("conversation_id", conversationId))
-        .fetch();
+      // Read the update time now. A conversation edited after the run began must still upload.
+      const localUpdatedAt = await readLocalUpdatedAt(database, conversationId);
+      const localUpdated = localUpdatedAt ? localUpdatedAt.getTime() : null;
 
-      if (records.length > 0) {
-        const conversation = conversationToStoredRaw(records[0]);
-        const localUpdated = conversation.updatedAt.getTime();
-        const remoteModified = new Date(existingFile.server_modified).getTime();
-        if (localUpdated <= remoteModified) {
+      // Check if we can skip upload based on timestamps
+      if (
+        localUpdated !== null &&
+        localUpdated <= new Date(existingFile.server_modified).getTime()
+      ) {
+        return "skipped";
+      }
+
+      // Another client can write the file after the run listed the folder. Read the file time
+      // again before the upload overwrites the file, so a newer backup is not lost.
+      const current = await getDropboxFileMetadata(token, filename, backupFolder);
+      if (!current) {
+        // The file is gone. The upload below creates it again.
+        index.delete(filename);
+      } else {
+        index.set(filename, current);
+        if (localUpdated !== null && localUpdated <= new Date(current.server_modified).getTime()) {
           return "skipped";
         }
       }
@@ -91,7 +167,9 @@ async function pushConversationToDropbox(
       return "failed";
     }
 
-    await uploadFileToDropbox(token, filename, exportResult.blob, backupFolder);
+    // Keep the index current. A later row with the same conversation id then sees this upload.
+    const uploaded = await uploadFileToDropbox(token, filename, exportResult.blob, backupFolder);
+    index.set(filename, uploaded);
     return "uploaded";
   } catch (err) {
     if (isAuthError(err) && !_retried) {
@@ -103,6 +181,7 @@ async function pushConversationToDropbox(
           conversationId,
           userAddress,
           newToken,
+          fileIndex,
           deps,
           backupFolder,
           true
@@ -138,6 +217,7 @@ export async function performDropboxExport(
 
   let uploaded = 0;
   let skipped = 0;
+  const fileIndex = createDropboxFileIndex(backupFolder);
 
   for (let i = 0; i < conversations.length; i++) {
     const conv = conversations[i];
@@ -148,6 +228,7 @@ export async function performDropboxExport(
       conv.conversationId,
       userAddress,
       token,
+      fileIndex,
       deps,
       backupFolder
     );

@@ -14,8 +14,9 @@ import {
   DEFAULT_ROOT_FOLDER,
   downloadDriveFile,
   type DriveFile,
-  findDriveFile,
   getBackupFolder,
+  getDriveFileMetadata,
+  listAllDriveFiles,
   listDriveFiles,
   updateDriveFile,
   uploadFileToDrive,
@@ -77,44 +78,108 @@ async function getConversationsFolder(
   }
 }
 
+/** How many failed listings one run accepts before it stops listing. */
+const MAX_LISTING_FAILURES = 3;
+
+/**
+ * Index of the files in the backup folder, keyed by file name.
+ * One export run lists the folder once and reuses the result for every conversation.
+ */
+interface DriveFileIndex {
+  get(token: string): Promise<Map<string, DriveFile>>;
+}
+
+function createDriveFileIndex(folderId: string): DriveFileIndex {
+  let pending: Promise<Map<string, DriveFile>> | undefined;
+  let failures = 0;
+
+  return {
+    get(token) {
+      if (!pending) {
+        // After a few failed listings, stop listing for this run. Every other conversation would
+        // list the whole folder again and fail the same way. The error is a new one and not the
+        // original. The message holds no status code, so a repeated auth error does not ask the
+        // user to sign in again for each conversation.
+        if (failures >= MAX_LISTING_FAILURES) {
+          return Promise.reject(
+            new Error("The backup folder listing failed repeatedly; skipped for this run")
+          );
+        }
+        pending = listAllDriveFiles(token, folderId)
+          .then((files) => {
+            const byName = new Map<string, DriveFile>();
+            for (const file of files) {
+              // Keep the first file for a name, as a single-result name lookup does.
+              if (!byName.has(file.name)) byName.set(file.name, file);
+            }
+            return byName;
+          })
+          .catch((err: unknown) => {
+            // Do not keep a failed listing. The next conversation lists again,
+            // so each conversation fails or succeeds on its own.
+            pending = undefined;
+            failures++;
+            throw err;
+          });
+      }
+      return pending;
+    },
+  };
+}
+
+/** Read the stored update time of one conversation from the local database now. */
+async function readLocalUpdatedAt(
+  database: Database,
+  conversationId: string
+): Promise<Date | null> {
+  const { Q } = await import("@nozbe/watermelondb");
+  const records = await database
+    .get<Conversation>("conversations")
+    .query(Q.where("conversation_id", conversationId))
+    .fetch();
+  const match = records
+    .map(conversationToStoredRaw)
+    .find((c) => c.conversationId === conversationId);
+  return match ? match.updatedAt : null;
+}
+
 async function pushConversationToDrive(
   database: Database,
   conversationId: string,
   userAddress: string,
   token: string,
+  folderId: string,
+  fileIndex: DriveFileIndex,
   deps: GoogleDriveBackupDeps,
-  rootFolder: string = DEFAULT_ROOT_FOLDER,
-  subfolder: string = DEFAULT_CONVERSATIONS_FOLDER,
   _retried: boolean = false
 ): Promise<"uploaded" | "skipped" | "failed"> {
   try {
     await deps.requestEncryptionKey(userAddress);
 
-    const folderResult = await getConversationsFolder(
-      token,
-      deps.requestDriveAccess,
-      rootFolder,
-      subfolder
-    );
-    if (!folderResult) return "failed";
-    const { folderId, token: activeToken } = folderResult;
-
     const filename = `${conversationId}.json`;
-    const existingFile = await findDriveFile(activeToken, folderId, filename);
+    const index = await fileIndex.get(token);
+    let existingFile = index.get(filename);
 
-    // Check if we can skip upload based on timestamps
     if (existingFile) {
-      const { Q } = await import("@nozbe/watermelondb");
-      const conversationsCollection = database.get<Conversation>("conversations");
-      const records = await conversationsCollection
-        .query(Q.where("conversation_id", conversationId))
-        .fetch();
+      // Read the update time now. A conversation edited after the run began must still upload.
+      const localUpdatedAt = await readLocalUpdatedAt(database, conversationId);
+      const localUpdated = localUpdatedAt ? localUpdatedAt.getTime() : null;
 
-      if (records.length > 0) {
-        const conversation = conversationToStoredRaw(records[0]);
-        const localUpdated = conversation.updatedAt.getTime();
-        const remoteModified = new Date(existingFile.modifiedTime).getTime();
-        if (localUpdated <= remoteModified) {
+      // Check if we can skip upload based on timestamps
+      if (localUpdated !== null && localUpdated <= new Date(existingFile.modifiedTime).getTime()) {
+        return "skipped";
+      }
+
+      // Another client can write the file after the run listed the folder. Read the file time
+      // again before the run replaces the file, so a newer backup is not overwritten.
+      const current = await getDriveFileMetadata(token, existingFile.id);
+      if (!current) {
+        // The file is gone. Upload a new one.
+        index.delete(filename);
+        existingFile = undefined;
+      } else {
+        index.set(filename, current);
+        if (localUpdated !== null && localUpdated <= new Date(current.modifiedTime).getTime()) {
           return "skipped";
         }
       }
@@ -126,10 +191,21 @@ async function pushConversationToDrive(
       return "failed";
     }
 
+    // Keep the index current. A later row with the same conversation id then finds this file and
+    // does not create a second backup.
+    const now = new Date().toISOString();
     if (existingFile) {
-      await updateDriveFile(activeToken, existingFile.id, exportResult.blob);
+      await updateDriveFile(token, existingFile.id, exportResult.blob);
+      index.set(filename, { ...existingFile, modifiedTime: now });
     } else {
-      await uploadFileToDrive(activeToken, folderId, exportResult.blob, filename);
+      const created = await uploadFileToDrive(token, folderId, exportResult.blob, filename);
+      index.set(filename, {
+        id: created.id,
+        name: created.name,
+        createdTime: now,
+        modifiedTime: now,
+        size: String(exportResult.blob.size),
+      });
     }
     return "uploaded";
   } catch (err) {
@@ -142,9 +218,9 @@ async function pushConversationToDrive(
           conversationId,
           userAddress,
           newToken,
+          folderId,
+          fileIndex,
           deps,
-          rootFolder,
-          subfolder,
           true
         );
       } catch {
@@ -175,7 +251,8 @@ export async function performGoogleDriveExport(
   if (!folderResult) {
     return { success: false, uploaded: 0, skipped: 0, total: 0 };
   }
-  const { token: activeToken } = folderResult;
+  const { folderId, token: activeToken } = folderResult;
+  const fileIndex = createDriveFileIndex(folderId);
 
   const { Q } = await import("@nozbe/watermelondb");
   const conversationsCollection = database.get<Conversation>("conversations");
@@ -200,9 +277,9 @@ export async function performGoogleDriveExport(
       conv.conversationId,
       userAddress,
       activeToken,
-      deps,
-      rootFolder,
-      subfolder
+      folderId,
+      fileIndex,
+      deps
     );
 
     if (result === "uploaded") uploaded++;
