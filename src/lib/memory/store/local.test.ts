@@ -207,4 +207,30 @@ describe("createLocalMemoryStore parity with the raw ops", () => {
     const result = await store.maintenance!.createDecaySweeper({ now: Date.now() }).runSweep();
     expect(result).toMatchObject({ scanned: 1, archived: 0, deleted: 0 });
   });
+
+  it("does not recreate topic links after a delete wins the writer race", async () => {
+    const database = makeDatabase();
+    const store = createLocalMemoryStore({ database, embeddingOptions });
+    const m = await store.create({ content: "Plays chess" });
+    await store.addTopics(m.uniqueId, ["Chess"]);
+
+    // Let deletion and its cascade finish immediately before addTopics enters
+    // its writer. A liveness probe outside that writer would already be stale.
+    const originalWrite = database.write.bind(database);
+    const writeSpy = vi
+      .spyOn(database, "write")
+      .mockImplementationOnce(async (work, description) => {
+        writeSpy.mockRestore();
+        expect(await store.delete(m.uniqueId)).toBe(true);
+        return originalWrite(work, description);
+      });
+    try {
+      expect(await store.addTopics(m.uniqueId, ["Late topic"])).toEqual([]);
+      expect(await store.get(m.uniqueId)).toBeNull();
+      expect(await store.topicsByMemories([m.uniqueId])).toEqual(new Map());
+      expect(await store.memoriesByTopics(["Chess", "Late topic"])).toEqual(new Map());
+    } finally {
+      writeSpy.mockRestore();
+    }
+  });
 });

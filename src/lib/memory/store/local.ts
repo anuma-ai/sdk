@@ -80,12 +80,6 @@ export interface LocalMemoryStoreOptions {
 }
 
 /**
- * Columns whose in-place edits fire a live-row subscription: the union of what
- * the web and mobile vault lists watch today. See `MemorySubscribeOptions`.
- */
-const WATCHED_COLUMNS = ["archived_at", "trust_tier", "scope", "visibility"];
-
-/**
  * {@link MemoryStore} over the on-device WatermelonDB vault. Builds the vault +
  * entity contexts once and delegates every method to the existing ops, so
  * behavior is exactly theirs.
@@ -116,6 +110,8 @@ export function createLocalMemoryStore(options: LocalMemoryStoreOptions): Memory
   };
   const vaultCache = options.vaultCache ?? createVaultEmbeddingCache();
   const ownedBy = userId !== undefined ? [Q.where("user_id", userId)] : [];
+  // list/get return snapshots, so every persisted column change must invalidate them.
+  const watchedColumns = Object.keys(database.schema.tables.memory_vault.columns);
 
   return {
     list: (listOptions?: MemoryListOptions) => getAllVaultMemoriesOp(vaultCtx, listOptions),
@@ -175,16 +171,17 @@ export function createLocalMemoryStore(options: LocalMemoryStoreOptions): Memory
     restore: (id: string) => restoreVaultMemoryOp(vaultCtx, id),
     setTopics: (memoryId: string, topics: readonly EntityInput[]) =>
       setMemoryEntitiesOp(vaultCtx, memoryId, topics),
-    addTopics: async (memoryId: string, topics: readonly EntityInput[]) => {
-      // linkMemoryEntitiesOp takes any id and stamps the links with this
-      // store's user, so check the memory is live and ours first. Ownership
-      // never changes, so a check outside the writer is enough; a delete that
-      // races it leaves orphan links, which the delete cascade's sweep collects.
-      const owned = await vaultCtx.vaultMemoryCollection
-        .query(Q.where("id", memoryId), Q.where("is_deleted", false), ...ownedBy)
-        .fetchCount();
-      return owned > 0 ? linkMemoryEntitiesOp(entityCtx, memoryId, topics) : [];
-    },
+    addTopics: (memoryId: string, topics: readonly EntityInput[]) =>
+      database.write(async (writer) => {
+        // Check and link in the same writer: a delete must not finish its cascade
+        // before this call creates new links for the deleted memory.
+        const owned = await vaultCtx.vaultMemoryCollection
+          .query(Q.where("id", memoryId), Q.where("is_deleted", false), ...ownedBy)
+          .fetchCount();
+        return owned > 0
+          ? writer.callWriter(() => linkMemoryEntitiesOp(entityCtx, memoryId, topics))
+          : [];
+      }),
     setVisibility: (
       id: string,
       visibility: VaultMemoryVisibility,
@@ -218,7 +215,7 @@ export function createLocalMemoryStore(options: LocalMemoryStoreOptions): Memory
         ? vaultCtx.vaultMemoryCollection.query(...ownedBy).observe()
         : vaultCtx.vaultMemoryCollection
             .query(Q.where("is_deleted", false), ...ownedBy)
-            .observeWithColumns(WATCHED_COLUMNS);
+            .observeWithColumns(watchedColumns);
       const subscriptions = [memories.subscribe(afterFirst())];
       if (subscribeOptions?.topics) {
         // Links only: a topic read always goes through this user's links, and

@@ -203,6 +203,35 @@ export function runMemoryStoreContract(makeStore: () => MemoryStore | Promise<Me
       unsubscribe();
     });
 
+    it("notifies snapshot subscribers after a content edit", async () => {
+      const store = await makeStore();
+      const m = await store.create({ content: "Drinks coffee", embedding: "[1,0]" });
+      const onChange = vi.fn();
+      const unsubscribe = store.subscribe(onChange);
+      try {
+        await store.update(m.uniqueId, { content: "Drinks tea", embedding: "[0,1]" });
+        await vi.waitFor(() => expect(onChange).toHaveBeenCalled());
+        expect((await store.get(m.uniqueId))?.content).toBe("Drinks tea");
+      } finally {
+        unsubscribe();
+      }
+    });
+
+    it("notifies when supersession removes a memory from the default list", async () => {
+      const store = await makeStore();
+      const old = await store.create({ content: "Lives in Portland" });
+      const next = await store.create({ content: "Lives in SF" });
+      const onChange = vi.fn();
+      const unsubscribe = store.subscribe(onChange);
+      try {
+        expect(await store.supersede(old.uniqueId, next.uniqueId)).toBe(true);
+        await vi.waitFor(() => expect(onChange).toHaveBeenCalled());
+        expect((await store.list()).map((m) => m.uniqueId)).toEqual([next.uniqueId]);
+      } finally {
+        unsubscribe();
+      }
+    });
+
     it("retains with auto-merge and recalls the retained fact", async () => {
       const store = await makeStore();
 

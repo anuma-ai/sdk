@@ -2,12 +2,13 @@
 
 > **MemoryRetainOptions** = `Omit`<[`RetainOptions`](../interfaces/RetainOptions.md), `"folderId"`>
 
-Defined in: [src/lib/memory/store/types.ts:85](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#85)
+Defined in: [src/lib/memory/store/types.ts:87](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#87)
 
 `retain()` options minus `folderId` (see [MemoryUpdate](MemoryUpdate.md)).
 
-LOCAL-ONLY: `consolidateOptions` carries portal credentials, an `onFallback`
+DEVICE-LOCAL: `consolidateOptions` carries portal credentials, an `onFallback`
 callback and possibly a `PiiRedactor` instance — it configures the
-consolidation LLM call the backend makes. A remote backend makes that call
-server-side with its own credentials and redaction, and ignores the field;
-every other field is plain data it forwards.
+consolidation LLM call on the device. A remote store fetches encrypted
+candidates, decrypts and consolidates them on the device, then persists
+encrypted results through versioned writes. Nearby holds no decryption key
+and never receives these credentials, callbacks or redactor instances.

@@ -61,10 +61,11 @@ export type MemoryUpdate = Pick<
  * the chunk-lane knobs are not part of this surface; nor is `folderId` (see
  * {@link MemoryUpdate}).
  *
- * LOCAL-ONLY: `decomposeOptions` (portal credentials) and `onDiagnostics` (a
- * callback) configure work the backend does in-process. A remote backend runs
- * query decomposition server-side with its own credentials and ignores both;
- * every other field is plain data it forwards.
+ * DEVICE-LOCAL: `decomposeOptions` (portal credentials) and `onDiagnostics` (a
+ * callback) configure work on the device, including with a remote store.
+ * Query embedding/decomposition and the decrypted recall pipeline stay on the
+ * device. Nearby ranks encrypted rows using embeddings and metadata; credentials
+ * and callbacks are never forwarded to it.
  * @public
  */
 export type MemoryRecallOptions = Omit<
@@ -75,11 +76,12 @@ export type MemoryRecallOptions = Omit<
 /**
  * `retain()` options minus `folderId` (see {@link MemoryUpdate}).
  *
- * LOCAL-ONLY: `consolidateOptions` carries portal credentials, an `onFallback`
+ * DEVICE-LOCAL: `consolidateOptions` carries portal credentials, an `onFallback`
  * callback and possibly a `PiiRedactor` instance — it configures the
- * consolidation LLM call the backend makes. A remote backend makes that call
- * server-side with its own credentials and redaction, and ignores the field;
- * every other field is plain data it forwards.
+ * consolidation LLM call on the device. A remote store fetches encrypted
+ * candidates, decrypts and consolidates them on the device, then persists
+ * encrypted results through versioned writes. Nearby holds no decryption key
+ * and never receives these credentials, callbacks or redactor instances.
  * @public
  */
 export type MemoryRetainOptions = Omit<RetainOptions, "folderId">;
@@ -90,9 +92,9 @@ export interface MemorySubscribeOptions {
    * Watch the whole table, soft-deleted rows included, and fire on row-SET
    * changes only (create / delete / undelete) — the Memory Graph's mode. A
    * column-aware watch would re-fire on every row a decay sweep archives.
-   * Default `false`: watch live rows, and also fire on in-place edits to the
-   * columns that move a row in or out of the default list or change how it
-   * renders (`archived_at`, `trust_tier`, `scope`, `visibility`).
+   * Default `false`: watch live rows and all their persisted columns, including
+   * content, embeddings and supersession. Reads return snapshots, so callers
+   * must be notified when an in-place edit changes their data or list membership.
    */
   includeDeleted?: boolean;
   /** Also fire when topic (entity / link) state changes. Default `false`. */
@@ -102,10 +104,12 @@ export interface MemorySubscribeOptions {
 /**
  * Background jobs that keep a LOCAL store healthy.
  *
- * TRANSITIONAL. Under the server-side memory design these jobs run on the
- * server next to the data, so a remote backend omits `maintenance` entirely
- * and callers must treat its absence as "someone else owns this". Nothing
- * here should gain a new caller that isn't a background worker.
+ * TRANSITIONAL local-vault plumbing. A remote store may omit these hooks, but
+ * their absence does not mean plaintext-dependent work moves to nearby.
+ * Topic extraction and other jobs that need decrypted memory content remain
+ * on the device and persist encrypted rows/metadata through the remote store.
+ * Metadata-only maintenance can run server-side. Nothing here should gain a
+ * new caller that isn't a background worker.
  *
  * Not here on purpose: the client's quality sweep (`list` + `delete`) and
  * folder→topic migration (`list` + `topicsByMemories` + `addTopics`) compose
@@ -142,8 +146,10 @@ export interface MemoryMaintenance {
  *
  * Every value crossing this interface is plain data — no WatermelonDB Model,
  * Query or Collection — so a remote backend can serialize it. The one
- * exception is the LOCAL-ONLY LLM-call knobs on {@link MemoryRecallOptions}
- * and {@link MemoryRetainOptions}, which a remote backend ignores. Reads are
+ * exception is the DEVICE-LOCAL LLM-call knobs on {@link MemoryRecallOptions}
+ * and {@link MemoryRetainOptions}, which a remote store uses on the device
+ * rather than forwarding to nearby. Server persistence is authoritative;
+ * content decryption and plaintext-dependent processing remain on the device. Reads are
  * whole-result rather than per-row so a chat turn costs a handful of calls
  * (`recall`, then `retain` per fact), not one per memory.
  *
