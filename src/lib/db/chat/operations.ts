@@ -1323,9 +1323,11 @@ function chunksWithoutText(raw: unknown): object[] | null {
  * edited after it was chunked fails `resolveChunkText`'s coverage check and
  * shows the whole message instead.
  *
- * Idempotent: a stripped row no longer matches, so consumers can call it once
- * per session. `updated_at` is kept as it was, so backup sync does not
- * re-upload every old row (the chunk vectors are most of each row's size).
+ * Every device must call it: each strips only its own local copy. Backups hold
+ * whole rows encrypted, and a restore brings the text back until the next call.
+ * Idempotent: a stripped row no longer matches, so calling it once per session
+ * is safe. `updated_at` is kept as it was, so backup sync does not re-upload
+ * every old row (the chunk vectors are most of each row's size).
  *
  * Reads raw rows a page at a time and builds Models only for the rows it
  * changes, so unchanged candidates never enter the record cache, and each
