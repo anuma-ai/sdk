@@ -1824,12 +1824,17 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
         }
       }
 
-      // Remove tools with removeAfterExecution: true that succeeded
+      // Remove tools with removeAfterExecution: true that succeeded, and tools
+      // whose removeAfterResult accepts any successful result this round.
+      // Client-executed results only: portal-run tools are not in
+      // executionResults, and the contract on ToolConfig says so.
       if (tools && apiTools) {
         const successfullyExecutedNames = new Set<string>();
+        const successfulResults: unknown[] = [];
         for (const r of executionResults) {
           if (!r.error && !isToolErrorResult(r.result) && "name" in r && r.name) {
             successfullyExecutedNames.add(r.name);
+            successfulResults.push(r.result);
           }
         }
 
@@ -1844,10 +1849,21 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
                 : typeof tc.name === "string"
                   ? tc.name
                   : undefined;
+            if (!toolName) continue;
+            const removeAfterResult = tc.removeAfterResult;
             if (
-              tc.removeAfterExecution === true &&
-              toolName &&
-              successfullyExecutedNames.has(toolName)
+              (tc.removeAfterExecution === true && successfullyExecutedNames.has(toolName)) ||
+              (typeof removeAfterResult === "function" &&
+                successfulResults.some((result) => {
+                  // A predicate sees every tool's result, not just its own, so
+                  // one written for its own shape can throw on a sibling's. That
+                  // must not end a turn whose tools all succeeded.
+                  try {
+                    return removeAfterResult(result);
+                  } catch {
+                    return false;
+                  }
+                }))
             ) {
               toolsToRemove.add(toolName);
             }

@@ -1,6 +1,6 @@
 # SendMessageWithStorageDetachedResult
 
-Defined in: [src/expo/useChatStorage.ts:500](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChatStorage.ts#500)
+Defined in: [src/expo/useChatStorage.ts:502](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChatStorage.ts#502)
 
 Detached variant of the storage send result.
 
@@ -15,7 +15,7 @@ A new send saves the partial as a stopped row and cancels the old buffer.
 
 > `optional` **assistantUniqueId**: `string`
 
-Defined in: [src/expo/useChatStorage.ts:514](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChatStorage.ts#514)
+Defined in: [src/expo/useChatStorage.ts:516](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChatStorage.ts#516)
 
 The id for the completed or stopped row. Detach saves no row.
 A resume, stop, or new send saves the row under this id.
@@ -30,7 +30,7 @@ directly and manage the row yourself.
 
 > **data**: `ApiResponse` | `null`
 
-Defined in: [src/expo/useChatStorage.ts:501](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChatStorage.ts#501)
+Defined in: [src/expo/useChatStorage.ts:503](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChatStorage.ts#503)
 
 ***
 
@@ -38,7 +38,7 @@ Defined in: [src/expo/useChatStorage.ts:501](https://github.com/anuma-ai/sdk/blo
 
 > **detached**: `true`
 
-Defined in: [src/expo/useChatStorage.ts:503](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChatStorage.ts#503)
+Defined in: [src/expo/useChatStorage.ts:505](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChatStorage.ts#505)
 
 ***
 
@@ -46,7 +46,7 @@ Defined in: [src/expo/useChatStorage.ts:503](https://github.com/anuma-ai/sdk/blo
 
 > **error**: `"Request detached"`
 
-Defined in: [src/expo/useChatStorage.ts:502](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChatStorage.ts#502)
+Defined in: [src/expo/useChatStorage.ts:504](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChatStorage.ts#504)
 
 ***
 
@@ -54,7 +54,7 @@ Defined in: [src/expo/useChatStorage.ts:502](https://github.com/anuma-ai/sdk/blo
 
 > **resume**: [`StreamResumeHandle`](../../../react/Internal/type-aliases/StreamResumeHandle.md) | `null`
 
-Defined in: [src/expo/useChatStorage.ts:505](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChatStorage.ts#505)
+Defined in: [src/expo/useChatStorage.ts:507](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChatStorage.ts#507)
 
 Pass to `resumeStream` to replay; null when nothing was resumable.
 
@@ -64,6 +64,6 @@ Pass to `resumeStream` to replay; null when nothing was resumable.
 
 > `optional` **userMessage**: [`StoredMessage`](../../../react/Internal/interfaces/StoredMessage.md)
 
-Defined in: [src/expo/useChatStorage.ts:516](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChatStorage.ts#516)
+Defined in: [src/expo/useChatStorage.ts:518](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChatStorage.ts#518)
 
 The persisted user message. Absent under `skipStorage` (nothing is stored).
