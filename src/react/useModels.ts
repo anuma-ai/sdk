@@ -38,6 +38,17 @@ export function clearModelsCache(): void {
   modelsInFlight.clear();
 }
 
+function pruneStaleTokenEntries(newKey: string): void {
+  const [newBaseUrl, newProvider] = JSON.parse(newKey) as [string, string | null, string];
+  for (const existingKey of modelsCache.keys()) {
+    if (existingKey === newKey) continue;
+    const [existingBaseUrl, existingProvider] = JSON.parse(existingKey) as [string, string | null, string];
+    if (existingBaseUrl === newBaseUrl && existingProvider === newProvider) {
+      modelsCache.delete(existingKey);
+    }
+  }
+}
+
 function fingerprintToken(token: string | undefined): string {
   if (!token) return "anon";
   let h1 = 0xdeadbeef;
@@ -117,13 +128,13 @@ function loadModels(
 ): Promise<LlmapiModel[]> {
   const cached = modelsCache.get(key);
   if (cached && !force && Date.now() - cached.fetchedAt < MODELS_CACHE_TTL_MS) {
-    return Promise.resolve(cached.models);
+    return Promise.resolve([...cached.models]);
   }
 
   const shared =
     (force ? undefined : modelsInFlight.get(key)) ??
     startSharedRequest(key, baseUrl, provider, headers, cached);
-  return waitForSharedRequest(key, shared, signal);
+  return waitForSharedRequest(key, shared, signal).then((models) => [...models]);
 }
 
 function startSharedRequest(
@@ -143,6 +154,7 @@ function startSharedRequest(
   shared.promise = fetchAllModelPages(baseUrl, provider, headers, previous, controller.signal)
     .then((entry) => {
       if (modelsInFlight.get(key) === shared && generation === cacheGeneration) {
+        pruneStaleTokenEntries(key);
         modelsCache.set(key, entry);
       }
       return entry.models;
