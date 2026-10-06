@@ -877,7 +877,7 @@ describe("Notion MCP Tools", () => {
       });
     });
 
-    it("keeps the portal's connect_url on the connector error", async () => {
+    it("does not pass a portal connect_url through to the model", async () => {
       const callMcp = vi.fn<NotionMcpCaller>().mockResolvedValue({
         status: 412,
         json: { code: "connector_not_connected", connect_url: "https://portal/connect" },
@@ -885,9 +885,10 @@ describe("Notion MCP Tools", () => {
 
       const result = await proxyTool(callMcp)({ query: "x" });
 
-      expect(JSON.parse(result as string)).toMatchObject({
+      expect(JSON.parse(result as string)).toEqual({
+        __anuma_connector_error_v1: true,
+        code: "connector_not_connected",
         provider: "notion",
-        connect_url: "https://portal/connect",
       });
     });
 
@@ -907,7 +908,6 @@ describe("Notion MCP Tools", () => {
         __anuma_connector_error_v1: true,
         code: "scope_not_covered",
         provider: "notion",
-        connect_url: "https://portal/connect",
         missing_scopes: ["notion.rw"],
       });
     });
@@ -932,7 +932,7 @@ describe("Notion MCP Tools", () => {
       [
         412,
         { code: "invalid_grant", connect_url: "https://portal/connect" },
-        { code: "connector_not_connected", connect_url: "https://portal/connect" },
+        { code: "connector_not_connected" },
       ],
       [403, { code: "connector_disabled" }, { code: "connector_not_connected" }],
       [403, { code: "scope_disabled" }, { code: "connector_not_connected" }],

@@ -9,7 +9,7 @@ import { describe, it, expect } from "vitest";
 import { runToolLoop } from "./setup.js";
 import { createChartTool } from "../../src/tools/chart.js";
 import { createPhoneCallOfferTool } from "../../src/tools/phoneCallOffer.js";
-import { createIpGeolocationTool } from "../../src/tools/ipGeolocation.js";
+import { createIpGeolocationTool } from "./stubs/ipGeolocation.js";
 import { createTimezoneTool } from "../../src/tools/timezone.js";
 import { config, printResult, wrapTool, type ToolCallLog } from "./setup.js";
 

@@ -53,7 +53,7 @@ import {
   READ_FILE_SCHEMA,
   VERIFY_APP_SCHEMA,
 } from "../../src/tools/index.js";
-import { createIpGeolocationTool } from "../../src/tools/ipGeolocation.js";
+import { createIpGeolocationTool } from "./stubs/ipGeolocation.js";
 import { createTimezoneTool } from "../../src/tools/timezone.js";
 import {
   ADD_SLIDE_SCHEMA,

@@ -400,22 +400,17 @@ function notionConnectorError(status: number, json: unknown): string | null {
       return buildConnectorErrorResult(
         "scope_not_covered",
         NOTION_PROVIDER,
-        readString(json, "connect_url"),
         Array.isArray(missingScopes) ? { missingScopes: missingScopes as string[] } : undefined
       );
     }
     case "insufficient_scope":
-      return buildConnectorErrorResult("insufficient_scope", NOTION_PROVIDER, undefined, {
+      return buildConnectorErrorResult("insufficient_scope", NOTION_PROVIDER, {
         required: readString(json, "required"),
       });
     case "upstream_unavailable":
       return buildConnectorErrorResult("upstream_unavailable", NOTION_PROVIDER);
     default:
-      return buildConnectorErrorResult(
-        "connector_not_connected",
-        NOTION_PROVIDER,
-        readString(json, "connect_url")
-      );
+      return buildConnectorErrorResult("connector_not_connected", NOTION_PROVIDER);
   }
 }
 

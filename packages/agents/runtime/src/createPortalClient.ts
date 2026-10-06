@@ -59,7 +59,6 @@ interface MintErrorBody {
   error?: string;
   code?: string;
   provider?: string;
-  connect_url?: string;
   missing_scopes?: string[];
   required?: string;
   retry_after_ms?: number;
@@ -102,7 +101,6 @@ function parseMintError(status: number, body: MintErrorBody): MintError {
       return {
         code: "connector_not_connected",
         provider: body.provider ?? "unknown",
-        connectUrl: body.connect_url ?? "",
       };
     }
     if (code === "scope_not_covered") {
@@ -110,7 +108,6 @@ function parseMintError(status: number, body: MintErrorBody): MintError {
         code: "scope_not_covered",
         provider: body.provider ?? "unknown",
         missingScopes: body.missing_scopes ?? [],
-        connectUrl: body.connect_url ?? "",
       };
     }
     if (code === "insufficient_scope") {

@@ -244,6 +244,13 @@ function buildUpdateEventBody(args: UpdateEventArgs): Record<string, unknown> {
 }
 
 /**
+ * Google event ids are base32hex; a recurring instance appends `_<UTC time>`
+ * (e.g. `abc_20261001T150000Z`). Anything else is refused before it reaches
+ * the URL path: encoding alone would still let `..` resolve to another path.
+ */
+const CALENDAR_EVENT_ID = /^[A-Za-z0-9_]+$/;
+
+/**
  * Updates an event in Google Calendar API
  */
 async function updateCalendarEvent(
@@ -251,11 +258,14 @@ async function updateCalendarEvent(
   args: UpdateEventArgs
 ): Promise<CalendarEvent | string> {
   const { eventId } = args;
+  if (typeof eventId !== "string" || !CALENDAR_EVENT_ID.test(eventId)) {
+    return `Error: Invalid event ID: ${String(eventId)}`;
+  }
   const eventBody = buildUpdateEventBody(args);
 
   try {
     const response = await fetch(
-      `https://www.googleapis.com/calendar/v3/calendars/primary/events/${eventId}`,
+      `https://www.googleapis.com/calendar/v3/calendars/primary/events/${encodeURIComponent(eventId)}`,
       {
         method: "PATCH",
         headers: {

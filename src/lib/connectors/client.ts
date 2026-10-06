@@ -29,12 +29,12 @@ export type ConnectorMintResult =
 
 /** Error variants from the mint endpoint, mirrored on `@anuma/agent-runtime`. */
 export type ConnectorMintError =
-  | { code: "connector_not_connected"; provider: string; connectUrl: string }
+  | { code: "connector_not_connected"; provider: string; connectUrl?: string }
   | {
       code: "scope_not_covered";
       provider: string;
       missingScopes: string[];
-      connectUrl: string;
+      connectUrl?: string;
     }
   | { code: "insufficient_scope"; required: string }
   | { code: "upstream_unavailable"; retryAfterMs?: number }
