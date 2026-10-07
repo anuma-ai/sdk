@@ -29,10 +29,7 @@ import {
   updateVaultMemoryOp,
   type VaultMemoryOperationsContext,
 } from "../../db/memoryVault/operations.js";
-import type {
-  CreateVaultMemoryOptions,
-  VaultMemoryVisibility,
-} from "../../db/memoryVault/types.js";
+import type { StoredVaultMemory, VaultMemoryVisibility } from "../../db/memoryVault/types.js";
 import { getLogger } from "../../logger.js";
 import type { EmbeddingOptions } from "../../memoryEngine/types.js";
 import { createVaultEmbeddingCache } from "../../memoryVault/lruCache.js";
@@ -42,6 +39,7 @@ import { recall } from "../recall.js";
 import { retain } from "../retain.js";
 import { extractAndLinkEntitiesForMemoriesOp, type TopicExtractOptions } from "../topicExtract.js";
 import type {
+  MemoryCreate,
   MemoryListOptions,
   MemoryRecallOptions,
   MemoryRetainOptions,
@@ -110,8 +108,39 @@ export function createLocalMemoryStore(options: LocalMemoryStoreOptions): Memory
   };
   const vaultCache = options.vaultCache ?? createVaultEmbeddingCache();
   const ownedBy = userId !== undefined ? [Q.where("user_id", userId)] : [];
-  // list/get return snapshots, so every persisted column change must invalidate them.
-  const watchedColumns = Object.keys(database.schema.tables.memory_vault.columns);
+  // User-visible edits and list membership changes invalidate snapshots. Background
+  // vector/evidence backfills must not trigger a full list + decrypt for every row.
+  const watchedColumns = [
+    "content",
+    "scope",
+    "updated_at",
+    "fact_type",
+    "event_time_start",
+    "event_time_end",
+    "event_time_kind",
+    "archived_at",
+    "trust_tier",
+    "superseded_by",
+    "visibility",
+    "published_at",
+    "geohash",
+    "topics",
+    "topics_user_managed",
+    "media",
+    "source",
+  ];
+  const embedInBackground = (memory: StoredVaultMemory) => {
+    eagerEmbedContent(
+      memory.content,
+      options.embeddingOptions,
+      vaultCache,
+      vaultCtx,
+      memory.uniqueId,
+      memory.updatedAt
+    ).catch((err: unknown) => {
+      getLogger().warn("[memory/store] Failed to embed memory:", err);
+    });
+  };
 
   return {
     list: (listOptions?: MemoryListOptions) => getAllVaultMemoriesOp(vaultCtx, listOptions),
@@ -130,9 +159,18 @@ export function createLocalMemoryStore(options: LocalMemoryStoreOptions): Memory
     topicsByMemories: (memoryIds: readonly string[]) =>
       getEntitiesByMemoryIdsOp(entityCtx, memoryIds),
 
-    create: (input: CreateVaultMemoryOptions) => createVaultMemoryOp(vaultCtx, input),
-    createMany: (inputs: CreateVaultMemoryOptions[]) =>
-      createVaultMemoriesBatchOp(vaultCtx, inputs),
+    create: async (input: MemoryCreate) => {
+      const created = await createVaultMemoryOp(vaultCtx, input);
+      if (input.embedding === undefined) embedInBackground(created);
+      return created;
+    },
+    createMany: async (inputs: MemoryCreate[]) => {
+      const created = await createVaultMemoriesBatchOp(vaultCtx, inputs);
+      created.forEach((memory, i) => {
+        if (inputs[i].embedding === undefined) embedInBackground(memory);
+      });
+      return created;
+    },
     update: async (id: string, patch: MemoryUpdate) => {
       // Same as useChatStorage's vault edit: an edit without a fresh vector
       // clears the stored one (and its model tag) rather than keep a vector
@@ -146,18 +184,7 @@ export function createLocalMemoryStore(options: LocalMemoryStoreOptions): Memory
       if (!updated) return null;
       // The cache is keyed by id, so a content edit would keep serving the old vector.
       vaultCache.delete(id);
-      if (reembed) {
-        eagerEmbedContent(
-          patch.content,
-          options.embeddingOptions,
-          vaultCache,
-          vaultCtx,
-          id,
-          updated.updatedAt
-        ).catch((err: unknown) => {
-          getLogger().warn("[memory/store] Failed to re-embed edited memory:", err);
-        });
-      }
+      if (reembed) embedInBackground(updated);
       return updated;
     },
     delete: async (id: string) => {
@@ -215,7 +242,11 @@ export function createLocalMemoryStore(options: LocalMemoryStoreOptions): Memory
         ? vaultCtx.vaultMemoryCollection.query(...ownedBy).observe()
         : vaultCtx.vaultMemoryCollection
             .query(Q.where("is_deleted", false), ...ownedBy)
-            .observeWithColumns(watchedColumns);
+            .observeWithColumns(
+              subscribeOptions?.embeddings
+                ? [...watchedColumns, "embedding", "embedding_model"]
+                : watchedColumns
+            );
       const subscriptions = [memories.subscribe(afterFirst())];
       if (subscribeOptions?.topics) {
         // Links only: a topic read always goes through this user's links, and

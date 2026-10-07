@@ -2,7 +2,7 @@
 
 > **MemoryRecallOptions** = `Omit`<[`RecallOptions`](../interfaces/RecallOptions.md), `"types"` | `"includeChunks"` | `"conversationId"` | `"excludeConversationId"` | `"folderId"`>
 
-Defined in: [src/lib/memory/store/types.ts:71](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#71)
+Defined in: [src/lib/memory/store/types.ts:83](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#83)
 
 Fact-only recall. Conversation chunks are message storage, not memory, so
 the chunk-lane knobs are not part of this surface; nor is `folderId` (see

@@ -103,6 +103,7 @@ export { isRerankerAvailable, RerankerUnavailableError } from "./reranker.js";
 export { retain, type RetainContext } from "./retain.js";
 export { createLocalMemoryStore, type LocalMemoryStoreOptions } from "./store/local.js";
 export type {
+  MemoryCreate,
   MemoryListOptions,
   MemoryMaintenance,
   MemoryRecallOptions,

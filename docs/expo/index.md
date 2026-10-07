@@ -1198,6 +1198,12 @@ Re-exports [MemoryContextResult](../react/Internal/interfaces/MemoryContextResul
 
 ***
 
+### MemoryCreate
+
+Re-exports [MemoryCreate](../react/Internal/type-aliases/MemoryCreate.md)
+
+***
+
 ### MemoryEngineEmbeddingOptions
 
 Re-exports [MemoryEngineEmbeddingOptions](../react/Internal/interfaces/MemoryEngineEmbeddingOptions.md)

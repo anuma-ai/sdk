@@ -406,6 +406,7 @@ export {
 export {
   createLocalMemoryStore,
   type LocalMemoryStoreOptions,
+  type MemoryCreate,
   type MemoryListOptions,
   type MemoryMaintenance,
   type MemoryRecallOptions,

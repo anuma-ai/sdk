@@ -19,7 +19,6 @@ import type { RecallOptions, RecallResult, RetainOptions, RetainResult } from ".
  */
 export interface MemoryListOptions {
   scopes?: string[];
-  folderId?: string | null;
   /** Only memories updated after this instant (results then sort by `updatedAt`). */
   since?: Date;
   limit?: number;
@@ -35,6 +34,19 @@ export interface MemoryListOptions {
   /** Memory history — rows carry `supersededBy`. */
   includeSuperseded?: boolean;
 }
+
+/**
+ * A manual memory save. Creation uses private visibility, manual provenance
+ * and a proof count of one. Missing embeddings are filled in the background.
+ * Publication uses `setVisibility`; extraction uses `retain`. Migration and
+ * restore use the dedicated lower-level vault/import operations rather than
+ * passing provenance, trust or publication metadata through manual creation.
+ * @public
+ */
+export type MemoryCreate = Pick<
+  CreateVaultMemoryOptions,
+  "content" | "scope" | "factType" | "eventTime" | "embedding" | "embeddingModel" | "geohash"
+>;
 
 /**
  * The edits an app makes to an existing memory. Deliberately narrower than
@@ -92,13 +104,18 @@ export interface MemorySubscribeOptions {
    * Watch the whole table, soft-deleted rows included, and fire on row-SET
    * changes only (create / delete / undelete) — the Memory Graph's mode. A
    * column-aware watch would re-fire on every row a decay sweep archives.
-   * Default `false`: watch live rows and all their persisted columns, including
-   * content, embeddings and supersession. Reads return snapshots, so callers
-   * must be notified when an in-place edit changes their data or list membership.
+   * Default `false`: watch live rows for user-visible edits and list membership
+   * changes. Background embedding, proof and watermark bookkeeping does not
+   * trigger default notifications.
    */
   includeDeleted?: boolean;
   /** Also fire when topic (entity / link) state changes. Default `false`. */
   topics?: boolean;
+  /**
+   * Also fire for embedding vector/model changes. Default `false`.
+   * Ignored when `includeDeleted` is `true`, which remains membership-only.
+   */
+  embeddings?: boolean;
 }
 
 /**
@@ -168,9 +185,10 @@ export interface MemoryStore {
   /** Memory id → its canonical (lowercased) topic names. Unlinked ids are absent. */
   topicsByMemories(memoryIds: readonly string[]): Promise<Map<string, Set<string>>>;
 
-  create(input: CreateVaultMemoryOptions): Promise<StoredVaultMemory>;
-  /** One write for a bulk import. */
-  createMany(inputs: CreateVaultMemoryOptions[]): Promise<StoredVaultMemory[]>;
+  /** Manual save; missing embeddings are filled in the background. */
+  create(input: MemoryCreate): Promise<StoredVaultMemory>;
+  /** One write for a batch of manual saves; migration/restore uses lower-level operations. */
+  createMany(inputs: MemoryCreate[]): Promise<StoredVaultMemory[]>;
   update(id: string, patch: MemoryUpdate): Promise<StoredVaultMemory | null>;
   /** Soft delete; also drops the memory's topic links. */
   delete(id: string): Promise<boolean>;

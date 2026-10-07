@@ -414,6 +414,7 @@ export { LoggerProvider } from "../react/LoggerProvider";
 export {
   createLocalMemoryStore,
   type LocalMemoryStoreOptions,
+  type MemoryCreate,
   type MemoryListOptions,
   type MemoryMaintenance,
   type MemoryRecallOptions,

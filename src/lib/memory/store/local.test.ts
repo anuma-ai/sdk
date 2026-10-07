@@ -37,10 +37,12 @@ import {
   createVaultMemoryOp,
   getAllVaultMemoriesOp,
   getVaultMemoryOp,
+  updateVaultMemoryEmbeddingOp,
   updateVaultMemoryOp,
   type VaultMemoryOperationsContext,
 } from "../../db/memoryVault/operations";
 import { eagerEmbedContent } from "../../memoryVault/searchTool";
+import { generateEmbedding } from "../../memoryEngine/embeddings";
 import { sdkMigrations, sdkModelClasses, sdkSchema } from "../../db/schema";
 import { recall } from "../recall";
 import { runMemoryStoreContract } from "./contract";
@@ -78,6 +80,79 @@ describe("createLocalMemoryStore parity with the raw ops", () => {
     };
     return { store, vaultCtx, entityCtx };
   }
+
+  it("embeds new manual memories without replacing supplied vectors", async () => {
+    const { store } = setup();
+    const embed = vi.mocked(generateEmbedding);
+    embed.mockClear();
+    const single = await store.create({ content: "Commutes by bike" });
+    const batch = await store.createMany([
+      { content: "Plays the cello" },
+      { content: "Lives in Lisbon", embedding: "[1,0]", embeddingModel: "supplied" },
+    ]);
+    await vi.waitFor(async () => {
+      expect((await store.get(single.uniqueId))?.embedding).toBeTruthy();
+      expect((await store.get(batch[0].uniqueId))?.embedding).toBeTruthy();
+    });
+    expect(await store.get(batch[1].uniqueId)).toMatchObject({
+      embedding: "[1,0]",
+      embeddingModel: "supplied",
+    });
+    expect(embed.mock.calls.map(([content]) => content)).toEqual([
+      "Commutes by bike",
+      "Plays the cello",
+    ]);
+  });
+
+  it("does not refresh default subscribers for embedding or bookkeeping writes", async () => {
+    const { store, vaultCtx } = setup();
+    const m = await store.create({ content: "Plays chess", embedding: "[1,0]" });
+    const onChange = vi.fn();
+    const unsubscribe = store.subscribe(onChange);
+    try {
+      expect(await updateVaultMemoryEmbeddingOp(vaultCtx, m.uniqueId, "[0,1]", "new-model")).toBe(
+        true
+      );
+      const record = await vaultCtx.vaultMemoryCollection.find(m.uniqueId);
+      const updatedAt = record.updatedAt.getTime();
+      await vaultCtx.database.write(() =>
+        record.update((r) => {
+          r._setRaw("proof_count", 2);
+          r._setRaw("last_observed_at", Date.now());
+          r._setRaw("topics_extracted_at", Date.now());
+          r._setRaw("updated_at", updatedAt);
+        })
+      );
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      expect(onChange).not.toHaveBeenCalled();
+      await store.setTopics(m.uniqueId, ["Chess"]);
+      await vi.waitFor(() => expect(onChange).toHaveBeenCalled());
+    } finally {
+      unsubscribe();
+    }
+  });
+
+  it("notifies embedding subscribers while keeping deleted-inclusive watches membership-only", async () => {
+    const { store, vaultCtx } = setup();
+    const m = await store.create({ content: "Plays chess", embedding: "[1,0]" });
+    const onEmbedding = vi.fn();
+    const onMembership = vi.fn();
+    const unsubscribeEmbedding = store.subscribe(onEmbedding, { embeddings: true });
+    const unsubscribeMembership = store.subscribe(onMembership, {
+      includeDeleted: true,
+      embeddings: true,
+    });
+    try {
+      expect(await updateVaultMemoryEmbeddingOp(vaultCtx, m.uniqueId, "[0,1]", "new-model")).toBe(
+        true
+      );
+      await vi.waitFor(() => expect(onEmbedding).toHaveBeenCalled());
+      expect(onMembership).not.toHaveBeenCalled();
+    } finally {
+      unsubscribeEmbedding();
+      unsubscribeMembership();
+    }
+  });
 
   it("reads the same rows and topic maps as the ops", async () => {
     const { store, vaultCtx, entityCtx } = setup();
