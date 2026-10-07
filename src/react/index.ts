@@ -407,6 +407,7 @@ export {
 // The raw vault/entity ops it covers are marked @deprecated at their declarations.
 export {
   createLocalMemoryStore,
+  createRemoteMemoryPersistence,
   type LocalMemoryStoreOptions,
   type MemoryCreate,
   type MemoryListOptions,
@@ -416,6 +417,15 @@ export {
   type MemoryStore,
   type MemorySubscribeOptions,
   type MemoryUpdate,
+  type RemoteMemoryCandidateOptions,
+  RemoteMemoryError,
+  type RemoteMemoryListOptions,
+  type RemoteMemoryPage,
+  type RemoteMemoryPersistence,
+  type RemoteMemoryPersistenceOptions,
+  type RemoteMemoryReadFilters,
+  type RemoteMemoryRecord,
+  type RemoteMemoryRow,
 } from "../lib/memory";
 
 // Unified memory API surface — recall + retain + auto-extraction.
