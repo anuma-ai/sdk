@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { LlmapiMessage } from "../client";
 import { BASE_URL } from "../clientConfig";
+import { streamCancelPath } from "../lib/chat/resumeStream";
 import {
   type ApiResponse,
   type ApiType,
@@ -17,6 +18,7 @@ import {
   validateToken,
   validateTokenGetter,
 } from "../lib/chat/useChat";
+import { getLogger } from "../lib/logger";
 import { PiiRedactor } from "../lib/pii/redactor";
 
 type SendMessageArgs = BaseSendMessageArgs & {
@@ -82,6 +84,10 @@ type SendMessageResult =
  * @inline
  */
 interface UseChatOptions extends BaseUseChatOptions {
+  /** Buffer streamed rounds so a service can verify their canonical output. */
+  resumable?: boolean;
+  /** Inference identifier for each HTTP round, including client-tool continuations. */
+  onStreamMeta?: (meta: { inferenceId: string; round: number }) => void;
   /**
    * Which API endpoint to use. Default: "auto"
    * - "auto": automatically selects the best API based on model support
@@ -159,6 +165,8 @@ export function useChat(options?: UseChatOptions): UseChatResult {
     onServerToolCall,
     onToolCallArgumentsDelta,
     onStepFinish,
+    resumable,
+    onStreamMeta,
     apiType: defaultApiType = "auto",
     smoothing,
     preProcessors,
@@ -171,6 +179,22 @@ export function useChat(options?: UseChatOptions): UseChatResult {
   // reset by stop() or a settling request, so "a newer send exists" cannot be
   // confused with "the ref is null".
   const requestIdRef = useRef(0);
+  const pendingInferenceRef = useRef<{ id: string; round: number; cancel: () => void } | null>(
+    null
+  );
+  const cancelInference = useCallback(
+    (inferenceId: string, requestToken?: string) => {
+      void (async () => {
+        const token = requestToken ?? (getToken ? await getToken() : null);
+        const response = await fetch(`${baseUrl}${streamCancelPath(inferenceId)}`, {
+          method: "POST",
+          headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        });
+        if (!response.ok) throw new Error(`Stream cancellation failed: ${response.status}`);
+      })().catch((error) => getLogger().warn("[useChat] stream cancel POST failed:", error));
+    },
+    [getToken, baseUrl]
+  );
 
   // When piiRedaction is `true`, upgrade it to a single redactor instance kept
   // for the lifetime of this hook so placeholder state is shared across turns
@@ -183,21 +207,17 @@ export function useChat(options?: UseChatOptions): UseChatResult {
   const resolvedPiiRedaction = piiRedaction === true ? piiRedactorRef.current! : piiRedaction;
 
   const stop = useCallback(() => {
+    const pending = pendingInferenceRef.current;
+    pendingInferenceRef.current = null;
+    pending?.cancel();
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
       abortControllerRef.current = null;
     }
   }, []);
 
-  // Cleanup on unmount, aborting any active streaming request and clearing the abort controller reference
-  useEffect(() => {
-    return () => {
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
-        abortControllerRef.current = null;
-      }
-    };
-  }, []);
+  // Abort and cancel any in-flight generation on unmount.
+  useEffect(() => stop, [stop]);
 
   const sendMessage = useCallback(
     async ({
@@ -224,16 +244,15 @@ export function useChat(options?: UseChatOptions): UseChatResult {
       endpointOverride,
       piiRedaction: requestPiiRedaction,
     }: SendMessageArgs): Promise<SendMessageResult> => {
-      // Abort any pending request
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
-      }
+      // Replacing a resumable generation must stop its server-side spend too.
+      stop();
 
       const abortController = new AbortController();
       abortControllerRef.current = abortController;
       const requestId = ++requestIdRef.current;
 
       setIsLoading(true);
+      let succeeded = false;
 
       try {
         // Validate token getter and get token
@@ -307,6 +326,29 @@ export function useChat(options?: UseChatOptions): UseChatResult {
           headers,
           apiType: requestApiType ?? defaultApiType,
           endpointOverride,
+          resumable,
+          onStreamMeta:
+            resumable || onStreamMeta
+              ? (meta) => {
+                  if (requestId !== requestIdRef.current || abortController.signal.aborted) {
+                    if (resumable) cancelInference(meta.inferenceId, token!);
+                    return;
+                  }
+                  const previous = pendingInferenceRef.current;
+                  // A retry replaces an unfinished inference; a new tool round
+                  // follows a completed one whose canonical proof must survive.
+                  if (previous && previous.round === meta.round && previous.id !== meta.inferenceId)
+                    previous.cancel();
+                  pendingInferenceRef.current = {
+                    id: meta.inferenceId,
+                    round: meta.round,
+                    cancel: resumable
+                      ? () => cancelInference(meta.inferenceId, token!)
+                      : () => undefined,
+                  };
+                  onStreamMeta?.(meta);
+                }
+              : undefined,
           temperature,
           maxOutputTokens,
           tools,
@@ -337,6 +379,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
           onPiiRedacted,
         });
 
+        succeeded = result.error === null;
         return result;
       } catch (err) {
         return createErrorResult(
@@ -349,12 +392,16 @@ export function useChat(options?: UseChatOptions): UseChatResult {
         if (requestIdRef.current === requestId) {
           setIsLoading(false);
           abortControllerRef.current = null;
+          if (!succeeded) pendingInferenceRef.current?.cancel();
+          pendingInferenceRef.current = null;
         }
       }
     },
     [
       getToken,
       baseUrl,
+      stop,
+      cancelInference,
       globalOnData,
       globalOnThinking,
       onFinish,
@@ -363,6 +410,8 @@ export function useChat(options?: UseChatOptions): UseChatResult {
       onServerToolCall,
       onToolCallArgumentsDelta,
       onStepFinish,
+      resumable,
+      onStreamMeta,
       defaultApiType,
       smoothing,
       preProcessors,

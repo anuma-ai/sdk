@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { renderHook, act } from "@testing-library/react";
+import { renderHook, act, waitFor } from "@testing-library/react";
 import { useChat } from "./useChat";
 import * as sseModule from "../client/core/serverSentEvents.gen";
 import type { ToolConfig } from "../lib/chat/useChat/types";
@@ -95,6 +95,150 @@ function getRequestBody(callIndex: number): any {
 describe("useChat multi-turn tool loop", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  it.each(["stop", "unmount", "changed-options"] as const)(
+    "cancels buffered generation on %s",
+    async (action) => {
+      const onStreamMeta = vi.fn();
+      const fetchSpy = vi
+        .spyOn(globalThis, "fetch")
+        .mockResolvedValueOnce(new Response(null, { headers: { "X-Inference-ID": "running" } }))
+        .mockResolvedValue(new Response(null, { status: 200 }));
+      mockCreateSseClient.mockImplementation(
+        (options) =>
+          ({
+            stream: (async function* () {
+              await options.fetch!("https://portal.example/responses");
+              yield { type: "response.created", response: { id: "resp" } };
+              await new Promise<void>((resolve) =>
+                options.signal?.addEventListener("abort", () => resolve(), { once: true })
+              );
+            })(),
+          }) as ReturnType<typeof sseModule.createSseClient>
+      );
+      try {
+        const { result, unmount, rerender } = renderHook(
+          ({ baseUrl, resumable }) =>
+            useChat({ getToken: async () => "token", baseUrl, resumable, onStreamMeta }),
+          { initialProps: { baseUrl: "https://portal.example", resumable: true } }
+        );
+        let pending: Promise<SendMessageResult> | undefined;
+        act(() => {
+          pending = result.current.sendMessage({
+            messages: [{ role: "user", content: [{ type: "text", text: "hello" }] }],
+            model: "auto",
+          });
+        });
+        await waitFor(() => expect(onStreamMeta).toHaveBeenCalledOnce());
+        if (action === "changed-options")
+          rerender({ baseUrl: "https://other.example", resumable: false });
+        if (action === "unmount") unmount();
+        else act(() => result.current.stop());
+        await act(async () => {
+          await pending;
+        });
+        await waitFor(() =>
+          expect(fetchSpy).toHaveBeenCalledWith(
+            "https://portal.example/api/v1/chat/streams/running/cancel",
+            {
+              method: "POST",
+              headers: { Authorization: "Bearer token" },
+            }
+          )
+        );
+      } finally {
+        fetchSpy.mockRestore();
+      }
+    }
+  );
+
+  it("cancels a failed buffered stream before dropping its handle", async () => {
+    const fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(new Response(null, { headers: { "X-Inference-ID": "failed" } }))
+      .mockResolvedValue(new Response(null, { status: 200 }));
+    mockCreateSseClient.mockImplementation(
+      (options) =>
+        ({
+          stream: (async function* () {
+            await options.fetch!("https://portal.example/responses");
+            yield { type: "response.output_text.delta", delta: "partial" };
+            throw new Error("connection lost");
+          })(),
+        }) as ReturnType<typeof sseModule.createSseClient>
+    );
+    try {
+      const { result } = renderHook(() =>
+        useChat({
+          getToken: async () => "token",
+          baseUrl: "https://portal.example",
+          resumable: true,
+        })
+      );
+      await act(async () => {
+        await result.current.sendMessage({
+          messages: [{ role: "user", content: [{ type: "text", text: "hello" }] }],
+          model: "auto",
+        });
+      });
+      await waitFor(() =>
+        expect(fetchSpy).toHaveBeenCalledWith(
+          "https://portal.example/api/v1/chat/streams/failed/cancel",
+          { method: "POST", headers: { Authorization: "Bearer token" } }
+        )
+      );
+    } finally {
+      fetchSpy.mockRestore();
+    }
+  });
+
+  it("reports portal inference IDs for every tool continuation", async () => {
+    const onStreamMeta = vi.fn();
+    const fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(new Response(null, { headers: { "X-Inference-ID": "first" } }))
+      .mockResolvedValueOnce(new Response(null, { headers: { "X-Inference-ID": "second" } }));
+    let round = 0;
+    mockCreateSseClient.mockImplementation((options) => {
+      const current = round++;
+      return {
+        stream: (async function* () {
+          await options.fetch!("https://portal.example/responses");
+          for (const chunk of current === 0
+            ? makeToolCallStream("lookup", {})
+            : makeTextStream("Tool result received."))
+            yield chunk;
+        })(),
+      } as ReturnType<typeof sseModule.createSseClient>;
+    });
+    try {
+      const { result } = renderHook(() =>
+        useChat({
+          getToken: async () => "token",
+          resumable: true,
+          onStreamMeta,
+        })
+      );
+      let response: SendMessageResult | undefined;
+      await act(async () => {
+        response = await result.current.sendMessage({
+          messages: [{ role: "user", content: [{ type: "text", text: "Look it up" }] }],
+          model: "auto",
+          tools: [makeAutoTool("lookup", async () => "found")],
+        });
+      });
+      expect(response?.error).toBeNull();
+      expect(onStreamMeta.mock.calls).toEqual([
+        [{ inferenceId: "first", round: 0 }],
+        [{ inferenceId: "second", round: 1 }],
+      ]);
+      expect(mockCreateSseClient.mock.calls[0][0].headers).toEqual(
+        expect.objectContaining({ "X-Stream-Resumable": "1" })
+      );
+    } finally {
+      fetchSpy.mockRestore();
+    }
   });
 
   it("auto-executes a tool, sends result back, and completes with final text", async () => {

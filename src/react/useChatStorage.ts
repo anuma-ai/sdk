@@ -630,6 +630,10 @@ export async function storedToLlmapiMessage(
  * @inline
  */
 export interface UseChatStorageOptions extends BaseUseChatStorageOptions {
+  /** Opt into the portal stream buffer for every generated round. */
+  resumable?: boolean;
+  /** Inference identifier for each HTTP round, including client-tool continuations. */
+  onStreamMeta?: (meta: { inferenceId: string; round: number }) => void;
   /**
    * Which API endpoint to use. Default: "responses"
    * - "responses": OpenAI Responses API (supports thinking, reasoning, conversations)
@@ -804,6 +808,8 @@ export type SendMessageWithStorageResult =
       error: null;
       userMessage?: undefined;
       assistantMessage?: undefined;
+      /** Client-tool output remains available even when no private history is written. */
+      autoExecutedToolResults?: { name: string; result: unknown }[];
       /** Indicates this was a skipStorage request - no messages were persisted */
       skipped: true;
     }
@@ -1182,6 +1188,8 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     onError,
     onServerToolCall,
     onToolCallArgumentsDelta,
+    resumable,
+    onStreamMeta,
     apiType,
     walletAddress,
     signMessage,
@@ -2033,6 +2041,8 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     onError,
     onServerToolCall,
     onToolCallArgumentsDelta,
+    resumable,
+    onStreamMeta,
     apiType,
     preProcessors,
     smoothing,
@@ -2622,6 +2632,8 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         return {
           data: result.data,
           error: null,
+          autoExecutedToolResults:
+            "autoExecutedToolResults" in result ? result.autoExecutedToolResults : undefined,
           skipped: true,
         };
       }
