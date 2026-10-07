@@ -5,9 +5,9 @@ Defined in: [src/expo/useChatStorage.ts:502](https://github.com/anuma-ai/sdk/blo
 Detached variant of the storage send result.
 
 Returned only when `resumable` is on and the stream was torn down via
-`detach()` before completing. The partial assistant row is already persisted
-(under `assistantUniqueId`); call `resumeStream` with `handle` +
-`assistantUniqueId` to complete that SAME row.
+`detach()` before the terminal. The hook keeps the partial in memory.
+Call `resumeStream` to save the completed row under `assistantUniqueId`.
+A new send saves the partial as a stopped row and cancels the old buffer.
 
 ## Properties
 
@@ -15,11 +15,10 @@ Returned only when `resumable` is on and the stream was torn down via
 
 > `optional` **assistantUniqueId**: `string`
 
-Defined in: [src/expo/useChatStorage.ts:517](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChatStorage.ts#517)
+Defined in: [src/expo/useChatStorage.ts:516](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChatStorage.ts#516)
 
-The id the resumed/expired/interrupted completion reconciles onto. Nothing
-is persisted on detach — the row materializes when resumeStream() (or
-stop()) finalizes the turn under this id.
+The id for the completed or stopped row. Detach saves no row.
+A resume, stop, or new send saves the row under this id.
 
 Present whenever storage is active. Absent under `skipStorage`: there is no
 persisted row to reconcile, so drive `resumeStream(resume)` on the handle
@@ -65,6 +64,6 @@ Pass to `resumeStream` to replay; null when nothing was resumable.
 
 > `optional` **userMessage**: [`StoredMessage`](../../../react/Internal/interfaces/StoredMessage.md)
 
-Defined in: [src/expo/useChatStorage.ts:519](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChatStorage.ts#519)
+Defined in: [src/expo/useChatStorage.ts:518](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChatStorage.ts#518)
 
 The persisted user message. Absent under `skipStorage` (nothing is stored).

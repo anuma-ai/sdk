@@ -495,9 +495,9 @@ export type SendMessageWithStorageArgs = BaseSendMessageWithStorageArgs & {
  * Detached variant of the storage send result.
  *
  * Returned only when `resumable` is on and the stream was torn down via
- * `detach()` before completing. The partial assistant row is already persisted
- * (under `assistantUniqueId`); call `resumeStream` with `handle` +
- * `assistantUniqueId` to complete that SAME row.
+ * `detach()` before the terminal. The hook keeps the partial in memory.
+ * Call `resumeStream` to save the completed row under `assistantUniqueId`.
+ * A new send saves the partial as a stopped row and cancels the old buffer.
  */
 export interface SendMessageWithStorageDetachedResult {
   data: ApiResponse | null;
@@ -506,9 +506,8 @@ export interface SendMessageWithStorageDetachedResult {
   /** Pass to `resumeStream` to replay; null when nothing was resumable. */
   resume: StreamResumeHandle | null;
   /**
-   * The id the resumed/expired/interrupted completion reconciles onto. Nothing
-   * is persisted on detach — the row materializes when resumeStream() (or
-   * stop()) finalizes the turn under this id.
+   * The id for the completed or stopped row. Detach saves no row.
+   * A resume, stop, or new send saves the row under this id.
    *
    * Present whenever storage is active. Absent under `skipStorage`: there is no
    * persisted row to reconcile, so drive `resumeStream(resume)` on the handle
@@ -1342,6 +1341,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     isLoading,
     sendMessage: baseSendMessage,
     stop: baseStop,
+    cancel: baseCancel,
     detach,
     resumeStream: baseResumeStream,
   } = useChat({
@@ -1363,17 +1363,16 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     onToolCallArgumentsDelta,
   });
 
-  // Pending-resume context: everything needed to FINISH a detached turn after
-  // the in-flight sendMessage promise has settled. Nothing is persisted on
-  // detach — the partial lives here in memory until a resumeStream() (or a
-  // stop()) finalizes it onto `assistantUniqueId`. Cleared at: the top of every
-  // sendMessage (a stale handle bleeding into a new turn is the prev+chunk
-  // corruption class — clear FIRST, before any await), a successful resume, an
-  // expired/interrupted finalization, and stop().
+  // Detach keeps the partial in memory. A resume, stop, or new send saves
+  // the row under assistantUniqueId. A new send claims this context before
+  // any await and saves the row before it starts the next turn.
   const pendingResumeRef = useRef<{
     handle: StreamResumeHandle | null;
     convId: string;
     userMessageUniqueId: string;
+    // Queue id of the user message when its write was queued. The queued
+    // stopped row depends on it.
+    userMessageQueueId?: string;
     assistantUniqueId?: string;
     model?: string;
     imageModel?: string;
@@ -1393,6 +1392,14 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
   // stopped-finalization (base stop() aborts the in-flight resume, which then
   // finalizes as stopped on its own).
   const isResumingRef = useRef(false);
+  const activeResumeRef = useRef<{
+    context: NonNullable<typeof pendingResumeRef.current>;
+    headless: boolean;
+    // Resolves when this resume settles.
+    settled: Promise<void>;
+  } | null>(null);
+  const retirementRef = useRef<Promise<string | null> | null>(null);
+  const retirementStopRequestedRef = useRef(false);
 
   /**
    * Create a new conversation
@@ -1702,6 +1709,217 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
   getTokenRef.current = getToken;
 
   /**
+   * Upsert the reconciled assistant row onto `assistantUniqueId`. The partial
+   * was NOT persisted on detach, so the FIRST finalization for an id creates
+   * the row (where the `was_stopped` column defaults false), and any SUBSEQUENT
+   * finalization updates it in place — exactly one row either way. On the update
+   * path `wasStopped: false` actively CLEARS a prior interrupted finalization's
+   * stopped flag, because the upsert→_updateMessageOp path writes it on the
+   * `!== undefined` guard.
+   *
+   * Fidelity note (deliberate, out of §3 scope): this persists the raw
+   * `extractAssistantText(data).content`. The live send path additionally
+   * extracts/strips inline `sources` JSON blocks, strips R2 image markdown/URLs,
+   * and scrapes `image_model`. A plain-text answer that embeds a sources block
+   * or an R2 URL stores it un-normalized on the resume path — acceptable for the
+   * reconnect surface (the spec never promises content-normalization parity);
+   * tracked as a follow-up, not a §3 contract gap.
+   *
+   * Citation sources, however, ARE reconciled here (#639): the buffered stream
+   * the replay rebuilds carries `tool_call_events` (e.g. AnumaSearchMCP results)
+   * in the clean-completion `data`, exactly like the live send path. Tool
+   * *streams* (pending function calls) finalize as `interrupted`, but tool
+   * *call events* — citation metadata — ride a normal text completion, so
+   * persisting only the detach-time `ctx.sources` would drop the pills on a
+   * resumed turn. We merge them the same way the send path does (dedup by URL,
+   * drop MCP R2 image/file URLs).
+   */
+  const finalizeResumedRow = useCallback(
+    async (
+      ctx: NonNullable<typeof pendingResumeRef.current>,
+      data: ApiResponse,
+      wasStopped: boolean,
+      responseDuration: number,
+      // Retirement writes through the queue so a missing key does not block the next send.
+      viaQueue = false
+    ): Promise<StoredMessage> => {
+      const { content, thinking } = extractAssistantText(data);
+
+      // Cold-launch contexts synthesize with an EMPTY userMessageUniqueId, and
+      // the storage layer's truthy guard drops a falsy parent — the recovered
+      // row would persist PARENTLESS. In any conversation with prior turns
+      // that makes it a second ROOT SIBLING: branch navigation prefers the
+      // newest fork, so the entire prior thread collapses behind a root
+      // branch toggle (the #3118 failure class) and the recovery presents as
+      // a wiped conversation. The killed turn's user message WAS persisted at
+      // send time, so anchor the recovered row under the conversation's last
+      // stored message (excluding this row itself on a re-finalize). Both
+      // this and the tool-event dedup below need the stored messages — fetch
+      // once.
+      let parentMessageId = ctx.userMessageUniqueId;
+      let knownIds = ctx.knownToolCallEventIds;
+      if (ctx.convId && (!knownIds || !parentMessageId)) {
+        let storedMessages: StoredMessage[] | null = null;
+        try {
+          storedMessages = await getMessages(ctx.convId);
+        } catch {
+          // Fetch failed: no dedup possible and no parent anchor — proceed
+          // with all events and (only in that failure case) a parentless row.
+        }
+        if (storedMessages) {
+          if (!knownIds) {
+            knownIds = new Set<string>();
+            for (const msg of storedMessages) {
+              if (msg.uniqueId === ctx.assistantUniqueId) continue;
+              if (msg.toolCallEvents) {
+                for (const evt of msg.toolCallEvents) {
+                  if (evt.id) knownIds.add(evt.id);
+                }
+              }
+            }
+          }
+          if (!parentMessageId) {
+            // getMessages returns ordinal-ascending; walk from the newest.
+            for (let i = storedMessages.length - 1; i >= 0; i--) {
+              if (storedMessages[i].uniqueId !== ctx.assistantUniqueId) {
+                parentMessageId = storedMessages[i].uniqueId;
+                break;
+              }
+            }
+          }
+        }
+      }
+      const allToolCallEvents = getToolCallEvents(data);
+      const currentTurnToolCallEvents = knownIds
+        ? allToolCallEvents?.filter(
+            (evt) => evt.id !== undefined && evt.id !== null && !knownIds.has(evt.id)
+          )
+        : allToolCallEvents;
+
+      // Merge citations that arrived via tool_call_events into the detach-time
+      // sources, mirroring the live send path. R2 image/file URLs are persisted
+      // separately as media and must never become citation sources.
+      const baseSources = ctx.sources ?? [];
+      const seenSourceUrls = new Set(
+        baseSources.map((s) => s.url).filter((url): url is string => !!url)
+      );
+      const toolEventSources = extractSourcesFromToolCallEvents(currentTurnToolCallEvents);
+      const sources = [
+        ...baseSources,
+        ...toolEventSources.filter((s) => !s.url || !seenSourceUrls.has(s.url)),
+      ].filter((source) => !source.url?.includes(MCP_R2_DOMAIN));
+
+      const rowOpts: CreateMessageOptions & { uniqueId: string } = {
+        conversationId: ctx.convId,
+        role: "assistant",
+        content,
+        model: data.model || ctx.model || "",
+        imageModel: ctx.imageModel || getImageModel(data),
+        usage: convertUsageToStored(data),
+        responseDuration,
+        sources,
+        thoughtProcess: finalizeThoughtProcess(ctx.thoughtProcess),
+        thinking,
+        wasStopped,
+        parentMessageId,
+        toolCallEvents:
+          currentTurnToolCallEvents && currentTurnToolCallEvents.length > 0
+            ? currentTurnToolCallEvents
+            : undefined,
+        uniqueId: ctx.assistantUniqueId!,
+      };
+      if (!viaQueue) return upsertMessageOp(storageCtx, rowOpts);
+      const { result } = await writeOrQueue(
+        "createMessage",
+        rowOpts,
+        () => upsertMessageOp(storageCtx, rowOpts),
+        () => makeSyntheticStoredMessage(rowOpts),
+        ctx.userMessageQueueId ? [ctx.userMessageQueueId] : []
+      );
+      return result;
+    },
+    [storageCtx, getMessages, writeOrQueue]
+  );
+
+  /** Save an idle detached turn before a new send uses the shared stream state. */
+  const retirePendingTurn = useCallback(async (): Promise<string | null> => {
+    // Every new send waits for the same write. The claimed context leaves the
+    // shared slot before the first await, so a resume cannot adopt it mid-write.
+    // A visible resume yields to the new send. Stop aborts the replay. The
+    // replay then saves its own stopped row before this send continues.
+    const visible = activeResumeRef.current;
+    if (visible && !visible.headless) {
+      baseStop();
+      await visible.settled;
+    }
+    if (retirementRef.current) return retirementRef.current;
+    const active = activeResumeRef.current;
+    if (active && !active.headless) return "Resume already in progress";
+    const pending = pendingResumeRef.current;
+    // An active cold replay owns its context. A new send clears an idle cold context.
+    if (!pending) return null;
+    if (!pending.userMessageUniqueId) {
+      if (active?.context === pending) return null;
+      if (!pending.partialData) {
+        pendingResumeRef.current = null;
+        return null;
+      }
+    }
+    if (active?.context === pending) return "Resume already in progress";
+    pendingResumeRef.current = null;
+    retirementStopRequestedRef.current = false;
+
+    const retirement = Promise.resolve().then(async (): Promise<string | null> => {
+      try {
+        const data = pending.partialData;
+        if (data && pending.assistantUniqueId) {
+          const { content, thinking } = extractAssistantText(data);
+          if (content || thinking || (getToolCallEvents(data)?.length ?? 0) > 0) {
+            // Try to recover the wallet key first. If it stays unavailable,
+            // the row goes through the write queue.
+            if (walletAddress && signMessage && !hasEncryptionKey(walletAddress)) {
+              try {
+                await requestEncryptionKey(walletAddress, signMessage, embeddedWalletSigner);
+              } catch {
+                // Key derivation failed. writeOrQueue queues the row.
+              }
+            }
+            await finalizeResumedRow(
+              pending,
+              data,
+              true,
+              (Date.now() - pending.startTime) / 1000,
+              true
+            );
+          }
+        }
+        // Commit first. A failed write keeps the buffer available for retry.
+        // Cancel only this turn. The inner hook can hold a newer send, so
+        // baseStop() would abort that stream.
+        if (pending.handle) baseCancel(pending.handle);
+        return null;
+      } catch (err) {
+        pendingResumeRef.current = pending;
+        if (retirementStopRequestedRef.current && pending.handle) {
+          // Cancel once. The retry must not send a second cancel POST.
+          baseCancel(pending.handle);
+          pendingResumeRef.current = { ...pending, handle: null };
+        }
+        return err instanceof Error ? err.message : "Failed to store detached message";
+      }
+    });
+    retirementRef.current = retirement;
+    try {
+      return await retirement;
+    } finally {
+      if (retirementRef.current === retirement) {
+        retirementRef.current = null;
+        retirementStopRequestedRef.current = false;
+      }
+    }
+  }, [baseCancel, baseStop, finalizeResumedRow, walletAddress, signMessage, embeddedWalletSigner]);
+
+  /**
    * Send a message with automatic storage
    */
   const sendMessage = useCallback(
@@ -1762,10 +1980,15 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         };
       };
 
-      // Clear any pending resume FIRST, before any await: a stale handle from a
-      // previous detached turn bleeding into this one is the prev+chunk
-      // duplication class. A new send supersedes an unfinished detach.
-      pendingResumeRef.current = null;
+      // Save the detached partial before history, user storage, or network work.
+      // A failed write leaves the old turn available and prevents the new send.
+      const retirementError = await retirePendingTurn();
+      if (retirementError) {
+        // skipStorage writes nothing, so a storage failure must not block it.
+        // The detached partial stays available for a later retry.
+        if (!skipStorage) return { data: null, error: retirementError };
+        getLogger().warn("[useChatStorage] detached partial not saved:", retirementError);
+      }
 
       // When resumable, the assistant row MUST have a stable id before the
       // stream starts so a detach and the later resume reconcile onto the SAME
@@ -2633,6 +2856,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           handle: detachedResult.resume ?? null,
           convId,
           userMessageUniqueId: storedUserMessage.uniqueId,
+          userMessageQueueId: userMsgQueueId,
           assistantUniqueId: rowId,
           model,
           imageModel,
@@ -2975,6 +3199,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       getMessages,
       storageCtx,
       baseSendMessage,
+      retirePendingTurn,
       embedMessageAsync,
       minContentLength,
       walletAddress,
@@ -2991,123 +3216,6 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       // instance, matching every other redaction path.
       onPiiRedacted,
     ]
-  );
-
-  /**
-   * Upsert the reconciled assistant row onto `assistantUniqueId`. The partial
-   * was NOT persisted on detach, so the FIRST finalization for an id creates
-   * the row (where the `was_stopped` column defaults false), and any SUBSEQUENT
-   * finalization updates it in place — exactly one row either way. On the update
-   * path `wasStopped: false` actively CLEARS a prior interrupted finalization's
-   * stopped flag, because the upsert→_updateMessageOp path writes it on the
-   * `!== undefined` guard.
-   *
-   * Fidelity note (deliberate, out of §3 scope): this persists the raw
-   * `extractAssistantText(data).content`. The live send path additionally
-   * extracts/strips inline `sources` JSON blocks, strips R2 image markdown/URLs,
-   * and scrapes `image_model`. A plain-text answer that embeds a sources block
-   * or an R2 URL stores it un-normalized on the resume path — acceptable for the
-   * reconnect surface (the spec never promises content-normalization parity);
-   * tracked as a follow-up, not a §3 contract gap.
-   *
-   * Citation sources, however, ARE reconciled here (#639): the buffered stream
-   * the replay rebuilds carries `tool_call_events` (e.g. AnumaSearchMCP results)
-   * in the clean-completion `data`, exactly like the live send path. Tool
-   * *streams* (pending function calls) finalize as `interrupted`, but tool
-   * *call events* — citation metadata — ride a normal text completion, so
-   * persisting only the detach-time `ctx.sources` would drop the pills on a
-   * resumed turn. We merge them the same way the send path does (dedup by URL,
-   * drop MCP R2 image/file URLs).
-   */
-  const finalizeResumedRow = useCallback(
-    async (
-      ctx: NonNullable<typeof pendingResumeRef.current>,
-      data: ApiResponse,
-      wasStopped: boolean,
-      responseDuration: number
-    ): Promise<StoredMessage> => {
-      const { content, thinking } = extractAssistantText(data);
-
-      // Cold-launch contexts synthesize with an EMPTY userMessageUniqueId, and
-      // the storage layer's truthy guard drops a falsy parent — the recovered
-      // row would persist PARENTLESS. In any conversation with prior turns
-      // that makes it a second ROOT SIBLING: branch navigation prefers the
-      // newest fork, so the entire prior thread collapses behind a root
-      // branch toggle (the #3118 failure class) and the recovery presents as
-      // a wiped conversation. The killed turn's user message WAS persisted at
-      // send time, so anchor the recovered row under the conversation's last
-      // stored message (excluding this row itself on a re-finalize). Both
-      // this and the tool-event dedup below need the stored messages — fetch
-      // once.
-      let parentMessageId = ctx.userMessageUniqueId;
-      let knownIds = ctx.knownToolCallEventIds;
-      if (ctx.convId && (!knownIds || !parentMessageId)) {
-        let storedMessages: StoredMessage[] | null = null;
-        try {
-          storedMessages = await getMessages(ctx.convId);
-        } catch {
-          // Fetch failed: no dedup possible and no parent anchor — proceed
-          // with all events and (only in that failure case) a parentless row.
-        }
-        if (storedMessages) {
-          if (!knownIds) {
-            knownIds = new Set<string>();
-            for (const msg of storedMessages) {
-              if (msg.toolCallEvents) {
-                for (const evt of msg.toolCallEvents) {
-                  if (evt.id) knownIds.add(evt.id);
-                }
-              }
-            }
-          }
-          if (!parentMessageId) {
-            // getMessages returns ordinal-ascending; walk from the newest.
-            for (let i = storedMessages.length - 1; i >= 0; i--) {
-              if (storedMessages[i].uniqueId !== ctx.assistantUniqueId) {
-                parentMessageId = storedMessages[i].uniqueId;
-                break;
-              }
-            }
-          }
-        }
-      }
-      const allToolCallEvents = getToolCallEvents(data);
-      const currentTurnToolCallEvents = knownIds
-        ? allToolCallEvents?.filter(
-            (evt) => evt.id !== undefined && evt.id !== null && !knownIds.has(evt.id)
-          )
-        : allToolCallEvents;
-
-      // Merge citations that arrived via tool_call_events into the detach-time
-      // sources, mirroring the live send path. R2 image/file URLs are persisted
-      // separately as media and must never become citation sources.
-      const baseSources = ctx.sources ?? [];
-      const seenSourceUrls = new Set(
-        baseSources.map((s) => s.url).filter((url): url is string => !!url)
-      );
-      const toolEventSources = extractSourcesFromToolCallEvents(currentTurnToolCallEvents);
-      const sources = [
-        ...baseSources,
-        ...toolEventSources.filter((s) => !s.url || !seenSourceUrls.has(s.url)),
-      ].filter((source) => !source.url?.includes(MCP_R2_DOMAIN));
-
-      return upsertMessageOp(storageCtx, {
-        conversationId: ctx.convId,
-        role: "assistant",
-        content,
-        model: data.model || ctx.model || "",
-        imageModel: ctx.imageModel || getImageModel(data),
-        usage: convertUsageToStored(data),
-        responseDuration,
-        sources,
-        thoughtProcess: finalizeThoughtProcess(ctx.thoughtProcess),
-        thinking,
-        wasStopped,
-        parentMessageId,
-        uniqueId: ctx.assistantUniqueId!,
-      });
-    },
-    [storageCtx, getMessages]
   );
 
   /**
@@ -3142,7 +3250,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       // flight would race the first (two replay GETs, two finalizations on the
       // same id — the second replay would clobber the first). Reject it; the
       // caller retries after the in-flight resume settles.
-      if (isResumingRef.current) {
+      if (isResumingRef.current || retirementRef.current) {
         return { data: null, error: "Resume already in progress", assistantMessage: null };
       }
       // Resolve context: the stowed pending-resume, or synthesize from an
@@ -3231,6 +3339,8 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         wasStopped: boolean,
         responseDuration: number
       ): Promise<{ message: StoredMessage } | { error: string }> => {
+        // Retain the latest replay if the write fails and a new send replaces it.
+        rctx.partialData = data;
         try {
           return { message: await finalizeResumedRow(rctx, data, wasStopped, responseDuration) };
         } catch (writeErr) {
@@ -3242,6 +3352,12 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       };
 
       isResumingRef.current = true;
+      let markSettled: () => void = () => {};
+      const settled = new Promise<void>((resolve) => {
+        markSettled = resolve;
+      });
+      const activeResume = { context: rctx, headless: opts?.headless === true, settled };
+      activeResumeRef.current = activeResume;
       try {
         // baseResumeStream fetches a fresh token internally (at invocation time).
         // Headless forwards through to useChat.resumeStream, which withholds the
@@ -3377,6 +3493,8 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         throw err;
       } finally {
         isResumingRef.current = false;
+        if (activeResumeRef.current === activeResume) activeResumeRef.current = null;
+        markSettled();
       }
     },
     [baseResumeStream, currentConversationId, finalizeResumedRow, embedMessageAsync]
@@ -3392,6 +3510,11 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
    * streamMeta ref survives the detach).
    */
   const stop = useCallback(() => {
+    // The new send owns the write. Preserve stop intent if that write fails.
+    if (retirementRef.current) {
+      retirementStopRequestedRef.current = true;
+      return;
+    }
     const pending = pendingResumeRef.current;
     if (pending && pending.assistantUniqueId && !isResumingRef.current) {
       const finalize = pending;

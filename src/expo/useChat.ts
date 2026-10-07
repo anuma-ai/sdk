@@ -152,6 +152,11 @@ type UseChatResult = BaseUseChatResult & {
    */
   detach: () => StreamResumeHandle | null;
   /**
+   * Send the cancel POST for one stream handle. It does not abort the
+   * in-flight request, so a newer send on this hook keeps streaming.
+   */
+  cancel: (handle: StreamResumeHandle) => void;
+  /**
    * Replay a detached stream from the portal's buffer (GET from seq 0, fresh
    * accumulator). Thin hook wrapper over the library `resumeStream` — supplies
    * the hook's `getToken`/`baseUrl`/`transport` defaults; the token is resolved
@@ -305,6 +310,18 @@ export function useChat(options?: UseChatOptions): UseChatResult {
     detachControllerRef.current = null;
     pendingResumeRef.current = null;
   }, [resumable, fireCancel]);
+
+  // Cancel ONE known stream by its handle. Unlike stop(), this never aborts
+  // the shared controller, so a newer send on this hook keeps streaming.
+  const cancel = useCallback(
+    (handle: StreamResumeHandle) => {
+      if (resumable) fireCancel(handle);
+      if (pendingResumeRef.current?.inferenceId === handle.inferenceId) {
+        pendingResumeRef.current = null;
+      }
+    },
+    [resumable, fireCancel]
+  );
 
   const detach = useCallback((): StreamResumeHandle | null => {
     // Abort via the detach signal (not the stop signal): runToolLoop tears the
@@ -655,6 +672,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
     isLoading,
     sendMessage,
     stop,
+    cancel,
     detach,
     resumeStream,
   };

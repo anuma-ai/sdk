@@ -4,20 +4,20 @@
  *
  * The non-negotiable invariant: for a single `assistantUniqueId`, a detach
  * followed by a resume yields exactly ONE assistant row — the partial is
- * persisted on detach and the resumed completion UPDATES that same row in place
- * (find→update via upsertMessageOp), never creating a second one.
+ * kept in memory on detach. The terminal creates or updates one assistant row.
+ * A new send saves the detached partial before it starts the next turn.
  *
  * Two layers:
  * 1. upsertMessageOp directly against a real WatermelonDB (LokiJS) — the
  *    create-then-update single-row guarantee in isolation.
  * 2. The hook end to end with runToolLoop / resumeStream mocked — detach
- *    persists a partial, resume reconciles to the final text on one row.
+ *    keeps a partial in memory, then saves one row at the terminal.
  */
 
 import { Database } from "@nozbe/watermelondb";
 import LokiJSAdapter from "@nozbe/watermelondb/adapters/lokijs";
 import { act, renderHook, waitFor } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, type MockInstance, vi } from "vitest";
 
 import { sdkMigrations, sdkModelClasses, sdkSchema } from "../lib/db/schema";
 import {
@@ -42,6 +42,12 @@ vi.mock("../lib/chat/resumeStream", async (importOriginal) => {
 import { MCP_R2_DOMAIN } from "../clientConfig";
 import { runToolLoop } from "../lib/chat/toolLoop";
 import { resumeStream as libResumeStream, StreamExpiredError } from "../lib/chat/resumeStream";
+import { streamCancelPath } from "../lib/chat/resumeStream";
+import {
+  clearAllEncryptionKeys,
+  hasEncryptionKey,
+  requestEncryptionKey,
+} from "../react/useEncryption";
 import { useChatStorage } from "./useChatStorage";
 
 const mockRunToolLoop = vi.mocked(runToolLoop);
@@ -213,6 +219,7 @@ describe("useChatStorage detach → resume reconciliation", () => {
       sendResult = await result.current.sendMessage({
         messages: [{ role: "user", content: [{ type: "text", text: "question" }] }],
         model: "test-model",
+        serverTools: [],
       });
     });
     return sendResult! as Extract<
@@ -1210,36 +1217,964 @@ describe("useChatStorage detach → resume reconciliation", () => {
     ).toHaveLength(1);
   });
 
-  it("clears a pending handle when a new sendMessage is dispatched", async () => {
-    const { result } = renderHook(() =>
-      useChatStorage({
-        database: db,
-        conversationId: "conv_clear",
-        getToken: async () => "tok",
-        resumable: true,
-      })
+  describe("pending turn supersession", () => {
+    let fetchSpy: MockInstance<typeof globalThis.fetch>;
+
+    beforeEach(() => {
+      mockRunToolLoop.mockReset();
+      mockResumeStream.mockReset();
+      fetchSpy = vi
+        .spyOn(globalThis, "fetch")
+        .mockResolvedValue(new Response(null, { status: 200 }));
+    });
+
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    function deferred<T>() {
+      let resolve!: (value: T) => void;
+      const promise = new Promise<T>((done) => {
+        resolve = done;
+      });
+      return { promise, resolve };
+    }
+
+    function nextArgs(text = "new question") {
+      return {
+        messages: [{ role: "user" as const, content: [{ type: "text" as const, text }] }],
+        model: "test-model",
+        serverTools: [],
+      };
+    }
+
+    function cancelCalls(inferenceId: string) {
+      return fetchSpy.mock.calls.filter(([url]) =>
+        String(url).endsWith(streamCancelPath(inferenceId))
+      );
+    }
+
+    function completedSend(text = "fresh answer") {
+      mockRunToolLoop.mockResolvedValueOnce({ data: responsesShape(text), error: null } as never);
+    }
+
+    it.each(["warm", "cold"] as const)(
+      "saves the latest %s replay after a failed write before the next send",
+      async (kind) => {
+        const conversationId = `conv_latest_replay_${kind}`;
+        const inferenceId = `inf-latest-replay-${kind}`;
+        const { result } = renderHook(() =>
+          useChatStorage({
+            database: db,
+            conversationId,
+            getToken: async () => "tok",
+            resumable: true,
+            autoEmbedMessages: false,
+          })
+        );
+        let assistantUniqueId: string;
+        if (kind === "warm") {
+          const detached = await detachSend(
+            result,
+            conversationId,
+            "original partial",
+            inferenceId
+          );
+          assistantUniqueId = detached.assistantUniqueId!;
+        } else {
+          await createConversationOp(makeCtx(db), { conversationId });
+          await upsertMessageOp(makeCtx(db), {
+            conversationId,
+            role: "user",
+            content: "question",
+            uniqueId: "latest-replay-user",
+          });
+          assistantUniqueId = `msg_resume_${inferenceId}`;
+        }
+        const event = {
+          id: "evt_latest_replay",
+          name: "lookup",
+          output: "latest tool result",
+        };
+        mockResumeStream.mockResolvedValueOnce({
+          data: {
+            ...responsesShape("original partial plus recovered text"),
+            tool_call_events: [event],
+          },
+          error: null,
+          interrupted: false,
+        } as never);
+        vi.spyOn(db, "write").mockImplementationOnce(async () => {
+          throw new Error("replay writer unavailable");
+        });
+        await act(async () => {
+          const resumed = await result.current.resumeStream(
+            kind === "cold"
+              ? { inferenceId, conversationId, model: "test-model", apiType: "responses" }
+              : undefined
+          );
+          expect(resumed.error).toBe("replay writer unavailable");
+          expect(resumed.assistantMessage).toBeNull();
+        });
+        completedSend();
+        await act(async () => {
+          expect((await result.current.sendMessage(nextArgs())).error).toBeNull();
+        });
+        const rows = await getMessagesOp(makeCtx(db), conversationId);
+        expect(rows.map((row) => row.content)).toEqual([
+          "question",
+          "original partial plus recovered text",
+          "new question",
+          "fresh answer",
+        ]);
+        expect(rows[1]).toMatchObject({
+          uniqueId: assistantUniqueId,
+          parentMessageId: rows[0].uniqueId,
+          wasStopped: true,
+          toolCallEvents: [event],
+        });
+        const prompt = mockRunToolLoop.mock.calls[kind === "warm" ? 1 : 0][0].messages;
+        expect(JSON.stringify(prompt)).toContain("original partial plus recovered text");
+        expect(prompt.filter((message) => message.role === "tool")).toEqual([
+          { role: "tool", tool_call_id: event.id, content: [{ type: "text", text: event.output }] },
+        ]);
+      }
     );
 
-    await detachSend(result, "conv_clear", "partial", "inf-5");
+    it("retains detached tool events in the stopped row and the next model request", async () => {
+      const { result } = renderHook(() =>
+        useChatStorage({
+          database: db,
+          conversationId: "conv_detached_tools",
+          getToken: async () => "tok",
+          resumable: true,
+          autoEmbedMessages: false,
+        })
+      );
+      const event = {
+        id: "evt_detached_lookup",
+        name: "lookup",
+        arguments: '{"query":"saved result"}',
+        output: '{"answer":"tool context"}',
+      };
+      mockRunToolLoop.mockResolvedValueOnce({
+        data: { ...responsesShape("partial with tools"), tool_call_events: [event] },
+        error: "Request detached",
+        detached: true,
+        resume: {
+          inferenceId: "inf-detached-tools",
+          apiType: "responses",
+          model: "test-model",
+          conversationId: "conv_detached_tools",
+        },
+      } as never);
+      await act(async () => {
+        await result.current.sendMessage(nextArgs("first question"));
+      });
+      completedSend();
+      await act(async () => {
+        expect((await result.current.sendMessage(nextArgs())).error).toBeNull();
+      });
+      const rows = await getMessagesOp(makeCtx(db), "conv_detached_tools");
+      expect(rows[1]).toMatchObject({ wasStopped: true, toolCallEvents: [event] });
+      const prompt = mockRunToolLoop.mock.calls[1][0].messages;
+      expect(prompt.filter((message) => message.role === "tool")).toEqual([
+        {
+          role: "tool",
+          tool_call_id: event.id,
+          content: [{ type: "text", text: event.output }],
+        },
+      ]);
+      expect(prompt.flatMap((message) => message.tool_calls ?? [])).toEqual([
+        {
+          id: event.id,
+          type: "function",
+          function: { name: event.name, arguments: event.arguments },
+        },
+      ]);
+    });
 
-    // A new (non-detached) send supersedes the pending detach.
-    mockRunToolLoop.mockResolvedValueOnce({
-      data: responsesShape("a fresh answer"),
-      error: null,
-    } as never);
-    await act(async () => {
-      await result.current.sendMessage({
-        messages: [{ role: "user", content: [{ type: "text", text: "new question" }] }],
+    it("retains all current-turn events when a cold replay updates the same row", async () => {
+      const ctx = makeCtx(db);
+      await createConversationOp(ctx, { conversationId: "conv_cold_tools" });
+      const previousEvent = { id: "evt_previous", name: "lookup", output: "previous result" };
+      await upsertMessageOp(ctx, {
+        conversationId: "conv_cold_tools",
+        role: "user",
+        content: "previous question",
+        uniqueId: "cold-tools-previous-user",
+      });
+      await upsertMessageOp(ctx, {
+        conversationId: "conv_cold_tools",
+        role: "assistant",
+        content: "previous answer",
+        uniqueId: "cold-tools-previous-assistant",
+        parentMessageId: "cold-tools-previous-user",
+        toolCallEvents: [previousEvent],
+      });
+      await upsertMessageOp(ctx, {
+        conversationId: "conv_cold_tools",
+        role: "user",
+        content: "current question",
+        uniqueId: "cold-tools-current-user",
+        parentMessageId: "cold-tools-previous-assistant",
+      });
+      const { result } = renderHook(() =>
+        useChatStorage({
+          database: db,
+          conversationId: "conv_cold_tools",
+          getToken: async () => "tok",
+          resumable: true,
+          autoEmbedMessages: false,
+        })
+      );
+      const override = {
+        inferenceId: "inf-cold-tools",
+        apiType: "responses" as const,
         model: "test-model",
+        conversationId: "conv_cold_tools",
+      };
+      const firstEvent = { id: "evt_current_first", name: "lookup", output: "first result" };
+      const secondEvent = { id: "evt_current_second", name: "lookup", output: "second result" };
+      mockResumeStream.mockResolvedValueOnce({
+        data: {
+          ...responsesShape("partial tool reply"),
+          tool_call_events: [previousEvent, firstEvent],
+        },
+        error: "Request stopped",
+        interrupted: true,
+      } as never);
+      let ordinal: number | undefined;
+      await act(async () => {
+        const partial = await result.current.resumeStream(override);
+        expect(partial.assistantMessage?.toolCallEvents).toEqual([firstEvent]);
+        ordinal = partial.assistantMessage?.messageId;
+      });
+      mockResumeStream.mockResolvedValueOnce({
+        data: {
+          ...responsesShape("complete tool reply"),
+          tool_call_events: [previousEvent, firstEvent, secondEvent],
+        },
+        error: null,
+        interrupted: false,
+      } as never);
+      await act(async () => {
+        const complete = await result.current.resumeStream(override);
+        expect(complete.error).toBeNull();
+        expect(complete.assistantMessage).toMatchObject({
+          uniqueId: "msg_resume_inf-cold-tools",
+          messageId: ordinal,
+          parentMessageId: "cold-tools-current-user",
+          toolCallEvents: [firstEvent, secondEvent],
+          wasStopped: false,
+        });
+      });
+      const rows = await getMessagesOp(ctx, "conv_cold_tools");
+      expect(rows.filter((row) => row.uniqueId === "msg_resume_inf-cold-tools")).toHaveLength(1);
+    });
+
+    it("honors stop during a failed retirement write and retains the partial for retry", async () => {
+      const { result } = renderHook(() =>
+        useChatStorage({
+          database: db,
+          conversationId: "conv_stop_failed_retirement",
+          getToken: async () => "tok",
+          resumable: true,
+          autoEmbedMessages: false,
+        })
+      );
+      const detached = await detachSend(
+        result,
+        "conv_stop_failed_retirement",
+        "partial before stop",
+        "inf-stop-failed-retirement"
+      );
+      const entered = deferred<void>();
+      const release = deferred<void>();
+      vi.spyOn(db, "write").mockImplementationOnce(async () => {
+        entered.resolve();
+        await release.promise;
+        throw new Error("retirement writer unavailable");
+      });
+      completedSend();
+      await act(async () => {
+        const next = result.current.sendMessage(nextArgs());
+        await entered.promise;
+        try {
+          result.current.stop();
+          result.current.stop();
+          expect(cancelCalls("inf-stop-failed-retirement")).toHaveLength(0);
+        } finally {
+          release.resolve();
+        }
+        expect(await next).toMatchObject({
+          data: null,
+          error: "retirement writer unavailable",
+        });
+      });
+      await waitFor(() => expect(cancelCalls("inf-stop-failed-retirement")).toHaveLength(1));
+      expect(mockRunToolLoop).toHaveBeenCalledTimes(1);
+      expect(await getMessagesOp(makeCtx(db), "conv_stop_failed_retirement")).toHaveLength(1);
+      await act(async () => {
+        expect((await result.current.sendMessage(nextArgs())).error).toBeNull();
+      });
+      const rows = await getMessagesOp(makeCtx(db), "conv_stop_failed_retirement");
+      expect(rows.filter((row) => row.uniqueId === detached.assistantUniqueId)).toHaveLength(1);
+      expect(rows[1]).toMatchObject({ content: "partial before stop", wasStopped: true });
+      expect(cancelCalls("inf-stop-failed-retirement")).toHaveLength(1);
+    });
+
+    it("clears an idle cold context after a thrown replay when a new send replaces it", async () => {
+      const { result } = renderHook(() =>
+        useChatStorage({
+          database: db,
+          conversationId: "conv_idle_cold",
+          getToken: async () => "tok",
+          resumable: true,
+          autoEmbedMessages: false,
+        })
+      );
+      const override = {
+        inferenceId: "inf-idle-cold",
+        apiType: "responses" as const,
+        model: "test-model",
+        conversationId: "conv_idle_cold",
+      };
+      mockResumeStream.mockRejectedValueOnce(new Error("replay transport unavailable"));
+      await act(async () => {
+        await expect(result.current.resumeStream(override)).rejects.toThrow(
+          "replay transport unavailable"
+        );
+      });
+      completedSend();
+      await act(async () => {
+        expect((await result.current.sendMessage(nextArgs())).error).toBeNull();
+      });
+      mockResumeStream.mockResolvedValueOnce({
+        data: responsesShape("stale cold reply"),
+        error: null,
+        interrupted: false,
+      } as never);
+      await act(async () => {
+        expect(await result.current.resumeStream()).toMatchObject({
+          data: null,
+          error: "No resumable stream",
+          assistantMessage: null,
+        });
+      });
+      expect(mockResumeStream).toHaveBeenCalledTimes(1);
+      expect(fetchSpy).not.toHaveBeenCalled();
+      expect(
+        (await getMessagesOp(makeCtx(db), "conv_idle_cold")).map((row) => row.content)
+      ).toEqual(["new question", "fresh answer"]);
+    });
+
+    it.each([false, true])(
+      "preserves encrypted retirement after key recovery, with an initial key failure: %s",
+      async (failKey) => {
+        const address = "0x1234567890123456789012345678901234567890";
+        const signature = `0x${"ab".repeat(65)}`;
+        const signMessage = vi.fn(async () => signature);
+        clearAllEncryptionKeys();
+        try {
+          await requestEncryptionKey(address, signMessage);
+          const { result } = renderHook(() =>
+            useChatStorage({
+              database: db,
+              conversationId: "conv_encrypted_retirement",
+              getToken: async () => "tok",
+              walletAddress: address,
+              signMessage,
+              enableQueue: true,
+              autoFlushOnKeyAvailable: false,
+              resumable: true,
+              autoEmbedMessages: false,
+            })
+          );
+          const detached = await detachSend(
+            result,
+            "conv_encrypted_retirement",
+            "encrypted partial",
+            "inf-encrypted-retirement"
+          );
+          clearAllEncryptionKeys();
+          expect(hasEncryptionKey(address)).toBe(false);
+          completedSend();
+          completedSend();
+          if (failKey) {
+            // A true key failure queues the stopped row. The send is not blocked.
+            signMessage.mockRejectedValue(new Error("wallet key unavailable"));
+            await act(async () => {
+              expect((await result.current.sendMessage(nextArgs())).error).toBeNull();
+            });
+            expect(mockRunToolLoop).toHaveBeenCalledTimes(2);
+            expect(await db.get("history").query().fetch()).toHaveLength(1);
+            // Stopped row, new user message, new assistant message.
+            expect(result.current.queueStatus.pending).toBe(3);
+            act(() => result.current.clearQueue());
+            return;
+          }
+          await act(async () => {
+            expect((await result.current.sendMessage(nextArgs())).error).toBeNull();
+          });
+          const rows = await getMessagesOp(
+            { ...makeCtx(db), walletAddress: address, signMessage },
+            "conv_encrypted_retirement"
+          );
+          expect(rows.map((row) => row.content)).toEqual([
+            "question",
+            "encrypted partial",
+            "new question",
+            "fresh answer",
+          ]);
+          expect(rows[1]).toMatchObject({
+            uniqueId: detached.assistantUniqueId,
+            parentMessageId: detached.userMessage?.uniqueId,
+            wasStopped: true,
+          });
+          expect(rows.filter((row) => row.uniqueId === detached.assistantUniqueId)).toHaveLength(1);
+          const raw = await db.get("history").find(detached.assistantUniqueId!);
+          expect(raw._getRaw("content")).toMatch(/^enc:v3:/);
+          expect(JSON.stringify(mockRunToolLoop.mock.calls[1][0].messages)).toContain(
+            "encrypted partial"
+          );
+          await waitFor(() => expect(cancelCalls("inf-encrypted-retirement")).toHaveLength(1));
+        } finally {
+          clearAllEncryptionKeys();
+        }
+      }
+    );
+
+    it("keeps ordinary sends queued when a wallet key is unavailable", async () => {
+      const address = "0x2234567890123456789012345678901234567890";
+      const signMessage = vi.fn(async (): Promise<string> => {
+        throw new Error("wallet key unavailable");
+      });
+      clearAllEncryptionKeys();
+      try {
+        await createConversationOp(makeCtx(db), { conversationId: "conv_ordinary_queue" });
+        const { result } = renderHook(() =>
+          useChatStorage({
+            database: db,
+            conversationId: "conv_ordinary_queue",
+            getToken: async () => "tok",
+            walletAddress: address,
+            signMessage,
+            enableQueue: true,
+            autoFlushOnKeyAvailable: false,
+            resumable: true,
+            autoEmbedMessages: false,
+          })
+        );
+        completedSend();
+        await act(async () => {
+          expect((await result.current.sendMessage(nextArgs())).error).toBeNull();
+        });
+        expect(mockRunToolLoop).toHaveBeenCalledTimes(1);
+        expect(result.current.queueStatus.pending).toBe(2);
+        expect(await db.get("history").query().fetch()).toHaveLength(0);
+        act(() => result.current.clearQueue());
+      } finally {
+        clearAllEncryptionKeys();
+      }
+    });
+
+    it("saves one stopped partial before the next turn and cancels only the old buffer", async () => {
+      const onCancelResult = vi.fn();
+      let token = "old-token";
+      const { result } = renderHook(() =>
+        useChatStorage({
+          database: db,
+          conversationId: "conv_supersede",
+          getToken: async () => token,
+          resumable: true,
+          autoEmbedMessages: false,
+          onCancelResult,
+        })
+      );
+      const detached = await detachSend(result, "conv_supersede", "visible partial", "inf-old");
+      token = "fresh-token";
+      completedSend();
+      let next!: Awaited<ReturnType<typeof result.current.sendMessage>>;
+      await act(async () => {
+        next = await result.current.sendMessage(nextArgs());
+      });
+      expect(next.error).toBeNull();
+
+      const rows = await getMessagesOp(makeCtx(db), "conv_supersede");
+      expect(rows.map((row) => row.content)).toEqual([
+        "question",
+        "visible partial",
+        "new question",
+        "fresh answer",
+      ]);
+      expect(rows.map((row) => row.messageId)).toEqual([1, 2, 3, 4]);
+      expect(rows[1]).toMatchObject({
+        uniqueId: detached.assistantUniqueId,
+        parentMessageId: detached.userMessage?.uniqueId,
+        conversationId: "conv_supersede",
+        wasStopped: true,
+      });
+      expect(rows[3].uniqueId).not.toBe(detached.assistantUniqueId);
+      expect(rows[3].wasStopped).toBeFalsy();
+      const prompt = JSON.stringify(mockRunToolLoop.mock.calls[1][0].messages);
+      expect(prompt.split("visible partial")).toHaveLength(2);
+      await waitFor(() => expect(onCancelResult).toHaveBeenCalledTimes(1));
+      expect(cancelCalls("inf-old")).toHaveLength(1);
+      expect(cancelCalls("inf-old")[0][1]).toMatchObject({
+        method: "POST",
+        headers: { Authorization: "Bearer fresh-token" },
+      });
+      expect((await result.current.resumeStream()).error).toBe("No resumable stream");
+    });
+
+    it("retains the old turn after a real writer failure and retries without duplicate rows", async () => {
+      const { result } = renderHook(() =>
+        useChatStorage({
+          database: db,
+          conversationId: "conv_retry",
+          getToken: async () => "tok",
+          resumable: true,
+          autoEmbedMessages: false,
+        })
+      );
+      const detached = await detachSend(result, "conv_retry", "retry partial", "inf-retry");
+      const writer = vi.spyOn(db, "write").mockRejectedValueOnce(new Error("writer unavailable"));
+      completedSend();
+      let failed!: Awaited<ReturnType<typeof result.current.sendMessage>>;
+      await act(async () => {
+        failed = await result.current.sendMessage(nextArgs());
+      });
+      expect(failed).toMatchObject({ data: null, error: "writer unavailable" });
+      expect(mockRunToolLoop).toHaveBeenCalledTimes(1);
+      expect(cancelCalls("inf-retry")).toHaveLength(0);
+      expect((await getMessagesOp(makeCtx(db), "conv_retry")).map((row) => row.content)).toEqual([
+        "question",
+      ]);
+      writer.mockRestore();
+
+      await act(async () => {
+        expect((await result.current.sendMessage(nextArgs())).error).toBeNull();
+      });
+      const rows = await getMessagesOp(makeCtx(db), "conv_retry");
+      expect(rows.map((row) => row.content)).toEqual([
+        "question",
+        "retry partial",
+        "new question",
+        "fresh answer",
+      ]);
+      expect(rows.filter((row) => row.uniqueId === detached.assistantUniqueId)).toHaveLength(1);
+      expect(rows[1].wasStopped).toBe(true);
+      await waitFor(() => expect(cancelCalls("inf-retry")).toHaveLength(1));
+    });
+
+    it("holds new sends and explicit resumes behind the old writer", async () => {
+      const { result } = renderHook(() =>
+        useChatStorage({
+          database: db,
+          conversationId: "conv_writer_gate",
+          getToken: async () => "tok",
+          resumable: true,
+          autoEmbedMessages: false,
+        })
+      );
+      const detached = await detachSend(result, "conv_writer_gate", "gated partial", "inf-gated");
+      const entered = deferred<void>();
+      const release = deferred<void>();
+      const write = db.write.bind(db);
+      vi.spyOn(db, "write").mockImplementationOnce(async (work) => {
+        entered.resolve();
+        await release.promise;
+        return write(work);
+      });
+      completedSend();
+      let next!: ReturnType<typeof result.current.sendMessage>;
+      let resume!: Awaited<ReturnType<typeof result.current.resumeStream>>;
+      await act(async () => {
+        next = result.current.sendMessage(nextArgs());
+        await entered.promise;
+        try {
+          expect(mockRunToolLoop).toHaveBeenCalledTimes(1);
+          expect(cancelCalls("inf-gated")).toHaveLength(0);
+          expect(await getMessagesOp(makeCtx(db), "conv_writer_gate")).toHaveLength(1);
+          resume = await result.current.resumeStream(detached.resume!);
+          // Stop cannot race a second old-row write or cancel before the commit.
+          result.current.stop();
+          expect(cancelCalls("inf-gated")).toHaveLength(0);
+        } finally {
+          release.resolve();
+          await next;
+        }
+      });
+      expect(resume.error).toBe("Resume already in progress");
+      expect(mockResumeStream).not.toHaveBeenCalled();
+      const rows = await getMessagesOp(makeCtx(db), "conv_writer_gate");
+      expect(rows.map((row) => row.messageId)).toEqual([1, 2, 3, 4]);
+      expect(rows.filter((row) => row.uniqueId === detached.assistantUniqueId)).toHaveLength(1);
+      await waitFor(() => expect(cancelCalls("inf-gated")).toHaveLength(1));
+    });
+
+    it("holds a second new send behind the same partial commit", async () => {
+      const { result } = renderHook(() =>
+        useChatStorage({
+          database: db,
+          conversationId: "conv_two_sends",
+          getToken: async () => "tok",
+          resumable: true,
+          autoEmbedMessages: false,
+        })
+      );
+      const detached = await detachSend(result, "conv_two_sends", "shared partial", "inf-shared");
+      const entered = deferred<void>();
+      const release = deferred<void>();
+      const write = db.write.bind(db);
+      vi.spyOn(db, "write").mockImplementationOnce(async (work) => {
+        entered.resolve();
+        await release.promise;
+        return write(work);
+      });
+      completedSend();
+      completedSend();
+      await act(async () => {
+        const first = result.current.sendMessage(nextArgs("stored next"));
+        await entered.promise;
+        const second = result.current.sendMessage({
+          ...nextArgs("unstored next"),
+          skipStorage: true,
+        });
+        try {
+          // Drain the second caller's microtasks while the real writer stays held.
+          await Promise.resolve();
+          await Promise.resolve();
+          expect(mockRunToolLoop).toHaveBeenCalledTimes(1);
+          expect(await getMessagesOp(makeCtx(db), "conv_two_sends")).toHaveLength(1);
+        } finally {
+          release.resolve();
+          await Promise.all([first, second]);
+        }
+      });
+      const rows = await getMessagesOp(makeCtx(db), "conv_two_sends");
+      expect(rows.filter((row) => row.uniqueId === detached.assistantUniqueId)).toHaveLength(1);
+      expect(rows[1]).toMatchObject({ content: "shared partial", wasStopped: true });
+      expect(rows.map((row) => row.messageId)).toEqual([1, 2, 3, 4]);
+      await waitFor(() => expect(cancelCalls("inf-shared")).toHaveLength(1));
+    });
+
+    it("a new send cancels a visible resume, waits for its stopped row, then continues", async () => {
+      const { result } = renderHook(() =>
+        useChatStorage({
+          database: db,
+          conversationId: "conv_active",
+          getToken: async () => "tok",
+          resumable: true,
+          autoEmbedMessages: false,
+        })
+      );
+      const detached = await detachSend(result, "conv_active", "old partial", "inf-active");
+      const entered = deferred<void>();
+      mockResumeStream.mockImplementationOnce((async (...args: unknown[]) => {
+        const signal = (args[0] as { signal?: AbortSignal }).signal;
+        entered.resolve();
+        await new Promise<void>((done) => {
+          if (signal?.aborted) done();
+          signal?.addEventListener("abort", () => done());
+        });
+        return {
+          data: responsesShape("old partial and more"),
+          error: "aborted",
+          interrupted: true,
+        };
+      }) as never);
+      completedSend();
+      let next!: Awaited<ReturnType<typeof result.current.sendMessage>>;
+      await act(async () => {
+        const resume = result.current.resumeStream();
+        await entered.promise;
+        next = await result.current.sendMessage(nextArgs());
+        await resume;
+      });
+      expect(next.error).toBeNull();
+      expect(mockRunToolLoop).toHaveBeenCalledTimes(2);
+      const rows = await getMessagesOp(makeCtx(db), "conv_active");
+      expect(rows.map((row) => row.content)).toEqual([
+        "question",
+        "old partial and more",
+        "new question",
+        "fresh answer",
+      ]);
+      expect(rows.filter((row) => row.uniqueId === detached.assistantUniqueId)).toHaveLength(1);
+      expect(rows[1].wasStopped).toBe(true);
+    });
+
+    it("queues the stopped row behind a queued user message when the key is unavailable", async () => {
+      const address = "0x3234567890123456789012345678901234567890";
+      const signMessage = vi.fn(async (): Promise<string> => {
+        throw new Error("wallet key unavailable");
+      });
+      clearAllEncryptionKeys();
+      try {
+        await createConversationOp(makeCtx(db), { conversationId: "conv_queue_dep" });
+        const { result } = renderHook(() =>
+          useChatStorage({
+            database: db,
+            conversationId: "conv_queue_dep",
+            getToken: async () => "tok",
+            walletAddress: address,
+            signMessage,
+            enableQueue: true,
+            autoFlushOnKeyAvailable: false,
+            resumable: true,
+            autoEmbedMessages: false,
+          })
+        );
+        await detachSend(result, "conv_queue_dep", "queued partial", "inf-queue-dep");
+        expect(result.current.queueStatus.pending).toBe(1);
+        completedSend();
+        await act(async () => {
+          expect((await result.current.sendMessage(nextArgs())).error).toBeNull();
+        });
+        // User message, stopped row, next user message, next assistant message.
+        expect(result.current.queueStatus.pending).toBe(4);
+        expect(await db.get("history").query().fetch()).toHaveLength(0);
+        await waitFor(() => expect(cancelCalls("inf-queue-dep")).toHaveLength(1));
+        act(() => result.current.clearQueue());
+      } finally {
+        clearAllEncryptionKeys();
+      }
+    });
+
+    it("lets a skipStorage send proceed when the stopped row cannot be saved", async () => {
+      const { result } = renderHook(() =>
+        useChatStorage({
+          database: db,
+          conversationId: "conv_skip_storage_fail",
+          getToken: async () => "tok",
+          resumable: true,
+          autoEmbedMessages: false,
+        })
+      );
+      await detachSend(result, "conv_skip_storage_fail", "kept partial", "inf-skip-fail");
+      vi.spyOn(db, "write").mockRejectedValue(new Error("writer unavailable"));
+      completedSend();
+      await act(async () => {
+        expect((await result.current.sendMessage({ ...nextArgs(), skipStorage: true })).error).toBe(
+          null
+        );
+      });
+      expect(mockRunToolLoop).toHaveBeenCalledTimes(2);
+      // A stored send is still blocked, and the partial is still kept.
+      await act(async () => {
+        expect((await result.current.sendMessage(nextArgs())).error).toBe("writer unavailable");
+      });
+      expect(mockRunToolLoop).toHaveBeenCalledTimes(2);
+    });
+
+    it.each([null, responsesShape("")])(
+      "does not save a blank detached row (%s)",
+      async (partial) => {
+        const onCancelResult = vi.fn();
+        const { result } = renderHook(() =>
+          useChatStorage({
+            database: db,
+            conversationId: "conv_empty_pending",
+            getToken: async () => "tok",
+            resumable: true,
+            autoEmbedMessages: false,
+            onCancelResult,
+          })
+        );
+        mockRunToolLoop.mockResolvedValueOnce({
+          data: partial,
+          error: "Request detached",
+          detached: true,
+          resume: {
+            inferenceId: "inf-empty",
+            apiType: "responses",
+            model: "test-model",
+            conversationId: "conv_empty_pending",
+          },
+        } as never);
+        await act(async () => {
+          await result.current.sendMessage(nextArgs("first question"));
+        });
+        completedSend();
+        await act(async () => {
+          await result.current.sendMessage(nextArgs());
+        });
+        const rows = await getMessagesOp(makeCtx(db), "conv_empty_pending");
+        expect(rows.map((row) => row.content)).toEqual([
+          "first question",
+          "new question",
+          "fresh answer",
+        ]);
+        await waitFor(() => expect(onCancelResult).toHaveBeenCalledTimes(1));
+        expect(cancelCalls("inf-empty")).toHaveLength(1);
+      }
+    );
+
+    it("reports a failed cancel once and still completes the new send", async () => {
+      const onCancelResult = vi.fn();
+      const { result } = renderHook(() =>
+        useChatStorage({
+          database: db,
+          conversationId: "conv_cancel_failure",
+          getToken: async () => "tok",
+          resumable: true,
+          autoEmbedMessages: false,
+          onCancelResult,
+        })
+      );
+      await detachSend(result, "conv_cancel_failure", "kept partial", "inf-cancel-failure");
+      fetchSpy.mockRejectedValueOnce(new Error("cancel unavailable"));
+      completedSend();
+      await act(async () => {
+        expect((await result.current.sendMessage(nextArgs())).error).toBeNull();
+      });
+      await waitFor(() => expect(onCancelResult).toHaveBeenCalledTimes(1));
+      expect(onCancelResult.mock.calls[0][0]).toMatchObject({
+        inferenceId: "inf-cancel-failure",
+        ok: false,
+      });
+      expect((await getMessagesOp(makeCtx(db), "conv_cancel_failure"))[1]).toMatchObject({
+        content: "kept partial",
+        wasStopped: true,
       });
     });
 
-    // The stale handle is gone.
-    let resumeResult: Awaited<ReturnType<typeof result.current.resumeStream>>;
-    await act(async () => {
-      resumeResult = await result.current.resumeStream();
+    it("preserves a cold foreign headless resume while the visible send completes", async () => {
+      const ctx = makeCtx(db);
+      await createConversationOp(ctx, { conversationId: "conv_cold_foreign" });
+      await upsertMessageOp(ctx, {
+        conversationId: "conv_cold_foreign",
+        role: "user",
+        content: "foreign question",
+        uniqueId: "foreign-user",
+      });
+      const { result } = renderHook(() =>
+        useChatStorage({
+          database: db,
+          conversationId: "conv_cold_visible",
+          getToken: async () => "tok",
+          resumable: true,
+          autoEmbedMessages: false,
+        })
+      );
+      const entered = deferred<void>();
+      const release = deferred<void>();
+      let replaySignal!: AbortSignal;
+      mockResumeStream.mockImplementationOnce(async (opts) => {
+        replaySignal = opts.signal!;
+        entered.resolve();
+        await release.promise;
+        return {
+          data: responsesShape("cold foreign complete"),
+          error: null,
+          interrupted: false,
+        } as never;
+      });
+      completedSend("visible complete");
+      await act(async () => {
+        const foreign = result.current.resumeStream(
+          {
+            inferenceId: "inf-cold-foreign",
+            apiType: "responses",
+            model: "test-model",
+            conversationId: "conv_cold_foreign",
+          },
+          { headless: true }
+        );
+        await entered.promise;
+        try {
+          const visible = await result.current.sendMessage(nextArgs("visible question"));
+          expect(visible.error).toBeNull();
+          expect(replaySignal.aborted).toBe(false);
+          expect(mockRunToolLoop).toHaveBeenCalledTimes(1);
+        } finally {
+          release.resolve();
+          const resumed = await foreign;
+          expect(resumed.error).toBeNull();
+          expect(resumed.assistantMessage?.uniqueId).toBe("msg_resume_inf-cold-foreign");
+        }
+      });
+      const foreignRows = await getMessagesOp(ctx, "conv_cold_foreign");
+      expect(foreignRows.map((row) => row.content)).toEqual([
+        "foreign question",
+        "cold foreign complete",
+      ]);
+      expect(foreignRows[1]).toMatchObject({
+        conversationId: "conv_cold_foreign",
+        parentMessageId: "foreign-user",
+        uniqueId: "msg_resume_inf-cold-foreign",
+      });
+      expect(foreignRows[1].wasStopped).toBeFalsy();
+      const visibleRows = await getMessagesOp(ctx, "conv_cold_visible");
+      expect(visibleRows.map((row) => row.content)).toEqual([
+        "visible question",
+        "visible complete",
+      ]);
+      expect(visibleRows[1]).toMatchObject({
+        conversationId: "conv_cold_visible",
+        parentMessageId: visibleRows[0].uniqueId,
+      });
+      expect(visibleRows[1].wasStopped).toBeFalsy();
+      expect(replaySignal.aborted).toBe(false);
+      expect(fetchSpy).not.toHaveBeenCalled();
     });
-    expect(resumeResult!.error).toBe("No resumable stream");
+
+    it("retires the warm turn without aborting a foreign headless resume", async () => {
+      const { result } = renderHook(() =>
+        useChatStorage({
+          database: db,
+          conversationId: "conv_visible",
+          getToken: async () => "tok",
+          resumable: true,
+          autoEmbedMessages: false,
+        })
+      );
+      const detached = await detachSend(result, "conv_visible", "visible partial", "inf-visible");
+      await createConversationOp(makeCtx(db), { conversationId: "conv_foreign" });
+      const entered = deferred<void>();
+      const release = deferred<void>();
+      let replaySignal!: AbortSignal;
+      mockResumeStream.mockImplementationOnce(async (opts) => {
+        replaySignal = opts.signal!;
+        entered.resolve();
+        await release.promise;
+        return {
+          data: responsesShape("foreign complete"),
+          error: null,
+          interrupted: false,
+        } as never;
+      });
+      completedSend();
+      await act(async () => {
+        const foreign = result.current.resumeStream(
+          {
+            inferenceId: "inf-foreign",
+            apiType: "responses",
+            model: "test-model",
+            conversationId: "conv_foreign",
+          },
+          { headless: true }
+        );
+        await entered.promise;
+        try {
+          expect((await result.current.sendMessage(nextArgs())).error).toBeNull();
+          expect(replaySignal.aborted).toBe(false);
+        } finally {
+          release.resolve();
+          expect((await foreign).error).toBeNull();
+        }
+      });
+      const visible = await getMessagesOp(makeCtx(db), "conv_visible");
+      expect(visible.filter((row) => row.uniqueId === detached.assistantUniqueId)).toHaveLength(1);
+      expect(visible[1]).toMatchObject({ content: "visible partial", wasStopped: true });
+      expect((await getMessagesOp(makeCtx(db), "conv_foreign"))[0].content).toBe(
+        "foreign complete"
+      );
+      await waitFor(() => expect(cancelCalls("inf-visible")).toHaveLength(1));
+      expect(cancelCalls("inf-foreign")).toHaveLength(0);
+    });
   });
 
   it("skipStorage forwards a detached resumable send instead of collapsing it to an error", async () => {
