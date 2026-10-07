@@ -210,6 +210,7 @@ export {
   BlobUrlManager,
   deleteEncryptedFile,
   extractFileIds,
+  extractMCPImageUrls,
   FILE_PLACEHOLDER_PREFIX,
   FILE_PLACEHOLDER_REGEX,
   fileExists,

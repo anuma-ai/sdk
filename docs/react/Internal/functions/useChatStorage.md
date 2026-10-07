@@ -2,7 +2,7 @@
 
 > **useChatStorage**(`options`: `object`): [`UseChatStorageResult`](../interfaces/UseChatStorageResult.md)
 
-Defined in: [src/react/useChatStorage.ts:1171](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#1171)
+Defined in: [src/react/useChatStorage.ts:1177](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#1177)
 
 ## Parameters
 
@@ -631,6 +631,23 @@ Use this to show activity indicators like "Searching..." in the UI.
 <tr>
 <td>
 
+`options.onStreamMeta?`
+
+</td>
+<td>
+
+(`meta`: `object`) => `void`
+
+</td>
+<td>
+
+Inference identifier for each HTTP round, including client-tool continuations.
+
+</td>
+</tr>
+<tr>
+<td>
+
 `options.onThinking?`
 
 </td>
@@ -729,6 +746,23 @@ enrich the conversation. Forwarded to the underlying `useChat` hook.
 See `createWebSearchPreProcessor`, `createCryptoPricePreProcessor`,
 `createStockPricePreProcessor`, `createWeatherPreProcessor`, or write
 a custom one matching `PromptPreProcessor`.
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.resumable?`
+
+</td>
+<td>
+
+`boolean`
+
+</td>
+<td>
+
+Opt into the portal stream buffer for every generated round.
 
 </td>
 </tr>
