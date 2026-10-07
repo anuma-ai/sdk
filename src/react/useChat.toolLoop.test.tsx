@@ -97,53 +97,95 @@ describe("useChat multi-turn tool loop", () => {
     vi.clearAllMocks();
   });
 
-  it.each(["stop", "unmount"] as const)("cancels buffered generation on %s", async (action) => {
-    const onStreamMeta = vi.fn();
+  it.each(["stop", "unmount", "changed-options"] as const)(
+    "cancels buffered generation on %s",
+    async (action) => {
+      const onStreamMeta = vi.fn();
+      const fetchSpy = vi
+        .spyOn(globalThis, "fetch")
+        .mockResolvedValueOnce(new Response(null, { headers: { "X-Inference-ID": "running" } }))
+        .mockResolvedValue(new Response(null, { status: 200 }));
+      mockCreateSseClient.mockImplementation(
+        (options) =>
+          ({
+            stream: (async function* () {
+              await options.fetch!("https://portal.example/responses");
+              yield { type: "response.created", response: { id: "resp" } };
+              await new Promise<void>((resolve) =>
+                options.signal?.addEventListener("abort", () => resolve(), { once: true })
+              );
+            })(),
+          }) as ReturnType<typeof sseModule.createSseClient>
+      );
+      try {
+        const { result, unmount, rerender } = renderHook(
+          ({ baseUrl, resumable }) =>
+            useChat({ getToken: async () => "token", baseUrl, resumable, onStreamMeta }),
+          { initialProps: { baseUrl: "https://portal.example", resumable: true } }
+        );
+        let pending: Promise<SendMessageResult> | undefined;
+        act(() => {
+          pending = result.current.sendMessage({
+            messages: [{ role: "user", content: [{ type: "text", text: "hello" }] }],
+            model: "auto",
+          });
+        });
+        await waitFor(() => expect(onStreamMeta).toHaveBeenCalledOnce());
+        if (action === "changed-options")
+          rerender({ baseUrl: "https://other.example", resumable: false });
+        if (action === "unmount") unmount();
+        else act(() => result.current.stop());
+        await act(async () => {
+          await pending;
+        });
+        await waitFor(() =>
+          expect(fetchSpy).toHaveBeenCalledWith(
+            "https://portal.example/api/v1/chat/streams/running/cancel",
+            {
+              method: "POST",
+              headers: { Authorization: "Bearer token" },
+            }
+          )
+        );
+      } finally {
+        fetchSpy.mockRestore();
+      }
+    }
+  );
+
+  it("cancels a failed buffered stream before dropping its handle", async () => {
     const fetchSpy = vi
       .spyOn(globalThis, "fetch")
-      .mockResolvedValueOnce(new Response(null, { headers: { "X-Inference-ID": "running" } }))
+      .mockResolvedValueOnce(new Response(null, { headers: { "X-Inference-ID": "failed" } }))
       .mockResolvedValue(new Response(null, { status: 200 }));
     mockCreateSseClient.mockImplementation(
       (options) =>
         ({
           stream: (async function* () {
             await options.fetch!("https://portal.example/responses");
-            yield { type: "response.created", response: { id: "resp" } };
-            await new Promise<void>((resolve) =>
-              options.signal?.addEventListener("abort", () => resolve(), { once: true })
-            );
+            yield { type: "response.output_text.delta", delta: "partial" };
+            throw new Error("connection lost");
           })(),
         }) as ReturnType<typeof sseModule.createSseClient>
     );
     try {
-      const { result, unmount } = renderHook(() =>
+      const { result } = renderHook(() =>
         useChat({
           getToken: async () => "token",
           baseUrl: "https://portal.example",
           resumable: true,
-          onStreamMeta,
         })
       );
-      let pending: Promise<SendMessageResult> | undefined;
-      act(() => {
-        pending = result.current.sendMessage({
+      await act(async () => {
+        await result.current.sendMessage({
           messages: [{ role: "user", content: [{ type: "text", text: "hello" }] }],
           model: "auto",
         });
       });
-      await waitFor(() => expect(onStreamMeta).toHaveBeenCalledOnce());
-      if (action === "unmount") unmount();
-      else act(() => result.current.stop());
-      await act(async () => {
-        await pending;
-      });
       await waitFor(() =>
         expect(fetchSpy).toHaveBeenCalledWith(
-          "https://portal.example/api/v1/chat/streams/running/cancel",
-          {
-            method: "POST",
-            headers: { Authorization: "Bearer token" },
-          }
+          "https://portal.example/api/v1/chat/streams/failed/cancel",
+          { method: "POST", headers: { Authorization: "Bearer token" } }
         )
       );
     } finally {

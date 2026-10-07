@@ -179,11 +179,13 @@ export function useChat(options?: UseChatOptions): UseChatResult {
   // reset by stop() or a settling request, so "a newer send exists" cannot be
   // confused with "the ref is null".
   const requestIdRef = useRef(0);
-  const pendingInferenceRef = useRef<string | null>(null);
+  const pendingInferenceRef = useRef<{ id: string; round: number; cancel: () => void } | null>(
+    null
+  );
   const cancelInference = useCallback(
-    (inferenceId: string) => {
+    (inferenceId: string, requestToken?: string) => {
       void (async () => {
-        const token = getToken ? await getToken() : null;
+        const token = requestToken ?? (getToken ? await getToken() : null);
         const response = await fetch(`${baseUrl}${streamCancelPath(inferenceId)}`, {
           method: "POST",
           headers: token ? { Authorization: `Bearer ${token}` } : undefined,
@@ -205,14 +207,14 @@ export function useChat(options?: UseChatOptions): UseChatResult {
   const resolvedPiiRedaction = piiRedaction === true ? piiRedactorRef.current! : piiRedaction;
 
   const stop = useCallback(() => {
-    const inferenceId = pendingInferenceRef.current;
+    const pending = pendingInferenceRef.current;
     pendingInferenceRef.current = null;
-    if (resumable && inferenceId) cancelInference(inferenceId);
+    pending?.cancel();
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
       abortControllerRef.current = null;
     }
-  }, [resumable, cancelInference]);
+  }, []);
 
   // Cleanup reads the latest callback without cancelling when options rerender.
   const stopRef = useRef(stop);
@@ -252,6 +254,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
       const requestId = ++requestIdRef.current;
 
       setIsLoading(true);
+      let succeeded = false;
 
       try {
         // Validate token getter and get token
@@ -330,10 +333,21 @@ export function useChat(options?: UseChatOptions): UseChatResult {
             resumable || onStreamMeta
               ? (meta) => {
                   if (requestId !== requestIdRef.current || abortController.signal.aborted) {
-                    if (resumable) cancelInference(meta.inferenceId);
+                    if (resumable) cancelInference(meta.inferenceId, token!);
                     return;
                   }
-                  pendingInferenceRef.current = meta.inferenceId;
+                  const previous = pendingInferenceRef.current;
+                  // A retry replaces an unfinished inference; a new tool round
+                  // follows a completed one whose canonical proof must survive.
+                  if (previous && previous.round === meta.round && previous.id !== meta.inferenceId)
+                    previous.cancel();
+                  pendingInferenceRef.current = {
+                    id: meta.inferenceId,
+                    round: meta.round,
+                    cancel: resumable
+                      ? () => cancelInference(meta.inferenceId, token!)
+                      : () => undefined,
+                  };
                   onStreamMeta?.(meta);
                 }
               : undefined,
@@ -367,6 +381,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
           onPiiRedacted,
         });
 
+        succeeded = result.error === null;
         return result;
       } catch (err) {
         return createErrorResult(
@@ -379,6 +394,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
         if (requestIdRef.current === requestId) {
           setIsLoading(false);
           abortControllerRef.current = null;
+          if (!succeeded) pendingInferenceRef.current?.cancel();
           pendingInferenceRef.current = null;
         }
       }
