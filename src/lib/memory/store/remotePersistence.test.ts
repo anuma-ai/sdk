@@ -52,10 +52,24 @@ function setup() {
     }
     if (url.pathname === "/api/private-memories/candidates") {
       return Response.json({
+        total_count: rows.size,
+        unavailable_count: 0,
         items: [...rows.values()]
           .filter((item) => !item.memory.is_deleted)
           .map((item) => ({ ...item, score: 0.9 })),
       });
+    }
+    if (url.pathname === "/api/private-memories/memories/batch") {
+      const writes = body!.writes as { memory: RemoteMemoryRow; expected_version: number }[];
+      if (writes.some((w) => (rows.get(w.memory.memory_id)?.version ?? 0) !== w.expected_version))
+        return failure(409, "version_conflict");
+      const items = writes.map((w) => ({
+        memory: w.memory,
+        version: w.expected_version + 1,
+        server_updated_at: "2026-10-07T20:00:00Z",
+      }));
+      items.forEach((item) => rows.set(item.memory.memory_id, structuredClone(item)));
+      return Response.json({ items });
     }
     const id = decodeURIComponent(url.pathname.slice("/api/private-memories/memories/".length));
     if (init.method === "PUT") {
@@ -206,6 +220,51 @@ describe("remote private-memory persistence", () => {
     ).rejects.toMatchObject({ code: "version_conflict" });
     expect(h.rows.get("a")).toEqual(authoritative);
     expect(h.requests.slice(before).filter(({ init }) => init.method === "PUT")).toHaveLength(1);
+  });
+
+  it("reuses version-bound ciphertext with no extra GET and rejects mutated or foreign snapshots", async () => {
+    const h = setup();
+    const store = await createRemoteMemoryPersistence(h.options);
+    await store.put({ ...h.memory("a"), embedding: vector() }, 0);
+    const page = await store.list();
+    const snapshot = page.items[0];
+    const cipher = h.rows.get("a")!.memory.content;
+    const before = h.requests.length;
+    const updated = await store.put({ ...snapshot.memory, topics: "[]" }, snapshot);
+    expect(h.requests.slice(before)).toHaveLength(1);
+    expect(h.requests.at(-1)!.init.method).toBe("PUT");
+    expect(h.rows.get("a")!.memory.content).toBe(cipher);
+    expect(updated.memory.embedding).toEqual(vector());
+    await expect(store.put(snapshot.memory, snapshot)).rejects.toMatchObject({
+      code: "version_conflict",
+    });
+    const other = await createRemoteMemoryPersistence(h.options);
+    await expect(other.put(updated.memory, updated)).rejects.toThrow("snapshot");
+    updated.version++;
+    await expect(store.put(updated.memory, updated)).rejects.toThrow("snapshot");
+  });
+
+  it("commits bounded batches in one request and never replays a conflict", async () => {
+    const h = setup();
+    const store = await createRemoteMemoryPersistence(h.options);
+    const before = h.requests.length;
+    const [a, b] = await store.putMany(
+      ["a", "b"].map((id) => ({ memory: h.memory(id), expectedVersion: 0 }))
+    );
+    expect(h.requests.slice(before)).toHaveLength(1);
+    expect([a.memory.memory_id, b.memory.memory_id]).toEqual(["a", "b"]);
+    const edits = [
+      { memory: { ...a.memory, content: "new fact" }, expectedVersion: a },
+      { memory: { ...b.memory, superseded_by: "a" }, expectedVersion: b },
+    ];
+    await store.putMany(edits);
+    const count = h.requests.length;
+    await expect(store.putMany(edits)).rejects.toMatchObject({ code: "version_conflict" });
+    expect(h.requests.slice(count)).toHaveLength(1);
+    await expect(store.putMany([])).rejects.toThrow("1–50");
+    await expect(store.putMany([edits[0], edits[0]])).rejects.toThrow("distinct");
+    expect(JSON.stringify(h.requests.at(-1)!.body)).not.toContain("new fact");
+    expect(h.rows.get("a")!.version).toBe(2);
   });
 
   it("paginates including tombstones and passes hidden-state and embedding flags explicitly", async () => {

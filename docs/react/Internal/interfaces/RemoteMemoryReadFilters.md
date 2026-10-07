@@ -1,6 +1,6 @@
 # RemoteMemoryReadFilters
 
-Defined in: src/lib/memory/store/remotePersistence.ts:47
+Defined in: [src/lib/memory/store/remotePersistence.ts:47](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#47)
 
 ## Extended by
 
@@ -12,7 +12,7 @@ Defined in: src/lib/memory/store/remotePersistence.ts:47
 
 > `optional` **fact\_types**: `string`\[]
 
-Defined in: src/lib/memory/store/remotePersistence.ts:51
+Defined in: [src/lib/memory/store/remotePersistence.ts:51](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#51)
 
 ***
 
@@ -20,7 +20,7 @@ Defined in: src/lib/memory/store/remotePersistence.ts:51
 
 > `optional` **include\_archived**: `boolean`
 
-Defined in: src/lib/memory/store/remotePersistence.ts:48
+Defined in: [src/lib/memory/store/remotePersistence.ts:48](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#48)
 
 ***
 
@@ -28,7 +28,7 @@ Defined in: src/lib/memory/store/remotePersistence.ts:48
 
 > `optional` **include\_quarantined**: `boolean`
 
-Defined in: src/lib/memory/store/remotePersistence.ts:49
+Defined in: [src/lib/memory/store/remotePersistence.ts:49](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#49)
 
 ***
 
@@ -36,4 +36,4 @@ Defined in: src/lib/memory/store/remotePersistence.ts:49
 
 > `optional` **include\_superseded**: `boolean`
 
-Defined in: src/lib/memory/store/remotePersistence.ts:50
+Defined in: [src/lib/memory/store/remotePersistence.ts:50](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#50)

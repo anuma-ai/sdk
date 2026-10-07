@@ -2132,6 +2132,8 @@ export interface VaultSearchResult {
  * are an internal seam for `retain()` and `searchVaultMemoriesWithSize`.
  */
 export interface PreparedVaultCandidates {
+  /** Remote sources supply MRL-normalized facet vectors used to fetch this window. */
+  facetEmbeddings?: number[][];
   /** Searchable rows (still-encrypted content already excluded). */
   memories: StoredVaultMemory[];
   /** Ranker input, one entry per searchable row. */
@@ -2728,7 +2730,8 @@ export async function rankPreparedVaultCandidates(
     // path rather than throwing out of the search.
     let subEmbeddings: number[][];
     try {
-      subEmbeddings = await generateEmbeddings(facetQueries, embeddingOptions);
+      subEmbeddings =
+        prepared.facetEmbeddings ?? (await generateEmbeddings(facetQueries, embeddingOptions));
     } catch (err) {
       getLogger().warn(
         "memoryVault: sub-query embedding failed — falling back to single-query ranking: " +

@@ -65,6 +65,12 @@ export interface RemoteMemoryPage {
 }
 
 export interface RemoteMemoryCandidateOptions extends RemoteMemoryReadFilters {
+  scopes?: string[];
+  memory_ids?: string[];
+  embedding_model?: string;
+  strict_model?: boolean;
+  include_deleted?: boolean;
+  deleted_only?: boolean;
   limit?: number;
   force_ids?: string[];
   signal?: AbortSignal;
@@ -108,12 +114,26 @@ export interface RemoteMemoryPersistence {
   get(memoryId: string, signal?: AbortSignal): Promise<RemoteMemoryRecord | null>;
   /** One stable memory-id page; follow next_cursor to enumerate. Embeddings are opt-in. */
   list(options?: RemoteMemoryListOptions): Promise<RemoteMemoryPage>;
-  /** Whole-row write. Version 0 creates; N replaces only version N. is_deleted writes a tombstone. */
+  /** Whole-row write. Pass a returned snapshot to avoid GET; a number retains the read-before-write path. Version 0 creates. is_deleted writes a tombstone. */
   put(
     memory: RemoteMemoryRow,
-    expectedVersion: number,
+    expectedVersion: number | RemoteMemoryRecord,
     signal?: AbortSignal
   ): Promise<RemoteMemoryRecord>;
+  /** 1–50 writes in one server transaction; never split or replay a batch. */
+  putMany(
+    writes: { memory: RemoteMemoryRow; expectedVersion: number | RemoteMemoryRecord }[],
+    signal?: AbortSignal
+  ): Promise<RemoteMemoryRecord[]>;
+  /** Candidate window plus counts for distinguishing empty storage from unavailable vectors. */
+  candidateSet(
+    embedding: number[],
+    options?: RemoteMemoryCandidateOptions
+  ): Promise<{
+    items: RemoteMemoryRecord[];
+    total_count: number;
+    unavailable_count: number;
+  }>;
   /** Nearby ranks ciphertext using a query vector and metadata; returned winners decrypt on-device. */
   candidates(
     embedding: number[],
@@ -254,6 +274,19 @@ export async function createRemoteMemoryPersistence(
     );
   }
 
+  // Per-returned-snapshot ciphertext, not a replica: weak entries cannot be
+  // enumerated or serve reads and disappear when callers release snapshots.
+  const snapshots = new WeakMap<
+    RemoteMemoryRecord,
+    {
+      id: string;
+      version: number;
+      content: string;
+      kindValue?: string;
+      encryptedContent: string;
+      encryptedKindValue?: string;
+    }
+  >();
   const decode = async (value: unknown): Promise<RemoteMemoryRecord> => {
     const item = memoryRecord(value);
     const decrypt = async (ciphertext: string): Promise<string> => {
@@ -264,7 +297,7 @@ export async function createRemoteMemoryPersistence(
         throw new Error("Memory decryption failed");
       return plaintext;
     };
-    return {
+    const decoded: RemoteMemoryRecord = {
       ...item,
       memory: {
         ...item.memory,
@@ -274,10 +307,138 @@ export async function createRemoteMemoryPersistence(
         }),
       },
     };
+    snapshots.set(decoded, {
+      id: item.memory.memory_id,
+      version: item.version,
+      content: decoded.memory.content,
+      kindValue: decoded.memory.kind_value,
+      encryptedContent: item.memory.content,
+      encryptedKindValue: item.memory.kind_value,
+    });
+    return decoded;
   };
   const memoryPath = (id: string): string => {
     if (!id || id.length > 128) throw new Error("memory_id must be 1–128 characters");
     return "/memories/" + encodeURIComponent(id);
+  };
+
+  const prepareWrite = async (
+    memory: RemoteMemoryRow,
+    expectedVersion: number | RemoteMemoryRecord,
+    signal?: AbortSignal
+  ) => {
+    if (
+      Object.keys(memory).some((key) => !Object.prototype.hasOwnProperty.call(memoryFields, key))
+    ) {
+      throw new Error("Unknown private-memory fields; refusing to forward them");
+    }
+    // Callers can edit their snapshot while key derivation/network work awaits.
+    // Capture the entire write before the first await, including its vector.
+    memory = { ...memory, ...(memory.embedding && { embedding: [...memory.embedding] }) };
+    const path = memoryPath(memory.memory_id);
+    const snapshot =
+      typeof expectedVersion === "number" ? undefined : snapshots.get(expectedVersion);
+    if (
+      typeof expectedVersion !== "number" &&
+      (!snapshot ||
+        snapshot.id !== memory.memory_id ||
+        snapshot.version !== expectedVersion.version)
+    )
+      throw new Error(
+        "Expected snapshot must be an unmodified version from this persistence instance"
+      );
+    expectedVersion = typeof expectedVersion === "number" ? expectedVersion : snapshot!.version;
+    if (!Number.isSafeInteger(expectedVersion) || expectedVersion < 0)
+      throw new Error("expectedVersion must be a nonnegative integer");
+    // Re-encrypting unchanged content uses a fresh IV, which the server would
+    // interpret as a content edit and clear an omitted embedding. Read the
+    // expected server version and reuse its ciphertext when plaintext matches.
+    // The final PUT still uses the caller's version: a racing edit must fail.
+    const existing =
+      expectedVersion === 0 || snapshot ? undefined : memoryRecord(await request(path, {}, signal));
+    if (existing && existing.version !== expectedVersion) {
+      throw new RemoteMemoryError("The memory changed since it was read", 409, "version_conflict");
+    }
+    const decoded = existing ? await decode(existing) : undefined;
+    const content =
+      (snapshot?.content ?? decoded?.memory.content) === memory.content
+        ? (snapshot?.encryptedContent ?? existing!.memory.content)
+        : await options.encrypt(memory.content);
+    const kindValue =
+      memory.kind_value === undefined
+        ? undefined
+        : (snapshot?.kindValue ?? decoded?.memory.kind_value) === memory.kind_value
+          ? (snapshot?.encryptedKindValue ?? existing!.memory.kind_value)
+          : await options.encrypt(memory.kind_value);
+    if (
+      !ciphertextPattern.test(content) ||
+      (kindValue !== undefined && !ciphertextPattern.test(kindValue))
+    ) {
+      throw new Error("Field encryption must return SDK ciphertext; refusing to upload plaintext");
+    }
+
+    return {
+      expected_version: expectedVersion,
+      memory: { ...memory, content, ...(kindValue !== undefined && { kind_value: kindValue }) },
+    };
+  };
+
+  const candidateSet = async (
+    embedding: number[],
+    candidateOptions: RemoteMemoryCandidateOptions = {}
+  ) => {
+    const result = await request(
+      "/candidates",
+      {
+        method: "POST",
+        body: JSON.stringify({
+          embedding,
+          limit: candidateOptions.limit ?? 100,
+          force_ids: candidateOptions.force_ids ?? [],
+          ...Object.fromEntries(
+            [
+              "scopes",
+              "memory_ids",
+              "embedding_model",
+              "strict_model",
+              "include_deleted",
+              "deleted_only",
+            ]
+              .filter(
+                (key) => candidateOptions[key as keyof RemoteMemoryCandidateOptions] !== undefined
+              )
+              .map((key) => [key, candidateOptions[key as keyof RemoteMemoryCandidateOptions]])
+          ),
+          ...(candidateOptions.fact_types !== undefined && {
+            fact_types: candidateOptions.fact_types,
+          }),
+          ...(candidateOptions.include_archived !== undefined && {
+            include_archived: candidateOptions.include_archived,
+          }),
+          ...(candidateOptions.include_quarantined !== undefined && {
+            include_quarantined: candidateOptions.include_quarantined,
+          }),
+          ...(candidateOptions.include_superseded !== undefined && {
+            include_superseded: candidateOptions.include_superseded,
+          }),
+        }),
+      },
+      candidateOptions.signal
+    );
+    if (
+      !record(result) ||
+      !Array.isArray(result.items) ||
+      !Number.isSafeInteger(result.total_count) ||
+      (result.total_count as number) < 0 ||
+      !Number.isSafeInteger(result.unavailable_count) ||
+      (result.unavailable_count as number) < 0
+    )
+      throw new Error("Invalid nearby candidate response");
+    return {
+      items: await Promise.all(result.items.map(decode)),
+      total_count: result.total_count as number,
+      unavailable_count: result.unavailable_count as number,
+    };
   };
 
   return {
@@ -323,96 +484,47 @@ export async function createRemoteMemoryPersistence(
       };
     },
     put: async (memory, expectedVersion, signal) => {
-      if (
-        Object.keys(memory).some((key) => !Object.prototype.hasOwnProperty.call(memoryFields, key))
-      ) {
-        throw new Error("Unknown private-memory fields; refusing to forward them");
-      }
-      // Callers can edit their snapshot while key derivation/network work awaits.
-      // Capture the entire write before the first await, including its vector.
-      memory = { ...memory, ...(memory.embedding && { embedding: [...memory.embedding] }) };
-      const path = memoryPath(memory.memory_id);
-      if (!Number.isSafeInteger(expectedVersion) || expectedVersion < 0)
-        throw new Error("expectedVersion must be a nonnegative integer");
-      // Re-encrypting unchanged content uses a fresh IV, which the server would
-      // interpret as a content edit and clear an omitted embedding. Read the
-      // expected server version and reuse its ciphertext when plaintext matches.
-      // The final PUT still uses the caller's version: a racing edit must fail.
-      const existing =
-        expectedVersion === 0 ? undefined : memoryRecord(await request(path, {}, signal));
-      if (existing && existing.version !== expectedVersion) {
-        throw new RemoteMemoryError(
-          "The memory changed since it was read",
-          409,
-          "version_conflict"
-        );
-      }
-      const decoded = existing ? await decode(existing) : undefined;
-      const content =
-        decoded?.memory.content === memory.content
-          ? existing!.memory.content
-          : await options.encrypt(memory.content);
-      const kindValue =
-        memory.kind_value === undefined
-          ? undefined
-          : decoded?.memory.kind_value === memory.kind_value
-            ? existing!.memory.kind_value
-            : await options.encrypt(memory.kind_value);
-      if (
-        !ciphertextPattern.test(content) ||
-        (kindValue !== undefined && !ciphertextPattern.test(kindValue))
-      ) {
-        throw new Error(
-          "Field encryption must return SDK ciphertext; refusing to upload plaintext"
-        );
-      }
+      const write = await prepareWrite(memory, expectedVersion, signal);
       return decode(
         await request(
-          path,
+          memoryPath(write.memory.memory_id),
           {
             method: "PUT",
-            body: JSON.stringify({
-              key_id: options.keyId,
-              expected_version: expectedVersion,
-              memory: {
-                ...memory,
-                content,
-                ...(kindValue !== undefined && { kind_value: kindValue }),
-              },
-            }),
+            body: JSON.stringify({ key_id: options.keyId, ...write }),
           },
           signal
         )
       );
     },
-    candidates: async (embedding, candidateOptions = {}) => {
+    putMany: async (writes, signal) => {
+      if (
+        writes.length < 1 ||
+        writes.length > 50 ||
+        new Set(writes.map((w) => w.memory.memory_id)).size !== writes.length
+      )
+        throw new Error("Batch must contain 1–50 distinct memory ids");
+      // Start all preparations synchronously so every input captures before awaits.
+      const prepared = await Promise.all(
+        writes.map((w) => prepareWrite(w.memory, w.expectedVersion, signal))
+      );
       const result = await request(
-        "/candidates",
+        "/memories/batch",
         {
           method: "POST",
-          body: JSON.stringify({
-            embedding,
-            limit: candidateOptions.limit ?? 100,
-            force_ids: candidateOptions.force_ids ?? [],
-            ...(candidateOptions.fact_types !== undefined && {
-              fact_types: candidateOptions.fact_types,
-            }),
-            ...(candidateOptions.include_archived !== undefined && {
-              include_archived: candidateOptions.include_archived,
-            }),
-            ...(candidateOptions.include_quarantined !== undefined && {
-              include_quarantined: candidateOptions.include_quarantined,
-            }),
-            ...(candidateOptions.include_superseded !== undefined && {
-              include_superseded: candidateOptions.include_superseded,
-            }),
-          }),
+          body: JSON.stringify({ key_id: options.keyId, writes: prepared }),
         },
-        candidateOptions.signal
+        signal
       );
-      if (!record(result) || !Array.isArray(result.items))
-        throw new Error("Invalid nearby candidate response");
+      if (
+        !record(result) ||
+        !Array.isArray(result.items) ||
+        result.items.length !== prepared.length
+      )
+        throw new Error("Invalid nearby batch response");
       return Promise.all(result.items.map(decode));
     },
+    candidateSet,
+    candidates: async (embedding, candidateOptions) =>
+      (await candidateSet(embedding, candidateOptions)).items,
   };
 }

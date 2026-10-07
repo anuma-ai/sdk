@@ -496,6 +496,12 @@ Re-exports [createRemoteMemoryPersistence](../react/Internal/functions/createRem
 
 ***
 
+### createRemoteMemoryPipeline
+
+Re-exports [createRemoteMemoryPipeline](../react/Internal/functions/createRemoteMemoryPipeline.md)
+
+***
+
 ### createStockPricePreProcessor
 
 Re-exports [createStockPricePreProcessor](../react/Internal/functions/createStockPricePreProcessor.md)
@@ -1681,6 +1687,18 @@ Re-exports [RemoteMemoryPersistence](../react/Internal/interfaces/RemoteMemoryPe
 ### RemoteMemoryPersistenceOptions
 
 Re-exports [RemoteMemoryPersistenceOptions](../react/Internal/interfaces/RemoteMemoryPersistenceOptions.md)
+
+***
+
+### RemoteMemoryPipeline
+
+Re-exports [RemoteMemoryPipeline](../react/Internal/interfaces/RemoteMemoryPipeline.md)
+
+***
+
+### RemoteMemoryPipelineOptions
+
+Re-exports [RemoteMemoryPipelineOptions](../react/Internal/interfaces/RemoteMemoryPipelineOptions.md)
 
 ***
 

@@ -408,6 +408,7 @@ export {
 export {
   createLocalMemoryStore,
   createRemoteMemoryPersistence,
+  createRemoteMemoryPipeline,
   type LocalMemoryStoreOptions,
   type MemoryCreate,
   type MemoryListOptions,
@@ -423,6 +424,8 @@ export {
   type RemoteMemoryPage,
   type RemoteMemoryPersistence,
   type RemoteMemoryPersistenceOptions,
+  type RemoteMemoryPipeline,
+  type RemoteMemoryPipelineOptions,
   type RemoteMemoryReadFilters,
   type RemoteMemoryRecord,
   type RemoteMemoryRow,

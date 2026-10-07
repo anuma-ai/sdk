@@ -1,6 +1,6 @@
 # RemoteMemoryPersistenceOptions
 
-Defined in: src/lib/memory/store/remotePersistence.ts:78
+Defined in: [src/lib/memory/store/remotePersistence.ts:84](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#84)
 
 The caller supplies the canonical account key's field encryption on the device.
 These callbacks and authentication credentials never enter a request body.
@@ -12,7 +12,7 @@ The encryption format must be the SDK's enc:vN:<hex> field format.
 
 > **baseUrl**: `string`
 
-Defined in: src/lib/memory/store/remotePersistence.ts:79
+Defined in: [src/lib/memory/store/remotePersistence.ts:85](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#85)
 
 ***
 
@@ -20,7 +20,7 @@ Defined in: src/lib/memory/store/remotePersistence.ts:79
 
 > **decrypt**: (`ciphertext`: `string`) => `Promise`<`string`>
 
-Defined in: src/lib/memory/store/remotePersistence.ts:83
+Defined in: [src/lib/memory/store/remotePersistence.ts:89](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#89)
 
 **Parameters**
 
@@ -57,7 +57,7 @@ Defined in: src/lib/memory/store/remotePersistence.ts:83
 
 > **encrypt**: (`plaintext`: `string`) => `Promise`<`string`>
 
-Defined in: src/lib/memory/store/remotePersistence.ts:82
+Defined in: [src/lib/memory/store/remotePersistence.ts:88](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#88)
 
 **Parameters**
 
@@ -94,7 +94,7 @@ Defined in: src/lib/memory/store/remotePersistence.ts:82
 
 > `optional` **fetch**: {(`input`: `RequestInfo` | `URL`, `init?`: `RequestInit`): `Promise`<`Response`>; (`input`: `string` | `Request` | `URL`, `init?`: `RequestInit`): `Promise`<`Response`>; }
 
-Defined in: src/lib/memory/store/remotePersistence.ts:84
+Defined in: [src/lib/memory/store/remotePersistence.ts:90](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#90)
 
 **Call Signature**
 
@@ -196,7 +196,7 @@ Defined in: src/lib/memory/store/remotePersistence.ts:84
 
 > **getToken**: () => `Promise`<`string` | `null`>
 
-Defined in: src/lib/memory/store/remotePersistence.ts:80
+Defined in: [src/lib/memory/store/remotePersistence.ts:86](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#86)
 
 **Returns**
 
@@ -208,7 +208,7 @@ Defined in: src/lib/memory/store/remotePersistence.ts:80
 
 > **keyId**: `string`
 
-Defined in: src/lib/memory/store/remotePersistence.ts:81
+Defined in: [src/lib/memory/store/remotePersistence.ts:87](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#87)
 
 ***
 
@@ -216,6 +216,6 @@ Defined in: src/lib/memory/store/remotePersistence.ts:81
 
 > `optional` **signal**: `AbortSignal`
 
-Defined in: src/lib/memory/store/remotePersistence.ts:86
+Defined in: [src/lib/memory/store/remotePersistence.ts:92](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#92)
 
 Cancellation for the initial account/key check. Individual operations take their own signal.

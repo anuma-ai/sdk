@@ -114,6 +114,11 @@ export {
   type RemoteMemoryRecord,
   type RemoteMemoryRow,
 } from "./store/remotePersistence.js";
+export {
+  createRemoteMemoryPipeline,
+  type RemoteMemoryPipeline,
+  type RemoteMemoryPipelineOptions,
+} from "./store/remotePipeline.js";
 export type {
   MemoryCreate,
   MemoryListOptions,

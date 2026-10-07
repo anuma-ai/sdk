@@ -1,6 +1,6 @@
 # RemoteMemoryCandidateOptions
 
-Defined in: src/lib/memory/store/remotePersistence.ts:67
+Defined in: [src/lib/memory/store/remotePersistence.ts:67](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#67)
 
 ## Extends
 
@@ -8,11 +8,27 @@ Defined in: src/lib/memory/store/remotePersistence.ts:67
 
 ## Properties
 
+### deleted\_only?
+
+> `optional` **deleted\_only**: `boolean`
+
+Defined in: [src/lib/memory/store/remotePersistence.ts:73](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#73)
+
+***
+
+### embedding\_model?
+
+> `optional` **embedding\_model**: `string`
+
+Defined in: [src/lib/memory/store/remotePersistence.ts:70](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#70)
+
+***
+
 ### fact\_types?
 
 > `optional` **fact\_types**: `string`\[]
 
-Defined in: src/lib/memory/store/remotePersistence.ts:51
+Defined in: [src/lib/memory/store/remotePersistence.ts:51](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#51)
 
 **Inherited from**
 
@@ -24,7 +40,7 @@ Defined in: src/lib/memory/store/remotePersistence.ts:51
 
 > `optional` **force\_ids**: `string`\[]
 
-Defined in: src/lib/memory/store/remotePersistence.ts:69
+Defined in: [src/lib/memory/store/remotePersistence.ts:75](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#75)
 
 ***
 
@@ -32,7 +48,7 @@ Defined in: src/lib/memory/store/remotePersistence.ts:69
 
 > `optional` **include\_archived**: `boolean`
 
-Defined in: src/lib/memory/store/remotePersistence.ts:48
+Defined in: [src/lib/memory/store/remotePersistence.ts:48](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#48)
 
 **Inherited from**
 
@@ -40,11 +56,19 @@ Defined in: src/lib/memory/store/remotePersistence.ts:48
 
 ***
 
+### include\_deleted?
+
+> `optional` **include\_deleted**: `boolean`
+
+Defined in: [src/lib/memory/store/remotePersistence.ts:72](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#72)
+
+***
+
 ### include\_quarantined?
 
 > `optional` **include\_quarantined**: `boolean`
 
-Defined in: src/lib/memory/store/remotePersistence.ts:49
+Defined in: [src/lib/memory/store/remotePersistence.ts:49](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#49)
 
 **Inherited from**
 
@@ -56,7 +80,7 @@ Defined in: src/lib/memory/store/remotePersistence.ts:49
 
 > `optional` **include\_superseded**: `boolean`
 
-Defined in: src/lib/memory/store/remotePersistence.ts:50
+Defined in: [src/lib/memory/store/remotePersistence.ts:50](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#50)
 
 **Inherited from**
 
@@ -68,7 +92,23 @@ Defined in: src/lib/memory/store/remotePersistence.ts:50
 
 > `optional` **limit**: `number`
 
-Defined in: src/lib/memory/store/remotePersistence.ts:68
+Defined in: [src/lib/memory/store/remotePersistence.ts:74](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#74)
+
+***
+
+### memory\_ids?
+
+> `optional` **memory\_ids**: `string`\[]
+
+Defined in: [src/lib/memory/store/remotePersistence.ts:69](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#69)
+
+***
+
+### scopes?
+
+> `optional` **scopes**: `string`\[]
+
+Defined in: [src/lib/memory/store/remotePersistence.ts:68](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#68)
 
 ***
 
@@ -76,4 +116,12 @@ Defined in: src/lib/memory/store/remotePersistence.ts:68
 
 > `optional` **signal**: `AbortSignal`
 
-Defined in: src/lib/memory/store/remotePersistence.ts:70
+Defined in: [src/lib/memory/store/remotePersistence.ts:76](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#76)
+
+***
+
+### strict\_model?
+
+> `optional` **strict\_model**: `boolean`
+
+Defined in: [src/lib/memory/store/remotePersistence.ts:71](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#71)

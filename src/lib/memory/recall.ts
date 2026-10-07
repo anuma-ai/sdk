@@ -271,7 +271,7 @@ export async function recall(
     // the context could not serve this request at all, which is a different
     // problem from finding nothing.
     const laneRan =
-      (types.includes("fact") && !!ctx.vaultCtx && !!ctx.vaultCache) ||
+      (types.includes("fact") && (!!ctx.factSource || (!!ctx.vaultCtx && !!ctx.vaultCache))) ||
       (types.includes("chunk") && !!ctx.storageCtx) ||
       // The chunk lane was wired and deliberately dropped for the scope, which
       // is not the "requested kinds have no store" wiring bug `no-lanes` means.
@@ -352,7 +352,7 @@ export async function recall(
   // "what's coming up this month"), resolve to an absolute window and
   // look up memories whose event_time overlaps.
   const needsChunkEmbedding = types.includes("chunk") && ctx.storageCtx;
-  const wantsTemporal = types.includes("fact") && ctx.vaultCtx;
+  const wantsTemporal = types.includes("fact") && (ctx.factSource || ctx.vaultCtx);
   // PR5 — optional LLM graph path-refinement, opt-in (default off) and only on
   // the high-budget traverse path. Reuses the query-decompose auth. Falls back
   // to deterministic co-occurrence order inside traverseGraphLane on any error.
@@ -412,19 +412,24 @@ export async function recall(
       "graph",
       () => (graphLaneFailed = true),
       () =>
-        buildGraphLaneRanking(query, ctx, flags.traverse, {
-          ...(options.maxHops !== undefined && { maxHops: options.maxHops }),
-          ...(options.entityFanout !== undefined && { entityFanout: options.entityFanout }),
-          ...(options.nodeBudget !== undefined && { nodeBudget: options.nodeBudget }),
-          ...(options.rrfK !== undefined && { rrfK: options.rrfK }),
-          ...(graphRefiner && { refineNeighbors: graphRefiner }),
-        })
+        ctx.factSource
+          ? ctx.factSource.graphRanking(query, flags.traverse, options)
+          : buildGraphLaneRanking(query, ctx, flags.traverse, {
+              ...(options.maxHops !== undefined && { maxHops: options.maxHops }),
+              ...(options.entityFanout !== undefined && { entityFanout: options.entityFanout }),
+              ...(options.nodeBudget !== undefined && { nodeBudget: options.nodeBudget }),
+              ...(options.rrfK !== undefined && { rrfK: options.rrfK }),
+              ...(graphRefiner && { refineNeighbors: graphRefiner }),
+            })
     ),
     wantsTemporal
       ? safeLane(
           "temporal",
           () => (temporalLaneFailed = true),
-          () => buildTemporalLaneRanking(query, ctx.vaultCtx!, options.now)
+          () =>
+            ctx.factSource
+              ? ctx.factSource.temporalRanking(query, options.now)
+              : buildTemporalLaneRanking(query, ctx.vaultCtx!, options.now)
         )
       : Promise.resolve([] as string[]),
   ]);
@@ -432,7 +437,7 @@ export async function recall(
   graphLaneCount = entityRanking.length;
   temporalLaneCount = temporalRanking.length;
 
-  if (types.includes("fact") && ctx.vaultCtx && ctx.vaultCache) {
+  if (types.includes("fact") && (ctx.factSource || (ctx.vaultCtx && ctx.vaultCache))) {
     const factStart = nowMs();
     const vaultMinScore = options.minScore ?? DEFAULT_FACT_MIN_SCORE;
     factFloor = vaultMinScore;
@@ -448,58 +453,62 @@ export async function recall(
       rankedOnCosine: factRankedOnCosine,
       decryptLast: factDecryptLast,
       rowsDecrypted: factRowsDecrypted,
-    } = await searchVaultMemoriesWithSize(
-      query,
-      ctx.vaultCtx,
-      ctx.embeddingOptions,
-      ctx.vaultCache,
-      {
-        // Pull a wider candidate pool when fusing across lanes so RRF has
-        // enough overlap to reorder; otherwise we'd cap at `limit` per lane
-        // and lose tail signal.
-        limit: types.includes("chunk") ? Math.max(limit * 2, 16) : limit,
-        minSimilarity: vaultMinScore,
-        useFusion: true,
-        rerank: flags.rerank,
-        // Ranking tuning knobs — forwarded only when set so the vault
-        // pipeline's own defaults stay authoritative.
-        ...(options.rerankTopN !== undefined && { rerankTopN: options.rerankTopN }),
-        ...(options.ceWeight !== undefined && { ceWeight: options.ceWeight }),
-        ...(options.rerankLoadTimeoutMs !== undefined && {
-          rerankLoadTimeoutMs: options.rerankLoadTimeoutMs,
-        }),
-        ...(options.recencyAlpha !== undefined && { recencyAlpha: options.recencyAlpha }),
-        ...(options.recency && { recency: options.recency }),
-        ...(options.mmr !== undefined && { mmr: options.mmr }),
-        ...(options.supersessionBoost !== undefined && {
-          supersessionBoost: options.supersessionBoost,
-        }),
-        ...(options.supersessionWindow !== undefined && {
-          supersessionWindow: options.supersessionWindow,
-        }),
-        ...(options.proofCountAlpha !== undefined && {
-          proofCountAlpha: options.proofCountAlpha,
-        }),
-        ...(options.bm25AdmissionDivisor !== undefined && {
-          bm25AdmissionDivisor: options.bm25AdmissionDivisor,
-        }),
-        ...(options.rrfK !== undefined && { rrfK: options.rrfK }),
-        ...(options.decryptLast !== undefined && { decryptLast: options.decryptLast }),
-        // 719/B4 — composite facets arrive pre-built; no LLM call here.
-        ...(subQueries && { subQueries }),
-        ...(options.scopes && { scopes: options.scopes }),
-        ...(options.folderId !== undefined && { folderId: options.folderId }),
-        ...(options.factTypes?.length && { factTypes: options.factTypes }),
-        ...(options.memoryIds !== undefined && { memoryIds: options.memoryIds }),
-        ...(options.factTypeWeights && { factTypeWeights: options.factTypeWeights }),
-        ...(entityRanking.length > 0 && { entityRanking }),
-        ...(temporalRanking.length > 0 && { temporalRanking }),
-        // The shared embed from prep. `[]` when it failed, so the vault lane
-        // degrades to BM25 at once instead of re-trying the provider.
-        ...(needsChunkEmbedding && { queryEmbedding: queryEmbedding ?? [] }),
-        queryEmbedTotalTimeoutMs,
-      }
-    );
+    } = await (
+      ctx.factSource?.search ??
+      ((searchQuery, searchOptions) =>
+        searchVaultMemoriesWithSize(
+          searchQuery,
+          ctx.vaultCtx!,
+          ctx.embeddingOptions,
+          ctx.vaultCache!,
+          searchOptions
+        ))
+    )(query, {
+      // Pull a wider candidate pool when fusing across lanes so RRF has
+      // enough overlap to reorder; otherwise we'd cap at `limit` per lane
+      // and lose tail signal.
+      limit: types.includes("chunk") ? Math.max(limit * 2, 16) : limit,
+      minSimilarity: vaultMinScore,
+      useFusion: true,
+      rerank: flags.rerank,
+      // Ranking tuning knobs — forwarded only when set so the vault
+      // pipeline's own defaults stay authoritative.
+      ...(options.rerankTopN !== undefined && { rerankTopN: options.rerankTopN }),
+      ...(options.ceWeight !== undefined && { ceWeight: options.ceWeight }),
+      ...(options.rerankLoadTimeoutMs !== undefined && {
+        rerankLoadTimeoutMs: options.rerankLoadTimeoutMs,
+      }),
+      ...(options.recencyAlpha !== undefined && { recencyAlpha: options.recencyAlpha }),
+      ...(options.recency && { recency: options.recency }),
+      ...(options.mmr !== undefined && { mmr: options.mmr }),
+      ...(options.supersessionBoost !== undefined && {
+        supersessionBoost: options.supersessionBoost,
+      }),
+      ...(options.supersessionWindow !== undefined && {
+        supersessionWindow: options.supersessionWindow,
+      }),
+      ...(options.proofCountAlpha !== undefined && {
+        proofCountAlpha: options.proofCountAlpha,
+      }),
+      ...(options.bm25AdmissionDivisor !== undefined && {
+        bm25AdmissionDivisor: options.bm25AdmissionDivisor,
+      }),
+      ...(options.rrfK !== undefined && { rrfK: options.rrfK }),
+      ...(options.decryptLast !== undefined && { decryptLast: options.decryptLast }),
+      // 719/B4 — composite facets arrive pre-built; no LLM call here.
+      ...(subQueries && { subQueries }),
+      ...(options.scopes && { scopes: options.scopes }),
+      ...(options.folderId !== undefined && { folderId: options.folderId }),
+      ...(options.factTypes?.length && { factTypes: options.factTypes }),
+      ...(options.memoryIds !== undefined && { memoryIds: options.memoryIds }),
+      ...(options.factTypeWeights && { factTypeWeights: options.factTypeWeights }),
+      ...(entityRanking.length > 0 && { entityRanking }),
+      ...(temporalRanking.length > 0 && { temporalRanking }),
+      // The shared embed from prep. `[]` when it failed, so the vault lane
+      // degrades to BM25 at once instead of re-trying the provider.
+      ...(needsChunkEmbedding && { queryEmbedding: queryEmbedding ?? [] }),
+      queryEmbedTotalTimeoutMs,
+    });
     factResults.push(
       ...dedupeBy(
         results,

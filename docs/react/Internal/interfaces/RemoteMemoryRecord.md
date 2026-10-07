@@ -1,6 +1,6 @@
 # RemoteMemoryRecord
 
-Defined in: src/lib/memory/store/remotePersistence.ts:40
+Defined in: [src/lib/memory/store/remotePersistence.ts:40](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#40)
 
 A server snapshot. Pass its version back when writing; device timestamps are not a CAS token.
 
@@ -10,7 +10,7 @@ A server snapshot. Pass its version back when writing; device timestamps are not
 
 > **memory**: [`RemoteMemoryRow`](RemoteMemoryRow.md)
 
-Defined in: src/lib/memory/store/remotePersistence.ts:41
+Defined in: [src/lib/memory/store/remotePersistence.ts:41](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#41)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: src/lib/memory/store/remotePersistence.ts:41
 
 > `optional` **score**: `number`
 
-Defined in: src/lib/memory/store/remotePersistence.ts:44
+Defined in: [src/lib/memory/store/remotePersistence.ts:44](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#44)
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: src/lib/memory/store/remotePersistence.ts:44
 
 > **server\_updated\_at**: `string`
 
-Defined in: src/lib/memory/store/remotePersistence.ts:43
+Defined in: [src/lib/memory/store/remotePersistence.ts:43](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#43)
 
 ***
 
@@ -34,4 +34,4 @@ Defined in: src/lib/memory/store/remotePersistence.ts:43
 
 > **version**: `number`
 
-Defined in: src/lib/memory/store/remotePersistence.ts:42
+Defined in: [src/lib/memory/store/remotePersistence.ts:42](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#42)

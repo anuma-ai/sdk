@@ -1,6 +1,6 @@
 # RemoteMemoryPersistence
 
-Defined in: src/lib/memory/store/remotePersistence.ts:107
+Defined in: [src/lib/memory/store/remotePersistence.ts:113](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#113)
 
 Remote persistence foundation for MemoryStore, not yet its recall/retain implementation.
 Nearby is authoritative: every read reaches it and writes use explicit server versions.
@@ -13,7 +13,7 @@ Migration must have activated the account under the canonical key before constru
 
 > **candidates**(`embedding`: `number`\[], `options?`: [`RemoteMemoryCandidateOptions`](RemoteMemoryCandidateOptions.md)): `Promise`<[`RemoteMemoryRecord`](RemoteMemoryRecord.md)\[]>
 
-Defined in: src/lib/memory/store/remotePersistence.ts:118
+Defined in: [src/lib/memory/store/remotePersistence.ts:138](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#138)
 
 Nearby ranks ciphertext using a query vector and metadata; returned winners decrypt on-device.
 
@@ -60,11 +60,62 @@ Nearby ranks ciphertext using a query vector and metadata; returned winners decr
 
 ***
 
+### candidateSet()
+
+> **candidateSet**(`embedding`: `number`\[], `options?`: [`RemoteMemoryCandidateOptions`](RemoteMemoryCandidateOptions.md)): `Promise`<{ `items`: [`RemoteMemoryRecord`](RemoteMemoryRecord.md)\[]; `total_count`: `number`; `unavailable_count`: `number`; }>
+
+Defined in: [src/lib/memory/store/remotePersistence.ts:129](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#129)
+
+Candidate window plus counts for distinguishing empty storage from unavailable vectors.
+
+**Parameters**
+
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`embedding`
+
+</td>
+<td>
+
+`number`\[]
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options?`
+
+</td>
+<td>
+
+[`RemoteMemoryCandidateOptions`](RemoteMemoryCandidateOptions.md)
+
+</td>
+</tr>
+</tbody>
+</table>
+
+**Returns**
+
+`Promise`<{ `items`: [`RemoteMemoryRecord`](RemoteMemoryRecord.md)\[]; `total_count`: `number`; `unavailable_count`: `number`; }>
+
+***
+
 ### get()
 
 > **get**(`memoryId`: `string`, `signal?`: `AbortSignal`): `Promise`<[`RemoteMemoryRecord`](RemoteMemoryRecord.md) | `null`>
 
-Defined in: src/lib/memory/store/remotePersistence.ts:108
+Defined in: [src/lib/memory/store/remotePersistence.ts:114](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#114)
 
 **Parameters**
 
@@ -113,7 +164,7 @@ Defined in: src/lib/memory/store/remotePersistence.ts:108
 
 > **list**(`options?`: [`RemoteMemoryListOptions`](RemoteMemoryListOptions.md)): `Promise`<[`RemoteMemoryPage`](RemoteMemoryPage.md)>
 
-Defined in: src/lib/memory/store/remotePersistence.ts:110
+Defined in: [src/lib/memory/store/remotePersistence.ts:116](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#116)
 
 One stable memory-id page; follow next\_cursor to enumerate. Embeddings are opt-in.
 
@@ -150,11 +201,11 @@ One stable memory-id page; follow next\_cursor to enumerate. Embeddings are opt-
 
 ### put()
 
-> **put**(`memory`: [`RemoteMemoryRow`](RemoteMemoryRow.md), `expectedVersion`: `number`, `signal?`: `AbortSignal`): `Promise`<[`RemoteMemoryRecord`](RemoteMemoryRecord.md)>
+> **put**(`memory`: [`RemoteMemoryRow`](RemoteMemoryRow.md), `expectedVersion`: `number` | [`RemoteMemoryRecord`](RemoteMemoryRecord.md), `signal?`: `AbortSignal`): `Promise`<[`RemoteMemoryRecord`](RemoteMemoryRecord.md)>
 
-Defined in: src/lib/memory/store/remotePersistence.ts:112
+Defined in: [src/lib/memory/store/remotePersistence.ts:118](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#118)
 
-Whole-row write. Version 0 creates; N replaces only version N. is\_deleted writes a tombstone.
+Whole-row write. Pass a returned snapshot to avoid GET; a number retains the read-before-write path. Version 0 creates. is\_deleted writes a tombstone.
 
 **Parameters**
 
@@ -186,7 +237,7 @@ Whole-row write. Version 0 creates; N replaces only version N. is\_deleted write
 </td>
 <td>
 
-`number`
+`number` | [`RemoteMemoryRecord`](RemoteMemoryRecord.md)
 
 </td>
 </tr>
@@ -208,3 +259,54 @@ Whole-row write. Version 0 creates; N replaces only version N. is\_deleted write
 **Returns**
 
 `Promise`<[`RemoteMemoryRecord`](RemoteMemoryRecord.md)>
+
+***
+
+### putMany()
+
+> **putMany**(`writes`: `object`\[], `signal?`: `AbortSignal`): `Promise`<[`RemoteMemoryRecord`](RemoteMemoryRecord.md)\[]>
+
+Defined in: [src/lib/memory/store/remotePersistence.ts:124](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#124)
+
+1–50 writes in one server transaction; never split or replay a batch.
+
+**Parameters**
+
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`writes`
+
+</td>
+<td>
+
+`object`\[]
+
+</td>
+</tr>
+<tr>
+<td>
+
+`signal?`
+
+</td>
+<td>
+
+`AbortSignal`
+
+</td>
+</tr>
+</tbody>
+</table>
+
+**Returns**
+
+`Promise`<[`RemoteMemoryRecord`](RemoteMemoryRecord.md)\[]>
