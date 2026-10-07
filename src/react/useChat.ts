@@ -216,10 +216,8 @@ export function useChat(options?: UseChatOptions): UseChatResult {
     }
   }, []);
 
-  // Cleanup reads the latest callback without cancelling when options rerender.
-  const stopRef = useRef(stop);
-  stopRef.current = stop;
-  useEffect(() => () => stopRef.current(), []);
+  // Abort and cancel any in-flight generation on unmount.
+  useEffect(() => stop, [stop]);
 
   const sendMessage = useCallback(
     async ({
