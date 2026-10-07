@@ -293,8 +293,7 @@ export async function createRemoteMemoryPersistence(
       if (!ciphertextPattern.test(ciphertext))
         throw new Error("Nearby returned unencrypted memory content");
       const plaintext = await options.decrypt(ciphertext);
-      if (plaintext === ciphertext || ciphertextPattern.test(plaintext))
-        throw new Error("Memory decryption failed");
+      if (plaintext === ciphertext) throw new Error("Memory decryption failed");
       return plaintext;
     };
     const decoded: RemoteMemoryRecord = {

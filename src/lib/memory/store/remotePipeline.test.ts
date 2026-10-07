@@ -8,6 +8,7 @@ vi.mock("../../memoryEngine/embeddings.js", () => ({
 }));
 vi.mock("../consolidate.js", () => ({ consolidateMemory: vi.fn() }));
 
+import { getLogger } from "../../logger.js";
 import { generateEmbeddings } from "../../memoryEngine/embeddings.js";
 import { consolidateMemory } from "../consolidate.js";
 import { createRemoteMemoryPipeline } from "./remotePipeline.js";
@@ -122,6 +123,44 @@ function setup() {
 beforeEach(() => vi.clearAllMocks());
 
 describe("remote shared recall/retain pipeline", () => {
+  it.each(["deleted", "superseded", "live"])(
+    "freshly probes %s secondary targets after a write conflict",
+    async (state) => {
+      const h = setup();
+      h.seed("primary");
+      h.seed("secondary");
+      vi.mocked(consolidateMemory).mockResolvedValueOnce({
+        action: "supersede",
+        targetIds: ["primary", "secondary"],
+        content: "Drinks coffee",
+      });
+      const originalBatch = h.putMany.getMockImplementation()!;
+      h.putMany.mockImplementationOnce(async (writes) => {
+        const result = await originalBatch(writes);
+        const current = h.rows.get("secondary")!;
+        current.version++;
+        if (state === "deleted") current.memory.is_deleted = true;
+        if (state === "superseded") current.memory.superseded_by = "another-successor";
+        return result;
+      });
+      const warn = vi.spyOn(getLogger(), "warn");
+      try {
+        expect(
+          await h.pipeline.retain("Drinks coffee", {
+            consolidateOptions: { apiKey: "device-only" },
+          })
+        ).toMatchObject({ action: "supersede" });
+        expect(h.get).toHaveBeenCalledWith("secondary");
+        const duplicateWarnings = warn.mock.calls.filter(([message]) =>
+          String(message).includes("duplicate row(s)")
+        );
+        expect(duplicateWarnings).toHaveLength(state === "live" ? 1 : 0);
+        expect(h.putMany.mock.calls[1][0][0].expectedVersion).toMatchObject({ version: 1 });
+      } finally {
+        warn.mockRestore();
+      }
+    }
+  );
   it("ranks bounded MRL candidates with the existing recall pipeline and re-reads across calls", async () => {
     const h = setup();
     h.seed("a");

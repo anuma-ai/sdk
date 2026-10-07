@@ -243,6 +243,12 @@ export function createRemoteMemoryPipeline(
     const port: RetainPersistence = {
       prepare,
       get,
+      getFresh: async (id) => {
+        const current = await persistence.get(id);
+        return current && !current.memory.is_deleted && !current.memory.superseded_by
+          ? stored(current.memory)
+          : null;
+      },
       tombstones: async (embedding, embeddingModel, scope, folderId) => {
         if (folderId !== undefined) throw new Error("Remote memories do not support folders");
         return remember(

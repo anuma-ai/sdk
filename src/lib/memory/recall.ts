@@ -454,7 +454,7 @@ export async function recall(
       decryptLast: factDecryptLast,
       rowsDecrypted: factRowsDecrypted,
     } = await (
-      ctx.factSource?.search ??
+      ctx.factSource?.search.bind(ctx.factSource) ??
       ((searchQuery, searchOptions) =>
         searchVaultMemoriesWithSize(
           searchQuery,

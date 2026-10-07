@@ -133,6 +133,13 @@ function setup() {
 }
 
 describe("remote private-memory persistence", () => {
+  it("round-trips plaintext resembling ciphertext after a committed write", async () => {
+    const h = setup();
+    const persistence = await createRemoteMemoryPersistence(h.options);
+    const memory = { ...h.memory("text"), content: "enc:v3:abcd", kind_value: "enc:v3:ab" };
+    expect((await persistence.put(memory, 0)).memory).toMatchObject(memory);
+    expect((await persistence.get("text"))!.memory).toMatchObject(memory);
+  });
   it("requires a migrated account and the canonical key without importing or activating", async () => {
     const h = setup();
     h.account.state = "migrating";

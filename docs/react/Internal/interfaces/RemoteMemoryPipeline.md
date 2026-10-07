@@ -1,6 +1,6 @@
 # RemoteMemoryPipeline
 
-Defined in: src/lib/memory/store/remotePipeline.ts:32
+Defined in: [src/lib/memory/store/remotePipeline.ts:32](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePipeline.ts#32)
 
 ## Methods
 
@@ -8,7 +8,7 @@ Defined in: src/lib/memory/store/remotePipeline.ts:32
 
 > **recall**(`query`: `string`, `options?`: [`MemoryRecallOptions`](../type-aliases/MemoryRecallOptions.md)): `Promise`<[`RecallResult`](RecallResult.md)>
 
-Defined in: src/lib/memory/store/remotePipeline.ts:33
+Defined in: [src/lib/memory/store/remotePipeline.ts:33](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePipeline.ts#33)
 
 **Parameters**
 
@@ -57,7 +57,7 @@ Defined in: src/lib/memory/store/remotePipeline.ts:33
 
 > **retain**(`content`: `string`, `options?`: [`MemoryRetainOptions`](../type-aliases/MemoryRetainOptions.md)): `Promise`<[`RetainResult`](RetainResult.md)>
 
-Defined in: src/lib/memory/store/remotePipeline.ts:34
+Defined in: [src/lib/memory/store/remotePipeline.ts:34](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePipeline.ts#34)
 
 **Parameters**
 

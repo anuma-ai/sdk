@@ -64,6 +64,8 @@ export interface RetainPersistence {
     options?: Parameters<typeof prepareVaultCandidates>[4]
   ) => Promise<PreparedVaultCandidates>;
   get: (id: string) => ReturnType<typeof getVaultMemoryOp>;
+  /** Fresh post-write probe; must not replace snapshots guarding earlier decisions. */
+  getFresh?: (id: string) => ReturnType<typeof getVaultMemoryOp>;
   tombstones: (
     embedding: number[],
     model: string,
@@ -463,7 +465,11 @@ export async function retainWithPersistence(
           // live leftover from an already-gone row.
         }
         if (ok) continue;
-        const stillLive = await ctx.persistence.get(staleId).catch(() => null);
+        const stillLive = await (
+          ctx.persistence.getFresh
+            ? ctx.persistence.getFresh(staleId)
+            : ctx.persistence.get(staleId)
+        ).catch(() => null);
         if (stillLive && !stillLive.supersededBy) liveLeftovers.push(staleId);
       }
       if (liveLeftovers.length > 0) {
@@ -918,7 +924,9 @@ async function assertMergeTargetGoneOrThrow(
   ctx: RetainPipelineContext,
   targetId: string
 ): Promise<void> {
-  const stillExists = await ctx.persistence.get(targetId);
+  const stillExists = await (ctx.persistence.getFresh
+    ? ctx.persistence.getFresh(targetId)
+    : ctx.persistence.get(targetId));
   if (stillExists) {
     throw new Error(`retain: merge into memory ${targetId} failed to persist`);
   }
