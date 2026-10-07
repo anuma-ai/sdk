@@ -288,6 +288,7 @@ function populateNewVaultMemory(
   }
 }
 
+/** @deprecated App code: use `MemoryStore.create` (`createLocalMemoryStore`). */
 export async function createVaultMemoryOp(
   ctx: VaultMemoryOperationsContext,
   opts: CreateVaultMemoryOptions
@@ -465,6 +466,7 @@ export async function getMemoriesByEventTimeOp(
   return out;
 }
 
+/** @deprecated App code: use `MemoryStore.createMany` (`createLocalMemoryStore`). */
 export async function createVaultMemoriesBatchOp(
   ctx: VaultMemoryOperationsContext,
   optionsArray: CreateVaultMemoryOptions[]
@@ -506,6 +508,7 @@ export async function createVaultMemoriesBatchOp(
   );
 }
 
+/** @deprecated App code: use `MemoryStore.get` (`createLocalMemoryStore`). */
 export async function getVaultMemoryOp(
   ctx: VaultMemoryOperationsContext,
   id: string
@@ -596,6 +599,7 @@ async function vaultMemoryRawToStored(
   return stored;
 }
 
+/** @deprecated App code: use `MemoryStore.list` (`createLocalMemoryStore`). */
 export async function getAllVaultMemoriesOp(
   ctx: VaultMemoryOperationsContext,
   options?: {
@@ -919,6 +923,8 @@ export async function getVaultEmbeddingsByIdsOp(
  * Reuses `baseVaultConditions`, so deleted / superseded / cross-user rows are
  * excluded exactly as they are from recall — a caller can pass any id list and
  * only its own live rows come back.
+ *
+ * @deprecated App code: use `MemoryStore.list({ memoryIds })` (`createLocalMemoryStore`).
  */
 export async function getVaultMemoriesByIdsOp(
   ctx: VaultMemoryOperationsContext,
@@ -1005,6 +1011,7 @@ export async function getActiveVaultMemoryIdsOp(
   return new Set(rows.map((r) => r.id as string));
 }
 
+/** @deprecated App code: use `MemoryStore.update` (`createLocalMemoryStore`). */
 export async function updateVaultMemoryOp(
   ctx: VaultMemoryOperationsContext,
   id: string,
@@ -1171,6 +1178,8 @@ export async function updateVaultMemoryOp(
  * unclustered). Requires `ctx.entityCtx`. Preserves `updated_at` so a topic
  * edit doesn't inflate the recency multiplier — `topics_updated_at` is what
  * carries the edit to the user's other devices.
+ *
+ * @deprecated App code: use `MemoryStore.setTopics` (`createLocalMemoryStore`).
  */
 export async function setMemoryEntitiesOp(
   ctx: VaultMemoryOperationsContext,
@@ -1322,6 +1331,8 @@ export async function clearMemoryTopicsOverrideOp(
  * Preserves `updated_at`: a visibility change is metadata, not a
  * re-observation, so it must not inflate the recency multiplier (mirrors
  * {@link setMemoryEntitiesOp}).
+ *
+ * @deprecated App code: use `MemoryStore.setVisibility` (`createLocalMemoryStore`).
  */
 export async function setMemoryVisibilityOp(
   ctx: VaultMemoryOperationsContext,
@@ -1376,6 +1387,7 @@ export async function setMemoryVisibilityOp(
   return vaultMemoryToStored(record, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner);
 }
 
+/** @deprecated App code: use `MemoryStore.delete` (`createLocalMemoryStore`). */
 export async function deleteVaultMemoryOp(
   ctx: VaultMemoryOperationsContext,
   id: string
@@ -1424,6 +1436,8 @@ export async function deleteVaultMemoryOp(
  *
  * @param id - the memory being retired (e.g. "Lives in Portland")
  * @param supersededById - the newer memory that replaced it (e.g. "Lives in SF")
+ *
+ * @deprecated App code: use `MemoryStore.supersede` (`createLocalMemoryStore`).
  */
 export async function supersedeVaultMemoryOp(
   ctx: VaultMemoryOperationsContext,
@@ -1650,6 +1664,8 @@ function linksDivergeFromTopics(topics: readonly StoredTopic[], linked: Set<stri
  * a contradiction only a pre-v42 restore produces, and this is the one place
  * that can see all three facts at once, so it clears the flag there (capped by
  * `limit`) before returning. See the branch for why that's safe.
+ *
+ * @deprecated App code: use `MemoryStore.maintenance.getTopicBacklog` (`createLocalMemoryStore`).
  */
 export async function getMemoriesNeedingTopicExtractionOp(
   ctx: VaultMemoryOperationsContext,
@@ -1845,6 +1861,8 @@ export async function getMemoriesNeedingTopicExtractionOp(
  * Callers bound the input via `getMemoriesNeedingTopicExtractionOp`'s `limit`
  * (both `pending` and `linkedUnstamped` are capped), so the per-row Model load
  * needed to `prepareUpdate` stays bounded and never spikes the RecordCache.
+ *
+ * @deprecated App code: use `MemoryStore.maintenance.stampTopicsExtracted` (`createLocalMemoryStore`).
  */
 export async function stampTopicsExtractedAtOp(
   ctx: VaultMemoryOperationsContext,
@@ -1926,6 +1944,8 @@ export async function stampTopicsExtractedAtOp(
  *
  * Skips deleted rows, foreign-user rows, and rows with null topics.
  * Empty topics remove stale links. Returns the relinked IDs.
+ *
+ * @deprecated App code: use `MemoryStore.maintenance.relinkTopics` (`createLocalMemoryStore`).
  */
 export async function relinkMemoryTopicsOp(
   ctx: VaultMemoryOperationsContext,
@@ -1982,6 +2002,8 @@ export async function relinkMemoryTopicsOp(
  * per memory (~107 on a single dev launch, sdk#891); it also cost N writes.
  * Same treatment as {@link stampTopicsExtractedAtOp}, including its
  * transpilation hazard — the prepare pass MUST stay a `.map()`.
+ *
+ * @deprecated App code: use `MemoryStore.maintenance.backfillTopics` (`createLocalMemoryStore`).
  */
 export async function backfillMemoryTopicsOp(
   ctx: VaultMemoryOperationsContext,
@@ -2202,6 +2224,8 @@ export async function getDecayCandidatesRawOp(
  *
  * @returns `true` if this call archived the row; `false` if it was stale
  *   (deleted / not owned / already archived / refreshed under us).
+ *
+ * @deprecated App code: use `MemoryStore.archive` (`createLocalMemoryStore`).
  */
 export async function archiveVaultMemoryOp(
   ctx: VaultMemoryOperationsContext,
@@ -2257,6 +2281,8 @@ export async function archiveVaultMemoryOp(
  *
  * @returns `true` if the row was restored (or already active); `false` if it was
  *   deleted / not owned / missing.
+ *
+ * @deprecated App code: use `MemoryStore.restore` (`createLocalMemoryStore`).
  */
 export async function restoreVaultMemoryOp(
   ctx: VaultMemoryOperationsContext,

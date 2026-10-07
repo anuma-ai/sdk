@@ -1,8 +1,8 @@
-# getEntitiesByMemoryIdsOp
+# ~~getEntitiesByMemoryIdsOp()~~
 
 > **getEntitiesByMemoryIdsOp**(`ctx`: [`EntityOperationsContext`](../interfaces/EntityOperationsContext.md), `memoryIds`: readonly `string`\[]): `Promise`<`Map`<`string`, `Set`<`string`>>>
 
-Defined in: [src/lib/db/entities/operations.ts:797](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/entities/operations.ts#797)
+Defined in: [src/lib/db/entities/operations.ts:803](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/entities/operations.ts#803)
 
 Reverse of [getMemoriesByEntityNamesOp](getMemoriesByEntityNamesOp.md): given a set of memory IDs
 (e.g. the current BFS frontier), return each memory's set of linked
@@ -59,3 +59,7 @@ readonly `string`\[]
 ## Returns
 
 `Promise`<`Map`<`string`, `Set`<`string`>>>
+
+## Deprecated
+
+App code: use `MemoryStore.topicsByMemories` (`createLocalMemoryStore`).

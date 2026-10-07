@@ -762,7 +762,34 @@ describe("eagerEmbedContent", () => {
         mockVaultCtx,
         "mem-99",
         JSON.stringify([4, 5, 6]),
-        DEFAULT_API_EMBEDDING_MODEL
+        DEFAULT_API_EMBEDDING_MODEL,
+        { content: "persist me" }
+      )
+    );
+  });
+
+  it("pins the persisted vector to the row version it was given", async () => {
+    vi.mocked(generateEmbedding).mockResolvedValue([4, 5, 6]);
+    const { updateVaultMemoryEmbeddingOp } = await import("../db/memoryVault/operations");
+
+    const updatedAt = new Date(1_700_000_000_000);
+    const cache = createVaultEmbeddingCache();
+    await eagerEmbedContent(
+      "pin me",
+      mockEmbeddingOptions,
+      cache,
+      mockVaultCtx,
+      "mem-7",
+      updatedAt
+    );
+
+    await vi.waitFor(() =>
+      expect(vi.mocked(updateVaultMemoryEmbeddingOp)).toHaveBeenCalledWith(
+        mockVaultCtx,
+        "mem-7",
+        JSON.stringify([4, 5, 6]),
+        DEFAULT_API_EMBEDDING_MODEL,
+        { content: "pin me", updatedAt: updatedAt.getTime() }
       )
     );
   });

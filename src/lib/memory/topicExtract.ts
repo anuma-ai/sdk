@@ -397,6 +397,8 @@ export interface TopicExtractionRunResult {
  * Requires `ctx.entityCtx`. Contents are decrypted via the ctx's wallet
  * fields, exactly like the vault read ops; a memory whose decryption fails is
  * skipped (retried next sweep), not fatal to the run.
+ *
+ * @deprecated App code: use `MemoryStore.maintenance.extractTopics` (`createLocalMemoryStore`).
  */
 export async function extractAndLinkEntitiesForMemoriesOp(
   ctx: VaultMemoryOperationsContext,

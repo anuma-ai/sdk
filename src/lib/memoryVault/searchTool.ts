@@ -1615,7 +1615,14 @@ export async function eagerEmbedContent(
   if (memoryId) cacheRowVector(cache, memoryId, Float32Array.from(embedding), updatedAt, content);
   if (vaultCtx && memoryId) {
     const currentModel = embeddingOptions.model ?? DEFAULT_API_EMBEDDING_MODEL;
-    updateVaultMemoryEmbeddingOp(vaultCtx, memoryId, JSON.stringify(embedding), currentModel).catch(
+    // Land only on the row this content came from: an edit that commits while
+    // this embed is in flight would otherwise get a vector for text that is no
+    // longer on the row. Both checks, because `updated_at` is milliseconds and
+    // two edits can share one.
+    updateVaultMemoryEmbeddingOp(vaultCtx, memoryId, JSON.stringify(embedding), currentModel, {
+      content,
+      ...(updatedAt !== undefined && { updatedAt: updatedAt.getTime() }),
+    }).catch(
       // Silently swallow – SDK must not use console.*; embedding will be retried on next search
       () => {}
     );

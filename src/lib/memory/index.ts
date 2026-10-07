@@ -101,6 +101,17 @@ export type { RecencyOptions } from "./recency.js";
 export { reflect, type ReflectOptions, type ReflectResult } from "./reflect.js";
 export { isRerankerAvailable, RerankerUnavailableError } from "./reranker.js";
 export { retain, type RetainContext } from "./retain.js";
+export { createLocalMemoryStore, type LocalMemoryStoreOptions } from "./store/local.js";
+export type {
+  MemoryCreate,
+  MemoryListOptions,
+  MemoryMaintenance,
+  MemoryRecallOptions,
+  MemoryRetainOptions,
+  MemoryStore,
+  MemorySubscribeOptions,
+  MemoryUpdate,
+} from "./store/types.js";
 export {
   DEFAULT_PROFILE_FACETS,
   PROFILE_DOC_VERSION,

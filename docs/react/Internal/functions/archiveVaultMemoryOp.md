@@ -1,8 +1,8 @@
-# archiveVaultMemoryOp
+# ~~archiveVaultMemoryOp()~~
 
 > **archiveVaultMemoryOp**(`ctx`: [`VaultMemoryOperationsContext`](../interfaces/VaultMemoryOperationsContext.md), `id`: `string`, `opts?`: `object`): `Promise`<`boolean`>
 
-Defined in: [src/lib/db/memoryVault/operations.ts:2206](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#2206)
+Defined in: [src/lib/db/memoryVault/operations.ts:2230](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#2230)
 
 Archive a memory (decay soft state, PR2) — set `archived_at`. An archived row
 drops out of every recall lane via the `baseVaultConditions` choke point but
@@ -140,3 +140,7 @@ Timestamp to stamp into `archived_at`. Default `Date.now()`.
 
 `true` if this call archived the row; `false` if it was stale
 (deleted / not owned / already archived / refreshed under us).
+
+## Deprecated
+
+App code: use `MemoryStore.archive` (`createLocalMemoryStore`).
