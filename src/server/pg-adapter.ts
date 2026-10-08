@@ -297,7 +297,7 @@ function rowToRaw(row: Record<string, unknown>): RawRecord {
 }
 
 /**
- * WatermelonDB `DatabaseAdapter` backed by PostgreSQL, so SDK operations run unchanged on the server. Accepts any `pg.Pool`-compatible object.
+ * WatermelonDB `DatabaseAdapter` backed by any `pg.Pool`-compatible pool, so SDK operations run unchanged on the server.
  *
  * @example
  * ```typescript

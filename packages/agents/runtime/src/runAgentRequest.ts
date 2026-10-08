@@ -185,7 +185,7 @@ async function denyInteractive(): Promise<string | null> {
   throw new Error("server agent cannot initiate OAuth; user must connect via portal");
 }
 
-/** Handle one inbound agent request: validate the bearer, build the portal client and tools, run `runToolLoop`, and lift connector errors. Throws on transport failure. */
+/** Handle one inbound agent request: validate the bearer, build the portal client and tools, run `runToolLoop`, and lift connector errors. @throws Error when the tool loop fails at the transport level. */
 export async function runAgentRequest(opts: AgentRequestOpts): Promise<AgentResponse> {
   const grant = await extractGrantContext(opts.request, opts.portalClientOpts);
   const portal = createPortalClient(grant.bearer, opts.portalClientOpts);

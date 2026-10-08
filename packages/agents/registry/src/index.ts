@@ -26,7 +26,7 @@ export interface SkillMeta {
   smsPrompts?: Record<string, string>;
 }
 
-/** Look up skill metadata by agent and skill id; returns null when either is unknown. Import the agent package for the full `SkillConfig`. */
+/** Look up public skill metadata by agent and skill id, or null when either is unknown. */
 export function getAgentSkillMeta(agentId: string, skillId: string): SkillMeta | null {
   const agent = getAgent(agentId);
   const skill = agent?.skills.find((s) => s.id === skillId);
