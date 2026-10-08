@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 
 import type { ToolConfig } from "../lib/chat/useChat/types.js";
-
 import {
   type AppFileRecord,
   type AppFileStorage,
@@ -479,22 +478,21 @@ describe("create_file enforces Read-before-Write for overwrites", () => {
 
   it("marks files seen by their normalized request path, not the storage-returned path", async () => {
     class PathShiftingStorage implements AppFileStorage {
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       getFile(_convId: string, p: string): Promise<AppFileRecord | null> {
         return Promise.resolve({ path: `/workspace/${p}`, content: "const A = 1;\n" });
       }
       getFiles(): Promise<AppFileRecord[]> {
         return Promise.resolve([]);
       }
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+
       putFile(_convId: string, _p: string, _c: string): Promise<void> {
         return Promise.resolve();
       }
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+
       putFiles(_convId: string, _files: Array<{ path: string; content: string }>): Promise<void> {
         return Promise.resolve();
       }
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+
       deleteFile(_convId: string, _p: string): Promise<void> {
         return Promise.resolve();
       }
@@ -593,7 +591,7 @@ describe("create_file enforces Read-before-Write for overwrites", () => {
 
   it("allows overwrite after read_file", async () => {
     const { createFile, readFile, storage } = makeTools();
-    (storage as MapFileStorage).getAll().set("App.js", "const A = 1;\n");
+    storage.getAll().set("App.js", "const A = 1;\n");
     await readFile.executor!({ path: "App.js" });
     const result = (await createFile.executor!({
       files: [{ path: "App.js", content: "const A = 2;\n" }],
@@ -707,8 +705,10 @@ describe("critique_design", () => {
       ],
     });
     const result = (await critique.executor!({})) as Record<string, unknown>;
-    expect(result.appJs).toMatchObject({ path: "App.js", lines: expect.any(Number) });
-    expect(result.appCss).toMatchObject({ path: "App.css", lines: expect.any(Number) });
+    expect(result.appJs).toMatchObject({ path: "App.js" });
+    expect(result.appCss).toMatchObject({ path: "App.css" });
+    expect((result.appJs as { lines: number }).lines).toEqual(expect.any(Number));
+    expect((result.appCss as { lines: number }).lines).toEqual(expect.any(Number));
     expect((result.appJs as { content: string }).content).toContain("function App");
     expect((result.appCss as { content: string }).content).toContain(":root");
   });
@@ -770,15 +770,17 @@ describe("critique_design", () => {
   });
 
   it("limits critique instructions to the user request after a title rename", async () => {
-    const { critique, createFile, patchFile } = makeTools();
+    const { storage, critique, createFile, patchFile } = makeTools();
+    const appCss = "footer { margin-top: 1rem; }\n";
+    const packageJson = '{"dependencies":{"react":"19.2.1"}}';
     await createFile.executor!({
       files: [
         {
           path: "App.js",
           content: "export default function App() { return <h1>BMI Calculator</h1>; }\n",
         },
-        { path: "App.css", content: "footer { margin-top: 1rem; }\n" },
-        { path: "package.json", content: '{"dependencies":{"react":"19.2.1"}}' },
+        { path: "App.css", content: appCss },
+        { path: "package.json", content: packageJson },
       ],
     });
     const patch = await patchFile.executor!({
@@ -796,6 +798,11 @@ describe("critique_design", () => {
     expect((critique.function as { description: string }).description).toContain(
       "For text, logic, or data edits, skip this tool."
     );
+    expect((await storage.getFile("test-conv", "App.js"))?.content).toBe(
+      "export default function App() { return <h1>Body Mass Index Tool</h1>; }\n"
+    );
+    expect((await storage.getFile("test-conv", "App.css"))?.content).toBe(appCss);
+    expect((await storage.getFile("test-conv", "package.json"))?.content).toBe(packageJson);
   });
 
   it("falls back to App.jsx when App.js is absent", async () => {
@@ -844,7 +851,7 @@ describe("onFileChange callback", () => {
 
   it("emits one `created` event per new file in a create_file batch", async () => {
     const { events, tools } = makeTools();
-    await tools.create_file!.executor!({
+    await tools.create_file.executor!({
       files: [
         { path: "App.js", content: "const A = 1;\n" },
         { path: "App.css", content: ":root {}\n" },
@@ -864,10 +871,10 @@ describe("onFileChange callback", () => {
   it("emits `modified` (not `created`) when create_file overwrites an existing file", async () => {
     const { events, tools, storage } = makeTools();
     storage.getAll().set("App.js", "const A = 1;\n");
-    await tools.read_file!.executor!({ path: "App.js" });
+    await tools.read_file.executor!({ path: "App.js" });
     events.length = 0;
 
-    await tools.create_file!.executor!({
+    await tools.create_file.executor!({
       files: [{ path: "App.js", content: "const A = 2;\n" }],
     });
     expect(events).toHaveLength(1);
@@ -883,12 +890,12 @@ describe("onFileChange callback", () => {
 
   it("emits `modified` from patch_file with before/after content", async () => {
     const { events, tools } = makeTools();
-    await tools.create_file!.executor!({
+    await tools.create_file.executor!({
       files: [{ path: "App.js", content: "const A = 1;\nconst B = 2;\n" }],
     });
     events.length = 0;
 
-    await tools.patch_file!.executor!({
+    await tools.patch_file.executor!({
       path: "App.js",
       patches: [{ find: "const A = 1;", replace: "const A = 99;" }],
     });
@@ -905,12 +912,12 @@ describe("onFileChange callback", () => {
 
   it("emits `deleted` with the pre-delete content", async () => {
     const { events, tools } = makeTools();
-    await tools.create_file!.executor!({
+    await tools.create_file.executor!({
       files: [{ path: "App.js", content: "const X = 1;\n" }],
     });
     events.length = 0;
 
-    await tools.delete_file!.executor!({ path: "App.js" });
+    await tools.delete_file.executor!({ path: "App.js" });
     expect(events).toHaveLength(1);
     expect(events[0]).toEqual({
       type: "deleted",
@@ -923,20 +930,20 @@ describe("onFileChange callback", () => {
 
   it("does NOT emit for read_file or list_files (no mutation)", async () => {
     const { events, tools } = makeTools();
-    await tools.create_file!.executor!({
+    await tools.create_file.executor!({
       files: [{ path: "App.js", content: "const A = 1;\n" }],
     });
     events.length = 0;
 
-    await tools.read_file!.executor!({ path: "App.js" });
-    await tools.list_files!.executor!({});
+    await tools.read_file.executor!({ path: "App.js" });
+    await tools.list_files.executor!({});
     expect(events).toEqual([]);
   });
 
   it("does NOT emit when create_file fails validation", async () => {
     const { events, tools } = makeTools();
     const broken = "function App() { return <div>;}\n";
-    const result = (await tools.create_file!.executor!({
+    const result = (await tools.create_file.executor!({
       files: [{ path: "App.js", content: broken }],
     })) as Record<string, unknown>;
     expect(result.error).toBeTruthy();
@@ -945,12 +952,12 @@ describe("onFileChange callback", () => {
 
   it("does NOT emit when patch_file has unmatched patches", async () => {
     const { events, tools } = makeTools();
-    await tools.create_file!.executor!({
+    await tools.create_file.executor!({
       files: [{ path: "App.js", content: "const A = 1;\n" }],
     });
     events.length = 0;
 
-    const result = (await tools.patch_file!.executor!({
+    const result = (await tools.patch_file.executor!({
       path: "App.js",
       patches: [{ find: "totally-not-in-the-file", replace: "x" }],
     })) as Record<string, unknown>;
@@ -960,7 +967,7 @@ describe("onFileChange callback", () => {
 
   it("does NOT emit when delete_file targets a non-existent file", async () => {
     const { events, tools } = makeTools();
-    await tools.delete_file!.executor!({ path: "ghost.js" });
+    await tools.delete_file.executor!({ path: "ghost.js" });
     expect(events).toEqual([]);
   });
 
@@ -1126,9 +1133,22 @@ describe("verify_app tool", () => {
     expect(result.note).toContain("Preserve the current user request scope.");
   });
 
+  it("limits design tools to design requests when runtime verification is unavailable", async () => {
+    const { verify } = makeTools();
+    const result = (await verify.executor!({})) as { note: string };
+    const description = (verify.function as { description: string }).description;
+    const designScope =
+      "Use audit_design and critique_design only for the initial build or user-requested design changes.";
+
+    expect(result.note).toContain(designScope);
+    expect(description).toContain(designScope);
+    expect(result.note).not.toContain("Rely on audit_design and critique_design for feedback.");
+    expect(description).not.toContain("degrade to audit_design + critique_design");
+  });
+
   it("forwards the host's success result verbatim (rendered: true, no errors)", async () => {
     const { verify } = makeTools({
-      verifyApp: async () => ({ rendered: true, errors: [] }),
+      verifyApp: () => Promise.resolve({ rendered: true, errors: [] }),
     });
     const result = (await verify.executor!({})) as Record<string, unknown>;
     expect(result.rendered).toBe(true);
@@ -1138,13 +1158,14 @@ describe("verify_app tool", () => {
 
   it("forwards the host's failure result with errors", async () => {
     const { verify } = makeTools({
-      verifyApp: async () => ({
-        rendered: false,
-        errors: [
-          "The requested module 'lucide-react' does not provide an export named 'LayoutKanban'",
-          "Cannot read properties of undefined (reading 'map')",
-        ],
-      }),
+      verifyApp: () =>
+        Promise.resolve({
+          rendered: false,
+          errors: [
+            "The requested module 'lucide-react' does not provide an export named 'LayoutKanban'",
+            "Cannot read properties of undefined (reading 'map')",
+          ],
+        }),
     });
     const result = (await verify.executor!({})) as Record<string, unknown>;
     expect(result.rendered).toBe(false);
@@ -1154,11 +1175,12 @@ describe("verify_app tool", () => {
 
   it("propagates the host's `note` so the model can disambiguate degenerate results", async () => {
     const { verify } = makeTools({
-      verifyApp: async () => ({
-        rendered: true,
-        errors: [],
-        note: "Sandpack still compiling — preview not yet mounted.",
-      }),
+      verifyApp: () =>
+        Promise.resolve({
+          rendered: true,
+          errors: [],
+          note: "Sandpack still compiling — preview not yet mounted.",
+        }),
     });
     const result = (await verify.executor!({})) as Record<string, unknown>;
     expect(result.note).toEqual(expect.stringContaining("still compiling"));
@@ -1166,11 +1188,12 @@ describe("verify_app tool", () => {
 
   it("coerces a malformed host return shape into the expected structure", async () => {
     const { verify } = makeTools({
-      verifyApp: (async () => ({
-        rendered: 1,
-        errors: "single error string (should be array)",
-        note: 42,
-      })) as unknown as () => Promise<import("./appGeneration.js").VerifyAppResult>,
+      verifyApp: (() =>
+        Promise.resolve({
+          rendered: 1,
+          errors: "single error string (should be array)",
+          note: 42,
+        })) as unknown as () => Promise<import("./appGeneration.js").VerifyAppResult>,
     });
     const result = (await verify.executor!({})) as Record<string, unknown>;
     expect(result.rendered).toBe(true);
@@ -1180,9 +1203,7 @@ describe("verify_app tool", () => {
 
   it("catches a thrown host hook and returns a useful failure (not silent)", async () => {
     const { verify, logged } = makeTools({
-      verifyApp: async () => {
-        throw new Error("Sandpack iframe disconnected");
-      },
+      verifyApp: () => Promise.reject(new Error("Sandpack iframe disconnected")),
     });
     const result = (await verify.executor!({})) as Record<string, unknown>;
     expect(result.rendered).toBe(false);
