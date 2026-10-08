@@ -147,7 +147,7 @@ export interface RemoteMemoryPersistence {
   candidates(
     embedding: number[],
     options?: RemoteMemoryCandidateOptions
-  ): Promise<RemoteMemoryRecord[]>;
+  ): Promise<{ items: RemoteMemoryRecord[]; failed: RemoteMemoryDecodeFailure[] }>;
 }
 
 const ciphertextPattern = /^enc:v\d+:[0-9a-f]+$/i;
@@ -260,8 +260,6 @@ export async function createRemoteMemoryPersistence(
     init: RequestInit = {},
     signal?: AbortSignal
   ): Promise<unknown> => {
-    const token = await options.getToken();
-    if (!token) throw new RemoteMemoryError("Authentication required", 401);
     const controller = new AbortController();
     let timedOut = false;
     const timer = setTimeout(() => {
@@ -271,7 +269,22 @@ export async function createRemoteMemoryPersistence(
     const forwardAbort = () => controller.abort(signal?.reason);
     if (signal?.aborted) forwardAbort();
     else signal?.addEventListener("abort", forwardAbort, { once: true });
+    let rejectAborted: (() => void) | undefined;
+    const aborted = new Promise<never>((_, reject) => {
+      rejectAborted = () =>
+        reject(
+          controller.signal.reason instanceof Error
+            ? controller.signal.reason
+            : new Error("Nearby request aborted")
+        );
+      if (controller.signal.aborted) rejectAborted();
+      else controller.signal.addEventListener("abort", rejectAborted, { once: true });
+    });
+    aborted.catch(() => undefined);
     try {
+      const token = await Promise.race([options.getToken(), aborted]);
+      if (controller.signal.aborted) await aborted;
+      if (!token) throw new RemoteMemoryError("Authentication required", 401);
       const response = await fetcher(root + path, {
         ...init,
         headers: {
@@ -298,6 +311,7 @@ export async function createRemoteMemoryPersistence(
     } finally {
       clearTimeout(timer);
       signal?.removeEventListener("abort", forwardAbort);
+      if (rejectAborted) controller.signal.removeEventListener("abort", rejectAborted);
     }
   };
   const account = await request("/account", {}, options.signal);
@@ -478,9 +492,10 @@ export async function createRemoteMemoryPersistence(
     };
   };
 
-  const candidateSet = async (
+  const fetchCandidates = async (
     embedding: number[],
-    candidateOptions: RemoteMemoryCandidateOptions = {}
+    candidateOptions: RemoteMemoryCandidateOptions,
+    withCounts: boolean
   ) => {
     const limit = candidateOptions.limit ?? 100;
     if (!Number.isInteger(limit) || limit < 1 || limit > 100)
@@ -498,6 +513,7 @@ export async function createRemoteMemoryPersistence(
           embedding,
           limit,
           force_ids: candidateOptions.force_ids ?? [],
+          ...(withCounts && { with_counts: true }),
           ...Object.fromEntries(
             [
               "scopes",
@@ -528,9 +544,16 @@ export async function createRemoteMemoryPersistence(
       },
       candidateOptions.signal
     );
+    if (!record(result) || !Array.isArray(result.items))
+      throw new Error("Invalid nearby candidate response");
+    return result as Record<string, unknown> & { items: unknown[] };
+  };
+  const candidateSet = async (
+    embedding: number[],
+    candidateOptions: RemoteMemoryCandidateOptions = {}
+  ) => {
+    const result = await fetchCandidates(embedding, candidateOptions, true);
     if (
-      !record(result) ||
-      !Array.isArray(result.items) ||
       !Number.isSafeInteger(result.total_count) ||
       (result.total_count as number) < 0 ||
       !Number.isSafeInteger(result.unavailable_count) ||
@@ -627,7 +650,7 @@ export async function createRemoteMemoryPersistence(
       return Promise.all(result.items.map((item, i) => decodeCommitted(item, prepared[i])));
     },
     candidateSet,
-    candidates: async (embedding, candidateOptions) =>
-      (await candidateSet(embedding, candidateOptions)).items,
+    candidates: async (embedding, candidateOptions = {}) =>
+      decodeAll((await fetchCandidates(embedding, candidateOptions, false)).items),
   };
 }

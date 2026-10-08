@@ -11,7 +11,7 @@ Migration must have activated the account under the canonical key before constru
 
 ### candidates()
 
-> **candidates**(`embedding`: `number`\[], `options?`: [`RemoteMemoryCandidateOptions`](RemoteMemoryCandidateOptions.md)): `Promise`<[`RemoteMemoryRecord`](RemoteMemoryRecord.md)\[]>
+> **candidates**(`embedding`: `number`\[], `options?`: [`RemoteMemoryCandidateOptions`](RemoteMemoryCandidateOptions.md)): `Promise`<{ `failed`: [`RemoteMemoryDecodeFailure`](RemoteMemoryDecodeFailure.md)\[]; `items`: [`RemoteMemoryRecord`](RemoteMemoryRecord.md)\[]; }>
 
 Defined in: [src/lib/memory/store/remotePersistence.ts:147](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#147)
 
@@ -56,7 +56,7 @@ Nearby ranks ciphertext using a query vector and metadata; returned winners decr
 
 **Returns**
 
-`Promise`<[`RemoteMemoryRecord`](RemoteMemoryRecord.md)\[]>
+`Promise`<{ `failed`: [`RemoteMemoryDecodeFailure`](RemoteMemoryDecodeFailure.md)\[]; `items`: [`RemoteMemoryRecord`](RemoteMemoryRecord.md)\[]; }>
 
 ***
 

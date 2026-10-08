@@ -52,8 +52,7 @@ function setup() {
     }
     if (url.pathname === "/api/private-memories/candidates") {
       return Response.json({
-        total_count: rows.size,
-        unavailable_count: 0,
+        ...(body!.with_counts === true && { total_count: rows.size, unavailable_count: 0 }),
         items: [...rows.values()]
           .filter((item) => !item.memory.is_deleted)
           .map((item) => ({ ...item, score: 0.9 })),
@@ -320,7 +319,8 @@ describe("remote private-memory persistence", () => {
       fact_types: ["identity"],
       include_archived: true,
     });
-    expect(result[0]).toMatchObject({ memory: { content: "Plays chess" }, score: 0.9 });
+    expect(result.items[0]).toMatchObject({ memory: { content: "Plays chess" }, score: 0.9 });
+    expect(result.failed).toEqual([]);
     expect(h.requests.at(-1)!.body).toEqual({
       embedding: vector(),
       limit: 8,
@@ -329,6 +329,19 @@ describe("remote private-memory persistence", () => {
       include_archived: true,
     });
     expect(JSON.stringify(h.requests.at(-1)!.body)).not.toContain("Plays chess");
+  });
+
+  it("requests counts only for candidate sets and requires them in the response", async () => {
+    const h = setup();
+    const store = await createRemoteMemoryPersistence(h.options);
+    await store.put(h.memory("a"), 0);
+    const window = await store.candidateSet(vector(), { limit: 5 });
+    expect(h.requests.at(-1)!.body).toMatchObject({ with_counts: true });
+    expect(window).toMatchObject({ total_count: 1, unavailable_count: 0 });
+    await store.candidates(vector(), { limit: 5 });
+    expect(h.requests.at(-1)!.body).not.toHaveProperty("with_counts");
+    h.fetch.mockImplementationOnce(async () => Response.json({ items: [] }));
+    await expect(store.candidateSet(vector())).rejects.toThrow("Invalid nearby candidate response");
   });
 
   it("fails closed on encryption and decryption failure", async () => {
@@ -401,10 +414,9 @@ describe("remote private-memory persistence", () => {
     const window = await store.candidateSet(vector());
     expect(window.items.map((item) => item.memory.memory_id)).toEqual(["a", "c"]);
     expect(window.failed.map((failure) => failure.memory_id)).toEqual(["b"]);
-    expect((await store.candidates(vector())).map((item) => item.memory.memory_id)).toEqual([
-      "a",
-      "c",
-    ]);
+    const plain = await store.candidates(vector());
+    expect(plain.items.map((item) => item.memory.memory_id)).toEqual(["a", "c"]);
+    expect(plain.failed.map((failure) => failure.memory_id)).toEqual(["b"]);
   });
 
   it("repairs an undecryptable row with a fresh encryption under the caller's version", async () => {
@@ -501,6 +513,24 @@ describe("remote private-memory persistence", () => {
     await expect(createRemoteMemoryPersistence({ ...h.options, timeoutMs: 0 })).rejects.toThrow(
       "timeoutMs"
     );
+  });
+
+  it("bounds a hung token refresh by the timeout and the caller's signal", async () => {
+    const h = setup();
+    const store = await createRemoteMemoryPersistence({ ...h.options, timeoutMs: 20 });
+    const calls = h.fetch.mock.calls.length;
+    h.getToken.mockImplementation(() => new Promise<string>(() => undefined));
+    await expect(store.get("a")).rejects.toMatchObject({ status: 408, code: "timeout" });
+    const controller = new AbortController();
+    const reason = new Error("caller gave up");
+    const pending = createRemoteMemoryPersistence({
+      ...h.options,
+      timeoutMs: 60_000,
+      signal: controller.signal,
+    });
+    controller.abort(reason);
+    await expect(pending).rejects.toBe(reason);
+    expect(h.fetch.mock.calls.length).toBe(calls);
   });
 
   it("captures the write before asynchronous encryption so caller edits cannot change it", async () => {

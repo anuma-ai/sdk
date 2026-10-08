@@ -7,10 +7,22 @@ vi.mock("../../memoryEngine/embeddings.js", () => ({
   ),
 }));
 vi.mock("../consolidate.js", () => ({ consolidateMemory: vi.fn() }));
+const captured = vi.hoisted(() => ({ port: undefined as RetainPersistence | undefined }));
+vi.mock("../retain.js", async (importOriginal) => {
+  const original = await importOriginal<typeof import("../retain.js")>();
+  return {
+    ...original,
+    retainWithPersistence: (...args: Parameters<typeof original.retainWithPersistence>) => {
+      captured.port = args[1].persistence;
+      return original.retainWithPersistence(...args);
+    },
+  };
+});
 
 import { getLogger } from "../../logger.js";
 import { generateEmbeddings } from "../../memoryEngine/embeddings.js";
 import { consolidateMemory } from "../consolidate.js";
+import type { RetainPersistence } from "../retain.js";
 import { createRemoteMemoryPipeline } from "./remotePipeline.js";
 import {
   type RemoteMemoryCandidateOptions,
@@ -65,51 +77,54 @@ function setup() {
       return Promise.all(writes.map((w) => put(w.memory, w.expectedVersion)));
     }
   );
-  const candidateSet = vi.fn(
-    async (_vector: number[], options: RemoteMemoryCandidateOptions = {}) => {
-      const eligible = [...rows.values()].filter(
-        ({ memory: m }) =>
-          (options.include_deleted || !m.is_deleted) &&
-          (!options.deleted_only || m.is_deleted) &&
-          (!m.archived_at || options.include_archived) &&
-          !m.superseded_by &&
-          m.trust_tier !== "quarantined" &&
-          (!options.scopes?.length || options.scopes.includes(m.scope)) &&
-          (options.memory_ids === undefined || options.memory_ids.includes(m.memory_id)) &&
-          (!options.fact_types?.length || options.fact_types.includes(m.fact_type ?? ""))
-      );
-      const compatible = eligible.filter(
-        ({ memory: m }) =>
-          m.embedding && (!m.embedding_model || m.embedding_model === options.embedding_model)
-      );
-      const window = compatible.slice(0, options.limit ?? 100);
-      const forced = eligible.filter(
-        ({ memory: m }) =>
-          options.force_ids?.includes(m.memory_id) &&
-          !window.some((w) => w.memory.memory_id === m.memory_id)
-      );
-      const returned = [...window, ...forced];
-      return {
-        items: structuredClone(returned.filter(({ memory: m }) => !undecryptable.has(m.memory_id))),
-        failed: returned
-          .filter(({ memory: m }) => undecryptable.has(m.memory_id))
-          .map(({ memory: m, version }) => ({
-            memory_id: m.memory_id,
-            version,
-            error: new Error("Memory decryption failed"),
-          })),
-        total_count: eligible.length,
-        unavailable_count: eligible.length - compatible.length,
-      };
-    }
-  );
+  const query = async (_vector: number[], options: RemoteMemoryCandidateOptions = {}) => {
+    const eligible = [...rows.values()].filter(
+      ({ memory: m }) =>
+        (options.include_deleted || !m.is_deleted) &&
+        (!options.deleted_only || m.is_deleted) &&
+        (!m.archived_at || options.include_archived) &&
+        !m.superseded_by &&
+        m.trust_tier !== "quarantined" &&
+        (!options.scopes?.length || options.scopes.includes(m.scope)) &&
+        (options.memory_ids === undefined || options.memory_ids.includes(m.memory_id)) &&
+        (!options.fact_types?.length || options.fact_types.includes(m.fact_type ?? ""))
+    );
+    const compatible = eligible.filter(
+      ({ memory: m }) =>
+        m.embedding && (!m.embedding_model || m.embedding_model === options.embedding_model)
+    );
+    const window = compatible.slice(0, options.limit ?? 100);
+    const forced = eligible.filter(
+      ({ memory: m }) =>
+        options.force_ids?.includes(m.memory_id) &&
+        !window.some((w) => w.memory.memory_id === m.memory_id)
+    );
+    const returned = [...window, ...forced];
+    return {
+      items: structuredClone(returned.filter(({ memory: m }) => !undecryptable.has(m.memory_id))),
+      failed: returned
+        .filter(({ memory: m }) => undecryptable.has(m.memory_id))
+        .map(({ memory: m, version }) => ({
+          memory_id: m.memory_id,
+          version,
+          error: new Error("Memory decryption failed"),
+        })),
+      total_count: eligible.length,
+      unavailable_count: eligible.length - compatible.length,
+    };
+  };
+  const candidateSet = vi.fn(query);
+  const candidates = vi.fn(async (v: number[], o?: RemoteMemoryCandidateOptions) => {
+    const { items, failed } = await query(v, o);
+    return { items, failed };
+  });
   const get = vi.fn(async (id: string) => structuredClone(rows.get(id) ?? null));
   const persistence: RemoteMemoryPersistence = {
     get,
     put,
     putMany,
     candidateSet,
-    candidates: async (v, o) => (await candidateSet(v, o)).items,
+    candidates,
     list: vi.fn(async () => {
       throw new Error("must not enumerate vault");
     }),
@@ -131,6 +146,7 @@ function setup() {
     put,
     putMany,
     candidateSet,
+    candidates,
     persistence,
     graphRanking,
     temporalRanking,
@@ -187,8 +203,8 @@ describe("remote shared recall/retain pipeline", () => {
       limit: 8,
     });
     expect(result.memories.map((m) => m.id)).toEqual(["a"]);
-    expect(h.candidateSet.mock.calls[0][0]).toHaveLength(1536);
-    expect(h.candidateSet.mock.calls[0][1]).toMatchObject({
+    expect(h.candidates.mock.calls[0][0]).toHaveLength(1536);
+    expect(h.candidates.mock.calls[0][1]).toMatchObject({
       scopes: ["private"],
       embedding_model: "model",
       limit: 30,
@@ -293,12 +309,12 @@ describe("remote shared recall/retain pipeline", () => {
       subQueries: ["Drinks tea", "Favorite drink"],
       minScore: 0,
     });
-    expect(h.candidateSet).toHaveBeenCalledTimes(3);
+    expect(h.candidates).toHaveBeenCalledTimes(3);
     expect(vi.mocked(generateEmbeddings).mock.calls.map(([texts]) => texts)).toEqual([
       ["Drinks tea"],
       ["Drinks tea", "Favorite drink"],
     ]);
-    expect(h.candidateSet.mock.calls.every(([v]) => v.length === 1536)).toBe(true);
+    expect(h.candidates.mock.calls.every(([v]) => v.length === 1536)).toBe(true);
   });
 });
 
@@ -309,7 +325,7 @@ describe("remote admission and consolidation regressions", () => {
     h.graphRanking.mockResolvedValueOnce(Array.from({ length: 150 }, (_, i) => `graph-${i}`));
     h.temporalRanking.mockResolvedValueOnce(Array.from({ length: 150 }, (_, i) => `time-${i}`));
     expect((await h.pipeline.recall("Drinks tea", { minScore: 0 })).memories[0].id).toBe("a");
-    const ids = h.candidateSet.mock.calls[0][1]!.force_ids!;
+    const ids = h.candidates.mock.calls[0][1]!.force_ids!;
     expect(ids).toHaveLength(100);
     expect(ids.slice(0, 4)).toEqual(["graph-0", "time-0", "graph-1", "time-1"]);
   });
@@ -328,25 +344,25 @@ describe("remote admission and consolidation regressions", () => {
       .mockResolvedValueOnce([main])
       .mockResolvedValueOnce([first, second]);
     await h.pipeline.recall("Drinks tea", { subQueries: ["first", "second"], minScore: 0 });
-    expect(h.candidateSet.mock.calls[0][0].slice(0, 2)).toEqual([0.6, 0.8]);
-    expect(h.candidateSet.mock.calls[1][0].slice(0, 2)).toEqual([1, 0]);
-    expect(h.candidateSet.mock.calls[2][0].slice(0, 2)).toEqual([0, 1]);
+    expect(h.candidates.mock.calls[0][0].slice(0, 2)).toEqual([0.6, 0.8]);
+    expect(h.candidates.mock.calls[1][0].slice(0, 2)).toEqual([1, 0]);
+    expect(h.candidates.mock.calls[2][0].slice(0, 2)).toEqual([0, 1]);
     vi.mocked(generateEmbeddings).mockResolvedValueOnce([main]).mockResolvedValueOnce([[], second]);
-    const before = h.candidateSet.mock.calls.length;
+    const before = h.candidates.mock.calls.length;
     expect(
       (await h.pipeline.recall("Drinks tea", { subQueries: ["first", "second"], minScore: 0 }))
         .memories[0].id
     ).toBe("a");
-    expect(h.candidateSet.mock.calls.length - before).toBe(1);
+    expect(h.candidates.mock.calls.length - before).toBe(1);
     vi.mocked(generateEmbeddings)
       .mockResolvedValueOnce([main])
       .mockRejectedValueOnce(new Error("facet embedding timed out"));
-    const afterTimeout = h.candidateSet.mock.calls.length;
+    const afterTimeout = h.candidates.mock.calls.length;
     expect(
       (await h.pipeline.recall("Drinks tea", { subQueries: ["first", "second"], minScore: 0 }))
         .memories[0].id
     ).toBe("a");
-    expect(h.candidateSet.mock.calls.length - afterTimeout).toBe(1);
+    expect(h.candidates.mock.calls.length - afterTimeout).toBe(1);
   });
   it("forces graph and temporal ids only into the primary window", async () => {
     const h = setup();
@@ -356,7 +372,7 @@ describe("remote admission and consolidation regressions", () => {
       subQueries: ["Drinks tea", "Favorite drink"],
       minScore: 0,
     });
-    expect(h.candidateSet.mock.calls.map(([, options]) => options!.force_ids)).toEqual([
+    expect(h.candidates.mock.calls.map(([, options]) => options!.force_ids)).toEqual([
       ["a"],
       [],
       [],
@@ -428,4 +444,55 @@ describe("remote admission and consolidation regressions", () => {
       expect(h.rows.get("a")!.memory.content).toBe("Drinks tea");
     }
   );
+  it("recalls through count-free candidate windows and retains through counted sets", async () => {
+    const h = setup();
+    h.seed("a");
+    await h.pipeline.recall("Drinks tea", { minScore: 0 });
+    expect(h.candidates).toHaveBeenCalledTimes(1);
+    expect(h.candidateSet).not.toHaveBeenCalled();
+    await h.pipeline.retain("Drinks tea");
+    expect(h.candidateSet).toHaveBeenCalledTimes(1);
+    expect(h.candidates).toHaveBeenCalledTimes(1);
+  });
+  it("bounds recall candidate windows by the query budget", async () => {
+    const h = setup();
+    h.seed("a");
+    h.candidates.mockImplementationOnce(
+      (_vector, options) =>
+        new Promise((_resolve, reject) =>
+          options!.signal!.addEventListener("abort", () => reject(options!.signal!.reason as Error))
+        )
+    );
+    await expect(
+      h.pipeline.recall("Drinks tea", { minScore: 0, queryEmbedTotalTimeoutMs: 30 })
+    ).rejects.toMatchObject({ status: 408, code: "timeout" });
+    await h.pipeline.recall("Drinks tea", { minScore: 0 });
+    expect(h.candidates.mock.calls.at(-1)![1]!.signal!.aborted).toBe(false);
+  });
+  it("drops a stale vector when content changes without a new embedding", async () => {
+    const h = setup();
+    h.seed("a");
+    await h.pipeline.retain("Drinks tea");
+    const port = captured.port!;
+    await port.get("a");
+    await port.update("a", { content: "Drinks tea" });
+    expect(h.put.mock.calls.at(-1)![0].embedding).toHaveLength(1536);
+    await port.get("a");
+    await port.update("a", { content: "Drinks coffee" });
+    const sent = h.put.mock.calls.at(-1)![0];
+    expect(sent.content).toBe("Drinks coffee");
+    expect(sent).not.toHaveProperty("embedding");
+    expect(sent).not.toHaveProperty("embedding_model");
+  });
+  it("normalizes trust tiers like local memory operations", async () => {
+    const h = setup();
+    await h.pipeline.retain("Drinks tea", { enableAutoMerge: false });
+    const port = captured.port!;
+    await port.create({ content: "Drinks coffee", trustTier: "trusted" });
+    expect(h.put.mock.calls.at(-1)![0].trust_tier).toBe("trusted");
+    const created = await port.create({ content: "Drinks juice", trustTier: "bogus" });
+    expect(h.put.mock.calls.at(-1)![0].trust_tier).toBeUndefined();
+    await port.update(created.uniqueId, { content: "Drinks juice", trustTier: "unknown" });
+    expect(h.put.mock.calls.at(-1)![0].trust_tier).toBeUndefined();
+  });
 });

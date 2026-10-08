@@ -1,6 +1,7 @@
 import { v7 as uuidv7 } from "uuid";
 
 import { parseTopics } from "../../db/entities/types.js";
+import { normalizeTrustTier } from "../../db/memoryVault/operations.js";
 import { parseMedia, type StoredVaultMemory } from "../../db/memoryVault/types.js";
 import { getLogger } from "../../logger.js";
 import { DEFAULT_API_EMBEDDING_MODEL } from "../../memoryEngine/constants.js";
@@ -15,11 +16,13 @@ import {
 import { recall } from "../recall.js";
 import { type RetainPersistence, retainWithPersistence } from "../retain.js";
 import type { RecallFactSource, RecallResult, RetainResult } from "../types.js";
-import type {
-  RemoteMemoryDecodeFailure,
-  RemoteMemoryPersistence,
-  RemoteMemoryRecord,
-  RemoteMemoryRow,
+import {
+  type RemoteMemoryCandidateOptions,
+  type RemoteMemoryDecodeFailure,
+  RemoteMemoryError,
+  type RemoteMemoryPersistence,
+  type RemoteMemoryRecord,
+  type RemoteMemoryRow,
 } from "./remotePersistence.js";
 import type { MemoryRecallOptions, MemoryRetainOptions } from "./types.js";
 
@@ -139,10 +142,11 @@ export function createRemoteMemoryPipeline(
       const facets = normalizeSubQueries(search.subQueries);
       const facetQueries = facets.length >= 2 ? facets : [];
       const start = Date.now();
+      const budgetMs = search.queryEmbedTotalTimeoutMs ?? 8000;
       const embed = (texts: string[]) =>
         generateEmbeddings(texts, {
           ...embeddingOptions,
-          totalTimeoutMs: search.queryEmbedTotalTimeoutMs ?? 8000,
+          totalTimeoutMs: budgetMs,
         });
       const embedFacets = async (): Promise<number[][]> => {
         if (!facetQueries.length) return [];
@@ -173,19 +177,46 @@ export function createRemoteMemoryPipeline(
         if (forced.size < 100 && temporal[i] !== undefined) forced.add(temporal[i]);
       }
       const forceIds = [...forced];
-      const windows = await Promise.all(
-        [queryEmbedding, ...facetEmbeddings].map((embedding, i) =>
-          persistence.candidateSet(embedding, {
-            limit: Math.min(100, Math.max((search.limit ?? 8) * 3, 30)),
-            force_ids: i === 0 ? forceIds : [],
-            ...(search.scopes && { scopes: search.scopes }),
-            ...(search.factTypes && { fact_types: search.factTypes }),
-            ...(search.memoryIds !== undefined && { memory_ids: search.memoryIds }),
-            include_archived: search.includeArchived,
-            embedding_model: model,
-          })
-        )
-      );
+      const windowOptions = (i: number, signal?: AbortSignal): RemoteMemoryCandidateOptions => ({
+        limit: Math.min(100, Math.max((search.limit ?? 8) * 3, 30)),
+        force_ids: i === 0 ? forceIds : [],
+        ...(search.scopes && { scopes: search.scopes }),
+        ...(search.factTypes && { fact_types: search.factTypes }),
+        ...(search.memoryIds !== undefined && { memory_ids: search.memoryIds }),
+        include_archived: search.includeArchived,
+        embedding_model: model,
+        ...(signal && { signal }),
+      });
+      const vectors = [queryEmbedding, ...facetEmbeddings];
+      let windows: {
+        items: RemoteMemoryRecord[];
+        failed: RemoteMemoryDecodeFailure[];
+        total_count?: number;
+        unavailable_count?: number;
+      }[];
+      if (mode === "retain") {
+        windows = await Promise.all(
+          vectors.map((embedding, i) => persistence.candidateSet(embedding, windowOptions(i)))
+        );
+      } else {
+        const deadline = new AbortController();
+        const timer = setTimeout(
+          () =>
+            deadline.abort(
+              new RemoteMemoryError("Remote recall exceeded its query budget", 408, "timeout")
+            ),
+          Math.max(0, start + budgetMs - Date.now())
+        );
+        try {
+          windows = await Promise.all(
+            vectors.map((embedding, i) =>
+              persistence.candidates(embedding, windowOptions(i, deadline.signal))
+            )
+          );
+        } finally {
+          clearTimeout(timer);
+        }
+      }
       rejectUndecryptable([
         ...new Map(
           windows.flatMap((window) => window.failed).map((failure) => [failure.memory_id, failure])
@@ -220,10 +251,11 @@ export function createRemoteMemoryPipeline(
         })),
         queryEmbedding,
         facetEmbeddings,
-        vaultSize: Math.max(windows[0].total_count, items.length),
-        embeddingFailure: windows.some((window) => window.unavailable_count > 0),
+        vaultSize: Math.max(windows[0].total_count ?? 0, items.length),
+        embeddingFailure: windows.some((window) => (window.unavailable_count ?? 0) > 0),
         embeddingsUnavailable:
-          windows[0].total_count > 0 && !memories.some((memory) => memory.embedding),
+          (windows[0].total_count ?? items.length) > 0 &&
+          !memories.some((memory) => memory.embedding),
         decryptLast: true,
         rowsDecrypted: items.length,
         queryEmbedMs,
@@ -254,7 +286,7 @@ export function createRemoteMemoryPipeline(
           event_time_kind: input.eventTime.kind ?? undefined,
         }),
         fact_type: input.factType,
-        trust_tier: input.trustTier,
+        trust_tier: normalizeTrustTier(input.trustTier) ?? undefined,
         geohash: input.geohash,
         visibility: "private",
         twin_opt_in: false,
@@ -295,6 +327,10 @@ export function createRemoteMemoryPipeline(
           updated_at: patch.preserveUpdatedAt ? snapshot.memory.updated_at : Date.now(),
         };
         if (patch.scope !== undefined) memory.scope = patch.scope;
+        if (patch.embedding === undefined && patch.content !== snapshot.memory.content) {
+          delete memory.embedding;
+          delete memory.embedding_model;
+        }
         if (patch.embedding !== undefined) {
           memory.embedding =
             patch.embedding === null ? [] : storedVector(JSON.parse(patch.embedding) as number[]);
@@ -318,7 +354,8 @@ export function createRemoteMemoryPipeline(
         }
         if (patch.source !== undefined) memory.source = patch.source;
         if (patch.factType !== undefined) memory.fact_type = patch.factType;
-        if (patch.trustTier !== undefined) memory.trust_tier = patch.trustTier;
+        if (patch.trustTier !== undefined)
+          memory.trust_tier = normalizeTrustTier(patch.trustTier) ?? undefined;
         if (patch.topicsUserManaged !== undefined)
           memory.topics_user_managed = patch.topicsUserManaged;
         if (patch.eventTime !== undefined) {

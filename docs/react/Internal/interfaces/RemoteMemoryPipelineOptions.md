@@ -1,6 +1,6 @@
 # RemoteMemoryPipelineOptions
 
-Defined in: [src/lib/memory/store/remotePipeline.ts:26](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePipeline.ts#26)
+Defined in: [src/lib/memory/store/remotePipeline.ts:29](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePipeline.ts#29)
 
 ## Properties
 
@@ -8,7 +8,7 @@ Defined in: [src/lib/memory/store/remotePipeline.ts:26](https://github.com/anuma
 
 > **embeddingOptions**: [`MemoryEngineEmbeddingOptions`](MemoryEngineEmbeddingOptions.md)
 
-Defined in: [src/lib/memory/store/remotePipeline.ts:28](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePipeline.ts#28)
+Defined in: [src/lib/memory/store/remotePipeline.ts:31](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePipeline.ts#31)
 
 ***
 
@@ -16,7 +16,7 @@ Defined in: [src/lib/memory/store/remotePipeline.ts:28](https://github.com/anuma
 
 > **graphRanking**: (`query`: `string`, `traverse`: `boolean`, `options`: [`RecallOptions`](RecallOptions.md)) => `Promise`<`string`\[]>
 
-Defined in: [src/lib/memory/store/remotePipeline.ts:30](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePipeline.ts#30)
+Defined in: [src/lib/memory/store/remotePipeline.ts:33](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePipeline.ts#33)
 
 Server-backed metadata lanes. These callbacks execute on the device.
 
@@ -79,7 +79,7 @@ Server-backed metadata lanes. These callbacks execute on the device.
 
 > **persistence**: [`RemoteMemoryPersistence`](RemoteMemoryPersistence.md)
 
-Defined in: [src/lib/memory/store/remotePipeline.ts:27](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePipeline.ts#27)
+Defined in: [src/lib/memory/store/remotePipeline.ts:30](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePipeline.ts#30)
 
 ***
 
@@ -87,7 +87,7 @@ Defined in: [src/lib/memory/store/remotePipeline.ts:27](https://github.com/anuma
 
 > **temporalRanking**: (`query`: `string`, `now?`: `number`) => `Promise`<`string`\[]>
 
-Defined in: [src/lib/memory/store/remotePipeline.ts:31](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePipeline.ts#31)
+Defined in: [src/lib/memory/store/remotePipeline.ts:34](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePipeline.ts#34)
 
 **Parameters**
 
