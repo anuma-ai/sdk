@@ -1,6 +1,42 @@
+/**
+ * Query-time temporal phrase parser for the W6 recall lane.
+ *
+ * Given a query like "what's coming up next week?" or "what did I do
+ * last Tuesday?", returns a `[start, end]` window in Unix ms that the
+ * temporal lane uses to filter / boost memories whose event-time
+ * overlaps. Returns null when no temporal phrase is detected — the
+ * temporal lane silently skips and the other lanes do the work.
+ *
+ * Coverage targets the ~80% of consumer-chat temporal phrasings:
+ *  - Relative day:    "today", "yesterday", "tomorrow"
+ *  - Relative week:   "this week", "last week", "next week"
+ *  - Relative month:  "this month", "last month", "next month"
+ *  - Numeric offset:  "in 3 days", "3 days ago", "2 weeks from now"
+ *  - Day-of-week:     "Tuesday", "next Friday", "last Monday"
+ *  - Absolute date:   "May 23", "May 23 2026", "2026-05-23"
+ *  - Range:           "between X and Y", "from X to Y"
+ *
+ * Timezone basis: windows are constructed via the local `Date(y,m,d)`
+ * constructor (local midnight). The write side (auto-extracted
+ * eventTime) shares the same basis so the day after "May 23" doesn't
+ * land before May 23's window for non-UTC users.
+ *
+ * Anchored phrases like "before my Japan trip" / "after Sara's wedding"
+ * are deliberately out of scope — those need a separate event-anchor
+ * resolver pass that joins query entities to memory event-times. Defer
+ * to a follow-up if eval shows real lift.
+ *
+ * Returns absolute timestamps (Unix ms). Caller is responsible for
+ * setting `now` (defaults to `Date.now()`); test fixtures should pass
+ * an explicit `now` to keep determinism.
+ */
+
 interface TemporalWindow {
+  /** Inclusive start of the window in Unix ms. */
   start: number;
+  /** Exclusive end of the window in Unix ms. */
   end: number;
+  /** Which phrase matched (diagnostic / explainability). */
   matchedPhrase: string;
 }
 

@@ -22,10 +22,12 @@ const isAuthError = (err: unknown): boolean =>
 interface ICloudBackupDeps {
   requestICloudAccess: () => Promise<void>;
   requestEncryptionKey: (address: string) => Promise<void>;
+  /** Export a conversation to an encrypted blob */
   exportConversation: (
     conversationId: string,
     userAddress: string
   ) => Promise<{ success: boolean; blob?: Blob }>;
+  /** Import a conversation from an encrypted blob */
   importConversation: (blob: Blob, userAddress: string) => Promise<{ success: boolean }>;
 }
 

@@ -23,6 +23,11 @@ const MIN_RESPONSES_OUTPUT_TOKENS = 2_048;
 
 const SCHEMA_FALLBACK_SKIP_STATUSES = new Set([401, 403, 404, 408, 409, 413, 425, 429]);
 
+/**
+ * The outcome of one portal round-trip. `http` is split out from `error`
+ * because only a server-issued status is evidence about the REQUEST's shape — a
+ * network throw or an abort says nothing, and must never trigger a retry.
+ */
 type ReflectAttempt =
   | { kind: "ok"; body: unknown }
   | { kind: "http"; status: number; statusText: string }

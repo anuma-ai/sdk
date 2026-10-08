@@ -2,7 +2,7 @@
 
 > **isAnumaTag**(`tag`: `string`): `boolean`
 
-Defined in: [src/tools/slides/jsx.ts:626](https://github.com/anuma-ai/sdk/blob/main/src/tools/slides/jsx.ts#626)
+Defined in: [src/tools/slides/jsx.ts:522](https://github.com/anuma-ai/sdk/blob/main/src/tools/slides/jsx.ts#522)
 
 True when a tag is an Anuma primitive (capitalized local name).
 

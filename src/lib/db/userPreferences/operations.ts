@@ -214,6 +214,10 @@ export async function deleteUserPreferenceOp(
   return true;
 }
 
+/**
+ * Old personality settings format (from memoryless app)
+ * Used for migration from modelPreferences table
+ */
 interface OldPersonalitySettings {
   sliders?: {
     emojis?: number;

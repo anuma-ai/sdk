@@ -1,6 +1,6 @@
 # UpdateUserPreferenceOptions
 
-Defined in: [src/lib/db/userPreferences/types.ts:125](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/userPreferences/types.ts#125)
+Defined in: [src/lib/db/userPreferences/types.ts:118](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/userPreferences/types.ts#118)
 
 Options for updating an existing user preference record
 
@@ -10,7 +10,7 @@ Options for updating an existing user preference record
 
 > `optional` **description**: `string`
 
-Defined in: [src/lib/db/userPreferences/types.ts:128](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/userPreferences/types.ts#128)
+Defined in: [src/lib/db/userPreferences/types.ts:121](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/userPreferences/types.ts#121)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/lib/db/userPreferences/types.ts:128](https://github.com/anuma-a
 
 > `optional` **models**: `string`
 
-Defined in: [src/lib/db/userPreferences/types.ts:129](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/userPreferences/types.ts#129)
+Defined in: [src/lib/db/userPreferences/types.ts:122](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/userPreferences/types.ts#122)
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: [src/lib/db/userPreferences/types.ts:129](https://github.com/anuma-a
 
 > `optional` **nickname**: `string`
 
-Defined in: [src/lib/db/userPreferences/types.ts:126](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/userPreferences/types.ts#126)
+Defined in: [src/lib/db/userPreferences/types.ts:119](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/userPreferences/types.ts#119)
 
 ***
 
@@ -34,7 +34,7 @@ Defined in: [src/lib/db/userPreferences/types.ts:126](https://github.com/anuma-a
 
 > `optional` **occupation**: `string`
 
-Defined in: [src/lib/db/userPreferences/types.ts:127](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/userPreferences/types.ts#127)
+Defined in: [src/lib/db/userPreferences/types.ts:120](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/userPreferences/types.ts#120)
 
 ***
 
@@ -42,4 +42,4 @@ Defined in: [src/lib/db/userPreferences/types.ts:127](https://github.com/anuma-a
 
 > `optional` **personality**: `string`
 
-Defined in: [src/lib/db/userPreferences/types.ts:130](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/userPreferences/types.ts#130)
+Defined in: [src/lib/db/userPreferences/types.ts:123](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/userPreferences/types.ts#123)

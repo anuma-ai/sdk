@@ -2,7 +2,7 @@
 
 > **getValidGithubToken**(`walletAddress?`: `string`): `Promise`<`string` | `null`>
 
-Defined in: [src/lib/auth/github.ts:533](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/github.ts#533)
+Defined in: [src/lib/auth/github.ts:439](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/github.ts#439)
 
 Get stored token for GitHub (async, supports encrypted storage)
 

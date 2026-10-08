@@ -4,6 +4,7 @@ import { Q } from "@nozbe/watermelondb";
 import { ConversationSummary } from "./models";
 import type { StoredConversationSummary } from "./types";
 
+/** Context needed for summary operations */
 interface SummaryOperationsContext {
   database: Database;
   summariesCollection: Collection<ConversationSummary>;

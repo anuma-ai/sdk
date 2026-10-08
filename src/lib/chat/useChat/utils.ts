@@ -30,12 +30,18 @@ function parseToolArguments(raw: string): { args: Record<string, unknown> } | { 
   }
 }
 
+/**
+ * Validation error types
+ */
 type ValidationError =
   | "messages_required"
   | "model_required"
   | "token_getter_required"
   | "token_unavailable";
 
+/**
+ * Validation result
+ */
 type ValidationResult = { valid: true } | { valid: false; error: ValidationError; message: string };
 
 const VALIDATION_ERROR_MESSAGES: Record<ValidationError, string> = {
@@ -103,11 +109,19 @@ export function validateToken(token: string | null): ValidationResult {
   return { valid: true };
 }
 
+/**
+ * Result from parsing reasoning tags from content
+ */
 type ReasoningParseResult = {
+  /** Content with reasoning tags removed */
   messageContent: string;
+  /** Extracted reasoning content */
   reasoningContent: string;
+  /** Incomplete tag at the end (for next chunk) */
   partialTag: string;
+  /** Whether we're currently inside a reasoning block (for next chunk) */
   insideReasoning: boolean;
+  /** Whether this model uses implicit reasoning start (no opening tag) */
   implicitReasoningStart?: boolean;
 };
 
@@ -509,6 +523,7 @@ export function createToolExecutorMap(
 
 const TOOL_EXECUTOR_TIMEOUT_MS = 30_000;
 
+/** Sentinel error for tool execution timeouts. */
 class ToolTimeoutError extends Error {
   constructor() {
     super("Tool execution timed out");
@@ -516,6 +531,7 @@ class ToolTimeoutError extends Error {
   }
 }
 
+/** Sentinel error for tool calls cancelled through an abort signal. */
 class ToolCancelledError extends Error {
   constructor() {
     super("Tool execution cancelled");

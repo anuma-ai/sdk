@@ -31,6 +31,7 @@ export interface GmailSendMessageArgs {
   bcc?: string;
 }
 
+/** A draft has the same fields as a sent message — it just isn't sent. */
 type GmailCreateDraftArgs = GmailSendMessageArgs;
 
 export interface GmailMessageSummary {

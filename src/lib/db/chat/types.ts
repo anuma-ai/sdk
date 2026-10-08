@@ -1146,8 +1146,13 @@ export function finalizeThoughtProcess(
   );
 }
 
+/**
+ * Result of extracting user message content from a messages array.
+ */
 interface ExtractedUserMessage {
+  /** The extracted text content */
   content: string;
+  /** File metadata extracted from image_url parts */
   files?: FileMetadata[];
 }
 

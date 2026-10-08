@@ -85,11 +85,13 @@ export interface NotionRefreshTokenParams {
   clientId: string;
 }
 
+/** Shape of the registration endpoint JSON response. */
 interface RegistrationResponse {
   client_id?: string;
   client_secret?: string;
 }
 
+/** Shape of the token endpoint JSON response. */
 interface TokenEndpointResponse {
   access_token?: string;
   refresh_token?: string;

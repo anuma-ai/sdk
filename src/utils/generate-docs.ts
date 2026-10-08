@@ -13,8 +13,11 @@ const includeCodeRe = /^\{@includeCode\s+(\S+?)(?:#(\S+))?\s*\}$/;
 const regionMarkerRe = /^\s*\/\/\s*#(?:region|endregion)\b.*$/;
 
 interface GenerateDocsOptions {
+  /** Source directory containing markdown files (default: "documents") */
   srcDir?: string;
+  /** Output directory for generated docs (default: "docs") */
   outDir?: string;
+  /** GitHub base URL for source links (e.g. "https://github.com/org/repo/blob/main/") */
   githubBase?: string;
 }
 

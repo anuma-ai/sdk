@@ -1,6 +1,6 @@
 # NotionTokenResponse
 
-Defined in: [src/lib/auth/notion-primitives.ts:61](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/notion-primitives.ts#61)
+Defined in: [src/lib/auth/notion-primitives.ts:56](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/notion-primitives.ts#56)
 
 Token response from the token endpoint.
 
@@ -10,7 +10,7 @@ Token response from the token endpoint.
 
 > **accessToken**: `string`
 
-Defined in: [src/lib/auth/notion-primitives.ts:62](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/notion-primitives.ts#62)
+Defined in: [src/lib/auth/notion-primitives.ts:57](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/notion-primitives.ts#57)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/lib/auth/notion-primitives.ts:62](https://github.com/anuma-ai/s
 
 > `optional` **expiresAt**: `number`
 
-Defined in: [src/lib/auth/notion-primitives.ts:64](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/notion-primitives.ts#64)
+Defined in: [src/lib/auth/notion-primitives.ts:59](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/notion-primitives.ts#59)
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: [src/lib/auth/notion-primitives.ts:64](https://github.com/anuma-ai/s
 
 > `optional` **refreshToken**: `string`
 
-Defined in: [src/lib/auth/notion-primitives.ts:63](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/notion-primitives.ts#63)
+Defined in: [src/lib/auth/notion-primitives.ts:58](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/notion-primitives.ts#58)
 
 ***
 
@@ -34,4 +34,4 @@ Defined in: [src/lib/auth/notion-primitives.ts:63](https://github.com/anuma-ai/s
 
 > `optional` **scope**: `string`
 
-Defined in: [src/lib/auth/notion-primitives.ts:65](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/notion-primitives.ts#65)
+Defined in: [src/lib/auth/notion-primitives.ts:60](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/notion-primitives.ts#60)

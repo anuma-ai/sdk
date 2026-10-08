@@ -1,6 +1,6 @@
 # RetainOptions
 
-Defined in: [src/lib/memory/types.ts:564](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#564)
+Defined in: [src/lib/memory/types.ts:536](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#536)
 
 ## Properties
 
@@ -8,7 +8,7 @@ Defined in: [src/lib/memory/types.ts:564](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **autoMergeThreshold**: `number`
 
-Defined in: [src/lib/memory/types.ts:581](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#581)
+Defined in: [src/lib/memory/types.ts:553](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#553)
 
 Cosine similarity threshold for auto-merge. Default: 0.8
 (`DEFAULT_AUTO_MERGE_THRESHOLD` in retain.ts — the source of truth).
@@ -19,7 +19,7 @@ Cosine similarity threshold for auto-merge. Default: 0.8
 
 > `optional` **consolidateOptions**: [`PortalLlmAuth`](PortalLlmAuth.md) & `object`
 
-Defined in: [src/lib/memory/types.ts:589](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#589)
+Defined in: [src/lib/memory/types.ts:561](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#561)
 
 When provided, runs an LLM-based consolidation pass against the top-K
 existing memories above `consolidateThreshold` (looser than auto-merge).
@@ -97,7 +97,7 @@ persistence. Auto-extraction inherits this from its `extract` options.
 
 > `optional` **consolidateThreshold**: `number`
 
-Defined in: [src/lib/memory/types.ts:616](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#616)
+Defined in: [src/lib/memory/types.ts:588](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#588)
 
 Cosine similarity floor for the consolidator candidate set. Default: 0.55
 (`DEFAULT_CONSOLIDATE_THRESHOLD` in retain.ts — the source of truth).
@@ -108,7 +108,7 @@ Cosine similarity floor for the consolidator candidate set. Default: 0.55
 
 > `optional` **consolidateTopK**: `number`
 
-Defined in: [src/lib/memory/types.ts:621](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#621)
+Defined in: [src/lib/memory/types.ts:593](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#593)
 
 Top-K consolidation candidates to feed the LLM. Default: 20
 (`DEFAULT_CONSOLIDATE_TOP_K` in retain.ts — the source of truth). Widened
@@ -121,7 +121,7 @@ old value in one pass, not just the nearest few.
 
 > `optional` **enableAutoMerge**: `boolean`
 
-Defined in: [src/lib/memory/types.ts:570](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#570)
+Defined in: [src/lib/memory/types.ts:542](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#542)
 
 When provided, applies merge-on-write logic instead of plain insert.
 
@@ -131,7 +131,7 @@ When provided, applies merge-on-write logic instead of plain insert.
 
 > `optional` **eventTime**: { `end`: `number` | `null`; `kind`: `"point"` | `"range"` | `"ongoing"`; `start`: `number`; } | `null`
 
-Defined in: [src/lib/memory/types.ts:628](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#628)
+Defined in: [src/lib/memory/types.ts:600](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#600)
 
 W6 temporal lane — when the event in this fact occurred. Persisted to
 memory\_vault.event\_time\_\* columns; recall's temporal lane filters
@@ -144,7 +144,7 @@ Auto-extraction emits this; manual writes can omit it.
 
 > `optional` **factType**: `"other"` | `"identity"` | `"preference"` | `"relationship"` | `"plan"` | `"ongoing_context"` | `"constraint"`
 
-Defined in: [src/lib/memory/types.ts:639](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#639)
+Defined in: [src/lib/memory/types.ts:611](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#611)
 
 Typed memory (PR1) — the extractor's classification for this fact.
 Persisted on create; on merge/consolidate it lazily backfills the target
@@ -157,7 +157,7 @@ Auto-extraction emits this; manual writes omit it (persisted as null).
 
 > `optional` **folderId**: `string` | `null`
 
-Defined in: [src/lib/memory/types.ts:568](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#568)
+Defined in: [src/lib/memory/types.ts:540](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#540)
 
 ***
 
@@ -165,7 +165,7 @@ Defined in: [src/lib/memory/types.ts:568](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **respectTombstones**: `boolean`
 
-Defined in: [src/lib/memory/types.ts:578](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#578)
+Defined in: [src/lib/memory/types.ts:550](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#550)
 
 When true, a would-be create is suppressed if it matches a soft-deleted
 ("tombstoned") memory above the auto-merge threshold — so auto-extraction
@@ -179,7 +179,7 @@ Returns `action: 'suppressed'` with the matched `tombstoneId`.
 
 > `optional` **scope**: `string`
 
-Defined in: [src/lib/memory/types.ts:567](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#567)
+Defined in: [src/lib/memory/types.ts:539](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#539)
 
 ***
 
@@ -187,7 +187,7 @@ Defined in: [src/lib/memory/types.ts:567](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **source**: [`RetainSource`](../type-aliases/RetainSource.md)
 
-Defined in: [src/lib/memory/types.ts:565](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#565)
+Defined in: [src/lib/memory/types.ts:537](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#537)
 
 ***
 
@@ -195,7 +195,7 @@ Defined in: [src/lib/memory/types.ts:565](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **sourceChunkIds**: `string`\[]
 
-Defined in: [src/lib/memory/types.ts:566](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#566)
+Defined in: [src/lib/memory/types.ts:538](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#538)
 
 ***
 
@@ -203,7 +203,7 @@ Defined in: [src/lib/memory/types.ts:566](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **trustTier**: `string`
 
-Defined in: [src/lib/memory/types.ts:648](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#648)
+Defined in: [src/lib/memory/types.ts:620](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#620)
 
 Tier-0 security (PR3) — trust tier for this fact. The write-time
 injection screen threads `"quarantined"` here for flagged candidates;

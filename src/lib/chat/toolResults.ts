@@ -12,18 +12,26 @@ export const TOOL_RESULTS_PREFIX = "[Tool Execution Results]";
  */
 export const DISPLAY_CARD_PLACEHOLDER = "[displayed a card to the user with the tool result]";
 
+/** One tool's contribution to the row. Internal: the fold is the only consumer. */
 interface ToolResultSegment {
   name: string;
+  /** The `Tool "<name>" returned: <json>` line, verbatim. */
   line: string;
 }
 
 const TOOL_LINE = /^Tool "([^"]+)" returned: (.*)$/;
 
+/** A stored row's minimal shape — structural so both `StoredMessage` and plain pairs satisfy it. */
 interface ToolResultsRowLike {
   role: string;
   content: string;
+  /** Present on stored rows; lets the fold find its assistant by link rather than by position. */
   uniqueId?: string;
   parentMessageId?: string;
+  /**
+   * Provenance, from the plaintext `origin` column added in schema v44 (#866). `"tool_result"` marks
+   * a row the SDK synthesised. Null on rows written before v44 and on rows a client wrote itself.
+   */
   origin?: string | null;
 }
 

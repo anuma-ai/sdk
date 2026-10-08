@@ -2,7 +2,7 @@
 
 > **createWeatherPreProcessor**(`options`: [`WeatherPreProcessorOptions`](../interfaces/WeatherPreProcessorOptions.md)): [`PromptPreProcessor`](../type-aliases/PromptPreProcessor.md)
 
-Defined in: [src/lib/chat/weatherClassifier.ts:114](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/weatherClassifier.ts#114)
+Defined in: [src/lib/chat/weatherClassifier.ts:100](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/weatherClassifier.ts#100)
 
 Build a pre-processor that runs weather classification on the shared
 embedding provided by `runToolLoop`, and — if the classifier decides

@@ -75,6 +75,12 @@ function defaultBatchTimeoutMs(extract: DurableAutoExtractorOptions["extract"]):
   return extraction + RETAIN_BUDGET_MS;
 }
 
+/**
+ * A failure that points at the batch itself and counts toward abandoning it:
+ * a content-shaped give-up or a retain failure (`terminal: false`, retried up
+ * to MAX_ATTEMPTS this session), or a request-shaped HTTP rejection
+ * (`terminal: true`, not retried this session).
+ */
 class BatchFailureError extends Error {
   constructor(
     message: string,
@@ -84,6 +90,12 @@ class BatchFailureError extends Error {
   }
 }
 
+/** The portal's moderation gate refused the batch. Moderation is deterministic
+ * for the same text, so retrying — this session or a later one — only re-sends
+ * the same input to be flagged again, while the head blocks every newer turn in
+ * the conversation. A refused batch of several turns is re-extracted turn by
+ * turn so only the refused turns are dropped; a refused single turn is
+ * abandoned on the first refusal. */
 class FlaggedBatchError extends Error {}
 
 function extracted(result: TurnCompleteEvent): boolean {
@@ -111,8 +123,16 @@ function batchError(result: TurnCompleteEvent): Error {
   return new Error("Extraction batch incomplete; retained for retry");
 }
 
+/** An account-level rejection (401/402/403 and other non-request statuses):
+ * the batch is skipped for the rest of this session and not counted, so a
+ * later session — after a top-up or re-login — extracts it. */
 class AccountFailureError extends Error {}
 
+/** Sources whose content did not decrypt. `persistentIds` are the ones the
+ * store reported as undecryptable for good (`auth_mismatch`,
+ * `invalid_payload`). `key_missing` is also what a session whose key is not
+ * loaded yet reports, so it is never counted, and neither is ciphertext read
+ * with no key at all. */
 class LockedSourcesError extends Error {
   constructor(readonly persistentIds: string[]) {
     super("Source messages are locked; retained for retry");

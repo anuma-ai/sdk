@@ -156,6 +156,10 @@ export interface MediaFilterOptions {
   offset?: number;
 }
 
+/**
+ * Function type for the signMessage function (from Privy).
+ * Re-declared here to avoid importing from react module in types.
+ */
 type MediaSignMessageFn = (
   message: string,
   options?: { showWalletUIs?: boolean }

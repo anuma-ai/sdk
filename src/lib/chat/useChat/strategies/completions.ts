@@ -5,6 +5,9 @@ import { getInStreamErrorMessage, parseReasoningTags } from "../utils";
 import type { ApiStrategy, BuildRequestBodyArgs } from "./types";
 import { mergeXaiInlineParameterTags } from "./xaiToolFormat";
 
+/**
+ * Tool call event from server-side MCP tool execution
+ */
 type ToolCallEventChunk = {
   id?: string;
   type?: string;
@@ -13,12 +16,22 @@ type ToolCallEventChunk = {
   output?: string;
 };
 
+/**
+ * Portal envelope on chat completions responses (new OpenAI-compliant shape).
+ * The same envelope appears on the non-streaming response body and on the
+ * `response.completed`-style fallback chunk emitted when the portal cannot
+ * stream incrementally (e.g. when an upstream provider only supports
+ * non-streaming).
+ */
 type CompletionsPortalEnvelope = {
   tools_checksum?: string;
   tool_call_events?: Array<ToolCallEventChunk>;
   cost_micro_usd?: number;
   credits_used?: number;
+  /** Image model the portal resolved when an image-generation tool ran. */
   image_model?: string;
+  /** Cost/usage breakdown — moved here from the flat `usage` shape in the
+   *  OpenAI-compliant migration. Mirrored back into `usage` for legacy readers. */
   init_prompt_tokens?: number;
   init_completion_tokens?: number;
   provider_cost_micro_usd?: number;
@@ -26,18 +39,38 @@ type CompletionsPortalEnvelope = {
   tool_cost_micro_usd?: number;
 };
 
+/**
+ * The legacy top-level mirrors (`tools_checksum`, `tool_call_events`) can ride
+ * on the chunk itself or the wrapped `response`, as well as inside a `portal`
+ * envelope, so they are resolved from the wider carrier set below. The
+ * portal-only fields (cost/credits, image_model, the init/provider/pricing
+ * breakdown) appear ONLY under a `portal` envelope per the OpenAI-compliant
+ * schema — never at the chunk top level — so they come from `portalEnvelopes`.
+ */
 type LegacyMirrorCarrier = {
   tools_checksum?: string;
   tool_call_events?: Array<ToolCallEventChunk>;
 };
 
+/**
+ * Streaming chunk format for Chat Completions API (OpenAI-compatible).
+ *
+ * Per-chunk `usage` frames still carry `cost_micro_usd` / `credits_used` at the
+ * top of `usage` — the OpenAI-compliant migration did not change the streaming
+ * usage frame. The fallback `response.completed`-style envelope, however, uses
+ * the new portal-nested shape for those fields; we honor both here.
+ */
 type CompletionsStreamingChunk = {
   id?: string;
   object?: string;
   model?: string;
+  /** Checksum of tools used to generate this response (legacy top-level path). */
   tools_checksum?: string;
+  /** Tool call events from server-side MCP tool execution (legacy top-level path). */
   tool_call_events?: Array<ToolCallEventChunk>;
+  /** Portal envelope on the fallback non-streaming envelope. */
   portal?: CompletionsPortalEnvelope;
+  /** Wrapped response format (some endpoints nest the response) */
   response?: {
     tools_checksum?: string;
     tool_call_events?: Array<ToolCallEventChunk>;
@@ -88,6 +121,9 @@ type CompletionsStreamingChunk = {
     total_tokens?: number;
     cost_micro_usd?: number;
     credits_used?: number;
+    /** Per-step out-of-credits marker (ai-portal #1146); rides the flat `usage`
+     *  object (not the portal envelope), mirrored through like credits_used.
+     *  Terminal boolean — passed through as-is, never summed. */
     credits_exhausted?: boolean;
   };
 };

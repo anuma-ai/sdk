@@ -1,3 +1,13 @@
+/**
+ * Catalog of slide layout templates used by `buildSlideSystemPrompt` in
+ * `./index.ts`. Templates hold typed element data in the legacy canvas-percent
+ * coordinate system — at render time it's converted to pixel-based JSX for
+ * the LLM prompt. The LLM then emits pixel-based JSX directly (matching the
+ * unified slide + app-mockup vocabulary); this file stays in percent form
+ * because most of the existing 3k lines of template data was hand-tuned
+ * against that grid.
+ */
+
 interface BaseEl {
   id: string;
   x: number;
@@ -20,6 +30,12 @@ interface TextLayoutEl extends BaseEl {
   fontStyle?: "italic" | "normal";
   textTransform?: "uppercase" | "none";
   fontFamily?: string;
+  /**
+   * Optional override for the auto-derived max-character budget
+   * shown to the LLM in the layout recipe. Use only when the
+   * geometry-based estimate is too generous (e.g. an editorial
+   * title where you want short copy regardless of box width).
+   */
   maxChars?: number;
 }
 
@@ -47,6 +63,7 @@ interface IconLayoutEl extends BaseEl {
 
 type LayoutEl = TextLayoutEl | ImageLayoutEl | ShapeLayoutEl | IconLayoutEl;
 
+/** Backwards-name alias so existing helpers keep their old return type. */
 type SlideElement = LayoutEl;
 
 const CANVAS_W = 960;
@@ -61,9 +78,28 @@ function round2(n: number): number {
 }
 
 interface LayoutTemplate {
+  /**
+   * Short kebab-case identifier the LLM returns in `plan_slides`. Kept
+   * short + typo-proof so the model can match it exactly without fuzzy
+   * matching. Must be unique across templates.
+   */
   name: string;
+  /**
+   * One-line human description rendered alongside the name in the
+   * catalog and picker rubric. Explains what the layout is for and when
+   * to reach for it. The LLM sees this but doesn't have to echo it back.
+   */
   description: string;
+  /**
+   * Free-form hints that don't fit as elements. Rendered before the
+   * element list in the prompt. Use for things like "set slide.background"
+   * or "use '• ' prefix for each bullet line".
+   */
   notes?: string[];
+  /**
+   * Reference elements with real coordinates + example content. The LLM
+   * is told to copy the shape and substitute its own text values.
+   */
   elements: SlideElement[];
 }
 

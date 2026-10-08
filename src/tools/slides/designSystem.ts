@@ -50,6 +50,19 @@ export type ElementRole =
   | "marker"
   | "image";
 
+/**
+ * The subset of ElementRole that a FlexRegion item can carry.
+ *
+ * `emitRelativeElement` handles dividers / accent-bars / markers as
+ * shape primitives and routes every other role through the text path
+ * (with role-specific style + fontRole resolution). It explicitly does
+ * NOT render `image` (no `<Anuma.Image>` emit path for rels) or
+ * `card-surface` (cards paint their surface via `cardItems: true` on
+ * the region, not via a per-rel role). Narrowing the type here makes
+ * those two roles uncompilable inside a flex item — so the silent-
+ * misrender case (rel.role="image" rendering as zero-size Text) can't
+ * be constructed.
+ */
 type RelativeElementRole = Exclude<ElementRole, "image" | "card-surface">;
 
 /**
@@ -227,11 +240,33 @@ export interface CompositionElement {
   defaultSrc?: string;
 }
 
+/**
+ * A sub-element inside a FlexRegion item template. Unlike CompositionElement
+ * it doesn't have absolute x/y — its position is determined by the parent
+ * Group's flex flow. Its `w` and `h` are still meaningful for sizing
+ * (used by validators and the Anuma renderer for fixed-dimension children)
+ * but the renderer lays them out via the parent's `layout` direction.
+ *
+ * Slot ids carry an `${index}` placeholder; compile() interpolates the
+ * 1-based item index at emit time (`agenda_${index}_title` → `agenda_1_title`,
+ * `agenda_2_title`, ...).
+ */
 interface RelativeElement {
+  /** Slot id pattern. `${index}` is replaced with the 1-based item index. */
   id: string;
+  /**
+   * One of the roles the flex emitter actually renders. Excludes "image"
+   * (no flex-item Image emit path) and "card-surface" (cards paint their
+   * surface via `cardItems: true` on the region, not via a per-rel role).
+   * The type narrows what `ElementRole` would otherwise advertise so
+   * those silent-misrender cases can't be constructed.
+   */
   role: RelativeElementRole;
+  /** Width in canvas-percent. Ignored when the parent flex axis assigns it. */
   w?: number;
+  /** Height in canvas-percent. Ignored when the parent flex axis assigns it. */
   h?: number;
+  /** Optional flex grow factor for sizing within the parent group. */
   grow?: number;
   fit?: FitMode;
   surface?: SurfaceState;
@@ -239,34 +274,107 @@ interface RelativeElement {
   defaultText?: string;
 }
 
+/**
+ * Default content for ONE item inside a FlexRegion. String values are the
+ * text for each RelativeElement (keyed by rel.id). The optional `surface`
+ * key is reserved — it overrides the region's surface state for THIS
+ * item, so a single grid can mix neutral/dark/accent cards without a new
+ * composition. RelativeElement ids must never be literally "surface".
+ */
 type FlexItemDefault = {
   [key: string]: (string & {}) | SurfaceState | undefined;
   surface?: SurfaceState;
 };
 
+/**
+ * A repeating flex region inside a composition. The region's own frame
+ * is fixed (x/y/w/h), but it hosts a variable number of items rendered
+ * as an `<Anuma.Group layout="row" | "column">`. Each item is one
+ * realisation of the `item` template — same role pattern, sequential
+ * slot ids (`agenda_1_title`, `agenda_2_title`, …). Use this for agendas,
+ * bullet lists, dynamic card grids, timeline rows.
+ */
 interface FlexRegion {
+  /** Discriminator — separates flex regions from absolute elements. */
   kind: "flex-region";
+  /** Prefix for slot ids inside this region (e.g. "agenda_"). */
   idPrefix: string;
+  /** Container frame on the slide canvas. */
   x: number;
   y: number;
   w: number;
   h: number;
+  /** Flex direction. "column" stacks items vertically; "row" lays them horizontally. */
   layout: "row" | "column";
+  /** Spacing between items in canvas-percent. */
   gap?: number;
+  /** Inner padding around the item track in canvas-percent. */
   padding?: number;
   justify?: "start" | "center" | "end" | "space-between";
   align?: "start" | "center" | "end" | "stretch" | "baseline";
+  /** Surface state for items inside the region (defaults to slide's surface). */
   surface?: SurfaceState;
+  /**
+   * Internal layout direction inside each item. Defaults to "row" — an
+   * agenda row lays its sub-elements left-to-right (number / title /
+   * description / duration).
+   */
   itemLayout?: "row" | "column";
+  /** Gap between sub-elements within one item, in canvas-percent. */
   itemGap?: number;
+  /**
+   * Inner padding around an item's sub-elements, in canvas-percent. Used
+   * with `cardItems` to inset text content from the card's painted edge
+   * — otherwise eyebrow + title sit flush against the corner.
+   */
   itemPadding?: number;
+  /** justify-content within each item. */
   itemJustify?: "start" | "center" | "end" | "space-between";
+  /**
+   * align-items within each item. "baseline" aligns text by typographic
+   * baseline — useful when sub-elements have different font sizes (e.g.
+   * a small mono number next to a serif title in an agenda row).
+   */
   itemAlign?: "start" | "center" | "end" | "stretch" | "baseline";
+  /**
+   * Emit a hairline divider after every item. Renders as a flex sibling
+   * `<Anuma.Line>` between consecutive items (and after the last). Uses
+   * the design system's `divider` role color. Useful for agendas and
+   * table-of-contents patterns where each row needs visual separation.
+   */
   separator?: boolean;
+  /**
+   * Grid mode: when set, items lay out in a 2-D grid with `columns` items
+   * per row, items flowing row-major. The outer container becomes a flex
+   * column whose children are row-flex groups; each row-flex group holds
+   * up to `columns` item-groups. `gap` becomes the inter-row gap; the
+   * inter-column gap inside each row falls back to `gap` unless
+   * `columnGap` is set explicitly. When undefined, the region uses the
+   * standard 1-D layout determined by `layout`.
+   */
   columns?: number;
+  /** Inter-column gap inside each row when `columns` is set. Defaults to `gap`. */
   columnGap?: number;
+  /**
+   * Card-style items: when true, each item-group paints its own
+   * card-surface fill (resolved from the design system's card-surface
+   * role under the item's surface state) and `cornerRadius={0.3}`. Use
+   * for MARKETING_GRID-style card grids where the item IS the card; the
+   * item template should then carry text rels only (no `card-surface`
+   * rel). Per-item surface variety travels on FlexItemDefault.surface.
+   */
   cardItems?: boolean;
+  /**
+   * The template item — a list of RelativeElements describing the
+   * sub-elements of ONE item. compile() emits N copies with sequential
+   * slot ids.
+   */
   item: RelativeElement[];
+  /**
+   * Default item content for the catalog dump. compile() emits one
+   * Anuma.Group child per entry, populating each child's template
+   * elements with the entry's text by RelativeElement id.
+   */
   defaultItems: FlexItemDefault[];
 }
 
@@ -3730,12 +3838,30 @@ export function compile(
   return `<Anuma.Slide id="${id}"${bgAttr}>\n${lines.join("\n")}\n</Anuma.Slide>`;
 }
 
+/**
+ * Estimated content capacity of a slot, given the active design system's
+ * font for the slot's role. Both numbers are integer approximations:
+ *
+ *   visible width ≈ chars × fontSize × charWidthFactor(family, weight)
+ *
+ * The factor is rough but consistent enough across families to give the
+ * model a reliable budget. When this estimate is wrong, the answer is to
+ * tune the factor table — not to special-case at every slot site.
+ */
 interface SlotBudget {
   charsPerLine: number;
   maxLines: number;
+  /** charsPerLine × maxLines — total content budget for multi-line slots. */
   total: number;
+  /** Visible line height in pixels (font size × line-height). Used for max-lines. */
   linePx: number;
+  /**
+   * Minimum box height in pixels needed to render one line without clipping
+   * glyph descenders (g, p, y, j, q). Real fonts extend ~15% below baseline
+   * even when line-height is 1.0, so this is `fontSize × max(lineHeight, 1.15)`.
+   */
   safeLinePx: number;
+  /** Box height in pixels — must be ≥ safeLinePx to fit a single line cleanly. */
   boxHeightPx: number;
 }
 
@@ -3998,6 +4124,7 @@ function validateFlexRegionDefaults(
   return issues;
 }
 
+/** A slot whose `defaultText` exceeds the slot's budget under the system. */
 interface SlotIssue {
   id: string;
   role: ElementRole;

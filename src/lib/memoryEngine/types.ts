@@ -106,18 +106,30 @@ export interface EmbeddingOptions {
   totalTimeoutMs?: number;
 }
 
+/**
+ * Context required for memory engine operations
+ */
 interface _MemoryEngineContext {
+  /** Storage operations context */
   storageCtx: StorageOperationsContext;
+  /** Embedding options */
   embeddingOptions: EmbeddingOptions;
 }
 
+/**
+ * Tool configuration for memory engine
+ */
 interface _MemoryEngineToolConfig {
+  /** Tool name */
   name: string;
+  /** Tool description */
   description: string;
+  /** JSON schema for parameters */
   parameters: {
     type: "object";
     properties: Record<string, unknown>;
     required: string[];
   };
+  /** Executor function that runs when tool is called */
   executor: (args: { query: string; limit?: number }) => Promise<string>;
 }

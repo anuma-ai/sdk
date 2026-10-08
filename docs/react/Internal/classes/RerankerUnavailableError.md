@@ -1,6 +1,6 @@
 # RerankerUnavailableError
 
-Defined in: [src/lib/memory/reranker.ts:37](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/reranker.ts#37)
+Defined in: [src/lib/memory/reranker.ts:33](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/reranker.ts#33)
 
 Thrown when the cross-encoder cannot run because its optional peer
 dependency (`@huggingface/transformers`) isn't installed — the expected
@@ -18,7 +18,7 @@ than a transient error worth warning about on every recall.
 
 > **new RerankerUnavailableError**(`reason`: `unknown`, `message`: `string`): `RerankerUnavailableError`
 
-Defined in: [src/lib/memory/reranker.ts:40](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/reranker.ts#40)
+Defined in: [src/lib/memory/reranker.ts:36](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/reranker.ts#36)
 
 **Parameters**
 
@@ -106,7 +106,7 @@ Defined in: node\_modules/.pnpm/typescript@5.9.3/node\_modules/typescript/lib/li
 
 > `readonly` **reason**: `unknown`
 
-Defined in: [src/lib/memory/reranker.ts:39](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/reranker.ts#39)
+Defined in: [src/lib/memory/reranker.ts:35](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/reranker.ts#35)
 
 The underlying import failure, kept for debugging.
 

@@ -45,9 +45,12 @@ export interface DecomposedQuery {
   subQueries: string[];
 }
 
+/** Auth is the dual pattern — one of `apiKey` / `getToken` is required at
+ * runtime; see {@link PortalLlmAuth}. */
 interface DecomposeQueryOptions extends PortalLlmAuth {
   baseUrl?: string;
   model?: string;
+  /** Override fetch (for tests). */
   fetchFn?: typeof fetch;
 }
 

@@ -16,6 +16,11 @@ export interface WeatherClassification {
 }
 
 interface WeatherClassifierOptions extends EmbeddingOptions {
+  /**
+   * Score margin: the weather score must exceed the no-weather score by at
+   * least this amount to classify as "needs weather data".
+   * @default 0.02
+   */
   margin?: number;
 }
 

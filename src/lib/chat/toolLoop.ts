@@ -66,6 +66,10 @@ function tryParseToolArgs(raw: string): Record<string, unknown> | undefined {
   return undefined;
 }
 
+/**
+ * Error thrown when the SSE connection receives a non-OK HTTP response.
+ * Preserves the HTTP status code for programmatic error handling.
+ */
 class SseError extends Error {
   statusCode: number;
   constructor(statusCode: number, message: string) {

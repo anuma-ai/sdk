@@ -102,6 +102,7 @@ export function normalizeForScreen(content: string): string {
 }
 
 interface Signature {
+  /** Stable, content-free id (safe to log). */
   id: string;
   reason: InjectionReason;
   pattern: RegExp;

@@ -63,6 +63,13 @@ function isWordChar(ch: string): boolean {
   return /[A-Za-z0-9_]/.test(ch) || ch.charCodeAt(0) > 127;
 }
 
+/**
+ * A detected PII region on the ORIGINAL text, before placeholder assignment.
+ * Used by the async (regex + NER) path. `priority` orders overlap resolution
+ * (regex = 0 beats NER = 1); `order` is the tiebreak within a priority (regex:
+ * pattern index, so earlier patterns win — matching the sync scan's sequential
+ * "earlier pattern wins"; NER: detection index).
+ */
 interface DetectedSpan {
   start: number;
   end: number;

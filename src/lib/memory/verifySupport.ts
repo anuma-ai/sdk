@@ -178,8 +178,11 @@ export interface VerifyMemoriesForPublishOptions extends PortalLlmAuth {
   maxEvidenceChars?: number;
 }
 
+/** One fact and the evidence it is judged against. */
 interface FactSupportItem {
+  /** The stored fact, as it would be published. */
   fact: string;
+  /** Source messages, already resolved to text. */
   evidence: readonly string[];
 }
 

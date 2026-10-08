@@ -20,15 +20,39 @@ import {
 } from "../lib/storage";
 import { getEncryptionKey, hasEncryptionKey } from "./useEncryption";
 
+/**
+ * Options for {@link useChatMedia}.
+ */
 interface UseChatMediaOptions {
+  /**
+   * Context used for media CRUD operations. Typically derived from
+   * `useChatStorage`'s database + wallet state.
+   */
   mediaCtx: MediaOperationsContext;
 
+  /**
+   * The MCP R2 domain used to detect assistant-generated image URLs
+   * that should be pulled into encrypted OPFS storage.
+   */
   mcpR2Domain: string;
 }
 
+/**
+ * Return shape of {@link useChatMedia}.
+ */
 interface UseChatMediaResult {
+  /**
+   * Extract natural dimensions from an image blob. Returns `undefined`
+   * for non-image blobs or when dimensions can't be determined.
+   */
   getImageDimensions: (blob: Blob) => Promise<{ width: number; height: number } | undefined>;
 
+  /**
+   * Extract MCP-hosted image URLs from assistant content, download the
+   * images, encrypt and store them in OPFS, and create media records.
+   * The original presigned URLs are kept in the returned `cleanedContent`
+   * so the UI can render them until they expire.
+   */
   extractAndStoreEncryptedMCPImages: (
     content: string,
     address: string,
@@ -36,6 +60,12 @@ interface UseChatMediaResult {
     toolCallEvents?: LlmapiToolCallEvent[]
   ) => Promise<{ fileIds: string[]; cleanedContent: string; imageModel?: string }>;
 
+  /**
+   * Persist user-attached files. When OPFS + encryption are available,
+   * files are stored encrypted and a media record is created. Otherwise
+   * a media record is created with `sourceUrl` (external URLs only —
+   * data URIs are skipped in that fallback).
+   */
   storeUserFilesInOPFS: (
     files: FileMetadata[],
     address: string,
@@ -43,6 +73,7 @@ interface UseChatMediaResult {
   ) => Promise<string[]>;
 }
 
+/** Kind-dependent metadata for a downloaded MCP media blob. */
 interface ResolvedMediaMeta {
   isVideo: boolean;
   extension: string;

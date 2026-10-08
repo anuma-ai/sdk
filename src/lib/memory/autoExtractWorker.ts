@@ -119,6 +119,8 @@ export interface ExtractionCursorStore {
   set(conversationId: string, messageId: string): void;
 }
 
+/** Minimal synchronous key/value surface — satisfied by the SDK's
+ * `PlatformStorage` (web `localStorage`, mobile MMKV). */
 interface SyncKeyValueStore {
   getItem(key: string): string | null;
   setItem(key: string, value: string): void;
@@ -299,9 +301,25 @@ const DEFAULT_EXTRACT_TOTAL_TIMEOUT_MS = 60_000;
 
 const MAX_TRACKED_CONVERSATIONS = 200;
 
+/** Per-conversation extraction state (keyed by conversationId, undefined included). */
 interface ConversationState {
+  /**
+   * Id of the last message extracted through. Advances only when the extractor
+   * genuinely examined the window — not on a throw, and not on an
+   * `empty-after-retry` outcome (the LLM failed after exhausting retries, so
+   * nothing was examined). Either way the messages are left to be re-covered by
+   * the next turn.
+   */
   watermark?: string;
+  /**
+   * The most recent turn's messages that arrived while an extraction was in
+   * flight, queued to run once the current one finishes. A newer turn for the
+   * same conversation supersedes this (lossless — the watermark has not
+   * advanced, so the newer superset re-covers it).
+   */
   pending?: AutoExtractMessage[];
+  /** True once the persisted cursor has been read into `watermark` (at most
+   * once per state instance), so hydration never clobbers a live watermark. */
   hydrated?: boolean;
 }
 

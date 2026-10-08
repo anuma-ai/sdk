@@ -22,12 +22,45 @@ import { getLogger } from "../lib/logger";
 import { PiiRedactor } from "../lib/pii/redactor";
 
 type SendMessageArgs = BaseSendMessageArgs & {
+  /**
+   * Optional custom headers to include with the request.
+   */
   headers?: Record<string, string>;
+  /**
+   * Memory context to inject as a system message.
+   * This is typically context from the memory engine or other sources.
+   */
   memoryContext?: string;
+  /**
+   * Search context to inject as a system message.
+   * This is typically formatted search results from useSearch.
+   */
   searchContext?: string;
+  /**
+   * File context to inject as a system message.
+   * This is typically extracted text from preprocessed file attachments.
+   */
   fileContext?: string;
+  /**
+   * Tool-set guidance to inject as a system message — e.g. the App Builder
+   * prompt that rides with the app-generation tool set. Added as a separate
+   * system message (additive), so it composes with the persona / base prompt
+   * rather than replacing it. Typically computed by `useChatStorage` from the
+   * tool sets activated for the request via `toolSetSystemPrompts`.
+   */
   toolGuidance?: string;
+  /**
+   * Per-request callback for thinking/reasoning chunks. Called in addition to the global
+   * `onThinking` callback if provided in `useChat` options.
+   *
+   * @param chunk - The thinking delta from the current chunk
+   */
   onThinking?: (chunk: string) => void;
+  /**
+   * Override the API type for this request only.
+   * Useful when different models need different APIs.
+   * @default Uses the hook-level apiType or "auto"
+   */
   apiType?: ApiType;
 };
 
@@ -35,18 +68,32 @@ type SendMessageResult =
   | {
       data: ApiResponse;
       error: null;
+      /** Checksum of tools used to generate this response */
       toolsChecksum?: string;
+      /** Results from tools that were auto-executed by the SDK */
       autoExecutedToolResults?: AutoExecutedToolResult[];
     }
   | {
       data: ApiResponse | null;
       error: string;
+      /** Checksum of tools used to generate this response */
       toolsChecksum?: string;
     };
 
+/**
+ * @inline
+ */
 interface UseChatOptions extends BaseUseChatOptions {
+  /** Buffer streamed rounds so a service can verify their canonical output. */
   resumable?: boolean;
+  /** Inference identifier for each HTTP round, including client-tool continuations. */
   onStreamMeta?: (meta: { inferenceId: string; round: number }) => void;
+  /**
+   * Which API endpoint to use. Default: "auto"
+   * - "auto": automatically selects the best API based on model support
+   * - "responses": OpenAI Responses API (supports thinking, reasoning, conversations)
+   * - "completions": OpenAI Chat Completions API (wider model compatibility)
+   */
   apiType?: ApiType;
 }
 

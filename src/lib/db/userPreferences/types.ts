@@ -132,11 +132,17 @@ export interface ProfileUpdate {
   description?: string;
 }
 
+/**
+ * Base options for useSettings hook
+ */
 interface _BaseUseUserPreferencesOptions {
   database: Database;
   walletAddress?: string;
 }
 
+/**
+ * Base result returned by useSettings hook
+ */
 interface _BaseUseUserPreferencesResult {
   userPreference: StoredUserPreference | null;
   isLoading: boolean;

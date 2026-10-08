@@ -1,6 +1,6 @@
 # NotionAuthUrlParams
 
-Defined in: [src/lib/auth/notion-primitives.ts:69](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/notion-primitives.ts#69)
+Defined in: [src/lib/auth/notion-primitives.ts:64](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/notion-primitives.ts#64)
 
 Parameters for [buildNotionAuthUrl](../functions/buildNotionAuthUrl.md).
 
@@ -10,7 +10,7 @@ Parameters for [buildNotionAuthUrl](../functions/buildNotionAuthUrl.md).
 
 > **authorizationEndpoint**: `string`
 
-Defined in: [src/lib/auth/notion-primitives.ts:70](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/notion-primitives.ts#70)
+Defined in: [src/lib/auth/notion-primitives.ts:65](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/notion-primitives.ts#65)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/lib/auth/notion-primitives.ts:70](https://github.com/anuma-ai/s
 
 > **clientId**: `string`
 
-Defined in: [src/lib/auth/notion-primitives.ts:71](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/notion-primitives.ts#71)
+Defined in: [src/lib/auth/notion-primitives.ts:66](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/notion-primitives.ts#66)
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: [src/lib/auth/notion-primitives.ts:71](https://github.com/anuma-ai/s
 
 > **codeChallenge**: `string`
 
-Defined in: [src/lib/auth/notion-primitives.ts:73](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/notion-primitives.ts#73)
+Defined in: [src/lib/auth/notion-primitives.ts:68](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/notion-primitives.ts#68)
 
 ***
 
@@ -34,7 +34,7 @@ Defined in: [src/lib/auth/notion-primitives.ts:73](https://github.com/anuma-ai/s
 
 > **redirectUri**: `string`
 
-Defined in: [src/lib/auth/notion-primitives.ts:72](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/notion-primitives.ts#72)
+Defined in: [src/lib/auth/notion-primitives.ts:67](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/notion-primitives.ts#67)
 
 ***
 
@@ -42,4 +42,4 @@ Defined in: [src/lib/auth/notion-primitives.ts:72](https://github.com/anuma-ai/s
 
 > **state**: `string`
 
-Defined in: [src/lib/auth/notion-primitives.ts:74](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/notion-primitives.ts#74)
+Defined in: [src/lib/auth/notion-primitives.ts:69](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/notion-primitives.ts#69)

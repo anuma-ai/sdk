@@ -44,10 +44,13 @@ export interface MetricsHooksOptions {
   includeErrorMessages?: boolean;
 }
 
+/** Internal per-run state. Not exported; one instance per adapter. */
 interface RunState {
   model?: string;
   startedAt: number;
+  /** stepIndex -> start time for in-flight model calls. */
   modelCalls: Map<number, { startedAt: number; model?: string }>;
+  /** toolCallId -> start time for in-flight tool calls. */
   toolCalls: Map<string, { startedAt: number; toolName: string }>;
 }
 

@@ -16,6 +16,11 @@ export interface CryptoPriceClassification {
 }
 
 interface CryptoPriceClassifierOptions extends EmbeddingOptions {
+  /**
+   * Score margin: the crypto-price score must exceed the no-crypto-price
+   * score by at least this amount to classify as "needs crypto price data".
+   * @default 0.02
+   */
   margin?: number;
 }
 

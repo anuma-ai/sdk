@@ -2,7 +2,7 @@
 
 > **decodeChunkVector**(`vector`: `string` | `number`\[] | `null` | `undefined`, `onMalformed?`: () => `void`): `Float32Array`<`ArrayBuffer`>
 
-Defined in: [src/lib/memoryEngine/vectorEncoding.ts:88](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryEngine/vectorEncoding.ts#88)
+Defined in: [src/lib/memoryEngine/vectorEncoding.ts:38](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryEngine/vectorEncoding.ts#38)
 
 Read a stored chunk vector in either encoding: a base64 float32 string, or the
 legacy `number[]` that every row written before the writer flip still holds.

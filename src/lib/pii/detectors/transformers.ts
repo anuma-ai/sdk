@@ -15,6 +15,7 @@ export interface TransformersNerDetectorOptions {
   tagMap?: Record<string, string | undefined>;
 }
 
+/** Raw per-token output of a Transformers.js `token-classification` pipeline. */
 interface RawToken {
   entity: string;
   score: number;
@@ -32,6 +33,12 @@ const DEFAULT_TAG_MAP: Record<string, string | undefined> = {
   MISC: undefined,
 };
 
+/**
+ * Recover character offsets for tokens (the pipeline returns none) by walking
+ * the text with a cursor and locating each token's surface form (minus the
+ * WordPiece "##" prefix). Searching the actual text keeps offsets correct across
+ * the original spacing, punctuation, and apostrophes.
+ */
 interface PlacedToken extends RawToken {
   start: number;
   end: number;

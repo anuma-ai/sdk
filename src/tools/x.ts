@@ -49,6 +49,11 @@ function maybeConnectorError(status: number): string | null {
   return null;
 }
 
+/**
+ * Resolve the authenticated user's id (and optionally full profile) from
+ * /users/me. Returns the parsed data on success, or an error string on any
+ * failure path (auth error, non-ok status, missing data).
+ */
 type XUserData = NonNullable<XUserResponse["data"]>;
 
 async function resolveMyUserId(

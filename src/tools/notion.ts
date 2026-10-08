@@ -277,6 +277,7 @@ export type NotionMcpCaller = (
   args: Record<string, unknown>
 ) => Promise<{ status: number; json: unknown }>;
 
+/** Runs one Notion MCP tool call. May throw; the executor wrapper catches. */
 type NotionToolRunner = (toolName: string, args: Record<string, unknown>) => Promise<unknown>;
 
 const NOTION_PROVIDER = "notion";

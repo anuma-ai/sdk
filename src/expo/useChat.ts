@@ -29,12 +29,41 @@ import { getLogger } from "../lib/logger";
 import { PiiRedactor } from "../lib/pii/redactor";
 
 type SendMessageArgs = BaseSendMessageArgs & {
+  /**
+   * Per-request callback for thinking/reasoning chunks.
+   */
   onThinking?: (chunk: string) => void;
+  /**
+   * Memory context to inject as a system message.
+   * This is typically context from the memory engine or other sources.
+   */
   memoryContext?: string;
+  /**
+   * Search context to inject as a system message.
+   * This is typically formatted search results from useSearch.
+   */
   searchContext?: string;
+  /**
+   * File context to inject as a system message.
+   * This is typically extracted text from preprocessed file attachments.
+   */
   fileContext?: string;
+  /**
+   * Tool-set guidance to inject as a system message — the persona/usage prompt
+   * for whichever tool sets activated this turn (e.g. the app-builder prompt).
+   * Additive: composes with the other context messages, never replaces them.
+   * Mirrors react's useChat toolGuidance channel.
+   */
   toolGuidance?: string;
+  /**
+   * Override the API type for this request only.
+   * Useful when different models need different APIs.
+   * @default Uses the hook-level apiType or "auto"
+   */
   apiType?: ApiType;
+  /**
+   * Custom HTTP headers to include with the API request (e.g. X-Privacy-Mode).
+   */
   headers?: Record<string, string>;
 };
 
@@ -42,30 +71,68 @@ type SendMessageResult =
   | {
       data: NonNullable<RunToolLoopResult["data"]>;
       error: null;
+      /** Checksum of tools used to generate this response */
       toolsChecksum?: string;
+      /** Results from tools that were auto-executed by the SDK */
       autoExecutedToolResults?: AutoExecutedToolResult[];
     }
   | {
       data: RunToolLoopResult["data"] | null;
       error: string;
+      /** Checksum of tools used to generate this response */
       toolsChecksum?: string;
     }
   | {
+      /** The detached variant from runToolLoop (resumable streams only). */
       data: RunToolLoopResult["data"];
       error: "Request detached";
       detached: true;
+      /** Pass to `resumeStream` to replay; null when nothing was resumable. */
       resume: StreamResumeHandle | null;
     };
 
+/**
+ * @inline
+ */
 interface UseChatOptions extends BaseUseChatOptions {
+  /**
+   * Which API endpoint to use. Default: "auto"
+   * - "auto": automatically selects the best API based on model support
+   * - "responses": OpenAI Responses API (supports thinking, reasoning, conversations)
+   * - "completions": OpenAI Chat Completions API (wider model compatibility)
+   */
   apiType?: ApiType;
+  /**
+   * Opt into resumable streaming. When `true`, every `sendMessage` request
+   * sends `X-Stream-Resumable: 1` so the portal keeps generating into its
+   * buffer after a client disconnect, and `detach()` can hand back a
+   * {@link StreamResumeHandle} for {@link resumeStream}. Off by default — no
+   * header is sent and `detach()` always resolves to `null`.
+   * @default false
+   */
   resumable?: boolean;
+  /**
+   * Observability for the fire-and-forget cancel POST that `stop()` issues for
+   * a resumable stream. The stop-without-cancel billing risk must be visible:
+   * once the capability header ships, the portal no longer treats a dropped
+   * socket as cancellation, so a `stop()` whose cancel POST silently fails
+   * bills the full generation.
+   */
   onCancelResult?: (result: {
     inferenceId: string;
     ok: boolean;
     status?: number;
     error?: Error;
   }) => void;
+  /**
+   * Observe the stream metadata the portal issues at HEADERS_RECEIVED, once per
+   * round. Fires alongside the internal resume-handle capture — additive, never
+   * altering it. The payload is enriched beyond the lib's `{inferenceId, round}`
+   * with the RESOLVED `apiType` (completions vs responses event shapes differ;
+   * "auto" is not resumable) and the `model`, so a consumer can persist a
+   * rebuildable {@link StreamResumeHandle} (mobile PR5 cold-launch registry).
+   * Fires per round; the SDK keeps the latest round's id internally.
+   */
   onStreamMeta?: (meta: {
     inferenceId: string;
     apiType: "responses" | "completions";
@@ -76,10 +143,40 @@ interface UseChatOptions extends BaseUseChatOptions {
 
 type UseChatResult = BaseUseChatResult & {
   sendMessage: (args: SendMessageArgs) => Promise<SendMessageResult>;
+  /**
+   * Tear down the in-flight request as a DETACH rather than a stop: the portal
+   * keeps generating server-side and `sendMessage` resolves with the detached
+   * variant. Resolves to the {@link StreamResumeHandle} captured for the
+   * in-flight stream (or `null` when nothing is resumable — `resumable` was
+   * off, or no inference id had been issued yet). Pair with `resumeStream`.
+   */
   detach: () => StreamResumeHandle | null;
+  /**
+   * Replay a detached stream from the portal's buffer (GET from seq 0, fresh
+   * accumulator). Thin hook wrapper over the library `resumeStream` — supplies
+   * the hook's `getToken`/`baseUrl`/`transport` defaults; the token is resolved
+   * at invocation so a refresh during the detach window is honored.
+   */
   resumeStream: (
     handle: StreamResumeHandle,
     opts?: Pick<ResumeStreamOptions, "idleTimeoutMs" | "smoothing"> & {
+      /**
+       * Replay + reconcile + persist exactly as normal, but emit NOTHING to any
+       * consumer callback — `onData` / `onThinking` / `onFinish` / `onError` are
+       * all withheld; the caller uses the returned result. `isLoading` is also
+       * left untouched, so reusing the on-screen chat's hook for an off-screen
+       * recovery can't flicker the visible loading state. A headless resume also
+       * does NOT touch the shared abort controller: its abort signal lives only
+       * in a local controller, so the visible UI's `stop()` can't abort it, and
+       * it can't clobber a concurrently-visible stream's controller (a later
+       * `stop()` still aborts the visible stream, not the headless resume). A
+       * cold-launch replay of a conversation that is NOT the one on screen
+       * (mobile PR5) must not bleed recovered text into the visible chat's
+       * streaming buffer, nor deliver the recovered response (onFinish) or a
+       * transient error (onError) to the on-screen consumer. The row still
+       * persists internally regardless.
+       * @default false
+       */
       headless?: boolean;
     }
   ) => Promise<ResumeStreamResult>;

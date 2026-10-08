@@ -33,8 +33,14 @@ import type {
   SourceLocation,
 } from "@babel/types";
 
+/** Scalar value an attribute can hold. */
 type AttrScalar = string | number | boolean;
 
+/**
+ * An object-valued attribute — used primarily for `style={{}}`. Keys are
+ * CSS property names in camelCase (`fontSize`, `borderRadius`, …); values
+ * are scalars.
+ */
 type AttrObject = Record<string, AttrScalar>;
 
 export type AttrValue = AttrScalar | AttrObject;
@@ -723,7 +729,9 @@ function normalizeJsxText(raw: string): string {
 }
 
 interface SerializeOptions {
+  /** Indent per level (default two spaces). */
   indent?: string;
+  /** Max single-line width before attrs break onto multiple lines (default 100). */
   maxLineWidth?: number;
 }
 

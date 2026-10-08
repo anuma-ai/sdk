@@ -2,6 +2,7 @@ import type { VaultEmbeddingCache } from "./searchTool";
 
 interface RowVersion {
   readonly updatedAtMs: number;
+  /** Undefined when the writer only knew `updatedAt` (projected miss-load). */
   contentHash?: number;
 }
 

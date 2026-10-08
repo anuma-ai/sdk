@@ -163,22 +163,41 @@ export function splitMessagesAtThreshold(
   };
 }
 
+/** Options for the progressive summarization call */
 interface SummarizeOptions {
+  /** Existing cached summary (null on first summarization) */
   cachedSummary: StoredConversationSummary | null;
+  /** Messages that haven't been summarized yet */
   unsummarizedMessages: StoredMessage[];
+  /** Token threshold for history */
   tokenThreshold: number;
+  /** Minimum messages to keep in the verbatim window */
   minWindowMessages: number;
+  /** Function to call the LLM for summarization */
   callLlm: (prompt: string, model: string) => Promise<string>;
+  /** Model to use for summarization */
   model: string;
+  /**
+   * Optional PII redactor. When provided, the summarization prompt is redacted
+   * before it is sent to the summary model and the returned summary is
+   * de-anonymized, so raw PII never reaches the summary endpoint.
+   */
   redactor?: PiiRedactor;
+  /** Called with the PII matches found when the summarization prompt is redacted. */
   onPiiRedacted?: (matches: PiiMatch[]) => void;
 }
 
+/** Result of progressive summarization */
 interface SummarizeResult {
+  /** The new/updated summary text (null if no summarization needed) */
   summary: string | null;
+  /** uniqueId of the last message included in the summary */
   summarizedUpTo: string | null;
+  /** Approximate token count of the summary */
   summaryTokenCount: number;
+  /** Messages to send verbatim (the window) */
   windowMessages: StoredMessage[];
+  /** Whether summarization was performed */
   didSummarize: boolean;
 }
 
@@ -383,6 +402,7 @@ const COMPACTION_COOLDOWN_MS = 60_000;
 
 const MAX_SUMMARY_TOKEN_RATIO = 0.8;
 
+/** Options for `maybeSummarizeHistory` */
 interface MaybeSummarizeHistoryOptions {
   database: Database;
   conversationId: string;
@@ -391,14 +411,25 @@ interface MaybeSummarizeHistoryOptions {
   summaryTokenThreshold: number;
   summaryMinWindowMessages: number;
   summaryModel: string;
+  /** Auth token for the summarization LLM call */
   token: string;
+  /** Base URL for the API */
   baseUrl?: string;
+  /**
+   * Optional PII redactor. When provided, the summarization prompt is redacted
+   * before it reaches the summary model and the returned summary is
+   * de-anonymized.
+   */
   redactor?: PiiRedactor;
+  /** Called with the PII matches found when the summarization prompt is redacted. */
   onPiiRedacted?: (matches: PiiMatch[]) => void;
 }
 
+/** Result of `maybeSummarizeHistory` */
 interface MaybeSummarizeHistoryResult {
+  /** Messages to convert and send (window messages if summarized, all if not) */
   messagesToConvert: StoredMessage[];
+  /** Summary system message to prepend, or null if no summary */
   summarySystemMessage: LlmapiMessage | null;
 }
 

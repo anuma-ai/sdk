@@ -2,7 +2,9 @@ import type { ToolConfig } from "../chat/useChat/types.js";
 
 interface ToolCatalogEntry {
   label: string;
+  /** Canonical logical-provider id (e.g. "gmail", "gcalendar", "gdrive"). */
   provider: string;
+  /** Human-facing connector display name (UI label). */
   connector: string;
 }
 

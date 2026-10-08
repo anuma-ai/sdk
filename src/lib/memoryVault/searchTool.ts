@@ -32,13 +32,60 @@ const DEFAULT_RERANK_TOP_N = 5;
  */
 export type VaultEmbeddingCache = Map<string, Float32Array>;
 
+/**
+ * Out-param the async rankers use to report what the cross-encoder actually did.
+ *
+ * `applied` answers "did it run"; `ms` answers "what did it cost". They are
+ * separate facts and #845 needed both: `fact_lane_ms` lumps the query embed, the
+ * vault read, the fused ranking and the CE into one number, so every hypothesis
+ * about which stage dominates was an inference from an aggregate — the same
+ * unfalsifiable shape that `decryptLast` was added to break.
+ *
+ * Deliberately NOT exported: nothing outside this module names the type, and the
+ * two rankers that take it are the only writers.
+ *
+ * `ms` ACCUMULATES rather than assigns, for two reasons that are both about not
+ * silently losing a bill. Today each ranker path reranks exactly once per call —
+ * `rankComposite` reranks ONCE over the fused facet head (its per-facet stage 1
+ * uses the sync, non-reranking ranker), so this is not a sum over facets. But
+ * the object is SHARED between the two rankers, and `=` would let a second
+ * writer overwrite a first one's time instead of adding to it; and a path that
+ * ever reranks more than once stays correct without anyone revisiting this.
+ *
+ * It is billed whether or not the rerank succeeded: a CE that throws after
+ * spending three seconds still spent them, and attributing that to "no rerank"
+ * is how the cost hides.
+ */
 interface RerankStats {
+  /** True iff the CE ran over a non-empty head at least once this call. */
   applied: boolean;
+  /** Total wall-clock ms spent inside `rerankPairs` on this call. */
   ms: number;
 }
 
+/**
+ * The fact lane's PORTAL EMBEDDING bill — the other half of decomposing
+ * `fact_lane_ms` (see {@link RerankStats}).
+ *
+ * Both fields exist because the lane makes two very different embedding calls
+ * and conflating them is a misdiagnosis waiting to happen:
+ *
+ * - `queryMs` is ONE round trip for the query. It is the floor every non-empty
+ *   vault pays, and it is invisible in the fast `vault_size = 0` bucket because
+ *   `prepareVaultCandidates` returns before embedding when the vault is empty —
+ *   so production has never had a baseline for it.
+ * - `rowsEmbedded` counts ROWS the lane had to (re-)embed because their stored
+ *   vector was unusable (stale `embedding_model`, wrong dimension, unparseable).
+ *   A count, not a timing, and deliberately reported even though it is not a
+ *   duration: on the legacy read path that batch is UNCAPPED, so a vault whose
+ *   rows carry a stale model tag re-embeds the WHOLE vault every turn. Without
+ *   this number that cost lands in the unexplained residual and reads as "the
+ *   vault read is slow", which is exactly the wrong thing to go fix.
+ */
 interface EmbedStats {
+  /** Wall-clock ms for the query embed. 0 when the lane returned before it. */
   queryMs: number;
+  /** Rows whose stored vector was unusable and had to be re-embedded. */
   rowsEmbedded: number;
 }
 
@@ -201,14 +248,28 @@ interface EmbeddedItem {
   id: string;
   content: string;
   embedding: ArrayLike<number>;
+  /** Original creation timestamp — what `RankedMemory.createdAt` surfaces.
+   * Distinct from `updatedAt` since `proofCountIncrement` re-observation
+   * doesn't bump `created_at`. */
   createdAt?: Date;
+  /** Last update timestamp — used for supersession detection + recency. */
   updatedAt?: Date;
+  /** Number of times this fact has been re-observed (W4 — auto-merge). */
   proofCount?: number | null;
+  /** C3 re-observation watermark (Unix ms). Used for C2 trend labels + C4
+   * date-prefixed CE pairs when no event_time is set. */
   lastObservedAt?: number | null;
+  /** W6 temporal-lane anchors — carried through to VaultSearchResult so the
+   * recall executor can surface event dates without a second DB+decrypt. */
   eventTimeStart?: number | null;
   eventTimeEnd?: number | null;
   eventTimeKind?: "point" | "range" | "ongoing" | null;
+  /** Typed memory (PR1) — carried through to VaultSearchResult alongside the
+   * event-time anchors so recall results can surface the fact's type. */
   factType?: string | null;
+  /** Message ids this fact was extracted from — carried through to
+   * VaultSearchResult so recall() can suppress the originating chunk in the
+   * chunk lane (a fact and the chunk it came from shouldn't both surface). */
   sourceChunkIds?: string[] | null;
 }
 
@@ -229,6 +290,7 @@ function resultFromItem(item: EmbeddedItem, similarity: number): VaultSearchResu
   };
 }
 
+/** Tuning inputs to {@link makeBoostFor}. */
 interface BoostTuning {
   recencyAlpha?: number;
   recency?: RecencyOptions;

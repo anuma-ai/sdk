@@ -70,9 +70,11 @@ export interface SlackPostMessageArgs {
   thread_ts?: string;
 }
 
+/** Every Slack Web API response carries `ok`; failures add an `error` code. */
 interface SlackBaseResponse {
   ok: boolean;
   error?: string;
+  /** On a `missing_scope` error, the scope the called method requires. */
   needed?: string;
 }
 
@@ -105,6 +107,7 @@ interface SlackUsersInfoResponse extends SlackBaseResponse {
 
 interface SlackUsersListResponse extends SlackBaseResponse {
   members?: SlackUser[];
+  /** Cursor-based paging: the next page's cursor, empty/absent on the last page. */
   response_metadata?: { next_cursor?: string };
 }
 
@@ -116,13 +119,17 @@ interface SlackChannel {
   num_members?: number;
   topic?: { value?: string };
   purpose?: { value?: string };
+  /** Direct message (1:1). Has `user` (the other party) instead of a name. */
   is_im?: boolean;
+  /** Group direct message. Carries an unfriendly `mpdm-…` name. */
   is_mpim?: boolean;
+  /** For an `im`, the id of the other party in the conversation. */
   user?: string;
 }
 
 interface SlackConversationsListResponse extends SlackBaseResponse {
   channels?: SlackChannel[];
+  /** Cursor-based paging: the next page's cursor, empty/absent on the last page. */
   response_metadata?: { next_cursor?: string };
 }
 
@@ -226,6 +233,13 @@ function makeGetAuthUserId(callProxy: SlackProxyCaller): () => Promise<string | 
   };
 }
 
+/**
+ * A workspace user directory built from a single `users.list` fetch and shared
+ * across a tool call. `members` is the non-deleted set (for name/handle matching
+ * in {@link resolveSlackUserId}); `byId` and `byHandle` give O(1) lookups for DM
+ * label resolution without a per-DM `users.info` call. `byHandle` is keyed by the
+ * lowercased Slack `name` (the handle Slack encodes into `mpdm-…` group-DM names).
+ */
 interface SlackUsersDirectory {
   members: SlackUser[];
   byId: Map<string, SlackUser>;
@@ -339,8 +353,17 @@ async function listSlackChannels(
 
 const MAX_DM_PROBES = 50;
 
+/**
+ * The split shape {@link listSlackDms} returns on success: 1:1 DMs and group DMs
+ * as two separate lists (rather than one flat array mixing them), so the model can
+ * present them as two distinct lists by name. Each entry keeps its conversation
+ * `id` for a follow-up `slack_get_channel_history` read, but the id is not meant
+ * to be shown to the user (the tool description says so).
+ */
 interface SlackDmListing {
+  /** 1:1 DMs. `name` is the counterparty label ("DM with <name>", or "Direct message" for a self-DM). */
   direct_messages: Array<{ id: string; name: string }>;
+  /** Group DMs. `members` is the comma-joined member names (self excluded), no "Group DM with" prefix. */
   group_dms: Array<{ id: string; members: string }>;
 }
 

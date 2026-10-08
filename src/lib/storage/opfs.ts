@@ -117,6 +117,9 @@ async function decryptToBytes(encryptedHex: string, encryptionKey: CryptoKey): P
   return new Uint8Array(decrypted);
 }
 
+/**
+ * File metadata stored alongside encrypted content.
+ */
 interface StoredFileMetadata {
   id: string;
   name: string;

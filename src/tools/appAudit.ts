@@ -436,6 +436,9 @@ function findFocusNotKeyed(appCss: string, tokens: AuditTokens): AuditIssue[] {
   return issues;
 }
 
+/** A leaf CSS rule block — one whose body contains no nested `{…}`. Yielded by
+ *  {@link leafRuleBlocks}. `selectorStart` is the source index where the
+ *  selector text begins (for line attribution). */
 interface LeafRuleBlock {
   selector: string;
   body: string;

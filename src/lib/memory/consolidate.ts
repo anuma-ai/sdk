@@ -52,25 +52,71 @@ For "noop": no content (existing memory is already correct); targetId is that me
 interface ConsolidationCandidate {
   id: string;
   content: string;
+  /** Cosine similarity to the new fact — informational, the LLM does its own judgment. */
   similarity: number;
 }
 
 interface ConsolidationResult {
   action: "create" | "update" | "noop" | "supersede";
+  /** Defined for update/noop/supersede. For supersede it is the FIRST stale
+   * memory being retired (kept for back-compat; see `targetIds` for the full
+   * set). */
   targetId?: string;
+  /** Defined for supersede: ALL stale memories to retire (every candidate that
+   * describes the same standing attribute now being changed), so a value change
+   * collapses every duplicate of the old value, not just one. */
   targetIds?: string[];
+  /** Defined for create/update/supersede. For supersede it is the NEW fact to
+   * persist (the old one is retired, not overwritten). */
   content?: string;
+  /**
+   * Set when this "create" is a degraded fallback rather than a real
+   * decision (LLM failure or schema-violating response). Distinguishes
+   * "the model chose create" from "we couldn't get a usable answer" —
+   * the latter accumulates duplicates if it happens persistently.
+   *
+   * Note: retain()'s consolidation path drops the result on "create"
+   * (fallback or real), so this field only reaches direct
+   * consolidateMemory() callers and tests — `onFallback` is the live
+   * observability channel.
+   */
   fallbackReason?: ConsolidationFallbackReason;
 }
 
+/** Auth is the dual pattern — one of `apiKey` / `getToken` is required at
+ * runtime; see {@link PortalLlmAuth}. */
 interface ConsolidateOptions extends PortalLlmAuth {
   baseUrl?: string;
   model?: string;
+  /** Notified on each degraded fallback. See `RetainOptions.consolidateOptions.onFallback`. */
   onFallback?: (reason: ConsolidationFallbackReason) => void;
+  /**
+   * Max portal attempts on TRANSIENT failure (network/timeout/5xx/429/empty
+   * completion). Defaults to {@link DEFAULT_CONSOLIDATE_ATTEMPTS}. Terminal
+   * failures (400/401/403/404, auth, malformed-JSON schema violation) never
+   * retry — they degrade to create immediately regardless of this value.
+   */
   maxAttempts?: number;
+  /**
+   * Absolute wall-clock budget across all retries, in ms. Keeps a hanging
+   * portal from holding retain open ~maxAttempts× the per-attempt timeout.
+   * Defaults to {@link DEFAULT_CONSOLIDATE_TOTAL_TIMEOUT_MS}.
+   */
   totalTimeoutMs?: number;
+  /**
+   * Backoff before each retry, in ms, given the just-failed 1-based attempt.
+   * Defaults to the portal helper's exponential+jitter schedule. Tests pass
+   * `() => 0` for instant retries (same escape hatch portalLlm.ts exposes).
+   */
   backoffMs?: (attempt: number) => number;
+  /** Override fetch (for tests). */
   fetchFn?: typeof fetch;
+  /**
+   * When set, the new fact and the existing candidate contents are PII-redacted
+   * before they reach the consolidation model, and the consolidated content it
+   * returns is de-anonymized before persistence — so consolidation never leaks
+   * the real values it dedups over. Pass `true` or a shared {@link PiiRedactor}.
+   */
   piiRedaction?: boolean | PiiRedactor;
 }
 

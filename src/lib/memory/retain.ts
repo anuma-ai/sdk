@@ -332,9 +332,30 @@ function resurrectFields(existing: {
   return typeof existing.archivedAt === "number" ? { restore: true } : { preserveUpdatedAt: true };
 }
 
+/**
+ * Stage 1 of the auto-merge path — LLM-based consolidation. Returns a
+ * `RetainResult` when the LLM picked update or noop; returns `null` when
+ * the LLM said create (or no candidates above the floor exist), in which
+ * case the caller falls through to the strict cosine merge + create path.
+ *
+ * For "update": replaces the target's content with the consolidated form,
+ * increments proof_count, unions source chunk ids. The new fact's
+ * embedding is NOT regenerated for the target — the caller's content is
+ * the merged form, and we re-embed once at update time so the cache stays
+ * coherent for downstream retrieval.
+ */
+/**
+ * Outcome of the consolidation pass:
+ * - `{ done }` — a terminal decision (merge/update/noop); retain() returns it.
+ * - `{ supersede }` — the new fact retires an existing one whose value changed;
+ *   retain() creates the new fact fresh, then stamps `superseded_by` on the
+ *   stale `supersede` id. `content` is the refined new fact from the consolidator.
+ * - `null` — no consolidation decision; fall through to strict merge / create.
+ */
 type ConsolidateOutcome =
   | { done: RetainResult }
   | { supersede: string[]; content: string }
+  /** The LLM explicitly chose `create` — not a fallback, which returns null. */
   | { create: true }
   | null;
 

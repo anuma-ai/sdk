@@ -1,6 +1,6 @@
 # VerifyMemoriesForPublishOptions
 
-Defined in: [src/lib/memory/verifySupport.ts:280](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/verifySupport.ts#280)
+Defined in: [src/lib/memory/verifySupport.ts:145](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/verifySupport.ts#145)
 
 Auth + tuning for [verifyMemoriesForPublish](../functions/verifyMemoriesForPublish.md). Auth is the dual pattern
 — one of `apiKey` / `getToken` is required at runtime (see
@@ -16,7 +16,7 @@ Auth + tuning for [verifyMemoriesForPublish](../functions/verifyMemoriesForPubli
 
 > `optional` **apiKey**: `string`
 
-Defined in: [src/lib/memory/portalLlm.ts:179](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/portalLlm.ts#179)
+Defined in: [src/lib/memory/portalLlm.ts:72](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/portalLlm.ts#72)
 
 Direct API key — sent as `x-api-key` (server-side / CLI usage). Wins when both are provided.
 
@@ -30,7 +30,7 @@ Direct API key — sent as `x-api-key` (server-side / CLI usage). Wins when both
 
 > `optional` **backoffMs**: (`attempt`: `number`) => `number`
 
-Defined in: [src/lib/memory/verifySupport.ts:290](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/verifySupport.ts#290)
+Defined in: [src/lib/memory/verifySupport.ts:155](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/verifySupport.ts#155)
 
 Backoff before each retry (ms). Tests pass `() => 0`.
 
@@ -69,7 +69,7 @@ Backoff before each retry (ms). Tests pass `() => 0`.
 
 > `optional` **baseUrl**: `string`
 
-Defined in: [src/lib/memory/verifySupport.ts:281](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/verifySupport.ts#281)
+Defined in: [src/lib/memory/verifySupport.ts:146](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/verifySupport.ts#146)
 
 ***
 
@@ -77,7 +77,7 @@ Defined in: [src/lib/memory/verifySupport.ts:281](https://github.com/anuma-ai/sd
 
 > `optional` **fetchFn**: {(`input`: `RequestInfo` | `URL`, `init?`: `RequestInit`): `Promise`<`Response`>; (`input`: `string` | `Request` | `URL`, `init?`: `RequestInit`): `Promise`<`Response`>; }
 
-Defined in: [src/lib/memory/verifySupport.ts:284](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/verifySupport.ts#284)
+Defined in: [src/lib/memory/verifySupport.ts:149](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/verifySupport.ts#149)
 
 Override fetch (tests).
 
@@ -181,7 +181,7 @@ Override fetch (tests).
 
 > `optional` **getToken**: () => `Promise`<`string` | `null`>
 
-Defined in: [src/lib/memory/portalLlm.ts:181](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/portalLlm.ts#181)
+Defined in: [src/lib/memory/portalLlm.ts:74](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/portalLlm.ts#74)
 
 Function to get an auth token (e.g., Privy's getIdentityToken). Token is sent as `Authorization: Bearer`.
 
@@ -199,7 +199,7 @@ Function to get an auth token (e.g., Privy's getIdentityToken). Token is sent as
 
 > `optional` **maxAttempts**: `number`
 
-Defined in: [src/lib/memory/verifySupport.ts:286](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/verifySupport.ts#286)
+Defined in: [src/lib/memory/verifySupport.ts:151](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/verifySupport.ts#151)
 
 Max portal attempts on a TRANSIENT failure. Default 2.
 
@@ -209,7 +209,7 @@ Max portal attempts on a TRANSIENT failure. Default 2.
 
 > `optional` **maxEvidenceChars**: `number`
 
-Defined in: [src/lib/memory/verifySupport.ts:313](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/verifySupport.ts#313)
+Defined in: [src/lib/memory/verifySupport.ts:178](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/verifySupport.ts#178)
 
 Per-memory cap on joined evidence characters. Default 2000.
 
@@ -219,7 +219,7 @@ Per-memory cap on joined evidence characters. Default 2000.
 
 > `optional` **maxItems**: `number`
 
-Defined in: [src/lib/memory/verifySupport.ts:311](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/verifySupport.ts#311)
+Defined in: [src/lib/memory/verifySupport.ts:176](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/verifySupport.ts#176)
 
 Max memories verified in one call; the rest come back `unchecked`
 (`over-budget`). Default 20.
@@ -230,7 +230,7 @@ Max memories verified in one call; the rest come back `unchecked`
 
 > `optional` **model**: `string`
 
-Defined in: [src/lib/memory/verifySupport.ts:282](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/verifySupport.ts#282)
+Defined in: [src/lib/memory/verifySupport.ts:147](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/verifySupport.ts#147)
 
 ***
 
@@ -238,7 +238,7 @@ Defined in: [src/lib/memory/verifySupport.ts:282](https://github.com/anuma-ai/sd
 
 > `optional` **piiRedaction**: `boolean` | [`PiiRedactor`](../../../expo/Internal/classes/PiiRedactor.md)
 
-Defined in: [src/lib/memory/verifySupport.ts:308](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/verifySupport.ts#308)
+Defined in: [src/lib/memory/verifySupport.ts:173](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/verifySupport.ts#173)
 
 PII redaction for the outbound fact + evidence.
 
@@ -262,6 +262,6 @@ redacted value.
 
 > `optional` **totalTimeoutMs**: `number`
 
-Defined in: [src/lib/memory/verifySupport.ts:288](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/verifySupport.ts#288)
+Defined in: [src/lib/memory/verifySupport.ts:153](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/verifySupport.ts#153)
 
 Absolute wall-clock budget across attempts. Default 20s.

@@ -2,7 +2,7 @@
 
 > **getAndClearGithubPendingMessage**(): `string` | `null`
 
-Defined in: [src/lib/auth/github.ts:499](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/github.ts#499)
+Defined in: [src/lib/auth/github.ts:405](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/github.ts#405)
 
 Get and clear the pending message
 

@@ -1,13 +1,24 @@
+/**
+ * Pure functions for extracting MCP media URLs (images and videos).
+ *
+ * These are extracted from `useChatMedia.extractAndStoreEncryptedMCPImages`
+ * so they can be tested in isolation without React hooks or OPFS dependencies.
+ */
+
+/** Minimal tool call event shape needed for URL extraction. */
 interface ToolCallEvent {
   name?: string;
   output?: string;
 }
 
+/** Media kind an extracted URL resolves to. */
 type ExtractedMediaKind = "image" | "video";
 
+/** Extracted media URL with its associated model and resolved kind. */
 interface ExtractedMediaUrl {
   url: string;
   model: string;
+  /** "video" when the URL/tool is a video source, otherwise "image". */
   mediaType: ExtractedMediaKind;
 }
 

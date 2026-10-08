@@ -16,6 +16,11 @@ export interface WebSearchClassification {
 }
 
 interface WebSearchClassifierOptions extends EmbeddingOptions {
+  /**
+   * Score margin: the search score must exceed the no-search score
+   * by at least this amount to classify as "needs web search".
+   * @default 0.02
+   */
   margin?: number;
 }
 

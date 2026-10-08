@@ -16,6 +16,11 @@ export interface StockPriceClassification {
 }
 
 interface StockPriceClassifierOptions extends EmbeddingOptions {
+  /**
+   * Score margin: the stock-price score must exceed the no-stock-price
+   * score by at least this amount to classify as "needs stock price data".
+   * @default 0.02
+   */
   margin?: number;
 }
 

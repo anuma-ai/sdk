@@ -18,6 +18,7 @@
  *
  * @module
  */
+/** Minimal Webpack configuration shape used by the SDK plugin. */
 interface WebpackConfig {
   resolve: {
     alias: Record<string, unknown>;
@@ -28,10 +29,12 @@ interface WebpackConfig {
   };
 }
 
+/** Webpack compiler options passed by Next.js. */
 interface WebpackOptions {
   isServer: boolean;
 }
 
+/** Next.js configuration object shape used by the SDK plugin. */
 interface NextConfig {
   serverExternalPackages?: string[];
   webpack?: (config: WebpackConfig, options: WebpackOptions) => WebpackConfig;

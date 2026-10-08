@@ -1,6 +1,6 @@
 # NotionPKCEChallenge
 
-Defined in: [src/lib/auth/notion-primitives.ts:54](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/notion-primitives.ts#54)
+Defined in: [src/lib/auth/notion-primitives.ts:49](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/notion-primitives.ts#49)
 
 PKCE challenge pair + CSRF state.
 
@@ -10,7 +10,7 @@ PKCE challenge pair + CSRF state.
 
 > **codeChallenge**: `string`
 
-Defined in: [src/lib/auth/notion-primitives.ts:56](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/notion-primitives.ts#56)
+Defined in: [src/lib/auth/notion-primitives.ts:51](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/notion-primitives.ts#51)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/lib/auth/notion-primitives.ts:56](https://github.com/anuma-ai/s
 
 > **codeVerifier**: `string`
 
-Defined in: [src/lib/auth/notion-primitives.ts:55](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/notion-primitives.ts#55)
+Defined in: [src/lib/auth/notion-primitives.ts:50](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/notion-primitives.ts#50)
 
 ***
 
@@ -26,4 +26,4 @@ Defined in: [src/lib/auth/notion-primitives.ts:55](https://github.com/anuma-ai/s
 
 > **state**: `string`
 
-Defined in: [src/lib/auth/notion-primitives.ts:57](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/notion-primitives.ts#57)
+Defined in: [src/lib/auth/notion-primitives.ts:52](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/notion-primitives.ts#52)

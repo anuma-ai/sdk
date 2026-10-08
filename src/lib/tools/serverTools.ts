@@ -7,18 +7,21 @@ import { chunkText, DEFAULT_CHUNK_SIZE, shouldChunkMessage } from "../memoryEngi
 import { generateEmbedding, generateEmbeddings } from "../memoryEngine/generate";
 import { cosineSimilarity } from "../memoryEngine/vector";
 
+/** Tool parameters schema */
 interface ToolParameters {
   properties: Record<string, unknown>;
   required: string[];
   type: "object";
 }
 
+/** Current API response format (description and parameters at top level) */
 interface ServerToolsResponseItemCurrent {
   description: string;
   name: string;
   parameters: ToolParameters;
 }
 
+/** New API response format with schema wrapper */
 interface ServerToolsResponseItemNew {
   name: string;
   schema: {
@@ -30,8 +33,10 @@ interface ServerToolsResponseItemNew {
   embedding?: number[];
 }
 
+/** Response item can be either format */
 type ServerToolsResponseItem = ServerToolsResponseItemCurrent | ServerToolsResponseItemNew;
 
+/** Tools object mapping tool names to their definitions */
 type ServerToolsMap = {
   [toolName: string]: ServerToolsResponseItem;
 };
@@ -211,6 +216,10 @@ function convertServerToolsResponse(response: ServerToolsResponse): ParsedServer
   return { tools, checksum };
 }
 
+/**
+ * Completions API tool format.
+ * OpenAI Chat Completions expects: { type, function: { name, description, parameters } }
+ */
 interface CompletionsTool {
   type: "function";
   function: {
@@ -494,6 +503,7 @@ export function filterServerTools(
   return serverTools.filter((tool) => includeSet.has(tool.name));
 }
 
+/** Shape of the `function` property on OpenAI-style tool objects. */
 interface ToolFunctionDef {
   name?: string;
   description?: string;

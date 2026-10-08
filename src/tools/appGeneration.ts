@@ -279,6 +279,7 @@ const JS_EXTENSIONS = new Set([".js", ".jsx", ".ts", ".tsx", ".mjs", ".cjs"]);
 
 const JSON_EXTENSIONS = new Set([".json"]);
 
+/** Structured syntax error pinpointing the failure for the LLM to retry. */
 interface FileValidationError {
   line: number;
   column: number;

@@ -20,10 +20,12 @@ const isAuthError = (err: unknown): boolean =>
 interface DropboxBackupDeps {
   requestDropboxAccess: () => Promise<string>;
   requestEncryptionKey: (address: string) => Promise<void>;
+  /** Export a conversation to an encrypted blob */
   exportConversation: (
     conversationId: string,
     userAddress: string
   ) => Promise<{ success: boolean; blob?: Blob }>;
+  /** Import a conversation from an encrypted blob */
   importConversation: (blob: Blob, userAddress: string) => Promise<{ success: boolean }>;
 }
 
@@ -45,6 +47,10 @@ export interface DropboxImportResult {
 
 const MAX_LISTING_FAILURES = 3;
 
+/**
+ * Index of the files in the backup folder, keyed by file name.
+ * One export run lists the folder once and reuses the result for every conversation.
+ */
 interface DropboxFileIndex {
   get(token: string): Promise<Map<string, DropboxFile>>;
 }

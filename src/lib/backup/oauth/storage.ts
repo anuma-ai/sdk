@@ -15,6 +15,9 @@ export interface StoredTokenData {
   scope?: string;
 }
 
+/**
+ * OAuth error types for better error handling
+ */
 type OAuthErrorCode = "network" | "encryption" | "csrf" | "invalid_response" | "unknown";
 
 export interface OAuthError {

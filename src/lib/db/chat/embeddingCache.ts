@@ -1,3 +1,24 @@
+/**
+ * Namespacing for a caller-shared embedding cache.
+ *
+ * Lives here, next to the `embeddingCache` send-arg it serves, rather than in either platform hook:
+ * react and expo both thread the option through their own send paths, and a copy per platform is how
+ * the two drift.
+ */
+
+/**
+ * View over a caller-supplied embedding cache that namespaces entries by whether masking is applied.
+ *
+ * `generateEmbedding` keys its cache on the text as passed and does not record `maskInput` — a
+ * deliberate, tested contract (see `embeddings.test.ts`, "keeps the cache keyed by original"), so it
+ * is not the place to change. But masking changes what is actually embedded: the same words masked
+ * and unmasked are two different vectors. A Map shared between this send and a caller that masks
+ * differently would otherwise hand one side the other's vector, silently, the moment a user toggles
+ * redaction mid-session.
+ *
+ * Subclassing Map keeps `EmbeddingOptions.cache`'s type as-is; only get/set are ever used, and both
+ * go through to the caller's Map under a prefixed key.
+ */
 class MaskScopedEmbeddingCache extends Map<string, Float32Array> {
   constructor(
     private readonly inner: Map<string, Float32Array>,

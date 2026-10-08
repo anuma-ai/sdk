@@ -15,8 +15,40 @@ export const SIGN_MESSAGE =
  */
 export type EncryptionKeyVersion = "v2" | "v3";
 
+/**
+ * Stores both legacy and current encryption keys for migration support.
+ *
+ * SECURITY NOTE — FLAGGED FOR HUMAN REVIEW.
+ * These are RAW HEX KEY MATERIAL, not non-extractable `CryptoKey` objects.
+ * Both `legacy` and `current` are 32-byte AES-GCM keys serialized as hex
+ * strings, derived from a wallet signature via SHA-256 / HKDF
+ * (`deriveKeyFromSignature` / `deriveKeyFromSignatureV3`).
+ *
+ * The non-extractable `CryptoKey` is materialized in `cryptoKeyCache`
+ * lazily via `getEncryptionKey`, but the raw hex remains in
+ * `encryptionKeyStore` for the entire session — both forms exist in RAM
+ * simultaneously. Anything with closure access to the module-level
+ * `encryptionKeyStore` (e.g. a `console.log` of the Map, a debugger
+ * snapshot, an XSS payload that reaches into the same realm before the
+ * Map is cleared) can read the raw key.
+ *
+ * The architecturally-correct version derives the bytes inside
+ * `crypto.subtle` (e.g. by deriving directly into a non-extractable
+ * `CryptoKey`) and never holds the raw bytes in JS memory. That change
+ * has migration / dual-key / cache-invalidation implications and is
+ * left to a follow-up security review.
+ */
 interface StoredKeys {
+  /**
+   * SHA-256 derived key (for reading enc:v2: data) — raw hex, see SECURITY NOTE.
+   * Optional so a missing/inaccessible v2 keychain entry does not blank v3
+   * decryption (and vice versa). See #561.
+   */
   legacy?: string;
+  /**
+   * HKDF derived key (for new encryption, reading enc:v3: data) — raw hex, see SECURITY NOTE.
+   * Optional for the same per-version fail-open reason as {@link legacy}.
+   */
   current?: string;
 }
 

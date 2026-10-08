@@ -24,8 +24,10 @@
 import { parseExpression } from "@babel/parser";
 import type { JSXAttribute, JSXElement, Node, SourceLocation } from "@babel/types";
 
+/** Scalar value an attribute can hold. */
 type AttrScalar = string | number | boolean;
 
+/** An object-valued attribute — used primarily for `style={{}}`. */
 type AttrObject = Record<string, AttrScalar>;
 
 /** @category Document DSL */

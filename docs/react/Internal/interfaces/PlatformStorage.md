@@ -1,6 +1,6 @@
 # PlatformStorage
 
-Defined in: [src/lib/db/manager.ts:19](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/manager.ts#19)
+Defined in: [src/lib/db/manager.ts:14](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/manager.ts#14)
 
 Platform abstraction for persistent and session storage.
 
@@ -13,7 +13,7 @@ Mobile implementations can use AsyncStorage/in-memory maps/SQLite cleanup.
 
 > **deleteDatabase**(`name`: `string`): `Promise`<`void`>
 
-Defined in: [src/lib/db/manager.ts:31](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/manager.ts#31)
+Defined in: [src/lib/db/manager.ts:26](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/manager.ts#26)
 
 Delete an IndexedDB database by name
 
@@ -52,7 +52,7 @@ Delete an IndexedDB database by name
 
 > **getItem**(`key`: `string`): `string` | `null`
 
-Defined in: [src/lib/db/manager.ts:21](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/manager.ts#21)
+Defined in: [src/lib/db/manager.ts:16](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/manager.ts#16)
 
 Read a value from persistent storage (e.g. localStorage)
 
@@ -91,7 +91,7 @@ Read a value from persistent storage (e.g. localStorage)
 
 > **getSessionItem**(`key`: `string`): `string` | `null`
 
-Defined in: [src/lib/db/manager.ts:27](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/manager.ts#27)
+Defined in: [src/lib/db/manager.ts:22](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/manager.ts#22)
 
 Read a value from session-scoped storage (e.g. sessionStorage). Used to prevent reload loops.
 
@@ -130,7 +130,7 @@ Read a value from session-scoped storage (e.g. sessionStorage). Used to prevent 
 
 > **removeItem**(`key`: `string`): `void`
 
-Defined in: [src/lib/db/manager.ts:25](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/manager.ts#25)
+Defined in: [src/lib/db/manager.ts:20](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/manager.ts#20)
 
 Remove a value from persistent storage
 
@@ -169,7 +169,7 @@ Remove a value from persistent storage
 
 > **setItem**(`key`: `string`, `value`: `string`): `void`
 
-Defined in: [src/lib/db/manager.ts:23](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/manager.ts#23)
+Defined in: [src/lib/db/manager.ts:18](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/manager.ts#18)
 
 Write a value to persistent storage
 
@@ -220,7 +220,7 @@ Write a value to persistent storage
 
 > **setSessionItem**(`key`: `string`, `value`: `string`): `void`
 
-Defined in: [src/lib/db/manager.ts:29](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/manager.ts#29)
+Defined in: [src/lib/db/manager.ts:24](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/manager.ts#24)
 
 Write a value to session-scoped storage
 

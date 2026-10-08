@@ -39,6 +39,12 @@ interface DropboxSearchMatch {
   tag: "file" | "folder";
 }
 
+/**
+ * Partial-listing result. Returned as a structured value (not a
+ * pre-stringified string) so the tool loop serializes it exactly once — a
+ * complete listing returns the bare array, and both must reach the model as
+ * clean JSON rather than a double-escaped blob.
+ */
 interface DropboxPartialFolders {
   entries: DropboxEntry[];
   truncated: true;

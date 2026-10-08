@@ -48,6 +48,12 @@ const DEFAULT_QUERY_EMBED_TOTAL_TIMEOUT_MS = 8_000;
 
 interface BudgetFlags {
   rerank: boolean;
+  /**
+   * PR4 — enable multi-hop entity-graph traversal in the W5 lane. Gated to
+   * `high` only: multi-hop widens the candidate pool (more RRF entries + a
+   * larger rerank input), so low/mid keep the cheap single-hop lane. When
+   * false, `buildGraphLaneRanking` runs the exact pre-PR4 single-hop path.
+   */
   traverse: boolean;
 }
 

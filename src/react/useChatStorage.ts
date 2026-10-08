@@ -973,8 +973,21 @@ function getConversationRedactor(
   return redactor;
 }
 
+/** Resolved PII redaction for a single `sendMessage` call. */
 interface CallPiiResolution {
+  /**
+   * Redactor for this call's embedding masking and summarization prompt.
+   * `undefined` means no masking (redaction disabled for this call).
+   */
   redactor: PiiRedactor | undefined;
+  /**
+   * Value forwarded to the inner `useChat` for the LLM request: the resolved
+   * redactor instance, or `false` to disable. Always forwarded (never
+   * `undefined`) so the LLM call uses the redactor keyed to THIS call's
+   * conversation rather than the inner hook's own `currentConversationId`-keyed
+   * one — the latter is `null` on the first turn of an auto-created conversation,
+   * which would orphan turn-1 placeholder mappings.
+   */
   forInnerSend: boolean | PiiRedactor;
 }
 

@@ -3,7 +3,9 @@ import { cosineSimilarity } from "../memoryEngine/vector.js";
 
 interface MMRItem {
   id: string;
+  /** Pre-computed relevance score (e.g. fused or CE score). */
   score: number;
+  /** Embedding used for diversity computation. */
   embedding: ArrayLike<number>;
 }
 

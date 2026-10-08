@@ -1,6 +1,6 @@
 # RecencyOptions
 
-Defined in: [src/lib/memory/recency.ts:17](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/recency.ts#17)
+Defined in: [src/lib/memory/recency.ts:6](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/recency.ts#6)
 
 ## Properties
 
@@ -8,7 +8,7 @@ Defined in: [src/lib/memory/recency.ts:17](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **floor**: `number`
 
-Defined in: [src/lib/memory/recency.ts:23](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/recency.ts#23)
+Defined in: [src/lib/memory/recency.ts:12](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/recency.ts#12)
 
 Lower bound on the multiplier so very old memories don't vanish. Default 0.1.
 
@@ -18,7 +18,7 @@ Lower bound on the multiplier so very old memories don't vanish. Default 0.1.
 
 > `optional` **noDateMultiplier**: `number`
 
-Defined in: [src/lib/memory/recency.ts:25](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/recency.ts#25)
+Defined in: [src/lib/memory/recency.ts:14](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/recency.ts#14)
 
 Multiplier returned when `updatedAt` is missing. Default 0.5 (neutral).
 
@@ -28,7 +28,7 @@ Multiplier returned when `updatedAt` is missing. Default 0.5 (neutral).
 
 > `optional` **now**: `Date`
 
-Defined in: [src/lib/memory/recency.ts:19](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/recency.ts#19)
+Defined in: [src/lib/memory/recency.ts:8](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/recency.ts#8)
 
 Override "now" — useful for deterministic tests and back-dated benchmarks.
 
@@ -38,6 +38,6 @@ Override "now" — useful for deterministic tests and back-dated benchmarks.
 
 > `optional` **perYearDecay**: `number`
 
-Defined in: [src/lib/memory/recency.ts:21](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/recency.ts#21)
+Defined in: [src/lib/memory/recency.ts:10](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/recency.ts#10)
 
 Linear decay slope per year. Default 0.2 (1y → 0.8x, 4.5y → floor).

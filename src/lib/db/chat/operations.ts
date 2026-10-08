@@ -36,6 +36,11 @@ import {
 } from "./types";
 
 interface MessageProjectionOptions {
+  /**
+   * Skip the `vector`/`chunks` embedding columns entirely (no raw read, no
+   * JSON.parse, no decrypt). Display readers never use them — the embedding
+   * float arrays are the single heaviest per-row cost of a message fetch.
+   */
   skipEmbeddings?: boolean;
 }
 

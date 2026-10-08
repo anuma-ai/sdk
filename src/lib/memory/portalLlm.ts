@@ -156,15 +156,64 @@ export interface PortalLlmFailure {
   attempts: number;
 }
 
+/**
+ * Which portal transport carries the call.
+ *
+ * `"chat"` (default) POSTs a chat-completions body to
+ * `/api/v1/chat/completions`. `"responses"` POSTs a Responses-API body to
+ * `/api/v1/responses`. Everything that makes this module worth having — retries,
+ * backoff, the wall-clock budget, auth resolution, tolerant JSON salvage, usage
+ * logging — is shared; only the request shape and the place the text comes back
+ * differ, so those are the only two things that branch.
+ *
+ * WHY "responses" EXISTS HERE, since chat-completions works for most models:
+ * it is the only transport on which a reasoning model can actually reason.
+ * `/chat/completions` rejects the gpt-5.6 family outright when an explicit
+ * `reasoning_effort` is present, and ai-portal's `neutralizeChatReasoningEffort`
+ * rewrites any effort the caller did send to `"none"` to avoid that 400 — it
+ * takes a `ChatCompletionRequest` and has no Responses-API counterpart, so the
+ * Responses path passes the effort through untouched. Verified 2026-08-17
+ * against dev: identical prompt, `/utility/responses` with `reasoning.effort`
+ * returns a `type: "reasoning"` output item, `/utility/chat/completions` with
+ * `reasoning_effort: "low"` comes back with `reasoning_tokens: 0`.
+ *
+ * That is not academic. On the topic-assignment prompt — judging whether a
+ * memory names a real entity — gpt-5.6-luna scored 7/7 junk traps clean on 3/3
+ * runs WITH reasoning, against 6/7 on 2 of 3 runs without it (and one of those
+ * misses emitted an entity whose `name` was `undefined`).
+ */
 type PortalLlmTransport = "chat" | "responses";
 
+/**
+ * Reasoning is `"responses"`-only, and the TYPE enforces that rather than a
+ * paragraph asking nicely.
+ *
+ * On `"chat"` the portal rewrites any effort to `"none"`, so accepting the field
+ * there would hand a caller the exact outcome this transport exists to prevent:
+ * they believe they asked for reasoning, everything returns 200, nothing logs,
+ * and the only symptom is the eval numbers being quietly worse. The first draft
+ * of this file "silently ignored" it on chat and documented that in prose —
+ * which is the same bug wearing a comment. A compile error costs one line at the
+ * call site (flip both fields together) and cannot be misread.
+ */
 type PortalLlmTransportOptions =
   | {
+      /**
+       * Transport for this call. Omitted, it is chosen from the model: `"responses"`
+       * for a {@link requiresResponsesTransport} family, `"chat"` for everything
+       * else. See {@link PortalLlmTransport} for why the other one exists.
+       */
       transport?: Extract<PortalLlmTransport, "chat">;
+      /** Not available on `"chat"` — the portal rewrites it to `"none"`. */
       reasoning?: never;
     }
   | {
+      /**
+       * Transport for this call. `"responses"` POSTs a Responses-API body to
+       * `/api/v1/responses`; see {@link PortalLlmTransport}.
+       */
       transport: Extract<PortalLlmTransport, "responses">;
+      /** Reasoning effort. Only reachable on this transport — see above. */
       reasoning?: { effort: "low" | "medium" | "high" };
     };
 
@@ -173,20 +222,105 @@ interface PortalLlmRequestBase extends PortalLlmAuth {
   model: string;
   systemPrompt: string;
   userMessage: string;
+  /** Tag prefix for log lines, e.g. `"memory/extract"`. */
   tag: string;
+  /** Per-request timeout. Covers fetch headers AND body read. Default
+   * 60s — sized for slower providers (Anthropic Sonnet under high
+   * concurrency routinely takes 15–40s for the 2k-token consolidate
+   * prompt). Pass a tighter value for steps on the recall hot path. */
   timeoutMs?: number;
+  /** Override fetch (for tests). */
   fetchFn?: typeof fetch;
+  /** Optional extra fields merged into the request body (e.g.
+   * `max_completion_tokens` — use this modern field, not the deprecated
+   * `max_tokens`, which the portal ignores). */
   extra?: Record<string, unknown>;
+  /**
+   * Max attempts on a TRANSIENT failure (network/timeout, 408/409/425/429, any
+   * 5xx, an empty completion, or a completion with no parseable JSON). Default
+   * 3. Set to 1 to disable retries on a latency-sensitive path that already has
+   * a cheap fallback (e.g. query decompose).
+   *
+   * Terminal failures (4xx other than the codes above — notably 400/401/403/
+   * 404 — and missing/failed auth) never retry: a 400 is a bad request that
+   * won't succeed on a retry, just burning latency and (if metered) credits.
+   */
   maxAttempts?: number;
+  /**
+   * Absolute wall-clock budget (ms) across ALL attempts incl. backoff. When
+   * set, the loop stops before an attempt that would exceed it, so worst-case
+   * latency is bounded rather than `maxAttempts × timeoutMs`. Use it on a
+   * guarded path (e.g. auto-extract behind an in-flight-turn guard) so a stuck
+   * call can't hold the turn open ~3× the per-attempt timeout.
+   */
   totalTimeoutMs?: number;
+  /**
+   * Backoff before the next attempt, in ms, given the just-failed 1-based
+   * attempt index. Defaults to exponential (250·2^(n-1), capped at 2s) plus
+   * jitter. A server `Retry-After` on a 429 takes precedence (max of the two).
+   * Tests pass `() => 0` to retry without real delay.
+   */
   backoffMs?: (attempt: number) => number;
+  /**
+   * Optional per-call request path override. When set, the completion POSTs to
+   * `baseUrl + endpointOverride` instead of the TRANSPORT'S default
+   * (`/api/v1/chat/completions` for `"chat"`, `/api/v1/responses` for
+   * `"responses"`) — path only, but note the body is still built for the
+   * transport, so the two have to agree.
+   *
+   * Must be a non-empty root-relative path (validated via
+   * {@link validateEndpointOverride}), and must not point at the OTHER
+   * transport's endpoint. Either violation throws at call time before any
+   * request is sent, because a mismatched path sends the wrong body shape and
+   * 400s without retry.
+   *
+   * Used to route internal-utility calls to a dedicated endpoint (e.g.
+   * `/api/v1/utility/chat/completions` on `"chat"`,
+   * `/api/v1/utility/responses` on `"responses"`).
+   */
   endpointOverride?: string;
+  /**
+   * The Class-B task this call performs, sent as `X-Anuma-Task-Type`. Naming the
+   * task is what lets the portal own the system prompt for it instead of trusting
+   * whatever `systemPrompt` we send (see {@link TaskType}). Omitted → no header,
+   * which is the pre-existing behavior.
+   */
   taskType?: TaskType;
+  /**
+   * Invoked at most ONCE, immediately before this call gives up and returns
+   * `null`, with the classified last failure. Never invoked on success.
+   *
+   * This exists because `null` is not a diagnosis. Callers surface extraction
+   * failures to users and to analytics, and until this hook existed they could
+   * only report "empty", which is indistinguishable from a model that answered
+   * `{candidates: []}` for good reason. See {@link PortalLlmFailureReason}.
+   */
   onFailure?: (failure: PortalLlmFailure) => void;
+  /**
+   * Invoked once per attempt as it settles, success included — see
+   * {@link PortalLlmAttempt}. Diagnostic only; a throwing listener is not
+   * guarded, so keep it side-effect-light (a counter, a push onto an array).
+   */
   onAttempt?: (attempt: PortalLlmAttempt) => void;
+  /**
+   * Internal, set by the retry loop — not part of the caller-facing contract.
+   *
+   * When the previous attempt returned prose instead of JSON, the next one
+   * prepends an explicit output-contract reminder. A retry that replays the
+   * identical request is the weakest possible recovery from a parse failure:
+   * the model already saw this prompt and answered with prose, so the only
+   * thing varying is sampling noise. Changing the request is what makes the
+   * retry mean something.
+   */
   reinforceJsonContract?: boolean;
 }
 
+/**
+ * A portal JSON call: the shared request fields, intersected with the
+ * transport-dependent pair. The split is not cosmetic — it is what makes
+ * `reasoning` unrepresentable on the chat transport (see
+ * {@link PortalLlmTransportOptions}).
+ */
 type PortalLlmRequest = PortalLlmRequestBase & PortalLlmTransportOptions;
 
 const CHAT_TO_RESPONSES_FIELDS: Record<string, string> = {
@@ -228,6 +362,15 @@ function assertTransportMatchesEndpoint(transport: PortalLlmTransport, endpoint:
   );
 }
 
+/**
+ * Outcome of a single attempt — distinguishes retryable from terminal.
+ * `retryAfterMs` carries a server-provided `Retry-After` (429) so the wrapper
+ * can honor it instead of the fixed backoff.
+ *
+ * `code` is the stable telemetry classification and `reason` the human log
+ * line; they are deliberately separate, because `reason` interpolates status
+ * codes and error messages and so can't be grouped by.
+ */
 type AttemptOutcome =
   | { kind: "ok"; value: unknown }
   | {

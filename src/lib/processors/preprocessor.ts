@@ -20,6 +20,7 @@ const MAX_TOTAL_IMAGES = 20;
 const DEFAULT_MAX_EXTRACTED_CHARS_PER_FILE = 100_000;
 const DEFAULT_MAX_EXTRACTED_CHARS_TOTAL = 200_000;
 
+/** Error raised when a processor exceeds `timeoutMs`. */
 class ProcessingTimeoutError extends Error {
   constructor(timeoutMs: number) {
     super(`Timed out processing file after ${timeoutMs}ms`);

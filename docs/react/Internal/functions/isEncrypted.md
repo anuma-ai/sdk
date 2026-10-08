@@ -2,7 +2,7 @@
 
 > **isEncrypted**(`value`: `string`): `boolean`
 
-Defined in: [src/lib/db/encryption-utils.ts:41](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/encryption-utils.ts#41)
+Defined in: [src/lib/db/encryption-utils.ts:40](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/encryption-utils.ts#40)
 
 Checks if a string value is encrypted (has the enc:v2: or enc:v3: prefix with valid hex payload).
 Validates that the payload after the prefix is at least 56 hex characters

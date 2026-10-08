@@ -29,6 +29,7 @@ export interface ICloudFile {
   assetDownloadURL?: string;
 }
 
+/** CloudKit record structure */
 interface CloudKitRecord {
   recordName: string;
   recordType: string;
@@ -40,6 +41,7 @@ interface CloudKitRecord {
   created?: { timestamp: number };
 }
 
+/** CloudKit response structure */
 interface CloudKitResponse {
   records?: CloudKitRecord[];
   continuationMarker?: string;

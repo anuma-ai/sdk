@@ -2,7 +2,7 @@
 
 > **startGithubAuth**(`clientId`: `string`, `callbackPath`: `string`): `Promise`<`never`>
 
-Defined in: [src/lib/auth/github.ts:509](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/github.ts#509)
+Defined in: [src/lib/auth/github.ts:415](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/github.ts#415)
 
 Start the OAuth flow - redirects to GitHub
 

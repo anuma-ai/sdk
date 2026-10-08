@@ -17,6 +17,21 @@ import {
   type UserPreferencesStorageOperationsContext,
 } from "../lib/db/userPreferences";
 
+/**
+ * Module-level subscription pool for `useSettings`.
+ *
+ * Without this, every call to `useSettings({ database, walletAddress })`
+ * spins up its own `.fetch()` and its own `.observe()` subscription on the
+ * `userPreferences` row. With many consumers (a typical app has 8-10) the
+ * worker bridge ships the same raw row repeatedly — WatermelonDB logs
+ * "Record userPreferences#X is cached, but full raw object was sent over
+ * the bridge" on every duplicate fetch.
+ *
+ * The pool guarantees one fetch + one observe per `(database, walletAddress)`
+ * key regardless of how many hook instances mount. State is exposed as a
+ * stable snapshot consumed via `useSyncExternalStore`.
+ */
+
 interface SettingsSnapshot {
   modelPreference: StoredModelPreference | null;
   userPreference: StoredUserPreference | null;

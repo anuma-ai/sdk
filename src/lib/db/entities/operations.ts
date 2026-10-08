@@ -105,6 +105,9 @@ async function upsertEntitiesInWrite(
   return { entities: out, operations: created, kindBackfills };
 }
 
+/**
+ * A kind back-fill waiting to be prepared — see {@link upsertEntitiesInWrite}.
+ */
 type EntityKindBackfill = { record: Entity; kind: string };
 
 function prepareKindBackfills(backfills: readonly EntityKindBackfill[]): Model[] {
@@ -150,6 +153,8 @@ function displayNamesOf(entities: ReadonlyArray<{ name: string }>): Map<string, 
   return out;
 }
 
+/** The minimum an entity must expose to become a topic entry. Structural so
+ * both {@link StoredEntity} and a raw {@link Entity} Model satisfy it. */
 type NamedEntity = { canonicalName: string; kind: string | null };
 
 function topicsEqual(stored: StoredTopic[] | null, computed: readonly StoredTopic[]): boolean {

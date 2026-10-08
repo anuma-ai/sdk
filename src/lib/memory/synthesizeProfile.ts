@@ -783,6 +783,7 @@ function extractFacetText(structured: unknown): { text: string; legitimateEmpty:
   return { text: "", legitimateEmpty: false };
 }
 
+/** A facet's structured attributes. Only the owning facet ever fills its field. */
 interface FacetStructuredValues {
   occupation?: string;
   interests?: string[];

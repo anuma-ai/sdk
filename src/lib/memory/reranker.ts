@@ -1,3 +1,17 @@
+/**
+ * Cross-encoder reranker — local inference via @huggingface/transformers.
+ *
+ * Mirrors Hindsight's default reranker (`cross-encoder/ms-marco-MiniLM-L-6-v2`)
+ * for parity with their reference pipeline. Runs fully on-device — no API
+ * key, no network call, works offline. Model file ~25MB; lazy-loaded and
+ * cached for the lifetime of the process.
+ *
+ * Implementation note: transformers.js v3 doesn't expose a "text-ranking"
+ * pipeline, so we drive the cross-encoder directly via the tokenizer +
+ * sequence-classification model. The model outputs a single relevance
+ * logit per (query, doc) pair; we sigmoid it into [0, 1].
+ */
+
 type AnyClass = { from_pretrained(id: string): Promise<unknown> };
 
 const MODEL_ID = "Xenova/ms-marco-MiniLM-L-6-v2";
@@ -101,6 +115,12 @@ async function getModel(): Promise<ModelHandle> {
 const DEFAULT_RERANKER_LOAD_TIMEOUT_MS = 10_000;
 
 interface RerankOptions {
+  /**
+   * Max ms to wait for a not-yet-loaded model (default 10000). On expiry this
+   * call throws {@link RerankerUnavailableError} — callers already degrade that
+   * to the fused ranking — while the load keeps going in the background, so a
+   * later call can still use the model. `0` waits indefinitely.
+   */
   loadTimeoutMs?: number;
 }
 
@@ -130,12 +150,19 @@ async function getModelWithin(loadTimeoutMs: number): Promise<ModelHandle> {
 interface RerankerItem {
   id: string;
   content: string;
+  /**
+   * Optional Unix-ms date used for C4 date-prefixed CE pairs. When set,
+   * the doc side is sent as `[Date: YYYY-MM-DD] <content>` so the
+   * cross-encoder can prefer temporally-aligned evidence. Does not
+   * mutate the returned `content` (callers still see the original text).
+   */
   dateMs?: number | null;
 }
 
 interface RerankedItem {
   id: string;
   content: string;
+  /** Cross-encoder score in [0, 1] (sigmoid of the model's logit). */
   score: number;
 }
 
