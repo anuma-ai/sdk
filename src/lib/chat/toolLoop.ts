@@ -661,7 +661,7 @@ export type RunToolLoopOptions = {
    * the first LLM request. Each pre-processor receives the prompt text
    * and a shared embedding (computed once per request) and may return
    * additional messages to enrich the conversation. Messages returned by
-   * each pre-processor are appended in array order to `messages` for the
+   * each pre-processor are inserted in array order before the latest user message for the
    * initial LLM call and all subsequent tool-loop rounds.
    *
    * Pre-processors run in parallel; a failure in one is logged and does
@@ -1227,7 +1227,15 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
         if (extra.length > 0) {
           // Injected context (memory/search/file) can also contain PII — redact
           // it with the same redactor so placeholder numbering stays consistent.
-          messages = [...messages, ...(await redactBatch(extra))];
+          // Keep the actual request as the latest user message. Portal uses that
+          // message for routing and moderation; fetched news is context, not a new request.
+          let userIndex = messages.length - 1;
+          while (userIndex > 0 && messages[userIndex].role !== "user") userIndex--;
+          messages = [
+            ...messages.slice(0, userIndex),
+            ...(await redactBatch(extra)),
+            ...messages.slice(userIndex),
+          ];
         }
       }
     } catch (err) {

@@ -20,7 +20,7 @@ export type PromptPreProcessorContext = {
 };
 
 /**
- * Returns messages to append to the conversation, or nothing to leave
+ * Returns context messages to insert before the latest user message, or nothing to leave
  * the conversation unchanged. Thrown errors are caught by the tool loop
  * so a failing pre-processor does not abort the LLM request.
  */
