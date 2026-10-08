@@ -1024,6 +1024,39 @@ export function resolveCallPii(
 
 export { maskScopedEmbeddingCache };
 
+/**
+ * A React hook that wraps useChat and persists messages and conversations to WatermelonDB as they are sent and received.
+ *
+ * @param options - Configuration options
+ * @returns Chat state and methods plus storage operations
+ *
+ * @example
+ * ```tsx
+ * import { Database } from '@nozbe/watermelondb';
+ * import { useChatStorage } from '@anuma/sdk/react';
+ *
+ * function ChatComponent({ database }: { database: Database }) {
+ *   const { isLoading, sendMessage } = useChatStorage({
+ *     database,
+ *     getToken: async () => getAuthToken(),
+ *     onData: (chunk) => setResponse((prev) => prev + chunk),
+ *   });
+ *
+ *   const handleSend = async () => {
+ *     const result = await sendMessage({
+ *       content: 'Hello, how are you?',
+ *       model: 'fireworks/accounts/fireworks/models/kimi-k2p5',
+ *       includeHistory: true,
+ *     });
+ *     if (result.error) console.error(result.error);
+ *   };
+ *
+ *   return <button onClick={handleSend} disabled={isLoading}>Send</button>;
+ * }
+ * ```
+ *
+ * @category Hooks
+ */
 export function useChatStorage(options: UseChatStorageOptions): UseChatStorageResult {
   const {
     database,

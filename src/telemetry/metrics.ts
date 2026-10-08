@@ -61,9 +61,26 @@ const defaultNowMs = (): number =>
 
 /**
  * Build {@link RunHooks} that report run lifecycle, model calls, and tool
- * calls to `sink`. The returned hooks are synchronous and never throw — a
- * throwing sink method is swallowed with a console-free `noop` (the tool loop
- * already swallows hook errors; we avoid double-logging here).
+ * calls to `sink`. The returned hooks are synchronous and never throw.
+ *
+ * Every started run emits exactly one of `run.completed` / `run.failed`. No
+ * message contents or tool arguments are emitted, and the raw error string
+ * only with {@link MetricsHooksOptions.includeErrorMessages}.
+ *
+ * Events (all carry `runId`):
+ * - `run.started` — `{ runId, model }`
+ * - `run.completed` — `{ runId, totalSteps, durationMs }`
+ * - `run.failed` — `{ runId, durationMs, errorType, stage }`
+ * - `model.call.completed` — `{ runId, stepIndex, latencyMs, model?, inputTokens?, outputTokens?, finishReason? }`
+ * - `model.call.failed` — `{ runId, stepIndex, latencyMs, model? }`
+ * - `tool.call.completed` — `{ runId, stepIndex, toolCallId, toolName, durationMs }`
+ * - `tool.call.failed` — `{ runId, stepIndex, toolCallId, toolName, durationMs, errorType }`
+ *
+ * Metrics:
+ * - `run.duration` (ms, tags: model?, outcome)
+ * - `model.call.latency` (ms, tags: model?, outcome)
+ * - `model.call.tokens` (count, tags: direction) when usage is present
+ * - `tool.call.duration` (ms, tags: toolName, outcome, errorType?)
  */
 export function createMetricsHooks(sink: TelemetrySink, opts?: MetricsHooksOptions): RunHooks {
   const now = opts?.now ?? defaultNowMs;

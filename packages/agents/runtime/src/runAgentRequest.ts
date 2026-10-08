@@ -22,32 +22,45 @@ import type {
   ToolError,
 } from "./types.js";
 
+/** Minimal slice of `AgentConfig` this runtime depends on. */
 export interface AgentConfigLike {
   model: { default: string };
   prompt: string;
 }
 
+/** Options for {@link runAgentRequest}. */
 export interface AgentRequestOpts {
+  /** Inbound request; only `headers.authorization` is read. */
   request: IncomingRequest;
   agent: AgentConfigLike;
   messages: LlmapiMessage[];
+  /** Factories that receive the portal client and return `ToolConfig[]`. */
   toolFactories?: Array<(portalClient: PortalClient) => ToolConfig[]>;
+  /** Overrides for the portal client, for test injection. */
   portalClientOpts?: PortalClientOpts;
+  /** Streaming transport override forwarded to `runToolLoop`, for tests. */
   transport?: StreamingTransport;
+  /** Portal base URL for chat completions; without a stub `transport` this hits the real portal. */
   portalBaseUrl?: string;
+  /** LLM API strategy. @defaultValue `"auto"` */
   apiType?: ApiType;
 }
 
+/** Token usage lifted off the LLM response. */
 export interface UsageSummary {
   inputTokens?: number;
   outputTokens?: number;
   totalTokens?: number;
 }
 
+/** Result of {@link runAgentRequest}. */
 export interface AgentResponse {
+  /** Input messages, then tool-result messages for each auto-executed tool, then the final assistant message. */
   messages: LlmapiMessage[];
+  /** Connector errors lifted from tool results. */
   toolErrors: ToolError[];
   usage?: UsageSummary;
+  /** Grant context, for logging and tenant propagation. */
   grant: GrantContext;
 }
 
@@ -64,6 +77,7 @@ function isConnectorErrorPayload(value: unknown): value is ParsedConnectorError 
   return (value as Record<string, unknown>)[CONNECTOR_ERROR_MARKER] === true;
 }
 
+/** Lift tool results carrying the `__anuma_connector_error_v1` marker into structured `ToolError`s. */
 export function extractConnectorToolErrors(
   toolResults: AutoExecutedToolResult[] | undefined
 ): ToolError[] {
@@ -166,10 +180,12 @@ function buildResponseMessages(
   return out;
 }
 
+/** Default `requestAccess` for server agents: always throws, since they cannot drive interactive OAuth. */
 async function denyInteractive(): Promise<string | null> {
   throw new Error("server agent cannot initiate OAuth; user must connect via portal");
 }
 
+/** Handle one inbound agent request: validate the bearer, build the portal client and tools, run `runToolLoop`, and lift connector errors. Throws on transport failure. */
 export async function runAgentRequest(opts: AgentRequestOpts): Promise<AgentResponse> {
   const grant = await extractGrantContext(opts.request, opts.portalClientOpts);
   const portal = createPortalClient(grant.bearer, opts.portalClientOpts);

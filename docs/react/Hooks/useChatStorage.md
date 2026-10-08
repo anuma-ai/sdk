@@ -1,8 +1,10 @@
 # useChatStorage
 
-> **useChatStorage**(`options`: `object`): [`UseChatStorageResult`](../interfaces/UseChatStorageResult.md)
+> **useChatStorage**(`options`: `object`): [`UseChatStorageResult`](../Internal/interfaces/UseChatStorageResult.md)
 
-Defined in: [src/react/useChatStorage.ts:1027](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#1027)
+Defined in: [src/react/useChatStorage.ts:1060](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#1060)
+
+A React hook that wraps useChat and persists messages and conversations to WatermelonDB as they are sent and received.
 
 ## Parameters
 
@@ -28,7 +30,7 @@ Defined in: [src/react/useChatStorage.ts:1027](https://github.com/anuma-ai/sdk/b
 </td>
 <td>
 
-‐
+Configuration options
 
 </td>
 </tr>
@@ -221,7 +223,7 @@ Title for auto-created conversations (default: "New conversation")
 </td>
 <td>
 
-[`EmbeddedWalletSignerFn`](../type-aliases/EmbeddedWalletSignerFn.md)
+[`EmbeddedWalletSignerFn`](../Internal/type-aliases/EmbeddedWalletSignerFn.md)
 
 </td>
 <td>
@@ -288,7 +290,7 @@ true
 </td>
 <td>
 
-[`ToolSet`](../interfaces/ToolSet.md)\[]
+[`ToolSet`](../Internal/interfaces/ToolSet.md)\[]
 
 </td>
 <td>
@@ -396,7 +398,7 @@ Callback for progress updates
 </td>
 <td>
 
-[`FileProcessor`](../interfaces/FileProcessor.md)\[] | `null`
+[`FileProcessor`](../Internal/interfaces/FileProcessor.md)\[] | `null`
 
 </td>
 <td>
@@ -431,7 +433,7 @@ payload from a `role: "user"` row onto an `assistant` row. Any consumer that scr
 rows by checking `role === "user"` plus the content prefix (which is how both apps did it
 before this option existed) stops catching them the moment folding turns on, and starts
 replaying whatever the row held. Opting in is therefore a statement that the caller has
-checked its own filters and set [toolResultsHistoryExclude](../interfaces/UseChatStorageOptions.md#toolresultshistoryexclude) for any payload that must
+checked its own filters and set [toolResultsHistoryExclude](../Internal/interfaces/UseChatStorageOptions.md#toolresultshistoryexclude) for any payload that must
 not reach the model.
 
 With it off, rows are dropped from the replayed history rather than sent verbatim. Verbatim
@@ -583,7 +585,7 @@ Callback invoked when an error occurs during the request
 </td>
 <td>
 
-(`response`: [`LlmapiResponseResponse`](../../../client/Internal/type-aliases/LlmapiResponseResponse.md)) => `void`
+(`response`: [`LlmapiResponseResponse`](../../client/Internal/type-aliases/LlmapiResponseResponse.md)) => `void`
 
 </td>
 <td>
@@ -600,7 +602,7 @@ Callback invoked when the response completes successfully
 </td>
 <td>
 
-(`matches`: [`PiiMatch`](../../../expo/Internal/interfaces/PiiMatch.md)\[]) => `void`
+(`matches`: [`PiiMatch`](../../expo/Internal/interfaces/PiiMatch.md)\[]) => `void`
 
 </td>
 <td>
@@ -670,7 +672,7 @@ Callback invoked when thinking/reasoning content is received (from `<think>` tag
 </td>
 <td>
 
-(`event`: [`ToolCallArgumentsDeltaEvent`](../type-aliases/ToolCallArgumentsDeltaEvent.md)) => `void`
+(`event`: [`ToolCallArgumentsDeltaEvent`](../Internal/type-aliases/ToolCallArgumentsDeltaEvent.md)) => `void`
 
 </td>
 <td>
@@ -709,7 +711,7 @@ Errors thrown by the callback are swallowed.
 </td>
 <td>
 
-`boolean` | [`PiiRedactor`](../../../expo/Internal/classes/PiiRedactor.md)
+`boolean` | [`PiiRedactor`](../../expo/Internal/classes/PiiRedactor.md)
 
 </td>
 <td>
@@ -734,7 +736,7 @@ cover names, non-text content, or tool-call arguments.
 </td>
 <td>
 
-[`PromptPreProcessor`](../type-aliases/PromptPreProcessor.md)\[]
+[`PromptPreProcessor`](../Internal/type-aliases/PromptPreProcessor.md)\[]
 
 </td>
 <td>
@@ -850,7 +852,7 @@ DeferLoadingConfig.
 </td>
 <td>
 
-[`SignMessageFn`](../type-aliases/SignMessageFn.md)
+[`SignMessageFn`](../Internal/type-aliases/SignMessageFn.md)
 
 </td>
 <td>
@@ -869,7 +871,7 @@ Required together with walletAddress for field-level encryption.
 </td>
 <td>
 
-`boolean` | [`StreamSmoothingConfig`](../type-aliases/StreamSmoothingConfig.md)
+`boolean` | [`StreamSmoothingConfig`](../Internal/type-aliases/StreamSmoothingConfig.md)
 
 </td>
 <td>
@@ -938,4 +940,32 @@ When not provided, data is stored in plaintext (backwards compatible).
 
 ## Returns
 
-[`UseChatStorageResult`](../interfaces/UseChatStorageResult.md)
+[`UseChatStorageResult`](../Internal/interfaces/UseChatStorageResult.md)
+
+Chat state and methods plus storage operations
+
+## Example
+
+```tsx
+import { Database } from '@nozbe/watermelondb';
+import { useChatStorage } from '@anuma/sdk/react';
+
+function ChatComponent({ database }: { database: Database }) {
+  const { isLoading, sendMessage } = useChatStorage({
+    database,
+    getToken: async () => getAuthToken(),
+    onData: (chunk) => setResponse((prev) => prev + chunk),
+  });
+
+  const handleSend = async () => {
+    const result = await sendMessage({
+      content: 'Hello, how are you?',
+      model: 'fireworks/accounts/fireworks/models/kimi-k2p5',
+      includeHistory: true,
+    });
+    if (result.error) console.error(result.error);
+  };
+
+  return <button onClick={handleSend} disabled={isLoading}>Send</button>;
+}
+```

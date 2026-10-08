@@ -86,6 +86,7 @@ const SENTINEL_FIRST_TIME_DISCLAIMER = [
 
 const SENTINEL_PERSISTENT_FOOTER = "{{agent_name}} is an AI. This is not financial advice.";
 
+/** Sentinel finance agent configuration. */
 export const sentinelAgent: AgentConfig = {
   id: "sentinel",
   runtimes: ["server"],

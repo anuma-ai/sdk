@@ -100,6 +100,7 @@ function parseMintError(status: number, body: MintErrorBody): MintError {
   };
 }
 
+/** Create a {@link PortalClient} that retries 5xx and network errors with jittered exponential backoff and never retries 4xx. */
 export function createPortalClient(bearer: string, opts: PortalClientOpts = {}): PortalClient {
   const baseUrl = opts.baseUrl ?? process.env.ANUMA_PORTAL_URL ?? DEFAULT_PORTAL_URL;
   const fetchImpl = opts.fetchImpl ?? globalThis.fetch;
