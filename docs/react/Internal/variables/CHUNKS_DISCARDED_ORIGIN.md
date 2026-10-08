@@ -2,7 +2,7 @@
 
 > `const` **CHUNKS\_DISCARDED\_ORIGIN**: `"chunks_discarded"`
 
-Defined in: [src/lib/memoryEngine/embeddings.ts:81](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryEngine/embeddings.ts#81)
+Defined in: [src/lib/memoryEngine/embeddings.ts:68](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryEngine/embeddings.ts#68)
 
 An ordinary message whose chunk vectors were built over `enc:v3:` ciphertext
 (sdk#864) and have been discarded instead of re-embedded.

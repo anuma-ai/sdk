@@ -1,21 +1,4 @@
 // @vitest-environment happy-dom
-/**
- * RecordCache guard for the per-recall search lanes.
- *
- * searchMessagesOp / searchChunksOp score EVERY candidate row in the messages
- * table on each recall. Built on `.fetch()`, each scan constructs a
- * WatermelonDB Model per row, which the collection RecordCache then retains by
- * id forever — long-lived sessions accumulate one pinned Model per message row
- * (web Pile-2). The lanes must scan via `unsafeFetchRaw` (same SQL, no Models)
- * and map only the top-K survivors to StoredMessages. These tests count
- * `.fetch()` calls on the messages collection: the pre-fix code makes one per
- * search, the fixed code makes none, and the returned results must be
- * identical in shape and ranking either way.
- *
- * getToolCallEventIdsOp is the send hot path's replacement for a full-thread
- * getMessagesOp: it must collect every stored toolCallEvents id WITHOUT
- * decrypting anything (tool_call_events is a plaintext JSON column).
- */
 
 import { Database } from "@nozbe/watermelondb";
 import LokiJSAdapter from "@nozbe/watermelondb/adapters/lokijs";
@@ -55,11 +38,6 @@ function makeCtx(db: Database): StorageOperationsContext {
 
 const MODEL = "qwen/qwen3-embedding-8b";
 
-/**
- * Count `.fetch()` calls made through the messages collection's `query()`.
- * The scan must use `unsafeFetchRaw` instead; any `.fetch()` here pins a Model
- * per scanned row into the never-evicted RecordCache.
- */
 function countMessageFetches(ctx: StorageOperationsContext): () => number {
   let fetchCalls = 0;
   const collection = ctx.messagesCollection as unknown as {
@@ -116,14 +94,11 @@ describe("search lanes scan via unsafeFetchRaw (no per-row Model pinning)", () =
     expect(results[0].content).toBe("apples and oranges");
     expect(results[0].similarity).toBeCloseTo(1, 5);
     expect(results[1].similarity).toBeGreaterThan(results[1].similarity - 0.001);
-    // The survivor is a full StoredMessage — the raw->Stored mapper stands in
-    // for the Model path.
     expect(results[0].conversationId).toBe("conv-1");
     expect(results[0].role).toBe("assistant");
   });
 
   it("searchChunksOp scores chunk lanes without .fetch()ing message Models", async () => {
-    // Give msg-c a chunk that beats every whole-message vector.
     await updateMessageChunksOp(
       ctx,
       "msg-c",
@@ -168,7 +143,6 @@ describe("getToolCallEventIdsOp", () => {
       uniqueId: "t3",
       toolCallEvents: [{ id: "evt-3", name: "search", status: "failed" }] as never,
     });
-    // Another conversation's events must not leak in.
     await createConversationOp(ctx, { conversationId: "conv-other" });
     await createMessageOp(ctx, {
       conversationId: "conv-other",

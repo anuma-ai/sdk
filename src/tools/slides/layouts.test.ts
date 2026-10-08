@@ -10,14 +10,8 @@ import {
   SHARED_HEADER_ELEMENTS,
 } from "./layouts";
 
-// The layout element type is module-local to `layouts.ts` (it used to be the
-// exported `SlideElement` union on `./index`), so pull it off an exported value
-// rather than reaching for a name that no longer exists.
 type SlideElement = (typeof SHARED_HEADER_ELEMENTS)[number];
 
-// Narrow runtime check that a value has the shape of a SlideElement.
-// TypeScript already guarantees this at compile time; this catches mistakes
-// where someone casts/any's their way around the type.
 function isElementShape(e: unknown): e is SlideElement {
   if (!e || typeof e !== "object") return false;
   const el = e as Record<string, unknown>;
@@ -56,7 +50,6 @@ describe("LAYOUT_TEMPLATES", () => {
         expect(el.x, `${t.name}/${el.id} x`).toBeLessThanOrEqual(100);
         expect(el.y, `${t.name}/${el.id} y`).toBeGreaterThanOrEqual(0);
         expect(el.y, `${t.name}/${el.id} y`).toBeLessThanOrEqual(100);
-        // Allow width/height 0 for line shapes (rendered as borders).
         expect(el.w, `${t.name}/${el.id} w`).toBeGreaterThanOrEqual(0);
         expect(el.h, `${t.name}/${el.id} h`).toBeGreaterThanOrEqual(0);
       }

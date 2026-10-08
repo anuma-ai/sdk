@@ -1,60 +1,7 @@
-/**
- * Confirmation interaction tool factory.
- *
- * Creates a client-side tool that shows the user exactly what is about to
- * happen and blocks until they answer. Built for actions that are expensive to
- * undo — spending money, holding a table against someone's card — where the
- * model's own belief that the user agreed is not good enough.
- *
- * ## What the result is for
- *
- * The portal gates the action on this tool's result: it refuses the acting tool
- * unless a completed confirmation for the same thing is already in the turn. A
- * bare `{ confirmed: true }` would not survive that, because the model writes
- * the acting tool's arguments and could equally write a boolean that says the
- * user agreed. So the result carries **the parameters themselves**, and the
- * portal compares them against the acting tool's arguments field by field.
- *
- * The chain that makes it verifiable:
- *
- * 1. The model writes `action` and `parameters` as tool arguments.
- * 2. The card renders those same values — not a paraphrase of them.
- * 3. The user answers the card, and the SDK (not the model) builds the result.
- * 4. The portal compares the result's `parameters` to the acting tool's
- *    arguments, and refuses on any mismatch.
- *
- * A model that wants to book something other than what the user saw has to get
- * step 4 past a field-by-field comparison, which is why the values are plain
- * strings: two renderings of the same number must not read as a disagreement.
- *
- * ## The three outcomes
- *
- * | Outcome | Result |
- * |---|---|
- * | The user confirmed | `{ confirmed: true, action, parameters, answeredAt }` |
- * | The user declined | `{ confirmed: false, action, parameters, answeredAt }` |
- * | Timed out, cleared, never shown, or a malformed reply | `{ cancelled: true }` |
- *
- * A decline is an ordinary answer, not a failure — the model should say so and
- * move on. Only the third row means nobody answered, and it is the shape every
- * interactive tool in this module already produces for that case. A reply
- * whose `confirmed` is not a boolean is not an answer either, so it lands there
- * too rather than being reported as the user saying no.
- *
- * **The card must resolve the interaction for a decline, with
- * `{ confirmed: false }` — not cancel it.** Cancelling rejects the underlying
- * promise, which is indistinguishable from a timeout by the time it reaches
- * here, and a decline would then be reported as nobody having answered.
- */
-
 import type { ToolConfig } from "../lib/chat/useChat/types.js";
 import { CONFIRM_TOOL_NAME } from "./confirmConstants";
 import type { CreateUIToolsOptions } from "./uiInteraction";
 import { createInteractiveTool } from "./uiInteraction";
-
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
 
 /** One field of the action being confirmed, as the card shows it. */
 export type ConfirmParameter = {
@@ -85,10 +32,6 @@ export type ConfirmToolResult =
       /** Timed out, cleared, never shown, or the card replied without a decision. */
       cancelled: true;
     };
-
-// ---------------------------------------------------------------------------
-// Tool factory
-// ---------------------------------------------------------------------------
 
 /**
  * Create a prompt_user_confirm tool that asks the user to approve an action.
@@ -164,8 +107,6 @@ export function createConfirmTool(options: CreateUIToolsOptions): ToolConfig {
       if (typeof title !== "string" || !title) return false;
       if (typeof action !== "string" || !action) return false;
       if (!Array.isArray(parameters) || parameters.length === 0) return false;
-      // An action with no readable parameters is one the user cannot actually
-      // judge, and one the portal has nothing to compare against.
       return parameters.every((parameter: Partial<ConfirmParameter>) => {
         return (
           typeof parameter?.name === "string" &&
@@ -180,15 +121,9 @@ export function createConfirmTool(options: CreateUIToolsOptions): ToolConfig {
       result: Record<string, unknown>,
       args: Record<string, unknown>
     ): ConfirmToolResult => {
-      // Only an explicit boolean is an answer. Anything else is a card that
-      // replied without a decision, and reporting it as a decline would put
-      // words in the user's mouth.
       if (typeof result.confirmed !== "boolean") return { cancelled: true };
       return {
         confirmed: result.confirmed,
-        // From the arguments rather than from the card's reply. The card was
-        // handed these to render, so echoing them back would only create a
-        // second copy that could disagree with what was on screen.
         action: args.action as string,
         parameters: args.parameters as ConfirmParameter[],
         answeredAt: new Date().toISOString(),

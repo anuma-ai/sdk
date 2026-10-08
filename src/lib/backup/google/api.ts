@@ -1,18 +1,7 @@
-/**
- * Google Drive API utilities
- *
- * Uses Google Drive API v3 for file operations.
- * Requires an OAuth 2.0 access token with drive.file scope.
- */
-
 const DRIVE_API_URL = "https://www.googleapis.com/drive/v3";
 const DRIVE_UPLOAD_URL = "https://www.googleapis.com/upload/drive/v3";
 const FOLDER_MIME_TYPE = "application/vnd.google-apps.folder";
 
-/**
- * Escape single quotes for Google Drive API query strings
- * Single quotes must be doubled to prevent query injection
- */
 function escapeQueryValue(value: string): string {
   return value.replace(/'/g, "''");
 }
@@ -30,9 +19,6 @@ export interface DriveFile {
   size: string;
 }
 
-/**
- * Find or create a folder in Google Drive
- */
 async function ensureFolder(accessToken: string, name: string, parentId?: string): Promise<string> {
   const parentQuery = parentId ? `'${escapeQueryValue(parentId)}' in parents and ` : "";
   const query = `${parentQuery}mimeType='${FOLDER_MIME_TYPE}' and name='${escapeQueryValue(name)}' and trashed=false`;
@@ -53,7 +39,6 @@ async function ensureFolder(accessToken: string, name: string, parentId?: string
     return data.files[0].id;
   }
 
-  // Create folder if it doesn't exist
   const body: Record<string, unknown> = {
     name,
     mimeType: FOLDER_MIME_TYPE,
@@ -172,7 +157,6 @@ export async function listDriveFiles(accessToken: string, folderId: string): Pro
   return data.files ?? [];
 }
 
-/** Largest page size that the Drive files.list endpoint accepts. */
 const DRIVE_MAX_PAGE_SIZE = 1000;
 
 /**

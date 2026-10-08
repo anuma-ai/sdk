@@ -2,10 +2,6 @@ import { describe, expect, it } from "vitest";
 
 import { cosineInt8, dequantizeEmbedding, quantizeEmbedding } from "./quantization";
 
-/**
- * Exact Float32 cosine similarity. Used as the ground-truth oracle in
- * the recall benchmark below.
- */
 function cosineFloat32(a: Float32Array | number[], b: Float32Array | number[]): number {
   if (a.length !== b.length) return 0;
   let dot = 0;
@@ -20,10 +16,6 @@ function cosineFloat32(a: Float32Array | number[], b: Float32Array | number[]): 
   return mag === 0 ? 0 : dot / mag;
 }
 
-/**
- * Mulberry32 — small, deterministic 32-bit PRNG. Vitest's `Math.random`
- * is not seedable, and the recall benchmark needs reproducibility.
- */
 function makeRng(seed: number): () => number {
   let s = seed >>> 0;
   return () => {
@@ -35,13 +27,11 @@ function makeRng(seed: number): () => number {
   };
 }
 
-/** Builds a roughly-unit-norm random vector of `dim` dims using the given RNG. */
 function randomEmbedding(dim: number, rng: () => number): Float32Array {
   const v = new Float32Array(dim);
   for (let i = 0; i < dim; i += 1) {
     v[i] = rng() * 2 - 1;
   }
-  // Normalize so cosine values are well-distributed.
   let norm = 0;
   for (let i = 0; i < dim; i += 1) norm += v[i] * v[i];
   norm = Math.sqrt(norm);
@@ -96,10 +86,6 @@ describe("quantizeEmbedding", () => {
   });
 });
 
-/**
- * Per-element error bound: |v[i] - back[i]| <= scale / (2 * 127) plus a
- * small float epsilon. Returns scale/127 as a safe upper bound.
- */
 function scale_tolerance(scale: number): number {
   return scale / 127 + 1e-6;
 }
@@ -151,7 +137,6 @@ describe("recall benchmark vs Float32 cosine", () => {
 
     const rng = makeRng(0xbadbeef);
 
-    // Build the corpus and pre-quantize it.
     const docsF32: Float32Array[] = [];
     const docsQ: ReturnType<typeof quantizeEmbedding>[] = [];
     for (let i = 0; i < numDocs; i += 1) {
@@ -165,12 +150,10 @@ describe("recall benchmark vs Float32 cosine", () => {
       const query = randomEmbedding(dim, rng);
       const queryQ = quantizeEmbedding(query);
 
-      // Float32 ground-truth top-K.
       const truthScores = docsF32.map((d, idx) => ({ idx, sim: cosineFloat32(query, d) }));
       truthScores.sort((a, b) => b.sim - a.sim);
       const truthTopK = new Set(truthScores.slice(0, k).map((s) => s.idx));
 
-      // Int8 ranked top-K.
       const approxScores = docsQ.map((d, idx) => ({
         idx,
         sim: cosineInt8(queryQ.data, queryQ.scale, d.data, d.scale),

@@ -4,11 +4,7 @@ import React from "react";
 import { ChartCard } from "./chart";
 import type { DisplayChartResult } from "../tools/chart";
 
-// recharts relies on DOM measurements (ResizeObserver, getBoundingClientRect)
-// that happy-dom doesn't provide. Mock the recharts module so we can verify
-// that ChartCard passes the right props without needing a real browser.
 vi.mock("recharts", () => {
-  // Serialize only primitive props to avoid circular React fiber references.
   function safeAttrs(props: Record<string, unknown>) {
     const out: Record<string, string> = {};
     for (const [k, v] of Object.entries(props)) {
@@ -48,20 +44,13 @@ vi.mock("recharts", () => {
   };
 });
 
-// Helper: render ChartCard and flush the requestAnimationFrame that gates
-// the chart render (the component delays until the container is laid out).
 async function renderChart(data: DisplayChartResult) {
   const result = render(<ChartCard data={data} />);
-  // Flush rAF so the `ready` state flips to true
   await act(async () => {
     await new Promise((r) => requestAnimationFrame(r));
   });
   return result;
 }
-
-// ---------------------------------------------------------------------------
-// Test data
-// ---------------------------------------------------------------------------
 
 const BAR_DATA: DisplayChartResult = {
   chartType: "bar",
@@ -114,10 +103,6 @@ const ERROR_DATA: DisplayChartResult = {
   error: "Something went wrong",
 };
 
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
-
 describe("ChartCard", () => {
   it("renders a bar chart with title", async () => {
     await renderChart(BAR_DATA);
@@ -125,13 +110,11 @@ describe("ChartCard", () => {
     expect(screen.getByText("Quarterly Revenue")).toBeDefined();
     expect(screen.getByTestId("BarChart")).toBeDefined();
 
-    // One Bar element per dataKey
     const bars = screen.getAllByTestId("Bar");
     expect(bars).toHaveLength(2);
     expect(bars[0].getAttribute("data-datakey")).toBe("revenue");
     expect(bars[1].getAttribute("data-datakey")).toBe("expenses");
 
-    // XAxis bound to quarter key
     const xAxis = screen.getByTestId("XAxis");
     expect(xAxis.getAttribute("data-datakey")).toBe("quarter");
   });

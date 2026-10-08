@@ -1,10 +1,3 @@
-/**
- * E2E test: display_chart tool
- *
- * Verifies that the model calls display_chart with valid chart data
- * and the tool executor returns the expected result structure.
- */
-
 import { describe, it, expect } from "vitest";
 import { runToolLoop } from "./setup.js";
 import { createChartTool } from "../../src/tools/chart.js";

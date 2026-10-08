@@ -103,10 +103,6 @@ export function useCanvasGestures(opts: UseCanvasGesturesOpts): UseCanvasGesture
   const selectedIds = selectedIdsControlled ?? selectedIdsInternal;
   const selectedId = selectedIds.size === 1 ? (Array.from(selectedIds)[0] ?? null) : null;
 
-  // Stable setter that handles both controlled and uncontrolled modes.
-  // Always calls onSelectionChange (if provided) AND updates internal
-  // state, so uncontrolled hosts can read via the returned `selectedIds`
-  // and controlled hosts get the change via onSelectionChange.
   const setSelectedIds = useCallback(
     (next: ReadonlySet<string> | ((prev: ReadonlySet<string>) => ReadonlySet<string>)) => {
       if (typeof next === "function") {
@@ -127,8 +123,6 @@ export function useCanvasGestures(opts: UseCanvasGesturesOpts): UseCanvasGesture
 
   const [gesture, setGesture] = useState<Gesture | null>(null);
 
-  // Latest selectedIds in a ref so handlers can read the post-set
-  // value within a single React turn (setState is async).
   const selectedIdsRef = useRef(selectedIds);
   selectedIdsRef.current = selectedIds;
 
@@ -143,8 +137,6 @@ export function useCanvasGestures(opts: UseCanvasGesturesOpts): UseCanvasGesture
       const selId = sel.size === 1 ? (Array.from(sel)[0] ?? null) : null;
       const pointer = { x: e.clientX, y: e.clientY };
 
-      // Handles take priority — they're explicit grab affordances with
-      // no click-vs-drag ambiguity, so capture pointer immediately.
       const handleGesture = detectHandleGesture(e.nativeEvent, deck, selId, stage, pointer, scale);
       if (handleGesture) {
         e.currentTarget.setPointerCapture(e.pointerId);
@@ -153,16 +145,6 @@ export function useCanvasGestures(opts: UseCanvasGesturesOpts): UseCanvasGesture
       }
 
       const id = findElementIdFromEvent(e.nativeEvent, stage);
-      // Empty canvas → pending with null elementId. Either becomes a
-      // marquee on threshold cross, or releases as "click empty". We
-      // don't clear selection here so an additive marquee can build on
-      // top of the original selection.
-      // Element body → pending with the id; shift-click toggles
-      // selection only (no drag arming, since toggle-off would leave
-      // the user dragging a just-removed element).
-      // Don't setPointerCapture here — capturing on pointerdown
-      // suppresses synthesized click/dblclick in some browsers, which
-      // breaks double-click-to-edit. Capture is deferred until threshold.
       if (id !== null) {
         setSelectedIds((prev) => buildSelectionAfterClick(prev, id, e.shiftKey));
       }
@@ -182,7 +164,6 @@ export function useCanvasGestures(opts: UseCanvasGesturesOpts): UseCanvasGesture
       if (!id) return;
       const node = findById(deck, id);
       if (!node || node.tag !== "Text") return;
-      // Force single-selection — multi-element text editing isn't a thing.
       setSelectedIds(new Set([id]));
       setGesture(null);
       onTextDoubleClick?.(id);
@@ -248,8 +229,6 @@ export function useCanvasGestures(opts: UseCanvasGesturesOpts): UseCanvasGesture
         // capture may not have been set; harmless
       }
       if (!gesture) return;
-      // Pending click on empty canvas → clear selection (unless shift).
-      // Element-pending already updated selection on down.
       if (gesture.phase === "pending" && gesture.elementId === null && !gesture.shiftKey) {
         setSelectedIds(new Set());
       }
@@ -260,10 +239,6 @@ export function useCanvasGestures(opts: UseCanvasGesturesOpts): UseCanvasGesture
     [gesture, setDeck, setSelectedIds]
   );
 
-  // pointercancel fires when the OS or browser steals the pointer mid-gesture
-  // (e.g. a second touch starts a scroll). Drop the in-flight gesture without
-  // committing — committing at the interrupted position would leave the AST
-  // in a state the user never intended.
   const handlePointerCancel = useCallback((e: React.PointerEvent<HTMLElement>) => {
     try {
       e.currentTarget.releasePointerCapture(e.pointerId);
@@ -290,19 +265,6 @@ export function useCanvasGestures(opts: UseCanvasGesturesOpts): UseCanvasGesture
   };
 }
 
-/**
- * Live drag preview — directly mutate transform/opacity on the
- * dragged DOM nodes. Drag fires too many events to round-trip through
- * React per pointer move; resize/rotate go through `renderedDeck`
- * instead.
- *
- * Cleanup re-queries by data-id rather than reusing the captured
- * element ref. If a sibling reorder happened between effect setup and
- * cleanup (drop committed → flex children re-rendered), React's
- * reconciler may have swapped this DOM node's props to a different
- * element. Re-querying ensures the inline-style restore lands on the
- * *current* DOM node for this id.
- */
 function useDragPreviewEffect(
   stageRef: React.RefObject<HTMLElement | null>,
   gesture: Gesture | null,
@@ -337,12 +299,6 @@ function useDragPreviewEffect(
   }, [gesture, deck, stageRef]);
 }
 
-/**
- * Deck patched with in-flight resize/rotate so the runtime renders
- * the live state without committing every frame. Drag is NOT folded
- * in here — direct DOM mutation handles that (drag fires too many
- * events for AST round-trip).
- */
 function useRenderedDeck(deck: AnumaNode, gesture: Gesture | null): AnumaNode {
   return useMemo(() => {
     if (!gesture) return deck;
@@ -352,9 +308,6 @@ function useRenderedDeck(deck: AnumaNode, gesture: Gesture | null): AnumaNode {
     if (!el) return deck;
     if (gesture.phase === "resizing") {
       const cb = gesture.currentBounds;
-      // Match commitResize: a flex child only writes the main-axis dimension,
-      // so the preview shouldn't inject x/y/cross-axis attrs that flip a
-      // flex-stretched child to fixed-size mid-gesture.
       const layout = findParentOfId(next, gesture.elementId)?.attrs.layout;
       if (layout === "column") {
         el.attrs.h = cb.h;

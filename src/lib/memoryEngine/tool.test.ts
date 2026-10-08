@@ -1,21 +1,3 @@
-/**
- * Contract tests for createMemoryEngineTool.
- *
- * This factory is PUBLIC API — it is re-exported from the react, expo, and
- * server barrels, so an external consumer wires the returned ToolConfig
- * straight into a chat completion. Yet it had zero direct or indirect tests
- * (issue #630). These tests exercise the surface a consumer actually sees: the
- * tool schema shape, argument validation, the retrieval/dedup/formatting
- * pipeline, and — importantly — the error contract (this executor returns
- * error *strings* to the LLM rather than throwing).
- *
- * The network and DB are faked at the module seams, the same pattern
- * retain.test.ts / embeddings.test.ts use: `../db/chat/operations` and
- * `./embeddings` are module-mocked so no real WatermelonDB or portal call
- * happens. Because every op that touches the storage context is mocked, a
- * cast-empty `{} as StorageOperationsContext` is a safe stand-in — nothing ever
- * dereferences it.
- */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../db/chat/operations", () => ({
@@ -38,12 +20,6 @@ import { DEFAULT_API_EMBEDDING_MODEL } from "./constants";
 import { generateEmbedding } from "./embeddings";
 import { createMemoryEngineTool } from "./tool";
 
-/**
- * Structural view of the tool schema. LlmapiChatCompletionTool is typed as a
- * permissive index signature (`{ [key: string]: unknown }`), so `tool.function`
- * is `unknown` at compile time — this cast target names the fields the schema
- * actually carries so the assertions read cleanly.
- */
 interface ToolSchemaView {
   type: string;
   function: {
@@ -59,8 +35,6 @@ interface ToolSchemaView {
 
 const schema = (tool: ToolConfig): ToolSchemaView => tool as unknown as ToolSchemaView;
 
-/** The executor is typed loosely (ToolExecutor → Promise<unknown> | unknown);
- * at runtime it always resolves to a string, so narrow it here for the asserts. */
 const run = (tool: ToolConfig, args: Record<string, unknown>): Promise<string> =>
   tool.executor!(args) as Promise<string>;
 
@@ -100,7 +74,6 @@ function makeChunk(
 
 beforeEach(() => {
   vi.clearAllMocks();
-  // A benign default embedding so the happy paths don't have to set it up.
   vi.mocked(generateEmbedding).mockResolvedValue([0.1, 0.2, 0.3]);
 });
 
@@ -110,8 +83,6 @@ describe("createMemoryEngineTool — schema", () => {
     const s = schema(tool);
     expect(s.type).toBe("function");
     expect(s.function.name).toBe("search_memory");
-    // removeAfterExecution keeps a small model from re-calling the same search
-    // on every continuation — part of the tool's advertised contract.
     expect(tool.removeAfterExecution).toBe(true);
   });
 
@@ -129,8 +100,6 @@ describe("createMemoryEngineTool — schema", () => {
   });
 
   it("surfaces custom defaults into the property descriptions the LLM reads", () => {
-    // The per-call defaults must be visible to the model in the schema text, or
-    // it cannot know what behavior it gets when it omits a field.
     const s = schema(
       createMemoryEngineTool(ctx, {}, { topK: 3, includeAssistant: true, sortBy: "chronological" })
     );
@@ -149,15 +118,10 @@ describe("createMemoryEngineTool — argument validation and error paths", () =>
     expect(await run(tool, {})).toBe(expected);
     expect(await run(tool, { query: "" })).toBe(expected);
     expect(await run(tool, { query: 42 })).toBe(expected);
-    // Validation precedes embedding, so the network seam is never touched.
     expect(generateEmbedding).not.toHaveBeenCalled();
   });
 
   it("returns the embedding error AS A STRING (does not throw) when embedding fails", async () => {
-    // NOTE(#630): unlike recallTool (which re-throws with a cause after #730),
-    // this executor surfaces failures to the LLM as prose. That is the current,
-    // intentional contract here — pinned so a future change to re-throw is a
-    // deliberate decision, not an accident.
     vi.mocked(generateEmbedding).mockRejectedValue(new Error("portal down"));
     const tool = createMemoryEngineTool(ctx, {});
     expect(await run(tool, { query: "q" })).toBe("Error searching conversations: portal down");
@@ -189,7 +153,6 @@ describe("createMemoryEngineTool — retrieval pipeline", () => {
     const tool = createMemoryEngineTool(ctx, {});
     await run(tool, { query: "q" });
 
-    // Default topK 8, assistant excluded → multiplier 3 × 2 = 6 → limit 48.
     expect(searchChunksOp).toHaveBeenCalledTimes(1);
     expect(searchChunksOp).toHaveBeenCalledWith(
       ctx,
@@ -206,7 +169,6 @@ describe("createMemoryEngineTool — retrieval pipeline", () => {
     vi.mocked(searchChunksOp).mockResolvedValue([]);
     const tool = createMemoryEngineTool(ctx, {});
     await run(tool, { query: "q", include_assistant: true });
-    // multiplier 3 × 1 = 3 → limit 24.
     expect(searchChunksOp).toHaveBeenCalledWith(
       ctx,
       [0.1, 0.2, 0.3],
@@ -244,11 +206,9 @@ describe("createMemoryEngineTool — retrieval pipeline", () => {
 
     expect(out.startsWith("Found 2 relevant past conversations:")).toBe(true);
     expect(out).toContain("=== Conversation from");
-    // Similarity rendered via toFixed(2).
     expect(out).toContain("(relevance: 0.90)");
     expect(out).toContain("(relevance: 0.70)");
     expect(out).toContain("User: alpha one");
-    // Default sort is by similarity descending: convA (0.90) precedes convB (0.70).
     expect(out.indexOf("alpha one")).toBeLessThan(out.indexOf("beta one"));
   });
 
@@ -281,7 +241,6 @@ describe("createMemoryEngineTool — retrieval pipeline", () => {
       query: "q",
       sort_by: "chronological",
     });
-    // convB is older, so despite convA's higher similarity it renders first.
     expect(out.indexOf("beta")).toBeLessThan(out.indexOf("alpha"));
   });
 
@@ -301,8 +260,7 @@ describe("createMemoryEngineTool — retrieval pipeline", () => {
               content: "the assistant line",
             }),
           ]
-        : // convB expands to only assistant messages → nothing to render → dropped.
-          [
+        : [
             makeMessage({
               conversationId: "convB",
               uniqueId: "b1",
@@ -315,16 +273,11 @@ describe("createMemoryEngineTool — retrieval pipeline", () => {
     const out = await run(createMemoryEngineTool(ctx, {}), { query: "q" });
     expect(out.startsWith("Found 1 relevant past conversations:")).toBe(true);
     expect(out).toContain("User: the user line");
-    expect(out).not.toContain("the assistant line"); // assistant turn filtered out
-    expect(out).not.toContain("assistant only"); // whole convB dropped
+    expect(out).not.toContain("the assistant line");
+    expect(out).not.toContain("assistant only");
   });
 
   it("drops a conversation matched only on an assistant chunk before expanding it", async () => {
-    // convA matched on a USER chunk; convB matched ONLY on an ASSISTANT chunk.
-    // The chunk-stage role filter must drop convB's candidate up front — before
-    // getMessagesOp is ever called for it — so this exercises the early filter
-    // (a conversation surfaced solely by an assistant turn), distinct from the
-    // post-expansion filter the previous test covers.
     vi.mocked(searchChunksOp).mockResolvedValue([
       makeChunk("convA", "a1", 0.9, "user", "matched user chunk"),
       makeChunk("convB", "b1", 0.8, "assistant", "matched assistant chunk"),
@@ -345,9 +298,6 @@ describe("createMemoryEngineTool — retrieval pipeline", () => {
     expect(out.startsWith("Found 1 relevant past conversations:")).toBe(true);
     expect(out).toContain("convA user line");
     expect(out).not.toContain("convB user line");
-    // The decisive assertion: convB was filtered at the chunk stage, so it was
-    // never expanded. A regression that moved the role filter after expansion
-    // (or dropped it) would fetch convB here and this would fail.
     expect(expanded).not.toContain("convB");
   });
 
@@ -372,8 +322,6 @@ describe("createMemoryEngineTool — retrieval pipeline", () => {
   });
 
   it("round-robins across conversations so a low-scoring one still gets a slot", async () => {
-    // convA dominates on raw similarity (0.9/0.8/0.7) but round-robin takes one
-    // chunk per conversation per round, so convB (0.6) also surfaces at top_k 2.
     vi.mocked(searchChunksOp).mockResolvedValue([
       makeChunk("convA", "a1", 0.9, "user", "alpha one"),
       makeChunk("convA", "a2", 0.8, "user", "alpha two"),
@@ -400,11 +348,9 @@ describe("createMemoryEngineTool — retrieval pipeline", () => {
       makeMessage({ conversationId: "convA", uniqueId: "m3", content: "m-three" }),
       makeMessage({ conversationId: "convA", uniqueId: "m4", content: "m-four" }),
     ];
-    // The chunk matches the MIDDLE message (m2).
     vi.mocked(searchChunksOp).mockResolvedValue([makeChunk("convA", "m2", 0.9, "user")]);
     vi.mocked(getMessagesOp).mockResolvedValue(convMessages);
 
-    // contextMessages 0 → only the matched message.
     const only = await run(createMemoryEngineTool(ctx, {}, { contextMessages: 0 }), {
       query: "q",
     });
@@ -412,7 +358,6 @@ describe("createMemoryEngineTool — retrieval pipeline", () => {
     expect(only).not.toContain("m-one");
     expect(only).not.toContain("m-three");
 
-    // contextMessages 1 → the immediate neighbors too, but not the far ends.
     const windowed = await run(createMemoryEngineTool(ctx, {}, { contextMessages: 1 }), {
       query: "q",
     });
@@ -422,7 +367,6 @@ describe("createMemoryEngineTool — retrieval pipeline", () => {
     expect(windowed).not.toContain("m-zero");
     expect(windowed).not.toContain("m-four");
 
-    // Default (undefined) → the whole conversation.
     const full = await run(createMemoryEngineTool(ctx, {}), { query: "q" });
     expect(full).toContain("m-zero");
     expect(full).toContain("m-four");
@@ -442,10 +386,8 @@ describe("createMemoryEngineTool — retrieval pipeline", () => {
     const out = await run(createMemoryEngineTool(ctx, {}, { excludeConversationId: "convX" }), {
       query: "q",
     });
-    // convX chunks are filtered out before expansion.
     expect(out).toContain("kept content");
     expect(out).not.toContain("excluded content");
-    // The excluded-conversation multiplier is 3 × 2 × 1.5 = 9 → ceil(8 × 9) = 72.
     expect(searchChunksOp).toHaveBeenCalledWith(
       ctx,
       [0.1, 0.2, 0.3],
@@ -461,7 +403,6 @@ describe("createMemoryEngineTool — retrieval pipeline", () => {
     ]);
     vi.mocked(getMessagesOp).mockImplementation(async (_ctx, convId) => {
       if (convId === "convC") {
-        // convC renders no user turns → dropped → must be absent from onRetrieve.
         return [
           makeMessage({ conversationId: "convC", uniqueId: "c1", role: "assistant", content: "x" }),
         ];
@@ -476,11 +417,6 @@ describe("createMemoryEngineTool — retrieval pipeline", () => {
   });
 
   it("ignores start_date/end_date: same search args and output with or without them", async () => {
-    // NOTE(#630): the schema advertises start_date/end_date (the source labels
-    // them "currently disabled"), but the executor never reads them — so the
-    // LLM can believe it filtered by date when it did not. Pinned by proving the
-    // dated call is byte-identical to the undated one. Correct behavior is
-    // either to honor the filters or to remove them from the schema.
     vi.mocked(searchChunksOp).mockResolvedValue([makeChunk("convA", "a1", 0.9, "user", "alpha")]);
     vi.mocked(getMessagesOp).mockResolvedValue([
       makeMessage({ conversationId: "convA", uniqueId: "a1", content: "alpha" }),

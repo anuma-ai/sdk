@@ -1,24 +1,3 @@
-/**
- * Diagnostic e2e: builds a small deck then performs several edits in
- * sequence, logging exactly which tool calls fire and how long each
- * one takes. Designed to make it obvious why slide edits feel slow —
- * the bottleneck is usually `read_slides` returning the full deck JSX
- * plus 2-3 LLM rounds per edit, each paying TTFT + generation latency.
- *
- * Per request the test logs:
- *   • wall time (request start → final assistant text)
- *   • round count, input/output tokens
- *   • every tool call with name, duration, truncated args, result size
- *
- * Run via the e2e config:
- *   pnpm exec vitest run -c vitest.e2e.config.mts \
- *     test/tools/slide-generation/deckEditingTimings.test.ts
- *
- * Override the model via env:
- *   E2E_MODEL="openai/gpt-5.4" pnpm exec vitest run -c vitest.e2e.config.mts \
- *     test/tools/slide-generation/deckEditingTimings.test.ts
- */
-
 import { describe, expect, it } from "vitest";
 
 import { runToolLoop } from "../../../src/lib/chat/toolLoop.js";
@@ -32,7 +11,6 @@ type Message = {
   content: Array<{ type: string; text: string }>;
 };
 
-/** A single tool-call invocation captured with timing + payload metadata. */
 interface CallLog {
   name: string;
   durationMs: number;
@@ -42,7 +20,6 @@ interface CallLog {
   error: boolean;
 }
 
-/** Wrap a tool to record per-call duration, arg size, and result size. */
 function wrapTimedTool(tool: ToolConfig, log: CallLog[]): ToolConfig {
   const original = tool.executor!;
   const name = (tool as { function: { name: string } }).function.name;
@@ -74,7 +51,6 @@ function wrapTimedTool(tool: ToolConfig, log: CallLog[]): ToolConfig {
   return tool;
 }
 
-/** Compact one-line summary of what a tool call is doing. */
 function briefArgs(name: string, args: Record<string, unknown>): string {
   if (name === "plan_deck") {
     return `slideCount=${args.slideCount} fontPreset=${args.fontPreset} palette=${args.paletteName} layouts=${Array.isArray(args.layouts) ? args.layouts.length : "?"}`;
@@ -94,7 +70,6 @@ function briefArgs(name: string, args: Record<string, unknown>): string {
   return JSON.stringify(args).slice(0, 80);
 }
 
-/** Snapshot of one user-message round-trip. */
 interface RequestSnapshot {
   label: string;
   wallMs: number;
@@ -245,14 +220,9 @@ describe("deck-editing timings", () => {
 
       printSummary(snapshots);
 
-      // Render the final deck state (post-edits) so reviewers can open
-      // index.html and verify what the build + 4 edits actually produced.
       const lastError = snapshots[snapshots.length - 1]!.error;
       dumpFiles(store, "deckEditingTimings", { error: lastError });
 
-      // Sanity: the build must have produced a deck. Edits are diagnostic
-      // — they may sometimes fail upstream, and we still want the timing
-      // log surfaced rather than the test bailing early.
       const built = snapshots[0]!;
       expect(built.error, "build request must succeed").toBeNull();
       expect(store.has("slides.jsx")).toBe(true);

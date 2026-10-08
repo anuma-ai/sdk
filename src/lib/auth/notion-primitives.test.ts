@@ -10,20 +10,14 @@ import {
   registerNotionClient,
 } from "./notion-primitives";
 
-// ── Fetch mock ──
-
 const mockFetch = vi.fn();
 vi.stubGlobal("fetch", mockFetch);
-
-// ── Tests ──
 
 describe("Notion OAuth Primitives", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockFetch.mockReset();
   });
-
-  // ── Constants ──
 
   describe("NOTION_OAUTH_CONFIG", () => {
     it("has the expected endpoints", () => {
@@ -38,11 +32,8 @@ describe("Notion OAuth Primitives", () => {
     });
   });
 
-  // ── Discovery ──
-
   describe("discoverNotionOAuthEndpoints", () => {
     it("discovers endpoints via well-known URLs", async () => {
-      // Step 1: Protected resource metadata
       mockFetch.mockResolvedValueOnce({
         ok: true,
         json: async () => ({
@@ -51,7 +42,6 @@ describe("Notion OAuth Primitives", () => {
         }),
       });
 
-      // Step 2: Authorization server metadata
       mockFetch.mockResolvedValueOnce({
         ok: true,
         json: async () => ({
@@ -68,7 +58,6 @@ describe("Notion OAuth Primitives", () => {
       expect(endpoints.token_endpoint).toBe("https://api.notion.com/v1/oauth/token");
       expect(endpoints.registration_endpoint).toBe("https://api.notion.com/v1/oauth/register");
 
-      // Verify correct well-known URLs were fetched
       expect(mockFetch).toHaveBeenCalledTimes(2);
       expect(mockFetch.mock.calls[0][0]).toBe(
         "https://mcp.notion.com/.well-known/oauth-protected-resource"
@@ -98,7 +87,6 @@ describe("Notion OAuth Primitives", () => {
         ok: true,
         json: async () => ({
           resource: "https://mcp.notion.com",
-          // no authorization_servers
         }),
       });
 
@@ -125,8 +113,6 @@ describe("Notion OAuth Primitives", () => {
     });
   });
 
-  // ── Client Registration ──
-
   describe("registerNotionClient", () => {
     const registrationEndpoint = "https://api.notion.com/v1/oauth/register";
     const redirectUri = "myapp://oauth/callback";
@@ -147,7 +133,6 @@ describe("Notion OAuth Primitives", () => {
       expect(registration.redirectUri).toBe(redirectUri);
       expect(registration.registeredAt).toBeGreaterThan(0);
 
-      // Verify the request body
       const call = mockFetch.mock.calls[0];
       const body = JSON.parse(call[1].body);
       expect(body.client_name).toBe("Anuma");
@@ -203,8 +188,6 @@ describe("Notion OAuth Primitives", () => {
     });
   });
 
-  // ── PKCE Generation ──
-
   describe("generateNotionPKCE", () => {
     it("generates codeVerifier, codeChallenge, and state", async () => {
       const pkce = await generateNotionPKCE();
@@ -213,11 +196,8 @@ describe("Notion OAuth Primitives", () => {
       expect(pkce.codeChallenge).toBeTruthy();
       expect(pkce.state).toBeTruthy();
 
-      // codeVerifier should be base64url (no +, /, or =)
       expect(pkce.codeVerifier).toMatch(/^[A-Za-z0-9_-]+$/);
-      // codeChallenge should also be base64url
       expect(pkce.codeChallenge).toMatch(/^[A-Za-z0-9_-]+$/);
-      // state should be hex
       expect(pkce.state).toMatch(/^[0-9a-f]+$/);
     });
 
@@ -234,8 +214,6 @@ describe("Notion OAuth Primitives", () => {
       expect(pkce.codeChallenge).not.toBe(pkce.codeVerifier);
     });
   });
-
-  // ── Auth URL ──
 
   describe("buildNotionAuthUrl", () => {
     it("builds a correct authorization URL with all required params", () => {
@@ -270,8 +248,6 @@ describe("Notion OAuth Primitives", () => {
       expect(parsed.searchParams.get("owner")).toBe("user");
     });
   });
-
-  // ── Token Exchange ──
 
   describe("exchangeNotionCode", () => {
     const baseParams = {
@@ -343,7 +319,6 @@ describe("Notion OAuth Primitives", () => {
 
       const result = await exchangeNotionCode(baseParams);
 
-      // Default is 8 hours
       expect(result.expiresAt).toBeGreaterThanOrEqual(now + 8 * 3600 * 1000 - 1000);
     });
 
@@ -366,8 +341,6 @@ describe("Notion OAuth Primitives", () => {
       await expect(exchangeNotionCode(baseParams)).rejects.toThrow("No access token in response");
     });
   });
-
-  // ── Token Refresh ──
 
   describe("refreshNotionAccessToken", () => {
     const baseParams = {
@@ -419,7 +392,6 @@ describe("Notion OAuth Primitives", () => {
         ok: true,
         json: async () => ({
           access_token: "new-access",
-          // no refresh_token in response
           expires_in: 3600,
         }),
       });

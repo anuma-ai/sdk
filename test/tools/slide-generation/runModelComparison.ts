@@ -1,22 +1,3 @@
-/**
- * One-off comparison runner: generate the SAME 10-slide deck (with images)
- * across four LLMs and dump each result to its own subdirectory so you
- * can flip between them and judge real-world performance.
- *
- * Run:
- *   pnpm exec tsx test/tools/slide-generation/runModelComparison.ts
- *
- * Output:
- *   test/tools/slide-generation/.output/model-comparison/
- *     index.html                       — side-by-side links + per-model summary
- *     openai__gpt-5p4/                 — one dir per model, contains slides.jsx
- *     anthropic__claude-sonnet-4-6/      and index.html (or FAILED.txt)
- *     anthropic__claude-opus-4-7/
- *     fireworks__kimi-k2p5/
- *
- * Models can be overridden via the COMPARE_MODELS env var (comma-separated).
- */
-
 import "dotenv/config";
 
 import fs from "node:fs";
@@ -44,8 +25,6 @@ const MODELS = process.env.COMPARE_MODELS
   ? process.env.COMPARE_MODELS.split(",").map((s) => s.trim())
   : DEFAULT_MODELS;
 
-// COMPARE_OUT overrides the output subdirectory so multiple runs (different
-// prompts / topics) can coexist without overwriting each other.
 const OUT_SUBDIR = process.env.COMPARE_OUT ?? "model-comparison";
 
 const OUT_DIR = path.resolve(__dirname, ".output", OUT_SUBDIR);
@@ -261,8 +240,6 @@ async function main(): Promise<void> {
     console.error("PORTAL_API_KEY is required (set in .env).");
     process.exit(1);
   }
-  // Clear the comparison output dir so stale results from prior runs don't
-  // confuse the index. Per-model subdirs are re-created by dumpFiles.
   if (fs.existsSync(OUT_DIR)) fs.rmSync(OUT_DIR, { recursive: true, force: true });
   fs.mkdirSync(OUT_DIR, { recursive: true });
 

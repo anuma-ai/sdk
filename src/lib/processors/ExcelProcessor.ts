@@ -4,34 +4,17 @@ import { getLogger } from "../logger";
 import { dataUrlToArrayBuffer } from "./encoding";
 import type { FileProcessor, FileWithData, ProcessedFileResult } from "./types";
 
-// Polyfill process.umask for edge runtimes (Cloudflare Workers) where unenv
-// throws "process.umask is not implemented yet!".  fstream (a transitive dep
-// of exceljs via unzipper) calls process.umask() at module-init time, so the
-// polyfill must be in place before the first `import("exceljs")` resolves.
 if (typeof process !== "undefined" && typeof process.umask !== "function") {
-  // 0o22 is the default umask on POSIX systems.  The value is only used by
-  // fstream for file-permission calculations which are irrelevant in Workers.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access
   (process as any).umask = (_mask?: number) => 0o22;
 }
 
-/**
- * Maximum data rows emitted per sheet. Rows past it are dropped with a marker line.
- */
-// TODO(ceiling): a fixed row count ignores row width; upgrade to a token-based budget, or to
-// retrieval (query the sheet on demand) for large workbooks.
 const MAX_ROWS_PER_SHEET = 2_000;
 
-/** Quote a CSV field when it contains a delimiter, quote or line break (RFC 4180). */
 function csvField(value: string): string {
   return /[",\r\n]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value;
 }
 
-/**
- * Header names for a sheet: blank headers become `ColumnN`, and repeated names get a `_2`, `_3`…
- * suffix so no column silently shadows another. A suffix never reuses a name already in the
- * header row (`Amount, Amount, Amount_2` -> `Amount, Amount_3, Amount_2`).
- */
 function uniqueHeaders(raw: Array<string | undefined>, columnCount: number): string[] {
   const bases: string[] = [];
   for (let col = 1; col <= columnCount; col++) bases.push(raw[col]?.trim() || `Column${col}`);
@@ -63,7 +46,7 @@ function uniqueHeaders(raw: Array<string | undefined>, columnCount: number): str
 export class ExcelProcessor implements FileProcessor {
   readonly name = "excel";
   readonly supportedMimeTypes = [
-    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", // .xlsx
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
   ];
   readonly supportedExtensions = [".xlsx"];
 
@@ -103,7 +86,7 @@ export class ExcelProcessor implements FileProcessor {
         const rows: string[][] = [];
         let totalRows = 0;
         worksheet.eachRow({ includeEmpty: false }, (row, rowNumber) => {
-          if (rowNumber === 1) return; // header
+          if (rowNumber === 1) return;
           totalRows++;
           if (rows.length >= this.maxRowsPerSheet) return;
           const values: string[] = [];

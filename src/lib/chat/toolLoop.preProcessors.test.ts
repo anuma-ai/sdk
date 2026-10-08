@@ -86,7 +86,7 @@ describe("runToolLoop pre-processors", () => {
     expect(p).toHaveBeenCalledWith(expect.objectContaining({ prompt: "summarize this" }));
   });
 
-  it("appends returned messages in array order to the LLM request", async () => {
+  it("inserts returned messages in array order before the original user prompt", async () => {
     const p1: PromptPreProcessor = () => [
       { role: "user", content: [{ type: "text", text: "context A" }] },
     ];
@@ -104,9 +104,43 @@ describe("runToolLoop pre-processors", () => {
     const msgs = getRequestMessages(0);
     expect(msgs).toHaveLength(3);
     const texts = msgs.map((m) => JSON.stringify(m));
-    expect(texts[1]).toContain("context A");
-    expect(texts[2]).toContain("context B");
+    expect(texts[0]).toContain("context A");
+    expect(texts[1]).toContain("context B");
+    expect(texts[2]).toContain('"q"');
   });
+
+  it.each(["responses", "completions"] as const)(
+    "keeps the latest real user request after news enrichment with %s",
+    async (apiType) => {
+      const prompt = "what happened in mexico today";
+      const messages = [
+        { role: "system" as const, content: [{ type: "text" as const, text: "Shared chat" }] },
+        { role: "user" as const, content: [{ type: "text" as const, text: "earlier question" }] },
+        { role: "assistant" as const, content: [{ type: "text" as const, text: "earlier reply" }] },
+        { role: "user" as const, content: [{ type: "text" as const, text: prompt }] },
+      ];
+      await runToolLoop({
+        messages,
+        model: "test-model",
+        apiType,
+        token: "token",
+        preProcessors: [
+          () => [
+            {
+              role: "user",
+              content: [{ type: "text", text: "Search results: reporting on violence" }],
+            },
+          ],
+        ],
+      });
+      const sent = getRequestMessages(0);
+      expect(sent).toHaveLength(5);
+      expect(sent.slice(0, 3)).toEqual(messages.slice(0, 3));
+      expect(JSON.stringify(sent[3])).toContain("Search results:");
+      expect(sent.filter((message) => message.role === "user").slice(-1)[0]).toEqual(messages[3]);
+      expect(messages).toHaveLength(4);
+    }
+  );
 
   it("isolates per-processor failures — one throw does not prevent others", async () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
@@ -126,7 +160,7 @@ describe("runToolLoop pre-processors", () => {
 
     const msgs = getRequestMessages(0);
     expect(msgs).toHaveLength(2);
-    expect(JSON.stringify(msgs[1])).toContain("still here");
+    expect(JSON.stringify(msgs[0])).toContain("still here");
     expect(warn).toHaveBeenCalled();
     warn.mockRestore();
   });

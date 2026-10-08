@@ -70,141 +70,8 @@
  * @module tools
  */
 
-// Google Calendar exports
 export type { ToolConfig } from "../lib/chat/useChat/types.js";
 export type { ToolExecutionErrorType, ToolExecutionResult } from "../lib/chat/useChat/utils.js";
-export type {
-  CalendarEvent,
-  CreateEventArgs,
-  ListEventsArgs,
-  UpdateEventArgs,
-} from "./googleCalendar";
-export {
-  createChatTools,
-  createGoogleCalendarCreateEventTool,
-  createGoogleCalendarTool,
-  createGoogleCalendarUpdateEventTool,
-} from "./googleCalendar";
-
-// UI Interaction tool factories
-export type {
-  CreateUIToolsOptions,
-  DisplayToolConfig,
-  DisplayToolMigrations,
-  InteractiveToolConfig,
-  UIInteractionContext,
-} from "./uiInteraction";
-export { createDisplayTool, createInteractiveTool, migrateDisplayResult } from "./uiInteraction";
-
-// Chart display tool
-export type { ChartDataPoint, DisplayChartResult } from "./chart";
-export { createChartTool } from "./chart";
-export type { DisplayPhoneCallOfferResult } from "./phoneCallOffer";
-export { createPhoneCallOfferTool } from "./phoneCallOffer";
-
-// Connector offer display tool
-export type { DisplayConnectorResult } from "./connectorOffer";
-export { createConnectorOfferTool } from "./connectorOffer";
-
-// Choice interaction tool
-export type { ChoiceOption } from "./choice";
-export { createChoiceTool } from "./choice";
-
-// Confirmation interaction tool
-export type { ConfirmParameter, ConfirmToolResult } from "./confirm";
-export { createConfirmTool } from "./confirm";
-
-// Form interaction tool
-export type { FormField, FormFieldOption, FormFieldType } from "./form";
-export { createFormTool } from "./form";
-
-// Weather display tool
-export type { CreateWeatherToolOptions, DisplayWeatherResult, ForecastDay } from "./weather";
-export { createWeatherTool } from "./weather";
-
-// Google Drive exports
-export type {
-  CreateFileArgs,
-  DriveFile,
-  GetFileContentArgs,
-  ListRecentFilesArgs,
-  SearchFilesArgs,
-  UpdateFileArgs,
-} from "./googleDrive";
-export {
-  createDriveTools,
-  createGoogleDriveCreateFileTool,
-  createGoogleDriveGetContentTool,
-  createGoogleDriveListRecentTool,
-  createGoogleDriveSearchTool,
-  createGoogleDriveUpdateFileTool,
-} from "./googleDrive";
-
-// Notion MCP exports
-export type {
-  NotionCreatePagesArgs,
-  NotionFetchArgs,
-  NotionMcpCaller,
-  NotionMovePagesArgs,
-  NotionSearchArgs,
-  NotionUpdatePageArgs,
-} from "./notion";
-export {
-  callNotionMCPTool,
-  createNotionCreateCommentTool,
-  createNotionCreateDatabaseTool,
-  createNotionCreatePagesTool,
-  createNotionDuplicatePageTool,
-  createNotionFetchTool,
-  createNotionGetCommentsTool,
-  createNotionGetTeamsTool,
-  createNotionGetUsersTool,
-  createNotionMovePagesTool,
-  createNotionProxyTools,
-  createNotionSearchTool,
-  createNotionTools,
-  createNotionUpdateDataSourceTool,
-  createNotionUpdatePageTool,
-  getMCPEndpoints,
-} from "./notion";
-
-// GitHub exports
-export { createGitHubTools } from "./github";
-
-// Gmail exports
-export type {
-  GmailGetMessageArgs,
-  GmailMessageDetail,
-  GmailMessageSummary,
-  GmailRequestAccess,
-  GmailSearchArgs,
-  GmailSendMessageArgs,
-  GmailTokenGetter,
-} from "./gmail";
-export { connectorMintErrorToToolResult, createGmailTools } from "./gmail";
-
-// X (Twitter) exports
-export type { XGetMeArgs, XGetMyPostsArgs, XProxyCaller } from "./x";
-export { createXTools } from "./x";
-
-// Dropbox exports
-export type { DropboxRequestAccess, DropboxTokenGetter } from "./dropbox";
-export { createDropboxTools } from "./dropbox";
-
-// Slack exports
-export type {
-  SlackGetChannelHistoryArgs,
-  SlackGetThreadRepliesArgs,
-  SlackListChannelsArgs,
-  SlackListDmsArgs,
-  SlackListUsersArgs,
-  SlackPostMessageArgs,
-  SlackProxyCaller,
-  SlackSearchMessagesArgs,
-} from "./slack";
-export { createSlackTools } from "./slack";
-
-// Connector vault primitives
 export type {
   ConnectorErrorCode,
   ConnectorMintError,
@@ -212,18 +79,6 @@ export type {
   ConnectorTokenGetterOpts,
   ConnectorTokenSource,
 } from "../lib/connectors";
-export {
-  buildConnectorErrorResult,
-  CONNECTOR_ERROR_MARKER,
-  createConnectorTokenGetter,
-} from "../lib/connectors";
-
-// agentres registration
-//
-// The one connector with no vault credential: the user's own Solana wallet
-// proves ownership of their Resy account, per call, by signature. The SIWX
-// message and payload builders stay inside the module — a consumer that
-// assembles the flow by hand loses the single-use-nonce guarantee.
 export type {
   AgentresAccount,
   AgentresClient,
@@ -234,14 +89,17 @@ export type {
   SolanaSignMessageFn,
 } from "../lib/connectors";
 export {
+  buildConnectorErrorResult,
+  CONNECTOR_ERROR_MARKER,
+  createConnectorTokenGetter,
+} from "../lib/connectors";
+export {
   AgentresError,
   AgentresPathError,
   createAgentresClient,
   SiwxChallengeError,
   SiwxUnsupportedError,
 } from "../lib/connectors";
-
-// App generation tools
 export type {
   AuditIssue,
   AuditIssueType,
@@ -300,8 +158,120 @@ export {
   truncateContent,
   VERIFY_APP_SCHEMA,
 } from "./appGeneration";
-
-// Slide deck tools — now Anuma-JSX-AST native
+export type { ChartDataPoint, DisplayChartResult } from "./chart";
+export { createChartTool } from "./chart";
+export type { ChoiceOption } from "./choice";
+export { createChoiceTool } from "./choice";
+export type { ConfirmParameter, ConfirmToolResult } from "./confirm";
+export { createConfirmTool } from "./confirm";
+export type { DisplayConnectorResult } from "./connectorOffer";
+export { createConnectorOfferTool } from "./connectorOffer";
+export type {
+  CreateDocumentToolsOptions,
+  DocAttrValue,
+  DocChild,
+  DocNode,
+  PdfTag,
+} from "./document";
+export {
+  buildDocumentSystemPrompt,
+  CREATE_DOCUMENT_SCHEMA,
+  createDocumentTools,
+  DEFAULT_DOCUMENT_ID,
+  DEFAULT_MAX_DOCUMENT_CONVERSATIONS,
+  DocDslError,
+  DOCUMENT_BUILDER_PROMPT,
+  DOCUMENT_TOOL_NAMES,
+  documentPath,
+  isPdfTag,
+  parseDocumentDsl,
+  PATCH_DOCUMENT_SCHEMA,
+  pdfStyleKeys,
+  pdfTags,
+  READ_DOCUMENT_SCHEMA,
+} from "./document";
+export type { DropboxRequestAccess, DropboxTokenGetter } from "./dropbox";
+export { createDropboxTools } from "./dropbox";
+export type { FormField, FormFieldOption, FormFieldType } from "./form";
+export { createFormTool } from "./form";
+export { createGitHubTools } from "./github";
+export type {
+  GmailGetMessageArgs,
+  GmailMessageDetail,
+  GmailMessageSummary,
+  GmailRequestAccess,
+  GmailSearchArgs,
+  GmailSendMessageArgs,
+  GmailTokenGetter,
+} from "./gmail";
+export { connectorMintErrorToToolResult, createGmailTools } from "./gmail";
+export type {
+  CalendarEvent,
+  CreateEventArgs,
+  ListEventsArgs,
+  UpdateEventArgs,
+} from "./googleCalendar";
+export {
+  createChatTools,
+  createGoogleCalendarCreateEventTool,
+  createGoogleCalendarTool,
+  createGoogleCalendarUpdateEventTool,
+} from "./googleCalendar";
+export type {
+  CreateFileArgs,
+  DriveFile,
+  GetFileContentArgs,
+  ListRecentFilesArgs,
+  SearchFilesArgs,
+  UpdateFileArgs,
+} from "./googleDrive";
+export {
+  createDriveTools,
+  createGoogleDriveCreateFileTool,
+  createGoogleDriveGetContentTool,
+  createGoogleDriveListRecentTool,
+  createGoogleDriveSearchTool,
+  createGoogleDriveUpdateFileTool,
+} from "./googleDrive";
+export type {
+  NotionCreatePagesArgs,
+  NotionFetchArgs,
+  NotionMcpCaller,
+  NotionMovePagesArgs,
+  NotionSearchArgs,
+  NotionUpdatePageArgs,
+} from "./notion";
+export {
+  callNotionMCPTool,
+  createNotionCreateCommentTool,
+  createNotionCreateDatabaseTool,
+  createNotionCreatePagesTool,
+  createNotionDuplicatePageTool,
+  createNotionFetchTool,
+  createNotionGetCommentsTool,
+  createNotionGetTeamsTool,
+  createNotionGetUsersTool,
+  createNotionMovePagesTool,
+  createNotionProxyTools,
+  createNotionSearchTool,
+  createNotionTools,
+  createNotionUpdateDataSourceTool,
+  createNotionUpdatePageTool,
+  getMCPEndpoints,
+} from "./notion";
+export type { DisplayPhoneCallOfferResult } from "./phoneCallOffer";
+export { createPhoneCallOfferTool } from "./phoneCallOffer";
+export type {
+  SlackGetChannelHistoryArgs,
+  SlackGetThreadRepliesArgs,
+  SlackListChannelsArgs,
+  SlackListDmsArgs,
+  SlackListUsersArgs,
+  SlackPostMessageArgs,
+  SlackProxyCaller,
+  SlackSearchMessagesArgs,
+} from "./slack";
+export { createSlackTools } from "./slack";
 export type {
   AnumaChild,
   AnumaNode,
@@ -353,29 +323,15 @@ export {
   updateAttrs,
   walk,
 } from "./slides";
-
-// Document generation tools (react-pdf DSL → vector PDF)
 export type {
-  CreateDocumentToolsOptions,
-  DocAttrValue,
-  DocChild,
-  DocNode,
-  PdfTag,
-} from "./document";
-export {
-  buildDocumentSystemPrompt,
-  CREATE_DOCUMENT_SCHEMA,
-  createDocumentTools,
-  DEFAULT_DOCUMENT_ID,
-  DEFAULT_MAX_DOCUMENT_CONVERSATIONS,
-  DocDslError,
-  DOCUMENT_BUILDER_PROMPT,
-  DOCUMENT_TOOL_NAMES,
-  documentPath,
-  isPdfTag,
-  parseDocumentDsl,
-  PATCH_DOCUMENT_SCHEMA,
-  pdfStyleKeys,
-  pdfTags,
-  READ_DOCUMENT_SCHEMA,
-} from "./document";
+  CreateUIToolsOptions,
+  DisplayToolConfig,
+  DisplayToolMigrations,
+  InteractiveToolConfig,
+  UIInteractionContext,
+} from "./uiInteraction";
+export { createDisplayTool, createInteractiveTool, migrateDisplayResult } from "./uiInteraction";
+export type { CreateWeatherToolOptions, DisplayWeatherResult, ForecastDay } from "./weather";
+export { createWeatherTool } from "./weather";
+export type { XGetMeArgs, XGetMyPostsArgs, XProxyCaller } from "./x";
+export { createXTools } from "./x";

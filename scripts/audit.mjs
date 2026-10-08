@@ -1,53 +1,9 @@
 import { execFileSync } from "node:child_process";
 
-// Audits production dependencies against npm's bulk advisory endpoint and
-// fails the process if any high or critical vulnerability is found.
-//
-// Replaces `pnpm audit --prod --audit-level high`, which is broken on
-// pnpm 10.x because npm retired the legacy audit endpoint (see pnpm/pnpm#11265).
-//
-// Using `pnpm list` as the source of truth means pnpm.overrides and
-// pnpm.patchedDependencies are honored: we only audit what pnpm actually
-// resolved and would install.
-
 const SEVERITY_THRESHOLD = new Set(["high", "critical"]);
 const BULK_ENDPOINT = "https://registry.npmjs.org/-/npm/v1/security/advisories/bulk";
 
-/**
- * Time-boxed exceptions for advisories that have NO installable fix.
- *
- * Reach for this only when a `pnpm.overrides` entry can't resolve the finding —
- * an override is always the better answer, and the audit reads pnpm's resolved
- * tree so overrides are honored automatically. Every entry must carry the
- * evidence for why an override is impossible plus an `expires` date; the audit
- * FAILS on an expired entry, so an exception can't quietly become permanent.
- *
- * Fields: `id` (GHSA), `package`, `reason`, `expires` (YYYY-MM-DD, UTC).
- */
 const ALLOWLIST = [
-  // image-size DoS pair, published 2026-06-10 and picked up by npm's bulk
-  // endpoint on 2026-08-10 — which is why a run that passed on 2026-08-07
-  // started failing on main with no change to the lockfile.
-  //
-  // NO COMPATIBLE OVERRIDE. image-size 2.0.3 (2026-09) fixes both, but there is
-  // still no patched 1.x, and metro 0.83 — the line react-native 0.82 pins —
-  // calls `imageSize(filePath)` with a path string (metro/src/Assets.js), which
-  // v2 rejects ("The \"list\" argument must be an instance of ... ArrayBuffer").
-  // Forcing `image-size@2` via pnpm.overrides breaks metro asset resolution
-  // (tried and reverted in anuma-ai/sdk#989). Current metro (0.87) no longer depends on image-size.
-  //
-  // Reachability is bundler-only: `image-size@1.2.1` arrives via
-  // react-native -> @react-native/community-cli-plugin -> metro, i.e. the RN
-  // dev server and bundler. The SDK never imports it and it is not part of any
-  // shipped bundle; `pnpm list --prod` cannot tell that apart from runtime code,
-  // which is what puts it in front of this audit at all. The DoS is a parser
-  // infinite loop on hostile ICNS/JXL/HEIF input — reachable only by someone
-  // feeding malicious images to their own build.
-  //
-  // Exit condition: image-size publishes a patched 1.x (then add a
-  // pnpm.overrides pin), or the react-native devDep moves to a metro that no
-  // longer depends on it. Either way this entry should be REMOVED, not extended —
-  // the audit reports an entry that matches nothing, which is the signal.
   {
     id: "GHSA-w3rx-r6r6-pgpr",
     package: "image-size",
@@ -62,23 +18,6 @@ const ALLOWLIST = [
       "JXL/HEIF parser DoS in the same package and version as GHSA-w3rx-r6r6-pgpr; identical v1-only-compatible and build-time-only reachability evidence.",
     expires: "2026-11-10",
   },
-  // braces stack-exhaustion DoS, published 2026-09-18 — main's audit last passed
-  // 2026-10-02, before npm's bulk endpoint picked it up, with no lockfile change.
-  //
-  // NO FIX TO OVERRIDE TO. The advisory covers every release (<= 3.0.3, no first
-  // patched version) and 3.0.3 is the latest braces on npm, so there is nothing
-  // for a pnpm.overrides pin to point at. Its only parent, micromatch 4.0.8,
-  // depends on braces ^3.0.3.
-  //
-  // Reachability is build- and test-tooling only, all under the react-native
-  // dependency: react-native -> @react-native/community-cli-plugin -> metro ->
-  // metro-file-map -> micromatch, and react-native -> babel-jest /
-  // jest-environment-node -> micromatch. The SDK never imports braces or
-  // micromatch, and neither is in a shipped bundle. The DoS needs a deeply nested
-  // glob pattern, which only the developer's own build config supplies.
-  //
-  // Exit condition: braces publishes a fix (then add a pnpm.overrides pin) —
-  // REMOVE this entry then; the audit reports an entry that matches nothing.
   {
     id: "GHSA-vfj7-8cjw-p6xm",
     package: "braces",
@@ -137,21 +76,11 @@ function filterByThreshold(advisories) {
   return findings;
 }
 
-/**
- * The bulk endpoint keys advisories by npm's numeric id and carries the GHSA
- * only inside `url` (and sometimes `github_advisory_id`), so match on either.
- * Scoped by package name too — one GHSA must never excuse a different package.
- */
 function matches(entry, finding) {
   if (entry.package !== finding.pkg) return false;
   return finding.github_advisory_id === entry.id || String(finding.url ?? "").includes(entry.id);
 }
 
-/**
- * Split findings into suppressed and reportable, and surface allowlist hygiene:
- * an EXPIRED entry stops suppressing (so its finding fails the build), and an
- * entry that matched nothing is reported as removable.
- */
 function applyAllowlist(findings, today) {
   const expired = ALLOWLIST.filter((entry) => entry.expires < today);
   const usable = ALLOWLIST.filter((entry) => entry.expires >= today);
@@ -176,7 +105,6 @@ const packages = collectPackages();
 console.log(`Auditing ${packages.size} production packages...`);
 const advisories = await fetchAdvisories(packages);
 const findings = filterByThreshold(advisories);
-// UTC, so a run's verdict never depends on the runner's timezone.
 const today = new Date().toISOString().slice(0, 10);
 const { suppressed, reportable, expired, stale } = applyAllowlist(findings, today);
 

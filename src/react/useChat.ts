@@ -175,9 +175,6 @@ export function useChat(options?: UseChatOptions): UseChatResult {
   } = options || {};
   const [isLoading, setIsLoading] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
-  // Monotonic id of the latest send. Unlike abortControllerRef it is never
-  // reset by stop() or a settling request, so "a newer send exists" cannot be
-  // confused with "the ref is null".
   const requestIdRef = useRef(0);
   const pendingInferenceRef = useRef<{ id: string; round: number; cancel: () => void } | null>(
     null
@@ -196,10 +193,6 @@ export function useChat(options?: UseChatOptions): UseChatResult {
     [getToken, baseUrl]
   );
 
-  // When piiRedaction is `true`, upgrade it to a single redactor instance kept
-  // for the lifetime of this hook so placeholder state is shared across turns
-  // (matching the documented behavior of passing an instance). An explicit
-  // instance or `false` is passed through unchanged.
   const piiRedactorRef = useRef<PiiRedactor | null>(null);
   if (piiRedaction === true && !piiRedactorRef.current) {
     piiRedactorRef.current = new PiiRedactor();
@@ -216,7 +209,6 @@ export function useChat(options?: UseChatOptions): UseChatResult {
     }
   }, []);
 
-  // Abort and cancel any in-flight generation on unmount.
   useEffect(() => stop, [stop]);
 
   const sendMessage = useCallback(
@@ -230,7 +222,6 @@ export function useChat(options?: UseChatOptions): UseChatResult {
       searchContext,
       fileContext,
       toolGuidance,
-      // Responses API options
       temperature,
       maxOutputTokens,
       tools,
@@ -244,7 +235,6 @@ export function useChat(options?: UseChatOptions): UseChatResult {
       endpointOverride,
       piiRedaction: requestPiiRedaction,
     }: SendMessageArgs): Promise<SendMessageResult> => {
-      // Replacing a resumable generation must stop its server-side spend too.
       stop();
 
       const abortController = new AbortController();
@@ -255,7 +245,6 @@ export function useChat(options?: UseChatOptions): UseChatResult {
       let succeeded = false;
 
       try {
-        // Validate token getter and get token
         const tokenGetterValidation = validateTokenGetter(getToken);
         if (!tokenGetterValidation.valid) {
           if (onError) onError(new Error(tokenGetterValidation.message));
@@ -270,7 +259,6 @@ export function useChat(options?: UseChatOptions): UseChatResult {
           return { data: null, error: tokenValidation.message };
         }
 
-        // Inject context as system messages
         let messagesWithContext = messages;
         if (memoryContext) {
           const memorySystemMessage: LlmapiMessage = {
@@ -317,7 +305,6 @@ export function useChat(options?: UseChatOptions): UseChatResult {
           messagesWithContext = [toolGuidanceMessage, ...messagesWithContext];
         }
 
-        // Delegate to the framework-agnostic tool loop
         const result: RunToolLoopResult = await runToolLoop({
           messages: messagesWithContext,
           model: model!,
@@ -335,8 +322,6 @@ export function useChat(options?: UseChatOptions): UseChatResult {
                     return;
                   }
                   const previous = pendingInferenceRef.current;
-                  // A retry replaces an unfinished inference; a new tool round
-                  // follows a completed one whose canonical proof must survive.
                   if (previous && previous.round === meta.round && previous.id !== meta.inferenceId)
                     previous.cancel();
                   pendingInferenceRef.current = {
@@ -387,8 +372,6 @@ export function useChat(options?: UseChatOptions): UseChatResult {
           onError
         );
       } finally {
-        // A newer request owns the ref and the loading flag once it replaces
-        // this one; the aborted call settles later and must not clear them.
         if (requestIdRef.current === requestId) {
           setIsLoading(false);
           abortControllerRef.current = null;

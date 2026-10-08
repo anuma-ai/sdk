@@ -14,12 +14,6 @@ import {
 } from "./operations";
 import type { MessageChunk } from "./types";
 
-/**
- * Rows chunked before sdk#889 still carry a plaintext copy of the message in
- * `chunks[].text`. These assert on the RAW column, because a read through
- * `resolveChunkText` looks the same whether the text is stored or rebuilt.
- */
-
 const SECRET = "MY-BANK-PIN-IS-SEVEN-SEVEN-THREE-ONE";
 const PINNED_UPDATED_AT = 1_700_000_000_000;
 
@@ -42,7 +36,6 @@ function ctxFor(db: Database): StorageOperationsContext {
   };
 }
 
-/** Chunks that tile `content` the way `chunkText` produces them, text included. */
 function tile(texts: string[]): { content: string; chunks: MessageChunk[] } {
   const content = texts.join(" ");
   let cursor = 0;
@@ -55,7 +48,6 @@ function tile(texts: string[]): { content: string; chunks: MessageChunk[] } {
   return { content, chunks };
 }
 
-/** Writes a message whose `chunks` column holds exactly `rawChunks`, with a known `updated_at`. */
 async function seedRaw(
   ctx: StorageOperationsContext,
   uniqueId: string,
@@ -105,8 +97,6 @@ describe("stripLegacyChunkTextOp", () => {
     const db = makeDatabase();
     const ctx = ctxFor(db);
     const { content, chunks } = tile(["alpha beta", "gamma delta"]);
-    // A base64 vector (sdk#862) can contain `text`, which the LIKE prefilter
-    // matches; only the JSON check keeps this row out.
     const withoutText = JSON.stringify(
       chunks.map(({ text: _text, ...rest }) => ({ ...rest, vector: "AAAtextAA==" }))
     );

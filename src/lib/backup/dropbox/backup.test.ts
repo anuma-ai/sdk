@@ -1,8 +1,3 @@
-/**
- * Dropbox export: one folder listing for each run, not one listing for each conversation.
- * The Dropbox API layer is mocked, so no test uses the network.
- */
-
 import type { Database } from "@nozbe/watermelondb";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -19,7 +14,6 @@ vi.mock("./api", async (importOriginal) => {
   };
 });
 
-// A row stands in for a stored conversation, so the test needs no database.
 vi.mock("../../db/chat/operations", () => ({
   conversationToStoredRaw: (row: { conversationId: string; updatedAt: Date }) => row,
 }));
@@ -44,8 +38,6 @@ const dropboxFile = (name: string, modified: number): api.DropboxFile => ({
 const fakeDatabase = (rows: unknown[]) =>
   ({ get: () => ({ query: () => ({ fetch: async () => rows }) }) }) as unknown as Database;
 
-// The first query lists the conversations at the start of the run. Later queries read one
-// conversation each, so they see an edit made after the run began.
 const fakeDatabaseEditedDuringRun = (atStart: unknown[], later: unknown[]) => {
   let queries = 0;
   return {
@@ -55,7 +47,6 @@ const fakeDatabaseEditedDuringRun = (atStart: unknown[], later: unknown[]) => {
   } as unknown as Database;
 };
 
-// What Dropbox holds now. The folder listing and the single-file read both answer from it.
 let remote: api.DropboxFile[] = [];
 const listing = (files: api.DropboxFile[]) => {
   remote = files;
@@ -140,7 +131,6 @@ describe("performDropboxExport", () => {
 
   it("does not overwrite a backup that another client wrote after the listing", async () => {
     listing([dropboxFile("a.json", T0)]);
-    // Another client writes a newer file after the run listed the folder.
     mocked.getDropboxFileMetadata.mockResolvedValue(dropboxFile("a.json", T0 + 5000));
     const deps = makeDeps();
 

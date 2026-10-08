@@ -2,7 +2,7 @@
 
 > **createWebSearchPreProcessor**(`options`: [`WebSearchPreProcessorOptions`](../interfaces/WebSearchPreProcessorOptions.md)): [`PromptPreProcessor`](../type-aliases/PromptPreProcessor.md)
 
-Defined in: [src/lib/chat/webSearchClassifier.ts:153](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/webSearchClassifier.ts#153)
+Defined in: [src/lib/chat/webSearchClassifier.ts:140](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/webSearchClassifier.ts#140)
 
 Build a pre-processor that runs web-search classification on the
 shared embedding provided by `runToolLoop`, and — if the classifier

@@ -1,13 +1,3 @@
-/**
- * Backend-agnostic behavior every {@link MemoryStore} must have. Run it from a
- * backend's own test file with a factory that returns a fresh, empty store per
- * test; the local backend runs it in `local.test.ts`, and a remote backend
- * should run the same suite before it ships.
- *
- * The recall/retain cases assume embeddings where identical text maps to
- * identical vectors and token overlap means similarity (the test files mock the
- * embedder that way).
- */
 import { describe, expect, it, vi } from "vitest";
 
 import type { MemoryStore } from "./types";
@@ -20,7 +10,6 @@ export function runMemoryStoreContract(makeStore: () => MemoryStore | Promise<Me
 
       expect(created.content).toBe("Likes green tea");
       expect(await store.get(created.uniqueId)).toMatchObject({ content: "Likes green tea" });
-      // The Memory Graph draws similarity edges from list() rows.
       expect((await store.list()).map((m) => [m.uniqueId, m.embedding])).toEqual([
         [created.uniqueId, "[1,0]"],
       ]);
@@ -41,13 +30,11 @@ export function runMemoryStoreContract(makeStore: () => MemoryStore | Promise<Me
       const store = await makeStore();
       const m = await store.create({ content: "Likes green tea", embedding: "[1,0]" });
 
-      // No fresh vector supplied: the old one must go (a backend may re-embed).
       const edited = await store.update(m.uniqueId, { content: "Likes oolong tea" });
       expect(edited?.embedding).not.toBe("[1,0]");
       expect((await store.get(m.uniqueId))?.embedding).not.toBe("[1,0]");
       expect((await store.list()).map((r) => r.embedding)).not.toContain("[1,0]");
 
-      // A supplied vector is stored as given.
       const reembedded = await store.update(m.uniqueId, {
         content: "Likes black tea",
         embedding: "[0,1]",
@@ -179,8 +166,6 @@ export function runMemoryStoreContract(makeStore: () => MemoryStore | Promise<Me
       const m = await store.create({ content: "Drinks coffee" });
       await vi.waitFor(() => expect(onChange).toHaveBeenCalled());
 
-      // Archive edits a row that stays in the live set — a membership-only
-      // watch would miss it.
       onChange.mockClear();
       await store.archive(m.uniqueId);
       await vi.waitFor(() => expect(onChange).toHaveBeenCalled());

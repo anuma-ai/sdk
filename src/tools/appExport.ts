@@ -232,21 +232,10 @@ export function exportAppToHtml(options: ExportAppOptions): string {
   }
 
   const importMap = buildImportMap(deps);
-  // App.js is model-authored. A literal `</script>` anywhere in it (a string
-  // like "<script>…</script>", an HTML-as-text demo, a code-display snippet)
-  // would otherwise close the <script type="text/babel"> element early — the
-  // app never mounts and, since nothing throws, the runtime overlay never
-  // paints, leaving a silent blank page. Defuse the same way as `</style>`
-  // below. `<\/script>` in JS source is identical to `</script>` at runtime.
   const safeJs = defuseScriptClose(normalizeForModule(appJs));
   const safeShim = defuseScriptClose(windowAppShim);
 
   const escapedTitle = title.replace(/</g, "&lt;").replace(/>/g, "&gt;");
-  // Defuse any literal `</style>` inside CSS: HTML's raw-text scanner only
-  // ends the <style> element on `</style` followed by a tag terminator, so
-  // inserting a backslash between `<` and `/` breaks the match without
-  // changing how the CSS parser sees the rule. Same trick the spec
-  // recommends for JSON-in-script.
   const safeCss = appCss.replace(/<\/(style)/gi, "<\\/$1");
 
   return `<!DOCTYPE html>
@@ -276,17 +265,6 @@ __anumaCreateRoot(document.getElementById("root")).render(<App />);
 </html>`;
 }
 
-/**
- * Build the `<script type="importmap">` JSON body covering React + every
- * non-React package.json dep. Each non-React dep gets `?external=react`
- * so the dep's own React reference resolves through our same import map
- * to the same React instance — without this, lucide-react etc. would
- * bundle their own React via esm.sh and crash on `Invalid hook call`.
- *
- * `react-scripts` is skipped — it's a CRA build tool, not a runtime dep.
- * `react` and `react-dom` are always present even when package.json
- * omits them; the App.js the model writes always imports from them.
- */
 function buildImportMap(deps: Record<string, string>): string {
   const reactVersion = stripVersionRange(deps.react ?? "^18.2.0");
   const reactDomVersion = stripVersionRange(deps["react-dom"] ?? "^18.2.0");
@@ -301,10 +279,6 @@ function buildImportMap(deps: Record<string, string>): string {
     const clean = stripVersionRange(version);
     imports[name] = `https://esm.sh/${name}@${clean}?external=react`;
   }
-  // Escape `<` as its JSON unicode form so a package.json dependency *name*
-  // containing `</script>` can't break out of the <script type="importmap">
-  // block. `<` round-trips through JSON.parse back to `<`, so the import
-  // map the browser builds is unchanged for legitimate names.
   return JSON.stringify({ imports }, null, 2)
     .replace(/</g, "\\u003c")
     .split("\n")
@@ -316,45 +290,16 @@ function stripVersionRange(v: string): string {
   return v.replace(/^[\^~>=<]+/, "").trim();
 }
 
-/** Defuse a literal `</script>` so model- or host-authored JS can't close the
- *  enclosing `<script>` element early. `<\/script>` is identical to
- *  `</script>` once the JS source executes, so runtime behaviour is unchanged.
- *  Mirror of the `</style>` trick applied to inlined CSS. */
 function defuseScriptClose(js: string): string {
   return js.replace(/<\/(script)/gi, "<\\/$1");
 }
 
-/**
- * Lightly normalize App.js for inclusion in a `<script type="text/babel"
- * data-type="module">` block. We keep `import` statements intact —
- * the importmap resolves them — and just:
- *
- *   - drop `import './App.css'` (CSS is already inlined in the <style> block);
- *   - convert `export default function App` → `function App`, and strip
- *     a trailing `export default App;`, so the boot line we append at
- *     the end of the script can reference `App` as a local binding
- *     (defaults aren't exposed by their own identifier in module scope
- *     when written as `export default function() {}`);
- *   - ensure `React` is imported. Babel-standalone's `react` preset
- *     defaults to the classic JSX runtime, which compiles `<div />` to
- *     `React.createElement(...)` and requires `React` to be in scope.
- *     Modern apps that only `import { useState } from "react"` would
- *     throw `React is not defined` without this. Prepend a default
- *     React import iff none is already present.
- */
 function normalizeForModule(js: string): string {
   let out = js
-    // Strip CSS imports — content is already inlined in <style>.
     .replace(/^import\s+['"]\.\/App\.css['"];?\s*$/gm, "")
-    // `export default function App` → `function App` (keep the name
-    // available as a local binding for the boot line below).
     .replace(/^export\s+default\s+function\s+/gm, "function ")
-    // Drop a trailing `export default App;` style line.
     .replace(/^export\s+default\s+\w+;\s*$/gm, "");
 
-  // Add `import React from "react";` at the top iff the source doesn't
-  // already bring React into scope under that identifier. Anchored on
-  // `^` so we don't catch the substring inside a named-import list.
   const hasReactDefault =
     /^import\s+React\b/m.test(out) || /^import\s+\*\s+as\s+React\s+from/m.test(out);
   if (!hasReactDefault) {

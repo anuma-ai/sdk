@@ -1,17 +1,3 @@
-/**
- * Profile salience — profile-worthiness scoring for vault facts (#706).
- *
- * Distinct from query-time relevance (`recall` fusion). Answers: "is this
- * fact worth putting on a shareable profile?" using durable type, proof
- * density, and C2 observation trend. Pure + deterministic — no LLM, no DB.
- *
- * Used by:
- * - `synthesizeProfile` facet recall (default factTypeWeights)
- * - Publish-review UIs via {@link rankProfileCandidates} (nearby / client)
- *
- * Persisted `importance` is deferred until publish flow proves the need.
- */
-
 import type { FactType } from "./autoExtract.js";
 import {
   classifyObservationTrend,

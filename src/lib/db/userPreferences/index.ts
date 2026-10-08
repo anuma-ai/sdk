@@ -14,13 +14,10 @@ export {
   type CreateUserPreferenceOptions,
   DEFAULT_PERSONALITY_SETTINGS,
   type PersonalitySettings,
-  // Personality types
   type PersonalitySliders,
   type PersonalityStyle,
   type ProfileUpdate,
   SLIDER_CONFIG,
-  // User preference types
   type StoredUserPreference,
   type UpdateUserPreferenceOptions,
-  // Hook types
 } from "./types";

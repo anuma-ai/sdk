@@ -1,20 +1,3 @@
-/**
- * Connector tool sets carried into the next few sends of a conversation.
- *
- * Client-tool selection ranks only the latest prompt, so a terse follow-up
- * ("Yes") to a connector offer ("shall I send it?") loses that connector's
- * tools. A connector set that activated by score on one send is carried, as if
- * the app had marked it active, into the next {@link RECENT_TOOL_SET_TURNS}
- * sends of the same conversation. Only a send that succeeded, detached (the
- * portal keeps generating), or was stopped with its partial reply saved counts,
- * so a retried request reads the same carry as the attempt that failed.
- *
- * Module-level so every `useChatStorage` instance mounted for one conversation
- * shares it, and scoped to the database, because two databases mounted at once
- * can hold conversations with the same id. Bounded per database so long
- * sessions don't leak. In memory only.
- */
-
 import type { Database } from "@nozbe/watermelondb";
 
 import { onClearAllEncryptionState } from "../../../react/useEncryption";
@@ -25,17 +8,12 @@ const RECENT_TOOL_SET_TURNS = 2;
 
 const RECENT_TOOL_SET_CONVERSATION_LIMIT = 50;
 
-// A connector set has at least one anchor, and every anchor is a connector
-// tool. Other sets (app-generation, documents) can activate on chitchat and
-// bring a system prompt with them, so they are never carried.
 const CARRYABLE_TOOL_SETS = new Set(
   BUILT_IN_TOOL_SETS.filter(
     (s) => s.anchors.length > 0 && s.anchors.every((a) => a in TOOL_CATALOG)
   ).map((s) => s.name)
 );
 
-// Database → conversation id → set name → sends left. Map order is recency
-// order. A WeakMap so an unmounted database's carry is garbage-collected.
 let recentToolSets = new WeakMap<Database, Map<string, Map<string, number>>>();
 
 function touch(
@@ -102,5 +80,4 @@ export function resetRecentToolSets(): void {
   recentToolSets = new WeakMap();
 }
 
-// Drop the carry on sign-out so it never outlives the session.
 onClearAllEncryptionState(resetRecentToolSets);

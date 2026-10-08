@@ -38,7 +38,6 @@ import {
  */
 export type UseSettingsOptions = BaseUseSettingsOptions;
 
-/** Thrown by mutation callbacks when invoked before the database is bound. */
 const DB_NOT_READY = "Database not ready";
 
 /**
@@ -46,7 +45,6 @@ const DB_NOT_READY = "Database not ready";
  * Includes both legacy modelPreference API and new userPreference API
  */
 export interface UseSettingsResult extends BaseUseSettingsResult {
-  // New unified API
   userPreference: StoredUserPreference | null;
   getUserPreference: (walletAddress: string) => Promise<StoredUserPreference | null>;
   setUserPreference: (
@@ -119,8 +117,6 @@ export interface UseSettingsResult extends BaseUseSettingsResult {
 export function useSettings(options: UseSettingsOptions): UseSettingsResult {
   const { database, walletAddress } = options;
 
-  // Subscribe to the shared pool. The pool guarantees one fetch + one observe
-  // per (database, walletAddress) regardless of how many hook instances mount.
   const subscribe = useCallback(
     (listener: () => void) => subscribeUserSettings(database, walletAddress, listener),
     [database, walletAddress]
@@ -131,10 +127,6 @@ export function useSettings(options: UseSettingsOptions): UseSettingsResult {
   );
   const snapshot = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
 
-  // Storage operation contexts for the mutation callbacks. Collection lookups
-  // are stable per-database in WatermelonDB so these are cheap. `null` when the
-  // database is not yet bound — the callbacks below reject in that state rather
-  // than dereferencing a missing collection.
   const storageCtx = useMemo<UserPreferencesStorageOperationsContext | null>(
     () =>
       database
@@ -157,12 +149,6 @@ export function useSettings(options: UseSettingsOptions): UseSettingsResult {
     [database]
   );
 
-  // ===== Legacy API (deprecated) =====
-
-  /**
-   * Get model preference by wallet address
-   * @deprecated Use getUserPreference instead
-   */
   const getModelPreference = useCallback(
     async (address: string): Promise<StoredModelPreference | null> => {
       try {
@@ -178,10 +164,6 @@ export function useSettings(options: UseSettingsOptions): UseSettingsResult {
     [legacyStorageCtx]
   );
 
-  /**
-   * Set (create or update) model preference
-   * @deprecated Use setUserPreference instead
-   */
   const setModelPreference = useCallback(
     async (address: string, models?: string): Promise<StoredModelPreference | null> => {
       try {
@@ -200,10 +182,6 @@ export function useSettings(options: UseSettingsOptions): UseSettingsResult {
     [database, legacyStorageCtx, walletAddress]
   );
 
-  /**
-   * Delete model preference
-   * @deprecated Use deleteUserPreference instead
-   */
   const deleteModelPreference = useCallback(
     async (address: string): Promise<boolean> => {
       try {
@@ -222,11 +200,6 @@ export function useSettings(options: UseSettingsOptions): UseSettingsResult {
     [database, legacyStorageCtx, walletAddress]
   );
 
-  // ===== New Unified API =====
-
-  /**
-   * Get user preference by wallet address
-   */
   const getUserPreference = useCallback(
     async (address: string): Promise<StoredUserPreference | null> => {
       try {
@@ -242,9 +215,6 @@ export function useSettings(options: UseSettingsOptions): UseSettingsResult {
     [storageCtx]
   );
 
-  /**
-   * Set (create or update) user preference
-   */
   const setUserPreference = useCallback(
     async (address: string, opts: UpdateUserPreferenceOptions): Promise<StoredUserPreference> => {
       try {
@@ -263,9 +233,6 @@ export function useSettings(options: UseSettingsOptions): UseSettingsResult {
     [database, storageCtx, walletAddress]
   );
 
-  /**
-   * Update only profile fields (nickname, occupation, description)
-   */
   const updateProfile = useCallback(
     async (address: string, profile: ProfileUpdate): Promise<StoredUserPreference | null> => {
       try {
@@ -284,9 +251,6 @@ export function useSettings(options: UseSettingsOptions): UseSettingsResult {
     [database, storageCtx, walletAddress]
   );
 
-  /**
-   * Update only personality settings
-   */
   const updatePersonality = useCallback(
     async (
       address: string,
@@ -308,9 +272,6 @@ export function useSettings(options: UseSettingsOptions): UseSettingsResult {
     [database, storageCtx, walletAddress]
   );
 
-  /**
-   * Update only model preferences
-   */
   const updateModels = useCallback(
     async (address: string, models: string): Promise<StoredUserPreference | null> => {
       try {
@@ -329,9 +290,6 @@ export function useSettings(options: UseSettingsOptions): UseSettingsResult {
     [database, storageCtx, walletAddress]
   );
 
-  /**
-   * Delete user preference
-   */
   const deleteUserPreference = useCallback(
     async (address: string): Promise<boolean> => {
       try {
@@ -351,13 +309,11 @@ export function useSettings(options: UseSettingsOptions): UseSettingsResult {
   );
 
   return {
-    // Legacy API (deprecated)
     modelPreference: snapshot.modelPreference,
     getModelPreference,
     setModelPreference,
     deleteModelPreference,
 
-    // New unified API
     userPreference: snapshot.userPreference,
     isLoading: snapshot.isLoading,
     getUserPreference,

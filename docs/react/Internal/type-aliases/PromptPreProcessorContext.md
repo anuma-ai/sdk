@@ -2,7 +2,7 @@
 
 > **PromptPreProcessorContext** = `object`
 
-Defined in: [src/lib/chat/preProcessor.ts:13](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/preProcessor.ts#13)
+Defined in: [src/lib/chat/preProcessor.ts:3](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/preProcessor.ts#3)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/lib/chat/preProcessor.ts:13](https://github.com/anuma-ai/sdk/bl
 
 > **embedding**: `number`\[]
 
-Defined in: [src/lib/chat/preProcessor.ts:17](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/preProcessor.ts#17)
+Defined in: [src/lib/chat/preProcessor.ts:7](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/preProcessor.ts#7)
 
 Embedding of `prompt`, computed once and shared across pre-processors.
 
@@ -20,7 +20,7 @@ Embedding of `prompt`, computed once and shared across pre-processors.
 
 > **prompt**: `string`
 
-Defined in: [src/lib/chat/preProcessor.ts:15](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/preProcessor.ts#15)
+Defined in: [src/lib/chat/preProcessor.ts:5](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/preProcessor.ts#5)
 
 Text of the last user message.
 
@@ -30,6 +30,6 @@ Text of the last user message.
 
 > `optional` **signal**: `AbortSignal`
 
-Defined in: [src/lib/chat/preProcessor.ts:19](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/preProcessor.ts#19)
+Defined in: [src/lib/chat/preProcessor.ts:9](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/preProcessor.ts#9)
 
 Abort signal forwarded from the tool loop.

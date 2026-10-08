@@ -24,10 +24,6 @@
 import { parseExpression } from "@babel/parser";
 import type { JSXAttribute, JSXElement, Node, SourceLocation } from "@babel/types";
 
-// ---------------------------------------------------------------------------
-// Tree types
-// ---------------------------------------------------------------------------
-
 /** Scalar value an attribute can hold. */
 type AttrScalar = string | number | boolean;
 
@@ -52,10 +48,6 @@ export interface DocNode {
   attrs: Record<string, DocAttrValue>;
   children: DocChild[];
 }
-
-// ---------------------------------------------------------------------------
-// Errors
-// ---------------------------------------------------------------------------
 
 /**
  * Thrown when the document DSL violates a parse or structural rule. Carries
@@ -82,30 +74,14 @@ function locOf(node: { loc?: SourceLocation | null }): SrcLoc {
   return node.loc?.start;
 }
 
-// ---------------------------------------------------------------------------
-// Vocabulary — react-pdf render tags
-// ---------------------------------------------------------------------------
-
-/**
- * Every `@react-pdf/renderer` component the document DSL permits. Bare
- * capitalized identifiers (unlike slides, which namespaces under `Anuma.*`).
- *
- * Deliberately excluded: `Font` (imperative `Font.register` API, not a render
- * tag) and `Canvas` (requires a `paint` function prop, which the literal-only
- * DSL cannot express).
- */
 const PDF_TAGS = [
-  // structure
   "Document",
   "Page",
   "View",
-  // text / inline
   "Text",
   "Link",
   "Note",
-  // media
   "Image",
-  // vector
   "Svg",
   "G",
   "Line",
@@ -128,10 +104,8 @@ export type PdfTag = (typeof PDF_TAGS)[number];
 
 const PDF_TAG_SET = new Set<string>(PDF_TAGS);
 
-/** Tags whose children are displayed text; may also nest inline `<Text>`/`<Link>`/`<Tspan>`. */
 const TEXT_TAGS = new Set<string>(["Text", "Link", "Note", "Tspan"]);
 
-/** Tags rendered as self-closing — they take no children. */
 const LEAF_TAGS = new Set<string>([
   "Image",
   "Line",
@@ -144,7 +118,6 @@ const LEAF_TAGS = new Set<string>([
   "Stop",
 ]);
 
-/** Tags permitted anywhere inside an `<Svg>` subtree. */
 const SVG_TAGS = new Set<string>([
   "G",
   "Line",
@@ -163,37 +136,10 @@ const SVG_TAGS = new Set<string>([
   "RadialGradient",
 ]);
 
-/**
- * Tags from {@link SVG_TAGS} that are ALSO valid in document body context, so
- * they must NOT be rejected outside `<Svg>`. Only `<Text>` qualifies: `<Tspan>`
- * is an SVG-only text primitive (it maps to SVG `<tspan>` and is meaningful
- * only inside `<Svg><Text>`), even though it carries text and so appears in
- * {@link TEXT_TAGS}.
- */
 const SVG_BODY_SHARED_TAGS = new Set<string>(["Text"]);
 
-/**
- * SVG primitives that are only meaningful inside an `<Svg>` subtree (everything
- * in {@link SVG_TAGS} except the body-shared tags). Placing any of these
- * outside an `<Svg>` renders nothing — or fails — in react-pdf, so we reject
- * it: the mirror of the non-SVG-inside-`<Svg>` check.
- */
 const SVG_ONLY_TAGS = new Set<string>([...SVG_TAGS].filter((t) => !SVG_BODY_SHARED_TAGS.has(t)));
 
-/**
- * Element children each text-bearing tag accepts, mirroring the react-pdf node
- * children unions (`@react-pdf/layout` `types/{text,link,note,tspan}.ts`). Raw
- * string children are always allowed and handled separately. A tag NOT listed
- * here (e.g. `<View>`, `<Page>`) is a block/structure element that react-pdf
- * does not lay out inside a text run — it silently flattens it into text,
- * dropping its box, background, and borders — so we reject it at parse time
- * with a clear error instead of letting it misrender.
- *
- * `Text` upstream permits Text/Image/Tspan; `Link` is added pragmatically
- * because the DSL has long accepted (and react-pdf renders) an inline `<Link>`
- * inside `<Text>`. `Link` permits block children (`View`/`Image`/`Text`).
- * `Note`/`Tspan` take plain text only.
- */
 const TEXT_TAG_ELEMENT_CHILDREN: Record<string, ReadonlySet<string>> = {
   Text: new Set(["Text", "Link", "Image", "Tspan"]),
   Link: new Set(["View", "Image", "Text"]),
@@ -201,15 +147,7 @@ const TEXT_TAG_ELEMENT_CHILDREN: Record<string, ReadonlySet<string>> = {
   Tspan: new Set<string>([]),
 };
 
-/**
- * Recognized react-pdf style keys for `style={{}}`. Mirrors the `Style` type
- * exported by `@react-pdf/stylesheet` (border / color / dimension / flexbox /
- * gap / layout / margin / padding / text / transform / svg / image groups).
- * react-pdf silently ignores unknown keys, so an unrecognized key would
- * render at the default value — we reject it instead, with a did-you-mean hint.
- */
 const PDF_STYLE_KEYS = new Set<string>([
-  // border
   "border",
   "borderTop",
   "borderRight",
@@ -235,18 +173,15 @@ const PDF_STYLE_KEYS = new Set<string>([
   "borderTopRightRadius",
   "borderBottomRightRadius",
   "borderBottomLeftRadius",
-  // color
   "backgroundColor",
   "color",
   "opacity",
-  // dimension
   "width",
   "height",
   "minWidth",
   "minHeight",
   "maxWidth",
   "maxHeight",
-  // flexbox
   "flex",
   "alignContent",
   "alignItems",
@@ -259,11 +194,9 @@ const PDF_STYLE_KEYS = new Set<string>([
   "flexBasis",
   "justifySelf",
   "justifyContent",
-  // gap
   "gap",
   "rowGap",
   "columnGap",
-  // layout
   "aspectRatio",
   "bottom",
   "display",
@@ -273,7 +206,6 @@ const PDF_STYLE_KEYS = new Set<string>([
   "top",
   "overflow",
   "zIndex",
-  // margin
   "margin",
   "marginHorizontal",
   "marginVertical",
@@ -281,7 +213,6 @@ const PDF_STYLE_KEYS = new Set<string>([
   "marginRight",
   "marginBottom",
   "marginLeft",
-  // padding
   "padding",
   "paddingHorizontal",
   "paddingVertical",
@@ -289,7 +220,6 @@ const PDF_STYLE_KEYS = new Set<string>([
   "paddingRight",
   "paddingBottom",
   "paddingLeft",
-  // text
   "direction",
   "fontSize",
   "fontFamily",
@@ -306,13 +236,11 @@ const PDF_STYLE_KEYS = new Set<string>([
   "textOverflow",
   "textTransform",
   "verticalAlign",
-  // transform
   "transformOrigin",
   "transformOriginX",
   "transformOriginY",
   "transform",
   "gradientTransform",
-  // svg
   "fill",
   "stroke",
   "strokeDasharray",
@@ -326,7 +254,6 @@ const PDF_STYLE_KEYS = new Set<string>([
   "visibility",
   "clipPath",
   "dominantBaseline",
-  // image
   "objectPosition",
   "objectPositionX",
   "objectPositionY",
@@ -337,11 +264,6 @@ const STYLE_KEY_LOWER_TO_CAMEL = new Map<string, string>(
   Array.from(PDF_STYLE_KEYS, (k) => [k.toLowerCase(), k])
 );
 
-/**
- * react-pdf's built-in (standard PDF) font families. Using any other family
- * requires `Font.register`, which the DSL does not expose, so a non-standard
- * family would throw at render time. Restrict `fontFamily` to these in v1.
- */
 const STANDARD_FONTS = new Set<string>([
   "Courier",
   "Courier-Bold",
@@ -373,10 +295,6 @@ function validateStyleKey(key: string, loc: SrcLoc): void {
     loc
   );
 }
-
-// ---------------------------------------------------------------------------
-// Parse: JSX string -> DocNode
-// ---------------------------------------------------------------------------
 
 /**
  * Parse and validate a document DSL source string into a {@link DocNode} tree.
@@ -411,21 +329,12 @@ export function parseDocumentDsl(source: string): DocNode {
     throw new DocDslError(`Root element must be <Document>, got <${root.tag}>`, locOf(ast));
   }
   enforceStructure(root, null, false);
-  // react-pdf throws when a <Document> has no <Page>; catch it here with a
-  // clear message rather than letting it surface as an opaque render failure.
-  // (An empty <Page> is fine — it renders a blank page.)
   if (!root.children.some((c) => typeof c !== "string" && c.tag === "Page")) {
     throw new DocDslError("<Document> must contain at least one <Page>.", locOf(ast));
   }
   return root;
 }
 
-/**
- * Maximum element nesting depth. A real document nests only a handful of levels
- * deep; this far-larger bound rejects pathological input that could exhaust the
- * recursion stack (here and in the host renderer) without ever tripping on a
- * legitimate document.
- */
 const MAX_DEPTH = 100;
 
 function parseElement(el: JSXElement, depth: number): DocNode {
@@ -441,11 +350,6 @@ function parseElement(el: JSXElement, depth: number): DocNode {
   return { tag, attrs, children };
 }
 
-/**
- * Read and validate the opening tag. Accepts only bare capitalized identifiers
- * in the react-pdf {@link PDF_TAGS} vocabulary — no namespaces, no member
- * expressions, no lowercase HTML.
- */
 function readTag(el: JSXElement): string {
   const name = el.openingElement.name;
   if (name.type !== "JSXIdentifier") {
@@ -485,11 +389,6 @@ function readAttributes(el: JSXElement, tag: string): Record<string, DocAttrValu
     }
     out[name] = readAttrValue(attr);
   }
-  // Privacy: images must be inlined as data: URIs — never a remote fetch.
-  // Validate EVERY src-like prop that is present, not just the first one:
-  // react-pdf accepts both `src` and `source`, so a benign `src="data:…"` must
-  // not become a license to smuggle a remote URL — or a `source={{ uri }}`
-  // object — through the other prop.
   if (tag === "Image") {
     const srcProps = (["src", "source"] as const).filter((k) => out[k] !== undefined);
     if (srcProps.length === 0) {
@@ -508,12 +407,6 @@ function readAttributes(el: JSXElement, tag: string): Record<string, DocAttrValu
       }
     }
   }
-  // Link hrefs: block script / local-file / data schemes (defense-in-depth for
-  // a document the user downloads and opens). react-pdf resolves a link's
-  // destination as `src || href` (see @react-pdf/layout getAttributedString),
-  // so validate EVERY link-href-like prop that's present — guarding only `src`
-  // would let `<Link href="javascript:…">` smuggle a script scheme through the
-  // other prop, mirroring the Image src/source loop above.
   if (tag === "Link") {
     for (const key of ["src", "href"] as const) {
       const value = out[key];
@@ -553,11 +446,6 @@ function readAttrValue(attr: JSXAttribute): DocAttrValue {
   throw new DocDslError(`Unsupported attribute value type: ${attr.value.type}`, locOf(attr));
 }
 
-/**
- * Read an object-literal attribute value such as `style={{ fontSize: 12,
- * color: "#111" }}`. Keys must be plain identifiers or string literals; values
- * must be scalar literals (string / number / boolean, with negative numbers).
- */
 function readObjectExpr(
   expr: import("@babel/types").ObjectExpression,
   attrName: string,
@@ -615,21 +503,8 @@ function assertStandardFont(family: string, loc: SrcLoc): void {
   );
 }
 
-/** URL schemes rejected on a `<Link>` href — dangerous in a downloadable PDF. */
 const UNSAFE_LINK_SCHEME_RE = /^(javascript|vbscript|data|file):/i;
 
-/**
- * Reject dangerous URL schemes on a `<Link>` href, blocking script /
- * local-file / data schemes; http(s), mailto, tel, and relative hrefs stay
- * allowed.
- *
- * Browsers and PDF viewers strip ALL C0 control characters and spaces
- * (charCode <= 0x20) from a URL — not just leading ones — before resolving its
- * scheme, so an embedded NUL or TAB inside the scheme name normalizes back to
- * a live script scheme. Drop every such char anywhere in the value before
- * matching, so obfuscation can't split a blocked scheme past the denylist.
- * Detection only — the original value is what gets stored if accepted.
- */
 function assertSafeLinkHref(prop: string, value: string, loc: SrcLoc): void {
   let normalized = "";
   for (let i = 0; i < value.length; i++) {
@@ -687,7 +562,6 @@ function readChildren(el: JSXElement, tag: string, depth: number): DocChild[] {
   return ordered;
 }
 
-/** Collapse a raw JSXText value using React-like whitespace rules. */
 function normalizeJsxText(raw: string): string {
   if (!raw.includes("\n")) return raw;
   return raw
@@ -697,15 +571,6 @@ function normalizeJsxText(raw: string): string {
     .join(" ");
 }
 
-// ---------------------------------------------------------------------------
-// Structural validation (parent / context aware)
-// ---------------------------------------------------------------------------
-
-/**
- * Walk the tree enforcing contextual rules the per-element parse can't see:
- * `<Document>` only at the root, `<Page>` only directly under `<Document>`,
- * and the SVG vocabulary only inside an `<Svg>` subtree.
- */
 function enforceStructure(node: DocNode, parent: DocNode | null, inSvg: boolean): void {
   if (!inSvg && SVG_ONLY_TAGS.has(node.tag)) {
     throw new DocDslError(`<${node.tag}> is an SVG element and may only appear inside an <Svg>.`);
@@ -722,10 +587,6 @@ function enforceStructure(node: DocNode, parent: DocNode | null, inSvg: boolean)
   const nowInSvg = inSvg || node.tag === "Svg";
   for (const child of node.children) {
     if (typeof child === "string") continue;
-    // Reject block/structure tags nested in a text tag — react-pdf would
-    // silently flatten them. SVG-only primitives are skipped here so a
-    // misplaced one keeps its more specific "only inside <Svg>" diagnostic
-    // (raised by the SVG check below, or on recursion).
     const inlineChildren = TEXT_TAG_ELEMENT_CHILDREN[node.tag];
     if (inlineChildren && !SVG_ONLY_TAGS.has(child.tag) && !inlineChildren.has(child.tag)) {
       throw new DocDslError(
@@ -741,10 +602,6 @@ function enforceStructure(node: DocNode, parent: DocNode | null, inSvg: boolean)
     enforceStructure(child, node, nowInSvg);
   }
 }
-
-// ---------------------------------------------------------------------------
-// Introspection helpers
-// ---------------------------------------------------------------------------
 
 /** True iff `tag` is a permitted react-pdf document tag. */
 export function isPdfTag(tag: string): boolean {

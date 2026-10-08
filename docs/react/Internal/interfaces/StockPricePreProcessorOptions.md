@@ -1,6 +1,6 @@
 # StockPricePreProcessorOptions
 
-Defined in: [src/lib/chat/stockPriceClassifier.ts:82](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/stockPriceClassifier.ts#82)
+Defined in: [src/lib/chat/stockPriceClassifier.ts:68](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/stockPriceClassifier.ts#68)
 
 ## Properties
 
@@ -8,7 +8,7 @@ Defined in: [src/lib/chat/stockPriceClassifier.ts:82](https://github.com/anuma-a
 
 > `optional` **fetchStockPriceData**: (`prompt`: `string`, `options`: `object`) => `Promise`<`string` | [`LlmapiMessage`](../../../client/Internal/type-aliases/LlmapiMessage.md)\[]>
 
-Defined in: [src/lib/chat/stockPriceClassifier.ts:94](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/stockPriceClassifier.ts#94)
+Defined in: [src/lib/chat/stockPriceClassifier.ts:80](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/stockPriceClassifier.ts#80)
 
 Called with the caller's stock-quote provider when the classifier
 decides the prompt is asking for stock/ETF/FX data. Return either a
@@ -79,7 +79,7 @@ provider requests can be aborted when the caller aborts.
 
 > `optional` **margin**: `number`
 
-Defined in: [src/lib/chat/stockPriceClassifier.ts:103](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/stockPriceClassifier.ts#103)
+Defined in: [src/lib/chat/stockPriceClassifier.ts:89](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/stockPriceClassifier.ts#89)
 
 Score margin: `stockPriceScore` must exceed `noStockPriceScore` by at
 least this amount to classify as "needs stock price data".
@@ -96,7 +96,7 @@ least this amount to classify as "needs stock price data".
 
 > `optional` **onClassification**: (`result`: [`StockPriceClassification`](StockPriceClassification.md)) => `void`
 
-Defined in: [src/lib/chat/stockPriceClassifier.ts:105](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/stockPriceClassifier.ts#105)
+Defined in: [src/lib/chat/stockPriceClassifier.ts:91](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/stockPriceClassifier.ts#91)
 
 Observe the classification without injecting anything.
 

@@ -8,9 +8,6 @@ function envelope(error: Record<string, unknown>): string {
 }
 
 describe("parseAgentresError", () => {
-  // T-U7. Each of these is a state the registration UI has to say something
-  // specific about, and `next_step` is the provider's own sentence about what
-  // to do — the only actionable part of most refusals.
   test.each<[AgentresErrorCode, number, string, boolean, string]>([
     [
       "NO_LINKED_ACCOUNT",
@@ -72,9 +69,6 @@ describe("parseAgentresError", () => {
     expect(error.retryable).toBe(true);
   });
 
-  // An envelope that states neither a code nor a message says nothing the
-  // caller can use, so it counts as no stated refusal — the same rule the
-  // payments server's Go decoder applies.
   test("treats an empty envelope as no stated refusal", () => {
     const error = parseAgentresError(500, envelope({ retryable: true }));
 

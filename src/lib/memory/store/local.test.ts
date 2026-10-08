@@ -1,14 +1,8 @@
-/**
- * The local MemoryStore against a REAL in-memory WatermelonDB (LokiJS — same
- * setup as roundTrip.test.ts). Runs the shared contract, then checks the store
- * returns exactly what the ops it wraps return.
- */
 import { Database } from "@nozbe/watermelondb";
 import LokiJSAdapter from "@nozbe/watermelondb/adapters/lokijs";
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("../../memoryEngine/embeddings", () => {
-  // Deterministic bag-of-words embedder (see roundTrip.test.ts).
   const DIM = 64;
   const embed = (text: string): number[] => {
     const v: number[] = new Array<number>(DIM).fill(0);
@@ -188,7 +182,6 @@ describe("createLocalMemoryStore parity with the raw ops", () => {
       { limit: 3, types: ["fact"] }
     );
     expect(viaStore.memories.map((m) => m.id)).toEqual(direct.memories.map((m) => m.id));
-    // Recency reads the clock, so the two calls a few ms apart differ past ~1e-10.
     viaStore.memories.forEach((m, i) => expect(m.score).toBeCloseTo(direct.memories[i].score, 6));
   });
 
@@ -206,11 +199,8 @@ describe("createLocalMemoryStore parity with the raw ops", () => {
     expect(before?.embedding).toBeTruthy();
     expect(cachedBefore).toBeDefined();
 
-    // Like useChatStorage's edit: the row comes back with no vector...
     const edited = await store.update(memoryId, { content: "Commutes by train" });
     expect(edited).toMatchObject({ embedding: null, embeddingModel: null });
-    // ...and the background re-embed lands the new content's vector in the
-    // row and the cache.
     await vi.waitFor(async () => {
       const after = await store.get(memoryId);
       expect(after?.embedding).toBeTruthy();
@@ -229,7 +219,6 @@ describe("createLocalMemoryStore parity with the raw ops", () => {
     });
     await updateVaultMemoryOp(vaultCtx, uniqueId, { content: "Commutes by bus", embedding: null });
 
-    // The first edit's embed finishes last: its row version is gone, so no write.
     await eagerEmbedContent(
       "Commutes by train",
       embeddingOptions,
@@ -244,13 +233,11 @@ describe("createLocalMemoryStore parity with the raw ops", () => {
 
   it("sees rows an unscoped context wrote when single-tenant (the client's shape)", async () => {
     const database = makeDatabase();
-    // useChatStorage's vault ctx: no userId, so rows are user_id = null.
     const { vaultCtx } = setup(database);
     const row = await createVaultMemoryOp(vaultCtx, { content: "Lives in Lisbon" });
 
     const store = createLocalMemoryStore({ database, embeddingOptions, singleTenant: true });
     expect((await store.list()).map((m) => m.uniqueId)).toEqual([row.uniqueId]);
-    // Reads never rewrite rows: nothing claims them for a user.
     expect((await getVaultMemoryOp(vaultCtx, row.uniqueId))?.userId ?? null).toBeNull();
   });
 
@@ -289,8 +276,6 @@ describe("createLocalMemoryStore parity with the raw ops", () => {
     const m = await store.create({ content: "Plays chess" });
     await store.addTopics(m.uniqueId, ["Chess"]);
 
-    // Let deletion and its cascade finish immediately before addTopics enters
-    // its writer. A liveness probe outside that writer would already be stale.
     const originalWrite = database.write.bind(database);
     const writeSpy = vi
       .spyOn(database, "write")

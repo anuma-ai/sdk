@@ -40,13 +40,10 @@ describe("createMessageOp idempotency (duplicate uniqueId)", () => {
     const first = await createMessageOp(ctx, opts);
     expect(first.uniqueId).toBe("msg-abc");
 
-    // A queue replay / double-submit fires the same op again with the same
-    // pre-allocated id — this used to throw LokiJS "Duplicate key for property id".
     const second = await createMessageOp(ctx, opts);
     expect(second.uniqueId).toBe("msg-abc");
     expect(second.messageId).toBe(first.messageId);
 
-    // Exactly one record persisted — no duplicate row created.
     const all = await ctx.messagesCollection.query().fetch();
     expect(all).toHaveLength(1);
   });
@@ -63,9 +60,6 @@ describe("createMessageOp idempotency (duplicate uniqueId)", () => {
     const first = await createMessageOp(ctx, opts);
     expect(first.content).toBe("original content");
 
-    // A replay with the SAME uniqueId but edited content must not mutate the
-    // stored row — createMessageOp's idempotency guard returns the first-persisted
-    // version as-is. Callers needing in-place reconciliation use upsertMessageOp.
     const replay = await createMessageOp(ctx, { ...opts, content: "edited content" });
     expect(replay.content).toBe("original content");
     expect(replay.messageId).toBe(first.messageId);

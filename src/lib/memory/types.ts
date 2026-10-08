@@ -1,13 +1,3 @@
-/**
- * Unified memory layer types — the Recall / Retain API.
- *
- * This module defines the public surface for the new unified memory layer
- * that sits above `memoryVault` (curated facts) and `memoryEngine` (raw
- * conversation chunks). Callers should prefer these types over the legacy
- * `VaultSearchResult` / `ChunkSearchResult` shapes; the underlying stores
- * may converge later, the API will not.
- */
-
 import type { ChunkVectorCache, StorageOperationsContext } from "../db/chat/operations.js";
 import type { EntityOperationsContext } from "../db/entities/operations.js";
 import type { VaultMemoryOperationsContext } from "../db/memoryVault/operations.js";
@@ -19,8 +9,6 @@ import type { ObservationTrend } from "./observationTrend.js";
 import type { PortalLlmAuth } from "./portalLlm.js";
 import type { RecencyOptions } from "./recency.js";
 
-// Re-exported here so the public types surface is one module; the
-// interface lives next to the fetch helper that enforces it.
 export type { PortalLlmAuth, PortalLlmFailure, PortalLlmFailureReason } from "./portalLlm.js";
 
 export type MemoryKind = "fact" | "chunk";
@@ -64,7 +52,6 @@ export interface RankedMemory {
   score: number;
   scoreBreakdown?: ScoreBreakdown;
 
-  // Fact-only
   sourceChunkIds?: string[];
   proofCount?: number;
   source?: string;
@@ -98,7 +85,6 @@ export interface RankedMemory {
    */
   factType?: string | null;
 
-  // Chunk-only
   conversationId?: string;
   messageId?: string;
   role?: "user" | "assistant";
@@ -189,11 +175,6 @@ export interface RecallOptions {
    * swallowed (diagnostics must never break retrieval). Off unless provided.
    */
   onDiagnostics?: (diagnostics: RecallDiagnostics) => void;
-  // -------------------------------------------------------------------------
-  // Ranking tuning knobs — forwarded verbatim to the vault search pipeline.
-  // All optional; defaults below match the pipeline's hardcoded behavior, so
-  // omitting them is a no-op. Exposed for evaluation / ablation sweeps.
-  // -------------------------------------------------------------------------
   /** Number of candidates fed to the cross-encoder rerank stage. Default: 5;
    *  was 30 until 2026-08-13 — see anuma-ai/sdk#845. */
   rerankTopN?: number;
@@ -236,11 +217,6 @@ export interface RecallOptions {
    * whole-vault decrypt path).
    */
   decryptLast?: boolean;
-  // -------------------------------------------------------------------------
-  // Multi-hop graph traversal knobs (PR4). Only active on the `high` budget
-  // (the W5 lane's `traverse` flag); no-ops on low/mid. All optional; defaults
-  // are the exported constants in `graphTraversal.ts`. Exposed for ablation.
-  // -------------------------------------------------------------------------
   /** Total graph hops incl. the seed lookup (hop 1). Default: 1 (seed only). */
   maxHops?: number;
   /** Max neighbor entities expanded per hop. Default: 8. */
@@ -512,10 +488,6 @@ export interface RecallDiagnostics {
   /** Soft-degradation signals that fired this call (empty when clean). */
   degraded: RecallDegradation[];
 }
-
-// ---------------------------------------------------------------------------
-// Retain API — for completeness / future-proofing. Implemented Wed 5/6 (W2).
-// ---------------------------------------------------------------------------
 
 export type RetainAction = "create" | "merge" | "update" | "skip" | "suppressed" | "supersede";
 

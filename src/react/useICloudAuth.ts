@@ -90,7 +90,6 @@ export function ICloudAuthProvider({
   const [isConfigured, setIsConfigured] = useState(false);
   const [_isLoading, setIsLoading] = useState(false);
 
-  // Initialize CloudKit on mount - load dynamically
   useEffect(() => {
     if (!apiToken || typeof window === "undefined") {
       return;
@@ -99,11 +98,9 @@ export function ICloudAuthProvider({
     const initCloudKit = async () => {
       setIsLoading(true);
       try {
-        // Load CloudKit JS dynamically
         await loadCloudKit();
         setIsAvailable(true);
 
-        // Configure CloudKit
         const config: CloudKitConfig = {
           containerIdentifier,
           apiToken,
@@ -112,7 +109,6 @@ export function ICloudAuthProvider({
         await configureCloudKit(config);
         setIsConfigured(true);
 
-        // Check for existing authentication
         try {
           const userIdentity = await authenticateICloud();
           if (userIdentity) {
@@ -143,8 +139,6 @@ export function ICloudAuthProvider({
     }
 
     try {
-      // Request sign-in - this will check for existing session first,
-      // then programmatically trigger the Apple sign-in popup if needed
       const userIdentity = await requestICloudSignIn();
       setIsAuthenticated(true);
       setUserRecordName(userIdentity.userRecordName);
@@ -157,8 +151,6 @@ export function ICloudAuthProvider({
   const logout = useCallback(() => {
     setIsAuthenticated(false);
     setUserRecordName(null);
-    // Note: CloudKit JS doesn't have a programmatic sign-out
-    // Users sign out through Apple ID settings
   }, []);
 
   return createElement(

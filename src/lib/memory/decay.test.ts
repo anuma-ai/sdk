@@ -16,9 +16,8 @@ import {
 } from "./decay";
 
 const DAY = 24 * 60 * 60 * 1000;
-const NOW = Date.UTC(2026, 6, 1); // 2026-07-01, fixed reference
+const NOW = Date.UTC(2026, 6, 1);
 
-/** All FactTypes the extractor can emit, plus null (untyped/legacy). */
 const NEVER_TYPES = ["identity", "preference", "relationship", "constraint"] as const;
 const SHORT_TYPES = ["plan", "ongoing_context"] as const;
 const MEDIUM_TYPES = ["other", null] as const;
@@ -28,7 +27,7 @@ function input(overrides: Partial<DecayInput> = {}): DecayInput {
     factType: "other",
     eventTimeEnd: null,
     eventTimeKind: null,
-    updatedAt: NOW, // fresh by default
+    updatedAt: NOW,
     archivedAt: null,
     source: "auto-extracted",
     ...overrides,
@@ -52,20 +51,7 @@ describe("ttlForType", () => {
 });
 
 describe("classifyDecay — photo source is protected from auto-archive", () => {
-  // This suite is not about tidiness. A photo memory is PUBLISHED and has been
-  // ADOPTED into the reconciler's ledger, and archived rows are hidden from
-  // every vault read lane by baseVaultConditions. So the moment decay archives
-  // one it drops out of `local` -> out of `desired` -> and, being in
-  // ledger.published, lands in `toRevoke`: the server-side memory is silently
-  // unpublished with the user never having touched the switch. Revoking is the
-  // user's decision and has exactly one entry point, the publish toggle.
-  //
-  // These tests are the only thing standing between a future refactor of the
-  // short-circuit and that silent unpublish.
   it("keeps an untyped photo memory well past the medium fallback TTL", () => {
-    // The exact shape ingest writes: source photo, no factType (the server does
-    // not send one), so without the exemption ttlForType(null) = MEDIUM_TTL_MS
-    // and this would archive at day 180.
     const verdict = classifyDecay(
       input({
         source: SOURCE_PHOTO,
@@ -78,8 +64,6 @@ describe("classifyDecay — photo source is protected from auto-archive", () => 
   });
 
   it("keeps a photo memory that is ancient AND event-past", () => {
-    // Belt and braces: neither the "becomes past" branch nor the age fallback
-    // may reach a published row.
     const verdict = classifyDecay(
       input({
         source: SOURCE_PHOTO,
@@ -93,9 +77,6 @@ describe("classifyDecay — photo source is protected from auto-archive", () => 
   });
 
   it("still applies the hard-delete clock once a photo memory IS archived", () => {
-    // Same asymmetry as manual: the exemption is from AUTO-ARCHIVE only. Archive
-    // is the shared purge buffer, so anything already archived (by an explicit
-    // user action, or by a row that predates the exemption) still ages out.
     const verdict = classifyDecay(
       input({ source: SOURCE_PHOTO, archivedAt: NOW - (HARD_DELETE_WINDOW_MS + DAY) }),
       NOW
@@ -104,8 +85,6 @@ describe("classifyDecay — photo source is protected from auto-archive", () => 
   });
 
   it("archives an equivalent row whose source is NOT protected", () => {
-    // The control. Identical age and type, only `source` differs — which is what
-    // proves the exemption is doing the work rather than some other branch.
     const verdict = classifyDecay(
       input({
         source: "auto-extracted",
@@ -139,8 +118,6 @@ describe("classifyDecay — manual source is protected from auto-archive only", 
   });
 
   it("DELETES a manual memory that is archived past the window (purge clock applies to all)", () => {
-    // Product decision: once archived, the 30d hard-delete clock applies even to
-    // manual rows — the archived check runs before the manual short-circuit.
     const verdict = classifyDecay(
       input({ source: "manual", archivedAt: NOW - (HARD_DELETE_WINDOW_MS + DAY) }),
       NOW
@@ -197,7 +174,7 @@ describe("classifyDecay — plan/ongoing_context event-past archiving", () => {
           factType: t,
           eventTimeEnd: NOW - (PAST_EVENT_GRACE_MS - DAY),
           eventTimeKind: "range",
-          updatedAt: NOW, // fresh, so age fallback won't fire either
+          updatedAt: NOW,
         }),
         NOW
       );
@@ -219,7 +196,7 @@ describe("classifyDecay — plan/ongoing_context event-past archiving", () => {
         factType: "ongoing_context",
         eventTimeEnd: null,
         eventTimeKind: "ongoing",
-        updatedAt: NOW, // fresh
+        updatedAt: NOW,
       }),
       NOW
     );
@@ -227,8 +204,6 @@ describe("classifyDecay — plan/ongoing_context event-past archiving", () => {
   });
 
   it("does not apply the event-past rule to non-plan/ongoing types", () => {
-    // identity with a past event end must NOT archive via the event rule, and
-    // its TTL is Infinity so age fallback can't fire either.
     const verdict = classifyDecay(
       input({ factType: "identity", eventTimeEnd: NOW - 5 * 365 * DAY, eventTimeKind: "range" }),
       NOW
@@ -237,17 +212,14 @@ describe("classifyDecay — plan/ongoing_context event-past archiving", () => {
   });
 
   it("does NOT age-archive a future-dated plan even when stale, then archives once the event passes", () => {
-    // A plan whose event is upcoming but whose row is older than the short TTL:
-    // must be kept (rule 4 exception), NOT archived before the event happens.
     const upcoming = input({
       factType: "plan",
       eventTimeKind: "range",
       eventTimeEnd: NOW + 60 * DAY,
-      updatedAt: NOW - (SHORT_TTL_MS + 10 * DAY), // stale by age
+      updatedAt: NOW - (SHORT_TTL_MS + 10 * DAY),
     });
     expect(classifyDecay(upcoming, NOW)).toBe("keep");
 
-    // Once "now" advances past the event end + grace, rule 3 archives it.
     const later = NOW + 60 * DAY + PAST_EVENT_GRACE_MS + DAY;
     expect(classifyDecay(upcoming, later)).toBe("archive");
   });
@@ -257,7 +229,7 @@ describe("classifyDecay — degenerate timestamps", () => {
   const warn = vi.fn();
   afterEach(() => {
     warn.mockReset();
-    setLogger(noopLogger); // restore a silent logger for other tests
+    setLogger(noopLogger);
   });
 
   function withSpyLogger() {
@@ -307,7 +279,7 @@ describe("classifyDecay — age fallback matrix (7 types + null × event × age)
               factType: t,
               eventTimeEnd: ev.eventTimeEnd,
               eventTimeKind: ev.eventTimeEnd === null ? null : "range",
-              updatedAt: NOW - 10 * 365 * DAY, // ancient
+              updatedAt: NOW - 10 * 365 * DAY,
             }),
             NOW
           );
@@ -370,11 +342,9 @@ describe("classifyDecay — age fallback matrix (7 types + null × event × age)
 describe("classifyDecay — policy override", () => {
   it("respects a custom fallback TTL", () => {
     const policy = { fallbackTtlMs: 5 * DAY };
-    // 6 days old, factType null → medium bucket → now archives with the tight policy.
     expect(classifyDecay(input({ factType: null, updatedAt: NOW - 6 * DAY }), NOW, policy)).toBe(
       "archive"
     );
-    // Same row under the default policy stays kept.
     expect(classifyDecay(input({ factType: null, updatedAt: NOW - 6 * DAY }), NOW)).toBe("keep");
   });
 

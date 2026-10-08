@@ -13,8 +13,6 @@ function makeCtx(overrides?: Partial<PromptContext>): PromptContext {
 }
 
 describe("buildSystemPrompt", () => {
-  // ── Base section ──
-
   describe("base section", () => {
     it("renders basePrompt as-is", () => {
       const result = buildSystemPrompt(makeCtx({ basePrompt: "Be kind." }));
@@ -22,8 +20,6 @@ describe("buildSystemPrompt", () => {
       expect(result.activeSections).toContain("base");
     });
   });
-
-  // ── Date section ──
 
   describe("date section", () => {
     it("renders current date in en-US format", () => {
@@ -37,8 +33,6 @@ describe("buildSystemPrompt", () => {
       expect(result.prompt).toContain("calculate exact date ranges");
     });
   });
-
-  // ── Tools section ──
 
   describe("tools section", () => {
     it("returns null when no tools provided", () => {
@@ -66,8 +60,6 @@ describe("buildSystemPrompt", () => {
     });
   });
 
-  // ── Persona section ──
-
   describe("persona section", () => {
     it("returns null when persona is null", () => {
       const result = buildSystemPrompt(makeCtx({ persona: null }));
@@ -93,8 +85,6 @@ describe("buildSystemPrompt", () => {
     });
   });
 
-  // ── Style section ──
-
   describe("style section", () => {
     it("returns null when styleProfile is null", () => {
       const result = buildSystemPrompt(makeCtx({ styleProfile: null }));
@@ -114,8 +104,6 @@ describe("buildSystemPrompt", () => {
       expect(result.prompt).not.toContain('uses """emphasis"""');
     });
   });
-
-  // ── Sentiment section ──
 
   describe("sentiment section", () => {
     it("returns null when sentiment is null", () => {
@@ -140,8 +128,6 @@ describe("buildSystemPrompt", () => {
       expect(result.prompt).toContain(DEFAULT_PROMPT_TEMPLATES.sentiment.positive);
     });
   });
-
-  // ── Language section ──
 
   describe("language section", () => {
     it("returns null when preferredLanguage is null", () => {
@@ -173,8 +159,6 @@ describe("buildSystemPrompt", () => {
     });
   });
 
-  // ── Platform formatting section ──
-
   describe("platformFormatting section", () => {
     it("returns null when platformFormatting is null", () => {
       const result = buildSystemPrompt(makeCtx({ platformFormatting: null }));
@@ -189,8 +173,6 @@ describe("buildSystemPrompt", () => {
       expect(result.prompt).toContain("Use plain text only, no markdown.");
     });
   });
-
-  // ── Section ordering ──
 
   describe("section ordering", () => {
     it("renders in priority order", () => {
@@ -218,8 +200,6 @@ describe("buildSystemPrompt", () => {
     });
   });
 
-  // ── Disabled sections ──
-
   describe("disabled config", () => {
     it("skips sections listed in disabled", () => {
       const result = buildSystemPrompt(
@@ -230,8 +210,6 @@ describe("buildSystemPrompt", () => {
       expect(result.activeSections).not.toContain("language");
     });
   });
-
-  // ── maxLength budget ──
 
   describe("maxLength budget", () => {
     it("skips sections that exceed budget", () => {
@@ -273,8 +251,6 @@ describe("buildSystemPrompt", () => {
     });
   });
 
-  // ── extraSections ──
-
   describe("extraSections", () => {
     it("adds a custom section at the correct priority position", () => {
       const custom: PromptSection = {
@@ -290,8 +266,7 @@ describe("buildSystemPrompt", () => {
       const customIdx = result.activeSections.indexOf("custom");
       const toolsIdx = result.activeSections.indexOf("tools");
       expect(customIdx).toBeGreaterThan(dateIdx);
-      // tools is priority 25, not active here since no toolSummaries, but custom < 25
-      expect(toolsIdx).toBe(-1); // tools not active
+      expect(toolsIdx).toBe(-1);
     });
 
     it("reads from ctx.extra", () => {
@@ -310,8 +285,6 @@ describe("buildSystemPrompt", () => {
     });
   });
 
-  // ── Template overrides ──
-
   describe("template overrides", () => {
     it("uses custom persona template", () => {
       const result = buildSystemPrompt(makeCtx({ persona: "pirate" }), {
@@ -329,8 +302,6 @@ describe("buildSystemPrompt", () => {
     });
   });
 });
-
-// ── Helper unit tests ──
 
 describe("sanitizeQuotes", () => {
   it("collapses 3+ double quotes to one", () => {

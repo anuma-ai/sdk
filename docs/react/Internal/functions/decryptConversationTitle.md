@@ -2,7 +2,7 @@
 
 > **decryptConversationTitle**(`encryptedTitle`: `string`, `address`: `string`): `Promise`<`string`>
 
-Defined in: [src/lib/db/chat/lazyDecrypt.ts:148](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/lazyDecrypt.ts#148)
+Defined in: [src/lib/db/chat/lazyDecrypt.ts:81](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/lazyDecrypt.ts#81)
 
 Decrypt a single conversation title on demand.
 

@@ -1,15 +1,3 @@
-/**
- * Unit tests for the unified recall() orchestrator and the recall_memory
- * chat tool built on top of it.
- *
- * Mocking strategy: network and DB edges are module-mocked (embeddings,
- * vault/chat/entity DB ops, the cross-encoder, the decompose LLM); the
- * ranking pipeline between recall() and those edges — searchVaultMemories
- * WithSize, rankFusedVaultMemories(Async), rankComposite, BM25, RRF,
- * query entity/temporal parsing — runs for real, so these tests pin the
- * actual orchestration (budget flags, lane activation, fusion, limits)
- * rather than just argument pass-through.
- */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../db/chat/operations", () => ({
@@ -47,9 +35,6 @@ vi.mock("../memoryVault/decomposeQuery", async (importOriginal) => {
   };
 });
 
-// Wrap (not replace) so the real ranking pipeline still runs — this test
-// file pins actual orchestration — while letting us assert on the
-// `searchOptions` argument recall() forwards through.
 vi.mock("../memoryVault/searchTool", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../memoryVault/searchTool")>();
   return {
@@ -83,13 +68,10 @@ import { createRecallTool, RECALL_MAX_LIMIT, RECALL_MAX_MEMORIES_PER_TURN } from
 import { RerankerUnavailableError, rerankPairs } from "./reranker";
 import type { RecallContext, RecallDiagnostics } from "./types";
 
-// ── Deterministic embedding fixture ─────────────────────────────────────
-// Contents/queries share no tokens across items so BM25 stays out of the
-// way; rankings are driven purely by these vectors.
 const QUERY = "pets animals owned";
-const M1 = "Owns a golden retriever named Bailey"; // cos 1.0 vs QUERY
-const M2 = "Enjoys hiking trails near Boulder"; // cos ≈ 0.707
-const M3 = "Prefers oat milk lattes"; // cos 0 → below fact minScore
+const M1 = "Owns a golden retriever named Bailey";
+const M2 = "Enjoys hiking trails near Boulder";
+const M3 = "Prefers oat milk lattes";
 
 const VECTORS: Record<string, number[]> = {
   [QUERY]: [1, 0, 0],
@@ -161,8 +143,6 @@ beforeEach(() => {
   vi.mocked(updateVaultMemoryEmbeddingOp).mockResolvedValue(null);
   vi.mocked(getMemoriesByEventTimeOp).mockResolvedValue([]);
   vi.mocked(countActiveVaultMemoriesOp).mockResolvedValue(3);
-  // Default: every discovered id is active (the traversal active-set filter is a
-  // no-op unless a test archives something).
   vi.mocked(getActiveVaultMemoryIdsOp).mockImplementation(
     async (_ctx, ids: string[]) => new Set(ids)
   );
@@ -184,8 +164,6 @@ describe("recall — query validation", () => {
   it("returns an empty result for empty / whitespace queries without searching", async () => {
     for (const bad of ["", "   ", "\n\t"]) {
       const result = await recall(bad, makeCtx());
-      // toMatchObject (not toEqual) so adding a diagnostic field to
-      // RecallResult later doesn't break this pin.
       expect(result).toMatchObject({
         memories: [],
         usedBudget: "low",
@@ -212,7 +190,6 @@ describe("recall — budget tiers", () => {
     expect(rerankPairs).not.toHaveBeenCalled();
     expect(decomposeQuery).not.toHaveBeenCalled();
 
-    // m3 (cosine 0) is filtered by the default fact minScore (0.1).
     expect(result.memories.map((m) => m.id)).toEqual(["m1", "m2"]);
     expect(result.candidateCount).toBe(2);
     expect(result.vaultSize).toBe(3);
@@ -236,14 +213,11 @@ describe("recall — budget tiers", () => {
 
     expect(result.usedBudget).toBe("high");
     expect(decomposeQuery).not.toHaveBeenCalled();
-    // Rerank still runs — high includes the CE stage.
     expect(rerankPairs).toHaveBeenCalled();
     expect(result.memories[0].id).toBe("m1");
   });
 
   it("budget=high WITH decomposeOptions does NOT invoke LLM rewrite inside recall()", async () => {
-    // 719/B4: decomposeOptions on RecallOptions is auth for graphRefine /
-    // tool-layer callers — recall itself never calls decomposeQuery.
     const result = await recall(QUERY, makeCtx(), {
       budget: "high",
       decomposeOptions: { apiKey: "llm-key", model: "openai/gpt-5-mini" },
@@ -263,7 +237,6 @@ describe("recall — budget tiers", () => {
 
     expect(result.usedBudget).toBe("high");
     expect(decomposeQuery).not.toHaveBeenCalled();
-    // Sub-queries are embedded for the composite ranker.
     expect(generateEmbeddings).toHaveBeenCalledWith(
       ["sub one", "sub two", "sub three"],
       expect.anything()
@@ -272,11 +245,6 @@ describe("recall — budget tiers", () => {
   });
 
   it("composite path does NOT leak zero-score tail items past the minScore floor", async () => {
-    // rankComposite's bench-parity zero-score append is now opt-in
-    // (includeUnrankedTail), and production recall() does not set it — so a
-    // vault item absent from facet fusion (m3, similarity 0, below the 0.1
-    // factMinScore) must NOT appear in results. Prevents zero-relevance
-    // padding from reaching the answer LLM on the high-budget composite path.
     const result = await recall(QUERY, makeCtx(), {
       budget: "high",
       subQueries: ["sub one", "sub two"],
@@ -286,8 +254,6 @@ describe("recall — budget tiers", () => {
   });
 
   it("a single subQuery entry stays on the single-query path", async () => {
-    // specific-mode decompose returns `[original]`; callers may forward it
-    // blindly. One facet must NOT pay the composite embed/RRF cost.
     const result = await recall(QUERY, makeCtx(), {
       budget: "high",
       subQueries: [QUERY],
@@ -323,10 +289,6 @@ describe("recall — budget tiers", () => {
   });
 
   it("degrades to the V2 ranking and reports reranked:false when the CE fails", async () => {
-    // A transient CE failure must not error the whole recall — the search
-    // layer catches it and returns the already-computed V2 ordering. The
-    // reranked flag is threaded from the actual per-call outcome, so a degrade
-    // (transient OR permanent) reports false — it did not rerank this call.
     vi.mocked(rerankPairs).mockRejectedValue(new Error("CE model download failed"));
 
     const result = await recall(QUERY, makeCtx(), { budget: "mid" });
@@ -336,16 +298,12 @@ describe("recall — budget tiers", () => {
   });
 
   it("reports reranked:false when the cross-encoder is unavailable (e.g. React Native)", async () => {
-    // On RN the optional @huggingface/transformers dep is absent, so rerankPairs
-    // throws RerankerUnavailableError; recall must report the honest flag rather
-    // than echoing the budget's rerank intent.
     vi.mocked(rerankPairs).mockRejectedValue(new RerankerUnavailableError(undefined));
 
     const result = await recall(QUERY, makeCtx(), { budget: "high" });
 
     expect(result.usedBudget).toBe("high");
     expect(result.reranked).toBe(false);
-    // Recall still returns the fused ranking — degradation is graceful.
     expect(result.memories.map((m) => m.id)).toEqual(["m1", "m2"]);
   });
 });
@@ -388,35 +346,23 @@ describe("recall — lane selection (types)", () => {
 
     const result = await recall(QUERY, makeCtx(), { types: ["fact", "chunk"], limit: 3 });
 
-    // Both lanes pull a widened candidate pool for RRF overlap.
     expect(searchChunksOp).toHaveBeenCalledWith(
       storageCtx,
       vecFor(QUERY),
       expect.objectContaining({ limit: 16 })
     );
 
-    // RRF (k=60): rank-1 items score 1/61, rank-2 score 1/62. Facts and
-    // chunks interleave; limit truncates after fusion.
-    // NOTE: m1 and c1 tie exactly (rank-1 in their respective lanes), so
-    // their relative order is the stable-sort insertion order — recall()
-    // builds the fused list facts-first. If the merge order ever changes,
-    // ["c1", "m1", ...] is equally correct; update this pin, don't fight it.
     expect(result.memories.map((m) => m.id)).toEqual(["m1", "c1", "m2"]);
     expect(result.memories).toHaveLength(3);
     expect(result.candidateCount).toBe(4);
     expect(result.memories[0].score).toBeCloseTo(1 / 61, 10);
     expect(result.memories[1].score).toBeCloseTo(1 / 61, 10);
     expect(result.memories[2].score).toBeCloseTo(1 / 62, 10);
-    // scoreBreakdown.fused preserves the pre-RRF lane score.
     expect(result.memories[1].scoreBreakdown?.fused).toBe(0.9);
     expect(result.memories.map((m) => m.kind)).toEqual(["fact", "chunk", "fact"]);
   });
 
   it("suppresses a chunk whose message originated a surfaced fact (cross-lane dedup)", async () => {
-    // m1 was extracted from chunk "c1" (sourceChunkIds provenance), so "c1"
-    // must not ALSO surface in the chunk lane — otherwise the same content
-    // appears twice. "c2" is unrelated and survives. Exercises the real
-    // pipeline end-to-end (sourceChunkIds threaded through VaultSearchResult).
     vi.mocked(getAllVaultMemoriesOp).mockResolvedValue([
       { ...makeMemory("m1", M1), sourceChunkIds: ["c1"] },
       makeMemory("m2", M2),
@@ -431,18 +377,14 @@ describe("recall — lane selection (types)", () => {
     const ids = result.memories.map((m) => m.id);
     expect(ids).toContain("m1");
     expect(ids).toContain("c2");
-    expect(ids).not.toContain("c1"); // suppressed by cross-lane dedup
+    expect(ids).not.toContain("c1");
     expect(result.memories.find((m) => m.id === "c1")).toBeUndefined();
   });
 
   it("does NOT suppress an origin chunk when its fact never surfaces (limit cut)", async () => {
-    // m2 (cos ≈ 0.707) was extracted from chunk "c1", but ranks below the
-    // limit=2 cut. Its high-scoring origin chunk "c1" must still surface —
-    // suppression is post-fusion and only fires for facts that actually make
-    // the cut, so a non-surfacing fact can't silently remove its own chunk.
     vi.mocked(getAllVaultMemoriesOp).mockResolvedValue([
-      makeMemory("m1", M1), // cos 1.0 → top fact
-      { ...makeMemory("m2", M2), sourceChunkIds: ["c1"] }, // cos ≈0.707 → cut at limit 2
+      makeMemory("m1", M1),
+      { ...makeMemory("m2", M2), sourceChunkIds: ["c1"] },
     ]);
     vi.mocked(searchChunksOp).mockResolvedValue([makeChunk("c1", "conv-1", 0.9)]);
 
@@ -450,15 +392,11 @@ describe("recall — lane selection (types)", () => {
 
     const ids = result.memories.map((m) => m.id);
     expect(ids).toContain("m1");
-    expect(ids).toContain("c1"); // NOT suppressed — m2 never surfaced
-    expect(ids).not.toContain("m2"); // cut by limit
+    expect(ids).toContain("c1");
+    expect(ids).not.toContain("m2");
   });
 
   it("suppresses an origin chunk even when it outranks its own surfacing fact", async () => {
-    // m2 was extracted from chunk "c1". The chunk lane scores "c1" high enough
-    // to outrank "m2" after fusion. Suppression must still fire (a fact and its
-    // origin chunk must never both appear) — the fixpoint makes it order-
-    // independent, not "only when the fact ranks higher".
     vi.mocked(getAllVaultMemoriesOp).mockResolvedValue([
       makeMemory("m1", M1),
       { ...makeMemory("m2", M2), sourceChunkIds: ["c1"] },
@@ -469,18 +407,15 @@ describe("recall — lane selection (types)", () => {
 
     const ids = result.memories.map((m) => m.id);
     expect(ids).toContain("m1");
-    expect(ids).toContain("m2"); // the surfacing fact wins
-    expect(ids).not.toContain("c1"); // its origin chunk is dropped regardless of rank
-    // Provenance is exposed on the returned fact, not just used internally.
+    expect(ids).toContain("m2");
+    expect(ids).not.toContain("c1");
     expect(result.memories.find((m) => m.id === "m2")?.sourceChunkIds).toEqual(["c1"]);
   });
 
   it("skips RRF when one lane comes back empty (raw scores preserved)", async () => {
-    // Both types requested, but no chunks match → fact lane scores pass
-    // through un-quantized.
     const result = await recall(QUERY, makeCtx(), { types: ["fact", "chunk"] });
     expect(result.memories[0].id).toBe("m1");
-    expect(result.memories[0].score).toBeGreaterThan(0.5); // fused score, not 1/61
+    expect(result.memories[0].score).toBeGreaterThan(0.5);
   });
 });
 
@@ -494,9 +429,6 @@ describe("recall — filters and pass-through", () => {
     );
   });
 
-  // The exclusion has to happen INSIDE the scan, before the top-K cut — see
-  // searchChunks.exclude.test.ts for the op side. Filtering the returned slice
-  // let a long current conversation fill every slot.
   it("pushes excludeConversationId down into the chunk scan", async () => {
     vi.mocked(searchChunksOp).mockResolvedValue([makeChunk("c2", "conv-other", 0.8)]);
 
@@ -532,8 +464,6 @@ describe("recall — filters and pass-through", () => {
     expect(searchChunksOp).not.toHaveBeenCalled();
     const [diagnostics] = onDiagnostics.mock.calls[0];
     expect(diagnostics.degraded).toContain("chunks-scope-restricted");
-    // Not a context-wiring bug: the chunk store was present and deliberately
-    // skipped, so this must not report as `no-lanes`.
     expect(diagnostics.emptyReason).not.toBe("no-lanes");
   });
 
@@ -546,11 +476,6 @@ describe("recall — filters and pass-through", () => {
   });
 
   it("forwards decryptLast through to searchVaultMemoriesWithSize", async () => {
-    // decryptLast:true flips searchVaultMemoriesWithSize onto the
-    // projected-corpus path (Task 1-5, exercised by searchTool.test.ts),
-    // which needs ops this file doesn't mock — irrelevant to what's under
-    // test here (option pass-through), so swallow it and assert on the
-    // recorded call args instead.
     await recall(QUERY, makeCtx(), { decryptLast: true }).catch(() => {});
 
     expect(searchVaultMemoriesWithSize).toHaveBeenCalledWith(
@@ -585,8 +510,6 @@ describe("recall — filters and pass-through", () => {
 
     const result = await recall(QUERY, makeCtx());
     expect(result.memories).toHaveLength(8);
-    // Single-lane requests cap the candidate pool at the lane limit, so
-    // candidateCount reflects the truncated pool, not the vault size.
     expect(result.candidateCount).toBe(8);
     expect(result.vaultSize).toBe(12);
   });
@@ -601,7 +524,6 @@ describe("recall — entity (W5) lane", () => {
     const result = await recall(ENTITY_QUERY, makeCtx({ entityCtx }));
 
     expect(getMemoriesByEntityNamesOp).toHaveBeenCalledWith(entityCtx, ["sara"]);
-    // m3 has zero cosine vs the query — only the graph lane can admit it.
     expect(result.memories.map((m) => m.id)).toContain("m3");
   });
 
@@ -616,10 +538,6 @@ describe("recall — entity (W5) lane", () => {
   });
 
   it("recovers the lane for an all-lowercase query via the fallback (D4)", async () => {
-    // Pre-fix, an all-lowercase query extracted no entities and the W5 lane was
-    // silently dead. The lowercase fallback now emits n-gram candidates; the op
-    // is called with them, and a stored-entity match surfaces the graph-only
-    // fixture m3 (zero cosine vs the query — only the graph lane can admit it).
     vi.mocked(getMemoriesByEntityNamesOp).mockResolvedValue(
       new Map([["m3", new Set(["san francisco"])]])
     );
@@ -635,10 +553,6 @@ describe("recall — entity (W5) lane", () => {
   });
 
   it("a lowercase query matching no stored entity adds no garbage (empty lane)", async () => {
-    // The fallback candidates ARE looked up, but none match a stored canonical →
-    // empty Map → the lane yields []. The op was called (lane engaged) yet m3
-    // never surfaces: no cosine hit, no graph hit, no garbage. This is the
-    // precision guarantee that lets the fallback over-emit safely.
     vi.mocked(getMemoriesByEntityNamesOp).mockResolvedValue(new Map());
 
     const result = await recall("is there anyone in san francisco", makeCtx({ entityCtx }));
@@ -659,10 +573,6 @@ describe("recall — entity (W5) lane", () => {
     expect(getMemoriesByEntityNamesOp).toHaveBeenCalledWith(entityCtx, ["sara"]);
   });
 
-  // PR4 — multi-hop traversal gating. The reverse-edge op
-  // getEntitiesByMemoryIdsOp is the tell that the BFS expanded past the seed;
-  // it must fire ONLY on the high budget (traverse flag) AND only when the
-  // caller opts into more than one hop.
   it("does NOT traverse (single-hop only) at budget=low", async () => {
     vi.mocked(getMemoriesByEntityNamesOp).mockResolvedValue(new Map([["m3", new Set(["sara"])]]));
     await recall(ENTITY_QUERY, makeCtx({ entityCtx }), { budget: "low" });
@@ -676,8 +586,6 @@ describe("recall — entity (W5) lane", () => {
   });
 
   it("PR5: expands past the seed at budget=high with the default MAX_HOPS=2", async () => {
-    // The PR5 default is 2 hops, so high budget now expands past the seed —
-    // the reverse-edge op fires once on the seed frontier.
     vi.mocked(getMemoriesByEntityNamesOp).mockResolvedValue(new Map([["m3", new Set(["sara"])]]));
     vi.mocked(getEntitiesByMemoryIdsOp).mockResolvedValue(new Map());
     await recall(ENTITY_QUERY, makeCtx({ entityCtx }), { budget: "high" });
@@ -694,8 +602,6 @@ describe("recall — entity (W5) lane", () => {
   });
 
   it("PR5: caps to seed-only when the vault-size count exceeds the density threshold", async () => {
-    // The threaded count (5000 > VAULT_SIZE_HOP_CAP) forces seed-only, so the
-    // reverse-edge op never runs even at high budget with default hops.
     vi.mocked(countActiveVaultMemoriesOp).mockResolvedValue(5000);
     vi.mocked(getMemoriesByEntityNamesOp).mockResolvedValue(new Map([["m3", new Set(["sara"])]]));
     await recall(ENTITY_QUERY, makeCtx({ entityCtx }), { budget: "high" });
@@ -711,33 +617,23 @@ describe("recall — entity (W5) lane", () => {
 });
 
 describe("recall — auxiliary lane fail-isolation", () => {
-  // The graph + temporal lanes are RRF side-signals sharing a Promise.all with
-  // primary recall. A transient throw in one must NOT reject that Promise.all
-  // and zero out primary cosine/BM25 recall (the regression this guards).
   it("a throwing graph lane still returns primary cosine/BM25 results", async () => {
-    // Query M1 both matches m1 by cosine (1.0) AND yields extractable entities
-    // (["owns","bailey"]), so the graph lane runs — and here throws.
     vi.mocked(getMemoriesByEntityNamesOp).mockRejectedValue(new Error("watermelon boom"));
 
     const result = await recall(M1, makeCtx({ entityCtx }), { budget: "high" });
 
-    // The graph lane WAS exercised (the throw path)...
     expect(getMemoriesByEntityNamesOp).toHaveBeenCalled();
-    // ...yet primary recall still surfaced the cosine hit.
     expect(result.memories.map((m) => m.id)).toContain("m1");
   });
 
   it("a throwing temporal lane does not reject recall", async () => {
     vi.mocked(getMemoriesByEventTimeOp).mockRejectedValue(new Error("watermelon boom"));
-    // A temporal phrase activates the temporal lane, which throws. Pre-fix this
-    // rejected the whole recall; now it degrades to an empty lane.
     await expect(recall("what did i do yesterday", makeCtx())).resolves.toBeDefined();
     expect(getMemoriesByEventTimeOp).toHaveBeenCalled();
   });
 });
 
 describe("recall — temporal (W6) lane", () => {
-  // Local-midnight basis, mirroring queryTemporal's window construction.
   const NOW = new Date(2026, 5, 10, 12, 0, 0).getTime();
   const YESTERDAY_START = new Date(2026, 5, 9).getTime();
   const YESTERDAY_END = new Date(2026, 5, 10).getTime();
@@ -755,7 +651,6 @@ describe("recall — temporal (W6) lane", () => {
     const result = await recall("what did i do yesterday", makeCtx(), { now: NOW });
 
     expect(getMemoriesByEventTimeOp).toHaveBeenCalledWith(vaultCtx, YESTERDAY_START, YESTERDAY_END);
-    // m3 has zero cosine vs this query — only the temporal lane admits it.
     expect(result.memories.map((m) => m.id)).toContain("m3");
   });
 
@@ -789,11 +684,6 @@ describe("recall — result shape", () => {
 
 describe("recall — dedupe", () => {
   it("collapses vault rows with identical content to one result (distinct ids)", async () => {
-    // The extraction/consolidation pipeline can persist the same fact as
-    // several distinct rows. All match the query identically (same vector →
-    // same score), so without content dedupe the caller gets N identical
-    // rows — the reported bug: the "drew on your memory" pill listed the same
-    // memory five times. Keep the first occurrence, drop the rest.
     vi.mocked(getAllVaultMemoriesOp).mockResolvedValue([
       makeMemory("dup-a", M1),
       makeMemory("dup-b", M1),
@@ -809,20 +699,16 @@ describe("recall — dedupe", () => {
     expect(new Set(ids).size).toBe(2);
     expect(ids.filter((id) => id.startsWith("dup-"))).toHaveLength(1);
     expect(ids).toContain("m2");
-    // candidateCount reflects unique candidates, not raw lane hits.
     expect(result.candidateCount).toBe(2);
   });
 
   it("dedupes chunks by text, keeping distinct passages from the same message", async () => {
-    // Chunk identity is the passage text, not the message id: a long message
-    // legitimately splits into several distinct chunks, and those must all
-    // survive. Identical text is collapsed regardless of message.
     const passageA = "the first passage from message m1";
     const passageB = "a different passage from the same message m1";
     vi.mocked(searchChunksOp).mockResolvedValue([
       { ...makeChunk("m1", "conv1", 0.9), chunkText: passageA },
-      { ...makeChunk("m1", "conv1", 0.9), chunkText: passageA }, // identical text → dropped
-      { ...makeChunk("m1", "conv1", 0.85), chunkText: passageB }, // same msg, new text → kept
+      { ...makeChunk("m1", "conv1", 0.9), chunkText: passageA },
+      { ...makeChunk("m1", "conv1", 0.85), chunkText: passageB },
     ]);
 
     const result = await recall(QUERY, makeCtx({ storageCtx }), { types: ["chunk"] });
@@ -832,8 +718,6 @@ describe("recall — dedupe", () => {
   });
 
   it("does not merge distinct facts that both have blank content", async () => {
-    // Two distinct rows that resolve to empty content (e.g. decrypt failure)
-    // must not collapse on the empty content key — that would be silent loss.
     vi.mocked(getAllVaultMemoriesOp).mockResolvedValue([
       makeMemory("blank-a", "", "private"),
       makeMemory("blank-b", "", "private"),
@@ -848,43 +732,35 @@ describe("recall — dedupe", () => {
   });
 
   it("dedupes per-lane before fusion, so candidateCount counts unique records", async () => {
-    // Both lanes active → the fused (RRF) path. Each lane carries duplicates;
-    // dedupeBy runs per-lane before fusion, so candidateCount (byId.size) must
-    // reflect unique records, not raw lane hits.
     vi.mocked(getAllVaultMemoriesOp).mockResolvedValue([
       makeMemory("dup-a", M1),
-      makeMemory("dup-b", M1), // same content, distinct id
+      makeMemory("dup-b", M1),
       makeMemory("m2", M2),
     ]);
     const c1 = makeChunk("c1", "conv1", 0.9);
     vi.mocked(searchChunksOp).mockResolvedValue([
       c1,
-      makeChunk("c1", "conv1", 0.9), // repeated id
-      { ...makeChunk("c2", "conv2", 0.8), chunkText: c1.chunkText }, // repeated content
+      makeChunk("c1", "conv1", 0.9),
+      { ...makeChunk("c2", "conv2", 0.8), chunkText: c1.chunkText },
     ]);
 
     const result = await recall(QUERY, makeCtx({ storageCtx }), { types: ["fact", "chunk"] });
 
-    // 2 unique facts (M1 once, M2) + 1 unique chunk.
     expect(result.candidateCount).toBe(3);
     const contents = result.memories.map((m) => m.content);
-    expect(new Set(contents).size).toBe(contents.length); // no duplicate content
+    expect(new Set(contents).size).toBe(contents.length);
     expect(contents).toContain(M1);
     expect(contents).toContain(M2);
     expect(contents).toContain(c1.chunkText);
   });
 
   it("keeps distinct same-message passages through the fused path", async () => {
-    // Fused path (types: fact + chunk) must key chunks passage-uniquely, not by
-    // message id — otherwise a long message that splits into passages A and B
-    // collapses to one and candidateCount undercounts (the single-lane test
-    // doesn't touch this path).
     vi.mocked(getAllVaultMemoriesOp).mockResolvedValue([makeMemory("m1fact", M1)]);
     const passageA = "passage A from message msg-1";
     const passageB = "passage B from message msg-1";
     vi.mocked(searchChunksOp).mockResolvedValue([
       { ...makeChunk("msg-1", "conv1", 0.9), chunkText: passageA },
-      { ...makeChunk("msg-1", "conv1", 0.85), chunkText: passageB }, // same msg, different text
+      { ...makeChunk("msg-1", "conv1", 0.85), chunkText: passageB },
     ]);
 
     const result = await recall(QUERY, makeCtx({ storageCtx }), { types: ["fact", "chunk"] });
@@ -892,7 +768,6 @@ describe("recall — dedupe", () => {
     const contents = result.memories.map((m) => m.content);
     expect(contents).toContain(passageA);
     expect(contents).toContain(passageB);
-    // 1 fact + 2 distinct passages; fusion must not collapse the passages.
     expect(result.candidateCount).toBe(3);
   });
 });
@@ -913,9 +788,6 @@ describe("createRecallTool executor", () => {
   });
 
   it("clamps an LLM-supplied limit to the per-turn volume budget (Tier-0 PR3)", async () => {
-    // RECALL_MAX_LIMIT (50) is the hard arg ceiling, but the PR3 extraction-
-    // resistance per-turn volume budget (40) is tighter and now wins, with a
-    // truncation notice appended.
     vi.mocked(getAllVaultMemoriesOp).mockResolvedValue(bulkVault(60));
     const tool = createRecallTool(makeCtx(), { types: ["fact"] });
 
@@ -946,12 +818,6 @@ describe("createRecallTool executor", () => {
   });
 
   it("throws (does not leak an error string) when recall fails downstream", async () => {
-    // Injection point is the vault DB read, which is still genuinely fatal. It
-    // used to be the query embedding, but that now soft-degrades to BM25 (A3) —
-    // as the cross-encoder rerank already did — so it no longer fails a recall.
-    // The executor must re-throw so the tool-loop treats it as a failed call,
-    // rather than returning "Error searching memory: …" as a successful result
-    // that leaks into the model's visible context (same rule as invalid args).
     vi.mocked(getAllVaultMemoriesOp).mockRejectedValue(new Error("boom"));
     const tool = createRecallTool(makeCtx(), { types: ["fact"], budget: "mid" });
 
@@ -979,7 +845,6 @@ describe("createRecallTool executor", () => {
     const facts = onFactsRanked.mock.calls[0][0] as { id: string; score: number }[];
     expect(facts.map((f) => f.id)).toEqual(["m1", "m2"]);
     for (const f of facts) expect(Number.isFinite(f.score)).toBe(true);
-    // Results are surfaced in rank order (relevance descending).
     expect(facts[0].score).toBeGreaterThanOrEqual(facts[1].score);
   });
 
@@ -1012,7 +877,6 @@ describe("recall — diagnostics (onDiagnostics)", () => {
     expect(d.usedBudget).toBe("mid");
     expect(d.reranked).toBe(true);
     expect(d.degraded).toEqual([]);
-    // Fact-only recall: lane count matches the returned candidate count.
     expect(d.factCount).toBe(result.candidateCount);
     expect(d.chunkCount).toBe(0);
     expect(d.timings.total).toBeGreaterThanOrEqual(0);
@@ -1020,21 +884,7 @@ describe("recall — diagnostics (onDiagnostics)", () => {
     expect(typeof d.vaultSize).toBe("number");
   });
 
-  // #845. `fact_lane_ms` lumped the query embed, the vault read, the fused
-  // ranking and the cross-encoder into one number, and three rounds of triage on
-  // that issue argued about which of them dominated without being able to tell.
-  // These pin the split so the question stays answerable from telemetry.
   const CE_DELAY_MS = 25;
-  /**
-   * Burn CE_DELAY_MS by SPINNING on `performance.now()`, not by `setTimeout`.
-   *
-   * A sleep is measured against a different clock than it is scheduled on, so
-   * `setTimeout(40)` routinely yields 39.7ms of `performance.now()` elapsed and
-   * a `>= 40` assertion is a coin flip — this test failed exactly that way in
-   * CI's coverage job while passing locally. The spin cannot exit early: it
-   * reads the same monotonic source the code under test bills with, so
-   * `elapsed >= CE_DELAY_MS` holds by construction rather than by luck.
-   */
   const slowCe = (outcome: "resolve" | "reject") =>
     vi.mocked(rerankPairs).mockImplementation(async (_query, items) => {
       const until = performance.now() + CE_DELAY_MS;
@@ -1053,8 +903,6 @@ describe("recall — diagnostics (onDiagnostics)", () => {
 
     expect(seen[0].reranked).toBe(true);
     expect(seen[0].timings.rerank).toBeGreaterThanOrEqual(CE_DELAY_MS);
-    // A SUBSET of the fact lane, not a sibling — the whole point is that
-    // `factLane - rerank` is readable as "everything else the lane did".
     expect(seen[0].timings.rerank).toBeLessThanOrEqual(seen[0].timings.factLane);
   });
 
@@ -1070,10 +918,6 @@ describe("recall — diagnostics (onDiagnostics)", () => {
   });
 
   it("still bills a cross-encoder that threw after burning the time", async () => {
-    // The failure mode this exists to prevent: a CE that spends three seconds
-    // and then throws is the WORST case, and if the elapsed time is only
-    // recorded on the success path it reports as `reranked: false, rerank: 0` —
-    // a stage that cost the user everything and the telemetry nothing.
     slowCe("reject");
     const seen: RecallDiagnostics[] = [];
 
@@ -1097,16 +941,12 @@ describe("recall — diagnostics (onDiagnostics)", () => {
     await recall(QUERY, makeCtx(), { budget: "low", onDiagnostics: (d) => seen.push(d) });
 
     expect(seen[0].timings.queryEmbed).toBeGreaterThanOrEqual(CE_DELAY_MS);
-    // Another subset of the fact lane, so the two splits must both fit inside it.
     expect(seen[0].timings.queryEmbed).toBeLessThanOrEqual(seen[0].timings.factLane);
     expect(seen[0].timings.queryEmbed + seen[0].timings.rerank).toBeLessThanOrEqual(
       seen[0].timings.factLane
     );
   });
 
-  // The asymmetry that made #845's ~850ms floor unattributable: the fast
-  // `vault_size = 0` population never embeds at all, so it could never serve as
-  // a baseline for what the embed costs everyone else.
   it("reports queryEmbed = 0 on an empty vault, which returns before embedding", async () => {
     vi.mocked(getAllVaultMemoriesOp).mockResolvedValue([]);
     const seen: RecallDiagnostics[] = [];
@@ -1119,16 +959,8 @@ describe("recall — diagnostics (onDiagnostics)", () => {
   });
 
   it("counts rows the lane had to re-embed, uncapped, on the legacy read path", async () => {
-    // A vault whose stored vectors carry a stale embedding-model tag: every row
-    // is unusable, so the legacy path re-embeds ALL of them in one batch — with
-    // no `unembeddedCap`. Left uncounted, that cost lands in the unexplained
-    // residual and reads as a slow vault read.
     const stale = Array.from({ length: 12 }, (_, i) => ({
       ...makeMemory(`m${i}`, `fact number ${i}`),
-      // The real shape of this in production: a model RENAME (sdk#482 dropped the
-      // provider prefix) leaves every row written before it tagged with a string
-      // that no longer equals the current model, so none of their stored vectors
-      // are considered usable.
       embeddingModel: "provider/retired-model-v1",
     }));
     vi.mocked(getAllVaultMemoriesOp).mockResolvedValue(stale);
@@ -1159,9 +991,6 @@ describe("recall — diagnostics (onDiagnostics)", () => {
   });
 
   it("does NOT flag rerank-unavailable on a chunk-only recall (rerank never attempted)", async () => {
-    // Chunk-only: no fact lane → no rerank candidates. A mid/high budget sets
-    // flags.rerank, but there was nothing to rerank, so this must not be
-    // reported as a degradation (it would inflate the outage metric).
     vi.mocked(searchChunksOp).mockResolvedValue([makeChunk("c1", "conv-1", 0.9)]);
     const seen: RecallDiagnostics[] = [];
 
@@ -1248,12 +1077,6 @@ describe("recall — diagnostics (onDiagnostics)", () => {
   });
 });
 
-/**
- * A3 — the embeddings provider is a single upstream with no fallback, so an
- * outage must degrade rather than remove memory from the turn. The fact lane
- * falls back to BM25 (lexical, needs no vector); the chunk lane has no lexical
- * equivalent and is skipped instead of taking the fact lane down with it.
- */
 describe("recall — embeddings outage degrades instead of throwing", () => {
   it("still returns BM25 hits and reports embeddings-unavailable", async () => {
     vi.mocked(getAllVaultMemoriesOp).mockResolvedValue([makeMemory("m1", "allergic to shellfish")]);
@@ -1273,9 +1096,6 @@ describe("recall — embeddings outage degrades instead of throwing", () => {
     vi.mocked(generateEmbedding).mockRejectedValue(new Error("provider down"));
 
     const seen: RecallDiagnostics[] = [];
-    // Requesting BOTH lanes: the chunk lane needs a query vector and has no
-    // lexical fallback, so it must drop out while facts still resolve. Before
-    // this it rejected the shared Promise.all and killed the whole recall.
     const result = await recall("shellfish", makeCtx(), {
       types: ["fact", "chunk"],
       onDiagnostics: (d) => seen.push(d),
@@ -1293,8 +1113,6 @@ describe("recall — embeddings outage degrades instead of throwing", () => {
     expect(seen[0].degraded).not.toContain("embeddings-unavailable");
   });
 
-  // Empty arrays are truthy, so a successful-but-empty response slipped past the
-  // `queryEmbedding` guard and ran a cosine pass that could only score 0.
   it("skips the chunk lane on an empty (not thrown) query embedding", async () => {
     vi.mocked(getAllVaultMemoriesOp).mockResolvedValue([makeMemory("m1", "allergic to shellfish")]);
     vi.mocked(generateEmbedding).mockResolvedValue([]);
@@ -1310,11 +1128,6 @@ describe("recall — embeddings outage degrades instead of throwing", () => {
     expect(seen[0].degraded).toContain("embeddings-unavailable");
   });
 
-  // The query is embedded ONCE per mixed recall and shared by both lanes, so a
-  // failed embed (after generateEmbedding's own retries) is a failed embed for
-  // the fact lane too: it must degrade to BM25 and report it, and must NOT fire
-  // a second request at a provider that just failed. The fact lane re-embedding
-  // on its own used to mask this — and cost every mixed recall two round trips.
   it("degrades the fact lane too on a failed shared embed, without a second attempt", async () => {
     vi.mocked(getAllVaultMemoriesOp).mockResolvedValue([makeMemory("m1", "allergic to shellfish")]);
     vi.mocked(generateEmbedding)
@@ -1328,24 +1141,14 @@ describe("recall — embeddings outage degrades instead of throwing", () => {
     });
 
     expect(vi.mocked(generateEmbedding)).toHaveBeenCalledTimes(1);
-    expect(vi.mocked(searchChunksOp)).not.toHaveBeenCalled(); // lane still skipped
-    // BM25 still found it.
+    expect(vi.mocked(searchChunksOp)).not.toHaveBeenCalled();
     expect(result.memories.map((m) => m.content)).toContain("allergic to shellfish");
     expect(seen[0].degraded).toContain("embeddings-unavailable");
   });
 });
 
-/**
- * The reconciliation above only holds if "the fact lane didn't report an
- * outage" really means "the fact lane ranked on cosine". It doesn't when the
- * fact lane had nothing to rank: an empty vault (or one whose rows are all
- * undecryptable) reports `embeddingsUnavailable: false` without ever running a
- * cosine pass, so a chunk-embed failure looked like a non-outage and a real
- * provider outage came back as a confident empty result.
- */
 describe("recall — a fact lane with nothing to rank cannot vouch for cosine", () => {
   it("reports the outage when the vault is EMPTY and the chunk embed fails", async () => {
-    // The common shape: a user with conversation chunks but no saved facts yet.
     vi.mocked(getAllVaultMemoriesOp).mockResolvedValue([]);
     vi.mocked(countActiveVaultMemoriesOp).mockResolvedValue(0);
     vi.mocked(generateEmbedding).mockRejectedValue(new Error("provider down"));
@@ -1358,16 +1161,12 @@ describe("recall — a fact lane with nothing to rank cannot vouch for cosine", 
 
     expect(result.memories).toHaveLength(0);
     expect(vi.mocked(searchChunksOp)).not.toHaveBeenCalled();
-    // Without this, the recall tool tells the answer model "No relevant
-    // memories found" during a live outage — a confident false negative.
     expect(seen[0].degraded).toContain("embeddings-unavailable");
   });
 
   it("reports the outage when every vault row is undecryptable and the chunk embed fails", async () => {
-    // Rows exist but none decrypt, so the fact lane returns before it ever
-    // embeds the query — only the chunk lane's embed is attempted, and it fails.
     vi.mocked(getAllVaultMemoriesOp).mockResolvedValue([
-      makeMemory("m1", `enc:v2:${"a".repeat(64)}`), // still ciphertext — excluded from ranking
+      makeMemory("m1", `enc:v2:${"a".repeat(64)}`),
     ]);
     vi.mocked(generateEmbedding).mockRejectedValue(new Error("provider down"));
 
@@ -1395,20 +1194,9 @@ describe("recall — a fact lane with nothing to rank cannot vouch for cosine", 
   });
 });
 
-// ---------------------------------------------------------------------------
-// What the caller actually GOT, and why it got nothing when it did. These
-// fields exist because `candidateCount` was the only count on the payload and
-// every consumer read it as "memories this turn received" — it is not: the
-// fact lane pulls `limit * 2` when fusing, and the `limit` slice happens after.
-// ---------------------------------------------------------------------------
-
 describe("recall — diagnostics: what was admitted", () => {
   it("separates what was considered from what was returned, and flags the cut", async () => {
     const seen: RecallDiagnostics[] = [];
-    // Fusing kinds makes the fact lane pull `max(limit * 2, 16)` while the
-    // `limit` slice still cuts to 1 — which is exactly the gap the two counts
-    // exist to show. (A fact-only call passes `limit` straight to the lane, so
-    // the two are equal there by construction.)
     const result = await recall(QUERY, makeCtx(), {
       types: ["fact", "chunk"],
       limit: 1,
@@ -1419,8 +1207,6 @@ describe("recall — diagnostics: what was admitted", () => {
     expect(result.memories).toHaveLength(1);
     expect(d.admittedCount).toBe(1);
     expect(d.candidateCount).toBeGreaterThan(d.admittedCount);
-    // A caller seeing exactly `limit` memories cannot otherwise tell a lucky fit
-    // from a truncation.
     expect(d.truncated).toBe(true);
   });
 
@@ -1446,14 +1232,10 @@ describe("recall — diagnostics: what was admitted", () => {
     const scores = result.memories.map((m) => m.score);
     expect(d.topScore).toBeCloseTo(Math.max(...scores), 10);
     expect(d.lowestAdmittedScore).toBeCloseTo(Math.min(...scores), 10);
-    // The scores alone cannot say what they cleared — a threshold change has to
-    // be legible in the same series it moves.
     expect(d.minScoreApplied).toBe(0.2);
   });
 
   it("sentinels the scores rather than reporting 0 when nothing was admitted", async () => {
-    // 0 is a real score. Reporting it for "there were no scores" would put an
-    // empty turn in the same bucket as a turn whose best hit scored zero.
     const seen: RecallDiagnostics[] = [];
     vi.mocked(getAllVaultMemoriesOp).mockResolvedValue([]);
     vi.mocked(countActiveVaultMemoriesOp).mockResolvedValue(0);
@@ -1468,8 +1250,6 @@ describe("recall — diagnostics: what was admitted", () => {
   });
 
   it("reports the floor of the lane that ran, and -1 when none did", async () => {
-    // The two lanes have different defaults (0.1 fact / 0.5 chunk), so a single
-    // seeded value reported a floor a chunk-only recall never applied.
     const factOnly: RecallDiagnostics[] = [];
     await recall(QUERY, makeCtx(), { types: ["fact"], onDiagnostics: (d) => factOnly.push(d) });
     expect(factOnly[0].minScoreApplied).toBe(0.1);
@@ -1478,16 +1258,12 @@ describe("recall — diagnostics: what was admitted", () => {
     await recall(QUERY, makeCtx(), { types: ["chunk"], onDiagnostics: (d) => chunkOnly.push(d) });
     expect(chunkOnly[0].minScoreApplied).toBe(0.5);
 
-    // No lane ran at all — reporting any floor would be a fiction.
     const none: RecallDiagnostics[] = [];
     await recall("   ", makeCtx(), { onDiagnostics: (d) => none.push(d) });
     expect(none[0].minScoreApplied).toBe(-1);
   });
 
   it("reports the CHUNK floor when a mixed recall's fact lane returns nothing", async () => {
-    // A lane that ran but came back empty filtered none of the returned scores.
-    // Latching the floor on lane ENTRY reported the fact default of 0.1 for a
-    // payload made entirely of chunks that had cleared 0.5.
     vi.mocked(getAllVaultMemoriesOp).mockResolvedValue([]);
     vi.mocked(countActiveVaultMemoriesOp).mockResolvedValue(0);
     vi.mocked(searchChunksOp).mockResolvedValue([makeChunk("c1", "conv-1", 0.9)]);
@@ -1498,15 +1274,12 @@ describe("recall — diagnostics: what was admitted", () => {
       onDiagnostics: (d) => seen.push(d),
     });
 
-    // Guard the premise: chunks carried the payload, the fact lane added none.
     expect(seen[0].factCount).toBe(0);
     expect(result.memories.length).toBeGreaterThan(0);
     expect(seen[0].minScoreApplied).toBe(0.5);
   });
 
   it("still reports the floor a lane applied when nothing was admitted", async () => {
-    // "Searched at 0.1 and found nothing" is the useful reading; -1 is reserved
-    // for a recall where no lane ran at all.
     vi.mocked(getAllVaultMemoriesOp).mockResolvedValue([]);
     vi.mocked(countActiveVaultMemoriesOp).mockResolvedValue(0);
 
@@ -1541,12 +1314,7 @@ describe("recall — diagnostics: emptyReason", () => {
   });
 
   it("names a populated vault that matched nothing", async () => {
-    // The only one of the four that is about retrieval QUALITY — the others are
-    // wiring or a new user, and lumping them together is what made the empty
-    // rate unreadable.
     const seen: RecallDiagnostics[] = [];
-    // A query orthogonal to every stored vector: the vault has rows, the lane
-    // ran, and nothing cleared the floor.
     await recall("entirely unrelated subject matter", makeCtx(), {
       types: ["fact"],
       onDiagnostics: (d) => seen.push(d),
@@ -1582,9 +1350,6 @@ describe("recall — diagnostics: side lanes", () => {
   });
 
   it("reports a thrown side lane instead of only logging it", async () => {
-    // safeLane degrades an auxiliary lane to an empty ranking so recall still
-    // returns — but it returns ranked WITHOUT that lane's RRF signal, and that
-    // silent quality change had no telemetry counterpart.
     const seen: RecallDiagnostics[] = [];
     vi.mocked(getMemoriesByEntityNamesOp).mockRejectedValue(new Error("db exploded"));
 
@@ -1593,7 +1358,6 @@ describe("recall — diagnostics: side lanes", () => {
       onDiagnostics: (d) => seen.push(d),
     });
 
-    // Still served — the lane is auxiliary.
     expect(result.memories.length).toBeGreaterThan(0);
     expect(seen[0].degraded).toContain("graph-lane-failed");
   });
@@ -1612,16 +1376,8 @@ describe("recall — diagnostics: side lanes", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// Review follow-ups (Greptile P1s on #937). Each of these passed before the
-// fix by reporting something that had not happened.
-// ---------------------------------------------------------------------------
-
 describe("recall — diagnostics: truncation is recorded at the cut", () => {
   it("does not claim truncation when provenance suppression brought the result under the limit", async () => {
-    // The fused path's `candidateCount` is byId.size, counted BEFORE a surfaced
-    // fact suppresses its source chunk. Deriving `truncated` from it reported a
-    // cut on a recall that fit comfortably.
     const factWithProvenance = makeMemory("m1", M1);
     factWithProvenance.sourceChunkIds = ["c1"];
     vi.mocked(getAllVaultMemoriesOp).mockResolvedValue([factWithProvenance]);
@@ -1635,8 +1391,6 @@ describe("recall — diagnostics: truncation is recorded at the cut", () => {
       onDiagnostics: (d) => seen.push(d),
     });
 
-    // Two candidates fused, the chunk is suppressed by its own fact, one result
-    // fills the limit — and nothing eligible was left over.
     expect(seen[0].candidateCount).toBe(2);
     expect(result.memories).toHaveLength(1);
     expect(seen[0].truncated).toBe(false);
@@ -1661,8 +1415,6 @@ describe("recall — diagnostics: truncation is recorded at the cut", () => {
 
 describe("recall — diagnostics: emptyReason on a mixed recall", () => {
   it("does not blame an empty vault when the chunk lane also had a say", async () => {
-    // An empty vault does not explain a chunk-lane miss, and filing one under
-    // "new user" hides a real retrieval-quality result.
     vi.mocked(getAllVaultMemoriesOp).mockResolvedValue([]);
     vi.mocked(countActiveVaultMemoriesOp).mockResolvedValue(0);
     vi.mocked(searchChunksOp).mockResolvedValue([]);
@@ -1686,14 +1438,7 @@ describe("recall — diagnostics: emptyReason on a mixed recall", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// anuma-ai/sdk#949 — recall reliability
-// ---------------------------------------------------------------------------
-
 describe("recall — the single-hop graph lane is bounded", () => {
-  // A common entity (the user's own name) can be shared by hundreds of rows, and
-  // every id becomes an RRF entry — and, under decrypt-last, a forced decrypt.
-  // The multi-hop lane always capped at the node budget; low/mid did not.
   function manyEntityHits(n: number) {
     return new Map(
       Array.from({ length: n }, (_, i) => [`e${i}`, new Set(["sara"])] as [string, Set<string>])

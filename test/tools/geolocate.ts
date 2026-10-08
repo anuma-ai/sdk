@@ -1,10 +1,3 @@
-/**
- * Single tool call test: IP geolocation
- *
- * Verifies that runToolLoop correctly executes a single client-side tool
- * and the model produces a valid response from the tool result.
- */
-
 import { describe, it, expect } from "vitest";
 import { runToolLoop } from "./setup.js";
 import { createIpGeolocationTool } from "./stubs/ipGeolocation.js";

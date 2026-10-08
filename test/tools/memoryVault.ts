@@ -1,11 +1,3 @@
-/**
- * E2E test: memory_vault_save and memory_vault_search tools
- *
- * Uses a real in-memory WatermelonDB (LokiJSAdapter) and real Portal
- * embeddings to test the full vault save + search round-trip through
- * the LLM tool loop.
- */
-
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { Database } from "@nozbe/watermelondb";
 import LokiJSAdapter from "@nozbe/watermelondb/adapters/lokijs";
@@ -95,7 +87,6 @@ describe("memory_vault", () => {
     const toolResult = typeof log[0].result === "string" ? log[0].result : String(log[0].result);
     expect(toolResult).toContain("Memory saved successfully");
 
-    // Verify the exact content the LLM provided is in the database
     const records = await vaultCtx.vaultMemoryCollection.query().fetch();
     expect(records.length).toBe(1);
     expect(records[0].content).toBe(savedContent);
@@ -130,7 +121,6 @@ describe("memory_vault", () => {
 
     expect(log[0].name).toBe("memory_vault_save");
 
-    // Both memories should exist
     const records = await vaultCtx.vaultMemoryCollection.query().fetch();
     expect(records.length).toBe(2);
     const contents = records.map((r) => r.content.toLowerCase());
@@ -139,7 +129,6 @@ describe("memory_vault", () => {
   });
 
   it("searches vault memories with real embeddings", async () => {
-    // First, save a memory directly so we have something to search
     await database.write(async () => {
       await vaultCtx.vaultMemoryCollection.create((record) => {
         record._setRaw("content", "The user's favorite color is blue");
@@ -216,9 +205,6 @@ describe("memory_vault", () => {
     expect(log.length).toBeGreaterThanOrEqual(1);
     expect(log[0].name).toBe("memory_vault_search");
 
-    // The vault has memories about Rust, Berlin, and blue — nothing about quantum computing.
-    // The search may return low-similarity results or "No relevant memories found".
-    // Either way, "quantum" should not appear in the tool result.
     const toolResult = typeof log[0].result === "string" ? log[0].result : String(log[0].result);
     expect(toolResult.toLowerCase()).not.toContain("quantum");
   });

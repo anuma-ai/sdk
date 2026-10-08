@@ -55,28 +55,76 @@
  *
  * @module react
  */
-export type { ResumeStreamOptions, ResumeStreamResult } from "../lib/chat/resumeStream";
 export {
-  INFERENCE_ID_HEADER,
-  resumeStream,
-  STREAM_RESUMABLE_HEADER,
-  streamCancelPath,
-  StreamExpiredError,
-  streamReplayPath,
-} from "../lib/chat/resumeStream";
-export type { StepFinishEvent, StreamMetaEvent, StreamResumeHandle } from "../lib/chat/toolLoop";
-export { ProviderStreamError } from "../lib/chat/toolLoop";
-export type { StreamSmoothingConfig } from "../lib/chat/useChat/StreamSmoother";
-export type { ToolCallArgumentsDeltaEvent } from "../lib/chat/useChat/utils";
-export { useChat } from "./useChat";
-
-// Pre-processor classifier factories. Also exported from `@anuma/sdk/server`;
-// re-exported here so React Native consumers can reach them — the mobile
-// Metro config rewrites `@anuma/sdk/server` → `@anuma/sdk/react` on native to
-// avoid Node-only doc processors on the /server barrel, which meant the four
-// `create*PreProcessor` factories were unreachable from mobile until this
-// re-export landed. Names, types, and semantics match the /server exports
-// exactly.
+  clearGithubToken,
+  getAndClearGithubPendingMessage,
+  getAndClearGithubReturnUrl,
+  getGithubAccessToken,
+  getValidGithubToken,
+  handleGithubCallback,
+  hasGithubCredentials,
+  isGithubCallback,
+  migrateGithubToken,
+  refreshGithubToken,
+  revokeGithubToken,
+  startGithubAuth,
+  storeGithubPendingMessage,
+  storeGithubReturnUrl,
+  storeGithubToken,
+} from "../lib/auth/github";
+export {
+  clearCalendarToken,
+  getAndClearCalendarPendingMessage,
+  getAndClearCalendarReturnUrl,
+  getCalendarAccessToken,
+  getValidCalendarToken,
+  handleCalendarCallback,
+  hasCalendarCredentials,
+  isCalendarCallback,
+  migrateCalendarToken,
+  refreshCalendarToken,
+  revokeCalendarToken,
+  storeCalendarPendingMessage,
+  storeCalendarReturnUrl,
+  storeCalendarToken,
+} from "../lib/auth/google-calendar";
+export {
+  clearDriveToken,
+  getAndClearDrivePendingMessage,
+  getAndClearDriveReturnUrl,
+  getDriveAccessToken,
+  getValidDriveToken,
+  handleDriveCallback,
+  hasDriveCredentials,
+  isDriveCallback,
+  migrateDriveToken,
+  refreshDriveToken,
+  revokeDriveToken,
+  storeDrivePendingMessage,
+  storeDriveReturnUrl,
+  storeDriveToken,
+} from "../lib/auth/google-drive";
+export {
+  clearNotionToken,
+  getAndClearNotionPendingMessage,
+  getAndClearNotionReturnUrl,
+  getNotionAccessToken,
+  getNotionMCPUrl,
+  getValidNotionToken,
+  handleNotionCallback,
+  hasNotionCredentials,
+  isNotionCallback,
+  migrateNotionClientRegistration,
+  migrateNotionToken,
+  refreshNotionToken,
+  revokeNotionAccess,
+  startNotionAuth,
+  storeNotionPendingMessage,
+  storeNotionReturnUrl,
+} from "../lib/auth/notion";
+export type { DropboxExportResult, DropboxImportResult } from "../lib/backup/dropbox/backup";
+export type { GoogleDriveExportResult, GoogleDriveImportResult } from "../lib/backup/google/backup";
+export type { ICloudExportResult, ICloudImportResult } from "../lib/backup/icloud/backup";
 export type {
   CryptoPriceClassification,
   CryptoPricePreProcessorOptions,
@@ -86,7 +134,21 @@ export {
   classifyCryptoPriceBatch,
   createCryptoPricePreProcessor,
 } from "../lib/chat/cryptoPriceClassifier";
+export {
+  attachFileContextToLastUserMessage,
+  buildAttachedFilesText,
+  isAttachedFilesText,
+} from "../lib/chat/fileContext";
 export type { PromptPreProcessor, PromptPreProcessorContext } from "../lib/chat/preProcessor";
+export type { ResumeStreamOptions, ResumeStreamResult } from "../lib/chat/resumeStream";
+export {
+  INFERENCE_ID_HEADER,
+  resumeStream,
+  STREAM_RESUMABLE_HEADER,
+  streamCancelPath,
+  StreamExpiredError,
+  streamReplayPath,
+} from "../lib/chat/resumeStream";
 export type {
   StockPriceClassification,
   StockPricePreProcessorOptions,
@@ -96,6 +158,11 @@ export {
   classifyStockPriceBatch,
   createStockPricePreProcessor,
 } from "../lib/chat/stockPriceClassifier";
+export type { StepFinishEvent, StreamMetaEvent, StreamResumeHandle } from "../lib/chat/toolLoop";
+export { ProviderStreamError } from "../lib/chat/toolLoop";
+export { TOOL_RESULT_ORIGIN } from "../lib/chat/toolResults";
+export type { StreamSmoothingConfig } from "../lib/chat/useChat/StreamSmoother";
+export type { ToolCallArgumentsDeltaEvent } from "../lib/chat/useChat/utils";
 export type {
   WeatherClassification,
   WeatherPreProcessorOptions,
@@ -114,138 +181,18 @@ export {
   classifyWebSearchBatch,
   createWebSearchPreProcessor,
 } from "../lib/chat/webSearchClassifier";
-
-// Pluggable logger
-export type { Logger } from "../lib/logger";
-export { consoleLogger, getLogger, noopLogger, setLogger } from "../lib/logger";
-export type { LoggerProviderProps } from "./LoggerProvider";
-export { LoggerProvider } from "./LoggerProvider";
-
-// Chart display components
-export type { ChartCardProps, ChartConfig } from "./chart";
 export {
-  ChartCard,
-  ChartContainer,
-  ChartLegend,
-  ChartLegendContent,
-  ChartStyle,
-  ChartTooltip,
-  ChartTooltipContent,
-} from "./chart";
-
-// UI Interaction infrastructure
-export type { DisplayToolMigrations } from "../tools/uiInteraction";
-export { migrateDisplayResult } from "../tools/uiInteraction";
-export type {
-  EmbeddedWalletSignerFn,
-  EncryptionKeyVersion,
-  RequestEncryptionKeyOptions,
-  SignMessageFn,
-  SignMessageOptions,
-  UseEncryptionResult,
-} from "./useEncryption";
-export {
-  clearAllEncryptionKeys,
-  clearAllEncryptionState,
-  clearAllKeyPairs,
-  clearEncryptionKey,
-  clearKeyPair,
-  decryptData,
-  decryptDataBatch,
-  decryptDataBytes,
-  decryptDataBytesFromBytes,
-  decryptDataWithKey,
-  deriveKeyFromSignatureBytes,
-  encryptData,
-  // Batch operations for performance (single key lookup)
-  encryptDataBatch,
-  encryptDataBytes,
-  encryptDataWithKey,
-  EncryptionKeyMissingError,
-  exportPublicKey,
-  getEncryptionKey,
-  hasEncryptionKey,
-  hasKeyPair,
-  onKeyAvailable,
-  refreshEncryptionKeyIfMatches,
-  requestEncryptionKey,
-  requestKeyPair,
-  seedEncryptionKeys,
-  useEncryption,
-} from "./useEncryption";
-// Detects a still-sealed `enc:v2:` / `enc:v3:` field. A failed decrypt returns
-// the original ciphertext (never a placeholder), so a consumer that forwards
-// vault text off-device (the Nearby publish reconciler) must check this
-// before it sends — otherwise it publishes hex.
-export { isEncrypted } from "../lib/db/encryption-utils";
-export type {
-  InteractionType,
-  PendingInteraction,
-  UIInteractionContextValue,
-  UIInteractionProviderProps,
-} from "./useUIInteraction";
-export { UIInteractionProvider, useUIInteraction } from "./useUIInteraction";
-
-// Write queue for encryption-pending operations
-export type {
-  FlushResult,
-  OperationExecutor,
-  QueuedOperation,
-  QueuedOperationType,
-  QueueEncryptionContext,
-  QueueStatus,
-} from "../lib/db/queue";
-export { QueueManager, queueManager, WalletPoller } from "../lib/db/queue";
-export type {
-  SearchMessagesOptions,
-  SendMessageWithStorageArgs,
-  SendMessageWithStorageResult,
-  UseChatStorageOptions,
-  UseChatStorageResult,
-} from "./useChatStorage";
-export { maskScopedEmbeddingCache, previewToolSelection, useChatStorage } from "./useChatStorage";
-
-// OPFS encrypted storage utilities
-export {
-  BlobUrlManager,
-  deleteEncryptedFile,
-  extractFileIds,
-  extractMCPImageUrls,
-  FILE_PLACEHOLDER_PREFIX,
-  FILE_PLACEHOLDER_REGEX,
-  fileExists,
-  isOPFSSupported,
-  isR2UrlExpired,
-  R2_DEFAULT_TTL_MS,
-  readEncryptedFile,
-  resolveFilePlaceholders,
-  writeEncryptedFile,
-} from "../lib/storage";
-
-// ChatStorageAdapter seam (see issue #458). Experimental: the interface
-// exists so early consumers can depend on it, but existing hooks still
-// consume WatermelonDB directly.
-export type {
-  ChatStorageAdapter,
-  ChatStorageObservable,
-  ConversationQueryOptions,
-  WatermelonChatStorageAdapterOptions,
-} from "../lib/storage";
-export { WatermelonChatStorageAdapter } from "../lib/storage";
-
-// Consolidated SDK schema exports (recommended)
-export { SDK_SCHEMA_VERSION, sdkMigrations, sdkModelClasses, sdkSchema } from "../lib/db/schema";
-
-// Database manager for per-wallet isolation
-export type {
-  DatabaseManagerLogger,
-  DatabaseManagerOptions,
-  PlatformStorage,
-} from "../lib/db/manager";
-export { DatabaseManager, webPlatformStorage } from "../lib/db/manager";
-export { useDatabaseManager } from "./useDatabaseManager";
-
-// Individual schema exports (deprecated - use sdkSchema instead)
+  AppFile as AppFileModel,
+  type AppFileOperationsContext,
+  appFileToStored,
+  deleteAllAppFilesOp,
+  deleteAppFileOp,
+  getAppFileMapOp,
+  getAppFileOp,
+  getAppFilesOp,
+  putAppFileOp,
+  type StoredAppFile,
+} from "../lib/db/appFiles";
 export {
   Conversation as ChatConversation,
   Message as ChatMessage,
@@ -289,30 +236,88 @@ export {
   updateConversationProjectOp,
   updateMessageFeedbackOp,
 } from "../lib/db/chat";
-
-// Project storage exports
 export {
-  createProjectOp,
-  type CreateProjectOptions,
-  deleteProjectOp,
-  generateProjectId,
-  getProjectConversationCountOp,
-  getProjectConversationsOp,
-  getProjectOp,
-  getProjectsOp,
-  Project,
-  type ProjectOperationsContext,
-  projectToStored,
-  type StoredProject,
-  updateProjectNameOp,
-  updateProjectOp,
-  type UpdateProjectOptions,
-} from "../lib/db/project";
-export type { UseFilesOptions, UseFilesResult } from "./useFiles";
-export { useFiles } from "./useFiles";
-export type { UseProjectsOptions, UseProjectsResult } from "./useProjects";
-export { useProjects } from "./useProjects";
-// Memory vault
+  addConversationMemoriesOp,
+  clearConversationMemoriesOp,
+  type ConversationMemoryInput,
+  ConversationMemory as ConversationMemoryModel,
+  type ConversationMemoryOperationsContext,
+  conversationMemoryToStored,
+  getConversationMemoriesOp,
+  type StoredConversationMemory,
+} from "../lib/db/conversationMemory";
+export { isEncrypted } from "../lib/db/encryption-utils";
+export {
+  Entity as EntityModel,
+  MemoryEntity as MemoryEntityModel,
+} from "../lib/db/entities/models";
+export {
+  backfillMemoryEntityUserIdsOp,
+  type EntityInput,
+  type EntityOperationsContext,
+  getEntitiesByMemoryIdsOp,
+  getMemoriesByEntityNamesOp,
+  linkMemoryEntitiesOp,
+  replaceMemoryEntitiesGuardedOp,
+} from "../lib/db/entities/operations";
+export type {
+  CreateEntityOptions,
+  EntityKind,
+  StoredEntity,
+  StoredTopic,
+  TopicSource,
+} from "../lib/db/entities/types";
+export { ENTITY_KINDS } from "../lib/db/entities/types";
+export type {
+  DatabaseManagerLogger,
+  DatabaseManagerOptions,
+  PlatformStorage,
+} from "../lib/db/manager";
+export { DatabaseManager, webPlatformStorage } from "../lib/db/manager";
+export {
+  createMediaBatchOp,
+  createMediaOp,
+  type CreateMediaOptions,
+  deleteMediaByConversationOp,
+  deleteMediaByMessageOp,
+  deleteMediaOp,
+  generateMediaId,
+  getAIGeneratedMediaOp,
+  getAudioOp,
+  getDocumentsOp,
+  getImagesOp,
+  getMediaByConversationOp,
+  getMediaByIdOp,
+  getMediaByIdsOp,
+  getMediaByMessageOp,
+  getMediaByModelOp,
+  getMediaByRoleOp,
+  getMediaBySourceUrlOp,
+  getMediaByTypeOp,
+  getMediaCountOp,
+  getMediaCountsByTypeOp,
+  getMediaOp,
+  getMediaTypeFromMime,
+  getRecentMediaOp,
+  getUserUploadedMediaOp,
+  getVideosOp,
+  hardDeleteMediaOp,
+  isSupportedMediaType,
+  type MediaDimensions,
+  type MediaFilterOptions,
+  type MediaMetadata,
+  type MediaOperationsContext,
+  type MediaRole,
+  mediaToStored,
+  type MediaType,
+  relinkMisclassifiedVideosOp,
+  searchMediaOp,
+  type StoredMedia,
+  Media as StoredMediaModel,
+  updateMediaMessageIdBatchOp,
+  updateMediaOp,
+  type UpdateMediaOptions,
+} from "../lib/db/media";
 export {
   archiveVaultMemoryOp,
   backfillMemoryTopicsOp,
@@ -358,7 +363,47 @@ export {
   type VaultMemoryOperationsContext,
   type VaultMemoryVisibility,
 } from "../lib/db/memoryVault";
-// Vault folders
+export {
+  createProjectOp,
+  type CreateProjectOptions,
+  deleteProjectOp,
+  generateProjectId,
+  getProjectConversationCountOp,
+  getProjectConversationsOp,
+  getProjectOp,
+  getProjectsOp,
+  Project,
+  type ProjectOperationsContext,
+  projectToStored,
+  type StoredProject,
+  updateProjectNameOp,
+  updateProjectOp,
+  type UpdateProjectOptions,
+} from "../lib/db/project";
+export type {
+  FlushResult,
+  OperationExecutor,
+  QueuedOperation,
+  QueuedOperationType,
+  QueueEncryptionContext,
+  QueueStatus,
+} from "../lib/db/queue";
+export { QueueManager, queueManager, WalletPoller } from "../lib/db/queue";
+export {
+  createSavedToolOp,
+  type CreateSavedToolOptions,
+  deleteSavedToolOp,
+  getAllSavedToolsOp,
+  getSavedToolByIdOp,
+  SavedTool as SavedToolModel,
+  type SavedToolOperationsContext,
+  type SavedToolParameter,
+  savedToolToStored,
+  type StoredSavedTool,
+  updateSavedToolOp,
+  type UpdateSavedToolOptions,
+} from "../lib/db/savedTools";
+export { SDK_SCHEMA_VERSION, sdkMigrations, sdkModelClasses, sdkSchema } from "../lib/db/schema";
 export {
   type CreateModelPreferenceOptions,
   /** @deprecated Use sdkSchema instead */
@@ -367,6 +412,20 @@ export {
   ModelPreference as StoredModelPreferenceModel,
   type UpdateModelPreferenceOptions,
 } from "../lib/db/settings";
+export {
+  type CreateUserPreferenceOptions,
+  DEFAULT_PERSONALITY_SETTINGS,
+  type PersonalitySettings,
+  type PersonalitySliders,
+  type PersonalityStyle,
+  type ProfileUpdate,
+  SLIDER_CONFIG,
+  type StoredUserPreference,
+  UserPreference as StoredUserPreferenceModel,
+  type UpdateUserPreferenceOptions,
+  /** @deprecated Use sdkSchema instead */
+  userPreferencesStorageSchema,
+} from "../lib/db/userPreferences";
 export {
   createVaultFolderOp,
   type CreateVaultFolderOptions,
@@ -382,56 +441,8 @@ export {
   type UpdateVaultFolderOptions,
   type VaultFolderOperationsContext,
 } from "../lib/db/vaultFolders";
-export {
-  createMemoryVaultSearchTool,
-  createMemoryVaultTool,
-  createVaultEmbeddingCache,
-  DEFAULT_VAULT_CACHE_SIZE,
-  eagerEmbedContent,
-  type ManualFactType,
-  type MemoryVaultSearchOptions,
-  type MemoryVaultToolOptions,
-  preEmbedVaultMemories,
-  searchVaultMemories,
-  type VaultEmbeddingCache,
-  type VaultMemoryWriter,
-  type VaultSaveOperation,
-  type VaultSearchResult,
-  type VaultWriteAction,
-  type VaultWriteInput,
-  type VaultWriteOutcome,
-} from "../lib/memoryVault";
-
-// MemoryStore — one app-intent surface over memories, topics and recall/retain,
-// so the backend (on-device vault today, server-side later) can change under it.
-// The raw vault/entity ops it covers are marked @deprecated at their declarations.
-export {
-  createLocalMemoryStore,
-  createRemoteMemoryPersistence,
-  createRemoteMemoryPipeline,
-  type LocalMemoryStoreOptions,
-  type MemoryCreate,
-  type MemoryListOptions,
-  type MemoryMaintenance,
-  type MemoryRecallOptions,
-  type MemoryRetainOptions,
-  type MemoryStore,
-  type MemorySubscribeOptions,
-  type MemoryUpdate,
-  type RemoteMemoryCandidateOptions,
-  RemoteMemoryError,
-  type RemoteMemoryListOptions,
-  type RemoteMemoryPage,
-  type RemoteMemoryPersistence,
-  type RemoteMemoryPersistenceOptions,
-  type RemoteMemoryPipeline,
-  type RemoteMemoryPipelineOptions,
-  type RemoteMemoryReadFilters,
-  type RemoteMemoryRecord,
-  type RemoteMemoryRow,
-} from "../lib/memory";
-
-// Unified memory API surface — recall + retain + auto-extraction.
+export type { Logger } from "../lib/logger";
+export { consoleLogger, getLogger, noopLogger, setLogger } from "../lib/logger";
 export type {
   AutoExtractMessage,
   AutoExtractor,
@@ -517,6 +528,31 @@ export type {
   VerifyMemoriesForPublishOptions,
 } from "../lib/memory";
 export {
+  createLocalMemoryStore,
+  createRemoteMemoryPersistence,
+  createRemoteMemoryPipeline,
+  type LocalMemoryStoreOptions,
+  type MemoryCreate,
+  type MemoryListOptions,
+  type MemoryMaintenance,
+  type MemoryRecallOptions,
+  type MemoryRetainOptions,
+  type MemoryStore,
+  type MemorySubscribeOptions,
+  type MemoryUpdate,
+  type RemoteMemoryCandidateOptions,
+  RemoteMemoryError,
+  type RemoteMemoryListOptions,
+  type RemoteMemoryPage,
+  type RemoteMemoryPersistence,
+  type RemoteMemoryPersistenceOptions,
+  type RemoteMemoryPipeline,
+  type RemoteMemoryPipelineOptions,
+  type RemoteMemoryReadFilters,
+  type RemoteMemoryRecord,
+  type RemoteMemoryRow,
+} from "../lib/memory";
+export {
   capHopsForDensity,
   classifyDecay,
   classifyInjectionCandidates,
@@ -573,159 +609,64 @@ export {
   verifyMemoriesForPublish,
   withInternalFlowMarker,
 } from "../lib/memory";
-
-// Entity / memory_entity tables — the W5 graph-lane storage that
-// auto-extraction writes to and the recall graph lane reads from.
 export {
-  Entity as EntityModel,
-  MemoryEntity as MemoryEntityModel,
-} from "../lib/db/entities/models";
-export {
-  backfillMemoryEntityUserIdsOp,
-  type EntityInput,
-  type EntityOperationsContext,
-  getEntitiesByMemoryIdsOp,
-  getMemoriesByEntityNamesOp,
-  linkMemoryEntitiesOp,
-  replaceMemoryEntitiesGuardedOp,
-} from "../lib/db/entities/operations";
+  assembleMemoryContext,
+  type MemoryContextItem,
+  type MemoryContextLane,
+  type MemoryContextOptions,
+  type MemoryContextResult,
+  shouldRecallMemory,
+} from "../lib/memory";
+export { createDurableAutoExtractor, type DurableAutoExtractorOptions } from "../lib/memory";
 export type {
-  CreateEntityOptions,
-  EntityKind,
-  StoredEntity,
-  StoredTopic,
-  TopicSource,
-} from "../lib/db/entities/types";
-export { ENTITY_KINDS } from "../lib/db/entities/types";
-export type { UseSettingsOptions, UseSettingsResult } from "./useSettings";
-export { useSettings } from "./useSettings";
-
-// User preferences (unified settings storage)
+  ChunkingOptions,
+  EmbeddingOptions as MemoryEngineEmbeddingOptions,
+  MemoryEngineResult,
+  MemoryEngineSearchOptions,
+  QuantizedEmbedding,
+  TextChunk,
+} from "../lib/memoryEngine";
 export {
-  type CreateUserPreferenceOptions,
-  DEFAULT_PERSONALITY_SETTINGS,
-  type PersonalitySettings,
-  // Personality types
-  type PersonalitySliders,
-  type PersonalityStyle,
-  type ProfileUpdate,
-  SLIDER_CONFIG,
-  // User preference types
-  type StoredUserPreference,
-  UserPreference as StoredUserPreferenceModel,
-  type UpdateUserPreferenceOptions,
-  /** @deprecated Use sdkSchema instead */
-  userPreferencesStorageSchema,
-} from "../lib/db/userPreferences";
-
-// Media library storage
+  chunkAndEmbedAllMessages,
+  chunkAndEmbedMessage,
+  CHUNKS_DISCARDED_ORIGIN,
+  chunkText,
+  cosineInt8,
+  createMemoryEngineTool,
+  decodeChunkVector,
+  DEFAULT_CHUNK_OVERLAP,
+  DEFAULT_CHUNK_SIZE,
+  DEFAULT_MIN_CHUNK_SIZE,
+  dequantizeEmbedding,
+  embedAllMessages,
+  embedMessage,
+  encodeChunkVector,
+  generateEmbedding,
+  generateEmbeddings,
+  quantizeEmbedding,
+  shouldChunkMessage,
+} from "../lib/memoryEngine";
 export {
-  createMediaBatchOp,
-  createMediaOp,
-  type CreateMediaOptions,
-  deleteMediaByConversationOp,
-  deleteMediaByMessageOp,
-  deleteMediaOp,
-  // Utility functions
-  generateMediaId,
-  getAIGeneratedMediaOp,
-  getAudioOp,
-  getDocumentsOp,
-  getImagesOp,
-  getMediaByConversationOp,
-  getMediaByIdOp,
-  getMediaByIdsOp,
-  getMediaByMessageOp,
-  getMediaByModelOp,
-  getMediaByRoleOp,
-  getMediaBySourceUrlOp,
-  getMediaByTypeOp,
-  getMediaCountOp,
-  getMediaCountsByTypeOp,
-  // Library query operations
-  getMediaOp,
-  getMediaTypeFromMime,
-  getRecentMediaOp,
-  getUserUploadedMediaOp,
-  getVideosOp,
-  hardDeleteMediaOp,
-  isSupportedMediaType,
-  type MediaDimensions,
-  type MediaFilterOptions,
-  type MediaMetadata,
-  type MediaOperationsContext,
-  type MediaRole,
-  // CRUD operations
-  mediaToStored,
-  // Types
-  type MediaType,
-  relinkMisclassifiedVideosOp,
-  searchMediaOp,
-  type StoredMedia,
-  Media as StoredMediaModel,
-  updateMediaMessageIdBatchOp,
-  updateMediaOp,
-  type UpdateMediaOptions,
-} from "../lib/db/media";
-
-// App files storage (LLM-generated app source files)
-export {
-  AppFile as AppFileModel,
-  type AppFileOperationsContext,
-  appFileToStored,
-  deleteAllAppFilesOp,
-  deleteAppFileOp,
-  getAppFileMapOp,
-  getAppFileOp,
-  getAppFilesOp,
-  putAppFileOp,
-  type StoredAppFile,
-} from "../lib/db/appFiles";
-// Conversation memories (persistence for the conversation-level Memories panel)
-export {
-  addConversationMemoriesOp,
-  clearConversationMemoriesOp,
-  type ConversationMemoryInput,
-  ConversationMemory as ConversationMemoryModel,
-  type ConversationMemoryOperationsContext,
-  conversationMemoryToStored,
-  getConversationMemoriesOp,
-  type StoredConversationMemory,
-} from "../lib/db/conversationMemory";
-
-// Saved tools storage
-export {
-  createSavedToolOp,
-  type CreateSavedToolOptions,
-  deleteSavedToolOp,
-  getAllSavedToolsOp,
-  getSavedToolByIdOp,
-  SavedTool as SavedToolModel,
-  type SavedToolOperationsContext,
-  type SavedToolParameter,
-  savedToolToStored,
-  type StoredSavedTool,
-  updateSavedToolOp,
-  type UpdateSavedToolOptions,
-} from "../lib/db/savedTools";
+  createMemoryVaultSearchTool,
+  createMemoryVaultTool,
+  createVaultEmbeddingCache,
+  DEFAULT_VAULT_CACHE_SIZE,
+  eagerEmbedContent,
+  type ManualFactType,
+  type MemoryVaultSearchOptions,
+  type MemoryVaultToolOptions,
+  preEmbedVaultMemories,
+  searchVaultMemories,
+  type VaultEmbeddingCache,
+  type VaultMemoryWriter,
+  type VaultSaveOperation,
+  type VaultSearchResult,
+  type VaultWriteAction,
+  type VaultWriteInput,
+  type VaultWriteOutcome,
+} from "../lib/memoryVault";
 export type { PdfExportOptions, PdfExportProgress, PdfExportStage } from "../lib/pdf-export";
 export { exportElementToPdf, exportMarkdownToPdf, renderElementToCanvas } from "../lib/pdf-export";
-export type {
-  ModelLoadProgress,
-  TranscriptionResult,
-  VoiceRecording,
-  WhisperModel,
-} from "../lib/voice";
-export type { UseExportPdfResult } from "./useExportPdf";
-export { useExportPdf } from "./useExportPdf";
-export type { OCRFile, UseOCRResult } from "./useOCR";
-export { useOCR } from "./useOCR";
-export type { PdfFile, UsePdfResult } from "./usePdf";
-export { usePdf } from "./usePdf";
-export type { UseVoiceOptions, UseVoiceResult } from "./useVoice";
-export { useVoice } from "./useVoice";
-
-// File processors for preprocessing attachments
 export type {
   FileProcessingReason,
   FileProcessingStatus,
@@ -749,76 +690,28 @@ export {
   WordProcessor,
   ZipProcessor,
 } from "../lib/processors";
-export type { UseCreditsOptions, UseCreditsResult } from "./useCredits";
-export { useCredits } from "./useCredits";
-export type { UseModelsResult } from "./useModels";
-export { useModels } from "./useModels";
 export type {
-  PhoneCallPollingOptions,
-  UsePhoneCallsOptions,
-  UsePhoneCallsResult,
-} from "./usePhoneCalls";
-export { usePhoneCalls } from "./usePhoneCalls";
-export type { UseSubscriptionOptions, UseSubscriptionResult } from "./useSubscription";
-export { useSubscription } from "./useSubscription";
-export type { UseWalletBindingOptions, UseWalletBindingResult } from "./useWalletBinding";
-export { useWalletBinding } from "./useWalletBinding";
-
-// Memory engine (semantic search over past messages)
-export type {
-  ChunkingOptions,
-  EmbeddingOptions as MemoryEngineEmbeddingOptions,
-  MemoryEngineResult,
-  MemoryEngineSearchOptions,
-  QuantizedEmbedding,
-  TextChunk,
-} from "../lib/memoryEngine";
+  ChatStorageAdapter,
+  ChatStorageObservable,
+  ConversationQueryOptions,
+  WatermelonChatStorageAdapterOptions,
+} from "../lib/storage";
 export {
-  chunkAndEmbedAllMessages,
-  // Chunking functions for sub-message semantic search
-  chunkAndEmbedMessage,
-  // Provenance marker for a row whose ciphertext-built chunks were discarded
-  // rather than re-embedded (client#5618). Its sibling TOOL_RESULT_ORIGIN is
-  // exported just below, from the module that owns it.
-  CHUNKS_DISCARDED_ORIGIN,
-  chunkText,
-  // Int8 embedding quantization helpers (RAM reduction for client caches)
-  cosineInt8,
-  createMemoryEngineTool,
-  // Chunk-vector storage codec — read `MessageChunk.vector` through
-  // decodeChunkVector, which accepts both the legacy number[] and the base64
-  // float32 form (sdk#862).
-  decodeChunkVector,
-  DEFAULT_CHUNK_OVERLAP,
-  DEFAULT_CHUNK_SIZE,
-  DEFAULT_MIN_CHUNK_SIZE,
-  dequantizeEmbedding,
-  embedAllMessages,
-  embedMessage,
-  encodeChunkVector,
-  generateEmbedding,
-  generateEmbeddings,
-  quantizeEmbedding,
-  shouldChunkMessage,
-} from "../lib/memoryEngine";
-
-// The other `origin` marker, from the module that owns it. Exported here for the
-// same reason as CHUNKS_DISCARDED_ORIGIN above: a client that cannot import the
-// constant hand-rolls the string instead.
-export { TOOL_RESULT_ORIGIN } from "../lib/chat/toolResults";
-
-// The current turn's extracted attachment text rides on that turn's user message in this tagged
-// part. Exported from all three app entrypoints so a client that builds its own document context
-// (mobile) produces the same part — and so the pre-processor prompt skip recognises it.
-export {
-  attachFileContextToLastUserMessage,
-  buildAttachedFilesText,
-  isAttachedFilesText,
-} from "../lib/chat/fileContext";
-
-// Server-side tools caching utilities
-export type { DropboxExportResult, DropboxImportResult } from "../lib/backup/dropbox/backup";
-export type { GoogleDriveExportResult, GoogleDriveImportResult } from "../lib/backup/google/backup";
+  BlobUrlManager,
+  deleteEncryptedFile,
+  extractFileIds,
+  extractMCPImageUrls,
+  FILE_PLACEHOLDER_PREFIX,
+  FILE_PLACEHOLDER_REGEX,
+  fileExists,
+  isOPFSSupported,
+  isR2UrlExpired,
+  R2_DEFAULT_TTL_MS,
+  readEncryptedFile,
+  resolveFilePlaceholders,
+  writeEncryptedFile,
+} from "../lib/storage";
+export { WatermelonChatStorageAdapter } from "../lib/storage";
 export type {
   CachedServerTools,
   CreateServerToolsFilterOptions,
@@ -849,152 +742,38 @@ export {
   shouldRefreshTools,
   withActiveToolSetServerTools,
 } from "../lib/tools";
-export type { DropboxAuthContextValue, DropboxAuthProviderProps } from "./useDropboxAuth";
-export {
-  clearToken as clearDropboxToken,
-  DropboxAuthProvider,
-  hasDropboxCredentials,
-  useDropboxAuth,
-} from "./useDropboxAuth";
-export type { UseDropboxBackupOptions, UseDropboxBackupResult } from "./useDropboxBackup";
-export { DEFAULT_BACKUP_FOLDER, useDropboxBackup } from "./useDropboxBackup";
 export type {
-  GoogleDriveAuthContextValue,
-  GoogleDriveAuthProviderProps,
-} from "./useGoogleDriveAuth";
-export {
-  clearGoogleDriveToken,
-  getGoogleDriveStoredToken,
-  GoogleDriveAuthProvider,
-  hasGoogleDriveCredentials,
-  useGoogleDriveAuth,
-} from "./useGoogleDriveAuth";
-export type {
-  UseGoogleDriveBackupOptions,
-  UseGoogleDriveBackupResult,
-} from "./useGoogleDriveBackup";
-export {
-  DEFAULT_CONVERSATIONS_FOLDER as DEFAULT_DRIVE_CONVERSATIONS_FOLDER,
-  DEFAULT_ROOT_FOLDER as DEFAULT_DRIVE_ROOT_FOLDER,
-  useGoogleDriveBackup,
-} from "./useGoogleDriveBackup";
-export type { UseToolsOptions, UseToolsResult } from "./useTools";
-export { useTools } from "./useTools";
-
-// iCloud backup
-export type { ICloudExportResult, ICloudImportResult } from "../lib/backup/icloud/backup";
-export type { ICloudAuthContextValue, ICloudAuthProviderProps } from "./useICloudAuth";
-export {
-  clearICloudAuth,
-  hasICloudCredentials,
-  ICloudAuthProvider,
-  useICloudAuth,
-} from "./useICloudAuth";
-export type { UseICloudBackupOptions, UseICloudBackupResult } from "./useICloudBackup";
-export { DEFAULT_ICLOUD_BACKUP_FOLDER, useICloudBackup } from "./useICloudBackup";
-
-// Unified backup providers and hooks
-export type {
-  BackupOperationOptions,
-  ProgressCallback,
-  ProviderBackupState,
-  UseBackupOptions,
-  UseBackupResult,
-} from "./useBackup";
-export {
-  DEFAULT_DRIVE_CONVERSATIONS_FOLDER as BACKUP_DRIVE_CONVERSATIONS_FOLDER,
-  DEFAULT_DRIVE_ROOT_FOLDER as BACKUP_DRIVE_ROOT_FOLDER,
-  DEFAULT_ICLOUD_FOLDER as BACKUP_ICLOUD_FOLDER,
-  DEFAULT_DROPBOX_FOLDER,
-  useBackup,
-} from "./useBackup";
-export type {
-  BackupAuthContextValue,
-  BackupAuthProviderProps,
-  ProviderAuthState,
-} from "./useBackupAuth";
-export { BackupAuthProvider, useBackupAuth } from "./useBackupAuth";
-
-// Google Calendar Auth (with calendar scopes for full calendar access)
-export {
-  clearCalendarToken,
-  getAndClearCalendarPendingMessage,
-  getAndClearCalendarReturnUrl,
-  getCalendarAccessToken,
-  getValidCalendarToken,
-  handleCalendarCallback,
-  hasCalendarCredentials,
-  isCalendarCallback,
-  migrateCalendarToken,
-  refreshCalendarToken,
-  revokeCalendarToken,
-  storeCalendarPendingMessage,
-  storeCalendarReturnUrl,
-  storeCalendarToken,
-} from "../lib/auth/google-calendar";
-
-// Google Drive Auth — token-exchange/callback helpers for the legacy OAuth flow.
-export {
-  clearDriveToken,
-  getAndClearDrivePendingMessage,
-  getAndClearDriveReturnUrl,
-  getDriveAccessToken,
-  getValidDriveToken,
-  handleDriveCallback,
-  hasDriveCredentials,
-  isDriveCallback,
-  migrateDriveToken,
-  refreshDriveToken,
-  revokeDriveToken,
-  storeDrivePendingMessage,
-  storeDriveReturnUrl,
-  storeDriveToken,
-} from "../lib/auth/google-drive";
-
-// Notion MCP Auth (with PKCE - fully client-side, no backend needed)
-export {
-  clearNotionToken,
-  getAndClearNotionPendingMessage,
-  getAndClearNotionReturnUrl,
-  getNotionAccessToken,
-  getNotionMCPUrl,
-  getValidNotionToken,
-  handleNotionCallback,
-  hasNotionCredentials,
-  isNotionCallback,
-  migrateNotionClientRegistration,
-  migrateNotionToken,
-  refreshNotionToken,
-  revokeNotionAccess,
-  startNotionAuth,
-  storeNotionPendingMessage,
-  storeNotionReturnUrl,
-} from "../lib/auth/notion";
-
-// GitHub Auth (with repo scope for full repository access)
-export {
-  clearGithubToken,
-  getAndClearGithubPendingMessage,
-  getAndClearGithubReturnUrl,
-  getGithubAccessToken,
-  getValidGithubToken,
-  handleGithubCallback,
-  hasGithubCredentials,
-  isGithubCallback,
-  migrateGithubToken,
-  refreshGithubToken,
-  revokeGithubToken,
-  startGithubAuth,
-  storeGithubPendingMessage,
-  storeGithubReturnUrl,
-  storeGithubToken,
-} from "../lib/auth/github";
-
-// GitHub Tools (repo access: search, read, issues, PRs, reviews, commits)
+  ModelLoadProgress,
+  TranscriptionResult,
+  VoiceRecording,
+  WhisperModel,
+} from "../lib/voice";
 export { createGitHubTools } from "../tools/github";
-
-// Anuma JSX runtime — React components that render <Anuma.*> primitives
-// and parsed AnumaNode trees. Pair with AnumaThemeProvider.
+export type { AnumaChild, AnumaNode, AttrValue, KnownTag, ThemeAttr } from "../tools/slides";
+export {
+  AnumaJsxError,
+  findById,
+  findParentOfId,
+  getId,
+  getNumberAttr,
+  getStringAttr,
+  insertAfterId,
+  insertChild,
+  isAnumaTag,
+  isHtmlTag,
+  parseJsx,
+  removeById,
+  replaceById,
+  serializeJsx,
+  SLIDE_CANVAS_HEIGHT,
+  SLIDE_CANVAS_WIDTH,
+  SLIDES_FILE_PATH,
+  THEME_ATTRS,
+  updateAttrs,
+  walk,
+} from "../tools/slides";
+export type { DisplayToolMigrations } from "../tools/uiInteraction";
+export { migrateDisplayResult } from "../tools/uiInteraction";
 export type {
   AnumaShadowIsolationProviderProps,
   AnumaTheme,
@@ -1019,38 +798,156 @@ export {
   resolveThemeColor,
   useAnumaTheme,
 } from "./anumaRuntime";
-
-// Re-export the AST types and tree helpers so consumers of the React
-// runtime can read/walk decks without a parallel import from /tools.
+export type { ChartCardProps, ChartConfig } from "./chart";
 export {
-  assembleMemoryContext,
-  type MemoryContextItem,
-  type MemoryContextLane,
-  type MemoryContextOptions,
-  type MemoryContextResult,
-  shouldRecallMemory,
-} from "../lib/memory";
-export { createDurableAutoExtractor, type DurableAutoExtractorOptions } from "../lib/memory";
-export type { AnumaChild, AnumaNode, AttrValue, KnownTag, ThemeAttr } from "../tools/slides";
+  ChartCard,
+  ChartContainer,
+  ChartLegend,
+  ChartLegendContent,
+  ChartStyle,
+  ChartTooltip,
+  ChartTooltipContent,
+} from "./chart";
+export type { LoggerProviderProps } from "./LoggerProvider";
+export { LoggerProvider } from "./LoggerProvider";
+export type {
+  BackupOperationOptions,
+  ProgressCallback,
+  ProviderBackupState,
+  UseBackupOptions,
+  UseBackupResult,
+} from "./useBackup";
 export {
-  AnumaJsxError,
-  findById,
-  findParentOfId,
-  getId,
-  getNumberAttr,
-  getStringAttr,
-  insertAfterId,
-  insertChild,
-  isAnumaTag,
-  isHtmlTag,
-  parseJsx,
-  removeById,
-  replaceById,
-  serializeJsx,
-  SLIDE_CANVAS_HEIGHT,
-  SLIDE_CANVAS_WIDTH,
-  SLIDES_FILE_PATH,
-  THEME_ATTRS,
-  updateAttrs,
-  walk,
-} from "../tools/slides";
+  DEFAULT_DRIVE_CONVERSATIONS_FOLDER as BACKUP_DRIVE_CONVERSATIONS_FOLDER,
+  DEFAULT_DRIVE_ROOT_FOLDER as BACKUP_DRIVE_ROOT_FOLDER,
+  DEFAULT_ICLOUD_FOLDER as BACKUP_ICLOUD_FOLDER,
+  DEFAULT_DROPBOX_FOLDER,
+  useBackup,
+} from "./useBackup";
+export type {
+  BackupAuthContextValue,
+  BackupAuthProviderProps,
+  ProviderAuthState,
+} from "./useBackupAuth";
+export { BackupAuthProvider, useBackupAuth } from "./useBackupAuth";
+export { useChat } from "./useChat";
+export type {
+  SearchMessagesOptions,
+  SendMessageWithStorageArgs,
+  SendMessageWithStorageResult,
+  UseChatStorageOptions,
+  UseChatStorageResult,
+} from "./useChatStorage";
+export { maskScopedEmbeddingCache, previewToolSelection, useChatStorage } from "./useChatStorage";
+export type { UseCreditsOptions, UseCreditsResult } from "./useCredits";
+export { useCredits } from "./useCredits";
+export { useDatabaseManager } from "./useDatabaseManager";
+export type { DropboxAuthContextValue, DropboxAuthProviderProps } from "./useDropboxAuth";
+export {
+  clearToken as clearDropboxToken,
+  DropboxAuthProvider,
+  hasDropboxCredentials,
+  useDropboxAuth,
+} from "./useDropboxAuth";
+export type { UseDropboxBackupOptions, UseDropboxBackupResult } from "./useDropboxBackup";
+export { DEFAULT_BACKUP_FOLDER, useDropboxBackup } from "./useDropboxBackup";
+export type {
+  EmbeddedWalletSignerFn,
+  EncryptionKeyVersion,
+  RequestEncryptionKeyOptions,
+  SignMessageFn,
+  SignMessageOptions,
+  UseEncryptionResult,
+} from "./useEncryption";
+export {
+  clearAllEncryptionKeys,
+  clearAllEncryptionState,
+  clearAllKeyPairs,
+  clearEncryptionKey,
+  clearKeyPair,
+  decryptData,
+  decryptDataBatch,
+  decryptDataBytes,
+  decryptDataBytesFromBytes,
+  decryptDataWithKey,
+  deriveKeyFromSignatureBytes,
+  encryptData,
+  encryptDataBatch,
+  encryptDataBytes,
+  encryptDataWithKey,
+  EncryptionKeyMissingError,
+  exportPublicKey,
+  getEncryptionKey,
+  hasEncryptionKey,
+  hasKeyPair,
+  onKeyAvailable,
+  refreshEncryptionKeyIfMatches,
+  requestEncryptionKey,
+  requestKeyPair,
+  seedEncryptionKeys,
+  useEncryption,
+} from "./useEncryption";
+export type { UseExportPdfResult } from "./useExportPdf";
+export { useExportPdf } from "./useExportPdf";
+export type { UseFilesOptions, UseFilesResult } from "./useFiles";
+export { useFiles } from "./useFiles";
+export type {
+  GoogleDriveAuthContextValue,
+  GoogleDriveAuthProviderProps,
+} from "./useGoogleDriveAuth";
+export {
+  clearGoogleDriveToken,
+  getGoogleDriveStoredToken,
+  GoogleDriveAuthProvider,
+  hasGoogleDriveCredentials,
+  useGoogleDriveAuth,
+} from "./useGoogleDriveAuth";
+export type {
+  UseGoogleDriveBackupOptions,
+  UseGoogleDriveBackupResult,
+} from "./useGoogleDriveBackup";
+export {
+  DEFAULT_CONVERSATIONS_FOLDER as DEFAULT_DRIVE_CONVERSATIONS_FOLDER,
+  DEFAULT_ROOT_FOLDER as DEFAULT_DRIVE_ROOT_FOLDER,
+  useGoogleDriveBackup,
+} from "./useGoogleDriveBackup";
+export type { ICloudAuthContextValue, ICloudAuthProviderProps } from "./useICloudAuth";
+export {
+  clearICloudAuth,
+  hasICloudCredentials,
+  ICloudAuthProvider,
+  useICloudAuth,
+} from "./useICloudAuth";
+export type { UseICloudBackupOptions, UseICloudBackupResult } from "./useICloudBackup";
+export { DEFAULT_ICLOUD_BACKUP_FOLDER, useICloudBackup } from "./useICloudBackup";
+export type { UseModelsResult } from "./useModels";
+export { useModels } from "./useModels";
+export type { OCRFile, UseOCRResult } from "./useOCR";
+export { useOCR } from "./useOCR";
+export type { PdfFile, UsePdfResult } from "./usePdf";
+export { usePdf } from "./usePdf";
+export type {
+  PhoneCallPollingOptions,
+  UsePhoneCallsOptions,
+  UsePhoneCallsResult,
+} from "./usePhoneCalls";
+export { usePhoneCalls } from "./usePhoneCalls";
+export type { UseProjectsOptions, UseProjectsResult } from "./useProjects";
+export { useProjects } from "./useProjects";
+export type { UseSettingsOptions, UseSettingsResult } from "./useSettings";
+export { useSettings } from "./useSettings";
+export type { UseSubscriptionOptions, UseSubscriptionResult } from "./useSubscription";
+export { useSubscription } from "./useSubscription";
+export type { UseToolsOptions, UseToolsResult } from "./useTools";
+export { useTools } from "./useTools";
+export type {
+  InteractionType,
+  PendingInteraction,
+  UIInteractionContextValue,
+  UIInteractionProviderProps,
+} from "./useUIInteraction";
+export { UIInteractionProvider, useUIInteraction } from "./useUIInteraction";
+export type { UseVoiceOptions, UseVoiceResult } from "./useVoice";
+export { useVoice } from "./useVoice";
+export type { UseWalletBindingOptions, UseWalletBindingResult } from "./useWalletBinding";
+export { useWalletBinding } from "./useWalletBinding";

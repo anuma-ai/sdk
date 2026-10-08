@@ -1,10 +1,3 @@
-/**
- * Memory Vault Tool
- *
- * Provides a tool for LLMs to save and update persistent memories.
- * Each operation can be intercepted by the host app for confirmation/cancellation.
- */
-
 import type { ToolConfig } from "../chat/useChat/types";
 import type { VaultMemoryOperationsContext } from "../db/memoryVault/operations";
 import {
@@ -15,13 +8,6 @@ import {
 import type { EmbeddingOptions } from "../memoryEngine/types";
 import { eagerEmbedContent, type VaultEmbeddingCache } from "./searchTool";
 
-/**
- * The 7 FactTypes a manual save may self-classify into (PR5). Mirrors the
- * extractor's `FactType` union in `memory/autoExtract` — kept as a local const
- * (not imported) to avoid a memoryVault → memory runtime import cycle. Only used
- * to validate the optional `type` tool argument; an unrecognized value is
- * dropped (persisted as null, the untyped/medium-decay bucket).
- */
 const MANUAL_FACT_TYPES = [
   "identity",
   "preference",
@@ -35,17 +21,12 @@ const MANUAL_FACT_TYPES = [
 /** A FactType the save tool's optional `type` argument may carry. */
 export type ManualFactType = (typeof MANUAL_FACT_TYPES)[number];
 
-/** Validate a caller/LLM-supplied `type` arg to a known FactType, or undefined. */
 function normalizeManualFactType(value: unknown): ManualFactType | undefined {
   return typeof value === "string" && (MANUAL_FACT_TYPES as readonly string[]).includes(value)
     ? (value as ManualFactType)
     : undefined;
 }
 
-/**
- * `shared` is the only publishing scope; anything else (null, legacy values)
- * reads as private — the fail-safe direction.
- */
 function isSharedScope(scope: string | null | undefined): boolean {
   return scope === "shared";
 }
@@ -79,11 +60,6 @@ export interface VaultWriteInput {
  */
 export type VaultMemoryWriter = (input: VaultWriteInput) => Promise<VaultWriteOutcome>;
 
-/**
- * Deliver `onWritten` after a write has landed. Awaited so an async listener's
- * rejection is caught here too — a listener must never fail a write that
- * already happened, whichever path wrote it.
- */
 async function notifyWritten(
   options: MemoryVaultToolOptions | undefined,
   input: VaultWriteInput,
@@ -96,12 +72,6 @@ async function notifyWritten(
   }
 }
 
-/**
- * Phrase a write outcome for the model. A merge is deliberately reported as
- * "already known" rather than "saved": the two documented failure loops of this
- * tool — re-saving what a search just returned, and save→verify→save — both run
- * on the model believing each call created something new.
- */
 function describeWriteOutcome(outcome: VaultWriteOutcome): string {
   switch (outcome.action) {
     case "create":
@@ -270,21 +240,11 @@ export function createMemoryVaultTool(
         required: ["content"],
       },
     },
-    // When onSave is provided, the executor runs with confirmation built in.
-    // Without onSave, omit the executor so the tool is emitted via onToolCall
-    // and the host app can handle it.
     executor: hasOnSave
       ? async (args: Record<string, unknown>): Promise<string> => {
-          // PII de-anonymization is handled by runToolLoop before the executor
-          // runs: this tool sets `deAnonymizeArgs: true`, so the loop restores the
-          // original values in the arguments (with the same redactor that minted
-          // the placeholders) before they reach here. The content we store is
-          // already the real fact, not "[EMAIL_1]".
           const content = args.content as string;
           const id = args.id as string | undefined;
           const folderName = args.folderName as string | undefined;
-          // PR5 — optional self-classification. Unknown/absent → undefined
-          // (persisted as null, the untyped/medium-decay bucket).
           const factType = normalizeManualFactType(args.type);
 
           if (!content || typeof content !== "string") {
@@ -297,25 +257,17 @@ export function createMemoryVaultTool(
 
             const scope = options?.scope ?? "private";
 
-            // For updates, fetch the existing memory to get previous content
             if (isUpdate) {
               const existing = await getVaultMemoryOp(vaultCtx, id);
               if (!existing) {
                 return `Error: Memory with ID "${id}" not found. Creating a new memory instead would require a separate call without an ID.`;
               }
-              // Search is not scope-filtered, so the model can hold the id of a
-              // row outside this session's scope. An update-by-id keeps the ROW's
-              // scope, so a private session editing a shared row would publish
-              // private details (shared rows are on the People Nearby profile).
-              // Refuse any cross-scope update; the model can save a new memory,
-              // which lands in the session's own scope.
               if (isSharedScope(existing.scope) !== isSharedScope(scope)) {
                 return `Error: Memory "${id}" belongs to a different scope than this conversation and cannot be updated from here. It was not modified. To record this fact, save it as a new memory without an ID.`;
               }
               previousContent = existing.content;
             }
 
-            // Build the operation descriptor for the confirmation callback
             const operation: VaultSaveOperation = {
               action: isUpdate ? "update" : "add",
               content,
@@ -323,7 +275,6 @@ export function createMemoryVaultTool(
               ...(isUpdate && { id, previousContent }),
             };
 
-            // If onSave callback is provided, ask for confirmation
             if (options?.onSave) {
               const confirmed = await options.onSave(operation);
               if (!confirmed) {
@@ -333,27 +284,18 @@ export function createMemoryVaultTool(
               }
             }
 
-            // Execute the save
             if (isUpdate) {
               const folderId = folderName ? options?.folderMap?.get(folderName) : undefined;
               const updated = await updateVaultMemoryOp(vaultCtx, id, {
                 content,
                 embedding: null,
                 folderId,
-                // Manual update sets the type when the user explicitly picked one
-                // (an intentional classification, so overwrite is fine here).
                 ...(factType !== undefined && { factType }),
               });
               if (!updated) {
                 return `Error: Failed to update memory "${id}".`;
               }
-              // Sync embedding cache: eagerEmbedContent overwrites the entry
-              // keyed by this memory's id (same id → new vector replaces the
-              // stale one), so no explicit evict-by-content is needed.
               if (embeddingOptions && cache) {
-                // Drop the stale vector first: if the async re-embed fails, the
-                // id has no entry (next search re-embeds from DB) instead of
-                // serving the pre-edit vector under this id.
                 cache.delete(id);
                 eagerEmbedContent(
                   content,
@@ -362,17 +304,12 @@ export function createMemoryVaultTool(
                   vaultCtx,
                   id,
                   updated.updatedAt
-                ).catch(
-                  // Silently swallow – SDK must not use console.*; embedding will be retried on next search
-                  () => {}
-                );
+                ).catch(() => {});
               }
               return `Memory updated successfully (ID: ${updated.uniqueId}).`;
             } else {
               const folderId = folderName ? options?.folderMap?.get(folderName) : undefined;
               if (options?.write) {
-                // retain() embeds and persists the vector itself, so the eager
-                // cache warm below is not needed on this path.
                 const input: VaultWriteInput = {
                   content,
                   scope,
@@ -389,7 +326,6 @@ export function createMemoryVaultTool(
                 folderId,
                 ...(factType !== undefined && { factType }),
               });
-              // Eagerly embed the new memory so it's searchable immediately
               if (embeddingOptions && cache) {
                 eagerEmbedContent(
                   content,
@@ -398,10 +334,7 @@ export function createMemoryVaultTool(
                   vaultCtx,
                   created.uniqueId,
                   created.updatedAt
-                ).catch(
-                  // Silently swallow – SDK must not use console.*; embedding will be retried on next search
-                  () => {}
-                );
+                ).catch(() => {});
               }
               await notifyWritten(
                 options,
@@ -422,9 +355,6 @@ export function createMemoryVaultTool(
         }
       : undefined,
     removeAfterExecution: hasOnSave,
-    // Saved memories live on-device, so restore real PII values (runToolLoop
-    // de-anonymizes the call arguments with the turn's redactor) — the vault
-    // must store "bob@acme.com", not "[EMAIL_1]".
     deAnonymizeArgs: true,
   };
 }

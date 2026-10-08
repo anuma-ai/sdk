@@ -23,7 +23,6 @@ import { eagerEmbedContent } from "./searchTool";
 
 const mockVaultCtx = {} as VaultMemoryOperationsContext;
 
-/** Auto-confirming onSave so the tool gets an executor */
 const autoConfirm = { onSave: async () => true as const };
 
 function makeStoredMemory(overrides: Partial<StoredVaultMemory> = {}): StoredVaultMemory {
@@ -67,13 +66,6 @@ describe("createMemoryVaultTool", () => {
   });
 
   it("opts into runToolLoop PII de-anonymization and passes real content to onSave + storage", async () => {
-    // De-anonymization of saved content is delegated to runToolLoop: it restores
-    // placeholders in the arguments (with the call's redactor) BEFORE the executor
-    // runs — proven by toolLoop.piiRedaction.test.ts ("de-anonymizes tool arguments
-    // for tools that opt in via deAnonymizeArgs"). The tool just opts in; the
-    // executor then forwards the already-real content to both onSave and storage.
-    // (executor-receives-real-content + this passthrough = onSave/storage see real
-    // values, the guarantee the old per-tool deAnonymize option used to provide.)
     const onSave = vi.fn().mockResolvedValue(true);
     vi.mocked(createVaultMemoryOp).mockResolvedValue(makeStoredMemory({ uniqueId: "new-1" }));
 
@@ -82,7 +74,6 @@ describe("createMemoryVaultTool", () => {
 
     await tool.executor!({ content: "User's email is bob@acme.com" });
 
-    // The confirmation callback and the vault both receive the real value verbatim.
     expect(onSave).toHaveBeenCalledWith(
       expect.objectContaining({ content: "User's email is bob@acme.com" })
     );
@@ -245,8 +236,6 @@ describe("createMemoryVaultTool", () => {
     expect(result).toBe("Error saving memory: DB write failed");
   });
 
-  // ── folderName handling ─────────────────────────────────────
-
   describe("write seam (retain-backed hosts)", () => {
     it("routes a NEW memory through `write` instead of createVaultMemoryOp, with folder + type", async () => {
       const write = vi.fn().mockResolvedValue({ memoryId: "kept-1", action: "create" });
@@ -276,8 +265,6 @@ describe("createMemoryVaultTool", () => {
     });
 
     it("tells the model a merge is 'already known', not a new save", async () => {
-      // The two documented failure loops (re-saving a search result, save→verify→
-      // save) both run on the model believing each call created something.
       const write = vi.fn().mockResolvedValue({ memoryId: "existing-7", action: "merge" });
       const tool = createMemoryVaultTool(mockVaultCtx, { ...autoConfirm, write });
 
@@ -335,8 +322,6 @@ describe("createMemoryVaultTool", () => {
 
     it("reports the settled outcome to onWritten, and a rejecting async listener cannot fail the save", async () => {
       const write = vi.fn().mockResolvedValue({ memoryId: "kept-9", action: "merge" });
-      // Async so the rejection would surface as an unhandled promise if the
-      // tool did not await it (greptile P1 on #931).
       const onWritten = vi.fn(async () => {
         throw new Error("listener bug");
       });
@@ -425,8 +410,6 @@ describe("createMemoryVaultTool", () => {
     });
   });
 
-  // ── onSave confirmation flow ───────────────────────────────
-
   describe("onSave confirmation flow", () => {
     it("calls onSave with add operation including scope and proceeds when accepted", async () => {
       const onSave = vi.fn().mockResolvedValue(true);
@@ -492,8 +475,6 @@ describe("createMemoryVaultTool", () => {
     });
   });
 
-  // ── Eager embedding ────────────────────────────────────────
-
   describe("eager embedding", () => {
     const embeddingOptions = { apiKey: "test-key" };
     const cache = createVaultEmbeddingCache();
@@ -515,7 +496,6 @@ describe("createMemoryVaultTool", () => {
         cache,
         mockVaultCtx,
         "new-1",
-        // The committed row's version, so the cache entry can be served as a hit.
         created.updatedAt
       );
     });
@@ -526,8 +506,6 @@ describe("createMemoryVaultTool", () => {
       );
       const updated = makeStoredMemory({ uniqueId: "mem-1", content: "new content" });
       vi.mocked(updateVaultMemoryOp).mockResolvedValue(updated);
-      // Cache invalidation is by id: eagerEmbedContent overwrites the id-keyed
-      // entry with the new vector — no separate delete-by-content step.
       const tool = createMemoryVaultTool(mockVaultCtx, autoConfirm, embeddingOptions, cache);
       await tool.executor!({ content: "new content", id: "mem-1" });
 

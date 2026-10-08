@@ -6,7 +6,6 @@ import { isGenericEntityName } from "./entitySalience";
 
 describe("isGenericEntityName", () => {
   it("drops the bare generic nouns the models leak as topics", () => {
-    // The reported case: a calendar all-day block titled "Home".
     for (const name of ["Home", "home", "Work", "Meeting", "Lunch", "Birthday", "Appointment"]) {
       expect(isGenericEntityName(name)).toBe(true);
     }
@@ -25,7 +24,6 @@ describe("isGenericEntityName", () => {
       "Hollowpoint Labs",
       "Japan trip",
       "Monday Night Football",
-      // A weak modifier is ignored, never treated as generic itself.
       "Next.js",
       "The Last Supper",
     ]) {
@@ -53,23 +51,14 @@ describe("isGenericEntityName", () => {
   });
 
   it("keeps an article + single noun, which reads as a title", () => {
-    // "The Office" is a gold product entity — dropping it would lose the link
-    // AND make the re-extraction sweep delete existing valid ones. Possessives
-    // and qualifiers deliberately do NOT get this protection.
     expect(isGenericEntityName("The Office")).toBe(false);
     expect(isGenericEntityName("The Trip")).toBe(false);
     expect(isGenericEntityName("my office")).toBe(true);
     expect(isGenericEntityName("this trip")).toBe(true);
-    // The accepted cost of the guard: an article + generic noun is kept even
-    // when it reads as date noise, because the shape is indistinguishable from
-    // a title ("The Weeknd", "The Trip"). A cheap miss, unlike a lost entity.
     expect(isGenericEntityName("the weekend")).toBe(false);
   });
 
   it("never drops a gold entity from the topic-extraction eval dataset", () => {
-    // The dataset is the spec for what extraction should produce, so it is also
-    // the spec for what this gate must not throw away. This is what would have
-    // caught "The Office".
     const dropped = TOPIC_CASES.flatMap((c) => c.gold)
       .map((g) => g.name)
       .filter((name) => isGenericEntityName(name));
@@ -77,8 +66,6 @@ describe("isGenericEntityName", () => {
   });
 
   it("keeps the connectors a personal memory graph needs", () => {
-    // Deliberate exclusions — relationship hubs, interests, and foods are real
-    // topics. Guards the list against being widened into a stopword dump.
     for (const name of ["Mom", "wife", "boss", "coffee", "matcha", "Spanish", "machine learning"]) {
       expect(isGenericEntityName(name)).toBe(false);
     }

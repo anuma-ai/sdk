@@ -2,7 +2,7 @@
 
 > **InjectionReason** = `"imperative_override"` | `"role_marker_leak"` | `"exfiltration_url"` | `"llm_semantic"`
 
-Defined in: [src/lib/memory/injectionScreen.ts:41](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/injectionScreen.ts#41)
+Defined in: [src/lib/memory/injectionScreen.ts:9](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/injectionScreen.ts#9)
 
 Why a candidate was quarantined. Coarse buckets over the signature set
 below — surfaced for audit/telemetry, never alongside the content.

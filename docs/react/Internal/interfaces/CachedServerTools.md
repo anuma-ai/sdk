@@ -1,6 +1,6 @@
 # CachedServerTools
 
-Defined in: [src/lib/tools/serverTools.ts:88](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#88)
+Defined in: [src/lib/tools/serverTools.ts:77](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#77)
 
 Cached tools structure stored in localStorage
 
@@ -10,7 +10,7 @@ Cached tools structure stored in localStorage
 
 > `optional` **checksum**: `string`
 
-Defined in: [src/lib/tools/serverTools.ts:93](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#93)
+Defined in: [src/lib/tools/serverTools.ts:82](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#82)
 
 Checksum from the server for cache invalidation
 
@@ -20,7 +20,7 @@ Checksum from the server for cache invalidation
 
 > **timestamp**: `number`
 
-Defined in: [src/lib/tools/serverTools.ts:90](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#90)
+Defined in: [src/lib/tools/serverTools.ts:79](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#79)
 
 ***
 
@@ -28,7 +28,7 @@ Defined in: [src/lib/tools/serverTools.ts:90](https://github.com/anuma-ai/sdk/bl
 
 > **tools**: [`ServerTool`](ServerTool.md)\[]
 
-Defined in: [src/lib/tools/serverTools.ts:89](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#89)
+Defined in: [src/lib/tools/serverTools.ts:78](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#78)
 
 ***
 
@@ -36,4 +36,4 @@ Defined in: [src/lib/tools/serverTools.ts:89](https://github.com/anuma-ai/sdk/bl
 
 > **version**: `string`
 
-Defined in: [src/lib/tools/serverTools.ts:91](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#91)
+Defined in: [src/lib/tools/serverTools.ts:80](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#80)

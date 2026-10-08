@@ -1,10 +1,3 @@
-/**
- * E2E test: display_weather tool
- *
- * Verifies that the model calls display_weather when asked about weather
- * and the tool executor fetches valid data from the Open-Meteo API.
- */
-
 import { describe, it, expect } from "vitest";
 import { runToolLoop } from "./setup.js";
 import { createWeatherTool } from "../../src/tools/weather.js";

@@ -12,9 +12,7 @@ import { clearTokenData, migrateUnencryptedTokens } from "./storage";
 describe("migrateUnencryptedTokens", () => {
   const provider = "google-drive" as const;
   const walletAddress = "0x1234567890123456789012345678901234567890";
-  // The legacy unscoped key that older builds wrote.
   const key = `oauth_token_${provider}`;
-  // The wallet-scoped key that the current build writes.
   const scopedKey = `oauth_token_${provider}:${walletAddress}`;
 
   beforeEach(() => {
@@ -55,9 +53,6 @@ describe("migrateUnencryptedTokens", () => {
     const migrated = await migrateUnencryptedTokens(provider, walletAddress);
 
     expect(migrated).toBe(true);
-    // The fresh copy lands under the wallet-scoped key and the plain text
-    // legacy row goes. The encrypted legacy row can belong to another wallet,
-    // so it stays.
     expect(localStorage.getItem(scopedKey)).toMatch(/^enc:oauth:/);
     expect(localStorage.getItem(scopedKey)).not.toBe("enc:oauth:already-encrypted");
     expect(localStorage.getItem(key)).toBe("enc:oauth:already-encrypted");

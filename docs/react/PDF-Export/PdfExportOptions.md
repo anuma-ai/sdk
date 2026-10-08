@@ -1,6 +1,6 @@
 # PdfExportOptions
 
-Defined in: [src/lib/pdf-export.ts:25](https://github.com/anuma-ai/sdk/blob/main/src/lib/pdf-export.ts#25)
+Defined in: [src/lib/pdf-export.ts:21](https://github.com/anuma-ai/sdk/blob/main/src/lib/pdf-export.ts#21)
 
 Options for PDF export.
 
@@ -10,7 +10,7 @@ Options for PDF export.
 
 > `optional` **filename**: `string`
 
-Defined in: [src/lib/pdf-export.ts:42](https://github.com/anuma-ai/sdk/blob/main/src/lib/pdf-export.ts#42)
+Defined in: [src/lib/pdf-export.ts:38](https://github.com/anuma-ai/sdk/blob/main/src/lib/pdf-export.ts#38)
 
 Filename used by the download helpers (default: "document.pdf")
 
@@ -20,7 +20,7 @@ Filename used by the download helpers (default: "document.pdf")
 
 > `optional` **fontSize**: `number`
 
-Defined in: [src/lib/pdf-export.ts:29](https://github.com/anuma-ai/sdk/blob/main/src/lib/pdf-export.ts#29)
+Defined in: [src/lib/pdf-export.ts:25](https://github.com/anuma-ai/sdk/blob/main/src/lib/pdf-export.ts#25)
 
 Font size in points for body text (default: 12)
 
@@ -30,7 +30,7 @@ Font size in points for body text (default: 12)
 
 > `optional` **margins**: `object`
 
-Defined in: [src/lib/pdf-export.ts:33](https://github.com/anuma-ai/sdk/blob/main/src/lib/pdf-export.ts#33)
+Defined in: [src/lib/pdf-export.ts:29](https://github.com/anuma-ai/sdk/blob/main/src/lib/pdf-export.ts#29)
 
 Page margins in mm (default: 20 on all sides)
 
@@ -56,7 +56,7 @@ Page margins in mm (default: 20 on all sides)
 
 > `optional` **onProgress**: (`progress`: [`PdfExportProgress`](PdfExportProgress.md)) => `void`
 
-Defined in: [src/lib/pdf-export.ts:44](https://github.com/anuma-ai/sdk/blob/main/src/lib/pdf-export.ts#44)
+Defined in: [src/lib/pdf-export.ts:40](https://github.com/anuma-ai/sdk/blob/main/src/lib/pdf-export.ts#40)
 
 Callback for progress updates during export
 
@@ -95,7 +95,7 @@ Callback for progress updates during export
 
 > `optional` **pageNumbers**: `boolean`
 
-Defined in: [src/lib/pdf-export.ts:40](https://github.com/anuma-ai/sdk/blob/main/src/lib/pdf-export.ts#40)
+Defined in: [src/lib/pdf-export.ts:36](https://github.com/anuma-ai/sdk/blob/main/src/lib/pdf-export.ts#36)
 
 Whether to include page numbers (default: true)
 
@@ -105,7 +105,7 @@ Whether to include page numbers (default: true)
 
 > `optional` **pageSize**: `"a4"` | `"letter"` | `"legal"`
 
-Defined in: [src/lib/pdf-export.ts:27](https://github.com/anuma-ai/sdk/blob/main/src/lib/pdf-export.ts#27)
+Defined in: [src/lib/pdf-export.ts:23](https://github.com/anuma-ai/sdk/blob/main/src/lib/pdf-export.ts#23)
 
 Page size (default: "a4")
 
@@ -115,6 +115,6 @@ Page size (default: "a4")
 
 > `optional` **title**: `string`
 
-Defined in: [src/lib/pdf-export.ts:31](https://github.com/anuma-ai/sdk/blob/main/src/lib/pdf-export.ts#31)
+Defined in: [src/lib/pdf-export.ts:27](https://github.com/anuma-ai/sdk/blob/main/src/lib/pdf-export.ts#27)
 
 Document title rendered at top of first page

@@ -7,7 +7,6 @@ import { rentIncreaseChecker } from "./rent-increase-checker";
 
 export { demandLetter, hoaDispute, leaseReview, rentIncreaseChecker };
 
-/** All Haven housing skills in registration order. */
 export const HAVEN_SKILLS: SkillConfig[] = [
   leaseReview,
   demandLetter,

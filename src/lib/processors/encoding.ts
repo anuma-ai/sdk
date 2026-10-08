@@ -1,25 +1,3 @@
-/**
- * Universal encoding utilities that work in both browser and Node.js environments.
- *
- * - `dataUrlToArrayBuffer`: Decodes data URLs, blob URLs, and HTTP URLs to ArrayBuffer
- * - `uint8ArrayToBase64`: Encodes binary data to base64 string
- * - `base64ToUint8Array`: Decodes a base64 string to binary data
- *
- * These avoid direct use of `atob`/`btoa` (unavailable in older Node.js versions)
- * by preferring `Buffer` when available, with browser globals as fallback.
- *
- * The browser encode fallback builds the binary string one byte at a time in bounded chunks.
- * It deliberately avoids `String.fromCharCode(...bytes)` (spread) AND `String.fromCharCode.apply`
- * (both pass every byte as a function argument): spreading throws
- * `RangeError: Maximum call stack size exceeded` above ~100–500KB, and `apply` has an
- * engine-dependent argument-count cap (~65536 on Safari/JavaScriptCore, the CloudKit runtime) that
- * would reintroduce the same crash on large payloads. A per-byte loop has no argument-count limit
- * on any engine, so it is safe for whole-DB backups (MBs to hundreds of MB).
- */
-
-// Base64 chunk size, a multiple of 3 so chunk boundaries never split a 3-byte group
-// (no `=` padding lands mid-stream when concatenating per-chunk base64 output). Keeps only one
-// chunk-sized binary string live at a time on the encode path.
 const B64_ENCODE_CHUNK = 0x8000 * 3;
 
 /**
@@ -27,7 +5,6 @@ const B64_ENCODE_CHUNK = 0x8000 * 3;
  * Works in both browser and Node.js environments.
  */
 export async function dataUrlToArrayBuffer(dataUrl: string): Promise<ArrayBuffer> {
-  // Handle blob URLs and HTTP(S) URLs via fetch
   if (
     dataUrl.startsWith("blob:") ||
     dataUrl.startsWith("http://") ||
@@ -37,10 +14,8 @@ export async function dataUrlToArrayBuffer(dataUrl: string): Promise<ArrayBuffer
     return response.arrayBuffer();
   }
 
-  // Data URL format: data:[<mediatype>][;base64],<data>
   const base64 = dataUrl.split(",")[1];
 
-  // Prefer Buffer (Node.js) for base64 decoding, fall back to atob (browser)
   if (typeof Buffer !== "undefined") {
     const buf = Buffer.from(base64, "base64");
     return buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength);
@@ -60,18 +35,13 @@ export async function dataUrlToArrayBuffer(dataUrl: string): Promise<ArrayBuffer
  * Works in both browser and Node.js environments.
  */
 export function uint8ArrayToBase64(data: Uint8Array): string {
-  // Prefer Buffer (Node.js) for base64 encoding, fall back to btoa (browser)
   if (typeof Buffer !== "undefined") {
     return Buffer.from(data).toString("base64");
   }
 
-  // Browser: encode in bounded chunks. Concatenating per-chunk base64 is only safe when each
-  // chunk (except the last) is a multiple of 3 bytes, so no `=` padding appears mid-stream.
-  // The binary string is built with a per-byte loop (no spread, no `apply`) so there is no
-  // argument-count limit to hit — the whole point of this fix.
   let base64 = "";
   for (let i = 0; i < data.length; i += B64_ENCODE_CHUNK) {
-    const slice = data.subarray(i, i + B64_ENCODE_CHUNK); // view, no copy
+    const slice = data.subarray(i, i + B64_ENCODE_CHUNK);
     let binary = "";
     for (let j = 0; j < slice.length; j++) {
       binary += String.fromCharCode(slice[j]);
@@ -86,16 +56,11 @@ export function uint8ArrayToBase64(data: Uint8Array): string {
  * Works in both browser and Node.js environments.
  */
 export function base64ToUint8Array(base64: string): Uint8Array<ArrayBuffer> {
-  // Prefer Buffer (Node.js) for base64 decoding, fall back to atob (browser)
   if (typeof Buffer !== "undefined") {
     const buf = Buffer.from(base64, "base64");
-    // Copy into a standalone ArrayBuffer-backed Uint8Array so the result isn't a view over a
-    // pooled Buffer (and isn't SharedArrayBuffer-backed).
     return new Uint8Array(buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength));
   }
 
-  // Browser: atob yields a binary string; write straight into a preallocated Uint8Array
-  // (one pass, no intermediate array-of-bytes).
   const binary = atob(base64);
   const bytes = new Uint8Array(binary.length);
   for (let i = 0; i < binary.length; i++) {

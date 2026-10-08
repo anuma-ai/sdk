@@ -7,17 +7,9 @@ import recorded402 from "./fixtures/paymentRequired402.json";
 
 const ADDRESS = "FuHqTKA1BeznpbJ7S2FzcPhXcdxssBNJXnJgxT3Tt9AY";
 
-/** Base58 of the 64 bytes of 0x01 the fake signer returns, from bs58. */
 const SIGNATURE_BASE58 =
   "2AXDGYSE4f2sz7tvMMzyHvUfcoJmxudvdhBcmiUSo6ijwfYmfZYsKRxboQMPh3R4kUhXRVdtSXFXMheka4Rc4P2";
 
-/**
- * The recorded 402, re-minted with a fresh nonce the way agentres does, scoped
- * to the resource the request actually asked for. Scoping it to `url` rather
- * than to the fixture's host is what a real server does, and it is what lets
- * the injected-baseUrl test drive a different host without tripping the
- * client's origin check.
- */
 function challengeHeader(nonce: string, url: string): string {
   const payload = JSON.parse(JSON.stringify(recorded402)) as {
     extensions: { "sign-in-with-x": { info: { nonce: string; domain: string; uri: string } } };
@@ -29,7 +21,6 @@ function challengeHeader(nonce: string, url: string): string {
   return Buffer.from(JSON.stringify(payload), "utf-8").toString("base64");
 }
 
-/** One answer the fake agentres gives to an authenticated request. */
 interface Reply {
   body?: unknown;
   status?: number;
@@ -38,16 +29,9 @@ interface Reply {
 interface Harness {
   fetchImpl: ReturnType<typeof vi.fn> & FetchLike;
   signMessage: ReturnType<typeof vi.fn> & SolanaSignMessageFn;
-  /** Every request the client made, in order. */
   requests: { url: string; init: RequestInit }[];
 }
 
-/**
- * A fake agentres: answers 402 with a fresh challenge whenever a request
- * arrives without a proof, and serves the next queued reply once one does.
- * Modelling it this way rather than as a fixed response list is what makes "a
- * fresh challenge per call" observable — a cached nonce shows up as a repeat.
- */
 function harness(replies: Reply[] = []): Harness {
   const requests: { url: string; init: RequestInit }[] = [];
   let minted = 0;
@@ -88,7 +72,6 @@ function clientFor(h: Harness, baseUrl?: string) {
   });
 }
 
-/** The SIGN-IN-WITH-X payload of the nth request, decoded. */
 function proof(h: Harness, index: number): Record<string, unknown> {
   const headers = h.requests[index].init.headers as Record<string, string>;
   return JSON.parse(Buffer.from(headers["SIGN-IN-WITH-X"], "base64").toString("utf-8")) as Record<
@@ -97,10 +80,8 @@ function proof(h: Harness, index: number): Record<string, unknown> {
   >;
 }
 
-/** The read the tile makes, and the one every test drives withSiwx with. */
 const PROFILE_READ: AgentresRequest = { method: "GET", path: "/api/me" };
 
-/** The refusal agentres states while no Resy account is linked. */
 const NO_LINKED_ACCOUNT: Reply = {
   status: 400,
   body: {
@@ -139,8 +120,6 @@ describe("withSiwx", () => {
     expect(h.requests[1].init.body).toBe(JSON.stringify({ email: "a@b.c" }));
   });
 
-  // T-U4. The #7217 hazard: a Uint8Array that reaches a string API becomes
-  // "97,98,99…", which signs and encodes cleanly and verifies as garbage.
   test("hands the signer bytes, and never a string", async () => {
     const h = harness([{ body: { ok: true } }]);
 
@@ -150,7 +129,6 @@ describe("withSiwx", () => {
     expect(signed).toBeInstanceOf(Uint8Array);
     expect(typeof signed).not.toBe("string");
 
-    // The bytes are the message itself, not a rendering of an array of numbers.
     const message = new TextDecoder().decode(signed as Uint8Array);
     expect(message.startsWith("agentres.dev wants you to sign in with your Solana account:")).toBe(
       true
@@ -158,12 +136,9 @@ describe("withSiwx", () => {
     expect(message).toContain("\nNonce: nonce-1\n");
     expect(message).not.toMatch(/\d,\d/);
 
-    // And the signature bytes survive into the payload as base58, not as digits.
     expect(proof(h, 1).signature).toBe(SIGNATURE_BASE58);
   });
 
-  // T-U5. Nonces are single-use and expire minutes after they are issued, so a
-  // cached challenge works in a dev loop and fails under real use.
   test("fetches a fresh challenge for every call", async () => {
     const h = harness([{ body: { a: 1 } }, { body: { a: 2 } }]);
     const client = clientFor(h);
@@ -185,10 +160,6 @@ describe("withSiwx", () => {
     expect(h.signMessage).not.toHaveBeenCalled();
   });
 
-  // The whole point of the origin check: a compromised agentres hands back a
-  // challenge minted for somewhere else, and the wallet must never sign it.
-  // Asserting the refusal is not enough — a signature that exists has already
-  // left the building.
   test("never signs a challenge scoped to another host", async () => {
     const h = harness();
     h.fetchImpl.mockResolvedValue(
@@ -213,9 +184,6 @@ describe("withSiwx", () => {
     expect(h.signMessage).not.toHaveBeenCalled();
   });
 
-  // A 2xx is not a promise of JSON — a proxy in front of agentres answers 200
-  // with an HTML page. Parsed bare, that leaves as a raw SyntaxError, past
-  // every typed error the caller is set up to handle.
   test("a 2xx body that is not JSON comes back typed, not as a SyntaxError", async () => {
     const h = harness();
     h.fetchImpl.mockResolvedValue(
@@ -268,8 +236,6 @@ describe("the registration calls", () => {
     expect(h.requests[1].init.body).toBe(JSON.stringify({ email: "linked@example.com" }));
   });
 
-  // The link field is em_address, not email, and the same address has to go on
-  // both halves of the OTP exchange.
   test("requestCode posts em_address with no code", async () => {
     const h = harness([{ body: { step: "code_sent", message: "Check your email" } }]);
 
@@ -300,11 +266,6 @@ describe("the registration calls", () => {
     );
   });
 
-  // Do NOT "fix" this back into a client-side ordering guard. Step three of the
-  // flow sends the user to their email app; on a phone that unmounts the page,
-  // so the instance that verifies is routinely not the one that requested. The
-  // pending code lives at agentres, keyed by email, and only agentres can say
-  // whether it is good.
   test("verifies a code on a new client instance (page refresh mid-flow)", async () => {
     const h = harness([{ body: { step: "linked", resy_user_id: 4242 } }]);
 
@@ -423,29 +384,11 @@ describe("createAgentresClient options", () => {
   });
 });
 
-/**
- * A path is a caller-supplied string, and agentres's own routes carry path
- * parameters (`/api/discover/restaurants/{id}`), so one is eventually going to
- * be built by interpolation. Concatenating it onto the base URL lets it move
- * the request to another host — and the 402 that comes back from there is the
- * challenge this client signs.
- *
- * Every assertion below checks that NOTHING was fetched, not merely that the
- * call rejected. A request that left the building has already carried our
- * headers to the attacker's host.
- */
 describe("request paths that would leave the agentres origin", () => {
   test.each([
-    // `https://agentres.dev` + this is `https://agentres.dev@evil.com/x`, where
-    // the base URL has become userinfo and the host is evil.com.
     ["a userinfo path", "@evil.com/x"],
-    // Concatenation extends the host itself: `agentres.dev.evil.com`.
     ["a host-suffix path", ".evil.com/x"],
-    // `new URL(path, base)` resolves this protocol-relative, to
-    // `https://evil.com/x`. This is the one the obvious fix misses.
     ["a protocol-relative path", "//evil.com/x"],
-    // Single leading slash, so a shape check alone lets it through — the URL
-    // parser folds the backslash into a second slash and the host is evil.com.
     ["a backslash path", "/\\evil.com/x"],
     ["a control-character path", "/\t//evil.com/x"],
   ])("refuses %s before making any request", async (_name, path) => {
@@ -479,9 +422,6 @@ describe("request paths that would leave the agentres origin", () => {
 
 describe("challenge body handling", () => {
   test("releases the challenge body before retrying with the proof", async () => {
-    // Some fetch implementations hold the connection until an unread body is
-    // consumed or cancelled. Registration makes a fresh challenged request per
-    // call, so leaking one per call is the shape of the problem.
     const h = harness([{ body: { resy_linked: false } }]);
     const cancelled: string[] = [];
 

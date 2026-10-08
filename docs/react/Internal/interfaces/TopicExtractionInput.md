@@ -1,6 +1,6 @@
 # TopicExtractionInput
 
-Defined in: [src/lib/memory/topicExtract.ts:72](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/topicExtract.ts#72)
+Defined in: [src/lib/memory/topicExtract.ts:40](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/topicExtract.ts#40)
 
 One memory to extract topics for. `content` must be the DECRYPTED text.
 
@@ -10,7 +10,7 @@ One memory to extract topics for. `content` must be the DECRYPTED text.
 
 > **content**: `string`
 
-Defined in: [src/lib/memory/topicExtract.ts:74](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/topicExtract.ts#74)
+Defined in: [src/lib/memory/topicExtract.ts:42](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/topicExtract.ts#42)
 
 ***
 
@@ -18,4 +18,4 @@ Defined in: [src/lib/memory/topicExtract.ts:74](https://github.com/anuma-ai/sdk/
 
 > **id**: `string`
 
-Defined in: [src/lib/memory/topicExtract.ts:73](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/topicExtract.ts#73)
+Defined in: [src/lib/memory/topicExtract.ts:41](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/topicExtract.ts#41)

@@ -3,35 +3,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { answerFailureReason, evaluateAnswer, summarizeJudgment } from "./judge.js";
 import type { ApiConfig } from "./types.js";
 
-/**
- * The judge is the only step that can turn a working memory system into a 0%
- * score, and until this file existed every way it could fail — a starved
- * completion, a 500, a dead key, a dropped connection, a prose reply — came
- * back as the string "incorrect" with nothing to distinguish it from a genuine
- * miss. A 50-question oracle run reported 0.0% accuracy beside 95% retrieval
- * recall and read as a memory-quality problem.
- *
- * So the invariant these tests exist to hold is narrow and absolute: NO
- * transport, parsing or model failure may ever produce the verdict
- * "incorrect". Every failure shape below asserts "unjudgeable". If someone
- * reintroduces a silent fallback, these flip red instead of the benchmark
- * quietly reporting zeros.
- *
- * The last two blocks extend the same invariant one call upstream, to the
- * answer step: a question that never got an answer is not a question the
- * memory system got wrong, and it must not sit in the accuracy denominator.
- *
- * Everything is driven through a stubbed fetch — no PORTAL_API_KEY, no network.
- */
-
 const API: ApiConfig = {
   apiKey: "test-key",
   baseUrl: "https://portal.test",
   llmModel: "gpt-oss/gpt-oss-120b",
 };
 
-/** Retries with no backoff — the delay ladder is production tuning, not
- *  behavior under test, and real sleeps here would just make the suite slow. */
 const FAST = { baseDelayMs: 0 } as const;
 
 type Usage = { prompt_tokens: number; completion_tokens: number; total_tokens: number };
@@ -60,8 +37,6 @@ function stubFetch(...responses: unknown[]): ReturnType<typeof vi.fn> {
     if (response instanceof Error) fetchMock.mockRejectedValueOnce(response);
     else fetchMock.mockResolvedValueOnce(response);
   }
-  // Anything past the scripted responses repeats the last one, so a test that
-  // scripts one failure still exercises the whole retry budget.
   const last = responses[responses.length - 1];
   if (last instanceof Error) fetchMock.mockRejectedValue(last);
   else fetchMock.mockResolvedValue(last);
@@ -69,7 +44,6 @@ function stubFetch(...responses: unknown[]): ReturnType<typeof vi.fn> {
   return fetchMock;
 }
 
-/** The parsed JSON body of the Nth (0-indexed) request the judge sent. */
 function requestBody(fetchMock: ReturnType<typeof vi.fn>, index: number): any {
   return JSON.parse(fetchMock.mock.calls[index][1].body);
 }
@@ -82,8 +56,6 @@ function judge(options: Record<string, unknown> = {}) {
 }
 
 beforeEach(() => {
-  // The judge warns on every unjudgeable result; silence it so failure-path
-  // tests don't spray the run output.
   vi.spyOn(console, "warn").mockImplementation(() => {});
 });
 
@@ -94,11 +66,6 @@ afterEach(() => {
 
 describe("evaluateAnswer request shape", () => {
   it("sends a completion budget big enough for a reasoning model to reach the verdict", async () => {
-    // The whole outage: a 10-token cap was inert while the harness sent the
-    // deprecated `max_tokens` (the portal dropped the field), then became real
-    // when it switched to `max_completion_tokens` — and 10 tokens is less than
-    // a reasoning model spends before it emits its first content token, so
-    // every judgment came back blank.
     const fetchMock = stubFetch(completion("CORRECT"));
     await judge();
 
@@ -144,9 +111,6 @@ describe("evaluateAnswer verdicts", () => {
   });
 
   it("reads the verdict out of prose, markdown and mixed case", async () => {
-    // The prompt asks for a bare verdict; models routinely ignore that. The old
-    // substring test handled the plain cases but had no notion of a word
-    // boundary, so it could never be trusted with anything else.
     const cases: Array<[string, "correct" | "incorrect"]> = [
       ["The generated answer is CORRECT.", "correct"],
       ["**CORRECT**", "correct"],
@@ -162,30 +126,15 @@ describe("evaluateAnswer verdicts", () => {
   });
 
   it("does not read a negated verdict word as a pass", async () => {
-    // "The answer is not correct" contains the token CORRECT and no INCORRECT,
-    // so a bare word-boundary scan calls it a pass — a wrong answer scored
-    // right, the one parse error that inflates the number instead of
-    // deflating it. These get retried under the reinforcement prompt like any
-    // other reply the parser can't resolve.
     for (const prose of [
       "The generated answer is not correct.",
       "No — that isn't correct; it names the wrong city.",
       "This is not entirely correct.",
-      // Hedged negatives. A chat model reaches for these more readily than a
-      // bare "not correct", and they put four or five words between the
-      // negation and the verdict word — far enough that a tight window misses
-      // the qualifier entirely and the trailing CORRECT scores as a pass.
       "I don't think this is correct.",
       "I would not say that this is correct.",
       "Based on the expected answer, this is not really what I would call correct.",
-      // Contractions inside the gap. `\w` excludes apostrophes, so matching gap
-      // tokens with `\w+` broke the repetition on "that's" and dropped the whole
-      // match — a negated reply scoring as a pass again, by a different route.
       "I don't think that's correct.",
       "No, it's not what I'd call correct.",
-      // "cannot" hides NOT mid-word, so a leading \b on the alternation never
-      // matched it and the negation was skipped entirely — independent of the
-      // gap tokenizer, and the same silent pass by a third route.
       "The answer cannot be considered correct.",
       "This cannot be correct.",
     ]) {
@@ -207,9 +156,6 @@ describe("evaluateAnswer verdicts", () => {
 
 describe("evaluateAnswer failure modes never score as a wrong answer", () => {
   it("reports a starved completion as unjudgeable and names the finish_reason", async () => {
-    // A reasoning model that burns its whole budget on hidden reasoning returns
-    // 200 OK with empty content and finish_reason "length". `"".includes(...)`
-    // is false, which is how this became "every answer is wrong".
     const fetchMock = stubFetch(completion("", { finish_reason: "length" }));
 
     const result = await judge();
@@ -217,8 +163,6 @@ describe("evaluateAnswer failure modes never score as a wrong answer", () => {
     expect(result.verdict).toBe("unjudgeable");
     expect(result.reason).toMatch(/empty completion content/);
     expect(result.reason).toMatch(/finish_reason=length/);
-    // Empty content is transient enough to be worth retrying, so it burns the
-    // whole attempt budget before giving up.
     expect(fetchMock).toHaveBeenCalledTimes(4);
   });
 
@@ -233,8 +177,6 @@ describe("evaluateAnswer failure modes never score as a wrong answer", () => {
     const result = await judge({ maxAttempts: 2 });
 
     expect(result.verdict).toBe("unjudgeable");
-    // Summed across both attempts — those tokens were really spent, and
-    // dropping them would understate the run's cost.
     expect(result.usage).toEqual({
       prompt_tokens: 200,
       completion_tokens: 12_000,
@@ -262,8 +204,6 @@ describe("evaluateAnswer failure modes never score as a wrong answer", () => {
   });
 
   it("fails fast on a deterministic 4xx instead of burning the retry ladder", async () => {
-    // A bad model id or a dead key answers identically every time. Retrying it
-    // per question turns a config typo into a very slow, very expensive run.
     for (const status of [400, 401, 403, 404]) {
       const fetchMock = stubFetch(httpError(status));
 
@@ -318,8 +258,6 @@ describe("evaluateAnswer failure modes never score as a wrong answer", () => {
 
     expect(result.verdict).toBe("unjudgeable");
     expect(result.reason).toMatch(/unparseable verdict/);
-    // At temperature 0 a bare retry replays the same prose, so the retry has to
-    // change the request to be worth an attempt.
     expect(requestBody(fetchMock, 0).messages).toHaveLength(1);
     const retryMessages = requestBody(fetchMock, 1).messages;
     expect(retryMessages).toHaveLength(2);
@@ -334,10 +272,6 @@ describe("evaluateAnswer failure modes never score as a wrong answer", () => {
   });
 
   it("keeps the reinforcement on for the rest of the attempt budget", async () => {
-    // Reinforcement is sticky, not a single extra try: a model that answered
-    // in prose once will do it again, so dropping the system prompt would just
-    // buy another unparseable reply. Pinned because the cost is real — every
-    // one of these attempts is a full completion budget.
     const fetchMock = stubFetch(completion("Hard to say."));
 
     const result = await judge();
@@ -352,9 +286,6 @@ describe("evaluateAnswer failure modes never score as a wrong answer", () => {
   });
 
   it("refuses to guess when a reply contains both verdict words", async () => {
-    // "CORRECT, not INCORRECT" and "INCORRECT, not CORRECT" are the same string
-    // to any word-count heuristic. The old check resolved every such reply to
-    // incorrect. Ambiguity is retried reinforced, then reported.
     stubFetch(completion("This is CORRECT, definitely not INCORRECT."));
 
     const result = await judge({ maxAttempts: 2 });
@@ -364,9 +295,6 @@ describe("evaluateAnswer failure modes never score as a wrong answer", () => {
   });
 
   it("aborts a hung request rather than stalling the run forever", async () => {
-    // The judge previously had no request timeout at all, so one hung
-    // connection parked a worker for the rest of the run — at concurrency 10
-    // that is a tenth of the throughput gone with no output saying so.
     const fetchMock = vi.fn(
       (_url: string, init: { signal: AbortSignal }) =>
         new Promise((_resolve, reject) => {
@@ -384,7 +312,6 @@ describe("evaluateAnswer failure modes never score as a wrong answer", () => {
   });
 
   it("never returns the verdict incorrect for any failure shape", async () => {
-    // The single assertion this file exists for, stated once over every shape.
     const failures: unknown[] = [
       completion(""),
       completion("", { finish_reason: "length" }),
@@ -406,13 +333,6 @@ describe("evaluateAnswer failure modes never score as a wrong answer", () => {
 });
 
 describe("answerFailureReason", () => {
-  // The judge is not the only step that can fail quietly. #760 armed the
-  // answer calls' completion cap the same way it armed the judge's — the
-  // portal had been dropping the deprecated `max_tokens`, so an enforced 500
-  // can leave a reasoning model nothing left for content. The empty answer
-  // that comes back used to be handed straight to the judge, which graded it
-  // INCORRECT: a broken call laundered into a memory-quality number.
-
   it("reports an empty answer rather than letting it be graded as a wrong answer", () => {
     expect(answerFailureReason("")).toMatch(/no content/);
     expect(answerFailureReason("   \n ")).toMatch(/no content/);
@@ -425,15 +345,11 @@ describe("answerFailureReason", () => {
   });
 
   it("prefers the thrown reason even when a partial answer survived", () => {
-    // The strategies keep whatever text they had when the second call threw;
-    // the throw is the more specific explanation of why it can't be scored.
     expect(answerFailureReason("Lisbon", new Error("ECONNRESET"))).toMatch(/ECONNRESET/);
   });
 
   it("returns undefined for a real answer so normal questions still get judged", () => {
     expect(answerFailureReason("The user lives in Lisbon.")).toBeUndefined();
-    // "I don't know" is a real answer and a real miss — it must stay in the
-    // denominator, or a memory system that knows nothing would score 100%.
     expect(answerFailureReason("I don't know.")).toBeUndefined();
   });
 });
@@ -445,9 +361,6 @@ describe("summarizeJudgment", () => {
   const unanswered = { isCorrect: false, answerError: "answer generation returned no content" };
 
   it("scores accuracy over the judged questions, not all of them", () => {
-    // 2 correct out of 3 JUDGED = 66.7%. Counting the two unjudged questions as
-    // misses would report 40% — a plausible-looking number produced by a broken
-    // judge, which is exactly the failure mode being removed.
     expect(summarizeJudgment([correct, correct, wrong, unjudged, unjudged])).toEqual({
       total: 5,
       judged: 3,
@@ -460,9 +373,6 @@ describe("summarizeJudgment", () => {
   });
 
   it("excludes questions that never produced an answer, and counts them separately", () => {
-    // A starved answer call is not a wrong answer either, and it points at a
-    // different culprit than a dead judge — hence its own count rather than a
-    // shared one.
     expect(summarizeJudgment([correct, wrong, unanswered, unjudged])).toEqual({
       total: 4,
       judged: 2,
@@ -475,9 +385,6 @@ describe("summarizeJudgment", () => {
   });
 
   it("counts a question only once when both steps are flagged", () => {
-    // The strategies skip the judge when the answer step failed, so this
-    // shouldn't happen — but the reporter derives `judged` by subtracting both
-    // counts, and double-counting would make it print a negative denominator.
     const both = { isCorrect: false, judgeError: "HTTP 500", answerError: "no content" };
 
     expect(summarizeJudgment([correct, both])).toEqual({
@@ -492,9 +399,6 @@ describe("summarizeJudgment", () => {
   });
 
   it("reports zero accuracy over zero judged questions when the judge is fully dead", () => {
-    // The uniform-0% signature from the report. `accuracy` is 0 only because
-    // there is no denominator — `judged: 0` is what callers must branch on, and
-    // the reporter prints "n/a" rather than a score.
     expect(summarizeJudgment([unjudged, unjudged, unjudged])).toEqual({
       total: 3,
       judged: 0,
@@ -507,9 +411,6 @@ describe("summarizeJudgment", () => {
   });
 
   it("is unchanged from plain accuracy on a healthy run", () => {
-    // Every historical run has both counts at 0, so the new denominator must
-    // not move any number a reviewer would compare against the benchmarks
-    // branch.
     expect(summarizeJudgment([correct, correct, wrong, wrong])).toEqual({
       total: 4,
       judged: 4,
@@ -534,12 +435,6 @@ describe("summarizeJudgment", () => {
   });
 
   it("keeps a crashed entry out of the denominator instead of scoring it a miss", () => {
-    // The suite's per-entry catch fabricates a placeholder with isCorrect false
-    // and no judge or answer error. Without its own bucket that placeholder is
-    // indistinguishable from a scored miss, so a run full of crashes publishes a
-    // deflated accuracy while reporting zero failures — #776's shape via a
-    // different route, and the reason this bucket exists rather than folding
-    // into answerFailures.
     const crashed = { isCorrect: false, harnessError: "LokiJSAdapter: db closed" };
 
     expect(summarizeJudgment([correct, wrong, crashed, crashed])).toEqual({
@@ -554,9 +449,6 @@ describe("summarizeJudgment", () => {
   });
 
   it("counts a crashed entry once even when other error keys are also set", () => {
-    // Precedence is harness > answer > judge, so the buckets stay disjoint and
-    // `judged = total - harness - answer - judge` holds for any input a caller
-    // constructs.
     const messy = {
       isCorrect: false,
       harnessError: "crashed",

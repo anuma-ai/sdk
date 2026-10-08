@@ -2,7 +2,7 @@
 
 > `const` **NOTION\_OAUTH\_CONFIG**: `object`
 
-Defined in: [src/lib/auth/notion-primitives.ts:21](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/notion-primitives.ts#21)
+Defined in: [src/lib/auth/notion-primitives.ts:17](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/notion-primitives.ts#17)
 
 Well-known Notion MCP OAuth endpoints (fallback values).
 

@@ -132,13 +132,6 @@ export function parseAgentresError(status: number, body: string): AgentresError 
   return new AgentresError(status, code, message, retryable, nextStep);
 }
 
-/**
- * Pull the `error` object out of the envelope, when the body is one.
- *
- * An envelope carrying neither a code nor a message says nothing the caller
- * can use, so it counts as no stated refusal — same rule the payments server's
- * Go decoder applies.
- */
 function statedError(body: string): Record<string, unknown> | null {
   let parsed: unknown;
   try {

@@ -15,10 +15,8 @@ const RESTAURANT_TOOLS = [
 ];
 const CATALOG = ["AnumaJinaMCP-search_web", ...RESTAURANT_TOOLS];
 
-// No cached catalog, so every call reads the stubbed /api/v1/tools response.
 const noCache: ToolsCacheBackend = { get: () => null, set: () => {} };
 
-// The semantic filter a follow-up like "Retry" gets: nothing in the booking chain scores.
 const semanticMiss = vi.fn(() => ["AnumaJinaMCP-search_web"]);
 
 function select(prompt: string, activeToolSets?: string[]) {

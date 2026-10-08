@@ -2,7 +2,7 @@
 
 > **createCryptoPricePreProcessor**(`options`: [`CryptoPricePreProcessorOptions`](../interfaces/CryptoPricePreProcessorOptions.md)): [`PromptPreProcessor`](../type-aliases/PromptPreProcessor.md)
 
-Defined in: [src/lib/chat/cryptoPriceClassifier.ts:119](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/cryptoPriceClassifier.ts#119)
+Defined in: [src/lib/chat/cryptoPriceClassifier.ts:105](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/cryptoPriceClassifier.ts#105)
 
 Build a pre-processor that runs crypto-price classification on the shared
 embedding provided by `runToolLoop`, and — if the classifier decides the

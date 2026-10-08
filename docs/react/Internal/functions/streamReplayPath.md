@@ -2,7 +2,7 @@
 
 > **streamReplayPath**(`inferenceId`: `string`): `string`
 
-Defined in: [src/lib/chat/resumeStream.ts:23](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/resumeStream.ts#23)
+Defined in: [src/lib/chat/resumeStream.ts:21](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/resumeStream.ts#21)
 
 Build the replay path for a detached stream. The portal serves the buffered
 stream from seq 0 on a GET to this path — no `starting_after`, no `id:`

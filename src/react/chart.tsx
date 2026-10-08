@@ -19,17 +19,9 @@ import {
 
 import type { DisplayChartResult } from "../tools/chart";
 
-// ---------------------------------------------------------------------------
-// Utility: lightweight class-name joiner (no tailwind-merge needed)
-// ---------------------------------------------------------------------------
-
 function cx(...classes: (string | false | undefined | null)[]) {
   return classes.filter(Boolean).join(" ");
 }
-
-// ---------------------------------------------------------------------------
-// ChartConfig / Context
-// ---------------------------------------------------------------------------
 
 const THEMES = { light: "", dark: ".dark" } as const;
 
@@ -54,10 +46,6 @@ function useChart() {
   }
   return context;
 }
-
-// ---------------------------------------------------------------------------
-// ChartStyle – injects CSS variables for colors
-// ---------------------------------------------------------------------------
 
 export function ChartStyle({ id, config }: { id: string; config: ChartConfig }) {
   const colorConfig = Object.entries(config).filter(([, cfg]) => cfg.theme || cfg.color);
@@ -85,10 +73,6 @@ ${colorConfig
     />
   );
 }
-
-// ---------------------------------------------------------------------------
-// ChartContainer
-// ---------------------------------------------------------------------------
 
 export function ChartContainer({
   id,
@@ -120,10 +104,6 @@ export function ChartContainer({
     </ChartContext.Provider>
   );
 }
-
-// ---------------------------------------------------------------------------
-// ChartTooltip / ChartTooltipContent
-// ---------------------------------------------------------------------------
 
 export const ChartTooltip = RechartsPrimitive.Tooltip;
 
@@ -254,10 +234,6 @@ export function ChartTooltipContent({
   );
 }
 
-// ---------------------------------------------------------------------------
-// ChartLegend / ChartLegendContent
-// ---------------------------------------------------------------------------
-
 export const ChartLegend = RechartsPrimitive.Legend;
 
 export function ChartLegendContent({
@@ -310,10 +286,6 @@ export function ChartLegendContent({
   );
 }
 
-// ---------------------------------------------------------------------------
-// Helper: extract item config from a recharts payload
-// ---------------------------------------------------------------------------
-
 function getPayloadConfigFromPayload(config: ChartConfig, payload: unknown, key: string) {
   if (typeof payload !== "object" || payload === null) return undefined;
 
@@ -336,10 +308,6 @@ function getPayloadConfigFromPayload(config: ChartConfig, payload: unknown, key:
 
   return configLabelKey in config ? config[configLabelKey] : config[key];
 }
-
-// ---------------------------------------------------------------------------
-// ChartCard – the high-level component consumers render in chat
-// ---------------------------------------------------------------------------
 
 export type ChartCardProps = {
   data: DisplayChartResult;

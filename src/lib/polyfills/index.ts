@@ -77,7 +77,6 @@
  * @module
  */
 
-// TextDecoderStream polyfill for SSE streaming
 import "./textDecoderStream";
 
 export { needsPolyfill as needsTextDecoderStreamPolyfill } from "./textDecoderStream";

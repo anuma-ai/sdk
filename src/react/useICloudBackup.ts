@@ -104,7 +104,6 @@ export function useICloudBackup(options: UseICloudBackupOptions): UseICloudBacku
   const { database, userAddress, requestEncryptionKey, exportConversation, importConversation } =
     options;
 
-  // Get auth state from ICloudAuthProvider
   const { isAuthenticated, isConfigured, isAvailable, requestAccess } = useICloudAuth();
 
   const deps = useMemo(

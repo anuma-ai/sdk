@@ -72,7 +72,6 @@ describe("selectCouncilClientTools — runs the shared semantic selector", () =>
         noEmbeddingsReason: "short-prompt",
       }
     );
-    // short-prompt + no active sets → zero tools (same gate the chat hook uses)
     expect(result.tools).toEqual([]);
   });
 });

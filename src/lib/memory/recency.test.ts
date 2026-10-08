@@ -36,7 +36,6 @@ describe("recencyMultiplier", () => {
   });
 
   it("respects custom perYearDecay", () => {
-    // α=0.5 → 365d gets 0.5
     expect(recencyMultiplier(daysAgo(365), { now: NOW, perYearDecay: 0.5 })).toBeCloseTo(0.5);
   });
 
@@ -49,7 +48,7 @@ describe("recencyMultiplier", () => {
   });
 
   it("treats an Invalid Date as missing (neutral, not NaN)", () => {
-    const invalid = new Date("not a date"); // getTime() === NaN
+    const invalid = new Date("not a date");
     const result = recencyMultiplier(invalid, { now: NOW });
     expect(result).toBe(0.5);
     expect(Number.isNaN(result)).toBe(false);
@@ -60,9 +59,6 @@ describe("recencyMultiplier", () => {
   });
 
   it("captures the Portland-vs-SF temporal margin", () => {
-    // From the benchmark dataset: p19 (Portland) is from 2025-06-01,
-    // p20 (SF relocation) is from 2025-11-15. Today (NOW) is 2026-05-04.
-    // SF should outrank Portland on recency alone.
     const portland = new Date("2025-06-01T10:00:00Z");
     const sf = new Date("2025-11-15T10:00:00Z");
     const portlandMultiplier = recencyMultiplier(portland, { now: NOW });

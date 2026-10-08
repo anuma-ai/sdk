@@ -26,32 +26,17 @@ import type {
 } from "./types";
 import { parseMedia } from "./types";
 
-/** Coerce a stored visibility column to the enum — null/unknown reads as
- * "private" (grandfathered legacy rows; nothing is published without opt-in).
- * "Unknown" deliberately includes the retired "matchable" tier and any value a
- * FUTURE schema might add: coercing toward private fails safe, since the wrong
- * answer un-publishes a memory rather than exposing one. */
 function visibilityOrPrivate(value: unknown): VaultMemoryVisibility {
   return value === "public" ? value : "private";
 }
 
 const NON_PRIVATE_VISIBILITIES: VaultMemoryVisibility[] = ["public"];
 
-/**
- * WHERE conditions for a visibility filter, mirroring {@link visibilityOrPrivate}:
- * a filter that includes 'private' matches NULL rows (grandfathered legacy) AND
- * any value outside the enum (a future schema's value must read as private
- * here, exactly as the coercion presents it). Non-private filters match their
- * literal values only.
- */
 function visibilityConditions(requested?: VaultMemoryVisibility[]) {
   if (!requested?.length) return [];
   if (!requested.includes("private")) {
     return [Q.where("visibility", Q.oneOf([...requested]))];
   }
-  // 'private' requested: match NULL plus everything NOT IN the non-private
-  // values that were excluded from the request. (If nothing is excluded, the
-  // filter is a no-op — every row matches.)
   const excluded = NON_PRIVATE_VISIBILITIES.filter((v) => !requested.includes(v));
   if (excluded.length === 0) return [];
   return [Q.or(Q.where("visibility", null), Q.where("visibility", Q.notIn(excluded)))];
@@ -88,32 +73,10 @@ export interface VaultMemoryOperationsContext {
   entityCtx?: EntityOperationsContext;
 }
 
-/** Returns true if the record belongs to the context user (or if no user scoping is active). */
 function isOwnedByCtxUser(ctx: VaultMemoryOperationsContext, record: VaultMemory): boolean {
   return ctx.userId === undefined || record.userId === ctx.userId;
 }
 
-/** Builds the base WHERE conditions shared by all vault memory queries. This is
- * the single choke point every read lane (cosine/BM25/temporal/graph) inherits,
- * so the archived + quarantined + superseded exclusions applied here cover all
- * of recall at once. Default hides every non-visible state (deleted, archived,
- * quarantined, superseded); each has its own opt-in include flag.
- * - `includeDeleted` drops the soft-delete filter — only `getAllVaultMemoriesOp`
- *   opts into it (to surface "forgotten" memories); every other caller omits it
- *   and keeps the default non-deleted-only behavior.
- * - `includeArchived` (PR1) drops the archived-row filter. Default excludes rows
- *   with a non-null `archived_at` (decayed memories, PR2).
- * - `includeQuarantined` (PR1) drops the quarantine filter. Default excludes
- *   rows with `trust_tier === "quarantined"` (injection-screened memories, PR3).
- *   For this string value `Q.notEq` compiles to `is not` (SQLite) and, via the
- *   LokiJS string fast-path, to `{ trust_tier: { $ne: "quarantined" } }` — both
- *   KEEP null rows, so untyped/legacy rows are never excluded. (A non-string
- *   value would take LokiJS's `$not:$aeq` path instead; keep this comparison
- *   string-valued.)
- * - `includeSuperseded` (A2, main) drops the supersession filter. Default
- *   excludes rows with a non-null `superseded_by` (retired by a newer,
- *   incompatible-value fact) from recall + dedup; a "memory history" view can
- *   opt in. */
 function baseVaultConditions(
   ctx: VaultMemoryOperationsContext,
   options?: {
@@ -136,34 +99,13 @@ function baseVaultConditions(
   ];
 }
 
-/**
- * Tier-0 security (PR3) — the allowed `trust_tier` values.
- *
- * `trust_tier` is a loose plaintext string column, so a future direct
- * caller (not the injection screen) could pass an arbitrary value straight
- * into `_setRaw`. Constrain every write to this known set here — the single
- * place all writes funnel through — so the recall quarantine gate (which
- * keys off the exact string `"quarantined"`) can't be bypassed by a typo'd
- * or hostile tier, and so no unexpected value ever reaches the DB.
- */
 const KNOWN_TRUST_TIERS = new Set(["quarantined", "trusted"]);
 
-/**
- * Coerce a caller-supplied trust tier to the known set. `null`/`undefined`
- * and any unrecognized value collapse to `null` (untyped/trusted default).
- *
- * Coerce (not throw) so a bad value degrades to the SAFE direction: `null`
- * = visible, i.e. the pre-PR3 behavior for that row. This never HIDES a
- * fact the caller didn't explicitly quarantine (fail-open on visibility is
- * correct here — the screen sets the exact `"quarantined"` constant, which
- * is in the set and survives), and it never lets garbage forge a state.
- */
 function normalizeTrustTier(value: string | null | undefined): string | null {
   if (value === undefined || value === null) return null;
   return KNOWN_TRUST_TIERS.has(value) ? value : null;
 }
 
-/** Processes items in batches of 50 to avoid blocking the event loop. */
 async function mapInBatches<T, R>(items: T[], fn: (item: T) => Promise<R>): Promise<R[]> {
   const BATCH = 50;
   const results: R[] = [];
@@ -234,13 +176,6 @@ export async function vaultMemoryToStored(
   return raw;
 }
 
-/**
- * Populate every column of a NEW vault row from its create options. The single
- * source for create, batch create and superseding create: when these were three
- * hand-copied blocks the superseding path silently dropped `fact_type`,
- * `trust_tier`, visibility and `geohash`, so a corrected identity fact became
- * untyped and aged out on the fallback TTL while its stale predecessor stayed.
- */
 function populateNewVaultMemory(
   record: VaultMemory,
   ctx: VaultMemoryOperationsContext,
@@ -266,19 +201,13 @@ function populateNewVaultMemory(
     record._setRaw("event_time_end", opts.eventTime.end ?? null);
     record._setRaw("event_time_kind", opts.eventTime.kind ?? null);
   }
-  // Typed memory (PR1) — persist the classification when provided; leave
-  // null otherwise (legacy/manual/untyped). archived_at is never set on
-  // create — a fresh memory is always active.
   if (opts.factType !== undefined) {
     record._setRaw("fact_type", opts.factType);
   }
   if (opts.trustTier !== undefined) {
-    // Tier-0 (PR3): re-validate the loose string against the known set.
     record._setRaw("trust_tier", normalizeTrustTier(opts.trustTier));
   }
   record._setRaw("visibility", opts.visibility ?? "private");
-  // Invariant: published_at is non-null iff visibility is non-private.
-  // A non-private restore/import without a stamp gets one now.
   record._setRaw(
     "published_at",
     opts.visibility && opts.visibility !== "private" ? (opts.publishedAt ?? Date.now()) : null
@@ -350,9 +279,8 @@ export async function createSupersedingMemoryOp(
     try {
       target = await ctx.vaultMemoryCollection.find(targetId);
     } catch {
-      return; // target gone → don't create; caller does a plain create
+      return;
     }
-    // Concurrent win / delete / cross-user → don't orphan a successor.
     if (target.isDeleted || target.supersededBy || !isOwnedByCtxUser(ctx, target)) return;
 
     createdRecord = await ctx.vaultMemoryCollection.create((record) =>
@@ -400,14 +328,6 @@ export async function getMemoriesByEventTimeOp(
     eventTimeKind: string | null;
   }>
 > {
-  // Push as much filtering into SQL as possible:
-  //   - event_time_start IS NOT NULL
-  //   - event_time_start < windowEnd  (any candidate must start before
-  //     the window ends, regardless of kind)
-  //   - (event_time_start >= windowStart  OR  kind IN ("range","ongoing"))
-  //     A point starting before windowStart can't overlap, so filter at
-  //     SQL. Range/ongoing rows starting earlier may still overlap and
-  //     fall through to the JS check below.
   const records = await ctx.vaultMemoryCollection
     .query(
       ...baseVaultConditions(ctx),
@@ -431,11 +351,8 @@ export async function getMemoriesByEventTimeOp(
     if (start === null) continue;
     const end = r.eventTimeEnd ?? null;
     const kind = r.eventTimeKind ?? null;
-    // Point/ongoing: only keep if start is inside window.
     if (kind !== "range") {
       if (kind === "ongoing") {
-        // Overlap window if started before windowEnd and (if it has a
-        // non-null end) hasn't ended before windowStart.
         const ongoingEnd = end ?? Number.POSITIVE_INFINITY;
         if (start < windowEnd && ongoingEnd >= windowStart) {
           out.push({
@@ -457,7 +374,6 @@ export async function getMemoriesByEventTimeOp(
       }
       continue;
     }
-    // Range: overlap if [start, end] ∩ [windowStart, windowEnd) is non-empty.
     const memEnd = end ?? start;
     if (memEnd >= windowStart && start < windowEnd) {
       out.push({ uniqueId: r.id, eventTimeStart: start, eventTimeEnd: end, eventTimeKind: kind });
@@ -473,7 +389,6 @@ export async function createVaultMemoriesBatchOp(
 ): Promise<StoredVaultMemory[]> {
   if (optionsArray.length === 0) return [];
 
-  // Pre-encrypt all contents in parallel
   const encryptedContents = await Promise.all(
     optionsArray.map(async (opts) => {
       if (ctx.walletAddress && ctx.signMessage) {
@@ -488,7 +403,6 @@ export async function createVaultMemoriesBatchOp(
     })
   );
 
-  // Single write transaction with batch create
   const created = await ctx.database.write(async () => {
     if (ctx.canWrite && !(await ctx.canWrite()))
       throw new Error("Memory source is no longer eligible");
@@ -527,13 +441,6 @@ export async function getVaultMemoryOp(
   }
 }
 
-/**
- * Map a raw `memory_vault` row (snake_case `_raw` from `unsafeFetchRaw`) to the Stored shape
- * WITHOUT instantiating a WatermelonDB Model — mirrors {@link vaultMemoryToStoredRaw} but reads
- * raw columns. Used by the bulk read ops so a whole-vault load doesn't pin a Model per row in
- * the never-evicted RecordCache (web Pile-2 tab-memory; mobile SQLite is paged so it's harmless
- * there). Return shape is identical, so callers are unaffected.
- */
 function vaultMemoryRawToStoredRaw(raw: Record<string, unknown>): StoredVaultMemory {
   let sourceChunkIds: string[] | null = null;
   const rawChunks = raw.source_chunk_ids;
@@ -550,7 +457,6 @@ function vaultMemoryRawToStoredRaw(raw: Record<string, unknown>): StoredVaultMem
   return {
     uniqueId: raw.id as string,
     content: (raw.content as string) ?? "",
-    // @text coerces NULL→"" on the Model path; unsafeFetchRaw returns the raw NULL, so guard.
     scope: (raw.scope as string) ?? "",
     folderId: (raw.folder_id as string | null) ?? null,
     userId: (raw.user_id as string | null) ?? null,
@@ -562,7 +468,6 @@ function vaultMemoryRawToStoredRaw(raw: Record<string, unknown>): StoredVaultMem
     eventTimeStart: (raw.event_time_start as number | null) ?? null,
     eventTimeEnd: (raw.event_time_end as number | null) ?? null,
     eventTimeKind: (raw.event_time_kind as string | null) ?? null,
-    // SQLite stores booleans as 0/1, LokiJS as true/false — coerce both.
     topicsUserManaged: raw.topics_user_managed === true || raw.topics_user_managed === 1,
     media: parseMedia(raw.media as string | null),
     topics: parseTopics(raw.topics),
@@ -585,7 +490,6 @@ function vaultMemoryRawToStoredRaw(raw: Record<string, unknown>): StoredVaultMem
   };
 }
 
-/** Raw-row variant of {@link vaultMemoryToStored}: map then decrypt, no Model built. */
 async function vaultMemoryRawToStored(
   raw: Record<string, unknown>,
   walletAddress?: string,
@@ -646,8 +550,6 @@ export async function getAllVaultMemoriesOp(
       ? [Q.take(options.limit)]
       : []),
   ];
-  // unsafeFetchRaw (NOT fetch): a whole-vault load must not build a Model per row into the
-  // never-evicted RecordCache (web Pile-2). Same SQL (incl. sortBy/take); raws decrypted directly.
   const results = (await ctx.vaultMemoryCollection.query(...conditions).unsafeFetchRaw()) as Record<
     string,
     unknown
@@ -657,24 +559,15 @@ export async function getAllVaultMemoriesOp(
   );
 }
 
-/**
- * Map a raw `memory_vault` row (snake_case `_raw`) to the content-free
- * {@link RankableVaultMemory} projection. No decrypt, no `content` — see the
- * type doc for why ciphertext must never ride along as plaintext content.
- */
 function vaultMemoryRawToRankable(raw: Record<string, unknown>): RankableVaultMemory {
   return {
     uniqueId: raw.id as string,
-    // @text coerces NULL→"" on the Model path; unsafeFetchRaw returns raw NULL, so guard.
     scope: (raw.scope as string) ?? "",
     folderId: (raw.folder_id as string | null) ?? null,
     embedding: (raw.embedding as string | null) ?? null,
     embeddingModel: (raw.embedding_model as string | null) ?? null,
     createdAt: new Date(raw.created_at as number),
     updatedAt: new Date(raw.updated_at as number),
-    // Same mapping as vaultMemoryRawToStoredRaw. A consolidation rewrite moves
-    // ONLY this column (preserveUpdatedAt pins updated_at), so a change-since
-    // check that reads this projection needs it — see the type doc.
     lastObservedAt: (raw.last_observed_at as number | null) ?? null,
   };
 }
@@ -713,8 +606,6 @@ export async function getVaultRankingProjectionsOp(
       ? [Q.take(options.limit)]
       : []),
   ];
-  // unsafeFetchRaw (NOT fetch): mirror getAllVaultMemoriesOp — a whole-vault scan must not pin a
-  // Model per row into the never-evicted RecordCache (web Pile-2). No decrypt: content stays sealed.
   const results = (await ctx.vaultMemoryCollection.query(...conditions).unsafeFetchRaw()) as Record<
     string,
     unknown
@@ -730,18 +621,6 @@ export interface VaultCandidateKey {
   updatedAt: Date;
 }
 
-/**
- * SQL WHERE fragment mirroring baseVaultConditions (is_deleted, archived_at,
- * trust_tier, superseded_by, user_id) for the projected-read path. Kept
- * adjacent to baseVaultConditions — they MUST stay in lockstep.
- *
- * `trust_tier` uses SQLite's null-safe `IS NOT 'quarantined'` (not `!=`) so
- * legacy NULL-tier rows SURVIVE the filter, exactly like WatermelonDB's
- * null-inclusive `Q.notEq("quarantined")` on the Loki fallback path. Both
- * "quarantined" and the archived-at sentinel are hardcoded constants, so they
- * are inlined as SQL literals (no bound args) to keep the projection paths'
- * bound-arg lists identical to the pre-decay behavior.
- */
 function baseVaultSql(
   ctx: VaultMemoryOperationsContext,
   options?: { includeArchived?: boolean }
@@ -751,8 +630,6 @@ function baseVaultSql(
 } {
   const clauses = [
     '"is_deleted" = 0',
-    // Mirrors `baseVaultConditions`' `includeArchived` branch. Defaults to
-    // excluding archived rows, so every existing caller is unchanged.
     ...(options?.includeArchived ? [] : ['"archived_at" is null']),
     `"trust_tier" is not 'quarantined'`,
     '"superseded_by" is null',
@@ -797,7 +674,6 @@ export async function getVaultCandidateKeysOp(
     updatedAt: new Date(raw.updated_at as number),
   });
 
-  // OPFS-SQLite: projected SELECT (skips content/embedding blobs).
   try {
     const base = baseVaultSql(ctx, {
       ...(options?.includeArchived !== undefined && { includeArchived: options.includeArchived }),
@@ -829,10 +705,6 @@ export async function getVaultCandidateKeysOp(
       .unsafeFetchRaw()) as Record<string, unknown>[];
     return rows.map(mapRaw);
   } catch (err) {
-    // LokiJS fallback (Q.unsafeSqlQuery unsupported): standard Q query, full raw
-    // rows (blobs resident, no extra I/O), projected in-memory. Logged so a
-    // production regression (SQLite path failing → full-blob loads) is visible
-    // rather than a silent perf cliff.
     getLogger().debug(
       "memoryVault: getVaultCandidateKeysOp projected SQL unavailable, using full-load fallback: " +
         (err instanceof Error ? err.message : String(err))
@@ -891,8 +763,6 @@ export async function getVaultEmbeddingsByIdsOp(
       .unsafeFetchRaw()) as Record<string, unknown>[];
     return rows.map(mapRaw);
   } catch (err) {
-    // LokiJS fallback (see getVaultCandidateKeysOp) — logged so a silent
-    // degrade to full-blob loads is observable.
     getLogger().debug(
       "memoryVault: getVaultEmbeddingsByIdsOp projected SQL unavailable, using full-load fallback: " +
         (err instanceof Error ? err.message : String(err))
@@ -952,7 +822,6 @@ export async function getAllVaultMemoryContentsOp(
   ctx: VaultMemoryOperationsContext,
   options?: { since?: Date }
 ): Promise<string[]> {
-  // unsafeFetchRaw (NOT fetch): bulk content scan must not pin a Model per row (web Pile-2).
   const results = (await ctx.vaultMemoryCollection
     .query(...baseVaultConditions(ctx, options))
     .unsafeFetchRaw()) as Record<string, unknown>[];
@@ -1018,10 +887,6 @@ export async function updateVaultMemoryOp(
   opts: UpdateVaultMemoryOptions
 ): Promise<StoredVaultMemory | null> {
   try {
-    // Pre-check outside the writer so we don't pay encryption for a
-    // memory that's already gone; the authoritative check re-runs
-    // inside the write block below (a concurrent delete could land
-    // between this read and the write).
     const probe = await ctx.vaultMemoryCollection.find(id);
     if (probe.isDeleted || probe.supersededBy || !isOwnedByCtxUser(ctx, probe)) return null;
 
@@ -1041,27 +906,11 @@ export async function updateVaultMemoryOp(
     await ctx.database.write(async () => {
       if (ctx.canWrite && !(await ctx.canWrite()))
         throw new Error("Memory source is no longer eligible");
-      // Re-check inside the serialized writer: a delete that committed
-      // after the probe must win — updating a soft-deleted row would
-      // silently resurrect content on an invisible record.
       if (record.isDeleted || record.supersededBy || !isOwnedByCtxUser(ctx, record)) {
         stale = true;
         return;
       }
       let observedSources: string[] = [];
-      // A replayed observation must not inflate evidence. It must not swallow
-      // the write either: this returned from inside the writer before
-      // record.update(), so content, embedding, restore, entities and eventTime
-      // were all dropped while the caller still saw a successful merge.
-      // Reachable on two ordinary paths — two candidates from one turn
-      // routinely share sourceMessageIds (autoExtract passes per-candidate
-      // ids), so the second one's consolidated rewrite was discarded; and
-      // tryConsolidate sends a rewritten content plus a fresh embedding under
-      // the ids that triggered it, which the durable retry path always has on
-      // file. Losing that write also poisoned vaultCache with a vector for
-      // content that was never persisted. So suppress only the evidence
-      // fields — proof count and the re-observation watermark — and let the
-      // content the caller computed land.
       let replayedObservation = false;
       if (opts.observationSourceIds?.length) {
         try {
@@ -1083,10 +932,6 @@ export async function updateVaultMemoryOp(
         }
         if (opts.embedding !== undefined) {
           r._setRaw("embedding", opts.embedding);
-          // Keep the model tag in sync with the vector. An explicit model wins;
-          // otherwise reset to null (grandfathered / current-compatible). Never
-          // leave the prior tag on a new vector — a stale tag would make search
-          // treat the row as stale every query and re-embed it in a loop.
           r._setRaw("embedding_model", opts.embeddingModel ?? null);
         }
         if (opts.sourceChunkIds !== undefined) {
@@ -1102,11 +947,6 @@ export async function updateVaultMemoryOp(
         if (replayedObservation) {
           /* Same sources seen again: no new evidence, so no proof bump. */
         } else if (opts.proofCountIncrement !== undefined) {
-          // Read inside the writer so two parallel retain() calls observe
-          // each other's commits and neither loses its increment. Reading
-          // `r.proofCount` reflects the latest committed _raw value (the
-          // identity-mapped record is updated immediately by _setRaw, and
-          // database.write() serializes writers).
           const current = r.proofCount ?? 1;
           r._setRaw("proof_count", current + opts.proofCountIncrement);
         } else if (opts.proofCount !== undefined) {
@@ -1124,35 +964,18 @@ export async function updateVaultMemoryOp(
           r._setRaw("topics_user_managed", opts.topicsUserManaged);
         }
         if (opts.lastObservedAt !== undefined && !replayedObservation) {
-          // C3 re-observation watermark. Set independently of updated_at so a
-          // merge records "seen again now" while preserveUpdatedAt keeps the
-          // edit-time recency signal pinned. Skipped for a replay: re-reading
-          // the same sources is not a fresh sighting, and refreshing here would
-          // hold a decayed fact alive off its own retry traffic.
           r._setRaw("last_observed_at", opts.lastObservedAt);
         }
-        // Typed memory (PR1) — retain()'s lazy backfill sets this only when the
-        // existing row had no type (it decides that upstream), so a plain
-        // presence check is enough here.
         if (opts.factType !== undefined) {
           r._setRaw("fact_type", opts.factType);
         }
         if (opts.trustTier !== undefined) {
-          // Tier-0 (PR3): re-validate the loose string against the known set.
           r._setRaw("trust_tier", normalizeTrustTier(opts.trustTier));
         }
-        // PR5 — un-archive on re-observe: clear archived_at so a decayed row a
-        // new observation merged into re-enters recall. Ordering note: this runs
-        // BEFORE the preserveUpdatedAt restore below, but retain() sets restore
-        // WITHOUT preserveUpdatedAt (so updated_at bumps and the decay clock
-        // resets) — the two are not combined.
         if (opts.restore) {
           r._setRaw("archived_at", null);
         }
         if (opts.preserveUpdatedAt) {
-          // WatermelonDB's record.update() bumps updated_at automatically.
-          // Restore the original so re-observation doesn't double-count
-          // against the recency multiplier on top of proof_count.
           r._setRaw("updated_at", originalUpdatedAt);
         }
       });
@@ -1198,17 +1021,6 @@ export async function setMemoryEntitiesOp(
   }
   if (record.isDeleted || !isOwnedByCtxUser(ctx, record)) return null;
 
-  // Flag, links, stale-link prune and the `topics` record all land in ONE
-  // writer. Committing the flag on its own published a window where the row read
-  // as user-managed with neither a record nor a link — the exact shape
-  // getMemoriesNeedingTopicExtractionOp treats as pre-v42 restore damage — so a
-  // repair sweep landing between the two writes cleared the flag, invalidated
-  // the extraction version and handed the user's topics to the autotagger. One
-  // writer makes that intermediate state unreachable by any other writer.
-  //
-  // The soft-delete / ownership re-check stays INSIDE the writer: a delete that
-  // committed after the probe above must win (mirrors updateVaultMemoryOp), so
-  // links never attach to a deleted memory.
   let stale = false;
   const originalUpdatedAt = record.updatedAt.getTime();
   await ctx.database.write(async (writer) => {
@@ -1221,14 +1033,6 @@ export async function setMemoryEntitiesOp(
       r._setRaw("updated_at", originalUpdatedAt);
     });
 
-    // Add the new links first (idempotent), THEN drop only the stale ones. This
-    // ordering means a transient failure can leave at most EXTRA topics
-    // (old ∪ new) — never zero — so a topic edit can't wipe a memory's topics
-    // (the delete-all-then-relink order could, on a mid-op failure). The link op
-    // writes `topics` from old ∪ new for the same reason; the prune below then
-    // narrows the record to the user's set, in the same batch as the link
-    // deletes. `callWriter` runs the link op as part of this writer rather than
-    // deadlocking on its own `database.write`.
     const linked =
       entities.length > 0
         ? await writer.callWriter(() =>
@@ -1240,9 +1044,6 @@ export async function setMemoryEntitiesOp(
       .query(Q.where("memory_id", memoryId))
       .fetch();
     const staleLinks = existing.filter((l) => !keep.has(String(l.entityId)));
-    // Clearing all topics skips the link op entirely, so `topics` still needs its
-    // explicit `[]` — the record of "the user removed every topic", which is not
-    // the same as the null column that means "no record yet" (see parseTopics).
     if (staleLinks.length === 0 && entities.length > 0) return;
     const topicsWrite = await resolveMemoryTopicsWrite(
       entityCtx,
@@ -1251,8 +1052,6 @@ export async function setMemoryEntitiesOp(
       entities,
       "user"
     );
-    // Resolved above, PREPARED here: the prepare must share a tick with the
-    // batch (sdk#891).
     await ctx.database.batch(
       ...staleLinks.map((l) => l.prepareDestroyPermanently()),
       ...(topicsWrite ? [prepareMemoryTopicsUpdate(topicsWrite)] : [])
@@ -1306,9 +1105,6 @@ export async function clearMemoryTopicsOverrideOp(
     cleared = true;
     await record.update((r) => {
       r._setRaw("topics_user_managed", false);
-      // Stale version + a non-null stamp routes the row through the pending path
-      // (LLM re-extraction). A row user-curated before any LLM pass has a null
-      // stamp — force one so it doesn't fall through to grandfathering.
       r._setRaw("topics_extracted_version", null);
       if (record.topicsExtractedAt === null) {
         r._setRaw("topics_extracted_at", originalUpdatedAt);
@@ -1353,25 +1149,15 @@ export async function setMemoryVisibilityOp(
 
   let stale = false;
   await ctx.database.write(async () => {
-    // Re-check inside the serialized writer (see updateVaultMemoryOp): a
-    // delete that committed after the probe must win.
     if (record.isDeleted || !isOwnedByCtxUser(ctx, record)) {
       stale = true;
       return;
     }
-    // Read BOTH timestamps inside the serialized writer, not at probe time. A
-    // revoke that committed in between would leave a stale non-null
-    // published_at snapshot here, so the publish branch would skip the stamp
-    // and commit `visibility: public` with a NULL published_at — precisely the
-    // invariant this op exists to hold, and one the reconciler reads as "must
-    // not exist in the server index".
     const currentUpdatedAt = record.updatedAt.getTime();
     const currentPublishedAt = record.publishedAt ?? null;
     await record.update((r) => {
       r._setRaw("visibility", opts.visibility);
       if (opts.visibility === "private") {
-        // Revoke: clear the publish stamp — the reconciler treats a private
-        // memory with no published_at as "must not exist in the server index".
         r._setRaw("published_at", null);
       } else if (currentPublishedAt === null) {
         r._setRaw("published_at", Date.now());
@@ -1398,7 +1184,6 @@ export async function deleteVaultMemoryOp(
 
     let stale = false;
     await ctx.database.write(async () => {
-      // Re-check inside the serialized writer (see updateVaultMemoryOp).
       if (record.isDeleted || !isOwnedByCtxUser(ctx, record)) {
         stale = true;
         return;
@@ -1409,9 +1194,6 @@ export async function deleteVaultMemoryOp(
     });
     if (stale) return false;
 
-    // W5 cascade: drop the join rows so the graph lane doesn't keep
-    // returning IDs of soft-deleted memories. Best-effort — a failure
-    // here doesn't roll back the vault delete.
     if (ctx.entityCtx) {
       try {
         await unlinkMemoryEntitiesOp(ctx.entityCtx, [id]);
@@ -1444,21 +1226,16 @@ export async function supersedeVaultMemoryOp(
   id: string,
   supersededById: string
 ): Promise<boolean> {
-  // A memory can't supersede itself.
   if (id === supersededById) return false;
   try {
     const record = await ctx.vaultMemoryCollection.find(id);
     if (record.isDeleted || record.supersededBy || !isOwnedByCtxUser(ctx, record)) return false;
 
-    // Validate the successor before pointing at it: it must exist, be live (not
-    // deleted, not itself superseded), and belong to the same user — otherwise
-    // we'd hide `record` behind a dangling or cross-user pointer that history
-    // consumers can't resolve.
     let successor;
     try {
       successor = await ctx.vaultMemoryCollection.find(supersededById);
     } catch {
-      return false; // successor id doesn't exist
+      return false;
     }
     if (successor.isDeleted || successor.supersededBy || !isOwnedByCtxUser(ctx, successor)) {
       return false;
@@ -1468,11 +1245,6 @@ export async function supersedeVaultMemoryOp(
     await ctx.database.write(async () => {
       if (ctx.canWrite && !(await ctx.canWrite()))
         throw new Error("Memory source is no longer eligible");
-      // Re-check BOTH rows inside the serialized writer. The live models
-      // reflect the latest committed state, so a concurrent delete/supersede of
-      // the target OR the successor between the validation above and this write
-      // is caught here — otherwise we'd stamp a pointer to a now-dead successor
-      // (the TOCTOU this guard closes).
       if (record.isDeleted || record.supersededBy || !isOwnedByCtxUser(ctx, record)) {
         stale = true;
         return;
@@ -1578,21 +1350,10 @@ export interface MemoriesNeedingTopicExtraction {
   topicsBackfill: string[];
 }
 
-/** memoryId → the canonical names its `memory_entity` rows currently point at.
- * A memory with no USABLE links is absent from the map — no link rows at all, or
- * only rows pointing at `entity` rows that no longer exist. Never mapped to an
- * empty set: callers read presence as "has links", so a memory whose whole link
- * set failed to resolve has to read as unlinked or it gets grandfather-stamped
- * with zero topics (and offered for a backfill that can find nothing to write). */
 async function linkedEntityNamesByMemory(
   entityCtx: EntityOperationsContext,
   memoryIds: readonly string[]
 ): Promise<Map<string, Set<string>>> {
-  // Chunk both id lists — SQLite caps bound variables (999), and huge Q.oneOf
-  // arrays hurt LokiJS too. unsafeFetchRaw (NOT fetch) throughout: the first
-  // post-migration sweep over a legacy vault can touch thousands of link rows,
-  // and .fetch() would pin a Model per row into the never-evicted RecordCache
-  // (web Pile-2).
   const CHUNK = 500;
   const entityIdByMemory = new Map<string, Set<string>>();
   const allEntityIds = new Set<string>();
@@ -1636,8 +1397,6 @@ async function linkedEntityNamesByMemory(
   return out;
 }
 
-/** True when a memory's link set doesn't match the names in its `topics`
- * record — i.e. the device-local index needs rebuilding from the record. */
 function linksDivergeFromTopics(topics: readonly StoredTopic[], linked: Set<string>): boolean {
   const wanted = new Set(
     topics.map((t) => normalizeEntityName(t.name)).filter((n) => n.length > 0)
@@ -1676,16 +1435,11 @@ export async function getMemoriesNeedingTopicExtractionOp(
     throw new Error("getMemoriesNeedingTopicExtractionOp requires ctx.entityCtx");
   }
   const conditions = [...baseVaultConditions(ctx), Q.sortBy("created_at", Q.desc)];
-  // unsafeFetchRaw (NOT fetch): whole-vault sweep must not pin a Model per row
-  // into the never-evicted RecordCache (web Pile-2) — see getAllVaultMemoriesOp.
   const rows = (await ctx.vaultMemoryCollection.query(...conditions).unsafeFetchRaw()) as Record<
     string,
     unknown
   >[];
 
-  // Links are needed for every row now, not just unstamped ones: a restored row
-  // arrives WITH a `topics_extracted_at` stamp, so the relink check has to see
-  // stamped rows too or the restored-device case is never detected.
   const linkedNames = await linkedEntityNamesByMemory(
     entityCtx,
     rows.map((r) => r.id as string)
@@ -1704,57 +1458,20 @@ export async function getMemoriesNeedingTopicExtractionOp(
     const topics = parseTopics(raw.topics);
     const linked = linkedNames.get(id);
 
-    // A record the index doesn't match: rebuild the index, and route
-    // the row NOWHERE else. It needs neither the LLM nor a vault write, and a
-    // restored row that `linkMemoryEntitiesOp` wrote topics for without stamping
-    // (the auto path doesn't stamp) would otherwise ALSO read as never-extracted
-    // with no links and get sent to the LLM — paying for extraction of topics we
-    // already have. The rebuild makes links match, so the next sweep classifies
-    // the row normally.
-    //
-    // Empty topics clear stale links. A matching empty index needs no relink.
     if (topics !== null && linksDivergeFromTopics(topics, linked ?? new Set())) {
       topicsToRelinkAll.push(id);
       continue;
     }
 
-    // Truthiness (not `=== true`) so an unsanitized SQLite `1` can't fail open.
     if (raw.topics_user_managed) {
       if (topics !== null || linked !== undefined) {
-        // The user owns these topics — never re-derive them. Still a backfill
-        // candidate: a curated row predating v42 has links but no record, and
-        // without one its topics don't survive a device migration.
         if (topics === null) topicsBackfillAll.push(id);
         continue;
       }
-      // Nothing to own: no `topics` record AND no usable link. That's what a
-      // pre-v42 restore leaves behind — the flag synced, the device-local index
-      // can't, and there was no record to rebuild it from — so relink has
-      // nothing to read and backfill nothing to derive, and the flag keeps the
-      // row out of entity-graph recall permanently. The curation is provably
-      // empty, so drop the flag (after the loop) and classify the row like any
-      // auto one.
-      //
-      // `topics: []` is deliberately NOT this shape: parseTopics reads it as
-      // "recorded as topicless", a choice the user made, and re-extracting would
-      // overwrite it.
-      //
-      // Capped like every bucket below: the clear loads a Model per row.
       if (cap !== undefined && emptyCurationToClear.length >= cap) continue;
       emptyCurationToClear.push(id);
     }
 
-    // Stamped rows re-extract when edited since the last pass OR when they were
-    // extracted under an older logic version (pre-v38 rows read as version 0, so
-    // a TOPICS_EXTRACTION_VERSION bump re-processes them). Unstamped rows split
-    // on whether they already have links (grandfather) or not (LLM pass).
-    //
-    // Both reads are DEPRECATED (v42): `topics_updated_at` subsumes them — null
-    // there means never processed, non-null with an empty `topics` means
-    // processed and found nothing, and a release-time EXTRACTOR_CHANGED_AT
-    // constant compared against it replaces the version gate. The columns are
-    // kept only to avoid a column-drop migration in an otherwise additive list;
-    // cutting this branch over is a follow-up once `topics` is proven in prod.
     const stamp = (raw.topics_extracted_at as number | null) ?? null;
     let isPending = false;
     if (stamp !== null) {
@@ -1770,58 +1487,24 @@ export async function getMemoriesNeedingTopicExtractionOp(
       isPending = true;
     }
 
-    // Pre-v42-restore repair: a stamped row the checks above left in NO bucket,
-    // carrying neither a link nor a `topics` record. Its stamp says it was
-    // extracted, but nothing survived the restore, so relink has no record to
-    // read and backfill no links to derive from — the LLM is the only way back
-    // and this is the only route to it.
-    //
-    // Deliberately narrow — three conditions, all required — so that healthy
-    // extracted rows are never dragged in. A TOPICS_EXTRACTION_VERSION bump
-    // would have re-extracted the ENTIRE vault to reach these few rows.
-    //
-    // `topics === null` and NOT `topics.length === 0`: parseTopics keeps `[]`
-    // ("extraction answered empty") apart from null ("no record"), and `[]` is a
-    // legitimate result the watermark exists to stop re-asking about. This also
-    // terminates the repair — an answered-empty pass writes `[]`, so a repaired
-    // row stops matching even if the LLM finds nothing. A row with a NON-empty
-    // record and no links belongs to `topicsToRelink`, which claimed it earlier.
     if (!isPending && linked === undefined && topics === null) {
       pendingRaw.push(raw);
       isPending = true;
     }
 
-    // An imminent LLM pass writes `topics` itself, so backfilling first would
-    // just buy a second upload of the same row.
     if (!isPending && topics === null && linked !== undefined) {
       topicsBackfillAll.push(id);
     }
   }
 
-  // Drop the flag before returning, or routing these rows to `pending` achieves
-  // nothing: BOTH the extraction path's up-front check and
-  // `replaceMemoryEntitiesGuardedOp`'s in-write guard read `topics_user_managed`,
-  // so a still-flagged row is selected every sweep and skipped every sweep. The
-  // reset op is reused for its stamp invalidation too — the row stays pending
-  // until an extraction actually lands. This dirties the row, so it uploads once;
-  // that's intended, the flag no longer describes the memory.
   for (const id of emptyCurationToClear) {
     try {
       await clearMemoryTopicsOverrideOp(ctx, id, { unlessTopicsRecorded: true });
     } catch (err) {
-      // One failed write must not abort the sweep — every other bucket is
-      // computed by now and callers would get nothing. The clear is idempotent,
-      // so the row is offered again next pass.
       getLogger().warn("[memory/topics] repair clear failed", err);
     }
   }
 
-  // Cap EVERY list under `limit`. Each one costs a per-row Model load in the
-  // worker's follow-up write (stamp / relink / backfill), which uncapped would
-  // pin thousands of Models in the never-evicted RecordCache (web Pile-2) on the
-  // first sweep of a legacy or freshly-restored vault. Capping also paces the
-  // backfill's one-time re-upload of the vault across sweeps. Edited /
-  // stale-version rows lead `pending` so they win the cap.
   const orderedPendingRaw = [...stampedPendingRaw, ...pendingRaw];
   const limitedPendingRaw = cap !== undefined ? orderedPendingRaw.slice(0, cap) : orderedPendingRaw;
   const pending = await mapInBatches(limitedPendingRaw, (raw) =>
@@ -1872,10 +1555,8 @@ export async function stampTopicsExtractedAtOp(
 ): Promise<string[]> {
   if (memoryIds.length === 0) return [];
 
-  // Dedupe to avoid prepareUpdate conflicts on shared Model instances.
   const uniqueIds = Array.from(new Set(memoryIds));
 
-  // Chunk the writer batches to keep any single batch reasonable.
   const CHUNK = 500;
   const stamped: string[] = [];
 
@@ -1883,11 +1564,6 @@ export async function stampTopicsExtractedAtOp(
     const chunkIds = uniqueIds.slice(i, i + CHUNK);
 
     await ctx.database.write(async () => {
-      // Load every Model BEFORE preparing any update. `find` is an async native
-      // hop, and WatermelonDB requires prepareUpdate → batch within the same
-      // tick — an `await` between a prepareUpdate and the batch lets the dev
-      // "wasn't sent to batch() synchronously" diagnostic fire (an uncaught
-      // throw that RedBoxes Debug builds mid-sweep).
       const records: VaultMemory[] = [];
       for (const id of chunkIds) {
         try {
@@ -1896,25 +1572,10 @@ export async function stampTopicsExtractedAtOp(
           // Missing row — skip.
         }
       }
-      // Synchronous pass: eligibility + updated_at read from the LIVE Model,
-      // in-writer — never a pre-writer snapshot (see the doc comment).
-      // Truthiness (not `!== true`) on the flag so an unsanitized SQLite `1`
-      // can't fail open.
-      //
-      // TRANSPILATION HAZARD — keep this a `.filter().map()`, NOT a `for…of`
-      // whose updater closure captures a per-iteration `const`: Metro/Babel's
-      // block-scoping transform hoists such a loop body into an `async
-      // _loop()` and AWAITS it per iteration in the shipped Hermes bundle,
-      // re-inserting an event-loop yield between prepareUpdate and batch even
-      // though this source is same-tick (observed in CI run 29861891347's
-      // bundle). `.map()` callbacks are real function scopes and survive the
-      // transform unchanged.
       const eligible = records.filter(
         (record) => !record.isDeleted && isOwnedByCtxUser(ctx, record) && !record.topicsUserManaged
       );
       const prepared = eligible.map((record) => {
-        // Capture BEFORE prepareUpdate: prepareUpdate touches `updated_at`
-        // to now() before the updater callback runs.
         const originalUpdatedAt = record.updatedAt.getTime();
         return record.prepareUpdate((r) => {
           r._setRaw("topics_extracted_at", extractedAt);
@@ -1966,14 +1627,12 @@ export async function relinkMemoryTopicsOp(
           return;
         }
         if (record.isDeleted || !isOwnedByCtxUser(ctx, record)) return;
-        // Read the latest topics after the writer acquires the database lock.
         const topics = parseTopics(record.topics);
         if (topics === null) return;
         await writer.callWriter(() => relinkMemoryEntitiesFromTopicsOp(entityCtx, id, topics));
         relinked.push(id);
       });
     } catch (err) {
-      // Retry unreadable rows in the next repair pass.
       getLogger().warn("[memory/topics] relink failed", err);
     }
   }
@@ -2017,16 +1676,10 @@ export async function backfillMemoryTopicsOp(
   if (uniqueIds.length === 0) return [];
 
   const filled: string[] = [];
-  // Chunked like stampTopicsExtractedAtOp: one writer per chunk bounds both the
-  // batch size and how long this holds the (serialized) writer lock against a
-  // user's own save, without going back to a writer per row.
   const CHUNK = 500;
   for (let i = 0; i < uniqueIds.length; i += CHUNK) {
     const chunkIds = uniqueIds.slice(i, i + CHUNK);
     await ctx.database.write(async () => {
-      // Phase 1 — every await happens here, before anything is prepared. The row
-      // reads stay INSIDE the writer (writers are serialized, so a committed
-      // delete or topic edit is visible), exactly as they were per-row before.
       const writes: MemoryTopicsWrite[] = [];
       for (const id of chunkIds) {
         let record: VaultMemory;
@@ -2046,26 +1699,14 @@ export async function backfillMemoryTopicsOp(
           .query(Q.where("id", Q.oneOf(entityIds)))
           .fetch();
         if (entities.length === 0) continue;
-        // IMPRECISE BY CONSTRUCTION, and safe only because nothing reads `source`
-        // yet. `topics_user_managed` is per-MEMORY, so a curated legacy row stamps
-        // every one of its topics `user` — including auto-derived ones the user
-        // merely kept when they added one of their own. Per-topic provenance simply
-        // wasn't recorded before v42 and cannot be recovered. The later
-        // partial-refresh feature (refresh `auto` entries, leave `user` alone) must
-        // therefore NOT treat a backfilled `source` as ground truth: it would
-        // freeze stale auto topics on every pre-v42 curated memory.
         const source = record.topicsUserManaged ? "user" : "auto";
-        // Names come from `entity.canonical_name`, so there's no display casing to
-        // pass — a pre-v42 row never recorded one. Hence the empty `inputs`.
         const write = await resolveMemoryTopicsWrite(entityCtx, id, entities, [], source);
         if (write) writes.push(write);
       }
       if (writes.length === 0) return;
 
-      // Phase 2 — synchronous from here to the batch. Keep this a `.map()`.
       const prepared = writes.map(prepareMemoryTopicsUpdate);
       await ctx.database.batch(...prepared);
-      // `row.id` IS the memory id — the row was resolved by it.
       for (const write of writes) filled.push(write.row.id);
     });
   }
@@ -2093,9 +1734,6 @@ export async function deleteAllVaultMemoriesForUserOp(
     await ctx.database.batch(...prepared);
   });
 
-  // W5 cascade: drop every join row for this user in one pass. Falls
-  // back to per-memory unlink when the entity context lacks user_id
-  // scoping (single-user clients).
   if (ctx.entityCtx) {
     try {
       if (ctx.entityCtx.userId !== undefined) {
@@ -2247,8 +1885,6 @@ export async function archiveVaultMemoryOp(
     let stale = false;
     const archivedAtValue = opts?.now ?? Date.now();
     await ctx.database.write(async () => {
-      // Re-check inside the serialized writer: a delete/archive/merge that
-      // committed after the probe must win.
       if (record.isDeleted || !isOwnedByCtxUser(ctx, record) || record.archivedAt !== null) {
         stale = true;
         return;
@@ -2259,8 +1895,6 @@ export async function archiveVaultMemoryOp(
         (opts?.expectedLastObservedAt !== undefined &&
           (record.lastObservedAt ?? null) !== opts.expectedLastObservedAt)
       ) {
-        // A retain() merge refreshed this row between scan and write — the fact
-        // was just re-observed, so leave it active.
         stale = true;
         return;
       }
@@ -2332,9 +1966,6 @@ export async function hardDeleteDecayedOp(
     const now = opts.now ?? Date.now();
     let stale = false;
     await ctx.database.write(async () => {
-      // Re-read inside the serialized writer: only delete if STILL archived and
-      // STILL past the window. A concurrent restore (archived_at → null) or a
-      // fresh re-archive must make this lose.
       const archivedAt = record.archivedAt;
       if (
         record.isDeleted ||
@@ -2351,7 +1982,6 @@ export async function hardDeleteDecayedOp(
     });
     if (stale) return false;
 
-    // W5 cascade (best-effort), mirrors deleteVaultMemoryOp.
     if (ctx.entityCtx) {
       try {
         await unlinkMemoryEntitiesOp(ctx.entityCtx, [id]);
@@ -2382,10 +2012,6 @@ export async function updateVaultMemoryEmbeddingOp(
   ctx: VaultMemoryOperationsContext,
   id: string,
   embedding: string,
-  // Required (not optional) so the tag is always synced to the vector — a
-  // model-less write that left a stale tag would make search re-embed the row
-  // every query. Matches the message-side updateMessageEmbeddingOp; compile
-  // time catches any caller that forgets it.
   embeddingModel: string,
   /** When given, the write lands only if the row still matches it. */
   expected?: VaultEmbeddingExpectation
@@ -2397,8 +2023,6 @@ export async function updateVaultMemoryEmbeddingOp(
     const readStoredContent = record._getRaw("content");
     if (expected?.updatedAt !== undefined && expected.updatedAt !== readUpdatedAt) return false;
     if (expected?.content !== undefined) {
-      // Decrypted OUTSIDE the writer: it can reach signMessage / a key prompt,
-      // and a slow signer inside database.write would stall every other write.
       const current = await vaultMemoryToStored(
         record,
         ctx.walletAddress,
@@ -2409,10 +2033,6 @@ export async function updateVaultMemoryEmbeddingOp(
     }
     let written = false;
     await ctx.database.write(async () => {
-      // Re-checked inside the serialized writer so an edit that committed
-      // after the reads above is seen — without decrypting again. A
-      // preserveUpdatedAt rewrite keeps updated_at, so the stored (cipher)text
-      // is compared as well: any content write replaces it.
       if (record.isDeleted || !isOwnedByCtxUser(ctx, record)) return;
       const originalUpdatedAt = record.updatedAt.getTime();
       if (originalUpdatedAt !== readUpdatedAt || record._getRaw("content") !== readStoredContent)
@@ -2420,10 +2040,6 @@ export async function updateVaultMemoryEmbeddingOp(
       await record.update((r) => {
         r._setRaw("embedding", embedding);
         r._setRaw("embedding_model", embeddingModel);
-        // A re-embed is not an edit. record.update() bumps updated_at, which
-        // after a model change or a vector-less restore rewrote every row's
-        // recency on the first search: flattened ranking, a reset decay clock
-        // and a disabled supersession gap. Same pattern as preserveUpdatedAt.
         r._setRaw("updated_at", originalUpdatedAt);
       });
       written = true;
@@ -2434,7 +2050,6 @@ export async function updateVaultMemoryEmbeddingOp(
   }
 }
 
-/** Whitespace/case/Unicode-insensitive form used to recognise the same text. */
 function normalizeForDedupe(content: string): string {
   return content.normalize("NFKC").trim().replace(/\s+/g, " ").toLowerCase();
 }

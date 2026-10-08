@@ -17,9 +17,6 @@ import type {
 } from "./types";
 import { generateMediaId } from "./types";
 
-/**
- * Delete a file from OPFS if supported, silently ignoring errors.
- */
 async function tryDeleteFromOPFS(mediaId: string): Promise<void> {
   if (!isOPFSSupported()) {
     return;
@@ -31,9 +28,6 @@ async function tryDeleteFromOPFS(mediaId: string): Promise<void> {
   }
 }
 
-/**
- * Convert a Media model instance to a StoredMedia object (raw, without decryption).
- */
 function mediaToStoredRaw(media: Media): StoredMedia {
   return {
     id: media.id,
@@ -68,17 +62,12 @@ export async function mediaToStored(
 ): Promise<StoredMedia> {
   const baseMedia = mediaToStoredRaw(media);
 
-  // Decrypt fields if wallet address provided
   if (walletAddress) {
     return await decryptMediaFields(baseMedia, walletAddress, signMessage, embeddedWalletSigner);
   }
 
   return baseMedia;
 }
-
-// =============================================================================
-// CRUD Operations
-// =============================================================================
 
 /**
  * Create a new media record.
@@ -91,7 +80,6 @@ export async function createMediaOp(
   const mediaId = options.mediaId || generateMediaId();
   const now = Date.now();
 
-  // Encrypt media fields if encryption context is available
   const encryptedOpts =
     ctx.walletAddress && ctx.signMessage
       ? await encryptMediaFields(
@@ -120,7 +108,6 @@ export async function createMediaOp(
         media._setRaw("dimensions", JSON.stringify(encryptedOpts.dimensions));
       if (encryptedOpts.duration !== undefined) media._setRaw("duration", encryptedOpts.duration);
       if (encryptedOpts.metadata) {
-        // Metadata may already be encrypted as a string
         const metadataValue =
           typeof encryptedOpts.metadata === "string"
             ? encryptedOpts.metadata
@@ -146,10 +133,8 @@ export async function createMediaBatchOp(
   const mediaCollection = ctx.database.get<Media>("media");
   const now = Date.now();
 
-  // Use provided media IDs or generate new ones
   const mediaIds: string[] = optionsArray.map((opt) => opt.mediaId || generateMediaId());
 
-  // Encrypt all media options if encryption context is available
   const encryptedArray =
     ctx.walletAddress && ctx.signMessage
       ? await Promise.all(
@@ -191,7 +176,6 @@ export async function createMediaBatchOp(
     );
   });
 
-  // Fetch the created records by their media IDs
   const results = await mediaCollection.query(Q.where("media_id", Q.oneOf(mediaIds))).fetch();
   return Promise.all(
     results.map((m) =>
@@ -275,7 +259,6 @@ export async function updateMediaOp(
     });
   });
 
-  // Fetch updated record
   const updated = await mediaCollection.query(Q.where("media_id", mediaId)).fetch();
   return updated.length > 0
     ? await mediaToStored(updated[0], ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner)
@@ -324,7 +307,6 @@ export async function updateMediaMessageIdBatchOp(
 }
 
 const VIDEO_MIME_RE = /^video\//i;
-/** Mimes the old path produced for videos when blob.type was empty (`image/<urlext>`). */
 const IMAGE_VIDEO_MIMES = VIDEO_EXTENSIONS.map((ext) => `image/${ext}`);
 
 /**
@@ -371,7 +353,6 @@ export async function relinkMisclassifiedVideosOp(
     return 0;
   }
 
-  // Resolve each candidate to a video extension (or null if not actually video).
   const toRelink: { media: Media; ext: string }[] = [];
   for (const media of candidates) {
     const mime = media.mimeType?.toLowerCase() ?? "";
@@ -383,7 +364,6 @@ export async function relinkMisclassifiedVideosOp(
       toRelink.push({ media, ext: mime.split("/")[1] || "mp4" });
       continue;
     }
-    // application/octet-stream — decrypt to inspect the real source URL / name.
     const stored = await mediaToStored(
       media,
       ctx.walletAddress,
@@ -406,9 +386,6 @@ export async function relinkMisclassifiedVideosOp(
       ...toRelink.map(({ media, ext }) =>
         media.prepareUpdate((m) => {
           m._setRaw("media_type", "video");
-          // Repair a non-video mime so getMediaTypeFromMime keeps resolving to
-          // video. `name` is encrypted, so leave it — media_type drives the
-          // library tab and the OPFS fallback.
           if (!VIDEO_MIME_RE.test(media.mimeType?.toLowerCase() ?? "")) {
             m._setRaw("mime_type", `video/${ext}`);
           }
@@ -439,12 +416,10 @@ export async function deleteMediaOp(
   const media = results[0];
   const now = Date.now();
 
-  // Delete file from OPFS
   await tryDeleteFromOPFS(mediaId);
 
   await ctx.database.write(async () => {
     await media.update((m) => {
-      // Clear source URL but keep all metadata
       m._setRaw("source_url", null);
       m._setRaw("is_deleted", true);
       m._setRaw("updated_at", now);
@@ -469,7 +444,6 @@ export async function hardDeleteMediaOp(
     return false;
   }
 
-  // Delete file from OPFS
   await tryDeleteFromOPFS(mediaId);
 
   await ctx.database.write(async () => {
@@ -478,10 +452,6 @@ export async function hardDeleteMediaOp(
 
   return true;
 }
-
-// =============================================================================
-// Library Query Operations
-// =============================================================================
 
 /**
  * Get all media for a user with optional filters.
@@ -514,10 +484,8 @@ export async function getMediaOp(
     conditions.push(Q.where("model", filters.model));
   }
 
-  // Add sorting by created_at descending (newest first)
   conditions.push(Q.sortBy("created_at", Q.desc));
 
-  // Add pagination
   if (filters.limit) {
     conditions.push(Q.take(filters.limit));
   }
@@ -645,12 +613,10 @@ export async function getMediaByIdsOp(
 
   const results = await mediaCollection.query(...conditions).fetch();
 
-  // Return in the same order as the input mediaIds
   const mediaMap = new Map(results.map((m) => [m.mediaId, m]));
   const orderedMedia = mediaIds
     .map((id) => mediaMap.get(id))
     .filter((m): m is Media => m !== undefined);
-  // Use allSettled so one decryption failure doesn't lose the entire batch
   const settled = await Promise.allSettled(
     orderedMedia.map((m) =>
       mediaToStored(m, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner)
@@ -739,9 +705,6 @@ export async function searchMediaOp(
   const mediaCollection = ctx.database.get<Media>("media");
   const queryLower = query.toLowerCase();
 
-  // Fetch recent non-deleted media for this wallet, decrypt, and filter in memory.
-  // SQL LIKE cannot match encrypted field content, so we must decrypt first.
-  // Capped at 500 most recent records to prevent memory blowup at scale.
   const MAX_SEARCH_RECORDS = 500;
   const allResults = await mediaCollection
     .query(
@@ -819,7 +782,6 @@ export async function deleteMediaByConversationOp(
     return 0;
   }
 
-  // Delete files from OPFS in parallel
   await Promise.all(results.map((media) => tryDeleteFromOPFS(media.mediaId)));
 
   const now = Date.now();
@@ -827,7 +789,6 @@ export async function deleteMediaByConversationOp(
     await ctx.database.batch(
       ...results.map((media) =>
         media.prepareUpdate((m) => {
-          // Clear source URL but keep all metadata
           m._setRaw("source_url", null);
           m._setRaw("is_deleted", true);
           m._setRaw("updated_at", now);
@@ -856,7 +817,6 @@ export async function deleteMediaByMessageOp(
     return 0;
   }
 
-  // Delete files from OPFS in parallel
   await Promise.all(results.map((media) => tryDeleteFromOPFS(media.mediaId)));
 
   const now = Date.now();
@@ -864,7 +824,6 @@ export async function deleteMediaByMessageOp(
     await ctx.database.batch(
       ...results.map((media) =>
         media.prepareUpdate((m) => {
-          // Clear source URL but keep all metadata
           m._setRaw("source_url", null);
           m._setRaw("is_deleted", true);
           m._setRaw("updated_at", now);

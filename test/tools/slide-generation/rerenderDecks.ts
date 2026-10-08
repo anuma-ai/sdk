@@ -1,11 +1,3 @@
-/**
- * Re-render every existing slides.jsx in .output/ to refresh its index.html
- * with the latest renderer (e.g. after a CSS / print-stylesheet change).
- * Skips the design-system catalog dump — that has its own renderer.
- *
- *   pnpm exec tsx test/tools/slide-generation/rerenderDecks.ts
- */
-
 import fs from "node:fs";
 import path from "node:path";
 
@@ -20,7 +12,6 @@ function walk(dir: string): string[] {
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
     const full = path.join(dir, entry.name);
     if (entry.isDirectory()) {
-      // Skip design-system — has its own multi-slide-system renderer.
       if (entry.name === "design-system") continue;
       out.push(...walk(full));
     } else if (entry.isFile() && entry.name === "slides.jsx") {

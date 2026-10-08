@@ -13,21 +13,16 @@ export const userPreferencesStorageSchema = appSchema({
     tableSchema({
       name: "userPreferences",
       columns: [
-        // Identity
         { name: "wallet_address", type: "string", isIndexed: true },
 
-        // Profile fields (top-level for queryability)
         { name: "nickname", type: "string", isOptional: true },
         { name: "occupation", type: "string", isOptional: true },
         { name: "description", type: "string", isOptional: true },
 
-        // Model preferences (JSON - flexible for model ordering)
         { name: "models", type: "string", isOptional: true },
 
-        // Personality settings (JSON - sliders, style, custom instructions)
         { name: "personality", type: "string", isOptional: true },
 
-        // Timestamps
         { name: "created_at", type: "number" },
         { name: "updated_at", type: "number" },
       ],

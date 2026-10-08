@@ -112,7 +112,6 @@ export function useGoogleDriveBackup(
     conversationsFolder = DEFAULT_CONVERSATIONS_FOLDER,
   } = options;
 
-  // Get auth state from GoogleDriveAuthProvider
   const {
     accessToken: driveToken,
     isConfigured: isDriveConfigured,

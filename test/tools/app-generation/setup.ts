@@ -1,16 +1,3 @@
-/**
- * Shared setup for app-generation tool e2e tests.
- *
- * Extends the base test/tools/setup.ts with app-generation-specific
- * utilities: in-memory file store, snapshot/diff, and output dumping.
- *
- * Environment:
- *   PORTAL_API_KEY   (required)  Portal API key
- *   ANUMA_API_URL    (optional)  Override portal base URL
- *   E2E_MODEL        (optional)  Model override
- *   E2E_API_TYPE     (optional)  "completions" or "responses"
- */
-
 import fs from "node:fs";
 import path from "node:path";
 
@@ -46,12 +33,6 @@ export {
   type TokenUsage,
 } from "../../../src/tools/appGenMetrics.js";
 
-/**
- * Wrapper that times the tool loop, logs the duration, and sums token
- * usage across the loop's rounds (composing the caller's `onStepFinish`,
- * same pattern as the recorder in `../setup.ts`). Pass the returned
- * `usage` to `summarizePhase` so benchmark metrics carry cost data.
- */
 export async function timedToolLoop(
   ...args: Parameters<typeof runToolLoop>
 ): Promise<Awaited<ReturnType<typeof runToolLoop>> & { elapsedMs: number; usage: TokenUsage }> {
@@ -72,26 +53,16 @@ export async function timedToolLoop(
   return { ...result, elapsedMs, usage };
 }
 
-// ---------------------------------------------------------------------------
-// In-memory file store (replaces IndexedDB for tests)
-// ---------------------------------------------------------------------------
-
 export type FileStore = Map<string, string>;
 
 export function createFileStore(): FileStore {
   return new Map();
 }
 
-// ---------------------------------------------------------------------------
-// Snapshot & diff utilities
-// ---------------------------------------------------------------------------
-
-/** Take a snapshot of the file store (deep copy). */
 export function snapshot(store: FileStore): Map<string, string> {
   return new Map(store);
 }
 
-/** Diff two file store snapshots. Returns per-file change details. */
 export interface FileDiff {
   path: string;
   status: "added" | "removed" | "modified" | "unchanged";
@@ -149,7 +120,6 @@ export function diffSnapshots(before: Map<string, string>, after: Map<string, st
   return [...allPaths].map((p) => diffFile(p, before.get(p), after.get(p)));
 }
 
-/** Log a diff summary to console. */
 export function printDiff(label: string, diffs: FileDiff[]): void {
   console.log(`  --- ${label} ---`);
   for (const d of diffs) {
@@ -170,9 +140,6 @@ export function printDiff(label: string, diffs: FileDiff[]): void {
 
 const OUTPUT_DIR = path.resolve(__dirname, ".output");
 
-/** Generate a self-contained index.html that renders App.js in the browser.
- *  Thin wrapper around the public SDK utility — we read files from disk
- *  and hand the contents to exportAppToHtml. */
 function generateAppHtml(appDir: string, title: string): string {
   const filesOnDisk: Record<string, string> = {};
   for (const name of ["App.js", "App.css", "package.json"]) {
@@ -182,12 +149,10 @@ function generateAppHtml(appDir: string, title: string): string {
   return exportAppToHtml({ files: filesOnDisk, title });
 }
 
-/** Write an index.html into a directory if it contains App.js (works recursively for step dirs). */
 function writeAppHtml(dir: string, title: string): void {
   if (fs.existsSync(path.join(dir, "App.js"))) {
     fs.writeFileSync(path.join(dir, "index.html"), generateAppHtml(dir, title), "utf-8");
   }
-  // Handle step subdirectories (e.g. precision-multi/step-1-initial/)
   for (const entry of fs.readdirSync(dir)) {
     const full = path.join(dir, entry);
     if (fs.statSync(full).isDirectory()) {
@@ -196,7 +161,6 @@ function writeAppHtml(dir: string, title: string): void {
   }
 }
 
-/** Write all files from the store to disk for inspection. */
 export function dumpFiles(store: FileStore, testName: string): string {
   const dir = path.join(OUTPUT_DIR, testName.replace(/[^a-zA-Z0-9-_/]/g, "_"));
   fs.mkdirSync(dir, { recursive: true });
@@ -210,22 +174,13 @@ export function dumpFiles(store: FileStore, testName: string): string {
   return dir;
 }
 
-// ---------------------------------------------------------------------------
-// Debug trace — full request/response/tool-call record for a multi-turn run.
-// ---------------------------------------------------------------------------
-
-/** One turn of a debug trace: what was asked, what the model did, what it produced. */
 export interface DebugTraceStep {
   step: number;
-  /** Short slug, e.g. "1-generate" / "2-style" / "3-feature". */
   label: string;
-  /** The user prompt for this turn. */
   userPrompt: string;
   request: {
-    /** Conversation shape sent this turn (system / user / assistant …). */
     messageRoles: string[];
     messageCount: number;
-    /** Tool names available to the model this turn. */
     toolsAvailable: string[];
   };
   response: {
@@ -234,26 +189,11 @@ export interface DebugTraceStep {
     error: string | null;
     toolCallCount: number;
   };
-  /** Every tool call this turn — name, args (the generated code / patches), result. */
   toolCalls: Array<{ name: string; args: unknown; result: unknown }>;
-  /** File store after this turn (path → content). */
   files: Record<string, string>;
-  /** Per-step output dir (files + index.html) written by dumpFiles. */
   outputDir: string;
 }
 
-/**
- * Write a full request/response/tool-call/output trace for a multi-turn app-gen
- * run — for seeing exactly how generation + edits flow and debugging where they
- * break. Emits two files under `.output/<outputSubdir>/`:
- *   - `system-prompt.txt` — the system prompt sent every turn. Inspect it to
- *     confirm the App Builder guidance (incl. the window.app.complete contract)
- *     is present.
- *   - `trace.json` — per-turn user prompt, conversation shape, tool calls with
- *     their args (the generated code/patches) and results, response text,
- *     timing, errors, and the file snapshot.
- * Per-step file outputs + index.html are written separately via `dumpFiles`.
- */
 export function writeDebugTrace(
   outputSubdir: string,
   systemPrompt: string,
@@ -277,24 +217,6 @@ export function writeDebugTrace(
   );
 }
 
-// ---------------------------------------------------------------------------
-// Metrics persistence — pairs with src/tools/appGenMetrics.ts.
-// ---------------------------------------------------------------------------
-
-/**
- * Persist a benchmark's `RunRecord` to disk. Writes two files:
- *   - `.output/{outputSubdir}/metrics.json`  (always the latest run)
- *   - `.output/{outputSubdir}/.history/run-{finishedAt}.json`  (append-only)
- *
- * The latest file is what `scripts/compare-app-gen-runs.ts` reads by
- * default; the history files let you diff arbitrary prior runs.
- *
- * By default the inline diff against the previous run is printed to
- * stdout (useful interactively, noisy in CI). Pass `quiet: true` or
- * `BENCHMARK_QUIET=1` to suppress — the JSON files still land, just
- * without the terminal echo. The "Metrics written to ..." pointer line
- * is always printed so the file is discoverable.
- */
 export function writeRunMetrics(opts: {
   outputSubdir: string;
   benchmark: string;
@@ -302,7 +224,6 @@ export function writeRunMetrics(opts: {
   promptHash: string;
   startedAt: string;
   phases: PhaseRecord[];
-  /** Suppress the inline diff print. Default: env `BENCHMARK_QUIET=1`. */
   quiet?: boolean;
 }): RunRecord {
   const run = finalizeRun({
@@ -320,7 +241,6 @@ export function writeRunMetrics(opts: {
   fs.writeFileSync(path.join(dir, "metrics.json"), payload, "utf-8");
   const historyDir = path.join(dir, ".history");
   fs.mkdirSync(historyDir, { recursive: true });
-  // Colons are filesystem-hostile on Windows + awkward in shell globs.
   const stamp = run.finishedAt.replace(/[:.]/g, "-");
   fs.writeFileSync(path.join(historyDir, `run-${stamp}.json`), payload, "utf-8");
   console.log(
@@ -330,9 +250,6 @@ export function writeRunMetrics(opts: {
   const quiet = opts.quiet ?? process.env.BENCHMARK_QUIET === "1";
   if (quiet) return run;
 
-  // If a previous run exists in history, print a short diff so the
-  // benchmark's terminal output shows the regression/improvement
-  // inline. Skip the just-written file itself.
   const priors = fs
     .readdirSync(historyDir)
     .filter((f) => f.startsWith("run-") && f.endsWith(".json") && f !== `run-${stamp}.json`)
@@ -351,7 +268,6 @@ export function writeRunMetrics(opts: {
   return run;
 }
 
-/** Write a root index.html linking to all app previews. Call after all tests. */
 export function writeIndex(): void {
   if (!fs.existsSync(OUTPUT_DIR)) return;
   const dirs = fs
@@ -361,11 +277,9 @@ export function writeIndex(): void {
   const links: string[] = [];
   for (const name of dirs) {
     const appDir = path.join(OUTPUT_DIR, name);
-    // If the dir has App.js directly, link to it
     if (fs.existsSync(path.join(appDir, "index.html"))) {
       links.push(`      <a href="${name}/">${name}</a>`);
     } else {
-      // Step-based app — link to each step
       const steps = fs
         .readdirSync(appDir)
         .filter((s) => fs.statSync(path.join(appDir, s)).isDirectory())
@@ -404,24 +318,6 @@ ${links.join("\n")}
   console.log(`  Index written to ${path.relative(process.cwd(), OUTPUT_DIR)}/index.html`);
 }
 
-// ---------------------------------------------------------------------------
-// Playwright-backed verify_app implementation for benchmarks.
-//
-// The SDK's `verifyApp` host hook is normally wired by the chat app to its
-// Sandpack iframe. In benchmarks there's no Sandpack — we substitute a
-// headless Chromium that loads the current file store as `exportAppToHtml`
-// output and reports back whatever the browser captured.
-//
-// Catches the entire class of "Sonnet wrote code that doesn't run" — bad
-// imports, syntax the bundler rejects, runtime crashes after mount, etc.
-// — by actually running the code and listening for pageerror, console.error,
-// and the runtime overlay we ship inside exportAppToHtml.
-//
-// Browser is launched lazily on first verify call and reused across all
-// subsequent calls within the same vitest run. Each benchmark `afterAll`s
-// `closeSharedBrowser()` to release it.
-// ---------------------------------------------------------------------------
-
 type BrowserType = import("playwright").Browser;
 let sharedBrowser: BrowserType | null = null;
 let browserInitPromise: Promise<BrowserType | null> | null = null;
@@ -436,16 +332,12 @@ async function getSharedBrowser(): Promise<BrowserType | null> {
       sharedBrowser = await chromium.launch();
       return sharedBrowser;
     } catch {
-      // Playwright not installed or Chromium binary missing — verifier
-      // degrades to the SDK's "host did not wire" fallback.
       return null;
     }
   })();
   return browserInitPromise;
 }
 
-/** Close the shared browser if it was launched. Call from each benchmark's
- *  `afterAll` so process exit doesn't dangle a Chromium subprocess. */
 export async function closeSharedBrowser(): Promise<void> {
   if (sharedBrowser) {
     const b = sharedBrowser;
@@ -455,16 +347,6 @@ export async function closeSharedBrowser(): Promise<void> {
   }
 }
 
-/**
- * Build a `verifyApp` implementation closed over the given file store.
- * Loads the current state via `exportAppToHtml`, navigates a fresh page
- * to it, races a successful `#root` populate against the runtime
- * overlay's appearance, returns the structured result.
- *
- * Returns `null` when Playwright isn't available — caller can pass
- * undefined to `createAppGenerationTools`, which already degrades the
- * `verify_app` tool to the "not wired" branch.
- */
 export function createPlaywrightVerifier(
   store: FileStore
 ): () => Promise<{ rendered: boolean; errors: string[]; note?: string }> {
@@ -497,10 +379,6 @@ export function createPlaywrightVerifier(
 
     try {
       await page.setContent(html, { waitUntil: "load" });
-      // Race: did the React app mount, or did the runtime overlay paint?
-      // The overlay is the explicit "I failed to mount" sentinel from
-      // appExport.ts; checking for it directly gives us a fast-fail path
-      // before the 10s rendered-timeout would expire.
       const outcome = await Promise.race([
         page
           .waitForSelector("[data-anuma-error-overlay]", { timeout: 8000 })
@@ -511,7 +389,6 @@ export function createPlaywrightVerifier(
             () => {
               const root = document.getElementById("root");
               if (!root) return false;
-              // Treat the overlay itself as not-rendered.
               if (root.querySelector("[data-anuma-error-overlay]")) return false;
               return root.childNodes.length > 0;
             },
@@ -525,9 +402,6 @@ export function createPlaywrightVerifier(
         return { rendered: true, errors };
       }
       if (outcome === "overlay") {
-        // Pull the overlay's text — it's the error list painted by
-        // RUNTIME_ERROR_OVERLAY_SCRIPT — so the model sees the literal
-        // failure rather than a generic "did not mount."
         const overlayText = await page
           .locator("[data-anuma-error-overlay]")
           .textContent()
@@ -546,7 +420,6 @@ export function createPlaywrightVerifier(
           errors: merged.length ? merged : ["app failed to mount; no error message captured"],
         };
       }
-      // Neither outcome resolved — timeout.
       return {
         rendered: false,
         errors: errors.length

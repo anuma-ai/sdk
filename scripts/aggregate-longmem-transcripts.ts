@@ -1,13 +1,4 @@
 #!/usr/bin/env tsx
-/**
- * Aggregate LongMemEval per-question transcripts (saved to
- * ~/.cache/longmemeval/transcripts/<id>_vault.json) into a summary
- * that mirrors the LongMemEvalSummary shape. Use this as a fallback
- * when the main run crashes during teardown before the JSON output
- * gets written.
- *
- * Usage:  npx tsx scripts/aggregate-longmem-transcripts.ts [--strategy vault|engine|recall|ensemble] [--variant oracle|s|m]
- */
 import { readdir, readFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
@@ -51,12 +42,6 @@ interface Transcript {
 
 async function main() {
   const all = await readdir(TRANSCRIPTS_DIR);
-  // Strategy-specific transcripts live as `<id>_<strategy>.json`. The
-  // legacy engine path uses a bare `<id>.json` (no suffix). Distinguish
-  // engine via a positive allow-list of known suffixes — a blanket
-  // "ends in _<word>.json" test would over-match LongMemEval ids that
-  // themselves end in `_abs` or carry a `gpt4_` prefix, silently
-  // dropping those engine transcripts.
   const SUFFIXED_STRATEGIES = KNOWN_STRATEGIES.filter((s) => s !== "engine");
   const SUFFIX_RE = new RegExp(`_(${SUFFIXED_STRATEGIES.join("|")})\\.json$`);
   const files = all.filter((f) => {

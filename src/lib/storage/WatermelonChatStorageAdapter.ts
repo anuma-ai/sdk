@@ -1,15 +1,3 @@
-/**
- * WatermelonChatStorageAdapter — the default `ChatStorageAdapter`
- * implementation, backed by WatermelonDB.
- *
- * This is intentionally a thin wrapper. It delegates to the `*Op` functions
- * in `src/lib/db/chat/operations.ts` so the adapter ships with zero
- * behavioral drift from the existing code paths that `useChatStorage` and
- * friends already use.
- *
- * See `ChatStorageAdapter.ts` for the broader migration plan (issue #458).
- */
-
 import type { Collection, Database } from "@nozbe/watermelondb";
 import { Q } from "@nozbe/watermelondb";
 
@@ -91,8 +79,6 @@ export class WatermelonChatStorageAdapter implements ChatStorageAdapter {
     };
   }
 
-  // ---------- Conversations ----------
-
   getConversation(conversationId: string): Promise<StoredConversation | null> {
     return getConversationOp(this.ctx, conversationId);
   }
@@ -148,8 +134,6 @@ export class WatermelonChatStorageAdapter implements ChatStorageAdapter {
       },
     };
   }
-
-  // ---------- Messages ----------
 
   getMessages(conversationId: string): Promise<StoredMessage[]> {
     return getMessagesOp(this.ctx, conversationId);
@@ -210,32 +194,19 @@ export class WatermelonChatStorageAdapter implements ChatStorageAdapter {
   }
 
   observeMessages(conversationId: string): ChatStorageObservable<StoredMessage[]> {
-    // Raw mapping here: returning decrypted messages would require an async
-    // pipeline; callers that need decrypted messages should use `getMessages`
-    // and re-fetch on the `next` signal. A follow-up PR will layer a
-    // decryption-aware observable.
     const rx = this.messages
       .query(Q.where("conversation_id", conversationId), Q.sortBy("message_id", Q.asc))
       .observe();
     return {
       subscribe: (observer) => {
-        // Guard against two hazards: (1) two rapid emissions whose async
-        // fetches resolve out of order, which would revert the observer to
-        // a stale snapshot; (2) fetches still in flight after the caller
-        // unsubscribes, which would trigger state updates on already-
-        // unmounted components.
         let latestSeq = 0;
         let active = true;
         const sub = rx.subscribe({
           next: () => {
             const mySeq = ++latestSeq;
-            // Fetch decrypted view on change.
             void getMessagesOp(this.ctx, conversationId)
               .then((msgs) => {
                 if (active && mySeq === latestSeq) {
-                  // Use a wrapper call instead of `.then(observer.next)` so
-                  // `this`-bound observer implementations are not broken by
-                  // unbound method extraction.
                   observer.next(msgs);
                 }
               })
@@ -256,13 +227,9 @@ export class WatermelonChatStorageAdapter implements ChatStorageAdapter {
     };
   }
 
-  // ---------- Files ----------
-
   getAllFiles(): Promise<StoredFileWithContext[]> {
     return getAllFilesOp(this.ctx);
   }
-
-  // ---------- Transactions ----------
 
   /**
    * WatermelonDB nests `database.write()` safely: each method we call inside

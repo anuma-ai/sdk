@@ -1,18 +1,3 @@
-/**
- * Auto-extraction worker — W2.
- *
- * After each assistant turn, this pipeline reads the recent conversation,
- * asks an LLM to identify durable user facts, and writes them to the
- * vault via retain(). The user never needs to ask Anuma to remember
- * something — durable facts are captured automatically.
- *
- * Two-stage pipeline (extract → retain). The retain step uses
- * write-time auto-merge (W4) so the same fact re-observed in a later
- * conversation increments proof_count instead of duplicating.
- *
- * Spec: see `tasks/hackathon/auto-extraction-prompt.md`.
- */
-
 import { Q } from "@nozbe/watermelondb";
 
 import { type EntityOperationsContext, linkMemoryEntitiesOp } from "../db/entities/operations.js";
@@ -36,14 +21,6 @@ import {
 import { retain, type RetainContext } from "./retain.js";
 import type { RetainOptions, RetainResult } from "./types.js";
 
-/**
- * True if the user has taken manual control of this memory's topics, so
- * auto-extraction must not modify its entity links. Uses a query (not `find`)
- * to distinguish "row absent" from "read failed": an absent row is a fresh
- * memory → not user-managed (link proceeds); a genuine read error fails CLOSED
- * (returns true → skip linking) so a transient adapter/schema fault can never
- * graft extracted topics onto a memory we couldn't verify.
- */
 async function isMemoryTopicsUserManaged(
   ctx: EntityOperationsContext,
   memoryId: string
@@ -53,41 +30,15 @@ async function isMemoryTopicsUserManaged(
       .get<VaultMemory>(VaultMemory.table)
       .query(Q.where("id", memoryId))
       .fetch();
-    // Absent → fresh/unknown memory, safe to auto-link.
     return rows[0]?.topicsUserManaged === true;
   } catch {
-    // Read failed → fail closed: treat as user-managed and skip linking.
     return true;
   }
 }
 
-// GLOBAL default for ALL background extraction (not gated on privacy mode):
-// every conversation's auto-extract runs on this open-weights model
-// (Apache-2.0, hosted on Cerebras via the portal). The motivating win is
-// privacy-mode chats — where the user deliberately picked an open model and
-// shouldn't have their content quietly shipped to a closed provider for
-// background work — but the switch is intentionally repo-wide rather than
-// conditional. Note "open-weights provider" ≠ on-device: content still goes
-// to a third-party inference host (Cerebras), it's just not a closed model.
-//
-// Yield vs gpt-5-mini: on the LongMemEval extraction bench gpt-oss pulled ~19%
-// fewer facts (55 vs 68) at ~7× lower latency, but the downstream A/B shows
-// that doesn't cost recall — a paired LongMemEval run (vault, variant s, n=50,
-// same answer model) scored 92% (gpt-oss) vs 94% (gpt-5-mini): 45/50 identical,
-// 3 discordant (gpt-oss −2 +1), McNemar non-significant. gpt-oss extracts the
-// facts that matter, just fewer of them.
-//
-// NOTE: gpt-oss rejects `response_format: json_object` (see portalLlm.ts) and
-// is a reasoning model, so callers must NOT impose a small `max_tokens` cap —
-// reasoning tokens count against it and would starve the JSON output.
-// Exported so the standalone topic-extraction pass (topicExtract.ts) uses the
-// same sanctioned model — do NOT introduce a second extraction model constant.
 export const DEFAULT_EXTRACTION_MODEL = "gpt-oss/gpt-oss-120b";
 const DEFAULT_MIN_CONFIDENCE = 0.7;
 const MAX_CONTENT_LENGTH = 200;
-// Floor to drop empty-ish fragments that survive the non-empty check but carry
-// no real fact (a stray punctuation mark, a single letter). See
-// `isLowSignalContent`.
 const MIN_CONTENT_LENGTH = 3;
 
 const FACT_TYPES = [
@@ -418,56 +369,14 @@ export async function extractFacts(
 ): Promise<ExtractedCandidate[]> {
   if (messages.length === 0) return [];
 
-  // PII redaction: scrub the transcript before it reaches the extraction model,
-  // then de-anonymize the returned facts so the vault keeps real values. Only
-  // the message *content* is redacted — the `[id]` provenance markers stay
-  // intact so `sourceMessageIds` still validates against the original ids.
-  //
-  // NER-aware (#830's fifth path, deferred from #836 to avoid a conflict).
-  // `redactTextAsync` merges a configured detector's person/location/org spans
-  // with the regex matches; with no detector it returns `redactText` directly, so
-  // the default path is unchanged and pays nothing. This is the highest-volume
-  // LLM egress in the SDK — the whole recent transcript, on every extracting turn
-  // — so it was the worst one to leave regex-only.
-  //
-  // SEQUENTIAL, not `Promise.all` — for DETERMINISM, not correctness.
-  //
-  // The tempting justification is wrong and worth writing down so nobody
-  // re-derives it: one value can NOT split across two placeholders under
-  // concurrency. `getPlaceholder` (pii/redactor.ts) memoises on the trimmed value
-  // and returns any existing placeholder before minting, and minting runs
-  // synchronously inside `rebuildSpans` — after `redactTextAsync`'s only
-  // suspension point (`await detectAllSpans`) has already resolved. So the mint
-  // sequence for one message is atomic against other in-flight calls, and
-  // de-anonymization round-trips whatever the interleaving.
-  //
-  // What concurrency does perturb is numbering across DISTINCT entities:
-  // sequentially Dana-then-Bob yields [PERSON_1]=Dana, [PERSON_2]=Bob, while
-  // `Promise.all` hands [PERSON_1] to whichever detector call settles first. The
-  // map stays internally consistent, but the transcript stops being reproducible
-  // for a given input — and snapshotting, diffing two prompts, and re-running a
-  // bad extraction all depend on that. Hence the loop.
-  //
-  // Pinned by "numbers placeholders in message order", which fails under
-  // `Promise.all`. Credit to @usmaneth for catching that the previous test — and
-  // the previous version of this comment — asserted the unreachable failure mode
-  // and so held no line.
   const redactor = resolvePiiRedactor(options.piiRedaction);
   const transcriptLines: string[] = [];
   for (const m of messages) {
-    // Only the message *content* is redacted — see the note above on `[id]`.
     const content = redactor ? (await redactor.redactTextAsync(m.content)).text : m.content;
     transcriptLines.push(`[${m.id}] ${m.role}: ${content}`);
   }
   const transcript = transcriptLines.join("\n");
-  // Anchor relative temporal phrases. The transcript has no timestamps, so
-  // without this the model dates "yesterday"/"next week" against its own
-  // training-cutoff guess (see ExtractFactsOptions.now). Local-midnight basis
-  // matches parseLocalCalendarDay so round-tripped anchors stay consistent.
   const today = formatLocalDate(options.now ?? Date.now());
-  // Captured from `onFailure` so the null below can be reported WITH its cause.
-  // `callPortalJsonCompletion` returns a bare null, so this is the only way to
-  // recover the classification it already computed.
   let failure: PortalLlmFailure | undefined;
   const parsed = await callPortalJsonCompletion({
     onFailure: (f) => {
@@ -491,18 +400,11 @@ export async function extractFacts(
     ...(options.backoffMs && { backoffMs: options.backoffMs }),
     ...(options.onAttempt && { onAttempt: options.onAttempt }),
   });
-  // A successful "no facts" response parses to {candidates: []} (non-null),
-  // so a null strictly signals failure after retries, never a legit empty.
   if (parsed === null) {
-    // `onFailure` always fires before a null return, so the fallback is
-    // unreachable defensiveness rather than an expected path.
     options.onExhaustedEmpty?.(failure ?? { reason: "empty-content", attempts: 1 });
     return [];
   }
 
-  // H4: when a candidate's source ids are missing/mangled, fall back to the
-  // last user message in the window rather than dropping the fact (provenance
-  // is secondary to not losing the memory).
   const fallbackSourceId = [...messages].reverse().find((m) => m.role === "user")?.id;
   const candidates = validateCandidates(
     parsed,
@@ -517,67 +419,44 @@ export async function extractFacts(
   });
   if (!redactor) return candidates;
   const restored = restoreCandidates(candidates, redactor, options.userIdentity ?? []);
-  // H3: the extractor found facts but de-anonymization dropped every one
-  // (mangled placeholders / over-cap after restore). That degradation is
-  // invisible to `failedCount` (it happens before retain) and would otherwise
-  // look like a quiet no-facts turn — surface it.
   if (candidates.length > 0 && restored.length === 0) {
     options.onCandidatesDropped?.();
   }
   return restored;
 }
 
-/**
- * Restore real PII values in extracted facts (content + entities) — the LLM saw
- * placeholders, so its output references them. Then guard the output:
- * - strip any entity that is still a placeholder the model hallucinated
- *   (no mapping existed, so deAnonymize left it literal);
- * - drop the whole fact when its content still carries a residual placeholder
- *   (an unreliable fact built on an unresolved value), or when restoring real
- *   values pushed it past MAX_CONTENT_LENGTH (validateCandidates capped the
- *   shorter placeholder form). Both keep opaque tokens / over-cap text out of
- *   the vault.
- */
 function restoreCandidates(
   candidates: ExtractedCandidate[],
   redactor: PiiRedactor,
   ownNames: readonly string[]
 ): ExtractedCandidate[] {
-  return (
-    candidates
-      .map((c) => {
-        const content = redactor.restoreForStorage(c.content);
-        return {
-          candidate: {
-            ...c,
-            content: content.text,
-            entities: c.entities
-              .map((e) => ({ kind: e.kind, restored: redactor.restoreForStorage(e.name) }))
-              .filter((e) => !e.restored.unresolved)
-              .map(
-                (e): ExtractedEntity =>
-                  e.kind !== undefined
-                    ? { name: e.restored.text, kind: e.kind }
-                    : { name: e.restored.text }
-              ),
-          },
-          // Drop the whole fact when its content still carries an unresolved
-          // (hallucinated / mangled-beyond-recognition) placeholder.
-          unresolved: content.unresolved,
-        };
-      })
-      // Re-run the low-signal gate on the RESTORED text. validateCandidates saw
-      // only the redacted form, so a placeholder-shaped fact ("[PERSON_1]
-      // [PERSON_2]") passed the own-name check, then de-anonymized here into the
-      // user's actual name — re-check so `userIdentity` still blocks it.
-      .filter(
-        (c) =>
-          c.candidate.content.length <= MAX_CONTENT_LENGTH &&
-          !c.unresolved &&
-          !isLowSignalContent(c.candidate.content, ownNames)
-      )
-      .map((c) => c.candidate)
-  );
+  return candidates
+    .map((c) => {
+      const content = redactor.restoreForStorage(c.content);
+      return {
+        candidate: {
+          ...c,
+          content: content.text,
+          entities: c.entities
+            .map((e) => ({ kind: e.kind, restored: redactor.restoreForStorage(e.name) }))
+            .filter((e) => !e.restored.unresolved)
+            .map(
+              (e): ExtractedEntity =>
+                e.kind !== undefined
+                  ? { name: e.restored.text, kind: e.kind }
+                  : { name: e.restored.text }
+            ),
+        },
+        unresolved: content.unresolved,
+      };
+    })
+    .filter(
+      (c) =>
+        c.candidate.content.length <= MAX_CONTENT_LENGTH &&
+        !c.unresolved &&
+        !isLowSignalContent(c.candidate.content, ownNames)
+    )
+    .map((c) => c.candidate);
 }
 
 /**
@@ -699,10 +578,6 @@ export async function extractAndRetain(
 }> {
   const minConfidence = options.minConfidence ?? DEFAULT_MIN_CONFIDENCE;
 
-  // Consolidation reasons over the same chat-derived facts as extraction and
-  // hits an LLM, so it must redact too — otherwise enabling `extract.piiRedaction`
-  // alone would still leak the (de-anonymized) facts to the consolidator. Inherit
-  // the extraction setting unless the caller set one explicitly on consolidateOptions.
   const resolvedConsolidatePii =
     options.consolidateOptions?.piiRedaction ?? options.extract.piiRedaction;
   const consolidateOptions: RetainOptions["consolidateOptions"] =
@@ -713,14 +588,9 @@ export async function extractAndRetain(
         }
       : undefined;
 
-  // Detect degraded-empty results so the caller can tell a degrading extractor
-  // from a genuinely quiet turn: `exhaustedEmpty` = the LLM call failed after
-  // retries; `droppedAfterRedaction` = facts were found but PII restore dropped
-  // them all. Chain any caller-supplied hooks.
   let exhaustedEmpty = false;
   let exhaustedFailure: PortalLlmFailure | undefined;
   let droppedAfterRedaction = false;
-  // Funnel counts the extractor decides before we see its result.
   let rawCandidateCount = 0;
   let validCandidateCount = 0;
   const callerOnExhaustedEmpty = options.extract.onExhaustedEmpty;
@@ -749,23 +619,10 @@ export async function extractAndRetain(
 
   const log = getLogger();
 
-  // Tier-0 security (PR3) — screen the filtered candidates for prompt-injection
-  // / memory-poisoning signatures BEFORE persisting. Runs right after the
-  // confidence filter and before the retain loop. Flagged candidates are still
-  // written (audit trail) but quarantined: they are force-created with
-  // trust_tier="quarantined", which (a) hides them from every recall lane via
-  // the baseVaultConditions gate and (b) — because they never auto-merge —
-  // means a poisoned fact can't bump proof_count or contaminate a clean
-  // memory. Clean candidates persist normally (trust_tier null).
   const screened = screenCandidatesForInjection(filtered);
   let clean = screened.clean;
   const quarantined = [...screened.quarantined];
 
-  // Tier-0 security (PR5) — optional LLM second layer over the candidates the
-  // deterministic screen passed as clean. Catches signature-free poison the
-  // regex can't. Opt-in (default off); fails clean (keeps candidates on any
-  // error). Inherits the extraction PII redaction unless the classifier opts
-  // set their own, so enabling redaction upstream also protects this call.
   if (options.injectionClassifier && clean.length > 0) {
     const classifierOpts: InjectionClassifierOptions = {
       ...options.injectionClassifier,
@@ -793,7 +650,6 @@ export async function extractAndRetain(
   }
 
   if (quarantined.length > 0) {
-    // NEVER log memory content, even quarantined. Count + signature ids only.
     log.warn(
       `[memory/extract] ${quarantined.length} candidate(s) quarantined by injection screen: ` +
         quarantined.map((q) => q.signature).join(", ")
@@ -814,8 +670,6 @@ export async function extractAndRetain(
     })),
   ];
 
-  // Both arrays grow only on success so consumers can safely pair
-  // candidates[i] with results[i] after a mid-batch retain failure.
   const succeededCandidates: ExtractedCandidate[] = [];
   const results: RetainResult[] = [];
   const quarantinedInfo: QuarantinedMemoryInfo[] = [];
@@ -824,17 +678,10 @@ export async function extractAndRetain(
   for (const { candidate, isQuarantined, reason, signature } of toRetain) {
     try {
       if (isQuarantined) {
-        // A durable batch is re-extracted on every retry, and quarantined rows
-        // are force-created (no auto-merge), so each retry used to add another
-        // copy of the same audit row. Reuse the one an earlier attempt wrote;
-        // its `onQuarantined` already fired, so it is not announced again.
-        // Best effort: a failed lookup must not cost the audit row, so it
-        // falls through to the create.
         const existingId = await findQuarantinedDuplicateOp(
           retainCtx.vaultCtx,
           candidate.content,
           candidate.sourceMessageIds,
-          // The same defaults retain() writes the row with.
           { scope: options.scope ?? "private", folderId: options.folderId ?? null }
         ).catch(() => null);
         if (existingId) {
@@ -850,28 +697,15 @@ export async function extractAndRetain(
       const result = await retain(candidate.content, retainCtx, {
         source: "auto-extracted",
         sourceChunkIds: candidate.sourceMessageIds,
-        // Don't let extraction silently resurrect a fact the user deleted.
         respectTombstones: true,
         ...(options.scope !== undefined && { scope: options.scope }),
         ...(options.folderId !== undefined && { folderId: options.folderId }),
         ...(consolidateOptions !== undefined && { consolidateOptions }),
         ...(candidate.eventTime !== null && { eventTime: candidate.eventTime }),
-        // Typed memory (PR1) — persist the classification the extractor already
-        // computed instead of discarding it. `candidate.type` is validated to a
-        // FactType in validateCandidates (defaults to "other").
         factType: candidate.type,
-        // Tier-0 security (PR3) — quarantine flagged candidates and force-create
-        // them (no auto-merge) so a poisoned fact never merges into / bumps a
-        // clean memory. The DB op re-validates the tier string.
         ...(isQuarantined && { trustTier: "quarantined", enableAutoMerge: false }),
       });
 
-      // Quarantined candidates are persisted for audit but NOT surfaced via
-      // onMemoryExtracted / results (which drive success toasts + graph pulses)
-      // and are kept out of the entity graph. Instead they flow through the
-      // dedicated quarantine seam so a client can show "held for review" — the
-      // fact is never silently lost. The recall gate still hides them from
-      // retrieval.
       if (isQuarantined) {
         const info: QuarantinedMemoryInfo = {
           candidate,
@@ -880,16 +714,9 @@ export async function extractAndRetain(
           signature: signature as string,
         };
         quarantinedInfo.push(info);
-        // Isolate the listener (mirrors the entity-link best-effort block
-        // below): the candidate is already persisted AND already recorded in
-        // quarantinedInfo, so a throwing handler must NOT fall through to the
-        // retain catch — that would double-report it (onCandidateFailed) and
-        // wrongly bump failedCount for a write that actually succeeded.
         try {
           options.onQuarantined?.(info);
         } catch (err) {
-          // Log only the message (not the raw error) so a listener can't leak
-          // memory content into logs via a thrown object.
           log.warn(
             `[memory/extract] onQuarantined listener threw: ${
               err instanceof Error ? err.message : String(err)
@@ -902,33 +729,18 @@ export async function extractAndRetain(
       succeededCandidates.push(candidate);
       results.push(result);
 
-      // W5 — link entities to the freshly persisted memory. Best-effort:
-      // a failure here doesn't roll back the retain. Skip when the write was
-      // suppressed by a tombstone — `result.memoryId` is the soft-deleted row,
-      // not a live memory to graft entities onto.
       if (result.action !== "suppressed" && options.entityCtx && candidate.entities.length > 0) {
         try {
-          // Respect user-managed topics: if this candidate auto-merged into an
-          // existing memory whose topics the user has taken manual control of,
-          // don't graft extracted entities onto it. (A freshly created memory
-          // is never user-managed, so this only skips the merge case.) The
-          // pre-check here is a cheap skip of the entity upserts; the
-          // authoritative check is `unlessTopicsUserManaged`, which re-reads
-          // the flag inside the link writer so a manual topic edit landing
-          // mid-call can't be overwritten.
           if (!(await isMemoryTopicsUserManaged(options.entityCtx, result.memoryId))) {
             await linkMemoryEntitiesOp(options.entityCtx, result.memoryId, candidate.entities, {
               unlessTopicsUserManaged: true,
             });
           }
         } catch (err) {
-          // Entity linking is auxiliary — don't kill the rest of the batch.
           log.warn("[memory/extract] linkMemoryEntitiesOp failed", err);
         }
       }
     } catch (err) {
-      // Log per-candidate so a consistently broken write path is visible
-      // — the worker's outer onError can't see what we've caught here.
       failedWrites++;
       log.warn("[memory/extract] retain failed for one candidate", err);
       options.onCandidateFailed?.(candidate, err);
@@ -957,80 +769,24 @@ export async function extractAndRetain(
       validCandidateCount,
       afterRedactionCount: candidates.length,
       aboveConfidenceCount: filtered.length,
-      // The PERSISTED quarantines (`quarantinedInfo`), not the screened list: a
-      // screened candidate whose retain() throws is counted in `failedCount`,
-      // and counting it here too would double it and break the identity below.
-      // This also keeps the count equal to `quarantined.length` on the result.
       quarantinedCount: quarantinedInfo.length,
       retainedCount: results.length,
       failedCount: failedWrites,
     },
     timings: { extractMs, retainMs: Date.now() - tRetain },
     model: options.extract.model ?? DEFAULT_EXTRACTION_MODEL,
-    // Only meaningful alongside `outcome: "empty-after-retry"`. Returned as well
-    // as pushed through the callback so a consumer that only inspects the result
-    // (rather than wiring a hook) can still report WHY.
     ...(exhaustedFailure !== undefined && { failure: exhaustedFailure }),
   };
 }
 
-// ---------------------------------------------------------------------------
-// Internals
-// ---------------------------------------------------------------------------
-
-/**
- * Utterance-echo artifact: the WHOLE content is a leading speech verb + colon +
- * a quoted phrase and nothing else, e.g. `Said: 'tiger'` / `Asked: "what time is
- * it"`. These are verbatim echoes of a literal user turn (word games, roleplay)
- * that the extractor recorded as a durable "fact".
- *
- * Added here on 2026-08-11 because the CLIENT already rejected these on its
- * import path and in its retroactive vault sweep, while this gate — which guards
- * the far higher-volume per-turn auto-extraction path — did not. The sweep was
- * therefore deleting rows that auto-extraction kept writing: the client's own
- * `memoryQuality.ts` claimed "admission and cleanup stay in lockstep", and for
- * the live path that was not true.
- *
- * Deliberately high-precision, because the client sweep auto-deletes matches
- * without review:
- * - the `verb:"…"` structure is required, so a fact that merely STARTS with one
- *   of these words ("Asked her father for permission") does NOT match;
- * - the quote must be a MATCHED pair spanning to the end save trailing sentence
- *   punctuation, so a fact that quotes and then adds context ("Said: 'I do' at
- *   her wedding") is KEPT — the trailing text is the durable part.
- *
- * Keep in sync with `filterJunkMemories` in the client
- * (`packages/hooks/src/helper/memoryQuality.ts`). Two copies across two repos is
- * the deliberate trade: the sweep must be able to run without this SDK version,
- * and the alternative (a caller-supplied predicate) puts a security-relevant
- * default in the caller's hands.
- */
 const UTTERANCE_ECHO_RE =
   /^(?:said|says|asked|answered|replied|guessed|typed)\s*:\s*(?:'[^']*'|"[^"]*"|‘[^’]*’|“[^”]*”)[\s.!?]*$/iu;
 
-/**
- * Reject degenerate candidates that aren't durable facts about the user:
- * too-short scraps, the user's own name ("Peter Lee") — which come from the
- * extractor mining a profile field or tool output rather than something the
- * user said — and utterance echoes (see {@link UTTERANCE_ECHO_RE}).
- *
- * NOTE: deliberately NO "single token / no whitespace" heuristic. It was an
- * English-only signal that silently dropped every CJK-language fact (Japanese
- * / Chinese put no spaces between words) — data loss for ja/zh locales — and
- * also killed legit one-word facts ("Vegetarian", "Left-handed"). Bare labels
- * like "Engineering" are handled upstream instead: the prompt forbids them,
- * and their real source (tool/connector rows) is excluded from the extraction
- * window on the client. This gate stays language-agnostic.
- */
 function isLowSignalContent(content: string, ownNames: readonly string[]): boolean {
   const trimmed = content.trim();
   const normalized = trimmed.replace(/[.!?]+$/, "").toLowerCase();
   if (normalized.length < MIN_CONTENT_LENGTH) return true;
-  // Tested against the TRIMMED text, not `normalized`: the pattern is already
-  // case-insensitive and already tolerates trailing punctuation, and matching
-  // the client's predicate input exactly is what keeps the two copies aligned.
   if (UTTERANCE_ECHO_RE.test(trimmed)) return true;
-  // The user's own name is circular for a personal memory system.
   if (
     ownNames.some(
       (n) =>
@@ -1077,10 +833,6 @@ function validateCandidates(
     const validSourceIds = Array.isArray(obj.sourceMessageIds)
       ? obj.sourceMessageIds.filter((s): s is string => typeof s === "string" && validIds.has(s))
       : [];
-    // H4: don't drop a fact whose provenance is missing/mangled (the model
-    // attributed it to an id outside the window, or omitted it). Attribute to
-    // the last user message in the window as a best-effort, or leave empty —
-    // keeping the memory matters more than perfect provenance.
     const sourceMessageIds =
       validSourceIds.length > 0
         ? validSourceIds
@@ -1133,12 +885,6 @@ export function parseEntities(raw: unknown[]): ExtractedEntity[] {
   return out;
 }
 
-/**
- * Parse the LLM's `eventTime` shape into Unix-ms timestamps. Accepts
- * { kind, start, end? } where start/end are YYYY-MM-DD strings (most
- * compliant LLMs), or epoch numbers (defensive fallback). Returns null
- * for malformed shapes — temporal lane just no-ops on those memories.
- */
 function parseEventTime(raw: unknown): ExtractedCandidate["eventTime"] {
   if (raw === null || raw === undefined) return null;
   if (typeof raw !== "object") return null;
@@ -1147,26 +893,11 @@ function parseEventTime(raw: unknown): ExtractedCandidate["eventTime"] {
   if (kindRaw !== "point" && kindRaw !== "range" && kindRaw !== "ongoing") return null;
   const start = parseEventDate(obj.start);
   if (start === null) return null;
-  // `end` is required for "range", optional for "ongoing" (an LLM-emitted
-  // close-out date for a previously-ongoing fact), ignored for "point".
   const end = kindRaw === "point" ? null : parseEventDate(obj.end);
   if (kindRaw === "range" && end === null) return null;
   return { kind: kindRaw, start, end };
 }
 
-/**
- * LLM-emitted event date → Unix ms.
- *
- * Date-only "YYYY-MM-DD" strings resolve to local midnight (matching the
- * query-window basis in queryTemporal). ISO strings with an explicit
- * time/offset pass through `Date.parse` as the absolute instant — we
- * deliberately don't snap them to local midnight, because that would
- * shift the calendar day backward for west-of-UTC users on instants
- * near UTC midnight, and would silently break parity with any rows
- * already stored from this code path. Consumers who care about
- * calendar-day matching should ask the LLM for date-only output via
- * the system prompt.
- */
 function parseEventDate(raw: unknown): number | null {
   if (typeof raw === "number" && Number.isFinite(raw)) return raw;
   if (typeof raw !== "string") return null;
@@ -1184,11 +915,6 @@ function parseEventDate(raw: unknown): number | null {
   return Number.isFinite(ms) ? ms : null;
 }
 
-/**
- * Format a Unix-ms instant as a local YYYY-MM-DD string. Local basis matches
- * {@link parseLocalCalendarDay} so a date emitted here and parsed back lands on
- * the same calendar day for the user's timezone.
- */
 function formatLocalDate(ms: number): string {
   const d = new Date(ms);
   const y = d.getFullYear();
@@ -1197,13 +923,6 @@ function formatLocalDate(ms: number): string {
   return `${y}-${m}-${day}`;
 }
 
-/**
- * Build local-midnight ms for a calendar (year, month, day), rejecting
- * out-of-range components rather than silently rolling over. JS's Date
- * constructor accepts `new Date(2026, 1, 30)` and rolls to Mar 2; we
- * round-trip the components and bail on mismatch so a bad LLM emission
- * doesn't land as a wrong temporal anchor.
- */
 function parseLocalCalendarDay(year: number, month: number, day: number): number | null {
   if (!Number.isInteger(year) || !Number.isInteger(month) || !Number.isInteger(day)) return null;
   if (month < 1 || month > 12) return null;

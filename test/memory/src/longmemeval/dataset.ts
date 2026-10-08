@@ -1,9 +1,3 @@
-/**
- * LongMemEval Dataset Loader with Caching
- *
- * Downloads the dataset once and caches it in ~/.cache/longmemeval/
- */
-
 import { createWriteStream } from "fs";
 import { homedir } from "os";
 import { join } from "path";
@@ -48,10 +42,6 @@ function getCachePath(variant: DatasetVariant): string {
   return join(CACHE_DIR, DATASET_FILENAMES[variant]);
 }
 
-/**
- * Download a dataset file from Hugging Face, streaming directly to disk
- * to avoid V8's ~512MB string size limit.
- */
 async function downloadDatasetToFile(variant: DatasetVariant, destPath: string): Promise<void> {
   const url = DATASET_URLS[variant];
 
@@ -76,14 +66,6 @@ async function downloadDatasetToFile(variant: DatasetVariant, destPath: string):
   console.log(`  Cached to: ${destPath}`);
 }
 
-/**
- * Load the LongMemEval dataset, downloading and caching if necessary
- *
- * @param variant - Dataset variant:
- *   - "s": Small dataset (~50 sessions per question, ~115k tokens)
- *   - "m": Medium dataset (~500 sessions per question)
- *   - "oracle": Oracle dataset (only evidence sessions included)
- */
 export async function loadLongMemEvalDataset(
   variant: DatasetVariant = "s"
 ): Promise<LongMemEvalDataset> {
@@ -101,23 +83,14 @@ export async function loadLongMemEvalDataset(
   return JSON.parse(data) as LongMemEvalDataset;
 }
 
-/**
- * Get the cache directory path (for CI caching)
- */
 export function getCacheDirectory(): string {
   return CACHE_DIR;
 }
 
-/**
- * Check if a dataset is already cached
- */
 export async function isDatasetCached(variant: DatasetVariant): Promise<boolean> {
   return exists(getCachePath(variant));
 }
 
-/**
- * Pre-download all dataset variants (useful for CI setup)
- */
 export async function preloadAllDatasets(): Promise<void> {
   console.log("Preloading all LongMemEval datasets...\n");
   await ensureCacheDir();
@@ -135,9 +108,6 @@ export async function preloadAllDatasets(): Promise<void> {
   console.log("\nAll datasets preloaded.");
 }
 
-/**
- * Get dataset statistics
- */
 export function getDatasetStats(dataset: LongMemEvalDataset): {
   totalEntries: number;
   questionTypes: Record<string, number>;

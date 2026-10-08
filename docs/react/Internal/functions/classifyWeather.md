@@ -2,7 +2,7 @@
 
 > **classifyWeather**(`prompt`: `string`, `options`: `WeatherClassifierOptions`): `Promise`<[`WeatherClassification`](../interfaces/WeatherClassification.md)>
 
-Defined in: [src/lib/chat/weatherClassifier.ts:58](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/weatherClassifier.ts#58)
+Defined in: [src/lib/chat/weatherClassifier.ts:44](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/weatherClassifier.ts#44)
 
 Classify whether a prompt needs weather data.
 

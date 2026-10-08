@@ -23,21 +23,10 @@ const CONNECTOR_SET_NAMES = [
   "dropbox",
 ];
 
-/**
- * Every tool name a connector factory actually exposes. Built by instantiating
- * the factories with throwaway stubs (we only read the tool names, never run
- * them) so the catalog is checked against the real source of truth, not a
- * hand-maintained list. Calendar/drive/notion/github factories return
- * `ToolConfig[]`; gmail returns a keyed record.
- */
 function realConnectorToolNames(): Set<string> {
   const getToken = () => null;
   const request = async () => "";
-  // Both the X and Slack factories take a proxy caller returning the upstream
-  // status + JSON. Nothing here calls it — we only read tool names.
   const proxy = async () => ({ status: 200, json: null });
-  // `ToolConfig.function` is `unknown` because `LlmapiChatCompletionTool` is
-  // still the permissive index-signature shim (#549 TODO in clientCompat.ts).
   const toolName = (tool: ToolConfig) => (tool.function as { name: string }).name;
 
   const names = new Set<string>(Object.keys(createGmailTools(request, request)));
@@ -171,7 +160,6 @@ describe("buildConnectorGuidance", () => {
       connectedProviders: ["gmail"],
       deniedToolNames: ["notion-search"],
     });
-    // Notion isn't connected → it belongs in state 3, not state 1.
     expect(rider).not.toContain("On Notion, these are turned off");
     expect(rider).toContain("Not connected:");
     expect(rider).toContain("Notion");
@@ -197,8 +185,6 @@ describe("buildConnectorGuidance", () => {
       connectedProviders: [],
       deniedToolNames: [],
     });
-    // Every catalog provider is unconnected, so state 3 is actionable; the
-    // general line is suppressed because there's no connected app to disown.
     expect(rider).toBe(
       "Not connected: Calendar, Drive, Dropbox, GitHub, Gmail, Notion, Slack, X. If the user asks to use them, tell them to connect them in Connected Apps."
     );

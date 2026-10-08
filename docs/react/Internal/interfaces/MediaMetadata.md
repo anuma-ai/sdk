@@ -15,7 +15,7 @@ Stored as JSON for flexibility.
 
 > `optional` **author**: `string`
 
-Defined in: [src/lib/db/media/types.ts:44](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/types.ts#44)
+Defined in: [src/lib/db/media/types.ts:41](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/types.ts#41)
 
 ***
 
@@ -23,7 +23,7 @@ Defined in: [src/lib/db/media/types.ts:44](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **bitrate**: `number`
 
-Defined in: [src/lib/db/media/types.ts:35](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/types.ts#35)
+Defined in: [src/lib/db/media/types.ts:34](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/types.ts#34)
 
 ***
 
@@ -31,7 +31,7 @@ Defined in: [src/lib/db/media/types.ts:35](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **codec**: `string`
 
-Defined in: [src/lib/db/media/types.ts:34](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/types.ts#34)
+Defined in: [src/lib/db/media/types.ts:33](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/types.ts#33)
 
 ***
 
@@ -39,7 +39,7 @@ Defined in: [src/lib/db/media/types.ts:34](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **colorSpace**: `string`
 
-Defined in: [src/lib/db/media/types.ts:39](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/types.ts#39)
+Defined in: [src/lib/db/media/types.ts:37](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/types.ts#37)
 
 ***
 
@@ -47,7 +47,7 @@ Defined in: [src/lib/db/media/types.ts:39](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **frameRate**: `number`
 
-Defined in: [src/lib/db/media/types.ts:36](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/types.ts#36)
+Defined in: [src/lib/db/media/types.ts:35](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/types.ts#35)
 
 ***
 
@@ -55,7 +55,7 @@ Defined in: [src/lib/db/media/types.ts:36](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **hasAlpha**: `boolean`
 
-Defined in: [src/lib/db/media/types.ts:40](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/types.ts#40)
+Defined in: [src/lib/db/media/types.ts:38](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/types.ts#38)
 
 ***
 
@@ -63,7 +63,7 @@ Defined in: [src/lib/db/media/types.ts:40](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **pageCount**: `number`
 
-Defined in: [src/lib/db/media/types.ts:43](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/types.ts#43)
+Defined in: [src/lib/db/media/types.ts:40](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/types.ts#40)
 
 ***
 
@@ -71,7 +71,7 @@ Defined in: [src/lib/db/media/types.ts:43](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **prompt**: `string`
 
-Defined in: [src/lib/db/media/types.ts:47](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/types.ts#47)
+Defined in: [src/lib/db/media/types.ts:43](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/types.ts#43)
 
 ***
 
@@ -79,7 +79,7 @@ Defined in: [src/lib/db/media/types.ts:47](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **seed**: `number`
 
-Defined in: [src/lib/db/media/types.ts:48](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/types.ts#48)
+Defined in: [src/lib/db/media/types.ts:44](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/types.ts#44)
 
 ***
 
@@ -87,4 +87,4 @@ Defined in: [src/lib/db/media/types.ts:48](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **steps**: `number`
 
-Defined in: [src/lib/db/media/types.ts:49](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/types.ts#49)
+Defined in: [src/lib/db/media/types.ts:45](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/types.ts#45)

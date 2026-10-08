@@ -1,6 +1,6 @@
 # ReflectResult
 
-Defined in: [src/lib/memory/reflect.ts:197](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/reflect.ts#197)
+Defined in: [src/lib/memory/reflect.ts:115](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/reflect.ts#115)
 
 ## Properties
 
@@ -8,7 +8,7 @@ Defined in: [src/lib/memory/reflect.ts:197](https://github.com/anuma-ai/sdk/blob
 
 > **basedOn**: `object`
 
-Defined in: [src/lib/memory/reflect.ts:203](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/reflect.ts#203)
+Defined in: [src/lib/memory/reflect.ts:121](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/reflect.ts#121)
 
 Citations: memory ids the answer was grounded on.
 
@@ -22,7 +22,7 @@ Citations: memory ids the answer was grounded on.
 
 > `optional` **structuredOutput**: `unknown`
 
-Defined in: [src/lib/memory/reflect.ts:201](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/reflect.ts#201)
+Defined in: [src/lib/memory/reflect.ts:119](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/reflect.ts#119)
 
 Parsed structured output when `responseSchema` is provided.
 
@@ -32,7 +32,7 @@ Parsed structured output when `responseSchema` is provided.
 
 > **text**: `string`
 
-Defined in: [src/lib/memory/reflect.ts:199](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/reflect.ts#199)
+Defined in: [src/lib/memory/reflect.ts:117](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/reflect.ts#117)
 
 The synthesized answer text.
 
@@ -42,7 +42,7 @@ The synthesized answer text.
 
 > **usage**: `object`
 
-Defined in: [src/lib/memory/reflect.ts:205](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/reflect.ts#205)
+Defined in: [src/lib/memory/reflect.ts:123](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/reflect.ts#123)
 
 Token accounting from the LLM call.
 

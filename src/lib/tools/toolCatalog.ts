@@ -1,32 +1,3 @@
-/**
- * Connector tool catalog + denied-tools system-prompt rider.
- *
- * Granular connector access works by ALLOW/DENY-ing individual SDK tools.
- * Denying a tool means it's never handed to the model that turn, so it
- * physically can't be called — bypass-proof at the model layer.
- *
- * Consumer contract (this PR ships the foundation only — it does NOT wire
- * anything into runtime filtering or the client; those are later phases):
- *
- *   1. Hide the denied tools from the model — pass the denied tool names as
- *      `createServerToolsFilter({ excludeTools })` so they're dropped from the
- *      toolset before it reaches the LLM.
- *   2. Tell the user how to re-enable — append `buildDeniedToolsRider(denied)`
- *      to the system prompt. Because the tool is absent, the model can't name
- *      it on its own and would give a generic "I don't have access". The rider
- *      gives it the specific capability names (grouped by connector) so it can
- *      tell the user to re-enable that exact tool in Connected Apps settings.
- *
- * `TOOL_CATALOG` is the single source of truth for connector tool → friendly
- * label + provider. `provider` is the canonical logical-provider identifier the
- * portal and SDK already key on (matches `internal/oauth/providers.go` and the
- * `createConnectorTokenGetter` call sites) — Phase 2/3 use it to group and
- * persist per-tool denial. `connector` is the human-facing UI display string.
- * Consumers (portal, client) read this on a version bump rather than re-encoding
- * tool names. Labels are placeholders that will be refined later — keep them
- * sensible.
- */
-
 import type { ToolConfig } from "../chat/useChat/types.js";
 
 interface ToolCatalogEntry {
@@ -38,13 +9,11 @@ interface ToolCatalogEntry {
 }
 
 export const TOOL_CATALOG: Record<string, ToolCatalogEntry> = {
-  // Gmail (src/tools/gmail.ts)
   gmail_search_messages: { label: "Search emails", provider: "gmail", connector: "Gmail" },
   gmail_get_message: { label: "Read an email", provider: "gmail", connector: "Gmail" },
   gmail_create_draft: { label: "Draft a reply", provider: "gmail", connector: "Gmail" },
   gmail_send_message: { label: "Send an email", provider: "gmail", connector: "Gmail" },
 
-  // Google Calendar (src/tools/googleCalendar.ts)
   google_calendar_list_events: {
     label: "Search calendar events",
     provider: "gcalendar",
@@ -61,7 +30,6 @@ export const TOOL_CATALOG: Record<string, ToolCatalogEntry> = {
     connector: "Calendar",
   },
 
-  // Google Drive (src/tools/googleDrive.ts)
   google_drive_search: { label: "Search files", provider: "gdrive", connector: "Drive" },
   google_drive_list_recent: { label: "List recent files", provider: "gdrive", connector: "Drive" },
   google_drive_get_content: { label: "Read file content", provider: "gdrive", connector: "Drive" },
@@ -76,7 +44,6 @@ export const TOOL_CATALOG: Record<string, ToolCatalogEntry> = {
     connector: "Drive",
   },
 
-  // Notion (src/tools/notion.ts)
   "notion-search": { label: "Search", provider: "notion", connector: "Notion" },
   "notion-fetch": { label: "Read page", provider: "notion", connector: "Notion" },
   "notion-create-pages": { label: "Create page", provider: "notion", connector: "Notion" },
@@ -98,7 +65,6 @@ export const TOOL_CATALOG: Record<string, ToolCatalogEntry> = {
   },
   "notion-get-teams": { label: "List teamspaces", provider: "notion", connector: "Notion" },
 
-  // GitHub (src/tools/github.ts)
   github_api: { label: "Use GitHub", provider: "github", connector: "GitHub" },
   github_get_authenticated_user: {
     label: "Read GitHub profile",
@@ -106,11 +72,9 @@ export const TOOL_CATALOG: Record<string, ToolCatalogEntry> = {
     connector: "GitHub",
   },
 
-  // X / Twitter (src/tools/x.ts)
   x_get_me: { label: "Get my X profile", provider: "x", connector: "X" },
   x_get_my_posts: { label: "Read my recent posts", provider: "x", connector: "X" },
 
-  // Dropbox (src/tools/dropbox.ts)
   dropbox_list_folders: { label: "List files", provider: "dropbox", connector: "Dropbox" },
   dropbox_get_file_content: {
     label: "Read file content",
@@ -119,7 +83,6 @@ export const TOOL_CATALOG: Record<string, ToolCatalogEntry> = {
   },
   dropbox_search: { label: "Search files", provider: "dropbox", connector: "Dropbox" },
 
-  // Slack (src/tools/slack.ts)
   slack_get_me: { label: "Get my Slack profile", provider: "slack", connector: "Slack" },
   slack_list_channels: { label: "List channels", provider: "slack", connector: "Slack" },
   slack_list_dms: { label: "List direct messages", provider: "slack", connector: "Slack" },
@@ -159,8 +122,6 @@ export function buildDeniedToolsRider(deniedToolNames: Iterable<string>): string
 
   if (byConnector.size === 0) return "";
 
-  // Sort connectors and the labels within each so the same denied set yields
-  // identical text regardless of input order (avoids cache / snapshot churn).
   const groups = [...byConnector.entries()]
     .sort(([a], [b]) => a.localeCompare(b))
     .map(
@@ -176,12 +137,6 @@ export function buildDeniedToolsRider(deniedToolNames: Iterable<string>): string
   ].join("\n");
 }
 
-/**
- * Read a tool's name. `ToolConfig` extends the loosely-typed generated
- * `LlmapiChatCompletionTool` (`{ [key: string]: unknown }`), so the shape isn't
- * statically known — handle both Completions (`function.name`) and Responses
- * (top-level `name`) formats, mirroring `getToolName` in useChat/utils.
- */
 function toolName(tool: ToolConfig): string | undefined {
   const record = tool as Record<string, unknown>;
   const func = record.function as Record<string, unknown> | undefined;
@@ -190,7 +145,6 @@ function toolName(tool: ToolConfig): string | undefined {
   return undefined;
 }
 
-/** All distinct connector display names known to the catalog. */
 function catalogConnectorsByProvider(): Map<string, string> {
   const byProvider = new Map<string, string>();
   for (const entry of Object.values(TOOL_CATALOG)) {
@@ -248,8 +202,6 @@ export function buildConnectorGuidance(input: ConnectorGuidanceInput): Connector
     return name === undefined || !denied.has(name);
   });
 
-  // State 1: denied tools on CONNECTED providers, grouped by connector. A denied
-  // tool on a not-connected provider is a state-3 concern, not state 1.
   const deniedByConnector = new Map<string, string[]>();
   for (const name of denied) {
     const entry = TOOL_CATALOG[name];
@@ -259,7 +211,6 @@ export function buildConnectorGuidance(input: ConnectorGuidanceInput): Connector
     deniedByConnector.set(entry.connector, labels);
   }
 
-  // State 3: catalog providers the user hasn't connected, by display name.
   const unconnected = new Set<string>();
   for (const [provider, connector] of catalogConnectorsByProvider()) {
     if (!connected.has(provider)) unconnected.add(connector);
@@ -287,10 +238,6 @@ export function buildConnectorGuidance(input: ConnectorGuidanceInput): Connector
     );
   }
 
-  // General line (states 2a + 2b) rides along only when there's already an
-  // actionable section AND the user has a connected app the model could
-  // mistakenly disown. On its own it's not actionable, so when nothing else
-  // fires (every catalog provider connected, nothing denied) the rider is "".
   if (sections.length > 0 && connected.size > 0) {
     sections.push(
       "Never tell the user you lack access to a connected app; if you can't find a tool for a connected app's request, say that specific capability isn't available yet rather than that the app isn't connected."
