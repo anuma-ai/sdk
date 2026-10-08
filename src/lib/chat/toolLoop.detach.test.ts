@@ -26,7 +26,7 @@ function makeAbortError() {
 
 function makeTextStream(text: string) {
   return (async function* () {
-    yield { type: "response.created", response: { id: "r", model: "m" } };
+    yield Promise.resolve({ type: "response.created", response: { id: "r", model: "m" } });
     yield { type: "response.output_text.delta", delta: { OfString: text } };
     yield {
       type: "response.completed",
@@ -37,7 +37,7 @@ function makeTextStream(text: string) {
 
 function makeDetachingStream(controllersToAbort: AbortController[], text: string) {
   return (async function* () {
-    yield { type: "response.created", response: { id: "r", model: "m" } };
+    yield Promise.resolve({ type: "response.created", response: { id: "r", model: "m" } });
     yield { type: "response.output_text.delta", delta: { OfString: text } };
     for (const c of controllersToAbort) c.abort();
     throw makeAbortError();
@@ -46,15 +46,13 @@ function makeDetachingStream(controllersToAbort: AbortController[], text: string
 
 function makeRejectingStream(err: Error) {
   return (async function* () {
-    throw err;
-    // eslint-disable-next-line no-unreachable -- generator type inference
-    yield undefined as never;
+    yield Promise.reject(err);
   })();
 }
 
 function makeStreamWithToolCall(toolName: string, callId: string, args: string) {
   return (async function* () {
-    yield { type: "response.created", response: { id: "r", model: "m" } };
+    yield Promise.resolve({ type: "response.created", response: { id: "r", model: "m" } });
     yield {
       type: "response.output_item.added",
       item: {
@@ -81,7 +79,7 @@ function makeEchoTool() {
         description: "echo the argument back",
         parameters: { type: "object", properties: { text: { type: "string" } } },
       },
-      executor: async (args: Record<string, unknown>) => ({ echoed: args.text }),
+      executor: (args: Record<string, unknown>) => Promise.resolve({ echoed: args.text }),
     },
   ];
 }
@@ -471,8 +469,8 @@ describe("runToolLoop detach + resumable streaming", () => {
       "",
     ].join("\n");
 
-    const fetchMock = vi.fn(
-      async () =>
+    const fetchMock = vi.fn(() =>
+      Promise.resolve(
         new Response(sseBody, {
           status: 200,
           headers: {
@@ -480,6 +478,7 @@ describe("runToolLoop detach + resumable streaming", () => {
             "X-Inference-ID": "inf-123",
           },
         })
+      )
     );
     vi.stubGlobal("fetch", fetchMock);
     try {
