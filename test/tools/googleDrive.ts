@@ -1,13 +1,3 @@
-/**
- * Google Drive tool e2e test
- *
- * Verifies that runToolLoop correctly executes Google Drive tools
- * against the real Google Drive API using a service account.
- *
- * Uses a Shared Drive (GOOGLE_SHARED_DRIVE_ID) that the service account
- * has Content Manager access to. Uploads a test file before tests, cleans up after.
- */
-
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { runToolLoop } from "./setup.js";
 import {
@@ -17,8 +7,6 @@ import {
 } from "../../src/tools/googleDrive.js";
 import { config, printResult, wrapTool, type ToolCallLog } from "./setup.js";
 import { createGoogleTokenManager } from "./googleAuth.js";
-
-// ── Setup ─────────────────────────────────────────────────────────────────────
 
 const TEST_FILE_NAME = "E2E_Test_Document.txt";
 const TEST_FILE_CONTENT = "This is an automated e2e test file for the Google Drive tool.";
@@ -105,8 +93,6 @@ async function cleanupOrphanedTestFiles(auth: ReturnType<typeof createGoogleToke
     console.log(`  [cleanup] Trashed orphaned file ${f.id}`);
   }
 }
-
-// ── Tests ─────────────────────────────────────────────────────────────────────
 
 describe("google-drive", () => {
   if (!process.env.GOOGLE_SHARED_DRIVE_ID) {
@@ -218,8 +204,6 @@ describe("google-drive", () => {
     const args = log[0].args;
     expect(typeof args.query).toBe("string");
 
-    // fullText search may not find recently uploaded files due to indexing delay;
-    // verify the tool executed and returned a valid response (array or "no files" string)
     const files = log[0].result;
     expect(typeof files === "string" || Array.isArray(files)).toBe(true);
   });

@@ -1,39 +1,3 @@
-/**
- * Slack tool factory for the chat system.
- *
- * Like the X tools, the Slack tools never call slack.com directly: the Web API
- * returns no CORS headers, so a browser can't fetch it. The caller supplies a
- * {@link SlackProxyCaller} that GETs the portal's Slack proxy (authed with the
- * user's Privy bearer, NOT a Slack token). The portal mints the Slack token
- * server-side and returns the upstream status + JSON verbatim. The SDK stays
- * transport-agnostic: it builds the same upstream method paths + query objects
- * and hands them to the injected caller.
- *
- * Slack auth quirk: the Web API answers HTTP 200 even on auth failures, putting
- * the real outcome in `{ ok: false, error: "invalid_auth" | ... }`. So we map
- * the auth-shaped `error` codes (and the usual 401/403 statuses) to the
- * canonical connector error, not just the HTTP status.
- *
- * Tool catalogue. The Slack Marketplace forbids the message-search scope, so
- * there's no server-side message-search API to call: `slack_search_messages`
- * scans recent history via `conversations.history` instead. Slack throttles
- * conversations.history/.replies to ~1 req/min for distributed apps, so the read
- * tools stay bounded — search fans out across only a handful of channels and
- * reads only recent messages.
- * - `slack_get_me`              -- the authenticated user's profile
- * - `slack_list_channels`       -- channels in the workspace
- * - `slack_list_dms`            -- the user's direct messages + group DMs
- * - `slack_search_messages`     -- search recent messages by text/author/mention
- * - `slack_list_users`          -- workspace members
- * - `slack_get_channel_history` -- recent messages in a channel (rate-limited)
- * - `slack_get_thread_replies`  -- replies in a thread (rate-limited)
- * - `slack_post_message`        -- post a message (WRITE)
- *
- * Error contract: on an auth failure the tool returns the canonical
- * `__anuma_connector_error_v1` JSON shape from `buildConnectorErrorResult`.
- * Tool executors never throw on these paths.
- */
-
 import type { ToolConfig } from "../lib/chat/useChat/types.js";
 import { buildConnectorErrorResult } from "../lib/connectors/index.js";
 
@@ -190,7 +154,6 @@ interface SlackConversationsOpenResponse extends SlackBaseResponse {
   channel?: { id?: string };
 }
 
-/** Slack `error` codes that mean the connection is broken / not authorized. */
 const AUTH_ERROR_CODES = new Set([
   "not_authed",
   "invalid_auth",
@@ -201,22 +164,12 @@ const AUTH_ERROR_CODES = new Set([
   "not_allowed_token_type",
 ]);
 
-/**
- * Map a Slack response to a connector error string when it signals an auth
- * failure — either via HTTP status (401/403) or via Slack's `ok:false` +
- * auth-shaped `error` code (the Web API returns 200 even when auth failed).
- * Returns null otherwise so the caller can surface the raw error.
- *
- * `missing_scope` is special: the grant is alive but lacks the scope a method
- * needs, so it maps to `insufficient_scope` (reconnecting wouldn't help —
- * the user needs the missing scope granted) and forwards the required scope.
- */
 function maybeConnectorError(status: number, body: SlackBaseResponse | null): string | null {
   if (status === 401 || status === 403) {
     return buildConnectorErrorResult("connector_not_connected", SLACK_PROVIDER);
   }
   if (body && body.ok === false && body.error === "missing_scope") {
-    return buildConnectorErrorResult("insufficient_scope", SLACK_PROVIDER, undefined, {
+    return buildConnectorErrorResult("insufficient_scope", SLACK_PROVIDER, {
       required: body.needed,
     });
   }
@@ -226,22 +179,10 @@ function maybeConnectorError(status: number, body: SlackBaseResponse | null): st
   return null;
 }
 
-/**
- * A Slack read hit the ~1/min history/replies throttle -- either an HTTP 429 or a
- * 200 carrying `ok:false` + `ratelimited`. Callers turn this into the
- * {@link SLACK_PENDING_APPROVAL_NOTE} rather than surfacing partial/approximate data.
- */
 function isRateLimited(status: number, body: SlackBaseResponse | null): boolean {
   return status === 429 || (body?.ok === false && body.error === "ratelimited");
 }
 
-/**
- * Interpret an already-fetched Slack proxy result: the parsed body on success, or
- * a connector error / generic failure string on any failure path (bad HTTP status,
- * or `ok:false`). Split out from {@link callSlack} so tools that inspect the raw
- * `{ status, json }` first (e.g. for a rate-limit check) can reuse the exact same
- * auth-vs-generic-error decision without a second proxy call.
- */
 function interpretSlackResult<T extends SlackBaseResponse>(
   path: string,
   status: number,
@@ -261,12 +202,6 @@ function interpretSlackResult<T extends SlackBaseResponse>(
   return body;
 }
 
-/**
- * Run a Slack proxy call and return the parsed body on success, or a connector
- * error / generic failure string on any failure path (bad HTTP status, or
- * `ok:false`). Centralizes the auth-vs-generic-error decision so each tool just
- * checks `typeof result === "string"`.
- */
 async function callSlack<T extends SlackBaseResponse>(
   callProxy: SlackProxyCaller,
   path: string,
@@ -277,24 +212,16 @@ async function callSlack<T extends SlackBaseResponse>(
   return interpretSlackResult<T>(path, status, json);
 }
 
-/** Read a model-supplied string arg, returning "" for anything non-string. */
 function readString(raw: unknown): string {
   return typeof raw === "string" ? raw : "";
 }
 
-/** Coerce a model-supplied limit (number or numeric string) and clamp it. */
 function clampLimit(raw: unknown, fallback: number, min: number, max: number): number {
   const num = typeof raw === "string" ? Number(raw) : raw;
   const safe = typeof num === "number" && Number.isFinite(num) ? num : fallback;
   return Math.min(max, Math.max(min, safe));
 }
 
-/**
- * Build a lazy resolver for the authenticated user's id. auth.test is hit at
- * most once per call and the result (or null on failure) is memoized, so DM
- * self-detection and a `mentions: "me"` filter can share a single lookup without
- * refetching. Never throws — an auth failure resolves to null.
- */
 function makeGetAuthUserId(callProxy: SlackProxyCaller): () => Promise<string | null> {
   let cached: string | null | undefined;
   return async () => {
@@ -319,34 +246,18 @@ interface SlackUsersDirectory {
   byHandle: Map<string, SlackUser>;
 }
 
-/** The name we show for a member: display name, then real name, then handle, then id. */
 function displayNameForUser(user: SlackUser): string {
   return user.profile?.display_name || user.real_name || user.name || user.id;
 }
 
-/**
- * The human-readable author of a message: the sender's display name from the
- * users directory, then the message's own `username`, then the raw `user` id.
- * Slack puts a bare `U…` id in `user`, which is meaningless to the user — this
- * resolves it via the shared directory so results never surface a raw id.
- */
 function authorName(m: SlackMessage, directory: SlackUsersDirectory): string {
   const known = m.user ? directory.byId.get(m.user) : undefined;
   return (known && displayNameForUser(known)) || m.username || m.user || "";
 }
 
-/** `<@U…>` / `<@U…|handle>` mention tokens in message text. */
 const USER_MENTION_RE = /<@([UW][A-Z0-9]+)(?:\|([^>]+))?>/g;
-/** `<#C…>` / `<#C…|name>` channel mention tokens in message text. */
 const CHANNEL_MENTION_RE = /<#(C[A-Z0-9]+)(?:\|([^>]+))?>/g;
 
-/**
- * Rewrite Slack's inline mention tokens in message text into readable names so a
- * raw id never reaches the user. `<@U…>` / `<@U…|handle>` become `@<display name
- * from the directory, else the piped handle, else the id>`; `<#C…|name>` becomes
- * `#name` while a nameless `<#C…>` is left as-is. Other angle-bracket tokens
- * (`<!here>`, `<http…>` links) are deliberately left untouched. Never throws.
- */
 function humanizeSlackText(text: string, directory: SlackUsersDirectory): string {
   return text
     .replace(USER_MENTION_RE, (_match, id: string, handle: string | undefined) => {
@@ -358,16 +269,8 @@ function humanizeSlackText(text: string, directory: SlackUsersDirectory): string
     );
 }
 
-/** Hard ceiling on users.list pages we'll follow — mirrors MAX_CONVERSATIONS_PAGES. */
 const MAX_USERS_PAGES = 10;
 
-/**
- * Fetch every workspace member by following Slack's cursor pagination, mirroring
- * {@link listAllConversations}: a first-page failure is fatal (propagate the
- * error string), a later-page failure stops paging and returns what we gathered.
- * The portal proxy allowlist covers `users.list` but NOT `conversations.members`,
- * so this is the only way to name a group DM's members.
- */
 async function listAllUsers(callProxy: SlackProxyCaller): Promise<SlackUser[] | string> {
   const all: SlackUser[] = [];
   let cursor = "";
@@ -389,13 +292,6 @@ async function listAllUsers(callProxy: SlackProxyCaller): Promise<SlackUser[] | 
   return all;
 }
 
-/**
- * Build a lazy resolver for the workspace user directory. users.list is fetched
- * (paginated) at most once per call and memoized, so a search that resolves
- * `from_user`/`mentions` AND labels its matched DMs pays a single users.list.
- * Never throws — a fetch failure resolves to an empty directory so callers
- * degrade to their id/handle fallbacks rather than failing the whole tool.
- */
 function makeGetUsersDirectory(callProxy: SlackProxyCaller): () => Promise<SlackUsersDirectory> {
   let cached: SlackUsersDirectory | undefined;
   return async () => {
@@ -455,12 +351,6 @@ async function listSlackChannels(
   }));
 }
 
-/**
- * Correctness bound on how many DMs we'll recency-probe: each costs one
- * conversations.history call against the ~1/min throttle, so beyond this we can't
- * order the set within the pre-approval limit and return the pending-approval note
- * instead of a partial order.
- */
 const MAX_DM_PROBES = 50;
 
 /**
@@ -477,15 +367,6 @@ interface SlackDmListing {
   group_dms: Array<{ id: string; members: string }>;
 }
 
-/**
- * Open (or resume) the 1:1 DM with a user and return its channel id, or null on
- * any failure. Slack treats conversations.open as a WRITE (it needs the `im:write`
- * scope), so passing a body makes the portal proxy classify the call as a write and
- * mint write access. Used to reach a 1:1 that conversations.list doesn't return
- * because it's closed. Reuses {@link callSlack} so auth/`missing_scope` failures map
- * the same way. Never throws — any error (string result, or a response without a
- * channel id) resolves to null.
- */
 async function openSlackDm(callProxy: SlackProxyCaller, userId: string): Promise<string | null> {
   const res = await callSlack<SlackConversationsOpenResponse>(
     callProxy,
@@ -497,13 +378,6 @@ async function openSlackDm(callProxy: SlackProxyCaller, userId: string): Promise
   return res.channel?.id ?? null;
 }
 
-/**
- * Probe whether a conversation has any messages (one conversations.history call,
- * limit 1). Used to tell a resumed CLOSED 1:1 (has history) apart from a
- * brand-new empty 1:1 that conversations.open just created. A rate-limited or
- * failed probe returns true (fail open) so a real conversation is never hidden
- * on a transient error.
- */
 async function dmHasMessages(callProxy: SlackProxyCaller, channelId: string): Promise<boolean> {
   const { status, json } = await callProxy("/conversations.history", {
     channel: channelId,
@@ -520,46 +394,6 @@ async function dmHasMessages(callProxy: SlackProxyCaller, channelId: string): Pr
   return (res.messages ?? []).length > 0;
 }
 
-/**
- * List the user's direct messages and group DMs, split into two lists: `direct_messages`
- * (1:1s, each with the counterparty name) and `group_dms` (each with its member names),
- * ordered like the Slack sidebar (most-recent conversation first) with conversations
- * that have no messages dropped. `slack_list_channels` excludes `im`/`mpim`, so without
- * this there's no way to answer "list my DMs" or to get a DM's id to pass to
- * `slack_get_channel_history`. Reuses the paginating `listAllConversations`, the shared
- * `labelForChannel` resolution for 1:1 names, and {@link groupDmMembers} for group-DM
- * member names. The users directory is built once up front, so listing N DMs costs a
- * single (paginated) users.list rather than N `users.info` calls. Name resolution is
- * best-effort and never throws — it falls back to the id.
- *
- * `with_user` is a targeted lookup, so it takes a different path from listing all
- * DMs. It resolves the ref (id or name) to a user id via the shared directory, then
- * keeps a 1:1 whose counterparty is that user and a group DM whose `mpdm-…` members
- * include that user's handle, splits those matches into the two lists, and returns
- * them directly. `conversations.list` only returns OPEN DMs, so when no 1:1 matched
- * (the person's 1:1 is closed) it opens/resumes that DM via {@link openSlackDm} and
- * synthesizes it into `direct_messages`, keeping any matched group DMs. It makes NO
- * `conversations.history` calls — no recency probing, no
- * empty-DM drop, no throttle path — so a targeted DM is always returned (letting the
- * model then read it), even one with no messages in the readable window (a person who
- * is only in a group DM yields `direct_messages: []` plus that group). An unresolvable
- * ref returns an error naming the person rather than every DM. A targeted lookup is NOT
- * capped to the list-all default: it returns all matches, honoring an explicit `limit`
- * only when the model passes one.
- *
- * Listing all DMs (no `with_user`) instead orders like the Slack sidebar and hides
- * empty conversations. `conversations.list` carries no last-message timestamp, so
- * each DM's latest message is read via a `limit: 1` `conversations.history` probe.
- * That endpoint is throttled (~1/min) while the app awaits Marketplace approval, so
- * rather than return a partial/approximate order we bail to {@link SLACK_PENDING_APPROVAL_NOTE}
- * (returned as the string result) in two cases: there are more DMs to probe than
- * `MAX_DM_PROBES` (can't order that many under the limit), or any probe comes back
- * rate-limited (429 / `ratelimited`). A probe that returns zero messages marks the
- * DM empty -> drop it; a non-rate-limit probe failure leaves recency unknown -> keep
- * it, ordered after the DMs we could place. `limit` defaults to 5 (the 5 most recent)
- * and is capped at `MAX_DM_PROBES`; it bounds the total DM count after the recency sort
- * and empty-drop, applied before the split into the two lists.
- */
 async function listSlackDms(
   callProxy: SlackProxyCaller,
   args: SlackListDmsArgs
@@ -571,17 +405,11 @@ async function listSlackDms(
   const getUsersDirectory = makeGetUsersDirectory(callProxy);
   const dmNameCache = new Map<string, string>();
 
-  // Split into the two lists, preserving the input (recency) order within each.
-  // Resolve names sequentially (not in parallel): the first lookup warms the
-  // memoized users directory, so listing N DMs costs one users.list rather than N
-  // racing fetches.
   const buildListing = async (convs: SlackChannel[]): Promise<SlackDmListing> => {
     const listing: SlackDmListing = { direct_messages: [], group_dms: [] };
     for (const conv of convs) {
       if (conv.is_mpim) {
         const [directory, selfId] = await Promise.all([getUsersDirectory(), getAuthUserId()]);
-        // Fall back to the full label ("release-crew" for a real group name,
-        // "Group DM" when only self resolves) when there are no parseable members.
         const members =
           groupDmMembers(conv.name, directory, selfId) ??
           formatGroupDmLabel(conv.name, directory, selfId);
@@ -600,8 +428,6 @@ async function listSlackDms(
     return listing;
   };
 
-  // Targeted lookup: return the person's DM(s) directly, no history probing. A
-  // targeted DM must never be dropped for being empty -- the model can read it.
   const withUserRef = (args.with_user ?? "").trim();
   if (withUserRef) {
     const targetId = await resolveSlackUserId(withUserRef, getAuthUserId, getUsersDirectory);
@@ -616,25 +442,12 @@ async function listSlackDms(
       }
       return conv.user === targetId;
     });
-    // A targeted lookup returns every DM with that person -- it is NOT capped to
-    // the list-all default. Only apply a cap when the model passes an explicit limit.
     const targetLimit = clampLimit(args.limit, matches.length, 1, matches.length);
     const listing = await buildListing(matches.slice(0, targetLimit));
 
-    // conversations.list only returns OPEN DMs, so a closed 1:1 (never opened, or
-    // hidden from the sidebar) isn't in `res` and won't match above. When no 1:1
-    // matched, open/resume it via conversations.open -- which reaches a closed DM --
-    // and synthesize that 1:1 into the result, keeping any matched group DMs. On a
-    // failure openSlackDm returns null and we leave the (possibly empty) result as-is.
     if (listing.direct_messages.length === 0) {
       const openedId = await openSlackDm(callProxy, targetId);
       if (openedId) {
-        // conversations.open reaches a CLOSED 1:1, but for someone we've never
-        // had a 1:1 with it creates a new empty one. When a group DM already
-        // matched, only surface the opened DM if it actually has messages (a
-        // real, closed conversation) so we don't return a brand-new empty 1:1 as
-        // a side effect of a read. With no group DM, surface it regardless so the
-        // explicitly-requested person's DM is always returned.
         const surface =
           listing.group_dms.length === 0 || (await dmHasMessages(callProxy, openedId));
         if (surface) {
@@ -649,15 +462,10 @@ async function listSlackDms(
     return listing;
   }
 
-  // Listing all DMs defaults to the 5 most recent; the model raises `limit` to get
-  // more. The max is MAX_DM_PROBES -- we can't rank more DMs than we can probe.
   const limit = clampLimit(args.limit, 5, 1, MAX_DM_PROBES);
 
-  // More DMs than we can probe under the ~1/min throttle -> we can't order them,
-  // so surface the pending-approval message instead of a partial order.
   if (res.length > MAX_DM_PROBES) return SLACK_PENDING_APPROVAL_NOTE;
 
-  // Probe each DM's latest message to order by recency and drop empty DMs.
   const withTs: Array<{ conv: SlackChannel; lastTs: number }> = [];
   const withoutTs: SlackChannel[] = [];
   for (const conv of res) {
@@ -666,11 +474,7 @@ async function listSlackDms(
       limit: 1,
     });
     const body = (json ?? null) as SlackConversationsHistoryResponse | null;
-    // A rate-limited probe means we can't order reliably -- bail to the pending
-    // message rather than return a partial order.
     if (isRateLimited(status, body)) return SLACK_PENDING_APPROVAL_NOTE;
-    // A non-rate-limit probe failure leaves recency unknown -- keep the DM but sort
-    // it after the placed ones. Only a confirmed-empty DM is dropped.
     if (status < 200 || status >= 300 || !body || body.ok === false) {
       withoutTs.push(conv);
       continue;
@@ -683,33 +487,13 @@ async function listSlackDms(
   withTs.sort((a, b) => b.lastTs - a.lastTs);
   const ordered = [...withTs.map((x) => x.conv), ...withoutTs];
 
-  // Apply the limit to the total DM count before splitting into the two lists.
   return buildListing(ordered.slice(0, limit));
 }
 
-/** Conversations scanned in a workspace-wide search when no channel is given. */
 const MAX_SEARCH_CHANNELS = 8;
-/** Recent messages pulled per channel — kept small since history is rate-limited. */
 const SEARCH_HISTORY_LIMIT = 15;
-/**
- * Hard ceiling on conversations.list pages we'll follow. Bounds a runaway cursor
- * — 10 pages × 1000 conversations = 10k, well past any real workspace.
- */
 const MAX_CONVERSATIONS_PAGES = 10;
 
-/**
- * Fetch every conversation of the given `types` by following Slack's cursor
- * pagination. conversations.list returns one page (default 100) and hands back a
- * `next_cursor`; without walking it, workspaces with more than a page of channels
- * hide the rest — so name resolution ("summarize anuma-all") fails for any
- * channel past page 1. conversations.list is NOT in the punitive ~1 req/min tier
- * (only history/replies are), so paging through it in full is safe.
- *
- * Error handling mirrors best-effort reads: a failure on the FIRST page is fatal
- * (it's the auth/connector error — propagate the string). A failure on a LATER
- * page stops paging and returns whatever we've gathered, so a hiccup deep in a
- * large workspace degrades to a partial list rather than failing the whole call.
- */
 async function listAllConversations(
   callProxy: SlackProxyCaller,
   types: string
@@ -742,16 +526,6 @@ async function listAllConversations(
   return all;
 }
 
-/**
- * Resolve a model-supplied channel reference to a Slack channel id. An id
- * (C…/G…/D…) passes through; a leading '#' is stripped; anything else is treated
- * as a channel NAME and looked up case-insensitively via the paginating
- * conversations.list. Returns { id } on success, or an error string (the
- * connector/auth error propagated from the list call, or a clear "no channel
- * named X" when the name does not resolve). This is the safety net that lets
- * "summarize #anuma-all" work whether the model passes the id, the bare name, or
- * "#name", and without requiring a prior slack_list_channels call.
- */
 async function resolveChannelId(
   callProxy: SlackProxyCaller,
   ref: string
@@ -767,15 +541,6 @@ async function resolveChannelId(
   return { id: match.id };
 }
 
-/**
- * conversations.list returns public/private channels BEFORE DMs, so a naive
- * `slice(0, cap)` in any workspace with more than `cap` channels never reaches
- * the trailing `im`/`mpim` entries — DMs would silently drop out of search.
- * Partition into channels vs DMs and interleave them round-robin (channel, dm,
- * channel, dm, … then the remainder of whichever list is longer) so both are
- * represented once the caller slices down to the cap. A conversation with
- * neither `is_im` nor `is_mpim` is a regular channel.
- */
 function interleaveChannelsAndDms(conversations: SlackChannel[]): SlackChannel[] {
   const channels = conversations.filter((c) => !c.is_im && !c.is_mpim);
   const dms = conversations.filter((c) => c.is_im || c.is_mpim);
@@ -787,44 +552,21 @@ function interleaveChannelsAndDms(conversations: SlackChannel[]): SlackChannel[]
   return interleaved;
 }
 
-/**
- * Split a query into lowercased terms. A message matches when its text contains
- * every term as a substring (AND semantics), case-insensitive.
- */
 function messageMatchesQuery(text: string, terms: string[]): boolean {
   if (terms.length === 0) return false;
   const haystack = text.toLowerCase();
   return terms.every((term) => haystack.includes(term));
 }
 
-/** Max member names shown in a group-DM label before the rest collapse to "+N more". */
 const MAX_GROUP_DM_NAMES = 5;
-/** Slack encodes a group DM's member handles into its name: `mpdm-<h1>--<h2>--…-1`. */
 const MPDM_NAME_RE = /^mpdm-(.+)-\d+$/;
 
-/**
- * Pull the member handles Slack packs into a group DM's `mpdm-<h1>--<h2>--…-1`
- * name, in order. Returns [] for an absent name or a real (non-`mpdm`) group name.
- * The single parser shared by {@link formatGroupDmLabel} and the `with_user`
- * filter, so both read the name the same way.
- */
 function parseMpdmHandles(mpimName: string | undefined): string[] {
   if (!mpimName) return [];
   const match = MPDM_NAME_RE.exec(mpimName);
   return match ? match[1].split("--") : [];
 }
 
-/**
- * The comma-joined member display names of a group DM (e.g. "Alice, Bob, Carol",
- * with the rest collapsed to "+N more"), self excluded. Slack packs the members'
- * handles into the `mpdm-…` name (there's no allowlisted `conversations.members`
- * to call), so we split them out, map each handle → display name (falling back to
- * the raw handle when unmapped), and drop the authed user's own handle. Returns
- * null when there are no member names to show: an absent name, a real non-`mpdm`
- * group name, or a membership that resolves to only the authed user. This is the
- * shared piece behind both {@link formatGroupDmLabel} and the `group_dms` output
- * of {@link listSlackDms}, so the two read the member set the same way. Never throws.
- */
 function groupDmMembers(
   mpimName: string | undefined,
   directory: SlackUsersDirectory,
@@ -848,13 +590,6 @@ function groupDmMembers(
   return `${shown.join(", ")}${extra > 0 ? `, +${extra} more` : ""}`;
 }
 
-/**
- * Turn a group DM's `mpdm-…` name into a readable "Group DM with A, B, C" label
- * using the users directory. Delegates the member-name resolution to
- * {@link groupDmMembers}. A non-`mpdm` name (a real group name) is returned as-is;
- * an absent name (or one that resolves to only the authed user) yields "Group DM".
- * Never throws.
- */
 function formatGroupDmLabel(
   mpimName: string | undefined,
   directory: SlackUsersDirectory,
@@ -866,18 +601,6 @@ function formatGroupDmLabel(
   return members === null ? "Group DM" : `Group DM with ${members}`;
 }
 
-/**
- * Best-effort, human-readable label for a conversation, used as the `channel`
- * field on results and the `name` on listed DMs. Regular channels use their name;
- * DMs have no useful name, so:
- *  - `im` (1:1): resolve the other party via the users directory first (→ "DM
- *    with <name>"), falling back to a `users.info` lookup only when the id isn't
- *    in the directory; if the other party is the authed user, "Direct message".
- *  - `mpim` (group DM): {@link formatGroupDmLabel} names the members.
- * Directory-backed resolution means listing/searching DMs pays one users.list
- * instead of a `users.info` per DM; `users.info` fallbacks are de-duped via
- * `dmNameCache`. Never throws — any failure falls back to the conversation id.
- */
 async function labelForChannel(
   callProxy: SlackProxyCaller,
   channel: SlackChannel,
@@ -915,22 +638,10 @@ async function labelForChannel(
   return `DM with ${name}`;
 }
 
-/** A Slack user id: `U…` for people, `W…` for Enterprise Grid accounts. */
 const SLACK_USER_ID_RE = /^[UW][A-Z0-9]{6,}$/;
-/** Slack channel/DM ids: public/private channel (C), group DM (G), 1:1 DM (D). Ids are uppercase. */
 const SLACK_CHANNEL_ID_RE = /^[CDG][A-Z0-9]{6,}$/;
-/** References the model uses for the authenticated user. */
 const SELF_REFS = new Set(["me", "myself", "self", "i"]);
 
-/**
- * Resolve a model-supplied person reference to a Slack user id, best-effort.
- * Accepts "me"/"self"/etc. (→ the authed user), a bare id (returned as-is), or a
- * name/handle matched against the shared users directory (a single memoized
- * users.list, also used for DM labels). Matching is case-insensitive across
- * `name`/`real_name`/`display_name`: an exact match wins; otherwise a unique
- * substring match is used. Returns null when nothing matches or the match is
- * ambiguous. Never throws — a users.list failure resolves to null.
- */
 async function resolveSlackUserId(
   ref: string,
   getAuthUserId: () => Promise<string | null>,
@@ -958,26 +669,6 @@ async function resolveSlackUserId(
   return partial.length === 1 ? partial[0].id : null;
 }
 
-/**
- * Text-search recent Slack messages without the (Marketplace-forbidden)
- * server-side message-search API. Reads recent `conversations.history` — a single channel
- * when `args.channel` is set, otherwise a bounded fan-out across the user's
- * channels and direct messages — and keeps messages that satisfy every supplied
- * filter: `query` words (all must appear in the text), `from_user` (author), and
- * `mentions` (an `<@Uid>` token in the text). At least one filter is required.
- * `from_user`/`mentions` accept an id or a name; `mentions` also accepts "me".
- *
- * conversations.history is throttled to ~1 req/min for distributed apps, so if a
- * history call comes back rate-limited (HTTP 429 or `ok:false` + `ratelimited`)
- * we stop scanning and return what we have. Matches from every scanned channel
- * are collected, then sorted newest-first by `ts` and sliced to `count`, so the
- * most recent hits survive rather than being evicted by channel scan order.
- * Return-shape choice: the contract stays `{text,user,ts,channel}[]`; the matches
- * found so far are real data so we keep them, and on a rate-limit cutoff we append
- * ONE final synthetic `{ note }` item ({@link SLACK_PENDING_APPROVAL_NOTE}) AFTER
- * slicing, so the model can relay the pending-approval limitation without switching
- * to an object shape that downstream consumers don't expect.
- */
 async function searchSlackMessages(
   callProxy: SlackProxyCaller,
   args: SlackSearchMessagesArgs
@@ -992,14 +683,9 @@ async function searchSlackMessages(
   const count = clampLimit(args.count, 20, 1, 100);
   const terms = query.toLowerCase().split(/\s+/).filter(Boolean);
 
-  // Shared across the two person filters AND DM label resolution, so auth.test /
-  // users.list are each fetched at most once per search.
   const getAuthUserId = makeGetAuthUserId(callProxy);
   const getUsersDirectory = makeGetUsersDirectory(callProxy);
 
-  // A filter that was asked for but can't be resolved is surfaced (not silently
-  // dropped) so the model can relay who it couldn't find rather than returning
-  // every message.
   let fromId: string | null = null;
   if (fromUserRef) {
     fromId = await resolveSlackUserId(fromUserRef, getAuthUserId, getUsersDirectory);
@@ -1018,14 +704,10 @@ async function searchSlackMessages(
     const text = m.text ?? "";
     if (terms.length > 0 && !messageMatchesQuery(text, terms)) return false;
     if (fromId && m.user !== fromId) return false;
-    // Prefix match covers both `<@U123>` and `<@U123|handle>`.
     if (mentionId && !text.includes("<@" + mentionId)) return false;
     return true;
   };
 
-  // conversations.list (not throttled) gives us the fan-out set and the labels
-  // for results. `im`/`mpim` types pull DMs into scope so their content is
-  // searchable too. Auth failures surface as the canonical connector error.
   const listRes = await listAllConversations(callProxy, "public_channel,private_channel,im,mpim");
   if (typeof listRes === "string") return listRes;
   const allChannels = listRes;
@@ -1040,7 +722,6 @@ async function searchSlackMessages(
     if (found) {
       targets = [found];
     } else if (SLACK_CHANNEL_ID_RE.test(bare)) {
-      // Looks like an id that conversations.list didn't return; try it directly.
       targets = [{ id: bare, name: bare }];
     } else {
       return `Error: no Slack channel named "${args.channel}" in this workspace.`;
@@ -1051,8 +732,6 @@ async function searchSlackMessages(
 
   const dmNameCache = new Map<string, string>();
 
-  // Collect matches from ALL scanned channels (no per-channel cutoff) so the
-  // recency sort below sees every hit before we truncate to `count`.
   const results: Array<Record<string, unknown>> = [];
   let rateLimited = false;
   for (const channel of targets) {
@@ -1066,16 +745,13 @@ async function searchSlackMessages(
       rateLimited = true;
       break;
     }
-    // Auth/scope failures are fatal — surface the canonical connector error.
     const connectorError = maybeConnectorError(status, body);
     if (connectorError) return connectorError;
-    // Any other per-channel failure (e.g. not_in_channel) just skips that channel.
     if (status < 200 || status >= 300 || !body || body.ok === false) continue;
 
     const matched = (body.messages ?? []).filter(passes);
     if (matched.length === 0) continue;
 
-    // Resolve the label once per matched channel (lazy for DMs).
     const label = await labelForChannel(
       callProxy,
       channel,
@@ -1094,8 +770,6 @@ async function searchSlackMessages(
     }
   }
 
-  // Newest first, then truncate — so the most recent match is never evicted by a
-  // channel that happened to be scanned earlier.
   results.sort((a, b) => Number(b.ts) - Number(a.ts));
   const sliced = results.slice(0, count);
 
@@ -1135,8 +809,6 @@ async function getSlackChannelHistory(
     limit,
   });
   const body = (json ?? null) as SlackConversationsHistoryResponse | null;
-  // conversations.history is throttled to ~1/min pre-approval; tell the user
-  // plainly instead of surfacing the raw `ratelimited` error.
   if (isRateLimited(status, body)) return SLACK_PENDING_APPROVAL_NOTE;
   const res = interpretSlackResult<SlackConversationsHistoryResponse>(
     "/conversations.history",
@@ -1163,7 +835,6 @@ async function getSlackThreadReplies(
     limit,
   });
   const body = (json ?? null) as SlackConversationsHistoryResponse | null;
-  // Same ~1/min throttle as channel history -- surface the pending-approval message.
   if (isRateLimited(status, body)) return SLACK_PENDING_APPROVAL_NOTE;
   const res = interpretSlackResult<SlackConversationsHistoryResponse>(
     "/conversations.replies",

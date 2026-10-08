@@ -15,8 +15,6 @@ describe("deriveActiveToolSets — event-shape-agnostic", () => {
   });
 
   it("detects a set from a server-tool-phase id (web signal 2 shape)", () => {
-    // 'server-tool-create_file-2' → ends with '-create_file'? no; contains
-    // '-create_file-' → matches app-generation member create_file.
     const events: ToolActivationEvent[] = [
       { kind: "server-tool-phase", phaseId: "server-tool-create_file-2" },
     ];
@@ -30,9 +28,9 @@ describe("deriveActiveToolSets — event-shape-agnostic", () => {
 
   it("accumulates monotonically across events and ignores non-matches", () => {
     const events: ToolActivationEvent[] = [
-      { kind: "tool-result", toolName: "plan_deck" }, // slides
-      { kind: "tool-result", toolName: "unrelated_tool" }, // no set
-      { kind: "server-tool-phase", phaseId: "server-tool-create_file-1" }, // app-generation
+      { kind: "tool-result", toolName: "plan_deck" },
+      { kind: "tool-result", toolName: "unrelated_tool" },
+      { kind: "server-tool-phase", phaseId: "server-tool-create_file-1" },
     ];
     expect(deriveActiveToolSets(events).sort()).toEqual(["app-generation", "slides"]);
   });
@@ -48,7 +46,6 @@ describe("deriveActiveToolSets — event-shape-agnostic", () => {
         phaseId: "server-tool-AnumaPaymentsMCP-anuma_find_restaurant-0",
       },
     ];
-    // restaurant-book is a subset of restaurant-booking, so it adds nothing sticky.
     expect(deriveActiveToolSets(events)).toEqual(["restaurant-booking", "restaurant-book"]);
   });
 
@@ -56,7 +53,6 @@ describe("deriveActiveToolSets — event-shape-agnostic", () => {
     const events: ToolActivationEvent[] = [
       { kind: "tool-result", toolName: "AnumaPaymentsMCP-anuma_check_restaurant_availability" },
     ];
-    // restaurant-book is a subset of restaurant-booking, so it adds nothing sticky.
     expect(deriveActiveToolSets(events)).toEqual(["restaurant-booking", "restaurant-book"]);
   });
 
@@ -89,13 +85,9 @@ describe("mergeActiveToolSets — append-only union", () => {
 
 describe("regression: derived sticky set survives a terse follow-up", () => {
   it("['slides'] + a 3-char prompt keeps the slide toolkit (not [])", async () => {
-    // 1. History shows a slide tool ran → derive sticky sets.
     const active = deriveActiveToolSets([{ kind: "tool-result", toolName: "plan_deck" }]);
     expect(active).toEqual(["slides"]);
 
-    // 2. A terse follow-up ("big") is below the length gate → promptEmbeddings=null,
-    //    reason "short-prompt". Without the sticky set this would send zero tools;
-    //    with it, the slide toolkit is retained.
     const tool = (name: string): LlmapiChatCompletionTool =>
       ({ type: "function", name }) as unknown as LlmapiChatCompletionTool;
     const clientTools = [tool("recall_memory"), tool("plan_deck"), tool("notion_search")];

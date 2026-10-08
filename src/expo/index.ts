@@ -87,9 +87,24 @@
  * @module
  */
 
-// ── Prompt pre-processors (classify-then-fetch enrichment) ──
-// Parity with /server and /react — see src/react/index.ts for the rationale
-// (native apps can't load the /server barrel; Metro redirects it to /react).
+export type {
+  NotionAuthUrlParams,
+  NotionClientRegistration,
+  NotionExchangeCodeParams,
+  NotionOAuthEndpoints,
+  NotionPKCEChallenge,
+  NotionRefreshTokenParams,
+  NotionTokenResponse,
+} from "../lib/auth/notion-primitives";
+export {
+  buildNotionAuthUrl,
+  discoverNotionOAuthEndpoints,
+  exchangeNotionCode,
+  generateNotionPKCE,
+  NOTION_OAUTH_CONFIG,
+  refreshNotionAccessToken,
+  registerNotionClient,
+} from "../lib/auth/notion-primitives";
 export type {
   CryptoPriceClassification,
   CryptoPricePreProcessorOptions,
@@ -99,7 +114,21 @@ export {
   classifyCryptoPriceBatch,
   createCryptoPricePreProcessor,
 } from "../lib/chat/cryptoPriceClassifier";
+export {
+  attachFileContextToLastUserMessage,
+  buildAttachedFilesText,
+  isAttachedFilesText,
+} from "../lib/chat/fileContext";
 export type { PromptPreProcessor, PromptPreProcessorContext } from "../lib/chat/preProcessor";
+export type { ResumeStreamOptions, ResumeStreamResult } from "../lib/chat/resumeStream";
+export {
+  INFERENCE_ID_HEADER,
+  resumeStream,
+  STREAM_RESUMABLE_HEADER,
+  streamCancelPath,
+  StreamExpiredError,
+  streamReplayPath,
+} from "../lib/chat/resumeStream";
 export type {
   StockPriceClassification,
   StockPricePreProcessorOptions,
@@ -109,6 +138,9 @@ export {
   classifyStockPriceBatch,
   createStockPricePreProcessor,
 } from "../lib/chat/stockPriceClassifier";
+export type { StreamMetaEvent, StreamResumeHandle } from "../lib/chat/toolLoop";
+export { TOOL_RESULT_ORIGIN } from "../lib/chat/toolResults";
+export type { StreamSmoothingConfig } from "../lib/chat/useChat/StreamSmoother";
 export type {
   WeatherClassification,
   WeatherPreProcessorOptions,
@@ -127,96 +159,7 @@ export {
   classifyWebSearchBatch,
   createWebSearchPreProcessor,
 } from "../lib/chat/webSearchClassifier";
-
-// Resumable streaming primitives (resume handles are persisted by apps, so the
-// types and header constants are part of the public surface here).
-export type { ResumeStreamOptions, ResumeStreamResult } from "../lib/chat/resumeStream";
-export {
-  INFERENCE_ID_HEADER,
-  resumeStream,
-  STREAM_RESUMABLE_HEADER,
-  streamCancelPath,
-  StreamExpiredError,
-  streamReplayPath,
-} from "../lib/chat/resumeStream";
-export type { StreamMetaEvent, StreamResumeHandle } from "../lib/chat/toolLoop";
-export type { StreamSmoothingConfig } from "../lib/chat/useChat/StreamSmoother";
 export { xhrTransport } from "../lib/chat/xhrTransport";
-export { maskScopedEmbeddingCache } from "../lib/db/chat/embeddingCache";
-export type { UseCreditsOptions, UseCreditsResult } from "../react/useCredits";
-export { useCredits } from "../react/useCredits";
-export type { UseModelsOptions, UseModelsResult } from "../react/useModels";
-export { useModels } from "../react/useModels";
-export { useChat } from "./useChat";
-export type {
-  ResumeStreamWithStorageResult,
-  SendMessageWithStorageArgs,
-  SendMessageWithStorageDetachedResult,
-  SendMessageWithStorageResult,
-  UseChatStorageOptions,
-  UseChatStorageResult,
-} from "./useChatStorage";
-export { useChatStorage } from "./useChatStorage";
-
-// PII redaction — mask personally identifiable information before prompts leave
-// the device. Regex-based, so it is NOT a compliance guarantee: it does not
-// detect names and does not scan non-text content (images/files) or tool-call
-// arguments. Exported here (mirrors the root/web entry) so React Native apps
-// can construct a `PiiRedactor` — e.g. to mask embedding inputs in their own
-// auto-extraction wiring — since the root `@anuma/sdk` barrel is not React
-// Native-safe.
-export type {
-  MessageRedactionResult,
-  PiiCategory,
-  PiiMatch,
-  PiiPattern,
-  PiiRedactorOptions,
-  RedactionResult,
-} from "../lib/pii";
-export {
-  createStreamingDeAnonymizer,
-  isPiiRedactor,
-  PII_PATTERNS,
-  PiiRedactor,
-  resolvePiiRedactor,
-} from "../lib/pii";
-
-// Encryption and queue
-export type { FlushResult, QueueStatus } from "../lib/db/queue";
-export { QueueManager, queueManager, WalletPoller } from "../lib/db/queue";
-export type { EmbeddedWalletSignerFn, SignMessageFn } from "../react/useEncryption";
-export type { RequestEncryptionKeyOptions } from "../react/useEncryption";
-export {
-  clearAllEncryptionKeys,
-  clearAllEncryptionState,
-  clearEncryptionKey,
-  deriveKeyFromSignatureBytes,
-  EncryptionKeyMissingError,
-  hasEncryptionKey,
-  onKeyAvailable,
-  refreshEncryptionKeyIfMatches,
-  requestEncryptionKey,
-  seedEncryptionKeys,
-  useEncryption,
-} from "../react/useEncryption";
-// Detects a still-sealed `enc:v2:` / `enc:v3:` field. A failed decrypt returns
-// the original ciphertext (never a placeholder), so a consumer that forwards
-// vault text off-device (the Nearby publish reconciler) must check this
-// before it sends — otherwise it publishes hex.
-export { isEncrypted } from "../lib/db/encryption-utils";
-
-// Consolidated SDK schema exports (recommended)
-export { SDK_SCHEMA_VERSION, sdkMigrations, sdkModelClasses, sdkSchema } from "../lib/db/schema";
-
-// Database manager for per-wallet isolation
-export type {
-  DatabaseManagerLogger,
-  DatabaseManagerOptions,
-  PlatformStorage,
-} from "../lib/db/manager";
-export { DatabaseManager } from "../lib/db/manager";
-
-// Re-export chat storage schema and types for database setup
 export {
   Conversation as ChatConversation,
   Message as ChatMessage,
@@ -244,10 +187,27 @@ export {
   type StoredConversation,
   type StoredMessage,
   type StoredMessageWithSimilarity,
+  stripLegacyChunkTextOp,
   upsertMessageOp,
 } from "../lib/db/chat";
-
-// Memory vault
+export { maskScopedEmbeddingCache } from "../lib/db/chat/embeddingCache";
+export {
+  addConversationMemoriesOp,
+  clearConversationMemoriesOp,
+  type ConversationMemoryInput,
+  ConversationMemory as ConversationMemoryModel,
+  type ConversationMemoryOperationsContext,
+  conversationMemoryToStored,
+  getConversationMemoriesOp,
+  type StoredConversationMemory,
+} from "../lib/db/conversationMemory";
+export { isEncrypted } from "../lib/db/encryption-utils";
+export type {
+  DatabaseManagerLogger,
+  DatabaseManagerOptions,
+  PlatformStorage,
+} from "../lib/db/manager";
+export { DatabaseManager } from "../lib/db/manager";
 export {
   archiveVaultMemoryOp,
   backfillMemoryTopicsOp,
@@ -293,18 +253,9 @@ export {
   type VaultMemoryOperationsContext,
   type VaultMemoryVisibility,
 } from "../lib/db/memoryVault";
-// Conversation memories (persistence for the conversation-level Memories panel)
-export {
-  addConversationMemoriesOp,
-  clearConversationMemoriesOp,
-  type ConversationMemoryInput,
-  ConversationMemory as ConversationMemoryModel,
-  type ConversationMemoryOperationsContext,
-  conversationMemoryToStored,
-  getConversationMemoriesOp,
-  type StoredConversationMemory,
-} from "../lib/db/conversationMemory";
-// Vault folders
+export type { FlushResult, QueueStatus } from "../lib/db/queue";
+export { QueueManager, queueManager, WalletPoller } from "../lib/db/queue";
+export { SDK_SCHEMA_VERSION, sdkMigrations, sdkModelClasses, sdkSchema } from "../lib/db/schema";
 export {
   createVaultFolderOp,
   type CreateVaultFolderOptions,
@@ -320,103 +271,8 @@ export {
   type UpdateVaultFolderOptions,
   type VaultFolderOperationsContext,
 } from "../lib/db/vaultFolders";
-export {
-  createMemoryVaultSearchTool,
-  createMemoryVaultTool,
-  createVaultEmbeddingCache,
-  DEFAULT_VAULT_CACHE_SIZE,
-  eagerEmbedContent,
-  type ManualFactType,
-  type MemoryVaultSearchOptions,
-  type MemoryVaultToolOptions,
-  preEmbedVaultMemories,
-  searchVaultMemories,
-  type VaultEmbeddingCache,
-  type VaultMemoryWriter,
-  type VaultSaveOperation,
-  type VaultSearchResult,
-  type VaultWriteAction,
-  type VaultWriteInput,
-  type VaultWriteOutcome,
-} from "../lib/memoryVault";
-
-// Server-side tools caching utilities
-export type { CachedServerTools, ServerToolsOptions, ServerToolsResponse } from "../lib/tools";
-export {
-  clearServerToolsCache,
-  DEFAULT_CACHE_EXPIRATION_MS,
-  getCachedServerTools,
-  getServerTools,
-} from "../lib/tools";
-
-// Memory engine (semantic search over past messages)
-export type {
-  ChunkingOptions,
-  EmbeddingOptions as MemoryEngineEmbeddingOptions,
-  MemoryEngineResult,
-  MemoryEngineSearchOptions,
-  QuantizedEmbedding,
-  TextChunk,
-} from "../lib/memoryEngine";
-export {
-  chunkAndEmbedAllMessages,
-  // Chunking functions for sub-message semantic search
-  chunkAndEmbedMessage,
-  // Provenance marker for a row whose ciphertext-built chunks were discarded
-  // rather than re-embedded (client#5618). Its sibling TOOL_RESULT_ORIGIN is
-  // exported just below, from the module that owns it.
-  CHUNKS_DISCARDED_ORIGIN,
-  chunkText,
-  // Int8 embedding quantization helpers (RAM reduction for client caches)
-  cosineInt8,
-  createMemoryEngineTool,
-  // Chunk-vector storage codec — read `MessageChunk.vector` through
-  // decodeChunkVector, which accepts both the legacy number[] and the base64
-  // float32 form (sdk#862).
-  decodeChunkVector,
-  DEFAULT_CHUNK_OVERLAP,
-  DEFAULT_CHUNK_SIZE,
-  DEFAULT_MIN_CHUNK_SIZE,
-  dequantizeEmbedding,
-  embedAllMessages,
-  embedMessage,
-  encodeChunkVector,
-  generateEmbedding,
-  generateEmbeddings,
-  quantizeEmbedding,
-  shouldChunkMessage,
-} from "../lib/memoryEngine";
-
-// The other `origin` marker, from the module that owns it. Exported here for the
-// same reason as CHUNKS_DISCARDED_ORIGIN above: a client that cannot import the
-// constant hand-rolls the string instead, and mobile already keeps two copies.
-export { TOOL_RESULT_ORIGIN } from "../lib/chat/toolResults";
-
-// The current turn's extracted attachment text rides on that turn's user message in this tagged
-// part. Exported from all three app entrypoints so a client that builds its own document context
-// (mobile) produces the same part — and so the pre-processor prompt skip recognises it.
-export {
-  attachFileContextToLastUserMessage,
-  buildAttachedFilesText,
-  isAttachedFilesText,
-} from "../lib/chat/fileContext";
-// Per-file preprocessing outcome (see `onFileProcessingResult` on the React `sendMessage`), and
-// the one-line-per-unread-file notes that go into the same attached-files part.
-export { formatFileProcessingNotes } from "../lib/processors/fileStatusNotes";
-export type { FileProcessingReason, FileProcessingStatus } from "../lib/processors/types";
-
-// Structured logger — set a custom sink via setLogger (mobile must import
-// from this entrypoint or "@anuma/sdk/react", NOT the bare barrel, which
-// pulls server code and crashes under Hermes). Mirrors the react barrel.
 export type { Logger } from "../lib/logger";
 export { consoleLogger, getLogger, noopLogger, setLogger } from "../lib/logger";
-export type { LoggerProviderProps } from "../react/LoggerProvider";
-export { LoggerProvider } from "../react/LoggerProvider";
-
-// Unified memory API surface — recall + retain + reflect + auto-extraction.
-// Mirrors the react and server barrels so Expo consumers can call the
-// programmatic API (recall/retain/reflect/...) in addition to wiring the
-// recall_memory tool.
 export type {
   AutoExtractMessage,
   AutoExtractor,
@@ -500,6 +356,32 @@ export type {
   VerifyMemoriesForPublishOptions,
 } from "../lib/memory";
 export {
+  createLocalMemoryStore,
+  createRemoteMemoryPersistence,
+  createRemoteMemoryPipeline,
+  type LocalMemoryStoreOptions,
+  type MemoryCreate,
+  type MemoryListOptions,
+  type MemoryMaintenance,
+  type MemoryRecallOptions,
+  type MemoryRetainOptions,
+  type MemoryStore,
+  type MemorySubscribeOptions,
+  type MemoryUpdate,
+  type RemoteMemoryCandidateOptions,
+  type RemoteMemoryDecodeFailure,
+  RemoteMemoryError,
+  type RemoteMemoryListOptions,
+  type RemoteMemoryPage,
+  type RemoteMemoryPersistence,
+  type RemoteMemoryPersistenceOptions,
+  type RemoteMemoryPipeline,
+  type RemoteMemoryPipelineOptions,
+  type RemoteMemoryReadFilters,
+  type RemoteMemoryRecord,
+  type RemoteMemoryRow,
+} from "../lib/memory";
+export {
   capHopsForDensity,
   classifyDecay,
   classifyInjectionCandidates,
@@ -554,28 +436,6 @@ export {
   VAULT_SIZE_HOP_CAP,
   verifyMemoriesForPublish,
 } from "../lib/memory";
-
-// Notion OAuth primitives (platform-agnostic, no browser globals)
-export type {
-  NotionAuthUrlParams,
-  NotionClientRegistration,
-  NotionExchangeCodeParams,
-  NotionOAuthEndpoints,
-  NotionPKCEChallenge,
-  NotionRefreshTokenParams,
-  NotionTokenResponse,
-} from "../lib/auth/notion-primitives";
-export {
-  buildNotionAuthUrl,
-  discoverNotionOAuthEndpoints,
-  exchangeNotionCode,
-  generateNotionPKCE,
-  NOTION_OAUTH_CONFIG,
-  refreshNotionAccessToken,
-  registerNotionClient,
-} from "../lib/auth/notion-primitives";
-
-// Notion MCP tools (platform-agnostic)
 export {
   assembleMemoryContext,
   type MemoryContextItem,
@@ -585,4 +445,106 @@ export {
   shouldRecallMemory,
 } from "../lib/memory";
 export { createDurableAutoExtractor, type DurableAutoExtractorOptions } from "../lib/memory";
+export type {
+  ChunkingOptions,
+  EmbeddingOptions as MemoryEngineEmbeddingOptions,
+  MemoryEngineResult,
+  MemoryEngineSearchOptions,
+  QuantizedEmbedding,
+  TextChunk,
+} from "../lib/memoryEngine";
+export {
+  chunkAndEmbedAllMessages,
+  chunkAndEmbedMessage,
+  CHUNKS_DISCARDED_ORIGIN,
+  chunkText,
+  cosineInt8,
+  createMemoryEngineTool,
+  decodeChunkVector,
+  DEFAULT_CHUNK_OVERLAP,
+  DEFAULT_CHUNK_SIZE,
+  DEFAULT_MIN_CHUNK_SIZE,
+  dequantizeEmbedding,
+  embedAllMessages,
+  embedMessage,
+  encodeChunkVector,
+  generateEmbedding,
+  generateEmbeddings,
+  quantizeEmbedding,
+  shouldChunkMessage,
+} from "../lib/memoryEngine";
+export {
+  createMemoryVaultSearchTool,
+  createMemoryVaultTool,
+  createVaultEmbeddingCache,
+  DEFAULT_VAULT_CACHE_SIZE,
+  eagerEmbedContent,
+  type ManualFactType,
+  type MemoryVaultSearchOptions,
+  type MemoryVaultToolOptions,
+  preEmbedVaultMemories,
+  searchVaultMemories,
+  type VaultEmbeddingCache,
+  type VaultMemoryWriter,
+  type VaultSaveOperation,
+  type VaultSearchResult,
+  type VaultWriteAction,
+  type VaultWriteInput,
+  type VaultWriteOutcome,
+} from "../lib/memoryVault";
+export type {
+  MessageRedactionResult,
+  PiiCategory,
+  PiiMatch,
+  PiiPattern,
+  PiiRedactorOptions,
+  RedactionResult,
+} from "../lib/pii";
+export {
+  createStreamingDeAnonymizer,
+  isPiiRedactor,
+  PII_PATTERNS,
+  PiiRedactor,
+  resolvePiiRedactor,
+} from "../lib/pii";
+export { formatFileProcessingNotes } from "../lib/processors/fileStatusNotes";
+export type { FileProcessingReason, FileProcessingStatus } from "../lib/processors/types";
+export type { CachedServerTools, ServerToolsOptions, ServerToolsResponse } from "../lib/tools";
+export {
+  clearServerToolsCache,
+  DEFAULT_CACHE_EXPIRATION_MS,
+  getCachedServerTools,
+  getServerTools,
+} from "../lib/tools";
+export type { LoggerProviderProps } from "../react/LoggerProvider";
+export { LoggerProvider } from "../react/LoggerProvider";
+export type { UseCreditsOptions, UseCreditsResult } from "../react/useCredits";
+export { useCredits } from "../react/useCredits";
+export type { EmbeddedWalletSignerFn, SignMessageFn } from "../react/useEncryption";
+export type { RequestEncryptionKeyOptions } from "../react/useEncryption";
+export {
+  clearAllEncryptionKeys,
+  clearAllEncryptionState,
+  clearEncryptionKey,
+  deriveKeyFromSignatureBytes,
+  EncryptionKeyMissingError,
+  hasEncryptionKey,
+  onKeyAvailable,
+  refreshEncryptionKeyIfMatches,
+  requestEncryptionKey,
+  seedEncryptionKeys,
+  useEncryption,
+} from "../react/useEncryption";
+export type { UseModelsOptions, UseModelsResult } from "../react/useModels";
+export { useModels } from "../react/useModels";
 export { createNotionProxyTools, createNotionTools, type NotionMcpCaller } from "../tools/notion";
+export { useChat } from "./useChat";
+export type {
+  ResumeStreamWithStorageResult,
+  SendMessageWithStorageArgs,
+  SendMessageWithStorageDetachedResult,
+  SendMessageWithStorageResult,
+  UseChatStorageOptions,
+  UseChatStorageResult,
+} from "./useChatStorage";
+export { useChatStorage } from "./useChatStorage";

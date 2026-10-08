@@ -10,12 +10,6 @@ import {
   resolveThemeColor,
 } from "./anumaRuntime";
 
-/**
- * Querying inside a slide now needs to traverse the shadow boundary —
- * `<Anuma.Slide>` mounts its children in a shadow root for style
- * isolation. `Element.querySelector` does not pierce shadow DOM, so
- * walk all open shadow roots manually.
- */
 function deepQuery<T extends Element = Element>(root: ParentNode, selector: string): T | null {
   const direct = root.querySelector<T>(selector);
   if (direct) return direct;
@@ -118,11 +112,8 @@ describe("Anuma primitives render", () => {
     );
     const slide = container.querySelector('[data-anuma-tag="Slide"]') as HTMLElement;
     expect(slide.shadowRoot).not.toBeNull();
-    // Children live inside the shadow root, not in light DOM.
     expect(slide.shadowRoot!.querySelector('[data-anuma-tag="Rect"]')).not.toBeNull();
     expect(slide.querySelector('[data-anuma-tag="Rect"]')).toBeNull();
-    // Inheritable defaults baked into the host so the shadow tree
-    // inherits theme values rather than the host page's.
     expect(slide.style.color).toBe("#abc123");
     expect(slide.style.boxSizing).toBe("border-box");
     expect(slide.style.margin).toBe("0px");

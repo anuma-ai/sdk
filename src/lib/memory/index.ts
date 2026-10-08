@@ -101,6 +101,35 @@ export type { RecencyOptions } from "./recency.js";
 export { reflect, type ReflectOptions, type ReflectResult } from "./reflect.js";
 export { isRerankerAvailable, RerankerUnavailableError } from "./reranker.js";
 export { retain, type RetainContext } from "./retain.js";
+export { createLocalMemoryStore, type LocalMemoryStoreOptions } from "./store/local.js";
+export {
+  createRemoteMemoryPersistence,
+  type RemoteMemoryCandidateOptions,
+  type RemoteMemoryDecodeFailure,
+  RemoteMemoryError,
+  type RemoteMemoryListOptions,
+  type RemoteMemoryPage,
+  type RemoteMemoryPersistence,
+  type RemoteMemoryPersistenceOptions,
+  type RemoteMemoryReadFilters,
+  type RemoteMemoryRecord,
+  type RemoteMemoryRow,
+} from "./store/remotePersistence.js";
+export {
+  createRemoteMemoryPipeline,
+  type RemoteMemoryPipeline,
+  type RemoteMemoryPipelineOptions,
+} from "./store/remotePipeline.js";
+export type {
+  MemoryCreate,
+  MemoryListOptions,
+  MemoryMaintenance,
+  MemoryRecallOptions,
+  MemoryRetainOptions,
+  MemoryStore,
+  MemorySubscribeOptions,
+  MemoryUpdate,
+} from "./store/types.js";
 export {
   DEFAULT_PROFILE_FACETS,
   PROFILE_DOC_VERSION,
@@ -143,27 +172,7 @@ export type {
   RetainSource,
   ScoreBreakdown,
 } from "./types.js";
-// #707. Tagged @public because nothing inside the SDK calls these — the caller
-// is a publish flow in the client. Reaching them from `@anuma/sdk/react` also
-// needs a line in each entry barrel; that lands with the client wiring.
 /** @public */
-export {
-  createMessageSourceResolver,
-  type MemoryToVerify,
-  type MemoryVerification,
-  type UncheckedReason,
-  type UnverifiableReason,
-  type VerificationSources,
-  verifyMemoriesForPublish,
-  type VerifyMemoriesForPublishOptions,
-} from "./verifySupport.js";
-
-// W5 — the low-level entity-graph DB ops (getMemoriesByEntityNamesOp,
-// getEntitiesByMemoryIdsOp, link/unlink) live in db/entities/operations and
-// are surfaced from the react entry point directly, next to the Entity models.
-// The recall-time traversal built on them (traverseGraphLane, PR4) is a
-// memory-layer concern and IS re-exported above.
-
 export {
   assembleMemoryContext,
   type MemoryContextItem,
@@ -176,3 +185,13 @@ export {
   createDurableAutoExtractor,
   type DurableAutoExtractorOptions,
 } from "./durableExtraction.js";
+export {
+  createMessageSourceResolver,
+  type MemoryToVerify,
+  type MemoryVerification,
+  type UncheckedReason,
+  type UnverifiableReason,
+  type VerificationSources,
+  verifyMemoriesForPublish,
+  type VerifyMemoriesForPublishOptions,
+} from "./verifySupport.js";

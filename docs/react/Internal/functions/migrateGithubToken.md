@@ -2,7 +2,7 @@
 
 > **migrateGithubToken**(`walletAddress`: `string`): `Promise`<`boolean`>
 
-Defined in: [src/lib/auth/github.ts:582](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/github.ts#582)
+Defined in: [src/lib/auth/github.ts:477](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/github.ts#477)
 
 Migrate unencrypted GitHub tokens to encrypted storage.
 Call this when a wallet address and encryption key become available

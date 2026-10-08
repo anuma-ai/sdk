@@ -1,23 +1,9 @@
-/**
- * Every await on the embedding path is bounded.
- *
- * Recall awaited `getToken()` and each `postApiV1Embeddings` attempt with no
- * deadline, and its degrade-to-BM25 path only fires on a REJECTION — so a stuck
- * token refresh or a request that never answered hung the whole recall (and the
- * turn waiting on it) forever instead of degrading.
- *
- * Fake timers are installed BEFORE the call under test, so the deadline timers
- * the code schedules are fake ones this test can advance. The hung fetch ignores
- * its abort signal on purpose: the bound must hold even for a transport that
- * doesn't honor `signal`.
- */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { generateEmbedding, generateEmbeddings } from "./generate";
 
 const BASE = "https://portal.test";
 
-/** Settlement state of a promise, observable without awaiting it. */
 function track<T>(p: Promise<T>): { state: "pending" | "resolved" | "rejected"; error?: unknown } {
   const t: { state: "pending" | "resolved" | "rejected"; error?: unknown } = { state: "pending" };
   p.then(
@@ -39,7 +25,7 @@ beforeEach(() => {
     "fetch",
     vi.fn((_url: unknown, init?: RequestInit) => {
       signals.push(init?.signal ?? undefined);
-      return new Promise<Response>(() => {}); // never settles, ignores the signal
+      return new Promise<Response>(() => {});
     })
   );
 });
@@ -50,15 +36,65 @@ afterEach(() => {
 });
 
 describe("embedding deadlines", () => {
+  it("bounds a multi-chunk batch with one deadline and stops queued requests", async () => {
+    const t = track(
+      generateEmbeddings(["a", "b", "c", "d", "e"], {
+        apiKey: "k",
+        baseUrl: BASE,
+        batchSize: 1,
+        totalTimeoutMs: 8000,
+      })
+    );
+    await vi.advanceTimersByTimeAsync(7999);
+    expect(t.state).toBe("pending");
+    expect(signals).toHaveLength(3);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(t.state).toBe("rejected");
+    expect((t.error as Error).name).toBe("TimeoutError");
+    expect(signals.every((signal) => signal?.aborted)).toBe(true);
+    await vi.advanceTimersByTimeAsync(120_000);
+    expect(signals).toHaveLength(3);
+  });
+  it("includes authentication in the batch deadline and never starts a late request", async () => {
+    let resolveToken!: (token: string) => void;
+    const t = track(
+      generateEmbeddings(["a", "b"], {
+        baseUrl: BASE,
+        totalTimeoutMs: 2000,
+        getToken: () =>
+          new Promise<string>((resolve) => {
+            resolveToken = resolve;
+          }),
+      })
+    );
+    await vi.advanceTimersByTimeAsync(2000);
+    expect(t.state).toBe("rejected");
+    resolveToken("late-token");
+    await vi.advanceTimersByTimeAsync(120_000);
+    expect(signals).toHaveLength(0);
+  });
+  it("counts retry backoff toward the batch deadline", async () => {
+    const fetch = vi.fn(async () => new Response("{}", { status: 503 }));
+    vi.stubGlobal("fetch", fetch);
+    const t = track(
+      generateEmbeddings(["a"], {
+        apiKey: "k",
+        baseUrl: BASE,
+        totalTimeoutMs: 100,
+      })
+    );
+    await vi.advanceTimersByTimeAsync(100);
+    expect(t.state).toBe("rejected");
+    await vi.advanceTimersByTimeAsync(10_000);
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
   it("rejects a single embed whose request never answers, after the bounded retries", async () => {
     const t = track(generateEmbedding("hello", { apiKey: "k", baseUrl: BASE, timeoutMs: 1000 }));
 
-    // 4 attempts x 1s deadline + ~1.75s-2.5s of backoff between them.
     await vi.advanceTimersByTimeAsync(10_000);
 
     expect(t.state).toBe("rejected");
     expect((t.error as Error).name).toBe("TimeoutError");
-    // Each attempt got its own signal, and each one was aborted at its deadline.
     expect(signals).toHaveLength(4);
     expect(signals.every((s) => s?.aborted)).toBe(true);
   });
@@ -113,7 +149,6 @@ describe("embedding deadlines", () => {
   });
 
   it("totalTimeoutMs bounds the whole call — every attempt and backoff — and stops retrying", async () => {
-    // Default 15s per attempt would allow ~60s+; the overall budget caps it.
     const t = track(
       generateEmbedding("hello", { apiKey: "k", baseUrl: BASE, totalTimeoutMs: 8000 })
     );
@@ -125,7 +160,6 @@ describe("embedding deadlines", () => {
     expect((t.error as Error).name).toBe("TimeoutError");
     expect(signals[0]?.aborted).toBe(true);
 
-    // Nobody is waiting any more: no further attempts are fired.
     await vi.advanceTimersByTimeAsync(120_000);
     expect(signals).toHaveLength(1);
   });
@@ -145,12 +179,6 @@ describe("embedding deadlines", () => {
   });
 });
 
-/**
- * A SYNCHRONOUS throw or a bare (non-promise) return from the wrapped call.
- * The deadline timer used to be armed before the call and outside the `try`:
- * a sync throw left it running, and when it fired it rejected with nobody
- * listening — one unhandled rejection per retry attempt, which crashes Node.
- */
 describe("embedding deadlines — synchronous callers", () => {
   it("rejects with a sync maskInput throw, leaves no timer armed and no unhandled rejection", async () => {
     const unhandled = vi.fn();
@@ -168,7 +196,6 @@ describe("embedding deadlines — synchronous callers", () => {
         })
       );
 
-      // Past every backoff AND past every would-be deadline.
       await vi.advanceTimersByTimeAsync(60_000);
       await vi.advanceTimersByTimeAsync(0);
 

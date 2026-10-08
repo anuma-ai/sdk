@@ -1,32 +1,4 @@
-/**
- * Salience gate for LLM-extracted entity names.
- *
- * Both extraction prompts tell the model to emit only NAMED entities and skip
- * generic nouns, and both models still leak the occasional bare common noun —
- * a calendar block titled "Home" becomes a "Home" topic, which reads as a
- * keyword tag rather than a topic (client issue #5135). Prompt wording alone
- * can't be relied on, so `parseEntities` drops the leaks deterministically.
- *
- * Scope is deliberately narrow: time words, generic containers/venues, and
- * generic calendar-activity nouns — terms that carry no identity, so nothing
- * links to them meaningfully in either the Topics UI or the W5 graph lane.
- *
- * Just as deliberately NOT here, because they are weak-looking but genuinely
- * useful connectors in a personal memory graph — do not "complete" this list
- * with them:
- *  - relationship words ("mom", "wife", "boss") — real hubs; a user's memories
- *    about their mother should share a node.
- *  - foods, drinks, and interests ("coffee", "matcha", "fitness", "spanish") —
- *    exactly the durable-preference material the extractor exists to capture,
- *    and "concept" is a first-class entity kind.
- *  - anything that is also a common proper noun ("may", "will", "summer" as
- *    names). Months and weekdays are the one exception: as topics they are
- *    pure date noise, and the same call is already made in the client's
- *    heuristic extractor.
- */
-
 const GENERIC_ENTITY_NAMES = new Set([
-  // Relative and absolute time
   "today",
   "tomorrow",
   "yesterday",
@@ -62,8 +34,6 @@ const GENERIC_ENTITY_NAMES = new Set([
   "october",
   "november",
   "december",
-  // Generic containers and venues — the named ones ("Blue Bottle on Valencia",
-  // "Stanford") are unaffected because they are not bare tokens.
   "home",
   "house",
   "apartment",
@@ -82,7 +52,6 @@ const GENERIC_ENTITY_NAMES = new Set([
   "town",
   "country",
   "place",
-  // Generic calendar entries — "Chicago Marathon" survives, "meeting" doesn't.
   "meeting",
   "call",
   "appointment",
@@ -96,10 +65,6 @@ const GENERIC_ENTITY_NAMES = new Set([
   "vacation",
   "holiday",
   "trip",
-  // Plurals are listed explicitly rather than stemmed: naive `s`-stripping
-  // would fold real titles into generics ("The Times" → "time"). Only plurals
-  // that are junk as topics in their own right belong here — note the absence
-  // of "times", "places", and anything else that reads as a name.
   "days",
   "weeks",
   "weekends",
@@ -121,7 +86,6 @@ const GENERIC_ENTITY_NAMES = new Set([
   "trips",
   "vacations",
   "holidays",
-  // Meta / filler the models occasionally echo back as an entity
   "user",
   "assistant",
   "memory",
@@ -173,10 +137,6 @@ export function isGenericEntityName(name: string): boolean {
   if (distinctive.length > 0) return false;
 
   const generic = tokens.filter((token) => GENERIC_ENTITY_NAMES.has(token));
-  // Nothing but modifiers ("the", "at", a bare "A") — content-free, no entity
-  // here at all. This also drops the rare abbreviation spelled like a function
-  // word ("ON" for Ontario); single letters that aren't function words ("C",
-  // "X", "R") are distinctive and survive above.
   if (generic.length === 0) return true;
   const titleShaped =
     generic.length === 1 &&
@@ -185,14 +145,8 @@ export function isGenericEntityName(name: string): boolean {
   return !titleShaped;
 }
 
-/** Title-forming — these protect a single generic noun ("The Office"). */
 const ARTICLES = new Set(["the", "a", "an"]);
 
-/**
- * Never distinctive and never title-forming: possessives, temporal qualifiers,
- * and the prepositions/conjunctions that glue generic nouns together ("meeting
- * at home", "work from home", "home and work").
- */
 const WEAK_MODIFIERS = new Set([
   "my",
   "our",

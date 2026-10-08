@@ -1,12 +1,5 @@
-/**
- * Wallet Poller
- *
- * Polls for embedded wallet availability during Privy initialization.
- * When a wallet becomes available, triggers a callback so the queue can flush.
- */
-
 const DEFAULT_INTERVAL_MS = 1000;
-const DEFAULT_MAX_ATTEMPTS = 60; // Stop after 60 seconds
+const DEFAULT_MAX_ATTEMPTS = 60;
 
 export class WalletPoller {
   private timerId: ReturnType<typeof setInterval> | null = null;
@@ -49,7 +42,6 @@ export class WalletPoller {
       }
     };
 
-    // Poll immediately, then at interval
     void poll();
     this.timerId = setInterval(() => {
       void poll();

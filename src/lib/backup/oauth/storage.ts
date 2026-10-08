@@ -1,12 +1,9 @@
-/**
- * OAuth Token Storage
- *
- * Unified storage for OAuth tokens with refresh token support.
- * Uses localStorage for persistent storage across sessions.
- * Supports encryption when wallet address is provided.
- */
-
 import { decryptData, encryptData } from "../../../react/useEncryption";
+import {
+  parsePlaintextToken,
+  type PlaintextTokenRecord,
+  promoteUnscopedRow,
+} from "../../auth/tokenRows";
 import { getLogger } from "../../logger";
 
 type OAuthProvider = "google-drive" | "dropbox";
@@ -14,7 +11,7 @@ type OAuthProvider = "google-drive" | "dropbox";
 export interface StoredTokenData {
   accessToken: string;
   refreshToken?: string;
-  expiresAt?: number; // Unix timestamp in milliseconds
+  expiresAt?: number;
   scope?: string;
 }
 
@@ -37,11 +34,20 @@ export type OAuthResult<T> = { ok: true; data: T } | { ok: false; error: OAuthEr
 const STORAGE_KEY_PREFIX = "oauth_token_";
 const ENCRYPTED_PREFIX = "enc:oauth:";
 
-/**
- * Get the storage key for a provider
- */
-function getStorageKey(provider: OAuthProvider): string {
-  return `${STORAGE_KEY_PREFIX}${provider}`;
+function getStorageKey(provider: OAuthProvider, walletAddress?: string): string {
+  const base = `${STORAGE_KEY_PREFIX}${provider}`;
+  return walletAddress ? `${base}:${walletAddress}` : base;
+}
+
+function readRawRows(keys: string[]): { raw: string; key: string; store: Storage }[] {
+  const rows: { raw: string; key: string; store: Storage }[] = [];
+  for (const key of keys) {
+    for (const store of [localStorage, sessionStorage]) {
+      const raw = store.getItem(key);
+      if (raw) rows.push({ raw, key, store });
+    }
+  }
+  return rows;
 }
 
 /**
@@ -55,58 +61,57 @@ export async function getStoredTokenData(
   if (typeof window === "undefined") return null;
 
   try {
-    const key = getStorageKey(provider);
-    let stored = localStorage.getItem(key);
-
-    // Check sessionStorage for temporary unencrypted tokens
-    if (!stored) {
-      stored = sessionStorage.getItem(key);
+    const scopedKey = getStorageKey(provider, walletAddress);
+    const legacyKey = getStorageKey(provider);
+    const keys = scopedKey === legacyKey ? [legacyKey] : [scopedKey, legacyKey];
+    for (const row of readRawRows(keys)) {
+      const data = await readTokenRow(row.raw, provider, walletAddress);
+      if (!data) continue;
+      if (walletAddress && row.key === legacyKey) {
+        promoteUnscopedRow(row.raw, data, row.store, scopedKey, legacyKey, walletAddress);
+      }
+      return data;
     }
 
-    if (!stored) return null;
-
-    // Check if token is encrypted
-    if (stored.startsWith(ENCRYPTED_PREFIX)) {
-      if (!walletAddress) {
-        // Encrypted token but no wallet address - cannot decrypt
-        getLogger().warn(
-          `Encrypted OAuth token found for ${provider} but no wallet address provided`
-        );
-        return null;
-      }
-
-      try {
-        const encryptedData = stored.slice(ENCRYPTED_PREFIX.length);
-        let decryptedJson: string;
-        try {
-          // Try with current HKDF key (v3)
-          decryptedJson = await decryptData(encryptedData, walletAddress);
-        } catch {
-          // Fall back to legacy SHA-256 key (v2) for tokens encrypted before migration
-          decryptedJson = await decryptData(encryptedData, walletAddress, "v2");
-        }
-        const data = JSON.parse(decryptedJson) as StoredTokenData;
-
-        // Validate that access token exists
-        if (!data.accessToken) return null;
-
-        return data;
-      } catch (error) {
-        getLogger().error(`Failed to decrypt OAuth token for ${provider}:`, error);
-        return null;
-      }
-    }
-
-    // Plaintext token (backwards compatibility)
-    const data = JSON.parse(stored) as StoredTokenData;
-
-    // Validate that access token exists
-    if (!data.accessToken) return null;
-
-    return data;
+    return null;
   } catch {
     return null;
   }
+}
+
+async function readTokenRow(
+  stored: string,
+  provider: OAuthProvider,
+  walletAddress?: string
+): Promise<StoredTokenData | null> {
+  if (stored.startsWith(ENCRYPTED_PREFIX)) {
+    if (!walletAddress) {
+      getLogger().warn(
+        `Encrypted OAuth token found for ${provider} but no wallet address provided`
+      );
+      return null;
+    }
+
+    try {
+      const encryptedData = stored.slice(ENCRYPTED_PREFIX.length);
+      let decryptedJson: string;
+      try {
+        decryptedJson = await decryptData(encryptedData, walletAddress);
+      } catch {
+        decryptedJson = await decryptData(encryptedData, walletAddress, "v2");
+      }
+      const data = JSON.parse(decryptedJson) as StoredTokenData;
+
+      if (!data.accessToken) return null;
+
+      return data;
+    } catch (error) {
+      getLogger().error(`Failed to decrypt OAuth token for ${provider}:`, error);
+      return null;
+    }
+  }
+
+  return parsePlaintextToken<StoredTokenData>(stored, walletAddress);
 }
 
 /**
@@ -120,43 +125,58 @@ export async function storeTokenData(
 ): Promise<void> {
   if (typeof window === "undefined") return;
 
-  const key = getStorageKey(provider);
+  const key = getStorageKey(provider, walletAddress);
   const json = JSON.stringify(data);
+  const plaintextRecord = JSON.stringify({
+    wallet: walletAddress,
+    token: data,
+  } as PlaintextTokenRecord<StoredTokenData>);
 
   if (walletAddress) {
     try {
-      // Encrypt and store in localStorage
       const encrypted = await encryptData(json, walletAddress);
       localStorage.setItem(key, `${ENCRYPTED_PREFIX}${encrypted}`);
+      sessionStorage.removeItem(key);
     } catch (error) {
-      // If encryption fails, store temporarily in sessionStorage as fallback
       getLogger().warn(
         `Failed to encrypt OAuth token for ${provider}, storing temporarily:`,
         error
       );
-      sessionStorage.setItem(key, json);
+      sessionStorage.setItem(key, plaintextRecord);
       // eslint-disable-next-line preserve-caught-error -- ES2020 target doesn't support ErrorOptions
       throw new Error(
         `OAuth token encryption failed: ${error instanceof Error ? error.message : String(error)}`
       );
     }
   } else {
-    // No wallet address - store temporarily in sessionStorage (cleared on page close)
-    sessionStorage.setItem(key, json);
+    sessionStorage.setItem(key, plaintextRecord);
   }
 }
 
 /**
  * Clear stored token data for a provider
  */
-export function clearTokenData(provider: OAuthProvider): void {
+export function clearTokenData(provider: OAuthProvider, walletAddress?: string): void {
   if (typeof window === "undefined") return;
 
-  const key = getStorageKey(provider);
-  localStorage.removeItem(key);
-  // Tokens may be stored temporarily in sessionStorage when walletAddress is missing
-  // or when encryption fails; logout must clear both.
-  sessionStorage.removeItem(key);
+  const base = getStorageKey(provider);
+  const keys = walletAddress ? [getStorageKey(provider, walletAddress), base] : [base];
+  if (!walletAddress) keys.push(...suffixedKeys(base));
+  for (const key of keys) {
+    localStorage.removeItem(key);
+    sessionStorage.removeItem(key);
+  }
+}
+
+function suffixedKeys(base: string): string[] {
+  const found: string[] = [];
+  for (const storage of [localStorage, sessionStorage]) {
+    for (let i = 0; i < storage.length; i++) {
+      const key = storage.key(i);
+      if (key && key.startsWith(`${base}:`) && !found.includes(key)) found.push(key);
+    }
+  }
+  return found;
 }
 
 /**
@@ -167,7 +187,6 @@ export function clearTokenData(provider: OAuthProvider): void {
 export function isTokenExpired(data: StoredTokenData | null, bufferSeconds: number = 60): boolean {
   if (!data) return true;
 
-  // If no expiration info, assume token is valid (some providers don't return expiration)
   if (!data.expiresAt) return false;
 
   const now = Date.now();
@@ -187,7 +206,6 @@ export async function getValidAccessToken(
 
   if (!data) return null;
 
-  // If we have expiration info and token is expired, return null
   if (data.expiresAt && isTokenExpired(data)) {
     return null;
   }
@@ -217,41 +235,47 @@ export async function migrateUnencryptedTokens(
   if (typeof window === "undefined") return false;
 
   try {
-    const key = getStorageKey(provider);
-
-    const localStored = localStorage.getItem(key);
-    const sessionStored = sessionStorage.getItem(key);
+    const scopedKey = getStorageKey(provider, walletAddress);
+    const legacyKey = getStorageKey(provider);
+    const keys = [scopedKey, legacyKey];
 
     const isEncrypted = (value: string | null): boolean =>
       !!value && value.startsWith(ENCRYPTED_PREFIX);
+    const plaintextAt = (key: string): string | null => {
+      const stored = sessionStorage.getItem(key) ?? localStorage.getItem(key);
+      return stored && !isEncrypted(stored) ? stored : null;
+    };
 
-    // Prefer migrating sessionStorage since that's where we store tokens
-    // when no wallet is available at initial OAuth callback.
-    const tokenToMigrate =
-      sessionStored && !isEncrypted(sessionStored)
-        ? sessionStored
-        : localStored && !isEncrypted(localStored)
-          ? localStored
-          : null;
+    let tokenToMigrate: string | null = null;
+    for (const key of keys) {
+      const value = plaintextAt(key);
+      if (value) {
+        tokenToMigrate = value;
+        break;
+      }
+    }
 
     if (!tokenToMigrate) {
-      // Nothing to migrate. If we already have an encrypted token in localStorage,
-      // clear any leftover plaintext token in sessionStorage.
-      if (isEncrypted(localStored) && sessionStored && !isEncrypted(sessionStored)) {
-        sessionStorage.removeItem(key);
+      for (const key of keys) {
+        const stored = sessionStorage.getItem(key);
+        if (isEncrypted(localStorage.getItem(key)) && stored && !isEncrypted(stored)) {
+          sessionStorage.removeItem(key);
+        }
       }
       return false;
     }
 
     try {
-      const data = JSON.parse(tokenToMigrate) as StoredTokenData;
+      const data = parsePlaintextToken(tokenToMigrate, walletAddress);
+      if (!data) return false;
 
-      // Encrypt and store in localStorage
       await storeTokenData(provider, data, walletAddress);
 
-      // Clear any temporary plaintext storage after successful migration
-      if (sessionStored && !isEncrypted(sessionStored)) {
-        sessionStorage.removeItem(key);
+      for (const key of keys) {
+        if (plaintextAt(key)) sessionStorage.removeItem(key);
+        if (key === legacyKey && !isEncrypted(localStorage.getItem(key))) {
+          localStorage.removeItem(key);
+        }
       }
 
       return true;
@@ -280,7 +304,6 @@ export function tokenResponseToStoredData(
   };
 
   if (expiresIn) {
-    // Calculate expiration timestamp from expires_in seconds
     data.expiresAt = Date.now() + expiresIn * 1000;
   }
 

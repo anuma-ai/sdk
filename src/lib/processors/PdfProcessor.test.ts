@@ -1,9 +1,4 @@
 // @vitest-environment node
-/**
- * PdfProcessor's page decisions, with pdf.js mocked out (it cannot render in the test runtimes):
- * which pages are rendered as images, how the per-document image budget is spent, and what the
- * note tells the model.
- */
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -34,7 +29,6 @@ const FILE: FileWithData = {
 };
 const TEXT = "This page has a real text layer with plenty of characters.";
 
-/** Renders every requested page (or the first `max` of `docPages`), except those in `fail`. */
 function fakeRenderer(docPages = 0, fail: number[] = []) {
   return (_url: string, max?: number, pages?: number[]) => {
     const requested =

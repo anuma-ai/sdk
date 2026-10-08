@@ -442,6 +442,12 @@ Re-exports [createLlmNeighborRefiner](../react/Internal/functions/createLlmNeigh
 
 ***
 
+### createLocalMemoryStore
+
+Re-exports [createLocalMemoryStore](../react/Internal/functions/createLocalMemoryStore.md)
+
+***
+
 ### createMemoryEngineTool
 
 Re-exports [createMemoryEngineTool](../react/Internal/functions/createMemoryEngineTool.md)
@@ -481,6 +487,18 @@ Re-exports [createPlatformCursorStore](../react/Internal/functions/createPlatfor
 ### createRecallTool
 
 Re-exports [createRecallTool](../react/Internal/functions/createRecallTool.md)
+
+***
+
+### createRemoteMemoryPersistence
+
+Re-exports [createRemoteMemoryPersistence](../react/Internal/functions/createRemoteMemoryPersistence.md)
+
+***
+
+### createRemoteMemoryPipeline
+
+Re-exports [createRemoteMemoryPipeline](../react/Internal/functions/createRemoteMemoryPipeline.md)
 
 ***
 
@@ -1114,6 +1132,12 @@ Re-exports [LlmNeighborRefinerOptions](../react/Internal/interfaces/LlmNeighborR
 
 ***
 
+### LocalMemoryStoreOptions
+
+Re-exports [LocalMemoryStoreOptions](../react/Internal/interfaces/LocalMemoryStoreOptions.md)
+
+***
+
 ### Logger
 
 Re-exports [Logger](../react/Internal/interfaces/Logger.md)
@@ -1186,6 +1210,12 @@ Re-exports [MemoryContextResult](../react/Internal/interfaces/MemoryContextResul
 
 ***
 
+### MemoryCreate
+
+Re-exports [MemoryCreate](../react/Internal/type-aliases/MemoryCreate.md)
+
+***
+
 ### MemoryEngineEmbeddingOptions
 
 Re-exports [MemoryEngineEmbeddingOptions](../react/Internal/interfaces/MemoryEngineEmbeddingOptions.md)
@@ -1216,15 +1246,57 @@ Re-exports [MemoryKind](../react/Internal/type-aliases/MemoryKind.md)
 
 ***
 
+### MemoryListOptions
+
+Re-exports [MemoryListOptions](../react/Internal/interfaces/MemoryListOptions.md)
+
+***
+
+### MemoryMaintenance
+
+Re-exports [MemoryMaintenance](../react/Internal/interfaces/MemoryMaintenance.md)
+
+***
+
 ### MemoryQuarantinedEvent
 
 Re-exports [MemoryQuarantinedEvent](../react/Internal/interfaces/MemoryQuarantinedEvent.md)
 
 ***
 
+### MemoryRecallOptions
+
+Re-exports [MemoryRecallOptions](../react/Internal/type-aliases/MemoryRecallOptions.md)
+
+***
+
+### MemoryRetainOptions
+
+Re-exports [MemoryRetainOptions](../react/Internal/type-aliases/MemoryRetainOptions.md)
+
+***
+
+### MemoryStore
+
+Re-exports [MemoryStore](../react/Internal/interfaces/MemoryStore.md)
+
+***
+
+### MemorySubscribeOptions
+
+Re-exports [MemorySubscribeOptions](../react/Internal/interfaces/MemorySubscribeOptions.md)
+
+***
+
 ### MemoryToVerify
 
 Re-exports [MemoryToVerify](../react/Internal/type-aliases/MemoryToVerify.md)
+
+***
+
+### MemoryUpdate
+
+Re-exports [MemoryUpdate](../react/Internal/type-aliases/MemoryUpdate.md)
 
 ***
 
@@ -1582,6 +1654,78 @@ Re-exports [relinkMemoryTopicsOp](../react/Internal/functions/relinkMemoryTopics
 
 ***
 
+### RemoteMemoryCandidateOptions
+
+Re-exports [RemoteMemoryCandidateOptions](../react/Internal/interfaces/RemoteMemoryCandidateOptions.md)
+
+***
+
+### RemoteMemoryDecodeFailure
+
+Re-exports [RemoteMemoryDecodeFailure](../react/Internal/interfaces/RemoteMemoryDecodeFailure.md)
+
+***
+
+### RemoteMemoryError
+
+Re-exports [RemoteMemoryError](../react/Internal/classes/RemoteMemoryError.md)
+
+***
+
+### RemoteMemoryListOptions
+
+Re-exports [RemoteMemoryListOptions](../react/Internal/interfaces/RemoteMemoryListOptions.md)
+
+***
+
+### RemoteMemoryPage
+
+Re-exports [RemoteMemoryPage](../react/Internal/interfaces/RemoteMemoryPage.md)
+
+***
+
+### RemoteMemoryPersistence
+
+Re-exports [RemoteMemoryPersistence](../react/Internal/interfaces/RemoteMemoryPersistence.md)
+
+***
+
+### RemoteMemoryPersistenceOptions
+
+Re-exports [RemoteMemoryPersistenceOptions](../react/Internal/interfaces/RemoteMemoryPersistenceOptions.md)
+
+***
+
+### RemoteMemoryPipeline
+
+Re-exports [RemoteMemoryPipeline](../react/Internal/interfaces/RemoteMemoryPipeline.md)
+
+***
+
+### RemoteMemoryPipelineOptions
+
+Re-exports [RemoteMemoryPipelineOptions](../react/Internal/interfaces/RemoteMemoryPipelineOptions.md)
+
+***
+
+### RemoteMemoryReadFilters
+
+Re-exports [RemoteMemoryReadFilters](../react/Internal/interfaces/RemoteMemoryReadFilters.md)
+
+***
+
+### RemoteMemoryRecord
+
+Re-exports [RemoteMemoryRecord](../react/Internal/interfaces/RemoteMemoryRecord.md)
+
+***
+
+### RemoteMemoryRow
+
+Re-exports [RemoteMemoryRow](../react/Internal/interfaces/RemoteMemoryRow.md)
+
+***
+
 ### requestEncryptionKey
 
 Re-exports [requestEncryptionKey](../react/Internal/functions/requestEncryptionKey.md)
@@ -1897,6 +2041,12 @@ Re-exports [StreamResumeHandle](../react/Internal/type-aliases/StreamResumeHandl
 ### StreamSmoothingConfig
 
 Re-exports [StreamSmoothingConfig](../react/Internal/type-aliases/StreamSmoothingConfig.md)
+
+***
+
+### stripLegacyChunkTextOp
+
+Re-exports [stripLegacyChunkTextOp](../react/Internal/functions/stripLegacyChunkTextOp.md)
 
 ***
 

@@ -2,7 +2,7 @@
 
 > **handleGithubCallback**(`callbackPath`: `string`, `apiClient?`: `Client`, `walletAddress?`: `string`): `Promise`<`string` | `null`>
 
-Defined in: [src/lib/auth/github.ts:332](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/github.ts#332)
+Defined in: [src/lib/auth/github.ts:236](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/github.ts#236)
 
 Handle the OAuth callback - exchange code for tokens via backend
 

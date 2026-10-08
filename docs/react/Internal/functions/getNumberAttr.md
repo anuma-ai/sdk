@@ -2,7 +2,7 @@
 
 > **getNumberAttr**(`node`: [`AnumaNode`](../interfaces/AnumaNode.md), `name`: `string`): `number` | `undefined`
 
-Defined in: [src/tools/slides/jsx.ts:1192](https://github.com/anuma-ai/sdk/blob/main/src/tools/slides/jsx.ts#1192)
+Defined in: [src/tools/slides/jsx.ts:1039](https://github.com/anuma-ai/sdk/blob/main/src/tools/slides/jsx.ts#1039)
 
 Read a number attr, returning undefined if absent or wrong type.
 

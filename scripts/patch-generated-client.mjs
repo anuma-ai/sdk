@@ -3,22 +3,6 @@ import path from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 
-// The generated OpenAPI client ships with hard-coded type-safety escapes
-// that defeat compile-time checking on the streaming hot path, and wipes
-// `src/client/` on every `pnpm spec` run (so hand-written files there are lost).
-//
-// This script runs after generation and:
-//   1. Re-exports backwards-compat shims from `src/clientCompat.ts` via index.ts
-//   2. Replaces `yield data as any` in the SSE generator with a typed assertion
-//   3. Removes `@ts-expect-error` on the client request implementation
-//
-// Keep this script narrowly scoped: every patch is a literal string match (or a
-// small, intentional transform for index.ts) and fails loudly if the upstream
-// template changes shape, so a future update to `@hey-api/openapi-ts` cannot
-// silently reintroduce the escape.
-
-// `fileURLToPath` handles the Windows edge case where `new URL(...).pathname`
-// returns `/C:/...` with a leading slash, which would break path.resolve.
 const PROJECT_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 const CLIENT_COMPAT_REEXPORT = `
@@ -36,11 +20,6 @@ export type {
 } from '../clientCompat';
 `;
 
-/**
- * Generated type names that `src/clientCompat.ts` overrides, and which must
- * therefore be dropped from the `./types.gen` re-export so the named compat
- * export is not a duplicate. Keep in sync with CLIENT_COMPAT_REEXPORT above.
- */
 const OVERRIDDEN_GENERATED_TYPES = new Set([
   "LlmapiChatCompletionResponse",
   "LlmapiResponseResponse",
@@ -48,12 +27,6 @@ const OVERRIDDEN_GENERATED_TYPES = new Set([
 
 const CLIENT_COMPAT_MARKER = "from '../clientCompat'";
 
-/**
- * openapi-ts 0.87 used `export type *` / `export *`, which named re-exports can
- * shadow. 0.97 emits explicit named re-exports, so we must drop the conflicting
- * generated types (see OVERRIDDEN_GENERATED_TYPES) before appending the compat
- * export.
- */
 function patchClientIndex(absolute) {
   const original = readFileSync(absolute, "utf-8");
 
@@ -63,7 +36,6 @@ function patchClientIndex(absolute) {
 
   let next = original;
 
-  // Named-export style (openapi-ts 0.97+): remove the conflicting generated type.
   const namedTypesExport = /export type \{([\s\S]*?)\} from '\.\/types\.gen';/;
   if (namedTypesExport.test(next)) {
     next = next.replace(namedTypesExport, (_full, names) => {
@@ -85,7 +57,6 @@ function patchClientIndex(absolute) {
     return "failed";
   }
 
-  // Ensure a trailing newline before appending.
   if (!next.endsWith("\n")) {
     next += "\n";
   }
@@ -112,8 +83,6 @@ const patches = [
               }`,
   },
   {
-    // 0.97 dropped the second `@ts-expect-error` on `beforeRequest`; only the
-    // `Client['request']` annotation still needs stripping.
     file: "src/client/client/client.gen.ts",
     find: `  // @ts-expect-error
   const request: Client['request'] = async (options) => {`,
@@ -139,7 +108,6 @@ for (const patch of patches) {
   const original = readFileSync(absolute, "utf-8");
 
   if (original.includes(patch.replace)) {
-    // Already patched — idempotent no-op.
     continue;
   }
 
@@ -152,9 +120,6 @@ for (const patch of patches) {
     continue;
   }
 
-  // Use replaceAll so a future upstream template with the same snippet
-  // repeated would be fully patched instead of silently leaving the second
-  // occurrence in place.
   const patched = original.replaceAll(patch.find, patch.replace);
   writeFileSync(absolute, patched);
   console.log(`patch-generated-client: patched ${patch.file}`);

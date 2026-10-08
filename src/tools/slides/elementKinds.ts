@@ -47,18 +47,12 @@ const COMMON_GEOMETRY: Attr[] = [
   { name: "rotation", optional: true },
 ];
 
-/**
- * Geometry for elements that live inside a flex container — `x`/`y` are
- * computed by the parent, but `w`/`h` can still be set for fixed sizing,
- * plus `grow`/`shrink`/`alignSelf` for flex-specific control.
- */
 const FLEX_CHILD_ATTRS: Attr[] = [
   { name: "grow", optional: true },
   { name: "shrink", optional: true },
   { name: "alignSelf", value: `"start"|"center"|"end"|"stretch"`, optional: true },
 ];
 
-/** Attrs shared by container tags that support opting into flex layout. */
 const CONTAINER_LAYOUT_ATTRS: Attr[] = [
   { name: "layout", value: `"absolute"|"row"|"column"`, optional: true },
   { name: "gap", optional: true },
@@ -67,7 +61,6 @@ const CONTAINER_LAYOUT_ATTRS: Attr[] = [
   { name: "align", value: `"start"|"center"|"end"|"stretch"`, optional: true },
 ];
 
-/** Style attr rendered last on any tag that accepts it. */
 const STYLE_ATTR: Attr = { name: "style", optional: true };
 
 export const ELEMENT_KINDS: ElementKindSpec[] = [

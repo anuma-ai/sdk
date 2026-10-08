@@ -51,8 +51,6 @@ export function generateDocs(options: GenerateDocsOptions = {}): void {
     warnings++;
   }
 
-  // --- File and region helpers ---
-
   const fileCache = new Map<string, string[] | null>();
   function readLines(filePath: string): string[] | null {
     if (fileCache.has(filePath)) return fileCache.get(filePath)!;
@@ -104,8 +102,6 @@ export function generateDocs(options: GenerateDocsOptions = {}): void {
     return ext || "text";
   }
 
-  // --- Collect source files ---
-
   function collectFiles(dir: string, ext: string): string[] {
     const files: string[] = [];
     for (const entry of readdirSync(dir, { withFileTypes: true })) {
@@ -115,8 +111,6 @@ export function generateDocs(options: GenerateDocsOptions = {}): void {
     }
     return files;
   }
-
-  // --- Generate ---
 
   if (existsSync(outDir)) rmSync(outDir, { recursive: true });
 
@@ -157,13 +151,11 @@ export function generateDocs(options: GenerateDocsOptions = {}): void {
     writeFileSync(outFile, out.join("\n"));
   }
 
-  // Copy README into docs output.
   if (existsSync("README.md")) {
     mkdirSync(docsOut, { recursive: true });
     copyFileSync("README.md", join(docsOut, "index.md"));
   }
 
-  // Copy _meta.js navigation files.
   for (const src of collectFiles(srcDir, "_meta.js")) {
     const dest = join(outDir, src);
     mkdirSync(dirname(dest), { recursive: true });

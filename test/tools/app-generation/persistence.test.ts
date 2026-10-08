@@ -1,18 +1,6 @@
-/**
- * Tests that multi-file apps round-trip correctly through the
- * encode/decode pipeline:
- *
- *   encode: files -> JSON { _multiFile: '__memoryless_mf_v1__', files: { path: content } }
- *   decode: JSON -> parse -> detect marker -> extract files -> apply params
- *
- * These are pure unit tests — no LLM calls required.
- */
-
 import { describe, expect, it } from "vitest";
 
 const MARKER = "__memoryless_mf_v1__";
-
-// -- Encode (mirrors SaveToolDialog logic) ------------------------------------
 
 function encodeMultiFile(files: Record<string, string>): string {
   return JSON.stringify({ _multiFile: MARKER, files });
@@ -21,8 +9,6 @@ function encodeMultiFile(files: Record<string, string>): string {
 function encodeSingleFile(html: string): string {
   return html;
 }
-
-// -- Decode (mirrors useSavedTools logic) -------------------------------------
 
 function decodeHtml(
   rawHtml: string
@@ -40,8 +26,6 @@ function decodeHtml(
   }
   return { isMultiFile: false, html: rawHtml };
 }
-
-// -- Parameter substitution (mirrors useSavedTools applyParams) ---------------
 
 function applyParams(
   text: string,
@@ -61,8 +45,6 @@ function applyParams(
   }
   return result;
 }
-
-// -- Tests --------------------------------------------------------------------
 
 describe("multi-file persistence", () => {
   it("round-trips a multi-file app through encode/decode", () => {
@@ -119,7 +101,6 @@ describe("multi-file persistence", () => {
       const patchedJs = applyParams(decoded.files["App.js"]!, args, params);
       expect(patchedJs).toBe('const name = "Alice"; const age = 30;');
 
-      // CSS should be untouched (no params)
       const patchedCss = applyParams(decoded.files["App.css"]!, args, params);
       expect(patchedCss).toBe(".name { color: red; }");
     }
@@ -144,18 +125,15 @@ describe("multi-file persistence", () => {
   });
 
   it("preserves files after patch_file edits", () => {
-    // Simulate: create 3 files, patch App.css, re-encode, decode
     const original = {
       "package.json": '{"dependencies":{"react":"^18.2.0"}}',
       "App.js": 'export default function App() { return <div className="app">Hello</div>; }',
       "App.css": ".app { background: blue; color: white; }",
     };
 
-    // Simulate patch_file: change blue to green
     const patched = { ...original };
     patched["App.css"] = original["App.css"]!.replace("blue", "green");
 
-    // Re-encode (as SaveToolDialog would when saving after edits)
     const encoded = encodeMultiFile(patched);
     const decoded = decodeHtml(encoded);
 

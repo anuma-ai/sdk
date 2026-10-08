@@ -1,15 +1,3 @@
-/**
- * Ensemble strategy — exposes BOTH `memory_vault_search` (vault facts via
- * the unified recall API) AND `search_memory` (engine chunk retrieval) to
- * the answer LLM as separate tools. The model picks which to call per
- * query (`toolChoice: "required"` — it must call at least one).
- *
- * This mirrors what the production chat client does on main today
- * (apps/web/hooks/useChatSetup.tsx wires both tools per turn). Single-
- * strategy evals (vault, engine) under-measure the live experience because
- * they don't capture the LLM's per-question routing.
- */
-
 import { createConversationOp, createMessageOp } from "../../../../src/lib/db/chat/operations.js";
 import { chunkAndEmbedAllMessages } from "../../../../src/lib/memoryEngine/embeddings.js";
 import { createMemoryEngineTool } from "../../../../src/lib/memoryEngine/tool.js";
@@ -98,16 +86,12 @@ export async function processEntryEnsemble(
   }
 
   try {
-    // Vault side: extract → retain
     const allMemories: Array<{ sessionId: string; content: string }> = [];
     for (let i = 0; i < sessionIndices.length; i++) {
       const sIdx = sessionIndices[i];
       const session = entry.haystack_sessions[sIdx];
       const sessionId = entry.haystack_session_ids[sIdx];
       logProgress(`Extracting memories: ${i + 1}/${totalSessions} sessions`);
-      // Anchor relative-date resolution to the session's own date, not
-      // entry.question_date — collapsing all observations onto the
-      // question date was the 51%-of-misses temporal failure mode.
       const sessionDate = formatHaystackDateAsObservation(entry.haystack_dates[sIdx]);
       const extracted = await extractMemoriesFromSession(
         session,
@@ -123,7 +107,6 @@ export async function processEntryEnsemble(
     }
     clearProgress();
 
-    // Engine side: store messages → chunkAndEmbedAllMessages
     logProgress("Storing sessions as messages...");
     for (let i = 0; i < sessionIndices.length; i++) {
       const sIdx = sessionIndices[i];
@@ -158,7 +141,6 @@ export async function processEntryEnsemble(
       console.log(`  Embedded ${embeddedCount} messages (chat storage chunks)`);
     }
 
-    // Retain extracted facts into vault.
     const embeddingCache: VaultEmbeddingCache = new Map();
     if (allMemories.length > 0) {
       const answerSessionIdSet = new Set(entry.answer_session_ids);
@@ -188,8 +170,6 @@ export async function processEntryEnsemble(
       await preEmbedVaultMemories(vaultCtx, embeddingOptions, embeddingCache);
     }
 
-    // Build both tools, exactly as the chat client does in
-    // apps/web/hooks/useChatSetup.tsx (vault search + engine search).
     const rerankEnabled = searchPipeline?.rerank ?? true;
     const decomposeMode = searchPipeline?.decompose ?? "llm";
 
@@ -218,8 +198,6 @@ export async function processEntryEnsemble(
       }
     );
 
-    // Wrap vault executor so we can capture vault entry IDs from the result
-    // text (same pattern as memoryVaultStrategy).
     const vaultExecutor = vaultTool.executor!;
     vaultTool.executor = async (args: Record<string, unknown>) => {
       const text = await vaultExecutor(args);
@@ -254,8 +232,6 @@ You are a personal assistant with access to the user's past conversation history
       question: entry.question,
       expectedAnswer: entry.answer,
       llmModel: api.llmModel,
-      // Resolved effective extractor (`--extract-llm` or, when unset, the
-      // answer model) — lets --skip-existing detect extractor-only changes.
       extractionModel: api.extractionModel ?? api.llmModel,
       strategy: "memory-ensemble",
       messages: [...baseMessages],
@@ -363,8 +339,6 @@ You are a personal assistant with access to the user's past conversation history
       expectedSessionIds: entry.answer_session_ids,
     };
 
-    // Nothing to judge when the answer step produced nothing — grading the
-    // empty string would just relabel a broken call as a miss.
     let isCorrect = false;
     let judgeError: string | undefined;
     if (!answerError) {

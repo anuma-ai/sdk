@@ -1,23 +1,3 @@
-/**
- * Dropbox OAuth 2.0 Authorization Code Flow — **LEGACY (v1) MODULE**.
- *
- * As of the connector-vault rollout (`.claude-docs/connecters/DESIGN.md`),
- * Dropbox tokens live server-side on the portal. New code should use:
- *
- * ```ts
- * import { createConnectorTokenGetter } from "@anuma/sdk/tools";
- * const getToken = createConnectorTokenGetter(portalClient, "dropbox");
- * ```
- *
- * Dropbox migrates silently per the design (rotation-aware import via
- * POST /api/v1/connectors/import). The functions in this file remain
- * published with their original signatures so the backup pipeline keeps
- * compiling through the transition.
- *
- * TODO(connector-vault): collapse to a thin wrapper once the backup
- * pipeline migrates to the portal mint path.
- */
-
 import type { Client } from "../../../client/client";
 import {
   postAuthOauthByProviderExchange,
@@ -39,44 +19,30 @@ import {
 const PROVIDER = "dropbox";
 const STATE_STORAGE_KEY = "dropbox_oauth_state";
 
-// Dropbox OAuth endpoint
 const DROPBOX_AUTH_URL = "https://www.dropbox.com/oauth2/authorize";
 
-/**
- * Get the redirect URI for OAuth callback
- */
 function getRedirectUri(callbackPath: string): string {
   if (typeof window === "undefined") return "";
   return `${window.location.origin}${callbackPath}`;
 }
 
-/**
- * Generate a random state for CSRF protection
- */
 function generateState(): string {
   const array = new Uint8Array(16);
   crypto.getRandomValues(array);
   return Array.from(array, (byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
-/**
- * Store OAuth state for validation
- */
 function storeOAuthState(state: string): void {
   if (typeof window === "undefined") return;
   sessionStorage.setItem(STATE_STORAGE_KEY, state);
 }
 
-/**
- * Get and clear stored OAuth state
- */
 function getAndClearOAuthState(): string | null {
   if (typeof window === "undefined") return null;
   const stored = sessionStorage.getItem(STATE_STORAGE_KEY);
   sessionStorage.removeItem(STATE_STORAGE_KEY);
   if (!stored) return null;
 
-  // Handle both JSON format (from tests) and plain string format
   try {
     const parsed: unknown = JSON.parse(stored);
     if (parsed && typeof parsed === "object" && "state" in parsed) {
@@ -123,7 +89,6 @@ export async function handleDropboxCallback(
   const state = url.searchParams.get("state");
   const storedState = getAndClearOAuthState();
 
-  // Validate state to prevent CSRF
   if (!code || !state || state !== storedState) {
     return {
       ok: false,
@@ -154,7 +119,6 @@ export async function handleDropboxCallback(
       };
     }
 
-    // Store tokens
     const tokenData = tokenResponseToStoredData(
       response.data.access_token,
       response.data.expires_in,
@@ -165,7 +129,6 @@ export async function handleDropboxCallback(
     try {
       await storeTokenData(PROVIDER, tokenData, walletAddress);
     } catch (encryptionError) {
-      // Encryption failure - return error with details
       return {
         ok: false,
         error: {
@@ -177,7 +140,6 @@ export async function handleDropboxCallback(
       };
     }
 
-    // Clean up URL
     window.history.replaceState({}, "", window.location.pathname);
 
     return {
@@ -188,11 +150,9 @@ export async function handleDropboxCallback(
     const errorMessage = error instanceof Error ? error.message : String(error);
     const errorDetails = error instanceof Error ? `${error.name}: ${errorMessage}` : errorMessage;
 
-    // Log error with details
     getLogger().error(`OAuth callback error: ${errorDetails}`, error);
     getLogger().warn(`Failed to complete OAuth flow: ${errorMessage}`);
 
-    // Determine error code based on error type
     let errorCode: OAuthError["code"] = "unknown";
     if (error instanceof TypeError && error.message.includes("fetch")) {
       errorCode = "network";
@@ -211,9 +171,6 @@ export async function handleDropboxCallback(
   }
 }
 
-/**
- * Refresh the access token using the stored refresh token
- */
 async function refreshDropboxToken(
   apiClient?: Client,
   walletAddress?: string
@@ -232,7 +189,6 @@ async function refreshDropboxToken(
       throw new Error("No access token in refresh response");
     }
 
-    // Update stored tokens (refresh token may or may not be included)
     const currentData = await getStoredTokenData(PROVIDER, walletAddress);
     const tokenData = tokenResponseToStoredData(
       response.data.access_token,
@@ -244,8 +200,7 @@ async function refreshDropboxToken(
 
     return response.data.access_token;
   } catch {
-    // If refresh fails, clear stored data
-    clearTokenData(PROVIDER);
+    clearTokenData(PROVIDER, walletAddress);
     return null;
   }
 }
@@ -261,7 +216,6 @@ export async function revokeDropboxToken(
   if (!tokenData) return;
 
   try {
-    // Prefer revoking refresh token if available, otherwise access token
     const tokenToRevoke = tokenData.refreshToken ?? tokenData.accessToken;
     await postAuthOauthByProviderRevoke({
       client: apiClient,
@@ -271,7 +225,7 @@ export async function revokeDropboxToken(
   } catch {
     // Ignore errors on revocation
   } finally {
-    clearTokenData(PROVIDER);
+    clearTokenData(PROVIDER, walletAddress);
   }
 }
 
@@ -282,11 +236,9 @@ export async function getDropboxAccessToken(
   apiClient?: Client,
   walletAddress?: string
 ): Promise<string | null> {
-  // First check for a valid (non-expired) token
   const validToken = await getValidAccessToken(PROVIDER, walletAddress);
   if (validToken) return validToken;
 
-  // Try to refresh if we have a refresh token
   return refreshDropboxToken(apiClient, walletAddress);
 }
 
@@ -302,12 +254,11 @@ export async function startDropboxAuth(appKey: string, callbackPath: string): Pr
     redirect_uri: getRedirectUri(callbackPath),
     response_type: "code",
     state,
-    token_access_type: "offline", // Request refresh token
+    token_access_type: "offline",
   });
 
   window.location.href = `${DROPBOX_AUTH_URL}?${params.toString()}`;
 
-  // This will never resolve - page redirects
   return new Promise(() => {});
 }
 

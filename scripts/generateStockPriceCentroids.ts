@@ -1,13 +1,3 @@
-/**
- * One-time script to generate centroid vectors for the stock-price classifier.
- *
- * Embeds the reference phrases, averages each class into a single centroid,
- * and writes the result to src/lib/chat/stockPriceCentroids.ts.
- *
- * Usage:
- *   PORTAL_API_KEY=... npx tsx scripts/generateStockPriceCentroids.ts
- */
-
 import "dotenv/config";
 import { writeFileSync } from "fs";
 import { resolve } from "path";
@@ -18,7 +8,6 @@ import { averageVectors } from "./lib/centroids";
 import { GENERIC_NEGATIVE_PHRASES } from "./lib/genericNegatives";
 
 const STOCK_PRICE_PHRASES = [
-  // Direct stock price queries
   "What is the current Nvidia stock price",
   "How is Apple stock performing today",
   "Tesla stock price right now",
@@ -29,7 +18,6 @@ const STOCK_PRICE_PHRASES = [
   "How much is one share of NVDA worth",
   "Price of Berkshire Hathaway B shares",
 
-  // Indices
   "What is the S&P 500 at today",
   "Show me the Dow Jones right now",
   "How is the Nasdaq performing today",
@@ -37,14 +25,12 @@ const STOCK_PRICE_PHRASES = [
   "Nikkei 225 today",
   "Hang Seng index close",
 
-  // ETFs / mutual funds
   "What's the SPY ETF price",
   "QQQ price right now",
   "VOO performance today",
   "GLD gold ETF price",
   "USO oil ETF price",
 
-  // FX / currency pairs
   "USD to EUR exchange rate",
   "How much is one British pound in dollars",
   "JPY to USD rate today",
@@ -52,7 +38,6 @@ const STOCK_PRICE_PHRASES = [
   "What is the AUD to CAD rate",
   "Convert 1000 USD to JPY",
 
-  // Quotes / market data
   "What's the 52-week high for AAPL",
   "Show me Tesla's market cap",
   "P/E ratio of NVDA",
@@ -60,13 +45,11 @@ const STOCK_PRICE_PHRASES = [
   "What is Apple's earnings per share",
   "Quarterly earnings report for Amazon",
 
-  // Commodities (Twelve Data covers via XAU/USD-style symbols)
   "What is the price of gold today",
   "Spot price of silver",
   "Oil price right now",
   "How much is platinum per ounce",
 
-  // Conversational stock queries
   "Is Nvidia up or down today",
   "How did Tesla close yesterday",
   "Top movers in the S&P 500",
@@ -75,8 +58,6 @@ const STOCK_PRICE_PHRASES = [
 ];
 
 const NO_STOCK_PRICE_PHRASES = [
-  // Crypto queries — must NOT trigger stock classifier (covered by cryptoPrice)
-  // (Many examples mirroring the stock YES corpus structure with crypto tickers)
   "What is the current price of Bitcoin",
   "How much is Ethereum worth right now",
   "Show me the ZETA token price",
@@ -106,7 +87,6 @@ const NO_STOCK_PRICE_PHRASES = [
   "DeFi token prices",
   "Memecoin prices today",
 
-  // Stock/finance adjacent but NOT price
   "Explain how the stock market works",
   "What is a P/E ratio",
   "How do stock options work",
@@ -117,32 +97,22 @@ const NO_STOCK_PRICE_PHRASES = [
   "What does an IPO process look like",
   "Why did the 2008 financial crisis happen",
 
-  // Generic out-of-domain negatives shared with other classifiers.
   ...GENERIC_NEGATIVE_PHRASES,
 
-  // Other current-data web searches
   "What did Elon Musk tweet about today",
   "Who won the Super Bowl this year",
   "What is the weather in Tokyo tomorrow",
   "Find Italian restaurants near me",
 
-  // Sports standings / rankings — "current X standings" pattern was firing
-  // stockPrice (financial-data vocabulary collision).
   "What are the current NBA playoff standings",
   "Latest baseball rankings",
   "Current standings in the Premier League",
   "Who is leading the Tour de France",
 
-  // Public-company name + current-data, but NOT a quote — store hours,
-  // not stock price.
   "What time does Costco close today",
   "Is Target open right now",
   "Walmart store hours today",
 
-  // Ticker / symbol LOOKUP (not a quote) — needs to fall through to
-  // webSearch / general LLM, not the price classifier. Boundary case
-  // enforced by promptRouting's mustNotTrigger guard on the AAPL phrasing,
-  // so anchor the lookup intent hard.
   "Find ticker symbol for Apple",
   "What ticker symbol does Tesla trade under",
   "How do I look up a stock ticker",

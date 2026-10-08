@@ -85,13 +85,10 @@ describe("scoreProfileSalience", () => {
       },
       NOW
     );
-    // Both new + proofCount=1 → same proof/trend; other has explicit 1.0 weight.
     expect(untyped).toBeCloseTo(other, 5);
   });
 
   it("is neutral on proofCount=1 relative to the log curve baseline", () => {
-    // type=1, trend=stable (age>30, quiet<30 impossible with age 40 + lastObs 5 → strengthening
-    // if proofs>=2). Use proofs=1, age>30, last within 30 → stable.
     const score = scoreProfileSalience(
       {
         id: "a",
@@ -102,7 +99,6 @@ describe("scoreProfileSalience", () => {
       },
       NOW
     );
-    // 1.0 * (1 + α*log2 - α*log2) * 1.0 = 1.0
     expect(score).toBeCloseTo(1, 5);
     expect(DEFAULT_PROFILE_PROOF_ALPHA).toBe(0.2);
   });

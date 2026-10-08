@@ -1,23 +1,3 @@
-/**
- * Reflect — agentic answer synthesis grounded in memory.
- *
- * The third leg of the recall / retain / reflect trio (Hindsight surface).
- *
- *   recall(query)  → ranked list of memories
- *   retain(fact)   → store/merge a fact
- *   reflect(query) → grounded answer using memories as evidence
- *
- * Today: single-shot "retrieve then answer" — calls recall() to fetch
- * top-K relevant memories, builds a system prompt that includes them as
- * citable evidence, then asks the LLM to synthesize a grounded answer.
- * Returns the text plus the IDs of memories the answer was based on.
- *
- * Future: multi-step agentic loop (the model can request more recall
- * passes mid-reasoning), structured output via JSON schema, disposition
- * traits applied to the system prompt. The function shape is fixed now
- * so callers don't churn when those land.
- */
-
 import { BASE_URL } from "../../clientConfig.js";
 import { getLogger } from "../logger.js";
 import { type TaskType, taskTypeHeader } from "../taskType.js";
@@ -32,48 +12,15 @@ import {
 import { recall } from "./recall.js";
 import type { RankedMemory, RecallContext, RecallOptions } from "./types.js";
 
-/** Fallback portal URL — shared with the rest of the SDK via
- * `clientConfig.BASE_URL`, which already resolves the standard
- * `API_URL` / `NEXT_PUBLIC_API_URL` / `EXPO_PUBLIC_API_URL` env vars
- * across Node, browser, RN, and edge runtimes. */
 const DEFAULT_BASE_URL = BASE_URL;
 const DEFAULT_MODEL = "anthropic/claude-sonnet-4-6";
 const DEFAULT_MAX_TOKENS = 4096;
 const REQUEST_TIMEOUT_MS = 60_000;
 
-/**
- * Minimum clock left on the shared deadline before the schema fallback retry is
- * worth issuing. A request that cannot plausibly finish is pure cost — it bills
- * a portal call and then aborts mid-flight.
- */
 const MIN_RETRY_BUDGET_MS = 2_000;
 
-/**
- * Floor for the output cap on the Responses transport.
- *
- * That transport exists for reasoning models, and reasoning tokens are billed
- * as OUTPUT — they come out of the same cap the answer does. A caller cap tuned
- * for a chat model (profile synthesis passes 512) can be spent entirely on
- * reasoning, which returns a 200 carrying no message text: a success that looks
- * exactly like "the model had nothing to say". Raise the floor rather than
- * rewrite every caller, and leave caps ABOVE the floor untouched.
- */
 const MIN_RESPONSES_OUTPUT_TOKENS = 2_048;
 
-/**
- * Non-OK statuses where dropping `response_format` cannot be the fix, so the
- * schema fallback is NOT attempted.
- *
- * Auth (401/403) and routing (404) are configuration, not request shape.
- * Transient/rate (408/409/425/429) say nothing about the body, and a same-tick
- * retry makes the pressure worse. 413 is excluded because the fallback moves
- * the schema INTO the prompt, which makes the body larger, not smaller.
- *
- * Everything else non-OK — 400, 422, and the 5xx range — is treated as
- * possibly-schema-caused. 5xx is IN deliberately: the portal masks upstream
- * provider rejections behind its own generic error, so the status the SDK sees
- * is not necessarily the status the provider returned.
- */
 const SCHEMA_FALLBACK_SKIP_STATUSES = new Set([401, 403, 404, 408, 409, 413, 425, 429]);
 
 /**
@@ -86,35 +33,6 @@ type ReflectAttempt =
   | { kind: "http"; status: number; statusText: string }
   | { kind: "error" };
 
-/**
- * The grounding prompt for a reflect() call the caller did not override.
- *
- * ⚠ ITS FIRST SENTENCE IS THIS FLOW'S FINGERPRINT in the portal's freeloader (anti-bot)
- * detector — `detection.FingerprintReflect`, ai-portal `internal/detection/markers.go`. The
- * portal judges a request genuine from its RAW system text: user chat carries fragments of the
- * client's base chat prompt, and every other first-party flow carries its own verbatim string.
- * This prompt is neither, so without the pinned sentence a reflect() call on a free-tier token
- * reads as anonymous script traffic — a 403, not a downgrade, once
- * `PORTAL_DETECTION_REJECT_MARKERLESS` is on. The match is a plain case-sensitive substring, so
- * rewording the first sentence without the portal constant is what breaks it.
- *
- * Only the FIRST SENTENCE is the contract; the Rules block below is ordinary prompt copy and
- * free to change. `reflect.test.ts` pins this half, and the portal carries the matching warning
- * and its own assertion.
- *
- * Registered ahead of traffic, deliberately: no app calls the unoverridden reflect() today, so
- * the fingerprint costs nothing now and spares the first consumer the month of silent 403s the
- * Nearby image lane went through for exactly this reason.
- *
- * SCOPE — this covers the DEFAULT only. A caller passing {@link ReflectOptions.systemPrompt}
- * replaces it wholesale and owns its own provenance; profile-facet synthesis does that correctly
- * by wrapping its prompt in `withInternalFlowMarker`. A structured call appends the JSON-Schema
- * instruction as a TAIL (see `buildBody`), which keeps this a strict prefix and the match intact.
- *
- * NOT marked with {@link INTERNAL_FLOW_MARKER}, and that is the point: reflect() answers the
- * user's OWN question, so stamping it "not user chat" would be false on a genuine turn. Its own
- * fingerprint is the correct shape — see ../internalFlowMarker.ts and ReflectOptions.taskType.
- */
 const DEFAULT_SYSTEM_PROMPT = `You are a personal assistant with access to the user's memory. Answer the user's question using the supplied memories as evidence.
 
 Rules:
@@ -228,20 +146,6 @@ export async function reflect(
   };
   if (trimmed.length === 0) return empty;
 
-  // Stage 1: retrieve. `ReflectOptions extends RecallOptions`, so forward the
-  // options object — recall ignores the other reflect-only fields (llmModel,
-  // systemPrompt, …). Forwarding the set (rather than cherry-picking) avoids
-  // silently dropping `now` and the ranking knobs (recencyAlpha, rrfK, mmr, …),
-  // which back-dated eval harnesses and ablation sweeps rely on.
-  //
-  // EXCEPT `maxTokens`: it collides by name but not by meaning — on
-  // `ReflectOptions` it caps the answer LLM (`max_tokens`), while on
-  // `RecallOptions` it is a recall result-set token budget (reserved for W1).
-  // Forwarding it would wire an LLM response cap into recall's budget slot, so
-  // strip it here and let the LLM-side read `options.maxTokens` below.
-  //
-  // EXCEPT `memories`: when the caller already selected evidence (e.g. profile
-  // publish review), skip recall entirely and use that list.
   const { maxTokens: _llmMaxTokens, memories: providedMemories, ...recallOptions } = options;
   const recalledMemories =
     providedMemories !== undefined
@@ -256,12 +160,9 @@ export async function reflect(
   };
 
   if (recalledMemories.length === 0) {
-    // No evidence — return the empty answer rather than letting the LLM
-    // hallucinate. Callers can detect this via the empty memoryIds list.
     return baseResult;
   }
 
-  // Stage 2: synthesize. Format memories as a numbered citable list.
   const evidence = recalledMemories
     .map((m, i) => `[${i + 1}] (id: ${m.id}, kind: ${m.kind})\n${m.content}`)
     .join("\n\n");
@@ -269,32 +170,11 @@ export async function reflect(
   const baseUrl = options.baseUrl ?? DEFAULT_BASE_URL;
   const model = options.llmModel ?? DEFAULT_MODEL;
 
-  // `response_format: json_schema` is only honored by some providers; the
-  // default model is Anthropic, which ignores it. Gate the field the same way
-  // the rest of the memory pipeline gates `response_format` (see
-  // `supportsResponseFormat`). When a schema is requested but the model can't
-  // take the flag, fall back to a strict-JSON system-prompt instruction so the
-  // model still tries to emit parseable JSON instead of prose.
   const wantsStructured = !!options.responseSchema;
-  // reflect sends the `json_schema` variant specifically — gate on that subset
-  // (OpenAI structured outputs), not the broader json_object allowlist, so a
-  // model that takes json_object but not json_schema falls back to the
-  // prompt-instruction path instead of 400-ing.
-  // Some models are only reachable on the Responses transport — the chat lane
-  // rejects them at the provider, whatever the body looks like. That decides
-  // the endpoint AND the body shape below, and it forecloses `response_format`
-  // outright: the Responses API spells structured output differently
-  // (`text.format`) and this portal has never been verified on it, so a schema
-  // always rides in the system prompt there.
   const useResponsesTransport = requiresResponsesTransport(model);
   const sendResponseFormat =
     wantsStructured && !useResponsesTransport && supportsResponseFormat(model, "json_schema");
   const basePrompt = options.systemPrompt ?? DEFAULT_SYSTEM_PROMPT;
-  // The caller's extra instruction sits BETWEEN the question and the evidence:
-  // the evidence block has to stay the last thing in the turn (it is a numbered
-  // list the model cites back by index, and appending after it would read as a
-  // further entry), and putting it ahead of the question would bury the thing
-  // being answered. See ReflectOptions.userInstructions.
   const userMessage = [
     `Question:\n${trimmed}`,
     ...(options.userInstructions ? [options.userInstructions] : []),
@@ -303,19 +183,6 @@ export async function reflect(
   const maxTokens = options.maxTokens ?? DEFAULT_MAX_TOKENS;
   const fetchImpl = options.fetchFn ?? fetch;
 
-  /**
-   * The request body for one attempt. `useResponseFormat` is the ONLY axis that
-   * varies between the first attempt and the schema fallback, and it moves BOTH
-   * halves together: the schema rides either the `response_format` field or the
-   * system prompt, never both and never neither. Splitting them is how a retry
-   * that merely dropped the field would leave the model with no JSON
-   * instruction at all.
-   *
-   * The base prompt stays a strict PREFIX in the fallback shape. The portal
-   * matches internal task types (e.g. `memory_profile_synth`) with a substring
-   * check against the system message, so appending the schema as a tail keeps
-   * that match intact.
-   */
   const buildBody = (useResponseFormat: boolean): string => {
     const systemPrompt =
       wantsStructured && !useResponseFormat
@@ -330,19 +197,12 @@ export async function reflect(
     if (useResponsesTransport) {
       return JSON.stringify({
         model,
-        // Same system+user pair under the Responses-API field names: `input`
-        // for the turns, `max_output_tokens` for the cap. Sending the
-        // chat-completions spelling here is silently ignored, which caps the
-        // answer at the portal default.
         input: messages,
         max_output_tokens: Math.max(maxTokens, MIN_RESPONSES_OUTPUT_TOKENS),
       });
     }
     return JSON.stringify({
       model,
-      // Modern OpenAI field; the portal reads only `max_completion_tokens`
-      // (the deprecated `max_tokens` is silently ignored → falls back to the
-      // portal's default output cap and truncates the answer).
       max_completion_tokens: maxTokens,
       messages,
       ...(useResponseFormat && {
@@ -356,17 +216,9 @@ export async function reflect(
 
   const log = getLogger();
 
-  // Dual-auth resolution (apiKey → x-api-key, else getToken → Bearer).
-  // A failed token fetch degrades to the no-answer result like any other
-  // LLM failure; providing neither credential throws (wiring bug).
   const authHeaders = await resolvePortalAuthHeaders(options, "memory/reflect");
   if (authHeaders === null) return baseResult;
 
-  // ONE absolute end-to-end deadline for the whole call, INCLUDING the schema
-  // fallback retry. The controller is per-ATTEMPT (a retry cannot reuse the
-  // first attempt's — it may already be aborted and its timer cleared), but
-  // every timer is armed off `remaining()`, so two attempts share the single
-  // budget instead of getting one each.
   const deadline = Date.now() + REQUEST_TIMEOUT_MS;
   const remaining = () => Math.max(0, deadline - Date.now());
 
@@ -380,8 +232,6 @@ export async function reflect(
     try {
       response = await fetchImpl(`${baseUrl}${endpoint}`, {
         method: "POST",
-        // No task type unless the caller named one — an undeclared task adds no
-        // header at all, which is what keeps user-facing reflect() unlabelled.
         headers: {
           ...authHeaders,
           ...taskTypeHeader(options.taskType),
@@ -400,21 +250,12 @@ export async function reflect(
     }
     clearTimeout(timer);
 
-    // Reported, not logged: whether a non-OK is recoverable is the caller's
-    // decision, and logging here would emit two near-identical lines on a
-    // double rejection.
     if (!response.ok) {
       return { kind: "http", status: response.status, statusText: response.statusText };
     }
 
-    // Re-arm a fresh timer on THIS attempt's controller against the remaining
-    // slice of the shared deadline — covers slow body streaming without
-    // granting a new budget.
     const bodyTimer = setTimeout(() => controller.abort(), remaining());
     try {
-      // Annotated, not inferred: `Response.json()` is typed `any`, and letting
-      // that flow into `ReflectAttempt` both trips no-unsafe-assignment and
-      // silently disarms the shape checks in `parseAnswer`.
       const body: unknown = await response.json();
       clearTimeout(bodyTimer);
       return { kind: "ok", body };
@@ -430,19 +271,6 @@ export async function reflect(
   let attempt = await sendOnce(sendResponseFormat);
   let schemaFallbackUsed = false;
 
-  // The one recoverable failure: we asked for `response_format: json_schema`
-  // and the portal refused the whole request.
-  //
-  // The gate that let us send it is per-PROVIDER (`RESPONSE_SCHEMA_OK` holds
-  // "openai"), so a specific model under an allowed provider can still reject
-  // the field. The portal masks the provider's reason, so the SDK cannot tell a
-  // field rejection from a schema-keyword rejection from anything else — so
-  // don't diagnose: retry once with the schema moved into the system prompt.
-  // That is the request the SDK already sends to every model outside the
-  // allowlist, on a path with existing coverage (`extractJsonCandidate`
-  // tolerates the prose/fence wrapping it invites). Without it the caller gets
-  // a degraded-empty result, which synthesizeProfile can only answer by keeping
-  // a stale section.
   const budgetLeftMs = remaining();
   if (
     attempt.kind === "http" &&
@@ -466,7 +294,6 @@ export async function reflect(
     log.warn("[memory/reflect] portal returned non-OK", {
       status: attempt.status,
       statusText: attempt.statusText,
-      // Distinguishes "the fallback ran and still failed" from "never tried".
       schemaFallbackUsed,
     });
     return baseResult;
@@ -478,15 +305,8 @@ export async function reflect(
 function parseAnswer(body: unknown, base: ReflectResult, parseSchema: boolean): ReflectResult {
   if (typeof body !== "object" || body === null) return base;
   const obj = body as Record<string, unknown>;
-  // Shape-sniffing, shared with the rest of the memory pipeline: a Responses
-  // body carries the answer in `output_text` / `output[]` (interleaved with
-  // `type: "reasoning"` items that hold no text), a chat body in
-  // `choices[0].message.content`.
   const text = extractCompletionContent(obj) ?? "";
 
-  // The two transports spell usage differently — `prompt`/`completion` on chat,
-  // `input`/`output` on Responses. Reading only the chat names would report
-  // zeros for every Responses call and quietly break cost accounting.
   const usage = obj.usage as
     | {
         prompt_tokens?: number;
@@ -499,15 +319,9 @@ function parseAnswer(body: unknown, base: ReflectResult, parseSchema: boolean): 
 
   let structuredOutput: unknown;
   if (parseSchema && text) {
-    // Models that took `response_format` return clean JSON; models that fell
-    // back to the prompt instruction (Anthropic et al.) may wrap it in prose
-    // or a ```json fence — extract the JSON candidate before parsing, same as
-    // the rest of the pipeline.
     try {
       structuredOutput = JSON.parse(extractJsonCandidate(text));
     } catch (err) {
-      // Schema requested but model didn't return valid JSON — leave undefined,
-      // but surface it: a silent `undefined` is otherwise undiagnosable.
       getLogger().warn("[memory/reflect] structured output was not valid JSON", {
         err: err instanceof Error ? err.message : String(err),
       });
@@ -524,9 +338,6 @@ function parseAnswer(body: unknown, base: ReflectResult, parseSchema: boolean): 
     usage: {
       promptTokens,
       completionTokens,
-      // Derived when absent: the Responses API reports the two component counts
-      // and does not always send a total, which would otherwise report zero
-      // spend for a call that plainly cost something.
       totalTokens: usage?.total_tokens ?? promptTokens + completionTokens,
     },
   };

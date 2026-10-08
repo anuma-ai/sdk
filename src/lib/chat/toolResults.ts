@@ -1,23 +1,6 @@
-/**
- * The synthetic history row a turn's auto-executed tool results are persisted as, and how it is
- * replayed.
- *
- * Both storage entries write this row so a display tool's payload survives a reload and the app can
- * re-render the card from history (the clients' `parseDisplayResults` keys off the tool NAME inside
- * it). It lived inline in the react entry only, which is why the expo entry silently had no row at
- * all and every mobile card had to hand-roll one; sharing the format is what keeps the two from
- * drifting again.
- *
- * Replay is the other half. The row is stored as `role: "user"` (that is what lets a tool cycle's
- * context be rebuilt), so sending it back verbatim puts two consecutive user turns on the wire — and a
- * model handed that answers the PREVIOUS turn and swallows the new prompt. Web has always dropped
- * these rows client-side for exactly that reason, at the cost of the model forgetting what the tools
- * returned. `foldToolResultsRows` keeps both: the payload rides along on the preceding assistant
- * message, where it needs no turn of its own.
- */
-
 import type { MessageOrigin } from "../db/chat/types";
 import { capToolResultEntries, TOOL_RESULT_FOOTER_LINE } from "./toolResultMessage";
+import { wrapConnectorToolResult } from "./untrustedToolResult";
 
 /** Marker the clients match on to tell this row apart from a real user turn. */
 export const TOOL_RESULTS_PREFIX = "[Tool Execution Results]";
@@ -79,8 +62,6 @@ export const TOOL_RESULT_ORIGIN = "tool_result" satisfies MessageOrigin;
  */
 export function isToolResultsRow(row: ToolResultsRowLike): boolean {
   if (row.origin === TOOL_RESULT_ORIGIN) return true;
-  // An origin the SDK set to something else is a positive statement that this is NOT a tool-results
-  // row, so the shape guess must not override it.
   if (typeof row.origin === "string") return false;
   if (row.role !== "user" || !row.content.startsWith(TOOL_RESULTS_PREFIX)) return false;
   return parseToolResultSegments(row.content).length > 0;
@@ -171,11 +152,6 @@ export function foldToolResultsRows<T extends ToolResultsRowLike>(
 ): T[] {
   const exclude = new Set(options?.exclude ?? []);
   const out: T[] = [];
-  // Deferred to a second pass so the fold does not depend on the row landing after its assistant.
-  // History is sorted by `created_at`, which is NOT unique, and the assistant row and its tool-results
-  // row are written back to back — a tie can order the row first, and a position-only fold would then
-  // silently lose the tool output. Each entry keeps the durable link (`parentMessageId`) plus the
-  // positional fallback for a row written without one.
   const pending: { row: T; insertionPoint: number }[] = [];
   const assistantIndexById = new Map<string, number>();
 
@@ -190,14 +166,9 @@ export function foldToolResultsRows<T extends ToolResultsRowLike>(
     }
   }
 
-  // Grouped by target, because two rows can land on ONE assistant during the mobile transition — a
-  // legacy hand-rolled row and the new SDK row for the same turn. Appending each separately produced
-  // two `[Tool Execution Results]` blocks on the same message and double the payload.
   const byTarget = new Map<number, T[]>();
   for (const { row, insertionPoint } of pending) {
     const target = resolveFoldTarget(out, row, insertionPoint, assistantIndexById);
-    // Nothing to fold into (a corrupt thread, or a row whose assistant is outside the window): drop
-    // the row rather than send a bare user turn, which is the failure mode this function exists for.
     if (target === undefined) continue;
     const group = byTarget.get(target);
     if (group) group.push(row);
@@ -218,27 +189,6 @@ export function foldToolResultsRows<T extends ToolResultsRowLike>(
   return out;
 }
 
-/**
- * Which assistant message this row's payload belongs to, as an index into `out`.
- *
- * The durable link (`parentMessageId` → an assistant's `uniqueId`) settles it whenever it resolves,
- * which is every row this SDK writes. Everything below is for rows it did not write: the ones already
- * in users' databases, where mobile's `buildSlideDisplayMessage` chained to "the preceding message" and
- * so parented the row to the USER prompt, or to nothing at all.
- *
- * For those, the target is the NEAREST assistant in either direction, not a fixed direction. Neither
- * fixed order is correct:
- *
- * - Backwards-first breaks the legacy shape from turn two onward. `[u0, a0, u1, legacyRow, a1]` finds
- *   `a0` before it ever looks forward, so the deck's payload is attributed to the turn BEFORE the one
- *   that produced it, and the turn that did carries nothing. That is worse than the drop it replaced,
- *   and mobile — which owns the legacy rows — is exactly who opts into folding.
- * - Forwards-first breaks a parentless row that follows its assistant: `[a0, row, u1, a1]` would hand
- *   the payload to `a1`, a turn that had not happened yet.
- *
- * Distance settles both, and a tie goes backwards because the preceding assistant is the historical
- * meaning of these rows.
- */
 function resolveFoldTarget<T extends ToolResultsRowLike>(
   out: readonly T[],
   row: T,
@@ -280,13 +230,16 @@ function resolveFoldTarget<T extends ToolResultsRowLike>(
  */
 export const MAX_FOLDED_APPENDIX_CHARS = 20_000;
 
-/** The assistant's content with the kept tool entries appended as one capped block. */
 function appendToolResults(assistantContent: string, kept: readonly ToolResultSegment[]): string {
-  const framing = TOOL_RESULTS_PREFIX.length + 1 + (kept.length - 1);
+  const wrapperChars = kept.reduce(
+    (sum, segment) => sum + wrapConnectorToolResult(segment.name, "").length,
+    0
+  );
+  const framing = TOOL_RESULTS_PREFIX.length + 1 + (kept.length - 1) + wrapperChars;
   const capped = capToolResultEntries(
     kept.map((segment) => segment.line),
     MAX_FOLDED_APPENDIX_CHARS - framing
-  );
+  ).map((line, index) => wrapConnectorToolResult(kept[index].name, line));
   const appendix = `${TOOL_RESULTS_PREFIX}\n${capped.join("\n")}`;
   return assistantContent.trim() ? `${assistantContent}\n\n${appendix}` : appendix;
 }

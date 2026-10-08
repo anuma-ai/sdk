@@ -1,7 +1,3 @@
-/**
- * Smoke probe for extractFacts() against the live Anuma dev portal.
- * Run: PORTAL_API_KEY=... npx tsx scripts/probe-extract.ts
- */
 import "dotenv/config";
 
 import { extractFacts, type AutoExtractMessage } from "../src/lib/memory/autoExtract.js";

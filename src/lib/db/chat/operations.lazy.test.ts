@@ -24,11 +24,6 @@ const mockSignMessage = vi.fn(async (message: string) => {
   return `0x${Buffer.from(message).toString("hex").padStart(130, "0")}`;
 }) as unknown as SignMessageFn;
 
-/**
- * Build a raw `conversations` row in the snake_case `_raw` shape that
- * `unsafeFetchRaw` returns (the lazy ops now read raw columns, not Models).
- * Booleans are stored as WatermelonDB does at rest; timestamps as ms numbers.
- */
 function fakeRawConversation(overrides: Record<string, unknown> = {}): Record<string, unknown> {
   const now = 1_700_000_000_000;
   return {
@@ -44,19 +39,12 @@ function fakeRawConversation(overrides: Record<string, unknown> = {}): Record<st
   };
 }
 
-/**
- * Build a fake context with a stub conversationsCollection. The stub
- * captures the query call and serves the raw rows via `unsafeFetchRaw`
- * (matching the memoryVault op test pattern). Lets us test the lazy op
- * end-to-end without instantiating WatermelonDB.
- */
 function makeCtx(rows: Record<string, unknown>[]): {
   ctx: StorageOperationsContext;
   queryCalls: unknown[][];
 } {
   const queryCalls: unknown[][] = [];
   const ctx = {
-    // Other ctx fields are unused by the lazy ops.
     database: {} as never,
     messagesCollection: {} as never,
     conversationsCollection: {
@@ -111,9 +99,6 @@ describe("getConversationsLazyOp", () => {
       isDeleted: false,
     });
     expect(result[1].encryptedTitle).toBe(enc2);
-    // Critical: no `title` field on the lazy result. `LazyStoredConversation`
-    // omits `title` from the type, so this is a deliberate runtime peek — hence
-    // the trip through `unknown`.
     expect((result[0] as unknown as Record<string, unknown>).title).toBeUndefined();
   });
 
@@ -131,7 +116,6 @@ describe("getConversationsLazyOp", () => {
 
     expect(result).toHaveLength(1);
     expect(result[0].encryptedTitle).toBe(enc);
-    // Eager path would have called decrypt once per row.
     expect(decryptSpy).not.toHaveBeenCalled();
 
     decryptSpy.mockRestore();
@@ -159,8 +143,6 @@ describe("getConversationsLazyOp", () => {
 
     const [row] = await getConversationsLazyOp(ctx);
     expect(row.encryptedTitle).toBe("Legacy");
-    // decryptConversationTitle should pass plaintext through unchanged
-    // even without a key loaded — no eager decrypt happened anywhere.
     const result = await decryptConversationTitle(row.encryptedTitle, testAddress);
     expect(result).toBe("Legacy");
   });
@@ -243,9 +225,6 @@ describe("getConversationsByProjectLazyOp", () => {
 
     await getConversationsByProjectLazyOp(ctx, null);
 
-    // The first arg to `query` is `Q.where("project_id", "")` for null.
-    // We can't introspect the WatermelonDB Q result deeply here, but we
-    // can confirm a query was issued — i.e. the op didn't bail out.
     expect(queryCalls.length).toBe(1);
   });
 });

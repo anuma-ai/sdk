@@ -2,7 +2,7 @@
 
 > **isR2UrlExpired**(`sourceUrl`: `string`, `createdAt?`: `string` | `number` | `Date`): `boolean`
 
-Defined in: [src/lib/storage/r2Expiry.ts:35](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/r2Expiry.ts#35)
+Defined in: [src/lib/storage/r2Expiry.ts:30](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/r2Expiry.ts#30)
 
 Returns `true` if the given R2 presigned URL is expired.
 

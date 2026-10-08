@@ -1,23 +1,4 @@
 #!/usr/bin/env tsx
-/**
- * Diff two app-gen benchmark runs.
- *
- * Each benchmark in `test/tools/app-generation/` writes a `metrics.json`
- * to its `.output/{bench}/` directory and appends a copy to
- * `.output/{bench}/.history/`. This script renders a side-by-side diff
- * between two such runs so you can see how a prompt change, tool tweak,
- * or model swap shifted the numbers.
- *
- * Usage:
- *   pnpm tsx scripts/compare-app-gen-runs.ts <benchmark>
- *     # Compares the latest metrics.json against the previous run from
- *     # .output/<benchmark>/.history/.
- *
- *   pnpm tsx scripts/compare-app-gen-runs.ts <path/to/before.json> <path/to/after.json>
- *     # Compares two explicit metrics files.
- *
- * Exits non-zero when the benchmark or files can't be located.
- */
 
 import fs from "node:fs";
 import path from "node:path";
@@ -52,8 +33,6 @@ function resolveBenchmark(name: string): { before: RunRecord; after: RunRecord }
     .readdirSync(historyDir)
     .filter((f) => f.startsWith("run-") && f.endsWith(".json"))
     .sort();
-  // The newest history file is a copy of the latest run; we want the one
-  // before that.
   if (priors.length < 2) {
     console.error(
       `error: need at least two runs to compare; ${priors.length} found in ${path.relative(process.cwd(), historyDir)}`

@@ -1,22 +1,3 @@
-/**
- * Unified Recall API — single retrieval surface above vault + engine.
- *
- * Budget maps to pipeline depth (mirrors Hindsight's tiered defaults):
- * - `low`  → V2 cosine + BM25 + recency (no rerank)
- * - `mid`  → V2 + cross-encoder rerank
- * - `high` → V2 + rerank + multi-hop graph traversal
- *
- * LLM-free by design (719/B4): query decomposition for composite asks
- * lives in the tool/agent layer (`createRecallTool`), which may pass
- * pre-built `subQueries` into this API. `recall()` itself never pays an
- * LLM RTT.
- *
- * Fact + chunk lanes are fused with RRF (k=60). The previous naive
- * "sort the union by raw score" path is gone — score scales differ
- * across kinds (cosine cosine [0,1] vs reranked sigmoid) so a flat sort
- * was lying about relative relevance.
- */
-
 import { searchChunksOp } from "../db/chat/operations.js";
 import type { ChunkSearchResult } from "../db/chat/types.js";
 import { getMemoriesByEntityNamesOp } from "../db/entities/operations.js";
@@ -57,18 +38,12 @@ const DEFAULT_LIMIT = 8;
 const DEFAULT_BUDGET: Budget = "low";
 const DEFAULT_FACT_MIN_SCORE = 0.1;
 
-/** Monotonic wall clock in ms; `performance.now()` where available (browser /
- * RN / Node), else `Date.now()`. Used only for best-effort recall timings. */
-// A function DECLARATION, not a `const` arrow: declarations are initialized
-// when the module is instantiated, so a call that lands while this module is
-// still mid-evaluation (an import cycle) can't hit the TDZ.
 function nowMs(): number {
   return typeof performance !== "undefined" && typeof performance.now === "function"
     ? performance.now()
     : Date.now();
 }
 const DEFAULT_CHUNK_MIN_SCORE = 0.5;
-/** See {@link RecallOptions.queryEmbedTotalTimeoutMs}. */
 const DEFAULT_QUERY_EMBED_TOTAL_TIMEOUT_MS = 8_000;
 
 interface BudgetFlags {
@@ -94,23 +69,6 @@ function flagsForBudget(budget: Budget): BudgetFlags {
   }
 }
 
-/**
- * Keep the first occurrence, preserving order, dropping any item that repeats
- * a value under ANY of the supplied key functions. Recall results can repeat a
- * memory two ways: the same record surfaced from more than one internal lane
- * (cosine, BM25, entity, temporal) repeats an *id*, and separate vault rows
- * the extraction/consolidation pipeline saved for the same fact repeat the
- * *content* under different ids. Left unchecked a single fact occupies several
- * result slots — the single-lane path returns it N times (the reported bug:
- * the "drew on your memory" pill showing five identical rows) and the fused
- * path lets it contribute from multiple ranks, inflating its own RRF score.
- * Dedupe on both id and content at the source so every downstream path sees
- * each fact once.
- *
- * Empty-string keys never match and are never recorded, so a blank key — e.g.
- * a row whose content failed to decrypt and resolved to "" — can't collapse
- * two otherwise-distinct items into one (silent recall data loss).
- */
 function dedupeBy<T>(items: T[], ...keys: Array<(item: T) => string>): T[] {
   const seen = keys.map(() => new Set<string>());
   const out: T[] = [];
@@ -135,9 +93,6 @@ export async function recall(
   options: RecallOptions = {}
 ): Promise<RecallResult> {
   const requestedTypes: MemoryKind[] = options.types ?? ["fact"];
-  // `memoryIds` restricts facts before ranking; chunks have no equivalent
-  // membership filter, so the chunk lane is dropped rather than allowed to
-  // escape the scope. Recorded so the caller can tell that from an empty vault.
   const chunksScopeRestricted = options.memoryIds !== undefined && requestedTypes.includes("chunk");
   const types: MemoryKind[] =
     options.memoryIds !== undefined
@@ -146,14 +101,9 @@ export async function recall(
   const limit = options.limit ?? DEFAULT_LIMIT;
   const usedBudget = options.budget ?? DEFAULT_BUDGET;
   const flags = flagsForBudget(usedBudget);
-  // Composite facets from the tool/agent layer (719/B4). Normalize
-  // (trim / dedupe / cap at 5) then require ≥2 so a single leftover string
-  // (specific-mode's `[original]`) stays on the single-query path.
   const normalizedFacets = normalizeSubQueries(options.subQueries);
   const subQueries = normalizedFacets.length >= 2 ? normalizedFacets : undefined;
 
-  // Best-effort observability state (D2). Populated as phases run; flushed to
-  // options.onDiagnostics just before every return.
   const t0 = nowMs();
   let prepMs = 0;
   let factLaneMs = 0;
@@ -162,76 +112,28 @@ export async function recall(
   const factResults: VaultSearchResult[] = [];
   const chunkResults: ChunkSearchResult[] = [];
   let vaultSize: number | undefined;
-  // Whether the cross-encoder actually reranked this call's fact lane —
-  // threaded from the search layer (not the requested budget flag, which lied
-  // on RN, and not a module-global, which couldn't see per-call degradation).
   let didRerank = false;
-  // The CE's share of `factLaneMs`. Zero unless the fact lane ran and reached
-  // the rerank stage — see RecallDiagnostics.timings.rerank.
   let rerankMs = 0;
-  // The query embed's share of `factLaneMs`, and the rows the lane had to
-  // re-embed. Both stay at their initial values unless the fact lane ran; the
-  // count is `undefined` until then so a chunk-only recall reports absence
-  // rather than a misleading 0 (same posture as `vaultRowsDecrypted`).
   let queryEmbedMs = 0;
   let vaultRowsEmbedded: number | undefined;
-  // Whether the V2 head (cosine/BM25 fusion before side lanes) was non-empty.
-  // Used to distinguish "CE skipped on empty head (lane-only hits)" from
-  // "CE failed on a non-empty head (actual outage)".
   let hadV2Head = false;
-  // Set when the vault search had no usable cosine lane and ranked on BM25 alone
-  // (see PreparedVaultCandidates.embeddingsUnavailable), or when the chunk lane —
-  // which is cosine-only, with no lexical equivalent — had to be skipped because
-  // its query embed failed. NOT set for a partial embedding failure that still
-  // leaves cosine running: this drives an outage alarm and a model-facing "only
-  // keyword matching ran" message, and both would be false in that case.
   let embeddingsUnavailable = false;
-  // The chunk lane's own query embed failed (threw, or returned an empty vector).
-  // Resolved into `embeddingsUnavailable` only once the fact lane's outcome is
-  // known — see the reconciliation after the fact lane below.
   let chunkEmbedFailed = false;
-  // Whether the fact lane actually ranked on a live cosine lane this call.
   let factLaneRankedOnCosine = false;
-  // Which vault read path the fact lane took, and what it cost — undefined until
-  // the lane runs, so a chunk-only recall reports absence rather than a
-  // misleading `false`/`0`. See RecallDiagnostics.decryptLast for why this is
-  // reported instead of echoed from the caller's option (#845).
   let decryptLastRan: boolean | undefined;
   let vaultRowsDecrypted: number | undefined;
-  // Side-lane sizes and failures. `safeLane` degrades a throwing auxiliary lane
-  // to an empty ranking, which used to be indistinguishable from "the lane ran
-  // and matched nothing" — the count says which, and the flag says it failed.
   let graphLaneCount = 0;
   let temporalLaneCount = 0;
   let graphLaneFailed = false;
   let temporalLaneFailed = false;
-  // Whether the `limit` slice actually dropped an eligible result. Recorded at
-  // the cut rather than derived from `candidateCount > limit`: in the fused path
-  // that count is pre-provenance-suppression, so a recall whose suppressed
-  // chunks brought it under the limit reported a truncation that never happened.
   let hitLimit = false;
-  // The floor each lane actually applied; -1 when that lane did not run. The
-  // two lanes have DIFFERENT defaults (0.1 fact / 0.5 chunk), so there is no
-  // one value to pre-seed: the fact default reported a threshold a chunk-only
-  // recall never applied, and reported one at all for an empty query or an
-  // unwired context. WHICH floor gets reported is decided at emit, from the
-  // lane that produced the scores — a lane can run and return nothing, and
-  // then it filtered none of the scores in the payload.
   let factFloor = -1;
   let chunkFloor = -1;
 
-  /**
-   * Why this call returned nothing, from the cheapest explanation to the most
-   * specific. Only ever consulted when `admitted` is empty.
-   */
   const emptyReasonFor = (admitted: number, laneRan: boolean): RecallEmptyReason => {
     if (admitted > 0) return "";
     if (!query || typeof query !== "string" || query.trim().length === 0) return "empty-query";
     if (!laneRan) return "no-lanes";
-    // Only when the vault was the ONLY thing that could have answered. On a
-    // mixed fact+chunk recall an empty vault does not explain the chunk lane
-    // coming back empty too, and reporting it would file a real retrieval miss
-    // under the "new user" bucket.
     const chunkLaneCouldAnswer = types.includes("chunk") && !!ctx.storageCtx;
     if (vaultSize === 0 && !chunkLaneCouldAnswer) return "vault-empty";
     return "no-candidates";
@@ -241,51 +143,21 @@ export async function recall(
     const cb = options.onDiagnostics;
     if (!cb) return;
     const degraded: RecallDegradation[] = [];
-    // Only a genuine degradation: rerank was requested AND there were fact
-    // candidates to rerank AND there was a V2 head (not just lane-only hits),
-    // yet the CE didn't run. The hadV2Head guard distinguishes "CE skipped
-    // because V2 head was empty (lane-only hits, by design)" from "CE failed
-    // on a non-empty head (actual outage)". Without it, lane-only entity/
-    // temporal recalls falsely report rerank-unavailable.
     if (flags.rerank && factResults.length > 0 && hadV2Head && !didRerank) {
       degraded.push("rerank-unavailable");
     }
-    // Pre-B4: `{ budget:'high', decomposeOptions }` rewrote inside recall().
-    // Post-B4 that shape still compiles (decomposeOptions is reused for
-    // graphRefine) but no longer decomposes — surface a breadcrumb so an
-    // un-updated caller does not see a healthier diagnostics payload while
-    // getting shallower composite retrieval. Skip when `graphRefine` is on:
-    // that path legitimately needs decomposeOptions for neighbor-LLM auth
-    // without implying a rewrite migration miss.
     if (usedBudget === "high" && options.decomposeOptions && !subQueries && !options.graphRefine) {
       degraded.push("decompose-moved");
     }
     if (embeddingsUnavailable) degraded.push("embeddings-unavailable");
-    // An auxiliary lane that threw still let recall return, so it is a soft
-    // degradation — but it silently removed an RRF signal from the ranking, and
-    // before this it was a log line with no counterpart in telemetry.
     if (graphLaneFailed) degraded.push("graph-lane-failed");
     if (temporalLaneFailed) degraded.push("temporal-lane-failed");
     if (chunksScopeRestricted) degraded.push("chunks-scope-restricted");
-    // `laneRan` is "some store was wired for the kinds asked for". False means
-    // the context could not serve this request at all, which is a different
-    // problem from finding nothing.
     const laneRan =
-      (types.includes("fact") && !!ctx.vaultCtx && !!ctx.vaultCache) ||
+      (types.includes("fact") && (!!ctx.factSource || (!!ctx.vaultCtx && !!ctx.vaultCache))) ||
       (types.includes("chunk") && !!ctx.storageCtx) ||
-      // The chunk lane was wired and deliberately dropped for the scope, which
-      // is not the "requested kinds have no store" wiring bug `no-lanes` means.
       (chunksScopeRestricted && !!ctx.storageCtx);
     const scores = admitted.map((m) => m.score);
-    // The floor the scores in THIS payload actually cleared. A lane that ran
-    // but returned nothing filtered none of them, so it must not claim the
-    // floor: on a mixed recall whose fact lane came back empty, every admitted
-    // memory is a chunk that cleared the CHUNK floor, and reporting the fact
-    // default (0.1) against scores filtered at 0.5 corrupts the telemetry.
-    // Facts first when they contributed — on a mixed recall their scores
-    // dominate the payload, so theirs is the floor worth reading them against.
-    // When nothing was admitted, the floor a lane DID apply is still the useful
-    // reading ("searched at 0.1, found nothing"); -1 only when neither ran.
     const minScoreApplied =
       factResults.length > 0
         ? factFloor
@@ -323,8 +195,6 @@ export async function recall(
       },
       degraded,
     };
-    // Diagnostics are pure observability — a throwing sink must never break
-    // retrieval.
     try {
       cb(diagnostics);
     } catch {
@@ -337,42 +207,17 @@ export async function recall(
     return { memories: [], usedBudget, reranked: false, candidateCount: 0 };
   }
 
-  // Embed once, share across stores: when the chunk lane needs a query vector
-  // it is computed here and handed to the vault search too (its
-  // `queryEmbedding` option), so a mixed recall pays one embedding round trip,
-  // not two. A fact-only recall leaves the embed to the vault search, which
-  // skips it entirely on an empty vault. Run in parallel with the side-lane
-  // builds since none of the three depends on the others.
-  //
-  // W5 graph lane: when the recall context carries an entityCtx, extract
-  // candidate entities from the query and look up memories that share any
-  // of them. RRF-fused alongside cosine + BM25 inside the vault search.
-  //
-  // W6 temporal lane: when the query has a temporal phrase ("next week",
-  // "what's coming up this month"), resolve to an absolute window and
-  // look up memories whose event_time overlaps.
   const needsChunkEmbedding = types.includes("chunk") && ctx.storageCtx;
-  const wantsTemporal = types.includes("fact") && ctx.vaultCtx;
-  // PR5 — optional LLM graph path-refinement, opt-in (default off) and only on
-  // the high-budget traverse path. Reuses the query-decompose auth. Falls back
-  // to deterministic co-occurrence order inside traverseGraphLane on any error.
+  const wantsTemporal = types.includes("fact") && (ctx.factSource || ctx.vaultCtx);
   const graphRefiner: NeighborRefiner | undefined =
     flags.traverse && options.graphRefine && options.decomposeOptions
       ? createLlmNeighborRefiner(options.decomposeOptions)
       : undefined;
-  // The query embed sits on the chat hot path, so it gets ONE budget across
-  // every attempt — the per-attempt deadline alone would let an outage stall
-  // each turn ~4 x timeoutMs before degrading.
   const queryEmbedTotalTimeoutMs =
     options.queryEmbedTotalTimeoutMs ?? DEFAULT_QUERY_EMBED_TOTAL_TIMEOUT_MS;
   const prepStart = nowMs();
-  // Wall-clock of the shared query embed above; stays 0 when it did not run.
   let sharedEmbedMs = 0;
   const [queryEmbedding, entityRanking, temporalRanking] = await Promise.all([
-    // The chunk lane is cosine-only — `searchChunksOp` needs a real vector, and
-    // there is no lexical fallback for it — so an embeddings outage must SKIP the
-    // lane, not reject this shared Promise.all and take the primary fact lane
-    // (which BM25 can still serve) down with it. Mirrors safeLane's posture.
     needsChunkEmbedding
       ? generateEmbedding(query, {
           ...ctx.embeddingOptions,
@@ -382,9 +227,6 @@ export async function recall(
             sharedEmbedMs = nowMs() - prepStart;
           })
           .then((vec) => {
-            // An empty vector is as dead as a throw here: `searchChunksOp` would
-            // run a cosine pass that can only score 0. Empty arrays are truthy,
-            // so this must be normalized to undefined or the lane still runs.
             if (vec.length === 0) {
               getLogger().warn(
                 "[memory/recall] chunk-lane query embedding came back empty; skipping the chunk lane"
@@ -404,27 +246,28 @@ export async function recall(
             return undefined;
           })
       : Promise.resolve(undefined),
-    // The graph + temporal lanes are AUXILIARY (RRF side-signals). A transient
-    // WatermelonDB throw in either must NOT reject this Promise.all and take
-    // PRIMARY cosine/BM25 recall down with it — degrade the failing lane to an
-    // empty ranking instead (mirrors safeCountVault's fail-soft posture).
     safeLane(
       "graph",
       () => (graphLaneFailed = true),
       () =>
-        buildGraphLaneRanking(query, ctx, flags.traverse, {
-          ...(options.maxHops !== undefined && { maxHops: options.maxHops }),
-          ...(options.entityFanout !== undefined && { entityFanout: options.entityFanout }),
-          ...(options.nodeBudget !== undefined && { nodeBudget: options.nodeBudget }),
-          ...(options.rrfK !== undefined && { rrfK: options.rrfK }),
-          ...(graphRefiner && { refineNeighbors: graphRefiner }),
-        })
+        ctx.factSource
+          ? ctx.factSource.graphRanking(query, flags.traverse, options)
+          : buildGraphLaneRanking(query, ctx, flags.traverse, {
+              ...(options.maxHops !== undefined && { maxHops: options.maxHops }),
+              ...(options.entityFanout !== undefined && { entityFanout: options.entityFanout }),
+              ...(options.nodeBudget !== undefined && { nodeBudget: options.nodeBudget }),
+              ...(options.rrfK !== undefined && { rrfK: options.rrfK }),
+              ...(graphRefiner && { refineNeighbors: graphRefiner }),
+            })
     ),
     wantsTemporal
       ? safeLane(
           "temporal",
           () => (temporalLaneFailed = true),
-          () => buildTemporalLaneRanking(query, ctx.vaultCtx!, options.now)
+          () =>
+            ctx.factSource
+              ? ctx.factSource.temporalRanking(query, options.now)
+              : buildTemporalLaneRanking(query, ctx.vaultCtx!, options.now)
         )
       : Promise.resolve([] as string[]),
   ]);
@@ -432,7 +275,7 @@ export async function recall(
   graphLaneCount = entityRanking.length;
   temporalLaneCount = temporalRanking.length;
 
-  if (types.includes("fact") && ctx.vaultCtx && ctx.vaultCache) {
+  if (types.includes("fact") && (ctx.factSource || (ctx.vaultCtx && ctx.vaultCache))) {
     const factStart = nowMs();
     const vaultMinScore = options.minScore ?? DEFAULT_FACT_MIN_SCORE;
     factFloor = vaultMinScore;
@@ -448,58 +291,54 @@ export async function recall(
       rankedOnCosine: factRankedOnCosine,
       decryptLast: factDecryptLast,
       rowsDecrypted: factRowsDecrypted,
-    } = await searchVaultMemoriesWithSize(
-      query,
-      ctx.vaultCtx,
-      ctx.embeddingOptions,
-      ctx.vaultCache,
-      {
-        // Pull a wider candidate pool when fusing across lanes so RRF has
-        // enough overlap to reorder; otherwise we'd cap at `limit` per lane
-        // and lose tail signal.
-        limit: types.includes("chunk") ? Math.max(limit * 2, 16) : limit,
-        minSimilarity: vaultMinScore,
-        useFusion: true,
-        rerank: flags.rerank,
-        // Ranking tuning knobs — forwarded only when set so the vault
-        // pipeline's own defaults stay authoritative.
-        ...(options.rerankTopN !== undefined && { rerankTopN: options.rerankTopN }),
-        ...(options.ceWeight !== undefined && { ceWeight: options.ceWeight }),
-        ...(options.rerankLoadTimeoutMs !== undefined && {
-          rerankLoadTimeoutMs: options.rerankLoadTimeoutMs,
-        }),
-        ...(options.recencyAlpha !== undefined && { recencyAlpha: options.recencyAlpha }),
-        ...(options.recency && { recency: options.recency }),
-        ...(options.mmr !== undefined && { mmr: options.mmr }),
-        ...(options.supersessionBoost !== undefined && {
-          supersessionBoost: options.supersessionBoost,
-        }),
-        ...(options.supersessionWindow !== undefined && {
-          supersessionWindow: options.supersessionWindow,
-        }),
-        ...(options.proofCountAlpha !== undefined && {
-          proofCountAlpha: options.proofCountAlpha,
-        }),
-        ...(options.bm25AdmissionDivisor !== undefined && {
-          bm25AdmissionDivisor: options.bm25AdmissionDivisor,
-        }),
-        ...(options.rrfK !== undefined && { rrfK: options.rrfK }),
-        ...(options.decryptLast !== undefined && { decryptLast: options.decryptLast }),
-        // 719/B4 — composite facets arrive pre-built; no LLM call here.
-        ...(subQueries && { subQueries }),
-        ...(options.scopes && { scopes: options.scopes }),
-        ...(options.folderId !== undefined && { folderId: options.folderId }),
-        ...(options.factTypes?.length && { factTypes: options.factTypes }),
-        ...(options.memoryIds !== undefined && { memoryIds: options.memoryIds }),
-        ...(options.factTypeWeights && { factTypeWeights: options.factTypeWeights }),
-        ...(entityRanking.length > 0 && { entityRanking }),
-        ...(temporalRanking.length > 0 && { temporalRanking }),
-        // The shared embed from prep. `[]` when it failed, so the vault lane
-        // degrades to BM25 at once instead of re-trying the provider.
-        ...(needsChunkEmbedding && { queryEmbedding: queryEmbedding ?? [] }),
-        queryEmbedTotalTimeoutMs,
-      }
-    );
+    } = await (
+      ctx.factSource?.search.bind(ctx.factSource) ??
+      ((searchQuery, searchOptions) =>
+        searchVaultMemoriesWithSize(
+          searchQuery,
+          ctx.vaultCtx!,
+          ctx.embeddingOptions,
+          ctx.vaultCache!,
+          searchOptions
+        ))
+    )(query, {
+      limit: types.includes("chunk") ? Math.max(limit * 2, 16) : limit,
+      minSimilarity: vaultMinScore,
+      useFusion: true,
+      rerank: flags.rerank,
+      ...(options.rerankTopN !== undefined && { rerankTopN: options.rerankTopN }),
+      ...(options.ceWeight !== undefined && { ceWeight: options.ceWeight }),
+      ...(options.rerankLoadTimeoutMs !== undefined && {
+        rerankLoadTimeoutMs: options.rerankLoadTimeoutMs,
+      }),
+      ...(options.recencyAlpha !== undefined && { recencyAlpha: options.recencyAlpha }),
+      ...(options.recency && { recency: options.recency }),
+      ...(options.mmr !== undefined && { mmr: options.mmr }),
+      ...(options.supersessionBoost !== undefined && {
+        supersessionBoost: options.supersessionBoost,
+      }),
+      ...(options.supersessionWindow !== undefined && {
+        supersessionWindow: options.supersessionWindow,
+      }),
+      ...(options.proofCountAlpha !== undefined && {
+        proofCountAlpha: options.proofCountAlpha,
+      }),
+      ...(options.bm25AdmissionDivisor !== undefined && {
+        bm25AdmissionDivisor: options.bm25AdmissionDivisor,
+      }),
+      ...(options.rrfK !== undefined && { rrfK: options.rrfK }),
+      ...(options.decryptLast !== undefined && { decryptLast: options.decryptLast }),
+      ...(subQueries && { subQueries }),
+      ...(options.scopes && { scopes: options.scopes }),
+      ...(options.folderId !== undefined && { folderId: options.folderId }),
+      ...(options.factTypes?.length && { factTypes: options.factTypes }),
+      ...(options.memoryIds !== undefined && { memoryIds: options.memoryIds }),
+      ...(options.factTypeWeights && { factTypeWeights: options.factTypeWeights }),
+      ...(entityRanking.length > 0 && { entityRanking }),
+      ...(temporalRanking.length > 0 && { temporalRanking }),
+      ...(needsChunkEmbedding && { queryEmbedding: queryEmbedding ?? [] }),
+      queryEmbedTotalTimeoutMs,
+    });
     factResults.push(
       ...dedupeBy(
         results,
@@ -510,31 +349,16 @@ export async function recall(
     vaultSize = size;
     didRerank = reranked;
     rerankMs = factRerankMs;
-    // With a shared embed the vault lane embedded nothing itself (0), and the
-    // real cost is the prep-time embed — see RecallDiagnostics.timings.queryEmbed.
     queryEmbedMs = needsChunkEmbedding ? sharedEmbedMs : factQueryEmbedMs;
     vaultRowsEmbedded = factRowsEmbedded;
     hadV2Head = v2Head;
     if (factEmbeddingsUnavailable) embeddingsUnavailable = true;
-    // Read the lane's own answer rather than inverting `embeddingsUnavailable`:
-    // an empty vault (or one whose rows are all undecryptable) reports no outage
-    // without ever running a cosine pass, and inverting it there let the fact
-    // lane vouch for semantic ranking it never did — silencing the chunk-lane
-    // reconciliation below for exactly the users most likely to hit it (chunks
-    // saved, no facts yet).
     factLaneRankedOnCosine = factRankedOnCosine;
     decryptLastRan = factDecryptLast;
     vaultRowsDecrypted = factRowsDecrypted;
     factLaneMs = nowMs() - factStart;
   }
 
-  // Reconcile the chunk lane's embed failure against what the fact lane actually
-  // did. Losing the chunk lane drops results outright (it is cosine-only, with no
-  // lexical equivalent), but that is a WHOLE-provider outage only when the fact
-  // lane didn't rank on cosine either — on a chunk-only recall there is no fact
-  // lane to save it, and when both degraded it is a genuine outage. If the fact
-  // lane ran a live cosine pass, reporting one would be the same false signal this
-  // PR removed from the composite fall-through: semantic ranking did run.
   if (chunkEmbedFailed && !factLaneRankedOnCosine) embeddingsUnavailable = true;
 
   if (types.includes("chunk") && ctx.storageCtx && queryEmbedding) {
@@ -546,9 +370,6 @@ export async function recall(
       minSimilarity: chunkMinScore,
       embeddingModel: ctx.embeddingOptions.model ?? DEFAULT_API_EMBEDDING_MODEL,
       ...(options.conversationId && { conversationId: options.conversationId }),
-      // Excluded inside the scan, before scoring and the top-K cut — filtering
-      // the returned slice instead let the current conversation fill every
-      // slot, so a long chat recalled nothing from past conversations.
       ...(options.excludeConversationId && {
         excludeConversationId: options.excludeConversationId,
       }),
@@ -560,9 +381,6 @@ export async function recall(
 
   const fuseStart = nowMs();
 
-  // Fuse across lanes. Single-lane requests skip RRF — preserves the raw
-  // score on the result so callers downstream of `recall()` can reason
-  // about cosine-vs-cosine ordering directly.
   if (types.length === 1 || factResults.length === 0 || chunkResults.length === 0) {
     const memories: RankedMemory[] = [
       ...factResults.map((r) => toFactMemory(r, options.now)),
@@ -583,16 +401,7 @@ export async function recall(
     };
   }
 
-  // Fusion key must be PASSAGE-unique, not message-unique: one message can
-  // split into several distinct chunks, and keying by message id alone makes
-  // their ranking entries collide and the byId map overwrite all but the last
-  // — silently dropping legitimate hits and undercounting candidateCount. Key
-  // by message id + text so passages from one message stay separate through
-  // fusion. (chunkResults is already content-deduped, so this is 1:1.)
   const chunkKey = (r: ChunkSearchResult) => `chunk:${r.message.uniqueId}:${r.chunkText.trim()}`;
-  // Fuse both lanes at full width — no chunk is pre-dropped. Cross-lane
-  // dedup runs post-fusion (below) so a fact's provenance only suppresses
-  // its origin chunk when that fact actually surfaces.
   const factRanking = factResults.map((r) => `fact:${r.uniqueId}`);
   const chunkRanking = chunkResults.map(chunkKey);
   const fused = rrfFuse([factRanking, chunkRanking], options.rrfK);
@@ -614,19 +423,6 @@ export async function recall(
     byId.set(key, m);
   }
 
-  // Cross-lane dedup: a fact and the chunk it was extracted from must not both
-  // appear. Suppress a chunk whenever a fact that SURFACES was extracted from
-  // its message — regardless of which one scores higher (a chunk that outranks
-  // its own fact must still yield to it). Two constraints pull against each
-  // other: the chunk-outranks-fact case needs the fact to win anyway (so
-  // suppression can't just run in score order), yet a fact that never makes
-  // the cut must not remove its chunk.
-  //
-  // Both hold at the least fixpoint of the suppressed-chunk set. Removing a
-  // chunk only frees a slot (it never evicts a fact), so as the suppressed set
-  // grows the set of surviving facts — and thus their provenance — grows
-  // monotonically and converges. Start from "nothing suppressed" and iterate
-  // provenance(survivors) until stable; in practice this settles in 1–2 rounds.
   const ordered = [...byId.values()].sort((a, b) => b.score - a.score);
   const selectWith = (suppressed: Set<string>): { out: RankedMemory[]; cut: boolean } => {
     const out: RankedMemory[] = [];
@@ -634,9 +430,6 @@ export async function recall(
     for (const m of ordered) {
       if (m.kind === "chunk" && m.messageId && suppressed.has(m.messageId)) continue;
       if (out.length >= limit) {
-        // An ELIGIBLE result we had no room for — the only honest definition of
-        // truncation here. Checked after the suppression filter so a suppressed
-        // chunk never counts as something the limit cut.
         cut = true;
         break;
       }
@@ -680,23 +473,14 @@ function toFactMemory(r: VaultSearchResult, now?: number): RankedMemory {
   return {
     id: r.uniqueId,
     kind: "fact",
-    // event_time anchors come directly from VaultSearchResult — the
-    // ranker passes them through from the storage row, so the recall
-    // executor can surface dates to the answer model without a second
-    // DB read + decrypt per returned fact. Undefined when the fact has
-    // no anchored time.
     ...(r.eventTimeStart !== undefined && { eventTimeStart: r.eventTimeStart }),
     ...(r.eventTimeEnd !== undefined && { eventTimeEnd: r.eventTimeEnd }),
     ...(r.eventTimeKind !== undefined && { eventTimeKind: r.eventTimeKind }),
-    // Typed memory (PR1) — surfaced from VaultSearchResult so recall results
-    // (and UI reading them) carry the fact's type. Undefined when untyped.
     ...(r.factType !== undefined && { factType: r.factType }),
     ...(r.sourceChunkIds !== undefined &&
       r.sourceChunkIds !== null && { sourceChunkIds: r.sourceChunkIds }),
     ...(proofCount !== undefined && proofCount !== null && { proofCount }),
     ...(lastObservedAt !== null && { lastObservedAt }),
-    // C2 — algorithmic trend from evidence timestamps (no LLM). Honor
-    // RecallOptions.now so back-dated eval harnesses get consistent labels.
     observationTrend: classifyObservationTrend(
       {
         createdAt,
@@ -705,11 +489,6 @@ function toFactMemory(r: VaultSearchResult, now?: number): RankedMemory {
       },
       now ?? Date.now()
     ),
-    // r.similarity from searchVaultMemoriesWithSize is the fused score
-    // (cosine + BM25 + RRF + recency + proof) when useFusion=true (the
-    // default) and pure cosine when useFusion=false. The breakdown
-    // labels it `fused` since that's the common case; callers wanting
-    // strictly-cosine should pass useFusion=false.
     content: r.content,
     score: r.similarity,
     scoreBreakdown: { fused: r.similarity },
@@ -718,40 +497,6 @@ function toFactMemory(r: VaultSearchResult, now?: number): RankedMemory {
   };
 }
 
-/**
- * W5 graph lane builder. Returns a ranking of memory IDs ordered by
- * entity-overlap score (descending) — caller passes this through to
- * the vault search as `entityRanking` for RRF fusion with cosine/BM25.
- *
- * Returns an empty array (not just empty ranking) when:
- *  - `ctx.entityCtx` is not provided
- *  - The query yields no entities — the strict capitalized pass is empty AND
- *    the lowercase fallback produced no candidates (a stopword-only query).
- *    Lowercase/dictated queries now DO reach this lane via that fallback;
- *    only a genuinely entity-free query short-circuits here.
- *  - No stored memories share any of the query's entities
- *
- * The ranking is by raw shared-count, not the tanh score — we hand off
- * just the order to RRF fusion. The tanh shaping happens inside
- * `rankByEntityOverlap` for callers that want the score directly.
- *
- * PR4/PR5: when `traverse` is true (high budget only), the lane runs a bounded
- * multi-hop BFS via {@link traverseGraphLane} instead of the single-hop lookup,
- * threading a cheap vault-size count so the density guard can cap hops on large
- * vaults. The PR5 default `MAX_HOPS = 2` performs one expansion beyond the seed
- * (capped back to seed-only above the density threshold). When `traverse` is
- * false the single-hop path below runs — low/mid budgets never pay the
- * vault-size count and never expand past the seed.
- *
- * Active filter (both paths): archived / quarantined ("forgotten") memory ids
- * are dropped before they enter the returned ranking — the multi-hop path
- * filters per hop (so inactive rows can't steer traversal), the single-hop path
- * filters the resolved seed ids. Both reuse the same decrypt-free indexed
- * active-id read ({@link getActiveVaultMemoryIdsOp}) and only engage when a
- * `vaultCtx` is present. Low/mid budgets thus pay one extra indexed id read
- * (no decrypt, no Model) so inactive ids don't occupy RRF rank slots that would
- * otherwise dilute active memories' graph-lane contribution.
- */
 async function buildGraphLaneRanking(
   query: string,
   ctx: RecallContext,
@@ -764,20 +509,10 @@ async function buildGraphLaneRanking(
     refineNeighbors?: NeighborRefiner;
   } = {}
 ): Promise<string[]> {
-  // Fall back to vaultCtx.entityCtx so callers don't have to thread the
-  // graph-lane context twice (it's also where cascade-delete wiring lives).
   const entityCtx = ctx.entityCtx ?? ctx.vaultCtx?.entityCtx;
   if (!entityCtx) return [];
   if (traverse) {
-    // Multi-hop path. PR5: with the default MAX_HOPS=2 the density guard matters,
-    // so thread a vault-size hint (a cheap indexed COUNT — no decrypt, no Model)
-    // so capHopsForDensity can cap back to seed-only on large vaults. A count
-    // failure just leaves the hint unset (guard dormant), never breaks recall.
     const vaultSize = await safeCountVault(ctx);
-    // Resolve discovered ids to the ACTIVE set at each hop so archived /
-    // quarantined ("forgotten") memories can't steer traversal or egress their
-    // entity names to the path-refiner. Only wired when a vaultCtx is present
-    // (the same context the final recall gate filters against).
     const vaultCtx = ctx.vaultCtx;
     return traverseGraphLane(query, entityCtx, {
       ...traversalOptions,
@@ -791,25 +526,9 @@ async function buildGraphLaneRanking(
   if (queryEntities.length === 0) return [];
   const memoryToEntities = await getMemoriesByEntityNamesOp(entityCtx, queryEntities);
   if (memoryToEntities.size === 0) return [];
-  // Sort by shared-entity count descending. Ties broken arbitrarily by
-  // map insertion order — RRF rank-quantization makes fine ties moot.
   const ranked = [...memoryToEntities.entries()]
     .sort((a, b) => b[1].size - a[1].size)
     .map(([memoryId]) => memoryId);
-  // Drop archived / quarantined ("forgotten") ids BEFORE they enter
-  // entityRanking — mirroring the multi-hop branch's per-hop active filter
-  // above. They never load for display (the downstream itemById gate drops
-  // them), but if left in the ranking they still occupy RRF rank slots and
-  // dilute active memories' graph-lane contribution. Decrypt-free: reuses the
-  // same indexed active-id read the high-budget path already pays. Only wired
-  // when a vaultCtx is present (the same context the final recall gate filters
-  // against); without it the lane keeps its pre-fix behavior.
-  //
-  // Then cap at the node budget, the same bound the multi-hop branch applies to
-  // its emitted pool: a common entity ("I", the user's own name) can be shared
-  // by hundreds of memories, and every id here becomes an RRF entry and a
-  // forced decrypt on the decrypt-last path. Cut AFTER the active filter so
-  // inactive ids can't use up budget slots.
   const budget =
     traversalOptions.nodeBudget !== undefined &&
     Number.isFinite(traversalOptions.nodeBudget) &&
@@ -822,12 +541,6 @@ async function buildGraphLaneRanking(
   return ranked.filter((id) => activeIds.has(id)).slice(0, budget);
 }
 
-/**
- * Cheap active-vault count for the graph-lane density hint (PR5), or `undefined`
- * when unavailable. Returns undefined (rather than throwing) when there is no
- * vaultCtx or the count fails — the traversal then runs without the density cap
- * hint, which is safe (it just doesn't down-cap hops on a large vault this call).
- */
 async function safeCountVault(ctx: RecallContext): Promise<number | undefined> {
   if (!ctx.vaultCtx) return undefined;
   try {
@@ -837,14 +550,6 @@ async function safeCountVault(ctx: RecallContext): Promise<number | undefined> {
   }
 }
 
-/**
- * Run an auxiliary recall lane (graph / temporal), degrading to an EMPTY ranking
- * on any throw. These lanes are RRF side-signals fused with the primary
- * cosine/BM25 head — a transient failure in one must never reject the shared
- * `Promise.all` and zero out primary recall. Mirrors {@link safeCountVault}'s
- * fail-soft posture, but logs a warning so a persistently-broken lane is
- * observable rather than silently disabled.
- */
 async function safeLane(
   label: string,
   onFailure: () => void,
@@ -853,10 +558,6 @@ async function safeLane(
   try {
     return await run();
   } catch (err) {
-    // Report as well as log. The lane is auxiliary so recall still returns, but
-    // it returns ranked WITHOUT this lane's signal — a silent quality change
-    // that had no telemetry counterpart until `graph-lane-failed` /
-    // `temporal-lane-failed` joined RecallDegradation.
     onFailure();
     getLogger().warn(
       `[memory/recall] ${label} lane failed; continuing without it: ${
@@ -867,16 +568,6 @@ async function safeLane(
   }
 }
 
-/**
- * W6 temporal lane builder. Returns a ranking of memory IDs ordered by
- * event-time overlap score with the resolved query window. Empty array
- * (lane no-op) when:
- *  - The query has no temporal phrase ({@link parseQueryTimeWindow} returns null)
- *  - No memories have event-time overlapping the window
- *
- * The ranking goes through `searchVaultMemoriesWithSize` as
- * `temporalRanking` and gets RRF-fused with cosine + BM25 + entityRanking.
- */
 async function buildTemporalLaneRanking(
   query: string,
   vaultCtx: NonNullable<RecallContext["vaultCtx"]>,
@@ -902,7 +593,6 @@ function toChunkMemory(r: ChunkSearchResult): RankedMemory {
     kind: "chunk",
     content: r.chunkText,
     score: r.similarity,
-    // Chunks come from searchChunksOp which is cosine-only — label honestly.
     scoreBreakdown: { cosine: r.similarity },
     conversationId: r.message.conversationId,
     messageId: r.message.uniqueId,

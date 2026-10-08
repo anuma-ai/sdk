@@ -2,7 +2,7 @@
 
 > **getVaultCandidateKeysOp**(`ctx`: [`VaultMemoryOperationsContext`](../interfaces/VaultMemoryOperationsContext.md), `options?`: `object`): `Promise`<[`VaultCandidateKey`](../interfaces/VaultCandidateKey.md)\[]>
 
-Defined in: [src/lib/db/memoryVault/operations.ts:770](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#770)
+Defined in: [src/lib/db/memoryVault/operations.ts:651](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#651)
 
 Column-projected candidate keys — id + rank-metadata, NO content/embedding
 blobs. On OPFS-SQLite this is a projected SELECT (skips the blobs on disk);

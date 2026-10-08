@@ -1,6 +1,6 @@
 # WeatherPreProcessorOptions
 
-Defined in: [src/lib/chat/weatherClassifier.ts:80](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/weatherClassifier.ts#80)
+Defined in: [src/lib/chat/weatherClassifier.ts:66](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/weatherClassifier.ts#66)
 
 ## Properties
 
@@ -8,7 +8,7 @@ Defined in: [src/lib/chat/weatherClassifier.ts:80](https://github.com/anuma-ai/s
 
 > `optional` **fetchWeatherData**: (`prompt`: `string`, `options`: `object`) => `Promise`<`string` | [`LlmapiMessage`](../../../client/Internal/type-aliases/LlmapiMessage.md)\[]>
 
-Defined in: [src/lib/chat/weatherClassifier.ts:91](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/weatherClassifier.ts#91)
+Defined in: [src/lib/chat/weatherClassifier.ts:77](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/weatherClassifier.ts#77)
 
 Called with the caller's weather provider when the classifier decides
 the prompt is asking for weather. Return either a plain string
@@ -78,7 +78,7 @@ provider requests can be aborted when the caller aborts.
 
 > `optional` **margin**: `number`
 
-Defined in: [src/lib/chat/weatherClassifier.ts:100](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/weatherClassifier.ts#100)
+Defined in: [src/lib/chat/weatherClassifier.ts:86](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/weatherClassifier.ts#86)
 
 Score margin: `weatherScore` must exceed `noWeatherScore` by at least
 this amount to classify as "needs weather data".
@@ -95,7 +95,7 @@ this amount to classify as "needs weather data".
 
 > `optional` **onClassification**: (`result`: [`WeatherClassification`](WeatherClassification.md)) => `void`
 
-Defined in: [src/lib/chat/weatherClassifier.ts:102](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/weatherClassifier.ts#102)
+Defined in: [src/lib/chat/weatherClassifier.ts:88](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/weatherClassifier.ts#88)
 
 Observe the classification without injecting anything.
 

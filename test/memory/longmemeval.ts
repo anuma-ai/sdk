@@ -1,15 +1,4 @@
 #!/usr/bin/env node
-/**
- * LongMemEval Benchmark CLI
- *
- * Usage:
- *   pnpm eval:longmemeval              # Run both strategies (engine + vault)
- *   pnpm eval:engine --variant oracle   # Memory engine only
- *   pnpm eval:vault --variant oracle    # Memory vault only
- *   pnpm eval:longmemeval --max 10     # Run only first 10 questions
- *   pnpm eval:longmemeval --json       # Output as JSON
- *   pnpm eval:longmemeval --preload    # Download all datasets (for CI setup)
- */
 
 import "dotenv/config";
 import { parseArgs } from "node:util";
@@ -118,67 +107,24 @@ const { values: args } = parseArgs({
     mmr: { type: "boolean" },
     "rerank-candidates": { type: "string" },
     "bm25-divisor": { type: "string" },
-    // Retrieval regression gate — same contract as the other eval suites.
-    // Deliberately gates RETRIEVAL only; see RECALL_GATE_METRICS.
     baseline: { type: "string" },
     "save-baseline": { type: "boolean", default: false },
-    /**
-     * Repeats for `--save-baseline`. Retrieval here is NOT deterministic (the
-     * vault is built by LLM extraction), and a single capture lands anywhere in
-     * the model's natural range — which moves the gate's fire threshold by as
-     * much as the spread itself. Capturing over several runs makes the mean
-     * representative and lets the tolerance come from measured spread instead of
-     * the floor alone. Ignored outside --save-baseline.
-     */
     "baseline-repeat": { type: "string" },
   },
 });
 
 const DEFAULT_RECALL_BASELINE_PATH = "test/memory/src/longmemeval/recall-baseline.json";
 
-/**
- * Gated metrics for the recall gate.
- *
- * ONLY retrieval metrics block. `accuracy` is reported but never gated, and that
- * is a deliberate call from the data: the `benchmarks` branch history has
- * recall-strategy oracle runs at ~80% accuracy / ~94% retrieval recall sitting
- * beside sibling runs that collapsed to 0–1.8% accuracy. Those collapses are
- * answer-LLM / infrastructure flakiness, not ranking regressions — gating on
- * accuracy would red PRs for reasons the PR didn't cause. Retrieval recall and
- * precision are what a ranking change actually moves, and they don't depend on
- * the answer model at all.
- *
- * The gate config additionally pins `--decompose=off --consolidate=false
- * --rerank=false`, removing the LLM calls inside the retrieval path (query
- * decomposition, retain-time consolidation) and the native cross-encoder.
- *
- * Retrieval still is NOT deterministic, because building the vault runs LLM
- * extraction per session: back-to-back 50-question oracle runs of unchanged code
- * measured recall 91.5% / 95.5% / 92.0% — a ~4pp swing.
- *
- * The floor stays at SINGLE-RUN scale (8pp) on purpose, unlike the topic and
- * consolidation gates which were retuned down to mean-scale. This gate compares
- * ONE live run against a multi-run baseline, so the relevant uncertainty is a
- * single run's, not a mean's — `gate.ts` accounts for that asymmetry via the
- * standard error of the difference, sqrt(1/n_base + 1/1), and correctly WIDENS
- * here where it tightens elsewhere.
- */
 const RECALL_GATE_METRICS: GateMetricSpec[] = [
   { key: "retrievalRecall", direction: "higher-better", minTolerance: 0.08, label: "recall" },
   { key: "retrievalPrecision", direction: "higher-better", minTolerance: 0.08, label: "precision" },
 ];
 
-/** Parse a numeric CLI flag, exiting with a clear error on garbage input
- *  so a typo'd sweep doesn't silently fall back to the SDK default.
- *  `min` rejects out-of-range values that would corrupt ranking math
- *  rather than fail loudly (e.g. --bm25-divisor 0 → Infinity floor,
- *  --rrf-k -1 → division by zero at rank 0). */
 function parseNumericFlag(
   name: string,
   raw: string,
   min?: { value: number; exclusive?: boolean }
 ): number {
-  // Number("") === 0, so an empty value must be rejected explicitly.
   const value = raw.trim() === "" ? NaN : Number(raw);
   if (!Number.isFinite(value)) {
     console.error(`Invalid --${name}: "${raw}" is not a number`);
@@ -326,7 +272,6 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
-  // Parse strategy
   let strategy: LongMemEvalStrategy = "both";
   const rawStrategy = args.strategy?.toLowerCase();
   if (rawStrategy === "engine" || rawStrategy === "memory-engine") {
@@ -341,13 +286,6 @@ async function main(): Promise<void> {
     strategy = "both";
   }
 
-  // Fail FAST and LOUD on a gate request the comparison shape can't satisfy.
-  // The gate only runs in the single-strategy branch below, so on the default
-  // `both` shape `--baseline` used to be ignored while the process still exited
-  // 0 — a requested gate silently becoming a vacuous pass, and a requested
-  // `--save-baseline` silently writing nothing. That is precisely the failure
-  // mode `assertRetrievalHappened` exists to prevent, so it can't be tolerated
-  // here. Checked before the eval runs so nobody burns a run to learn it.
   if ((args.baseline !== undefined || args["save-baseline"]) && strategy === "both") {
     console.error(
       `\n  --baseline / --save-baseline need a single strategy: the comparison shape ` +
@@ -391,8 +329,6 @@ async function main(): Promise<void> {
     ...(args["recall-lane-mode"] !== undefined && {
       recallLaneMode: parseRecallLaneMode(args["recall-lane-mode"]),
     }),
-    // Retrieval-ranking tuning knobs — only set when the flag is passed so
-    // the SDK defaults stay authoritative (a flag-less run is a no-op).
     ...(args["ce-weight"] !== undefined && {
       ceWeight: parseNumericFlag("ce-weight", args["ce-weight"]),
     }),
@@ -437,18 +373,12 @@ async function main(): Promise<void> {
     console.log(`Loaded ${dataset.length} entries`);
 
     const llmModel = args.llm || "cerebras/qwen-3-235b-a22b-instruct-2507";
-    // Validated here rather than defaulted silently: a typo'd `--extractor sdkk`
-    // that fell through to the harness path would produce a run labelled as the
-    // SDK arm in the config record while measuring the other extractor — the
-    // exact class of mislabelled comparison this flag exists to prevent.
     const extractorMode = args.extractor;
     if (extractorMode !== undefined && extractorMode !== "harness" && extractorMode !== "sdk") {
       console.error(`Invalid --extractor "${extractorMode}". Expected "harness" or "sdk".`);
       process.exit(1);
     }
 
-    // judgeModel lives inside the closure so every `--baseline-repeat` capture
-    // is judged by the same model as the first one.
     const runSuite = () =>
       runLongMemEval(dataset, options, {
         apiKey,
@@ -459,7 +389,6 @@ async function main(): Promise<void> {
       });
     const result = await runSuite();
 
-    // Fetch model pricing and attach cost estimates
     const pricing = await fetchModelPricing(baseUrl, apiKey);
     const embeddingModel = DEFAULT_API_EMBEDDING_MODEL;
 
@@ -499,17 +428,13 @@ async function main(): Promise<void> {
         console.log(`\nResults written to ${args.output}`);
       }
 
-      // Retrieval regression gate. Only meaningful on a single-strategy run —
-      // the comparison shape has two summaries and no single set of numbers to
-      // gate, so it's excluded above.
       if (args["save-baseline"]) {
-        // Extra captures for a representative mean — see `--baseline-repeat`.
         const repeats = Math.max(1, parseInt(args["baseline-repeat"] ?? "1", 10) || 1);
         const runs = [result];
         for (let i = 1; i < repeats; i++) {
           console.error(`\n  baseline capture ${i + 1}/${repeats}...`);
           const next = await runSuite();
-          if (isComparison(next)) break; // unreachable: guarded at arg-parse time
+          if (isComparison(next)) break;
           runs.push(next);
         }
         await saveRecallBaseline(runs, args.baseline ?? DEFAULT_RECALL_BASELINE_PATH);
@@ -518,14 +443,6 @@ async function main(): Promise<void> {
       }
     }
 
-    // A run that couldn't be scored is not a run that scored badly. Exiting
-    // non-zero makes longmemeval.yml fail, and because the benchmarks-branch
-    // publish step is `if: success()`, an incomplete summary can no longer be
-    // committed next to healthy ones as if it were a real result.
-    //
-    // Keep this the last gate before the success exit. Any other gate added
-    // above it (a baseline comparison, say) must not exit 0 on its own, or a
-    // partially-scored run publishes through that path instead.
     const unscored = isComparison(result)
       ? result.engine.judgeFailures +
         result.engine.answerFailures +
@@ -550,7 +467,6 @@ async function main(): Promise<void> {
   }
 }
 
-/** Retrieval metrics the gate reads, flattened to the gate's run shape. */
 function recallMetrics(result: {
   retrieval: { avgRecall: number; avgPrecision: number };
 }): Record<string, number> {
@@ -560,39 +476,17 @@ function recallMetrics(result: {
   };
 }
 
-/**
- * The knobs these numbers depend on. Recorded so the gate refuses to compare a
- * bounded PR run against, say, a full-variant or differently-piped baseline —
- * every one of these changes what recall means.
- */
 function recallGateConfig(): Record<string, string | number | boolean> {
   return {
     strategy: args.strategy ?? "",
     variant: args.variant ?? "",
     max: args.max ?? "",
     llm: args.llm ?? "",
-    // The EXTRACTOR is what decides which memories exist to be retrieved, so it
-    // moves the gated metrics at least as much as the answer model does. Without
-    // it recorded, swapping only `--extract-llm` would sail past the config
-    // check and compare two materially different vaults.
     extractLlm: args["extract-llm"] ?? "",
-    // Which EXTRACTOR, not just which model. The harness prompt and the SDK's
-    // produce different memories from the same session, so two runs that agree
-    // on every other knob are still incomparable across this one — a stronger
-    // invalidator than `extractLlm` above.
-    // The RESOLVED extractor, not the raw flag: omitting `--extractor` and
-    // passing `--extractor harness` run identical code, so recording "" for one
-    // and "harness" for the other would make the gate refuse a valid comparison
-    // on a difference that does not exist. Caught by Greptile on #908.
     extractor: args.extractor ?? "harness",
-    // Every gated score is a cosine over these vectors, so a model swap changes
-    // the embedding space itself — the most total way to invalidate a
-    // comparison. The sibling vault-search gate records it for the same reason.
     embeddingModel: DEFAULT_API_EMBEDDING_MODEL,
     decompose: args.decompose ?? "",
     consolidate: args.consolidate ?? "",
-    // Recorded because the cross-encoder reorders results: a baseline captured
-    // with rerank on is not comparable to a gate run with it off.
     rerank: args.rerank ?? "",
     recallTypes: args["recall-types"] ?? "",
     recallEmit: args["recall-emit"] ?? "",
@@ -600,32 +494,12 @@ function recallGateConfig(): Record<string, string | number | boolean> {
   };
 }
 
-/**
- * Refuse to treat a run that retrieved NOTHING as a baseline or as a passing
- * gate. Zero recall across every question is an infrastructure failure (the
- * portal 500s, an expired key, a dataset that didn't load), not a measurement:
- * the first capture attempt for this gate scored 0.0/0.0 because the extractor
- * was 500ing, and it would have committed a baseline that can never fail.
- * Observed in the wild too — the `benchmarks` branch holds several
- * recall-strategy runs at 0–1.8% accuracy beside healthy ~80% ones.
- *
- * Also refuses a run that measured only PART of its questions. Excluding crashed
- * entries from the averages fixes a fabricated-zero bias, but it cannot fix a
- * SELECTION bias: if crashes cluster on the hard questions, what is left is an
- * easier subsample, and comparing it against a full-run baseline is not a
- * like-for-like comparison in either direction.
- */
 function assertRetrievalHappened(result: {
   totalQuestions: number;
   harnessFailures: number;
   retrieval: { avgRecall: number; avgPrecision: number; measuredQuestions: number };
 }): void {
   const { avgRecall, avgPrecision, measuredQuestions } = result.retrieval;
-  // Nothing measured at all is its OWN failure, distinct from "ranking returned
-  // nothing". The averages read 0/0 in both cases, but a run where every entry
-  // crashed needs the operator pointed at the crashes rather than at the
-  // retrieval stack — and once the averages exclude crashed entries, an empty
-  // denominator is the only thing left that can produce this shape.
   if (measuredQuestions === 0) {
     console.error(
       `\n  Retrieval was never measured — every entry failed in the harness.\n` +
@@ -633,14 +507,6 @@ function assertRetrievalHappened(result: {
     );
     process.exit(1);
   }
-  // A PARTIAL measurement is refused outright rather than compared. This costs
-  // nothing that was not already lost: the `unscored > 0` check at the end of
-  // main() fails any run with a harness error regardless, so there is no run
-  // where this exit changes the job outcome. What it changes is that the gate no
-  // longer prints a verdict — or `--save-baseline` write a file — off a
-  // subsample, ahead of that check. Relying on a later exit to invalidate an
-  // earlier gate's output is exactly the ordering hazard the comment on that
-  // check warns about; this makes the requirement local to the gate.
   if (measuredQuestions < result.totalQuestions) {
     console.error(
       `\n  Retrieval was measured on only ${measuredQuestions}/${result.totalQuestions} questions ` +
@@ -701,8 +567,6 @@ async function gateRecallAgainstBaseline(
   },
   path: string
 ): Promise<void> {
-  // A wholly-failed run must fail the gate loudly rather than reporting a
-  // retrieval regression it can't distinguish from an outage.
   assertRetrievalHappened(result);
   let parsed: unknown;
   try {

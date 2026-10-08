@@ -5,22 +5,15 @@ import { extractConnectorToolErrors } from "../src/runAgentRequest.js";
 
 describe("extractConnectorToolErrors", () => {
   test("lifts a connector_not_connected result into a ToolError", () => {
-    const result = buildConnectorErrorResult(
-      "connector_not_connected",
-      "gmail",
-      "https://portal.example/connectors/gmail/connect?ticket=t1"
-    );
+    const result = buildConnectorErrorResult("connector_not_connected", "gmail");
     const errors = extractConnectorToolErrors([{ name: "gmail_search_messages", result }]);
     expect(errors).toHaveLength(1);
     expect(errors[0]).toEqual({
       toolName: "gmail_search_messages",
-      // Synthesized from the tool-result index so it matches the
-      // `tool_call_id` on the corresponding tool-role message.
       callId: "call_0",
       error: {
         code: "connector_not_connected",
         provider: "gmail",
-        connectUrl: "https://portal.example/connectors/gmail/connect?ticket=t1",
         missingScopes: undefined,
         required: undefined,
       },
@@ -28,8 +21,8 @@ describe("extractConnectorToolErrors", () => {
   });
 
   test("assigns each error a callId matching its tool-result index", () => {
-    const a = buildConnectorErrorResult("connector_not_connected", "gmail", "u1");
-    const b = buildConnectorErrorResult("scope_not_covered", "gdrive", "u2");
+    const a = buildConnectorErrorResult("connector_not_connected", "gmail");
+    const b = buildConnectorErrorResult("scope_not_covered", "gdrive");
     const errors = extractConnectorToolErrors([
       { name: "gmail_search_messages", result: a },
       { name: "gdrive_search", result: b },
@@ -40,24 +33,19 @@ describe("extractConnectorToolErrors", () => {
   });
 
   test("preserves the result index even when non-error entries sit between connector errors", () => {
-    const err = buildConnectorErrorResult("connector_not_connected", "gmail", "u1");
+    const err = buildConnectorErrorResult("connector_not_connected", "gmail");
     const errors = extractConnectorToolErrors([
       { name: "noise", result: "plain text" },
       { name: "gmail_search_messages", result: err },
     ]);
     expect(errors).toHaveLength(1);
-    // Index 1 in the input array — not 0 — so consumers can correlate
-    // back to the matching tool-role message.
     expect(errors[0].callId).toBe("call_1");
   });
 
   test("surfaces missingScopes from scope_not_covered payloads", () => {
-    const result = buildConnectorErrorResult(
-      "scope_not_covered",
-      "gdrive",
-      "https://portal.example/connectors/gdrive/connect?ticket=t2",
-      { missingScopes: ["https://www.googleapis.com/auth/drive.readonly"] }
-    );
+    const result = buildConnectorErrorResult("scope_not_covered", "gdrive", {
+      missingScopes: ["https://www.googleapis.com/auth/drive.readonly"],
+    });
     const errors = extractConnectorToolErrors([{ name: "gdrive_search", result }]);
     expect(errors[0].error.missingScopes).toEqual([
       "https://www.googleapis.com/auth/drive.readonly",
@@ -65,7 +53,7 @@ describe("extractConnectorToolErrors", () => {
   });
 
   test("surfaces required from insufficient_scope payloads", () => {
-    const result = buildConnectorErrorResult("insufficient_scope", "gmail", undefined, {
+    const result = buildConnectorErrorResult("insufficient_scope", "gmail", {
       required: "connector:gmail:send",
     });
     const errors = extractConnectorToolErrors([{ name: "gmail_send_message", result }]);
@@ -108,8 +96,8 @@ describe("extractConnectorToolErrors", () => {
   });
 
   test("walks every tool result, returning multiple errors when present", () => {
-    const a = buildConnectorErrorResult("connector_not_connected", "gmail", "u1");
-    const b = buildConnectorErrorResult("scope_not_covered", "gdrive", "u2");
+    const a = buildConnectorErrorResult("connector_not_connected", "gmail");
+    const b = buildConnectorErrorResult("scope_not_covered", "gdrive");
     const errors = extractConnectorToolErrors([
       { name: "gmail_search_messages", result: a },
       { name: "gdrive_search", result: b },

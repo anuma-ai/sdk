@@ -1,14 +1,28 @@
-/**
- * Google Drive tool definition for the chat system.
- * This tool allows the LLM to search files in the user's Google Drive.
- */
-
 import type { ToolConfig } from "../lib/chat/useChat/types.js";
 import { buildConnectorErrorResult } from "../lib/connectors/errors.js";
-import { getLogger } from "../lib/logger";
 
-/** Logical provider id used in the canonical connector-error contract. */
 const DRIVE_PROVIDER = "gdrive";
+
+const DRIVE_FILE_ID = /^[A-Za-z0-9_-]+$/;
+
+const DRIVE_MIME_TYPE = /^[\w.+-]+\/[\w.+-]+$/;
+
+function invalidFileIdError(fileId: unknown): string {
+  return `Error: Invalid file ID: ${String(fileId)}`;
+}
+
+function escapeDriveQueryValue(value: string): string {
+  return value.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+}
+
+function withMimeTypeFilter(
+  driveQuery: string,
+  mimeType: string | undefined
+): string | { error: string } {
+  if (!mimeType) return driveQuery;
+  if (!DRIVE_MIME_TYPE.test(mimeType)) return { error: `Error: Invalid mimeType: ${mimeType}` };
+  return `${driveQuery} and mimeType = '${escapeDriveQueryValue(mimeType)}'`;
+}
 
 export interface SearchFilesArgs {
   query: string;
@@ -41,26 +55,19 @@ interface DriveApiResponse {
   error?: { message: string };
 }
 
-/**
- * Searches for files in Google Drive API
- */
 async function searchDriveFiles(
   accessToken: string,
   args: SearchFilesArgs
 ): Promise<DriveFile[] | string> {
   const { query, maxResults = 10, mimeType } = args;
 
-  // Build the query string for Google Drive API
-  // Search in file name and full text
-  let driveQuery = `fullText contains '${query.replace(/'/g, "\\'")}'`;
+  const filtered = withMimeTypeFilter(
+    `fullText contains '${escapeDriveQueryValue(query)}'`,
+    mimeType
+  );
+  if (typeof filtered !== "string") return filtered.error;
 
-  // Add mime type filter if specified
-  if (mimeType) {
-    driveQuery += ` and mimeType = '${mimeType}'`;
-  }
-
-  // Exclude trashed files
-  driveQuery += " and trashed = false";
+  const driveQuery = `${filtered} and trashed = false`;
 
   const params = new URLSearchParams({
     q: driveQuery,
@@ -148,10 +155,8 @@ export function createGoogleDriveSearchTool(
       },
     },
     executor: async (args: Record<string, unknown>): Promise<DriveFile[] | string> => {
-      // Try to get existing token first
       let token = getAccessToken();
 
-      // If no token, request Drive access
       if (!token) {
         try {
           token = await requestDriveAccess();
@@ -180,22 +185,14 @@ export interface ListRecentFilesArgs {
   mimeType?: string;
 }
 
-/**
- * Lists recent files from Google Drive API
- */
 async function listRecentDriveFiles(
   accessToken: string,
   args: ListRecentFilesArgs
 ): Promise<DriveFile[] | string> {
   const { maxResults = 10, mimeType } = args;
 
-  // Build the query string - only exclude trashed files
-  let driveQuery = "trashed = false";
-
-  // Add mime type filter if specified
-  if (mimeType) {
-    driveQuery += ` and mimeType = '${mimeType}'`;
-  }
+  const driveQuery = withMimeTypeFilter("trashed = false", mimeType);
+  if (typeof driveQuery !== "string") return driveQuery.error;
 
   const params = new URLSearchParams({
     q: driveQuery,
@@ -277,10 +274,8 @@ export function createGoogleDriveListRecentTool(
       },
     },
     executor: async (args: Record<string, unknown>): Promise<DriveFile[] | string> => {
-      // Try to get existing token first
       let token = getAccessToken();
 
-      // If no token, request Drive access
       if (!token) {
         try {
           token = await requestDriveAccess();
@@ -315,11 +310,8 @@ interface FileMetadataResponse {
   error?: { message: string };
 }
 
-/**
- * Searches for a file by name and returns its ID
- */
 async function findFileByName(accessToken: string, fileName: string): Promise<string | null> {
-  const driveQuery = `name contains '${fileName.replace(/'/g, "\\'")}' and trashed = false`;
+  const driveQuery = `name contains '${escapeDriveQueryValue(fileName)}' and trashed = false`;
   const params = new URLSearchParams({
     q: driveQuery,
     pageSize: "1",
@@ -345,14 +337,12 @@ async function findFileByName(accessToken: string, fileName: string): Promise<st
   return data.files?.[0]?.id || null;
 }
 
-/** Google Workspace mime types that can be exported as text */
 const GOOGLE_DOCS_EXPORT_TYPES: Record<string, string> = {
   "application/vnd.google-apps.document": "text/plain",
   "application/vnd.google-apps.spreadsheet": "text/csv",
   "application/vnd.google-apps.presentation": "text/plain",
 };
 
-/** Maximum content length to avoid overwhelming LLM context */
 const MAX_CONTENT_LENGTH = 50000;
 
 interface FileMetadata {
@@ -366,42 +356,36 @@ interface ContentUrlResult {
   isExport: boolean;
 }
 
-/**
- * Resolves a file identifier (either fileId or fileName) to a fileId
- */
 async function resolveFileId(
   accessToken: string,
   fileId: string | undefined,
   fileName: string | undefined
 ): Promise<{ fileId: string } | { error: string }> {
   if (fileId) {
-    return { fileId };
+    return DRIVE_FILE_ID.test(fileId) ? { fileId } : { error: invalidFileIdError(fileId) };
   }
 
   if (fileName) {
-    getLogger().debug("[google_drive_get_content] Searching for file by name:", fileName);
     const foundId = await findFileByName(accessToken, fileName);
     if (!foundId) {
       return {
         error: `Error: Could not find a file matching "${fileName}". Please check the file name and try again.`,
       };
     }
-    getLogger().debug("[google_drive_get_content] Found file ID:", foundId);
-    return { fileId: foundId };
+    return DRIVE_FILE_ID.test(foundId)
+      ? { fileId: foundId }
+      : { error: invalidFileIdError(foundId) };
   }
 
   return { error: "Error: Please provide either a fileId or fileName to get file content." };
 }
 
-/**
- * Fetches file metadata from Google Drive
- */
 async function fetchFileMetadata(
   accessToken: string,
   fileId: string
 ): Promise<{ metadata: FileMetadata } | { error: string }> {
   const response = await fetch(
-    `https://www.googleapis.com/drive/v3/files/${fileId}?fields=id,name,mimeType,webViewLink&supportsAllDrives=true`,
+    `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(fileId)}?fields=id,name,mimeType,webViewLink&supportsAllDrives=true`,
     { headers: { Authorization: `Bearer ${accessToken}` } }
   );
 
@@ -418,14 +402,11 @@ async function fetchFileMetadata(
   };
 }
 
-/**
- * Determines the content URL for a given mime type, or returns null for non-text types
- */
 function getContentUrl(fileId: string, mimeType: string): ContentUrlResult | null {
   if (GOOGLE_DOCS_EXPORT_TYPES[mimeType]) {
     const exportMimeType = GOOGLE_DOCS_EXPORT_TYPES[mimeType];
     return {
-      url: `https://www.googleapis.com/drive/v3/files/${fileId}/export?mimeType=${encodeURIComponent(exportMimeType)}&supportsAllDrives=true`,
+      url: `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(fileId)}/export?mimeType=${encodeURIComponent(exportMimeType)}&supportsAllDrives=true`,
       isExport: true,
     };
   }
@@ -436,7 +417,7 @@ function getContentUrl(fileId: string, mimeType: string): ContentUrlResult | nul
     mimeType === "application/xml"
   ) {
     return {
-      url: `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media&supportsAllDrives=true`,
+      url: `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(fileId)}?alt=media&supportsAllDrives=true`,
       isExport: false,
     };
   }
@@ -444,9 +425,6 @@ function getContentUrl(fileId: string, mimeType: string): ContentUrlResult | nul
   return null;
 }
 
-/**
- * Formats a response for non-text file types (PDF, images, etc.)
- */
 function formatNonTextFileResponse(fileId: string, metadata: FileMetadata): string {
   const { name, mimeType, webViewLink } = metadata;
   const linkInfo = webViewLink ? `\nView in Google Drive: ${webViewLink}` : "";
@@ -456,16 +434,13 @@ function formatNonTextFileResponse(fileId: string, metadata: FileMetadata): stri
   }
 
   if (mimeType.startsWith("image/")) {
-    const directUrl = `https://drive.google.com/uc?export=view&id=${fileId}`;
+    const directUrl = `https://drive.google.com/uc?export=view&id=${encodeURIComponent(fileId)}`;
     return `File: ${name}\nType: ${mimeType}${linkInfo}\nDirect image URL: ${directUrl}\n\nTo view this image, click the Google Drive link above or use the direct URL.`;
   }
 
   return `File: ${name}\nType: ${mimeType}${linkInfo}\n\nNote: This file type cannot be displayed as text.`;
 }
 
-/**
- * Fetches and formats file content with header and optional truncation
- */
 async function fetchAndFormatContent(
   accessToken: string,
   contentUrl: string,
@@ -495,14 +470,7 @@ async function fetchAndFormatContent(
   return header + displayContent + footer;
 }
 
-/**
- * Gets the content of a file from Google Drive
- * Supports Google Docs, Sheets, Slides (exported as text), and text-based files
- */
 async function getDriveFileContent(accessToken: string, args: GetFileContentArgs): Promise<string> {
-  getLogger().debug("[google_drive_get_content] Starting with:", args);
-
-  // Resolve file identifier
   const fileIdResult = await resolveFileId(accessToken, args.fileId, args.fileName);
   if ("error" in fileIdResult) {
     return fileIdResult.error;
@@ -510,22 +478,17 @@ async function getDriveFileContent(accessToken: string, args: GetFileContentArgs
   const { fileId } = fileIdResult;
 
   try {
-    // Fetch file metadata
     const metadataResult = await fetchFileMetadata(accessToken, fileId);
     if ("error" in metadataResult) {
       return metadataResult.error;
     }
     const { metadata } = metadataResult;
 
-    getLogger().debug("[google_drive_get_content] File metadata:", metadata);
-
-    // Determine content URL based on mime type
     const contentUrlResult = getContentUrl(fileId, metadata.mimeType);
     if (!contentUrlResult) {
       return formatNonTextFileResponse(fileId, metadata);
     }
 
-    // Fetch and format the content
     return fetchAndFormatContent(
       accessToken,
       contentUrlResult.url,
@@ -568,14 +531,9 @@ export function createGoogleDriveGetContentTool(
       },
     },
     executor: async (args: Record<string, unknown>): Promise<string> => {
-      getLogger().debug("[google_drive_get_content] Executor called with args:", args);
-
-      // Try to get existing token first
       let token = getAccessToken();
 
-      // If no token, request Drive access
       if (!token) {
-        getLogger().debug("[google_drive_get_content] No token, requesting access...");
         try {
           token = await requestDriveAccess();
         } catch {
@@ -592,23 +550,11 @@ export function createGoogleDriveGetContentTool(
         fileName: args.fileName as string | undefined,
       };
 
-      const result = await getDriveFileContent(token, typedArgs);
-      getLogger().debug(
-        "[google_drive_get_content] Result length:",
-        result.length,
-        "First 200 chars:",
-        result.slice(0, 200)
-      );
-      return result;
+      return getDriveFileContent(token, typedArgs);
     },
   };
 }
 
-/**
- * Resolves an access token, requesting Drive access if none is cached.
- * Returns the token, or a connector-error JSON string when access can't be
- * obtained — mirroring the executor preamble the read tools use.
- */
 async function resolveWriteToken(
   getAccessToken: () => string | null,
   requestDriveAccess: () => Promise<string>
@@ -627,10 +573,6 @@ async function resolveWriteToken(
   return { token };
 }
 
-/**
- * Maps an unauthorized/forbidden Drive response to the canonical connector
- * error; other failures are returned as a plain string like the read tools.
- */
 function driveWriteError(status: number, body: string): string {
   if (status === 401 || status === 403) {
     return buildConnectorErrorResult("connector_not_connected", DRIVE_PROVIDER);
@@ -638,10 +580,8 @@ function driveWriteError(status: number, body: string): string {
   return `Error: Google Drive request failed (${status}): ${body}`;
 }
 
-/** Native Google Workspace types (Docs/Sheets/Slides) — not supported by these blob-file tools. */
 const NATIVE_GOOGLE_MIME_TYPE = /^application\/vnd\.google-apps\./;
 
-/** Message returned when a caller tries to create/overwrite a native Google Workspace file. */
 const NATIVE_GOOGLE_MIME_ERROR =
   "Error: this tool creates plain files only; native Google Docs/Sheets/Slides aren't supported. Omit mimeType or use a blob type like text/plain.";
 
@@ -657,10 +597,6 @@ interface CreatedDriveFile {
   webViewLink?: string;
 }
 
-/**
- * Creates a new file the app owns via the Drive multipart upload endpoint.
- * Works under the non-sensitive `drive.file` scope.
- */
 async function createDriveFile(
   accessToken: string,
   args: CreateFileArgs
@@ -765,14 +701,13 @@ interface UpdatedDriveFile {
   name: string;
 }
 
-/**
- * Overwrites the content of a file the app created via the Drive media
- * upload endpoint. Works under the non-sensitive `drive.file` scope.
- */
 async function updateDriveFile(
   accessToken: string,
   args: UpdateFileArgs
 ): Promise<UpdatedDriveFile | string> {
+  if (typeof args.fileId !== "string" || !DRIVE_FILE_ID.test(args.fileId)) {
+    return invalidFileIdError(args.fileId);
+  }
   const mimeType = (args.mimeType || "text/plain").replace(/[\r\n]/g, "");
   if (NATIVE_GOOGLE_MIME_TYPE.test(mimeType)) {
     return NATIVE_GOOGLE_MIME_ERROR;

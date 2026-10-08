@@ -1,15 +1,4 @@
 // @vitest-environment happy-dom
-/**
- * Where a turn's extracted attachment text lands in the request.
- *
- * It used to go ONLY into a detached system message at the very front of the
- * request ("The user has attached files to this conversation…"), separated from
- * the user's "Please review the attached file(s)." by the whole system prompt,
- * tool catalog and history. In a long multi-file conversation the auto-routed
- * fast model had the PDF's full text in its request (portal input-composition
- * logs: +9.8k system bytes) and still told the user the attachment was
- * unreadable. The current turn's contents now ride on the current user message.
- */
 
 import { Database } from "@nozbe/watermelondb";
 import LokiJSAdapter from "@nozbe/watermelondb/adapters/lokijs";
@@ -153,15 +142,11 @@ describe("useChatStorage attachment text placement", () => {
     });
 
     const followUp = sentMessages(1);
-    // The follow-up's own message carries only the user's words…
     expect(lastUser(followUp).content).toEqual([{ type: "text", text: "What is the term?" }]);
-    // …and the earlier file's text is still available to answer it.
     expect(systemText(followUp)).toContain(DOC_TEXT);
   });
 
   it("never stores the attached-file part as the user's message when the caller puts it on messages", async () => {
-    // Mobile builds its own document context and sends the tagged part inside `messages`,
-    // without `storedUserContent`. The stored row must still be only what the user typed.
     const { result } = renderHook(() =>
       useChatStorage({
         database: db,
@@ -188,9 +173,7 @@ describe("useChatStorage attachment text placement", () => {
       });
     });
 
-    // The wire still carries the document…
     expect(JSON.stringify(sentMessages(0))).toContain(DOC_TEXT);
-    // …but the persisted user row is only the user's words.
     const rows = await getMessagesOp(
       {
         database: db,
@@ -325,10 +308,8 @@ describe("useChatStorage attachment text placement", () => {
     await send("And the term?");
     await send("Summarize it again.");
 
-    // By the fourth turn the attaching turn is far outside a 2-message window…
     const userRows = (await storedRows("conv_carry")).filter((r) => r.role === "user");
     expect(userRows).toHaveLength(4);
-    // …yet each follow-up row carried the context forward, so it still reaches the model.
     for (const row of userRows) {
       expect(row.thinking?.startsWith("[Extracted content from order-form.txt]")).toBe(true);
     }

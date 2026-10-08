@@ -1,13 +1,7 @@
-/**
- * Error subclasses thrown by `@anuma/agent-runtime`.
- *
- * - {@link AuthError} comes out of `extractGrantContext` when the bearer is
- *   missing, malformed, expired, or already revoked.
- */
-
 /** Discriminant for {@link AuthError}. */
 export type AuthErrorSubtype = "missing_bearer" | "invalid_bearer" | "expired" | "revoked";
 
+/** Thrown by `extractGrantContext` when the bearer is missing, malformed, expired, or revoked. */
 export class AuthError extends Error {
   public readonly subtype: AuthErrorSubtype;
 

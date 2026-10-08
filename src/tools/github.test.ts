@@ -2,8 +2,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createGitHubTools } from "./github";
 
-// ── Mock fetch ──────────────────────────────────────────────────────────────
-
 const mockFetch = vi.fn();
 vi.stubGlobal("fetch", mockFetch);
 
@@ -21,12 +19,9 @@ function errorResponse(status: number, message: string): Response {
   });
 }
 
-// ── Helpers ─────────────────────────────────────────────────────────────────
-
 const getToken = () => "test-token";
 const requestAccess = async () => "test-token";
 
-// Mirrors MAX_RESPONSE_SIZE in github.ts
 const MAX_RESPONSE_SIZE = 100_000;
 
 function getTools() {
@@ -40,8 +35,6 @@ function findTool(name: string) {
   if (!tool) throw new Error(`Tool ${name} not found`);
   return tool;
 }
-
-// ── Tests ───────────────────────────────────────────────────────────────────
 
 describe("createGitHubTools", () => {
   beforeEach(() => mockFetch.mockReset());
@@ -249,10 +242,6 @@ describe("github_api", () => {
   });
 
   it("fits more entries under the cap than the indented encoding would", async () => {
-    // Repo-listing shaped fixture: field-heavy and large enough that the cap binds either way.
-    // Measured against a real /user/repos listing (61 repos, 82 fields, 357 KB pretty-printed):
-    // indentation is ~12% of the payload, so survival goes 28% -> 33%. The win is real but small;
-    // this asserts the direction, not a magnitude.
     const repos = Array.from({ length: 200 }, (_, i) => ({
       id: 100_000 + i,
       name: `repo-${i}`,
@@ -282,8 +271,6 @@ describe("github_api", () => {
       path: "/user/repos",
     })) as string;
 
-    // `"name"`'s value is the one `"repo-<n>"` token per entry in both encodings, so it counts
-    // survivors ("owner/repo-<n>" and the URL fields have no quote directly before `repo`).
     const countEntries = (payload: string) => payload.match(/"repo-\d+"/g)?.length ?? 0;
     const indented = JSON.stringify(repos, null, 2).slice(0, MAX_RESPONSE_SIZE);
 

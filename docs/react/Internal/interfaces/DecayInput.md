@@ -1,6 +1,6 @@
 # DecayInput
 
-Defined in: [src/lib/memory/decay.ts:114](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/decay.ts#114)
+Defined in: [src/lib/memory/decay.ts:79](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/decay.ts#79)
 
 The minimal plaintext shape [classifyDecay](../functions/classifyDecay.md) reads. Deliberately excludes
 `content` (encrypted; never touched by decay) — the sweep selects exactly
@@ -12,7 +12,7 @@ these columns so it stays zero-knowledge.
 
 > **archivedAt**: `number` | `null`
 
-Defined in: [src/lib/memory/decay.ts:134](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/decay.ts#134)
+Defined in: [src/lib/memory/decay.ts:99](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/decay.ts#99)
 
 Unix ms when archived, or null when active.
 
@@ -22,7 +22,7 @@ Unix ms when archived, or null when active.
 
 > **eventTimeEnd**: `number` | `null`
 
-Defined in: [src/lib/memory/decay.ts:126](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/decay.ts#126)
+Defined in: [src/lib/memory/decay.ts:91](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/decay.ts#91)
 
 W6 temporal lane — Unix ms the event ended (range/ongoing), or null.
 
@@ -32,7 +32,7 @@ W6 temporal lane — Unix ms the event ended (range/ongoing), or null.
 
 > **eventTimeKind**: `string` | `null`
 
-Defined in: [src/lib/memory/decay.ts:128](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/decay.ts#128)
+Defined in: [src/lib/memory/decay.ts:93](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/decay.ts#93)
 
 W6 temporal lane — `point | range | ongoing | null`.
 
@@ -42,7 +42,7 @@ W6 temporal lane — `point | range | ongoing | null`.
 
 > **factType**: `string` | `null`
 
-Defined in: [src/lib/memory/decay.ts:124](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/decay.ts#124)
+Defined in: [src/lib/memory/decay.ts:89](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/decay.ts#89)
 
 The extractor's FactType, or null (legacy/manual/untyped → medium bucket).
 
@@ -52,7 +52,7 @@ The extractor's FactType, or null (legacy/manual/untyped → medium bucket).
 
 > `optional` **id**: `string`
 
-Defined in: [src/lib/memory/decay.ts:122](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/decay.ts#122)
+Defined in: [src/lib/memory/decay.ts:87](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/decay.ts#87)
 
 The row's stable id. Not read by the rule engine ([classifyDecay](../functions/classifyDecay.md)
 ignores it) — it is threaded through so an optional content-reading decay
@@ -66,7 +66,7 @@ omit it.
 
 > `optional` **lastObservedAt**: `number` | `null`
 
-Defined in: [src/lib/memory/decay.ts:132](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/decay.ts#132)
+Defined in: [src/lib/memory/decay.ts:97](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/decay.ts#97)
 
 Last distinct observation; does not change the edit timestamp.
 
@@ -76,7 +76,7 @@ Last distinct observation; does not change the edit timestamp.
 
 > **source**: `string` | `null`
 
-Defined in: [src/lib/memory/decay.ts:136](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/decay.ts#136)
+Defined in: [src/lib/memory/decay.ts:101](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/decay.ts#101)
 
 `manual` | `auto-extracted` | `capsule` | null. Manual is never decayed.
 
@@ -86,7 +86,7 @@ Defined in: [src/lib/memory/decay.ts:136](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **trustTier**: `string` | `null`
 
-Defined in: [src/lib/memory/decay.ts:145](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/decay.ts#145)
+Defined in: [src/lib/memory/decay.ts:110](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/decay.ts#110)
 
 `trusted` | `quarantined` | null. Not read by the rule engine
 ([classifyDecay](../functions/classifyDecay.md) ignores it — quarantined rows still age/archive/delete
@@ -101,6 +101,6 @@ callers/tests can omit it (treated as not quarantined).
 
 > **updatedAt**: `number`
 
-Defined in: [src/lib/memory/decay.ts:130](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/decay.ts#130)
+Defined in: [src/lib/memory/decay.ts:95](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/decay.ts#95)
 
 Unix ms of the row's last write (re-observation resets this).

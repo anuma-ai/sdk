@@ -1,8 +1,3 @@
-// Integration tests for the frozen-embedding cache glue. These cover the load/
-// save round-trip, model-mismatch invalidation, missing/corrupt files, and the
-// embedWithCache miss path — the behaviour rutwik2001 flagged as untested (and
-// where the original cwd-relative-path bug lived). Embeddings are mocked, so no
-// PORTAL_API_KEY or network is needed.
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -38,8 +33,6 @@ const opts = { apiKey: "test-key" };
 
 describe("embedding cache — default path", () => {
   it("resolves next to the module, not the cwd (the frozen-embedding guarantee)", () => {
-    // The bug this replaced used a cwd-relative path. Pin that the default is
-    // absolute and lands beside the source file regardless of where it runs.
     expect(DEFAULT_EMBEDDING_CACHE_PATH).toMatch(/[/\\]vault[/\\]embeddings-cache\.json$/);
     expect(
       DEFAULT_EMBEDDING_CACHE_PATH.startsWith("/") ||
@@ -103,17 +96,14 @@ describe("embedWithCache", () => {
 
     const { vectors, misses } = await embedWithCache(["cached", "new-a", "new-b"], opts, cache);
 
-    // One API call, only for the two misses (deduped), in order.
     expect(generateEmbeddings).toHaveBeenCalledTimes(1);
     expect(vi.mocked(generateEmbeddings).mock.calls[0][0]).toEqual(["new-a", "new-b"]);
     expect(misses).toBe(2);
-    // Vectors are aligned to the input order, hits preserved.
     expect(vectors).toEqual([
       [1, 1],
       [9, 9],
       [8, 8],
     ]);
-    // The cache gained the fresh vectors.
     expect(cache.get("new-a")).toEqual([9, 9]);
     expect(cache.get("new-b")).toEqual([8, 8]);
   });

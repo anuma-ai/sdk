@@ -1,15 +1,3 @@
-/**
- * Detach / resumable-streaming coverage for runToolLoop.
- *
- * `detachSignal` means "the client is going away, keep generating
- * server-side". It tears the stream down like `signal`, but the result is
- * the DETACHED variant: smoothers are flushed (never destroyed) so the UI
- * receives every byte the accumulator holds, partial data is returned, and
- * a StreamResumeHandle is included when `resumable` was on and an
- * X-Inference-ID was captured. These tests pin those guarantees plus the
- * capability-header merge and the onStreamMeta forwarding contract.
- */
-
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import * as sseModule from "../../client/core/serverSentEvents.gen";
@@ -36,7 +24,6 @@ function makeAbortError() {
   return err;
 }
 
-/** A stream that yields one text delta then completes — a healthy response. */
 function makeTextStream(text: string) {
   return (async function* () {
     yield { type: "response.created", response: { id: "r", model: "m" } };
@@ -48,11 +35,6 @@ function makeTextStream(text: string) {
   })();
 }
 
-/**
- * A stream that yields one text delta, then aborts the given controller and
- * throws an AbortError — models a detach landing mid-stream (the combined
- * signal reaches the transport, which surfaces the abort per its contract).
- */
 function makeDetachingStream(controllersToAbort: AbortController[], text: string) {
   return (async function* () {
     yield { type: "response.created", response: { id: "r", model: "m" } };
@@ -62,7 +44,6 @@ function makeDetachingStream(controllersToAbort: AbortController[], text: string
   })();
 }
 
-/** A stream that throws before yielding any chunk — pre-content transport failure. */
 function makeRejectingStream(err: Error) {
   return (async function* () {
     throw err;
@@ -71,7 +52,6 @@ function makeRejectingStream(err: Error) {
   })();
 }
 
-/** Stream that ends by emitting one tool call — drives the loop into a continuation round. */
 function makeStreamWithToolCall(toolName: string, callId: string, args: string) {
   return (async function* () {
     yield { type: "response.created", response: { id: "r", model: "m" } };
@@ -108,7 +88,6 @@ function makeEchoTool() {
 
 const userMessages = [{ role: "user" as const, content: [{ type: "text" as const, text: "hi" }] }];
 
-/** Narrow a result to the error variant, asserting the detached shape. */
 function expectDetached(result: RunToolLoopResult) {
   expect(result.error).toBe("Request detached");
   if (result.error === null) throw new Error("expected the error variant");
@@ -141,9 +120,6 @@ describe("runToolLoop detach + resumable streaming", () => {
       model: "test-model",
       token: "token",
       detachSignal: detach.signal,
-      // minSpeed/maxSpeed of 1 with fake timers guarantees the smoother
-      // buffer is non-empty at detach — onData receiving the full text
-      // proves the detach exit FLUSHED the smoother instead of destroying it.
       smoothing: { enabled: true, minSpeed: 1, maxSpeed: 1 },
       onData: (chunk) => onDataChunks.push(chunk),
       onError,
@@ -152,13 +128,9 @@ describe("runToolLoop detach + resumable streaming", () => {
     const detached = expectDetached(result);
     expect(detached.data).not.toBeNull();
     expect(JSON.stringify(detached.data)).toContain("hello world");
-    // Flush proof: every pushed character reached onData before the result resolved.
     expect(onDataChunks.join("")).toBe("hello world");
-    // Same policy as aborts: onError is not called for detach.
     expect(onError).not.toHaveBeenCalled();
-    // No retry after a detach.
     expect(mockCreateSseClient).toHaveBeenCalledTimes(1);
-    // `resumable` was not set, so no handle — the header was never sent.
     expect(detached.resume).toBeNull();
   });
 
@@ -209,7 +181,6 @@ describe("runToolLoop detach + resumable streaming", () => {
   it("returns resume: null when no inference id was captured before the detach", async () => {
     const detach = new AbortController();
     const transport: StreamingTransport = () => ({
-      // No onStreamMeta call — models a detach before HEADERS_RECEIVED.
       stream: makeDetachingStream([detach], "partial"),
     });
 
@@ -270,7 +241,6 @@ describe("runToolLoop detach + resumable streaming", () => {
 
     const detached = expectDetached(result);
     expect(JSON.stringify(detached.data)).toContain("round one partial");
-    // The handle carries the continuation round's id — the latest capture wins.
     expect(detached.resume?.inferenceId).toBe("inf-2");
   });
 
@@ -288,15 +258,12 @@ describe("runToolLoop detach + resumable streaming", () => {
       detachSignal: detach.signal,
     });
 
-    // Land the detach during the first retry backoff (fast schedule: 500ms).
     setTimeout(() => detach.abort(), 100);
     await vi.runAllTimersAsync();
     const result = await promise;
 
     const detached = expectDetached(result);
-    // No meta was captured (the only attempt failed pre-headers) → no handle.
     expect(detached.resume).toBeNull();
-    // The pre-dispatch guard must return before dispatching a doomed attempt.
     expect(mockCreateSseClient).toHaveBeenCalledTimes(1);
   });
 
@@ -485,8 +452,6 @@ describe("runToolLoop detach + resumable streaming", () => {
   });
 
   it("captures X-Inference-ID through the default fetch transport", async () => {
-    // Use the real createSseClient for this test — the capture lives in the
-    // defaultTransport's fetch wrapper, between the response and the parser.
     const actual = await vi.importActual<typeof sseModule>(
       "../../client/core/serverSentEvents.gen"
     );

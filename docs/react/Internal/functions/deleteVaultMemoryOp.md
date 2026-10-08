@@ -1,8 +1,8 @@
-# deleteVaultMemoryOp
+# ~~deleteVaultMemoryOp()~~
 
 > **deleteVaultMemoryOp**(`ctx`: [`VaultMemoryOperationsContext`](../interfaces/VaultMemoryOperationsContext.md), `id`: `string`): `Promise`<`boolean`>
 
-Defined in: [src/lib/db/memoryVault/operations.ts:1379](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#1379)
+Defined in: [src/lib/db/memoryVault/operations.ts:1177](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#1177)
 
 ## Parameters
 
@@ -44,3 +44,7 @@ Defined in: [src/lib/db/memoryVault/operations.ts:1379](https://github.com/anuma
 ## Returns
 
 `Promise`<`boolean`>
+
+## Deprecated
+
+App code: use `MemoryStore.delete` (`createLocalMemoryStore`).

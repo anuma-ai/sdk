@@ -13,6 +13,7 @@ describe("migrateUnencryptedTokens", () => {
   const provider = "google-drive" as const;
   const walletAddress = "0x1234567890123456789012345678901234567890";
   const key = `oauth_token_${provider}`;
+  const scopedKey = `oauth_token_${provider}:${walletAddress}`;
 
   beforeEach(() => {
     localStorage.clear();
@@ -28,7 +29,7 @@ describe("migrateUnencryptedTokens", () => {
     const migrated = await migrateUnencryptedTokens(provider, walletAddress);
 
     expect(migrated).toBe(true);
-    expect(localStorage.getItem(key)).toMatch(/^enc:oauth:/);
+    expect(localStorage.getItem(scopedKey)).toMatch(/^enc:oauth:/);
     expect(sessionStorage.getItem(key)).toBeNull();
   });
 
@@ -41,7 +42,8 @@ describe("migrateUnencryptedTokens", () => {
     const migrated = await migrateUnencryptedTokens(provider, walletAddress);
 
     expect(migrated).toBe(true);
-    expect(localStorage.getItem(key)).toMatch(/^enc:oauth:/);
+    expect(localStorage.getItem(scopedKey)).toMatch(/^enc:oauth:/);
+    expect(localStorage.getItem(key)).toBeNull();
   });
 
   it("migrates sessionStorage even if localStorage is already encrypted", async () => {
@@ -51,8 +53,9 @@ describe("migrateUnencryptedTokens", () => {
     const migrated = await migrateUnencryptedTokens(provider, walletAddress);
 
     expect(migrated).toBe(true);
-    expect(localStorage.getItem(key)).toMatch(/^enc:oauth:/);
-    expect(localStorage.getItem(key)).not.toBe("enc:oauth:already-encrypted");
+    expect(localStorage.getItem(scopedKey)).toMatch(/^enc:oauth:/);
+    expect(localStorage.getItem(scopedKey)).not.toBe("enc:oauth:already-encrypted");
+    expect(localStorage.getItem(key)).toBe("enc:oauth:already-encrypted");
     expect(sessionStorage.getItem(key)).toBeNull();
   });
 
@@ -64,5 +67,27 @@ describe("migrateUnencryptedTokens", () => {
 
     expect(localStorage.getItem(key)).toBeNull();
     expect(sessionStorage.getItem(key)).toBeNull();
+  });
+
+  it("clearTokenData with a wallet also clears the wallet-scoped row", () => {
+    localStorage.setItem(key, "local");
+    localStorage.setItem(scopedKey, "enc:oauth:scoped");
+    sessionStorage.setItem(scopedKey, "scoped-session");
+
+    clearTokenData(provider, walletAddress);
+
+    expect(localStorage.getItem(key)).toBeNull();
+    expect(localStorage.getItem(scopedKey)).toBeNull();
+    expect(sessionStorage.getItem(scopedKey)).toBeNull();
+  });
+
+  it("clearTokenData without a wallet still clears every wallet-suffixed row", () => {
+    localStorage.setItem(scopedKey, "enc:oauth:scoped");
+    sessionStorage.setItem(`oauth_token_${provider}:0xother`, "other-session");
+
+    clearTokenData(provider);
+
+    expect(localStorage.getItem(scopedKey)).toBeNull();
+    expect(sessionStorage.getItem(`oauth_token_${provider}:0xother`)).toBeNull();
   });
 });

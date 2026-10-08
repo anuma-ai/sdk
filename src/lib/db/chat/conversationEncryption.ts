@@ -24,7 +24,6 @@ export async function encryptConversationFields(
   }
 
   try {
-    // Request encryption key once for all fields
     await requestEncryptionKey(address, signMessage, embeddedWalletSigner);
 
     const encryptedTitle = conversation.title

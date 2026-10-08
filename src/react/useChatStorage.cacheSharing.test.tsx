@@ -1,16 +1,4 @@
 // @vitest-environment happy-dom
-/**
- * The vault embedding cache the hook exposes used to be `useRef`-owned, so an
- * app with more than one mounted `useChatStorage` paid the full cold warm (a
- * whole-vault read, a decrypt per row, a JSON.parse per persisted vector) once
- * per instance and evicted a deleted memory from only the instance that did the
- * deleting. It is now resolved from a registry keyed by
- * `(database, walletAddress, embeddingModel)`.
- *
- * Sharing is the latency win; the isolation half is the correctness one — the
- * cache carries no wallet or model discriminator inside it, so an instance
- * handed to the wrong identity is silently wrong rather than loudly broken.
- */
 
 import { Database } from "@nozbe/watermelondb";
 import LokiJSAdapter from "@nozbe/watermelondb/adapters/lokijs";
@@ -41,8 +29,6 @@ describe("useChatStorage vault embedding cache sharing", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    // Module-level registry state outlives a test file's modules; reset it so
-    // each case starts from an empty registry.
     __resetVaultEmbeddingCacheRegistryForTests();
     db = makeDatabase();
   });
@@ -69,8 +55,6 @@ describe("useChatStorage vault embedding cache sharing", () => {
 
     expect(b.current.vaultEmbeddingCache).toBe(a.current.vaultEmbeddingCache);
 
-    // Shared instance means shared warmth: whichever hook pays for a vector,
-    // the others read it — and an eviction through one is an eviction for all.
     a.current.vaultEmbeddingCache.set("mem_1", Float32Array.from([0.1, 0.2]));
     expect(b.current.vaultEmbeddingCache.get("mem_1")).toEqual(Float32Array.from([0.1, 0.2]));
     b.current.vaultEmbeddingCache.delete("mem_1");
@@ -139,9 +123,6 @@ describe("useChatStorage vault embedding cache sharing", () => {
   });
 
   it("re-keys to a fresh cache when the wallet prop changes", () => {
-    // The `useRef` this replaced initialized once and was reused verbatim
-    // across an in-place wallet swap — a switch that skipped
-    // `clearAllEncryptionState` kept serving the previous account's vectors.
     const { result, rerender } = renderHook(
       ({ wallet }: { wallet: string }) =>
         useChatStorage({
@@ -190,8 +171,6 @@ describe("useChatStorage vault embedding cache sharing", () => {
       clearAllEncryptionState();
     });
 
-    // Clearing is idempotent across sharers — each mounted hook wipes the same
-    // instance — and no hook is left holding a populated one.
     expect(shared.size).toBe(0);
     expect(b.current.vaultEmbeddingCache.size).toBe(0);
   });

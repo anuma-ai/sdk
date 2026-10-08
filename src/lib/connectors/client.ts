@@ -24,17 +24,17 @@
 
 /** Discriminated union returned by `mintConnectorToken`. */
 export type ConnectorMintResult =
-  | { ok: true; accessToken: string; expiresAt: number /* unix ms */ }
+  | { ok: true; accessToken: string; expiresAt: number }
   | { ok: false; error: ConnectorMintError };
 
 /** Error variants from the mint endpoint, mirrored on `@anuma/agent-runtime`. */
 export type ConnectorMintError =
-  | { code: "connector_not_connected"; provider: string; connectUrl: string }
+  | { code: "connector_not_connected"; provider: string; connectUrl?: string }
   | {
       code: "scope_not_covered";
       provider: string;
       missingScopes: string[];
-      connectUrl: string;
+      connectUrl?: string;
     }
   | { code: "insufficient_scope"; required: string }
   | { code: "upstream_unavailable"; retryAfterMs?: number }
@@ -101,9 +101,6 @@ export function createConnectorTokenGetter(
     try {
       result = await client.mintConnectorToken(provider);
     } catch {
-      // Portal unreachable or all retries exhausted. Honor the
-      // `() => Promise<string | null>` contract — the tool factory will
-      // surface a structured connector error from the null return.
       cached = null;
       return null;
     }

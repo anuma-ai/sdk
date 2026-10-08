@@ -47,20 +47,17 @@ export function useModels(options: UseModelsOptions = {}): UseModelsResult {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
 
-  // Use refs to avoid recreating callbacks when these change
   const getTokenRef = useRef(getToken);
   const baseUrlRef = useRef(baseUrl);
   const providerRef = useRef(provider);
   const abortControllerRef = useRef<AbortController | null>(null);
 
-  // Update refs when values change
   useEffect(() => {
     getTokenRef.current = getToken;
     baseUrlRef.current = baseUrl;
     providerRef.current = provider;
   });
 
-  // Cleanup on unmount, aborting any active request
   useEffect(() => {
     return () => {
       if (abortControllerRef.current) {
@@ -71,7 +68,6 @@ export function useModels(options: UseModelsOptions = {}): UseModelsResult {
   }, []);
 
   const fetchModels = useCallback(async () => {
-    // Abort any pending request
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
     }
@@ -89,7 +85,6 @@ export function useModels(options: UseModelsOptions = {}): UseModelsResult {
         token = (await getTokenRef.current()) ?? undefined;
       }
 
-      // Check if aborted before proceeding
       if (signal.aborted) return;
 
       const headers: Record<string, string> = {};
@@ -101,7 +96,6 @@ export function useModels(options: UseModelsOptions = {}): UseModelsResult {
       let nextPageToken: string | undefined;
 
       do {
-        // Check if aborted before each API call
         if (signal.aborted) return;
 
         const response = await getApiV1Models({
@@ -126,23 +120,19 @@ export function useModels(options: UseModelsOptions = {}): UseModelsResult {
         }
       } while (nextPageToken);
 
-      // Check if aborted before setting state
       if (signal.aborted) return;
 
       setModels(allModels);
     } catch (err) {
-      // Handle AbortError specifically - aborts are intentional, not errors
       if (err instanceof Error && err.name === "AbortError") {
         return;
       }
 
       setError(err instanceof Error ? err : new Error(String(err)));
     } finally {
-      // Only update loading state if not aborted
       if (!signal.aborted) {
         setIsLoading(false);
       }
-      // Clear abort controller reference if this is still the current request
       if (abortControllerRef.current === abortController) {
         abortControllerRef.current = null;
       }
@@ -154,14 +144,12 @@ export function useModels(options: UseModelsOptions = {}): UseModelsResult {
     await fetchModels();
   }, [fetchModels]);
 
-  // Only run on mount
   const hasFetchedRef = useRef(false);
   useEffect(() => {
     if (autoFetch && !hasFetchedRef.current) {
       hasFetchedRef.current = true;
       void fetchModels();
     }
-    // Reset flag when autoFetch becomes false to allow re-fetching when it becomes true again
     if (!autoFetch) {
       hasFetchedRef.current = false;
     }

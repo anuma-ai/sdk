@@ -1,6 +1,6 @@
 # StockPriceClassification
 
-Defined in: [src/lib/chat/stockPriceClassifier.ts:23](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/stockPriceClassifier.ts#23)
+Defined in: [src/lib/chat/stockPriceClassifier.ts:9](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/stockPriceClassifier.ts#9)
 
 ## Properties
 
@@ -8,7 +8,7 @@ Defined in: [src/lib/chat/stockPriceClassifier.ts:23](https://github.com/anuma-a
 
 > **needsStockPrice**: `boolean`
 
-Defined in: [src/lib/chat/stockPriceClassifier.ts:25](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/stockPriceClassifier.ts#25)
+Defined in: [src/lib/chat/stockPriceClassifier.ts:11](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/stockPriceClassifier.ts#11)
 
 Whether the prompt likely asks for stock/ETF/FX quote data.
 
@@ -18,7 +18,7 @@ Whether the prompt likely asks for stock/ETF/FX quote data.
 
 > **noStockPriceScore**: `number`
 
-Defined in: [src/lib/chat/stockPriceClassifier.ts:29](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/stockPriceClassifier.ts#29)
+Defined in: [src/lib/chat/stockPriceClassifier.ts:15](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/stockPriceClassifier.ts#15)
 
 Cosine similarity to the "no stock price" centroid.
 
@@ -28,6 +28,6 @@ Cosine similarity to the "no stock price" centroid.
 
 > **stockPriceScore**: `number`
 
-Defined in: [src/lib/chat/stockPriceClassifier.ts:27](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/stockPriceClassifier.ts#27)
+Defined in: [src/lib/chat/stockPriceClassifier.ts:13](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/stockPriceClassifier.ts#13)
 
 Cosine similarity to the "needs stock price" centroid.

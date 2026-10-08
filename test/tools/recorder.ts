@@ -1,18 +1,3 @@
-/**
- * JSONL recorder for e2e tool tests.
- *
- * Writes one record per `runToolLoop` invocation to
- *   test/tools/.runs/<ISO>-<model>-<pid>.jsonl
- *
- * Each record captures: test name, model, apiType, total + per-step latency,
- * tool calls + arguments, tool results, per-step token usage, final assistant
- * text, and error. Used to analyze tool-selection accuracy, arg quality,
- * retry behavior, and token cost across models / commits.
- *
- * Writes are serialized through a promise chain so concurrent tests
- * (vitest maxConcurrency=6) don't interleave lines.
- */
-
 import * as fs from "node:fs";
 import * as path from "node:path";
 
@@ -58,20 +43,7 @@ export type RunRecord = {
   steps: RecordedStep[];
   finalText: string;
   error: string | null;
-  /**
-   * Terminal finish reason of the FINAL response, dug out of whichever response
-   * shape the resolved API produced (see `extractFinishReason`).
-   *
-   * Recorded because without it a zero-output run is undiagnosable from an
-   * artifact. `onStepFinish` only fires for rounds that executed tools, so the
-   * continuation that ends a turn by producing nothing leaves no step behind —
-   * exactly the runs we most need to explain. `"length"` means the output ceiling
-   * cut it off; anything else means the model stopped on its own and the ceiling
-   * is a red herring. See anuma-ai/sdk#805.
-   */
   finishReason: string | null;
-  /** Tool calls the final response carried, if any. Distinguishes "stopped with
-   *  nothing" from "stopped with an unparseable/partial call". */
   finalToolCallCount: number | null;
 };
 

@@ -19,18 +19,6 @@ import {
 } from "./operations";
 import type { MessageChunk } from "./types";
 
-/**
- * sdk#880 — chunk text is not persisted; snippets are rebuilt from offsets.
- *
- * Encrypting the column was the first attempt and was wrong: the client never
- * calls `searchChunksOp`, it reads this column raw and `JSON.parse`s it in four
- * places, each swallowing the throw and scoring 0. Not storing the text avoids
- * that entirely AND removes the plaintext rather than protecting it.
- *
- * These assert on the RAW column, because a round-trip assertion passes just as
- * well against a writer that still stores the text.
- */
-
 declare const global: typeof globalThis;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 declare const require: any;
@@ -77,7 +65,6 @@ function ctxFor(db: Database, encrypted: boolean): StorageOperationsContext {
   };
 }
 
-/** Chunks that genuinely tile `content`, the way `chunkText` produces them. */
 function tile(texts: string[]): { content: string; chunks: MessageChunk[] } {
   const content = texts.join(" ");
   let cursor = 0;
@@ -125,18 +112,13 @@ describe("updateMessageChunksOp — chunk text is not persisted (sdk#880)", () =
     await seed(ctx, content, chunks);
 
     const raw = await rawChunks(db, "m1");
-    // The defect: the secret was greppable in this column.
     expect(raw).not.toContain(SECRET);
     expect(raw).not.toContain("preamble");
-    // ...and the vectors/offsets that make search work are still there.
     expect(raw).toContain("startOffset");
     expect(raw).toContain("vector");
   });
 
   it("leaves the column as plain JSON, so the client's raw JSON.parse still works", async () => {
-    // The client reads this column raw and JSON.parses it in four places, each
-    // catching and returning 0. Ciphertext there would silently zero chunk
-    // scoring — which is why this is NOT encrypted.
     const db = makeDatabase();
     const ctx = ctxFor(db, true);
     const { content, chunks } = tile(["alpha beta", "gamma delta"]);
@@ -162,21 +144,12 @@ describe("updateMessageChunksOp — chunk text is not persisted (sdk#880)", () =
   });
 
   it("falls back to the whole message when content was rewritten under the offsets", async () => {
-    // `upsertMessageOp` rewrites `content` without touching `chunks`, so offsets
-    // can outlive the text they described. An in-bounds slice of the NEW content
-    // would be a plausible-looking excerpt of the wrong text — worse than a
-    // visibly coarse fallback, and invisible to the reader.
     const db = makeDatabase();
     const ctx = ctxFor(db, true);
     const { content, chunks } = tile(["apples and oranges", "the weather today"]);
     await seed(ctx, content, chunks);
 
     const row = await db.get<Message>("history").find("m1");
-    // PREPEND, not append. An append leaves offset 0..18 pointing at the same
-    // words, so a missing guard would look fine by luck. Prepending shifts every
-    // offset, so slicing 0..18 of the new content yields a real excerpt of the
-    // WRONG text — which is the failure this guard exists to prevent, and the
-    // one a reader cannot detect.
     const rewritten = `An entirely different opening sentence. ${content}`;
     await db.write(async () => {
       await row.update((m) => m._setRaw("content", rewritten));
@@ -184,13 +157,10 @@ describe("updateMessageChunksOp — chunk text is not persisted (sdk#880)", () =
 
     const hits = await searchChunksOp(ctx, [1, 0, 0], { minSimilarity: 0.99 });
     expect(hits[0]?.chunkText).toBe(rewritten);
-    // Guard against the specific wrong answer, not just "not the slice".
     expect(hits[0]?.chunkText).not.toBe(rewritten.slice(0, 18));
   });
 
   it("still reads a LEGACY row that carries its text", async () => {
-    // Rows written before this change keep `text`; it wins over the slice, so
-    // they read exactly as before and need no migration.
     const db = makeDatabase();
     const ctx = ctxFor(db, true);
     const { content, chunks } = tile(["apples and oranges", "the weather today"]);
@@ -198,7 +168,7 @@ describe("updateMessageChunksOp — chunk text is not persisted (sdk#880)", () =
 
     const row = await db.get<Message>("history").find("m1");
     await db.write(async () => {
-      await row.update((m) => m._setRaw("chunks", JSON.stringify(chunks))); // with text
+      await row.update((m) => m._setRaw("chunks", JSON.stringify(chunks)));
     });
 
     const hits = await searchChunksOp(ctx, [1, 0, 0], { minSimilarity: 0.99 });
@@ -206,8 +176,6 @@ describe("updateMessageChunksOp — chunk text is not persisted (sdk#880)", () =
   });
 
   it("writes the same bytes with and without encryption configured", async () => {
-    // Nothing here depends on a signer any more, which is the point: the
-    // background indexing sweep can no longer throw on a cold key.
     const encDb = makeDatabase();
     const plainDb = makeDatabase();
     const { content, chunks } = tile(["alpha beta", "gamma delta"]);

@@ -1,7 +1,5 @@
 import type { Database } from "@nozbe/watermelondb";
 
-// ===== Personality Types (moved from memoryless) =====
-
 /**
  * Slider settings for personality customization (1-5 range)
  */
@@ -87,22 +85,17 @@ export const SLIDER_CONFIG: {
   },
 ];
 
-// ===== User Preference Types =====
-
 /**
  * Stored user preference record from the database
  */
 export interface StoredUserPreference {
   uniqueId: string;
   walletAddress: string;
-  // Profile fields (top-level columns)
   nickname?: string;
   occupation?: string;
   description?: string;
-  // Settings (JSON strings)
   models?: string;
   personality?: string;
-  // Timestamps
   createdAt: number;
   updatedAt: number;
 }
@@ -138,8 +131,6 @@ export interface ProfileUpdate {
   occupation?: string;
   description?: string;
 }
-
-// ===== Hook Types =====
 
 /**
  * Base options for useSettings hook

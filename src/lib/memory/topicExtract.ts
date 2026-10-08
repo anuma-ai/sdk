@@ -1,20 +1,3 @@
-/**
- * Standalone topic (entity) extraction for EXISTING memories.
- *
- * The conversation pipeline (autoExtract.ts) assigns entities only to facts it
- * extracts from a live transcript — manually created, imported, and edited
- * memories never get LLM topics and used to fall back to a client-side regex.
- * This module is the LLM half of "continuously LLM-managed topics": a batched
- * pass that takes memories already in the vault, asks the extraction model for
- * their named entities, REPLACES their auto-managed links (guarded — a manual
- * edit or delete always wins), and stamps `topics_extracted_at` so the sweep
- * query (`getMemoriesNeedingTopicExtractionOp`) only revisits edited memories.
- *
- * Batching: memories are classified ~10 per LLM call (mirroring the folder
- * Auto-Sort harness) with per-memory content truncation, so a whole-vault
- * backfill or a bulk import costs ceil(n/10) requests, not n.
- */
-
 import { replaceMemoryEntitiesGuardedOp } from "../db/entities/operations.js";
 import {
   stampTopicsExtractedAtOp,
@@ -34,25 +17,10 @@ import { callPortalJsonCompletion, type PortalLlmAuth } from "./portalLlm.js";
 /** Memories per LLM call. Mirrors the folder Auto-Sort batch size — the cost
  * lever that makes a whole-vault backfill viable. */
 export const TOPIC_EXTRACTION_BATCH_SIZE = 10;
-/** Per-memory content cap in the prompt. Vault facts are short statements;
- * 300 chars covers them while bounding prompt growth on imported blobs. */
 const MAX_CHARS_PER_MEMORY = 300;
-/** Cap on existing-vocabulary names included in the prompt. */
 const MAX_VOCABULARY_NAMES = 100;
-/**
- * Output-token ceiling for a batch response, sent as the modern
- * `max_completion_tokens` field. This MUST be `max_completion_tokens`, not the
- * deprecated `max_tokens`: the portal reads only the former, so a `max_tokens`
- * value is silently dropped and the request falls back to the portal's 4096
- * per-step default — which truncates a verbose 10-memory batch mid-JSON and
- * drops the whole batch (Cerebras honors `max_completion_tokens` and stops at
- * 4096 with `finish_reason=length`). Cerebras allows ~41k; 8192 is generous
- * headroom over the ~1-2k the batch's JSON actually needs. */
 const MAX_COMPLETION_TOKENS = 8192;
 
-// NOTE: bump TOPICS_EXTRACTION_VERSION (db/memoryVault/operations.ts) whenever
-// this prompt or DEFAULT_EXTRACTION_MODEL changes, so the sweep re-extracts the
-// existing vault under the improved logic instead of keeping stale topics.
 const SYSTEM_PROMPT = `You assign topics to saved memories for a personal memory system.
 
 Each memory is a short statement about the user. For each memory, list the NAMED entities it mentions — these become the memory's topics, used to connect related memories in a knowledge graph.
@@ -135,26 +103,7 @@ export async function extractEntitiesForMemories(
   const out = new Map<string, ExtractedEntity[]>();
   if (memories.length === 0) return out;
   const redactor = resolvePiiRedactor(options.piiRedaction);
-  // Both redaction loops below are ASYNC and SEQUENTIAL, deliberately.
-  //
-  // Async because `redactText` is regex-only: a caller who configured an
-  // `nerDetector` gets names, locations and orgs masked only by
-  // `redactTextAsync`, and entity extraction is exactly the path where those
-  // values would otherwise egress in plain text. Without a detector
-  // `redactTextAsync` returns `redactText` directly, so the default is
-  // unchanged.
-  //
-  // Sequential rather than Promise.all because the redactor is stateful — it
-  // mints `[EMAIL_1]`, `[EMAIL_2]`, … in first-seen order and reuses them.
-  // Racing the calls would tie that numbering to promise resolution order, so
-  // a memory could stop matching its own vocabulary entry, and the same batch
-  // could produce a differently-numbered prompt run to run.
 
-  // Vocabulary names are restored REAL values (that's the point of canonical
-  // names), so under PII redaction they must go through the SAME redactor as
-  // the contents — same redactor instance ⇒ same placeholder numbering, so a
-  // redacted memory still anchors to its redacted vocabulary entry, and the
-  // model's placeholder echoes restore alongside the content entities.
   const vocabulary: string[] = [];
   for (const name of (options.existingEntityNames ?? [])
     .filter((n) => n.trim().length > 0)
@@ -170,11 +119,6 @@ export async function extractEntitiesForMemories(
     const batch = memories.slice(i, i + TOPIC_EXTRACTION_BATCH_SIZE);
     const rows: string[] = [];
     for (const m of batch) {
-      // Collapse whitespace so a memory whose content contains a newline
-      // (textarea entry, doc import) can't masquerade as extra "id: text"
-      // rows once "\n" is the row delimiter — that would split one memory
-      // into two, answer a phantom id, and leave the real id absent (hence
-      // unstamped and re-tried every sweep).
       const content = m.content.slice(0, MAX_CHARS_PER_MEMORY).replace(/\s+/g, " ").trim();
       rows.push(`${m.id}: ${redactor ? (await redactor.redactTextAsync(content)).text : content}`);
     }
@@ -199,8 +143,6 @@ export async function extractEntitiesForMemories(
       ...(options.backoffMs && { backoffMs: options.backoffMs }),
     });
     if (parsed === null) {
-      // Failed batch — leave its memories absent so the caller retries them
-      // in a later sweep instead of stamping them as extracted.
       getLogger().warn(
         `[memory/topics] batch of ${batch.length} failed after retries — will retry next sweep`
       );
@@ -209,9 +151,6 @@ export async function extractEntitiesForMemories(
     const validIds = new Set(batch.map((m) => m.id));
     const byId = parseTopicResponse(parsed, validIds);
     if (byId === null) {
-      // Parseable JSON but not our shape at all ({"topics": ...}) — a batch
-      // failure, NOT ten "no entities" answers. Stamping would make the whole
-      // batch permanently topic-less; leave absent so the next sweep retries.
       getLogger().warn(
         `[memory/topics] batch of ${batch.length} returned an unrecognized shape — will retry next sweep`
       );
@@ -220,10 +159,6 @@ export async function extractEntitiesForMemories(
     for (const m of batch) {
       const entities = byId.get(m.id);
       if (entities === undefined) {
-        // The model omitted this id. Treat as UNANSWERED (absent → retried
-        // next sweep), never as "no entities" — defaulting an omission to []
-        // would stamp the memory permanently topic-less. The prompt demands
-        // one element per input; retries are bounded by the caller's caps.
         continue;
       }
       out.set(m.id, redactor ? restoreEntities(entities, redactor) : entities);
@@ -232,8 +167,6 @@ export async function extractEntitiesForMemories(
   return out;
 }
 
-/** Restore real PII values in entity names; drop entities whose placeholders
- * the model mangled beyond restoration (mirrors autoExtract's entity handling). */
 function restoreEntities(entities: ExtractedEntity[], redactor: PiiRedactor): ExtractedEntity[] {
   return entities
     .map((e) => ({ kind: e.kind, restored: redactor.restoreForStorage(e.name) }))
@@ -244,17 +177,6 @@ function restoreEntities(entities: ExtractedEntity[], redactor: PiiRedactor): Ex
     );
 }
 
-/**
- * Validate the LLM's `{"memories": [{id, entities}]}` response.
- *
- * Returns null on a total shape failure (no `memories` array) — the caller
- * treats that as a failed batch to retry, not as answers. Within a valid
- * list, elements with unknown/missing ids are dropped, a duplicated id keeps
- * its FIRST answer (a repeat is model noise, not a correction), and entities
- * go through the same validator as the conversation pipeline
- * ({@link parseEntities}). Ids absent from the returned map are UNANSWERED —
- * the caller must leave them for a later sweep, not stamp them.
- */
 function parseTopicResponse(
   parsed: unknown,
   validIds: Set<string>
@@ -267,11 +189,6 @@ function parseTopicResponse(
     if (typeof raw !== "object" || raw === null) continue;
     const obj = raw as Record<string, unknown>;
     if (typeof obj.id !== "string") continue;
-    // Tolerate a model that decorates the echoed id (e.g. ling wraps it as
-    // "[mem_1]") or copies the "id: " listing delimiter's trailing colon
-    // ("mem_1:") — strip a trailing colon and a single pair of wrapping
-    // brackets + whitespace so the batch still reconciles instead of silently
-    // dropping all its memories.
     const id = obj.id
       .trim()
       .replace(/:$/, "")
@@ -314,15 +231,6 @@ export type TopicSkipReason =
   | "not-found"
   | "link-failed";
 
-/**
- * The classification itself, as a total table rather than a condition chain.
- *
- * A chain fails OPEN: a reason added to {@link TopicSkipReason} but not to the
- * chain returns `false` and rejoins the healthy pile — the exact regression
- * reason-tagging exists to prevent. `Record<TopicSkipReason, boolean>` makes
- * that omission a type error here, at the definition site, rather than
- * something only a test's `satisfies` happens to catch.
- */
 const DEGRADED_TOPIC_SKIP: Record<TopicSkipReason, boolean> = {
   excluded: false,
   "link-declined": false,
@@ -397,6 +305,8 @@ export interface TopicExtractionRunResult {
  * Requires `ctx.entityCtx`. Contents are decrypted via the ctx's wallet
  * fields, exactly like the vault read ops; a memory whose decryption fails is
  * skipped (retried next sweep), not fatal to the run.
+ *
+ * @deprecated App code: use `MemoryStore.maintenance.extractTopics` (`createLocalMemoryStore`).
  */
 export async function extractAndLinkEntitiesForMemoriesOp(
   ctx: VaultMemoryOperationsContext,
@@ -412,47 +322,25 @@ export async function extractAndLinkEntitiesForMemoriesOp(
     throw new Error("extractAndLinkEntitiesForMemoriesOp requires ctx.entityCtx");
   }
   const log = getLogger();
-  // Capture the watermark before reading contents — see the doc comment.
   const extractedAt = options.now ?? Date.now();
 
   const skippedIds: string[] = [];
-  // One writer for both, so a new skip site cannot add an id without a reason —
-  // which is exactly how `skippedIds` became unreadable in the first place.
   const skippedReasons = new Map<string, TopicSkipReason>();
   const skip = (id: string, reason: TopicSkipReason): void => {
-    // Idempotent, FIRST reason wins — defence in depth. Within a single id the
-    // control flow can only reach ONE skip site (each `continue`s past the
-    // later ones), and the input is deduped below, so this should never fire.
-    // It stays because the failure it prevents is silent: a double push would
-    // break the lockstep these two document, and a later benign reason
-    // overwriting an earlier degraded one hides a failure rather than showing
-    // one.
     if (skippedReasons.has(id)) return;
     skippedIds.push(id);
     skippedReasons.set(id, reason);
   };
   const inputs: TopicExtractionInput[] = [];
-  // Dedupe up front: `memoryIds` is caller-supplied. A repeat otherwise gets
-  // sent twice in the LLM batch and linked twice, and — since `toStamp` keeps
-  // the id from the first pass — a second link write that throws puts the SAME
-  // id in `stampedIds` and in `skippedIds` as degraded, i.e. an alarm count for
-  // a row that actually landed. Set preserves insertion order.
   for (const id of new Set(memoryIds)) {
     let record;
     try {
       record = await ctx.vaultMemoryCollection.find(id);
     } catch (err) {
-      // The only degraded path that would otherwise leave no trace, and the
-      // reason bundles two situations the alarm can't separate after the fact:
-      // an absent row (a delete racing the caller's pending query — an ordinary
-      // event, so the degraded count has a nonzero floor) versus a genuine read
-      // fault. Log so the two can be told apart in production.
       log.warn("[memory/topics] vault lookup failed for extraction", err);
       skip(id, "not-found");
       continue;
     }
-    // Truthiness (not `=== true`) on the flag so an unsanitized SQLite `1`
-    // can never fail open.
     if (
       record.isDeleted ||
       (ctx.userId !== undefined && record.userId !== ctx.userId) ||
@@ -470,8 +358,6 @@ export async function extractAndLinkEntitiesForMemoriesOp(
       );
       inputs.push({ id, content: stored.content });
     } catch (err) {
-      // A single undecryptable/corrupt row must not abort the whole sweep —
-      // skip it (retried next sweep; callers cap attempts) and keep going.
       log.warn("[memory/topics] failed to load memory for extraction", err);
       skip(id, "unreadable");
     }
@@ -483,17 +369,10 @@ export async function extractAndLinkEntitiesForMemoriesOp(
   for (const input of inputs) {
     const entities = entitiesByMemory.get(input.id);
     if (entities === undefined) {
-      // Unanswered (failed batch or omitted id) — retry next sweep. This is the
-      // reason a wholly broken sweep reports, so it is the one to alarm on.
       skip(input.id, "llm-unanswered");
       continue;
     }
     try {
-      // Replace (not append) so re-extraction of an edited memory drops
-      // stale entities. Runs for answered-empty results too — "likes tea"
-      // must unlink whatever the previous content mentioned. Null = the
-      // in-write guard skipped (user-managed/deleted/absent/read-fault):
-      // nothing persisted, so don't stamp.
       const linked = await replaceMemoryEntitiesGuardedOp(entityCtx, input.id, entities);
       if (linked === null) {
         skip(input.id, "link-declined");
@@ -501,8 +380,6 @@ export async function extractAndLinkEntitiesForMemoriesOp(
         continue;
       }
     } catch (err) {
-      // Don't stamp a memory whose links failed to persist — leave it for
-      // the next sweep rather than recording a pass that didn't land.
       log.warn("[memory/topics] replaceMemoryEntitiesGuardedOp failed", err);
       skip(input.id, "link-failed");
       entitiesByMemory.delete(input.id);
@@ -511,9 +388,6 @@ export async function extractAndLinkEntitiesForMemoriesOp(
     toStamp.push(input.id);
   }
 
-  // Stamp in one batch. The op re-checks user-managed inside its writer and
-  // returns only the ids it actually stamped — anything it declined (flag
-  // flipped mid-run) is reported as skipped.
   const stampedIds = await stampTopicsExtractedAtOp(ctx, toStamp, extractedAt);
   const stampedSet = new Set(stampedIds);
   for (const id of toStamp) {

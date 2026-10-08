@@ -1,10 +1,3 @@
-/**
- * Memory Engine Tool
- *
- * Provides a tool for LLMs to search through past conversation messages
- * using semantic similarity.
- */
-
 import type { ToolConfig } from "../chat/useChat/types";
 import type { StorageOperationsContext } from "../db/chat/operations";
 import { getMessagesOp, searchChunksOp } from "../db/chat/operations";
@@ -12,9 +5,6 @@ import { DEFAULT_API_EMBEDDING_MODEL } from "./constants";
 import { generateEmbedding } from "./embeddings";
 import type { EmbeddingOptions, MemoryEngineSearchOptions } from "./types";
 
-/**
- * Default search options
- */
 const DEFAULT_SEARCH_OPTIONS: Required<MemoryEngineSearchOptions> = {
   limit: 8,
   topK: 8,
@@ -26,11 +16,6 @@ const DEFAULT_SEARCH_OPTIONS: Required<MemoryEngineSearchOptions> = {
   contextMessages: undefined as unknown as number,
 };
 
-/**
- * Format expanded session results for LLM consumption.
- * Groups all messages by their conversation session so the LLM sees
- * complete context, not isolated fragments.
- */
 function formatSessionResults(
   sessions: Array<{
     conversationId: string;
@@ -155,7 +140,6 @@ export function createMemoryEngineTool(
       try {
         const queryEmbedding = await generateEmbedding(query, embeddingOptions);
 
-        // Fetch extra candidates to have enough diversity after dedup and filtering
         const fetchMultiplier =
           3 * (includeAssistant ? 1 : 2) * (defaultOpts.excludeConversationId ? 1.5 : 1);
         const fetchLimit = Math.ceil(topK * fetchMultiplier);
@@ -167,20 +151,14 @@ export function createMemoryEngineTool(
           embeddingModel: embeddingOptions.model ?? DEFAULT_API_EMBEDDING_MODEL,
         });
 
-        // Filter out excluded conversation
         let filteredResults = defaultOpts.excludeConversationId
           ? results.filter((r) => r.message.conversationId !== defaultOpts.excludeConversationId)
           : results;
 
-        // Filter by role if needed
         filteredResults = includeAssistant
           ? filteredResults
           : filteredResults.filter((r) => r.message.role === "user");
 
-        // Deduplicate: ensure diverse conversation coverage by taking the
-        // best chunk per conversation first, then filling remaining slots
-        // with next-best chunks. This prevents a single conversation with
-        // many similar chunks from dominating all topK slots.
         const convBuckets = new Map<string, typeof filteredResults>();
         for (const r of filteredResults) {
           const convId = r.message.conversationId;
@@ -192,7 +170,6 @@ export function createMemoryEngineTool(
           }
         }
 
-        // Round-robin: take one chunk per conversation at a time
         const dedupedResults: typeof filteredResults = [];
         const bucketArrays = Array.from(convBuckets.values());
         let round = 0;
@@ -209,7 +186,6 @@ export function createMemoryEngineTool(
           round++;
         }
 
-        // Track best similarity and matched message IDs per conversation
         const convMeta = new Map<string, { bestSimilarity: number; matchedMsgIds: Set<string> }>();
         for (const r of dedupedResults) {
           const convId = r.message.conversationId;
@@ -227,7 +203,6 @@ export function createMemoryEngineTool(
 
         const contextWindow = defaultOpts.contextMessages;
 
-        // Expand: fetch messages from each matched conversation in parallel
         const convEntries = Array.from(convMeta.entries());
         const allConvMessages = await Promise.all(
           convEntries.map(([convId]) => getMessagesOp(storageCtx, convId))
@@ -247,13 +222,10 @@ export function createMemoryEngineTool(
           let selected: typeof allMessages;
 
           if (contextWindow === undefined || contextWindow === null) {
-            // No cap — return the full conversation
             selected = allMessages;
           } else if (contextWindow === 0) {
-            // No expansion — return only the matched messages
             selected = allMessages.filter((m) => meta.matchedMsgIds.has(m.uniqueId));
           } else {
-            // Return a window of contextMessages around each matched message
             const includeIndices = new Set<number>();
             for (let i = 0; i < allMessages.length; i++) {
               if (meta.matchedMsgIds.has(allMessages[i].uniqueId)) {
@@ -267,7 +239,6 @@ export function createMemoryEngineTool(
             selected = allMessages.filter((_, i) => includeIndices.has(i));
           }
 
-          // Filter by role
           const filtered = selected.filter(
             (m) => m.role === "user" || (includeAssistant && m.role === "assistant")
           );

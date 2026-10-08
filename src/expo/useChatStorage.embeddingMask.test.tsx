@@ -1,17 +1,4 @@
 // @vitest-environment happy-dom
-/**
- * Per-call PII masking of embedding inputs on the Expo send path.
- *
- * Regression guard for the "Per-call PII skips embeddings" finding: a per-request
- * `piiRedaction: true` (while the hook-level option is OFF) must mask the text
- * that reaches the embeddings endpoint, not just the LLM/summary paths. Before the
- * fix, stored-message + tool-filter embeddings used the HOOK-level masker (identity
- * when the hook option is off), so raw PII leaked to the embeddings API on those
- * paths. They now use the per-call `maskForCall`.
- *
- * Only the text SENT to the embeddings server is masked — the locally stored
- * message content stays the real value.
- */
 
 import { Database } from "@nozbe/watermelondb";
 import LokiJSAdapter from "@nozbe/watermelondb/adapters/lokijs";
@@ -20,15 +7,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { sdkMigrations, sdkModelClasses, sdkSchema } from "../lib/db/schema";
 
-// Clean (non-detached) loop result so the send stores a user + assistant row,
-// each of which is embedded via embedMessageAsync(..., maskForCall).
 vi.mock("../lib/chat/toolLoop", async (importOriginal) => {
   const orig = await importOriginal<typeof import("../lib/chat/toolLoop")>();
   return { ...orig, runToolLoop: vi.fn() };
 });
 
-// Spy on generateEmbedding so we can inspect the exact text that would leave the
-// device. Keep every other memoryEngine export intact.
 vi.mock("../lib/memoryEngine", async (importOriginal) => {
   const orig = await importOriginal<typeof import("../lib/memoryEngine")>();
   return {
@@ -75,16 +58,12 @@ function responsesShape(text: string) {
   };
 }
 
-/** All text args generateEmbedding was called with this test. */
 function embeddedTexts(): string[] {
   return mockGenerateEmbedding.mock.calls.map((c) => c[0]);
 }
 
 describe("useChatStorage per-call embedding masking (expo)", () => {
   let db: Database;
-  // getServerTools hits the network on the storage path; make it fail fast so the
-  // send falls through to the async stored-message embedding (generateEmbedding is
-  // mocked and never touches fetch).
   let fetchSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
@@ -104,7 +83,6 @@ describe("useChatStorage per-call embedding masking (expo)", () => {
 
   it("masks the embedding input when a per-request piiRedaction:true overrides a hook-level OFF", async () => {
     const { result } = renderHook(() =>
-      // Hook-level redaction is OFF — the leak the finding describes.
       useChatStorage({ database: db, conversationId: "conv_mask", getToken: async () => "tok" })
     );
 
@@ -112,18 +90,16 @@ describe("useChatStorage per-call embedding masking (expo)", () => {
       await result.current.sendMessage({
         messages: [{ role: "user", content: [{ type: "text", text: USER_TEXT }] }],
         model: "test-model",
-        piiRedaction: true, // per-request override, hook is off
+        piiRedaction: true,
       });
     });
 
     await waitFor(() => expect(mockGenerateEmbedding).toHaveBeenCalled());
 
     const texts = embeddedTexts();
-    // The user message reached the embeddings endpoint MASKED, never raw.
     expect(texts.some((t) => t.includes("[EMAIL]"))).toBe(true);
     expect(texts.some((t) => t.includes(EMAIL))).toBe(false);
 
-    // But the locally stored message keeps the real value (only the wire is masked).
     const stored = await result.current.getMessages("conv_mask");
     const userRow = stored.find((m) => m.role === "user");
     expect(userRow?.content).toBe(USER_TEXT);
@@ -138,22 +114,17 @@ describe("useChatStorage per-call embedding masking (expo)", () => {
       await result.current.sendMessage({
         messages: [{ role: "user", content: [{ type: "text", text: USER_TEXT }] }],
         model: "test-model",
-        // no piiRedaction override, hook off → redaction fully off
       });
     });
 
     await waitFor(() => expect(mockGenerateEmbedding).toHaveBeenCalled());
 
     const texts = embeddedTexts();
-    // Byte-identical to the pre-fix behavior: the raw email is embedded as-is.
     expect(texts.some((t) => t.includes(EMAIL))).toBe(true);
     expect(texts.some((t) => t.includes("[EMAIL]"))).toBe(false);
   });
 });
 
-// The `embeddingCache` send-arg is on the SHARED args type, so it type-checks on expo too — it must
-// therefore actually be honoured here, or a mobile caller following the documented contract silently
-// pays for a second embedding. Raised by Cursor Bugbot on sdk#923.
 describe("useChatStorage embeddingCache passthrough (expo)", () => {
   let db: Database;
   let fetchSpy: ReturnType<typeof vi.spyOn>;
@@ -180,8 +151,6 @@ describe("useChatStorage embeddingCache passthrough (expo)", () => {
       await result.current.sendMessage({
         messages: [{ role: "user", content: [{ type: "text", text: USER_TEXT }] }],
         model: "test-model",
-        // A function filter is what makes the send embed for TOOL SELECTION — the path that takes
-        // the shared cache. Without it the only embedding here is the stored-message one.
         serverTools: (_e: unknown, tools: { name: string }[]) => tools.map((t) => t.name),
         clientTools: [{ type: "function", function: { name: "client_a", description: "a" } }],
         embeddingCache: cache,
@@ -195,8 +164,6 @@ describe("useChatStorage embeddingCache passthrough (expo)", () => {
     );
     expect(call, "no embedding call received a cache").toBeDefined();
 
-    // A view, not the Map: writes land under the masked prefix so an unmasked reader of the same Map
-    // cannot be served this vector.
     const view = (call![1] as { cache: Map<string, Float32Array> }).cache;
     view.set(USER_TEXT, Float32Array.from([1, 2, 3]));
     expect([...cache.keys()]).toEqual([`m:${USER_TEXT}`]);

@@ -34,7 +34,6 @@ export interface QuantizedEmbedding {
   scale: number;
 }
 
-/** Maximum absolute value of an Int8. Used for [-127, 127] mapping. */
 const INT8_MAX = 127;
 
 /**
@@ -58,7 +57,6 @@ export function quantizeEmbedding(v: Float32Array | number[]): QuantizedEmbeddin
     return { data, scale: 0 };
   }
 
-  // Find max absolute value in a single pass to use as the scale.
   let maxAbs = 0;
   for (let i = 0; i < len; i += 1) {
     const a = Math.abs(v[i]);
@@ -66,14 +64,11 @@ export function quantizeEmbedding(v: Float32Array | number[]): QuantizedEmbeddin
   }
 
   if (maxAbs === 0) {
-    // Zero vector — return zeroed Int8Array (default) with zero scale.
     return { data, scale: 0 };
   }
 
   const inv = INT8_MAX / maxAbs;
   for (let i = 0; i < len; i += 1) {
-    // Math.round + Int8Array clamping covers the full range; explicit
-    // clamp to guard against floating-point overshoot at the bounds.
     const q = Math.round(v[i] * inv);
     data[i] = q > INT8_MAX ? INT8_MAX : q < -INT8_MAX ? -INT8_MAX : q;
   }
@@ -136,6 +131,5 @@ export function cosineInt8(a: Int8Array, scaleA: number, b: Int8Array, scaleB: n
   if (normA === 0 || normB === 0) return 0;
 
   const sim = dot / (Math.sqrt(normA) * Math.sqrt(normB));
-  // Clamp to [-1, 1] in case of floating-point drift in sqrt.
   return sim > 1 ? 1 : sim < -1 ? -1 : sim;
 }

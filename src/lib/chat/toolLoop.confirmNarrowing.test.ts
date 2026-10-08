@@ -1,13 +1,3 @@
-/**
- * Narrowing the tool list after a confirmed booking or cancel in runToolLoop.
- *
- * Once the user approves a booking card, the rest of the turn offers only the
- * restaurant tools and the confirm tool; a cancel card narrows to the list and
- * cancel tools. A declined, cancelled or unrelated
- * confirmation leaves the tools alone, and so does a list that carries no
- * restaurant tool at all.
- */
-
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import * as sseModule from "../../client/core/serverSentEvents.gen";
@@ -41,7 +31,6 @@ const RESTAURANT_TOOLS = [FIND, AVAILABILITY, BOOK];
 
 type ToolCallEvent = { id: string; name: string; arguments: string; output?: string };
 
-/** Stream where the model calls one client tool; `events` are the portal's tool_call_events. */
 function makeClientToolStream(callId: string, name: string, events: ToolCallEvent[] = []) {
   return (async function* () {
     yield { type: "response.created", response: { id: "r", model: "m" } };
@@ -73,7 +62,6 @@ function makeTextStream(text: string) {
   })();
 }
 
-/** A server tool as useChatStorage merges it for the responses API. */
 function serverTool(name: string) {
   return { type: "function", name, description: name, parameters: { type: "object" } };
 }
@@ -97,7 +85,6 @@ function answer(confirmed: boolean, action: string) {
 
 type Captured = { tools: string[]; toolChoice: unknown };
 
-/** Runs the loop and returns each request's tool names and tool_choice. */
 async function captureRequests(
   tools: Array<Record<string, unknown>>,
   toolChoice?: string
@@ -123,7 +110,6 @@ async function captureRequests(
   return requests;
 }
 
-/** Round 1 calls the confirm tool, round 2 answers in text. */
 function scriptConfirmThenText() {
   mockCreateSseClient
     .mockReturnValueOnce({ stream: makeClientToolStream("c1", CONFIRM) } as never)
@@ -151,7 +137,6 @@ describe("runToolLoop after a confirmed booking", () => {
     ];
     mockCreateSseClient
       .mockReturnValueOnce({ stream: makeClientToolStream("c1", CONFIRM) } as never)
-      // The portal runs find_restaurant in round 2, then the model shows a fuller card.
       .mockReturnValueOnce({
         stream: makeClientToolStream("c2", CONFIRM, [
           { id: "s1", name: FIND, arguments: "{}", output: '{"restaurants":[]}' },
@@ -164,7 +149,6 @@ describe("runToolLoop after a confirmed booking", () => {
     expect(requests).toHaveLength(3);
     expect(requests[0].tools).toEqual([FIND, AVAILABILITY, BOOK, NEARBY, WEATHER, CONFIRM]);
     expect(requests[1].tools).toEqual([...RESTAURANT_TOOLS, CONFIRM]);
-    // A later cancelled card does not widen the list again.
     expect(requests[2].tools).toEqual([...RESTAURANT_TOOLS, CONFIRM]);
   });
 

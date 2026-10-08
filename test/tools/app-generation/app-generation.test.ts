@@ -1,12 +1,3 @@
-/**
- * E2E tests for app generation tool loop.
- *
- * Runs real LLM calls with app file tools backed by an in-memory store.
- * Tests the full generate -> modify cycle without any UI.
- *
- * Run: PORTAL_API_KEY=... pnpm vitest run test/tools/app-generation
- */
-
 import { afterAll, describe, expect, it } from "vitest";
 
 import { buildAppSystemPrompt } from "../../../src/tools/appGeneration.js";
@@ -30,7 +21,6 @@ import { createTestAppTools } from "./tools.js";
 const SYSTEM_PROMPT = buildAppSystemPrompt();
 const PROMPT_HASH = shortHash(SYSTEM_PROMPT);
 
-/** Record a one-phase scenario into a metrics.json under its output dir. */
 function recordScenario(opts: {
   outputSubdir: string;
   scenario: string;
@@ -106,21 +96,17 @@ describe.concurrent("app-generation", () => {
     dumpFiles(store, "counter-app");
     expect(result.error).toBeNull();
 
-    // Should have called create_file (display is automatic — no display_app tool)
     const createCalls = log.filter((l) => l.name === "create_file");
     expect(createCalls.length).toBeGreaterThanOrEqual(1);
 
-    // Files should exist in the store
     expect(store.size).toBeGreaterThanOrEqual(2);
     expect(store.has("App.js") || store.has("App.jsx")).toBe(true);
     expect(store.has("package.json")).toBe(true);
 
-    // App.js should contain React code
     const appContent = store.get("App.js") ?? store.get("App.jsx") ?? "";
     expect(appContent).toContain("export default");
     expect(appContent).toMatch(/useState|count/i);
 
-    // package.json should be valid JSON with dependencies
     const pkgJson = JSON.parse(store.get("package.json")!);
     expect(pkgJson).toHaveProperty("dependencies");
 
@@ -157,17 +143,13 @@ describe.concurrent("app-generation", () => {
 
     const createCalls = log.filter((l) => l.name === "create_file");
 
-    // With batch mode, we expect 1 create_file call (or at most 2).
-    // Without batch mode, we'd see 3+ calls (one per file).
     console.log(`  create_file calls: ${createCalls.length}, files in store: ${store.size}`);
 
-    // Check if at least one call used the files array
     const batchCalls = createCalls.filter((l) => Array.isArray(l.args.files));
     console.log(
       `  batch calls: ${batchCalls.length}, single-file calls: ${createCalls.length - batchCalls.length}`
     );
 
-    // We expect the LLM to use batch mode for initial creation
     expect(batchCalls.length).toBeGreaterThanOrEqual(1);
     dumpFiles(store, "todo-batch");
 
@@ -188,7 +170,6 @@ describe.concurrent("app-generation", () => {
     const tools = createTestAppTools(store).map((t) => wrapTool(t, log));
     const startedAt = new Date().toISOString();
 
-    // Step 1: Generate the initial app
     const genResult = await timedToolLoop({
       messages: makeMessages(
         "Build a simple calculator app with a display and number buttons.",
@@ -219,7 +200,6 @@ describe.concurrent("app-generation", () => {
     });
     console.log(`  After generation: ${store.size} files, ${callsAfterGen} tool calls`);
 
-    // Step 2: Ask to change only the styles
     const updateMessages = [
       ...makeMessages(
         "Build a simple calculator app with a display and number buttons.",
@@ -260,7 +240,6 @@ describe.concurrent("app-generation", () => {
     dumpFiles(store, "calculator-updated");
     expect(updateResult.error).toBeNull();
 
-    // Check which files were modified in step 2 (via create_file or patch_file)
     const updateCalls = log
       .slice(callsAfterGen)
       .filter((l) => l.name === "create_file" || l.name === "patch_file");
@@ -268,17 +247,14 @@ describe.concurrent("app-generation", () => {
       `  After update: ${updateCalls.length} file-modifying calls (${updateCalls.map((l) => l.name).join(", ")})`
     );
 
-    // The update should have modified files via create_file or patch_file
     expect(updateCalls.length).toBeGreaterThanOrEqual(1);
 
-    // package.json should NOT have been rewritten (no dependency change)
     const pkgBefore = filesAfterGen.get("package.json");
     const pkgAfter = store.get("package.json");
     if (pkgBefore && pkgAfter) {
       console.log(`  package.json changed: ${pkgBefore !== pkgAfter}`);
     }
 
-    // At least one file should have changed content
     let changedFiles = 0;
     for (const [path, content] of store) {
       if (filesAfterGen.get(path) !== content) changedFiles++;
@@ -330,18 +306,14 @@ describe.concurrent("app-generation", () => {
     const appContent = store.get("App.js") ?? store.get("App.jsx") ?? "";
     expect(appContent.length).toBeGreaterThan(0);
 
-    // Should have a default export
     expect(appContent).toContain("export default");
 
-    // Should import React
     expect(appContent).toMatch(/import.*react/i);
 
-    // Should not contain CDN script tags
     expect(appContent).not.toContain("cdn.jsdelivr.net");
     expect(appContent).not.toContain("unpkg.com");
     expect(appContent).not.toContain("<script src=");
 
-    // Should not create index.js or index.html (auto-generated)
     expect(store.has("index.js")).toBe(false);
     expect(store.has("index.html")).toBe(false);
 
@@ -382,15 +354,12 @@ describe.concurrent("app-generation", () => {
     console.log(`  Files: ${store.size}, Tool calls: ${log.length}`);
     console.log(`  File list: ${Array.from(store.keys()).join(", ")}`);
 
-    // Should have created multiple files for a complex app
     expect(store.size).toBeGreaterThanOrEqual(2);
     expect(store.has("App.js") || store.has("App.jsx")).toBe(true);
 
-    // App.js should be substantial for a multi-feature app
     const appContent = store.get("App.js") ?? store.get("App.jsx") ?? "";
     expect(appContent.length).toBeGreaterThan(500);
 
-    // Should have used batch mode
     const createCalls = log.filter((l) => l.name === "create_file");
     const batchCalls = createCalls.filter((l) => Array.isArray(l.args.files));
     console.log(`  create_file calls: ${createCalls.length} (${batchCalls.length} batch)`);

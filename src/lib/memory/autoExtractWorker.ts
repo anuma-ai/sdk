@@ -1,62 +1,3 @@
-/**
- * Auto-extraction worker — orchestration glue for wiring
- * {@link extractAndRetain} into a chat lifecycle.
- *
- * The worker is created once per chat session and `processTurn()` is
- * called after each assistant turn (typically from `onStepFinish` in
- * useChat options, or from the caller's own post-turn hook). Each turn
- * fires async fire-and-forget — extraction never blocks the chat path.
- *
- * Concurrency: at most one extraction runs at a time (the spec's hard rate
- * limit of ≤1 LLM call in flight, which also keeps calls from racing on the
- * vault). A turn that arrives while one is in-flight is NOT dropped — it is
- * coalesced into a per-conversation pending queue and runs when the current
- * call finishes (queued conversations drain one at a time). A newer turn for
- * the same conversation supersedes an older pending one (logged via
- * `onSkipped` with `reason:"superseded"`); this is lossless because the
- * per-conversation watermark only advances on a completed extraction, so the
- * newest (superset) message list re-covers any superseded turn. Turns for
- * different conversations queue independently and never displace each other.
- *
- * Watermark + window: the worker keeps a per-conversation watermark of the
- * last message it extracted through. Each run sends every message *after* that
- * watermark (plus a small overlap for coreference, capped at `maxWindowSize`)
- * rather than a fixed trailing slice — so facts stated in turns that arrived
- * during a busy window are still examined instead of scrolling out of a last-N
- * window.
- *
- * The watermark advances only when the extractor genuinely EXAMINED the window.
- * A pipeline throw and an `empty-after-retry` outcome (the extraction LLM
- * returned empty/malformed after exhausting its retries), or any failed retain
- * operation leave it in place,
- * so the next turn's window re-covers those messages instead of stranding them.
- * A quiet turn that legitimately yielded no facts *does* advance it.
- *
- * Durability: the in-memory watermark alone does NOT survive process death, so
- * a session killed after messages accumulate but before extraction would, on
- * the next launch, fall back to a trailing-window guess and could skip the
- * un-extracted tail. Pass a {@link ExtractionCursorStore} (`cursorStore`) to
- * persist the watermark per conversation — it is hydrated synchronously the
- * first time a conversation is touched, and written through on every *contiguous*
- * advance (never on a trailing-slice guess, which could jump the durable cursor
- * past an un-extracted gap), so a later session resumes exactly after the last
- * extracted message. The primary guarantee is single-session resume across
- * process death.
- *
- * Concurrent sessions sharing one store (web `localStorage`, mobile MMKV) are
- * best-effort, NOT exclusive: two sessions can each hydrate the same cursor
- * before either advances it and briefly re-extract the same turn (retain()'s
- * dedup/consolidation absorbs the duplicate — wasteful, not corrupting). The
- * durable write is last-writer-wins with a regression guard (it won't move the
- * cursor backwards when the currently-stored id is ahead within the same turn's
- * messages), but it does not serialize writers. Omit `cursorStore` for the
- * legacy in-memory-only behavior.
- *
- * Memory Studio panel subscribes by passing `onMemoryExtracted` and/or
- * `onTurnComplete` callbacks. The Studio uses `onMemoryExtracted` to
- * fire a "Anuma is remembering: <fact>" toast on each accepted fact.
- */
-
 import type { EntityOperationsContext } from "../db/entities/operations.js";
 import { getLogger } from "../logger.js";
 import { resolvePiiRedactor } from "../pii/redactor.js";
@@ -354,30 +295,10 @@ export interface AutoExtractor {
 const DEFAULT_WINDOW_SIZE = 6;
 const DEFAULT_MAX_WINDOW_SIZE = 20;
 
-// How many already-extracted messages (those at/before the watermark) to
-// re-include ahead of the new messages, so the extractor has coreference
-// context ("she" → a name mentioned a turn earlier). Kept small: re-sent
-// identical text de-dupes at retain()'s cosine-merge, but it still costs
-// tokens, so this is far tighter than the old fixed slice(-windowSize) overlap.
 const CONTEXT_OVERLAP = 2;
 
-// Absolute budget for one turn's extraction LLM call across all retries. Only
-// one extraction runs at a time (a turn arriving mid-flight is coalesced into
-// the pending queue), so a stuck call delays the NEXT turn's extraction. Without
-// a budget the call could run maxAttempts × per-attempt timeout (~180s); 60s
-// caps that ~3× while still allowing a few fast gpt-oss retries. Callers can
-// override via `extract.totalTimeoutMs`.
 const DEFAULT_EXTRACT_TOTAL_TIMEOUT_MS = 60_000;
 
-// Cap on tracked per-conversation state. The worker is session-scoped (one per
-// chat session, disposed on unmount) so entries are normally bounded by the
-// conversations touched in a session, but a single long-lived session browsing
-// many conversations would otherwise grow the map without bound. When exceeded
-// we evict the oldest entry that has no queued turn (Map preserves insertion
-// order). Dropping a watermark is self-healing — that conversation just
-// re-extracts from a trailing window next time — but a queued pending turn must
-// never be evicted, or we'd silently lose it (the loss this worker exists to
-// prevent).
 const MAX_TRACKED_CONVERSATIONS = 200;
 
 /** Per-conversation extraction state (keyed by conversationId, undefined included). */
@@ -412,7 +333,6 @@ export function createAutoExtractor(options: CreateAutoExtractorOptions): AutoEx
     1,
     options.maxTrackedConversations ?? MAX_TRACKED_CONVERSATIONS
   );
-  // Bound the guarded extraction path by default (see constant above).
   const extract: ExtractFactsOptions = {
     ...options.extract,
     totalTimeoutMs: options.extract.totalTimeoutMs ?? DEFAULT_EXTRACT_TOTAL_TIMEOUT_MS,
@@ -420,23 +340,9 @@ export function createAutoExtractor(options: CreateAutoExtractorOptions): AutoEx
   let inflight = 0;
   let disposed = false;
 
-  // Per-conversation state (watermark + coalescing queue), keyed by
-  // conversationId (undefined is a valid Map key — its own slot). In-memory and
-  // session-scoped; see the module docstring on durability. Keyed per
-  // conversation so a turn for one conversation never displaces a queued turn
-  // for another — within a conversation, supersession is lossless (the
-  // watermark only advances on completion); across conversations a displaced
-  // turn would be silently lost. Queued turns drain one at a time (≤1 in-flight).
   const conversations = new Map<string | undefined, ConversationState>();
   const cursorStore = options.cursorStore;
 
-  /**
-   * Seed a fresh state's watermark from the durable cursor exactly once. Only
-   * for real (string) conversation ids — the `undefined` bucket is ephemeral
-   * and not persisted. Guarded so a throwing store degrades to in-memory-only.
-   * Re-hydrates transparently after eviction (the cursor outlives the map
-   * entry), which is strictly better than the old trailing-window fallback.
-   */
   const hydrate = (state: ConversationState, conversationId?: string): void => {
     if (state.hydrated) return;
     state.hydrated = true;
@@ -460,12 +366,6 @@ export function createAutoExtractor(options: CreateAutoExtractorOptions): AutoEx
     return state;
   };
 
-  /**
-   * Drop the oldest tracked conversation that has no queued turn, to keep the
-   * map bounded. Skips entries with a `pending` turn (evicting one would lose a
-   * queued extraction) and the conversation being inserted. If every entry has
-   * a pending turn (pathological), nothing is evicted and the map grows by one.
-   */
   const evictOldestIdle = (incoming?: string): void => {
     for (const [key, st] of conversations) {
       if (key !== incoming && !st.pending) {
@@ -475,45 +375,19 @@ export function createAutoExtractor(options: CreateAutoExtractorOptions): AutoEx
     }
   };
 
-  /**
-   * Decide which messages to send for `conversationId`, given its watermark:
-   * - no watermark (first run / scrolled out of history) → trailing `slice(-windowSize)`.
-   * - watermark present → everything after it (+ CONTEXT_OVERLAP for coreference),
-   *   truncated to the most recent `maxWindowSize` under an extreme burst.
-   * Returns `[]` to signal "nothing new since the last extraction" (the caller
-   * skips with `reason:"no-new-content"`).
-   */
   function computeWindow(
     messages: AutoExtractMessage[],
     conversationId?: string
   ): { window: AutoExtractMessage[]; contiguous: boolean } {
-    // stateFor (not a bare Map.get) so the durable cursor is hydrated into the
-    // watermark before this first read — otherwise a post-restart turn would
-    // fall back to the trailing window and could skip the un-extracted tail.
     const lastId = stateFor(conversationId).watermark;
-    // No watermark (or it scrolled out of the provided history) → trailing slice.
-    // `findIndex` short-circuits to -1 when lastId is undefined (no id matches).
     const idx = lastId === undefined ? -1 : messages.findIndex((m) => m.id === lastId);
-    // `contiguous` = advancing the durable cursor to this window's end strands
-    // no un-extracted messages. True when the watermark was found (idx ≥ 0, the
-    // window continues directly from it). On the no-watermark trailing-slice
-    // path it's true ONLY when the slice covers the whole provided history
-    // (len ≤ windowSize → starts at message 0, no gap); a trailing slice that
-    // drops the head leaves a gap, so the durable cursor must NOT advance past
-    // it (see persistCursor) or a fuller-history session couldn't resume it.
     if (idx === -1) {
       return { window: messages.slice(-windowSize), contiguous: messages.length <= windowSize };
     }
-    // Watermark is already the last message → nothing new to extract.
     if (idx >= messages.length - 1) return { window: [], contiguous: true };
     const start = Math.max(0, idx + 1 - CONTEXT_OVERLAP);
     let window = messages.slice(start);
     if (window.length > maxWindowSize) {
-      // Keep the OLDEST maxWindowSize, not the newest: the watermark advances to
-      // this window's last message on success, so anything past it stays after
-      // the watermark and is examined on the next turn. Truncating to the newest
-      // instead would jump the watermark forward and permanently skip the
-      // dropped (older) messages. This drains an extreme backlog oldest-first.
       getLogger().warn(
         `[memory/extract] ${window.length} un-extracted messages exceed maxWindowSize ${maxWindowSize}; examining the oldest ${maxWindowSize} this turn, the rest on subsequent turns`
       );
@@ -522,17 +396,6 @@ export function createAutoExtractor(options: CreateAutoExtractorOptions): AutoEx
     return { window, contiguous: true };
   }
 
-  /**
-   * Persist the durable cursor after a successful extraction — best-effort,
-   * and only when it's SAFE to advance:
-   * - `contiguous` must hold: a trailing-slice guess may have skipped an
-   *   un-extracted gap, so advancing the durable cursor past it would strand
-   *   those messages for a later fuller-history session (cursor:403).
-   * - Don't regress a cursor a concurrent session already moved further: if the
-   *   currently-stored id sits at/after the new one within THIS turn's message
-   *   array, another session is ahead — leave it (cursor:557). We can only
-   *   compare when both ids are in the array; otherwise we advance (best-effort).
-   */
   const persistCursor = (
     conversationId: string | undefined,
     messages: AutoExtractMessage[],
@@ -545,7 +408,7 @@ export function createAutoExtractor(options: CreateAutoExtractorOptions): AutoEx
       if (stored && stored !== advancedToId) {
         const storedIdx = messages.findIndex((m) => m.id === stored);
         const newIdx = messages.findIndex((m) => m.id === advancedToId);
-        if (storedIdx !== -1 && newIdx !== -1 && storedIdx >= newIdx) return; // don't regress
+        if (storedIdx !== -1 && newIdx !== -1 && storedIdx >= newIdx) return;
       }
       cursorStore.set(conversationId, advancedToId);
     } catch {
@@ -553,12 +416,6 @@ export function createAutoExtractor(options: CreateAutoExtractorOptions): AutoEx
     }
   };
 
-  // Every LLM sub-pass (consolidation, injection classifier) hits the same
-  // portal as extraction, so all of them inherit the extract credentials and
-  // default to its baseUrl — a client wired with `getToken` gains each one with
-  // zero extra auth plumbing. One place, so the sub-passes can't drift apart.
-  // PII redaction is NOT copied here: it's inherited from `extract.piiRedaction`
-  // inside extractAndRetain, so direct callers are covered too.
   const subPassAuth = (baseUrlOverride?: string): PortalLlmAuth & { baseUrl?: string } => {
     const baseUrl = baseUrlOverride ?? options.extract.baseUrl;
     return {
@@ -568,9 +425,6 @@ export function createAutoExtractor(options: CreateAutoExtractorOptions): AutoEx
     };
   };
 
-  // Resolve once — options are fixed for the extractor's lifetime. The caller's
-  // own fields pass through; `subPassAuth` goes last so the resolved baseUrl
-  // wins over the raw override it was handed.
   const consolidateOptions: RetainOptions["consolidateOptions"] = options.consolidate
     ? { ...options.consolidate, ...subPassAuth(options.consolidate.baseUrl) }
     : undefined;
@@ -580,24 +434,12 @@ export function createAutoExtractor(options: CreateAutoExtractorOptions): AutoEx
       ? { ...options.injectionClassifier, ...subPassAuth(options.injectionClassifier.baseUrl) }
       : undefined;
 
-  // Warn once if the caller wired a vault context with cascade-delete
-  // entityCtx but didn't pass an entityCtx to the extractor. The W5
-  // graph lane consumes both write- and read-side wiring; without the
-  // worker linking entities at write time the lane stays empty.
   if (options.retainCtx.vaultCtx.entityCtx && !options.entityCtx) {
     getLogger().warn(
       "[memory/extract] retainCtx.vaultCtx.entityCtx is set but extractor was created without `entityCtx` — W5 graph lane will receive no writes"
     );
   }
 
-  // PII redaction protects the extraction + consolidation LLM calls, but facts
-  // are embedded with their REAL values unless embeddingOptions.maskInput is
-  // set — a separate switch. Enabling piiRedaction while leaving maskInput unset
-  // would silently ship raw PII to the embeddings provider, so auto-wire it from
-  // the same redactor (maskText is stateless/unnumbered, ideal for masking). A
-  // caller-supplied maskInput is respected; if piiRedaction is off (or a
-  // malformed value), resolvePiiRedactor returns undefined and we leave the
-  // context untouched.
   const piiRedactor = resolvePiiRedactor(options.extract.piiRedaction);
   const retainCtx: RetainContext =
     piiRedactor && !options.retainCtx.embeddingOptions.maskInput
@@ -617,30 +459,12 @@ export function createAutoExtractor(options: CreateAutoExtractorOptions): AutoEx
       return false;
     }
     if (inflight > 0) {
-      // Coalesce rather than drop: stash the latest turn (per conversation) to
-      // run when the current extraction finishes. A newer turn for the SAME
-      // conversation supersedes the older pending one — lossless, because the
-      // watermark only advances on completion, so this newer (superset) message
-      // list re-covers the superseded turn. Turns for other conversations get
-      // their own slot and are never displaced.
       const state = stateFor(conversationId);
       if (state.pending) {
         options.onSkipped?.({ reason: "superseded", conversationId });
-        // Union the superseded snapshot with the newer turn (dedup by id,
-        // keeping pending-only messages ahead of the newer array) so a caller
-        // that passes a bounded/sliding window — rather than the full growing
-        // history — doesn't lose messages that were only in the superseded
-        // turn. When the newer array is a superset (the common case: full
-        // conversation history), pending-only is empty and this is just the
-        // newer array. The spread produces a fresh array, so it also serves as
-        // the snapshot below.
         const newIds = new Set(messages.map((m) => m.id));
         state.pending = [...state.pending.filter((m) => !newIds.has(m.id)), ...messages];
       } else {
-        // Snapshot the array: it runs after the current extraction finishes,
-        // and the chat layer may reuse/mutate its history array in the
-        // meantime — a shared reference could make us extract different content
-        // than the turn that was submitted (and advance the watermark wrong).
         state.pending = messages.slice();
       }
       return true;
@@ -648,7 +472,6 @@ export function createAutoExtractor(options: CreateAutoExtractorOptions): AutoEx
     return dispatch(messages, conversationId);
   }
 
-  /** Run extraction now for the given turn. Assumes no extraction is in flight. */
   function dispatch(messages: AutoExtractMessage[], conversationId?: string): boolean {
     const { window, contiguous } = computeWindow(messages, conversationId);
     if (window.length === 0) {
@@ -681,38 +504,13 @@ export function createAutoExtractor(options: CreateAutoExtractorOptions): AutoEx
             }),
           });
 
-        // Extraction EXAMINED the window (even zero facts is a legit "examined,
-        // nothing durable") → advance the watermark past everything we sent, so
-        // the next turn starts after it.
-        //
-        // `empty-after-retry` is NOT examined: the extractor LLM returned
-        // empty/malformed after exhausting its retries, so this window's facts
-        // were never actually looked at. `extractFacts` swallows that into an
-        // empty candidate list rather than throwing, so without this guard the
-        // failure looked identical to a quiet turn — the watermark advanced,
-        // `persistCursor` wrote it through, and those messages were never
-        // re-examined. Leave the watermark where it is so the next turn's window
-        // re-covers them, exactly as a throw does. The window keeps widening
-        // until an extraction genuinely lands (bounded by `maxWindowSize`).
-        // Partial retention must also replay: successful candidates are deduped,
-        // while acknowledging here would permanently lose failed candidates.
         if (outcome !== "empty-after-retry" && failedCount === 0) {
           const advancedTo = window[window.length - 1].id;
           stateFor(conversationId).watermark = advancedTo;
-          // Persist through the durable cursor so a later session resumes here —
-          // but only on a contiguous advance and without regressing a concurrent
-          // writer (see persistCursor). The in-memory watermark always advances;
-          // only the durable write is guarded.
           persistCursor(conversationId, messages, advancedTo, contiguous);
         }
 
-        // extractAndRetain returns candidates and results length-aligned:
-        // entries appear only when their retain() write succeeded, so
-        // candidates[i] always pairs with results[i].
         for (let i = 0; i < results.length; i++) {
-          // A tombstone-suppressed candidate wrote nothing — don't emit
-          // "extracted", or Memory Studio toasts "remembered" for a fact the
-          // user had deleted and we deliberately didn't re-create.
           if (results[i].action === "suppressed") continue;
           options.onMemoryExtracted?.({
             candidate: candidates[i],
@@ -730,9 +528,6 @@ export function createAutoExtractor(options: CreateAutoExtractorOptions): AutoEx
           funnel,
           timings,
           model,
-          // Only set alongside `outcome: "empty-after-retry"`. Spread so the key
-          // is absent rather than explicitly undefined on a healthy turn —
-          // analytics backends store an explicit undefined as a real value.
           ...(failure !== undefined && { failure }),
         });
       } catch (err) {
@@ -746,18 +541,6 @@ export function createAutoExtractor(options: CreateAutoExtractorOptions): AutoEx
     return true;
   }
 
-  /**
-   * Run the next queued turn, if any (FIFO over conversations). One dispatch at
-   * a time — dispatch's `finally` calls back here, so queued conversations
-   * drain sequentially, never overlapping.
-   *
-   * Intentionally NOT guarded by `disposed`: a turn queued before dispose()
-   * must still be extracted or its facts are silently lost (G2 — the loss this
-   * worker exists to prevent). The in-flight extraction's finally() calls here,
-   * so the queue keeps draining to empty. New turns cannot enqueue after
-   * dispose (processTurn rejects when disposed), so every pending turn seen
-   * here is a pre-dispose arrival that is safe to run.
-   */
   function drainPending(): void {
     for (const [conversationId, state] of conversations) {
       if (state.pending) {
@@ -774,13 +557,6 @@ export function createAutoExtractor(options: CreateAutoExtractorOptions): AutoEx
     isProcessing: () => inflight > 0,
     dispose: () => {
       disposed = true;
-      // Flush the queue, don't drop it: a turn coalesced while an extraction was
-      // in flight (the common unmount-right-after-sending case) must still be
-      // extracted or its facts are silently lost (G2). The in-flight
-      // extraction's finally() calls drainPending() — no longer disposed-guarded
-      // — so the queue drains to empty after this. If nothing is in flight, kick
-      // it here. `disposed` still blocks NEW turns via processTurn, and the
-      // ≤1-in-flight invariant is preserved (drain dispatches one at a time).
       if (inflight === 0) drainPending();
     },
   };

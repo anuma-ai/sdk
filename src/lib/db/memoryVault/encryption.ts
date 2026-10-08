@@ -47,7 +47,6 @@ export async function decryptVaultMemoryFields(
     try {
       await requestEncryptionKey(address, signMessage, embeddedWalletSigner);
     } catch (error) {
-      // Key request failed – proceed with raw (possibly still-encrypted) content
       getLogger().warn("Failed to request encryption key for vault decryption:", error);
     }
   }

@@ -1,6 +1,6 @@
 # NotionClientRegistration
 
-Defined in: [src/lib/auth/notion-primitives.ts:46](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/notion-primitives.ts#46)
+Defined in: [src/lib/auth/notion-primitives.ts:41](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/notion-primitives.ts#41)
 
 Result of dynamic client registration (RFC 7591).
 
@@ -10,7 +10,7 @@ Result of dynamic client registration (RFC 7591).
 
 > **clientId**: `string`
 
-Defined in: [src/lib/auth/notion-primitives.ts:47](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/notion-primitives.ts#47)
+Defined in: [src/lib/auth/notion-primitives.ts:42](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/notion-primitives.ts#42)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/lib/auth/notion-primitives.ts:47](https://github.com/anuma-ai/s
 
 > `optional` **clientSecret**: `string`
 
-Defined in: [src/lib/auth/notion-primitives.ts:48](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/notion-primitives.ts#48)
+Defined in: [src/lib/auth/notion-primitives.ts:43](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/notion-primitives.ts#43)
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: [src/lib/auth/notion-primitives.ts:48](https://github.com/anuma-ai/s
 
 > **redirectUri**: `string`
 
-Defined in: [src/lib/auth/notion-primitives.ts:50](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/notion-primitives.ts#50)
+Defined in: [src/lib/auth/notion-primitives.ts:45](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/notion-primitives.ts#45)
 
 ***
 
@@ -34,4 +34,4 @@ Defined in: [src/lib/auth/notion-primitives.ts:50](https://github.com/anuma-ai/s
 
 > **registeredAt**: `number`
 
-Defined in: [src/lib/auth/notion-primitives.ts:49](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/notion-primitives.ts#49)
+Defined in: [src/lib/auth/notion-primitives.ts:44](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/notion-primitives.ts#44)

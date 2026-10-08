@@ -31,30 +31,94 @@
  * @module server
  */
 
-// ── Database Manager ──
-
 export type {
-  DatabaseManagerLogger,
-  DatabaseManagerOptions,
-  PlatformStorage,
-} from "../lib/db/manager";
-export { DatabaseManager } from "../lib/db/manager";
-
-// ── Server Platform Storage ──
-
-export { serverPlatformStorage } from "./storage";
-
-// ── PostgreSQL Adapter ──
-
-export type { PgClientLike, PgPoolLike, PostgreSQLAdapterOptions } from "./pg-adapter";
-export { PostgreSQLAdapter, schemaToCreateSQL } from "./pg-adapter";
-
-// ── Schema & Models ──
-
-export { SDK_SCHEMA_VERSION, sdkMigrations, sdkModelClasses, sdkSchema } from "../lib/db/schema";
-
-// ── Chat (conversations + messages) ──
-
+  CryptoPriceClassification,
+  CryptoPricePreProcessorOptions,
+} from "../lib/chat/cryptoPriceClassifier";
+export {
+  classifyCryptoPrice,
+  classifyCryptoPriceBatch,
+  createCryptoPricePreProcessor,
+} from "../lib/chat/cryptoPriceClassifier";
+export type { PromptPreProcessor, PromptPreProcessorContext } from "../lib/chat/preProcessor";
+export type { ResumeStreamOptions, ResumeStreamResult } from "../lib/chat/resumeStream";
+export {
+  INFERENCE_ID_HEADER,
+  resumeStream,
+  STREAM_RESUMABLE_HEADER,
+  streamCancelPath,
+  StreamExpiredError,
+  streamReplayPath,
+} from "../lib/chat/resumeStream";
+export type {
+  LlmTokenUsage,
+  ModelCallEndEvent,
+  ModelCallStartEvent,
+  RunEndEvent,
+  RunErrorEvent,
+  RunHooks,
+  RunStartEvent,
+  ToolUseEndEvent,
+  ToolUseStartEvent,
+} from "../lib/chat/runHooks";
+export { composeHooks } from "../lib/chat/runHooks";
+export type {
+  StockPriceClassification,
+  StockPricePreProcessorOptions,
+} from "../lib/chat/stockPriceClassifier";
+export {
+  classifyStockPrice,
+  classifyStockPriceBatch,
+  createStockPricePreProcessor,
+} from "../lib/chat/stockPriceClassifier";
+export {
+  cleanupConversationSummary,
+  DEFAULT_SUMMARY_MIN_WINDOW_MESSAGES,
+  DEFAULT_SUMMARY_MODEL,
+  DEFAULT_SUMMARY_TOKEN_THRESHOLD,
+  estimateMessagesTokens,
+  estimateTokens,
+  MAX_MESSAGES_PER_SUMMARIZATION,
+  maybeSummarizeHistory,
+  progressiveSummarize,
+  splitMessagesAtThreshold,
+  summaryToSystemMessage,
+} from "../lib/chat/summarize";
+export type {
+  AutoExecutedToolResult,
+  RunTerminalState,
+  RunToolLoopOptions,
+  RunToolLoopResult,
+  StepFinishEvent,
+  StreamingTransport,
+  StreamingTransportOptions,
+  StreamingTransportResult,
+  StreamMetaEvent,
+  StreamResumeHandle,
+} from "../lib/chat/toolLoop";
+export { runToolLoop } from "../lib/chat/toolLoop";
+export type { ApiResponse, ApiType } from "../lib/chat/useChat/strategies/types";
+export type { StreamSmoothingConfig } from "../lib/chat/useChat/StreamSmoother";
+export type { ToolConfig, ToolExecutor } from "../lib/chat/useChat/types";
+export type { ServerToolCallEvent } from "../lib/chat/useChat/utils";
+export type {
+  WeatherClassification,
+  WeatherPreProcessorOptions,
+} from "../lib/chat/weatherClassifier";
+export {
+  classifyWeather,
+  classifyWeatherBatch,
+  createWeatherPreProcessor,
+} from "../lib/chat/weatherClassifier";
+export type {
+  WebSearchClassification,
+  WebSearchPreProcessorOptions,
+} from "../lib/chat/webSearchClassifier";
+export {
+  classifyWebSearch,
+  classifyWebSearchBatch,
+  createWebSearchPreProcessor,
+} from "../lib/chat/webSearchClassifier";
 export {
   clearLazyTitleCache,
   clearMessagesOp,
@@ -83,6 +147,7 @@ export {
   searchChunksOp,
   searchMessagesOp,
   type StorageOperationsContext,
+  stripLegacyChunkTextOp,
   updateConversationProjectOp,
   updateConversationTitleOp,
   updateMessageChunksOp,
@@ -112,100 +177,12 @@ export {
   type StoredMessage,
   type StoredMessageWithSimilarity,
 } from "../lib/db/chat";
-
-// ── Summarization ──
-
-export {
-  cleanupConversationSummary,
-  DEFAULT_SUMMARY_MIN_WINDOW_MESSAGES,
-  DEFAULT_SUMMARY_MODEL,
-  DEFAULT_SUMMARY_TOKEN_THRESHOLD,
-  estimateMessagesTokens,
-  estimateTokens,
-  MAX_MESSAGES_PER_SUMMARIZATION,
-  maybeSummarizeHistory,
-  progressiveSummarize,
-  splitMessagesAtThreshold,
-  summaryToSystemMessage,
-} from "../lib/chat/summarize";
-
-// ── Memory Vault ──
-
-export {
-  archiveVaultMemoryOp,
-  backfillMemoryTopicsOp,
-  createVaultMemoriesBatchOp,
-  createVaultMemoryOp,
-  type CreateVaultMemoryOptions,
-  type DecayCandidateRaw,
-  deleteAllVaultMemoriesForUserOp,
-  deleteVaultMemoryOp,
-  getAllVaultMemoriesOp,
-  getAllVaultMemoryContentsOp,
-  getDecayCandidatesRawOp,
-  getMemoriesNeedingTopicExtractionOp,
-  getUnfiledVaultMemoriesOp,
-  getVaultMemoryOp,
-  hardDeleteDecayedOp,
-  ingestPublishedPhotoMemoriesOp,
-  type MemoriesNeedingTopicExtraction,
-  MEMORY_KINDS,
-  MEMORY_LEVELS,
-  type MemoryLevel,
-  MemoryLevelError,
-  parseMedia,
-  type PhotoIngestResult,
-  type PhotoMediaRef,
-  type PublishedPhotoMemory,
-  relinkMemoryTopicsOp,
-  restoreVaultMemoryOp,
-  setMemoryVisibilityOp,
-  stampTopicsExtractedAtOp,
-  type StoredVaultMemory,
-  supersedeVaultMemoryOp,
-  TOPICS_EXTRACTION_VERSION,
-  updateVaultMemoryEmbeddingOp,
-  updateVaultMemoryOp,
-  type UpdateVaultMemoryOptions,
-  type VaultEmbeddingExpectation,
-  VaultMemory,
-  type VaultMemoryKind,
-  type VaultMemoryOperationsContext,
-  type VaultMemoryVisibility,
-} from "../lib/db/memoryVault";
-
-// ── Vault Folders ──
-//
-// Deliberately NOT exported here. Folders are being retired in favour of topics
-// (`memory_entity` links), and the ops carry no user scoping, so on a shared
-// server database they read and write across tenants — `moveMemoriesToFolderOp`
-// would even rewrite another tenant's memory `scope` (#626). No server consumer
-// ever used them. The table itself stays in `sdkModelClasses` while
-// `memory_vault.folder_id` exists; client (single-tenant) apps keep reaching the
-// ops through `@anuma/sdk/react` and `@anuma/sdk/expo`.
-
-// ── Projects ──
-
-export {
-  createProjectOp,
-  type CreateProjectOptions,
-  deleteProjectOp,
-  generateProjectId,
-  getProjectConversationCountOp,
-  getProjectConversationsOp,
-  getProjectOp,
-  getProjectsOp,
-  Project,
-  type ProjectOperationsContext,
-  projectToStored,
-  type StoredProject,
-  updateProjectNameOp,
-  updateProjectOp,
-  type UpdateProjectOptions,
-} from "../lib/db/project";
-
-// ── Media ──
-
+export type {
+  DatabaseManagerLogger,
+  DatabaseManagerOptions,
+  PlatformStorage,
+} from "../lib/db/manager";
+export { DatabaseManager } from "../lib/db/manager";
 export {
   createMediaBatchOp,
   createMediaOp,
@@ -250,9 +227,85 @@ export {
   updateMediaOp,
   type UpdateMediaOptions,
 } from "../lib/db/media";
-
-// ── User Preferences ──
-
+export {
+  archiveVaultMemoryOp,
+  backfillMemoryTopicsOp,
+  createVaultMemoriesBatchOp,
+  createVaultMemoryOp,
+  type CreateVaultMemoryOptions,
+  type DecayCandidateRaw,
+  deleteAllVaultMemoriesForUserOp,
+  deleteVaultMemoryOp,
+  getAllVaultMemoriesOp,
+  getAllVaultMemoryContentsOp,
+  getDecayCandidatesRawOp,
+  getMemoriesNeedingTopicExtractionOp,
+  getUnfiledVaultMemoriesOp,
+  getVaultMemoryOp,
+  hardDeleteDecayedOp,
+  ingestPublishedPhotoMemoriesOp,
+  type MemoriesNeedingTopicExtraction,
+  MEMORY_KINDS,
+  MEMORY_LEVELS,
+  type MemoryLevel,
+  MemoryLevelError,
+  parseMedia,
+  type PhotoIngestResult,
+  type PhotoMediaRef,
+  type PublishedPhotoMemory,
+  relinkMemoryTopicsOp,
+  restoreVaultMemoryOp,
+  setMemoryVisibilityOp,
+  stampTopicsExtractedAtOp,
+  type StoredVaultMemory,
+  supersedeVaultMemoryOp,
+  TOPICS_EXTRACTION_VERSION,
+  updateVaultMemoryEmbeddingOp,
+  updateVaultMemoryOp,
+  type UpdateVaultMemoryOptions,
+  type VaultEmbeddingExpectation,
+  VaultMemory,
+  type VaultMemoryKind,
+  type VaultMemoryOperationsContext,
+  type VaultMemoryVisibility,
+} from "../lib/db/memoryVault";
+export {
+  createProjectOp,
+  type CreateProjectOptions,
+  deleteProjectOp,
+  generateProjectId,
+  getProjectConversationCountOp,
+  getProjectConversationsOp,
+  getProjectOp,
+  getProjectsOp,
+  Project,
+  type ProjectOperationsContext,
+  projectToStored,
+  type StoredProject,
+  updateProjectNameOp,
+  updateProjectOp,
+  type UpdateProjectOptions,
+} from "../lib/db/project";
+export type {
+  FlushResult,
+  OperationExecutor,
+  QueuedOperation,
+  QueuedOperationType,
+  QueueEncryptionContext,
+  QueueStatus,
+} from "../lib/db/queue";
+export { QueueManager, queueManager, WalletPoller } from "../lib/db/queue";
+export { SDK_SCHEMA_VERSION, sdkMigrations, sdkModelClasses, sdkSchema } from "../lib/db/schema";
+export {
+  type CreateModelPreferenceOptions,
+  deleteModelPreferenceOp,
+  getModelPreferenceOp,
+  ModelPreference,
+  setModelPreferenceOp,
+  type SettingsStorageOperationsContext,
+  type StoredModelPreference,
+  type UpdateModelPreferenceOptions,
+} from "../lib/db/settings";
 export {
   type CreateUserPreferenceOptions,
   DEFAULT_PERSONALITY_SETTINGS,
@@ -273,63 +326,6 @@ export {
   UserPreference,
   type UserPreferencesStorageOperationsContext,
 } from "../lib/db/userPreferences";
-
-// ── Settings (deprecated, use userPreferences) ──
-
-export {
-  type CreateModelPreferenceOptions,
-  deleteModelPreferenceOp,
-  getModelPreferenceOp,
-  ModelPreference,
-  setModelPreferenceOp,
-  type SettingsStorageOperationsContext,
-  type StoredModelPreference,
-  type UpdateModelPreferenceOptions,
-} from "../lib/db/settings";
-
-// ── Memory Engine (semantic search) ──
-
-export type {
-  ChunkingOptions,
-  EmbeddingOptions as MemoryEngineEmbeddingOptions,
-  MemoryEngineResult,
-  MemoryEngineSearchOptions,
-  TextChunk,
-} from "../lib/memoryEngine";
-export {
-  chunkAndEmbedAllMessages,
-  chunkAndEmbedMessage,
-  chunkText,
-  createMemoryEngineTool,
-  DEFAULT_CHUNK_OVERLAP,
-  DEFAULT_CHUNK_SIZE,
-  DEFAULT_MIN_CHUNK_SIZE,
-  embedAllMessages,
-  embedMessage,
-  generateEmbedding,
-  generateEmbeddings,
-  shouldChunkMessage,
-} from "../lib/memoryEngine";
-
-// ── Memory Vault Tools ──
-
-export {
-  createMemoryVaultSearchTool,
-  createMemoryVaultTool,
-  createVaultEmbeddingCache,
-  DEFAULT_VAULT_CACHE_SIZE,
-  eagerEmbedContent,
-  type MemoryVaultSearchOptions,
-  type MemoryVaultToolOptions,
-  preEmbedVaultMemories,
-  searchVaultMemories,
-  type VaultEmbeddingCache,
-  type VaultSaveOperation,
-  type VaultSearchResult,
-} from "../lib/memoryVault";
-
-// ── Unified Memory API (recall / retain / reflect) ──
-
 export type {
   AutoExtractMessage,
   AutoExtractor,
@@ -413,6 +409,17 @@ export type {
   VerifyMemoriesForPublishOptions,
 } from "../lib/memory";
 export {
+  createLocalMemoryStore,
+  type LocalMemoryStoreOptions,
+  type MemoryListOptions,
+  type MemoryMaintenance,
+  type MemoryRecallOptions,
+  type MemoryRetainOptions,
+  type MemoryStore,
+  type MemorySubscribeOptions,
+  type MemoryUpdate,
+} from "../lib/memory";
+export {
   capHopsForDensity,
   classifyDecay,
   classifyInjectionCandidates,
@@ -467,9 +474,98 @@ export {
   VAULT_SIZE_HOP_CAP,
   verifyMemoriesForPublish,
 } from "../lib/memory";
-
-// ── Server Tools ──
-
+export {
+  assembleMemoryContext,
+  type MemoryContextItem,
+  type MemoryContextLane,
+  type MemoryContextOptions,
+  type MemoryContextResult,
+  shouldRecallMemory,
+} from "../lib/memory";
+export { createDurableAutoExtractor, type DurableAutoExtractorOptions } from "../lib/memory";
+export type {
+  ChunkingOptions,
+  EmbeddingOptions as MemoryEngineEmbeddingOptions,
+  MemoryEngineResult,
+  MemoryEngineSearchOptions,
+  TextChunk,
+} from "../lib/memoryEngine";
+export {
+  chunkAndEmbedAllMessages,
+  chunkAndEmbedMessage,
+  chunkText,
+  createMemoryEngineTool,
+  DEFAULT_CHUNK_OVERLAP,
+  DEFAULT_CHUNK_SIZE,
+  DEFAULT_MIN_CHUNK_SIZE,
+  embedAllMessages,
+  embedMessage,
+  generateEmbedding,
+  generateEmbeddings,
+  shouldChunkMessage,
+} from "../lib/memoryEngine";
+export {
+  createMemoryVaultSearchTool,
+  createMemoryVaultTool,
+  createVaultEmbeddingCache,
+  DEFAULT_VAULT_CACHE_SIZE,
+  eagerEmbedContent,
+  type MemoryVaultSearchOptions,
+  type MemoryVaultToolOptions,
+  preEmbedVaultMemories,
+  searchVaultMemories,
+  type VaultEmbeddingCache,
+  type VaultSaveOperation,
+  type VaultSearchResult,
+} from "../lib/memoryVault";
+export type {
+  AnalyzeStyleOptions,
+  AnalyzeStyleResult,
+  BuildPromptOptions,
+  BuildPromptResult,
+  PromptContext,
+  PromptSection,
+  PromptTemplates,
+  StyleAnalysisSchedule,
+} from "../lib/persona";
+export {
+  analyzeStyle,
+  buildSystemPrompt,
+  DEFAULT_ANALYSIS_PROMPT,
+  DEFAULT_ANALYZE_AFTER_MESSAGES,
+  DEFAULT_DOCUMENT_PATTERN,
+  DEFAULT_MAX_INPUT_MESSAGES,
+  DEFAULT_MAX_PROFILE_LENGTH,
+  DEFAULT_MIN_MESSAGES,
+  DEFAULT_PROMPT_TEMPLATES,
+  DEFAULT_REFRESH_EVERY_MESSAGES,
+  renderTemplate,
+  sanitizeQuotes,
+  shouldAnalyzeStyle,
+} from "../lib/persona";
+export type {
+  FileProcessingReason,
+  FileProcessingStatus,
+  FileProcessor,
+  FileTypeQuery,
+  FileWithData,
+  PreprocessingOptions,
+  PreprocessingResult,
+  ProcessedFileResult,
+  ZipProcessorOptions,
+} from "../lib/processors";
+export {
+  ExcelProcessor,
+  formatFileProcessingNotes,
+  getSupportedFileTypes,
+  isSupportedFile,
+  PdfProcessor,
+  preprocessFiles,
+  ProcessorRegistry,
+  TextProcessor,
+  WordProcessor,
+  ZipProcessor,
+} from "../lib/processors";
 export type {
   CachedServerTools,
   ParsedServerToolsResponse,
@@ -504,9 +600,6 @@ export {
   TOOL_CATALOG,
   toolSetSystemPrompts,
 } from "../lib/tools";
-
-// ── Encryption (non-React utilities) ──
-
 export type { EmbeddedWalletSignerFn, SignMessageFn } from "../react/useEncryption";
 export type { RequestEncryptionKeyOptions } from "../react/useEncryption";
 export {
@@ -536,155 +629,6 @@ export {
   requestKeyPair,
   seedEncryptionKeys,
 } from "../react/useEncryption";
-
-// ── Queue Manager ──
-
-export type {
-  FlushResult,
-  OperationExecutor,
-  QueuedOperation,
-  QueuedOperationType,
-  QueueEncryptionContext,
-  QueueStatus,
-} from "../lib/db/queue";
-export { QueueManager, queueManager, WalletPoller } from "../lib/db/queue";
-
-// ── File Processors (Node.js-compatible) ──
-
-export type {
-  FileProcessingReason,
-  FileProcessingStatus,
-  FileProcessor,
-  FileTypeQuery,
-  FileWithData,
-  PreprocessingOptions,
-  PreprocessingResult,
-  ProcessedFileResult,
-  ZipProcessorOptions,
-} from "../lib/processors";
-export {
-  ExcelProcessor,
-  formatFileProcessingNotes,
-  getSupportedFileTypes,
-  isSupportedFile,
-  PdfProcessor,
-  preprocessFiles,
-  ProcessorRegistry,
-  TextProcessor,
-  WordProcessor,
-  ZipProcessor,
-} from "../lib/processors";
-
-// ── Tool Loop (framework-agnostic agent core) ──
-
-export type {
-  CryptoPriceClassification,
-  CryptoPricePreProcessorOptions,
-} from "../lib/chat/cryptoPriceClassifier";
-export {
-  classifyCryptoPrice,
-  classifyCryptoPriceBatch,
-  createCryptoPricePreProcessor,
-} from "../lib/chat/cryptoPriceClassifier";
-export type { PromptPreProcessor, PromptPreProcessorContext } from "../lib/chat/preProcessor";
-export type { ResumeStreamOptions, ResumeStreamResult } from "../lib/chat/resumeStream";
-export {
-  INFERENCE_ID_HEADER,
-  resumeStream,
-  STREAM_RESUMABLE_HEADER,
-  streamCancelPath,
-  StreamExpiredError,
-  streamReplayPath,
-} from "../lib/chat/resumeStream";
-export type {
-  LlmTokenUsage,
-  ModelCallEndEvent,
-  ModelCallStartEvent,
-  RunEndEvent,
-  RunErrorEvent,
-  RunHooks,
-  RunStartEvent,
-  ToolUseEndEvent,
-  ToolUseStartEvent,
-} from "../lib/chat/runHooks";
-export { composeHooks } from "../lib/chat/runHooks";
-export type {
-  StockPriceClassification,
-  StockPricePreProcessorOptions,
-} from "../lib/chat/stockPriceClassifier";
-export {
-  classifyStockPrice,
-  classifyStockPriceBatch,
-  createStockPricePreProcessor,
-} from "../lib/chat/stockPriceClassifier";
-export type {
-  AutoExecutedToolResult,
-  RunTerminalState,
-  RunToolLoopOptions,
-  RunToolLoopResult,
-  StepFinishEvent,
-  StreamingTransport,
-  StreamingTransportOptions,
-  StreamingTransportResult,
-  StreamMetaEvent,
-  StreamResumeHandle,
-} from "../lib/chat/toolLoop";
-export { runToolLoop } from "../lib/chat/toolLoop";
-export type { ApiResponse, ApiType } from "../lib/chat/useChat/strategies/types";
-export type { StreamSmoothingConfig } from "../lib/chat/useChat/StreamSmoother";
-export type { ToolConfig, ToolExecutor } from "../lib/chat/useChat/types";
-export type { ServerToolCallEvent } from "../lib/chat/useChat/utils";
-export type {
-  WeatherClassification,
-  WeatherPreProcessorOptions,
-} from "../lib/chat/weatherClassifier";
-export {
-  classifyWeather,
-  classifyWeatherBatch,
-  createWeatherPreProcessor,
-} from "../lib/chat/weatherClassifier";
-export type {
-  WebSearchClassification,
-  WebSearchPreProcessorOptions,
-} from "../lib/chat/webSearchClassifier";
-export {
-  classifyWebSearch,
-  classifyWebSearchBatch,
-  createWebSearchPreProcessor,
-} from "../lib/chat/webSearchClassifier";
-
-// Persona (prompt building + style analysis)
-export {
-  assembleMemoryContext,
-  type MemoryContextItem,
-  type MemoryContextLane,
-  type MemoryContextOptions,
-  type MemoryContextResult,
-  shouldRecallMemory,
-} from "../lib/memory";
-export { createDurableAutoExtractor, type DurableAutoExtractorOptions } from "../lib/memory";
-export type {
-  AnalyzeStyleOptions,
-  AnalyzeStyleResult,
-  BuildPromptOptions,
-  BuildPromptResult,
-  PromptContext,
-  PromptSection,
-  PromptTemplates,
-  StyleAnalysisSchedule,
-} from "../lib/persona";
-export {
-  analyzeStyle,
-  buildSystemPrompt,
-  DEFAULT_ANALYSIS_PROMPT,
-  DEFAULT_ANALYZE_AFTER_MESSAGES,
-  DEFAULT_DOCUMENT_PATTERN,
-  DEFAULT_MAX_INPUT_MESSAGES,
-  DEFAULT_MAX_PROFILE_LENGTH,
-  DEFAULT_MIN_MESSAGES,
-  DEFAULT_PROMPT_TEMPLATES,
-  DEFAULT_REFRESH_EVERY_MESSAGES,
-  renderTemplate,
-  sanitizeQuotes,
-  shouldAnalyzeStyle,
-} from "../lib/persona";
+export type { PgClientLike, PgPoolLike, PostgreSQLAdapterOptions } from "./pg-adapter";
+export { PostgreSQLAdapter, schemaToCreateSQL } from "./pg-adapter";
+export { serverPlatformStorage } from "./storage";

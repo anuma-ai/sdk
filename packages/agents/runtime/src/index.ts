@@ -1,11 +1,3 @@
-/**
- * `@anuma/agent-runtime` — server-side runtime contract for Anuma agents.
- *
- * Three primitives plus a wrapper that ties them together via
- * `runToolLoop`. The contract is documented in
- * `.claude-docs/connecters/agent-runtime-spec.md`.
- */
-
 export type {
   ConnectorInfo,
   ConnectTicket,

@@ -99,17 +99,13 @@ export function GoogleDriveAuthProvider({
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const isConfigured = !!clientId;
 
-  // Check for stored token on mount and migrate unencrypted tokens
   useEffect(() => {
     const checkStoredToken = async () => {
-      // Migrate unencrypted tokens if wallet address is available
       if (walletAddress) {
         await migrateUnencryptedTokens("google-drive", walletAddress);
       }
 
-      // First check if we have valid stored credentials
       if (await hasGoogleDriveCredentials(walletAddress)) {
-        // Try to get a valid access token (will refresh if expired)
         const token = await getGoogleDriveAccessToken(apiClient, walletAddress);
         if (token) {
           setAccessToken(token);
@@ -119,7 +115,6 @@ export function GoogleDriveAuthProvider({
     void checkStoredToken();
   }, [apiClient, walletAddress]);
 
-  // Handle OAuth callback
   useEffect(() => {
     if (!isConfigured) return;
 
@@ -152,19 +147,16 @@ export function GoogleDriveAuthProvider({
       throw new Error("Google Drive is not configured");
     }
 
-    // If we already have a token, return it
     if (accessToken) {
       return accessToken;
     }
 
-    // Try to get a valid token (will refresh if expired)
     const storedToken = await getGoogleDriveAccessToken(apiClient, walletAddress);
     if (storedToken) {
       setAccessToken(storedToken);
       return storedToken;
     }
 
-    // Start OAuth flow (this will redirect)
     return startGoogleDriveAuth(clientId, callbackPath);
   }, [accessToken, clientId, callbackPath, isConfigured, apiClient, walletAddress]);
 
@@ -223,7 +215,6 @@ export function useGoogleDriveAuth(): GoogleDriveAuthContextValue {
   return context;
 }
 
-// Re-export utility functions for direct use
 export {
   clearGoogleDriveToken,
   getGoogleDriveStoredToken,

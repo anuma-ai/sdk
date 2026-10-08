@@ -2,7 +2,7 @@
 
 > **getId**(`node`: [`AnumaNode`](../interfaces/AnumaNode.md)): `string` | `undefined`
 
-Defined in: [src/tools/slides/jsx.ts:1007](https://github.com/anuma-ai/sdk/blob/main/src/tools/slides/jsx.ts#1007)
+Defined in: [src/tools/slides/jsx.ts:856](https://github.com/anuma-ai/sdk/blob/main/src/tools/slides/jsx.ts#856)
 
 Return `attrs.id` as a string, or undefined.
 

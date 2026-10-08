@@ -1,13 +1,3 @@
-/**
- * Server-tools policy — resolve the concrete server-tools filter for a turn
- * from the app-injected {@link ServerToolCatalog} (issue #702, Phase 2).
- *
- * The catalog is opaque to the SDK: each app builds it from its own static
- * server-tool lists (`IMAGE_SERVER_TOOLS`, `SLIDE_SERVER_TOOLS`, …) and passes
- * it in. This module only knows how to pick the right entry and, when the entry
- * is an attachment-aware factory, apply it with the turn's context.
- */
-
 import type {
   CreationIntent,
   ServerToolCatalog,

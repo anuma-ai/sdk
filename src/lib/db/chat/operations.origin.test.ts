@@ -18,18 +18,6 @@ import {
   type StorageOperationsContext,
 } from "./operations";
 
-/**
- * Guards on the v44 `origin` column.
- *
- * The load-bearing property is not that the flag round-trips — it is that it
- * round-trips as PLAINTEXT. The embedding sweep that has to honour it builds a
- * storage context with no wallet and no signer, so if `origin` were swept into
- * `encryptMessageFields` it would come back as `enc:v3:…` on exactly the path
- * that reads it, the `=== "tool_result"` test would never match, and the gate
- * would fail open while looking correct. Hence the assertions below check the
- * raw column, and check it with a full encryption context present.
- */
-
 declare const global: typeof globalThis;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 declare const require: any;
@@ -98,9 +86,7 @@ describe("message origin (v44)", () => {
     });
 
     const [row] = await rawRows(ctx);
-    // The write DID have a key: content came back as ciphertext.
     expect(String(row.content).startsWith("enc:")).toBe(true);
-    // …and origin did not. This is the regression test for the gate failing open.
     expect(row.origin).toBe("tool_result");
   });
 
@@ -114,8 +100,6 @@ describe("message origin (v44)", () => {
       uniqueId: "m1",
     });
 
-    // getMessageOp goes through the Model mapper, getMessagesOp through the raw
-    // one. The sweep uses the raw path, so a fix to only the Model path is a miss.
     expect((await getMessageOp(ctx, "m1"))?.origin).toBe("tool_result");
     const [fromThread] = await getMessagesOp(ctx, "conv-1");
     expect(fromThread.origin).toBe("tool_result");
@@ -132,16 +116,12 @@ describe("message origin (v44)", () => {
 
     const [row] = await rawRows(ctx);
     expect(row.origin).toBeNull();
-    // Falsy, and specifically NOT the sentinel — the embedding gate compares
-    // against "tool_result", so a legacy row stays eligible.
     expect((await getMessageOp(ctx, "m1"))?.origin).toBeFalsy();
     const [fromThread] = await getMessagesOp(ctx, "conv-1");
     expect(fromThread.origin).not.toBe("tool_result");
   });
 
   it("carries origin on the synthetic (queued-write) message too", () => {
-    // Offline writes return this stand-in instead of a row. It has to carry the
-    // flag or the in-memory message reads as ordinary until the queue flushes.
     const synthetic = makeSyntheticStoredMessage({
       conversationId: "conv-1",
       role: "user",

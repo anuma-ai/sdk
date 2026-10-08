@@ -7,7 +7,7 @@ import {
 } from "./observationTrend";
 
 const DAY = 24 * 60 * 60 * 1000;
-const NOW = Date.UTC(2026, 6, 22); // 2026-07-22
+const NOW = Date.UTC(2026, 6, 22);
 
 function daysAgo(n: number): number {
   return NOW - n * DAY;
@@ -97,7 +97,6 @@ describe("classifyObservationTrend", () => {
   });
 
   it("falls back to createdAt when lastObservedAt is null", () => {
-    // Never re-observed; created 40d ago → weakening (past recent window).
     expect(
       classifyObservationTrend({ createdAt: daysAgo(40), lastObservedAt: null, proofCount: 1 }, NOW)
     ).toBe("weakening");
@@ -110,7 +109,6 @@ describe("classifyObservationTrend", () => {
   });
 
   it("returns stable for a known, recently-seen, lightly-proven fact", () => {
-    // Age > 30d, proofs=1, last seen recently — not new, not strengthening.
     expect(
       classifyObservationTrend(
         { createdAt: daysAgo(60), lastObservedAt: daysAgo(5), proofCount: 1 },
@@ -120,7 +118,6 @@ describe("classifyObservationTrend", () => {
   });
 
   it("clamps lastObservedAt earlier than createdAt up to createdAt", () => {
-    // Corrupt watermark before create → treat as createdAt (= 10d ago) → new.
     expect(
       classifyObservationTrend(
         { createdAt: daysAgo(10), lastObservedAt: daysAgo(100), proofCount: 1 },
@@ -134,10 +131,10 @@ describe("summarizeObservationTrends", () => {
   it("counts each label", () => {
     const counts = summarizeObservationTrends(
       [
-        { createdAt: daysAgo(5), proofCount: 1 }, // new
-        { createdAt: daysAgo(5), proofCount: 1 }, // new
-        { createdAt: daysAgo(60), lastObservedAt: daysAgo(2), proofCount: 5 }, // strengthening
-        { createdAt: daysAgo(200), lastObservedAt: daysAgo(100), proofCount: 2 }, // stale
+        { createdAt: daysAgo(5), proofCount: 1 },
+        { createdAt: daysAgo(5), proofCount: 1 },
+        { createdAt: daysAgo(60), lastObservedAt: daysAgo(2), proofCount: 5 },
+        { createdAt: daysAgo(200), lastObservedAt: daysAgo(100), proofCount: 2 },
       ],
       NOW
     );

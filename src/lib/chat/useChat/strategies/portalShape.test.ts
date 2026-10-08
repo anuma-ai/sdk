@@ -13,19 +13,6 @@ import {
   getToolsChecksum,
 } from "./types";
 
-// These tests pin the dual-shape contract introduced when chat completions
-// adopted the OpenAI-compliant `portal` envelope:
-//
-//   1. Outgoing requests nest portal-only fields under `portal`.
-//   2. `buildFinalResponse` emits the new portal-nested shape AND mirrors the
-//      portal fields back to their legacy top-level / in-usage locations.
-//   3. The read helpers return the right value from EITHER shape — the
-//      SDK-flattened streaming response (both paths populated) and the
-//      wire-only non-streaming response (portal only).
-//
-// If a future client regen or refactor drops the mirroring, these fail loudly
-// instead of silently regressing consumers that still read the legacy paths.
-
 function createAccumulator(overrides: Partial<StreamAccumulator> = {}): StreamAccumulator {
   return {
     content: "",
@@ -55,7 +42,6 @@ describe("CompletionsStrategy.buildRequestBody — portal request envelope", () 
     });
 
     expect(body.portal).toEqual({ image_model: "flux-1", conversation_id: "conv_42" });
-    // Must NOT leak the legacy top-level request fields.
     expect(body.image_model).toBeUndefined();
     expect(body.conversation_id).toBeUndefined();
   });
@@ -84,10 +70,8 @@ describe("CompletionsStrategy.buildFinalResponse — dual-shape response", () =>
 
     const res = strategy.buildFinalResponse(acc) as LlmapiChatCompletionResponse;
 
-    // New OpenAI-compliant location.
     expect(res.portal?.tools_checksum).toBe("abc123");
     expect(res.portal?.tool_call_events).toHaveLength(1);
-    // Legacy top-level mirror — must stay in lockstep.
     expect(res.tools_checksum).toBe("abc123");
     expect(res.tool_call_events).toHaveLength(1);
     expect(res.tool_call_events).toEqual(res.portal?.tool_call_events);
@@ -106,11 +90,9 @@ describe("CompletionsStrategy.buildFinalResponse — dual-shape response", () =>
 
     const res = strategy.buildFinalResponse(acc) as LlmapiChatCompletionResponse;
 
-    // Standard OpenAI tokens always live in usage.
     expect(res.usage?.prompt_tokens).toBe(10);
     expect(res.usage?.completion_tokens).toBe(5);
     expect(res.usage?.total_tokens).toBe(15);
-    // Cost mirrored into usage (legacy) AND portal (new).
     expect(res.usage?.cost_micro_usd).toBe(1234);
     expect(res.usage?.credits_used).toBe(1);
     expect(res.portal?.cost_micro_usd).toBe(1234);
@@ -128,7 +110,6 @@ describe("CompletionsStrategy.buildFinalResponse — dual-shape response", () =>
     expect(res.portal).toBeUndefined();
     expect(res.tools_checksum).toBeUndefined();
     expect(res.tool_call_events).toBeUndefined();
-    // OpenAI usage still present, cost fields absent (not zeroed).
     expect(res.usage?.total_tokens).toBe(15);
     expect(res.usage?.cost_micro_usd).toBeUndefined();
   });
@@ -160,13 +141,11 @@ describe("CompletionsStrategy.buildFinalResponse — dual-shape response", () =>
 
     const res = strategy.buildFinalResponse(acc) as LlmapiChatCompletionResponse;
 
-    // Legacy `LlmapiChatCompletionUsage` readers see every field on `usage`...
     expect(res.usage?.init_prompt_tokens).toBe(8);
     expect(res.usage?.init_completion_tokens).toBe(3);
     expect(res.usage?.provider_cost_micro_usd).toBe(1000);
     expect(res.usage?.pricing_source).toBe("table-v2");
     expect(res.usage?.tool_cost_micro_usd).toBe(200);
-    // ...and the OpenAI-compliant `portal` carries them too.
     expect(res.portal?.init_prompt_tokens).toBe(8);
     expect(res.portal?.provider_cost_micro_usd).toBe(1000);
     expect(res.portal?.pricing_source).toBe("table-v2");
@@ -198,8 +177,6 @@ describe("read helpers — dual-shape contract", () => {
   });
 
   it("fall back to the portal envelope when legacy mirrors are absent (wire-only)", () => {
-    // Mimics a raw non-streaming response from postApiV1ChatCompletions: only
-    // the portal-nested shape is populated, no legacy top-level / in-usage copy.
     const wireOnly: LlmapiChatCompletionResponse = {
       id: "resp_1",
       model: "openai/gpt-4o-mini",
@@ -251,12 +228,9 @@ describe("read helpers — dual-shape contract", () => {
   });
 
   it("classifies a chat-completion error envelope WITHOUT `choices` as chat completion", () => {
-    // Regression: keying the discriminator on `"choices" in r` misclassified
-    // this as a Responses response, so its portal fields were silently dropped.
     const errorEnvelope: LlmapiChatCompletionResponse = {
       id: "resp_err",
       object: "chat.completion",
-      // no `choices` — e.g. an upstream error envelope
       portal: {
         tools_checksum: "still-readable",
         tool_call_events: [{ id: "evt_e", name: "x", arguments: "{}", output: "{}" }],
@@ -272,8 +246,6 @@ describe("read helpers — dual-shape contract", () => {
   });
 
   it("still classifies a Responses response by `output` when `object` is absent", () => {
-    // SDK-built Responses streams may omit `object`; the `output` array alone
-    // must still route to the top-level read path.
     const responsesNoObject = {
       id: "resp_2",
       output: [],
@@ -298,7 +270,6 @@ describe("extractAssistantText — both response shapes", () => {
       choices: [
         {
           index: 0,
-          // Older completion-format payloads use a content-part array.
           message: {
             role: "assistant",
             content: [{ text: "part A" }, { text: "part B" }] as never,
@@ -329,7 +300,6 @@ describe("processStreamChunk — usage cost fields are not clobbered", () => {
   it("keeps cost/credits from an earlier chunk when a later usage frame omits them", () => {
     const acc = createAccumulator();
 
-    // First usage frame carries cost.
     strategy.processStreamChunk(
       { usage: { prompt_tokens: 10, cost_micro_usd: 1234, credits_used: 1 } },
       acc
@@ -337,7 +307,6 @@ describe("processStreamChunk — usage cost fields are not clobbered", () => {
     expect(acc.usage.cost_micro_usd).toBe(1234);
     expect(acc.usage.credits_used).toBe(1);
 
-    // Later frame updates token counts but omits cost — must not wipe it.
     strategy.processStreamChunk(
       { usage: { prompt_tokens: 12, completion_tokens: 8, total_tokens: 20 } },
       acc
@@ -351,14 +320,11 @@ describe("processStreamChunk — usage cost fields are not clobbered", () => {
   it("keeps token counts from an earlier chunk when a later usage frame omits them", () => {
     const acc = createAccumulator();
 
-    // First frame carries full token counts.
     strategy.processStreamChunk(
       { usage: { prompt_tokens: 10, completion_tokens: 5, total_tokens: 15 } },
       acc
     );
 
-    // Later frame carries only prompt_tokens (e.g. a portal mirror) — must not
-    // wipe completion/total the earlier frame already set.
     strategy.processStreamChunk({ usage: { prompt_tokens: 12 } }, acc);
 
     expect(acc.usage.prompt_tokens).toBe(12);
@@ -368,8 +334,6 @@ describe("processStreamChunk — usage cost fields are not clobbered", () => {
 
   it("does not let an empty-string tools_checksum shadow a real one on a later carrier", () => {
     const acc = createAccumulator();
-    // Top-level carrier carries an empty checksum; the nested `portal` carrier
-    // (consulted later) carries the real one. The empty string must not win.
     strategy.processStreamChunk(
       { tools_checksum: "", portal: { tools_checksum: "real-checksum" } },
       acc
@@ -411,8 +375,6 @@ describe("processStreamChunk — usage cost fields are not clobbered", () => {
 
   it("passes credits_exhausted through the accumulator and into the final usage", () => {
     const acc = createAccumulator();
-    // ai-portal injects credits_exhausted into the flat `usage` frame on the
-    // out-of-credits wrap-up. It must accumulate and survive to the final usage.
     strategy.processStreamChunk(
       {
         usage: {
@@ -427,7 +389,6 @@ describe("processStreamChunk — usage cost fields are not clobbered", () => {
     expect(acc.usage.credits_exhausted).toBe(true);
 
     const res = strategy.buildFinalResponse(acc) as LlmapiChatCompletionResponse;
-    // Lives on `usage` (terminal boolean), readable via the helper.
     expect((res.usage as { credits_exhausted?: boolean }).credits_exhausted).toBe(true);
     expect(getCreditsExhausted(res)).toBe(true);
   });
@@ -447,23 +408,18 @@ describe("processStreamChunk — usage cost fields are not clobbered", () => {
   it("never writes undefined-valued token keys from an empty usage frame", () => {
     const acc = createAccumulator();
     strategy.processStreamChunk({ usage: {} }, acc);
-    // An empty frame must leave the accumulator empty, not seed it with
-    // undefined-valued token keys that would make `hasUsage` falsely true.
     expect(Object.keys(acc.usage)).toHaveLength(0);
   });
 
   it("emits no token keys for a cost-only response (not prompt_tokens: undefined)", () => {
     const acc = createAccumulator({ content: "hi" });
-    // Portal fallback delivers cost only — no per-chunk OpenAI token frame.
     strategy.processStreamChunk({ portal: { cost_micro_usd: 500, credits_used: 5 } }, acc);
 
     const res = strategy.buildFinalResponse(acc) as LlmapiChatCompletionResponse;
 
-    // Cost still surfaces in both legacy-usage and portal locations.
     expect(res.usage?.cost_micro_usd).toBe(500);
     expect(res.usage?.credits_used).toBe(5);
     expect(res.portal?.cost_micro_usd).toBe(500);
-    // Token keys must be absent entirely, not present-with-undefined.
     expect(res.usage && "prompt_tokens" in res.usage).toBe(false);
     expect(res.usage && "completion_tokens" in res.usage).toBe(false);
     expect(res.usage && "total_tokens" in res.usage).toBe(false);

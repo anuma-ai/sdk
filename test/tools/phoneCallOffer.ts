@@ -1,10 +1,3 @@
-/**
- * E2E test: display_phone_call_offer tool
- *
- * Verifies that the model calls display_phone_call_offer with valid
- * recipient info, phone number, and objective.
- */
-
 import { describe, it, expect } from "vitest";
 import { runToolLoop } from "./setup.js";
 import { createPhoneCallOfferTool } from "../../src/tools/phoneCallOffer.js";

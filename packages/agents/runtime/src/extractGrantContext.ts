@@ -1,13 +1,3 @@
-/**
- * Pull the bearer off an incoming request, validate it against the portal,
- * and return the parsed grant.
- *
- * In v1 the portal validates by exposing `GET /api/v1/me`, which returns
- * `{ user_address, client_id, scopes }`. A later portal version may switch
- * to issuing signed JWTs and let `extractGrantContext` do local decode —
- * the consumer signature stays the same.
- */
-
 import { AuthError } from "./errors.js";
 import type { GrantContext, IncomingRequest, PortalClientOpts } from "./types.js";
 
@@ -36,6 +26,7 @@ function readBearer(req: IncomingRequest): string {
 
 export type ExtractGrantContextOpts = Pick<PortalClientOpts, "baseUrl" | "fetchImpl" | "timeoutMs">;
 
+/** Validate the request's bearer against the portal and return the parsed grant. @throws {@link AuthError} when the bearer is missing, malformed, expired, or revoked. */
 export async function extractGrantContext(
   req: IncomingRequest,
   opts: ExtractGrantContextOpts = {}

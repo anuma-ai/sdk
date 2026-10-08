@@ -1,29 +1,3 @@
-/**
- * AI flashcard tutor — verifies the model uses window.app.complete.
- *
- * This is the simplest benchmark that genuinely requires runtime LLM
- * access: a static flashcard app can only check exact-match answers,
- * but an AI tutor can grade free-form responses, give partial credit,
- * and explain why an answer was wrong. Without window.app.complete the
- * app is degenerate; with it, the app is genuinely intelligent.
- *
- * Two phases:
- *   1. Build the initial AI flashcard tutor.
- *   2. Add a "create new deck from a topic" feature that asks the AI
- *      to generate cards.
- *
- * Each phase dumps a working app to test/tools/app-generation/.output/
- * flashcards-ai/step-N/index.html. The preview HTML includes a stub
- * window.app.complete so the visual preview is interactive without a
- * real backend.
- *
- * OPT-IN via RUN_FLASHCARDS_AI=1 — this benchmark is for measuring
- * whether the system prompt successfully teaches window.app.complete,
- * not for routine CI.
- *
- * Run: PORTAL_API_KEY=... RUN_FLASHCARDS_AI=1 pnpm vitest run test/tools/app-generation/flashcards-ai.test.ts
- */
-
 import { afterAll, describe, expect, it } from "vitest";
 
 import { buildAppSystemPrompt } from "../../../src/tools/appGeneration.js";
@@ -124,7 +98,6 @@ describe("AI flashcard tutor (window.app.complete benchmark)", () => {
         return store.get("App.css") ?? "";
       }
 
-      // ── Phase 1: AI-graded flashcard tutor ─────────────────────────────────
       conversation.push(
         userMsg(
           [
@@ -153,14 +126,8 @@ describe("AI flashcard tutor (window.app.complete benchmark)", () => {
       const phase1Css = getAppCss();
 
       expect(phase1Js.length).toBeGreaterThanOrEqual(2000);
-      // CRITICAL: the model must use window.app.complete. This is the
-      // whole point of this benchmark — if the model writes a static
-      // exact-match grader instead of an AI grader, it's failed the
-      // task even if the UI looks correct.
       expect(phase1Js).toMatch(/window\.app\.complete/);
-      // Loading state for the async AI call.
       expect(phase1Js).toMatch(/loading|isLoading|pending/i);
-      // localStorage from the new prompt section.
       expect(phase1Js).toMatch(/localStorage/);
 
       const completeCalls = (phase1Js.match(/window\.app\.complete\(/g) ?? []).length;
@@ -170,7 +137,6 @@ describe("AI flashcard tutor (window.app.complete benchmark)", () => {
 
       const snap1 = snapshot(store);
 
-      // ── Phase 2: AI deck generation ────────────────────────────────────────
       conversation.push(
         userMsg(
           [
@@ -196,8 +162,6 @@ describe("AI flashcard tutor (window.app.complete benchmark)", () => {
 
       const phase2Js = getAppJs();
 
-      // Should now have MORE window.app.complete call sites — at least
-      // the grader from phase 1 plus the deck generator from phase 2.
       const completeCalls2 = (phase2Js.match(/window\.app\.complete\(/g) ?? []).length;
       expect(completeCalls2).toBeGreaterThan(completeCalls);
 
@@ -207,7 +171,6 @@ describe("AI flashcard tutor (window.app.complete benchmark)", () => {
         `  Phase 2: App.js=${phase2Js.length}ch (+${phase2Js.length - phase1Js.length}), window.app.complete call sites: ${completeCalls2}`
       );
 
-      // ── Summary + persistence ──────────────────────────────────────────────
       console.log(`  window.app.complete usage: ${completeCalls} → ${completeCalls2} call sites`);
       writeRunMetrics({
         outputSubdir: "flashcards-ai",

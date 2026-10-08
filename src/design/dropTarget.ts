@@ -157,9 +157,6 @@ export function resolveDropTarget(
   const draggedNode = findById(deck, draggedId);
   const w = typeof draggedNode?.attrs.w === "number" ? draggedNode.attrs.w : dr.width / scale;
   const h = typeof draggedNode?.attrs.h === "number" ? draggedNode.attrs.h : dr.height / scale;
-  // Element rotates around its center (transform-origin: 50% 50%), so
-  // AABB.center == element.center. Recover the unrotated top-left from
-  // the AABB center + intrinsic w/h.
   const centerClientX = dr.left + dr.width / 2;
   const centerClientY = dr.top + dr.height / 2;
   const topLeftClientX = centerClientX - (w * scale) / 2;

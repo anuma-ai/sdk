@@ -1,26 +1,3 @@
-/**
- * Google Drive (backup-scoped) OAuth 2.0 Authorization Code Flow —
- * **LEGACY (v1) MODULE**.
- *
- * This module uses the `drive.file` scope (app-created files only) for
- * the backup pipeline. As of the connector-vault rollout
- * (`.claude-docs/connecters/DESIGN.md`), refresh tokens live server-side
- * on the portal — the backup pipeline should switch to:
- *
- * ```ts
- * import { createConnectorTokenGetter } from "@anuma/sdk/tools";
- * const getToken = createConnectorTokenGetter(portalClient, "gdrive");
- * ```
- *
- * The functions in this file remain published with their original
- * signatures so the backup pipeline keeps compiling. Legacy
- * `/auth/oauth/google-drive/{exchange,refresh,revoke}` endpoints stay
- * live during the transition window.
- *
- * TODO(connector-vault): collapse to a thin wrapper once the backup
- * pipeline migrates to the portal mint path.
- */
-
 import type { Client } from "../../../client/client";
 import {
   postAuthOauthByProviderExchange,
@@ -43,49 +20,32 @@ import {
 const PROVIDER = "google-drive";
 const CODE_STORAGE_KEY = "google_oauth_state";
 
-// Google OAuth endpoints
 const GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth";
 
-// Google Drive API scopes
-const DRIVE_SCOPES = [
-  "https://www.googleapis.com/auth/drive.file", // Access to files created by the app
-].join(" ");
+const DRIVE_SCOPES = ["https://www.googleapis.com/auth/drive.file"].join(" ");
 
-/**
- * Get the redirect URI for OAuth callback
- */
 function getRedirectUri(callbackPath: string): string {
   if (typeof window === "undefined") return "";
   return `${window.location.origin}${callbackPath}`;
 }
 
-/**
- * Generate a random state for CSRF protection
- */
 function generateState(): string {
   const array = new Uint8Array(16);
   crypto.getRandomValues(array);
   return Array.from(array, (byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
-/**
- * Store OAuth state for validation
- */
 function storeOAuthState(state: string): void {
   if (typeof window === "undefined") return;
   sessionStorage.setItem(CODE_STORAGE_KEY, state);
 }
 
-/**
- * Get and clear stored OAuth state
- */
 function getAndClearOAuthState(): string | null {
   if (typeof window === "undefined") return null;
   const stored = sessionStorage.getItem(CODE_STORAGE_KEY);
   sessionStorage.removeItem(CODE_STORAGE_KEY);
   if (!stored) return null;
 
-  // Handle both JSON format (from tests) and plain string format
   try {
     const parsed: unknown = JSON.parse(stored);
     if (parsed && typeof parsed === "object" && "state" in parsed) {
@@ -132,7 +92,6 @@ export async function handleGoogleDriveCallback(
   const state = url.searchParams.get("state");
   const storedState = getAndClearOAuthState();
 
-  // Validate state to prevent CSRF
   if (!code || !state || state !== storedState) {
     return {
       ok: false,
@@ -163,7 +122,6 @@ export async function handleGoogleDriveCallback(
       };
     }
 
-    // Store tokens
     const tokenData = tokenResponseToStoredData(
       response.data.access_token,
       response.data.expires_in,
@@ -174,7 +132,6 @@ export async function handleGoogleDriveCallback(
     try {
       await storeTokenData(PROVIDER, tokenData, walletAddress);
     } catch (encryptionError) {
-      // Encryption failure - return error with details
       return {
         ok: false,
         error: {
@@ -186,7 +143,6 @@ export async function handleGoogleDriveCallback(
       };
     }
 
-    // Clean up URL
     window.history.replaceState({}, "", window.location.pathname);
 
     return {
@@ -197,11 +153,9 @@ export async function handleGoogleDriveCallback(
     const errorMessage = error instanceof Error ? error.message : String(error);
     const errorDetails = error instanceof Error ? `${error.name}: ${errorMessage}` : errorMessage;
 
-    // Log error with details
     getLogger().error(`OAuth callback error: ${errorDetails}`, error);
     getLogger().warn(`Failed to complete OAuth flow: ${errorMessage}`);
 
-    // Determine error code based on error type
     let errorCode: OAuthError["code"] = "unknown";
     if (error instanceof TypeError && error.message.includes("fetch")) {
       errorCode = "network";
@@ -220,9 +174,6 @@ export async function handleGoogleDriveCallback(
   }
 }
 
-/**
- * Refresh the access token using the stored refresh token
- */
 async function refreshGoogleDriveToken(
   apiClient?: Client,
   walletAddress?: string
@@ -241,7 +192,6 @@ async function refreshGoogleDriveToken(
       throw new Error("No access token in refresh response");
     }
 
-    // Update stored tokens (refresh token may or may not be included)
     const currentData = await getStoredTokenData(PROVIDER, walletAddress);
     const tokenData = tokenResponseToStoredData(
       response.data.access_token,
@@ -253,8 +203,7 @@ async function refreshGoogleDriveToken(
 
     return response.data.access_token;
   } catch {
-    // If refresh fails, clear stored data
-    clearTokenData(PROVIDER);
+    clearTokenData(PROVIDER, walletAddress);
     return null;
   }
 }
@@ -270,7 +219,6 @@ export async function revokeGoogleDriveToken(
   if (!tokenData) return;
 
   try {
-    // Prefer revoking refresh token if available, otherwise access token
     const tokenToRevoke = tokenData.refreshToken ?? tokenData.accessToken;
     await postAuthOauthByProviderRevoke({
       client: apiClient,
@@ -280,7 +228,7 @@ export async function revokeGoogleDriveToken(
   } catch {
     // Ignore errors on revocation
   } finally {
-    clearTokenData(PROVIDER);
+    clearTokenData(PROVIDER, walletAddress);
   }
 }
 
@@ -293,18 +241,14 @@ export async function getGoogleDriveAccessToken(
 ): Promise<string | null> {
   const storedData = await getStoredTokenData(PROVIDER, walletAddress);
 
-  // If no stored data at all, nothing to do
   if (!storedData) {
     return null;
   }
 
-  // If we have expiration info and token is NOT expired, use it
   if (storedData.expiresAt && !isTokenExpired(storedData)) {
     return storedData.accessToken;
   }
 
-  // Token is either expired OR has no expiration info (can't verify validity)
-  // In both cases, try to refresh if we have a refresh token
   if (storedData.refreshToken) {
     const refreshedToken = await refreshGoogleDriveToken(apiClient, walletAddress);
     if (refreshedToken) {
@@ -312,8 +256,6 @@ export async function getGoogleDriveAccessToken(
     }
   }
 
-  // Fallback: if we have an access token but couldn't refresh, return it
-  // This handles edge cases where refresh fails but token might still work
   if (storedData.accessToken && !storedData.expiresAt) {
     return storedData.accessToken;
   }
@@ -334,13 +276,12 @@ export async function startGoogleDriveAuth(clientId: string, callbackPath: strin
     response_type: "code",
     scope: DRIVE_SCOPES,
     state,
-    access_type: "offline", // Request refresh token
-    prompt: "consent", // Force consent to always get refresh token
+    access_type: "offline",
+    prompt: "consent",
   });
 
   window.location.href = `${GOOGLE_AUTH_URL}?${params.toString()}`;
 
-  // This will never resolve - page redirects
   return new Promise(() => {});
 }
 

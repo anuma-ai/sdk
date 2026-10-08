@@ -2,7 +2,7 @@
 
 > **useVoice**(`options?`: [`UseVoiceOptions`](UseVoiceOptions.md)): [`UseVoiceResult`](UseVoiceResult.md)
 
-Defined in: [src/react/useVoice.ts:201](https://github.com/anuma-ai/sdk/blob/main/src/react/useVoice.ts#201)
+Defined in: [src/react/useVoice.ts:192](https://github.com/anuma-ai/sdk/blob/main/src/react/useVoice.ts#192)
 
 React hook for recording voice and transcribing it on-device using Whisper.
 

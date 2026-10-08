@@ -1,13 +1,3 @@
-/**
- * E2E test: memory_engine_search tool
- *
- * Uses a real in-memory WatermelonDB (LokiJSAdapter) and real Portal
- * embeddings to test conversation search through the LLM tool loop.
- *
- * Seeds a conversation with pre-embedded messages, then verifies the
- * LLM can find relevant past messages via semantic search.
- */
-
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { Database } from "@nozbe/watermelondb";
 import LokiJSAdapter from "@nozbe/watermelondb/adapters/lokijs";
@@ -27,7 +17,6 @@ let embeddingOptions: EmbeddingOptions;
 
 const CONV_ID = "e2e-test-conv-1";
 
-/** Seed messages that will be pre-embedded for search */
 const seedMessages = [
   { role: "user", content: "I'm planning a trip to Japan next spring" },
   {
@@ -62,12 +51,10 @@ beforeAll(async () => {
     baseUrl: config.baseUrl,
   };
 
-  // Generate real embeddings for seed messages
   const embeddings = await Promise.all(
     seedMessages.map((m) => generateEmbedding(m.content, embeddingOptions))
   );
 
-  // Seed the database with a conversation and pre-embedded messages
   await database.write(async () => {
     await storageCtx.conversationsCollection.create((record) => {
       record._setRaw("conversation_id", CONV_ID);

@@ -30,7 +30,6 @@ describe("useSettings with a null database (not yet bound)", () => {
     await expect(result.current.deleteUserPreference("0xABC")).rejects.toThrow(
       "Database not ready"
     );
-    // Legacy API path is guarded too.
     await expect(result.current.setModelPreference("0xABC", "gpt-4")).rejects.toThrow(
       "Database not ready"
     );
@@ -52,7 +51,6 @@ describe("useSettings own-name filter contract (never crashes on missing db)", (
     );
     const first = result.current.updateProfile;
     rerender({ database: null });
-    // storageCtx stays null (same dep), so the callback identity is preserved.
     expect(result.current.updateProfile).toBe(first);
     vi.clearAllMocks();
   });

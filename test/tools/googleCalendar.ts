@@ -1,10 +1,3 @@
-/**
- * Google Calendar tool e2e test
- *
- * Verifies that runToolLoop correctly executes Google Calendar tools
- * against the real Google Calendar API using a service account.
- */
-
 import { describe, it, expect, afterAll } from "vitest";
 import { runToolLoop } from "./setup.js";
 import {
@@ -13,8 +6,6 @@ import {
 } from "../../src/tools/googleCalendar.js";
 import { config, extractText, printResult, wrapTool, type ToolCallLog } from "./setup.js";
 import { createGoogleTokenManager } from "./googleAuth.js";
-
-// ── Tests ─────────────────────────────────────────────────────────────────────
 
 describe("google-calendar", () => {
   const auth = createGoogleTokenManager("https://www.googleapis.com/auth/calendar");
@@ -134,6 +125,7 @@ describe("google-calendar", () => {
     expect(typeof args.end).toBe("string");
 
     expect(createResult.id).toBeDefined();
+    expect(createResult.id).toMatch(/^[A-Za-z0-9_]+$/);
     expect(createResult.summary).toContain("E2E Test");
   });
 

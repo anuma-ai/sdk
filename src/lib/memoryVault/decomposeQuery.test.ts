@@ -31,11 +31,6 @@ describe("decomposeQuery", () => {
     expect(sentBody.model).toBe("inclusionai/ling-2.6-flash");
   });
 
-  // The portal picks its registered `memory_decompose` prompt off this header alone.
-  // Drop it or rename it and the request still succeeds — it just goes untyped, so
-  // server-side attribution and prompt ownership fail silently while every other test
-  // in this file keeps passing. Asserted at the call site because this is the only
-  // place decomposition's task name is set.
   it("declares memory_decompose so the portal can own the prompt for it", async () => {
     const fetchFn = vi.fn().mockResolvedValue({
       ok: true,

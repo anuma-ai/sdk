@@ -4,17 +4,11 @@ import type { ServerToolsFilterFunction } from "../serverTools";
 import { FULL_GENERATIVE_CLIENT_FACTORIES, type ServerToolCatalog } from "./intents";
 import { resolvePlan } from "./plan";
 
-// A catalog that mirrors the shape of both apps' static server-tool lists +
-// send-policy knobs. Values chosen to reproduce the golden policy tables from
-// issue #702 (web useChatTools / mobile chatModeRouting).
 const SLIDE_PROMPT = "SLIDE_SYSTEM_PROMPT";
 const DEEP_RESEARCH_PROMPT = "DEEP_RESEARCH_PROMPT";
 const RESEARCH_TOOLS = ["Jina-read_url", "Jina-search_web", "Jina-search_images", "Jina-rerank"];
 
 const catalog: ServerToolCatalog = {
-  // plain chat: attachment-aware semantic filter factory (drops bg-removal on a
-  // video-only attachment), matching mobile's buildChatModeServerToolsFilter.
-  // The produced value is a semantic filter function → toolChoice resolves auto.
   plain: {
     resolveServerTools: (_ctx) => {
       const filter: ServerToolsFilterFunction = () => [];
@@ -28,7 +22,7 @@ const catalog: ServerToolCatalog = {
   "web-search": { serverTools: RESEARCH_TOOLS },
   "deep-research": {
     serverTools: RESEARCH_TOOLS,
-    toolChoice: "auto", // explicitly excluded from coercion (mobile)
+    toolChoice: "auto",
     maxToolRounds: 20,
     thinkingMode: "extended",
     systemPrompt: DEEP_RESEARCH_PROMPT,
@@ -39,7 +33,7 @@ const catalog: ServerToolCatalog = {
     thinkingMode: "fast",
     systemPrompt: SLIDE_PROMPT,
   },
-  app: { serverTools: [] }, // APP_SERVER_TOOLS is empty
+  app: { serverTools: [] },
   council: { serverTools: (_e, _t) => [] },
 };
 
@@ -122,10 +116,7 @@ describe("resolvePlan — chat lane golden table", () => {
     expect(plan.serverTools).toEqual(["AnumaMediaMCP-anuma_create_image"]);
     expect(plan.toolChoice).toBe("auto");
     expect(plan.activeToolSets).toContain("slides");
-    // full generative toolkit still registered — the filter does the narrowing
     expect(plan.clientFactories).toEqual([...FULL_GENERATIVE_CLIENT_FACTORIES]);
-    // The overlay is effectively a slides turn: its persona + send-policy knobs
-    // come from the slide entry, not the underlying "plain" chat intent.
     expect(plan.systemPromptRiders).toContain(SLIDE_PROMPT);
     expect(plan.maxToolRounds).toBe(36);
     expect(plan.thinkingMode).toBe("fast");
@@ -178,10 +169,6 @@ describe("resolvePlan — council / aggregation lanes", () => {
   });
 
   it("aggregation: carries no per-mode client toolkit and no dead post-filter", () => {
-    // The aggregation plan produces zero client factories; the never-persist
-    // invariant is enforced by composeCouncilClientTools(canPersistMemory:false)
-    // in council.ts (see council.test.ts), NOT by a plan-level post-filter — so
-    // postFilters must be empty rather than carrying a no-op coerce-strip marker.
     const plan = resolvePlan({ lane: "aggregation", creation: "plain" }, ctx);
     expect(plan.clientFactories).toEqual([]);
     expect(plan.postFilters).toEqual([]);

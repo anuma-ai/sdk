@@ -17,12 +17,6 @@ const BOOKING_ARGS = {
   parameters: RESERVATION,
 };
 
-/**
- * A context whose interaction stays pending until the test answers it, the way
- * a real card does. `answer` resolves the promise the executor is blocked on;
- * `fail` rejects it, which is what a timeout, a cancel or a conversation switch
- * all look like from inside the tool.
- */
 function pendingContext() {
   let settle!: { answer: (result: unknown) => void; fail: (error: Error) => void };
   const createInteraction = vi.fn(
@@ -45,15 +39,11 @@ describe("createConfirmTool", () => {
     const tool = createConfirmTool({ getContext: () => null });
 
     expect((tool.function as { name: string }).name).toBe("prompt_user_confirm");
-    // A confirmation waits on a human. The default 30s executor timeout would
-    // resolve it as unanswered while the user is still reading the card.
     expect(tool.executorTimeout).toBe(Infinity);
     const params = (tool.function as { arguments: { required?: string[] } }).arguments;
     expect(params.required).toEqual(["title", "action", "parameters"]);
   });
 
-  // The host renders its own button labels. A model-written label could put
-  // "Cancel" on the button that confirms, so the schema must not offer one.
   it("does not let the model write the button labels", () => {
     const tool = createConfirmTool({ getContext: () => null });
 
@@ -103,9 +93,6 @@ describe("createConfirmTool", () => {
     });
   });
 
-  // The portal refuses the booking tool unless a confirmation with matching
-  // parameters is in the turn. A boolean alone would not survive that check,
-  // because the model writes the booking arguments too.
   it("carries the confirmed parameters back verbatim, not just a boolean", async () => {
     const { context, settle } = pendingContext();
     const tool = createConfirmTool({ getContext: () => context });
@@ -120,8 +107,6 @@ describe("createConfirmTool", () => {
     expect(Date.parse(result.answeredAt as string)).not.toBeNaN();
   });
 
-  // A decline is an answer, so it keeps the same shape — the portal and the
-  // model both read `confirmed`, and neither has to treat it as a failure.
   it("reports a decline as an answer, with the parameters still attached", async () => {
     const { context, settle } = pendingContext();
     const tool = createConfirmTool({ getContext: () => context });
@@ -138,9 +123,6 @@ describe("createConfirmTool", () => {
     expect(result.cancelled).toBeUndefined();
   });
 
-  // Only an explicit boolean is an answer. A card that resolves with a string,
-  // a missing field or an unrelated shape made no decision, so it must read as
-  // nobody answering — neither as permission nor as the user saying no.
   it.each([
     ["the string 'true'", { confirmed: "true" }],
     ["a truthy string", { confirmed: "yes" }],
@@ -157,8 +139,6 @@ describe("createConfirmTool", () => {
     expect(await pending).toEqual({ cancelled: true });
   });
 
-  // The third outcome: nobody answered. Distinguishable from a decline, which
-  // is the point — the model must not tell the user they said no.
   it("reports a timeout as cancelled, not as a decline", async () => {
     const { context, settle } = pendingContext();
     const tool = createConfirmTool({ getContext: () => context });
@@ -177,8 +157,6 @@ describe("createConfirmTool", () => {
     await expect(tool.executor?.(BOOKING_ARGS)).resolves.toEqual({ cancelled: true });
   });
 
-  // Arguments the user could not judge, or the portal could not compare, never
-  // reach the card at all.
   it.each([
     ["no parameters", { ...BOOKING_ARGS, parameters: [] }],
     ["no action", { title: "Confirm", parameters: RESERVATION }],

@@ -1,13 +1,3 @@
-/**
- * Progressive conversation history summarization.
- *
- * Summarizes older messages into a compact text while keeping recent messages
- * verbatim. Uses a cheap, private-friendly model (Cerebras) to minimize cost.
- *
- * Based on LangChain's ConversationSummaryBufferMemory pattern:
- * https://github.com/langchain-ai/langchain/blob/master/libs/langchain/langchain_classic/memory/prompt.py
- */
-
 import type { Database } from "@nozbe/watermelondb";
 
 import type { LlmapiMessage } from "../../client";
@@ -33,15 +23,6 @@ export const DEFAULT_SUMMARY_MIN_WINDOW_MESSAGES = 4;
 /** Default model for summarization */
 export const DEFAULT_SUMMARY_MODEL = "cerebras/qwen-3-235b-a22b-instruct-2507";
 
-/**
- * Summarization prompt adapted from LangChain's ConversationSummaryBufferMemory.
- *
- * Source: https://github.com/langchain-ai/langchain/blob/master/libs/langchain/langchain_classic/memory/prompt.py
- *
- * Modifications from original:
- * - Added "user preferences" to preservation criteria (Memoryless has memory/personalization)
- * - Kept the one-shot example from LangChain for output formatting
- */
 const SUMMARIZATION_PROMPT = `Progressively summarize the lines of conversation provided, adding onto the previous summary returning a new summary. Preserve key facts, decisions, user preferences, and any information the user might reference later. Be concise.
 
 EXAMPLE
@@ -83,7 +64,6 @@ export function estimateTokens(text: string): number {
   return Math.ceil(text.length / 4);
 }
 
-/** Approximate overhead per message for role/framing tokens (e.g., <|im_start|>role\n...<|im_end|>) */
 const PER_MESSAGE_OVERHEAD_TOKENS = 4;
 
 /**
@@ -105,11 +85,6 @@ export function estimateMessagesTokens(messages: StoredMessage[]): number {
   );
 }
 
-/**
- * Check if a string is a JSON object containing a `tool_calls` key.
- * Used to detect raw tool-call blobs stored as assistant message content
- * during agentic tool loops (e.g., web search, chart generation).
- */
 function isToolCallJson(content: string): boolean {
   if (!content.startsWith("{")) return false;
   try {
@@ -120,20 +95,12 @@ function isToolCallJson(content: string): boolean {
   }
 }
 
-/**
- * Format stored messages as "Human: ..\nAI: .." for the summarization prompt.
- * Skips system messages and empty-content messages (e.g., tool-call invocations
- * with no text). Tool-call JSON blobs are replaced with a readable placeholder
- * to avoid polluting the summarization prompt with raw JSON.
- */
 function formatMessagesForPrompt(messages: StoredMessage[]): string {
   return messages
     .filter((msg) => msg.role !== "system")
     .filter((msg) => msg.content.trim().length > 0)
     .map((msg) => {
       const role = msg.role === "user" ? "Human" : "AI";
-      // Detect tool-call JSON blobs (common in agentic conversations) and
-      // replace with a readable placeholder to keep the summary coherent.
       const content = msg.content.trim();
       if (role === "AI" && isToolCallJson(content)) {
         return `${role}: [used a tool]`;
@@ -143,17 +110,12 @@ function formatMessagesForPrompt(messages: StoredMessage[]): string {
     .join("\n");
 }
 
-/**
- * Build the full summarization prompt with template variables filled in.
- */
 function buildSummarizationPrompt(
   existingSummary: string | undefined,
   newMessages: StoredMessage[]
 ): string {
   const summary = existingSummary || "No previous summary.";
   const newLines = formatMessagesForPrompt(newMessages);
-  // Split on placeholders to avoid chained .replace() — prevents corruption if
-  // the summary text contains the literal string "{new_lines}".
   const [before, afterSummary] = SUMMARIZATION_PROMPT.split("{summary}");
   const [middle, after] = afterSummary.split("{new_lines}");
   return before + summary + middle + newLines + after;
@@ -178,14 +140,8 @@ export function splitMessagesAtThreshold(
   }
 
   let cumulativeTokens = 0;
-  // Initialize to messages.length so that if the loop reaches i=0 without
-  // finding a split point, the i=0 branch sets cutoffIndex=0 (everything in window).
-  // This initial value is never used as-is — the loop always completes.
   let cutoffIndex = messages.length;
 
-  // Walk backwards from the most recent message.
-  // Note: the message that pushes over the threshold is placed in toSummarize (conservative).
-  // This means the window is always strictly under the threshold, never at it.
   for (let i = messages.length - 1; i >= 0; i--) {
     const msgTokens = estimateTokens(messages[i].content) + PER_MESSAGE_OVERHEAD_TOKENS;
     if (
@@ -196,7 +152,6 @@ export function splitMessagesAtThreshold(
       break;
     }
     cumulativeTokens += msgTokens;
-    // If we've reached the beginning, everything fits in the window
     if (i === 0) {
       cutoffIndex = 0;
     }
@@ -246,29 +201,12 @@ interface SummarizeResult {
   didSummarize: boolean;
 }
 
-/**
- * Progressive conversation summarization.
- *
- * Checks if history exceeds the token threshold. If so, splits messages into
- * "to summarize" and "window", then calls the LLM to extend the existing
- * summary with the newly pruned messages.
- *
- * Falls back gracefully: if summarization fails, returns all messages verbatim.
- */
-/**
- * Redact a summarization prompt and surface any matches to `onPiiRedacted`,
- * mirroring runToolLoop's redactBatch so the consent UX sees PII detected on the
- * summarization path too. Returns the prompt unchanged when redaction is off.
- */
 async function redactSummaryPrompt(
   prompt: string,
   redactor: PiiRedactor | undefined,
   onPiiRedacted?: (matches: PiiMatch[]) => void
 ): Promise<string> {
   if (!redactor) return prompt;
-  // Async so a configured NER detector folds unstructured PII (names/locations/
-  // orgs) into the summary prompt too — matching the send path (redactMessagesAsync).
-  // With no detector this is byte-for-byte identical to the sync redactText.
   const { text, matches } = await redactor.redactTextAsync(prompt);
   if (matches.length > 0 && onPiiRedacted) {
     try {
@@ -296,7 +234,6 @@ export async function progressiveSummarize(options: SummarizeOptions): Promise<S
   const messagesTokens = estimateMessagesTokens(unsummarizedMessages);
   const totalTokens = cachedTokens + messagesTokens;
 
-  // Under threshold — no summarization needed
   if (totalTokens <= tokenThreshold) {
     return {
       summary: cachedSummary?.summary ?? null,
@@ -307,8 +244,6 @@ export async function progressiveSummarize(options: SummarizeOptions): Promise<S
     };
   }
 
-  // Over threshold — split and summarize.
-  // Subtract cached summary tokens so window + summary stays within the total budget.
   const windowBudget = Math.max(0, tokenThreshold - cachedTokens);
   let { toSummarize, window } = splitMessagesAtThreshold(
     unsummarizedMessages,
@@ -316,16 +251,12 @@ export async function progressiveSummarize(options: SummarizeOptions): Promise<S
     minWindowMessages
   );
 
-  // Cap messages per summarization call to prevent oversized prompts that would
-  // exceed the timeout (especially after summary invalidation). Excess messages
-  // are moved back to the window and will be summarized in subsequent sends.
   if (toSummarize.length > MAX_MESSAGES_PER_SUMMARIZATION) {
     const excess = toSummarize.slice(MAX_MESSAGES_PER_SUMMARIZATION);
     toSummarize = toSummarize.slice(0, MAX_MESSAGES_PER_SUMMARIZATION);
     window = [...excess, ...window];
   }
 
-  // Nothing to summarize (all messages fit in the window due to min window constraint)
   if (toSummarize.length === 0) {
     return {
       summary: cachedSummary?.summary ?? null,
@@ -338,8 +269,6 @@ export async function progressiveSummarize(options: SummarizeOptions): Promise<S
 
   try {
     const prompt = buildSummarizationPrompt(cachedSummary?.summary, toSummarize);
-    // Redact the prompt before it leaves the device, then restore original
-    // values in the returned summary so the stored summary holds real values.
     const promptForModel = await redactSummaryPrompt(prompt, redactor, onPiiRedacted);
     const rawSummary = await callLlm(promptForModel, model);
     const newSummary = redactor ? redactor.deAnonymize(rawSummary) : rawSummary;
@@ -357,7 +286,6 @@ export async function progressiveSummarize(options: SummarizeOptions): Promise<S
       didSummarize: true,
     };
   } catch {
-    // Summarization failed — fall back to sending all messages verbatim
     return {
       summary: cachedSummary?.summary ?? null,
       summarizedUpTo: cachedSummary?.summarizedUpTo ?? null,
@@ -384,7 +312,6 @@ export function summaryToSystemMessage(summary: string): LlmapiMessage {
   };
 }
 
-/** Timeout for the summarization LLM call (ms). If exceeded, falls back to verbatim. */
 const SUMMARIZATION_TIMEOUT_MS = 10_000;
 
 /**
@@ -404,8 +331,6 @@ export async function callSummarizationLlm(
 ): Promise<string> {
   const url = `${baseUrl || BASE_URL}/api/v1/chat/completions`;
 
-  // Single timeout mechanism: AbortController aborts the fetch, Promise.race
-  // ensures response.json() is also covered. One timer, one responsibility.
   const controller = new AbortController();
 
   const doRequest = async (): Promise<string> => {
@@ -414,22 +339,11 @@ export async function callSummarizationLlm(
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${token}`,
-        // Names the task so the portal can own this prompt server-side instead of
-        // trusting the one we build. Summarization is the archetypal Class-B flow:
-        // one fixed purpose, no conversation, and today its instructions are ours
-        // to reword.
         ...taskTypeHeader("summarize"),
       },
       body: JSON.stringify({
         model,
         stream: false,
-        // The marker rides a system message because this call has no other
-        // provenance: it posts to the MAIN chat endpoint (not /utility/*), carries no
-        // conversationId, and its prompt is neither the app's chat base prompt nor any
-        // registered flow fingerprint — so without this it reads as markerless, i.e.
-        // as a scripted abuser. Progressive summarization runs for every free-tier
-        // long conversation, so at the PORTAL_DETECTION_REJECT_MARKERLESS flip it
-        // would 403 and silently fall back to verbatim history (context bloat + cost).
         messages: [
           { role: "system", content: INTERNAL_FLOW_MARKER },
           { role: "user", content: prompt },
@@ -446,7 +360,6 @@ export async function callSummarizationLlm(
       choices?: Array<{ message?: { content?: string | Array<{ text?: string }> } }>;
     };
 
-    // Chat Completions API format
     if (data.choices?.[0]?.message?.content) {
       const content = data.choices[0].message.content;
       if (Array.isArray(content)) {
@@ -466,8 +379,6 @@ export async function callSummarizationLlm(
     }, SUMMARIZATION_TIMEOUT_MS);
   });
 
-  // Swallow orphaned rejection from doRequest if the timeout wins the race.
-  // The fetch is aborted above, so the AbortError rejection is expected.
   const doRequestPromise = doRequest();
   doRequestPromise.catch(() => {});
 
@@ -485,21 +396,10 @@ export async function callSummarizationLlm(
  */
 export const summarizationLocks = new Map<string, Promise<MaybeSummarizeHistoryResult>>();
 
-/**
- * Tracks when compaction was last performed per conversation (epoch ms).
- * Prevents compaction from re-triggering on every send when the compacted
- * summary is still above the 80% threshold.
- */
 const lastCompactionTime = new Map<string, number>();
 
-/** Minimum interval between compaction attempts (ms) */
 const COMPACTION_COOLDOWN_MS = 60_000;
 
-/**
- * Maximum ratio of the token threshold that the cached summary may occupy.
- * When exceeded, the summary is invalidated and rebuilt from scratch to prevent
- * unbounded growth (H2 fix).
- */
 const MAX_SUMMARY_TOKEN_RATIO = 0.8;
 
 /** Options for `maybeSummarizeHistory` */
@@ -551,16 +451,11 @@ export async function maybeSummarizeHistory(
     return { messagesToConvert: messages, summarySystemMessage: null };
   }
 
-  // Skip summarization if no auth token — would silently fail with 401
   if (!token) {
     getLogger().warn("[summarize] No auth token available, skipping summarization");
     return { messagesToConvert: messages, summarySystemMessage: null };
   }
 
-  // When message count is at or below the minimum window, skip the LLM call but
-  // still return any cached summary. This handles the common case where
-  // maxHistoryMessages truncates loaded messages to a small window — without
-  // the cached summary, context from older (summarized) messages would be lost.
   if (messages.length <= summaryMinWindowMessages) {
     try {
       const summaryCtx = createSummaryContext(database);
@@ -576,16 +471,8 @@ export async function maybeSummarizeHistory(
     }
   }
 
-  // H3 fix: If another summarization is in progress for this conversation,
-  // await its result instead of skipping (avoids paying full verbatim cost).
-  // Known limitation: the second caller gets the first caller's window, which may
-  // miss the most recent message. This is acceptable — the missing message is one
-  // turn of context, and the alternative (no lock) risks duplicate LLM calls.
   const inProgress = summarizationLocks.get(conversationId);
   if (inProgress) {
-    // Safety timeout: if the in-progress promise is stuck (e.g., fetch hangs past
-    // AbortController, WatermelonDB write deadlocks), auto-expire after 15s and
-    // fall back to verbatim rather than blocking indefinitely.
     const verbatimFallback: MaybeSummarizeHistoryResult = {
       messagesToConvert: messages,
       summarySystemMessage: null,
@@ -594,10 +481,6 @@ export async function maybeSummarizeHistory(
     const staleGuard = new Promise<MaybeSummarizeHistoryResult>((resolve) => {
       staleGuardTimerId = setTimeout(() => resolve(verbatimFallback), 15_000);
     });
-    // Attach a logged swallower to inProgress before the race. If the stale
-    // guard wins, inProgress may still reject later — without this handler the
-    // rejection would be unobserved, producing process-level unhandledRejection
-    // noise. Logging preserves diagnosability of the underlying failure.
     const observedInProgress = inProgress.catch((err: unknown) => {
       getLogger().warn("[summarize] in-progress summarization rejected", err);
       return verbatimFallback;
@@ -619,7 +502,6 @@ export async function maybeSummarizeHistory(
   }
 }
 
-/** Prompt template for compacting an oversized summary */
 const COMPACTION_PROMPT = `The following conversation summary has grown too long. Condense it to be more concise while preserving all key facts, decisions, user preferences, and important context. Target roughly half the current length.
 
 Summary to condense:
@@ -627,10 +509,6 @@ Summary to condense:
 
 Condensed summary:`;
 
-/**
- * Internal implementation of `maybeSummarizeHistory`.
- * Separated so the public function can handle concurrency locking.
- */
 async function doSummarizeHistory(
   options: MaybeSummarizeHistoryOptions
 ): Promise<MaybeSummarizeHistoryResult> {
@@ -651,10 +529,6 @@ async function doSummarizeHistory(
     const summaryCtx = createSummaryContext(database);
     let cachedSummary = await getConversationSummaryOp(summaryCtx, conversationId);
 
-    // H1 fix: If the cached summary has grown too large (>80% of the threshold),
-    // compact it with an LLM call instead of invalidating. This avoids the token
-    // spike that would occur from re-summarizing the full history from scratch.
-    // Cooldown prevents re-triggering every send when compacted summary is still large.
     const lastCompacted = lastCompactionTime.get(conversationId) ?? 0;
     const compactionCooledDown = Date.now() - lastCompacted > COMPACTION_COOLDOWN_MS;
     if (
@@ -663,13 +537,8 @@ async function doSummarizeHistory(
       compactionCooledDown
     ) {
       try {
-        // Use split+concat (not .replace()) to avoid JS replacement pattern injection
-        // if the summary contains $&, $', or $` characters.
         const [before, after] = COMPACTION_PROMPT.split("{summary}");
         const compactPrompt = before + cachedSummary.summary + after;
-        // cachedSummary.summary holds real, de-anonymized values (see
-        // progressiveSummarize). Redact before it leaves the device, then restore
-        // the original values in the compacted summary so it stays usable as cache.
         const promptForModel = await redactSummaryPrompt(compactPrompt, redactor, onPiiRedacted);
         const rawCompacted = await callSummarizationLlm(
           promptForModel,
@@ -693,8 +562,6 @@ async function doSummarizeHistory(
         };
         lastCompactionTime.set(conversationId, Date.now());
       } catch {
-        // Compaction failed — proceed with the oversized summary. It still works,
-        // just less efficient. Will retry after cooldown.
         lastCompactionTime.set(conversationId, Date.now());
         getLogger().warn(
           "[summarize] Summary compaction failed, proceeding with oversized summary"
@@ -702,7 +569,6 @@ async function doSummarizeHistory(
       }
     }
 
-    // Get messages after the summary cutoff point
     let unsummarized: StoredMessage[];
     if (cachedSummary?.summarizedUpTo) {
       const cutoffIndex = messages.findIndex(
@@ -711,18 +577,12 @@ async function doSummarizeHistory(
       if (cutoffIndex >= 0) {
         unsummarized = messages.slice(cutoffIndex + 1);
       } else {
-        // summarizedUpTo is not in the current messages array. This typically means
-        // the message is older than the truncated window (maxHistoryMessages), NOT
-        // that it was deleted. The cached summary already captures that earlier
-        // history, so we keep it and treat all current messages as unsummarized.
         unsummarized = messages;
       }
     } else {
       unsummarized = messages;
     }
 
-    // Filter out system messages before summarization — they are re-injected fresh
-    // each request and shouldn't count toward the token threshold or be summarized.
     const nonSystemMessages = unsummarized.filter((msg) => msg.role !== "system");
 
     const callLlm = (prompt: string, llmModel: string) =>
@@ -739,7 +599,6 @@ async function doSummarizeHistory(
       onPiiRedacted,
     });
 
-    // Persist the updated summary if summarization was performed
     if (summarizeResult.didSummarize && summarizeResult.summary && summarizeResult.summarizedUpTo) {
       await upsertConversationSummaryOp(
         summaryCtx,
@@ -750,14 +609,6 @@ async function doSummarizeHistory(
       );
     }
 
-    // M2 fix: Re-inject system messages that fall within the window range.
-    // progressiveSummarize only sees nonSystemMessages, so its windowMessages
-    // won't contain system messages. We find the window boundary in the original
-    // unsummarized array and include system messages from that point onwards.
-    // When no summarization occurred, return all messages (including system messages).
-    // progressiveSummarize filters out system messages, so windowMessages won't contain
-    // them. Only apply the M2 system-message re-injection when summarization actually
-    // split the messages into summarized + window portions.
     let messagesToConvert: StoredMessage[] = unsummarized;
     if (
       summarizeResult.didSummarize &&
@@ -778,8 +629,6 @@ async function doSummarizeHistory(
         : null,
     };
   } catch (err) {
-    // Summarization failed — fall back to sending all messages verbatim.
-    // Log the error so developers can diagnose issues (e.g., auth token expiry).
     getLogger().warn("[summarize] Summarization failed, falling back to verbatim:", err);
     return { messagesToConvert: messages, summarySystemMessage: null };
   }

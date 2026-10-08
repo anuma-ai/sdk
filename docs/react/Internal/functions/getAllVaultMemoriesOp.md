@@ -1,8 +1,8 @@
-# getAllVaultMemoriesOp
+# ~~getAllVaultMemoriesOp()~~
 
 > **getAllVaultMemoriesOp**(`ctx`: [`VaultMemoryOperationsContext`](../interfaces/VaultMemoryOperationsContext.md), `options?`: `object`): `Promise`<[`StoredVaultMemory`](../interfaces/StoredVaultMemory.md)\[]>
 
-Defined in: [src/lib/db/memoryVault/operations.ts:599](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#599)
+Defined in: [src/lib/db/memoryVault/operations.ts:507](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#507)
 
 ## Parameters
 
@@ -249,3 +249,7 @@ published set to diff against the server index.
 ## Returns
 
 `Promise`<[`StoredVaultMemory`](../interfaces/StoredVaultMemory.md)\[]>
+
+## Deprecated
+
+App code: use `MemoryStore.list` (`createLocalMemoryStore`).

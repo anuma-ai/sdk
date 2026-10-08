@@ -1,14 +1,4 @@
 // @vitest-environment happy-dom
-/**
- * Connector tool sets carried across sends, on the CLIENT-tool side of both
- * `useChatStorage` send paths.
- *
- * Client tools are ranked against the latest prompt only, so after "send an
- * email to …" the model asked "shall I send it?", and the user's "Yes" shipped
- * no Gmail tools. A connector set that matched by score must ride along for the
- * next two sends of the same conversation. Runs against the react and expo
- * hooks, persisted and skipStorage paths.
- */
 
 import { Database } from "@nozbe/watermelondb";
 import LokiJSAdapter from "@nozbe/watermelondb/adapters/lokijs";
@@ -20,8 +10,6 @@ import { sdkMigrations, sdkModelClasses, sdkSchema } from "../lib/db/schema";
 import { getToolName } from "../lib/tools";
 import { resetRecentToolSets } from "../lib/tools/selection/recentToolSets";
 
-// One direction per topic, so a prompt scores 1 against its own topic's tool
-// and 0 against every other tool.
 function vectorFor(text: string): number[] {
   if (/email/i.test(text)) return [1, 0, 0, 0];
   if (/\bapp\b/i.test(text)) return [0, 1, 0, 0];
@@ -112,10 +100,6 @@ describe.each(hooks)("useChatStorage carried connector tool sets (%s)", (label, 
       ) => string[];
     };
 
-    // A chat on one conversation. Each send returns the tool names handed to
-    // runToolLoop. Several chats may share a database and conversation id, like
-    // the several hook instances an app mounts for one conversation. Without an
-    // id, the hook creates the conversation on the first send.
     function openChat(conversationId?: string, database: Database = makeDatabase()) {
       const { result } = renderHook(() =>
         useChatStorage({ database, conversationId, getToken: async () => "tok" })
@@ -130,8 +114,6 @@ describe.each(hooks)("useChatStorage carried connector tool sets (%s)", (label, 
           skipStorage,
           ...options,
         });
-        // A new chat's id reaches the hook on a re-render; the next send must
-        // see it, as it would in an app.
         await waitFor(() => expect(result.current.conversationId).toBeTruthy());
         const calls = vi.mocked(runToolLoop).mock.calls;
         expect(calls.length).toBe(before + 1);
@@ -177,8 +159,6 @@ describe.each(hooks)("useChatStorage carried connector tool sets (%s)", (label, 
       expect(await send("ok")).not.toContain("gmail_send_message");
     });
 
-    // Only expo detaches: the app backgrounds while the reply streams, and the
-    // portal keeps generating.
     if (label === "expo") {
       it("counts a detached send as exactly one turn", async () => {
         const send = openChat(newConversation());
@@ -195,8 +175,6 @@ describe.each(hooks)("useChatStorage carried connector tool sets (%s)", (label, 
       });
     }
 
-    // Only the persisted paths save a stopped reply and report it as a success;
-    // skipStorage returns the abort as an error.
     if (!skipStorage) {
       it("counts a stopped send whose partial reply was saved as one turn", async () => {
         const send = openChat(newConversation());
