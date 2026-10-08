@@ -2,7 +2,7 @@
 
 > **classifyInjectionCandidates**(`candidates`: readonly [`ExtractedCandidate`](../interfaces/ExtractedCandidate.md)\[], `options`: [`InjectionClassifierOptions`](../interfaces/InjectionClassifierOptions.md)): `Promise`<{ `flagged`: `Set`<`number`>; }>
 
-Defined in: [src/lib/memory/injectionClassifier.ts:126](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/injectionClassifier.ts#126)
+Defined in: [src/lib/memory/injectionClassifier.ts:137](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/injectionClassifier.ts#137)
 
 Classify already-clean extraction candidates for signature-free injection /
 poisoning. Returns the set of 0-based indices (into `candidates`) the model
