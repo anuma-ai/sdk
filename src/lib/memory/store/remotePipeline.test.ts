@@ -386,9 +386,10 @@ describe("remote admission and consolidation regressions", () => {
   });
   it("rejects folder-scoped creates instead of dropping the folder", async () => {
     const h = setup();
-    await expect(
-      h.pipeline.retain("Drinks tea", { enableAutoMerge: false, folderId: "folder" })
-    ).rejects.toThrow("do not support folders");
+    const untypedOptions = { enableAutoMerge: false, folderId: "folder" };
+    await expect(h.pipeline.retain("Drinks tea", untypedOptions)).rejects.toThrow(
+      "do not support folders"
+    );
     expect(h.put).not.toHaveBeenCalled();
   });
   it("keeps consolidation rewrites on a replay without inflating evidence", async () => {
