@@ -1,24 +1,13 @@
-/**
- * Pure functions for extracting MCP media URLs (images and videos).
- *
- * These are extracted from `useChatMedia.extractAndStoreEncryptedMCPImages`
- * so they can be tested in isolation without React hooks or OPFS dependencies.
- */
-
-/** Minimal tool call event shape needed for URL extraction. */
 interface ToolCallEvent {
   name?: string;
   output?: string;
 }
 
-/** Media kind an extracted URL resolves to. */
 type ExtractedMediaKind = "image" | "video";
 
-/** Extracted media URL with its associated model and resolved kind. */
 interface ExtractedMediaUrl {
   url: string;
   model: string;
-  /** "video" when the URL/tool is a video source, otherwise "image". */
   mediaType: ExtractedMediaKind;
 }
 
@@ -26,8 +15,6 @@ interface ExtractedMediaUrl {
 export const IMAGE_TOOL_NAMES = new Set([
   "AnumaMediaMCP-anuma_create_image",
   "anuma_create_image",
-  // Deprecated anuma-image-mcp tools, retained so images in already-stored
-  // conversations still re-materialize on replay.
   "AnumaImageMCP-generate_cloud_image",
   "AnumaImageMCP-edit_cloud_image",
   "generate_cloud_image",
@@ -51,12 +38,10 @@ export function toolOutputForModel(name: string | undefined, output: string): st
     } = JSON.parse(output) as Record<string, unknown>;
     return JSON.stringify(rest);
   } catch {
-    // Not JSON — use as-is
     return output;
   }
 }
 
-/** Video tool names recognized by the MCP video pipeline. */
 const VIDEO_TOOL_NAMES = new Set([
   "AnumaMediaMCP-anuma_create_video",
   "AnumaFalMCP-fal_generate_video",
@@ -71,7 +56,6 @@ const VIDEO_TOOL_NAMES = new Set([
  */
 export const VIDEO_EXTENSIONS = ["mp4", "webm", "mov"] as const;
 
-/** Matches a video extension at the end of a path, before a query/fragment. */
 const VIDEO_EXTENSION_RE = new RegExp(`\\.(${VIDEO_EXTENSIONS.join("|")})(?:[?#]|$)`, "i");
 
 /** Extract the lowercased video extension from a URL/filename, or null. */
@@ -79,7 +63,6 @@ export function videoExtensionOf(value: string | undefined | null): string | nul
   return value?.match(VIDEO_EXTENSION_RE)?.[1]?.toLowerCase() ?? null;
 }
 
-/** Classify a URL by file extension. Defaults to image. */
 function classifyUrl(url: string): ExtractedMediaKind {
   return VIDEO_EXTENSION_RE.test(url) ? "video" : "image";
 }
@@ -106,7 +89,6 @@ export function extractMCPImageUrls(
 ): ExtractedMediaUrl[] {
   const urls: ExtractedMediaUrl[] = [];
 
-  // Primary: extract from tool_call_events
   if (toolCallEvents && toolCallEvents.length > 0) {
     for (const event of toolCallEvents) {
       if (!event.name) continue;
@@ -120,10 +102,6 @@ export function extractMCPImageUrls(
             output_images?: Array<{ url?: string }>;
           };
           const model = output.model || "image";
-          // The new anuma_create_image tool returns an `output_images: [{key,
-          // url, size}]` array (num_images can be 1-4); the deprecated
-          // anuma-image-mcp tools returned a single `imageUrl`/`url`. Support
-          // both, and dedupe so a repeated URL doesn't create two records.
           const imageUrls = [
             ...new Set(
               [
@@ -148,9 +126,6 @@ export function extractMCPImageUrls(
             url?: string;
           };
           const model = output.model || "video";
-          // Video tools return a `videos: [{ video_url }]` array; fall back to
-          // single videoUrl/url for resilience. Dedupe so a response that
-          // repeats a URL across fields doesn't create two records.
           const videoUrls = [
             ...new Set(
               [
@@ -170,16 +145,10 @@ export function extractMCPImageUrls(
     }
   }
 
-  // Fallback: regex-match media URLs in content when tool_call_events yield nothing.
-  // Covers legacy R2 presigned URLs and the portal media-proxy URLs
-  // (`/api/v1/media/<svc>/<token>/...`) the new anuma_create_image tool returns.
   if (urls.length === 0 && content) {
     const escaped = mcpR2Domain.replace(/\./g, "\\.");
     const patterns = [
       new RegExp(`https://${escaped}[^\\s"'<>)\\]]+`, "gi"),
-      // Require the proxy's <svc>/<token> shape (>=2 path segments after
-      // /api/v1/media/) so a third-party URL that only shallowly contains
-      // /api/v1/media/ isn't returned as a portal media asset.
       new RegExp(`https?://[^\\s"'<>)\\]]+/api/v1/media/[^/\\s"'<>)\\]]+/[^\\s"'<>)\\]]+`, "gi"),
     ];
     const matches = patterns.flatMap((re) => content.match(re) ?? []);
@@ -190,9 +159,6 @@ export function extractMCPImageUrls(
         if (!seen.has(normalized)) {
           seen.add(normalized);
           const mediaType = classifyUrl(normalized);
-          // Content fallback has no tool output, so there's no real model.
-          // Use the legacy "image" sentinel for both kinds (the `model` field is
-          // an image-model hint, not a kind — `mediaType` carries the real kind).
           urls.push({ url: normalized, model: "image", mediaType });
         }
       }

@@ -1,43 +1,3 @@
-/**
- * Sequential-changes benchmark: proves per-turn token cost stays flat
- * across a long run of small change requests.
- *
- * Exercises the *turn envelope* pattern (see `buildAppFileManifest`): each
- * change request is a self-contained episode — system prompt + a manifest
- * of the current files + a small window of recent text exchanges + the new
- * request. No tool traffic crosses turns, so the context the model sees at
- * request 50 has the same shape and size as at request 5; per-turn cost is
- * a function of app size, never of turn index. The anti-pattern this
- * guards against: hosts that resend prior turns' tool messages, where
- * per-turn cost grows linearly with N and the session total goes quadratic.
- *
- * Assertions:
- *   - every change turn completes without a tool-loop error
- *   - flatness: the average input tokens of the LAST 3 change turns must
- *     stay within 2× the average of the FIRST 3 (a quadratic regression
- *     would blow far past that by turn 10)
- *   - sanity ceiling: no single change turn exceeds ABS_TURN_INPUT_CAP
- *
- * Metrics land in `.output/sequential-changes/metrics.json` (+ history),
- * so `pnpm e2e:compare sequential-changes` diffs runs — per-phase
- * inputTokens IS the tokens-per-turn chart.
- *
- * Opt-in (long, hits the LLM):
- *   PORTAL_API_KEY=... RUN_SEQUENTIAL_CHANGES=1 \
- *     pnpm vitest run --config vitest.e2e.config.mts \
- *     test/tools/app-generation/sequential-changes.test.ts
- *
- * SEQUENTIAL_TURNS=<n> overrides the turn count (default 10; try 100 with
- * a fast E2E_MODEL for the long-haul version).
- *
- * SEQUENTIAL_MODE=accumulate runs the SAME prompts under the pre-envelope
- * context strategy (full text history, no manifest, no window — what main's
- * harness does), as the measurement baseline for before/after comparisons.
- * Flatness is asserted only in envelope mode; accumulate grows by design.
- * Each model+mode writes to its own `.output/sequential-changes/<slug>/`
- * so runs never clobber each other's history.
- */
-
 import { afterAll, describe, expect, it } from "vitest";
 
 import { buildAppFileManifest, buildAppSystemPrompt } from "../../../src/tools/appGeneration.js";
@@ -68,17 +28,10 @@ const MODEL_SLUG = config.model
   .replace(/[^a-zA-Z0-9.-]+/g, "_");
 const OUTPUT_SUBDIR = `sequential-changes/${MODEL_SLUG}-${MODE}`;
 
-/** Text pairs kept verbatim in the envelope. Older turns are dropped —
- *  the files carry the durable state, not the conversation. */
 const TEXT_WINDOW_PAIRS = 4;
 
-/** Belt on top of the envelope: even a chatty model can't blow past this
- *  in a single turn — runToolLoop forces a text wrap-up at the budget. */
 const MAX_TURN_TOKENS = 150_000;
 
-/** Generous sanity ceiling per change turn (input tokens). The envelope
- *  keeps real turns far below this; the cap exists to catch a structural
- *  regression, not to police model variance. */
 const ABS_TURN_INPUT_CAP = 200_000;
 
 type Message = { role: string; content: Array<{ type: string; text: string }> };
@@ -95,8 +48,6 @@ const assistantMsg = (text: string): Message => ({
 const BUILD_PROMPT =
   "Build a small todo list app: a text input with an Add button, the list below with a delete button per item, and a count of open items in the header. Minimal but styled.";
 
-/** Deterministic small change request for turn i (2-based) — parameterized
- *  by index so any turn count yields a unique, always-valid edit. */
 function changePrompt(i: number): string {
   const accents = ["teal", "crimson", "indigo", "amber", "violet", "forest green"];
   const templates = [
@@ -132,8 +83,6 @@ describe("sequential-changes", () => {
 
         let messages: Message[];
         if (MODE === "envelope") {
-          // The envelope: rebuilt from scratch every turn. No tool messages,
-          // no unbounded history — manifest + text window + the new request.
           const manifest = await buildAppFileManifest({
             storage,
             conversationId: TEST_CONVERSATION_ID,
@@ -147,10 +96,6 @@ describe("sequential-changes", () => {
             userMsg(prompt),
           ];
         } else {
-          // Baseline (main's harness shape): the full text history rides
-          // along every turn — no manifest, no window. Tool messages are
-          // still per-turn only, so this is main's BEST case; hosts that
-          // also resend tool history grow much faster.
           messages = [
             systemMsg(SYSTEM_PROMPT),
             ...textPairs.flatMap((p) => [userMsg(p.user), assistantMsg(p.assistant)]),
@@ -203,13 +148,8 @@ describe("sequential-changes", () => {
         phases,
       });
 
-      // Accumulate mode is measurement-only: it reproduces the pre-envelope
-      // baseline for comparisons and grows by design, so the flatness
-      // assertions below would (correctly) reject it.
       if (MODE !== "envelope") return;
 
-      // The flatness proof. Change turns only — the initial build has a
-      // different shape (no manifest content, big create_file output).
       const changeInputs = phases.slice(1).map((p) => p.inputTokens ?? 0);
       for (const [idx, tokens] of changeInputs.entries()) {
         expect(tokens, `turn ${idx + 2} input tokens`).toBeLessThanOrEqual(ABS_TURN_INPUT_CAP);
@@ -222,9 +162,6 @@ describe("sequential-changes", () => {
           `  flatness: early-3 avg=${Math.round(early)} late-3 avg=${Math.round(late)} ` +
             `ratio=${(late / early).toFixed(2)}`
         );
-        // Quadratic growth would put the late average at ~Nx the early one
-        // by turn 10; the envelope keeps the ratio near 1. 2x absorbs model
-        // variance (round-count differences) without masking a regression.
         expect(late).toBeLessThanOrEqual(early * 2);
       }
     },

@@ -1,10 +1,3 @@
-/**
- * iCloud Backup Implementation
- *
- * Generic backup/restore functionality for iCloud storage.
- * Works directly with WatermelonDB database.
- */
-
 import type { Database } from "@nozbe/watermelondb";
 
 import { Conversation } from "../../db/chat";
@@ -29,12 +22,10 @@ const isAuthError = (err: unknown): boolean =>
 interface ICloudBackupDeps {
   requestICloudAccess: () => Promise<void>;
   requestEncryptionKey: (address: string) => Promise<void>;
-  /** Export a conversation to an encrypted blob */
   exportConversation: (
     conversationId: string,
     userAddress: string
   ) => Promise<{ success: boolean; blob?: Blob }>;
-  /** Import a conversation from an encrypted blob */
   importConversation: (blob: Blob, userAddress: string) => Promise<{ success: boolean }>;
 }
 
@@ -67,7 +58,6 @@ async function pushConversationToICloud(
     const filename = `${conversationId}.json`;
     const existingFile = await findICloudFile(filename);
 
-    // Check if we can skip upload based on timestamps
     if (existingFile) {
       const { Q } = await import("@nozbe/watermelondb");
       const conversationsCollection = database.get<Conversation>("conversations");
@@ -95,7 +85,6 @@ async function pushConversationToICloud(
     return "uploaded";
   } catch (err) {
     if (isAuthError(err) && !_retried) {
-      // Try to re-authenticate once
       try {
         await deps.requestICloudAccess();
         return pushConversationToICloud(database, conversationId, userAddress, deps, true);
@@ -178,7 +167,6 @@ export async function performICloudImport(
         failed++;
       }
     } catch (err) {
-      // Handle auth errors by refreshing and retrying once
       if (isAuthError(err)) {
         try {
           await deps.requestICloudAccess();

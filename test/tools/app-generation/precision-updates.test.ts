@@ -1,14 +1,3 @@
-/**
- * Precision update tests — verify that targeted change requests
- * only modify the exact lines that need changing.
- *
- * Each test creates an app, then makes a series of small changes,
- * snapshotting and diffing after each step. The goal is to measure
- * how surgical the LLM's updates are.
- *
- * Run: PORTAL_API_KEY=... pnpm vitest run test/tools/app-generation
- */
-
 import { afterAll, describe, expect, it } from "vitest";
 
 import { buildAppSystemPrompt } from "../../../src/tools/appGeneration.js";
@@ -37,7 +26,6 @@ import { createTestAppTools } from "./tools.js";
 const SYSTEM_PROMPT = buildAppSystemPrompt();
 const PROMPT_HASH = shortHash(SYSTEM_PROMPT);
 
-/** Per-scenario metrics tracker. Each `it` block creates a fresh one. */
 function makeTracker(
   store: Map<string, string>,
   log: ToolCallLog[]
@@ -97,13 +85,6 @@ function assistantMsg(text: string): Message {
   return { role: "assistant", content: [{ type: "text", text }] };
 }
 
-/**
- * Run one turn of the tool loop and return the result + updated conversation.
- *
- * 20 rounds is the SDK default the clients run app generation with. At 5, the
- * app builder's create → audit_design → critique_design → patch loop ran out of
- * rounds mid-build, and the unfinished work leaked into the next step's diff.
- */
 async function runTurn(messages: Message[], tools: any[], maxRounds = 20) {
   const result = await timedToolLoop({
     messages,
@@ -132,7 +113,6 @@ describe.concurrent("precision-updates", () => {
     const conversation: Message[] = [systemMsg(SYSTEM_PROMPT)];
     const tracker = makeTracker(store, log);
 
-    // Step 1: Generate the initial app
     conversation.push(
       userMsg("Build a simple counter app with increment, decrement, and reset buttons.")
     );
@@ -150,7 +130,6 @@ describe.concurrent("precision-updates", () => {
     const snap1 = snapshot(store);
     const logAfterGen = log.length;
 
-    // Step 2: Change ONLY the button color
     conversation.push(userMsg("Make the increment button green and the decrement button red."));
     const update = await runTurn(conversation, tools);
     printResult(update.result);
@@ -164,17 +143,14 @@ describe.concurrent("precision-updates", () => {
     );
     const snap2 = snapshot(store);
 
-    // Analyze the diff
     const diffs = diffSnapshots(snap1, snap2);
     printDiff("Button color change", diffs);
 
-    // package.json should NOT have changed (if it exists in the diff)
     const pkgDiff = diffs.find((d) => d.path === "package.json");
     if (pkgDiff) {
       expect(pkgDiff.status).toBe("unchanged");
     }
 
-    // Check which tools were used for the update
     const updateCalls = log
       .slice(logAfterGen)
       .filter((l) => l.name === "patch_file" || l.name === "create_file");
@@ -183,11 +159,9 @@ describe.concurrent("precision-updates", () => {
       `  Tools used: ${updateCalls.map((l) => l.name).join(", ")} (${patchCalls.length} patch, ${updateCalls.length - patchCalls.length} create)`
     );
 
-    // At least one file must have changed (modified or fully rewritten)
     const changedFiles = diffs.filter((d) => d.status !== "unchanged");
     expect(changedFiles.length).toBeGreaterThanOrEqual(1);
 
-    // Total lines changed across all files
     const totalChanged = diffs.reduce((sum, d) => sum + d.linesChanged, 0);
     console.log(`  Total lines changed: ${totalChanged}`);
 
@@ -205,9 +179,6 @@ describe.concurrent("precision-updates", () => {
     tracker.finish("precision-btn-color", "btn-color");
   });
 
-  // Quarantined: https://github.com/anuma-ai/sdk/issues/966. The rename lands, but
-  // critique_design then tells the model to "patch the weakest items now" and it
-  // restyles App.css in the same turn (2 of 2 runs where the rename succeeded).
   it.skip("change title text — should modify only the text, not styles or logic", async () => {
     const store = createFileStore();
     const log: ToolCallLog[] = [];
@@ -215,9 +186,6 @@ describe.concurrent("precision-updates", () => {
     const conversation: Message[] = [systemMsg(SYSTEM_PROMPT)];
     const tracker = makeTracker(store, log);
 
-    // Step 1: Generate. The title is named explicitly so step 2 has a string to
-    // rename. Without it the model picks its own heading, and a request to
-    // rename "BMI Calculator" can correctly change nothing.
     conversation.push(
       userMsg('Build a BMI calculator titled "BMI Calculator" with height and weight inputs.')
     );
@@ -233,8 +201,6 @@ describe.concurrent("precision-updates", () => {
     );
     conversation.push(assistantMsg(gen.responseText));
     const snap1 = snapshot(store);
-    // Compare rendered text, not source: the model styles headings as
-    // `BMI <em>Calculator</em>` or `BMI<br /><em>Calculator</em>`.
     const textOf = (src: string): string =>
       src
         .replace(/<[^>]*>/g, " ")
@@ -245,7 +211,6 @@ describe.concurrent("precision-updates", () => {
       .map(([p]) => p);
     expect(titleFiles.length).toBeGreaterThan(0);
 
-    // Step 2: Change only the title
     conversation.push(userMsg('Change the title from "BMI Calculator" to "Body Mass Index Tool".'));
     const update = await runTurn(conversation, tools);
     printResult(update.result);
@@ -262,7 +227,6 @@ describe.concurrent("precision-updates", () => {
     const diffs = diffSnapshots(snap1, snap2);
     printDiff("Title rename", diffs);
 
-    // package.json and App.css should NOT have changed
     const titlePkgDiff = diffs.find((d) => d.path === "package.json");
     if (titlePkgDiff) {
       expect(titlePkgDiff.status).toBe("unchanged");
@@ -272,13 +236,10 @@ describe.concurrent("precision-updates", () => {
       expect(cssDiff.status).toBe("unchanged");
     }
 
-    // The new title is in place wherever the old one was.
     for (const p of titleFiles) {
       expect(textOf(store.get(p) ?? "")).toContain("body mass index tool");
     }
 
-    // App.js should change by only 1-2 lines (the title string). Where the title
-    // lives is the model's choice, so this is a warning; the loop above is the check.
     const jsDiff = diffs.find((d) => d.path === "App.js" || d.path === "App.jsx");
     console.log(`  JS lines changed: ${jsDiff?.linesChanged}`);
 
@@ -297,7 +258,6 @@ describe.concurrent("precision-updates", () => {
     const conversation: Message[] = [systemMsg(SYSTEM_PROMPT)];
     const tracker = makeTracker(store, log);
 
-    // Step 1: Generate a simple app
     conversation.push(
       userMsg(
         "Build a tip calculator with bill amount, tip percentage slider, and a calculate button."
@@ -318,8 +278,6 @@ describe.concurrent("precision-updates", () => {
     const snap1 = snapshot(store);
     const logAfterGen = log.length;
 
-    // Step 2: Ask for a change — the LLM might get the find string slightly wrong
-    // on first attempt, requiring a retry with the currentContent returned by patch_file
     conversation.push(
       userMsg(
         'Change the calculate button text from "Calculate" to "Split the Bill" and make it purple.'
@@ -340,7 +298,6 @@ describe.concurrent("precision-updates", () => {
     const diffs = diffSnapshots(snap1, snap2);
     printDiff("Patch retry test", diffs);
 
-    // Check tool call sequence
     const updateLog = log.slice(logAfterGen);
     const patchCalls = updateLog.filter((l) => l.name === "patch_file");
     const failedPatches = patchCalls.filter((l) => {
@@ -355,13 +312,10 @@ describe.concurrent("precision-updates", () => {
       `  patch_file calls: ${patchCalls.length}, failed: ${failedPatches.length}, retried: ${retriedAfterFailure}`
     );
 
-    // The final result should be correct regardless of retries
     const appJs = store.get("App.js") ?? store.get("App.jsx") ?? "";
     const appCss = store.get("App.css") ?? "";
 
-    // The button text should have changed
     const hasNewText = appJs.includes("Split the Bill");
-    // The button should be purple (in JS or CSS)
     const hasPurple =
       appCss.includes("purple") ||
       appCss.includes("#8b5cf6") ||
@@ -387,7 +341,6 @@ describe.concurrent("precision-updates", () => {
       diffs?: FileDiff[];
     }> = [];
 
-    // Step 1: Generate a todo app
     conversation.push(userMsg("Build a todo list app with add and remove functionality."));
     const gen = await runTurn(conversation, tools);
     expect(gen.result.error).toBeNull();
@@ -401,7 +354,6 @@ describe.concurrent("precision-updates", () => {
     conversation.push(assistantMsg(gen.responseText));
     snapshots.push({ label: "initial", snap: snapshot(store) });
 
-    // Step 2: Change background color
     conversation.push(userMsg("Change the background color to dark navy blue."));
     const s2 = await runTurn(conversation, tools);
     expect(s2.result.error).toBeNull();
@@ -421,7 +373,6 @@ describe.concurrent("precision-updates", () => {
     });
     printDiff("Step 2: bg color", diffs2);
 
-    // Step 3: Add a completed count
     conversation.push(userMsg("Add a counter showing how many tasks are completed."));
     const s3 = await runTurn(conversation, tools);
     expect(s3.result.error).toBeNull();
@@ -441,7 +392,6 @@ describe.concurrent("precision-updates", () => {
     });
     printDiff("Step 3: completed counter", diffs3);
 
-    // Step 4: Change font to monospace
     conversation.push(userMsg("Change the font to monospace."));
     const s4 = await runTurn(conversation, tools);
     expect(s4.result.error).toBeNull();
@@ -457,7 +407,6 @@ describe.concurrent("precision-updates", () => {
     snapshots.push({ label: "font", snap: snapshot(store), diffs: diffs4 });
     printDiff("Step 4: monospace font", diffs4);
 
-    // Summary
     console.log("\n  === Precision Summary ===");
     for (const s of snapshots) {
       if (!s.diffs) continue;
@@ -466,8 +415,6 @@ describe.concurrent("precision-updates", () => {
       console.log(`  ${s.label}: ${total} lines changed in [${modified.join(", ")}]`);
     }
 
-    // Each incremental change should modify fewer than 50 lines total.
-    // If we see 100+ lines per small tweak, the LLM is doing full rewrites.
     for (const s of snapshots) {
       if (!s.diffs) continue;
       const total = s.diffs.reduce((sum, d) => sum + d.linesChanged, 0);

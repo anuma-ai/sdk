@@ -1,29 +1,4 @@
 #!/usr/bin/env node
-/**
- * Extraction-quality benchmark.
- *
- * Drives the real `extractFacts` over a labeled corpus and measures what gets
- * *remembered* (independent of retrieval):
- *
- *   - recall    : durable gold facts that a candidate matched (cases w/ expected)
- *   - precision : extracted candidates that matched some gold fact (rest = junk)
- *   - junk rate : candidates produced on "negative" turns that should yield none
- *   - clean rate: fraction of negative cases that correctly produced 0 candidates
- *
- * Matching is embedding cosine ≥ --match-threshold (default 0.62) between an
- * extracted candidate's content and a gold fact — apples-to-apples since both
- * are third-person/present-tense.
- *
- * Run:
- *   pnpm eval:extraction
- *   pnpm eval:extraction --verbose          # per-case extracted vs gold
- *   pnpm eval:extraction --json
- *   pnpm eval:extraction --match-threshold 0.6
- *   pnpm eval:extraction --model openai/gpt-5-mini   # A/B a different extractor
- *   pnpm eval:extraction --repeat 3 --save-baseline  # write the golden baseline
- *   pnpm eval:extraction --repeat 3 --baseline test/memory/src/extraction/baseline.json
- *                                                    # gate: exit 1 on a regression
- */
 
 import "dotenv/config";
 import { readFile, writeFile } from "node:fs/promises";
@@ -36,20 +11,6 @@ import type { EmbeddingOptions } from "../../../../src/lib/memoryEngine/types.js
 import { buildBaseline, compareToBaseline, isValidBaseline } from "./baseline.js";
 import { EXTRACTION_CASES, type ExtractionCase, type ExtractionCategory } from "./dataset.js";
 
-/**
- * Token-set match SCORE between a gold entity name and an extracted one —
- * normalized (lower/trim) then split on non-alphanumerics (Unicode-aware, so
- * non-ASCII names like "São Paulo" don't tokenize to nothing). A valid match
- * requires one side's tokens to be a subset of the other's — which blocks the
- * substring false-positives plain `includes` gives ("Go" ⊄ "Google") and the
- * spurious partial overlaps a bare intersection would ("Boston Marathon" vs
- * "Boston Children's Hospital" share only "boston" → not a subset → 0).
- *
- * Returns a Jaccard-style score in (0,1] for a valid match, else 0. Exact
- * token-set equality scores 1; a subset like "Austin" ⊆ "Austin, Texas" scores
- * <1. Callers pick the HIGHEST-scoring extracted entity so an exact match wins
- * over a looser one and a gold entity isn't mis-paired to the first candidate.
- */
 function entityMatchScore(gold: string, extracted: string): number {
   const toks = (s: string): Set<string> =>
     new Set(
@@ -62,10 +23,9 @@ function entityMatchScore(gold: string, extracted: string): number {
   if (g.size === 0 || e.size === 0) return 0;
   const [small, big] = g.size <= e.size ? [g, e] : [e, g];
   for (const t of small) if (!big.has(t)) return 0;
-  return small.size / big.size; // subset ⇒ |intersection| = small.size
+  return small.size / big.size;
 }
 
-/** Bucket label for the kind an extracted entity was given (or its absence). */
 const NO_KIND = "(no-kind)";
 const MISSED = "(missed)";
 
@@ -77,19 +37,11 @@ const { values: args } = parseArgs({
     model: { type: "string" },
     concurrency: { type: "string" },
     repeat: { type: "string" },
-    // Regression gate. `--save-baseline` writes the current run(s) as the golden
-    // baseline (to `--baseline <path>` if given, else the default path).
-    // `--baseline <path>` alone compares the current run(s) against that file and
-    // exits non-zero on a regression. Pair `--save-baseline` with `--repeat 3+`
-    // so the stored tolerance reflects real run-to-run noise.
     baseline: { type: "string", short: "b" },
     "save-baseline": { type: "boolean", default: false },
   },
 });
 
-// Parse a numeric CLI arg, falling back when it's absent or non-numeric — a
-// bad --concurrency would otherwise yield NaN, mapLimit would spawn zero
-// workers, and the run would silently aggregate over undefined results.
 function numArg(
   raw: string | undefined,
   fallback: number,
@@ -103,11 +55,6 @@ function numArg(
 
 const MATCH_THRESHOLD = numArg(args["match-threshold"], 0.62, parseFloat, 0);
 const CONCURRENCY = numArg(args.concurrency, 4, (s) => parseInt(s, 10));
-// Extraction is non-deterministic (the model isn't pinned to temperature 0),
-// and the negative corpus is small, so a single run's clean-rate can swing on
-// one flipped case. `--repeat N` runs the suite N times and reports the spread
-// (mean / min / max) so a reported delta can be told apart from run-to-run
-// noise. Defaults to 1 (the cheap single run).
 const REPEAT = numArg(args.repeat, 1, (s) => parseInt(s, 10));
 
 const API_KEY = process.env.PORTAL_API_KEY;
@@ -131,7 +78,6 @@ function cosine(a: number[], b: number[]): number {
   return denom > 0 ? dot / denom : 0;
 }
 
-/** Run async fn over items with bounded concurrency, preserving order. */
 async function mapLimit<T, R>(items: T[], limit: number, fn: (t: T) => Promise<R>): Promise<R[]> {
   const out: R[] = new Array(items.length);
   let next = 0;
@@ -149,25 +95,15 @@ interface CaseResult {
   id: string;
   category: ExtractionCategory;
   expectedCount: number;
-  /** Completions this case cost (1 = clean first try). */
   attempts: number;
-  /** Whether the first completion parsed. */
   firstAttemptClean: boolean;
-  /** Classified reason of every failed attempt, in order. */
   attemptFailures: string[];
-  candidates: string[]; // extracted contents
-  matchedExpected: number; // gold facts a candidate matched
-  goodCandidates: number; // candidates that matched a gold fact
+  candidates: string[];
+  matchedExpected: number;
+  goodCandidates: number;
   expectedDetail: { fact: string; matched: boolean; best: number }[];
   candidateDetail: { content: string; matched: boolean; best: number; forbidden: boolean }[];
-  /** Candidates that matched a `forbidden` fact — confirmed junk, the strongest signal. */
   forbiddenHits: number;
-  /**
-   * Per gold entity: was it extracted (covered), what kind did the model give
-   * it, and was that the right kind. `predicted` is the bucket for the
-   * confusion matrix — the extracted kind, or NO_KIND (extracted, no kind) /
-   * MISSED (not extracted at all).
-   */
   entityDetail: {
     name: string;
     expectedKind: string;
@@ -179,19 +115,9 @@ interface CaseResult {
   }[];
 }
 
-// Production keeps only candidates at/above this confidence (DEFAULT_MIN_
-// CONFIDENCE in autoExtract.ts, applied inside extractAndRetain). extractFacts
-// itself does NOT apply it, so the eval must — otherwise precision/recall/clean
-// rate are scored over candidates that would never be saved, and the prompt's
-// own ">= 0.7" instruction goes unmeasured. Mirror the constant here (this is a
-// test harness; not worth widening the package's public surface to import it).
 const PROD_MIN_CONFIDENCE = 0.7;
 
 async function scoreCase(c: ExtractionCase): Promise<CaseResult> {
-  // Wire-level record of the call: how many completions it took and why the
-  // failed ones failed. Kept separate from the fact scoring because a call that
-  // succeeds on its third try scores identically to a clean one on every
-  // fact metric while costing 3x and hiding a prompt-contract problem.
   const attemptLog: { ok: boolean; reason?: string }[] = [];
   const rawCandidates = await extractFacts(
     c.messages.map((m) => ({ id: m.id, role: m.role, content: m.content })),
@@ -206,11 +132,6 @@ async function scoreCase(c: ExtractionCase): Promise<CaseResult> {
   const candTexts = candidates.map((c2) => c2.content);
   const forbidden = c.forbidden ?? [];
 
-  // Kind scoring: gather entities off the retained candidates and match each
-  // labeled gold entity to the BEST-scoring extracted entity by name overlap
-  // (highest match score wins, so an exact match beats a looser subset and a
-  // gold entity is never mis-paired to whichever candidate happened to be first).
-  // Track matched entities to ensure one-to-one assignment and prevent double-counting.
   const extractedEntities = candidates.flatMap((c2) => c2.entities);
   const matchedIndices = new Set<number>();
   const entityDetail = (c.expectedEntities ?? []).map((exp) => {
@@ -242,7 +163,6 @@ async function scoreCase(c: ExtractionCase): Promise<CaseResult> {
     };
   });
 
-  // Embed gold + forbidden + candidate texts together, then match by cosine.
   const texts = [...c.expected, ...forbidden, ...candTexts];
   const embeddings = texts.length > 0 ? await generateEmbeddings(texts, embeddingOptions) : [];
   const goldEmb = embeddings.slice(0, c.expected.length);
@@ -264,12 +184,6 @@ async function scoreCase(c: ExtractionCase): Promise<CaseResult> {
       content,
       matched,
       best,
-      // A forbidden hit counts as junk when the candidate is closer to a
-      // forbidden fact than to any gold fact. Gold and forbidden often share a
-      // template ("lives in SF" vs "lives in Portland") so both clear the
-      // threshold; the discriminator is which it's NEARER. Using `!matched`
-      // instead would let a junk "Portland" candidate that merely grazes the
-      // "SF" template escape counting.
       forbidden: forbiddenBest >= MATCH_THRESHOLD && forbiddenBest > best,
     };
   });
@@ -283,11 +197,6 @@ async function scoreCase(c: ExtractionCase): Promise<CaseResult> {
     expectedCount: c.expected.length,
     candidates: candTexts,
     matchedExpected: expectedDetail.filter((e) => e.matched).length,
-    // A candidate counts toward precision only if it matched a gold fact AND
-    // isn't flagged forbidden. On update cases a junk extraction (old job /
-    // location) can sit above threshold for both the gold and the forbidden
-    // template; without the `!forbidden` guard it would inflate precision even
-    // as it increments forbiddenHits.
     goodCandidates: candidateDetail.filter((e) => e.matched && !e.forbidden).length,
     expectedDetail,
     candidateDetail,
@@ -313,19 +222,12 @@ interface RunSummary {
     expectedEntities: number;
     coveredEntities: number;
     kindCorrect: number;
-    /** Fraction of labeled gold entities that were extracted at all. */
     entityCoverage: number;
-    /** Fraction of EXTRACTED gold entities given the correct kind (isolates
-     * classification quality from extraction coverage). */
     kindAccuracy: number;
-    /** Share of cases whose first completion parsed — the wire-level gate. */
     firstAttemptCleanRate: number;
-    /** Completions per case (1.0 = no retries anywhere). */
     callsPerCase: number;
-    /** Tally of failed-attempt reasons across the run (e.g. invalid-json: 47). */
     attemptFailures: Record<string, number>;
   };
-  /** Per expected kind: correct/covered/total + predicted-bucket tally. */
   kindConfusion: {
     kind: string;
     total: number;
@@ -358,7 +260,6 @@ async function runOnce(): Promise<RunSummary> {
   const cleanNegatives = negatives.filter((r) => r.candidates.length === 0).length;
   const forbiddenHits = results.reduce((s, r) => s + r.forbiddenHits, 0);
 
-  // Kind aggregation over every labeled gold entity across all cases.
   const allEntities = results.flatMap((r) => r.entityDetail);
   const expectedEntities = allEntities.length;
   const coveredEntities = allEntities.filter((e) => e.covered).length;
@@ -404,10 +305,6 @@ async function runOnce(): Promise<RunSummary> {
     coveredEntities,
     kindCorrect,
     entityCoverage: coveredEntities / (expectedEntities || 1),
-    // Accuracy over EXTRACTED gold entities. Degenerate 0-covered case yields 0
-    // here, but `coveredEntities` is emitted alongside (so the 0 denominator is
-    // explicit) and the human report renders "—" via pct(); with any labeled
-    // corpus coverage is ≥1 so it never actually hits.
     kindAccuracy: kindCorrect / (coveredEntities || 1),
     firstAttemptCleanRate: firstAttemptClean / (results.length || 1),
     callsPerCase: totalAttempts / (results.length || 1),
@@ -460,7 +357,6 @@ function band(xs: number[]): VarianceBand {
   };
 }
 
-/** Spread of the headline metrics across N runs — the point of `--repeat`. */
 function computeVariance(runs: RunSummary[]): Record<string, VarianceBand> {
   return {
     recall: band(runs.map((r) => r.overall.recall)),
@@ -473,14 +369,8 @@ function computeVariance(runs: RunSummary[]): Record<string, VarianceBand> {
   };
 }
 
-// ---------------------------------------------------------------------------
-// Baseline (regression gate). Pure comparison math lives in ./baseline.ts so it
-// can be unit-tested without a live LLM run; this section is only I/O + display.
-// ---------------------------------------------------------------------------
-
 const DEFAULT_BASELINE_PATH = "test/memory/src/extraction/baseline.json";
 
-/** Write the baseline file and report where it landed. */
 async function saveBaseline(runs: RunSummary[], path: string): Promise<void> {
   const baseline = buildBaseline(
     runs.map((r) => r.overall),
@@ -494,7 +384,6 @@ async function saveBaseline(runs: RunSummary[], path: string): Promise<void> {
   );
 }
 
-/** Load, compare, and exit non-zero on regression. Returns on a clean gate. */
 async function gateAgainstBaseline(runs: RunSummary[], path: string): Promise<void> {
   let parsed: unknown;
   try {
@@ -503,9 +392,6 @@ async function gateAgainstBaseline(runs: RunSummary[], path: string): Promise<vo
     console.error(`Failed to load baseline from ${path}: ${String(err)}`);
     process.exit(1);
   }
-  // Fail loudly on a wrong-shaped file rather than passing vacuously — a
-  // malformed baseline (or the eval's after.json by mistake) would otherwise
-  // skip every metric and report "no regressions".
   if (!isValidBaseline(parsed)) {
     console.error(
       `\n  ${path} is not a valid extraction baseline ` +
@@ -515,8 +401,6 @@ async function gateAgainstBaseline(runs: RunSummary[], path: string): Promise<vo
     process.exit(1);
   }
   const baseline = parsed;
-  // The match threshold changes what counts as a hit, so comparing runs scored
-  // at a different threshold than the baseline is apples-to-oranges. Refuse it.
   if (Math.abs(baseline.matchThreshold - MATCH_THRESHOLD) > 1e-9) {
     console.error(
       `\n  match-threshold ${MATCH_THRESHOLD} differs from the baseline's ` +
@@ -547,7 +431,6 @@ async function gateAgainstBaseline(runs: RunSummary[], path: string): Promise<vo
   process.exit(1);
 }
 
-/** Human-readable single-run report (category table + headline metrics). */
 function printRunHuman(run: RunSummary): void {
   const { overall, byCategory, negativesCount, cleanNegatives } = run;
   console.log("\n  EXTRACTION QUALITY  (match cosine ≥ " + MATCH_THRESHOLD + ")\n");
@@ -584,7 +467,6 @@ function printRunHuman(run: RunSummary): void {
   printKindReport(run);
 }
 
-/** Entity-kind classification quality: coverage, accuracy, confusion by kind. */
 function printKindReport(run: RunSummary): void {
   const { overall, kindConfusion } = run;
   if (overall.expectedEntities === 0) return;
@@ -602,7 +484,6 @@ function printKindReport(run: RunSummary): void {
   console.log("\n  Expected kind   Total  Cov'd  Correct  Confusions (predicted×n)");
   console.log("  ──────────────  ─────  ─────  ───────  ───────────────────────");
   for (const k of kindConfusion) {
-    // Confusions = predicted buckets that aren't the correct kind, worst first.
     const confusions = Object.entries(k.predictions)
       .filter(([pred]) => pred !== k.kind)
       .sort((a, b) => b[1] - a[1])
@@ -615,7 +496,6 @@ function printKindReport(run: RunSummary): void {
   }
 }
 
-/** Per-case detail to STDERR (never stdout, so it can't corrupt --json). */
 function printVerbose(run: RunSummary): void {
   console.error("\n── Per-case detail ──");
   for (const r of run.results) {
@@ -645,7 +525,6 @@ function printVerbose(run: RunSummary): void {
   }
 }
 
-/** Human variance band — answers "is this delta real or noise?". */
 function printVarianceHuman(variance: Record<string, VarianceBand>): void {
   const line = (label: string, b: VarianceBand, rate = true): void => {
     const fmt = (v: number) => (rate ? pct(v, 1) : v.toFixed(1));
@@ -679,8 +558,6 @@ async function main(): Promise<void> {
   const variance = REPEAT > 1 ? computeVariance(runs) : undefined;
 
   if (args.json) {
-    // ONE JSON document on stdout — variance folded in (not a second print
-    // after it), so a CI gate parsing stdout gets both the run and the spread.
     console.log(
       JSON.stringify(
         {
@@ -698,11 +575,8 @@ async function main(): Promise<void> {
     printRunHuman(primary);
     if (variance) printVarianceHuman(variance);
   }
-  // Verbose detail goes to stderr in both modes — safe alongside --json stdout.
   if (args.verbose) printVerbose(primary);
 
-  // Baseline handling runs last so the normal report is always emitted first.
-  // All baseline I/O goes to stderr so it never corrupts --json stdout.
   const baselinePath = args.baseline ?? DEFAULT_BASELINE_PATH;
   if (args["save-baseline"]) {
     await saveBaseline(runs, baselinePath);

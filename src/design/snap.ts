@@ -45,38 +45,12 @@ export function unionBounds(arr: readonly SnapBounds[]): SnapBounds | null {
   };
 }
 
-/**
- * Compute snap adjustment + guide lines for a drag.
- *
- * Given the dragged group's start bounds, the user's raw delta, and
- * the bounds of every snap-target element, find the closest edge/
- * center alignment along each axis within `thresholdSlide`. Override
- * the delta on that axis so the alignment is exact, and emit a guide
- * line for visual feedback.
- *
- * Each axis is handled independently — you can snap left-edges along x
- * while center-snapping along y in the same frame. The "edge/center
- * alignment" search compares all 9 (dragged-key, other-key) pairs per
- * axis: dragged.left vs other.left, dragged.left vs other.right,
- * dragged.left vs other.cx, ... The smallest signed-distance pair
- * wins; if it's within threshold, we snap to it.
- *
- * V0 simplifications:
- *   - Snap uses AABB (gBCR), so rotated elements snap on their AABB.
- *   - Snap targets include EVERY non-dragged element with a `data-id`.
- *   - Only ONE guide per axis (the closest alignment).
- */
 type AxisKey = "left" | "cx" | "right" | "top" | "cy" | "bottom";
 type SnapMatch = { adjust: number; pos: number; other: SnapBounds };
 
 const X_KEYS: readonly AxisKey[] = ["left", "cx", "right"];
 const Y_KEYS: readonly AxisKey[] = ["top", "cy", "bottom"];
 
-/**
- * Find the closest edge/center alignment along one axis. Compares all
- * 9 (dragged-key, other-key) pairs across every snap target; the
- * smallest signed-distance pair within threshold wins.
- */
 function findBestAxisMatch(
   moved: SnapBounds,
   others: readonly SnapBounds[],

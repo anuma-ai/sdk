@@ -45,17 +45,7 @@ function ensureCrypto(): void {
   }
 }
 
-/**
- * These ops read the whole collection/thread. PR5 switched them from `.fetch()`
- * (which builds and pins a WatermelonDB Model per row in the never-evicted
- * RecordCache) to `.unsafeFetchRaw()` + a raw-row → Stored mapper. The wiring
- * suite proves no Model is built (fetch is never called); the parity suite proves
- * the raw path decrypts to exactly the stored plaintext on a real adapter.
- */
-
 describe("chat read ops — use unsafeFetchRaw, never fetch (no Model retained)", () => {
-  // A mock collection whose query() exposes BOTH readers: fetch() throws if ever
-  // reached (it would pin Models), unsafeFetchRaw() serves the raw rows.
   function spyCtx(rows: Record<string, unknown>[]) {
     const fetchSpy = vi.fn(async () => {
       throw new Error("fetch() must not be called on a bulk read op — use unsafeFetchRaw");
@@ -142,17 +132,12 @@ describe("chat read ops — use unsafeFetchRaw, never fetch (no Model retained)"
   });
 
   it("coerces a NULL non-optional @text column to '' (matches the sanitizedRaw Model path)", async () => {
-    // An assistant tool-call / image-only turn stores content: NULL (applyMessageFields writes it
-    // unconditionally). The Model path sanitizes non-optional text NULL → ""; the raw path must too,
-    // or a content.startsWith(...)/.length consumer (e.g. the skeleton artifact classifier) breaks.
     const { ctx } = spyCtx([{ ...rawMsg(), content: null }]);
     const [msg] = await getMessagesOp(ctx, "conv_1");
     expect(msg.content).toBe("");
   });
 
   it("coerces a NULL non-optional timestamp to epoch, never Invalid Date (sanitizedRaw→0)", async () => {
-    // created_at/updated_at are non-optional number columns: sanitizedRaw coerces NULL → 0, so the
-    // Model path yields new Date(0). Match that — assert epoch, not null and not Invalid Date.
     const { ctx } = spyCtx([{ ...rawMsg(), created_at: null, updated_at: null }]);
     const [msg] = await getMessagesOp(ctx, "conv_1");
     expect(msg.createdAt.getTime()).toBe(0);
@@ -193,7 +178,6 @@ describe("chat read ops — unsafeFetchRaw decrypt parity (real adapter, encrypt
     const ctx = makeEncryptedCtx(makeDatabase());
     await createConversationOp(ctx, { conversationId: "conv-1", title: "My Secret Chat" });
 
-    // Stored at rest as ciphertext, not plaintext.
     const rows = (await ctx.conversationsCollection.query().unsafeFetchRaw()) as Record<
       string,
       unknown
@@ -217,7 +201,6 @@ describe("chat read ops — unsafeFetchRaw decrypt parity (real adapter, encrypt
       uniqueId: "m1",
     });
 
-    // Ciphertext at rest.
     const rows = (await ctx.messagesCollection.query().unsafeFetchRaw()) as Record<
       string,
       unknown
@@ -257,7 +240,6 @@ describe("chat read ops — unsafeFetchRaw decrypt parity (real adapter, encrypt
       content: "original prompt",
       uniqueId: "u1",
     });
-    // Regeneration artifact: a user message parented by another user message.
     await createMessageOp(ctx, {
       conversationId: "conv-1",
       role: "user",
@@ -265,7 +247,6 @@ describe("chat read ops — unsafeFetchRaw decrypt parity (real adapter, encrypt
       uniqueId: "u2",
       parentMessageId: "u1",
     });
-    // Assistant child of a user row — must NOT carry content.
     await createMessageOp(ctx, {
       conversationId: "conv-1",
       role: "assistant",
@@ -276,7 +257,6 @@ describe("chat read ops — unsafeFetchRaw decrypt parity (real adapter, encrypt
 
     const skeletons = await getMessageSkeletonsOp(ctx, "conv-1");
     const byId = new Map(skeletons.map((s) => [s.uniqueId, s]));
-    // Decrypted, not the "enc:" ciphertext.
     expect(byId.get("u2")?.content).toBe("[Tool Execution Results] ...");
     expect(byId.get("u1")?.content).toBeUndefined();
     expect(byId.get("a1")?.content).toBeUndefined();
@@ -284,8 +264,6 @@ describe("chat read ops — unsafeFetchRaw decrypt parity (real adapter, encrypt
   });
 
   it("getConversationsOp preserves plaintext (legacy/unencrypted) titles unchanged", async () => {
-    // No encryption context: createConversationOp stores plaintext; the raw read
-    // path must pass it through byte-for-byte.
     const ctx: StorageOperationsContext = {
       database: makeEncryptedCtx(makeDatabase()).database,
       messagesCollection: {} as never,

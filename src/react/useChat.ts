@@ -22,45 +22,12 @@ import { getLogger } from "../lib/logger";
 import { PiiRedactor } from "../lib/pii/redactor";
 
 type SendMessageArgs = BaseSendMessageArgs & {
-  /**
-   * Optional custom headers to include with the request.
-   */
   headers?: Record<string, string>;
-  /**
-   * Memory context to inject as a system message.
-   * This is typically context from the memory engine or other sources.
-   */
   memoryContext?: string;
-  /**
-   * Search context to inject as a system message.
-   * This is typically formatted search results from useSearch.
-   */
   searchContext?: string;
-  /**
-   * File context to inject as a system message.
-   * This is typically extracted text from preprocessed file attachments.
-   */
   fileContext?: string;
-  /**
-   * Tool-set guidance to inject as a system message — e.g. the App Builder
-   * prompt that rides with the app-generation tool set. Added as a separate
-   * system message (additive), so it composes with the persona / base prompt
-   * rather than replacing it. Typically computed by `useChatStorage` from the
-   * tool sets activated for the request via `toolSetSystemPrompts`.
-   */
   toolGuidance?: string;
-  /**
-   * Per-request callback for thinking/reasoning chunks. Called in addition to the global
-   * `onThinking` callback if provided in `useChat` options.
-   *
-   * @param chunk - The thinking delta from the current chunk
-   */
   onThinking?: (chunk: string) => void;
-  /**
-   * Override the API type for this request only.
-   * Useful when different models need different APIs.
-   * @default Uses the hook-level apiType or "auto"
-   */
   apiType?: ApiType;
 };
 
@@ -68,32 +35,18 @@ type SendMessageResult =
   | {
       data: ApiResponse;
       error: null;
-      /** Checksum of tools used to generate this response */
       toolsChecksum?: string;
-      /** Results from tools that were auto-executed by the SDK */
       autoExecutedToolResults?: AutoExecutedToolResult[];
     }
   | {
       data: ApiResponse | null;
       error: string;
-      /** Checksum of tools used to generate this response */
       toolsChecksum?: string;
     };
 
-/**
- * @inline
- */
 interface UseChatOptions extends BaseUseChatOptions {
-  /** Buffer streamed rounds so a service can verify their canonical output. */
   resumable?: boolean;
-  /** Inference identifier for each HTTP round, including client-tool continuations. */
   onStreamMeta?: (meta: { inferenceId: string; round: number }) => void;
-  /**
-   * Which API endpoint to use. Default: "auto"
-   * - "auto": automatically selects the best API based on model support
-   * - "responses": OpenAI Responses API (supports thinking, reasoning, conversations)
-   * - "completions": OpenAI Chat Completions API (wider model compatibility)
-   */
   apiType?: ApiType;
 }
 
@@ -175,9 +128,6 @@ export function useChat(options?: UseChatOptions): UseChatResult {
   } = options || {};
   const [isLoading, setIsLoading] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
-  // Monotonic id of the latest send. Unlike abortControllerRef it is never
-  // reset by stop() or a settling request, so "a newer send exists" cannot be
-  // confused with "the ref is null".
   const requestIdRef = useRef(0);
   const pendingInferenceRef = useRef<{ id: string; round: number; cancel: () => void } | null>(
     null
@@ -196,10 +146,6 @@ export function useChat(options?: UseChatOptions): UseChatResult {
     [getToken, baseUrl]
   );
 
-  // When piiRedaction is `true`, upgrade it to a single redactor instance kept
-  // for the lifetime of this hook so placeholder state is shared across turns
-  // (matching the documented behavior of passing an instance). An explicit
-  // instance or `false` is passed through unchanged.
   const piiRedactorRef = useRef<PiiRedactor | null>(null);
   if (piiRedaction === true && !piiRedactorRef.current) {
     piiRedactorRef.current = new PiiRedactor();
@@ -216,7 +162,6 @@ export function useChat(options?: UseChatOptions): UseChatResult {
     }
   }, []);
 
-  // Abort and cancel any in-flight generation on unmount.
   useEffect(() => stop, [stop]);
 
   const sendMessage = useCallback(
@@ -230,7 +175,6 @@ export function useChat(options?: UseChatOptions): UseChatResult {
       searchContext,
       fileContext,
       toolGuidance,
-      // Responses API options
       temperature,
       maxOutputTokens,
       tools,
@@ -244,7 +188,6 @@ export function useChat(options?: UseChatOptions): UseChatResult {
       endpointOverride,
       piiRedaction: requestPiiRedaction,
     }: SendMessageArgs): Promise<SendMessageResult> => {
-      // Replacing a resumable generation must stop its server-side spend too.
       stop();
 
       const abortController = new AbortController();
@@ -255,7 +198,6 @@ export function useChat(options?: UseChatOptions): UseChatResult {
       let succeeded = false;
 
       try {
-        // Validate token getter and get token
         const tokenGetterValidation = validateTokenGetter(getToken);
         if (!tokenGetterValidation.valid) {
           if (onError) onError(new Error(tokenGetterValidation.message));
@@ -270,7 +212,6 @@ export function useChat(options?: UseChatOptions): UseChatResult {
           return { data: null, error: tokenValidation.message };
         }
 
-        // Inject context as system messages
         let messagesWithContext = messages;
         if (memoryContext) {
           const memorySystemMessage: LlmapiMessage = {
@@ -317,7 +258,6 @@ export function useChat(options?: UseChatOptions): UseChatResult {
           messagesWithContext = [toolGuidanceMessage, ...messagesWithContext];
         }
 
-        // Delegate to the framework-agnostic tool loop
         const result: RunToolLoopResult = await runToolLoop({
           messages: messagesWithContext,
           model: model!,
@@ -335,8 +275,6 @@ export function useChat(options?: UseChatOptions): UseChatResult {
                     return;
                   }
                   const previous = pendingInferenceRef.current;
-                  // A retry replaces an unfinished inference; a new tool round
-                  // follows a completed one whose canonical proof must survive.
                   if (previous && previous.round === meta.round && previous.id !== meta.inferenceId)
                     previous.cancel();
                   pendingInferenceRef.current = {
@@ -387,8 +325,6 @@ export function useChat(options?: UseChatOptions): UseChatResult {
           onError
         );
       } finally {
-        // A newer request owns the ref and the loading flag once it replaces
-        // this one; the aborted call settles later and must not clear them.
         if (requestIdRef.current === requestId) {
           setIsLoading(false);
           abortControllerRef.current = null;

@@ -52,8 +52,6 @@ const empty = {
   timings: { extractMs: 0, retainMs: 0 },
   model: "test",
 };
-// The mock wraps the real op, so tests that stub it per-id have to delegate to
-// this rather than re-importing the (mocked) module and recursing into itself.
 const realGetMessageOp = vi.mocked(getMessageOp).getMockImplementation()!;
 class BatchReadError extends Error {}
 let db: Database;
@@ -111,14 +109,9 @@ describe("memory persistence reliability", () => {
       lastObservedAt: 200,
       preserveUpdatedAt: true,
     });
-    // No new evidence: the same sources seen again must not inflate the proof
-    // count or refresh the decay watermark off our own retry traffic.
     expect(replay!.proofCount).toBe(fresh!.proofCount);
     expect(replay!.lastObservedAt).toBe(100);
     expect(replay!.sourceChunkIds).toEqual(["m1", "m2"]);
-    // The write itself still lands. A consolidation rewrite carries the ids of
-    // the observation that triggered it, so dropping it here lost the content
-    // and its embedding while the caller saw a successful merge.
     expect(replay!.content).toBe("Works at Acme Corp as a staff engineer");
     expect(replay!.embedding).toBe("[0.5,0.25]");
   });
@@ -127,8 +120,6 @@ describe("memory persistence reliability", () => {
       content: "Works at Acme",
       sourceChunkIds: ["m7"],
     });
-    // autoExtract passes per-candidate sourceMessageIds and two candidates from
-    // one turn routinely overlap; both consolidating onto this row is ordinary.
     for (const content of ["Works at Acme in Berlin", "Works at Acme in Berlin as a designer"])
       await updateVaultMemoryOp(ctx, memory!.uniqueId, {
         content,
@@ -215,8 +206,6 @@ describe("memory persistence reliability", () => {
       original.uniqueId
     );
     const [row] = await getVaultMemoriesByIdsOp(ctx, [created!.uniqueId]);
-    // Untyped, the correction fell to the fallback TTL and was archived while
-    // the stale superseded value was the only one left.
     expect(row.factType).toBe("identity");
     expect(row.trustTier).toBe("trusted");
     expect(row.visibility).toBe("public");
@@ -249,7 +238,6 @@ describe("memory persistence reliability", () => {
   });
   it("a re-embed computed from content that has since changed does not land", async () => {
     const memory = await createVaultMemoryOp(ctx, { content: "Plays cello" });
-    // A consolidation rewrite that keeps updated_at: only content tells them apart.
     await updateVaultMemoryOp(ctx, memory.uniqueId, {
       content: "Plays cello in a quartet",
       embedding: null,
@@ -280,8 +268,6 @@ describe("memory persistence reliability", () => {
 });
 
 describe("durable extraction outbox", () => {
-  // Failed sessions only count an hour or more apart; tests move this clock
-  // forward between sessions instead of waiting.
   const HOUR = 60 * 60 * 1000;
   let clockNow = Date.UTC(2026, 8, 1);
   const nextSession = () => (clockNow += 2 * HOUR);
@@ -311,8 +297,6 @@ describe("durable extraction outbox", () => {
         await db.get<Message>("history").create((row) => {
           row._raw.id = message.id;
           row._setRaw("conversation_id", "conversation");
-          // createMessageOp assigns max(message_id) + 1 per conversation. The
-          // outbox anchors its boundary on it, so the fixture has to carry it.
           row._setRaw("message_id", index + 1);
           row._setRaw("role", message.role);
           row._setRaw("content", message.content);
@@ -614,7 +598,6 @@ describe("durable extraction outbox", () => {
       extract: { apiKey: "k", model: "open-model" },
       modelForScope,
     });
-    // Let the start-up pass finish, or it drains the job on this instance.
     await new Promise((resolve) => setTimeout(resolve, 20));
     queued.processTurn(messages.slice(0, 1), "conversation");
     await vi.waitFor(async () =>
@@ -623,7 +606,6 @@ describe("durable extraction outbox", () => {
     queued.dispose();
     expect(extractAndRetain).not.toHaveBeenCalled();
     scope = "shared";
-    // The public-mode extractor that drains it is built with the closed model.
     const drainer = createDurableAutoExtractor({
       ...options(),
       scope: () => scope,
@@ -676,10 +658,6 @@ describe("durable extraction outbox", () => {
   });
 
   it("drains a turn that arrives while a pass is ending with nothing to do", async () => {
-    // A pass that neither retried nor acknowledged anything used to end without
-    // rescheduling, so a job written during it waited for the next turn.
-    // A job whose conversation is gone: the pass destroys it and so ends
-    // having neither retried nor acknowledged anything.
     await db.write(() =>
       db.get<ExtractionJob>(ExtractionJob.table).create((r) => {
         r._setRaw("owner_key", "owner");
@@ -688,8 +666,6 @@ describe("durable extraction outbox", () => {
         r._setRaw("message_ids", '["ghost"]');
       })
     );
-    // Hold the pass open inside its first conversation lookup, after it has
-    // already read the pending list — a job created now cannot be in that list.
     const conversations = db.get<Conversation>("conversations");
     let release!: () => void;
     const blocked = new Promise<void>((resolve) => {
@@ -718,8 +694,6 @@ describe("durable extraction outbox", () => {
     );
     expect(worker.isProcessing()).toBe(true);
     release();
-    // The orphaned job is destroyed, so this pass acknowledges nothing. The
-    // refused wake-up is what has to bring the pass back for the new job.
     await vi.waitFor(() => expect(extractAndRetain).toHaveBeenCalledOnce());
     expect(vi.mocked(extractAndRetain).mock.calls[0][0].map((m) => m.id)).toEqual(["m0", "m1"]);
     worker.dispose();
@@ -766,8 +740,6 @@ describe("durable extraction outbox", () => {
       expect(await db.get<ExtractionJob>(ExtractionJob.table).query().fetchCount()).toBe(4)
     );
     first.dispose();
-    // Four jobs against a cap of three: the fourth only lands if the capped
-    // pass reschedules the remainder instead of dropping it.
     const resumed = createDurableAutoExtractor(options());
     await vi.waitFor(() => expect(extractAndRetain).toHaveBeenCalledTimes(4), { timeout: 2000 });
     const drained = vi
@@ -787,8 +759,6 @@ describe("durable extraction outbox", () => {
     const [job] = await db.get<ExtractionJob>(ExtractionJob.table).query().fetch();
     await vi.waitFor(() => expect(job._getRaw("message_ids")).toBe("[]"));
     worker.dispose();
-    // A drained job is invisible to the drain's own sweep (it only queries jobs
-    // with work left), so deleting the conversation is what has to collect it.
     await deleteConversationOp(storage(), "conversation");
     expect(await db.get<ExtractionJob>(ExtractionJob.table).query().fetchCount()).toBe(0);
   });
@@ -834,7 +804,6 @@ describe("durable extraction outbox", () => {
     await vi.waitFor(() => expect(calls()).toBe(3), { timeout: 2000 });
     await settle();
     expect((await jobRow())._getRaw("failed_sessions")).toBe(1);
-    // This session is done with the head: a new turn does not spend on it again.
     first.processTurn(messages.slice(0, 3), "conversation");
     await settle();
     await settle();
@@ -856,8 +825,6 @@ describe("durable extraction outbox", () => {
     expect(onError.mock.calls.map(([error]) => String(error.message))).toContain(
       "Abandoned an extraction batch of 3 source id(s) after it failed in 3 sessions"
     );
-    // The next turn extracts only what is new: the abandoned sources are neither
-    // re-enqueued nor re-sent as context, or the poison would fail it too.
     third.processTurn(messages.slice(0, 5), "conversation");
     await vi.waitFor(() => expect(calls()).toBe(10), { timeout: 2000 });
     expect(vi.mocked(extractAndRetain).mock.calls[9][0].map((m) => m.id)).toEqual(["m3", "m4"]);
@@ -874,7 +841,6 @@ describe("durable extraction outbox", () => {
     worker.processTurn(messages.slice(0, 1), "conversation");
     await vi.waitFor(() => expect(extractAndRetain).toHaveBeenCalledOnce(), { timeout: 2000 });
     await vi.waitFor(async () => expect((await jobRow())._getRaw("message_ids")).toBe("[]"));
-    // The flagged source is neither retried nor re-sent as context.
     worker.processTurn(messages.slice(0, 3), "conversation");
     await vi.waitFor(() => expect(extractAndRetain).toHaveBeenCalledTimes(2), { timeout: 2000 });
     expect(vi.mocked(extractAndRetain).mock.calls[1][0].map((m) => m.id)).toEqual(["m1", "m2"]);
@@ -892,8 +858,6 @@ describe("durable extraction outbox", () => {
     await vi.waitFor(async () => expect((await jobRow())._getRaw("message_ids")).toBe("[]"), {
       timeout: 2000,
     });
-    // The refused batch, then one call per turn: m0 and m2 extract, m1 is
-    // refused once and never retried.
     expect(vi.mocked(extractAndRetain).mock.calls.map(([batch]) => batch.map((m) => m.id))).toEqual(
       [["m0", "m1", "m2"], ["m0"], ["m1"], ["m2"]]
     );
@@ -902,7 +866,6 @@ describe("durable extraction outbox", () => {
     );
     await settle();
     expect(extractAndRetain).toHaveBeenCalledTimes(4);
-    // The refused source is not re-sent as pronoun context for the next batch.
     worker.processTurn(messages.slice(0, 5), "conversation");
     await vi.waitFor(() => expect(extractAndRetain).toHaveBeenCalledTimes(5), { timeout: 2000 });
     expect(vi.mocked(extractAndRetain).mock.calls[4][0].map((m) => m.id)).toEqual(["m3", "m4"]);
@@ -917,7 +880,6 @@ describe("durable extraction outbox", () => {
     const worker = createDurableAutoExtractor(options());
     worker.processTurn(messages.slice(0, 2), "conversation");
     await vi.waitFor(() => expect(extractAndRetain).toHaveBeenCalledOnce(), { timeout: 2000 });
-    // A new turn does not re-arm it either.
     worker.processTurn(messages.slice(0, 3), "conversation");
     await settle();
     await settle();
@@ -992,7 +954,6 @@ describe("durable extraction outbox", () => {
       if (!message) return message;
       if (id === "m0")
         return { ...message, content: CIPHERTEXT, decryptionStatus: "auth_mismatch" };
-      // The "key not loaded yet" shape a wallet session reports.
       if (id === "m1") return { ...message, content: CIPHERTEXT, decryptionStatus: "key_missing" };
       return message;
     });
@@ -1009,7 +970,6 @@ describe("durable extraction outbox", () => {
       await settle();
       worker.dispose();
     }
-    // The persistent one is dropped; the no-key one waits for a session with a key.
     expect(JSON.parse(String((await jobRow())._getRaw("message_ids")))).toEqual(["m1"]);
     expect(onError.mock.calls.map(([error]) => String(error.message))).toContain(
       "Dropped 1 source id(s) that stayed locked for 3 sessions to unblock extraction"
@@ -1043,7 +1003,6 @@ describe("durable extraction outbox", () => {
 
   it("never counts key_missing: the key may just not be loaded this session", async () => {
     await conversation();
-    // What a wallet session reports while its signer is unavailable.
     vi.mocked(getMessageOp).mockImplementation(async (storageCtx, id) => {
       const message = await realGetMessageOp(storageCtx, id);
       return message && { ...message, content: CIPHERTEXT, decryptionStatus: "key_missing" };
@@ -1066,7 +1025,6 @@ describe("durable extraction outbox", () => {
 
   it("does not treat a failed non-content field as a locked message", async () => {
     await conversation();
-    // e.g. the vector field failed to decrypt; content is readable.
     vi.mocked(getMessageOp).mockImplementation(async (storageCtx, id) => {
       const message = await realGetMessageOp(storageCtx, id);
       return message && { ...message, decryptionStatus: "auth_mismatch" };
@@ -1086,7 +1044,6 @@ describe("durable extraction outbox", () => {
       nextSession();
       const worker = createDurableAutoExtractor(options());
       if (session === 1) worker.processTurn(messages.slice(0, 2), "conversation");
-      // One call per session: skipped for the rest of it, retried by the next.
       await vi.waitFor(() => expect(extractAndRetain).toHaveBeenCalledTimes(session), {
         timeout: 2000,
       });
@@ -1162,13 +1119,11 @@ describe("durable extraction outbox", () => {
       const start = calls();
       const poisonStart = poisonCalls();
       const worker = createDurableAutoExtractor({ ...options(), retryDelayMs: 30, onError });
-      // A turn after every attempt resets the in-memory retry count each time.
       for (let i = 1; i <= 6; i++) {
         worker.processTurn(messages.slice(0, turn++), "conversation");
         await settleOrCall(start + i);
       }
       await settle();
-      // Bounded spend: three attempts on the poison head per session, not one per turn.
       expect(poisonCalls() - poisonStart).toBe(3);
       worker.dispose();
     }
@@ -1183,7 +1138,6 @@ describe("durable extraction outbox", () => {
     await conversation();
     vi.mocked(extractAndRetain).mockResolvedValue(failedExtraction({ reason: "invalid-json" }));
     nextSession();
-    // Three remounts within the same few minutes.
     for (let session = 1; session <= 3; session++) {
       clockNow += 60_000;
       const worker = createDurableAutoExtractor(options());
@@ -1222,7 +1176,6 @@ describe("durable extraction outbox", () => {
         ),
       { timeout: 2000 }
     );
-    // Conversation and sources are all still there; only the cancellation says no.
     expect(await abandonedCtx!.vaultCtx.canWrite!()).toBe(false);
     release();
     worker.dispose();
@@ -1238,7 +1191,6 @@ describe("durable extraction outbox", () => {
       });
       worker.processTurn(messages.slice(0, 1), "conversation");
       await vi.waitFor(() => expect(extractAndRetain).toHaveBeenCalledOnce(), { timeout: 2000 });
-      // 2 attempts x 1s + one backoff (2.1s) + the 120s retain budget.
       expect(timers.mock.calls.map(([, delay]) => delay)).toContain(124_100);
       worker.dispose();
     } finally {

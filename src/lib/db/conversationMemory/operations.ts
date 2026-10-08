@@ -42,12 +42,6 @@ export async function addConversationMemoriesOp(
 
   const now = Date.now();
 
-  // Read existing rows, dedupe, prune, and write all inside a single
-  // database.write() so two concurrent calls for the same conversation can't
-  // both act on a stale snapshot — that would let duplicate
-  // (conversation_id, memory_id) pairs slip in or push the row count past the
-  // cap (mirrors linkMemoryEntitiesOp, which reads inside the writer for the
-  // same reason).
   await ctx.database.write(async () => {
     const existing = await ctx.conversationMemoryCollection
       .query(Q.where("conversation_id", conversationId), Q.sortBy("created_at", Q.asc))
@@ -63,10 +57,6 @@ export async function addConversationMemoriesOp(
     }
     if (deduped.length === 0) return;
 
-    // Enforce the per-conversation cap over the RESULTING set (existing + new),
-    // keeping the newest. New rows are newest, so if a single batch alone
-    // exceeds the cap, keep only its newest MAX and drop every existing row;
-    // otherwise keep all new rows plus the newest existing that still fit.
     const keptNew =
       deduped.length > MAX_PER_CONVERSATION
         ? deduped.slice(deduped.length - MAX_PER_CONVERSATION)
@@ -77,11 +67,6 @@ export async function addConversationMemoriesOp(
 
     const ops = [
       ...toPrune.map((r) => r.prepareDestroyPermanently()),
-      // Stagger created_at by index within the batch: a turn records several
-      // memories at once, so a single shared timestamp would make their order
-      // ambiguous under the created_at sort (getConversationMemoriesOp, the cap
-      // prune). `now + i` keeps insertion order stable and stays well below the
-      // next turn's timestamp.
       ...keptNew.map((it, i) =>
         ctx.conversationMemoryCollection.prepareCreate((r) => {
           r._setRaw("conversation_id", conversationId);
@@ -113,9 +98,6 @@ export async function clearConversationMemoriesOp(
   conversationId: string
 ): Promise<void> {
   if (!conversationId) return;
-  // Fetch the rows to destroy INSIDE the writer (same reason as
-  // addConversationMemoriesOp): a concurrent add committing between a read-then-
-  // write here would otherwise survive the clear.
   await ctx.database.write(async () => {
     const rows = await ctx.conversationMemoryCollection
       .query(Q.where("conversation_id", conversationId))

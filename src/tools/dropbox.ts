@@ -1,26 +1,3 @@
-/**
- * Dropbox tool factory for the chat system.
- *
- * Mirrors the shape of {@link "./gmail".createGmailTools}: the caller supplies a
- * token getter and an interactive `requestAccess` fallback, and the factory
- * returns a record of `ToolConfig` entries the chat loop can run. The token
- * getter is expected to be one returned by `createConnectorTokenGetter`, but any
- * `() => Promise<string | null>` compatible function works.
- *
- * Dropbox API v2 sends CORS headers, so — unlike X or Slack — these tools call
- * the API DIRECTLY with the minted token; no portal proxy caller is needed.
- *
- * Tool catalogue (all read-only, matches portal scope `connector:dropbox:read`):
- * - `dropbox_list_folders`     — list entries under a folder path
- * - `dropbox_get_file_content` — download a file's content as text
- * - `dropbox_search`           — search files/folders by name/content
- *
- * Error contract: on a connector-level auth failure (401/403, or no usable
- * token) the tool returns the canonical `__anuma_connector_error_v1` JSON shape
- * produced by `buildConnectorErrorResult`. Tool executors never throw on these
- * paths — the LLM is expected to surface the connect URL to the user.
- */
-
 import type { ToolConfig } from "../lib/chat/useChat/types.js";
 import { buildConnectorErrorResult } from "../lib/connectors/index.js";
 
@@ -62,12 +39,6 @@ interface DropboxSearchMatch {
   tag: "file" | "folder";
 }
 
-/**
- * Partial-listing result. Returned as a structured value (not a
- * pre-stringified string) so the tool loop serializes it exactly once — a
- * complete listing returns the bare array, and both must reach the model as
- * clean JSON rather than a double-escaped blob.
- */
 interface DropboxPartialFolders {
   entries: DropboxEntry[];
   truncated: true;
@@ -105,13 +76,8 @@ interface DropboxSearchResponse {
 const DROPBOX_API_URL = "https://api.dropboxapi.com/2";
 const DROPBOX_CONTENT_URL = "https://content.dropboxapi.com/2";
 const FETCH_TIMEOUT_MS = 30_000;
-/** Cap file content the same way github.ts caps API responses. */
 const MAX_CONTENT_SIZE = 100_000;
 
-/**
- * Bare `fetch` would hang the agent loop indefinitely if Dropbox goes
- * unresponsive — mirror the Gmail tool's pattern and abort at 30s.
- */
 async function dropboxFetch(input: string, init: RequestInit = {}): Promise<Response> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
@@ -126,10 +92,6 @@ function dropboxTimeoutError(operation: string): string {
   return `Error: Dropbox API request timed out after ${FETCH_TIMEOUT_MS / 1000}s while trying to ${operation}.`;
 }
 
-/**
- * Convert an upstream Dropbox HTTP status to a connector error string when
- * appropriate, otherwise return null so the caller can surface the raw error.
- */
 function maybeConnectorError(status: number): string | null {
   if (status === 401 || status === 403) {
     return buildConnectorErrorResult("connector_not_connected", DROPBOX_PROVIDER);
@@ -137,11 +99,6 @@ function maybeConnectorError(status: number): string | null {
   return null;
 }
 
-/**
- * Resolve a token, attempting the interactive fallback once if needed.
- * Returns either a usable token or a structured connector-error JSON string
- * the caller should return verbatim as the tool result.
- */
 async function resolveToken(
   getToken: DropboxTokenGetter,
   requestAccess: DropboxRequestAccess
@@ -209,8 +166,6 @@ async function listDropboxFolders(
     return `No entries found at "${args.path ?? "/"}"`;
   }
   const mapped = entries.map(toEntry);
-  // Dropbox paginates: when it flags more entries past our limit, tell the LLM
-  // so it doesn't present a partial listing as the whole folder.
   if (data.has_more) {
     return {
       entries: mapped,
@@ -221,22 +176,14 @@ async function listDropboxFolders(
   return mapped;
 }
 
-/**
- * A downloaded file that decodes to mostly non-printable bytes is almost
- * certainly binary (image, archive, …). Returning the raw string would just be
- * garbage in the chat, so detect it and surface a short note instead.
- */
 function looksBinary(text: string): boolean {
   if (text.length === 0) return false;
   const sample = text.slice(0, 1000);
   let control = 0;
   for (let i = 0; i < sample.length; i++) {
     const code = sample.charCodeAt(i);
-    // NUL is a strong binary signal; count other C0 control chars too, but
-    // exclude tab (9), LF (10), CR (13) which are normal in text files.
     if (code === 0) return true;
     if (code < 32 && code !== 9 && code !== 10 && code !== 13) control++;
-    // U+FFFD (replacement char) means UTF-8 decoding hit invalid bytes.
     if (code === 0xfffd) control++;
   }
   return control / sample.length > 0.1;
@@ -257,9 +204,6 @@ async function getDropboxFileContent(
       method: "POST",
       headers: {
         Authorization: `Bearer ${accessToken}`,
-        // The request arg travels in a header; the body must be empty, so no
-        // JSON Content-Type is set (Dropbox rejects download requests carrying
-        // a JSON body).
         "Dropbox-API-Arg": JSON.stringify({ path: args.path }),
       },
     });
@@ -323,8 +267,6 @@ async function searchDropbox(
     if (raw.path_display !== undefined) match.path_display = raw.path_display;
     return match;
   });
-  // Same partial-result guard as the folder listing: when search flags more
-  // hits past our cap, tell the LLM so it doesn't read a full page as complete.
   if (data.has_more) {
     return {
       matches: mapped,

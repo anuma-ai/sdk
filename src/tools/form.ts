@@ -1,17 +1,6 @@
-/**
- * Form interaction tool factory.
- *
- * Creates a client-side tool that renders an interactive form inline in
- * the chat. The tool blocks until the user fills out and submits the form.
- */
-
 import type { ToolConfig } from "../lib/chat/useChat/types.js";
 import type { CreateUIToolsOptions } from "./uiInteraction";
 import { createInteractiveTool } from "./uiInteraction";
-
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
 
 export type FormFieldType = "text" | "textarea" | "select" | "toggle" | "date" | "slider";
 
@@ -51,10 +40,6 @@ const VALID_FIELD_TYPES: FormFieldType[] = [
   "date",
   "slider",
 ];
-
-// ---------------------------------------------------------------------------
-// Tool factory
-// ---------------------------------------------------------------------------
 
 /**
  * Create a prompt_user_form tool that renders an interactive form.

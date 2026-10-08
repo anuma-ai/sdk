@@ -1,23 +1,7 @@
-/**
- * Vault Benchmark Dataset
- *
- * 108 realistic vault memories across Personal, Work, and Interests folders,
- * plus 100 queries spanning six retrieval challenge categories.
- *
- * Categories:
- *   1. direct         — straightforward recall, query closely matches stored content
- *   2. paraphrase     — query uses completely different wording than the memory
- *   3. specificity    — multiple similar memories compete, only one is correct
- *   4. temporal       — an older memory was superseded by a newer one
- *   5. composite      — answer requires surfacing multiple related memories
- *   6. hard_negatives — plausible distractors that should not outrank the correct answer
- */
-
 export interface VaultMemoryEntry {
   id: string;
   content: string;
   folder: "Personal" | "Work" | "Interests" | null;
-  /** ISO timestamp — used for temporal tests where recency matters */
   createdAt: string;
 }
 
@@ -35,19 +19,12 @@ export type Category = (typeof CATEGORIES)[number];
 export interface BenchmarkQuery {
   query: string;
   category: Category;
-  /** Memory IDs that MUST appear in the top-k results */
   expectedIds: string[];
-  /** Memory IDs that must NOT rank above any expectedIds entry */
   mustNotRankAbove?: string[];
   k: number;
 }
 
-// ---------------------------------------------------------------------------
-// Vault memories
-// ---------------------------------------------------------------------------
-
 export const VAULT_MEMORIES: VaultMemoryEntry[] = [
-  // ── Personal (20) ──────────────────────────────────────────────────────
   {
     id: "p01",
     content: "My name is Alex Chen",
@@ -156,7 +133,6 @@ export const VAULT_MEMORIES: VaultMemoryEntry[] = [
     folder: "Personal",
     createdAt: "2025-12-01T10:17:00Z",
   },
-  // Temporal pair: moved cities
   {
     id: "p19",
     content: "Lives in Portland, Oregon",
@@ -170,7 +146,6 @@ export const VAULT_MEMORIES: VaultMemoryEntry[] = [
     createdAt: "2025-11-15T10:00:00Z",
   },
 
-  // ── Work (36) ──────────────────────────────────────────────────────────
   {
     id: "w01",
     content: "Senior backend engineer at Nimbus Labs, joined in 2023",
@@ -352,7 +327,6 @@ export const VAULT_MEMORIES: VaultMemoryEntry[] = [
     folder: "Work",
     createdAt: "2025-12-01T10:29:00Z",
   },
-  // Temporal pair: switched state management
   {
     id: "w31",
     content: "Frontend state management uses Redux with Redux Toolkit",
@@ -365,7 +339,6 @@ export const VAULT_MEMORIES: VaultMemoryEntry[] = [
     folder: "Work",
     createdAt: "2025-09-15T10:00:00Z",
   },
-  // Temporal pair: switched testing framework
   {
     id: "w33",
     content: "End-to-end tests use Cypress with Chrome-only testing",
@@ -378,7 +351,6 @@ export const VAULT_MEMORIES: VaultMemoryEntry[] = [
     folder: "Work",
     createdAt: "2025-08-10T10:00:00Z",
   },
-  // Temporal pair: changed deploy cadence
   {
     id: "w35",
     content: "Deploys happen weekly on Thursdays after QA sign-off",
@@ -392,7 +364,6 @@ export const VAULT_MEMORIES: VaultMemoryEntry[] = [
     createdAt: "2025-10-01T10:00:00Z",
   },
 
-  // ── Interests (15) ─────────────────────────────────────────────────────
   {
     id: "i01",
     content: "Learning Rust for systems programming and WebAssembly",
@@ -484,7 +455,6 @@ export const VAULT_MEMORIES: VaultMemoryEntry[] = [
     createdAt: "2025-12-01T10:14:00Z",
   },
 
-  // ── Personal (continued, 10 more) ────────────────────────────────────
   {
     id: "p21",
     content: "Has a mild peanut intolerance — not an allergy, just gets stomach cramps",
@@ -527,7 +497,6 @@ export const VAULT_MEMORIES: VaultMemoryEntry[] = [
     folder: "Personal",
     createdAt: "2025-12-01T10:24:00Z",
   },
-  // Temporal pair: changed coffee habit
   {
     id: "p28",
     content: "Drinks three cups of coffee a day, prefers pour-over",
@@ -547,7 +516,6 @@ export const VAULT_MEMORIES: VaultMemoryEntry[] = [
     createdAt: "2025-12-01T10:25:00Z",
   },
 
-  // ── Work (continued, 14 more) ───────────────────────────────────────
   {
     id: "w37",
     content:
@@ -597,7 +565,6 @@ export const VAULT_MEMORIES: VaultMemoryEntry[] = [
     folder: "Work",
     createdAt: "2025-12-01T10:37:00Z",
   },
-  // Temporal pair: changed primary language
   {
     id: "w45",
     content:
@@ -611,7 +578,6 @@ export const VAULT_MEMORIES: VaultMemoryEntry[] = [
     folder: "Work",
     createdAt: "2025-09-01T10:00:00Z",
   },
-  // Temporal pair: changed salary
   {
     id: "w47",
     content: "Base salary is $185,000 with a 15% annual bonus target",
@@ -637,7 +603,6 @@ export const VAULT_MEMORIES: VaultMemoryEntry[] = [
     createdAt: "2025-12-01T10:39:00Z",
   },
 
-  // ── Interests (continued, 5 more) ──────────────────────────────────
   {
     id: "i16",
     content: "Building a side project: a CLI tool for managing dotfiles across machines",
@@ -669,7 +634,6 @@ export const VAULT_MEMORIES: VaultMemoryEntry[] = [
     createdAt: "2025-12-01T10:19:00Z",
   },
 
-  // ── Unfiled (8) ────────────────────────────────────────────────────────
   {
     id: "u01",
     content: "Dislikes meeting invites without agendas — will decline them",
@@ -720,12 +684,7 @@ export const VAULT_MEMORIES: VaultMemoryEntry[] = [
   },
 ];
 
-// ---------------------------------------------------------------------------
-// Benchmark queries
-// ---------------------------------------------------------------------------
-
 export const BENCHMARK_QUERIES: BenchmarkQuery[] = [
-  // ── Direct recall (12) ─────────────────────────────────────────────────
   {
     query: "What is the user's name?",
     category: "direct",
@@ -811,25 +770,6 @@ export const BENCHMARK_QUERIES: BenchmarkQuery[] = [
     k: 3,
   },
   {
-    // KNOWN GAP — this one does not pass, and cosine supersession cannot make it
-    // pass. Do not chase it as a ranking regression (see #773; it has failed
-    // since #418 introduced both this query and w48, three days AFTER the
-    // baseline that recorded direct@100%, so it never regressed — it was born
-    // failing).
-    //
-    // w01 "Senior backend engineer ... joined in 2023" and w48 "Got promoted to
-    // Staff Engineer in November 2025" are only 0.5717 similar, under the 0.70
-    // SUPERSESSION_SIMILARITY_THRESHOLD, so the pair is never even considered.
-    // Lowering the threshold does not help: measured 0.70/0.65/0.60 leave direct
-    // at 94.4%, and 0.55 drops overall recall 82.5% -> 79.5%. The ordering gate
-    // rejects it too — w48 is the OLDER row by write time (Nov vs Dec), so the
-    // rule would be asked to demote the very row it should promote.
-    //
-    // In production this pair is resolved at RETAIN time, not search time:
-    // consolidate.ts exists for exactly this ~0.7 paraphrase band, marks w01
-    // `superseded_by`, and search then excludes superseded rows outright. That
-    // capability is covered by the consolidation suite's supersede-single /
-    // supersede-multi cases, which is where this expectation belongs.
     query: "What is the user's current job title?",
     category: "direct",
     expectedIds: ["w48"],
@@ -854,7 +794,6 @@ export const BENCHMARK_QUERIES: BenchmarkQuery[] = [
     k: 3,
   },
 
-  // ── Paraphrase (12) ────────────────────────────────────────────────────
   {
     query: "How does the user feel about synchronous communication?",
     category: "paraphrase",
@@ -964,133 +903,131 @@ export const BENCHMARK_QUERIES: BenchmarkQuery[] = [
     k: 3,
   },
 
-  // ── Specificity (12) ───────────────────────────────────────────────────
   {
     query: "What database is used for real-time transactional queries?",
     category: "specificity",
     expectedIds: ["w03"],
-    mustNotRankAbove: ["w18"], // BigQuery is analytics, not OLTP
+    mustNotRankAbove: ["w18"],
     k: 3,
   },
   {
     query: "What database is used for analytics?",
     category: "specificity",
     expectedIds: ["w18"],
-    mustNotRankAbove: ["w03"], // Postgres is OLTP, not analytics
+    mustNotRankAbove: ["w03"],
     k: 3,
   },
   {
     query: "How do external clients communicate with the API?",
     category: "specificity",
     expectedIds: ["w15"],
-    mustNotRankAbove: ["w28"], // GraphQL is NOT used
+    mustNotRankAbove: ["w28"],
     k: 3,
   },
   {
     query: "What caching layer is used for sessions?",
     category: "specificity",
     expectedIds: ["w04"],
-    mustNotRankAbove: ["w21"], // S3/CloudFront is file caching, not sessions
+    mustNotRankAbove: ["w21"],
     k: 3,
   },
   {
     query: "What is the user's preferred formatting for documents?",
     category: "specificity",
     expectedIds: ["u02"],
-    mustNotRankAbove: ["p07"], // dyslexia is about visual hierarchy, not formatting preference
+    mustNotRankAbove: ["p07"],
     k: 3,
   },
   {
     query: "Where does the user hike?",
     category: "specificity",
     expectedIds: ["i06"],
-    mustNotRankAbove: ["p03"], // lives in SF is location, not hiking
+    mustNotRankAbove: ["p03"],
     k: 3,
   },
   {
     query: "What testing framework is used for unit tests?",
     category: "specificity",
     expectedIds: ["w20"],
-    mustNotRankAbove: ["w33"], // Cypress was E2E, not unit
+    mustNotRankAbove: ["w33"],
     k: 3,
   },
   {
     query: "How are logs collected and shipped?",
     category: "specificity",
     expectedIds: ["w26"],
-    mustNotRankAbove: ["w10"], // Datadog metrics, not log shipping
+    mustNotRankAbove: ["w10"],
     k: 3,
   },
   {
     query: "What rate limits apply to the API?",
     category: "specificity",
     expectedIds: ["w27"],
-    mustNotRankAbove: ["w04"], // Redis does rate limiting but w27 has the actual limit
+    mustNotRankAbove: ["w04"],
     k: 3,
   },
   {
     query: "What is the user's food allergy?",
     category: "specificity",
     expectedIds: ["p08"],
-    mustNotRankAbove: ["p12"], // coffee preference is not an allergy
+    mustNotRankAbove: ["p12"],
     k: 3,
   },
   {
     query: "What text editor keybindings does the user prefer?",
     category: "specificity",
     expectedIds: ["p05"],
-    mustNotRankAbove: ["p04"], // dark mode is editor preference but not keybindings
+    mustNotRankAbove: ["p04"],
     k: 3,
   },
   {
     query: "What open source projects does the user maintain?",
     category: "specificity",
     expectedIds: ["i13"],
-    mustNotRankAbove: ["i04"], // follows TS ecosystem ≠ maintains OSS
+    mustNotRankAbove: ["i04"],
     k: 3,
   },
   {
     query: "What is the user's food allergy, not intolerance?",
     category: "specificity",
     expectedIds: ["p08"],
-    mustNotRankAbove: ["p21"], // peanut intolerance is not the same as shellfish allergy
+    mustNotRankAbove: ["p21"],
     k: 3,
   },
   {
     query: "What database connection pooling does the team use?",
     category: "specificity",
     expectedIds: ["w41"],
-    mustNotRankAbove: ["w03"], // Postgres is the DB, not the pooling layer
+    mustNotRankAbove: ["w03"],
     k: 3,
   },
   {
     query: "What is the user's side project?",
     category: "specificity",
     expectedIds: ["i16"],
-    mustNotRankAbove: ["i13"], // OSS CLI tool is a maintained project, not the side project
+    mustNotRankAbove: ["i13"],
     k: 3,
   },
   {
     query: "What queue system handles async jobs?",
     category: "specificity",
     expectedIds: ["w42"],
-    mustNotRankAbove: ["w04"], // Redis is the backing store, not the queue system itself
+    mustNotRankAbove: ["w04"],
     k: 3,
   },
   {
     query: "What tracing solution is the team evaluating?",
     category: "specificity",
     expectedIds: ["w38"],
-    mustNotRankAbove: ["w10"], // Datadog is current monitoring, not the tracing evaluation
+    mustNotRankAbove: ["w10"],
     k: 3,
   },
 
-  // ── Temporal / update (12) ─────────────────────────────────────────────
   {
     query: "Where does the user currently live?",
     category: "temporal",
     expectedIds: ["p20"],
-    mustNotRankAbove: ["p19"], // Portland is outdated
+    mustNotRankAbove: ["p19"],
     k: 3,
   },
   {
@@ -1104,7 +1041,7 @@ export const BENCHMARK_QUERIES: BenchmarkQuery[] = [
     query: "What state management library does the frontend use?",
     category: "temporal",
     expectedIds: ["w32"],
-    mustNotRankAbove: ["w31"], // Redux is outdated
+    mustNotRankAbove: ["w31"],
     k: 3,
   },
   {
@@ -1118,7 +1055,7 @@ export const BENCHMARK_QUERIES: BenchmarkQuery[] = [
     query: "What E2E testing tool does the team use?",
     category: "temporal",
     expectedIds: ["w34"],
-    mustNotRankAbove: ["w33"], // Cypress is outdated
+    mustNotRankAbove: ["w33"],
     k: 3,
   },
   {
@@ -1132,7 +1069,7 @@ export const BENCHMARK_QUERIES: BenchmarkQuery[] = [
     query: "How often does the team deploy?",
     category: "temporal",
     expectedIds: ["w36"],
-    mustNotRankAbove: ["w35"], // weekly deploys is outdated
+    mustNotRankAbove: ["w35"],
     k: 3,
   },
   {
@@ -1170,7 +1107,7 @@ export const BENCHMARK_QUERIES: BenchmarkQuery[] = [
     query: "What does the user drink in the morning?",
     category: "temporal",
     expectedIds: ["p29"],
-    mustNotRankAbove: ["p28"], // coffee habit is outdated, switched to matcha
+    mustNotRankAbove: ["p28"],
     k: 3,
   },
   {
@@ -1184,7 +1121,7 @@ export const BENCHMARK_QUERIES: BenchmarkQuery[] = [
     query: "What is the data pipeline built with?",
     category: "temporal",
     expectedIds: ["w46"],
-    mustNotRankAbove: ["w45"], // Python/Celery is outdated
+    mustNotRankAbove: ["w45"],
     k: 3,
   },
   {
@@ -1198,7 +1135,7 @@ export const BENCHMARK_QUERIES: BenchmarkQuery[] = [
     query: "What is the user's current salary?",
     category: "temporal",
     expectedIds: ["w48"],
-    mustNotRankAbove: ["w47"], // old salary before promotion
+    mustNotRankAbove: ["w47"],
     k: 3,
   },
   {
@@ -1209,7 +1146,6 @@ export const BENCHMARK_QUERIES: BenchmarkQuery[] = [
     k: 3,
   },
 
-  // ── Composite (12) ─────────────────────────────────────────────────────
   {
     query: "Give me an overview of the user's development environment setup",
     category: "composite",
@@ -1307,7 +1243,6 @@ export const BENCHMARK_QUERIES: BenchmarkQuery[] = [
     k: 5,
   },
 
-  // ── Hard negatives (8) ───────────────────────────────────────────────
   {
     query: "What technology does the team explicitly NOT use?",
     category: "hard_negatives",
@@ -1318,75 +1253,75 @@ export const BENCHMARK_QUERIES: BenchmarkQuery[] = [
     query: "What foods should the user avoid?",
     category: "hard_negatives",
     expectedIds: ["p08"],
-    mustNotRankAbove: ["p12"], // coffee preference is not a food restriction
+    mustNotRankAbove: ["p12"],
     k: 3,
   },
   {
     query: "Can the user safely eat lobster?",
     category: "hard_negatives",
-    expectedIds: ["p08"], // shellfish allergy — lobster is shellfish
+    expectedIds: ["p08"],
     k: 5,
   },
   {
     query: "What makes the user most productive?",
     category: "hard_negatives",
-    expectedIds: ["p06", "p14"], // morning person + standing desk/walks
+    expectedIds: ["p06", "p14"],
     k: 5,
   },
   {
     query: "Would the user prefer a video call or a Slack thread?",
     category: "hard_negatives",
-    expectedIds: ["p11"], // prefers async communication / Slack threads
+    expectedIds: ["p11"],
     k: 3,
   },
   {
     query: "What data store is NOT used for real-time transactional queries?",
     category: "hard_negatives",
-    expectedIds: ["w18"], // BigQuery is analytics, not OLTP
-    mustNotRankAbove: ["w03"], // Postgres IS used for OLTP
+    expectedIds: ["w18"],
+    mustNotRankAbove: ["w03"],
     k: 3,
   },
   {
     query: "Is the user available during Tokyo business hours?",
     category: "hard_negatives",
-    expectedIds: ["u03"], // timezone is US Pacific — inference required
+    expectedIds: ["u03"],
     k: 5,
   },
   {
     query: "Does the user prefer writing long-form documentation?",
     category: "hard_negatives",
-    expectedIds: ["u02"], // prefers bullet-point summaries over long paragraphs
+    expectedIds: ["u02"],
     k: 3,
   },
   {
     query: "Can the user eat peanuts?",
     category: "hard_negatives",
-    expectedIds: ["p21"], // peanut intolerance, not allergy
-    mustNotRankAbove: ["p08"], // shellfish allergy is a different issue
+    expectedIds: ["p21"],
+    mustNotRankAbove: ["p08"],
     k: 3,
   },
   {
     query: "Is the user a manager?",
     category: "hard_negatives",
-    expectedIds: ["w43", "w48"], // tech lead / staff engineer — not a manager but closest matches
+    expectedIds: ["w43", "w48"],
     k: 5,
   },
   {
     query: "What did the user use before switching to matcha?",
     category: "hard_negatives",
-    expectedIds: ["p28"], // the old coffee habit, before the switch
+    expectedIds: ["p28"],
     k: 3,
   },
   {
     query: "Should I schedule a meeting with the user at 3pm PT?",
     category: "hard_negatives",
-    expectedIds: ["p06", "u03"], // morning person + timezone — inference about availability
+    expectedIds: ["p06", "u03"],
     k: 5,
   },
   {
     query: "Can the user help review a Go service?",
     category: "hard_negatives",
-    expectedIds: ["w02"], // writes Go for performance-critical services
+    expectedIds: ["w02"],
     k: 3,
   },
 ];

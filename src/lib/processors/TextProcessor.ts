@@ -40,19 +40,11 @@ const EXT = {
   CONF: ".conf",
 } as const;
 
-/**
- * Decode text bytes, honoring a UTF-16 LE/BE byte-order mark (Windows "Unicode" exports — Excel
- * CSV, Notepad) and stripping a UTF-8 one. Without a BOM the bytes are read as UTF-8.
- *
- * Decoding is non-fatal so a binary file accidentally labeled as text (or one with a stray
- * invalid byte) yields replacement chars instead of throwing and losing the entire payload.
- */
 function decodeText(bytes: Uint8Array): string {
   if (bytes[0] === 0xff && bytes[1] === 0xfe) {
     return new TextDecoder("utf-16le", { fatal: false }).decode(bytes.subarray(2));
   }
   if (bytes[0] === 0xfe && bytes[1] === 0xff) {
-    // Swap to little-endian rather than asking for "utf-16be", which small-ICU runtimes lack.
     const swapped = new Uint8Array(bytes.length - 2);
     for (let i = 2; i + 1 < bytes.length; i += 2) {
       swapped[i - 2] = bytes[i + 1];

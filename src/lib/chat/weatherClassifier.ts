@@ -1,17 +1,3 @@
-/**
- * Weather Classifier
- *
- * Determines whether a user prompt is asking for weather data (forecasts,
- * temperature, precipitation, air quality, marine, etc.) before being sent
- * to the LLM. Compares the prompt embedding against two pre-computed
- * centroid vectors (weather vs no-weather).
- *
- * No LLM calls — one embedding per prompt + two cosine similarities.
- *
- * To regenerate centroids after changing reference phrases:
- *   PORTAL_API_KEY=... npx tsx scripts/generateWeatherCentroids.ts
- */
-
 import type { LlmapiMessage } from "../../client";
 import { generateEmbedding, generateEmbeddings } from "../memoryEngine/embeddings";
 import type { EmbeddingOptions } from "../memoryEngine/types";
@@ -30,11 +16,6 @@ export interface WeatherClassification {
 }
 
 interface WeatherClassifierOptions extends EmbeddingOptions {
-  /**
-   * Score margin: the weather score must exceed the no-weather score by at
-   * least this amount to classify as "needs weather data".
-   * @default 0.02
-   */
   margin?: number;
 }
 

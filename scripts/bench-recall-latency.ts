@@ -1,22 +1,4 @@
 #!/usr/bin/env tsx
-/**
- * Recall pipeline latency benchmark — AC5 from the hackathon plan:
- *   "Hybrid retrieval P50 latency ≤300ms on a 1k-memory fixture in
- *    `budget: high` mode."
- *
- * `budget: high` means the V2+CE pipeline (cosine+supersession × recency ×
- * proof_count + BM25 admission, then local cross-encoder rerank). LLM-based
- * query decomposition (rankComposite) is *not* part of AC5 — its budget
- * dwarfs the retrieval-stage budget the AC was scoped against.
- *
- * The fixture extends the 108-memory bench dataset by repeating it ~10×
- * with disambiguating prefixes so the embedding cache and BM25 index see
- * realistic 1k-scale workloads. The same 100 bench queries drive the
- * latency measurement; we report per-query P50/P95/P99 + mean.
- *
- * Run:  PORTAL_API_KEY=... pnpm tsx scripts/bench-recall-latency.ts
- *       PORTAL_API_KEY=... pnpm tsx scripts/bench-recall-latency.ts --memories=2000 --queries=50
- */
 import "dotenv/config";
 import { parseArgs } from "node:util";
 import { generateEmbeddings } from "../src/lib/memoryEngine/embeddings.js";
@@ -61,9 +43,6 @@ function quantile(sorted: number[], q: number): number {
 }
 
 async function main() {
-  // Build 1k+ memories by tiling the 108-item dataset with prefixes that
-  // keep embeddings distinct. Realistic enough for a latency probe; the
-  // full eval lives in benchmark.test.ts, this is just timing.
   const reps = Math.ceil(TARGET_MEMORIES / VAULT_MEMORIES.length);
   const memories: { id: string; content: string; createdAt: string }[] = [];
   for (let r = 0; r < reps; r++) {
@@ -71,7 +50,6 @@ async function main() {
       if (memories.length >= TARGET_MEMORIES) break;
       memories.push({
         id: r === 0 ? m.id : `${m.id}_${r}`,
-        // Prefix only on duplicates so the original 108 are searchable as-is
         content: r === 0 ? m.content : `[user-${r}] ${m.content}`,
         createdAt: m.createdAt,
       });
@@ -107,8 +85,6 @@ async function main() {
 
   const useRerank = BUDGET === "high" || BUDGET === "mid";
 
-  // Warmup — first few queries pay one-time costs (model JIT, V8 inlining,
-  // cache warmup). Excluded from the percentile distribution.
   console.log(`Warmup × ${WARMUP_QUERIES}...`);
   for (let i = 0; i < Math.min(WARMUP_QUERIES, queries.length); i++) {
     await rankFusedVaultMemoriesAsync(queries[i].query, queryEmbeddings[i], embeddedItems, {

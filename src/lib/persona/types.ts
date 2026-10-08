@@ -1,5 +1,3 @@
-// ── Prompt Builder Types ──
-
 /** A single section in the system prompt. */
 export interface PromptSection {
   /** Unique identifier (used for disabling/overriding). */
@@ -60,8 +58,6 @@ export interface BuildPromptResult {
   /** Keys of sections that rendered (in order). */
   activeSections: string[];
 }
-
-// ── Style Analysis Types ──
 
 /** Options for analyzeStyle(). */
 export interface AnalyzeStyleOptions {

@@ -1,11 +1,3 @@
-/**
- * Generic factories for creating client-side UI interaction tools.
- *
- * These factories handle the boilerplate of wiring tool executors to the
- * UIInteractionProvider lifecycle (ID generation, context injection,
- * promise resolution). Apps provide the tool schema and any custom logic.
- */
-
 import type { ToolConfig } from "../lib/chat/useChat/types.js";
 
 /**
@@ -188,8 +180,6 @@ export function createInteractiveTool(
       const interactionId = generateInteractionId(config.interactionType);
       const interactionData = config.mapArgs ? config.mapArgs(args) : args;
 
-      // When the user stops the run, remove the prompt so it does not stay
-      // pending for a result the stopped run will never read.
       const onAbort = () => context.cancelInteraction?.(interactionId);
       signal?.addEventListener("abort", onAbort, { once: true });
 
@@ -210,8 +200,6 @@ export function createInteractiveTool(
         signal?.removeEventListener("abort", onAbort);
       }
     },
-    // Interactive tools wait for user input and should not be subject
-    // to the default 30-second executor timeout.
     executorTimeout: Infinity,
   };
 }

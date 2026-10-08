@@ -1,10 +1,3 @@
-/**
- * Dropbox Backup Implementation
- *
- * Generic backup/restore functionality for Dropbox storage.
- * Works directly with WatermelonDB database.
- */
-
 import type { Database } from "@nozbe/watermelondb";
 
 import { Conversation } from "../../db/chat";
@@ -27,12 +20,10 @@ const isAuthError = (err: unknown): boolean =>
 interface DropboxBackupDeps {
   requestDropboxAccess: () => Promise<string>;
   requestEncryptionKey: (address: string) => Promise<void>;
-  /** Export a conversation to an encrypted blob */
   exportConversation: (
     conversationId: string,
     userAddress: string
   ) => Promise<{ success: boolean; blob?: Blob }>;
-  /** Import a conversation from an encrypted blob */
   importConversation: (blob: Blob, userAddress: string) => Promise<{ success: boolean }>;
 }
 
@@ -52,13 +43,8 @@ export interface DropboxImportResult {
   noBackupsFound?: boolean;
 }
 
-/** How many failed listings one run accepts before it stops listing. */
 const MAX_LISTING_FAILURES = 3;
 
-/**
- * Index of the files in the backup folder, keyed by file name.
- * One export run lists the folder once and reuses the result for every conversation.
- */
 interface DropboxFileIndex {
   get(token: string): Promise<Map<string, DropboxFile>>;
 }
@@ -70,10 +56,6 @@ function createDropboxFileIndex(backupFolder: string): DropboxFileIndex {
   return {
     get(token) {
       if (!pending) {
-        // After a few failed listings, stop listing for this run. Every other conversation would
-        // list the whole folder again and fail the same way. The error is a new one and not the
-        // original. The message holds no status code, so a repeated auth error does not ask the
-        // user to sign in again for each conversation.
         if (failures >= MAX_LISTING_FAILURES) {
           return Promise.reject(
             new Error("The backup folder listing failed repeatedly; skipped for this run")
@@ -83,14 +65,11 @@ function createDropboxFileIndex(backupFolder: string): DropboxFileIndex {
           .then((files) => {
             const byName = new Map<string, DropboxFile>();
             for (const file of files) {
-              // Keep the first file for a name, as a single-result name lookup does.
               if (!byName.has(file.name)) byName.set(file.name, file);
             }
             return byName;
           })
           .catch((err: unknown) => {
-            // Do not keep a failed listing. The next conversation lists again,
-            // so each conversation fails or succeeds on its own.
             pending = undefined;
             failures++;
             throw err;
@@ -101,7 +80,6 @@ function createDropboxFileIndex(backupFolder: string): DropboxFileIndex {
   };
 }
 
-/** Read the stored update time of one conversation from the local database now. */
 async function readLocalUpdatedAt(
   database: Database,
   conversationId: string
@@ -135,11 +113,9 @@ async function pushConversationToDropbox(
     const existingFile = index.get(filename);
 
     if (existingFile) {
-      // Read the update time now. A conversation edited after the run began must still upload.
       const localUpdatedAt = await readLocalUpdatedAt(database, conversationId);
       const localUpdated = localUpdatedAt ? localUpdatedAt.getTime() : null;
 
-      // Check if we can skip upload based on timestamps
       if (
         localUpdated !== null &&
         localUpdated <= new Date(existingFile.server_modified).getTime()
@@ -147,11 +123,8 @@ async function pushConversationToDropbox(
         return "skipped";
       }
 
-      // Another client can write the file after the run listed the folder. Read the file time
-      // again before the upload overwrites the file, so a newer backup is not lost.
       const current = await getDropboxFileMetadata(token, filename, backupFolder);
       if (!current) {
-        // The file is gone. The upload below creates it again.
         index.delete(filename);
       } else {
         index.set(filename, current);
@@ -167,13 +140,11 @@ async function pushConversationToDropbox(
       return "failed";
     }
 
-    // Keep the index current. A later row with the same conversation id then sees this upload.
     const uploaded = await uploadFileToDropbox(token, filename, exportResult.blob, backupFolder);
     index.set(filename, uploaded);
     return "uploaded";
   } catch (err) {
     if (isAuthError(err) && !_retried) {
-      // Try to re-authenticate once
       try {
         const newToken = await deps.requestDropboxAccess();
         return pushConversationToDropbox(
@@ -280,7 +251,6 @@ export async function performDropboxImport(
         failed++;
       }
     } catch (err) {
-      // Handle auth errors by refreshing token and retrying once
       if (isAuthError(err)) {
         try {
           currentToken = await deps.requestDropboxAccess();

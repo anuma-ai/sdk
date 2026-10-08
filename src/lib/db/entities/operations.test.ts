@@ -6,10 +6,6 @@ import {
   replaceMemoryEntitiesGuardedOp,
 } from "./operations";
 
-/**
- * Mock a stored Entity row (WatermelonDB Model-ish). `prepareUpdate` mutates
- * the backing raw so the `kind` getter reflects a back-fill.
- */
 function makeEntityRecord(canonicalName: string, kind: string | null = null, id?: string) {
   const raw: Record<string, unknown> = { canonical_name: canonicalName, kind };
   return {
@@ -34,11 +30,6 @@ function makeEntityRecord(canonicalName: string, kind: string | null = null, id?
   };
 }
 
-/**
- * Mock a `memory_vault` row as the link ops see it: the guard reads
- * `isDeleted` / `topicsUserManaged`, and the topics writer needs `updatedAt`
- * plus `prepareUpdate` (whose writes land in `topicsWrite` for assertions).
- */
 function makeVaultRow(overrides: Record<string, unknown> = {}) {
   const raw: Record<string, unknown> = {
     isDeleted: false,
@@ -57,7 +48,6 @@ function makeVaultRow(overrides: Record<string, unknown> = {}) {
   };
 }
 
-/** Install a `memory_vault` lookup on the mocked database. */
 function installVaultRow(ctx: EntityOperationsContext, row: unknown, opts?: { throws?: boolean }) {
   (ctx.database as unknown as { get: unknown }).get = vi.fn(() => ({
     query: vi.fn(() => ({
@@ -71,8 +61,6 @@ function installVaultRow(ctx: EntityOperationsContext, row: unknown, opts?: { th
 
 let created: Array<{ id: string; canonicalName: string; kind: string | null }>;
 
-/** Build a context whose entity collection returns `existing` on lookup and
- * records every prepareCreate into `created`. */
 function makeCtx(existing: ReturnType<typeof makeEntityRecord>[] = []) {
   created = [];
   let createCounter = 0;
@@ -100,7 +88,6 @@ function makeCtx(existing: ReturnType<typeof makeEntityRecord>[] = []) {
     }),
   };
   const memoryEntityCollection = {
-    // No pre-existing (memory_id, entity_id) links.
     query: vi.fn(() => ({ fetch: vi.fn(async () => []) })),
     prepareCreate: vi.fn(() => ({ _op: "link" })),
   };
@@ -112,8 +99,6 @@ function makeCtx(existing: ReturnType<typeof makeEntityRecord>[] = []) {
     entityCollection: entityCollection as never,
     memoryEntityCollection: memoryEntityCollection as never,
   };
-  // Every link path now reads the vault row (to write `topics` in the same
-  // batch), so a live one is the default; tests override it via installVaultRow.
   const vaultRow = makeVaultRow();
   installVaultRow(ctx, vaultRow);
   return { ctx, entityCollection, memoryEntityCollection, vaultRow };
@@ -145,7 +130,6 @@ describe("linkMemoryEntitiesOp — entity kinds", () => {
     const existing = makeEntityRecord("sara", "person");
     const { ctx } = makeCtx([existing]);
 
-    // Incoming (wrong) kind must not clobber the stored one.
     const result = await linkMemoryEntitiesOp(ctx, "mem_1", [{ name: "Sara", kind: "place" }]);
 
     expect(existing.prepareUpdate).not.toHaveBeenCalled();
@@ -172,7 +156,6 @@ describe("linkMemoryEntitiesOp — entity kinds", () => {
       { name: "sara", kind: "place" },
     ]);
 
-    // One entity, first kind wins.
     expect(created).toHaveLength(1);
     expect(created[0]).toMatchObject({ canonicalName: "sara", kind: "person" });
   });
@@ -181,8 +164,6 @@ describe("linkMemoryEntitiesOp — entity kinds", () => {
 describe("linkMemoryEntitiesOp — unlessTopicsUserManaged guard", () => {
   beforeEach(() => vi.clearAllMocks());
 
-  /** Attach a memory_vault lookup to the mocked database so the in-write
-   * guard can read the flag. */
   function withVaultRow(
     ctx: EntityOperationsContext,
     row: { topicsUserManaged: boolean | null } | undefined,
@@ -201,7 +182,6 @@ describe("linkMemoryEntitiesOp — unlessTopicsUserManaged guard", () => {
 
     expect(result).toEqual([]);
     expect(memoryEntityCollection.prepareCreate).not.toHaveBeenCalled();
-    // Entity upsert still ran — vocabulary is global.
     expect(created.length).toBe(1);
   });
 
@@ -218,10 +198,6 @@ describe("linkMemoryEntitiesOp — unlessTopicsUserManaged guard", () => {
   });
 
   it("skips linking for an absent row (deleted mid-call — no orphan links)", async () => {
-    // Auto paths always link a row that exists (retain() commits before the
-    // link), so an absent row here means it was deleted during the LLM
-    // round-trip — linking would orphan memory_entity rows the delete
-    // cascade already swept.
     const { ctx, memoryEntityCollection } = makeCtx();
     withVaultRow(ctx, undefined);
 
@@ -246,8 +222,6 @@ describe("linkMemoryEntitiesOp — unlessTopicsUserManaged guard", () => {
   });
 
   it("does not CONSULT the flag when the option is absent (default path)", async () => {
-    // The row is still read — every link path writes `topics` from the same
-    // writer — but a user-managed row no longer blocks an unguarded caller.
     const { ctx, memoryEntityCollection } = makeCtx();
     withVaultRow(ctx, { topicsUserManaged: true });
 
@@ -293,7 +267,6 @@ describe("linkMemoryEntitiesOp — guard also covers deleted rows and raw SQLite
 describe("replaceMemoryEntitiesGuardedOp", () => {
   beforeEach(() => vi.clearAllMocks());
 
-  /** Existing memory_entity link row with a destroy hook. */
   function makeLink(entityId: string, memoryId = "mem_1") {
     return {
       entityId,
@@ -328,10 +301,8 @@ describe("replaceMemoryEntitiesGuardedOp", () => {
 
     expect(result).not.toBeNull();
     expect(result!.map((e) => e.canonicalName).sort()).toEqual(["new entity", "zetachain"]);
-    // Stale link destroyed, kept link untouched.
     expect(stale.prepareDestroyPermanently).toHaveBeenCalledTimes(1);
     expect(kept.prepareDestroyPermanently).not.toHaveBeenCalled();
-    // One batch write carried both the create and the destroy.
     const batchFn = (ctx.database as unknown as { batch: ReturnType<typeof vi.fn> }).batch;
     expect(batchFn).toHaveBeenCalled();
   });
@@ -384,11 +355,6 @@ describe("replaceMemoryEntitiesGuardedOp — orphan entity prune", () => {
     };
   }
 
-  /**
-   * The op runs two memory_entity queries: the memory's own links, then the
-   * links of every entity whose link is going away. `linkQueries` supplies them
-   * in order so a test can say "this entity is still referenced elsewhere".
-   */
   function makePruneCtx(
     orphanCandidates: ReturnType<typeof makeEntityRecord>[],
     linkQueries: ReturnType<typeof makeLink>[][]
@@ -407,7 +373,6 @@ describe("replaceMemoryEntitiesGuardedOp — orphan entity prune", () => {
   it("destroys an entity row whose last link just went away", async () => {
     const home = makeEntityRecord("home", "place", "ent_home");
     const link = makeLink("ent_home");
-    // Answered-empty replace: the re-extraction pass no longer mentions "home".
     const { ctx } = makePruneCtx([home], [[link], [link]]);
 
     const result = await replaceMemoryEntitiesGuardedOp(ctx, "mem_1", []);
@@ -427,13 +392,10 @@ describe("replaceMemoryEntitiesGuardedOp — orphan entity prune", () => {
 
     expect(mine.prepareDestroyPermanently).toHaveBeenCalledTimes(1);
     expect(home.prepareDestroyPermanently).not.toHaveBeenCalled();
-    // Nothing orphaned ⇒ the entity lookup is skipped entirely.
     expect(entityCollection.query).not.toHaveBeenCalled();
   });
 
   it("keeps an entity a DIFFERENT USER still links", async () => {
-    // `entity` rows are global vocabulary with no owner, so the prune must not
-    // be user-scoped — deleting a row another user references is data loss.
     const shared = makeEntityRecord("zetachain", "organization", "ent_zeta");
     const mine = makeLink("ent_zeta");
     const otherUser = makeLink("ent_zeta", "mem_other_user");
@@ -449,7 +411,6 @@ describe("replaceMemoryEntitiesGuardedOp — orphan entity prune", () => {
     const kept = makeLink("ent_keep");
     const { ctx } = makePruneCtx([keep], [[kept], [kept]]);
 
-    // "zetachain" is still extracted, so its link survives and so must the row.
     await replaceMemoryEntitiesGuardedOp(ctx, "mem_1", ["zetachain"]);
 
     expect(kept.prepareDestroyPermanently).not.toHaveBeenCalled();
@@ -476,13 +437,6 @@ describe("replaceMemoryEntitiesGuardedOp — orphan entity prune", () => {
 describe("entity upsert + link atomicity", () => {
   beforeEach(() => vi.clearAllMocks());
 
-  /**
-   * The upsert must NOT commit in its own writer. When it did, the caller's link
-   * insert landed in a second writer, and a concurrent
-   * `replaceMemoryEntitiesGuardedOp` could slip into the gap, see the new entity
-   * at zero links, prune it, and leave a memory_entity row pointing at a deleted
-   * entity. WatermelonDB serializes writers, so "one writer" IS the fix.
-   */
   it("linkMemoryEntitiesOp opens exactly ONE writer", async () => {
     const { ctx } = makeCtx();
 
@@ -497,8 +451,6 @@ describe("entity upsert + link atomicity", () => {
 
     await linkMemoryEntitiesOp(ctx, "mem_1", ["Sara"]);
 
-    // One batch carrying entity create + link create + the `topics` write, not
-    // three sequential batches.
     const batch = (ctx.database as unknown as { batch: ReturnType<typeof vi.fn> }).batch;
     expect(batch).toHaveBeenCalledTimes(1);
     expect(batch.mock.calls[0]!.length).toBe(3);
@@ -514,9 +466,6 @@ describe("entity upsert + link atomicity", () => {
   });
 
   it("still records vocabulary when the guard skips the links", async () => {
-    // Entity rows are global vocabulary, so a user-managed memory blocks the
-    // LINKS but not the upsert — asserted here because the atomicity refactor
-    // moved the upsert inside the writer, next to the guard.
     const { ctx } = makeCtx();
     installVaultRow(ctx, makeVaultRow({ topicsUserManaged: true }));
 

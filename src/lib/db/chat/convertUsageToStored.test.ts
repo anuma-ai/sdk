@@ -3,11 +3,6 @@ import { describe, expect, it } from "vitest";
 import type { LlmapiChatCompletionResponse, LlmapiResponseResponse } from "../../../client";
 import { convertUsageToStored } from "./types";
 
-// convertUsageToStored defers the portal-vs-legacy cost precedence to the
-// shared getCostMicroUsd / getCreditsUsed helpers rather than re-implementing
-// it. These tests pin that it reads cost/credits correctly from each response
-// shape and handles the empty cases.
-
 describe("convertUsageToStored", () => {
   it("reads tokens from usage and cost/credits from the portal envelope (Chat Completions)", () => {
     const res: LlmapiChatCompletionResponse = {
@@ -51,7 +46,6 @@ describe("convertUsageToStored", () => {
   });
 
   it("prefers the portal envelope over a mirrored usage value (no double counting)", () => {
-    // Streaming responses mirror cost into both usage and portal; portal wins.
     const res: LlmapiChatCompletionResponse = {
       id: "r1",
       object: "chat.completion",
@@ -94,14 +88,11 @@ describe("convertUsageToStored", () => {
     expect(convertUsageToStored(res)).toBeUndefined();
   });
 
-  // Per-step out-of-credits marker (ai-portal #1146): injected into the `usage`
-  // object (not portal). Passed through as-is to stored.creditsExhausted.
   it("passes credits_exhausted through from usage (Chat Completions)", () => {
     const res: LlmapiChatCompletionResponse = {
       id: "r1",
       object: "chat.completion",
       choices: [{ index: 0, message: { role: "assistant", content: "wrap-up" } }],
-      // credits_exhausted is runtime-injected, not on the generated usage type.
       usage: {
         prompt_tokens: 10,
         completion_tokens: 5,
@@ -137,6 +128,6 @@ describe("convertUsageToStored", () => {
     };
     const stored = convertUsageToStored(res);
     expect(stored).not.toHaveProperty("creditsExhausted");
-    expect(stored?.creditsUsed).toBe(2); // existing behavior unchanged
+    expect(stored?.creditsUsed).toBe(2);
   });
 });

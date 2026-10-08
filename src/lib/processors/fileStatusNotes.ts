@@ -1,8 +1,5 @@
 import type { FileProcessingReason, FileProcessingStatus } from "./types";
 
-// Kept free of processor imports so the React Native entrypoint can export it without pulling
-// the document parsers into the bundle.
-
 /** Default `maxFileSizeBytes` for preprocessing. */
 export const DEFAULT_MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024;
 

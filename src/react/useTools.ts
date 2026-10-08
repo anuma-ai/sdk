@@ -89,12 +89,10 @@ export function useTools(options: UseToolsOptions): UseToolsResult {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
 
-  // Use refs to avoid recreating callbacks when these change
   const getTokenRef = useRef(getToken);
   const baseUrlRef = useRef(baseUrl);
   const includeToolsRef = useRef(includeTools);
 
-  // Update refs when values change
   useEffect(() => {
     getTokenRef.current = getToken;
     baseUrlRef.current = baseUrl;
@@ -112,7 +110,6 @@ export function useTools(options: UseToolsOptions): UseToolsResult {
         forceRefresh,
       });
 
-      // Filter tools if includeTools is specified
       const filteredTools = filterServerTools(fetchedTools, includeToolsRef.current);
 
       setTools(filteredTools);
@@ -134,7 +131,6 @@ export function useTools(options: UseToolsOptions): UseToolsResult {
   const checkForUpdates = useCallback(
     (responseChecksum: string | undefined): boolean => {
       if (shouldRefreshTools(responseChecksum)) {
-        // Trigger refresh in background (don't await)
         void refresh(true);
         return true;
       }
@@ -143,14 +139,12 @@ export function useTools(options: UseToolsOptions): UseToolsResult {
     [refresh]
   );
 
-  // Re-filter tools when includeTools changes
   useEffect(() => {
     if (tools.length > 0 && includeTools !== undefined) {
       setTools((currentTools) => filterServerTools(currentTools, includeTools));
     }
   }, [includeTools, tools.length]);
 
-  // Fetch on mount
   const hasFetchedRef = useRef(false);
   useEffect(() => {
     if (autoFetch && !hasFetchedRef.current) {

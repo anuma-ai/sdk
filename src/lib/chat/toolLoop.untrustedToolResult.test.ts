@@ -12,7 +12,6 @@ vi.mock("../../client/core/serverSentEvents.gen", async (importOriginal) => {
 
 const mockCreateSseClient = vi.mocked(sseModule.createSseClient);
 
-/** A round in which the model calls each named client tool once. */
 function makeToolCallsStream(calls: { callId: string; name: string }[]) {
   return (async function* () {
     yield { type: "response.created", response: { id: "r", model: "m" } };

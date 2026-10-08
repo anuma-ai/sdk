@@ -33,18 +33,8 @@ import type {
   SourceLocation,
 } from "@babel/types";
 
-// ---------------------------------------------------------------------------
-// AST types
-// ---------------------------------------------------------------------------
-
-/** Scalar value an attribute can hold. */
 type AttrScalar = string | number | boolean;
 
-/**
- * An object-valued attribute — used primarily for `style={{}}`. Keys are
- * CSS property names in camelCase (`fontSize`, `borderRadius`, …); values
- * are scalars.
- */
 type AttrObject = Record<string, AttrScalar>;
 
 export type AttrValue = AttrScalar | AttrObject;
@@ -61,10 +51,6 @@ export interface AnumaNode {
   attrs: Record<string, AttrValue>;
   children: AnumaChild[];
 }
-
-// ---------------------------------------------------------------------------
-// Errors
-// ---------------------------------------------------------------------------
 
 export class AnumaJsxError extends Error {
   readonly line?: number;
@@ -85,21 +71,8 @@ function locOf(node: { loc?: SourceLocation | null }): SrcLoc {
   return node.loc?.start;
 }
 
-// ---------------------------------------------------------------------------
-// Vocabulary
-// ---------------------------------------------------------------------------
-
 const NAMESPACE = "Anuma";
 
-/**
- * `Anuma.*` primitives — things that aren't native HTML concepts. Kept
- * deliberately small; general content uses raw HTML.
- *
- * - Deck / Slide / Screen: layout containers with canvas semantics.
- * - Text / Image / Icon / Group: preserved for slide templates and LLM
- *   fluency (with theme-token bindings on Text). Safe to mix with HTML.
- * - Rect / Circle / Line: SVG shape abstractions.
- */
 const ANUMA_TAGS = [
   "Deck",
   "Slide",
@@ -118,13 +91,7 @@ export type KnownTag = (typeof ANUMA_TAGS)[number];
 
 const ANUMA_TAG_SET = new Set<string>(ANUMA_TAGS);
 
-/**
- * Allowlist of plain HTML tags the LLM may emit alongside `<Anuma.*>`.
- * These are pass-through at the parser; the renderer treats them as
- * native DOM elements.
- */
 const HTML_TAGS = new Set<string>([
-  // structural
   "div",
   "span",
   "section",
@@ -136,7 +103,6 @@ const HTML_TAGS = new Set<string>([
   "nav",
   "figure",
   "figcaption",
-  // text
   "h1",
   "h2",
   "h3",
@@ -158,14 +124,12 @@ const HTML_TAGS = new Set<string>([
   "mark",
   "hr",
   "br",
-  // lists
   "ul",
   "ol",
   "li",
   "dl",
   "dt",
   "dd",
-  // interactive / form
   "a",
   "button",
   "input",
@@ -179,7 +143,6 @@ const HTML_TAGS = new Set<string>([
   "form",
   "progress",
   "meter",
-  // tabular
   "table",
   "thead",
   "tbody",
@@ -190,7 +153,6 @@ const HTML_TAGS = new Set<string>([
   "caption",
   "colgroup",
   "col",
-  // media
   "img",
   "picture",
   "source",
@@ -198,7 +160,6 @@ const HTML_TAGS = new Set<string>([
   "audio",
   "track",
   "canvas",
-  // svg
   "svg",
   "path",
   "rect",
@@ -220,10 +181,6 @@ const HTML_TAGS = new Set<string>([
   "stop",
 ]);
 
-/**
- * HTML tags that must never appear — they let an LLM smuggle script
- * execution or exfiltrate content. Reject at parse time.
- */
 const FORBIDDEN_HTML_TAGS = new Set<string>([
   "script",
   "iframe",
@@ -243,22 +200,10 @@ const FORBIDDEN_HTML_TAGS = new Set<string>([
   "portal",
 ]);
 
-/**
- * Tags that support MIXED content — text interleaved with inline elements
- * (currently just <Anuma.Span>). Used for inline-styled spans inside text.
- * Distinct from TEXT_BODY_TAGS (text-only) because mixed-content tags
- * preserve children in source order including nested AnumaNodes.
- */
 const MIXED_CONTENT_TAGS = new Set<string>(["Text"]);
 
-/**
- * Tags allowed as inline children inside MIXED_CONTENT_TAGS. Anuma.Span
- * is currently the only one — it's a text-only leaf that carries inline
- * style overrides like fontStyle and color.
- */
 const INLINE_CONTENT_TAGS = new Set<string>(["Span"]);
 
-/** Tags whose body is raw text (JSX children are the displayed string). */
 const TEXT_BODY_TAGS = new Set<string>([
   "Text",
   "Span",
@@ -297,7 +242,6 @@ const TEXT_BODY_TAGS = new Set<string>([
   "summary",
 ]);
 
-/** Tags rendered as self-closing when they have no meaningful children. */
 const LEAF_TAGS = new Set<string>([
   "Image",
   "Rect",
@@ -313,17 +257,6 @@ const LEAF_TAGS = new Set<string>([
   "col",
 ]);
 
-/**
- * Recognized CSS-in-JS property names for `style={{}}`. React itself
- * accepts any camelCase key, but slide content benefits from rejecting
- * lowercase typos (`fontsize` instead of `fontSize`) and accidental
- * kebab-case (`font-size`) — those render as no-ops because React
- * silently ignores unknown keys, and the error then surfaces as an
- * invisible / mis-sized element rather than a parse failure. The set
- * covers every key the catalog recipes and live tool flow actually
- * emit; uncommon CSS properties are intentionally excluded so an
- * unfamiliar key forces a deliberate addition here.
- */
 const STYLE_ALLOWED_KEYS = new Set<string>([
   "alignItems",
   "alignSelf",
@@ -399,20 +332,10 @@ const STYLE_ALLOWED_KEYS = new Set<string>([
   "zIndex",
 ]);
 
-/**
- * Lookup table from lowercase variant back to the canonical camelCase
- * key, used to produce "Did you mean 'fontSize'?" hints when the model
- * writes `fontsize` or similar.
- */
 const STYLE_KEY_LOWER_TO_CAMEL = new Map<string, string>(
   Array.from(STYLE_ALLOWED_KEYS, (k) => [k.toLowerCase(), k])
 );
 
-/**
- * Validate one key in a `style={{}}` object. Throws a helpful
- * AnumaJsxError when the key isn't on the allowlist; suggests the
- * camelCase form for common lowercase typos.
- */
 function validateStyleKey(key: string, loc: SrcLoc): void {
   if (STYLE_ALLOWED_KEYS.has(key)) return;
   const lower = key.toLowerCase();
@@ -447,22 +370,6 @@ export function validateStyleObject(style: Record<string, unknown>): string | nu
   return null;
 }
 
-/**
- * Visual-styling keys that ONLY make sense inside a `style={{}}` block —
- * never as top-level JSX attrs. Top-level styling props slip past the
- * web/PDF renderers (which only read `style.*`), so the slide ships with
- * default 18px white text — visually blank against a light background.
- *
- * The recipe-driven path (`add_slide` after `plan_deck`) gets these inside
- * `style={{}}` because the recipe templates them that way; the model
- * copies the shape. The free-form path (`insert_slide`, `replace_slide`,
- * etc.) sees no recipe and the model improvises a different convention —
- * this set is the gate that catches the drift.
- *
- * Layout-controlling keys that are *also* in STYLE_ALLOWED_KEYS (gap,
- * padding, alignSelf, flex, etc.) are intentionally NOT here: the SDK
- * accepts them as top-level on `<Anuma.Group>` for flex layout.
- */
 const TOP_LEVEL_FORBIDDEN_STYLE_KEYS = new Set<string>([
   "fontSize",
   "fontWeight",
@@ -512,10 +419,6 @@ export function isTextBodyTag(tag: string): boolean {
   return TEXT_BODY_TAGS.has(tag);
 }
 
-// ---------------------------------------------------------------------------
-// Parse: JSX string -> AnumaNode
-// ---------------------------------------------------------------------------
-
 /**
  * Parse a JSX source string into an AnumaNode tree.
  *
@@ -551,29 +454,16 @@ function parseElement(el: JSXElement, strict: boolean): AnumaNode {
   const tag = readTag(el);
   const attrs = readAttributes(el, tag);
   if (strict) {
-    // Strict-mode-only check: reject visual-styling props at the top level
-    // (they belong inside style={{}}). Catches the convention drift that
-    // produces invisible text — see TOP_LEVEL_FORBIDDEN_STYLE_KEYS for the
-    // rationale. Skipped on lenient loads of stored decks so legacy data
-    // doesn't retroactively break.
     checkNoTopLevelStyles(tag, attrs, locOf(el.openingElement));
   }
   const children = readChildren(el, tag, strict);
   return { tag, attrs, children };
 }
 
-/**
- * Read and validate the opening tag. Accepts `<Anuma.Name>` where `Name`
- * is in the Anuma primitive vocabulary, or a bare lowercase HTML tag from
- * the allowlist. Rejects unknown namespaces, unknown Anuma tags, forbidden
- * HTML (script / iframe / etc.), and unrecognized bare tags.
- */
 function readTag(el: JSXElement): string {
   const name = el.openingElement.name;
   if (name.type === "JSXIdentifier") {
     const localName = name.name;
-    // Heuristic: capitalized bare tag looks like a user-imported React
-    // component — we don't accept those. Only HTML allowlist.
     if (/^[A-Z]/.test(localName)) {
       throw new AnumaJsxError(
         `Bare capitalized tag <${localName}> not supported. Use <${NAMESPACE}.*> or a plain HTML tag.`,
@@ -627,7 +517,6 @@ export function isAnumaTag(tag: string): boolean {
   return ANUMA_TAG_SET.has(tag);
 }
 
-/** Render a tag for messages and serialized output: `Anuma.X` for primitives, `x` for HTML. */
 function tagName(tag: string): string {
   return ANUMA_TAG_SET.has(tag) ? `${NAMESPACE}.${tag}` : tag;
 }
@@ -700,12 +589,6 @@ function readAttrValue(attr: JSXAttribute): AttrValue {
   throw new AnumaJsxError(`Unsupported attribute value type: ${attr.value.type}`, locOf(attr));
 }
 
-/**
- * Read an object-literal attribute value such as `style={{ fontSize: 43,
- * color: "textPrimary" }}`. Keys must be plain identifiers or string
- * literals; values must be scalar literals (string / number / boolean,
- * with negative-number support).
- */
 function readObjectExpr(
   expr: import("@babel/types").ObjectExpression,
   attrName: string,
@@ -756,8 +639,6 @@ function readObjectExpr(
 }
 
 function readChildren(el: JSXElement, tag: string, strict: boolean): AnumaChild[] {
-  // Track ALL children in source order for mixed-content tags. Other
-  // tags can derive flat textParts/elements from this ordered list.
   const ordered: AnumaChild[] = [];
   let sawNonText = false;
   let sawText = false;
@@ -801,9 +682,6 @@ function readChildren(el: JSXElement, tag: string, strict: boolean): AnumaChild[
     return [];
   }
 
-  // Mixed text + inline elements (e.g. <Anuma.Text> with <Anuma.Span>
-  // children). Preserve source order; validate that any element children
-  // are inline-allowed inside this tag.
   if (MIXED_CONTENT_TAGS.has(tag)) {
     for (const c of ordered) {
       if (typeof c !== "string" && !INLINE_CONTENT_TAGS.has(c.tag)) {
@@ -826,7 +704,6 @@ function readChildren(el: JSXElement, tag: string, strict: boolean): AnumaChild[
     return textChildren.length > 0 ? [textChildren.join("")] : [];
   }
 
-  // Container tag — element children only.
   if (sawText) {
     throw new AnumaJsxError(
       `<${tagName(tag)}> cannot contain text; wrap text in <${NAMESPACE}.Text>`,
@@ -836,17 +713,8 @@ function readChildren(el: JSXElement, tag: string, strict: boolean): AnumaChild[
   return ordered.filter((c): c is AnumaNode => typeof c !== "string");
 }
 
-/**
- * Collapse a raw JSXText value using React-like whitespace rules: leading /
- * trailing whitespace lines drop, interior multi-line whitespace collapses
- * to a single space.
- */
 function normalizeJsxText(raw: string): string {
-  // Single-line text: preserve exactly. Trailing whitespace can be meaningful
-  // when followed by an inline sibling (e.g. "Why " before <Anuma.Span>).
   if (!raw.includes("\n")) return raw;
-  // Multi-line text: trim per-line whitespace, drop blank lines, join with a
-  // single space (standard JSX whitespace collapsing for formatted content).
   const lines = raw
     .split("\n")
     .map((line) => line.trim())
@@ -854,14 +722,8 @@ function normalizeJsxText(raw: string): string {
   return lines.join(" ");
 }
 
-// ---------------------------------------------------------------------------
-// Serialize: AnumaNode -> JSX string
-// ---------------------------------------------------------------------------
-
 interface SerializeOptions {
-  /** Indent per level (default two spaces). */
   indent?: string;
-  /** Max single-line width before attrs break onto multiple lines (default 100). */
   maxLineWidth?: number;
 }
 
@@ -882,12 +744,7 @@ function writeNode(
 ): void {
   const pad = indent.repeat(depth);
 
-  // Text body?
   if (TEXT_BODY_TAGS.has(node.tag)) {
-    // Mixed content (e.g. <Anuma.Text>a <Anuma.Span>b</Anuma.Span></Anuma.Text>):
-    // serialize each child inline, preserving source order. Strings render as
-    // raw JSX text (or {"..."} when unsafe); inline element children render
-    // as single-line <Tag attrs>body</Tag>.
     const rendered = MIXED_CONTENT_TAGS.has(node.tag)
       ? node.children
           .map((c) =>
@@ -908,11 +765,7 @@ function writeNode(
     }
     const head = openTag(node, indent, depth, false, maxLineWidth);
     const line = `${pad}${head}${rendered}</${tagName(node.tag)}>`;
-    // If the head was multi-line (contained a newline), we still splice the
-    // body onto the final line — acceptable since text-body tags generally
-    // fit on one visual block.
     if (head.includes("\n")) {
-      // Replace the trailing ">" line with ">body</Tag>"
       const prefix = `${pad}${head}`;
       const replaced = prefix.replace(/>$/, `>${rendered}</${tagName(node.tag)}>`);
       lines.push(replaced);
@@ -922,14 +775,12 @@ function writeNode(
     return;
   }
 
-  // Leaf (self-closing) or empty container?
   const elementChildren = node.children.filter((c): c is AnumaNode => typeof c !== "string");
   if (LEAF_TAGS.has(node.tag) || elementChildren.length === 0) {
     lines.push(`${pad}${openTag(node, indent, depth, true, maxLineWidth)}`);
     return;
   }
 
-  // Container with children.
   lines.push(`${pad}${openTag(node, indent, depth, false, maxLineWidth)}`);
   for (const child of elementChildren) {
     writeNode(lines, child, indent, depth + 1, maxLineWidth);
@@ -937,12 +788,6 @@ function writeNode(
   lines.push(`${pad}</${tagName(node.tag)}>`);
 }
 
-/**
- * Single-line serialization for an inline child of a MIXED_CONTENT_TAGS
- * parent (e.g. Anuma.Span inside Anuma.Text). Attrs go on one line; the
- * body is the joined string children — inline children of inline tags are
- * not supported.
- */
 function serializeInline(node: AnumaNode): string {
   const tag = tagName(node.tag);
   const attrEntries = Object.entries(node.attrs);
@@ -999,10 +844,6 @@ function isSafeJsxText(text: string): boolean {
   return true;
 }
 
-// ---------------------------------------------------------------------------
-// Tree helpers
-// ---------------------------------------------------------------------------
-
 /** Return `attrs.id` as a string, or undefined. */
 export function getId(node: AnumaNode): string | undefined {
   const id = node.attrs.id;
@@ -1055,7 +896,7 @@ export function stripImagesWithSrcSubstring(root: AnumaNode, sentinel: string): 
         child.attrs.src.includes(sentinel)
       ) {
         stripped++;
-        continue; // drop from parent's children
+        continue;
       }
       visit(child);
       next.push(child);
@@ -1098,8 +939,6 @@ export function findParentOfId(root: AnumaNode, id: string): AnumaNode | null {
  */
 export function replaceById(root: AnumaNode, id: string, next: AnumaNode): boolean {
   if (getId(root) === id) {
-    // Can't replace the root in-place; caller should do that via the
-    // returned tree. Treat as no-op failure here.
     return false;
   }
   let replaced = false;

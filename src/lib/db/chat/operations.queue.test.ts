@@ -127,17 +127,14 @@ describe("Queue Integration with Synthetic Constructors", () => {
       content: "Hello",
     };
 
-    // Queue the operation
     const queueId = manager.queueOperation(testAddress, "createMessage", msgOpts);
     expect(queueId).toBeTruthy();
     expect(manager.getStatus(testAddress).pending).toBe(1);
 
-    // Create synthetic message for immediate return
     const synthetic = makeSyntheticStoredMessage(msgOpts);
     expect(synthetic.content).toBe("Hello");
     expect(synthetic.uniqueId).toMatch(/^queued_/);
 
-    // Flush with a mock executor
     const executedOps: string[] = [];
     const executor: OperationExecutor = async (op) => {
       executedOps.push(op.type);
@@ -152,12 +149,10 @@ describe("Queue Integration with Synthetic Constructors", () => {
   });
 
   it("should flush operations in dependency order", async () => {
-    // Queue conversation first
     const convQueueId = manager.queueOperation(testAddress, "createConversation", {
       title: "Test Conv",
     });
 
-    // Queue message depending on conversation
     const msgQueueId = manager.queueOperation(
       testAddress,
       "createMessage",
@@ -167,7 +162,6 @@ describe("Queue Integration with Synthetic Constructors", () => {
 
     expect(manager.getStatus(testAddress).pending).toBe(2);
 
-    // Flush and verify order
     const executedOrder: string[] = [];
     const executor: OperationExecutor = async (op) => {
       executedOrder.push(op.type);
@@ -176,20 +170,17 @@ describe("Queue Integration with Synthetic Constructors", () => {
     const result = await manager.flush(mockEncryptionContext, executor);
 
     expect(result.succeeded.length).toBe(2);
-    // Conversation should be flushed before message
     expect(executedOrder[0]).toBe("createConversation");
     expect(executedOrder[1]).toBe("createMessage");
   });
 
   it("should handle pre-wallet pending buffer transfer", () => {
-    // Simulate the pendingOpsRef pattern
     const pendingOps: Array<{
       type: "createMessage" | "createConversation";
       payload: Record<string, any>;
       dependencies: string[];
     }> = [];
 
-    // Buffer ops when walletAddress is undefined
     pendingOps.push({
       type: "createConversation",
       payload: { title: "Buffered Conv" },
@@ -203,7 +194,6 @@ describe("Queue Integration with Synthetic Constructors", () => {
 
     expect(pendingOps.length).toBe(2);
 
-    // Transfer to QueueManager when walletAddress becomes available
     for (const op of pendingOps) {
       manager.queueOperation(testAddress, op.type, op.payload, op.dependencies);
     }
@@ -213,7 +203,6 @@ describe("Queue Integration with Synthetic Constructors", () => {
   });
 
   it("should return null when queue is full", () => {
-    // Fill the queue to max (1000)
     for (let i = 0; i < 1000; i++) {
       manager.queueOperation(testAddress, "createMessage", { i });
     }
@@ -237,14 +226,12 @@ describe("Queue Integration with Synthetic Constructors", () => {
 
     const synthetic = makeSyntheticStoredMessage(opts);
 
-    // Verify all fields are passed through correctly
     expect(synthetic.role).toBe("assistant");
     expect(synthetic.content).toBe("I can help with that!");
     expect(synthetic.model).toBe("fireworks/accounts/fireworks/models/kimi-k2p5");
     expect(synthetic.usage).toEqual({ promptTokens: 10, completionTokens: 20, totalTokens: 30 });
     expect(synthetic.responseDuration).toBe(2.5);
     expect(synthetic.sources).toEqual([{ title: "Ref", url: "https://example.com" }]);
-    // Synthetic markers
     expect(synthetic.uniqueId).toMatch(/^queued_/);
     expect(synthetic.messageId).toBe(Number.MAX_SAFE_INTEGER);
   });

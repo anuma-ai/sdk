@@ -1,42 +1,6 @@
-/**
- * Query-time temporal phrase parser for the W6 recall lane.
- *
- * Given a query like "what's coming up next week?" or "what did I do
- * last Tuesday?", returns a `[start, end]` window in Unix ms that the
- * temporal lane uses to filter / boost memories whose event-time
- * overlaps. Returns null when no temporal phrase is detected — the
- * temporal lane silently skips and the other lanes do the work.
- *
- * Coverage targets the ~80% of consumer-chat temporal phrasings:
- *  - Relative day:    "today", "yesterday", "tomorrow"
- *  - Relative week:   "this week", "last week", "next week"
- *  - Relative month:  "this month", "last month", "next month"
- *  - Numeric offset:  "in 3 days", "3 days ago", "2 weeks from now"
- *  - Day-of-week:     "Tuesday", "next Friday", "last Monday"
- *  - Absolute date:   "May 23", "May 23 2026", "2026-05-23"
- *  - Range:           "between X and Y", "from X to Y"
- *
- * Timezone basis: windows are constructed via the local `Date(y,m,d)`
- * constructor (local midnight). The write side (auto-extracted
- * eventTime) shares the same basis so the day after "May 23" doesn't
- * land before May 23's window for non-UTC users.
- *
- * Anchored phrases like "before my Japan trip" / "after Sara's wedding"
- * are deliberately out of scope — those need a separate event-anchor
- * resolver pass that joins query entities to memory event-times. Defer
- * to a follow-up if eval shows real lift.
- *
- * Returns absolute timestamps (Unix ms). Caller is responsible for
- * setting `now` (defaults to `Date.now()`); test fixtures should pass
- * an explicit `now` to keep determinism.
- */
-
 interface TemporalWindow {
-  /** Inclusive start of the window in Unix ms. */
   start: number;
-  /** Exclusive end of the window in Unix ms. */
   end: number;
-  /** Which phrase matched (diagnostic / explainability). */
   matchedPhrase: string;
 }
 
@@ -68,8 +32,6 @@ function startOfDay(ts: number): number {
   return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
 }
 
-/** DST-safe: a fixed 86.4M-ms delta misaligns the local calendar day across
- * spring-forward / fall-back; `Date(y,m,d)` normalizes to local midnight. */
 function addDays(ts: number, days: number): number {
   const d = new Date(ts);
   return new Date(d.getFullYear(), d.getMonth(), d.getDate() + days).getTime();
@@ -86,9 +48,6 @@ function addMonths(ts: number, months: number): number {
 }
 
 function startOfWeek(ts: number): number {
-  // Monday-start week (matches consumer-app convention; Sunday-start is
-  // also defensible — pick one and stay consistent for the demo). Shift
-  // so that Monday is day 0.
   const d = new Date(startOfDay(ts));
   const offset = (d.getDay() + 6) % 7;
   return addDays(d.getTime(), -offset);
@@ -104,17 +63,10 @@ function startOfNextMonth(ts: number): number {
   return new Date(d.getFullYear(), d.getMonth() + 1, 1).getTime();
 }
 
-/** End-of-day for a calendar day (start of the *following* calendar day,
- * exclusive). Uses the local-midnight basis so windows align with how
- * dates are stored on the write side (see `autoExtract`). */
 function endOfDay(dayStart: number): number {
   return addDays(dayStart, 1);
 }
 
-/** Build local-midnight ms for (year, month, day), rejecting out-of-range
- * components rather than silently rolling over. `new Date(2026, 1, 30)`
- * happily produces Mar 2; we round-trip the components and bail on
- * mismatch so a malformed query phrase doesn't land on a wrong window. */
 function parseLocalCalendarDay(year: number, month: number, day: number): number | null {
   if (!Number.isInteger(year) || !Number.isInteger(month) || !Number.isInteger(day)) return null;
   if (month < 1 || month > 12) return null;
@@ -125,38 +77,23 @@ function parseLocalCalendarDay(year: number, month: number, day: number): number
   return Number.isFinite(ms) ? ms : null;
 }
 
-/** Day/week/month delta against a local-midnight base. Day and week use
- * `addDays` so DST transitions stay aligned; month uses the local Date
- * constructor for the same reason. */
 function shiftByUnit(base: number, n: number, unit: string): number {
   if (unit.startsWith("day")) return addDays(base, n);
   if (unit.startsWith("week")) return addDays(base, n * 7);
   return addMonths(base, n);
 }
 
-/** Validate a numeric-offset window before returning it. A huge offset
- * (e.g. "in 999999999 days") overflows the JS Date range, so
- * `new Date(...).getTime()` yields NaN; returning that window makes the
- * temporal lane silently score every memory 0. Treat a non-finite window as
- * "no resolvable temporal phrase" (null) — the other lanes still carry the
- * query — rather than poisoning the lane. */
 function finiteWindow(start: number, end: number, matchedPhrase: string): TemporalWindow | null {
   if (!Number.isFinite(start) || !Number.isFinite(end)) return null;
   return { start, end, matchedPhrase };
 }
 
-/** End-of-window for a numeric-offset phrase. Days → next-day midnight;
- * weeks → +7 days from the start; months → +1 calendar month (matches the
- * 31-day "last month" / "next month" branches and avoids the off-by-end-of-
- * month miss a fixed 30-day window would introduce). */
 function endOfOffsetWindow(start: number, unit: string): number {
   if (unit.startsWith("week")) return addDays(start, 7);
   if (unit.startsWith("month")) return addMonths(start, 1);
   return endOfDay(start);
 }
 
-// Hoisted regexes — parseQueryTimeWindow is called on every recall, so
-// the dynamically-built MONTH_NAMES alternation only needs to compile once.
 const MONTH_DAY_RE = new RegExp(
   `\\b(${MONTH_NAMES.join("|")})\\s+(\\d{1,2})(?:\\s*,?\\s*(\\d{4}))?\\b`
 );
@@ -177,14 +114,9 @@ export function parseQueryTimeWindow(
   now: number = Date.now()
 ): TemporalWindow | null {
   if (!query) return null;
-  // A non-finite `now` (bad override / NaN clock) would build NaN bounds in
-  // EVERY branch below (today / this week / month / day-of-week / absolute),
-  // not just the numeric-offset ones, and a NaN window makes the temporal lane
-  // silently score every memory 0. Disable the lane cleanly at the choke point.
   if (!Number.isFinite(now)) return null;
   const q = query.toLowerCase();
 
-  // ── 1. Relative day ─────────────────────────────────────────────────
   for (const [pattern, phrase, offset] of RELATIVE_DAY_ENTRIES) {
     if (pattern.test(q)) {
       const day = addDays(startOfDay(now), offset);
@@ -192,7 +124,6 @@ export function parseQueryTimeWindow(
     }
   }
 
-  // ── 2. Relative week ────────────────────────────────────────────────
   if (/\bthis week\b/.test(q)) {
     const start = startOfWeek(now);
     return { start, end: addDays(start, 7), matchedPhrase: "this week" };
@@ -206,7 +137,6 @@ export function parseQueryTimeWindow(
     return { start, end: addDays(start, 7), matchedPhrase: "next week" };
   }
 
-  // ── 3. Relative month ───────────────────────────────────────────────
   if (/\bthis month\b/.test(q)) {
     const start = startOfMonth(now);
     return { start, end: startOfNextMonth(now), matchedPhrase: "this month" };
@@ -224,7 +154,6 @@ export function parseQueryTimeWindow(
     return { start, end, matchedPhrase: "next month" };
   }
 
-  // ── 4. Numeric offset: "in N units", "N units from now", "N units ago" ──
   const futureMatch = FUTURE_OFFSET_RE.exec(q);
   if (futureMatch) {
     const n = parseInt(futureMatch[1] ?? futureMatch[3], 10);
@@ -240,7 +169,6 @@ export function parseQueryTimeWindow(
     return finiteWindow(start, endOfOffsetWindow(start, unit), agoMatch[0]);
   }
 
-  // ── 5. Day-of-week with optional "next" / "last" ────────────────────
   const dowMatch = DOW_RE.exec(q);
   if (dowMatch) {
     const modifier = dowMatch[1] ?? "this";
@@ -250,13 +178,11 @@ export function parseQueryTimeWindow(
     let delta = targetDow - todayDow;
     if (modifier === "next") delta = delta <= 0 ? delta + 7 : delta;
     else if (modifier === "last") delta = delta >= 0 ? delta - 7 : delta;
-    // "this <weekday>" reads as closest upcoming OR today, not the past.
     else if (delta < 0) delta += 7;
     const day = addDays(todayStart, delta);
     return { start: day, end: endOfDay(day), matchedPhrase: dowMatch[0] };
   }
 
-  // ── 6. Absolute date — "May 23 2026" / "May 23" / "2026-05-23" ──────
   const isoMatch = ISO_DATE_RE.exec(q);
   if (isoMatch) {
     const start = parseLocalCalendarDay(
@@ -274,16 +200,12 @@ export function parseQueryTimeWindow(
     const day = parseInt(monthDayMatch[2], 10);
     const yearStr = monthDayMatch[3];
     const year = yearStr ? parseInt(yearStr, 10) : new Date(now).getFullYear();
-    // "may I want to 99 ..." can satisfy MONTH_DAY_RE; round-trip-validate
-    // so out-of-range days (May 99 → August) and bad months don't roll
-    // over silently.
     const start = parseLocalCalendarDay(year, monthIdx + 1, day);
     if (start !== null) {
       return { start, end: endOfDay(start), matchedPhrase: monthDayMatch[0] };
     }
   }
 
-  // ── 7. Month-only — "in May", "in May 2026" ─────────────────────────
   const monthOnlyMatch = MONTH_ONLY_RE.exec(q);
   if (monthOnlyMatch) {
     const monthIdx = MONTH_NAMES.indexOf(monthOnlyMatch[1]);
@@ -318,18 +240,15 @@ export function scoreEventTimeOverlap(
 ): number {
   if (memoryStart === null) return 0;
 
-  // Point: memory has a single timestamp. Score 1 if inside window.
   if (memoryKind === "point" || (memoryKind !== "range" && memoryKind !== "ongoing")) {
     return memoryStart >= window.start && memoryStart < window.end ? 1 : 0;
   }
 
-  // Mirrors the admission predicate in getMemoriesByEventTimeOp.
   if (memoryKind === "ongoing") {
     const ongoingEnd = memoryEnd ?? Number.POSITIVE_INFINITY;
     return memoryStart < window.end && ongoingEnd >= window.start ? 1 : 0;
   }
 
-  // Range: compute overlap fraction.
   const end = memoryEnd ?? memoryStart;
   const overlapStart = Math.max(memoryStart, window.start);
   const overlapEnd = Math.min(end, window.end);

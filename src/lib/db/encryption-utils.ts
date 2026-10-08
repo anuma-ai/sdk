@@ -13,23 +13,13 @@ import { getLogger } from "../logger";
 
 export type { EmbeddedWalletSignerFn, SignMessageFn };
 
-/** Current prefix for HKDF derived key encryption (default for new writes) */
 const ENCRYPTION_PREFIX = "enc:v3:";
 
-/**
- * Outcome of a field decrypt attempt.
- *
- * On failure the original ciphertext is always returned in `value` — never a
- * placeholder like `[Decryption Failed]`. Callers that need a UI string must
- * map intentionally; masking intact ciphertext as data-loss is #561.
- */
 type FieldDecryptStatus = "ok" | "plaintext" | "key_missing" | "auth_mismatch" | "invalid_payload";
 
 interface FieldDecryptResult {
   status: FieldDecryptStatus;
-  /** Plaintext on ok/plaintext; original input on failure. */
   value: string;
-  /** Encryption version detected on the input, if any. */
   version?: EncryptionKeyVersion;
 }
 
@@ -49,10 +39,6 @@ export function isEncrypted(value: string): boolean {
   return payload.length >= 56 && /^[0-9a-f]+$/i.test(payload);
 }
 
-/**
- * Detects the encryption version from a prefixed value.
- * @returns The version and encrypted data, or null if not encrypted.
- */
 function detectEncryptionVersion(
   value: string
 ): { version: EncryptionKeyVersion; encryptedData: string } | null {

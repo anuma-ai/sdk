@@ -1,32 +1,4 @@
 #!/usr/bin/env node
-/**
- * Topic-extraction QUALITY benchmark — the dimensions the recall-only proxy
- * missed: precision, junk-suppression, and name canonicalization.
- *
- * Drives the ACTUAL topic pass `extractEntitiesForMemories` over a corpus with
- * COMPLETE gold labels, so an extracted entity matching no gold is a true false
- * positive. Reports, per model, across N repeats (extraction is non-deterministic):
- *
- *   recall     : gold entities surfaced        (coverage)
- *   precision  : extracted that are real gold  (1 - junk)
- *   f1         : harmonic mean
- *   kind acc   : right kind among matched
- *   junk-clean : empty-gold memories that stayed empty (no over-extraction)
- *   dropped    : memories in a failed/unanswered batch — the metric this pass
- *                exists to keep at 0 (#757 regressed exactly here)
- *   canon      : canonicalization reuse-rate WITH vs WITHOUT the vocab hint
- *
- * Run:
- *   PORTAL_API_KEY=... pnpm eval:topic
- *   pnpm eval:topic --models inclusionai/ling-2.6-flash,gpt-oss/gpt-oss-120b --repeat 3 [--verbose]
- *   pnpm eval:topic --json
- *   pnpm eval:topic --repeat 10 --save-baseline  # write the golden baseline
- *   pnpm eval:topic --repeat 10 --baseline test/memory/src/topic/baseline.json
- *                                                # gate: exit 1 on a regression
- *
- * The gate REFUSES a repeat count that differs from the baseline's, so 10 is not
- * a suggestion here — it is what the committed baseline records.
- */
 import "dotenv/config";
 import { readFile, writeFile } from "node:fs/promises";
 import { parseArgs } from "node:util";
@@ -47,61 +19,13 @@ import { TOPIC_CASES, CANON_CASES, CANON_VOCAB } from "./dataset.js";
 
 const DEFAULT_BASELINE_PATH = "test/memory/src/topic/baseline.json";
 
-/**
- * Gated metrics.
- *
- * The gate runs 5 repeats against a baseline captured over 10 — `gate.ts` folds
- * both counts into the tolerance, so the two need not match. Floors are sized to
- * the MEAN of the gated run, not to a single run: one flipped item moves a 5-run
- * mean by 1/(items x 5), e.g. 1/170 = 0.6pt across the 34 gold entities.
- *
- * For every metric here the FLOOR dominates the spread term, so these numbers —
- * not the capture's variance — are what set the gate. That also means gating at
- * 5 costs nothing versus gating at 10.
- *
- * They were previously 0.06-0.30, sized to the spread of a SINGLE run. Applied to
- * a mean that made the gate ~sqrt(n) too loose (#772 review) — the same mistake
- * that let a consolidation case fail on every pass unnoticed.
- */
 const GATE_METRICS: GateMetricSpec[] = [
-  // 100% across all 10 baseline runs. Floor = 2 of 34 gold entities.
   { key: "recall", direction: "higher-better", minTolerance: 0.02 },
-  // 100% across the committed capture; floor covers ~1 spurious entity per run.
   { key: "precision", direction: "higher-better", minTolerance: 0.03 },
   { key: "f1", direction: "higher-better", minTolerance: 0.02 },
-  // Committed capture ranges 94.1-97.1% (sd 1.42pt) — the only metric here with
-  // real spread. A 1-of-34 kind flip is inherent noise, not a regression.
   { key: "kindAccuracy", direction: "higher-better", minTolerance: 0.03, label: "kind accuracy" },
-  // Derived against the COMMITTED baseline (mean 1.0) and the gate's repeat of
-  // 5, in the unit that actually moves: a trap-check. 5 repeats x 7 traps = 35
-  // checks, so each failed check moves the gated mean by 1/35 = 2.86pt. Firing
-  // needs the mean below 1.0 - 0.09 = 91.0%.
-  //
-  //   checks  scenario                            drop     @0.09
-  //     3     one 57.1% run  |  1 trap x 3 runs   8.57pt   pass
-  //     4     1 trap on 4 of 5 runs              11.43pt   FIRES
-  //     5     1 trap on EVERY run                14.29pt   FIRES
-  //     6     two 57.1% runs                     17.14pt   FIRES
-  //
-  // 0.12 (an earlier revision) fired only at 5 checks, so a break reproducing on
-  // 4 of 5 runs read green. For a non-deterministic extractor that partial shape
-  // is the likelier real regression, which is why this sits at 0.09.
-  //
-  // Row 3 is irreducibly ambiguous at n=7: "one bad run" (noise, must pass) and
-  // "1 trap failing on 3 of 5 runs" (a 60% regression) are the same 3 checks.
-  // Growing the trap corpus is the only thing that separates them.
-  //
-  // Units are trap-checks, not "runs of N", deliberately: the repeat count has
-  // already changed twice inside this PR and row labels in "of 5" did not survive.
   { key: "junkCleanRate", direction: "higher-better", minTolerance: 0.09, label: "junk-clean" },
-  // 8 cases → one flip is 12.5%. Only the WITH-vocab rate is gated; the no-vocab
-  // rate is the control arm and is reported, not gated.
   { key: "canonWithVocab", direction: "higher-better", minTolerance: 0.05, label: "canon (vocab)" },
-  // Sub-1 on purpose. `dropped` is compared as a MEAN over the repeats against a
-  // baseline of 0, so a floor of 1.0 would let a SYSTEMATIC one-memory drop
-  // (mean exactly 1) through — the shape of the id-echo bug in #757. At 0.5 a
-  // consistent single-memory drop fires while one flaky run dropping one memory
-  // (mean 0.2 over 5 repeats) does not.
   {
     key: "dropped",
     direction: "lower-better",
@@ -117,20 +41,12 @@ const { values: args } = parseArgs({
     repeat: { type: "string" },
     verbose: { type: "boolean", default: false },
     json: { type: "boolean", default: false },
-    // Regression gate — same contract as `eval:extraction`. `--save-baseline`
-    // writes the current runs as the golden baseline; `--baseline <path>` alone
-    // compares against that file and exits non-zero on a regression. Both are
-    // single-model only (a gate over a model sweep is meaningless).
     baseline: { type: "string", short: "b" },
     "save-baseline": { type: "boolean", default: false },
   },
 });
 
 const GATE_MODE = args["save-baseline"] || args.baseline !== undefined;
-/**
- * The A/B sweep defaults to the candidate line-up; the gate defaults to the ONE
- * model production actually runs, so a committed baseline describes the live path.
- */
 const DEFAULT_MODELS = GATE_MODE
   ? DEFAULT_EXTRACTION_MODEL
   : "inclusionai/ling-2.6-flash,gpt-oss/gpt-oss-120b,glm/glm-5.2";
@@ -139,7 +55,6 @@ const MODELS = (args.models ?? DEFAULT_MODELS)
   .map((s) => s.trim())
   .filter(Boolean);
 
-// A bad --repeat would otherwise yield NaN and aggregate over nothing.
 const parsedRepeat = parseInt(args.repeat ?? "", 10);
 const REPEAT = Number.isFinite(parsedRepeat) && parsedRepeat >= 1 ? parsedRepeat : 3;
 const VERBOSE = args.verbose;
@@ -159,7 +74,6 @@ if (!API_KEY) {
   process.exit(1);
 }
 
-// Sanctioned subset-aware token matcher (benchmark.test.ts:53).
 function entityMatchScore(gold: string, extracted: string): number {
   const toks = (s: string) =>
     new Set(
@@ -215,10 +129,9 @@ async function scorePrecisionRecall(model: string): Promise<Pr> {
     if (ents === undefined) {
       m.unanswered++;
       continue;
-    } // absent = failed batch
+    }
     m.extractedTotal += ents.length;
     if (c.gold.length === 0 && ents.length === 0) m.junkClean++;
-    // one-to-one gold -> extracted, highest score wins
     const used = new Set<number>();
     for (const exp of c.gold) {
       let best = 0,
@@ -237,7 +150,6 @@ async function scorePrecisionRecall(model: string): Promise<Pr> {
         if (ents[bestIdx].kind === exp.kind) m.kindCorrect++;
       }
     }
-    // unmatched extracted = false positives (junk / over-extraction)
     ents.forEach((e, i) => {
       if (!used.has(i)) m.fps.push(`${c.id}: "${e.name}" (${e.kind})`);
     });
@@ -246,8 +158,6 @@ async function scorePrecisionRecall(model: string): Promise<Pr> {
   return m;
 }
 
-// Canonicalization: fraction of cases where the model reused the seeded name
-// (any extracted entity normalizes to the canonical). Run with + without vocab.
 async function scoreCanon(
   model: string,
   withVocab: boolean
@@ -273,10 +183,6 @@ async function scoreCanon(
   return { reused, total: CANON_CASES.length, hardReused, hardTotal: CANON_HARD_TOTAL };
 }
 
-/**
- * One repeat's metrics — a plain object TYPE (not an interface) so it stays
- * assignable to the gate's `Record<string, number>` run shape.
- */
 type TopicRunMetrics = {
   precision: number;
   recall: number;
@@ -295,11 +201,6 @@ interface TopicRun {
   ms: number;
 }
 
-/**
- * One full repeat: the precision/recall pass plus BOTH canon arms. The canon arms
- * run per-repeat (not once per model) so every gated metric has a spread measured
- * the same way — a single-sample metric can't contribute a real tolerance.
- */
 async function runOnce(model: string): Promise<TopicRun> {
   const pr = await scorePrecisionRecall(model);
   const canonNo = await scoreCanon(model, false);
@@ -330,23 +231,10 @@ const band = (xs: number[]) =>
   `${pct(meanOf(xs))} [${pct(Math.min(...xs))}-${pct(Math.max(...xs))}]`;
 const seriesOf = (runs: TopicRun[], key: keyof TopicRunMetrics) => runs.map((r) => r.metrics[key]);
 
-/**
- * The knobs the numbers depend on, recorded in the baseline and refused on
- * mismatch.
- *
- * `repeat` is deliberately NOT recorded. It affects the UNCERTAINTY of the mean,
- * not what the mean means, and `meanDiffTolerance` already accounts for both run
- * counts via sqrt(1/n_base + 1/n_cur) — so a 5-run gate against a 10-run
- * baseline is statistically sound and no longer needs to be refused. Pinning it
- * forced CI to burn the baseline's full capture count on every gated PR (and, on
- * #784, refused outright when the two drifted). The recall gate has always
- * relied on this asymmetry: one live run against a 3-run baseline.
- */
 function gateConfig(model: string): { model: string } {
   return { model };
 }
 
-/** Write the baseline file and report where it landed (stderr — never stdout). */
 async function saveBaseline(runs: TopicRun[], model: string, path: string): Promise<void> {
   const baseline = buildGateBaseline(
     runs.map((r) => r.metrics),
@@ -360,7 +248,6 @@ async function saveBaseline(runs: TopicRun[], model: string, path: string): Prom
   );
 }
 
-/** Load, compare, and exit non-zero on regression. Returns on a clean gate. */
 async function gateAgainstBaseline(runs: TopicRun[], model: string, path: string): Promise<void> {
   let parsed: unknown;
   try {
@@ -369,9 +256,6 @@ async function gateAgainstBaseline(runs: TopicRun[], model: string, path: string
     console.error(`Failed to load baseline from ${path}: ${String(err)}`);
     process.exit(1);
   }
-  // Fail loudly on a wrong-shaped file rather than passing vacuously — a
-  // malformed baseline (or this eval's own --json output by mistake) would
-  // otherwise skip every metric and report "no regressions".
   if (!isValidGateBaseline(parsed, GATE_METRICS)) {
     console.error(
       `\n  ${path} is not a valid topic baseline (expected a config + metrics object). ` +
@@ -380,8 +264,6 @@ async function gateAgainstBaseline(runs: TopicRun[], model: string, path: string
     process.exit(1);
   }
   const baseline: GateBaseline = parsed;
-  // Model and repeat count both change what the numbers mean; refuse rather
-  // than silently comparing apples to oranges.
   const mismatch = describeConfigMismatch(baseline, gateConfig(model));
   if (mismatch) {
     console.error(`\n  Refusing to gate: ${mismatch}. Re-run to match, or regenerate.\n`);
@@ -439,8 +321,6 @@ async function main(): Promise<void> {
   }
 
   if (args.json) {
-    // ONE JSON document on stdout, so a CI gate parsing stdout gets the whole
-    // result. Everything else this script prints goes to stderr.
     console.log(
       JSON.stringify(
         {
@@ -488,8 +368,6 @@ async function main(): Promise<void> {
     );
   }
 
-  // Baseline handling runs last so the normal report is always emitted first.
-  // All baseline I/O goes to stderr so it never corrupts --json stdout.
   const model = MODELS[0];
   const baselinePath = args.baseline ?? DEFAULT_BASELINE_PATH;
   if (args["save-baseline"]) {

@@ -20,39 +20,15 @@ import {
 } from "../lib/storage";
 import { getEncryptionKey, hasEncryptionKey } from "./useEncryption";
 
-/**
- * Options for {@link useChatMedia}.
- */
 interface UseChatMediaOptions {
-  /**
-   * Context used for media CRUD operations. Typically derived from
-   * `useChatStorage`'s database + wallet state.
-   */
   mediaCtx: MediaOperationsContext;
 
-  /**
-   * The MCP R2 domain used to detect assistant-generated image URLs
-   * that should be pulled into encrypted OPFS storage.
-   */
   mcpR2Domain: string;
 }
 
-/**
- * Return shape of {@link useChatMedia}.
- */
 interface UseChatMediaResult {
-  /**
-   * Extract natural dimensions from an image blob. Returns `undefined`
-   * for non-image blobs or when dimensions can't be determined.
-   */
   getImageDimensions: (blob: Blob) => Promise<{ width: number; height: number } | undefined>;
 
-  /**
-   * Extract MCP-hosted image URLs from assistant content, download the
-   * images, encrypt and store them in OPFS, and create media records.
-   * The original presigned URLs are kept in the returned `cleanedContent`
-   * so the UI can render them until they expire.
-   */
   extractAndStoreEncryptedMCPImages: (
     content: string,
     address: string,
@@ -60,12 +36,6 @@ interface UseChatMediaResult {
     toolCallEvents?: LlmapiToolCallEvent[]
   ) => Promise<{ fileIds: string[]; cleanedContent: string; imageModel?: string }>;
 
-  /**
-   * Persist user-attached files. When OPFS + encryption are available,
-   * files are stored encrypted and a media record is created. Otherwise
-   * a media record is created with `sourceUrl` (external URLs only —
-   * data URIs are skipped in that fallback).
-   */
   storeUserFilesInOPFS: (
     files: FileMetadata[],
     address: string,
@@ -73,7 +43,6 @@ interface UseChatMediaResult {
   ) => Promise<string[]>;
 }
 
-/** Kind-dependent metadata for a downloaded MCP media blob. */
 interface ResolvedMediaMeta {
   isVideo: boolean;
   extension: string;
@@ -81,19 +50,12 @@ interface ResolvedMediaMeta {
   namePrefix: string;
 }
 
-/**
- * Resolve the storage metadata for a downloaded MCP blob from its extracted
- * kind, URL, and reported blob mime. Centralizes the image-vs-video branching
- * so adding a new kind-dependent field is a one-line change here.
- */
 function resolveMediaMeta(
   extractedKind: "image" | "video",
   urlPath: string,
   reportedType: string
 ): ResolvedMediaMeta {
   const isVideo = extractedKind === "video";
-  // Extension defaults to mp4/png only as a last resort, when the URL itself
-  // carries no extension to read it from.
   const extension = urlPath.match(/\.([a-zA-Z0-9]+)$/)?.[1] || (isVideo ? "mp4" : "png");
   return {
     isVideo,
@@ -117,9 +79,6 @@ function resolveMediaMeta(
 export function useChatMedia(options: UseChatMediaOptions): UseChatMediaResult {
   const { mediaCtx, mcpR2Domain } = options;
 
-  /**
-   * Extract dimensions from an image blob.
-   */
   const getImageDimensions = useCallback(
     async (blob: Blob): Promise<{ width: number; height: number } | undefined> => {
       if (!blob.type.startsWith("image/")) {
@@ -150,16 +109,6 @@ export function useChatMedia(options: UseChatMediaOptions): UseChatMediaResult {
     []
   );
 
-  /**
-   * Extract and store MCP images using encrypted OPFS storage.
-   * Creates media records and uses wallet-derived encryption keys.
-   *
-   * @param content - The message content containing MCP image URLs
-   * @param address - Wallet address for encryption and media record ownership
-   * @param conversationId - Conversation ID for media record association
-   * @param toolCallEvents - Tool call events used to tag images with the source model
-   * @returns Object with fileIds (mediaIds) and cleaned content with placeholders
-   */
   const extractAndStoreEncryptedMCPImages = useCallback(
     async (
       content: string,
@@ -171,24 +120,16 @@ export function useChatMedia(options: UseChatMediaOptions): UseChatMediaResult {
       cleanedContent: string;
       imageModel?: string;
     }> => {
-      // Hoisted so the outer catch can still return it. Resolved before any
-      // throwable async call, so a downstream failure keeps the model metadata.
       let imageModel: string | undefined;
       try {
-        // 1. Extract image URLs using pure function
         const urls = extractMCPImageUrls(content, toolCallEvents, mcpR2Domain);
 
-        // Resolve the image model once here so the caller doesn't have to walk
-        // the tool events a second time. Image-kind only, so a video tool's
-        // model sentinel never leaks into the message's imageModel.
         imageModel = urls.find((u) => u.mediaType === "image")?.model;
 
-        // No MCP images found — return content as-is (presigned URLs stay for inline rendering)
         if (urls.length === 0) {
           return { fileIds: [], cleanedContent: content, imageModel };
         }
 
-        // 2. Download images → get mediaIds
         const encryptionKey = await getEncryptionKey(address);
         const mediaOptions: CreateMediaOptions[] = [];
 
@@ -211,10 +152,6 @@ export function useChatMedia(options: UseChatMediaOptions): UseChatMediaResult {
 
               const mediaId = generateMediaId();
               const urlPath = url.split("?")[0] ?? url;
-              // Object storage often serves generic `application/octet-stream`,
-              // which would later resolve to `document`. Ignore that (and empty)
-              // and derive a kind-appropriate mime so the record's media_type
-              // stays correct.
               const reportedType =
                 blob.type && blob.type !== "application/octet-stream" ? blob.type : "";
               const { isVideo, extension, mimeType, namePrefix } = resolveMediaMeta(
@@ -224,7 +161,6 @@ export function useChatMedia(options: UseChatMediaOptions): UseChatMediaResult {
               );
               const fileName = `${namePrefix}-${Date.now()}-${mediaId.slice(6, 14)}.${extension}`;
 
-              // Dimensions probe is image-only; skip for video.
               const dimensions = isVideo ? undefined : await getImageDimensions(blob);
 
               await writeEncryptedFile(mediaId, blob, encryptionKey, {
@@ -246,7 +182,6 @@ export function useChatMedia(options: UseChatMediaOptions): UseChatMediaResult {
           })
         );
 
-        // 3. Collect mediaOptions from successful downloads
         results.forEach((result, i) => {
           const { url, model, mediaType: extractedKind } = urls[i];
 
@@ -259,10 +194,6 @@ export function useChatMedia(options: UseChatMediaOptions): UseChatMediaResult {
               conversationId,
               name: fileName,
               mimeType,
-              // Trust the kind resolved at extraction (by tool name / extension)
-              // over the mime — object storage can return a generic
-              // `application/octet-stream` that would otherwise mark a video as
-              // a document and bounce it out of the video library / fallback.
               mediaType: extractedKind,
               size,
               role: "assistant",
@@ -279,13 +210,8 @@ export function useChatMedia(options: UseChatMediaOptions): UseChatMediaResult {
           }
         });
 
-        // 4. Keep original presigned URLs in content for inline rendering.
-        // Images are stored in OPFS as a fallback — the client renders them
-        // via ResponseImagePreview only after the presigned URL expires
-        // (detected at render time by isR2UrlExpired in ChatContainer).
         const cleanedContent = content;
 
-        // 5. Batch create media records
         let createdMediaIds: string[] = [];
         if (mediaOptions.length > 0) {
           try {
@@ -296,7 +222,6 @@ export function useChatMedia(options: UseChatMediaOptions): UseChatMediaResult {
               "[extractAndStoreEncryptedMCPImages] Failed to create media records:",
               err
             );
-            // Clean up orphaned OPFS files since media records weren't created
             for (const opt of mediaOptions) {
               if (opt.mediaId) {
                 try {
@@ -306,31 +231,18 @@ export function useChatMedia(options: UseChatMediaOptions): UseChatMediaResult {
                 }
               }
             }
-            // Return original content to avoid orphaned __SDKFILE__ placeholders
             return { fileIds: [], cleanedContent: content, imageModel };
           }
         }
 
         return { fileIds: createdMediaIds, cleanedContent, imageModel };
       } catch {
-        // Preserve URLs as fallback — presigned URLs remain valid for 3 days,
-        // so the LLM can still reference them for editing even if OPFS storage fails.
         return { fileIds: [], cleanedContent: content, imageModel };
       }
     },
     [mediaCtx, getImageDimensions, mcpR2Domain]
   );
 
-  /**
-   * Store user-attached files and create media records.
-   * - If OPFS is supported with encryption: Store encrypted in OPFS, create media record
-   * - If OPFS not available: Create media record with sourceUrl (external URL only, not data URIs)
-   *
-   * @param files - Array of file metadata with URLs (data URIs or external URLs)
-   * @param address - Wallet address for encryption key derivation and media record ownership
-   * @param conversationId - Conversation ID for media record association
-   * @returns Array of mediaIds for the created media records
-   */
   const storeUserFilesInOPFS = useCallback(
     async (files: FileMetadata[], address: string, conversationId: string): Promise<string[]> => {
       const canUseOPFS = isOPFSSupported() && hasEncryptionKey(address);
@@ -347,12 +259,10 @@ export function useChatMedia(options: UseChatMediaOptions): UseChatMediaResult {
       const mediaOptions: CreateMediaOptions[] = [];
 
       for (const file of files) {
-        // Skip files without URLs (already stored or metadata-only)
         if (!file.url) {
           continue;
         }
 
-        // Generate a media ID
         const mediaId = generateMediaId();
         const mimeType = file.type || "application/octet-stream";
         let size = file.size || 0;
@@ -360,17 +270,14 @@ export function useChatMedia(options: UseChatMediaOptions): UseChatMediaResult {
         let sourceUrl: string | undefined;
         let dimensions: { width: number; height: number } | undefined;
 
-        // Try to store in OPFS if available
         if (encryptionKey) {
           try {
             let blob: Blob;
 
             if (file.url.startsWith("data:")) {
-              // Convert data URI to Blob
               const response = await fetch(file.url);
               blob = await response.blob();
             } else {
-              // Fetch external URL
               const controller = new AbortController();
               const timeoutId = setTimeout(() => controller.abort(), 60_000);
               try {
@@ -389,10 +296,8 @@ export function useChatMedia(options: UseChatMediaOptions): UseChatMediaResult {
 
             size = blob.size;
 
-            // Extract dimensions for images
             dimensions = await getImageDimensions(blob);
 
-            // Encrypt and store in OPFS using mediaId
             await writeEncryptedFile(mediaId, blob, encryptionKey, {
               name: file.name,
             });
@@ -403,16 +308,13 @@ export function useChatMedia(options: UseChatMediaOptions): UseChatMediaResult {
           }
         }
 
-        // If not stored in OPFS, use sourceUrl (only for external URLs, not data URIs)
         if (!storedInOPFS) {
           sourceUrl = file.url && !file.url.startsWith("data:") ? file.url : undefined;
-          // If it's a data URI and we can't store in OPFS, we can't persist the file content
           if (!sourceUrl) {
-            continue; // Skip this file - no way to store it
+            continue;
           }
         }
 
-        // Prepare media record
         mediaOptions.push({
           mediaId,
           walletAddress: address,
@@ -427,7 +329,6 @@ export function useChatMedia(options: UseChatMediaOptions): UseChatMediaResult {
         });
       }
 
-      // Batch create media records
       if (mediaOptions.length === 0) {
         return [];
       }
@@ -436,7 +337,6 @@ export function useChatMedia(options: UseChatMediaOptions): UseChatMediaResult {
         const createdMedia = await createMediaBatchOp(mediaCtx, mediaOptions);
         return createdMedia.map((m) => m.mediaId);
       } catch {
-        // Clean up orphaned OPFS files since media records weren't created
         for (const opt of mediaOptions) {
           if (opt.mediaId) {
             try {

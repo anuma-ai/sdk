@@ -1,17 +1,3 @@
-/**
- * Reference {@link NerDetector} backed by Transformers.js (`@huggingface/transformers`).
- *
- * Runs a quantized BERT NER model fully on-device (browser via the
- * onnxruntime-web/WASM backend, or Node) — no network call, so PII never leaves
- * the device. The model is loaded lazily on first `detect()` and cached, so
- * importing this module is cheap and apps that never enable NER pay nothing.
- *
- * `@huggingface/transformers` is an OPTIONAL peer dependency: it is `import()`-ed
- * dynamically (matching `lib/memory/reranker.ts`) so it is only required when a
- * caller actually constructs this detector. React Native cannot use this
- * detector (its WASM backend doesn't run under Hermes) — supply an
- * `onnxruntime-react-native`-based {@link NerDetector} there instead.
- */
 import type { NerDetector, PiiSpan } from "../ner";
 
 export interface TransformersNerDetectorOptions {
@@ -29,12 +15,11 @@ export interface TransformersNerDetectorOptions {
   tagMap?: Record<string, string | undefined>;
 }
 
-/** Raw per-token output of a Transformers.js `token-classification` pipeline. */
 interface RawToken {
-  entity: string; // "B-PER", "I-LOC", …
+  entity: string;
   score: number;
   index: number;
-  word: string; // WordPiece surface; subwords prefixed with "##"
+  word: string;
 }
 
 type TokenClassifier = (text: string) => Promise<RawToken[]>;
@@ -47,12 +32,6 @@ const DEFAULT_TAG_MAP: Record<string, string | undefined> = {
   MISC: undefined,
 };
 
-/**
- * Recover character offsets for tokens (the pipeline returns none) by walking
- * the text with a cursor and locating each token's surface form (minus the
- * WordPiece "##" prefix). Searching the actual text keeps offsets correct across
- * the original spacing, punctuation, and apostrophes.
- */
 interface PlacedToken extends RawToken {
   start: number;
   end: number;
@@ -64,11 +43,6 @@ function placeTokens(tokens: RawToken[], text: string): PlacedToken[] {
     const surface = t.word.startsWith("##") ? t.word.slice(2) : t.word;
     const start = text.indexOf(surface, cursor);
     if (start < 0) {
-      // Couldn't locate this token's surface from the cursor (rare tokenizer
-      // normalization mismatch). Emit an unplaceable marker (start=-1) and leave
-      // the cursor put: aggregateTokens then drops the whole entity this token
-      // belongs to, rather than letting a later token match an EARLIER occurrence
-      // of its surface form and mint a placeholder on unrelated text.
       placed.push({ ...t, start: -1, end: -1 });
       continue;
     }
@@ -98,8 +72,6 @@ export function aggregateTokens(
 
   const flush = () => {
     if (!cur) return;
-    // `valid` is cleared when any token of this entity failed to place — drop the
-    // whole entity rather than emit a mis-anchored span.
     const category = cur.valid ? tagMap[cur.base] : undefined;
     if (category) {
       const score = cur.scores.reduce((a, b) => a + b, 0) / cur.scores.length;
@@ -114,9 +86,6 @@ export function aggregateTokens(
     const base = dash >= 0 ? t.entity.slice(dash + 1) : t.entity;
     const isContinuation = t.word.startsWith("##");
     const unplaceable = t.start < 0;
-    // A continuation extends the current entity; a new tag / `B-` starts one.
-    // An unplaceable token still counts as a continuation of the same base so it
-    // poisons (rather than splits) the entity it belongs to.
     const continues =
       cur !== null &&
       base === cur.base &&
@@ -130,8 +99,6 @@ export function aggregateTokens(
       }
     } else {
       flush();
-      // Don't anchor a fresh entity on an unplaceable token — it would land on
-      // the wrong text. Leaving `cur` null drops it.
       cur = unplaceable
         ? null
         : { base, start: t.start, end: t.end, scores: [t.score], valid: true };
@@ -156,9 +123,6 @@ export function createTransformersNerDetector(
   let pipePromise: Promise<TokenClassifier> | null = null;
   const load = (): Promise<TokenClassifier> => {
     if (!pipePromise) {
-      // Clear the cache on rejection so a transient first-load failure (network
-      // blip fetching the model) doesn't brick the detector for its lifetime —
-      // mirrors lib/memory/reranker.ts.
       const loading = (async () => {
         const transformers = (await import("@huggingface/transformers")) as unknown as {
           pipeline: (

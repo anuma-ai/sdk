@@ -1,14 +1,3 @@
-/**
- * maxTurnTokens coverage for runToolLoop.
- *
- * The option gives hosts a hard per-message cost ceiling: cumulative
- * provider-reported usage (input + output across rounds) is checked before
- * each continuation, and once the budget is reached the continuation is
- * dispatched with `toolChoice: "none"` — the same wrap-up mechanism
- * `maxToolRounds` uses. These tests pin that behavior with mock streams
- * whose `response.completed` events carry controlled usage numbers.
- */
-
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import * as sseModule from "../../client/core/serverSentEvents.gen";
@@ -29,7 +18,6 @@ vi.mock("../memoryEngine/embeddings", async (importOriginal) => {
 const mockCreateSseClient = vi.mocked(sseModule.createSseClient);
 const mockGenerateEmbedding = vi.mocked(embeddingsModule.generateEmbedding);
 
-/** Stream that emits a tool call (responses-API format) with the given usage. */
 function makeToolCallStream(opts: {
   callId: string;
   name: string;
@@ -62,7 +50,6 @@ function makeToolCallStream(opts: {
   })();
 }
 
-/** Stream that produces plain text then completes. */
 function makeTextStream(text: string) {
   return (async function* () {
     yield { type: "response.created", response: { id: "r", model: "m" } };
@@ -115,8 +102,6 @@ describe("runToolLoop maxTurnTokens", () => {
   });
 
   it("forces toolChoice 'none' on the continuation once the budget is reached", async () => {
-    // Round 1 costs 900 + 200 = 1100 ≥ budget 1000 → the continuation
-    // must be a forced text wrap-up.
     mockCreateSseClient
       .mockReturnValueOnce({
         stream: makeToolCallStream({
@@ -131,7 +116,6 @@ describe("runToolLoop maxTurnTokens", () => {
 
     const toolChoices = await runWithBudget(1_000);
     expect(toolChoices).toEqual(["auto", "none"]);
-    // Only two requests total — the loop ended after the wrap-up.
     expect(mockCreateSseClient).toHaveBeenCalledTimes(2);
   });
 
@@ -170,9 +154,6 @@ describe("runToolLoop maxTurnTokens", () => {
   });
 
   it("accumulates across rounds: budget trips on a later continuation", async () => {
-    // 600 tokens per round against a 1000-token budget: round 1 leaves
-    // the budget intact (600 < 1000), round 2 crosses it (1200 ≥ 1000),
-    // so the THIRD request is the forced wrap-up.
     const round = (id: string) =>
       ({
         stream: makeToolCallStream({

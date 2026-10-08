@@ -1,21 +1,3 @@
-/**
- * Cross-encoder reranker — local inference via @huggingface/transformers.
- *
- * Mirrors Hindsight's default reranker (`cross-encoder/ms-marco-MiniLM-L-6-v2`)
- * for parity with their reference pipeline. Runs fully on-device — no API
- * key, no network call, works offline. Model file ~25MB; lazy-loaded and
- * cached for the lifetime of the process.
- *
- * Implementation note: transformers.js v3 doesn't expose a "text-ranking"
- * pipeline, so we drive the cross-encoder directly via the tokenizer +
- * sequence-classification model. The model outputs a single relevance
- * logit per (query, doc) pair; we sigmoid it into [0, 1].
- */
-
-// We type-cast around the upstream package because its declaration entry
-// doesn't re-export these classes even though the runtime entry does.
-// Using a dynamic import keeps the SDK's main bundle from pulling in the
-// transformers runtime when no caller hits the reranker.
 type AnyClass = { from_pretrained(id: string): Promise<unknown> };
 
 const MODEL_ID = "Xenova/ms-marco-MiniLM-L-6-v2";
@@ -47,10 +29,6 @@ export class RerankerUnavailableError extends Error {
   }
 }
 
-// Tri-state reranker availability: undefined = not yet attempted, true =
-// loaded successfully, false = permanently unavailable (optional dep missing).
-// Consumers read this to report an honest `reranked` diagnostic instead of
-// assuming a requested rerank actually ran (RN silently lacks the package).
 let available: boolean | undefined = undefined;
 let modelPromise: Promise<ModelHandle> | null = null;
 
@@ -69,18 +47,11 @@ export function isRerankerAvailable(): boolean | undefined {
   return available;
 }
 
-/** Does this error mean the transformers package isn't installed (vs. a
- * transient load failure like a network hiccup fetching the model)? Walks the
- * `cause` chain because bundlers/loaders (Metro, webpack, vitest) wrap the
- * underlying module-not-found error. */
 function isModuleMissing(err: unknown): boolean {
   let e: unknown = err;
   for (let depth = 0; depth < 5 && e !== null && e !== undefined; depth++) {
     const code = (e as { code?: string }).code;
     if (code === "ERR_MODULE_NOT_FOUND" || code === "MODULE_NOT_FOUND") return true;
-    // Node: "Cannot find module/package". Metro/Expo (React Native):
-    // "Unable to resolve module", "Requiring unknown module". Bundlers:
-    // "failed to resolve".
     if (
       e instanceof Error &&
       /cannot find (module|package)|failed to resolve|unable to resolve module|requiring unknown module/i.test(
@@ -95,12 +66,8 @@ function isModuleMissing(err: unknown): boolean {
 }
 
 async function getModel(): Promise<ModelHandle> {
-  // Short-circuit once we know the package is absent: no repeated import
-  // attempts and no per-recall warn spam on React Native.
   if (available === false) throw new RerankerUnavailableError(undefined);
   if (!modelPromise) {
-    // Clear the cache on rejection so a transient first-load failure
-    // doesn't brick the reranker for the process lifetime.
     const load = (async () => {
       let transformers: {
         AutoTokenizer: AnyClass;
@@ -110,7 +77,6 @@ async function getModel(): Promise<ModelHandle> {
         transformers =
           (await import("@huggingface/transformers")) as unknown as typeof transformers;
       } catch (err) {
-        // Missing optional dep is a permanent environment fact, not transient.
         if (isModuleMissing(err)) {
           available = false;
           throw new RerankerUnavailableError(err);
@@ -132,32 +98,12 @@ async function getModel(): Promise<ModelHandle> {
   return modelPromise;
 }
 
-/**
- * How long a rerank waits for the model's FIRST load before degrading. The load
- * is a ~25MB fetch plus WASM/ONNX init; on a slow or stalled network it could
- * previously hold every `budget: 'mid' | 'high'` recall for as long as the fetch
- * took, which on a dead connection is forever.
- */
 const DEFAULT_RERANKER_LOAD_TIMEOUT_MS = 10_000;
 
 interface RerankOptions {
-  /**
-   * Max ms to wait for a not-yet-loaded model (default 10000). On expiry this
-   * call throws {@link RerankerUnavailableError} — callers already degrade that
-   * to the fused ranking — while the load keeps going in the background, so a
-   * later call can still use the model. `0` waits indefinitely.
-   */
   loadTimeoutMs?: number;
 }
 
-/**
- * {@link getModel}, bounded. Only a PENDING load is raced: once the model has
- * resolved, the await is immediate and the deadline never matters.
- *
- * Deliberately does not touch `available` or `modelPromise` on expiry — a slow
- * first load is neither the permanent "package missing" state nor a failure,
- * and dropping the in-flight promise would restart the download next call.
- */
 async function getModelWithin(loadTimeoutMs: number): Promise<ModelHandle> {
   const load = getModel();
   if (available === true || !(loadTimeoutMs > 0) || !Number.isFinite(loadTimeoutMs)) return load;
@@ -184,19 +130,12 @@ async function getModelWithin(loadTimeoutMs: number): Promise<ModelHandle> {
 interface RerankerItem {
   id: string;
   content: string;
-  /**
-   * Optional Unix-ms date used for C4 date-prefixed CE pairs. When set,
-   * the doc side is sent as `[Date: YYYY-MM-DD] <content>` so the
-   * cross-encoder can prefer temporally-aligned evidence. Does not
-   * mutate the returned `content` (callers still see the original text).
-   */
   dateMs?: number | null;
 }
 
 interface RerankedItem {
   id: string;
   content: string;
-  /** Cross-encoder score in [0, 1] (sigmoid of the model's logit). */
   score: number;
 }
 
@@ -247,8 +186,6 @@ export async function rerankPairs(
     options?.loadTimeoutMs ?? DEFAULT_RERANKER_LOAD_TIMEOUT_MS
   );
 
-  // Tokenize each (query, doc) pair. transformers.js expects the pair
-  // arm to come in via the `text_pair` option, not as a positional arg.
   const queries = items.map(() => query);
   const docs = items.map((i) => formatRerankDoc(i.content, i.dateMs));
   const tokenize = tokenizer as (
@@ -257,7 +194,6 @@ export async function rerankPairs(
   ) => Record<string, unknown>;
   const inputs = tokenize(queries, { text_pair: docs, padding: true, truncation: true });
 
-  // Forward pass. The classification head emits a single logit per pair.
   const forward = model as (
     i: Record<string, unknown>
   ) => Promise<{ logits: { data: Float32Array | number[]; dims: number[] } }>;
@@ -265,9 +201,6 @@ export async function rerankPairs(
   const logits = output.logits;
   const data = Array.from(logits.data as Iterable<number>);
 
-  // logits is row-major [batch, numLabels]. For a 2-class CE, column 1
-  // is the relevance logit (column 0 is "not relevant" and picking it
-  // would invert the ranking).
   const batchDim = logits.dims[0] ?? 0;
   const numLabels = logits.dims[1] ?? 1;
   if (batchDim !== items.length) {

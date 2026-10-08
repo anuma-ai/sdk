@@ -1,16 +1,3 @@
-/**
- * Web Search Classifier
- *
- * Determines whether a user prompt would benefit from a web search
- * before being sent to the LLM. Compares the prompt embedding against
- * two pre-computed centroid vectors (search vs no-search).
- *
- * No LLM calls — one embedding per prompt + two cosine similarities.
- *
- * To regenerate centroids after changing reference phrases:
- *   PORTAL_API_KEY=... npx tsx scripts/generateSearchCentroids.ts
- */
-
 import type { LlmapiMessage } from "../../client";
 import { generateEmbedding, generateEmbeddings } from "../memoryEngine/embeddings";
 import type { EmbeddingOptions } from "../memoryEngine/types";
@@ -29,11 +16,6 @@ export interface WebSearchClassification {
 }
 
 interface WebSearchClassifierOptions extends EmbeddingOptions {
-  /**
-   * Score margin: the search score must exceed the no-search score
-   * by at least this amount to classify as "needs web search".
-   * @default 0.02
-   */
   margin?: number;
 }
 

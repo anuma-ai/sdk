@@ -13,11 +13,8 @@ const includeCodeRe = /^\{@includeCode\s+(\S+?)(?:#(\S+))?\s*\}$/;
 const regionMarkerRe = /^\s*\/\/\s*#(?:region|endregion)\b.*$/;
 
 interface GenerateDocsOptions {
-  /** Source directory containing markdown files (default: "documents") */
   srcDir?: string;
-  /** Output directory for generated docs (default: "docs") */
   outDir?: string;
-  /** GitHub base URL for source links (e.g. "https://github.com/org/repo/blob/main/") */
   githubBase?: string;
 }
 
@@ -50,8 +47,6 @@ export function generateDocs(options: GenerateDocsOptions = {}): void {
     console.warn(`  warn: ${msg}`);
     warnings++;
   }
-
-  // --- File and region helpers ---
 
   const fileCache = new Map<string, string[] | null>();
   function readLines(filePath: string): string[] | null {
@@ -104,8 +99,6 @@ export function generateDocs(options: GenerateDocsOptions = {}): void {
     return ext || "text";
   }
 
-  // --- Collect source files ---
-
   function collectFiles(dir: string, ext: string): string[] {
     const files: string[] = [];
     for (const entry of readdirSync(dir, { withFileTypes: true })) {
@@ -115,8 +108,6 @@ export function generateDocs(options: GenerateDocsOptions = {}): void {
     }
     return files;
   }
-
-  // --- Generate ---
 
   if (existsSync(outDir)) rmSync(outDir, { recursive: true });
 
@@ -157,13 +148,11 @@ export function generateDocs(options: GenerateDocsOptions = {}): void {
     writeFileSync(outFile, out.join("\n"));
   }
 
-  // Copy README into docs output.
   if (existsSync("README.md")) {
     mkdirSync(docsOut, { recursive: true });
     copyFileSync("README.md", join(docsOut, "index.md"));
   }
 
-  // Copy _meta.js navigation files.
   for (const src of collectFiles(srcDir, "_meta.js")) {
     const dest = join(outDir, src);
     mkdirSync(dirname(dest), { recursive: true });

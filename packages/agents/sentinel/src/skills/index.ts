@@ -6,7 +6,6 @@ import { subscriptionChecker } from "./subscription-checker";
 
 export { chargebackAssistant, collectionResponse, subscriptionChecker };
 
-/** All Sentinel finance skills in registration order. */
 export const SENTINEL_SKILLS: SkillConfig[] = [
   subscriptionChecker,
   chargebackAssistant,

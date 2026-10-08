@@ -1,11 +1,3 @@
-/**
- * Test-only IP geolocation tool for the e2e tool-loop suites.
- *
- * Gives the model a real first link in a geolocate → timezone chain without a
- * network call: every valid IPv4 address resolves to the record ip-api.com
- * returns for 8.8.8.8.
- */
-
 import type { ToolConfig } from "../../../src/lib/chat/useChat/types";
 
 const IPV4 = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/;

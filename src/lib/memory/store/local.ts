@@ -102,14 +102,10 @@ export function createLocalMemoryStore(options: LocalMemoryStoreOptions): Memory
     embeddedWalletSigner: options.embeddedWalletSigner,
     ...(userId !== undefined && { userId }),
     ...(options.singleTenant !== undefined && { singleTenant: options.singleTenant }),
-    // Deletes cascade to memory_entity, so the graph lane never serves a
-    // deleted memory's id.
     entityCtx,
   };
   const vaultCache = options.vaultCache ?? createVaultEmbeddingCache();
   const ownedBy = userId !== undefined ? [Q.where("user_id", userId)] : [];
-  // User-visible edits and list membership changes invalidate snapshots. Background
-  // vector/evidence backfills must not trigger a full list + decrypt for every row.
   const watchedColumns = [
     "content",
     "scope",
@@ -146,8 +142,6 @@ export function createLocalMemoryStore(options: LocalMemoryStoreOptions): Memory
     list: (listOptions?: MemoryListOptions) => getAllVaultMemoriesOp(vaultCtx, listOptions),
     get: (id: string) => getVaultMemoryOp(vaultCtx, id),
     listArchived: async () => {
-      // Pick the archived ids off the plaintext columns first so only those
-      // rows get decrypted, never the whole vault.
       const ids = await vaultCtx.vaultMemoryCollection
         .query(Q.where("is_deleted", false), Q.where("archived_at", Q.notEq(null)), ...ownedBy)
         .fetchIds();
@@ -172,9 +166,6 @@ export function createLocalMemoryStore(options: LocalMemoryStoreOptions): Memory
       return created;
     },
     update: async (id: string, patch: MemoryUpdate) => {
-      // Same as useChatStorage's vault edit: an edit without a fresh vector
-      // clears the stored one (and its model tag) rather than keep a vector
-      // for text that is gone, then re-embeds in the background.
       const reembed = patch.embedding === undefined;
       const updated = await updateVaultMemoryOp(
         vaultCtx,
@@ -182,7 +173,6 @@ export function createLocalMemoryStore(options: LocalMemoryStoreOptions): Memory
         reembed ? { ...patch, embedding: null } : patch
       );
       if (!updated) return null;
-      // The cache is keyed by id, so a content edit would keep serving the old vector.
       vaultCache.delete(id);
       if (reembed) embedInBackground(updated);
       return updated;
@@ -200,8 +190,6 @@ export function createLocalMemoryStore(options: LocalMemoryStoreOptions): Memory
       setMemoryEntitiesOp(vaultCtx, memoryId, topics),
     addTopics: (memoryId: string, topics: readonly EntityInput[]) =>
       database.write(async (writer) => {
-        // Check and link in the same writer: a delete must not finish its cascade
-        // before this call creates new links for the deleted memory.
         const owned = await vaultCtx.vaultMemoryCollection
           .query(Q.where("id", memoryId), Q.where("is_deleted", false), ...ownedBy)
           .fetchCount();
@@ -229,8 +217,6 @@ export function createLocalMemoryStore(options: LocalMemoryStoreOptions): Memory
       ),
 
     subscribe: (onChange, subscribeOptions) => {
-      // WatermelonDB observables emit the current result on subscribe; drop
-      // that one so `onChange` only ever means "changed".
       const afterFirst = () => {
         let first = true;
         return () => {
@@ -249,10 +235,6 @@ export function createLocalMemoryStore(options: LocalMemoryStoreOptions): Memory
             );
       const subscriptions = [memories.subscribe(afterFirst())];
       if (subscribeOptions?.topics) {
-        // Links only: a topic read always goes through this user's links, and
-        // an entity row (shared vocabulary, no user_id) is only ever created
-        // alongside a link, so watching `entity` too would just add other
-        // users' writes.
         const linksOwnedBy =
           userId === undefined
             ? []

@@ -1,13 +1,3 @@
-/**
- * Prompt pre-processors run after the last user message is received but
- * before the first LLM request. Each pre-processor gets the prompt text
- * and a shared embedding (computed once per request) and can return
- * additional messages to enrich the conversation.
- *
- * Typical uses: classify-then-fetch flows (web search, weather, stocks),
- * retrieval augmentation, rule-based context injection.
- */
-
 import type { LlmapiMessage } from "../../client";
 
 export type PromptPreProcessorContext = {

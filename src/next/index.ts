@@ -18,7 +18,6 @@
  *
  * @module
  */
-/** Minimal Webpack configuration shape used by the SDK plugin. */
 interface WebpackConfig {
   resolve: {
     alias: Record<string, unknown>;
@@ -29,12 +28,10 @@ interface WebpackConfig {
   };
 }
 
-/** Webpack compiler options passed by Next.js. */
 interface WebpackOptions {
   isServer: boolean;
 }
 
-/** Next.js configuration object shape used by the SDK plugin. */
 interface NextConfig {
   serverExternalPackages?: string[];
   webpack?: (config: WebpackConfig, options: WebpackOptions) => WebpackConfig;
@@ -44,18 +41,10 @@ interface NextConfig {
 export const withAnuma = (nextConfig: NextConfig = {}) => {
   return {
     ...nextConfig,
-    serverExternalPackages: [
-      ...(nextConfig.serverExternalPackages ?? []),
-      "sharp",
-      // exceljs pulls in unzipper → fstream which calls process.umask() at
-      // module init time, crashing Cloudflare Workers and other edge runtimes.
-      // Externalizing prevents the server bundler from including it in SSR.
-      "exceljs",
-    ],
+    serverExternalPackages: [...(nextConfig.serverExternalPackages ?? []), "sharp", "exceljs"],
     webpack: (config: WebpackConfig, options: WebpackOptions) => {
       const { isServer } = options;
 
-      // Client-side: Mock node-only packages to avoid bundling errors
       if (!isServer) {
         config.resolve.alias = {
           ...config.resolve.alias,
@@ -63,13 +52,11 @@ export const withAnuma = (nextConfig: NextConfig = {}) => {
         };
       }
 
-      // Treat .node files as resources (file paths) instead of modules to parse
       config.module.rules.push({
         test: /\.node$/,
         type: "asset/resource",
       });
 
-      // Fallbacks for node modules that might be imported by dependencies
       config.resolve.fallback = {
         ...config.resolve.fallback,
         fs: false,
@@ -80,7 +67,6 @@ export const withAnuma = (nextConfig: NextConfig = {}) => {
         "node:path": false,
       };
 
-      // Apply user's custom webpack config if provided
       if (typeof nextConfig.webpack === "function") {
         return nextConfig.webpack(config, options);
       }

@@ -1,28 +1,3 @@
-/**
- * WatermelonDB DatabaseAdapter backed by PostgreSQL.
- *
- * Allows the same SDK operations (createMessageOp, getMessagesOp, etc.)
- * to run unchanged on both browser (LokiJS) and server (PostgreSQL).
- *
- * The adapter accepts any pg.Pool-compatible object via dependency injection,
- * so the SDK itself does not depend on the `pg` package.
- *
- * @example
- * ```typescript
- * import pg from "pg";
- * import { PostgreSQLAdapter } from "@anuma/sdk/server";
- * import { sdkSchema, sdkMigrations } from "@anuma/sdk/server";
- *
- * const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
- * const adapter = new PostgreSQLAdapter({
- *   pool,
- *   schema: sdkSchema,
- *   migrations: sdkMigrations,
- *   dbName: "anuma-server-wallet123",
- * });
- * ```
- */
-
 import type {
   BatchOperation,
   CachedFindResult,
@@ -38,10 +13,6 @@ import type { MigrationStep, SchemaMigrations } from "@nozbe/watermelondb/Schema
 import { stepsForMigration } from "@nozbe/watermelondb/Schema/migrations/stepsForMigration";
 import type { ResultCallback } from "@nozbe/watermelondb/utils/fp/Result";
 
-// ---------------------------------------------------------------------------
-// pg Pool interface (dependency injection — no hard dep on `pg`)
-// ---------------------------------------------------------------------------
-
 export interface PgClientLike {
   query(text: string, values?: unknown[]): Promise<{ rows: Record<string, unknown>[] }>;
   release(): void;
@@ -52,10 +23,6 @@ export interface PgPoolLike {
   /** Optional. When provided, batch operations run inside a transaction on a dedicated connection. */
   connect?(): Promise<PgClientLike>;
 }
-
-// ---------------------------------------------------------------------------
-// Options
-// ---------------------------------------------------------------------------
 
 export interface PostgreSQLAdapterOptions {
   pool: PgPoolLike;
@@ -70,15 +37,6 @@ export interface PostgreSQLAdapterOptions {
   pgSchema?: string;
 }
 
-// ---------------------------------------------------------------------------
-// Table name qualifier
-// ---------------------------------------------------------------------------
-
-/**
- * Returns a function that qualifies table names with a PG schema prefix.
- * When pgSchema is "public", returns bare quoted names (`"table"`).
- * Otherwise returns schema-qualified names (`"sdk"."table"`).
- */
 function makeQualify(pgSchema: string): (table: string) => string {
   if (pgSchema === "public") {
     return (table: string) => `"${table}"`;
@@ -86,17 +44,11 @@ function makeQualify(pgSchema: string): (table: string) => string {
   return (table: string) => `"${pgSchema}"."${table}"`;
 }
 
-// ---------------------------------------------------------------------------
-// Helpers: WatermelonDB query → SQL
-// ---------------------------------------------------------------------------
-
-/** Push a value into the params array and return its $N placeholder. */
 function param(params: unknown[], value: unknown): string {
   params.push(value);
   return `$${params.length}`;
 }
 
-/** Push multiple values and return a parenthesized placeholder list: ($1, $2, ...) */
 function paramList(params: unknown[], values: unknown[]): string {
   return `(${values.map((v) => param(params, v)).join(", ")})`;
 }
@@ -137,7 +89,6 @@ function encodeComparison(params: unknown[], table: string, comparison: Comparis
     if (vals) return `between ${param(params, vals[0])} and ${param(params, vals[1])}`;
     return "";
   }
-  // PostgreSQL requires IS NULL / IS NOT NULL (not = null / != null)
   const rightValue = comparison.right.value;
   if (
     (rightValue === null || rightValue === undefined) &&
@@ -193,12 +144,6 @@ interface QueryDescription {
   sql?: { sql: string; values: unknown[] };
 }
 
-/**
- * Encode a WatermelonDB SerializedQuery to SQL.
- *
- * The `qualify` function is used to add schema prefixes to table names
- * in FROM/JOIN clauses, while column references keep the bare table alias.
- */
 function encodeQuery(
   query: SerializedQuery,
   qualify: (table: string) => string,
@@ -211,7 +156,6 @@ function encodeQuery(
     associations: Association[];
   };
 
-  // Raw SQL passthrough
   if (description.sql) {
     return [description.sql.sql, description.sql.values];
   }
@@ -221,7 +165,6 @@ function encodeQuery(
   const distinct = hasToManyJoins ? "distinct " : "";
   const qualifiedTable = qualify(table);
 
-  // SELECT clause
   let select: string;
   if (countMode) {
     select = hasToManyJoins
@@ -233,7 +176,6 @@ function encodeQuery(
     select = `select ${distinct}"${table}".* from ${qualifiedTable}`;
   }
 
-  // JOINs
   const joins = associations
     .map((a) => {
       const usesOldJoinStyle = description.where.some(
@@ -249,19 +191,16 @@ function encodeQuery(
     })
     .join("");
 
-  // WHERE
   const whereClauses = description.where
     .map((w) => encodeWhere(params, table, associations, w))
     .filter(Boolean);
   const whereStr = whereClauses.length ? ` where ${whereClauses.join(" and ")}` : "";
 
-  // ORDER BY
   const orderBy =
     description.sortBy.length > 0
       ? ` order by ${description.sortBy.map((s) => `"${table}"."${s.sortColumn}" ${s.sortOrder}`).join(", ")}`
       : "";
 
-  // LIMIT / OFFSET
   let limitOffset = "";
   if (description.take !== undefined) {
     limitOffset = ` limit ${description.take}`;
@@ -272,10 +211,6 @@ function encodeQuery(
 
   return [`${select}${joins}${whereStr}${orderBy}${limitOffset}`, params];
 }
-
-// ---------------------------------------------------------------------------
-// Schema → DDL
-// ---------------------------------------------------------------------------
 
 function columnTypeToPg(col: ColumnSchema): string {
   switch (col.type) {
@@ -346,7 +281,6 @@ export function schemaToCreateSQL(schema: AppSchema, pgSchema = "public"): strin
     statements.push(...indexes);
   }
 
-  // Local storage table (used by getLocal/setLocal/removeLocal)
   statements.push(
     `create table if not exists ${qualify("local_storage")} ("key" text primary key, "value" text not null);`
   );
@@ -354,23 +288,13 @@ export function schemaToCreateSQL(schema: AppSchema, pgSchema = "public"): strin
   return statements;
 }
 
-// ---------------------------------------------------------------------------
-// Row ↔ RawRecord conversion
-// ---------------------------------------------------------------------------
-
 function rowToRaw(row: Record<string, unknown>): RawRecord {
   const raw: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(row)) {
-    // PostgreSQL returns booleans natively — WatermelonDB expects 0/1 for booleans
-    // but the sanitizedRaw function handles coercion. We pass values through as-is.
     raw[key] = value;
   }
   return raw as unknown as RawRecord;
 }
-
-// ---------------------------------------------------------------------------
-// PostgreSQLAdapter
-// ---------------------------------------------------------------------------
 
 export class PostgreSQLAdapter implements DatabaseAdapter {
   schema: AppSchema;
@@ -399,7 +323,6 @@ export class PostgreSQLAdapter implements DatabaseAdapter {
       await this.pool.query(`create schema if not exists "${this._pgSchema}"`);
     }
 
-    // Always ensure the local_storage table exists (needed to read schema version)
     await this.pool.query(
       `create table if not exists ${this.qualify("local_storage")} ("key" text primary key, "value" text not null);`
     );
@@ -408,18 +331,14 @@ export class PostgreSQLAdapter implements DatabaseAdapter {
     const targetVersion = this.schema.version;
 
     if (storedVersion === 0) {
-      // Fresh database — create all tables
       const statements = schemaToCreateSQL(this.schema, this._pgSchema);
       for (const sql of statements) {
         await this.pool.query(sql);
       }
       await this._setStoredSchemaVersion(targetVersion);
     } else if (storedVersion < targetVersion) {
-      // Existing database needs migration
       await this._migrate(storedVersion, targetVersion);
     }
-    // storedVersion === targetVersion → nothing to do
-    // storedVersion > targetVersion → user downgraded SDK, we don't handle that
   }
 
   private async _getStoredSchemaVersion(): Promise<number> {
@@ -451,7 +370,6 @@ export class PostgreSQLAdapter implements DatabaseAdapter {
     });
 
     if (!steps) {
-      // Migration range not available — destructive reset
       await this._resetAndRecreate(toVersion);
       return;
     }
@@ -515,9 +433,6 @@ export class PostgreSQLAdapter implements DatabaseAdapter {
         break;
       }
       case "sql": {
-        // Raw SQL from unsafeExecuteSql may use unqualified table names.
-        // When using a non-public schema, run inside a transaction with
-        // SET LOCAL search_path so unqualified names resolve correctly.
         if (this._pgSchema !== "public" && this.pool.connect) {
           const client = await this.pool.connect();
           try {
@@ -540,13 +455,11 @@ export class PostgreSQLAdapter implements DatabaseAdapter {
   }
 
   private async _resetAndRecreate(targetVersion: number): Promise<void> {
-    // Drop all existing SDK tables
     for (const tableName of Object.keys(this.schema.tables)) {
       await this.pool.query(`drop table if exists ${this.qualify(tableName)} cascade;`);
     }
     await this.pool.query(`delete from ${this.qualify("local_storage")}`);
 
-    // Recreate from current schema
     const statements = schemaToCreateSQL(this.schema, this._pgSchema);
     for (const sql of statements) {
       await this.pool.query(sql);
@@ -558,7 +471,6 @@ export class PostgreSQLAdapter implements DatabaseAdapter {
     await this.initialized;
   }
 
-  // Helper: bridge async to WatermelonDB callback pattern
   private _fromPromise<T>(promise: Promise<T>, callback: ResultCallback<T>): void {
     promise.then(
       (value) => callback({ value } as { value: T }),
@@ -570,8 +482,6 @@ export class PostgreSQLAdapter implements DatabaseAdapter {
   private q(table: string): string {
     return this.qualify(table);
   }
-
-  // ---------- DatabaseAdapter interface ----------
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- WatermelonDB DatabaseAdapter interface
   find(table: TableName<any>, id: RecordId, callback: ResultCallback<CachedFindResult>): void {
@@ -769,7 +679,6 @@ export class PostgreSQLAdapter implements DatabaseAdapter {
   }
 
   unsafeExecute(_operations: UnsafeExecuteOperations, callback: ResultCallback<void>): void {
-    // SQL-string mode support
     const ops = _operations as unknown as {
       sqlString?: string;
       sqls?: [string, unknown[]][];

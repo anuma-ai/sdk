@@ -1,26 +1,3 @@
-/**
- * Kanban project board — sophisticated build + iterate.
- *
- * Five-phase stress test that pushes app-gen well past the todo-list
- * baseline: build a real project tracker, then iteratively layer on
- * features the way an engineer using Claude Code would (due dates →
- * filters → multi-board → custom columns).
- *
- * Each phase dumps the working app to test/tools/app-generation/.output/
- * kanban/step-N/index.html for manual DnD / interaction testing in a
- * browser. Assertions are deliberately loose — verifying that the
- * feature *shape* exists in the generated code, not the exact
- * identifier names the model chose.
- *
- * OPT-IN: this test is skipped by default because it takes ~10-15 minutes
- * (5 sequential model rounds, each generating non-trivial code) and
- * exposes model-behavior issues that are orthogonal to the tool work
- * (e.g. the model preferring wholesale create_file rewrites over patches
- * in extended sessions). Set RUN_KANBAN=1 to opt in.
- *
- * Run: PORTAL_API_KEY=... RUN_KANBAN=1 pnpm vitest run test/tools/app-generation/kanban.test.ts
- */
-
 import { afterAll, describe, expect, it } from "vitest";
 
 import { buildAppSystemPrompt } from "../../../src/tools/appGeneration.js";
@@ -122,7 +99,6 @@ describe("kanban project board (sophisticated build + iterate)", () => {
         return store.get("App.css") ?? "";
       }
 
-      // ── Phase 1: initial generation ────────────────────────────────────────
       conversation.push(
         userMsg(
           [
@@ -148,25 +124,13 @@ describe("kanban project board (sophisticated build + iterate)", () => {
 
       const phase1Js = getAppJs();
       const phase1Css = getAppCss();
-      expect(phase1Js.length).toBeGreaterThanOrEqual(2500); // non-trivial scope
+      expect(phase1Js.length).toBeGreaterThanOrEqual(2500);
       expect(phase1Css.length).toBeGreaterThanOrEqual(500);
-      // All three column concepts present — match on whole words within
-      // the file (the model may split "In Progress" across JSX
-      // attributes like {title}<em>{em}</em> for stylistic reasons, so
-      // we look for "Progress" anywhere, not the contiguous "In Progress").
       expect(phase1Js).toMatch(/\bTo\b/);
       expect(phase1Js).toMatch(/Progress/);
       expect(phase1Js).toMatch(/Done/);
-      // Drag-and-drop primitives present (any of the standard handlers).
       expect(phase1Js).toMatch(/draggable|onDragStart|onDragOver|onDrop/);
 
-      // ── Soft design-quality signals (log-only) ─────────────────────
-      // The DESIGN DIRECTION section of the system prompt should produce
-      // observable artifacts: design tokens declared, Google Fonts loaded,
-      // an aesthetic stated in the assistant's text, custom CSS sized
-      // appropriately. None of these fail the test on their own — they're
-      // diagnostic signals we use to measure how the prompt is shaping
-      // the output.
       const cssVarMatches = phase1Css.match(/--[a-z][a-z0-9-]*\s*:/gi) ?? [];
       const usesGoogleFonts = /fonts\.googleapis\.com|fonts\.gstatic\.com/i.test(
         `${phase1Js}\n${phase1Css}`
@@ -207,7 +171,6 @@ describe("kanban project board (sophisticated build + iterate)", () => {
         `\n  Phase 1 (initial): App.js=${phase1Js.length}ch, App.css=${phase1Css.length}ch`
       );
 
-      // ── Phase 2: due dates + overdue highlight ─────────────────────────────
       conversation.push(
         userMsg(
           [
@@ -235,8 +198,6 @@ describe("kanban project board (sophisticated build + iterate)", () => {
       const phase2Css = getAppCss();
       expect(phase2Js).toMatch(/due\s*[Dd]ate|dueDate|deadline/);
       expect(phase2Js).toMatch(/type=["']date["']/);
-      // Overdue styling — model can express this in CSS or inline style or
-      // a JS branch. Match on the concept in either file.
       expect(`${phase2Js}\n${phase2Css}`).toMatch(/overdue|past[-_ ]?due|isOverdue/i);
 
       const diff2 = diffSnapshots(snap1, snapshot(store));
@@ -246,7 +207,6 @@ describe("kanban project board (sophisticated build + iterate)", () => {
         `  Phase 2 (due dates): App.js=${phase2Js.length}ch (+${phase2Js.length - phase1Js.length}), App.css=${phase2Css.length}ch (+${phase2Css.length - phase1Css.length})`
       );
 
-      // ── Phase 3: tag filtering with chips ──────────────────────────────────
       conversation.push(
         userMsg(
           [
@@ -273,7 +233,6 @@ describe("kanban project board (sophisticated build + iterate)", () => {
       const phase3Js = getAppJs();
       const phase3Css = getAppCss();
       expect(phase3Js).toMatch(/filter|activeTags|selectedTags/i);
-      // Clear-filters affordance present.
       expect(phase3Js).toMatch(/clear[\s_-]?filter|reset[\s_-]?filter/i);
 
       const diff3 = diffSnapshots(snap2, snapshot(store));
@@ -283,7 +242,6 @@ describe("kanban project board (sophisticated build + iterate)", () => {
         `  Phase 3 (tag filters): App.js=${phase3Js.length}ch (+${phase3Js.length - phase2Js.length}), App.css=${phase3Css.length}ch (+${phase3Css.length - phase2Css.length})`
       );
 
-      // ── Phase 4: multi-board sidebar ───────────────────────────────────────
       conversation.push(
         userMsg(
           [
@@ -310,13 +268,10 @@ describe("kanban project board (sophisticated build + iterate)", () => {
 
       const phase4Js = getAppJs();
       const phase4Css = getAppCss();
-      // Multi-board concept must show up substantively in the code.
       const boardMatches = phase4Js.match(/board/gi) ?? [];
       expect(boardMatches.length).toBeGreaterThanOrEqual(8);
-      // Seeded board names.
       expect(phase4Js).toMatch(/Web ?Redesign/);
       expect(phase4Js).toMatch(/API ?v2/i);
-      // Sidebar structural element.
       expect(`${phase4Js}\n${phase4Css}`).toMatch(/sidebar|aside/i);
 
       const diff4 = diffSnapshots(snap3, snapshot(store));
@@ -326,7 +281,6 @@ describe("kanban project board (sophisticated build + iterate)", () => {
         `  Phase 4 (multi-board): App.js=${phase4Js.length}ch (+${phase4Js.length - phase3Js.length}), App.css=${phase4Css.length}ch (+${phase4Css.length - phase3Css.length})`
       );
 
-      // ── Phase 5: insert a new column ───────────────────────────────────────
       conversation.push(
         userMsg(
           [
@@ -351,7 +305,6 @@ describe("kanban project board (sophisticated build + iterate)", () => {
       const phase5Js = getAppJs();
       const phase5Css = getAppCss();
       expect(phase5Js).toMatch(/Blocked/);
-      // The model should still know about every column it has built up.
       expect(phase5Js).toMatch(/\bTo\b/);
       expect(phase5Js).toMatch(/Progress/);
       expect(phase5Js).toMatch(/Done/);
@@ -362,7 +315,6 @@ describe("kanban project board (sophisticated build + iterate)", () => {
         `  Phase 5 (blocked column): App.js=${phase5Js.length}ch (+${phase5Js.length - phase4Js.length}), App.css=${phase5Css.length}ch (+${phase5Css.length - phase4Css.length})`
       );
 
-      // ── Summary + persistence ──────────────────────────────────────────────
       writeRunMetrics({
         outputSubdir: "kanban",
         benchmark: "kanban",

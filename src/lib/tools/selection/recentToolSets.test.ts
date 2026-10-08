@@ -6,7 +6,6 @@ import { carriedToolSets, recordToolSetTurn, resetRecentToolSets } from "./recen
 
 const none = new Set<string>();
 
-// The store only uses the database as an identity key.
 const db = {} as Database;
 
 describe("recentToolSets", () => {
@@ -92,7 +91,6 @@ describe("recentToolSets", () => {
 
   it("evicts the least recently used conversation past 50", () => {
     for (let i = 0; i < 50; i++) recordToolSetTurn(db, `c${i}`, new Set(["gmail"]));
-    // Reading c0 makes c1 the least recently used.
     expect(carriedToolSets(db, "c0")).toEqual(["gmail"]);
     recordToolSetTurn(db, "c50", new Set(["gmail"]));
     expect(carriedToolSets(db, "c0")).toEqual(["gmail"]);

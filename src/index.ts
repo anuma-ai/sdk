@@ -89,11 +89,30 @@
  *
  * @module
  */
-// Explicit re-exports from the auto-generated HTTP client. This list is
-// generated from src/client/sdk.gen.ts (values) and src/client/types.gen.ts
-// (types) to preserve tree-shaking for consumers of "@anuma/sdk". When
-// `pnpm run spec` regenerates the client, refresh this block — `pnpm run
-// check-exports` (publint + attw) will flag drift.
+export type {
+  AgentAgendaItem,
+  AgentAgendaTranscript,
+  AgentAnalysisSection,
+  AgentAnalysisTranscript,
+  AgentConfig,
+  AgentExampleConversation,
+  AgentManifest,
+  AgentMarketplaceContent,
+  AgentMarketplaceFamily,
+  AgentMarketplaceTranscript,
+  AgentPrimaryActionKind,
+  AgentRuntime,
+  AgentScheduleItem,
+  AgentTranscriptItem,
+  AgentTranscriptTone,
+  AgentUiMetadata,
+  FileExtractionStrategy,
+  SkillConfig,
+  SkillJourneyDefinition,
+  SkillJourneyField,
+  SkillJourneyFieldType,
+} from "./agent";
+export { MULTILINE_FIELD_MAX } from "./agent";
 export type {
   ClientOptions,
   DeleteApiV1AccountData,
@@ -755,64 +774,26 @@ export {
   putApiV1AgentsByIdPreference,
 } from "./client";
 export {
-  activatedToolSetNames,
-  applyToolSets,
-  buildConnectorGuidance,
-  buildDeniedToolsRider,
-  BUILT_IN_TOOL_SETS,
-  type ConnectorGuidance,
-  type ConnectorGuidanceInput,
-  createServerToolsFilter,
-  type CreateServerToolsFilterOptions,
-  DEFAULT_EXCLUDED_SERVER_TOOLS,
-  DEFAULT_SERVER_TOOLS_MATCH_OPTIONS,
-  defaultServerToolsFilter,
-  expandToolSetsAdditive,
-  selectServerSideTools,
-  type SelectServerSideToolsOptions,
-  TOOL_CATALOG,
-  type ToolSet,
-  toolSetSystemPrompts,
-} from "./lib/tools";
-
-// SSE idle-keepalive wrapper for the generated SSE client
+  attachFileContextToLastUserMessage,
+  buildAttachedFilesText,
+  isAttachedFilesText,
+} from "./lib/chat/fileContext";
+export { TOOL_RESULT_ORIGIN } from "./lib/chat/toolResults";
+export type { ApiResponse } from "./lib/chat/useChat/strategies/types";
 export {
-  SseIdleTimeoutError,
-  type SseKeepaliveOptions,
-  withSseKeepalive,
-} from "./lib/sse/keepalive";
-
-// Agent types + constants
-export type {
-  AgentAgendaItem,
-  AgentAgendaTranscript,
-  AgentAnalysisSection,
-  AgentAnalysisTranscript,
-  AgentConfig,
-  AgentExampleConversation,
-  AgentManifest,
-  AgentMarketplaceContent,
-  AgentMarketplaceFamily,
-  AgentMarketplaceTranscript,
-  AgentPrimaryActionKind,
-  AgentRuntime,
-  AgentScheduleItem,
-  AgentTranscriptItem,
-  AgentTranscriptTone,
-  AgentUiMetadata,
-  FileExtractionStrategy,
-  SkillConfig,
-  SkillJourneyDefinition,
-  SkillJourneyField,
-  SkillJourneyFieldType,
-} from "./agent";
-export { MULTILINE_FIELD_MAX } from "./agent";
-
-// Pluggable logger
+  getCostMicroUsd,
+  getCreditsUsed,
+  getImageModel,
+  getToolCallEvents,
+} from "./lib/chat/useChat/strategies/types";
+export type { LazyStoredConversation } from "./lib/db/chat";
+export { clearLazyTitleCache, decryptConversationTitle } from "./lib/db/chat";
 export type { Logger } from "./lib/logger";
 export { consoleLogger, getLogger, noopLogger, setLogger } from "./lib/logger";
-
-// Persona (prompt building + style analysis)
+export type { QuantizedEmbedding } from "./lib/memoryEngine";
+export { cosineInt8, dequantizeEmbedding, quantizeEmbedding } from "./lib/memoryEngine";
+export { decodeChunkVector, encodeChunkVector } from "./lib/memoryEngine";
+export { CHUNKS_DISCARDED_ORIGIN } from "./lib/memoryEngine";
 export type {
   AnalyzeStyleOptions,
   AnalyzeStyleResult,
@@ -838,54 +819,6 @@ export {
   sanitizeQuotes,
   shouldAnalyzeStyle,
 } from "./lib/persona";
-
-// Int8 embedding quantization helpers (RAM reduction for client embedding caches).
-// Pure utilities — no React, no DB, no platform deps.
-export type { QuantizedEmbedding } from "./lib/memoryEngine";
-export { cosineInt8, dequantizeEmbedding, quantizeEmbedding } from "./lib/memoryEngine";
-
-// Chunk-vector storage encoding (sdk#862). Clients that read `chunks` JSON
-// themselves — rather than through `searchChunks` — must take every
-// `MessageChunk.vector` through `decodeChunkVector`, which accepts both the
-// legacy `number[]` and the base64 float32 form. `encodeChunkVector` is exported
-// for tests and for the later writer flip; nothing writes base64 yet.
-export { decodeChunkVector, encodeChunkVector } from "./lib/memoryEngine";
-
-// Provenance markers for the `origin` column. CHUNKS_DISCARDED_ORIGIN marks a
-// row whose ciphertext-built chunks were discarded rather than re-embedded
-// (client#5618): it suppresses embedding without hiding the row, unlike
-// TOOL_RESULT_ORIGIN, which does both. Both are exported from all three app
-// entrypoints, because a client that cannot import the constant hand-rolls the
-// string instead, which is the drift they exist to prevent.
-export { TOOL_RESULT_ORIGIN } from "./lib/chat/toolResults";
-
-// The current turn's extracted attachment text rides on that turn's user message in this tagged
-// part. Exported from all three app entrypoints so a client that builds its own document context
-// (mobile) produces the same part — and so the pre-processor prompt skip recognises it.
-export {
-  attachFileContextToLastUserMessage,
-  buildAttachedFilesText,
-  isAttachedFilesText,
-} from "./lib/chat/fileContext";
-export { CHUNKS_DISCARDED_ORIGIN } from "./lib/memoryEngine";
-// Per-file preprocessing outcome (see `onFileProcessingResult` on the React `sendMessage`), and
-// the one-line-per-unread-file notes that go into the same attached-files part.
-export { formatFileProcessingNotes } from "./lib/processors/fileStatusNotes";
-export type { FileProcessingReason, FileProcessingStatus } from "./lib/processors/types";
-
-// Lazy conversation-title decryption (RAM reduction for chat sidebars).
-// Pair with the lazy ConversationMeta variant exported from
-// "@anuma/sdk/react" / "@anuma/sdk/expo" to defer per-row decrypt
-// until a conversation is actually rendered.
-export type { LazyStoredConversation } from "./lib/db/chat";
-export { clearLazyTitleCache, decryptConversationTitle } from "./lib/db/chat";
-
-// PII redaction — best-effort, client-side obfuscation of personally
-// identifiable information before prompts leave the device. Regex-based for
-// structured PII; an optional on-device {@link NerDetector} (see
-// `@anuma/sdk/pii/transformers`) adds names/locations/organizations via the
-// async methods. NOT a compliance guarantee, and does not scan non-text content
-// (images/files) or tool-call arguments. See `piiRedaction`.
 export type {
   MessageRedactionResult,
   NerDetector,
@@ -903,23 +836,32 @@ export {
   PiiRedactor,
   resolvePiiRedactor,
 } from "./lib/pii";
-
-// Response field read-helpers for the chat-completions / responses APIs. After the
-// OpenAI-compliant migration, portal-specific fields (cost/credits, tool-call events, image
-// model) live under a `portal` envelope on chat-completions responses and at the top level on
-// responses-API responses; each helper reads its field from the correct location for either
-// shape. Imported from the types module rather than the strategies barrel so consumers don't
-// pull in the strategy singletons created there.
-export type { ApiResponse } from "./lib/chat/useChat/strategies/types";
+export { formatFileProcessingNotes } from "./lib/processors/fileStatusNotes";
+export type { FileProcessingReason, FileProcessingStatus } from "./lib/processors/types";
 export {
-  getCostMicroUsd,
-  getCreditsUsed,
-  getImageModel,
-  getToolCallEvents,
-} from "./lib/chat/useChat/strategies/types";
-
-// Class-B task vocabulary for the X-Anuma-Task-Type header. Exported so the web
-// and mobile apps declare their own background tasks with the same strings the
-// portal allowlists, instead of each repo keeping a copy that can drift.
+  SseIdleTimeoutError,
+  type SseKeepaliveOptions,
+  withSseKeepalive,
+} from "./lib/sse/keepalive";
 export type { TaskType } from "./lib/taskType";
 export { TASK_TYPE_HEADER, taskTypeHeader } from "./lib/taskType";
+export {
+  activatedToolSetNames,
+  applyToolSets,
+  buildConnectorGuidance,
+  buildDeniedToolsRider,
+  BUILT_IN_TOOL_SETS,
+  type ConnectorGuidance,
+  type ConnectorGuidanceInput,
+  createServerToolsFilter,
+  type CreateServerToolsFilterOptions,
+  DEFAULT_EXCLUDED_SERVER_TOOLS,
+  DEFAULT_SERVER_TOOLS_MATCH_OPTIONS,
+  defaultServerToolsFilter,
+  expandToolSetsAdditive,
+  selectServerSideTools,
+  type SelectServerSideToolsOptions,
+  TOOL_CATALOG,
+  type ToolSet,
+  toolSetSystemPrompts,
+} from "./lib/tools";

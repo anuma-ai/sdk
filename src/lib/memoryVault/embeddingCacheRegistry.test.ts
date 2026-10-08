@@ -22,11 +22,6 @@ const OTHER_MODEL = "text-embedding-3-large";
 const WALLET = "0xAAA";
 const OTHER_WALLET = "0xBBB";
 
-/**
- * The registry only ever uses the database as a `WeakMap` key — it never
- * dereferences it — so an opaque object is a faithful stand-in and keeps this
- * suite free of an adapter.
- */
 function fakeDatabase(): Database {
   return {} as unknown as Database;
 }
@@ -35,8 +30,6 @@ describe("vault embedding cache registry", () => {
   let db: Database;
 
   beforeEach(() => {
-    // `vi.resetModules()` doesn't re-initialize already-resolved module
-    // bindings, so reset the registry explicitly for per-test isolation.
     __resetVaultEmbeddingCacheRegistryForTests();
     db = fakeDatabase();
   });
@@ -46,7 +39,6 @@ describe("vault embedding cache registry", () => {
     const second = getVaultEmbeddingCache(db, WALLET, MODEL);
 
     expect(second).toBe(first);
-    // Sharing means sharing contents — that is the point of the warm.
     first.set("mem_1", Float32Array.from([0.1, 0.2]));
     expect(second.get("mem_1")).toEqual(Float32Array.from([0.1, 0.2]));
   });
@@ -58,8 +50,6 @@ describe("vault embedding cache registry", () => {
     const theirs = getVaultEmbeddingCache(db, OTHER_WALLET, MODEL);
 
     expect(theirs).not.toBe(mine);
-    // Vectors are derived from wallet-decrypted content: the next account must
-    // not be able to read the previous one's, even on a shared database.
     expect(theirs.has("mem_1")).toBe(false);
   });
 
@@ -70,8 +60,6 @@ describe("vault embedding cache registry", () => {
     const large = getVaultEmbeddingCache(db, WALLET, OTHER_MODEL);
 
     expect(large).not.toBe(small);
-    // Entries carry no model tag, so a shared instance would feed one model's
-    // vectors into another model's cosine math whenever the dimensions match.
     expect(large.has("mem_1")).toBe(false);
   });
 
@@ -79,7 +67,6 @@ describe("vault embedding cache registry", () => {
     const first = getVaultEmbeddingCache(db, WALLET, MODEL);
     const second = getVaultEmbeddingCache(fakeDatabase(), WALLET, MODEL);
 
-    // Entries are keyed by memory id, and ids are only unique within a database.
     expect(second).not.toBe(first);
   });
 
@@ -91,10 +78,6 @@ describe("vault embedding cache registry", () => {
   });
 
   it("keeps the wallet and model halves of the key distinct", () => {
-    // The key is a single string, so a caller must not be able to shift the
-    // boundary between its two components and land on another identity's
-    // cache. `walletAddress` is typed as an opaque string — the "it's always
-    // hex" assumption is not one this can afford to make.
     const a = getVaultEmbeddingCache(db, "0xAA", `BB|${MODEL}`);
     const b = getVaultEmbeddingCache(db, "0xAA|BB", MODEL);
     const c = getVaultEmbeddingCache(db, `0xAA","BB`, MODEL);
@@ -111,8 +94,6 @@ describe("vault embedding cache registry", () => {
     clearAllEncryptionState();
 
     const after = getVaultEmbeddingCache(db, WALLET, MODEL);
-    // A cache no mounted hook still references would otherwise stay warm with
-    // the previous session's vectors and be handed to whoever mounts next.
     expect(after).not.toBe(before);
     expect(after.size).toBe(0);
   });

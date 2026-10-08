@@ -29,7 +29,6 @@ describe("attachFileContextToLastUserMessage", () => {
     expect(result[1]).toEqual(messages[1]);
     const last = result[3].content!;
     expect(last).toHaveLength(2);
-    // The user's words stay first: the portal classifier routes on the first text part.
     expect(last[0]).toEqual({ type: "text", text: "Please review the attached file(s)." });
     expect(last[1].type).toBe("text");
     expect(last[1].text).toBe(buildAttachedFilesText(FILE_CONTEXT));
@@ -100,7 +99,6 @@ describe("isAttachedFilesText", () => {
   it("recognises only the tagged part", () => {
     expect(isAttachedFilesText(buildAttachedFilesText(FILE_CONTEXT))).toBe(true);
     expect(isAttachedFilesText(`note: ${ATTACHED_FILES_OPEN_TAG}`)).toBe(false);
-    // User text that merely starts with the tag is still the user's prompt.
     expect(isAttachedFilesText(`${ATTACHED_FILES_OPEN_TAG} how do I parse this tag?`)).toBe(false);
     expect(isAttachedFilesText(`${ATTACHED_FILES_OPEN_TAG}\nnotes</attached_files>`)).toBe(false);
     expect(isAttachedFilesText("Please review the attached file(s).")).toBe(false);

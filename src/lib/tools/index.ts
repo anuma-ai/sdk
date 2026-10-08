@@ -20,7 +20,6 @@ export {
   CLIENT_TOOLS_RELEVANCE_RATIO,
   createServerToolsFilter,
   type CreateServerToolsFilterOptions,
-  // Constants
   DEFAULT_CACHE_EXPIRATION_MS,
   DEFAULT_EXCLUDED_SERVER_TOOLS,
   DEFAULT_SERVER_TOOLS_MATCH_OPTIONS,
@@ -30,7 +29,6 @@ export {
   expandToolSetsAdditive,
   filterServerTools,
   findMatchingTools,
-  // Functions
   getCachedServerTools,
   getServerTools,
   getToolsChecksum,
@@ -49,7 +47,6 @@ export {
   type ServerTool,
   type ServerToolsFilterFunction,
   type ServerToolsOptions,
-  // Types
   type ServerToolsResponse,
   shouldRefreshTools,
   type ToolMatchOptions,

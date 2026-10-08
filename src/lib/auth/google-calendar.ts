@@ -1,27 +1,3 @@
-/**
- * Google Calendar OAuth 2.0 Authorization Code Flow — **LEGACY (v1) MODULE**.
- *
- * As of the connector-vault rollout (`.claude-docs/connecters/DESIGN.md`),
- * Google refresh tokens live server-side on the portal. New code obtains a
- * Calendar access token via:
- *
- * ```ts
- * import { createConnectorTokenGetter } from "@anuma/sdk/tools";
- * const getToken = createConnectorTokenGetter(portalClient, "gcalendar");
- * ```
- *
- * The functions in this file remain published with their original
- * signatures so existing consumers keep compiling and the legacy
- * `/auth/oauth/google-calendar/{exchange,refresh,revoke}` portal endpoints
- * keep working through the transition window (≈2 release cycles per the
- * design). Each export is annotated `@deprecated` with the recommended
- * replacement.
- *
- * TODO(connector-vault): once the consumer migrates and the legacy
- * endpoints sunset (PR 4 in the plan), collapse this module to a thin
- * re-export over `createConnectorTokenGetter`.
- */
-
 import type { Client } from "../../client/client";
 import {
   postAuthOauthByProviderExchange,
@@ -37,25 +13,20 @@ import {
 import { getLogger } from "../logger";
 import { parsePlaintextToken, type PlaintextTokenRecord, readPlaintextToken } from "./tokenRows";
 
-// Use google-drive provider for backend API calls (same Google OAuth client)
-// but store tokens separately and request Calendar-specific scopes
 const PROVIDER = "google-drive";
 const CODE_STORAGE_KEY = "google_calendar_oauth_state";
 const TOKEN_STORAGE_KEY = "oauth_token_google-calendar";
 const RETURN_URL_KEY = "google_calendar_return_url";
 const PENDING_MESSAGE_KEY = "google_calendar_pending_message";
 
-// Prefix for encrypted token values in storage
 const ENCRYPTED_PREFIX = "enc:oauth:";
 
-// In-memory cache for decrypted tokens (avoids decrypting on every call)
 let cachedAccessToken: string | null = null;
 let cachedExpiresAt: number | null = null;
 let cachedRefreshToken: string | null = null;
 let cachedScope: string | null = null;
 let cachedWalletAddress: string | null = null;
 
-// Token storage types
 interface StoredTokenData {
   accessToken: string;
   refreshToken?: string;
@@ -63,11 +34,6 @@ interface StoredTokenData {
   scope?: string;
 }
 
-/**
- * Get the wallet-scoped storage key for token data.
- * When a walletAddress is provided, the key is scoped to that wallet
- * so different wallets can have independent encrypted tokens.
- */
 function getTokenStorageKey(walletAddress?: string): string {
   if (walletAddress) {
     return `${TOKEN_STORAGE_KEY}:${walletAddress}`;
@@ -75,15 +41,9 @@ function getTokenStorageKey(walletAddress?: string): string {
   return TOKEN_STORAGE_KEY;
 }
 
-/**
- * Get stored token data.
- * Checks encrypted localStorage first, then falls back to legacy
- * unencrypted localStorage (pre-encryption users), and finally sessionStorage.
- */
 async function getStoredTokenData(walletAddress?: string): Promise<StoredTokenData | null> {
   if (typeof window === "undefined") return null;
 
-  // Check in-memory cache first (avoids decryption on every call)
   if (
     cachedAccessToken &&
     cachedWalletAddress === (walletAddress ?? null) &&
@@ -96,7 +56,6 @@ async function getStoredTokenData(walletAddress?: string): Promise<StoredTokenDa
       scope: cachedScope ?? undefined,
     };
   }
-  // Invalidate stale cache
   if (cachedAccessToken) {
     cachedAccessToken = null;
     cachedExpiresAt = null;
@@ -106,7 +65,6 @@ async function getStoredTokenData(walletAddress?: string): Promise<StoredTokenDa
   }
 
   try {
-    // 1. Try encrypted localStorage (wallet-scoped key)
     const scopedStored = localStorage.getItem(getTokenStorageKey(walletAddress));
     if (
       scopedStored &&
@@ -120,7 +78,6 @@ async function getStoredTokenData(walletAddress?: string): Promise<StoredTokenDa
         const decryptedJson = await decryptDataWithKey(encryptedData, cryptoKey);
         const data = JSON.parse(decryptedJson) as StoredTokenData;
         if (!data.accessToken) return null;
-        // Populate cache
         cachedAccessToken = data.accessToken;
         cachedExpiresAt = data.expiresAt ?? null;
         cachedRefreshToken = data.refreshToken ?? null;
@@ -129,13 +86,9 @@ async function getStoredTokenData(walletAddress?: string): Promise<StoredTokenDa
         return data;
       } catch (error) {
         getLogger().error("Failed to decrypt Calendar OAuth token:", error);
-        // Fall through to legacy/session storage
       }
     }
 
-    // 2. Plain text rows. The wallet-scoped key comes first, then the legacy
-    //    unscoped key that older builds wrote. A row with a wallet field is
-    //    accepted only for that wallet.
     const plaintext = readPlaintextToken<StoredTokenData>(
       getTokenStorageKey(walletAddress),
       TOKEN_STORAGE_KEY,
@@ -156,17 +109,9 @@ async function getStoredTokenData(walletAddress?: string): Promise<StoredTokenDa
   }
 }
 
-/**
- * Store token data for one wallet.
- * When the encryption key is ready, write the encrypted row to this wallet's
- * key in localStorage and drop the plain text row under the same key.
- * Otherwise write one plain text row to sessionStorage, so the token survives
- * the OAuth redirect before the key exists.
- */
 async function storeTokenData(data: StoredTokenData, walletAddress?: string): Promise<void> {
   if (typeof window === "undefined") return;
 
-  // Update in-memory cache
   cachedAccessToken = data.accessToken;
   cachedExpiresAt = data.expiresAt ?? null;
   cachedRefreshToken = data.refreshToken ?? null;
@@ -175,14 +120,11 @@ async function storeTokenData(data: StoredTokenData, walletAddress?: string): Pr
 
   const json = JSON.stringify(data);
 
-  // Encrypt to the wallet-scoped key in localStorage when the key is ready
   if (walletAddress && hasEncryptionKey(walletAddress)) {
     try {
       const cryptoKey = await getEncryptionKey(walletAddress);
       const encrypted = await encryptDataWithKey(json, cryptoKey);
       localStorage.setItem(getTokenStorageKey(walletAddress), ENCRYPTED_PREFIX + encrypted);
-      // The encrypted row is now the only row for this key, so a read cannot
-      // fall back to an older plain text value.
       sessionStorage.removeItem(getTokenStorageKey(walletAddress));
       return;
     } catch (error) {
@@ -190,8 +132,6 @@ async function storeTokenData(data: StoredTokenData, walletAddress?: string): Pr
     }
   }
 
-  // Fallback: write one plain text row under this wallet's key. The row keeps
-  // its owner, so a read for another wallet cannot pick it up.
   const record: PlaintextTokenRecord<StoredTokenData> = { wallet: walletAddress, token: data };
   sessionStorage.setItem(getTokenStorageKey(walletAddress), JSON.stringify(record));
 }
@@ -201,7 +141,6 @@ async function storeTokenData(data: StoredTokenData, walletAddress?: string): Pr
  */
 export function clearCalendarToken(walletAddress?: string): void {
   if (typeof window === "undefined") return;
-  // Clear in-memory cache
   cachedAccessToken = null;
   cachedExpiresAt = null;
   cachedRefreshToken = null;
@@ -215,9 +154,6 @@ export function clearCalendarToken(walletAddress?: string): void {
   sessionStorage.removeItem(getTokenStorageKey(walletAddress));
 }
 
-/**
- * Check if the stored access token is expired
- */
 function isTokenExpired(data: StoredTokenData | null, bufferSeconds = 60): boolean {
   if (!data) return true;
   if (!data.expiresAt) return false;
@@ -226,9 +162,6 @@ function isTokenExpired(data: StoredTokenData | null, bufferSeconds = 60): boole
   return data.expiresAt - bufferMs <= now;
 }
 
-/**
- * Convert API response to StoredTokenData
- */
 function tokenResponseToStoredData(
   accessToken: string,
   expiresIn?: number,
@@ -248,24 +181,17 @@ function tokenResponseToStoredData(
   return data;
 }
 
-/**
- * Get the redirect URI for OAuth callback
- */
 function getRedirectUri(callbackPath: string): string {
   if (typeof window === "undefined") return "";
   return `${window.location.origin}${callbackPath}`;
 }
 
-/**
- * Get and clear stored OAuth state
- */
 function getAndClearOAuthState(): string | null {
   if (typeof window === "undefined") return null;
   const stored = sessionStorage.getItem(CODE_STORAGE_KEY);
   sessionStorage.removeItem(CODE_STORAGE_KEY);
   if (!stored) return null;
 
-  // Handle both JSON format and plain string format
   try {
     const parsed: unknown = JSON.parse(stored);
     if (parsed && typeof parsed === "object" && "state" in parsed) {
@@ -286,7 +212,6 @@ export function isCalendarCallback(callbackPath: string): boolean {
   const code = url.searchParams.get("code");
   const state = url.searchParams.get("state");
   const storedState = sessionStorage.getItem(CODE_STORAGE_KEY);
-  // Check if this callback is for Calendar (has our state stored)
   return url.pathname === callbackPath && !!code && !!state && state === storedState;
 }
 
@@ -305,7 +230,6 @@ export async function handleCalendarCallback(
   const state = url.searchParams.get("state");
   const storedState = getAndClearOAuthState();
 
-  // Validate state to prevent CSRF
   if (!code || !state || state !== storedState) {
     throw new Error("Invalid OAuth state");
   }
@@ -324,7 +248,6 @@ export async function handleCalendarCallback(
       throw new Error("No access token in response");
     }
 
-    // Store tokens
     const tokenData = tokenResponseToStoredData(
       response.data.access_token,
       response.data.expires_in,
@@ -333,7 +256,6 @@ export async function handleCalendarCallback(
     );
     await storeTokenData(tokenData, walletAddress);
 
-    // Clean up URL
     window.history.replaceState({}, "", window.location.pathname);
 
     return response.data.access_token;
@@ -366,7 +288,6 @@ export async function refreshCalendarToken(
       throw new Error("No access token in refresh response");
     }
 
-    // Update stored tokens
     const tokenData = tokenResponseToStoredData(
       response.data.access_token,
       response.data.expires_in,
@@ -377,8 +298,6 @@ export async function refreshCalendarToken(
 
     return response.data.access_token;
   } catch (error) {
-    // Don't clear token on transient errors (network, server) — only return null
-    // so the caller can retry later. The token + refresh token stay in storage.
     getLogger().error("Calendar token refresh failed", error);
     return null;
   }
@@ -421,12 +340,10 @@ export async function getCalendarAccessToken(
     return null;
   }
 
-  // If token is not expired, use it
   if (storedData.expiresAt && !isTokenExpired(storedData)) {
     return storedData.accessToken;
   }
 
-  // Try to refresh
   if (storedData.refreshToken) {
     const refreshedToken = await refreshCalendarToken(apiClient, walletAddress);
     if (refreshedToken) {
@@ -434,7 +351,6 @@ export async function getCalendarAccessToken(
     }
   }
 
-  // Fallback: return token if no expiry info
   if (storedData.accessToken && !storedData.expiresAt) {
     return storedData.accessToken;
   }
@@ -527,7 +443,6 @@ export async function migrateCalendarToken(walletAddress: string): Promise<boole
     const scopedKey = getTokenStorageKey(walletAddress);
     const sources: { key: string; store: Storage }[] = [
       { key: scopedKey, store: sessionStorage },
-      // A read moves a legacy localStorage row here as plain text.
       { key: scopedKey, store: localStorage },
       { key: TOKEN_STORAGE_KEY, store: sessionStorage },
       { key: TOKEN_STORAGE_KEY, store: localStorage },
@@ -544,7 +459,6 @@ export async function migrateCalendarToken(walletAddress: string): Promise<boole
     }
     if (!used) return false;
 
-    // If this wallet already has an encrypted row, only the used row is stale.
     const existingEncrypted = localStorage.getItem(scopedKey);
     if (existingEncrypted?.startsWith(ENCRYPTED_PREFIX)) {
       used.store.removeItem(used.key);
@@ -555,12 +469,9 @@ export async function migrateCalendarToken(walletAddress: string): Promise<boole
     if (!data) return false;
     await storeTokenData(data, walletAddress);
 
-    // Verify encryption succeeded
     const migrated = localStorage.getItem(scopedKey);
     if (!migrated?.startsWith(ENCRYPTED_PREFIX)) return false;
 
-    // Clean up the row this call used. Rows of other wallets stay in place.
-    // The encrypted write replaced the scoped localStorage row, so keep it.
     if (used.store !== localStorage || used.key !== scopedKey) {
       used.store.removeItem(used.key);
     }

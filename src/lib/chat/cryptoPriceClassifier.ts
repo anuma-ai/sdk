@@ -1,17 +1,3 @@
-/**
- * Crypto Price Classifier
- *
- * Determines whether a user prompt is asking for current crypto price data
- * (Bitcoin, Ethereum, ZRC-20s, token quotes) before being sent to the LLM.
- * Compares the prompt embedding against two pre-computed centroid vectors
- * (crypto-price vs no-crypto-price).
- *
- * No LLM calls — one embedding per prompt + two cosine similarities.
- *
- * To regenerate centroids after changing reference phrases:
- *   PORTAL_API_KEY=... npx tsx scripts/generateCryptoPriceCentroids.ts
- */
-
 import type { LlmapiMessage } from "../../client";
 import { generateEmbedding, generateEmbeddings } from "../memoryEngine/embeddings";
 import type { EmbeddingOptions } from "../memoryEngine/types";
@@ -30,11 +16,6 @@ export interface CryptoPriceClassification {
 }
 
 interface CryptoPriceClassifierOptions extends EmbeddingOptions {
-  /**
-   * Score margin: the crypto-price score must exceed the no-crypto-price
-   * score by at least this amount to classify as "needs crypto price data".
-   * @default 0.02
-   */
   margin?: number;
 }
 

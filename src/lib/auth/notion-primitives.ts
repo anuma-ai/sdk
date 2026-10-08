@@ -13,10 +13,6 @@
  * @module
  */
 
-// ============================================================================
-// CONSTANTS & TYPES
-// ============================================================================
-
 /** Well-known Notion MCP OAuth endpoints (fallback values). */
 export const NOTION_OAUTH_CONFIG = {
   /** Base URL for the Notion MCP server. */
@@ -29,7 +25,6 @@ export const NOTION_OAUTH_CONFIG = {
   registrationEndpoint: "https://api.notion.com/v1/oauth/register",
 } as const;
 
-/** Default token expiry (8 hours) when server doesn't provide expires_in. */
 const DEFAULT_TOKEN_EXPIRY_SECONDS = 8 * 3600;
 
 /** Endpoints discovered via RFC 8414 OAuth Server Metadata. */
@@ -90,15 +85,11 @@ export interface NotionRefreshTokenParams {
   clientId: string;
 }
 
-// ── Raw API response shapes (internal) ──
-
-/** Shape of the registration endpoint JSON response. */
 interface RegistrationResponse {
   client_id?: string;
   client_secret?: string;
 }
 
-/** Shape of the token endpoint JSON response. */
 interface TokenEndpointResponse {
   access_token?: string;
   refresh_token?: string;
@@ -106,13 +97,6 @@ interface TokenEndpointResponse {
   scope?: string;
 }
 
-// ============================================================================
-// PKCE UTILITIES
-// ============================================================================
-
-/**
- * Base64url encode (RFC 4648) — URL-safe base64 without padding.
- */
 function base64UrlEncode(bytes: Uint8Array): string {
   let binary = "";
   for (let i = 0; i < bytes.length; i++) {
@@ -122,19 +106,12 @@ function base64UrlEncode(bytes: Uint8Array): string {
   return base64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=/g, "");
 }
 
-/**
- * Generate a cryptographically random code verifier for PKCE.
- * 43-128 unreserved URI characters per RFC 7636.
- */
 function generateCodeVerifier(): string {
   const array = new Uint8Array(32);
   crypto.getRandomValues(array);
   return base64UrlEncode(array);
 }
 
-/**
- * Derive a code challenge from a verifier using SHA-256.
- */
 async function generateCodeChallenge(verifier: string): Promise<string> {
   const encoder = new TextEncoder();
   const data = encoder.encode(verifier);
@@ -142,18 +119,11 @@ async function generateCodeChallenge(verifier: string): Promise<string> {
   return base64UrlEncode(new Uint8Array(hash));
 }
 
-/**
- * Generate a random hex state string for CSRF protection.
- */
 function generateState(): string {
   const array = new Uint8Array(16);
   crypto.getRandomValues(array);
   return Array.from(array, (byte) => byte.toString(16).padStart(2, "0")).join("");
 }
-
-// ============================================================================
-// DISCOVERY (RFC 8414)
-// ============================================================================
 
 /**
  * Discover OAuth server metadata from Notion's well-known endpoints.
@@ -189,7 +159,6 @@ export async function discoverNotionOAuthEndpoints(): Promise<NotionOAuthEndpoin
 
     return (await metadataResponse.json()) as NotionOAuthEndpoints;
   } catch (err) {
-    // Discovery failed — return hardcoded fallback endpoints.
     if ((globalThis as Record<string, unknown>).__DEV__) {
       console.warn("[notion-primitives] OAuth discovery failed, using fallbacks:", err);
     }
@@ -201,10 +170,6 @@ export async function discoverNotionOAuthEndpoints(): Promise<NotionOAuthEndpoin
     };
   }
 }
-
-// ============================================================================
-// DYNAMIC CLIENT REGISTRATION (RFC 7591)
-// ============================================================================
 
 /**
  * Register a new OAuth client dynamically.
@@ -254,10 +219,6 @@ export async function registerNotionClient(
   };
 }
 
-// ============================================================================
-// PKCE GENERATION
-// ============================================================================
-
 /**
  * Generate a fresh PKCE challenge (code verifier + code challenge + state).
  *
@@ -270,10 +231,6 @@ export async function generateNotionPKCE(): Promise<NotionPKCEChallenge> {
   const state = generateState();
   return { codeVerifier, codeChallenge, state };
 }
-
-// ============================================================================
-// AUTHORIZATION URL
-// ============================================================================
 
 /**
  * Build the Notion authorization URL for the OAuth flow.
@@ -293,10 +250,6 @@ export function buildNotionAuthUrl(params: NotionAuthUrlParams): string {
   });
   return `${params.authorizationEndpoint}?${searchParams.toString()}`;
 }
-
-// ============================================================================
-// TOKEN EXCHANGE
-// ============================================================================
 
 /**
  * Exchange an authorization code for tokens.
@@ -346,10 +299,6 @@ export async function exchangeNotionCode(
 
   return result;
 }
-
-// ============================================================================
-// TOKEN REFRESH
-// ============================================================================
 
 /**
  * Refresh an access token using a refresh token.

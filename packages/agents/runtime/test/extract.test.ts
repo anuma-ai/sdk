@@ -10,8 +10,6 @@ describe("extractConnectorToolErrors", () => {
     expect(errors).toHaveLength(1);
     expect(errors[0]).toEqual({
       toolName: "gmail_search_messages",
-      // Synthesized from the tool-result index so it matches the
-      // `tool_call_id` on the corresponding tool-role message.
       callId: "call_0",
       error: {
         code: "connector_not_connected",
@@ -41,8 +39,6 @@ describe("extractConnectorToolErrors", () => {
       { name: "gmail_search_messages", result: err },
     ]);
     expect(errors).toHaveLength(1);
-    // Index 1 in the input array — not 0 — so consumers can correlate
-    // back to the matching tool-role message.
     expect(errors[0].callId).toBe("call_1");
   });
 

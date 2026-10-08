@@ -86,7 +86,6 @@ function makeAutoTool(
   };
 }
 
-/** Helper to extract the request body passed to createSseClient */
 function getRequestBody(callIndex: number): any {
   const opts = mockCreateSseClient.mock.calls[callIndex][0] as any;
   return JSON.parse(opts.serializedBody);
@@ -264,7 +263,6 @@ describe("useChat multi-turn tool loop", () => {
     expect(response?.error).toBeNull();
     expect(mockCreateSseClient).toHaveBeenCalledTimes(2);
 
-    // Verify the continuation includes tool result in messages
     const continuationBody = getRequestBody(1);
     const toolResultMsg = continuationBody.input.find((m: any) => m.role === "tool");
     expect(toolResultMsg).toBeDefined();
@@ -338,7 +336,7 @@ describe("useChat multi-turn tool loop", () => {
         function: expect.objectContaining({ name: "server_tool" }),
       })
     );
-    expect(mockCreateSseClient).toHaveBeenCalledTimes(1); // no continuation
+    expect(mockCreateSseClient).toHaveBeenCalledTimes(1);
   });
 
   it("handles multiple rounds of tool calls before final response", async () => {
@@ -424,11 +422,8 @@ describe("useChat multi-turn tool loop", () => {
       });
     });
 
-    // Both tools have executors, so onToolCall should NOT fire
     expect(onToolCall).not.toHaveBeenCalled();
-    // Both results sent in one continuation
     expect(mockCreateSseClient).toHaveBeenCalledTimes(2);
-    // Verify continuation includes both tool results
     const continuationBody = getRequestBody(1);
     const toolResults = continuationBody.input.filter((m: any) => m.role === "tool");
     expect(toolResults).toHaveLength(2);
@@ -458,12 +453,9 @@ describe("useChat multi-turn tool loop", () => {
     expect(messageOutput?.content?.[0]?.text).toBe("Final answer");
   });
 
-  // ── Safety: hard iteration cap ─────────────────────────────
-
   it("stops at the hard cap (maxToolRounds + 5) even if model keeps requesting tools", async () => {
     const loopTool = makeAutoTool("loop_tool", async (args) => `iteration ${args.n}`);
 
-    // Every call returns another tool call — the loop must stop at the hard cap.
     let callCount = 0;
     mockCreateSseClient.mockImplementation(() => {
       callCount++;
@@ -482,15 +474,11 @@ describe("useChat multi-turn tool loop", () => {
       });
     });
 
-    // 1 initial + (3 + 5) continuations = 9 total SSE calls
     expect(mockCreateSseClient).toHaveBeenCalledTimes(9);
-    // Should still return a response (not hang or throw)
     expect(response).toBeDefined();
     expect(response?.error).toBeNull();
     expect(result.current.isLoading).toBe(false);
   });
-
-  // ── Error: tool executor throws ────────────────────────────
 
   it("sends error back to model when tool executor throws", async () => {
     const failingTool = makeAutoTool("failing_tool", async () => {
@@ -512,11 +500,9 @@ describe("useChat multi-turn tool loop", () => {
       });
     });
 
-    // Should still complete (error is sent as tool result, not thrown)
     expect(response?.error).toBeNull();
     expect(mockCreateSseClient).toHaveBeenCalledTimes(2);
 
-    // The continuation should contain the error in the tool result message
     const continuationBody = getRequestBody(1);
     const toolResultMsg = continuationBody.input.find((m: any) => m.role === "tool");
     expect(toolResultMsg).toBeDefined();
@@ -524,13 +510,9 @@ describe("useChat multi-turn tool loop", () => {
     expect(toolResultMsg.content[0].text).toContain("Tool crashed");
   });
 
-  // ── Abort during tool loop continuation ────────────────────
-
   it("handles abort during the continuation stream after tool execution", async () => {
     const autoTool = makeAutoTool("auto_tool", async () => "result");
 
-    // First call: tool call stream (completes normally)
-    // Second call: continuation stream that throws AbortError
     mockCreateSseClient
       .mockReturnValueOnce(makeMockStream(makeToolCallStream("auto_tool", {})) as any)
       .mockReturnValueOnce({
@@ -560,8 +542,6 @@ describe("useChat multi-turn tool loop", () => {
     expect(result.current.isLoading).toBe(false);
   });
 
-  // ── executorTimeout ─────────────────────────────────
-
   it("times out a tool with a short executorTimeout", async () => {
     const slowTool: ToolConfig = {
       type: "function",
@@ -574,7 +554,7 @@ describe("useChat multi-turn tool loop", () => {
         await new Promise((r) => setTimeout(r, 5000));
         return "done";
       },
-      executorTimeout: 50, // 50ms timeout
+      executorTimeout: 50,
     };
 
     mockCreateSseClient
@@ -593,14 +573,11 @@ describe("useChat multi-turn tool loop", () => {
 
     expect(mockCreateSseClient).toHaveBeenCalledTimes(2);
 
-    // The continuation should contain the timeout error
     const continuationBody = getRequestBody(1);
     const toolResultMsg = continuationBody.input.find((m: any) => m.role === "tool");
     expect(toolResultMsg).toBeDefined();
     expect(toolResultMsg.content[0].text).toContain("timed out");
   });
-
-  // ── removeAfterExecution ─────────────────────────────────
 
   it("removes tool from continuation request after successful execution when removeAfterExecution is true", async () => {
     const removableTool: ToolConfig = {
@@ -630,14 +607,9 @@ describe("useChat multi-turn tool loop", () => {
 
     expect(mockCreateSseClient).toHaveBeenCalledTimes(2);
 
-    // Verify the continuation request has no tools (they were all removed)
     const continuationBody = getRequestBody(1);
     expect(continuationBody.tools).toBeUndefined();
   });
-
-  // ── removeAfterResult ─────────────────────────────────
-  // A family of tools that has to leave together: when one declines an out-of-scope request, the
-  // model otherwise works through its siblings round after round until the cap.
 
   const declined = (result: unknown) =>
     typeof result === "object" && result !== null && "declined" in result;
@@ -762,7 +734,6 @@ describe("useChat multi-turn tool loop", () => {
 
     expect(mockCreateSseClient).toHaveBeenCalledTimes(2);
 
-    // Tool should still be present since it failed
     const continuationBody = getRequestBody(1);
     const toolNames = continuationBody.tools?.map((t: any) => t.function?.name ?? t.name);
     expect(toolNames).toContain("flaky_tool");
@@ -780,8 +751,6 @@ describe("useChat multi-turn tool loop", () => {
       removeAfterExecution: true,
     };
 
-    // First call: model calls memory_save tool
-    // Second call: model responds with text (no tools available to call)
     mockCreateSseClient
       .mockReturnValueOnce(
         makeMockStream(makeToolCallStream("memory_save", { content: "pasta" })) as any
@@ -804,16 +773,12 @@ describe("useChat multi-turn tool loop", () => {
       });
     });
 
-    // Only 2 SSE calls (initial + 1 continuation), not 11 (initial + 10)
     expect(mockCreateSseClient).toHaveBeenCalledTimes(2);
     expect(response?.error).toBeNull();
 
-    // Verify the continuation had no tools
     const continuationBody = getRequestBody(1);
     expect(continuationBody.tools).toBeUndefined();
   });
-
-  // ── dependsOn: topological execution order ──────────────────
 
   it("executes dependent tool after its dependency completes", async () => {
     const executionOrder: string[] = [];
@@ -845,7 +810,6 @@ describe("useChat multi-turn tool loop", () => {
       dependsOn: ["create_file"],
     };
 
-    // Stream that calls both tools in one response
     const bothToolsStream = [
       {
         type: "response.created",
@@ -901,8 +865,6 @@ describe("useChat multi-turn tool loop", () => {
       });
     });
 
-    // notify_user depends on create_file, so create_file must run first
-    // even though notify_user appeared first in the stream
     expect(executionOrder).toEqual(["create_file", "notify_user"]);
   });
 
@@ -1081,10 +1043,8 @@ describe("useChat multi-turn tool loop", () => {
       });
     });
 
-    // Should still continue (error results sent to model), not hang
     expect(mockCreateSseClient).toHaveBeenCalledTimes(2);
 
-    // The continuation should contain error messages for both tools
     const continuationBody = getRequestBody(1);
     const toolResults = continuationBody.input.filter((m: any) => m.role === "tool");
     expect(toolResults).toHaveLength(2);
@@ -1170,15 +1130,12 @@ describe("useChat multi-turn tool loop", () => {
       });
     });
 
-    // notify_user should NOT have executed since create_file failed
     expect(executionOrder).toEqual(["create_file"]);
 
-    // Both tools should have results sent to the model
     const continuationBody = getRequestBody(1);
     const toolResults = continuationBody.input.filter((m: any) => m.role === "tool");
     expect(toolResults).toHaveLength(2);
 
-    // notify_user should get a failed dependency error (not executed)
     const displayResult = toolResults.find((m: any) => m.tool_call_id === "call-2");
     expect(displayResult?.content[0].text).toContain("failed dependencies: create_file");
   });
@@ -1195,7 +1152,6 @@ describe("useChat multi-turn tool loop", () => {
       },
       executor: async () => {
         executionOrder.push("create_file");
-        // Return error object like appGeneration executors do (instead of throwing)
         return { error: "Failed to create file: quota exceeded" };
       },
     };
@@ -1261,7 +1217,6 @@ describe("useChat multi-turn tool loop", () => {
       });
     });
 
-    // notify_user should NOT have executed since create_file returned an error object
     expect(executionOrder).toEqual(["create_file"]);
   });
 
@@ -1367,10 +1322,8 @@ describe("useChat multi-turn tool loop", () => {
       });
     });
 
-    // Only tool_a should have executed
     expect(executionOrder).toEqual(["tool_a"]);
 
-    // Both B and C should report "failed dependencies", NOT "dependency cycle"
     const continuationBody = getRequestBody(1);
     const toolResults = continuationBody.input.filter((m: any) => m.role === "tool");
     expect(toolResults).toHaveLength(3);
@@ -1428,7 +1381,6 @@ describe("useChat multi-turn tool loop", () => {
       dependsOn: ["tool_b"],
     };
 
-    // Stream emits in reverse topological order: C, B, A
     const reverseStream = [
       {
         type: "response.created",
@@ -1493,7 +1445,6 @@ describe("useChat multi-turn tool loop", () => {
     const toolResults = continuationBody.input.filter((m: any) => m.role === "tool");
     expect(toolResults).toHaveLength(3);
 
-    // C (emitted first) should still get "failed dependencies", not "dependency cycle"
     const toolCResult = toolResults.find((m: any) => m.tool_call_id === "call-1");
     expect(toolCResult?.content[0].text).toContain("failed dependencies");
     expect(toolCResult?.content[0].text).not.toContain("dependency cycle");
@@ -1531,7 +1482,6 @@ describe("useChat multi-turn tool loop", () => {
 
     expect(mockCreateSseClient).toHaveBeenCalledTimes(2);
 
-    // Tool should still be present since it returned an error object
     const continuationBody = getRequestBody(1);
     const toolNames = continuationBody.tools?.map((t: any) => t.function?.name ?? t.name);
     expect(toolNames).toContain("save_tool");
@@ -1615,10 +1565,8 @@ describe("useChat multi-turn tool loop", () => {
       });
     });
 
-    // Both should execute in correct order
     expect(executionOrder).toEqual(["create_file", "notify_user"]);
 
-    // create_file should be removed from continuation, notify_user kept
     const continuationBody = getRequestBody(1);
     const toolNames = continuationBody.tools?.map((t: any) => t.function?.name ?? t.name);
     expect(toolNames).not.toContain("create_file");
@@ -1675,11 +1623,8 @@ describe("useChat multi-turn tool loop", () => {
         arguments: { type: "object", properties: {} },
       },
       executor: async () => "results",
-      // No removeAfterExecution — should persist
     };
 
-    // First call: model calls memory_save
-    // Second call: model responds with text
     mockCreateSseClient
       .mockReturnValueOnce(
         makeMockStream(makeToolCallStream("memory_save", { content: "test" })) as any
@@ -1698,29 +1643,19 @@ describe("useChat multi-turn tool loop", () => {
 
     expect(mockCreateSseClient).toHaveBeenCalledTimes(2);
 
-    // Continuation should still have web_search but not memory_save
     const continuationBody = getRequestBody(1);
     const toolNames = continuationBody.tools?.map((t: any) => t.function?.name ?? t.name);
     expect(toolNames).not.toContain("memory_save");
     expect(toolNames).toContain("web_search");
   });
 
-  // ── Provider-sent in-stream error event ─────────────────────
-
   it("surfaces a provider-sent in-stream error (e.g. timeout) as a real error", async () => {
-    // Some upstream providers end a streaming response by emitting a normal
-    // SSE data chunk of the form {"error":{"code":"timeout","message":"..."}}
-    // instead of raising an HTTP/SSE error. Those chunks were previously
-    // silently consumed by the strategy, so the stream finished empty and
-    // the caller saw the generic "no response" fallback. The toolLoop now
-    // detects this shape and throws so the real message bubbles up.
     mockCreateSseClient.mockReturnValueOnce({
       stream: (async function* () {
         yield {
           type: "response.created",
           response: { id: "resp-1", model: "test-model" },
         };
-        // Provider emits a mid-stream error event.
         yield {
           error: {
             code: "timeout",
@@ -1745,13 +1680,7 @@ describe("useChat multi-turn tool loop", () => {
     expect(result.current.isLoading).toBe(false);
   });
 
-  // ── skipContinuation + tool error ───────────────────────────
-
   it("continues the loop (despite skipContinuation) when a skipContinuation tool errors", async () => {
-    // skipContinuation normally means the tool's result is not sent back to
-    // the model — the loop ends after execution. But if the tool ERRORS,
-    // the error must still feed back so the model can respond; otherwise
-    // the assistant turn finishes silently with no user-visible output.
     const flakyQuietTool: ToolConfig = {
       type: "function",
       function: {
@@ -1779,10 +1708,8 @@ describe("useChat multi-turn tool loop", () => {
       });
     });
 
-    // A continuation must have been requested so the model can react to the failure.
     expect(mockCreateSseClient).toHaveBeenCalledTimes(2);
 
-    // The tool's error result must be included in the continuation input.
     const continuationBody = getRequestBody(1);
     const toolResultMsg = continuationBody.input.find((m: any) => m.role === "tool");
     expect(toolResultMsg).toBeDefined();
@@ -1790,7 +1717,6 @@ describe("useChat multi-turn tool loop", () => {
   });
 
   it("ends the loop (as usual) when a skipContinuation tool succeeds", async () => {
-    // Sanity check for the above: on success, skipContinuation still short-circuits.
     const quietTool: ToolConfig = {
       type: "function",
       function: {
@@ -1816,7 +1742,6 @@ describe("useChat multi-turn tool loop", () => {
       });
     });
 
-    // No continuation — loop ended after the tool ran successfully.
     expect(mockCreateSseClient).toHaveBeenCalledTimes(1);
   });
 });

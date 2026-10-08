@@ -1,29 +1,3 @@
-/**
- * Machine-readable metrics for app-generation benchmark runs.
- *
- * The benchmarks under `test/tools/app-generation/` exercise the
- * `createAppGenerationTools` flow end-to-end and historically logged
- * tool counts, file sizes, and elapsed time to stdout only. That's fine
- * for a single run but useless for "did the prompt change regress
- * anything?" — comparing two runs meant eyeballing two terminal logs.
- *
- * This module exposes pure helpers to turn a benchmark's per-phase
- * tool log + final file store into a stable `RunRecord` that can be
- * serialised to JSON, persisted alongside the generated app, and
- * diffed against a prior run. Disk I/O lives in the e2e setup; this
- * module stays pure so the formatting and totals are unit-testable
- * without touching the filesystem.
- *
- * Schema versioning: bumped via `SCHEMA_VERSION`. Old runs in
- * `.output/{bench}/.history/` may carry older versions; the compare
- * helpers tolerate same-version comparisons only.
- *
- * v2: per-phase `auditScore` (deterministic `auditDesign()` on the
- * post-phase file store) and `inputTokens` / `outputTokens`, plus token
- * totals — elapsed/tool counts alone show efficiency regressions but
- * not quality or cost ones.
- */
-
 import { auditDesign } from "./appAudit.js";
 
 export const SCHEMA_VERSION = 2 as const;
@@ -131,10 +105,6 @@ export function summarizePhase(opts: {
     }
   }).length;
 
-  // Sum `overwritten[].length` across all create_file successes. Each
-  // call's result carries the per-call subset of paths that already
-  // existed — overwrites are a soft signal that the model could have
-  // used patch_file for a smaller, more reviewable diff.
   let overwrites = 0;
   for (const c of opts.toolCalls) {
     if (c.name !== "create_file") continue;
@@ -156,8 +126,6 @@ export function summarizePhase(opts: {
     contents[p] = c;
   }
 
-  // Audit the phase's final state directly — auditDesign is pure, so this
-  // costs no LLM round and runs even when the model skipped audit_design.
   const auditable = "App.js" in contents || "App.jsx" in contents || "App.css" in contents;
   const auditScore = auditable ? auditDesign(contents).score : null;
 
@@ -239,10 +207,6 @@ function formatDelta(before: number, after: number, unit: string = ""): string {
   return `${before}${unit} → ${after}${unit}  (${sign}${diff}${unit})`;
 }
 
-/** Like `formatDelta` but for fields that may be unmeasured (null) on
- *  either side — e.g. tokens from a pre-v2 harness, or auditScore on a
- *  phase with no app files. No delta is printed unless both sides have
- *  a value. */
 function formatNullableDelta(
   before: number | null,
   after: number | null,

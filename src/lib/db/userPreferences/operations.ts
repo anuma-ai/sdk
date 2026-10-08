@@ -11,9 +11,6 @@ import type {
   UpdateUserPreferenceOptions,
 } from "./types";
 
-/**
- * Convert a UserPreference model to a StoredUserPreference object
- */
 function userPreferenceToStored(preference: UserPreference): StoredUserPreference {
   return {
     uniqueId: preference.id,
@@ -51,9 +48,6 @@ export async function getUserPreferenceOp(
   return results.length > 0 ? userPreferenceToStored(results[0]) : null;
 }
 
-/**
- * Create a new user preference record
- */
 async function createUserPreferenceOp(
   ctx: UserPreferencesStorageOperationsContext,
   opts: CreateUserPreferenceOptions
@@ -76,9 +70,6 @@ async function createUserPreferenceOp(
   return userPreferenceToStored(created);
 }
 
-/**
- * Update an existing user preference record
- */
 async function updateUserPreferenceOp(
   ctx: UserPreferencesStorageOperationsContext,
   walletAddress: string,
@@ -223,12 +214,6 @@ export async function deleteUserPreferenceOp(
   return true;
 }
 
-// ===== Migration Helpers =====
-
-/**
- * Old personality settings format (from memoryless app)
- * Used for migration from modelPreferences table
- */
 interface OldPersonalitySettings {
   sliders?: {
     emojis?: number;
@@ -262,29 +247,24 @@ export async function migrateFromModelPreferencesOp(
     return null;
   }
 
-  // Check if already migrated
   const existing = await getUserPreferenceOp(ctx, walletAddress);
   if (existing) {
     return existing;
   }
 
-  // Fetch old model preferences (stored with walletAddress as key)
   const modelResults = await ctx.modelPreferencesCollection
     .query(Q.where("wallet_address", walletAddress))
     .fetch();
 
-  // Fetch old personality settings (stored with walletAddress_personality_settings as key)
   const personalityKey = `${walletAddress}_personality_settings`;
   const personalityResults = await ctx.modelPreferencesCollection
     .query(Q.where("wallet_address", personalityKey))
     .fetch();
 
-  // If neither exists, nothing to migrate
   if (modelResults.length === 0 && personalityResults.length === 0) {
     return null;
   }
 
-  // Extract data
   const oldModels = modelResults.length > 0 ? modelResults[0].models : undefined;
   const oldPersonalityJson =
     personalityResults.length > 0 ? personalityResults[0].models : undefined;
@@ -298,12 +278,10 @@ export async function migrateFromModelPreferencesOp(
     try {
       const parsed = JSON.parse(oldPersonalityJson) as OldPersonalitySettings;
 
-      // Extract profile fields
       nickname = parsed.nickname;
       occupation = parsed.occupation;
-      description = parsed.aboutYou; // Note: old field was called "aboutYou"
+      description = parsed.aboutYou;
 
-      // Create new personality settings without profile fields
       const newPersonality: PersonalitySettings = {
         sliders: {
           emojis: parsed.sliders?.emojis ?? 3,
@@ -320,7 +298,6 @@ export async function migrateFromModelPreferencesOp(
     }
   }
 
-  // Create new user preference record with migrated data
   const created = await createUserPreferenceOp(ctx, {
     walletAddress,
     nickname,

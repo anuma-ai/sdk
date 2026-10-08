@@ -18,60 +18,39 @@
  * system and dumps it to HTML for inspection.
  */
 
-// ---------------------------------------------------------------------------
-// Roles — what an element is, independent of how it looks
-// ---------------------------------------------------------------------------
-
 /**
  * Finite set of semantic roles every slide element can play. A layout
  * composition references roles only; the design system decides what each
  * role concretely looks like.
  */
 export type ElementRole =
-  | "hero" // big display heading — one LINE of the hero (regular)
-  | "hero-accent" // big display heading — the italic accent line
-  | "subtitle" // secondary heading directly under a hero
-  | "eyebrow" // small mono uppercase label above a heading
-  | "body" // running prose paragraph
-  | "bullets" // multi-line bulleted body
-  | "stat-display" // massive display number that IS the slide — "$40M", "$1B", "10M" — 3× bigger than stat-value
-  | "stat-value" // big featured number ("62", "95%", "+240") — slide-hero scale
-  | "stat-value-mid" // medium stat for cards ("30,000+", "5,000+") — between hero and row
-  | "stat-value-small" // small stat in a bottom-row context ("$9.50", "2.4×")
-  | "stat-label" // small caption under a stat
-  | "quote" // pull-quote text — one line of a multi-line quote (regular)
-  | "quote-accent" // pull-quote text — the italic accent line
-  | "attribution" // quote attribution ("— Mei Han")
-  | "card-surface" // filled rectangle that defines a card's ground
-  | "card-eyebrow" // mono uppercase label / number inside a card ("01")
-  | "card-title" // serif heading inside a card
-  | "card-body" // body paragraph inside a card
-  | "chrome-left" // top-left page chrome (brand + section)
-  | "chrome-right" // top-right page chrome (page counter)
-  | "footer" // bottom footer line
-  | "divider" // thin hairline rule (shape role)
-  | "accent-bar" // colored accent rectangle (shape role)
-  | "marker" // small filled circle — timeline dots, list bullets (shape role)
-  | "image"; // image placeholder (image role)
+  | "hero"
+  | "hero-accent"
+  | "subtitle"
+  | "eyebrow"
+  | "body"
+  | "bullets"
+  | "stat-display"
+  | "stat-value"
+  | "stat-value-mid"
+  | "stat-value-small"
+  | "stat-label"
+  | "quote"
+  | "quote-accent"
+  | "attribution"
+  | "card-surface"
+  | "card-eyebrow"
+  | "card-title"
+  | "card-body"
+  | "chrome-left"
+  | "chrome-right"
+  | "footer"
+  | "divider"
+  | "accent-bar"
+  | "marker"
+  | "image";
 
-/**
- * The subset of ElementRole that a FlexRegion item can carry.
- *
- * `emitRelativeElement` handles dividers / accent-bars / markers as
- * shape primitives and routes every other role through the text path
- * (with role-specific style + fontRole resolution). It explicitly does
- * NOT render `image` (no `<Anuma.Image>` emit path for rels) or
- * `card-surface` (cards paint their surface via `cardItems: true` on
- * the region, not via a per-rel role). Narrowing the type here makes
- * those two roles uncompilable inside a flex item — so the silent-
- * misrender case (rel.role="image" rendering as zero-size Text) can't
- * be constructed.
- */
 type RelativeElementRole = Exclude<ElementRole, "image" | "card-surface">;
-
-// ---------------------------------------------------------------------------
-// RoleStyle — the concrete styling applied to a role within a design system
-// ---------------------------------------------------------------------------
 
 /**
  * Concrete style values for one role within one design system. Values are
@@ -189,10 +168,6 @@ export interface DesignSystem {
   };
 }
 
-// ---------------------------------------------------------------------------
-// LayoutComposition — role-tagged geometry, no style
-// ---------------------------------------------------------------------------
-
 /**
  * How a slot's content is expected to fit within its bounding box.
  *
@@ -218,8 +193,8 @@ export type FitMode = "single-line" | "multi-line";
 export interface CompositionElement {
   id: string;
   role: ElementRole;
-  x: number; // percent of canvas width
-  y: number; // percent of canvas height
+  x: number;
+  y: number;
   w: number;
   h: number;
   /**
@@ -252,33 +227,11 @@ export interface CompositionElement {
   defaultSrc?: string;
 }
 
-/**
- * A sub-element inside a FlexRegion item template. Unlike CompositionElement
- * it doesn't have absolute x/y — its position is determined by the parent
- * Group's flex flow. Its `w` and `h` are still meaningful for sizing
- * (used by validators and the Anuma renderer for fixed-dimension children)
- * but the renderer lays them out via the parent's `layout` direction.
- *
- * Slot ids carry an `${index}` placeholder; compile() interpolates the
- * 1-based item index at emit time (`agenda_${index}_title` → `agenda_1_title`,
- * `agenda_2_title`, ...).
- */
 interface RelativeElement {
-  /** Slot id pattern. `${index}` is replaced with the 1-based item index. */
   id: string;
-  /**
-   * One of the roles the flex emitter actually renders. Excludes "image"
-   * (no flex-item Image emit path) and "card-surface" (cards paint their
-   * surface via `cardItems: true` on the region, not via a per-rel role).
-   * The type narrows what `ElementRole` would otherwise advertise so
-   * those silent-misrender cases can't be constructed.
-   */
   role: RelativeElementRole;
-  /** Width in canvas-percent. Ignored when the parent flex axis assigns it. */
   w?: number;
-  /** Height in canvas-percent. Ignored when the parent flex axis assigns it. */
   h?: number;
-  /** Optional flex grow factor for sizing within the parent group. */
   grow?: number;
   fit?: FitMode;
   surface?: SurfaceState;
@@ -286,107 +239,34 @@ interface RelativeElement {
   defaultText?: string;
 }
 
-/**
- * Default content for ONE item inside a FlexRegion. String values are the
- * text for each RelativeElement (keyed by rel.id). The optional `surface`
- * key is reserved — it overrides the region's surface state for THIS
- * item, so a single grid can mix neutral/dark/accent cards without a new
- * composition. RelativeElement ids must never be literally "surface".
- */
 type FlexItemDefault = {
   [key: string]: (string & {}) | SurfaceState | undefined;
   surface?: SurfaceState;
 };
 
-/**
- * A repeating flex region inside a composition. The region's own frame
- * is fixed (x/y/w/h), but it hosts a variable number of items rendered
- * as an `<Anuma.Group layout="row" | "column">`. Each item is one
- * realisation of the `item` template — same role pattern, sequential
- * slot ids (`agenda_1_title`, `agenda_2_title`, …). Use this for agendas,
- * bullet lists, dynamic card grids, timeline rows.
- */
 interface FlexRegion {
-  /** Discriminator — separates flex regions from absolute elements. */
   kind: "flex-region";
-  /** Prefix for slot ids inside this region (e.g. "agenda_"). */
   idPrefix: string;
-  /** Container frame on the slide canvas. */
   x: number;
   y: number;
   w: number;
   h: number;
-  /** Flex direction. "column" stacks items vertically; "row" lays them horizontally. */
   layout: "row" | "column";
-  /** Spacing between items in canvas-percent. */
   gap?: number;
-  /** Inner padding around the item track in canvas-percent. */
   padding?: number;
   justify?: "start" | "center" | "end" | "space-between";
   align?: "start" | "center" | "end" | "stretch" | "baseline";
-  /** Surface state for items inside the region (defaults to slide's surface). */
   surface?: SurfaceState;
-  /**
-   * Internal layout direction inside each item. Defaults to "row" — an
-   * agenda row lays its sub-elements left-to-right (number / title /
-   * description / duration).
-   */
   itemLayout?: "row" | "column";
-  /** Gap between sub-elements within one item, in canvas-percent. */
   itemGap?: number;
-  /**
-   * Inner padding around an item's sub-elements, in canvas-percent. Used
-   * with `cardItems` to inset text content from the card's painted edge
-   * — otherwise eyebrow + title sit flush against the corner.
-   */
   itemPadding?: number;
-  /** justify-content within each item. */
   itemJustify?: "start" | "center" | "end" | "space-between";
-  /**
-   * align-items within each item. "baseline" aligns text by typographic
-   * baseline — useful when sub-elements have different font sizes (e.g.
-   * a small mono number next to a serif title in an agenda row).
-   */
   itemAlign?: "start" | "center" | "end" | "stretch" | "baseline";
-  /**
-   * Emit a hairline divider after every item. Renders as a flex sibling
-   * `<Anuma.Line>` between consecutive items (and after the last). Uses
-   * the design system's `divider` role color. Useful for agendas and
-   * table-of-contents patterns where each row needs visual separation.
-   */
   separator?: boolean;
-  /**
-   * Grid mode: when set, items lay out in a 2-D grid with `columns` items
-   * per row, items flowing row-major. The outer container becomes a flex
-   * column whose children are row-flex groups; each row-flex group holds
-   * up to `columns` item-groups. `gap` becomes the inter-row gap; the
-   * inter-column gap inside each row falls back to `gap` unless
-   * `columnGap` is set explicitly. When undefined, the region uses the
-   * standard 1-D layout determined by `layout`.
-   */
   columns?: number;
-  /** Inter-column gap inside each row when `columns` is set. Defaults to `gap`. */
   columnGap?: number;
-  /**
-   * Card-style items: when true, each item-group paints its own
-   * card-surface fill (resolved from the design system's card-surface
-   * role under the item's surface state) and `cornerRadius={0.3}`. Use
-   * for MARKETING_GRID-style card grids where the item IS the card; the
-   * item template should then carry text rels only (no `card-surface`
-   * rel). Per-item surface variety travels on FlexItemDefault.surface.
-   */
   cardItems?: boolean;
-  /**
-   * The template item — a list of RelativeElements describing the
-   * sub-elements of ONE item. compile() emits N copies with sequential
-   * slot ids.
-   */
   item: RelativeElement[];
-  /**
-   * Default item content for the catalog dump. compile() emits one
-   * Anuma.Group child per entry, populating each child's template
-   * elements with the entry's text by RelativeElement id.
-   */
   defaultItems: FlexItemDefault[];
 }
 
@@ -417,10 +297,6 @@ export interface LayoutComposition {
   backgroundColor?: string;
 }
 
-// ---------------------------------------------------------------------------
-// editorial-warm — one concrete design system: warm-tone editorial look
-// ---------------------------------------------------------------------------
-
 const MONO = "JetBrains Mono";
 
 export const EDITORIAL_WARM: DesignSystem = {
@@ -445,10 +321,6 @@ export const EDITORIAL_WARM: DesignSystem = {
       fontSize: 6.0,
       fontWeight: 400,
       fontStyle: "italic",
-      // Editorial-warm uses two distinct accents: terracotta for hero
-      // italic + chrome (warmer, more emotive), olive green for body
-      // eyebrows (cooler, more structural). The palette's `accent` token
-      // is the green; we override hero-accent to the terracotta literal.
       color: "#B85A2E",
       lineHeight: 1.0,
       align: "left",
@@ -557,9 +429,6 @@ export const EDITORIAL_WARM: DesignSystem = {
       fontFamily: MONO,
       fontSize: 1.15,
       fontWeight: 500,
-      // Chrome shares the terracotta accent with hero-accent (warmer
-      // brand color), not the palette's olive green which is used only
-      // for body eyebrows and other structural-accent moments.
       color: "#B85A2E",
       textTransform: "uppercase",
       letterSpacing: 0.18,
@@ -583,7 +452,6 @@ export const EDITORIAL_WARM: DesignSystem = {
       letterSpacing: 0.1,
       align: "left",
     },
-    // Card roles — used inside `card-surface` groups.
     "card-eyebrow": {
       fontFamily: MONO,
       fontSize: 1.0,
@@ -609,8 +477,6 @@ export const EDITORIAL_WARM: DesignSystem = {
       lineHeight: 1.55,
       align: "left",
     },
-    // Shape roles — fontFamily etc are unused but typed slots; the
-    // compiler only reads `color` for fill/stroke.
     "card-surface": {
       fontFamily: "body",
       fontSize: 0,
@@ -637,19 +503,11 @@ export const EDITORIAL_WARM: DesignSystem = {
       color: "card",
     },
   },
-  // Per-surface treatments. Each declares both the fill color used for
-  // slide ground / card-surface fills and the per-role overrides applied
-  // to text elements resolved against that surface. We re-purpose
-  // existing palette tokens where possible (`slideBg` becomes on-dark
-  // text, `border` becomes on-dark muted), with literal hex for accent
-  // colors that aren't in the palette.
   surfaces: {
     dark: {
       background: "#231A0F",
       overrides: {
         hero: { color: "slideBg" },
-        // Accent on dark warm-brown reads better as a warm tan/gold than
-        // the palette's olive-green accent.
         "hero-accent": { color: "#D8A673" },
         eyebrow: { color: "#C99A4D" },
         subtitle: { color: "border" },
@@ -672,11 +530,8 @@ export const EDITORIAL_WARM: DesignSystem = {
       },
     },
     accent: {
-      // Saturated terracotta ground from the source decks.
       background: "#B85A2E",
       overrides: {
-        // Text on the terracotta accent stays warm-dark — the punch
-        // comes from the ground, not from the type.
         hero: { color: "#1F1A14" },
         "hero-accent": { color: "#1F1A14" },
         eyebrow: { color: "#5C2812" },
@@ -700,22 +555,12 @@ export const EDITORIAL_WARM: DesignSystem = {
   },
 };
 
-// ---------------------------------------------------------------------------
-// techno-bold — a second design system to validate the architecture's
-// leverage. Same compositions should produce a confident, technical
-// product-launch look — Stripe / Linear / Vercel territory.
-// ---------------------------------------------------------------------------
-
 const SANS = "Inter";
 
 const TECHNO_BOLD: DesignSystem = {
   name: "techno-bold",
   useFor:
     "product launches, dev tools, fintech, AI infrastructure — confident technical voice with high-contrast modern typography.",
-  // techno-bold uses literal hex for every role (color "#0A0A0A" etc.) —
-  // those don't read the deck's palette. Force the slide ground to a
-  // near-white surface so dark text stays legible even when the deck
-  // wrapper specifies a contrasting slideBg.
   defaultBackground: "#FAFAFA",
   accent: { base: "#3B82F6", onDark: "#60A5FA" },
   composition: {
@@ -723,9 +568,6 @@ const TECHNO_BOLD: DesignSystem = {
     preferDarkVariants: true,
   },
   styles: {
-    // Hero: heavy sans, tight letter-spacing, near-black on near-white.
-    // No italic — the accent line distinguishes itself through COLOR
-    // (saturated blue) rather than slant.
     hero: {
       fontFamily: SANS,
       fontSize: 6.5,
@@ -833,7 +675,6 @@ const TECHNO_BOLD: DesignSystem = {
       align: "left",
     },
     "quote-accent": {
-      // Techno-bold: accent is color-only (vivid blue), not italic.
       fontFamily: SANS,
       fontSize: 3.4,
       fontWeight: 600,
@@ -909,7 +750,6 @@ const TECHNO_BOLD: DesignSystem = {
     marker: { fontFamily: SANS, fontSize: 0, color: "#3B82F6" },
     image: { fontFamily: SANS, fontSize: 0, color: "#0A0A0A" },
   },
-  // Per-surface treatments — same shape as editorial-warm.
   surfaces: {
     dark: {
       background: "#0A0A0A",
@@ -938,7 +778,6 @@ const TECHNO_BOLD: DesignSystem = {
       },
     },
     accent: {
-      // Saturated brand blue. Text reads as light cream for contrast.
       background: "#3B82F6",
       overrides: {
         hero: { color: "#FAFAFA" },
@@ -964,19 +803,6 @@ const TECHNO_BOLD: DesignSystem = {
   },
 };
 
-// ---------------------------------------------------------------------------
-// CORPORATE_MODERN — restrained institutional system for enterprise SaaS,
-// financial services, consulting, board decks. Serif-based (Source Serif
-// 4 + IBM Plex Mono) for a "white paper / annual report" register that's
-// visibly distinct from EDITORIAL_WARM's warm Playfair prospectus feel
-// and from TECHNO_BOLD's geometric sans. True neutral grays (Tailwind
-// zinc palette — no blue tint anywhere). The "signature move" is
-// emphasis through WEIGHT only on the hero-accent line — no italic, no
-// color shift — because corporate decks read slant as informal and read
-// color accents as marketing. Generous letter-spacing on chrome,
-// modest weights overall.
-// ---------------------------------------------------------------------------
-
 const CORPORATE_SERIF = "Source Serif 4";
 const PLEX_MONO = "IBM Plex Mono";
 
@@ -985,21 +811,12 @@ export const CORPORATE_MODERN: DesignSystem = {
   useFor:
     "enterprise B2B, financial services, professional services, board decks — restrained institutional voice with serif body and mono chrome (white-paper register); brand-color accent appears only on chrome (eyebrows, markers, accent-bar) so the headline stays monochrome.",
   defaultBackground: "#FFFFFF",
-  // Conservative accent slot: brand color shows up on CHROME ONLY
-  // (eyebrows, markers, accent-bar, accent-surface bg). Hero / body /
-  // stats stay monochrome zinc — that's the "weight-only emphasis on
-  // headline" signature. Default is corporate trust blue (#1E40AF); the
-  // LLM overrides via plan_deck.accent for fintech, healthcare,
-  // sustainability, etc.
   accent: { base: "#1E40AF", onDark: "#60A5FA" },
   composition: {
     preferAsymmetric: false,
     preferDarkVariants: false,
   },
   styles: {
-    // Hero: semibold (not extra-bold like techno-bold, not regular like
-    // editorial-warm). Tight letter-spacing. Reads as structured, not
-    // bombastic.
     hero: {
       fontFamily: CORPORATE_SERIF,
       fontSize: 6.0,
@@ -1009,9 +826,6 @@ export const CORPORATE_MODERN: DesignSystem = {
       letterSpacing: -0.02,
       align: "left",
     },
-    // Hero-accent: emphasis through WEIGHT only — same zinc-900 as
-    // hero, but bolder (700 vs 600). The corporate restraint move:
-    // contrast through density, not color.
     "hero-accent": {
       fontFamily: CORPORATE_SERIF,
       fontSize: 6.0,
@@ -1054,8 +868,6 @@ export const CORPORATE_MODERN: DesignSystem = {
       lineHeight: 1.6,
       align: "left",
     },
-    // Display stats — semibold (not extra-bold). Letter-spacing
-    // tightened slightly for cohesion with hero.
     "stat-display": {
       fontFamily: CORPORATE_SERIF,
       fontSize: 14,
@@ -1175,26 +987,17 @@ export const CORPORATE_MODERN: DesignSystem = {
       letterSpacing: 0.1,
       align: "left",
     },
-    // Shape roles — fontSize ignored; only color matters. Mid-zinc
-    // for decorative accents — readable on white, doesn't compete with
-    // text. Pure-gray accent is the corporate identity move.
     "card-surface": { fontFamily: CORPORATE_SERIF, fontSize: 0, color: "#FAFAFA" },
     divider: { fontFamily: CORPORATE_SERIF, fontSize: 0, color: "#E4E4E7" },
     "accent-bar": { fontFamily: CORPORATE_SERIF, fontSize: 0, color: "#1E40AF" },
     marker: { fontFamily: CORPORATE_SERIF, fontSize: 0, color: "#1E40AF" },
     image: { fontFamily: CORPORATE_SERIF, fontSize: 0, color: "#D4D4D8" },
   },
-  // Surface treatments — corporate dark goes zinc-900; accent surface
-  // is zinc-800 (a deep neutral, not a brand-color block). Emphasis
-  // stays monochrome on both.
   surfaces: {
     dark: {
       background: "#18181B",
       overrides: {
         hero: { color: "#F4F4F5" },
-        // hero-accent matches hero color — emphasis comes from the
-        // role's 700 weight (vs hero's 600). Stays monochrome on dark
-        // surfaces too; brand color shows up on chrome only.
         "hero-accent": { color: "#F4F4F5" },
         subtitle: { color: "#A1A1AA" },
         eyebrow: { color: "#60A5FA" },
@@ -1220,10 +1023,6 @@ export const CORPORATE_MODERN: DesignSystem = {
       },
     },
     accent: {
-      // Accent surface = brand block. Background is the accent color;
-      // text reads cream/white for contrast. The accent override (via
-      // applyAccent) swaps this background and the eyebrow/marker
-      // chrome together, keeping the system coherent.
       background: "#1E40AF",
       overrides: {
         hero: { color: "#FFFFFF" },
@@ -1249,26 +1048,11 @@ export const CORPORATE_MODERN: DesignSystem = {
   },
 };
 
-// ---------------------------------------------------------------------------
-// PLAYFUL_CREATIVE — cozy/friendly register for family, lifestyle,
-// classroom, cookbook, parenting, kid-product, and any deck that wants
-// to feel warm and human rather than corporate or austere. The whole
-// system is one rounded humanist sans (Nunito) — soft terminals, gentle
-// counters, no display flourish. Emphasis is a single warm-orange
-// accent on hero-accent + chrome. No poster weights, no italic, no
-// display switch: cozy is the absence of those moves. Peach card
-// surfaces and a butter-cream slide background reinforce the warm
-// register. Distinct from MINIMAL_SWISS (austere/poster) by every
-// axis — softer font, softer weights, softer warm palette — and from
-// the other systems by being the only one that actively avoids
-// emphasis tricks.
-// ---------------------------------------------------------------------------
-
 const COZY_SANS = "Nunito";
-const COZY_ACCENT = "#EA580C"; // orange-600, warm friendly
-const COZY_TEXT = "#1C1917"; // stone-900, warm dark
-const COZY_BODY = "#57534E"; // stone-600, warm gray for body
-const COZY_MUTED = "#78716C"; // stone-500, warm muted
+const COZY_ACCENT = "#EA580C";
+const COZY_TEXT = "#1C1917";
+const COZY_BODY = "#57534E";
+const COZY_MUTED = "#78716C";
 
 const PLAYFUL_CREATIVE: DesignSystem = {
   name: "playful-creative",
@@ -1281,8 +1065,6 @@ const PLAYFUL_CREATIVE: DesignSystem = {
     preferDarkVariants: false,
   },
   styles: {
-    // Hero: Nunito Bold (700). Heavy enough to read at a distance,
-    // soft enough not to shout. No extreme weights — cozy is gentle.
     hero: {
       fontFamily: COZY_SANS,
       fontSize: 6.0,
@@ -1292,9 +1074,6 @@ const PLAYFUL_CREATIVE: DesignSystem = {
       letterSpacing: -0.015,
       align: "left",
     },
-    // Hero-accent: same Nunito, same weight, warm-orange. Single
-    // color-only emphasis at matched weight. The accent shouldn't
-    // dominate — it sits inside the friendly headline as a warm spot.
     "hero-accent": {
       fontFamily: COZY_SANS,
       fontSize: 6.0,
@@ -1456,9 +1235,6 @@ const PLAYFUL_CREATIVE: DesignSystem = {
       letterSpacing: 0.12,
       align: "left",
     },
-    // Shape roles — soft peach card surface (orange-100) for the cozy
-    // tactile feel. Marker and accent-bar pick up the warm-orange
-    // accent so decorative shapes carry the same identity as type.
     "card-surface": { fontFamily: COZY_SANS, fontSize: 0, color: "#FFEDD5" },
     divider: { fontFamily: COZY_SANS, fontSize: 0, color: "#E7E5E4" },
     "accent-bar": { fontFamily: COZY_SANS, fontSize: 0, color: COZY_ACCENT },
@@ -1467,7 +1243,6 @@ const PLAYFUL_CREATIVE: DesignSystem = {
   },
   surfaces: {
     dark: {
-      // Warm-dark stone (not pure black) — cozy doesn't go austere.
       background: "#292524",
       overrides: {
         hero: { color: "#FAFAF9" },
@@ -1494,7 +1269,6 @@ const PLAYFUL_CREATIVE: DesignSystem = {
       },
     },
     accent: {
-      // Warm-orange block for brand-color moments. Text reads cream.
       background: COZY_ACCENT,
       overrides: {
         hero: { color: "#FFFBEB" },
@@ -1520,19 +1294,6 @@ const PLAYFUL_CREATIVE: DesignSystem = {
   },
 };
 
-// ---------------------------------------------------------------------------
-// MINIMAL_SWISS — International Style / Müller-Brockmann register for
-// design-conscious decks: research showcases, design portfolios, museum/
-// gallery, architecture firms, premium-magazine partnerships. The
-// signature move is the classic Swiss-poster treatment: the WHOLE hero
-// is heavy (Work Sans 900) and ONE word reads in saturated red — color
-// emphasis at matched weight, where techno uses color at matched weight
-// in *blue*, corporate uses weight-only, editorial uses italic, and
-// playful uses script. Pure-white slide, pure-black text. No mono
-// chrome (Work Sans throughout) — the system reads as a single
-// typographic voice, not a stack of registers.
-// ---------------------------------------------------------------------------
-
 const SWISS_SANS = "Work Sans";
 
 export const MINIMAL_SWISS: DesignSystem = {
@@ -1546,9 +1307,6 @@ export const MINIMAL_SWISS: DesignSystem = {
     preferDarkVariants: false,
   },
   styles: {
-    // Hero: Work Sans BLACK (900). The whole title reads as one
-    // poster-weight block — no whisper-shout contrast. Emphasis lives
-    // in color, not weight.
     hero: {
       fontFamily: SWISS_SANS,
       fontSize: 6.0,
@@ -1558,8 +1316,6 @@ export const MINIMAL_SWISS: DesignSystem = {
       letterSpacing: -0.02,
       align: "left",
     },
-    // Hero-accent: same family, same size, same heavy weight, swiss
-    // red. The iconic "one red word in a black headline" move.
     "hero-accent": {
       fontFamily: SWISS_SANS,
       fontSize: 6.0,
@@ -1602,8 +1358,6 @@ export const MINIMAL_SWISS: DesignSystem = {
       lineHeight: 1.65,
       align: "left",
     },
-    // Display stats: pure black, weight 900. The headline numbers are
-    // the swiss-poster moment — uncompromising weight.
     "stat-display": {
       fontFamily: SWISS_SANS,
       fontSize: 14,
@@ -1657,8 +1411,6 @@ export const MINIMAL_SWISS: DesignSystem = {
       lineHeight: 1.3,
       align: "left",
     },
-    // Quote-accent: matched weight, swiss red — same color-emphasis
-    // move as hero/hero-accent.
     "quote-accent": {
       fontFamily: SWISS_SANS,
       fontSize: 3.4,
@@ -1727,23 +1479,17 @@ export const MINIMAL_SWISS: DesignSystem = {
       letterSpacing: 0.14,
       align: "left",
     },
-    // Shape roles — Swiss red on functional accents (markers, bars).
-    // Card surfaces are a thin gray (no warm tint).
     "card-surface": { fontFamily: SWISS_SANS, fontSize: 0, color: "#F5F5F5" },
     divider: { fontFamily: SWISS_SANS, fontSize: 0, color: "#E5E5E5" },
     "accent-bar": { fontFamily: SWISS_SANS, fontSize: 0, color: "#DC2626" },
     marker: { fontFamily: SWISS_SANS, fontSize: 0, color: "#DC2626" },
     image: { fontFamily: SWISS_SANS, fontSize: 0, color: "#F5F5F5" },
   },
-  // Surfaces — dark inverts to pure black; accent goes saturated red
-  // for poster moments (manifesto slides, statement covers).
   surfaces: {
     dark: {
       background: "#0A0A0A",
       overrides: {
         hero: { color: "#FAFAFA" },
-        // Accent stays red — lighter shade (red-400) for legibility
-        // on the black surface.
         "hero-accent": { color: "#EF4444" },
         subtitle: { color: "#A3A3A3" },
         eyebrow: { color: "#EF4444" },
@@ -1767,8 +1513,6 @@ export const MINIMAL_SWISS: DesignSystem = {
       },
     },
     accent: {
-      // Pure swiss red block. Text becomes off-white; the red-on-red
-      // accent collapses, so accent line goes cream like the hero.
       background: "#DC2626",
       overrides: {
         hero: { color: "#FAFAFA" },
@@ -1794,22 +1538,6 @@ export const MINIMAL_SWISS: DesignSystem = {
   },
 };
 
-// ---------------------------------------------------------------------------
-// LUXURY_EDITORIAL — boutique-fashion / hospitality / cosmetics /
-// premium-product register. Pairs DM Serif Display (a high-contrast
-// modern fashion-magazine serif, distinct from editorial-warm's
-// Playfair) with Raleway (thin elegant sans). The signature move is
-// the OUT-OF-FAMILY letter-spacing on chrome — eyebrow / footer use
-// a 0.28 tracking that no other system goes near (editorial uses
-// 0.16; swiss uses 0.18). Combined with a dusty muted-blush accent
-// (#BE8B6E — distinct from every other system's accent), pale stone
-// surface, and italic-on-serif emphasis, the system reads as quiet
-// confident luxury — not "loud premium." Use it for decks that need
-// to feel expensive without shouting (boutique pitch, hospitality
-// portfolio, fashion brand presentation, cosmetics / fragrance,
-// jewelry, watches).
-// ---------------------------------------------------------------------------
-
 const LUXURY_SERIF = "DM Serif Display";
 const LUXURY_SANS = "Raleway";
 
@@ -1824,10 +1552,6 @@ const LUXURY_EDITORIAL: DesignSystem = {
     preferDarkVariants: false,
   },
   styles: {
-    // Hero: DM Serif Display, only available at weight 400 — the
-    // high-contrast strokes do the work. Tighter line-height than
-    // editorial-warm to keep the air-around-the-text feel without
-    // letting lines drift apart.
     hero: {
       fontFamily: LUXURY_SERIF,
       fontSize: 5.5,
@@ -1837,9 +1561,6 @@ const LUXURY_EDITORIAL: DesignSystem = {
       letterSpacing: -0.01,
       align: "left",
     },
-    // Hero-accent: italic + the muted dusty-blush. Editorial-warm
-    // also uses italic on serif but with warm terracotta — the
-    // cooler blush here keeps the register clearly distinct.
     "hero-accent": {
       fontFamily: LUXURY_SERIF,
       fontSize: 5.5,
@@ -1884,9 +1605,6 @@ const LUXURY_EDITORIAL: DesignSystem = {
       lineHeight: 1.75,
       align: "left",
     },
-    // Display stats: serif at the same fontSize family as hero but
-    // SHARPLY larger. The luxury move is to let one big number
-    // command the slide; everything else recedes around it.
     "stat-display": {
       fontFamily: LUXURY_SERIF,
       fontSize: 13.5,
@@ -1980,9 +1698,6 @@ const LUXURY_EDITORIAL: DesignSystem = {
       lineHeight: 1.6,
       align: "left",
     },
-    // Chrome: massive letter-spacing — the unmistakable luxury cue.
-    // Other systems max out around 0.18; here we go to 0.28 on
-    // header chrome and 0.22 on the footer.
     "chrome-left": {
       fontFamily: LUXURY_SANS,
       fontSize: 1.05,
@@ -2010,8 +1725,6 @@ const LUXURY_EDITORIAL: DesignSystem = {
       letterSpacing: 0.22,
       align: "left",
     },
-    // Shape roles — dusty blush only on functional accents
-    // (markers, bars). Cards stay near-monochrome.
     "card-surface": { fontFamily: LUXURY_SANS, fontSize: 0, color: "#FAFAF9" },
     divider: { fontFamily: LUXURY_SANS, fontSize: 0, color: "#E7E5E4" },
     "accent-bar": { fontFamily: LUXURY_SANS, fontSize: 0, color: "#BE8B6E" },
@@ -2020,8 +1733,6 @@ const LUXURY_EDITORIAL: DesignSystem = {
   },
   surfaces: {
     dark: {
-      // Deep slate, not pure black — keeps the warmth of the daylight
-      // surface even when inverted.
       background: "#1F2937",
       overrides: {
         hero: { color: "#F5F5F4" },
@@ -2048,8 +1759,6 @@ const LUXURY_EDITORIAL: DesignSystem = {
       },
     },
     accent: {
-      // Saturated dusty blush block — used sparingly for cover
-      // statements or signature moments.
       background: "#BE8B6E",
       overrides: {
         hero: { color: "#FFFFFF" },
@@ -2075,20 +1784,12 @@ const LUXURY_EDITORIAL: DesignSystem = {
   },
 };
 
-// ---------------------------------------------------------------------------
-// Example composition — cover slide with text-left / image-right split
-// ---------------------------------------------------------------------------
-
 const COVER_SPLIT_PORTRAIT: LayoutComposition = {
   name: "cover-split-portrait",
   description:
     "Dark warm cover: text panel on the left half, full-bleed image on the right. The hero is three positioned lines — regular / italic-accent / regular — each occupying its own emotional moment. Brand chrome top, hairline footer bottom.",
   surface: "dark",
   elements: [
-    // Left-panel text columns share a 6% right margin to the image edge:
-    // content extends to x = 46, image starts at x = 52, leaving a 6% gap.
-    //
-    // Header chrome — top of canvas
     {
       id: "chrome_left",
       role: "chrome-left",
@@ -2109,7 +1810,6 @@ const COVER_SPLIT_PORTRAIT: LayoutComposition = {
       fit: "single-line",
       defaultText: "2026 / VOL. 04",
     },
-    // Eyebrow — above the hero
     {
       id: "eyebrow",
       role: "eyebrow",
@@ -2120,11 +1820,6 @@ const COVER_SPLIT_PORTRAIT: LayoutComposition = {
       fit: "single-line",
       defaultText: "WHOLESALE PARTNER PACKET",
     },
-    // Hero — three positioned lines, each its own slot. Each slot's box
-    // height (h) must be ≥ fontSize × 100 / canvas_h to avoid glyph
-    // clipping. With fontSize 7% (= 67.2px) and canvas_h = 540, h ≥ 12.5%.
-    // The model decides which lines are regular and which is accent by
-    // choosing the role per slot when filling the composition.
     {
       id: "hero_1",
       role: "hero",
@@ -2155,8 +1850,6 @@ const COVER_SPLIT_PORTRAIT: LayoutComposition = {
       fit: "single-line",
       defaultText: "your bar.",
     },
-    // Body — under the hero. multi-line; the renderer wraps within the
-    // box and the model is told the per-line / total char budget.
     {
       id: "body",
       role: "body",
@@ -2167,8 +1860,6 @@ const COVER_SPLIT_PORTRAIT: LayoutComposition = {
       fit: "multi-line",
       defaultText: "Direct-trade espresso, roasted to your dial. Studio, café, and hotel formats.",
     },
-    // Footer band — hairline + small mono note. Footer baseline y=96 is
-    // the deck-wide footer convention; rule sits 2% above it.
     {
       id: "footer_rule",
       role: "divider",
@@ -2187,10 +1878,6 @@ const COVER_SPLIT_PORTRAIT: LayoutComposition = {
       fit: "single-line",
       defaultText: "CONFIDENTIAL · WHOLESALE PARTNERS ONLY · 2026 PRICING",
     },
-    // Image — right half full-bleed, pulled in by 2% to leave a gap
-    // between the left-panel text column and the image edge. No
-    // defaultSrc: each design system supplies a placeholder color that
-    // matches its slide ground, so we generate the URL in compile().
     {
       id: "image",
       role: "image",
@@ -2202,22 +1889,12 @@ const COVER_SPLIT_PORTRAIT: LayoutComposition = {
   ],
 };
 
-// ---------------------------------------------------------------------------
-// COVER_STATEMENT — image-less cover for decks that lead with a punchy
-// statement (dev tools, infra, B2B SaaS). Two-line hero spans the full
-// width, body sits under it at ~60% width, and a 4-column footer rail
-// surfaces the deck's headline facts ("RAISING / STAGE / BENCHMARK / DECK")
-// at a glance. Sibling to cover-split-portrait — pick whichever fits the
-// brand: image-led narrative vs text-led declaration.
-// ---------------------------------------------------------------------------
-
 export const COVER_STATEMENT: LayoutComposition = {
   name: "cover-statement",
   description:
     "Dark text-only cover for statement-led decks (dev tools, B2B, infra). Two-line hero across the full canvas — regular line + accent line — followed by a 60%-wide body description and a four-column footer rail that surfaces the deck's headline facts. No image slot.",
   surface: "dark",
   elements: [
-    // Top chrome — brand on the left, deck meta on the right.
     {
       id: "chrome_left",
       role: "chrome-left",
@@ -2239,9 +1916,6 @@ export const COVER_STATEMENT: LayoutComposition = {
       align: "right",
       defaultText: "SERIES B · PREVIEW 2026",
     },
-    // Hero — two stacked lines, full width. Box height is fontSize × ~1.2
-    // (just enough to clear descenders) so the two lines read as one
-    // tight typographic unit rather than two paragraphs.
     {
       id: "hero_1",
       role: "hero",
@@ -2262,8 +1936,6 @@ export const COVER_STATEMENT: LayoutComposition = {
       fit: "single-line",
       defaultText: "not noise.",
     },
-    // Body — under the hero, ~60% width so the line breaks land naturally
-    // around 60-65 chars per line. Box height ≈ 3 lines at body size.
     {
       id: "body",
       role: "body",
@@ -2275,13 +1947,6 @@ export const COVER_STATEMENT: LayoutComposition = {
       defaultText:
         "Aegis is the SOC platform that fuses telemetry, ML triage, and human review into a single response surface — for security teams that can't afford to chase false positives.",
     },
-    // Footer rail — variable-count equal-width columns of label/value
-    // pairs. Labels (stat-label: mono caps, muted) sit above values
-    // (card-title: small + bold + primary). Composition pinned 4 columns
-    // with absolute positions; the flex region accepts 3–5 by varying
-    // defaultItems (or by the model passing more or fewer
-    // stats_<index>_<slot> ids). All slots are generic — the model
-    // picks any short key facts that summarise the deck.
     {
       kind: "flex-region",
       idPrefix: "facts",
@@ -2307,19 +1972,6 @@ export const COVER_STATEMENT: LayoutComposition = {
   ],
 };
 
-// ---------------------------------------------------------------------------
-// PROBLEM_EVIDENCE — dark, stat-led problem statement. Wrapped multi-line
-// hero with an inline accent number, source citation directly under the
-// hero, and a 3-card row at the bottom where each card carries an
-// eyebrow / big stat / supporting body / source citation. The structure
-// signals "research-backed problem framing" — useful for investor decks
-// where the problem slide needs cited evidence, not just a vibe.
-// ---------------------------------------------------------------------------
-
-/**
- * One stat card with eyebrow + big stat + body + source-citation footer.
- * Used by PROBLEM_EVIDENCE for the bottom row. Inner padding 2% per side.
- */
 function statCardCited(
   id: string,
   x: number,
@@ -2387,8 +2039,6 @@ const PROBLEM_EVIDENCE: LayoutComposition = {
     "Dark research-backed problem slide. Section chrome top-left, a 3-line wrapped hero with an inline accent stat (a number embedded in the sentence), and a source-citation line directly under the hero. Three stat cards below — each with eyebrow / big stat / supporting body / source citation. For investor/credible problem framing where evidence has to carry the slide.",
   surface: "dark",
   elements: [
-    // Section chrome (top-left only — this composition uses a bottom-left
-    // brand chrome instead of the usual top-right page counter).
     {
       id: "chrome_left",
       role: "chrome-left",
@@ -2399,10 +2049,6 @@ const PROBLEM_EVIDENCE: LayoutComposition = {
       fit: "single-line",
       defaultText: "01 / PROBLEM",
     },
-    // Multi-line hero — wraps naturally; the `*marker*` syntax around
-    // the number renders it as an inline italic-accent span ("62%" pops
-    // in the accent color). The whole sentence carries the headline stat
-    // rather than parking it in a separate display block.
     {
       id: "hero",
       role: "hero",
@@ -2413,9 +2059,6 @@ const PROBLEM_EVIDENCE: LayoutComposition = {
       fit: "multi-line",
       defaultText: "Engineering orgs spend *62%* of capacity on work that isn't shipping.",
     },
-    // Source citation under the hero (mono uppercase, muted). The
-    // research-credibility signal — distinguishes this from a marketing
-    // pull-quote.
     {
       id: "hero_source",
       role: "stat-label",
@@ -2426,8 +2069,6 @@ const PROBLEM_EVIDENCE: LayoutComposition = {
       fit: "single-line",
       defaultText: "STRIPE / HARRIS POLL DEVELOPER COEFFICIENT · N=1,003 · RE-VALIDATED 2024",
     },
-    // Three evidence cards along the bottom. Each carries its own stat,
-    // a one-sentence interpretation, and a source citation footer.
     ...statCardCited(
       "card_1",
       6,
@@ -2461,8 +2102,6 @@ const PROBLEM_EVIDENCE: LayoutComposition = {
       "Annual U.S. eng payroll spent on work an autonomous agent could complete.",
       "BLS OEWS · INT. MODEL"
     ),
-    // Bottom-left brand chrome — small mono muted, anchors the deck
-    // identity at the page edge rather than at the top.
     {
       id: "footer",
       role: "footer",
@@ -2475,16 +2114,6 @@ const PROBLEM_EVIDENCE: LayoutComposition = {
     },
   ],
 };
-
-// ---------------------------------------------------------------------------
-// HEADLINE_NUMBER — the slide is ONE massive number. Used for "The Ask"
-// raises, big market-size openers, milestone reveals — anywhere the
-// single headline figure should carry the whole slide. Hairline + 3-column
-// footer surfaces supporting terms (structure / board / timeline, or
-// whatever metadata accompanies the figure). Sibling to cover-statement:
-// same chrome and footer rhythm, but a stat-display where the hero text
-// would go.
-// ---------------------------------------------------------------------------
 
 const HEADLINE_NUMBER: LayoutComposition = {
   name: "headline-number",
@@ -2502,9 +2131,6 @@ const HEADLINE_NUMBER: LayoutComposition = {
       fit: "single-line",
       defaultText: "12 / THE ASK",
     },
-    // The slide's whole point — one massive number. stat-display is
-    // ~2× stat-value; box height clears the descender for the
-    // canvas-percent-scaled font in both systems.
     {
       id: "stat",
       role: "stat-display",
@@ -2515,8 +2141,6 @@ const HEADLINE_NUMBER: LayoutComposition = {
       fit: "single-line",
       defaultText: "$40M",
     },
-    // Subhead — two-line subtitle directly under the number, ~55% width
-    // so it reads as one coherent thought rather than running canvas-wide.
     {
       id: "subhead",
       role: "subtitle",
@@ -2527,9 +2151,6 @@ const HEADLINE_NUMBER: LayoutComposition = {
       fit: "multi-line",
       defaultText: "Series A · led by an AI-native fund with deep dev-tools distribution.",
     },
-    // Rail divider separates the headline number block from the
-    // contextual label/value rail below. Distinct from `footer_rule`
-    // (used elsewhere to sit 2% above the footer text at y=96).
     {
       id: "rail_rule",
       role: "divider",
@@ -2538,17 +2159,6 @@ const HEADLINE_NUMBER: LayoutComposition = {
       w: 88,
       h: 0,
     },
-    // Footer rail — variable-count equal-width columns of contextual
-    // label/value pairs (raise structure, board composition, timeline).
-    // Values use the `body` role (not card-title) so prose-style values
-    // like "$30M primary · $10M secondary" read at body weight, not stat
-    // weight. Composition pinned 3 columns; the flex region accepts 2–4
-    // by varying defaultItems (or by the model passing more or fewer
-    // meta_<index>_<slot> ids). Prefix is content-oriented ("meta" for
-    // metadata about the headline number) rather than layout-oriented,
-    // matching the pattern of facts/audience/proof/agenda/cards.
-    // Distinct from PEER_COMPARISON_TABLE's table builder which uses
-    // the "terms" prefix.
     {
       kind: "flex-region",
       idPrefix: "meta",
@@ -2583,14 +2193,6 @@ const HEADLINE_NUMBER: LayoutComposition = {
   ],
 };
 
-// ---------------------------------------------------------------------------
-// AGENDA — variable-row agenda / table of contents using the FlexRegion
-// primitive. The model supplies N items (typically 3–8); each item is a
-// row of [number, title, description, duration]. Demonstrates the
-// composition system's flex-region capability: the row count adapts to
-// content instead of being baked into the geometry.
-// ---------------------------------------------------------------------------
-
 export const AGENDA: LayoutComposition = {
   name: "agenda",
   description:
@@ -2616,7 +2218,6 @@ export const AGENDA: LayoutComposition = {
       fit: "single-line",
       defaultText: "02 / 12",
     },
-    // Eyebrow above the hero — small accent label.
     {
       id: "eyebrow",
       role: "eyebrow",
@@ -2627,7 +2228,6 @@ export const AGENDA: LayoutComposition = {
       fit: "single-line",
       defaultText: "TODAY'S SESSION",
     },
-    // Hero — single word ("Agenda.") on this archetype.
     {
       id: "hero",
       role: "hero",
@@ -2638,9 +2238,6 @@ export const AGENDA: LayoutComposition = {
       fit: "single-line",
       defaultText: "Agenda.",
     },
-    // Body — 1-line description under the hero. Body role matches the
-    // descriptive copy in every other composition (only HEADLINE_NUMBER
-    // uses subtitle, which is a sibling-display archetype).
     {
       id: "body",
       role: "body",
@@ -2651,12 +2248,7 @@ export const AGENDA: LayoutComposition = {
       fit: "multi-line",
       defaultText: "30 mins presented · 15 mins Q&A.",
     },
-    // Hairline separating the header block from the agenda rows.
     { id: "rows_rule", role: "divider", x: 6, y: 50, w: 88, h: 0 },
-    // Variable-row agenda — the flex region. Each item is a horizontal
-    // row of [number, title, description, duration]. Add or remove items
-    // by passing more/fewer entries to defaultItems (or, at fill time, by
-    // the model adding more `agenda_<index>_<slot>` slot ids).
     {
       kind: "flex-region",
       idPrefix: "agenda",
@@ -2665,30 +2257,13 @@ export const AGENDA: LayoutComposition = {
       w: 88,
       h: 42,
       layout: "column",
-      // gap=0.75 — enough breathing room around each separator line
-      // without the serif theme (taller line-metrics) pushing the
-      // last row into the footer. Multiplied across 11 interleaved
-      // flex children, so total inter-row spacing ≈ 11 × 4px.
       gap: 0.75,
-      // Pack items at the top of the region rather than letting them
-      // distribute across the full height — without this, each item
-      // grows to ~region.h/N and overflows the region's bottom when N
-      // is high enough.
       justify: "start",
       align: "stretch",
-      // Hairline divider between every row, plus one after the last
-      // row to close the table. Matches the editorial-agenda pattern.
       separator: true,
       itemLayout: "row",
       itemGap: 2,
-      // Baseline alignment so the small mono number sits on the same
-      // typographic line as the serif title, not centred on the row.
       itemAlign: "baseline",
-      // Rels intentionally have no `h` — letting content lineHeight
-      // drive each item's natural height. With baseline alignment, fixed
-      // heights on sub-elements inflate the row (baseline shifts push
-      // content down by the larger font's metrics + the box's bottom
-      // padding), which made the agenda overflow into the footer.
       item: [
         {
           id: "number",
@@ -2755,7 +2330,6 @@ export const AGENDA: LayoutComposition = {
         },
       ],
     },
-    // Footer chrome at the bottom-left.
     {
       id: "footer",
       role: "footer",
@@ -2769,19 +2343,11 @@ export const AGENDA: LayoutComposition = {
   ],
 };
 
-// ---------------------------------------------------------------------------
-// MARKETING_GRID — a 2×2 card grid where each card declares its own surface
-// state independently. Exercises the multi-state surface flag: two cards
-// stay on the default ground, one card is dark, one is accent. Same
-// composition, same design system, different surface mix per card.
-// ---------------------------------------------------------------------------
-
 export const MARKETING_GRID: LayoutComposition = {
   name: "marketing-grid",
   description:
     "Light slide with a 2-line hero on top and a card grid below. Each card declares its own surface state (default / dark / accent), so a single grid can mix neutral, dark-emphasized, and brand-accent cards. The grid accepts a variable number of cards (typically 3–6) flowing across two columns.",
   elements: [
-    // Chrome row
     {
       id: "chrome_left",
       role: "chrome-left",
@@ -2802,8 +2368,6 @@ export const MARKETING_GRID: LayoutComposition = {
       fit: "single-line",
       defaultText: "23 / 28",
     },
-    // Two-line hero — text tuned to fit techno-bold's narrower per-line
-    // budget (sans-bold is ~28% wider per character than serif).
     {
       id: "hero_1",
       role: "hero",
@@ -2824,11 +2388,6 @@ export const MARKETING_GRID: LayoutComposition = {
       fit: "single-line",
       defaultText: "quietly in the back.",
     },
-    // Card grid — variable count, 2 columns. Each item is one card; the
-    // item-group paints its own card-surface (region.cardItems = true).
-    // Per-item surface state ("default" / "dark" / "accent") travels on
-    // each defaultItems entry. With 4 items × 2 columns this renders as
-    // a 2×2 grid; with 3 it's 2-on-top + 1; with 6 it's 2×3.
     {
       kind: "flex-region",
       idPrefix: "cards",
@@ -2878,13 +2437,6 @@ export const MARKETING_GRID: LayoutComposition = {
   ],
 };
 
-// ---------------------------------------------------------------------------
-// FOUNDER_QUOTE_PORTRAIT — light slide; image left, multi-line pull-quote
-// right with one italic-accent line, attribution + role beneath, mono caption
-// under the image. Exercises the `quote` / `quote-accent` roles in parallel
-// to the hero / hero-accent pattern.
-// ---------------------------------------------------------------------------
-
 const FOUNDER_QUOTE_PORTRAIT: LayoutComposition = {
   name: "founder-quote-portrait",
   description:
@@ -2910,7 +2462,6 @@ const FOUNDER_QUOTE_PORTRAIT: LayoutComposition = {
       fit: "single-line",
       defaultText: "03 / 28",
     },
-    // Image — left portrait, contained with cream margin around it.
     { id: "image", role: "image", x: 6, y: 14, w: 38, h: 70 },
     {
       id: "image_caption",
@@ -2922,7 +2473,6 @@ const FOUNDER_QUOTE_PORTRAIT: LayoutComposition = {
       fit: "single-line",
       defaultText: "ANNA KIM · CEO · BERLIN 2024",
     },
-    // Right column — eyebrow, multi-line quote, attribution
     {
       id: "eyebrow",
       role: "eyebrow",
@@ -2933,8 +2483,6 @@ const FOUNDER_QUOTE_PORTRAIT: LayoutComposition = {
       fit: "single-line",
       defaultText: "A LETTER FROM THE FOUNDER",
     },
-    // Four-line quote: lines 1, 2, 4 regular; line 3 is the italic accent.
-    // Each line gets its own slot — same pattern as the hero.
     {
       id: "quote_1",
       role: "quote",
@@ -3009,13 +2557,6 @@ const FOUNDER_QUOTE_PORTRAIT: LayoutComposition = {
   ],
 };
 
-// ---------------------------------------------------------------------------
-// SURFACE_PAIR — light slide with a two-line hero on top, and two side-by-
-// side panels below: one default-surface, one dark-surface. Each panel has
-// its own eyebrow, big stat, and body. Exercises element-level surface
-// swap at panel scale (not just card scale).
-// ---------------------------------------------------------------------------
-
 function panel(
   id: string,
   x: number,
@@ -3066,11 +2607,6 @@ function panel(
   ];
 }
 
-/**
- * Like `panel()` but uses `stat-value-mid` (5–5.5%) instead of `stat-value`
- * (8–9%). For card-sized panels where the stat needs to be impactful but
- * shorter strings like "30,000+" must still fit a ~28%-wide card.
- */
 function statCardMid(
   id: string,
   x: number,
@@ -3121,17 +2657,6 @@ function statCardMid(
   ];
 }
 
-/**
- * Build a data-table composition fragment: a card-surface highlight for
- * any column that opts in (`highlight: true`), a header row with optional
- * sub-labels, body rows with hairline dividers between them, and per-cell
- * Text elements with appropriate surface state.
- *
- * Columns share equal width across the table's `w`. The first column is
- * the row-label column (typically left-aligned text); other columns are
- * value columns (typically center-aligned). Headers and cells use `card-`
- * roles so styling propagates from the active design system.
- */
 function table(
   id: string,
   x: number,
@@ -3147,16 +2672,11 @@ function table(
   const colCount = options.headers.length;
   const rowCount = options.rows.length;
   const colWidth = w / colCount;
-  const headerHeight = 9; // % canvas height
+  const headerHeight = 9;
   const rowHeight = (h - headerHeight) / rowCount;
-  // Tight padding — table cells lose less vertical space to padding so
-  // card-body's line height + descender room fits inside `rowHeight`.
   const cellPadX = 0.5;
   const cellPadY = 0.25;
 
-  // Highlighted-column surface: a single rect spanning the entire column
-  // height. Cells in this column declare surface: "dark" so their text
-  // resolves against the dark ground.
   const highlightIdx = options.headers.findIndex((header) => header.highlight);
   if (highlightIdx >= 0) {
     elements.push({
@@ -3170,7 +2690,6 @@ function table(
     });
   }
 
-  // Header row — column labels with optional sub-labels
   options.headers.forEach((header, i) => {
     const cellX = x + i * colWidth + cellPadX;
     const cellW = colWidth - 2 * cellPadX;
@@ -3203,12 +2722,9 @@ function table(
     }
   });
 
-  // Body rows — each with a hairline above (skipping the very first which
-  // sits flush against the header) and a row label + N value cells.
   options.rows.forEach((row, rowIdx) => {
     const rowY = y + headerHeight + rowIdx * rowHeight;
 
-    // Hairline divider above the row.
     elements.push({
       id: `${id}_r${rowIdx}_rule`,
       role: "divider",
@@ -3218,7 +2734,6 @@ function table(
       h: 0,
     });
 
-    // Row label (column 0).
     elements.push({
       id: `${id}_r${rowIdx}_label`,
       role: "card-body",
@@ -3232,10 +2747,9 @@ function table(
       defaultText: row.label,
     });
 
-    // Value cells (columns 1..N).
     row.values.forEach((value, valueIdx) => {
       const cellColIdx = valueIdx + 1;
-      if (cellColIdx >= colCount) return; // gracefully ignore extras
+      if (cellColIdx >= colCount) return;
       const cellX = x + cellColIdx * colWidth + cellPadX;
       const surface: SurfaceState = cellColIdx === highlightIdx ? "dark" : "default";
       elements.push({
@@ -3326,13 +2840,6 @@ const SURFACE_PAIR: LayoutComposition = {
   ],
 };
 
-// ---------------------------------------------------------------------------
-// STAT_ROW_BOTTOM — image-left + hero-right cover variant, with a row of
-// four stats anchored to the bottom-right. Used for "audience profile" /
-// "what walks in" / "by the numbers" slides where one big visual carries
-// the slide and the numbers are supporting evidence.
-// ---------------------------------------------------------------------------
-
 export const STAT_ROW_BOTTOM: LayoutComposition = {
   name: "stat-row-bottom",
   description:
@@ -3358,9 +2865,7 @@ export const STAT_ROW_BOTTOM: LayoutComposition = {
       fit: "single-line",
       defaultText: "09 / 28",
     },
-    // Image — contained on the left half.
     { id: "image", role: "image", x: 6, y: 14, w: 38, h: 80 },
-    // Right column: eyebrow + 3-line hero (third line is the accent)
     {
       id: "eyebrow",
       role: "eyebrow",
@@ -3412,12 +2917,6 @@ export const STAT_ROW_BOTTOM: LayoutComposition = {
       defaultText:
         "Class mix: 28% strength, 32% mobility, 22% yoga, 18% cycling — flat curve across formats.",
     },
-    // Hairline divider + variable-count audience stats at bottom-right.
-    // The composition pinned 4 stats with absolute positions; the flex
-    // region accepts 2–5 by varying defaultItems (or by the model passing
-    // more or fewer audience_<index>_<slot> ids). idPrefix is namespaced
-    // per composition (vs the generic "stats") so two slides using this
-    // and another stats-bearing composition don't collide under dedupeIds.
     { id: "audience_rule", role: "divider", x: 50, y: 76, w: 44, h: 0 },
     {
       kind: "flex-region",
@@ -3444,20 +2943,11 @@ export const STAT_ROW_BOTTOM: LayoutComposition = {
   ],
 };
 
-// ---------------------------------------------------------------------------
-// BRAND_STORY_SPLIT — image right, narrative left. Eyebrow + 3-line hero
-// (last line italic-accent) + body paragraph + hairline + 3-stat row at
-// the bottom. Modeled on the "From a single 10-seat counter to 62 stores"
-// pattern. For brand-story, company-history, founder-narrative slides
-// where one image carries the tone and a stat row anchors the bottom.
-// ---------------------------------------------------------------------------
-
 export const BRAND_STORY_SPLIT: LayoutComposition = {
   name: "brand-story-split",
   description:
     "Light slide: image on the right, narrative on the left. Eyebrow + 3-line hero (last line is italic-accent) + body paragraph + hairline + 3-stat row at the bottom. For brand-story / founder-narrative slides where one image carries the tone.",
   elements: [
-    // Chrome row
     {
       id: "chrome_left",
       role: "chrome-left",
@@ -3478,7 +2968,6 @@ export const BRAND_STORY_SPLIT: LayoutComposition = {
       fit: "single-line",
       defaultText: "02 / 28",
     },
-    // Left column: eyebrow + 3-line hero
     {
       id: "eyebrow",
       role: "eyebrow",
@@ -3519,7 +3008,6 @@ export const BRAND_STORY_SPLIT: LayoutComposition = {
       fit: "single-line",
       defaultText: "in 4 cities.",
     },
-    // Body paragraph
     {
       id: "body",
       role: "body",
@@ -3531,13 +3019,6 @@ export const BRAND_STORY_SPLIT: LayoutComposition = {
       defaultText:
         "Loma Knit weaves merino on family looms in Kyoto. Direct-to-customer model keeps 80% of margin with the makers.",
     },
-    // Hairline + variable-count proof-points strip at bottom of left
-    // column. The composition pinned 3 stats with absolute positions;
-    // the flex region accepts 2–4 by varying defaultItems (or by the
-    // model passing more or fewer proof_<index>_<slot> ids). idPrefix
-    // is namespaced per composition (vs the generic "stats") so two
-    // slides using this and another stats-bearing composition don't
-    // collide under dedupeIds.
     { id: "proof_rule", role: "divider", x: 6, y: 84, w: 44, h: 0 },
     {
       kind: "flex-region",
@@ -3560,24 +3041,15 @@ export const BRAND_STORY_SPLIT: LayoutComposition = {
         { value: "78%", label: "REPEAT BUYERS" },
       ],
     },
-    // Image on the right
     { id: "image", role: "image", x: 52, y: 18, w: 42, h: 76 },
   ],
 };
-
-// ---------------------------------------------------------------------------
-// MULTI_STAT_ASYMMETRIC — light slide; hero + body on the left, one big
-// anchor-stat panel (dark) on the right, 3 mixed-fill stat cards across
-// the bottom. For market-context / why-this-matters slides combining a
-// narrative thesis, an anchor metric, and supporting evidence.
-// ---------------------------------------------------------------------------
 
 const MULTI_STAT_ASYMMETRIC: LayoutComposition = {
   name: "multi-stat-asymmetric",
   description:
     "Light slide: hero + body on the left, anchor-stat panel (dark) on the right, 3 supporting stat cards across the bottom — two on the default surface, one on the accent surface for emphasis. For 'why this matters / how big the market is' slides.",
   elements: [
-    // Chrome
     {
       id: "chrome_left",
       role: "chrome-left",
@@ -3598,10 +3070,6 @@ const MULTI_STAT_ASYMMETRIC: LayoutComposition = {
       fit: "single-line",
       defaultText: "05 / 28",
     },
-    // Hero — two regular lines, second line uses `*marker*` inline-accent
-    // markup so "now." renders as an italic-accent <Anuma.Span> inside the
-    // parent <Anuma.Text>. No box-clipping, no per-glyph alignment math
-    // — the renderer handles the flow naturally as one text run.
     {
       id: "hero_1",
       role: "hero",
@@ -3622,7 +3090,6 @@ const MULTI_STAT_ASYMMETRIC: LayoutComposition = {
       fit: "single-line",
       defaultText: "Why *us.*",
     },
-    // Multi-line body left, BELOW the hero. Wraps to ~2-3 lines.
     {
       id: "body",
       role: "body",
@@ -3634,9 +3101,6 @@ const MULTI_STAT_ASYMMETRIC: LayoutComposition = {
       defaultText:
         "Luxury EV is the fastest-growing automotive segment. Premium buyers shift electric at 3× the rate of mass-market.",
     },
-    // Anchor stat panel (dark) — same y as body, on the right. No body
-    // text in the panel (just eyebrow + big stat) so it fits a tight
-    // vertical band without crowding the bottom card row.
     {
       id: "anchor_surface",
       role: "card-surface",
@@ -3668,8 +3132,6 @@ const MULTI_STAT_ASYMMETRIC: LayoutComposition = {
       fit: "single-line",
       defaultText: "$320B",
     },
-    // Bottom stat-card row: default / default / accent. h=30 leaves room
-    // for stat-value-mid (h=13) + one line of card-body.
     ...statCardMid(
       "card_1",
       6,
@@ -3706,21 +3168,11 @@ const MULTI_STAT_ASYMMETRIC: LayoutComposition = {
   ],
 };
 
-// ---------------------------------------------------------------------------
-// PEER_COMPARISON_TABLE — light slide with a 2-line hero (inline italic
-// accent) and a data table comparing OUR terms to N peer composites. The
-// "us" column is highlighted (dark surface running the full column
-// height); peer columns sit on the default surface. For franchise-policy
-// / pricing / spec-sheet slides where the message is "here's how we
-// compare line-by-line."
-// ---------------------------------------------------------------------------
-
 const PEER_COMPARISON_TABLE: LayoutComposition = {
   name: "peer-comparison-table",
   description:
     "Light slide: 2-line hero with inline italic accent + a data table comparing our terms to N peer composites. The 'us' column is highlighted as a dark-surface stripe running the full table height. Use for pricing, terms, or spec comparisons.",
   elements: [
-    // Chrome
     {
       id: "chrome_left",
       role: "chrome-left",
@@ -3741,7 +3193,6 @@ const PEER_COMPARISON_TABLE: LayoutComposition = {
       fit: "single-line",
       defaultText: "19 / 28",
     },
-    // 2-line hero with inline italic accent
     {
       id: "hero_1",
       role: "hero",
@@ -3762,7 +3213,6 @@ const PEER_COMPARISON_TABLE: LayoutComposition = {
       fit: "single-line",
       defaultText: "to *the market*.",
     },
-    // The table — 6 columns × 6 rows, "us" column highlighted.
     ...table("terms", 6, 46, 88, 46, {
       headers: [
         { label: "FRANCHISE TERM" },
@@ -3784,7 +3234,6 @@ const PEER_COMPARISON_TABLE: LayoutComposition = {
         { label: "Training (days)", values: ["21", "14", "10", "12", "7"] },
       ],
     }),
-    // Footer disclaimer
     {
       id: "footer",
       role: "footer",
@@ -3797,10 +3246,6 @@ const PEER_COMPARISON_TABLE: LayoutComposition = {
     },
   ],
 };
-
-// ---------------------------------------------------------------------------
-// compile — composition × design system → renderable JSX
-// ---------------------------------------------------------------------------
 
 const CANVAS_W = 960;
 const CANVAS_H = 540;
@@ -3825,12 +3270,6 @@ function escapeText(s: string): string {
     .replace(/"/g, "&quot;");
 }
 
-/**
- * Resolve the effective style for an element given the design system,
- * element role, and the surface state that element sits on. For the
- * default surface, returns base styles unchanged. For non-default
- * surfaces, merges that surface's per-role override over the base.
- */
 function resolveStyle(system: DesignSystem, role: ElementRole, state: SurfaceState): RoleStyle {
   const base = system.styles[role];
   if (!base) throw new Error(`Design system "${system.name}" missing style for role "${role}"`);
@@ -3840,14 +3279,6 @@ function resolveStyle(system: DesignSystem, role: ElementRole, state: SurfaceSta
   return override ? { ...base, ...override } : base;
 }
 
-/**
- * The fill color for the slide ground, or for a card-surface element,
- * under the given surface state. Falls back to `defaultBackground` for
- * "default" state so compositions whose literal-hex text colors assume
- * a specific surface stay readable regardless of the deck's slideBg.
- * Returns null only if the system declares no default background and
- * the state has no treatment.
- */
 function surfaceBackground(system: DesignSystem, state: SurfaceState): string | null {
   if (state === "default") return system.defaultBackground ?? null;
   return system.surfaces?.[state]?.background ?? "#1a1a1a";
@@ -3868,29 +3299,12 @@ function styleObject(s: RoleStyle, fontPreset: { heading: string; body: string }
   return `{{ ${props.join(", ")} }}`;
 }
 
-/**
- * Map a role to its companion "accent" role, used for inline-italic-accent
- * spans within text. Returns null when the role has no accent companion.
- * The accent role's `fontStyle` and `color` are the values that get
- * applied to inline `<Anuma.Span>` children — everything else (fontSize,
- * fontFamily, fontWeight, letterSpacing) inherits from the parent Text.
- */
 function accentRoleFor(role: ElementRole): ElementRole | null {
   if (role === "hero") return "hero-accent";
   if (role === "quote") return "quote-accent";
   return null;
 }
 
-/**
- * Build the inner JSX of a Text element from text that may contain
- * `*marker*` inline accents. Each `*...*` segment becomes an
- * `<Anuma.Span>` styled with the parent role's accent companion. Plain
- * text segments are escaped and emitted as-is. Returns the concatenated
- * inner JSX string.
- *
- * Example: `"Why *now.*"` with parent role `hero` →
- *   `Why <Anuma.Span style={{fontStyle: "italic", color: "..."}}>now.</Anuma.Span>`
- */
 function renderInlineAccents(
   text: string,
   parentRole: ElementRole,
@@ -3902,8 +3316,6 @@ function renderInlineAccents(
     return escapeText(text);
   }
   const accentStyle = resolveStyle(system, accentRole, state);
-  // Build inline span attrs — only the bits that differ from the
-  // parent: fontStyle and color. fontSize / family / weight inherit.
   const spanProps: string[] = [];
   if (accentStyle.fontStyle) spanProps.push(`fontStyle: "${accentStyle.fontStyle}"`);
   if (accentStyle.color) spanProps.push(`color: "${accentStyle.color}"`);
@@ -3934,7 +3346,6 @@ function emitText(
 ): string {
   const text = el.defaultText ?? "";
   const fontRole = s.fontFamily === "heading" ? "heading" : "body";
-  // Element-level align overrides the role's default alignment.
   const resolved = el.align ? { ...s, align: el.align } : s;
   const style = styleObject(resolved, fontPreset);
   const body = renderInlineAccents(text, el.role, system, state);
@@ -3974,18 +3385,10 @@ function emitImage(
   state: SurfaceState,
   imageSrcMode: "placeholder" | "sentinel"
 ): string {
-  // Sentinel mode (recipes shipped to the model): emit an obvious
-  // not-a-URL string so the model knows to replace or remove.
   if (imageSrcMode === "sentinel") {
     const src = el.defaultSrc ?? IMAGE_PLACEHOLDER_SENTINEL;
     return `<Anuma.Image id="${el.id}" x={${pxX(el.x)}} y={${pxY(el.y)}} w={${pxX(el.w)}} h={${pxY(el.h)}} src="${escapeText(src)}" />`;
   }
-  // Placeholder mode (catalog dumps for visual review): surface-aware
-  // placehold.co URL so the image area stays visually coherent with
-  // the slide ground. No `?text=...` — letting placehold.co auto-size
-  // its centered label to a 1200×1200 source produced huge, distracting
-  // glyphs in print output. A flat tinted rectangle reads as "image
-  // here" without competing with the slide's actual typography.
   const isLight = state === "default";
   const bgHex = isLight ? "#E5E5E5" : (surfaceBackground(system, state) ?? "#1a1a1a");
   const stripHash = (s: string) => s.replace(/^#/, "");
@@ -3994,15 +3397,6 @@ function emitImage(
   return `<Anuma.Image id="${el.id}" x={${pxX(el.x)}} y={${pxY(el.y)}} w={${pxX(el.w)}} h={${pxY(el.h)}} src="${escapeText(src)}" />`;
 }
 
-/**
- * Build an `<Anuma.Group>` for a flex region plus one inner Group per
- * item. The compiler walks `region.defaultItems` and, for each entry,
- * realises `region.item` (the template) into concrete sub-elements with
- * sequential slot ids (`${prefix}_1_title`, `${prefix}_2_title`, …).
- *
- * Sub-elements use the renderer's flex flow — no x/y on them — so item
- * count can vary without touching geometry.
- */
 function emitFlexRegion(
   region: FlexRegion,
   system: DesignSystem,
@@ -4010,10 +3404,6 @@ function emitFlexRegion(
   fontPreset: { heading: string; body: string }
 ): string {
   const itemState: SurfaceState = region.surface ?? slideState;
-  // Grid mode: outer container is always layout="column" (rows stacked),
-  // overriding the region's `layout` field. Each row is its own
-  // layout="row" group holding up to `columns` items. Inter-row gap uses
-  // `gap`; inter-column gap uses `columnGap` (falls back to `gap`).
   const isGrid = region.columns !== undefined && region.columns > 0;
   const outerLayout = isGrid ? "column" : region.layout;
   const layoutAttrs: string[] = [
@@ -4031,14 +3421,9 @@ function emitFlexRegion(
     ...(region.itemJustify ? [`justify="${region.itemJustify}"`] : []),
     ...(region.itemAlign ? [`align="${region.itemAlign}"`] : []),
   ];
-  // Resolve the divider color once for separator lines. Pulls from the
-  // design system's `divider` role under the region's surface state.
   const separatorStyle = region.separator ? resolveStyle(system, "divider", itemState) : null;
 
   if (isGrid) {
-    // Row-chunked items. Each row is a flex sub-group whose item-groups
-    // share its width via grow={1}. Row gap comes from the outer column
-    // gap; column gap is `columnGap` or falls back to `gap`.
     const columns = region.columns!;
     const colGap = region.columnGap ?? region.gap;
     const rowAttrs: string[] = [
@@ -4087,7 +3472,6 @@ ${itemParts.join("\n")}
 </Anuma.Group>`;
 }
 
-/** Hairline sibling between items in a flex region. */
 function emitFlexSeparator(region: FlexRegion, afterIndex: number, style: RoleStyle): string {
   const id = `${region.idPrefix}_${afterIndex}_rule`;
   return `<Anuma.Line id="${id}" stroke="${style.color}" strokeWidth={1} />`;
@@ -4101,29 +3485,15 @@ function emitFlexItem(
   state: SurfaceState,
   fontPreset: { heading: string; body: string },
   innerAttrs: string[],
-  /**
-   * Layout direction of the IMMEDIATE parent flex container — controls
-   * whether this item needs grow={1} to distribute the parent's width.
-   * In grid mode, the parent is a row-group regardless of region.layout;
-   * callers pass "row" explicitly. In 1-D mode it equals region.layout.
-   */
   parentLayout?: "row" | "column"
 ): string {
-  // Per-item surface override: each defaultItems entry can carry a
-  // `surface` key that overrides the region's surface state for THIS
-  // item. Lets one grid mix neutral/dark/accent cards.
   const itemState: SurfaceState = data.surface ?? state;
   const children = region.item
     .map((rel) => emitRelativeElement(region, rel, index, data, system, itemState, fontPreset))
     .join("\n");
   const itemId = `${region.idPrefix}_${index}`;
-  // grow={1} so items distribute the parent flex container's main-axis.
-  // Defaults to region.layout when caller doesn't override (1-D mode).
   const parent = parentLayout ?? region.layout;
   const baseAttrs = parent === "row" ? [...innerAttrs, "grow={1}"] : innerAttrs;
-  // Card-item fill: the item-group itself paints the card surface using
-  // the design system's card-surface color for the item's surface state.
-  // Mirrors emitCardSurface() so absolute and flex card surfaces match.
   const surfaceAttrs: string[] = [];
   if (region.cardItems) {
     const fill =
@@ -4138,7 +3508,6 @@ ${children}
 </Anuma.Group>`;
 }
 
-/** Realise a RelativeElement into JSX for one item instance. */
 function emitRelativeElement(
   region: FlexRegion,
   rel: RelativeElement,
@@ -4156,11 +3525,7 @@ function emitRelativeElement(
     ...(rel.h !== undefined ? [`h={${pxY(rel.h)}}`] : []),
     ...(rel.grow !== undefined ? [`grow={${rel.grow}}`] : []),
   ];
-  // Join with a leading space only when sizeAttrs has entries — avoids
-  // the ugly `<Anuma.Text id="..."  fontRole=...>` double-space in
-  // recipes the model copies verbatim.
   const sizePrefix = sizeAttrs.length > 0 ? ` ${sizeAttrs.join(" ")}` : "";
-  // Shape roles render as the relevant primitive without text.
   if (rel.role === "divider") {
     return `<Anuma.Line id="${id}"${sizePrefix} stroke="${s.color}" strokeWidth={1} />`;
   }
@@ -4170,9 +3535,6 @@ function emitRelativeElement(
   if (rel.role === "marker") {
     return `<Anuma.Circle id="${id}"${sizePrefix} fill="${s.color}" />`;
   }
-  // Default: text element with role styling. align override + inline-accent
-  // markers behave the same as in absolute elements. `surface` is reserved
-  // and never serves text data; values for other rel ids are strings.
   const raw = data[rel.id];
   const text = (typeof raw === "string" ? raw : undefined) ?? rel.defaultText ?? "";
   const fontRole = s.fontFamily === "heading" ? "heading" : "body";
@@ -4187,8 +3549,6 @@ function emitCardSurface(
   system: DesignSystem,
   state: SurfaceState
 ): string {
-  // For default state, use the role's base color (typically the cream
-  // `slideBg`/`#FAFAFA`); for dark/accent, pull the surface's bg color.
   const fill =
     state === "default"
       ? system.styles["card-surface"].color
@@ -4267,13 +3627,6 @@ export function applyAccent(
   };
 }
 
-/**
- * Lighten a hex color in HSL space — bumps L by ~22 points (clamped at
- * 0.78) so an arbitrary accent stays legible on a dark surface. Used as
- * the default when `applyAccent` is called without an explicit `onDark`,
- * which is the typical LLM call ("here's one hex, you figure out the
- * dark variant").
- */
 function lightenForDarkSurface(hex: string): string {
   const m = /^#?([0-9a-f]{6})$/i.exec(hex.trim());
   if (!m) return hex;
@@ -4349,7 +3702,6 @@ export function compile(
       continue;
     }
     const el = child;
-    // Element-level surface overrides the slide-level surface.
     const elState: SurfaceState = el.surface ?? slideState;
     const s = resolveStyle(system, el.role, elState);
     switch (el.role) {
@@ -4372,52 +3724,21 @@ export function compile(
         lines.push(emitText(el, s, fontPreset, system, elState));
     }
   }
-  // Per-slide background precedence:
-  //   1. composition.backgroundColor — explicit override.
-  //   2. The design system's surface background for the slide's state.
-  //   3. No bg attribute (renderer uses deck-level slideBg).
   const bg = composition.backgroundColor ?? surfaceBackground(system, slideState);
   const bgAttr = bg ? ` background="${bg}"` : "";
   const id = slideId ?? composition.name;
   return `<Anuma.Slide id="${id}"${bgAttr}>\n${lines.join("\n")}\n</Anuma.Slide>`;
 }
 
-// ---------------------------------------------------------------------------
-// Slot budgeting — the LLM-facing constraint communication layer
-// ---------------------------------------------------------------------------
-
-/**
- * Estimated content capacity of a slot, given the active design system's
- * font for the slot's role. Both numbers are integer approximations:
- *
- *   visible width ≈ chars × fontSize × charWidthFactor(family, weight)
- *
- * The factor is rough but consistent enough across families to give the
- * model a reliable budget. When this estimate is wrong, the answer is to
- * tune the factor table — not to special-case at every slot site.
- */
 interface SlotBudget {
   charsPerLine: number;
   maxLines: number;
-  /** charsPerLine × maxLines — total content budget for multi-line slots. */
   total: number;
-  /** Visible line height in pixels (font size × line-height). Used for max-lines. */
   linePx: number;
-  /**
-   * Minimum box height in pixels needed to render one line without clipping
-   * glyph descenders (g, p, y, j, q). Real fonts extend ~15% below baseline
-   * even when line-height is 1.0, so this is `fontSize × max(lineHeight, 1.15)`.
-   */
   safeLinePx: number;
-  /** Box height in pixels — must be ≥ safeLinePx to fit a single line cleanly. */
   boxHeightPx: number;
 }
 
-// Width-per-character expressed as a fraction of fontSize. Numbers are
-// empirical averages, not exact metrics: visible width varies with weight,
-// glyph mix, and tracking, but the budget the model needs is approximate
-// anyway (it'll round down or rephrase). Tuned against the renderHtml.ts
-// fonts used today.
 const CHAR_WIDTH_FACTOR = {
   mono: 0.6,
   serif: 0.48,
@@ -4442,14 +3763,7 @@ function charWidthFactor(style: RoleStyle, fontPreset: { heading: string; body: 
     const isBold = (style.fontWeight ?? 400) >= 600;
     base = isBold ? CHAR_WIDTH_FACTOR.sansBold : CHAR_WIDTH_FACTOR.sans;
   }
-  // Uppercase glyphs run ~15-20% wider than the mixed-case average our
-  // family factors assume. Without this correction, eyebrow / stat-label
-  // / chrome roles (all `textTransform: "uppercase"`) under-budget by a
-  // chunk and clip at render time.
   if (style.textTransform === "uppercase") base *= 1.18;
-  // letterSpacing in em adds directly to each character's footprint —
-  // 0.14em letter-spacing means every glyph occupies 14% more horizontal
-  // space than its natural width. Add it to the per-char factor.
   if (typeof style.letterSpacing === "number" && style.letterSpacing > 0) {
     base += style.letterSpacing;
   }
@@ -4472,9 +3786,6 @@ export function estimateSlotBudget(
   const charsPerLine = Math.max(1, Math.floor(boxWidthPx / (fontSizePx * factor)));
   const lineHeight = style.lineHeight ?? 1.2;
   const linePx = fontSizePx * lineHeight;
-  // Descender allowance: even at lineHeight 1.0, real fonts extend ~15%
-  // below baseline. Box must accommodate at least this much to avoid
-  // clipping glyphs like g/p/y/j/q.
   const safeLinePx = fontSizePx * Math.max(lineHeight, 1.15);
   const maxLines = Math.max(1, Math.floor(boxHeightPx / linePx));
   return {
@@ -4530,12 +3841,6 @@ export function describeComposition(
         `  Flex region ${child.idPrefix} — ${child.defaultItems.length} items by default, ${shape}. Add or remove items by changing the count of ${child.idPrefix}_<index>_<slot> ids you pass. ${shrinkHint}`
       );
       if (child.cardItems) {
-        // Each item-Group paints its own card surface — the recipe's
-        // emitted JSX has a per-item fill + cornerRadius. The fills are
-        // opaque hex; without a name-to-index map the model can't know
-        // that cards_3's fill = dark surface vs cards_1 = default. Print
-        // the mapping so the model can pick the right item-Group to copy
-        // when it adds or rebalances cards.
         const surfaceMap = child.defaultItems
           .map((item, i) => {
             const s = typeof item.surface === "string" ? item.surface : "default";
@@ -4589,62 +3894,23 @@ export function describeComposition(
   return out.join("\n");
 }
 
-/**
- * Estimate the per-instance slot budget for a RelativeElement inside a
- * FlexRegion. Falls back to region-derived defaults when the relative
- * element doesn't set its own w/h: width = region.w - padding (or split
- * if itemLayout is "row"), height = region.h / item-count (or set if
- * itemLayout is "column").
- *
- * This is approximate — actual rendered size depends on flex flow with
- * siblings — but matches the "did the model overflow" check we need.
- */
 function estimateRelativeSlotBudget(
   rel: RelativeElement,
   region: FlexRegion,
   style: RoleStyle,
   fontPreset: { heading: string; body: string },
-  /**
-   * Override the item count used for width/height splitting. Defaults to
-   * `region.defaultItems.length`. Callers that know the actual rendered
-   * count (validateSlotContent walking a real slide tree) should pass
-   * the discovered count so the budget reflects the actual per-item
-   * geometry — without this, items beyond defaultItems.length would
-   * inherit the default-count budget and silently overflow.
-   */
   itemCountOverride?: number,
-  /**
-   * 1-based index of the specific item this budget is computed for.
-   * Only meaningful in grid mode: the trailing partial row of a 3-item
-   * cols=2 grid renders the lonely card at full row width (CSS flex
-   * with grow={1}), not at half-width like full rows. When `itemIndex`
-   * is provided and this item lives in a trailing partial row, the
-   * width budget reflects that. Without the index, grid mode computes
-   * the pessimistic per-item width (region.w / cols) for the recipe
-   * dump's general budget hint.
-   */
   itemIndex?: number
 ): SlotBudget {
   const padding = region.padding ?? 0;
   const gap = region.gap ?? 0;
   const itemCount = Math.max(1, itemCountOverride ?? region.defaultItems.length);
-  // Default width/height heuristics when the rel doesn't specify them.
   let w = rel.w;
   let h = rel.h;
   if (region.columns !== undefined && region.columns > 0) {
-    // Grid mode: items split BOTH axes. cols across the width, ceil(N/cols)
-    // rows down the height. `gap` is the row gap; columnGap (fallback gap)
-    // is the inter-column gap inside each row.
     const cols = region.columns;
     const rows = Math.max(1, Math.ceil(itemCount / cols));
     const colGap = region.columnGap ?? gap;
-    // Trailing-row adjustment: when N isn't a multiple of cols, the last
-    // row has fewer cards but they stretch (flex grow={1}) to fill the
-    // full row width. Without this, a 3-item cols=2 grid reports the 3rd
-    // item's width as region.w/2 — but the emitter actually gives it
-    // region.w. Validator false-positives result. Only applied when the
-    // caller passes itemIndex (per-item validation); the description
-    // path keeps the pessimistic full-cols budget.
     const lastRowFill = itemCount - cols * (rows - 1);
     const itemIsInLastRow = itemIndex !== undefined && itemIndex > cols * (rows - 1);
     const effectiveCols = itemIsInLastRow && lastRowFill < cols ? lastRowFill : cols;
@@ -4656,25 +3922,19 @@ function estimateRelativeSlotBudget(
     }
   } else if (region.layout === "row") {
     if (w === undefined) {
-      // Items lay out horizontally — divide the region's inner width.
       w = (region.w - 2 * padding - gap * (itemCount - 1)) / itemCount;
     }
     if (h === undefined) {
-      // Row layout — each item gets the full inner height.
       h = region.h - 2 * padding;
     }
   } else {
     if (w === undefined) {
-      // Column layout — items get the full inner width.
       w = region.w - 2 * padding;
     }
     if (h === undefined) {
-      // Items stack vertically — divide the region's inner height.
       h = (region.h - 2 * padding - gap * (itemCount - 1)) / itemCount;
     }
   }
-  // Reuse estimateSlotBudget by faking a CompositionElement shape with
-  // the derived geometry. Only the dimensions matter to the calculation.
   return estimateSlotBudget(
     { id: rel.id, role: rel.role, x: 0, y: 0, w, h, fit: rel.fit } as CompositionElement,
     style,
@@ -4682,11 +3942,6 @@ function estimateRelativeSlotBudget(
   );
 }
 
-/**
- * Validate each item in a FlexRegion's defaultItems against the template
- * sub-elements' per-instance budgets. Returns one SlotIssue per overflowing
- * sub-element with the issue id prefixed by item index for traceability.
- */
 function validateFlexRegionDefaults(
   region: FlexRegion,
   system: DesignSystem,
@@ -4743,7 +3998,6 @@ function validateFlexRegionDefaults(
   return issues;
 }
 
-/** A slot whose `defaultText` exceeds the slot's budget under the system. */
 interface SlotIssue {
   id: string;
   role: ElementRole;
@@ -4776,12 +4030,7 @@ export function validateComposition(
     const budget = estimateSlotBudget(el, style, fontPreset);
     const fit: FitMode = el.fit ?? "multi-line";
     const text = el.defaultText.trim();
-    // Strip inline-accent `*marker*` syntax before counting — the markers
-    // are parsed out at render time and don't occupy visible space.
     const visibleText = text.replace(/\*{1,2}([^*]+)\*{1,2}/g, "$1");
-    // Vertical-fit check: must accommodate one full line including
-    // descender room (~15% below baseline). `safeLinePx` already includes
-    // that, so this catches both tight-lineHeight and tight-box cases.
     if (budget.boxHeightPx < budget.safeLinePx) {
       issues.push({
         id: el.id,
@@ -4853,21 +4102,10 @@ export function validateSlotContent(
   }
 ): SlotIssue[] {
   const issues: SlotIssue[] = [];
-  // Recursively collect every Text element's id → joined-text in the
-  // slide tree. Flex regions nest Text inside Anuma.Group children, so a
-  // top-level-only walk would miss them.
   const textsBySlotId = new Map<string, string>();
   collectSlideTexts(slide.children, textsBySlotId);
   for (const child of composition.elements) {
     if (isFlexRegion(child)) {
-      // Discover the actual rendered item count from the slide tree by
-      // scanning slot ids matching `<prefix>_<idx>_<rel>` and counting
-      // distinct <idx> values. The model can ship more or fewer items
-      // than defaultItems.length — budget shrinks linearly with count,
-      // so we MUST validate against the discovered count, not the
-      // default. Falls back to defaultItems.length when the slide
-      // didn't populate any item (treats the budget as if the defaults
-      // would render).
       const itemPattern = new RegExp(`^${escapeForRegex(child.idPrefix)}_(\\d+)_`);
       const discoveredIndices = new Set<number>();
       for (const slotId of textsBySlotId.keys()) {
@@ -4877,8 +4115,6 @@ export function validateSlotContent(
       const actualCount =
         discoveredIndices.size > 0 ? discoveredIndices.size : child.defaultItems.length;
       const itemCountForBudget = actualCount;
-      // Iterate every discovered index (not just 1..defaultItems.length)
-      // so items 5+ in a region defaulted to 4 still get validated.
       const indicesToCheck =
         discoveredIndices.size > 0
           ? [...discoveredIndices].sort((a, b) => a - b)
@@ -4900,11 +4136,6 @@ export function validateSlotContent(
             idx
           );
           const fit: FitMode = rel.fit ?? "multi-line";
-          // Strip both `*italic*` and `**bold**` markers. The original
-          // single-asterisk pattern `\*([^*]+)\*` matched the inner pair
-          // of a bold phrase first, leaving an orphan `*` and over-counting
-          // visible chars by 1 per bold span — small bug but loud once
-          // multi-bold content shows up in slot-budget checks.
           const visibleText = actual.replace(/\*{1,2}([^*]+)\*{1,2}/g, "$1").trim();
           if (fit === "single-line" && visibleText.length > budget.charsPerLine) {
             issues.push({
@@ -4961,12 +4192,10 @@ export function validateSlotContent(
   return issues;
 }
 
-/** Escape regex metacharacters in a literal string for use in a RegExp. */
 function escapeForRegex(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-/** Concatenate string children and inline element bodies into one string. */
 function joinTextChildren(children: unknown[]): string {
   const parts: string[] = [];
   for (const c of children) {
@@ -4984,12 +4213,6 @@ function joinTextChildren(children: unknown[]): string {
   return parts.join("");
 }
 
-/**
- * Recursively walk a slide's child tree, collecting every Text element's
- * id → joined-text into `out`. Used by validateSlotContent so that Text
- * elements nested inside Anuma.Group wrappers (flex regions) are found
- * the same way as top-level text slots.
- */
 function collectSlideTexts(
   children: Array<{ tag?: string; attrs?: Record<string, unknown>; children?: unknown[] } | string>,
   out: Map<string, string>
@@ -5011,14 +4234,6 @@ function collectSlideTexts(
     }
   }
 }
-
-// ---------------------------------------------------------------------------
-// Live-tools registry — bridges this proposal module into the live
-// `plan_deck` / `add_slide` tools. Each composition × design system pair
-// is registered under a compound name (e.g. "cover-split-portrait--
-// editorial-warm"). The live tool flow treats these like additional
-// layout names alongside the legacy 30-template catalog.
-// ---------------------------------------------------------------------------
 
 export const ALL_COMPOSITIONS: LayoutComposition[] = [
   COVER_SPLIT_PORTRAIT,
@@ -5139,8 +4354,6 @@ export function renderCompositionLayoutRecipe(
   const resolved = resolveCompositionLayout(name);
   if (!resolved) return null;
   const system = accent ? applyAccent(resolved.system, accent) : resolved.system;
-  // sentinel mode: <Anuma.Image> slots ship with src="REPLACE_WITH_IMAGE_OR_REMOVE"
-  // so the model knows to swap in a real image URL or drop the element.
   const slideJsx = compile(resolved.composition, system, fontPreset, undefined, {
     imageSrcMode: "sentinel",
   });

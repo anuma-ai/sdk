@@ -1,40 +1,12 @@
-/**
- * Attribute inventories for each `<Anuma.*>` tag, rendered into the system
- * prompt so the LLM knows which attributes are valid on each tag without a
- * full schema dump.
- *
- * Attribute split:
- * - Structured attrs for geometry, layout, and semantics (id, x/y/w/h, flex
- *   child attrs, fontRole, src, name, shape fill/stroke, etc.).
- * - `style={{}}` carries CSS-shaped appearance properties: typography,
- *   color, borderRadius, shadows, etc. Values are scalars (strings /
- *   numbers / booleans). Color strings may be theme tokens (`textPrimary`,
- *   `accent`) or hex/rgb literals.
- *
- * All coordinates and sizes are container-relative pixels (slide canvas
- * is 960×540). The runtime tests in `./elementKinds.test.ts` assert
- * coverage of the common geometry attrs and the expected tag set.
- */
-
 type Attr =
-  /** Plain attr — renders as `attr` or `attr?`. */
   | { name: string; optional?: boolean }
-  /** Attr with an explicit value/enum — renders as `attr={"a"|"b"}`. */
   | { name: string; value: string; optional?: boolean };
 
 interface ElementKindSpec {
-  /** Local tag name — the part after `Anuma.` (e.g. "Text", "Rect"). */
   tag: string;
-  /** Attributes rendered on the opening tag, in source order. */
   attrs: Attr[];
-  /** CSS style properties that commonly appear on this tag, documentation-only. */
   styleKeys?: string[];
-  /**
-   * Element body description. `"text"` → body is the element's text content.
-   * `"children"` → body contains nested elements. Omit for self-closing.
-   */
   body?: "text" | "children";
-  /** Free-form notes rendered under the signature (indented). */
   notes?: string[];
 }
 
@@ -47,18 +19,12 @@ const COMMON_GEOMETRY: Attr[] = [
   { name: "rotation", optional: true },
 ];
 
-/**
- * Geometry for elements that live inside a flex container — `x`/`y` are
- * computed by the parent, but `w`/`h` can still be set for fixed sizing,
- * plus `grow`/`shrink`/`alignSelf` for flex-specific control.
- */
 const FLEX_CHILD_ATTRS: Attr[] = [
   { name: "grow", optional: true },
   { name: "shrink", optional: true },
   { name: "alignSelf", value: `"start"|"center"|"end"|"stretch"`, optional: true },
 ];
 
-/** Attrs shared by container tags that support opting into flex layout. */
 const CONTAINER_LAYOUT_ATTRS: Attr[] = [
   { name: "layout", value: `"absolute"|"row"|"column"`, optional: true },
   { name: "gap", optional: true },
@@ -67,7 +33,6 @@ const CONTAINER_LAYOUT_ATTRS: Attr[] = [
   { name: "align", value: `"start"|"center"|"end"|"stretch"`, optional: true },
 ];
 
-/** Style attr rendered last on any tag that accepts it. */
 const STYLE_ATTR: Attr = { name: "style", optional: true };
 
 export const ELEMENT_KINDS: ElementKindSpec[] = [

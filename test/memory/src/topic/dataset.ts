@@ -1,23 +1,3 @@
-/**
- * Topic-extraction quality corpus.
- *
- * Unlike the extraction corpus (which scores entities riding along on
- * `extractFacts`), this targets the standalone topic pass
- * `extractEntitiesForMemories`: each item is a SAVED-MEMORY string (the shape
- * the topic pass actually runs on), paired with its COMPLETE gold entity set.
- *
- * "Complete" is the whole point: every named entity in `content` is labeled, so
- * an extracted entity that matches no gold is a genuine FALSE POSITIVE. That
- * makes precision + junk-rate measurable — the dimensions the recall-only proxy
- * couldn't see. Empty `gold` ([]) is a deliberate junk trap: generic nouns and
- * no-entity memories must yield nothing.
- *
- * Kinds follow ENTITY_KINDS: person | organization | place | event | product |
- * thing | concept | other. `concept` (named skills/topics/languages) is the
- * subtle boundary — "Spanish" is a concept entity, "cooking" is a generic noun
- * to skip. Debatable kind calls are flagged in comments; kind accuracy is
- * scored separately from coverage so a kind quibble never hides a coverage win.
- */
 import type { EntityKind } from "../../../../src/lib/db/entities/types.js";
 
 export interface GoldEntity {
@@ -26,24 +6,22 @@ export interface GoldEntity {
 }
 
 export type TopicCategory =
-  | "single" // one clear named entity
-  | "multi" // several named entities, mixed kinds
-  | "concept" // named concept/skill/language — keep, don't skip as generic
-  | "messy" // realistic longer memory with entities + generic-noun distractors
-  | "kind-hard" // entity is obvious; the KIND is the challenge
-  | "generic-skip" // only generic nouns — gold is empty (over-extraction trap)
-  | "negative"; // nothing nameable — gold is empty (junk trap)
+  | "single"
+  | "multi"
+  | "concept"
+  | "messy"
+  | "kind-hard"
+  | "generic-skip"
+  | "negative";
 
 export interface TopicCase {
   id: string;
   category: TopicCategory;
   content: string;
-  /** COMPLETE set of named entities in `content`. [] = must extract nothing. */
   gold: GoldEntity[];
 }
 
 export const TOPIC_CASES: TopicCase[] = [
-  // ---- single ----
   {
     id: "s-wife",
     category: "single",
@@ -69,7 +47,6 @@ export const TOPIC_CASES: TopicCase[] = [
     gold: [{ name: "Notion", kind: "product" }],
   },
 
-  // ---- multi ----
   {
     id: "m-manager-move",
     category: "multi",
@@ -108,7 +85,6 @@ export const TOPIC_CASES: TopicCase[] = [
     ],
   },
 
-  // ---- concept (named concept/skill/language — KEEP) ----
   {
     id: "c-spanish",
     category: "concept",
@@ -125,13 +101,11 @@ export const TOPIC_CASES: TopicCase[] = [
     ],
   },
 
-  // ---- messy / realistic ----
   {
     id: "x-report-pg",
     category: "messy",
     content:
       "User's report Marcus is struggling with the migration to Postgres, and they're pairing on it before the quarterly review.",
-    // "migration" and "quarterly review" are generic (unnamed) → not entities.
     gold: [
       { name: "Marcus", kind: "person" },
       { name: "Postgres", kind: "product" },
@@ -142,7 +116,6 @@ export const TOPIC_CASES: TopicCase[] = [
     category: "messy",
     content:
       "User spent the weekend hiking near Lake Tahoe with Jordan, then drove back to Sacramento on Sunday.",
-    // "weekend", "dog", "Sunday" → not named entities.
     gold: [
       { name: "Lake Tahoe", kind: "place" },
       { name: "Jordan", kind: "person" },
@@ -154,7 +127,6 @@ export const TOPIC_CASES: TopicCase[] = [
     category: "messy",
     content:
       "User said the Helix project is blocked on the Twilio integration until legal signs off.",
-    // "integration", "legal" → generic. "Helix" internal project name → product-ish.
     gold: [
       { name: "Helix", kind: "product" },
       { name: "Twilio", kind: "organization" },
@@ -170,7 +142,6 @@ export const TOPIC_CASES: TopicCase[] = [
     ],
   },
 
-  // ---- kind-hard (entity clear, kind is the test) ----
   {
     id: "k-peloton",
     category: "kind-hard",
@@ -223,7 +194,6 @@ export const TOPIC_CASES: TopicCase[] = [
     gold: [{ name: "The Office", kind: "product" }],
   },
 
-  // ---- generic-skip (only generic nouns → gold empty) ----
   {
     id: "g-tea",
     category: "generic-skip",
@@ -255,7 +225,6 @@ export const TOPIC_CASES: TopicCase[] = [
     gold: [],
   },
 
-  // ---- negative (nothing nameable → gold empty) ----
   {
     id: "n-weather",
     category: "negative",
@@ -270,17 +239,6 @@ export const TOPIC_CASES: TopicCase[] = [
   },
 ];
 
-/**
- * Canonicalization corpus. Each memory refers to ONE seeded canonical entity
- * via a variant spelling. `normalizeEntityName` is only trim+lowercase, so CASE
- * variants collapse for free — the real fragmentation risk is spacing,
- * punctuation, and abbreviation, which the model must actively resolve using the
- * seeded vocabulary hint. A case PASSES if any extracted entity normalizes to
- * the canonical's normalized form; otherwise the model FRAGMENTED the graph.
- *
- * `hard: true` marks abbreviation/alias cases (NYC→New York City) where even a
- * good model may reasonably keep the surface form — reported separately.
- */
 export const CANON_VOCAB: string[] = [
   "ZetaChain",
   "San Francisco",
@@ -292,8 +250,8 @@ export const CANON_VOCAB: string[] = [
 export interface CanonCase {
   id: string;
   content: string;
-  canonical: string; // the seeded name the model should reuse
-  hard: boolean; // abbreviation/alias (vs mere spacing/punctuation)
+  canonical: string;
+  hard: boolean;
 }
 
 export const CANON_CASES: CanonCase[] = [
@@ -333,6 +291,6 @@ export const CANON_CASES: CanonCase[] = [
     content: "User visits San Fransisco every summer.",
     canonical: "San Francisco",
     hard: false,
-  }, // misspelling
+  },
   { id: "cn-nyc2", content: "User grew up in New York.", canonical: "New York City", hard: true },
 ];

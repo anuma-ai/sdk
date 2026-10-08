@@ -1,10 +1,3 @@
-/**
- * Pure AST-mutation helpers for the design sandbox. The interaction
- * layer determines INTENT (move this absolute element by [dx,dy], drop
- * this flex child at index N) and these helpers produce the next
- * AnumaNode tree. No DOM access here.
- */
-
 import { type AnumaNode, findById, findParentOfId } from "../tools/slides/jsx";
 
 export type LayoutMode = "flex-row" | "flex-column" | "absolute";
@@ -70,9 +63,6 @@ export function containerLayoutMode(node: AnumaNode): LayoutMode {
  *   - absolute → flex: move + strip x/y, reindex
  */
 export function commitDrop(deck: AnumaNode, elementId: string, target: DropTarget): AnumaNode {
-  // Refuse to clone unless the drop actually changes the AST. Mirrors the
-  // same-ref shortcut in commitMultiDrag/commitResize so a click-drag that
-  // snaps back to its origin doesn't push a spurious undo snapshot.
   const elOrig = findById(deck, elementId);
   const parentOrig = findParentOfId(deck, elementId);
   if (!elOrig || !parentOrig) return deck;
@@ -92,10 +82,6 @@ export function commitDrop(deck: AnumaNode, elementId: string, target: DropTarge
       const currentIdx = parentOrig.children.findIndex(
         (c) => typeof c !== "string" && getId(c) === elementId
       );
-      // dropIndex is in post-removal coords; same index = same final order.
-      // Also require x/y to already be absent so the strip-x/y branch below
-      // doesn't get skipped on a flex child that still carries stale absolute
-      // coords from a prior layout-mode flip.
       if (
         target.dropIndex === currentIdx &&
         elOrig.attrs.x === undefined &&
@@ -117,24 +103,16 @@ export function commitDrop(deck: AnumaNode, elementId: string, target: DropTarge
   if (target.kind === "absolute") {
     el.attrs.x = target.x;
     el.attrs.y = target.y;
-    // Always write w/h. For elements that were already absolute with
-    // explicit dimensions this is a no-op (target.w/h come from the
-    // same gBCR they're rendered from). For flex children promoted to
-    // absolute, this is what prevents the collapse-to-zero-width bug.
     el.attrs.w = target.w;
     el.attrs.h = target.h;
     if (sameParent) {
-      // Same-parent absolute: leave z-order alone, just update coords.
       return next;
     }
   } else {
-    // Flex children carry no x/y of their own — strip them so the
-    // child joins the container's flow cleanly.
     delete el.attrs.x;
     delete el.attrs.y;
   }
 
-  // Detach from the old parent and re-insert at the target slot.
   const oldIdx = currentParent.children.findIndex(
     (c) => typeof c !== "string" && getId(c) === elementId
   );
@@ -142,8 +120,6 @@ export function commitDrop(deck: AnumaNode, elementId: string, target: DropTarge
   currentParent.children.splice(oldIdx, 1);
 
   if (target.kind === "flex") {
-    // dropIndex is in post-removal coords. If target is the same parent
-    // we just removed from, that's already consistent.
     const np = findById(next, target.parentId);
     if (!np) return deck;
     const clamped = Math.max(0, Math.min(target.dropIndex, np.children.length));

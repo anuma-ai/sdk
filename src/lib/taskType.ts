@@ -45,13 +45,6 @@ export type TaskType =
   | "title"
   | "commit_message"
   | "memory_extract"
-  // Split from "memory_extract": TWO senders declared that one name with two
-  // different fixed prompts — this SDK's per-turn auto-extractor (strict-JSON
-  // `candidates`) and the client's Import Chat History batch extractor ("- "
-  // bullet lines, NONE when empty). The portal registered the import text under
-  // the shared name and appended it to every SDK extraction call (ai-portal#1834
-  // has the measurement). "memory_extract" stays the SDK's; the import path
-  // declares this one. Mirrors ai-portal AllTaskTypes.
   | "memory_import_extract"
   | "memory_dedup"
   | "memory_decay"
@@ -68,21 +61,10 @@ export type TaskType =
   | "summarize"
   | "style_analysis"
   | "classify_search"
-  // Split from a single "app_inspiration": generate / trends / remix each send a
-  // DIFFERENT fixed prompt, so one name could never be registered server-side
-  // without breaking two of them. Mirrors ai-portal AllTaskTypes.
   | "app_inspiration_generate"
   | "app_inspiration_trends"
   | "app_inspiration_remix"
   | "spotlight_image"
-  // Split from a single "slide_image": the slide/inline media generator sends a
-  // DIFFERENT fixed prompt per media kind, so one name could never be registered
-  // server-side without breaking three of them.
-  //
-  // Declaring a name here does NOT make anyone send it. The client sent
-  // "slide_image" for all four kinds until ai-memoryless-client#5782 mapped kind
-  // -> name in `apps/web/lib/slide-image-gen.ts`; until that ships, the portal's
-  // per-kind entries for video/music/sfx are simply never selected.
   | "slide_image"
   | "slide_video"
   | "slide_music"
@@ -93,12 +75,6 @@ export type TaskType =
   | "media_image_preset"
   | "tool_app_builder"
   | "tool_document_builder"
-  // Split by whether an image generator is bound to the slide loop —
-  // buildSlideSystemPrompt emits two texts differing in the image-source clause.
-  // Same caveat as the slide_* block: the web client declared the bare
-  // "tool_slides" while shipping the hasImageGenerator:true text, and only starts
-  // declaring "_image_gen" with ai-memoryless-client#5782. Mobile builds the
-  // false variant and declares no task type at all.
   | "tool_slides"
   | "tool_slides_image_gen"
   | "connector_guidance"

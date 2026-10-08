@@ -1,17 +1,3 @@
-/**
- * Stock Price Classifier
- *
- * Determines whether a user prompt is asking for current stock, ETF, index,
- * or FX quote data (Twelve Data territory) before being sent to the LLM.
- * Compares the prompt embedding against two pre-computed centroid vectors
- * (stock-price vs no-stock-price).
- *
- * No LLM calls — one embedding per prompt + two cosine similarities.
- *
- * To regenerate centroids after changing reference phrases:
- *   PORTAL_API_KEY=... npx tsx scripts/generateStockPriceCentroids.ts
- */
-
 import type { LlmapiMessage } from "../../client";
 import { generateEmbedding, generateEmbeddings } from "../memoryEngine/embeddings";
 import type { EmbeddingOptions } from "../memoryEngine/types";
@@ -30,11 +16,6 @@ export interface StockPriceClassification {
 }
 
 interface StockPriceClassifierOptions extends EmbeddingOptions {
-  /**
-   * Score margin: the stock-price score must exceed the no-stock-price
-   * score by at least this amount to classify as "needs stock price data".
-   * @default 0.02
-   */
   margin?: number;
 }
 

@@ -1,53 +1,12 @@
-/**
- * Row-version tags for the vault embedding cache.
- *
- * The cache (`VaultEmbeddingCache`) is keyed by memory id and was validated by
- * dimension alone, so a row whose content changed underneath it — an edit
- * synced from another device, a merge — kept ranking on the vector of its OLD
- * content for the life of the cache. Each entry is now tagged with the row
- * version it was computed for, and a read against any other version is a miss.
- *
- * A version is `updatedAt` PLUS a fingerprint of the content. `updatedAt` alone
- * is not enough: `retain()`'s consolidate-update rewrites content and embedding
- * with `preserveUpdatedAt`, so a consolidation synced in from another device
- * arrives with new content under the SAME `updatedAt`. The fingerprint is a
- * 32-bit FNV-1a of the plaintext — linear in a fact's length and computed only
- * where the plaintext is already in hand, so it adds no decrypts:
- *   - the legacy read path, every writer and the un-embedded lane know the
- *     content, so they tag and check both halves;
- *   - the projected (decrypt-last) path decides hits from a key scan that has
- *     no content, so it checks `updatedAt` there and re-checks the fingerprint
- *     for the rows it decrypts (see `buildProjectedCorpus`); a vector it loaded
- *     from the stored column is tagged without one until first decrypted (see
- *     `matchesContent` for the trade-off).
- * Collisions only matter if a rewrite lands on the same `updatedAt` AND the
- * same 32-bit hash, and cost a stale ranking, not a wrong read.
- *
- * Tags live in a WeakMap keyed by the vector OBJECT, beside the cache rather
- * than inside it, so `VaultEmbeddingCache` keeps its public
- * `Map<string, Float32Array>` shape, and a writer that replaces an entry can't
- * inherit the tag of the vector it replaced — its new vector simply has none.
- *
- * An UNTAGGED entry is a miss, not trusted: a writer that didn't say which row
- * version its vector belongs to can't be vouched for. The cost of a miss is a
- * re-resolve from the row's stored embedding column (a DB read + parse, no
- * network); a re-embed only happens when the row has no usable stored vector.
- *
- * Dependency-free on purpose so `retain()` can tag its writes without pulling
- * in (or being mocked out with) the search module.
- */
-
 import type { VaultEmbeddingCache } from "./searchTool";
 
 interface RowVersion {
   readonly updatedAtMs: number;
-  /** Undefined when the writer only knew `updatedAt` (projected miss-load). */
   contentHash?: number;
 }
 
 const vectorRowVersion = new WeakMap<Float32Array, RowVersion>();
 
-/** 32-bit FNV-1a over UTF-16 code units. Not cryptographic — a change detector. */
 function contentFingerprint(content: string): number {
   let h = 0x811c9dc5;
   for (let i = 0; i < content.length; i++) {
@@ -107,20 +66,6 @@ export function cachedRowVector(
   return vec;
 }
 
-/**
- * The content half of the check. A tag WITH a fingerprint must match it. A tag
- * without one was written by the projected miss-load, which read the vector
- * from the row's own stored column at this same `updatedAt` but had no
- * plaintext to hash; it adopts the content the first time a read sees it.
- *
- * That adoption is the one deliberate gap: a same-`updatedAt` rewrite synced in
- * between that vector load and the row's first decrypt would be adopted. The
- * alternative — re-reading the stored vector for every row the first time it
- * is admitted — costs up to one extra vector read per admitted row per search,
- * which breaks the projected path's "vectors are parsed once" budget. Closing
- * it for real needs a content-derived value on the key scan, or consolidation
- * bumping `updated_at` when it rewrites content.
- */
 function matchesContent(tag: RowVersion, content: string): boolean {
   const hash = contentFingerprint(content);
   if (tag.contentHash === undefined) {

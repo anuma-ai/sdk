@@ -1,15 +1,3 @@
-/**
- * Typed HTTP client over the portal API.
- *
- * Retries on 5xx / network errors with exponential backoff + jitter
- * (default 3 attempts, base 100ms). Never retries 4xx — those become
- * `MintResult.ok=false` (for mint) or thrown errors (for the bookkeeping
- * endpoints `listConnectors` / `createConnectTicket`).
- *
- * Surface is duck-typed against `PortalClient` so test stubs can satisfy
- * the same contract.
- */
-
 import type {
   ConnectorInfo,
   ConnectTicket,
@@ -25,12 +13,6 @@ const DEFAULT_TIMEOUT_MS = 5_000;
 const DEFAULT_MAX_RETRIES = 3;
 const DEFAULT_RETRY_BASE_MS = 100;
 
-/**
- * Default mint access level per logical provider. The portal's
- * `POST /api/v1/connector-tokens/{provider}` requires an `access` body keyed
- * to the provider's `ScopesByAccess` map (ai-portal `internal/oauth/providers.go`).
- * Anything not listed falls back to `"read"`.
- */
 const DEFAULT_MINT_ACCESS: Record<string, string> = {
   gmail: "read",
   gdrive: "read",
@@ -40,10 +22,6 @@ const DEFAULT_MINT_ACCESS: Record<string, string> = {
   notion: "rw",
 };
 
-/**
- * The portal speaks a single `oauth_app` for the three Google connectors.
- * Everything else maps 1:1 to its logical provider name.
- */
 function oauthAppFor(provider: string): string {
   switch (provider) {
     case "gmail":
@@ -85,7 +63,6 @@ interface ConnectTicketBody {
 }
 
 function jitter(baseMs: number, attempt: number): number {
-  // Exponential backoff with full jitter so concurrent callers don't sync up.
   const exp = baseMs * Math.pow(2, attempt);
   return Math.floor(Math.random() * exp);
 }
@@ -146,7 +123,6 @@ export function createPortalClient(bearer: string, opts: PortalClientOpts = {}):
         });
         clearTimeout(timer);
         if (response.status >= 500) {
-          // Retry server errors.
           lastErr = new Error(`portal ${path} returned ${response.status}`);
           if (attempt < maxRetries - 1) {
             await sleep(jitter(retryBaseMs, attempt));
@@ -226,8 +202,6 @@ export function createPortalClient(bearer: string, opts: PortalClientOpts = {}):
         throw new Error(`portal /api/v1/connect-tickets returned ${response.status}`);
       }
       const body = (await response.json()) as ConnectTicketBody;
-      // The portal returns only `{ ticket_id, expires_in }` — the client owns
-      // the connect URL, keyed to the LOGICAL provider (not the oauth_app).
       return {
         ticketId: body.ticket_id,
         expiresAt: Date.now() + body.expires_in * 1000,

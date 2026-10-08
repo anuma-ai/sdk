@@ -1,43 +1,7 @@
-/**
- * Query decomposition for composite/abstract memory questions.
- *
- * Calls Portal LLM (open-weights, see DEFAULT_MODEL) to classify a query as
- * "specific" or "composite" and, if composite, decompose it into 3–5 concrete facet
- * sub-queries. Callers (typically `createRecallTool` at `budget: 'high'`, or
- * an eval harness) then pass those facets into LLM-free `recall()` via
- * `RecallOptions.subQueries`, which runs the fused ranker once per facet and
- * RRF-fuses the result lists.
- *
- * Why decompose: the existing pipeline (cosine + BM25 + recency + CE +
- * graph) scores documents against a query, but composite queries like
- * "tell me about the user as a person" have no lexical or semantic
- * surface to anchor on — every personal fact embeds about equally near
- * them, so top-K is essentially noise. Decomposition rewrites the *left*
- * side of the equation into queries the existing pipeline already
- * handles well (we hit ~100% recall on direct/specific queries).
- *
- * 719/B4: this deliberately lives OUTSIDE `recall()` / vault search —
- * Hindsight keeps retrieval LLM-free and pushes rewrite to the agent/
- * tool loop (which already retries). The preferred long-term path is the
- * agent issuing several targeted `recall_memory` calls; this helper is
- * the transitional single-call rewrite used by the tool layer.
- */
-
 import { getLogger } from "../logger.js";
 import { callPortalJsonCompletion, type PortalLlmAuth } from "../memory/portalLlm.js";
 
-// Open-weights, matching the extraction/consolidation defaults — closes the
-// last memory-pipeline path that sent private-mode content to a closed
-// provider: decomposition runs on the user's recall query, which in a
-// privacy-mode chat is private. ling-2.6-flash (not gpt-oss): this is a SHORT
-// single-decision prompt on the recall hot path, exactly the shape where
-// gpt-oss returns empty content ~30% of the time (see consolidate.ts); ling
-// is reliable here and accepts `response_format`. Verified on the decompose
-// prompt: correct specific/composite classification at ~1–2s. A failure
-// degrades to the safe `{specific, [query]}` fallback below, so recall never
-// breaks even on a hiccup.
 const DEFAULT_MODEL = "inclusionai/ling-2.6-flash";
-/** Max facets accepted from LLM rewrite or a caller-supplied `subQueries` list. */
 const MAX_SUB_QUERIES = 5;
 
 const SYSTEM_PROMPT = `You classify a memory query and, if needed, decompose it into concrete sub-queries.
@@ -81,12 +45,9 @@ export interface DecomposedQuery {
   subQueries: string[];
 }
 
-/** Auth is the dual pattern — one of `apiKey` / `getToken` is required at
- * runtime; see {@link PortalLlmAuth}. */
 interface DecomposeQueryOptions extends PortalLlmAuth {
   baseUrl?: string;
   model?: string;
-  /** Override fetch (for tests). */
   fetchFn?: typeof fetch;
 }
 
@@ -112,27 +73,14 @@ export async function decomposeQuery(
       ...(options.baseUrl !== undefined && { baseUrl: options.baseUrl }),
       model: options.model ?? DEFAULT_MODEL,
       systemPrompt: SYSTEM_PROMPT,
-      // The query itself rides the user turn below, so SYSTEM_PROMPT is the whole
-      // fixed instruction — which is what lets the portal own it outright.
       taskType: "memory_decompose",
-      // Wrap the bare query in a task framing so the model treats it as
-      // input to classify, not as a question to answer conversationally.
-      // Bare-query inputs caused Anthropic models to respond with prose
-      // like "Do you mean...?" before this wrap.
       userMessage: `Classify the following memory query and decompose if composite. Respond with JSON only — do not answer the question, do not ask for clarification.\n\nQuery: ${trimmed}`,
-      // Decompose runs ahead of recall in the tool layer — tighter than the
-      // portalLlm default (consolidate/extract can wait longer).
       timeoutMs: 20_000,
-      // No internal retry: a failure degrades to the safe `{specific,[query]}`
-      // fallback below. The agent/tool loop is the retry surface (719/B4).
       maxAttempts: 1,
       tag: "memory/decompose",
       ...(options.fetchFn && { fetchFn: options.fetchFn }),
     });
   } catch (err) {
-    // Decomposition is an optional quality stage — a misconfigured or
-    // failing portal call must degrade to specific-mode, never reject
-    // the recall it decorates.
     getLogger().warn("memoryVault/decompose: portal call failed, falling back to specific", err);
     return fallback;
   }

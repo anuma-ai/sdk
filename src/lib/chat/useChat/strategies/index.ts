@@ -1,8 +1,4 @@
 export type { ApiResponse, ApiType } from "./types";
-// getCostMicroUsd / getCreditsUsed are intentionally NOT re-exported here:
-// their only non-test consumer is the db layer (convertUsageToStored), which
-// imports them straight from "./types" to avoid pulling the strategy
-// singletons created in this barrel into the storage layer.
 export { extractAssistantText, getImageModel, getToolCallEvents, getToolsChecksum } from "./types";
 
 import { CompletionsStrategy } from "./completions";
@@ -10,7 +6,6 @@ import { getApiTypeForModel } from "./modelApiSupport";
 import { ResponsesStrategy } from "./responses";
 import type { ApiStrategy, ApiType } from "./types";
 
-// Singleton instances for reuse
 const responsesStrategy = new ResponsesStrategy();
 const completionsStrategy = new CompletionsStrategy();
 

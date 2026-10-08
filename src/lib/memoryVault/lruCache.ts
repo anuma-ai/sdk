@@ -18,7 +18,6 @@ export class LRUCache<K, V> extends Map<K, V> {
   get(key: K): V | undefined {
     if (!super.has(key)) return undefined;
     const value = super.get(key)!;
-    // Promote: delete and re-insert to move to end (most recent)
     super.delete(key);
     super.set(key, value);
     return value;

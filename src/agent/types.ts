@@ -78,21 +78,14 @@ export interface AgentManifest {
 /** Allowed input types for skill journey form fields. */
 export type SkillJourneyFieldType = "text" | "textarea" | "select";
 
-/** Properties shared by every skill journey field, regardless of input type. */
 interface SkillJourneyFieldBase {
   key: string;
   label: string;
   placeholder: string;
   helper?: string;
   required?: boolean;
-  /** Conversational ask used by chat-native guided flows (web, mobile, SMS, voice).
-   *  Falls through to `label` when not set. */
   chatPrompt?: string;
-  /** Skill-specific nudge shown when the user skips a required field. Falls through
-   *  to `SkillConfig.requiredNudgeDefault` when not set. */
   requiredNudge?: string;
-  /** Server-side sanitiser cap on the value's character length. Today's gateways
-   *  truncate textarea fields at `MULTILINE_FIELD_MAX` characters. */
   maxLength?: number;
 }
 
@@ -143,10 +136,6 @@ export interface SkillJourneyDefinition {
   /** Extra system prompt context injected per-skill for structured output guidance. */
   systemContext?: string;
 }
-
-// ---------------------------------------------------------------------------
-// Marketplace content (per-agent preview cards rendered in the agent picker)
-// ---------------------------------------------------------------------------
 
 /** Marketplace filter the agent should appear under in the picker UI. */
 export type AgentMarketplaceFamily = "text" | "lifestyle";
@@ -219,10 +208,6 @@ export interface AgentMarketplaceContent {
   emptyStateDescription: string;
   transcript: AgentMarketplaceTranscript;
 }
-
-// ---------------------------------------------------------------------------
-// UI metadata (color, icon, example conversations) for renderer fallbacks
-// ---------------------------------------------------------------------------
 
 /** A single (user, agent) example conversation entry, keyed by i18n string ids. */
 export interface AgentExampleConversation {

@@ -1,79 +1,13 @@
-/**
- * Memory consolidation — Hindsight-pattern semantic dedup at retain time.
- *
- * The naive cosine-merge in `retain()` only catches near-string duplicates.
- * It misses paraphrased re-extractions of the same fact across sessions, e.g.
- *
- *   Session A: "User exchanged boots at Zara on 2026-02-05 and is awaiting
- *               the replacement pair."
- *   Session B: "User has a pair of boots at Zara that they swapped earlier
- *               and still need to pick up."
- *
- * These have cosine ~0.7–0.8 — high enough to be obviously the same fact, low
- * enough to slip past the auto-merge floor (0.8, `DEFAULT_AUTO_MERGE_THRESHOLD`
- * in retain.ts). The result is an over-grown vault that confuses the LLM at
- * answer time.
- *
- * Consolidation closes the gap: for each new fact, pull the top-K most
- * similar existing memories (looser threshold), pass to an LLM with explicit
- * rules ported from Hindsight's `consolidation/prompts.py:7-25`, and emit
- *
- *   action="create"  — new distinct fact, write fresh
- *   action="update"  — same facet as `targetId`; replace its content (and
- *                      let `retain()` increment proof_count + union sources)
- *   action="noop"    — the new fact is already adequately captured by an
- *                      existing memory; skip the write
- *
- * Rules carried verbatim from Hindsight:
- * - "ONE OBSERVATION PER DISTINCT FACET"
- * - "MATCH BY ENTITY/FACET, NOT TOPIC"
- * - "NO COMPUTATION" (don't try to sum, decrement, derive from existing facts)
- *
- * Falls back to "create" on any LLM/parse error so a flaky consolidator can't
- * silently swallow a write.
- *
- * One decision is NOT left to the model. `supersede` retires its targets, and
- * superseded rows are excluded from recall by default, so a supersede across two
- * different subjects hides a true memory ("User's sister lives in Denver"
- * retiring "User lives in Denver" — #822). The prompt has forbidden that since
- * #825 and the model does it anyway, so the prompt now also requires it to NAME
- * the subject on both sides and `validate()` compares the two, downgrading to
- * create on a mismatch. Models are reliable at naming a subject and unreliable
- * at applying the consequence; this puts the consequence in code.
- */
-
 import { type PiiRedactor, resolvePiiRedactor } from "../pii/redactor.js";
 import { notifyConsolidationFallback } from "./consolidationFallback.js";
 import { callPortalJsonCompletion, type PortalLlmAuth } from "./portalLlm.js";
 import type { ConsolidationFallbackReason } from "./types.js";
 
-// Open-weights consolidator. Consolidation reasons over the SAME
-// chat-derived facts as extraction, so it stays on an open provider too —
-// routing it to a closed third party would reopen the privacy gap the
-// (global, open-weights) extractor default closes. NOT gpt-oss-120b (the
-// extraction default): gpt-oss returns empty completion content ~30% of the time on
-// this single-decision prompt (measured 3/10), which silently degrades every
-// affected merge to a create fallback and defeats facet-dedup. ling-2.6-flash
-// is reliable here (0/10 empty) and discriminates create/update/noop correctly
-// on the benchmark cases. Unlike gpt-oss, ling ACCEPTS `response_format:
-// json_object` (verified), so portalLlm.ts sends it — the reliability numbers
-// above were measured with response_format on, matching production.
 /** Exported so the consolidation eval gates the model production actually runs,
  * rather than a copy of this string that can drift out of sync. */
 export const DEFAULT_CONSOLIDATION_MODEL = "inclusionai/ling-2.6-flash";
 
-// Retry budget for TRANSIENT consolidation failures. A transient blip
-// (network/timeout/5xx/429/empty completion) that degrades straight to create
-// is NOT low-cost: the paraphrased re-extractions consolidation exists to
-// catch sit at cosine ~0.7–0.8, below the 0.8 auto-merge floor, so a spurious
-// create leaves a permanent near-duplicate that does NOT collapse at read time
-// or self-heal via proof_count (different wording → different embedding). 3
-// attempts = up to two cheap transient-only retries; the happy path still
-// resolves in one attempt and the schema-violation path stays terminal (no
-// retry).
 const DEFAULT_CONSOLIDATE_ATTEMPTS = 3;
-// Bound worst-case retain latency on a hanging portal — consolidation is a
-// background quality stage, so cap it well under the extractor's 60s budget.
 const DEFAULT_CONSOLIDATE_TOTAL_TIMEOUT_MS = 20_000;
 
 const SYSTEM_PROMPT = `You consolidate a new memory against existing memories from the same user.
@@ -118,71 +52,25 @@ For "noop": no content (existing memory is already correct); targetId is that me
 interface ConsolidationCandidate {
   id: string;
   content: string;
-  /** Cosine similarity to the new fact — informational, the LLM does its own judgment. */
   similarity: number;
 }
 
 interface ConsolidationResult {
   action: "create" | "update" | "noop" | "supersede";
-  /** Defined for update/noop/supersede. For supersede it is the FIRST stale
-   * memory being retired (kept for back-compat; see `targetIds` for the full
-   * set). */
   targetId?: string;
-  /** Defined for supersede: ALL stale memories to retire (every candidate that
-   * describes the same standing attribute now being changed), so a value change
-   * collapses every duplicate of the old value, not just one. */
   targetIds?: string[];
-  /** Defined for create/update/supersede. For supersede it is the NEW fact to
-   * persist (the old one is retired, not overwritten). */
   content?: string;
-  /**
-   * Set when this "create" is a degraded fallback rather than a real
-   * decision (LLM failure or schema-violating response). Distinguishes
-   * "the model chose create" from "we couldn't get a usable answer" —
-   * the latter accumulates duplicates if it happens persistently.
-   *
-   * Note: retain()'s consolidation path drops the result on "create"
-   * (fallback or real), so this field only reaches direct
-   * consolidateMemory() callers and tests — `onFallback` is the live
-   * observability channel.
-   */
   fallbackReason?: ConsolidationFallbackReason;
 }
 
-/** Auth is the dual pattern — one of `apiKey` / `getToken` is required at
- * runtime; see {@link PortalLlmAuth}. */
 interface ConsolidateOptions extends PortalLlmAuth {
   baseUrl?: string;
   model?: string;
-  /** Notified on each degraded fallback. See `RetainOptions.consolidateOptions.onFallback`. */
   onFallback?: (reason: ConsolidationFallbackReason) => void;
-  /**
-   * Max portal attempts on TRANSIENT failure (network/timeout/5xx/429/empty
-   * completion). Defaults to {@link DEFAULT_CONSOLIDATE_ATTEMPTS}. Terminal
-   * failures (400/401/403/404, auth, malformed-JSON schema violation) never
-   * retry — they degrade to create immediately regardless of this value.
-   */
   maxAttempts?: number;
-  /**
-   * Absolute wall-clock budget across all retries, in ms. Keeps a hanging
-   * portal from holding retain open ~maxAttempts× the per-attempt timeout.
-   * Defaults to {@link DEFAULT_CONSOLIDATE_TOTAL_TIMEOUT_MS}.
-   */
   totalTimeoutMs?: number;
-  /**
-   * Backoff before each retry, in ms, given the just-failed 1-based attempt.
-   * Defaults to the portal helper's exponential+jitter schedule. Tests pass
-   * `() => 0` for instant retries (same escape hatch portalLlm.ts exposes).
-   */
   backoffMs?: (attempt: number) => number;
-  /** Override fetch (for tests). */
   fetchFn?: typeof fetch;
-  /**
-   * When set, the new fact and the existing candidate contents are PII-redacted
-   * before they reach the consolidation model, and the consolidated content it
-   * returns is de-anonymized before persistence — so consolidation never leaks
-   * the real values it dedups over. Pass `true` or a shared {@link PiiRedactor}.
-   */
   piiRedaction?: boolean | PiiRedactor;
 }
 
@@ -205,24 +93,6 @@ export async function consolidateMemory(
   if (trimmed.length === 0) return fallback;
   if (candidates.length === 0) return fallback;
 
-  // PII redaction: redact the new fact and the candidate contents before they
-  // reach the consolidation model, then de-anonymize the consolidated content
-  // it returns (below) so the vault still stores real values. A single
-  // redactor keeps placeholders consistent across the new fact and candidates,
-  // so the model can still match the same value across them.
-  //
-  // ASYNC, deliberately: `redactText` is regex-only, so a caller who configured
-  // an `nerDetector` gets names, locations and orgs masked only by
-  // `redactTextAsync` — and a person or employer is precisely the kind of value
-  // two near-duplicate memories are being deduped over here. Without a detector
-  // `redactTextAsync` returns `redactText` directly, so the default path is
-  // unchanged. NER placeholders come from the same `getPlaceholder` map as the
-  // regex ones, so the restore below handles them identically.
-  //
-  // SEQUENTIAL, and the new fact first, so numbering follows prompt order. The
-  // redactor is stateful — racing these would tie `[EMAIL_1]` vs `[EMAIL_2]` to
-  // promise resolution order and the model could stop seeing the shared value
-  // that makes two memories the same fact.
   const redactor = resolvePiiRedactor(options.piiRedaction);
   const safeTrimmed = redactor ? (await redactor.redactTextAsync(trimmed)).text : trimmed;
 
@@ -245,42 +115,21 @@ export async function consolidateMemory(
       systemPrompt: SYSTEM_PROMPT,
       userMessage,
       tag: "memory/consolidate",
-      // Retry TRANSIENT failures only (network/timeout/5xx/429/empty) before
-      // degrading to create — a transient blip would otherwise leave a
-      // permanent below-floor paraphrase that never self-heals (see
-      // DEFAULT_CONSOLIDATE_ATTEMPTS). The happy path still resolves in one
-      // attempt; terminal failures (400/auth) and schema violations never
-      // retry. A total budget keeps a hanging portal from stalling retain.
       maxAttempts: options.maxAttempts ?? DEFAULT_CONSOLIDATE_ATTEMPTS,
       totalTimeoutMs: options.totalTimeoutMs ?? DEFAULT_CONSOLIDATE_TOTAL_TIMEOUT_MS,
       ...(options.backoffMs && { backoffMs: options.backoffMs }),
       ...(options.fetchFn && { fetchFn: options.fetchFn }),
     });
   } catch (err) {
-    // Auth-resolution errors (no apiKey/getToken on a truthy options
-    // object) throw from callPortalJsonCompletion. Consolidation is an
-    // optional quality stage — it must never crash the retain it
-    // decorates, and the documented contract is fallback-to-create on
-    // ANY failure. Degrade and surface via onFallback + logger.
     return degrade("llm_error", fallback, options, err);
   }
   if (parsed === null) return degrade("llm_error", fallback, options);
 
   const validIds = new Set(candidates.map((c) => c.id));
-  // Fall back to the real `trimmed` (not the redacted form) so a create
-  // fallback persists the original; the model-authored content below is
-  // de-anonymized explicitly.
   const result = validate(parsed, trimmed, validIds);
   if (!result) return degrade("invalid_response", fallback, options);
   if (redactor && result.content !== undefined) {
-    // The consolidation model sometimes echoes "[EMAIL_1]" back mangled (bare
-    // "EMAIL_1", re-cased "email_1"); restoreForStorage recovers the real value
-    // and reports whether a placeholder-shaped token was left UNRESOLVED.
     const restored = redactor.restoreForStorage(result.content);
-    // An unresolved token is one the model invented (never assigned). On the
-    // "update" path this content overwrites an existing memory, so don't persist
-    // a bogus "[EMAIL_2]" over a good fact — degrade to a create, which retain
-    // resolves by keeping the original (real) content.
     if (restored.unresolved) {
       return degrade("invalid_response", fallback, options);
     }
@@ -289,15 +138,6 @@ export async function consolidateMemory(
   return reportRefusal(result, options);
 }
 
-/**
- * Report a decision {@link validate} refused on its own — today only the #822
- * subject guard, which turns a cross-subject `supersede` into a `create`.
- *
- * Separate from {@link degrade} because nothing degraded: the model answered and
- * the answer was rejected on a rule, so there is no `fallback` to substitute.
- * Called on the FINAL result and nowhere earlier, so a refusal that is then
- * overtaken by an unresolved-placeholder degrade reports once, as the degrade.
- */
 function reportRefusal(
   result: ConsolidationResult,
   options: ConsolidateOptions
@@ -318,21 +158,6 @@ function degrade(
   return { ...fallback, fallbackReason: reason };
 }
 
-/**
- * Canonical form of a model-stated subject, for equality only.
- *
- * Collapses the ways a model refers to the same subject: case, surrounding
- * whitespace and punctuation, a leading article, and the `user's ` /
- * `the user's ` possessive prefix — so "User's sister" and "the user's sister."
- * compare equal, as do "User" and "the user". Deliberately NOT a general
- * normalizer: it does not stem, resolve synonyms (wife/spouse) or translate.
- * Two different words for one subject therefore compare as different, which
- * fails toward `create` — see the guard in {@link validate} for why that
- * direction is the safe one.
- *
- * Empty string means "the model said nothing usable", which callers must treat
- * as unknown rather than as a subject that happens to match another unknown.
- */
 function normalizeSubject(raw: unknown): string {
   if (typeof raw !== "string") return "";
   let s = raw
@@ -341,19 +166,12 @@ function normalizeSubject(raw: unknown): string {
     .replace(/[.,;:!?]+$/u, "")
     .trim();
   s = s.replace(/^the\s+/u, "");
-  // "user's sister" -> "sister". Applied after the article strip so
-  // "the user's sister" lands here too. A bare "user" is left alone.
   s = s.replace(/^users'?\s+/u, "").replace(/^user's\s+/u, "");
   return s.trim();
 }
 
-/** The subjects the model uses for the user themselves. A subjectless fact is
- * about the user by extractor convention ("Lives in San Francisco"), so an
- * explicit "themselves"/"they" means the same thing. */
 const USER_SUBJECT_ALIASES = new Set(["user", "themselves", "themself", "they", "me", "self"]);
 
-/** Canonical subject key — folds the user's aliases onto one token so
- * "the user" and "themselves" don't read as two different people. */
 function subjectKey(raw: unknown): string {
   const s = normalizeSubject(raw);
   if (s.length === 0) return "";
@@ -379,23 +197,15 @@ function validate(
   }
 
   if (action === "noop") {
-    // noop retires nothing — a single valid targetId is enough.
     const targetId = typeof obj.targetId === "string" ? obj.targetId : null;
     if (!targetId || !validIds.has(targetId)) return null;
     return { action: "noop", targetId };
   }
 
-  // update — content is the consolidated form; supersede — content is the NEW
-  // fact (targetIds are the stale ones to retire). Both require non-empty content.
   const c = typeof obj.content === "string" ? obj.content.trim() : "";
   if (c.length === 0) return null;
 
   if (action === "supersede") {
-    // Multi-supersede: retire EVERY candidate describing the same now-changed
-    // attribute. UNION the multi-id `targetIds[]` with a single `targetId` so
-    // neither shape is lost — a model may emit `targetIds: []` alongside a valid
-    // `targetId`, or the old single-`targetId` shape with no array at all. Keep
-    // only valid, unique ids.
     const rawIds: unknown[] = [
       ...(Array.isArray(obj.targetIds) ? (obj.targetIds as unknown[]) : []),
       ...(typeof obj.targetId === "string" ? [obj.targetId] : []),
@@ -405,63 +215,11 @@ function validate(
     ];
     if (targetIds.length === 0) return null;
 
-    // SUBJECT GUARD (#822). `supersede` retires the target rows, and superseded
-    // rows are excluded from recall by default (`getAllVaultMemoriesOp`,
-    // operations.ts) — so a wrong supersede does not degrade quality, it hides a
-    // true memory. The reported case: "User's sister lives in Denver" retiring
-    // "User lives in Denver", after which "where do I live?" answers with the
-    // sister's city or nothing.
-    //
-    // Rule 1a already forbids this in the prompt and the model still does it
-    // (#825's prompt fix measured ~5-7 supersedes out of 8 on that fixture), so
-    // the rule cannot live in the prompt alone. What the model IS reliable at is
-    // NAMING a subject; it is unreliable at applying the consequence. So the
-    // prompt asks it to state both subjects and this compares them here, where
-    // the outcome is deterministic and testable without an LLM.
-    //
-    // Only fires when a subject is stated on BOTH sides and they disagree. A
-    // missing or unparseable subject keeps today's behaviour rather than blocking
-    // the action: requiring the field would turn every non-compliant supersede
-    // into a create, and a stale contradiction left standing is its own harm.
-    // Tighten to required once `subject_mismatch` telemetry shows the model fills
-    // these in reliably — the compliance rate is the thing to measure first.
-    //
-    // MULTI-TARGET. `targetIds` can hold several rows, and the prompt's claim
-    // that they all describe one standing attribute (hence one subject) is the
-    // same claim the model has already been shown to break — trusting it here
-    // would rebuild the bug one level up: a batch of [user's row, sister's row]
-    // reported under a single matching `targetSubject` would retire both. So the
-    // prompt asks for a `targetSubjects` entry per retired id, and ANY stated
-    // target subject that differs from the new one refuses the WHOLE supersede.
-    // Refusing wholesale rather than filtering the batch is deliberate: a batch
-    // that mixes subjects tells you the model's grouping is unreliable, and
-    // keeping the "good" half of an unreliable grouping is a guess. `create`
-    // hides nothing, so it is the safe way to be wrong.
-    //
-    // READ EVERY STATED SUBJECT, and do NOT index them against `targetIds`.
-    // An earlier version mapped over `obj.targetIds` and took `targetSubjects[i]`,
-    // which read subjects out of a DIFFERENT container than the one it retires
-    // from: the retirement set is the union of `targetIds` AND the singular
-    // `targetId` (above), so any subject stated for an id that arrived via the
-    // singular slot — or any entry past `targetIds.length` — was dropped before
-    // the check ran, and an unstated position canonicalizes to "" which the
-    // predicate reads as consent. `{targetIds: [], targetId: "c1",
-    // targetSubjects: ["the user"], newSubject: "the user's sister"}` then walked
-    // #822 straight through, and that shape is exactly what the id-union exists
-    // to absorb. Since the test is `some()`, position carries no information —
-    // dropping the indexing removes the truncation and nothing else.
-    //
-    // Direction of failure: an unrecognised synonym pair (wife/spouse) compares
-    // as different and downgrades a legitimate supersede to a create, leaving a
-    // near-duplicate. A model that helpfully states a subject for every
-    // CANDIDATE rather than only the ids it is retiring lands the same way. Both
-    // are recoverable — the fact is still there. The failure this replaces is not.
     const newSubject = subjectKey(obj.newSubject);
     if (newSubject.length > 0) {
       const positional = Array.isArray(obj.targetSubjects) ? (obj.targetSubjects as unknown[]) : [];
       const statedSubjects = [
         ...positional.map((s) => subjectKey(s)),
-        // The singular pair, which is the whole story for a one-target supersede.
         subjectKey(obj.targetSubject),
       ];
       if (statedSubjects.some((s) => s.length > 0 && s !== newSubject)) {
@@ -472,7 +230,6 @@ function validate(
     return { action: "supersede", targetId: targetIds[0], targetIds, content: c };
   }
 
-  // update — single targetId
   const targetId = typeof obj.targetId === "string" ? obj.targetId : null;
   if (!targetId || !validIds.has(targetId)) return null;
   return { action: "update", targetId, content: c };

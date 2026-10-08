@@ -33,7 +33,6 @@ function makeSink(): TelemetrySink & { events: TrackedEvent[]; metrics: Recorded
   };
 }
 
-/** Deterministic clock: each call advances 5ms. */
 function makeClock(start = 1_000): { now: () => number } {
   let t = start;
   return {
@@ -295,8 +294,6 @@ describe("createMetricsHooks", () => {
       hooks.beforeToolUse?.(toolStart({ toolCallId: "tc-dangling" }));
       hooks.onRunEnd?.({ runId: "run-1", finalContent: "done", totalSteps: 1 });
 
-      // afterToolUse arriving after the run terminated finds no pending timer:
-      // still reported, but durationMs omitted. The run state stays deleted.
       hooks.afterToolUse?.(toolEnd({ toolCallId: "tc-dangling" }));
       const evt = sink.events.find((e) => e.event === "tool.call.completed");
       expect(evt?.properties.toolCallId).toBe("tc-dangling");
@@ -326,10 +323,6 @@ describe("createMetricsHooks", () => {
   });
 
   describe("raw error messages", () => {
-    // Tool-argument parse failures quote the offending arguments: JSON.parse
-    // reports `Unexpected token 'h', "hunter2pass" is not valid JSON`, and
-    // executeToolCall prefixes it. Executor failures wrap whatever the host
-    // threw, which for a deAnonymizeArgs tool has real PII in scope.
     const leaky =
       "Failed to parse tool arguments: Unexpected token 'h', \"hunter2pass\" is not valid JSON";
 
@@ -390,15 +383,11 @@ describe("createMetricsHooks", () => {
     t = 10;
     hooks.onRunEnd?.({ runId: "run-1", finalContent: "done", totalSteps: 1 });
 
-    // These arrive after the run is over. They must report, but must not
-    // recreate the run state — nothing would ever delete it a second time.
     t = 100;
     hooks.afterToolUse?.(toolEnd({ toolCallId: "tc-late" }));
     t = 200;
     hooks.afterModelCall?.(modelEnd());
 
-    // A second terminal hook for the same run now measures from its own
-    // arrival (0ms), not from a resurrected startedAt (400ms).
     t = 500;
     hooks.onRunEnd?.({ runId: "run-1", finalContent: "done", totalSteps: 1 });
 
@@ -406,7 +395,6 @@ describe("createMetricsHooks", () => {
     expect(completions[0]?.properties.durationMs).toBe(10);
     expect(completions[1]?.properties.durationMs).toBe(0);
 
-    // The late hooks are still reported, without duration fields.
     const lateTool = sink.events.find((e) => e.properties.toolCallId === "tc-late");
     expect(lateTool?.event).toBe("tool.call.completed");
     expect(lateTool?.properties).not.toHaveProperty("durationMs");
@@ -481,11 +469,6 @@ describe("createMetricsHooks", () => {
   });
 });
 
-// Durations must never go backward. Date.now() is wall clock and steps BACKWARD
-// on an NTP correction or a VM resume, and dogstatsd ingests a negative
-// histogram sample rather than rejecting it — permanently corrupting the
-// percentiles for that bucket. The default clock is therefore monotonic where
-// the runtime has performance.now(), matching lib/memory/recall.ts.
 describe("the default clock", () => {
   it("never reports a negative duration when the wall clock steps backward", () => {
     const sink = makeSink();
@@ -495,7 +478,6 @@ describe("the default clock", () => {
     try {
       const hooks = createMetricsHooks(sink);
       hooks.onRunStart?.(runStart);
-      // An NTP correction lands mid-run: two minutes backward.
       wall -= 120_000;
       hooks.onRunEnd?.({ runId: "run-1", finalContent: "done", totalSteps: 1 });
     } finally {
@@ -551,8 +533,6 @@ describe("createRecallDiagnosticsHandler", () => {
         usedBudget: "mid",
         reranked: true,
         candidateCount: 42,
-        // What the caller GOT, against what was considered — the pair that
-        // stops a consumer reading candidateCount as "memories received".
         admittedCount: 8,
         topScore: 0.91,
         lowestAdmittedScore: 0.42,
@@ -575,10 +555,6 @@ describe("createRecallDiagnosticsHandler", () => {
     ]);
   });
 
-  // A track-only sink is supported, tested below, and what the module's own
-  // PostHog example builds — so the headline recall latency has to survive
-  // without `metric`, or that consumer sees events arriving and concludes recall
-  // observability works while every latency number goes on the floor.
   it("carries totalMs on recall.completed for a sink that implements only track", () => {
     const events: TrackedEvent[] = [];
     createRecallDiagnosticsHandler({
@@ -713,14 +689,9 @@ describe("noopTelemetrySink", () => {
     ).not.toThrow();
   });
 
-  // Published, shared singleton: createMetricsHooks closes over the OBJECT, not
-  // its methods, so a mutation here reroutes every adapter already built from it.
   it("is frozen, so one module cannot reroute every other holder's telemetry", () => {
     expect(Object.isFrozen(noopTelemetrySink)).toBe(true);
 
-    // Reflect.set returns false on a frozen target instead of throwing, so the
-    // refusal is directly assertable and no type assertion is needed to attempt
-    // the write.
     const hijack = vi.fn();
     expect(Reflect.set(noopTelemetrySink, "track", hijack)).toBe(false);
     noopTelemetrySink.track?.("run.started", { runId: "r" });

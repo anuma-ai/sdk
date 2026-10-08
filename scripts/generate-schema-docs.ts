@@ -63,14 +63,12 @@ function generate(): string {
 
   const tables = Object.values(sdkSchema.tables) as any[];
 
-  // Table of contents
   lines.push("## Tables\n");
   for (const table of tables) {
     lines.push(`- [${table.name}](#${table.name})`);
   }
   lines.push("");
 
-  // Per-table sections
   for (const table of tables) {
     lines.push(`## ${table.name}\n`);
 
@@ -86,7 +84,6 @@ function generate(): string {
     lines.push("");
   }
 
-  // Migration history
   lines.push("## Migration History\n");
   lines.push("| Version | Changes |");
   lines.push("|---------|---------|");

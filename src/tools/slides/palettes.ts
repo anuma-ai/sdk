@@ -1,22 +1,3 @@
-/**
- * Catalog of color palettes + font-preset pairings used by
- * `buildSlideSystemPrompt` in `./index.ts`.
- *
- * Each palette pairs a use-case register (editorial / techno / minimal / …)
- * with a concrete color set and a suggested font preset. The prompt builder
- * renders these as a compact table so the LLM can pick a register to match
- * the topic instead of defaulting to the built-in dark-grey + orange theme.
- *
- * This file replaces the three inline slide-JSON examples that previously
- * lived in the system prompt — the examples duplicated layout geometry that
- * was already in `./layouts.ts`, and their inline slides tended to peg
- * models onto those specific three recipes.
- */
-
-/**
- * Theme color set — the nine tokens attached as attrs on `<Anuma.Deck>`.
- * Matches the `THEME_ATTRS` exported from `./index.ts`.
- */
 interface PaletteColors {
   background: string;
   slideBg: string;
@@ -30,13 +11,9 @@ interface PaletteColors {
 }
 
 interface Palette {
-  /** Short register name the LLM sees (e.g. "warm editorial"). */
   name: string;
-  /** One-line "use this when …" hint — comma-separated topic cues. */
   useFor: string;
-  /** Font preset key from `FONT_PRESETS` in `./index.ts`. */
   fontPreset: string;
-  /** Full theme color set — the tokens that get written as Deck attrs. */
   colors: PaletteColors;
 }
 
@@ -154,10 +131,6 @@ export const PALETTES: Palette[] = [
     },
   },
 ];
-
-// ---------------------------------------------------------------------------
-// Prompt rendering
-// ---------------------------------------------------------------------------
 
 /**
  * Render the palette catalog as a compact prompt block.

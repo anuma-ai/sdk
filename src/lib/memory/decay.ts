@@ -1,38 +1,3 @@
-/**
- * Temporal decay classifier (PR2) — pure, DB-free, unit-testable.
- *
- * Decides whether a stored memory should be kept, archived (soft, recoverable),
- * or hard-deleted, based ONLY on its plaintext columns. This is the
- * zero-knowledge core of the decay sweep: it never sees `content` and never
- * triggers a signature/decrypt, so it can run wherever a wallet key is NOT
- * loaded. The sweep worker ({@link ./decayWorker}) feeds it raw rows selected
- * via `unsafeFetchRaw` and materializes Models only for the transitions.
- *
- * Lifecycle (mirrors the timestamp state machine in db/schema.ts):
- *   active   → archived  (set `archived_at`)   — recoverable, drops out of recall
- *   archived → deleted   (set `is_deleted`)    — terminal, after HARD_DELETE_WINDOW
- *
- * Per-type TTL policy (the "becomes past" intuition):
- *   - identity / preference / relationship / constraint → never age-archive
- *     (durable facts about who the user is; Infinity TTL).
- *   - plan / ongoing_context → short TTL (they go stale as time moves on).
- *   - other / null (untyped/legacy) → medium TTL.
- * `source === "manual"` memories are protected from AUTO-ARCHIVE (user-curated)
- * — but NOT from the hard-delete clock once they are archived: archive is the
- * shared purge buffer for every row, so an already-archived manual memory is
- * still deleted after the window (the archived check runs before the manual
- * short-circuit by design).
- *
- * `source === "photo"` (server-extracted photo memories) is protected the same
- * way, and for a sharper reason than curation: those rows are PUBLISHED, and
- * auto-archiving one would silently un-publish it. Archived rows drop out of the
- * default vault read, the publish reconciler builds its desired set from that
- * read, and anything it previously adopted but no longer sees goes into
- * `toRevoke` — so an age-archive at the medium TTL would revoke a memory from
- * the server that the user never switched off. Revoking is the user's decision
- * and has exactly one entry point: the publish switch.
- */
-
 import { getLogger } from "../logger.js";
 
 /** The verdict for a single memory. */
@@ -156,7 +121,6 @@ export function lastActivityAt(m: Pick<DecayInput, "updatedAt" | "lastObservedAt
   return Math.max(m.updatedAt, observedAt);
 }
 
-/** Merge a partial policy over the default. */
 function resolvePolicy(policy?: Partial<DecayPolicy>): DecayPolicy {
   if (!policy) return DEFAULT_DECAY_POLICY;
   return {
@@ -177,17 +141,10 @@ export function ttlForType(factType: string | null, policy?: Partial<DecayPolicy
   return resolved.ttlByType[factType] ?? resolved.fallbackTtlMs;
 }
 
-/** The "becomes past" types whose staleness tracks the event, not just age. */
 function isTimeSensitiveType(factType: string | null): boolean {
   return factType === "plan" || factType === "ongoing_context";
 }
 
-/**
- * Guard against degenerate timestamps. A NaN/undefined `now`/`updatedAt`, or a
- * non-finite `archivedAt` (when set), would otherwise flow through the numeric
- * comparisons and silently keep — or worse, delete — a row with no signal. A
- * future-dated `archivedAt` (clock skew) is finite and self-heals, so it's fine.
- */
 function hasFiniteTimestamps(m: DecayInput, now: number): boolean {
   return (
     Number.isFinite(now) &&
@@ -227,8 +184,6 @@ export function classifyDecay(
 ): DecayVerdict {
   const resolved = resolvePolicy(policy);
 
-  // (0) Degenerate timestamps → keep (safe) and surface the corrupt row. No
-  // content in the log — only the enum/timestamps.
   if (!hasFiniteTimestamps(m, now)) {
     getLogger().warn("[memory/decay] non-finite timestamp on a memory row; keeping it", {
       now,
@@ -239,32 +194,18 @@ export function classifyDecay(
     return "keep";
   }
 
-  // (1) Archived rows: the hard-delete clock applies to EVERY row once archived
-  // (archive is the shared purge buffer) — including manual. This intentionally
-  // runs before the manual short-circuit below.
   if (m.archivedAt !== null) {
     return now - m.archivedAt > resolved.hardDeleteWindowMs ? "delete" : "keep";
   }
 
-  // (2) Manual saves are protected from AUTO-ARCHIVE only (never reach 3/4).
-  // Photo-extracted memories join them: they are published, and archiving one
-  // would drop it from the reconciler's desired set and silently revoke it
-  // server-side (see the header). Only the user's switch may unpublish.
   if (m.source === "manual" || m.source === SOURCE_PHOTO) return "keep";
 
-  // (3/4) "Becomes past" types: event-driven staleness. Keyed on event_time_end
-  // (an ongoing status with no end is still ongoing → skipped here).
   if (isTimeSensitiveType(m.factType) && m.eventTimeEnd !== null) {
-    // Event concluded past the grace window → archive.
     if (m.eventTimeEnd < now - resolved.pastEventGraceMs) return "archive";
-    // Event still upcoming → keep; do NOT age-archive before it happens.
     if (m.eventTimeEnd >= now) return "keep";
-    // Recently ended (inside the grace window) → fall through to age fallback.
   }
 
-  // (4) Age fallback — stale past its per-type TTL. Infinity for durable types.
   if (now - lastActivityAt(m) > ttlForType(m.factType, resolved)) return "archive";
 
-  // (5) Still fresh / durable.
   return "keep";
 }

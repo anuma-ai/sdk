@@ -1,17 +1,3 @@
-/**
- * Request probe e2e: measures per-round LLM request payload sizes.
- *
- * Runs a multi-round tool-chaining flow (geolocate → timezone) and uses the
- * `onRequest` callback on `runToolLoop` to capture, for each round, the byte
- * size of the full request body, the messages array, and the tools array.
- *
- * Prints a table of per-round metrics plus aggregate stats: total bytes sent,
- * redundant tool-schema bytes (the tool catalog is resent on every continuation
- * with no caching), and message-history growth across rounds. This is the data
- * point behind the "add prompt caching" / "prune tools between rounds"
- * optimization recommendations.
- */
-
 import { describe, it, expect } from "vitest";
 import { runToolLoop, type RequestEvent } from "../../src/lib/chat/toolLoop.js";
 import { createIpGeolocationTool } from "./stubs/ipGeolocation.js";
@@ -58,15 +44,12 @@ describe("request-probe", () => {
 
     expect(result.error).toBeNull();
 
-    // Multi-round chaining → at least 2 requests (initial + 1 continuation).
     expect(requests.length).toBeGreaterThanOrEqual(2);
 
-    // Rounds are emitted sequentially starting from 0.
     for (let i = 0; i < requests.length; i++) {
       expect(requests[i].round).toBe(i);
     }
 
-    // Sanity: every request includes the tool catalog and at least one message.
     for (const r of requests) {
       expect(r.toolCount).toBeGreaterThan(0);
       expect(r.messageCount).toBeGreaterThan(0);
@@ -75,25 +58,18 @@ describe("request-probe", () => {
       expect(r.messagesBytes).toBeGreaterThan(0);
     }
 
-    // Tool catalog is resent unchanged on every round (no incremental tools API,
-    // no pruning between rounds). Assert byte-identical to make redundancy
-    // visible — if this ever stops being true, the probe table will show it.
     const firstToolsBytes = requests[0].toolsBytes;
     for (const r of requests) {
       expect(r.toolsBytes).toBe(firstToolsBytes);
     }
 
-    // Message history grows monotonically across rounds.
     for (let i = 1; i < requests.length; i++) {
       expect(requests[i].messageCount).toBeGreaterThan(requests[i - 1].messageCount);
       expect(requests[i].messagesBytes).toBeGreaterThan(requests[i - 1].messagesBytes);
     }
 
-    // Aggregate metrics.
     const totalBytes = requests.reduce((s, r) => s + r.bodyBytes, 0);
     const totalToolsBytes = requests.reduce((s, r) => s + r.toolsBytes, 0);
-    // The first round's tool catalog is necessary; everything after is
-    // redundant from a caching perspective.
     const redundantToolsBytes = totalToolsBytes - firstToolsBytes;
     const totalMessagesBytes = requests.reduce((s, r) => s + r.messagesBytes, 0);
 

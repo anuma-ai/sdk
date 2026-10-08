@@ -23,9 +23,6 @@ export type ConnectorErrorCode =
 /** Marker key that distinguishes a connector error from any other tool JSON. */
 export const CONNECTOR_ERROR_MARKER = "__anuma_connector_error_v1" as const;
 
-/** Shape produced by `buildConnectorErrorResult`. Internal — consumers
- *  should treat the canonical JSON as opaque and rely on
- *  `extractConnectorToolErrors` to parse it. */
 interface ConnectorErrorPayload {
   __anuma_connector_error_v1: true;
   code: ConnectorErrorCode;
@@ -34,15 +31,8 @@ interface ConnectorErrorPayload {
   required?: string;
 }
 
-/**
- * Optional extras emitted alongside the core fields. Kept loose so the
- * helper signature stays small and tool factories can opt into the
- * fields they have available.
- */
 interface ConnectorErrorExtras {
-  /** For `scope_not_covered`: scopes still missing from the user's grant. */
   missingScopes?: string[];
-  /** For `insufficient_scope`: the required scope identifier. */
   required?: string;
 }
 

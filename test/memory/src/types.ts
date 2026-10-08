@@ -1,7 +1,3 @@
-/**
- * Shared types for memory evaluation metrics.
- */
-
 export interface PercentileStats {
   p50: number;
   p95: number;

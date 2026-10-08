@@ -62,12 +62,6 @@ export interface AuditResult {
   issues: AuditIssue[];
 }
 
-// ---------------------------------------------------------------------------
-// Helpers — pure, regex-driven, no DOM or parser
-// ---------------------------------------------------------------------------
-
-/** Match every `:root { ... }` block, including nested-brace tolerance enough
- *  to handle typical CSS (we don't currently allow nested rules inside :root). */
 function findRootBlockRanges(appCss: string): Array<[startLine: number, endLine: number]> {
   const lines = appCss.split("\n");
   const ranges: Array<[number, number]> = [];
@@ -105,15 +99,12 @@ function isInsideRange(line: number, ranges: Array<[number, number]>): boolean {
   return ranges.some(([s, e]) => line >= s && line <= e);
 }
 
-/** Extract every CSS custom property declared in any :root block, with naive
- *  classification by name / value heuristics. */
 function extractTokens(appCss: string): AuditTokens {
   const colors: string[] = [];
   const fonts: string[] = [];
   const other: string[] = [];
   const seen = new Set<string>();
 
-  // Iterate over each :root block and pull declarations from inside.
   for (const blockMatch of appCss.matchAll(/:root\s*\{([\s\S]*?)\}/g)) {
     const body = blockMatch[1] ?? "";
     for (const decl of body.matchAll(/--([\w-]+)\s*:\s*([^;]+);?/g)) {
@@ -140,7 +131,6 @@ function extractTokens(appCss: string): AuditTokens {
   return { colors, fonts, other };
 }
 
-/** Find raw color literals (hex, rgb, hsl, oklch) outside any :root block. */
 function findRawColors(appCss: string): AuditIssue[] {
   const issues: AuditIssue[] = [];
   if (!appCss) return issues;
@@ -151,10 +141,8 @@ function findRawColors(appCss: string): AuditIssue[] {
 
   for (let i = 0; i < lines.length; i++) {
     if (isInsideRange(i, rootRanges)) continue;
-    // Strip comments — a raw color in a `/* … */` is noise.
     const line = lines[i].replace(/\/\*.*?\*\//g, "");
     for (const m of line.matchAll(colorRe)) {
-      // Don't flag color-mix() — it's modern CSS used with a token, fine.
       if (/color-mix\(/.test(line.slice(Math.max(0, (m.index ?? 0) - 10), m.index))) continue;
       issues.push({
         severity: "warn",
@@ -168,12 +156,10 @@ function findRawColors(appCss: string): AuditIssue[] {
   return issues;
 }
 
-/** Find inline style={{ color: '#xxx' }} patterns in App.js. */
 function findInlineStyleColors(appJs: string): AuditIssue[] {
   const issues: AuditIssue[] = [];
   if (!appJs) return issues;
   const lines = appJs.split("\n");
-  // Match a small set of color-bearing properties with a literal value.
   const re =
     /(color|background(?:Color)?|borderColor|outlineColor|fill|stroke)\s*:\s*['"`](#[0-9a-fA-F]{3,8}|rgba?\([^)]+\)|hsla?\([^)]+\))['"`]/g;
   for (let i = 0; i < lines.length; i++) {
@@ -190,16 +176,13 @@ function findInlineStyleColors(appJs: string): AuditIssue[] {
   return issues;
 }
 
-/** Tokens declared in :root but never referenced anywhere else. */
 function findUnusedTokens(appCss: string, appJs: string, tokens: AuditTokens): AuditIssue[] {
   const all = [...tokens.colors, ...tokens.fonts, ...tokens.other];
   if (all.length === 0) return [];
   const issues: AuditIssue[] = [];
-  // Strip every :root block before checking usage.
   const cssOutsideRoot = appCss.replace(/:root\s*\{[\s\S]*?\}/g, "");
   const haystack = `${cssOutsideRoot}\n${appJs}`;
   for (const token of all) {
-    // Look for var(--token), var(--token, fallback), or just bare --token: (when nested).
     const useRe = new RegExp(
       `var\\(\\s*${token.replace(/-/g, "\\-")}\\b|${token.replace(/-/g, "\\-")}\\b\\s*:`,
       "g"
@@ -216,7 +199,6 @@ function findUnusedTokens(appCss: string, appJs: string, tokens: AuditTokens): A
   return issues;
 }
 
-/** Are interactive elements getting :focus-visible? Heuristic. */
 function findMissingFocusState(appJs: string, appCss: string): AuditIssue[] {
   const buttonCount = (appJs.match(/<button\b/g) ?? []).length;
   const linkCount = (appJs.match(/<a\b[^>]*\bhref=/g) ?? []).length;
@@ -235,7 +217,6 @@ function findMissingFocusState(appJs: string, appCss: string): AuditIssue[] {
       },
     ];
   }
-  // Sub-check: at least some coverage relative to interactive count.
   if (focusVisibleCount < Math.max(1, Math.floor(interactive / 4))) {
     return [
       {
@@ -249,16 +230,13 @@ function findMissingFocusState(appJs: string, appCss: string): AuditIssue[] {
   return [];
 }
 
-/** Icon-only `<button>` (only an `<svg>` child, no visible text) without aria-label. */
 function findMissingAriaLabels(appJs: string): AuditIssue[] {
   const issues: AuditIssue[] = [];
-  // Use a tolerant button-block matcher; assume balanced tags within reason.
   const re = /<button\b([^>]*)>([\s\S]*?)<\/button>/g;
   for (const m of appJs.matchAll(re)) {
     const attrs = m[1] ?? "";
     const content = m[2] ?? "";
     const hasSvg = /<svg\b/.test(content);
-    // Strip SVGs and child markup; check for any meaningful text content.
     const textOnly = content
       .replace(/<svg[\s\S]*?<\/svg>/g, "")
       .replace(/<[^>]*>/g, "")
@@ -283,7 +261,6 @@ function findMissingAriaLabels(appJs: string): AuditIssue[] {
   return issues;
 }
 
-/** `<img>` without `alt`. Decorative images should pass alt="". */
 function findMissingAlt(appJs: string): AuditIssue[] {
   const issues: AuditIssue[] = [];
   const re = /<img\b([^>]*?)\/?>/g;
@@ -303,9 +280,6 @@ function findMissingAlt(appJs: string): AuditIssue[] {
   return issues;
 }
 
-/** Heading levels shouldn't skip going deeper. h1 → h3 (skipping h2) breaks
- *  the outline algorithm assistive tech relies on. Going back UP (h3 → h2)
- *  is fine — that's a new section. */
 function findHeadingOrder(appJs: string): AuditIssue[] {
   const issues: AuditIssue[] = [];
   const re = /<h([1-6])\b/g;
@@ -327,10 +301,7 @@ function findHeadingOrder(appJs: string): AuditIssue[] {
   return issues;
 }
 
-/** No CSS variables at all in :root. The model bypassed the design system. */
 function findNoDesignTokens(appCss: string, tokens: AuditTokens): AuditIssue[] {
-  // Empty App.css is fine (Tailwind-only apps). Only flag when there IS CSS
-  // but no tokens were declared.
   if (!appCss.trim()) return [];
   const total = tokens.colors.length + tokens.fonts.length + tokens.other.length;
   if (total === 0) {
@@ -346,16 +317,6 @@ function findNoDesignTokens(appCss: string, tokens: AuditTokens): AuditIssue[] {
   return [];
 }
 
-// ---------------------------------------------------------------------------
-// Semantic checks — math on parsed values, not regex pattern presence.
-// These catch "I added a focus-visible rule to make the audit happy" and
-// "I declared a token without actually using it as a system" gaming
-// patterns. Adding a rule is cheap; making the rule honor the system is
-// the actual work.
-// ---------------------------------------------------------------------------
-
-/** Parse #rgb / #rgba / #rrggbb / #rrggbbaa to [r, g, b]. Alpha is ignored
- *  for contrast purposes (WCAG measures luminance, not perceived alpha). */
 function parseHexColor(hex: string): [number, number, number] | null {
   const h = hex.trim().replace(/^#/, "");
   if (h.length === 3 || h.length === 4) {
@@ -375,8 +336,6 @@ function parseHexColor(hex: string): [number, number, number] | null {
   return null;
 }
 
-/** WCAG 2.1 relative luminance: linearize each channel, then weighted sum.
- *  Inputs are 0-255 sRGB, output is 0-1. */
 function relativeLuminance([r, g, b]: [number, number, number]): number {
   const linearize = (c: number): number => {
     const x = c / 255;
@@ -394,30 +353,20 @@ export function contrastRatio(a: [number, number, number], b: [number, number, n
   return (hi + 0.05) / (lo + 0.05);
 }
 
-/** Pull a token's value from `:root`. Returns the raw string (untrimmed of
- *  units) or null if the token isn't declared or appears multiple times
- *  with conflicting values. */
 function getTokenValue(appCss: string, tokenName: string): string | null {
-  // `;?` so the final declaration in a block (no trailing semicolon) is still
-  // matched; `[^;}]` stops the capture at a `}` as a safety net. Mirrors the
-  // pattern `extractTokens` already uses — without this the last token in
-  // `:root` was silently invisible to contrast/spacing checks.
   const re = new RegExp(`--${tokenName.replace(/^--/, "")}\\s*:\\s*([^;}]+);?`, "g");
   let value: string | null = null;
   for (const blockMatch of appCss.matchAll(/:root\s*\{([\s\S]*?)\}/g)) {
     const body = blockMatch[1] ?? "";
     for (const m of body.matchAll(re)) {
       const v = m[1].trim();
-      if (value !== null && value !== v) return null; // conflicting redeclaration
+      if (value !== null && value !== v) return null;
       value = v;
     }
   }
   return value;
 }
 
-/** Common foreground / background token name pairs. Order matches the way
- *  designs typically declare them; we walk in priority order and check the
- *  first pair where both sides are simple hex. */
 const FG_BG_TOKEN_PAIRS: ReadonlyArray<readonly [string, string]> = [
   ["--ink", "--bg"],
   ["--fg", "--bg"],
@@ -428,11 +377,6 @@ const FG_BG_TOKEN_PAIRS: ReadonlyArray<readonly [string, string]> = [
   ["--color", "--background"],
 ];
 
-/** Check body-text contrast (WCAG 2.1 AA: 4.5:1 for normal text). Skipped
- *  when the canonical fg/bg tokens aren't both declared as hex — modern
- *  apps may use oklch()/color-mix() and parsing those is a separate job.
- *  Catches the realistic regression where the model picks a stylish but
- *  unreadable palette ("#888 on #fff" hits ~3.5:1, fails AA). */
 function findLowContrast(appCss: string): AuditIssue[] {
   if (!appCss) return [];
   for (const [fgName, bgName] of FG_BG_TOKEN_PAIRS) {
@@ -443,7 +387,7 @@ function findLowContrast(appCss: string): AuditIssue[] {
     const bg = parseHexColor(bgValue);
     if (!fg || !bg) continue;
     const ratio = contrastRatio(fg, bg);
-    if (ratio >= 4.5) return []; // passes AA — done
+    if (ratio >= 4.5) return [];
     const rounded = Math.round(ratio * 10) / 10;
     if (ratio < 3) {
       return [
@@ -467,28 +411,13 @@ function findLowContrast(appCss: string): AuditIssue[] {
   return [];
 }
 
-/** Each `:focus-visible {…}` rule should reference at least one design
- *  token (via `var(--…)`). Catches the gaming pattern: model adds one
- *  focus-visible block with hardcoded colors purely to satisfy the
- *  missing-focus-state check, while the rest of the system uses var().
- *  Only flagged when the block actually declares color-bearing properties
- *  (outline / border / box-shadow / color / background). */
 function findFocusNotKeyed(appCss: string, tokens: AuditTokens): AuditIssue[] {
   if (!appCss) return [];
-  // No tokens declared at all — different concern; the no-design-tokens
-  // check covers it.
   if (tokens.colors.length === 0) return [];
 
-  // Cheap exit: nothing to flag if there's no focus-visible rule at all.
-  // Also keeps the scan below off the hot path for the common case.
   if (!appCss.includes(":focus-visible")) return [];
 
   const issues: AuditIssue[] = [];
-  // Walk rule blocks in a single linear pass instead of the regex
-  // `([^{}]*:focus-visible[^{}]*)\{([^{}]*)\}`, which backtracks
-  // quadratically on large brace-sparse input and could hang the audit.
-  // We only inspect *leaf* blocks (no nested `{`), matching the old
-  // regex's `[^{}]` body and keeping us out of `@media`/at-rule wrappers.
   for (const block of leafRuleBlocks(appCss)) {
     if (!block.selector.includes(":focus-visible")) continue;
     const body = block.body;
@@ -507,19 +436,12 @@ function findFocusNotKeyed(appCss: string, tokens: AuditTokens): AuditIssue[] {
   return issues;
 }
 
-/** A leaf CSS rule block — one whose body contains no nested `{…}`. Yielded by
- *  {@link leafRuleBlocks}. `selectorStart` is the source index where the
- *  selector text begins (for line attribution). */
 interface LeafRuleBlock {
   selector: string;
   body: string;
   selectorStart: number;
 }
 
-/** Iterate the leaf rule blocks of a stylesheet in a single O(n) pass. A
- *  brace stack tracks nesting so at-rule wrappers (`@media { … }`) are skipped
- *  while the rules inside them are still visited. Tolerates unbalanced braces
- *  (malformed model output) without throwing. */
 function leafRuleBlocks(css: string): LeafRuleBlock[] {
   const blocks: LeafRuleBlock[] = [];
   const stack: Array<{ selectorStart: number; bodyStart: number; hasChild: boolean }> = [];
@@ -545,9 +467,6 @@ function leafRuleBlocks(css: string): LeafRuleBlock[] {
   return blocks;
 }
 
-/** Numeric value of a `--space-*` token (or similar) declared in :root.
- *  Returns the value in pixels (assuming `1rem = 16px`) or null if the
- *  value isn't a simple number with px/rem units. */
 function parseSpacingTokenPx(appCss: string, tokenName: string): number | null {
   const value = getTokenValue(appCss, tokenName);
   if (!value) return null;
@@ -558,30 +477,22 @@ function parseSpacingTokenPx(appCss: string, tokenName: string): number | null {
   return m[2] === "rem" ? num * 16 : num;
 }
 
-/** When a spacing scale (--space-*, --gap-*, --pad-*) is declared, flag
- *  `padding` / `margin` / `gap` declarations whose literal px values
- *  aren't members of the scale. Only fires when at least two spacing
- *  tokens are present — a single token isn't really a scale. */
 function findOffScaleSpacing(appCss: string, tokens: AuditTokens): AuditIssue[] {
   if (!appCss) return [];
-  // Spacing-flavored tokens. Be tolerant of naming conventions.
   const spaceTokenRe = /^--(space|gap|pad|padding|margin|s)(?:[-_]\d+|[-_]?(xs|sm|md|lg|xl))?$/i;
   const spaceTokens = tokens.other.filter((t) => spaceTokenRe.test(t));
   if (spaceTokens.length < 2) return [];
 
-  const scale = new Set<number>([0]); // 0 is always allowed (no-spacing fallback)
+  const scale = new Set<number>([0]);
   for (const token of spaceTokens) {
     const px = parseSpacingTokenPx(appCss, token);
     if (px !== null) scale.add(px);
   }
-  if (scale.size < 3) return []; // 0 + < 2 declared values isn't a usable scale
+  if (scale.size < 3) return [];
 
   const rootRanges = findRootBlockRanges(appCss);
   const lines = appCss.split("\n");
   const issues: AuditIssue[] = [];
-  // Only check the design-system-driven spacing properties — width / height
-  // and positional offsets (top/right/bottom/left) often have legit non-
-  // scale values (full-bleed layouts, 1px hairlines, etc.).
   const propRe =
     /\b(padding|padding-(?:top|right|bottom|left|inline|block|inline-start|inline-end|block-start|block-end)|margin|margin-(?:top|right|bottom|left|inline|block|inline-start|inline-end|block-start|block-end)|gap|row-gap|column-gap)\s*:\s*([^;]+);/gi;
 
@@ -591,7 +502,6 @@ function findOffScaleSpacing(appCss: string, tokens: AuditTokens): AuditIssue[] 
     for (const m of line.matchAll(propRe)) {
       const property = m[1];
       const value = m[2];
-      // Skip when the declaration already uses tokens / dynamic math.
       if (/var\(|calc\(|env\(|min\(|max\(|clamp\(/.test(value)) continue;
       const offScale: number[] = [];
       for (const num of value.matchAll(/(\d+(?:\.\d+)?)(px|rem)\b/g)) {
@@ -612,14 +522,6 @@ function findOffScaleSpacing(appCss: string, tokens: AuditTokens): AuditIssue[] 
   return issues;
 }
 
-/** Heuristics for "is this className token a Tailwind utility / variant?" —
- *  Tailwind classes are JIT-injected at runtime via the Play CDN and never
- *  appear in App.css, so they always look orphaned. We have to detect and
- *  skip them. Conservative: any token containing `:` (variant prefix like
- *  `hover:bg-red-500`), `[` (arbitrary-value syntax like `bg-[var(--bg)]`),
- *  or matching one of the well-known Tailwind base prefixes is treated as
- *  utility. A handful of bare keywords (`flex`, `grid`, `hidden`, etc.)
- *  are also Tailwind primitives. Imperfect but covers the common cases. */
 const TAILWIND_PREFIX_RE =
   /^(bg|text|p|m|px|py|pt|pb|pl|pr|mx|my|mt|mb|ml|mr|w|h|min-w|min-h|max-w|max-h|gap|space|border|rounded|shadow|ring|outline|opacity|z|top|right|bottom|left|inset|translate|rotate|scale|skew|origin|transition|duration|ease|delay|animate|cursor|select|resize|list|appearance|pointer-events|overflow|scroll|snap|object|items|justify|content|self|place|col|row|order|font|leading|tracking|decoration|whitespace|break|indent|align|fill|stroke|grid-cols|grid-rows|aspect|backdrop|filter|blur|brightness|contrast|grayscale|hue-rotate|invert|saturate|sepia|isolate|backface)-/;
 const TAILWIND_BARE_WORDS = new Set([
@@ -652,55 +554,36 @@ const TAILWIND_BARE_WORDS = new Set([
 
 function looksTailwind(token: string): boolean {
   if (!token) return true;
-  if (token.includes(":")) return true; // variant prefix (hover:, md:, etc.)
-  if (token.includes("[")) return true; // arbitrary-value syntax
-  if (token.includes("/")) return true; // size/opacity syntax (text-base/7, w-1/2)
+  if (token.includes(":")) return true;
+  if (token.includes("[")) return true;
+  if (token.includes("/")) return true;
   if (TAILWIND_BARE_WORDS.has(token)) return true;
   return TAILWIND_PREFIX_RE.test(token);
 }
 
-/** Known library-injected class names that won't appear in App.css and
- *  aren't the model's responsibility (e.g., lucide-react adds `lucide`
- *  and `lucide-camera` to every icon SVG). */
 function looksLibraryInjected(token: string): boolean {
   return token === "lucide" || token.startsWith("lucide-");
 }
 
-/** Pull every static className token out of App.js. Handles three shapes:
- *  literal `className="foo bar"`, template `className={\`foo bar\`}`,
- *  and grouped string-only template (no interpolation). Dynamic
- *  interpolations are stripped — we keep only the static-literal segments
- *  so we don't false-positive on runtime-only class names. */
 function extractClassNamesFromJsx(appJs: string): Set<string> {
   const out = new Set<string>();
-  // className="..." or className='...'
   for (const m of appJs.matchAll(/\bclassName\s*=\s*["']([^"']+)["']/g)) {
     for (const c of m[1].split(/\s+/)) if (c) out.add(c);
   }
-  // className={`...`} — replace ${…} with a NUL sentinel so tokens that
-  // had a dynamic suffix/prefix (e.g. `btn--${variant}`) drop out
-  // entirely. Without this the static fragment `btn--` would be added
-  // and flagged as orphaned even though it's a runtime concatenation.
   for (const m of appJs.matchAll(/\bclassName\s*=\s*\{\s*`([^`]+)`\s*\}/g)) {
     const stripped = m[1].replace(/\$\{[^}]*\}/g, "\x00");
     for (const c of stripped.split(/\s+/)) {
       if (c && !c.includes("\x00")) out.add(c);
     }
   }
-  // className={"foo bar"} or className={'foo bar'} — bare string in expression.
   for (const m of appJs.matchAll(/\bclassName\s*=\s*\{\s*["']([^"']+)["']\s*\}/g)) {
     for (const c of m[1].split(/\s+/)) if (c) out.add(c);
   }
   return out;
 }
 
-/** Pull every class selector out of App.css. Matches `.foo` anywhere
- *  in the stylesheet, including inside compound selectors (`.parent
- *  .child`, `.foo.bar`, `.foo:hover`). Ignores `.foo` appearing inside
- *  strings / comments because those are syntactically rare in CSS. */
 function extractClassNamesFromCss(appCss: string): Set<string> {
   const out = new Set<string>();
-  // Strip /* … */ comments before matching.
   const stripped = appCss.replace(/\/\*[\s\S]*?\*\//g, "");
   for (const m of stripped.matchAll(/\.([a-zA-Z_][a-zA-Z0-9_-]*)/g)) {
     out.add(m[1]);
@@ -708,14 +591,6 @@ function extractClassNamesFromCss(appCss: string): Set<string> {
   return out;
 }
 
-/** Flag class names used in JSX that have no matching selector in App.css.
- *  Catches "model renamed a wrapper class but forgot to add the CSS
- *  rule" — exactly the failure mode where a kanban app rendered as
- *  blank because the new `.app-shell` wrapper had no `display: flex`
- *  rule and its children fell vertically. Tailwind utilities and
- *  known library-injected names are skipped. Severity `info` — the
- *  check is soft because dynamic class names will produce false
- *  positives no static analysis can eliminate. */
 function findOrphanedClasses(appJs: string, appCss: string): AuditIssue[] {
   if (!appJs || !appCss) return [];
   const jsxClasses = extractClassNamesFromJsx(appJs);
@@ -740,10 +615,6 @@ function findOrphanedClasses(appJs: string, appCss: string): AuditIssue[] {
     },
   ];
 }
-
-// ---------------------------------------------------------------------------
-// Score + main entrypoint
-// ---------------------------------------------------------------------------
 
 const SEVERITY_PENALTY: Record<AuditSeverity, number> = {
   error: 10,

@@ -52,12 +52,7 @@ import { DEFAULT_API_EMBEDDING_MODEL } from "../memoryEngine/constants";
 
 const mockVaultCtx = {} as VaultMemoryOperationsContext;
 
-/** Every `makeMemory` row's `updatedAt`. Cache entries are tied to the row
- * version they were computed for (see vectorVersion.ts), so fixtures seed the
- * cache through {@link seedVector}, which tags them with this version. */
 const ROW_VERSION = new Date("2026-06-01T00:00:00Z");
-/** Content of the latest fixture row built for each id — cache entries are also
- * tagged with a content fingerprint, so a seed must name the row's content. */
 const fixtureContent = new Map<string, string>();
 function seedVector(
   cache: VaultEmbeddingCache,
@@ -90,10 +85,6 @@ describe("searchVaultMemories", () => {
   });
 
   it("excludes still-encrypted content from search (key unavailable)", async () => {
-    // decryptField is best-effort: when the key is unavailable it returns
-    // the raw enc:vN: payload. Such content must never reach ranking —
-    // BM25 would tokenize hex, the embedder would embed ciphertext, and
-    // the recall tool would emit enc:vN: blocks to the answer model.
     const memories = [
       makeMemory("m1", "cats are great"),
       makeMemory("m2", "enc:v3:deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef00"),
@@ -111,14 +102,10 @@ describe("searchVaultMemories", () => {
 
     expect(results).toHaveLength(1);
     expect(results[0].uniqueId).toBe("m1");
-    // The ciphertext row was never sent for embedding either.
     expect(vi.mocked(generateEmbeddings)).not.toHaveBeenCalled();
   });
 
   it("reports vaultSize from rows that EXIST when all content is still encrypted", async () => {
-    // vaultSize === 0 means "vault is empty — nothing saved yet" to tool
-    // callers, which would tell the LLM so and invite duplicate saves
-    // while decryption is temporarily unavailable.
     const memories = [
       makeMemory("m1", "enc:v3:deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef00"),
       makeMemory("m2", "enc:v3:cafebabecafebabecafebabecafebabecafebabecafebabecafebabe00"),
@@ -160,12 +147,10 @@ describe("searchVaultMemories", () => {
     vi.mocked(generateEmbedding).mockResolvedValue([1, 0, 0]);
 
     const cache = createVaultEmbeddingCache();
-    seedVector(cache, "m1", new Float32Array([1, 0, 0])); // cos = 1.0
-    seedVector(cache, "m2", new Float32Array([0.5, 0.5, 0])); // cos ≈ 0.71
-    seedVector(cache, "m3", new Float32Array([0, 1, 0])); // cos = 0.0
+    seedVector(cache, "m1", new Float32Array([1, 0, 0]));
+    seedVector(cache, "m2", new Float32Array([0.5, 0.5, 0]));
+    seedVector(cache, "m3", new Float32Array([0, 1, 0]));
 
-    // Test cosine-ranker semantics directly; the fusion ranker has its
-    // own coverage in rankFusedVaultMemories.test.ts.
     const results = await searchVaultMemories("cats", mockVaultCtx, mockEmbeddingOptions, cache, {
       minSimilarity: 0,
       useFusion: false,
@@ -177,7 +162,6 @@ describe("searchVaultMemories", () => {
     expect(results[0].similarity).toBeCloseTo(1.0);
     expect(results[1].uniqueId).toBe("m2");
     expect(results[2].uniqueId).toBe("m3");
-    // Verify descending similarity order
     expect(results[0].similarity).toBeGreaterThan(results[1].similarity);
     expect(results[1].similarity).toBeGreaterThan(results[2].similarity);
   });
@@ -218,8 +202,8 @@ describe("searchVaultMemories", () => {
     vi.mocked(generateEmbedding).mockResolvedValue([1, 0, 0]);
 
     const cache = createVaultEmbeddingCache();
-    seedVector(cache, "m1", new Float32Array([1, 0, 0])); // similarity = 1.0
-    seedVector(cache, "m2", new Float32Array([0, 1, 0])); // similarity = 0.0
+    seedVector(cache, "m1", new Float32Array([1, 0, 0]));
+    seedVector(cache, "m2", new Float32Array([0, 1, 0]));
 
     const results = await searchVaultMemories("test", mockVaultCtx, mockEmbeddingOptions, cache, {
       minSimilarity: 0.5,
@@ -341,9 +325,9 @@ describe("createMemoryVaultSearchTool", () => {
     vi.mocked(generateEmbedding).mockResolvedValue([1, 0, 0]);
 
     const cache = createVaultEmbeddingCache();
-    seedVector(cache, "m1", new Float32Array([1, 0, 0])); // cos = 1.0
-    seedVector(cache, "m2", new Float32Array([0.5, 0.5, 0])); // cos ≈ 0.71
-    seedVector(cache, "m3", new Float32Array([0, 1, 0])); // cos = 0.0
+    seedVector(cache, "m1", new Float32Array([1, 0, 0]));
+    seedVector(cache, "m2", new Float32Array([0.5, 0.5, 0]));
+    seedVector(cache, "m3", new Float32Array([0, 1, 0]));
 
     const tool = createMemoryVaultSearchTool(mockVaultCtx, mockEmbeddingOptions, cache, {
       minSimilarity: 0,
@@ -364,8 +348,8 @@ describe("createMemoryVaultSearchTool", () => {
     vi.mocked(generateEmbedding).mockResolvedValue([1, 0, 0]);
 
     const cache = createVaultEmbeddingCache();
-    seedVector(cache, "m1", new Float32Array([1, 0, 0])); // similarity = 1.0
-    seedVector(cache, "m2", new Float32Array([0, 1, 0])); // similarity = 0.0
+    seedVector(cache, "m1", new Float32Array([1, 0, 0]));
+    seedVector(cache, "m2", new Float32Array([0, 1, 0]));
 
     const tool = createMemoryVaultSearchTool(mockVaultCtx, mockEmbeddingOptions, cache, {
       minSimilarity: 0.5,
@@ -435,10 +419,6 @@ describe("createMemoryVaultSearchTool", () => {
     expect(getAllVaultMemoriesOp).toHaveBeenCalledWith(mockVaultCtx, undefined);
   });
 
-  // A3 — an embeddings outage degrades to BM25 instead of failing the search.
-  // The provider is a single upstream with no fallback, so the old behavior
-  // (propagate and return "Error searching vault") meant one outage removed
-  // memory from every turn for its duration.
   it("degrades to BM25 and still returns a lexical hit when the query embed fails", async () => {
     vi.mocked(getAllVaultMemoriesOp).mockResolvedValue([
       makeMemory("m1", "allergic to shellfish"),
@@ -450,7 +430,6 @@ describe("createMemoryVaultSearchTool", () => {
     const tool = createMemoryVaultSearchTool(mockVaultCtx, mockEmbeddingOptions, cache);
     const result = await tool.executor!({ query: "shellfish" });
 
-    // Cosine is inert (no query vector), but BM25 admits the lexical match.
     expect(result).toContain("allergic to shellfish");
     expect(result).not.toContain("Error searching vault");
   });
@@ -461,18 +440,12 @@ describe("createMemoryVaultSearchTool", () => {
 
     const cache = createVaultEmbeddingCache();
     const tool = createMemoryVaultSearchTool(mockVaultCtx, mockEmbeddingOptions, cache);
-    // No lexical overlap either, so the result set is genuinely empty.
     const result = await tool.executor!({ query: "zzzz nonexistent" });
 
-    // "No relevant memories found" here would invite the model to assert the
-    // user has no such memory, when in fact only keyword matching ran.
     expect(result).not.toBe("No relevant memories found in the vault.");
     expect(result).toContain("temporarily unavailable");
   });
 
-  // useFusion:false ranks through rankVaultMemories, which is cosine-ONLY (it
-  // doesn't even read the query text). Telling the model to "retry with different
-  // keywords" there invites retries the path cannot honor.
   it("does not claim keyword matching ran on the cosine-only (useFusion:false) path", async () => {
     vi.mocked(getAllVaultMemoriesOp).mockResolvedValue([makeMemory("m1", "allergic to shellfish")]);
     vi.mocked(generateEmbedding).mockRejectedValue(new Error("API rate limit"));
@@ -483,11 +456,8 @@ describe("createMemoryVaultSearchTool", () => {
     });
     const result = await tool.executor!({ query: "shellfish" });
 
-    // Must not claim a keyword pass ran, and must not send the model back for a
-    // keyword retry that this path has no lane to serve.
     expect(result).not.toContain("only keyword matching ran");
     expect(result).not.toContain("retry with different keywords");
-    // ...but still must not read as "the user has no such memory".
     expect(result).not.toBe("No relevant memories found in the vault.");
     expect(result).toContain("temporarily unavailable");
   });
@@ -497,7 +467,7 @@ describe("createMemoryVaultSearchTool", () => {
     vi.mocked(generateEmbedding).mockResolvedValue([0, 1, 0]);
 
     const cache = createVaultEmbeddingCache();
-    seedVector(cache, "m1", new Float32Array([1, 0, 0])); // orthogonal → no cosine hit
+    seedVector(cache, "m1", new Float32Array([1, 0, 0]));
     const tool = createMemoryVaultSearchTool(mockVaultCtx, mockEmbeddingOptions, cache);
     const result = await tool.executor!({ query: "zzzz nonexistent" });
 
@@ -609,7 +579,7 @@ describe("preEmbedVaultMemories", () => {
     await preEmbedVaultMemories(mockVaultCtx, mockEmbeddingOptions, cache);
 
     expect(generateEmbeddings).toHaveBeenCalledWith(["not cached"], mockEmbeddingOptions);
-    expect(Array.from(cache.get("m1")!)).toEqual([1, 0, 0]); // unchanged
+    expect(Array.from(cache.get("m1")!)).toEqual([1, 0, 0]);
     expect(Array.from(cache.get("m2")!)).toEqual([0, 1, 0]);
   });
 });
@@ -647,7 +617,6 @@ describe("createMemoryVaultSearchTool — folderId scoping", () => {
     });
     await tool.executor!({ query: "test", folder_id: "llm_folder" });
 
-    // The host's folderId should win — LLM's folder_id is ignored
     expect(getAllVaultMemoriesOp).toHaveBeenCalledWith(
       mockVaultCtx,
       expect.objectContaining({ folderId: "host_folder" })
@@ -709,11 +678,8 @@ describe("searchVaultMemories — invalid JSON in persisted embedding during sea
       minSimilarity: 0,
     });
 
-    // Should have re-embedded because JSON parse failed
     expect(generateEmbeddings).toHaveBeenCalledWith(["bad embed content"], mockEmbeddingOptions);
     expect(results).toHaveLength(1);
-    // Compare against the float32-roundtripped expected — the cache stores
-    // Float32Array, so 0.8/0.2 won't equal their float64 literals exactly.
     expect(Array.from(cache.get("m1")!)).toEqual(Array.from(new Float32Array([0.8, 0.2, 0])));
   });
 });
@@ -729,12 +695,10 @@ describe("eagerEmbedContent — failure resilience", () => {
     vi.mocked(updateVaultMemoryEmbeddingOp).mockRejectedValue(new Error("DB write failed"));
 
     const cache = createVaultEmbeddingCache();
-    // Should not throw — DB failure is fire-and-forget
     await expect(
       eagerEmbedContent("cache me anyway", mockEmbeddingOptions, cache, mockVaultCtx, "mem-1")
     ).resolves.toBeUndefined();
 
-    // Cache should be populated despite DB failure (keyed by memory id).
     await vi.waitFor(() => expect(Array.from(cache.get("mem-1")!)).toEqual([1, 2, 3]));
   });
 });
@@ -802,9 +766,6 @@ describe("eagerEmbedContent", () => {
     const cache = createVaultEmbeddingCache();
     await eagerEmbedContent("no persist", mockEmbeddingOptions, cache);
 
-    // Negative assertion: a real settle window is needed here, not vi.waitFor
-    // (which would resolve on the first tick and never prove the op stayed
-    // uncalled). Give the fire-and-forget path time to (not) fire.
     await new Promise((r) => setTimeout(r, 10));
 
     expect(vi.mocked(updateVaultMemoryEmbeddingOp)).not.toHaveBeenCalled();
@@ -815,9 +776,6 @@ describe("rerank graceful degradation", () => {
   beforeEach(() => vi.clearAllMocks());
 
   it("falls back to the V2 ranking when the cross-encoder rerank throws", async () => {
-    // A rerank failure is a transient network/portal hiccup; the search must
-    // degrade to the already-computed V2 ordering rather than reject (which
-    // the recall tool would surface as "Error searching memory").
     vi.mocked(rerankPairs).mockRejectedValue(new Error("portal 503"));
     const memories = [makeMemory("m1", "cats are great"), makeMemory("m2", "dogs are loyal")];
     vi.mocked(getAllVaultMemoriesOp).mockResolvedValue(memories);
@@ -835,7 +793,6 @@ describe("rerank graceful degradation", () => {
       { minSimilarity: 0, useFusion: true, rerank: true }
     );
 
-    // Did not throw; the cosine-aligned candidate still ranks first.
     expect(results.length).toBeGreaterThan(0);
     expect(results[0].uniqueId).toBe("m1");
   });
@@ -852,13 +809,9 @@ describe("embedding dimension-mismatch guard", () => {
   afterEach(() => setLogger(noopLogger));
 
   it("warns when a re-embed returns an inconsistent dimension (post-re-embed drift)", async () => {
-    // The net's remaining role: stale/wrong-dim vectors are re-embedded first,
-    // so the only way an item still mismatches is a re-embed that itself
-    // returns the wrong dim (model/API drift). Query is 3-dim; the re-embed
-    // returns a 2-dim vector.
     vi.mocked(getAllVaultMemoriesOp).mockResolvedValue([makeMemory("m1", "drifted")]);
     vi.mocked(generateEmbedding).mockResolvedValue([1, 0, 0]);
-    vi.mocked(generateEmbeddings).mockResolvedValue([[1, 0]]); // wrong dim from re-embed
+    vi.mocked(generateEmbeddings).mockResolvedValue([[1, 0]]);
 
     const cache = createVaultEmbeddingCache();
     await searchVaultMemoriesWithSize("anything", mockVaultCtx, mockEmbeddingOptions, cache, {
@@ -889,16 +842,13 @@ describe("embedding model versioning", () => {
   beforeEach(() => vi.clearAllMocks());
 
   it("uses a grandfathered (null-model) DB embedding without re-embedding", async () => {
-    // Legacy rows have a vector but embedding_model = null. They were embedded
-    // with the current model, so recall must use them as-is — re-embedding the
-    // whole vault on rollout of this change would be a needless cost spike.
     const mem: StoredVaultMemory = {
       ...makeMemory("m1", "grandfathered fact"),
       embedding: JSON.stringify([1, 0, 0]),
       embeddingModel: null,
     };
     vi.mocked(getAllVaultMemoriesOp).mockResolvedValue([mem]);
-    vi.mocked(generateEmbedding).mockResolvedValue([1, 0, 0]); // query: same dim
+    vi.mocked(generateEmbedding).mockResolvedValue([1, 0, 0]);
 
     const cache = createVaultEmbeddingCache();
     const { results } = await searchVaultMemoriesWithSize(
@@ -910,14 +860,12 @@ describe("embedding model versioning", () => {
     );
 
     expect(results).toHaveLength(1);
-    // No re-embed: the grandfathered vector was used directly.
     expect(vi.mocked(generateEmbeddings)).not.toHaveBeenCalled();
   });
 
   it("re-embeds a stale-model DB embedding and persists the current model", async () => {
     const { updateVaultMemoryEmbeddingOp } = await import("../db/memoryVault/operations");
     vi.mocked(updateVaultMemoryEmbeddingOp).mockClear();
-    // Row was embedded by a different model than the current one → stale.
     const mem: StoredVaultMemory = {
       ...makeMemory("m1", "stale fact"),
       embedding: JSON.stringify([0, 1, 0]),
@@ -933,12 +881,10 @@ describe("embedding model versioning", () => {
       useFusion: false,
     });
 
-    // Stale vector was re-embedded (not loaded from DB) ...
     expect(vi.mocked(generateEmbeddings)).toHaveBeenCalledWith(
       ["stale fact"],
       mockEmbeddingOptions
     );
-    // ... and persisted with the current model stamped.
     await vi.waitFor(() =>
       expect(vi.mocked(updateVaultMemoryEmbeddingOp)).toHaveBeenCalledWith(
         mockVaultCtx,
@@ -950,16 +896,12 @@ describe("embedding model versioning", () => {
   });
 
   it("re-embeds a wrong-dimension cache hit instead of ranking with it", async () => {
-    // The content-keyed cache can be seeded (e.g. by preEmbedVaultMemories,
-    // which has no query vector to dim-check) with a grandfathered wrong-dim
-    // vector. Search must validate the cached vector's dimension, not trust the
-    // cache hit blindly, or a model dim change would rank at cosine 0 forever.
     vi.mocked(getAllVaultMemoriesOp).mockResolvedValue([makeMemory("m1", "seeded wrong dim")]);
-    vi.mocked(generateEmbedding).mockResolvedValue([1, 0, 0]); // query is 3-dim
+    vi.mocked(generateEmbedding).mockResolvedValue([1, 0, 0]);
     vi.mocked(generateEmbeddings).mockResolvedValue([[1, 0, 0]]);
 
     const cache = createVaultEmbeddingCache();
-    seedVector(cache, "m1", new Float32Array([1, 0])); // 2-dim — stale from an old model
+    seedVector(cache, "m1", new Float32Array([1, 0]));
 
     const { results } = await searchVaultMemoriesWithSize(
       "q",
@@ -969,7 +911,6 @@ describe("embedding model versioning", () => {
       { minSimilarity: 0, useFusion: false }
     );
 
-    // The wrong-dim cache entry was dropped and re-embedded, then ranked.
     expect(vi.mocked(generateEmbeddings)).toHaveBeenCalledWith(
       ["seeded wrong dim"],
       mockEmbeddingOptions
@@ -996,9 +937,6 @@ describe("admitVaultProjections", () => {
   });
 
   it("admits low/zero/negative-cosine rows within K (no sign gate) so BM25 can promote them", () => {
-    // orthogonal (cosine 0) and opposite (cosine -1) rows must still enter the
-    // admission window — the fusion ranker's BM25 lane may promote a lexical
-    // match the cosine ranks poorly. Parity with the legacy whole-vault path.
     expect(
       admitVaultProjections(
         [1, 0],
@@ -1006,7 +944,6 @@ describe("admitVaultProjections", () => {
         3
       )
     ).toEqual(["pos", "orthogonal", "opposite"]);
-    // K still caps: with K=1 only the best-cosine row is admitted.
     expect(admitVaultProjections([1, 0], [v("pos", [1, 0]), v("orthogonal", [0, 1])], 1)).toEqual([
       "pos",
     ]);
@@ -1016,10 +953,6 @@ describe("admitVaultProjections", () => {
 describe("buildProjectedCorpus", () => {
   const embOpts = { model: "m" } as any;
   beforeEach(() => {
-    // restoreAllMocks drops any mockResolvedValue left behind by earlier
-    // describe blocks in this file; clearAllMocks resets call history so
-    // "not called" assertions here aren't polluted by prior tests sharing
-    // the same auto-mocked module.
     vi.restoreAllMocks();
     vi.clearAllMocks();
   });
@@ -1068,7 +1001,7 @@ describe("buildProjectedCorpus", () => {
     vi.spyOn(embed, "generateEmbedding").mockResolvedValue([1, 0]);
 
     const cache: VaultEmbeddingCache = new Map();
-    seedVector(cache, "cached", Float32Array.from([1, 0])); // warm hit
+    seedVector(cache, "cached", Float32Array.from([1, 0]));
     const out = await buildProjectedCorpus(
       "q",
       {} as any,
@@ -1083,18 +1016,12 @@ describe("buildProjectedCorpus", () => {
       }
     );
 
-    expect(getAll).not.toHaveBeenCalled(); // no whole-vault load
-    // Only the miss is embedded-loaded. The third arg is the hydration filter
-    // (#779) — undefined here because this query didn't opt into archived rows,
-    // which is what keeps the default exclusion in force.
+    expect(getAll).not.toHaveBeenCalled();
     expect(embByIds).toHaveBeenCalledWith({} as any, ["miss"], undefined);
     expect(out.vaultSize).toBe(2);
-    expect(byIds.mock.calls[0][1]).toContain("cached"); // admission decrypt
+    expect(byIds.mock.calls[0][1]).toContain("cached");
   });
 
-  // #779: the key scan honoring includeArchived is only half the path. If the
-  // by-id hydration steps re-apply their default archived exclusion, admitted
-  // archived rows are silently dropped again (after consuming admission slots).
   it("forwards includeArchived to BOTH hydration steps, not just the key scan", async () => {
     const keys = vi.spyOn(ops, "getVaultCandidateKeysOp").mockResolvedValue([
       {
@@ -1145,9 +1072,7 @@ describe("buildProjectedCorpus", () => {
       }
     );
 
-    // Key scan opts in — already fixed by the first half of #779.
     expect(keys.mock.calls[0][1]).toMatchObject({ includeArchived: true });
-    // ...and BOTH hydration steps must opt in too, or the row vanishes here.
     expect(embByIds.mock.calls[0][2]).toEqual({ includeArchived: true });
     expect(byIds.mock.calls[0][2]).toEqual({ includeArchived: true });
     expect(out.memories.map((m: any) => m.uniqueId)).toContain("arch");
@@ -1171,7 +1096,6 @@ describe("buildProjectedCorpus", () => {
       }
     );
 
-    // No candidate keys → nothing to search → skip the embedding call entirely.
     expect(genEmb).not.toHaveBeenCalled();
     expect(out).toEqual({
       memories: [],
@@ -1179,16 +1103,11 @@ describe("buildProjectedCorpus", () => {
       queryEmbedding: [],
       vaultSize: 0,
       laneEmbedFailed: false,
-      // Nothing was fetched, so nothing was decrypt-attempted.
       rowsDecrypted: 0,
     });
   });
 
   it("forceIncludeIds: decrypts side-lane candidates outside the cosine admission window", async () => {
-    // "top" is cosine 1 (admitted at K=1); "sidehit" is cosine 0 (outside the
-    // window). A graph/temporal side lane names "sidehit" — it must still be
-    // decrypted so the RRF lane can promote it, mirroring the legacy path
-    // where every row is available to the ranker.
     vi.spyOn(ops, "getVaultCandidateKeysOp").mockResolvedValue([
       {
         uniqueId: "top",
@@ -1205,7 +1124,7 @@ describe("buildProjectedCorpus", () => {
         updatedAt: ROW_VERSION,
       },
     ] as any);
-    vi.spyOn(ops, "getVaultEmbeddingsByIdsOp").mockResolvedValue([] as any); // both cached
+    vi.spyOn(ops, "getVaultEmbeddingsByIdsOp").mockResolvedValue([] as any);
     const byIds = vi.spyOn(ops, "getVaultMemoriesByIdsOp").mockImplementation(
       async (_ctx: any, ids: string[]) =>
         ids.map((id) => ({
@@ -1229,8 +1148,8 @@ describe("buildProjectedCorpus", () => {
     vi.spyOn(embed, "generateEmbedding").mockResolvedValue([1, 0]);
 
     const cache: VaultEmbeddingCache = new Map();
-    seedVector(cache, "top", Float32Array.from([1, 0])); // cosine 1
-    seedVector(cache, "sidehit", Float32Array.from([0, 1])); // cosine 0 — outside K=1 window
+    seedVector(cache, "top", Float32Array.from([1, 0]));
+    seedVector(cache, "sidehit", Float32Array.from([0, 1]));
     const out = await buildProjectedCorpus(
       "q",
       {} as any,
@@ -1297,7 +1216,7 @@ describe("buildProjectedCorpus", () => {
         admitFactor: 1,
         admitFloor: 1,
         unembeddedCap: 100,
-        forceIncludeIds: ["ghost"], // not a candidate key
+        forceIncludeIds: ["ghost"],
       }
     );
 
@@ -1305,11 +1224,6 @@ describe("buildProjectedCorpus", () => {
     expect(decryptedIds).not.toContain("ghost");
   });
 
-  // A3 follow-up. Cosine admission is what picks the decrypt window here, so a
-  // failed query embed doesn't just flatten the ordering — nothing dim-matches a
-  // length-0 vector, so NOTHING gets vectored and the window came back empty:
-  // BM25 then ranked an empty corpus and the outage still cost all recall on this
-  // path. Fall back to admitting the most-recently-updated candidates.
   it("degraded: admits the most recent candidates by recency instead of nothing", async () => {
     const older = new Date("2026-01-01T00:00:00Z");
     const newer = new Date("2026-06-01T00:00:00Z");
@@ -1341,8 +1255,6 @@ describe("buildProjectedCorpus", () => {
     vi.spyOn(embed, "generateEmbedding").mockRejectedValue(new Error("API rate limit"));
     const onEmbeddingDegraded = vi.fn();
 
-    // A warm cache entry must NOT rescue this: it can't dim-match the empty query
-    // vector either, which is exactly why the window came back empty before.
     const cache: VaultEmbeddingCache = new Map();
     seedVector(cache, "old", Float32Array.from([1, 0]));
     const out = await buildProjectedCorpus(
@@ -1354,18 +1266,12 @@ describe("buildProjectedCorpus", () => {
       { limit: 1, admitFactor: 1, admitFloor: 1, unembeddedCap: 100, onEmbeddingDegraded }
     );
 
-    // k=1, so the recency fallback admits "new" — and it reaches BM25 decrypted.
     expect(out.memories.map((m) => m.uniqueId)).toEqual(["new"]);
     expect(byIds.mock.calls.flatMap((c) => c[1] as string[])).toEqual(["new"]);
     expect(onEmbeddingDegraded).toHaveBeenCalled();
-    // No point loading embedding columns nothing can dim-match against.
     expect(embByIds).not.toHaveBeenCalled();
   });
 
-  // The partial version of the same failure: the query embed works and a couple
-  // of warm cache entries survive, but the lane batch that would have vectored
-  // the REST fails. Admission is then sized by the handful that happened to be
-  // cached, so BM25 ranks a window far short of k.
   it("tops the admission window up to k when the un-embedded lane batch fails", async () => {
     const t = (iso: string) => new Date(iso);
     vi.spyOn(ops, "getVaultCandidateKeysOp").mockResolvedValue([
@@ -1391,7 +1297,7 @@ describe("buildProjectedCorpus", () => {
         updatedAt: t("2026-05-01T00:00:00Z"),
       },
     ] as any);
-    vi.spyOn(ops, "getVaultEmbeddingsByIdsOp").mockResolvedValue([] as any); // no stored vectors
+    vi.spyOn(ops, "getVaultEmbeddingsByIdsOp").mockResolvedValue([] as any);
     const byIds = vi.spyOn(ops, "getVaultMemoriesByIdsOp").mockImplementation(
       async (_ctx: any, ids: string[]) =>
         ids.map((id) => ({
@@ -1412,7 +1318,6 @@ describe("buildProjectedCorpus", () => {
           updatedAt: ROW_VERSION,
         })) as any
     );
-    // Query embed fine; the lane batch that would vector cold1/cold2 is what fails.
     vi.spyOn(embed, "generateEmbedding").mockResolvedValue([1, 0]);
     vi.spyOn(embed, "generateEmbeddings").mockRejectedValue(new Error("429 rate limited"));
 
@@ -1427,23 +1332,14 @@ describe("buildProjectedCorpus", () => {
       { limit: 3, admitFactor: 1, admitFloor: 3, unembeddedCap: 100 }
     );
 
-    // Without the top-up only "warm" is vectored, so only "warm" gets decrypted
-    // and a lexical hit in cold1/cold2 is unreachable. k=3, so all three admit.
-    // Across ALL fetches, not just the last: the admission batch now reuses rows
-    // the un-embedded lane already decrypted, so the work is split between two
-    // calls and the last one only asks for what the lane didn't cover ("warm").
     const decryptedIds = byIds.mock.calls.flatMap((c) => c[1] as string[]);
     expect(decryptedIds).toEqual(expect.arrayContaining(["warm", "cold1", "cold2"]));
-    // And each exactly once — this is the shape that used to double-fetch.
     expect(decryptedIds.length).toBe(new Set(decryptedIds).size);
     expect(out.memories.map((m) => m.uniqueId).sort()).toEqual(["cold1", "cold2", "warm"]);
     expect(out.rowsDecrypted).toBe(3);
   });
 });
 
-// A3 follow-up: the query embed was the only guarded embedding call, but it is
-// not the only one on the read path — and it is the SMALLEST, so it is the least
-// likely of them to be the one that fails.
 describe("searchVaultMemoriesWithSize — embedding failures beyond the query embed", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
@@ -1455,7 +1351,6 @@ describe("searchVaultMemoriesWithSize — embedding failures beyond the query em
       makeMemory("m1", "allergic to shellfish"),
       makeMemory("m2", "prefers window seats"),
     ] as any);
-    // Query embed succeeds; the larger row batch is what 429s.
     vi.spyOn(embed, "generateEmbedding").mockResolvedValue([1, 0, 0]);
     vi.spyOn(embed, "generateEmbeddings").mockRejectedValue(new Error("429 rate limited"));
 
@@ -1468,8 +1363,6 @@ describe("searchVaultMemoriesWithSize — embedding failures beyond the query em
     );
 
     expect(out.results.map((r) => r.uniqueId)).toContain("m1");
-    // No row ended up with a vector, so cosine is as inert as a failed query
-    // embed — the caller must be able to tell the model that.
     expect(out.embeddingsUnavailable).toBe(true);
   });
 
@@ -1482,7 +1375,7 @@ describe("searchVaultMemoriesWithSize — embedding failures beyond the query em
     vi.spyOn(embed, "generateEmbeddings").mockRejectedValue(new Error("429 rate limited"));
 
     const cache = createVaultEmbeddingCache();
-    seedVector(cache, "m1", new Float32Array([1, 0, 0])); // m1 still has a usable vector
+    seedVector(cache, "m1", new Float32Array([1, 0, 0]));
     const out = await searchVaultMemoriesWithSize(
       "shellfish",
       mockVaultCtx,
@@ -1491,8 +1384,6 @@ describe("searchVaultMemoriesWithSize — embedding failures beyond the query em
       { limit: 5 }
     );
 
-    // Cosine ranked m1 for real, so "only keyword matching ran" would be false —
-    // and would raise outage telemetry on a partial, self-healing degradation.
     expect(out.embeddingsUnavailable).toBe(false);
     expect(out.results.map((r) => r.uniqueId)).toContain("m1");
   });
@@ -1502,7 +1393,6 @@ describe("searchVaultMemoriesWithSize — embedding failures beyond the query em
       makeMemory("m1", "allergic to shellfish"),
     ] as any);
     vi.spyOn(embed, "generateEmbedding").mockResolvedValue([1, 0, 0]);
-    // Only the sub-query batch fails — the row vectors are already cached.
     vi.spyOn(embed, "generateEmbeddings").mockRejectedValue(new Error("429 rate limited"));
 
     const cache = createVaultEmbeddingCache();
@@ -1519,8 +1409,6 @@ describe("searchVaultMemoriesWithSize — embedding failures beyond the query em
       }
     );
 
-    // Falls through to the single-query ranker, which runs a REAL cosine lane on
-    // the original query vector — the multi-facet decomposition is all that's lost.
     expect(out.embeddingsUnavailable).toBe(false);
     expect(out.results.map((r) => r.uniqueId)).toContain("m1");
   });
@@ -1529,8 +1417,6 @@ describe("searchVaultMemoriesWithSize — embedding failures beyond the query em
     vi.spyOn(ops, "getAllVaultMemoriesOp").mockResolvedValue([
       makeMemory("m1", "allergic to shellfish"),
     ] as any);
-    // Resolves rather than rejects — a malformed provider response must not read
-    // as a healthy search, or an empty result gets reported as "no such memory".
     vi.spyOn(embed, "generateEmbedding").mockResolvedValue([]);
 
     const out = await searchVaultMemoriesWithSize(
@@ -1560,7 +1446,7 @@ describe("prepareVaultCandidates — embeddingFailure", () => {
     vi.spyOn(embed, "generateEmbeddings").mockRejectedValue(new Error("429 rate limited"));
 
     const cache = createVaultEmbeddingCache();
-    seedVector(cache, "m1", new Float32Array([1, 0, 0])); // m1 keeps a usable vector, m2 does not
+    seedVector(cache, "m1", new Float32Array([1, 0, 0]));
 
     const prepared = await prepareVaultCandidates(
       "shellfish",
@@ -1570,10 +1456,7 @@ describe("prepareVaultCandidates — embeddingFailure", () => {
       { limit: 5 }
     );
 
-    // Cosine still ran for real on m1, so this is NOT an outage for a reader...
     expect(prepared.embeddingsUnavailable).toBe(false);
-    // ...but m2 scores 0 only because its vector is missing, which a writer
-    // gating a merge on cosine has to know about. This is the flag retain reads.
     expect(prepared.embeddingFailure).toBe(true);
   });
 
@@ -1624,7 +1507,6 @@ describe("prepareVaultCandidates — embeddingFailure", () => {
     vi.spyOn(ops, "getVaultMemoriesByIdsOp").mockResolvedValue([
       makeMemory("m1", "allergic to shellfish"),
     ] as any);
-    // Query embed lands; the lane batch for the un-embedded row is what fails.
     vi.spyOn(embed, "generateEmbedding").mockResolvedValue([1, 0, 0]);
     vi.spyOn(embed, "generateEmbeddings").mockRejectedValue(new Error("429 rate limited"));
 
@@ -1692,15 +1574,8 @@ describe("searchVaultMemoriesWithSize — decryptLast branch", () => {
   });
 
   it("counts an admitted row that came back ENCRYPTED as decrypt work", async () => {
-    // The #852 review finding (greptile P1 / cursor). `rowsDecrypted` used to be
-    // `memories.length` — the searchable set AFTER the still-encrypted filter — so
-    // a row that was fetched, decrypt-attempted, and came back as ciphertext was
-    // free work as far as the diagnostic was concerned. That under-reports in the
-    // one direction that misleads: `rowsDecrypted` far below `vaultSize` is
-    // supposed to mean "decrypt was never the cost".
     const rows = [
       { uniqueId: "a", content: "alpha" },
-      // Fetched and materialised, but the key was unavailable.
       {
         uniqueId: "b",
         content: "enc:v3:deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef00",
@@ -1745,22 +1620,12 @@ describe("searchVaultMemoriesWithSize — decryptLast branch", () => {
       decryptLast: true,
     });
 
-    // Only "a" is searchable, but BOTH rows were decrypted.
     expect(out.results.map((r) => r.uniqueId)).toEqual(["a"]);
     expect(out.decryptLast).toBe(true);
     expect(out.rowsDecrypted).toBe(2);
   });
 
   it("counts a row in BOTH the un-embedded lane and the admission window ONCE", async () => {
-    // Reported on #852 by @rutwik2001. Lane rows are pushed into `vectored`, and
-    // `admitVaultProjections` picks from `vectored` — so a lane row that scores
-    // well was re-fetched by the admission batch and decrypted a SECOND time
-    // (`getVaultMemoriesByIdsOp` decrypts per row). It was also counted twice, so
-    // on a cold vault `rowsDecrypted` could exceed `vaultSize` and an operator
-    // would blame the admission window for a bill the lane ran up.
-    //
-    // The perf fixture can never reach this: every row there has a stored vector,
-    // so the lane never fires.
     const keys = [{ uniqueId: "novec" }].map((r) => ({
       uniqueId: r.uniqueId,
       folderId: null,
@@ -1769,7 +1634,6 @@ describe("searchVaultMemoriesWithSize — decryptLast branch", () => {
       updatedAt: ROW_VERSION,
     }));
     vi.spyOn(ops, "getVaultCandidateKeysOp").mockResolvedValue(keys as any);
-    // No stored vector → the row falls into the un-embedded lane.
     vi.spyOn(ops, "getVaultEmbeddingsByIdsOp").mockResolvedValue([
       { uniqueId: "novec", embedding: null, embeddingModel: "m" },
     ] as any);
@@ -1790,8 +1654,6 @@ describe("searchVaultMemoriesWithSize — decryptLast branch", () => {
       createdAt: new Date(),
       updatedAt: ROW_VERSION,
     };
-    // Honours the requested ids, unlike a canned mockResolvedValue — otherwise an
-    // empty fetch still "returns" a row and the dedupe looks broken when it isn't.
     const byIds = vi
       .spyOn(ops, "getVaultMemoriesByIdsOp")
       .mockImplementation(async (_ctx: any, ids: string[]) =>
@@ -1807,14 +1669,9 @@ describe("searchVaultMemoriesWithSize — decryptLast branch", () => {
       decryptLast: true,
     });
 
-    // One row in the vault, so one decrypt — never two, and never above vaultSize.
     expect(out.vaultSize).toBe(1);
     expect(out.rowsDecrypted).toBe(1);
     expect(out.rowsDecrypted).toBeLessThanOrEqual(out.vaultSize);
-    // And it is fetched once: the admission batch reuses the lane's row rather
-    // than paying `getVaultMemoriesByIdsOp` for it again.
-    // Exactly one fetch: the admission batch is skipped entirely because the lane
-    // already covered the window (no pointless round trip with an empty id list).
     const fetchedIdBatches = byIds.mock.calls.map((c) => (c[1] as string[]).length);
     expect(fetchedIdBatches).toEqual([1]);
     expect(out.results.map((r) => r.uniqueId)).toEqual(["novec"]);
@@ -1836,14 +1693,6 @@ describe("searchVaultMemoriesWithSize — decryptLast branch", () => {
   });
 
   it("decryptLast ranking parity: same top-N uniqueIds + order as legacy, on a fully-embedded vault", async () => {
-    // Fixture: 4 rows, ALL with a stored/cached embedding, cosine-unambiguous
-    // relative to the query vector [1,0,0,0] (m1 > m2 > m3 > m4). BM25 term
-    // overlap with the "cats" query is deliberately monotonic with cosine too
-    // (m1 repeats "cats", m2 mentions it once, m3/m4 don't) so the fusion
-    // ranker's RRF combination isn't fighting itself — this isolates the
-    // thing under test (does decryptLast's projected corpus feed the SAME
-    // ranker the SAME candidate set as the legacy whole-vault load) from
-    // fusion-ranker tie-breaking, which has its own coverage elsewhere.
     const FIXTURE: Array<{ uniqueId: string; content: string; vec: number[] }> = [
       { uniqueId: "m1", content: "cats cats cats are wonderful pets", vec: [1, 0, 0, 0] },
       { uniqueId: "m2", content: "cats are okay I guess", vec: [0.8, 0.6, 0, 0] },
@@ -1872,7 +1721,6 @@ describe("searchVaultMemoriesWithSize — decryptLast branch", () => {
     const embOpts = { model: "m" } as any;
     vi.spyOn(embed, "generateEmbedding").mockResolvedValue([1, 0, 0, 0]);
 
-    // --- decryptLast path: projected candidate scan + admission decrypt ---
     vi.spyOn(ops, "getVaultCandidateKeysOp").mockResolvedValue(
       FIXTURE.map((f) => ({
         uniqueId: f.uniqueId,
@@ -1894,15 +1742,10 @@ describe("searchVaultMemoriesWithSize — decryptLast branch", () => {
     const decryptLastOut = await searchVaultMemoriesWithSize("cats", {} as any, embOpts, cacheA, {
       limit: 3,
       decryptLast: true,
-      // Admission window wide enough to admit the whole 4-row vault — this
-      // is the "fair fixture" requirement: nothing gets truncated before it
-      // reaches the ranker, so a divergence would be a real bug, not a
-      // window-size artifact.
       admitFactor: 10,
       admitFloor: 10,
     });
 
-    // --- legacy path: same fixture, same query, whole-vault load ---
     vi.spyOn(ops, "getAllVaultMemoriesOp").mockResolvedValue(FIXTURE.map(toRow) as any);
     const cacheB = createVaultEmbeddingCache();
     FIXTURE.forEach((f) =>
@@ -1917,14 +1760,10 @@ describe("searchVaultMemoriesWithSize — decryptLast branch", () => {
     expect(decryptLastOut.results.map((r) => r.uniqueId)).toEqual(
       legacyOut.results.map((r) => r.uniqueId)
     );
-    // Same top-N size too, not just a matching prefix.
     expect(decryptLastOut.results.length).toBe(legacyOut.results.length);
   });
 
   it("forwards entityRanking as forceIncludeIds so cosine-miss side-lane candidates are decrypted + surfaced", async () => {
-    // "top" (cosine 1) is admitted at K=1; "sidehit" (cosine 0) is outside the
-    // window. entityRanking names "sidehit" — recall's graph lane found it
-    // via entity overlap, not cosine. It must be decrypted and surfaced.
     const rows = [
       {
         uniqueId: "top",
@@ -1973,7 +1812,7 @@ describe("searchVaultMemoriesWithSize — decryptLast branch", () => {
       limit: 5,
       minSimilarity: 0,
       decryptLast: true,
-      admitFactor: 0.2, // limit*0.2 = 1 → K=1, sidehit outside the window
+      admitFactor: 0.2,
       admitFloor: 1,
       entityRanking: ["sidehit"],
     });
@@ -1984,9 +1823,6 @@ describe("searchVaultMemoriesWithSize — decryptLast branch", () => {
   });
 
   it("keys present but admission decrypt yields 0 rows → empty return, ranker/decompose skipped", async () => {
-    // vaultSize > 0 (keys exist) but every admitted row is still encrypted, so
-    // the searchable corpus is empty. Must early-return (like the legacy path)
-    // instead of falling through into decompose/LLM ranking on an empty head.
     vi.spyOn(ops, "getVaultCandidateKeysOp").mockResolvedValue([
       {
         uniqueId: "a",
@@ -2008,7 +1844,6 @@ describe("searchVaultMemoriesWithSize — decryptLast branch", () => {
       async (_ctx: any, ids: string[]) =>
         ids.map((id) => ({
           uniqueId: id,
-          // Still-encrypted content → filtered out of the corpus.
           content: "enc:v3:deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef00",
           embedding: null,
           embeddingModel: "m",
@@ -2034,7 +1869,6 @@ describe("searchVaultMemoriesWithSize — decryptLast branch", () => {
     const out = await searchVaultMemoriesWithSize("q", {} as any, { model: "m" } as any, cache, {
       limit: 5,
       decryptLast: true,
-      // If the corpus weren't empty-checked, this would drive the composite path.
       subQueries: ["facet a", "facet b"],
     });
 
@@ -2045,11 +1879,6 @@ describe("searchVaultMemoriesWithSize — decryptLast branch", () => {
   });
 });
 
-/**
- * The composite fall-through guards a throw and an empty batch, but the batch's
- * outer length can't see a degenerate response: `[[], []]` for two facets has
- * length 2. Fusing those runs the multi-facet ranker over all-zero cosine lanes.
- */
 describe("composite sub-query embeds — degenerate responses fall through", () => {
   let warnings: string[];
   beforeEach(() => {
@@ -2067,10 +1896,6 @@ describe("composite sub-query embeds — degenerate responses fall through", () 
       subQueries: ["allergies", "food"],
     });
 
-  // Both rows are pre-seeded so the row-(re)embed batch has nothing to do and the
-  // mocked `generateEmbeddings` below answers only the sub-query call.
-  // m2 is reachable ONLY through the second facet: cosine 0 against the query
-  // vector and no lexical overlap with "shellfish".
   function seededCache() {
     const cache = createVaultEmbeddingCache();
     seedVector(cache, "m1", new Float32Array([1, 0, 0]));
@@ -2092,14 +1917,11 @@ describe("composite sub-query embeds — degenerate responses fall through", () 
     const out = await search();
 
     expect(warnings.some((w) => /falling back to single-query ranking/.test(w))).toBe(true);
-    // The original query vector is still good, so this is NOT an outage — the
-    // single-query path runs a real cosine lane.
     expect(out.embeddingsUnavailable).toBe(false);
     expect(out.results.map((r) => r.uniqueId)).toContain("m1");
   });
 
   it("falls through when the response is short of the sub-query count", async () => {
-    // Would otherwise index past the end and hand rankComposite `undefined`.
     vi.spyOn(embed, "generateEmbeddings").mockResolvedValue([[1, 0, 0]]);
 
     const out = await search();
@@ -2109,11 +1931,6 @@ describe("composite sub-query embeds — degenerate responses fall through", () 
   });
 
   it("falls through when a facet vector comes back at the wrong dimension", async () => {
-    // Non-empty and complete, so count-and-emptiness alone reads it as healthy —
-    // but cosineSimilarity bails on the length mismatch and returns 0, which is
-    // the same dead facet lane. Real trigger: the embedding cache keys on text,
-    // not model, so vectors written under a previous model survive a model change
-    // at the old dimension.
     vi.spyOn(embed, "generateEmbeddings").mockResolvedValue([
       [1, 0, 0],
       [0, 1],
@@ -2127,9 +1944,6 @@ describe("composite sub-query embeds — degenerate responses fall through", () 
   });
 
   it("falls through on a zero-facet list instead of returning nothing", async () => {
-    // A zero-facet list must not enter the composite path: without the
-    // `length >= 2` gate, `0 === 0` and `[].every()` would read as usable and
-    // `rankComposite` would return [] — flipping degrade into a total miss.
     vi.spyOn(embed, "generateEmbeddings").mockResolvedValue([]);
 
     const out = await searchVaultMemoriesWithSize(
@@ -2157,10 +1971,6 @@ describe("composite sub-query embeds — degenerate responses fall through", () 
     const out = await search();
 
     expect(warnings.some((w) => /falling back to single-query ranking/.test(w))).toBe(false);
-    // Pin that the facet lanes actually ran. "No warning fired" alone also holds
-    // if composite stopped running entirely — the one regression an over-strict
-    // guard would cause — so assert the facet-only row got ranked: m2 can only
-    // reach the results through the second facet's vector.
     expect(out.results.map((r) => r.uniqueId)).toContain("m2");
   });
 });

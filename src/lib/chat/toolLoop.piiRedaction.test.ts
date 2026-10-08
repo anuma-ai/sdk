@@ -12,7 +12,6 @@ vi.mock("../../client/core/serverSentEvents.gen", async (importOriginal) => {
 
 const mockCreateSseClient = vi.mocked(sseModule.createSseClient);
 
-/** Build a Responses-API stream that emits the given text deltas in order. */
 function makeStream(deltas: string[]) {
   return (async function* () {
     yield { type: "response.created", response: { id: "r", model: "m" } };
@@ -26,7 +25,6 @@ function makeStream(deltas: string[]) {
   })();
 }
 
-/** Build a Responses-API stream that emits a single function/tool call. */
 function makeToolCallStream(opts: { callId: string; name: string; arguments: string }) {
   return (async function* () {
     yield { type: "response.created", response: { id: "r", model: "m" } };
@@ -81,8 +79,6 @@ describe("runToolLoop PII redaction", () => {
   });
 
   it("de-anonymizes streamed output even when a placeholder is split across chunks", async () => {
-    // The redactor maps bob@acme.com -> [EMAIL_1] when redacting the request; the
-    // model then echoes that placeholder, split across two deltas.
     mockCreateSseClient.mockReturnValue({
       stream: makeStream(["Sure, I'll email [EMA", "IL_1] now"]),
     } as never);
@@ -188,7 +184,6 @@ describe("runToolLoop PII redaction", () => {
   });
 
   it("de-anonymizes tool arguments for tools that opt in via deAnonymizeArgs", async () => {
-    // Round 1: model calls the tool with the placeholder it saw. Round 2: text.
     mockCreateSseClient
       .mockReturnValueOnce({
         stream: makeToolCallStream({
@@ -219,7 +214,6 @@ describe("runToolLoop PII redaction", () => {
       ],
     });
 
-    // The executor must receive the REAL value, not the placeholder.
     expect(received).toBe("User's email is bob@acme.com");
   });
 
@@ -249,7 +243,6 @@ describe("runToolLoop PII redaction", () => {
             received = args.to;
             return "sent";
           },
-          // no deAnonymizeArgs -> stays redacted (e.g. a connector/forwarding tool)
         },
       ],
     });
@@ -258,13 +251,10 @@ describe("runToolLoop PII redaction", () => {
   });
 
   it("redacts unstructured PII via an injected NER detector and de-anonymizes the reply", async () => {
-    // The model echoes the minted PERSON placeholder, which we restore on the way out.
     mockCreateSseClient.mockReturnValue({
       stream: makeStream(["Noted about [PERSON_1]."]),
     } as never);
 
-    // A fake on-device NER detector: tags "Sarah Chen" as a PERSON. Regex still
-    // handles the email — both flow through redactMessagesAsync.
     const nerDetector = {
       async detect(text: string) {
         const idx = text.indexOf("Sarah Chen");
@@ -287,14 +277,12 @@ describe("runToolLoop PII redaction", () => {
       onData: (chunk) => (streamed += chunk),
     });
 
-    // Outbound request: NER name + regex email both redacted, originals gone.
     const serialized = JSON.stringify(getRequestMessages(0));
     expect(serialized).toContain("[PERSON_1]");
     expect(serialized).toContain("[EMAIL_1]");
     expect(serialized).not.toContain("Sarah Chen");
     expect(serialized).not.toContain("bob@acme.com");
 
-    // Response de-anonymized for the user (stream + final).
     expect(streamed).toBe("Noted about Sarah Chen.");
     expect(extractAssistantText(result.data!).content).toBe("Noted about Sarah Chen.");
   });

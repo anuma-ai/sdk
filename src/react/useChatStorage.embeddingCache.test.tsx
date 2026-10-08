@@ -1,17 +1,4 @@
 // @vitest-environment happy-dom
-/**
- * The send path must hand a caller-supplied `embeddingCache` to the user-message embedding, and it
- * must key that cache on the RAW text with `maskInput` applied only to the request body.
- *
- * Why both halves matter: a caller that needs the same vector (ranking tools itself, say) can only
- * share the cache if the keys coincide. Before this change the send pre-masked the argument, so the
- * key was the MASKED text while any caller holding the user's text would key on the raw string —
- * the Map would be shared and never hit, and the turn would still embed twice.
- *
- * Layering: this file asserts the THREADING (what the send passes down). That a populated cache
- * suppresses the HTTP request is `generateEmbedding`'s own behaviour and is asserted against the
- * real implementation at the bottom, with fetch stubbed, rather than re-implemented here.
- */
 
 import { Database } from "@nozbe/watermelondb";
 import LokiJSAdapter from "@nozbe/watermelondb/adapters/lokijs";
@@ -63,7 +50,6 @@ function makeDatabase(): Database {
   return new Database({ adapter, modelClasses: sdkModelClasses });
 }
 
-// Clears MIN_CONTENT_LENGTH_FOR_TOOLS, short enough to stay a single embedding.
 const USER_TEXT = "book me a table for four tonight";
 const PII_EMAIL = "alice@example.com";
 const USER_MESSAGE = [{ role: "user" as const, content: [{ type: "text", text: USER_TEXT }] }];
@@ -127,8 +113,6 @@ describe("useChatStorage embeddingCache passthrough", () => {
     expect(res.error).toBeNull();
 
     expect(embedCalls).toHaveLength(1);
-    // Not the Map itself but a view onto it, namespaced by this send's masking decision (see
-    // MaskScopedEmbeddingCache) -- reads and writes go through to the caller's Map.
     const view = embedCalls[0]!.options.cache as Map<string, Float32Array>;
     view.set("hello", Float32Array.from([1]));
     expect(view.get("hello")).toEqual(Float32Array.from([1]));
@@ -136,10 +120,6 @@ describe("useChatStorage embeddingCache passthrough", () => {
   });
 
   it("keys the cache on the RAW text, masking only the request body", async () => {
-    // PII in the text is what makes this discriminating: pre-masking the argument (the old shape)
-    // would key on "[EMAIL]…" while a caller holding the user's text keys on the raw string, so the
-    // shared Map would never hit. The body still goes out masked — via the maskInput option, which
-    // generateEmbedding applies after the cache lookup.
     const withPii = `email me at ${PII_EMAIL} about the report`;
     const cache = new Map<string, Float32Array>();
     await send({
@@ -153,7 +133,6 @@ describe("useChatStorage embeddingCache passthrough", () => {
     expect(embedCalls[0]!.text).toContain(PII_EMAIL);
     const maskInput = embedCalls[0]!.options.maskInput as (t: string) => string;
     expect(typeof maskInput).toBe("function");
-    // The masker the send handed down is a real one on this path, not identity.
     expect(maskInput(withPii)).not.toContain(PII_EMAIL);
   });
 
@@ -165,8 +144,6 @@ describe("useChatStorage embeddingCache passthrough", () => {
   });
 
   it("uses the stored user content as the key, not the injected wire text", async () => {
-    // The wire turn carries injected context; storedUserContent is what the user typed. Tool
-    // selection — and therefore the cache key a caller must match — follows the typed text.
     const cache = new Map<string, Float32Array>();
     await send({
       messages: [
@@ -187,8 +164,6 @@ describe("useChatStorage embeddingCache passthrough", () => {
   });
 });
 
-// The other half of the contract, against the REAL generateEmbedding: a populated cache means no
-// HTTP request. Network is faked at the fetch boundary, matching memoryEngine/embeddings.test.ts.
 describe("generateEmbedding with a shared cache", () => {
   let fetchCalls: number;
 
@@ -230,17 +205,12 @@ describe("generateEmbedding with a shared cache", () => {
     const base = { getToken: async () => "tok", cache };
 
     await generateEmbedding(USER_TEXT, base);
-    // Same text, same key: masking is NOT part of generateEmbedding's key, and that is a pinned
-    // contract (embeddings.test.ts, "keeps the cache keyed by original"). Which is exactly why the
-    // send namespaces the Map it is handed rather than changing this -- see the suite below.
     await generateEmbedding(USER_TEXT, { ...base, maskInput: (x: string) => `[MASKED] ${x}` });
     expect(fetchCalls).toBe(1);
     expect(cache.size).toBe(1);
   });
 });
 
-// I-7: two callers sharing one Map must not be able to exchange a masked vector for an unmasked one.
-// The send namespaces the Map it is handed, so the entries it writes carry the masking decision.
 describe("shared cache is namespaced by masking decision", () => {
   let db: Database;
 
@@ -272,25 +242,17 @@ describe("shared cache is namespaced by masking decision", () => {
       piiRedaction: true,
     } as never);
 
-    // The mocked generateEmbedding never writes, so drive the returned view directly: what matters
-    // is which key the send's cache view uses.
     const view = embedCalls[0]!.options.cache as Map<string, Float32Array>;
     view.set(USER_TEXT, Float32Array.from([1, 2, 3]));
     expect([...cache.keys()]).toEqual([`m:${USER_TEXT}`]);
     expect(view.get(USER_TEXT)).toEqual(Float32Array.from([1, 2, 3]));
-    // An unmasked reader of the same Map does not see it.
     expect(cache.get(`r:${USER_TEXT}`)).toBeUndefined();
   });
 
-  // ...and the caller can actually reach that key, which is the whole point of the option. Greptile
-  // P1 on #923: the view was private, so a caller following the documented contract handed the RAW
-  // Map to its own `generateEmbedding` and wrote `USER_TEXT` where the send reads `r:USER_TEXT` --
-  // shared Map, zero hits, and the duplicate embedding the option exists to remove still happened.
   it("shares with a caller that wraps the same Map via maskScopedEmbeddingCache", async () => {
     const shared = new Map<string, Float32Array>();
     const vector = Float32Array.from([9, 9, 9]);
 
-    // The caller's own ranking embed, same masking decision as the send below.
     maskScopedEmbeddingCache(shared, false).set(USER_TEXT, vector);
 
     const { result } = renderHook(() =>
@@ -307,7 +269,6 @@ describe("shared cache is namespaced by masking decision", () => {
       embeddingCache: shared,
     } as never);
 
-    // The send's own view finds what the caller wrote -- one entry, one embedding for the turn.
     const view = embedCalls[0]!.options.cache as Map<string, Float32Array>;
     expect(view.get(USER_TEXT)).toEqual(vector);
     expect([...shared.keys()]).toEqual([`r:${USER_TEXT}`]);
@@ -317,8 +278,6 @@ describe("shared cache is namespaced by masking decision", () => {
     const shared = new Map<string, Float32Array>();
     maskScopedEmbeddingCache(shared, true).set(USER_TEXT, Float32Array.from([1]));
 
-    // A raw-side reader of the same Map sees nothing: that is the I-7 guarantee, preserved now that
-    // the view is reachable from outside.
     expect(maskScopedEmbeddingCache(shared, false).get(USER_TEXT)).toBeUndefined();
     expect(maskScopedEmbeddingCache(shared, true).get(USER_TEXT)).toEqual(Float32Array.from([1]));
   });

@@ -32,24 +32,11 @@ describe("FONT_LIBRARY", () => {
   });
 
   it("Work Sans declares fontWeight 900 — MINIMAL_SWISS leans on it for poster-weight headlines", () => {
-    // The design system uses fontWeight: 900 on hero / stat-display /
-    // stat-value{,-mid,-small}. Without 900 in the library's weights
-    // string, the Google Fonts URL doesn't request it and browsers
-    // silently fall back to the closest declared weight (800), which
-    // muffles the system's intended "uncompromising" character.
     const workSans = FONT_LIBRARY.find((f) => f.name === "Work Sans")!;
     expect(workSans.weights.split(";")).toContain("900");
   });
 
   it("every fontWeight declared in every DesignSystem is requested from the font library", () => {
-    // Catches the entire class of "the system uses weight X but the
-    // library only declares weights Y;Z" silent-fallback bugs. Hand-
-    // pinning one font/weight pair at a time (cf. Work Sans 900) is
-    // brittle as new design systems land — this loop closes the class.
-    // Walks every literal fontFamily in every style entry across all
-    // top-level styles and surface overrides; skips symbolic "heading"
-    // and "body" tokens (those resolve to the deck's fontPreset at
-    // compile time, validated separately via FONT_PRESETS).
     const issues: string[] = [];
     function checkStyle(
       systemName: string,
@@ -95,8 +82,6 @@ describe("FONT_LIBRARY", () => {
   });
 
   it("covers the 40 Google Fonts plus the families referenced by FONT_PRESETS", () => {
-    // Every preset's heading and body font must resolve in the library —
-    // otherwise a deck using that preset would have no fontFamily fallback.
     for (const [name, p] of Object.entries(FONT_PRESETS)) {
       expect(isKnownFont(p.heading), `preset '${name}' heading '${p.heading}'`).toBe(true);
       expect(isKnownFont(p.body), `preset '${name}' body '${p.body}'`).toBe(true);

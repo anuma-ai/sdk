@@ -8,7 +8,6 @@ export { HAVEN_PROMPT } from "./prompt";
 export { HAVEN_SKILL_JOURNEYS } from "./journeys";
 export { demandLetter, HAVEN_SKILLS, hoaDispute, leaseReview, rentIncreaseChecker } from "./skills";
 
-/** Marketplace card content rendered in the agent picker. */
 const HAVEN_MARKETPLACE: AgentMarketplaceContent = {
   family: "lifestyle",
   roleLabel: "Leasing agent",
@@ -84,9 +83,7 @@ const HAVEN_MARKETPLACE: AgentMarketplaceContent = {
   },
 };
 
-/** UI metadata used by renderers when richer portal data isn't available. */
 const HAVEN_UI_METADATA: AgentUiMetadata = {
-  // Gray/800 — Anuma's own agent takes ink now that the brand orange is retired (#8419).
   color: "#3b3d3e",
   icon: "users",
   features: [
@@ -110,7 +107,6 @@ const HAVEN_FIRST_TIME_DISCLAIMER = [
 const HAVEN_PERSISTENT_FOOTER =
   "{{agent_name}} is an AI. This is not legal advice. There is no attorney-client relationship. Results vary by jurisdiction. Learn more.";
 
-/** Haven housing agent configuration. */
 export const havenAgent: AgentConfig = {
   id: "haven",
   runtimes: ["server"],

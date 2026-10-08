@@ -1,14 +1,3 @@
-/**
- * Labels connector tool output as untrusted third-party data before the model
- * reads it.
- *
- * An email, calendar invite, file or message is written by someone other than
- * the user, so it can carry instructions aimed at the model. Wrapping it in
- * named markers, with a line saying it is data, gives the model a boundary it
- * can hold. The marker name is removed from the content first, so the content
- * cannot close the block early and continue as if it were outside it.
- */
-
 import { TOOL_CATALOG } from "../tools/toolCatalog";
 
 const MARKER = "untrusted_third_party_data";

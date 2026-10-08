@@ -36,23 +36,14 @@ import type {
 import { composeHooks } from "./runHooks";
 import { wrapConnectorToolResult } from "./untrustedToolResult";
 
-/**
- * Fire-and-forget hook invocation. Takes a thunk so synchronous throws
- * during the hook call itself are caught alongside async rejections —
- * passing the call's return value directly would let a sync throw escape
- * before the try/catch wraps it.
- */
 async function safeAwait(fn: () => unknown): Promise<void> {
   try {
-    // `await` on a non-thenable just resolves to the value, so this
-    // works whether the hook is sync, async, or omitted (returns undefined).
     await fn();
   } catch {
     /* observer error, swallow */
   }
 }
 
-/** Generate a run ID. Uses crypto.randomUUID when available, falls back to a random hex string. */
 function generateRunId(): string {
   const c = globalThis.crypto as { randomUUID?: () => string } | undefined;
   if (typeof c?.randomUUID === "function") return c.randomUUID();
@@ -62,7 +53,6 @@ function generateRunId(): string {
   );
 }
 
-/** Try to JSON.parse tool arguments. Returns undefined if not valid JSON. */
 function tryParseToolArgs(raw: string): Record<string, unknown> | undefined {
   if (!raw) return undefined;
   try {
@@ -76,10 +66,6 @@ function tryParseToolArgs(raw: string): Record<string, unknown> | undefined {
   return undefined;
 }
 
-/**
- * Error thrown when the SSE connection receives a non-OK HTTP response.
- * Preserves the HTTP status code for programmatic error handling.
- */
 class SseError extends Error {
   statusCode: number;
   constructor(statusCode: number, message: string) {
@@ -105,34 +91,10 @@ function wrapSseError(error: unknown): Error {
   return new Error(String(error));
 }
 
-/**
- * Defaults for transport-level retry on a single streaming round. We
- * retry ONLY when the failure happens before any chunk has been
- * processed downstream — once data has reached the smoothers /
- * accumulator / user callbacks, re-running the request would risk
- * duplicated or contradictory output (the upstream LLM is stochastic;
- * a retry would emit different content). Backoff is exponential-ish
- * with a small cap so a real outage doesn't hang the loop for half an
- * hour.
- *
- * Two schedules: rate-limited (429) gets longer backoffs because the
- * server is telling us to slow down — retrying in 500ms three times
- * burns round-trips and almost always fails again. We can't read the
- * actual Retry-After header (the SSE client lives in a generated file
- * that throws a stringified error), but a 5/15/30s schedule is a sane
- * default for a portal that occasionally rate-limits. Transient
- * transport failures (5xx, terminated, ECONNRESET) stay on the fast
- * schedule so a momentary blip doesn't add seconds of latency.
- */
 const STREAM_RETRY_MAX_ATTEMPTS = 3;
 const STREAM_RETRY_BACKOFF_MS: readonly number[] = [500, 2000, 5000];
 const RATE_LIMIT_RETRY_BACKOFF_MS: readonly number[] = [5000, 15000, 30000];
 
-/**
- * Pick a backoff for `attempt` (0-based) based on the error's
- * rate-limit classification. 429 errors get the longer schedule; all
- * other retriable errors get the fast schedule.
- */
 function backoffForRetry(attempt: number, err: unknown): number {
   const schedule = isRateLimitedStreamError(err)
     ? RATE_LIMIT_RETRY_BACKOFF_MS
@@ -140,29 +102,17 @@ function backoffForRetry(attempt: number, err: unknown): number {
   return schedule[attempt] ?? schedule[schedule.length - 1] ?? 1000;
 }
 
-/**
- * Extract an HTTP status code from a stream error, preferring the
- * SseError.statusCode field and falling back to a loose "SSE failed:
- * NNN" match on the (potentially re-wrapped) message string. Returns
- * undefined if no status can be inferred — message-only heuristics
- * like "terminated" are handled by their respective predicates.
- */
 function getHttpStatusCode(err: Error): number | undefined {
   if (err instanceof SseError) return err.statusCode;
   const match = err.message.toLowerCase().match(/sse failed: (\d+)/);
   return match ? Number(match[1]) : undefined;
 }
 
-/** True iff `err` represents a 429 Too Many Requests response. */
 function isRateLimitedStreamError(err: unknown): boolean {
   if (!(err instanceof Error)) return false;
   return getHttpStatusCode(err) === 429;
 }
 
-/**
- * Sleep for `ms` milliseconds; resolves immediately when the signal is
- * aborted so backoff doesn't hold up a cancellation.
- */
 function sleep(ms: number, signal?: AbortSignal): Promise<void> {
   return new Promise<void>((resolve) => {
     if (signal?.aborted) return resolve();
@@ -178,30 +128,10 @@ function sleep(ms: number, signal?: AbortSignal): Promise<void> {
   });
 }
 
-/**
- * Predicate for "this streaming-round error is worth retrying."
- *
- * Conservative: includes 5xx/408/429 HTTP errors, undici's `terminated`
- * (TCP reset / unexpected close), and Node-level network failures
- * (ECONNRESET, ETIMEDOUT, "connect error"). Excludes abort errors
- * (user cancelled), 4xx other than 408/429 (validation / auth — retry
- * won't help), and ProviderStreamError (an in-band model timeout — the
- * same prompt would likely time out the same way on a retry, so we
- * surface the real cause instead of burning round-trips).
- */
 function isRetriableStreamError(err: unknown): boolean {
   if (!(err instanceof Error)) return false;
   if (isAbortError(err)) return false;
 
-  // ProviderStreamError is NOT retried: it represents an in-band error
-  // chunk emitted by the upstream provider (e.g. "the model timed out
-  // generating a response"). The same prompt is likely to time out the
-  // same way on a retry — better to surface the real cause immediately
-  // so the caller knows the failure is at the model level, not the
-  // transport. Without this explicit guard, a provider that emits
-  // `{error: "terminated"}` would build a ProviderStreamError whose
-  // message matches the undici-`terminated` heuristic below and get
-  // retried anyway.
   if (err instanceof ProviderStreamError) return false;
 
   const code = getHttpStatusCode(err);
@@ -231,19 +161,6 @@ export class ProviderStreamError extends Error {
   }
 }
 
-/**
- * Extract a provider-supplied error object from an SSE data chunk, if present.
- *
- * Some upstream providers (e.g. Fireworks, via our portal) end a stream by
- * emitting a normal `data: {"error": {...}}` event instead of raising an HTTP
- * error or closing the connection abnormally. Those chunks pass right through
- * the strategy's processStreamChunk (which only looks at content/tool deltas)
- * and the stream finishes cleanly with empty content — so the client shows a
- * generic "no response" error instead of the real cause (typically a provider
- * timeout). Detecting the shape here lets us surface the real message.
- *
- * Accepts either `{error: "..."}` or `{error: {code?, message?}}`.
- */
 function extractProviderStreamError(chunk: unknown): ProviderStreamError | null {
   if (!chunk || typeof chunk !== "object") return null;
   const errField = (chunk as { error?: unknown }).error;
@@ -311,13 +228,6 @@ function measureRequest(
   };
 }
 
-/**
- * Extract the text of the most recent user message. Empty string if none.
- *
- * Skips the attached-file-contents part (see attachFileContextToLastUserMessage):
- * pre-processors route on and embed this text, and some forward it to external
- * endpoints, so it must be the user's prompt — never the document they attached.
- */
 function extractLastUserText(messages: LlmapiMessage[]): string {
   const lastUserMsg = [...messages].reverse().find((m) => m.role === "user");
   if (!lastUserMsg) return "";
@@ -332,7 +242,6 @@ function extractLastUserText(messages: LlmapiMessage[]): string {
   return "";
 }
 
-/** Check if a tool result is an error object returned by the executor (e.g. `{ error: "..." }`). */
 function isToolErrorResult(result: unknown): boolean {
   return (
     result !== null &&
@@ -342,12 +251,6 @@ function isToolErrorResult(result: unknown): boolean {
   );
 }
 
-/**
- * Rebuild the tool calls the portal already executed this round (events with
- * an output, even an empty one) as one assistant `tool_calls` message plus a `tool` message per
- * call — the chain useChatStorage rebuilds for stored history. Ids already in
- * the conversation are skipped: the portal repeats earlier rounds' events.
- */
 function serverToolCallMessages(
   events: StreamAccumulator["toolCallEvents"],
   messages: LlmapiMessage[],
@@ -389,7 +292,6 @@ function serverToolCallMessages(
   ];
 }
 
-/** Extract tool name from either nested (function.name) or flat (name) format. */
 function getToolName(tool: Record<string, unknown>): string | undefined {
   const func = tool.function as Record<string, unknown> | undefined;
   const nestedName = func?.name;
@@ -779,14 +681,6 @@ export type RunToolLoopResult =
 export const STREAM_RESUMABLE_HEADER = "X-Stream-Resumable";
 /** Response header carrying the per-request stream id, issued by the portal pre-stream. */
 export const INFERENCE_ID_HEADER = "X-Inference-ID";
-/**
- * Request header that groups every gateway call of a conversation for observability.
- * The portal reads it (zeta-chain/ai-portal `trace.go`) into the request context so logs
- * (Datadog `conversation_id`) and the `requests.conversation_id` DB column share one source.
- * Sent on the main tool-loop send whenever a `conversationId` is in scope; the body
- * `conversation_id` field (set by the request strategies) remains as a fallback.
- * Module-local — used only here; not exported (no external importer).
- */
 const CONVERSATION_ID_HEADER = "X-Conversation-ID";
 
 /**
@@ -868,14 +762,6 @@ export type StreamingTransportResult = {
  */
 export type StreamingTransport = (options: StreamingTransportOptions) => StreamingTransportResult;
 
-/**
- * Wraps `globalThis.fetch` so that non-OK HTTP responses reject with an error
- * that includes the response body. Without this, a 500 from the portal
- * surfaces as "SSE failed: 500 Internal Server Error" with no detail — the
- * trace_id, request_id, and error type in the body are discarded. We read the
- * body defensively (at most 500 chars) so the original error path behaves the
- * same for successful responses.
- */
 const errorCapturingFetch: typeof fetch = async (input, init) => {
   const response = await globalThis.fetch(input, init);
   if (response.ok) return response;
@@ -896,9 +782,6 @@ const errorCapturingFetch: typeof fetch = async (input, init) => {
  */
 export const defaultTransport: StreamingTransport = (options) => {
   const url = `${options.baseUrl}${options.endpoint}`;
-  // Wrap the fetch so the X-Inference-ID response header can be captured.
-  // `errorCapturingFetch` throws on `!response.ok` before the capture runs,
-  // so meta only fires for 2xx — matching the xhr transport's gate.
   const fetchWithMeta: typeof fetch = async (input, init) => {
     const response = await errorCapturingFetch(input, init);
     const id = response.headers.get(INFERENCE_ID_HEADER);
@@ -921,27 +804,12 @@ export const defaultTransport: StreamingTransport = (options) => {
       ...options.headers,
     },
     signal: options.signal,
-    // MUST stay at 1. The generated client has dormant Last-Event-ID reconnect
-    // machinery, but the portal emits no `id:` lines on live streams — stream
-    // sequencing is server-internal (explicit XADD entry IDs in the portal's
-    // Redis stream buffer) — so it stays inert. Raising this would let the
-    // generated client silently re-POST the request on a blip, which is
-    // regen, not replay.
     sseMaxRetryAttempts: 1,
     onSseError: options.onSseError,
     fetch: fetchWithMeta,
   });
 };
 
-/**
- * Combine two abort signals into one that aborts when either does.
- * `AbortSignal.any` is deliberately not used — it isn't reliably available
- * on React Native / Hermes.
- *
- * The `!a || !b` fast path is deliberate: when one signal is absent (every
- * existing caller), the other passes through **by identity** — zero
- * behavioral delta on the default path.
- */
 function linkAbortSignals(
   a?: AbortSignal,
   b?: AbortSignal
@@ -1031,23 +899,15 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
     piiRedaction,
     onPiiRedacted,
   } = options;
-  // Accept a single listener or an array — array form is composed into a
-  // single dispatcher so the rest of the loop can stay shape-agnostic.
   const hooks: RunHooks | undefined = Array.isArray(hooksOption)
     ? composeHooks(hooksOption)
     : hooksOption;
   const runId = generateRunId();
-  // `messages` is mutable so pre-processors can inject context
-  // (e.g. web search results) before the first LLM request.
   let messages = options.messages;
 
   const resolved = resolveApiType(apiType, model);
   const strategy = getStrategy(resolved);
 
-  // `onRunEnd` and `onRunError` are mutually exclusive and fire at most once
-  // per run. Every terminal path (validation failure, pre-start abort, clean
-  // completion, mid-stream error, abort, outer catch) goes through these
-  // helpers so tracing consumers can rely on a single matched start/end pair.
   let runTerminalFired = false;
   const fireRunEnd = async (payload: Omit<RunEndEvent, "runId">) => {
     if (runTerminalFired) return;
@@ -1060,11 +920,6 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
     await safeAwait(() => hooks?.onRunError?.({ runId, ...payload }));
   };
 
-  // `onRunStart` fires before validation so observers see every invocation,
-  // including failed pre-flight checks. The matching terminal hook fires
-  // via `fireRunError` below. `messages` here is the raw caller payload —
-  // pre-processors run later, so `beforeModelCall.messages` reflects the
-  // post-enrichment state.
   await safeAwait(() =>
     hooks?.onRunStart?.({
       runId,
@@ -1074,7 +929,6 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
     })
   );
 
-  // Validate inputs
   const messagesValidation = validateMessages(messages);
   if (!messagesValidation.valid) {
     if (onError) onError(new Error(messagesValidation.message));
@@ -1104,12 +958,6 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
     return { data: null, error: msg };
   }
 
-  // Resolve the request path. The strategy still drives the request body and
-  // response parsing; only the path can be redirected via `endpointOverride`.
-  // The built-in transports form the URL as `baseUrl + endpoint`, so an override
-  // must be a non-empty, root-relative path. Computed AFTER onRunStart so a bad
-  // override goes through the same validation-failure path as the checks above
-  // (onRunError + `{data:null,error}`), never a raw throw.
   let effectiveEndpoint = strategy.endpoint;
   if (endpointOverride !== undefined) {
     const overrideValidation = validateEndpointOverride(endpointOverride);
@@ -1125,26 +973,12 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
     effectiveEndpoint = overrideValidation.endpoint;
   }
 
-  // Combine the user abort signal with the detach signal. Linked after the
-  // validation returns above so the listeners it registers can't leak on a
-  // failed pre-flight check; every exit below cleans up — explicitly at the
-  // pre-start guard, via the `finally` on the main try/catch for the rest.
   const { signal: combinedSignal, cleanup: cleanupSignalLink } = linkAbortSignals(
     signal,
     detachSignal
   );
-  // Classification reads the ORIGINAL signals: an explicit user abort always
-  // wins over a detach when both fired — stop semantics are the billing-safe
-  // interpretation.
   const isDetach = () => detachSignal?.aborted === true && signal?.aborted !== true;
 
-  // Capability header: computed once and read at BOTH transport call sites so
-  // it rides on the initial round, every continuation round, and every retry
-  // attempt. Off by default — no header is sent for existing callers.
-  //
-  // X-Conversation-ID is folded in here (not at the call sites) for the same
-  // reason: it must ride every round and retry. Sent only when a non-empty
-  // conversationId is in scope, so existing callers without one are unaffected.
   const conversationHeader =
     conversationId && conversationId.trim() !== ""
       ? { [CONVERSATION_ID_HEADER]: conversationId.trim() }
@@ -1155,9 +989,6 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
     ...(resumable ? { [STREAM_RESUMABLE_HEADER]: "1" } : undefined),
   };
 
-  // Latest inference id captured from a 2xx response's X-Inference-ID header.
-  // Transport-level retries dispatch a fresh HTTP request with a fresh id and
-  // overwrite this — the latest value is authoritative.
   let lastInferenceId: string | null = null;
   const makeResumeHandle = (): StreamResumeHandle | null =>
     resumable === true && lastInferenceId !== null
@@ -1167,7 +998,6 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
   if (combinedSignal?.aborted) {
     cleanupSignalLink();
     if (isDetach()) {
-      // Nothing was dispatched, nothing is resumable.
       await fireRunError({ error: "Request detached", stage: "model" });
       return { data: null, error: "Request detached", detached: true, resume: null };
     }
@@ -1175,18 +1005,8 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
     return { data: null, error: "Request aborted" };
   }
 
-  // PII redaction: resolve the redactor instance and transform messages.
-  // resolvePiiRedactor uses a structural check (not instanceof) so a redactor
-  // from a duplicate class copy still works, and warns instead of silently
-  // disabling redaction for an unexpected value. This runs BEFORE the
-  // pre-processor/embedding stage below so raw PII is never sent to the
-  // embeddings endpoint (the embedding is computed from redacted text).
   const redactor = resolvePiiRedactor(piiRedaction);
 
-  // Redact a batch of messages and surface the matches to onPiiRedacted.
-  // No-op (returns the input) when redaction is disabled. Async because the
-  // redactor may run an on-device NER detector (redactMessagesAsync); with no
-  // detector it resolves synchronously to the same regex result.
   const redactBatch = async (msgs: LlmapiMessage[]): Promise<LlmapiMessage[]> => {
     if (!redactor) return msgs;
     const { messages: redacted, matches } = await redactor.redactMessagesAsync(msgs);
@@ -1202,8 +1022,6 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
 
   messages = await redactBatch(messages);
 
-  // Run pre-processors if any are provided. Each receives the shared
-  // embedding and may return messages to enrich the conversation.
   if (preProcessors?.length) {
     try {
       const text = extractLastUserText(messages);
@@ -1225,10 +1043,6 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
         );
         const extra = results.flatMap((r) => (Array.isArray(r) ? r : []));
         if (extra.length > 0) {
-          // Injected context (memory/search/file) can also contain PII — redact
-          // it with the same redactor so placeholder numbering stays consistent.
-          // Keep the actual request as the latest user message. Portal uses that
-          // message for routing and moderation; fetched news is context, not a new request.
           let userIndex = messages.length - 1;
           while (userIndex > 0 && messages[userIndex].role !== "user") userIndex--;
           messages = [
@@ -1239,16 +1053,10 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
         }
       }
     } catch (err) {
-      // Embedding / pre-processor stage failure is non-fatal
       console.warn("[runToolLoop] pre-processor stage failed:", err);
     }
   }
 
-  // De-anonymize placeholders in the streamed content/thinking before they
-  // reach the user. A stateful streaming de-anonymizer is required because the
-  // smoother emits a few characters at a time, so a placeholder ([EMAIL_1])
-  // is routinely split across emitted chunks; a per-chunk replace would never
-  // match it. Created once per run; flushed after each round's smoother drains.
   const contentDeAnon = redactor && onData ? createStreamingDeAnonymizer(redactor, onData) : null;
   const thinkingDeAnon =
     redactor && onThinking ? createStreamingDeAnonymizer(redactor, onThinking) : null;
@@ -1259,11 +1067,6 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
     thinkingDeAnon?.flush();
   };
 
-  // Final-output de-anonymization. The returned response, `onFinish`, and the
-  // `finalContent` reported to hooks must show the user real values — but the
-  // accumulator keeps placeholders because continuation rounds re-send them to
-  // the model. So de-anonymize a shallow clone rather than mutating the
-  // accumulator (which would leak real PII into the next round's prompt).
   type Accumulator = ReturnType<typeof createStreamAccumulator>;
   const buildResponseFinal = (acc: Accumulator): ApiResponse =>
     redactor
@@ -1297,8 +1100,6 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
       conversationId,
     });
 
-    // Populated by the retry loop below; declared out here so the rest
-    // of the function (post-stream tool execution etc.) can reach them.
     let accumulator!: ReturnType<typeof createStreamAccumulator>;
     let contentSmoother!: StreamSmoother;
     let thinkingSmoother!: StreamSmoother;
@@ -1314,10 +1115,6 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
       })
     );
 
-    // afterModelCall must pair with each beforeModelCall — fire exactly once
-    // per LLM round, on success/abort/error. Tracked here to keep exits symmetric.
-    // Transport-level retries are hidden from these hooks; observers can use
-    // `onStreamRetry` if they want per-attempt visibility.
     let afterModelCallFired = false;
     const fireAfterModelCall = async (payload: Omit<ModelCallEndEvent, "runId" | "stepIndex">) => {
       if (afterModelCallFired) return;
@@ -1332,12 +1129,10 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
     };
     const extractFinishReason = (resp: unknown): string | undefined => {
       if (!resp || typeof resp !== "object") return undefined;
-      // Completions API: choices[0].finish_reason
       const choices = (resp as { choices?: Array<{ finish_reason?: string | null }> }).choices;
       if (Array.isArray(choices) && choices[0]?.finish_reason) {
         return choices[0].finish_reason ?? undefined;
       }
-      // Responses API: status field on the response
       const status = (resp as { status?: string }).status;
       return typeof status === "string" ? status : undefined;
     };
@@ -1367,14 +1162,6 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
       };
     };
 
-    // Detach terminal: FLUSH (never destroy, never drain) the round's active
-    // smoothers so the UI synchronously receives every byte the accumulator
-    // holds before the result resolves — the resume replay starts a fresh
-    // accumulator from seq 0, so nothing may be left stranded in a smoother
-    // buffer at detach. destroy() would discard the buffer; drain() would
-    // pace it out over seconds. Then close the hook pair and return the
-    // detached result variant. `onError` is NOT called for detach — identical
-    // policy to aborts.
     const returnDetached = async (
       acc: ReturnType<typeof createStreamAccumulator>,
       smoothers: StreamSmoother[]
@@ -1392,21 +1179,9 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
       };
     };
 
-    // Transport-level retry: only fires when the failure happens before
-    // any chunk reached the smoothers / accumulator. Once user-visible
-    // output has started, a retry would risk duplicate or contradictory
-    // content (the LLM is stochastic), so we bail instead.
     for (let attempt = 0; attempt < STREAM_RETRY_MAX_ATTEMPTS; attempt++) {
       sseError = null;
 
-      // Pre-dispatch guard: a detach/abort can land while nothing is in
-      // flight — e.g. during a retry backoff (sleep() resolves immediately
-      // on abort and would otherwise dispatch a doomed attempt). Dispatching
-      // anyway would let the transport short-circuit a pre-aborted signal
-      // into an orderly empty `done` that the loop would misread as an empty
-      // success — classify and return instead. Nothing user-visible has
-      // streamed at this point (pre-content failures are the only retried
-      // class), so the result carries no data.
       if (combinedSignal?.aborted) {
         if (isDetach()) {
           await fireAfterModelCall({ content: "", toolCalls: [], error: "detached" });
@@ -1456,12 +1231,6 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
       let chunksEmittedDownstream = false;
       try {
         for await (const chunk of sseResult.stream) {
-          // Detect mid-stream aborts here rather than after the loop. Once
-          // `xhr.onload` (or fetch's equivalent) has run, the connection
-          // closed cleanly and every byte was parsed; a late `signal.abort()`
-          // from caller cleanup must not retroactively mark a completed
-          // response as aborted. The detach branch inherits the same
-          // property by living in the same spot.
           if (combinedSignal?.aborted) {
             if (isDetach()) {
               return await returnDetached(accumulator, [contentSmoother, thinkingSmoother]);
@@ -1511,15 +1280,9 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
             }
           }
         }
-        // An sseError set via the onSseError callback (but never thrown
-        // by the iterator itself) still represents a transport-level
-        // failure — fold it into the retry path.
         if (sseError !== null) throw sseError as Error;
-        // Success.
         break;
       } catch (streamErr) {
-        // The destroy lives inside each branch (not unconditionally at the
-        // top) because the detach branch must FLUSH the smoothers instead.
         if (isAbortError(streamErr) || combinedSignal?.aborted) {
           if (isDetach()) {
             return await returnDetached(accumulator, [contentSmoother, thinkingSmoother]);
@@ -1561,57 +1324,29 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
       }
     }
 
-    // Only the terminal text response gets the paced typewriter drain. When the
-    // round emitted tool calls (the agentic loop will continue), flush instantly:
-    // paced-draining large tool args/results at the smoother's char rate blocked
-    // the loop for tens of seconds per round — the dominant multi-round latency.
     if (accumulator.toolCalls.size > 0) {
       contentSmoother.flush();
       thinkingSmoother.flush();
     } else {
       await Promise.all([contentSmoother.drain(), thinkingSmoother.drain()]);
     }
-    // Emit any placeholder fragment held back across the smoother's final slice.
     flushDeAnon();
     await fireAfterModelCall(buildModelCallEndPayload(accumulator));
 
     const response = buildResponseFinal(accumulator);
 
-    // ── Multi-turn tool calling loop ──
     const executorMap = createToolExecutorMap(tools);
     let currentAccumulator = accumulator;
     let currentMessages = messages;
     let toolIteration = 0;
-    // Absolute ceiling on caller-supplied maxToolRounds. Even trusted
-    // callers shouldn't be able to drive 10k LLM round-trips per message;
-    // 50 comfortably covers the slide-generation flow (needs ~20) while
-    // bounding worst-case cost from a runaway or malicious caller.
     const ABSOLUTE_MAX_TOOL_ROUNDS = 50;
     const effectiveMaxToolRounds = Math.min(maxToolRounds ?? 20, ABSOLUTE_MAX_TOOL_ROUNDS);
-    // Hard safety cap: a small margin above the soft cap. The soft cap sets
-    // `toolChoice: "none"` to force a final text response, which should end
-    // the loop within one more iteration; the hard cap guards against a
-    // model that ignores `toolChoice: "none"` and keeps emitting tool calls.
     const hardIterationCap = effectiveMaxToolRounds + 5;
     const isConnectorTool = (name: string) => CONNECTOR_PREFIXES.some((p) => name.startsWith(p));
     const connectorCallCount = { total: 0 };
     let connectorLimitHit = false;
-    // Accumulate successful tool results across every loop iteration. The
-    // skipContinuation-only early-return path below returns just the final
-    // round's results, which is fine for one-shot display_* tools. Multi-
-    // round flows (e.g. slide-deck plan_deck + add_slide × N) need every
-    // round's results so the storage layer can persist them as a
-    // `[Tool Execution Results]` message and the chat UI can render the
-    // deck via parseDisplayResults.
     const accumulatedToolResults: AutoExecutedToolResult[] = [];
 
-    // Cumulative provider-reported usage for this call. Each iteration's
-    // accumulator holds the response that issued the tool calls we're about
-    // to execute (the initial response on iteration 1, continuation N's on
-    // iteration N+1), so summing at the top of the loop counts every
-    // response that can lead to another request. The final text-only
-    // response never re-enters the loop — its cost can't trigger anything,
-    // so it doesn't need counting.
     let turnTokensUsed = 0;
 
     while (currentAccumulator.toolCalls.size > 0 && toolIteration < hardIterationCap) {
@@ -1623,15 +1358,6 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
 
       const toolCallsToExecute: AccumulatedToolCall[] = [];
 
-      // Execute tools that have an executor; emit onToolCall for the rest.
-      // Both branches fire `beforeToolUse` (it's observe-only and fires for
-      // every tool the model invoked — executor-backed or server-side).
-      // Note: `afterToolUse` is asymmetric — it only fires for tools that
-      // actually run via an executor below. Server-side tools without an
-      // executor get a `beforeToolUse` but never an `afterToolUse`.
-      // TODO(follow-up PR): support returning { args?, abort?: { reason } }
-      // from beforeToolUse so observers can mutate args or short-circuit
-      // the call. Today this is observe-only.
       for (const toolCall of currentAccumulator.toolCalls.values()) {
         const executorConfig = executorMap.get(toolCall.name);
 
@@ -1666,7 +1392,6 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
         break;
       }
 
-      // Output tool execution info to thinking stream
       if (onThinking) {
         const toolInfo = toolCallsToExecute
           .map((tc) => {
@@ -1684,10 +1409,6 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
         thinkingSmoother.push(`\nExecuting tool: ${toolInfo}\n`);
       }
 
-      // Topological phase execution: tools with dependsOn wait for the named
-      // tools to complete before starting. Handles multi-level chains (A → B → C).
-      // Note: batchToolNames tracks by name, so duplicate calls to the same tool
-      // (e.g. two create_file calls) land in the same phase via Promise.all.
       const batchToolNames = new Set(toolCallsToExecute.map((tc) => tc.name));
       const completed = new Set<string>();
       let remaining = [...toolCallsToExecute];
@@ -1705,10 +1426,6 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
           return deps.every((d) => !batchToolNames.has(d) || completed.has(d));
         });
         if (ready.length === 0) {
-          // Emit error results for remaining tools so every tool call the
-          // LLM issued gets a corresponding tool result message.
-          // Propagate failures transitively through the dependency chain
-          // before classifying, so the result is independent of iteration order.
           const failedNames = new Set(
             executionResults
               .filter((r) => r.error)
@@ -1735,7 +1452,6 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
               ? `failed dependencies: ${failedDeps.join(", ")}`
               : "a dependency cycle";
             const errorMsg = `Tool "${tc.name}" was not executed due to ${reason}`;
-            // Work skipped because the user pressed Stop is a cancellation, not a tool failure.
             const skipErrorType = combinedSignal?.aborted ? "cancelled" : "execution";
             executionResults.push({
               id: tc.id,
@@ -1767,12 +1483,6 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
                 error: `No executor found for tool: ${toolCall.name}`,
               };
             }
-            // Opt-in: restore original PII values in this tool's arguments
-            // before it runs, using runToolLoop's own redactor (which holds
-            // this turn's [EMAIL_1]->real mapping from the request redaction).
-            // Used by on-device tools like memory_vault_save so they persist the
-            // real value instead of a placeholder; connectors don't opt in, so
-            // their args stay redacted.
             const toolCallForExec =
               redactor && executorConfig.deAnonymizeArgs && toolCall.arguments
                 ? { ...toolCall, arguments: redactor.deAnonymize(toolCall.arguments) }
@@ -1806,7 +1516,6 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
         remaining = remaining.filter((tc) => !readySet.has(tc));
       }
 
-      // Remove connector tools after maxConnectorCalls (fast models only)
       const isFastModel = model?.startsWith("cerebras/");
       if (isFastModel && apiTools && isFinite(maxConnectorCalls)) {
         for (const tc of toolCallsToExecute) {
@@ -1833,10 +1542,6 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
         }
       }
 
-      // Remove tools with removeAfterExecution: true that succeeded, and tools
-      // whose removeAfterResult accepts any successful result this round.
-      // Client-executed results only: portal-run tools are not in
-      // executionResults, and the contract on ToolConfig says so.
       if (tools && apiTools) {
         const successfullyExecutedNames = new Set<string>();
         const successfulResults: unknown[] = [];
@@ -1864,9 +1569,6 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
               (tc.removeAfterExecution === true && successfullyExecutedNames.has(toolName)) ||
               (typeof removeAfterResult === "function" &&
                 successfulResults.some((result) => {
-                  // A predicate sees every tool's result, not just its own, so
-                  // one written for its own shape can throw on a sibling's. That
-                  // must not end a turn whose tools all succeeded.
                   try {
                     return removeAfterResult(result);
                   } catch {
@@ -1896,10 +1598,6 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
         }
       }
 
-      // After the user confirmed a booking, a model has wandered to unrelated
-      // tools (a local search, the weather) instead of booking, and a prompt
-      // line did not stop it. So a confirmed action narrows the rest of the
-      // turn to its tool set; apiTools carries the narrowing into later rounds.
       if (apiTools) {
         const confirmedTools = toolsAfterConfirmation(apiTools, executionResults);
         if (confirmedTools) {
@@ -1918,9 +1616,6 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
         }
       }
 
-      // Output tool results to thinking stream (skip tools that won't continue
-      // to the LLM, as they can return very large results like 35K+ HTML that
-      // would block drain() for minutes at the smoother's character rate)
       if (onThinking) {
         const thinkingResults = executionResults.filter(
           (r) => !r.name || executorMap.get(r.name)?.skipContinuation !== true
@@ -1940,7 +1635,6 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
         }
       }
 
-      // Fire onStepFinish callback
       if (onStepFinish) {
         onStepFinish({
           stepIndex: toolIteration,
@@ -1965,34 +1659,21 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
         });
       }
 
-      // Flush (don't paced-drain) the diagnostic thinking stream before
-      // continuation. Tool args/results pushed here can be tens of KB (e.g. a
-      // slide's full JSX, or plan_deck's recipe), and paced-draining them at the
-      // smoother's char rate would block the loop for tens of seconds per round.
       thinkingSmoother.flush();
       thinkingDeAnon?.flush();
 
-      // Accumulate this round's successful results for the main return path.
-      // Multi-round flows (e.g. plan_deck + add_slide × N) need every round's
-      // results so the chat UI can render the aggregated display interactions
-      // (e.g. a populated slide deck) via parseDisplayResults.
       for (const r of executionResults) {
         if (!r.error && r.name) {
           accumulatedToolResults.push({ name: r.name, result: r.result });
         }
       }
 
-      // Build tool result messages — exclude tools with skipContinuation
-      // EXCEPT when the tool errored. Errors always continue so the model
-      // can see what went wrong and retry; otherwise a skipContinuation
-      // tool that fails leaves the assistant turn silently broken.
       const continueResults = executionResults.filter((r) => {
         if (!r.name) return false;
         if (r.error || isToolErrorResult(r.result)) return true;
         return executorMap.get(r.name)?.skipContinuation !== true;
       });
 
-      // If ALL tools have skipContinuation, return early
       if (continueResults.length === 0) {
         const skipResponse = buildResponseFinal(currentAccumulator);
         if (onFinish) onFinish(skipResponse);
@@ -2024,8 +1705,6 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
           })),
       };
 
-      // Server-executed calls from this round go first so the model sees the
-      // evidence (search results, availability) behind the client call.
       const toolResultMessages: LlmapiMessage[] = [
         ...serverToolCallMessages(
           currentAccumulator.toolCallEvents,
@@ -2048,23 +1727,9 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
         } as LlmapiMessage);
       }
 
-      // Continue the conversation with tool results. Redact the freshly
-      // appended messages: tool results can contain PII fetched from external
-      // systems, which would otherwise reach the provider in clear text. The
-      // assistant message already holds model-emitted placeholders, which are
-      // inert under redaction.
       currentMessages = [...currentMessages, ...(await redactBatch(toolResultMessages))];
 
       const turnBudgetExhausted = maxTurnTokens !== undefined && turnTokensUsed >= maxTurnTokens;
-      // "required" exists to guarantee the FIRST round picks a tool (e.g.
-      // media modes forcing generate_image). Re-sending it on continuation
-      // rounds corners the model: it has finished the real work but is
-      // forbidden from answering with text, so it fabricates whatever tool
-      // call escapes the constraint (observed: junk memory_vault_save
-      // writes like "The user said: 'tiger'" after image generations).
-      // Once a tool round has executed, downgrade to "auto" so remaining
-      // calls are the model's judgment. Named-tool forcing is left
-      // untouched — slide/app flows rely on re-forcing a specific tool.
       const relaxedToolChoice = toolChoice === "required" ? "auto" : toolChoice;
       const continuationToolChoice =
         toolIteration >= effectiveMaxToolRounds || turnBudgetExhausted ? "none" : relaxedToolChoice;
@@ -2083,9 +1748,6 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
         conversationId,
       });
 
-      // Continuation rounds use the same transport-level retry as the
-      // initial request — same chunk-emission guard so we never replay
-      // a round once partial content has reached the user.
       let contContentSmoother!: StreamSmoother;
       let contThinkingSmoother!: StreamSmoother;
 
@@ -2105,12 +1767,6 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
       for (let attempt = 0; attempt < STREAM_RETRY_MAX_ATTEMPTS; attempt++) {
         sseError = null;
 
-        // Pre-dispatch guard — see the note on the initial attempt loop. On
-        // continuation rounds this additionally covers a detach/abort landing
-        // during tool execution between rounds. The result is built from the
-        // PREVIOUS round's accumulator, which still holds the last streamed
-        // content; its smoothers were already flushed/drained, so there is
-        // nothing left to flush here.
         if (combinedSignal?.aborted) {
           if (isDetach()) {
             return await returnDetached(currentAccumulator, []);
@@ -2169,10 +1825,6 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
         let chunksEmittedDownstream = false;
         try {
           for await (const chunk of continuationResult.stream) {
-            // See note in the initial stream loop above — the abort check
-            // belongs inside the for-await body, not after it, so a clean
-            // completion followed by a late cleanup-time abort isn't
-            // misreported as "Request aborted".
             if (combinedSignal?.aborted) {
               if (isDetach()) {
                 return await returnDetached(currentAccumulator, [
@@ -2228,10 +1880,8 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
             }
           }
           if (sseError !== null) throw sseError as Error;
-          break; // success
+          break;
         } catch (streamErr) {
-          // Same as the initial round's catch: the destroy lives inside each
-          // branch because the detach branch must FLUSH instead.
           if (isAbortError(streamErr) || combinedSignal?.aborted) {
             if (isDetach()) {
               return await returnDetached(currentAccumulator, [
@@ -2278,20 +1928,16 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
         }
       }
 
-      // Same rule as the initial round: paced drain only for the terminal
-      // response; flush instantly while the tool loop will continue.
       if (currentAccumulator.toolCalls.size > 0) {
         contContentSmoother.flush();
         contThinkingSmoother.flush();
       } else {
         await Promise.all([contContentSmoother.drain(), contThinkingSmoother.drain()]);
       }
-      // Emit any placeholder fragment held back across the smoother's final slice.
       flushDeAnon();
       await fireAfterModelCall(buildModelCallEndPayload(currentAccumulator));
     }
 
-    // Append connector limit tip after all content has streamed
     if (connectorLimitHit) {
       const tip =
         "\n\n> **Tip:** Switch to a **Thinking model** for more detailed results with connectors like Notion, Google Calendar, and Drive.\n";
@@ -2300,21 +1946,6 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
       currentAccumulator.content += tip;
     }
 
-    // A completion the provider cut off at the output-token ceiling arrives
-    // here as an accumulator with no tool calls and no content: the partial
-    // tool call could not be parsed, so nothing survived. The loop's exit
-    // condition (`toolCalls.size > 0`) cannot tell that apart from a model
-    // that finished cleanly, so without this check the turn returns
-    // `error: null` and an empty response — the caller sees success and no
-    // output. Observed against deepinfra/moonshotai/Kimi-K2.6, whose 4096
-    // default ceiling truncates a multi-slide `add_slide` round mid-argument.
-    //
-    // Only fires when nothing usable came back. A truncated *text* answer is
-    // still worth returning, so partial content is left alone.
-    // Checked on whichever accumulator is about to be returned, so the
-    // single-round path below is covered too: a *first* response truncated
-    // before it produced anything leaves toolIteration at 0 and is just as
-    // silent as a truncated continuation.
     const truncatedToNothing = (acc: {
       finishReason?: string;
       toolCalls: Map<string, unknown>;
@@ -2326,12 +1957,6 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
       "any usable content or tool call. Retry with a higher `maxOutputTokens`, or " +
       "prompt for fewer/smaller tool calls per turn.";
 
-    /**
-     * Report the accumulator's terminal state on the result. Reads the same two
-     * fields `truncatedToNothing` above does, so what a caller sees is exactly
-     * what the guard decided on — rather than a re-derivation from the response
-     * shape, which cannot answer for either API (see {@link RunTerminalState}).
-     */
     const terminalStateOf = (acc: {
       finishReason?: string;
       toolCalls: Map<string, unknown>;
@@ -2340,7 +1965,6 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
       finalToolCallCount: acc.toolCalls.size,
     });
 
-    // Build final response from the last accumulator
     if (toolIteration > 0) {
       if (truncatedToNothing(currentAccumulator)) {
         await fireRunError({ error: TRUNCATION_ERROR, stage: "model" });
@@ -2366,8 +1990,6 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
       };
     }
 
-    // Single-round turn: no tool call was ever executed. If the one response
-    // we got was truncated to nothing, this is the same silent dead-end.
     if (truncatedToNothing(accumulator)) {
       await fireRunError({ error: TRUNCATION_ERROR, stage: "model" });
       return {
@@ -2391,8 +2013,6 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
     };
   } catch (err) {
     if (isAbortError(err)) {
-      // Safety net: catches an `AbortError` escaping from a stage the
-      // in-loop exits don't cover (e.g. the embedding / pre-processor stage).
       if (isDetach()) {
         await fireRunError({ error: "Request detached", stage: "model" });
         return {
@@ -2402,8 +2022,6 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
           resume: makeResumeHandle(),
         };
       }
-      // `onRunStart` always fires before this try block opens, so any abort
-      // that escapes here still needs a terminal hook to close the run.
       const abortErr = err instanceof Error ? err : new Error("Request aborted");
       await fireRunError({ error: "Request aborted", stage: "model", errorObject: abortErr });
       return { data: null, error: "Request aborted" };
@@ -2412,10 +2030,6 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
     const errorMsg = err instanceof Error ? err.message : "Failed to send message.";
     const errorObj = err instanceof Error ? err : new Error(errorMsg);
     if (onError) onError(errorObj);
-    // Stage is "model" because every throwing path in this loop is either
-    // inside or immediately after an LLM stream consumption (provider error,
-    // SSE error, stream exception). Tool execution failures surface as
-    // structured `{ error, errorType }` results, not thrown exceptions.
     await fireRunError({ error: errorMsg, stage: "model", errorObject: errorObj });
     const statusCode =
       err instanceof Error && "statusCode" in err

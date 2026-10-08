@@ -1,15 +1,4 @@
 // @vitest-environment happy-dom
-/**
- * Sticky tool sets on the SERVER-tool side of both `useChatStorage` send paths.
- *
- * Server tools are ranked against the latest prompt only, so in a booking chat a
- * follow-up like "Retry" or "okay" used to ship none of the restaurant tools and
- * the model said the reservation tool was unavailable. With `activeToolSets`
- * naming `restaurant-booking`, the set's server tools must ride along whatever
- * the prompt scored — including below the short-prompt gate, where no embedding
- * is made at all, and when the embedding fails. Runs against the react and expo
- * hooks, persisted and skipStorage paths, and the react preview.
- */
 
 import { Database } from "@nozbe/watermelondb";
 import LokiJSAdapter from "@nozbe/watermelondb/adapters/lokijs";
@@ -64,7 +53,6 @@ function serverTool(name: string): ServerTool {
 
 const CATALOG = ["AnumaJinaMCP-search_web", ...RESTAURANT_TOOLS].map(serverTool);
 
-// The semantic filter a terse follow-up gets: nothing in the booking chain scores.
 const semanticMiss = () => [];
 
 function makeDatabase(): Database {

@@ -1,100 +1,17 @@
-/**
- * Shared portal LLM call for the memory pipeline.
- *
- * The three LLM-driven steps (`extractFacts`, `consolidateMemory`,
- * `decomposeQuery`) share the same shape: POST to `/api/v1/chat/completions`
- * with a system+user prompt and `response_format: json_object`, parse
- * `choices[0].message.content` as JSON, validate, return null on any failure.
- * This helper owns the fetch+timeout+parse+log boilerplate so each caller
- * stays focused on its prompt and validator.
- *
- * PROMPT CACHING. The portal inserts explicit prompt-cache breakpoints only for
- * `anthropic/` models. Its request schema does carry OpenAI's
- * `prompt_cache_key`, but that is a routing hint for OpenAI's own implicit
- * cache rather than a switch that enables caching, and we deliberately don't
- * send it: the memory pipeline runs open-weights models by default (gpt-oss for
- * extraction/topics, ling for consolidation), and this module already has one
- * hard lesson about OpenAI-standard fields a non-OpenAI provider hard-400s on
- * (`response_format`, below). Revisit only with a verified per-provider gate.
- *
- * So on the models this pipeline actually uses, the only cache that can hit is
- * the provider's own implicit prefix cache — which makes prefix stability the
- * one lever a caller controls. Messages are assembled system-first (below), so
- * every caller must pass a CONSTANT `systemPrompt` and keep all per-call
- * material in `userMessage`: a single interpolated timestamp, id, or count in a
- * system prompt shifts every byte after it and misses the cache on every
- * request thereafter. The memory callers are regression-gated on that property
- * in `promptPrefixStability.test.ts`.
- *
- * Whether those implicit caches hit is observable: each successful response
- * logs the portal's reported token counts at debug level, including
- * `portal.cached_tokens` (the prompt tokens the provider served from cache —
- * the portal omits the field when there was no hit). See {@link logPortalUsage}.
- *
- * There is no batch/async-bulk route on the portal, so a backfill or reindex
- * has no discounted-throughput path either; its only levers are the same stable
- * prefix and caller-side batching (e.g. topicExtract's 10-memories-per-call).
- */
-
 import { BASE_URL } from "../../clientConfig.js";
 import { validateEndpointOverride } from "../chat/endpointOverride.js";
 import { withInternalFlowMarker } from "../internalFlowMarker.js";
 import { getLogger } from "../logger.js";
 import { type TaskType, taskTypeHeader } from "../taskType.js";
 
-/** Read per-call so tests that mutate `process.env` between imports take effect. */
 function defaultBaseUrl(): string {
   return (typeof process !== "undefined" && process.env?.ANUMA_PORTAL_BASE_URL) || BASE_URL;
 }
 
-/**
- * Providers whose models accept an OpenAI-style `response_format` field.
- *
- * Support is model-specific, not universal. gpt-oss-120b (Cerebras) rejects
- * the whole request with a 400 if `response_format` is present; OpenAI,
- * ling-2.6-flash (inclusionai), and deepseek-v4 all accept it (verified
- * 2026-06). An UNKNOWN provider defaults to OMITTING it, so a newly-added
- * model degrades to a bare prompt-instructed request (which still works via a
- * strict-JSON system prompt + the tolerant `extractJsonCandidate` parser)
- * rather than hard-failing on a 400. Anthropic ignores the flag entirely (it
- * uses the assistant-prefill path), so it is intentionally excluded here.
- */
 const RESPONSE_FORMAT_OK = new Set(["openai", "inclusionai", "deepseek"]);
 
-/**
- * Providers whose models accept `response_format: { type: "json_schema" }`.
- *
- * This is a STRICT SUBSET of {@link RESPONSE_FORMAT_OK}: json_schema (OpenAI
- * "structured outputs") is far less widely supported than json_object. Several
- * models that accept json_object reject json_schema with a 400 (e.g. older
- * OpenAI models, and providers that only implement the simpler json_object
- * mode). Keep this conservatively OpenAI-only; widen only when a provider is
- * verified to honor the json_schema variant.
- */
 const RESPONSE_SCHEMA_OK = new Set(["openai"]);
 
-/**
- * Prepended as a second system message on a retry that follows a PARSE failure.
- *
- * Retrying a parse failure with a byte-identical request is the weakest recovery
- * available: the model has already seen this exact prompt and answered with
- * prose, so the only thing varying between attempts is sampling noise. Changing
- * the request is what makes the retry mean something.
- *
- * This matters most for models that get no {@link supportsResponseFormat} gate —
- * `gpt-oss/gpt-oss-120b` (Cerebras) is the production extraction default and is
- * NOT in {@link RESPONSE_FORMAT_OK}, so its JSON correctness rests entirely on
- * the prompt plus a tolerant parser, with nothing structural to fall back on.
- *
- * Measured: a LongMemEval arm running this path failed 667 of its sessions,
- * **358 of them `invalid-json`**, against 3 failures for the eval harness's own
- * extractor — which carries exactly this reminder and had done for a year
- * (anuma-ai/sdk#911). The first `failure_reason` ever emitted in production was
- * also `invalid-json`.
- *
- * Wording is lifted from the harness rather than reinvented, so the two paths
- * fail and recover the same way.
- */
 const JSON_CONTRACT_REMINDER =
   "Output ONLY the strict JSON object requested. No prose, no explanation, no markdown.";
 
@@ -122,30 +39,6 @@ export function supportsResponseFormat(
   return model.split("/").some((seg) => allow.has(seg));
 }
 
-/**
- * Model families that must be called on `/api/v1/responses`, never on
- * `/api/v1/chat/completions`.
- *
- * The gpt-5.6 family is a reasoning family, and the chat-completions lane
- * rejects it at the provider — observed as the portal's masked "The upstream
- * model provider rejected the request" on a MINIMAL body (model + messages +
- * max_completion_tokens, no `response_format` at all), which is what ruled the
- * request shape out as the cause. The Responses transport is the one this SDK
- * already verified against dev for `gpt-5.6-luna`; see
- * {@link PortalLlmTransport} for the reasoning-effort half of the story.
- *
- * Matched on the model half of the id (`provider/model`), by PREFIX, because
- * the family shares the `gpt-5.6-` stem across variants.
- *
- * The gpt-6 entries are listed per family, not as a `gpt-6` stem, because the
- * families fail DIFFERENTLY — each was probed against dev on 2026-09-24:
- * - gpt-6-sol / gpt-6-luna reject chat-completions exactly as gpt-5.6-luna does
- *   in the same run: 400 on any effort but "none", 200 on /v1/responses.
- * - gpt-6-astra (prefix covers -pro) is worse: chat-completions rejects "none"
- *   too ("Supported values are: 'low', 'medium', 'high', and 'xhigh'"), so the
- *   portal's rewrite-to-"none" cannot rescue it and /v1/responses is its ONLY
- *   working transport. (astra-pro was not reachable on dev's virtual key.)
- */
 const RESPONSES_ONLY_MODEL_PREFIXES = ["gpt-5.6", "gpt-6-sol", "gpt-6-luna", "gpt-6-astra"];
 
 /**
@@ -263,66 +156,15 @@ export interface PortalLlmFailure {
   attempts: number;
 }
 
-/**
- * Which portal transport carries the call.
- *
- * `"chat"` (default) POSTs a chat-completions body to
- * `/api/v1/chat/completions`. `"responses"` POSTs a Responses-API body to
- * `/api/v1/responses`. Everything that makes this module worth having — retries,
- * backoff, the wall-clock budget, auth resolution, tolerant JSON salvage, usage
- * logging — is shared; only the request shape and the place the text comes back
- * differ, so those are the only two things that branch.
- *
- * WHY "responses" EXISTS HERE, since chat-completions works for most models:
- * it is the only transport on which a reasoning model can actually reason.
- * `/chat/completions` rejects the gpt-5.6 family outright when an explicit
- * `reasoning_effort` is present, and ai-portal's `neutralizeChatReasoningEffort`
- * rewrites any effort the caller did send to `"none"` to avoid that 400 — it
- * takes a `ChatCompletionRequest` and has no Responses-API counterpart, so the
- * Responses path passes the effort through untouched. Verified 2026-08-17
- * against dev: identical prompt, `/utility/responses` with `reasoning.effort`
- * returns a `type: "reasoning"` output item, `/utility/chat/completions` with
- * `reasoning_effort: "low"` comes back with `reasoning_tokens: 0`.
- *
- * That is not academic. On the topic-assignment prompt — judging whether a
- * memory names a real entity — gpt-5.6-luna scored 7/7 junk traps clean on 3/3
- * runs WITH reasoning, against 6/7 on 2 of 3 runs without it (and one of those
- * misses emitted an entity whose `name` was `undefined`).
- */
-// Not exported: no caller selects a transport explicitly (callPortalJsonCompletion
-// picks it from the model), and knip rightly flags an export nothing imports.
 type PortalLlmTransport = "chat" | "responses";
 
-/**
- * Reasoning is `"responses"`-only, and the TYPE enforces that rather than a
- * paragraph asking nicely.
- *
- * On `"chat"` the portal rewrites any effort to `"none"`, so accepting the field
- * there would hand a caller the exact outcome this transport exists to prevent:
- * they believe they asked for reasoning, everything returns 200, nothing logs,
- * and the only symptom is the eval numbers being quietly worse. The first draft
- * of this file "silently ignored" it on chat and documented that in prose —
- * which is the same bug wearing a comment. A compile error costs one line at the
- * call site (flip both fields together) and cannot be misread.
- */
 type PortalLlmTransportOptions =
   | {
-      /**
-       * Transport for this call. Omitted, it is chosen from the model: `"responses"`
-       * for a {@link requiresResponsesTransport} family, `"chat"` for everything
-       * else. See {@link PortalLlmTransport} for why the other one exists.
-       */
       transport?: Extract<PortalLlmTransport, "chat">;
-      /** Not available on `"chat"` — the portal rewrites it to `"none"`. */
       reasoning?: never;
     }
   | {
-      /**
-       * Transport for this call. `"responses"` POSTs a Responses-API body to
-       * `/api/v1/responses`; see {@link PortalLlmTransport}.
-       */
       transport: Extract<PortalLlmTransport, "responses">;
-      /** Reasoning effort. Only reachable on this transport — see above. */
       reasoning?: { effort: "low" | "medium" | "high" };
     };
 
@@ -331,154 +173,37 @@ interface PortalLlmRequestBase extends PortalLlmAuth {
   model: string;
   systemPrompt: string;
   userMessage: string;
-  /** Tag prefix for log lines, e.g. `"memory/extract"`. */
   tag: string;
-  /** Per-request timeout. Covers fetch headers AND body read. Default
-   * 60s — sized for slower providers (Anthropic Sonnet under high
-   * concurrency routinely takes 15–40s for the 2k-token consolidate
-   * prompt). Pass a tighter value for steps on the recall hot path. */
   timeoutMs?: number;
-  /** Override fetch (for tests). */
   fetchFn?: typeof fetch;
-  /** Optional extra fields merged into the request body (e.g.
-   * `max_completion_tokens` — use this modern field, not the deprecated
-   * `max_tokens`, which the portal ignores). */
   extra?: Record<string, unknown>;
-  /**
-   * Max attempts on a TRANSIENT failure (network/timeout, 408/409/425/429, any
-   * 5xx, an empty completion, or a completion with no parseable JSON). Default
-   * 3. Set to 1 to disable retries on a latency-sensitive path that already has
-   * a cheap fallback (e.g. query decompose).
-   *
-   * Terminal failures (4xx other than the codes above — notably 400/401/403/
-   * 404 — and missing/failed auth) never retry: a 400 is a bad request that
-   * won't succeed on a retry, just burning latency and (if metered) credits.
-   */
   maxAttempts?: number;
-  /**
-   * Absolute wall-clock budget (ms) across ALL attempts incl. backoff. When
-   * set, the loop stops before an attempt that would exceed it, so worst-case
-   * latency is bounded rather than `maxAttempts × timeoutMs`. Use it on a
-   * guarded path (e.g. auto-extract behind an in-flight-turn guard) so a stuck
-   * call can't hold the turn open ~3× the per-attempt timeout.
-   */
   totalTimeoutMs?: number;
-  /**
-   * Backoff before the next attempt, in ms, given the just-failed 1-based
-   * attempt index. Defaults to exponential (250·2^(n-1), capped at 2s) plus
-   * jitter. A server `Retry-After` on a 429 takes precedence (max of the two).
-   * Tests pass `() => 0` to retry without real delay.
-   */
   backoffMs?: (attempt: number) => number;
-  /**
-   * Optional per-call request path override. When set, the completion POSTs to
-   * `baseUrl + endpointOverride` instead of the TRANSPORT'S default
-   * (`/api/v1/chat/completions` for `"chat"`, `/api/v1/responses` for
-   * `"responses"`) — path only, but note the body is still built for the
-   * transport, so the two have to agree.
-   *
-   * Must be a non-empty root-relative path (validated via
-   * {@link validateEndpointOverride}), and must not point at the OTHER
-   * transport's endpoint. Either violation throws at call time before any
-   * request is sent, because a mismatched path sends the wrong body shape and
-   * 400s without retry.
-   *
-   * Used to route internal-utility calls to a dedicated endpoint (e.g.
-   * `/api/v1/utility/chat/completions` on `"chat"`,
-   * `/api/v1/utility/responses` on `"responses"`).
-   */
   endpointOverride?: string;
-  /**
-   * The Class-B task this call performs, sent as `X-Anuma-Task-Type`. Naming the
-   * task is what lets the portal own the system prompt for it instead of trusting
-   * whatever `systemPrompt` we send (see {@link TaskType}). Omitted → no header,
-   * which is the pre-existing behavior.
-   */
   taskType?: TaskType;
-  /**
-   * Invoked at most ONCE, immediately before this call gives up and returns
-   * `null`, with the classified last failure. Never invoked on success.
-   *
-   * This exists because `null` is not a diagnosis. Callers surface extraction
-   * failures to users and to analytics, and until this hook existed they could
-   * only report "empty", which is indistinguishable from a model that answered
-   * `{candidates: []}` for good reason. See {@link PortalLlmFailureReason}.
-   */
   onFailure?: (failure: PortalLlmFailure) => void;
-  /**
-   * Invoked once per attempt as it settles, success included — see
-   * {@link PortalLlmAttempt}. Diagnostic only; a throwing listener is not
-   * guarded, so keep it side-effect-light (a counter, a push onto an array).
-   */
   onAttempt?: (attempt: PortalLlmAttempt) => void;
-  /**
-   * Internal, set by the retry loop — not part of the caller-facing contract.
-   *
-   * When the previous attempt returned prose instead of JSON, the next one
-   * prepends an explicit output-contract reminder. A retry that replays the
-   * identical request is the weakest possible recovery from a parse failure:
-   * the model already saw this prompt and answered with prose, so the only
-   * thing varying is sampling noise. Changing the request is what makes the
-   * retry mean something.
-   */
   reinforceJsonContract?: boolean;
 }
 
-/**
- * A portal JSON call: the shared request fields, intersected with the
- * transport-dependent pair. The split is not cosmetic — it is what makes
- * `reasoning` unrepresentable on the chat transport (see
- * {@link PortalLlmTransportOptions}).
- */
 type PortalLlmRequest = PortalLlmRequestBase & PortalLlmTransportOptions;
 
-/**
- * Chat-completions field names that the Responses API spells differently, mapped
- * to their Responses equivalents.
- *
- * `extra` is a passthrough and every value in it today is written in
- * chat-completions spelling, because until now that was the only transport. The
- * one that matters is the output cap: `topicExtract` passes
- * `max_completion_tokens: 8192` and is the first lane pointed at this transport.
- * The Responses API reads `max_output_tokens` (see
- * chat/useChat/strategies/responses.ts) — so spreading `extra` verbatim would
- * post a field the endpoint ignores, silently drop the cap back to the portal's
- * 4096 default, and reproduce exactly the truncate-mid-JSON-and-lose-the-batch
- * failure that topicExtract's own comment was written about. Silently, because a
- * typed Go `ResponseRequest` discards the unknown field rather than 400ing.
- *
- * Translating beats documenting "respell it yourself": the caller's intent is
- * unambiguous, and the failure mode of forgetting is invisible.
- */
 const CHAT_TO_RESPONSES_FIELDS: Record<string, string> = {
   max_completion_tokens: "max_output_tokens",
 };
 
-/**
- * Re-spell caller `extra` for the Responses transport. Known chat-only fields
- * are translated; everything else passes through untouched, so this cannot
- * become a silent allowlist that swallows a field a caller needs.
- */
 function responsesExtra(extra: Record<string, unknown> | undefined): Record<string, unknown> {
   if (!extra) return {};
   const out: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(extra)) {
     const target = CHAT_TO_RESPONSES_FIELDS[key] ?? key;
-    // A caller passing BOTH spellings must not have the winner decided by
-    // Object.entries order. The already-correct Responses name wins; the
-    // translated chat one never overwrites it.
     if (target !== key && target in extra) continue;
     out[target] = value;
   }
   return out;
 }
 
-/**
- * Split an override into the path the transport checks compare and whatever
- * follows it (`?query` / `#fragment`), with trailing slashes dropped from the
- * path. Comparing the raw string let `/chat/completions?x=1` or
- * `/chat/completions/` miss both the sibling rewrite and the mismatch guard.
- */
 function splitEndpoint(endpoint: string): { path: string; rest: string } {
   const cut = endpoint.search(/[?#]/);
   const rawPath = cut === -1 ? endpoint : endpoint.slice(0, cut);
@@ -488,26 +213,11 @@ function splitEndpoint(endpoint: string): { path: string; rest: string } {
   };
 }
 
-/** The endpoint suffix belonging to the OTHER transport — the one an override
- *  must not point at. */
 const FOREIGN_ENDPOINT_SUFFIX: Record<PortalLlmTransport, string> = {
   chat: "/responses",
   responses: "/chat/completions",
 };
 
-/**
- * Throw when an `endpointOverride` points at the other transport's endpoint.
- * Body shape and path are chosen independently and only one of them is visible
- * to the person flipping a lane — see the call site for why that asymmetry is
- * the whole point.
- *
- * Rejects the KNOWN-WRONG pairing rather than requiring the transport's own
- * suffix. The stricter version also threw on chat overrides that were legal
- * before this existed — a consumer proxying through e.g. `/api/llm-proxy` has a
- * perfectly good reason to pass a path that ends in neither, and breaking that
- * is not what this guard is for. Anything ambiguous stays the caller's call, as
- * it was.
- */
 function assertTransportMatchesEndpoint(transport: PortalLlmTransport, endpoint: string): void {
   const foreign = FOREIGN_ENDPOINT_SUFFIX[transport];
   if (!splitEndpoint(endpoint).path.endsWith(foreign)) return;
@@ -518,15 +228,6 @@ function assertTransportMatchesEndpoint(transport: PortalLlmTransport, endpoint:
   );
 }
 
-/**
- * Outcome of a single attempt — distinguishes retryable from terminal.
- * `retryAfterMs` carries a server-provided `Retry-After` (429) so the wrapper
- * can honor it instead of the fixed backoff.
- *
- * `code` is the stable telemetry classification and `reason` the human log
- * line; they are deliberately separate, because `reason` interpolates status
- * codes and error messages and so can't be grouped by.
- */
 type AttemptOutcome =
   | { kind: "ok"; value: unknown }
   | {
@@ -538,16 +239,12 @@ type AttemptOutcome =
     }
   | { kind: "terminal"; code: PortalLlmFailureReason; reason: string; httpStatus?: number };
 
-// Transient 4xx only. 400 is deliberately EXCLUDED — it's a bad request that
-// won't succeed on retry. (gpt-oss's response_format 400 is already prevented
-// by the omission gate below, so it never reaches the retry path.)
 const RETRYABLE_HTTP = new Set([408, 409, 425, 429]);
 
 function isRetryableStatus(status: number): boolean {
   return status >= 500 || RETRYABLE_HTTP.has(status);
 }
 
-/** Parse a `Retry-After` header (delta-seconds or HTTP-date) to ms, or null. */
 function parseRetryAfterMs(header: string | null): number | null {
   if (!header) return null;
   const secs = Number(header);
@@ -611,18 +308,6 @@ export async function resolvePortalAuthHeaders(
  */
 export async function callPortalJsonCompletion(req: PortalLlmRequest): Promise<unknown> {
   const log = getLogger();
-  // Resolve the request path once, up front. Default to /api/v1/chat/completions;
-  // an endpointOverride is validated here (root-relative, no off-origin) and an
-  // invalid value throws immediately — a caller bug, not a transient batch
-  // failure, so it must not be swallowed into the null-on-failure path.
-  // Pick the transport when the caller did not. A reasoning family is rejected
-  // OUTRIGHT by chat/completions (see RESPONSES_ONLY_MODEL_PREFIXES), so leaving the
-  // default at "chat" means every background memory op on such a model 400s and
-  // returns null — no memories extracted, nothing on screen, and the portal's masked
-  // "upstream model provider rejected the request" as the only trace.
-  //
-  // An EXPLICIT `transport` still wins, so the documented property that this is a
-  // request field the caller owns is unchanged; only the DEFAULT moves.
   const transport: PortalLlmTransport =
     req.transport ?? (requiresResponsesTransport(req.model) ? "responses" : "chat");
   const autoUpgraded = req.transport === undefined && transport === "responses";
@@ -633,25 +318,10 @@ export async function callPortalJsonCompletion(req: PortalLlmRequest): Promise<u
       throw new Error(overrideValidation.message);
     }
     endpoint = overrideValidation.endpoint;
-    // The override and the transport have to agree, and nothing else checks.
-    // `endpointOverride` wins outright, so a responses body POSTed at a chat path
-    // is accepted at the portal's edge (ChatCompletionRequest.Validate only checks
-    // the model string) and then 400s upstream — classified http-terminal, so one
-    // hard null and no retry.
-    //
-    // An AUTO-upgrade under a chat override is the expected case, not a caller bug:
-    // the app pins the override to a LANE, not a transport (ai-memoryless-client
-    // #5536 routes all background work to `/api/v1/utility/chat/completions`) and
-    // knows nothing about which models need the other shape. So the sibling path is
-    // derived — a lane's two endpoints differ only by this suffix, the pairing
-    // FOREIGN_ENDPOINT_SUFFIX encodes. Matched on the PATH, so a query string,
-    // fragment or trailing slash cannot slip a near-miss past both this and the
-    // guard below.
     const { path, rest } = splitEndpoint(endpoint);
     if (autoUpgraded && path.endsWith("/chat/completions")) {
       endpoint = `${path.slice(0, -"/chat/completions".length)}/responses${rest}`;
     }
-    // An EXPLICIT transport that disagrees with the override is still a caller bug.
     assertTransportMatchesEndpoint(transport, endpoint);
   }
   const maxAttempts = Math.max(1, req.maxAttempts ?? 3);
@@ -659,44 +329,19 @@ export async function callPortalJsonCompletion(req: PortalLlmRequest): Promise<u
   const overBudget = () =>
     req.totalTimeoutMs !== undefined && Date.now() - startedAt >= req.totalTimeoutMs;
 
-  // Last classified failure, reported to `onFailure` at whichever give-up point
-  // we reach. Tracked rather than reported inline because the loop has four
-  // separate exits (terminal, retries exhausted, and two budget breaks) and the
-  // hook must fire exactly once on all of them.
   let lastFailure: PortalLlmFailure | undefined;
-  /**
-   * Set once the model has answered with something unparseable, so every
-   * SUBSEQUENT attempt carries {@link JSON_CONTRACT_REMINDER}.
-   *
-   * Sticky on purpose: a model that produced prose once is a model whose
-   * instructions did not land, and un-setting it after one clean-but-still-bad
-   * attempt would drop the reminder exactly when it is still needed. Scoped to
-   * the two PARSE failures — `network` and the HTTP codes say nothing about the
-   * request's shape, and a reminder there would be noise in the prompt for a
-   * problem it cannot fix.
-   */
   let reinforce = false;
   const giveUp = (): null => {
-    // A `null` return with no recorded failure would mean maxAttempts <= 0,
-    // which `Math.max(1, …)` above forbids. Report something rather than
-    // silently skipping the hook if that invariant ever changes.
     req.onFailure?.(lastFailure ?? { reason: "network", attempts: maxAttempts });
     return null;
   };
 
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-    // Stop if already over budget before starting a retry (allow first attempt)
     if (attempt > 1 && overBudget()) {
       log.warn(`[${req.tag}] over time budget before attempt ${attempt}, giving up`);
-      // The budget, not the previous attempt's cause, is why we stopped — a
-      // retryable blip that ran out of clock is a different operational problem
-      // from one that exhausted its retries.
       lastFailure = { reason: "time-budget-exhausted", attempts: attempt - 1 };
       break;
     }
-    // Cap this attempt's timeout to the remaining budget (floored at 1ms so a
-    // nearly-spent budget can't pass a negative/zero timeout that aborts before
-    // the request is even sent).
     const attemptReq =
       req.totalTimeoutMs !== undefined
         ? {
@@ -710,9 +355,6 @@ export async function callPortalJsonCompletion(req: PortalLlmRequest): Promise<u
         : reinforce
           ? { ...req, reinforceJsonContract: true }
           : req;
-    // The RESOLVED transport, not the caller's field: `attemptPortalJson` branches the
-    // BODY on it, and a responses endpoint carrying a chat-shaped body is exactly the
-    // http-terminal mismatch `assertTransportMatchesEndpoint` exists to prevent.
     const outcome = await attemptPortalJson(
       { ...attemptReq, transport } as PortalLlmRequest,
       endpoint
@@ -737,16 +379,12 @@ export async function callPortalJsonCompletion(req: PortalLlmRequest): Promise<u
       log.warn(`[${req.tag}] ${outcome.reason}`);
       return giveUp();
     }
-    // Retryable. Log with attempt context; back off before the next try.
     if (attempt >= maxAttempts) {
       log.warn(`[${req.tag}] ${outcome.reason} — attempt ${attempt}/${maxAttempts}, giving up`);
       break;
     }
-    // Honor a server Retry-After (429) over the fixed backoff when it's larger.
     const backoff = (req.backoffMs ?? defaultBackoffMs)(attempt);
     const delay = Math.max(backoff, outcome.retryAfterMs ?? 0);
-    // Stop if the next attempt (or even the wait before it) would blow the
-    // absolute budget — keeps worst-case latency bounded on guarded paths.
     if (
       overBudget() ||
       (req.totalTimeoutMs !== undefined && Date.now() - startedAt + delay >= req.totalTimeoutMs)
@@ -754,7 +392,6 @@ export async function callPortalJsonCompletion(req: PortalLlmRequest): Promise<u
       log.warn(
         `[${req.tag}] ${outcome.reason} — attempt ${attempt}/${maxAttempts}, over time budget, giving up`
       );
-      // Same reasoning as the pre-attempt budget break: the clock is the cause.
       lastFailure = { reason: "time-budget-exhausted", attempts: attempt };
       break;
     }
@@ -764,57 +401,19 @@ export async function callPortalJsonCompletion(req: PortalLlmRequest): Promise<u
   return giveUp();
 }
 
-/**
- * One request attempt. Returns a classified outcome so the caller can decide
- * whether to retry. Operational failures map to `retryable`/`terminal`; only a
- * missing-credentials wiring error throws (by contract — see
- * {@link resolvePortalAuthHeaders}).
- *
- * Auth is resolved PER ATTEMPT, not once up front: a short-lived `getToken`
- * can expire across retries + backoff, so each attempt fetches a fresh token.
- * A token that's unavailable (fetch failed / returned null) is terminal — we
- * don't retry the token service in a tight loop.
- */
 async function attemptPortalJson(req: PortalLlmRequest, endpoint: string): Promise<AttemptOutcome> {
   const baseUrl = req.baseUrl ?? defaultBaseUrl();
   const fetchImpl = req.fetchFn ?? fetch;
   const timeoutMs = req.timeoutMs ?? 60_000;
 
   const authHeaders = await resolvePortalAuthHeaders(req, req.tag);
-  // Missing/failed auth is TERMINAL, not retryable: a missing token or a token
-  // service that rejects us won't be fixed by hammering it 3× in a tight loop,
-  // and it matches the documented contract. (Token EXPIRY across retries is a
-  // separate concern, already handled by resolving auth per attempt.)
   if (authHeaders === null)
     return { kind: "terminal", code: "auth-unavailable", reason: "auth unavailable (no token)" };
 
-  // Anthropic models ignore OpenAI-style response_format and frequently
-  // respond conversationally to bare user queries. The canonical fix is
-  // to "prefill" the assistant turn with `{` so the model has no choice
-  // but to continue valid JSON. We prepend the prefill back onto the
-  // returned content before parsing.
-  //
-  // Gated on the TRANSPORT as well as the model, and that is the whole point of
-  // deriving it here rather than at the two use sites. Prefill is a
-  // chat-completions trick: it is a request-side push (below) AND a response-side
-  // restore (`looksLikeContinuation`), and those two have to agree. Keying only
-  // off the model left the restore armed on a path that never sent the prefill —
-  // so a `"`-leading answer would have had a `{` glued to the front of content
-  // that never lost one. Deciding once, here, makes both halves true by
-  // construction instead of by a comment at each end.
   const usesPrefill = req.transport !== "responses" && req.model.startsWith("anthropic/");
   const prefill = usesPrefill ? "{" : "";
   const messages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [
-    // Every caller of this helper is a first-party BACKGROUND op (fact extraction,
-    // topic sweep, consolidation, classifiers, graph traversal, query
-    // decomposition). Marking here — the one place they all funnel through — is what
-    // keeps the portal's detector reading them as genuine rather than markerless.
-    // See ../internalFlowMarker.
     { role: "system", content: withInternalFlowMarker(req.systemPrompt) },
-    // Retry-only. Kept as a SEPARATE message rather than appended to the system
-    // prompt so the marked prompt above stays byte-identical across attempts —
-    // the portal's internal-flow detector reads that one, and rewriting it on a
-    // retry would change what the detector sees for reasons unrelated to auth.
     ...(req.reinforceJsonContract
       ? [{ role: "system" as const, content: JSON_CONTRACT_REMINDER }]
       : []),
@@ -822,37 +421,17 @@ async function attemptPortalJson(req: PortalLlmRequest, endpoint: string): Promi
   ];
   if (prefill) messages.push({ role: "assistant", content: prefill });
 
-  // `response_format` support is model-specific, not universal — see
-  // {@link supportsResponseFormat}. Anthropic ignores the flag and uses the
-  // prefill path above.
   const supportsJsonObjectFormat = supportsResponseFormat(req.model);
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
 
-  // Build the body explicitly so the gate has final say: callers can pass
-  // arbitrary overrides via `extra`, but a model that 400s on response_format
-  // must never receive it — not even through an accidental `extra` override.
   const requestBody: Record<string, unknown> =
     req.transport === "responses"
       ? {
           model: req.model,
-          // Same system+user pair under the Responses-API field name. No prefill
-          // entry to strip: `usesPrefill` is false on this transport, so it was
-          // never pushed and the response-side restore is disarmed with it. An
-          // earlier version pushed it and sliced it back off here, which left
-          // `prefill` truthy and the restore still armed — the fix belonged at
-          // the decision, not at the two symptoms.
           input: messages,
           ...(req.reasoning && { reasoning: req.reasoning }),
-          // NO response_format. The Responses API spells structured output
-          // differently (`text.format`), and it is unverified against this
-          // portal — so this transport relies on the same strict-JSON system
-          // prompt plus `extractJsonCandidate` that every response_format-
-          // rejecting model already relies on. Verified end to end on dev:
-          // luna returns clean parseable JSON here without it. Add the field
-          // only with a per-provider check, exactly as RESPONSE_FORMAT_OK was
-          // earned.
           ...responsesExtra(req.extra),
         }
       : {
@@ -861,10 +440,6 @@ async function attemptPortalJson(req: PortalLlmRequest, endpoint: string): Promi
           ...(supportsJsonObjectFormat && { response_format: { type: "json_object" } }),
           ...req.extra,
         };
-  // The gate has final say over `extra` on BOTH transports — the comment above
-  // promises the responses branch never sends response_format, and a promise the
-  // code does not keep is how the next reader gets it wrong. Chat drops it for
-  // models that 400 on it; responses drops it unconditionally.
   if (req.transport === "responses" || !supportsJsonObjectFormat) {
     delete requestBody.response_format;
   }
@@ -873,8 +448,6 @@ async function attemptPortalJson(req: PortalLlmRequest, endpoint: string): Promi
   try {
     response = await fetchImpl(`${baseUrl}${endpoint}`, {
       method: "POST",
-      // Attached HERE, at the one transport every background memory op shares, so
-      // a new flow gets the provenance by construction rather than by remembering.
       headers: {
         ...authHeaders,
         ...taskTypeHeader(req.taskType),
@@ -885,7 +458,6 @@ async function attemptPortalJson(req: PortalLlmRequest, endpoint: string): Promi
     });
   } catch (err) {
     clearTimeout(timer);
-    // Network error or timeout abort — transient by nature.
     return {
       kind: "retryable",
       code: "network",
@@ -896,10 +468,6 @@ async function attemptPortalJson(req: PortalLlmRequest, endpoint: string): Promi
   if (!response.ok) {
     clearTimeout(timer);
     const reason = `portal returned ${response.status}`;
-    // A 401 on the TOKEN path may just be an expired token: retry so the next
-    // attempt re-resolves getToken and sends a fresh one. With a static apiKey
-    // (which can't expire) a 401 is a genuine auth failure and stays terminal.
-    // Auth precedence is apiKey-then-getToken, so "token path" = no apiKey.
     if (response.status === 401) {
       const tokenAuth = !req.apiKey && !!req.getToken;
       return tokenAuth
@@ -936,9 +504,6 @@ async function attemptPortalJson(req: PortalLlmRequest, endpoint: string): Promi
   }
   clearTimeout(timer);
 
-  // Log before the content check: an empty completion still burned prompt
-  // tokens, and that's exactly the case where knowing whether the prefix was
-  // cached is worth something.
   logPortalUsage(body, req.tag);
 
   if (isModerationResponse(body)) {
@@ -951,13 +516,6 @@ async function attemptPortalJson(req: PortalLlmRequest, endpoint: string): Promi
 
   const rawContent = extractCompletionContent(body);
   if (!rawContent) {
-    // Empty completion — reasoning-class models do this intermittently.
-    //
-    // The portal counts this response as a SUCCESS (it is a 200), so this
-    // branch is the only place in the system that knows it happened. The
-    // 2026-08-11 audit measured it as the dominant extraction failure in
-    // production; `empty-content` is what makes that visible without a
-    // Prometheus cross-check.
     return {
       kind: "retryable",
       code: "empty-content",
@@ -965,38 +523,20 @@ async function attemptPortalJson(req: PortalLlmRequest, endpoint: string): Promi
     };
   }
 
-  // Anthropic prefill (`{`) isn't echoed in the response — the model
-  // continues from it. Detect that case (response trimstart is a JSON
-  // continuation token like `"`, indicating a quoted object key) and
-  // prepend the prefill back. If the response starts with `{` or `[`,
-  // the prefill was either echoed or ignored — no need to prepend.
-  // If it starts with prose, the extractor below finds the first
-  // balanced brace block, so prepending would just corrupt input.
   const looksLikeContinuation = prefill && /^\s*"/.test(rawContent);
   const content = looksLikeContinuation ? prefill + rawContent : rawContent;
 
-  // Anthropic (and some other providers) ignore the OpenAI-style
-  // `response_format: json_object` flag and may prepend prose or wrap
-  // the JSON in a ```json fence. Strip both before parsing — the LLM
-  // intent is clear from the structure, and a one-off prose preamble
-  // shouldn't blow the whole extraction/decompose/consolidate step.
   const candidate = extractJsonCandidate(content);
   let value: unknown;
   try {
     value = JSON.parse(candidate);
   } catch (err) {
-    // The model returned prose with no parseable JSON (e.g. echoed the
-    // instruction, or asked a clarifying question) — retry; it's usually a
-    // one-off of the model's nondeterminism.
     return {
       kind: "retryable",
       code: "invalid-json",
       reason: `completion was not valid JSON: ${(err as Error).message}`,
     };
   }
-  // A literal `null` body is never a valid memory response, and callers use
-  // `null` as their failure sentinel — treat it as a transient miss to retry,
-  // not a successful empty (otherwise callers short-circuit without retrying).
   if (value === null) {
     return { kind: "retryable", code: "null-completion", reason: "completion parsed to null" };
   }
@@ -1059,60 +599,11 @@ function asCount(value: unknown): number | undefined {
   return typeof value === "number" && Number.isFinite(value) ? value : undefined;
 }
 
-/**
- * Emit one debug line with the token counts the portal reported for this call.
- *
- * Why: the memory pipeline's cost is dominated by a large STATIC system prompt
- * resent on every chat turn, and on the open-weights models it runs by default
- * the only thing that can amortize it is the provider's implicit prefix cache
- * (see this module's header). `portal.cached_tokens` is the portal's report of
- * how many prompt tokens the provider served from cache — it is the only signal
- * that says whether those caches hit, and the SDK previously discarded the
- * whole `usage` object, so the question was unanswerable from here. We also
- * read the OpenAI-standard `usage.prompt_tokens_details.cached_tokens`: the
- * portal populates its own field today, but the standard one is in the response
- * schema and costs nothing to accept if a provider passthrough ever fills it.
- *
- * `cached=0` is reported rather than omitted whenever we have any usage at all
- * — the portal drops the field when nothing was cached, and a silent absence
- * would be indistinguishable from "we never looked".
- *
- * PER CALL, deliberately. Every other `debug` site in the SDK is a degrade or
- * setup path that fires rarely; this one fires on every memory LLM call, and
- * the default logger routes `debug` to `console.log`, so an app that never
- * calls `setLogger` will see a line per extraction. That is the trade we want:
- * a sampled or once-per-session line cannot answer "did the prefix hit", which
- * is the only reason this exists, and any app that cares silences it with
- * `setLogger` (the `Logger` docs' own example stubs `debug` out first).
- *
- * COUNTS ONLY, never content: callers on this path deliberately PII-redact what
- * they send, so this channel must not become a way for a custom logger to see
- * it come back. Every field is read defensively — a malformed or absent `usage`
- * logs nothing and must never turn a successful completion into a failure.
- */
 function logPortalUsage(body: unknown, tag: string): void {
-  // The whole body is inside the boundary, not just the getLogger().debug call.
-  // `setLogger` takes an arbitrary consumer-supplied object, so `debug` can
-  // throw — and this now runs on the success path of every memory LLM call,
-  // ahead of the completion parse. Without the guard a logger that throws
-  // wouldn't just lose a log line: it would discard an otherwise-good portal
-  // response and skip the empty-completion retry below it, turning an
-  // observability hook into a source of extraction failures. Nothing this
-  // function can do is worth a caller's result, so it swallows everything.
-  //
-  // Deliberately silent: the only channel available for reporting a logging
-  // failure is the logger that just failed.
   try {
     const root = asRecord(body);
     if (!root) return;
     const usage = asRecord(root.usage);
-    // The Responses API spec names these input_tokens/output_tokens, so accept
-    // both spellings. NOT load-bearing against ai-portal today, and an earlier
-    // version of this comment wrongly claimed it was: the portal's ResponseUsage
-    // emits prompt_tokens/completion_tokens/cached_tokens and carries no
-    // *_tokens_details at all (pkg/llmapi/requests.go), so the fallback is
-    // defensive for other deployments and the reasoning line below cannot print
-    // yet. Don't plan a cost check around reasoning= until the portal sends it.
     const promptTokens = asCount(usage?.prompt_tokens) ?? asCount(usage?.input_tokens);
     const completionTokens = asCount(usage?.completion_tokens) ?? asCount(usage?.output_tokens);
     if (promptTokens === undefined && completionTokens === undefined) return;
@@ -1121,8 +612,6 @@ function logPortalUsage(body: unknown, tag: string): void {
       asCount(asRecord(usage?.prompt_tokens_details)?.cached_tokens) ??
       asCount(asRecord(usage?.input_tokens_details)?.cached_tokens) ??
       0;
-    // Reasoning tokens are billed as output and count against the cap, so on the
-    // one transport that can actually reason they are the number worth seeing.
     const reasoningTokens =
       asCount(asRecord(usage?.output_tokens_details)?.reasoning_tokens) ??
       asCount(asRecord(usage?.completion_tokens_details)?.reasoning_tokens);
@@ -1137,27 +626,6 @@ function logPortalUsage(body: unknown, tag: string): void {
   }
 }
 
-/**
- * Pull assistant text out of EITHER transport's body, sniffing the shape.
- *
- * Exported so `reflect` — which hand-rolls its own fetch rather than going
- * through {@link callPortalJsonCompletion} — parses Responses bodies exactly
- * the way this module does, instead of growing a second, drifting copy.
- */
-/**
- * Whether `body` is the portal's synthetic moderation refusal rather than a
- * model answer.
- *
- * When its moderation gate flags a request, ai-portal answers HTTP 200 with a
- * canned Terms-of-Service message in an envelope whose `id` is `"moderation"`
- * (`newModerationChatResponse` / `newModerationResponseResponse` in
- * internal/api/handlers/chat.go). Read as content, that message is prose, so it
- * used to classify as `invalid-json` and be retried — and the gate flags the
- * identical input every time. Gating is per provider (`openai/*` is moderated,
- * Cerebras gpt-oss is not), so in production this hit only Public-mode
- * extraction on gpt-6-luna: 77 flags in 7 days ending 2026-10-03, every one a
- * background extraction, each failed turn costing three flagged calls.
- */
 function isModerationResponse(body: unknown): boolean {
   return (
     typeof body === "object" && body !== null && (body as { id?: unknown }).id === "moderation"
@@ -1167,9 +635,6 @@ function isModerationResponse(body: unknown): boolean {
 export function extractCompletionContent(body: unknown): string | null {
   if (typeof body !== "object" || body === null) return null;
 
-  // Responses API first — its shape is unambiguous, and a body carrying
-  // `output`/`output_text` is never a chat completion, so sniffing costs
-  // nothing and keeps the caller from having to tell us which it asked for.
   const responsesText = extractResponsesContent(body);
   if (responsesText !== null) return responsesText;
 
@@ -1180,31 +645,9 @@ export function extractCompletionContent(body: unknown): string | null {
   return typeof content === "string" ? content : null;
 }
 
-/**
- * Pull assistant text out of a Responses-API body.
- *
- * `output_text` is the convenience field and is preferred when present. When it
- * is absent the walk over `output[]` is NOT optional: that array interleaves
- * `type: "reasoning"` items with `type: "message"` items, and the reasoning
- * entries carry no text. Taking `output[0]` would return the reasoning item on
- * exactly the calls this transport exists to enable — a reasoning model — and
- * report an empty completion, which the retry loop would then burn three
- * attempts on.
- *
- * Returns null (not "") when the body is not Responses-shaped, so the caller can
- * fall through to the chat-completions shape.
- */
 function extractResponsesContent(body: unknown): string | null {
   const root = asRecord(body);
   if (!root) return null;
-  // Present-but-EMPTY must fall through to the walk below, not win. A Go
-  // `string` without `omitempty` marshals to `""` when unset — the default you
-  // get for free — so a deployment that serializes the field unconditionally
-  // would short-circuit every response here, the walk would never run, and a
-  // reasoning model's text (which lives in `output[]`) would read as empty:
-  // three retries, then null. Falling through is never worse, because an
-  // `output[]` with no message text returns "" from the walk and lands on the
-  // identical empty-content retry.
   if (typeof root.output_text === "string" && root.output_text !== "") return root.output_text;
   if (!Array.isArray(root.output)) return null;
   const text = root.output
@@ -1213,8 +656,5 @@ function extractResponsesContent(body: unknown): string | null {
     .map((part) => asRecord(part)?.text)
     .filter((t): t is string => typeof t === "string")
     .join("");
-  // An `output` array with no message text is a real (empty) answer from this
-  // transport, not a wrong-shape body — return "" so the empty-completion retry
-  // fires instead of falling through to the chat parse and reporting null.
   return text;
 }

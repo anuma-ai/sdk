@@ -1,8 +1,6 @@
 import type { Collection, Database, Model } from "@nozbe/watermelondb";
 import { Q } from "@nozbe/watermelondb";
 
-// Type-only — no runtime dependency on the memoryVault module (which imports
-// from this file), so this cannot create an import cycle.
 import type { VaultMemory } from "../memoryVault/models";
 import type { Entity, MemoryEntity } from "./models";
 import {
@@ -54,32 +52,6 @@ function entityToStored(e: Entity): StoredEntity {
   };
 }
 
-/**
- * Batch resolve-or-create a set of entities, WITHOUT its own
- * `database.write()`: callers run it inside their existing write block and
- * batch the returned `operations` alongside their own.
- *
- * That shape is load-bearing, not stylistic. When the upsert committed in its
- * own writer, a caller's link insert landed in a SECOND writer — and a
- * concurrent {@link replaceMemoryEntitiesGuardedOp} could run in the gap,
- * see the freshly-upserted entity at zero links, prune it
- * ({@link findOrphanedEntities}) and leave the caller inserting a
- * memory_entity row pointing at a deleted entity.
- *
- * Names are deduplicated and normalized (lower-trim) before lookup. When an
- * entity carries a `kind`, it is written on create and back-filled onto an
- * existing row whose kind is still null — but a non-null kind is never
- * overwritten (an earlier, likely-more-confident classification wins over a
- * later one). If the same name appears twice with different kinds in one
- * batch, the first non-null kind wins.
- *
- * Creates are PREPARED here (`prepareCreate` carries no same-tick
- * requirement, and callers need the generated ids to build their link rows).
- * Kind back-fills are NOT: they are `prepareUpdate`s, which must be batched in
- * the same tick they're prepared, and every caller still has awaits to do
- * before its batch. They come back as {@link EntityKindBackfill} descriptors
- * for {@link prepareKindBackfills} to realize adjacent to the batch.
- */
 async function upsertEntitiesInWrite(
   ctx: EntityOperationsContext,
   entities: ReadonlyArray<{ name: string; kind?: string }>
@@ -126,10 +98,6 @@ async function upsertEntitiesInWrite(
 
   for (const e of existing) out.set(e.canonicalName, entityToStored(e));
   for (const record of created) out.set(record.canonicalName, entityToStored(record));
-  // A back-filled kind is applied to the RETURNED entity here rather than read
-  // back off the record: the `prepareUpdate` that writes it to the row is
-  // deferred to batch time, and callers use these values (topicsForEntities
-  // included) before then.
   for (const { record, kind } of kindBackfills) {
     out.set(record.canonicalName, { ...entityToStored(record), kind });
   }
@@ -137,20 +105,8 @@ async function upsertEntitiesInWrite(
   return { entities: out, operations: created, kindBackfills };
 }
 
-/**
- * A kind back-fill waiting to be prepared — see {@link upsertEntitiesInWrite}.
- */
 type EntityKindBackfill = { record: Entity; kind: string };
 
-/**
- * Realize the deferred kind back-fills. MUST be called in the same tick as the
- * `batch` that consumes them (ideally inline in its argument list): each is a
- * `prepareUpdate`, and WatermelonDB's dev diagnostic fires on the very next
- * `process.nextTick` if the record hasn't reached a batch by then.
- *
- * `.map()` rather than a loop is deliberate — see the transpilation hazard
- * documented on `stampTopicsExtractedAtOp`.
- */
 function prepareKindBackfills(backfills: readonly EntityKindBackfill[]): Model[] {
   return backfills.map(({ record, kind }) =>
     record.prepareUpdate((r) => {
@@ -159,11 +115,6 @@ function prepareKindBackfills(backfills: readonly EntityKindBackfill[]): Model[]
   );
 }
 
-/**
- * Read a memory's vault row from inside the caller's writer. Returns null when
- * the row is missing OR the read faulted — callers decide what that means (the
- * link guard fails CLOSED on it; the topics writer simply writes nothing).
- */
 async function findVaultRowInWrite(
   ctx: EntityOperationsContext,
   memoryId: string
@@ -179,24 +130,6 @@ async function findVaultRowInWrite(
   }
 }
 
-/**
- * THE single writer for `memory_vault.topics` — every path that changes a
- * memory's links must route its final link set through here, in the SAME batch
- * as the link ops, so the durable record and the device-local index can't
- * diverge. (`entity` / `memory_entity` never sync; `topics` is what a restored
- * device rebuilds them from.) `entities.test.ts`'s drift test enforces the
- * invariant against future link paths.
- *
- * Returns a prepared update to batch, or null when there's no row to write.
- * MUST be called from inside the caller's `database.write()`, and — like every
- * `prepareUpdate` — batched in the SAME tick: `row` is loaded by
- * {@link findVaultRowInWrite} before the prepare/batch pair for that reason.
- *
- * `updated_at` is restored to its pre-`prepareUpdate` value: pinning it is the
- * whole reason `topics_updated_at` exists (a topic change must not inflate
- * recall's recency multiplier), so this mirrors `setMemoryEntitiesOp`,
- * `stampTopicsExtractedAtOp` and `clearMemoryTopicsOverrideOp`.
- */
 function prepareTopicsUpdate(row: VaultMemory, topics: readonly StoredTopic[], now: number): Model {
   const originalUpdatedAt = row.updatedAt.getTime();
   return row.prepareUpdate((r) => {
@@ -206,11 +139,6 @@ function prepareTopicsUpdate(row: VaultMemory, topics: readonly StoredTopic[], n
   });
 }
 
-/**
- * Normalized name → the caller's spelling, first occurrence winning. Lets
- * {@link topicsForEntities} record display casing that `entity.canonical_name`
- * has already lowercased away.
- */
 function displayNamesOf(entities: ReadonlyArray<{ name: string }>): Map<string, string> {
   const out = new Map<string, string>();
   for (const e of entities) {
@@ -222,12 +150,8 @@ function displayNamesOf(entities: ReadonlyArray<{ name: string }>): Map<string, 
   return out;
 }
 
-/** The minimum an entity must expose to become a topic entry. Structural so
- * both {@link StoredEntity} and a raw {@link Entity} Model satisfy it. */
 type NamedEntity = { canonicalName: string; kind: string | null };
 
-/** Order-insensitive comparison of a stored record against a computed one. A
- * null record is never equal — a pre-v42 row must always get filled. */
 function topicsEqual(stored: StoredTopic[] | null, computed: readonly StoredTopic[]): boolean {
   if (stored === null || stored.length !== computed.length) return false;
   const key = (t: StoredTopic): string => JSON.stringify([t.name, t.kind ?? null, t.source]);
@@ -247,7 +171,6 @@ function topicsEqual(stored: StoredTopic[] | null, computed: readonly StoredTopi
  */
 export type MemoryTopicsWrite = { row: VaultMemory; topics: StoredTopic[] };
 
-/** @see {@link MemoryTopicsWrite} for what this resolves and why it doesn't prepare. */
 function resolveTopicsWrite(
   row: VaultMemory | null,
   linked: ReadonlyArray<NamedEntity>,
@@ -260,12 +183,6 @@ function resolveTopicsWrite(
   return { row, topics };
 }
 
-/**
- * The `topics` value for a memory whose final link set is `entities`. Names the
- * caller supplied keep their casing; entities that were already linked (only the
- * `add` path has any) fall back to the canonical lowercase name, which is the
- * only spelling the DB retains for them.
- */
 function topicsForEntities(
   entities: ReadonlyArray<NamedEntity>,
   displayNames: Map<string, string>,
@@ -277,7 +194,6 @@ function topicsForEntities(
   });
 }
 
-/** Normalize the two accepted {@link EntityInput} shapes to the object form. */
 function toEntityObjects(
   entityInputs: ReadonlyArray<EntityInput>
 ): Array<{ name: string; kind?: string }> {
@@ -382,8 +298,6 @@ export async function linkMemoryEntitiesOp(
     const existingEntityIds = new Set(existingLinks.map((l) => String(l.entityId)));
     const toCreate = entities.filter((e) => !existingEntityIds.has(e.uniqueId));
 
-    // Names of links this call didn't supply — the resulting set is old ∪ new,
-    // and `topics` records all of it.
     const keptIds = entities.map((e) => e.uniqueId);
     const carriedOver = await resolveEntitiesByIds(
       ctx,
@@ -411,8 +325,6 @@ export async function linkMemoryEntitiesOp(
         if (userId !== undefined) record._setRaw("user_id", userId);
       })
     );
-    // Every `prepareUpdate` below is realized HERE, inline in the batch
-    // arguments, with no await between prepare and batch.
     await ctx.database.batch(
       ...entityOps,
       ...prepareKindBackfills(kindBackfills),
@@ -424,11 +336,6 @@ export async function linkMemoryEntitiesOp(
   return skipped ? [] : entities;
 }
 
-/**
- * Resolve `entity` rows by id, for link sets whose names this call didn't
- * supply. Only ever a single memory's links (single digits), so no `Q.oneOf`
- * chunking — same reasoning as {@link findOrphanedEntities}.
- */
 async function resolveEntitiesByIds(
   ctx: EntityOperationsContext,
   entityIds: readonly string[]
@@ -440,15 +347,6 @@ async function resolveEntitiesByIds(
   return rows.map(entityToStored);
 }
 
-/**
- * In-write guard for auto link paths: true when auto-managed links must NOT
- * be written to this memory — the vault row is user-managed, soft-deleted, or
- * absent, or the read failed (fail CLOSED — {@link findVaultRowInWrite} returns
- * null for both). Truthiness (not `=== true`) so an unsanitized SQLite `1` can
- * never fail open. The row MUST be read from inside a `database.write()` block:
- * writers are serialized, so a committed `setMemoryEntitiesOp` (flag) or vault
- * delete is always visible there.
- */
 function autoLinkBlocked(row: VaultMemory | null): boolean {
   return !row || !!row.isDeleted || !!row.topicsUserManaged;
 }
@@ -510,12 +408,6 @@ export async function relinkMemoryEntitiesFromTopicsOp(
   });
 }
 
-/**
- * Shared body of the two replace paths. `guarded` applies the
- * {@link autoLinkBlocked} check; `topicsSource` is the provenance written to
- * `memory_vault.topics`, or null to leave the vault row alone entirely (relink
- * only — see {@link relinkMemoryEntitiesFromTopicsOp}).
- */
 async function replaceMemoryEntities(
   ctx: EntityOperationsContext,
   memoryId: string,
@@ -564,9 +456,6 @@ async function replaceMemoryEntities(
       return;
     }
     const orphans = await findOrphanedEntities(ctx, memoryId, toDestroy);
-    // Every `prepareUpdate` below is realized HERE, inline in the batch
-    // arguments — `findOrphanedEntities` above is the await that made preparing
-    // the kind back-fills any earlier a diagnostic (sdk#891).
     await ctx.database.batch(
       ...entityOps,
       ...prepareKindBackfills(kindBackfills),
@@ -586,30 +475,6 @@ async function replaceMemoryEntities(
   return skipped ? null : entities;
 }
 
-/**
- * Entity rows that will have NO links left once `toDestroy` is applied.
- *
- * Without this, an auto-extraction pass that stops mentioning an entity leaves
- * the `entity` row behind forever: clients render one chip per row, so a topic
- * the extractor has disowned keeps showing up and filters to nothing (client
- * issue #5135 — a calendar block titled "Home"). Re-extraction under a bumped
- * TOPICS_EXTRACTION_VERSION drops the link, and this drops the now-dead row with
- * it.
- *
- * Deliberately UNSCOPED by `user_id`: `entity` rows are global vocabulary with
- * no owner, so a row any other memory — or any other user — still references
- * must never be deleted. Only links belonging to THIS memory are the ones going
- * away, so anything else keeps the row alive. Runs inside the caller's writer,
- * where the link deletes aren't visible yet, which is why the check is
- * "links that aren't this memory's" rather than a plain count.
- *
- * Only reached from the auto path. A topic the user created by hand and never
- * used has no links to destroy, so it is never a candidate; one the extractor
- * had linked and then disowned is treated as extractor vocabulary and goes.
- *
- * No `Q.oneOf` chunking here (unlike the sweep query): the candidate list is one
- * memory's entities — single digits, nowhere near SQLite's variable cap.
- */
 async function findOrphanedEntities(
   ctx: EntityOperationsContext,
   memoryId: string,
@@ -686,9 +551,6 @@ export async function unlinkAllMemoryEntitiesForUserOp(
  */
 export async function backfillMemoryEntityUserIdsOp(
   ctx: EntityOperationsContext,
-  // Structural-minimal interface mirroring WatermelonDB's Collection.find,
-  // which THROWS on missing ID (it does not return null). The try/catch
-  // below is therefore load-bearing — don't simplify to a null check.
   vaultMemoryCollection: { find: (id: string) => Promise<{ userId?: string | null }> }
 ): Promise<number> {
   const unstamped = await ctx.memoryEntityCollection.query(Q.where("user_id", null)).fetch();
@@ -753,10 +615,6 @@ export async function getMemoriesByEntityNamesOp(
   const linkConditions: Q.Clause[] = [Q.where("entity_id", Q.oneOf(entityRows.map((e) => e.id)))];
   if (ctx.userId !== undefined) {
     if (ctx.allowUnscopedRows) {
-      // LokiJS path: the v31 SQL backfill is a no-op, so pre-v31 rows
-      // keep user_id=null. Admit them alongside the user's own rows;
-      // the downstream `itemById` filter (built from user-scoped
-      // `getAllVaultMemoriesOp`) still drops cross-user IDs.
       linkConditions.push(Q.or(Q.where("user_id", ctx.userId), Q.where("user_id", null)));
     } else {
       linkConditions.push(Q.where("user_id", ctx.userId));
@@ -764,7 +622,6 @@ export async function getMemoriesByEntityNamesOp(
   }
   const links = await ctx.memoryEntityCollection.query(...linkConditions).fetch();
 
-  // memoryId → Set<entity name> the memory matched.
   const out = new Map<string, Set<string>>();
   for (const link of links) {
     const memoryId = String(link.memoryId);
@@ -810,8 +667,6 @@ export async function getEntitiesByMemoryIdsOp(
   const linkConditions: Q.Clause[] = [Q.where("memory_id", Q.oneOf(unique))];
   if (ctx.userId !== undefined) {
     if (ctx.allowUnscopedRows) {
-      // Same LokiJS escape hatch as getMemoriesByEntityNamesOp — admit
-      // user_id=null rows (pre-v31 backfill no-op) alongside the user's own.
       linkConditions.push(Q.or(Q.where("user_id", ctx.userId), Q.where("user_id", null)));
     } else {
       linkConditions.push(Q.where("user_id", ctx.userId));
@@ -820,12 +675,10 @@ export async function getEntitiesByMemoryIdsOp(
   const links = await ctx.memoryEntityCollection.query(...linkConditions).fetch();
   if (links.length === 0) return new Map();
 
-  // Resolve entity IDs → canonical names in one batched read.
   const entityIds = Array.from(new Set(links.map((l) => String(l.entityId))));
   const entityRows = await ctx.entityCollection.query(Q.where("id", Q.oneOf(entityIds))).fetch();
   const entityIdToName = new Map(entityRows.map((e) => [e.id, e.canonicalName]));
 
-  // memoryId → Set<entity name>.
   const out = new Map<string, Set<string>>();
   for (const link of links) {
     const entityName = entityIdToName.get(String(link.entityId));
