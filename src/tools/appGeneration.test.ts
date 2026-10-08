@@ -676,6 +676,7 @@ describe("critique_design", () => {
     storage: MapFileStorage;
     critique: ToolConfig;
     createFile: ToolConfig;
+    patchFile: ToolConfig;
   } {
     const storage = new MapFileStorage();
     const tools = createAppGenerationTools({
@@ -689,7 +690,12 @@ describe("critique_design", () => {
       if (!t) throw new Error(`tool ${name} not found`);
       return t;
     };
-    return { storage, critique: find("critique_design"), createFile: find("create_file") };
+    return {
+      storage,
+      critique: find("critique_design"),
+      createFile: find("create_file"),
+      patchFile: find("patch_file"),
+    };
   }
 
   it("returns the current App.js + App.css alongside the rubric", async () => {
@@ -760,7 +766,36 @@ describe("critique_design", () => {
     });
     const result = (await critique.executor!({})) as { instruction: string };
     expect(result.instruction).toEqual(expect.stringContaining("answer each"));
-    expect(result.instruction).toEqual(expect.stringContaining("patch"));
+    expect(result.instruction).toEqual(expect.stringContaining("Patch only"));
+  });
+
+  it("limits critique instructions to the user request after a title rename", async () => {
+    const { critique, createFile, patchFile } = makeTools();
+    await createFile.executor!({
+      files: [
+        {
+          path: "App.js",
+          content: "export default function App() { return <h1>BMI Calculator</h1>; }\n",
+        },
+        { path: "App.css", content: "footer { margin-top: 1rem; }\n" },
+        { path: "package.json", content: '{"dependencies":{"react":"19.2.1"}}' },
+      ],
+    });
+    const patch = await patchFile.executor!({
+      path: "App.js",
+      patches: [{ find: "BMI Calculator", replace: "Body Mass Index Tool" }],
+    });
+    expect(patch).toMatchObject({ success: true });
+
+    const result = (await critique.executor!({})) as { instruction: string };
+    expect(result.instruction).toContain("For text, logic, or data edits, skip this critique.");
+    expect(result.instruction).toContain(
+      "Patch only files and lines required by the current user request."
+    );
+    expect(result.instruction).not.toContain("patch them now");
+    expect((critique.function as { description: string }).description).toContain(
+      "For text, logic, or data edits, skip this tool."
+    );
   });
 
   it("falls back to App.jsx when App.js is absent", async () => {
@@ -1088,6 +1123,7 @@ describe("verify_app tool", () => {
     expect(result.rendered).toBe(true);
     expect(result.errors).toEqual([]);
     expect(result.note).toEqual(expect.stringContaining("did not wire"));
+    expect(result.note).toContain("Preserve the current user request scope.");
   });
 
   it("forwards the host's success result verbatim (rendered: true, no errors)", async () => {

@@ -529,14 +529,14 @@ export const AUDIT_DESIGN_SCHEMA = {
 export const CRITIQUE_DESIGN_SCHEMA = {
   name: "critique_design",
   description:
-    "Step back and look at what you just made. Returns App.js + App.css plus a rubric of open-ended questions for you to answer honestly in your next response — about intent, hierarchy, distinctiveness, coherence, and what's weakest. This is not a checklist of rules; it's an occasion to apply taste. After answering, patch the 2-3 weakest items you identified. Call this after the initial build and after substantial design changes — complementary to audit_design (which catches mechanical/accessibility issues), where critique_design catches taste and composition.",
+    "Review the app after the initial build or a user-requested design change. Returns App.js, App.css, and questions about intent, hierarchy, distinctiveness, coherence, and weak design choices. Answer the questions and patch only weaknesses within the current user request. For text, logic, or data edits, skip this tool. Preserve styles, dependencies, and unrelated code on text edits. Use audit_design for mechanical and accessibility checks.",
   arguments: { type: "object", properties: {}, required: [] },
 } as const;
 
 export const VERIFY_APP_SCHEMA = {
   name: "verify_app",
   description:
-    "Ask the host runtime whether the current app actually mounts. The host's bundler / preview iframe (e.g. Sandpack in a chat UI) is already compiling and running your code; this tool collects whatever errors that runtime captured — hallucinated imports, syntax the bundler rejects, undefined components, runtime crashes — and returns them. Use this after substantial changes and before declaring done. If `rendered` is false or `errors` is non-empty, fix every error before doing anything else. If the host did not wire a runtime verifier, the tool returns `{ rendered: true, errors: [] }` with a `note` explaining — degrade to audit_design + critique_design in that case.",
+    "Ask the host runtime whether the current app actually mounts. The host's bundler / preview iframe (e.g. Sandpack in a chat UI) is already compiling and running your code; this tool collects whatever errors that runtime captured — hallucinated imports, syntax the bundler rejects, undefined components, runtime crashes — and returns them. Use this after substantial changes and before declaring done. If `rendered` is false or `errors` is non-empty, fix every error before doing anything else. If the host did not wire a runtime verifier, the tool returns `{ rendered: true, errors: [] }` with a note. Preserve the current user request scope. Use audit_design and critique_design only for the initial build or user-requested design changes.",
   arguments: { type: "object", properties: {}, required: [] },
 } as const;
 
@@ -1198,7 +1198,7 @@ export function createAppGenerationTools({
         const appCss = files.find((f) => f.path === "App.css")?.content ?? "";
         return {
           instruction:
-            "Read your App.js and App.css below, then answer each of the rubric questions honestly in your next response — be specific (cite lines, name choices, don't hedge). After answering, identify the 2-3 weakest items you named and patch them now. The point is to step back from the keyboard and actually look, not to satisfy a checklist.",
+            "For text, logic, or data edits, skip this critique. Preserve styles, dependencies, and unrelated code on text edits. For the initial build or a user-requested design change, read App.js and App.css below, then answer each rubric question with specific lines and choices. Identify the 2-3 weakest items within that request. Patch only files and lines required by the current user request.",
           rubric: designCritiqueRubric,
           appJs: {
             path: "App.js",
@@ -1228,7 +1228,7 @@ export function createAppGenerationTools({
         return {
           rendered: true,
           errors: [],
-          note: "This host did not wire verify_app — runtime introspection is unavailable in this environment. Rely on audit_design and critique_design for feedback. Do not interpret the empty errors list as proof the app runs.",
+          note: "This host did not wire verify_app. Runtime introspection is unavailable in this environment. Preserve the current user request scope. Use audit_design and critique_design only for the initial build or user-requested design changes. Do not interpret the empty errors list as proof the app runs.",
         };
       }
       try {

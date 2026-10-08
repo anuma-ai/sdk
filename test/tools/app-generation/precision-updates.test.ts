@@ -179,7 +179,7 @@ describe.concurrent("precision-updates", () => {
     tracker.finish("precision-btn-color", "btn-color");
   });
 
-  it.skip("change title text — should modify only the text, not styles or logic", async () => {
+  it("change title text — should modify only the text, not styles or logic", async () => {
     const store = createFileStore();
     const log: ToolCallLog[] = [];
     const tools = createTestAppTools(store).map((t) => wrapTool(t, log));
