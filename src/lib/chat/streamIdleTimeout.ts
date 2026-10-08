@@ -1,5 +1,19 @@
 import type { StreamingTransport } from "./toolLoop";
 
+/**
+ * Error thrown when a streaming attempt produces no activity within
+ * `idleTimeoutMs`. The `onError` callback receives this instance; check
+ * `name` (or `instanceof`) instead of string-matching the message.
+ */
+export class StreamIdleTimeoutError extends Error {
+  readonly idleTimeoutMs: number;
+  constructor(idleTimeoutMs: number) {
+    super(`Stream timed out after ${idleTimeoutMs} ms without activity.`);
+    this.name = "StreamIdleTimeoutError";
+    this.idleTimeoutMs = idleTimeoutMs;
+  }
+}
+
 /** Apply an idle timeout to each stream attempt. */
 export function withStreamIdleTimeout(
   transport: StreamingTransport,
@@ -31,7 +45,7 @@ export function withStreamIdleTimeout(
         if (settled || controller.signal.aborted) return;
         disarm();
         timer = setTimeout(() => {
-          interrupt(new Error(`Stream timed out after ${idleTimeoutMs} ms without activity.`));
+          interrupt(new StreamIdleTimeoutError(idleTimeoutMs));
         }, idleTimeoutMs);
       };
       const onAbort = () => {

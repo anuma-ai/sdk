@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { runToolLoop, type RunToolLoopOptions, type RunToolLoopResult } from "./toolLoop";
+import { StreamIdleTimeoutError } from "./streamIdleTimeout";
 
 const IDLE_TIMEOUT_MS = 120_000;
 const messages: RunToolLoopOptions["messages"] = [
@@ -86,6 +87,10 @@ describe("runToolLoop stream idle timeout", () => {
 
       expect(run.result()?.error).toBe("Stream timed out after 120000 ms without activity.");
       expect(onError).toHaveBeenCalledOnce();
+      const error = onError.mock.calls[0][0] as StreamIdleTimeoutError;
+      expect(error).toBeInstanceOf(StreamIdleTimeoutError);
+      expect(error.name).toBe("StreamIdleTimeoutError");
+      expect(error.idleTimeoutMs).toBe(IDLE_TIMEOUT_MS);
       expect(onFinish).not.toHaveBeenCalled();
       expect(fetch).toHaveBeenCalledOnce();
       expect(cancel).toHaveBeenCalledOnce();
