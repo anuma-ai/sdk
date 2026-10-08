@@ -490,6 +490,18 @@ Re-exports [createRecallTool](../react/Internal/functions/createRecallTool.md)
 
 ***
 
+### createRemoteMemoryPersistence
+
+Re-exports [createRemoteMemoryPersistence](../react/Internal/functions/createRemoteMemoryPersistence.md)
+
+***
+
+### createRemoteMemoryPipeline
+
+Re-exports [createRemoteMemoryPipeline](../react/Internal/functions/createRemoteMemoryPipeline.md)
+
+***
+
 ### createStockPricePreProcessor
 
 Re-exports [createStockPricePreProcessor](../react/Internal/functions/createStockPricePreProcessor.md)
@@ -1639,6 +1651,78 @@ Re-exports [refreshEncryptionKeyIfMatches](../react/Internal/functions/refreshEn
 ### relinkMemoryTopicsOp
 
 Re-exports [relinkMemoryTopicsOp](../react/Internal/functions/relinkMemoryTopicsOp.md)
+
+***
+
+### RemoteMemoryCandidateOptions
+
+Re-exports [RemoteMemoryCandidateOptions](../react/Internal/interfaces/RemoteMemoryCandidateOptions.md)
+
+***
+
+### RemoteMemoryDecodeFailure
+
+Re-exports [RemoteMemoryDecodeFailure](../react/Internal/interfaces/RemoteMemoryDecodeFailure.md)
+
+***
+
+### RemoteMemoryError
+
+Re-exports [RemoteMemoryError](../react/Internal/classes/RemoteMemoryError.md)
+
+***
+
+### RemoteMemoryListOptions
+
+Re-exports [RemoteMemoryListOptions](../react/Internal/interfaces/RemoteMemoryListOptions.md)
+
+***
+
+### RemoteMemoryPage
+
+Re-exports [RemoteMemoryPage](../react/Internal/interfaces/RemoteMemoryPage.md)
+
+***
+
+### RemoteMemoryPersistence
+
+Re-exports [RemoteMemoryPersistence](../react/Internal/interfaces/RemoteMemoryPersistence.md)
+
+***
+
+### RemoteMemoryPersistenceOptions
+
+Re-exports [RemoteMemoryPersistenceOptions](../react/Internal/interfaces/RemoteMemoryPersistenceOptions.md)
+
+***
+
+### RemoteMemoryPipeline
+
+Re-exports [RemoteMemoryPipeline](../react/Internal/interfaces/RemoteMemoryPipeline.md)
+
+***
+
+### RemoteMemoryPipelineOptions
+
+Re-exports [RemoteMemoryPipelineOptions](../react/Internal/interfaces/RemoteMemoryPipelineOptions.md)
+
+***
+
+### RemoteMemoryReadFilters
+
+Re-exports [RemoteMemoryReadFilters](../react/Internal/interfaces/RemoteMemoryReadFilters.md)
+
+***
+
+### RemoteMemoryRecord
+
+Re-exports [RemoteMemoryRecord](../react/Internal/interfaces/RemoteMemoryRecord.md)
+
+***
+
+### RemoteMemoryRow
+
+Re-exports [RemoteMemoryRow](../react/Internal/interfaces/RemoteMemoryRow.md)
 
 ***
 

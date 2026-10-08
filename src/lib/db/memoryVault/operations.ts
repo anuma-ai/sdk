@@ -101,7 +101,7 @@ function baseVaultConditions(
 
 const KNOWN_TRUST_TIERS = new Set(["quarantined", "trusted"]);
 
-function normalizeTrustTier(value: string | null | undefined): string | null {
+export function normalizeTrustTier(value: string | null | undefined): string | null {
   if (value === undefined || value === null) return null;
   return KNOWN_TRUST_TIERS.has(value) ? value : null;
 }

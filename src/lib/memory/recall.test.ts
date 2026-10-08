@@ -1490,3 +1490,24 @@ describe("recall — a mixed recall embeds the query once", () => {
     expect(vi.mocked(generateEmbedding)).not.toHaveBeenCalled();
   });
 });
+
+it("preserves the receiver of class-based fact sources", async () => {
+  class Source {
+    vaultSize = 7;
+    async search() {
+      return { results: [], vaultSize: this.vaultSize };
+    }
+    async graphRanking() {
+      return [];
+    }
+    async temporalRanking() {
+      return [];
+    }
+  }
+  const result = await recall(
+    "tea",
+    { factSource: new Source(), embeddingOptions: { apiKey: "k" } },
+    { types: ["fact"] }
+  );
+  expect(result.memories).toEqual([]);
+});

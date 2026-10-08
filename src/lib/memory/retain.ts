@@ -33,6 +33,41 @@ export interface RetainContext {
   vaultCache: VaultEmbeddingCache;
 }
 
+/** Storage seam used by both local and remote retain. All plaintext work stays on-device. */
+export interface RetainPersistence {
+  prepare: (
+    query: string,
+    options?: Parameters<typeof prepareVaultCandidates>[4]
+  ) => Promise<PreparedVaultCandidates>;
+  get: (id: string) => ReturnType<typeof getVaultMemoryOp>;
+  /** Fresh post-write probe; must not replace snapshots guarding earlier decisions. */
+  getFresh?: (id: string) => ReturnType<typeof getVaultMemoryOp>;
+  tombstones: (
+    embedding: number[],
+    model: string,
+    scope: string,
+    folderId?: string | null
+  ) => ReturnType<typeof getAllVaultMemoriesOp>;
+  create: (
+    input: Parameters<typeof createVaultMemoryOp>[1]
+  ) => ReturnType<typeof createVaultMemoryOp>;
+  update: (
+    id: string,
+    patch: Parameters<typeof updateVaultMemoryOp>[2]
+  ) => ReturnType<typeof updateVaultMemoryOp>;
+  supersede: (id: string, successor: string) => ReturnType<typeof supersedeVaultMemoryOp>;
+  createSuperseding: (
+    input: Parameters<typeof createSupersedingMemoryOp>[1],
+    target: string
+  ) => ReturnType<typeof createSupersedingMemoryOp>;
+}
+interface RetainPipelineContext {
+  normalizeEmbedding?: (embedding: number[]) => number[];
+  persistence: RetainPersistence;
+  embeddingOptions: EmbeddingOptions;
+  vaultCache: VaultEmbeddingCache;
+}
+
 /**
  * Persist a memory, merging into the nearest existing record if its
  * cosine similarity exceeds the auto-merge threshold.
@@ -48,6 +83,44 @@ export interface RetainContext {
 export async function retain(
   content: string,
   ctx: RetainContext,
+  options: RetainOptions = {}
+): Promise<RetainResult> {
+  return retainWithPersistence(
+    content,
+    {
+      embeddingOptions: ctx.embeddingOptions,
+      vaultCache: ctx.vaultCache,
+      persistence: {
+        prepare: (query, searchOptions) =>
+          prepareVaultCandidates(
+            query,
+            ctx.vaultCtx,
+            ctx.embeddingOptions,
+            ctx.vaultCache,
+            searchOptions
+          ),
+        get: (id) => getVaultMemoryOp(ctx.vaultCtx, id),
+        tombstones: (_embedding, _model, scope, folderId) =>
+          getAllVaultMemoriesOp(ctx.vaultCtx, {
+            includeDeleted: true,
+            scopes: [scope],
+            ...(folderId !== undefined && { folderId }),
+          }),
+        create: (input) => createVaultMemoryOp(ctx.vaultCtx, input),
+        update: (id, patch) => updateVaultMemoryOp(ctx.vaultCtx, id, patch),
+        supersede: (id, successor) => supersedeVaultMemoryOp(ctx.vaultCtx, id, successor),
+        createSuperseding: (input, target) =>
+          createSupersedingMemoryOp(ctx.vaultCtx, input, target),
+      },
+    },
+    options
+  );
+}
+
+/** Shared device-side extraction, deduplication and consolidation pipeline. */
+export async function retainWithPersistence(
+  content: string,
+  ctx: RetainPipelineContext,
   options: RetainOptions = {}
 ): Promise<RetainResult> {
   const trimmed = content.trim();
@@ -66,19 +139,13 @@ export async function retain(
   let prepared: PreparedVaultCandidates | undefined;
 
   if (enableAutoMerge) {
-    prepared = await prepareVaultCandidates(
-      trimmed,
-      ctx.vaultCtx,
-      ctx.embeddingOptions,
-      ctx.vaultCache,
-      {
-        limit: Math.max(options.consolidateTopK ?? DEFAULT_CONSOLIDATE_TOP_K, 1),
-        useFusion: false,
-        scopes: [resolvedScope],
-        includeArchived: true,
-        ...(options.folderId !== undefined && { folderId: options.folderId }),
-      }
-    );
+    prepared = await ctx.persistence.prepare(trimmed, {
+      limit: Math.max(options.consolidateTopK ?? DEFAULT_CONSOLIDATE_TOP_K, 1),
+      useFusion: false,
+      scopes: [resolvedScope],
+      includeArchived: true,
+      ...(options.folderId !== undefined && { folderId: options.folderId }),
+    });
 
     if (prepared.embeddingFailure || prepared.embeddingsUnavailable) {
       throw new Error(
@@ -115,7 +182,7 @@ export async function retain(
 
       if (matches.length > 0) {
         const targetId = matches[0].uniqueId;
-        const existing = await getVaultMemoryOp(ctx.vaultCtx, targetId);
+        const existing = await ctx.persistence.get(targetId);
         if (existing && !existing.supersededBy) {
           const mergedSourceIds = unionStrings(
             existing.sourceChunkIds ?? [],
@@ -124,7 +191,7 @@ export async function retain(
           const eventTimeUpdate = pickEventTimeUpdate(existing, options.eventTime);
           const factTypeUpdate = pickFactTypeUpdate(existing, options.factType);
           const resurrect = resurrectFields(existing);
-          const updated = await updateVaultMemoryOp(ctx.vaultCtx, targetId, {
+          const updated = await ctx.persistence.update(targetId, {
             content: existing.content,
             proofCountIncrement: 1,
             observationSourceIds: options.sourceChunkIds,
@@ -155,8 +222,9 @@ export async function retain(
     supersedeContent === undefined && prepared && prepared.queryEmbedding.length > 0
       ? prepared.queryEmbedding
       : undefined;
-  const embedding =
+  const generatedEmbedding =
     reusableQueryEmbedding ?? (await generateEmbedding(contentToWrite, ctx.embeddingOptions));
+  const embedding = ctx.normalizeEmbedding?.(generatedEmbedding) ?? generatedEmbedding;
   const embeddingModel = ctx.embeddingOptions.model ?? DEFAULT_API_EMBEDDING_MODEL;
 
   if (options.respectTombstones) {
@@ -201,8 +269,7 @@ export async function retain(
 
   if (supersedeTargetIds.length > 0) {
     const [primaryTargetId, ...restTargetIds] = supersedeTargetIds;
-    const { created, retired } = await createSupersedingMemoryOp(
-      ctx.vaultCtx,
+    const { created, retired } = await ctx.persistence.createSuperseding(
       createOpts,
       primaryTargetId
     );
@@ -218,13 +285,17 @@ export async function retain(
       for (const staleId of restTargetIds) {
         let ok = false;
         try {
-          ok = (await supersedeVaultMemoryOp(ctx.vaultCtx, staleId, created.uniqueId)) === true;
+          ok = (await ctx.persistence.supersede(staleId, created.uniqueId)) === true;
         } catch {
           // retire threw → `ok` stays false; re-read below tells apart a genuine
           // live leftover from an already-gone row.
         }
         if (ok) continue;
-        const stillLive = await getVaultMemoryOp(ctx.vaultCtx, staleId).catch(() => null);
+        const stillLive = await (
+          ctx.persistence.getFresh
+            ? ctx.persistence.getFresh(staleId)
+            : ctx.persistence.get(staleId)
+        ).catch(() => null);
         if (stillLive && !stillLive.supersededBy) liveLeftovers.push(staleId);
       }
       if (liveLeftovers.length > 0) {
@@ -252,7 +323,7 @@ export async function retain(
     );
   }
 
-  const created = await createVaultMemoryOp(ctx.vaultCtx, createOpts);
+  const created = await ctx.persistence.create(createOpts);
   cacheRowVector(
     ctx.vaultCache,
     created.uniqueId,
@@ -277,14 +348,10 @@ async function findTombstoneMatch(
   embedding: number[],
   embeddingModel: string,
   scope: string,
-  ctx: RetainContext,
+  ctx: RetainPipelineContext,
   opts: { threshold: number; folderId?: string | null }
 ): Promise<{ id: string; similarity: number } | null> {
-  const rows = await getAllVaultMemoriesOp(ctx.vaultCtx, {
-    includeDeleted: true,
-    scopes: [scope],
-    ...(opts.folderId !== undefined && { folderId: opts.folderId }),
-  });
+  const rows = await ctx.persistence.tombstones(embedding, embeddingModel, scope, opts.folderId);
   let bestId: string | null = null;
   let bestSim = opts.threshold;
   for (const row of rows) {
@@ -366,7 +433,7 @@ function abandonToRace(options: RetainOptions, detail: string): null {
 
 async function tryConsolidate(
   trimmed: string,
-  ctx: RetainContext,
+  ctx: RetainPipelineContext,
   options: RetainOptions,
   prepared: PreparedVaultCandidates
 ): Promise<ConsolidateOutcome> {
@@ -408,7 +475,7 @@ async function tryConsolidate(
     if (requestedIds.length === 0) return null;
     const valid: string[] = [];
     for (const id of requestedIds) {
-      const existing = await getVaultMemoryOp(ctx.vaultCtx, id);
+      const existing = await ctx.persistence.get(id);
       if (existing && !existing.supersededBy) valid.push(id);
     }
     if (valid.length === 0) {
@@ -421,7 +488,7 @@ async function tryConsolidate(
   }
 
   if (decision.action === "noop" && decision.targetId) {
-    const existing = await getVaultMemoryOp(ctx.vaultCtx, decision.targetId);
+    const existing = await ctx.persistence.get(decision.targetId);
     if (!existing || existing.supersededBy) {
       return abandonToRace(
         options,
@@ -435,7 +502,7 @@ async function tryConsolidate(
     const eventTimeUpdate = pickEventTimeUpdate(existing, options.eventTime);
     const factTypeUpdate = pickFactTypeUpdate(existing, options.factType);
     const resurrect = resurrectFields(existing);
-    const updated = await updateVaultMemoryOp(ctx.vaultCtx, decision.targetId, {
+    const updated = await ctx.persistence.update(decision.targetId, {
       content: existing.content,
       proofCountIncrement: 1,
       observationSourceIds: options.sourceChunkIds,
@@ -464,7 +531,7 @@ async function tryConsolidate(
   }
 
   if (decision.action === "update" && decision.targetId && decision.content) {
-    const existing = await getVaultMemoryOp(ctx.vaultCtx, decision.targetId);
+    const existing = await ctx.persistence.get(decision.targetId);
     if (!existing || existing.supersededBy) {
       return abandonToRace(
         options,
@@ -475,12 +542,13 @@ async function tryConsolidate(
       existing.sourceChunkIds ?? [],
       options.sourceChunkIds ?? []
     );
-    const newEmbedding = await generateEmbedding(decision.content, ctx.embeddingOptions);
+    const generatedEmbedding = await generateEmbedding(decision.content, ctx.embeddingOptions);
+    const newEmbedding = ctx.normalizeEmbedding?.(generatedEmbedding) ?? generatedEmbedding;
     const consolidatedModel = ctx.embeddingOptions.model ?? DEFAULT_API_EMBEDDING_MODEL;
     const eventTimeUpdate = pickEventTimeUpdate(existing, options.eventTime);
     const factTypeUpdate = pickFactTypeUpdate(existing, options.factType);
     const resurrect = resurrectFields(existing);
-    const updated = await updateVaultMemoryOp(ctx.vaultCtx, decision.targetId, {
+    const updated = await ctx.persistence.update(decision.targetId, {
       content: decision.content,
       proofCountIncrement: 1,
       observationSourceIds: options.sourceChunkIds,
@@ -525,8 +593,13 @@ async function tryConsolidate(
   return null;
 }
 
-async function assertMergeTargetGoneOrThrow(ctx: RetainContext, targetId: string): Promise<void> {
-  const stillExists = await getVaultMemoryOp(ctx.vaultCtx, targetId);
+async function assertMergeTargetGoneOrThrow(
+  ctx: RetainPipelineContext,
+  targetId: string
+): Promise<void> {
+  const stillExists = await (ctx.persistence.getFresh
+    ? ctx.persistence.getFresh(targetId)
+    : ctx.persistence.get(targetId));
   if (stillExists) {
     throw new Error(`retain: merge into memory ${targetId} failed to persist`);
   }

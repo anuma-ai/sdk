@@ -102,6 +102,24 @@ export { reflect, type ReflectOptions, type ReflectResult } from "./reflect.js";
 export { isRerankerAvailable, RerankerUnavailableError } from "./reranker.js";
 export { retain, type RetainContext } from "./retain.js";
 export { createLocalMemoryStore, type LocalMemoryStoreOptions } from "./store/local.js";
+export {
+  createRemoteMemoryPersistence,
+  type RemoteMemoryCandidateOptions,
+  type RemoteMemoryDecodeFailure,
+  RemoteMemoryError,
+  type RemoteMemoryListOptions,
+  type RemoteMemoryPage,
+  type RemoteMemoryPersistence,
+  type RemoteMemoryPersistenceOptions,
+  type RemoteMemoryReadFilters,
+  type RemoteMemoryRecord,
+  type RemoteMemoryRow,
+} from "./store/remotePersistence.js";
+export {
+  createRemoteMemoryPipeline,
+  type RemoteMemoryPipeline,
+  type RemoteMemoryPipelineOptions,
+} from "./store/remotePipeline.js";
 export type {
   MemoryCreate,
   MemoryListOptions,

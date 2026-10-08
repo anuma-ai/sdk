@@ -154,7 +154,7 @@ export async function recall(
     if (temporalLaneFailed) degraded.push("temporal-lane-failed");
     if (chunksScopeRestricted) degraded.push("chunks-scope-restricted");
     const laneRan =
-      (types.includes("fact") && !!ctx.vaultCtx && !!ctx.vaultCache) ||
+      (types.includes("fact") && (!!ctx.factSource || (!!ctx.vaultCtx && !!ctx.vaultCache))) ||
       (types.includes("chunk") && !!ctx.storageCtx) ||
       (chunksScopeRestricted && !!ctx.storageCtx);
     const scores = admitted.map((m) => m.score);
@@ -208,7 +208,7 @@ export async function recall(
   }
 
   const needsChunkEmbedding = types.includes("chunk") && ctx.storageCtx;
-  const wantsTemporal = types.includes("fact") && ctx.vaultCtx;
+  const wantsTemporal = types.includes("fact") && (ctx.factSource || ctx.vaultCtx);
   const graphRefiner: NeighborRefiner | undefined =
     flags.traverse && options.graphRefine && options.decomposeOptions
       ? createLlmNeighborRefiner(options.decomposeOptions)
@@ -250,19 +250,24 @@ export async function recall(
       "graph",
       () => (graphLaneFailed = true),
       () =>
-        buildGraphLaneRanking(query, ctx, flags.traverse, {
-          ...(options.maxHops !== undefined && { maxHops: options.maxHops }),
-          ...(options.entityFanout !== undefined && { entityFanout: options.entityFanout }),
-          ...(options.nodeBudget !== undefined && { nodeBudget: options.nodeBudget }),
-          ...(options.rrfK !== undefined && { rrfK: options.rrfK }),
-          ...(graphRefiner && { refineNeighbors: graphRefiner }),
-        })
+        ctx.factSource
+          ? ctx.factSource.graphRanking(query, flags.traverse, options)
+          : buildGraphLaneRanking(query, ctx, flags.traverse, {
+              ...(options.maxHops !== undefined && { maxHops: options.maxHops }),
+              ...(options.entityFanout !== undefined && { entityFanout: options.entityFanout }),
+              ...(options.nodeBudget !== undefined && { nodeBudget: options.nodeBudget }),
+              ...(options.rrfK !== undefined && { rrfK: options.rrfK }),
+              ...(graphRefiner && { refineNeighbors: graphRefiner }),
+            })
     ),
     wantsTemporal
       ? safeLane(
           "temporal",
           () => (temporalLaneFailed = true),
-          () => buildTemporalLaneRanking(query, ctx.vaultCtx!, options.now)
+          () =>
+            ctx.factSource
+              ? ctx.factSource.temporalRanking(query, options.now)
+              : buildTemporalLaneRanking(query, ctx.vaultCtx!, options.now)
         )
       : Promise.resolve([] as string[]),
   ]);
@@ -270,7 +275,7 @@ export async function recall(
   graphLaneCount = entityRanking.length;
   temporalLaneCount = temporalRanking.length;
 
-  if (types.includes("fact") && ctx.vaultCtx && ctx.vaultCache) {
+  if (types.includes("fact") && (ctx.factSource || (ctx.vaultCtx && ctx.vaultCache))) {
     const factStart = nowMs();
     const vaultMinScore = options.minScore ?? DEFAULT_FACT_MIN_SCORE;
     factFloor = vaultMinScore;
@@ -286,50 +291,54 @@ export async function recall(
       rankedOnCosine: factRankedOnCosine,
       decryptLast: factDecryptLast,
       rowsDecrypted: factRowsDecrypted,
-    } = await searchVaultMemoriesWithSize(
-      query,
-      ctx.vaultCtx,
-      ctx.embeddingOptions,
-      ctx.vaultCache,
-      {
-        limit: types.includes("chunk") ? Math.max(limit * 2, 16) : limit,
-        minSimilarity: vaultMinScore,
-        useFusion: true,
-        rerank: flags.rerank,
-        ...(options.rerankTopN !== undefined && { rerankTopN: options.rerankTopN }),
-        ...(options.ceWeight !== undefined && { ceWeight: options.ceWeight }),
-        ...(options.rerankLoadTimeoutMs !== undefined && {
-          rerankLoadTimeoutMs: options.rerankLoadTimeoutMs,
-        }),
-        ...(options.recencyAlpha !== undefined && { recencyAlpha: options.recencyAlpha }),
-        ...(options.recency && { recency: options.recency }),
-        ...(options.mmr !== undefined && { mmr: options.mmr }),
-        ...(options.supersessionBoost !== undefined && {
-          supersessionBoost: options.supersessionBoost,
-        }),
-        ...(options.supersessionWindow !== undefined && {
-          supersessionWindow: options.supersessionWindow,
-        }),
-        ...(options.proofCountAlpha !== undefined && {
-          proofCountAlpha: options.proofCountAlpha,
-        }),
-        ...(options.bm25AdmissionDivisor !== undefined && {
-          bm25AdmissionDivisor: options.bm25AdmissionDivisor,
-        }),
-        ...(options.rrfK !== undefined && { rrfK: options.rrfK }),
-        ...(options.decryptLast !== undefined && { decryptLast: options.decryptLast }),
-        ...(subQueries && { subQueries }),
-        ...(options.scopes && { scopes: options.scopes }),
-        ...(options.folderId !== undefined && { folderId: options.folderId }),
-        ...(options.factTypes?.length && { factTypes: options.factTypes }),
-        ...(options.memoryIds !== undefined && { memoryIds: options.memoryIds }),
-        ...(options.factTypeWeights && { factTypeWeights: options.factTypeWeights }),
-        ...(entityRanking.length > 0 && { entityRanking }),
-        ...(temporalRanking.length > 0 && { temporalRanking }),
-        ...(needsChunkEmbedding && { queryEmbedding: queryEmbedding ?? [] }),
-        queryEmbedTotalTimeoutMs,
-      }
-    );
+    } = await (
+      ctx.factSource?.search.bind(ctx.factSource) ??
+      ((searchQuery, searchOptions) =>
+        searchVaultMemoriesWithSize(
+          searchQuery,
+          ctx.vaultCtx!,
+          ctx.embeddingOptions,
+          ctx.vaultCache!,
+          searchOptions
+        ))
+    )(query, {
+      limit: types.includes("chunk") ? Math.max(limit * 2, 16) : limit,
+      minSimilarity: vaultMinScore,
+      useFusion: true,
+      rerank: flags.rerank,
+      ...(options.rerankTopN !== undefined && { rerankTopN: options.rerankTopN }),
+      ...(options.ceWeight !== undefined && { ceWeight: options.ceWeight }),
+      ...(options.rerankLoadTimeoutMs !== undefined && {
+        rerankLoadTimeoutMs: options.rerankLoadTimeoutMs,
+      }),
+      ...(options.recencyAlpha !== undefined && { recencyAlpha: options.recencyAlpha }),
+      ...(options.recency && { recency: options.recency }),
+      ...(options.mmr !== undefined && { mmr: options.mmr }),
+      ...(options.supersessionBoost !== undefined && {
+        supersessionBoost: options.supersessionBoost,
+      }),
+      ...(options.supersessionWindow !== undefined && {
+        supersessionWindow: options.supersessionWindow,
+      }),
+      ...(options.proofCountAlpha !== undefined && {
+        proofCountAlpha: options.proofCountAlpha,
+      }),
+      ...(options.bm25AdmissionDivisor !== undefined && {
+        bm25AdmissionDivisor: options.bm25AdmissionDivisor,
+      }),
+      ...(options.rrfK !== undefined && { rrfK: options.rrfK }),
+      ...(options.decryptLast !== undefined && { decryptLast: options.decryptLast }),
+      ...(subQueries && { subQueries }),
+      ...(options.scopes && { scopes: options.scopes }),
+      ...(options.folderId !== undefined && { folderId: options.folderId }),
+      ...(options.factTypes?.length && { factTypes: options.factTypes }),
+      ...(options.memoryIds !== undefined && { memoryIds: options.memoryIds }),
+      ...(options.factTypeWeights && { factTypeWeights: options.factTypeWeights }),
+      ...(entityRanking.length > 0 && { entityRanking }),
+      ...(temporalRanking.length > 0 && { temporalRanking }),
+      ...(needsChunkEmbedding && { queryEmbedding: queryEmbedding ?? [] }),
+      queryEmbedTotalTimeoutMs,
+    });
     factResults.push(
       ...dedupeBy(
         results,

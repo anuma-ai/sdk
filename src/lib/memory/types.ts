@@ -235,7 +235,19 @@ export interface RecallOptions {
   graphRefine?: boolean;
 }
 
+/** A fact source supplies bounded candidates; recall owns ranking and result handling. */
+export interface RecallFactSource {
+  search: (
+    query: string,
+    options?: import("../memoryVault/searchTool.js").MemoryVaultSearchOptions
+  ) => ReturnType<typeof import("../memoryVault/searchTool.js").searchVaultMemoriesWithSize>;
+  graphRanking: (query: string, traverse: boolean, options: RecallOptions) => Promise<string[]>;
+  temporalRanking: (query: string, now?: number) => Promise<string[]>;
+}
+
 export interface RecallContext {
+  /** Alternative to a WatermelonDB vault for fact-only recall. */
+  factSource?: RecallFactSource;
   /** Required when `types` includes 'fact'. */
   vaultCtx?: VaultMemoryOperationsContext;
   /** Required when `types` includes 'chunk'. */

@@ -217,20 +217,24 @@ async function generateEmbeddingsBatch(
   model: string,
   onUsage: EmbeddingOptions["onUsage"],
   maskInput: EmbeddingOptions["maskInput"],
-  timeoutMs: number
+  timeoutMs: number,
+  outer?: AbortSignal
 ): Promise<number[][]> {
-  const response = await withEmbeddingRetry(() =>
-    withDeadline(
-      (signal) =>
-        postApiV1Embeddings({
-          baseUrl,
-          body: { input: maskInput ? texts.map(maskInput) : texts, model },
-          headers,
-          ...(signal && { signal }),
-        }),
-      timeoutMs,
-      "embedding batch request"
-    )
+  const response = await withEmbeddingRetry(
+    () =>
+      withDeadline(
+        (signal) =>
+          postApiV1Embeddings({
+            baseUrl,
+            body: { input: maskInput ? texts.map(maskInput) : texts, model },
+            headers,
+            ...(signal && { signal }),
+          }),
+        timeoutMs,
+        "embedding batch request",
+        outer
+      ),
+    outer
   );
 
   if (response.error) {
@@ -268,7 +272,16 @@ export async function generateEmbeddings(
   options: EmbeddingOptions
 ): Promise<number[][]> {
   if (texts.length === 0) return [];
+  const total = options.totalTimeoutMs;
+  if (total === undefined) return embedMany(texts, options, undefined);
+  return withDeadline((signal) => embedMany(texts, options, signal), total, "embedding batch");
+}
 
+async function embedMany(
+  texts: string[],
+  options: EmbeddingOptions,
+  outer: AbortSignal | undefined
+): Promise<number[][]> {
   const { baseUrl = BASE_URL, model, batchSize, cache } = options;
   const timeoutMs = options.timeoutMs ?? DEFAULT_EMBEDDING_REQUEST_TIMEOUT_MS;
   const chunkSize = batchSize ?? DEFAULT_EMBEDDING_BATCH_SIZE;
@@ -293,7 +306,8 @@ export async function generateEmbeddings(
     return results as number[][];
   }
 
-  const headers = await resolveAuthHeaders(options);
+  const headers = await resolveAuthHeaders(options, outer);
+  if (outer?.aborted) throw outer.reason;
 
   const embeddingModel = model ?? DEFAULT_API_EMBEDDING_MODEL;
 
@@ -307,7 +321,8 @@ export async function generateEmbeddings(
       embeddingModel,
       options.onUsage,
       options.maskInput,
-      timeoutMs
+      timeoutMs,
+      outer
     );
   } else {
     const chunks: string[][] = [];
@@ -320,6 +335,7 @@ export async function generateEmbeddings(
 
     const worker = async () => {
       while (nextIndex < chunks.length) {
+        if (outer?.aborted) throw outer.reason;
         const idx = nextIndex++;
         allEmbeddings[idx] = await generateEmbeddingsBatch(
           chunks[idx],
@@ -328,7 +344,8 @@ export async function generateEmbeddings(
           embeddingModel,
           options.onUsage,
           options.maskInput,
-          timeoutMs
+          timeoutMs,
+          outer
         );
       }
     };
@@ -341,6 +358,8 @@ export async function generateEmbeddings(
 
     newEmbeddings = allEmbeddings.flat();
   }
+
+  if (outer?.aborted) throw outer.reason;
 
   for (let i = 0; i < uncachedIndices.length; i++) {
     const f32Embedding = Float32Array.from(newEmbeddings[i]);

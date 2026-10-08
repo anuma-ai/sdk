@@ -36,6 +36,58 @@ afterEach(() => {
 });
 
 describe("embedding deadlines", () => {
+  it("bounds a multi-chunk batch with one deadline and stops queued requests", async () => {
+    const t = track(
+      generateEmbeddings(["a", "b", "c", "d", "e"], {
+        apiKey: "k",
+        baseUrl: BASE,
+        batchSize: 1,
+        totalTimeoutMs: 8000,
+      })
+    );
+    await vi.advanceTimersByTimeAsync(7999);
+    expect(t.state).toBe("pending");
+    expect(signals).toHaveLength(3);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(t.state).toBe("rejected");
+    expect((t.error as Error).name).toBe("TimeoutError");
+    expect(signals.every((signal) => signal?.aborted)).toBe(true);
+    await vi.advanceTimersByTimeAsync(120_000);
+    expect(signals).toHaveLength(3);
+  });
+  it("includes authentication in the batch deadline and never starts a late request", async () => {
+    let resolveToken!: (token: string) => void;
+    const t = track(
+      generateEmbeddings(["a", "b"], {
+        baseUrl: BASE,
+        totalTimeoutMs: 2000,
+        getToken: () =>
+          new Promise<string>((resolve) => {
+            resolveToken = resolve;
+          }),
+      })
+    );
+    await vi.advanceTimersByTimeAsync(2000);
+    expect(t.state).toBe("rejected");
+    resolveToken("late-token");
+    await vi.advanceTimersByTimeAsync(120_000);
+    expect(signals).toHaveLength(0);
+  });
+  it("counts retry backoff toward the batch deadline", async () => {
+    const fetch = vi.fn(async () => new Response("{}", { status: 503 }));
+    vi.stubGlobal("fetch", fetch);
+    const t = track(
+      generateEmbeddings(["a"], {
+        apiKey: "k",
+        baseUrl: BASE,
+        totalTimeoutMs: 100,
+      })
+    );
+    await vi.advanceTimersByTimeAsync(100);
+    expect(t.state).toBe("rejected");
+    await vi.advanceTimersByTimeAsync(10_000);
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
   it("rejects a single embed whose request never answers, after the bounded retries", async () => {
     const t = track(generateEmbedding("hello", { apiKey: "k", baseUrl: BASE, timeoutMs: 1000 }));
 
