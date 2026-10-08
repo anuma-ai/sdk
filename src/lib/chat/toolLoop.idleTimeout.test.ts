@@ -102,7 +102,7 @@ describe("runToolLoop stream idle timeout", () => {
 
     expect(run.result()?.error).toBe("Stream timed out after 1000 ms without activity.");
     expect(fetch).toHaveBeenCalledOnce();
-    expect(fetch.mock.calls[0]![0].signal.aborted).toBe(true);
+    expect(fetch.mock.calls[0][0].signal.aborted).toBe(true);
     expect(vi.getTimerCount()).toBe(0);
   });
 
@@ -148,6 +148,31 @@ describe("runToolLoop stream idle timeout", () => {
     expect(signal?.aborted).toBe(true);
     expect(returnIterator).toHaveBeenCalledOnce();
     onActivity?.();
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("reports the idle timeout when iterator cleanup also stalls", async () => {
+    const pendingRead = new Promise<IteratorResult<unknown>>(() => {});
+    const returnIterator = vi.fn(() => pendingRead);
+    const onError = vi.fn();
+    const run = startRun({
+      idleTimeoutMs: 1000,
+      onError,
+      transport: () => ({
+        stream: {
+          [Symbol.asyncIterator]: () => ({
+            next: () => pendingRead,
+            return: returnIterator,
+          }),
+        },
+      }),
+    });
+
+    await vi.advanceTimersByTimeAsync(1000);
+
+    expect(run.result()?.error).toBe("Stream timed out after 1000 ms without activity.");
+    expect(onError).toHaveBeenCalledOnce();
+    expect(returnIterator).toHaveBeenCalledOnce();
     expect(vi.getTimerCount()).toBe(0);
   });
 
