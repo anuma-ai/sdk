@@ -26,6 +26,7 @@ function readBearer(req: IncomingRequest): string {
 
 export type ExtractGrantContextOpts = Pick<PortalClientOpts, "baseUrl" | "fetchImpl" | "timeoutMs">;
 
+/** Validate the request's bearer against the portal and return the parsed grant. @throws {@link AuthError} when the bearer is missing, malformed, expired, or revoked. */
 export async function extractGrantContext(
   req: IncomingRequest,
   opts: ExtractGrantContextOpts = {}

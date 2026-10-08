@@ -296,6 +296,23 @@ function rowToRaw(row: Record<string, unknown>): RawRecord {
   return raw as unknown as RawRecord;
 }
 
+/**
+ * WatermelonDB `DatabaseAdapter` backed by any `pg.Pool`-compatible pool, so SDK operations run unchanged on the server.
+ *
+ * @example
+ * ```typescript
+ * import pg from "pg";
+ * import { PostgreSQLAdapter, sdkSchema, sdkMigrations } from "@anuma/sdk/server";
+ *
+ * const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+ * const adapter = new PostgreSQLAdapter({
+ *   pool,
+ *   schema: sdkSchema,
+ *   migrations: sdkMigrations,
+ *   dbName: "anuma-server-wallet123",
+ * });
+ * ```
+ */
 export class PostgreSQLAdapter implements DatabaseAdapter {
   schema: AppSchema;
   dbName: string;

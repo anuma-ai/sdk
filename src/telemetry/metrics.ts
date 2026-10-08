@@ -60,10 +60,9 @@ const defaultNowMs = (): number =>
     : Date.now();
 
 /**
- * Build {@link RunHooks} that report run lifecycle, model calls, and tool
- * calls to `sink`. The returned hooks are synchronous and never throw — a
- * throwing sink method is swallowed with a console-free `noop` (the tool loop
- * already swallows hook errors; we avoid double-logging here).
+ * Build {@link RunHooks} that report run lifecycle, model calls, and tool calls to `sink`; every run ends in exactly one `run.completed` or `run.failed`, and no message contents or tool arguments are emitted.
+ *
+ * @see TELEMETRY.md for event payloads and metric names.
  */
 export function createMetricsHooks(sink: TelemetrySink, opts?: MetricsHooksOptions): RunHooks {
   const now = opts?.now ?? defaultNowMs;
