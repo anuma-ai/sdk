@@ -5,6 +5,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { SignMessageFn } from "../../../react/useEncryption";
 import { clearAllEncryptionKeys } from "../../../react/useEncryption";
 import { sdkMigrations, sdkModelClasses, sdkSchema } from "../schema";
+import type { VaultFolder } from "../vaultFolders/models";
+import {
+  createVaultFolderOp,
+  deleteVaultFolderOp,
+  moveMemoriesToFolderOp,
+  updateVaultFolderOp,
+} from "../vaultFolders/operations";
 import type { VaultMemory } from "./models";
 import {
   createSupersedingMemoryOp,
@@ -18,12 +25,6 @@ import {
   type VaultMemoryOperationsContext,
 } from "./operations";
 import { MemoryLevelError, resolveMemoryLevel } from "./types";
-
-/**
- * v48 kind + level on vault memories, against a real in-memory LokiJS database
- * (no op mocks), so the writes, the read mapping and the WHERE clauses are the
- * ones production runs.
- */
 
 function makeDatabase(): Database {
   const adapter = new LokiJSAdapter({
@@ -48,7 +49,6 @@ beforeEach(() => {
   };
 });
 
-/** The raw stored row, bypassing the read mapping. */
 async function rawRow(id: string): Promise<Record<string, unknown>> {
   const record = await ctx.vaultMemoryCollection.find(id);
   return record._raw as unknown as Record<string, unknown>;
@@ -62,7 +62,6 @@ describe("resolveMemoryLevel", () => {
     expect(resolveMemoryLevel(null, "public")).toBe("matching");
     expect(resolveMemoryLevel(null, "private")).toBe("private");
     expect(resolveMemoryLevel(null, null)).toBe("private");
-    // A value from a future schema falls back to scope, never to 'profile'.
     expect(resolveMemoryLevel("friends", "private")).toBe("private");
   });
 });
@@ -115,7 +114,6 @@ describe("kind/level validation", () => {
       updateVaultMemoryOp(ctx, kinded.uniqueId, { content: "Is 180 cm tall", kind: null })
     ).rejects.toBeInstanceOf(MemoryLevelError);
 
-    // Nothing was written by either rejected update.
     expect((await getVaultMemoryOp(ctx, free.uniqueId))?.level).toBe("private");
     expect((await getVaultMemoryOp(ctx, kinded.uniqueId))?.kind).toBe("height_cm");
   });
@@ -187,7 +185,6 @@ describe("scope dual-write", () => {
       kindValue: '"buddhist"',
       level: "profile",
     });
-    // Simulate rows that predate v48 on LokiJS: the column exists but is NULL.
     await db.write(async () => {
       for (const id of [legacyShared.uniqueId, legacyPrivate.uniqueId]) {
         const r = await ctx.vaultMemoryCollection.find(id);
@@ -236,7 +233,6 @@ describe("kind_value encryption", () => {
     expect(String(raw.kind_value)).toMatch(/^enc:v\d:/);
     expect(raw.kind_value).not.toContain("buddhist");
     expect(String(raw.content)).toMatch(/^enc:v\d:/);
-    // kind and level stay plaintext so they can be filtered without a key.
     expect(raw.kind).toBe("religion");
     expect(raw.level).toBe("matching");
 
@@ -300,5 +296,88 @@ describe("kinded rows are exempt from decay and supersession", () => {
     );
     expect(result).toEqual({ created: null, retired: false });
     expect(await getAllVaultMemoriesOp(ctx)).toHaveLength(1);
+  });
+});
+
+describe("folder scope writes keep level in step", () => {
+  function folderCtx() {
+    return {
+      database: db,
+      vaultFolderCollection: db.get<VaultFolder>("vault_folders"),
+      vaultMemoryCollection: ctx.vaultMemoryCollection,
+    };
+  }
+
+  it("unpublishes matching rows when their folder goes private or is deleted", async () => {
+    const fctx = folderCtx();
+    const folder = (await createVaultFolderOp(fctx, { name: "Trips", scope: "shared" }))!;
+    const kept = await createVaultMemoryOp(ctx, {
+      content: "Likes hiking",
+      level: "matching",
+      folderId: folder.uniqueId,
+    });
+    const profile = await createVaultMemoryOp(ctx, {
+      content: "Works as a nurse",
+      kind: "occupation",
+      kindValue: '"nurse"',
+      level: "profile",
+      folderId: folder.uniqueId,
+    });
+
+    await updateVaultFolderOp(fctx, folder.uniqueId, { scope: "private" });
+    expect(await rawRow(kept.uniqueId)).toMatchObject({ level: "private", scope: "private" });
+    expect(await rawRow(profile.uniqueId)).toMatchObject({ level: "private", scope: "private" });
+    expect(await getAllVaultMemoriesOp(ctx, { levels: ["matching", "profile"] })).toHaveLength(0);
+
+    await updateVaultFolderOp(fctx, folder.uniqueId, { scope: "shared" });
+    expect(await rawRow(kept.uniqueId)).toMatchObject({ level: "matching", scope: "shared" });
+
+    await deleteVaultFolderOp(fctx, folder.uniqueId);
+    expect(await rawRow(kept.uniqueId)).toMatchObject({ level: "private", scope: "private" });
+  });
+
+  it("publishes moved rows and keeps a profile row at profile", async () => {
+    const fctx = folderCtx();
+    const shared = (await createVaultFolderOp(fctx, { name: "Public", scope: "shared" }))!;
+    const plain = await createVaultMemoryOp(ctx, { content: "Likes hiking" });
+    const profile = await createVaultMemoryOp(ctx, {
+      content: "Works as a nurse",
+      kind: "occupation",
+      kindValue: '"nurse"',
+      level: "profile",
+    });
+
+    await moveMemoriesToFolderOp(fctx, [plain.uniqueId, profile.uniqueId], shared.uniqueId);
+    expect(await rawRow(plain.uniqueId)).toMatchObject({ level: "matching", scope: "shared" });
+    expect(await rawRow(profile.uniqueId)).toMatchObject({ level: "profile", scope: "shared" });
+
+    await moveMemoriesToFolderOp(fctx, [plain.uniqueId], null);
+    expect(await rawRow(plain.uniqueId)).toMatchObject({ level: "private", scope: "private" });
+  });
+});
+
+describe("freeFormOnly updates", () => {
+  it("skip a kinded row and leave it unchanged", async () => {
+    const profile = await createVaultMemoryOp(ctx, {
+      content: "Works as a nurse",
+      kind: "occupation",
+      kindValue: '"nurse"',
+      level: "profile",
+    });
+    const free = await createVaultMemoryOp(ctx, { content: "Likes hiking" });
+
+    expect(
+      await updateVaultMemoryOp(ctx, profile.uniqueId, {
+        content: "Works as a doctor",
+        freeFormOnly: true,
+      })
+    ).toBeNull();
+    expect(await getVaultMemoryOp(ctx, profile.uniqueId)).toMatchObject({
+      content: "Works as a nurse",
+      kind: "occupation",
+    });
+    expect(
+      await updateVaultMemoryOp(ctx, free.uniqueId, { content: "Loves hiking", freeFormOnly: true })
+    ).toMatchObject({ content: "Loves hiking" });
   });
 });

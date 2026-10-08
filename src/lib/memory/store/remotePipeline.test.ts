@@ -220,7 +220,7 @@ describe("remote shared recall/retain pipeline", () => {
   });
   it("merges with one candidate request and one version-bound write; replay preserves evidence and metadata", async () => {
     const h = setup();
-    h.seed("a", { kind: "drink", kind_value: "Tea", topics: "[]", topics_updated_at: 17 });
+    h.seed("a", { level: "matching", topics: "[]", topics_updated_at: 17 });
     expect(await h.pipeline.retain("Drinks tea", { sourceChunkIds: ["message"] })).toMatchObject({
       action: "merge",
       memoryId: "a",
@@ -231,13 +231,24 @@ describe("remote shared recall/retain pipeline", () => {
     expect(h.get).not.toHaveBeenCalled();
     const observed = h.rows.get("a")!.memory.last_observed_at;
     expect(h.rows.get("a")!.memory).toMatchObject({
-      kind_value: "Tea",
+      level: "matching",
       topics_updated_at: 17,
       updated_at: 1,
       source_chunk_ids: '["message"]',
     });
     await h.pipeline.retain("Drinks tea", { sourceChunkIds: ["message"] });
     expect(h.rows.get("a")!.memory).toMatchObject({ proof_count: 2, last_observed_at: observed });
+  });
+  it("never merges into or supersedes a kinded profile memory", async () => {
+    const h = setup();
+    h.seed("profile", { kind: "interest", kind_value: '"tea"', level: "profile" });
+    const result = await h.pipeline.retain("Drinks tea");
+    expect(result).toMatchObject({ action: "create" });
+    expect(h.rows.get("profile")!).toMatchObject({
+      version: 1,
+      memory: { content: "Drinks tea", kind: "interest", level: "profile" },
+    });
+    expect(h.rows.size).toBe(2);
   });
   it("creates from empty storage and restores an archived match", async () => {
     const h = setup();
@@ -483,6 +494,15 @@ describe("remote admission and consolidation regressions", () => {
     expect(sent.content).toBe("Drinks coffee");
     expect(sent).not.toHaveProperty("embedding");
     expect(sent).not.toHaveProperty("embedding_model");
+  });
+  it("skips freeFormOnly updates of a kinded row", async () => {
+    const h = setup();
+    h.seed("profile", { kind: "occupation", kind_value: '"nurse"', level: "profile" });
+    await h.pipeline.retain("Drinks coffee");
+    expect(
+      await captured.port!.update("profile", { content: "Works as a doctor", freeFormOnly: true })
+    ).toBeNull();
+    expect(h.rows.get("profile")!).toMatchObject({ version: 1 });
   });
   it("normalizes trust tiers like local memory operations", async () => {
     const h = setup();

@@ -9,9 +9,7 @@ import type { StoredVaultMemory } from "./types";
  *
  * Encrypted fields (random IV):
  * - content: Memory text
- * - kind_value: a kinded memory's canonical value (religion, birth date, …) —
- *   encrypted through this same function, so it is exactly as protected as
- *   `content`
+ * - kind_value: a kinded memory's canonical value, encrypted like `content`
  *
  * Non-encrypted fields:
  * - timestamps, isDeleted

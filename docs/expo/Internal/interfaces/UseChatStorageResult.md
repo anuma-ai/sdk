@@ -727,6 +727,40 @@ Used by a "memory history" view to render retired facts.
 <tr>
 <td>
 
+`options.kinds?`
+
+</td>
+<td>
+
+`string`\[]
+
+</td>
+<td>
+
+Restrict to these profile kinds.
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.levels?`
+
+</td>
+<td>
+
+(`"profile"` | `"private"` | `"matching"`)\[]
+
+</td>
+<td>
+
+Filter by level.
+
+</td>
+</tr>
+<tr>
+<td>
+
 `options.limit?`
 
 </td>

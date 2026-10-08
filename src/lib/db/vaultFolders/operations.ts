@@ -2,6 +2,7 @@ import type { Collection, Database, Model } from "@nozbe/watermelondb";
 import { Q } from "@nozbe/watermelondb";
 
 import type { VaultMemory } from "../memoryVault/models";
+import { levelForScopeChange } from "../memoryVault/types";
 import type { VaultFolder } from "./models";
 import type {
   CreateVaultFolderOptions,
@@ -94,6 +95,7 @@ export async function updateVaultFolderOp(
       for (const memory of memories) {
         updates.push(
           memory.prepareUpdate((r) => {
+            r._setRaw("level", levelForScopeChange(r, opts.scope!));
             r._setRaw("scope", opts.scope!);
           })
         );
@@ -128,6 +130,7 @@ export async function deleteVaultFolderOp(
       const preparedMemories = memories.map((memory) =>
         memory.prepareUpdate((r) => {
           r._setRaw("folder_id", null);
+          r._setRaw("level", levelForScopeChange(r, "private"));
           r._setRaw("scope", "private");
         })
       );
@@ -180,6 +183,7 @@ export async function moveMemoriesToFolderOp(
       const prepared = memories.map((memory) =>
         memory.prepareUpdate((r) => {
           r._setRaw("folder_id", folderId);
+          r._setRaw("level", levelForScopeChange(r, targetScope));
           r._setRaw("scope", targetScope);
         })
       );

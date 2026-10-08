@@ -154,8 +154,6 @@ describe("retain", () => {
   });
 
   it("never offers a kinded (profile) memory as a merge or supersede candidate", async () => {
-    // The vault holds a kinded row and a free-form row; only the free-form one
-    // may reach either merge stage.
     vi.mocked(prepareVaultCandidates).mockResolvedValue({
       ...PREPARED,
       memories: [
@@ -181,6 +179,34 @@ describe("retain", () => {
       expect(set.memories.map((m) => m.uniqueId)).toEqual(["free"]);
       expect(set.embeddedItems.map((item) => item.id)).toEqual(["free"]);
     }
+  });
+
+  it("creates instead of merging when the target became a profile memory mid-retain", async () => {
+    mockVaultMatches([{ uniqueId: "turned", content: "Works at Google", similarity: 0.95 }]);
+    const row = {
+      uniqueId: "turned",
+      content: "Works at Google",
+      scope: "private",
+      folderId: null,
+      userId: null,
+      embedding: null,
+      sourceChunkIds: [],
+      proofCount: 1,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      isDeleted: false,
+    };
+    vi.mocked(getVaultMemoryOp)
+      .mockResolvedValueOnce({ ...row, kind: null } as never)
+      .mockResolvedValueOnce({ ...row, kind: "occupation" } as never);
+    vi.mocked(updateVaultMemoryOp).mockResolvedValue(null);
+    vi.mocked(generateEmbedding).mockResolvedValue([0.1, 0.2, 0.3]);
+    vi.mocked(createVaultMemoryOp).mockResolvedValue({ uniqueId: "new" } as never);
+
+    const result = await retain("Works at Google", ctx);
+
+    expect(vi.mocked(updateVaultMemoryOp).mock.calls[0][2]).toMatchObject({ freeFormOnly: true });
+    expect(result).toMatchObject({ action: "create", memoryId: "new" });
   });
 
   it("merges into the nearest match when cosine ≥ threshold", async () => {

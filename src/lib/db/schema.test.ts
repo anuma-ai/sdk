@@ -164,9 +164,6 @@ describe("memory_vault kind / level (v48)", () => {
     expect(columns.level).toMatchObject({ isOptional: true, isIndexed: true });
   });
 
-  // The backfill SQL, executed for real. WatermelonDB's SQLite adapter runs it
-  // verbatim; there is no native binding in the unit suite, so node:sqlite
-  // stands in when the runtime has it.
   let sqlite: typeof import("node:sqlite") | null = null;
   try {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -187,7 +184,6 @@ describe("memory_vault kind / level (v48)", () => {
     insert.run("private", "private", null);
     insert.run("empty", "", null);
     insert.run("null", null, null);
-    // A row a newer build already wrote keeps its level.
     insert.run("already", "shared", "profile");
 
     db.exec(sql[0]);

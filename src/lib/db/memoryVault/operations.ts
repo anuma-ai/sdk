@@ -26,6 +26,7 @@ import type {
   VaultMemoryVisibility,
 } from "./types";
 import {
+  levelForScopeChange,
   levelFromScope,
   MEMORY_KINDS,
   MEMORY_LEVELS,
@@ -51,15 +52,10 @@ function visibilityConditions(requested?: VaultMemoryVisibility[]) {
   return [Q.or(Q.where("visibility", null), Q.where("visibility", Q.notIn(excluded)))];
 }
 
-/** True when a row carries a profile kind (NULL/undefined = free-form). */
 function isKinded(record: { kind?: string | null }): boolean {
   return record.kind !== null && record.kind !== undefined;
 }
 
-/**
- * Reject a kind/level pair the vault must never store. `kind` and `level` are
- * the values the row will hold AFTER the write (`undefined` = not set yet).
- */
 function assertValidKindLevel(kind: string | null | undefined, level: string | undefined): void {
   const hasKind = kind !== null && kind !== undefined;
   if (hasKind && !(MEMORY_KINDS as readonly string[]).includes(kind)) {
@@ -73,16 +69,12 @@ function assertValidKindLevel(kind: string | null | undefined, level: string | u
   }
 }
 
-/** The level and legacy scope a NEW row is written with. `level` wins; else it
- * is derived from `scope`; `scope` is dual-written from the level when the
- * caller gave a level (or nothing). */
 function resolveCreateLevel(opts: CreateVaultMemoryOptions): { level: MemoryLevel; scope: string } {
   if (opts.level !== undefined) return { level: opts.level, scope: scopeForLevel(opts.level) };
   if (opts.scope !== undefined) return { level: levelFromScope(opts.scope), scope: opts.scope };
   return { level: "private", scope: "private" };
 }
 
-/** Encrypt an optional kind value the same way as `content`. */
 async function encryptKindValue(
   ctx: VaultMemoryOperationsContext,
   value: string | null | undefined
@@ -96,12 +88,6 @@ async function encryptKindValue(
   );
 }
 
-/**
- * WHERE conditions for a level filter, mirroring {@link resolveMemoryLevel}: a
- * row matches on its `level` column, or — when that column is NULL/unknown (a
- * LokiJS database the v48 backfill could not reach) — on the level its legacy
- * `scope` implies.
- */
 function levelConditions(requested?: MemoryLevel[]) {
   if (!requested?.length) return [];
   const published = ["shared", "public"];
@@ -644,13 +630,9 @@ export async function getAllVaultMemoriesOp(
      * published set to diff against the server index.
      */
     visibility?: VaultMemoryVisibility[];
-    /**
-     * Filter by level. A row whose `level` column is NULL matches on the level
-     * its legacy `scope` implies (see {@link resolveMemoryLevel}). The published
-     * set is `["matching", "profile"]`.
-     */
+    /** Filter by level. */
     levels?: MemoryLevel[];
-    /** Restrict to these profile kinds. Omit for no filter. */
+    /** Restrict to these profile kinds. */
     kinds?: string[];
   }
 ): Promise<StoredVaultMemory[]> {
@@ -1006,16 +988,12 @@ export async function updateVaultMemoryOp(
   try {
     const probe = await ctx.vaultMemoryCollection.find(id);
     if (probe.isDeleted || probe.supersededBy || !isOwnedByCtxUser(ctx, probe)) return null;
+    if (opts.freeFormOnly && isKinded(probe)) return null;
 
-    // Level the row holds after this write. `level` wins; a legacy `scope`
-    // write implies one, except that `shared` keeps an existing `profile` row
-    // at `profile` (both dual-write as `shared`).
     const levelAfter = (current: { level: string | null; scope: string }): MemoryLevel => {
       if (opts.level !== undefined) return opts.level;
-      const currentLevel = resolveMemoryLevel(current.level, current.scope);
-      if (opts.scope === undefined) return currentLevel;
-      const implied = levelFromScope(opts.scope);
-      return implied === "matching" && currentLevel === "profile" ? "profile" : implied;
+      if (opts.scope === undefined) return resolveMemoryLevel(current.level, current.scope);
+      return levelForScopeChange(current, opts.scope);
     };
     assertValidKindLevel(opts.kind !== undefined ? opts.kind : probe.kind, levelAfter(probe));
     const encryptedKindValue = await encryptKindValue(ctx, opts.kindValue);
@@ -1036,12 +1014,15 @@ export async function updateVaultMemoryOp(
     await ctx.database.write(async () => {
       if (ctx.canWrite && !(await ctx.canWrite()))
         throw new Error("Memory source is no longer eligible");
-      if (record.isDeleted || record.supersededBy || !isOwnedByCtxUser(ctx, record)) {
+      if (
+        record.isDeleted ||
+        record.supersededBy ||
+        !isOwnedByCtxUser(ctx, record) ||
+        (opts.freeFormOnly && isKinded(record))
+      ) {
         stale = true;
         return;
       }
-      // Re-validate against the committed row: a concurrent write may have
-      // changed its kind or level since the probe.
       const nextKind = opts.kind !== undefined ? opts.kind : record.kind;
       const nextLevel = levelAfter(record);
       assertValidKindLevel(nextKind, nextLevel);
@@ -1134,7 +1115,6 @@ export async function updateVaultMemoryOp(
       ctx.embeddedWalletSigner
     );
   } catch (err) {
-    // An invalid kind/level is the caller's bug, not a vanished row — surface it.
     if (err instanceof MemoryLevelError) throw err;
     return null;
   }
@@ -1377,8 +1357,6 @@ export async function supersedeVaultMemoryOp(
   try {
     const record = await ctx.vaultMemoryCollection.find(id);
     if (record.isDeleted || record.supersededBy || !isOwnedByCtxUser(ctx, record)) return false;
-    // A kinded (profile) memory changes only through the user's profile editor;
-    // extraction never retires it.
     if (isKinded(record)) return false;
 
     let successor;
@@ -1984,9 +1962,6 @@ export async function getDecayCandidatesRawOp(
   const results = (await ctx.vaultMemoryCollection
     .query(
       ...baseVaultConditions(ctx, { includeArchived: true, includeQuarantined: true }),
-      // Kinded (profile) memories never decay: they are the user's profile, and
-      // archiving one would silently drop it from Nearby. Excluded from the scan
-      // so they are not classified either (no content egress to the classifier).
       Q.where("kind", null)
     )
     .unsafeFetchRaw()) as Record<string, unknown>[];

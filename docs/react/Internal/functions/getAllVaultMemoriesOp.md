@@ -2,7 +2,7 @@
 
 > **getAllVaultMemoriesOp**(`ctx`: [`VaultMemoryOperationsContext`](../interfaces/VaultMemoryOperationsContext.md), `options?`: `object`): `Promise`<[`StoredVaultMemory`](../interfaces/StoredVaultMemory.md)\[]>
 
-Defined in: [src/lib/db/memoryVault/operations.ts:507](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#507)
+Defined in: [src/lib/db/memoryVault/operations.ts:600](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#600)
 
 ## Parameters
 
@@ -153,6 +153,40 @@ Include quarantined memories. Default `false` (PR1 choke point).
 Include A2-superseded memories (each carries `supersededBy`). Default
 `false` — superseded rows are excluded, as they are from recall/dedup.
 Used by a "memory history" view to render retired facts.
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.kinds?`
+
+</td>
+<td>
+
+`string`\[]
+
+</td>
+<td>
+
+Restrict to these profile kinds.
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.levels?`
+
+</td>
+<td>
+
+(`"profile"` | `"private"` | `"matching"`)\[]
+
+</td>
+<td>
+
+Filter by level.
 
 </td>
 </tr>

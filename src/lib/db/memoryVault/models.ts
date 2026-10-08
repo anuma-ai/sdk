@@ -6,12 +6,11 @@ export class VaultMemory extends Model {
 
   @text("content") content!: string;
   @text("scope") scope!: string;
-  /** Profile kind, or null for a free-form memory (v48). */
+  /** Profile kind, or null for a free-form memory. */
   @field("kind") kind!: string | null;
-  /** Canonical JSON value of a kinded memory, encrypted at rest (v48). */
+  /** Canonical JSON value of a kinded memory, encrypted at rest. */
   @field("kind_value") kindValue!: string | null;
-  /** private | matching | profile (v48). NULL on rows the migration could not
-   *  backfill (LokiJS skips SQL steps) — read through resolveMemoryLevel. */
+  /** private | matching | profile. */
   @field("level") level!: string | null;
   @field("folder_id") folderId!: string | null;
   @field("user_id") userId!: string | null;

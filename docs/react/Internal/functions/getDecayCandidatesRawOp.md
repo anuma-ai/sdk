@@ -2,7 +2,7 @@
 
 > **getDecayCandidatesRawOp**(`ctx`: [`VaultMemoryOperationsContext`](../interfaces/VaultMemoryOperationsContext.md)): `Promise`<[`DecayCandidateRaw`](../interfaces/DecayCandidateRaw.md)\[]>
 
-Defined in: [src/lib/db/memoryVault/operations.ts:1829](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#1829)
+Defined in: [src/lib/db/memoryVault/operations.ts:1958](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#1958)
 
 Decay sweep candidate scan (PR2). Selects the plaintext columns
 `classifyDecay` (in `memory/decay`) needs via
@@ -11,7 +11,8 @@ web Pile-2 OOM history) and NO `content` read / decrypt (zero-knowledge).
 
 Includes archived AND quarantined rows (so archived→delete transitions and
 aged quarantined rows are seen) but excludes hard-deleted rows — the
-`baseVaultConditions` default keeps `is_deleted = false`.
+`baseVaultConditions` default keeps `is_deleted = false`. Excludes kinded
+(profile) memories, which never decay.
 
 Refuses to run on an unscoped multi-tenant context (see
 assertVaultScopeForSweep).

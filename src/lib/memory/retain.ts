@@ -194,6 +194,7 @@ export async function retainWithPersistence(
           const resurrect = resurrectFields(existing);
           const updated = await ctx.persistence.update(targetId, {
             content: existing.content,
+            freeFormOnly: true,
             proofCountIncrement: 1,
             observationSourceIds: options.sourceChunkIds,
             sourceChunkIds: mergedSourceIds,
@@ -341,8 +342,6 @@ export async function retainWithPersistence(
   };
 }
 
-/** Drop kinded (profile) rows from a retain candidate set, so neither merge
- * stage can match one. */
 function withoutKindedRows(prepared: PreparedVaultCandidates): PreparedVaultCandidates {
   const kinded = new Set(
     prepared.memories.filter((m) => m.kind !== null && m.kind !== undefined).map((m) => m.uniqueId)
@@ -519,6 +518,7 @@ async function tryConsolidate(
     const resurrect = resurrectFields(existing);
     const updated = await ctx.persistence.update(decision.targetId, {
       content: existing.content,
+      freeFormOnly: true,
       proofCountIncrement: 1,
       observationSourceIds: options.sourceChunkIds,
       sourceChunkIds: mergedSourceIds,
@@ -565,6 +565,7 @@ async function tryConsolidate(
     const resurrect = resurrectFields(existing);
     const updated = await ctx.persistence.update(decision.targetId, {
       content: decision.content,
+      freeFormOnly: true,
       proofCountIncrement: 1,
       observationSourceIds: options.sourceChunkIds,
       sourceChunkIds: mergedSourceIds,
@@ -615,7 +616,7 @@ async function assertMergeTargetGoneOrThrow(
   const stillExists = await (ctx.persistence.getFresh
     ? ctx.persistence.getFresh(targetId)
     : ctx.persistence.get(targetId));
-  if (stillExists) {
+  if (stillExists && (stillExists.kind === null || stillExists.kind === undefined)) {
     throw new Error(`retain: merge into memory ${targetId} failed to persist`);
   }
 }

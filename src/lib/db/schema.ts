@@ -132,13 +132,8 @@ import { VaultFolder } from "./vaultFolders/models";
  *   budget was in memory and reset on every turn, so one batch that could never
  *   extract blocked its conversation's extraction forever. Additive, both
  *   nullable, no backfill: NULL reads as "never failed"
- * - v48: Added kind, kind_value, level to memory_vault — a profile item is a
- *   memory with a `kind` (`kind_value` = its canonical JSON value, encrypted
- *   like `content`), and `level` (private | matching | profile) replaces the
- *   two-value `scope` axis. Backfilled from `scope` on SQLite (`shared` or
- *   legacy `public` → matching, else private); LokiJS skips SQL steps, so a
- *   NULL `level` reads as the level its `scope` implies. `scope` stays
- *   dual-written for one release so older builds still read publication
+ * - v48: Added kind, kind_value (encrypted) and level to memory_vault; level is
+ *   backfilled from scope where SQL steps run
  */
 export const SDK_SCHEMA_VERSION = 48;
 
@@ -265,18 +260,9 @@ export const sdkSchema = appSchema({
       name: "memory_vault",
       columns: [
         { name: "content", type: "string" },
-        // LEGACY since v48 — `level` is the axis. Still dual-written
-        // (private → 'private', matching/profile → 'shared') for older builds.
         { name: "scope", type: "string", isIndexed: true },
-        // Profile kind (display_name, birth_date, bio, …) or NULL for a
-        // free-form memory. Kinded rows are exempt from extraction merge /
-        // supersede and from decay.
         { name: "kind", type: "string", isOptional: true, isIndexed: true },
-        // Canonical JSON value of a kinded memory. ENCRYPTED like `content`.
         { name: "kind_value", type: "string", isOptional: true },
-        // private | matching | profile. Optional only so a migrated LokiJS
-        // database (which cannot run the v48 backfill) reads NULL, resolved
-        // from `scope` at read time. Every write sets it.
         { name: "level", type: "string", isOptional: true, isIndexed: true },
         { name: "folder_id", type: "string", isOptional: true, isIndexed: true },
         { name: "created_at", type: "number", isIndexed: true },
@@ -1011,12 +997,6 @@ export const sdkMigrations = schemaMigrations({
         }),
       ],
     },
-    // v47 -> v48: kind / kind_value / level on memory_vault. Existing rows are
-    // free-form (kind NULL) and get the level their scope implied: the
-    // published scope ('shared', or the legacy 'public') → 'matching',
-    // anything else → 'private'. Never 'profile' — that needs a kind. LokiJS
-    // discards the SQL step, so its rows keep level NULL and are resolved from
-    // scope at read time (resolveMemoryLevel), with the same mapping.
     {
       toVersion: 48,
       steps: [
