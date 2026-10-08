@@ -59,8 +59,15 @@ export interface RemoteMemoryListOptions extends Omit<RemoteMemoryReadFilters, "
   signal?: AbortSignal;
 }
 
+export interface RemoteMemoryDecodeFailure {
+  memory_id: string;
+  version: number;
+  error: Error;
+}
+
 export interface RemoteMemoryPage {
   items: RemoteMemoryRecord[];
+  failed: RemoteMemoryDecodeFailure[];
   next_cursor?: string;
 }
 
@@ -90,6 +97,7 @@ export interface RemoteMemoryPersistenceOptions {
   fetch?: typeof globalThis.fetch;
   /** Cancellation for the initial account/key check. Individual operations take their own signal. */
   signal?: AbortSignal;
+  timeoutMs?: number;
 }
 
 /** HTTP failures remain distinguishable, particularly version_conflict and key_mismatch. */
@@ -131,6 +139,7 @@ export interface RemoteMemoryPersistence {
     options?: RemoteMemoryCandidateOptions
   ): Promise<{
     items: RemoteMemoryRecord[];
+    failed: RemoteMemoryDecodeFailure[];
     total_count: number;
     unavailable_count: number;
   }>;
@@ -181,6 +190,19 @@ const memoryFields = {
   geohash: true,
 } satisfies Record<keyof RemoteMemoryRow, boolean>;
 
+const candidateListLimits = [
+  ["scopes", 20],
+  ["fact_types", 20],
+  ["memory_ids", 1000],
+  ["force_ids", 100],
+] as const;
+
+interface PreparedWrite {
+  body: { expected_version: number; memory: RemoteMemoryRow };
+  content: string;
+  kindValue?: string;
+}
+
 function record(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -228,6 +250,9 @@ export async function createRemoteMemoryPersistence(
   }
   if (!options.keyId || options.keyId.length > 256)
     throw new Error("A canonical keyId is required");
+  const timeoutMs = options.timeoutMs ?? 30_000;
+  if (!Number.isFinite(timeoutMs) || timeoutMs <= 0)
+    throw new Error("timeoutMs must be a positive number");
   const root = base.href.replace(/\/$/, "") + "/api/private-memories";
   const fetcher = options.fetch ?? globalThis.fetch;
   const request = async (
@@ -237,26 +262,43 @@ export async function createRemoteMemoryPersistence(
   ): Promise<unknown> => {
     const token = await options.getToken();
     if (!token) throw new RemoteMemoryError("Authentication required", 401);
-    const response = await fetcher(root + path, {
-      ...init,
-      headers: {
-        Authorization: `Bearer ${token}`,
-        ...(init.body ? { "Content-Type": "application/json" } : {}),
-      },
-      redirect: "error",
-      signal,
-    });
-    if (!response.ok) {
-      const body: unknown = await response.json().catch(() => null);
-      throw new RemoteMemoryError(
-        record(body) && typeof body.detail === "string"
-          ? body.detail
-          : `Nearby request failed (${response.status})`,
-        response.status,
-        record(body) && typeof body.code === "string" ? body.code : undefined
-      );
+    const controller = new AbortController();
+    let timedOut = false;
+    const timer = setTimeout(() => {
+      timedOut = true;
+      controller.abort();
+    }, timeoutMs);
+    const forwardAbort = () => controller.abort(signal?.reason);
+    if (signal?.aborted) forwardAbort();
+    else signal?.addEventListener("abort", forwardAbort, { once: true });
+    try {
+      const response = await fetcher(root + path, {
+        ...init,
+        headers: {
+          Authorization: `Bearer ${token}`,
+          ...(init.body ? { "Content-Type": "application/json" } : {}),
+        },
+        redirect: "error",
+        signal: controller.signal,
+      });
+      if (!response.ok) {
+        const body: unknown = await response.json().catch(() => null);
+        throw new RemoteMemoryError(
+          record(body) && typeof body.detail === "string"
+            ? body.detail
+            : `Nearby request failed (${response.status})`,
+          response.status,
+          record(body) && typeof body.code === "string" ? body.code : undefined
+        );
+      }
+      return (await response.json()) as unknown;
+    } catch (error) {
+      if (timedOut) throw new RemoteMemoryError("Nearby request timed out", 408, "timeout");
+      throw error;
+    } finally {
+      clearTimeout(timer);
+      signal?.removeEventListener("abort", forwardAbort);
     }
-    return response.json();
   };
   const account = await request("/account", {}, options.signal);
   if (!record(account) || account.state !== "active") {
@@ -306,6 +348,9 @@ export async function createRemoteMemoryPersistence(
         }),
       },
     };
+    return remember(decoded, item);
+  };
+  const remember = (decoded: RemoteMemoryRecord, item: RemoteMemoryRecord) => {
     snapshots.set(decoded, {
       id: item.memory.memory_id,
       version: item.version,
@@ -316,6 +361,51 @@ export async function createRemoteMemoryPersistence(
     });
     return decoded;
   };
+  const decodeAll = async (values: unknown[]) => {
+    const records = values.map(memoryRecord);
+    const settled = await Promise.allSettled(records.map(decode));
+    const items: RemoteMemoryRecord[] = [];
+    const failed: RemoteMemoryDecodeFailure[] = [];
+    settled.forEach((result, i) => {
+      if (result.status === "fulfilled") items.push(result.value);
+      else
+        failed.push({
+          memory_id: records[i].memory.memory_id,
+          version: records[i].version,
+          error: result.reason instanceof Error ? result.reason : new Error(String(result.reason)),
+        });
+    });
+    return { items, failed };
+  };
+  const decodeCommitted = async (
+    value: unknown,
+    write: PreparedWrite
+  ): Promise<RemoteMemoryRecord> => {
+    const item = memoryRecord(value);
+    if (
+      item.memory.memory_id !== write.body.memory.memory_id ||
+      item.memory.content !== write.body.memory.content ||
+      item.memory.kind_value !== write.body.memory.kind_value
+    )
+      return decode(item);
+    return remember(
+      {
+        ...item,
+        memory: {
+          ...item.memory,
+          content: write.content,
+          ...(write.kindValue !== undefined && { kind_value: write.kindValue }),
+        },
+      },
+      item
+    );
+  };
+  const encryptField = async (plaintext: string): Promise<string> => {
+    const ciphertext = await options.encrypt(plaintext);
+    if (ciphertext === plaintext || !ciphertextPattern.test(ciphertext))
+      throw new Error("Field encryption must return SDK ciphertext; refusing to upload plaintext");
+    return ciphertext;
+  };
   const memoryPath = (id: string): string => {
     if (!id || id.length > 128) throw new Error("memory_id must be 1–128 characters");
     return "/memories/" + encodeURIComponent(id);
@@ -325,11 +415,16 @@ export async function createRemoteMemoryPersistence(
     memory: RemoteMemoryRow,
     expectedVersion: number | RemoteMemoryRecord,
     signal?: AbortSignal
-  ) => {
-    if (
-      Object.keys(memory).some((key) => !Object.prototype.hasOwnProperty.call(memoryFields, key))
-    ) {
-      throw new Error("Unknown private-memory fields; refusing to forward them");
+  ): Promise<PreparedWrite> => {
+    const unknown = Object.keys(memory).filter(
+      (key) => !Object.prototype.hasOwnProperty.call(memoryFields, key)
+    );
+    if (unknown.length) {
+      throw new RemoteMemoryError(
+        `Unknown private-memory fields (${unknown.join(", ")}); refusing to forward them`,
+        400,
+        "unknown_field"
+      );
     }
     // Callers can edit their snapshot while key derivation/network work awaits.
     // Capture the entire write before the first await, including its vector.
@@ -349,36 +444,37 @@ export async function createRemoteMemoryPersistence(
     expectedVersion = typeof expectedVersion === "number" ? expectedVersion : snapshot!.version;
     if (!Number.isSafeInteger(expectedVersion) || expectedVersion < 0)
       throw new Error("expectedVersion must be a nonnegative integer");
-    // Re-encrypting unchanged content uses a fresh IV, which the server would
-    // interpret as a content edit and clear an omitted embedding. Read the
-    // expected server version and reuse its ciphertext when plaintext matches.
-    // The final PUT still uses the caller's version: a racing edit must fail.
-    const existing =
-      expectedVersion === 0 || snapshot ? undefined : memoryRecord(await request(path, {}, signal));
-    if (existing && existing.version !== expectedVersion) {
-      throw new RemoteMemoryError("The memory changed since it was read", 409, "version_conflict");
+    const conflict = () =>
+      new RemoteMemoryError("The memory changed since it was read", 409, "version_conflict");
+    let existing: RemoteMemoryRecord | undefined;
+    if (expectedVersion !== 0 && !snapshot) {
+      try {
+        existing = memoryRecord(await request(path, {}, signal));
+      } catch (error) {
+        if (error instanceof RemoteMemoryError && error.status === 404) throw conflict();
+        throw error;
+      }
     }
-    const decoded = existing ? await decode(existing) : undefined;
+    if (existing && existing.version !== expectedVersion) throw conflict();
+    const decoded = existing ? await decode(existing).catch(() => undefined) : undefined;
     const content =
       (snapshot?.content ?? decoded?.memory.content) === memory.content
         ? (snapshot?.encryptedContent ?? existing!.memory.content)
-        : await options.encrypt(memory.content);
+        : await encryptField(memory.content);
     const kindValue =
       memory.kind_value === undefined
         ? undefined
         : (snapshot?.kindValue ?? decoded?.memory.kind_value) === memory.kind_value
           ? (snapshot?.encryptedKindValue ?? existing!.memory.kind_value)
-          : await options.encrypt(memory.kind_value);
-    if (
-      !ciphertextPattern.test(content) ||
-      (kindValue !== undefined && !ciphertextPattern.test(kindValue))
-    ) {
-      throw new Error("Field encryption must return SDK ciphertext; refusing to upload plaintext");
-    }
+          : await encryptField(memory.kind_value);
 
     return {
-      expected_version: expectedVersion,
-      memory: { ...memory, content, ...(kindValue !== undefined && { kind_value: kindValue }) },
+      body: {
+        expected_version: expectedVersion,
+        memory: { ...memory, content, ...(kindValue !== undefined && { kind_value: kindValue }) },
+      },
+      content: memory.content,
+      kindValue: memory.kind_value,
     };
   };
 
@@ -386,13 +482,21 @@ export async function createRemoteMemoryPersistence(
     embedding: number[],
     candidateOptions: RemoteMemoryCandidateOptions = {}
   ) => {
+    const limit = candidateOptions.limit ?? 100;
+    if (!Number.isInteger(limit) || limit < 1 || limit > 100)
+      throw new Error("Candidate limit must be 1–100");
+    for (const [key, max] of candidateListLimits) {
+      const values = candidateOptions[key];
+      if (values && values.length > max)
+        throw new Error(`Candidate ${key} accepts at most ${max} entries (got ${values.length})`);
+    }
     const result = await request(
       "/candidates",
       {
         method: "POST",
         body: JSON.stringify({
           embedding,
-          limit: candidateOptions.limit ?? 100,
+          limit,
           force_ids: candidateOptions.force_ids ?? [],
           ...Object.fromEntries(
             [
@@ -434,7 +538,7 @@ export async function createRemoteMemoryPersistence(
     )
       throw new Error("Invalid nearby candidate response");
     return {
-      items: await Promise.all(result.items.map(decode)),
+      ...(await decodeAll(result.items)),
       total_count: result.total_count as number,
       unavailable_count: result.unavailable_count as number,
     };
@@ -478,21 +582,22 @@ export async function createRemoteMemoryPersistence(
         throw new Error("Invalid nearby private-memory page");
       }
       return {
-        items: await Promise.all(page.items.map(decode)),
+        ...(await decodeAll(page.items)),
         ...(page.next_cursor !== undefined && { next_cursor: page.next_cursor }),
       };
     },
     put: async (memory, expectedVersion, signal) => {
       const write = await prepareWrite(memory, expectedVersion, signal);
-      return decode(
+      return decodeCommitted(
         await request(
-          memoryPath(write.memory.memory_id),
+          memoryPath(write.body.memory.memory_id),
           {
             method: "PUT",
-            body: JSON.stringify({ key_id: options.keyId, ...write }),
+            body: JSON.stringify({ key_id: options.keyId, ...write.body }),
           },
           signal
-        )
+        ),
+        write
       );
     },
     putMany: async (writes, signal) => {
@@ -502,7 +607,6 @@ export async function createRemoteMemoryPersistence(
         new Set(writes.map((w) => w.memory.memory_id)).size !== writes.length
       )
         throw new Error("Batch must contain 1–50 distinct memory ids");
-      // Start all preparations synchronously so every input captures before awaits.
       const prepared = await Promise.all(
         writes.map((w) => prepareWrite(w.memory, w.expectedVersion, signal))
       );
@@ -510,7 +614,7 @@ export async function createRemoteMemoryPersistence(
         "/memories/batch",
         {
           method: "POST",
-          body: JSON.stringify({ key_id: options.keyId, writes: prepared }),
+          body: JSON.stringify({ key_id: options.keyId, writes: prepared.map((w) => w.body) }),
         },
         signal
       );
@@ -520,7 +624,7 @@ export async function createRemoteMemoryPersistence(
         result.items.length !== prepared.length
       )
         throw new Error("Invalid nearby batch response");
-      return Promise.all(result.items.map(decode));
+      return Promise.all(result.items.map((item, i) => decodeCommitted(item, prepared[i])));
     },
     candidateSet,
     candidates: async (embedding, candidateOptions) =>

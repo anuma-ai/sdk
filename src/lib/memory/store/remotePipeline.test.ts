@@ -21,6 +21,7 @@ import {
 
 function setup() {
   const rows = new Map<string, RemoteMemoryRecord>();
+  const undecryptable = new Set<string>();
   const vector = [1, ...new Array<number>(1535).fill(0)];
   const seed = (id: string, patch: Partial<RemoteMemoryRow> = {}) => {
     rows.set(id, {
@@ -81,8 +82,22 @@ function setup() {
         ({ memory: m }) =>
           m.embedding && (!m.embedding_model || m.embedding_model === options.embedding_model)
       );
+      const window = compatible.slice(0, options.limit ?? 100);
+      const forced = eligible.filter(
+        ({ memory: m }) =>
+          options.force_ids?.includes(m.memory_id) &&
+          !window.some((w) => w.memory.memory_id === m.memory_id)
+      );
+      const returned = [...window, ...forced];
       return {
-        items: structuredClone(compatible.slice(0, options.limit ?? 100)),
+        items: structuredClone(returned.filter(({ memory: m }) => !undecryptable.has(m.memory_id))),
+        failed: returned
+          .filter(({ memory: m }) => undecryptable.has(m.memory_id))
+          .map(({ memory: m, version }) => ({
+            memory_id: m.memory_id,
+            version,
+            error: new Error("Memory decryption failed"),
+          })),
         total_count: eligible.length,
         unavailable_count: eligible.length - compatible.length,
       };
@@ -111,6 +126,7 @@ function setup() {
     pipeline,
     seed,
     rows,
+    undecryptable,
     get,
     put,
     putMany,
@@ -278,7 +294,10 @@ describe("remote shared recall/retain pipeline", () => {
       minScore: 0,
     });
     expect(h.candidateSet).toHaveBeenCalledTimes(3);
-    expect(generateEmbeddings).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(generateEmbeddings).mock.calls.map(([texts]) => texts)).toEqual([
+      ["Drinks tea"],
+      ["Drinks tea", "Favorite drink"],
+    ]);
     expect(h.candidateSet.mock.calls.every(([v]) => v.length === 1536)).toBe(true);
   });
 });
@@ -305,18 +324,72 @@ describe("remote admission and consolidation regressions", () => {
     first[0] = 1;
     const second = new Array<number>(4096).fill(0);
     second[1] = 1;
-    vi.mocked(generateEmbeddings).mockResolvedValueOnce([main, first, second]);
+    vi.mocked(generateEmbeddings)
+      .mockResolvedValueOnce([main])
+      .mockResolvedValueOnce([first, second]);
     await h.pipeline.recall("Drinks tea", { subQueries: ["first", "second"], minScore: 0 });
     expect(h.candidateSet.mock.calls[0][0].slice(0, 2)).toEqual([0.6, 0.8]);
     expect(h.candidateSet.mock.calls[1][0].slice(0, 2)).toEqual([1, 0]);
     expect(h.candidateSet.mock.calls[2][0].slice(0, 2)).toEqual([0, 1]);
-    vi.mocked(generateEmbeddings).mockResolvedValueOnce([main, [], second]);
+    vi.mocked(generateEmbeddings).mockResolvedValueOnce([main]).mockResolvedValueOnce([[], second]);
     const before = h.candidateSet.mock.calls.length;
     expect(
       (await h.pipeline.recall("Drinks tea", { subQueries: ["first", "second"], minScore: 0 }))
         .memories[0].id
     ).toBe("a");
     expect(h.candidateSet.mock.calls.length - before).toBe(1);
+    vi.mocked(generateEmbeddings)
+      .mockResolvedValueOnce([main])
+      .mockRejectedValueOnce(new Error("facet embedding timed out"));
+    const afterTimeout = h.candidateSet.mock.calls.length;
+    expect(
+      (await h.pipeline.recall("Drinks tea", { subQueries: ["first", "second"], minScore: 0 }))
+        .memories[0].id
+    ).toBe("a");
+    expect(h.candidateSet.mock.calls.length - afterTimeout).toBe(1);
+  });
+  it("forces graph and temporal ids only into the primary window", async () => {
+    const h = setup();
+    h.seed("a");
+    h.graphRanking.mockResolvedValueOnce(["a"]);
+    await h.pipeline.recall("Drinks tea", {
+      subQueries: ["Drinks tea", "Favorite drink"],
+      minScore: 0,
+    });
+    expect(h.candidateSet.mock.calls.map(([, options]) => options!.force_ids)).toEqual([
+      ["a"],
+      [],
+      [],
+    ]);
+  });
+  it("skips undecryptable rows on recall but refuses to retain against them", async () => {
+    const h = setup();
+    h.seed("a");
+    h.seed("broken", { content: "Drinks coffee" });
+    h.undecryptable.add("broken");
+    const warn = vi.spyOn(getLogger(), "warn");
+    const recalled = await h.pipeline.recall("Drinks tea", { minScore: 0 });
+    expect(recalled.memories.map((memory) => memory.id)).toEqual(["a"]);
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining("undecryptable"), ["broken"]);
+    await expect(h.pipeline.retain("Drinks green tea")).rejects.toThrow("could not decrypt");
+    expect(h.put).not.toHaveBeenCalled();
+    expect(h.putMany).not.toHaveBeenCalled();
+  });
+  it("refuses tombstone checks that cannot decrypt the nearest tombstone", async () => {
+    const h = setup();
+    h.seed("gone", { is_deleted: true });
+    h.undecryptable.add("gone");
+    await expect(
+      h.pipeline.retain("Drinks tea", { enableAutoMerge: false, respectTombstones: true })
+    ).rejects.toThrow("could not decrypt");
+    expect(h.put).not.toHaveBeenCalled();
+  });
+  it("rejects folder-scoped creates instead of dropping the folder", async () => {
+    const h = setup();
+    await expect(
+      h.pipeline.retain("Drinks tea", { enableAutoMerge: false, folderId: "folder" })
+    ).rejects.toThrow("do not support folders");
+    expect(h.put).not.toHaveBeenCalled();
   });
   it("keeps consolidation rewrites on a replay without inflating evidence", async () => {
     const h = setup();

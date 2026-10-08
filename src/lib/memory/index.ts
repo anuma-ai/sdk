@@ -105,6 +105,7 @@ export { createLocalMemoryStore, type LocalMemoryStoreOptions } from "./store/lo
 export {
   createRemoteMemoryPersistence,
   type RemoteMemoryCandidateOptions,
+  type RemoteMemoryDecodeFailure,
   RemoteMemoryError,
   type RemoteMemoryListOptions,
   type RemoteMemoryPage,

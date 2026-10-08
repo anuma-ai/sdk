@@ -16,6 +16,7 @@ import { recall } from "../recall.js";
 import { type RetainPersistence, retainWithPersistence } from "../retain.js";
 import type { RecallFactSource, RecallResult, RetainResult } from "../types.js";
 import type {
+  RemoteMemoryDecodeFailure,
   RemoteMemoryPersistence,
   RemoteMemoryRecord,
   RemoteMemoryRow,
@@ -106,8 +107,18 @@ export function createRemoteMemoryPipeline(
 ): RemoteMemoryPipeline {
   const { persistence, embeddingOptions } = options;
   const model = embeddingOptions.model ?? DEFAULT_API_EMBEDDING_MODEL;
-  // These snapshots live for ONE pipeline operation, never between calls.
-  const operation = () => {
+  const operation = (mode: "recall" | "retain") => {
+    const rejectUndecryptable = (failed: RemoteMemoryDecodeFailure[]) => {
+      if (!failed.length) return;
+      if (mode === "retain")
+        throw new Error(
+          `Remote memories could not decrypt ${failed.length} candidate row(s); refusing to retain until they are repaired`
+        );
+      getLogger().warn(
+        `[memory/remote] Skipping ${failed.length} undecryptable candidate row(s)`,
+        failed.map((failure) => failure.memory_id)
+      );
+    };
     const snapshots = new Map<string, RemoteMemoryRecord>();
     const remember = (items: RemoteMemoryRecord[]) => {
       items.forEach((item) => snapshots.set(item.memory.memory_id, item));
@@ -128,28 +139,32 @@ export function createRemoteMemoryPipeline(
       const facets = normalizeSubQueries(search.subQueries);
       const facetQueries = facets.length >= 2 ? facets : [];
       const start = Date.now();
-      const texts = search.queryEmbedding ? facetQueries : [query, ...facetQueries];
-      const vectors = texts.length
-        ? await generateEmbeddings(texts, {
-            ...embeddingOptions,
-            totalTimeoutMs: search.queryEmbedTotalTimeoutMs ?? 8000,
-          })
-        : [];
-      const queryEmbedding = storedVector(search.queryEmbedding ?? vectors[0]);
-      let facetEmbeddings: number[][] = [];
-      try {
-        const facets = search.queryEmbedding ? vectors : vectors.slice(1);
-        if (facets.length !== facetQueries.length) throw new Error("Incomplete facet embeddings");
-        facetEmbeddings = facets.map(storedVector);
-      } catch (error) {
-        getLogger().warn(
-          "[memory/remote] Facet embeddings unavailable; using primary query",
-          error
-        );
-      }
+      const embed = (texts: string[]) =>
+        generateEmbeddings(texts, {
+          ...embeddingOptions,
+          totalTimeoutMs: search.queryEmbedTotalTimeoutMs ?? 8000,
+        });
+      const embedFacets = async (): Promise<number[][]> => {
+        if (!facetQueries.length) return [];
+        try {
+          const vectors = await embed(facetQueries);
+          if (vectors.length !== facetQueries.length)
+            throw new Error("Incomplete facet embeddings");
+          return vectors.map(storedVector);
+        } catch (error) {
+          getLogger().warn(
+            "[memory/remote] Facet embeddings unavailable; using primary query",
+            error
+          );
+          return [];
+        }
+      };
+      const [primary, facetEmbeddings] = await Promise.all([
+        search.queryEmbedding ?? embed([query]).then((vectors) => vectors[0]),
+        embedFacets(),
+      ]);
+      const queryEmbedding = storedVector(primary);
       const queryEmbedMs = Date.now() - start;
-      // Interleave lanes so a crowded graph cannot consume temporal admission.
-      // Primary recall stays available when side lanes exceed the API's budget.
       const graph = search.entityRanking ?? [];
       const temporal = search.temporalRanking ?? [];
       const forced = new Set<string>();
@@ -159,10 +174,10 @@ export function createRemoteMemoryPipeline(
       }
       const forceIds = [...forced];
       const windows = await Promise.all(
-        [queryEmbedding, ...facetEmbeddings].map((embedding) =>
+        [queryEmbedding, ...facetEmbeddings].map((embedding, i) =>
           persistence.candidateSet(embedding, {
             limit: Math.min(100, Math.max((search.limit ?? 8) * 3, 30)),
-            force_ids: forceIds,
+            force_ids: i === 0 ? forceIds : [],
             ...(search.scopes && { scopes: search.scopes }),
             ...(search.factTypes && { fact_types: search.factTypes }),
             ...(search.memoryIds !== undefined && { memory_ids: search.memoryIds }),
@@ -171,6 +186,11 @@ export function createRemoteMemoryPipeline(
           })
         )
       );
+      rejectUndecryptable([
+        ...new Map(
+          windows.flatMap((window) => window.failed).map((failure) => [failure.memory_id, failure])
+        ).values(),
+      ]);
       const items = [
         ...new Map(
           windows.flatMap((window) => window.items).map((item) => [item.memory.memory_id, item])
@@ -211,6 +231,8 @@ export function createRemoteMemoryPipeline(
       };
     };
     const createRow = (input: Parameters<RetainPersistence["create"]>[0]): RemoteMemoryRow => {
+      if (input.folderId !== undefined && input.folderId !== null)
+        throw new Error("Remote memories do not support folders");
       const now = Date.now();
       return {
         memory_id: uuidv7(),
@@ -251,18 +273,16 @@ export function createRemoteMemoryPipeline(
       },
       tombstones: async (embedding, embeddingModel, scope, folderId) => {
         if (folderId !== undefined) throw new Error("Remote memories do not support folders");
-        return remember(
-          (
-            await persistence.candidateSet(storedVector(embedding), {
-              limit: 1,
-              scopes: [scope],
-              embedding_model: embeddingModel,
-              strict_model: true,
-              include_deleted: true,
-              deleted_only: true,
-            })
-          ).items
-        );
+        const window = await persistence.candidateSet(storedVector(embedding), {
+          limit: 1,
+          scopes: [scope],
+          embedding_model: embeddingModel,
+          strict_model: true,
+          include_deleted: true,
+          deleted_only: true,
+        });
+        rejectUndecryptable(window.failed);
+        return remember(window.items);
       },
       create: (input) => write(createRow(input), 0),
       update: async (id, patch) => {
@@ -312,8 +332,6 @@ export function createRemoteMemoryPipeline(
       supersede: async (id, successor) => {
         const [target, newer] = await Promise.all([get(id), get(successor)]);
         if (!target || !newer || id === successor) return false;
-        // Include the successor's expected version as well, so a concurrent delete
-        // cannot leave the predecessor pointing at a deleted/missing successor.
         const old = snapshots.get(id)!;
         const next = snapshots.get(successor)!;
         remember(
@@ -352,7 +370,7 @@ export function createRemoteMemoryPipeline(
   };
   return {
     recall: async (query, recallOptions = {}) => {
-      const { prepare } = operation();
+      const { prepare } = operation("recall");
       return recall(
         query,
         {
@@ -383,7 +401,7 @@ export function createRemoteMemoryPipeline(
       );
     },
     retain: async (content, retainOptions) => {
-      const { port } = operation();
+      const { port } = operation("retain");
       return retainWithPersistence(
         content,
         {

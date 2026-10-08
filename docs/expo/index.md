@@ -1660,6 +1660,12 @@ Re-exports [RemoteMemoryCandidateOptions](../react/Internal/interfaces/RemoteMem
 
 ***
 
+### RemoteMemoryDecodeFailure
+
+Re-exports [RemoteMemoryDecodeFailure](../react/Internal/interfaces/RemoteMemoryDecodeFailure.md)
+
+***
+
 ### RemoteMemoryError
 
 Re-exports [RemoteMemoryError](../react/Internal/classes/RemoteMemoryError.md)

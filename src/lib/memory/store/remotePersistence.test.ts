@@ -350,8 +350,157 @@ describe("remote private-memory persistence", () => {
     const before = h.fetch.mock.calls.length;
     await expect(
       store.put({ ...h.memory("a"), keyMaterial: "must stay on device" } as RemoteMemoryRow, 0)
-    ).rejects.toThrow("Unknown private-memory fields");
+    ).rejects.toMatchObject({
+      code: "unknown_field",
+      message: expect.stringContaining("keyMaterial"),
+    });
     expect(h.fetch.mock.calls.length).toBe(before);
+  });
+
+  it("refuses to upload already-encrypted input that field encryption passes through unchanged", async () => {
+    const h = setup();
+    const store = await createRemoteMemoryPersistence(h.options);
+    const foreign = "enc:v2:" + "ab".repeat(40);
+    h.encrypt.mockImplementation(async (text: string) =>
+      /^enc:v[23]:[0-9a-f]{56,}$/.test(text)
+        ? text
+        : "enc:v3:" + Buffer.from(`x|${text}`).toString("hex")
+    );
+    await expect(store.put(h.memory("a", foreign), 0)).rejects.toThrow(
+      "refusing to upload plaintext"
+    );
+    await expect(store.put({ ...h.memory("a"), kind_value: foreign }, 0)).rejects.toThrow(
+      "refusing to upload plaintext"
+    );
+    expect(h.requests.filter(({ init }) => init.method === "PUT")).toHaveLength(0);
+  });
+
+  it("reports undecryptable rows per item without failing pages or candidate windows", async () => {
+    const h = setup();
+    const store = await createRemoteMemoryPersistence(h.options);
+    await store.put(h.memory("a"), 0);
+    await store.put(h.memory("b", "Plays piano"), 0);
+    await store.put(h.memory("c", "Plays go"), 0);
+    const broken = h.rows.get("b")!.memory.content;
+    h.decrypt.mockImplementation(async (ciphertext: string) =>
+      ciphertext === broken
+        ? ciphertext
+        : Buffer.from(ciphertext.slice(7), "hex").toString().split("|").slice(1).join("|")
+    );
+    const first = await store.list({ limit: 2 });
+    expect(first.items.map((item) => item.memory.memory_id)).toEqual(["a"]);
+    expect(first.failed).toEqual([
+      {
+        memory_id: "b",
+        version: 1,
+        error: expect.objectContaining({ message: "Memory decryption failed" }),
+      },
+    ]);
+    const second = await store.list({ limit: 2, cursor: first.next_cursor });
+    expect(second.items.map((item) => item.memory.memory_id)).toEqual(["c"]);
+    const window = await store.candidateSet(vector());
+    expect(window.items.map((item) => item.memory.memory_id)).toEqual(["a", "c"]);
+    expect(window.failed.map((failure) => failure.memory_id)).toEqual(["b"]);
+    expect((await store.candidates(vector())).map((item) => item.memory.memory_id)).toEqual([
+      "a",
+      "c",
+    ]);
+  });
+
+  it("repairs an undecryptable row with a fresh encryption under the caller's version", async () => {
+    const h = setup();
+    const store = await createRemoteMemoryPersistence(h.options);
+    await store.put(h.memory("a"), 0);
+    const broken = h.rows.get("a")!.memory.content;
+    h.decrypt.mockImplementation(async (ciphertext: string) =>
+      ciphertext === broken
+        ? ciphertext
+        : Buffer.from(ciphertext.slice(7), "hex").toString().split("|").slice(1).join("|")
+    );
+    await expect(store.get("a")).rejects.toThrow("decryption failed");
+    await expect(store.put(h.memory("a", "Repaired"), 2)).rejects.toMatchObject({
+      code: "version_conflict",
+    });
+    const repaired = await store.put(h.memory("a", "Repaired"), 1);
+    expect(repaired).toMatchObject({ version: 2, memory: { content: "Repaired" } });
+    expect(h.rows.get("a")!.memory.content).not.toBe(broken);
+    expect((await store.get("a"))!.memory.content).toBe("Repaired");
+  });
+
+  it("returns committed writes from the sent plaintext without decrypting the response", async () => {
+    const h = setup();
+    const store = await createRemoteMemoryPersistence(h.options);
+    h.decrypt.mockRejectedValue(new Error("key temporarily unavailable"));
+    const single = await store.put({ ...h.memory("a"), kind_value: "Chess" }, 0);
+    expect(single).toMatchObject({
+      version: 1,
+      memory: { content: "Plays chess", kind_value: "Chess" },
+    });
+    const [b, c] = await store.putMany([
+      { memory: h.memory("b", "Plays piano"), expectedVersion: 0 },
+      { memory: h.memory("c", "Plays go"), expectedVersion: 0 },
+    ]);
+    expect([b.memory.content, c.memory.content]).toEqual(["Plays piano", "Plays go"]);
+    expect(h.decrypt).not.toHaveBeenCalled();
+    const before = h.requests.length;
+    await store.put({ ...single.memory, topics: "[]" }, single);
+    expect(h.requests.slice(before)).toHaveLength(1);
+  });
+
+  it("reports a missing row on a versioned write as a version conflict", async () => {
+    const h = setup();
+    const store = await createRemoteMemoryPersistence(h.options);
+    await expect(store.put(h.memory("missing"), 3)).rejects.toMatchObject({
+      status: 409,
+      code: "version_conflict",
+    });
+    await expect(
+      store.putMany([{ memory: h.memory("missing"), expectedVersion: 1 }])
+    ).rejects.toMatchObject({ code: "version_conflict" });
+    expect(h.requests.some(({ init }) => init.method === "PUT" || init.method === "POST")).toBe(
+      false
+    );
+  });
+
+  it("validates candidate limits against the server schema before sending", async () => {
+    const h = setup();
+    const store = await createRemoteMemoryPersistence(h.options);
+    const before = h.fetch.mock.calls.length;
+    const ids = (n: number) => Array.from({ length: n }, (_, i) => `id-${i}`);
+    await expect(store.candidateSet(vector(), { memory_ids: ids(1001) })).rejects.toThrow(
+      "memory_ids accepts at most 1000"
+    );
+    await expect(store.candidateSet(vector(), { scopes: ids(21) })).rejects.toThrow(
+      "scopes accepts at most 20"
+    );
+    await expect(store.candidateSet(vector(), { fact_types: ids(21) })).rejects.toThrow(
+      "fact_types accepts at most 20"
+    );
+    await expect(store.candidateSet(vector(), { force_ids: ids(101) })).rejects.toThrow(
+      "force_ids accepts at most 100"
+    );
+    await expect(store.candidateSet(vector(), { limit: 101 })).rejects.toThrow("1–100");
+    expect(h.fetch.mock.calls.length).toBe(before);
+    await expect(store.candidateSet(vector(), { memory_ids: ids(1000) })).resolves.toMatchObject({
+      failed: [],
+    });
+  });
+
+  it("times out hung requests with a typed error", async () => {
+    const h = setup();
+    const store = await createRemoteMemoryPersistence({ ...h.options, timeoutMs: 20 });
+    h.fetch.mockImplementationOnce(
+      (_input, init) =>
+        new Promise((_resolve, reject) =>
+          init!.signal!.addEventListener("abort", () =>
+            reject(new DOMException("aborted", "AbortError"))
+          )
+        )
+    );
+    await expect(store.get("a")).rejects.toMatchObject({ status: 408, code: "timeout" });
+    await expect(createRemoteMemoryPersistence({ ...h.options, timeoutMs: 0 })).rejects.toThrow(
+      "timeoutMs"
+    );
   });
 
   it("captures the write before asynchronous encryption so caller edits cannot change it", async () => {
@@ -390,7 +539,18 @@ describe("remote private-memory persistence", () => {
     expect(h.fetch.mock.calls.filter(([, init]) => init?.method === "PUT")).toHaveLength(1);
     const controller = new AbortController();
     await store.list({ signal: controller.signal });
-    expect(h.requests.at(-1)!.init.signal).toBe(controller.signal);
+    const forwarded = h.requests.at(-1)!.init.signal!;
+    expect(forwarded.aborted).toBe(false);
+    h.fetch.mockImplementationOnce(
+      (_input, init) =>
+        new Promise((_resolve, reject) =>
+          init!.signal!.addEventListener("abort", () => reject(init!.signal!.reason as Error))
+        )
+    );
+    const pending = store.list({ signal: controller.signal });
+    await vi.waitFor(() => expect(h.requests.length).toBeGreaterThan(0));
+    controller.abort(new Error("caller cancelled"));
+    await expect(pending).rejects.toThrow("caller cancelled");
     expect(h.requests.at(-1)!.init.redirect).toBe("error");
     expect(h.getToken.mock.calls.length).toBeGreaterThan(h.requests.length);
     expect(new RemoteMemoryError("Conflict", 409, "version_conflict")).toBeInstanceOf(Error);

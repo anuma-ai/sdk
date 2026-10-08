@@ -541,6 +541,7 @@ export {
   type MemorySubscribeOptions,
   type MemoryUpdate,
   type RemoteMemoryCandidateOptions,
+  type RemoteMemoryDecodeFailure,
   RemoteMemoryError,
   type RemoteMemoryListOptions,
   type RemoteMemoryPage,
