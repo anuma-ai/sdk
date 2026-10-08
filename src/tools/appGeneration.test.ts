@@ -1138,7 +1138,7 @@ describe("verify_app tool", () => {
     const result = (await verify.executor!({})) as { note: string };
     const description = (verify.function as { description: string }).description;
     const designScope =
-      "Use audit_design and critique_design only for the initial build or user-requested design changes.";
+      "Use audit_design and critique_design only for the initial build, adding new UI, or user-requested design changes.";
 
     expect(result.note).toContain(designScope);
     expect(description).toContain(designScope);
