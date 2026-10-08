@@ -2,7 +2,7 @@
 
 > **clearConversationMemoriesOp**(`ctx`: [`ConversationMemoryOperationsContext`](../interfaces/ConversationMemoryOperationsContext.md), `conversationId`: `string`): `Promise`<`void`>
 
-Defined in: [src/lib/db/conversationMemory/operations.ts:111](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/conversationMemory/operations.ts#111)
+Defined in: [src/lib/db/conversationMemory/operations.ts:96](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/conversationMemory/operations.ts#96)
 
 Delete all recorded memories for a conversation (e.g. incognito purge).
 

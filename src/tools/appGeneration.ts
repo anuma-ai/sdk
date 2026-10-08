@@ -1,39 +1,9 @@
-/**
- * App generation tools for multi-file app development.
- *
- * Provides create_file, patch_file, delete_file, read_file, and list_files
- * tool configurations, plus the system prompt that drives LLM behavior.
- * The tools operate on a pluggable storage backend so consumers can wire
- * them to IndexedDB, an in-memory Map, a database, or any other
- * persistence layer.
- *
- * App preview rendering is automatic: every successful create_file /
- * patch_file / delete_file invokes the host's optional `displayApp`
- * callback so the chat UI refreshes the same preview card in place. There
- * is no standalone `display_app` tool — mirrors the slide pipeline, where
- * `add_slide` and `patch_slides` self-render via `displaySlides`.
- *
- * @example
- * ```typescript
- * import { createAppGenerationTools, buildAppSystemPrompt } from "@anuma/sdk/tools";
- *
- * const tools = createAppGenerationTools({
- *   getConversationId: () => currentConversationId,
- *   storage: myStorageAdapter,
- * });
- * ```
- */
-
 import { parse as babelParse } from "@babel/parser";
 
 import type { ToolConfig } from "../lib/chat/useChat/types.js";
 import { normalizePath } from "../utils/paths.js";
 import { auditDesign } from "./appAudit.js";
 import { APP_BUILDER_PROMPT } from "./appBuilderPrompt.js";
-
-// ---------------------------------------------------------------------------
-// Storage interface
-// ---------------------------------------------------------------------------
 
 /** Minimal file record returned by storage operations. */
 export interface AppFileRecord {
@@ -56,14 +26,8 @@ export interface AppFileStorage {
   deleteFile: (conversationId: string, path: string) => Promise<void>;
 }
 
-// Re-export so existing consumers of normalizePath from this module keep working.
 export { normalizePath } from "../utils/paths.js";
 
-// ---------------------------------------------------------------------------
-// Result size management
-// ---------------------------------------------------------------------------
-
-/** Max characters for file content in tool results sent back to the LLM. */
 const MAX_CONTENT_CHARS = 4000;
 
 /**
@@ -80,10 +44,6 @@ export function truncateContent(content: string): string {
   return `${head}\n\n... (${omitted} characters omitted) ...\n\n${tail}`;
 }
 
-// ---------------------------------------------------------------------------
-// Snippet extraction (failure context)
-// ---------------------------------------------------------------------------
-
 /** Numbered slice of file content surrounding a point of interest. */
 export interface FileSnippet {
   startLine: number;
@@ -91,15 +51,8 @@ export interface FileSnippet {
   content: string;
 }
 
-/** Minimum line length to qualify as a fuzzy-locate anchor. Short lines
- *  (`}`, `)`, `;`) appear everywhere and produce noisy matches. */
 const ANCHOR_MIN_LENGTH = 8;
 
-/** Lines starting with these tags appear in nearly every React app's icon
- *  markup and are poor anchors: a long `<svg viewBox="0 0 24 24" ...>` will
- *  match the header icon even when the model intended to edit a button.
- *  We try non-SVG candidates first and only fall back to these when nothing
- *  else anchors — and in that case the match is marked low-confidence. */
 const NOISY_MARKUP_RE =
   /^<(svg|path|circle|rect|polygon|polyline|line|ellipse|g|defs|use|symbol|stop|linearGradient|radialGradient)\b/i;
 
@@ -178,13 +131,8 @@ export function snippetAroundLine(
   return { startLine, endLine, content: numbered };
 }
 
-/** Lines of context to include before and after the anchor in a snippet. */
 const SNIPPET_CONTEXT = 8;
 
-/** Number of consecutive patch_file match failures on the same file before
- *  the executor stops returning snippets and demands a read_file. Failing
- *  twice in a row is strong evidence the model's mental model of the file
- *  is wrong — more snippets won't help; it needs fresh content. */
 const PATCH_FAILURE_THRESHOLD = 2;
 
 /**
@@ -200,14 +148,6 @@ export function snippetForFailedPatch(content: string, find: string): FileSnippe
   return snippetAroundLine(content, anchor.line, SNIPPET_CONTEXT, SNIPPET_CONTEXT);
 }
 
-// ---------------------------------------------------------------------------
-// Patch logic
-// ---------------------------------------------------------------------------
-
-/** Strip leading "42: " line-number prefixes from every line if (and
- *  only if) every non-empty line carries one. Used as a fallback in
- *  applyPatches so the model can paste numbered read_file output as
- *  a find string without manually stripping. */
 function stripLineNumberPrefixes(s: string): string {
   const lines = s.split("\n");
   const prefix = /^\d+:\s/;
@@ -230,7 +170,6 @@ export interface PatchFailure {
   matchLines?: number[];
 }
 
-/** Count non-overlapping occurrences of `needle` in `haystack`. */
 function countOccurrences(haystack: string, needle: string): number {
   if (!needle) return 0;
   let count = 0;
@@ -243,8 +182,6 @@ function countOccurrences(haystack: string, needle: string): number {
   }
 }
 
-/** Return the 1-based line numbers where `needle` starts in `haystack`,
- *  in document order. Non-overlapping. */
 function findMatchLines(haystack: string, needle: string): number[] {
   if (!needle) return [];
   const lines: number[] = [];
@@ -252,7 +189,6 @@ function findMatchLines(haystack: string, needle: string): number[] {
   while (true) {
     const idx = haystack.indexOf(needle, pos);
     if (idx === -1) return lines;
-    // 1-based line = number of newlines before `idx`, plus 1.
     let newlines = 0;
     for (let i = 0; i < idx; i++) if (haystack.charCodeAt(i) === 10) newlines++;
     lines.push(newlines + 1);
@@ -299,9 +235,6 @@ export function applyPatches(
       continue;
     }
 
-    // Try the find string verbatim, then JSON-unescaped, then with line-
-    // number prefixes stripped. First non-empty match wins; ambiguity in
-    // any one of them is reported (not silently bypassed).
     const candidates: string[] = [patch.find];
     const unescaped = patch.find.replace(/\\n/g, "\n").replace(/\\t/g, "\t").replace(/\\r/g, "\r");
     if (unescaped !== patch.find) candidates.push(unescaped);
@@ -327,11 +260,6 @@ export function applyPatches(
         index,
         find: patch.find,
         reason: "ambiguous",
-        // Report line numbers against the ORIGINAL content, not the
-        // mid-batch `result`. The whole call reverts atomically on any
-        // failure, so the model re-reads the original file — line numbers
-        // computed against a partially-mutated buffer would be off by the
-        // size of an earlier applied patch's edit.
         matchLines: findMatchLines(content, resolved.needle),
       });
       continue;
@@ -347,16 +275,8 @@ export function applyPatches(
   return { content: result, appliedCount, failed: [] };
 }
 
-// ---------------------------------------------------------------------------
-// Pre-persist content validation
-// ---------------------------------------------------------------------------
-
-/** File extensions we run through the JS/TS/JSX parser. The `jsx` plugin is
- *  permissive — it accepts plain JS as well — so we use it for every flavour
- *  here; the `typescript` plugin is added on top for `.ts` / `.tsx`. */
 const JS_EXTENSIONS = new Set([".js", ".jsx", ".ts", ".tsx", ".mjs", ".cjs"]);
 
-/** File extensions we validate as JSON. */
 const JSON_EXTENSIONS = new Set([".json"]);
 
 /** Structured syntax error pinpointing the failure for the LLM to retry. */
@@ -388,7 +308,6 @@ export function validateFileContent(path: string, content: string): FileValidati
 }
 
 function validateJsLike(content: string, ext: string): FileValidationError | null {
-  // Empty file is valid (an empty module).
   if (content.length === 0) return null;
   const plugins: ("jsx" | "typescript")[] = ["jsx"];
   if (ext === ".ts" || ext === ".tsx") plugins.push("typescript");
@@ -404,8 +323,6 @@ function babelErrorToValidation(err: unknown): FileValidationError {
   const e = err as { message?: unknown; loc?: { line?: unknown; column?: unknown } };
   const line = typeof e.loc?.line === "number" ? e.loc.line : 1;
   const column = typeof e.loc?.column === "number" ? e.loc.column : 0;
-  // Babel includes the "(line:col)" suffix in its message — strip it so
-  // we don't render the position twice in tool error output.
   const raw = typeof e.message === "string" ? e.message : "Parse error";
   const message = raw.replace(/\s*\(\d+:\d+\)\s*$/, "");
   return { line, column, message };
@@ -418,9 +335,6 @@ function validateJson(content: string): FileValidationError | null {
     return null;
   } catch (err) {
     const message = err instanceof Error ? err.message : "Invalid JSON";
-    // Modern Node embeds `position N` in the SyntaxError message. Map it
-    // back to (line, column) so the LLM gets the same shape as Babel
-    // errors. Older runtimes / fallbacks land at 1:0.
     const posMatch = /position\s+(\d+)/i.exec(message);
     if (posMatch?.[1]) {
       const pos = Number(posMatch[1]);
@@ -432,10 +346,6 @@ function validateJson(content: string): FileValidationError | null {
     return { line: 1, column: 0, message };
   }
 }
-
-// ---------------------------------------------------------------------------
-// Tool name constants
-// ---------------------------------------------------------------------------
 
 /** Tool names for app file operations (create, patch, delete, read, list,
  *  audit, critique, verify). */
@@ -451,10 +361,6 @@ export const APP_FILE_TOOL_NAMES: ReadonlySet<string> = Object.freeze(
     "verify_app",
   ])
 );
-
-// ---------------------------------------------------------------------------
-// In-memory storage implementation
-// ---------------------------------------------------------------------------
 
 /**
  * In-memory `AppFileStorage` backed by a `Map<string, string>`.
@@ -531,10 +437,6 @@ export class MapFileStorage implements AppFileStorage {
     return new MapFileStorage(new Map(JSON.parse(json) as Array<[string, string]>));
   }
 }
-
-// ---------------------------------------------------------------------------
-// Tool schemas (name, description, parameters — no executors)
-// ---------------------------------------------------------------------------
 
 export const CREATE_FILE_SCHEMA = {
   name: "create_file",
@@ -649,10 +551,6 @@ export const DEFAULT_DESIGN_CRITIQUE_RUBRIC: readonly string[] = Object.freeze([
   "Of all your design decisions on this app, which is the weakest? Don't be diplomatic — name it specifically with a line number if possible.",
   "What would you cut if a senior designer told you 'this is 30% too much'? Identify the noisiest two or three rules.",
 ]);
-
-// ---------------------------------------------------------------------------
-// Tool factory
-// ---------------------------------------------------------------------------
 
 /**
  * Result returned by the host's `verifyApp` hook (and surfaced as the
@@ -798,7 +696,6 @@ export interface CreateAppGenerationToolsOptions {
 /** Default cap for {@link CreateAppGenerationToolsOptions.maxConversations}. */
 export const DEFAULT_MAX_CONVERSATIONS = 1_000;
 
-/** Validate and write a batch of files. Returns an error string or null on success. */
 async function writeBatch(
   storage: AppFileStorage,
   conversationId: string,
@@ -815,12 +712,6 @@ async function writeBatch(
   return null;
 }
 
-/**
- * Run `validateFileContent` against every file in a batch, returning a
- * flat list of `{ path, line, column, message }` for the LLM to fix.
- * Files with non-string `path` / `content` are skipped here — `writeBatch`
- * will reject those with its own error message.
- */
 function collectValidationErrors(
   files: Array<{ path: string; content: string }>
 ): Array<{ path: string; line: number; column: number; message: string }> {
@@ -866,16 +757,6 @@ export function createAppGenerationTools({
       ? maxConversations
       : DEFAULT_MAX_CONVERSATIONS;
 
-  /**
-   * Touch a per-conversation Map entry: refreshes its position to the
-   * tail of insertion order and evicts the oldest entries until the
-   * map size is within `convCap`. Insertion order on a JS Map is
-   * stable, so deleting + re-setting an existing key promotes it.
-   *
-   * Used for the maps below where `conversationId` is the outer key
-   * (`patchFailuresByConv`, `seenFilesByConv`, `appStateByConv`) so
-   * a long-running factory doesn't accumulate stale entries.
-   */
   function touchConv<V>(map: Map<string, V>, conversationId: string, value: V): void {
     if (map.has(conversationId)) map.delete(conversationId);
     map.set(conversationId, value);
@@ -891,12 +772,6 @@ export function createAppGenerationTools({
     return id;
   }
 
-  /**
-   * Invoke the host's `onFileChange` callback. Mirrors `triggerAppDisplay`
-   * in its error handling: the callback is awaited but a thrown error
-   * is logged and swallowed so a failing host hook never causes the
-   * tool to look broken to the model.
-   */
   async function emitFileChange(event: FileChangeEvent): Promise<void> {
     if (!onFileChange) return;
     try {
@@ -906,28 +781,14 @@ export function createAppGenerationTools({
     }
   }
 
-  // Per-conversation display state. Mirrors `deckStateByConv` in the
-  // slide tools: tracks the most recent interaction id (so we can pass
-  // `replaces_interaction_id` on the next refresh) and the cached title
-  // (so explicit titles set by an earlier call survive subsequent
-  // file-only edits).
   interface AppDisplayState {
     interactionId: string;
     title: string;
   }
   const appStateByConv = new Map<string, AppDisplayState>();
 
-  // Per-(conversation, path) tally of consecutive patch_file match failures.
-  // When this hits PATCH_FAILURE_THRESHOLD the executor stops returning
-  // snippets and demands a read_file — observed thrashing pattern is the
-  // model wholesale-hallucinating file contents and retrying with the
-  // same wrong mental model, even with snippets in hand.
   const patchFailuresByConv = new Map<string, Map<string, number>>();
   function bumpPatchFailure(conversationId: string, path: string): number {
-    // touchConv on every bump, not just first insertion — otherwise the
-    // conversation's map position is frozen at first failure and eviction
-    // degrades to FIFO (an active conversation can be dropped before idle
-    // ones that merely arrived later).
     const m = patchFailuresByConv.get(conversationId) ?? new Map<string, number>();
     touchConv(patchFailuresByConv, conversationId, m);
     const n = (m.get(path) ?? 0) + 1;
@@ -938,18 +799,8 @@ export function createAppGenerationTools({
     patchFailuresByConv.get(conversationId)?.delete(path);
   }
 
-  // Per-conversation set of file paths whose current content the model
-  // has seen — via a successful read_file, create_file, or patch_file
-  // (a successful patch means the model constructed the new content, so
-  // it still knows it). patch_file refuses to operate on files not in
-  // this set, mirroring Claude Code's "must Read before Edit" contract.
-  // Prevents the failure mode where the model patches against a
-  // hallucinated copy of the file.
   const seenFilesByConv = new Map<string, Set<string>>();
   function markFileSeen(conversationId: string, path: string): void {
-    // touchConv on every mark so each read/write refreshes the
-    // conversation's LRU position — see bumpPatchFailure for the
-    // FIFO-degradation failure mode this prevents.
     const s = seenFilesByConv.get(conversationId) ?? new Set<string>();
     touchConv(seenFilesByConv, conversationId, s);
     s.add(path);
@@ -961,17 +812,6 @@ export function createAppGenerationTools({
     seenFilesByConv.get(conversationId)?.delete(path);
   }
 
-  /**
-   * Invoke the host's `displayApp` callback with cached state, fold
-   * the reply back into per-conversation state, AND return it to the
-   * caller so executors can spread it into their tool result. Without
-   * the spread, the persisted tool-result message has no `displayType`
-   * field and the chat renderer skips it. Mirrors the slide pattern.
-   *
-   * Returns `{}` when no callback was provided or it threw — display
-   * is a UX concern, not a correctness one, and a failed render
-   * shouldn't make the underlying file operation look like it failed.
-   */
   async function triggerAppDisplay(
     conversationId: string,
     hint?: { title?: string }
@@ -1013,13 +853,6 @@ export function createAppGenerationTools({
           return { error: "files array is required and must not be empty" };
         }
 
-        // Per-entry shape check. patch_file/read_file/delete_file each guard
-        // their scalar `path` this way; create_file took the array on trust
-        // and reached normalizePath(undefined), which threw
-        // "Cannot read properties of undefined (reading 'replace')" — caught
-        // below and handed to the model as an opaque failure it could not act
-        // on. The JSON schema marks both fields required, but models do omit
-        // them, so the schema is a hint and not an enforcement point.
         const malformed = filesArg
           .map((f, i) => {
             if (!f || typeof f !== "object") return `files[${i}] is not an object`;
@@ -1037,14 +870,6 @@ export function createAppGenerationTools({
           };
         }
 
-        // Read-before-Write contract (mirrors Claude Code's Write tool):
-        // create_file can overwrite existing files, but only when the
-        // model has read them in this conversation. Drift across
-        // iterations is mitigated naturally — once the model has the
-        // file's literal content in context, it tends to preserve
-        // tokens, structure, and naming when rewriting. Without a prior
-        // read, the model would be regenerating from memory, and design
-        // drift becomes likely.
         const normalizedPaths = filesArg.map((f) => normalizePath(f.path));
         const existsInStorage = await Promise.all(
           normalizedPaths.map((p) => storage.getFile(conversationId, p))
@@ -1059,8 +884,6 @@ export function createAppGenerationTools({
           };
         }
 
-        // Validate every file's syntax before any write — atomic so a
-        // single broken file doesn't leave half the project committed.
         const validationErrors = collectValidationErrors(filesArg);
         if (validationErrors.length > 0) {
           return {
@@ -1073,25 +896,9 @@ export function createAppGenerationTools({
         if (err) return { error: err };
 
         const paths = filesArg.map((f) => normalizePath(f.path));
-        // Model just wrote the content, so it has seen it. Subsequent
-        // patch_file or create_file calls against these paths can
-        // proceed without requiring a separate read_file.
         for (const p of paths) markFileSeen(conversationId, p);
-        // Split paths into fresh writes vs. overwrites of existing files.
-        // The overwrite signal nudges the model toward patch_file for
-        // incremental changes — read-before-write only ensures the model
-        // saw the content; it doesn't enforce that patch was the better
-        // tool. Surfacing the count both in the immediate tool result
-        // (so the model self-corrects) and via metrics summary (so we
-        // can measure rewrite rate run-over-run).
         const created: string[] = [];
         const overwritten: string[] = [];
-        // Fan out one onFileChange event per file. Files that existed
-        // before this batch are reported as "modified" with before/after
-        // content; new ones as "created". `existsInStorage[i]` was
-        // captured above before any write so the `before` content is
-        // the actual pre-mutation state, not a re-read of what we just
-        // wrote.
         for (let i = 0; i < filesArg.length; i++) {
           const path = paths[i];
           const after = filesArg[i].content;
@@ -1127,10 +934,6 @@ export function createAppGenerationTools({
         };
         if (overwritten.length > 0) {
           let note = `Overwrote ${overwritten.length} existing file(s): ${overwritten.join(", ")}. For incremental changes, prefer patch_file — smaller diffs are easier to review and preserve more of the existing structure.`;
-          // Rewrites of the audited files are where JSX class names and CSS
-          // selectors drift apart (rename in one file, forget the other →
-          // blank or unstyled render). Suggest the audit at the exact moment
-          // the risk is introduced, not just in the system prompt.
           const auditedFiles = ["App.js", "App.jsx", "App.css"];
           if (overwritten.some((p) => auditedFiles.includes(p))) {
             note +=
@@ -1166,10 +969,6 @@ export function createAppGenerationTools({
         const existing = await storage.getFile(conversationId, filePath);
         if (!existing) return { error: `File not found: ${filePath}. Use create_file instead.` };
 
-        // Read-before-patch contract: refuse if the model hasn't seen
-        // the current content of this file in this conversation (via
-        // read_file or create_file). Prevents patching against a
-        // hallucinated copy of the file.
         if (!hasFileBeenSeen(conversationId, filePath)) {
           return {
             error: `Call read_file("${filePath}") first. You cannot patch a file whose current content you have not seen in this conversation.`,
@@ -1178,26 +977,12 @@ export function createAppGenerationTools({
 
         const { content, appliedCount, failed } = applyPatches(existing.content, patches);
 
-        // Atomic: if any patch failed to match, the file is unchanged.
         if (failed.length > 0) {
-          // Only count toward the thrash threshold when ALL failures are
-          // "not_found" — i.e. the model is hallucinating content. Ambiguous
-          // matches mean the model is engaging with real file content but
-          // needs more surrounding context; that's productive iteration,
-          // not thrashing, so don't punish it with the read_file directive
-          // that would suppress the snippet it actually needs.
           const allNotFound = failed.every((f) => f.reason === "not_found");
           const failureCount = allNotFound
             ? bumpPatchFailure(conversationId, filePath)
             : (patchFailuresByConv.get(conversationId)?.get(filePath) ?? 0);
 
-          // Repeated failure: the model is hallucinating file content.
-          // Stop returning snippets (they're not helping) and demand a
-          // read_file. Keep the full failed-find strings so the model
-          // can compare them against the read result. Gate on `allNotFound`
-          // too: an ambiguous failure must never inherit a prior not_found
-          // streak's STOP directive — that would suppress the matchLines
-          // guidance the model needs (see the productive-iteration note above).
           if (allNotFound && failureCount >= PATCH_FAILURE_THRESHOLD) {
             return {
               success: false,
@@ -1209,11 +994,6 @@ export function createAppGenerationTools({
             };
           }
 
-          // First failure: tailor the response by failure type. Ambiguous
-          // patches need the model to add context (matchLines are listed
-          // so it can see where they collide); not-found patches get a
-          // snippet around the best anchor when one exists, or a
-          // read_file nudge when nothing anchored.
           const failedPatches = failed.map((f) => {
             if (f.reason !== "not_found") return f;
             const snippet = snippetForFailedPatch(existing.content, f.find);
@@ -1252,11 +1032,6 @@ export function createAppGenerationTools({
           };
         }
 
-        // Syntax-check the proposed content before persisting. A patch
-        // that produces broken JSX (e.g. removed a `}` but left the `{`)
-        // would otherwise land in storage, fail at bundle time, and force
-        // the model to debug a runtime error. Refusing to persist gives
-        // the model immediate `line:col` feedback instead.
         const syntaxError = validateFileContent(filePath, content);
         if (syntaxError) {
           return {
@@ -1280,9 +1055,6 @@ export function createAppGenerationTools({
         }
 
         await storage.putFile(conversationId, filePath, content);
-        // A successful patch is conversation activity: re-mark the path so
-        // a patch-only conversation keeps refreshing its LRU position
-        // instead of aging toward eviction while actively editing.
         markFileSeen(conversationId, filePath);
         clearPatchFailure(conversationId, filePath);
         await emitFileChange({
@@ -1315,15 +1087,8 @@ export function createAppGenerationTools({
         if (!rawPath || typeof rawPath !== "string") return { error: "path is required" };
         const path = normalizePath(rawPath);
 
-        // Capture the pre-delete content so onFileChange subscribers
-        // (versioning, audit log, rollback) get the actual bytes that
-        // were removed. Skip the fetch when no callback is wired —
-        // saves a storage round-trip in the common case.
         const previous = onFileChange ? await storage.getFile(conversationId, path) : null;
         await storage.deleteFile(conversationId, path);
-        // File no longer exists — clear "seen" state so a future
-        // create_file for the same path is treated as a new file
-        // (no Read-before-Write requirement on a fresh creation).
         forgetFileSeen(conversationId, path);
         if (previous !== null) {
           await emitFileChange({
@@ -1359,25 +1124,9 @@ export function createAppGenerationTools({
         const file = await storage.getFile(conversationId, path);
         if (!file) return { error: `File not found: ${path}` };
 
-        // Mark this file as "seen" so subsequent patch_file or
-        // create_file (overwrite) calls pass the read-before-modify
-        // contract. Use the locally-normalized `path` (not
-        // `file.path`) so the key matches what `hasFileBeenSeen`
-        // checks — third-party storage adapters may return a
-        // differently-shaped `path` than the one they were queried
-        // with, which would silently break the contract.
         markFileSeen(conversationId, path);
-        // Reading re-syncs the model with the file, which is exactly what the
-        // thrash-detection STOP directive asks for — so clear the failure
-        // streak. Otherwise the next not_found would re-fire STOP immediately
-        // even though the model just complied by reading.
         clearPatchFailure(conversationId, path);
 
-        // Number the lines so the model has unambiguous location info
-        // and so failure snippets (which use the same format) look
-        // consistent with the read output. The leading "42: " prefix
-        // is display-only — applyPatches strips it as a fallback if
-        // the model copies a numbered line into a find string.
         const truncated = truncateContent(file.content);
         const numbered = truncated
           .split("\n")
@@ -1447,17 +1196,6 @@ export function createAppGenerationTools({
           files.find((f) => f.path === "App.jsx")?.content ??
           "";
         const appCss = files.find((f) => f.path === "App.css")?.content ?? "";
-        // The tool's job is to PROMPT reflection — it returns the files
-        // (so the model has them fresh) plus the rubric (the occasion).
-        // The model produces the actual critique in its next response;
-        // we don't try to evaluate design quality in code here, because
-        // that's a regression to checklist-as-prompt. Taste belongs to
-        // the model; the system supplies the moment for it to apply.
-        //
-        // Content is truncated like read_file: without the cap this was
-        // the one tool result whose size grew with the app instead of
-        // staying bounded, which breaks predictable per-turn token cost
-        // on long edit sessions.
         return {
           instruction:
             "Read your App.js and App.css below, then answer each of the rubric questions honestly in your next response — be specific (cite lines, name choices, don't hedge). After answering, identify the 2-3 weakest items you named and patch them now. The point is to step back from the keyboard and actually look, not to satisfy a checklist.",
@@ -1487,10 +1225,6 @@ export function createAppGenerationTools({
     function: VERIFY_APP_SCHEMA,
     executor: async (): Promise<VerifyAppResult> => {
       if (!verifyApp) {
-        // Host didn't wire the runtime verifier. The tool exists so
-        // the prompt can refer to it unconditionally; the model
-        // degrades to audit/critique-only feedback when the host
-        // doesn't ship runtime introspection.
         return {
           rendered: true,
           errors: [],
@@ -1499,9 +1233,6 @@ export function createAppGenerationTools({
       }
       try {
         const result = await verifyApp();
-        // Defensive: hosts may return malformed results. Coerce to
-        // the expected shape so the model always sees a stable
-        // structure even when the host's implementation is buggy.
         return {
           rendered: Boolean(result?.rendered),
           errors: Array.isArray(result?.errors) ? result.errors.map((e) => String(e)) : [],
@@ -1520,11 +1251,6 @@ export function createAppGenerationTools({
     },
   };
 
-  // No standalone display_app tool — display happens automatically
-  // from inside create_file / patch_file / delete_file via the
-  // `displayApp` callback. Mirrors `createSlideTools`, which has no
-  // `display_slides` tool either; the deck viewer is opened from
-  // within `plan_deck` / `add_slide` / `patch_slides`.
   return [
     createFileTool,
     patchFileTool,
@@ -1537,14 +1263,6 @@ export function createAppGenerationTools({
   ];
 }
 
-// ---------------------------------------------------------------------------
-// System prompt
-// ---------------------------------------------------------------------------
-
-// `APP_BUILDER_PROMPT` is defined in its own dependency-free module
-// (`./appBuilderPrompt`) so the lib/server layer can import the string — it's
-// attached to the `app-generation` tool set's `systemPrompt` — without pulling
-// in this module's heavy runtime deps. Re-exported here for back-compat.
 export { APP_BUILDER_PROMPT };
 
 /**
@@ -1556,10 +1274,6 @@ export { APP_BUILDER_PROMPT };
 export function buildAppSystemPrompt(): string {
   return APP_BUILDER_PROMPT;
 }
-
-// ---------------------------------------------------------------------------
-// Turn envelope — bounded per-turn context for long edit sessions
-// ---------------------------------------------------------------------------
 
 /**
  * Build a compact manifest of the conversation's current app files, for

@@ -11,9 +11,6 @@ import type {
 } from "../../../client";
 import { isAttachedFilesText } from "../../chat/fileContext";
 import type { PromptPreProcessor } from "../../chat/preProcessor";
-// Import the cost/credit extraction helpers (and the response union) directly
-// from the strategies type module — it's pure (type-only imports), so this
-// adds no runtime dependency on the strategy singletons in the barrel.
 import {
   type ApiResponse,
   getCostMicroUsd,
@@ -60,8 +57,6 @@ export type ClientToolsFilterFn = (
   embeddings: number[] | number[][] | null,
   tools: LlmapiChatCompletionTool[]
 ) => string[];
-
-// Core types
 
 export type ChatRole = "user" | "assistant" | "system";
 
@@ -488,7 +483,6 @@ export interface UpdateMessageOptions {
   toolCallEvents?: LlmapiToolCallEvent[];
 }
 
-// Hook types
 /**
  * Base options for useChatStorage hook
  * @inline
@@ -925,8 +919,6 @@ export interface BaseSendMessageWithStorageArgs {
    */
   getThoughtProcess?: () => ActivityPhase[];
 
-  // Responses API options
-
   /**
    * Controls randomness in the response (0.0 to 2.0).
    * Lower values make output more deterministic, higher values more creative.
@@ -1037,9 +1029,6 @@ export interface BaseSendMessageWithStorageArgs {
 }
 
 export interface BaseSendMessageSuccessResult {
-  // `ApiResponse` (not `LlmapiResponseResponse`) because the Chat Completions
-  // strategy returns a `LlmapiChatCompletionResponse` here; narrowing to the
-  // Responses shape mistyped `data` for completions callers.
   data: ApiResponse;
   error: null;
   userMessage: StoredMessage;
@@ -1104,8 +1093,6 @@ export interface BaseUseChatStorageResult {
   getMessageCount: (conversationId: string) => Promise<number>;
 }
 
-// Utility functions
-
 export function generateConversationId(): string {
   return `conv_${uuidv7()}`;
 }
@@ -1142,7 +1129,6 @@ export function convertUsageToStored(
     totalTokens: usage?.total_tokens,
     costMicroUsd,
     creditsUsed,
-    // Terminal boolean — passed through as-is (ai-portal #1146), never summed.
     ...(creditsExhausted !== undefined && { creditsExhausted }),
   };
 }
@@ -1206,7 +1192,6 @@ export function extractUserMessageFromMessages(
     return null;
   }
 
-  // Find the last user message
   const userMessages = messages.filter((m) => m.role === "user");
   const lastUserMessage = userMessages[userMessages.length - 1];
 
@@ -1214,19 +1199,13 @@ export function extractUserMessageFromMessages(
     return null;
   }
 
-  // Extract text parts
   const textParts: string[] = [];
   const files: FileMetadata[] = [];
 
   for (const part of lastUserMessage.content) {
-    // The attached-file-contents part is wire-only: storing it would make the document the
-    // user's message — shown in the bubble after reload, pre-filled on edit, embedded, and
-    // mined by memory extraction. Callers that put it on `messages` themselves (mobile)
-    // don't pass `storedUserContent`, so this is the only place that can keep it out.
     if (part.type === "text" && part.text && !isAttachedFilesText(part.text)) {
       textParts.push(part.text);
     } else if (part.type === "image_url" && part.image_url?.url) {
-      // Generate a file ID for the image
       files.push({
         id: `img_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
         name: "image",
@@ -1235,14 +1214,13 @@ export function extractUserMessageFromMessages(
         url: part.image_url.url,
       });
     } else if (part.type === "input_file" && part.file) {
-      // Extract input_file parts (Word, Excel, etc.)
       const fileUrl = part.file.file_url || part.file.file_data;
       if (fileUrl) {
         files.push({
           id:
             part.file.file_id || `file_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
           name: part.file.filename || "file",
-          type: "application/octet-stream", // Will be determined by processor
+          type: "application/octet-stream",
           size: 0,
           url: fileUrl,
         });

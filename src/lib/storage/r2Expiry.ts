@@ -9,12 +9,7 @@
 /** Default TTL for R2 presigned URLs (7 days). */
 export const R2_DEFAULT_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
-/**
- * Parse `X-Amz-Date` (ISO 8601 basic: `YYYYMMDDTHHmmssZ`) into a Date.
- * Returns `null` on failure.
- */
 function parseAmzDate(raw: string): Date | null {
-  // Format: 20240101T120000Z
   const match = raw.match(/^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z$/);
   if (!match) return null;
   const [, y, mo, d, h, mi, s] = match;
@@ -51,7 +46,6 @@ export function isR2UrlExpired(sourceUrl: string, createdAt?: string | number | 
     // URL parsing failed — fall through to createdAt heuristic
   }
 
-  // Fallback: use createdAt + 7 days
   if (createdAt !== undefined && createdAt !== null) {
     const created = new Date(createdAt).getTime();
     if (!isNaN(created)) {
@@ -59,6 +53,5 @@ export function isR2UrlExpired(sourceUrl: string, createdAt?: string | number | 
     }
   }
 
-  // Can't determine expiry — assume still valid
   return false;
 }

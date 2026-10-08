@@ -1,6 +1,6 @@
 # BlobUrlManager
 
-Defined in: [src/lib/storage/opfs.ts:313](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/opfs.ts#313)
+Defined in: [src/lib/storage/opfs.ts:260](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/opfs.ts#260)
 
 Manager for blob URLs to prevent memory leaks.
 Tracks active blob URLs and provides cleanup functionality.
@@ -23,7 +23,7 @@ Tracks active blob URLs and provides cleanup functionality.
 
 > **get** **size**(): `number`
 
-Defined in: [src/lib/storage/opfs.ts:359](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/opfs.ts#359)
+Defined in: [src/lib/storage/opfs.ts:305](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/opfs.ts#305)
 
 Gets the count of active blob URLs.
 
@@ -37,7 +37,7 @@ Gets the count of active blob URLs.
 
 > **createUrl**(`fileId`: `string`, `blob`: `Blob`): `string`
 
-Defined in: [src/lib/storage/opfs.ts:319](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/opfs.ts#319)
+Defined in: [src/lib/storage/opfs.ts:266](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/opfs.ts#266)
 
 Creates a blob URL for a file and tracks it.
 
@@ -88,7 +88,7 @@ Creates a blob URL for a file and tracks it.
 
 > **getUrl**(`fileId`: `string`): `string` | `undefined`
 
-Defined in: [src/lib/storage/opfs.ts:331](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/opfs.ts#331)
+Defined in: [src/lib/storage/opfs.ts:277](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/opfs.ts#277)
 
 Gets the active blob URL for a file, if any.
 
@@ -127,7 +127,7 @@ Gets the active blob URL for a file, if any.
 
 > **revokeAll**(): `void`
 
-Defined in: [src/lib/storage/opfs.ts:349](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/opfs.ts#349)
+Defined in: [src/lib/storage/opfs.ts:295](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/opfs.ts#295)
 
 Revokes all tracked blob URLs.
 
@@ -141,7 +141,7 @@ Revokes all tracked blob URLs.
 
 > **revokeUrl**(`fileId`: `string`): `void`
 
-Defined in: [src/lib/storage/opfs.ts:338](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/opfs.ts#338)
+Defined in: [src/lib/storage/opfs.ts:284](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/opfs.ts#284)
 
 Revokes a blob URL and removes it from tracking.
 

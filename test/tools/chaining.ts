@@ -1,10 +1,3 @@
-/**
- * Multi-turn tool chaining test: geolocate → timezone
- *
- * Verifies that runToolLoop correctly handles multiple tool rounds where
- * the model uses the result of one tool call to inform the next.
- */
-
 import { describe, it, expect } from "vitest";
 import { runToolLoop } from "./setup.js";
 import { createIpGeolocationTool } from "./stubs/ipGeolocation.js";
@@ -48,12 +41,10 @@ describe("tool-chaining", () => {
     expect(geolocateCalls.length).toBeGreaterThanOrEqual(1);
     expect(timezoneCalls.length).toBeGreaterThanOrEqual(1);
 
-    // geolocate should appear before any timezone call
     const firstGeoIdx = log.indexOf(geolocateCalls[0]);
     const firstTzIdx = log.indexOf(timezoneCalls[0]);
     expect(firstGeoIdx).toBeLessThan(firstTzIdx);
 
-    // The last timezone call should have a valid IANA timezone and a successful result
     const lastTzCall = timezoneCalls[timezoneCalls.length - 1];
     const tz = lastTzCall.args.timezone as string;
     expect(tz).toContain("/");

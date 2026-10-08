@@ -9,10 +9,8 @@ import {
 } from "./dragLogic";
 import type { Gesture, IdBounds, SelectionBounds } from "./types";
 
-/** Visual size of resize/rotate handles in slide-px (scaled with stage). */
 const HANDLE_SIZE = 10;
 
-/** Distance from top of selection to the rotate handle, in slide-px. */
 const ROTATE_HANDLE_OFFSET = 28;
 
 const PRIMARY_COLOR = "#2563eb";
@@ -82,8 +80,6 @@ function isDragOrRotate(gesture: Gesture | null): boolean {
   return gesture?.phase === "dragging" || gesture?.phase === "rotating";
 }
 
-/** Thin outlines around every selected element (no handles — handles
- *  are reserved for the size===1 single-primary case). */
 function MultiSelectionOutlines({
   bounds,
   scale,
@@ -117,8 +113,6 @@ function MultiSelectionOutlines({
   );
 }
 
-/** Marquee selection rectangle. position: fixed because gesture coords
- *  are viewport-relative (clientX/Y). */
 function MarqueeRect({ gesture }: { gesture: Gesture | null }) {
   if (gesture?.phase !== "marquee") return null;
   const left = Math.min(gesture.startClient.x, gesture.currentClient.x);
@@ -141,7 +135,6 @@ function MarqueeRect({ gesture }: { gesture: Gesture | null }) {
   );
 }
 
-/** Pink alignment guide lines. One per axis (closest match wins). */
 function SnapGuideLines({ gesture, scale }: { gesture: Gesture | null; scale: number }) {
   if (gesture?.phase !== "dragging") return null;
   return (
@@ -173,8 +166,6 @@ function SnapGuideLines({ gesture, scale }: { gesture: Gesture | null; scale: nu
   );
 }
 
-/** Blue line in the gap between flex siblings showing where the
- *  dragged element will land on release. */
 function FlexDropIndicator({ gesture, scale }: { gesture: Gesture | null; scale: number }) {
   if (gesture?.phase !== "dragging" || !gesture.indicatorBounds) return null;
   const { x, y, w, h } = gesture.indicatorBounds;
@@ -194,19 +185,6 @@ function FlexDropIndicator({ gesture, scale }: { gesture: Gesture | null; scale:
   );
 }
 
-/**
- * Outline + 8 resize handles + rotate handle around the primary
- * selection. Wrapped in a single rotated container so it hugs the
- * rotated element exactly instead of drawing the AABB.
- *
- * During resize, tracks `gesture.currentBounds` (live, no DOM read).
- * Otherwise tracks `selectionBounds` from the bounds hook.
- *
- * Resize handles are restricted by layout mode:
- *   - absolute: all 8.
- *   - flex column: only `s` (height adjust; cross-axis auto-stretches).
- *   - flex row: only `e` (width adjust; cross-axis auto-stretches).
- */
 function visibleResizeHandles(deck: AnumaNode, selectedId: string): ResizeHandle[] {
   const mode = getLayoutModeOf(deck, selectedId);
   if (mode === "absolute") return ["nw", "n", "ne", "e", "se", "s", "sw", "w"];
@@ -245,8 +223,6 @@ function SelectionWithHandles({
         height: bounds.h * scale,
         transform: rotation !== 0 ? `rotate(${rotation}deg)` : undefined,
         transformOrigin: "50% 50%",
-        // Outline frame is non-interactive; only the handles below are.
-        // Lets clicks fall through to the element body for drag selection.
         pointerEvents: "none",
       }}
     >
@@ -260,7 +236,6 @@ function SelectionWithHandles({
       />
       {visibleHandles.map((handle) => {
         const dir = RESIZE_HANDLE_DIRS[handle];
-        // Handle center in LOCAL slide-px (relative to bounds top-left).
         const cxLocal = (bounds.w * (dir.dx + 1)) / 2;
         const cyLocal = (bounds.h * (dir.dy + 1)) / 2;
         return (
@@ -283,7 +258,6 @@ function SelectionWithHandles({
           />
         );
       })}
-      {/* Rotate handle: floats above top-center, orbits with rotation. */}
       <div
         data-rotate-handle="true"
         style={{

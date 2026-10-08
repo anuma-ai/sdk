@@ -1,10 +1,3 @@
-/**
- * E2E test: verify tools are not called for unrelated prompts
- *
- * Registers all client-side display tools and sends a prompt that
- * should not trigger any of them.
- */
-
 import { describe, it, expect } from "vitest";
 import { runToolLoop } from "./setup.js";
 import { createChartTool } from "../../src/tools/chart.js";

@@ -2,7 +2,7 @@
 
 > **MessageOrigin** = `"tool_result"` | `"chunks_discarded"` | `"message"`
 
-Defined in: [src/lib/db/chat/types.ts:103](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#103)
+Defined in: [src/lib/db/chat/types.ts:98](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#98)
 
 Provenance for a row that needs handling the content cannot justify. Set at
 write time by whoever produced or repaired the row; a union so further kinds

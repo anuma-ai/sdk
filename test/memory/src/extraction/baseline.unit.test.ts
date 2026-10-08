@@ -31,14 +31,12 @@ describe("buildBaseline", () => {
     expect(baseline.runs).toBe(3);
     expect(baseline.matchThreshold).toBe(0.62);
     expect(baseline.metrics.recall.mean).toBeCloseTo(0.9, 5);
-    // Zero spread → tolerance floored, never 0 (which would make the gate flaky).
     expect(baseline.metrics.recall.tolerance).toBe(MIN_METRIC_TOLERANCE);
   });
 
   it("widens tolerance to the observed spread when it exceeds the floor", () => {
     const runs = [overall({ recall: 0.8 }), overall({ recall: 0.95 })];
     const baseline = buildBaseline(runs, 0.62);
-    // spread = 0.15 > floor → tolerance tracks the noise.
     expect(baseline.metrics.recall.tolerance).toBeCloseTo(0.15, 5);
     expect(baseline.metrics.recall.mean).toBeCloseTo(0.875, 5);
   });
@@ -51,7 +49,6 @@ describe("compareToBaseline", () => {
   );
 
   it("passes when metrics hold within tolerance", () => {
-    // recall dips 0.02 < the tolerance floor → not a regression.
     const runs = [overall({ recall: 0.88 })];
     expect(compareToBaseline(runs, baseline)).toEqual([]);
   });
@@ -65,7 +62,6 @@ describe("compareToBaseline", () => {
   });
 
   it("averages current runs before comparing (noise on one run doesn't trip it)", () => {
-    // mean recall = (0.95 + 0.85) / 2 = 0.90 → no drop.
     const runs = [overall({ recall: 0.95 }), overall({ recall: 0.85 })];
     expect(compareToBaseline(runs, baseline)).toEqual([]);
   });
@@ -82,7 +78,6 @@ describe("compareToBaseline", () => {
   });
 
   it("skips metrics absent from an older baseline instead of crashing", () => {
-    // Simulate a baseline written before `kindAccuracy` existed.
     const partial = JSON.parse(JSON.stringify(baseline)) as ExtractionBaseline;
     delete (partial.metrics as Record<string, unknown>).kindAccuracy;
     const runs = [overall({ kindAccuracy: 0 })];

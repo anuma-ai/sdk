@@ -1,8 +1,3 @@
-/**
- * Google Drive export: one folder listing for each run, not one lookup for each conversation.
- * The Drive API layer is mocked, so no test uses the network.
- */
-
 import type { Database } from "@nozbe/watermelondb";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -21,7 +16,6 @@ vi.mock("./api", async (importOriginal) => {
   };
 });
 
-// A row stands in for a stored conversation, so the test needs no database.
 vi.mock("../../db/chat/operations", () => ({
   conversationToStoredRaw: (row: { conversationId: string; updatedAt: Date }) => row,
 }));
@@ -44,8 +38,6 @@ const driveFile = (name: string, modified: number): api.DriveFile => ({
 const fakeDatabase = (rows: unknown[]) =>
   ({ get: () => ({ query: () => ({ fetch: async () => rows }) }) }) as unknown as Database;
 
-// The first query lists the conversations at the start of the run. Later queries read one
-// conversation each, so they see an edit made after the run began.
 const fakeDatabaseEditedDuringRun = (atStart: unknown[], later: unknown[]) => {
   let queries = 0;
   return {
@@ -55,7 +47,6 @@ const fakeDatabaseEditedDuringRun = (atStart: unknown[], later: unknown[]) => {
   } as unknown as Database;
 };
 
-// What Drive holds now. The folder listing and the single-file read both answer from it.
 let remote: api.DriveFile[] = [];
 const listing = (files: api.DriveFile[]) => {
   remote = files;
@@ -94,17 +85,16 @@ describe("performGoogleDriveExport", () => {
 
     expect(mocked.listAllDriveFiles).toHaveBeenCalledTimes(1);
     expect(mocked.listAllDriveFiles).toHaveBeenCalledWith("tok", "folder-1");
-    // The folder lookup runs once at the start of the run, not once for each conversation.
     expect(mocked.getBackupFolder).toHaveBeenCalledTimes(1);
     expect(result).toEqual({ success: true, uploaded: 25, skipped: 0, total: 25 });
   });
 
   it("skips unchanged conversations, updates changed ones and uploads new ones in order", async () => {
     const rows = [
-      row("same", T0), // local equals remote: skip
-      row("older", T0 - 1000), // local older than remote: skip
-      row("newer", T0 + 1000), // local newer than remote: update
-      row("fresh", T0), // not on Drive: upload
+      row("same", T0),
+      row("older", T0 - 1000),
+      row("newer", T0 + 1000),
+      row("fresh", T0),
     ];
     listing([driveFile("same.json", T0), driveFile("older.json", T0), driveFile("newer.json", T0)]);
     const deps = makeDeps();
@@ -198,7 +188,6 @@ describe("performGoogleDriveExport", () => {
 
   it("uploads a conversation that was edited after the run began", async () => {
     listing([driveFile("a.json", T0)]);
-    // At the start the conversation is unchanged. By its turn the user has edited it.
     const database = fakeDatabaseEditedDuringRun([row("a", T0)], [row("a", T0 + 1000)]);
 
     const result = await performGoogleDriveExport(database, "0xabc", "tok", makeDeps());
@@ -209,7 +198,6 @@ describe("performGoogleDriveExport", () => {
 
   it("does not overwrite a backup that another client wrote after the listing", async () => {
     listing([driveFile("a.json", T0)]);
-    // Another client writes a newer file after the run listed the folder.
     mocked.getDriveFileMetadata.mockResolvedValue(driveFile("a.json", T0 + 5000));
     const deps = makeDeps();
 
@@ -292,7 +280,6 @@ describe("performGoogleDriveExport", () => {
 
     const result = await performGoogleDriveExport(fakeDatabase(rows), "0xabc", "tok", deps);
 
-    // Before the cap, each of the 10 conversations listed the whole folder again.
     expect(mocked.listAllDriveFiles).toHaveBeenCalledTimes(3);
     expect(result).toEqual({ success: true, uploaded: 0, skipped: 0, total: 10 });
     expect(mocked.uploadFileToDrive).not.toHaveBeenCalled();
@@ -305,8 +292,6 @@ describe("performGoogleDriveExport", () => {
 
     await performGoogleDriveExport(fakeDatabase(rows), "0xabc", "tok", deps);
 
-    // The listing is tried three times. Each of the first conversations may ask once, but the
-    // conversations after the cap fail with an error that holds no status code.
     expect(deps.requestDriveAccess.mock.calls.length).toBeLessThanOrEqual(3);
     expect(mocked.listAllDriveFiles.mock.calls.length).toBeLessThanOrEqual(6);
   });

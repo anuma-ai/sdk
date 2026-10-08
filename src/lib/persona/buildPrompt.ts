@@ -6,11 +6,7 @@ import type {
   PromptTemplates,
 } from "./types";
 
-// ── Language names ──
-
 const languageDisplayNames = new Intl.DisplayNames(["en"], { type: "language" });
-
-// ── Default templates (matching text server) ──
 
 export const DEFAULT_PROMPT_TEMPLATES: PromptTemplates = {
   tools:
@@ -30,8 +26,6 @@ export const DEFAULT_PROMPT_TEMPLATES: PromptTemplates = {
   platformFormatting: "\n\n{content}",
 };
 
-// ── Helpers ──
-
 /** Collapse runs of 3+ double-quotes to a single quote to prevent prompt injection. */
 export function sanitizeQuotes(s: string): string {
   return s.replace(/"{3,}/g, '"');
@@ -42,8 +36,6 @@ export function renderTemplate(value: string | null | undefined, template: strin
   if (!value) return null;
   return template.replace(/\{content\}/g, () => sanitizeQuotes(value));
 }
-
-// ── Default section renderers ──
 
 function renderBase(ctx: PromptContext): string {
   return ctx.basePrompt;
@@ -90,8 +82,6 @@ function renderPlatformFormatting(ctx: PromptContext, templates: PromptTemplates
   return renderTemplate(ctx.platformFormatting, templates.platformFormatting);
 }
 
-// ── Default sections ──
-
 function createDefaultSections(templates: PromptTemplates): PromptSection[] {
   return [
     { key: "base", priority: 0, render: renderBase },
@@ -108,8 +98,6 @@ function createDefaultSections(templates: PromptTemplates): PromptSection[] {
     },
   ];
 }
-
-// ── Main function ──
 
 export function buildSystemPrompt(
   ctx: PromptContext,

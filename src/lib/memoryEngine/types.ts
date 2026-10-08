@@ -1,10 +1,3 @@
-/**
- * Memory Engine Types
- *
- * Types for the memory engine that allows semantic search
- * across past conversation messages.
- */
-
 import type { StorageOperationsContext } from "../db/chat/operations";
 
 /**

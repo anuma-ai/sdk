@@ -1,7 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-// ── Mock useEncryption ──
-
 vi.mock("../../react/useEncryption", () => ({
   getEncryptionKey: vi.fn(async () => "mock-crypto-key"),
   encryptDataWithKey: vi.fn(async (data: string) => `encrypted:${data}`),
@@ -72,7 +70,6 @@ describe("wallet-scoped OAuth token rows", () => {
     await storeGithubToken("tok-a", undefined, undefined, undefined, WALLET_A);
     await storeGithubToken("tok-b", undefined, undefined, undefined, WALLET_B);
 
-    // The cache holds wallet B, so the read for A goes to storage.
     expect(await getValidGithubToken(WALLET_A)).toBe("tok-a");
     expect(await getValidGithubToken(WALLET_B)).toBe("tok-b");
   });
@@ -95,16 +92,12 @@ describe("wallet-scoped OAuth token rows", () => {
     expect(localStorage.getItem(`${GITHUB_KEY}:${WALLET_A}`)).toMatch(/^enc:oauth:/);
     expect(sessionStorage.getItem(GITHUB_KEY)).toBeNull();
     expect(await getValidGithubToken(WALLET_A)).toBe("tok-a");
-    // The second wallet has no row of its own, so it gets nothing.
     expect(await getValidGithubToken(WALLET_B)).toBeNull();
   });
 
   it("uses the sessionStorage row when the localStorage row under the same key is not readable", async () => {
     vi.mocked(hasEncryptionKey).mockReturnValue(false);
 
-    // An older build left an encrypted row in localStorage and a plain text row
-    // under the same key in sessionStorage. The key is not ready, so only the
-    // plain text row can answer.
     localStorage.setItem(`${GITHUB_KEY}:${WALLET_A}`, "enc:oauth:not-readable");
     sessionStorage.setItem(
       `${GITHUB_KEY}:${WALLET_A}`,
@@ -173,7 +166,6 @@ describe("wallet-scoped OAuth token rows", () => {
     await storeBackupToken("dropbox", { accessToken: "tok-a" }, WALLET_A);
     await storeBackupToken("dropbox", { accessToken: "tok-b" }, WALLET_B);
 
-    // Each wallet has its own key, so neither write overwrites the other.
     expect(localStorage.getItem(`${DROPBOX_KEY}:${WALLET_A}`)).toMatch(/^enc:oauth:/);
     expect(localStorage.getItem(`${DROPBOX_KEY}:${WALLET_B}`)).toMatch(/^enc:oauth:/);
     expect(await getStoredTokenData("dropbox", WALLET_A)).toEqual({ accessToken: "tok-a" });
@@ -192,12 +184,10 @@ describe("wallet-scoped OAuth token rows", () => {
     vi.mocked(hasEncryptionKey).mockReturnValue(false);
     sessionStorage.setItem(GITHUB_KEY, JSON.stringify({ accessToken: "legacy-token" }));
 
-    // Wallet A reads first, so the row becomes A's and the shared key is gone.
     expect(await getValidGithubToken(WALLET_A)).toBe("legacy-token");
     expect(sessionStorage.getItem(GITHUB_KEY)).toBeNull();
     const rowA = JSON.parse(sessionStorage.getItem(`${GITHUB_KEY}:${WALLET_A}`) ?? "{}");
     expect(rowA).toEqual({ wallet: WALLET_A, token: { accessToken: "legacy-token" } });
-    // Wallet B has no row of its own, so it gets nothing.
     expect(await getValidGithubToken(WALLET_B)).toBeNull();
   });
 
@@ -261,7 +251,6 @@ describe("wallet-scoped OAuth token rows", () => {
 
     expect(localStorage.getItem(`${GITHUB_KEY}:${WALLET_A}`)).toMatch(/^enc:oauth:/);
     expect(sessionStorage.getItem(`${GITHUB_KEY}:${WALLET_A}`)).toBeNull();
-    // Wallet B still owns the row under the shared key.
     expect(sessionStorage.getItem(GITHUB_KEY)).toContain("tok-b");
     expect(await getValidGithubToken(WALLET_B)).toBe("tok-b");
   });
@@ -280,7 +269,6 @@ describe("wallet-scoped OAuth token rows", () => {
       vi.mocked(hasEncryptionKey).mockReturnValue(false);
       localStorage.setItem(key, JSON.stringify({ accessToken: "legacy-token" }));
 
-      // The read runs before the key is ready and moves the row to the wallet key.
       expect(await read(WALLET_A)).toBe("legacy-token");
       expect(localStorage.getItem(key)).toBeNull();
       expect(localStorage.getItem(`${key}:${WALLET_A}`)).not.toMatch(/^enc:oauth:/);
@@ -294,7 +282,6 @@ describe("wallet-scoped OAuth token rows", () => {
   );
 
   it("keeps the encrypted legacy backup row of another wallet during a migration", async () => {
-    // An older build wrote wallet A's encrypted row under the shared key.
     await storeBackupToken("dropbox", { accessToken: "tok-a" }, WALLET_A);
     const rowA = localStorage.getItem(`${DROPBOX_KEY}:${WALLET_A}`) ?? "";
     localStorage.removeItem(`${DROPBOX_KEY}:${WALLET_A}`);

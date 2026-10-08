@@ -65,13 +65,11 @@ export interface UseFilesOptions {
  * Result returned by useFiles hook.
  */
 export interface UseFilesResult {
-  // State
   /** Whether the file system is ready (database table exists) */
   isReady: boolean;
   /** Whether files are being loaded */
   isLoading: boolean;
 
-  // CRUD Operations
   /** Create a new file record */
   createMedia: (options: CreateMediaOptions) => Promise<StoredMedia>;
   /** Create multiple file records in a batch */
@@ -99,7 +97,6 @@ export interface UseFilesResult {
   /** Permanently delete a file record */
   hardDeleteMedia: (mediaId: string) => Promise<boolean>;
 
-  // Library Query Operations
   /** Get all files with optional filters */
   getMedia: (filters: MediaFilterOptions) => Promise<StoredMedia[]>;
   /** Get files by type */
@@ -135,7 +132,6 @@ export interface UseFilesResult {
   /** Delete all files for a message */
   deleteMediaByMessage: (messageId: string) => Promise<number>;
 
-  // File Operations
   /** Read a file from OPFS by its media ID */
   readFile: (mediaId: string) => Promise<File>;
   /** Create a blob URL for a file (auto-managed lifecycle) */
@@ -199,24 +195,20 @@ export function useFiles(options: UseFilesOptions): UseFilesResult {
     typeof database.get<Media>
   > | null>(null);
 
-  // Blob URL manager for memory-safe blob URL tracking
   const blobUrlManager = useMemo(() => new BlobUrlManager(), []);
 
-  // Cleanup blob URLs on unmount
   useEffect(() => {
     return () => {
       blobUrlManager.revokeAll();
     };
   }, [blobUrlManager]);
 
-  // Initialize collection asynchronously
   useEffect(() => {
     const initCollection = async () => {
       setIsLoading(true);
       try {
         const coll = database.get<Media>("media");
 
-        // Test query to ensure database is initialized and table exists
         await coll.query(Q.take(1)).fetch();
 
         setMediaCollection(coll);
@@ -232,17 +224,12 @@ export function useFiles(options: UseFilesOptions): UseFilesResult {
     void initCollection();
   }, [database]);
 
-  // Media operations context - only valid when isReady is true
   const ctx = useMemo<MediaOperationsContext | null>(() => {
     if (!isReady || !mediaCollection) {
       return null;
     }
     return { database, walletAddress };
   }, [database, mediaCollection, isReady, walletAddress]);
-
-  // ============================================================================
-  // CRUD Operations
-  // ============================================================================
 
   const createMedia = useCallback(
     async (createOptions: CreateMediaOptions): Promise<StoredMedia> => {
@@ -337,7 +324,6 @@ export function useFiles(options: UseFilesOptions): UseFilesResult {
         return false;
       }
       const result = await deleteMediaOp(ctx, mediaId);
-      // Revoke blob URL if it exists
       blobUrlManager.revokeUrl(mediaId);
       return result;
     },
@@ -350,16 +336,11 @@ export function useFiles(options: UseFilesOptions): UseFilesResult {
         return false;
       }
       const result = await hardDeleteMediaOp(ctx, mediaId);
-      // Revoke blob URL if it exists
       blobUrlManager.revokeUrl(mediaId);
       return result;
     },
     [ctx, blobUrlManager]
   );
-
-  // ============================================================================
-  // Library Query Operations
-  // ============================================================================
 
   const getMedia = useCallback(
     async (filters: MediaFilterOptions): Promise<StoredMedia[]> => {
@@ -528,23 +509,12 @@ export function useFiles(options: UseFilesOptions): UseFilesResult {
     [ctx]
   );
 
-  // ============================================================================
-  // File Operations
-  // ============================================================================
-
-  /**
-   * Read a file from OPFS by its media ID.
-   * Supports both encrypted (SDK) and unencrypted (legacy) storage.
-   * Encryption key is automatically retrieved from the wallet address.
-   */
   const readFile = useCallback(
     async (mediaId: string): Promise<File> => {
       if (!isOPFSSupported()) {
         throw new Error("OPFS is not supported in this browser.");
       }
 
-      // If we have a wallet address, use encrypted storage
-      // Wait for the encryption key if it hasn't been derived yet
       if (walletAddress) {
         if (!hasEncryptionKey(walletAddress)) {
           try {
@@ -561,7 +531,6 @@ export function useFiles(options: UseFilesOptions): UseFilesResult {
               });
             });
           } catch {
-            // Timeout — fall through to legacy storage
             getLogger().warn(
               `[useFiles] Encryption key wait timed out for ${mediaId}, trying legacy storage`
             );
@@ -579,7 +548,6 @@ export function useFiles(options: UseFilesOptions): UseFilesResult {
               type: result.metadata?.type || "application/octet-stream",
             });
           } catch (encryptedError) {
-            // If encrypted read fails, fall back to legacy storage
             getLogger().warn(
               `[useFiles] Encrypted read failed for ${mediaId}, trying legacy storage`,
               encryptedError
@@ -588,7 +556,6 @@ export function useFiles(options: UseFilesOptions): UseFilesResult {
         }
       }
 
-      // Fallback: try to read from unencrypted OPFS (legacy)
       try {
         const root = await navigator.storage.getDirectory();
         const filesDir = await root.getDirectoryHandle("files", { create: false });
@@ -601,13 +568,8 @@ export function useFiles(options: UseFilesOptions): UseFilesResult {
     [walletAddress]
   );
 
-  /**
-   * Create a blob URL for a file.
-   * The URL is tracked and will be auto-revoked on cleanup.
-   */
   const createBlobUrl = useCallback(
     async (mediaId: string): Promise<string | null> => {
-      // Check if we already have a URL for this file
       const existingUrl = blobUrlManager.getUrl(mediaId);
       if (existingUrl) {
         return existingUrl;
@@ -624,9 +586,6 @@ export function useFiles(options: UseFilesOptions): UseFilesResult {
     [readFile, blobUrlManager]
   );
 
-  /**
-   * Revoke a specific blob URL.
-   */
   const revokeBlobUrl = useCallback(
     (mediaId: string): void => {
       blobUrlManager.revokeUrl(mediaId);
@@ -634,17 +593,10 @@ export function useFiles(options: UseFilesOptions): UseFilesResult {
     [blobUrlManager]
   );
 
-  /**
-   * Revoke all blob URLs (cleanup).
-   */
   const revokeAllBlobUrls = useCallback((): void => {
     blobUrlManager.revokeAll();
   }, [blobUrlManager]);
 
-  /**
-   * Resolve __SDKFILE__ placeholders in content to blob URLs.
-   * This converts placeholders like __SDKFILE__media_xxx__ to actual blob URLs.
-   */
   const resolveFilePlaceholders = useCallback(
     async (content: string): Promise<string> => {
       if (!walletAddress || !hasEncryptionKey(walletAddress)) {
@@ -663,11 +615,9 @@ export function useFiles(options: UseFilesOptions): UseFilesResult {
   );
 
   return {
-    // State
     isReady,
     isLoading,
 
-    // CRUD Operations
     createMedia,
     createMediaBatch,
     getMediaById,
@@ -680,7 +630,6 @@ export function useFiles(options: UseFilesOptions): UseFilesResult {
     deleteMedia,
     hardDeleteMedia,
 
-    // Library Query Operations
     getMedia,
     getMediaByType,
     getImages,
@@ -699,7 +648,6 @@ export function useFiles(options: UseFilesOptions): UseFilesResult {
     deleteMediaByConversation,
     deleteMediaByMessage,
 
-    // File Operations
     readFile,
     createBlobUrl,
     revokeBlobUrl,

@@ -51,10 +51,6 @@ import {
   type ThemeAttr,
 } from "../tools/slides/index.js";
 
-// ---------------------------------------------------------------------------
-// Theme context
-// ---------------------------------------------------------------------------
-
 export interface AnumaTheme {
   /** `FONT_PRESETS` key. */
   fontPreset: string;
@@ -71,7 +67,6 @@ const DEFAULT_THEME: AnumaTheme = {
     textPrimary: "#ffffff",
     textSecondary: "#ffffff",
     textMuted: "#9a9592",
-    // White on the dark default deck — the brand orange is retired (#8419).
     accent: "#ffffff",
     card: "#1a1a21",
     border: "#434242",
@@ -80,14 +75,6 @@ const DEFAULT_THEME: AnumaTheme = {
 
 const AnumaThemeContext = React.createContext<AnumaTheme>(DEFAULT_THEME);
 
-/**
- * Shadow-DOM isolation for `<Anuma.Slide>` content. Default true: the
- * slide's children render inside an attached shadow root so host-page
- * CSS (Tailwind preflight, UA defaults on h2/p/button, global selectors)
- * cannot leak in. Wrap a tree in `<AnumaShadowIsolationProvider enabled={false}>`
- * to opt OUT — useful only if a direct-DOM tool inside slides has
- * trouble crossing the shadow boundary.
- */
 const AnumaShadowIsolationContext = React.createContext<boolean>(true);
 
 export interface AnumaShadowIsolationProviderProps {
@@ -155,10 +142,6 @@ export function resolveThemeColor(value: unknown, theme: AnumaTheme): string | u
   return colors[value as ThemeAttr] ?? value;
 }
 
-// ---------------------------------------------------------------------------
-// Geometry
-// ---------------------------------------------------------------------------
-
 interface GeometryProps {
   x?: number;
   y?: number;
@@ -178,14 +161,7 @@ interface ContainerLayoutProps {
   align?: string;
 }
 
-/** Build inline style for a positioned element inside an absolute parent. */
 function absoluteStyle(g: GeometryProps): React.CSSProperties {
-  // box-sizing: border-box makes `width` and `height` total dimensions
-  // (content + padding + border), independent of any host-page CSS that
-  // might otherwise leave it as `content-box`. This matches the LLM's
-  // and editor's mental model — `attrs.w/h` are the box's outer size —
-  // and avoids "container drifts on resize" bugs caused by padding
-  // making the visual box bigger than the AST claims.
   const out: React.CSSProperties = { position: "absolute", boxSizing: "border-box" };
   if (g.x !== undefined) out.left = g.x;
   if (g.y !== undefined) out.top = g.y;
@@ -195,9 +171,7 @@ function absoluteStyle(g: GeometryProps): React.CSSProperties {
   return out;
 }
 
-/** Build inline style for a child of a flex container. */
 function flexChildStyle(g: GeometryProps): React.CSSProperties {
-  // See absoluteStyle for the box-sizing rationale.
   const out: React.CSSProperties = { position: "relative", boxSizing: "border-box" };
   if (g.w !== undefined) out.width = g.w;
   if (g.h !== undefined) out.height = g.h;
@@ -208,7 +182,6 @@ function flexChildStyle(g: GeometryProps): React.CSSProperties {
   return out;
 }
 
-/** Build inline style for the container portion when `layout` is set. */
 function containerLayoutStyle(c: ContainerLayoutProps): React.CSSProperties {
   if (c.layout !== "row" && c.layout !== "column") return {};
   const out: React.CSSProperties = { display: "flex", flexDirection: c.layout };
@@ -231,17 +204,8 @@ function mapAlign(v: string): string {
   return v;
 }
 
-// Whether the nearest layout-establishing parent is a flex container.
 const FlexParentContext = React.createContext<boolean>(false);
 
-// ---------------------------------------------------------------------------
-// Style resolution — themes color tokens inside style={{}} props
-// ---------------------------------------------------------------------------
-
-/**
- * CSS properties whose string values may reference theme tokens. Anything
- * else passes through verbatim.
- */
 const COLOR_STYLE_KEYS = new Set([
   "color",
   "background",
@@ -272,10 +236,6 @@ function resolveStyleTokens(
   return out as React.CSSProperties;
 }
 
-// ---------------------------------------------------------------------------
-// Primitive components
-// ---------------------------------------------------------------------------
-
 interface CommonProps extends GeometryProps {
   id?: string;
   style?: React.CSSProperties;
@@ -300,8 +260,6 @@ export interface DeckProps extends CommonProps {
 }
 
 function Deck({ children, style, ...rest }: DeckProps): React.ReactElement {
-  // Pull theme attrs out of the deck props; pass non-theme rest through to
-  // the wrapper div via inline style.
   const themeColors: Partial<Record<ThemeAttr, string>> = {};
   for (const k of THEME_ATTRS) {
     const v = (rest as Record<string, unknown>)[k];
@@ -350,12 +308,6 @@ function Slide({
   const bg = resolveThemeColor(background, theme) ?? theme.colors.slideBg ?? "#1a1b1e";
   const fontPreset = FONT_PRESETS[theme.fontPreset] ?? FONT_PRESETS.default;
 
-  // Shadow-DOM isolation is opt-in via context. Read-only surfaces
-  // (thumbnails, presentation, exports) wrap their render in
-  // `<AnumaShadowIsolationProvider enabled>` to get full style
-  // isolation. Editors leave it off so direct-DOM tools like
-  // react-moveable see slide elements in the same document — its
-  // bounding-rect math drifts when targets are inside a shadow root.
   const shadowIsolated = React.useContext(AnumaShadowIsolationContext);
   const hostRef = React.useRef<HTMLDivElement | null>(null);
   const [shadowRoot, setShadowRoot] = React.useState<ShadowRoot | null>(null);
@@ -363,8 +315,6 @@ function Slide({
     if (!shadowIsolated) return;
     const host = hostRef.current;
     if (!host) return;
-    // attachShadow throws if one is already attached; reuse the existing
-    // root in that case (e.g. across HMR or strict-mode double mounts).
     setShadowRoot(host.shadowRoot ?? host.attachShadow({ mode: "open" }));
   }, [shadowIsolated]);
 
@@ -375,12 +325,6 @@ function Slide({
     overflow: "hidden",
     background: bg,
     boxSizing: "border-box",
-    // Inheritable defaults applied either way. With shadow isolation
-    // these stop host-page styles leaking into the shadow tree. Without
-    // isolation, the same baseline keeps the slide reliably themed even
-    // if the host has aggressive globals — at the cost of these
-    // inherited values then propagating into slide children unless
-    // they (or our `<Anuma.Text>` style) override them, which they do.
     margin: 0,
     padding: 0,
     fontFamily: `'${fontPreset?.body ?? "Inter"}', system-ui, sans-serif`,
@@ -509,11 +453,6 @@ function Group({
   );
 }
 
-// ---------------------------------------------------------------------------
-// Shape primitives — rendered as positioned divs (SVG would be more
-// faithful for circle/line stroke; deferred until shapes need it).
-// ---------------------------------------------------------------------------
-
 export interface RectProps extends CommonProps {
   fill?: string;
   stroke?: string;
@@ -623,10 +562,6 @@ function Line({
   return <div data-anuma-tag="Line" data-id={id} style={merged} />;
 }
 
-// ---------------------------------------------------------------------------
-// Text / Image / Icon — preserved aliases over their HTML equivalents
-// ---------------------------------------------------------------------------
-
 export interface TextProps extends CommonProps {
   fontRole?: "heading" | "body";
 }
@@ -652,20 +587,7 @@ function Text({
     : absoluteStyle({ x, y, w, h, rotation });
   const merged: React.CSSProperties = {
     ...positioning,
-    // <h2>/<p> carry user-agent default margins (~0.83em / 1em). With
-    // `position: absolute` the margin still offsets the visible content
-    // below the box's `top` line — so the rendered text drifts down from
-    // the slide-pixel y the LLM specified, and any overlay (e.g. the
-    // text-edit textarea) anchored to the same y misaligns.
     margin: 0,
-    // Hard clip at box bounds. We deliberately don't use
-    // `display: -webkit-box` + `-webkit-line-clamp` here: when the box
-    // height comfortably fits the rendered text, the implicit
-    // pack-axis alignment of -webkit-box anchors content to the
-    // bottom of the box in some engines, which breaks single-line
-    // titles in tall slots. Overflow:hidden alone gives a predictable
-    // top-anchored layout; relying on the budget hints in the LLM
-    // system prompt to keep content within the slot.
     overflow: "hidden",
     whiteSpace: "pre-line",
     ...(resolveStyleTokens(style, theme) ?? {}),
@@ -706,16 +628,10 @@ function Image({
     ...(resolveStyleTokens(style, theme) ?? {}),
   };
   if (src && (src.startsWith("http") || src.startsWith("data:"))) {
-    // draggable={false}: slide images should never participate in HTML5
-    // native drag-and-drop. Without this, click-dragging an image inside
-    // an editor (or any interactive consumer of the runtime) starts the
-    // browser's translucent-ghost drag before the editor's gesture
-    // handler can claim the pointer.
     return (
       <img data-anuma-tag="Image" data-id={id} src={src} alt="" draggable={false} style={merged} />
     );
   }
-  // Placeholder for attached:N or unresolved sources.
   return (
     <div
       data-anuma-tag="Image"
@@ -772,10 +688,6 @@ function Icon({
   );
 }
 
-// ---------------------------------------------------------------------------
-// Public namespace export
-// ---------------------------------------------------------------------------
-
 /**
  * Anuma primitive components, namespaced. Use as `<Anuma.Slide>`,
  * `<Anuma.Rect>`, etc.
@@ -793,18 +705,8 @@ export const Anuma = {
   Icon,
 };
 
-// ---------------------------------------------------------------------------
-// AST renderer — turn an AnumaNode tree into React elements
-// ---------------------------------------------------------------------------
-
-/**
- * Attrs whose values are interpreted as URLs by the browser. We refuse to
- * forward `javascript:` / `vbscript:` payloads on any of these to avoid
- * turning LLM-generated trees into XSS vectors.
- */
 const URL_ATTRS = new Set(["href", "src", "action", "formAction", "formaction", "ping"]);
 
-/** Attrs handled separately as geometry/layout/style — don't forward as DOM props. */
 const RESERVED_ATTRS = new Set([
   "x",
   "y",
@@ -823,28 +725,16 @@ const RESERVED_ATTRS = new Set([
 ]);
 
 function isUnsafeUrl(value: string): boolean {
-  // Browsers strip leading C0 controls + SPACE when resolving a URL attr,
-  // so skip that prefix before checking the protocol. Done in code (rather
-  // than a regex char class) to avoid the no-control-regex eslint rule.
   let i = 0;
   while (i < value.length && value.charCodeAt(i) <= 0x20) i++;
   return /^(javascript|vbscript)\s*:/i.test(value.slice(i));
 }
 
-/**
- * Generic HTML-tag renderer used for non-Anuma children of a parsed
- * tree. Geometry attrs and `style` get the same treatment as Anuma
- * primitives (theme tokens resolved, x/y/w/h projected to absolute
- * positioning). Other attrs pass through.
- */
 function renderHtml(node: AnumaNode, key: string | number): React.ReactElement | null {
-  // We use React.createElement to avoid TypeScript trying to type-check
-  // a dynamic intrinsic-element name.
   const Tag = node.tag as keyof React.JSX.IntrinsicElements;
   const props: Record<string, unknown> = { key, "data-anuma-tag": node.tag };
   const styleObj = pickStyle(node.attrs.style);
 
-  // Geometry attrs → CSS positioning when present.
   const geo: GeometryProps = {};
   for (const k of ["x", "y", "w", "h", "rotation", "grow", "shrink"] as const) {
     const v = node.attrs[k];
@@ -853,7 +743,6 @@ function renderHtml(node: AnumaNode, key: string | number): React.ReactElement |
   if (typeof node.attrs.alignSelf === "string") geo.alignSelf = node.attrs.alignSelf;
   const hasGeo = Object.keys(geo).length > 0;
 
-  // Pass-through scalar attrs (id, src, href, type, placeholder, etc.).
   for (const [k, v] of Object.entries(node.attrs)) {
     if (RESERVED_ATTRS.has(k)) continue;
     if (typeof v === "string") {
@@ -889,7 +778,6 @@ interface ReactNodeWithGeometryProps {
   children: React.ReactNode;
 }
 
-/** Internal helper that resolves geometry against parent flex context. */
 function ReactNodeWithGeometry({
   Tag,
   props,
@@ -925,23 +813,11 @@ function renderTreeChild(node: AnumaNode, key: string | number): React.ReactElem
   return null;
 }
 
-/**
- * React key for an AnumaNode child. Prefers `attrs.id` when available
- * so DOM identity survives sibling reorders (e.g., flex children
- * dragged to a new position). Falls back to the array index for nodes
- * with no id.
- *
- * Without this — keying by index — React's reconciler would swap
- * props in place between DOM siblings on reorder rather than moving
- * DOM nodes, which breaks any consumer that has imperatively mutated
- * style on a specific node (drag handlers, transitions, focus).
- */
 function keyForChild(node: AnumaNode, fallbackIndex: number): string | number {
   const id = node.attrs.id;
   return typeof id === "string" && id.length > 0 ? id : fallbackIndex;
 }
 
-/** Dispatch to the correct Anuma component for a parsed node. */
 function renderAnumaPrimitive(node: AnumaNode, key: string | number): React.ReactElement | null {
   const props = anumaPropsFromAttrs(node.attrs);
   const children = node.children.map((c, i) =>

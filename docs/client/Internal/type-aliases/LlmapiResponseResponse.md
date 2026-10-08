@@ -2,7 +2,7 @@
 
 > **LlmapiResponseResponse** = `GeneratedLlmapiResponseResponse` & `object`
 
-Defined in: [src/clientCompat.ts:94](https://github.com/anuma-ai/sdk/blob/main/src/clientCompat.ts#94)
+Defined in: [src/clientCompat.ts:69](https://github.com/anuma-ai/sdk/blob/main/src/clientCompat.ts#69)
 
 Add the Responses API's terminal-state fields, which the portal's generated
 schema does not declare.

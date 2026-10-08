@@ -2,7 +2,7 @@
 
 > **classifyWebSearch**(`prompt`: `string`, `options`: `WebSearchClassifierOptions`): `Promise`<[`WebSearchClassification`](../interfaces/WebSearchClassification.md)>
 
-Defined in: [src/lib/chat/webSearchClassifier.ts:57](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/webSearchClassifier.ts#57)
+Defined in: [src/lib/chat/webSearchClassifier.ts:44](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/webSearchClassifier.ts#44)
 
 Classify whether a prompt needs a web search.
 

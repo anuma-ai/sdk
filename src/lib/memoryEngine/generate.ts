@@ -1,68 +1,28 @@
-/**
- * Embedding generation — dependency-free core.
- *
- * The raw "text → embedding" calls, split out of `embeddings.ts` so they can be
- * imported by node/React-Native-safe modules (the server-tool + client-tool
- * selection engine in `../tools`) WITHOUT pulling in the WatermelonDB-backed
- * `db/chat/operations` that `embeddings.ts` needs for its message-persistence
- * helpers (`embedMessage`, `embedAllMessages`, `chunkAndEmbed*`).
- *
- * Nothing here touches the database; the only I/O is the HTTP embeddings
- * endpoint. `embeddings.ts` re-exports these so existing importers of
- * `../memoryEngine/embeddings` (and the `../memoryEngine` barrel) keep working.
- */
-
 import { postApiV1Embeddings } from "../../client";
 import { BASE_URL } from "../../clientConfig";
 import { DEFAULT_API_EMBEDDING_MODEL } from "./constants";
 import type { EmbeddingOptions } from "./types";
 
-/** Bounded retry for the embeddings endpoint. Transient 429/5xx blips
- * under sustained load were observed killing entire eval questions (and
- * production saves/lazy backfills) on the first error — mirror the
- * extraction path's retry discipline: exponential backoff with jitter,
- * a few attempts, then surface the final error. */
 const EMBED_MAX_ATTEMPTS = 4;
 
-/** Per-attempt ceiling for one embeddings HTTP request (see
- * {@link EmbeddingOptions.timeoutMs}). */
 const DEFAULT_EMBEDDING_REQUEST_TIMEOUT_MS = 15_000;
 
-/** Ceiling for the `getToken()` read that precedes the request (see
- * {@link EmbeddingOptions.tokenTimeoutMs}). */
 const DEFAULT_EMBEDDING_TOKEN_TIMEOUT_MS = 10_000;
 
-/**
- * Run `run` with a deadline. On expiry the signal handed to `run` is aborted AND
- * the returned promise rejects, so a transport that ignores `signal` still can't
- * hold the caller: the race is what bounds the await, the abort only frees the
- * socket. A non-positive or non-finite `ms` disables the deadline.
- *
- * Hand-rolled rather than `AbortSignal.timeout(ms)`: that static is missing from
- * React Native's AbortSignal polyfill, and its timer is not one vitest's fake
- * timers can advance, so a test of it would have to wait out the real deadline.
- */
 async function withDeadline<T>(
   run: (signal: AbortSignal | undefined) => T | Promise<T>,
   ms: number,
   what: string,
   parent?: AbortSignal
 ): Promise<T> {
-  // `run` is always invoked inside a promise chain, so a SYNCHRONOUS throw
-  // (a throwing `maskInput`, a non-async `getToken`) becomes a rejection of
-  // `work` and a bare non-promise return value resolves it — neither can escape
-  // past the cleanup below or leave a timer armed.
   if (!(ms > 0) || !Number.isFinite(ms)) return Promise.resolve().then(() => run(parent));
   const controller = new AbortController();
-  // An enclosing deadline (see `totalTimeoutMs`) that fires first aborts this
-  // attempt's request too, so it doesn't keep a socket open for nothing.
   const onParentAbort = () => controller.abort(parent?.reason);
   let timer: ReturnType<typeof setTimeout> | undefined;
   try {
     if (parent?.aborted) onParentAbort();
     else parent?.addEventListener("abort", onParentAbort, { once: true });
     const work = Promise.resolve().then(() => run(controller.signal));
-    // A late rejection after the deadline won the race has no other listener.
     work.catch(() => {});
     const deadline = new Promise<never>((_, reject) => {
       timer = setTimeout(() => {
@@ -74,16 +34,11 @@ async function withDeadline<T>(
     });
     return await Promise.race([work, deadline]);
   } finally {
-    // Clearing the timer is what keeps the (then listener-less) `deadline`
-    // from ever rejecting once `work` has settled.
     clearTimeout(timer);
     parent?.removeEventListener("abort", onParentAbort);
   }
 }
 
-/** Bounded `getToken()` read shared by both entry points. A token provider that
- * never settles (a stuck auth refresh) used to hang every embedding — and with
- * it the whole recall — forever. */
 async function resolveAuthHeaders(
   options: EmbeddingOptions,
   parent?: AbortSignal
@@ -105,8 +60,6 @@ async function resolveAuthHeaders(
 
 async function withEmbeddingRetry<T extends { error?: unknown; response?: Response }>(
   call: () => Promise<T>,
-  // Once an enclosing deadline has fired nobody is waiting for the result, so
-  // stop instead of spending the remaining attempts in the background.
   stop?: AbortSignal
 ): Promise<T> {
   let last: T | undefined;
@@ -118,18 +71,10 @@ async function withEmbeddingRetry<T extends { error?: unknown; response?: Respon
       threw = false;
       last = await call();
       if (!last.error) return last;
-      // Resolved with an HTTP-level error ({ error } set). Only transient
-      // statuses are worth retrying — a non-429 4xx (bad auth / bad request)
-      // fails identically every attempt, so surface it immediately.
       const status = last.response?.status;
       const retryable = status === undefined || status === 429 || status >= 500;
       if (!retryable) return last;
     } catch (err) {
-      // fetch itself rejected — ECONNRESET, DNS failure, connection timeout.
-      // These never come back as a `{ error }` object, so without this catch
-      // a real network fault would skip the retry entirely and hard-fail on
-      // the first attempt. Always transient: retry, then re-throw if we
-      // exhaust attempts (preserving the throw contract for callers).
       threw = true;
       lastThrown = err;
     }
@@ -139,11 +84,6 @@ async function withEmbeddingRetry<T extends { error?: unknown; response?: Respon
     }
   }
   if (threw) throw lastThrown;
-  // openapi-ts >=0.97 wraps fetch rejections in `{ error }` (often with no
-  // Response) instead of letting them propagate. After retries are exhausted,
-  // rethrow the underlying Error so callers keep the historical throw
-  // contract (and a useful message like ECONNRESET) rather than a generic
-  // "API embedding failed" wrapper.
   if (last?.error instanceof Error && last.response?.status === undefined) {
     throw last.error;
   }
@@ -180,10 +120,6 @@ export function isFatalEmbeddingError(err: unknown): boolean {
   );
 }
 
-/**
- * Build an EmbeddingHttpError from a failed postApiV1Embeddings response,
- * preserving the server's error message and the HTTP status.
- */
 function embeddingErrorFrom(response: {
   error?: unknown;
   response?: Response;
@@ -208,8 +144,6 @@ export async function generateEmbedding(
 ): Promise<number[]> {
   const total = options.totalTimeoutMs;
   if (total === undefined) return embedOne(text, options, undefined);
-  // One budget over the token read, every attempt and every backoff — the
-  // per-attempt deadline alone still allows ~4 x timeoutMs + backoff.
   return withDeadline((signal) => embedOne(text, options, signal), total, "embedding");
 }
 
@@ -221,21 +155,13 @@ async function embedOne(
   const { baseUrl = BASE_URL, model, cache } = options;
   const timeoutMs = options.timeoutMs ?? DEFAULT_EMBEDDING_REQUEST_TIMEOUT_MS;
 
-  // Check cache first. The cache holds Float32Array (native embedding
-  // precision, half the resident RAM of a float64 number[]); the public
-  // contract still returns number[], so re-materialize a plain array at this
-  // boundary. This is not the RAM-critical resident structure (the Map stays
-  // f32) and the array handed back equals what a cache miss would return.
   if (cache) {
     const cached = cache.get(text);
     if (cached) return Array.from(cached);
   }
 
-  // Build auth headers - prefer apiKey if provided
   const headers = await resolveAuthHeaders(options, outer);
 
-  // The deadline is PER ATTEMPT (inside the retry), so a hung request becomes
-  // one retryable failure rather than a stall that outlives every retry.
   const response = await withEmbeddingRetry(
     () =>
       withDeadline(
@@ -243,8 +169,6 @@ async function embedOne(
           postApiV1Embeddings({
             baseUrl,
             body: {
-              // Mask PII from the request body only — the cache above still keys on
-              // the original `text`, so callers keep their original values.
               input: options.maskInput ? options.maskInput(text) : text,
               model: model ?? DEFAULT_API_EMBEDDING_MODEL,
             },
@@ -268,7 +192,6 @@ async function embedOne(
 
   const embedding = response.data.data[0].embedding;
 
-  // Report usage if callback provided
   if (options.onUsage && response.data.usage) {
     options.onUsage({
       promptTokens: response.data.usage.prompt_tokens ?? 0,
@@ -276,8 +199,6 @@ async function embedOne(
     });
   }
 
-  // Convert to f32 precision before returning so cache miss and hit return
-  // identical values (cache hits materialize from Float32Array).
   const f32Embedding = Float32Array.from(embedding);
   if (cache) {
     cache.set(text, f32Embedding);
@@ -289,9 +210,6 @@ async function embedOne(
 const DEFAULT_EMBEDDING_BATCH_SIZE = 100;
 const DEFAULT_EMBEDDING_BATCH_CONCURRENCY = 3;
 
-/**
- * Make a single batch embedding API call.
- */
 async function generateEmbeddingsBatch(
   texts: string[],
   headers: Record<string, string>,
@@ -301,13 +219,11 @@ async function generateEmbeddingsBatch(
   maskInput: EmbeddingOptions["maskInput"],
   timeoutMs: number
 ): Promise<number[][]> {
-  // Per-attempt deadline — same contract as generateEmbedding.
   const response = await withEmbeddingRetry(() =>
     withDeadline(
       (signal) =>
         postApiV1Embeddings({
           baseUrl,
-          // Mask PII from the request body only; cache/order still key on originals.
           body: { input: maskInput ? texts.map(maskInput) : texts, model },
           headers,
           ...(signal && { signal }),
@@ -357,7 +273,6 @@ export async function generateEmbeddings(
   const timeoutMs = options.timeoutMs ?? DEFAULT_EMBEDDING_REQUEST_TIMEOUT_MS;
   const chunkSize = batchSize ?? DEFAULT_EMBEDDING_BATCH_SIZE;
 
-  // Separate cached and uncached texts
   const results: (number[] | null)[] = new Array<number[] | null>(texts.length).fill(null);
   const uncachedIndices: number[] = [];
   const uncachedTexts: string[] = [];
@@ -366,8 +281,6 @@ export async function generateEmbeddings(
     if (cache) {
       const cached = cache.get(texts[i]);
       if (cached) {
-        // Cache holds Float32Array; the batch contract returns number[][], so
-        // re-materialize at this boundary (the resident f32 Map is untouched).
         results[i] = Array.from(cached);
         continue;
       }
@@ -376,19 +289,16 @@ export async function generateEmbeddings(
     uncachedTexts.push(texts[i]);
   }
 
-  // If everything was cached, return immediately
   if (uncachedTexts.length === 0) {
     return results as number[][];
   }
 
-  // Build auth headers - prefer apiKey if provided
   const headers = await resolveAuthHeaders(options);
 
   const embeddingModel = model ?? DEFAULT_API_EMBEDDING_MODEL;
 
   let newEmbeddings: number[][];
 
-  // Small inputs: single API call (preserves existing behavior)
   if (uncachedTexts.length <= chunkSize) {
     newEmbeddings = await generateEmbeddingsBatch(
       uncachedTexts,
@@ -400,7 +310,6 @@ export async function generateEmbeddings(
       timeoutMs
     );
   } else {
-    // Large inputs: chunk and process with bounded concurrency
     const chunks: string[][] = [];
     for (let i = 0; i < uncachedTexts.length; i += chunkSize) {
       chunks.push(uncachedTexts.slice(i, i + chunkSize));
@@ -433,9 +342,6 @@ export async function generateEmbeddings(
     newEmbeddings = allEmbeddings.flat();
   }
 
-  // Merge new embeddings into results and populate cache. Convert to f32
-  // precision so cache miss and hit return identical values (hits materialize
-  // from Float32Array).
   for (let i = 0; i < uncachedIndices.length; i++) {
     const f32Embedding = Float32Array.from(newEmbeddings[i]);
     results[uncachedIndices[i]] = Array.from(f32Embedding);

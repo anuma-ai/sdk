@@ -13,7 +13,6 @@ describe("ELEMENT_KINDS", () => {
     for (const spec of ELEMENT_KINDS) {
       const names = spec.attrs.map((a) => a.name);
       for (const g of geom) {
-        // Group allows x/y/w/h to be optional but they must still appear.
         expect(names, spec.tag).toContain(g);
       }
     }
@@ -64,7 +63,7 @@ describe("renderElementKinds", () => {
   it("documents the style keys for tags that accept style", () => {
     const prose = renderElementKinds();
     expect(prose).toContain("style keys: fontSize, fontWeight, color");
-    expect(prose).toContain("style keys: color, fontSize"); // Icon
+    expect(prose).toContain("style keys: color, fontSize");
   });
 
   it("emits notes under their owning kind", () => {

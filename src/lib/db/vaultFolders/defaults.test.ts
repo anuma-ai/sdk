@@ -3,10 +3,6 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { VaultFolderOperationsContext } from "./operations";
 import { ensureDefaultFoldersOp } from "./defaults";
 
-// ---------------------------------------------------------------------------
-// Shared mock helpers
-// ---------------------------------------------------------------------------
-
 function mockFolderRecord(id: string, name: string, isSystem = true) {
   return {
     id,
@@ -23,14 +19,12 @@ function mockFolderRecord(id: string, name: string, isSystem = true) {
   };
 }
 
-/** Build a mock create function that returns a WatermelonDB-like model record. */
 function makeMockCreate(prefix = "created_") {
   let counter = 0;
   return vi.fn(async (builder: (r: Record<string, unknown>) => void) => {
     counter += 1;
     const id = `${prefix}${counter}`;
 
-    // This is the raw mutable state — mirrors how WatermelonDB models work
     const raw: Record<string, unknown> = {
       name: "",
       scope: "private",
@@ -41,7 +35,6 @@ function makeMockCreate(prefix = "created_") {
       updated_at: new Date(),
     };
 
-    // The record passed to the builder — _setRaw mutates `raw`
     const record = {
       id,
       _setRaw: (key: string, value: unknown) => {
@@ -52,9 +45,6 @@ function makeMockCreate(prefix = "created_") {
 
     builder(record);
 
-    // Return the WatermelonDB-like model with getters reading from `raw`
-    // folderToStored reads: folder.id, folder.name, folder.scope, folder.isDeleted,
-    // folder.isSystem, folder.context, folder.createdAt, folder.updatedAt
     return {
       id,
       get name() {
@@ -110,10 +100,6 @@ function makeCtx(
   };
 }
 
-// ---------------------------------------------------------------------------
-// ensureDefaultFoldersOp — default folder set
-// ---------------------------------------------------------------------------
-
 describe("ensureDefaultFoldersOp — default folder names", () => {
   beforeEach(() => vi.clearAllMocks());
 
@@ -139,7 +125,6 @@ describe("ensureDefaultFoldersOp — default folder names", () => {
     const ctx = makeCtx([]);
     const folderMap = await ensureDefaultFoldersOp(ctx);
 
-    // Personal, Work, Interests only
     expect(folderMap.size).toBe(3);
   });
 
@@ -153,7 +138,6 @@ describe("ensureDefaultFoldersOp — default folder names", () => {
 
     await ensureDefaultFoldersOp(ctx);
 
-    // Only "Interests" should be created — the other two already exist
     expect(createFn).toHaveBeenCalledTimes(1);
   });
 
@@ -203,20 +187,14 @@ describe("ensureDefaultFoldersOp — default folder names", () => {
     const ctx = makeCtx([]);
     const folderMap = await ensureDefaultFoldersOp(ctx);
 
-    // All three default names should map to some ID
     expect(typeof folderMap.get("Personal")).toBe("string");
     expect(typeof folderMap.get("Work")).toBe("string");
     expect(typeof folderMap.get("Interests")).toBe("string");
   });
 });
 
-// ---------------------------------------------------------------------------
-// ensureDefaultFoldersOp — idempotency / concurrency lock
-// ---------------------------------------------------------------------------
-
 describe("ensureDefaultFoldersOp — concurrency lock", () => {
   it("two concurrent calls share a single in-flight operation (create called only once per missing folder)", async () => {
-    // Each time create is called, record it to verify no duplicate creates
     const createCalls: string[] = [];
     let counter = 0;
     const createFn = vi.fn(
@@ -242,7 +220,6 @@ describe("ensureDefaultFoldersOp — concurrency lock", () => {
       }
     );
 
-    // Simulate a fetch that returns no folders
     const fetchFn = vi.fn(async () => []);
 
     const database = {
@@ -262,18 +239,14 @@ describe("ensureDefaultFoldersOp — concurrency lock", () => {
       } as unknown as VaultFolderOperationsContext["vaultMemoryCollection"],
     };
 
-    // Fire both concurrently — they share the same database object as the lock key
     const [map1, map2] = await Promise.all([
       ensureDefaultFoldersOp(ctx),
       ensureDefaultFoldersOp(ctx),
     ]);
 
-    // Both results should have the 3 default folders
     expect(map1.size).toBe(3);
     expect(map2.size).toBe(3);
 
-    // The shared lock means create should be called exactly 3 times total,
-    // not 6 (3 per concurrent call)
     expect(createFn).toHaveBeenCalledTimes(3);
   });
 });

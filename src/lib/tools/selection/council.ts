@@ -1,20 +1,3 @@
-/**
- * Council tool resolution (issue #702, Phase 6).
- *
- * The council path bypasses the per-mode chat switch: each worker sees the full
- * semantic server-tool filter and its OWN per-worker memory tools (built from
- * that worker's model so a private-capable model sees `['private','shared']`
- * and a standard model sees `['shared']` only). The aggregation ("unify")
- * worker must never persist — its `memory_vault_save` is dropped.
- *
- * This module composes each worker's client-tool candidate array and runs it
- * through the SAME `autoFilterClientTools` the chat hook uses, so council and
- * chat share one selection. Building this on the exported selector is what lets
- * mobile council gain per-worker memory tools without re-implementing anything.
- *
- * Pure and node/RN-safe.
- */
-
 import type { LlmapiChatCompletionTool } from "../../../client";
 import type { ToolConfig } from "../../chat/useChat/types";
 import { autoFilterClientTools } from "../clientToolSelection";

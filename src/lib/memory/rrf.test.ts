@@ -15,7 +15,6 @@ describe("rrfFuse", () => {
   });
 
   it("sums contributions from multiple rankings", () => {
-    // 'a' is rank 1 in both → 2/61. 'b' is rank 2 in both → 2/62.
     const fused = rrfFuse(
       [
         ["a", "b"],
@@ -28,8 +27,6 @@ describe("rrfFuse", () => {
   });
 
   it("ranks differently-positioned items by aggregate", () => {
-    // 'x' top in list 1, bottom in list 2; 'y' bottom in list 1, top in list 2
-    // Both should get the same score due to symmetry.
     const fused = rrfFuse(
       [
         ["x", "y"],
@@ -43,7 +40,6 @@ describe("rrfFuse", () => {
   });
 
   it("handles partial overlap — items absent from one ranker contribute 0 from it", () => {
-    // 'a' in both, 'b' only in first, 'c' only in second
     const fused = rrfFuse(
       [
         ["a", "b"],
@@ -54,7 +50,6 @@ describe("rrfFuse", () => {
     expect(fused.get("a")).toBeCloseTo(1 / 61 + 1 / 61);
     expect(fused.get("b")).toBeCloseTo(1 / 62);
     expect(fused.get("c")).toBeCloseTo(1 / 62);
-    // 'a' wins because it appears in both rankers
     expect(fused.get("a")!).toBeGreaterThan(fused.get("b")!);
   });
 
@@ -65,7 +60,6 @@ describe("rrfFuse", () => {
 
     const fusedSmall = rrfFuse([["a", "b"]], 10);
     const fusedLarge = rrfFuse([["a", "b"]], 60);
-    // Gap between rank-1 and rank-2 should be wider with smaller k
     const gapSmall = fusedSmall.get("a")! - fusedSmall.get("b")!;
     const gapLarge = fusedLarge.get("a")! - fusedLarge.get("b")!;
     expect(gapSmall).toBeGreaterThan(gapLarge);
@@ -83,7 +77,7 @@ describe("rrfFuse", () => {
 
   it("falls back to default k for a negative k (no Infinity poisoning)", () => {
     const fused = rrfFuse([["a", "b"]], -1);
-    expect(fused.get("a")).toBeCloseTo(1 / 61); // default k=60, not 1/(−1+0+1)=Infinity
+    expect(fused.get("a")).toBeCloseTo(1 / 61);
     expect(Number.isFinite(fused.get("a")!)).toBe(true);
   });
 
@@ -94,7 +88,7 @@ describe("rrfFuse", () => {
 
   it("counts a repeated id within one ranking only once (at its best rank)", () => {
     const fused = rrfFuse([["a", "a", "b"]], 60);
-    expect(fused.get("a")).toBeCloseTo(1 / 61); // not 1/61 + 1/62
-    expect(fused.get("b")).toBeCloseTo(1 / 63); // positional rank preserved
+    expect(fused.get("a")).toBeCloseTo(1 / 61);
+    expect(fused.get("b")).toBeCloseTo(1 / 63);
   });
 });

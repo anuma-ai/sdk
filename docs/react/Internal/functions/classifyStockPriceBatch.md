@@ -2,7 +2,7 @@
 
 > **classifyStockPriceBatch**(`prompts`: `string`\[], `options`: `StockPriceClassifierOptions`): `Promise`<[`StockPriceClassification`](../interfaces/StockPriceClassification.md)\[]>
 
-Defined in: [src/lib/chat/stockPriceClassifier.ts:73](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/stockPriceClassifier.ts#73)
+Defined in: [src/lib/chat/stockPriceClassifier.ts:59](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/stockPriceClassifier.ts#59)
 
 Batch-classify multiple prompts. Embeds all prompts in one batch
 call for efficiency.

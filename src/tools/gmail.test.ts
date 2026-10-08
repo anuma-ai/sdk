@@ -209,9 +209,6 @@ describe("createGmailTools", () => {
         snippet: "",
         payload: {
           headers: [{ name: "Subject", value: "Garbled" }],
-          // Contains a `*` — invalid base64 / base64url. `atob` rejects it
-          // with "Invalid character"; the executor must surface a result
-          // instead of letting the throw escape.
           parts: [{ mimeType: "text/plain", body: { data: "not***valid***b64" } }],
         },
       })
@@ -224,9 +221,6 @@ describe("createGmailTools", () => {
       messageId: "m2",
     })) as { subject?: string; body?: string };
     expect(result.subject).toBe("Garbled");
-    // Body is undefined because extractPlainTextBody treats an empty decoded
-    // string as "no body" — the load-bearing assertion is that we got a
-    // structured result at all instead of a thrown executor.
     expect(result.body).toBeUndefined();
   });
 
@@ -260,7 +254,6 @@ describe("createGmailTools", () => {
     );
     await runExecutor(tools.gmail_send_message, {
       to: "ada@example.com",
-      // A prompt-injection style payload that tries to splice an extra header.
       subject: "hello\r\nBcc: evil@attacker.com",
       body: "hi",
     });
@@ -269,9 +262,6 @@ describe("createGmailTools", () => {
     const decoded = Buffer.from(sent.raw.replace(/-/g, "+").replace(/_/g, "/"), "base64").toString(
       "utf-8"
     );
-    // Header lines and body are separated by a blank line. Each header
-    // must occupy one line — if sanitization failed, the injected CRLF
-    // would split the Subject into a fresh `Bcc:` line.
     const headerBlock = decoded.split("\r\n\r\n", 1)[0];
     const headerLines = headerBlock.split("\r\n");
     expect(headerLines.some((line) => line.startsWith("Bcc:"))).toBe(false);

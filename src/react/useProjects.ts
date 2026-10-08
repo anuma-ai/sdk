@@ -44,7 +44,6 @@ export interface UseProjectsOptions {
  * Result returned by useProjects hook.
  */
 export interface UseProjectsResult {
-  // State
   /** List of all projects */
   projects: StoredProject[];
   /** Currently selected project ID */
@@ -56,7 +55,6 @@ export interface UseProjectsResult {
   /** Whether the projects system is ready (database table exists) */
   isReady: boolean;
 
-  // Project CRUD
   /** Create a new project */
   createProject: (opts?: CreateProjectOptions) => Promise<StoredProject>;
   /** Get a single project by ID */
@@ -70,7 +68,6 @@ export interface UseProjectsResult {
   /** Delete a project (soft delete) */
   deleteProject: (projectId: string) => Promise<boolean>;
 
-  // Conversation management
   /** Get all conversations in a project */
   getProjectConversations: (projectId: string) => Promise<StoredConversation[]>;
   /** Get count of conversations in a project */
@@ -80,7 +77,6 @@ export interface UseProjectsResult {
   /** Get conversations by project (null = no project) */
   getConversationsByProject: (projectId: string | null) => Promise<StoredConversation[]>;
 
-  // Utilities
   /** Refresh the projects list from database */
   refreshProjects: () => Promise<void>;
   /** The ID of the default Inbox project (auto-created) */
@@ -130,7 +126,6 @@ export interface UseProjectsResult {
 export function useProjects(options: UseProjectsOptions): UseProjectsResult {
   const { database, initialProjectId } = options;
 
-  // State
   const [projects, setProjects] = useState<StoredProject[]>([]);
   const [currentProjectId, setCurrentProjectId] = useState<string | null>(initialProjectId || null);
   const [isLoading, setIsLoading] = useState(false);
@@ -143,12 +138,10 @@ export function useProjects(options: UseProjectsOptions): UseProjectsResult {
     typeof database.get<Conversation>
   > | null>(null);
 
-  // Initialize collections asynchronously to handle database initialization race conditions
   useEffect(() => {
     const initCollections = async () => {
       getLogger().debug("[useProjects] Initializing collections...");
       try {
-        // Get collections - these are synchronous but we wrap in async to handle any issues
         const projColl = database.get<Project>("projects");
         const convColl = database.get<Conversation>("conversations");
 
@@ -157,7 +150,6 @@ export function useProjects(options: UseProjectsOptions): UseProjectsResult {
           conversations: convColl?.table,
         });
 
-        // Test query to ensure database is initialized and tables exist
         getLogger().debug("[useProjects] Running test query on projects table...");
         const testResult = await projColl.query(Q.take(1)).fetch();
         getLogger().debug(
@@ -183,7 +175,6 @@ export function useProjects(options: UseProjectsOptions): UseProjectsResult {
     void initCollections();
   }, [database]);
 
-  // Project operations context - only valid when isReady is true
   const projectCtx = useMemo<ProjectOperationsContext | null>(() => {
     if (!isReady || !projectsCollection || !conversationsCollection) {
       return null;
@@ -195,7 +186,6 @@ export function useProjects(options: UseProjectsOptions): UseProjectsResult {
     };
   }, [database, projectsCollection, conversationsCollection, isReady]);
 
-  // Storage operations context (for conversation operations) - only valid when isReady is true
   const storageCtx = useMemo<StorageOperationsContext | null>(() => {
     if (!isReady || !conversationsCollection) {
       return null;
@@ -212,9 +202,6 @@ export function useProjects(options: UseProjectsOptions): UseProjectsResult {
     }
   }, [database, conversationsCollection, isReady]);
 
-  /**
-   * Refresh projects from database
-   */
   const refreshProjects = useCallback(async (): Promise<void> => {
     if (!projectCtx) {
       return;
@@ -230,27 +217,23 @@ export function useProjects(options: UseProjectsOptions): UseProjectsResult {
     }
   }, [projectCtx]);
 
-  // Load projects on mount
   useEffect(() => {
     if (isReady) {
       void refreshProjects();
     }
   }, [isReady, refreshProjects]);
 
-  // Ensure Inbox project exists and track its ID
   useEffect(() => {
     const ensureInboxProject = async () => {
       if (!projectCtx || !isReady) return;
 
       try {
-        // Look for existing Inbox project
         const allProjects = await getProjectsOp(projectCtx);
         const existingInbox = allProjects.find((p) => p.name === "Inbox");
 
         if (existingInbox) {
           setInboxProjectId(existingInbox.projectId);
         } else {
-          // Create Inbox project if it doesn't exist
           const inbox = await createProjectOp(projectCtx, { name: "Inbox" });
           setInboxProjectId(inbox.projectId);
         }
@@ -262,7 +245,6 @@ export function useProjects(options: UseProjectsOptions): UseProjectsResult {
     void ensureInboxProject();
   }, [projectCtx, isReady]);
 
-  // Subscribe to project changes for real-time updates
   useEffect(() => {
     if (!projectsCollection) {
       return;
@@ -277,9 +259,6 @@ export function useProjects(options: UseProjectsOptions): UseProjectsResult {
     return () => subscription.unsubscribe();
   }, [projectsCollection]);
 
-  /**
-   * Create a new project
-   */
   const createProject = useCallback(
     async (opts?: CreateProjectOptions): Promise<StoredProject> => {
       if (!projectCtx) {
@@ -291,9 +270,6 @@ export function useProjects(options: UseProjectsOptions): UseProjectsResult {
     [projectCtx]
   );
 
-  /**
-   * Get a single project by ID
-   */
   const getProject = useCallback(
     async (projectId: string): Promise<StoredProject | null> => {
       if (!projectCtx) {
@@ -304,9 +280,6 @@ export function useProjects(options: UseProjectsOptions): UseProjectsResult {
     [projectCtx]
   );
 
-  /**
-   * Get all projects
-   */
   const getProjects = useCallback(async (): Promise<StoredProject[]> => {
     if (!projectCtx) {
       return [];
@@ -314,9 +287,6 @@ export function useProjects(options: UseProjectsOptions): UseProjectsResult {
     return getProjectsOp(projectCtx);
   }, [projectCtx]);
 
-  /**
-   * Update a project's name
-   */
   const updateProjectName = useCallback(
     async (projectId: string, name: string): Promise<boolean> => {
       if (!projectCtx) {
@@ -327,9 +297,6 @@ export function useProjects(options: UseProjectsOptions): UseProjectsResult {
     [projectCtx]
   );
 
-  /**
-   * Update a project with partial options
-   */
   const updateProject = useCallback(
     async (projectId: string, opts: UpdateProjectOptions): Promise<boolean> => {
       if (!projectCtx) {
@@ -340,9 +307,6 @@ export function useProjects(options: UseProjectsOptions): UseProjectsResult {
     [projectCtx]
   );
 
-  /**
-   * Delete a project (soft delete)
-   */
   const deleteProject = useCallback(
     async (projectId: string): Promise<boolean> => {
       if (!projectCtx) {
@@ -357,9 +321,6 @@ export function useProjects(options: UseProjectsOptions): UseProjectsResult {
     [projectCtx, currentProjectId]
   );
 
-  /**
-   * Get all conversations in a project
-   */
   const getProjectConversations = useCallback(
     async (projectId: string): Promise<StoredConversation[]> => {
       if (!projectCtx) {
@@ -370,9 +331,6 @@ export function useProjects(options: UseProjectsOptions): UseProjectsResult {
     [projectCtx]
   );
 
-  /**
-   * Get count of conversations in a project
-   */
   const getProjectConversationCount = useCallback(
     async (projectId: string): Promise<number> => {
       if (!projectCtx) {
@@ -383,9 +341,6 @@ export function useProjects(options: UseProjectsOptions): UseProjectsResult {
     [projectCtx]
   );
 
-  /**
-   * Move a conversation to a project (or remove with null)
-   */
   const updateConversationProject = useCallback(
     async (conversationId: string, projectId: string | null): Promise<boolean> => {
       if (!storageCtx) {
@@ -396,9 +351,6 @@ export function useProjects(options: UseProjectsOptions): UseProjectsResult {
     [storageCtx]
   );
 
-  /**
-   * Get conversations by project (null = no project)
-   */
   const getConversationsByProject = useCallback(
     async (projectId: string | null): Promise<StoredConversation[]> => {
       if (!storageCtx) {
@@ -410,14 +362,12 @@ export function useProjects(options: UseProjectsOptions): UseProjectsResult {
   );
 
   return {
-    // State
     projects,
     currentProjectId,
     setCurrentProjectId,
     isLoading,
     isReady,
 
-    // Project CRUD
     createProject,
     getProject,
     getProjects,
@@ -425,13 +375,11 @@ export function useProjects(options: UseProjectsOptions): UseProjectsResult {
     updateProject,
     deleteProject,
 
-    // Conversation management
     getProjectConversations,
     getProjectConversationCount,
     updateConversationProject,
     getConversationsByProject,
 
-    // Utilities
     refreshProjects,
     inboxProjectId,
   };

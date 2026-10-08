@@ -2,7 +2,7 @@
 
 > **MemoryToVerify** = `Pick`<[`StoredVaultMemory`](../interfaces/StoredVaultMemory.md), `"uniqueId"` | `"content"` | `"source"` | `"sourceChunkIds"`>
 
-Defined in: [src/lib/memory/verifySupport.ts:174](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/verifySupport.ts#174)
+Defined in: [src/lib/memory/verifySupport.ts:39](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/verifySupport.ts#39)
 
 The row fields verification reads. A `StoredVaultMemory` satisfies this
 structurally, so callers pass their rows straight through; deriving it with

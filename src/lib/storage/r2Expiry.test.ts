@@ -1,12 +1,10 @@
 import { describe, expect, it, vi, afterEach, beforeEach } from "vitest";
 import { isR2UrlExpired, R2_DEFAULT_TTL_MS } from "./r2Expiry";
 
-// Helper: build a presigned URL with given X-Amz-Date and X-Amz-Expires
 function makePresignedUrl(amzDate: string, amzExpires: number): string {
   return `https://bucket.r2.cloudflarestorage.com/object-key?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=cred&X-Amz-Date=${amzDate}&X-Amz-Expires=${amzExpires}&X-Amz-Signature=sig`;
 }
 
-// Helper: format a Date as X-Amz-Date string (YYYYMMDDTHHmmssZ)
 function toAmzDate(date: Date): string {
   return date
     .toISOString()
@@ -33,7 +31,6 @@ describe("isR2UrlExpired", () => {
     });
 
     it("handles a real-world R2 presigned URL", () => {
-      // Signed now with 3-day TTL (259200 seconds) — matches actual R2 presigned URLs
       const url = `https://4cf0e0ea50b97e72386fcf2f92a2d4e8.r2.cloudflarestorage.com/ai-image-mcp-images-dev/generated/2026/02/26/test.jpg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=cred%2F20260226%2Fauto%2Fs3%2Faws4_request&X-Amz-Date=${toAmzDate(new Date())}&X-Amz-Expires=259200&X-Amz-SignedHeaders=host&x-id=GetObject&X-Amz-Signature=abc123`;
       expect(isR2UrlExpired(url)).toBe(false);
     });
@@ -46,14 +43,11 @@ describe("isR2UrlExpired", () => {
     });
 
     it("returns false at the exact boundary (signed now, 0-second TTL treated as edge)", () => {
-      // 1-second TTL, signed just now — should not be expired yet
       const url = makePresignedUrl(toAmzDate(new Date()), 60);
       expect(isR2UrlExpired(url)).toBe(false);
     });
 
     it("ignores createdAt when Amz params are valid", () => {
-      // URL is NOT expired (signed now, 1h TTL), but createdAt is 30 days ago
-      // Primary path should win
       const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
       const url = makePresignedUrl(toAmzDate(new Date()), 3600);
       expect(isR2UrlExpired(url, thirtyDaysAgo.toISOString())).toBe(false);
@@ -125,12 +119,10 @@ describe("isR2UrlExpired", () => {
 
     it("handles X-Amz-Expires as non-numeric string", () => {
       const url = `https://bucket.r2.cloudflarestorage.com/key?X-Amz-Date=${toAmzDate(new Date())}&X-Amz-Expires=abc`;
-      // Falls through to createdAt fallback since parsing fails
       expect(isR2UrlExpired(url)).toBe(false);
     });
 
     it("handles URL-encoded query params", () => {
-      // Cloudflare R2 sometimes URL-encodes the credential slashes
       const now = new Date();
       const url = `https://bucket.r2.cloudflarestorage.com/key?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=key%2F20260226%2Fauto%2Fs3%2Faws4_request&X-Amz-Date=${toAmzDate(now)}&X-Amz-Expires=259200&X-Amz-Signature=sig`;
       expect(isR2UrlExpired(url)).toBe(false);

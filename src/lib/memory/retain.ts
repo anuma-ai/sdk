@@ -1,18 +1,3 @@
-/**
- * Retain API — single write surface for the unified memory layer with
- * write-time auto-merge.
- *
- * On write, retain() searches for the nearest existing memory and, if its
- * cosine similarity to the new content exceeds the auto-merge threshold,
- * folds the new fact into the existing record (incrementing proof_count
- * and unioning source_chunk_ids). Otherwise it inserts a new memory.
- *
- * This is the W4 (auto-merge / dedup) workstream made callable. The W2
- * auto-extraction worker uses retain() as its write step, with the LLM
- * resolver upstream deciding when auto-merge should be enabled vs when
- * a semantic update should be applied via the lower-level update op.
- */
-
 import {
   createSupersedingMemoryOp,
   createVaultMemoryOp,
@@ -38,17 +23,8 @@ import { notifyConsolidationFallback } from "./consolidationFallback.js";
 import type { RetainOptions, RetainResult } from "./types.js";
 
 const DEFAULT_AUTO_MERGE_THRESHOLD = 0.8;
-/** Scope an unset `options.scope` resolves to — matches the DB write default
- * (`createVaultMemoryOp`). Used for BOTH the dedup search and the write so they
- * stay symmetric (see retain()). */
 const DEFAULT_SCOPE = "private";
-/** Looser threshold for the consolidator candidate set — paraphrased dupes
- * cluster around 0.6–0.8, which the strict cosine merge misses. Lowered to
- * catch reworded duplicates (e.g. "prefers dark mode" vs "prefers dark mode in
- * every app"). */
 const DEFAULT_CONSOLIDATE_THRESHOLD = 0.55;
-/** Widened so a value change can find (and retire) ALL stale duplicates of the
- * old value in one pass, not just the nearest few. */
 const DEFAULT_CONSOLIDATE_TOP_K = 20;
 
 export interface RetainContext {
@@ -82,44 +58,14 @@ export async function retain(
   const enableAutoMerge = options.enableAutoMerge ?? true;
   const threshold = options.autoMergeThreshold ?? DEFAULT_AUTO_MERGE_THRESHOLD;
 
-  // Resolve the scope ONCE and use it for both the dedup search and the write.
-  // Leaving the search unscoped (its old behavior) made read and write
-  // asymmetric: an unscoped search could match — and merge into — a memory in a
-  // different scope, or, when a caller passed a scope, miss a dupe sitting in
-  // the default scope and create a duplicate. Searching the exact scope we'll
-  // write to keeps dedup correct.
   const resolvedScope = options.scope ?? DEFAULT_SCOPE;
 
-  // When set (by the consolidator's `supersede` decision), the new fact is a
-  // changed value that retires this existing memory. We skip the strict cosine
-  // merge (the new value must be created fresh, never merged) and stamp
-  // `superseded_by` on this id after the create succeeds. The content is the
-  // consolidator's refined version of the new fact.
-  // All stale memories the consolidator wants retired (every duplicate of a
-  // now-changed standing value), and the refined new-fact content.
   let supersedeTargetIds: string[] = [];
-  // The consolidator explicitly chose `create` (not a fallback) — reported on the result.
   let consolidationDecidedCreate = false;
   let supersedeContent: string | undefined;
-  // Shared candidate set for both merge stages, built once below when
-  // auto-merge is on. Kept in the outer scope so the create path can reuse its
-  // query embedding instead of re-embedding identical text.
   let prepared: PreparedVaultCandidates | undefined;
 
   if (enableAutoMerge) {
-    // Both merge stages search an IDENTICAL universe — same query, scope,
-    // folder, and `includeArchived` — and differ only in rank-time parameters
-    // (limit + threshold). So load, decrypt and embed ONCE here and rank that
-    // prepared set per stage below. This is the expensive half of the search;
-    // retain used to pay it twice per fact, and auto-extraction retains several
-    // facts per turn.
-    //
-    // Prepared at the WIDEST limit either stage uses (Stage 1's topK). Under
-    // `decryptLast` the projected admission window is
-    // `max(limit * admitFactor, admitFloor)`, so preparing narrow would hand
-    // Stage 1 fewer candidates than it would have seen alone. Preparing wide and
-    // ranking narrow is safe — a superset — which is why the max is required and
-    // not merely tidy.
     prepared = await prepareVaultCandidates(
       trimmed,
       ctx.vaultCtx,
@@ -129,36 +75,11 @@ export async function retain(
         limit: Math.max(options.consolidateTopK ?? DEFAULT_CONSOLIDATE_TOP_K, 1),
         useFusion: false,
         scopes: [resolvedScope],
-        // PR5 — include archived rows as merge candidates so a re-observed fact
-        // resurrects (un-archives) the decayed row instead of duplicating it.
         includeArchived: true,
         ...(options.folderId !== undefined && { folderId: options.folderId }),
       }
     );
 
-    // An embedding failure is FATAL here, unlike on the read path.
-    //
-    // Search degrades to BM25 because partial recall beats none. A write cannot
-    // degrade the same way: both merge stages are cosine-only (`useFusion: false`,
-    // gated on `minSimilarity`), and BM25 has no say in either. A row left without
-    // a vector scores cosine 0, clears no threshold, and is indistinguishable from
-    // "no such memory exists" — so retain falls through to create and writes a
-    // PERMANENT duplicate of a fact it should have merged into. No later healthy
-    // pass undoes that; the duplicate is now in the vault.
-    //
-    // A partial failure is enough to cause it and is invisible to
-    // `embeddingsUnavailable` (which reports only a fully inert cosine lane), so
-    // the gate reads `embeddingFailure` — the merge target is exactly the kind of
-    // row a partial batch failure leaves unvectored. Both are checked because they
-    // are separately reachable.
-    //
-    // Throwing restores what happened before the read path was guarded, when an
-    // unguarded `generateEmbeddings` threw out of the search and the write simply
-    // never happened. Losing the write is recoverable — the caller can retry when
-    // embeddings recover; a duplicate is not.
-    //
-    // Only the auto-merge path is gated: `enableAutoMerge: false` is a caller that
-    // already decided to create, so there is no merge to lose.
     if (prepared.embeddingFailure || prepared.embeddingsUnavailable) {
       throw new Error(
         "retain: embeddings unavailable — refusing to auto-merge against an inert cosine lane, " +
@@ -167,11 +88,6 @@ export async function retain(
       );
     }
 
-    // Stage 1 — semantic consolidation (Hindsight-pattern), if enabled.
-    // Pulls top-K memories above the looser consolidation floor (default
-    // 0.55) and asks an LLM to decide create/update/noop/supersede. Catches
-    // paraphrased duplicates the strict cosine-merge below misses, and retires
-    // stale values on a state change.
     if (options.consolidateOptions) {
       const outcome = await tryConsolidate(trimmed, ctx, options, prepared);
       if (outcome) {
@@ -185,20 +101,7 @@ export async function retain(
       }
     }
 
-    // Stage 2 — strict cosine auto-merge. Skipped when superseding (a changed
-    // value must not merge into some other row). Use cosine-only search for
-    // threshold semantics; the fusion ranker produces a different score
-    // scale and isn't suitable for a pairwise-similarity gate.
-    // Stage 2 is skipped when superseding (main's A2): a changed value must be
-    // created fresh, never merged into some other row.
     if (supersedeTargetIds.length === 0) {
-      // Rank the SHARED prepared set at Stage 2's strict parameters. This cannot
-      // be derived by filtering Stage 1's output to >= threshold: the ranker
-      // sizes its supersession window as `min(limit * 3, supersessionWindow)`,
-      // and the two stages pass different limits (topK vs 1), so their score
-      // adjustments — and therefore their ordering — differ. Re-rank instead.
-      // (A previous attempt at "the 0.8 stage is the 0.55 stage filtered" was
-      // reverted upstream for exactly this reason; see anuma-ai/sdk#759.)
       const { results: matches } = await rankPreparedVaultCandidates(
         trimmed,
         prepared,
@@ -213,42 +116,20 @@ export async function retain(
       if (matches.length > 0) {
         const targetId = matches[0].uniqueId;
         const existing = await getVaultMemoryOp(ctx.vaultCtx, targetId);
-        // `!existing.supersededBy` (main): never merge into — nor resurrect — a
-        // row a newer fact already retired. A deleted row never reaches here
-        // (search excludes soft-deleted), so main's tombstone suppression wins
-        // on both the merge and the resurrection path.
         if (existing && !existing.supersededBy) {
           const mergedSourceIds = unionStrings(
             existing.sourceChunkIds ?? [],
             options.sourceChunkIds ?? []
           );
-          // proofCountIncrement (not absolute proofCount) so two parallel
-          // retain() calls don't race a read-modify-write and lose updates.
           const eventTimeUpdate = pickEventTimeUpdate(existing, options.eventTime);
           const factTypeUpdate = pickFactTypeUpdate(existing, options.factType);
-          // resurrectFields encodes the decay gate: an ARCHIVED (non-superseded,
-          // non-deleted) target → `{ restore: true }` (clears archived_at, NO
-          // preserveUpdatedAt so the decay clock restarts); an ACTIVE target →
-          // `{ preserveUpdatedAt: true }`, exactly main's normal proof-count
-          // re-observation path (bump proof_count without inflating recency).
           const resurrect = resurrectFields(existing);
           const updated = await updateVaultMemoryOp(ctx.vaultCtx, targetId, {
             content: existing.content,
             proofCountIncrement: 1,
             observationSourceIds: options.sourceChunkIds,
             sourceChunkIds: mergedSourceIds,
-            // resurrect encodes the decay gate: ACTIVE target → { preserveUpdatedAt:
-            // true } (main's normal re-observation path — bump proof_count without
-            // inflating recency); ARCHIVED (non-superseded, non-deleted) target →
-            // { restore: true } and NO preserveUpdatedAt, so archived_at clears and
-            // updated_at bumps (decay clock restarts). The resurrection refresh wins
-            // on the resurrect path only; main's watermark logic below is untouched
-            // on the normal path.
             ...resurrect,
-            // C3: record the re-observation. On the normal path preserveUpdatedAt
-            // keeps updated_at pinned, so this stamps "seen again now" without
-            // reordering the vault by edit time; on the resurrect path the restore
-            // already bumped updated_at.
             lastObservedAt: Date.now(),
             ...(eventTimeUpdate && { eventTime: eventTimeUpdate }),
             ...(factTypeUpdate !== undefined && { factType: factTypeUpdate }),
@@ -260,36 +141,16 @@ export async function retain(
               targetId,
               proofCount: updated.proofCount ?? (existing.proofCount ?? 1) + 1,
               similarity: matches[0].similarity,
-              // Stage 1 may have run and explicitly said `create`, and Stage 2
-              // then found a strict-cosine match anyway. Reporting the decision
-              // here is what makes that DISAGREEMENT visible — without it the
-              // model's create silently vanished from the distribution whenever
-              // the cosine stage won.
               ...(consolidationDecidedCreate && { consolidation: "create" as const }),
             };
           }
-          // A null result collapses two very different outcomes: the target was
-          // deleted mid-flight (benign race → fall through to create), or the
-          // write itself threw inside updateVaultMemoryOp and the target is
-          // still there. Re-probe to tell them apart — falling through on a real
-          // write failure would create a duplicate that callers then link
-          // entities to, instead of surfacing (and letting them retry) the failure.
           await assertMergeTargetGoneOrThrow(ctx, targetId);
         }
       }
     }
   }
 
-  // No merge candidate (or auto-merge disabled, or the merge target was
-  // deleted between search and write): create a new memory. For supersession,
-  // use the consolidator's refined content; otherwise use the original input.
   const contentToWrite = supersedeContent ?? trimmed;
-  // Reuse the query vector from the shared prepare when the text we're about to
-  // store is the SAME text we searched with — that's the common case (no
-  // supersession), and re-embedding identical content is a wasted network call.
-  // A `supersedeContent` write is the consolidator's rewritten text, so it must
-  // be embedded fresh. A zero-length vector means prepare short-circuited on an
-  // empty vault and never embedded, so fall through in that case too.
   const reusableQueryEmbedding =
     supersedeContent === undefined && prepared && prepared.queryEmbedding.length > 0
       ? prepared.queryEmbedding
@@ -298,13 +159,6 @@ export async function retain(
     reusableQueryEmbedding ?? (await generateEmbedding(contentToWrite, ctx.embeddingOptions));
   const embeddingModel = ctx.embeddingOptions.model ?? DEFAULT_API_EMBEDDING_MODEL;
 
-  // Tombstone gate: if this create matches a soft-deleted memory, the user (or
-  // the cleanup pass) removed that fact — don't let auto-extraction silently
-  // resurrect it. Runs only on the create path (the live-merge search above
-  // excludes deleted rows), and only when the caller opts in (auto-extraction
-  // does; manual writes don't). Also closes the #647-M4 delete-race: a merge
-  // target that vanished mid-flight is now soft-deleted, so it's suppressed
-  // here instead of re-created.
   if (options.respectTombstones) {
     const tombstone = await findTombstoneMatch(embedding, embeddingModel, resolvedScope, ctx, {
       threshold,
@@ -341,30 +195,12 @@ export async function retain(
           kind: options.eventTime.kind,
         },
       }),
-    // Typed memory (PR1) — persist the extractor's classification on the
-    // fresh row. Omitted for manual writes (persisted as null).
     ...(options.factType !== undefined && { factType: options.factType }),
-    // Tier-0 security (PR3) — persist the trust tier on the fresh row when
-    // the injection screen flagged it ("quarantined"). Only set on create:
-    // quarantined candidates are force-created (enableAutoMerge: false), so
-    // this never lands on the merge/update path where it could flip a clean
-    // memory's tier. The DB op re-validates against the known set.
     ...(options.trustTier !== undefined && { trustTier: options.trustTier }),
   };
 
-  // A2 supersession: create the new fact AND retire the stale one it replaces
-  // ATOMICALLY, in one write (createSupersedingMemoryOp) — so a concurrent
-  // supersession of the same standing attribute can't interleave between our
-  // create and retire and leave an orphaned successor. The op re-checks the
-  // target inside the write: if a competing supersession already retired it
-  // (or it was deleted), NOTHING is created and we fall through to a plain
-  // create below — the fact is still stored, and the rare duplicate self-
-  // reconciles at the next consolidation / strict cosine merge.
   if (supersedeTargetIds.length > 0) {
     const [primaryTargetId, ...restTargetIds] = supersedeTargetIds;
-    // Create the new fact AND retire the primary stale row atomically, so a
-    // concurrent supersession of the same attribute can't interleave and leave
-    // an orphaned successor.
     const { created, retired } = await createSupersedingMemoryOp(
       ctx.vaultCtx,
       createOpts,
@@ -378,16 +214,6 @@ export async function retain(
         created.updatedAt,
         createOpts.content
       );
-      // Retire the remaining stale duplicates against the new memory. Best-effort,
-      // but the boolean result is ambiguous — `supersedeVaultMemoryOp` returns
-      // false BOTH for a row that is already gone/retired (benign — a concurrent
-      // winner or the user beat us) AND for a genuine write failure. So on a
-      // non-success we re-read the row to disambiguate: only a row that is still
-      // LIVE (exists, not superseded) is a real leftover. Benign already-retired
-      // rows are ignored (no false alarm); genuine live leftovers are surfaced
-      // (not silently swallowed) so a stuck duplicate is diagnosable — it still
-      // self-reconciles at the next consolidation + is down-ranked by recall's
-      // supersession pass in the meantime.
       const liveLeftovers: string[] = [];
       for (const staleId of restTargetIds) {
         let ok = false;
@@ -407,8 +233,6 @@ export async function retain(
           {
             newMemoryId: created.uniqueId,
             leftover: liveLeftovers.length,
-            // Log the specific ids (opaque record ids, not content) so an
-            // operator can identify exactly which rows are still active.
             leftoverIds: liveLeftovers,
           }
         );
@@ -421,19 +245,6 @@ export async function retain(
         consolidation: "supersede",
       };
     }
-    // Primary lost the race (already retired/deleted by a concurrent
-    // supersession). Do NOT force-retire the remaining ids against a brand-new
-    // successor — that would create a second live successor competing with the
-    // concurrent winner. Fall through to the plain create/merge path below; the
-    // rare leftover duplicate self-reconciles at the next consolidation (same
-    // fall-through the single-target A2 path uses).
-    //
-    // Same dropped-decision report as the applier's five race paths, and it has
-    // to be here rather than there: this is the one race the applier cannot see,
-    // because the target was still live when it validated and only lost inside
-    // `createSupersedingMemoryOp`'s own re-check. The consolidator ruled this a
-    // value change and the supersession did not happen — that is exactly the
-    // event `onFallback` exists to surface.
     notifyConsolidationFallback(
       "target_vanished",
       options.consolidateOptions?.onFallback,
@@ -442,10 +253,6 @@ export async function retain(
   }
 
   const created = await createVaultMemoryOp(ctx.vaultCtx, createOpts);
-  // Cache is keyed by memory id (not content) — set after the create returns
-  // the uniqueId. Float32Array = model-native precision, half the RAM of a
-  // float64 number[]. Tagged with the committed row's version so a search can
-  // tell this vector from one for a later edit of the same row.
   cacheRowVector(
     ctx.vaultCache,
     created.uniqueId,
@@ -466,22 +273,6 @@ function unionStrings(a: string[], b: string[]): string[] {
   return [...new Set([...a, ...b])];
 }
 
-/**
- * Return the id of a soft-deleted ("tombstoned") memory whose embedding is
- * within `threshold` cosine of the incoming candidate, or null.
- *
- * Soft-deleted rows keep their `content`/`embedding`/`scope` (delete only flips
- * `is_deleted`), so they double as the tombstone store — no separate table.
- * `getAllVaultMemoriesOp` is the one read path that surfaces deleted rows
- * (`includeDeleted`); we filter to the deleted ones and cosine-match against the
- * persisted embedding (the id-keyed cache isn't populated for deleted rows).
- *
- * Scoped exactly like the live-merge search — same `scope` AND `folderId` — so a
- * fact deleted in one folder can't suppress a valid extraction into another.
- * Only rows embedded with the SAME model are compared: cosine across two
- * embedding spaces (a model swap at equal dimensionality) is meaningless and
- * would cause false suppressions/misses.
- */
 async function findTombstoneMatch(
   embedding: number[],
   embeddingModel: string,
@@ -498,7 +289,6 @@ async function findTombstoneMatch(
   let bestSim = opts.threshold;
   for (const row of rows) {
     if (!row.isDeleted || !row.embedding) continue;
-    // Only compare vectors from the same embedding space.
     if (row.embeddingModel !== embeddingModel) continue;
     let vec: number[];
     try {
@@ -516,15 +306,6 @@ async function findTombstoneMatch(
   return bestId === null ? null : { id: bestId, similarity: bestSim };
 }
 
-/**
- * Decide whether the incoming observation's event_time should overwrite
- * the target's. The target wins by default — the original write was the
- * authoritative anchor; a re-observation with a vaguer or differently-
- * dated anchor would silently corrupt it.
- *
- * Inherit only when the target carries no anchor at all (`eventTimeStart`
- * is null) and the new observation has one.
- */
 function pickEventTimeUpdate(
   existing: { eventTimeStart: number | null },
   incoming: RetainOptions["eventTime"]
@@ -536,14 +317,6 @@ function pickEventTimeUpdate(
   return { start: incoming.start, end: incoming.end, kind: incoming.kind };
 }
 
-/**
- * Decide whether the incoming observation's fact type should be written onto
- * the merge/consolidate target. Mirrors {@link pickEventTimeUpdate}: the first
- * classification is authoritative, so adopt the incoming type ONLY when the
- * target carries none yet (`factType` is null — a legacy/untyped row) and the
- * new observation has one. Never overwrite an existing non-null type — this is
- * a lazy backfill of legacy rows, not a re-classification.
- */
 function pickFactTypeUpdate(
   existing: { factType: string | null },
   incoming: RetainOptions["factType"]
@@ -553,28 +326,9 @@ function pickFactTypeUpdate(
   return incoming;
 }
 
-/**
- * Decide the archive/recency fields for a merge write (PR5 — un-archive on
- * re-observe).
- *
- * - ACTIVE target (`archivedAt === null`): `{ preserveUpdatedAt: true }` — the
- *   pre-PR5 behavior. Bumping proof_count without inflating recency.
- * - ARCHIVED target: `{ restore: true }` and NO `preserveUpdatedAt`, so the
- *   write clears `archived_at` AND lets `updated_at` bump. Bumping updated_at
- *   resets the decay age clock, so the just-resurrected fact isn't immediately
- *   re-archived by the next sweep's age rule.
- *
- * Concurrency: the merge write re-checks `is_deleted` inside the serialized
- * writer, and the decay hard-delete op re-checks `archived_at`/window inside
- * ITS writer — so whichever commits first wins. If a hard-delete landed first,
- * the target is `is_deleted` and `getVaultMemoryOp` already returned null (we
- * never reach here); if this restore lands first, the delete sees
- * `archived_at === null` and skips.
- */
 function resurrectFields(existing: {
   archivedAt?: number | null;
 }): { restore: true } | { preserveUpdatedAt: true } {
-  // Only a real archived timestamp counts as archived; null/undefined = active.
   return typeof existing.archivedAt === "number" ? { restore: true } : { preserveUpdatedAt: true };
 }
 
@@ -605,19 +359,6 @@ type ConsolidateOutcome =
   | { create: true }
   | null;
 
-/**
- * Report a consolidation decision that was dropped because the row it named was
- * deleted or superseded by a concurrent writer between the candidate search and
- * the write, then return `null` so the caller falls through and creates.
- *
- * Falling through is the correct OUTCOME here — the target really is gone, and
- * `assertMergeTargetGoneOrThrow` has already ruled out the case where the write
- * merely failed. What was missing is that it happened at all: the consolidator
- * decided this fact was a duplicate, that decision was thrown away, and neither
- * a log line nor `onFallback` said so. A sustained rate means write contention is
- * costing dedup that was correctly identified, and the only way to see it was to
- * notice the vault growing.
- */
 function abandonToRace(options: RetainOptions, detail: string): null {
   notifyConsolidationFallback("target_vanished", options.consolidateOptions?.onFallback, detail);
   return null;
@@ -627,7 +368,6 @@ async function tryConsolidate(
   trimmed: string,
   ctx: RetainContext,
   options: RetainOptions,
-  /** Shared candidate set from retain(), prepared at this stage's topK. */
   prepared: PreparedVaultCandidates
 ): Promise<ConsolidateOutcome> {
   const consolidateOptions = options.consolidateOptions;
@@ -636,10 +376,6 @@ async function tryConsolidate(
   const consolidateThreshold = options.consolidateThreshold ?? DEFAULT_CONSOLIDATE_THRESHOLD;
   const topK = options.consolidateTopK ?? DEFAULT_CONSOLIDATE_TOP_K;
 
-  // Rank the shared prepared set at Stage 1's looser parameters. Scope / folder /
-  // includeArchived were applied when the set was prepared, so they are not
-  // repeated here — retain() prepares with exactly this stage's topK as the
-  // widest limit (see the prepare call).
   const { results: matches } = await rankPreparedVaultCandidates(
     trimmed,
     prepared,
@@ -661,22 +397,9 @@ async function tryConsolidate(
   const { consolidateMemory: doConsolidate } = await import("./consolidate.js");
   const decision = await doConsolidate(trimmed, candidates, consolidateOptions);
 
-  // Fall through to insert either way; the flag distinguishes a real `create`
-  // decision from a degraded fallback (`fallbackReason` set, reported via onFallback).
   if (decision.action === "create") return decision.fallbackReason ? null : { create: true };
 
-  // supersede — the new fact replaces a standing value that changed. Validate
-  // the stale target still exists AND isn't already retired (a concurrent
-  // supersession may have beaten us to it); then hand back its id and the
-  // refined content. retain() creates the new fact fresh (never merges) using
-  // the consolidator's content and stamps superseded_by on the old one.
-  // `getVaultMemoryOp` already excludes deleted rows.
   if (decision.action === "supersede" && decision.content) {
-    // Multi-supersede: retire EVERY stale duplicate the consolidator flagged,
-    // not just one — so a value change collapses all paraphrases of the old
-    // value. Accept the multi-id `targetIds` shape, falling back to a single
-    // `targetId` for back-compat. Keep only targets that still exist and aren't
-    // already retired (a concurrent supersession may have beaten us to some).
     const requestedIds = decision.targetIds?.length
       ? decision.targetIds
       : decision.targetId
@@ -689,9 +412,6 @@ async function tryConsolidate(
       if (existing && !existing.supersededBy) valid.push(id);
     }
     if (valid.length === 0) {
-      // Every row this supersession was meant to retire is already gone or
-      // already retired. The new fact still gets written, but the consolidator's
-      // judgement that it replaces a standing value went unrecorded.
       return abandonToRace(
         options,
         `supersede: all ${requestedIds.length} target(s) deleted or already superseded`
@@ -703,8 +423,6 @@ async function tryConsolidate(
   if (decision.action === "noop" && decision.targetId) {
     const existing = await getVaultMemoryOp(ctx.vaultCtx, decision.targetId);
     if (!existing || existing.supersededBy) {
-      // The consolidator said this fact already exists; the row it pointed at is
-      // now gone or retired, so we create after all.
       return abandonToRace(
         options,
         `noop: target ${decision.targetId} ${existing ? "superseded" : "deleted"} before the write`
@@ -722,20 +440,12 @@ async function tryConsolidate(
       proofCountIncrement: 1,
       observationSourceIds: options.sourceChunkIds,
       sourceChunkIds: mergedSourceIds,
-      // ACTIVE target → { preserveUpdatedAt: true } (main's normal re-observation
-      // path); ARCHIVED (non-superseded, non-deleted) → { restore: true } and no
-      // preserveUpdatedAt so the decay clock restarts (PR5). Resurrection refresh
-      // wins on the resurrect path; watermark below is untouched on the normal path.
       ...resurrect,
-      // C3: record the re-observation. preserveUpdatedAt (normal path) keeps
-      // updated_at pinned; the resurrect path already bumped it via restore.
       lastObservedAt: Date.now(),
       ...(eventTimeUpdate && { eventTime: eventTimeUpdate }),
       ...(factTypeUpdate !== undefined && { factType: factTypeUpdate }),
     });
     if (!updated) {
-      // Target gone → fall through to create; genuine write failure → throw
-      // rather than silently create a duplicate. See assertMergeTargetGoneOrThrow.
       await assertMergeTargetGoneOrThrow(ctx, decision.targetId);
       return abandonToRace(
         options,
@@ -756,9 +466,6 @@ async function tryConsolidate(
   if (decision.action === "update" && decision.targetId && decision.content) {
     const existing = await getVaultMemoryOp(ctx.vaultCtx, decision.targetId);
     if (!existing || existing.supersededBy) {
-      // The consolidator rewrote this fact into a richer form and the row it was
-      // meant to overwrite is gone or retired, so that rewrite is discarded and
-      // the ORIGINAL text is what gets created.
       return abandonToRace(
         options,
         `update: target ${decision.targetId} ${existing ? "superseded" : "deleted"} before the write`
@@ -768,7 +475,6 @@ async function tryConsolidate(
       existing.sourceChunkIds ?? [],
       options.sourceChunkIds ?? []
     );
-    // Re-embed the consolidated content; embeddingOptions includes the cache.
     const newEmbedding = await generateEmbedding(decision.content, ctx.embeddingOptions);
     const consolidatedModel = ctx.embeddingOptions.model ?? DEFAULT_API_EMBEDDING_MODEL;
     const eventTimeUpdate = pickEventTimeUpdate(existing, options.eventTime);
@@ -781,31 +487,18 @@ async function tryConsolidate(
       sourceChunkIds: mergedSourceIds,
       embedding: JSON.stringify(newEmbedding),
       embeddingModel: consolidatedModel,
-      // Even when the LLM rewrites content into a richer paraphrase, this is
-      // still a re-observation of an existing fact — not a new one. For an ACTIVE
-      // target resurrectFields returns { preserveUpdatedAt: true } (recency
-      // multiplier stays honest, matching the merge/noop paths). For an ARCHIVED
-      // target it returns { restore: true } and lets updated_at bump so the decay
-      // clock resets (PR5). Resurrection refresh wins on the resurrect path.
       ...resurrect,
-      // C3: record the re-observation. preserveUpdatedAt (normal path) keeps
-      // updated_at pinned; the resurrect path already bumped it via restore.
       lastObservedAt: Date.now(),
       ...(eventTimeUpdate && { eventTime: eventTimeUpdate }),
       ...(factTypeUpdate !== undefined && { factType: factTypeUpdate }),
     });
     if (!updated) {
-      // Target gone → fall through to create; genuine write failure → throw
-      // rather than silently create a duplicate. See assertMergeTargetGoneOrThrow.
       await assertMergeTargetGoneOrThrow(ctx, decision.targetId);
       return abandonToRace(
         options,
         `update: target ${decision.targetId} deleted mid-write (consolidated rewrite lost)`
       );
     }
-    // Cache keyed by memory id (not content) — set only after the DB write
-    // committed, so a failed update can't poison the cache with a vector for
-    // content that was never persisted.
     cacheRowVector(
       ctx.vaultCache,
       decision.targetId,
@@ -824,17 +517,6 @@ async function tryConsolidate(
     };
   }
 
-  // A non-create action whose guard clause above did not hold: an `update` or
-  // `supersede` with no content, or a `noop`/`update` with no targetId.
-  //
-  // Unreachable through `consolidateMemory` as it stands — `validate()` rejects
-  // every one of those shapes and degrades to create with `invalid_response`
-  // before the decision ever gets here (verified against all seven shapes:
-  // noop/update/supersede with a missing, empty or non-candidate field, plus an
-  // unknown action). Kept, and kept LOUD, because that is the invariant and not a
-  // guarantee this function can make locally: if `validate()` ever loosens, this
-  // is the branch that would start creating duplicates silently again, which is
-  // the exact regression #630 was filed about.
   notifyConsolidationFallback(
     "invalid_response",
     options.consolidateOptions?.onFallback,
@@ -843,15 +525,6 @@ async function tryConsolidate(
   return null;
 }
 
-/**
- * Called when an auto-merge write (`updateVaultMemoryOp`) returns null. That
- * op collapses two very different outcomes into null: the target was
- * concurrently deleted (a benign race — the caller should fall through and
- * create), or the write path threw and the memory is still there (a genuine
- * failure). Re-probe to tell them apart: if the target still exists, the merge
- * failed to persist, so throw rather than let the caller silently create a
- * duplicate that entities would then link to.
- */
 async function assertMergeTargetGoneOrThrow(ctx: RetainContext, targetId: string): Promise<void> {
   const stillExists = await getVaultMemoryOp(ctx.vaultCtx, targetId);
   if (stillExists) {

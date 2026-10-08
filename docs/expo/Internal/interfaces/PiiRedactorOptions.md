@@ -1,6 +1,6 @@
 # PiiRedactorOptions
 
-Defined in: [src/lib/pii/redactor.ts:26](https://github.com/anuma-ai/sdk/blob/main/src/lib/pii/redactor.ts#26)
+Defined in: [src/lib/pii/redactor.ts:15](https://github.com/anuma-ai/sdk/blob/main/src/lib/pii/redactor.ts#15)
 
 Options for constructing a [PiiRedactor](../classes/PiiRedactor.md). Lets apps disable noisy
 built-in categories or supply their own detection patterns.
@@ -11,7 +11,7 @@ built-in categories or supply their own detection patterns.
 
 > `optional` **excludeCategories**: (`string` & `object` | [`PiiCategory`](../type-aliases/PiiCategory.md))\[]
 
-Defined in: [src/lib/pii/redactor.ts:42](https://github.com/anuma-ai/sdk/blob/main/src/lib/pii/redactor.ts#42)
+Defined in: [src/lib/pii/redactor.ts:31](https://github.com/anuma-ai/sdk/blob/main/src/lib/pii/redactor.ts#31)
 
 Built-in categories to disable, e.g. the higher-false-positive
 `["US_ADDRESS", "DATE_OF_BIRTH"]`. Ignored when `patterns` is provided.
@@ -22,7 +22,7 @@ Built-in categories to disable, e.g. the higher-false-positive
 
 > `optional` **extraPatterns**: [`PiiPattern`](PiiPattern.md)\[]
 
-Defined in: [src/lib/pii/redactor.ts:37](https://github.com/anuma-ai/sdk/blob/main/src/lib/pii/redactor.ts#37)
+Defined in: [src/lib/pii/redactor.ts:26](https://github.com/anuma-ai/sdk/blob/main/src/lib/pii/redactor.ts#26)
 
 Additional patterns appended after the (optionally filtered) built-ins.
 Ignored when `patterns` is provided.
@@ -33,7 +33,7 @@ Ignored when `patterns` is provided.
 
 > `optional` **nerDetector**: `NerDetector`
 
-Defined in: [src/lib/pii/redactor.ts:52](https://github.com/anuma-ai/sdk/blob/main/src/lib/pii/redactor.ts#52)
+Defined in: [src/lib/pii/redactor.ts:41](https://github.com/anuma-ai/sdk/blob/main/src/lib/pii/redactor.ts#41)
 
 Optional named-entity detector for *unstructured* PII (person names,
 locations, organizations) that regex cannot find. When supplied, the
@@ -49,7 +49,7 @@ NerDetector.
 
 > `optional` **patterns**: [`PiiPattern`](PiiPattern.md)\[]
 
-Defined in: [src/lib/pii/redactor.ts:32](https://github.com/anuma-ai/sdk/blob/main/src/lib/pii/redactor.ts#32)
+Defined in: [src/lib/pii/redactor.ts:21](https://github.com/anuma-ai/sdk/blob/main/src/lib/pii/redactor.ts#21)
 
 Replace the entire default pattern set. When set, `extraPatterns` and
 `excludeCategories` are ignored. Order matters — more specific patterns

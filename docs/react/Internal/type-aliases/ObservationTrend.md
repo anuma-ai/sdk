@@ -2,7 +2,7 @@
 
 > **ObservationTrend** = `"new"` | `"strengthening"` | `"stable"` | `"weakening"` | `"stale"`
 
-Defined in: [src/lib/memory/observationTrend.ts:29](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/observationTrend.ts#29)
+Defined in: [src/lib/memory/observationTrend.ts:16](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/observationTrend.ts#16)
 
 How a fact's evidence has been evolving.
 

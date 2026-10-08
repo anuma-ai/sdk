@@ -1,10 +1,3 @@
-/**
- * Unit tests for the standalone HTML export. Validates that
- * exportAppToHtml inlines CSS, builds the importmap, keeps App.js
- * imports intact, and produces working markup. No browser or LLM in
- * the loop — for runtime rendering checks see appExport.browser.test.ts.
- */
-
 import { describe, expect, it } from "vitest";
 
 import {
@@ -24,7 +17,6 @@ export default function App() {
 }
 `;
 
-  /** Pull the JSON body out of the importmap script tag. */
   function readImportMap(html: string): Record<string, string> {
     const m = html.match(/<script type="importmap">([\s\S]*?)<\/script>/);
     if (!m) throw new Error("no importmap in html");
@@ -36,7 +28,6 @@ export default function App() {
     expect(html.startsWith("<!DOCTYPE html>")).toBe(true);
     expect(html).toContain("<title>App</title>");
     expect(html).toContain("function App() {");
-    // Boot line uses the new module-friendly mount.
     expect(html).toContain('__anumaCreateRoot(document.getElementById("root")).render(<App />)');
   });
 
@@ -69,36 +60,21 @@ export default function App() {
         "App.css": '.x { content: "</style>oops"; }',
       },
     });
-    // The injected `</style>` from App.css must be escaped.
     expect(html).toContain("<\\/style>");
-    // Exactly two real closing `</style>` tags survive — one for the
-    // APP_PREVIEW_BASELINE_CSS block, one for the App.css block. The
-    // escaped `</style>` injected via the model's content shouldn't
-    // count as a real tag.
     expect(html.match(/<\/style>/g)?.length).toBe(2);
   });
 
   it("defuses `</script>` in App.js so the model's source can't close the babel script early", () => {
-    // App.js is interpolated into `<script type="text/babel">`. A literal
-    // `</script>` in the source (e.g. inside a string) would otherwise end
-    // the script element, the app never mounts, and — since nothing throws —
-    // the runtime overlay never paints, leaving a silent blank page. The
-    // marker is unique because the output legitimately contains real
-    // `</script>` closing tags elsewhere.
     const html = exportAppToHtml({
       files: {
         "App.js": `export default function App(){ const s = "MARK</script>END"; return null; }`,
       },
     });
-    // The model's `</script>` is escaped so it can't break out.
     expect(html).toContain("MARK<\\/script>END");
-    // The raw, un-escaped form must not survive.
     expect(html).not.toContain("MARK</script>END");
   });
 
   it("defuses `</script>` in a custom windowAppShim the same way", () => {
-    // The shim is interpolated into its own `<script>` block; a literal
-    // `</script>` would close it early just like App.js.
     const html = exportAppToHtml({
       files: { "App.js": trivialApp },
       windowAppShim: `window.x = "SHIM</script>Z";`,
@@ -108,28 +84,20 @@ export default function App() {
   });
 
   it("keeps a plain App.js (no `</script>`) intact through normalization", () => {
-    // The App.js defuse must not corrupt ordinary code: a plain app still
-    // round-trips and reaches the boot line.
     const html = exportAppToHtml({ files: { "App.js": trivialApp } });
     expect(html).toContain("function App() {");
     expect(html).toContain('__anumaCreateRoot(document.getElementById("root")).render(<App />)');
   });
 
   it("escapes `<` in importmap JSON so a malicious dep name can't break out of the script", () => {
-    // A package.json dependency *name* containing `</script>` must not close
-    // the `<script type="importmap">` block. `<` is escaped to its JSON
-    // unicode form, which round-trips through JSON.parse so the resolved
-    // import map is unchanged for legitimate names.
     const html = exportAppToHtml({
       files: {
         "App.js": trivialApp,
         "package.json": JSON.stringify({ dependencies: { "evil</script>x": "1.0.0" } }),
       },
     });
-    // The escaped unicode form is present; the raw breakout sequence is not.
     expect(html).toContain("\\u003c/script>");
     expect(html).not.toContain("evil</script>x");
-    // The importmap is still valid JSON and still maps react.
     const imports = readImportMap(html);
     expect(imports.react).toMatch(/^https:\/\/esm\.sh\/react@/);
   });
@@ -145,7 +113,6 @@ export default function App() {
   it("keeps `import React from 'react'` intact — importmap resolves it", () => {
     const html = exportAppToHtml({ files: { "App.js": trivialApp } });
     expect(html).toContain("import React from 'react';");
-    // No UMD script tags — the old loader is gone.
     expect(html).not.toContain("react@18/umd/react.development.js");
   });
 
@@ -158,10 +125,6 @@ export default function App() { return null; }
   });
 
   it('prepends `import React from "react"` when the model only imports hooks', () => {
-    // Modern apps commonly write `import { useState } from "react"` without
-    // bringing React itself into scope. Babel-standalone's classic JSX
-    // runtime needs `React` in scope to compile <div /> → React.createElement,
-    // so the exporter has to ensure the default import is present.
     const src = `import { useState, useEffect } from 'react';
 export default function App() {
   return <div>{useState(0)[0]}</div>;
@@ -177,8 +140,6 @@ export default function App() {
 export default function App() { return <div />; }
 `;
     const html = exportAppToHtml({ files: { "App.js": src } });
-    // Match both possible quote styles — single (from source) and
-    // double (from the prepend). We expect exactly one occurrence.
     const matches = html.match(/import React from ['"]react['"]/g) ?? [];
     expect(matches.length).toBe(1);
   });
@@ -299,7 +260,6 @@ export default function App() { return <Camera />; }
       files: { "App.js": trivialApp, "package.json": "{not json" },
     });
     expect(html).toContain("function App()");
-    // No extra non-react packages — importmap still has the defaults though.
     const imports = readImportMap(html);
     expect(Object.keys(imports).sort()).toEqual(["react", "react-dom", "react-dom/client"]);
   });
@@ -321,30 +281,19 @@ export default App;
 
   it("includes the runtime error overlay inline in the body", () => {
     const html = exportAppToHtml({ files: { "App.js": trivialApp } });
-    // The overlay constant lands literally in the output.
     expect(html).toContain(RUNTIME_ERROR_OVERLAY_SCRIPT);
-    // Sentinel attribute so the browser smoke test can find the
-    // injected overlay element by query selector.
     expect(html).toContain("data-anuma-error-overlay");
-    // Both error sources are wired.
     expect(html).toContain('"error"');
     expect(html).toContain('"unhandledrejection"');
   });
 
   it("RUNTIME_ERROR_OVERLAY_SCRIPT is plain ES5 with no module syntax", () => {
-    // The overlay runs in a regular `<script>` (not module mode) so
-    // it has to parse in every browser. Catch a regression where
-    // someone adds `import` / `export` / `await` at top level.
     expect(RUNTIME_ERROR_OVERLAY_SCRIPT).not.toMatch(/^\s*import\s/m);
     expect(RUNTIME_ERROR_OVERLAY_SCRIPT).not.toMatch(/^\s*export\s/m);
     expect(RUNTIME_ERROR_OVERLAY_SCRIPT).not.toMatch(/^\s*await\s/m);
   });
 
   it("injects APP_PREVIEW_BASELINE_CSS before the user's App.css", () => {
-    // The model's CSS must override the baseline on equal specificity,
-    // which means the baseline has to load FIRST. If a future refactor
-    // accidentally moves App.css before the baseline, the model's body
-    // colors / fonts would be silently undone — this test catches that.
     const html = exportAppToHtml({
       files: { "App.js": trivialApp, "App.css": "body { margin: 100px; }" },
     });
@@ -356,10 +305,6 @@ export default App;
   });
 
   it("APP_PREVIEW_BASELINE_CSS resets the leaks we actually care about", () => {
-    // Sanity-check the contents so a refactor doesn't silently delete
-    // the rules that fix the body-margin / box-sizing / serif-fallback
-    // leaks. If a baseline rule is dropped, the model's apps regress
-    // visually in environments without Tailwind preflight.
     expect(APP_PREVIEW_BASELINE_CSS).toMatch(/box-sizing:\s*border-box/);
     expect(APP_PREVIEW_BASELINE_CSS).toMatch(/body[^{]*\{[^}]*margin:\s*0/);
     expect(APP_PREVIEW_BASELINE_CSS).toMatch(/font-family:[^;]*system-ui/);

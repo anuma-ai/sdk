@@ -1,20 +1,9 @@
-/**
- * Server-side tools caching module
- *
- * Fetches and caches tools from /api/v1/tools endpoint
- * with configurable expiration and localStorage persistence.
- */
-
 import type { LlmapiChatCompletionTool } from "../../client";
 import { APP_BUILDER_PROMPT } from "../../tools/appBuilderPrompt";
 import { DOCUMENT_BUILDER_PROMPT } from "../../tools/document/documentBuilderPrompt";
 import type { ToolConfig } from "../chat/useChat/types";
 import { getLogger } from "../logger";
 import { chunkText, DEFAULT_CHUNK_SIZE, shouldChunkMessage } from "../memoryEngine/chunking";
-// Import from the db-free ./generate core (not ./embeddings, which pulls in the
-// WatermelonDB-backed db/chat operations) so the tool-selection engine — and the
-// node/RN-safe @anuma/sdk/tools/selection subpath that re-exports it — stay free
-// of the database layer.
 import { generateEmbedding, generateEmbeddings } from "../memoryEngine/generate";
 import { cosineSimilarity } from "../memoryEngine/vector";
 
@@ -146,15 +135,9 @@ export interface ServerToolsOptions {
 /** Default cache expiration: 1 day */
 export const DEFAULT_CACHE_EXPIRATION_MS = 24 * 60 * 60 * 1000;
 
-/** localStorage key for cached tools */
 const SERVER_TOOLS_CACHE_KEY = "sdk_server_tools_cache";
 
-/** Cache version - increment to invalidate old caches on format changes */
 const CACHE_VERSION = "1.3";
-
-// Selection thresholds — exported so `useChatStorage` (production) and the
-// toolSelection e2e suite import the SAME values; hard-coded copies drift
-// silently when these are tuned.
 
 /** Minimum prompt length for tool matching. Shorter prompts skip embedding. */
 export const MIN_CONTENT_LENGTH_FOR_TOOLS = 5;
@@ -179,16 +162,10 @@ export const CLIENT_TOOLS_MIN_SIMILARITY = 0.53;
  */
 export const CLIENT_TOOLS_RELEVANCE_RATIO = 0.75;
 
-/**
- * Type guard to check if tool is in new format (has schema property)
- */
 function isNewToolFormat(tool: ServerToolsResponseItem): tool is ServerToolsResponseItemNew {
   return "schema" in tool && tool.schema !== undefined;
 }
 
-/**
- * Type guard to check if response is in new format (has checksum and tools wrapper)
- */
 function isNewResponseFormat(
   response: ServerToolsResponse
 ): response is { checksum: string; tools: ServerToolsMap } {
@@ -207,13 +184,7 @@ export interface ParsedServerToolsResponse {
   checksum?: string;
 }
 
-/**
- * Convert server API response to ServerTool[] format.
- * Supports both legacy and new API response formats.
- * Returns tools and optional checksum.
- */
 function convertServerToolsResponse(response: ServerToolsResponse): ParsedServerToolsResponse {
-  // Extract tools map and checksum based on response format
   let toolsMap: ServerToolsMap;
   let checksum: string | undefined;
 
@@ -226,7 +197,6 @@ function convertServerToolsResponse(response: ServerToolsResponse): ParsedServer
 
   const tools = Object.values(toolsMap).map((tool) => {
     if (isNewToolFormat(tool)) {
-      // New format: extract from schema, preserve embedding
       return {
         type: "function" as const,
         name: tool.schema.name,
@@ -235,7 +205,6 @@ function convertServerToolsResponse(response: ServerToolsResponse): ParsedServer
         ...(tool.embedding && { embedding: tool.embedding }),
       };
     }
-    // Current format: extract from top level
     return {
       type: "function" as const,
       name: tool.name,
@@ -264,10 +233,6 @@ interface CompletionsTool {
   };
 }
 
-/**
- * Convert ServerTool to completions API format.
- * Format: { type: "function", function: { name, description, parameters } }
- */
 function toCompletionsFormat(tool: ServerTool): CompletionsTool {
   return {
     type: "function",
@@ -279,10 +244,6 @@ function toCompletionsFormat(tool: ServerTool): CompletionsTool {
   };
 }
 
-/**
- * Convert ServerTool to responses API format.
- * Format: { type: "function", name, description, parameters }
- */
 function toResponsesFormat(tool: ServerTool): Record<string, unknown> {
   return {
     type: "function",
@@ -304,7 +265,6 @@ export function getCachedServerTools(): CachedServerTools | null {
 
     const parsed = JSON.parse(cached) as CachedServerTools;
 
-    // Validate cache version
     if (parsed.version !== CACHE_VERSION) {
       removeLocalStorageCache();
       return null;
@@ -316,9 +276,6 @@ export function getCachedServerTools(): CachedServerTools | null {
   }
 }
 
-/**
- * Check if cached tools are expired
- */
 function isCacheExpired(
   cache: CachedServerTools | null,
   expirationMs: number = DEFAULT_CACHE_EXPIRATION_MS
@@ -327,10 +284,6 @@ function isCacheExpired(
   return Date.now() - cache.timestamp > expirationMs;
 }
 
-/**
- * Build a cache payload from a freshly fetched tools list, stamping it with the
- * current timestamp and cache-format version.
- */
 function buildCacheEntry(tools: ServerTool[], checksum?: string): CachedServerTools {
   return {
     tools,
@@ -340,30 +293,16 @@ function buildCacheEntry(tools: ServerTool[], checksum?: string): CachedServerTo
   };
 }
 
-/**
- * Store a cache payload in localStorage (the default backend's write path).
- */
 function writeLocalStorageCache(entry: CachedServerTools): void {
   if (typeof localStorage === "undefined") return;
 
   try {
     localStorage.setItem(SERVER_TOOLS_CACHE_KEY, JSON.stringify(entry));
   } catch (error) {
-    // localStorage might be full or disabled - log but don't throw
-
     getLogger().warn("[serverTools] Failed to cache tools:", error);
   }
 }
 
-/**
- * The default {@link ToolsCacheBackend}: browser `localStorage`, and a silent
- * no-op where `localStorage` is undefined (Node, React Native). Used by
- * `getServerTools` when no `cache` option is supplied.
- */
-/**
- * Remove the cached payload from browser `localStorage` (the default backend's
- * clear path). Silent no-op where `localStorage` is undefined.
- */
 function removeLocalStorageCache(): void {
   if (typeof localStorage === "undefined") return;
   localStorage.removeItem(SERVER_TOOLS_CACHE_KEY);
@@ -426,12 +365,9 @@ export function shouldRefreshTools(
   cache: ToolsCacheBackend = localStorageToolsCache
 ): boolean | Promise<boolean> {
   if (!responseChecksum) {
-    // Legacy response without checksum - don't trigger refresh
     return false;
   }
 
-  // Refresh when there is no cached checksum yet (first checksum-aware response)
-  // or when the server's checksum differs from the one we cached.
   const decide = (cachedChecksum: string | undefined): boolean =>
     !cachedChecksum || cachedChecksum !== responseChecksum;
 
@@ -439,9 +375,6 @@ export function shouldRefreshTools(
   return cachedChecksum instanceof Promise ? cachedChecksum.then(decide) : decide(cachedChecksum);
 }
 
-/**
- * Fetch tools from the server API
- */
 async function fetchServerToolsFromApi(
   baseUrl: string,
   token: string
@@ -481,8 +414,6 @@ export async function getServerTools(options: ServerToolsOptions): Promise<Serve
     cache = localStorageToolsCache,
   } = options;
 
-  // Cache persistence is best-effort: a custom backend that rejects on write must
-  // not discard tools the server already returned, nor surface as a fetch failure.
   const persistCache = async (entry: ReturnType<typeof buildCacheEntry>): Promise<void> => {
     try {
       await cache.set(entry);
@@ -491,11 +422,6 @@ export async function getServerTools(options: ServerToolsOptions): Promise<Serve
     }
   };
 
-  // Check cache first (unless forcing refresh). Drop any entry whose version does
-  // not match the current cache format — the default localStorage backend already
-  // does this, but a custom backend might return a stale shape. A backend that
-  // rejects on read (unavailable/corrupt storage) must NOT block discovery: treat
-  // a read failure as "no cache" and fall through to the server fetch.
   let rawCached: Awaited<ReturnType<typeof cache.get>> = null;
   try {
     rawCached = await cache.get();
@@ -509,14 +435,11 @@ export async function getServerTools(options: ServerToolsOptions): Promise<Serve
     return cached.tools;
   }
 
-  // Try to fetch fresh tools
   try {
-    // Import BASE_URL dynamically to avoid circular dependencies
     const { BASE_URL } = await import("../../clientConfig");
     const effectiveBaseUrl = baseUrl ?? BASE_URL;
 
     if (apiKey) {
-      // API key auth: fetch directly with X-API-Key header
       const response = await fetch(`${effectiveBaseUrl}/api/v1/tools`, {
         method: "GET",
         headers: {
@@ -540,8 +463,6 @@ export async function getServerTools(options: ServerToolsOptions): Promise<Serve
 
     const token = await getToken();
     if (!token) {
-      // No token available - return cached if available, otherwise empty
-
       getLogger().warn("[serverTools] No auth token available for fetching tools");
       return cached?.tools ?? [];
     }
@@ -552,13 +473,11 @@ export async function getServerTools(options: ServerToolsOptions): Promise<Serve
   } catch (error) {
     getLogger().error("[serverTools] Failed to fetch server tools:", error);
 
-    // Stale-while-error: return cached tools if available
     if (cached?.tools) {
       getLogger().warn("[serverTools] Using stale cached tools due to fetch error");
       return cached.tools;
     }
 
-    // No cache available - return empty (don't block sendMessage)
     return [];
   }
 }
@@ -572,17 +491,14 @@ export function filterServerTools(
   serverTools: ServerTool[],
   includeNames?: string[]
 ): ServerTool[] {
-  // undefined means include all
   if (includeNames === undefined) {
     return serverTools;
   }
 
-  // Empty array means include none
   if (includeNames.length === 0) {
     return [];
   }
 
-  // Filter to only included names
   const includeSet = new Set(includeNames);
   return serverTools.filter((tool) => includeSet.has(tool.name));
 }
@@ -595,7 +511,6 @@ interface ToolFunctionDef {
   arguments?: Record<string, unknown>;
 }
 
-/** Helper to safely extract the `function` property from a tool-like object. */
 function getToolFunction(tool: LlmapiChatCompletionTool | ToolConfig): ToolFunctionDef | undefined {
   const fn = (tool as Record<string, unknown>).function;
   if (fn && typeof fn === "object") {
@@ -604,10 +519,6 @@ function getToolFunction(tool: LlmapiChatCompletionTool | ToolConfig): ToolFunct
   return undefined;
 }
 
-/**
- * Convert client tool to Responses API format.
- * Preserves executor for client-side execution.
- */
 function clientToolToResponsesFormat(
   tool: LlmapiChatCompletionTool | ToolConfig
 ): Record<string, unknown> {
@@ -615,7 +526,6 @@ function clientToolToResponsesFormat(
   const func = getToolFunction(tool);
 
   if (!func) {
-    // Already in responses format or malformed - return as-is
     return tool as Record<string, unknown>;
   }
 
@@ -623,9 +533,7 @@ function clientToolToResponsesFormat(
     type: "function",
     name: func.name,
     description: func.description,
-    // Handle both 'parameters' and 'arguments' field names
     parameters: func.parameters ?? func.arguments,
-    // Preserve executor functions for client-side execution
     ...(toolConfig.executor && { executor: toolConfig.executor }),
     ...(toolConfig.skipContinuation !== undefined && {
       skipContinuation: toolConfig.skipContinuation,
@@ -646,11 +554,6 @@ function clientToolToResponsesFormat(
   };
 }
 
-/**
- * Normalize client tool for Completions API format.
- * Ensures 'parameters' field exists (converts from 'arguments' if needed).
- * Preserves executor, skipContinuation, removeAfterExecution, removeAfterResult, and executorTimeout for client-side execution.
- */
 function clientToolToCompletionsFormat(
   tool: LlmapiChatCompletionTool | ToolConfig
 ): Record<string, unknown> {
@@ -658,16 +561,13 @@ function clientToolToCompletionsFormat(
   const func = getToolFunction(tool);
 
   if (!func) {
-    // Malformed tool - return as-is
     return tool as Record<string, unknown>;
   }
 
-  // If 'parameters' already exists, return as-is
   if (func.parameters) {
     return tool as Record<string, unknown>;
   }
 
-  // Convert 'arguments' to 'parameters' for Completions API
   const { arguments: args, ...restFunc } = func;
 
   return {
@@ -676,7 +576,6 @@ function clientToolToCompletionsFormat(
       ...restFunc,
       parameters: args ?? { type: "object", properties: {} },
     },
-    // Preserve executor functions for client-side execution
     ...(toolConfig.executor && { executor: toolConfig.executor }),
     ...(toolConfig.skipContinuation !== undefined && {
       skipContinuation: toolConfig.skipContinuation,
@@ -697,16 +596,6 @@ function clientToolToCompletionsFormat(
   };
 }
 
-/**
- * Merge server tools with client tools.
- * Client tools take precedence (if same name exists).
- * @param serverTools - Server tools (already filtered if needed)
- * @param clientTools - Client tools with optional executors
- * @param apiType - API type to format tools for
- */
-/** Anthropic tool-search tool type (regex variant). Non-deferred; leads the tools array when
- * defer-loading is enabled. ai-portal forwards it verbatim (#1284) and Anthropic uses it to load
- * deferred tool definitions on demand. Internal — not exported (no external consumer). */
 const TOOL_SEARCH_TOOL_TYPE = "tool_search_tool_regex_20251119";
 /** The tool-search tool's `name` must match the variant exactly — Anthropic rejects anything else
  * ("Input should be 'tool_search_tool_regex'", confirmed via docs + a direct Messages API test).
@@ -766,18 +655,11 @@ export function resolveDeferredServerTools(
   serverToolsFilter: readonly string[] | ServerToolsFilterFunction | undefined,
   config: DeferLoadingConfig
 ): ServerTool[] {
-  // Discriminate on `typeof`, not `Array.isArray`: narrowing a union whose other arm is callable
-  // gives `any[]` and costs the array element type.
   const allowed =
     serverToolsFilter === undefined || typeof serverToolsFilter === "function"
       ? allServerTools
       : filterServerTools(allServerTools, [...serverToolsFilter]);
 
-  // UNION, not override. Both sources are exclusions the caller already asked for: the config list,
-  // and the list a filter built by `createServerToolsFilter` tags itself with. Letting config replace
-  // the tag would mean adding one name silently re-admits everything the filter excludes — this bug,
-  // reintroduced by supplying MORE configuration. A filter wrapped in a plain closure loses its tag,
-  // which is what the config field is for.
   const excluded = new Set(config.excludeTools ?? []);
   if (typeof serverToolsFilter === "function") {
     for (const name of serverToolsFilter.excludeTools ?? []) excluded.add(name);
@@ -814,37 +696,26 @@ export function deferFormattingConfig(
   config: DeferLoadingConfig | undefined
 ): DeferLoadingConfig | undefined {
   if (!config?.enabled) return config;
-  // `typeof`, not `Array.isArray` — narrowing a union whose other arm is callable yields `any[]`.
   const isExplicitList = serverToolsFilter !== undefined && typeof serverToolsFilter !== "function";
   return isExplicitList ? undefined : config;
 }
 
-// Deterministic, locale-independent name order (codepoint) so the deferred block is byte-identical
-// across turns regardless of the runtime's locale.
 function byNameAscending(a: ServerTool, b: ServerTool): number {
   if (a.name < b.name) return -1;
   if (a.name > b.name) return 1;
   return 0;
 }
 
-// formatServerToolsWithDefer emits the full server catalog in defer-loading shape:
-// [tool-search (non-deferred)] → [hot (non-deferred, config order)] → [deferred (name-sorted, full defs
-// + defer_loading:true)].
 function formatServerToolsWithDefer(
   serverTools: ServerTool[],
   config: DeferLoadingConfig,
   apiType: "responses" | "completions"
 ): Array<Record<string, unknown>> {
-  // No catalog → no deferred tools to load → no reason to prepend tool_search. Returning [] here also
-  // means an empty server catalog (e.g. the skip-storage / completions path that never fetched it) sends
-  // no useless search tool — it falls through to client-tools-only in mergeTools.
   if (serverTools.length === 0) {
     return [];
   }
   const fmt = apiType === "completions" ? toCompletionsFormat : toResponsesFormat;
   const hotSet = new Set(config.hotToolNames);
-  // Dedup hotToolNames (a Set preserves insertion order) so a repeated name can't emit the same tool
-  // definition twice — duplicate tool names break some providers and the byte-stable prefix.
   const hot = [...hotSet]
     .map((name) => serverTools.find((t) => t.name === name))
     .filter((t): t is ServerTool => t !== undefined);
@@ -866,10 +737,6 @@ export function mergeTools(
   apiType: "responses" | "completions" = "responses",
   deferConfig?: DeferLoadingConfig
 ): Array<Record<string, unknown>> {
-  // Defer-loading is RESPONSES-ONLY. On the completions path the flat Anthropic tool-search entry is
-  // rewritten into a normal `function` tool by toolsToApiFormat (its special type dropped), and ai-portal
-  // can't carry the type on chat/completions either — so defer can't work end-to-end there. On completions
-  // (the responses circuit-breaker fallback) we use today's normal formatting; defer applies on responses.
   const useDefer = deferConfig?.enabled === true && apiType === "responses";
   const formattedServerTools = useDefer
     ? formatServerToolsWithDefer(serverTools, deferConfig, apiType)
@@ -881,20 +748,15 @@ export function mergeTools(
     return formattedServerTools as Array<Record<string, unknown>>;
   }
 
-  // Format client tools based on API type
   const formattedClientTools =
     apiType === "responses"
       ? clientTools.map(clientToolToResponsesFormat)
       : clientTools.map(clientToolToCompletionsFormat);
 
-  // Guard on the FORMATTED array, not the raw serverTools: in defer mode formatServerToolsWithDefer
-  // prepends the tool-search tool, so formattedServerTools is non-empty even when serverTools is empty
-  // — returning only client tools here would drop that search tool.
   if (formattedServerTools.length === 0) {
     return formattedClientTools;
   }
 
-  // Get client tool names for deduplication
   const clientToolNames = new Set(
     clientTools
       .map((t) => {
@@ -904,7 +766,6 @@ export function mergeTools(
       .filter((name): name is string => typeof name === "string" && !!name)
   );
 
-  // Filter server tools that don't conflict with client tools
   const nonConflictingServerTools = formattedServerTools.filter((tool) => {
     let toolName: string | undefined;
     if ("name" in tool && typeof tool.name === "string") {
@@ -915,7 +776,6 @@ export function mergeTools(
     return !clientToolNames.has(toolName ?? "");
   });
 
-  // Return merged array: server tools first, then client tools
   return [...nonConflictingServerTools, ...formattedClientTools] as Array<Record<string, unknown>>;
 }
 
@@ -997,7 +857,6 @@ export function findMatchingTools(
     ...options,
   };
 
-  // Early return for invalid inputs
   if (!promptEmbeddings || promptEmbeddings.length === 0) {
     return [];
   }
@@ -1006,12 +865,10 @@ export function findMatchingTools(
     return [];
   }
 
-  // Normalize to array of embeddings
   const embeddings: number[][] = Array.isArray(promptEmbeddings[0])
     ? (promptEmbeddings as number[][])
     : [promptEmbeddings as number[]];
 
-  // Calculate similarity for each tool with a valid embedding
   const results: ToolMatchResult[] = [];
 
   for (const tool of tools) {
@@ -1020,7 +877,6 @@ export function findMatchingTools(
     }
 
     try {
-      // Max similarity across all chunk embeddings
       let maxSimilarity = -Infinity;
       for (const embedding of embeddings) {
         const similarity = cosineSimilarity(embedding, tool.embedding);
@@ -1033,16 +889,12 @@ export function findMatchingTools(
         results.push({ tool, similarity: maxSimilarity });
       }
     } catch {
-      // Skip tools with dimension mismatch
       continue;
     }
   }
 
-  // Sort by similarity descending and limit results
   let sorted = results.sort((a, b) => b.similarity - a.similarity).slice(0, limit);
 
-  // Ambiguity filter: when the top match is weak and clustered with the runner-up,
-  // no tool is a genuine match for this prompt — return empty.
   if (filterAmbiguous && sorted.length > 1) {
     const topScore = sorted[0].similarity;
     const runnerUpScore = sorted[1].similarity;
@@ -1051,8 +903,6 @@ export function findMatchingTools(
     }
   }
 
-  // Relevance dropoff: only keep tools scoring within relevanceRatio of the top match.
-  // This trims the tail of loosely-related tools that fill up the limit.
   if (relevanceRatio > 0 && sorted.length > 1) {
     const cutoff = sorted[0].similarity * relevanceRatio;
     sorted = sorted.filter((r) => r.similarity >= cutoff);
@@ -1097,10 +947,6 @@ export function scoreTools(
 
   return scores;
 }
-
-// ---------------------------------------------------------------------------
-// Tool sets — groups of tools that must be included/excluded together
-// ---------------------------------------------------------------------------
 
 /**
  * A tool set defines a group of tools that work together. When any "anchor"
@@ -1153,17 +999,7 @@ export interface ToolSet {
 export const BUILT_IN_TOOL_SETS: ToolSet[] = [
   {
     name: "app-generation",
-    // Appended to the base prompt (not replacing it) whenever this set
-    // activates, so the App Builder guidance — including the window.app.complete
-    // runtime-AI contract — rides in with the app-gen tools via the same
-    // semantic selection that includes them. Collected by toolSetSystemPrompts.
     systemPrompt: APP_BUILDER_PROMPT,
-    // Must stay in sync with APP_FILE_TOOL_NAMES in src/tools/appGeneration.ts.
-    // If a new app-gen tool ships there but isn't added here, semantic
-    // selection will exclude it on every request — the model literally
-    // doesn't see it. The quality tools (audit_design / critique_design /
-    // verify_app) are non-obvious to a user prompt ("build me a kanban")
-    // and rely entirely on set expansion to reach the model.
     members: [
       "create_file",
       "patch_file",
@@ -1174,52 +1010,20 @@ export const BUILT_IN_TOOL_SETS: ToolSet[] = [
       "critique_design",
       "verify_app",
     ],
-    // Anchors stay limited to the primary entry-point tools. Users phrase
-    // app intent as "build / make / fix" → semantic match on create_file
-    // or patch_file → full set pulled in. The quality tools fire later in
-    // the workflow and don't anchor on their own; including them as
-    // anchors would risk pulling the set in on unrelated "audit my code"
-    // prompts that have nothing to do with app generation.
     anchors: ["create_file", "patch_file"],
-    // 0.55: above the global filter floor (0.53) so a barely-relevant match
-    // can't pull in the whole toolkit, but no higher — and we tried higher.
-    // create_file scores chitchat ("what's up" ~0.56, "...about programming"
-    // ~0.57) in the SAME band as legitimate app-EDIT prompts: "Edit the app to
-    // change the background…" measured create_file 0.56 on one e2e run. Raising
-    // the floor to 0.575 to exclude the chitchat therefore also stripped the
-    // file tools from real edit requests — leaving the model unable to touch the
-    // app at all. The bands genuinely overlap; there is no clean cut. So we keep
-    // 0.55 (max recall) and rely on two safety nets instead: APP_BUILDER_PROMPT
-    // is conditional (it no-ops unless the user is actually asking for an app),
-    // and very short greetings ("hey") are filtered out earlier by the
-    // MIN_CONTENT_LENGTH_FOR_TOOLS length gate before embeddings even run.
     anchorMinSimilarity: 0.55,
   },
   {
     name: "slides",
     members: ["plan_deck", "add_slide", "read_slides", "patch_slides"],
     anchors: ["plan_deck", "patch_slides"],
-    // Match the client-tool floor (0.53). Short colloquial prompts like
-    // "make me a powerpoint about X" score plan_deck around 0.535 — above
-    // the global floor but inside any anchor gap. plan_deck and patch_slides
-    // are specific enough names that 0.53 won't false-positive in practice.
     anchorMinSimilarity: 0.53,
   },
   {
     name: "documents",
-    // Conditional rider (no-ops unless the user actually asks for a document),
-    // attached so the Document Builder guidance rides in with the document
-    // tools via the same semantic selection that includes them.
     systemPrompt: DOCUMENT_BUILDER_PROMPT,
     members: ["create_document", "read_document", "patch_document"],
-    // Entry-point tools anchor; read_document rides in via set expansion.
     anchors: ["create_document", "patch_document"],
-    // 0.53: match the client-tool floor. "draft me a contract", "write a cover
-    // letter", "make a memo" should pull the set in. Like app-gen's create_file,
-    // document intent ("write me X") overlaps generic chitchat in this band, so
-    // the same two safety nets apply: DOCUMENT_BUILDER_PROMPT is conditional and
-    // the MIN_CONTENT_LENGTH_FOR_TOOLS gate drops bare greetings before
-    // embeddings run. Tune empirically against the tool-selection parity suite.
     anchorMinSimilarity: 0.53,
   },
   {
@@ -1228,11 +1032,6 @@ export const BUILT_IN_TOOL_SETS: ToolSet[] = [
     anchors: ["github_api"],
     anchorMinSimilarity: 0.55,
   },
-  // Connector sets (#587). Connector chat tools belong to no set, so per-message
-  // semantic filtering silently prunes them on vague prompts ("check my email").
-  // Grouping each connector's tools behind a search/action anchor keeps the
-  // whole connector reachable once any one of its tools matches. Mirrors github:
-  // no systemPrompt rider — per-set prompt guidance is a follow-up.
   {
     name: "gmail",
     members: [
@@ -1289,9 +1088,6 @@ export const BUILT_IN_TOOL_SETS: ToolSet[] = [
       "slack_get_thread_replies",
       "slack_post_message",
     ],
-    // search is the primary entry point; list_channels also anchors so "what
-    // channels am I in" reaches the set without going through search. post_message
-    // anchors too so post-only prompts surface the write tool past the cutoff.
     anchors: ["slack_search_messages", "slack_list_channels", "slack_post_message"],
     anchorMinSimilarity: 0.53,
   },
@@ -1302,15 +1098,6 @@ export const BUILT_IN_TOOL_SETS: ToolSet[] = [
     anchorMinSimilarity: 0.53,
   },
   {
-    // Server tools, so this set does its work through
-    // withActiveToolSetServerTools: once any restaurant tool has run, terse
-    // follow-ups ("okay", "same as before", "cancel it") keep every restaurant
-    // tool — discovery, booking and cancelling. Each tool still reaches a fresh
-    // request on its own description.
-    // Anchors are deliberately empty (like the client's Nearby set): the set
-    // is only for stickiness, not a new way to activate on a prompt.
-    // prompt_user_confirm is left out of members: autoFilterClientTools always
-    // sends it, and as a member any unrelated confirmation would pin this set.
     name: "restaurant-booking",
     members: [
       "AnumaPaymentsMCP-anuma_find_restaurant",
@@ -1323,10 +1110,6 @@ export const BUILT_IN_TOOL_SETS: ToolSet[] = [
     anchors: [],
   },
   {
-    // What a confirmed booking card narrows the rest of the turn to (see
-    // CONFIRMED_ACTION_TOOL_SETS): the booking chain only, without the
-    // discovery and cancel tools that restaurant-booking keeps sticky.
-    // Anchors are empty for the same reason as restaurant-cancel below.
     name: "restaurant-book",
     members: [
       "AnumaPaymentsMCP-anuma_find_restaurant",
@@ -1336,12 +1119,6 @@ export const BUILT_IN_TOOL_SETS: ToolSet[] = [
     anchors: [],
   },
   {
-    // What a confirmed cancel card narrows the rest of the turn to (see
-    // CONFIRMED_ACTION_TOOL_SETS). Anchors are empty for the same reason as
-    // restaurant-booking: anchors here are scored against client tools only,
-    // so a server-tool anchor could never fire. The "cancel brings list"
-    // edge on a fresh prompt is restaurant-cancel-lookup in
-    // SERVER_TOOL_DEPENDENCY_SETS.
     name: "restaurant-cancel",
     members: [
       "AnumaPaymentsMCP-anuma_list_reservations",
@@ -1385,10 +1162,6 @@ export function applyToolSets(
   toolSets: ToolSet[] = BUILT_IN_TOOL_SETS,
   independentThreshold: number = 0.65
 ): Set<string> {
-  // Collect every tool set whose anchor cleared its similarity floor.
-  // Multiple sets can activate on the same prompt (e.g. an app-gen anchor
-  // and a slides anchor both clearing 0.53) — expanding only the first
-  // would silently drop the others' members.
   const activatedSets: ToolSet[] = [];
   for (const ts of toolSets) {
     const minSim = ts.anchorMinSimilarity ?? 0.6;
@@ -1407,14 +1180,12 @@ export function applyToolSets(
 
   const result = new Set<string>();
 
-  // Include all set members that are available
   for (const member of setMembers) {
     if (availableNames.has(member)) {
       result.add(member);
     }
   }
 
-  // Keep non-set tools only if they scored above the independent threshold
   for (const name of matchedNames) {
     if (setMembers.has(name)) continue;
     const score = scores.get(name) ?? 0;
@@ -1647,21 +1418,6 @@ export function createServerToolsFilter(
     const matchedNames = new Set(matches.map((m) => m.tool.name));
     let finalNames: Set<string>;
     if (sets.length > 0) {
-      // Dependency expansion is SELECTION-gated: an anchor activates its set
-      // only when it was actually picked by `findMatchingTools` (top-N above
-      // the floor). Score-only activation — the rescue `useChatStorage` needs
-      // client-side because its 0.9 relevanceRatio can drop anchors — is
-      // wrong here: broad-description server anchors graze the 0.5 floor on
-      // completely unrelated prompts, and a score-gated set would ride along
-      // on nearly every request (observed live: an async job-queue lifecycle
-      // attached to news-search and chitchat prompts). Restricting
-      // the score map to selected names makes "anchor in the toolset" the
-      // activation condition while keeping `anchorMinSimilarity` semantics.
-      // Excluded tools also can't ANCHOR a set: an anchor that will be
-      // stripped from the toolset shouldn't drag its dependencies in (e.g.
-      // the excluded weather_forecast anchoring openmeteo-geocode would ship
-      // a geocoder with nothing to feed it). Exclusion of set MEMBERS is
-      // still applied after expansion below.
       const scores = scoreTools(embeddings, tools);
       const selectedScores = new Map(
         [...scores].filter(([name]) => matchedNames.has(name) && !exclude.has(name))
@@ -1676,16 +1432,11 @@ export function createServerToolsFilter(
     return [...finalNames];
   };
 
-  // Tag the filter with its exclusions so defer-loading can honour them without the caller
-  // repeating the list (see resolveDeferredServerTools). Non-enumerable so the tag can't
-  // leak into JSON/spreads of anything holding this function.
   return Object.defineProperty(filter, "excludeTools", {
     value: Object.freeze([...exclude]),
     enumerable: false,
   }) as ServerToolsFilterFunction;
 }
-
-// ── Default server-tools filter ─────────────────────────────────────────────
 
 /**
  * Default exclusions baked into `defaultServerToolsFilter`.
@@ -1707,11 +1458,6 @@ export function createServerToolsFilter(
 export const DEFAULT_EXCLUDED_SERVER_TOOLS: readonly string[] = [
   "AnumaVisionMCP-anuma_analyze_image",
   "OpenMeteoMCP-weather_forecast",
-  // Same native-capability argument as the vision tool: modern models reason
-  // step-by-step natively (and reasoning-mode models do it structurally), so
-  // a server-side sequential-thinking tool is a redundant hop. Its broad
-  // description also embeds near virtually every prompt — observed live
-  // riding into news-search, scheduling, and chitchat requests.
   "AnumaSequentialThinkingMCP-sequentialthinking",
 ];
 
@@ -1747,10 +1493,6 @@ export const DEFAULT_SERVER_TOOLS_MATCH_OPTIONS: ToolMatchOptions = {
  */
 export const SERVER_TOOL_DEPENDENCY_SETS: ToolSet[] = [
   {
-    // search finds links; reading them is always the next step. The reader now
-    // lives on the search server — Jina's read_url / parallel_read_url were
-    // removed in favour of anuma_scrape_url, which takes a batch of URLs — so
-    // this edge deliberately spans two MCP servers.
     name: "web-research",
     members: [
       "AnumaJinaMCP-search_web",
@@ -1758,22 +1500,9 @@ export const SERVER_TOOL_DEPENDENCY_SETS: ToolSet[] = [
       "AnumaJinaMCP-parallel_search_web",
     ],
     anchors: ["AnumaJinaMCP-search_web"],
-    // Activation floor = the selection floor (0.5), not the 0.6 ToolSet
-    // default. A dependency edge has different semantics from a persona-style
-    // tool set: if the entry tool is plausibly offered at all, the chain must
-    // ride along — "Search the web for recent news…" scores search_web in the
-    // 0.5–0.6 band, and shipping search without read would dead-end the model.
     anchorMinSimilarity: 0.5,
   },
   {
-    // Every OpenMeteo data tool requires latitude/longitude (verified in the
-    // catalog schemas), but users speak in place names — geocoding is the
-    // mandatory first hop. Members deliberately contain ONLY the dependency:
-    // the anchor that fired is already in the semantic matches, and pulling
-    // sibling data tools in would re-create vendor-suite over-inclusion.
-    // Excluded tools (e.g. weather_forecast under the default filter) can't
-    // anchor this set — createServerToolsFilter drops them before expansion —
-    // but the non-weather data tools still deliver geocoding when they match.
     name: "openmeteo-geocode",
     members: ["OpenMeteoMCP-geocoding"],
     anchors: [
@@ -1788,10 +1517,6 @@ export const SERVER_TOOL_DEPENDENCY_SETS: ToolSet[] = [
     anchorMinSimilarity: 0.5,
   },
   {
-    // The cancel tool takes its resy_token and the other values only from a
-    // live anuma_list_reservations result in the same turn, never from
-    // memory, so the list tool must ride in whenever cancel is offered.
-    // Members hold only the dependency, like openmeteo-geocode.
     name: "restaurant-cancel-lookup",
     members: ["AnumaPaymentsMCP-anuma_list_reservations"],
     anchors: ["AnumaPaymentsMCP-anuma_cancel_reservation"],
@@ -1945,9 +1670,6 @@ export async function selectServerToolsForPrompt(
   }
   if (allServerTools.length === 0) return [];
 
-  // Defer-loading: mirror useChatStorage's responses send path via the same helper — emit the catalog
-  // without semantic filtering (mergeTools orders + flags it and tool-search loads the rest on demand),
-  // minus the caller's unconditional constraints.
   if (deferLoading?.enabled)
     return resolveDeferredServerTools(allServerTools, serverToolsFilter, deferLoading);
 
@@ -1960,11 +1682,6 @@ export async function selectServerToolsForPrompt(
         activeToolSets,
         extraToolSets
       );
-    // Mirror useChatStorage's short-prompt gate: below
-    // MIN_CONTENT_LENGTH_FOR_TOOLS no embeddings are generated and a
-    // function filter selects nothing but the sticky sets. (Static lists above
-    // don't depend on embeddings and still apply.) Without this, the helper
-    // embedded "hey" and ran a selection the chat flow never performs.
     if (prompt.length < MIN_CONTENT_LENGTH_FOR_TOOLS) return withSticky([]);
     let promptEmbedding: number[];
     try {
@@ -2059,7 +1776,6 @@ export async function selectServerSideTools(
     return [];
   }
 
-  // Fetch tools (with caching)
   const tools = await getServerTools({
     getToken,
     apiKey,
@@ -2072,7 +1788,6 @@ export async function selectServerSideTools(
     return [];
   }
 
-  // Generate embeddings for the prompt
   const embeddingOptions = {
     getToken,
     apiKey,
@@ -2091,7 +1806,6 @@ export async function selectServerSideTools(
     promptEmbeddings = await generateEmbedding(prompt, embeddingOptions);
   }
 
-  // Semantic matching (only pass defined values to avoid overriding defaults with undefined)
   const matchOptions: ToolMatchOptions = { filterAmbiguous: true, relevanceRatio: 0.85 };
   if (limit !== undefined) matchOptions.limit = limit;
   if (minSimilarity !== undefined) matchOptions.minSimilarity = minSimilarity;
@@ -2101,7 +1815,6 @@ export async function selectServerSideTools(
     return [];
   }
 
-  // Format for the requested API type (strips embeddings)
   const matchedTools = matches.map((m) => m.tool);
   if (apiType === "completions") {
     return matchedTools.map((t) => toCompletionsFormat(t) as unknown as Record<string, unknown>);

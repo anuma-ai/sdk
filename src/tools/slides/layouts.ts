@@ -8,12 +8,6 @@
  * against that grid.
  */
 
-// ---------------------------------------------------------------------------
-// Local layout-element types (formerly the external SlideElement union;
-// dropped from the public API as part of the AST migration — layouts keep
-// their own shape since it's strictly a build-time DSL for LLM prompts).
-// ---------------------------------------------------------------------------
-
 interface BaseEl {
   id: string;
   x: number;
@@ -72,10 +66,6 @@ type LayoutEl = TextLayoutEl | ImageLayoutEl | ShapeLayoutEl | IconLayoutEl;
 /** Backwards-name alias so existing helpers keep their old return type. */
 type SlideElement = LayoutEl;
 
-// ---------------------------------------------------------------------------
-// Canvas dimensions — percentages in this file convert to pixels at emit time.
-// ---------------------------------------------------------------------------
-
 const CANVAS_W = 960;
 const CANVAS_H = 540;
 const pxX = (pct: number) => round2(pct * (CANVAS_W / 100));
@@ -113,11 +103,6 @@ interface LayoutTemplate {
   elements: SlideElement[];
 }
 
-// ---------------------------------------------------------------------------
-// Helpers — keep per-template definitions compact
-// ---------------------------------------------------------------------------
-
-/** Mono uppercase label (eyebrow / chrome metadata). */
 function eyebrow(
   id: string,
   text: string,
@@ -150,7 +135,6 @@ function eyebrow(
   };
 }
 
-/** Horizontal hairline rule — 1px line spanning the full content area (x=6..94). */
 function hrule(id: string, y: number, strokeWidth = 1): SlideElement {
   return {
     id,
@@ -165,11 +149,6 @@ function hrule(id: string, y: number, strokeWidth = 1): SlideElement {
   };
 }
 
-/**
- * Horizontal hairline rule spanning a single column. Use this when a layout
- * has two columns of content and the rules should only separate rows within
- * one column (not slice across the other).
- */
 function hruleCol(id: string, x: number, y: number, w: number, strokeWidth = 1): SlideElement {
   return {
     id,
@@ -184,7 +163,6 @@ function hruleCol(id: string, x: number, y: number, w: number, strokeWidth = 1):
   };
 }
 
-/** Narrow vertical divider (uses a rect since line shape is horizontal-only). */
 function vdiv(id: string, x: number, y: number, h: number): SlideElement {
   return {
     id,
@@ -197,10 +175,6 @@ function vdiv(id: string, x: number, y: number, h: number): SlideElement {
     fill: "border",
   };
 }
-
-// ---------------------------------------------------------------------------
-// Templates
-// ---------------------------------------------------------------------------
 
 export const LAYOUT_TEMPLATES: LayoutTemplate[] = [
   {
@@ -1589,7 +1563,6 @@ export const LAYOUT_TEMPLATES: LayoutTemplate[] = [
     notes: [`Use SHARED HEADER PATTERN above (y 9–26) for the title/rule above the grid.`],
     elements: [
       hrule("topRule", 30),
-      // Cell 0
       eyebrow("c0_eyebrow", "01 · REVENUE", 7, 34, 27, { fontSize: 1.3, letterSpacing: 0.14 }),
       {
         id: "c0_value",
@@ -1621,7 +1594,6 @@ export const LAYOUT_TEMPLATES: LayoutTemplate[] = [
         align: "left",
         lineHeight: 1.4,
       },
-      // Cell 1
       vdiv("div1", 36, 31, 48),
       eyebrow("c1_eyebrow", "02 · USERS", 37, 34, 27, { fontSize: 1.3, letterSpacing: 0.14 }),
       {
@@ -1654,7 +1626,6 @@ export const LAYOUT_TEMPLATES: LayoutTemplate[] = [
         align: "left",
         lineHeight: 1.4,
       },
-      // Cell 2
       vdiv("div2", 66, 31, 48),
       eyebrow("c2_eyebrow", "03 · UPTIME", 67, 34, 27, { fontSize: 1.3, letterSpacing: 0.14 }),
       {
@@ -3236,10 +3207,6 @@ export const LAYOUT_TEMPLATES: LayoutTemplate[] = [
   },
 ];
 
-// ---------------------------------------------------------------------------
-// Shared header pattern — applied to every content slide (not a full layout)
-// ---------------------------------------------------------------------------
-
 /**
  * Elements the LLM should place on every content slide (skip only on cover
  * and chapter-break slides). Rendered into the prompt as-is, so the model
@@ -3288,10 +3255,6 @@ export function renderSharedHeader(): string {
   return [elementsToJsx(SHARED_HEADER_ELEMENTS), `  ${SHARED_HEADER_NOTE}`].join("\n");
 }
 
-// ---------------------------------------------------------------------------
-// Prompt rendering
-// ---------------------------------------------------------------------------
-
 /** Render the full `LAYOUT_TEMPLATES` array to the prose block the prompt embeds. */
 export function renderLayoutTemplates(): string {
   return renderLayoutRecipesImpl(LAYOUT_TEMPLATES);
@@ -3331,17 +3294,6 @@ export function renderLayoutRecipes(names: string[]): string {
   return renderLayoutRecipesImpl(templates);
 }
 
-/**
- * Estimate how many characters a text slot can hold before its content
- * overflows the box at the chosen font size. Used to populate the
- * "Text budgets" hint in each layout recipe so the LLM sizes its copy
- * to fit the slot.
- *
- * Heuristic: avg sans-serif glyph width ≈ 0.55em → chars-per-line is
- * width / (0.55 * fontSize); lines-per-box is height / (fontSize *
- * lineHeight). Multiply to get the total. Slightly conservative (real
- * text wraps at word boundaries, so the bound is a soft target).
- */
 function estimateMaxChars(el: TextLayoutEl): number {
   const lineHeight = el.lineHeight ?? 1.3;
   const pxWidth = el.w * (CANVAS_W / 100);
@@ -3372,10 +3324,6 @@ function renderLayoutRecipesImpl(templates: LayoutTemplate[]): string {
     .join("\n\n");
 }
 
-// ---------------------------------------------------------------------------
-// LayoutEl -> JSX string (with percent -> pixel conversion)
-// ---------------------------------------------------------------------------
-
 /**
  * Render a single named layout's elements as a `<Anuma.Slide>` JSX string,
  * with the catalog template's pixel coordinates baked in. Returns null
@@ -3392,7 +3340,6 @@ export function renderLayoutSlideJsx(name: string, prefix?: string): string | nu
   return `<Anuma.Slide id="${name}">\n${prefix ? prefix + "\n" : ""}${body}\n</Anuma.Slide>`;
 }
 
-/** Render a list of layout elements as JSX fragments, one per block. */
 function elementsToJsx(elements: LayoutEl[]): string {
   return elements.map((el) => emitElementJsx(el)).join("\n");
 }

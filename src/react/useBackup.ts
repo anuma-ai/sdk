@@ -201,7 +201,6 @@ export function useBackup(options: UseBackupOptions): UseBackupResult {
     logoutAll,
   } = useBackupAuth();
 
-  // Dropbox dependencies
   const dropboxDeps = useMemo(
     () => ({
       requestDropboxAccess: dropboxAuth.requestAccess,
@@ -212,7 +211,6 @@ export function useBackup(options: UseBackupOptions): UseBackupResult {
     [dropboxAuth.requestAccess, requestEncryptionKey, exportConversation, importConversation]
   );
 
-  // Google Drive dependencies
   const googleDriveDeps = useMemo(
     () => ({
       requestDriveAccess: googleDriveAuth.requestAccess,
@@ -223,7 +221,6 @@ export function useBackup(options: UseBackupOptions): UseBackupResult {
     [googleDriveAuth.requestAccess, requestEncryptionKey, exportConversation, importConversation]
   );
 
-  // iCloud dependencies
   const icloudDeps = useMemo(
     () => ({
       requestICloudAccess: async () => {
@@ -236,7 +233,6 @@ export function useBackup(options: UseBackupOptions): UseBackupResult {
     [icloudAuth, requestEncryptionKey, exportConversation, importConversation]
   );
 
-  // Dropbox backup
   const dropboxBackup = useCallback(
     async (
       backupOptions?: BackupOperationOptions
@@ -245,8 +241,6 @@ export function useBackup(options: UseBackupOptions): UseBackupResult {
         return { error: "Please sign in to backup to Dropbox" };
       }
 
-      // Always request access to ensure we have a valid (non-expired) token
-      // requestAccess() validates expiration and refreshes if needed
       let token: string;
       try {
         token = await dropboxAuth.requestAccess();
@@ -272,7 +266,6 @@ export function useBackup(options: UseBackupOptions): UseBackupResult {
     [database, userAddress, dropboxAuth, dropboxDeps, dropboxFolder]
   );
 
-  // Dropbox restore
   const dropboxRestore = useCallback(
     async (
       restoreOptions?: BackupOperationOptions
@@ -281,8 +274,6 @@ export function useBackup(options: UseBackupOptions): UseBackupResult {
         return { error: "Please sign in to restore from Dropbox" };
       }
 
-      // Always request access to ensure we have a valid (non-expired) token
-      // requestAccess() validates expiration and refreshes if needed
       let token: string;
       try {
         token = await dropboxAuth.requestAccess();
@@ -307,7 +298,6 @@ export function useBackup(options: UseBackupOptions): UseBackupResult {
     [userAddress, dropboxAuth, dropboxDeps, dropboxFolder]
   );
 
-  // Google Drive backup
   const googleDriveBackup = useCallback(
     async (
       backupOptions?: BackupOperationOptions
@@ -316,8 +306,6 @@ export function useBackup(options: UseBackupOptions): UseBackupResult {
         return { error: "Please sign in to backup to Google Drive" };
       }
 
-      // Always request access to ensure we have a valid (non-expired) token
-      // requestAccess() validates expiration and refreshes if needed
       let token: string;
       try {
         token = await googleDriveAuth.requestAccess();
@@ -351,7 +339,6 @@ export function useBackup(options: UseBackupOptions): UseBackupResult {
     ]
   );
 
-  // Google Drive restore
   const googleDriveRestore = useCallback(
     async (
       restoreOptions?: BackupOperationOptions
@@ -360,8 +347,6 @@ export function useBackup(options: UseBackupOptions): UseBackupResult {
         return { error: "Please sign in to restore from Google Drive" };
       }
 
-      // Always request access to ensure we have a valid (non-expired) token
-      // requestAccess() validates expiration and refreshes if needed
       let token: string;
       try {
         token = await googleDriveAuth.requestAccess();
@@ -405,7 +390,6 @@ export function useBackup(options: UseBackupOptions): UseBackupResult {
     disconnect: googleDriveAuth.logout,
   };
 
-  // iCloud backup
   const icloudBackup = useCallback(
     async (
       backupOptions?: BackupOperationOptions
@@ -442,7 +426,6 @@ export function useBackup(options: UseBackupOptions): UseBackupResult {
     [database, userAddress, icloudAuth, icloudDeps]
   );
 
-  // iCloud restore
   const icloudRestore = useCallback(
     async (
       restoreOptions?: BackupOperationOptions

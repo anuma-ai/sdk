@@ -60,8 +60,6 @@ export async function upsertConversationSummaryOp(
   let record: ConversationSummary;
 
   await ctx.database.write(async () => {
-    // Query inside write() to prevent race conditions (two rapid sends
-    // both seeing length === 0 and creating duplicate rows).
     const existing = await ctx.summariesCollection
       .query(Q.where("conversation_id", conversationId))
       .fetch();
@@ -94,7 +92,6 @@ export async function deleteConversationSummaryOp(
   conversationId: string
 ): Promise<void> {
   await ctx.database.write(async () => {
-    // Query inside write() to prevent TOCTOU race with concurrent deletes.
     const existing = await ctx.summariesCollection
       .query(Q.where("conversation_id", conversationId))
       .fetch();

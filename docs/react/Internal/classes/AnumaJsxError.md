@@ -1,6 +1,6 @@
 # AnumaJsxError
 
-Defined in: [src/tools/slides/jsx.ts:69](https://github.com/anuma-ai/sdk/blob/main/src/tools/slides/jsx.ts#69)
+Defined in: [src/tools/slides/jsx.ts:61](https://github.com/anuma-ai/sdk/blob/main/src/tools/slides/jsx.ts#61)
 
 ## Extends
 
@@ -12,7 +12,7 @@ Defined in: [src/tools/slides/jsx.ts:69](https://github.com/anuma-ai/sdk/blob/ma
 
 > **new AnumaJsxError**(`message`: `string`, `loc?`: { `column`: `number`; `line`: `number`; } | `null`): `AnumaJsxError`
 
-Defined in: [src/tools/slides/jsx.ts:73](https://github.com/anuma-ai/sdk/blob/main/src/tools/slides/jsx.ts#73)
+Defined in: [src/tools/slides/jsx.ts:65](https://github.com/anuma-ai/sdk/blob/main/src/tools/slides/jsx.ts#65)
 
 **Parameters**
 
@@ -65,7 +65,7 @@ Defined in: [src/tools/slides/jsx.ts:73](https://github.com/anuma-ai/sdk/blob/ma
 
 > `readonly` `optional` **column**: `number`
 
-Defined in: [src/tools/slides/jsx.ts:71](https://github.com/anuma-ai/sdk/blob/main/src/tools/slides/jsx.ts#71)
+Defined in: [src/tools/slides/jsx.ts:63](https://github.com/anuma-ai/sdk/blob/main/src/tools/slides/jsx.ts#63)
 
 ***
 
@@ -73,7 +73,7 @@ Defined in: [src/tools/slides/jsx.ts:71](https://github.com/anuma-ai/sdk/blob/ma
 
 > `readonly` `optional` **line**: `number`
 
-Defined in: [src/tools/slides/jsx.ts:70](https://github.com/anuma-ai/sdk/blob/main/src/tools/slides/jsx.ts#70)
+Defined in: [src/tools/slides/jsx.ts:62](https://github.com/anuma-ai/sdk/blob/main/src/tools/slides/jsx.ts#62)
 
 ***
 

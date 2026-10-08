@@ -1,10 +1,3 @@
-/**
- * Composite recall ceiling probe.
- *
- * For each composite query, compute recall@5/10/15/20/30 to find out
- * whether the right answers are in the candidate set at all (problem =
- * matching) or just getting squeezed out of top-5 (problem = ranking).
- */
 import "dotenv/config";
 
 import { generateEmbeddings } from "../src/lib/memoryEngine/embeddings.js";

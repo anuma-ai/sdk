@@ -126,9 +126,6 @@ export interface AppCompleteBridge {
   dispose(): void;
 }
 
-/** Warn at most once per process that a bridge was created with the explicit
- *  `allowedOrigins: ["*"]` wildcard. Module-scoped flag keeps it from spamming
- *  hosts that mount/unmount previews repeatedly. */
 let warnedWideOpenBridge = false;
 function warnWideOpenBridge(): void {
   if (warnedWideOpenBridge) return;
@@ -153,32 +150,15 @@ export function createAppCompleteBridge(options: AppCompleteBridgeOptions): AppC
   const allowSet = allowedOrigins ? new Set(allowedOrigins) : null;
   const allowAnyOrigin = allowSet?.has("*") ?? false;
 
-  // Default-deny. A bridge with no origin allowlist and no source-window filter
-  // is a confused-deputy LLM proxy: any frame that can postMessage this window
-  // (a sibling ad/analytics iframe, a hijacked CDN frame, a page that framed or
-  // popped open the host) can open a channel and bill the host's `complete()`
-  // for tokens while reading the responses. A console.warn wouldn't gate that,
-  // so refuse to construct — the host must make an explicit choice.
   if (!allowSet && !source) {
     throw new Error(
       '[anuma] createAppCompleteBridge: refusing a wide-open bridge. Restrict callers with `allowedOrigins` (or `source` for srcdoc/sandboxed previews), or opt into accepting every origin explicitly with `allowedOrigins: ["*"]`.'
     );
   }
-  // Explicit wildcard is permitted but genuinely risky; surface it once.
   if (allowAnyOrigin) warnWideOpenBridge();
 
-  // Every channel we hand out, so dispose() can tear them all down. Ports
-  // have no "peer went away" event, so a reloaded preview (which re-handshakes
-  // under a fresh connect id) leaves its old host-side port here until
-  // dispose() — a bounded per-reload cost, not a leak of data, since prompts
-  // only ever travel over a live, entangled port.
   const openPorts = new Set<MessagePort>();
 
-  // The shim re-broadcasts the same connect id every CONNECT_RETRY_MS until it
-  // gets a port, so a single connect attempt arrives many times. Answer each
-  // (source window, connect id) pair exactly once — otherwise every retry would
-  // mint a fresh channel and orphan a host-side port. WeakMap-by-window lets the
-  // bookkeeping be reclaimed when the frame goes away.
   const answered = new WeakMap<Window, Set<string>>();
 
   const serveRequest = async (port: MessagePort, event: MessageEvent): Promise<void> => {
@@ -212,7 +192,6 @@ export function createAppCompleteBridge(options: AppCompleteBridgeOptions): AppC
     const reply = event.source as Window | null;
     if (!reply) return;
 
-    // Answer this connect id once per source window; ignore the shim's retries.
     let seen = answered.get(reply);
     if (!seen) {
       seen = new Set();
@@ -221,22 +200,12 @@ export function createAppCompleteBridge(options: AppCompleteBridgeOptions): AppC
     if (seen.has(data.id)) return;
     seen.add(data.id);
 
-    // Target the ack (and the port it carries) at the requester's own origin
-    // unless the host pinned one. Opaque origins (sandboxed/srcdoc iframes)
-    // serialize to "null" and can't be used as a postMessage targetOrigin, so
-    // fall back to "*" there. The ack still reaches only `event.source` (a
-    // single window), not every ancestor, so it does not reintroduce the
-    // broadcast leak — but, unlike a pinned origin, "*" can't stop delivery to a
-    // document that replaced the source frame between connect and ack (a
-    // navigation race on the preview). Pin `targetOrigin`, or front the preview
-    // with a real origin, when that race is in your threat model.
     const replyOrigin =
       targetOrigin ?? (event.origin && event.origin !== "null" ? event.origin : "*");
 
     const channel = new MessageChannel();
     const hostPort = channel.port1;
     openPorts.add(hostPort);
-    // Assigning onmessage implicitly starts the port.
     hostPort.onmessage = (ev: MessageEvent): void => {
       void serveRequest(hostPort, ev);
     };
@@ -488,9 +457,6 @@ export const APP_COMPLETE_IFRAME_SHIM_SCRIPT = `(function () {
  * the script string in a `<script>` tag.
  */
 export function installAppCompleteIframeShim(): void {
-  // Function constructor runs the script in the global scope of the
-  // iframe — same effect as a `<script>` tag, but available to hosts
-  // that import this module as ES code.
   // eslint-disable-next-line @typescript-eslint/no-implied-eval, @typescript-eslint/no-unsafe-call
   new Function(APP_COMPLETE_IFRAME_SHIM_SCRIPT)();
 }

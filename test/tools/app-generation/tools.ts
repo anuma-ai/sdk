@@ -1,10 +1,3 @@
-/**
- * App file tools backed by an in-memory file store for testing.
- *
- * Uses the SDK's createAppGenerationTools with a Map-based storage adapter
- * so tests run without any external dependencies.
- */
-
 import {
   createAppGenerationTools,
   normalizePath,
@@ -12,7 +5,6 @@ import {
 } from "../../../src/tools/appGeneration.js";
 import { createPlaywrightVerifier, type FileStore } from "./setup.js";
 
-/** Create an AppFileStorage adapter backed by an in-memory Map. */
 export function createMapStorage(store: FileStore): AppFileStorage {
   return {
     getFile: async (_cid: string, p: string) => {
@@ -45,12 +37,6 @@ export function createTestAppTools(store: FileStore) {
         interaction_id: `app_test_${Date.now()}`,
       };
     },
-    // verify_app: model asks the host's runtime "did this actually run?"
-    // and gets back any captured errors. The benchmark host is headless
-    // Chromium loading the current store as exported HTML — the same
-    // runtime overlay you ship to real users surfaces the failure
-    // string, the verifier hands it back to the model, the model
-    // patches before declaring done.
     verifyApp: createPlaywrightVerifier(store),
   });
 }

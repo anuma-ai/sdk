@@ -99,17 +99,13 @@ export function DropboxAuthProvider({
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const isConfigured = !!appKey;
 
-  // Check for stored token on mount and migrate unencrypted tokens
   useEffect(() => {
     const checkStoredToken = async () => {
-      // Migrate unencrypted tokens if wallet address is available
       if (walletAddress) {
         await migrateUnencryptedTokens("dropbox", walletAddress);
       }
 
-      // First check if we have valid stored credentials
       if (await hasDropboxCredentials(walletAddress)) {
-        // Try to get a valid access token (will refresh if expired)
         const token = await getDropboxAccessToken(apiClient, walletAddress);
         if (token) {
           setAccessToken(token);
@@ -119,7 +115,6 @@ export function DropboxAuthProvider({
     void checkStoredToken();
   }, [apiClient, walletAddress]);
 
-  // Handle OAuth callback
   useEffect(() => {
     if (!isConfigured) return;
 
@@ -150,19 +145,16 @@ export function DropboxAuthProvider({
       throw new Error("Dropbox is not configured");
     }
 
-    // If we already have a token, return it
     if (accessToken) {
       return accessToken;
     }
 
-    // Try to get a valid token (will refresh if expired)
     const storedToken = await getDropboxAccessToken(apiClient, walletAddress);
     if (storedToken) {
       setAccessToken(storedToken);
       return storedToken;
     }
 
-    // Start OAuth flow (this will redirect)
     return startDropboxAuth(appKey, callbackPath);
   }, [accessToken, appKey, callbackPath, isConfigured, apiClient, walletAddress]);
 
@@ -221,5 +213,4 @@ export function useDropboxAuth(): DropboxAuthContextValue {
   return context;
 }
 
-// Re-export utility functions for direct use
 export { clearToken, hasDropboxCredentials } from "../lib/backup/dropbox/auth";

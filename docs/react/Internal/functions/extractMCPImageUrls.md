@@ -2,7 +2,7 @@
 
 > **extractMCPImageUrls**(`content`: `string`, `toolCallEvents`: `ToolCallEvent`\[] | `undefined`, `mcpR2Domain`: `string`): `ExtractedMediaUrl`\[]
 
-Defined in: [src/lib/storage/mcpImages.ts:102](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/mcpImages.ts#102)
+Defined in: [src/lib/storage/mcpImages.ts:96](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/mcpImages.ts#96)
 
 Extracts MCP media URLs from tool\_call\_events (primary) or content (fallback).
 

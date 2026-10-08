@@ -8,12 +8,6 @@ import {
   MAX_PER_CONVERSATION,
 } from "./operations";
 
-/**
- * Stateful in-memory fake of the WatermelonDB collection/database surface the
- * ops touch: query(Q.where/Q.sortBy).fetch(), prepareCreate, record
- * prepareDestroyPermanently, database.write, database.batch. Enough to exercise
- * dedupe / prune / clear end-to-end without a real DB.
- */
 interface Raw {
   id: string;
   conversation_id: string;
@@ -63,7 +57,6 @@ function makeCtx(seed: Raw[] = []): {
           filtered = filtered.filter((r) => (r._raw as any)[col] === val);
         }
       }
-      // Only sortBy created_at asc is used by the ops.
       const sort = conds.find((c) => c?.type === "sortBy");
       if (sort) filtered.sort((a, b) => a._raw.created_at - b._raw.created_at);
       return { fetch: async () => filtered };
@@ -128,9 +121,9 @@ describe("conversationMemory operations", () => {
       { id: "cm_seed", conversation_id: "c1", memory_id: "m1", score: 0.5, created_at: 1 },
     ]);
     await addConversationMemoriesOp(ctx, "c1", [
-      { memoryId: "m1", score: 0.9 }, // dup of existing → skip
+      { memoryId: "m1", score: 0.9 },
       { memoryId: "m2", score: 0.8 },
-      { memoryId: "m2", score: 0.4 }, // dup within batch → skip
+      { memoryId: "m2", score: 0.4 },
     ]);
     const got = await getConversationMemoriesOp(ctx, "c1");
     expect(got.map((r) => r.memoryId)).toEqual(["m1", "m2"]);
@@ -142,13 +135,13 @@ describe("conversationMemory operations", () => {
       conversation_id: "c1",
       memory_id: `m${i}`,
       score: 0.5,
-      created_at: i + 1, // oldest = m0
+      created_at: i + 1,
     }));
     const { ctx } = makeCtx(seed);
     await addConversationMemoriesOp(ctx, "c1", [{ memoryId: "new", score: 1 }]);
     const got = await getConversationMemoriesOp(ctx, "c1");
     expect(got).toHaveLength(MAX_PER_CONVERSATION);
-    expect(got.some((r) => r.memoryId === "m0")).toBe(false); // oldest pruned
+    expect(got.some((r) => r.memoryId === "m0")).toBe(false);
     expect(got.some((r) => r.memoryId === "new")).toBe(true);
   });
 
@@ -161,7 +154,6 @@ describe("conversationMemory operations", () => {
     await addConversationMemoriesOp(ctx, "c1", items);
     const got = await getConversationMemoriesOp(ctx, "c1");
     expect(got).toHaveLength(MAX_PER_CONVERSATION);
-    // Newest MAX kept (m50..m249); oldest 50 of the batch dropped.
     expect(got.some((r) => r.memoryId === "m0")).toBe(false);
     expect(got.some((r) => r.memoryId === `m${MAX_PER_CONVERSATION + 49}`)).toBe(true);
   });
@@ -182,9 +174,7 @@ describe("conversationMemory operations", () => {
     await addConversationMemoriesOp(ctx, "c1", items);
     const got = await getConversationMemoriesOp(ctx, "c1");
     expect(got).toHaveLength(MAX_PER_CONVERSATION);
-    // Batch alone fills the cap → every pre-existing row is pruned.
     expect(got.some((r) => r.memoryId.startsWith("old"))).toBe(false);
-    // Newest MAX of the batch kept, in insertion order (staggered created_at).
     expect(got[0].memoryId).toBe("m5");
     expect(got[got.length - 1].memoryId).toBe(`m${MAX_PER_CONVERSATION + 4}`);
   });

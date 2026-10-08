@@ -2,7 +2,7 @@
 
 > `const` **TOOL\_RESULT\_ORIGIN**: `"tool_result"`
 
-Defined in: [src/lib/chat/toolResults.ts:61](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/toolResults.ts#61)
+Defined in: [src/lib/chat/toolResults.ts:43](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/toolResults.ts#43)
 
 Value of the `origin` column on a row the SDK synthesised for a turn's tool results (v44, #866).
 

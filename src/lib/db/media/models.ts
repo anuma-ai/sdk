@@ -16,34 +16,27 @@ export class Media extends Model {
     conversations: { type: "belongs_to", key: "conversation_id" },
   };
 
-  // Identity
   @text("media_id") mediaId!: string;
   @text("wallet_address") walletAddress!: string;
   @text("message_id") messageId?: string;
   @text("conversation_id") conversationId?: string;
 
-  // Basic metadata
   @text("name") name!: string;
   @text("mime_type") mimeType!: string;
   @text("media_type") mediaType!: MediaType;
   @field("size") size!: number;
 
-  // Origin
   @text("role") role!: MediaRole;
   @text("model") model?: string;
 
-  // Original external URL for cached files (MCP R2, etc.)
   @text("source_url") sourceUrl?: string;
 
-  // Media-specific metadata
   @json("dimensions", (raw: unknown) => raw as MediaDimensions) dimensions?: MediaDimensions;
   @field("duration") duration?: number;
   @json("metadata", (raw: unknown) => raw as MediaMetadata) metadata?: MediaMetadata;
 
-  // Timestamps
   @readonly @date("created_at") createdAt!: Date;
   @date("updated_at") updatedAt!: Date;
 
-  // Soft delete
   @field("is_deleted") isDeleted!: boolean;
 }

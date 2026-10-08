@@ -1,7 +1,5 @@
 import type { Database } from "@nozbe/watermelondb";
 
-// Core types
-
 export interface StoredModelPreference {
   uniqueId: string;
   walletAddress: string;
@@ -16,8 +14,6 @@ export interface CreateModelPreferenceOptions {
 export interface UpdateModelPreferenceOptions {
   models?: string;
 }
-
-// Hook types
 
 /**
  * @inline

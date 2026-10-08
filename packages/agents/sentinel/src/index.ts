@@ -13,7 +13,6 @@ export {
   subscriptionChecker,
 } from "./skills";
 
-/** Marketplace card content rendered in the agent picker. */
 const SENTINEL_MARKETPLACE: AgentMarketplaceContent = {
   family: "lifestyle",
   roleLabel: "Billing agent",
@@ -63,9 +62,7 @@ const SENTINEL_MARKETPLACE: AgentMarketplaceContent = {
   },
 };
 
-/** UI metadata used by renderers when richer portal data isn't available. */
 const SENTINEL_UI_METADATA: AgentUiMetadata = {
-  // Blue/600 — was Tailwind orange-500; orange is retired from the product (#8419).
   color: "#2182cc",
   icon: "sparkles",
   features: [
@@ -89,7 +86,6 @@ const SENTINEL_FIRST_TIME_DISCLAIMER = [
 
 const SENTINEL_PERSISTENT_FOOTER = "{{agent_name}} is an AI. This is not financial advice.";
 
-/** Sentinel finance agent configuration. */
 export const sentinelAgent: AgentConfig = {
   id: "sentinel",
   runtimes: ["server"],

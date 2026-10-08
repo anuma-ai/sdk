@@ -1,10 +1,3 @@
-/**
- * Google Drive Backup Implementation
- *
- * Generic backup/restore functionality for Google Drive storage.
- * Works directly with WatermelonDB database.
- */
-
 import type { Database } from "@nozbe/watermelondb";
 
 import { Conversation } from "../../db/chat";
@@ -78,7 +71,6 @@ async function getConversationsFolder(
   }
 }
 
-/** How many failed listings one run accepts before it stops listing. */
 const MAX_LISTING_FAILURES = 3;
 
 /**
@@ -96,10 +88,6 @@ function createDriveFileIndex(folderId: string): DriveFileIndex {
   return {
     get(token) {
       if (!pending) {
-        // After a few failed listings, stop listing for this run. Every other conversation would
-        // list the whole folder again and fail the same way. The error is a new one and not the
-        // original. The message holds no status code, so a repeated auth error does not ask the
-        // user to sign in again for each conversation.
         if (failures >= MAX_LISTING_FAILURES) {
           return Promise.reject(
             new Error("The backup folder listing failed repeatedly; skipped for this run")
@@ -109,14 +97,11 @@ function createDriveFileIndex(folderId: string): DriveFileIndex {
           .then((files) => {
             const byName = new Map<string, DriveFile>();
             for (const file of files) {
-              // Keep the first file for a name, as a single-result name lookup does.
               if (!byName.has(file.name)) byName.set(file.name, file);
             }
             return byName;
           })
           .catch((err: unknown) => {
-            // Do not keep a failed listing. The next conversation lists again,
-            // so each conversation fails or succeeds on its own.
             pending = undefined;
             failures++;
             throw err;
@@ -127,7 +112,6 @@ function createDriveFileIndex(folderId: string): DriveFileIndex {
   };
 }
 
-/** Read the stored update time of one conversation from the local database now. */
 async function readLocalUpdatedAt(
   database: Database,
   conversationId: string
@@ -161,20 +145,15 @@ async function pushConversationToDrive(
     let existingFile = index.get(filename);
 
     if (existingFile) {
-      // Read the update time now. A conversation edited after the run began must still upload.
       const localUpdatedAt = await readLocalUpdatedAt(database, conversationId);
       const localUpdated = localUpdatedAt ? localUpdatedAt.getTime() : null;
 
-      // Check if we can skip upload based on timestamps
       if (localUpdated !== null && localUpdated <= new Date(existingFile.modifiedTime).getTime()) {
         return "skipped";
       }
 
-      // Another client can write the file after the run listed the folder. Read the file time
-      // again before the run replaces the file, so a newer backup is not overwritten.
       const current = await getDriveFileMetadata(token, existingFile.id);
       if (!current) {
-        // The file is gone. Upload a new one.
         index.delete(filename);
         existingFile = undefined;
       } else {
@@ -191,8 +170,6 @@ async function pushConversationToDrive(
       return "failed";
     }
 
-    // Keep the index current. A later row with the same conversation id then finds this file and
-    // does not create a second backup.
     const now = new Date().toISOString();
     if (existingFile) {
       await updateDriveFile(token, existingFile.id, exportResult.blob);
@@ -210,7 +187,6 @@ async function pushConversationToDrive(
     return "uploaded";
   } catch (err) {
     if (isAuthError(err) && !_retried) {
-      // Try to re-authenticate once
       try {
         const newToken = await deps.requestDriveAccess();
         return pushConversationToDrive(

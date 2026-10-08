@@ -1,10 +1,3 @@
-/**
- * Calls the real `src/lib/memory/recall.ts` API end-to-end against a
- * populated WatermelonDB (vault + chat storage). Both lanes drive a single
- * `recall(query, ctx, { types: ["fact","chunk"], ... })` call, and results
- * come back as `RankedMemory[]` with a `kind` discriminator.
- */
-
 import { createConversationOp, createMessageOp } from "../../../../src/lib/db/chat/operations.js";
 import { linkMemoryEntitiesOp } from "../../../../src/lib/db/entities/operations.js";
 import { chunkAndEmbedAllMessages } from "../../../../src/lib/memoryEngine/embeddings.js";
@@ -54,12 +47,6 @@ const TYPES_BY_FLAG: Record<RecallTypes, Array<"fact" | "chunk">> = {
   "fact-chunk": ["fact", "chunk"],
 };
 
-/**
- * Extract YYYY-MM-DD prefix from LongMemEval's `YYYY/MM/DD (Day) HH:MM`
- * format and parse as midnight UTC. Returns NaN if the format isn't
- * recognized — caller should fall back to Date.now() in that case to
- * avoid silently corrupting the W6 lane with a NaN window.
- */
 function parseQuestionDateUtc(raw: string): number {
   const match = raw.match(/^(\d{4})[/-](\d{2})[/-](\d{2})/);
   if (!match) return NaN;
@@ -68,19 +55,11 @@ function parseQuestionDateUtc(raw: string): number {
 }
 
 function budgetFor(decompose: boolean, rerank: boolean): "low" | "mid" | "high" {
-  // 719/B4: high no longer means "decompose inside recall" — it means
-  // rerank + graph traverse. Decompose is applied by resolving subQueries
-  // ahead of the recall() call (below). Keep mapping decompose→high so the
-  // eval still exercises the full high-budget pipeline when rewrite is on.
   if (decompose) return "high";
   if (rerank) return "mid";
   return "low";
 }
 
-/**
- * 719/B4 — resolve composite facets outside `recall()`. Returns `subQueries`
- * only when the LLM classifies the query as composite (≥2 facets).
- */
 async function resolveSubQueries(
   query: string,
   api: ApiConfig,
@@ -163,13 +142,6 @@ export async function processEntryRecall(
       const session = entry.haystack_sessions[sIdx];
       const sessionId = entry.haystack_session_ids[sIdx];
       logProgress(`Extracting memories: ${i + 1}/${totalSessions} sessions`);
-      // Use the session's own date as the observation date so the
-      // extractor resolves relative phrases ("today", "yesterday",
-      // "N days ago") against when the conversation HAPPENED, not when
-      // the question is being asked. Previously every session shared
-      // entry.question_date as obsDate, collapsing all `event:` dates
-      // onto the question date — the dominant temporal-reasoning
-      // failure mode at 51% of misses on full oracle.
       const sessionDate = formatHaystackDateAsObservation(entry.haystack_dates[sIdx]);
       const extracted = await extractMemoriesFromSession(
         session,
@@ -226,7 +198,6 @@ export async function processEntryRecall(
     }
 
     if (allMemories.length === 0) {
-      // No vault facts extracted — answer from chunks alone via recall().
       return await answerFromChunksOnly(
         entry,
         api,
@@ -244,11 +215,6 @@ export async function processEntryRecall(
     const fallbackTracker = createConsolidationFallbackTracker();
 
     for (const mem of allMemories) {
-      // W6 temporal lane — propagate the bench's `kind: 'event' | 'state'`
-      // + `occurredAt` (YYYY-MM-DD) into retain's `eventTime` shape so
-      // memory_vault.event_time_* columns get populated. The recall path
-      // then has a non-empty memory_vault to query for time-windowed
-      // results. State memories have no temporal anchor and stay null.
       let eventTime: { kind: "point"; start: number; end: null } | undefined;
       if (mem.kind === "event" && mem.occurredAt) {
         const ms = Date.parse(mem.occurredAt);
@@ -273,9 +239,6 @@ export async function processEntryRecall(
       if (!existingSession || answerSessionIdSet.has(mem.sessionId)) {
         vaultToSession.set(targetId, mem.sessionId);
       }
-      // W5 graph lane — link the extracted entities so memory_entity rows
-      // exist for recall's graph-lane lookup. Best-effort; failures don't
-      // block the bench because the fact + chunk lanes still answer.
       if (mem.entities.length > 0) {
         try {
           await linkMemoryEntitiesOp(entityCtx, targetId, mem.entities);
@@ -305,44 +268,19 @@ export async function processEntryRecall(
       storageCtx,
       embeddingOptions,
       vaultCache: embeddingCache,
-      // W5 graph lane — recall extracts query entities and looks up
-      // memories sharing them, RRF-fused with cosine + BM25. No-op when
-      // memory_entity is empty (e.g. older bench runs without entity
-      // extraction in the prompt).
       entityCtx,
     };
-    // Ranking tuning knobs (--ce-weight, --rrf-k, …) forwarded to every
-    // recall() call. Empty object when no knob is set — pure no-op.
     const tuningOpts = buildRetrievalTuningOptions(searchPipeline);
 
     const recallExecutor = async (args: Record<string, unknown>): Promise<string> => {
       const query = typeof args.query === "string" ? args.query : "";
       if (!query) return "(no query)";
 
-      // Anchor relative-time parsing ("last week", "N days ago") to the
-      // question's reference date — LongMemEval entries are dated
-      // 2021–2023 but Date.now() resolves to today, so without this the
-      // W6 temporal lane returns empty windows for every question.
-      //
-      // question_date format is `YYYY/MM/DD (Day) HH:MM`. Date.parse
-      // accepts this in V8 but interprets the date in LOCAL time (no TZ
-      // designator), so the GitHub runner (UTC) and a developer's local
-      // machine (e.g. PDT) get different `now` values for the same
-      // question — leading to non-reproducible runs near day boundaries.
-      // Force UTC by extracting the YYYY-MM-DD prefix and parsing as an
-      // explicit ISO UTC date.
       const nowForQueryRaw = parseQuestionDateUtc(entry.question_date);
-      // Fall back to undefined (recall defaults to Date.now()) on parse
-      // failure rather than letting NaN poison every downstream date.
       const nowForQuery = Number.isFinite(nowForQueryRaw) ? nowForQueryRaw : undefined;
 
-      // 719/B4 — decompose outside recall(), pass facets as subQueries.
       const subQueryOpts = await resolveSubQueries(query, api, decomposeEnabled);
 
-      // Per-lane: separate calls so chunks don't compete with facts for
-      // a shared limit. Each lane gets its own pool. Skip when the fused
-      // path is taken — the single fused recall() below covers both
-      // kinds, so a separate fact-only call would just throw the result away.
       const factResults =
         usePerLane && types.includes("fact")
           ? (
@@ -371,7 +309,6 @@ export async function processEntryRecall(
           ).memories
         : [];
 
-      // Fused path: single recall() call returns both kinds via RRF
       const fused = !usePerLane
         ? (
             await recall(query, recallCtx, {
@@ -467,8 +404,6 @@ When a fact in the memory has a different version mentioned at a later session d
       question: entry.question,
       expectedAnswer: entry.answer,
       llmModel: api.llmModel,
-      // Resolved effective extractor (`--extract-llm` or, when unset, the
-      // answer model) — lets --skip-existing detect extractor-only changes.
       extractionModel: api.extractionModel ?? api.llmModel,
       strategy: "memory-recall",
       messages: [...baseMessages],
@@ -536,8 +471,6 @@ When a fact in the memory has a different version mentioned at a later session d
     }
 
     transcript.finalAnswer = generatedAnswer;
-    // Empty also covers the case where the model returned tool calls but none
-    // of them was recall(), so the loop above never assigned an answer.
     const answerError = answerFailureReason(generatedAnswer, thrownWhileAnswering);
     if (answerError) transcript.answerError = answerError;
 
@@ -566,9 +499,6 @@ When a fact in the memory has a different version mentioned at a later session d
       expectedSessionIds: entry.answer_session_ids,
     };
 
-    // Nothing to judge when the answer step produced nothing — sending an
-    // empty string to the judge just launders a broken call into a confident
-    // "wrong answer".
     let isCorrect = false;
     let judgeError: string | undefined;
     if (!answerError) {
@@ -642,9 +572,6 @@ async function answerFromChunksOnly(
   const context = result.memories
     .map((m, i) => `[${i + 1}] ${m.content.slice(0, 4000)}`)
     .join("\n\n");
-  // Unlike the main path this one had no error handling at all: a throw here
-  // reached the suite's per-entry catch, which files a zero-scored result with
-  // retrieval zeroed too. Catching it locally keeps the failure labelled.
   let generatedAnswer = "";
   let thrownWhileAnswering: unknown;
   try {

@@ -1,24 +1,3 @@
-/**
- * X (Twitter) tool factory for the chat system.
- *
- * Unlike the other connector tools, the X tools never call api.x.com directly:
- * api.x.com returns no CORS headers, so a browser can't fetch it. Instead the
- * caller supplies an {@link XProxyCaller} that POSTs to the portal's
- * `POST {portalBaseUrl}/api/v1/connectors/x/proxy` endpoint (authed with the
- * user's Privy bearer, NOT an X token). The portal mints the X token
- * server-side and returns the upstream status + JSON verbatim. The SDK stays
- * transport-agnostic: it builds the same upstream paths + query objects it
- * always has and hands them to the injected caller.
- *
- * Tool catalogue (matches portal scope `connector:x:*`):
- * - `x_get_me`       -- fetch the authenticated user's profile
- * - `x_get_my_posts` -- fetch the authenticated user's recent posts
- *
- * Error contract: when the proxy reports an auth failure (401, 403) the tool
- * returns the canonical `__anuma_connector_error_v1` JSON shape produced by
- * `buildConnectorErrorResult`. Tool executors never throw on these paths.
- */
-
 import type { ToolConfig } from "../lib/chat/useChat/types.js";
 import { buildConnectorErrorResult } from "../lib/connectors/index.js";
 
@@ -63,10 +42,6 @@ interface XTweetsResponse {
   errors?: { detail: string }[];
 }
 
-/**
- * Convert an upstream X HTTP status to a connector error string when
- * appropriate, otherwise return null so the caller can surface the raw error.
- */
 function maybeConnectorError(status: number): string | null {
   if (status === 401 || status === 403) {
     return buildConnectorErrorResult("connector_not_connected", X_PROVIDER);
@@ -122,7 +97,6 @@ async function getXMe(
     }
   | string
 > {
-  // Request public_metrics and description so the API actually returns them.
   const extraFields = ["description"];
   if (args.includePublicMetrics !== false) extraFields.push("public_metrics");
 
@@ -155,13 +129,10 @@ async function getXMyPosts(
   callProxy: XProxyCaller,
   args: XGetMyPostsArgs
 ): Promise<{ id: string; text: string }[] | string> {
-  // Resolve the authenticated user's id.
   const userData = await resolveMyUserId(callProxy);
   if (typeof userData === "string") return userData;
   const userId = userData.id;
 
-  // Coerce a numeric string (e.g. the model emits "50") to a number, then guard
-  // against NaN from non-numeric input before clamping.
   const rawMax = typeof args.maxResults === "string" ? Number(args.maxResults) : args.maxResults;
   const safeMax = typeof rawMax === "number" && Number.isFinite(rawMax) ? rawMax : 10;
   const maxResults = Math.min(100, Math.max(5, safeMax));

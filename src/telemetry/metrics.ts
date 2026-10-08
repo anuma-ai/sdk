@@ -1,45 +1,3 @@
-/**
- * {@link RunHooks} adapter that turns tool-loop lifecycle hooks into
- * telemetry events and metrics on a {@link TelemetrySink}.
- *
- * Events emitted (all with `runId`; no message contents or tool arguments):
- *
- * - `run.started` — `{ runId, model }`
- * - `run.completed` — `{ runId, totalSteps, durationMs }`
- * - `run.failed` — `{ runId, durationMs, errorType, stage }`
- * - `model.call.completed` — `{ runId, stepIndex, latencyMs, model?, inputTokens?, outputTokens?, finishReason? }`
- * - `model.call.failed` — `{ runId, stepIndex, latencyMs, model? }`
- * - `tool.call.completed` — `{ runId, stepIndex, toolCallId, toolName, durationMs }`
- * - `tool.call.failed` — `{ runId, stepIndex, toolCallId, toolName, durationMs, errorType }`
- *
- * The raw `error` message string is NOT reported unless the caller opts in
- * with {@link MetricsHooksOptions.includeErrorMessages} — see that option for
- * why. `errorType` is always safe and always reported where the source event
- * carries one.
- *
- * Metrics emitted:
- *
- * - `run.duration` (ms, tags: model?, outcome)
- * - `model.call.latency` (ms, tags: model?, outcome)
- * - `model.call.tokens` (count, tags: direction: input|output) when usage is present
- * - `tool.call.duration` (ms, tags: toolName, outcome, errorType?)
- *
- * Pairing notes (mirrors the contract documented in `runHooks.ts`):
- *
- * - `onRunEnd` / `onRunError` are mutually exclusive and fire exactly once per
- *   run, so every started run resolves to exactly one terminal event.
- * - Server-side tools routed via `onToolCall` get `beforeToolUse` with no
- *   `afterToolUse`. The adapter therefore never emits a completion for a tool
- *   it saw only start; the pending timer is dropped when the run terminates.
- * - `afterToolUse` without a matching `beforeToolUse` (defensive — not a
- *   documented case) is still reported, with `durationMs` omitted.
- * - Per-run state is keyed by `runId` and cleared on the terminal hook, so
- *   concurrent runs and long-lived adapter instances do not leak timers. The
- *   `after*` hooks read that state without creating it, so a hook arriving
- *   after the terminal one cannot resurrect an entry nothing would delete
- *   again.
- */
-
 import type {
   ModelCallEndEvent,
   ModelCallStartEvent,
@@ -96,12 +54,6 @@ interface RunState {
   toolCalls: Map<string, { startedAt: number; toolName: string }>;
 }
 
-/**
- * Monotonic where the runtime provides it, else wall clock. Mirrors the helper
- * in `lib/memory/recall.ts` and `lib/memoryVault/searchTool.ts`, duplicated
- * rather than imported so this subpath keeps its zero-runtime-dependency
- * surface instead of pulling in the recall graph.
- */
 const defaultNowMs = (): number =>
   typeof performance !== "undefined" && typeof performance.now === "function"
     ? performance.now()
@@ -118,9 +70,6 @@ export function createMetricsHooks(sink: TelemetrySink, opts?: MetricsHooksOptio
   const includeErrorMessages = opts?.includeErrorMessages ?? false;
   const runs = new Map<string, RunState>();
 
-  // Sink methods are typed `void`, but an async implementation still type
-  // checks — and its rejected Promise would escape the try/catch below as an
-  // unhandled rejection. Detect a thenable return and swallow it too.
   const swallow = (call: () => void): void => {
     try {
       const result: unknown = call();
@@ -137,7 +86,6 @@ export function createMetricsHooks(sink: TelemetrySink, opts?: MetricsHooksOptio
   const metric = (name: string, value: number, tags: Record<string, string>): void => {
     swallow(() => sink.metric?.(name, value, tags));
   };
-  // Free-text error messages are opt-in; see `includeErrorMessages`.
   const errorProps = (error: string | undefined): { error?: string } =>
     includeErrorMessages && error !== undefined ? { error } : {};
 
@@ -151,9 +99,6 @@ export function createMetricsHooks(sink: TelemetrySink, opts?: MetricsHooksOptio
   };
 
   const finishRun = (runId: string): void => {
-    // Drops dangling model/tool timers — server-side tools that saw
-    // beforeToolUse but never afterToolUse, by contract, and any half-finished
-    // state on abort.
     runs.delete(runId);
   };
 
@@ -204,9 +149,6 @@ export function createMetricsHooks(sink: TelemetrySink, opts?: MetricsHooksOptio
     },
 
     afterModelCall: (e: ModelCallEndEvent) => {
-      // `runs.get`, not `stateFor`: creating state here would resurrect a run
-      // that already fired its terminal hook, and nothing deletes it twice.
-      // The event still emits; only `latencyMs` is lost.
       const state = runs.get(e.runId);
       const pending = state?.modelCalls.get(e.stepIndex);
       state?.modelCalls.delete(e.stepIndex);
@@ -259,7 +201,6 @@ export function createMetricsHooks(sink: TelemetrySink, opts?: MetricsHooksOptio
     },
 
     afterToolUse: (e: ToolUseEndEvent) => {
-      // Read-only for the same reason as `afterModelCall` above.
       const state = runs.get(e.runId);
       const pending = state?.toolCalls.get(e.toolCallId);
       state?.toolCalls.delete(e.toolCallId);

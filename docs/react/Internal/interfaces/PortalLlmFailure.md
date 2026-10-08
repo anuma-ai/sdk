@@ -1,6 +1,6 @@
 # PortalLlmFailure
 
-Defined in: [src/lib/memory/portalLlm.ts:257](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/portalLlm.ts#257)
+Defined in: [src/lib/memory/portalLlm.ts:150](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/portalLlm.ts#150)
 
 A give-up report: the classified [PortalLlmFailureReason](../type-aliases/PortalLlmFailureReason.md) plus the
 little context worth carrying into telemetry. Both extra fields are bounded
@@ -12,7 +12,7 @@ little context worth carrying into telemetry. Both extra fields are bounded
 
 > **attempts**: `number`
 
-Defined in: [src/lib/memory/portalLlm.ts:263](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/portalLlm.ts#263)
+Defined in: [src/lib/memory/portalLlm.ts:156](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/portalLlm.ts#156)
 
 How many attempts ran before giving up (1-based, ≥ 1).
 
@@ -22,7 +22,7 @@ How many attempts ran before giving up (1-based, ≥ 1).
 
 > `optional` **httpStatus**: `number`
 
-Defined in: [src/lib/memory/portalLlm.ts:261](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/portalLlm.ts#261)
+Defined in: [src/lib/memory/portalLlm.ts:154](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/portalLlm.ts#154)
 
 HTTP status, when the failure was an HTTP one.
 
@@ -32,6 +32,6 @@ HTTP status, when the failure was an HTTP one.
 
 > **reason**: [`PortalLlmFailureReason`](../type-aliases/PortalLlmFailureReason.md)
 
-Defined in: [src/lib/memory/portalLlm.ts:259](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/portalLlm.ts#259)
+Defined in: [src/lib/memory/portalLlm.ts:152](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/portalLlm.ts#152)
 
 Stable code for the last failure observed.

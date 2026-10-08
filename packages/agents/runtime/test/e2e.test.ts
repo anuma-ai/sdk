@@ -53,8 +53,6 @@ describe("agent-runtime e2e", () => {
       },
     });
 
-    // Wrap fetch: portal calls go to the stub, gmail.googleapis.com calls
-    // are stubbed to return one fake message.
     globalThis.fetch = (async (
       input: string | URL | Request,
       init?: RequestInit
@@ -147,7 +145,6 @@ describe("agent-runtime e2e", () => {
       })
     );
 
-    // The tool-result message in the loop carries the canonical marker.
     const toolResultMsg = result.messages.find((m) => m.role === "tool");
     expect(toolResultMsg).toBeTruthy();
     const toolResultText = Array.isArray(toolResultMsg!.content)
@@ -155,11 +152,9 @@ describe("agent-runtime e2e", () => {
       : (toolResultMsg!.content as unknown as string);
     const parsedResult = JSON.parse(toolResultText) as Record<string, unknown>;
     expect(parsedResult.__anuma_connector_error_v1).toBe(true);
-    // The stub portal sends a connect_url; it must not reach the model.
     expect(parsedResult).not.toHaveProperty("connect_url");
     expect(result.toolErrors[0].error).not.toHaveProperty("connectUrl");
 
-    // The agent's reply contains the connect URL.
     const tail = result.messages.at(-1);
     const tailText = Array.isArray(tail?.content)
       ? tail!.content.map((p) => p.text ?? "").join("")
@@ -213,10 +208,6 @@ describe("agent-runtime e2e", () => {
     });
 
     expect(result.toolErrors.length).toBeGreaterThanOrEqual(1);
-    // The mint-error code in the parsed payload depends on what the tool
-    // factory wrote. Today it writes connector_not_connected because the
-    // token-getter returns null after any mint failure when there's no
-    // onNotConnected. That's the documented v1 behavior.
     expect(result.toolErrors[0].error.code).toBe("connector_not_connected");
   });
 
@@ -348,7 +339,6 @@ describe("agent-runtime e2e", () => {
       credentials: { [havenGrant.userAddress]: [] },
     });
 
-    // Capture the request body the loop sends; one-shot assistant reply.
     const requestBodies: Array<Record<string, unknown>> = [];
     const transport: StreamingTransport = (options): StreamingTransportResult => {
       requestBodies.push(options.body);
@@ -386,9 +376,6 @@ describe("agent-runtime e2e", () => {
       content: [{ type: "text", text: havenAgent.prompt }],
     });
     expect(sentMessages[1]).toEqual(inputMessages[0]);
-    // The caller-facing message history should NOT include the synthesized
-    // system prompt — only the messages the caller submitted plus the
-    // assistant reply.
     expect(result.messages[0]).toEqual(inputMessages[0]);
   });
 
@@ -423,8 +410,6 @@ describe("agent-runtime e2e", () => {
       apiType: "completions",
     });
 
-    // X-Anuma-Feature drives requests.feature (#1353); X-Anuma-Surface must remain
-    // for portal auth/grant (OAuth client_id + first-party grant) keying.
     expect(captured?.["X-Anuma-Feature"]).toBe("agent");
     expect(captured?.["X-Anuma-Surface"]).toBe("agent");
   });

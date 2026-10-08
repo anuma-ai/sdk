@@ -2,7 +2,7 @@
 
 > **isRerankerAvailable**(): `boolean` | `undefined`
 
-Defined in: [src/lib/memory/reranker.ts:68](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/reranker.ts#68)
+Defined in: [src/lib/memory/reranker.ts:60](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/reranker.ts#60)
 
 Whether the cross-encoder reranker can run in this environment.
 

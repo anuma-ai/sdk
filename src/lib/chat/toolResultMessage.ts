@@ -1,15 +1,3 @@
-/**
- * Assembly of the hidden `[Tool Execution Results]` message.
- *
- * Every auto-executed tool result is persisted as a synthetic `role: "user"`
- * row so later turns (and other devices) keep the context. That row is never
- * rendered, and until now it had no size bound at all: only `github.ts` and
- * `dropbox.ts` cap their own responses, while gmail, googleDrive,
- * googleCalendar, notion, slack, x and ~12 others cap nothing. So the outer
- * bound lives here, at the one choke point every provider funnels through,
- * rather than being re-litigated per tool. Per-tool caps stay as inner bounds.
- */
-
 import type { AutoExecutedToolResult } from "./toolLoop";
 
 const HEADER = "[Tool Execution Results]\n\n";
@@ -78,13 +66,6 @@ export function capToolResultEntries(entries: string[], budget: number): string[
   return capEntries(entries, budget);
 }
 
-/**
- * Share `budget` across the entries by water-filling: each gets an equal slice,
- * and what the under-budget ones leave unused goes to the oversized ones.
- * Assigning smallest-first is what makes that a single pass, and it is why a
- * 200-char chart payload survives beside a github dump that is over budget on
- * its own — a flat `budget / n` would cut both.
- */
 function capEntries(entries: string[], budget: number): string[] {
   const smallestFirst = entries
     .map((_, index) => index)
@@ -102,16 +83,10 @@ function capEntries(entries: string[], budget: number): string[] {
   return capped;
 }
 
-/** Cut one entry down to `allowance`, its own truncation marker included. */
 function truncateEntry(entry: string, allowance: number): string {
   if (entry.length <= allowance) return entry;
 
-  // Size the marker against the whole entry so its digit count is an upper
-  // bound: the marker built from the real omitted count can only be shorter,
-  // never long enough to push the entry back over its allowance.
   const keep = allowance - truncationMarker(entry.length).length;
-  // Only reachable with thousands of results in one turn, where a share is
-  // narrower than the marker itself. The ceiling wins over the annotation there.
   if (keep <= 0) return entry.slice(0, Math.max(0, allowance));
 
   return `${entry.slice(0, keep)}${truncationMarker(entry.length - keep)}`;

@@ -2,7 +2,7 @@
 
 > **VaultMemoryWriter** = (`input`: [`VaultWriteInput`](../interfaces/VaultWriteInput.md)) => `Promise`<[`VaultWriteOutcome`](../interfaces/VaultWriteOutcome.md)>
 
-Defined in: [src/lib/memoryVault/tool.ts:80](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/tool.ts#80)
+Defined in: [src/lib/memoryVault/tool.ts:61](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/tool.ts#61)
 
 The seam through which the tool writes NEW memories when the host supplies one.
 `useChatStorage` (react + expo) passes a `retain()`-backed writer so a
