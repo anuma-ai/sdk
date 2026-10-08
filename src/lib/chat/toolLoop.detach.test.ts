@@ -374,7 +374,7 @@ describe("runToolLoop detach + resumable streaming", () => {
     }
   });
 
-  it("passes the original signal through by identity when no detachSignal is given", async () => {
+  it("passes the original signal through when the idle timeout is disabled", async () => {
     const user = new AbortController();
     let receivedSignal: AbortSignal | undefined;
     const transport: StreamingTransport = (options) => {
@@ -387,6 +387,7 @@ describe("runToolLoop detach + resumable streaming", () => {
       model: "test-model",
       token: "token",
       signal: user.signal,
+      idleTimeoutMs: 0,
       transport,
     });
 

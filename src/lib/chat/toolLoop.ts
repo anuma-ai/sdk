@@ -34,6 +34,7 @@ import type {
   ToolUseStartEvent,
 } from "./runHooks";
 import { composeHooks } from "./runHooks";
+import { withStreamIdleTimeout } from "./streamIdleTimeout";
 import { wrapConnectorToolResult } from "./untrustedToolResult";
 
 async function safeAwait(fn: () => unknown): Promise<void> {
@@ -484,6 +485,12 @@ export type RunToolLoopOptions = {
   /** AbortSignal to cancel the request. */
   signal?: AbortSignal;
   /**
+   * Maximum interval without stream activity, in milliseconds, for each request attempt.
+   * Data chunks and keep-alive bytes reset the interval. Set 0 or Infinity to disable.
+   * @default 120000
+   */
+  idleTimeoutMs?: number;
+  /**
    * Opt into resumable streaming. Sends `X-Stream-Resumable: 1` on every
    * streaming request so the portal keeps generating into its buffer after a
    * client disconnect. Without this, detachSignal still ends the loop but
@@ -724,12 +731,10 @@ export type StreamingTransportOptions = {
   /** Fires once per request when response headers arrive with X-Inference-ID (2xx only). */
   onStreamMeta?: (meta: { inferenceId: string }) => void;
   /**
-   * Fires whenever bytes arrive on the wire — data frames AND the keep-alive
-   * comment lines (`: ...`) the SSE parser otherwise discards. A pure liveness
-   * signal: a consumer running an idle watchdog uses it to tell a slow-but-alive
-   * stream (the server still heart-beating through a long reasoning silence)
-   * apart from a dead connection (no bytes at all). Not every transport emits it
-   * — the xhr transport does; treat its absence as "no extra liveness info".
+   * Fires when the transport receives bytes, including SSE keep-alive comments.
+   * Consumers can use this callback to reset the idle timeout.
+   * The fetch and XHR transports emit it.
+   * Custom transports can omit it if they cannot report byte activity.
    */
   onActivity?: () => void;
 };
@@ -796,7 +801,20 @@ export const defaultTransport: StreamingTransport = (options) => {
         /* observer error, swallow */
       }
     }
-    return response;
+    if (!response.body || !options.onActivity) return response;
+    const body = response.body.pipeThrough(
+      new TransformStream<Uint8Array, Uint8Array>({
+        transform(chunk, controller) {
+          if (chunk.byteLength > 0) options.onActivity?.();
+          controller.enqueue(chunk);
+        },
+      })
+    );
+    return new Response(body, {
+      status: response.status,
+      statusText: response.statusText,
+      headers: response.headers,
+    });
   };
   return createSseClient({
     method: options.method ?? "POST",
@@ -883,6 +901,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
     conversationId,
     smoothing,
     signal,
+    idleTimeoutMs = 120_000,
     resumable,
     detachSignal,
     onStreamMeta,
@@ -896,13 +915,14 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
     onStepFinish,
     onRequest,
     onStreamRetry,
-    transport: makeStreamingRequest = defaultTransport,
+    transport = defaultTransport,
     preProcessors,
     maxConnectorCalls = 2,
     hooks: hooksOption,
     piiRedaction,
     onPiiRedacted,
   } = options;
+  const makeStreamingRequest = withStreamIdleTimeout(transport, idleTimeoutMs);
   const hooks: RunHooks | undefined = Array.isArray(hooksOption)
     ? composeHooks(hooksOption)
     : hooksOption;
