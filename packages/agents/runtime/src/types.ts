@@ -12,7 +12,7 @@ export interface GrantContext {
   bearer: string;
 }
 
-/** Result of a mint call; failures are returned, while 5xx and network errors throw from {@link PortalClient}. `expiresAt` is unix ms. */
+/** Result of a mint call; HTTP failures, including 5xx after retries, are returned and network errors throw. `expiresAt` is unix ms. */
 export type MintResult =
   | { ok: true; accessToken: string; expiresAt: number }
   | { ok: false; error: MintError };

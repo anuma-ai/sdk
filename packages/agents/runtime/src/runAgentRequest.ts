@@ -55,7 +55,7 @@ export interface UsageSummary {
 
 /** Result of {@link runAgentRequest}. */
 export interface AgentResponse {
-  /** Input messages, then tool-result messages for each auto-executed tool, then the final assistant message. */
+  /** Input messages, then an assistant `tool_calls` message and tool-result messages when tools ran, then the final assistant message if present. */
   messages: LlmapiMessage[];
   /** Connector errors lifted from tool results. */
   toolErrors: ToolError[];

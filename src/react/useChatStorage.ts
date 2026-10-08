@@ -1044,7 +1044,7 @@ export { maskScopedEmbeddingCache };
  *
  *   const handleSend = async () => {
  *     const result = await sendMessage({
- *       content: 'Hello, how are you?',
+ *       messages: [{ role: 'user', content: [{ type: 'text', text: 'Hello, how are you?' }] }],
  *       model: 'fireworks/accounts/fireworks/models/kimi-k2p5',
  *       includeHistory: true,
  *     });
