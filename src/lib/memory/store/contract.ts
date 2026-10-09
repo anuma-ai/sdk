@@ -164,6 +164,19 @@ export function runMemoryStoreContract(
       ]);
     });
 
+    it("keeps a topic's kind after the memory that set it is deleted", async () => {
+      const store = await makeStore();
+      const a = await store.create({ content: "Hiked Mt Hood" });
+      const b = await store.create({ content: "Camped at Mt Hood" });
+      await store.setTopics(a.uniqueId, [{ name: "Mt Hood", kind: "place" }]);
+      await store.addTopics(b.uniqueId, ["Mt Hood"]);
+      await store.delete(a.uniqueId);
+
+      expect((await store.listTopics()).filter((t) => t.memoryCount > 0)).toEqual([
+        { name: "mt hood", kind: "place", memoryCount: 1 },
+      ]);
+    });
+
     it("counts what list would return, ignoring limit", async () => {
       const store = await makeStore();
       await store.create({ content: "One", scope: "shared" });

@@ -372,6 +372,30 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
     return records.map((record) => stored(record.memory));
   };
   const asStored = (record: RemoteMemoryRecord | null) => (record ? stored(record.memory) : null);
+  const withKnownKinds = async (topics: StoredTopic[]): Promise<StoredTopic[]> => {
+    const unkinded = [
+      ...new Set(topics.filter((t) => !t.kind).map((t) => normalizeEntityName(t.name))),
+    ];
+    if (unkinded.length === 0) return topics;
+    const kinds = new Map<string, string>();
+    for (const names of chunks(unkinded, MAX_QUERY_TOPICS)) {
+      for (const { memory } of await pages(metadata, {
+        topics: names,
+        include_archived: true,
+        include_quarantined: true,
+        include_superseded: true,
+      })) {
+        for (const topic of parseTopics(memory.topics) ?? []) {
+          const name = normalizeEntityName(topic.name);
+          if (topic.kind && !kinds.has(name)) kinds.set(name, topic.kind);
+        }
+      }
+    }
+    return topics.map((topic) => {
+      const kind = topic.kind ?? kinds.get(normalizeEntityName(topic.name));
+      return kind ? { ...topic, kind } : topic;
+    });
+  };
 
   const everyState = {
     include_deleted: true,
@@ -626,17 +650,19 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
         notify("edit", [await persistence.put(memory, record)]);
         return true;
       }),
-    setTopics: async (memoryId, topics) =>
-      asStored(
+    setTopics: async (memoryId, topics) => {
+      const chosen = await withKnownKinds(topicInputs(topics, "user"));
+      return asStored(
         await mutate(memoryId, "edit", (memory) => ({
           ...memory,
-          topics: serializeTopics(mergeTopics([], topicInputs(topics, "user"))),
+          topics: serializeTopics(mergeTopics([], chosen)),
           topics_user_managed: true,
           topics_updated_at: Date.now(),
         }))
-      ),
+      );
+    },
     addTopics: async (memoryId, topics) => {
-      const added = topicInputs(topics, "auto");
+      const added = await withKnownKinds(topicInputs(topics, "auto"));
       const saved = await mutate(memoryId, "edit", (memory) => ({
         ...memory,
         topics: serializeTopics(mergeTopics(parseTopics(memory.topics) ?? [], added)),
