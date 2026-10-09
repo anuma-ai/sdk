@@ -2,12 +2,9 @@
 
 > **extractReservationReceipts**(`toolCallEvents?`: [`LlmapiToolCallEvent`](../../../client/Internal/type-aliases/LlmapiToolCallEvent.md)\[]): [`ReservationReceipt`](../type-aliases/ReservationReceipt.md)\[]
 
-Defined in: [src/lib/chat/reservationReceipts.ts:59](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/reservationReceipts.ts#59)
+Defined in: [src/lib/chat/reservationReceipts.ts:52](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/reservationReceipts.ts#52)
 
-One receipt per kind for the turn's booking and cancel calls, holding the
-last attempt's outcome. A `made` outcome is never replaced by a later one,
-so a refused call followed by a successful retry reads as made, and an
-`unknown` one is replaced only by `made`.
+One receipt per kind for the turn's booking and cancel calls, holding the last attempt's outcome unless an earlier one was `made` or `unknown`.
 
 ## Parameters
 

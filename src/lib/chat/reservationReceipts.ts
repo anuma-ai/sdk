@@ -42,20 +42,13 @@ const ACTIONS: readonly Action[] = [
   },
 ];
 
-/** The portal's notes for a call it refused to run again: not an attempt. */
 const NOT_AN_ATTEMPT = /^Tool "[^"]*" (has already been called|was already called)/;
 
-/** The portal's note for a booking whose payment call failed after the gate passed. */
 const BOOKING_OUTCOME_UNKNOWN = /^Tool "[^"]*" failed: BOOKING_OUTCOME_UNKNOWN:/;
 
 const CANCEL_OUTCOME_UNKNOWN = "CANCEL_OUTCOME_UNKNOWN";
 
-/**
- * One receipt per kind for the turn's booking and cancel calls, holding the
- * last attempt's outcome. A `made` outcome is never replaced by a later one,
- * so a refused call followed by a successful retry reads as made, and an
- * `unknown` one is replaced only by `made`.
- */
+/** One receipt per kind for the turn's booking and cancel calls, holding the last attempt's outcome unless an earlier one was `made` or `unknown`. */
 export function extractReservationReceipts(
   toolCallEvents?: LlmapiToolCallEvent[]
 ): ReservationReceipt[] {
