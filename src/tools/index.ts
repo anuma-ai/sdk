@@ -161,7 +161,7 @@ export {
 export type { ChartDataPoint, DisplayChartResult } from "./chart";
 export { createChartTool } from "./chart";
 export type { ChoiceOption } from "./choice";
-export { createChoiceTool } from "./choice";
+export { CHOICE_TOOL_NAME, createChoiceTool } from "./choice";
 export type { ConfirmParameter, ConfirmToolResult } from "./confirm";
 export { createConfirmTool } from "./confirm";
 export type { DisplayConnectorResult } from "./connectorOffer";

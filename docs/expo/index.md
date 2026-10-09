@@ -880,6 +880,12 @@ Re-exports [ExtractOutcome](../react/Internal/type-aliases/ExtractOutcome.md)
 
 ***
 
+### extractReservationReceipts
+
+Re-exports [extractReservationReceipts](../react/Internal/functions/extractReservationReceipts.md)
+
+***
+
 ### FactType
 
 Re-exports [FactType](../react/Internal/type-aliases/FactType.md)
@@ -1825,6 +1831,12 @@ Re-exports [RequestEncryptionKeyOptions](../react/Internal/interfaces/RequestEnc
 ### RerankerUnavailableError
 
 Re-exports [RerankerUnavailableError](../react/Internal/classes/RerankerUnavailableError.md)
+
+***
+
+### ReservationReceipt
+
+Re-exports [ReservationReceipt](../react/Internal/type-aliases/ReservationReceipt.md)
 
 ***
 

@@ -2,6 +2,9 @@ import type { ToolConfig } from "../lib/chat/useChat/types.js";
 import type { CreateUIToolsOptions } from "./uiInteraction";
 import { createInteractiveTool } from "./uiInteraction";
 
+/** Tool name surfaced to the LLM. */
+export const CHOICE_TOOL_NAME = "prompt_user_choice";
+
 export type ChoiceOption = {
   /** Unique identifier for this option */
   value: string;
@@ -30,7 +33,7 @@ export type ChoiceOption = {
  */
 export function createChoiceTool(options: CreateUIToolsOptions): ToolConfig {
   return createInteractiveTool(options, {
-    name: "prompt_user_choice",
+    name: CHOICE_TOOL_NAME,
     description:
       "Show a clickable choice menu when the user needs to pick between specific options. Examples: choosing a restaurant for dinner or selecting a travel destination.",
     parameters: {
