@@ -8,6 +8,7 @@ import type {
 } from "../../../client";
 import type { PiiMatch, PiiRedactor } from "../../pii/redactor";
 import type { PromptPreProcessor } from "../preProcessor";
+import type { RunHooks } from "../runHooks";
 import type { StepFinishEvent } from "../toolLoop";
 import type { ApiResponse } from "./strategies/types";
 import type { StreamSmoothingConfig } from "./StreamSmoother";
@@ -242,6 +243,7 @@ export type BaseSendMessageArgs = ResponsesApiOptions & {
 export type BaseUseChatOptions = {
   getToken?: () => Promise<string | null>;
   baseUrl?: string;
+  hooks?: RunHooks | RunHooks[];
   /**
    * Callback function to be called when a new data chunk is received.
    */
