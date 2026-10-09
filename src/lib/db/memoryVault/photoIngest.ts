@@ -123,6 +123,7 @@ export async function ingestPublishedPhotoMemoriesOp(
         (record._raw as { id: string }).id = row.memoryId;
         record._setRaw("content", content);
         record._setRaw("scope", "shared");
+        record._setRaw("level", "matching");
         record._setRaw("folder_id", null);
         record._setRaw("user_id", ctx.userId ?? null);
         record._setRaw("is_deleted", false);

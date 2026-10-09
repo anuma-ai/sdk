@@ -1186,6 +1186,18 @@ Re-exports [MemoriesNeedingTopicExtraction](../react/Internal/interfaces/Memorie
 
 ***
 
+### MEMORY\_KINDS
+
+Re-exports [MEMORY\_KINDS](../react/Internal/variables/MEMORY_KINDS.md)
+
+***
+
+### MEMORY\_LEVELS
+
+Re-exports [MEMORY\_LEVELS](../react/Internal/variables/MEMORY_LEVELS.md)
+
+***
+
 ### MemoryContextItem
 
 Re-exports [MemoryContextItem](../react/Internal/interfaces/MemoryContextItem.md)
@@ -1243,6 +1255,18 @@ Re-exports [MemoryExtractedEvent](../react/Internal/interfaces/MemoryExtractedEv
 ### MemoryKind
 
 Re-exports [MemoryKind](../react/Internal/type-aliases/MemoryKind.md)
+
+***
+
+### MemoryLevel
+
+Re-exports [MemoryLevel](../react/Internal/type-aliases/MemoryLevel.md)
+
+***
+
+### MemoryLevelError
+
+Re-exports [MemoryLevelError](../react/Internal/classes/MemoryLevelError.md)
 
 ***
 
@@ -2263,6 +2287,12 @@ Re-exports [VaultEmbeddingExpectation](../react/Internal/interfaces/VaultEmbeddi
 ### VaultFolderOperationsContext
 
 Re-exports [VaultFolderOperationsContext](../react/Internal/interfaces/VaultFolderOperationsContext.md)
+
+***
+
+### VaultMemoryKind
+
+Re-exports [VaultMemoryKind](../react/Internal/type-aliases/VaultMemoryKind.md)
 
 ***
 

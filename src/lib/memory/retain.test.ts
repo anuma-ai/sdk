@@ -153,6 +153,62 @@ describe("retain", () => {
     expect(vi.mocked(createVaultMemoryOp).mock.calls[0][1]).toMatchObject({ scope: "shared" });
   });
 
+  it("never offers a kinded (profile) memory as a merge or supersede candidate", async () => {
+    vi.mocked(prepareVaultCandidates).mockResolvedValue({
+      ...PREPARED,
+      memories: [
+        { uniqueId: "kinded", kind: "occupation" },
+        { uniqueId: "free", kind: null },
+      ],
+      embeddedItems: [
+        { id: "kinded", content: "Works at Google", embedding: [0.1, 0.2, 0.3] },
+        { id: "free", content: "Likes Google products", embedding: [0.1, 0.2, 0.3] },
+      ],
+    } as never);
+    vi.mocked(rankPreparedVaultCandidates).mockResolvedValue(rankResult([]) as never);
+    vi.mocked(generateEmbedding).mockResolvedValue([0.1, 0.2, 0.3]);
+    vi.mocked(createVaultMemoryOp).mockResolvedValue({ uniqueId: "new" } as never);
+
+    await retain("Works at Riverbend", ctx, {
+      consolidateOptions: {} as never,
+    });
+
+    const rankedSets = vi.mocked(rankPreparedVaultCandidates).mock.calls.map((c) => c[1]);
+    expect(rankedSets.length).toBeGreaterThan(0);
+    for (const set of rankedSets) {
+      expect(set.memories.map((m) => m.uniqueId)).toEqual(["free"]);
+      expect(set.embeddedItems.map((item) => item.id)).toEqual(["free"]);
+    }
+  });
+
+  it("creates instead of merging when the target became a profile memory mid-retain", async () => {
+    mockVaultMatches([{ uniqueId: "turned", content: "Works at Google", similarity: 0.95 }]);
+    const row = {
+      uniqueId: "turned",
+      content: "Works at Google",
+      scope: "private",
+      folderId: null,
+      userId: null,
+      embedding: null,
+      sourceChunkIds: [],
+      proofCount: 1,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      isDeleted: false,
+    };
+    vi.mocked(getVaultMemoryOp)
+      .mockResolvedValueOnce({ ...row, kind: null } as never)
+      .mockResolvedValueOnce({ ...row, kind: "occupation" } as never);
+    vi.mocked(updateVaultMemoryOp).mockResolvedValue(null);
+    vi.mocked(generateEmbedding).mockResolvedValue([0.1, 0.2, 0.3]);
+    vi.mocked(createVaultMemoryOp).mockResolvedValue({ uniqueId: "new" } as never);
+
+    const result = await retain("Works at Google", ctx);
+
+    expect(vi.mocked(updateVaultMemoryOp).mock.calls[0][2]).toMatchObject({ freeFormOnly: true });
+    expect(result).toMatchObject({ action: "create", memoryId: "new" });
+  });
+
   it("merges into the nearest match when cosine ≥ threshold", async () => {
     mockVaultMatches([
       { uniqueId: "existing-id", content: "Allergic to shellfish", similarity: 0.92 },

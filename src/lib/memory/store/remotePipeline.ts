@@ -2,7 +2,12 @@ import { v7 as uuidv7 } from "uuid";
 
 import { parseTopics } from "../../db/entities/types.js";
 import { normalizeTrustTier } from "../../db/memoryVault/operations.js";
-import { parseMedia, type StoredVaultMemory } from "../../db/memoryVault/types.js";
+import {
+  MEMORY_LEVELS,
+  type MemoryLevel,
+  parseMedia,
+  type StoredVaultMemory,
+} from "../../db/memoryVault/types.js";
 import { getLogger } from "../../logger.js";
 import { DEFAULT_API_EMBEDDING_MODEL } from "../../memoryEngine/constants.js";
 import { generateEmbeddings } from "../../memoryEngine/embeddings.js";
@@ -61,6 +66,9 @@ function sourceIds(value?: string): string[] {
     return [];
   }
 }
+function isMemoryLevel(value: string | undefined): value is MemoryLevel {
+  return (MEMORY_LEVELS as readonly (string | undefined)[]).includes(value);
+}
 function stored(row: RemoteMemoryRow): StoredVaultMemory {
   return {
     uniqueId: row.memory_id,
@@ -68,6 +76,9 @@ function stored(row: RemoteMemoryRow): StoredVaultMemory {
     scope: row.scope,
     folderId: row.folder_id ?? null,
     userId: null,
+    kind: row.kind ?? null,
+    kindValue: row.kind_value ?? null,
+    ...(isMemoryLevel(row.level) && { level: row.level }),
     embedding: row.embedding ? JSON.stringify(row.embedding) : null,
     embeddingModel: row.embedding_model ?? null,
     sourceChunkIds: row.source_chunk_ids === undefined ? null : sourceIds(row.source_chunk_ids),
@@ -319,7 +330,11 @@ export function createRemoteMemoryPipeline(
       create: (input) => write(createRow(input), 0),
       update: async (id, patch) => {
         const existing = await get(id);
-        if (!existing) return null;
+        if (
+          !existing ||
+          (patch.freeFormOnly && existing.kind !== null && existing.kind !== undefined)
+        )
+          return null;
         const snapshot = snapshots.get(id)!;
         const memory = {
           ...snapshot.memory,

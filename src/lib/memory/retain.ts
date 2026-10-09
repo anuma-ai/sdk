@@ -146,6 +146,7 @@ export async function retainWithPersistence(
       includeArchived: true,
       ...(options.folderId !== undefined && { folderId: options.folderId }),
     });
+    prepared = withoutKindedRows(prepared);
 
     if (prepared.embeddingFailure || prepared.embeddingsUnavailable) {
       throw new Error(
@@ -193,6 +194,7 @@ export async function retainWithPersistence(
           const resurrect = resurrectFields(existing);
           const updated = await ctx.persistence.update(targetId, {
             content: existing.content,
+            freeFormOnly: true,
             proofCountIncrement: 1,
             observationSourceIds: options.sourceChunkIds,
             sourceChunkIds: mergedSourceIds,
@@ -337,6 +339,18 @@ export async function retainWithPersistence(
     memoryId: created.uniqueId,
     proofCount: 1,
     ...(consolidationDecidedCreate && { consolidation: "create" as const }),
+  };
+}
+
+function withoutKindedRows(prepared: PreparedVaultCandidates): PreparedVaultCandidates {
+  const kinded = new Set(
+    prepared.memories.filter((m) => m.kind !== null && m.kind !== undefined).map((m) => m.uniqueId)
+  );
+  if (kinded.size === 0) return prepared;
+  return {
+    ...prepared,
+    memories: prepared.memories.filter((m) => !kinded.has(m.uniqueId)),
+    embeddedItems: prepared.embeddedItems.filter((item) => !kinded.has(item.id)),
   };
 }
 
@@ -504,6 +518,7 @@ async function tryConsolidate(
     const resurrect = resurrectFields(existing);
     const updated = await ctx.persistence.update(decision.targetId, {
       content: existing.content,
+      freeFormOnly: true,
       proofCountIncrement: 1,
       observationSourceIds: options.sourceChunkIds,
       sourceChunkIds: mergedSourceIds,
@@ -550,6 +565,7 @@ async function tryConsolidate(
     const resurrect = resurrectFields(existing);
     const updated = await ctx.persistence.update(decision.targetId, {
       content: decision.content,
+      freeFormOnly: true,
       proofCountIncrement: 1,
       observationSourceIds: options.sourceChunkIds,
       sourceChunkIds: mergedSourceIds,
@@ -600,7 +616,7 @@ async function assertMergeTargetGoneOrThrow(
   const stillExists = await (ctx.persistence.getFresh
     ? ctx.persistence.getFresh(targetId)
     : ctx.persistence.get(targetId));
-  if (stillExists) {
+  if (stillExists && (stillExists.kind === null || stillExists.kind === undefined)) {
     throw new Error(`retain: merge into memory ${targetId} failed to persist`);
   }
 }

@@ -9,6 +9,7 @@ import type { StoredVaultMemory } from "./types";
  *
  * Encrypted fields (random IV):
  * - content: Memory text
+ * - kind_value: a kinded memory's canonical value, encrypted like `content`
  *
  * Non-encrypted fields:
  * - timestamps, isDeleted
@@ -49,9 +50,14 @@ export async function decryptVaultMemoryFields(
   }
 
   const decryptedContent = await decryptField(memory.content, address);
+  const decryptedKindValue =
+    typeof memory.kindValue === "string"
+      ? await decryptField(memory.kindValue, address)
+      : memory.kindValue;
 
   return {
     ...memory,
     content: decryptedContent,
+    ...(decryptedKindValue !== undefined && { kindValue: decryptedKindValue }),
   };
 }

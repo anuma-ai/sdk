@@ -27,13 +27,96 @@ import type { StoredTopic } from "../entities/types.js";
  */
 export type VaultMemoryVisibility = "private" | "public";
 
+/** Profile kinds a vault memory can carry. */
+export const MEMORY_KINDS = [
+  "display_name",
+  "birth_date",
+  "bio",
+  "occupation",
+  "interest",
+  "gender",
+  "height_cm",
+  "looking_for",
+  "politics",
+  "religion",
+  "ethnicity",
+  "smoking",
+  "drinking",
+  "exercise",
+  "sexuality",
+  "prompt",
+] as const;
+
+/** One of {@link MEMORY_KINDS}. */
+export type VaultMemoryKind = (typeof MEMORY_KINDS)[number];
+
+/** Who a memory reaches. */
+export const MEMORY_LEVELS = ["private", "matching", "profile"] as const;
+
+/** One of {@link MEMORY_LEVELS}. */
+export type MemoryLevel = (typeof MEMORY_LEVELS)[number];
+
+/**
+ * Thrown by vault writes that would store an unknown kind or level, or a profile level without a kind.
+ *
+ * @public
+ */
+export class MemoryLevelError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "MemoryLevelError";
+  }
+}
+
+const PUBLISHED_SCOPES = new Set(["shared", "public"]);
+
+/**
+ * Level a row with no (or an unrecognised) `level` column reads as, derived from its legacy
+ * `scope`.
+ */
+export function levelFromScope(scope: unknown): MemoryLevel {
+  return typeof scope === "string" && PUBLISHED_SCOPES.has(scope) ? "matching" : "private";
+}
+
+/**
+ * The legacy `scope` dual-written alongside a `level`, so builds that still read `scope` see
+ * `matching`/`profile` rows as published.
+ */
+export function scopeForLevel(level: MemoryLevel): "private" | "shared" {
+  return level === "private" ? "private" : "shared";
+}
+
+/** Read a row's level, falling back to the level its legacy `scope` implies. */
+export function resolveMemoryLevel(level: unknown, scope: unknown): MemoryLevel {
+  return typeof level === "string" && (MEMORY_LEVELS as readonly string[]).includes(level)
+    ? (level as MemoryLevel)
+    : levelFromScope(scope);
+}
+
+/** The level a row holds after its legacy `scope` is rewritten; a published `profile` row stays `profile`. */
+export function levelForScopeChange(
+  current: { level: unknown; scope: unknown },
+  nextScope: string
+): MemoryLevel {
+  const implied = levelFromScope(nextScope);
+  return implied === "matching" && resolveMemoryLevel(current.level, current.scope) === "profile"
+    ? "profile"
+    : implied;
+}
+
 export interface StoredVaultMemory {
   /** WatermelonDB internal ID */
   uniqueId: string;
   /** Plain text memory content */
   content: string;
-  /** Scope for partitioning memories (e.g., "private", "shared") */
+  /** Scope for partitioning memories (e.g., "private", "shared"). */
   scope: string;
+  /** Profile kind ({@link MEMORY_KINDS}) or null for a free-form memory. */
+  kind?: string | null;
+  /** Canonical value of a kinded memory, JSON-encoded (slug, slug[], int, date, text). */
+  kindValue?: string | null;
+  /** Who this memory reaches. */
+  level?: MemoryLevel;
   /** Folder ID for organization, null if unfiled */
   folderId: string | null;
   /** User ID for multi-user server-side scoping, null on client */
@@ -195,8 +278,14 @@ export function parseMedia(value: unknown): PhotoMediaRef[] | null {
 
 export interface CreateVaultMemoryOptions {
   content: string;
-  /** Scope for the memory. Defaults to "private" if omitted. */
+  /** Scope for the memory. */
   scope?: string;
+  /** Profile kind, or omit/null for a free-form memory. */
+  kind?: VaultMemoryKind | null;
+  /** Canonical JSON value of a kinded memory. */
+  kindValue?: string | null;
+  /** Who this memory reaches. */
+  level?: MemoryLevel;
   /** Folder ID for organization, null or omitted if unfiled */
   folderId?: string | null;
   /** JSON-stringified embedding vector to persist */
@@ -238,8 +327,19 @@ export interface CreateVaultMemoryOptions {
 
 export interface UpdateVaultMemoryOptions {
   content: string;
-  /** If provided, updates the memory's scope. */
+  /** When true, the write is skipped (returns null) if the row carries a profile kind. */
+  freeFormOnly?: boolean;
+  /**
+   * If provided, updates the memory's scope (and the level it implies; a `profile` row keeps
+   * `profile` under `scope: "shared"`).
+   */
   scope?: string;
+  /** If provided, sets the profile kind (null makes the memory free-form). */
+  kind?: VaultMemoryKind | null;
+  /** If provided, sets the canonical JSON value (null clears it). */
+  kindValue?: string | null;
+  /** If provided, sets the level (and dual-writes `scope`). */
+  level?: MemoryLevel;
   /** If provided, moves the memory to this folder. */
   folderId?: string | null;
   /** JSON-stringified embedding vector to persist, or null to clear stale embedding */

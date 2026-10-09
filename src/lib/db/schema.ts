@@ -132,8 +132,10 @@ import { VaultFolder } from "./vaultFolders/models";
  *   budget was in memory and reset on every turn, so one batch that could never
  *   extract blocked its conversation's extraction forever. Additive, both
  *   nullable, no backfill: NULL reads as "never failed"
+ * - v48: Added kind, kind_value (encrypted) and level to memory_vault; level is
+ *   backfilled from scope where SQL steps run
  */
-export const SDK_SCHEMA_VERSION = 47;
+export const SDK_SCHEMA_VERSION = 48;
 
 /**
  * Combined WatermelonDB schema for all SDK storage modules.
@@ -259,6 +261,9 @@ export const sdkSchema = appSchema({
       columns: [
         { name: "content", type: "string" },
         { name: "scope", type: "string", isIndexed: true },
+        { name: "kind", type: "string", isOptional: true, isIndexed: true },
+        { name: "kind_value", type: "string", isOptional: true },
+        { name: "level", type: "string", isOptional: true, isIndexed: true },
         { name: "folder_id", type: "string", isOptional: true, isIndexed: true },
         { name: "created_at", type: "number", isIndexed: true },
         { name: "updated_at", type: "number", isIndexed: true },
@@ -442,6 +447,7 @@ export const sdkSchema = appSchema({
  * - v41 → v42: Added `topics` + `topics_updated_at` columns to memory_vault, making a memory's topics the durable synced record and `entity`/`memory_entity` a device-local index over it (null `topics` = pre-v42, backfilled from the row's current links by the sweep)
  * - v42 → v43: Added a composite `(is_deleted, created_at)` index to conversations so the list reads stop temp-sorting (structural only, no data rewritten)
  * - v43 → v44: Added `origin` column to history recording which producer synthesised a row, so the embedding sweep can skip never-rendered tool-result dumps (plaintext by design — the sweep has no wallet context; null = legacy, embedded as before)
+ * - v47 → v48: Added `kind`, `kind_value`, `level` to memory_vault; `level` backfilled from `scope` (`shared`/`public` → matching, else private) where SQL steps run
  */
 export const sdkMigrations = schemaMigrations({
   migrations: [
@@ -989,6 +995,22 @@ export const sdkMigrations = schemaMigrations({
             { name: "failed_at", type: "number", isOptional: true },
           ],
         }),
+      ],
+    },
+    {
+      toVersion: 48,
+      steps: [
+        addColumns({
+          table: "memory_vault",
+          columns: [
+            { name: "kind", type: "string", isOptional: true, isIndexed: true },
+            { name: "kind_value", type: "string", isOptional: true },
+            { name: "level", type: "string", isOptional: true, isIndexed: true },
+          ],
+        }),
+        unsafeExecuteSql(
+          "UPDATE memory_vault SET level = CASE WHEN scope IN ('shared', 'public') THEN 'matching' ELSE 'private' END WHERE level IS NULL;"
+        ),
       ],
     },
   ],

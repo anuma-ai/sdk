@@ -228,6 +228,10 @@ export {
   hardDeleteDecayedOp,
   ingestPublishedPhotoMemoriesOp,
   type MemoriesNeedingTopicExtraction,
+  MEMORY_KINDS,
+  MEMORY_LEVELS,
+  type MemoryLevel,
+  MemoryLevelError,
   parseMedia,
   type PhotoIngestResult,
   type PhotoMediaRef,
@@ -245,6 +249,7 @@ export {
   updateVaultMemoryOp,
   type UpdateVaultMemoryOptions,
   type VaultEmbeddingExpectation,
+  type VaultMemoryKind,
   type VaultMemoryOperationsContext,
   type VaultMemoryVisibility,
 } from "../lib/db/memoryVault";
