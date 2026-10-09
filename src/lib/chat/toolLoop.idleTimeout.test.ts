@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { runToolLoop, type RunToolLoopOptions, type RunToolLoopResult } from "./toolLoop";
 import { StreamIdleTimeoutError } from "./streamIdleTimeout";
+import { runToolLoop, type RunToolLoopOptions, type RunToolLoopResult } from "./toolLoop";
 
 const IDLE_TIMEOUT_MS = 120_000;
 const messages: RunToolLoopOptions["messages"] = [
