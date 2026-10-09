@@ -46,6 +46,25 @@ export interface RemoteMemoryStoreOptions {
 
 type Change = "membership" | "edit" | "embedding";
 
+interface Subscriber {
+  onChange: () => void;
+  options: MemorySubscribeOptions;
+}
+
+function relevant(change: Change, options: MemorySubscribeOptions): boolean {
+  return options.includeDeleted
+    ? change === "membership"
+    : change !== "embedding" || !!options.embeddings;
+}
+
+function safely(onChange: () => void) {
+  try {
+    onChange();
+  } catch (error) {
+    getLogger().warn("[memory/remote-store] Subscriber threw:", error);
+  }
+}
+
 const MAX_BATCH = 50;
 const MAX_QUERY_IDS = 1000;
 const MAX_QUERY_TOPICS = 100;
@@ -159,8 +178,14 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
   const model = embeddingOptions.model ?? DEFAULT_API_EMBEDDING_MODEL;
   const pollIntervalMs = options.pollIntervalMs ?? 60_000;
   const pipeline = createRemoteMemoryPipeline(options);
-  const listeners = new Set<(change: Change) => void>();
-  const notify = (change: Change) => listeners.forEach((listener) => listener(change));
+  const subscribers = new Set<Subscriber>();
+  const seen = new Map<string, RemoteMemoryRecord>();
+  let timer: ReturnType<typeof setInterval> | undefined;
+  const notify = (change: Change, records: readonly RemoteMemoryRecord[] = []) => {
+    if (timer) for (const record of records) seen.set(record.memory.memory_id, record);
+    for (const subscriber of [...subscribers])
+      if (relevant(change, subscriber.options)) safely(subscriber.onChange);
+  };
 
   const enumerate = async (
     filters: Omit<RemoteMemoryQueryOptions, "cursor" | "limit">,
@@ -217,7 +242,7 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
       const next = edit(structuredClone(record.memory));
       if (!next) return null;
       const saved = await persistence.put(next, record);
-      notify(change);
+      notify(change, [saved]);
       return saved;
     });
 
@@ -228,11 +253,11 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
           const current = await live(id);
           if (!current || current.memory.content !== content || current.memory.embedding?.length)
             return;
-          await persistence.put(
+          const saved = await persistence.put(
             { ...current.memory, embedding: storedVector(vector), embedding_model: model },
             current
           );
-          notify("embedding");
+          notify("embedding", [saved]);
         })
       )
       .catch((error: unknown) => {
@@ -271,7 +296,7 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
     records.forEach((record, i) => {
       if (inputs[i].embedding === undefined) embedInBackground(record);
     });
-    notify("membership");
+    notify("membership", records);
     return records.map((record) => stored(record.memory));
   };
   const asStored = (record: RemoteMemoryRecord | null) => (record ? stored(record.memory) : null);
@@ -320,6 +345,43 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
       } while (retry);
     }
     return { records, resume, failed };
+  };
+
+  let generation = 0;
+  let ready = false;
+  let cursor: string | undefined;
+  let pending = new Set<string>();
+  let polling = false;
+  const poll = () => {
+    if (polling) return;
+    polling = true;
+    const current = generation;
+    changesSince(cursor, pending)
+      .then(({ records, resume, failed }) => {
+        if (current !== generation) return;
+        const changed = new Set<Subscriber>();
+        for (const record of records) {
+          const id = record.memory.memory_id;
+          const previous = seen.get(id);
+          seen.set(id, record);
+          if (!ready) continue;
+          for (const subscriber of subscribers) {
+            const before = previous && subscriptionKey(previous, subscriber.options);
+            if (before !== subscriptionKey(record, subscriber.options)) changed.add(subscriber);
+          }
+        }
+        ready = true;
+        cursor = resume;
+        pending = failed;
+        for (const subscriber of changed)
+          if (subscribers.has(subscriber)) safely(subscriber.onChange);
+      })
+      .catch((error: unknown) => {
+        getLogger().warn("[memory/remote-store] Subscription poll failed:", error);
+      })
+      .finally(() => {
+        polling = false;
+      });
   };
 
   return {
@@ -444,14 +506,14 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
           const [old, next] = await Promise.all([live(id), live(supersededById)]);
           if (!old || !next || old.memory.superseded_by || next.memory.superseded_by) return false;
           if (old.memory.kind !== undefined && old.memory.kind !== null) return false;
-          await persistence.putMany([
+          const saved = await persistence.putMany([
             {
               memory: { ...old.memory, superseded_by: supersededById, superseded_at: Date.now() },
               expectedVersion: old,
             },
             { memory: next.memory, expectedVersion: next },
           ]);
-          notify("membership");
+          notify("membership", saved);
           return true;
         })
       );
@@ -469,8 +531,7 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
         if (record.memory.archived_at === undefined || record.memory.archived_at === null)
           return true;
         const { archived_at: _archivedAt, ...memory } = record.memory;
-        await persistence.put(memory, record);
-        notify("edit");
+        notify("edit", [await persistence.put(memory, record)]);
         return true;
       }),
     setTopics: async (memoryId, topics) =>
@@ -516,56 +577,28 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
     recall: (query, recallOptions) => pipeline.recall(query, recallOptions),
     retain: async (content, retainOptions) => {
       const result = await pipeline.retain(content, retainOptions);
-      notify(result.action === "create" ? "membership" : "edit");
+      if (result.action === "create" || result.action === "supersede") notify("membership");
+      else if (result.action === "update" || result.action === "merge") notify("edit");
       return result;
     },
 
     subscribe: (onChange, subscribeOptions = {}) => {
-      const listener = (change: Change) => {
-        const relevant = subscribeOptions.includeDeleted
-          ? change === "membership"
-          : change !== "embedding" || !!subscribeOptions.embeddings;
-        if (relevant) onChange();
-      };
-      listeners.add(listener);
-      let stopped = false;
-      let started = false;
-      let cursor: string | undefined;
-      let pending = new Set<string>();
-      const keys = new Map<string, string>();
-      let polling = false;
-      const poll = () => {
-        if (polling) return;
-        polling = true;
-        changesSince(cursor, pending)
-          .then(({ records, resume, failed }) => {
-            let changed = false;
-            for (const record of records) {
-              const id = record.memory.memory_id;
-              const key = subscriptionKey(record, subscribeOptions);
-              if (keys.get(id) === key) continue;
-              changed = true;
-              if (key === undefined) keys.delete(id);
-              else keys.set(id, key);
-            }
-            if (!stopped && started && changed) onChange();
-            started = true;
-            cursor = resume;
-            pending = failed;
-          })
-          .catch((error: unknown) => {
-            getLogger().warn("[memory/remote-store] Subscription poll failed:", error);
-          })
-          .finally(() => {
-            polling = false;
-          });
-      };
-      if (pollIntervalMs > 0) poll();
-      const timer = pollIntervalMs > 0 ? setInterval(poll, pollIntervalMs) : undefined;
+      const subscriber: Subscriber = { onChange, options: subscribeOptions };
+      subscribers.add(subscriber);
+      if (pollIntervalMs > 0 && !timer) {
+        timer = setInterval(poll, pollIntervalMs);
+        poll();
+      }
       return () => {
-        stopped = true;
-        listeners.delete(listener);
-        if (timer) clearInterval(timer);
+        subscribers.delete(subscriber);
+        if (subscribers.size || !timer) return;
+        clearInterval(timer);
+        timer = undefined;
+        generation++;
+        seen.clear();
+        ready = false;
+        cursor = undefined;
+        pending = new Set();
       };
     },
   };

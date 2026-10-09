@@ -490,6 +490,71 @@ describe("remote MemoryStore", () => {
     }
   });
 
+  it("keeps a committed write and later subscribers when one subscriber throws", async () => {
+    const { store } = await remoteStore(undefined, undefined, 0);
+    const after = vi.fn();
+    const warn = vi.spyOn(getLogger(), "warn");
+    const stopThrowing = store.subscribe(() => {
+      throw new Error("render failed");
+    });
+    const stopAfter = store.subscribe(after);
+    try {
+      const m = await store.create({ content: "Drinks tea", embedding: axis(0) });
+      expect(after).toHaveBeenCalledTimes(1);
+      expect(await store.get(m.uniqueId)).not.toBeNull();
+    } finally {
+      stopThrowing();
+      stopAfter();
+      warn.mockRestore();
+    }
+  });
+
+  it("notifies only for retain results that wrote a row", async () => {
+    const { store } = await remoteStore(undefined, undefined, 0);
+    const created = await store.retain("Dog is named Mochi");
+    await store.delete(created.memoryId);
+    const onChange = vi.fn();
+    const onMembership = vi.fn();
+    const stop = store.subscribe(onChange);
+    const stopMembership = store.subscribe(onMembership, { includeDeleted: true });
+    try {
+      const suppressed = await store.retain("Dog is named Mochi", { respectTombstones: true });
+      expect(suppressed.action).toBe("suppressed");
+      expect(onChange).not.toHaveBeenCalled();
+      await store.retain("Works at Anuma as an engineer");
+      expect(onMembership).toHaveBeenCalledTimes(1);
+    } finally {
+      stop();
+      stopMembership();
+    }
+  });
+
+  it("shares one poll across subscribers and does not re-announce its own writes", async () => {
+    const { store, server } = await remoteStore(undefined, undefined, 20);
+    await store.create({ content: "Seed", embedding: axis(0) });
+    server.fetch.mockClear();
+    const first = vi.fn();
+    const second = vi.fn();
+    const stopFirst = store.subscribe(first);
+    const stopSecond = store.subscribe(second, { embeddings: true });
+    try {
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      const baselines = server.fetch.mock.calls.filter(([input, init]) => {
+        if (!String(input).endsWith("/memories/query")) return false;
+        const body = JSON.parse(String(init!.body)) as Record<string, unknown>;
+        return body.order === "changed" && body.cursor === undefined;
+      });
+      expect(baselines).toHaveLength(1);
+      await store.create({ content: "Mine", embedding: axis(1) });
+      await new Promise((resolve) => setTimeout(resolve, 80));
+      expect(first).toHaveBeenCalledTimes(1);
+      expect(second).toHaveBeenCalledTimes(1);
+    } finally {
+      stopFirst();
+      stopSecond();
+    }
+  });
+
   it("surfaces a concurrent edit as a version conflict", async () => {
     const { store, server } = await remoteStore();
     const m = await store.create({ content: "Drinks coffee", embedding: axis(0) });

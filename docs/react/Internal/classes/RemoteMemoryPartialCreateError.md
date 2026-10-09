@@ -1,6 +1,6 @@
 # RemoteMemoryPartialCreateError
 
-Defined in: [src/lib/memory/store/remoteStore.ts:54](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteStore.ts#54)
+Defined in: [src/lib/memory/store/remoteStore.ts:73](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteStore.ts#73)
 
 ## Extends
 
@@ -12,7 +12,7 @@ Defined in: [src/lib/memory/store/remoteStore.ts:54](https://github.com/anuma-ai
 
 > **new RemoteMemoryPartialCreateError**(`created`: [`StoredVaultMemory`](../interfaces/StoredVaultMemory.md)\[], `cause`: `unknown`): `RemoteMemoryPartialCreateError`
 
-Defined in: [src/lib/memory/store/remoteStore.ts:55](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteStore.ts#55)
+Defined in: [src/lib/memory/store/remoteStore.ts:74](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteStore.ts#74)
 
 **Parameters**
 
@@ -65,7 +65,7 @@ Defined in: [src/lib/memory/store/remoteStore.ts:55](https://github.com/anuma-ai
 
 > `readonly` **cause**: `unknown`
 
-Defined in: [src/lib/memory/store/remoteStore.ts:57](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteStore.ts#57)
+Defined in: [src/lib/memory/store/remoteStore.ts:76](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteStore.ts#76)
 
 ***
 
@@ -73,7 +73,7 @@ Defined in: [src/lib/memory/store/remoteStore.ts:57](https://github.com/anuma-ai
 
 > `readonly` **created**: [`StoredVaultMemory`](../interfaces/StoredVaultMemory.md)\[]
 
-Defined in: [src/lib/memory/store/remoteStore.ts:56](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteStore.ts#56)
+Defined in: [src/lib/memory/store/remoteStore.ts:75](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteStore.ts#75)
 
 ***
 
