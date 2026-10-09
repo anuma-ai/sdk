@@ -2,7 +2,7 @@
 
 > **deriveMemoryKeyRing**(`signatureHex`: `string`): `Promise`<[`MemoryKeyRing`](../interfaces/MemoryKeyRing.md)>
 
-Defined in: src/lib/memory/store/memoryKeys.ts:48
+Defined in: [src/lib/memory/store/memoryKeys.ts:48](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/memoryKeys.ts#48)
 
 Derive the v3 and legacy v2 memory keys from a hex wallet signature.
 

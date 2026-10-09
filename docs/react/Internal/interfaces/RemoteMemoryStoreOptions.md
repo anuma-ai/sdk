@@ -1,6 +1,6 @@
 # RemoteMemoryStoreOptions
 
-Defined in: src/lib/memory/store/remoteStore.ts:39
+Defined in: [src/lib/memory/store/remoteStore.ts:39](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteStore.ts#39)
 
 ## Properties
 
@@ -8,7 +8,7 @@ Defined in: src/lib/memory/store/remoteStore.ts:39
 
 > **embeddingOptions**: [`MemoryEngineEmbeddingOptions`](MemoryEngineEmbeddingOptions.md)
 
-Defined in: src/lib/memory/store/remoteStore.ts:42
+Defined in: [src/lib/memory/store/remoteStore.ts:42](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteStore.ts#42)
 
 ***
 
@@ -16,7 +16,7 @@ Defined in: src/lib/memory/store/remoteStore.ts:42
 
 > **graphRanking**: (`query`: `string`, `traverse`: `boolean`, `options`: [`RecallOptions`](RecallOptions.md)) => `Promise`<`string`\[]>
 
-Defined in: src/lib/memory/store/remoteStore.ts:43
+Defined in: [src/lib/memory/store/remoteStore.ts:43](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteStore.ts#43)
 
 **Parameters**
 
@@ -77,7 +77,7 @@ Defined in: src/lib/memory/store/remoteStore.ts:43
 
 > **persistence**: [`RemoteMemoryPersistence`](RemoteMemoryPersistence.md)
 
-Defined in: src/lib/memory/store/remoteStore.ts:41
+Defined in: [src/lib/memory/store/remoteStore.ts:41](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteStore.ts#41)
 
 From `createRemoteMemoryPersistence`, connected to an active account under the canonical key.
 
@@ -87,7 +87,7 @@ From `createRemoteMemoryPersistence`, connected to an active account under the c
 
 > `optional` **pollIntervalMs**: `number`
 
-Defined in: src/lib/memory/store/remoteStore.ts:46
+Defined in: [src/lib/memory/store/remoteStore.ts:46](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteStore.ts#46)
 
 How often each subscription polls nearby for other devices' changes; 0 disables polling.
 
@@ -97,7 +97,7 @@ How often each subscription polls nearby for other devices' changes; 0 disables 
 
 > **temporalRanking**: (`query`: `string`, `now?`: `number`) => `Promise`<`string`\[]>
 
-Defined in: src/lib/memory/store/remoteStore.ts:44
+Defined in: [src/lib/memory/store/remoteStore.ts:44](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteStore.ts#44)
 
 **Parameters**
 
