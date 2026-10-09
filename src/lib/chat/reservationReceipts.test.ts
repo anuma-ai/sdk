@@ -171,6 +171,20 @@ describe("extractReservationReceipts", () => {
     expect(statuses([cancel(OUTPUTS.alreadyCancelled)])).toEqual(["cancel:already_done"]);
   });
 
+  it.each([
+    [
+      "later in a refusal",
+      failed(BOOK, "the user has not confirmed this booking (ALREADY_BOOKED: does not apply)"),
+    ],
+    [
+      "in a provider error",
+      JSON.stringify({ success: false, error: "failed: ALREADY_BOOKED: upstream", cost: 0 }),
+    ],
+    ["without the wrapper", "ALREADY_BOOKED: the table is already booked"],
+  ])("does not count ALREADY_BOOKED %s", (_label, output) => {
+    expect(statuses([book(output)])).toEqual(["booking:not_made"]);
+  });
+
   it("does not take the word 'already' alone as already done", () => {
     expect(
       statuses([
