@@ -481,6 +481,23 @@ When the wallet isn't ready yet, should return null.
 <tr>
 <td>
 
+`options.hooks?`
+
+</td>
+<td>
+
+`RunHooks` | `RunHooks`\[]
+
+</td>
+<td>
+
+Run lifecycle hooks for telemetry and tracing, for example from `createMetricsHooks`
+
+</td>
+</tr>
+<tr>
+<td>
+
 `options.mcpR2Domain?`
 
 </td>
