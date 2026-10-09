@@ -330,7 +330,11 @@ export function createRemoteMemoryPipeline(
       create: (input) => write(createRow(input), 0),
       update: async (id, patch) => {
         const existing = await get(id);
-        if (!existing || (patch.freeFormOnly && existing.kind != null)) return null;
+        if (
+          !existing ||
+          (patch.freeFormOnly && existing.kind !== null && existing.kind !== undefined)
+        )
+          return null;
         const snapshot = snapshots.get(id)!;
         const memory = {
           ...snapshot.memory,
