@@ -2,7 +2,7 @@
 
 > **UseModelsResult** = `object`
 
-Defined in: [src/react/useModels.ts:207](https://github.com/anuma-ai/sdk/blob/main/src/react/useModels.ts#207)
+Defined in: [src/react/useModels.ts:223](https://github.com/anuma-ai/sdk/blob/main/src/react/useModels.ts#223)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/react/useModels.ts:207](https://github.com/anuma-ai/sdk/blob/ma
 
 > **error**: `Error` | `null`
 
-Defined in: [src/react/useModels.ts:210](https://github.com/anuma-ai/sdk/blob/main/src/react/useModels.ts#210)
+Defined in: [src/react/useModels.ts:226](https://github.com/anuma-ai/sdk/blob/main/src/react/useModels.ts#226)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/react/useModels.ts:210](https://github.com/anuma-ai/sdk/blob/ma
 
 > **isLoading**: `boolean`
 
-Defined in: [src/react/useModels.ts:209](https://github.com/anuma-ai/sdk/blob/main/src/react/useModels.ts#209)
+Defined in: [src/react/useModels.ts:225](https://github.com/anuma-ai/sdk/blob/main/src/react/useModels.ts#225)
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: [src/react/useModels.ts:209](https://github.com/anuma-ai/sdk/blob/ma
 
 > **models**: [`LlmapiModel`](../../../client/Internal/type-aliases/LlmapiModel.md)\[]
 
-Defined in: [src/react/useModels.ts:208](https://github.com/anuma-ai/sdk/blob/main/src/react/useModels.ts#208)
+Defined in: [src/react/useModels.ts:224](https://github.com/anuma-ai/sdk/blob/main/src/react/useModels.ts#224)
 
 ***
 
@@ -34,7 +34,7 @@ Defined in: [src/react/useModels.ts:208](https://github.com/anuma-ai/sdk/blob/ma
 
 > **refetch**: () => `Promise`<`void`>
 
-Defined in: [src/react/useModels.ts:211](https://github.com/anuma-ai/sdk/blob/main/src/react/useModels.ts#211)
+Defined in: [src/react/useModels.ts:227](https://github.com/anuma-ai/sdk/blob/main/src/react/useModels.ts#227)
 
 **Returns**
 

@@ -42,7 +42,11 @@ function pruneStaleTokenEntries(newKey: string): void {
   const [newBaseUrl, newProvider] = JSON.parse(newKey) as [string, string | null, string];
   for (const existingKey of modelsCache.keys()) {
     if (existingKey === newKey) continue;
-    const [existingBaseUrl, existingProvider] = JSON.parse(existingKey) as [string, string | null, string];
+    const [existingBaseUrl, existingProvider] = JSON.parse(existingKey) as [
+      string,
+      string | null,
+      string,
+    ];
     if (existingBaseUrl === newBaseUrl && existingProvider === newProvider) {
       modelsCache.delete(existingKey);
     }
