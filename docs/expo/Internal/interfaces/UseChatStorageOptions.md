@@ -129,7 +129,7 @@ ID of an existing conversation to load and continue
 
 > **database**: `Database`
 
-Defined in: [src/lib/db/chat/types.ts:493](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#493)
+Defined in: [src/lib/db/chat/types.ts:495](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#495)
 
 WatermelonDB database instance for storing conversations and messages
 
@@ -422,6 +422,20 @@ Async function to poll for wallet address during Privy initialization.
 **Returns**
 
 `Promise`<`string` | `null`>
+
+***
+
+### hooks?
+
+> `optional` **hooks**: `RunHooks` | `RunHooks`\[]
+
+Defined in: [src/lib/db/chat/types.ts:493](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#493)
+
+Run lifecycle hooks for telemetry and tracing, for example from `createMetricsHooks`
+
+**Inherited from**
+
+`BaseUseChatStorageOptions.hooks`
 
 ***
 
