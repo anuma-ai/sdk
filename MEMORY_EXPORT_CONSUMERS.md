@@ -65,7 +65,13 @@ Client paths are in `zeta-chain/ai-memoryless-client`.
 | `createLocalMemoryStore` | dark | The `MemoryStore` interface over the on-device vault — foundation for moving memories server-side. Nothing calls it yet: the client still uses the raw vault/entity ops, which migrate onto this one surface (and then onto a remote backend) in follow-ups. |
 | `createRemoteMemoryPersistence` | dark | Encrypted nearby HTTP persistence foundation; shared remote recall/retain is available through `createRemoteMemoryPipeline`; the full remote `MemoryStore` and client cutover follow in [anuma-ai/nearby#765](https://github.com/anuma-ai/nearby/issues/765). Requires an active account and canonical device encryption; no app call sites yet. |
 | `createRemoteMemoryPipeline` | dark | Shared device recall/retain over bounded nearby candidate windows and atomic writes. Requires server-backed graph/temporal ranking callbacks; full `MemoryStore`, metadata lanes and client cutover remain in [anuma-ai/nearby#765](https://github.com/anuma-ai/nearby/issues/765). No app call sites yet. |
+| `createRemoteMemoryStore` | dark | The full `MemoryStore` over nearby, built on `createRemoteMemoryPersistence` and `createRemoteMemoryPipeline` and run against the shared contract suite. Lists, archived and topic reads filter on nearby (anuma-ai/nearby#831); subscriptions poll for rows written since the last poll. No app call sites until the client migration in [anuma-ai/nearby#765](https://github.com/anuma-ai/nearby/issues/765). |
+| `deriveMemoryKeyRing` | dark | Canonical memory key and nearby `key_id` from a fresh wallet signature, for the migration in [anuma-ai/nearby#765](https://github.com/anuma-ai/nearby/issues/765). No app call sites yet. |
+| `memoryCipher` | dark | Canonical-key encrypt/decrypt callbacks for `createRemoteMemoryPersistence`. No app call sites yet. |
+| `reencryptMemoryField` | dark | Migration helper: re-encrypts a local field under the canonical key from whichever supplied key decrypts it, failing closed. No app call sites yet. |
+| `MemoryKeyError` | public-utility | Typed failure when no supplied key decrypts a field, so migration callers can stop instead of uploading unreadable rows. |
 | `RemoteMemoryError` | public-utility | Typed HTTP/version/key failures for consumers of `createRemoteMemoryPersistence`; callers branch on status/code without inspecting prose. |
+| `RemoteMemoryPartialCreateError` | public-utility | Thrown by the remote store's `createMany` when a later 50-memory batch fails after earlier ones committed; carries the committed memories so callers can tell what was saved. |
 
 ## Config-level knobs
 

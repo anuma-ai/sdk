@@ -2,16 +2,24 @@ import { describe, expect, it, vi } from "vitest";
 
 import type { MemoryStore } from "./types";
 
-export function runMemoryStoreContract(makeStore: () => MemoryStore | Promise<MemoryStore>): void {
+interface MemoryStoreContractFixtures {
+  vectors: readonly [string, string];
+}
+
+export function runMemoryStoreContract(
+  makeStore: () => MemoryStore | Promise<MemoryStore>,
+  fixtures: MemoryStoreContractFixtures = { vectors: ["[1,0]", "[0,1]"] }
+): void {
+  const [vectorA, vectorB] = fixtures.vectors;
   describe("MemoryStore contract", () => {
     it("creates, reads, updates and deletes", async () => {
       const store = await makeStore();
-      const created = await store.create({ content: "Likes green tea", embedding: "[1,0]" });
+      const created = await store.create({ content: "Likes green tea", embedding: vectorA });
 
       expect(created.content).toBe("Likes green tea");
       expect(await store.get(created.uniqueId)).toMatchObject({ content: "Likes green tea" });
       expect((await store.list()).map((m) => [m.uniqueId, m.embedding])).toEqual([
-        [created.uniqueId, "[1,0]"],
+        [created.uniqueId, vectorA],
       ]);
 
       const updated = await store.update(created.uniqueId, { content: "Likes oolong tea" });
@@ -28,19 +36,19 @@ export function runMemoryStoreContract(makeStore: () => MemoryStore | Promise<Me
 
     it("never keeps a stale vector across a content edit", async () => {
       const store = await makeStore();
-      const m = await store.create({ content: "Likes green tea", embedding: "[1,0]" });
+      const m = await store.create({ content: "Likes green tea", embedding: vectorA });
 
       const edited = await store.update(m.uniqueId, { content: "Likes oolong tea" });
-      expect(edited?.embedding).not.toBe("[1,0]");
-      expect((await store.get(m.uniqueId))?.embedding).not.toBe("[1,0]");
-      expect((await store.list()).map((r) => r.embedding)).not.toContain("[1,0]");
+      expect(edited?.embedding).not.toBe(vectorA);
+      expect((await store.get(m.uniqueId))?.embedding).not.toBe(vectorA);
+      expect((await store.list()).map((r) => r.embedding)).not.toContain(vectorA);
 
       const reembedded = await store.update(m.uniqueId, {
         content: "Likes black tea",
-        embedding: "[0,1]",
+        embedding: vectorB,
         embeddingModel: "test-model",
       });
-      expect(reembedded).toMatchObject({ embedding: "[0,1]", embeddingModel: "test-model" });
+      expect(reembedded).toMatchObject({ embedding: vectorB, embeddingModel: "test-model" });
     });
 
     it("creates many in one call", async () => {
@@ -101,6 +109,9 @@ export function runMemoryStoreContract(makeStore: () => MemoryStore | Promise<Me
       expect((await store.list()).map((m) => m.uniqueId)).toEqual([next.uniqueId]);
       const history = await store.list({ includeSuperseded: true, memoryIds: [old.uniqueId] });
       expect(history[0].supersededBy).toBe(next.uniqueId);
+      expect(await store.update(old.uniqueId, { content: "Lives in Austin" })).toBeNull();
+      const [retired] = await store.list({ includeSuperseded: true, memoryIds: [old.uniqueId] });
+      expect(retired.content).toBe("Lives in Portland");
     });
 
     it("sets, adds and reads topics", async () => {
@@ -190,11 +201,11 @@ export function runMemoryStoreContract(makeStore: () => MemoryStore | Promise<Me
 
     it("notifies snapshot subscribers after a content edit", async () => {
       const store = await makeStore();
-      const m = await store.create({ content: "Drinks coffee", embedding: "[1,0]" });
+      const m = await store.create({ content: "Drinks coffee", embedding: vectorA });
       const onChange = vi.fn();
       const unsubscribe = store.subscribe(onChange);
       try {
-        await store.update(m.uniqueId, { content: "Drinks tea", embedding: "[0,1]" });
+        await store.update(m.uniqueId, { content: "Drinks tea", embedding: vectorB });
         await vi.waitFor(() => expect(onChange).toHaveBeenCalled());
         expect((await store.get(m.uniqueId))?.content).toBe("Drinks tea");
       } finally {

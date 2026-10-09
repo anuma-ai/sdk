@@ -128,6 +128,9 @@ function setup() {
     list: vi.fn(async () => {
       throw new Error("must not enumerate vault");
     }),
+    query: vi.fn(async () => {
+      throw new Error("must not enumerate vault");
+    }),
   };
   const graphRanking = vi.fn(async () => [] as string[]);
   const temporalRanking = vi.fn(async () => [] as string[]);

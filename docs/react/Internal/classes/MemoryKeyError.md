@@ -1,8 +1,8 @@
-# RemoteMemoryError
+# MemoryKeyError
 
-Defined in: [src/lib/memory/store/remotePersistence.ts:123](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#123)
+Defined in: [src/lib/memory/store/memoryKeys.ts:26](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/memoryKeys.ts#26)
 
-HTTP failures remain distinguishable, particularly version\_conflict and key\_mismatch.
+Thrown when no supplied key decrypts a field.
 
 ## Extends
 
@@ -12,9 +12,9 @@ HTTP failures remain distinguishable, particularly version\_conflict and key\_mi
 
 ### Constructor
 
-> **new RemoteMemoryError**(`message`: `string`, `status`: `number`, `code?`: `string`): `RemoteMemoryError`
+> **new MemoryKeyError**(`message`: `string`): `MemoryKeyError`
 
-Defined in: [src/lib/memory/store/remotePersistence.ts:124](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#124)
+Defined in: [src/lib/memory/store/memoryKeys.ts:27](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/memoryKeys.ts#27)
 
 **Parameters**
 
@@ -38,50 +38,18 @@ Defined in: [src/lib/memory/store/remotePersistence.ts:124](https://github.com/a
 
 </td>
 </tr>
-<tr>
-<td>
-
-`status`
-
-</td>
-<td>
-
-`number`
-
-</td>
-</tr>
-<tr>
-<td>
-
-`code?`
-
-</td>
-<td>
-
-`string`
-
-</td>
-</tr>
 </tbody>
 </table>
 
 **Returns**
 
-`RemoteMemoryError`
+`MemoryKeyError`
 
 **Overrides**
 
 `Error.constructor`
 
 ## Properties
-
-### code?
-
-> `readonly` `optional` **code**: `string`
-
-Defined in: [src/lib/memory/store/remotePersistence.ts:127](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#127)
-
-***
 
 ### message
 
@@ -116,14 +84,6 @@ Defined in: node\_modules/.pnpm/typescript@5.9.3/node\_modules/typescript/lib/li
 **Inherited from**
 
 `Error.stack`
-
-***
-
-### status
-
-> `readonly` **status**: `number`
-
-Defined in: [src/lib/memory/store/remotePersistence.ts:126](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#126)
 
 ***
 

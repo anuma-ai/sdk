@@ -71,6 +71,25 @@ export interface RemoteMemoryPage {
   next_cursor?: string;
 }
 
+export interface RemoteMemoryQueryOptions extends RemoteMemoryReadFilters {
+  include_deleted?: boolean;
+  archived_only?: boolean;
+  scopes?: string[];
+  visibility?: string[];
+  memory_ids?: string[];
+  topics?: string[];
+  updated_after?: number;
+  order?: "created" | "updated" | "archived" | "changed";
+  cursor?: string;
+  limit?: number;
+  include_embeddings?: boolean;
+  signal?: AbortSignal;
+}
+
+export interface RemoteMemoryQueryPage extends RemoteMemoryPage {
+  changes_cursor?: string;
+}
+
 export interface RemoteMemoryCandidateOptions extends RemoteMemoryReadFilters {
   scopes?: string[];
   memory_ids?: string[];
@@ -122,6 +141,7 @@ export interface RemoteMemoryPersistence {
   get(memoryId: string, signal?: AbortSignal): Promise<RemoteMemoryRecord | null>;
   /** One stable memory-id page; follow next_cursor to enumerate. Embeddings are opt-in. */
   list(options?: RemoteMemoryListOptions): Promise<RemoteMemoryPage>;
+  query(options?: RemoteMemoryQueryOptions): Promise<RemoteMemoryQueryPage>;
   /** Whole-row write. Pass a returned snapshot to avoid GET; a number retains the read-before-write path. Version 0 creates. is_deleted writes a tombstone. */
   put(
     memory: RemoteMemoryRow,
@@ -195,6 +215,32 @@ const candidateListLimits = [
   ["fact_types", 20],
   ["memory_ids", 1000],
   ["force_ids", 100],
+] as const;
+
+const queryListLimits = [
+  ["scopes", 20],
+  ["fact_types", 20],
+  ["visibility", 20],
+  ["memory_ids", 1000],
+  ["topics", 100],
+] as const;
+
+const queryFields = [
+  "include_deleted",
+  "include_archived",
+  "include_quarantined",
+  "include_superseded",
+  "archived_only",
+  "scopes",
+  "fact_types",
+  "visibility",
+  "memory_ids",
+  "topics",
+  "updated_after",
+  "order",
+  "cursor",
+  "limit",
+  "include_embeddings",
 ] as const;
 
 interface PreparedWrite {
@@ -648,6 +694,43 @@ export async function createRemoteMemoryPersistence(
       )
         throw new Error("Invalid nearby batch response");
       return Promise.all(result.items.map((item, i) => decodeCommitted(item, prepared[i])));
+    },
+    query: async (queryOptions = {}) => {
+      const { signal, ...query } = queryOptions;
+      if (
+        query.limit !== undefined &&
+        (!Number.isInteger(query.limit) || query.limit < 1 || query.limit > 200)
+      )
+        throw new Error("Page limit must be 1–200");
+      for (const [key, max] of queryListLimits) {
+        const values = query[key];
+        if (values && values.length > max)
+          throw new Error(`Query ${key} accepts at most ${max} entries (got ${values.length})`);
+      }
+      const page = await request(
+        "/memories/query",
+        {
+          method: "POST",
+          body: JSON.stringify(
+            Object.fromEntries(
+              queryFields.filter((key) => query[key] !== undefined).map((key) => [key, query[key]])
+            )
+          ),
+        },
+        signal
+      );
+      if (
+        !record(page) ||
+        !Array.isArray(page.items) ||
+        (page.next_cursor !== undefined && typeof page.next_cursor !== "string") ||
+        (page.changes_cursor !== undefined && typeof page.changes_cursor !== "string")
+      )
+        throw new Error("Invalid nearby private-memory page");
+      return {
+        ...(await decodeAll(page.items)),
+        ...(page.next_cursor !== undefined && { next_cursor: page.next_cursor }),
+        ...(page.changes_cursor !== undefined && { changes_cursor: page.changes_cursor }),
+      };
     },
     candidateSet,
     candidates: async (embedding, candidateOptions = {}) =>
