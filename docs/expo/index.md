@@ -502,6 +502,12 @@ Re-exports [createRemoteMemoryPipeline](../react/Internal/functions/createRemote
 
 ***
 
+### createRemoteMemoryStore
+
+Re-exports [createRemoteMemoryStore](../react/Internal/functions/createRemoteMemoryStore.md)
+
+***
+
 ### createStockPricePreProcessor
 
 Re-exports [createStockPricePreProcessor](../react/Internal/functions/createStockPricePreProcessor.md)
@@ -745,6 +751,12 @@ Re-exports [dequantizeEmbedding](../react/Internal/functions/dequantizeEmbedding
 ### deriveKeyFromSignatureBytes
 
 Re-exports [deriveKeyFromSignatureBytes](../react/Encryption/deriveKeyFromSignatureBytes.md)
+
+***
+
+### deriveMemoryKeyRing
+
+Re-exports [deriveMemoryKeyRing](../react/Internal/functions/deriveMemoryKeyRing.md)
 
 ***
 
@@ -1198,6 +1210,12 @@ Re-exports [MEMORY\_LEVELS](../react/Internal/variables/MEMORY_LEVELS.md)
 
 ***
 
+### memoryCipher
+
+Re-exports [memoryCipher](../react/Internal/functions/memoryCipher.md)
+
+***
+
 ### MemoryContextItem
 
 Re-exports [MemoryContextItem](../react/Internal/interfaces/MemoryContextItem.md)
@@ -1249,6 +1267,18 @@ Re-exports [MemoryEngineSearchOptions](../react/Internal/interfaces/MemoryEngine
 ### MemoryExtractedEvent
 
 Re-exports [MemoryExtractedEvent](../react/Internal/interfaces/MemoryExtractedEvent.md)
+
+***
+
+### MemoryKeyError
+
+Re-exports [MemoryKeyError](../react/Internal/classes/MemoryKeyError.md)
+
+***
+
+### MemoryKeyRing
+
+Re-exports [MemoryKeyRing](../react/Internal/interfaces/MemoryKeyRing.md)
 
 ***
 
@@ -1648,6 +1678,12 @@ Re-exports [RecencyOptions](../react/Internal/interfaces/RecencyOptions.md)
 
 ***
 
+### reencryptMemoryField
+
+Re-exports [reencryptMemoryField](../react/Internal/functions/reencryptMemoryField.md)
+
+***
+
 ### reflect
 
 Re-exports [reflect](../react/Internal/functions/reflect.md)
@@ -1747,6 +1783,12 @@ Re-exports [RemoteMemoryRecord](../react/Internal/interfaces/RemoteMemoryRecord.
 ### RemoteMemoryRow
 
 Re-exports [RemoteMemoryRow](../react/Internal/interfaces/RemoteMemoryRow.md)
+
+***
+
+### RemoteMemoryStoreOptions
+
+Re-exports [RemoteMemoryStoreOptions](../react/Internal/interfaces/RemoteMemoryStoreOptions.md)
 
 ***
 

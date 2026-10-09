@@ -44,7 +44,7 @@ export interface RemoteMemoryPipeline {
 }
 
 /** Match nearby's qwen MRL storage: truncate FIRST, then normalize. */
-function storedVector(vector: number[]): number[] {
+export function storedVector(vector: number[]): number[] {
   if (
     !Array.isArray(vector) ||
     (vector.length !== 1536 && vector.length !== 4096) ||
@@ -69,7 +69,7 @@ function sourceIds(value?: string): string[] {
 function isMemoryLevel(value: string | undefined): value is MemoryLevel {
   return (MEMORY_LEVELS as readonly (string | undefined)[]).includes(value);
 }
-function stored(row: RemoteMemoryRow): StoredVaultMemory {
+export function stored(row: RemoteMemoryRow): StoredVaultMemory {
   return {
     uniqueId: row.memory_id,
     content: row.content,
@@ -330,7 +330,11 @@ export function createRemoteMemoryPipeline(
       create: (input) => write(createRow(input), 0),
       update: async (id, patch) => {
         const existing = await get(id);
-        if (!existing || (patch.freeFormOnly && existing.kind != null)) return null;
+        if (
+          !existing ||
+          (patch.freeFormOnly && existing.kind !== null && existing.kind !== undefined)
+        )
+          return null;
         const snapshot = snapshots.get(id)!;
         const memory = {
           ...snapshot.memory,
