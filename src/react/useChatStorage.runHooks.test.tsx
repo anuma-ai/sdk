@@ -74,8 +74,8 @@ const messages = [{ role: "user" as const, content: [{ type: "text" as const, te
 beforeEach(() => vi.resetAllMocks());
 afterEach(cleanup);
 
-describe.each(platforms)("useChatStorage RunHooks (%s)", (_platform, useChatStorage) => {
-  const transport = _platform === "react" ? vi.mocked(createSseClient) : vi.mocked(xhrTransport);
+describe.each(platforms)("useChatStorage RunHooks (%s)", (platform, useChatStorage) => {
+  const transport = platform === "react" ? vi.mocked(createSseClient) : vi.mocked(xhrTransport);
   describe.each([false, true])("skipStorage=%s", (skipStorage) => {
     it.each(["single", "array"] as const)(
       "emits model and tool timings with %s hooks",

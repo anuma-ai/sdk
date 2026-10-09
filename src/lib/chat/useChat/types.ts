@@ -243,6 +243,7 @@ export type BaseSendMessageArgs = ResponsesApiOptions & {
 export type BaseUseChatOptions = {
   getToken?: () => Promise<string | null>;
   baseUrl?: string;
+  /** Run lifecycle hooks for telemetry and tracing, for example from `createMetricsHooks` */
   hooks?: RunHooks | RunHooks[];
   /**
    * Callback function to be called when a new data chunk is received.
