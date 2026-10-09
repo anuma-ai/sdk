@@ -2,6 +2,7 @@ import { afterAll, describe, expect, it } from "vitest";
 
 import { buildAppSystemPrompt } from "../../../src/tools/appGeneration.js";
 import {
+  closeSharedBrowser,
   config,
   createFileStore,
   diffSnapshots,
@@ -18,7 +19,6 @@ import {
   type ToolCallLog,
   wrapTool,
   writeIndex,
-  closeSharedBrowser,
   writeRunMetrics,
 } from "./setup.js";
 import { createTestAppTools } from "./tools.js";
@@ -85,7 +85,11 @@ function assistantMsg(text: string): Message {
   return { role: "assistant", content: [{ type: "text", text }] };
 }
 
-async function runTurn(messages: Message[], tools: any[], maxRounds = 20) {
+async function runTurn(
+  messages: Message[],
+  tools: ReturnType<typeof createTestAppTools>,
+  maxRounds = 20
+) {
   const result = await timedToolLoop({
     messages,
     model: config.model,
@@ -179,7 +183,7 @@ describe.concurrent("precision-updates", () => {
     tracker.finish("precision-btn-color", "btn-color");
   });
 
-  it.skip("change title text — should modify only the text, not styles or logic", async () => {
+  it("change title text — should modify only the text, not styles or logic", async () => {
     const store = createFileStore();
     const log: ToolCallLog[] = [];
     const tools = createTestAppTools(store).map((t) => wrapTool(t, log));
@@ -301,9 +305,14 @@ describe.concurrent("precision-updates", () => {
     const updateLog = log.slice(logAfterGen);
     const patchCalls = updateLog.filter((l) => l.name === "patch_file");
     const failedPatches = patchCalls.filter((l) => {
-      const result =
-        typeof l.result === "string" ? JSON.parse(l.result) : (l.result as Record<string, unknown>);
-      return result.failed > 0;
+      const result: unknown = typeof l.result === "string" ? JSON.parse(l.result) : l.result;
+      return (
+        result !== null &&
+        typeof result === "object" &&
+        "failed" in result &&
+        typeof result.failed === "number" &&
+        result.failed > 0
+      );
     });
     const retriedAfterFailure =
       failedPatches.length > 0 && patchCalls.length > failedPatches.length;
@@ -365,7 +374,7 @@ describe.concurrent("precision-updates", () => {
       s2.result.usage
     );
     conversation.push(assistantMsg(s2.responseText));
-    const diffs2 = diffSnapshots(snapshots[0]!.snap, snapshot(store));
+    const diffs2 = diffSnapshots(snapshots[0].snap, snapshot(store));
     snapshots.push({
       label: "bg-color",
       snap: snapshot(store),
@@ -384,7 +393,7 @@ describe.concurrent("precision-updates", () => {
       s3.result.usage
     );
     conversation.push(assistantMsg(s3.responseText));
-    const diffs3 = diffSnapshots(snapshots[1]!.snap, snapshot(store));
+    const diffs3 = diffSnapshots(snapshots[1].snap, snapshot(store));
     snapshots.push({
       label: "counter",
       snap: snapshot(store),
@@ -403,7 +412,7 @@ describe.concurrent("precision-updates", () => {
       s4.result.usage
     );
     conversation.push(assistantMsg(s4.responseText));
-    const diffs4 = diffSnapshots(snapshots[2]!.snap, snapshot(store));
+    const diffs4 = diffSnapshots(snapshots[2].snap, snapshot(store));
     snapshots.push({ label: "font", snap: snapshot(store), diffs: diffs4 });
     printDiff("Step 4: monospace font", diffs4);
 
