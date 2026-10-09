@@ -76,7 +76,6 @@ function clientTool(name: string, executor: () => Promise<unknown>) {
   };
 }
 
-/** A card listing only the party size, so it lacks fields a restaurant action requires. */
 function answer(confirmed: boolean, action: string) {
   return {
     confirmed,
@@ -86,7 +85,6 @@ function answer(confirmed: boolean, action: string) {
   };
 }
 
-/** A card listing every field its action requires. */
 function completeAnswer(confirmed: boolean, action: string) {
   const fields = CONFIRM_REQUIRED_FIELDS.get(action.toLowerCase())?.fields ?? [];
   return {

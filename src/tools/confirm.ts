@@ -153,9 +153,7 @@ export function createConfirmTool(options: CreateUIToolsOptions): ToolConfig {
   return {
     ...tool,
     executor: (args: Record<string, unknown>, signal?: AbortSignal) => {
-      const missing = isWellFormedCard(args)
-        ? missingConfirmFields(args.action, args.parameters)
-        : [];
+      const missing = missingConfirmFields(args.action, args.parameters);
       if (missing.length > 0) {
         return Promise.resolve({
           error: `card is missing ${missing.join(", ")}; look them up and call ${CONFIRM_TOOL_NAME} again with every field`,

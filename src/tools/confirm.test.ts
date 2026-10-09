@@ -31,6 +31,8 @@ const CANCEL_ARGS = {
   parameters: CANCELLATION,
 };
 
+const ORDER_ARGS = { title: "Place the order?", action: "place_order" };
+
 const without = (parameters: ConfirmParameter[], name: string) =>
   parameters.filter((p) => p.name !== name);
 
@@ -181,16 +183,16 @@ describe("createConfirmTool", () => {
   });
 
   it.each([
-    ["no parameters", { ...BOOKING_ARGS, parameters: [] }],
+    ["no parameters", { ...ORDER_ARGS, parameters: [] }],
     ["no action", { title: "Confirm", parameters: RESERVATION }],
     ["no title", { action: "book_restaurant", parameters: RESERVATION }],
     [
       "a non-string value",
-      { ...BOOKING_ARGS, parameters: [{ name: "party_size", label: "Party size", value: 4 }] },
+      { ...ORDER_ARGS, parameters: [{ name: "item", label: "Item", value: 4 }] },
     ],
     [
       "an unlabelled parameter",
-      { ...BOOKING_ARGS, parameters: [{ name: "party_size", value: "4" }] },
+      { ...ORDER_ARGS, parameters: [{ name: "item", value: "Pad thai" }] },
     ],
   ])("refuses to show a card with %s", async (_name, args) => {
     const { context, createInteraction } = pendingContext();
@@ -226,6 +228,19 @@ describe("createConfirmTool", () => {
       expect(result).toEqual({
         error:
           "card is missing config_id; look them up and call prompt_user_confirm again with every field",
+      });
+      expect(createInteraction).not.toHaveBeenCalled();
+    });
+
+    it("refuses a booking card with no parameters, naming every required field", async () => {
+      const { context, createInteraction } = pendingContext();
+      const tool = createConfirmTool({ getContext: () => context });
+
+      const result = await tool.executor?.({ ...BOOKING_ARGS, parameters: [] });
+
+      expect(result).toEqual({
+        error:
+          "card is missing venue_id, config_id, party_size, day, venue_name, time; look them up and call prompt_user_confirm again with every field",
       });
       expect(createInteraction).not.toHaveBeenCalled();
     });
