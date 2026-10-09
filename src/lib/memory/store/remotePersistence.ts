@@ -71,14 +71,12 @@ export interface RemoteMemoryPage {
   next_cursor?: string;
 }
 
-/** Server-side filters on plaintext metadata; content and kind_value stay encrypted and filter on the device. */
 export interface RemoteMemoryQueryOptions extends RemoteMemoryReadFilters {
   include_deleted?: boolean;
   archived_only?: boolean;
   scopes?: string[];
   visibility?: string[];
   memory_ids?: string[];
-  /** Topic names, matched trimmed and lowercased; re-check exact matches on the device. */
   topics?: string[];
   updated_after?: number;
   order?: "created" | "updated" | "archived" | "changed";
@@ -89,7 +87,6 @@ export interface RemoteMemoryQueryOptions extends RemoteMemoryReadFilters {
 }
 
 export interface RemoteMemoryQueryPage extends RemoteMemoryPage {
-  /** Only for order "changed": resume the next poll from here. */
   changes_cursor?: string;
 }
 
@@ -144,7 +141,6 @@ export interface RemoteMemoryPersistence {
   get(memoryId: string, signal?: AbortSignal): Promise<RemoteMemoryRecord | null>;
   /** One stable memory-id page; follow next_cursor to enumerate. Embeddings are opt-in. */
   list(options?: RemoteMemoryListOptions): Promise<RemoteMemoryPage>;
-  /** Filtered, ordered page of the account's memories; follow next_cursor to enumerate. */
   query(options?: RemoteMemoryQueryOptions): Promise<RemoteMemoryQueryPage>;
   /** Whole-row write. Pass a returned snapshot to avoid GET; a number retains the read-before-write path. Version 0 creates. is_deleted writes a tombstone. */
   put(

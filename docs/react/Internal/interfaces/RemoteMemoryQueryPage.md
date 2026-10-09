@@ -1,6 +1,6 @@
 # RemoteMemoryQueryPage
 
-Defined in: [src/lib/memory/store/remotePersistence.ts:91](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#91)
+Defined in: [src/lib/memory/store/remotePersistence.ts:89](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#89)
 
 ## Extends
 
@@ -12,9 +12,7 @@ Defined in: [src/lib/memory/store/remotePersistence.ts:91](https://github.com/an
 
 > `optional` **changes\_cursor**: `string`
 
-Defined in: [src/lib/memory/store/remotePersistence.ts:93](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#93)
-
-Only for order "changed": resume the next poll from here.
+Defined in: [src/lib/memory/store/remotePersistence.ts:90](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#90)
 
 ***
 

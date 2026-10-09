@@ -1,8 +1,8 @@
 # MemoryKeyError
 
-Defined in: [src/lib/memory/store/memoryKeys.ts:27](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/memoryKeys.ts#27)
+Defined in: [src/lib/memory/store/memoryKeys.ts:26](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/memoryKeys.ts#26)
 
-Thrown when no supplied key decrypts a field, so a migration never uploads a row it cannot read.
+Thrown when no supplied key decrypts a field.
 
 ## Extends
 
@@ -14,7 +14,7 @@ Thrown when no supplied key decrypts a field, so a migration never uploads a row
 
 > **new MemoryKeyError**(`message`: `string`): `MemoryKeyError`
 
-Defined in: [src/lib/memory/store/memoryKeys.ts:28](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/memoryKeys.ts#28)
+Defined in: [src/lib/memory/store/memoryKeys.ts:27](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/memoryKeys.ts#27)
 
 **Parameters**
 

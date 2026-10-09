@@ -1,8 +1,6 @@
 # RemoteMemoryPartialCreateError
 
-Defined in: [src/lib/memory/store/remoteStore.ts:56](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteStore.ts#56)
-
-createMany committed some batches of 50 before a later batch failed; `created` holds the committed memories.
+Defined in: [src/lib/memory/store/remoteStore.ts:53](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteStore.ts#53)
 
 ## Extends
 
@@ -14,7 +12,7 @@ createMany committed some batches of 50 before a later batch failed; `created` h
 
 > **new RemoteMemoryPartialCreateError**(`created`: [`StoredVaultMemory`](../interfaces/StoredVaultMemory.md)\[], `cause`: `unknown`): `RemoteMemoryPartialCreateError`
 
-Defined in: [src/lib/memory/store/remoteStore.ts:57](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteStore.ts#57)
+Defined in: [src/lib/memory/store/remoteStore.ts:54](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteStore.ts#54)
 
 **Parameters**
 
@@ -67,7 +65,7 @@ Defined in: [src/lib/memory/store/remoteStore.ts:57](https://github.com/anuma-ai
 
 > `readonly` **cause**: `unknown`
 
-Defined in: [src/lib/memory/store/remoteStore.ts:59](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteStore.ts#59)
+Defined in: [src/lib/memory/store/remoteStore.ts:56](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteStore.ts#56)
 
 ***
 
@@ -75,7 +73,7 @@ Defined in: [src/lib/memory/store/remoteStore.ts:59](https://github.com/anuma-ai
 
 > `readonly` **created**: [`StoredVaultMemory`](../interfaces/StoredVaultMemory.md)\[]
 
-Defined in: [src/lib/memory/store/remoteStore.ts:58](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteStore.ts#58)
+Defined in: [src/lib/memory/store/remoteStore.ts:55](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteStore.ts#55)
 
 ***
 

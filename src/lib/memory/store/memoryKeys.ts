@@ -14,14 +14,13 @@ const KEY_ID_DOMAIN = "anuma-private-memory-key-id-v1";
  * @public
  */
 export interface MemoryKeyRing {
-  /** Nearby `key_id` for the v3 key; never reveals the key. */
   keyId: string;
   v3: CryptoKey;
   v2: CryptoKey;
 }
 
 /**
- * Thrown when no supplied key decrypts a field, so a migration never uploads a row it cannot read.
+ * Thrown when no supplied key decrypts a field.
  * @public
  */
 export class MemoryKeyError extends Error {
@@ -92,10 +91,8 @@ export function memoryCipher(canonical: MemoryKeyRing): {
 }
 
 /**
- * Re-encrypt a local field under the canonical key, decrypting with the canonical key, then each
- * fallback (for example a pinned signature), and v2 rings for legacy `enc:v2` data.
- *
- * @throws MemoryKeyError when the field looks encrypted but no key decrypts it.
+ * Re-encrypt a local field under the canonical key.
+ * @throws MemoryKeyError when no key decrypts the field.
  * @public
  */
 export async function reencryptMemoryField(
