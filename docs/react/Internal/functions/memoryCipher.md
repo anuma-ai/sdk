@@ -2,7 +2,7 @@
 
 > **memoryCipher**(`canonical`: [`MemoryKeyRing`](../interfaces/MemoryKeyRing.md)): `object`
 
-Defined in: [src/lib/memory/store/memoryKeys.ts:80](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/memoryKeys.ts#80)
+Defined in: [src/lib/memory/store/memoryKeys.ts:79](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/memoryKeys.ts#79)
 
 Encrypt and decrypt callbacks for `createRemoteMemoryPersistence` under the canonical key.
 

@@ -37,12 +37,10 @@ import type {
 
 /** @public */
 export interface RemoteMemoryStoreOptions {
-  /** From `createRemoteMemoryPersistence`, connected to an active account under the canonical key. */
   persistence: RemoteMemoryPersistence;
   embeddingOptions: EmbeddingOptions;
   graphRanking: RecallFactSource["graphRanking"];
   temporalRanking: RecallFactSource["temporalRanking"];
-  /** How often each subscription polls nearby for other devices' changes; 0 disables polling. */
   pollIntervalMs?: number;
 }
 
@@ -89,13 +87,7 @@ function canonicalTopics(row: RemoteMemoryRow): Set<string> {
 }
 
 /**
- * {@link MemoryStore} over nearby's private-memory API. Every read reaches nearby and every write
- * is version-guarded; content is decrypted and processed only on the device.
- *
- * Differences from the local store: list and topic reads enumerate the vault and filter on the
- * device, `createMany` accepts at most 50 memories, a concurrent edit surfaces as a
- * `RemoteMemoryError` with code `version_conflict`, and subscriptions see other devices' changes
- * by polling. There is no `maintenance`.
+ * {@link MemoryStore} over nearby's private-memory API with device-side decryption.
  * @public
  */
 export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): MemoryStore {
@@ -311,6 +303,7 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
     },
     update: async (id, patch: MemoryUpdate) => {
       const saved = await mutate(id, "edit", (memory) => {
+        if (memory.superseded_by) return null;
         memory.content = patch.content;
         memory.updated_at = Date.now();
         if (patch.scope !== undefined) {

@@ -109,6 +109,9 @@ export function runMemoryStoreContract(
       expect((await store.list()).map((m) => m.uniqueId)).toEqual([next.uniqueId]);
       const history = await store.list({ includeSuperseded: true, memoryIds: [old.uniqueId] });
       expect(history[0].supersededBy).toBe(next.uniqueId);
+      expect(await store.update(old.uniqueId, { content: "Lives in Austin" })).toBeNull();
+      const [retired] = await store.list({ includeSuperseded: true, memoryIds: [old.uniqueId] });
+      expect(retired.content).toBe("Lives in Portland");
     });
 
     it("sets, adds and reads topics", async () => {
