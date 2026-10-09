@@ -9,7 +9,7 @@ export type ReservationReceipt = {
   /**
    * `made`: the provider confirmed it. `not_made`: it did not happen.
    * `already_done`: an earlier call in the conversation had already done it.
-   * `unknown`: a cancellation reached the provider without a confirmed outcome.
+   * `unknown`: the call reached the provider and its outcome is not known.
    */
   status: "made" | "not_made" | "already_done" | "unknown";
   venueName: string;
@@ -45,12 +45,16 @@ const ACTIONS: readonly Action[] = [
 /** The portal's notes for a call it refused to run again: not an attempt. */
 const NOT_AN_ATTEMPT = /^Tool "[^"]*" (has already been called|was already called)/;
 
+/** The portal's note for a booking whose payment call failed after the gate passed. */
+const BOOKING_OUTCOME_UNKNOWN = /^Tool "[^"]*" failed: BOOKING_OUTCOME_UNKNOWN:/;
+
 const CANCEL_OUTCOME_UNKNOWN = "CANCEL_OUTCOME_UNKNOWN";
 
 /**
  * One receipt per kind for the turn's booking and cancel calls, holding the
  * last attempt's outcome. A `made` outcome is never replaced by a later one,
- * so a refused call followed by a successful retry reads as made.
+ * so a refused call followed by a successful retry reads as made, and an
+ * `unknown` one is replaced only by `made`.
  */
 export function extractReservationReceipts(
   toolCallEvents?: LlmapiToolCallEvent[]
@@ -60,8 +64,11 @@ export function extractReservationReceipts(
     const action = ACTIONS.find((a) => event.name?.endsWith(a.tool));
     const output = event.output ?? "";
     if (!action || !output || NOT_AN_ATTEMPT.test(output)) continue;
-    if (latest.get(action.kind)?.status === "made") continue;
-    latest.set(action.kind, toReceipt(action, event.arguments ?? "", output));
+    const kept = latest.get(action.kind)?.status;
+    if (kept === "made") continue;
+    const receipt = toReceipt(action, event.arguments ?? "", output);
+    if (kept === "unknown" && receipt.status !== "made") continue;
+    latest.set(action.kind, receipt);
   }
   return [...latest.values()];
 }
@@ -90,6 +97,7 @@ function outcome(
   if (action.alreadyDone.test(output)) return { status: "already_done" };
   const reason = text(result.error);
   if (action.kind === "booking") {
+    if (BOOKING_OUTCOME_UNKNOWN.test(output)) return { status: "unknown" };
     const held = result.success === true || text(result.reservation_id) !== undefined;
     return held ? { status: "made" } : { status: "not_made", reason };
   }

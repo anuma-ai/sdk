@@ -81,7 +81,7 @@ Defined in: [src/lib/chat/reservationReceipts.ts:14](https://github.com/anuma-ai
 
 `made`: the provider confirmed it. `not_made`: it did not happen.
 `already_done`: an earlier call in the conversation had already done it.
-`unknown`: a cancellation reached the provider without a confirmed outcome.
+`unknown`: the call reached the provider and its outcome is not known.
 
 ***
 

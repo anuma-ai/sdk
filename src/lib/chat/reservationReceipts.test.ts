@@ -68,6 +68,10 @@ const OUTPUTS = {
     error_code: "CANCEL_OUTCOME_UNKNOWN",
   }),
   alreadyCancelled: failed(CANCEL, "ALREADY_CANCELLED: already cancelled"),
+  bookingUnknown: failed(
+    BOOK,
+    "BOOKING_OUTCOME_UNKNOWN: the booking request failed after it was sent, so it may or may not have gone through"
+  ),
 };
 
 let nextId = 0;
@@ -151,6 +155,44 @@ describe("extractReservationReceipts", () => {
     expect(statuses([book(OUTPUTS.slotGone), book(OUTPUTS.alreadyBooked)])).toEqual([
       "booking:already_done",
     ]);
+  });
+
+  it("reports an interrupted booking as unknown", () => {
+    expect(extractReservationReceipts([book(OUTPUTS.bookingUnknown)])).toEqual([
+      { kind: "booking", status: "unknown", ...MOTEK },
+    ]);
+  });
+
+  it.each([
+    ["later in a refusal", failed(BOOK, "nothing was booked (not BOOKING_OUTCOME_UNKNOWN: here)")],
+    ["without the wrapper", "BOOKING_OUTCOME_UNKNOWN: the booking request failed"],
+  ])("does not count BOOKING_OUTCOME_UNKNOWN %s", (_label, output) => {
+    expect(statuses([book(output)])).toEqual(["booking:not_made"]);
+  });
+
+  it.each([
+    ["a skipped call", OUTPUTS.skipped],
+    ["a duplicate call", OUTPUTS.duplicate],
+    ["a refusal", OUTPUTS.unconfirmed],
+    ["a failed booking", OUTPUTS.slotGone],
+  ])("keeps an unknown booking unknown after %s", (_label, output) => {
+    expect(statuses([book(OUTPUTS.bookingUnknown), book(output)])).toEqual(["booking:unknown"]);
+  });
+
+  it("reads an unknown booking then a successful one as booked", () => {
+    expect(statuses([book(OUTPUTS.bookingUnknown), book(OUTPUTS.booked)])).toEqual([
+      "booking:made",
+    ]);
+  });
+
+  it("keeps an unknown cancellation unknown after a failed one", () => {
+    const notFound = JSON.stringify({
+      success: false,
+      cost: 0,
+      error: "no such reservation",
+      error_code: "RESERVATION_NOT_FOUND",
+    });
+    expect(statuses([cancel(OUTPUTS.cancelUnknown), cancel(notFound)])).toEqual(["cancel:unknown"]);
   });
 
   it("reads a cancellation from its arguments and result", () => {
