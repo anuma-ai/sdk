@@ -8,7 +8,7 @@ import { useChatStorage as useExpoChatStorage } from "../expo/useChatStorage";
 import type { RunHooks } from "../lib/chat/runHooks";
 import { xhrTransport } from "../lib/chat/xhrTransport";
 import { sdkMigrations, sdkModelClasses, sdkSchema } from "../lib/db/schema";
-import { createMetricsHooks } from "../telemetry";
+import { createMetricsHooks, type TelemetrySink } from "../telemetry";
 import { useChatStorage as useReactChatStorage } from "./useChatStorage";
 
 vi.mock("../client/core/serverSentEvents.gen", async (importOriginal) => {
@@ -34,6 +34,7 @@ function makeDatabase(): Database {
 
 function modelStream(toolCall: boolean, advance: () => void = () => {}) {
   return (async function* () {
+    await Promise.resolve();
     yield { type: "response.created", response: { id: "response-1", model: "test-model" } };
     if (toolCall) {
       yield {
@@ -87,7 +88,7 @@ describe.each(platforms)("useChatStorage RunHooks (%s)", (_platform, useChatStor
           .mockReturnValueOnce({ stream: modelStream(true, advanceModel) })
           .mockReturnValueOnce({ stream: modelStream(false, advanceModel) });
 
-        const track = vi.fn();
+        const track = vi.fn<NonNullable<TelemetrySink["track"]>>();
         const metrics = createMetricsHooks({ track }, { now: () => now });
         const observer: RunHooks = {
           afterModelCall: vi.fn(),
@@ -97,14 +98,14 @@ describe.each(platforms)("useChatStorage RunHooks (%s)", (_platform, useChatStor
         const database = makeDatabase();
         const onData = vi.fn();
         const onFinish = vi.fn();
-        const executor = vi.fn(async () => {
+        const executor = vi.fn(() => {
           now += 11;
-          return "ok";
+          return Promise.resolve("ok");
         });
         const { result } = renderHook(() =>
           useChatStorage({
             database,
-            getToken: async () => "token",
+            getToken: () => Promise.resolve("token"),
             autoEmbedMessages: false,
             enableQueue: false,
             smoothing: false,
@@ -136,7 +137,8 @@ describe.each(platforms)("useChatStorage RunHooks (%s)", (_platform, useChatStor
         expect(executor).toHaveBeenCalledTimes(1);
         expect(onData).toHaveBeenCalledWith("done");
         expect(onFinish).toHaveBeenCalledTimes(1);
-        const runId = expect.any(String);
+        const runId = track.mock.calls[0]?.[1].runId;
+        expect(runId).toEqual(expect.any(String));
         expect(track.mock.calls).toEqual([
           ["run.started", { runId, model: "test-model" }],
           [
@@ -182,7 +184,7 @@ describe.each(platforms)("useChatStorage RunHooks (%s)", (_platform, useChatStor
     const first: RunHooks = { onRunEnd: vi.fn() };
     const second: RunHooks = { onRunEnd: vi.fn() };
     const database = makeDatabase();
-    const getToken = async () => "token";
+    const getToken = () => Promise.resolve("token");
     const { result, rerender } = renderHook(
       ({ hooks }: { hooks?: RunHooks | RunHooks[] }) =>
         useChatStorage({
