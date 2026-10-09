@@ -951,6 +951,7 @@ export interface UseChatStorageResult extends BaseUseChatStorageResult {
 
 const CONVERSATION_REDACTOR_LIMIT = 50;
 const NO_CONVERSATION_KEY = "__no_conversation__";
+const NO_STORE_FOLDERS = "Folders are not supported with a memoryStore";
 const conversationRedactors = new Map<string, { redactor: PiiRedactor; detector?: NerDetector }>();
 
 function getConversationRedactor(
@@ -1078,6 +1079,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     signMessage,
     embeddedWalletSigner,
     getWalletAddress,
+    memoryStore,
     enableQueue = true,
     autoFlushOnKeyAvailable = true,
     extraToolSets,
@@ -1469,6 +1471,14 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       if (!getToken) {
         throw new Error("getToken is required to retain a vault memory");
       }
+      if (memoryStore) {
+        if (input.folderId !== undefined) throw new Error(NO_STORE_FOLDERS);
+        return memoryStore.retain(input.content, {
+          source: "manual",
+          scope: input.scope,
+          ...(input.factType !== undefined && { factType: input.factType }),
+        });
+      }
       return retain(
         input.content,
         {
@@ -1484,31 +1494,37 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         }
       );
     },
-    [vaultCtx, getToken, vaultEmbeddingOptions, vaultEmbeddingCache]
+    [vaultCtx, getToken, vaultEmbeddingOptions, vaultEmbeddingCache, memoryStore]
   );
 
   const createMemoryVaultTool = useCallback(
     (options?: MemoryVaultToolOptions): ToolConfig => {
       const embOpts = getToken ? vaultEmbeddingOptions : undefined;
       return createMemoryVaultToolBase(
-        vaultCtx,
+        memoryStore ?? vaultCtx,
         embOpts ? { write: retainVaultMemory, ...options } : options,
         embOpts,
         embOpts ? vaultEmbeddingCache : undefined
       );
     },
-    [vaultCtx, getToken, vaultEmbeddingOptions, vaultEmbeddingCache, retainVaultMemory]
+    [vaultCtx, getToken, vaultEmbeddingOptions, vaultEmbeddingCache, retainVaultMemory, memoryStore]
   );
 
   const getVaultMemories = useCallback(
     (options?: Parameters<typeof getAllVaultMemoriesOp>[1]): Promise<StoredVaultMemory[]> => {
-      return getAllVaultMemoriesOp(vaultCtx, options);
+      if (!memoryStore) return getAllVaultMemoriesOp(vaultCtx, options);
+      const { folderId, levels, kinds, ...listOptions } = options ?? {};
+      if (folderId !== undefined) throw new Error(NO_STORE_FOLDERS);
+      if (levels !== undefined || kinds !== undefined)
+        throw new Error("level and kind filters are not supported with a memoryStore");
+      return memoryStore.list(listOptions);
     },
-    [vaultCtx]
+    [vaultCtx, memoryStore]
   );
 
   const createVaultMemory = useCallback(
     async (content: string, scope?: string): Promise<StoredVaultMemory> => {
+      if (memoryStore) return memoryStore.create({ content, scope });
       const result = await createVaultMemoryOp(vaultCtx, { content, scope });
       if (getToken) {
         eagerEmbedContent(
@@ -1524,11 +1540,12 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       }
       return result;
     },
-    [vaultCtx, getToken, vaultEmbeddingOptions, vaultEmbeddingCache]
+    [vaultCtx, getToken, vaultEmbeddingOptions, vaultEmbeddingCache, memoryStore]
   );
 
   const updateVaultMemory = useCallback(
     async (id: string, content: string, scope?: string): Promise<StoredVaultMemory | null> => {
+      if (memoryStore) return memoryStore.update(id, { content, scope });
       const existing = await getVaultMemoryOp(vaultCtx, id);
       const result = await updateVaultMemoryOp(vaultCtx, id, { content, scope, embedding: null });
       if (result && getToken) {
@@ -1548,11 +1565,12 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       }
       return result;
     },
-    [vaultCtx, getToken, vaultEmbeddingOptions, vaultEmbeddingCache]
+    [vaultCtx, getToken, vaultEmbeddingOptions, vaultEmbeddingCache, memoryStore]
   );
 
   const deleteVaultMemory = useCallback(
     async (id: string): Promise<boolean> => {
+      if (memoryStore) return memoryStore.delete(id);
       const existing = await getVaultMemoryOp(vaultCtx, id);
       const result = await deleteVaultMemoryOp(vaultCtx, id);
       if (result && existing) {
@@ -1560,7 +1578,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       }
       return result;
     },
-    [vaultCtx, vaultEmbeddingCache]
+    [vaultCtx, vaultEmbeddingCache, memoryStore]
   );
 
   const chunkVectorCacheRef = useRef<ChunkVectorCache>(createChunkVectorCache());
@@ -1568,7 +1586,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
   const clientToolEmbeddingsCacheRef = useRef<Map<string, number[]>>(new Map());
 
   useEffect(() => {
-    if (!getToken) return;
+    if (!getToken || memoryStore) return;
     void (async () => {
       try {
         await preEmbedVaultMemories(vaultCtx, vaultEmbeddingOptions, vaultEmbeddingCache);
@@ -1576,7 +1594,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         // Non-critical: embeddings will be generated on first search
       }
     })();
-  }, [vaultCtx, getToken, vaultEmbeddingOptions, vaultEmbeddingCache]);
+  }, [vaultCtx, getToken, vaultEmbeddingOptions, vaultEmbeddingCache, memoryStore]);
 
   useEffect(() => {
     return onClearAllEncryptionState(() => {
@@ -1591,13 +1609,13 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         throw new Error("getToken is required for memory vault search tool");
       }
       return createMemoryVaultSearchToolBase(
-        vaultCtx,
+        memoryStore ?? vaultCtx,
         vaultEmbeddingOptions,
         vaultEmbeddingCache,
         searchOptions
       );
     },
-    [vaultCtx, getToken, vaultEmbeddingOptions, vaultEmbeddingCache]
+    [vaultCtx, getToken, vaultEmbeddingOptions, vaultEmbeddingCache, memoryStore]
   );
 
   const createRecallTool = useCallback(
@@ -1609,16 +1627,25 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         toolOptions?.excludeConversationId !== undefined || !currentConversationId
           ? toolOptions
           : { ...toolOptions, excludeConversationId: currentConversationId };
+      if (memoryStore && resolvedToolOptions?.folderId !== undefined)
+        throw new Error(NO_STORE_FOLDERS);
       return createRecallToolBase(
-        {
-          vaultCtx,
-          storageCtx,
-          embeddingOptions: vaultEmbeddingOptions,
-          vaultCache: vaultEmbeddingCache,
-          chunkCache: chunkVectorCacheRef.current,
-          entityCtx,
-        },
-        resolvedToolOptions,
+        memoryStore
+          ? {
+              factSource: memoryStore.factSource,
+              storageCtx,
+              embeddingOptions: vaultEmbeddingOptions,
+              chunkCache: chunkVectorCacheRef.current,
+            }
+          : {
+              vaultCtx,
+              storageCtx,
+              embeddingOptions: vaultEmbeddingOptions,
+              vaultCache: vaultEmbeddingCache,
+              chunkCache: chunkVectorCacheRef.current,
+              entityCtx,
+            },
+        memoryStore ? { ...resolvedToolOptions, memoryStore } : resolvedToolOptions,
         callbacks
       );
     },
@@ -1630,6 +1657,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       vaultEmbeddingOptions,
       vaultEmbeddingCache,
       currentConversationId,
+      memoryStore,
     ]
   );
 
@@ -1639,6 +1667,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       searchOptions?: MemoryVaultSearchOptions
     ): Promise<VaultSearchResult[]> => {
       if (!getToken) return [];
+      if (memoryStore) return (await memoryStore.factSource.search(query, searchOptions)).results;
       return searchVaultMemoriesBase(
         query,
         vaultCtx,
@@ -1647,7 +1676,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         searchOptions
       );
     },
-    [vaultCtx, getToken, vaultEmbeddingOptions, vaultEmbeddingCache]
+    [vaultCtx, getToken, vaultEmbeddingOptions, vaultEmbeddingCache, memoryStore]
   );
 
   const recallFn = useCallback(
@@ -1664,16 +1693,24 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         options?.excludeConversationId !== undefined || !currentConversationId
           ? options
           : { ...options, excludeConversationId: currentConversationId };
+      if (memoryStore && resolvedOptions?.folderId !== undefined) throw new Error(NO_STORE_FOLDERS);
       return recallBase(
         query,
-        {
-          vaultCtx,
-          storageCtx,
-          embeddingOptions: vaultEmbeddingOptions,
-          vaultCache: vaultEmbeddingCache,
-          chunkCache: chunkVectorCacheRef.current,
-          entityCtx,
-        },
+        memoryStore
+          ? {
+              factSource: memoryStore.factSource,
+              storageCtx,
+              embeddingOptions: vaultEmbeddingOptions,
+              chunkCache: chunkVectorCacheRef.current,
+            }
+          : {
+              vaultCtx,
+              storageCtx,
+              embeddingOptions: vaultEmbeddingOptions,
+              vaultCache: vaultEmbeddingCache,
+              chunkCache: chunkVectorCacheRef.current,
+              entityCtx,
+            },
         resolvedOptions
       );
     },
@@ -1685,6 +1722,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       currentConversationId,
       vaultEmbeddingOptions,
       vaultEmbeddingCache,
+      memoryStore,
     ]
   );
 

@@ -1,6 +1,6 @@
 # MemoryStore
 
-Defined in: [src/lib/memory/store/types.ts:205](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#205)
+Defined in: [src/lib/memory/store/types.ts:211](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#211)
 
 One user's memories, pitched at what the apps do with them rather than at
 the storage ops underneath. Two backends are intended: the on-device
@@ -21,11 +21,21 @@ not owned by this store's user; they don't throw for it.
 
 ## Properties
 
+### factSource
+
+> `readonly` **factSource**: `RecallFactSource`
+
+Defined in: [src/lib/memory/store/types.ts:252](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#252)
+
+The fact lane of `recall`, for callers that fuse it with other lanes such as conversation chunks.
+
+***
+
 ### maintenance?
 
 > `optional` **maintenance**: [`MemoryMaintenance`](MemoryMaintenance.md)
 
-Defined in: [src/lib/memory/store/types.ts:254](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#254)
+Defined in: [src/lib/memory/store/types.ts:262](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#262)
 
 TRANSITIONAL — see [MemoryMaintenance](MemoryMaintenance.md). Absent on a remote backend.
 
@@ -35,7 +45,7 @@ TRANSITIONAL — see [MemoryMaintenance](MemoryMaintenance.md). Absent on a remo
 
 > **addTopics**(`memoryId`: `string`, `topics`: readonly [`EntityInput`](../type-aliases/EntityInput.md)\[]): `Promise`<[`StoredEntity`](StoredEntity.md)\[]>
 
-Defined in: [src/lib/memory/store/types.ts:236](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#236)
+Defined in: [src/lib/memory/store/types.ts:242](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#242)
 
 Add topics alongside the existing ones (auto-tagging stays on).
 
@@ -86,7 +96,7 @@ readonly [`EntityInput`](../type-aliases/EntityInput.md)\[]
 
 > **archive**(`id`: `string`): `Promise`<`boolean`>
 
-Defined in: [src/lib/memory/store/types.ts:231](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#231)
+Defined in: [src/lib/memory/store/types.ts:237](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#237)
 
 **Parameters**
 
@@ -123,7 +133,7 @@ Defined in: [src/lib/memory/store/types.ts:231](https://github.com/anuma-ai/sdk/
 
 > **count**(`options?`: [`MemoryListOptions`](MemoryListOptions.md)): `Promise`<`number`>
 
-Defined in: [src/lib/memory/store/types.ts:218](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#218)
+Defined in: [src/lib/memory/store/types.ts:224](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#224)
 
 How many memories [MemoryStore.list](#list) would return, ignoring `limit`.
 
@@ -162,7 +172,7 @@ How many memories [MemoryStore.list](#list) would return, ignoring `limit`.
 
 > **create**(`input`: [`MemoryCreate`](../type-aliases/MemoryCreate.md)): `Promise`<[`StoredVaultMemory`](StoredVaultMemory.md)>
 
-Defined in: [src/lib/memory/store/types.ts:223](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#223)
+Defined in: [src/lib/memory/store/types.ts:229](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#229)
 
 Manual save; missing embeddings are filled in the background.
 
@@ -201,7 +211,7 @@ Manual save; missing embeddings are filled in the background.
 
 > **createMany**(`inputs`: [`MemoryCreate`](../type-aliases/MemoryCreate.md)\[]): `Promise`<[`StoredVaultMemory`](StoredVaultMemory.md)\[]>
 
-Defined in: [src/lib/memory/store/types.ts:225](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#225)
+Defined in: [src/lib/memory/store/types.ts:231](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#231)
 
 One write for a batch of manual saves; migration/restore uses lower-level operations.
 
@@ -240,7 +250,7 @@ One write for a batch of manual saves; migration/restore uses lower-level operat
 
 > **delete**(`id`: `string`): `Promise`<`boolean`>
 
-Defined in: [src/lib/memory/store/types.ts:228](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#228)
+Defined in: [src/lib/memory/store/types.ts:234](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#234)
 
 Soft delete; also drops the memory's topic links.
 
@@ -279,7 +289,7 @@ Soft delete; also drops the memory's topic links.
 
 > **get**(`id`: `string`): `Promise`<[`StoredVaultMemory`](StoredVaultMemory.md) | `null`>
 
-Defined in: [src/lib/memory/store/types.ts:208](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#208)
+Defined in: [src/lib/memory/store/types.ts:214](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#214)
 
 **Parameters**
 
@@ -316,7 +326,7 @@ Defined in: [src/lib/memory/store/types.ts:208](https://github.com/anuma-ai/sdk/
 
 > **list**(`options?`: [`MemoryListOptions`](MemoryListOptions.md)): `Promise`<[`StoredVaultMemory`](StoredVaultMemory.md)\[]>
 
-Defined in: [src/lib/memory/store/types.ts:207](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#207)
+Defined in: [src/lib/memory/store/types.ts:213](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#213)
 
 Memories newest-first, decrypted, WITH `embedding` (Memory Graph edges read it).
 
@@ -355,7 +365,7 @@ Memories newest-first, decrypted, WITH `embedding` (Memory Graph edges read it).
 
 > **listArchived**(): `Promise`<[`StoredVaultMemory`](StoredVaultMemory.md)\[]>
 
-Defined in: [src/lib/memory/store/types.ts:210](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#210)
+Defined in: [src/lib/memory/store/types.ts:216](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#216)
 
 Decay-archived memories (not deleted, quarantined or superseded), most recently archived first.
 
@@ -369,7 +379,7 @@ Decay-archived memories (not deleted, quarantined or superseded), most recently 
 
 > **listProjections**(`options?`: [`MemoryListOptions`](MemoryListOptions.md)): `Promise`<[`VaultMemoryProjection`](VaultMemoryProjection.md)\[]>
 
-Defined in: [src/lib/memory/store/types.ts:220](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#220)
+Defined in: [src/lib/memory/store/types.ts:226](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#226)
 
 The memories [MemoryStore.list](#list) would return, without decrypting content.
 
@@ -408,7 +418,7 @@ The memories [MemoryStore.list](#list) would return, without decrypting content.
 
 > **listTopics**(): `Promise`<[`MemoryTopic`](MemoryTopic.md)\[]>
 
-Defined in: [src/lib/memory/store/types.ts:216](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#216)
+Defined in: [src/lib/memory/store/types.ts:222](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#222)
 
 Every topic by canonical name, with its kind and linked-memory count.
 
@@ -422,7 +432,7 @@ Every topic by canonical name, with its kind and linked-memory count.
 
 > **memoriesByTopics**(`names`: readonly `string`\[]): `Promise`<`Map`<`string`, `Set`<`string`>>>
 
-Defined in: [src/lib/memory/store/types.ts:212](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#212)
+Defined in: [src/lib/memory/store/types.ts:218](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#218)
 
 Memory id → which of `names` it is linked to. Names are matched case-insensitively.
 
@@ -461,7 +471,7 @@ readonly `string`\[]
 
 > **recall**(`query`: `string`, `options?`: [`MemoryRecallOptions`](../type-aliases/MemoryRecallOptions.md)): `Promise`<[`RecallResult`](RecallResult.md)>
 
-Defined in: [src/lib/memory/store/types.ts:243](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#243)
+Defined in: [src/lib/memory/store/types.ts:249](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#249)
 
 **Parameters**
 
@@ -510,7 +520,7 @@ Defined in: [src/lib/memory/store/types.ts:243](https://github.com/anuma-ai/sdk/
 
 > **restore**(`id`: `string`): `Promise`<`boolean`>
 
-Defined in: [src/lib/memory/store/types.ts:232](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#232)
+Defined in: [src/lib/memory/store/types.ts:238](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#238)
 
 **Parameters**
 
@@ -547,7 +557,7 @@ Defined in: [src/lib/memory/store/types.ts:232](https://github.com/anuma-ai/sdk/
 
 > **retain**(`content`: `string`, `options?`: [`MemoryRetainOptions`](../type-aliases/MemoryRetainOptions.md)): `Promise`<[`RetainResult`](RetainResult.md)>
 
-Defined in: [src/lib/memory/store/types.ts:244](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#244)
+Defined in: [src/lib/memory/store/types.ts:250](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#250)
 
 **Parameters**
 
@@ -596,7 +606,7 @@ Defined in: [src/lib/memory/store/types.ts:244](https://github.com/anuma-ai/sdk/
 
 > **setTopics**(`memoryId`: `string`, `topics`: readonly [`EntityInput`](../type-aliases/EntityInput.md)\[]): `Promise`<[`StoredVaultMemory`](StoredVaultMemory.md) | `null`>
 
-Defined in: [src/lib/memory/store/types.ts:234](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#234)
+Defined in: [src/lib/memory/store/types.ts:240](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#240)
 
 Replace the memory's topics with a user-chosen set and stop auto-tagging it.
 
@@ -647,7 +657,7 @@ readonly [`EntityInput`](../type-aliases/EntityInput.md)\[]
 
 > **setVisibility**(`id`: `string`, `visibility`: [`VaultMemoryVisibility`](../type-aliases/VaultMemoryVisibility.md), `options?`: `object`): `Promise`<[`StoredVaultMemory`](StoredVaultMemory.md) | `null`>
 
-Defined in: [src/lib/memory/store/types.ts:237](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#237)
+Defined in: [src/lib/memory/store/types.ts:243](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#243)
 
 **Parameters**
 
@@ -720,7 +730,7 @@ Defined in: [src/lib/memory/store/types.ts:237](https://github.com/anuma-ai/sdk/
 
 > **subscribe**(`onChange`: () => `void`, `options?`: [`MemorySubscribeOptions`](MemorySubscribeOptions.md)): () => `void`
 
-Defined in: [src/lib/memory/store/types.ts:251](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#251)
+Defined in: [src/lib/memory/store/types.ts:259](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#259)
 
 Call `onChange` after the store's memories change; re-read to see what
 changed. Does not fire for the state at subscription time — read once
@@ -777,7 +787,7 @@ after subscribing. Returns the unsubscribe function.
 
 > **supersede**(`id`: `string`, `supersededById`: `string`): `Promise`<`boolean`>
 
-Defined in: [src/lib/memory/store/types.ts:230](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#230)
+Defined in: [src/lib/memory/store/types.ts:236](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#236)
 
 Retire `id` behind the newer `supersededById` (both must be live and owned).
 
@@ -828,7 +838,7 @@ Retire `id` behind the newer `supersededById` (both must be live and owned).
 
 > **topicsByMemories**(`memoryIds`: readonly `string`\[]): `Promise`<`Map`<`string`, `Set`<`string`>>>
 
-Defined in: [src/lib/memory/store/types.ts:214](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#214)
+Defined in: [src/lib/memory/store/types.ts:220](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#220)
 
 Memory id → its canonical (lowercased) topic names. Unlinked ids are absent.
 
@@ -867,7 +877,7 @@ readonly `string`\[]
 
 > **update**(`id`: `string`, `patch`: [`MemoryUpdate`](../type-aliases/MemoryUpdate.md)): `Promise`<[`StoredVaultMemory`](StoredVaultMemory.md) | `null`>
 
-Defined in: [src/lib/memory/store/types.ts:226](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#226)
+Defined in: [src/lib/memory/store/types.ts:232](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#232)
 
 **Parameters**
 

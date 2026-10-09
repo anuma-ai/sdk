@@ -10,7 +10,7 @@ unrecognized one — see validateCandidates.
 
 ### kind?
 
-> `optional` **kind**: `"event"` | `"other"` | `"person"` | `"organization"` | `"place"` | `"product"` | `"thing"` | `"concept"`
+> `optional` **kind**: `"event"` | `"person"` | `"organization"` | `"place"` | `"product"` | `"thing"` | `"concept"` | `"other"`
 
 Defined in: [src/lib/memory/autoExtract.ts:131](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#131)
 

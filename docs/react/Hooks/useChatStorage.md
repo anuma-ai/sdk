@@ -2,7 +2,7 @@
 
 > **useChatStorage**(`options`: `object`): [`UseChatStorageResult`](../Internal/interfaces/UseChatStorageResult.md)
 
-Defined in: [src/react/useChatStorage.ts:1060](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#1060)
+Defined in: [src/react/useChatStorage.ts:1061](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#1061)
 
 A React hook that wraps useChat and persists messages and conversations to WatermelonDB as they are sent and received.
 
@@ -494,6 +494,23 @@ When the wallet isn't ready yet, should return null.
 R2 domain for identifying MCP-generated image URLs.
 When set, enables OPFS caching of generated images.
 Defaults to the hardcoded MCP\_R2\_DOMAIN from clientConfig.
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.memoryStore?`
+
+</td>
+<td>
+
+[`MemoryStore`](../Internal/interfaces/MemoryStore.md)
+
+</td>
+<td>
+
+Route memory reads, writes, recall and the memory tools through this store instead of the database's vault; folders are unsupported.
 
 </td>
 </tr>
