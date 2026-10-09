@@ -21,8 +21,8 @@ import type { EmbeddingOptions } from "../../memoryEngine/types.js";
 import type { RecallFactSource } from "../types.js";
 import type {
   RemoteMemoryDecodeFailure,
-  RemoteMemoryListOptions,
   RemoteMemoryPersistence,
+  RemoteMemoryQueryOptions,
   RemoteMemoryRecord,
   RemoteMemoryRow,
 } from "./remotePersistence.js";
@@ -48,7 +48,20 @@ export interface RemoteMemoryStoreOptions {
 
 type Change = "membership" | "edit" | "embedding";
 
-const MAX_CREATE_MANY = 50;
+const MAX_BATCH = 50;
+const MAX_QUERY_IDS = 1000;
+const MAX_QUERY_TOPICS = 100;
+
+/** createMany committed some batches of 50 before a later batch failed; `created` holds the committed memories. */
+export class RemoteMemoryPartialCreateError extends Error {
+  constructor(
+    public readonly created: StoredVaultMemory[],
+    public readonly cause: unknown
+  ) {
+    super(`createMany stored ${created.length} memories before a batch failed`);
+    this.name = "RemoteMemoryPartialCreateError";
+  }
+}
 
 function warnFailed(failed: RemoteMemoryDecodeFailure[]) {
   if (failed.length)
@@ -58,13 +71,55 @@ function warnFailed(failed: RemoteMemoryDecodeFailure[]) {
     );
 }
 
-function visible(memory: StoredVaultMemory, options: MemoryListOptions): boolean {
+function chunks<T>(values: readonly T[], size: number): T[][] {
+  const out: T[][] = [];
+  for (let i = 0; i < values.length; i += size) out.push(values.slice(i, i + size));
+  return out;
+}
+
+function stateFilters(options: MemoryListOptions) {
+  return {
+    include_deleted: options.includeDeleted,
+    include_archived: options.includeArchived,
+    include_quarantined: options.includeQuarantined,
+    include_superseded: options.includeSuperseded,
+  };
+}
+
+function hidden(memory: RemoteMemoryRow, options: MemorySubscribeOptions): boolean {
+  if (memory.trust_tier === "quarantined") return true;
+  if (options.includeDeleted) return false;
   return (
-    (options.includeDeleted || !memory.isDeleted) &&
-    (options.includeArchived || memory.archivedAt === null) &&
-    (options.includeQuarantined || memory.trustTier !== "quarantined") &&
-    (options.includeSuperseded || !memory.supersededBy)
+    !!memory.is_deleted ||
+    (memory.archived_at !== undefined && memory.archived_at !== null) ||
+    !!memory.superseded_by
   );
+}
+
+function subscriptionKey(
+  { memory, version }: RemoteMemoryRecord,
+  options: MemorySubscribeOptions
+): string | undefined {
+  if (hidden(memory, options)) return undefined;
+  if (options.includeDeleted) return String(!!memory.is_deleted);
+  return JSON.stringify([
+    options.embeddings ? version : null,
+    memory.content,
+    memory.scope,
+    memory.updated_at,
+    memory.fact_type,
+    memory.event_time_start,
+    memory.event_time_end,
+    memory.event_time_kind,
+    memory.trust_tier,
+    memory.visibility,
+    memory.published_at,
+    memory.geohash,
+    memory.topics,
+    memory.topics_user_managed,
+    memory.media,
+    memory.source,
+  ]);
 }
 
 function topicInputs(topics: readonly EntityInput[], source: StoredTopic["source"]): StoredTopic[] {
@@ -92,10 +147,11 @@ function canonicalTopics(row: RemoteMemoryRow): Set<string> {
  * {@link MemoryStore} over nearby's private-memory API. Every read reaches nearby and every write
  * is version-guarded; content is decrypted and processed only on the device.
  *
- * Differences from the local store: list and topic reads enumerate the vault and filter on the
- * device, `createMany` accepts at most 50 memories, a concurrent edit surfaces as a
- * `RemoteMemoryError` with code `version_conflict`, and subscriptions see other devices' changes
- * by polling. There is no `maintenance`.
+ * Differences from the local store: `createMany` above 50 memories commits in batches of 50 and
+ * throws {@link RemoteMemoryPartialCreateError} if a later batch fails, a concurrent edit surfaces
+ * as a `RemoteMemoryError` with code `version_conflict`, subscriptions see other devices' changes
+ * by polling nearby for rows written since the last poll, and `addTopics` returns each topic with
+ * its canonical name as its id. There is no `maintenance`.
  * @public
  */
 export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): MemoryStore {
@@ -106,27 +162,35 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
   const listeners = new Set<(change: Change) => void>();
   const notify = (change: Change) => listeners.forEach((listener) => listener(change));
 
-  const enumerate = async (filters: Omit<RemoteMemoryListOptions, "cursor" | "limit">) => {
+  const enumerate = async (
+    filters: Omit<RemoteMemoryQueryOptions, "cursor" | "limit">,
+    max = Infinity
+  ) => {
     const records: RemoteMemoryRecord[] = [];
     let cursor: string | undefined;
     do {
-      const page = await persistence.list({ ...filters, limit: 200, ...(cursor && { cursor }) });
+      const page = await persistence.query({
+        ...filters,
+        limit: Math.min(200, Math.max(1, max - records.length)),
+        ...(cursor && { cursor }),
+      });
       warnFailed(page.failed);
       records.push(...page.items);
       cursor = page.next_cursor;
-    } while (cursor);
-    return records;
+    } while (cursor && records.length < max);
+    return records.slice(0, max);
   };
-  const readAll = async (listOptions: MemoryListOptions, includeEmbeddings: boolean) =>
+  const enumerateIds = async (
+    ids: readonly string[],
+    filters: Omit<RemoteMemoryQueryOptions, "cursor" | "limit" | "memory_ids">
+  ) =>
     (
-      await enumerate({
-        include_deleted: listOptions.includeDeleted,
-        include_archived: listOptions.includeArchived,
-        include_quarantined: listOptions.includeQuarantined,
-        include_superseded: listOptions.includeSuperseded,
-        include_embeddings: includeEmbeddings,
-      })
-    ).filter((record) => visible(stored(record.memory), listOptions));
+      await Promise.all(
+        chunks([...new Set(ids)], MAX_QUERY_IDS).map((memory_ids) =>
+          enumerate({ ...filters, memory_ids })
+        )
+      )
+    ).flat();
 
   const queues = new Map<string, Promise<unknown>>();
   const serialized = <T>(id: string, task: () => Promise<T>): Promise<T> => {
@@ -212,86 +276,78 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
   };
   const asStored = (record: RemoteMemoryRecord | null) => (record ? stored(record.memory) : null);
 
-  const fingerprint = async (subscribeOptions: MemorySubscribeOptions) =>
-    (
-      await enumerate(
-        subscribeOptions.includeDeleted
-          ? { include_deleted: true, include_archived: true, include_superseded: true }
-          : {}
-      )
-    )
-      .map(({ memory, version }) =>
-        subscribeOptions.includeDeleted
-          ? `${memory.memory_id}:${memory.is_deleted}`
-          : JSON.stringify([
-              memory.memory_id,
-              subscribeOptions.embeddings ? version : null,
-              memory.content,
-              memory.scope,
-              memory.updated_at,
-              memory.fact_type,
-              memory.event_time_start,
-              memory.event_time_end,
-              memory.event_time_kind,
-              memory.trust_tier,
-              memory.visibility,
-              memory.published_at,
-              memory.geohash,
-              memory.topics,
-              memory.topics_user_managed,
-              memory.media,
-              memory.source,
-            ])
-      )
-      .sort()
-      .join("\n");
+  const changesSince = async (cursor: string | undefined) => {
+    const records: RemoteMemoryRecord[] = [];
+    let resume = cursor;
+    let next: string | undefined;
+    do {
+      const page = await persistence.query({
+        include_deleted: true,
+        include_archived: true,
+        include_quarantined: true,
+        include_superseded: true,
+        order: "changed",
+        limit: 200,
+        ...((next ?? resume) && { cursor: next ?? resume }),
+      });
+      warnFailed(page.failed);
+      records.push(...page.items);
+      resume = page.changes_cursor ?? resume;
+      next = page.next_cursor;
+    } while (next);
+    return { records, resume };
+  };
 
   return {
     list: async (listOptions = {}) => {
-      const ids = listOptions.memoryIds && new Set(listOptions.memoryIds);
-      const rows = (await readAll(listOptions, true))
+      const order = listOptions.since ? "updated" : "created";
+      const filters = {
+        ...stateFilters(listOptions),
+        include_embeddings: true,
+        order,
+        ...(listOptions.scopes?.length && { scopes: listOptions.scopes }),
+        ...(listOptions.factTypes?.length && { fact_types: listOptions.factTypes }),
+        ...(listOptions.visibility?.length && { visibility: listOptions.visibility }),
+        ...(listOptions.since && { updated_after: listOptions.since.getTime() }),
+      } satisfies RemoteMemoryQueryOptions;
+      const max = listOptions.limit && listOptions.limit > 0 ? listOptions.limit : Infinity;
+      if (!listOptions.memoryIds)
+        return (await enumerate(filters, max)).map((r) => stored(r.memory));
+      const rows = (await enumerateIds(listOptions.memoryIds, filters))
         .map((record) => stored(record.memory))
-        .filter(
-          (memory) =>
-            (!ids || ids.has(memory.uniqueId)) &&
-            (!listOptions.scopes?.length || listOptions.scopes.includes(memory.scope)) &&
-            (!listOptions.factTypes?.length ||
-              listOptions.factTypes.includes(memory.factType ?? "")) &&
-            (!listOptions.visibility?.length ||
-              listOptions.visibility.includes(memory.visibility ?? "private")) &&
-            (!listOptions.since || memory.updatedAt.getTime() > listOptions.since.getTime())
-        )
         .sort((a, b) =>
-          listOptions.since
-            ? b.updatedAt.getTime() - a.updatedAt.getTime()
-            : b.createdAt.getTime() - a.createdAt.getTime()
+          order === "updated"
+            ? b.updatedAt.getTime() - a.updatedAt.getTime() || (a.uniqueId < b.uniqueId ? 1 : -1)
+            : b.createdAt.getTime() - a.createdAt.getTime() || (a.uniqueId < b.uniqueId ? 1 : -1)
         );
-      return listOptions.limit && listOptions.limit > 0 ? rows.slice(0, listOptions.limit) : rows;
+      return rows.slice(0, max);
     },
     get: async (id) => asStored(await live(id)),
     listArchived: async () =>
-      (await readAll({ includeArchived: true }, true))
-        .map((record) => stored(record.memory))
-        .filter((memory) => memory.archivedAt !== null)
-        .sort((a, b) => (b.archivedAt ?? 0) - (a.archivedAt ?? 0)),
+      (await enumerate({ archived_only: true, order: "archived", include_embeddings: true })).map(
+        (record) => stored(record.memory)
+      ),
     memoriesByTopics: async (names) => {
-      const wanted = new Set(names.map(normalizeEntityName));
+      const wanted = new Set(names.map(normalizeEntityName).filter(Boolean));
       const out = new Map<string, Set<string>>();
-      for (const { memory } of await readAll({}, false)) {
+      const pages = await Promise.all(
+        chunks([...wanted], MAX_QUERY_TOPICS).map((topics) => enumerate({ topics }))
+      );
+      for (const { memory } of pages.flat()) {
         const matched = [...canonicalTopics(memory)].filter((name) => wanted.has(name));
         if (matched.length) out.set(memory.memory_id, new Set(matched));
       }
       return out;
     },
     topicsByMemories: async (memoryIds) => {
-      const ids = new Set(memoryIds);
       const out = new Map<string, Set<string>>();
-      for (const { memory } of await readAll(
-        { includeArchived: true, includeSuperseded: true, includeQuarantined: true },
-        false
-      )) {
+      for (const { memory } of await enumerateIds(memoryIds, {
+        include_archived: true,
+        include_superseded: true,
+        include_quarantined: true,
+      })) {
         const topics = canonicalTopics(memory);
-        if (ids.has(memory.memory_id) && topics.size) out.set(memory.memory_id, topics);
+        if (topics.size) out.set(memory.memory_id, topics);
       }
       return out;
     },
@@ -301,13 +357,20 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
       return created([record], [input])[0];
     },
     createMany: async (inputs) => {
-      if (inputs.length === 0) return [];
-      if (inputs.length > MAX_CREATE_MANY)
-        throw new Error(`Remote createMany accepts at most ${MAX_CREATE_MANY} memories`);
-      const records = await persistence.putMany(
-        inputs.map((input) => ({ memory: newRow(input), expectedVersion: 0 }))
-      );
-      return created(records, inputs);
+      const out: StoredVaultMemory[] = [];
+      for (const batch of chunks(inputs, MAX_BATCH)) {
+        let records: RemoteMemoryRecord[];
+        try {
+          records = await persistence.putMany(
+            batch.map((input) => ({ memory: newRow(input), expectedVersion: 0 }))
+          );
+        } catch (error) {
+          if (out.length === 0) throw error;
+          throw new RemoteMemoryPartialCreateError(out, error);
+        }
+        out.push(...created(records, batch));
+      }
+      return out;
     },
     update: async (id, patch: MemoryUpdate) => {
       const saved = await mutate(id, "edit", (memory) => {
@@ -433,15 +496,27 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
       };
       listeners.add(listener);
       let stopped = false;
-      let previous: string | undefined;
+      let started = false;
+      let cursor: string | undefined;
+      const keys = new Map<string, string>();
       let polling = false;
       const poll = () => {
         if (polling) return;
         polling = true;
-        fingerprint(subscribeOptions)
-          .then((current) => {
-            if (!stopped && previous !== undefined && current !== previous) onChange();
-            previous = current;
+        changesSince(cursor)
+          .then(({ records, resume }) => {
+            let changed = false;
+            for (const record of records) {
+              const id = record.memory.memory_id;
+              const key = subscriptionKey(record, subscribeOptions);
+              if (keys.get(id) === key) continue;
+              changed = true;
+              if (key === undefined) keys.delete(id);
+              else keys.set(id, key);
+            }
+            if (!stopped && started && changed) onChange();
+            started = true;
+            cursor = resume;
           })
           .catch((error: unknown) => {
             getLogger().warn("[memory/remote-store] Subscription poll failed:", error);

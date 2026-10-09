@@ -2,6 +2,10 @@
 
 Defined in: [src/lib/memory/store/remotePersistence.ts:68](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#68)
 
+## Extended by
+
+* [`RemoteMemoryQueryPage`](RemoteMemoryQueryPage.md)
+
 ## Properties
 
 ### failed

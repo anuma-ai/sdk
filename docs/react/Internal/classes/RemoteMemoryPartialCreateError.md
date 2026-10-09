@@ -1,8 +1,8 @@
-# RemoteMemoryError
+# RemoteMemoryPartialCreateError
 
-Defined in: [src/lib/memory/store/remotePersistence.ts:126](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#126)
+Defined in: [src/lib/memory/store/remoteStore.ts:56](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteStore.ts#56)
 
-HTTP failures remain distinguishable, particularly version\_conflict and key\_mismatch.
+createMany committed some batches of 50 before a later batch failed; `created` holds the committed memories.
 
 ## Extends
 
@@ -12,9 +12,9 @@ HTTP failures remain distinguishable, particularly version\_conflict and key\_mi
 
 ### Constructor
 
-> **new RemoteMemoryError**(`message`: `string`, `status`: `number`, `code?`: `string`): `RemoteMemoryError`
+> **new RemoteMemoryPartialCreateError**(`created`: [`StoredVaultMemory`](../interfaces/StoredVaultMemory.md)\[], `cause`: `unknown`): `RemoteMemoryPartialCreateError`
 
-Defined in: [src/lib/memory/store/remotePersistence.ts:127](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#127)
+Defined in: [src/lib/memory/store/remoteStore.ts:57](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteStore.ts#57)
 
 **Parameters**
 
@@ -29,36 +29,24 @@ Defined in: [src/lib/memory/store/remotePersistence.ts:127](https://github.com/a
 <tr>
 <td>
 
-`message`
+`created`
 
 </td>
 <td>
 
-`string`
-
-</td>
-</tr>
-<tr>
-<td>
-
-`status`
-
-</td>
-<td>
-
-`number`
+[`StoredVaultMemory`](../interfaces/StoredVaultMemory.md)\[]
 
 </td>
 </tr>
 <tr>
 <td>
 
-`code?`
+`cause`
 
 </td>
 <td>
 
-`string`
+`unknown`
 
 </td>
 </tr>
@@ -67,7 +55,7 @@ Defined in: [src/lib/memory/store/remotePersistence.ts:127](https://github.com/a
 
 **Returns**
 
-`RemoteMemoryError`
+`RemoteMemoryPartialCreateError`
 
 **Overrides**
 
@@ -75,11 +63,19 @@ Defined in: [src/lib/memory/store/remotePersistence.ts:127](https://github.com/a
 
 ## Properties
 
-### code?
+### cause
 
-> `readonly` `optional` **code**: `string`
+> `readonly` **cause**: `unknown`
 
-Defined in: [src/lib/memory/store/remotePersistence.ts:130](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#130)
+Defined in: [src/lib/memory/store/remoteStore.ts:59](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteStore.ts#59)
+
+***
+
+### created
+
+> `readonly` **created**: [`StoredVaultMemory`](../interfaces/StoredVaultMemory.md)\[]
+
+Defined in: [src/lib/memory/store/remoteStore.ts:58](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteStore.ts#58)
 
 ***
 
@@ -116,14 +112,6 @@ Defined in: node\_modules/.pnpm/typescript@5.9.3/node\_modules/typescript/lib/li
 **Inherited from**
 
 `Error.stack`
-
-***
-
-### status
-
-> `readonly` **status**: `number`
-
-Defined in: [src/lib/memory/store/remotePersistence.ts:129](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#129)
 
 ***
 

@@ -50,6 +50,13 @@ function setup() {
         ...(offset + limit < visible.length && { next_cursor: `page:${offset + limit}` }),
       });
     }
+    if (url.pathname === "/api/private-memories/memories/query") {
+      const items = [...rows.values()].filter(({ memory: m }) => !m.is_deleted);
+      return Response.json({
+        items,
+        ...(body!.order === "changed" && { changes_cursor: "resume-here" }),
+      });
+    }
     if (url.pathname === "/api/private-memories/candidates") {
       return Response.json({
         ...(body!.with_counts === true && { total_count: rows.size, unavailable_count: 0 }),
@@ -495,6 +502,32 @@ describe("remote private-memory persistence", () => {
     expect(h.fetch.mock.calls.length).toBe(before);
     await expect(store.candidateSet(vector(), { memory_ids: ids(1000) })).resolves.toMatchObject({
       failed: [],
+    });
+  });
+
+  it("queries with only the filters given, validates bounds first and passes the changes cursor", async () => {
+    const h = setup();
+    const store = await createRemoteMemoryPersistence(h.options);
+    await store.put(h.memory("a", "Speaks Portuguese"), 0);
+    const before = h.fetch.mock.calls.length;
+    const many = (n: number) => Array.from({ length: n }, (_, i) => `x-${i}`);
+    await expect(store.query({ topics: many(101) })).rejects.toThrow("topics accepts at most 100");
+    await expect(store.query({ memory_ids: many(1001) })).rejects.toThrow(
+      "memory_ids accepts at most 1000"
+    );
+    await expect(store.query({ visibility: many(21) })).rejects.toThrow(
+      "visibility accepts at most 20"
+    );
+    await expect(store.query({ limit: 201 })).rejects.toThrow("1–200");
+    expect(h.fetch.mock.calls.length).toBe(before);
+
+    const page = await store.query({ order: "changed", topics: ["Lisbon"], updated_after: 5 });
+    expect(page.items.map((item) => item.memory.content)).toEqual(["Speaks Portuguese"]);
+    expect(page.changes_cursor).toBe("resume-here");
+    expect(h.requests.at(-1)!.body).toEqual({
+      order: "changed",
+      topics: ["Lisbon"],
+      updated_after: 5,
     });
   });
 

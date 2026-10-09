@@ -5,6 +5,7 @@ Defined in: [src/lib/memory/store/remotePersistence.ts:47](https://github.com/an
 ## Extended by
 
 * [`RemoteMemoryCandidateOptions`](RemoteMemoryCandidateOptions.md)
+* [`RemoteMemoryQueryOptions`](RemoteMemoryQueryOptions.md)
 
 ## Properties
 
