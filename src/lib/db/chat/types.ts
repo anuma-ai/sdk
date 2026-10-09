@@ -490,6 +490,7 @@ export interface UpdateMessageOptions {
  * @inline
  */
 export interface BaseUseChatStorageOptions {
+  /** Run lifecycle hooks for telemetry and tracing, for example from `createMetricsHooks` */
   hooks?: RunHooks | RunHooks[];
   /** WatermelonDB database instance for storing conversations and messages */
   database: Database;
