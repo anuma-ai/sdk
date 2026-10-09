@@ -116,6 +116,8 @@ export {
   RemoteMemoryError,
   type RemoteMemoryListOptions,
   type RemoteMemoryPage,
+  type RemoteMemoryQueryOptions,
+  type RemoteMemoryQueryPage,
   type RemoteMemoryPersistence,
   type RemoteMemoryPersistenceOptions,
   type RemoteMemoryReadFilters,
@@ -127,7 +129,11 @@ export {
   type RemoteMemoryPipeline,
   type RemoteMemoryPipelineOptions,
 } from "./store/remotePipeline.js";
-export { createRemoteMemoryStore, type RemoteMemoryStoreOptions } from "./store/remoteStore.js";
+export {
+  createRemoteMemoryStore,
+  RemoteMemoryPartialCreateError,
+  type RemoteMemoryStoreOptions,
+} from "./store/remoteStore.js";
 export type {
   MemoryCreate,
   MemoryListOptions,

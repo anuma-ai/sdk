@@ -24,7 +24,7 @@ Defined in: [src/lib/memory/store/remotePersistence.ts:48](https://github.com/an
 
 **Inherited from**
 
-[`RemoteMemoryCandidateOptions`](RemoteMemoryCandidateOptions.md).[`include_archived`](RemoteMemoryCandidateOptions.md#include_archived)
+[`RemoteMemoryReadFilters`](RemoteMemoryReadFilters.md).[`include_archived`](RemoteMemoryReadFilters.md#include_archived)
 
 ***
 
@@ -52,7 +52,7 @@ Defined in: [src/lib/memory/store/remotePersistence.ts:49](https://github.com/an
 
 **Inherited from**
 
-[`RemoteMemoryCandidateOptions`](RemoteMemoryCandidateOptions.md).[`include_quarantined`](RemoteMemoryCandidateOptions.md#include_quarantined)
+[`RemoteMemoryReadFilters`](RemoteMemoryReadFilters.md).[`include_quarantined`](RemoteMemoryReadFilters.md#include_quarantined)
 
 ***
 
@@ -64,7 +64,7 @@ Defined in: [src/lib/memory/store/remotePersistence.ts:50](https://github.com/an
 
 **Inherited from**
 
-[`RemoteMemoryCandidateOptions`](RemoteMemoryCandidateOptions.md).[`include_superseded`](RemoteMemoryCandidateOptions.md#include_superseded)
+[`RemoteMemoryReadFilters`](RemoteMemoryReadFilters.md).[`include_superseded`](RemoteMemoryReadFilters.md#include_superseded)
 
 ***
 

@@ -1744,6 +1744,12 @@ Re-exports [RemoteMemoryPage](../react/Internal/interfaces/RemoteMemoryPage.md)
 
 ***
 
+### RemoteMemoryPartialCreateError
+
+Re-exports [RemoteMemoryPartialCreateError](../react/Internal/classes/RemoteMemoryPartialCreateError.md)
+
+***
+
 ### RemoteMemoryPersistence
 
 Re-exports [RemoteMemoryPersistence](../react/Internal/interfaces/RemoteMemoryPersistence.md)
@@ -1765,6 +1771,18 @@ Re-exports [RemoteMemoryPipeline](../react/Internal/interfaces/RemoteMemoryPipel
 ### RemoteMemoryPipelineOptions
 
 Re-exports [RemoteMemoryPipelineOptions](../react/Internal/interfaces/RemoteMemoryPipelineOptions.md)
+
+***
+
+### RemoteMemoryQueryOptions
+
+Re-exports [RemoteMemoryQueryOptions](../react/Internal/interfaces/RemoteMemoryQueryOptions.md)
+
+***
+
+### RemoteMemoryQueryPage
+
+Re-exports [RemoteMemoryQueryPage](../react/Internal/interfaces/RemoteMemoryQueryPage.md)
 
 ***
 
