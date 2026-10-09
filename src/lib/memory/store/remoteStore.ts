@@ -49,6 +49,7 @@ type Change = "membership" | "edit" | "embedding";
 const MAX_BATCH = 50;
 const MAX_QUERY_IDS = 1000;
 const MAX_QUERY_TOPICS = 100;
+const MAX_QUERY_FILTER = 20;
 
 export class RemoteMemoryPartialCreateError extends Error {
   constructor(
@@ -66,6 +67,15 @@ function warnFailed(failed: RemoteMemoryDecodeFailure[]) {
       `[memory/remote-store] Skipping ${failed.length} undecryptable row(s)`,
       failed.map((failure) => failure.memory_id)
     );
+}
+
+function bounded<T extends { scopes?: string[]; fact_types?: string[] }>(
+  filters: T,
+  key: "scopes" | "fact_types"
+): T[] {
+  const values = filters[key];
+  if (!values || values.length <= MAX_QUERY_FILTER) return [filters];
+  return chunks(values, MAX_QUERY_FILTER).map((chunk) => ({ ...filters, [key]: chunk }));
 }
 
 function chunks<T>(values: readonly T[], size: number): T[][] {
@@ -266,26 +276,50 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
   };
   const asStored = (record: RemoteMemoryRecord | null) => (record ? stored(record.memory) : null);
 
-  const changesSince = async (cursor: string | undefined) => {
+  const everyState = {
+    include_deleted: true,
+    include_archived: true,
+    include_quarantined: true,
+    include_superseded: true,
+  } as const;
+  const changesSince = async (cursor: string | undefined, pending: ReadonlySet<string>) => {
     const records: RemoteMemoryRecord[] = [];
+    const failed = new Set<string>();
+    const collect = (page: {
+      items: RemoteMemoryRecord[];
+      failed: RemoteMemoryDecodeFailure[];
+    }) => {
+      warnFailed(page.failed);
+      records.push(...page.items);
+      for (const failure of page.failed) failed.add(failure.memory_id);
+    };
     let resume = cursor;
     let next: string | undefined;
     do {
       const page = await persistence.query({
-        include_deleted: true,
-        include_archived: true,
-        include_quarantined: true,
-        include_superseded: true,
+        ...everyState,
         order: "changed",
         limit: 200,
         ...((next ?? resume) && { cursor: next ?? resume }),
       });
-      warnFailed(page.failed);
-      records.push(...page.items);
+      collect(page);
       resume = page.changes_cursor ?? resume;
       next = page.next_cursor;
     } while (next);
-    return { records, resume };
+    for (const memory_ids of chunks([...pending], MAX_QUERY_IDS)) {
+      let retry: string | undefined;
+      do {
+        const page = await persistence.query({
+          ...everyState,
+          memory_ids,
+          limit: 200,
+          ...(retry && { cursor: retry }),
+        });
+        collect(page);
+        retry = page.next_cursor;
+      } while (retry);
+    }
+    return { records, resume, failed };
   };
 
   return {
@@ -301,9 +335,17 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
         ...(listOptions.since && { updated_after: listOptions.since.getTime() }),
       } satisfies RemoteMemoryQueryOptions;
       const max = listOptions.limit && listOptions.limit > 0 ? listOptions.limit : Infinity;
-      if (!listOptions.memoryIds)
+      const variants = bounded(filters, "scopes").flatMap((f) => bounded(f, "fact_types"));
+      if (!listOptions.memoryIds && variants.length === 1)
         return (await enumerate(filters, max)).map((r) => stored(r.memory));
-      const rows = (await enumerateIds(listOptions.memoryIds, filters))
+      const fetched = await Promise.all(
+        variants.map((variant) =>
+          listOptions.memoryIds
+            ? enumerateIds(listOptions.memoryIds, variant)
+            : enumerate(variant, max)
+        )
+      );
+      const rows = [...new Map(fetched.flat().map((r) => [r.memory.memory_id, r])).values()]
         .map((record) => stored(record.memory))
         .sort((a, b) =>
           order === "updated"
@@ -489,13 +531,14 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
       let stopped = false;
       let started = false;
       let cursor: string | undefined;
+      let pending = new Set<string>();
       const keys = new Map<string, string>();
       let polling = false;
       const poll = () => {
         if (polling) return;
         polling = true;
-        changesSince(cursor)
-          .then(({ records, resume }) => {
+        changesSince(cursor, pending)
+          .then(({ records, resume, failed }) => {
             let changed = false;
             for (const record of records) {
               const id = record.memory.memory_id;
@@ -508,6 +551,7 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
             if (!stopped && started && changed) onChange();
             started = true;
             cursor = resume;
+            pending = failed;
           })
           .catch((error: unknown) => {
             getLogger().warn("[memory/remote-store] Subscription poll failed:", error);

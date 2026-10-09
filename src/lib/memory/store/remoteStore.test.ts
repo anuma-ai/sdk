@@ -431,6 +431,65 @@ describe("remote MemoryStore", () => {
     expect(keys.keyId).not.toBe(foreign.keyId);
   });
 
+  it("splits scope and fact type filters above nearby's limit of 20", async () => {
+    const { store, server } = await remoteStore();
+    const scopes = Array.from({ length: 21 }, (_, i) => `scope-${i}`);
+    const factTypes = ["identity", ...Array.from({ length: 19 }, (_, i) => `type-${i}`), "plan"];
+    const last = await store.create({ content: "Last", scope: "scope-20", factType: "plan" });
+    const first = await store.create({ content: "First", scope: "scope-0", factType: "identity" });
+    await store.create({ content: "Elsewhere", scope: "other", factType: "identity" });
+    server.fetch.mockClear();
+
+    expect((await store.list({ scopes, factTypes })).map((m) => m.uniqueId)).toEqual([
+      first.uniqueId,
+      last.uniqueId,
+    ]);
+    const bodies = server.fetch.mock.calls
+      .filter(([input]) => String(input).endsWith("/memories/query"))
+      .map(([, init]) => JSON.parse(String(init!.body)) as Record<string, string[]>);
+    expect(bodies).toHaveLength(4);
+    expect(bodies.every((b) => b.scopes.length <= 20 && b.fact_types.length <= 20)).toBe(true);
+  });
+
+  it("retries a changed row it could not decrypt on the next poll", async () => {
+    const ring = await deriveMemoryKeyRing(`0x${"f6".repeat(65)}`);
+    const shared = fakeNearby(ring.keyId);
+    const { store: laptop } = await remoteStore(shared, ring);
+    const seeded = await laptop.create({ content: "Lives in Porto", embedding: axis(0) });
+    const cipher = memoryCipher(ring);
+    let unreadable = false;
+    const persistence = await createRemoteMemoryPersistence({
+      baseUrl: "https://nearby.test",
+      getToken: async () => "token",
+      keyId: ring.keyId,
+      encrypt: cipher.encrypt,
+      decrypt: async (value) => (unreadable ? value : cipher.decrypt(value)),
+      fetch: shared.fetch as unknown as typeof globalThis.fetch,
+    });
+    const phone = createRemoteMemoryStore({
+      persistence,
+      embeddingOptions: { apiKey: "test-key" },
+      graphRanking: async () => [],
+      temporalRanking: async () => [],
+      pollIntervalMs: 20,
+    });
+    const onChange = vi.fn();
+    const warn = vi.spyOn(getLogger(), "warn");
+    const unsubscribe = phone.subscribe(onChange);
+    try {
+      await new Promise((resolve) => setTimeout(resolve, 40));
+      unreadable = true;
+      await laptop.update(seeded.uniqueId, { content: "Lives in Lisbon", embedding: axis(1) });
+      await new Promise((resolve) => setTimeout(resolve, 80));
+      expect(onChange).not.toHaveBeenCalled();
+      unreadable = false;
+      await vi.waitFor(() => expect(onChange).toHaveBeenCalled());
+    } finally {
+      unsubscribe();
+      warn.mockRestore();
+    }
+  });
+
   it("surfaces a concurrent edit as a version conflict", async () => {
     const { store, server } = await remoteStore();
     const m = await store.create({ content: "Drinks coffee", embedding: axis(0) });
