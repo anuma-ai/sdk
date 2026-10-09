@@ -255,9 +255,9 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
         )
       )
     ).flat();
-  const listFilters = (listOptions: MemoryListOptions, embeddings: boolean): ListFilters => ({
+  const listFilters = (listOptions: MemoryListOptions): ListFilters => ({
     ...stateFilters(listOptions),
-    ...(embeddings && { include_embeddings: true }),
+    include_embeddings: true,
     order: listOptions.since ? "updated" : "created",
     ...(listOptions.scopes?.length && { scopes: listOptions.scopes }),
     ...(listOptions.factTypes?.length && { fact_types: listOptions.factTypes }),
@@ -482,15 +482,13 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
 
   return {
     list: async (listOptions = {}) =>
-      (
-        await listRows(decrypted, listOptions, listFilters(listOptions, true), maxOf(listOptions))
-      ).map((r) => stored(r.memory)),
+      (await listRows(decrypted, listOptions, listFilters(listOptions), maxOf(listOptions))).map(
+        (r) => stored(r.memory)
+      ),
     listProjections: async (listOptions = {}) =>
-      (
-        await listRows(metadata, listOptions, listFilters(listOptions, true), maxOf(listOptions))
-      ).map(projection),
-    count: async (listOptions = {}) =>
-      (await listRows(metadata, listOptions, listFilters(listOptions, false), Infinity)).length,
+      (await listRows(metadata, listOptions, listFilters(listOptions), maxOf(listOptions))).map(
+        projection
+      ),
     listTopics: async () => {
       const topics = new Map<string, MemoryTopic & { members: Set<string> }>();
       for (const { memory } of await pages(metadata, {

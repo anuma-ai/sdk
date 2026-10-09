@@ -677,14 +677,6 @@ function vaultListOrder(options?: VaultListOptions): Q.Clause[] {
   ];
 }
 
-/** Count the rows {@link getAllVaultMemoriesOp} would return, ignoring `limit`, without decrypting. */
-export async function countVaultMemoriesOp(
-  ctx: VaultMemoryOperationsContext,
-  options?: VaultListOptions
-): Promise<number> {
-  return ctx.vaultMemoryCollection.query(...vaultListConditions(ctx, options)).fetchCount();
-}
-
 /** Content-free projections of the rows {@link getAllVaultMemoriesOp} would return. */
 export async function getVaultMemoryProjectionsOp(
   ctx: VaultMemoryOperationsContext,

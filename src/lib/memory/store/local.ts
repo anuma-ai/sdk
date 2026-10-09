@@ -14,7 +14,6 @@ import type { VaultMemory } from "../../db/memoryVault/models.js";
 import {
   archiveVaultMemoryOp,
   backfillMemoryTopicsOp,
-  countVaultMemoriesOp,
   createVaultMemoriesBatchOp,
   createVaultMemoryOp,
   deleteVaultMemoryOp,
@@ -199,7 +198,6 @@ export function createLocalMemoryStore(options: LocalMemoryStoreOptions): Memory
       }
       return [...byName.values()].sort((a, b) => a.name.localeCompare(b.name));
     },
-    count: (listOptions?: MemoryListOptions) => countVaultMemoriesOp(vaultCtx, listOptions),
     listProjections: (listOptions?: MemoryListOptions) =>
       getVaultMemoryProjectionsOp(vaultCtx, listOptions),
 
