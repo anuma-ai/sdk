@@ -214,8 +214,6 @@ export interface MemoryStore {
   topicsByMemories(memoryIds: readonly string[]): Promise<Map<string, Set<string>>>;
   /** Every topic by canonical name, with its kind and linked-memory count. */
   listTopics(): Promise<MemoryTopic[]>;
-  /** How many memories {@link MemoryStore.list} would return, ignoring `limit`. */
-  count(options?: MemoryListOptions): Promise<number>;
   /** The memories {@link MemoryStore.list} would return, without decrypting content. */
   listProjections(options?: MemoryListOptions): Promise<VaultMemoryProjection[]>;
 

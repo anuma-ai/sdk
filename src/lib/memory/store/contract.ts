@@ -177,19 +177,6 @@ export function runMemoryStoreContract(
       ]);
     });
 
-    it("counts what list would return, ignoring limit", async () => {
-      const store = await makeStore();
-      await store.create({ content: "One", scope: "shared" });
-      await store.create({ content: "Two" });
-      const archived = await store.create({ content: "Three" });
-      await store.archive(archived.uniqueId);
-
-      expect(await store.count()).toBe(2);
-      expect(await store.count({ limit: 1 })).toBe(2);
-      expect(await store.count({ includeArchived: true })).toBe(3);
-      expect(await store.count({ scopes: ["shared"] })).toBe(1);
-    });
-
     it("lists content-free projections in list order", async () => {
       const store = await makeStore();
       const first = await store.create({ content: "Older", embedding: vectorA });
