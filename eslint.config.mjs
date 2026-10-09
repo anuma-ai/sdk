@@ -1,8 +1,14 @@
 import eslint from "@eslint/js";
-import simpleImportSort from "eslint-plugin-simple-import-sort";
 import react from "eslint-plugin-react";
 import reactHooks from "eslint-plugin-react-hooks";
+import simpleImportSort from "eslint-plugin-simple-import-sort";
 import tseslint from "typescript-eslint";
+
+const checkedTestFiles = [
+  "src/lib/chat/toolLoop.detach.test.ts",
+  "src/lib/chat/toolLoop.idleTimeout.test.ts",
+  "test/tools/slide-generation/models.ts",
+];
 
 export default tseslint.config(
   {
@@ -22,6 +28,10 @@ export default tseslint.config(
       "*.config.*",
       ".prettierrc.mjs",
       ".dependency-cruiser.cjs",
+      "!eslint.config.mjs",
+      "!test/",
+      "!test/**/",
+      ...checkedTestFiles.map((file) => `!${file}`),
     ],
   },
   eslint.configs.recommended,
@@ -64,6 +74,19 @@ export default tseslint.config(
       "no-console": ["warn", { allow: ["warn", "error"] }],
       eqeqeq: "warn",
     },
+  },
+  {
+    files: checkedTestFiles,
+    languageOptions: {
+      parserOptions: {
+        projectService: false,
+        project: "./tsconfig.test.json",
+      },
+    },
+  },
+  {
+    files: ["eslint.config.mjs"],
+    ...tseslint.configs.disableTypeChecked,
   },
   {
     files: ["src/react/**/*.{ts,tsx}"],

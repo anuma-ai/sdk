@@ -1,10 +1,7 @@
 export const PASSING_MODELS = [
   "fireworks/accounts/fireworks/models/kimi-k2p5",
   "cerebras/qwen-3-235b-a22b-instruct-2507",
-  "cerebras/zai-glm-4.7",
-  "fireworks/accounts/fireworks/models/glm-5",
   "fireworks/accounts/fireworks/models/deepseek-v3p2",
-  "grok/grok-4-1-fast-non-reasoning",
   "grok/grok-4-1-fast-reasoning",
   "anthropic/claude-opus-4-7",
   "anthropic/claude-sonnet-4-6",
