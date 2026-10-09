@@ -98,6 +98,23 @@ If not provided, `sendMessage` will return an error.
 <tr>
 <td>
 
+`options.hooks?`
+
+</td>
+<td>
+
+`RunHooks` | `RunHooks`\[]
+
+</td>
+<td>
+
+Run lifecycle hooks for telemetry and tracing, for example from `createMetricsHooks`
+
+</td>
+</tr>
+<tr>
+<td>
+
 `options.onData?`
 
 </td>

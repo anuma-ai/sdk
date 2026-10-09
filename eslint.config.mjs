@@ -1,7 +1,7 @@
 import eslint from "@eslint/js";
-import simpleImportSort from "eslint-plugin-simple-import-sort";
 import react from "eslint-plugin-react";
 import reactHooks from "eslint-plugin-react-hooks";
+import simpleImportSort from "eslint-plugin-simple-import-sort";
 import tseslint from "typescript-eslint";
 
 export default tseslint.config(
@@ -18,8 +18,10 @@ export default tseslint.config(
       "test/**",
       "**/*.test.ts",
       "**/*.test.tsx",
+      "!src/react/useChatStorage.runHooks.test.tsx",
       "**/*.security.test.ts",
       "*.config.*",
+      "!eslint.config.mjs",
       ".prettierrc.mjs",
       ".dependency-cruiser.cjs",
     ],
@@ -63,6 +65,19 @@ export default tseslint.config(
       "no-useless-assignment": "warn",
       "no-console": ["warn", { allow: ["warn", "error"] }],
       eqeqeq: "warn",
+    },
+  },
+  {
+    files: ["eslint.config.mjs"],
+    ...tseslint.configs.disableTypeChecked,
+  },
+  {
+    files: ["src/react/useChatStorage.runHooks.test.tsx"],
+    languageOptions: {
+      parserOptions: {
+        projectService: false,
+        project: "./tsconfig.test.json",
+      },
     },
   },
   {

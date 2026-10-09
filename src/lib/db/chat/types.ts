@@ -11,6 +11,7 @@ import type {
 } from "../../../client";
 import { isAttachedFilesText } from "../../chat/fileContext";
 import type { PromptPreProcessor } from "../../chat/preProcessor";
+import type { RunHooks } from "../../chat/runHooks";
 import {
   type ApiResponse,
   getCostMicroUsd,
@@ -488,6 +489,8 @@ export interface UpdateMessageOptions {
  * @inline
  */
 export interface BaseUseChatStorageOptions {
+  /** Run lifecycle hooks for telemetry and tracing, for example from `createMetricsHooks` */
+  hooks?: RunHooks | RunHooks[];
   /** WatermelonDB database instance for storing conversations and messages */
   database: Database;
   /** ID of an existing conversation to load and continue */
