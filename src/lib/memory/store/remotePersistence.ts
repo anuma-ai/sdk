@@ -90,6 +90,17 @@ export interface RemoteMemoryQueryPage extends RemoteMemoryPage {
   changes_cursor?: string;
 }
 
+export interface RemoteMemoryMetadataRecord {
+  memory: Omit<RemoteMemoryRow, "content" | "kind_value">;
+  version: number;
+  server_updated_at: string;
+}
+
+export interface RemoteMemoryMetadataPage {
+  items: RemoteMemoryMetadataRecord[];
+  next_cursor?: string;
+}
+
 export interface RemoteMemoryCandidateOptions extends RemoteMemoryReadFilters {
   scopes?: string[];
   memory_ids?: string[];
@@ -142,6 +153,12 @@ export interface RemoteMemoryPersistence {
   /** One stable memory-id page; follow next_cursor to enumerate. Embeddings are opt-in. */
   list(options?: RemoteMemoryListOptions): Promise<RemoteMemoryPage>;
   query(options?: RemoteMemoryQueryOptions): Promise<RemoteMemoryQueryPage>;
+  /** Same page as `query`, with content and kind_value dropped instead of decrypted. */
+  queryMetadata(
+    options?: Omit<RemoteMemoryQueryOptions, "order"> & {
+      order?: "created" | "updated" | "archived";
+    }
+  ): Promise<RemoteMemoryMetadataPage>;
   /** Whole-row write. Pass a returned snapshot to avoid GET; a number retains the read-before-write path. Version 0 creates. is_deleted writes a tombstone. */
   put(
     memory: RemoteMemoryRow,
@@ -594,6 +611,40 @@ export async function createRemoteMemoryPersistence(
       throw new Error("Invalid nearby candidate response");
     return result as Record<string, unknown> & { items: unknown[] };
   };
+  const fetchQueryPage = async (queryOptions: RemoteMemoryQueryOptions) => {
+    const { signal, ...query } = queryOptions;
+    if (
+      query.limit !== undefined &&
+      (!Number.isInteger(query.limit) || query.limit < 1 || query.limit > 200)
+    )
+      throw new Error("Page limit must be 1–200");
+    for (const [key, max] of queryListLimits) {
+      const values = query[key];
+      if (values && values.length > max)
+        throw new Error(`Query ${key} accepts at most ${max} entries (got ${values.length})`);
+    }
+    const page = await request(
+      "/memories/query",
+      {
+        method: "POST",
+        body: JSON.stringify(
+          Object.fromEntries(
+            queryFields.filter((key) => query[key] !== undefined).map((key) => [key, query[key]])
+          )
+        ),
+      },
+      signal
+    );
+    if (
+      !record(page) ||
+      !Array.isArray(page.items) ||
+      (page.next_cursor !== undefined && typeof page.next_cursor !== "string") ||
+      (page.changes_cursor !== undefined && typeof page.changes_cursor !== "string")
+    )
+      throw new Error("Invalid nearby private-memory page");
+    return page as { items: unknown[]; next_cursor?: string; changes_cursor?: string };
+  };
+
   const candidateSet = async (
     embedding: number[],
     candidateOptions: RemoteMemoryCandidateOptions = {}
@@ -696,40 +747,25 @@ export async function createRemoteMemoryPersistence(
       return Promise.all(result.items.map((item, i) => decodeCommitted(item, prepared[i])));
     },
     query: async (queryOptions = {}) => {
-      const { signal, ...query } = queryOptions;
-      if (
-        query.limit !== undefined &&
-        (!Number.isInteger(query.limit) || query.limit < 1 || query.limit > 200)
-      )
-        throw new Error("Page limit must be 1–200");
-      for (const [key, max] of queryListLimits) {
-        const values = query[key];
-        if (values && values.length > max)
-          throw new Error(`Query ${key} accepts at most ${max} entries (got ${values.length})`);
-      }
-      const page = await request(
-        "/memories/query",
-        {
-          method: "POST",
-          body: JSON.stringify(
-            Object.fromEntries(
-              queryFields.filter((key) => query[key] !== undefined).map((key) => [key, query[key]])
-            )
-          ),
-        },
-        signal
-      );
-      if (
-        !record(page) ||
-        !Array.isArray(page.items) ||
-        (page.next_cursor !== undefined && typeof page.next_cursor !== "string") ||
-        (page.changes_cursor !== undefined && typeof page.changes_cursor !== "string")
-      )
-        throw new Error("Invalid nearby private-memory page");
+      const page = await fetchQueryPage(queryOptions);
       return {
         ...(await decodeAll(page.items)),
         ...(page.next_cursor !== undefined && { next_cursor: page.next_cursor }),
         ...(page.changes_cursor !== undefined && { changes_cursor: page.changes_cursor }),
+      };
+    },
+    queryMetadata: async (queryOptions = {}) => {
+      const page = await fetchQueryPage(queryOptions);
+      return {
+        items: page.items.map((item) => {
+          const {
+            memory: { content: _content, kind_value: _kindValue, ...memory },
+            version,
+            server_updated_at,
+          } = memoryRecord(item);
+          return { memory, version, server_updated_at };
+        }),
+        ...(page.next_cursor !== undefined && { next_cursor: page.next_cursor }),
       };
     },
     candidateSet,

@@ -1,18 +1,10 @@
-# RankableVaultMemory
+# VaultMemoryProjection
 
-Defined in: [src/lib/db/memoryVault/types.ts:211](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#211)
+Defined in: [src/lib/db/memoryVault/types.ts:242](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#242)
 
-Content-free projection of a vault memory, used to RANK candidates for recall
-WITHOUT decrypting the (encrypted) `content` column. Everything here is a
-plaintext-at-rest column — `embedding` is stored plaintext (schema v21), and
-`folderId`/`updatedAt` drive source-filtering + tie-breaks. There is
-deliberately NO `content` field: a ranking pass must never carry ciphertext
-masquerading as the plaintext `StoredVaultMemory.content`. Decrypt the top-N
-winners on demand via [getVaultMemoryOp](../functions/getVaultMemoryOp.md).
+## Extends
 
-## Extended by
-
-* [`VaultMemoryProjection`](VaultMemoryProjection.md)
+* [`RankableVaultMemory`](RankableVaultMemory.md)
 
 ## Properties
 
@@ -21,6 +13,10 @@ winners on demand via [getVaultMemoryOp](../functions/getVaultMemoryOp.md).
 > **createdAt**: `Date`
 
 Defined in: [src/lib/db/memoryVault/types.ts:222](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#222)
+
+**Inherited from**
+
+[`RankableVaultMemory`](RankableVaultMemory.md).[`createdAt`](RankableVaultMemory.md#createdat)
 
 ***
 
@@ -32,6 +28,10 @@ Defined in: [src/lib/db/memoryVault/types.ts:219](https://github.com/anuma-ai/sd
 
 JSON-stringified embedding vector, null if not yet computed.
 
+**Inherited from**
+
+[`RankableVaultMemory`](RankableVaultMemory.md).[`embedding`](RankableVaultMemory.md#embedding)
+
 ***
 
 ### embeddingModel
@@ -42,6 +42,10 @@ Defined in: [src/lib/db/memoryVault/types.ts:221](https://github.com/anuma-ai/sd
 
 Model that produced `embedding`. Null on legacy rows.
 
+**Inherited from**
+
+[`RankableVaultMemory`](RankableVaultMemory.md).[`embeddingModel`](RankableVaultMemory.md#embeddingmodel)
+
 ***
 
 ### folderId
@@ -51,6 +55,10 @@ Model that produced `embedding`. Null on legacy rows.
 Defined in: [src/lib/db/memoryVault/types.ts:217](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#217)
 
 Folder ID for organization, null if unfiled.
+
+**Inherited from**
+
+[`RankableVaultMemory`](RankableVaultMemory.md).[`folderId`](RankableVaultMemory.md#folderid)
 
 ***
 
@@ -75,6 +83,10 @@ reason every other watermark field of this kind in this package
 (memory/types.ts, memoryVault/searchTool.ts) is optional rather than
 required. `vaultMemoryRawToRankable` still always sets it.
 
+**Inherited from**
+
+[`RankableVaultMemory`](RankableVaultMemory.md).[`lastObservedAt`](RankableVaultMemory.md#lastobservedat)
+
 ***
 
 ### scope
@@ -84,6 +96,18 @@ required. `vaultMemoryRawToRankable` still always sets it.
 Defined in: [src/lib/db/memoryVault/types.ts:215](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#215)
 
 Scope for partitioning memories (e.g., "private", "shared").
+
+**Inherited from**
+
+[`RankableVaultMemory`](RankableVaultMemory.md).[`scope`](RankableVaultMemory.md#scope)
+
+***
+
+### topicsUserManaged
+
+> **topicsUserManaged**: `boolean`
+
+Defined in: [src/lib/db/memoryVault/types.ts:243](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#243)
 
 ***
 
@@ -95,6 +119,10 @@ Defined in: [src/lib/db/memoryVault/types.ts:213](https://github.com/anuma-ai/sd
 
 WatermelonDB internal ID — pass to `getVaultMemoryOp` to decrypt on demand.
 
+**Inherited from**
+
+[`RankableVaultMemory`](RankableVaultMemory.md).[`uniqueId`](RankableVaultMemory.md#uniqueid)
+
 ***
 
 ### updatedAt
@@ -102,3 +130,7 @@ WatermelonDB internal ID — pass to `getVaultMemoryOp` to decrypt on demand.
 > **updatedAt**: `Date`
 
 Defined in: [src/lib/db/memoryVault/types.ts:223](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#223)
+
+**Inherited from**
+
+[`RankableVaultMemory`](RankableVaultMemory.md).[`updatedAt`](RankableVaultMemory.md#updatedat)

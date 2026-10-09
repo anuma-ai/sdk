@@ -2,7 +2,7 @@
 
 > **createRemoteMemoryStore**(`options`: [`RemoteMemoryStoreOptions`](../interfaces/RemoteMemoryStoreOptions.md)): [`MemoryStore`](../interfaces/MemoryStore.md)
 
-Defined in: [src/lib/memory/store/remoteStore.ts:176](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteStore.ts#176)
+Defined in: [src/lib/memory/store/remoteStore.ts:208](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteStore.ts#208)
 
 [MemoryStore](../interfaces/MemoryStore.md) over nearby's private-memory API with device-side decryption.
 

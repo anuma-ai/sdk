@@ -115,6 +115,8 @@ export {
   type RemoteMemoryDecodeFailure,
   RemoteMemoryError,
   type RemoteMemoryListOptions,
+  type RemoteMemoryMetadataPage,
+  type RemoteMemoryMetadataRecord,
   type RemoteMemoryPage,
   type RemoteMemoryPersistence,
   type RemoteMemoryPersistenceOptions,
@@ -142,6 +144,7 @@ export type {
   MemoryRetainOptions,
   MemoryStore,
   MemorySubscribeOptions,
+  MemoryTopic,
   MemoryUpdate,
 } from "./store/types.js";
 export {

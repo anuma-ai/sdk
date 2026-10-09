@@ -251,6 +251,7 @@ export {
   type VaultEmbeddingExpectation,
   type VaultMemoryKind,
   type VaultMemoryOperationsContext,
+  type VaultMemoryProjection,
   type VaultMemoryVisibility,
 } from "../lib/db/memoryVault";
 export type { FlushResult, QueueStatus } from "../lib/db/queue";
@@ -372,12 +373,15 @@ export {
   type MemoryRetainOptions,
   type MemoryStore,
   type MemorySubscribeOptions,
+  type MemoryTopic,
   type MemoryUpdate,
   reencryptMemoryField,
   type RemoteMemoryCandidateOptions,
   type RemoteMemoryDecodeFailure,
   RemoteMemoryError,
   type RemoteMemoryListOptions,
+  type RemoteMemoryMetadataPage,
+  type RemoteMemoryMetadataRecord,
   type RemoteMemoryPage,
   RemoteMemoryPartialCreateError,
   type RemoteMemoryPersistence,

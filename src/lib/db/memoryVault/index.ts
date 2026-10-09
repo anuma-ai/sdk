@@ -50,5 +50,6 @@ export {
   type StoredVaultMemory,
   type UpdateVaultMemoryOptions,
   type VaultMemoryKind,
+  type VaultMemoryProjection,
   type VaultMemoryVisibility,
 } from "./types";

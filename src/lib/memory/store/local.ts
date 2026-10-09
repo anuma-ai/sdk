@@ -14,12 +14,14 @@ import type { VaultMemory } from "../../db/memoryVault/models.js";
 import {
   archiveVaultMemoryOp,
   backfillMemoryTopicsOp,
+  countVaultMemoriesOp,
   createVaultMemoriesBatchOp,
   createVaultMemoryOp,
   deleteVaultMemoryOp,
   getAllVaultMemoriesOp,
   getMemoriesNeedingTopicExtractionOp,
   getVaultMemoryOp,
+  getVaultMemoryProjectionsOp,
   relinkMemoryTopicsOp,
   restoreVaultMemoryOp,
   setMemoryEntitiesOp,
@@ -44,6 +46,7 @@ import type {
   MemoryRecallOptions,
   MemoryRetainOptions,
   MemoryStore,
+  MemoryTopic,
   MemoryUpdate,
 } from "./types.js";
 
@@ -106,6 +109,12 @@ export function createLocalMemoryStore(options: LocalMemoryStoreOptions): Memory
   };
   const vaultCache = options.vaultCache ?? createVaultEmbeddingCache();
   const ownedBy = userId !== undefined ? [Q.where("user_id", userId)] : [];
+  const linksOwnedBy =
+    userId === undefined
+      ? []
+      : options.allowUnscopedRows
+        ? [Q.or(Q.where("user_id", userId), Q.where("user_id", null))]
+        : [Q.where("user_id", userId)];
   const watchedColumns = [
     "content",
     "scope",
@@ -152,6 +161,38 @@ export function createLocalMemoryStore(options: LocalMemoryStoreOptions): Memory
     memoriesByTopics: (names: readonly string[]) => getMemoriesByEntityNamesOp(entityCtx, names),
     topicsByMemories: (memoryIds: readonly string[]) =>
       getEntitiesByMemoryIdsOp(entityCtx, memoryIds),
+    listTopics: async () => {
+      const links = await entityCtx.memoryEntityCollection.query(...linksOwnedBy).fetch();
+      const members = new Map<string, Set<string>>();
+      for (const link of links) {
+        const entityId = String(link.entityId);
+        const set = members.get(entityId) ?? new Set<string>();
+        set.add(String(link.memoryId));
+        members.set(entityId, set);
+      }
+      const entities =
+        userId === undefined
+          ? await entityCtx.entityCollection.query().fetch()
+          : members.size
+            ? await entityCtx.entityCollection
+                .query(Q.where("id", Q.oneOf([...members.keys()])))
+                .fetch()
+            : [];
+      const byName = new Map<string, MemoryTopic>();
+      for (const entity of entities) {
+        const count = members.get(entity.id)?.size ?? 0;
+        const existing = byName.get(entity.canonicalName);
+        byName.set(entity.canonicalName, {
+          name: entity.canonicalName,
+          kind: existing?.kind ?? entity.kind ?? null,
+          memoryCount: (existing?.memoryCount ?? 0) + count,
+        });
+      }
+      return [...byName.values()].sort((a, b) => a.name.localeCompare(b.name));
+    },
+    count: (listOptions?: MemoryListOptions) => countVaultMemoriesOp(vaultCtx, listOptions),
+    listProjections: (listOptions?: MemoryListOptions) =>
+      getVaultMemoryProjectionsOp(vaultCtx, listOptions),
 
     create: async (input: MemoryCreate) => {
       const created = await createVaultMemoryOp(vaultCtx, input);
@@ -235,12 +276,6 @@ export function createLocalMemoryStore(options: LocalMemoryStoreOptions): Memory
             );
       const subscriptions = [memories.subscribe(afterFirst())];
       if (subscribeOptions?.topics) {
-        const linksOwnedBy =
-          userId === undefined
-            ? []
-            : options.allowUnscopedRows
-              ? [Q.or(Q.where("user_id", userId), Q.where("user_id", null))]
-              : [Q.where("user_id", userId)];
         subscriptions.push(
           entityCtx.memoryEntityCollection
             .query(...linksOwnedBy)
