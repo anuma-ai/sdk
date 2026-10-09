@@ -937,7 +937,7 @@ export {
 export type { UseICloudBackupOptions, UseICloudBackupResult } from "./useICloudBackup";
 export { DEFAULT_ICLOUD_BACKUP_FOLDER, useICloudBackup } from "./useICloudBackup";
 export type { UseModelsResult } from "./useModels";
-export { useModels } from "./useModels";
+export { clearModelsCache, useModels } from "./useModels";
 export type { OCRFile, UseOCRResult } from "./useOCR";
 export { useOCR } from "./useOCR";
 export type { PdfFile, UsePdfResult } from "./usePdf";
