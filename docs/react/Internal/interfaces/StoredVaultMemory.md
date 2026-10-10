@@ -158,7 +158,7 @@ re-observed since the column was added; synthesis falls back to
 
 ### level?
 
-> `optional` **level**: `"profile"` | `"private"` | `"matching"`
+> `optional` **level**: `"private"` | `"matching"` | `"profile"`
 
 Defined in: [src/lib/db/memoryVault/types.ts:119](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#119)
 

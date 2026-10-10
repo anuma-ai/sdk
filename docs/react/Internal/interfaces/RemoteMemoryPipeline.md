@@ -2,6 +2,14 @@
 
 Defined in: [src/lib/memory/store/remotePipeline.ts:41](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePipeline.ts#41)
 
+## Properties
+
+### factSource
+
+> `readonly` **factSource**: `RecallFactSource`
+
+Defined in: [src/lib/memory/store/remotePipeline.ts:44](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePipeline.ts#44)
+
 ## Methods
 
 ### recall()

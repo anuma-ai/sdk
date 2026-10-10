@@ -318,6 +318,8 @@ export function runMemoryStoreContract(
 
       const result = await store.recall("what is my dog named");
       expect(result.memories[0]).toMatchObject({ id: first.memoryId, kind: "fact" });
+      const facts = await store.factSource.search("what is my dog named", { limit: 3 });
+      expect(facts.results[0]?.uniqueId).toBe(first.memoryId);
     });
   });
 }

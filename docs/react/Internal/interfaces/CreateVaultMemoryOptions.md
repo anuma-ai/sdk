@@ -94,7 +94,7 @@ Coarse geohash for location-tagged memory sources (landmarks/Trail).
 
 ### kind?
 
-> `optional` **kind**: `"prompt"` | `"display_name"` | `"occupation"` | `"birth_date"` | `"bio"` | `"interest"` | `"gender"` | `"height_cm"` | `"looking_for"` | `"politics"` | `"religion"` | `"ethnicity"` | `"smoking"` | `"drinking"` | `"exercise"` | `"sexuality"` | `null`
+> `optional` **kind**: `"prompt"` | `"display_name"` | `"birth_date"` | `"bio"` | `"occupation"` | `"interest"` | `"gender"` | `"height_cm"` | `"looking_for"` | `"politics"` | `"religion"` | `"ethnicity"` | `"smoking"` | `"drinking"` | `"exercise"` | `"sexuality"` | `null`
 
 Defined in: [src/lib/db/memoryVault/types.ts:289](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#289)
 
@@ -114,7 +114,7 @@ Canonical JSON value of a kinded memory.
 
 ### level?
 
-> `optional` **level**: `"profile"` | `"private"` | `"matching"`
+> `optional` **level**: `"private"` | `"matching"` | `"profile"`
 
 Defined in: [src/lib/db/memoryVault/types.ts:293](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#293)
 

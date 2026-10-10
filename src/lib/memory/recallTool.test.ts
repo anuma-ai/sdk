@@ -25,6 +25,7 @@ import {
   RECALL_MAX_MEMORIES_PER_TURN,
   RECALL_TURN_WINDOW_MS,
 } from "./recallTool";
+import type { MemoryStore } from "./store/types";
 import type { RankedMemory, RecallContext, RecallResult } from "./types";
 
 function fact(id: string, content: string): RankedMemory {
@@ -522,6 +523,39 @@ describe("createRecallTool executor — sort: recent", () => {
     });
     expect(out).toContain("fact (id: new, saved: 2026-10-01)");
     expect(out.indexOf("id: new")).toBeLessThan(out.indexOf("id: old"));
+  });
+
+  it("reads recent facts from a MemoryStore when recall uses its fact source", async () => {
+    const rows = [
+      stored("new", "Daily hackathon tweet campaign", "2026-10-01T12:00:00Z"),
+      stored("old", "Likes espresso", "2026-08-01T12:00:00Z"),
+    ];
+    const memoryStore = {
+      listProjections: vi.fn(async () => rows.map((r) => ({ uniqueId: r.uniqueId }))),
+      list: vi.fn(async ({ memoryIds }: { memoryIds: string[] }) =>
+        rows.filter((r) => memoryIds.includes(r.uniqueId))
+      ),
+    } as unknown as MemoryStore;
+    const tool = createRecallTool({ embeddingOptions: {} } as RecallContext, {
+      types: ["fact"],
+      scopes: ["private"],
+      memoryStore,
+    });
+    const out = await tool.executor!({ query: "latest", sort: "recent", limit: 5 });
+
+    expect(memoryStore.listProjections).toHaveBeenCalledWith({ scopes: ["private"] });
+    expect(getVaultRankingProjectionsOp).not.toHaveBeenCalled();
+    expect(recall).not.toHaveBeenCalled();
+    expect(out.indexOf("id: new")).toBeLessThan(out.indexOf("id: old"));
+  });
+
+  it("rejects a folderId alongside a MemoryStore", () => {
+    expect(() =>
+      createRecallTool({ embeddingOptions: {} } as RecallContext, {
+        folderId: "f1",
+        memoryStore: {} as MemoryStore,
+      })
+    ).toThrow("Folders are not supported with a memoryStore");
   });
 
   it("keeps a topic scope's memoryIds restriction", async () => {

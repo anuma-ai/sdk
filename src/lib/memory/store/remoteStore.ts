@@ -691,6 +691,7 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
       ),
 
     recall: (query, recallOptions) => pipeline.recall(query, recallOptions),
+    factSource: pipeline.factSource,
     retain: async (content, retainOptions) => {
       const result = await pipeline.retain(content, retainOptions);
       if (result.action === "create" || result.action === "supersede") notify("membership");

@@ -19,6 +19,7 @@ import {
 } from "../../chat/useChat/strategies/types";
 import type { StreamSmoothingConfig } from "../../chat/useChat/StreamSmoother";
 import type { ServerToolCallEvent, ToolCallArgumentsDeltaEvent } from "../../chat/useChat/utils";
+import type { MemoryStore } from "../../memory/store/types";
 import type { NerDetector } from "../../pii/ner";
 import type { PiiMatch, PiiRedactor } from "../../pii/redactor";
 import type { FileProcessor } from "../../processors/types";
@@ -490,6 +491,8 @@ export interface UpdateMessageOptions {
 export interface BaseUseChatStorageOptions {
   /** WatermelonDB database instance for storing conversations and messages */
   database: Database;
+  /** Route memory reads, writes, recall and the memory tools through this store instead of the database's vault; folders are unsupported. */
+  memoryStore?: MemoryStore;
   /** ID of an existing conversation to load and continue */
   conversationId?: string;
   /** Automatically create a new conversation if none is set (default: true) */

@@ -41,6 +41,7 @@ export interface RemoteMemoryPipelineOptions {
 export interface RemoteMemoryPipeline {
   recall(query: string, options?: MemoryRecallOptions): Promise<RecallResult>;
   retain(content: string, options?: MemoryRetainOptions): Promise<RetainResult>;
+  readonly factSource: RecallFactSource;
 }
 
 /** Match nearby's qwen MRL storage: truncate FIRST, then normalize. */
@@ -420,38 +421,32 @@ export function createRemoteMemoryPipeline(
     };
     return { prepare, port };
   };
-  return {
-    recall: async (query, recallOptions = {}) => {
+  const factSource: RecallFactSource = {
+    graphRanking: options.graphRanking,
+    temporalRanking: options.temporalRanking,
+    search: async (text, searchOptions) => {
       const { prepare } = operation("recall");
-      return recall(
-        query,
-        {
-          embeddingOptions,
-          factSource: {
-            graphRanking: options.graphRanking,
-            temporalRanking: options.temporalRanking,
-            search: async (text, searchOptions) => {
-              const prepared = await prepare(text, searchOptions);
-              const ranked = await rankPreparedVaultCandidates(
-                text,
-                prepared,
-                embeddingOptions,
-                searchOptions
-              );
-              return {
-                ...ranked,
-                rankedOnCosine: prepared.memories.length > 0 && !prepared.embeddingsUnavailable,
-                decryptLast: true,
-                rowsDecrypted: prepared.rowsDecrypted,
-                queryEmbedMs: prepared.queryEmbedMs,
-                rowsEmbedded: 0,
-              };
-            },
-          },
-        },
-        { ...recallOptions, types: ["fact"] }
+      const prepared = await prepare(text, searchOptions);
+      const ranked = await rankPreparedVaultCandidates(
+        text,
+        prepared,
+        embeddingOptions,
+        searchOptions
       );
+      return {
+        ...ranked,
+        rankedOnCosine: prepared.memories.length > 0 && !prepared.embeddingsUnavailable,
+        decryptLast: true,
+        rowsDecrypted: prepared.rowsDecrypted,
+        queryEmbedMs: prepared.queryEmbedMs,
+        rowsEmbedded: 0,
+      };
     },
+  };
+  return {
+    factSource,
+    recall: async (query, recallOptions = {}) =>
+      recall(query, { embeddingOptions, factSource }, { ...recallOptions, types: ["fact"] }),
     retain: async (content, retainOptions) => {
       const { port } = operation("retain");
       return retainWithPersistence(
