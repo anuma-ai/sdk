@@ -23,6 +23,7 @@ import type {
   RankableVaultMemory,
   StoredVaultMemory,
   UpdateVaultMemoryOptions,
+  VaultMemoryProjection,
   VaultMemoryVisibility,
 } from "./types";
 import {
@@ -56,7 +57,10 @@ function isKinded(record: { kind?: string | null }): boolean {
   return record.kind !== null && record.kind !== undefined;
 }
 
-function assertValidKindLevel(kind: string | null | undefined, level: string | undefined): void {
+export function assertValidKindLevel(
+  kind: string | null | undefined,
+  level: string | undefined
+): void {
   const hasKind = kind !== null && kind !== undefined;
   if (hasKind && !(MEMORY_KINDS as readonly string[]).includes(kind)) {
     throw new MemoryLevelError(`Unknown memory kind: ${kind}`);
@@ -69,7 +73,10 @@ function assertValidKindLevel(kind: string | null | undefined, level: string | u
   }
 }
 
-function resolveCreateLevel(opts: CreateVaultMemoryOptions): { level: MemoryLevel; scope: string } {
+export function resolveCreateLevel(opts: Pick<CreateVaultMemoryOptions, "level" | "scope">): {
+  level: MemoryLevel;
+  scope: string;
+} {
   if (opts.level !== undefined) return { level: opts.level, scope: scopeForLevel(opts.level) };
   if (opts.scope !== undefined) return { level: levelFromScope(opts.scope), scope: opts.scope };
   return { level: "private", scope: "private" };
@@ -636,7 +643,21 @@ export async function getAllVaultMemoriesOp(
     kinds?: string[];
   }
 ): Promise<StoredVaultMemory[]> {
-  const conditions = [
+  const results = (await ctx.vaultMemoryCollection
+    .query(...vaultListConditions(ctx, options), ...vaultListOrder(options))
+    .unsafeFetchRaw()) as Record<string, unknown>[];
+  return mapInBatches(results, (raw) =>
+    vaultMemoryRawToStored(raw, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner)
+  );
+}
+
+type VaultListOptions = NonNullable<Parameters<typeof getAllVaultMemoriesOp>[1]>;
+
+function vaultListConditions(
+  ctx: VaultMemoryOperationsContext,
+  options?: VaultListOptions
+): Q.Clause[] {
+  return [
     ...baseVaultConditions(ctx, options),
     ...(options?.scopes?.length ? [Q.where("scope", Q.oneOf(options.scopes))] : []),
     ...visibilityConditions(options?.visibility),
@@ -644,18 +665,30 @@ export async function getAllVaultMemoriesOp(
     ...(options?.kinds?.length ? [Q.where("kind", Q.oneOf(options.kinds))] : []),
     ...(options?.folderId !== undefined ? [Q.where("folder_id", options.folderId)] : []),
     ...(options?.factTypes?.length ? [Q.where("fact_type", Q.oneOf(options.factTypes))] : []),
+  ];
+}
+
+function vaultListOrder(options?: VaultListOptions): Q.Clause[] {
+  return [
     Q.sortBy(options?.since ? "updated_at" : "created_at", Q.desc),
     ...(options?.limit !== null && options?.limit !== undefined && options.limit > 0
       ? [Q.take(options.limit)]
       : []),
   ];
-  const results = (await ctx.vaultMemoryCollection.query(...conditions).unsafeFetchRaw()) as Record<
-    string,
-    unknown
-  >[];
-  return mapInBatches(results, (raw) =>
-    vaultMemoryRawToStored(raw, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner)
-  );
+}
+
+/** Content-free projections of the rows {@link getAllVaultMemoriesOp} would return. */
+export async function getVaultMemoryProjectionsOp(
+  ctx: VaultMemoryOperationsContext,
+  options?: VaultListOptions
+): Promise<VaultMemoryProjection[]> {
+  const results = (await ctx.vaultMemoryCollection
+    .query(...vaultListConditions(ctx, options), ...vaultListOrder(options))
+    .unsafeFetchRaw()) as Record<string, unknown>[];
+  return results.map((raw) => ({
+    ...vaultMemoryRawToRankable(raw),
+    topicsUserManaged: raw.topics_user_managed === true || raw.topics_user_managed === 1,
+  }));
 }
 
 function vaultMemoryRawToRankable(raw: Record<string, unknown>): RankableVaultMemory {

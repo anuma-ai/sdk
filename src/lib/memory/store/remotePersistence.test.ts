@@ -426,6 +426,20 @@ describe("remote private-memory persistence", () => {
     expect(plain.failed.map((failure) => failure.memory_id)).toEqual(["b"]);
   });
 
+  it("reads query metadata without decrypting or returning content", async () => {
+    const h = setup();
+    const store = await createRemoteMemoryPersistence(h.options);
+    await store.put({ ...h.memory("a"), kind: "occupation", kind_value: '"nurse"' }, 0);
+    h.decrypt.mockClear();
+
+    const page = await store.queryMetadata({ order: "created" });
+    expect(page.items.map((item) => item.memory.memory_id)).toEqual(["a"]);
+    expect(page.items[0].memory).not.toHaveProperty("content");
+    expect(page.items[0].memory).not.toHaveProperty("kind_value");
+    expect(page.items[0].memory.kind).toBe("occupation");
+    expect(h.decrypt).not.toHaveBeenCalled();
+  });
+
   it("repairs an undecryptable row with a fresh encryption under the caller's version", async () => {
     const h = setup();
     const store = await createRemoteMemoryPersistence(h.options);

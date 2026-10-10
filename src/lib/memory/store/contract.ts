@@ -145,6 +145,85 @@ export function runMemoryStoreContract(
       expect((await store.topicsByMemories([a.uniqueId])).has(a.uniqueId)).toBe(false);
     });
 
+    it("lists topics with their kind and linked-memory count", async () => {
+      const store = await makeStore();
+      const a = await store.create({ content: "Hiked Mt Hood" });
+      const b = await store.create({ content: "Camped at Mt Hood" });
+      await store.setTopics(a.uniqueId, ["Hiking", { name: "Mt Hood", kind: "place" }]);
+      await store.addTopics(b.uniqueId, ["Mt Hood"]);
+      const linked = async () => (await store.listTopics()).filter((t) => t.memoryCount > 0);
+
+      expect(await linked()).toEqual([
+        { name: "hiking", kind: null, memoryCount: 1 },
+        { name: "mt hood", kind: "place", memoryCount: 2 },
+      ]);
+      await store.delete(b.uniqueId);
+      expect(await linked()).toEqual([
+        { name: "hiking", kind: null, memoryCount: 1 },
+        { name: "mt hood", kind: "place", memoryCount: 1 },
+      ]);
+    });
+
+    it("keeps a topic's kind after the memory that set it is deleted", async () => {
+      const store = await makeStore();
+      const a = await store.create({ content: "Hiked Mt Hood" });
+      const b = await store.create({ content: "Camped at Mt Hood" });
+      await store.setTopics(a.uniqueId, [{ name: "Mt Hood", kind: "place" }]);
+      await store.addTopics(b.uniqueId, ["Mt Hood"]);
+      await store.delete(a.uniqueId);
+
+      expect((await store.listTopics()).filter((t) => t.memoryCount > 0)).toEqual([
+        { name: "mt hood", kind: "place", memoryCount: 1 },
+      ]);
+    });
+
+    it("lists content-free projections in list order", async () => {
+      const store = await makeStore();
+      const first = await store.create({ content: "Older", embedding: vectorA });
+      await new Promise((resolve) => setTimeout(resolve, 2));
+      const second = await store.create({ content: "Newer", embedding: vectorB });
+      await store.setTopics(first.uniqueId, ["Tea"]);
+
+      const projections = await store.listProjections();
+      expect(projections.map((p) => p.uniqueId)).toEqual(
+        (await store.list()).map((m) => m.uniqueId)
+      );
+      const byId = new Map(projections.map((p) => [p.uniqueId, p]));
+      expect(byId.get(first.uniqueId)?.topicsUserManaged).toBe(true);
+      expect(byId.get(second.uniqueId)?.topicsUserManaged).toBe(false);
+      expect(byId.get(second.uniqueId)?.embedding).not.toBeNull();
+      expect(projections.every((p) => !("content" in p))).toBe(true);
+      expect(await store.listProjections({ memoryIds: [second.uniqueId] })).toHaveLength(1);
+    });
+
+    it("creates and edits profile memories with kind and level", async () => {
+      const store = await makeStore();
+      const profile = await store.create({
+        content: "Works as a nurse",
+        kind: "occupation",
+        kindValue: '"nurse"',
+        level: "profile",
+      });
+      expect(profile).toMatchObject({ kind: "occupation", kindValue: '"nurse"', level: "profile" });
+      expect(profile.scope).toBe("shared");
+      await expect(store.create({ content: "No kind", level: "profile" })).rejects.toThrow();
+
+      await expect(
+        store.update(profile.uniqueId, { content: "Works", kind: null })
+      ).rejects.toThrow();
+      const lowered = await store.update(profile.uniqueId, {
+        content: "Works as a nurse",
+        level: "private",
+      });
+      expect(lowered).toMatchObject({ kind: "occupation", level: "private", scope: "private" });
+      const freeForm = await store.update(profile.uniqueId, {
+        content: "Used to be a nurse",
+        kind: null,
+        kindValue: null,
+      });
+      expect(freeForm).toMatchObject({ kind: null, kindValue: null });
+    });
+
     it("drops a deleted memory's topic links", async () => {
       const store = await makeStore();
       const m = await store.create({ content: "Plays chess" });

@@ -417,6 +417,7 @@ export {
   type MemoryRetainOptions,
   type MemoryStore,
   type MemorySubscribeOptions,
+  type MemoryTopic,
   type MemoryUpdate,
 } from "../lib/memory";
 export {

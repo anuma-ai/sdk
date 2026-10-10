@@ -2,7 +2,7 @@
 
 > **MemoryRetainOptions** = `Omit`<[`RetainOptions`](../interfaces/RetainOptions.md), `"folderId"`>
 
-Defined in: [src/lib/memory/store/types.ts:99](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#99)
+Defined in: [src/lib/memory/store/types.ts:117](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#117)
 
 `retain()` options minus `folderId` (see [MemoryUpdate](MemoryUpdate.md)).
 

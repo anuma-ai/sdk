@@ -238,6 +238,11 @@ export interface RankableVaultMemory {
   lastObservedAt?: number | null;
 }
 
+/** @public */
+export interface VaultMemoryProjection extends RankableVaultMemory {
+  topicsUserManaged: boolean;
+}
+
 /**
  * A photo a server-extracted memory came from, as
  * GET /api/memories/published returns it in `media[]`.

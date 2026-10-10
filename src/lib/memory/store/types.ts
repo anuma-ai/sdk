@@ -5,6 +5,7 @@ import type {
   CreateVaultMemoryOptions,
   StoredVaultMemory,
   UpdateVaultMemoryOptions,
+  VaultMemoryProjection,
   VaultMemoryVisibility,
 } from "../../db/memoryVault/types.js";
 import type { CreateDecaySweeperOptions, DecaySweeper } from "../decayWorker.js";
@@ -45,7 +46,16 @@ export interface MemoryListOptions {
  */
 export type MemoryCreate = Pick<
   CreateVaultMemoryOptions,
-  "content" | "scope" | "factType" | "eventTime" | "embedding" | "embeddingModel" | "geohash"
+  | "content"
+  | "scope"
+  | "factType"
+  | "eventTime"
+  | "embedding"
+  | "embeddingModel"
+  | "geohash"
+  | "kind"
+  | "kindValue"
+  | "level"
 >;
 
 /**
@@ -65,7 +75,15 @@ export type MemoryCreate = Pick<
  */
 export type MemoryUpdate = Pick<
   UpdateVaultMemoryOptions,
-  "content" | "scope" | "factType" | "eventTime" | "embedding" | "embeddingModel"
+  | "content"
+  | "scope"
+  | "factType"
+  | "eventTime"
+  | "embedding"
+  | "embeddingModel"
+  | "kind"
+  | "kindValue"
+  | "level"
 >;
 
 /**
@@ -97,6 +115,16 @@ export type MemoryRecallOptions = Omit<
  * @public
  */
 export type MemoryRetainOptions = Omit<RetainOptions, "folderId">;
+
+/**
+ * A topic and how many memories link to it.
+ * @public
+ */
+export interface MemoryTopic {
+  name: string;
+  kind: string | null;
+  memoryCount: number;
+}
 
 /** @public */
 export interface MemorySubscribeOptions {
@@ -184,6 +212,10 @@ export interface MemoryStore {
   memoriesByTopics(names: readonly string[]): Promise<Map<string, Set<string>>>;
   /** Memory id → its canonical (lowercased) topic names. Unlinked ids are absent. */
   topicsByMemories(memoryIds: readonly string[]): Promise<Map<string, Set<string>>>;
+  /** Every topic by canonical name, with its kind and linked-memory count. */
+  listTopics(): Promise<MemoryTopic[]>;
+  /** The memories {@link MemoryStore.list} would return, without decrypting content. */
+  listProjections(options?: MemoryListOptions): Promise<VaultMemoryProjection[]>;
 
   /** Manual save; missing embeddings are filled in the background. */
   create(input: MemoryCreate): Promise<StoredVaultMemory>;

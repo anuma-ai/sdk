@@ -1,6 +1,6 @@
 # PhotoMediaRef
 
-Defined in: [src/lib/db/memoryVault/types.ts:249](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#249)
+Defined in: [src/lib/db/memoryVault/types.ts:254](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#254)
 
 A photo a server-extracted memory came from, as
 GET /api/memories/published returns it in `media[]`.
@@ -15,7 +15,7 @@ without another round-trip per memory.
 
 > **feedItemId**: `number`
 
-Defined in: [src/lib/db/memoryVault/types.ts:250](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#250)
+Defined in: [src/lib/db/memoryVault/types.ts:255](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#255)
 
 ***
 
@@ -23,4 +23,4 @@ Defined in: [src/lib/db/memoryVault/types.ts:250](https://github.com/anuma-ai/sd
 
 > **objectKey**: `string` | `null`
 
-Defined in: [src/lib/db/memoryVault/types.ts:251](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#251)
+Defined in: [src/lib/db/memoryVault/types.ts:256](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#256)

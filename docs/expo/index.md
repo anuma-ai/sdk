@@ -1348,6 +1348,12 @@ Re-exports [MemorySubscribeOptions](../react/Internal/interfaces/MemorySubscribe
 
 ***
 
+### MemoryTopic
+
+Re-exports [MemoryTopic](../react/Internal/interfaces/MemoryTopic.md)
+
+***
+
 ### MemoryToVerify
 
 Re-exports [MemoryToVerify](../react/Internal/type-aliases/MemoryToVerify.md)
@@ -1741,6 +1747,18 @@ Re-exports [RemoteMemoryError](../react/Internal/classes/RemoteMemoryError.md)
 ### RemoteMemoryListOptions
 
 Re-exports [RemoteMemoryListOptions](../react/Internal/interfaces/RemoteMemoryListOptions.md)
+
+***
+
+### RemoteMemoryMetadataPage
+
+Re-exports [RemoteMemoryMetadataPage](../react/Internal/interfaces/RemoteMemoryMetadataPage.md)
+
+***
+
+### RemoteMemoryMetadataRecord
+
+Re-exports [RemoteMemoryMetadataRecord](../react/Internal/interfaces/RemoteMemoryMetadataRecord.md)
 
 ***
 
@@ -2371,6 +2389,12 @@ Re-exports [VaultMemoryKind](../react/Internal/type-aliases/VaultMemoryKind.md)
 ### VaultMemoryOperationsContext
 
 Re-exports [VaultMemoryOperationsContext](../react/Internal/interfaces/VaultMemoryOperationsContext.md)
+
+***
+
+### VaultMemoryProjection
+
+Re-exports [VaultMemoryProjection](../react/Internal/interfaces/VaultMemoryProjection.md)
 
 ***
 
