@@ -120,6 +120,8 @@ export {
   isAttachedFilesText,
 } from "../lib/chat/fileContext";
 export type { PromptPreProcessor, PromptPreProcessorContext } from "../lib/chat/preProcessor";
+export type { ReservationReceipt } from "../lib/chat/reservationReceipts";
+export { extractReservationReceipts } from "../lib/chat/reservationReceipts";
 export type { ResumeStreamOptions, ResumeStreamResult } from "../lib/chat/resumeStream";
 export {
   INFERENCE_ID_HEADER,

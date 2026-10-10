@@ -778,6 +778,8 @@ export {
   buildAttachedFilesText,
   isAttachedFilesText,
 } from "./lib/chat/fileContext";
+export type { ReservationReceipt } from "./lib/chat/reservationReceipts";
+export { extractReservationReceipts } from "./lib/chat/reservationReceipts";
 export { TOOL_RESULT_ORIGIN } from "./lib/chat/toolResults";
 export type { ApiResponse } from "./lib/chat/useChat/strategies/types";
 export {
