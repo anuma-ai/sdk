@@ -1020,9 +1020,6 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
 
   const retainVaultMemory = useCallback(
     async (input: VaultWriteInput): Promise<RetainResult> => {
-      if (!getToken) {
-        throw new Error("getToken is required to retain a vault memory");
-      }
       if (memoryStore) {
         if (input.folderId !== undefined) throw new Error(NO_STORE_FOLDERS);
         return memoryStore.retain(input.content, {
@@ -1030,6 +1027,9 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           scope: input.scope,
           ...(input.factType !== undefined && { factType: input.factType }),
         });
+      }
+      if (!getToken) {
+        throw new Error("getToken is required to retain a vault memory");
       }
       return retain(
         input.content,
@@ -1066,7 +1066,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     (options?: MemoryVaultToolOptions): ToolConfig => {
       return createMemoryVaultToolBase(
         memoryStore ?? vaultCtx,
-        getToken ? { write: retainVaultMemory, ...options } : options
+        getToken || memoryStore ? { write: retainVaultMemory, ...options } : options
       );
     },
     [vaultCtx, getToken, retainVaultMemory, memoryStore]
@@ -1074,7 +1074,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
 
   const createRecallTool = useCallback(
     (toolOptions?: RecallToolOptions, callbacks?: RecallToolCallbacks): ToolConfig => {
-      if (!getToken) {
+      if (!getToken && !memoryStore) {
         throw new Error("getToken is required for recall tool");
       }
       const resolvedToolOptions: RecallToolOptions | undefined =
@@ -1093,7 +1093,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         memoryStore
           ? {
               factSource: memoryStore.factSource,
-              storageCtx,
+              ...(getToken && { storageCtx }),
               embeddingOptions,
               chunkCache: chunkVectorCacheRef.current,
             }
@@ -1123,7 +1123,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
 
   const recallFn = useCallback(
     async (query: string, options?: RecallOptions): Promise<RecallResult> => {
-      if (!getToken) {
+      if (!getToken && !memoryStore) {
         return {
           memories: [],
           usedBudget: options?.budget ?? "low",
@@ -1147,7 +1147,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         memoryStore
           ? {
               factSource: memoryStore.factSource,
-              storageCtx,
+              ...(getToken && { storageCtx }),
               embeddingOptions,
               chunkCache: chunkVectorCacheRef.current,
             }

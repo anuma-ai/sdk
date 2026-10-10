@@ -285,6 +285,8 @@ export function createRecallTool(
   toolOptions?: RecallToolOptions,
   callbacks?: RecallToolCallbacks
 ): ToolConfig {
+  if (toolOptions?.memoryStore && toolOptions.folderId !== undefined)
+    throw new Error("Folders are not supported with a memoryStore");
   const defaultTypes: MemoryKind[] = toolOptions?.types ?? ["fact", "chunk"];
   const defaultLimit = toolOptions?.limit ?? DEFAULT_LIMIT;
   const defaultBudget = toolOptions?.budget ?? DEFAULT_BUDGET;

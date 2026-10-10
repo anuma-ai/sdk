@@ -1468,9 +1468,6 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
 
   const retainVaultMemory = useCallback(
     async (input: VaultWriteInput): Promise<RetainResult> => {
-      if (!getToken) {
-        throw new Error("getToken is required to retain a vault memory");
-      }
       if (memoryStore) {
         if (input.folderId !== undefined) throw new Error(NO_STORE_FOLDERS);
         return memoryStore.retain(input.content, {
@@ -1478,6 +1475,9 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           scope: input.scope,
           ...(input.factType !== undefined && { factType: input.factType }),
         });
+      }
+      if (!getToken) {
+        throw new Error("getToken is required to retain a vault memory");
       }
       return retain(
         input.content,
@@ -1502,7 +1502,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       const embOpts = getToken ? vaultEmbeddingOptions : undefined;
       return createMemoryVaultToolBase(
         memoryStore ?? vaultCtx,
-        embOpts ? { write: retainVaultMemory, ...options } : options,
+        embOpts || memoryStore ? { write: retainVaultMemory, ...options } : options,
         embOpts,
         embOpts ? vaultEmbeddingCache : undefined
       );
@@ -1605,7 +1605,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
 
   const createMemoryVaultSearchTool = useCallback(
     (searchOptions?: MemoryVaultSearchOptions): ToolConfig => {
-      if (!getToken) {
+      if (!getToken && !memoryStore) {
         throw new Error("getToken is required for memory vault search tool");
       }
       return createMemoryVaultSearchToolBase(
@@ -1620,7 +1620,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
 
   const createRecallTool = useCallback(
     (toolOptions?: RecallToolOptions, callbacks?: RecallToolCallbacks): ToolConfig => {
-      if (!getToken) {
+      if (!getToken && !memoryStore) {
         throw new Error("getToken is required for recall tool");
       }
       const resolvedToolOptions: RecallToolOptions | undefined =
@@ -1633,7 +1633,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         memoryStore
           ? {
               factSource: memoryStore.factSource,
-              storageCtx,
+              ...(getToken && { storageCtx }),
               embeddingOptions: vaultEmbeddingOptions,
               chunkCache: chunkVectorCacheRef.current,
             }
@@ -1666,8 +1666,8 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       query: string,
       searchOptions?: MemoryVaultSearchOptions
     ): Promise<VaultSearchResult[]> => {
-      if (!getToken) return [];
       if (memoryStore) return (await memoryStore.factSource.search(query, searchOptions)).results;
+      if (!getToken) return [];
       return searchVaultMemoriesBase(
         query,
         vaultCtx,
@@ -1681,7 +1681,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
 
   const recallFn = useCallback(
     async (query: string, options?: RecallOptions): Promise<RecallResult> => {
-      if (!getToken) {
+      if (!getToken && !memoryStore) {
         return {
           memories: [],
           usedBudget: options?.budget ?? "low",
@@ -1699,7 +1699,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         memoryStore
           ? {
               factSource: memoryStore.factSource,
-              storageCtx,
+              ...(getToken && { storageCtx }),
               embeddingOptions: vaultEmbeddingOptions,
               chunkCache: chunkVectorCacheRef.current,
             }

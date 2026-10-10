@@ -109,4 +109,23 @@ describe("useChatStorage with a memoryStore", () => {
       scope: undefined,
     });
   });
+
+  it("works without getToken, skipping conversation chunks", async () => {
+    const store = fakeStore();
+    const { result } = renderHook(() => useChatStorage({ database: db, memoryStore: store }));
+    await act(async () => {
+      await result.current.retainVaultMemory({ content: "Likes tea", scope: "private" });
+      await result.current.recall("tea", { types: ["fact", "chunk"] });
+    });
+
+    expect(store.retain).toHaveBeenCalled();
+    const [, ctx] = vi.mocked(recallBase).mock.calls[0];
+    expect(ctx.factSource).toBe(store.factSource);
+    expect(ctx.storageCtx).toBeUndefined();
+    expect(() => result.current.createRecallTool()).not.toThrow();
+    expect(() => result.current.createMemoryVaultSearchTool()).not.toThrow();
+    expect((await result.current.searchVaultMemories("tea")).map((r) => r.uniqueId)).toEqual([
+      "m2",
+    ]);
+  });
 });

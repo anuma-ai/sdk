@@ -90,4 +90,19 @@ describe("useChatStorage with a memoryStore", () => {
     expect(store.retain).toHaveBeenCalledWith("Likes tea", { source: "manual", scope: "private" });
     expect(() => result.current.getVaultMemories({ folderId: "f1" })).toThrow(/Folders/);
   });
+
+  it("works without getToken, skipping conversation chunks", async () => {
+    const store = fakeStore();
+    const { result } = renderHook(() => useChatStorage({ database: db, memoryStore: store }));
+    await act(async () => {
+      await result.current.retainVaultMemory({ content: "Likes tea", scope: "private" });
+      await result.current.recall("tea", { types: ["fact", "chunk"] });
+    });
+
+    expect(store.retain).toHaveBeenCalled();
+    const [, ctx] = vi.mocked(recallBase).mock.calls[0];
+    expect(ctx.factSource).toBe(store.factSource);
+    expect(ctx.storageCtx).toBeUndefined();
+    expect(() => result.current.createRecallTool()).not.toThrow();
+  });
 });

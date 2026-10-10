@@ -549,6 +549,15 @@ describe("createRecallTool executor — sort: recent", () => {
     expect(out.indexOf("id: new")).toBeLessThan(out.indexOf("id: old"));
   });
 
+  it("rejects a folderId alongside a MemoryStore", () => {
+    expect(() =>
+      createRecallTool({ embeddingOptions: {} } as RecallContext, {
+        folderId: "f1",
+        memoryStore: {} as MemoryStore,
+      })
+    ).toThrow("Folders are not supported with a memoryStore");
+  });
+
   it("keeps a topic scope's memoryIds restriction", async () => {
     const tool = createRecallTool(recentCtx, { types: ["fact"], memoryIds: ["new"] });
     await tool.executor!({ query: "latest", sort: "recent" });
