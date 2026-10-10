@@ -1,0 +1,26 @@
+[
+  {
+    "id": "toolu_01FindMotek",
+    "name": "AnumaPaymentsMCP-anuma_find_restaurant",
+    "arguments": "{\"query\":\"Motek Brickell\",\"city\":\"Miami\"}",
+    "output": "{\"restaurants\":[{\"venue_id\":\"84211\",\"name\":\"Motek Brickell\",\"neighborhood\":\"Brickell\"}],\"cost\":0}"
+  },
+  {
+    "id": "toolu_02AvailMotek",
+    "name": "AnumaPaymentsMCP-anuma_check_restaurant_availability",
+    "arguments": "{\"venue_id\":\"84211\",\"day\":\"2026-10-23\",\"party_size\":2}",
+    "output": "{\"slots\":[{\"config_id\":\"rgs://resy/84211/2911/2/2026-10-23/2026-10-23/21:00:00/2/Dining Room\",\"time_start\":\"9:00 PM\",\"type\":\"Dining Room\"}],\"cost\":0}"
+  },
+  {
+    "id": "toolu_03ConfirmCard",
+    "name": "prompt_user_confirm",
+    "arguments": "{\"title\":\"Confirm your reservation\",\"action\":\"book_restaurant\",\"parameters\":[{\"name\":\"venue_id\",\"label\":\"Restaurant id\",\"value\":\"84211\"},{\"name\":\"config_id\",\"label\":\"Slot\",\"value\":\"rgs://resy/84211/2911/2/2026-10-23/2026-10-23/21:00:00/2/Dining Room\"},{\"name\":\"party_size\",\"label\":\"Party size\",\"value\":\"2\"},{\"name\":\"day\",\"label\":\"Date\",\"value\":\"2026-10-23\"},{\"name\":\"venue_name\",\"label\":\"Restaurant\",\"value\":\"Motek Brickell\"},{\"name\":\"time\",\"label\":\"Time\",\"value\":\"9:00 PM\"}]}",
+    "output": "{\"confirmed\":true,\"action\":\"book_restaurant\",\"parameters\":[{\"name\":\"venue_id\",\"label\":\"Restaurant id\",\"value\":\"84211\"},{\"name\":\"config_id\",\"label\":\"Slot\",\"value\":\"rgs://resy/84211/2911/2/2026-10-23/2026-10-23/21:00:00/2/Dining Room\"},{\"name\":\"party_size\",\"label\":\"Party size\",\"value\":\"2\"},{\"name\":\"day\",\"label\":\"Date\",\"value\":\"2026-10-23\"},{\"name\":\"venue_name\",\"label\":\"Restaurant\",\"value\":\"Motek Brickell\"},{\"name\":\"time\",\"label\":\"Time\",\"value\":\"9:00 PM\"}],\"answeredAt\":\"2026-10-09T18:04:11.512Z\",\"status\":\"confirmed_not_booked\",\"next_step\":\"call AnumaPaymentsMCP-anuma_book_restaurant now with these exact values\"}"
+  },
+  {
+    "id": "toolu_04BookMotek",
+    "name": "AnumaPaymentsMCP-anuma_book_restaurant",
+    "arguments": "{\"venue_id\":\"84211\",\"config_id\":\"rgs://resy/84211/2911/2/2026-10-23/2026-10-23/21:00:00/2/Dining Room\",\"party_size\":2,\"day\":\"2026-10-23\",\"venue_name\":\"Motek Brickell\",\"time\":\"9:00 PM\"}",
+    "output": "{\"success\":true,\"reservation_id\":\"812734455\",\"resy_token\":\"rt_0a1b2c\",\"kind\":\"reservation\",\"reservations_url\":\"https://resy.com/account/reservations-and-notify\",\"message\":\"Booked. The user can see and manage it on Resy: https://resy.com/account/reservations-and-notify\",\"cost\":0}"
+  }
+]
