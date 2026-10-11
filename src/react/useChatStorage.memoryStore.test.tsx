@@ -128,4 +128,46 @@ describe("useChatStorage with a memoryStore", () => {
       "m2",
     ]);
   });
+
+  it("refuses an unmasked store while piiRedaction is on, and uses a masked one", async () => {
+    const unmasked = fakeStore();
+    const { result } = renderHook(() =>
+      useChatStorage({ database: db, memoryStore: unmasked, piiRedaction: true })
+    );
+
+    await expect(
+      result.current.retainVaultMemory({ content: "Mail ann@example.com", scope: "private" })
+    ).rejects.toThrow(/maskInput/);
+    await expect(result.current.createVaultMemory("Mail ann@example.com")).rejects.toThrow(
+      /maskInput/
+    );
+    await expect(result.current.updateVaultMemory("m1", "Mail ann@example.com")).rejects.toThrow(
+      /maskInput/
+    );
+    await expect(result.current.searchVaultMemories("ann@example.com")).rejects.toThrow(
+      /maskInput/
+    );
+    await expect(result.current.recall("ann@example.com")).rejects.toThrow(/maskInput/);
+    expect(() => result.current.createRecallTool()).toThrow(/maskInput/);
+    expect(() => result.current.createMemoryVaultSearchTool()).toThrow(/maskInput/);
+    expect(() => result.current.createMemoryVaultTool()).toThrow(/maskInput/);
+    expect(unmasked.retain).not.toHaveBeenCalled();
+    expect(unmasked.create).not.toHaveBeenCalled();
+    expect(unmasked.update).not.toHaveBeenCalled();
+    expect(unmasked.factSource.search).not.toHaveBeenCalled();
+
+    const masked = { ...fakeStore(), masksEmbeddingInput: true } as MemoryStore;
+    const { result: maskedResult } = renderHook(() =>
+      useChatStorage({ database: db, memoryStore: masked, piiRedaction: true })
+    );
+    await act(async () => {
+      await maskedResult.current.retainVaultMemory({ content: "Likes tea", scope: "private" });
+      await maskedResult.current.createVaultMemory("Likes tea");
+      await maskedResult.current.searchVaultMemories("tea");
+    });
+    expect(masked.retain).toHaveBeenCalled();
+    expect(masked.create).toHaveBeenCalled();
+    expect(() => maskedResult.current.createRecallTool()).not.toThrow();
+    expect(() => maskedResult.current.createMemoryVaultTool()).not.toThrow();
+  });
 });

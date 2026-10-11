@@ -156,6 +156,7 @@ export function createLocalMemoryStore(options: LocalMemoryStoreOptions): Memory
   };
 
   return {
+    masksEmbeddingInput: options.embeddingOptions.maskInput !== undefined,
     list: (listOptions?: MemoryListOptions) => getAllVaultMemoriesOp(vaultCtx, listOptions),
     get: (id: string) => getVaultMemoryOp(vaultCtx, id),
     listArchived: async () => {

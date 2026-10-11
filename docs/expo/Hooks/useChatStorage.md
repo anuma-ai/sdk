@@ -2,7 +2,7 @@
 
 > **useChatStorage**(`options`: `object`): [`UseChatStorageResult`](../Internal/interfaces/UseChatStorageResult.md)
 
-Defined in: [src/expo/useChatStorage.ts:669](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChatStorage.ts#669)
+Defined in: [src/expo/useChatStorage.ts:670](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChatStorage.ts#670)
 
 A React hook that wraps useChat with automatic message persistence using WatermelonDB.
 
@@ -506,7 +506,7 @@ Defaults to the hardcoded MCP\_R2\_DOMAIN from clientConfig.
 </td>
 <td>
 
-Route memory reads, writes, recall and the memory tools through this store instead of the database's vault; folders are unsupported.
+Route memory reads, writes, recall and the memory tools through this store instead of the database's vault; folders are unsupported. With `piiRedaction` on, build the store with `embeddingOptions.maskInput` (e.g. `(text) => redactor.maskText(text)` with any `PiiRedactor`) or its memory calls throw.
 
 </td>
 </tr>

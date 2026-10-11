@@ -454,7 +454,7 @@ Defaults to the hardcoded MCP\_R2\_DOMAIN from clientConfig.
 
 Defined in: [src/lib/db/chat/types.ts:495](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#495)
 
-Route memory reads, writes, recall and the memory tools through this store instead of the database's vault; folders are unsupported.
+Route memory reads, writes, recall and the memory tools through this store instead of the database's vault; folders are unsupported. With `piiRedaction` on, build the store with `embeddingOptions.maskInput` (e.g. `(text) => redactor.maskText(text)` with any `PiiRedactor`) or its memory calls throw.
 
 **Inherited from**
 

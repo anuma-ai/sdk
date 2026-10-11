@@ -105,4 +105,30 @@ describe("useChatStorage with a memoryStore", () => {
     expect(ctx.storageCtx).toBeUndefined();
     expect(() => result.current.createRecallTool()).not.toThrow();
   });
+
+  it("refuses an unmasked store while piiRedaction is on, and uses a masked one", async () => {
+    const unmasked = fakeStore();
+    const { result } = renderHook(() =>
+      useChatStorage({ database: db, memoryStore: unmasked, piiRedaction: true })
+    );
+
+    await expect(
+      result.current.retainVaultMemory({ content: "Mail ann@example.com", scope: "private" })
+    ).rejects.toThrow(/maskInput/);
+    await expect(result.current.recall("ann@example.com")).rejects.toThrow(/maskInput/);
+    expect(() => result.current.createRecallTool()).toThrow(/maskInput/);
+    expect(() => result.current.createMemoryVaultTool()).toThrow(/maskInput/);
+    expect(unmasked.retain).not.toHaveBeenCalled();
+
+    const masked = { ...fakeStore(), masksEmbeddingInput: true } as MemoryStore;
+    const { result: maskedResult } = renderHook(() =>
+      useChatStorage({ database: db, memoryStore: masked, piiRedaction: true })
+    );
+    await act(async () => {
+      await maskedResult.current.retainVaultMemory({ content: "Likes tea", scope: "private" });
+    });
+    expect(masked.retain).toHaveBeenCalled();
+    expect(() => maskedResult.current.createRecallTool()).not.toThrow();
+    expect(() => maskedResult.current.createMemoryVaultTool()).not.toThrow();
+  });
 });

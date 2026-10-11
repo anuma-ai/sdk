@@ -491,7 +491,7 @@ export interface UpdateMessageOptions {
 export interface BaseUseChatStorageOptions {
   /** WatermelonDB database instance for storing conversations and messages */
   database: Database;
-  /** Route memory reads, writes, recall and the memory tools through this store instead of the database's vault; folders are unsupported. */
+  /** Route memory reads, writes, recall and the memory tools through this store instead of the database's vault; folders are unsupported. With `piiRedaction` on, build the store with `embeddingOptions.maskInput` (e.g. `(text) => redactor.maskText(text)` with any `PiiRedactor`) or its memory calls throw. */
   memoryStore?: MemoryStore;
   /** ID of an existing conversation to load and continue */
   conversationId?: string;

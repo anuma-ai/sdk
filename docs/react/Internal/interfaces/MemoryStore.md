@@ -35,9 +35,19 @@ The fact lane of `recall`, for callers that fuse it with other lanes such as con
 
 > `optional` **maintenance**: [`MemoryMaintenance`](MemoryMaintenance.md)
 
-Defined in: [src/lib/memory/store/types.ts:260](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#260)
+Defined in: [src/lib/memory/store/types.ts:262](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#262)
 
 TRANSITIONAL — see [MemoryMaintenance](MemoryMaintenance.md). Absent on a remote backend.
+
+***
+
+### masksEmbeddingInput
+
+> `readonly` **masksEmbeddingInput**: `boolean`
+
+Defined in: [src/lib/memory/store/types.ts:252](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#252)
+
+True when the store was built with `embeddingOptions.maskInput`, so every embedding request it makes is masked.
 
 ## Methods
 
@@ -691,7 +701,7 @@ Defined in: [src/lib/memory/store/types.ts:241](https://github.com/anuma-ai/sdk/
 
 > **subscribe**(`onChange`: () => `void`, `options?`: [`MemorySubscribeOptions`](MemorySubscribeOptions.md)): () => `void`
 
-Defined in: [src/lib/memory/store/types.ts:257](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#257)
+Defined in: [src/lib/memory/store/types.ts:259](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#259)
 
 Call `onChange` after the store's memories change; re-read to see what
 changed. Does not fire for the state at subscription time — read once

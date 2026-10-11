@@ -481,6 +481,7 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
   };
 
   return {
+    masksEmbeddingInput: embeddingOptions.maskInput !== undefined,
     list: async (listOptions = {}) =>
       (await listRows(decrypted, listOptions, listFilters(listOptions), maxOf(listOptions))).map(
         (r) => stored(r.memory)

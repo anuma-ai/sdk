@@ -248,6 +248,8 @@ export interface MemoryStore {
   retain(content: string, options?: MemoryRetainOptions): Promise<RetainResult>;
   /** The fact lane of `recall`, for callers that fuse it with other lanes such as conversation chunks. */
   readonly factSource: RecallFactSource;
+  /** True when the store was built with `embeddingOptions.maskInput`, so every embedding request it makes is masked. */
+  readonly masksEmbeddingInput: boolean;
 
   /**
    * Call `onChange` after the store's memories change; re-read to see what
