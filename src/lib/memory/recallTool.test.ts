@@ -543,10 +543,79 @@ describe("createRecallTool executor — sort: recent", () => {
     });
     const out = await tool.executor!({ query: "latest", sort: "recent", limit: 5 });
 
-    expect(memoryStore.listProjections).toHaveBeenCalledWith({ scopes: ["private"] });
+    expect(memoryStore.listProjections).toHaveBeenCalledWith({ scopes: ["private"], limit: 5 });
     expect(getVaultRankingProjectionsOp).not.toHaveBeenCalled();
     expect(recall).not.toHaveBeenCalled();
     expect(out.indexOf("id: new")).toBeLessThan(out.indexOf("id: old"));
+  });
+
+  function windowedStore(rows: StoredVaultMemory[]) {
+    const served = { projections: 0, decrypted: 0 };
+    const memoryStore = {
+      listProjections: vi.fn(async ({ limit }: { limit?: number }) => {
+        const page = rows.slice(0, limit ?? rows.length);
+        served.projections += page.length;
+        return page.map((r) => ({ uniqueId: r.uniqueId }));
+      }),
+      list: vi.fn(async ({ memoryIds }: { memoryIds: string[] }) => {
+        const found = rows.filter((r) => memoryIds.includes(r.uniqueId));
+        served.decrypted += found.length;
+        return found;
+      }),
+    } as unknown as MemoryStore;
+    return { memoryStore, served };
+  }
+
+  const vault = (count: number, locked = 0) =>
+    Array.from({ length: count }, (_, i) =>
+      stored(
+        `m${i}`,
+        i < locked ? LOCKED : `fact ${i}`,
+        new Date(Date.UTC(2026, 9, 1) - i * 60_000).toISOString()
+      )
+    );
+
+  it("reads only the requested window of a large store", async () => {
+    const { memoryStore, served } = windowedStore(vault(9000));
+    const tool = createRecallTool({ embeddingOptions: {} } as RecallContext, {
+      types: ["fact"],
+      memoryStore,
+    });
+    const out = await tool.executor!({ query: "latest", sort: "recent", limit: 5 });
+
+    expect(memoryStore.listProjections).toHaveBeenCalledTimes(1);
+    expect(served).toEqual({ projections: 5, decrypted: 5 });
+    expect(out).toContain("id: m0");
+    expect(out).toContain("id: m4");
+  });
+
+  it("widens the window only to replace unreadable rows", async () => {
+    const { memoryStore, served } = windowedStore(vault(9000, 7));
+    const tool = createRecallTool({ embeddingOptions: {} } as RecallContext, {
+      types: ["fact"],
+      memoryStore,
+    });
+    const out = await tool.executor!({ query: "latest", sort: "recent", limit: 5 });
+
+    expect(vi.mocked(memoryStore.listProjections).mock.calls.map(([o]) => o?.limit)).toEqual([
+      5, 10, 20,
+    ]);
+    expect(served.decrypted).toBe(15);
+    expect(out).not.toContain("enc:v3:");
+    expect(out).toContain("id: m7");
+    expect(out).toContain("id: m11");
+    expect(out).not.toContain("id: m12");
+  });
+
+  it("stops widening once the store runs out of rows", async () => {
+    const { memoryStore } = windowedStore(vault(3, 3));
+    const tool = createRecallTool({ embeddingOptions: {} } as RecallContext, {
+      types: ["fact"],
+      memoryStore,
+    });
+    await tool.executor!({ query: "latest", sort: "recent", limit: 5 });
+
+    expect(memoryStore.listProjections).toHaveBeenCalledTimes(1);
   });
 
   it("rejects a folderId alongside a MemoryStore", () => {

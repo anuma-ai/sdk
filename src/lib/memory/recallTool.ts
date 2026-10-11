@@ -244,21 +244,28 @@ async function listRecentFacts(
     ...(toolOptions?.scopes && { scopes: toolOptions.scopes }),
     ...(toolOptions?.memoryIds !== undefined && { memoryIds: toolOptions.memoryIds }),
   };
-  const ordered = store
-    ? await store.listProjections(filters)
-    : await getVaultRankingProjectionsOp(vaultCtx!, {
-        ...filters,
-        ...(toolOptions?.folderId !== undefined && { folderId: toolOptions.folderId }),
-      });
+  const project = (size: number) =>
+    store
+      ? store.listProjections({ ...filters, limit: size })
+      : getVaultRankingProjectionsOp(vaultCtx!, {
+          ...filters,
+          ...(toolOptions?.folderId !== undefined && { folderId: toolOptions.folderId }),
+        });
   const readable: StoredVaultMemory[] = [];
-  for (let i = 0; i < ordered.length && readable.length < limit; i += limit) {
-    const batch = ordered.slice(i, i + limit).map((p) => p.uniqueId);
-    const byId = new Map((await read(batch)).map((m) => [m.uniqueId, m]));
-    for (const id of batch) {
-      const m = byId.get(id);
-      if (m && !isEncrypted(m.content)) readable.push(m);
-      if (readable.length >= limit) break;
+  let start = 0;
+  for (let size = limit; readable.length < limit; size *= 2) {
+    const ordered = await project(size);
+    for (let i = start; i < ordered.length && readable.length < limit; i += limit) {
+      const batch = ordered.slice(i, i + limit).map((p) => p.uniqueId);
+      const byId = new Map((await read(batch)).map((m) => [m.uniqueId, m]));
+      for (const id of batch) {
+        const m = byId.get(id);
+        if (m && !isEncrypted(m.content)) readable.push(m);
+        if (readable.length >= limit) break;
+      }
     }
+    if (!store || ordered.length < size) break;
+    start = ordered.length;
   }
   return readable.map((m) => ({
     id: m.uniqueId,
