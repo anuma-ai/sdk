@@ -34,9 +34,18 @@ import type { StoredVaultMemory, VaultMemoryVisibility } from "../../db/memoryVa
 import { getLogger } from "../../logger.js";
 import type { EmbeddingOptions } from "../../memoryEngine/types.js";
 import { createVaultEmbeddingCache } from "../../memoryVault/lruCache.js";
-import { eagerEmbedContent, type VaultEmbeddingCache } from "../../memoryVault/searchTool.js";
+import {
+  eagerEmbedContent,
+  searchVaultMemoriesWithSize,
+  type VaultEmbeddingCache,
+} from "../../memoryVault/searchTool.js";
 import { createDecaySweeper } from "../decayWorker.js";
-import { recall } from "../recall.js";
+import {
+  buildGraphLaneRanking,
+  buildTemporalLaneRanking,
+  graphTraversalOptions,
+  recall,
+} from "../recall.js";
 import { retain } from "../retain.js";
 import { extractAndLinkEntitiesForMemoriesOp, type TopicExtractOptions } from "../topicExtract.js";
 import type {
@@ -147,6 +156,7 @@ export function createLocalMemoryStore(options: LocalMemoryStoreOptions): Memory
   };
 
   return {
+    masksEmbeddingInput: options.embeddingOptions.maskInput !== undefined,
     list: (listOptions?: MemoryListOptions) => getAllVaultMemoriesOp(vaultCtx, listOptions),
     get: (id: string) => getVaultMemoryOp(vaultCtx, id),
     listArchived: async () => {
@@ -254,6 +264,24 @@ export function createLocalMemoryStore(options: LocalMemoryStoreOptions): Memory
         { vaultCtx, embeddingOptions: options.embeddingOptions, vaultCache },
         retainOptions
       ),
+    factSource: {
+      search: (query, searchOptions) =>
+        searchVaultMemoriesWithSize(
+          query,
+          vaultCtx,
+          options.embeddingOptions,
+          vaultCache,
+          searchOptions
+        ),
+      graphRanking: (query, traverse, recallOptions) =>
+        buildGraphLaneRanking(
+          query,
+          { vaultCtx, entityCtx, embeddingOptions: options.embeddingOptions },
+          traverse,
+          graphTraversalOptions(recallOptions, traverse)
+        ),
+      temporalRanking: (query, now) => buildTemporalLaneRanking(query, vaultCtx, now),
+    },
 
     subscribe: (onChange, subscribeOptions) => {
       const afterFirst = () => {

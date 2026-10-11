@@ -181,7 +181,7 @@ Restrict to these profile kinds.
 </td>
 <td>
 
-(`"profile"` | `"private"` | `"matching"`)\[]
+(`"private"` | `"matching"` | `"profile"`)\[]
 
 </td>
 <td>

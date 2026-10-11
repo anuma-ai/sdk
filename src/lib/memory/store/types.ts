@@ -10,7 +10,13 @@ import type {
 } from "../../db/memoryVault/types.js";
 import type { CreateDecaySweeperOptions, DecaySweeper } from "../decayWorker.js";
 import type { TopicExtractionRunResult, TopicExtractOptions } from "../topicExtract.js";
-import type { RecallOptions, RecallResult, RetainOptions, RetainResult } from "../types.js";
+import type {
+  RecallFactSource,
+  RecallOptions,
+  RecallResult,
+  RetainOptions,
+  RetainResult,
+} from "../types.js";
 
 /**
  * Read filter for {@link MemoryStore.list}. Same semantics as the vault read
@@ -240,6 +246,10 @@ export interface MemoryStore {
 
   recall(query: string, options?: MemoryRecallOptions): Promise<RecallResult>;
   retain(content: string, options?: MemoryRetainOptions): Promise<RetainResult>;
+  /** The fact lane of `recall`, for callers that fuse it with other lanes such as conversation chunks. */
+  readonly factSource: RecallFactSource;
+  /** True when the store was built with `embeddingOptions.maskInput`, so every embedding request it makes is masked. */
+  readonly masksEmbeddingInput: boolean;
 
   /**
    * Call `onChange` after the store's memories change; re-read to see what

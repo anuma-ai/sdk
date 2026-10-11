@@ -13,6 +13,7 @@ import {
   RECALL_MAX_LIMIT,
   RECALL_TOOL_NAME,
 } from "./recallConstants.js";
+import type { MemoryStore } from "./store/types.js";
 import type {
   Budget,
   MemoryKind,
@@ -28,6 +29,8 @@ const DEFAULT_LIMIT = 8;
 const DEFAULT_BUDGET: Budget = "low";
 
 export interface RecallToolOptions {
+  /** Serves `sort: "recent"` when the recall context reads facts through `factSource`. */
+  memoryStore?: MemoryStore;
   /** Lanes to search. Default: ["fact", "chunk"]. */
   types?: MemoryKind[];
   /** Max items returned to the LLM. Default: 8. */
@@ -232,24 +235,37 @@ async function listRecentFacts(
   limit: number,
   toolOptions: RecallToolOptions | undefined
 ): Promise<RankedMemory[]> {
+  const store = toolOptions?.memoryStore;
   const vaultCtx = ctx.vaultCtx;
-  if (!vaultCtx) return [];
-  const ordered = await getVaultRankingProjectionsOp(vaultCtx, {
+  if (!vaultCtx && !store) return [];
+  const read = (ids: string[]) =>
+    store ? store.list({ memoryIds: ids }) : getVaultMemoriesByIdsOp(vaultCtx!, ids);
+  const filters = {
     ...(toolOptions?.scopes && { scopes: toolOptions.scopes }),
     ...(toolOptions?.memoryIds !== undefined && { memoryIds: toolOptions.memoryIds }),
-    ...(toolOptions?.folderId !== undefined && { folderId: toolOptions.folderId }),
-  });
+  };
+  const project = (size: number) =>
+    store
+      ? store.listProjections({ ...filters, limit: size })
+      : getVaultRankingProjectionsOp(vaultCtx!, {
+          ...filters,
+          ...(toolOptions?.folderId !== undefined && { folderId: toolOptions.folderId }),
+        });
   const readable: StoredVaultMemory[] = [];
-  for (let i = 0; i < ordered.length && readable.length < limit; i += limit) {
-    const batch = ordered.slice(i, i + limit).map((p) => p.uniqueId);
-    const byId = new Map(
-      (await getVaultMemoriesByIdsOp(vaultCtx, batch)).map((m) => [m.uniqueId, m])
-    );
-    for (const id of batch) {
-      const m = byId.get(id);
-      if (m && !isEncrypted(m.content)) readable.push(m);
-      if (readable.length >= limit) break;
+  let start = 0;
+  for (let size = limit; readable.length < limit; size *= 2) {
+    const ordered = await project(size);
+    for (let i = start; i < ordered.length && readable.length < limit; i += limit) {
+      const batch = ordered.slice(i, i + limit).map((p) => p.uniqueId);
+      const byId = new Map((await read(batch)).map((m) => [m.uniqueId, m]));
+      for (const id of batch) {
+        const m = byId.get(id);
+        if (m && !isEncrypted(m.content)) readable.push(m);
+        if (readable.length >= limit) break;
+      }
     }
+    if (!store || ordered.length < size) break;
+    start = ordered.length;
   }
   return readable.map((m) => ({
     id: m.uniqueId,
@@ -276,6 +292,8 @@ export function createRecallTool(
   toolOptions?: RecallToolOptions,
   callbacks?: RecallToolCallbacks
 ): ToolConfig {
+  if (toolOptions?.memoryStore && toolOptions.folderId !== undefined)
+    throw new Error("Folders are not supported with a memoryStore");
   const defaultTypes: MemoryKind[] = toolOptions?.types ?? ["fact", "chunk"];
   const defaultLimit = toolOptions?.limit ?? DEFAULT_LIMIT;
   const defaultBudget = toolOptions?.budget ?? DEFAULT_BUDGET;
@@ -377,7 +395,9 @@ export function createRecallTool(
         let recallDegraded: readonly string[] = [];
 
         const wantsRecent =
-          args.sort === "recent" && defaultTypes.includes("fact") && ctx.vaultCtx !== undefined;
+          args.sort === "recent" &&
+          defaultTypes.includes("fact") &&
+          (ctx.vaultCtx !== undefined || toolOptions?.memoryStore !== undefined);
         let result: { memories: RankedMemory[] };
         if (wantsRecent) {
           result = { memories: await listRecentFacts(ctx, effectiveLimit, toolOptions) };

@@ -5,6 +5,7 @@ import {
   getVaultMemoryOp,
   updateVaultMemoryOp,
 } from "../db/memoryVault/operations";
+import type { MemoryStore } from "../memory/store/types";
 import type { EmbeddingOptions } from "../memoryEngine/types";
 import { eagerEmbedContent, type VaultEmbeddingCache } from "./searchTool";
 
@@ -165,7 +166,7 @@ export interface MemoryVaultToolOptions {
  * The tool allows the LLM to save and update persistent memories.
  * Each operation can be intercepted for user confirmation before committing.
  *
- * @param vaultCtx - Vault operations context for database access
+ * @param vaultCtx - Vault operations context, or a `MemoryStore` (no folders; the store embeds its own writes)
  * @param options - Optional configuration (onSave callback for confirmation)
  * @returns A ToolConfig that can be passed to chat completion tools
  *
@@ -185,13 +186,15 @@ export interface MemoryVaultToolOptions {
  * ```
  */
 export function createMemoryVaultTool(
-  vaultCtx: VaultMemoryOperationsContext,
+  vaultCtx: VaultMemoryOperationsContext | MemoryStore,
   options?: MemoryVaultToolOptions,
   embeddingOptions?: EmbeddingOptions,
   cache?: VaultEmbeddingCache
 ): ToolConfig {
+  const store = "retain" in vaultCtx ? vaultCtx : undefined;
+  const ctx = "retain" in vaultCtx ? undefined : vaultCtx;
   const hasOnSave = !!options?.onSave;
-  const folderNames = options?.folderMap ? Array.from(options.folderMap.keys()) : [];
+  const folderNames = !store && options?.folderMap ? Array.from(options.folderMap.keys()) : [];
 
   return {
     type: "function",
@@ -258,7 +261,7 @@ export function createMemoryVaultTool(
             const scope = options?.scope ?? "private";
 
             if (isUpdate) {
-              const existing = await getVaultMemoryOp(vaultCtx, id);
+              const existing = store ? await store.get(id) : await getVaultMemoryOp(ctx!, id);
               if (!existing) {
                 return `Error: Memory with ID "${id}" not found. Creating a new memory instead would require a separate call without an ID.`;
               }
@@ -284,9 +287,18 @@ export function createMemoryVaultTool(
               }
             }
 
-            if (isUpdate) {
+            if (isUpdate && store) {
+              const updated = await store.update(id, {
+                content,
+                ...(factType !== undefined && { factType }),
+              });
+              if (!updated) {
+                return `Error: Failed to update memory "${id}".`;
+              }
+              return `Memory updated successfully (ID: ${updated.uniqueId}).`;
+            } else if (isUpdate) {
               const folderId = folderName ? options?.folderMap?.get(folderName) : undefined;
-              const updated = await updateVaultMemoryOp(vaultCtx, id, {
+              const updated = await updateVaultMemoryOp(ctx!, id, {
                 content,
                 embedding: null,
                 folderId,
@@ -301,7 +313,7 @@ export function createMemoryVaultTool(
                   content,
                   embeddingOptions,
                   cache,
-                  vaultCtx,
+                  ctx,
                   id,
                   updated.updatedAt
                 ).catch(() => {});
@@ -320,18 +332,24 @@ export function createMemoryVaultTool(
                 await notifyWritten(options, input, outcome);
                 return describeWriteOutcome(outcome);
               }
-              const created = await createVaultMemoryOp(vaultCtx, {
-                content,
-                scope,
-                folderId,
-                ...(factType !== undefined && { factType }),
-              });
-              if (embeddingOptions && cache) {
+              const created = store
+                ? await store.create({
+                    content,
+                    scope,
+                    ...(factType !== undefined && { factType }),
+                  })
+                : await createVaultMemoryOp(ctx!, {
+                    content,
+                    scope,
+                    folderId,
+                    ...(factType !== undefined && { factType }),
+                  });
+              if (ctx && embeddingOptions && cache) {
                 eagerEmbedContent(
                   content,
                   embeddingOptions,
                   cache,
-                  vaultCtx,
+                  ctx,
                   created.uniqueId,
                   created.updatedAt
                 ).catch(() => {});

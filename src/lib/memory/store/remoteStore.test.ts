@@ -19,6 +19,7 @@ vi.mock("../../memoryEngine/embeddings", () => {
 });
 
 import { getLogger } from "../../logger";
+import type { EmbeddingOptions } from "../../memoryEngine/types";
 import { runMemoryStoreContract } from "./contract";
 import { deriveMemoryKeyRing, type MemoryKeyRing, memoryCipher } from "./memoryKeys";
 import { createRemoteMemoryPersistence } from "./remotePersistence";
@@ -242,7 +243,8 @@ function fakeNearby(keyId: string) {
 async function remoteStore(
   nearby?: ReturnType<typeof fakeNearby>,
   ring?: MemoryKeyRing,
-  pollIntervalMs = 60_000
+  pollIntervalMs = 60_000,
+  embeddingOverrides: Pick<EmbeddingOptions, "maskInput"> = {}
 ) {
   const keys = ring ?? (await deriveMemoryKeyRing(`0x${"c3".repeat(65)}`));
   const server = nearby ?? fakeNearby(keys.keyId);
@@ -255,7 +257,7 @@ async function remoteStore(
   });
   const store = createRemoteMemoryStore({
     persistence,
-    embeddingOptions: { apiKey: "test-key" },
+    embeddingOptions: { apiKey: "test-key", ...embeddingOverrides },
     graphRanking: async () => [],
     temporalRanking: async () => [],
     pollIntervalMs,
@@ -263,7 +265,10 @@ async function remoteStore(
   return { store, server, keys };
 }
 
-runMemoryStoreContract(async () => (await remoteStore()).store, { vectors: [axis(0), axis(1)] });
+runMemoryStoreContract(
+  async (overrides) => (await remoteStore(undefined, undefined, 60_000, overrides)).store,
+  { vectors: [axis(0), axis(1)] }
+);
 
 describe("remote MemoryStore", () => {
   it("dual-writes level with scope on create and update", async () => {

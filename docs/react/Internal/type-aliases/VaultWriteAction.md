@@ -2,7 +2,7 @@
 
 > **VaultWriteAction** = `"create"` | `"merge"` | `"update"` | `"supersede"` | `"suppressed"` | `"skip"`
 
-Defined in: [src/lib/memoryVault/tool.ts:39](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/tool.ts#39)
+Defined in: [src/lib/memoryVault/tool.ts:40](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/tool.ts#40)
 
 What a [VaultMemoryWriter](VaultMemoryWriter.md) reports back. The action set mirrors
 `RetainResult.action` in `memory/retain` — restated here rather than imported

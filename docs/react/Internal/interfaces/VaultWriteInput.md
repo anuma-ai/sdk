@@ -1,6 +1,6 @@
 # VaultWriteInput
 
-Defined in: [src/lib/memoryVault/tool.ts:48](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/tool.ts#48)
+Defined in: [src/lib/memoryVault/tool.ts:49](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/tool.ts#49)
 
 A NEW memory the tool wants written — `id`-addressed updates never come here.
 
@@ -10,7 +10,7 @@ A NEW memory the tool wants written — `id`-addressed updates never come here.
 
 > **content**: `string`
 
-Defined in: [src/lib/memoryVault/tool.ts:49](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/tool.ts#49)
+Defined in: [src/lib/memoryVault/tool.ts:50](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/tool.ts#50)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/lib/memoryVault/tool.ts:49](https://github.com/anuma-ai/sdk/blo
 
 > `optional` **factType**: `"other"` | `"identity"` | `"preference"` | `"relationship"` | `"plan"` | `"ongoing_context"` | `"constraint"`
 
-Defined in: [src/lib/memoryVault/tool.ts:52](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/tool.ts#52)
+Defined in: [src/lib/memoryVault/tool.ts:53](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/tool.ts#53)
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: [src/lib/memoryVault/tool.ts:52](https://github.com/anuma-ai/sdk/blo
 
 > `optional` **folderId**: `string`
 
-Defined in: [src/lib/memoryVault/tool.ts:51](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/tool.ts#51)
+Defined in: [src/lib/memoryVault/tool.ts:52](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/tool.ts#52)
 
 ***
 
@@ -34,4 +34,4 @@ Defined in: [src/lib/memoryVault/tool.ts:51](https://github.com/anuma-ai/sdk/blo
 
 > **scope**: `string`
 
-Defined in: [src/lib/memoryVault/tool.ts:50](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/tool.ts#50)
+Defined in: [src/lib/memoryVault/tool.ts:51](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/tool.ts#51)

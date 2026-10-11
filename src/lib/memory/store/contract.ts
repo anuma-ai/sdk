@@ -1,5 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
+import { generateEmbedding, generateEmbeddings } from "../../memoryEngine/embeddings";
+import type { EmbeddingOptions } from "../../memoryEngine/types";
 import type { MemoryStore } from "./types";
 
 interface MemoryStoreContractFixtures {
@@ -7,7 +9,9 @@ interface MemoryStoreContractFixtures {
 }
 
 export function runMemoryStoreContract(
-  makeStore: () => MemoryStore | Promise<MemoryStore>,
+  makeStore: (
+    embeddingOptions?: Pick<EmbeddingOptions, "maskInput">
+  ) => MemoryStore | Promise<MemoryStore>,
   fixtures: MemoryStoreContractFixtures = { vectors: ["[1,0]", "[0,1]"] }
 ): void {
   const [vectorA, vectorB] = fixtures.vectors;
@@ -318,6 +322,31 @@ export function runMemoryStoreContract(
 
       const result = await store.recall("what is my dog named");
       expect(result.memories[0]).toMatchObject({ id: first.memoryId, kind: "fact" });
+      const facts = await store.factSource.search("what is my dog named", { limit: 3 });
+      expect(facts.results[0]?.uniqueId).toBe(first.memoryId);
+    });
+
+    it("embeds through the store's maskInput on every write and search", async () => {
+      expect((await makeStore()).masksEmbeddingInput).toBe(false);
+      const maskInput = (text: string) => text.replace(/\S+@\S+/g, "[EMAIL]");
+      const store = await makeStore({ maskInput });
+      expect(store.masksEmbeddingInput).toBe(true);
+      const single = vi.mocked(generateEmbedding);
+      const batch = vi.mocked(generateEmbeddings);
+      single.mockClear();
+      batch.mockClear();
+
+      await store.retain("My backup is cat@example.com");
+      await store.factSource.search("what is cat@example.com", { limit: 3 });
+      const created = await store.create({ content: "Email me at ann@example.com" });
+      await store.createMany([{ content: "Work mail bob@example.com" }]);
+      await store.update(created.uniqueId, { content: "Email me at ann@work.example" });
+      await vi.waitFor(() =>
+        expect(single.mock.calls.length + batch.mock.calls.length).toBeGreaterThanOrEqual(5)
+      );
+
+      const options = [...single.mock.calls, ...batch.mock.calls].map(([, opts]) => opts);
+      expect(options.every((opts) => opts?.maskInput === maskInput)).toBe(true);
     });
   });
 }

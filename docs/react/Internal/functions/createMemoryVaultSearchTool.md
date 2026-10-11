@@ -1,8 +1,8 @@
 # createMemoryVaultSearchTool
 
-> **createMemoryVaultSearchTool**(`vaultCtx`: [`VaultMemoryOperationsContext`](../interfaces/VaultMemoryOperationsContext.md), `embeddingOptions`: [`MemoryEngineEmbeddingOptions`](../interfaces/MemoryEngineEmbeddingOptions.md), `cache`: [`VaultEmbeddingCache`](../type-aliases/VaultEmbeddingCache.md), `searchOptions?`: [`MemoryVaultSearchOptions`](../interfaces/MemoryVaultSearchOptions.md)): `ToolConfig`
+> **createMemoryVaultSearchTool**(`vaultCtx`: [`VaultMemoryOperationsContext`](../interfaces/VaultMemoryOperationsContext.md) | [`MemoryStore`](../interfaces/MemoryStore.md), `embeddingOptions`: [`MemoryEngineEmbeddingOptions`](../interfaces/MemoryEngineEmbeddingOptions.md), `cache`: [`VaultEmbeddingCache`](../type-aliases/VaultEmbeddingCache.md), `searchOptions?`: [`MemoryVaultSearchOptions`](../interfaces/MemoryVaultSearchOptions.md)): `ToolConfig`
 
-Defined in: [src/lib/memoryVault/searchToolExecutor.ts:38](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/searchToolExecutor.ts#38)
+Defined in: [src/lib/memoryVault/searchToolExecutor.ts:39](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/searchToolExecutor.ts#39)
 
 Creates a memory vault search tool for use with chat completions.
 
@@ -30,7 +30,7 @@ embeddings are computed on the fly as a fallback.
 </td>
 <td>
 
-[`VaultMemoryOperationsContext`](../interfaces/VaultMemoryOperationsContext.md)
+[`VaultMemoryOperationsContext`](../interfaces/VaultMemoryOperationsContext.md) | [`MemoryStore`](../interfaces/MemoryStore.md)
 
 </td>
 <td>

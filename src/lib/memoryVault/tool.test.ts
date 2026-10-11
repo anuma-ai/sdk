@@ -3,6 +3,7 @@ import { createMemoryVaultTool } from "./tool";
 import type { VaultMemoryOperationsContext } from "../db/memoryVault/operations";
 import type { StoredVaultMemory } from "../db/memoryVault/types";
 import { createVaultEmbeddingCache } from "./lruCache";
+import type { MemoryStore } from "../memory/store/types";
 
 vi.mock("../db/memoryVault/operations", () => ({
   createVaultMemoryOp: vi.fn(),
@@ -518,5 +519,50 @@ describe("createMemoryVaultTool", () => {
         updated.updatedAt
       );
     });
+  });
+});
+
+describe("createMemoryVaultTool with a MemoryStore", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  function fakeStore(existing: StoredVaultMemory | null) {
+    return {
+      retain: vi.fn(),
+      get: vi.fn(async () => existing),
+      create: vi.fn(async (input: { content: string }) =>
+        makeStoredMemory({ uniqueId: "store-new", content: input.content })
+      ),
+      update: vi.fn(async (id: string, patch: { content: string }) =>
+        makeStoredMemory({ uniqueId: id, content: patch.content })
+      ),
+    } as unknown as MemoryStore;
+  }
+
+  it("creates and updates through the store and never touches the vault ops", async () => {
+    const store = fakeStore(makeStoredMemory({ uniqueId: "mem-1", scope: "private" }));
+    const tool = createMemoryVaultTool(store, {
+      ...autoConfirm,
+      folderMap: new Map([["Work", "folder-1"]]),
+    });
+
+    expect(JSON.stringify(tool.function.arguments)).not.toContain("folderName");
+    expect(await tool.executor!({ content: "Likes dogs", type: "preference" })).toContain(
+      "store-new"
+    );
+    expect(store.create).toHaveBeenCalledWith({
+      content: "Likes dogs",
+      scope: "private",
+      factType: "preference",
+    });
+    expect(await tool.executor!({ content: "Likes cats", id: "mem-1" })).toContain(
+      "updated successfully"
+    );
+    expect(store.update).toHaveBeenCalledWith("mem-1", { content: "Likes cats" });
+    expect(createVaultMemoryOp).not.toHaveBeenCalled();
+    expect(updateVaultMemoryOp).not.toHaveBeenCalled();
+    expect(getVaultMemoryOp).not.toHaveBeenCalled();
+    expect(eagerEmbedContent).not.toHaveBeenCalled();
   });
 });

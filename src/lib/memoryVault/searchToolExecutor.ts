@@ -2,6 +2,7 @@ import type { ToolConfig } from "../chat/useChat/types";
 import type { VaultMemoryOperationsContext } from "../db/memoryVault/operations";
 import { recall } from "../memory/recall";
 import { EMBEDDINGS_DEGRADED_EMPTY, RECALL_MAX_LIMIT } from "../memory/recallConstants";
+import type { MemoryStore } from "../memory/store/types";
 import type { EmbeddingOptions } from "../memoryEngine/types";
 import { decomposeQuery } from "./decomposeQuery";
 import {
@@ -36,7 +37,7 @@ function formatVaultHits(hits: Array<{ id: string; content: string; score: numbe
  * @returns A ToolConfig that can be passed to chat completion tools
  */
 export function createMemoryVaultSearchTool(
-  vaultCtx: VaultMemoryOperationsContext,
+  vaultCtx: VaultMemoryOperationsContext | MemoryStore,
   embeddingOptions: EmbeddingOptions,
   cache: VaultEmbeddingCache,
   searchOptions?: MemoryVaultSearchOptions
@@ -127,20 +128,24 @@ export function createMemoryVaultSearchTool(
         const folderId = searchOptions?.folderId ?? argFolderId;
 
         if (searchOptions?.useFusion === false) {
-          const { results: legacy, embeddingsUnavailable } = await searchVaultMemoriesWithSize(
-            query,
-            vaultCtx,
-            embeddingOptions,
-            cache,
-            {
-              limit: requestLimit,
-              minSimilarity,
-              useFusion: false,
-              ...tuningForward,
-              ...(folderId !== undefined && { folderId }),
-              ...(searchOptions?.scopes && { scopes: searchOptions.scopes }),
-            }
-          );
+          const legacyOptions = {
+            limit: requestLimit,
+            minSimilarity,
+            useFusion: false,
+            ...tuningForward,
+            ...(folderId !== undefined && { folderId }),
+            ...(searchOptions?.scopes && { scopes: searchOptions.scopes }),
+          };
+          const { results: legacy, embeddingsUnavailable } =
+            "retain" in vaultCtx
+              ? await vaultCtx.factSource.search(query, legacyOptions)
+              : await searchVaultMemoriesWithSize(
+                  query,
+                  vaultCtx,
+                  embeddingOptions,
+                  cache,
+                  legacyOptions
+                );
           if (legacy.length === 0) {
             return embeddingsUnavailable
               ? EMBEDDINGS_DEGRADED_EMPTY_NO_LEXICAL
@@ -162,7 +167,9 @@ export function createMemoryVaultSearchTool(
         let recallDegraded: readonly string[] = [];
         const result = await recall(
           query,
-          { vaultCtx, embeddingOptions, vaultCache: cache },
+          "retain" in vaultCtx
+            ? { factSource: vaultCtx.factSource, embeddingOptions }
+            : { vaultCtx, embeddingOptions, vaultCache: cache },
           {
             onDiagnostics: (d) => {
               recallDegraded = d.degraded;

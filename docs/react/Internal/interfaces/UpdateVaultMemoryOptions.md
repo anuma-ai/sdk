@@ -92,7 +92,7 @@ When true, the write is skipped (returns null) if the row carries a profile kind
 
 ### kind?
 
-> `optional` **kind**: `"prompt"` | `"display_name"` | `"occupation"` | `"birth_date"` | `"bio"` | `"interest"` | `"gender"` | `"height_cm"` | `"looking_for"` | `"politics"` | `"religion"` | `"ethnicity"` | `"smoking"` | `"drinking"` | `"exercise"` | `"sexuality"` | `null`
+> `optional` **kind**: `"prompt"` | `"display_name"` | `"birth_date"` | `"bio"` | `"occupation"` | `"interest"` | `"gender"` | `"height_cm"` | `"looking_for"` | `"politics"` | `"religion"` | `"ethnicity"` | `"smoking"` | `"drinking"` | `"exercise"` | `"sexuality"` | `null`
 
 Defined in: [src/lib/db/memoryVault/types.ts:343](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#343)
 
@@ -125,7 +125,7 @@ pinned). Omit to leave the existing value untouched.
 
 ### level?
 
-> `optional` **level**: `"profile"` | `"private"` | `"matching"`
+> `optional` **level**: `"private"` | `"matching"` | `"profile"`
 
 Defined in: [src/lib/db/memoryVault/types.ts:347](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#347)
 

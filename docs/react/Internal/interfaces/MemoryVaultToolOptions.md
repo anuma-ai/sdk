@@ -1,6 +1,6 @@
 # MemoryVaultToolOptions
 
-Defined in: [src/lib/memoryVault/tool.ts:109](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/tool.ts#109)
+Defined in: [src/lib/memoryVault/tool.ts:110](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/tool.ts#110)
 
 Options for creating a memory vault tool.
 
@@ -10,7 +10,7 @@ Options for creating a memory vault tool.
 
 > `optional` **folderMap**: `Map`<`string`, `string`>
 
-Defined in: [src/lib/memoryVault/tool.ts:130](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/tool.ts#130)
+Defined in: [src/lib/memoryVault/tool.ts:131](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/tool.ts#131)
 
 Map of folder names to folder IDs for auto-classification.
 When provided, the LLM can specify a folderName argument.
@@ -21,7 +21,7 @@ When provided, the LLM can specify a folderName argument.
 
 > `optional` **onSave**: (`operation`: [`VaultSaveOperation`](VaultSaveOperation.md)) => `Promise`<`boolean`>
 
-Defined in: [src/lib/memoryVault/tool.ts:118](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/tool.ts#118)
+Defined in: [src/lib/memoryVault/tool.ts:119](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/tool.ts#119)
 
 Callback invoked before each save operation.
 Return `true` to confirm the save, `false` to cancel it.
@@ -65,7 +65,7 @@ via onToolCall so the host app can handle it.
 
 > `optional` **onWritten**: (`event`: `object`) => `void` | `Promise`<`void`>
 
-Defined in: [src/lib/memoryVault/tool.ts:156](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/tool.ts#156)
+Defined in: [src/lib/memoryVault/tool.ts:157](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/tool.ts#157)
 
 Fires after a NEW memory's write settles, with what was asked and what the
 writer did. The host's analytics hook: `onSave` runs BEFORE the write and so
@@ -135,7 +135,7 @@ is awaited and swallowed so it can never fail the tool call.
 
 > `optional` **scope**: `string`
 
-Defined in: [src/lib/memoryVault/tool.ts:124](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/tool.ts#124)
+Defined in: [src/lib/memoryVault/tool.ts:125](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/tool.ts#125)
 
 Scope to assign to new memories. Defaults to "private".
 This is injected by the client, not controlled by the LLM.
@@ -146,7 +146,7 @@ This is injected by the client, not controlled by the LLM.
 
 > `optional` **write**: [`VaultMemoryWriter`](../type-aliases/VaultMemoryWriter.md)
 
-Defined in: [src/lib/memoryVault/tool.ts:145](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/tool.ts#145)
+Defined in: [src/lib/memoryVault/tool.ts:146](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/tool.ts#146)
 
 Writer for NEW memories. When set, a save without an `id` goes through it
 instead of a bare `createVaultMemoryOp`, and the tool phrases its reply from

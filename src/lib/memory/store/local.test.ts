@@ -55,8 +55,11 @@ function makeDatabase(): Database {
   return new Database({ adapter, modelClasses: sdkModelClasses });
 }
 
-runMemoryStoreContract(() =>
-  createLocalMemoryStore({ database: makeDatabase(), embeddingOptions })
+runMemoryStoreContract((overrides) =>
+  createLocalMemoryStore({
+    database: makeDatabase(),
+    embeddingOptions: { ...embeddingOptions, ...overrides },
+  })
 );
 
 describe("createLocalMemoryStore parity with the raw ops", () => {

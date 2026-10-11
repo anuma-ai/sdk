@@ -209,10 +209,6 @@ export async function recall(
 
   const needsChunkEmbedding = types.includes("chunk") && ctx.storageCtx;
   const wantsTemporal = types.includes("fact") && (ctx.factSource || ctx.vaultCtx);
-  const graphRefiner: NeighborRefiner | undefined =
-    flags.traverse && options.graphRefine && options.decomposeOptions
-      ? createLlmNeighborRefiner(options.decomposeOptions)
-      : undefined;
   const queryEmbedTotalTimeoutMs =
     options.queryEmbedTotalTimeoutMs ?? DEFAULT_QUERY_EMBED_TOTAL_TIMEOUT_MS;
   const prepStart = nowMs();
@@ -252,13 +248,12 @@ export async function recall(
       () =>
         ctx.factSource
           ? ctx.factSource.graphRanking(query, flags.traverse, options)
-          : buildGraphLaneRanking(query, ctx, flags.traverse, {
-              ...(options.maxHops !== undefined && { maxHops: options.maxHops }),
-              ...(options.entityFanout !== undefined && { entityFanout: options.entityFanout }),
-              ...(options.nodeBudget !== undefined && { nodeBudget: options.nodeBudget }),
-              ...(options.rrfK !== undefined && { rrfK: options.rrfK }),
-              ...(graphRefiner && { refineNeighbors: graphRefiner }),
-            })
+          : buildGraphLaneRanking(
+              query,
+              ctx,
+              flags.traverse,
+              graphTraversalOptions(options, flags.traverse)
+            )
     ),
     wantsTemporal
       ? safeLane(
@@ -497,7 +492,21 @@ function toFactMemory(r: VaultSearchResult, now?: number): RankedMemory {
   };
 }
 
-async function buildGraphLaneRanking(
+export function graphTraversalOptions(options: RecallOptions, traverse: boolean) {
+  const refineNeighbors: NeighborRefiner | undefined =
+    traverse && options.graphRefine && options.decomposeOptions
+      ? createLlmNeighborRefiner(options.decomposeOptions)
+      : undefined;
+  return {
+    ...(options.maxHops !== undefined && { maxHops: options.maxHops }),
+    ...(options.entityFanout !== undefined && { entityFanout: options.entityFanout }),
+    ...(options.nodeBudget !== undefined && { nodeBudget: options.nodeBudget }),
+    ...(options.rrfK !== undefined && { rrfK: options.rrfK }),
+    ...(refineNeighbors && { refineNeighbors }),
+  };
+}
+
+export async function buildGraphLaneRanking(
   query: string,
   ctx: RecallContext,
   traverse = false,
@@ -568,7 +577,7 @@ async function safeLane(
   }
 }
 
-async function buildTemporalLaneRanking(
+export async function buildTemporalLaneRanking(
   query: string,
   vaultCtx: NonNullable<RecallContext["vaultCtx"]>,
   now?: number
