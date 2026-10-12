@@ -488,7 +488,8 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
           const topics = mergeTopics([], await withKnownKinds(topicInputs(entities, "auto")));
           const unchanged = (memory: RemoteMemoryRow) =>
             sameTopics(parseTopics(memory.topics), topics);
-          const change = (before: RemoteMemoryRow) => (unchanged(before) ? "metadata" : "edit");
+          const change = (before: RemoteMemoryRow) =>
+            sameTopics(parseTopics(before.topics) ?? [], topics) ? "metadata" : "edit";
           const saved = await mutate(input.id, change, (memory) => {
             if (memory.topics_user_managed || memory.content !== input.content) return null;
             return {
@@ -497,7 +498,7 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
                 topics: serializeTopics(topics),
                 topics_updated_at: Date.now(),
               }),
-              topics_extracted_at: extractedAt,
+              topics_extracted_at: Math.max(extractedAt, memory.updated_at),
               topics_extracted_version: TOPICS_EXTRACTION_VERSION,
             };
           });
@@ -517,12 +518,16 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
     stampTopicsExtracted: async (memoryIds, extractedAt, version = TOPICS_EXTRACTION_VERSION) => {
       const stamped: string[] = [];
       for (const id of new Set(memoryIds)) {
-        const saved = await mutate(id, "metadata", (memory) =>
-          memory.topics_user_managed
-            ? null
-            : { ...memory, topics_extracted_at: extractedAt, topics_extracted_version: version }
-        );
-        if (saved) stamped.push(id);
+        try {
+          const saved = await mutate(id, "metadata", (memory) =>
+            memory.topics_user_managed
+              ? null
+              : { ...memory, topics_extracted_at: extractedAt, topics_extracted_version: version }
+          );
+          if (saved) stamped.push(id);
+        } catch (error) {
+          getLogger().warn("[memory/remote-store] Failed to stamp topics:", error);
+        }
       }
       return stamped;
     },

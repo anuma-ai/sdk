@@ -168,7 +168,9 @@ export interface MemorySubscribeOptions {
  * @public
  */
 export interface MemoryMaintenance extends MemoryTopicMaintenance {
+  /** Decay sweeper bound to this store's vault (see `createDecaySweeper`). */
   createDecaySweeper(options?: Omit<CreateDecaySweeperOptions, "vaultCtx">): DecaySweeper;
+  /** One page of the topic-extraction backlog (see `getMemoriesNeedingTopicExtractionOp`). */
   getTopicBacklog(options?: { limit?: number }): Promise<MemoriesNeedingTopicExtraction>;
 }
 
@@ -180,19 +182,28 @@ export interface MemoryTopicBacklog {
   topicsBackfill: readonly string[];
 }
 
-/** @public */
+/**
+ * Topic-extraction upkeep for either backend. On a remote store `pending` carries ids only, the
+ * other backlog lists are always empty, and `relinkTopics` / `backfillTopics` do nothing.
+ * @public
+ */
 export interface MemoryTopicMaintenance {
+  /** One page of the topic-extraction backlog, edited or outdated rows first. */
   getTopicBacklog(options?: { limit?: number }): Promise<MemoryTopicBacklog>;
+  /** LLM topic extraction + link + stamp for these memories. */
   extractTopics(
     memoryIds: readonly string[],
     options: TopicExtractOptions & { now?: number }
   ): Promise<TopicExtractionRunResult>;
+  /** Grandfather already-linked rows without an LLM call. Returns the ids stamped. */
   stampTopicsExtracted(
     memoryIds: readonly string[],
     extractedAt: number,
     version?: number
   ): Promise<string[]>;
+  /** Rebuild the local link index from each row's synced `topics`. Returns the ids relinked. */
   relinkTopics(memoryIds: readonly string[]): Promise<string[]>;
+  /** Fill `topics` on pre-v42 rows from their existing links. Returns the ids filled. */
   backfillTopics(memoryIds: readonly string[]): Promise<string[]>;
 }
 
@@ -267,5 +278,6 @@ export interface MemoryStore {
 
   /** TRANSITIONAL — see {@link MemoryMaintenance}. Absent on a remote backend. */
   maintenance?: MemoryMaintenance;
+  /** Topic-extraction upkeep, available on every backend. */
   readonly topicMaintenance: MemoryTopicMaintenance;
 }
