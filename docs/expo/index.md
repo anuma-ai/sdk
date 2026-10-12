@@ -1354,6 +1354,18 @@ Re-exports [MemoryTopic](../react/Internal/interfaces/MemoryTopic.md)
 
 ***
 
+### MemoryTopicBacklog
+
+Re-exports [MemoryTopicBacklog](../react/Internal/interfaces/MemoryTopicBacklog.md)
+
+***
+
+### MemoryTopicMaintenance
+
+Re-exports [MemoryTopicMaintenance](../react/Internal/interfaces/MemoryTopicMaintenance.md)
+
+***
+
 ### MemoryToVerify
 
 Re-exports [MemoryToVerify](../react/Internal/type-aliases/MemoryToVerify.md)
