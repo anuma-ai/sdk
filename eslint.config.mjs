@@ -10,6 +10,14 @@ const appGenerationTests = [
   "test/tools/app-generation/precision-updates.test.ts",
 ];
 
+const checkedTestFiles = [
+  ...appGenerationTests,
+  "src/lib/chat/toolLoop.detach.test.ts",
+  "src/lib/chat/toolLoop.idleTimeout.test.ts",
+  "src/react/useChatStorage.runHooks.test.tsx",
+  "test/tools/slide-generation/models.ts",
+];
+
 export default tseslint.config(
   {
     ignores: [
@@ -26,13 +34,14 @@ export default tseslint.config(
       "!test/tools/app-generation/",
       "**/*.test.ts",
       "**/*.test.tsx",
-      "!src/react/useChatStorage.runHooks.test.tsx",
       "**/*.security.test.ts",
       "*.config.*",
       ".prettierrc.mjs",
       ".dependency-cruiser.cjs",
       "!eslint.config.mjs",
-      ...appGenerationTests.map((path) => `!${path}`),
+      "!test/",
+      "!test/**/",
+      ...checkedTestFiles.map((file) => `!${file}`),
     ],
   },
   eslint.configs.recommended,
@@ -78,7 +87,7 @@ export default tseslint.config(
   },
   {
     // Check the regression tests with the test TypeScript project.
-    files: [...appGenerationTests, "src/react/useChatStorage.runHooks.test.tsx"],
+    files: checkedTestFiles,
     languageOptions: {
       parserOptions: {
         projectService: false,
