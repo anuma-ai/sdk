@@ -158,6 +158,7 @@ export function createRemoteMemoryPipeline(
       const embed = (texts: string[]) =>
         generateEmbeddings(texts, {
           ...embeddingOptions,
+          taskType: mode === "retain" ? "memory_retain_embed" : "memory_recall_embed",
           totalTimeoutMs: budgetMs,
         });
       const embedFacets = async (): Promise<number[][]> => {
@@ -432,7 +433,7 @@ export function createRemoteMemoryPipeline(
       const ranked = await rankPreparedVaultCandidates(
         text,
         prepared,
-        embeddingOptions,
+        { ...embeddingOptions, taskType: "memory_recall_embed" },
         searchOptions
       );
       return {
@@ -455,7 +456,7 @@ export function createRemoteMemoryPipeline(
         content,
         {
           persistence: port,
-          embeddingOptions,
+          embeddingOptions: { ...embeddingOptions, taskType: "memory_retain_embed" },
           vaultCache: new Map(),
           normalizeEmbedding: storedVector,
         },

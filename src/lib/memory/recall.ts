@@ -9,6 +9,7 @@ import {
 import { getLogger } from "../logger.js";
 import { DEFAULT_API_EMBEDDING_MODEL } from "../memoryEngine/constants.js";
 import { generateEmbedding } from "../memoryEngine/embeddings.js";
+import type { EmbeddingOptions } from "../memoryEngine/types.js";
 import { normalizeSubQueries } from "../memoryVault/decomposeQuery.js";
 import type { VaultSearchResult } from "../memoryVault/searchTool.js";
 import { searchVaultMemoriesWithSize } from "../memoryVault/searchTool.js";
@@ -103,6 +104,10 @@ export async function recall(
   const flags = flagsForBudget(usedBudget);
   const normalizedFacets = normalizeSubQueries(options.subQueries);
   const subQueries = normalizedFacets.length >= 2 ? normalizedFacets : undefined;
+  const embeddingOptions: EmbeddingOptions = {
+    ...ctx.embeddingOptions,
+    taskType: "memory_recall_embed",
+  };
 
   const t0 = nowMs();
   let prepMs = 0;
@@ -216,7 +221,7 @@ export async function recall(
   const [queryEmbedding, entityRanking, temporalRanking] = await Promise.all([
     needsChunkEmbedding
       ? generateEmbedding(query, {
-          ...ctx.embeddingOptions,
+          ...embeddingOptions,
           totalTimeoutMs: queryEmbedTotalTimeoutMs,
         })
           .finally(() => {
@@ -292,7 +297,7 @@ export async function recall(
         searchVaultMemoriesWithSize(
           searchQuery,
           ctx.vaultCtx!,
-          ctx.embeddingOptions,
+          embeddingOptions,
           ctx.vaultCache!,
           searchOptions
         ))
