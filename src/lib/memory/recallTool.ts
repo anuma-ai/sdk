@@ -236,10 +236,10 @@ async function listRecentFacts(
   ctx: RecallContext,
   limit: number,
   toolOptions: RecallToolOptions | undefined
-): Promise<RankedMemory[]> {
+): Promise<{ memories: RankedMemory[]; truncated: boolean }> {
   const store = toolOptions?.memoryStore;
   const vaultCtx = ctx.vaultCtx;
-  if (!vaultCtx && !store) return [];
+  if (!vaultCtx && !store) return { memories: [], truncated: false };
   const read = (ids: string[]) =>
     store ? store.list({ memoryIds: ids }) : getVaultMemoriesByIdsOp(vaultCtx!, ids);
   const filters = {
@@ -254,34 +254,43 @@ async function listRecentFacts(
           ...(toolOptions?.folderId !== undefined && { folderId: toolOptions.folderId }),
         });
   const readable: StoredVaultMemory[] = [];
+  const readLimit = limit + 1;
+  let batchLimit = limit;
   let start = 0;
-  for (let size = limit; readable.length < limit; size *= 2) {
+  for (let size = readLimit; readable.length < readLimit; size *= 2) {
     const ordered = await project(size);
-    for (let i = start; i < ordered.length && readable.length < limit; i += limit) {
-      const batch = ordered.slice(i, i + limit).map((p) => p.uniqueId);
+    for (let i = start; i < ordered.length && readable.length < readLimit; ) {
+      const batch = ordered.slice(i, i + batchLimit).map((p) => p.uniqueId);
       const byId = new Map((await read(batch)).map((m) => [m.uniqueId, m]));
+      const previousCount = readable.length;
       for (const id of batch) {
         const m = byId.get(id);
         if (m && !isEncrypted(m.content)) readable.push(m);
-        if (readable.length >= limit) break;
+        if (readable.length >= readLimit) break;
       }
+      batchLimit =
+        readable.length > previousCount ? Math.min(limit, readLimit - readable.length) : limit;
+      i += batch.length;
     }
     if (!store || ordered.length < size) break;
     start = ordered.length;
   }
-  return readable.map((m) => ({
-    id: m.uniqueId,
-    kind: "fact" as const,
-    content: m.content,
-    score: 0,
-    folderId: m.folderId,
-    eventTimeStart: m.eventTimeStart,
-    eventTimeEnd: m.eventTimeEnd,
-    eventTimeKind: m.eventTimeKind as RankedMemory["eventTimeKind"],
-    factType: m.factType,
-    createdAt: m.createdAt,
-    updatedAt: m.updatedAt,
-  }));
+  return {
+    memories: readable.slice(0, limit).map((m) => ({
+      id: m.uniqueId,
+      kind: "fact" as const,
+      content: m.content,
+      score: 0,
+      folderId: m.folderId,
+      eventTimeStart: m.eventTimeStart,
+      eventTimeEnd: m.eventTimeEnd,
+      eventTimeKind: m.eventTimeKind as RankedMemory["eventTimeKind"],
+      factType: m.factType,
+      createdAt: m.createdAt,
+      updatedAt: m.updatedAt,
+    })),
+    truncated: readable.length > limit,
+  };
 }
 
 /**
@@ -413,14 +422,23 @@ export function createRecallTool(
         let result: { memories: RankedMemory[] };
         if (wantsRecent) {
           const start = Date.now();
-          result = { memories: await listRecentFacts(ctx, effectiveLimit, toolOptions) };
+          const recent = await listRecentFacts(ctx, effectiveLimit, toolOptions);
+          result = recent;
           notifyMemoryCallback(callbacks?.onDiagnostics, {
             ...factRecallDiagnostics(
               result.memories.map((m) => m.score),
-              Date.now() - start
+              Date.now() - start,
+              { truncated: recent.truncated }
             ),
             truncatedByBudget,
           });
+          if (recent.truncated && !truncatedByBudget) {
+            notifyMemoryCallback(callbacks?.onTruncated, {
+              requestedLimit: requestLimit,
+              effectiveLimit,
+              truncatedByBudget,
+            });
+          }
         } else {
           let subQueries: string[] | undefined;
           if (defaultBudget === "high" && toolOptions?.decomposeOptions) {
