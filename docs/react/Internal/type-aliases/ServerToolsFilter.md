@@ -2,7 +2,7 @@
 
 > **ServerToolsFilter** = `string`\[] | [`ServerToolsFilterFn`](ServerToolsFilterFn.md)
 
-Defined in: [src/lib/db/chat/types.ts:46](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#46)
+Defined in: [src/lib/db/chat/types.ts:47](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#47)
 
 Server tools filter: static list of names or dynamic function.
 

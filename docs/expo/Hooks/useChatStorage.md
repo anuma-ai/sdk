@@ -477,6 +477,23 @@ Async function to poll for wallet address during Privy initialization.
 <tr>
 <td>
 
+`options.hooks?`
+
+</td>
+<td>
+
+`RunHooks` | `RunHooks`\[]
+
+</td>
+<td>
+
+Run lifecycle hooks for telemetry and tracing, for example from `createMetricsHooks`
+
+</td>
+</tr>
+<tr>
+<td>
+
 `options.mcpR2Domain?`
 
 </td>

@@ -26,6 +26,7 @@ export default tseslint.config(
       "!test/tools/app-generation/",
       "**/*.test.ts",
       "**/*.test.tsx",
+      "!src/react/useChatStorage.runHooks.test.tsx",
       "**/*.security.test.ts",
       "*.config.*",
       ".prettierrc.mjs",
@@ -77,7 +78,7 @@ export default tseslint.config(
   },
   {
     // Check the regression tests with the test TypeScript project.
-    files: appGenerationTests,
+    files: [...appGenerationTests, "src/react/useChatStorage.runHooks.test.tsx"],
     languageOptions: {
       parserOptions: {
         projectService: false,
