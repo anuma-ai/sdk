@@ -2,7 +2,7 @@
 
 > **UseModelsOptions** = `object`
 
-Defined in: [src/react/useModels.ts:12](https://github.com/anuma-ai/sdk/blob/main/src/react/useModels.ts#12)
+Defined in: [src/react/useModels.ts:204](https://github.com/anuma-ai/sdk/blob/main/src/react/useModels.ts#204)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/react/useModels.ts:12](https://github.com/anuma-ai/sdk/blob/mai
 
 > `optional` **autoFetch**: `boolean`
 
-Defined in: [src/react/useModels.ts:28](https://github.com/anuma-ai/sdk/blob/main/src/react/useModels.ts#28)
+Defined in: [src/react/useModels.ts:220](https://github.com/anuma-ai/sdk/blob/main/src/react/useModels.ts#220)
 
 Whether to fetch models automatically on mount (default: true)
 
@@ -20,7 +20,7 @@ Whether to fetch models automatically on mount (default: true)
 
 > `optional` **baseUrl**: `string`
 
-Defined in: [src/react/useModels.ts:20](https://github.com/anuma-ai/sdk/blob/main/src/react/useModels.ts#20)
+Defined in: [src/react/useModels.ts:212](https://github.com/anuma-ai/sdk/blob/main/src/react/useModels.ts#212)
 
 Optional base URL for the API requests.
 
@@ -30,7 +30,7 @@ Optional base URL for the API requests.
 
 > `optional` **getToken**: () => `Promise`<`string` | `null`>
 
-Defined in: [src/react/useModels.ts:16](https://github.com/anuma-ai/sdk/blob/main/src/react/useModels.ts#16)
+Defined in: [src/react/useModels.ts:208](https://github.com/anuma-ai/sdk/blob/main/src/react/useModels.ts#208)
 
 Custom function to get auth token for API calls
 
@@ -44,6 +44,6 @@ Custom function to get auth token for API calls
 
 > `optional` **provider**: `string`
 
-Defined in: [src/react/useModels.ts:24](https://github.com/anuma-ai/sdk/blob/main/src/react/useModels.ts#24)
+Defined in: [src/react/useModels.ts:216](https://github.com/anuma-ai/sdk/blob/main/src/react/useModels.ts#216)
 
 Optional filter for specific provider (e.g. "openai")

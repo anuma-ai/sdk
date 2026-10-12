@@ -328,6 +328,12 @@ Re-exports [clearLazyTitleCache](../react/Internal/functions/clearLazyTitleCache
 
 ***
 
+### clearModelsCache
+
+Re-exports [clearModelsCache](../react/Internal/functions/clearModelsCache.md)
+
+***
+
 ### clearServerToolsCache
 
 Re-exports [clearServerToolsCache](../react/Internal/functions/clearServerToolsCache.md)
