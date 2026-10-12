@@ -680,7 +680,8 @@ describe("createRecallTool executor — sort: recent", () => {
     expect(out.indexOf("id: v2a")).toBeGreaterThan(-1);
     expect(out.indexOf("id: v2a")).toBeLessThan(out.indexOf("id: v2b"));
     expect(out).not.toContain("id: v2c");
-    expect(getVaultMemoriesByIdsOp).toHaveBeenCalledTimes(2);
+    expect(getVaultMemoriesByIdsOp).toHaveBeenCalledTimes(3);
+    expect(vi.mocked(getVaultMemoriesByIdsOp).mock.calls[2]![1]).toEqual(["v2c"]);
   });
 
   it("reports listed ids but no relevance scores", async () => {
