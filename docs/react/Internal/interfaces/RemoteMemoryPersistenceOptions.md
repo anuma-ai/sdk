@@ -1,6 +1,6 @@
 # RemoteMemoryPersistenceOptions
 
-Defined in: [src/lib/memory/store/remotePersistence.ts:121](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#121)
+Defined in: [src/lib/memory/store/remotePersistence.ts:122](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#122)
 
 The caller supplies the canonical account key's field encryption on the device.
 These callbacks and authentication credentials never enter a request body.
@@ -12,7 +12,7 @@ The encryption format must be the SDK's enc:vN:<hex> field format.
 
 > **baseUrl**: `string`
 
-Defined in: [src/lib/memory/store/remotePersistence.ts:122](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#122)
+Defined in: [src/lib/memory/store/remotePersistence.ts:123](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#123)
 
 ***
 
@@ -20,7 +20,7 @@ Defined in: [src/lib/memory/store/remotePersistence.ts:122](https://github.com/a
 
 > **decrypt**: (`ciphertext`: `string`) => `Promise`<`string`>
 
-Defined in: [src/lib/memory/store/remotePersistence.ts:126](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#126)
+Defined in: [src/lib/memory/store/remotePersistence.ts:127](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#127)
 
 **Parameters**
 
@@ -57,7 +57,7 @@ Defined in: [src/lib/memory/store/remotePersistence.ts:126](https://github.com/a
 
 > **encrypt**: (`plaintext`: `string`) => `Promise`<`string`>
 
-Defined in: [src/lib/memory/store/remotePersistence.ts:125](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#125)
+Defined in: [src/lib/memory/store/remotePersistence.ts:126](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#126)
 
 **Parameters**
 
@@ -94,7 +94,7 @@ Defined in: [src/lib/memory/store/remotePersistence.ts:125](https://github.com/a
 
 > `optional` **fetch**: {(`input`: `RequestInfo` | `URL`, `init?`: `RequestInit`): `Promise`<`Response`>; (`input`: `string` | `Request` | `URL`, `init?`: `RequestInit`): `Promise`<`Response`>; }
 
-Defined in: [src/lib/memory/store/remotePersistence.ts:127](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#127)
+Defined in: [src/lib/memory/store/remotePersistence.ts:128](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#128)
 
 **Call Signature**
 
@@ -196,7 +196,7 @@ Defined in: [src/lib/memory/store/remotePersistence.ts:127](https://github.com/a
 
 > **getToken**: () => `Promise`<`string` | `null`>
 
-Defined in: [src/lib/memory/store/remotePersistence.ts:123](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#123)
+Defined in: [src/lib/memory/store/remotePersistence.ts:124](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#124)
 
 **Returns**
 
@@ -208,7 +208,7 @@ Defined in: [src/lib/memory/store/remotePersistence.ts:123](https://github.com/a
 
 > **keyId**: `string`
 
-Defined in: [src/lib/memory/store/remotePersistence.ts:124](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#124)
+Defined in: [src/lib/memory/store/remotePersistence.ts:125](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#125)
 
 ***
 
@@ -216,7 +216,7 @@ Defined in: [src/lib/memory/store/remotePersistence.ts:124](https://github.com/a
 
 > `optional` **signal**: `AbortSignal`
 
-Defined in: [src/lib/memory/store/remotePersistence.ts:129](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#129)
+Defined in: [src/lib/memory/store/remotePersistence.ts:130](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#130)
 
 Cancellation for the initial account/key check. Individual operations take their own signal.
 
@@ -226,4 +226,4 @@ Cancellation for the initial account/key check. Individual operations take their
 
 > `optional` **timeoutMs**: `number`
 
-Defined in: [src/lib/memory/store/remotePersistence.ts:130](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#130)
+Defined in: [src/lib/memory/store/remotePersistence.ts:131](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#131)

@@ -535,13 +535,19 @@ describe("remote private-memory persistence", () => {
     await expect(store.query({ limit: 201 })).rejects.toThrow("1–200");
     expect(h.fetch.mock.calls.length).toBe(before);
 
-    const page = await store.query({ order: "changed", topics: ["Lisbon"], updated_after: 5 });
+    const page = await store.query({
+      order: "changed",
+      topics: ["Lisbon"],
+      updated_after: 5,
+      topics_due: 3,
+    });
     expect(page.items.map((item) => item.memory.content)).toEqual(["Speaks Portuguese"]);
     expect(page.changes_cursor).toBe("resume-here");
     expect(h.requests.at(-1)!.body).toEqual({
       order: "changed",
       topics: ["Lisbon"],
       updated_after: 5,
+      topics_due: 3,
     });
   });
 

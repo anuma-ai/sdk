@@ -18,6 +18,7 @@ vi.mock("../../memoryEngine/embeddings", () => {
   };
 });
 
+import { TOPICS_EXTRACTION_VERSION } from "../../db/memoryVault/operations";
 import { getLogger } from "../../logger";
 import type { EmbeddingOptions } from "../../memoryEngine/types";
 import { fakeTopicLlm, runMemoryStoreContract } from "./contract";
@@ -157,7 +158,13 @@ function fakeNearby(keyId: string) {
             (!list("memory_ids") || list("memory_ids")!.includes(m.memory_id)) &&
             (!wantedTopics?.length || topicNames(m).some((t) => wantedTopics.includes(t))) &&
             (body.updated_after === undefined ||
-              (m.updated_at as number) > (body.updated_after as number))
+              (m.updated_at as number) > (body.updated_after as number)) &&
+            (body.topics_due === undefined ||
+              (m.topics_user_managed !== true &&
+                (m.topics_extracted_at == null ||
+                  (m.updated_at as number) > (m.topics_extracted_at as number) ||
+                  ((m.topics_extracted_version as number | undefined) ?? 0) <
+                    (body.topics_due as number))))
         )
         .map((s) => ({ s, at: [key(s), s.memory.memory_id] as [number, string] }))
         .filter(({ at }) => !after || sign * compare(at, after) > 0)
@@ -400,6 +407,29 @@ describe("remote MemoryStore", () => {
       stopChange();
       stopEmbedding();
     }
+  });
+
+  it("reads only due rows for the topic backlog, edited rows first", async () => {
+    const { store, server } = await remoteStore();
+    const done = await store.create({ content: "Hikes Mt Hood", embedding: axis(0) });
+    const fresh = await store.create({ content: "Likes jazz", embedding: axis(1) });
+    const edited = await store.create({ content: "Lives in Lisbon", embedding: axis(2) });
+    const curated = await store.create({ content: "Plays chess", embedding: axis(3) });
+    await store.topicMaintenance.stampTopicsExtracted([done.uniqueId], Date.now());
+    await store.topicMaintenance.stampTopicsExtracted([edited.uniqueId], Date.now() - 1000);
+    await store.update(edited.uniqueId, { content: "Lives in Porto", embedding: axis(2) });
+    await store.setTopics(curated.uniqueId, ["Chess"]);
+    server.fetch.mockClear();
+
+    expect((await store.topicMaintenance.getTopicBacklog()).pending.map((p) => p.uniqueId)).toEqual(
+      [edited.uniqueId, fresh.uniqueId]
+    );
+    const queries = server.fetch.mock.calls
+      .filter(([input]) => String(input).endsWith("/memories/query"))
+      .map(([, init]) => JSON.parse(String(init!.body)) as Record<string, unknown>);
+    expect(queries).toEqual([
+      expect.objectContaining({ topics_due: TOPICS_EXTRACTION_VERSION, order: "created" }),
+    ]);
   });
 
   it("does not write topics extracted from content that changed during the LLM call", async () => {
