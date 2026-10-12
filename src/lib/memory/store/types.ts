@@ -167,25 +167,32 @@ export interface MemorySubscribeOptions {
  * from the main interface.
  * @public
  */
-export interface MemoryMaintenance {
-  /** Decay sweeper bound to this store's vault (see `createDecaySweeper`). */
+export interface MemoryMaintenance extends MemoryTopicMaintenance {
   createDecaySweeper(options?: Omit<CreateDecaySweeperOptions, "vaultCtx">): DecaySweeper;
-  /** One page of the topic-extraction backlog (see `getMemoriesNeedingTopicExtractionOp`). */
   getTopicBacklog(options?: { limit?: number }): Promise<MemoriesNeedingTopicExtraction>;
-  /** LLM topic extraction + link + stamp for these memories. */
+}
+
+/** @public */
+export interface MemoryTopicBacklog {
+  pending: readonly { uniqueId: string }[];
+  linkedUnstamped: readonly string[];
+  topicsToRelink: readonly string[];
+  topicsBackfill: readonly string[];
+}
+
+/** @public */
+export interface MemoryTopicMaintenance {
+  getTopicBacklog(options?: { limit?: number }): Promise<MemoryTopicBacklog>;
   extractTopics(
     memoryIds: readonly string[],
     options: TopicExtractOptions & { now?: number }
   ): Promise<TopicExtractionRunResult>;
-  /** Grandfather already-linked rows without an LLM call. Returns the ids stamped. */
   stampTopicsExtracted(
     memoryIds: readonly string[],
     extractedAt: number,
     version?: number
   ): Promise<string[]>;
-  /** Rebuild the local link index from each row's synced `topics`. Returns the ids relinked. */
   relinkTopics(memoryIds: readonly string[]): Promise<string[]>;
-  /** Fill `topics` on pre-v42 rows from their existing links. Returns the ids filled. */
   backfillTopics(memoryIds: readonly string[]): Promise<string[]>;
 }
 
@@ -260,4 +267,5 @@ export interface MemoryStore {
 
   /** TRANSITIONAL — see {@link MemoryMaintenance}. Absent on a remote backend. */
   maintenance?: MemoryMaintenance;
+  readonly topicMaintenance: MemoryTopicMaintenance;
 }

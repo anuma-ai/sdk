@@ -8,7 +8,11 @@ import {
   type StoredEntity,
   type StoredTopic,
 } from "../../db/entities/types.js";
-import { assertValidKindLevel, resolveCreateLevel } from "../../db/memoryVault/operations.js";
+import {
+  assertValidKindLevel,
+  resolveCreateLevel,
+  TOPICS_EXTRACTION_VERSION,
+} from "../../db/memoryVault/operations.js";
 import {
   levelForScopeChange,
   type MemoryLevel,
@@ -22,6 +26,7 @@ import { getLogger } from "../../logger.js";
 import { DEFAULT_API_EMBEDDING_MODEL } from "../../memoryEngine/constants.js";
 import { generateEmbedding } from "../../memoryEngine/embeddings.js";
 import type { EmbeddingOptions } from "../../memoryEngine/types.js";
+import { extractEntitiesForMemories, type TopicSkipReason } from "../topicExtract.js";
 import type { RecallFactSource } from "../types.js";
 import type {
   RemoteMemoryDecodeFailure,
@@ -38,6 +43,7 @@ import type {
   MemoryStore,
   MemorySubscribeOptions,
   MemoryTopic,
+  MemoryTopicMaintenance,
   MemoryUpdate,
 } from "./types.js";
 
@@ -50,7 +56,7 @@ export interface RemoteMemoryStoreOptions {
   pollIntervalMs?: number;
 }
 
-type Change = "membership" | "edit" | "embedding";
+type Change = "membership" | "edit" | "embedding" | "metadata";
 
 type Row = RemoteMemoryRecord | RemoteMemoryMetadataRecord;
 
@@ -80,6 +86,7 @@ interface Subscriber {
 }
 
 function relevant(change: Change, options: MemorySubscribeOptions): boolean {
+  if (change === "metadata") return false;
   return options.includeDeleted
     ? change === "membership"
     : change !== "embedding" || !!options.embeddings;
@@ -195,6 +202,22 @@ function mergeTopics(existing: readonly StoredTopic[], added: readonly StoredTop
     if (!byName.has(key)) byName.set(key, topic);
   }
   return [...byName.values()];
+}
+
+function sameTopics(stored: readonly StoredTopic[] | null, next: readonly StoredTopic[]): boolean {
+  const key = (t: StoredTopic) => JSON.stringify([t.name, t.kind ?? null, t.source]);
+  if (stored === null || stored.length !== next.length) return false;
+  const keys = new Set(stored.map(key));
+  return next.every((t) => keys.has(key(t)));
+}
+
+function extractionDue(memory: RemoteMemoryMetadataRecord["memory"]): "fresh" | "stale" | null {
+  const stamp = memory.topics_extracted_at;
+  if (stamp === undefined || stamp === null) return "fresh";
+  return memory.updated_at > stamp ||
+    (memory.topics_extracted_version ?? 0) < TOPICS_EXTRACTION_VERSION
+    ? "stale"
+    : null;
 }
 
 function canonicalTopics(row: RemoteMemoryRow): Set<string> {
@@ -397,6 +420,123 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
     });
   };
 
+  const readForExtraction = async (ids: readonly string[]) => {
+    const records = new Map<string, RemoteMemoryRecord>();
+    const unreadable = new Set<string>();
+    for (const memory_ids of chunks(ids, MAX_QUERY_IDS)) {
+      let cursor: string | undefined;
+      do {
+        const page = await persistence.query({
+          memory_ids,
+          include_deleted: true,
+          include_archived: true,
+          include_quarantined: true,
+          include_superseded: true,
+          limit: 200,
+          ...(cursor && { cursor }),
+        });
+        warnFailed(page.failed);
+        for (const record of page.items) records.set(record.memory.memory_id, record);
+        for (const failure of page.failed) unreadable.add(failure.memory_id);
+        cursor = page.next_cursor;
+      } while (cursor);
+    }
+    return { records, unreadable };
+  };
+
+  const topicMaintenance: MemoryTopicMaintenance = {
+    getTopicBacklog: async (backlogOptions = {}) => {
+      const stale: string[] = [];
+      const fresh: string[] = [];
+      for (const { memory } of await pages(metadata, { order: "created" })) {
+        if (memory.topics_user_managed) continue;
+        const due = extractionDue(memory);
+        if (due === "stale") stale.push(memory.memory_id);
+        else if (due === "fresh") fresh.push(memory.memory_id);
+      }
+      const limit =
+        backlogOptions.limit !== undefined && backlogOptions.limit > 0
+          ? backlogOptions.limit
+          : Infinity;
+      return {
+        pending: [...stale, ...fresh].slice(0, limit).map((uniqueId) => ({ uniqueId })),
+        linkedUnstamped: [],
+        topicsToRelink: [],
+        topicsBackfill: [],
+      };
+    },
+    extractTopics: async (memoryIds, extractOptions) => {
+      const extractedAt = extractOptions.now ?? Date.now();
+      const skippedIds: string[] = [];
+      const skippedReasons = new Map<string, TopicSkipReason>();
+      const skip = (id: string, reason: TopicSkipReason) => {
+        if (skippedReasons.has(id)) return;
+        skippedIds.push(id);
+        skippedReasons.set(id, reason);
+      };
+      const ids = [...new Set(memoryIds)];
+      const { records, unreadable } = await readForExtraction(ids);
+      const inputs: { id: string; content: string; topics: StoredTopic[] | null }[] = [];
+      for (const id of ids) {
+        const memory = records.get(id)?.memory;
+        if (unreadable.has(id)) skip(id, "unreadable");
+        else if (!memory) skip(id, "not-found");
+        else if (memory.is_deleted || memory.topics_user_managed) skip(id, "excluded");
+        else inputs.push({ id, content: memory.content, topics: parseTopics(memory.topics) });
+      }
+
+      const entitiesByMemory = await extractEntitiesForMemories(inputs, extractOptions);
+      const stampedIds: string[] = [];
+      for (const input of inputs) {
+        const entities = entitiesByMemory.get(input.id);
+        if (entities === undefined) {
+          skip(input.id, "llm-unanswered");
+          continue;
+        }
+        try {
+          const topics = mergeTopics([], await withKnownKinds(topicInputs(entities, "auto")));
+          const unchanged = sameTopics(input.topics, topics);
+          const saved = await mutate(input.id, unchanged ? "metadata" : "edit", (memory) => {
+            if (memory.topics_user_managed || memory.content !== input.content) return null;
+            return {
+              ...memory,
+              ...(!sameTopics(parseTopics(memory.topics), topics) && {
+                topics: serializeTopics(topics),
+                topics_updated_at: Date.now(),
+              }),
+              topics_extracted_at: extractedAt,
+              topics_extracted_version: TOPICS_EXTRACTION_VERSION,
+            };
+          });
+          if (saved) {
+            stampedIds.push(input.id);
+            continue;
+          }
+          skip(input.id, "link-declined");
+        } catch (error) {
+          getLogger().warn("[memory/remote-store] Failed to write extracted topics:", error);
+          skip(input.id, "link-failed");
+        }
+        entitiesByMemory.delete(input.id);
+      }
+      return { entitiesByMemory, stampedIds, skippedIds, skippedReasons };
+    },
+    stampTopicsExtracted: async (memoryIds, extractedAt, version = TOPICS_EXTRACTION_VERSION) => {
+      const stamped: string[] = [];
+      for (const id of new Set(memoryIds)) {
+        const saved = await mutate(id, "metadata", (memory) =>
+          memory.topics_user_managed
+            ? null
+            : { ...memory, topics_extracted_at: extractedAt, topics_extracted_version: version }
+        );
+        if (saved) stamped.push(id);
+      }
+      return stamped;
+    },
+    relinkTopics: () => Promise.resolve([]),
+    backfillTopics: () => Promise.resolve([]),
+  };
+
   const everyState = {
     include_deleted: true,
     include_archived: true,
@@ -482,6 +622,7 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
 
   return {
     masksEmbeddingInput: embeddingOptions.maskInput !== undefined,
+    topicMaintenance,
     list: async (listOptions = {}) =>
       (await listRows(decrypted, listOptions, listFilters(listOptions), maxOf(listOptions))).map(
         (r) => stored(r.memory)

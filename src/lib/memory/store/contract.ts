@@ -8,6 +8,26 @@ interface MemoryStoreContractFixtures {
   vectors: readonly [string, string];
 }
 
+export function fakeTopicLlm(entitiesFor: Record<string, { name: string; kind?: string }[]>) {
+  return vi.fn((_url: unknown, init?: RequestInit) => {
+    const body = JSON.parse(init?.body as string) as {
+      messages?: { role: string; content: string }[];
+      input?: { role: string; content: string }[];
+    };
+    const user = (body.messages ?? body.input ?? []).find((m) => m.role === "user")?.content ?? "";
+    const listing = user.split("Memories:\n")[1]?.split("\n\n")[0] ?? "";
+    const memories = listing.split("\n").map((line) => {
+      const [id, ...text] = line.split(": ");
+      return { id, entities: entitiesFor[text.join(": ")] ?? [] };
+    });
+    return Promise.resolve({
+      ok: true,
+      json: () =>
+        Promise.resolve({ choices: [{ message: { content: JSON.stringify({ memories }) } }] }),
+    });
+  }) as unknown as typeof fetch;
+}
+
 export function runMemoryStoreContract(
   makeStore: (
     embeddingOptions?: Pick<EmbeddingOptions, "maskInput">
@@ -324,6 +344,85 @@ export function runMemoryStoreContract(
       expect(result.memories[0]).toMatchObject({ id: first.memoryId, kind: "fact" });
       const facts = await store.factSource.search("what is my dog named", { limit: 3 });
       expect(facts.results[0]?.uniqueId).toBe(first.memoryId);
+    });
+
+    it("extracts topics for the backlog and stamps what it answered", async () => {
+      const store = await makeStore();
+      const hike = await store.create({ content: "Hikes Mt Hood", embedding: vectorA });
+      const tea = await store.create({ content: "Drinks tea", embedding: vectorB });
+      const curated = await store.create({ content: "Plays chess", embedding: vectorA });
+      await store.setTopics(curated.uniqueId, ["Chess"]);
+      const jobs = store.topicMaintenance;
+      const backlog = async () =>
+        (await jobs.getTopicBacklog()).pending.map((p) => p.uniqueId).sort();
+
+      expect(await backlog()).toEqual([hike.uniqueId, tea.uniqueId].sort());
+
+      const result = await jobs.extractTopics([hike.uniqueId, tea.uniqueId, curated.uniqueId], {
+        apiKey: "k",
+        fetchFn: fakeTopicLlm({ "Hikes Mt Hood": [{ name: "Mt Hood", kind: "place" }] }),
+      });
+      expect([...result.stampedIds].sort()).toEqual([hike.uniqueId, tea.uniqueId].sort());
+      expect(result.skippedReasons.get(curated.uniqueId)).toBe("excluded");
+      expect(await store.topicsByMemories([hike.uniqueId, tea.uniqueId])).toEqual(
+        new Map([[hike.uniqueId, new Set(["mt hood"])]])
+      );
+      expect(await backlog()).toEqual([]);
+
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      await store.update(hike.uniqueId, { content: "Hikes Mt Rainier", embedding: vectorA });
+      expect(await backlog()).toEqual([hike.uniqueId]);
+
+      await jobs.extractTopics([hike.uniqueId], {
+        apiKey: "k",
+        fetchFn: fakeTopicLlm({ "Hikes Mt Rainier": [{ name: "Mt Rainier", kind: "place" }] }),
+      });
+      expect(await store.topicsByMemories([hike.uniqueId])).toEqual(
+        new Map([[hike.uniqueId, new Set(["mt rainier"])]])
+      );
+      expect(await backlog()).toEqual([]);
+    });
+
+    it("leaves a memory pending when the model does not answer for it", async () => {
+      const store = await makeStore();
+      const m = await store.create({ content: "Hikes Mt Hood", embedding: vectorA });
+      const fetchFn = vi.fn(() =>
+        Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ choices: [{ message: { content: '{"memories":[]}' } }] }),
+        })
+      ) as unknown as typeof fetch;
+
+      const result = await store.topicMaintenance.extractTopics([m.uniqueId], {
+        apiKey: "k",
+        fetchFn,
+      });
+      expect(result.stampedIds).toEqual([]);
+      expect(result.skippedReasons.get(m.uniqueId)).toBe("llm-unanswered");
+      expect(
+        (await store.topicMaintenance.getTopicBacklog()).pending.map((p) => p.uniqueId)
+      ).toEqual([m.uniqueId]);
+    });
+
+    it("stamps without an LLM call and skips curated memories", async () => {
+      const store = await makeStore();
+      const m = await store.create({ content: "Drinks tea", embedding: vectorA });
+      await store.addTopics(m.uniqueId, ["Tea"]);
+      const curated = await store.create({ content: "Plays chess", embedding: vectorB });
+      await store.setTopics(curated.uniqueId, ["Chess"]);
+      const unstamped = async () => {
+        const backlog = await store.topicMaintenance.getTopicBacklog();
+        return [...backlog.pending.map((p) => p.uniqueId), ...backlog.linkedUnstamped];
+      };
+      expect(await unstamped()).toEqual([m.uniqueId]);
+
+      expect(
+        await store.topicMaintenance.stampTopicsExtracted(
+          [m.uniqueId, curated.uniqueId],
+          Date.now()
+        )
+      ).toEqual([m.uniqueId]);
+      expect(await unstamped()).toEqual([]);
     });
 
     it("embeds through the store's maskInput on every write and search", async () => {

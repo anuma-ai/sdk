@@ -145,6 +145,8 @@ export type {
   MemoryStore,
   MemorySubscribeOptions,
   MemoryTopic,
+  MemoryTopicBacklog,
+  MemoryTopicMaintenance,
   MemoryUpdate,
 } from "./store/types.js";
 export {

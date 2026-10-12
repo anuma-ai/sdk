@@ -20,7 +20,7 @@ vi.mock("../../memoryEngine/embeddings", () => {
 
 import { getLogger } from "../../logger";
 import type { EmbeddingOptions } from "../../memoryEngine/types";
-import { runMemoryStoreContract } from "./contract";
+import { fakeTopicLlm, runMemoryStoreContract } from "./contract";
 import { deriveMemoryKeyRing, type MemoryKeyRing, memoryCipher } from "./memoryKeys";
 import { createRemoteMemoryPersistence } from "./remotePersistence";
 import { createRemoteMemoryStore, RemoteMemoryPartialCreateError } from "./remoteStore";
@@ -399,6 +399,77 @@ describe("remote MemoryStore", () => {
     } finally {
       stopChange();
       stopEmbedding();
+    }
+  });
+
+  it("does not write topics extracted from content that changed during the LLM call", async () => {
+    const { store, server } = await remoteStore();
+    const m = await store.create({ content: "Hikes Mt Hood", embedding: axis(0) });
+    const llm = fakeTopicLlm({ "Hikes Mt Hood": [{ name: "Mt Hood", kind: "place" }] });
+    const fetchFn = vi.fn(async (url: unknown, init?: RequestInit) => {
+      await store.update(m.uniqueId, { content: "Hikes Mt Rainier", embedding: axis(0) });
+      return llm(url as string, init);
+    }) as unknown as typeof fetch;
+
+    const result = await store.topicMaintenance.extractTopics([m.uniqueId], {
+      apiKey: "k",
+      fetchFn,
+    });
+    expect(result.skippedReasons.get(m.uniqueId)).toBe("link-declined");
+    expect(server.rows.get(m.uniqueId)!.memory.topics).toBeUndefined();
+    expect(server.rows.get(m.uniqueId)!.memory.topics_extracted_at).toBeUndefined();
+    expect((await store.topicMaintenance.getTopicBacklog()).pending.map((p) => p.uniqueId)).toEqual(
+      [m.uniqueId]
+    );
+  });
+
+  it("reports a row it cannot decrypt as unreadable", async () => {
+    const { store, server } = await remoteStore();
+    const foreign = await deriveMemoryKeyRing(`0x${"d4".repeat(65)}`);
+    server.rows.set("foreign", {
+      memory: {
+        memory_id: "foreign",
+        content: await memoryCipher(foreign).encrypt("Unreadable"),
+        scope: "private",
+        created_at: 1,
+        updated_at: 1,
+        is_deleted: false,
+      },
+      version: 1,
+      server_updated_at: new Date().toISOString(),
+    });
+    const fetchFn = vi.fn() as unknown as typeof fetch;
+
+    expect((await store.topicMaintenance.getTopicBacklog()).pending.map((p) => p.uniqueId)).toEqual(
+      ["foreign"]
+    );
+    const result = await store.topicMaintenance.extractTopics(["foreign", "missing"], {
+      apiKey: "k",
+      fetchFn,
+    });
+    expect(Object.fromEntries(result.skippedReasons)).toEqual({
+      foreign: "unreadable",
+      missing: "not-found",
+    });
+    expect(fetchFn).not.toHaveBeenCalled();
+  });
+
+  it("notifies subscribers for extracted topics but not for a bare stamp", async () => {
+    const { store } = await remoteStore();
+    const hike = await store.create({ content: "Hikes Mt Hood", embedding: axis(0) });
+    const onChange = vi.fn();
+    const unsubscribe = store.subscribe(onChange, { topics: true });
+    try {
+      await store.topicMaintenance.stampTopicsExtracted([hike.uniqueId], Date.now());
+      expect(onChange).not.toHaveBeenCalled();
+
+      await store.topicMaintenance.extractTopics([hike.uniqueId], {
+        apiKey: "k",
+        fetchFn: fakeTopicLlm({ "Hikes Mt Hood": [{ name: "Mt Hood", kind: "place" }] }),
+      });
+      expect(onChange).toHaveBeenCalledTimes(1);
+    } finally {
+      unsubscribe();
     }
   });
 

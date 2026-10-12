@@ -51,6 +51,7 @@ import { extractAndLinkEntitiesForMemoriesOp, type TopicExtractOptions } from ".
 import type {
   MemoryCreate,
   MemoryListOptions,
+  MemoryMaintenance,
   MemoryRecallOptions,
   MemoryRetainOptions,
   MemoryStore,
@@ -153,6 +154,20 @@ export function createLocalMemoryStore(options: LocalMemoryStoreOptions): Memory
     ).catch((err: unknown) => {
       getLogger().warn("[memory/store] Failed to embed memory:", err);
     });
+  };
+
+  const maintenance: MemoryMaintenance = {
+    createDecaySweeper: (sweeperOptions) => createDecaySweeper({ ...sweeperOptions, vaultCtx }),
+    getTopicBacklog: (backlogOptions?: { limit?: number }) =>
+      getMemoriesNeedingTopicExtractionOp(vaultCtx, backlogOptions),
+    extractTopics: (
+      memoryIds: readonly string[],
+      extractOptions: TopicExtractOptions & { now?: number }
+    ) => extractAndLinkEntitiesForMemoriesOp(vaultCtx, memoryIds, extractOptions),
+    stampTopicsExtracted: (memoryIds: readonly string[], extractedAt: number, version?: number) =>
+      stampTopicsExtractedAtOp(vaultCtx, memoryIds, extractedAt, version),
+    relinkTopics: (memoryIds: readonly string[]) => relinkMemoryTopicsOp(vaultCtx, memoryIds),
+    backfillTopics: (memoryIds: readonly string[]) => backfillMemoryTopicsOp(vaultCtx, memoryIds),
   };
 
   return {
@@ -312,18 +327,7 @@ export function createLocalMemoryStore(options: LocalMemoryStoreOptions): Memory
       return () => subscriptions.forEach((s) => s.unsubscribe());
     },
 
-    maintenance: {
-      createDecaySweeper: (sweeperOptions) => createDecaySweeper({ ...sweeperOptions, vaultCtx }),
-      getTopicBacklog: (backlogOptions?: { limit?: number }) =>
-        getMemoriesNeedingTopicExtractionOp(vaultCtx, backlogOptions),
-      extractTopics: (
-        memoryIds: readonly string[],
-        extractOptions: TopicExtractOptions & { now?: number }
-      ) => extractAndLinkEntitiesForMemoriesOp(vaultCtx, memoryIds, extractOptions),
-      stampTopicsExtracted: (memoryIds: readonly string[], extractedAt: number, version?: number) =>
-        stampTopicsExtractedAtOp(vaultCtx, memoryIds, extractedAt, version),
-      relinkTopics: (memoryIds: readonly string[]) => relinkMemoryTopicsOp(vaultCtx, memoryIds),
-      backfillTopics: (memoryIds: readonly string[]) => backfillMemoryTopicsOp(vaultCtx, memoryIds),
-    },
+    maintenance,
+    topicMaintenance: maintenance,
   };
 }
