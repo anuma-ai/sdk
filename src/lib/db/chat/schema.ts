@@ -18,14 +18,14 @@ export const chatStorageSchema = appSchema({
         { name: "updated_at", type: "number" },
         { name: "vector", type: "string", isOptional: true },
         { name: "embedding_model", type: "string", isOptional: true },
-        { name: "chunks", type: "string", isOptional: true }, // JSON stringified MessageChunk[]
+        { name: "chunks", type: "string", isOptional: true },
         { name: "usage", type: "string", isOptional: true },
         { name: "sources", type: "string", isOptional: true },
         { name: "response_duration", type: "number", isOptional: true },
         { name: "was_stopped", type: "boolean", isOptional: true },
         { name: "error", type: "string", isOptional: true },
-        { name: "thought_process", type: "string", isOptional: true }, // JSON stringified ActivityPhase[]
-        { name: "thinking", type: "string", isOptional: true }, // Reasoning/thinking content
+        { name: "thought_process", type: "string", isOptional: true },
+        { name: "thinking", type: "string", isOptional: true },
       ],
     }),
     tableSchema({

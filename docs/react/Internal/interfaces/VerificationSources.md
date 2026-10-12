@@ -1,6 +1,6 @@
 # VerificationSources
 
-Defined in: [src/lib/memory/verifySupport.ts:251](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/verifySupport.ts#251)
+Defined in: [src/lib/memory/verifySupport.ts:116](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/verifySupport.ts#116)
 
 How verification turns a stored source id into text to judge against.
 Injected rather than assumed so this module stays storage-agnostic (and
@@ -13,7 +13,7 @@ default wiring over the chat store.
 
 > **getSourceText**(`chunkId`: `string`): `Promise`<`string` | `null`>
 
-Defined in: [src/lib/memory/verifySupport.ts:271](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/verifySupport.ts#271)
+Defined in: [src/lib/memory/verifySupport.ts:136](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/verifySupport.ts#136)
 
 Resolve one `sourceChunkIds` entry.
 

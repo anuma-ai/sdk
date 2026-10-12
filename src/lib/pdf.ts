@@ -3,18 +3,14 @@ import type { PDFDocumentProxy } from "pdfjs-dist";
 let pdfjsModule: typeof import("pdfjs-dist") | null = null;
 let workerConfigured = false;
 
-/** Preferred render scale for page images (pdf.js default viewport is 72 DPI). */
 const RENDER_SCALE = 1.5;
-/** Longest side, in pixels, of a rendered page image — bounds payload for oversized pages. */
 const MAX_RENDER_SIDE_PX = 1600;
-/** JPEG quality for rendered page images (PNG was several times larger for scans). */
 const JPEG_QUALITY = 0.8;
 
 async function getPdfjs() {
   if (!pdfjsModule) {
     pdfjsModule = await import("pdfjs-dist");
 
-    // Configure worker - use CDN in browser, skip in Node.js (uses main-thread fallback)
     if (!workerConfigured && typeof window !== "undefined") {
       pdfjsModule.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsModule.version}/build/pdf.worker.min.mjs`;
       workerConfigured = true;
@@ -23,10 +19,6 @@ async function getPdfjs() {
   return pdfjsModule;
 }
 
-/**
- * Open a PDF, run `fn`, and always release pdf.js resources (worker-side document, page caches)
- * — on success, on failure inside `fn`, and when the document fails to load.
- */
 async function withPdfDocument<T>(
   pdfDataUrl: string,
   fn: (pdf: PDFDocumentProxy) => Promise<T>
@@ -133,8 +125,6 @@ export async function renderPdfPages(
       canvas.height = Math.floor(viewport.height);
       canvas.width = Math.floor(viewport.width);
 
-      // JPEG has no alpha: any pixel left transparent encodes as black. Paint the page white
-      // ourselves rather than relying on pdf.js's default fill.
       context.fillStyle = "#ffffff";
       context.fillRect(0, 0, canvas.width, canvas.height);
 
@@ -145,8 +135,6 @@ export async function renderPdfPages(
       }).promise;
 
       pages.push({ pageNumber, dataUrl: canvas.toDataURL("image/jpeg", JPEG_QUALITY) });
-      // Release the backing store now rather than whenever GC gets to it — a 20-page scan
-      // otherwise holds 20 full-size bitmaps (Safari caps total canvas memory).
       canvas.width = 0;
       canvas.height = 0;
     }

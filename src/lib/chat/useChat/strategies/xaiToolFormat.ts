@@ -1,28 +1,3 @@
-/**
- * xAI (Grok) hybrid tool-call format handling.
- *
- * Grok models occasionally emit tool calls as an XML wrapper in the assistant
- * message/text content rather than fully populating OpenAI-style tool_calls:
- *
- *   <xai:function_call name="create_file">
- *     <parameter name="path">slides.json</parameter>
- *     <parameter name="content">{...}</parameter>
- *   </xai:function_call>
- *
- * The portal extracts *some* parameters into OpenAI-shape `tool_calls` (often
- * just the short ones like `path`) and leaves the rest as XML text in the
- * content stream. Result: `tool_calls[].function.arguments` is partial
- * (`{"path":"..."}`) while the full args live in content. The client then
- * sees a tool invocation missing required fields.
- *
- * This module parses those XML `<parameter>` blocks and merges them into
- * the corresponding tool call's JSON arguments, then strips the XML from
- * the visible content so downstream consumers don't see raw wrappers.
- *
- * No-op when the content doesn't contain `<parameter name=` — so non-xAI
- * providers are unaffected.
- */
-
 import type { AccumulatedToolCall } from "../types";
 
 const PARAM_RE = /<parameter name="([^"]+)">([\s\S]*?)<\/parameter>/g;
@@ -31,8 +6,6 @@ const INVOKE_RE = /<\/?invoke[^>]*>/g;
 const PARAM_MARKER = "<parameter name=";
 
 function extractParamGroups(content: string): Array<Record<string, string>> {
-  // One group per `<xai:function_call>` segment so multi-call turns pair
-  // correctly. Segments without a <parameter> are ignored (plain prose).
   const segments = content.split(/<\/xai:function_call>/);
   const groups: Array<Record<string, string>> = [];
   for (const seg of segments) {

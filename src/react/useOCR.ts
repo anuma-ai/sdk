@@ -47,7 +47,6 @@ export function useOCR(): UseOCRResult {
             const language = file.language || "eng";
             const filename = file.filename || (file.url instanceof File ? file.url.name : "");
 
-            // Determine if it's a PDF
             let isPdf = false;
             if (typeof file.url === "string") {
               isPdf =
@@ -71,7 +70,6 @@ export function useOCR(): UseOCRResult {
               }
 
               try {
-                // Convert PDF to images
                 const pdfImages = await convertPdfToImages(pdfUrl);
                 imagesToProcess = pdfImages;
               } catch (e) {
@@ -86,7 +84,6 @@ export function useOCR(): UseOCRResult {
               imagesToProcess = [file.url];
             }
 
-            // Process images sequentially to avoid spawning too many workers at once
             const pageTexts: string[] = [];
             for (const image of imagesToProcess) {
               const result = await Tesseract.recognize(image, language);

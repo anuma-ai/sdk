@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { LlmapiMessage } from "../client";
 import { BASE_URL } from "../clientConfig";
+import { streamCancelPath } from "../lib/chat/resumeStream";
 import {
   type ApiResponse,
   type ApiType,
@@ -17,6 +18,7 @@ import {
   validateToken,
   validateTokenGetter,
 } from "../lib/chat/useChat";
+import { getLogger } from "../lib/logger";
 import { PiiRedactor } from "../lib/pii/redactor";
 
 type SendMessageArgs = BaseSendMessageArgs & {
@@ -82,6 +84,10 @@ type SendMessageResult =
  * @inline
  */
 interface UseChatOptions extends BaseUseChatOptions {
+  /** Buffer streamed rounds so a service can verify their canonical output. */
+  resumable?: boolean;
+  /** Inference identifier for each HTTP round, including client-tool continuations. */
+  onStreamMeta?: (meta: { inferenceId: string; round: number }) => void;
   /**
    * Which API endpoint to use. Default: "auto"
    * - "auto": automatically selects the best API based on model support
@@ -159,6 +165,8 @@ export function useChat(options?: UseChatOptions): UseChatResult {
     onServerToolCall,
     onToolCallArgumentsDelta,
     onStepFinish,
+    resumable,
+    onStreamMeta,
     apiType: defaultApiType = "auto",
     smoothing,
     preProcessors,
@@ -167,15 +175,24 @@ export function useChat(options?: UseChatOptions): UseChatResult {
   } = options || {};
   const [isLoading, setIsLoading] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
-  // Monotonic id of the latest send. Unlike abortControllerRef it is never
-  // reset by stop() or a settling request, so "a newer send exists" cannot be
-  // confused with "the ref is null".
   const requestIdRef = useRef(0);
+  const pendingInferenceRef = useRef<{ id: string; round: number; cancel: () => void } | null>(
+    null
+  );
+  const cancelInference = useCallback(
+    (inferenceId: string, requestToken?: string) => {
+      void (async () => {
+        const token = requestToken ?? (getToken ? await getToken() : null);
+        const response = await fetch(`${baseUrl}${streamCancelPath(inferenceId)}`, {
+          method: "POST",
+          headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        });
+        if (!response.ok) throw new Error(`Stream cancellation failed: ${response.status}`);
+      })().catch((error) => getLogger().warn("[useChat] stream cancel POST failed:", error));
+    },
+    [getToken, baseUrl]
+  );
 
-  // When piiRedaction is `true`, upgrade it to a single redactor instance kept
-  // for the lifetime of this hook so placeholder state is shared across turns
-  // (matching the documented behavior of passing an instance). An explicit
-  // instance or `false` is passed through unchanged.
   const piiRedactorRef = useRef<PiiRedactor | null>(null);
   if (piiRedaction === true && !piiRedactorRef.current) {
     piiRedactorRef.current = new PiiRedactor();
@@ -183,21 +200,16 @@ export function useChat(options?: UseChatOptions): UseChatResult {
   const resolvedPiiRedaction = piiRedaction === true ? piiRedactorRef.current! : piiRedaction;
 
   const stop = useCallback(() => {
+    const pending = pendingInferenceRef.current;
+    pendingInferenceRef.current = null;
+    pending?.cancel();
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
       abortControllerRef.current = null;
     }
   }, []);
 
-  // Cleanup on unmount, aborting any active streaming request and clearing the abort controller reference
-  useEffect(() => {
-    return () => {
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
-        abortControllerRef.current = null;
-      }
-    };
-  }, []);
+  useEffect(() => stop, [stop]);
 
   const sendMessage = useCallback(
     async ({
@@ -210,7 +222,6 @@ export function useChat(options?: UseChatOptions): UseChatResult {
       searchContext,
       fileContext,
       toolGuidance,
-      // Responses API options
       temperature,
       maxOutputTokens,
       tools,
@@ -224,19 +235,16 @@ export function useChat(options?: UseChatOptions): UseChatResult {
       endpointOverride,
       piiRedaction: requestPiiRedaction,
     }: SendMessageArgs): Promise<SendMessageResult> => {
-      // Abort any pending request
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
-      }
+      stop();
 
       const abortController = new AbortController();
       abortControllerRef.current = abortController;
       const requestId = ++requestIdRef.current;
 
       setIsLoading(true);
+      let succeeded = false;
 
       try {
-        // Validate token getter and get token
         const tokenGetterValidation = validateTokenGetter(getToken);
         if (!tokenGetterValidation.valid) {
           if (onError) onError(new Error(tokenGetterValidation.message));
@@ -251,7 +259,6 @@ export function useChat(options?: UseChatOptions): UseChatResult {
           return { data: null, error: tokenValidation.message };
         }
 
-        // Inject context as system messages
         let messagesWithContext = messages;
         if (memoryContext) {
           const memorySystemMessage: LlmapiMessage = {
@@ -298,7 +305,6 @@ export function useChat(options?: UseChatOptions): UseChatResult {
           messagesWithContext = [toolGuidanceMessage, ...messagesWithContext];
         }
 
-        // Delegate to the framework-agnostic tool loop
         const result: RunToolLoopResult = await runToolLoop({
           messages: messagesWithContext,
           model: model!,
@@ -307,6 +313,27 @@ export function useChat(options?: UseChatOptions): UseChatResult {
           headers,
           apiType: requestApiType ?? defaultApiType,
           endpointOverride,
+          resumable,
+          onStreamMeta:
+            resumable || onStreamMeta
+              ? (meta) => {
+                  if (requestId !== requestIdRef.current || abortController.signal.aborted) {
+                    if (resumable) cancelInference(meta.inferenceId, token!);
+                    return;
+                  }
+                  const previous = pendingInferenceRef.current;
+                  if (previous && previous.round === meta.round && previous.id !== meta.inferenceId)
+                    previous.cancel();
+                  pendingInferenceRef.current = {
+                    id: meta.inferenceId,
+                    round: meta.round,
+                    cancel: resumable
+                      ? () => cancelInference(meta.inferenceId, token!)
+                      : () => undefined,
+                  };
+                  onStreamMeta?.(meta);
+                }
+              : undefined,
           temperature,
           maxOutputTokens,
           tools,
@@ -337,6 +364,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
           onPiiRedacted,
         });
 
+        succeeded = result.error === null;
         return result;
       } catch (err) {
         return createErrorResult(
@@ -344,17 +372,19 @@ export function useChat(options?: UseChatOptions): UseChatResult {
           onError
         );
       } finally {
-        // A newer request owns the ref and the loading flag once it replaces
-        // this one; the aborted call settles later and must not clear them.
         if (requestIdRef.current === requestId) {
           setIsLoading(false);
           abortControllerRef.current = null;
+          if (!succeeded) pendingInferenceRef.current?.cancel();
+          pendingInferenceRef.current = null;
         }
       }
     },
     [
       getToken,
       baseUrl,
+      stop,
+      cancelInference,
       globalOnData,
       globalOnThinking,
       onFinish,
@@ -363,6 +393,8 @@ export function useChat(options?: UseChatOptions): UseChatResult {
       onServerToolCall,
       onToolCallArgumentsDelta,
       onStepFinish,
+      resumable,
+      onStreamMeta,
       defaultApiType,
       smoothing,
       preProcessors,

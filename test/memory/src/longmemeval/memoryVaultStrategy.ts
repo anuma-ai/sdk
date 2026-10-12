@@ -1,12 +1,3 @@
-/**
- * Memory Vault Strategy
- *
- * Tests the SDK's Memory Vault system. Extracts structured facts from
- * LongMemEval conversations, stores them as vault entries via createVaultMemoryOp,
- * pre-embeds them via preEmbedVaultMemories, then searches via
- * createMemoryVaultSearchTool.
- */
-
 import {
   preEmbedVaultMemories,
   type VaultEmbeddingCache,
@@ -51,16 +42,6 @@ function cosineSim(a: number[], b: number[]): number {
   return d === 0 ? 0 : dot / d;
 }
 
-/**
- * Process a single LongMemEval entry using the Memory Vault strategy.
- *
- * Flow:
- * 1. Extract structured facts from haystack sessions using LLM
- * 2. Store each fact as a vault entry via createVaultMemoryOp
- * 3. Pre-embed vault entries via preEmbedVaultMemories
- * 4. Search via createMemoryVaultSearchTool's executor
- * 5. Two-step LLM flow: question -> tool call -> answer
- */
 export async function processEntryMemoryVault(
   entry: LongMemEvalEntry,
   api: ApiConfig,
@@ -93,11 +74,9 @@ export async function processEntryMemoryVault(
   const database = await setupDatabase();
   const vaultCtx = createVaultContext(database);
 
-  // Map vaultEntryId -> sessionId for retrieval metrics
   const vaultToSession = new Map<string, string>();
 
   try {
-    // Step 1: Extract memories from sessions
     const allMemories: Array<{
       sessionId: string;
       content: string;
@@ -110,9 +89,6 @@ export async function processEntryMemoryVault(
 
       logProgress(`Extracting memories: ${i + 1}/${totalSessions} sessions`);
 
-      // Anchor relative-date resolution to the session's own date, not
-      // entry.question_date — collapsing all observations onto the
-      // question date was the 51%-of-misses temporal failure mode.
       const sessionDate = formatHaystackDateAsObservation(entry.haystack_dates[sessionIdx]);
       const extracted = await extractMemoriesFromSession(
         session,
@@ -142,7 +118,6 @@ export async function processEntryMemoryVault(
     }
 
     if (allMemories.length === 0) {
-      // No memories extracted — try to answer without context
       logProgress("Generating answer (no memories)...");
       const earlyUsage: TokenUsage = {
         promptTokens: 0,
@@ -150,9 +125,6 @@ export async function processEntryMemoryVault(
         totalTokens: 0,
         embeddingTokens: 0,
       };
-      // Same reason as the chunk-only path in recallStrategy: an uncaught
-      // throw here lands in the suite's per-entry catch and becomes a
-      // zero-scored result with no explanation attached.
       let generatedAnswer = "";
       let thrownWhileAnswering: unknown;
       try {
@@ -212,11 +184,6 @@ export async function processEntryMemoryVault(
       };
     }
 
-    // Step 2: Store each fact via retain() so we get cosine auto-merge +
-    // optional LLM consolidation against the growing vault. The previous
-    // path called createVaultMemoryOp directly, bypassing dedup entirely —
-    // which is why we saw 3 paraphrased "Zara boots pickup" memories
-    // coexist in the smoke test even with the new extraction prompt.
     logProgress(`Storing ${allMemories.length} vault entries...`);
     const answerSessionIdSet = new Set(entry.answer_session_ids);
     const embeddingCache: VaultEmbeddingCache = new Map();
@@ -247,9 +214,6 @@ export async function processEntryMemoryVault(
     clearProgress();
     fallbackTracker.report(entry.question_id);
 
-    // Step 3: Pre-embed any vault entries that retain() didn't already cache
-    // (e.g. ones merged via cosine where embedding was reused). The cache
-    // is shared with retain() above so most lookups are free.
     logProgress("Embedding vault entries...");
     await preEmbedVaultMemories(vaultCtx, embeddingOptions, embeddingCache);
     clearProgress();
@@ -258,11 +222,6 @@ export async function processEntryMemoryVault(
       console.log(`  Embedded ${embeddingCache.size} vault entries`);
     }
 
-    // Step 3.5: Build a parallel session-chunk index for hybrid retrieval.
-    // The vault stores compressed extracted facts (high-precision); chunks
-    // preserve raw conversation phrasing so multi-session questions can hit
-    // the actual user/assistant words when paraphrase distance trips the fact
-    // index. Both rankings are surfaced to the answer LLM in one tool result.
     logProgress("Indexing session chunks...");
     const chunkSourceMax = searchPipeline?.chunkSourceMaxChars ?? 12000;
     const chunkSessionIds: string[] = [];
@@ -287,9 +246,6 @@ export async function processEntryMemoryVault(
       console.log(`  Indexed ${chunkEmbeddings.length} session chunks`);
     }
 
-    // Step 4: Create search tool via SDK. The pipeline knobs default to the
-    // V2+CE+decompose stack (validated at 86.2% on the synthetic vault bench);
-    // callers can disable rerank/decompose to A/B against the V2-only baseline.
     const rerankEnabled = searchPipeline?.rerank ?? true;
     const decomposeMode = searchPipeline?.decompose ?? "llm";
     const searchTool = createMemoryVaultSearchTool(vaultCtx, embeddingOptions, embeddingCache, {
@@ -306,9 +262,6 @@ export async function processEntryMemoryVault(
       }),
     });
 
-    // Wrap the vault executor to fuse top-K raw conversation chunks alongside
-    // the extracted facts in a single tool response. We add chunk hits to the
-    // retrieved-session set so retrieval metrics reward chunk-only catches.
     const retrievedChunkSessionIds = new Set<string>();
     const vaultExecutor = searchTool.executor!;
     searchTool.executor = async (args: Record<string, unknown>) => {
@@ -338,12 +291,9 @@ export async function processEntryMemoryVault(
       return `${vaultStr}\n\n--- Raw conversation excerpts (${ranked.length}) ---\n\n${chunkBlock}`;
     };
 
-    // Step 5: Two-step LLM flow
     const systemPrompt = `Today is ${entry.question_date}.
 You are a personal assistant with access to the user's past conversation history. Answer their question using information from their past conversations. Be concise and direct.`;
 
-    // The SDK's ToolConfig uses "arguments" for the schema, but the OpenAI
-    // Chat Completions API expects "parameters". Remap for the API call.
     const { arguments: schema, ...fnRest } = searchTool.function as any;
     const toolDef = {
       type: "function" as const,
@@ -360,8 +310,6 @@ You are a personal assistant with access to the user's past conversation history
       question: entry.question,
       expectedAnswer: entry.answer,
       llmModel: api.llmModel,
-      // Resolved effective extractor (`--extract-llm` or, when unset, the
-      // answer model) — lets --skip-existing detect extractor-only changes.
       extractionModel: api.extractionModel ?? api.llmModel,
       strategy: "memory-vault",
       messages: [...baseMessages],
@@ -398,8 +346,6 @@ You are a personal assistant with access to the user's past conversation history
 
     let thrownWhileAnswering: unknown;
     try {
-      // Force tool use — in a real conversation the LLM would naturally call
-      // the tool, but this eval sends a bare question with no prior context.
       logProgress("Calling LLM (step 1)...");
       const firstResponse = await callChatCompletion(api, baseMessages, {
         tools: [toolDef],
@@ -422,15 +368,12 @@ You are a personal assistant with access to the user's past conversation history
             args = {};
           }
 
-          // Execute the SDK tool's executor
           logProgress("Executing memory_vault_search tool...");
           const toolResult = await searchTool.executor!(args);
           clearProgress();
           const toolResultStr =
             typeof toolResult === "string" ? toolResult : JSON.stringify(toolResult);
 
-          // Parse vault entry IDs from tool output for retrieval metrics
-          // Format: (id: <id>, similarity: <score>)
           const idMatches = toolResultStr.matchAll(/\(id:\s*([^,]+),/g);
           for (const match of idMatches) {
             retrievedVaultIds.add(match[1].trim());
@@ -443,9 +386,6 @@ You are a personal assistant with access to the user's past conversation history
           });
           (transcript.toolResults as any[]).push({ text: toolResultStr });
 
-          // Include search results in the system message so the LLM treats
-          // them as authoritative context. This avoids role: "tool" messages
-          // which not all providers support (e.g. Gemini via OpenAI compat).
           const secondSystemPrompt = [
             systemPrompt,
             "",
@@ -483,7 +423,6 @@ You are a personal assistant with access to the user's past conversation history
     const answerError = answerFailureReason(generatedAnswer, thrownWhileAnswering);
     if (answerError) transcript.answerError = answerError;
 
-    // Compute retrieval metrics
     const retrievedSessionIds = new Set<string>();
     for (const vaultId of retrievedVaultIds) {
       const sessionId = vaultToSession.get(vaultId);
@@ -510,8 +449,6 @@ You are a personal assistant with access to the user's past conversation history
       expectedSessionIds: entry.answer_session_ids,
     };
 
-    // Evaluate answer — unless there is no answer to evaluate, in which case
-    // grading the empty string would just relabel a broken call as a miss.
     let isCorrect = false;
     let judgeError: string | undefined;
     if (!answerError) {
@@ -557,7 +494,6 @@ You are a personal assistant with access to the user's past conversation history
     clearProgress();
     throw error;
   } finally {
-    // Release in-memory LokiJS database to prevent OOM across 289 iterations
     try {
       await database.write(async () => {
         await database.unsafeResetDatabase();

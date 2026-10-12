@@ -1,10 +1,3 @@
-/**
- * LongMemEval Benchmark Suite
- *
- * Shared orchestration and utility functions for running the LongMemEval
- * benchmark against both memory systems (engine and vault).
- */
-
 import { Database } from "@nozbe/watermelondb";
 import LokiJSAdapter from "@nozbe/watermelondb/adapters/lokijs";
 import { join } from "node:path";
@@ -41,7 +34,6 @@ import { processEntryRecall } from "./recallStrategy.js";
 declare const global: typeof globalThis;
 declare const require: any;
 
-// Silence WatermelonDB/LokiJS emoji logs
 const originalLog = console.log;
 const originalWarn = console.warn;
 console.log = (...args: any[]) => {
@@ -53,8 +45,6 @@ console.warn = (...args: any[]) => {
   originalWarn(...args);
 };
 
-// ── Shared types ──
-
 export interface ExtractedMemory {
   sessionIndex: number;
   sessionId: string;
@@ -62,34 +52,10 @@ export interface ExtractedMemory {
   kind: "state" | "event";
   occurredAt: string | null;
   confidence: number;
-  /** Named entities (people, places, things). Drives the W5 graph lane. */
   entities: string[];
   embedding?: number[];
 }
 
-// ── Extraction cache persistence ──
-//
-// Extraction is the dominant LLM cost of a run (one call per haystack
-// session, ~50 sessions per question) and is fully determined by
-// (session content, observation date, model) — none of the retrieval
-// tuning knobs affect it. LongMemEval also reuses sessions across
-// questions' haystacks, so the cache pays off within a single run, and
-// ranking-knob sweeps with the same model become nearly extraction-free
-// after the first run. Bump EXTRACTION_PROMPT_VERSION when the extraction
-// prompt OR the extraction request/parse behavior changes, to invalidate
-// stale entries.
-//
-// v2 (2026-06): the extraction call now rejects empty completions and raises
-// max_tokens 2000→6000 — under v1, gpt-5-family reasoning-token starvation
-// had pinned ~77% of cached entries to empty results. The version bump forces
-// those (and any other v1 entries written under the old behavior) to
-// re-extract instead of serving stale empties.
-//
-// v3 (2026-07): the extraction call now sends `max_completion_tokens` instead
-// of the deprecated `max_tokens`. The portal ignored the legacy field, so v2's
-// "6000" was silently clamped to the 4096 default; the cap is now actually
-// honored, changing extraction output. Bump forces v2 entries (written under
-// the effective-4096 behavior) to re-extract rather than serve stale results.
 const EXTRACTION_PROMPT_VERSION = "v3";
 const EXTRACTION_CACHE_SAVE_EVERY = 25;
 
@@ -120,16 +86,11 @@ async function persistExtractionCache(force = false): Promise<void> {
   try {
     await mkdir(join(extractionCachePath, ".."), { recursive: true });
     await writeFile(extractionCachePath, JSON.stringify([...extractionCache.entries()]));
-    // Only reset after the write actually lands — zeroing it before would
-    // mean a failed write silently drops the "needs save" signal until
-    // another full debounce window of entries accumulates.
     extractionCacheUnsaved = 0;
   } catch {
     // Cache persistence is best-effort — next save retries.
   }
 }
-
-// ── Embedding cache persistence ──
 
 async function loadEmbeddingCache(path: string): Promise<Map<string, Float32Array>> {
   try {
@@ -137,7 +98,6 @@ async function loadEmbeddingCache(path: string): Promise<Map<string, Float32Arra
     const data = await readFile(path, "utf-8");
     const entries: [string, number[]][] = JSON.parse(data);
     console.log(`Loaded ${entries.length} cached embeddings from disk`);
-    // Convert number[] back to Float32Array to match the cache contract
     return new Map(entries.map(([key, value]) => [key, Float32Array.from(value)]));
   } catch {
     return new Map();
@@ -147,14 +107,12 @@ async function loadEmbeddingCache(path: string): Promise<Map<string, Float32Arra
 async function saveEmbeddingCache(path: string, cache: Map<string, Float32Array>): Promise<void> {
   try {
     await mkdir(join(path, ".."), { recursive: true });
-    // Stream entries one-by-one to avoid building a huge JSON string in memory.
     const stream = createWriteStream(path);
     stream.write("[");
     let first = true;
     for (const [key, value] of cache) {
       if (!first) stream.write(",");
       first = false;
-      // Convert Float32Array to number[] for JSON serialization
       stream.write(JSON.stringify([key, Array.from(value)]));
     }
     stream.write("]");
@@ -167,8 +125,6 @@ async function saveEmbeddingCache(path: string, cache: Map<string, Float32Array>
     console.error("Failed to save embedding cache:", error);
   }
 }
-
-// ── Database setup ──
 
 export async function setupDatabase(): Promise<Database> {
   if (!global.crypto) {
@@ -193,8 +149,6 @@ export async function setupDatabase(): Promise<Database> {
     modelClasses: sdkModelClasses,
   });
 }
-
-// ── DB context constructors (shared by strategies) ──
 
 export function createVaultContext(db: Database): VaultMemoryOperationsContext {
   return {
@@ -225,13 +179,6 @@ export function createStorageContext(db: Database): StorageOperationsContext {
   };
 }
 
-// ── Retrieval tuning knobs ──
-
-/**
- * SDK-shaped retrieval tuning options — spreadable into both
- * `MemoryVaultSearchOptions` (createMemoryVaultSearchTool) and
- * `RecallOptions` (recall()), whose knob field names are identical.
- */
 export interface SdkRetrievalTuningOptions {
   ceWeight?: number;
   recencyAlpha?: number;
@@ -245,13 +192,6 @@ export interface SdkRetrievalTuningOptions {
   bm25AdmissionDivisor?: number;
 }
 
-/**
- * Map eval-harness tuning knobs onto SDK option fields. Only knobs that are
- * actually set are emitted, so the SDK's own defaults stay authoritative —
- * `buildRetrievalTuningOptions(undefined)` / `({})` is always a no-op.
- * `recencyDecay`/`recencyFloor` fold into the `recency` sub-object
- * (`perYearDecay` / `floor`).
- */
 export function buildRetrievalTuningOptions(
   knobs?: RetrievalTuningKnobs
 ): SdkRetrievalTuningOptions {
@@ -278,17 +218,6 @@ export function buildRetrievalTuningOptions(
   };
 }
 
-// ── Date helpers ──
-
-/**
- * Normalize LongMemEval's `YYYY/MM/DD (Day) HH:MM` haystack-date format
- * into the `YYYY-MM-DD` shape the extraction prompt expects as
- * "Observation date". Strategies should pass the SESSION's haystack date
- * (not entry.question_date) so the extractor resolves "today" /
- * "N days ago" against when the conversation happened, not when the
- * question is being asked — collapsing event_time onto question_date
- * was the dominant temporal-reasoning failure mode (51% of misses).
- */
 export function formatHaystackDateAsObservation(raw: string | undefined): string | undefined {
   if (!raw) return undefined;
   const match = raw.match(/^(\d{4})[/-](\d{2})[/-](\d{2})/);
@@ -296,8 +225,6 @@ export function formatHaystackDateAsObservation(raw: string | undefined): string
   const [, yyyy, mm, dd] = match;
   return `${yyyy}-${mm}-${dd}`;
 }
-
-// ── JSON extraction ──
 
 export function extractJsonFromResponse(content: string): string {
   let jsonStr = content.trim();
@@ -317,22 +244,10 @@ export function extractJsonFromResponse(content: string): string {
   return jsonStr;
 }
 
-// ── Transcript helpers ──
-
 export function getTranscriptPath(questionId: string): string {
   return join(getCacheDirectory(), "transcripts", `${questionId}.json`);
 }
 
-/**
- * True when a cached transcript was produced with BOTH the same answer model
- * and the same effective extraction model. `extractionModel` is the resolved
- * extractor (i.e. `--extract-llm` or, when unset, the answer model itself).
- * Transcripts written before extraction-model tracking lack the field; those
- * were always run with extraction == answer model, so we reconstruct their
- * effective extractor as `parsed.llmModel`. This makes `--skip-existing`
- * correctly RE-RUN entries when only the extractor changed (same answer
- * model, different `--extract-llm`) instead of wrongly skipping them.
- */
 export async function transcriptMatchesModel(
   questionId: string,
   model: string,
@@ -365,23 +280,13 @@ export async function saveTranscript(
   }
 }
 
-// ── LLM utilities ──
-
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-/**
- * Round-robin sample of N entries that gives roughly equal coverage of
- * every question_type present. Preserves the original intra-type order
- * (deterministic across runs) and the original surfacing order across
- * types so the printed run log stays readable. When N >= length, all
- * entries are returned in the original order.
- */
 function stratifyByType(entries: LongMemEvalEntry[], n: number): LongMemEvalEntry[] {
   if (n >= entries.length) return entries;
 
-  // Group preserving first-appearance order.
   const byType = new Map<string, LongMemEvalEntry[]>();
   for (const e of entries) {
     const bucket = byType.get(e.question_type);
@@ -389,7 +294,6 @@ function stratifyByType(entries: LongMemEvalEntry[], n: number): LongMemEvalEntr
     else byType.set(e.question_type, [e]);
   }
 
-  // Round-robin pull from each bucket until we hit N.
   const buckets = Array.from(byType.values());
   const picked: LongMemEvalEntry[] = [];
   let i = 0;
@@ -397,28 +301,11 @@ function stratifyByType(entries: LongMemEvalEntry[], n: number): LongMemEvalEntr
     const bucket = buckets[i % buckets.length];
     if (bucket.length > 0) picked.push(bucket.shift()!);
     i++;
-    // Drop empty buckets so we don't spin uselessly.
     if (i % buckets.length === 0 && buckets.every((b) => b.length === 0)) break;
   }
   return picked;
 }
 
-/**
- * Completion budget for the answer-generation calls.
- *
- * Was 500, and like the judge's cap it only started biting when #760 swapped
- * the deprecated `max_tokens` — which the portal dropped, leaving these calls
- * running against the portal's 4096 default — for `max_completion_tokens`,
- * which the portal honors. Reasoning tokens count against the cap, so an
- * enforced 500 can leave a reasoning model (gpt-oss, gpt-5) nothing left for
- * content: the completion comes back empty and an empty answer grades as an
- * ordinary wrong answer.
- *
- * 4096 because that is the budget every run on the benchmarks branch was
- * actually scored under, so restoring it keeps those numbers comparable rather
- * than inventing a third regime. Models that finish early are unaffected — this
- * is a ceiling, not a target.
- */
 export const ANSWER_MAX_COMPLETION_TOKENS = 4096;
 
 export async function callChatCompletion(
@@ -440,15 +327,10 @@ export async function callChatCompletion(
   let emptyRetryUsed = false;
   let completionBudget = options?.maxTokens ?? ANSWER_MAX_COMPLETION_TOKENS;
 
-  // Exponential backoff with jitter for transient errors. 429s hit hard
-  // at concurrency=100 — Fireworks rate limits have tightened since the
-  // March 11 baseline run (which had zero 429s in its logs). Linear
-  // 250ms*N backoff was too short: bursts had every worker retry into
-  // the same rate window and fail.
   const backoffMs = (attempt: number, status: number | null): number => {
     const base = status === 429 ? 1000 : 250;
     const exp = base * 2 ** (attempt - 1);
-    const jitter = Math.random() * 0.4 * exp; // ±20% to avoid thundering herd
+    const jitter = Math.random() * 0.4 * exp;
     return Math.min(15_000, exp + jitter);
   };
 
@@ -510,10 +392,6 @@ export async function callChatCompletion(
         options?.tools && options.tools.length > 0 ? message?.tool_calls : undefined;
       const content = message?.content || "";
 
-      // An empty completion is usually a starved budget rather than a flake:
-      // at temperature 0 an identical request replays the identical hidden
-      // reasoning and comes back empty again, so the one retry we spend here
-      // doubles the budget instead of just repeating itself.
       if (!content && !toolCalls && !emptyRetryUsed && attempt < maxAttempts) {
         emptyRetryUsed = true;
         completionBudget *= 2;
@@ -522,10 +400,6 @@ export async function callChatCompletion(
       }
 
       if (!content && !toolCalls) {
-        // Returning "" here used to be the end of it: the caller handed the
-        // empty string to the judge, which dutifully graded it INCORRECT. Say
-        // so out loud — the strategies read an empty answer as an unscored
-        // question, not as a memory-system miss.
         console.warn(
           `  ⚠ ${api.llmModel} returned an empty completion after ${attempt} attempt(s) ` +
             `(budget ${completionBudget}) — this question has no answer to judge`
@@ -548,23 +422,6 @@ export async function callChatCompletion(
   throw lastError instanceof Error ? lastError : new Error("Chat completion failed");
 }
 
-/**
- * Map an SDK {@link ExtractedCandidate} onto this suite's {@link ExtractedMemory}.
- *
- * The SDK schema is a strict superset in richness, so every field here is a
- * narrowing:
- * - `eventTime: null` ⟺ `kind: "state"`; anything else is an `"event"`.
- * - `eventTime.start` is Unix ms and may carry a range; `occurredAt` keeps only
- *   the start date. `recallStrategy` reconstructs an `eventTime` from it for
- *   `retain()`, so an SDK-extracted range makes a round trip through a date
- *   string and comes back as a point. Acceptable for now — LongMemEval's
- *   temporal questions are day-granular — but it is the one place this mapping
- *   loses information, and the reason to eventually thread candidates through
- *   whole rather than via `ExtractedMemory`.
- * - `entities` are typed (`{ name, kind }`) in the SDK and bare strings here, so
- *   the kind is dropped. The graph lane keys on name only, so nothing downstream
- *   reads it today.
- */
 export function candidateToMemory(
   candidate: ExtractedCandidate,
   sessionIndex: number,
@@ -582,35 +439,6 @@ export function candidateToMemory(
   };
 }
 
-/**
- * Extract via the SDK's production path (#907).
- *
- * Deliberately passes almost nothing: `extractFacts` owns the prompt, the
- * request shape, the retry policy and the failure classification, and the whole
- * point is to measure those rather than this file's versions of them. `now` is
- * the one substantive input — the SDK resolves relative dates ("yesterday")
- * against it, which is what `observationDate` exists for on the harness path.
- *
- * Note what is NOT replicated: production reaches extraction through
- * `extractAndRetain`, which additionally applies `DEFAULT_MIN_CONFIDENCE` (0.7)
- * and the injection screen before retaining. This function stops at
- * `extractFacts`, matching where the harness path stops, so the arms differ in
- * the extractor and nothing else. Closing those two is separate work.
- */
-/**
- * Returns `null` — not `[]` — when extraction FAILED, so the caller cannot
- * cache a failure as a successful empty result.
- *
- * The distinction is load-bearing and the reason this is a nullable return
- * rather than a comment: `[]` is a legitimate outcome ("this session held
- * nothing worth keeping") and is worth caching, while a failure must retry on
- * the next run. Collapsing the two pins an empty extraction for that session
- * until someone clears the cache or bumps the key — the harness path calls this
- * out explicitly and avoids it, and the first version of this function
- * reintroduced it while carrying a comment claiming otherwise. Caught by
- * Greptile on #908. The type is what prevents the regression now; a comment
- * demonstrably did not.
- */
 async function extractViaSdk(
   session: LongMemEvalSession,
   sessionIndex: number,
@@ -630,14 +458,7 @@ async function extractViaSdk(
     apiKey: api.apiKey,
     baseUrl: api.baseUrl,
     model: extractionModel,
-    // Midday UTC, not midnight: `obsDate` is a bare calendar date, and anchoring
-    // at 00:00Z puts every timezone west of UTC on the previous day when the SDK
-    // resolves "today".
     now: Date.parse(`${obsDate}T12:00:00Z`),
-    // Reported rather than swallowed. The harness path returns `[]` for every
-    // failure mode alike, which is exactly the blindness `PortalLlmFailure`
-    // (#888) exists to remove — surfacing it here is a strict gain over the
-    // path this replaces.
     onExhaustedEmpty: (failure) => {
       failureReason = failure.reason;
     },
@@ -663,11 +484,6 @@ export async function extractMemoriesFromSession(
 
   const extractionModel = api.extractionModel ?? api.llmModel;
   const cache = await getExtractionCache();
-  // The extractor is part of the cache identity, not just the prompt version:
-  // the two paths produce different memories from the same session, and sharing
-  // a key would let one arm silently answer for the other. Keeping the harness
-  // tag as-is means the existing 22 MB cache stays valid for the default path —
-  // landing this invalidates nothing.
   const extractorTag = api.extractor === "sdk" ? "sdk-v1" : EXTRACTION_PROMPT_VERSION;
   const cacheKey = `${sessionId}|${obsDate}|${extractionModel}|${extractorTag}`;
   const cached = cache.get(cacheKey);
@@ -684,9 +500,6 @@ export async function extractMemoriesFromSession(
       extractionModel,
       obsDate
     );
-    // Same rule as the harness path: only a SUCCESSFUL extraction is cached. A
-    // failure returns null above and must retry next run; caching it would pin
-    // an empty vault for this session until someone clears the cache.
     if (extracted === null) return [];
     cache.set(
       cacheKey,
@@ -697,14 +510,6 @@ export async function extractMemoriesFromSession(
     return extracted;
   }
 
-  // Extraction prompt — adapted from Mem0 (contextual richness, absolute
-  // dates, preserve specifics) + Hindsight's `fact_kind: event | conversation`
-  // split. Designed to fix three failure modes we observed on LongMemEval:
-  // (1) over-aggregation duplicating the same logical fact 4× across sessions,
-  // (2) awkward boolean key-value shapes burying the actual fact in
-  // `rawEvidence`, (3) under-extraction of episodic events ("went to bed at
-  // 2 AM the night before doctor's appointment") because the prior prompt
-  // only asked for "durable" facts.
   const extractionPrompt = `You extract memories from a chat conversation for a personal memory system. The user will return tomorrow, next week, or next year and ask questions that depend on these memories.
 
 Observation date: ${obsDate}
@@ -755,10 +560,6 @@ CONTENT RULES:
 
 Confidence: 0.9+ for unambiguous statements, 0.7–0.9 for likely-true, 0.5–0.7 for inferred. Below 0.5: skip.`;
 
-  // Same exponential-backoff retry pattern as callChatCompletion. Extraction
-  // hits the LLM under high concurrency, so 429s here will silently empty the
-  // vault for that session — much costlier than a missing answer because the
-  // memory is gone for *every* downstream search. Retry hard before giving up.
   const maxAttempts = 6;
   let lastError: unknown;
   let parseFailures = 0;
@@ -772,9 +573,6 @@ Confidence: 0.9+ for unambiguous statements, 0.7–0.9 for likely-true, 0.5–0.
         },
         body: JSON.stringify({
           model: extractionModel,
-          // After a parse failure, reinforce the output contract — at
-          // temperature 0 a bare retry replays the same prose response,
-          // so the retry must change the request to be useful.
           messages: [
             ...(parseFailures > 0
               ? [
@@ -788,11 +586,6 @@ Confidence: 0.9+ for unambiguous statements, 0.7–0.9 for likely-true, 0.5–0.
             { role: "user", content: extractionPrompt },
           ],
           temperature: 0,
-          // 6000, not 2000: gpt-5-family reasoning tokens count against
-          // this cap — at 2000 the entire budget goes to hidden reasoning
-          // and content comes back empty (finish_reason "length"). The
-          // production SDK path sends no cap at all; 6000 keeps runaway-CoT
-          // models (kimi) bounded while leaving reasoning room.
           max_completion_tokens: 6000,
         }),
       });
@@ -821,12 +614,6 @@ Confidence: 0.9+ for unambiguous statements, 0.7–0.9 for likely-true, 0.5–0.
       const choice = data.choices[0];
       const content = choice?.message?.content ?? "";
       if (!content.trim()) {
-        // Reasoning models (gpt-5 family) can burn the entire completion
-        // budget on hidden reasoning tokens and return EMPTY content with
-        // finish_reason "length". Falling back to "{}" here would cache a
-        // pinned-empty extraction for the session — treat it as a failed
-        // attempt so the retry path (and ultimately the hard-fail warn)
-        // fires instead.
         throw new SyntaxError(
           `empty completion content (finish_reason=${choice?.finish_reason ?? "?"})`
         );
@@ -851,8 +638,6 @@ Confidence: 0.9+ for unambiguous statements, 0.7–0.9 for likely-true, 0.5–0.
           const occurredAt =
             kind === "event" && typeof item.occurredAt === "string" ? item.occurredAt : null;
           const confidence = typeof item.confidence === "number" ? item.confidence : 0.7;
-          // Defensive parse — older bench runs / models without graph-lane
-          // awareness may omit entities or return non-array shapes.
           const entities = Array.isArray(item.entities)
             ? item.entities.filter((e): e is string => typeof e === "string" && e.trim().length > 0)
             : [];
@@ -867,8 +652,6 @@ Confidence: 0.9+ for unambiguous statements, 0.7–0.9 for likely-true, 0.5–0.
           } satisfies ExtractedMemory;
         })
         .filter((m): m is ExtractedMemory => m !== null);
-      // Only successful parses are cached — HTTP/parse failures must
-      // retry on the next run rather than pinning an empty result.
       cache.set(
         cacheKey,
         extracted.map(({ sessionIndex: _i, sessionId: _s, ...rest }) => rest)
@@ -893,8 +676,6 @@ Confidence: 0.9+ for unambiguous statements, 0.7–0.9 for likely-true, 0.5–0.
   return [];
 }
 
-// ── Progress logging ──
-
 export function logProgress(message: string): void {
   if (process.stdout.isTTY) {
     process.stdout.write(`\r  ${message.padEnd(60)}`);
@@ -907,30 +688,10 @@ export function clearProgress(): void {
   }
 }
 
-// ── Consolidation fallback tracking ──
-
-/**
- * Counts consolidator degradations during the retain loop. A degraded
- * fallback writes a duplicate-prone "create" instead of a real decision,
- * which silently inflates the vault and skews retrieval metrics — a
- * nonzero rate here means the consolidation knob isn't doing what the
- * run's config says it is.
- */
 export function createConsolidationFallbackTracker(): {
   onFallback: (reason: ConsolidationFallbackReason) => void;
   report: (questionId: string) => void;
 } {
-  // Every reason gets a bucket, and the aggregate below is derived from the
-  // bucket VALUES rather than a hand-written sum of two of them. The previous
-  // shape named `llm_error` and `invalid_response` in three separate places, so
-  // adding `target_vanished` left it silently under-reporting on two of them.
-  // `tsconfig.test.json` now typechecks this directory (#813), and it is what
-  // caught the missing `subject_mismatch` bucket below.
-  //
-  // NOTE on reading the aggregate: `subject_mismatch` is not a degradation. It
-  // counts supersedes REFUSED because the model's stated subjects disagreed
-  // (#822), which is the guard working. Summing it into a "fallback rate" that
-  // is interpreted as consolidator health will overstate breakage.
   const counts: Record<ConsolidationFallbackReason, number> = {
     llm_error: 0,
     invalid_response: 0,
@@ -946,19 +707,13 @@ export function createConsolidationFallbackTracker(): {
       const total = reasons.reduce((sum, r) => sum + counts[r], 0);
       if (total === 0) return;
       const breakdown = reasons.map((r) => `${r}: ${counts[r]}`).join(", ");
-      // "returned create instead of a merge" rather than "degraded": one of the
-      // reasons (`subject_mismatch`) is a deliberate refusal, not a failure, and
-      // the breakdown is what distinguishes them.
       console.warn(
         `  ⚠ consolidation returned create instead of a merge ${total}x on ${questionId} (${breakdown})`
       );
-      // Reset so a reused tracker reports per-call deltas, not a running total.
       for (const r of reasons) counts[r] = 0;
     },
   };
 }
-
-// ── Session selection ──
 
 export function selectSessions(
   entry: LongMemEvalEntry,
@@ -990,19 +745,11 @@ export function selectSessions(
   };
 }
 
-// ── Main orchestrator ──
-
 export async function runLongMemEval(
   dataset: LongMemEvalEntry[],
   options: LongMemEvalOptions,
   api: ApiConfig
 ): Promise<LongMemEvalSummary | LongMemEvalComparisonSummary> {
-  // All six LongMemEval categories are now in scope. `temporal-reasoning`
-  // is handled by the W6 lane in recall() (parseQueryTimeWindow + event_time
-  // overlap). `knowledge-update` is handled by the recency multiplier +
-  // LLM-based consolidation (consolidate.update overwrites stale fact
-  // content) — an n=10 stratified smoke landed at 90% before this was
-  // enabled at full n=78, so enabling now to measure at scale.
   const unsupportedTypes: LongMemEvalQuestionType[] = [];
 
   let entries = dataset;
@@ -1021,11 +768,6 @@ export async function runLongMemEval(
   }
 
   if (options.maxQuestions && options.maxQuestions < entries.length) {
-    // The oracle dataset clusters questions by type, so a naive
-    // .slice(0, N) gives a single-type sample (e.g. all multi-session
-    // with N=50) — useless for evaluating cross-type performance.
-    // Take roughly equal counts per surviving question type, preserving
-    // each type's intra-cluster order so reruns are reproducible.
     entries = stratifyByType(entries, options.maxQuestions);
   }
 
@@ -1048,9 +790,6 @@ export async function runLongMemEval(
 
   const summaries: Record<string, LongMemEvalSummary> = {};
 
-  // Shared embedding cache across all questions — avoids re-embedding
-  // the same haystack texts that appear in multiple questions.
-  // Persisted to disk so subsequent runs skip the embedding API entirely.
   const modelSlug = DEFAULT_API_EMBEDDING_MODEL.replace(/[^a-zA-Z0-9-]/g, "-");
   const embeddingCachePath = join(getCacheDirectory(), `embedding-cache-${modelSlug}.json`);
   const embeddingCache = await loadEmbeddingCache(embeddingCachePath);
@@ -1062,14 +801,9 @@ export async function runLongMemEval(
       console.log(`\n── Strategy: ${strat} ──\n`);
     }
 
-    // Process entries with configurable concurrency.
-    // Results are collected in entry order regardless of completion order.
     const orderedResults: (LongMemEvalResult | null)[] = new Array(entries.length).fill(null);
     let completed = 0;
 
-    // Retrieval-ranking tuning knobs shared by the vault/ensemble/recall
-    // strategies. Undefined fields are stripped downstream by
-    // buildRetrievalTuningOptions, so SDK defaults stay authoritative.
     const tuningKnobs: RetrievalTuningKnobs = {
       ceWeight: options.ceWeight,
       recencyAlpha: options.recencyAlpha,
@@ -1089,7 +823,6 @@ export async function runLongMemEval(
 
       try {
         if (options.skipExisting) {
-          // Effective extractor = --extract-llm, or the answer model when unset.
           const hasTranscript = await transcriptMatchesModel(
             entry.question_id,
             llmModel,
@@ -1134,10 +867,6 @@ export async function runLongMemEval(
               rerank: options.rerank,
               decompose: options.decompose,
               consolidate: options.consolidate,
-              // chunkSourceMaxChars is a memory-vault-pipeline concept
-              // (caps raw chunk text before fact extraction). recall()
-              // reads chunks directly from storage and has no analogue,
-              // so omit it here rather than silently strip it.
               excerptMaxChars: options.excerptMaxChars,
               recallTypes: options.recallTypes,
               recallEmit: options.recallEmit,
@@ -1164,10 +893,6 @@ export async function runLongMemEval(
 
         orderedResults[i] = result;
         completed++;
-        // A broken step gets its own marker: a live run that scrolls past
-        // 50 ✗ marks reads as "the memory system is broken", which is the
-        // wrong conclusion when it was the judge that never ruled or the
-        // answer call that never answered.
         const marker = result.harnessError
           ? "⚠ harness-error"
           : result.answerError
@@ -1187,13 +912,6 @@ export async function runLongMemEval(
           question: entry.question,
           expectedAnswer: entry.answer,
           generatedAnswer: "",
-          // Everything below the error is fabricated, not measured. `isCorrect`
-          // false is not a verdict and the zeroed retrieval numbers are not a
-          // reading — `harnessError` is what tells the tally to exclude all of
-          // it. Without that key this placeholder counts as a scored miss, and
-          // a run full of crashes publishes a deflated accuracy while reporting
-          // no failures at all, which is the exact shape of #776 through a
-          // different door.
           isCorrect: false,
           harnessError: String(error),
           retrievedSessionIds: [],
@@ -1213,7 +931,6 @@ export async function runLongMemEval(
       }
     }
 
-    // Concurrency-limited executor
     const pending = new Set<Promise<void>>();
     for (let i = 0; i < entries.length; i++) {
       const p = processEntry(i).then(() => {
@@ -1234,9 +951,7 @@ export async function runLongMemEval(
 
     summaries[strat] = aggregateSummary(results, options, strat);
 
-    // Persist embedding cache to disk after each strategy completes
     await saveEmbeddingCache(embeddingCachePath, embeddingCache);
-    // Flush any extraction-cache entries below the debounce threshold.
     await persistExtractionCache(true);
   }
 

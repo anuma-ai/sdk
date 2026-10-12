@@ -1,18 +1,3 @@
-/**
- * `runAgentRequest` — the single function a server-side agent host calls
- * per inbound request.
- *
- * Wires the four pieces together:
- *   extractGrantContext → createPortalClient → toolFactories → runToolLoop
- *
- * After the loop returns, walks the auto-executed tool results, lifts any
- * payload carrying the canonical `__anuma_connector_error_v1` marker into
- * `AgentResponse.toolErrors`. The marker shape is the load-bearing contract
- * — every connector tool factory uses `buildConnectorErrorResult` to emit
- * it, and the parser keys solely on that marker so it can't false-positive
- * on tools that legitimately return JSON.
- */
-
 import type {
   LlmapiChatCompletionResponse,
   LlmapiMessage,
@@ -39,66 +24,43 @@ import type {
 
 /** Minimal slice of `AgentConfig` this runtime depends on. */
 export interface AgentConfigLike {
-  /** Model selection — at least `default` must be present. */
   model: { default: string };
-  /** System prompt threaded into the loop. */
   prompt: string;
 }
 
+/** Options for {@link runAgentRequest}. */
 export interface AgentRequestOpts {
-  /** Inbound request — only `headers.authorization` is read. */
+  /** Inbound request; only `headers.authorization` is read. */
   request: IncomingRequest;
-  /** Agent configuration (haven, sentinel, …). */
   agent: AgentConfigLike;
-  /** Conversation history including the user turn. */
   messages: LlmapiMessage[];
-  /** Tool factories that receive the portal client and return `ToolConfig[]`. */
+  /** Factories that receive the portal client and return `ToolConfig[]`. */
   toolFactories?: Array<(portalClient: PortalClient) => ToolConfig[]>;
-  /** Override portal client opts (test injection). */
+  /** Overrides for the portal client, for test injection. */
   portalClientOpts?: PortalClientOpts;
-  /**
-   * Override the streaming transport runToolLoop uses to talk to the
-   * portal's chat completion API. Production code never sets this — it's
-   * the injection point e2e tests use to stub LLM behavior without a real
-   * portal in the loop. Forwarded verbatim to runToolLoop's
-   * `transport` option.
-   */
+  /** Streaming transport override forwarded to `runToolLoop`, for tests. */
   transport?: StreamingTransport;
-  /**
-   * Optional portal base URL forwarded to runToolLoop for chat completions.
-   * Defaults to runToolLoop's own default. Setting this without a stub
-   * `transport` will hit the real portal.
-   */
+  /** Portal base URL for chat completions; without a stub `transport` this hits the real portal. */
   portalBaseUrl?: string;
-  /**
-   * Optional override for the LLM API strategy ("responses" | "completions" | "auto").
-   * Production callers don't set this — the default ("auto") picks the right
-   * endpoint for the model. Tests use "completions" with the stub transport
-   * to feed OpenAI-style streaming chunks.
-   */
+  /** LLM API strategy. @defaultValue `"auto"` */
   apiType?: ApiType;
 }
 
-/** Minimal usage summary lifted off the LLM response. */
+/** Token usage lifted off the LLM response. */
 export interface UsageSummary {
   inputTokens?: number;
   outputTokens?: number;
   totalTokens?: number;
 }
 
+/** Result of {@link runAgentRequest}. */
 export interface AgentResponse {
-  /**
-   * Conversation messages after the loop completes: the input messages,
-   * followed by tool-result messages for each auto-executed tool, followed
-   * by the final assistant message. Synthesized — `runToolLoop` doesn't
-   * expose the full message history directly.
-   */
+  /** Input messages, then an assistant `tool_calls` message and tool-result messages when tools ran, then the final assistant message if present. */
   messages: LlmapiMessage[];
-  /** Structured tool errors lifted from the post-loop parser. */
+  /** Connector errors lifted from tool results. */
   toolErrors: ToolError[];
-  /** Token usage summary if the response carried one. */
   usage?: UsageSummary;
-  /** Grant context, surfaced for logging / multi-tenant context propagation. */
+  /** Grant context, for logging and tenant propagation. */
   grant: GrantContext;
 }
 
@@ -106,7 +68,6 @@ interface ParsedConnectorError {
   __anuma_connector_error_v1: true;
   code: string;
   provider?: string;
-  connect_url?: string;
   missing_scopes?: string[];
   required?: string;
 }
@@ -116,16 +77,7 @@ function isConnectorErrorPayload(value: unknown): value is ParsedConnectorError 
   return (value as Record<string, unknown>)[CONNECTOR_ERROR_MARKER] === true;
 }
 
-/**
- * Walk the loop's tool results, lift entries that carry the
- * `__anuma_connector_error_v1` marker into structured `ToolError`s.
- *
- * Each `AutoExecutedToolResult.result` is what the executor returned.
- * Connector tool factories return the JSON string produced by
- * `buildConnectorErrorResult`, so we JSON.parse strings and inspect for
- * the marker. Non-string results (objects, arrays, errors) skip the
- * parser entirely — they can't be connector errors.
- */
+/** Lift tool results carrying the `__anuma_connector_error_v1` marker into structured `ToolError`s. */
 export function extractConnectorToolErrors(
   toolResults: AutoExecutedToolResult[] | undefined
 ): ToolError[] {
@@ -138,20 +90,15 @@ export function extractConnectorToolErrors(
     try {
       parsed = JSON.parse(entry.result);
     } catch {
-      // Not JSON — not our error.
       continue;
     }
     if (!isConnectorErrorPayload(parsed)) continue;
-    // `callId` mirrors the synthesized tool_call_id used in
-    // `buildResponseMessages` (`call_<idx>`), so consumers can correlate
-    // a `ToolError` back to its tool-role message in `AgentResponse.messages`.
     errors.push({
       toolName: entry.name,
       callId: `call_${idx}`,
       error: {
         code: parsed.code,
         provider: parsed.provider,
-        connectUrl: parsed.connect_url,
         missingScopes: parsed.missing_scopes,
         required: parsed.required,
       },
@@ -160,7 +107,6 @@ export function extractConnectorToolErrors(
   return errors;
 }
 
-/** Pull a usage summary off either OpenAI-shape or Responses-shape responses. */
 function extractUsage(data: unknown): UsageSummary | undefined {
   if (!data || typeof data !== "object") return undefined;
   const usage = (data as { usage?: Record<string, unknown> }).usage;
@@ -182,16 +128,10 @@ function extractUsage(data: unknown): UsageSummary | undefined {
   return { inputTokens: input, outputTokens: output, totalTokens: total };
 }
 
-/** Pull the final assistant message off the chat-completion or responses payload. */
 function finalAssistantMessage(data: unknown): LlmapiMessage | undefined {
   if (!data || typeof data !== "object") return undefined;
   const chatLike = data as LlmapiChatCompletionResponse;
   const chatMsg = chatLike.choices?.[0]?.message;
-  // The chat-completion envelope is OpenAI-compliant since #532: `message`
-  // carries `content` as a plain string, whereas the rest of the runtime
-  // speaks the LLM-API message shape (a content-part array). Lift the string
-  // into a single text part. `role` (LlmapiRole = string) and `tool_calls`
-  // are structurally identical across both shapes, so they carry over as-is.
   if (chatMsg) {
     return {
       role: chatMsg.role,
@@ -200,7 +140,6 @@ function finalAssistantMessage(data: unknown): LlmapiMessage | undefined {
       ...(chatMsg.tool_calls ? { tool_calls: chatMsg.tool_calls } : undefined),
     };
   }
-  // Fall back to Responses-API shape (best-effort).
   const resp = data as LlmapiResponseResponse;
   const output = resp.output;
   if (Array.isArray(output)) {
@@ -212,16 +151,6 @@ function finalAssistantMessage(data: unknown): LlmapiMessage | undefined {
   return undefined;
 }
 
-/**
- * Synthesize the post-loop messages array.
- *
- * Order: input messages → assistant `tool_calls` placeholder + tool-role
- * results for each auto-executed tool → final assistant message. The
- * placeholder assistant message is needed because OpenAI-shape tools
- * expect a tool-role message to follow an assistant message that
- * declared the call; the post-loop consumer only needs to read the
- * tool results, so we keep it minimal.
- */
 function buildResponseMessages(
   inputMessages: LlmapiMessage[],
   toolResults: AutoExecutedToolResult[] | undefined,
@@ -251,25 +180,18 @@ function buildResponseMessages(
   return out;
 }
 
-/**
- * Default `requestAccess` passed to connector tool factories from inside
- * `runAgentRequest`. Server agents cannot drive interactive OAuth — they
- * have no surface to bounce the user through. The factory falls back to
- * emitting the canonical connector error JSON when this throws.
- */
+/** Default `requestAccess` for server agents: always throws, since they cannot drive interactive OAuth. */
 async function denyInteractive(): Promise<string | null> {
   throw new Error("server agent cannot initiate OAuth; user must connect via portal");
 }
 
+/** Handle one inbound agent request: validate the bearer, build the portal client and tools, run `runToolLoop`, and lift connector errors. @throws Error when the tool loop fails at the transport level. */
 export async function runAgentRequest(opts: AgentRequestOpts): Promise<AgentResponse> {
   const grant = await extractGrantContext(opts.request, opts.portalClientOpts);
   const portal = createPortalClient(grant.bearer, opts.portalClientOpts);
 
   const tools = (opts.toolFactories ?? []).flatMap((factory) => factory(portal));
 
-  // Prepend the agent's system prompt so every LLM call carries the
-  // agent persona. Callers may also include their own system messages
-  // — those are preserved verbatim after this one.
   const loopMessages: LlmapiMessage[] = [
     { role: "system", content: [{ type: "text", text: opts.agent.prompt }] },
     ...opts.messages,
@@ -280,10 +202,6 @@ export async function runAgentRequest(opts: AgentRequestOpts): Promise<AgentResp
     model: opts.agent.model.default,
     token: grant.bearer,
     tools,
-    // X-Anuma-Surface drives portal auth/grant keying (OAuth client_id + first-party
-    // grant surface) — keep it. X-Anuma-Feature is the provenance header the portal
-    // records into requests.feature (#1353); without it, agent-runtime LLM traffic
-    // lands feature=null and can't be told apart from chat/background in prod.
     headers: { "X-Anuma-Surface": "agent", "X-Anuma-Feature": "agent" },
     ...(opts.portalBaseUrl ? { baseUrl: opts.portalBaseUrl } : undefined),
     ...(opts.transport ? { transport: opts.transport } : undefined),
@@ -291,13 +209,10 @@ export async function runAgentRequest(opts: AgentRequestOpts): Promise<AgentResp
   });
 
   if (loopResult.error !== null) {
-    // Surface transport-level failures by throwing — consumer maps to 5xx.
     throw new Error(loopResult.error);
   }
 
   const finalMessage = finalAssistantMessage(loopResult.data);
-  // `autoExecutedToolResults` lives on the success branch of the
-  // discriminated union; narrowed above by the `error !== null` guard.
   const autoResults = loopResult.autoExecutedToolResults;
   const messages = buildResponseMessages(opts.messages, autoResults, finalMessage);
   const toolErrors = extractConnectorToolErrors(autoResults);
@@ -306,6 +221,4 @@ export async function runAgentRequest(opts: AgentRequestOpts): Promise<AgentResp
   return { messages, toolErrors, usage, grant };
 }
 
-// `denyInteractive` is exported so consumers writing custom tool factories
-// can apply the same no-OAuth-on-server policy without re-implementing it.
 export { denyInteractive };

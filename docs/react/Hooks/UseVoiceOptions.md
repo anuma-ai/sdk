@@ -1,6 +1,6 @@
 # UseVoiceOptions
 
-Defined in: [src/react/useVoice.ts:58](https://github.com/anuma-ai/sdk/blob/main/src/react/useVoice.ts#58)
+Defined in: [src/react/useVoice.ts:51](https://github.com/anuma-ai/sdk/blob/main/src/react/useVoice.ts#51)
 
 Options for the useVoice hook.
 
@@ -10,7 +10,7 @@ Options for the useVoice hook.
 
 > `optional` **language**: `string`
 
-Defined in: [src/react/useVoice.ts:74](https://github.com/anuma-ai/sdk/blob/main/src/react/useVoice.ts#74)
+Defined in: [src/react/useVoice.ts:67](https://github.com/anuma-ai/sdk/blob/main/src/react/useVoice.ts#67)
 
 Language code for transcription (e.g. "en", "es", "fr").
 If omitted, Whisper auto-detects the language.
@@ -21,7 +21,7 @@ If omitted, Whisper auto-detects the language.
 
 > `optional` **model**: [`WhisperModel`](../Internal/type-aliases/WhisperModel.md)
 
-Defined in: [src/react/useVoice.ts:69](https://github.com/anuma-ai/sdk/blob/main/src/react/useVoice.ts#69)
+Defined in: [src/react/useVoice.ts:62](https://github.com/anuma-ai/sdk/blob/main/src/react/useVoice.ts#62)
 
 Whisper model to use for transcription.
 Larger models are more accurate but slower to download and run.
@@ -44,7 +44,7 @@ Append `.en` for English-only variants (slightly faster).
 
 > `optional` **onModelProgress**: (`progress`: [`ModelLoadProgress`](../Internal/interfaces/ModelLoadProgress.md)) => `void`
 
-Defined in: [src/react/useVoice.ts:79](https://github.com/anuma-ai/sdk/blob/main/src/react/useVoice.ts#79)
+Defined in: [src/react/useVoice.ts:72](https://github.com/anuma-ai/sdk/blob/main/src/react/useVoice.ts#72)
 
 Called during model download with progress updates.
 Useful for showing a download progress bar on first use.

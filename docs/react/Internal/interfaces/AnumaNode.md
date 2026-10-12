@@ -1,6 +1,6 @@
 # AnumaNode
 
-Defined in: [src/tools/slides/jsx.ts:59](https://github.com/anuma-ai/sdk/blob/main/src/tools/slides/jsx.ts#59)
+Defined in: [src/tools/slides/jsx.ts:55](https://github.com/anuma-ai/sdk/blob/main/src/tools/slides/jsx.ts#55)
 
 A node in the Anuma tree. `tag` is the local name after `Anuma.` (e.g.
 `"Text"`, `"Slide"`). Children are other nodes for containers, or a
@@ -12,7 +12,7 @@ single string (the body text) for `<Anuma.Text>`.
 
 > **attrs**: `Record`<`string`, [`AttrValue`](../type-aliases/AttrValue.md)>
 
-Defined in: [src/tools/slides/jsx.ts:61](https://github.com/anuma-ai/sdk/blob/main/src/tools/slides/jsx.ts#61)
+Defined in: [src/tools/slides/jsx.ts:57](https://github.com/anuma-ai/sdk/blob/main/src/tools/slides/jsx.ts#57)
 
 ***
 
@@ -20,7 +20,7 @@ Defined in: [src/tools/slides/jsx.ts:61](https://github.com/anuma-ai/sdk/blob/ma
 
 > **children**: [`AnumaChild`](../type-aliases/AnumaChild.md)\[]
 
-Defined in: [src/tools/slides/jsx.ts:62](https://github.com/anuma-ai/sdk/blob/main/src/tools/slides/jsx.ts#62)
+Defined in: [src/tools/slides/jsx.ts:58](https://github.com/anuma-ai/sdk/blob/main/src/tools/slides/jsx.ts#58)
 
 ***
 
@@ -28,4 +28,4 @@ Defined in: [src/tools/slides/jsx.ts:62](https://github.com/anuma-ai/sdk/blob/ma
 
 > **tag**: `string`
 
-Defined in: [src/tools/slides/jsx.ts:60](https://github.com/anuma-ai/sdk/blob/main/src/tools/slides/jsx.ts#60)
+Defined in: [src/tools/slides/jsx.ts:56](https://github.com/anuma-ai/sdk/blob/main/src/tools/slides/jsx.ts#56)

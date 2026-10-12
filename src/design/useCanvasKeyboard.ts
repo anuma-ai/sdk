@@ -16,22 +16,6 @@ export type UseCanvasKeyboardOpts = {
   redo?: () => void;
 };
 
-/**
- * Global keyboard shortcuts for the canvas:
- *   - Delete / Backspace → remove all selected elements.
- *   - Arrow keys → nudge selected absolute children by 1px (10px with Shift).
- *   - Cmd/Ctrl+Z → undo (if provided).
- *   - Cmd/Ctrl+Shift+Z, Cmd/Ctrl+Y → redo (if provided).
- *
- * Arrow nudges only apply to absolute children — flex children's
- * positions are determined by their container's layout. Mixed
- * selections nudge only the absolute members.
- *
- * Listens on `window` so shortcuts fire even when focus is on the
- * canvas wrapper or an ancestor. `disabled` should be set true while
- * inline-editing text so the contenteditable owns those keys.
- */
-/** True if the event target is a text-editing field that should own its keys. */
 function isEditableTarget(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false;
   if (target instanceof HTMLInputElement) return true;
@@ -40,7 +24,6 @@ function isEditableTarget(target: EventTarget | null): boolean {
   return target.isContentEditable;
 }
 
-/** Map an arrow key to a (dx, dy) step in slide-px (1px or 10px with shift). */
 function arrowKeyDelta(key: string, shiftKey: boolean): { dx: number; dy: number } | null {
   const step = shiftKey ? 10 : 1;
   if (key === "ArrowLeft") return { dx: -step, dy: 0 };
@@ -50,8 +33,6 @@ function arrowKeyDelta(key: string, shiftKey: boolean): { dx: number; dy: number
   return null;
 }
 
-/** Modifier-key handler (Cmd/Ctrl+Z, +Shift+Z, +Y). True if the key
- *  was handled (caller should stop). */
 function handleModifierShortcut(
   e: KeyboardEvent,
   undo: (() => void) | undefined,
@@ -72,7 +53,6 @@ function handleModifierShortcut(
   return false;
 }
 
-/** Delete every element in `ids` from the deck. No-op if none found. */
 function applyDelete(ids: ReadonlySet<string>) {
   return (d: AnumaNode): AnumaNode => {
     const next = structuredClone(d);
@@ -84,8 +64,6 @@ function applyDelete(ids: ReadonlySet<string>) {
   };
 }
 
-/** Translate every absolute-positioned element in `ids` by (dx, dy).
- *  Flex children are silently skipped (their position is layout-driven). */
 function applyArrowNudge(ids: ReadonlySet<string>, dx: number, dy: number) {
   return (d: AnumaNode): AnumaNode => {
     const next = structuredClone(d);
@@ -110,14 +88,11 @@ export function useCanvasKeyboard(opts: UseCanvasKeyboardOpts): void {
   useEffect(() => {
     if (disabled) return;
     const handler = (e: KeyboardEvent) => {
-      // Bail on text inputs first — applies equally to Cmd/Ctrl+Z so we
-      // don't block native undo/redo while the user is editing a field.
       if (isEditableTarget(e.target)) return;
       if (e.metaKey || e.ctrlKey) {
         handleModifierShortcut(e, undo, redo);
         return;
       }
-      // Don't intercept Alt-modified keys — preserves browser shortcuts.
       if (e.altKey) return;
       if (selectedIds.size === 0) return;
 

@@ -89,7 +89,6 @@ describe("relinkMisclassifiedVideosOp", () => {
   });
 
   it("catches videos with a generic/wrong mime via the name extension", async () => {
-    // Old path stored these mimes even though the bytes are video.
     await insertMedia(db, {
       mediaId: "octet",
       mediaType: "image",
@@ -111,7 +110,6 @@ describe("relinkMisclassifiedVideosOp", () => {
   });
 
   it("confirms an octet-stream record via the decrypted sourceUrl extension", async () => {
-    // No video hint in the name; the source URL is the only signal.
     await insertMedia(db, {
       mediaId: "octet-srcurl",
       mediaType: "image",
@@ -157,7 +155,6 @@ describe("relinkMisclassifiedVideosOp", () => {
       .fetch()
       .then((rs) => rs.filter((r) => r.mediaId === "octet"));
     expect(record!.mimeType).toBe("video/mp4");
-    // Idempotent on a second pass (already video).
     expect(await relinkMisclassifiedVideosOp({ database: db }, WALLET)).toBe(0);
   });
 
@@ -177,7 +174,6 @@ describe("relinkMisclassifiedVideosOp", () => {
       .fetch()
       .then((rs) => rs.filter((r) => r.mediaId === "v1"));
     expect(record!.mediaType).toBe("video");
-    // name is encrypted at rest — the op must not rewrite ciphertext.
     expect(record!.name).toBe("mcp-image-789.webm");
   });
 

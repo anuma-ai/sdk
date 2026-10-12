@@ -1,34 +1,4 @@
 #!/usr/bin/env node
-/**
- * Vault Search Benchmark
- *
- * Measures retrieval quality of the vault search system using real embeddings.
- * Runs against a curated dataset of ~80 memories and ~68 queries across six
- * challenge categories: direct recall, paraphrase, specificity, temporal,
- * composite, and hard negatives.
- *
- * Metrics:
- *   - Recall@k: fraction of expected memories that appear in top-k results
- *   - Precision@k: fraction of top-k results that are expected memories
- *   - MRR: mean reciprocal rank of the first expected memory
- *   - NDCG@k: normalized discounted cumulative gain (ranking quality)
- *   - rankingViolationRate: fraction of queries where a superseded/wrong memory
- *     outranked the correct one (lower is better)
- *
- * Run:
- *   pnpm eval:vault-search
- *   pnpm eval:vault-search --json
- *   pnpm eval:vault-search --verbose
- *   pnpm eval:vault-search --save-baseline
- *   pnpm eval:vault-search --baseline test/memory/src/vault/baseline.json
- *
- * Two baselines are committed, and which one you compare against matters:
- *   - `baseline.json`            cosine, no rerank — the cheap arm
- *   - `baseline-production.json` fused + cross-encoder — what web actually runs
- *     (`budget: 'mid'`, 98.7% of production recall turns as of 2026-08-13)
- * Run both when you change ranking. Until 2026-08-13 only the first existed, so
- * no gate measured the shipped configuration.
- */
 
 import "dotenv/config";
 import { parseArgs } from "node:util";
@@ -66,10 +36,6 @@ import {
 const DEFAULT_BASELINE_PATH = "test/memory/src/vault/baseline.json";
 const REGRESSION_METRICS = ["recallAtK", "precisionAtK", "mrr", "ndcg"] as const;
 
-// ---------------------------------------------------------------------------
-// CLI args
-// ---------------------------------------------------------------------------
-
 const { values: args } = parseArgs({
   options: {
     json: { type: "boolean", default: false },
@@ -94,26 +60,11 @@ const { values: args } = parseArgs({
   },
 });
 
-/**
- * Progress output. In `--json` mode stdout carries the single result document,
- * so everything else must go to stderr — otherwise the interleaved progress
- * lines make the output unparseable and CI's `jq` summary silently falls back
- * to "(could not parse)".
- */
 function progress(line: string): void {
   if (args.json) console.error(line);
   else console.log(line);
 }
 
-/**
- * Where `--save-baseline` writes, and what `--baseline` defaults to reading.
- *
- * `--save-baseline` used to hardcode {@link DEFAULT_BASELINE_PATH}, which made
- * capturing any second baseline a footgun: running the production config with
- * `--save-baseline` silently overwrote the cosine control with fused+CE numbers,
- * and the gate would then compare every future control run against the wrong
- * arm. Honouring `--baseline` on the write side keeps one flag meaning one file.
- */
 const BASELINE_PATH = args.baseline ?? DEFAULT_BASELINE_PATH;
 
 const RANKER_NAME = (args.ranker ?? "cosine").toLowerCase();
@@ -124,34 +75,17 @@ if (RANKER_NAME !== "cosine" && RANKER_NAME !== "fused") {
 
 const RECENCY_ALPHA = args["recency-alpha"] ? parseFloat(args["recency-alpha"]) : undefined;
 const RERANK = !!args.rerank;
-/**
- * How many fused-ranked candidates reach the cross-encoder. `undefined` = the
- * SDK default (30, `searchTool.ts`).
- *
- * Exists because the CE head is the dominant cost of production recall and was
- * not tunable from here. Measured on prod turns 2026-08-13: browser WASM runs
- * the cross-encoder at ~380 ms fixed + ~110 ms per pair, so a full 30-pair head
- * is ~8.7 s of the 9.3 s `fact_lane_ms` p50 at 50-199 memories (anuma-ai/sdk#845).
- * Node with native onnxruntime is ~2 ms/pair, i.e. ~50x cheaper — which is why
- * this flag measures QUALITY only. It cannot tell you what the cut costs a
- * browser; that number has to come from `rerank_ms` in production telemetry.
- */
 const RERANK_TOP_N = args["rerank-top-n"] ? parseInt(args["rerank-top-n"], 10) : undefined;
 if (RERANK_TOP_N !== undefined && (!Number.isInteger(RERANK_TOP_N) || RERANK_TOP_N < 1)) {
   console.error(`Invalid --rerank-top-n "${args["rerank-top-n"]}". Expected a positive integer.`);
   process.exit(1);
 }
 if (RERANK_TOP_N !== undefined && !RERANK) {
-  // Silently ignoring it would report a "top-n sweep" whose arms are identical.
   console.error("--rerank-top-n has no effect without --rerank.");
   process.exit(1);
 }
 const CE_WEIGHT = args["ce-weight"] ? parseFloat(args["ce-weight"]) : undefined;
 if (CE_WEIGHT !== undefined && (!Number.isFinite(CE_WEIGHT) || CE_WEIGHT < 0)) {
-  // `parseFloat("abc")` is NaN, and ceWeight lands in `v2 * (1 + ceWeight * ce)`
-  // — so an unvalidated typo makes every reranked similarity NaN and the suite
-  // reports a full set of plausible-looking but meaningless metrics instead of
-  // failing. Same reason --rerank-top-n and --entities are checked above.
   console.error(`Invalid --ce-weight "${args["ce-weight"]}". Expected a number >= 0.`);
   process.exit(1);
 }
@@ -169,14 +103,6 @@ if (DECOMPOSE_MODE !== "off" && DECOMPOSE_MODE !== "llm") {
   process.exit(1);
 }
 
-// ---------------------------------------------------------------------------
-// W5 — heuristic entity extraction (bench only).
-//
-// In production, the auto-extraction worker (W2) populates the entity table
-// at write time. Here we approximate by pulling capitalized phrases plus
-// numbers — close enough to validate that the graph lane gives a real lift
-// on composite/multi-fact queries without needing hand-annotated data.
-// ---------------------------------------------------------------------------
 const ENTITY_STOPWORDS = new Set([
   "I",
   "He",
@@ -246,10 +172,6 @@ function extractEntities(text: string): Set<string> {
   return heuristicEntities(text);
 }
 
-// ---------------------------------------------------------------------------
-// Config
-// ---------------------------------------------------------------------------
-
 const API_KEY = process.env.PORTAL_API_KEY;
 const BASE_URL = process.env.ANUMA_API_URL || "https://portal.anuma-dev.ai";
 
@@ -268,28 +190,18 @@ const embeddingOptions: EmbeddingOptions = {
   cache: new Map<string, Float32Array>(),
 };
 
-// The model `generateEmbeddings` will actually call. Used both to key the frozen
-// embedding cache (so it auto-invalidates on a model bump instead of silently
-// reusing stale vectors) and to record the baseline's config — comparing runs
-// embedded by different models is meaningless.
 const EMBEDDING_MODEL = embeddingOptions.model ?? DEFAULT_API_EMBEDDING_MODEL;
-
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
 
 interface QueryResult {
   query: BenchmarkQuery;
   resultIds: string[];
   similarities: { id: string; similarity: number }[];
-  /** Full similarity map for all memories (used for target similarity stats). */
   allSimilarityMap: Map<string, number>;
   recall: number;
   precision: number;
   reciprocalRank: number;
   ndcg: number;
   rankingViolation: boolean;
-  /** similarity(correct) - similarity(superseded). Positive = correct order. */
   temporalMargin?: number;
 }
 
@@ -315,10 +227,6 @@ interface OverallMetrics {
   rankingViolationRate: number;
 }
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
 function mean(values: number[]): number {
   return values.length > 0 ? values.reduce((a, b) => a + b, 0) / values.length : 0;
 }
@@ -326,15 +234,6 @@ function mean(values: number[]): number {
 function formatPct(value: number, width: number): string {
   return (value * 100).toFixed(1).padStart(width) + "%";
 }
-
-// Frozen embedding cache: pins query + memory vectors by text so an A/B ranker
-// comparison scores against identical embeddings instead of run-to-run jitter.
-// Extracted to ./embeddingCache.ts so its load/save/invalidation is unit-tested;
-// see loadEmbeddingCache / saveEmbeddingCache / embedWithCache there.
-
-// ---------------------------------------------------------------------------
-// Metric helpers (ranking violation is benchmark-specific, not in metrics.ts)
-// ---------------------------------------------------------------------------
 
 function checkRankingViolation(
   resultIds: string[],
@@ -418,10 +317,6 @@ function aggregateByCategory(results: QueryResult[]): CategoryMetrics[] {
   }).filter((cat) => cat !== null) as CategoryMetrics[];
 }
 
-// ---------------------------------------------------------------------------
-// Baseline comparison
-// ---------------------------------------------------------------------------
-
 interface RegressionResult {
   metric: string;
   category: string;
@@ -473,10 +368,6 @@ function compareWithBaseline(
   return regressions;
 }
 
-// ---------------------------------------------------------------------------
-// Output helpers
-// ---------------------------------------------------------------------------
-
 function formatRow(
   label: string,
   m: {
@@ -493,34 +384,17 @@ function formatRow(
   return `║ ${name} ║ ${count} ║ ${formatPct(m.recallAtK, 7)} ║ ${formatPct(m.precisionAtK, 5)} ║ ${formatPct(m.mrr, 5)} ║ ${formatPct(m.ndcg, 5)} ║ ${formatPct(m.rankingViolationRate, 9)} ║`;
 }
 
-/**
- * The knobs these numbers depend on. Recorded in the baseline so a gate can
- * refuse an apples-to-oranges comparison: this benchmark is DETERMINISTIC given
- * frozen embeddings, which is exactly why a 1% regression threshold is safe —
- * but only against a baseline produced by the same ranker, lanes, and embedding
- * model. The pre-2026-07 baseline recorded none of this, so nothing could tell
- * "the ranking regressed" apart from "you ran a different configuration".
- *
- * `memories` / `queries` are included because growing the corpus changes what
- * every rate means, and `dataset.ts` HAS changed since the previous baseline.
- */
 function gateConfig(): Record<string, string | number | boolean> {
   return {
     ranker: RANKER_NAME,
     rerank: RERANK,
-    // -1 = "SDK default", distinct from any real head size — same sentinel
-    // convention as `recencyAlpha` below.
     rerankTopN: RERANK_TOP_N ?? -1,
-    // Recorded so a result document says what CE weight produced it. Without
-    // this, a `--compare` target cannot be told apart from one run at a
-    // different weight — the precise reason the ce-weight-0.3 figure in
-    // anuma-ai/sdk#845 is unusable today. -1 = SDK default (0.1).
     ceWeight: CE_WEIGHT ?? -1,
     mmr: USE_MMR,
     graph: USE_GRAPH,
     entities: ENTITY_MODE,
     decompose: DECOMPOSE_MODE,
-    recencyAlpha: RECENCY_ALPHA ?? -1, // -1 = "SDK default", distinct from any real alpha
+    recencyAlpha: RECENCY_ALPHA ?? -1,
     embeddingModel: EMBEDDING_MODEL,
     memories: VAULT_MEMORIES.length,
     queries: BENCHMARK_QUERIES.length,
@@ -542,10 +416,6 @@ function buildBaselinePayload(
     byCategory,
   };
 }
-
-// ---------------------------------------------------------------------------
-// Main
-// ---------------------------------------------------------------------------
 
 async function main() {
   const startTime = Date.now();
@@ -580,8 +450,6 @@ async function main() {
     embeddingMap.set(VAULT_MEMORIES[i].id, memoryEmbeddings[i]);
   }
 
-  // Load decomposition cache when --decompose=llm. Sub-queries are embedded
-  // alongside the originals so the per-query loop never blocks on network.
   let decompositions: Record<string, DecomposedQuery> = {};
   if (DECOMPOSE_MODE === "llm") {
     try {
@@ -629,8 +497,6 @@ async function main() {
     queryEmbeddingMap.set(allQueryTexts[i], allEmbeddings[i]);
   }
 
-  // Persist any newly-embedded texts so subsequent config runs reuse identical
-  // vectors. A run with 0 misses is fully deterministic (frozen embeddings).
   const totalMisses = memMisses + qMisses;
   if (totalMisses > 0) {
     await saveEmbeddingCache(embeddingCache, EMBEDDING_MODEL);
@@ -645,7 +511,7 @@ async function main() {
     id: m.id,
     content: m.content,
     embedding: embeddingMap.get(m.id)!,
-    updatedAt: new Date(m.createdAt), // no explicit updatedAt in benchmark data; createdAt encodes recency for temporal tests
+    updatedAt: new Date(m.createdAt),
   }));
 
   if (RERANK) {
@@ -653,7 +519,6 @@ async function main() {
     await preloadReranker();
   }
 
-  // Memory-side entities are query-independent; extract once.
   const memoryEntitiesById = USE_GRAPH
     ? new Map(VAULT_MEMORIES.map((m) => [m.id, extractEntities(m.content)]))
     : null;
@@ -662,12 +527,9 @@ async function main() {
   for (const query of queries) {
     const queryEmbedding = queryEmbeddingMap.get(query.query)!;
 
-    // Retrieve all memories (no limit) so temporal margin analysis can find any ID
     let ranked;
     const decomp = DECOMPOSE_MODE === "llm" ? decompositions[query.query] : undefined;
 
-    // W5 — graph lane: pre-build the entity ranking once per query and
-    // pass it into whichever ranker is in play (composite or V2+CE).
     let entityRanking: string[] | undefined;
     if (USE_GRAPH && memoryEntitiesById && RANKER_NAME === "fused") {
       const queryEnts = extractEntities(query.query);
@@ -698,10 +560,6 @@ async function main() {
           limit: embeddedItems.length,
           minSimilarity: 0,
           rerank: RERANK,
-          // Benchmark needs the full list so temporal-margin analysis can
-          // locate any ID (it does `allScored.find(id)?.similarity ?? 0`).
-          // Opt into the zero-score tail that production recall() now gates
-          // out — the sibling fused path above surfaces it via limit.
           includeUnrankedTail: true,
           ...(RECENCY_ALPHA !== undefined && { recencyAlpha: RECENCY_ALPHA }),
           ...(RERANK_TOP_N !== undefined && { rerankTopN: RERANK_TOP_N }),
@@ -711,10 +569,6 @@ async function main() {
       );
     } else if ((RERANK || USE_MMR || USE_GRAPH) && RANKER_NAME === "fused") {
       ranked = await rankFusedVaultMemoriesAsync(query.query, queryEmbedding, embeddedItems, {
-        // Benchmark needs the full list so temporal-margin analysis can
-        // locate any ID. The MMR path picks K internally and appends
-        // the tail in relevance order; passing items.length surfaces
-        // both picks and tail.
         limit: embeddedItems.length,
         minSimilarity: 0,
         rerank: RERANK,
@@ -764,14 +618,6 @@ async function main() {
   const overall = computeOverall(results);
   const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
 
-  // ---------------------------------------------------------------------------
-  // Significance (bootstrap CIs + optional paired comparison)
-  //
-  // Printed to stderr so it never pollutes --json stdout. A single run's mean
-  // is one draw from a noisy ~100-query sample; the CI shows how far it could
-  // wobble, and --compare runs a paired bootstrap against a prior run's
-  // per-query results to say whether a delta is real or noise.
-  // ---------------------------------------------------------------------------
   const perQueryRecall = results.map((r) => r.recall);
   const perQueryNdcg = results.map((r) => r.ndcg);
   const recallCI = bootstrapMeanCI(perQueryRecall);
@@ -826,17 +672,7 @@ async function main() {
     }
   }
 
-  // ---------------------------------------------------------------------------
-  // JSON output
-  //
-  // Emitted BEFORE the baseline comparison on purpose. The gate `process.exit`s
-  // on a regression, so with the old ordering the one run you most want a result
-  // file for — the failing one — produced none, and CI's summary/artifact were
-  // always empty. Every sibling suite prints its report first, then gates.
-  // ---------------------------------------------------------------------------
-
   if (args.json) {
-    // Save baseline without verbose details to keep the file small
     if (args["save-baseline"]) {
       await writeFile(
         BASELINE_PATH,
@@ -847,10 +683,6 @@ async function main() {
 
     const output = {
       ...buildBaselinePayload(overall, byCategory, elapsed),
-      // Compact per-query rows so this file can be a --compare target for a
-      // paired bootstrap against a later run (keyed by query text). Only in the
-      // ephemeral --json stdout (and any user-chosen --output); the committed
-      // baseline (--save-baseline) omits these, so tracked files stay small.
       perQuery: results.map((r) => ({
         query: r.query.query,
         recall: r.recall,
@@ -883,31 +715,12 @@ async function main() {
     }
   }
 
-  // ---------------------------------------------------------------------------
-  // Baseline comparison
-  // ---------------------------------------------------------------------------
-
-  // Gating and regenerating are opposite intents, so `--save-baseline` suppresses
-  // the gate. Without this, `--save-baseline --baseline <path>` gates against the
-  // file it is about to replace: in non-JSON mode the comparison runs FIRST and
-  // `process.exit(1)`s on a config mismatch or a drop, so the write never
-  // happens — which makes the one operation you need after a corpus or embedding
-  // -model change (recapturing both arms) impossible, since the numbers moving is
-  // exactly why you are recapturing. Caught by Bugbot on #904; the two flags
-  // could not be combined at all before this PR, because `--save-baseline`
-  // ignored `--baseline`.
-  //
-  // It also makes the two output modes agree. In `--json` the save happens
-  // earlier, so that path wrote and then gated; now neither gates.
   if (args["save-baseline"]) {
     console.error("  Baseline comparison skipped: --save-baseline regenerates it.\n");
   } else if (args.baseline) {
     try {
       const baselineRaw = await readFile(args.baseline, "utf-8");
       const baselineData = JSON.parse(baselineRaw);
-      // Refuse an apples-to-oranges comparison. A baseline predating config
-      // recording has no `config` block at all — that's not a mismatch to
-      // report, it's an unusable baseline, so say so and point at how to fix it.
       if (!baselineData?.config) {
         console.error(
           `\n  ${args.baseline} records no run config, so a regression here can't be told ` +
@@ -935,7 +748,6 @@ async function main() {
         }
         process.exit(1);
       }
-      // stderr, not stdout: in --json mode stdout carries the result document.
       console.error("  Baseline comparison: no regressions detected.\n");
     } catch (err) {
       console.error(`Failed to load baseline from ${args.baseline}: ${err}`);
@@ -943,12 +755,7 @@ async function main() {
     }
   }
 
-  // The human table below is non-JSON mode only; --json already emitted above.
   if (args.json) return;
-
-  // ---------------------------------------------------------------------------
-  // Save baseline (non-JSON mode)
-  // ---------------------------------------------------------------------------
 
   if (args["save-baseline"]) {
     await writeFile(
@@ -957,10 +764,6 @@ async function main() {
     );
     console.log(`Baseline saved to ${BASELINE_PATH}`);
   }
-
-  // ---------------------------------------------------------------------------
-  // Table output
-  // ---------------------------------------------------------------------------
 
   const hdr = "║ Category       ║ Count ║ Recall@k ║  P@k  ║  MRR  ║  NDCG ║ Violations ║";
   const sep = "╠════════════════╬═══════╬══════════╬═══════╬═══════╬═══════╬════════════╣";

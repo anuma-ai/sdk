@@ -1,39 +1,3 @@
-/**
- * Multi-hop graph traversal for the W5 entity-graph recall lane (PR4,
- * MRAgent-style "active reconstruction").
- *
- * The single-hop lane (see `recall.ts:buildGraphLaneRanking`) does one thing:
- * extract entities from the query, look up memories sharing any of them, and
- * order those memories by shared-entity count. That is hop 1 — the "seed"
- * lookup. This module wraps a bounded breadth-first search around it: from the
- * seed memories it walks OUT to their neighbor entities (via the new reverse
- * edge {@link getEntitiesByMemoryIdsOp}), ranks those neighbors by
- * co-occurrence across the frontier, expands the top few, and pulls the
- * memories they reach — repeating up to {@link MAX_HOPS} times.
- *
- * Cost note (why this is cheap): NONE of this runs cosine. Cosine runs exactly
- * once per recall inside `searchVaultMemoriesWithSize`. This lane only emits an
- * ordered list of memory IDs that is RRF-fused against the cosine head. So
- * multi-hop adds indexed WatermelonDB joins + more RRF entries, not embedding
- * math. The dominant cost of enabling it is the reranker over a slightly larger
- * candidate pool — which stays bounded because `rerankTopN` remains
- * authoritative downstream.
- *
- * Determinism: neighbor-entity selection is pure co-occurrence counting by
- * default. An optional LLM path-refiner (PR5) can override which neighbors
- * expand; it falls back to the deterministic order on any error.
- *
- * Hop numbering: hop 1 is the seed lookup. `maxHops = 1` therefore means "seed
- * only" — byte-for-byte identical to the single-hop lane (the regression guard).
- * `MAX_HOPS = 2` (the PR5 default) performs one expansion beyond the seed.
- *
- * Neighbor selection at each expansion hop is deterministic co-occurrence
- * counting by default. PR5 adds an OPTIONAL LLM path-refiner
- * ({@link NeighborRefiner} / {@link createLlmNeighborRefiner}) that lets a model
- * pick which neighbor entities to expand instead; it is opt-in, capped to ≤1
- * call per hop, and falls back to the deterministic order on any error.
- */
-
 import {
   type EntityOperationsContext,
   getEntitiesByMemoryIdsOp,
@@ -63,23 +27,8 @@ export const MAX_HOPS = 2;
  */
 export const ENTITY_FANOUT = 8;
 
-/**
- * Floor for the per-hop cap on candidate entity NAMES handed to an LLM neighbor
- * refiner: give the model at least this many choices to reorder the fan-out even
- * when `entityFanout` is tiny. Effective cap =
- * `min(max(entityFanout * 2, MIN_REFINER_CANDIDATES), MAX_REFINER_CANDIDATES)`.
- * Module-private (an internal egress bound, not a tuning knob).
- */
 const MIN_REFINER_CANDIDATES = 16;
 
-/**
- * HARD ceiling on candidate entity NAMES egressed to the refiner per hop,
- * regardless of `entityFanout`. `MIN_REFINER_CANDIDATES` is only a floor — a
- * caller cranking `entityFanout` would otherwise widen PII egress without limit
- * — so this ceiling is the REAL bound: at most this many (PII-bearing) names
- * ever leave per hop. See the call site in {@link traverseGraphLane} and the
- * SECURITY note on {@link createLlmNeighborRefiner}. Module-private.
- */
 const MAX_REFINER_CANDIDATES = 64;
 
 /**
@@ -147,8 +96,6 @@ export interface NeighborRefiner {
   refine(query: string, candidates: string[], limit: number): Promise<string[]>;
 }
 
-/** Clamp a caller-supplied positive integer knob, falling back to the default
- * for undefined / non-finite / < 1 values. */
 function clampPositiveInt(value: number | undefined, fallback: number): number {
   if (value === undefined || !Number.isFinite(value) || value < 1) return fallback;
   return Math.floor(value);
@@ -166,9 +113,6 @@ export function capHopsForDensity(maxHops: number, vaultSize?: number): number {
   return maxHops;
 }
 
-/** Order a memoryId → matched-entity-name map by shared-entity count
- * (descending). Ties keep map-insertion order — RRF rank-quantization makes
- * fine ties moot. This is the EXACT ordering the single-hop lane produces. */
 function rankMemoriesByOverlap(map: Map<string, Set<string>>): string[] {
   return [...map.entries()].sort((a, b) => b[1].size - a[1].size).map(([memoryId]) => memoryId);
 }
@@ -200,10 +144,6 @@ export async function traverseGraphLane(
   const nodeBudget = clampPositiveInt(options.nodeBudget, NODE_BUDGET);
   const maxHops = capHopsForDensity(clampPositiveInt(options.maxHops, MAX_HOPS), options.vaultSize);
 
-  // Drop any memory ids that are NOT active (archived / quarantined / deleted)
-  // from a discovered set, so "forgotten" memories never enter the frontier —
-  // they must neither steer neighbor ranking nor egress entity names to the
-  // refiner. A no-op when no filter is supplied (entity-only callers / tests).
   const keepActive = async (map: Map<string, Set<string>>): Promise<Map<string, Set<string>>> => {
     if (!options.filterActiveMemoryIds || map.size === 0) return map;
     const active = await options.filterActiveMemoryIds([...map.keys()]);
@@ -212,30 +152,18 @@ export async function traverseGraphLane(
     return filtered;
   };
 
-  // Hop 1 — seed lookup. Identical to the single-hop lane (minus archived rows).
   const hop1 = await keepActive(await getMemoriesByEntityNamesOp(entityCtx, seedNames));
   if (hop1.size === 0) return [];
   const hop1Ranking = rankMemoriesByOverlap(hop1);
 
-  // Seed-only: return verbatim so this is byte-for-byte identical to the
-  // single-hop lane (no RRF round-trip that could perturb order).
   if (maxHops <= 1) return hop1Ranking;
 
-  // Multi-hop: bound the EMITTED candidate pool at NODE_BUDGET across ALL hops
-  // (not just the next frontier). A dense seed entity can itself return far more
-  // than the budget, so truncate the seed ranking here too — otherwise a 500-row
-  // seed would emit all 500 into entityRanking regardless of NODE_BUDGET,
-  // blowing up the RRF pool and the downstream reranker workload.
   const hop1Emitted = hop1Ranking.slice(0, nodeBudget);
   const perHopRankings: string[][] = [hop1Emitted];
-  // memoryId → the earliest hop it was discovered at. This is the PRIMARY rank
-  // key at the end (hop-decayed weight → "closer hops rank higher").
   const firstHopOf = new Map<string, number>();
   for (const id of hop1Emitted) if (!firstHopOf.has(id)) firstHopOf.set(id, 1);
 
   const accumulated = new Set<string>(hop1Emitted);
-  // Entities already used as expansion cues (seed + every expanded neighbor).
-  // Excluding them prevents re-expanding the same cue → cycles / wasted joins.
   const seenEntities = new Set<string>(seedNames);
   let frontier = hop1Emitted;
 
@@ -243,11 +171,8 @@ export async function traverseGraphLane(
     if (frontier.length === 0) break;
     if (accumulated.size >= nodeBudget) break;
 
-    // One step outward: frontier memories → their linked entities.
     const memoryToEntities = await getEntitiesByMemoryIdsOp(entityCtx, frontier);
 
-    // Rank neighbor entities by co-occurrence across the frontier, dropping
-    // any already used as a cue. Deterministic, cheap (in-memory counting).
     const neighborCounts = new Map<string, number>();
     for (const names of memoryToEntities.values()) {
       for (const name of names) {
@@ -257,25 +182,12 @@ export async function traverseGraphLane(
     }
     if (neighborCounts.size === 0) break;
 
-    // Deterministic co-occurrence ranking (the always-correct fallback).
     const rankedNeighbors = [...neighborCounts.entries()]
       .sort((a, b) => b[1] - a[1])
       .map(([name]) => name);
-    // PR5 — optionally let a model pick which neighbors to expand. Capped to
-    // one call per hop; any error / empty result falls back to the top-fanout
-    // by co-occurrence. Only invoked when there are more candidates than the
-    // fan-out could take (otherwise there is nothing to prune).
     let topNeighbors = rankedNeighbors.slice(0, entityFanout);
     if (options.refineNeighbors && rankedNeighbors.length > entityFanout) {
       try {
-        // SECURITY / egress bound: hand the refiner only the top-N co-occurring
-        // candidates, never the full frontier. Neighbor entity NAMES are user
-        // PII (people/places/orgs) egressed to the portal, so a dense frontier
-        // must not fan hundreds of names out per hop. The cap is floored at
-        // MIN_REFINER_CANDIDATES (enough choices to reorder) AND ceilinged at
-        // MAX_REFINER_CANDIDATES — the ceiling is the real bound, so cranking
-        // entityFanout can never widen egress past it. See
-        // {@link createLlmNeighborRefiner}.
         const refinerCandidateCap = Math.min(
           Math.max(entityFanout * 2, MIN_REFINER_CANDIDATES),
           MAX_REFINER_CANDIDATES
@@ -286,8 +198,6 @@ export async function traverseGraphLane(
           refinerCandidates,
           entityFanout
         );
-        // Keep only real candidates for this hop, preserve the model's order,
-        // dedupe, and cap at the fan-out. Empty → keep the deterministic set.
         const valid: string[] = [];
         const seen = new Set<string>();
         for (const name of refined) {
@@ -307,24 +217,16 @@ export async function traverseGraphLane(
     }
     for (const name of topNeighbors) seenEntities.add(name);
 
-    // Memories reachable via the top neighbor entities. Drop archived /
-    // quarantined ids here too so a forgotten memory can neither enter the
-    // emitted pool nor seed the NEXT hop's frontier (and thus its egress).
     const hopMap = await keepActive(await getMemoriesByEntityNamesOp(entityCtx, topNeighbors));
     if (hopMap.size === 0) break;
     const hopRanking = rankMemoriesByOverlap(hopMap);
 
-    // Emit only the newly-discovered ids up to the remaining NODE_BUDGET. This
-    // both feeds the next frontier AND bounds what this hop contributes to the
-    // emitted candidate pool (perHopRankings), so a dense entity returning far
-    // more than the budget adds at most the remaining slots — the total emitted
-    // pool never exceeds NODE_BUDGET.
     const newlyDiscovered: string[] = [];
     for (const id of hopRanking) {
       if (accumulated.has(id)) continue;
       accumulated.add(id);
       newlyDiscovered.push(id);
-      firstHopOf.set(id, hop); // genuinely new → this is its earliest hop
+      firstHopOf.set(id, hop);
       if (accumulated.size >= nodeBudget) break;
     }
     if (newlyDiscovered.length === 0) break;
@@ -332,12 +234,6 @@ export async function traverseGraphLane(
     frontier = newlyDiscovered;
   }
 
-  // Rank the accumulated memories. Hop distance is the PRIMARY key — this is
-  // the "hop-decayed weight": a memory discovered closer to the seed always
-  // outranks a farther one, so a strongly-linked hop-2 node can't leapfrog a
-  // weakly-linked seed node ("closer hops rank higher"). Within a hop tier the
-  // fused RRF score (which rewards recurring / high-in-list memories) breaks
-  // ties, then map-insertion order as the final deterministic tiebreak.
   const fused = rrfFuse(perHopRankings, options.rrfK);
   return [...fused.entries()]
     .sort((a, b) => {
@@ -349,27 +245,10 @@ export async function traverseGraphLane(
     .map(([id]) => id);
 }
 
-/** Open-weights, reliable-JSON model — same rationale as consolidate.ts. */
 const DEFAULT_REFINER_MODEL = "inclusionai/ling-2.6-flash";
-/** Recall hot path — one shot per hop, tight budget, no aggressive retry. */
 const DEFAULT_REFINER_ATTEMPTS = 1;
 const DEFAULT_REFINER_TOTAL_TIMEOUT_MS = 8_000;
 
-/**
- * The neighbor-refiner instruction — FIXED, and it has to stay that way.
- *
- * Every per-request value this flow has (the question, the candidate list, and
- * the per-hop expansion cap) rides the USER turn, so this text is the whole of
- * the system message and the portal can own it: it is registered verbatim as
- * `memory_graph` in ai-portal `internal/systemprompt/tasks.go`, matched there by
- * `strings.Contains` against what we send. Interpolating anything back into it
- * breaks that match, and the portal then appends its own copy — the model gets
- * the same instruction twice, in two wordings.
- *
- * The cap used to read "Choose at most ${limit}." here; the sentence below points
- * at the user turn's cap instead, which carries the same instruction with the
- * number moved rather than dropped.
- */
 const REFINER_SYSTEM_PROMPT = `You help a memory-retrieval system decide which related topics to explore.
 
 Given a user's question and a numbered list of candidate topics/entities linked to memories found so far, pick the ones most likely to lead to memories that help ANSWER the question. Never return more than the maximum the user turn asks for. Prefer topics semantically related to the question; ignore incidental ones.
@@ -434,12 +313,9 @@ export function createLlmNeighborRefiner(options: LlmNeighborRefinerOptions): Ne
         ...(options.backoffMs && { backoffMs: options.backoffMs }),
         ...(options.fetchFn && { fetchFn: options.fetchFn }),
       });
-      // null (exhausted/failed) → empty → caller keeps the deterministic order.
       if (parsed === null || typeof parsed !== "object") return [];
       const list = (parsed as { expand?: unknown }).expand;
       if (!Array.isArray(list)) return [];
-      // Match model output back to real candidates by normalized name (the
-      // model may re-case or trim). Preserve the model's order.
       const byNormalized = new Map(candidates.map((c) => [normalizeEntityName(c), c]));
       const out: string[] = [];
       for (const raw of list) {

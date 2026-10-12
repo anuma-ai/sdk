@@ -1,9 +1,4 @@
 // @vitest-environment happy-dom
-/**
- * History replay of files stored in OPFS: only images may go out as `image_url`. A stored PDF or
- * text attachment used to be replayed as `data:application/pdf;…` in an image part, which the
- * backend rejects (image_unscannable_blocked) for the whole turn.
- */
 
 import { describe, expect, it, vi } from "vitest";
 

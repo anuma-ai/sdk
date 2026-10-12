@@ -2,7 +2,7 @@
 
 > **getAndClearNotionReturnUrl**(): `string` | `null`
 
-Defined in: [src/lib/auth/notion.ts:1045](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/notion.ts#1045)
+Defined in: [src/lib/auth/notion.ts:815](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/notion.ts#815)
 
 Get and clear the stored return URL
 

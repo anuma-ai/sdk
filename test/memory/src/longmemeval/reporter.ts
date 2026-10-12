@@ -1,7 +1,3 @@
-/**
- * LongMemEval Results Reporter
- */
-
 import type { LongMemEvalSummary, LongMemEvalQuestionType, ModelPricing } from "./types.js";
 
 const COLORS = {
@@ -51,7 +47,6 @@ export function printLongMemEvalSummary(summary: LongMemEvalSummary): void {
   );
   console.log();
 
-  // Overall accuracy
   console.log(color("Overall Accuracy", COLORS.bold));
   console.log("─".repeat(70));
   const judgeFailures = summary.judgeFailures;
@@ -60,9 +55,6 @@ export function printLongMemEvalSummary(summary: LongMemEvalSummary): void {
   const unscored = judgeFailures + answerFailures + harnessFailures;
   const judged = summary.totalQuestions - unscored;
   if (judged === 0) {
-    // Every question came back unscored, so there is no accuracy to report.
-    // Printing "0.0%" here is precisely the failure this run hit: a dead
-    // evaluation step rendered as a perfect-looking zero score.
     console.log(`  Accuracy:`.padEnd(20) + color("n/a — nothing was scored", COLORS.red));
   } else {
     const accColor = summary.accuracy >= 0.5 ? COLORS.green : COLORS.red;
@@ -74,9 +66,6 @@ export function printLongMemEvalSummary(summary: LongMemEvalSummary): void {
   }
   console.log(`  Correct:`.padEnd(20) + `${summary.correctAnswers}/${judged}`);
   if (unscored > 0) {
-    // Split because they point at different culprits: the grader vs. the
-    // answer model (or its completion budget). Both are excluded from the
-    // accuracy above, and neither is a wrong answer.
     if (judgeFailures > 0) {
       console.log(
         `  Judge failures:`.padEnd(20) +
@@ -90,11 +79,6 @@ export function printLongMemEvalSummary(summary: LongMemEvalSummary): void {
       );
     }
     if (harnessFailures > 0) {
-      // Kept as its own line because a crash is an infrastructure failure and
-      // not a wrong answer, so it needs to be readable as one. It no longer
-      // carries the "retrieval is understated too" caveat: the retrieval and
-      // latency blocks now average over measured entries only, so a crash
-      // shrinks their denominator instead of biasing their value.
       console.log(
         `  Harness errors:`.padEnd(20) +
           color(`${harnessFailures}/${summary.totalQuestions}`, COLORS.bold, COLORS.red) +
@@ -111,7 +95,6 @@ export function printLongMemEvalSummary(summary: LongMemEvalSummary): void {
   }
   console.log();
 
-  // By question type
   console.log(color("By Question Type", COLORS.bold));
   console.log("─".repeat(70));
 
@@ -146,13 +129,10 @@ export function printLongMemEvalSummary(summary: LongMemEvalSummary): void {
   }
   console.log();
 
-  // Retrieval metrics
   console.log(color("Retrieval Quality", COLORS.bold));
   console.log("─".repeat(70));
   console.log(`  Avg Precision:`.padEnd(20) + formatPercent(summary.retrieval.avgPrecision));
   console.log(`  Avg Recall:`.padEnd(20) + formatPercent(summary.retrieval.avgRecall));
-  // Print the denominator whenever it is not the whole run, so a reader can see
-  // that these two numbers cover fewer questions than the accuracy block above.
   if (summary.retrieval.measuredQuestions < summary.totalQuestions) {
     console.log(
       `  Measured on:`.padEnd(20) +
@@ -161,7 +141,6 @@ export function printLongMemEvalSummary(summary: LongMemEvalSummary): void {
   }
   console.log();
 
-  // Token Usage & Cost
   console.log(color("Token Usage", COLORS.bold));
   console.log("─".repeat(70));
   const t = summary.tokenUsage;
@@ -181,7 +160,6 @@ export function printLongMemEvalSummary(summary: LongMemEvalSummary): void {
   }
   console.log();
 
-  // Latency
   console.log(color("Latency (per question)", COLORS.bold));
   console.log("─".repeat(70));
   console.log(
@@ -199,10 +177,6 @@ export function printLongMemEvalSummary(summary: LongMemEvalSummary): void {
   console.log("═".repeat(70));
 }
 
-/**
- * Fetch per-token pricing for models from the API.
- * Returns a map of model ID -> { prompt, completion } cost per token.
- */
 export async function fetchModelPricing(
   baseUrl: string,
   apiKey: string
@@ -235,9 +209,6 @@ export async function fetchModelPricing(
   return pricing;
 }
 
-/**
- * Attach cost information to a summary using model pricing data.
- */
 export function attachCost(
   summary: LongMemEvalSummary,
   llmModel: string,

@@ -2,7 +2,7 @@
 
 > **useChat**(`options?`: `object`): `UseChatResult`
 
-Defined in: [src/react/useChat.ts:150](https://github.com/anuma-ai/sdk/blob/main/src/react/useChat.ts#150)
+Defined in: [src/react/useChat.ts:156](https://github.com/anuma-ai/sdk/blob/main/src/react/useChat.ts#156)
 
 A React hook for managing chat completions with authentication.
 
@@ -211,6 +211,23 @@ Useful for progress indicators, cost tracking, and custom early-exit logic.
 <tr>
 <td>
 
+`options.onStreamMeta?`
+
+</td>
+<td>
+
+(`meta`: `object`) => `void`
+
+</td>
+<td>
+
+Inference identifier for each HTTP round, including client-tool continuations.
+
+</td>
+</tr>
+<tr>
+<td>
+
 `options.onThinking?`
 
 </td>
@@ -312,6 +329,23 @@ conversation. See `createWebSearchPreProcessor`,
 `createCryptoPricePreProcessor`, `createStockPricePreProcessor`,
 `createWeatherPreProcessor`, or write a custom one matching
 `PromptPreProcessor`.
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.resumable?`
+
+</td>
+<td>
+
+`boolean`
+
+</td>
+<td>
+
+Buffer streamed rounds so a service can verify their canonical output.
 
 </td>
 </tr>

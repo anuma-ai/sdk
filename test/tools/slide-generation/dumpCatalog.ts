@@ -1,18 +1,3 @@
-/**
- * Dump every layout template to a single self-contained HTML file for
- * visual review. Each layout becomes one slide; navigate with arrow keys.
- *
- * Each slide has a small mono label at the top showing the layout's name
- * and description (overlaid above the layout's own content), so you can
- * see what's what while scrolling.
- *
- * Run:
- *   pnpm exec tsx test/tools/slide-generation/dumpCatalog.ts
- *
- * Opens at:
- *   test/tools/slide-generation/.output/catalog/index.html
- */
-
 import fs from "node:fs";
 import path from "node:path";
 
@@ -23,8 +8,6 @@ import { renderDeckToHtml } from "./renderHtml.js";
 
 const OUT_DIR = path.resolve(__dirname, ".output", "catalog");
 
-// Warm editorial palette as the backdrop — hairlines, cream, muted contrast
-// all work well for a catalog-style walkthrough.
 const palette = PALETTES.find((p) => p.name === "warm editorial")!;
 
 function deckAttrs(): string {
@@ -34,9 +17,6 @@ function deckAttrs(): string {
 }
 
 function catalogLabelJsx(name: string, description: string): string {
-  // Align with the layouts' 6% (= 57.6px) left content gutter so the label
-  // sits visually above whatever the layout's first element is.
-  // letterSpacing is em-based in the renderer — keep it subtle.
   const safeName = name.replace(/"/g, "&quot;");
   const safeDesc = description.replace(/"/g, "&quot;");
   return [

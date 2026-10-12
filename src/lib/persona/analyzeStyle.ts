@@ -1,7 +1,5 @@
 import type { AnalyzeStyleOptions, AnalyzeStyleResult, StyleAnalysisSchedule } from "./types";
 
-// ── Defaults ──
-
 export const DEFAULT_ANALYSIS_PROMPT =
   "Analyze these user messages and describe their communication style in 1-2 concise sentences. Focus on: tone (formal/casual/playful), message length preference, vocabulary level, and any notable patterns. Output only the style description, nothing else.";
 
@@ -12,28 +10,22 @@ export const DEFAULT_ANALYZE_AFTER_MESSAGES = 5;
 export const DEFAULT_REFRESH_EVERY_MESSAGES = 20;
 export const DEFAULT_DOCUMENT_PATTERN = /^Here is the user's (?:CSV data|[A-Z]+ content):/;
 
-// ── shouldAnalyzeStyle ──
-
 export function shouldAnalyzeStyle(schedule: StyleAnalysisSchedule): boolean {
   const threshold = schedule.analyzeAfterMessages ?? DEFAULT_ANALYZE_AFTER_MESSAGES;
   const refresh = schedule.refreshEveryMessages ?? DEFAULT_REFRESH_EVERY_MESSAGES;
 
   if (schedule.optedOut) return false;
 
-  // Cold start: no profile, never analyzed
   if (!schedule.hasProfile && !schedule.hasBeenAnalyzed) {
     return schedule.messageCount >= threshold;
   }
 
-  // Refresh: has a profile, periodic re-analysis
   if (schedule.hasProfile) {
     return schedule.messageCount > 0 && schedule.messageCount % refresh === 0;
   }
 
   return false;
 }
-
-// ── Internals ──
 
 function extractUserMessages(
   messages: Array<{ role: string; content: string }>,
@@ -58,8 +50,6 @@ function truncateAtWordBoundary(text: string, maxLength: number): string {
   const lastSpace = truncated.lastIndexOf(" ");
   return lastSpace > maxLength * 0.5 ? truncated.slice(0, lastSpace) : truncated;
 }
-
-// ── analyzeStyle ──
 
 export async function analyzeStyle(options: AnalyzeStyleOptions): Promise<AnalyzeStyleResult> {
   const maxInput = options.maxInputMessages ?? DEFAULT_MAX_INPUT_MESSAGES;

@@ -7,31 +7,26 @@ const AGENTS: Record<string, AgentConfig> = {
   sentinel: sentinelAgent,
 };
 
-/** Look up an agent by id. Case-insensitive. Returns null when unknown. */
+/** Look up an agent by id, case-insensitively; returns null when unknown. */
 export function getAgent(agentId: string): AgentConfig | null {
   return AGENTS[agentId.toLowerCase()] ?? null;
 }
 
-/** All registered agents. Order is not guaranteed. */
+/** All registered agents, in no guaranteed order. */
 export function listAgents(): AgentConfig[] {
   return Object.values(AGENTS);
 }
 
-/** Public-safe skill metadata returned by `getAgentSkillMeta`. */
+/** Public-safe skill metadata returned by {@link getAgentSkillMeta}. */
 export interface SkillMeta {
   id: string;
   name: string;
   requiredVariables: string[];
-  /** SMS-friendly question prompts keyed by variable name, when available. */
+  /** SMS-friendly question prompts keyed by variable name. */
   smsPrompts?: Record<string, string>;
 }
 
-/**
- * Look up skill metadata by (agentId, skillId). Returns null when either is
- * unknown. Use this when you only need `id` / `name` / `requiredVariables`
- * / `smsPrompts` — for the full SkillConfig (including templates), import
- * the agent package directly.
- */
+/** Look up public skill metadata by agent and skill id, or null when either is unknown. */
 export function getAgentSkillMeta(agentId: string, skillId: string): SkillMeta | null {
   const agent = getAgent(agentId);
   const skill = agent?.skills.find((s) => s.id === skillId);

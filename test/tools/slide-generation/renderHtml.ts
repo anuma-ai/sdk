@@ -1,18 +1,3 @@
-/**
- * Render a parsed Anuma Deck AST to a self-contained HTML file for visual
- * inspection.
- *
- * Used by `dumpFiles` to drop an `index.html` next to every `slides.jsx` in
- * .output/. Open it in a browser to step through the deck with arrow keys.
- * Kept test-local — this is for eyeballing generated decks, not a canonical
- * renderer.
- *
- * Coordinate system: container-relative pixels on a 960×540 slide canvas.
- * Slides render at natural size and scale to the viewport; children use
- * pixel `left/top/width/height` inside an absolutely-positioned parent, or
- * CSS flex when the parent opts into `layout="row" | "column"`.
- */
-
 import { buildFontsUrl } from "../../../src/tools/slides/fonts.js";
 import type { AnumaNode, AttrValue } from "../../../src/tools/slides/index.js";
 import {
@@ -111,10 +96,6 @@ function positionStyle(node: AnumaNode, parentIsFlex: boolean): string {
     const h = typeof node.attrs.h === "number" ? `height:${node.attrs.h}px;` : "";
     const grow = typeof node.attrs.grow === "number" ? `flex-grow:${node.attrs.grow};` : "";
     const shrink = typeof node.attrs.shrink === "number" ? `flex-shrink:${node.attrs.shrink};` : "";
-    // flex-basis: when grow is set without an explicit width, default basis
-    // to 0 so siblings distribute their parent's main-axis evenly regardless
-    // of content size. Without this, longer content claims more space and a
-    // 2-card row with unequal copy renders with unequal card widths.
     const basis =
       typeof node.attrs.grow === "number" && typeof node.attrs.w !== "number"
         ? `flex-basis:0;`
@@ -157,10 +138,6 @@ function renderNode(node: AnumaNode, colors: ThemeColors, parentIsFlex: boolean)
         typeof style.fontFamily === "string"
           ? `font-family:'${style.fontFamily}',system-ui,sans-serif;`
           : "";
-      // Walk children: strings render as plain text, Anuma.Span children
-      // render as inline <span> with their own style overrides. Spans
-      // flow naturally within the parent text div — no separate boxes,
-      // no overflow:hidden clipping per span, no per-glyph alignment math.
       const inner = node.children
         .map((c) => {
           if (typeof c === "string") return esc(c);
@@ -233,10 +210,6 @@ function renderNode(node: AnumaNode, colors: ThemeColors, parentIsFlex: boolean)
     case "Group": {
       const containerStyle = buildContainerStyle(node);
       const myIsFlex = isFlexContainer(node);
-      // Group acts as a flex container OR a styled box. Fill + cornerRadius
-      // let it double as a card surface so a flex-region item-group can
-      // paint its own background — needed for MARKETING_GRID-style card
-      // grids where each flex item IS the card.
       const fill = node.attrs.fill ? `background:${resolve(node.attrs.fill)};` : "";
       const radius =
         typeof node.attrs.cornerRadius === "number"
@@ -254,12 +227,6 @@ function renderNode(node: AnumaNode, colors: ThemeColors, parentIsFlex: boolean)
   }
 }
 
-/**
- * Pass-through renderer for allowlisted HTML tags. Inline `style` is
- * merged with the positioning base; `x`/`y`/`w`/`h` attrs are converted
- * to absolute positioning (same behavior as Anuma primitives). Child
- * elements recurse; string children render as escaped text.
- */
 function renderHtmlNode(
   node: AnumaNode,
   colors: ThemeColors,
@@ -272,7 +239,6 @@ function renderHtmlNode(
   const containerStyle = buildContainerStyle(node);
   const myIsFlex = isFlexContainer(node);
 
-  // Collect simple string/number scalar attrs (src, href, type, placeholder, etc.)
   const SKIP_ATTRS = new Set([
     "id",
     "x",
@@ -310,7 +276,6 @@ function renderHtmlNode(
     })
     .join("");
 
-  // Self-closing for void elements
   const VOID = new Set(["img", "hr", "br", "input", "source", "track", "col"]);
   if (VOID.has(node.tag)) {
     return `<${node.tag}${attrStr} ${styleAttr} />`;
@@ -318,7 +283,6 @@ function renderHtmlNode(
   return `<${node.tag}${attrStr} ${styleAttr}>${kids}</${node.tag}>`;
 }
 
-/** Serialize a user-provided style object to inline CSS, resolving theme tokens for color props. */
 function serializeStyleWithTheme(
   style: Record<string, string | number | boolean>,
   colors: ThemeColors
@@ -345,7 +309,6 @@ function serializeStyleWithTheme(
   return parts.length > 0 ? parts.join(";") + ";" : "";
 }
 
-/** CSS properties where bare numeric values should render as `Npx`. */
 const NEEDS_PX = new Set([
   "fontSize",
   "lineHeight",
@@ -373,17 +336,9 @@ const NEEDS_PX = new Set([
 ]);
 
 export interface RenderDeckOptions {
-  /**
-   * Suppress the default nav UI (prev/next buttons, counter, keydown
-   * handlers). The caller is then responsible for emitting its own nav
-   * markup + script — useful when the deck needs extra controls like a
-   * design-system filter, but the default nav's hard-coded `slides`
-   * NodeList would conflict with a filtered view.
-   */
   skipNav?: boolean;
 }
 
-/** Render an Anuma deck to a self-contained HTML page with arrow-key navigation. */
 export function renderDeckToHtml(
   deck: AnumaNode,
   title?: string,

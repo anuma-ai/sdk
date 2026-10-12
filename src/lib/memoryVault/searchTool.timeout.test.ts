@@ -1,15 +1,3 @@
-/**
- * A hung embeddings endpoint degrades recall; it does not hang it.
- *
- * End to end over the REAL embedding client (only `fetch` is faked, and it never
- * answers): the query embed hits its per-attempt deadline, the vault search's
- * degrade path turns the rejection into a BM25-only search, and recall reports
- * `embeddings-unavailable` — instead of the turn waiting forever on a promise
- * that never settles.
- *
- * Fake timers go in BEFORE the call under test so every deadline and backoff it
- * schedules is advanceable.
- */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../db/chat/operations", () => ({ searchChunksOp: vi.fn() }));
@@ -99,9 +87,6 @@ describe("hung embeddings endpoint", () => {
     expect(seen[0]?.degraded).toContain("embeddings-unavailable");
   });
 
-  // The per-attempt deadline alone still lets an outage cost ~4 x 15s + backoff.
-  // recall() puts ONE budget (default 8s) on the query embed so a chat turn
-  // degrades within it.
   it("recall degrades within the default 8s query-embed budget at the default per-attempt timeout", async () => {
     const seen: RecallDiagnostics[] = [];
     let done: Awaited<ReturnType<typeof recall>> | undefined;

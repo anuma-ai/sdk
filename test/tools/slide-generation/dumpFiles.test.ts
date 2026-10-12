@@ -1,16 +1,3 @@
-/**
- * Unit coverage for `dumpFiles` in setup.ts. Runs against a tmp dir so
- * the canonical `.output/` isn't polluted. Lives under test/ rather
- * than src/ because the SUT itself is a test helper; vitest.config.mts
- * explicitly includes this file.
- *
- * The reason this exists: an earlier e2e run produced empty Deck-shell
- * `slides.jsx` files (test errored before any add_slide landed) and
- * those got listed in the top-level .output/index.html as if they had
- * passed. dumpFiles now writes a FAILED.txt for those cases and skips
- * the index entry — this test pins that behavior.
- */
-
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -52,8 +39,6 @@ describe("dumpFiles", () => {
   });
 
   it("writes FAILED.txt instead of index.html when the deck has zero slides", () => {
-    // A deck shell with no <Anuma.Slide> child is the canonical "test
-    // errored before any add_slide landed" failure mode.
     const outDir = makeTmp();
     const store = seedStore(`<Anuma.Deck fontPreset="default" />`);
     const dir = dumpFiles(store, "empty-deck", { outDir });
@@ -66,7 +51,7 @@ describe("dumpFiles", () => {
 
   it("writes FAILED.txt when slides.jsx is missing entirely", () => {
     const outDir = makeTmp();
-    const store = createFileStore(); // no slides.jsx
+    const store = createFileStore();
     const dir = dumpFiles(store, "no-slides-file", { outDir });
     expect(fs.existsSync(path.join(dir, "index.html"))).toBe(false);
     const reason = fs.readFileSync(path.join(dir, "FAILED.txt"), "utf-8");
@@ -83,9 +68,6 @@ describe("dumpFiles", () => {
   });
 
   it("writes FAILED.txt when meta.error is passed even if the deck has slides", () => {
-    // Caller knows the run errored mid-flow after a few add_slide calls
-    // landed. Surface that in the dump so reviewers see the partial
-    // result is from a failed run.
     const outDir = makeTmp();
     const store = seedStore(
       `<Anuma.Deck fontPreset="default"><Anuma.Slide id="s1" /></Anuma.Deck>`
@@ -107,10 +89,6 @@ describe("dumpFiles", () => {
   });
 
   it("clears a stale FAILED.txt left by a prior failed run when a new run succeeds", () => {
-    // Reproduces a real e2e churn: a test failed → FAILED.txt written.
-    // The next run with the same testName succeeds — without cleanup,
-    // reviewers see FAILED.txt sitting next to a valid index.html and
-    // can't tell whether the dump passed or failed at a glance.
     const outDir = makeTmp();
     const emptyStore = seedStore(`<Anuma.Deck fontPreset="default" />`);
     const dir = dumpFiles(emptyStore, "rerun", { outDir });

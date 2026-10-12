@@ -3,23 +3,8 @@ import { describe, expect, it, vi } from "vitest";
 import { PiiRedactor } from "../lib/pii/redactor";
 import { resolveCallPii } from "./useChatStorage";
 
-/**
- * Unit tests for the per-call PII redaction resolution used by
- * `useChatStorage().sendMessage`.
- *
- * Two behaviors are locked in here:
- *  1. A per-request `piiRedaction` overrides the hook-level option for one call
- *     (false disables, an instance overrides, true uses the conversation redactor).
- *  2. `true` (hook- OR request-level) resolves via the injected
- *     `getConversationRedactorFor` getter, so the caller keys on the conversation
- *     ACTUALLY used for the call. `forInnerSend` is always forwarded so the LLM
- *     request uses that redactor rather than the inner hook's own
- *     `currentConversationId`-keyed one (null on turn 1 of an auto-created chat).
- */
 describe("resolveCallPii", () => {
   const customRedactor = new PiiRedactor();
-  // Stand-in for the conversation-shared redactor `getConversationRedactor(id)`
-  // would return — the `true` case must resolve to THIS, lazily.
   const conversationRedactor = new PiiRedactor();
   const getConversationRedactorFor = () => conversationRedactor;
 
@@ -31,7 +16,6 @@ describe("resolveCallPii", () => {
         getConversationRedactorFor
       );
       expect(redactor).toBe(conversationRedactor);
-      // Always forwarded so the LLM call uses the conversation redactor too.
       expect(forInnerSend).toBe(conversationRedactor);
     });
 
@@ -60,7 +44,6 @@ describe("resolveCallPii", () => {
     it("override false disables redaction even when hook-level is on", () => {
       const { redactor, forInnerSend } = resolveCallPii(false, true, getConversationRedactorFor);
       expect(redactor).toBeUndefined();
-      // Must force-disable on the inner send, not fall through to the hook-level redactor.
       expect(forInnerSend).toBe(false);
     });
 
@@ -83,14 +66,14 @@ describe("resolveCallPii", () => {
 
   it("resolves the conversation redactor lazily — only for the `true` case", () => {
     const spy = vi.fn(getConversationRedactorFor);
-    resolveCallPii(false, true, spy); // override false
-    resolveCallPii(customRedactor, true, spy); // override instance
-    resolveCallPii(undefined, customRedactor, spy); // hook instance
-    resolveCallPii(undefined, false, spy); // hook off
+    resolveCallPii(false, true, spy);
+    resolveCallPii(customRedactor, true, spy);
+    resolveCallPii(undefined, customRedactor, spy);
+    resolveCallPii(undefined, false, spy);
     expect(spy).not.toHaveBeenCalled();
 
-    resolveCallPii(undefined, true, spy); // hook true → resolves
-    resolveCallPii(true, false, spy); // override true → resolves
+    resolveCallPii(undefined, true, spy);
+    resolveCallPii(true, false, spy);
     expect(spy).toHaveBeenCalledTimes(2);
   });
 

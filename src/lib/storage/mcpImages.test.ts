@@ -85,14 +85,11 @@ describe("extractMCPImageUrls", () => {
         output: JSON.stringify({ url: MCP_URL_1 }),
       },
     ];
-    // Content has a different URL — should NOT be extracted since events succeeded
     const content = `![img](${MCP_URL_2})`;
     const result = extractMCPImageUrls(content, events, MCP_DOMAIN);
     expect(result).toHaveLength(1);
     expect(result[0].url).toBe(MCP_URL_1);
   });
-
-  // --- New anuma_create_image tool (output_images[] array shape) ---------------
 
   it("extracts a single image from anuma_create_image output_images[]", () => {
     const events = [
@@ -152,13 +149,9 @@ describe("extractMCPImageUrls", () => {
   });
 
   it("ignores a third-party URL that only shallowly contains /api/v1/media/", () => {
-    // The media pattern requires the proxy's <svc>/<token> shape, so an unrelated
-    // link with /api/v1/media/ as a shallow path is not mistaken for an asset.
     const content = "See https://cdn.third-party.com/api/v1/media/gallery-item for details";
     expect(extractMCPImageUrls(content, undefined, MCP_DOMAIN)).toEqual([]);
   });
-
-  // --- Video classification ---------------------------------------------------
 
   it("classifies a video tool's output as video (videos[] array shape)", () => {
     const events = [

@@ -6,8 +6,6 @@ import { type ApiResponse, stripToolCalls } from "./useChat/strategies/types";
 import { StreamSmoother, type StreamSmoothingConfig } from "./useChat/StreamSmoother";
 import { createStreamAccumulator, getInStreamErrorMessage, isDoneMarker } from "./useChat/utils";
 
-// Re-export the transport-layer constants and the handle type so a consumer
-// that only imports the resume module has the full vocabulary in one place.
 export type { StreamResumeHandle } from "./toolLoop";
 export { INFERENCE_ID_HEADER, STREAM_RESUMABLE_HEADER } from "./toolLoop";
 
@@ -125,12 +123,6 @@ export type ResumeStreamResult =
   | { data: ApiResponse; error: null; interrupted: false; empty?: boolean }
   | { data: ApiResponse | null; error: string; interrupted: boolean; statusCode?: number };
 
-/**
- * Extract the HTTP status from a transport SSE error so 410 can be told apart
- * from a transient 401/5xx. Coupled BY CONTRACT to the `SSE failed: {status}`
- * message that {@link sseFailureMessage} produces in xhrTransport; a contract
- * test pins that format so this regex can't silently rot if the producer drifts.
- */
 function parseSseStatusCode(err: Error): number | undefined {
   const match = err.message.match(/^SSE failed: (\d+)\b/i);
   return match ? Number(match[1]) : undefined;
@@ -175,17 +167,9 @@ export async function resumeStream(options: ResumeStreamOptions): Promise<Resume
     onError,
   } = options;
 
-  // `handle.apiType` is the already-RESOLVED type from the original run, so the
-  // replay parses bytes with the same strategy that produced them. We never
-  // re-resolve from the model — that could disagree with how the stream was
-  // actually generated.
   const strategy = getStrategy(handle.apiType);
 
-  // Fresh accumulator: the reasoning-tag parser state (partialReasoningTag,
-  // insideReasoning, implicitReasoningStart) lives on the accumulator, so a new
-  // one gives the replay a clean stateful parser starting at seq 0.
   const accumulator = createStreamAccumulator(handle.model || undefined);
-  // Fresh smoothers, never shared with the detached run.
   const contentSmoother = new StreamSmoother((text) => {
     if (onData) onData(text);
   }, smoothing);
@@ -193,22 +177,10 @@ export async function resumeStream(options: ResumeStreamOptions): Promise<Resume
     if (onThinking) onThinking(text);
   }, smoothing);
 
-  // Compose the caller signal with an internal idle-watchdog controller so a
-  // hung replay can't strand the UI. AbortSignal.any isn't reliable on Hermes,
-  // so we bridge by hand: the transport sees one signal that aborts when EITHER
-  // the caller's signal or the watchdog fires.
   const idleController = new AbortController();
   let watchdog: ReturnType<typeof setTimeout> | undefined;
   let idleFired = false;
-  // A caller-initiated abort (user stop()) must always win the error label over
-  // the idle watchdog. The two can race: the watchdog timer can fire in the gap
-  // between the caller aborting and the transport surfacing the AbortError, so
-  // we both disarm the watchdog on caller abort AND track this flag, preferring
-  // it over idleFired when building the message. Caller stop is never a timeout.
   let callerAborted = false;
-  // Set once a terminal is reached so a trailing onActivity (a keep-alive byte
-  // landing in the gap between the stream ending and cleanup running) can't
-  // re-arm a watchdog for an already-finished resume and leak a timer.
   let settled = false;
   const idleEnabled =
     idleTimeoutMs > 0 && idleTimeoutMs !== Infinity && typeof setTimeout === "function";
@@ -226,12 +198,10 @@ export async function resumeStream(options: ResumeStreamOptions): Promise<Resume
       watchdog = undefined;
     }
   };
-  // The error label for an abort terminal: a caller stop wins over a timeout.
   const abortMessage = () =>
     callerAborted ? "Resume aborted" : idleFired ? "Resume timed out" : "Resume aborted";
   const onCallerAbort = () => {
     callerAborted = true;
-    // Disarm first so the watchdog can't flip idleFired after the user stopped.
     disarmWatchdog();
     idleController.abort();
   };
@@ -248,11 +218,6 @@ export async function resumeStream(options: ResumeStreamOptions): Promise<Resume
     if (signal) signal.removeEventListener("abort", onCallerAbort);
   };
 
-  // Interrupted terminal: flush (never destroy, never drain) both smoothers so
-  // the UI synchronously gets every buffered byte, then return the partial. If
-  // the buffer carried tool-call deltas (tool-request terminal), strip them: the
-  // finalized partial must not persist/return a dangling function_call with no
-  // matching tool_result — providers reject the orphan on the next turn.
   const buildInterrupted = (message: string): ResumeStreamResult => {
     contentSmoother.flush();
     thinkingSmoother.flush();
@@ -269,32 +234,22 @@ export async function resumeStream(options: ResumeStreamOptions): Promise<Resume
   }
 
   let sseError: Error | null = null;
-  // True once any content/thinking delta lands. A clean terminal that never
-  // set this is a [DONE]-only replay — flagged `empty` so consumers keep
-  // their partial instead of committing a blank (see ResumeStreamResult).
   let emittedOutput = false;
   const sseResult = makeStreamingRequest({
     baseUrl,
     endpoint: streamReplayPath(handle.inferenceId),
     method: "GET",
-    // No body, no starting_after, no cursor — replay is whole-stream from seq 0.
     token,
     signal: combinedSignal,
     onSseError: (error) => {
       sseError = error instanceof Error ? error : new Error(String(error));
     },
-    // Re-arm the idle watchdog on ANY wire activity, not just data chunks. The
-    // server slides its own liveness with a ~30s heartbeat and emits keep-alive
-    // comments through a long (>idleTimeoutMs) reasoning silence; without this a
-    // healthy but content-silent stream would trip the watchdog and truncate. A
-    // truly dead connection sends no bytes at all, so the watchdog still fires.
     onActivity: armWatchdog,
   });
 
   armWatchdog();
   try {
     for await (const chunk of sseResult.stream) {
-      // Re-arm on every chunk so the watchdog only fires on true silence.
       armWatchdog();
 
       if (combinedSignal.aborted) {
@@ -302,18 +257,10 @@ export async function resumeStream(options: ResumeStreamOptions): Promise<Resume
         return buildInterrupted(abortMessage());
       }
 
-      // A non-OK status can surface via onSseError while the iterator keeps
-      // yielding (transport-dependent). Stop consuming the moment it's set
-      // rather than delivering bytes for a failed stream — the post-loop guard
-      // rethrows it into the 410/transient classification below.
       if (sseError !== null) break;
 
       if (isDoneMarker(chunk)) continue;
 
-      // In-stream error event — the portal terminates a tool_request /
-      // deadline_exceeded / liveness-stale replay by sending replayed content,
-      // then ONE SSE error event, then [DONE]. Treat ANY in-stream error during
-      // replay as an interrupted terminal: flush and return, never throw.
       const inStreamError = getInStreamErrorMessage(chunk);
       if (inStreamError !== null) {
         cleanup();
@@ -327,34 +274,22 @@ export async function resumeStream(options: ResumeStreamOptions): Promise<Resume
         if (content || thinking) emittedOutput = true;
       }
     }
-    // A non-OK response can surface via onSseError without the iterator
-    // throwing (the xhr path pushes `done` after onSseError).
     if (sseError !== null) throw sseError as Error;
   } catch (replayErr) {
     cleanup();
     const err = replayErr instanceof Error ? replayErr : new Error(String(replayErr));
     const statusCode = parseSseStatusCode(err);
 
-    // 410 Gone: the buffer is evicted. Nothing partial to surface — throw the
-    // typed error so the caller can branch without string-matching. No
-    // onFinish/onError. Flush (not destroy) to honor §5's "never destroy() on
-    // any resume path"; on a 410 the smoothers are empty so flush is a no-op,
-    // but keeping a single discipline avoids ever discarding a buffered tail.
     if (statusCode === 410) {
       contentSmoother.flush();
       thinkingSmoother.flush();
       throw new StreamExpiredError(handle.inferenceId);
     }
 
-    // A caller abort or idle timeout reaches here as an AbortError. Flush, not
-    // destroy: the UI should still get whatever bytes the accumulator holds.
     if (err.name === "AbortError" || combinedSignal.aborted) {
       return buildInterrupted(abortMessage());
     }
 
-    // Any other transport/HTTP failure (401, 5xx, network) is TRANSIENT: the
-    // caller decides retry (401 → token refresh) vs degrade. Keep the handle —
-    // do NOT mark interrupted. Flush the partial so nothing is dropped.
     contentSmoother.flush();
     thinkingSmoother.flush();
     if (onError) onError(err);
@@ -368,24 +303,13 @@ export async function resumeStream(options: ResumeStreamOptions): Promise<Resume
 
   cleanup();
 
-  // Tool-request defense in depth: resumeStream accepts no tools, so executors
-  // structurally cannot run. If the buffer somehow carried tool-call deltas,
-  // treat it as an interrupted terminal (flush, not drain) — identical to an
-  // in-stream error.
   if (accumulator.toolCalls.size > 0) {
     return buildInterrupted("Stream ended with a pending tool request");
   }
 
-  // Clean end of buffered stream: paced drain (nothing dropped), then onFinish.
   await Promise.all([contentSmoother.drain(), thinkingSmoother.drain()]);
   const response = strategy.buildFinalResponse(accumulator);
-  // Tool-call events (citation metadata) are real output even when the final
-  // text is empty — a search/image turn can legitimately complete with events
-  // only, and both strategies accumulate them off the replayed chunks.
   const deliveredOutput = emittedOutput || (accumulator.toolCallEvents?.length ?? 0) > 0;
-  // A [DONE]-only replay is not a completion — withhold onFinish so a consumer
-  // keyed on it never receives (and renders/persists) the blank response. The
-  // caller still gets the flagged result to branch on.
   if (onFinish && deliveredOutput) onFinish(response);
   return { data: response, error: null, interrupted: false, empty: !deliveredOutput };
 }

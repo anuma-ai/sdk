@@ -1,6 +1,6 @@
 # StoredModelPreference
 
-Defined in: [src/lib/db/settings/types.ts:5](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/settings/types.ts#5)
+Defined in: [src/lib/db/settings/types.ts:3](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/settings/types.ts#3)
 
 ## Properties
 
@@ -8,7 +8,7 @@ Defined in: [src/lib/db/settings/types.ts:5](https://github.com/anuma-ai/sdk/blo
 
 > `optional` **models**: `string`
 
-Defined in: [src/lib/db/settings/types.ts:8](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/settings/types.ts#8)
+Defined in: [src/lib/db/settings/types.ts:6](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/settings/types.ts#6)
 
 ***
 
@@ -16,7 +16,7 @@ Defined in: [src/lib/db/settings/types.ts:8](https://github.com/anuma-ai/sdk/blo
 
 > **uniqueId**: `string`
 
-Defined in: [src/lib/db/settings/types.ts:6](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/settings/types.ts#6)
+Defined in: [src/lib/db/settings/types.ts:4](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/settings/types.ts#4)
 
 ***
 
@@ -24,4 +24,4 @@ Defined in: [src/lib/db/settings/types.ts:6](https://github.com/anuma-ai/sdk/blo
 
 > **walletAddress**: `string`
 
-Defined in: [src/lib/db/settings/types.ts:7](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/settings/types.ts#7)
+Defined in: [src/lib/db/settings/types.ts:5](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/settings/types.ts#5)

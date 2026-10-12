@@ -2,7 +2,7 @@
 
 > **getAndClearCalendarPendingMessage**(): `string` | `null`
 
-Defined in: [src/lib/auth/google-calendar.ts:474](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/google-calendar.ts#474)
+Defined in: [src/lib/auth/google-calendar.ts:390](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/google-calendar.ts#390)
 
 Get and clear the pending message
 

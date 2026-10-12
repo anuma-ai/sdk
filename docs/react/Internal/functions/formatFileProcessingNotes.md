@@ -2,7 +2,7 @@
 
 > **formatFileProcessingNotes**(`statuses`: [`FileProcessingStatus`](../interfaces/FileProcessingStatus.md)\[], `options`: `object`): `string` | `null`
 
-Defined in: [src/lib/processors/fileStatusNotes.ts:22](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/fileStatusNotes.ts#22)
+Defined in: [src/lib/processors/fileStatusNotes.ts:19](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/fileStatusNotes.ts#19)
 
 One line per file the model did NOT get, saying why — e.g.
 `[order.pdf could not be read: the file is larger than 10 MB]`.

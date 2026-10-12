@@ -2,7 +2,7 @@
 
 > **NotionMcpCaller** = (`tool`: `string`, `args`: `Record`<`string`, `unknown`>) => `Promise`<{ `json`: `unknown`; `status`: `number`; }>
 
-Defined in: [src/tools/notion.ts:348](https://github.com/anuma-ai/sdk/blob/main/src/tools/notion.ts#348)
+Defined in: [src/tools/notion.ts:275](https://github.com/anuma-ai/sdk/blob/main/src/tools/notion.ts#275)
 
 Calls the portal's Notion MCP endpoint with a tool name and its arguments,
 and resolves to the response status + parsed JSON. Consumers wire this to

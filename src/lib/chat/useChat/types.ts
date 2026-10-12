@@ -33,7 +33,6 @@ export type StreamingChunk = {
   type?: string;
   delta?: string | { OfString?: string; OfResponseReasoningSummaryDeltaEventDelta?: string };
   usage?: ResponseUsage;
-  // For response.created and response.completed events
   response?: {
     id?: string;
     model?: string;
@@ -65,10 +64,8 @@ export type StreamingChunk = {
     arguments?: string;
     output?: string;
   }>;
-  // For thinking/reasoning content
   content_index?: number;
   output_index?: number;
-  // For tool calls
   item?: {
     id?: string;
     type?: string;

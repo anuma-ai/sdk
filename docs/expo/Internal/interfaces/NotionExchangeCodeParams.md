@@ -1,6 +1,6 @@
 # NotionExchangeCodeParams
 
-Defined in: [src/lib/auth/notion-primitives.ts:78](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/notion-primitives.ts#78)
+Defined in: [src/lib/auth/notion-primitives.ts:73](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/notion-primitives.ts#73)
 
 Parameters for [exchangeNotionCode](../functions/exchangeNotionCode.md).
 
@@ -10,7 +10,7 @@ Parameters for [exchangeNotionCode](../functions/exchangeNotionCode.md).
 
 > **clientId**: `string`
 
-Defined in: [src/lib/auth/notion-primitives.ts:82](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/notion-primitives.ts#82)
+Defined in: [src/lib/auth/notion-primitives.ts:77](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/notion-primitives.ts#77)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/lib/auth/notion-primitives.ts:82](https://github.com/anuma-ai/s
 
 > **code**: `string`
 
-Defined in: [src/lib/auth/notion-primitives.ts:80](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/notion-primitives.ts#80)
+Defined in: [src/lib/auth/notion-primitives.ts:75](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/notion-primitives.ts#75)
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: [src/lib/auth/notion-primitives.ts:80](https://github.com/anuma-ai/s
 
 > **codeVerifier**: `string`
 
-Defined in: [src/lib/auth/notion-primitives.ts:83](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/notion-primitives.ts#83)
+Defined in: [src/lib/auth/notion-primitives.ts:78](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/notion-primitives.ts#78)
 
 ***
 
@@ -34,7 +34,7 @@ Defined in: [src/lib/auth/notion-primitives.ts:83](https://github.com/anuma-ai/s
 
 > **redirectUri**: `string`
 
-Defined in: [src/lib/auth/notion-primitives.ts:81](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/notion-primitives.ts#81)
+Defined in: [src/lib/auth/notion-primitives.ts:76](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/notion-primitives.ts#76)
 
 ***
 
@@ -42,4 +42,4 @@ Defined in: [src/lib/auth/notion-primitives.ts:81](https://github.com/anuma-ai/s
 
 > **tokenEndpoint**: `string`
 
-Defined in: [src/lib/auth/notion-primitives.ts:79](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/notion-primitives.ts#79)
+Defined in: [src/lib/auth/notion-primitives.ts:74](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/notion-primitives.ts#74)

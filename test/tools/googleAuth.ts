@@ -1,8 +1,3 @@
-/**
- * Shared Google service account auth for e2e tests.
- * Reads GOOGLE_SERVICE_ACCOUNT_KEY from env and provides token management.
- */
-
 import { createSign } from "crypto";
 
 interface ServiceAccountKey {
@@ -53,11 +48,6 @@ async function fetchToken(key: ServiceAccountKey, scope: string): Promise<string
   return data.access_token;
 }
 
-/**
- * Creates a token manager for a given Google API scope.
- * Caches the token and provides getAccessToken/requestAccess helpers
- * compatible with the tool factory signatures.
- */
 export function createGoogleTokenManager(scope: string) {
   if (!process.env.GOOGLE_SERVICE_ACCOUNT_KEY) {
     throw new Error(
@@ -77,7 +67,6 @@ export function createGoogleTokenManager(scope: string) {
   async function ensureToken(): Promise<string> {
     if (!accessToken || Date.now() >= tokenExpiresAt) {
       accessToken = await fetchToken(serviceKey, scope);
-      // Refresh 5 minutes before the 1-hour expiry
       tokenExpiresAt = Date.now() + 55 * 60 * 1000;
     }
     return accessToken;

@@ -2,7 +2,7 @@
 
 > **parseJsx**(`source`: `string`, `options?`: `object`): [`AnumaNode`](../interfaces/AnumaNode.md)
 
-Defined in: [src/tools/slides/jsx.ts:532](https://github.com/anuma-ai/sdk/blob/main/src/tools/slides/jsx.ts#532)
+Defined in: [src/tools/slides/jsx.ts:441](https://github.com/anuma-ai/sdk/blob/main/src/tools/slides/jsx.ts#441)
 
 Parse a JSX source string into an AnumaNode tree.
 

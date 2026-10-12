@@ -1,6 +1,6 @@
 # CryptoPricePreProcessorOptions
 
-Defined in: [src/lib/chat/cryptoPriceClassifier.ts:83](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/cryptoPriceClassifier.ts#83)
+Defined in: [src/lib/chat/cryptoPriceClassifier.ts:69](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/cryptoPriceClassifier.ts#69)
 
 ## Properties
 
@@ -8,7 +8,7 @@ Defined in: [src/lib/chat/cryptoPriceClassifier.ts:83](https://github.com/anuma-
 
 > `optional` **fetchCryptoPriceData**: (`prompt`: `string`, `options`: `object`) => `Promise`<`string` | [`LlmapiMessage`](../../../client/Internal/type-aliases/LlmapiMessage.md)\[]>
 
-Defined in: [src/lib/chat/cryptoPriceClassifier.ts:94](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/cryptoPriceClassifier.ts#94)
+Defined in: [src/lib/chat/cryptoPriceClassifier.ts:80](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/cryptoPriceClassifier.ts#80)
 
 Called with the caller's crypto-price provider when the classifier
 decides the prompt is asking for crypto prices. Return either a plain
@@ -78,7 +78,7 @@ price-API requests can be aborted when the caller aborts.
 
 > `optional` **margin**: `number`
 
-Defined in: [src/lib/chat/cryptoPriceClassifier.ts:103](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/cryptoPriceClassifier.ts#103)
+Defined in: [src/lib/chat/cryptoPriceClassifier.ts:89](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/cryptoPriceClassifier.ts#89)
 
 Score margin: `cryptoPriceScore` must exceed `noCryptoPriceScore` by at
 least this amount to classify as "needs crypto price data".
@@ -95,7 +95,7 @@ least this amount to classify as "needs crypto price data".
 
 > `optional` **onClassification**: (`result`: [`CryptoPriceClassification`](CryptoPriceClassification.md)) => `void`
 
-Defined in: [src/lib/chat/cryptoPriceClassifier.ts:105](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/cryptoPriceClassifier.ts#105)
+Defined in: [src/lib/chat/cryptoPriceClassifier.ts:91](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/cryptoPriceClassifier.ts#91)
 
 Observe the classification without injecting anything.
 

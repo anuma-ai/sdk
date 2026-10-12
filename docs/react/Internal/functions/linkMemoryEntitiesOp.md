@@ -1,8 +1,8 @@
-# linkMemoryEntitiesOp
+# ~~linkMemoryEntitiesOp()~~
 
 > **linkMemoryEntitiesOp**(`ctx`: [`EntityOperationsContext`](../interfaces/EntityOperationsContext.md), `memoryId`: `string`, `entityInputs`: readonly [`EntityInput`](../type-aliases/EntityInput.md)\[], `options?`: `object`): `Promise`<[`StoredEntity`](../interfaces/StoredEntity.md)\[]>
 
-Defined in: [src/lib/db/entities/operations.ts:345](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/entities/operations.ts#345)
+Defined in: [src/lib/db/entities/operations.ts:268](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/entities/operations.ts#268)
 
 Link a memory to one or more entities. Accepts bare names (back-compat)
 or `{ name, kind }` objects. Names are normalized; missing entities are
@@ -115,3 +115,7 @@ readonly [`EntityInput`](../type-aliases/EntityInput.md)\[]
 ## Returns
 
 `Promise`<[`StoredEntity`](../interfaces/StoredEntity.md)\[]>
+
+## Deprecated
+
+App code: use `MemoryStore.addTopics` (`createLocalMemoryStore`).

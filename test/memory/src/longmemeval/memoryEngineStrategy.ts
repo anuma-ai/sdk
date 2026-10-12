@@ -1,12 +1,3 @@
-/**
- * Memory Engine Strategy
- *
- * Tests the SDK's on-demand memory retrieval from conversations.
- * Stores LongMemEval sessions as messages in WatermelonDB, chunks and embeds
- * them using the SDK's chunkAndEmbedAllMessages, then searches via
- * createMemoryEngineTool.
- */
-
 import { createConversationOp, createMessageOp } from "../../../../src/lib/db/chat/operations.js";
 import { chunkAndEmbedAllMessages } from "../../../../src/lib/memoryEngine/embeddings.js";
 import { createMemoryEngineTool } from "../../../../src/lib/memoryEngine/tool.js";
@@ -23,28 +14,11 @@ import {
   setupDatabase,
 } from "./suite.js";
 
-/**
- * Process a single LongMemEval entry using the Memory Engine strategy.
- *
- * Flow:
- * 1. Store each haystack session as a conversation with messages in WatermelonDB
- * 2. Chunk and embed all messages using SDK's chunkAndEmbedAllMessages
- * 3. Search via createMemoryEngineTool's executor
- * 4. Two-step LLM flow: question -> tool call -> answer
- */
 export async function processEntryMemoryEngine(
   entry: LongMemEvalEntry,
   api: ApiConfig,
   verbose: boolean,
   maxSessions?: number,
-  /**
-   * Shared cross-question embedding cache, spread into `EmbeddingOptions.cache`
-   * below. `Float32Array`, matching the SDK — this said `number[]` and drifted
-   * when the SDK moved to Float32Array (#705, half the RAM per vector). The
-   * mismatch was invisible because `tsconfig.json` is `include: ["src/**\/*"]`,
-   * so nothing typechecked this directory; `suite.ts` has always passed a
-   * `Map<string, Float32Array>`, so the annotation — not the value — was wrong.
-   */
   embeddingCache?: Map<string, Float32Array>
 ): Promise<LongMemEvalResult> {
   const startTime = performance.now();
@@ -66,10 +40,8 @@ export async function processEntryMemoryEngine(
   const database = await setupDatabase();
   const storageCtx = createStorageContext(database);
 
-  // Map conversationId -> sessionId for retrieval metrics
   const convToSession = new Map<string, string>();
 
-  // Token tracking — declared early so embedding callbacks can accumulate too
   const tokenUsage: TokenUsage = {
     promptTokens: 0,
     completionTokens: 0,
@@ -78,7 +50,6 @@ export async function processEntryMemoryEngine(
   };
 
   try {
-    // Step 1: Store haystack sessions as conversations + messages
     logProgress("Storing sessions as messages...");
     for (let i = 0; i < sessionIndices.length; i++) {
       const sessionIdx = sessionIndices[i];
@@ -102,7 +73,6 @@ export async function processEntryMemoryEngine(
     }
     clearProgress();
 
-    // Step 2: Chunk and embed all messages using SDK's pipeline
     const embeddingOptions = {
       apiKey: api.apiKey,
       baseUrl: api.baseUrl,
@@ -120,9 +90,6 @@ export async function processEntryMemoryEngine(
       console.log(`  Embedded ${embeddedCount} messages`);
     }
 
-    // Step 3: Create the retrieval tool via SDK
-    // Capture conversation IDs that the tool actually returns to the LLM
-    // so retrieval metrics reflect the real code path, not a separate search.
     const retrievedConvIds = new Set<string>();
     const retrievalTool = createMemoryEngineTool(
       storageCtx,
@@ -139,16 +106,9 @@ export async function processEntryMemoryEngine(
       }
     );
 
-    // Step 4: Two-step LLM flow
-    // The SDK relies on tool descriptions to guide usage, so we don't coach
-    // the LLM on how to use the tool. We do provide the context that a real
-    // conversation assistant would have: the date and the fact that retrieved
-    // results are from the user's own past conversations.
     const systemPrompt = `Today is ${entry.question_date}.
 You are a personal assistant with access to the user's past conversation history. Answer their question using information from their past conversations. Be concise and direct.`;
 
-    // The SDK's ToolConfig uses "arguments" for the schema, but the OpenAI
-    // Chat Completions API expects "parameters". Remap for the API call.
     const { arguments: schema, ...fnRest } = retrievalTool.function as any;
     const toolDef = {
       type: "function" as const,
@@ -165,8 +125,6 @@ You are a personal assistant with access to the user's past conversation history
       question: entry.question,
       expectedAnswer: entry.answer,
       llmModel: api.llmModel,
-      // Resolved effective extractor (`--extract-llm` or, when unset, the
-      // answer model) — lets --skip-existing detect extractor-only changes.
       extractionModel: api.extractionModel ?? api.llmModel,
       strategy: "memory-engine",
       messages: [...baseMessages],
@@ -196,8 +154,6 @@ You are a personal assistant with access to the user's past conversation history
 
     let thrownWhileAnswering: unknown;
     try {
-      // Force tool use — in a real conversation the LLM would naturally call
-      // the tool, but this eval sends a bare question with no prior context.
       logProgress("Calling LLM (step 1)...");
       const firstResponse = await callChatCompletion(api, baseMessages, {
         tools: [toolDef],
@@ -220,7 +176,6 @@ You are a personal assistant with access to the user's past conversation history
             args = {};
           }
 
-          // Execute the SDK tool's executor
           logProgress("Executing search_memory tool...");
           const toolResult = await retrievalTool.executor!(args);
           clearProgress();
@@ -234,9 +189,6 @@ You are a personal assistant with access to the user's past conversation history
           });
           (transcript.toolResults as any[]).push({ text: toolResultStr });
 
-          // Include search results in the system message so the LLM treats
-          // them as authoritative context. This avoids role: "tool" messages
-          // which not all providers support (e.g. Gemini via OpenAI compat).
           const secondSystemPrompt = [
             systemPrompt,
             "",
@@ -274,8 +226,6 @@ You are a personal assistant with access to the user's past conversation history
     const answerError = answerFailureReason(generatedAnswer, thrownWhileAnswering);
     if (answerError) transcript.answerError = answerError;
 
-    // Retrieval metrics are derived from the onRetrieve callback above,
-    // which captures the exact conversation IDs the tool returned to the LLM.
     const retrievedSessionIds = new Set<string>();
     for (const convId of retrievedConvIds) {
       const sessionId = convToSession.get(convId);
@@ -299,8 +249,6 @@ You are a personal assistant with access to the user's past conversation history
       expectedSessionIds: entry.answer_session_ids,
     };
 
-    // Evaluate answer — unless there is no answer to evaluate, in which case
-    // grading the empty string would just relabel a broken call as a miss.
     let isCorrect = false;
     let judgeError: string | undefined;
     if (!answerError) {
@@ -325,7 +273,6 @@ You are a personal assistant with access to the user's past conversation history
       console.log(`  Time: ${elapsed.toFixed(0)}ms`);
     }
 
-    // Include embedding tokens in the total
     tokenUsage.totalTokens += tokenUsage.embeddingTokens;
 
     return {
@@ -349,7 +296,6 @@ You are a personal assistant with access to the user's past conversation history
     clearProgress();
     throw error;
   } finally {
-    // Release in-memory LokiJS database to prevent OOM across 289 iterations
     try {
       await database.write(async () => {
         await database.unsafeResetDatabase();

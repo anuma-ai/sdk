@@ -2,7 +2,7 @@
 
 > **LlmapiChatCompletionResponse** = `Omit`<`GeneratedLlmapiChatCompletionResponse`, `"usage"`> & `object`
 
-Defined in: [src/clientCompat.ts:101](https://github.com/anuma-ai/sdk/blob/main/src/clientCompat.ts#101)
+Defined in: [src/clientCompat.ts:76](https://github.com/anuma-ai/sdk/blob/main/src/clientCompat.ts#76)
 
 ## Type Declaration
 

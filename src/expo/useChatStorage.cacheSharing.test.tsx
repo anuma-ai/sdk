@@ -1,13 +1,4 @@
 // @vitest-environment happy-dom
-/**
- * Expo parity for the vault embedding cache registry.
- *
- * This hook is the reason the registry exists: the Expo client mounts a
- * `useChatStorage` per active conversation on top of its recall-owning one, so
- * a per-instance cache meant N cold caches and is why the Expo hook never
- * warmed at all. Unlike the React hook it doesn't return the cache, so identity
- * is observed where it actually matters — the ctx handed to `recall()`.
- */
 
 import { Database } from "@nozbe/watermelondb";
 import LokiJSAdapter from "@nozbe/watermelondb/adapters/lokijs";
@@ -49,7 +40,6 @@ function makeDatabase(): Database {
 const MODEL = "text-embedding-3-small";
 const OTHER_MODEL = "text-embedding-3-large";
 
-/** Mount a hook, run one recall, and report the vault cache it routed through. */
 async function recallVaultCache(props: {
   database: Database;
   conversationId: string;

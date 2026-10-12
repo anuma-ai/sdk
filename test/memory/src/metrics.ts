@@ -1,7 +1,3 @@
-/**
- * Evaluation metrics implementation
- */
-
 import type { RetrievalMetrics, PercentileStats } from "./types.js";
 
 export function precisionAtK(retrieved: string[], relevant: Set<string>, k: number): number {
@@ -152,26 +148,6 @@ export function aggregateRetrievalMetrics(
   };
 }
 
-// ---------------------------------------------------------------------------
-// Bootstrap significance
-//
-// A single benchmark run over N queries gives one mean per metric, with no
-// sense of how much that mean would wobble on a different sample of queries.
-// On a ~100-query corpus a "+2pp recall" delta is easily noise. These helpers
-// quantify that: a percentile bootstrap CI for a single run, and a *paired*
-// bootstrap (resampling the same query indices for both configs) for whether
-// one config genuinely beats another. Paired is the right test because the two
-// configs are scored on the identical query set — pairing cancels per-query
-// difficulty and is far more sensitive than comparing two independent CIs.
-//
-// Reproducible by default: a seeded PRNG (mulberry32) makes the CI bounds
-// deterministic across runs, so a baseline comparison is stable. Note both
-// helpers default to the same seed, so the recall and ndcg CIs computed in one
-// run share an RNG sequence — their bounds are correlated through the resample
-// indices, not independent draws. That's fine for reproducibility; pass
-// distinct seeds if you ever need statistically independent CIs.
-// ---------------------------------------------------------------------------
-
 function mulberry32(seed: number): () => number {
   let a = seed >>> 0;
   return () => {
@@ -191,12 +167,10 @@ export interface ConfidenceInterval {
 
 export interface BootstrapOptions {
   iterations?: number;
-  /** Two-sided alpha; 0.05 → 95% CI. */
   alpha?: number;
   seed?: number;
 }
 
-/** Percentile bootstrap CI for the mean of a per-query metric sample. */
 export function bootstrapMeanCI(values: number[], opts: BootstrapOptions = {}): ConfidenceInterval {
   const { iterations = 2000, alpha = 0.05, seed = 12345 } = opts;
   const n = values.length;
@@ -209,32 +183,21 @@ export function bootstrapMeanCI(values: number[], opts: BootstrapOptions = {}): 
     means.push(sum / n);
   }
   means.sort((x, y) => x - y);
-  // Percentile indices, clamped at BOTH ends. The index can sit one bin off the
-  // exact percentile (~0.05pp at iterations=2000) — negligible for an eval CI.
   const loIdx = Math.max(0, Math.floor((alpha / 2) * iterations));
   const hiIdx = Math.min(iterations - 1, Math.floor((1 - alpha / 2) * iterations));
   return { mean: mean(values), lo: means[loIdx], hi: means[hiIdx] };
 }
 
 export interface PairedDelta extends ConfidenceInterval {
-  /** True when the CI of the per-query difference excludes 0. */
   significant: boolean;
 }
 
-/**
- * Paired bootstrap on per-query differences `a[i] - b[i]` (a = candidate,
- * b = baseline). `significant` is true when the 95% CI of the mean difference
- * excludes 0 — i.e. the candidate's win/loss is unlikely to be sampling noise.
- */
 export function pairedBootstrapDelta(
   a: number[],
   b: number[],
   opts: BootstrapOptions = {}
 ): PairedDelta {
   const { iterations = 2000, alpha = 0.05, seed = 12345 } = opts;
-  // Paired test requires 1:1 correspondence; mismatched lengths are a caller
-  // bug (e.g. unaligned query sets). Fail loud rather than silently truncate
-  // to the shorter array, which would bias the delta and fabricate a verdict.
   if (a.length !== b.length) {
     throw new Error(
       `pairedBootstrapDelta requires equal-length arrays (got ${a.length} and ${b.length})`

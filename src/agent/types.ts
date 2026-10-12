@@ -144,10 +144,6 @@ export interface SkillJourneyDefinition {
   systemContext?: string;
 }
 
-// ---------------------------------------------------------------------------
-// Marketplace content (per-agent preview cards rendered in the agent picker)
-// ---------------------------------------------------------------------------
-
 /** Marketplace filter the agent should appear under in the picker UI. */
 export type AgentMarketplaceFamily = "text" | "lifestyle";
 
@@ -219,10 +215,6 @@ export interface AgentMarketplaceContent {
   emptyStateDescription: string;
   transcript: AgentMarketplaceTranscript;
 }
-
-// ---------------------------------------------------------------------------
-// UI metadata (color, icon, example conversations) for renderer fallbacks
-// ---------------------------------------------------------------------------
 
 /** A single (user, agent) example conversation entry, keyed by i18n string ids. */
 export interface AgentExampleConversation {

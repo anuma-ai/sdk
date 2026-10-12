@@ -2,7 +2,7 @@
 
 > **clearAllKeyPairs**(): `void`
 
-Defined in: [src/react/useEncryption.ts:1824](https://github.com/anuma-ai/sdk/blob/main/src/react/useEncryption.ts#1824)
+Defined in: [src/react/useEncryption.ts:1479](https://github.com/anuma-ai/sdk/blob/main/src/react/useEncryption.ts#1479)
 
 Clears all key pairs from memory and any persisted entries in localStorage.
 

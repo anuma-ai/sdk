@@ -2,7 +2,7 @@
 
 > **useExportPdf**(): [`UseExportPdfResult`](UseExportPdfResult.md)
 
-Defined in: [src/react/useExportPdf.ts:61](https://github.com/anuma-ai/sdk/blob/main/src/react/useExportPdf.ts#61)
+Defined in: [src/react/useExportPdf.ts:60](https://github.com/anuma-ai/sdk/blob/main/src/react/useExportPdf.ts#60)
 
 React hook for exporting content as PDF.
 

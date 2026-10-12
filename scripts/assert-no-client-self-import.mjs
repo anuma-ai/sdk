@@ -1,18 +1,4 @@
 #!/usr/bin/env node
-/**
- * Regression guard for the Expo/React-Native startup crash fixed in PR #753.
- *
- * No shipped runtime bundle may import the package itself (`@anuma/sdk` or any
- * of its subpaths). When the expo/react/server/tools-selection builds
- * externalized the generated HTTP client to `@anuma/sdk`, the emitted chunk
- * self-imported the full root build; React Native / Hermes cannot load that
- * root bundle, so `import … from "@anuma/sdk/expo"` threw "undefined cannot be
- * used as a constructor" at module-eval and cascaded into every route failing
- * to load. The self-import lived in a `chunk-*.mjs`, not the entry — so this
- * scans every emitted `.mjs`/`.cjs` (both module formats), not just entries.
- *
- * Runs after `pnpm build` via `pnpm check-exports` (see .github/workflows/check-exports.yml).
- */
 import { readdirSync, readFileSync, statSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -24,17 +10,13 @@ if (!existsSync(DIST)) {
   process.exit(1);
 }
 
-// Matches `from "@anuma/sdk"`, `from '@anuma/sdk/expo'`, `require("@anuma/sdk")`, etc.
 const SELF_IMPORT = /(?:\bfrom|\brequire\()\s*["']@anuma\/sdk(?:\/[^"']*)?["']/;
 
-/** @param {string} dir @returns {string[]} */
 function collectRuntimeFiles(dir) {
   const files = [];
   for (const name of readdirSync(dir)) {
     const full = join(dir, name);
     if (statSync(full).isDirectory()) files.push(...collectRuntimeFiles(full));
-    // Runtime only. `.d.ts`/`.d.mts` legitimately reference `@anuma/sdk`
-    // subpaths in type positions and must not be flagged.
     else if (/\.(mjs|cjs)$/.test(name)) files.push(full);
   }
   return files;

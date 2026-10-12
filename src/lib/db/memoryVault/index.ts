@@ -40,10 +40,16 @@ export {
 } from "./photoIngest";
 export {
   type CreateVaultMemoryOptions,
+  MEMORY_KINDS,
+  MEMORY_LEVELS,
+  type MemoryLevel,
+  MemoryLevelError,
   parseMedia,
   type PhotoMediaRef,
   type RankableVaultMemory,
   type StoredVaultMemory,
   type UpdateVaultMemoryOptions,
+  type VaultMemoryKind,
+  type VaultMemoryProjection,
   type VaultMemoryVisibility,
 } from "./types";

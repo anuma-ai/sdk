@@ -2,7 +2,7 @@
 
 > **dequantizeEmbedding**(`__namedParameters`: [`QuantizedEmbedding`](../interfaces/QuantizedEmbedding.md)): `Float32Array`
 
-Defined in: [src/lib/memoryEngine/quantization.ts:89](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryEngine/quantization.ts#89)
+Defined in: [src/lib/memoryEngine/quantization.ts:84](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryEngine/quantization.ts#84)
 
 Dequantize an Int8 embedding back into Float32.
 

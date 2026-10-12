@@ -13,8 +13,6 @@ function makeDocumentTools(overrides?: Overrides) {
     getConversationId: () => "conv-1",
     storage,
     logError: () => undefined,
-    // Tests not exercising rendering still need a renderer: the factory
-    // refuses to create the tools without one (#659).
     displayDocument: () => undefined,
     ...overrides,
   });
@@ -40,25 +38,18 @@ describe("documentPath", () => {
   });
 
   it("validates the id so a host cannot traverse via the storage key", () => {
-    // The public helper must not return a traversing path on untrusted input.
     expect(() => documentPath("../../etc/passwd")).toThrow(/Invalid documentId/);
     expect(() => documentPath("../../../foo")).toThrow(/Invalid documentId/);
   });
 });
 
 describe("createDocumentTools — missing renderer (#659)", () => {
-  // Without a displayDocument renderer nothing a user can see is ever
-  // produced, yet the tools used to persist the source and report
-  // `success: true` — the model claimed a PDF was attached, nothing rendered,
-  // and the turn was still billed. The factory must refuse to create the
-  // tools at all so the model is never offered them.
   it("returns no tools and logs when displayDocument is absent at runtime", () => {
     const logged: string[] = [];
     const tools = createDocumentTools({
       getConversationId: () => "conv-1",
       storage: new MapFileStorage(),
       logError: (msg) => logged.push(msg),
-      // Simulate a plain-JS host that omits the (type-required) renderer.
       displayDocument: undefined as unknown as CreateDocumentToolsOptions["displayDocument"],
     });
 
@@ -88,10 +79,7 @@ describe("createDocumentTools — render failure after persist", () => {
 
     const res = (await createDocument.executor!({ documentId: "nda", source: BASE })) as Result;
 
-    // The source is on disk even though rendering failed...
     expect(storage.getAll().get("nda.jsx")).toBe(BASE);
-    // ...and the error makes the persisted state explicit, not "Failed to create",
-    // and carries the documentId so the model can retry the right document.
     expect(res.success).toBeUndefined();
     expect(res.documentId).toBe("nda");
     expect(res.error).toMatch(/saved but failed to render/);
@@ -116,14 +104,12 @@ describe("createDocumentTools — render failure after persist", () => {
     })) as Result;
 
     const patched = `<Document><Page><Text>Hi there</Text></Page></Document>`;
-    // The patch was applied and saved despite the render throw.
     expect(storage.getAll().get("document.jsx")).toBe(patched);
     expect(res.success).toBe(false);
     expect(res.applied).toBe(1);
     expect(res.persisted).toBe(true);
     expect(res.renderError).toMatch(/render boom/);
     expect(res.message).toMatch(/do NOT resend the same patch/);
-    // Not the generic mutation-failure path.
     expect(res.error).toBeUndefined();
   });
 });
@@ -145,7 +131,6 @@ describe("createDocumentTools — title carry-over", () => {
       patches: [{ find: "Hello world", replace: "Hi there" }],
     });
 
-    // Both the create render and the patch re-render carry the same title.
     expect(seenTitles).toEqual(["My NDA", "My NDA"]);
   });
 });
@@ -200,7 +185,6 @@ describe("createDocumentTools — create_document", () => {
   });
 
   it("refuses to overwrite an existing document not read this session", async () => {
-    // A doc on disk from a prior session: a fresh factory has not seen it.
     const storage = new MapFileStorage();
     storage.getAll().set("nda.jsx", BASE);
     const { createDocument } = makeDocumentTools({ storage });
@@ -210,7 +194,6 @@ describe("createDocumentTools — create_document", () => {
     })) as Result;
     expect(res.success).toBeUndefined();
     expect(res.error).toMatch(/have not read its current source/);
-    // The pre-existing content is untouched.
     expect(storage.getAll().get("nda.jsx")).toBe(BASE);
   });
 
@@ -229,8 +212,6 @@ describe("createDocumentTools — create_document", () => {
   });
 
   it("allows re-creating a document it authored earlier this session", async () => {
-    // create_document marks the doc seen, so a same-session rewrite is allowed
-    // (this also keeps the post-persist render-failure retry path working).
     const { createDocument, storage } = makeDocumentTools();
     await createDocument.executor!({ documentId: "nda", source: BASE });
     const v2 = `<Document><Page><Text>v2</Text></Page></Document>`;
@@ -264,18 +245,15 @@ describe("createDocumentTools — read_document", () => {
     );
     lines.splice(100, 0, `  <Text>${MIDDLE}</Text>`);
     const longSource = `<Document><Page>\n${lines.join("\n")}\n</Page></Document>`;
-    // Well past the old 4000-char truncation cap, with the marker in the middle.
     expect(longSource.length).toBeGreaterThan(4000);
 
     await createDocument.executor!({ source: longSource });
     const res = (await readDocument.executor!({})) as Result;
     const source = res.source as string;
 
-    // No head+tail slice: no "omitted" marker and the middle clause is visible.
     expect(source).not.toMatch(/characters omitted/);
     expect(source).toContain(MIDDLE);
 
-    // And because the middle is visible, a patch targeting it applies cleanly.
     const patched = (await patchDocument.executor!({
       patches: [{ find: MIDDLE, replace: "Updated confidentiality clause" }],
     })) as Result;
@@ -354,7 +332,6 @@ describe("createDocumentTools — patch_document", () => {
     expect(res.success).toBe(false);
     expect(res.dslError).toBeDefined();
     expect(res.message).toMatch(/invalid document/);
-    // Invalid result is rejected before persisting.
     expect(storage.getAll().get("document.jsx")).toBe(BASE);
   });
 });
@@ -395,7 +372,6 @@ describe("createDocumentTools — display result + conversation scope", () => {
     await createDocument.executor!({ source: BASE });
     await readDocument.executor!({});
 
-    // Same document, different conversation: the seen-state must not carry over.
     conv = "conv-B";
     const res = (await patchDocument.executor!({
       patches: [{ find: "Hello world", replace: "Hi" }],

@@ -1,23 +1,3 @@
-/**
- * Static cross-check between LLM-facing instructions and the actual
- * tool registry.
- *
- * Background: every tool's `function.description` and the per-mode
- * system prompts both tell the model what to do. They're maintained by
- * hand, in different files. The class of bug this test prevents:
- * removing or renaming a tool but leaving "...then call <oldName>" in
- * a description or prompt. We just shipped exactly such a regression
- * (`CREATE_FILE_SCHEMA` instructed the model to call `display_app`
- * months after the tool was deleted), so this test exists to make the
- * next occurrence loud.
- *
- * Strategy: pull every snake_case identifier out of each text source
- * (descriptions + system prompts) and assert it's either a registered
- * tool name or in `KNOWN_NON_TOOL_WORDS` (patch operation names,
- * Material icon names, etc.). When the allowlist needs a new entry,
- * add it explicitly — the noise-up-front is the point.
- */
-
 import { describe, expect, it } from "vitest";
 
 import {
@@ -29,14 +9,7 @@ import {
   type ToolConfig,
 } from "./index.js";
 
-/**
- * Snake_case identifiers that legitimately appear in our prompts but
- * aren't tool names. Keep this list short and explicit — every entry
- * is a deliberate exception.
- */
 const KNOWN_NON_TOOL_WORDS = new Set<string>([
-  // `patch_slides` operation `action` values — they share the
-  // verb_noun shape with tool names but are arguments, not tools.
   "update_element",
   "replace_element",
   "insert_element",
@@ -45,38 +18,19 @@ const KNOWN_NON_TOOL_WORDS = new Set<string>([
   "insert_slide",
   "remove_slide",
   "update_theme",
-  // Material Symbols Rounded icon names referenced in the slide system
-  // prompt's ICONS section.
   "check_circle",
   "rocket_launch",
   "trending_up",
-  // Field name used in tool result JSON for interaction-id chaining.
-  // Documented in `patch_slides`'s description as the threading key.
   "replaces_interaction_id",
-  // External MCP tool from a different server (AnumaMediaMCP) — the
-  // slide system prompt references it for image generation. Not part
-  // of this SDK's tool registry, so it can't be auto-resolved.
   "anuma_create_image",
 ]);
 
-/**
- * Match `lower_snake_case` words with at least one underscore.
- * Deliberately excludes camelCase, kebab-case, dot-paths, and uppercase
- * identifiers — those don't collide with tool name shape and would
- * just inflate the allowlist with CSS / JSX noise.
- */
 const SNAKE_CASE_RE = /\b[a-z]+(?:_[a-z]+)+\b/g;
 
 function extractSnakeCaseWords(text: string): Set<string> {
   return new Set(text.match(SNAKE_CASE_RE) ?? []);
 }
 
-/**
- * `ToolConfig` inherits `LlmapiChatCompletionTool`'s index signature, so
- * `function` is typed `unknown` until the #549 follow-up gives it a real shape
- * (see the TODO in `src/clientCompat.ts`). Every tool this file builds comes
- * from our own factories, which always emit `{ name, description }`.
- */
 function toolFn(tool: ToolConfig): { name: string; description?: string } {
   return tool.function as { name: string; description?: string };
 }
@@ -85,11 +39,6 @@ function getToolNames(tools: ToolConfig[]): Set<string> {
   return new Set(tools.map((t) => toolFn(t).name));
 }
 
-/**
- * Build both tool sets with minimal stubs. We never execute the tools
- * — we only inspect their schema metadata — so storage / callbacks can
- * be no-ops.
- */
 function buildTools(): { app: ToolConfig[]; slide: ToolConfig[] } {
   const app = createAppGenerationTools({
     getConversationId: () => "test-conversation",
@@ -106,11 +55,6 @@ describe("tool prompt/schema consistency", () => {
   const { app, slide } = buildTools();
   const allToolNames = new Set([...getToolNames(app), ...getToolNames(slide)]);
 
-  /**
-   * Assert every snake_case identifier in `text` is either a real tool
-   * name or in the allowlist. Fails with a message that names the
-   * source so the developer knows where to fix.
-   */
   function assertNoUnknownReferences(label: string, text: string): void {
     const unknown = [...extractSnakeCaseWords(text)].filter(
       (w) => !allToolNames.has(w) && !KNOWN_NON_TOOL_WORDS.has(w)
@@ -144,26 +88,13 @@ describe("tool prompt/schema consistency", () => {
   });
 
   it("slide system prompt disambiguates palette names from design-system suffixes", () => {
-    // An earlier run produced plan_deck calls like "cover-statement--humanist-cream"
-    // because the "humanist cream" palette name read as a plausible system
-    // suffix. The disambiguation sentence in the LAYOUT CATALOG block is the
-    // sole guardrail against that collision — if a future trim removes it,
-    // the failure mode comes back.
     const prompt = buildSlideSystemPrompt();
     expect(prompt).toMatch(/Palette names .*\bnot a system\b/i);
     expect(prompt).toMatch(/humanist cream/);
     expect(prompt).toMatch(/paletteName/);
   });
 
-  // ---------------------------------------------------------------------------
-  // Sanity: confirm the test would catch a regression
-  // ---------------------------------------------------------------------------
-
   it("flags a snake_case reference to a non-existent tool", () => {
-    // This is the bug class we just hit — the description tells the
-    // model to call a tool that doesn't exist. The test should detect
-    // it; if this assertion stops failing without us removing the
-    // ghost reference, the detector is broken.
     const ghostText = "After writing files, call ghost_tool to refresh.";
     const unknown = [...extractSnakeCaseWords(ghostText)].filter(
       (w) => !allToolNames.has(w) && !KNOWN_NON_TOOL_WORDS.has(w)

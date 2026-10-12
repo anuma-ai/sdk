@@ -93,7 +93,7 @@ Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/
 
 **Inherited from**
 
-[`Project`](Project.md).[`_preparedState`](Project.md#_preparedstate)
+[`AppFileModel`](AppFileModel.md).[`_preparedState`](AppFileModel.md#_preparedstate)
 
 ***
 
@@ -351,7 +351,7 @@ Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/
 
 **Inherited from**
 
-[`Project`](Project.md).[`table`](Project.md#table-1)
+[`AppFileModel`](AppFileModel.md).[`table`](AppFileModel.md#table-1)
 
 ## Methods
 

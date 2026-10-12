@@ -3,11 +3,6 @@ import type { DatabaseAdapter } from "@nozbe/watermelondb/adapters/type";
 
 import { SDK_SCHEMA_VERSION, sdkMigrations, sdkModelClasses, sdkSchema } from "./schema";
 
-/**
- * Version threshold for destructive migrations.
- * Databases at a schema version below this require full deletion and recreation.
- * Version 8 introduced an incompatible embedding model change.
- */
 const DESTRUCTIVE_MIGRATION_VERSION = 8;
 
 /**
@@ -96,13 +91,10 @@ export const webPlatformStorage: PlatformStorage = {
       request.onerror = () =>
         reject(request.error ?? new Error(`Failed to delete database: ${name}`));
       request.onblocked = () => {
-        // Resolve after timeout to prevent indefinite blocking
         setTimeout(resolve, 1000);
       };
     }),
 };
-
-// Per-wallet key helpers
 
 function getDbName(prefix: string, walletAddress?: string): string {
   return walletAddress ? `${prefix}-${walletAddress}` : `${prefix}-guest`;
@@ -202,25 +194,11 @@ export class DatabaseManager {
   getDatabase(walletAddress?: string): Database {
     const dbName = this.getDbName(walletAddress);
 
-    // Idempotent per dbName: an already-built instance is reused as-is. This is
-    // the key that stops the sign-up-time teardown/rebuild churn — a wallet whose
-    // request briefly interleaves with a guest (`undefined`) render resolves to
-    // the same dbName and hits this cache instead of recreating the adapter
-    // (client#4821).
-    //
-    // The cache key is the raw dbName, so callers must pass a wallet address in a
-    // consistent CASE (the same address checksummed vs lowercase would key two
-    // entries → a split store). Callers do: the app resolves every address through
-    // one source (getEmbeddedWalletAddress → Privy's checksummed address), and
-    // prod telemetry shows addresses uniformly checksummed. We intentionally do
-    // NOT lowercase here: existing on-device stores were created under the
-    // checksummed dbName, so normalizing would strand them (see client#4821).
     const cached = this.databases.get(dbName);
     if (cached) {
       return cached;
     }
 
-    // Check for destructive migration (runs once per dbName, before first build)
     const needsMigration = this.handleSchemaMigration(walletAddress);
     if (needsMigration) {
       throw new Error("Database migration in progress - app will restart");
@@ -247,14 +225,6 @@ export class DatabaseManager {
    * Reset ALL cached databases (useful for logout or testing).
    */
   async resetDatabase(): Promise<void> {
-    // Reset EVERY cached instance, not just a "current" one — a transient guest
-    // render leaves the last-seen wallet ambiguous, and logout/testing wants all
-    // local stores cleared. Delete each entry only AFTER its own reset resolves so:
-    //  - a concurrent getDatabase for the same dbName hits the still-cached
-    //    instance instead of building a duplicate adapter mid-reset (the OPFS
-    //    orphan this change guards against, client#4821);
-    //  - a rejected reset can't leave an already-wiped instance cached — only
-    //    successfully-reset entries are removed.
     const errors: Array<{ dbName: string; error: unknown }> = [];
 
     for (const [dbName, db] of [...this.databases.entries()]) {
@@ -296,12 +266,10 @@ export class DatabaseManager {
         targetVersion: SDK_SCHEMA_VERSION,
       });
 
-      // Only trigger migration once per session to prevent infinite loops
       if (!alreadyReloaded) {
         this.storage.setSessionItem(migrationReloadKey, "true");
         this.migrationInProgress = true;
 
-        // Delete databases and trigger app restart
         Promise.all([
           this.storage.deleteDatabase(dbName),
           this.storage.deleteDatabase(`${dbName}_loki`),
@@ -315,7 +283,6 @@ export class DatabaseManager {
               component: "DatabaseManager",
               error,
             });
-            // Still update version to prevent infinite loops
             this.storage.setItem(schemaVersionKey, String(SDK_SCHEMA_VERSION));
             this.onDestructiveMigration?.();
           });
@@ -326,11 +293,9 @@ export class DatabaseManager {
           "Migration reload already attempted this session, skipping to prevent loop",
           { component: "DatabaseManager" }
         );
-        // Update version to prevent future attempts
         this.storage.setItem(schemaVersionKey, String(SDK_SCHEMA_VERSION));
       }
     } else if (storedVersion === null) {
-      // First time for this wallet — set initial version
       this.storage.setItem(schemaVersionKey, String(SDK_SCHEMA_VERSION));
     }
 

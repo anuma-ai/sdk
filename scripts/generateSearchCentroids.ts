@@ -1,13 +1,3 @@
-/**
- * One-time script to generate centroid vectors for the web search classifier.
- *
- * Embeds the reference phrases, averages each class into a single centroid,
- * and writes the result to src/lib/chat/webSearchCentroids.ts.
- *
- * Usage:
- *   PORTAL_API_KEY=... npx tsx scripts/generateSearchCentroids.ts
- */
-
 import "dotenv/config";
 import { generateEmbeddings } from "../src/lib/memoryEngine/embeddings";
 import { BASE_URL } from "../src/clientConfig";
@@ -16,67 +6,45 @@ import { resolve } from "path";
 import { averageVectors } from "./lib/centroids";
 
 const SEARCH_PHRASES = [
-  // Time-sensitive / current events
   "What is the latest news about this topic today",
   "What happened recently in current events",
   "What was just announced or released today",
   "Is there a live stream or broadcast happening now",
 
-  // News
   "What are the latest news updates and reports about this",
   "Was there an incident or breaking news reported",
 
-  // Political
   "What are the latest election results and who won the vote",
   "What is the current president or government doing about this policy",
   "What legislation or bill is congress debating right now",
 
-  // Sports
   "What are the current scores and standings in the game",
   "Who won the championship tournament or playoffs",
   "What are the latest NFL NBA MLB NHL FIFA rankings",
   "What happened at the Super Bowl World Cup or Olympics",
 
-  // Note: pure price / quote / FX queries are handled by createCryptoPricePreProcessor
-  // and createStockPricePreProcessor — they no longer fire webSearch. News *about*
-  // financial markets ("Why is the market down today", "Latest news on the Fed
-  // rate decision") still belongs here via the News / Current-info sections.
-
-  // Note: pure weather queries are handled by createWeatherPreProcessor and no
-  // longer fire webSearch. Weather-flavored news (e.g. "Latest hurricane warnings",
-  // "Storm aftermath in Florida") still belongs here via News.
-
-  // Local search
   "Find restaurants hotels stores or businesses near me",
   "What are the directions to this place and where is it located",
   "Where is the nearest shop or business in my area",
 
-  // Image search
   "Show me images pictures or photos of this thing",
   "What does this person place or thing look like",
 
-  // Video search
   "Find a video tutorial or YouTube clip about this",
   "Show me footage or a video of this event",
 
-  // Complex research queries
   "Compare these products which is better and what do reviews say",
   "What are the best recommendations for this category in 2025",
   "Give me a comprehensive analysis and detailed comparison",
 
-  // Current info questions
   "Is it true that this happened and what's going on with it",
   "Where is this person or thing now and what are they doing",
   "How much does this cost or how much is it worth",
 
-  // Technical lookups (docs, versions)
   "What is the latest version of this software or library",
   "What does the official documentation say about this API",
   "What are the current rules regulations or laws about this",
 
-  // Concrete examples mirroring real prompts the test corpus expects to
-  // trigger webSearch. Balances the concrete pure-data NO examples below
-  // so the YES centroid still recognizes common "What/Find/Show me" forms.
   "What did Elon Musk tweet about today",
   "What did the Supreme Court rule on today",
   "What was just announced at Google IO",
@@ -108,81 +76,65 @@ const SEARCH_PHRASES = [
   "flights to Tokyo",
   "election results 2026",
 
-  // Visual / image / video search — the dominant FN pattern. Embedding
-  // model doesn't otherwise pull these toward webSearch's centroid.
   "pictures of mountains",
   "pictures of the Eiffel Tower",
   "youtube python tutorials",
   "pasta cooking video tutorial",
   "images of cute cats",
 
-  // Opinion / comparison / recommendations on evolving topics — these
-  // benefit from current sources even though the LLM has some answer.
   "Compare React vs Vue for web development",
   "What are the pros and cons of Kubernetes",
   "Which is better React or Vue",
   "Recommend a good framework for mobile development",
   "Comprehensive overview of blockchain technology",
 
-  // Terse current-data queries that fall through to webSearch
   "Lakers score",
   "interest rate right now",
 ];
 
 const NO_SEARCH_PHRASES = [
-  // Creative / generative
   "Write me a poem or story about this topic",
   "Help me brainstorm ideas for a creative project",
   "Generate a short fiction narrative about this character",
 
-  // Reasoning / analysis
   "Explain this concept to me step by step",
   "What are the pros and cons of this approach",
   "Summarize this text I have provided",
   "What is the logical conclusion of this argument",
   "Break down this problem into smaller parts",
 
-  // Code generation / programming
   "Write a function that does this specific thing",
   "Refactor this code to be more efficient",
   "Debug this code and explain what is wrong",
   "Convert this code from JavaScript to Python",
   "Write unit tests for this class",
 
-  // Math / logic / science
   "Solve this math problem or equation",
   "Calculate the derivative of this function",
   "Prove this mathematical theorem step by step",
 
-  // Writing / communication
   "Help me write a professional email",
   "Draft a cover letter for this job application",
   "Rewrite this paragraph to be more concise",
 
-  // Personal advice
   "Give me advice on how to handle this situation",
   "Help me plan my schedule for this week",
 
-  // Translation / language
   "Translate this sentence into another language",
   "What is the grammatical structure of this sentence",
 
-  // Conversational
   "Hello how are you doing today",
   "Thank you for your help",
   "Can you repeat what you said",
 
-  // Knowledge (timeless / encyclopedic)
   "What is the theory of relativity about",
   "How does photosynthesis work in plants",
   "Explain the difference between TCP and UDP protocols",
 
-  // Data processing
   "Parse this JSON and extract the relevant fields",
   "Format this data as a markdown table",
   "Clean up and normalize this dataset",
 
-  // Pure crypto price queries — handled by createCryptoPricePreProcessor
   "What is the current price of Bitcoin",
   "How much is Ethereum worth right now",
   "BTC price",
@@ -192,7 +144,6 @@ const NO_SEARCH_PHRASES = [
   "How much is one Solana coin",
   "What is the all-time high for BTC",
 
-  // Pure stock / ETF / index / FX quotes — handled by createStockPricePreProcessor
   "What is the current Nvidia stock price",
   "Tesla stock price right now",
   "How is Apple stock performing today",
@@ -206,7 +157,6 @@ const NO_SEARCH_PHRASES = [
   "What's the market cap of Apple",
   "P/E ratio of MSFT",
 
-  // Pure weather queries — handled by createWeatherPreProcessor
   "What is the weather in San Francisco today",
   "Will it rain in New York this weekend",
   "Forecast for Tokyo tomorrow",
@@ -217,9 +167,6 @@ const NO_SEARCH_PHRASES = [
   "Is there a flood warning in Houston",
   "Wind speed in Wellington",
 
-  // Historical / encyclopedic — LLM knows, no web search needed. Was a
-  // dominant FP pattern ("What happened during X war", "Life in 19th
-  // century", etc.).
   "What happened during World War 2",
   "What was life like in the 19th century",
   "What year did World War 2 end",
@@ -227,18 +174,11 @@ const NO_SEARCH_PHRASES = [
   "When did the Roman Empire fall",
   "How many continents are there",
 
-  // Personal / identity / calendar — tool territory or context-dependent,
-  // not search.
   "Who am I and where do I live",
   "List my calendar events for the next 7 days",
   "What are my appointments today",
   "Remind me what we talked about earlier",
 
-  // Follow-up to prior conversation — context-dependent, NOT a new search.
-  // Keep this list small and abstract: previous attempts to add
-  // article / YouTube / topic vocabulary pulled real news / sports queries
-  // ("What did Elon Musk tweet about today?") into NO. Phrasings here use
-  // generic "previous conversation" framing only.
   "I wanted to follow up on our previous conversation about X",
   "As we discussed yesterday, what was your recommendation",
   "Going back to what you said earlier about Y",

@@ -1,8 +1,4 @@
 // @vitest-environment happy-dom
-/**
- * pdf.ts resource handling with pdf.js mocked: documents are always destroyed, canvases are
- * released after encoding, pages render as size-capped JPEG, and text keeps pdf.js line breaks.
- */
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -43,7 +39,6 @@ interface FakeCanvas {
   toDataURL: ReturnType<typeof vi.fn>;
 }
 
-/** Stub `document.createElement("canvas")`; `noContextFor` canvases (by creation order) get none. */
 function stubCanvases(noContextFor: number[] = []) {
   const canvases: FakeCanvas[] = [];
   const spy = vi.spyOn(document, "createElement").mockImplementation(() => {
@@ -173,7 +168,6 @@ describe("pdf.js lifecycle", () => {
   });
 
   it("reports which page each image came from when a page cannot be rendered", async () => {
-    // The second canvas (page 2) has no 2d context.
     const { restore } = stubCanvases([1]);
     try {
       getDocument.mockReturnValue({

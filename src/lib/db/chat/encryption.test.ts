@@ -10,16 +10,13 @@ import { requestEncryptionKey, clearAllEncryptionKeys } from "../../../react/use
 import type { SignMessageFn } from "../../../react/useEncryption";
 import type { StoredMessage } from "./types";
 
-// Type declaration for global in test environment
 declare const global: typeof globalThis;
 
-// Node.js globals available in test environment
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 declare const require: any;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 declare const Buffer: any;
 
-// Mock crypto for deterministic testing
 const mockSignMessage = vi.fn(async (message: string) => {
   return `0x${Buffer.from(message).toString("hex").padStart(130, "0")}`;
 }) as unknown as SignMessageFn & { mock: { calls: string[][] } };
@@ -31,7 +28,6 @@ describe("Chat Encryption Utilities", () => {
     vi.clearAllMocks();
     clearAllEncryptionKeys();
 
-    // Ensure crypto is available
     if (!global.crypto) {
       // eslint-disable-next-line @typescript-eslint/no-require-imports
       const { webcrypto } = require("node:crypto");
@@ -112,14 +108,12 @@ describe("Chat Encryption Utilities", () => {
       const encrypted = await encryptField(plaintext, testAddress, mockSignMessage);
       const doubleEncrypted = await encryptField(encrypted, testAddress, mockSignMessage);
 
-      // Should be the same - no double encryption
       expect(doubleEncrypted).toBe(encrypted);
     });
 
     it("should return plaintext if decryption fails", async () => {
       const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
 
-      // Not encrypted, should return as-is
       const result = await decryptField("plaintext value", testAddress);
       expect(result).toBe("plaintext value");
 
@@ -148,7 +142,6 @@ describe("Chat Encryption Utilities", () => {
       expect(isEncrypted(encrypted.thinking)).toBe(true);
       expect(encrypted.thinking).toMatch(/^enc:v3:/);
 
-      // Non-sensitive fields should be unchanged
       expect(encrypted.conversationId).toBe("conv-123");
       expect(encrypted.role).toBe("user");
     });
@@ -178,7 +171,6 @@ describe("Chat Encryption Utilities", () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const encrypted = (await encryptMessageFields(message, testAddress, mockSignMessage)) as any;
 
-      // JSON fields should be encrypted strings
       expect(typeof encrypted.sources).toBe("string");
       expect(isEncrypted(encrypted.sources)).toBe(true);
       expect(typeof encrypted.vector).toBe("string");
@@ -218,7 +210,6 @@ describe("Chat Encryption Utilities", () => {
       clearAllEncryptionKeys();
       const { seedEncryptionKeys, refreshEncryptionKeyIfMatches, hasEncryptionKey } =
         await import("../../../react/useEncryption");
-      // Pin a wrong v3-only key (no v2) — the historical fail-closed shape.
       seedEncryptionKeys(testAddress, { current: "cd".repeat(32) });
       expect(hasEncryptionKey(testAddress, "v2")).toBe(false);
       expect(hasEncryptionKey(testAddress, "v3")).toBe(true);
@@ -244,7 +235,6 @@ describe("Chat Encryption Utilities", () => {
       const wrongSigner = vi.fn(async () => `0x${"11".repeat(65)}`) as unknown as SignMessageFn;
       const refreshed = await refreshEncryptionKeyIfMatches(testAddress, alienCipher, wrongSigner);
       expect(refreshed).toBe(false);
-      // Store still has the original wrong key (not replaced by another wrong derive).
       expect(hasEncryptionKey(testAddress, "v3")).toBe(true);
       const { decryptFieldDetailed } = await import("../encryption-utils");
       expect((await decryptFieldDetailed(alienCipher, testAddress)).status).toBe("auth_mismatch");
@@ -266,7 +256,6 @@ describe("Chat Encryption Utilities", () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const encrypted = (await encryptMessageFields(original, testAddress, mockSignMessage)) as any;
 
-      // Create a StoredMessage-like object from encrypted data
       const storedMessage: StoredMessage = {
         uniqueId: "msg-123",
         messageId: 123,
@@ -303,7 +292,6 @@ describe("Chat Encryption Utilities", () => {
 
       const decrypted = await decryptMessageFields(plaintextMessage, testAddress, mockSignMessage);
 
-      // Should return plaintext as-is
       expect(decrypted.content).toBe("This is plaintext from old SDK");
     });
 
@@ -326,11 +314,9 @@ describe("Chat Encryption Utilities", () => {
     it("should decrypt v2-prefixed fields (backward compatibility)", async () => {
       await requestEncryptionKey(testAddress, mockSignMessage);
 
-      // Manually create a v2-prefixed encrypted value using the legacy key
       const { encryptData: encryptDataFn, getEncryptionKey: getKeyFn } =
         await import("../../../react/useEncryption");
 
-      // Encrypt with v2 key to simulate old data
       const v2Key = await getKeyFn(testAddress, "v2");
       const plaintext = "v2 encrypted content";
       const plaintextBytes = new TextEncoder().encode(plaintext);
@@ -432,7 +418,6 @@ describe("Chat Encryption Utilities", () => {
         mockSignMessage
       )) as { content: string; thinking: string };
 
-      // Corrupt only the thinking ciphertext payload so content still decrypts.
       const badThinking = `enc:v3:${"d".repeat(64)}`;
       const storedMessage: StoredMessage = {
         uniqueId: "msg-sib",
@@ -446,7 +431,6 @@ describe("Chat Encryption Utilities", () => {
         updatedAt: new Date(),
       };
 
-      // No signMessage — avoid self-heal overwriting; we want the status signal.
       const decrypted = await decryptMessageFields(storedMessage, testAddress);
       expect(decrypted.content).toBe("readable content");
       expect(decrypted.thinking).toBe(badThinking);
@@ -465,7 +449,6 @@ describe("Chat Encryption Utilities", () => {
       let signCalls = 0;
       const countingSigner = vi.fn(async (message: string) => {
         signCalls += 1;
-        // Slow sign so concurrent callers overlap on the pending map.
         await new Promise((r) => setTimeout(r, 30));
         return mockSignMessage(message);
       }) as unknown as SignMessageFn;
@@ -488,12 +471,10 @@ describe("Chat Encryption Utilities", () => {
       const badSigner = vi.fn(async () => `0x${"33".repeat(65)}`) as unknown as SignMessageFn;
       const ok = await requestEncryptionKey(testAddress, badSigner);
       expect(ok).toBe(false);
-      // Store unchanged — still only the wrong seeded current (no legacy filled).
       expect(hasEncryptionKey(testAddress, "v3")).toBe(true);
       expect(hasEncryptionKey(testAddress, "v2")).toBe(false);
-      expect(hasEncryptionKey(testAddress)).toBe(true); // default = v3
+      expect(hasEncryptionKey(testAddress)).toBe(true);
 
-      // Divergent memo: subsequent calls must not re-sign.
       await requestEncryptionKey(testAddress, badSigner);
       expect(badSigner).toHaveBeenCalledTimes(1);
     });
@@ -531,7 +512,6 @@ describe("Chat Encryption Utilities", () => {
       await requestEncryptionKey(testAddress, mockSignMessage);
       const goodCipher = await encryptField("recover-me", testAddress, mockSignMessage);
 
-      // Build an alien probe that the correct signer cannot open.
       const alienSigner = vi.fn(async () => `0x${"55".repeat(65)}`) as unknown as SignMessageFn;
       clearAllEncryptionKeys();
       await requestEncryptionKey(testAddress, alienSigner);
@@ -549,7 +529,6 @@ describe("Chat Encryption Utilities", () => {
         return mockSignMessage(message);
       }) as unknown as SignMessageFn;
 
-      // Leader probe misses; waiter probe matches the shared candidates.
       const [leader, waiter] = await Promise.all([
         refreshEncryptionKeyIfMatches(testAddress, alienCipher, countingSigner),
         refreshEncryptionKeyIfMatches(testAddress, goodCipher, countingSigner),

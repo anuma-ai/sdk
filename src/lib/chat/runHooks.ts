@@ -1,14 +1,3 @@
-/**
- * Lifecycle hooks for runToolLoop. All hooks are optional and observer
- * errors are swallowed (sync throws and async rejections both) so a buggy
- * hook can't crash the loop. Hook names match the Claude Agent SDK shape
- * (camelCase).
- *
- * Hooks are awaited synchronously at each fire site, so slow hooks
- * serialize into loop latency — keep them fast and do any heavy work
- * (network exports, file IO) asynchronously inside your own queue.
- */
-
 import type { LlmapiChatCompletionTool, LlmapiMessage } from "../../client";
 
 export type LlmTokenUsage = {

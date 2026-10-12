@@ -40,13 +40,10 @@ export const PAYMENT_REQUIRED_HEADER = "PAYMENT-REQUIRED";
 /** Header carrying the base64 SIWX payload on the authenticated retry. */
 export const SIWX_HEADER = "SIGN-IN-WITH-X";
 
-/** Key of the SIWX extension inside the decoded `PAYMENT-REQUIRED` payload. */
 const SIWX_EXTENSION = "sign-in-with-x";
 
-/** CAIP-2 namespace prefix of every Solana chain id. */
 const SOLANA_NAMESPACE = "solana:";
 
-/** Length of an ed25519 signature, which is the only kind Solana produces. */
 const ED25519_SIGNATURE_BYTES = 64;
 
 /**
@@ -131,25 +128,6 @@ export function parseChallenge(
   return challenge;
 }
 
-/**
- * Refuse a challenge that names a host other than the one we are talking to.
- *
- * A CAIP-122 proof is portable by design: the signed message names the site it
- * is for, and any SIWX verifier accepts one addressed to itself. So whoever
- * mints our challenges can mint one naming SOMEBODY ELSE, hand it back through
- * a perfectly ordinary 402, and replay the resulting proof there to sign in as
- * the user. The victim site cannot tell — it sees a valid signature over its
- * own domain, from a key that really does own it.
- *
- * The only party positioned to catch that is the one holding the key, and here
- * that is us. So the scope is checked rather than trusted, before anything is
- * signed.
- *
- * `domain` and `uri` are the two fields a verifier keys on, so pinning them is
- * what makes the proof unusable elsewhere. The resources block is deliberately
- * left alone: a proof no verifier will accept cannot be spent whatever it
- * lists, and agentres is free to reference resources we do not host.
- */
 function assertScopedTo(challenge: SiwxChallenge, expectedOrigin: string): void {
   const expected = parseUrl(expectedOrigin, `the agentres base URL "${expectedOrigin}"`);
 
@@ -167,7 +145,6 @@ function assertScopedTo(challenge: SiwxChallenge, expectedOrigin: string): void 
   }
 }
 
-/** Parse a URL, naming what failed rather than leaking a bare TypeError. */
 function parseUrl(value: string, description: string): URL {
   try {
     return new URL(value);
@@ -228,11 +205,6 @@ export function buildPayload(
   address: string,
   signature: Uint8Array
 ): string {
-  // Any length base58-encodes into a perfectly well-formed proof, which the
-  // server answers with a bare 401 — the same silent failure mode the message
-  // builder's golden test exists to prevent, reached from the other end. A
-  // signer that hands back the wrong bytes has to be named here or it surfaces
-  // as an authentication mystery.
   if (signature.length !== ED25519_SIGNATURE_BYTES) {
     throw new SiwxChallengeError(
       `expected a ${ED25519_SIGNATURE_BYTES}-byte ed25519 signature, got ${signature.length} bytes`
@@ -245,7 +217,6 @@ export function buildPayload(
     statement: challenge.statement,
     uri: challenge.uri,
     version: challenge.version,
-    // Full CAIP-2 here, unlike the bare reference the message carries.
     chainId: challenge.chainId,
     type: challenge.signingType,
     nonce: challenge.nonce,
@@ -257,7 +228,6 @@ export function buildPayload(
   return uint8ArrayToBase64(new TextEncoder().encode(JSON.stringify(payload)));
 }
 
-/** Bitcoin/Solana base58 alphabet — no 0, O, I or l. */
 const BASE58_ALPHABET = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
 
 /**
@@ -301,7 +271,6 @@ export function base58Encode(bytes: Uint8Array): string {
   return encoded;
 }
 
-/** Base64-decode the header and parse it as the x402 PaymentRequired object. */
 function decodeHeader(paymentRequiredHeader: string): Record<string, unknown> {
   let parsed: unknown;
   try {
@@ -319,14 +288,6 @@ function decodeHeader(paymentRequiredHeader: string): Record<string, unknown> {
   return decoded;
 }
 
-/**
- * Pick the Solana entry out of `supportedChains`.
- *
- * The chain id travels from the challenge rather than being pinned here: it is
- * what both the message and the payload are built from, so a provider that
- * moves to another Solana cluster keeps working. The first `solana:` entry
- * wins — providers list mainnet and devnet separately.
- */
 function solanaChain(supportedChains: unknown): { chainId: string; signingType: string } {
   if (!Array.isArray(supportedChains)) {
     throw new SiwxChallengeError("the sign-in-with-x extension lists no supportedChains");
@@ -354,11 +315,6 @@ function asRecord(value: unknown): Record<string, unknown> | null {
     : null;
 }
 
-/**
- * Read a field the signed message cannot be built without. Every one of them is
- * mandatory: the probe proved that dropping the statement, or renaming any
- * line, fails signature verification rather than degrading.
- */
 function requireString(info: Record<string, unknown>, key: string): string {
   const value = info[key];
   if (typeof value !== "string" || value === "") {

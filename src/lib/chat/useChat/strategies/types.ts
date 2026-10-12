@@ -36,7 +36,6 @@ export interface BuildRequestBodyArgs {
   maxOutputTokens?: number;
   tools?: LlmapiChatCompletionTool[];
   toolChoice?: string;
-  // Responses-only options (ignored by completions strategy)
   reasoning?: LlmapiResponseReasoning;
   thinking?: LlmapiThinkingOptions;
   imageModel?: string;
@@ -44,25 +43,6 @@ export interface BuildRequestBodyArgs {
   conversationId?: string;
 }
 
-/**
- * Discriminator used to route portal-field extraction below.
- *
- * We identify the *Responses API* positively and default everything else to
- * Chat Completions, rather than keying on `choices`. Two reasons:
- *
- *  - A chat-completion error/empty envelope can arrive without a `choices`
- *    array; keying on `"choices" in r` would misclassify it as Responses.
- *  - The Chat Completions extraction branches all fall back from `portal` to
- *    the legacy top-level paths (`r.portal?.x ?? r.x`), so they read correctly
- *    for *both* shapes. The Responses branch reads only top-level / `output[]`.
- *    Defaulting to Chat Completions is therefore the safe choice: a
- *    misclassified Responses response still resolves via the fallback, whereas
- *    a misclassified chat completion would silently drop its `portal` data.
- *
- * The Responses API is identified by `object === "response"` (canonical OpenAI
- * discriminator) or, when `object` is absent on SDK-built responses, by the
- * presence of an `output` array — which only the Responses shape carries.
- */
 function isChatCompletionResponse(r: ApiResponse): r is LlmapiChatCompletionResponse {
   if (r.object === "response") return false;
   if (Array.isArray((r as { output?: unknown }).output)) return false;

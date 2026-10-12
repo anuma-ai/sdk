@@ -1,8 +1,3 @@
-/**
- * Unit tests for pure helper functions exported from appGeneration.ts.
- * No LLM calls — these run fast and offline.
- */
-
 import { describe, expect, it } from "vitest";
 
 import type { ToolConfig } from "../lib/chat/useChat/types.js";
@@ -23,10 +18,6 @@ import {
   truncateContent,
   validateFileContent,
 } from "./appGeneration.js";
-
-// ---------------------------------------------------------------------------
-// normalizePath
-// ---------------------------------------------------------------------------
 
 describe("normalizePath", () => {
   it("strips leading slashes", () => {
@@ -59,10 +50,6 @@ describe("normalizePath", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// truncateContent
-// ---------------------------------------------------------------------------
-
 describe("truncateContent", () => {
   it("returns short content unchanged", () => {
     const content = "hello world";
@@ -83,10 +70,6 @@ describe("truncateContent", () => {
     expect(result).toMatch(/\d+ characters omitted/);
   });
 });
-
-// ---------------------------------------------------------------------------
-// applyPatches
-// ---------------------------------------------------------------------------
 
 describe("applyPatches", () => {
   const base = "line one\nline two\nline three\n";
@@ -126,10 +109,6 @@ describe("applyPatches", () => {
   });
 
   it("rejects ambiguous matches with line numbers (no silent first-occurrence pick)", () => {
-    // Two-line file where the find string appears on lines 1 and 3.
-    // applyPatches MUST NOT silently pick the first occurrence — it
-    // should fail the patch with reason:"ambiguous" and surface both
-    // line numbers so the model can add disambiguating context.
     const repeated = "color: red;\nbg: blue;\ncolor: red;\n";
     const { content, appliedCount, failed } = applyPatches(repeated, [
       { find: "color: red;", replace: "color: green;" },
@@ -142,8 +121,6 @@ describe("applyPatches", () => {
   });
 
   it("rejects ambiguous matches even after JSON-unescape fallback", () => {
-    // The model sent "\\n" in find, which unescapes to "\n" and then
-    // matches two locations. Ambiguity wins over the escape fallback.
     const file = "a\nx\nb\nx\nc";
     const { content, appliedCount, failed } = applyPatches(file, [
       { find: "\\nx", replace: "\nY" },
@@ -155,8 +132,6 @@ describe("applyPatches", () => {
   });
 
   it("applies cleanly when added context disambiguates", () => {
-    // Same repeated-line file as the ambiguous test, but the model
-    // included one line of surrounding context so the find is unique.
     const repeated = "color: red;\nbg: blue;\ncolor: red;\n";
     const { content, appliedCount, failed } = applyPatches(repeated, [
       { find: "bg: blue;\ncolor: red;", replace: "bg: blue;\ncolor: green;" },
@@ -172,34 +147,23 @@ describe("applyPatches", () => {
       { find: "missing", replace: "x" },
       { find: "line three", replace: "third" },
     ]);
-    // Content stays at base — the two patches that would have matched
-    // are NOT applied because one patch in the batch failed.
     expect(content).toBe(base);
     expect(appliedCount).toBe(0);
     expect(failed).toEqual([{ index: 1, find: "missing", reason: "not_found" }]);
   });
 
   it("reports ambiguous matchLines against the ORIGINAL content, not the mid-batch buffer", () => {
-    // An earlier patch in the same batch inserts a line, shifting every
-    // following line down by one in the mutated working buffer. A later
-    // patch is ambiguous (DUP appears twice). Because the WHOLE call
-    // reverts atomically, the model re-reads the ORIGINAL file — so the
-    // reported matchLines must reference original positions [3, 5], NOT
-    // the post-insert positions [4, 6] of the buffer that gets discarded.
-    const original = "A\nB\nDUP\nC\nDUP\n"; // DUP on original lines 3 and 5
+    const original = "A\nB\nDUP\nC\nDUP\n";
     const { content, appliedCount, failed } = applyPatches(original, [
-      { find: "A\nB\n", replace: "A\nB\nINSERTED\n" }, // applies, shifts later lines +1
-      { find: "DUP", replace: "X" }, // ambiguous: 2 matches
+      { find: "A\nB\n", replace: "A\nB\nINSERTED\n" },
+      { find: "DUP", replace: "X" },
     ]);
-    expect(content).toBe(original); // atomic revert
+    expect(content).toBe(original);
     expect(appliedCount).toBe(0);
     expect(failed).toEqual([{ index: 1, find: "DUP", reason: "ambiguous", matchLines: [3, 5] }]);
   });
 
   it("tolerates JSON-double-escaped newlines in find", () => {
-    // LLMs sometimes emit `\\n` (literal backslash+n) instead of a real
-    // newline inside JSON string values. The fallback unescapes these
-    // before declaring a failure.
     const { content, appliedCount, failed } = applyPatches(base, [
       { find: "line one\\nline two", replace: "ONE\nTWO" },
     ]);
@@ -218,8 +182,6 @@ describe("applyPatches", () => {
   });
 
   it("strips leading line-number prefixes when the model copies read_file output verbatim", () => {
-    // read_file returns "<n>: <text>". If the model includes those
-    // prefixes in its find string, the stripped fallback should match.
     const { content, appliedCount, failed } = applyPatches(base, [
       { find: "1: line one\n2: line two", replace: "FIRST\nSECOND" },
     ]);
@@ -229,8 +191,6 @@ describe("applyPatches", () => {
   });
 
   it("does not strip line-number prefixes when only some lines have them", () => {
-    // Don't treat lines that happen to start with digits as numbered
-    // output. The find must be ALL-numbered or none.
     const partiallyNumbered = "1: thing one\nactual content";
     const { content, appliedCount } = applyPatches("1: thing one\nactual content", [
       { find: partiallyNumbered, replace: "X" },
@@ -239,10 +199,6 @@ describe("applyPatches", () => {
     expect(appliedCount).toBe(1);
   });
 });
-
-// ---------------------------------------------------------------------------
-// findBestAnchor
-// ---------------------------------------------------------------------------
 
 describe("findBestAnchor", () => {
   const file = [
@@ -277,10 +233,6 @@ describe("findBestAnchor", () => {
   });
 
   it("prefers a semantic line over a longer SVG markup line", () => {
-    // Common React component shape: a long icon SVG at the top, a
-    // semantic button handler further down. A failed find that contains
-    // both should anchor on the handler, NOT the icon — otherwise the
-    // returned snippet describes the wrong region of the file.
     const reactFile = [
       "function App() {",
       "  return (",
@@ -301,9 +253,6 @@ describe("findBestAnchor", () => {
   });
 
   it("marks SVG-only matches as low confidence", () => {
-    // When the only line from `find` that anchors is a generic SVG tag,
-    // the match is structurally suspect — the model probably hallucinated
-    // the rest of the patch. Surface that via the low-confidence flag.
     const reactFile = [
       "function App() {",
       '  return <svg viewBox="0 0 24 24" fill="none"><path d="M5 13" /></svg>;',
@@ -313,10 +262,6 @@ describe("findBestAnchor", () => {
     expect(findBestAnchor(reactFile, find)).toEqual({ line: 2, confidence: "low" });
   });
 });
-
-// ---------------------------------------------------------------------------
-// snippetAroundLine
-// ---------------------------------------------------------------------------
 
 describe("snippetAroundLine", () => {
   const file = Array.from({ length: 20 }, (_, i) => `line ${i + 1}`).join("\n");
@@ -342,10 +287,6 @@ describe("snippetAroundLine", () => {
     expect(snip.endLine).toBe(20);
   });
 });
-
-// ---------------------------------------------------------------------------
-// snippetForFailedPatch
-// ---------------------------------------------------------------------------
 
 describe("snippetForFailedPatch", () => {
   const file = [
@@ -382,10 +323,6 @@ describe("snippetForFailedPatch", () => {
     expect(snippetForFailedPatch(svgFile, find)).toBeNull();
   });
 });
-
-// ---------------------------------------------------------------------------
-// validateFileContent
-// ---------------------------------------------------------------------------
 
 describe("validateFileContent", () => {
   it("returns null for syntactically valid JSX", () => {
@@ -465,10 +402,6 @@ describe("validateFileContent", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// create_file: Read-before-Write contract (Claude Code-style)
-// ---------------------------------------------------------------------------
-
 describe("create_file enforces Read-before-Write for overwrites", () => {
   function makeTools(): {
     storage: MapFileStorage;
@@ -505,14 +438,6 @@ describe("create_file enforces Read-before-Write for overwrites", () => {
     expect((await storage.getFile("test-conv", "App.js"))?.content).toContain("App");
   });
 
-  // Observed on merge-queue run 30318214180 once the e2e suite was allowed to
-  // finish: the model emitted a `files` entry carrying `content` but no
-  // `path`. normalizePath(undefined) threw "Cannot read properties of
-  // undefined (reading 'replace')", which the executor's catch turned into an
-  // opaque "Failed to create file: ..." the model could not act on. The JSON
-  // schema marks both fields required, but that is a hint to the model, not an
-  // enforcement point. patch_file/read_file/delete_file all guard their scalar
-  // `path`; only the array case was unguarded.
   it.each([
     ["missing path", [{ content: "x" }], 'files[0] is missing a non-empty "path"'],
     ["blank path", [{ path: "   ", content: "x" }], 'files[0] is missing a non-empty "path"'],
@@ -524,9 +449,7 @@ describe("create_file enforces Read-before-Write for overwrites", () => {
 
     expect(result.success).toBeUndefined();
     expect(result.error).toContain(expected);
-    // The error must name the problem, not leak the TypeError.
     expect(String(result.error)).not.toContain("reading 'replace'");
-    // Atomic: a bad entry writes nothing at all.
     expect(await storage.getFile("test-conv", "App.js")).toBeNull();
   });
 
@@ -539,7 +462,6 @@ describe("create_file enforces Read-before-Write for overwrites", () => {
     expect(result.error).toContain('files[1] is missing a non-empty "path"');
     expect(result.error).toContain('files[2] ("b.js") is missing a string "content"');
     expect(result.malformed).toHaveLength(2);
-    // The valid sibling in the same call is not written either.
     expect(await storage.getFile("test-conv", "App.js")).toBeNull();
   });
 
@@ -556,13 +478,6 @@ describe("create_file enforces Read-before-Write for overwrites", () => {
   });
 
   it("marks files seen by their normalized request path, not the storage-returned path", async () => {
-    // Third-party AppFileStorage adapters may return a differently
-    // shaped `path` than the one they were queried with (e.g. an
-    // absolute path, or a workspace-prefixed key). The read-before-
-    // write contract must key off the path the model asked for so
-    // that subsequent patch_file / create_file lookups hit the same
-    // slot. Regression test for the bug where markFileSeen used
-    // `file.path` instead of the normalized local `path`.
     class PathShiftingStorage implements AppFileStorage {
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       getFile(_convId: string, p: string): Promise<AppFileRecord | null> {
@@ -593,8 +508,6 @@ describe("create_file enforces Read-before-Write for overwrites", () => {
     const createFile = tools.find((t) => (t.function as { name: string }).name === "create_file")!;
 
     await readFile.executor!({ path: "App.js" });
-    // After read_file, the model is allowed to overwrite App.js even
-    // though storage hands back `/workspace/App.js`.
     const result = (await createFile.executor!({
       files: [{ path: "App.js", content: "const A = 2;\n" }],
     })) as Record<string, unknown>;
@@ -603,10 +516,6 @@ describe("create_file enforces Read-before-Write for overwrites", () => {
   });
 
   it("evicts oldest conversation state when maxConversations cap is exceeded", async () => {
-    // Long-running factory + low cap → confirm that read-before-write
-    // state for the LEAST RECENTLY USED conversation is dropped when
-    // a new one pushes the map over the cap. Evicted conversation
-    // must then re-read before it can patch — same as cold start.
     const storage = new MapFileStorage();
     storage.getAll().set("App.js", "const A = 1;\n");
     let convId = "conv-1";
@@ -621,18 +530,13 @@ describe("create_file enforces Read-before-Write for overwrites", () => {
     const readFile = findTool("read_file");
     const patchFile = findTool("patch_file");
 
-    // Conv-1: read so we may patch
     await readFile.executor!({ path: "App.js" });
 
-    // Two more conversations bump the cap and evict conv-1 (least
-    // recently used — it never acted again after its initial read).
     convId = "conv-2";
     await readFile.executor!({ path: "App.js" });
     convId = "conv-3";
     await readFile.executor!({ path: "App.js" });
 
-    // Back to conv-1 — its seen-state should be gone, so patch_file
-    // refuses with the read-before-write error.
     convId = "conv-1";
     const result = (await patchFile.executor!({
       path: "App.js",
@@ -643,11 +547,6 @@ describe("create_file enforces Read-before-Write for overwrites", () => {
   });
 
   it("keeps a recently active conversation when the cap evicts (LRU, not FIFO)", async () => {
-    // Regression: markFileSeen used to refresh a conversation's map
-    // position only on first insertion, so eviction was FIFO in practice —
-    // a conversation that kept writing could be evicted before an idle one
-    // that merely arrived later, hitting spurious "read_file first" errors
-    // mid-conversation.
     const storage = new MapFileStorage();
     storage.getAll().set("App.js", "const A = 1;\n");
     let convId = "conv-1";
@@ -662,13 +561,10 @@ describe("create_file enforces Read-before-Write for overwrites", () => {
     const readFile = findTool("read_file");
     const patchFile = findTool("patch_file");
 
-    // conv-1 then conv-2 read (insertion order: conv-1, conv-2).
     await readFile.executor!({ path: "App.js" });
     convId = "conv-2";
     await readFile.executor!({ path: "App.js" });
 
-    // conv-1 stays active by patching — a successful patch must promote
-    // it past the idle conv-2.
     convId = "conv-1";
     const patched = (await patchFile.executor!({
       path: "App.js",
@@ -676,12 +572,9 @@ describe("create_file enforces Read-before-Write for overwrites", () => {
     })) as Record<string, unknown>;
     expect(patched.success).toBe(true);
 
-    // conv-3 pushes the map over the cap → the idle conv-2 is evicted,
-    // not the active conv-1.
     convId = "conv-3";
     await readFile.executor!({ path: "App.js" });
 
-    // conv-1 can still patch without re-reading…
     convId = "conv-1";
     const again = (await patchFile.executor!({
       path: "App.js",
@@ -689,7 +582,6 @@ describe("create_file enforces Read-before-Write for overwrites", () => {
     })) as Record<string, unknown>;
     expect(again.success).toBe(true);
 
-    // …while conv-2 lost its seen-state and must re-read first.
     convId = "conv-2";
     const evicted = (await patchFile.executor!({
       path: "App.js",
@@ -701,9 +593,7 @@ describe("create_file enforces Read-before-Write for overwrites", () => {
 
   it("allows overwrite after read_file", async () => {
     const { createFile, readFile, storage } = makeTools();
-    // Simulate a file that exists in storage but wasn't created by the model.
     (storage as MapFileStorage).getAll().set("App.js", "const A = 1;\n");
-    // Read first, then overwrite.
     await readFile.executor!({ path: "App.js" });
     const result = (await createFile.executor!({
       files: [{ path: "App.js", content: "const A = 2;\n" }],
@@ -714,9 +604,7 @@ describe("create_file enforces Read-before-Write for overwrites", () => {
 
   it("refuses overwrite when the file exists but the model has not read or created it", async () => {
     const { createFile } = makeTools();
-    // File exists in storage but model has not touched it in this conversation.
-    // (e.g. host pre-populated, or a different session.)
-    const { storage } = makeTools(); // fresh conversation
+    const { storage } = makeTools();
     storage.getAll().set("App.js", "pre-existing content\n");
     const tools = createAppGenerationTools({
       getConversationId: () => "test-conv-2",
@@ -731,7 +619,6 @@ describe("create_file enforces Read-before-Write for overwrites", () => {
     expect(result.error).toEqual(expect.stringContaining("have not read"));
     expect(result.error).toEqual(expect.stringContaining("read_file"));
     expect(result.unreadOverwrites).toEqual(["App.js"]);
-    // Ensure createFile is the one we used (silences the unused-variable warning).
     expect(createFile).toBeDefined();
   });
 
@@ -746,11 +633,10 @@ describe("create_file enforces Read-before-Write for overwrites", () => {
     const cf = tools.find((t) => (t.function as { name: string }).name === "create_file")!;
     await cf.executor!({
       files: [
-        { path: "App.js", content: "rewrite without reading\n" }, // unread overwrite
-        { path: "App.css", content: "body {}\n" }, // new file, would be fine alone
+        { path: "App.js", content: "rewrite without reading\n" },
+        { path: "App.css", content: "body {}\n" },
       ],
     });
-    // App.js unchanged, App.css NOT created (atomic refusal).
     expect(storage.getAll().get("App.js")).toBe("pre-existing\n");
     expect(await storage.getFile("test-conv-3", "App.css")).toBeNull();
   });
@@ -761,7 +647,6 @@ describe("create_file enforces Read-before-Write for overwrites", () => {
       files: [{ path: "App.js", content: "const A = 1;\n" }],
     });
     await deleteFile.executor!({ path: "App.js" });
-    // After delete, App.js is gone from seen-files; recreating it is a new file.
     const result = (await createFile.executor!({
       files: [{ path: "App.js", content: "const A = 2;\n" }],
     })) as Record<string, unknown>;
@@ -785,10 +670,6 @@ describe("create_file enforces Read-before-Write for overwrites", () => {
     expect(result.unreadOverwrites).toEqual(["App.js"]);
   });
 });
-
-// ---------------------------------------------------------------------------
-// critique_design tool
-// ---------------------------------------------------------------------------
 
 describe("critique_design", () => {
   function makeTools(overrides?: Partial<Parameters<typeof createAppGenerationTools>[0]>): {
@@ -837,8 +718,6 @@ describe("critique_design", () => {
   });
 
   it("truncates oversized files like read_file does, keeping head and tail", async () => {
-    // Without the cap, critique_design was the one tool result whose size
-    // grew with the app — unbounded per-turn cost on long edit sessions.
     const head = "/* head marker */\n";
     const tail = "\n/* tail marker */";
     const bigJs = head + "x".repeat(10_000) + tail;
@@ -857,9 +736,7 @@ describe("critique_design", () => {
     expect(result.appJs.content).toContain("head marker");
     expect(result.appJs.content).toContain("tail marker");
     expect(result.appJs.content).toContain("characters omitted");
-    // `lines` still reports the real file size, not the truncated one.
     expect(result.appJs.lines).toBe(bigJs.split("\n").length);
-    // Small files pass through untouched.
     expect(result.appCss.content).toBe(":root { --bg: #fff; }\n");
   });
 
@@ -906,10 +783,6 @@ describe("critique_design", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// onFileChange callback — host-side hook for versioning / audit / analytics
-// ---------------------------------------------------------------------------
-
 describe("onFileChange callback", () => {
   function makeTools(overrides?: Partial<Parameters<typeof createAppGenerationTools>[0]>): {
     storage: MapFileStorage;
@@ -955,11 +828,9 @@ describe("onFileChange callback", () => {
 
   it("emits `modified` (not `created`) when create_file overwrites an existing file", async () => {
     const { events, tools, storage } = makeTools();
-    // Seed an existing file + mark it seen so the read-before-write
-    // contract permits the overwrite.
     storage.getAll().set("App.js", "const A = 1;\n");
     await tools.read_file!.executor!({ path: "App.js" });
-    events.length = 0; // ignore any reads (there are none, but just in case)
+    events.length = 0;
 
     await tools.create_file!.executor!({
       files: [{ path: "App.js", content: "const A = 2;\n" }],
@@ -1075,7 +946,6 @@ describe("onFileChange callback", () => {
     })) as Record<string, unknown>;
     expect(result.success).toBe(true);
     expect(logged.some((m) => m.includes("onFileChange"))).toBe(true);
-    // Underlying write still happened.
     expect((await storage.getFile("conv-1", "App.js"))?.content).toBe("const A = 1;\n");
   });
 
@@ -1099,10 +969,6 @@ describe("onFileChange callback", () => {
     expect(order).toEqual(["callback-done", "executor-returned"]);
   });
 });
-
-// ---------------------------------------------------------------------------
-// create_file split — created vs overwritten + soft patch_file nudge
-// ---------------------------------------------------------------------------
 
 describe("create_file result splits new writes from overwrites", () => {
   function makeTools(): {
@@ -1136,7 +1002,6 @@ describe("create_file result splits new writes from overwrites", () => {
     expect(result.created).toEqual(["App.js", "App.css"]);
     expect(result.overwritten).toEqual([]);
     expect(result.note).toBeUndefined();
-    // `paths` (the union) still works for back-compat consumers.
     expect(result.paths).toEqual(["App.js", "App.css"]);
   });
 
@@ -1156,8 +1021,6 @@ describe("create_file result splits new writes from overwrites", () => {
   });
 
   it("suggests audit_design when an audited file is rewritten", async () => {
-    // Rewrites of App.js/App.css are where class names and selectors
-    // desync — the note should point at the audit right then.
     const { createFile } = makeTools();
     await createFile.executor!({
       files: [{ path: "App.css", content: ":root { --ink: #111; }\n" }],
@@ -1199,10 +1062,6 @@ describe("create_file result splits new writes from overwrites", () => {
     expect(result.note).toEqual(expect.stringContaining("Overwrote 1"));
   });
 });
-
-// ---------------------------------------------------------------------------
-// verify_app tool — host-runtime verification hook
-// ---------------------------------------------------------------------------
 
 describe("verify_app tool", () => {
   function makeTools(overrides?: Partial<Parameters<typeof createAppGenerationTools>[0]>): {
@@ -1272,16 +1131,15 @@ describe("verify_app tool", () => {
   it("coerces a malformed host return shape into the expected structure", async () => {
     const { verify } = makeTools({
       verifyApp: (async () => ({
-        // Host returned wrong types — should be coerced, not crash.
         rendered: 1,
         errors: "single error string (should be array)",
         note: 42,
       })) as unknown as () => Promise<import("./appGeneration.js").VerifyAppResult>,
     });
     const result = (await verify.executor!({})) as Record<string, unknown>;
-    expect(result.rendered).toBe(true); // Number 1 coerces to true.
-    expect(result.errors).toEqual([]); // Non-array becomes empty list.
-    expect(result.note).toBe("42"); // Stringified.
+    expect(result.rendered).toBe(true);
+    expect(result.errors).toEqual([]);
+    expect(result.note).toBe("42");
   });
 
   it("catches a thrown host hook and returns a useful failure (not silent)", async () => {
@@ -1294,28 +1152,16 @@ describe("verify_app tool", () => {
     expect(result.rendered).toBe(false);
     expect(result.errors).toEqual([expect.stringContaining("Sandpack iframe disconnected")]);
     expect(result.note).toEqual(expect.stringContaining("verifier itself errored"));
-    // The host-hook throw is logged, not swallowed silently.
     expect(logged.some((m) => m.includes("verifyApp hook threw"))).toBe(true);
   });
 
   it("is included in APP_FILE_TOOL_NAMES (so allowlists pick it up)", async () => {
-    // Cross-module assertion: the schema name in this test file must
-    // match what the tool registers. If verify_app is renamed, both
-    // places must move together.
     const { APP_FILE_TOOL_NAMES } = await import("./appGeneration.js");
     expect(APP_FILE_TOOL_NAMES.has("verify_app")).toBe(true);
   });
 });
 
-// ---------------------------------------------------------------------------
-// patch_file thrash gating — not_found streak vs. ambiguous failures
-// ---------------------------------------------------------------------------
-
 describe("patch_file thrash gating", () => {
-  // Reuses the executor-driving harness from the read-before-write / LRU
-  // eviction tests above: MapFileStorage + a fixed conversation id, then
-  // mark the file seen via read_file so patch_file's read-before-write
-  // contract is satisfied.
   function makeTools(seedContent: string): {
     storage: MapFileStorage;
     readFile: ToolConfig;
@@ -1337,14 +1183,9 @@ describe("patch_file thrash gating", () => {
   }
 
   it("an ambiguous failure does NOT inherit a prior not_found streak's STOP directive", async () => {
-    // "const A = 1;" appears twice -> ambiguous. "NOPE" never appears ->
-    // not_found, used to drive the failure counter up to threshold.
     const { readFile, patchFile } = makeTools("const A = 1;\nconst A = 1;\n");
-    await readFile.executor!({ path: "App.js" }); // satisfy read-before-write
+    await readFile.executor!({ path: "App.js" });
 
-    // Drive PATCH_FAILURE_THRESHOLD (=2) consecutive not_found failures so
-    // the failure counter is at/over threshold and the NEXT not_found WOULD
-    // emit the STOP directive.
     const stop = (await patchFile.executor!({
       path: "App.js",
       patches: [{ find: "NOPE", replace: "x" }],
@@ -1353,20 +1194,15 @@ describe("patch_file thrash gating", () => {
       path: "App.js",
       patches: [{ find: "NOPE", replace: "x" }],
     })) as Record<string, unknown>;
-    // Sanity: by the second failure the STOP directive is in force, proving
-    // the counter is at/over threshold for the next not_found.
     expect(String(stop2.message)).toContain("STOP retrying patches");
     expect(String(stop.message)).not.toContain("STOP retrying patches");
 
-    // Now an AMBIGUOUS patch. It must get the tailored ambiguous response
-    // (matchLines + "add context"), NOT the inherited STOP directive.
     const result = (await patchFile.executor!({
       path: "App.js",
       patches: [{ find: "const A = 1;", replace: "const A = 2;" }],
     })) as Record<string, unknown>;
     expect(result.success).toBe(false);
     expect(String(result.message)).not.toContain("STOP retrying patches");
-    // Tailored ambiguous message mentions adding surrounding context.
     expect(String(result.message)).toContain("context");
     const failedPatches = result.failedPatches as Array<{
       reason: string;
@@ -1378,11 +1214,9 @@ describe("patch_file thrash gating", () => {
   });
 
   it("read_file resets the thrash counter — the next not_found is first-failure, not STOP", async () => {
-    // No duplicate needed here: every patch is not_found ("NOPE").
     const { readFile, patchFile } = makeTools("const A = 1;\nconst B = 2;\n");
-    await readFile.executor!({ path: "App.js" }); // satisfy read-before-write
+    await readFile.executor!({ path: "App.js" });
 
-    // Drive enough not_found failures to trigger the STOP directive.
     await patchFile.executor!({ path: "App.js", patches: [{ find: "NOPE", replace: "x" }] });
     const stop = (await patchFile.executor!({
       path: "App.js",
@@ -1390,25 +1224,17 @@ describe("patch_file thrash gating", () => {
     })) as Record<string, unknown>;
     expect(String(stop.message)).toContain("STOP retrying patches");
 
-    // Re-read the file: this clears the failure streak.
     await readFile.executor!({ path: "App.js" });
 
-    // One more not_found patch. Because the streak was cleared, this is
-    // the FIRST-FAILURE treatment, NOT the immediate STOP directive.
     const result = (await patchFile.executor!({
       path: "App.js",
       patches: [{ find: "NOPE", replace: "x" }],
     })) as Record<string, unknown>;
     expect(result.success).toBe(false);
     expect(String(result.message)).not.toContain("STOP retrying patches");
-    // First-failure message: the "did not apply / File NOT modified" framing.
     expect(String(result.message)).toContain("File NOT modified");
   });
 });
-
-// ---------------------------------------------------------------------------
-// buildAppFileManifest — turn-envelope manifest
-// ---------------------------------------------------------------------------
 
 describe("buildAppFileManifest", () => {
   it("lists files sorted by path with character counts", async () => {
@@ -1425,8 +1251,6 @@ describe("buildAppFileManifest", () => {
       "- App.js (123 chars)",
       "- package.json (2 chars)",
     ]);
-    // The re-read instruction is part of the contract: contents are not
-    // carried between turns, only the manifest is.
     expect(manifest).toContain("read_file before patching");
   });
 

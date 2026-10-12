@@ -1,22 +1,3 @@
-/**
- * Compile the design-system proposal sketch and dump the result to HTML
- * for visual review.
- *
- * Renders every (composition × design system) pair in one deck so you can
- * arrow-key through and see how each composition looks across visual
- * identities. Validation results print to the terminal: budget per slot
- * and any default content that exceeds it.
- *
- * Wired against the PROPOSAL surface (src/tools/slides/designSystem.ts).
- * Does not touch the live tool flow.
- *
- * Run:
- *   pnpm exec tsx test/tools/slide-generation/dumpDesignSystem.ts
- *
- * Output:
- *   test/tools/slide-generation/.output/design-system/index.html
- */
-
 import fs from "node:fs";
 import path from "node:path";
 
@@ -35,23 +16,13 @@ import { renderDeckToHtml } from "./renderHtml.js";
 
 const OUT_DIR = path.resolve(__dirname, ".output", "design-system");
 
-// The deck wrapper supplies one fontPreset and one palette. editorial-warm
-// reads heading/body fonts from the preset; techno-bold uses literal font
-// strings and literal hex colors, so it ignores the preset and palette
-// entirely. That lets us put every system into one deck without conflict.
 const palette = PALETTES.find((p) => p.name === "warm editorial")!;
 const fontPreset = FONT_PRESETS[palette.fontPreset] ?? FONT_PRESETS.default!;
 
-// Use the live registry from designSystem.ts directly — one source of
-// truth for which compositions and systems exist. Adding a new entry
-// in designSystem.ts now shows up in the dump automatically.
 const compositions: LayoutComposition[] = ALL_COMPOSITIONS;
 const baseSystems: Array<{ name: string; system: DesignSystem }> = ALL_SYSTEMS;
 const systems: Array<{ name: string; system: DesignSystem }> = baseSystems;
 
-// Build one deck with every (composition × system) pair, grouped by
-// composition so two adjacent slides are the same layout in different
-// visual identities — easy to flip between.
 const slides: string[] = [];
 for (const composition of compositions) {
   for (const { name, system } of systems) {
@@ -73,9 +44,6 @@ ${slides.join("\n")}
 const deck = parseJsx(deckJsx);
 
 fs.mkdirSync(OUT_DIR, { recursive: true });
-// skipNav: true → we'll inject our own filter-aware nav below. The shared
-// renderer's default nav captures `.slide` into a static NodeList at load
-// time, which makes filtering by design system impossible to retrofit.
 const baseHtml = renderDeckToHtml(
   deck,
   `${compositions.length} compositions × ${systems.length} design systems`,
@@ -154,9 +122,6 @@ const html = baseHtml.replace("</body>", filterAndNav + "</body>");
 const outPath = path.join(OUT_DIR, "index.html");
 fs.writeFileSync(outPath, html, "utf-8");
 
-// Print the LLM-facing slot-budget recipe and validation issues for each
-// composition × design system pair. Option 3 from the content-overflow
-// discussion — the constraints are surfaced to the prompt boundary.
 function reportPair(composition: LayoutComposition, label: string, system: DesignSystem): void {
   console.log(`\n══════════ ${composition.name} × ${label} ══════════`);
   console.log(describeComposition(composition, system, fontPreset));

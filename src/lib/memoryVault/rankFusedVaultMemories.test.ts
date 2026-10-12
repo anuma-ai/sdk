@@ -8,15 +8,9 @@ function daysAgo(n: number): Date {
   return new Date(NOW.getTime() - n * 24 * 60 * 60 * 1000);
 }
 
-/**
- * Build a normalized embedding from a sparse weight vector.
- * Lets us craft items whose cosine similarity to a query embedding is
- * deterministic and obvious, e.g. emb({ tokyo: 1 }) vs query emb({ tokyo: 1 }) → cosine 1.
- */
 function emb(weights: Record<number, number>, dim = 8): number[] {
   const v = new Array(dim).fill(0);
   for (const [k, w] of Object.entries(weights)) v[Number(k)] = w;
-  // Normalize so cosine similarity = dot product
   const norm = Math.sqrt(v.reduce((acc, x) => acc + x * x, 0));
   return norm === 0 ? v : v.map((x) => x / norm);
 }
@@ -27,11 +21,9 @@ describe("rankFusedVaultMemories", () => {
   });
 
   it("includes a BM25-only hit that cosine alone would miss", () => {
-    // Query embedding aligns with dim 0. Only item B is on dim 0 (cosine=1).
-    // But item A's content contains the query keyword — BM25 catches it.
     const items = [
-      { id: "A", content: "biscuit", embedding: emb({ 1: 1 }), updatedAt: daysAgo(0) }, // cosine=0
-      { id: "B", content: "unrelated content", embedding: emb({ 0: 1 }), updatedAt: daysAgo(0) }, // cosine=1
+      { id: "A", content: "biscuit", embedding: emb({ 1: 1 }), updatedAt: daysAgo(0) },
+      { id: "B", content: "unrelated content", embedding: emb({ 0: 1 }), updatedAt: daysAgo(0) },
     ];
     const results = rankFusedVaultMemories("biscuit", emb({ 0: 1 }), items, {
       limit: 5,
@@ -39,12 +31,10 @@ describe("rankFusedVaultMemories", () => {
       recency: { now: NOW },
     });
     const ids = results.map((r) => r.uniqueId);
-    expect(ids).toContain("A"); // present despite cosine=0 below the threshold
+    expect(ids).toContain("A");
   });
 
   it("recency boost lifts a fresh memory above an older similar one", () => {
-    // Two items with identical embedding and identical content shape;
-    // the newer one should rank higher because of recency.
     const items = [
       {
         id: "old",
@@ -67,7 +57,6 @@ describe("rankFusedVaultMemories", () => {
   });
 
   it("captures the Portland → SF temporal failure case", () => {
-    // Replicates the benchmark's p19/p20 pattern.
     const items = [
       {
         id: "p19",
@@ -118,25 +107,19 @@ describe("rankFusedVaultMemories", () => {
   });
 
   it("composite query — fuses cosine winner and BM25 winner together", () => {
-    // Two correct memories; one favored by cosine, one by BM25. RRF should
-    // surface BOTH in the top results, mirroring the composite category lift
-    // we expect from fusion.
     const items = [
-      // Cosine-favored: matches the query embedding strongly, no keyword overlap
       {
         id: "cos",
         content: "stack overview",
         embedding: emb({ 0: 1 }),
         updatedAt: daysAgo(10),
       },
-      // BM25-favored: keyword match but weak cosine
       {
         id: "bm25",
         content: "postgresql is the primary database",
         embedding: emb({ 7: 1 }),
         updatedAt: daysAgo(10),
       },
-      // Distractor: zero on both axes
       {
         id: "noise",
         content: "completely unrelated",
@@ -154,8 +137,6 @@ describe("rankFusedVaultMemories", () => {
   });
 
   it("PR5: factTypeWeights boosts a type above an otherwise-equal item", () => {
-    // Two items, identical cosine (1) and recency; only fact_type differs.
-    // A per-type weight tips the order in favor of the boosted type.
     const items = [
       {
         id: "identity",
@@ -172,7 +153,6 @@ describe("rankFusedVaultMemories", () => {
         factType: "ongoing_context",
       },
     ];
-    // Uniform (no weights) → tie broken by stable order (identity first here).
     const boosted = rankFusedVaultMemories("engineering context", emb({ 0: 1 }), items, {
       limit: 5,
       recency: { now: NOW },
@@ -221,7 +201,6 @@ describe("rankFusedVaultMemories", () => {
     const neutral = rankFusedVaultMemories("engineering", emb({ 0: 1 }), items, {
       recency: { now: NOW },
     });
-    // 0 would zero out the score; it must be ignored → equals the no-weight score.
     expect(bad[0].similarity).toBeCloseTo(neutral[0].similarity, 10);
   });
 
@@ -230,7 +209,6 @@ describe("rankFusedVaultMemories", () => {
       { id: "a", content: "hello world", embedding: emb({ 0: 1 }) },
       { id: "b", content: "hello other", embedding: emb({ 0: 0.9 }) },
     ];
-    // Should not throw; ordering should still be by cosine when recency is neutral
     const results = rankFusedVaultMemories("hello", emb({ 0: 1 }), items, { limit: 5 });
     expect(results.length).toBe(2);
     expect(results[0].uniqueId).toBe("a");

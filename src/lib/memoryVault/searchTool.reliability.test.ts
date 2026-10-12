@@ -1,9 +1,3 @@
-/**
- * Recall-reliability regressions for the vault search (anuma-ai/sdk#949).
- *
- * One `describe` per defect. Each test here was run against the pre-fix code
- * and failed there — see the PR for the revert log.
- */
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
@@ -70,10 +64,6 @@ beforeEach(() => {
   vi.clearAllMocks();
 });
 
-// ---------------------------------------------------------------------------
-// Event dates + factType on the cosine path
-// ---------------------------------------------------------------------------
-
 describe("event-time anchors and factType survive every lane", () => {
   const dated = {
     eventTimeStart: EVENT_MS,
@@ -114,7 +104,6 @@ describe("event-time anchors and factType survive every lane", () => {
   });
 
   it("carries them on a side-lane tail admission (sync and async)", async () => {
-    // Zero cosine, no lexical overlap: only the entity lane can admit `lane`.
     const items = [
       { id: "head", content: "alpha", embedding: [1, 0, 0], updatedAt: NOW },
       { id: "lane", content: "zulu", embedding: [0, 1, 0], updatedAt: NOW, ...dated },
@@ -147,16 +136,7 @@ describe("event-time anchors and factType survive every lane", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// One side-lane fusion for both budgets
-// ---------------------------------------------------------------------------
-
 describe("side-lane fusion applies the recency/proof boost on both rankers", () => {
-  // `old` out-scores `fresh` on cosine but is ten years stale, so the recency
-  // boost puts `fresh` first. The entity lane then votes for `old`. Without the
-  // boost multiplied back in after RRF, the lane vote alone decides it.
-  // Pairwise cosine(old, fresh) ≈ 0.54, under the supersession threshold, so
-  // only recency separates them.
   const items = [
     {
       id: "old",
@@ -178,14 +158,8 @@ describe("side-lane fusion applies the recency/proof boost on both rankers", () 
   });
 });
 
-// ---------------------------------------------------------------------------
-// BM25 is blended when cosine can't carry the ranking
-// ---------------------------------------------------------------------------
-
 describe("BM25 carries the ranking when the query vector is empty", () => {
   it("lets BM25 rank an empty-vector search even at minSimilarity 0", () => {
-    // At minSimilarity 0 every row clears the (all-zero) cosine floor, so the
-    // old code left BM25 nothing to admit and the ranking was recency alone.
     const items = [
       { id: "plain", content: "a plain row", embedding: [], updatedAt: NOW },
       { id: "match", content: "the zebra crossing", embedding: [], updatedAt: NOW },
@@ -223,8 +197,6 @@ describe("BM25 carries the ranking when the query vector is empty", () => {
   );
 
   it("ranks by BM25 strength, not a flat floor, when the query vector is empty", () => {
-    // A small divisor pushes both BM25 scores past the admission cap, which is
-    // where the old code flattened them to one score and let input order win.
     const items = [
       { id: "weak", content: "zebra among many other words here", embedding: [], updatedAt: NOW },
       { id: "strong", content: "zebra zebra zebra", embedding: [], updatedAt: NOW },
@@ -241,10 +213,6 @@ describe("BM25 carries the ranking when the query vector is empty", () => {
     expect(ranked.map((r) => r.uniqueId)).toEqual(["strong", "weak"]);
   });
 });
-
-// ---------------------------------------------------------------------------
-// memory_vault_search limit clamp
-// ---------------------------------------------------------------------------
 
 describe("memory_vault_search clamps the model-supplied limit", () => {
   function seedVault(n: number) {
@@ -275,10 +243,6 @@ describe("memory_vault_search clamps the model-supplied limit", () => {
     expect(out).toContain("Found 1 vault memories");
   });
 });
-
-// ---------------------------------------------------------------------------
-// A precomputed query vector is used, not re-embedded
-// ---------------------------------------------------------------------------
 
 describe("searchVaultMemoriesWithSize reuses a caller-supplied query vector", () => {
   beforeEach(() => {
@@ -313,10 +277,6 @@ describe("searchVaultMemoriesWithSize reuses a caller-supplied query vector", ()
   });
 });
 
-// ---------------------------------------------------------------------------
-// Cached vectors are tied to the row version they came from
-// ---------------------------------------------------------------------------
-
 describe("the embedding cache drops a vector once its row changes", () => {
   const T1 = new Date("2026-08-01T00:00:00Z");
   const T2 = new Date("2026-08-02T00:00:00Z");
@@ -329,8 +289,6 @@ describe("the embedding cache drops a vector once its row changes", () => {
     ]);
     await searchVaultMemoriesWithSize("q", vaultCtx, embeddingOptions, cache);
 
-    // Edited elsewhere (e.g. synced from another device): new content, new
-    // stored vector, newer updatedAt. The cache still holds the T1 vector.
     vi.mocked(generateEmbedding).mockResolvedValue([0, 1, 0]);
     vi.mocked(ops.getAllVaultMemoriesOp).mockResolvedValueOnce([
       makeMemory("m1", "moved to seattle", { embedding: "[0,1,0]", updatedAt: T2 }),
@@ -374,11 +332,8 @@ describe("the embedding cache drops a vector once its row changes", () => {
   });
 
   it("does not adopt an unversioned entry: a stale vector written elsewhere is re-resolved", async () => {
-    // An entry written without a row version — e.g. an eager write for an OLDER
-    // edit — must not be blessed as the current row's vector just because a
-    // search read it first. The stored column is the source of truth.
     const cache = createVaultEmbeddingCache();
-    cache.set("m1", Float32Array.from([1, 0, 0])); // untagged, from the old content
+    cache.set("m1", Float32Array.from([1, 0, 0]));
     vi.mocked(generateEmbedding).mockResolvedValue([0, 1, 0]);
     vi.mocked(ops.getAllVaultMemoriesOp).mockResolvedValue([
       makeMemory("m1", "moved to seattle", { embedding: "[0,1,0]", updatedAt: T2 }),
@@ -390,13 +345,9 @@ describe("the embedding cache drops a vector once its row changes", () => {
 
     expect(results.map((r) => r.uniqueId)).toEqual(["m1"]);
     expect(Array.from(cache.get("m1")!)).toEqual([0, 1, 0]);
-    expect(generateEmbeddings).not.toHaveBeenCalled(); // resolved from the column, no re-embed
+    expect(generateEmbeddings).not.toHaveBeenCalled();
   });
 
-  // retain()'s consolidate-update rewrites content + embedding with
-  // preserveUpdatedAt, so a consolidation synced from another device arrives
-  // with NEW content under the SAME updatedAt. The content fingerprint is what
-  // catches it.
   it("legacy path: new content under an unchanged updatedAt is a miss", async () => {
     const cache = createVaultEmbeddingCache();
     cacheRowVector(cache, "m1", Float32Array.from([1, 0, 0]), T1, "lives in portland");
@@ -441,7 +392,7 @@ describe("the embedding cache drops a vector once its row changes", () => {
     cacheRowVector(cache, "m1", Float32Array.from([1, 0, 0]), T1, "lives in portland");
     vi.mocked(generateEmbedding).mockResolvedValue([1, 0, 0]);
     vi.mocked(ops.getAllVaultMemoriesOp).mockResolvedValue([
-      makeMemory("m1", "lives in portland", { updatedAt: T1 }), // no stored vector
+      makeMemory("m1", "lives in portland", { updatedAt: T1 }),
     ]);
 
     const { results } = await searchVaultMemoriesWithSize("q", vaultCtx, embeddingOptions, cache, {
@@ -453,15 +404,7 @@ describe("the embedding cache drops a vector once its row changes", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// recall <-> searchTool import cycle
-// ---------------------------------------------------------------------------
-
 describe("searchTool.ts stays out of the recall import cycle", () => {
-  // The executor routes through recall(), and recall() imports this module. If
-  // searchTool.ts reaches recall again — statically, dynamically, or through a
-  // re-export of the executor — the cycle behind the order-dependent
-  // "Cannot access 'nowMs' before initialization" flake is back.
   const source = readFileSync(join(process.cwd(), "src/lib/memoryVault/searchTool.ts"), "utf8");
 
   it("does not import recall or the executor module", () => {

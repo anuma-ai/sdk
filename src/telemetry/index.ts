@@ -23,16 +23,10 @@
  * ```
  */
 
+export type { RunHooks } from "../lib/chat/runHooks";
+export type { RecallDiagnostics } from "../lib/memory/types";
 export type { MetricsHooksOptions } from "./metrics";
 export { createMetricsHooks } from "./metrics";
 export { createRecallDiagnosticsHandler } from "./recall";
 export type { TelemetrySink } from "./types";
 export { noopTelemetrySink } from "./types";
-
-// The return type of createMetricsHooks and the parameter type of the recall
-// handler. Both otherwise live only on `@anuma/sdk/server`, a Node-only
-// subpath — so naming either one from a browser or React Native app meant
-// importing from an entry point it cannot use. Type-only, so this adds nothing
-// to the runtime surface.
-export type { RunHooks } from "../lib/chat/runHooks";
-export type { RecallDiagnostics } from "../lib/memory/types";

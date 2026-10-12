@@ -99,8 +99,6 @@ describe("shared context assembly", () => {
       expect.objectContaining({ memoryIds: ["allowed"], types: ["fact"] })
     );
     expect(context.items.map((m) => m.id)).toEqual(["allowed"]);
-    // Counted after the topic filter: `rankedCount` is read as "how much ranked
-    // evidence is in items", and the raw payload held one more.
     expect(context.rankedCount).toBe(1);
   });
   it("empty scope stays closed across profile, session and retrieval", async () => {

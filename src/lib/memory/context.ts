@@ -15,7 +15,6 @@ export interface MemoryContextItem {
    * model can answer "what did I save recently". */
   createdAt?: Date;
 }
-/** Omit a missing / invalid / sentinel-zero write time rather than date it 1970-01-01. */
 function savedAt(createdAt: Date | undefined): { createdAt?: Date } {
   const ms = createdAt?.getTime();
   return ms !== undefined && Number.isFinite(ms) && ms > 0 ? { createdAt } : {};
@@ -210,7 +209,6 @@ export async function assembleMemoryContext(
     );
   }
   const rankedProfile = profile.map((item) => {
-    // Match both identities used by the final deduplication pass.
     const score = Math.max(
       recalledScores.get(item.id) ?? -Infinity,
       recalledContentScores.get(item.content.trim()) ?? -Infinity
@@ -234,7 +232,6 @@ export async function assembleMemoryContext(
       const content = item.content?.trim();
       const key = `${item.lane === "episode" ? "episode" : "fact"}:${item.id}`;
       if (!content || seenIds.has(key) || seenContent.has(content)) continue;
-      // Never cut a factual statement in half. Continue so smaller facts can fit.
       if (content.length > laneRemaining) {
         truncated = true;
         continue;
@@ -246,8 +243,5 @@ export async function assembleMemoryContext(
       laneRemaining -= content.length;
     }
   }
-  // Count what survived the topic filter, not the raw recall payload: on a
-  // scoped assembly the two differ and the caller reads this as "how much
-  // ranked evidence is in `items`".
   return { items, ranked, rankedCount: recalledFacts.length, degraded, truncated };
 }

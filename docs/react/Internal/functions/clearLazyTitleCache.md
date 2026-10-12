@@ -2,7 +2,7 @@
 
 > **clearLazyTitleCache**(): `void`
 
-Defined in: [src/lib/db/chat/lazyDecrypt.ts:100](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/lazyDecrypt.ts#100)
+Defined in: [src/lib/db/chat/lazyDecrypt.ts:38](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/lazyDecrypt.ts#38)
 
 Drop every cached plaintext title and pending decrypt promise.
 

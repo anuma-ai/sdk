@@ -40,11 +40,9 @@ describe("createConnectorTokenGetter", () => {
 
     expect(await getToken()).toBe("stale");
 
-    // Inside the freshness window: (100_000 - 10_000) > 80_000 → cached.
     nowValue = 80_000;
     expect(await getToken()).toBe("stale");
 
-    // Past the refresh boundary: (100_000 - 10_000) <= 95_000 → re-mint.
     nowValue = 95_000;
     expect(await getToken()).toBe("fresh");
     expect(source.mintConnectorToken).toHaveBeenCalledTimes(2);
@@ -62,11 +60,9 @@ describe("createConnectorTokenGetter", () => {
 
     expect(await getToken()).toBe("t");
 
-    // (100_000 - 30_000) = 70_000 → cached at 69_999.
     nowValue = 69_999;
     expect(await getToken()).toBe("t");
 
-    // 70_000 == 70_000 → boundary triggers refresh.
     nowValue = 70_000;
     expect(await getToken()).toBe("t2");
   });
@@ -88,7 +84,6 @@ describe("createConnectorTokenGetter", () => {
     });
 
     expect(await getToken()).toBeNull();
-    // Next call must re-attempt the mint (cache was not populated).
     expect(await getToken()).toBe("after-reconnect");
     expect(source.mintConnectorToken).toHaveBeenCalledTimes(2);
   });
@@ -102,7 +97,6 @@ describe("createConnectorTokenGetter", () => {
     const getToken = createConnectorTokenGetter(source, "gmail", { now: () => 1_000 });
 
     expect(await getToken()).toBeNull();
-    // Cache must not have been populated — second call retries.
     expect(await getToken()).toBe("recovered");
     expect(fn).toHaveBeenCalledTimes(2);
   });

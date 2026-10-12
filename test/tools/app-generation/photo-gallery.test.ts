@@ -1,27 +1,3 @@
-/**
- * Photo gallery — verifies the model wires up file/image upload.
- *
- * Browser file APIs (`<input type="file">`, drag-and-drop with
- * dataTransfer, FileReader, URL.createObjectURL) are already available
- * in the preview environment. This benchmark checks whether the model
- * picks them up from the system prompt's FILE & IMAGE UPLOAD section
- * and uses them naturally.
- *
- * Two phases:
- *   1. Upload (file input + drag-and-drop) → responsive grid → lightbox
- *      → delete. Persists metadata or thumbnails in localStorage.
- *   2. Add CSS filter sliders (brightness / contrast / saturation) that
- *      apply to the selected image or to the whole gallery.
- *
- * Each phase dumps a working app to
- * test/tools/app-generation/.output/photo-gallery/step-N/index.html
- * for manual drag-and-drop / upload testing in a browser.
- *
- * Opt-in via RUN_PHOTO_GALLERY=1.
- *
- * Run: PORTAL_API_KEY=... RUN_PHOTO_GALLERY=1 pnpm vitest run test/tools/app-generation/photo-gallery.test.ts
- */
-
 import { afterAll, describe, expect, it } from "vitest";
 
 import { buildAppSystemPrompt } from "../../../src/tools/appGeneration.js";
@@ -122,7 +98,6 @@ describe("photo gallery (file upload benchmark)", () => {
         return store.get("App.css") ?? "";
       }
 
-      // ── Phase 1: upload, grid, lightbox, delete ────────────────────────────
       conversation.push(
         userMsg(
           [
@@ -151,15 +126,10 @@ describe("photo gallery (file upload benchmark)", () => {
       const phase1Css = getAppCss();
 
       expect(phase1Js.length).toBeGreaterThanOrEqual(2500);
-      // File input is the most-essential affordance.
       expect(phase1Js).toMatch(/type=["']file["']/);
       expect(phase1Js).toMatch(/accept=["'][^"']*image/i);
-      // Drag-and-drop primitives.
       expect(phase1Js).toMatch(/onDrop|onDragOver|dataTransfer/);
-      // Reading the file: either createObjectURL (preferred for live preview)
-      // or FileReader (used when serializing to data URL for storage).
       expect(phase1Js).toMatch(/createObjectURL|FileReader|readAsDataURL/);
-      // Persistence requested.
       expect(phase1Js).toMatch(/localStorage/);
 
       const handlerCount = (phase1Js.match(/createObjectURL\(/g) ?? []).length;
@@ -173,7 +143,6 @@ describe("photo gallery (file upload benchmark)", () => {
 
       const snap1 = snapshot(store);
 
-      // ── Phase 2: CSS filter sliders ────────────────────────────────────────
       conversation.push(
         userMsg(
           [
@@ -202,9 +171,7 @@ describe("photo gallery (file upload benchmark)", () => {
       expect(phase2Js).toMatch(/brightness/i);
       expect(phase2Js).toMatch(/contrast/i);
       expect(phase2Js).toMatch(/saturate|saturation/i);
-      // Either CSS filter property in a string, or inline style.filter assignment.
       expect(`${phase2Js}\n${phase2Css}`).toMatch(/filter:|filter\s*[:=]\s*['"`]/);
-      // Range inputs for the sliders.
       expect(phase2Js).toMatch(/type=["']range["']/);
 
       const diff2 = diffSnapshots(snap1, snapshot(store));
@@ -213,7 +180,6 @@ describe("photo gallery (file upload benchmark)", () => {
         `  Phase 2: App.js=${phase2Js.length}ch (+${phase2Js.length - phase1Js.length}), App.css=${phase2Css.length}ch (+${phase2Css.length - phase1Css.length})`
       );
 
-      // ── Summary + persistence ──────────────────────────────────────────────
       writeRunMetrics({
         outputSubdir: "photo-gallery",
         benchmark: "photo-gallery",

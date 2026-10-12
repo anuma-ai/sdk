@@ -1,6 +1,6 @@
 # ProfileSalienceInput
 
-Defined in: [src/lib/memory/profileSalience.ts:49](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/profileSalience.ts#49)
+Defined in: [src/lib/memory/profileSalience.ts:35](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/profileSalience.ts#35)
 
 ## Extends
 
@@ -12,7 +12,7 @@ Defined in: [src/lib/memory/profileSalience.ts:49](https://github.com/anuma-ai/s
 
 > **createdAt**: `number` | `Date`
 
-Defined in: [src/lib/memory/observationTrend.ts:32](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/observationTrend.ts#32)
+Defined in: [src/lib/memory/observationTrend.ts:19](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/observationTrend.ts#19)
 
 **Inherited from**
 
@@ -24,7 +24,7 @@ Defined in: [src/lib/memory/observationTrend.ts:32](https://github.com/anuma-ai/
 
 > `optional` **factType**: `string` | `null`
 
-Defined in: [src/lib/memory/profileSalience.ts:53](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/profileSalience.ts#53)
+Defined in: [src/lib/memory/profileSalience.ts:39](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/profileSalience.ts#39)
 
 Extractor FactType; null/undefined → neutral weight (1.0).
 
@@ -34,7 +34,7 @@ Extractor FactType; null/undefined → neutral weight (1.0).
 
 > **id**: `string`
 
-Defined in: [src/lib/memory/profileSalience.ts:51](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/profileSalience.ts#51)
+Defined in: [src/lib/memory/profileSalience.ts:37](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/profileSalience.ts#37)
 
 Vault memory id — required for [rankProfileCandidates](../functions/rankProfileCandidates.md).
 
@@ -44,7 +44,7 @@ Vault memory id — required for [rankProfileCandidates](../functions/rankProfil
 
 > `optional` **lastObservedAt**: `number` | `null`
 
-Defined in: [src/lib/memory/observationTrend.ts:38](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/observationTrend.ts#38)
+Defined in: [src/lib/memory/observationTrend.ts:25](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/observationTrend.ts#25)
 
 C3 re-observation watermark (Unix ms). When null/undefined, the fact
 has never been merged-into since the column landed — treat `createdAt`
@@ -60,7 +60,7 @@ as last-seen.
 
 > `optional` **proofCount**: `number` | `null`
 
-Defined in: [src/lib/memory/observationTrend.ts:40](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/observationTrend.ts#40)
+Defined in: [src/lib/memory/observationTrend.ts:27](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/observationTrend.ts#27)
 
 Times this fact has been retained/merged. Defaults to 1.
 

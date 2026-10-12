@@ -1,15 +1,3 @@
-/**
- * Probes each model from /api/v1/models against both the completions and
- * responses endpoints to determine which API each model supports.
- *
- * Usage:
- *   PORTAL_API_KEY=<key> tsx scripts/update-model-apis.ts
- *
- * Outputs:
- *   - src/lib/chat/useChat/strategies/modelApiSupport.ts  (importable map)
- *   - a table printed to stdout
- */
-
 import "dotenv/config";
 
 import { createClient } from "../src/client/client";
@@ -33,8 +21,6 @@ const client = createClient({
   headers: { "X-API-Key": API_KEY },
 });
 
-// ── Fetch all models ────────────────────────────────────────────────
-
 async function fetchModels(): Promise<LlmapiModel[]> {
   const models: LlmapiModel[] = [];
   let pageToken: string | undefined;
@@ -55,8 +41,6 @@ async function fetchModels(): Promise<LlmapiModel[]> {
 
   return models;
 }
-
-// ── Probe a single endpoint for a model ─────────────────────────────
 
 type Endpoint = "completions" | "responses";
 
@@ -79,13 +63,7 @@ async function probe(model: string, endpoint: Endpoint): Promise<{ ok: boolean; 
       client,
       body: {
         model,
-        // The server expects `input` as a flat messages array (like the ResponsesStrategy does),
-        // not the typed { messages: [...] } wrapper from the OpenAPI spec.
         input: [{ role: "user", content: [{ type: "text", text: "Hi" }] }] as never,
-        // 256, not 1: reasoning models (e.g. glm-4.7) reject token budgets
-        // smaller than their reasoning minimum with a 400, which this probe
-        // would misread as "responses unsupported" and wrongly route the
-        // model to completions.
         max_output_tokens: 256,
         stream: false,
       },
@@ -100,8 +78,6 @@ async function probe(model: string, endpoint: Endpoint): Promise<{ ok: boolean; 
   }
 }
 
-// ── Main ────────────────────────────────────────────────────────────
-
 interface ModelResult {
   model: string;
   completions: boolean;
@@ -110,20 +86,11 @@ interface ModelResult {
   responses_error?: string;
 }
 
-// Models that work but don't appear in the /models endpoint.
-//
-// This includes the anuma client app's catalog ids: the portal accepts short
-// alias ids (e.g. `kimi/kimi-k2.6` for `openrouter/moonshotai/kimi-k2.6`) at
-// the chat endpoints but never lists them in /api/v1/models — so probing only
-// the listed ids leaves every alias out of the map and silently routes it to
-// the "responses" fallback. Keep this list in sync with the active text/vision
-// models in the client's packages/hooks/src/models.ts.
 const EXTRA_MODELS: string[] = [
   "cerebras/qwen-3-235b-a22b-instruct-2507",
   "cerebras/zai-glm-4.7",
   "fireworks/accounts/fireworks/models/minimax-m2p5",
   "fireworks/accounts/fireworks/models/qwen3-235b-a22b-instruct-2507",
-  // anuma client catalog aliases (active models as of June 2026)
   "anthropic/claude-fable-5",
   "anthropic/claude-opus-4-8",
   "anthropic/claude-sonnet-4-6",
@@ -150,7 +117,6 @@ async function main() {
   console.log(`Fetching models from ${BASE_URL}...`);
   const models = await fetchModels();
 
-  // Add extra models that aren't in the endpoint
   const knownIds = new Set(models.map((m) => m.id));
   for (const id of EXTRA_MODELS) {
     if (!knownIds.has(id)) {
@@ -165,7 +131,6 @@ async function main() {
   const results: ModelResult[] = [];
   const concurrency = 5;
 
-  // Process in batches to avoid hammering the API
   for (let i = 0; i < models.length; i += concurrency) {
     const batch = models.slice(i, i + concurrency);
     const batchResults = await Promise.all(
@@ -191,12 +156,10 @@ async function main() {
     results.push(...batchResults);
   }
 
-  // Write JSON
   const fs = await import("node:fs");
   const path = await import("node:path");
   const scriptDir = path.dirname(new URL(import.meta.url).pathname);
 
-  // Generate importable TS map (only chat-capable models)
   const chatModels = results.filter((r) => r.completions || r.responses);
   chatModels.sort((a, b) => a.model.localeCompare(b.model));
 
@@ -241,7 +204,6 @@ async function main() {
   fs.writeFileSync(tsPath, tsLines.join("\n"));
   console.log(`TS map written to ${tsPath} (${chatModels.length} chat models)`);
 
-  // Print summary table
   console.log(
     "\n┌─────────────────────────────────────────────────────┬──────────────┬────────────┐"
   );
@@ -261,7 +223,6 @@ async function main() {
     "└─────────────────────────────────────────────────────┴──────────────┴────────────┘"
   );
 
-  // Summary
   const both = results.filter((r) => r.completions && r.responses).length;
   const compOnly = results.filter((r) => r.completions && !r.responses).length;
   const respOnly = results.filter((r) => !r.completions && r.responses).length;

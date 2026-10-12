@@ -2,7 +2,7 @@
 
 > **deriveKeyFromSignatureBytes**(`signature`: `Uint8Array`): `Promise`<`string`>
 
-Defined in: [src/react/useEncryption.ts:494](https://github.com/anuma-ai/sdk/blob/main/src/react/useEncryption.ts#494)
+Defined in: [src/react/useEncryption.ts:362](https://github.com/anuma-ai/sdk/blob/main/src/react/useEncryption.ts#362)
 
 Derives the bytes-native AES key from a raw signature.
 

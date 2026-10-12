@@ -124,8 +124,6 @@ describe("parseDocumentDsl — structural rules", () => {
   });
 
   it("rejects a block element (View) nested in a text tag", () => {
-    // react-pdf would silently flatten the View into the text run, dropping its
-    // box/background/borders — convert that opaque misrender into a parse error.
     expect(() =>
       parseDocumentDsl(`<Document><Page><Text><View><Text>x</Text></View></Text></Page></Document>`)
     ).toThrow(/<View> cannot appear inside <Text>/);
@@ -220,7 +218,6 @@ describe("parseDocumentDsl — security / literal-only", () => {
   });
 
   it("rejects a control-char-obfuscated javascript: Link href", () => {
-    // An embedded TAB splits the scheme name; PDF viewers strip it and execute.
     expect(() =>
       parseDocumentDsl(
         `<Document><Page><Text><Link src="java\tscript:alert(1)">x</Link></Text></Page></Document>`
@@ -254,9 +251,6 @@ describe("parseDocumentDsl — security / literal-only", () => {
   });
 
   it("rejects an unsafe scheme carried via the href prop", () => {
-    // react-pdf resolves a link's destination as `src || href`, so a script
-    // scheme on href is just as dangerous as on src and must not bypass the
-    // check by avoiding the src prop entirely.
     expect(() =>
       parseDocumentDsl(
         `<Document><Page><Text><Link href="javascript:alert(1)">x</Link></Text></Page></Document>`

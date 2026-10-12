@@ -1,6 +1,6 @@
 # WebSearchPreProcessorOptions
 
-Defined in: [src/lib/chat/webSearchClassifier.ts:79](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/webSearchClassifier.ts#79)
+Defined in: [src/lib/chat/webSearchClassifier.ts:66](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/webSearchClassifier.ts#66)
 
 ## Properties
 
@@ -8,7 +8,7 @@ Defined in: [src/lib/chat/webSearchClassifier.ts:79](https://github.com/anuma-ai
 
 > `optional` **fetchSearchResults**: (`prompt`: `string`, `options`: `object`) => `Promise`<`string` | [`LlmapiMessage`](../../../client/Internal/type-aliases/LlmapiMessage.md)\[]>
 
-Defined in: [src/lib/chat/webSearchClassifier.ts:90](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/webSearchClassifier.ts#90)
+Defined in: [src/lib/chat/webSearchClassifier.ts:77](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/webSearchClassifier.ts#77)
 
 Called with the caller's search provider when the classifier decides
 a web search is needed. Return either a plain string (the SDK will
@@ -78,7 +78,7 @@ search requests can be aborted when the caller aborts.
 
 > `optional` **margin**: `number`
 
-Defined in: [src/lib/chat/webSearchClassifier.ts:99](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/webSearchClassifier.ts#99)
+Defined in: [src/lib/chat/webSearchClassifier.ts:86](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/webSearchClassifier.ts#86)
 
 Score margin: `searchScore` must exceed `noSearchScore` by at least
 this amount to classify as "needs web search".
@@ -95,7 +95,7 @@ this amount to classify as "needs web search".
 
 > `optional` **onClassification**: (`result`: [`WebSearchClassification`](WebSearchClassification.md)) => `void`
 
-Defined in: [src/lib/chat/webSearchClassifier.ts:101](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/webSearchClassifier.ts#101)
+Defined in: [src/lib/chat/webSearchClassifier.ts:88](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/webSearchClassifier.ts#88)
 
 Observe the classification without injecting anything.
 

@@ -2,7 +2,7 @@
 
 > **createVaultEmbeddingCache**(`maxSize`: `number`): [`VaultEmbeddingCache`](../type-aliases/VaultEmbeddingCache.md)
 
-Defined in: [src/lib/memoryVault/lruCache.ts:47](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/lruCache.ts#47)
+Defined in: [src/lib/memoryVault/lruCache.ts:46](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/lruCache.ts#46)
 
 Create a VaultEmbeddingCache backed by an LRU with a default cap of
 DEFAULT\_VAULT\_CACHE\_SIZE entries. Values are Float32Array — the model's

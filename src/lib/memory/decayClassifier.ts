@@ -1,74 +1,12 @@
-/**
- * Optional content-reading decay classifier (PR5).
- *
- * The rule engine ({@link ./decay}.classifyDecay) decides keep/archive/delete
- * from plaintext columns ALONE — it never sees `content`, which is what keeps
- * the default decay sweep zero-knowledge. That is the right default, but it is
- * weakest on BORDERLINE rows: an `other`/untyped fact, or a `plan` with no
- * event end, whose staleness is a pure `updated_at` guess.
- *
- * This factory builds a {@link DecayClassifier} that reads the DECRYPTED content
- * of such a row and returns keep-vs-archive. The sweeper consults it ONLY for a
- * borderline row whose CURRENT rule verdict is `keep` — a rule archive/delete
- * short-circuits before the classifier ever runs (see `decayWorker.verdictFor` +
- * `isBorderline`). So its whole job is to REFINE a still-kept borderline row
- * toward EARLIER archive when the content shows it is genuinely ephemeral (a
- * finished one-off plan, an expired temporary state) — turning a weak age-only
- * "keep" into an "archive" sooner.
- *
- * DIRECTIONALITY IS DELIBERATE (a security property, not a shortcoming): it can
- * move a borderline keep → archive, never the reverse. It CANNOT rescue /
- * keep-alive a row the rule would archive — the escalation gate makes that path
- * unreachable, and archive is reversible while un-archiving poison would not be.
- * Enabling a classifier hands whoever answers the portal (incl. a malicious /
- * MITM'd endpoint) a lever, and that lever must only ever archive-reversibly.
- *
- * ZERO-KNOWLEDGE CONTRACT (the caller MUST honor this):
- *   - `getContent` is supplied by the caller and MUST be gated on wallet-key
- *     availability: return `null` when no key is loaded. With no content the
- *     classifier degrades to the rule verdict — never blocks, never guesses.
- *   - When it does read content and calls the portal, the content is
- *     PII-redacted first. Redaction is OPT-OUT, not opt-in: it defaults ON when
- *     the consumer omits `piiRedaction`, so a caller can never accidentally
- *     egress raw PII. Pass `piiRedaction: false` to deliberately disable it.
- *   - Egress is bounded by the SWEEPER, not this classifier: the sweep caps
- *     invocations per pass and never re-sends an unchanged (id, updated_at) row
- *     (see `decayWorker`), so a stable borderline "keep" row egresses once.
- *   - It only ever chooses keep vs archive, and only for a row the rule already
- *     keeps. It NEVER escalates to `delete` and NEVER un-archives — hard-delete
- *     is exclusively the deterministic archived-past-window mechanic (rule 1),
- *     and a row the rule wants archived is archived regardless of this layer.
- *
- * Fails to the rule verdict (keep) on any error, missing id, no key, or
- * malformed response — like every other optional LLM layer in this subsystem it
- * can only refine a borderline keep toward archive, never make the sweep worse.
- *
- * RESIDUAL SCOPE (accepted): a genuinely durable fact MISTYPED as `other`/null
- * and never re-mentioned within its medium TTL WILL age-archive — this layer can
- * only bring that archive EARLIER, never prevent it. Accepted because it is
- * recoverable: archived rows stay in the Archived section, Restore clears
- * `archived_at`, and any re-observation resets the TTL. The alternative — a
- * keep-alive lever — is exactly the capability a hostile portal must NOT have.
- *
- * SECURITY (MEDIUM, residual) — this is a NEW portal call surface carrying
- * (redacted) memory content. It is opt-in (you must construct + pass it) and
- * gated on key availability. Beyond widening which models see facts, a
- * malicious / MITM'd portal can steer the verdict — but only to ARCHIVE a row
- * (reversible; never a hard delete). Gate it on trust in the portal.
- */
-
 import { getLogger } from "../logger.js";
 import { type PiiRedactor, resolvePiiRedactor } from "../pii/redactor.js";
 import { type DecayInput, type DecayVerdict, lastActivityAt } from "./decay.js";
 import type { DecayClassifier } from "./decayWorker.js";
 import { callPortalJsonCompletion, type PortalLlmAuth } from "./portalLlm.js";
 
-/** Open-weights, reliable-JSON model — same rationale as consolidate.ts. */
 const DEFAULT_MODEL = "inclusionai/ling-2.6-flash";
-/** Background quality stage — retry a transient blip once, don't hold long. */
 const DEFAULT_ATTEMPTS = 2;
 const DEFAULT_TOTAL_TIMEOUT_MS = 12_000;
-/** Cap the content sent — a durable fact is short; anything longer is trimmed. */
 const MAX_CONTENT_CHARS = 400;
 
 const SYSTEM_PROMPT = `You maintain a personal memory system. A stored fact about a user is currently being KEPT, but it is a borderline case decided only by a weak age signal. Your job is to decide whether its content shows it has actually become STALE and should be archived early, or should keep being kept.
@@ -126,9 +64,6 @@ export interface LlmDecayClassifierOptions extends PortalLlmAuth {
  * @public
  */
 export function createLlmDecayClassifier(options: LlmDecayClassifierOptions): DecayClassifier {
-  // Redaction is OPT-OUT: default to a fresh redactor when `piiRedaction` is
-  // omitted so decrypted content can never egress unredacted by accident. Only
-  // an explicit `false` disables it (resolvePiiRedactor(false) → undefined).
   const redactor: PiiRedactor | undefined = resolvePiiRedactor(options.piiRedaction ?? true);
 
   return {
@@ -137,10 +72,6 @@ export function createLlmDecayClassifier(options: LlmDecayClassifierOptions): De
       ruleVerdict: DecayVerdict,
       now: number
     ): Promise<DecayVerdict> {
-      // Never let a content read escalate to a hard delete — delete is the
-      // deterministic archived-past-window mechanic only. If the rule already
-      // says delete (it shouldn't for a borderline row, but be defensive),
-      // don't second-guess it with content.
       if (ruleVerdict === "delete") return ruleVerdict;
       if (!input.id) return ruleVerdict;
       if (!options.apiKey && !options.getToken) return ruleVerdict;
@@ -149,19 +80,11 @@ export function createLlmDecayClassifier(options: LlmDecayClassifierOptions): De
       try {
         content = await options.getContent(input.id);
       } catch {
-        // No key / read failed → keep it zero-knowledge; use the rule verdict.
         return ruleVerdict;
       }
       if (!content || content.trim().length === 0) return ruleVerdict;
 
       const trimmed = content.trim().slice(0, MAX_CONTENT_CHARS);
-      // ASYNC, deliberately. `redactText` is regex-only: a caller who handed us
-      // a redactor carrying an `nerDetector` would still egress names,
-      // locations and orgs in plain text, because NER runs only in
-      // `redactTextAsync`. Decrypted memory content leaves the device here, so
-      // it has to honour the redactor the caller configured rather than the
-      // cheaper half of it. Without a detector `redactTextAsync` returns
-      // `redactText` directly, so the default path is unchanged.
       const safe = redactor ? (await redactor.redactTextAsync(trimmed)).text : trimmed;
       const meta = `factType: ${input.factType ?? "none"}; ageDays: ${ageDays(lastActivityAt(input), now)}`;
 
@@ -191,22 +114,16 @@ export function createLlmDecayClassifier(options: LlmDecayClassifierOptions): De
       }
 
       const verdict = parseVerdict(parsed);
-      // Malformed / missing → trust the rule engine.
       return verdict ?? ruleVerdict;
     },
   };
 }
 
-/** Whole days between the last edit/re-observation and the sweep's injected `now` (for the
- * prompt's age hint). Uses the injected clock — NOT wall-clock `Date.now()` — so
- * a fixed-`now` sweep is deterministic. */
 function ageDays(activityAt: number, now: number): number {
   if (!Number.isFinite(activityAt) || !Number.isFinite(now)) return 0;
   return Math.max(0, Math.floor((now - activityAt) / (24 * 60 * 60 * 1000)));
 }
 
-/** Parse `{ verdict: "keep" | "archive" }`. Returns null on anything else — the
- * classifier never emits `delete`, so an unexpected value falls back to rules. */
 function parseVerdict(parsed: unknown): DecayVerdict | null {
   if (typeof parsed !== "object" || parsed === null) return null;
   const v = (parsed as { verdict?: unknown }).verdict;

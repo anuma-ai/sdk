@@ -1,17 +1,9 @@
-/**
- * Choice interaction tool factory.
- *
- * Creates a client-side tool that presents an interactive choice picker
- * inline in the chat. The tool blocks until the user selects an option.
- */
-
 import type { ToolConfig } from "../lib/chat/useChat/types.js";
 import type { CreateUIToolsOptions } from "./uiInteraction";
 import { createInteractiveTool } from "./uiInteraction";
 
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
+/** Tool name surfaced to the LLM. */
+export const CHOICE_TOOL_NAME = "prompt_user_choice";
 
 export type ChoiceOption = {
   /** Unique identifier for this option */
@@ -21,10 +13,6 @@ export type ChoiceOption = {
   /** Optional description or additional info */
   description?: string;
 };
-
-// ---------------------------------------------------------------------------
-// Tool factory
-// ---------------------------------------------------------------------------
 
 /**
  * Create a prompt_user_choice tool that renders an interactive choice picker.
@@ -45,7 +33,7 @@ export type ChoiceOption = {
  */
 export function createChoiceTool(options: CreateUIToolsOptions): ToolConfig {
   return createInteractiveTool(options, {
-    name: "prompt_user_choice",
+    name: CHOICE_TOOL_NAME,
     description:
       "Show a clickable choice menu when the user needs to pick between specific options. Examples: choosing a restaurant for dinner or selecting a travel destination.",
     parameters: {

@@ -1,24 +1,3 @@
-/**
- * `assembleClientTools` — capability-gated client-tool assembly (issue #702,
- * Phase 3). Given a resolved plan's `clientFactories` and a set of adapters, it
- * instantiates only the factories whose adapter is present and concatenates
- * them in a canonical order.
- *
- * The presence of an adapter GATES its factory — the generalization of
- * `createDocumentTools` returning `[]` when `displayDocument` is absent
- * (src/tools/document/index.ts). This is what lets ONE unified plan produce
- * web's full toolkit and mobile's subset automatically: web wires every
- * builder, mobile wires only the ones its RN surface supports, and the absent
- * ones contribute nothing.
- *
- * The SDK deliberately owns the GATING, ORDER, and filter application — not the
- * per-factory wiring. Each app's factory instantiation (slide auto-display,
- * app-lineage tracking, RN-vs-web storage, logging instrumentation) is
- * genuinely app-specific and stays app-side, expressed as a builder here.
- *
- * Pure and node/RN-safe.
- */
-
 import type { ToolConfig } from "../../chat/useChat/types";
 import { getToolName } from "../clientToolSelection";
 import type {
@@ -74,7 +53,7 @@ export function assembleClientTools<TTool = ToolConfig>(
   const out: TTool[] = [];
   for (const key of spec.clientFactories) {
     const build = adapters.builders[key];
-    if (!build) continue; // capability-gated: no adapter → no tools for this factory
+    if (!build) continue;
     try {
       const tools = build();
       if (tools?.length) out.push(...tools);
@@ -109,8 +88,6 @@ export function filterAssembledClientTools<TTool = ToolConfig>(
 ): TTool[] | Promise<TTool[]> {
   if (typeof mode === "function") return mode(tools);
   if (mode === "include-all" || mode === "auto") return tools;
-  // slide-editor — fail CLOSED: no resolved name set means no slide-editor
-  // tools, so restrict to nothing rather than leaking the full candidate list.
   const names = opts?.slideEditorToolNames;
   if (!names) return [];
   const getName = opts?.getName ?? ((t: TTool) => getToolName(t as never));

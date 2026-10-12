@@ -1,6 +1,6 @@
 # UpdateVaultMemoryOptions
 
-Defined in: [src/lib/db/memoryVault/types.ts:239](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#239)
+Defined in: [src/lib/db/memoryVault/types.ts:333](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#333)
 
 ## Properties
 
@@ -8,7 +8,7 @@ Defined in: [src/lib/db/memoryVault/types.ts:239](https://github.com/anuma-ai/sd
 
 > **content**: `string`
 
-Defined in: [src/lib/db/memoryVault/types.ts:240](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#240)
+Defined in: [src/lib/db/memoryVault/types.ts:334](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#334)
 
 ***
 
@@ -16,7 +16,7 @@ Defined in: [src/lib/db/memoryVault/types.ts:240](https://github.com/anuma-ai/sd
 
 > `optional` **embedding**: `string` | `null`
 
-Defined in: [src/lib/db/memoryVault/types.ts:246](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#246)
+Defined in: [src/lib/db/memoryVault/types.ts:351](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#351)
 
 JSON-stringified embedding vector to persist, or null to clear stale embedding
 
@@ -26,7 +26,7 @@ JSON-stringified embedding vector to persist, or null to clear stale embedding
 
 > `optional` **embeddingModel**: `string` | `null`
 
-Defined in: [src/lib/db/memoryVault/types.ts:249](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#249)
+Defined in: [src/lib/db/memoryVault/types.ts:354](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#354)
 
 Model that produced `embedding`. Set whenever `embedding` is written so
 the stored model tag stays in sync with the vector.
@@ -37,7 +37,7 @@ the stored model tag stays in sync with the vector.
 
 > `optional` **eventTime**: `object`
 
-Defined in: [src/lib/db/memoryVault/types.ts:277](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#277)
+Defined in: [src/lib/db/memoryVault/types.ts:382](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#382)
 
 W6 temporal lane — write the event-time fields on update. Use during
 auto-merge to preserve (or refine) the original event-time signal when
@@ -62,7 +62,7 @@ existing values untouched.
 
 > `optional` **factType**: `"other"` | `"identity"` | `"preference"` | `"relationship"` | `"plan"` | `"ongoing_context"` | `"constraint"`
 
-Defined in: [src/lib/db/memoryVault/types.ts:300](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#300)
+Defined in: [src/lib/db/memoryVault/types.ts:405](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#405)
 
 Typed memory (PR1) — set/refine the fact's classification on update.
 Used by retain()'s lazy backfill (adopt an incoming type only when the
@@ -74,9 +74,39 @@ existing row has none). Omit to leave the existing value untouched.
 
 > `optional` **folderId**: `string` | `null`
 
-Defined in: [src/lib/db/memoryVault/types.ts:244](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#244)
+Defined in: [src/lib/db/memoryVault/types.ts:349](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#349)
 
 If provided, moves the memory to this folder.
+
+***
+
+### freeFormOnly?
+
+> `optional` **freeFormOnly**: `boolean`
+
+Defined in: [src/lib/db/memoryVault/types.ts:336](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#336)
+
+When true, the write is skipped (returns null) if the row carries a profile kind.
+
+***
+
+### kind?
+
+> `optional` **kind**: `"prompt"` | `"display_name"` | `"birth_date"` | `"bio"` | `"occupation"` | `"interest"` | `"gender"` | `"height_cm"` | `"looking_for"` | `"politics"` | `"religion"` | `"ethnicity"` | `"smoking"` | `"drinking"` | `"exercise"` | `"sexuality"` | `null`
+
+Defined in: [src/lib/db/memoryVault/types.ts:343](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#343)
+
+If provided, sets the profile kind (null makes the memory free-form).
+
+***
+
+### kindValue?
+
+> `optional` **kindValue**: `string` | `null`
+
+Defined in: [src/lib/db/memoryVault/types.ts:345](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#345)
+
+If provided, sets the canonical JSON value (null clears it).
 
 ***
 
@@ -84,7 +114,7 @@ If provided, moves the memory to this folder.
 
 > `optional` **lastObservedAt**: `number`
 
-Defined in: [src/lib/db/memoryVault/types.ts:293](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#293)
+Defined in: [src/lib/db/memoryVault/types.ts:398](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#398)
 
 C3: Unix ms to stamp as the re-observation watermark (`last_observed_at`).
 Set by retain() merge/consolidate paths so a re-observation records "seen
@@ -93,11 +123,21 @@ pinned). Omit to leave the existing value untouched.
 
 ***
 
+### level?
+
+> `optional` **level**: `"private"` | `"matching"` | `"profile"`
+
+Defined in: [src/lib/db/memoryVault/types.ts:347](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#347)
+
+If provided, sets the level (and dual-writes `scope`).
+
+***
+
 ### observationSourceIds?
 
 > `optional` **observationSourceIds**: `string`\[]
 
-Defined in: [src/lib/db/memoryVault/types.ts:268](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#268)
+Defined in: [src/lib/db/memoryVault/types.ts:373](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#373)
 
 Source ids for an observation. Unioned inside the writer. A replay whose
 ids are all already on the row contributes no new evidence, so
@@ -113,7 +153,7 @@ Omit for unkeyed/manual observations.
 
 > `optional` **preserveUpdatedAt**: `boolean`
 
-Defined in: [src/lib/db/memoryVault/types.ts:288](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#288)
+Defined in: [src/lib/db/memoryVault/types.ts:393](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#393)
 
 When true, restore the existing `updated_at` after the write so the
 recency multiplier doesn't see a re-observation as a brand-new fact.
@@ -126,7 +166,7 @@ without inflating recency on top.
 
 > `optional` **proofCount**: `number`
 
-Defined in: [src/lib/db/memoryVault/types.ts:255](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#255)
+Defined in: [src/lib/db/memoryVault/types.ts:360](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#360)
 
 Set an absolute proof count. Prefer [proofCountIncrement](#proofcountincrement) for
 re-observation paths so the read+write happens inside the writer
@@ -138,7 +178,7 @@ and concurrent retains can't lose updates.
 
 > `optional` **proofCountIncrement**: `number`
 
-Defined in: [src/lib/db/memoryVault/types.ts:260](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#260)
+Defined in: [src/lib/db/memoryVault/types.ts:365](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#365)
 
 Atomically bump proof\_count by this delta inside the write block.
 Reads the current value from the in-memory record at write time, so
@@ -151,7 +191,7 @@ loses its increment. Wins over `proofCount` when both are set.
 
 > `optional` **restore**: `boolean`
 
-Defined in: [src/lib/db/memoryVault/types.ts:311](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#311)
+Defined in: [src/lib/db/memoryVault/types.ts:416](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#416)
 
 PR5 — un-archive on re-observe. When true, clears `archived_at` (null) as
 part of the write, resurrecting a decayed row that a new observation just
@@ -165,9 +205,10 @@ Omit/false to leave `archived_at` untouched.
 
 > `optional` **scope**: `string`
 
-Defined in: [src/lib/db/memoryVault/types.ts:242](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#242)
+Defined in: [src/lib/db/memoryVault/types.ts:341](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#341)
 
-If provided, updates the memory's scope.
+If provided, updates the memory's scope (and the level it implies; a `profile` row keeps
+`profile` under `scope: "shared"`).
 
 ***
 
@@ -175,7 +216,7 @@ If provided, updates the memory's scope.
 
 > `optional` **source**: `string`
 
-Defined in: [src/lib/db/memoryVault/types.ts:270](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#270)
+Defined in: [src/lib/db/memoryVault/types.ts:375](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#375)
 
 Set source ("manual" | "auto-extracted" | "capsule").
 
@@ -185,7 +226,7 @@ Set source ("manual" | "auto-extracted" | "capsule").
 
 > `optional` **sourceChunkIds**: `string`\[]
 
-Defined in: [src/lib/db/memoryVault/types.ts:251](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#251)
+Defined in: [src/lib/db/memoryVault/types.ts:356](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#356)
 
 Replace source-chunk-ids list (used during merge to accumulate provenance).
 
@@ -195,7 +236,7 @@ Replace source-chunk-ids list (used during merge to accumulate provenance).
 
 > `optional` **topicsUserManaged**: `boolean`
 
-Defined in: [src/lib/db/memoryVault/types.ts:296](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#296)
+Defined in: [src/lib/db/memoryVault/types.ts:401](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#401)
 
 If provided, sets whether the user has taken manual control of this
 memory's topics. Set by [setMemoryEntitiesOp](../functions/setMemoryEntitiesOp.md).
@@ -206,7 +247,7 @@ memory's topics. Set by [setMemoryEntitiesOp](../functions/setMemoryEntitiesOp.m
 
 > `optional` **trustTier**: `string`
 
-Defined in: [src/lib/db/memoryVault/types.ts:303](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#303)
+Defined in: [src/lib/db/memoryVault/types.ts:408](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#408)
 
 Tier-0 security (PR3) — set the trust tier on update ("quarantined" |
 "trusted"). Omit to leave the existing value untouched.

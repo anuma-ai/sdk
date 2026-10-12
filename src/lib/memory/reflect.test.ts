@@ -25,11 +25,6 @@ function mockFetch(body: unknown, ok = true, status = ok ? 200 : 500): typeof fe
   }) as unknown as typeof fetch;
 }
 
-/**
- * Scripts one response per attempt. A call BEYOND the script gets a distinct
- * sentinel status rather than a replay of the last entry, so an over-eager
- * retry shows up as a wrong call count instead of silently passing.
- */
 function mockFetchSequence(
   steps: Array<{ body?: unknown; ok?: boolean; status?: number }>
 ): typeof fetch {
@@ -119,12 +114,6 @@ describe("reflect", () => {
     expect(fetchFn).toHaveBeenCalledTimes(1);
   });
 
-  // reflect answers the USER's own question here, which is chat, not an internal
-  // flow. `taskType` is optional for exactly that reason — a name declared
-  // unconditionally would tag real conversation as a Class-B internal task and
-  // hand the portal a fixed prompt for it. Only a background caller with one
-  // fixed purpose (profile-facet synthesis) passes one, so the default must send
-  // no header at all.
   it("declares no task type by default, so user-facing answers stay unlabelled", async () => {
     mockRecall.mockResolvedValueOnce({
       memories: [
@@ -214,8 +203,6 @@ describe("reflect", () => {
     const result = await reflect("q", ctx, { apiKey: "k", fetchFn });
     expect(result.text).toBe("");
     expect(result.basedOn.memoryIds).toEqual(["m1"]);
-    // The default (Anthropic) model never sends response_format, so there is
-    // nothing to fall back FROM — this pins the retry to `sendResponseFormat`.
     expect(fetchFn).toHaveBeenCalledTimes(1);
   });
 
@@ -283,7 +270,6 @@ describe("reflect", () => {
     const system = (body.messages as Array<{ role: string; content: string }>)[0];
     expect(system.role).toBe("system");
     expect(system.content).toContain("JSON Schema");
-    // The prompt-fallback path still yields parsed structured output.
     expect(result.structuredOutput).toEqual({ name: "Peter" });
   });
 
@@ -303,7 +289,6 @@ describe("reflect", () => {
       type: "json_schema",
       json_schema: { name: "reflect_output", schema },
     });
-    // No JSON-instruction appended when the flag is honored natively.
     const system = (body.messages as Array<{ role: string; content: string }>)[0];
     expect(system.content).not.toContain("JSON Schema");
   });
@@ -314,7 +299,7 @@ describe("reflect", () => {
     await reflect("q", ctx, {
       apiKey: "k",
       fetchFn,
-      llmModel: "deepseek/deepseek-v4", // accepts json_object but NOT json_schema
+      llmModel: "deepseek/deepseek-v4",
       responseSchema: { type: "object" },
     });
 
@@ -343,13 +328,10 @@ describe("reflect", () => {
       expect(fetchFn).toHaveBeenCalledTimes(1);
       expect(urlOf(fetchFn)).toContain("/api/v1/responses");
       const body = sentBody(fetchFn, 0);
-      // Responses spelling only — the chat names are silently ignored there.
       expect(body.input).toBeDefined();
       expect(body.messages).toBeUndefined();
       expect(body.max_completion_tokens).toBeUndefined();
       expect(body.max_output_tokens).toBeDefined();
-      // The Responses API spells structured output differently, so the schema
-      // must ride in the prompt instead.
       expect(body.response_format).toBeUndefined();
       expect((body.input as Array<{ content: string }>)[0].content).toContain("JSON Schema");
       expect(result.structuredOutput).toEqual({ name: "Peter" });
@@ -405,12 +387,8 @@ describe("reflect", () => {
       });
 
       expect(result.text).toBe("Mochi.");
-      // Responses spells usage input/output — reading only the chat names would
-      // report zeros for every call on this transport.
       expect(result.usage.promptTokens).toBe(11);
       expect(result.usage.completionTokens).toBe(3);
-      // Responses does not always send a total — deriving it keeps a real cost
-      // from being reported as zero spend.
       expect(result.usage.totalTokens).toBe(14);
     });
 
@@ -427,8 +405,6 @@ describe("reflect", () => {
 
   describe("json_schema rejection fallback", () => {
     const SCHEMA = { type: "object", properties: { name: { type: "string" } } };
-    // An allowlisted provider whose model is NOT on the json_schema denylist,
-    // so attempt 1 really does carry `response_format`.
     const SCHEMA_MODEL = "openai/gpt-4o";
 
     it("retries without response_format when the json_schema request is rejected", async () => {
@@ -455,8 +431,6 @@ describe("reflect", () => {
       expect(second.response_format).toBeUndefined();
       expect(systemOf(first)).not.toContain("JSON Schema");
       expect(systemOf(second)).toContain("JSON Schema");
-      // Only ONE axis varies between the attempts — the user turn (question +
-      // evidence) must be byte-identical, and recall must not run twice.
       expect((second.messages as unknown[])[1]).toEqual((first.messages as unknown[])[1]);
       expect(mockRecall).toHaveBeenCalledTimes(1);
       expect(result.structuredOutput).toEqual({ name: "Peter" });
@@ -477,8 +451,6 @@ describe("reflect", () => {
         systemPrompt: "SENTINEL PROMPT",
       });
 
-      // The portal detects internal task types with a substring match against
-      // the system message, so the schema must be appended as a TAIL.
       expect(systemOf(sentBody(fetchFn, 1)).startsWith("SENTINEL PROMPT")).toBe(true);
     });
 
@@ -580,7 +552,6 @@ describe("reflect", () => {
         const fetchFn = vi
           .fn()
           .mockImplementationOnce(async () => {
-            // Burn the shared 60s budget inside attempt 1.
             vi.advanceTimersByTime(59_500);
             return { ok: false, status: 400, statusText: "", json: async () => ({}) };
           })
@@ -613,7 +584,7 @@ describe("reflect", () => {
 
     const recallOpts = mockRecall.mock.lastCall![2] as Record<string, unknown>;
     expect("maxTokens" in recallOpts).toBe(false);
-    expect(recallOpts.limit).toBe(5); // other RecallOptions still forwarded
+    expect(recallOpts.limit).toBe(5);
   });
 
   it("parses prose/fence-wrapped JSON from the prompt-fallback path", async () => {
@@ -708,9 +679,6 @@ describe("reflect", () => {
     expect(result.text).toBe("");
   });
 
-  // Regression guard: the portal reads only `max_completion_tokens`; the
-  // deprecated `max_tokens` is silently ignored and truncates the answer at the
-  // default cap. The answer request must carry the modern field, never the legacy one.
   it("sends max_completion_tokens (never the deprecated max_tokens)", async () => {
     oneMemory();
     const fetchFn = mockFetch(completionResponse("answer"));
@@ -720,15 +688,6 @@ describe("reflect", () => {
     expect(body).not.toHaveProperty("max_tokens");
   });
 
-  // The portal's freeloader detector does a plain case-sensitive substring match on the raw
-  // system text, so this literal IS the cross-repo contract. It must stay byte-identical to
-  // detection.FingerprintReflect in ai-portal internal/detection/markers.go. reflect() is
-  // deliberately NOT stamped with INTERNAL_FLOW_MARKER (it answers the user's own question), so
-  // this sentence is the only thing identifying the call as first-party — drop it and a
-  // free-tier reflect() 403s once PORTAL_DETECTION_REJECT_MARKERLESS is on.
-  //
-  // Asserted against the SENT BODY rather than the constant, so it proves what actually reaches
-  // the portal, not merely that a string exists in this file.
   it("freeloader fingerprint must stay in sync with ai-portal detection/markers.go", async () => {
     const FINGERPRINT = "You are a personal assistant with access to the user's memory.";
 
@@ -737,14 +696,9 @@ describe("reflect", () => {
     await reflect("q", ctx, { apiKey: "k", fetchFn });
     const system = systemOf(sentBody(fetchFn));
     expect(system).toContain(FINGERPRINT);
-    // A strict PREFIX: the structured-output fallback appends its schema instruction as a tail,
-    // and anything prepended ahead of the sentence would be fine for the substring match but is
-    // worth noticing here, because it would mean the prompt is no longer the default.
     expect(system.startsWith(FINGERPRINT)).toBe(true);
   });
 
-  // The schema fallback rewrites the system prompt, so the fingerprint has to survive that path
-  // too — it is the shape a structured reflect() call actually sends.
   it("keeps the fingerprint when the JSON schema rides in the system prompt", async () => {
     oneMemory();
     const fetchFn = mockFetch(completionResponse(JSON.stringify({ name: "Peter" })));
@@ -758,9 +712,6 @@ describe("reflect", () => {
     expect(system).toContain("JSON Schema");
   });
 
-  // The documented scope limit, pinned so nobody later reads the registration as covering every
-  // reflect() call: an overriding caller drops the default and owns its own provenance (which is
-  // what profile-facet synthesis does, via withInternalFlowMarker).
   it("sends no fingerprint when the caller overrides the system prompt", async () => {
     oneMemory();
     const fetchFn = mockFetch(completionResponse("answer"));
@@ -770,10 +721,6 @@ describe("reflect", () => {
     );
   });
 
-  // The two SUPPORTED ways to override without losing provenance, which is what makes the
-  // negative case above a documented limit rather than a trap. A background caller marks its
-  // prompt; a user-facing caller appends to the default instead of replacing it. Both are spelled
-  // out on ReflectOptions.systemPrompt, and withInternalFlowMarker is exported for the first.
   it("keeps provenance when a background caller marks its overridden prompt", async () => {
     oneMemory();
     const fetchFn = mockFetch(completionResponse("answer"));
@@ -788,8 +735,6 @@ describe("reflect", () => {
   it("keeps the fingerprint when a user-facing caller appends instead of replacing", async () => {
     oneMemory();
     const fetchFn = mockFetch(completionResponse("answer"));
-    // The default is not exported, so a caller appends by reading it off an unoverridden call.
-    // Pinning the prefix shape here is what makes that advice safe to give.
     const base = await (async () => {
       const probe = mockFetch(completionResponse("x"));
       oneMemory();

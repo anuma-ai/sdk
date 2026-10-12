@@ -1,16 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../db/entities/operations", () => ({
-  // Echo the requested entities (non-null = persisted); tests override with
-  // null to simulate the in-write guard skipping.
   replaceMemoryEntitiesGuardedOp: vi.fn(
     async (_ctx: unknown, _id: string, entities: unknown[]) => entities
   ),
 }));
 
-// vaultMemoryToStored is exercised by its own tests — here it just surfaces the
-// mock record's content. stampTopicsExtractedAtOp echoes the ids it was given
-// (individual tests override to simulate declined stamps).
 vi.mock("../db/memoryVault/operations", () => ({
   vaultMemoryToStored: vi.fn(async (record: { content: string }) => ({
     content: record.content,
@@ -72,9 +67,6 @@ describe("extractEntitiesForMemories", () => {
     expect(fetchFn.mock.calls[0][0]).toBe("https://portal.test/api/v1/utility/chat/completions");
   });
 
-  // Regression guard: the portal reads only `max_completion_tokens`; the
-  // deprecated `max_tokens` is silently ignored and truncates a verbose batch
-  // mid-JSON, dropping it. The batch request must carry the modern field.
   it("sends max_completion_tokens (never the deprecated max_tokens)", async () => {
     const fetchFn = mockFetch(topicResponse([{ id: "mem_1", entities: [] }]));
     await extractEntitiesForMemories([{ id: "mem_1", content: "fact" }], { apiKey: "k", fetchFn });
@@ -85,9 +77,6 @@ describe("extractEntitiesForMemories", () => {
     expect(body).not.toHaveProperty("max_tokens");
   });
 
-  // Reconciliation guards for the id-echo defenses — the half of the fix that
-  // took ling from ~19/29 dropped to 0/29. Without these, a later simplification
-  // of the strip would keep the suite green while ling silently regressed.
   it('reconciles a bracket-decorated id echo (e.g. ling\'s "[mem_1]")', async () => {
     const fetchFn = mockFetch(
       topicResponse([{ id: "[mem_1]", entities: [{ name: "Sara", kind: "person" }] }])
@@ -131,11 +120,6 @@ describe("extractEntitiesForMemories", () => {
         fetchFn,
       }
     );
-    // The WHOLE memory must sit on its single "mem_1:" row. Without the
-    // whitespace collapse the content newlines split it, this row would end at
-    // "line one", and "line two"/"line three" would masquerade as fresh rows —
-    // so this exact-match fails if the fix regresses (the previous count-based
-    // assertion passed either way and guarded nothing).
     expect(mem1Row).toBe("mem_1: line one line two line three");
   });
 
@@ -156,11 +140,8 @@ describe("extractEntitiesForMemories", () => {
       { apiKey: "k", fetchFn }
     );
     expect(result.get("mem_1")).toEqual([{ name: "ZetaChain", kind: "organization" }]);
-    // Explicitly answered empty → present with [].
     expect(result.get("mem_2")).toEqual([]);
-    // Omitted by the model → UNANSWERED, absent (never stamped-as-empty).
     expect(result.has("mem_omitted")).toBe(false);
-    // Ids not in the batch are dropped.
     expect(result.has("mem_bogus")).toBe(false);
   });
 
@@ -183,7 +164,6 @@ describe("extractEntitiesForMemories", () => {
       { length: TOPIC_EXTRACTION_BATCH_SIZE + 2 },
       (_, i) => ({ id: `mem_${i}`, content: `fact ${i}` })
     );
-    // Each call answers every id it was sent (echo-all), so both batches count.
     const fetchFn = vi.fn().mockImplementation(async (_url: string, init: RequestInit) => {
       const body = JSON.parse(init.body as string) as {
         messages: Array<{ role: string; content: string }>;
@@ -220,8 +200,6 @@ describe("extractEntitiesForMemories", () => {
   });
 
   it("treats valid-JSON-but-wrong-shape as a failed batch, not answered-empty", async () => {
-    // Parseable JSON with no `memories` array — stamping these as "no
-    // entities" would make the whole batch permanently topic-less.
     const fetchFn = mockFetch(JSON.stringify({ topics: [{ id: "mem_1" }] }));
     const result = await extractEntitiesForMemories([{ id: "mem_1", content: "fact" }], {
       apiKey: "k",
@@ -286,8 +264,6 @@ describe("extractEntitiesForMemories", () => {
   });
 
   it("redacts PII in the existing-vocabulary names too", async () => {
-    // Vocabulary names are restored REAL values — under redaction they must
-    // not reach the LLM verbatim (same redactor ⇒ same placeholders as content).
     const fetchFn = vi.fn().mockResolvedValue({
       ok: true,
       json: async () => ({
@@ -308,16 +284,7 @@ describe("extractEntitiesForMemories", () => {
     expect(rawBody).toContain("ZetaChain");
   });
 
-  // The redactor a caller HANDS us may carry an NER detector, and NER runs only
-  // in `redactTextAsync` — the sync `redactText` is regex-only. Redacting this
-  // path synchronously shipped every name, location and org to the portal in
-  // plain text while emails and phones came back masked, so the leak looked like
-  // working redaction, and only for the callers who configured a detector. It
-  // hurt worst here: a person's name IS the entity this call is asking for, so
-  // the whole vocabulary of canonical names egressed raw too.
   it("applies the caller's NER detector to contents AND vocabulary, not just the regex half", async () => {
-    // A bare personal name — deliberately something no redactor regex matches.
-    // If NER is skipped it survives into the request body.
     const name = "Marguerite Okonkwo";
     const detector: NerDetector = {
       async detect(text: string): Promise<PiiSpan[]> {
@@ -330,8 +297,6 @@ describe("extractEntitiesForMemories", () => {
         return spans;
       },
     };
-    // The model answers with the placeholder it was shown; restoreEntities has
-    // to map it back to the real name for storage.
     const fetchFn = mockFetch(
       topicResponse([{ id: "mem_1", entities: [{ name: "[PERSON_1]", kind: "person" }] }])
     );
@@ -347,19 +312,11 @@ describe("extractEntitiesForMemories", () => {
     const rawBody = (fetchFn as unknown as ReturnType<typeof vi.fn>).mock.calls[0][1]
       .body as string;
     expect(rawBody).not.toContain(name);
-    // Same number in the vocabulary note and the listing row — that shared
-    // numbering is what lets the model reuse the canonical name instead of
-    // minting a variant, and it only holds with ONE redactor awaited in order.
     expect(rawBody.match(/\[PERSON_\d+\]/g)).toEqual(["[PERSON_1]", "[PERSON_1]"]);
     expect(rawBody).toContain("ZetaChain");
-    // Round-trip: the placeholder the model echoed is stored as the real name.
     expect(result.get("mem_1")).toEqual([{ name, kind: "person" }]);
   });
 });
-
-// ---------------------------------------------------------------------------
-// extractAndLinkEntitiesForMemoriesOp
-// ---------------------------------------------------------------------------
 
 function mockVaultRecord(overrides: Record<string, unknown> = {}) {
   return {
@@ -417,8 +374,6 @@ describe("extractAndLinkEntitiesForMemoriesOp", () => {
       now: 1_700_000_000_000,
     });
 
-    // BOTH memories get the replace write — an answered-empty result must
-    // still remove stale links from the previous content.
     expect(replaceMemoryEntitiesGuardedOp).toHaveBeenCalledTimes(2);
     expect(replaceMemoryEntitiesGuardedOp).toHaveBeenCalledWith(
       (ctx as { entityCtx: unknown }).entityCtx,
@@ -430,7 +385,6 @@ describe("extractAndLinkEntitiesForMemoriesOp", () => {
       "mem_2",
       []
     );
-    // BOTH memories stamped — zero-entity results count as extracted.
     expect(stampTopicsExtractedAtOp).toHaveBeenCalledWith(
       ctx,
       ["mem_1", "mem_2"],
@@ -448,8 +402,6 @@ describe("extractAndLinkEntitiesForMemoriesOp", () => {
       mem_1: mockVaultRecord({ id: "mem_1" }),
       mem_2: mockVaultRecord({ id: "mem_2", content: "Likes tea" }),
     });
-    // Guard skipped mem_1 (user-managed/deleted mid-run, or fail-closed read
-    // fault) — nothing persisted, so it must not be stamped.
     (replaceMemoryEntitiesGuardedOp as ReturnType<typeof vi.fn>).mockResolvedValueOnce(null);
     const fetchFn = mockFetch(
       topicResponse([
@@ -488,7 +440,6 @@ describe("extractAndLinkEntitiesForMemoriesOp", () => {
 
     expect(result.skippedIds).toEqual(["mem_bad"]);
     expect(result.stampedIds).toEqual(["mem_ok"]);
-    // The undecryptable memory never reached the LLM.
     const rawBody = (fetchFn as ReturnType<typeof vi.fn>).mock.calls[0][1].body as string;
     expect(rawBody).not.toContain("mem_bad");
   });
@@ -511,7 +462,6 @@ describe("extractAndLinkEntitiesForMemoriesOp", () => {
 
     expect(result.skippedIds).toEqual(["mem_missing", "mem_deleted", "mem_managed", "mem_foreign"]);
     expect(result.stampedIds).toEqual(["mem_ok"]);
-    // The LLM only saw the eligible memory.
     const rawBody = (fetchFn as ReturnType<typeof vi.fn>).mock.calls[0][1].body as string;
     expect(rawBody).toContain("mem_ok");
     expect(rawBody).not.toContain("mem_managed");
@@ -565,7 +515,6 @@ describe("extractAndLinkEntitiesForMemoriesOp", () => {
       mem_1: mockVaultRecord({ id: "mem_1" }),
       mem_2: mockVaultRecord({ id: "mem_2", content: "Likes tea" }),
     });
-    // Stamp op declines mem_1 — e.g. setMemoryEntitiesOp landed mid-run.
     (stampTopicsExtractedAtOp as ReturnType<typeof vi.fn>).mockResolvedValueOnce(["mem_2"]);
     const fetchFn = mockFetch(
       topicResponse([
@@ -584,14 +533,9 @@ describe("extractAndLinkEntitiesForMemoriesOp", () => {
     expect(result.skippedIds).toEqual(["mem_1"]);
     expect(result.entitiesByMemory.has("mem_1")).toBe(false);
   });
-  // The point of `skippedReasons`: `skippedIds` alone cannot tell a sweep that
-  // deliberately declined work from one that FAILED. Both produce an identical
-  // array, which is how a wholly broken sweep looked healthy in production.
   describe("skippedReasons distinguishes a broken sweep from a deliberate one", () => {
     it("reports llm-unanswered when the batch fails, and marks it degraded", async () => {
       const ctx = makeOpCtx({ mem_1: mockVaultRecord({ id: "mem_1" }) });
-      // A response with no `memories` for this id — the shape a failed/omitted
-      // batch produces.
       const fetchFn = mockFetch(topicResponse([]));
 
       const result = await extractAndLinkEntitiesForMemoriesOp(ctx, ["mem_1"], {
@@ -607,7 +551,6 @@ describe("extractAndLinkEntitiesForMemoriesOp", () => {
     });
 
     it("reports excluded for a user-managed row, and does NOT mark it degraded", async () => {
-      // Same skippedIds as the failure above — only the reason separates them.
       const ctx = makeOpCtx({
         mem_1: mockVaultRecord({ id: "mem_1", topicsUserManaged: true }),
       });
@@ -632,11 +575,6 @@ describe("extractAndLinkEntitiesForMemoriesOp", () => {
       expect(isDegradedTopicSkip("not-found")).toBe(true);
     });
 
-    // `not-found` is the reason you'd alarm on alongside `llm-unanswered`, and
-    // it bundles an absent row (an ordinary delete racing the caller's pending
-    // query) with a genuine read fault. Without the log there is nothing to tell
-    // the two apart after the fact — it was the only degraded path that
-    // swallowed its error. Caught in review on #896.
     it("logs the underlying error for not-found, like the other degraded paths", async () => {
       const warn = vi.fn();
       setLogger({ debug: vi.fn(), info: vi.fn(), warn, error: vi.fn() });
@@ -654,11 +592,6 @@ describe("extractAndLinkEntitiesForMemoriesOp", () => {
       }
     });
 
-    // Exhaustiveness is enforced in src — `isDegradedTopicSkip` reads a
-    // `Record<TopicSkipReason, boolean>`, so a reason added to the union without
-    // a classification is a type error at the definition site. This test pins
-    // the VALUES (a wrong grouping is not a type error) and would otherwise be
-    // the only guard, which is one tsconfig change away from not running.
     it("classifies every reason, and cannot gain one silently", () => {
       const expected = {
         excluded: false,
@@ -675,10 +608,6 @@ describe("extractAndLinkEntitiesForMemoriesOp", () => {
       }
     });
 
-    // `memoryIds` is caller-supplied. A repeated id used to push twice while the
-    // Map kept one entry, so the documented lockstep broke and a later benign
-    // reason could overwrite an earlier degraded one — the direction that hides
-    // a failure. Caught in review on #896.
     it("holds the lockstep when the caller passes a duplicate id", async () => {
       const ctx = makeOpCtx({ dup: mockVaultRecord({ id: "dup", topicsUserManaged: true }) });
 
@@ -693,7 +622,6 @@ describe("extractAndLinkEntitiesForMemoriesOp", () => {
     });
 
     it("keeps the FIRST reason for a duplicate id, so a degraded one is not overwritten", async () => {
-      // "missing" is absent from the ctx → not-found (degraded).
       const ctx = makeOpCtx({});
       const result = await extractAndLinkEntitiesForMemoriesOp(ctx, ["missing", "missing"], {
         apiKey: "k",
@@ -704,11 +632,6 @@ describe("extractAndLinkEntitiesForMemoriesOp", () => {
       expect(isDegradedTopicSkip(result.skippedReasons.get("missing")!)).toBe(true);
     });
 
-    // The half the idempotent `skip()` alone did NOT fix: a duplicate reached
-    // the link path twice, and because `toStamp` still held the id from the
-    // first (successful) pass, a second link write that threw put the SAME id in
-    // `stampedIds` and in `skippedIds` as degraded — an alarm count for a row
-    // that actually landed. Caught in review on #896.
     it("never reports an id as both stamped and degraded-skipped on a duplicate", async () => {
       const ctx = makeOpCtx({ dup: mockVaultRecord({ id: "dup" }) });
 
@@ -717,13 +640,9 @@ describe("extractAndLinkEntitiesForMemoriesOp", () => {
         fetchFn: mockFetch(topicResponse([{ id: "dup", entities: [] }])),
       });
 
-      // One pass over the id: one link write, one stamp entry, nothing skipped.
-      // Pre-fix this ran twice, and a second write that threw left "dup" in
-      // BOTH collections (verified against the branch before the dedupe).
       expect(replaceMemoryEntitiesGuardedOp).toHaveBeenCalledTimes(1);
       expect(result.stampedIds).toEqual(["dup"]);
       expect(result.skippedIds).toEqual([]);
-      // The invariant the double pass could break, asserted directly.
       for (const id of result.stampedIds) {
         expect(result.skippedReasons.has(id)).toBe(false);
       }
@@ -746,8 +665,6 @@ describe("extractAndLinkEntitiesForMemoriesOp", () => {
     });
 
     it("keeps skippedIds and skippedReasons in lockstep", async () => {
-      // They are written by one helper; this is the invariant that makes the
-      // reasons safe to group by without re-checking the ids.
       const ctx = makeOpCtx({
         ok: mockVaultRecord({ id: "ok" }),
         managed: mockVaultRecord({ id: "managed", topicsUserManaged: true }),

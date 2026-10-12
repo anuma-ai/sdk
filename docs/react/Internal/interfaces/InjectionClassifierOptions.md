@@ -1,6 +1,6 @@
 # InjectionClassifierOptions
 
-Defined in: [src/lib/memory/injectionClassifier.ts:92](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/injectionClassifier.ts#92)
+Defined in: [src/lib/memory/injectionClassifier.ts:40](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/injectionClassifier.ts#40)
 
 Auth + tuning for the optional LLM injection classifier. Auth is the dual
 pattern — one of `apiKey` / `getToken` is required at runtime (see
@@ -18,7 +18,7 @@ deterministic-only screen.
 
 > `optional` **apiKey**: `string`
 
-Defined in: [src/lib/memory/portalLlm.ts:179](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/portalLlm.ts#179)
+Defined in: [src/lib/memory/portalLlm.ts:72](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/portalLlm.ts#72)
 
 Direct API key — sent as `x-api-key` (server-side / CLI usage). Wins when both are provided.
 
@@ -32,7 +32,7 @@ Direct API key — sent as `x-api-key` (server-side / CLI usage). Wins when both
 
 > `optional` **backoffMs**: (`attempt`: `number`) => `number`
 
-Defined in: [src/lib/memory/injectionClassifier.ts:102](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/injectionClassifier.ts#102)
+Defined in: [src/lib/memory/injectionClassifier.ts:50](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/injectionClassifier.ts#50)
 
 Backoff before each retry (ms). Tests pass `() => 0`.
 
@@ -71,7 +71,7 @@ Backoff before each retry (ms). Tests pass `() => 0`.
 
 > `optional` **baseUrl**: `string`
 
-Defined in: [src/lib/memory/injectionClassifier.ts:93](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/injectionClassifier.ts#93)
+Defined in: [src/lib/memory/injectionClassifier.ts:41](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/injectionClassifier.ts#41)
 
 ***
 
@@ -79,7 +79,7 @@ Defined in: [src/lib/memory/injectionClassifier.ts:93](https://github.com/anuma-
 
 > `optional` **fetchFn**: {(`input`: `RequestInfo` | `URL`, `init?`: `RequestInit`): `Promise`<`Response`>; (`input`: `string` | `Request` | `URL`, `init?`: `RequestInit`): `Promise`<`Response`>; }
 
-Defined in: [src/lib/memory/injectionClassifier.ts:96](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/injectionClassifier.ts#96)
+Defined in: [src/lib/memory/injectionClassifier.ts:44](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/injectionClassifier.ts#44)
 
 Override fetch (tests).
 
@@ -183,7 +183,7 @@ Override fetch (tests).
 
 > `optional` **getToken**: () => `Promise`<`string` | `null`>
 
-Defined in: [src/lib/memory/portalLlm.ts:181](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/portalLlm.ts#181)
+Defined in: [src/lib/memory/portalLlm.ts:74](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/portalLlm.ts#74)
 
 Function to get an auth token (e.g., Privy's getIdentityToken). Token is sent as `Authorization: Bearer`.
 
@@ -201,7 +201,7 @@ Function to get an auth token (e.g., Privy's getIdentityToken). Token is sent as
 
 > `optional` **maxAttempts**: `number`
 
-Defined in: [src/lib/memory/injectionClassifier.ts:98](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/injectionClassifier.ts#98)
+Defined in: [src/lib/memory/injectionClassifier.ts:46](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/injectionClassifier.ts#46)
 
 Max portal attempts on a TRANSIENT failure. Default 2.
 
@@ -211,7 +211,7 @@ Max portal attempts on a TRANSIENT failure. Default 2.
 
 > `optional` **maxCandidates**: `number`
 
-Defined in: [src/lib/memory/injectionClassifier.ts:111](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/injectionClassifier.ts#111)
+Defined in: [src/lib/memory/injectionClassifier.ts:59](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/injectionClassifier.ts#59)
 
 Max candidates classified per call. Default 20.
 
@@ -221,7 +221,7 @@ Max candidates classified per call. Default 20.
 
 > `optional` **model**: `string`
 
-Defined in: [src/lib/memory/injectionClassifier.ts:94](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/injectionClassifier.ts#94)
+Defined in: [src/lib/memory/injectionClassifier.ts:42](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/injectionClassifier.ts#42)
 
 ***
 
@@ -229,7 +229,7 @@ Defined in: [src/lib/memory/injectionClassifier.ts:94](https://github.com/anuma-
 
 > `optional` **piiRedaction**: `boolean` | [`PiiRedactor`](../../../expo/Internal/classes/PiiRedactor.md)
 
-Defined in: [src/lib/memory/injectionClassifier.ts:109](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/injectionClassifier.ts#109)
+Defined in: [src/lib/memory/injectionClassifier.ts:57](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/injectionClassifier.ts#57)
 
 PII redaction for the outbound content, same switch as the extractor.
 `extractAndRetain` inherits the extraction setting so enabling redaction
@@ -242,6 +242,6 @@ shared [PiiRedactor](../../../expo/Internal/classes/PiiRedactor.md) to keep plac
 
 > `optional` **totalTimeoutMs**: `number`
 
-Defined in: [src/lib/memory/injectionClassifier.ts:100](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/injectionClassifier.ts#100)
+Defined in: [src/lib/memory/injectionClassifier.ts:48](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/injectionClassifier.ts#48)
 
 Absolute wall-clock budget across attempts. Default 15s.

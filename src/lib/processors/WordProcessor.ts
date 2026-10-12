@@ -10,7 +10,7 @@ import type { FileProcessor, FileWithData, ProcessedFileResult } from "./types";
 export class WordProcessor implements FileProcessor {
   readonly name = "word";
   readonly supportedMimeTypes = [
-    "application/vnd.openxmlformats-officedocument.wordprocessingml.document", // .docx
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
   ];
   readonly supportedExtensions = [".docx"];
 
@@ -18,9 +18,6 @@ export class WordProcessor implements FileProcessor {
     try {
       const arrayBuffer = await dataUrlToArrayBuffer(file.dataUrl);
 
-      // mammoth's Node.js build expects { buffer: Buffer }, while the browser
-      // build accepts { arrayBuffer }. Detect true Node.js (not just polyfilled
-      // Buffer) to pick the right input format.
       const isNode =
         typeof process !== "undefined" &&
         process.versions !== null &&
@@ -39,7 +36,6 @@ export class WordProcessor implements FileProcessor {
         format: "plain",
         metadata: {
           wordCount: this.countWords(result.value),
-          // Include any conversion warnings
           messages: result.messages.length > 0 ? result.messages : undefined,
         },
       };

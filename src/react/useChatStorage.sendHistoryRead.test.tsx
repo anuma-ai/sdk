@@ -1,18 +1,4 @@
 // @vitest-environment happy-dom
-/**
- * Send hot path must not read the whole thread (sdk perf: memory hot paths).
- *
- * sendMessage used to call getMessagesOp(convId) on EVERY send: an unbounded
- * unsafeFetchRaw of the thread that JSON.parses and decrypts every row's
- * embedding columns (vector/chunks — tens of KB per row), only to slice the
- * result down to the last maxHistoryMessages. Cost grew O(thread length) per
- * send. The fixed path builds the dedup set from getToolCallEventIdsOp (a
- * plaintext single-column scan) and pages backward with getMessagesPageOp
- * (skipEmbeddings) until the folded window is full.
- *
- * The getMessagesOp-never-called assertions fail against the old code by
- * construction; the window/fold assertions pin that behaviour is unchanged.
- */
 
 import { Database } from "@nozbe/watermelondb";
 import LokiJSAdapter from "@nozbe/watermelondb/adapters/lokijs";
@@ -150,9 +136,6 @@ describe("useChatStorage send history read", () => {
   });
 
   it("pages backward until the FOLDED window is full (synthetic rows don't spend slots)", async () => {
-    // Three turns, each assistant turn followed by its synthetic tool-results
-    // row: 9 stored rows, 6 replayable after folding. A naive pre-sliced page
-    // of 3 would replay 2; the backward pager must fetch the second page.
     const ctx = {
       database: db,
       messagesCollection: db.get("history"),
@@ -201,7 +184,6 @@ describe("useChatStorage send history read", () => {
     expect(mockGetMessagesOp).not.toHaveBeenCalled();
 
     const texts = replayedTexts(0);
-    // Last 3 replayable rows: answer-2 (folded), prompt-3, answer-3 (folded).
     expect(texts.slice(0, 3)).toHaveLength(3);
     expect(texts[0]).toContain("answer-2");
     expect(texts[0]).toContain("search");
@@ -211,13 +193,6 @@ describe("useChatStorage send history read", () => {
   });
 
   it("does not duplicate a held boundary row when legacy rows share the boundary message_id", async () => {
-    // Legacy data: message_id was assigned count-based, so a mid-thread
-    // delete let the next create reuse a freed id — two rows can share one
-    // message_id. getMessagesPageOp's cursor is INCLUSIVE at the boundary
-    // when boundaryExcludeUniqueIds is given, so the pager must exclude
-    // EVERY row it already holds at that boundary. Excluding only page[0]
-    // re-fetches the other held boundary row into the tail (duplicated
-    // history) — that is the regression this pins.
     const ctx = {
       database: db,
       messagesCollection: db.get("history"),
@@ -235,7 +210,6 @@ describe("useChatStorage send history read", () => {
       content: "dup-2",
       uniqueId: "d-2",
     });
-    // The id-3 pair: two held rows sharing the boundary message_id.
     await createMessageOp(ctx, {
       conversationId: "conv_dup",
       role: "user",
@@ -254,9 +228,6 @@ describe("useChatStorage send history read", () => {
         msg._setRaw("message_id", 3);
       });
     });
-    // Error row at the top of the window: filtered from replay, so the
-    // first page underfills the folded window and the pager fetches a
-    // second page (where the boundary duplication would strike).
     const err = await createMessageOp(ctx, {
       conversationId: "conv_dup",
       role: "assistant",
@@ -287,8 +258,6 @@ describe("useChatStorage send history read", () => {
 
     const texts = replayedTexts(0);
     const count = (needle: string) => texts.filter((t) => t.includes(needle)).length;
-    // Each held boundary row replays exactly once — pre-fix, whichever id-3
-    // row was NOT page[0] is re-fetched and appears twice.
     expect(count("dup-3a")).toBe(1);
     expect(count("dup-3b")).toBe(1);
     expect(texts[texts.length - 1]).toContain("after dup");

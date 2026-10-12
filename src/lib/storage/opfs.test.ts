@@ -31,10 +31,7 @@ describe("extractFileIds", () => {
   it("deduplicates IDs", () => {
     const content = "__SDKFILE__media_1__ and __SDKFILE__media_1__";
     const ids = extractFileIds(content);
-    // extractFileIds returns all matches; dedup is caller's responsibility
-    // but we verify at least both are found
     expect(ids).toContain("media_1");
-    // Using Set to verify dedup works at consumer level
     expect([...new Set(ids)]).toEqual(["media_1"]);
   });
 });

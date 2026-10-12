@@ -1,10 +1,3 @@
-/**
- * Extract SearchSource citations from a turn's tool_call_events (MCP search
- * results). Pure — shared by the react and expo chat-storage send paths so
- * both surface citation pills for models that return sources via tool events
- * (e.g. AnumaSearchMCP) rather than inline content. Extracted verbatim from
- * the original react `useChatStorage` implementation.
- */
 import type { LlmapiToolCallEvent } from "../../client";
 import type { SearchSource } from "../db/chat";
 
@@ -20,8 +13,6 @@ export function extractSourcesFromToolCallEvents(
         const outputStr = toolCallEvent.output || "";
         const toolName = toolCallEvent.name || "";
 
-        // AnumaSearchMCP returns structured JSON:
-        // {"results": [{title, url, snippets: [...]}], "sources": {url: {title, hostname}}, "cost": N}
         if (toolName.includes("AnumaSearchMCP") && toolName.includes("text_search")) {
           try {
             const parsed = JSON.parse(outputStr) as Record<string, unknown>;
@@ -53,10 +44,8 @@ export function extractSourcesFromToolCallEvents(
           }
         }
 
-        // BraveSearchMCP returns concatenated JSON objects (legacy — kept for backward compat)
         if (toolName.includes("BraveSearchMCP")) {
           try {
-            // Note: Assumes flat JSON objects from BraveSearch output (no nested braces)
             const jsonObjectRegex = /\{[^{}]*"url"[^{}]*\}/g;
             let match: RegExpExecArray | null;
 
@@ -66,11 +55,10 @@ export function extractSourcesFromToolCallEvents(
                 const resultUrl = typeof result.url === "string" ? result.url : "";
                 if (resultUrl && !seenUrls.has(resultUrl)) {
                   seenUrls.add(resultUrl);
-                  // Strip HTML tags and decode entities from description
                   const rawDescription =
                     typeof result.description === "string" ? result.description : "";
                   const cleanDescription = rawDescription
-                    .replace(/<[^>]*>/g, "") // Remove HTML tags
+                    .replace(/<[^>]*>/g, "")
                     .replace(/&amp;/g, "&")
                     .replace(/&lt;/g, "<")
                     .replace(/&gt;/g, ">")
@@ -96,7 +84,6 @@ export function extractSourcesFromToolCallEvents(
           }
         }
 
-        // JinaMCP search_web/parallel_search_web — try JSON with results array
         if (toolName.includes("JinaMCP") && toolName.includes("search")) {
           try {
             const parsed = JSON.parse(outputStr) as Record<string, unknown>;
@@ -133,15 +120,8 @@ export function extractSourcesFromToolCallEvents(
           }
         }
 
-        // PerplexityMCP returns markdown-formatted text:
-        // 1. **Title**
-        //    URL: https://...
-        //    [description]
-        //    Date: YYYY-MM-DD
         if (toolName.includes("PerplexityMCP")) {
           try {
-            // Match each numbered result block
-            // Pattern: digit(s). **title**\n   URL: url
             const resultPattern = /(\d+)\.\s+\*\*([^*]+)\*\*\s*\n\s*URL:\s*(https?:\/\/[^\s\n]+)/g;
             let match: RegExpExecArray | null;
 
@@ -152,7 +132,6 @@ export function extractSourcesFromToolCallEvents(
               if (url && !seenUrls.has(url)) {
                 seenUrls.add(url);
 
-                // Find the snippet - text between URL and next numbered item or Date line
                 const matchEnd = match.index + match[0].length;
                 const nextResultMatch = outputStr.slice(matchEnd).match(/\n\d+\.\s+\*\*/);
                 const dateMatch = outputStr.slice(matchEnd).match(/\n\s*Date:\s*\d{4}-\d{2}-\d{2}/);
@@ -167,15 +146,14 @@ export function extractSourcesFromToolCallEvents(
 
                 let snippet = outputStr
                   .slice(matchEnd, snippetEnd)
-                  .replace(/\{ts:\d+\}/g, "") // Remove timestamps like {ts:123}
-                  .replace(/^#{1,6}\s*/gm, "") // Remove markdown headers (anchored to line start)
-                  .replace(/\*{1,2}/g, "") // Remove bold/italic markers
-                  .replace(/\|[^|\n]+\|/g, "") // Remove table cells
-                  .replace(/\n{2,}/g, " ") // Collapse multiple newlines
-                  .replace(/\s{2,}/g, " ") // Collapse multiple spaces
+                  .replace(/\{ts:\d+\}/g, "")
+                  .replace(/^#{1,6}\s*/gm, "")
+                  .replace(/\*{1,2}/g, "")
+                  .replace(/\|[^|\n]+\|/g, "")
+                  .replace(/\n{2,}/g, " ")
+                  .replace(/\s{2,}/g, " ")
                   .trim();
 
-                // Limit snippet length and add ellipsis if truncated
                 if (snippet.length > 250) {
                   snippet = snippet.slice(0, 250).trim() + "...";
                 }
@@ -196,6 +174,6 @@ export function extractSourcesFromToolCallEvents(
 
     return extractedSources;
   } catch {
-    return []; // Return empty array if error occurs
+    return [];
   }
 }

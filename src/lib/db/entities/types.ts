@@ -107,7 +107,3 @@ export interface CreateEntityOptions {
   canonicalName: string;
   kind?: EntityKind | (string & {});
 }
-
-// StoredMemoryEntity (the converted shape of MemoryEntity rows) was
-// removed alongside the W5 graph-lane read helpers — reintroduce when
-// the read path needs it again.

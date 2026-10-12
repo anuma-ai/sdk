@@ -18,7 +18,6 @@ vi.mock("../memoryEngine/embeddings", async (importOriginal) => {
 const mockCreateSseClient = vi.mocked(sseModule.createSseClient);
 const mockGenerateEmbedding = vi.mocked(embeddingsModule.generateEmbedding);
 
-/** Stream that produces plain text then completes. */
 function makeTextStream(text: string) {
   return (async function* () {
     yield { type: "response.created", response: { id: "r", model: "m" } };
@@ -30,7 +29,6 @@ function makeTextStream(text: string) {
   })();
 }
 
-/** Stream that emits a tool call (responses-API format), then completes. */
 function makeToolCallStream(opts: { callId: string; name: string; arguments: string }) {
   return (async function* () {
     yield { type: "response.created", response: { id: "r", model: "m" } };
@@ -57,7 +55,6 @@ function makeToolCallStream(opts: { callId: string; name: string; arguments: str
   })();
 }
 
-/** Stream that throws mid-flight. */
 function makeFailingStream(message: string) {
   return (async function* () {
     yield { type: "response.created", response: { id: "r", model: "m" } };
@@ -65,7 +62,6 @@ function makeFailingStream(message: string) {
   })();
 }
 
-/** Stream that emits two tool calls in the same round. */
 function makeTwoToolCallStream(
   a: { callId: string; name: string; arguments: string },
   b: { callId: string; name: string; arguments: string }
@@ -97,12 +93,10 @@ function makeTwoToolCallStream(
   })();
 }
 
-/** Stream that yields a chunk, then waits long enough for a mid-stream abort. */
 function makeAbortableStream() {
   return (async function* () {
     yield { type: "response.created", response: { id: "r", model: "m" } };
     yield { type: "response.output_text.delta", delta: { OfString: "partial" } };
-    // Pause so the test can flip signal.aborted before the next iteration.
     await new Promise((r) => setTimeout(r, 5));
     yield { type: "response.output_text.delta", delta: { OfString: " more" } };
     yield {
@@ -198,7 +192,6 @@ describe("runToolLoop lifecycle hooks", () => {
   });
 
   it("pairs beforeModelCall + afterModelCall and increments stepIndex per continuation", async () => {
-    // Round 1: emit a tool call. Round 2: emit plain text.
     mockCreateSseClient
       .mockReturnValueOnce({
         stream: makeToolCallStream({ callId: "c1", name: "do_thing", arguments: '{"x":1}' }),
@@ -281,7 +274,6 @@ describe("runToolLoop lifecycle hooks", () => {
       model: "test-model",
       token: "t",
       hooks,
-      // No tool definitions at all -> no executors, server-side call surfaces via onToolCall path.
     });
 
     const beforeServer = calls.filter(
@@ -477,7 +469,6 @@ describe("runToolLoop lifecycle hooks", () => {
       hooks,
     });
 
-    // Give the stream time to emit its first delta, then abort.
     await new Promise((r) => setTimeout(r, 1));
     controller.abort();
 
@@ -651,9 +642,6 @@ describe("runToolLoop lifecycle hooks", () => {
       model: "test-model",
       token: "t",
       hooks: {
-        // Synchronous throw at the very first hook site — the one that
-        // sits outside the outer try/catch. Pre-thunk safeAwait would
-        // let this propagate to the caller.
         onRunStart: () => {
           throw new Error("boom");
         },

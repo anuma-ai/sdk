@@ -1,13 +1,4 @@
 // @vitest-environment happy-dom
-/**
- * `excludeConversationId` must filter BEFORE the top-K cut.
- *
- * recall() used to drop the current conversation from the slice `searchChunksOp`
- * had already cut to `limit`. In a long chat the current conversation is the
- * closest match for almost anything, so it filled every slot, the post-filter
- * emptied them, and past-conversation recall — the whole point of the chunk
- * lane — came back with nothing.
- */
 import { Database } from "@nozbe/watermelondb";
 import LokiJSAdapter from "@nozbe/watermelondb/adapters/lokijs";
 import { beforeEach, describe, expect, it } from "vitest";
@@ -63,7 +54,6 @@ describe("searchChunksOp — excludeConversationId", () => {
     ctx = makeCtx();
     await createConversationOp(ctx, { conversationId: "conv-current" });
     await createConversationOp(ctx, { conversationId: "conv-past" });
-    // The current conversation out-scores the past one on every chunk.
     for (let i = 0; i < 4; i++) {
       await seed(ctx, "conv-current", `cur-${i}`, `current turn ${i}`, [1, 0.01 * i, 0]);
     }

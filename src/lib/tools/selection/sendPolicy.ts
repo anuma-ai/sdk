@@ -1,13 +1,3 @@
-/**
- * Send-policy primitives — the per-turn `tool_choice` / `maxToolRounds` /
- * thinking-mode / coerced-memory-write rules, unified so web and mobile stop
- * hand-duplicating them (issue #702, Phase 1).
- *
- * These were previously spread across web's `useChatSetup` + `useChatSubmitHandler`
- * + `webChatSendMessage` and mobile's `chatModeRouting`. They are pure and
- * node/RN-safe.
- */
-
 import type { LlmapiChatCompletionTool } from "../../../client";
 import { getToolName } from "../clientToolSelection";
 import type {

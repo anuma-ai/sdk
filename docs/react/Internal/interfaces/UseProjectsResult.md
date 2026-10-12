@@ -10,7 +10,7 @@ Result returned by useProjects hook.
 
 > **createProject**: (`opts?`: [`CreateProjectOptions`](CreateProjectOptions.md)) => `Promise`<[`StoredProject`](StoredProject.md)>
 
-Defined in: [src/react/useProjects.ts:61](https://github.com/anuma-ai/sdk/blob/main/src/react/useProjects.ts#61)
+Defined in: [src/react/useProjects.ts:59](https://github.com/anuma-ai/sdk/blob/main/src/react/useProjects.ts#59)
 
 Create a new project
 
@@ -49,7 +49,7 @@ Create a new project
 
 > **currentProjectId**: `string` | `null`
 
-Defined in: [src/react/useProjects.ts:51](https://github.com/anuma-ai/sdk/blob/main/src/react/useProjects.ts#51)
+Defined in: [src/react/useProjects.ts:50](https://github.com/anuma-ai/sdk/blob/main/src/react/useProjects.ts#50)
 
 Currently selected project ID
 
@@ -59,7 +59,7 @@ Currently selected project ID
 
 > **deleteProject**: (`projectId`: `string`) => `Promise`<`boolean`>
 
-Defined in: [src/react/useProjects.ts:71](https://github.com/anuma-ai/sdk/blob/main/src/react/useProjects.ts#71)
+Defined in: [src/react/useProjects.ts:69](https://github.com/anuma-ai/sdk/blob/main/src/react/useProjects.ts#69)
 
 Delete a project (soft delete)
 
@@ -98,7 +98,7 @@ Delete a project (soft delete)
 
 > **getConversationsByProject**: (`projectId`: `string` | `null`) => `Promise`<[`StoredConversation`](StoredConversation.md)\[]>
 
-Defined in: [src/react/useProjects.ts:81](https://github.com/anuma-ai/sdk/blob/main/src/react/useProjects.ts#81)
+Defined in: [src/react/useProjects.ts:78](https://github.com/anuma-ai/sdk/blob/main/src/react/useProjects.ts#78)
 
 Get conversations by project (null = no project)
 
@@ -137,7 +137,7 @@ Get conversations by project (null = no project)
 
 > **getProject**: (`projectId`: `string`) => `Promise`<[`StoredProject`](StoredProject.md) | `null`>
 
-Defined in: [src/react/useProjects.ts:63](https://github.com/anuma-ai/sdk/blob/main/src/react/useProjects.ts#63)
+Defined in: [src/react/useProjects.ts:61](https://github.com/anuma-ai/sdk/blob/main/src/react/useProjects.ts#61)
 
 Get a single project by ID
 
@@ -176,7 +176,7 @@ Get a single project by ID
 
 > **getProjectConversationCount**: (`projectId`: `string`) => `Promise`<`number`>
 
-Defined in: [src/react/useProjects.ts:77](https://github.com/anuma-ai/sdk/blob/main/src/react/useProjects.ts#77)
+Defined in: [src/react/useProjects.ts:74](https://github.com/anuma-ai/sdk/blob/main/src/react/useProjects.ts#74)
 
 Get count of conversations in a project
 
@@ -215,7 +215,7 @@ Get count of conversations in a project
 
 > **getProjectConversations**: (`projectId`: `string`) => `Promise`<[`StoredConversation`](StoredConversation.md)\[]>
 
-Defined in: [src/react/useProjects.ts:75](https://github.com/anuma-ai/sdk/blob/main/src/react/useProjects.ts#75)
+Defined in: [src/react/useProjects.ts:72](https://github.com/anuma-ai/sdk/blob/main/src/react/useProjects.ts#72)
 
 Get all conversations in a project
 
@@ -254,7 +254,7 @@ Get all conversations in a project
 
 > **getProjects**: () => `Promise`<[`StoredProject`](StoredProject.md)\[]>
 
-Defined in: [src/react/useProjects.ts:65](https://github.com/anuma-ai/sdk/blob/main/src/react/useProjects.ts#65)
+Defined in: [src/react/useProjects.ts:63](https://github.com/anuma-ai/sdk/blob/main/src/react/useProjects.ts#63)
 
 Get all projects
 
@@ -268,7 +268,7 @@ Get all projects
 
 > **inboxProjectId**: `string` | `null`
 
-Defined in: [src/react/useProjects.ts:87](https://github.com/anuma-ai/sdk/blob/main/src/react/useProjects.ts#87)
+Defined in: [src/react/useProjects.ts:83](https://github.com/anuma-ai/sdk/blob/main/src/react/useProjects.ts#83)
 
 The ID of the default Inbox project (auto-created)
 
@@ -278,7 +278,7 @@ The ID of the default Inbox project (auto-created)
 
 > **isLoading**: `boolean`
 
-Defined in: [src/react/useProjects.ts:55](https://github.com/anuma-ai/sdk/blob/main/src/react/useProjects.ts#55)
+Defined in: [src/react/useProjects.ts:54](https://github.com/anuma-ai/sdk/blob/main/src/react/useProjects.ts#54)
 
 Whether projects are being loaded
 
@@ -288,7 +288,7 @@ Whether projects are being loaded
 
 > **isReady**: `boolean`
 
-Defined in: [src/react/useProjects.ts:57](https://github.com/anuma-ai/sdk/blob/main/src/react/useProjects.ts#57)
+Defined in: [src/react/useProjects.ts:56](https://github.com/anuma-ai/sdk/blob/main/src/react/useProjects.ts#56)
 
 Whether the projects system is ready (database table exists)
 
@@ -298,7 +298,7 @@ Whether the projects system is ready (database table exists)
 
 > **projects**: [`StoredProject`](StoredProject.md)\[]
 
-Defined in: [src/react/useProjects.ts:49](https://github.com/anuma-ai/sdk/blob/main/src/react/useProjects.ts#49)
+Defined in: [src/react/useProjects.ts:48](https://github.com/anuma-ai/sdk/blob/main/src/react/useProjects.ts#48)
 
 List of all projects
 
@@ -308,7 +308,7 @@ List of all projects
 
 > **refreshProjects**: () => `Promise`<`void`>
 
-Defined in: [src/react/useProjects.ts:85](https://github.com/anuma-ai/sdk/blob/main/src/react/useProjects.ts#85)
+Defined in: [src/react/useProjects.ts:81](https://github.com/anuma-ai/sdk/blob/main/src/react/useProjects.ts#81)
 
 Refresh the projects list from database
 
@@ -322,7 +322,7 @@ Refresh the projects list from database
 
 > **setCurrentProjectId**: (`id`: `string` | `null`) => `void`
 
-Defined in: [src/react/useProjects.ts:53](https://github.com/anuma-ai/sdk/blob/main/src/react/useProjects.ts#53)
+Defined in: [src/react/useProjects.ts:52](https://github.com/anuma-ai/sdk/blob/main/src/react/useProjects.ts#52)
 
 Set the current project ID
 
@@ -361,7 +361,7 @@ Set the current project ID
 
 > **updateConversationProject**: (`conversationId`: `string`, `projectId`: `string` | `null`) => `Promise`<`boolean`>
 
-Defined in: [src/react/useProjects.ts:79](https://github.com/anuma-ai/sdk/blob/main/src/react/useProjects.ts#79)
+Defined in: [src/react/useProjects.ts:76](https://github.com/anuma-ai/sdk/blob/main/src/react/useProjects.ts#76)
 
 Move a conversation to a project (or remove with null)
 
@@ -412,7 +412,7 @@ Move a conversation to a project (or remove with null)
 
 > **updateProject**: (`projectId`: `string`, `opts`: [`UpdateProjectOptions`](UpdateProjectOptions.md)) => `Promise`<`boolean`>
 
-Defined in: [src/react/useProjects.ts:69](https://github.com/anuma-ai/sdk/blob/main/src/react/useProjects.ts#69)
+Defined in: [src/react/useProjects.ts:67](https://github.com/anuma-ai/sdk/blob/main/src/react/useProjects.ts#67)
 
 Update a project with partial options
 
@@ -463,7 +463,7 @@ Update a project with partial options
 
 > **updateProjectName**: (`projectId`: `string`, `name`: `string`) => `Promise`<`boolean`>
 
-Defined in: [src/react/useProjects.ts:67](https://github.com/anuma-ai/sdk/blob/main/src/react/useProjects.ts#67)
+Defined in: [src/react/useProjects.ts:65](https://github.com/anuma-ai/sdk/blob/main/src/react/useProjects.ts#65)
 
 Update a project's name
 

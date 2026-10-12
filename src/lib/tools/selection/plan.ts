@@ -1,15 +1,3 @@
-/**
- * `resolvePlan` — the single source of truth for "which tools this turn"
- * (issue #702, Phase 2). Given a neutral {@link ToolIntentDescriptor} and an
- * app-injected {@link ServerToolCatalog}, it produces a fully-resolved
- * {@link ToolPlanSpec} that both web and mobile consume, replacing each app's
- * hand-written per-mode switch.
- *
- * Pure and node/RN-safe. The plan is data — the host feeds `clientFactories`
- * into `assembleClientTools`, and `serverTools`/`toolChoice`/`maxToolRounds`/
- * `thinkingMode` into its send layer.
- */
-
 import {
   type AssembledToolsFilterFn,
   type ClientFactoryKey,
@@ -63,13 +51,6 @@ export function resolvePlan(
   const { catalog } = ctx;
   const entry = getCatalogEntry(descriptor, catalog);
 
-  // Council / aggregation: no per-mode client toolkit; the server tools are a
-  // semantic filter (resolveToolChoice → auto). Per-worker client tools — and
-  // the aggregation worker's never-persist invariant — are handled by
-  // composeCouncilClientTools(canPersistMemory) in council.ts, NOT by a
-  // plan-level post-filter (which would be a no-op here: the plan produces no
-  // client tools and toolChoice is `auto`, so `strip-memory-save-when-coerced`
-  // could never fire). Hence postFilters is empty for these lanes.
   if (descriptor.lane === "council" || descriptor.lane === "aggregation") {
     const serverTools = resolveServerTools(descriptor, catalog);
     return {
@@ -90,10 +71,6 @@ export function resolvePlan(
   const isBuilder = BUILDER_INTENTS.has(creation);
   const editorSlideOverlay = descriptor.editorPinned === "slides" && !isBuilder;
 
-  // A prompt that reads as an image edit suppresses slide-deck escalation: the
-  // user is editing an image, not requesting a deck, so we must not re-route the
-  // turn into the slide builder. Mirrors web's live path, which gates slide-deck
-  // intent on `!imageEditActive`.
   const slideDeckIntent =
     descriptor.slideDeckIntent === true && descriptor.imageEditIntent !== true;
 
@@ -102,44 +79,25 @@ export function resolvePlan(
   let clientToolsFilter: ClientToolsFilterMode | AssembledToolsFilterFn =
     entry?.clientToolsFilter ?? CREATION_INTENT_CLIENT_FILTER[creation];
 
-  // Fullscreen slide-editor overlay behind an ordinary chat turn: keep the full
-  // generative toolkit registered but restrict the sent tools to the slide
-  // editor, and swap the server tools to the slide entry's. Tool-choice stays
-  // `auto` — an open editor must not force image generation on every keystroke.
   const slideEntry = catalog.slides;
   if (editorSlideOverlay && slideEntry) {
     clientToolsFilter = "slide-editor";
     serverTools = resolveServerTools({ ...descriptor, creation: "slides" }, catalog);
   }
 
-  // A fullscreen slide-editor overlay is effectively a slides turn: its
-  // send-policy knobs (max rounds, thinking mode, forced server tools) and its
-  // persona come from the slide catalog entry, NOT the underlying chat intent —
-  // which carries neither the slide prompt nor the slide knobs. (We already
-  // swapped the server tools + client filter to slides above.)
   const effectiveEntry = editorSlideOverlay && slideEntry ? slideEntry : entry;
 
-  // Sticky sets: carry conversation history forward, and force-activate the
-  // builder/slide-deck set so its persona and toolkit ride in (and follow-ups
-  // stay in that lane).
   const activeToolSets = new Set(descriptor.activeToolSets ?? []);
   const builderSet = CREATION_INTENT_TOOL_SET[creation];
   if (builderSet) activeToolSets.add(builderSet);
   if (slideDeckIntent) activeToolSets.add("slides");
   if (editorSlideOverlay) activeToolSets.add("slides");
 
-  // Tool-choice: builder modes and a detected slide-deck intent force `auto`
-  // (let the model decide when to call plan_deck / create_file); everything
-  // else is shape-derived from the server-tools filter.
   const forceAuto = isBuilder || slideDeckIntent || editorSlideOverlay;
   const toolChoice = forceAuto
     ? "auto"
     : resolveToolChoice(serverTools, effectiveEntry?.toolChoice);
 
-  // System-prompt riders: the effective intent's authoritative prompt (the slide
-  // entry's for a slide-editor overlay), plus the slide prompt when a slide-deck
-  // intent is detected in plain chat — de-duplicated so the overlay + deck-intent
-  // case doesn't inject the slide prompt twice.
   const systemPromptRiders: string[] = [];
   if (effectiveEntry?.systemPrompt) systemPromptRiders.push(effectiveEntry.systemPrompt);
   if (
@@ -151,8 +109,6 @@ export function resolvePlan(
     systemPromptRiders.push(slideEntry.systemPrompt);
   }
 
-  // Post-filters: strip the vault-save tool on a coerced turn; add web's
-  // intent-gated filters when the host reports them.
   const postFilters: PostFilterKey[] = [];
   if (toolChoice === "required") postFilters.push("strip-memory-save-when-coerced");
   if (ctx.memoryIntent?.retrieval) postFilters.push("strip-memory-save-on-retrieval-intent");

@@ -1,85 +1,3 @@
-/**
- * Memory recall / retain work-cost regression harness.
- *
- * WHAT THIS MEASURES
- * Not "is recall fast", but "how much work does recall do". Every number the
- * gate compares is a count: rows loaded out of the vault, rows decrypted,
- * stored embedding vectors parsed, documents BM25 re-tokenized, (query, doc)
- * pairs handed to the cross-encoder, full-vault scans one `retain()` triggers.
- * Those are a pure function of the corpus and the code path, so the committed
- * baseline pins them exactly (tolerance 0) and any extra work a change
- * introduces shows up as an integer that moved. Wall-clock is printed next to
- * them for a human reading the log, and is never gated — a shared CI runner's
- * timings are noise, and a time-based threshold there either never fires or
- * fires every other week.
- *
- * WHY THE COUNTERS LIVE OUTSIDE THE MEASURED CODE
- * Nothing under `src/` is instrumented. Each counter is incremented by a vitest
- * module wrapper placed around a DEPENDENCY of the code under test — the vault
- * ops, the encryption helpers, the embedder, the BM25 scorer, the reranker, the
- * chunk search op — with `importActual` passing the real implementation through.
- * That keeps `searchTool.ts`, `bm25.ts` and `retain.ts` untouched (they are
- * owned by other in-flight work) and still counts the exact calls they make.
- *
- * HERMETIC BY CONSTRUCTION
- * No network, no API key, no model download. The embedder is a deterministic
- * bag-of-words hash, the query decomposer is driven by an injected `fetchFn`,
- * and the cross-encoder is replaced with a deterministic token-overlap scorer
- * (the real one lazy-downloads a ~25MB model). This runs on every PR.
- *
- * WHAT THE COUNTERS ARE PROXIES FOR
- * Two costs cannot be counted from outside without editing files this harness
- * deliberately does not touch, so each is measured through an exact structural
- * proxy:
- *   - `JSON.parse` of a stored embedding vector. On the projected read path
- *     this is exactly `vaultVectorRows`. On the legacy whole-vault path the
- *     parse is inline in `searchTool.ts`, so it is measured as the number of
- *     entries the vault embedding cache gained during the scenario
- *     (`vaultCacheAdds`) — one cache entry per successfully parsed vector.
- *   - BM25 tokenization. Counted as documents, not calls: `bm25DocsTokenized`
- *     is `Σ items.length` over every corpus preparation. Ranking and
- *     tokenization are tracked on separate axes — `bm25Passes` (how many times
- *     a query was scored against a corpus) and `bm25Prepares` (how many times a
- *     corpus was tokenized) — because a tokenize-once index moves the second
- *     and must not move the first. Collapsing them into "calls to scoreBM25"
- *     would make hoisting the tokenization out of the facet loop look like the
- *     pipeline lost ranking passes. The wrappers cover both the combined entry
- *     point and the split prepare/score pair, the latter only when the module
- *     exports it, so the harness reads the same on either side of that change.
- *   - `rerankPairs` counts what the pipeline HANDS the cross-encoder. The CE
- *     itself is a stand-in here, so that counter describes pipeline structure
- *     (how many pairs the rerank stage is plumbed to score), not CE inference
- *     cost.
- * Likewise the per-row decrypt is counted as INVOCATIONS: the fixture stores
- * plaintext, so each call returns immediately. The fan-out — one call per
- * materialised row — is the part that scales with vault size and the part the
- * decrypt-last path removes; the AES cost per call is constant and orthogonal.
- *
- * The printed wall-clock is a floor, not a forecast: the corpus is ~1000 facts
- * at 1024 dimensions, where a mature vault is larger and production embeds at
- * 4096. Read the counts for signal and the milliseconds for shape.
- *
- * ONE ADAPTER CAVEAT WORTH KNOWING
- * The backing store is in-memory LokiJS (the same adapter the rest of the memory
- * tests use). `Q.unsafeSqlQuery` throws there, so `getVaultCandidateKeysOp` and
- * `getVaultEmbeddingsByIdsOp` take their documented LokiJS fallback — a normal
- * query plus an in-memory projection — rather than the column-projected SELECT
- * they issue on OPFS-SQLite. The COUNTS are unaffected (same candidate set,
- * same row counts, and the decrypt fan-out the projected path exists to shrink
- * is measured exactly). What is understated is the projected path's I/O win: on
- * SQLite the key scan genuinely skips the content and embedding blobs on disk,
- * and here they are already resident. So the projected-vs-legacy wall-clock gap
- * below is a LOWER bound on the real one.
- *
- * REGENERATING THE BASELINE
- *   PERF_SAVE_BASELINE=1 pnpm perf:memory
- * writes `baseline.json` from the current run and passes. Do that when the
- * fixture changes, and — importantly — when a change makes the pipeline cheaper:
- * the gate only fires on MORE work, so an unregenerated baseline after a win
- * quietly leaves headroom for the next regression to hide in. Ratcheting the
- * baseline down is how the gate keeps its teeth.
- */
-
 import { readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -97,11 +15,6 @@ import {
   isValidGateBaseline,
 } from "../gate";
 import { type PerfCounters, resetCounters, snapshotCounters } from "./counters";
-
-// ─── module wrappers ────────────────────────────────────────────────────────
-// Hoisted above every import below, so they reach the shared counter object by
-// importing `./counters` themselves. Each wrapper spreads the real module and
-// replaces only the functions whose calls are being counted.
 
 vi.mock("../../../../src/lib/memoryEngine/embeddings", async (importActual) => {
   const actual = await importActual<Record<string, unknown>>();
@@ -197,13 +110,6 @@ vi.mock("../../../../src/lib/memoryVault/bm25", async (importActual) => {
   type Prepare = (items: Item[]) => unknown;
   type ScorePrepared = (query: string, corpus: unknown) => Map<string, number>;
 
-  // Ranking and tokenization are counted as SEPARATE axes, because a
-  // tokenize-once index moves one and not the other: N facet passes over one
-  // corpus stay N passes while going from N tokenizations to 1. Counting them
-  // together (as "calls to scoreBM25") would make that change look like the
-  // pipeline lost ranking passes, which is not what happened.
-  //
-  // `scoreBM25` is both: it tokenizes its input and then scores it.
   const wrapped: Record<string, unknown> = {
     ...actual,
     scoreBM25: (query: string, items: Item[]) => {
@@ -214,15 +120,6 @@ vi.mock("../../../../src/lib/memoryVault/bm25", async (importActual) => {
     },
   };
 
-  // The split corpus/score entry points arrived with the tokenize-once work and
-  // may not exist on every base this harness runs against, so they're wrapped
-  // only when present — otherwise a spread would publish `undefined` exports and
-  // break the module for callers that legitimately import nothing else.
-  //
-  // Note these wrappers see only calls made THROUGH the module boundary. When
-  // `scoreBM25` is itself a shim over prepare+score, its internal calls resolve
-  // to the module's own local bindings, not to these — so a single-shot
-  // `scoreBM25` still counts as exactly one preparation and one pass.
   if (typeof actual.prepareBM25Corpus === "function") {
     wrapped.prepareBM25Corpus = (items: Item[]) => {
       c.bm25Prepares++;
@@ -232,7 +129,6 @@ vi.mock("../../../../src/lib/memoryVault/bm25", async (importActual) => {
   }
   if (typeof actual.scoreBM25Prepared === "function") {
     wrapped.scoreBM25Prepared = (query: string, corpus: unknown) => {
-      // A pass with no tokenization — the entire point of a shared corpus.
       c.bm25Passes++;
       return (actual.scoreBM25Prepared as ScorePrepared)(query, corpus);
     };
@@ -273,10 +169,6 @@ vi.mock("../../../../src/lib/db/entities/operations", async (importActual) => {
 vi.mock("../../../../src/lib/memory/reranker", async (importActual) => {
   const actual = await importActual<Record<string, unknown>>();
   const { counters: c } = await import("./counters");
-  // Deterministic stand-in for the cross-encoder. The real one lazy-downloads a
-  // ~25MB transformers.js model on first call, which no PR-time gate can pay
-  // for. Token-overlap is enough: what is being measured is how many pairs the
-  // pipeline routes through this stage, not what the model says about them.
   const tokens = (s: string) => new Set(s.toLowerCase().match(/[a-z0-9]+/g) ?? []);
   return {
     ...actual,
@@ -320,68 +212,28 @@ import {
 const BASELINE_PATH = join(dirname(fileURLToPath(import.meta.url)), "baseline.json");
 const SAVE_BASELINE = process.env.PERF_SAVE_BASELINE === "1";
 
-/**
- * Tests that failed before the gate test reached its save path.
- *
- * The scenarios record their counters and THEN assert on them, and vitest does
- * not bail on failure — so a scenario that measured something broken (a lane
- * that returned nothing, a sensitivity probe that stopped discriminating) still
- * leaves its numbers in `results`, and a `PERF_SAVE_BASELINE=1` regen would
- * happily commit them as the new normal. That is the worst possible baseline:
- * it bakes the broken behaviour in as the ceiling, and every later run agrees
- * with it.
- *
- * CI is not the reason this is safe today — its artifact upload is gated on
- * `success()`, so it never publishes such a file, but the WRITE still happens
- * and a human running the regen locally has nothing stopping them from staging
- * it. So the write itself refuses.
- */
 let failuresBeforeSave = 0;
 
 afterEach((ctx) => {
   if (ctx.task.result?.state === "fail") failuresBeforeSave++;
 });
 
-/**
- * Queries. All but the temporal one are lowercase and built from a single
- * template's vocabulary, so each hits the lane it is named for and scores far
- * from `minSimilarity` on everything else.
- *
- * They do NOT keep the graph lane out. `extractQueryEntities` gained a lowercase
- * fallback, so every query here yields seed names and every recall pays exactly
- * one `getMemoriesByEntityNamesOp` — visible as `entityLookups=1` on every row of
- * the report. On the lowercase queries it resolves nothing (the corpus links only
- * proper nouns), so the lookup is pure cost; that is precisely why it is gated in
- * every recall scenario rather than only in the graph one.
- */
 const FACT_QUERY_A = "which tooling is used for provisioning";
 const FACT_QUERY_B = "what does the espresso routine look like";
 const COMPOSITE_QUERY = "what tooling and drinks come up around provisioning work";
 const CHUNK_QUERY = "we reviewed the rollout and agreed to revisit onboarding";
 
-/**
- * Canned composite facets for the high-budget path. 719/B4 moved LLM
- * rewrite out of recall(), so the harness passes `subQueries` directly.
- */
 const SUB_QUERIES = [
   "which tooling is used for provisioning",
   "which drinks are preferred",
   "what happens on provisioning days",
 ];
 
-/** One scenario's numbers: the counters plus the two cache-derived metrics. */
 type ScenarioNumbers = PerfCounters & {
-  /** Vault embedding-cache entries gained — the legacy path's stored-vector parses. */
   vaultCacheAdds: number;
-  /** Chunk-vector cache entries gained — messages that paid a decrypt + parse. */
   chunkCacheAdds: number;
 };
 
-/**
- * Advisory timing for one scenario. `phases` is recall's own D2 breakdown when
- * the scenario ran a recall; the write-path scenarios only have a wall time.
- * None of this is gated — see the file header.
- */
 interface ScenarioTiming {
   wallMs: number;
   phases?: RecallDiagnostics["timings"];
@@ -390,10 +242,6 @@ interface ScenarioTiming {
 const results = new Map<string, ScenarioNumbers>();
 const timings = new Map<string, ScenarioTiming>();
 
-/**
- * Run one scenario with zeroed counters, recording the counter delta plus the
- * growth of whichever caches it was handed.
- */
 async function scenario(
   name: string,
   caches: { vaultCache?: VaultEmbeddingCache; chunkCache?: Map<string, unknown> },
@@ -415,7 +263,6 @@ async function scenario(
   return numbers;
 }
 
-/** Capture recall's own phase timings (D2) without changing its behavior. */
 function withDiagnostics(options: RecallOptions): {
   options: RecallOptions;
   read: () => RecallDiagnostics | undefined;
@@ -427,15 +274,11 @@ function withDiagnostics(options: RecallOptions): {
   };
 }
 
-/** A fresh, unbounded vault cache. A plain Map (not the LRU) so `size` is an
- * exact count of resident vectors rather than an eviction artifact. */
 const freshVaultCache = (): VaultEmbeddingCache => new Map();
 
 let readWorld: PerfWorld;
 let facts: ReturnType<typeof buildFacts>;
 
-/** Seed a world for the write-path scenarios. `retain()` mutates the vault, so
- * each write scenario gets its own so their counters stay independent. */
 async function freshWriteWorld(): Promise<PerfWorld> {
   const world = createWorld();
   const ids = await seedVault(world, facts);
@@ -468,28 +311,17 @@ describe("memory work-cost scenarios", () => {
       return warm.read();
     });
 
-    // The instrument is attached: a whole-vault load, one decrypt per row, and
-    // one stored vector parsed per row on the cold pass.
     expect(coldNumbers.vaultFullLoads).toBe(1);
     expect(coldNumbers.vaultFullRows).toBe(activeVaultSize());
     expect(coldNumbers.vaultDecrypts).toBe(activeVaultSize());
     expect(coldNumbers.vaultCacheAdds).toBe(activeVaultSize());
-    // A non-zero writeback means the fixture's stored vectors stopped being
-    // usable and the harness is re-embedding the corpus instead of reading it.
     expect(coldNumbers.vaultVectorWrites).toBe(0);
     expect(coldNumbers.embedTexts).toBe(1);
 
-    // The point of the pair: a warm cache saves the vector parses and NOTHING
-    // else. The load and the per-row decrypt are paid again in full.
     expect(warmNumbers.vaultCacheAdds).toBe(0);
     expect(warmNumbers.vaultFullRows).toBe(activeVaultSize());
     expect(warmNumbers.vaultDecrypts).toBe(activeVaultSize());
 
-    // The legacy half of the #845 discriminator, checked against the harness's
-    // INDEPENDENT counter. Asserting `vaultRowsDecrypted === vaultSize` on its own
-    // would be a tautology — both are `loaded.length` on this path — so it has to
-    // be compared to `vaultDecrypts`, which is counted by spying on
-    // `decryptVaultMemoryFields` rather than derived from the same variable.
     const coldDiag = cold.read();
     expect(coldDiag?.decryptLast).toBe(false);
     expect(coldDiag?.vaultRowsDecrypted).toBe(coldNumbers.vaultDecrypts);
@@ -523,32 +355,17 @@ describe("memory work-cost scenarios", () => {
       return warm.read();
     });
 
-    // No whole-vault load at all; the key scan replaces it.
     expect(coldNumbers.vaultFullLoads).toBe(0);
     expect(coldNumbers.vaultKeyRows).toBe(activeVaultSize());
-    // Vectors are parsed once, then never again.
     expect(coldNumbers.vaultVectorRows).toBe(activeVaultSize());
     expect(warmNumbers.vaultVectorRows).toBe(0);
-    // Decrypt is bounded by the admission window, not the vault, on both passes.
     expect(coldNumbers.vaultDecrypts).toBeLessThan(activeVaultSize() / 10);
     expect(warmNumbers.vaultDecrypts).toBe(coldNumbers.vaultDecrypts);
 
-    // Liveness. Everything above is an upper bound, and this gate only fires on
-    // MORE work — so an admission window that broke and admitted nothing would
-    // satisfy every assertion here and read as the best result the harness has
-    // ever recorded. The other lanes pin their yield explicitly; the fact lane
-    // needs the same floor.
     expect(coldNumbers.vaultRowRows).toBeGreaterThan(0);
     expect(coldNumbers.vaultDecrypts).toBeGreaterThan(0);
     expect(warmNumbers.vaultRowRows).toBeGreaterThan(0);
 
-    // The diagnostics must AGREE with the harness's own counters (#845). The
-    // point of `decryptLast` / `vaultRowsDecrypted` on RecallDiagnostics is that
-    // production can ask the question this harness answers offline: "did the
-    // projected branch run, and did it actually decrypt less than the vault?".
-    // Cross-checking them against `vaultDecrypts` here is what stops the reported
-    // number drifting from the real one — a diagnostic nobody validates is how
-    // #845 became unfalsifiable in the first place.
     const coldDiag = cold.read();
     expect(coldDiag?.decryptLast).toBe(true);
     expect(coldDiag?.vaultRowsDecrypted).toBe(coldNumbers.vaultDecrypts);
@@ -558,7 +375,6 @@ describe("memory work-cost scenarios", () => {
   it("composite recall re-tokenizes the corpus once per facet", async () => {
     const vaultCache = freshVaultCache();
     const ctx = { vaultCtx: readWorld.vaultCtx, embeddingOptions: { apiKey: "x" }, vaultCache };
-    // 719/B4 — facets arrive pre-built; recall() never calls the decomposer.
     const run = withDiagnostics({
       types: ["fact"],
       budget: "high",
@@ -571,29 +387,11 @@ describe("memory work-cost scenarios", () => {
       return run.read();
     });
 
-    // One ranking pass for the original query plus one per sub-query. This is a
-    // property of the pipeline's SHAPE, so it holds whether each pass tokenizes
-    // its own corpus or shares a prepared one — hoisting the tokenization out of
-    // the loop must not change how many times the ranker ranks. If this number
-    // drops, a facet stopped being ranked, which is a behavior change wearing a
-    // performance change's clothes.
     expect(numbers.bm25Passes).toBe(1 + SUB_QUERIES.length);
 
-    // Tokenization is the axis a tokenize-once index actually moves, so it is
-    // bounded rather than pinned: at least one full pass over the candidate set
-    // (zero would mean BM25 admission silently stopped running), at most one per
-    // ranking pass (the naive every-pass-re-tokenizes ceiling). The committed
-    // baseline pins the exact number inside that window, so a change that moves
-    // it still has to be looked at — this only keeps the ceiling from being
-    // mistaken for a requirement.
     expect(numbers.bm25DocsTokenized).toBeGreaterThanOrEqual(activeVaultSize());
     expect(numbers.bm25DocsTokenized).toBeLessThanOrEqual(numbers.bm25Passes * activeVaultSize());
-    // Every preparation tokenizes the whole candidate set exactly once, so the
-    // two counters must stay consistent; a mismatch means a corpus was prepared
-    // from something other than the full admission set.
     expect(numbers.bm25DocsTokenized).toBe(numbers.bm25Prepares * activeVaultSize());
-    // The cross-encoder stage is actually reached (otherwise `rerankPairs`
-    // would sit at 0 and look like a free pipeline).
     expect(numbers.rerankCalls).toBeGreaterThan(0);
     expect(numbers.rerankPairs).toBeGreaterThan(0);
   });
@@ -612,9 +410,6 @@ describe("memory work-cost scenarios", () => {
       return run.read();
     });
 
-    // Both auxiliary lanes must actually return something — a lane that
-    // silently degraded to empty would show up as CHEAPER, which a
-    // lower-is-better gate would happily accept.
     expect(numbers.entityLookups).toBe(1);
     expect(numbers.entityMemories).toBeGreaterThan(0);
     expect(numbers.temporalScans).toBe(1);
@@ -645,7 +440,6 @@ describe("memory work-cost scenarios", () => {
       return warm.read();
     });
 
-    // Cold pass decrypts + parses every message's chunk vectors; warm pays none.
     expect(coldNumbers.chunkCacheAdds).toBe(PERF_CONFIG.chunkMessages);
     expect(warmNumbers.chunkCacheAdds).toBe(0);
     expect(coldNumbers.chunkHits).toBeGreaterThan(0);
@@ -665,9 +459,6 @@ describe("memory work-cost scenarios", () => {
 
     const merge = await freshWriteWorld();
     const mergeNumbers = await scenario("retainMerge", {}, async () => {
-      // The first corpus fact verbatim: it is live (the soft-deleted slice is
-      // the tail), so it scores 1.0 against itself and takes the auto-merge
-      // path — which pays the same whole-vault read as a create.
       await retain(facts[0].content, {
         vaultCtx: merge.vaultCtx,
         embeddingOptions: { apiKey: "x" },
@@ -703,18 +494,13 @@ describe("memory work-cost scenarios", () => {
       return undefined;
     });
 
-    // One novel fact costs a whole-vault load + a decrypt of every row.
     expect(createNumbers.vaultFullLoads).toBe(1);
     expect(createNumbers.vaultFullRows).toBe(activeVaultSize());
     expect(createNumbers.vaultCreates).toBe(1);
-    // A re-observed fact merges instead of inserting — same read cost.
     expect(mergeNumbers.vaultUpdates).toBe(1);
     expect(mergeNumbers.vaultCreates).toBe(0);
-    // `respectTombstones` buys a SECOND whole-vault load, this one including
-    // the soft-deleted rows.
     expect(tombstoneNumbers.vaultFullLoads).toBe(2);
     expect(tombstoneNumbers.vaultCreates).toBe(0);
-    // Ten facts, ten full scans — the write-path amplification this measures.
     expect(batchNumbers.vaultFullLoads).toBe(10);
     expect(batchNumbers.vaultFullRows).toBeGreaterThanOrEqual(10 * activeVaultSize());
   });
@@ -722,39 +508,23 @@ describe("memory work-cost scenarios", () => {
 
 describe("regression gate", () => {
   it("can see an order-of-magnitude change in read cost", () => {
-    // The instrument's own sensitivity proof. A harness that reports the same
-    // numbers for the whole-vault read and the projected decrypt-last read
-    // cannot adjudicate the perf work it exists to adjudicate — and a reviewer
-    // has no way to tell that apart from "the change didn't help". Assert the
-    // separation the two paths are SUPPOSED to have, so a future refactor that
-    // quietly collapses them fails here rather than passing a flat gate.
     const legacy = required("factLegacyCold");
     const projected = required("factProjectedCold");
     const legacyWarm = required("factLegacyWarm");
     const projectedWarm = required("factProjectedWarm");
 
-    // Guard the denominators first. Every ratio below divides by the projected
-    // path's cost, and 0 would make the division Infinity — which sails past a
-    // `toBeGreaterThan` and would report a totally broken lane as the widest win
-    // the harness has ever measured.
     expect(projected.vaultDecrypts).toBeGreaterThan(0);
     expect(projectedWarm.vaultDecrypts).toBeGreaterThan(0);
     expect(projected.bm25DocsTokenized).toBeGreaterThan(0);
 
-    // Decrypt fan-out: whole vault vs a bounded admission window.
     expect(legacy.vaultDecrypts / projected.vaultDecrypts).toBeGreaterThan(10);
     expect(legacyWarm.vaultDecrypts / projectedWarm.vaultDecrypts).toBeGreaterThan(10);
-    // BM25 tokenization: whole vault vs the decrypted window.
     expect(legacy.bm25DocsTokenized / projected.bm25DocsTokenized).toBeGreaterThan(10);
-    // Stored-vector parses: both pay them once, neither pays them twice.
     expect(legacy.vaultCacheAdds).toBe(projected.vaultVectorRows);
     expect(legacyWarm.vaultCacheAdds + projectedWarm.vaultVectorRows).toBe(0);
   });
 
   it("is deterministic: a second run of the legacy fact lane produces identical counters", async () => {
-    // Also the harness's own smoke test. If a module wrapper silently failed to
-    // attach, or a code path picked up wall-clock/`Math.random` somewhere, this
-    // is where it shows.
     const world = createWorld();
     await seedVault(world, facts);
     const vaultCache = freshVaultCache();
@@ -780,9 +550,6 @@ describe("regression gate", () => {
     printReport(run);
 
     if (SAVE_BASELINE) {
-      // Refuse rather than warn. A warning scrolls past in a regen that prints
-      // a hundred lines of counters, and the cost of missing it is a committed
-      // baseline that certifies broken behaviour as correct.
       expect(
         failuresBeforeSave === 0
           ? null
@@ -798,15 +565,6 @@ describe("regression gate", () => {
     }
 
     const parsed: unknown = JSON.parse(readFileSync(BASELINE_PATH, "utf-8"));
-    // A wrong-shaped file must fail loudly: the gate SKIPS metrics a baseline
-    // doesn't carry (so adding one doesn't invalidate every committed file),
-    // which means a malformed baseline would otherwise pass vacuously.
-    //
-    // The message matters as much as the check. `gate.ts` is shared with the
-    // other memory evals, and when its band shape changes this file becomes
-    // invalid without anything in this directory being touched — a bare
-    // "expected false to be true" sends whoever hits it looking for a bug in the
-    // harness instead of at a baseline that just needs regenerating.
     expect(
       isValidGateBaseline(parsed, GATE_METRICS)
         ? null
@@ -816,7 +574,6 @@ describe("regression gate", () => {
     ).toBeNull();
     const baseline = parsed as GateBaseline;
 
-    // Counts only mean something against the corpus that produced them.
     const mismatch = describeConfigMismatch(baseline, gateConfig());
     expect(
       mismatch === null
@@ -826,18 +583,6 @@ describe("regression gate", () => {
 
     const regressions = compareToGateBaseline([run], baseline, GATE_METRICS);
 
-    // The other direction. A lower-better gate only fails upward, so an
-    // optimization that lands without regenerating the baseline leaves the old,
-    // higher number in place as the ceiling — and every subsequent increase back
-    // up to it passes. Concretely: once #756 takes compositeHigh tokenization
-    // from 3760 to 940, a later change could quadruple it back to 3760 and this
-    // gate would stay green.
-    //
-    // So a material improvement is treated as "the baseline is stale", not as a
-    // pass. It fails the PR that earned the win, which is the right place to pay
-    // it — that author has the numbers in hand and the regeneration is one
-    // command — and it keeps the ceiling ratcheting down on its own instead of
-    // depending on someone remembering.
     const stale = GATE_METRICS.flatMap((spec) => {
       const band = baseline.metrics[spec.key];
       const current = run[spec.key];
@@ -847,17 +592,6 @@ describe("regression gate", () => {
         : [];
     });
 
-    // BOTH directions are computed and printed before EITHER is asserted. A
-    // change can move some counters up and others down — splitting one lane's
-    // work across two ops does exactly that — and asserting on regressions first
-    // would throw before the stale block ever printed, hiding half the picture
-    // and the regenerate instruction with it. The reader needs the whole story
-    // in one run, not the half that happened to fail first.
-    //
-    // No trailing newline on either header: the workflow lifts these blocks out
-    // of the log with `sed -n '/MORE WORK/,/^$/p'` and its LESS WORK twin, so a
-    // blank line there would end the range before the body. The blank line
-    // belongs after each block, not before it.
     if (regressions.length > 0) {
       console.error("\n  MORE WORK THAN THE BASELINE");
       console.error(formatGateRegressions(regressions));
@@ -880,52 +614,10 @@ describe("regression gate", () => {
   });
 });
 
-// ─── gate wiring ────────────────────────────────────────────────────────────
-
-/** Rows the vault holds after the tombstone slice is soft-deleted. */
 function activeVaultSize(): number {
   return PERF_CONFIG.vaultFacts - PERF_CONFIG.deletedFacts;
 }
 
-/**
- * Which counters each scenario gates on. A curated list rather than the full
- * cross-product: a baseline nobody can read is a baseline nobody maintains.
- * Every entry is a cost — more of it is a regression — so all specs are
- * lower-better with a zero tolerance, which the counters' determinism earns.
- * Lane YIELD (`entityMemories`, `temporalRows`, `chunkHits`) is deliberately
- * NOT gated: a lane that broke and returned nothing would read as an
- * improvement here. The per-scenario assertions above pin that instead.
- *
- * Curation cuts both ways, though, and the rule that keeps it honest is: every
- * scenario gates every PER-RECALL SCAN it performs, even when that scan is
- * incidental to what the scenario is nominally about. A scan gated in only one
- * scenario is a scan that can be silently added to all the others.
- *
- * `entityLookups` is why that rule is written down. The graph lane looks like it
- * only concerns `graphTemporal`, but #763 gave `extractQueryEntities` a lowercase
- * fallback, and the effect is that EVERY recall in this suite now pays an entity
- * lookup — including the four fact-lane scenarios and both chunk-lane ones, where
- * it resolves nothing and is pure overhead. Gating it only where the graph lane is
- * the subject would have let that land without a single gated metric moving. Cost
- * that shows up in a lane the scenario isn't "about" is still cost that ships.
- *
- * Embedding work is gated on all three of its axes — `embedQueries` (single
- * calls), `embedBatches` (batch calls), `embedTexts` (texts across both) —
- * because the total alone cannot see the SHAPE of the work. Trading one batched
- * call for N single ones embeds exactly the same texts: `embedTexts` holds
- * still while the number of round trips multiplies, and with only the total
- * gated that regression is invisible. Call shape is the axis batching work
- * moves on, so it needs a counter that reads it. `embedTexts` stays gated
- * alongside them because it is the axis a redundant-embed fix moves — #774's
- * query-embedding reuse halved `retainBatch10.embedTexts` — and neither number
- * implies the other.
- *
- * The one counter applied unevenly on purpose is the stored-vector parse, which
- * has a different proxy per read path: on the legacy path it is `vaultCacheAdds`
- * (the parse is inline in `searchTool.ts`, so the cache's growth is the only
- * observable), and on the projected path it is `vaultVectorRows`, which is the
- * parse count directly. Gating both everywhere would pin the same number twice.
- */
 const GATED: ReadonlyArray<readonly [string, readonly (keyof ScenarioNumbers)[]]> = [
   [
     "factLegacyCold",
@@ -1125,21 +817,16 @@ const GATE_METRICS: GateMetricSpec[] = GATED.flatMap(([name, keys]) =>
   keys.map((key) => ({
     key: `${name}.${key}`,
     direction: "lower-better" as const,
-    // Zero: these are integer counts of work, not samples of a noisy process.
-    // One extra decrypt IS the regression.
     minTolerance: 0,
     format: "count" as const,
     label: `${name}.${key}`,
   }))
 );
 
-/** The corpus knobs the counts depend on. A mismatch refuses the comparison. */
 function gateConfig() {
   return { ...PERF_CONFIG };
 }
 
-/** A scenario's recorded numbers, or a loud failure. Scenarios run in file
- * order, so a missing entry means an earlier `it` threw before recording. */
 function required(name: string): ScenarioNumbers {
   const numbers = results.get(name);
   if (!numbers) throw new Error(`perf harness: scenario "${name}" never ran`);
@@ -1155,10 +842,6 @@ function flattenResults(): GateRun {
   return run;
 }
 
-/**
- * Print the full counter table (not just the gated subset) plus recall's own
- * phase timings. Everything goes to stderr: this is for a human reading CI logs.
- */
 function printReport(run: GateRun): void {
   const names = [...results.keys()];
   const width = Math.max(...names.map((n) => n.length));
@@ -1169,8 +852,6 @@ function printReport(run: GateRun): void {
   );
   for (const name of names) {
     const numbers = results.get(name)!;
-    // Zero counters are omitted: a scenario touches maybe a third of the
-    // registry, and printing the other two thirds as `=0` buries the signal.
     const interesting = (Object.entries(numbers) as Array<[string, number]>)
       .filter(([, v]) => v !== 0)
       .map(([k, v]) => `${k}=${v}`)
@@ -1178,10 +859,6 @@ function printReport(run: GateRun): void {
     console.error(`  ${name.padEnd(width)}  ${interesting}`);
     const t = timings.get(name);
     if (!t) continue;
-    // Advisory only — see the file header for why wall-clock is never gated.
-    // `rerank` and `queryEmbed` are SUBSETS of `fact`, printed nested as
-    // `fact N(ce X, embed Y)` rather than as siblings so the top-level columns
-    // still sum to the whole.
     const phases = t.phases
       ? `  (prep ${t.phases.prep.toFixed(0)} / fact ${t.phases.factLane.toFixed(0)}` +
         `(ce ${t.phases.rerank.toFixed(0)}, embed ${t.phases.queryEmbed.toFixed(0)}) / ` +

@@ -1,14 +1,3 @@
-/**
- * Continuation coverage for server-executed tools in runToolLoop.
- *
- * When a round mixes tools the portal already ran (reported on
- * `response.completed` as `tool_call_events` with an `output`) and a client
- * tool the SDK executes, the continuation request must carry the server
- * calls and their outputs too. Without them the model sees the client
- * result (e.g. a confirmed booking card) with none of the evidence that led
- * to it, and re-runs the search instead of acting.
- */
-
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import * as sseModule from "../../client/core/serverSentEvents.gen";
@@ -32,10 +21,6 @@ const mockGenerateEmbedding = vi.mocked(embeddingsModule.generateEmbedding);
 
 type ToolCallEvent = { id: string; name: string; arguments: string; output?: string };
 
-/**
- * Stream where the model calls a client tool, and `response.completed`
- * reports every tool call of the turn, server-executed ones with output.
- */
 function makeClientToolStream(opts: {
   callId: string;
   name: string;

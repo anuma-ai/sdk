@@ -1,4 +1,3 @@
-/** Resolve two legacy WatermelonDB directories for the built ESM test only. */
 const directoryImports = new Set([
   "@nozbe/watermelondb/decorators",
   "@nozbe/watermelondb/Schema/migrations",

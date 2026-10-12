@@ -1,15 +1,40 @@
 import { describe, expect, it, vi } from "vitest";
 
+import { CONFIRMED_ACTION_TOOL_SETS } from "../lib/tools/serverTools";
 import type { ConfirmParameter } from "./confirm";
 import { createConfirmTool } from "./confirm";
+import { CONFIRM_REQUIRED_FIELDS } from "./confirmConstants";
 import type { UIInteractionContext } from "./uiInteraction";
 
 const RESERVATION: ConfirmParameter[] = [
-  { name: "venue", label: "Restaurant", value: "Zuni Café" },
-  { name: "date", label: "Date", value: "2026-09-25" },
+  { name: "venue_id", label: "Restaurant id", value: "84211" },
+  { name: "config_id", label: "Slot", value: "rgs://resy/84211/2911/2/2026-09-25/19:30/4" },
+  { name: "party_size", label: "Party size", value: "4" },
+  { name: "day", label: "Date", value: "2026-09-25" },
+  { name: "venue_name", label: "Restaurant", value: "Zuni Café" },
+  { name: "time", label: "Time", value: "19:30" },
+];
+
+const CANCELLATION: ConfirmParameter[] = [
+  { name: "reservation_id", label: "Reservation", value: "812734455" },
+  { name: "venue_name", label: "Restaurant", value: "Zuni Café" },
+  { name: "day", label: "Date", value: "2026-09-25" },
   { name: "time", label: "Time", value: "19:30" },
   { name: "party_size", label: "Party size", value: "4" },
+  { name: "fee_applies", label: "Fee applies", value: "false" },
+  { name: "fee_amount", label: "Fee", value: "0" },
 ];
+
+const CANCEL_ARGS = {
+  title: "Cancel your reservation",
+  action: "cancel_reservation",
+  parameters: CANCELLATION,
+};
+
+const ORDER_ARGS = { title: "Place the order?", action: "place_order" };
+
+const without = (parameters: ConfirmParameter[], name: string) =>
+  parameters.filter((p) => p.name !== name);
 
 const BOOKING_ARGS = {
   title: "Confirm your reservation",
@@ -17,12 +42,6 @@ const BOOKING_ARGS = {
   parameters: RESERVATION,
 };
 
-/**
- * A context whose interaction stays pending until the test answers it, the way
- * a real card does. `answer` resolves the promise the executor is blocked on;
- * `fail` rejects it, which is what a timeout, a cancel or a conversation switch
- * all look like from inside the tool.
- */
 function pendingContext() {
   let settle!: { answer: (result: unknown) => void; fail: (error: Error) => void };
   const createInteraction = vi.fn(
@@ -45,15 +64,11 @@ describe("createConfirmTool", () => {
     const tool = createConfirmTool({ getContext: () => null });
 
     expect((tool.function as { name: string }).name).toBe("prompt_user_confirm");
-    // A confirmation waits on a human. The default 30s executor timeout would
-    // resolve it as unanswered while the user is still reading the card.
     expect(tool.executorTimeout).toBe(Infinity);
     const params = (tool.function as { arguments: { required?: string[] } }).arguments;
     expect(params.required).toEqual(["title", "action", "parameters"]);
   });
 
-  // The host renders its own button labels. A model-written label could put
-  // "Cancel" on the button that confirms, so the schema must not offer one.
   it("does not let the model write the button labels", () => {
     const tool = createConfirmTool({ getContext: () => null });
 
@@ -103,9 +118,6 @@ describe("createConfirmTool", () => {
     });
   });
 
-  // The portal refuses the booking tool unless a confirmation with matching
-  // parameters is in the turn. A boolean alone would not survive that check,
-  // because the model writes the booking arguments too.
   it("carries the confirmed parameters back verbatim, not just a boolean", async () => {
     const { context, settle } = pendingContext();
     const tool = createConfirmTool({ getContext: () => context });
@@ -120,8 +132,6 @@ describe("createConfirmTool", () => {
     expect(Date.parse(result.answeredAt as string)).not.toBeNaN();
   });
 
-  // A decline is an answer, so it keeps the same shape — the portal and the
-  // model both read `confirmed`, and neither has to treat it as a failure.
   it("reports a decline as an answer, with the parameters still attached", async () => {
     const { context, settle } = pendingContext();
     const tool = createConfirmTool({ getContext: () => context });
@@ -138,9 +148,6 @@ describe("createConfirmTool", () => {
     expect(result.cancelled).toBeUndefined();
   });
 
-  // Only an explicit boolean is an answer. A card that resolves with a string,
-  // a missing field or an unrelated shape made no decision, so it must read as
-  // nobody answering — neither as permission nor as the user saying no.
   it.each([
     ["the string 'true'", { confirmed: "true" }],
     ["a truthy string", { confirmed: "yes" }],
@@ -157,8 +164,6 @@ describe("createConfirmTool", () => {
     expect(await pending).toEqual({ cancelled: true });
   });
 
-  // The third outcome: nobody answered. Distinguishable from a decline, which
-  // is the point — the model must not tell the user they said no.
   it("reports a timeout as cancelled, not as a decline", async () => {
     const { context, settle } = pendingContext();
     const tool = createConfirmTool({ getContext: () => context });
@@ -177,19 +182,17 @@ describe("createConfirmTool", () => {
     await expect(tool.executor?.(BOOKING_ARGS)).resolves.toEqual({ cancelled: true });
   });
 
-  // Arguments the user could not judge, or the portal could not compare, never
-  // reach the card at all.
   it.each([
-    ["no parameters", { ...BOOKING_ARGS, parameters: [] }],
+    ["no parameters", { ...ORDER_ARGS, parameters: [] }],
     ["no action", { title: "Confirm", parameters: RESERVATION }],
     ["no title", { action: "book_restaurant", parameters: RESERVATION }],
     [
       "a non-string value",
-      { ...BOOKING_ARGS, parameters: [{ name: "party_size", label: "Party size", value: 4 }] },
+      { ...ORDER_ARGS, parameters: [{ name: "item", label: "Item", value: 4 }] },
     ],
     [
       "an unlabelled parameter",
-      { ...BOOKING_ARGS, parameters: [{ name: "party_size", value: "4" }] },
+      { ...ORDER_ARGS, parameters: [{ name: "item", value: "Pad thai" }] },
     ],
   ])("refuses to show a card with %s", async (_name, args) => {
     const { context, createInteraction } = pendingContext();
@@ -210,5 +213,129 @@ describe("createConfirmTool", () => {
 
     await expect(pending).resolves.toEqual({ cancelled: true });
     expect(cancelInteraction).toHaveBeenCalledWith(createInteraction.mock.calls[0][0]);
+  });
+
+  describe("restaurant cards", () => {
+    it("refuses a booking card missing config_id, naming it, and shows nothing", async () => {
+      const { context, createInteraction } = pendingContext();
+      const tool = createConfirmTool({ getContext: () => context });
+
+      const result = await tool.executor?.({
+        ...BOOKING_ARGS,
+        parameters: without(RESERVATION, "config_id"),
+      });
+
+      expect(result).toEqual({
+        error:
+          "card is missing config_id; look them up and call prompt_user_confirm again with every field",
+      });
+      expect(createInteraction).not.toHaveBeenCalled();
+    });
+
+    it("refuses a booking card with no parameters, naming every required field", async () => {
+      const { context, createInteraction } = pendingContext();
+      const tool = createConfirmTool({ getContext: () => context });
+
+      const result = await tool.executor?.({ ...BOOKING_ARGS, parameters: [] });
+
+      expect(result).toEqual({
+        error:
+          "card is missing venue_id, config_id, party_size, day, venue_name, time; look them up and call prompt_user_confirm again with every field",
+      });
+      expect(createInteraction).not.toHaveBeenCalled();
+    });
+
+    it("names every missing field and treats a blank value as missing", async () => {
+      const { context, createInteraction } = pendingContext();
+      const tool = createConfirmTool({ getContext: () => context });
+
+      const result = (await tool.executor?.({
+        ...BOOKING_ARGS,
+        action: "AnumaPaymentsMCP-anuma_book_restaurant",
+        parameters: [
+          ...without(without(RESERVATION, "venue_id"), "time"),
+          { name: "time", label: "Time", value: "  " },
+        ],
+      })) as { error: string };
+
+      expect(result.error).toMatch(/^card is missing venue_id, time;/);
+      expect(createInteraction).not.toHaveBeenCalled();
+    });
+
+    it("opens a cancel card that lists all seven fields", async () => {
+      const { context, createInteraction, settle } = pendingContext();
+      const tool = createConfirmTool({ getContext: () => context });
+
+      const pending = tool.executor?.(CANCEL_ARGS);
+      settle().answer({ confirmed: true });
+      await pending;
+
+      expect(createInteraction).toHaveBeenCalledTimes(1);
+    });
+
+    it("refuses a cancel card without the fee", async () => {
+      const { context, createInteraction } = pendingContext();
+      const tool = createConfirmTool({ getContext: () => context });
+
+      const result = (await tool.executor?.({
+        ...CANCEL_ARGS,
+        parameters: without(CANCELLATION, "fee_amount"),
+      })) as { error: string };
+
+      expect(result.error).toMatch(/^card is missing fee_amount;/);
+      expect(createInteraction).not.toHaveBeenCalled();
+    });
+
+    it("leaves other actions' cards alone", async () => {
+      const { context, createInteraction, settle } = pendingContext();
+      const tool = createConfirmTool({ getContext: () => context });
+
+      const pending = tool.executor?.({
+        title: "Place the order?",
+        action: "place_order",
+        parameters: [{ name: "item", label: "Item", value: "Pad thai" }],
+      });
+      settle().answer({ confirmed: true });
+      const result = (await pending) as Record<string, unknown>;
+
+      expect(createInteraction).toHaveBeenCalledTimes(1);
+      expect(result.status).toBeUndefined();
+      expect(result.next_step).toBeUndefined();
+    });
+
+    it.each([
+      [BOOKING_ARGS, "confirmed_not_booked", "AnumaPaymentsMCP-anuma_book_restaurant"],
+      [CANCEL_ARGS, "confirmed_not_cancelled", "AnumaPaymentsMCP-anuma_cancel_reservation"],
+    ])("says an approved %j has not happened yet", async (args, status, tool) => {
+      const { context, settle } = pendingContext();
+      const confirm = createConfirmTool({ getContext: () => context });
+
+      const pending = confirm.executor?.(args);
+      settle().answer({ confirmed: true });
+
+      expect(await pending).toMatchObject({
+        confirmed: true,
+        status,
+        next_step: `call ${tool} now with these exact values`,
+      });
+    });
+
+    it("adds no status to a declined booking", async () => {
+      const { context, settle } = pendingContext();
+      const tool = createConfirmTool({ getContext: () => context });
+
+      const pending = tool.executor?.(BOOKING_ARGS);
+      settle().answer({ confirmed: false });
+      const result = (await pending) as Record<string, unknown>;
+
+      expect(result.status).toBeUndefined();
+      expect(result.next_step).toBeUndefined();
+    });
+
+    it("covers every action spelling the narrowing knows", () => {
+      expect([...CONFIRM_REQUIRED_FIELDS.keys()].sort()).toEqual(
+        [...CONFIRMED_ACTION_TOOL_SETS.keys()].sort()
+      );
+    });
   });
 });

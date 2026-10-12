@@ -2,7 +2,7 @@
 
 > **ensureDefaultFoldersOp**(`ctx`: [`VaultFolderOperationsContext`](../interfaces/VaultFolderOperationsContext.md)): `Promise`<`Map`<`string`, `string`>>
 
-Defined in: [src/lib/db/vaultFolders/defaults.ts:20](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/vaultFolders/defaults.ts#20)
+Defined in: [src/lib/db/vaultFolders/defaults.ts:15](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/vaultFolders/defaults.ts#15)
 
 Ensure all default system folders exist. Idempotent — skips folders that already exist.
 Uses a per-database promise lock so concurrent callers share a single in-flight operation.

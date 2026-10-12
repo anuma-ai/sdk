@@ -1,10 +1,3 @@
-/**
- * Dropbox API utilities
- *
- * Uses Dropbox HTTP API for file operations.
- * Dropbox uses OAuth 2.0 with PKCE for browser apps.
- */
-
 const DROPBOX_API_URL = "https://api.dropboxapi.com/2";
 const DROPBOX_CONTENT_URL = "https://content.dropboxapi.com/2";
 
@@ -56,9 +49,6 @@ interface DropboxError {
   };
 }
 
-/**
- * Ensure the backup folder exists in Dropbox
- */
 async function ensureBackupFolder(
   accessToken: string,
   folder: string = DEFAULT_BACKUP_FOLDER
@@ -75,7 +65,6 @@ async function ensureBackupFolder(
         autorename: false,
       }),
     });
-    // Folder created or already exists (error will be path/conflict which is fine)
   } catch {
     // Ignore errors - folder may already exist
   }
@@ -118,6 +107,35 @@ export async function uploadFileToDropbox(
 }
 
 /**
+ * Read the metadata of one backup file in Dropbox.
+ * Returns null when the file does not exist. An export run uses it to read the file time again
+ * just before it replaces a file, because another client can write the file after the run listed
+ * the folder.
+ */
+export async function getDropboxFileMetadata(
+  accessToken: string,
+  filename: string,
+  folder: string = DEFAULT_BACKUP_FOLDER
+): Promise<DropboxFile | null> {
+  const response = await fetch(`${DROPBOX_API_URL}/files/get_metadata`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ path: `${folder}/${filename}` }),
+  });
+
+  if (response.status === 409) return null;
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Dropbox get metadata failed: ${response.status} - ${errorText}`);
+  }
+
+  return response.json() as Promise<DropboxFile>;
+}
+
+/**
  * List all backup files in Dropbox
  */
 export async function listDropboxFiles(
@@ -141,7 +159,6 @@ export async function listDropboxFiles(
 
   if (!response.ok) {
     const error = (await response.json()) as DropboxError;
-    // If folder doesn't exist, return empty array
     if (error.error?.path?.[".tag"] === "not_found") {
       return [];
     }
@@ -150,10 +167,8 @@ export async function listDropboxFiles(
 
   let data = (await response.json()) as DropboxListFolderResponse;
 
-  // Accumulate all entries across paginated responses
   const allEntries: DropboxListFolderResponse["entries"] = [...data.entries];
 
-  // Continue fetching while there are more results
   while (data.has_more) {
     const continueResponse = await fetch(`${DROPBOX_API_URL}/files/list_folder/continue`, {
       method: "POST",
@@ -175,7 +190,6 @@ export async function listDropboxFiles(
     allEntries.push(...data.entries);
   }
 
-  // Filter to only files (not folders) and map to our interface
   const files: DropboxFile[] = allEntries
     .filter((entry) => entry[".tag"] === "file")
     .map((entry) => ({
@@ -208,16 +222,4 @@ export async function downloadDropboxFile(accessToken: string, path: string): Pr
   }
 
   return response.blob();
-}
-
-/**
- * Find a specific file in Dropbox by filename
- */
-export async function findDropboxFile(
-  accessToken: string,
-  filename: string,
-  folder: string = DEFAULT_BACKUP_FOLDER
-): Promise<DropboxFile | null> {
-  const files = await listDropboxFiles(accessToken, folder);
-  return files.find((f) => f.name === filename) || null;
 }

@@ -1,12 +1,4 @@
 #!/usr/bin/env node
-/**
- * selectServerSideTools integration test
- *
- * Usage:
- *   tsx test/tools/index.ts "generate an image of a cat"
- *   tsx test/tools/index.ts "swap ETH for BTC" --completions
- *   tsx test/tools/index.ts --limit 3 --min-similarity 0.4
- */
 
 import "dotenv/config";
 import { parseArgs } from "node:util";

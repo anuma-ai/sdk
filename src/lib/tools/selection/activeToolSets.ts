@@ -1,19 +1,3 @@
-/**
- * `deriveActiveToolSets` — event-shape-agnostic sticky tool-set derivation
- * (issue #702, Phase 4).
- *
- * Web derived sticky sets by scanning `ChatMessage[]` for two web-specific
- * signals: synthetic tool-result user messages (`Tool "<name>" returned: …`)
- * and `ActivityPhase.id`s shaped `server-tool-<name>-<n>`. This module keeps the
- * exact matching logic but keys on a neutral {@link ToolActivationEvent[]}, so
- * both apps feed it through a tiny adapter that maps their own message/activity
- * store to events. That closes the terse-follow-up gap on mobile: a 3-char
- * "yes" inside a slide conversation keeps the slide toolkit because the set
- * stays sticky.
- *
- * Pure and node/RN-safe.
- */
-
 import { BUILT_IN_TOOL_SETS, type ToolSet } from "../serverTools";
 
 /**
@@ -31,13 +15,11 @@ export interface ToolActivationEvent {
   phaseId?: string;
 }
 
-/** Does a `server-tool-phase` id correspond to a given tool-set member? */
 function phaseMatchesMember(phaseId: string, member: string): boolean {
   if (!phaseId) return false;
   return phaseId === member || phaseId.endsWith(`-${member}`) || phaseId.includes(`-${member}-`);
 }
 
-/** Does a single event indicate the given member fired? */
 function eventMatchesMember(event: ToolActivationEvent, member: string): boolean {
   if (event.kind === "tool-result") {
     return !!event.toolName && event.toolName === member;

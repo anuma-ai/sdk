@@ -1,53 +1,3 @@
-/**
- * ChatStorageAdapter — backend-agnostic seam for chat/conversation storage.
- *
- * ## Why this exists
- *
- * Today, react hooks in `src/react/*` and server code in `src/server/*` import
- * WatermelonDB directly (`@nozbe/watermelondb`). That makes it hard to:
- *
- *   - Ship the SDK on backends where WatermelonDB isn't a great fit
- *     (IndexedDB-only web apps, plain SQLite on the server, Postgres, etc).
- *   - Mock storage for tests without pulling in the full Watermelon setup.
- *   - Decouple the *reactive* side of Watermelon (observe/subscribe) from
- *     non-reactive environments like Node servers that don't need it.
- *
- * This interface defines the minimum operation set we actually use across the
- * codebase, based on a survey of `useChatStorage`, the various react hooks,
- * and `src/lib/db/chat/operations.ts`. It is intentionally shaped around the
- * *domain* (conversations, messages, files) rather than the WatermelonDB
- * primitives (Database, Collection, Query).
- *
- * ## Scope of this PR
- *
- * This PR *defines* the seam. It does NOT rewire existing callers — they
- * still use WatermelonDB directly. The default implementation
- * (`WatermelonChatStorageAdapter`) is a thin wrapper that delegates to the
- * existing Watermelon-backed `*Op` functions in `src/lib/db/chat/operations.ts`,
- * so early consumers can start depending on the adapter interface without any
- * behavior change.
- *
- * ## Migration plan
- *
- * 1. (done in this PR) Define `ChatStorageAdapter` + `WatermelonChatStorageAdapter`.
- * 2. Add an adapter-provider React context so hooks can be constructed from
- *    either a raw `Database` (current behavior, via a default adapter) or an
- *    injected adapter.
- * 3. Migrate read hooks first (`useProjects`, `useFiles`, `useSettings`,
- *    `useBackup` variants) — these only need get/query/observe.
- * 4. Migrate `useChatStorage` (the big one) — requires batching and
- *    transactional writes. This is where we will stress-test the `write()`
- *    method.
- * 5. Provide a non-reactive adapter variant (or make `observe*` methods
- *    optional) so server code in `src/server/*` can consume the same
- *    interface without pulling in Watermelon's reactive runtime.
- * 6. Ship alternate implementations: a pure IndexedDB adapter, a SQLite/
- *    better-sqlite3 adapter for server-side use, and a Postgres adapter
- *    that replaces `src/server/pg-adapter.ts` at a higher level.
- *
- * Tracked in issue #458.
- */
-
 import type {
   CreateConversationOptions,
   CreateMessageOptions,
@@ -95,8 +45,6 @@ export interface ConversationQueryOptions {
  * unique constraints on feedback, etc).
  */
 export interface ChatStorageAdapter {
-  // ---------- Conversations ----------
-
   getConversation(conversationId: string): Promise<StoredConversation | null>;
 
   getConversations(options?: ConversationQueryOptions): Promise<StoredConversation[]>;
@@ -117,8 +65,6 @@ export interface ChatStorageAdapter {
   observeConversations(
     options?: ConversationQueryOptions
   ): ChatStorageObservable<StoredConversation[]>;
-
-  // ---------- Messages ----------
 
   getMessages(conversationId: string): Promise<StoredMessage[]>;
 
@@ -180,11 +126,7 @@ export interface ChatStorageAdapter {
 
   observeMessages(conversationId: string): ChatStorageObservable<StoredMessage[]>;
 
-  // ---------- Files (attachments aggregated from messages) ----------
-
   getAllFiles(): Promise<StoredFileWithContext[]>;
-
-  // ---------- Transactions ----------
 
   /**
    * Run a set of mutations inside a single write transaction. Any mutation

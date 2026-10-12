@@ -30,10 +30,6 @@ describe("rankComposite", () => {
   });
 
   it("ranks items appearing in multiple facets above single-facet hits", async () => {
-    // Three items, three facets covering different dimensions.
-    // - shared appears in top-1 for facets 1 and 2 → strong RRF
-    // - facet1Only appears only for facet 1
-    // - facet2Only appears only for facet 2
     const items = [
       { id: "shared", content: "shared", embedding: emb({ 1: 1, 2: 1 }), updatedAt: NOW },
       { id: "facet1Only", content: "facet1", embedding: emb({ 1: 1 }), updatedAt: NOW },
@@ -52,9 +48,6 @@ describe("rankComposite", () => {
   });
 
   it("the original query ranking influences the fused order", async () => {
-    // Sub-queries don't match the gem item; only the original query does.
-    // The original-query facet weighting (replicated 3x in RRF) should
-    // pull the gem into the top results.
     const items = [
       { id: "gem", content: "gem", embedding: emb({ 0: 1 }), updatedAt: NOW },
       { id: "noise1", content: "noise1", embedding: emb({ 1: 1 }), updatedAt: NOW },
@@ -69,8 +62,6 @@ describe("rankComposite", () => {
       perFacetTopN: 5,
       recency: { now: NOW },
     });
-    // gem is only matched by the original query, but original is weighted
-    // 3x — it should make the top-3.
     const ids = result.slice(0, 3).map((r) => r.uniqueId);
     expect(ids).toContain("gem");
   });
@@ -82,7 +73,6 @@ describe("rankComposite", () => {
     ];
     const subQueries = [{ query: "f1", embedding: emb({ 0: 1 }) }];
 
-    // Opt-in (eval harness): the zero-score orphan IS appended.
     const withTail = await rankComposite("original", emb({ 0: 1 }), subQueries, items, {
       limit: items.length,
       perFacetTopN: 1,
@@ -92,7 +82,6 @@ describe("rankComposite", () => {
     expect(withTail.map((r) => r.uniqueId)).toEqual(expect.arrayContaining(["hit", "orphan"]));
     expect(withTail.find((r) => r.uniqueId === "orphan")?.similarity).toBe(0);
 
-    // Default (production recall): the zero-score orphan is NOT returned.
     const withoutTail = await rankComposite("original", emb({ 0: 1 }), subQueries, items, {
       limit: items.length,
       perFacetTopN: 1,
@@ -122,11 +111,8 @@ describe("rankComposite", () => {
       recency: { now: NOW },
     });
 
-    // Corpus prepared exactly once for the whole composite recall...
     expect(prepareSpy).toHaveBeenCalledTimes(1);
-    // ...and reused for every facet pass: the original query + each sub-query.
     expect(preparedSpy).toHaveBeenCalledTimes(1 + subQueries.length);
-    // The whole-corpus-tokenizing wrapper is never hit on the composite path.
     expect(rawSpy).not.toHaveBeenCalled();
 
     prepareSpy.mockRestore();

@@ -1,16 +1,3 @@
-/**
- * Continuation tool_choice coverage for runToolLoop with `required`.
- *
- * `toolChoice: "required"` exists to guarantee the FIRST round picks a tool
- * (media/search modes forcing e.g. generate_image). Re-sending it on
- * continuation rounds corners the model: the real work is done but it is
- * forbidden from answering with text, so it fabricates whatever tool call
- * escapes the constraint — observed in production as junk
- * memory_vault_save writes ("The user said: 'tiger'") after image
- * generations. These tests pin the downgrade to "auto" once a tool round
- * has executed, and that named-tool forcing is left untouched.
- */
-
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import * as sseModule from "../../client/core/serverSentEvents.gen";
@@ -31,7 +18,6 @@ vi.mock("../memoryEngine/embeddings", async (importOriginal) => {
 const mockCreateSseClient = vi.mocked(sseModule.createSseClient);
 const mockGenerateEmbedding = vi.mocked(embeddingsModule.generateEmbedding);
 
-/** Stream that emits a tool call (responses-API format). */
 function makeToolCallStream(opts: { callId: string; name: string; arguments: string }) {
   return (async function* () {
     yield { type: "response.created", response: { id: "r", model: "m" } };
@@ -58,7 +44,6 @@ function makeToolCallStream(opts: { callId: string; name: string; arguments: str
   })();
 }
 
-/** Stream that produces plain text then completes. */
 function makeTextStream(text: string) {
   return (async function* () {
     yield { type: "response.created", response: { id: "r", model: "m" } };
@@ -115,9 +100,6 @@ describe("runToolLoop required continuation downgrade", () => {
       .mockReturnValueOnce({ stream: makeTextStream("here is your tiger") } as never);
 
     const toolChoices = await runWithToolChoice("required");
-    // Round 1 forced; the continuation must NOT re-force a tool call —
-    // the model is free to answer with text instead of fabricating a
-    // junk memory_vault_save.
     expect(toolChoices).toEqual(["required", "auto"]);
     expect(mockCreateSseClient).toHaveBeenCalledTimes(2);
   });
@@ -134,7 +116,6 @@ describe("runToolLoop required continuation downgrade", () => {
   });
 
   it("leaves named-tool forcing untouched on continuations", async () => {
-    // Slide/app flows force a specific tool and rely on it persisting.
     mockCreateSseClient
       .mockReturnValueOnce({
         stream: makeToolCallStream({ callId: "c1", name: "generate_image", arguments: "{}" }),

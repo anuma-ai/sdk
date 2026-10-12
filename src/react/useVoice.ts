@@ -9,8 +9,6 @@ import type {
   WhisperModel,
 } from "../lib/voice";
 
-// Minimal Web Speech API types — only what we use.
-// Safari exposes this under the webkit prefix.
 interface NativeSpeechRecognitionEvent {
   readonly resultIndex: number;
   readonly results: {
@@ -37,11 +35,6 @@ interface NativeSpeechRecognitionInstance {
 
 type NativeSpeechRecognitionCtor = new () => NativeSpeechRecognitionInstance;
 
-/**
- * Get the on-device SpeechRecognition constructor, if available.
- * Only returns non-null on iOS where recognition runs entirely on-device.
- * Chrome/Edge send audio to Google servers — excluded for privacy.
- */
 function getOnDeviceSpeechRecognition(): NativeSpeechRecognitionCtor | null {
   if (typeof window === "undefined") return null;
   if (!/iPhone|iPad|iPod/.test(navigator.userAgent)) return null;
@@ -155,11 +148,9 @@ async function audioToFloat32(blob: Blob): Promise<Float32Array> {
   const audioContext = new AudioContext({ sampleRate: SAMPLE_RATE });
   try {
     const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
-    // Whisper expects mono 16kHz float32
     if (audioBuffer.numberOfChannels === 1) {
       return audioBuffer.getChannelData(0);
     }
-    // Mix channels to mono
     const length = audioBuffer.length;
     const mono = new Float32Array(length);
     const channels = audioBuffer.numberOfChannels;
@@ -222,7 +213,6 @@ export function useVoice(options?: UseVoiceOptions): UseVoiceResult {
   const loadPipeline = useCallback(async (): Promise<Pipeline> => {
     const modelName = getModelName();
 
-    // Return cached pipeline if model hasn't changed
     if (pipelineRef.current && modelNameRef.current === modelName) {
       return pipelineRef.current;
     }
@@ -328,7 +318,6 @@ export function useVoice(options?: UseVoiceOptions): UseVoiceResult {
         const blob = new Blob(chunksRef.current, { type: mimeType });
         const duration = Date.now() - startTimeRef.current;
 
-        // Stop all tracks to release the microphone
         mediaStreamRef.current?.getTracks().forEach((t) => t.stop());
         mediaStreamRef.current = null;
         mediaRecorderRef.current = null;
@@ -389,7 +378,6 @@ export function useVoice(options?: UseVoiceOptions): UseVoiceResult {
     [recording, loadPipeline, options?.language]
   );
 
-  // --- Native on-device speech recognition (iOS Safari) ---
   const nativeSpeechAvailable = useMemo(() => getOnDeviceSpeechRecognition() !== null, []);
   const [isNativeListening, setIsNativeListening] = useState(false);
   const nativeRecognitionRef = useRef<NativeSpeechRecognitionInstance | null>(null);

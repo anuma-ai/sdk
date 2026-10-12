@@ -1,19 +1,4 @@
 // @vitest-environment node
-/**
- * Headless-Chrome test for the real cross-window MessagePort handshake.
- *
- * The happy-dom unit tests exercise the bridge and shim logic, but happy-dom
- * drops postMessage transfer lists — so it can't prove the one thing that only
- * a real browser does: that `postMessage(msg, origin, [port])` actually
- * transfers the port and the receiving frame sees it on `event.ports`. This
- * test runs the *real* shim string in a child file:// frame, has a parent
- * frame speak the protocol, and asserts both that `window.app.complete`
- * resolves over a genuinely-transferred port and that the prompt never appears
- * on the parent's window message bus (the confidentiality fix).
- *
- * Excluded from `pnpm test`; run with `pnpm test:browser`. Skipped when
- * Playwright's Chromium isn't installed.
- */
 
 import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -41,10 +26,6 @@ const playwrightAvailable = await (async (): Promise<boolean> => {
 
 const SECRET = "ULTRA-SECRET-PROMPT-7f3a9c";
 
-// Parent page: records every message it receives, and runs a minimal bridge
-// that mirrors the wire protocol (createAppCompleteBridge's logic is covered
-// by the happy-dom unit tests; here we only need a real peer that hands back a
-// real MessagePort so the shim's transfer path runs).
 const PARENT_HTML = `<!doctype html><html><body>
 <script>
   window.__topMessages = [];
@@ -103,7 +84,6 @@ describe.skipIf(!playwrightAvailable)("appCompleteBridge real-browser handshake"
     page.on("pageerror", (err) => errors.push(err.message));
     await page.goto(pathToFileURL(join(workDir, "parent.html")).toString());
 
-    // Find the child frame and wait for it to report a result (or error).
     let child: import("playwright").Frame | undefined;
     for (let i = 0; i < 100 && !child; i++) {
       child = page.frames().find((f) => f.url().endsWith("child.html"));
@@ -120,13 +100,10 @@ describe.skipIf(!playwrightAvailable)("appCompleteBridge real-browser handshake"
     const result = await child.evaluate(() => document.body.getAttribute("data-result"));
     const error = await child.evaluate(() => document.body.getAttribute("data-error"));
 
-    // The handshake + real port transfer worked end to end.
     expect(error, error ?? "").toBeNull();
     expect(result).toBe(`echo:${SECRET}`);
     expect(errors, errors.join("\n")).toEqual([]);
 
-    // Confidentiality: the parent window only ever saw content-free connect
-    // announcements — the prompt traveled exclusively over the private port.
     const topMessages = await page.evaluate(
       () => (window as unknown as { __topMessages: { type?: string }[] }).__topMessages
     );

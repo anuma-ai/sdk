@@ -1,17 +1,6 @@
-/**
- * Weather display tool factory.
- *
- * Creates a client-side tool that fetches weather data from the Open-Meteo
- * API and renders it as a visual card inline in the chat.
- */
-
 import type { ToolConfig } from "../lib/chat/useChat/types.js";
 import type { CreateUIToolsOptions } from "./uiInteraction";
 import { createDisplayTool } from "./uiInteraction";
-
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
 
 export type ForecastDay = {
   date: string;
@@ -64,10 +53,6 @@ export interface CreateWeatherToolOptions {
 const DEFAULT_GEOCODING_BASE = "https://geocoding-api.open-meteo.com/v1";
 const DEFAULT_FORECAST_BASE = "https://api.open-meteo.com/v1";
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
 const FAHRENHEIT_REGIONS = new Set(["US", "LR", "MM"]);
 
 function defaultDetectUseFahrenheit(): boolean {
@@ -85,13 +70,6 @@ async function fetchJsonOnce<T>(url: string, signal: AbortSignal): Promise<T> {
   return (await res.json()) as T;
 }
 
-/**
- * One retry with jitter (100-300ms) for transient network/HTTP failures.
- * AbortError (timeout) is NOT retried — repeating it would just double the
- * user's wait time before the same outcome. The caller's signal is shared
- * across both attempts, so `timeoutMs` bounds the total operation rather
- * than restarting per attempt.
- */
 async function fetchJson<T>(url: string, signal: AbortSignal): Promise<T> {
   try {
     return await fetchJsonOnce<T>(url, signal);
@@ -144,10 +122,6 @@ type WeatherResponse = {
   };
 };
 
-// ---------------------------------------------------------------------------
-// Tool factory
-// ---------------------------------------------------------------------------
-
 /**
  * Create a display_weather tool that fetches and renders weather data.
  *
@@ -180,14 +154,6 @@ export function createWeatherTool(
 
   return createDisplayTool(options, {
     name: "display_weather",
-    // This description does double duty: the model reads it when deciding to
-    // call the tool, AND the semantic tool-filter embeds it to decide whether
-    // the tool is offered at all. Weather vocabulary (rain, snow, temperature,
-    // forecast) must appear literally so weather-phrased prompts embed close —
-    // "Will it rain this weekend?" scored below the selection floor against
-    // the previous "ALWAYS call this tool…" phrasing and the tool never
-    // reached the model. Matches the tightened description the web app had
-    // been overriding this with.
     description:
       "Display a weather forecast card showing current temperature, conditions, and a 7-day forecast for a city or location. Call this when the user asks about the weather, the current temperature, how hot, warm, or cold it is somewhere right now, rain, snow, wind, humidity, or climate conditions — even if you already have weather data from another tool. The card displays the data visually; do NOT repeat it in your text response. Just add a brief conversational comment if appropriate.",
     parameters: {

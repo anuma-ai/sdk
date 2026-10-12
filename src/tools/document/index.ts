@@ -43,10 +43,8 @@ export { DocDslError, isPdfTag, parseDocumentDsl, pdfStyleKeys, pdfTags } from "
 /** Default document identifier when the model omits `documentId`. */
 export const DEFAULT_DOCUMENT_ID = "document";
 
-/** Consecutive `patch_document` failures before the tool demands a re-read. */
 const PATCH_FAILURE_THRESHOLD = 2;
 
-/** Lines of context included around a syntax error / failed-patch snippet. */
 const SNIPPET_CONTEXT = 3;
 
 /** Tool names this module owns — for host filtering / set membership. */
@@ -54,12 +52,6 @@ export const DOCUMENT_TOOL_NAMES: ReadonlySet<string> = Object.freeze(
   new Set(["create_document", "read_document", "patch_document"])
 );
 
-/**
- * Result keys the tools own across all their return shapes. A host
- * `displayDocument` callback may only ADD fields (e.g. a media id) to a tool
- * result — these keys are stripped from its return value so it can never
- * silently flip the tool's status (success/error) or other reported state.
- */
 const RESERVED_RESULT_KEYS: ReadonlySet<string> = new Set([
   "success",
   "error",
@@ -95,10 +87,6 @@ function normalizeDocumentId(raw: unknown): string {
   }
   return raw.toLowerCase();
 }
-
-// ---------------------------------------------------------------------------
-// Tool schemas
-// ---------------------------------------------------------------------------
 
 const DOCUMENT_ID_PROP = {
   documentId: {
@@ -173,10 +161,6 @@ Pass a "patches" array of {find, replace}. Each "find" must match the source exa
   },
 } as const;
 
-// ---------------------------------------------------------------------------
-// Options
-// ---------------------------------------------------------------------------
-
 export interface CreateDocumentToolsOptions {
   /** Returns the current conversation ID (may be null before the first message). */
   getConversationId: () => string | null;
@@ -217,10 +201,6 @@ export interface CreateDocumentToolsOptions {
 
 /** Default cap for {@link CreateDocumentToolsOptions.maxConversations}. */
 export const DEFAULT_MAX_DOCUMENT_CONVERSATIONS = 1_000;
-
-// ---------------------------------------------------------------------------
-// Factory
-// ---------------------------------------------------------------------------
 
 /**
  * Create the document tool set (`create_document`, `read_document`,
@@ -279,12 +259,6 @@ export function createDocumentTools({
     return id;
   }
 
-  // Per-(conversation, path) set of documents whose current source the model
-  // has seen (via read_document, or by writing them this turn). patch_document
-  // refuses to patch — and create_document refuses to overwrite — an unseen
-  // document, mirroring the app/slide read-before-write contract: it prevents
-  // patches against a hallucinated copy and full rewrites that silently
-  // discard a document the model never read.
   const seenByConv = new Map<string, Set<string>>();
   function markSeen(conversationId: string, path: string): void {
     const s = seenByConv.get(conversationId) ?? new Set<string>();
@@ -295,10 +269,6 @@ export function createDocumentTools({
     return seenByConv.get(conversationId)?.has(path) ?? false;
   }
 
-  // Per-(conversation, path) last title supplied to create_document. patch
-  // carries no title arg, so without this a re-render would reset the PDF
-  // filename/label. In-memory only: on a fresh factory the host can fall back
-  // to its own documentId-keyed title.
   const titleByConv = new Map<string, Map<string, string>>();
   function rememberTitle(conversationId: string, path: string, title: string | undefined): void {
     if (!title) return;
@@ -310,7 +280,6 @@ export function createDocumentTools({
     return titleByConv.get(conversationId)?.get(path);
   }
 
-  // Per-(conversation, path) consecutive not-found patch failures.
   const patchFailuresByConv = new Map<string, Map<string, number>>();
   function bumpPatchFailure(conversationId: string, path: string): number {
     const m = patchFailuresByConv.get(conversationId) ?? new Map<string, number>();
@@ -323,7 +292,6 @@ export function createDocumentTools({
     patchFailuresByConv.get(conversationId)?.delete(path);
   }
 
-  /** Validate the DSL, returning a structured tool-error result or null. */
   function validateOrError(source: string): Record<string, unknown> | null {
     try {
       parseDocumentDsl(source);
@@ -339,12 +307,6 @@ export function createDocumentTools({
     }
   }
 
-  /**
-   * Invoke the host render-and-attach callback. The reply is spread into the
-   * tool result. A throw propagates (becomes a tool error) so the model can
-   * fix an unrenderable document — this is the deliberate difference from the
-   * error-swallowing `displayApp`/`displaySlides` hooks.
-   */
   async function triggerDocDisplay(
     documentId: string,
     path: string,
@@ -352,7 +314,6 @@ export function createDocumentTools({
   ): Promise<Record<string, unknown>> {
     const reply = await displayDocument({ documentId, path, ...(title ? { title } : {}) });
     if (!reply || typeof reply !== "object") return {};
-    // Keep only additive fields — reserved status keys can't be overwritten.
     const additive: Record<string, unknown> = {};
     for (const [k, v] of Object.entries(reply)) {
       if (!RESERVED_RESULT_KEYS.has(k)) additive[k] = v;
@@ -378,13 +339,6 @@ export function createDocumentTools({
         const validationError = validateOrError(source);
         if (validationError) return validationError;
 
-        // Read-before-overwrite: refuse to clobber an existing document whose
-        // current source the model has not seen this conversation — the same
-        // guard the sibling create_file applies. A brand-new document has no
-        // file on disk and proceeds; a document created or read this turn is
-        // already marked seen (so the post-persist render-failure retry below
-        // still works). This stops a full rewrite from silently discarding a
-        // document the model never looked at.
         const existing = await storage.getFile(conversationId, path);
         if (existing && !hasBeenSeen(conversationId, path)) {
           return {
@@ -393,22 +347,12 @@ export function createDocumentTools({
         }
 
         await storage.putFile(conversationId, path, source);
-        // Model just wrote it, so it counts as seen for a follow-up patch.
         markSeen(conversationId, path);
         clearPatchFailure(conversationId, path);
         rememberTitle(conversationId, path, title);
 
-        // The display callback runs AFTER persist (the host renders by reading
-        // the file back). A render throw here therefore happens on an
-        // already-saved document — surface that instead of a misleading
-        // "Failed to create document": the source is on disk, so the model
-        // should fix and re-create (which overwrites) rather than assume
-        // nothing was written.
         try {
           const display = await triggerDocDisplay(documentId, path, title);
-          // Spread display FIRST so the tool's own status fields are
-          // authoritative — a host callback can add fields (e.g. a media id)
-          // but cannot silently flip success/documentId.
           return { ...display, success: true, documentId };
         } catch (renderErr) {
           logError(
@@ -450,11 +394,6 @@ export function createDocumentTools({
         markSeen(conversationId, path);
         clearPatchFailure(conversationId, path);
 
-        // Return the FULL source — never truncated. patch_document matches
-        // each `find` against the complete file, so the model must see every
-        // line to write a patch that can match. A head+tail slice would make
-        // edits to the middle of a long document impossible and would renumber
-        // the tail to describe the slice rather than the real file.
         const numbered = file.content
           .split("\n")
           .map((l, i) => `${i + 1}: ${l}`)
@@ -542,9 +481,6 @@ export function createDocumentTools({
           };
         }
 
-        // Re-validate the patched source before persisting, so a patch that
-        // produces an invalid tree gives line:col feedback instead of a
-        // downstream render failure.
         const validationError = validateOrError(content);
         if (validationError) {
           const dslError = validationError.dslError as { line?: number } | undefined;
@@ -571,19 +507,12 @@ export function createDocumentTools({
         markSeen(conversationId, path);
         clearPatchFailure(conversationId, path);
 
-        // Persist happened above, then the host renders by reading the file
-        // back. If rendering throws now, the patch is ALREADY applied and
-        // saved — reporting a generic "Failed to patch document" would be a
-        // lie and, because patches are non-idempotent, would tempt the model
-        // to resend the same find/replace (which no longer matches). Report
-        // the persisted state explicitly instead.
         try {
           const display = await triggerDocDisplay(
             documentId,
             path,
             recallTitle(conversationId, path)
           );
-          // display spread first so it can't clobber the tool's own fields.
           return { ...display, success: true, documentId, applied: appliedCount };
         } catch (renderErr) {
           logError(

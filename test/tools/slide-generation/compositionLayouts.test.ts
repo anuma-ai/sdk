@@ -1,15 +1,3 @@
-/**
- * E2E test for the design-system composition layouts wire-in.
- *
- * Verifies that plan_deck accepts a composition-system compound name
- * (e.g. "cover-split-portrait--editorial-warm"), that the layout recipe
- * is rendered correctly into the system prompt, and that add_slide
- * successfully appends the slide produced by the model.
- *
- * Run: PORTAL_API_KEY=... pnpm vitest -c vitest.e2e.config.mts run \
- *      test/tools/slide-generation/compositionLayouts.test.ts
- */
-
 import { describe, expect, it } from "vitest";
 
 import { buildSlideSystemPrompt, getId } from "../../../src/tools/slides/index.js";
@@ -68,7 +56,6 @@ describe.concurrent("composition-layouts wire-in", () => {
     dumpFiles(store, "composition-layouts-pitch");
     expect(result.error).toBeNull();
 
-    // plan_deck must have been called with the composition layout names.
     const planCalls = log.filter((l) => l.name === "plan_deck" && succeeded(l));
     expect(planCalls.length).toBe(1);
     const planLayouts = (planCalls[0]!.args.layouts as string[]) ?? [];
@@ -76,7 +63,6 @@ describe.concurrent("composition-layouts wire-in", () => {
     expect(planLayouts).toContain("brand-story-split--editorial-warm");
     expect(planLayouts).toContain("multi-stat-asymmetric--editorial-warm");
 
-    // add_slide must have used each composition layout exactly once.
     const addCalls = log.filter((l) => l.name === "add_slide");
     expect(addCalls.length).toBeGreaterThanOrEqual(3);
     const usedLayouts = addCalls.map((c) => c.args.layout as string);
@@ -84,21 +70,16 @@ describe.concurrent("composition-layouts wire-in", () => {
     expect(usedLayouts).toContain("brand-story-split--editorial-warm");
     expect(usedLayouts).toContain("multi-stat-asymmetric--editorial-warm");
 
-    // Deck must parse and contain the expected slides.
     expect(store.has("slides.jsx")).toBe(true);
     const deck = getDeck(store);
     const slides = slidesOf(deck);
     expect(slides.length).toBeGreaterThanOrEqual(3);
 
-    // Every slide should have a slide id (composition recipes set one).
     for (const slide of slides) {
       expect(getId(slide)).toBeTruthy();
     }
   });
 
-  // Open-ended generation: no layout names in the prompt. We want to see
-  // whether the model reaches for composition layouts on its own when the
-  // system prompt offers both legacy and design-system options.
   it("picks composition layouts when given an open-ended prompt", async () => {
     const store = createFileStore();
     const log: ToolCallLog[] = [];
@@ -122,8 +103,6 @@ describe.concurrent("composition-layouts wire-in", () => {
     dumpFiles(store, "composition-layouts-open");
     expect(result.error).toBeNull();
 
-    // Multiple plan_deck calls are valid (the model may retry after a
-    // validation error). Use the last successful one.
     const planCalls = log.filter((l) => l.name === "plan_deck" && succeeded(l));
     expect(planCalls.length).toBeGreaterThanOrEqual(1);
     const planLayouts = (planCalls.at(-1)!.args.layouts as string[]) ?? [];
@@ -131,65 +110,35 @@ describe.concurrent("composition-layouts wire-in", () => {
     const addCalls = log.filter((l) => l.name === "add_slide");
     const usedLayouts = addCalls.map((c) => c.args.layout as string);
 
-    // Every layout name today is required to be compound
-    // "<composition>--<system>" — the legacy single-token form was
-    // removed when design systems shipped. Extract the system suffix
-    // so we can assert the deck stays in one visual identity.
     const suffixOf = (n: string): string => n.split("--").at(-1) ?? "";
 
     console.log("\n  Open-ended layout choices:");
     console.log(`    plan_deck → ${planLayouts.length} layouts: ${JSON.stringify(planLayouts)}`);
     console.log(`    add_slide → ${usedLayouts.length} slides: ${JSON.stringify(usedLayouts)}`);
 
-    // Deck must parse.
     expect(store.has("slides.jsx")).toBe(true);
     const deck = getDeck(store);
     const slides = slidesOf(deck);
     expect(slides.length).toBeGreaterThanOrEqual(4);
 
-    // Every plan layout is compound (single-token names are rejected by
-    // plan_deck — and a stale assertion that just checked for "--"
-    // became tautological once bare names went away).
     expect(planLayouts.length).toBeGreaterThan(0);
     for (const n of planLayouts) {
       expect(n, `plan layout "${n}" must be compound <composition>--<system>`).toContain("--");
     }
-    // All plan layouts share the same system suffix — the LAYOUT
-    // CATALOG block explicitly forbids mixing systems in one deck.
     const planSuffix = suffixOf(planLayouts[0]!);
     for (const n of planLayouts) {
       expect(suffixOf(n)).toBe(planSuffix);
     }
-    // The model can only USE layouts it committed to; verify every
-    // add_slide layout was on the plan list. plan_deck rejects
-    // off-plan layouts so this is a sanity check on the validator
-    // staying wired up, not on the model.
     for (const n of usedLayouts) {
       expect(planLayouts).toContain(n);
     }
-    // Variety canary: across 4 slides the model should reach for at
-    // least two distinct layouts from its plan. A single-layout deck
-    // means the new "Unused from your plan: …" hint isn't biting.
     expect(new Set(usedLayouts).size).toBeGreaterThanOrEqual(2);
   });
 
-  // Demo run: a richer deck across image-bearing layouts. Portal exposes
-  // AnumaMediaMCP-anuma_create_image server-side based on prompt context,
-  // so the model can populate image slots with real generated URLs instead
-  // of placehold.co rectangles. Bumped maxToolRounds because image MCP
-  // calls add round-trips before plan_deck/add_slide.
-  // Quarantined: https://github.com/anuma-ai/sdk/issues/970. The dev portal drops
-  // streams mid-output ("terminated"), and the SDK does not retry a stream once
-  // output has started. This test holds the stream longest, so it took 3 of the
-  // 5 drops seen across 10 runs, once on both attempts.
   it.skip("generates a 7-slide demo deck with real images", { timeout: 600_000 }, async () => {
     const store = createFileStore();
     const log: ToolCallLog[] = [];
     const slideTools = createTestSlideTools(store).map((t) => wrapTool(t, log));
-    // Pull the real AnumaMediaMCP tool schema from Portal so the model
-    // can generate cloud-hosted images. Portal executes the tool
-    // server-side when the model calls it; the schema-only entry on the
-    // client side just declares its existence to the LLM.
     const imageSchemas = await getServerToolSchemas(["AnumaMediaMCP-anuma_create_image"]);
     const tools = [...slideTools, ...imageSchemas];
 
@@ -220,8 +169,6 @@ describe.concurrent("composition-layouts wire-in", () => {
     const slides = slidesOf(deck);
     console.log(`\n  Demo deck: ${slides.length} slides`);
 
-    // Surface how many real image URLs (vs placeholders) ended up in the
-    // serialized deck — useful to confirm AnumaMediaMCP actually fired.
     const jsx = store.get("slides.jsx") ?? "";
     const realImages = (jsx.match(/src="https?:\/\/(?!placehold\.co)[^"]+"/g) ?? []).length;
     const placeholderImages = (jsx.match(/src="https?:\/\/placehold\.co\/[^"]+"/g) ?? []).length;
@@ -230,11 +177,6 @@ describe.concurrent("composition-layouts wire-in", () => {
     expect(slides.length).toBeGreaterThanOrEqual(7);
   });
 
-  // Flex-region e2e: the agenda composition uses our new variable-count
-  // flex primitive. The model must understand the `agenda_<idx>_<slot>`
-  // pattern from the recipe and generate N items at fill time. This is
-  // the architectural risk worth derisking — unit tests prove the
-  // plumbing, but not that the model can produce conforming JSX.
   it(
     "fills the agenda composition's flex region with N items end-to-end",
     { timeout: 300_000 },
@@ -270,39 +212,22 @@ describe.concurrent("composition-layouts wire-in", () => {
       const usedLayouts = addCalls.map((c) => c.args.layout as string);
       console.log("\n  Agenda e2e layouts:", JSON.stringify(usedLayouts));
 
-      // The model should have picked the agenda composition for slide 2.
       expect(usedLayouts).toContain("agenda--editorial-warm");
 
-      // Inspect the deck JSX for flex-region structure. The outer Anuma.Group's
-      // id may either sit on the same line as the tag (short attr set) or on
-      // its own line (long attr set — serializer breaks long tags). The id
-      // can also have a dedupe suffix ("agenda-2") if the slide id collides
-      // with the region's idPrefix.
       const jsx = store.get("slides.jsx") ?? "";
       const outerGroup = jsx.match(/<Anuma\.Group\s+[^>]*id="agenda(-\d+)?"/s);
       expect(outerGroup, "expected agenda outer Anuma.Group in serialized deck").toBeTruthy();
 
-      // Item Groups carry the sequential prefix and are the load-bearing
-      // signal that the model conformed to the `<prefix>_<idx>` pattern.
       const itemGroups = jsx.match(/<Anuma\.Group id="agenda_\d+"/g) ?? [];
       console.log(`    item groups: ${itemGroups.length}`);
       expect(itemGroups.length).toBeGreaterThanOrEqual(3);
 
-      // Per-item slot ids ("agenda_1_title", "agenda_2_title", …) should be
-      // present in sequence. The real load-bearing assertion: the model
-      // generates conforming slot ids from the prefix pattern.
       const titleIds = (jsx.match(/id="agenda_\d+_title"/g) ?? []).length;
       console.log(`    title slots: ${titleIds}`);
       expect(titleIds).toBeGreaterThanOrEqual(3);
     }
   );
 
-  // Topic-driven design-system selection. The model should pick a
-  // restrained / institutional system for a board-deck request (any of
-  // corporate-modern, minimal-swiss, or editorial-warm — but NOT
-  // techno-bold or playful-creative). This is the catalog-regression
-  // canary: if the design-system descriptions get garbled (e.g. someone
-  // edits the useFor strings), this test starts picking off-tone systems.
   it("picks a register-appropriate design system from a topic-only prompt", async () => {
     const store = createFileStore();
     const log: ToolCallLog[] = [];
@@ -326,24 +251,16 @@ describe.concurrent("composition-layouts wire-in", () => {
     dumpFiles(store, "board-update-tone");
     expect(result.error).toBeNull();
 
-    // Inspect the deck's chosen system via the last successful plan_deck.
     const planCalls = log.filter((l) => l.name === "plan_deck" && succeeded(l));
     expect(planCalls.length).toBeGreaterThanOrEqual(1);
     const planLayouts = (planCalls.at(-1)!.args.layouts as string[]) ?? [];
     expect(planLayouts.length).toBeGreaterThan(0);
-    // Every layout must share the same "--<system>" suffix per the
-    // prompt's deck-coherence rule — extract the system from the first
-    // and assert all others match.
     const suffixOf = (n: string) => n.split("--").at(-1) ?? "";
     const systemSuffix = suffixOf(planLayouts[0]!);
     expect(systemSuffix.length).toBeGreaterThan(0);
     for (const n of planLayouts) expect(suffixOf(n)).toBe(systemSuffix);
 
     console.log(`\n  Topic→system pick: ${systemSuffix}`);
-    // Acceptable picks for the institutional/board-deck register.
-    // playful-creative and techno-bold are explicitly the wrong tone
-    // here; failing this assertion means the catalog descriptions are
-    // no longer steering the model correctly.
     const acceptable = new Set(["corporate-modern", "minimal-swiss", "editorial-warm"]);
     expect(
       acceptable.has(systemSuffix),

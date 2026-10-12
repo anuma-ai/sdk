@@ -1,6 +1,6 @@
 # UpdateModelPreferenceOptions
 
-Defined in: [src/lib/db/settings/types.ts:16](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/settings/types.ts#16)
+Defined in: [src/lib/db/settings/types.ts:14](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/settings/types.ts#14)
 
 ## Properties
 
@@ -8,4 +8,4 @@ Defined in: [src/lib/db/settings/types.ts:16](https://github.com/anuma-ai/sdk/bl
 
 > `optional` **models**: `string`
 
-Defined in: [src/lib/db/settings/types.ts:17](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/settings/types.ts#17)
+Defined in: [src/lib/db/settings/types.ts:15](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/settings/types.ts#15)

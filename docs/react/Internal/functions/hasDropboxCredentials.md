@@ -2,7 +2,7 @@
 
 > **hasDropboxCredentials**(`walletAddress?`: `string`): `Promise`<`boolean`>
 
-Defined in: [src/lib/backup/dropbox/auth.ts:324](https://github.com/anuma-ai/sdk/blob/main/src/lib/backup/dropbox/auth.ts#324)
+Defined in: [src/lib/backup/dropbox/auth.ts:275](https://github.com/anuma-ai/sdk/blob/main/src/lib/backup/dropbox/auth.ts#275)
 
 Check if we have any stored credentials (including refresh token)
 

@@ -1,24 +1,3 @@
-/**
- * Decay sweeper (PR2) — orchestration glue that runs the temporal-decay
- * lifecycle over the vault. Mirrors the shape of {@link ./autoExtractWorker}'s
- * `createAutoExtractor`: created once, driven by the caller (a client hook on a
- * low-frequency interval / app-foreground), disposable.
- *
- * A sweep is zero-knowledge by construction:
- *   1. {@link getDecayCandidatesRawOp} selects plaintext columns via
- *      `unsafeFetchRaw` — no `content`, no decrypt, no Model per row.
- *   2. {@link classifyDecay} is a pure function over those plaintext fields.
- *   3. Only the (usually small) transition set is materialized as Models to
- *      archive ({@link archiveVaultMemoryOp}) or hard-delete
- *      ({@link hardDeleteDecayedOp}, which re-checks archived + past-window
- *      inside the write so a concurrent restore wins).
- *
- * The optional {@link DecayClassifier} is a PR5 seam for an on-device model that
- * refines borderline verdicts by reading decrypted content — it is NOT
- * implemented here. Default is `undefined` → pure rule-based, which is what
- * keeps the default path zero-knowledge.
- */
-
 import {
   archiveVaultMemoryOp,
   assertVaultScopeForSweep,
@@ -147,9 +126,6 @@ function resolveNow(now?: NowSource): number {
   return Date.now();
 }
 
-/** Map a raw candidate to the pure classifier's input shape. Threads the row
- * id so an optional content-reading classifier (PR5) can fetch + decrypt it;
- * the rule engine ignores it. */
 function toDecayInput(c: DecayCandidateRaw): DecayInput {
   return {
     id: c.uniqueId,
@@ -164,38 +140,6 @@ function toDecayInput(c: DecayCandidateRaw): DecayInput {
   };
 }
 
-/**
- * Whether a row is a BORDERLINE decay case worth an optional classifier's
- * (more expensive, content-reading) opinion. Only these rows consult the
- * classifier — clear keeps/deletes (durable types, manual saves, plans with a
- * concrete event end, already-archived rows) are decided by the rule engine
- * alone, so the classifier is never invoked for them.
- *
- * Borderline = the rule engine has the weakest signal:
- *  - `factType` is `other` or null (the medium/age-only bucket — no type-driven
- *    TTL, so staleness is a pure guess from `updated_at`), OR
- *  - a `plan`/`ongoing_context` with NO `event_time_end` (can't be
- *    event-driven; falls back to the age rule).
- * An already-archived row is never borderline — its fate is the deterministic
- * hard-delete window, which no content read should override.
- *
- * A `source === "manual"` row is NEVER borderline either: the rule engine
- * protects manual saves from auto-archive ({@link classifyDecay} short-circuits
- * `manual` → `keep`), so it must never be handed to the classifier — otherwise a
- * classifier verdict of `archive` would route a user-curated fact onto the
- * hard-delete clock, silently breaking the "manual is never auto-archived"
- * guarantee via the classifier path. Manual rows are excluded here so they
- * never reach (nor egress content to) the classifier at all.
- *
- * A `trust_tier === "quarantined"` row is NEVER borderline either: it was
- * injection-screened out of recall (flagged poison), so handing its DECRYPTED
- * content to the classifier would egress that poison to the portal — both
- * unwanted (poison content leaving the device) and pointless (the row is already
- * quarantined). Quarantined rows are excluded here so they never reach (nor
- * egress content to) the classifier. Rule-based decay STILL applies to them
- * (they can age/archive/hard-delete via {@link classifyDecay}); only the
- * optional LLM classifier is skipped.
- */
 function isBorderline(input: DecayInput): boolean {
   if (input.source === "manual" || input.source === SOURCE_PHOTO) return false;
   if (input.trustTier === "quarantined") return false;
@@ -215,22 +159,13 @@ function isBorderline(input: DecayInput): boolean {
  */
 export function createDecaySweeper(options: CreateDecaySweeperOptions): DecaySweeper {
   const { vaultCtx, policy, classifier, onSwept, onError } = options;
-  // Fail fast: never let an unscoped multi-tenant context reach a sweep.
   assertVaultScopeForSweep(vaultCtx);
-  // Effective hard-delete window — passed to the guarded delete op so its
-  // in-write re-check uses the same threshold the classifier decided on.
   const hardDeleteWindowMs = policy?.hardDeleteWindowMs ?? DEFAULT_DECAY_POLICY.hardDeleteWindowMs;
   const maxClassifierCalls =
     options.maxClassifierCallsPerSweep ?? DEFAULT_MAX_CLASSIFIER_CALLS_PER_SWEEP;
-  // Cross-sweep memo of classifier verdicts, keyed by row id → (updated_at,
-  // verdict). A stable borderline row (unchanged `updated_at`) reuses its cached
-  // verdict on later sweeps and is NEVER re-sent to the portal; a re-observed
-  // row (bumped `updated_at`) misses the cache and is re-classified. Pruned each
-  // sweep to the live candidate set so it can't grow unbounded.
   const classifierCache = new Map<string, { activityAt: number; verdict: DecayVerdict }>();
   let disposed = false;
 
-  /** Per-sweep mutable egress budget, threaded into {@link verdictFor}. */
   interface SweepState {
     classifierCalls: number;
     ceilingLogged: boolean;
@@ -242,37 +177,15 @@ export function createDecaySweeper(options: CreateDecaySweeperOptions): DecaySwe
     sweep: SweepState
   ): Promise<DecayVerdict> {
     const ruleVerdict = classifyDecay(input, now, policy);
-    // Rule ESCALATION always wins — and is never frozen by the classifier cache.
-    // The rule verdict is recomputed every sweep against the current `now`, so a
-    // row the time-based rule now wants to archive/delete (e.g. it just crossed
-    // its TTL, or an archived row passed the hard-delete window) transitions
-    // regardless of any stale cached "keep". The classifier (and its cache) may
-    // therefore only REFINE a row whose CURRENT rule verdict is still `keep`;
-    // it can never resurrect one the rule has already aged out. (Without this a
-    // borderline row cached `keep` at day 10 would stay cached and never archive
-    // once the rule crossed its TTL at day 200 — the cache would suppress the
-    // escalation.)
     if (ruleVerdict !== "keep") return ruleVerdict;
 
-    // PR5 — only borderline rows (whose rule verdict is `keep`) consult the
-    // classifier; clear keeps are cheap-decided by the rule engine alone, so the
-    // (more expensive, content-reading) classifier is never invoked for them.
     if (!classifier || !isBorderline(input)) return ruleVerdict;
 
-    // Stable-row reuse: a row already classified at its current `updated_at`
-    // reuses that verdict WITHOUT any portal call — so a stable borderline
-    // "keep" row is never re-egressed on a later sweep. Safe against staleness:
-    // the rule-escalation gate above already ran this sweep, so a cache hit here
-    // can only return a refinement of a row the rule STILL keeps.
     if (input.id) {
       const cached = classifierCache.get(input.id);
-      // Keyed on the last edit OR re-observation: a merge moves only
-      // lastObservedAt, and a verdict cached before it must not outlive it.
       if (cached && cached.activityAt === lastActivityAt(input)) return cached.verdict;
     }
 
-    // Per-sweep egress ceiling: beyond it, fall back to the rule verdict (no
-    // call) for the rest of this sweep. Log once so the cap is observable.
     if (sweep.classifierCalls >= maxClassifierCalls) {
       if (!sweep.ceilingLogged) {
         sweep.ceilingLogged = true;
@@ -284,9 +197,6 @@ export function createDecaySweeper(options: CreateDecaySweeperOptions): DecaySwe
       return ruleVerdict;
     }
 
-    // Refine via the on-device model, falling back to the rule verdict on any
-    // error (a flaky classifier must never worsen the sweep). Count the call
-    // (an attempt egresses content) and memo the result for stable-row reuse.
     sweep.classifierCalls++;
     try {
       const verdict = await classifier.classify(input, ruleVerdict, now);
@@ -314,8 +224,6 @@ export function createDecaySweeper(options: CreateDecaySweeperOptions): DecaySwe
       return { ...EMPTY_RESULT };
     }
 
-    // Prune the classifier memo to the live candidate set so it can't grow
-    // unbounded as rows are deleted (a deleted row's stale entry is dead weight).
     if (classifierCache.size > 0) {
       const liveIds = new Set(candidates.map((c) => c.uniqueId));
       for (const id of classifierCache.keys()) {
@@ -335,10 +243,6 @@ export function createDecaySweeper(options: CreateDecaySweeperOptions): DecaySwe
     let archived = 0;
     let deleted = 0;
     try {
-      // Materialize Models only for the transition set (dodges whole-vault
-      // RecordCache pinning). Archive passes the scan-time `updatedAt` as an
-      // optimistic-concurrency guard so a retain() merge that refreshed the row
-      // between scan and write wins (the fact stays active).
       for (const c of toArchive) {
         const ok = await archiveVaultMemoryOp(vaultCtx, c.uniqueId, {
           now,
@@ -348,14 +252,10 @@ export function createDecaySweeper(options: CreateDecaySweeperOptions): DecaySwe
         if (ok) archived++;
       }
       for (const c of toDelete) {
-        // Guarded delete: re-checks archived + past-window INSIDE the write, so a
-        // restore that landed between the scan and here wins (no wrongful loss).
         const ok = await hardDeleteDecayedOp(vaultCtx, c.uniqueId, { hardDeleteWindowMs, now });
         if (ok) deleted++;
       }
     } catch (err) {
-      // Partial progress is fine (each op is independently committed); report
-      // and return what we managed so counts stay honest.
       onError?.(err instanceof Error ? err : new Error(String(err)));
     }
 

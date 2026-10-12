@@ -1,16 +1,6 @@
-/**
- * iCloud CloudKit API utilities
- *
- * Uses Apple CloudKit JS for file operations in iCloud Drive.
- * Requires CloudKit container configuration and user authentication.
- *
- * CloudKit JS is loaded dynamically when needed.
- */
-
 import { getLogger } from "../../logger";
 import { base64ToUint8Array, uint8ArrayToBase64 } from "../../processors/encoding";
 
-/** CloudKit JS CDN URL */
 const CLOUDKIT_JS_URL = "https://cdn.apple-cloudkit.com/ck/2/cloudkit.js";
 
 /** Default folder path for iCloud backups */
@@ -19,10 +9,8 @@ export const DEFAULT_BACKUP_FOLDER = "conversations";
 /** Container identifier for iCloud */
 export const DEFAULT_CONTAINER_ID = "iCloud.Memoryless";
 
-/** Record type for conversation backups */
 const RECORD_TYPE = "ConversationBackup";
 
-/** Track if CloudKit JS is currently being loaded */
 let cloudKitLoadPromise: Promise<void> | null = null;
 
 /** CloudKit configuration interface */
@@ -144,17 +132,14 @@ export async function loadCloudKit(): Promise<void> {
     throw new Error("CloudKit JS can only be loaded in browser environment");
   }
 
-  // Already loaded
   if (window.CloudKit) {
     return;
   }
 
-  // Already loading
   if (cloudKitLoadPromise) {
     return cloudKitLoadPromise;
   }
 
-  // Load the script
   cloudKitLoadPromise = new Promise((resolve, reject) => {
     const script = document.createElement("script");
     script.src = CLOUDKIT_JS_URL;
@@ -179,9 +164,6 @@ export async function loadCloudKit(): Promise<void> {
   return cloudKitLoadPromise;
 }
 
-/**
- * Ensure CloudKit JS is loaded, loading it if necessary
- */
 async function ensureCloudKitLoaded(): Promise<void> {
   if (!isCloudKitAvailable()) {
     await loadCloudKit();
@@ -195,8 +177,6 @@ async function ensureCloudKitLoaded(): Promise<void> {
 export async function configureCloudKit(config: CloudKitConfig): Promise<void> {
   await ensureCloudKitLoaded();
 
-  // Ensure DOM elements exist before configuring CloudKit
-  // CloudKit needs these elements to render sign-in/sign-out buttons
   ensureAuthElements();
 
   window.CloudKit!.configure({
@@ -221,18 +201,11 @@ export async function configureCloudKit(config: CloudKitConfig): Promise<void> {
   });
 }
 
-/**
- * Get the CloudKit container
- */
 async function getContainer(): Promise<CloudKitContainer> {
   await ensureCloudKitLoaded();
   return window.CloudKit!.getDefaultContainer();
 }
 
-/**
- * Ensure required DOM elements exist for CloudKit authentication
- * CloudKit JS requires specific elements for its sign-in/sign-out buttons
- */
 function ensureAuthElements(): { signIn: HTMLElement; signOut: HTMLElement } {
   let signInButton = document.getElementById("apple-sign-in-button");
   let signOutButton = document.getElementById("apple-sign-out-button");
@@ -266,7 +239,6 @@ function ensureAuthElements(): { signIn: HTMLElement; signOut: HTMLElement } {
 export async function authenticateICloud(): Promise<CloudKitUserIdentity | null> {
   const container = await getContainer();
 
-  // Ensure DOM elements exist for CloudKit auth
   ensureAuthElements();
 
   return container.setUpAuth();
@@ -279,21 +251,16 @@ export async function authenticateICloud(): Promise<CloudKitUserIdentity | null>
 export async function requestICloudSignIn(): Promise<CloudKitUserIdentity> {
   const container = await getContainer();
 
-  // Ensure DOM elements exist for CloudKit auth
   const { signIn } = ensureAuthElements();
 
-  // First, set up auth to render the sign-in button
   const existingUser = await container.setUpAuth();
   if (existingUser) {
     return existingUser;
   }
 
-  // Debug: log what CloudKit rendered
   getLogger().debug("[CloudKit] Sign-in container innerHTML:", signIn.innerHTML);
   getLogger().debug("[CloudKit] Sign-in container children:", signIn.children.length);
 
-  // Find and click the Apple sign-in button that was rendered by setUpAuth
-  // CloudKit JS renders an anchor or button inside the container
   const appleButton = signIn.querySelector<HTMLElement>(
     "a, button, [role='button'], div[id*='apple']"
   );
@@ -303,7 +270,6 @@ export async function requestICloudSignIn(): Promise<CloudKitUserIdentity> {
     getLogger().debug("[CloudKit] Clicking button...");
     appleButton.click();
   } else {
-    // Try clicking any clickable element in the container
     const anyClickable = signIn.firstElementChild as HTMLElement | null;
     if (anyClickable) {
       getLogger().debug("[CloudKit] Clicking first child element:", anyClickable);
@@ -311,7 +277,6 @@ export async function requestICloudSignIn(): Promise<CloudKitUserIdentity> {
     }
   }
 
-  // Wait for the user to complete sign-in
   return container.whenUserSignsIn();
 }
 
@@ -322,13 +287,8 @@ export async function uploadFileToICloud(filename: string, content: Blob): Promi
   const container = await getContainer();
   const database = container.privateCloudDatabase;
 
-  // Generate a record name from filename
   const recordName = `backup_${filename.replace(/[^a-zA-Z0-9]/g, "_")}`;
 
-  // For CloudKit assets, we need to upload the file as base64 or use asset uploads
-  // CloudKit JS uses a different approach - we'll store data as a base64 string for simplicity.
-  // Encode in bounded chunks: a plain `btoa(String.fromCharCode(...bytes))` spreads every byte as
-  // an argument and throws RangeError above ~100–500KB, so it always crashed on real backups.
   const arrayBuffer = await content.arrayBuffer();
   const base64Data = uint8ArrayToBase64(new Uint8Array(arrayBuffer));
 
@@ -368,8 +328,6 @@ export async function listICloudFiles(): Promise<ICloudFile[]> {
 
   const query: CloudKitQuery = {
     recordType: RECORD_TYPE,
-    // Note: Sorting requires SORTABLE index on the field in CloudKit Dashboard
-    // For now, we skip sorting and sort client-side after fetching
   };
 
   const allRecords: CloudKitRecord[] = [];
@@ -379,10 +337,7 @@ export async function listICloudFiles(): Promise<ICloudFile[]> {
     allRecords.push(...response.records);
   }
 
-  // Handle pagination if needed
   while (response.continuationMarker) {
-    // CloudKit JS doesn't have a direct continuation API in performQuery
-    // For large datasets, you'd use fetchRecords with zoneWide queries
     break;
   }
 
@@ -396,7 +351,6 @@ export async function listICloudFiles(): Promise<ICloudFile[]> {
         : 0,
   }));
 
-  // Sort client-side by modification date (newest first)
   return files.sort((a, b) => b.modifiedAt.getTime() - a.modifiedAt.getTime());
 }
 
@@ -422,13 +376,11 @@ export async function downloadICloudFile(recordName: string): Promise<Blob> {
     throw new Error("No data in record");
   }
 
-  // If it's a base64 string (our upload format)
   if (typeof dataField === "string") {
     const bytes = base64ToUint8Array(dataField);
     return new Blob([bytes], { type: "application/json" });
   }
 
-  // If it's an asset with downloadURL
   if (typeof dataField === "object" && "downloadURL" in dataField) {
     const fetchResponse = await fetch((dataField as { downloadURL: string }).downloadURL);
     if (!fetchResponse.ok) {

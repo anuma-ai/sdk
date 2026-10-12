@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-/** Verify the logger through the built CommonJS and ESM package exports. */
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { createRequire } from "node:module";
@@ -7,7 +6,6 @@ import { fileURLToPath } from "node:url";
 
 const [format, restriction] = process.argv.slice(2);
 if (!format) {
-  // Each child owns its globals. A frozen global cannot be restored in place.
   for (const childFormat of ["cjs", "esm"]) {
     for (const childRestriction of [undefined, "preventExtensions", "seal", "freeze"]) {
       const args =
@@ -214,6 +212,5 @@ try {
   root?.setLogger(root.consoleLogger);
   console.error = originalConsoleError;
   console.warn = originalConsoleWarn;
-  // A restricted child exits after this check. A frozen fetch is read-only.
   if (!restriction) globalThis.fetch = originalFetch;
 }

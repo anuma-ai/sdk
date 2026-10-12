@@ -107,7 +107,6 @@ describe("createDropboxTools", () => {
     expect(url).toBe("https://content.dropboxapi.com/2/files/download");
     const headers = (init as RequestInit).headers as Record<string, string>;
     expect(headers["Dropbox-API-Arg"]).toBe(JSON.stringify({ path: "/notes.txt" }));
-    // No JSON body — download requests must not carry a JSON Content-Type.
     expect((init as RequestInit).body).toBeUndefined();
     expect(headers["Content-Type"]).toBeUndefined();
   });
@@ -127,7 +126,6 @@ describe("createDropboxTools", () => {
   });
 
   test("dropbox_get_file_content returns a note for binary content instead of garbage", async () => {
-    // A NUL byte is a strong binary signal that download content is not text.
     const binary = "PNG\x00\x00garbage";
     fetchMock.mockResolvedValueOnce(textResponse(binary, 200));
     const tools = createDropboxTools(
@@ -199,8 +197,6 @@ describe("createDropboxTools", () => {
       async () => "good-token",
       async () => null
     );
-    // Returned as a structured object (not a pre-stringified string) so the
-    // tool loop serializes it exactly once, matching the complete-case array.
     const result = await runExecutor(tools.dropbox_list_folders, { path: "" });
     expect(result).toEqual({
       entries: [{ name: "a.txt", path_display: "/a.txt", tag: "file" }],

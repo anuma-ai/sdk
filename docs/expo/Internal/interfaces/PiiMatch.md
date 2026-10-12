@@ -1,6 +1,6 @@
 # PiiMatch
 
-Defined in: [src/lib/pii/redactor.ts:16](https://github.com/anuma-ai/sdk/blob/main/src/lib/pii/redactor.ts#16)
+Defined in: [src/lib/pii/redactor.ts:5](https://github.com/anuma-ai/sdk/blob/main/src/lib/pii/redactor.ts#5)
 
 ## Properties
 
@@ -8,7 +8,7 @@ Defined in: [src/lib/pii/redactor.ts:16](https://github.com/anuma-ai/sdk/blob/ma
 
 > **category**: `string` & `object` | [`PiiCategory`](../type-aliases/PiiCategory.md)
 
-Defined in: [src/lib/pii/redactor.ts:17](https://github.com/anuma-ai/sdk/blob/main/src/lib/pii/redactor.ts#17)
+Defined in: [src/lib/pii/redactor.ts:6](https://github.com/anuma-ai/sdk/blob/main/src/lib/pii/redactor.ts#6)
 
 ***
 
@@ -16,7 +16,7 @@ Defined in: [src/lib/pii/redactor.ts:17](https://github.com/anuma-ai/sdk/blob/ma
 
 > **original**: `string`
 
-Defined in: [src/lib/pii/redactor.ts:18](https://github.com/anuma-ai/sdk/blob/main/src/lib/pii/redactor.ts#18)
+Defined in: [src/lib/pii/redactor.ts:7](https://github.com/anuma-ai/sdk/blob/main/src/lib/pii/redactor.ts#7)
 
 ***
 
@@ -24,4 +24,4 @@ Defined in: [src/lib/pii/redactor.ts:18](https://github.com/anuma-ai/sdk/blob/ma
 
 > **placeholder**: `string`
 
-Defined in: [src/lib/pii/redactor.ts:19](https://github.com/anuma-ai/sdk/blob/main/src/lib/pii/redactor.ts#19)
+Defined in: [src/lib/pii/redactor.ts:8](https://github.com/anuma-ai/sdk/blob/main/src/lib/pii/redactor.ts#8)

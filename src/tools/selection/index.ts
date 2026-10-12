@@ -24,11 +24,6 @@
  * bundle; the two share no dependency graph.
  */
 
-// ── Selection engine (server + client tool selection, tool sets, cache) ──
-export * from "../../lib/tools";
-
-// ── Resolver / orchestration (intents, plan, assembly, active sets, council) ──
-export * from "../../lib/tools/selection";
-
-// ── Client-tool type consumers need when building factory adapters ──
 export type { ToolConfig, ToolExecutor } from "../../lib/chat/useChat/types";
+export * from "../../lib/tools";
+export * from "../../lib/tools/selection";

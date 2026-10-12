@@ -1,10 +1,3 @@
-/**
- * Google Drive Backup Implementation
- *
- * Generic backup/restore functionality for Google Drive storage.
- * Works directly with WatermelonDB database.
- */
-
 import type { Database } from "@nozbe/watermelondb";
 
 import { Conversation } from "../../db/chat";
@@ -14,8 +7,9 @@ import {
   DEFAULT_ROOT_FOLDER,
   downloadDriveFile,
   type DriveFile,
-  findDriveFile,
   getBackupFolder,
+  getDriveFileMetadata,
+  listAllDriveFiles,
   listDriveFiles,
   updateDriveFile,
   uploadFileToDrive,
@@ -77,44 +71,94 @@ async function getConversationsFolder(
   }
 }
 
+const MAX_LISTING_FAILURES = 3;
+
+/**
+ * Index of the files in the backup folder, keyed by file name.
+ * One export run lists the folder once and reuses the result for every conversation.
+ */
+interface DriveFileIndex {
+  get(token: string): Promise<Map<string, DriveFile>>;
+}
+
+function createDriveFileIndex(folderId: string): DriveFileIndex {
+  let pending: Promise<Map<string, DriveFile>> | undefined;
+  let failures = 0;
+
+  return {
+    get(token) {
+      if (!pending) {
+        if (failures >= MAX_LISTING_FAILURES) {
+          return Promise.reject(
+            new Error("The backup folder listing failed repeatedly; skipped for this run")
+          );
+        }
+        pending = listAllDriveFiles(token, folderId)
+          .then((files) => {
+            const byName = new Map<string, DriveFile>();
+            for (const file of files) {
+              if (!byName.has(file.name)) byName.set(file.name, file);
+            }
+            return byName;
+          })
+          .catch((err: unknown) => {
+            pending = undefined;
+            failures++;
+            throw err;
+          });
+      }
+      return pending;
+    },
+  };
+}
+
+async function readLocalUpdatedAt(
+  database: Database,
+  conversationId: string
+): Promise<Date | null> {
+  const { Q } = await import("@nozbe/watermelondb");
+  const records = await database
+    .get<Conversation>("conversations")
+    .query(Q.where("conversation_id", conversationId))
+    .fetch();
+  const match = records
+    .map(conversationToStoredRaw)
+    .find((c) => c.conversationId === conversationId);
+  return match ? match.updatedAt : null;
+}
+
 async function pushConversationToDrive(
   database: Database,
   conversationId: string,
   userAddress: string,
   token: string,
+  folderId: string,
+  fileIndex: DriveFileIndex,
   deps: GoogleDriveBackupDeps,
-  rootFolder: string = DEFAULT_ROOT_FOLDER,
-  subfolder: string = DEFAULT_CONVERSATIONS_FOLDER,
   _retried: boolean = false
 ): Promise<"uploaded" | "skipped" | "failed"> {
   try {
     await deps.requestEncryptionKey(userAddress);
 
-    const folderResult = await getConversationsFolder(
-      token,
-      deps.requestDriveAccess,
-      rootFolder,
-      subfolder
-    );
-    if (!folderResult) return "failed";
-    const { folderId, token: activeToken } = folderResult;
-
     const filename = `${conversationId}.json`;
-    const existingFile = await findDriveFile(activeToken, folderId, filename);
+    const index = await fileIndex.get(token);
+    let existingFile = index.get(filename);
 
-    // Check if we can skip upload based on timestamps
     if (existingFile) {
-      const { Q } = await import("@nozbe/watermelondb");
-      const conversationsCollection = database.get<Conversation>("conversations");
-      const records = await conversationsCollection
-        .query(Q.where("conversation_id", conversationId))
-        .fetch();
+      const localUpdatedAt = await readLocalUpdatedAt(database, conversationId);
+      const localUpdated = localUpdatedAt ? localUpdatedAt.getTime() : null;
 
-      if (records.length > 0) {
-        const conversation = conversationToStoredRaw(records[0]);
-        const localUpdated = conversation.updatedAt.getTime();
-        const remoteModified = new Date(existingFile.modifiedTime).getTime();
-        if (localUpdated <= remoteModified) {
+      if (localUpdated !== null && localUpdated <= new Date(existingFile.modifiedTime).getTime()) {
+        return "skipped";
+      }
+
+      const current = await getDriveFileMetadata(token, existingFile.id);
+      if (!current) {
+        index.delete(filename);
+        existingFile = undefined;
+      } else {
+        index.set(filename, current);
+        if (localUpdated !== null && localUpdated <= new Date(current.modifiedTime).getTime()) {
           return "skipped";
         }
       }
@@ -126,15 +170,23 @@ async function pushConversationToDrive(
       return "failed";
     }
 
+    const now = new Date().toISOString();
     if (existingFile) {
-      await updateDriveFile(activeToken, existingFile.id, exportResult.blob);
+      await updateDriveFile(token, existingFile.id, exportResult.blob);
+      index.set(filename, { ...existingFile, modifiedTime: now });
     } else {
-      await uploadFileToDrive(activeToken, folderId, exportResult.blob, filename);
+      const created = await uploadFileToDrive(token, folderId, exportResult.blob, filename);
+      index.set(filename, {
+        id: created.id,
+        name: created.name,
+        createdTime: now,
+        modifiedTime: now,
+        size: String(exportResult.blob.size),
+      });
     }
     return "uploaded";
   } catch (err) {
     if (isAuthError(err) && !_retried) {
-      // Try to re-authenticate once
       try {
         const newToken = await deps.requestDriveAccess();
         return pushConversationToDrive(
@@ -142,9 +194,9 @@ async function pushConversationToDrive(
           conversationId,
           userAddress,
           newToken,
+          folderId,
+          fileIndex,
           deps,
-          rootFolder,
-          subfolder,
           true
         );
       } catch {
@@ -175,7 +227,8 @@ export async function performGoogleDriveExport(
   if (!folderResult) {
     return { success: false, uploaded: 0, skipped: 0, total: 0 };
   }
-  const { token: activeToken } = folderResult;
+  const { folderId, token: activeToken } = folderResult;
+  const fileIndex = createDriveFileIndex(folderId);
 
   const { Q } = await import("@nozbe/watermelondb");
   const conversationsCollection = database.get<Conversation>("conversations");
@@ -200,9 +253,9 @@ export async function performGoogleDriveExport(
       conv.conversationId,
       userAddress,
       activeToken,
-      deps,
-      rootFolder,
-      subfolder
+      folderId,
+      fileIndex,
+      deps
     );
 
     if (result === "uploaded") uploaded++;

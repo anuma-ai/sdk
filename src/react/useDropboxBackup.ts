@@ -106,7 +106,6 @@ export function useDropboxBackup(options: UseDropboxBackupOptions): UseDropboxBa
     backupFolder = DEFAULT_BACKUP_FOLDER,
   } = options;
 
-  // Get auth state from DropboxAuthProvider
   const {
     accessToken: dropboxToken,
     isConfigured: isDropboxConfigured,

@@ -12,10 +12,6 @@ export function sseFailureMessage(status: number, statusText: string, detail = "
   return `SSE failed: ${status} ${statusText}${detail}`;
 }
 
-/**
- * Parses raw SSE text into individual JSON-parsed data payloads.
- * Handles buffering of incomplete lines across XHR progress events.
- */
 function parseSseChunks(
   raw: string,
   incompleteBuffer: string
@@ -24,7 +20,6 @@ function parseSseChunks(
   const text = incompleteBuffer + raw;
   const lines = text.split("\n");
 
-  // Last element may be incomplete if input doesn't end with newline
   const remaining = raw.endsWith("\n") ? "" : (lines.pop() ?? "");
 
   for (const line of lines) {
@@ -50,7 +45,6 @@ function parseSseChunks(
  * as the default fetch-based transport.
  */
 export const xhrTransport: StreamingTransport = (options): StreamingTransportResult => {
-  // We use a simple push-queue that the async generator pulls from.
   type QueueItem =
     | { type: "data"; value: unknown }
     | { type: "error"; error: Error }
@@ -75,7 +69,6 @@ export const xhrTransport: StreamingTransport = (options): StreamingTransportRes
     });
   }
 
-  // Start XHR
   const xhr = new XMLHttpRequest();
   const url = `${options.baseUrl}${options.endpoint}`;
   let lastProcessedIndex = 0;
@@ -92,10 +85,6 @@ export const xhrTransport: StreamingTransport = (options): StreamingTransportRes
   };
   if (options.signal) {
     if (options.signal.aborted) {
-      // Already aborted before the request was sent. Skip XHR setup; the
-      // async generator throws AbortError on first iteration to match
-      // fetch's behavior. The runToolLoop catch branch turns this into a
-      // "Request aborted" result.
       finished = true;
     } else {
       options.signal.addEventListener("abort", abortHandler);
@@ -119,15 +108,9 @@ export const xhrTransport: StreamingTransport = (options): StreamingTransportRes
 
     let metaFired = false;
     xhr.onreadystatechange = () => {
-      // readyState 2 = HEADERS_RECEIVED. readystatechange re-fires for states
-      // 3 (repeatedly, per chunk) and 4 — gate on the flag, not the state.
-      // The numeric literal is used because RN's XHR exposes the constant
-      // inconsistently; the literal is portable. HEADERS_RECEIVED precedes
-      // the first `onprogress`, so the id is captured before any data chunk
-      // reaches the consumer.
       if (metaFired || xhr.readyState < 2) return;
       metaFired = true;
-      if (xhr.status < 200 || xhr.status >= 300) return; // error responses carry no resumable stream
+      if (xhr.status < 200 || xhr.status >= 300) return;
       const id = xhr.getResponseHeader(INFERENCE_ID_HEADER);
       if (id && options.onStreamMeta) {
         try {
@@ -142,10 +125,6 @@ export const xhrTransport: StreamingTransport = (options): StreamingTransportRes
       const newData = xhr.responseText.substring(lastProcessedIndex);
       lastProcessedIndex = xhr.responseText.length;
 
-      // Any bytes on the wire — including the keep-alive comment lines that
-      // parseSseChunks discards — are a liveness signal. Surface them so an idle
-      // watchdog can tell a slow-but-alive stream (server heart-beating through a
-      // long reasoning silence) from a dead connection.
       if (newData.length > 0) options.onActivity?.();
 
       const { chunks, remaining } = parseSseChunks(newData, incompleteBuffer);
@@ -159,7 +138,6 @@ export const xhrTransport: StreamingTransport = (options): StreamingTransportRes
     xhr.onload = () => {
       options.signal?.removeEventListener("abort", abortHandler);
 
-      // Process remaining buffer
       if (incompleteBuffer) {
         const { chunks } = parseSseChunks(incompleteBuffer + "\n", "");
         incompleteBuffer = "";
@@ -171,8 +149,6 @@ export const xhrTransport: StreamingTransport = (options): StreamingTransportRes
       if (xhr.status >= 200 && xhr.status < 300) {
         push({ type: "done" });
       } else {
-        // Include response body so portal errors surface their trace_id and
-        // error type instead of a bare HTTP status.
         const body = (xhr.responseText || "").slice(0, 500);
         const detail = body ? `: ${body}` : "";
         const error = new Error(sseFailureMessage(xhr.status, xhr.statusText, detail));
@@ -192,10 +168,6 @@ export const xhrTransport: StreamingTransport = (options): StreamingTransportRes
 
     xhr.onabort = () => {
       options.signal?.removeEventListener("abort", abortHandler);
-      // Mid-stream abort: throw into the for-await loop so the catch in
-      // runToolLoop returns { data: <partial>, error: "Request aborted" }.
-      // We intentionally do NOT push `done` here — that would let the
-      // consumer exit cleanly and miss the abort.
       push({ type: "error", error: makeAbortError() });
       finished = true;
     };

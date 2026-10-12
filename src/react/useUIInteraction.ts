@@ -88,13 +88,8 @@ export function UIInteractionProvider({
     new Map()
   );
 
-  /** Per-interaction timeout timers, keyed by interaction ID */
   const timersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
 
-  /**
-   * Create a new pending interaction and return a promise that resolves
-   * when the user responds
-   */
   const createInteraction = useCallback(
     (id: string, type: InteractionType, data: unknown): Promise<unknown> => {
       return new Promise((resolve, reject) => {
@@ -113,7 +108,6 @@ export function UIInteractionProvider({
           return next;
         });
 
-        // Per-interaction timeout so each interaction gets the full window
         const timer = setTimeout(() => {
           timersRef.current.delete(id);
           reject(new Error("Interaction timeout"));
@@ -130,10 +124,6 @@ export function UIInteractionProvider({
     [timeout]
   );
 
-  /**
-   * Create a display-only interaction that is already resolved.
-   * Used for rendering rich components (e.g. weather cards) without blocking the tool call.
-   */
   const createDisplayInteraction = useCallback(
     (
       id: string,
@@ -175,9 +165,6 @@ export function UIInteractionProvider({
     []
   );
 
-  /**
-   * Resolve a pending interaction with a result
-   */
   const resolveInteraction = useCallback((id: string, result: unknown) => {
     setPendingInteractions((prev) => {
       const interaction = prev.get(id);
@@ -185,7 +172,6 @@ export function UIInteractionProvider({
         return prev;
       }
 
-      // Clear the per-interaction timeout
       const timer = timersRef.current.get(id);
       if (timer) {
         clearTimeout(timer);
@@ -201,10 +187,6 @@ export function UIInteractionProvider({
     });
   }, []);
 
-  /**
-   * Clear all interactions (e.g. on conversation switch).
-   * Rejects any unsettled promises so the tool loop doesn't hang.
-   */
   const clearInteractions = useCallback(() => {
     for (const timer of timersRef.current.values()) {
       clearTimeout(timer);
@@ -220,9 +202,6 @@ export function UIInteractionProvider({
     });
   }, []);
 
-  /**
-   * Cancel a pending interaction
-   */
   const cancelInteraction = useCallback((id: string) => {
     setPendingInteractions((prev) => {
       const interaction = prev.get(id);
@@ -230,7 +209,6 @@ export function UIInteractionProvider({
         return prev;
       }
 
-      // Clear the per-interaction timeout
       const timer = timersRef.current.get(id);
       if (timer) {
         clearTimeout(timer);
@@ -245,9 +223,6 @@ export function UIInteractionProvider({
     });
   }, []);
 
-  /**
-   * Get a specific interaction by ID
-   */
   const getInteraction = useCallback(
     (id: string) => {
       return pendingInteractions.get(id);

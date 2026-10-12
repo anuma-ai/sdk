@@ -1,35 +1,11 @@
-/**
- * Notion MCP tool definitions for the chat system.
- *
- * These tools communicate with Notion's hosted MCP server using the
- * Model Context Protocol (JSON-RPC 2.0). The MCP server handles all
- * Notion API interactions - we just forward tool calls to it.
- *
- * MCP Server: https://mcp.notion.com/mcp (Streamable HTTP)
- * Fallback: https://mcp.notion.com/sse (Server-Sent Events)
- *
- * The MCP server rejects browser origins, so browser and mobile consumers use
- * `createNotionProxyTools`, which hands each call to an injected
- * {@link NotionMcpCaller} that goes through the portal instead.
- *
- * @see https://developers.notion.com/guides/mcp/build-mcp-client
- * @see https://modelcontextprotocol.io
- */
-
 import type { ToolConfig } from "../lib/chat/useChat/types.js";
 import { buildConnectorErrorResult } from "../lib/connectors/index.js";
 
-// MCP Server configuration
 const MCP_HTTP_ENDPOINT = "https://mcp.notion.com/mcp";
 const MCP_SSE_ENDPOINT = "https://mcp.notion.com/sse";
 
-/** Maximum content length for Notion tool results to avoid overwhelming LLM context */
 const MAX_CONTENT_LENGTH = 50000;
 
-/**
- * Truncate a tool result if it exceeds MAX_CONTENT_LENGTH.
- * Stringifies objects before checking length.
- */
 function truncateToolResult(result: unknown): unknown {
   if (result === undefined || result === null) return result;
   const stringified = typeof result === "string" ? result : JSON.stringify(result);
@@ -42,29 +18,16 @@ function truncateToolResult(result: unknown): unknown {
   );
 }
 
-// ============================================================================
-// MCP CLIENT WITH SESSION MANAGEMENT
-// ============================================================================
-
 let requestIdCounter = Math.floor(Math.random() * 1000000);
 
-// Session cache: token -> sessionId
 const sessionCache = new Map<string, string>();
 
-/**
- * Generate a unique request ID for JSON-RPC
- */
 function generateRequestId(): number {
   return ++requestIdCounter;
 }
 
-/**
- * Parse SSE (Server-Sent Events) response to extract JSON-RPC data
- */
 function parseSSEResponse(text: string): unknown {
-  // Split into individual SSE events (separated by blank lines)
   const events = text.split(/\n\n+/);
-  // Use the last non-empty event (MCP sends one JSON-RPC response per request)
   let lastEventData = "";
 
   for (const event of events) {
@@ -77,7 +40,6 @@ function parseSSEResponse(text: string): unknown {
       }
     }
     if (dataLines.length > 0) {
-      // Per SSE spec, multiple data fields within one event are joined with \n
       lastEventData = dataLines.join("\n");
     }
   }
@@ -89,14 +51,10 @@ function parseSSEResponse(text: string): unknown {
   return JSON.parse(lastEventData);
 }
 
-/**
- * Parse response body - handles both JSON and SSE formats
- */
 async function parseResponseBody(response: Response): Promise<unknown> {
   const contentType = response.headers.get("Content-Type") || "";
   const text = await response.text();
 
-  // If it's SSE format, parse it
   if (
     contentType.includes("text/event-stream") ||
     text.startsWith("event:") ||
@@ -105,13 +63,9 @@ async function parseResponseBody(response: Response): Promise<unknown> {
     return parseSSEResponse(text);
   }
 
-  // Otherwise parse as JSON
   return JSON.parse(text);
 }
 
-/**
- * Initialize an MCP session and get a session ID
- */
 async function initializeMCPSession(accessToken: string): Promise<string> {
   const requestId = generateRequestId();
 
@@ -146,13 +100,11 @@ async function initializeMCPSession(accessToken: string): Promise<string> {
     );
   }
 
-  // Get session ID from response header
   const sessionId = response.headers.get("Mcp-Session-Id");
   if (!sessionId) {
     throw new Error("No Mcp-Session-Id returned from initialization");
   }
 
-  // Parse and validate response before caching (handles both JSON and SSE)
   const jsonRpcResponse = (await parseResponseBody(response)) as Record<string, unknown>;
   if (jsonRpcResponse.error) {
     const err = jsonRpcResponse.error as Record<string, unknown>;
@@ -160,7 +112,6 @@ async function initializeMCPSession(accessToken: string): Promise<string> {
     throw new Error(`MCP initialization error: ${errMsg}`);
   }
 
-  // Send required notifications/initialized to complete the MCP handshake
   await fetch(MCP_HTTP_ENDPOINT, {
     method: "POST",
     headers: {
@@ -174,15 +125,11 @@ async function initializeMCPSession(accessToken: string): Promise<string> {
     }),
   });
 
-  // Cache only after successful validation
   sessionCache.set(accessToken, sessionId);
 
   return sessionId;
 }
 
-/**
- * Get or create an MCP session for the given access token
- */
 async function ensureMCPSession(accessToken: string): Promise<string> {
   const cached = sessionCache.get(accessToken);
   if (cached) {
@@ -191,19 +138,11 @@ async function ensureMCPSession(accessToken: string): Promise<string> {
   return initializeMCPSession(accessToken);
 }
 
-/**
- * Call a tool on the Notion MCP server using JSON-RPC 2.0
- *
- * @param accessToken - OAuth access token for authentication
- * @param toolName - Name of the MCP tool to call
- * @param args - Arguments to pass to the tool
- */
 async function callMCPTool<T>(
   accessToken: string,
   toolName: string,
   args: Record<string, unknown>
 ): Promise<T> {
-  // Ensure we have a session
   const sessionId = await ensureMCPSession(accessToken);
 
   const requestId = generateRequestId();
@@ -230,10 +169,8 @@ async function callMCPTool<T>(
   });
 
   if (!response.ok) {
-    // If session expired, try to re-initialize
     if (response.status === 400 || response.status === 401) {
       sessionCache.delete(accessToken);
-      // Retry with new session
       const newSessionId = await initializeMCPSession(accessToken);
 
       const retryResponse = await fetch(MCP_HTTP_ENDPOINT, {
@@ -267,7 +204,6 @@ async function callMCPTool<T>(
       return truncateToolResult(retryJsonRpcResponse.result) as T;
     }
 
-    // Try to get error details from response
     const errorBody = await response.text().catch(() => "");
     throw new Error(
       `MCP request failed: ${response.status} ${response.statusText}${errorBody ? ` - ${errorBody}` : ""}`
@@ -276,7 +212,6 @@ async function callMCPTool<T>(
 
   const jsonRpcResponse = (await parseResponseBody(response)) as Record<string, unknown>;
 
-  // Check for JSON-RPC error
   if (jsonRpcResponse.error) {
     const err = jsonRpcResponse.error as Record<string, unknown>;
     const errMsg = typeof err.message === "string" ? err.message : JSON.stringify(err);
@@ -285,10 +220,6 @@ async function callMCPTool<T>(
 
   return truncateToolResult(jsonRpcResponse.result) as T;
 }
-
-// ============================================================================
-// TOOL TYPES
-// ============================================================================
 
 export interface NotionSearchArgs {
   query: string;
@@ -334,10 +265,6 @@ export interface NotionMovePagesArgs {
   new_parent: Record<string, unknown>;
 }
 
-// ============================================================================
-// TOOL RUNNERS
-// ============================================================================
-
 /**
  * Calls the portal's Notion MCP endpoint with a tool name and its arguments,
  * and resolves to the response status + parsed JSON. Consumers wire this to
@@ -379,12 +306,6 @@ function readString(json: unknown, key: string): string | undefined {
   return typeof value === "string" ? value : undefined;
 }
 
-/**
- * Map a portal connector failure to the canonical connector error, or null
- * when the response is not one. 401/403/412 carry the mint error `code`;
- * codes with no `ConnectorErrorCode` counterpart (`invalid_grant`,
- * `connector_disabled`, `scope_disabled`, ...) read as not connected.
- */
 function notionConnectorError(status: number, json: unknown): string | null {
   const code = readField(json, "code");
   if (status === 503) {
@@ -400,22 +321,17 @@ function notionConnectorError(status: number, json: unknown): string | null {
       return buildConnectorErrorResult(
         "scope_not_covered",
         NOTION_PROVIDER,
-        readString(json, "connect_url"),
         Array.isArray(missingScopes) ? { missingScopes: missingScopes as string[] } : undefined
       );
     }
     case "insufficient_scope":
-      return buildConnectorErrorResult("insufficient_scope", NOTION_PROVIDER, undefined, {
+      return buildConnectorErrorResult("insufficient_scope", NOTION_PROVIDER, {
         required: readString(json, "required"),
       });
     case "upstream_unavailable":
       return buildConnectorErrorResult("upstream_unavailable", NOTION_PROVIDER);
     default:
-      return buildConnectorErrorResult(
-        "connector_not_connected",
-        NOTION_PROVIDER,
-        readString(json, "connect_url")
-      );
+      return buildConnectorErrorResult("connector_not_connected", NOTION_PROVIDER);
   }
 }
 
@@ -453,14 +369,6 @@ function withNotionExecutor(
   };
 }
 
-// ============================================================================
-// SEARCH TOOL
-// ============================================================================
-
-/**
- * MCP Tool: notion-search
- * Semantic search over Notion workspace and connected sources, or user search
- */
 function notionSearchTool(run: NotionToolRunner): ToolConfig {
   return withNotionExecutor(run, "Error searching Notion", {
     type: "function",
@@ -518,14 +426,6 @@ export function createNotionSearchTool(
   return notionSearchTool(directRunner(getAccessToken, requestNotionAccess));
 }
 
-// ============================================================================
-// FETCH PAGE TOOL
-// ============================================================================
-
-/**
- * MCP Tool: notion-fetch
- * Retrieves details about a Notion entity (page or database) by URL or ID
- */
 function notionFetchTool(run: NotionToolRunner): ToolConfig {
   return withNotionExecutor(run, "Error fetching Notion page", {
     type: "function",
@@ -563,14 +463,6 @@ export function createNotionFetchTool(
   return notionFetchTool(directRunner(getAccessToken, requestNotionAccess));
 }
 
-// ============================================================================
-// CREATE PAGES TOOL
-// ============================================================================
-
-/**
- * MCP Tool: notion-create-pages
- * Creates one or more Notion pages with properties and content
- */
 function notionCreatePagesTool(run: NotionToolRunner): ToolConfig {
   return withNotionExecutor(run, "Error creating Notion page", {
     type: "function",
@@ -623,14 +515,6 @@ export function createNotionCreatePagesTool(
   return notionCreatePagesTool(directRunner(getAccessToken, requestNotionAccess));
 }
 
-// ============================================================================
-// UPDATE PAGE TOOL
-// ============================================================================
-
-/**
- * MCP Tool: notion-update-page
- * Update a page's properties or content using command-based operations
- */
 function notionUpdatePageTool(run: NotionToolRunner): ToolConfig {
   return withNotionExecutor(run, "Error updating Notion page", {
     type: "function",
@@ -723,14 +607,6 @@ export function createNotionUpdatePageTool(
   return notionUpdatePageTool(directRunner(getAccessToken, requestNotionAccess));
 }
 
-// ============================================================================
-// MOVE PAGES TOOL
-// ============================================================================
-
-/**
- * MCP Tool: notion-move-pages
- * Move one or more pages/databases to a new parent
- */
 function notionMovePagesTool(run: NotionToolRunner): ToolConfig {
   return withNotionExecutor(run, "Error moving Notion pages", {
     type: "function",
@@ -765,14 +641,6 @@ export function createNotionMovePagesTool(
   return notionMovePagesTool(directRunner(getAccessToken, requestNotionAccess));
 }
 
-// ============================================================================
-// DUPLICATE PAGE TOOL
-// ============================================================================
-
-/**
- * MCP Tool: notion-duplicate-page
- * Duplicate a Notion page (completes asynchronously)
- */
 function notionDuplicatePageTool(run: NotionToolRunner): ToolConfig {
   return withNotionExecutor(run, "Error duplicating Notion page", {
     type: "function",
@@ -800,14 +668,6 @@ export function createNotionDuplicatePageTool(
   return notionDuplicatePageTool(directRunner(getAccessToken, requestNotionAccess));
 }
 
-// ============================================================================
-// CREATE DATABASE TOOL
-// ============================================================================
-
-/**
- * MCP Tool: notion-create-database
- * Create a new Notion database from a SQL DDL schema
- */
 function notionCreateDatabaseTool(run: NotionToolRunner): ToolConfig {
   return withNotionExecutor(run, "Error creating Notion database", {
     type: "function",
@@ -849,14 +709,6 @@ export function createNotionCreateDatabaseTool(
   return notionCreateDatabaseTool(directRunner(getAccessToken, requestNotionAccess));
 }
 
-// ============================================================================
-// UPDATE DATA SOURCE TOOL
-// ============================================================================
-
-/**
- * MCP Tool: notion-update-data-source
- * Update a data source's columns (via SQL DDL), title, or other attributes
- */
 function notionUpdateDataSourceTool(run: NotionToolRunner): ToolConfig {
   return withNotionExecutor(run, "Error updating Notion data source", {
     type: "function",
@@ -903,14 +755,6 @@ export function createNotionUpdateDataSourceTool(
   return notionUpdateDataSourceTool(directRunner(getAccessToken, requestNotionAccess));
 }
 
-// ============================================================================
-// CREATE COMMENT TOOL
-// ============================================================================
-
-/**
- * MCP Tool: notion-create-comment
- * Add a comment to a page, specific content, or reply to a discussion
- */
 function notionCreateCommentTool(run: NotionToolRunner): ToolConfig {
   return withNotionExecutor(run, "Error creating Notion comment", {
     type: "function",
@@ -967,14 +811,6 @@ export function createNotionCreateCommentTool(
   return notionCreateCommentTool(directRunner(getAccessToken, requestNotionAccess));
 }
 
-// ============================================================================
-// GET COMMENTS TOOL
-// ============================================================================
-
-/**
- * MCP Tool: notion-get-comments
- * Get comments and discussions from a Notion page
- */
 function notionGetCommentsTool(run: NotionToolRunner): ToolConfig {
   return withNotionExecutor(run, "Error retrieving Notion comments", {
     type: "function",
@@ -1016,14 +852,6 @@ export function createNotionGetCommentsTool(
   return notionGetCommentsTool(directRunner(getAccessToken, requestNotionAccess));
 }
 
-// ============================================================================
-// GET USERS TOOL
-// ============================================================================
-
-/**
- * MCP Tool: notion-get-users
- * List users in the workspace, get a specific user, or get self
- */
 function notionGetUsersTool(run: NotionToolRunner): ToolConfig {
   return withNotionExecutor(run, "Error listing Notion users", {
     type: "function",
@@ -1066,14 +894,6 @@ export function createNotionGetUsersTool(
   return notionGetUsersTool(directRunner(getAccessToken, requestNotionAccess));
 }
 
-// ============================================================================
-// GET TEAMS TOOL
-// ============================================================================
-
-/**
- * MCP Tool: notion-get-teams
- * Retrieve teams (teamspaces) in the workspace
- */
 function notionGetTeamsTool(run: NotionToolRunner): ToolConfig {
   return withNotionExecutor(run, "Error retrieving Notion teams", {
     type: "function",
@@ -1101,30 +921,21 @@ export function createNotionGetTeamsTool(
   return notionGetTeamsTool(directRunner(getAccessToken, requestNotionAccess));
 }
 
-// ============================================================================
-// TOOL FACTORY
-// ============================================================================
-
 const NOTION_TOOLS: Array<(run: NotionToolRunner) => ToolConfig> = [
-  // Search
   notionSearchTool,
 
-  // Pages
   notionFetchTool,
   notionCreatePagesTool,
   notionUpdatePageTool,
   notionMovePagesTool,
   notionDuplicatePageTool,
 
-  // Data Sources (Databases)
   notionCreateDatabaseTool,
   notionUpdateDataSourceTool,
 
-  // Comments
   notionCreateCommentTool,
   notionGetCommentsTool,
 
-  // Users & Teams
   notionGetUsersTool,
   notionGetTeamsTool,
 ];
@@ -1159,10 +970,6 @@ export function createNotionProxyTools(callMcp: NotionMcpCaller): ToolConfig[] {
   const run = proxyRunner(callMcp);
   return NOTION_TOOLS.map((tool) => tool(run));
 }
-
-// ============================================================================
-// MCP CLIENT UTILITIES (for advanced use)
-// ============================================================================
 
 /**
  * Get the MCP endpoints for direct access

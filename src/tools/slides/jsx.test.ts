@@ -176,9 +176,6 @@ describe("parseJsx", () => {
   });
 
   it("rejects lowercase typos in style keys with a suggestion", () => {
-    // React silently ignores `fontsize`, leaving the element to render
-    // at the default font size — an invisible bug. The parser should
-    // reject it with a hint pointing at `fontSize`.
     expect(() =>
       parseJsx(
         `<Anuma.Text id="t" x={0} y={0} w={100} h={20} fontRole="body" style={{ fontsize: 43 }}>Hi</Anuma.Text>`
@@ -195,10 +192,6 @@ describe("parseJsx", () => {
   });
 
   it("rejects top-level visual-styling props on <Anuma.Text> in strict mode — they belong in style={{}}", () => {
-    // Repro of the e2e bug where insert_slide produced an invisible slide:
-    // model emits top-level fontSize/color/fontWeight, renderer reads
-    // styles only from style={{}} → falls back to defaults (18px white)
-    // → invisible on any light background. Strict mode catches this.
     expect(() =>
       parseJsx(
         `<Anuma.Text id="t" x={0} y={0} w={100} h={20} fontSize={12} color="accent" fontWeight={600}>Hi</Anuma.Text>`,
@@ -217,9 +210,6 @@ describe("parseJsx", () => {
   });
 
   it("lenient mode (default) accepts top-level styling props so stored decks load", () => {
-    // Stored-deck parses on disk-load must NOT throw on legacy non-conforming
-    // JSX, otherwise tightening the validator retroactively breaks every
-    // tool call on those decks. Strict checks are opt-in.
     expect(() =>
       parseJsx(
         `<Anuma.Text id="t" x={0} y={0} w={100} h={20} fontSize={12} color="accent">Hi</Anuma.Text>`
@@ -228,9 +218,6 @@ describe("parseJsx", () => {
   });
 
   it("accepts layout-controlling props that overlap with style keys (gap, padding) at top level on Group even in strict mode", () => {
-    // gap and padding are in STYLE_ALLOWED_KEYS, but Group reads them at
-    // top level for flex layout. The reject set is narrowed to TEXT-style
-    // keys only to preserve this.
     expect(() =>
       parseJsx(
         `<Anuma.Group id="row" x={0} y={0} w={500} h={60} layout="row" gap={16} padding={24}><Anuma.Text id="t" x={0} y={0} w={100} h={20}>A</Anuma.Text></Anuma.Group>`,
@@ -276,14 +263,10 @@ describe("serializeJsx", () => {
     const source = `<Anuma.Text id="hero" x={0} y={0} w={500} h={75} fontRole="heading" style={{ fontSize: 57 }}>Why <Anuma.Span style={{ fontStyle: "italic", color: "#B85A2E" }}>now.</Anuma.Span></Anuma.Text>`;
     const node = parseJsx(source);
     const s = serializeJsx(node);
-    // The Span must survive serialization (this is the bug).
     expect(s).toContain(
       `<Anuma.Span style={{ fontStyle: "italic", color: "#B85A2E" }}>now.</Anuma.Span>`
     );
-    // The trailing space before the Span must be preserved (as raw text or
-    // wrapped {"Why "} — both parse back identically).
     expect(s).toMatch(/(>Why |\{"Why "\})/);
-    // Round-trip preserves the parsed children.
     const reparsed = parseJsx(s);
     expect(reparsed.children).toHaveLength(2);
     expect(reparsed.children[0]).toBe("Why ");
@@ -473,7 +456,6 @@ describe("tree helpers", () => {
     walk(d, (n) => {
       seen.push(n.tag);
     });
-    // Deck, Slide, Text, Text, Slide, Text
     expect(seen).toEqual(["Deck", "Slide", "Text", "Text", "Slide", "Text"]);
   });
 });

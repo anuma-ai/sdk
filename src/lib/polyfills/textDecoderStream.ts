@@ -5,7 +5,6 @@
  * This polyfill creates a TransformStream that uses TextDecoder internally.
  */
 
-// Check if we're in an environment that needs the polyfill
 const needsPolyfill = typeof globalThis.TextDecoderStream === "undefined";
 
 if (needsPolyfill && typeof globalThis.TransformStream !== "undefined") {

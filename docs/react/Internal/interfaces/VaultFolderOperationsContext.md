@@ -1,6 +1,6 @@
 # VaultFolderOperationsContext
 
-Defined in: [src/lib/db/vaultFolders/operations.ts:12](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/vaultFolders/operations.ts#12)
+Defined in: [src/lib/db/vaultFolders/operations.ts:13](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/vaultFolders/operations.ts#13)
 
 ## Properties
 
@@ -8,7 +8,7 @@ Defined in: [src/lib/db/vaultFolders/operations.ts:12](https://github.com/anuma-
 
 > **database**: `Database`
 
-Defined in: [src/lib/db/vaultFolders/operations.ts:13](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/vaultFolders/operations.ts#13)
+Defined in: [src/lib/db/vaultFolders/operations.ts:14](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/vaultFolders/operations.ts#14)
 
 ***
 
@@ -16,7 +16,7 @@ Defined in: [src/lib/db/vaultFolders/operations.ts:13](https://github.com/anuma-
 
 > **vaultFolderCollection**: `Collection`<[`StoredVaultFolderModel`](../classes/StoredVaultFolderModel.md)>
 
-Defined in: [src/lib/db/vaultFolders/operations.ts:14](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/vaultFolders/operations.ts#14)
+Defined in: [src/lib/db/vaultFolders/operations.ts:15](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/vaultFolders/operations.ts#15)
 
 ***
 
@@ -24,4 +24,4 @@ Defined in: [src/lib/db/vaultFolders/operations.ts:14](https://github.com/anuma-
 
 > **vaultMemoryCollection**: `Collection`<[`StoredVaultMemoryModel`](../classes/StoredVaultMemoryModel.md)>
 
-Defined in: [src/lib/db/vaultFolders/operations.ts:15](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/vaultFolders/operations.ts#15)
+Defined in: [src/lib/db/vaultFolders/operations.ts:16](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/vaultFolders/operations.ts#16)

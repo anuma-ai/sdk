@@ -26,7 +26,6 @@ describe("exportMarkdownToPdf", () => {
 
     expect(a4Blob).toBeInstanceOf(Blob);
     expect(letterBlob).toBeInstanceOf(Blob);
-    // Different page sizes produce different output
     expect(a4Blob.size).not.toBe(letterBlob.size);
   });
 
@@ -112,16 +111,12 @@ describe("exportMarkdownToPdf", () => {
     await exportMarkdownToPdf("# Hello\n\nWorld\n\n- One\n- Two", { onProgress });
 
     expect(onProgress).toHaveBeenCalled();
-    // Should start with "preparing" stage
     expect(events[0].stage).toBe("preparing");
-    // Should end with "complete" at 100%
     const last = events[events.length - 1];
     expect(last.stage).toBe("complete");
     expect(last.percent).toBe(100);
-    // Should have "building" stages in between
     const buildingEvents = events.filter((e) => e.stage === "building");
     expect(buildingEvents.length).toBeGreaterThan(0);
-    // Percent should be monotonically non-decreasing
     for (let i = 1; i < events.length; i++) {
       expect(events[i].percent).toBeGreaterThanOrEqual(events[i - 1].percent);
     }

@@ -8,15 +8,12 @@ async function* fromValues<T>(values: T[]): AsyncGenerator<T> {
   }
 }
 
-// Yields values then suspends forever (no setTimeout — immune to fake timers).
 async function* hangAfter<T>(values: T[]): AsyncGenerator<T> {
   for (const v of values) {
     yield v;
   }
   await new Promise<never>(() => {});
 }
-
-// ── Passthrough ──────────────────────────────────────────────────────────────
 
 describe("withSseKeepalive — passthrough (idleMs ≤ 0)", () => {
   it("passes all events through when idleMs is 0", async () => {
@@ -52,8 +49,6 @@ describe("withSseKeepalive — passthrough (idleMs ≤ 0)", () => {
   });
 });
 
-// ── Happy path ───────────────────────────────────────────────────────────────
-
 describe("withSseKeepalive — happy path", () => {
   beforeEach(() => vi.useFakeTimers());
   afterEach(() => vi.useRealTimers());
@@ -72,7 +67,6 @@ describe("withSseKeepalive — happy path", () => {
     const first = await gen.next();
     expect(first.value).toBe("first");
 
-    // Advance to just under the idle threshold — the promise must still be pending.
     const pending = gen.next();
     vi.advanceTimersByTime(999);
 
@@ -80,14 +74,10 @@ describe("withSseKeepalive — happy path", () => {
     const result = await Promise.race([pending, Promise.resolve(sentinel)]);
     expect(result).toBe(sentinel);
 
-    // Clean up: advance past idleMs and consume the resulting rejection so no
-    // dangling promise is left after the test.
     vi.advanceTimersByTime(2);
     await expect(pending).rejects.toBeInstanceOf(SseIdleTimeoutError);
   });
 });
-
-// ── Timeout path ─────────────────────────────────────────────────────────────
 
 describe("withSseKeepalive — timeout path", () => {
   beforeEach(() => vi.useFakeTimers());
@@ -150,8 +140,6 @@ describe("withSseKeepalive — timeout path", () => {
     expect(err.idleMs).toBe(2_000);
   });
 });
-
-// ── Consumer break ────────────────────────────────────────────────────────────
 
 describe("withSseKeepalive — consumer break", () => {
   beforeEach(() => vi.useFakeTimers());

@@ -2,7 +2,7 @@
 
 > **classifyCryptoPrice**(`prompt`: `string`, `options`: `CryptoPriceClassifierOptions`): `Promise`<[`CryptoPriceClassification`](../interfaces/CryptoPriceClassification.md)>
 
-Defined in: [src/lib/chat/cryptoPriceClassifier.ts:61](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/cryptoPriceClassifier.ts#61)
+Defined in: [src/lib/chat/cryptoPriceClassifier.ts:47](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/cryptoPriceClassifier.ts#47)
 
 Classify whether a prompt needs crypto price data.
 

@@ -1,24 +1,12 @@
-/**
- * Unit tests for the cross-encoder reranker.
- *
- * The transformers runtime is module-mocked: `AutoTokenizer` /
- * `AutoModelForSequenceClassification` return callable fakes whose logits
- * are controlled per test. Because the reranker caches its model promise
- * in module state, each test re-imports a fresh copy via
- * `vi.resetModules()` + dynamic import.
- */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const h = vi.hoisted(() => ({
   tokenizerLoads: 0,
   modelLoads: 0,
   failTokenizerLoads: 0,
-  /** When set, model loads wait on this promise (a stalled download). */
   modelLoadGate: null as null | Promise<void>,
-  /** Flat row-major logits + dims the fake model returns. */
   logitsData: [] as number[],
   logitsDims: [] as number[],
-  /** Captured tokenizer inputs for assertion. */
   lastTokenizeArgs: null as null | { texts: string[]; pairs: string[] },
 }));
 
@@ -104,13 +92,8 @@ describe("rerankPairs", () => {
     await expect(rerankPairs("q", [{ id: "a", content: "doc" }])).rejects.toThrow(
       "model download failed"
     );
-    // A transient load failure (dep present, download hiccup) must NOT mark
-    // the reranker permanently unavailable — availability stays unknown so
-    // the next call retries.
     expect(isRerankerAvailable()).toBeUndefined();
 
-    // Second call must re-attempt the load (not return the rejected
-    // cached promise) and succeed.
     const result = await rerankPairs("q", [{ id: "a", content: "doc" }]);
     expect(result).toHaveLength(1);
     expect(result[0].score).toBeCloseTo(sigmoid(2), 6);
@@ -138,7 +121,7 @@ describe("rerankPairs", () => {
   it("assigns score i from logit i (input order) and returns items sorted by score desc", async () => {
     const { rerankPairs } = await freshReranker();
     h.logitsDims = [3, 1];
-    h.logitsData = [0, 2, 1]; // a→σ(0), b→σ(2), c→σ(1)
+    h.logitsData = [0, 2, 1];
 
     const result = await rerankPairs("q", [
       { id: "a", content: "doc a" },
@@ -151,7 +134,6 @@ describe("rerankPairs", () => {
     expect(byId.get("a")).toBeCloseTo(sigmoid(0), 6);
     expect(byId.get("b")).toBeCloseTo(sigmoid(2), 6);
     expect(byId.get("c")).toBeCloseTo(sigmoid(1), 6);
-    // Content is carried through unchanged.
     expect(result.find((r) => r.id === "b")?.content).toBe("doc b");
   });
 
@@ -171,7 +153,6 @@ describe("rerankPairs", () => {
 
   it("C4: date-prefixes CE docs when dateMs is set, without mutating returned content", async () => {
     const { rerankPairs, formatRerankDoc } = await freshReranker();
-    // Local midnight — matches eventTime write/query basis (not UTC).
     const localMs = new Date(2026, 0, 15).getTime();
     expect(formatRerankDoc("Lives in SF", localMs)).toBe("[Date: 2026-01-15] Lives in SF");
     expect(formatRerankDoc("no date")).toBe("no date");
@@ -189,8 +170,6 @@ describe("rerankPairs", () => {
   it("uses column 1 as the relevance logit for a 2-label head", async () => {
     const { rerankPairs } = await freshReranker();
     h.logitsDims = [2, 2];
-    // item0: not-relevant=5, relevant=-5 → low score
-    // item1: not-relevant=-5, relevant=5 → high score
     h.logitsData = [5, -5, -5, 5];
 
     const result = await rerankPairs("q", [
@@ -231,11 +210,6 @@ describe("rerankPairs", () => {
   });
 });
 
-/**
- * The first model load is a ~25MB download plus WASM init. On a stalled network
- * it held every mid/high-budget recall for as long as the fetch took — forever,
- * on a dead connection — because the load was awaited with no deadline.
- */
 describe("reranker first-load deadline", () => {
   it("degrades a stalled first load to RerankerUnavailableError and keeps the load for later calls", async () => {
     let release!: () => void;
@@ -254,12 +228,8 @@ describe("reranker first-load deadline", () => {
       await first;
 
       expect(error).toBeInstanceOf(RerankerUnavailableError);
-      // A slow load is not "package missing": availability stays unknown and a
-      // later call is still allowed to use the model.
       expect(isRerankerAvailable()).toBeUndefined();
 
-      // The in-flight load was kept, not restarted: once it lands, the next
-      // call reranks without a second download.
       release();
       await vi.advanceTimersByTimeAsync(0);
       const scored = await rerankPairs("q", [{ id: "a", content: "doc" }], { loadTimeoutMs: 1000 });
@@ -298,8 +268,6 @@ describe("reranker availability", () => {
   });
 
   it("marks the reranker permanently unavailable when the transformers dep is missing", async () => {
-    // Simulate React Native, where @huggingface/transformers isn't installed:
-    // the dynamic import rejects with a module-not-found error.
     vi.resetModules();
     vi.doMock("@huggingface/transformers", () => {
       throw new Error("Cannot find module '@huggingface/transformers'");
@@ -314,8 +282,6 @@ describe("reranker availability", () => {
       );
       expect(isRerankerAvailable()).toBe(false);
 
-      // A second call short-circuits: it still rejects with the same error and
-      // never re-attempts the import (no per-recall retry / warn spam on RN).
       await expect(rerankPairs("q", [{ id: "b", content: "doc" }])).rejects.toBeInstanceOf(
         RerankerUnavailableError
       );

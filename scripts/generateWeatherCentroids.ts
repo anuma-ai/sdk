@@ -1,13 +1,3 @@
-/**
- * One-time script to generate centroid vectors for the weather classifier.
- *
- * Embeds the reference phrases, averages each class into a single centroid,
- * and writes the result to src/lib/chat/weatherCentroids.ts.
- *
- * Usage:
- *   PORTAL_API_KEY=... npx tsx scripts/generateWeatherCentroids.ts
- */
-
 import "dotenv/config";
 import { writeFileSync } from "fs";
 import { resolve } from "path";
@@ -18,7 +8,6 @@ import { averageVectors } from "./lib/centroids";
 import { GENERIC_NEGATIVE_PHRASES } from "./lib/genericNegatives";
 
 const WEATHER_PHRASES = [
-  // Forecasts
   "What's the weather in San Francisco today",
   "Will it rain in New York this weekend",
   "Weather forecast for Tokyo tomorrow",
@@ -28,7 +17,6 @@ const WEATHER_PHRASES = [
   "5-day forecast for Miami",
   "Will it be cold in Chicago tonight",
 
-  // Temperature
   "What's the temperature in Dubai right now",
   "How hot is it in Phoenix",
   "Current temperature in London",
@@ -36,7 +24,6 @@ const WEATHER_PHRASES = [
   "What's the high today in Madrid",
   "Heat index in Houston",
 
-  // Precipitation / conditions
   "Is it raining in Seattle right now",
   "Will it snow in Aspen this week",
   "Chance of thunderstorms in Atlanta tomorrow",
@@ -44,20 +31,17 @@ const WEATHER_PHRASES = [
   "Is it humid in Singapore today",
   "Will there be fog in San Francisco tonight",
 
-  // Wind / sun
   "Wind speed in Wellington",
   "What time is sunrise in Iceland today",
   "Sunset time in Tokyo",
   "UV index in Sydney right now",
   "Is it windy in Chicago today",
 
-  // Air quality
   "What is the air quality in Beijing",
   "AQI in Los Angeles right now",
   "Pollution levels in Delhi today",
   "PM2.5 levels in Shanghai",
 
-  // Marine / flood / specialty
   "Tide times in San Diego today",
   "Wave height at Mavericks",
   "Flood risk in Houston tomorrow",
@@ -65,12 +49,10 @@ const WEATHER_PHRASES = [
   "Sea temperature off Florida",
   "Marine forecast for the Gulf of Mexico",
 
-  // Climate / historical weather
   "Historical weather in Rome last July",
   "What was the temperature in Cairo last year",
   "Climate projection for Sao Paulo by 2050",
 
-  // Short / conversational
   "weather tomorrow",
   "forecast Paris",
   "rain today",
@@ -78,14 +60,12 @@ const WEATHER_PHRASES = [
 ];
 
 const NO_WEATHER_PHRASES = [
-  // Crypto / stock / finance — must NOT trigger weather
   "What is the current price of Bitcoin",
   "How much is Tesla stock worth today",
   "USD to EUR exchange rate",
   "S&P 500 today",
   "Market cap of Ethereum",
 
-  // Weather-adjacent reasoning but NOT a forecast
   "How does the water cycle work",
   "Why does it rain",
   "Explain how hurricanes form",
@@ -94,17 +74,12 @@ const NO_WEATHER_PHRASES = [
   "What causes the seasons",
   "Why is the sky blue",
 
-  // Generic out-of-domain negatives shared with other classifiers.
   ...GENERIC_NEGATIVE_PHRASES,
 
-  // Other current-data web searches
   "What did Elon Musk tweet about today",
   "Who won the Super Bowl this year",
   "Find Italian restaurants near me",
 
-  // Geographic / location queries that are NOT weather. City and place
-  // names pulling the weather centroid is the dominant FP pattern — these
-  // counter-examples push it back.
   "Hotels in New York City",
   "Flights to Tokyo from JFK",
   "Coffee shops with wifi in downtown Austin",
@@ -116,10 +91,6 @@ const NO_WEATHER_PHRASES = [
   "What timezone is Tokyo in",
   "What time is it in San Francisco",
 
-  // Climate / weather research vs forecast — the weather classifier should
-  // own real-time / short-term forecast queries, NOT long-horizon climate
-  // research projections. Both have the "climate" / "weather" vocabulary
-  // but the projection / research framing is webSearch territory.
   "Climate projection for the year 2050",
   "Long-term climate research forecast",
   "Climate science overview for the next century",

@@ -1,22 +1,3 @@
-/**
- * Minimal HTTP stub for the portal connector vault API.
- *
- * Implements just enough of the portal contract to drive
- * {@link runAgentRequest} end-to-end:
- *
- *   GET  /api/v1/me                            → return the grant for a bearer
- *   POST /api/v1/connector-tokens/{provider}   → mint OR return 412 connector_not_connected
- *                                                / 412 scope_not_covered / 5xx for upstream-unavailable
- *   GET  /api/v1/connectors                    → list the user's credentials
- *   POST /api/v1/connect-tickets               → return a live-shaped ticket
- *                                                ({ticket_id, expires_in})
- *
- * The stub increments `mintCount` on every successful mint so caching
- * tests can assert "two tool calls = one mint".
- *
- * Returned `{ url, stop }` mirrors the spec.
- */
-
 import http from "node:http";
 import type { AddressInfo } from "node:net";
 
@@ -45,23 +26,16 @@ type MintBehavior =
   | { kind: "upstream_5xx"; count: number };
 
 interface StubPortalConfig {
-  /** bearer → grant */
   grants?: Record<string, StubGrant>;
-  /** user_address → connector credentials */
   credentials?: Record<string, StubCredential[]>;
-  /** Mint behavior per (provider). Defaults to a 200-ok mint with `expires_in: 300`. */
   mintBehavior?: Record<string, MintBehavior>;
 }
 
 export interface StubPortalHandle {
   url: string;
   stop(): Promise<void>;
-  /** Successful mints since startup. */
   readonly mintCount: number;
-  /** Body of the most recent mint request (recorded before the `access`
-   *  guard, so rejected mints are captured too). */
   readonly lastMintBody: { access?: string } | null;
-  /** Body of the most recent connect-ticket request. */
   readonly lastConnectTicketBody: {
     oauth_app?: string;
     requested_scopes?: string[];
@@ -151,7 +125,6 @@ export async function startStubPortal(cfg: StubPortalConfig): Promise<StubPortal
       if (req.method === "POST" && path.startsWith("/api/v1/connector-tokens/")) {
         if (!grant) return send(res, 401, { error: "missing_or_invalid_bearer" });
         const provider = path.replace("/api/v1/connector-tokens/", "");
-        // Mirror of ai-portal connector_token.go: `access` is required.
         const mintBody = await readJson<{ access?: string }>(req);
         state.lastMintBody = mintBody;
         if (!mintBody.access) return send(res, 400, { error: "access is required" });
@@ -163,7 +136,6 @@ export async function startStubPortal(cfg: StubPortalConfig): Promise<StubPortal
             state.upstream5xxRemaining[provider] = remaining - 1;
             return send(res, 503, { error: "upstream_unavailable" });
           }
-          // After exhausting count, fall through to ok.
         }
 
         if (beh?.kind === "connector_not_connected") {
@@ -217,8 +189,6 @@ export async function startStubPortal(cfg: StubPortalConfig): Promise<StubPortal
         state.lastConnectTicketBody = body;
         if (!body.oauth_app) return send(res, 400, { error: "oauth_app is required" });
         if (!body.return_to) return send(res, 400, { error: "return_to is required" });
-        // Live shape: the client owns the connect URL; the portal returns only
-        // the ticket id and a TTL in seconds.
         return send(res, 200, {
           ticket_id: `ticket-${Date.now()}`,
           expires_in: 600,

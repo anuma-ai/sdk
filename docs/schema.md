@@ -1,6 +1,6 @@
 # Database Schema
 
-Current version: **v47**
+Current version: **v48**
 
 ```mermaid
 graph LR
@@ -121,6 +121,9 @@ graph LR
 |--------|------|---------|----------|
 | `content` | string |  |  |
 | `scope` | string | ✓ |  |
+| `kind` | string | ✓ | ✓ |
+| `kind_value` | string |  | ✓ |
+| `level` | string | ✓ | ✓ |
 | `folder_id` | string | ✓ | ✓ |
 | `created_at` | number | ✓ |  |
 | `updated_at` | number | ✓ |  |
@@ -251,6 +254,7 @@ graph LR
 
 | Version | Changes |
 |---------|---------|
+| v48 | Added `kind`, `kind_value`, `level` to `memory_vault`; `UPDATE memory_vault SET level = CASE WHEN scope IN ('shared', 'public') THEN 'matching' ELSE 'private' END WHERE level IS NULL;` |
 | v47 | Added `failed_sessions`, `failed_head`, `failed_at` to `memory_extraction_jobs` |
 | v46 | Added `memory_extraction_jobs` table |
 | v45 | Added `media` to `memory_vault` |

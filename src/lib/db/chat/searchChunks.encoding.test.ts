@@ -16,15 +16,6 @@ import {
 } from "./operations";
 import type { MessageChunk } from "./types";
 
-/**
- * The read shim, exercised through the real storage path rather than in
- * isolation (sdk#862).
- *
- * Every chunk stored on every device today is a JSON array of numbers. Once the
- * writer flips, a single account's history holds BOTH encodings at once —
- * pre-flip rows and post-flip rows, plus whatever a second device synced down —
- * so "reads both" is not a transitional nicety, it is the steady state.
- */
 function makeDatabase(): Database {
   const adapter = new LokiJSAdapter({
     schema: sdkSchema,
@@ -37,8 +28,6 @@ function makeDatabase(): Database {
 }
 
 function makeCtx(db: Database): StorageOperationsContext {
-  // No walletAddress → chunks land as plaintext JSON, so the test asserts on the
-  // encoding rather than on the encryption envelope wrapped around it.
   return {
     database: db,
     messagesCollection: db.get("history"),
@@ -48,13 +37,6 @@ function makeCtx(db: Database): StorageOperationsContext {
 
 const MODEL = "qwen/qwen3-embedding-8b";
 
-/**
- * `MessageChunk.vector` is still typed `number[]`, because this SDK's writer
- * still emits JSON arrays. A base64 vector is what a LATER build writes and
- * what this device pulls down from one — a shape the current type deliberately
- * cannot express, so the cast is the point of the test rather than a way around
- * it. It drops when the writer flip widens the type.
- */
 function chunk(text: string, vector: number[] | string): MessageChunk {
   return { text, vector, startOffset: 0, endOffset: text.length } as MessageChunk;
 }
@@ -115,9 +97,6 @@ describe("searchChunksOp — chunk vector storage encoding", () => {
   });
 
   it("ranks both encodings on one scale when a history holds a mix", async () => {
-    // The post-flip steady state: an old row and a new row competing in the same
-    // query. If the shim were encoding-sensitive the base64 row would score 0
-    // and sort last instead of winning.
     await seed(ctx, "legacy-weak", [chunk("a distant topic", [0, 1, 0])]);
     await seed(ctx, "encoded-strong", [chunk("apples and oranges", encodeChunkVector([1, 0, 0]))]);
 
@@ -135,8 +114,6 @@ describe("searchChunksOp — chunk vector storage encoding", () => {
     const results = await searchChunksOp(ctx, [0.6, -0.48, 0.64], { minSimilarity: 0 });
 
     expect(results).toHaveLength(2);
-    // Bit-identical, not merely close: both paths narrow to float32 before
-    // scoring, so a mixed-encoding history cannot produce an unstable ranking.
     expect(results[0].similarity).toBe(results[1].similarity);
   });
 
@@ -150,10 +127,6 @@ describe("searchChunksOp — chunk vector storage encoding", () => {
   });
 
   it("says once per pass that it dropped unreadable vectors", async () => {
-    // Skipping the row silently is what made this hard to notice: the corrupt
-    // chunk just stops appearing in results and nothing anywhere says why. The
-    // count has to be in the message, or a one-bad-chunk pass and a whole-row
-    // corruption read the same.
     await seed(ctx, "corrupt", [
       chunk("truncated payload", "!!!not-base64!!!"),
       chunk("also truncated", "@@@@"),
@@ -167,8 +140,6 @@ describe("searchChunksOp — chunk vector storage encoding", () => {
   });
 
   it("says nothing when every vector reads cleanly", async () => {
-    // The other half. A warning that fired on a healthy pass would be noise, and
-    // a chunk with no vector at all is healthy, not corrupt.
     await seed(ctx, "healthy", [chunk("apples and oranges", encodeChunkVector([1, 0, 0]))]);
     await seed(ctx, "legacy", [chunk("a distant topic", [0, 1, 0])]);
     await seed(ctx, "no-vector", [chunk("never embedded", [])]);

@@ -64,19 +64,15 @@ describe("summarizePhase", () => {
 
   it("sums create_file overwrites across calls", () => {
     const toolCalls: ToolCallRecord[] = [
-      // Pure new write — should contribute 0.
       {
         name: "create_file",
         result: JSON.stringify({ created: ["App.js", "App.css"], overwritten: [] }),
       },
-      // Mixed batch — should contribute 1.
       {
         name: "create_file",
         result: { created: ["package.json"], overwritten: ["App.js"] },
       },
-      // Bulk overwrite — should contribute 2.
       { name: "create_file", result: { created: [], overwritten: ["App.js", "App.css"] } },
-      // Unrelated tool — ignored.
       { name: "patch_file", result: { overwritten: ["nope"] } },
     ];
     expect(summarizePhase({ label: "p1", elapsedMs: 0, toolCalls, files: {} }).overwrites).toBe(3);
@@ -122,7 +118,6 @@ describe("summarizePhase", () => {
   });
 
   it("audits the post-phase file store when app files exist", () => {
-    // Clean app: tokens + var() references → near-perfect score.
     const clean = summarizePhase({
       label: "p",
       elapsedMs: 0,
@@ -134,7 +129,6 @@ describe("summarizePhase", () => {
     });
     expect(clean.auditScore).toBeGreaterThanOrEqual(95);
 
-    // Raw colors outside :root → penalized score.
     const dirty = summarizePhase({
       label: "p",
       elapsedMs: 0,
@@ -223,7 +217,6 @@ describe("finalizeRun", () => {
     expect(run.totals.inputTokens).toBe(12000);
     expect(run.totals.outputTokens).toBe(2500);
     expect(run.benchmark).toBe("kanban");
-    // finishedAt is set to "now" — just sanity-check it's a valid ISO string.
     expect(new Date(run.finishedAt).toString()).not.toBe("Invalid Date");
   });
 
@@ -334,7 +327,6 @@ describe("compareRuns", () => {
   it("shows positive and negative deltas for tool counts", () => {
     const after: RunRecord = {
       ...baseRun,
-      // Token totals match baseRun so the only deltas under test are the tool counts.
       totals: {
         toolCalls: { create_file: 5, patch_file: 2 },
         failedPatches: 0,
@@ -359,9 +351,7 @@ describe("compareRuns", () => {
       totals: { ...baseRun.totals, overwrites: 3 },
     };
     const out = compareRuns(baseRun, after);
-    // Totals row.
     expect(out).toMatch(/overwrites\s+0 → 3\s+\(\+3\)/);
-    // Per-phase row.
     expect(out).toMatch(/overwrites:\s+0 → 1\s+\(\+1\)/);
     expect(out).toMatch(/overwrites:\s+0 → 2\s+\(\+2\)/);
   });
@@ -380,7 +370,6 @@ describe("compareRuns", () => {
           overwrites: 0,
           files: {},
           errored: false,
-          // Nothing to audit and no usage measured for this synthetic phase.
           auditScore: null,
           inputTokens: null,
           outputTokens: null,
@@ -428,7 +417,6 @@ describe("compareRuns", () => {
     expect(out).toContain("tokens:  in n/a → 110000   out n/a → 17000");
     expect(out).toMatch(/auditScore:\s+n\/a → 90/);
 
-    // Both sides unmeasured → the token and audit lines are omitted entirely.
     const silent = compareRuns(unmeasured, unmeasured);
     expect(silent).not.toContain("tokens:");
     expect(silent).not.toContain("auditScore:");

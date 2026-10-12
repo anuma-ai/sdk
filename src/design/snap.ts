@@ -72,11 +72,6 @@ type SnapMatch = { adjust: number; pos: number; other: SnapBounds };
 const X_KEYS: readonly AxisKey[] = ["left", "cx", "right"];
 const Y_KEYS: readonly AxisKey[] = ["top", "cy", "bottom"];
 
-/**
- * Find the closest edge/center alignment along one axis. Compares all
- * 9 (dragged-key, other-key) pairs across every snap target; the
- * smallest signed-distance pair within threshold wins.
- */
 function findBestAxisMatch(
   moved: SnapBounds,
   others: readonly SnapBounds[],

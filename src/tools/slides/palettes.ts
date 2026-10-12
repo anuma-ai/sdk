@@ -155,10 +155,6 @@ export const PALETTES: Palette[] = [
   },
 ];
 
-// ---------------------------------------------------------------------------
-// Prompt rendering
-// ---------------------------------------------------------------------------
-
 /**
  * Render the palette catalog as a compact prompt block.
  *

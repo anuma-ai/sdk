@@ -1,22 +1,8 @@
-/**
- * Unit coverage for the XHR-based React Native streaming transport.
- *
- * Pins the request shape (method/body/headers), the HEADERS_RECEIVED →
- * onStreamMeta capture (2xx-gated, fires once, before any data chunk), the
- * mid-stream abort contract (AbortError thrown into the iterator, never an
- * orderly `done`), and the data-line-only SSE parsing.
- */
-
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { StreamingTransportOptions } from "./toolLoop";
 import { xhrTransport } from "./xhrTransport";
 
-/**
- * Scripted XMLHttpRequest fake. Records open/setRequestHeader/send and lets
- * the test drive readyState/status/responseText through the handlers the
- * transport installs.
- */
 class FakeXMLHttpRequest {
   static instances: FakeXMLHttpRequest[] = [];
 
@@ -68,9 +54,6 @@ class FakeXMLHttpRequest {
     this.onabort?.();
   }
 
-  // ── Test drivers ──
-
-  /** Drive readyState 2 (HEADERS_RECEIVED) with a status + response headers. */
   receiveHeaders(status: number, headers: Record<string, string> = {}) {
     this.status = status;
     this.statusText = status === 200 ? "OK" : "Error";
@@ -79,7 +62,6 @@ class FakeXMLHttpRequest {
     this.onreadystatechange?.();
   }
 
-  /** Drive readyState 3 with a new chunk of response text. */
   receiveChunk(text: string) {
     this.responseText += text;
     this.readyState = 3;
@@ -87,7 +69,6 @@ class FakeXMLHttpRequest {
     this.onprogress?.();
   }
 
-  /** Drive readyState 4 + onload. */
   finish() {
     this.readyState = 4;
     this.onreadystatechange?.();
@@ -149,7 +130,6 @@ describe("xhrTransport", () => {
     const xhr = lastXhr();
     xhr.receiveHeaders(200, { "X-Inference-ID": "inf-1" });
     xhr.receiveChunk('data: {"x":1}\n');
-    // Re-driving readystatechange at states 3 and 4 must not re-fire meta.
     xhr.receiveChunk('data: {"x":2}\n');
     xhr.finish();
 
@@ -164,26 +144,19 @@ describe("xhrTransport", () => {
   });
 
   it("fires onActivity on keep-alive comment bytes (watchdog liveness) without yielding a data chunk", async () => {
-    // The production line behind the #620 resume-watchdog fix: any wire bytes —
-    // including a `: keep-alive` comment that parseSseChunks discards — must
-    // surface as onActivity so a consumer's idle watchdog re-arms on liveness,
-    // not just on data frames.
     const onActivity = vi.fn();
     const result = xhrTransport({ ...baseOptions, onActivity });
 
     const xhr = lastXhr();
     xhr.receiveHeaders(200, { "X-Inference-ID": "inf-1" });
-    // A keep-alive comment line: bytes on the wire, but NOT a `data:` frame.
     xhr.receiveChunk(": keep-alive\n");
     expect(onActivity).toHaveBeenCalledTimes(1);
-    // A real data frame also counts as activity (and yields a chunk).
     xhr.receiveChunk('data: {"x":1}\n');
     expect(onActivity).toHaveBeenCalledTimes(2);
     xhr.finish();
 
     const received: unknown[] = [];
     for await (const chunk of result.stream) received.push(chunk);
-    // Only the data frame became a chunk; the keep-alive comment did not.
     expect(received).toEqual([{ x: 1 }]);
   });
 

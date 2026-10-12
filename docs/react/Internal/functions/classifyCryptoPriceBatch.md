@@ -2,7 +2,7 @@
 
 > **classifyCryptoPriceBatch**(`prompts`: `string`\[], `options`: `CryptoPriceClassifierOptions`): `Promise`<[`CryptoPriceClassification`](../interfaces/CryptoPriceClassification.md)\[]>
 
-Defined in: [src/lib/chat/cryptoPriceClassifier.ts:74](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/cryptoPriceClassifier.ts#74)
+Defined in: [src/lib/chat/cryptoPriceClassifier.ts:60](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/cryptoPriceClassifier.ts#60)
 
 Batch-classify multiple prompts. Embeds all prompts in one batch
 call for efficiency.

@@ -32,8 +32,6 @@ function resolvePortalSpec(): string {
   );
 }
 
-// Support both local file and URL-based swagger specs
-// Usage: OPENAPI_URL=http://localhost:8080/api/v1/docs/swagger.json npm run generate
 const input = process.env.OPENAPI_URL || resolvePortalSpec();
 
 export default defineConfig({
@@ -42,9 +40,6 @@ export default defineConfig({
   plugins: [
     {
       name: "@hey-api/client-next",
-      // Resolved relative to the project root (openapi-ts config location), not
-      // the output folder. 0.87 treated this as relative to `output`; 0.97+
-      // emits an import relative to the generated client.gen.ts file.
       runtimeConfigPath: "./src/clientConfig",
     },
   ],

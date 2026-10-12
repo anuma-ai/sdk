@@ -2,7 +2,7 @@
 
 > **discoverNotionOAuthEndpoints**(): `Promise`<[`NotionOAuthEndpoints`](../interfaces/NotionOAuthEndpoints.md)>
 
-Defined in: [src/lib/auth/notion-primitives.ts:167](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/notion-primitives.ts#167)
+Defined in: [src/lib/auth/notion-primitives.ts:139](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/notion-primitives.ts#139)
 
 Discover OAuth server metadata from Notion's well-known endpoints.
 

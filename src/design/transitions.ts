@@ -1,15 +1,3 @@
-/**
- * Pure gesture-transition helpers. Each function takes the current
- * gesture (or pointer-down context) plus the AnumaNode tree + scale +
- * stage, and returns the next gesture state. No React, no setters —
- * the calling hook is responsible for applying the result.
- *
- * Splitting these out of `useCanvasGestures` keeps the hook readable
- * and individual transitions easy to reason about (each handles one
- * phase). It also lets the move/up handlers in the hook be thin
- * dispatchers.
- */
-
 import { type AnumaNode, findById } from "../tools/slides/jsx";
 import {
   canMultiDrag,
@@ -31,11 +19,9 @@ import {
 import { computeSnap, getStageRelativeBounds, unionBounds } from "./snap";
 import type { Gesture, SnapBounds, SnapGuide } from "./types";
 
-/** Min dimension during resize, in slide-px. */
 const RESIZE_MIN = 8;
 /** Min pointer movement (in client px) before a click becomes a drag. Squared. */
 export const DRAG_THRESHOLD_SQ = 4 * 4;
-/** Snap radius in client pixels — feel is consistent across zoom levels. */
 const SNAP_THRESHOLD_CLIENT = 5;
 
 type Pointer = { x: number; y: number };
@@ -65,10 +51,6 @@ export function detectHandleGesture(
   return null;
 }
 
-/**
- * Build the initial 'rotating' gesture from a rotate-handle pointer-down.
- * Returns null if the selected element can't be measured.
- */
 function startRotateGesture(
   deck: AnumaNode,
   stage: HTMLElement,
@@ -95,11 +77,6 @@ function startRotateGesture(
   };
 }
 
-/**
- * Build the initial 'resizing' gesture from a resize-handle pointer-down.
- * Captures the element's UNROTATED bounds (recovered from the AABB
- * center + intrinsic w/h) as a fixed origin for subsequent moves.
- */
 function startResizeGesture(
   deck: AnumaNode,
   stage: HTMLElement,
@@ -114,8 +91,6 @@ function startResizeGesture(
   if (!node) return null;
   const sr = stage.getBoundingClientRect();
   const er = el.getBoundingClientRect();
-  // gBCR is the AABB; for rotated elements that's bigger than the box.
-  // AABB center == element center, so use that + intrinsic w/h.
   const startCenter = {
     x: (er.left + er.width / 2 - sr.left) / scale,
     y: (er.top + er.height / 2 - sr.top) / scale,
@@ -158,8 +133,6 @@ export function promotePendingToDragging(
   if (pending.elementId === null) return null;
   const elementId = pending.elementId;
   const resolved = resolveDropTarget(deck, stage, elementId, pointer, scale);
-  // Multi-drag only when the entire selection is absolute siblings under
-  // the same parent. Mixed selections fall back to single-drag.
   const ids = Array.from(currentSelection);
   const elementIds = canMultiDrag(deck, ids) ? ids : [elementId];
   const startBoundsList: SnapBounds[] = [];

@@ -30,25 +30,20 @@ export interface MediaDimensions {
  * Stored as JSON for flexibility.
  */
 export interface MediaMetadata {
-  // Video/Audio specific
   codec?: string;
   bitrate?: number;
   frameRate?: number;
 
-  // Image specific
   colorSpace?: string;
   hasAlpha?: boolean;
 
-  // Document specific
   pageCount?: number;
   author?: string;
 
-  // Generation specific (for AI-generated media)
   prompt?: string;
   seed?: number;
   steps?: number;
 
-  // Any additional metadata
   [key: string]: unknown;
 }
 
@@ -67,7 +62,6 @@ export interface StoredMedia {
   /** Associated conversation ID (for quick filtering) */
   conversationId?: string;
 
-  // Basic info
   /** Display name of the file */
   name: string;
   /** MIME type (e.g., "image/png", "video/mp4") */
@@ -77,7 +71,6 @@ export interface StoredMedia {
   /** File size in bytes */
   size: number;
 
-  // Origin
   /** Role of who attached this media */
   role: MediaRole;
   /** AI model used for generation (if AI-generated) */
@@ -86,7 +79,6 @@ export interface StoredMedia {
   /** Original external URL for cached files (MCP R2, etc.) */
   sourceUrl?: string;
 
-  // Media-specific
   /** Dimensions for images/videos */
   dimensions?: MediaDimensions;
   /** Duration in seconds for video/audio */
@@ -94,11 +86,9 @@ export interface StoredMedia {
   /** Additional metadata */
   metadata?: MediaMetadata;
 
-  // Timestamps
   createdAt: Date;
   updatedAt: Date;
 
-  // Soft delete
   isDeleted: boolean;
 }
 
@@ -115,14 +105,12 @@ export interface CreateMediaOptions {
   /** Associated conversation ID (optional) */
   conversationId?: string;
 
-  // Required fields
   name: string;
   mimeType: string;
   mediaType: MediaType;
   size: number;
   role: MediaRole;
 
-  // Optional fields
   model?: string;
   sourceUrl?: string;
   dimensions?: MediaDimensions;
@@ -190,8 +178,6 @@ export interface MediaOperationsContext {
   embeddedWalletSigner?: MediaSignMessageFn;
 }
 
-// Utility functions
-
 /**
  * Generate a unique media ID.
  */
@@ -214,7 +200,6 @@ export function getMediaTypeFromMime(mimeType: string): MediaType {
   if (mime.startsWith("audio/")) {
     return "audio";
   }
-  // Everything else is a document
   return "document";
 }
 

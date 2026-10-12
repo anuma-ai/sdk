@@ -8,20 +8,7 @@ import {
   updateVaultFolderOp,
 } from "./operations";
 
-// ---------------------------------------------------------------------------
-// Shared mock helpers
-// ---------------------------------------------------------------------------
-
-/**
- * Create a mock VaultFolder record that mimics a WatermelonDB Model.
- *
- * `raw` is mutated by `_setRaw` so that getter-based properties like
- * `isDeleted` reflect updates made inside `prepareUpdate` callbacks —
- * the same pattern used in memoryVault/operations.test.ts.
- */
 function mockFolderRecord(overrides: Record<string, unknown> = {}) {
-  // Seed raw from overrides so that getter-based properties reflect initial
-  // override values AND remain properly mutable via _setRaw.
   const raw: Record<string, unknown> = {
     name: (overrides.name as string) ?? "My Folder",
     scope: (overrides.scope as string) ?? "private",
@@ -110,17 +97,10 @@ function makeCtx(
   };
 }
 
-// ---------------------------------------------------------------------------
-// folderToStored — context field uses ?? null (not || "")
-// ---------------------------------------------------------------------------
-
 describe("folderToStored — context field ?? semantics", () => {
   beforeEach(() => vi.clearAllMocks());
 
   it("preserves empty string context ('' stays '', not coerced to null)", async () => {
-    // folderToStored uses `folder.context ?? null`.
-    // If the model returns "" (empty string), ?? passes it through unchanged.
-    // The old || would have coerced "" to null.
     const emptyContextFolder = mockFolderRecord({ context: "" });
     const ctx = makeCtx({
       vaultFolderCollection: {
@@ -132,7 +112,6 @@ describe("folderToStored — context field ?? semantics", () => {
     });
 
     const folders = await getAllVaultFoldersOp(ctx);
-    // The context field must survive as "" — not be coerced to null
     expect(folders[0].context).toBe("");
   });
 
@@ -167,19 +146,10 @@ describe("folderToStored — context field ?? semantics", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// updateVaultFolderOp
-// ---------------------------------------------------------------------------
-
 describe("updateVaultFolderOp", () => {
   beforeEach(() => vi.clearAllMocks());
 
   it("never yields the event loop between prepareUpdate and batch on scope change", async () => {
-    // WatermelonDB's dev diagnostic throws (uncaught → RedBox on RN Debug
-    // builds) when a prepared update is still pending as the event loop turns.
-    // The scope-change cascade must therefore fetch the folder's memories
-    // BEFORE preparing the folder update — an interleaved fetch left the
-    // folder record prepared across an await.
     const pending = new Set<string>();
     const violations: string[] = [];
     const folder = mockFolderRecord({ id: "folder_1", scope: "private" });
@@ -212,21 +182,16 @@ describe("updateVaultFolderOp", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// updateVaultFolderContextOp
-// ---------------------------------------------------------------------------
-
 describe("updateVaultFolderContextOp", () => {
   beforeEach(() => vi.clearAllMocks());
 
   it("happy path: sets context on a live folder and returns the updated StoredVaultFolder", async () => {
     const record = mockFolderRecord({ id: "folder_42" });
 
-    // Re-fetch after batch must return the updated record
     const findFn = vi
       .fn()
-      .mockResolvedValueOnce(record) // initial find
-      .mockResolvedValueOnce({ ...record, context: "Work memories" }); // re-fetch
+      .mockResolvedValueOnce(record)
+      .mockResolvedValueOnce({ ...record, context: "Work memories" });
 
     const ctx = makeCtx({
       database: {
@@ -242,10 +207,8 @@ describe("updateVaultFolderContextOp", () => {
 
     expect(result).not.toBeNull();
     expect(result!.uniqueId).toBe("folder_42");
-    // The prepareUpdate should have been called with the new context value
     const preparedCalls = record.prepareUpdate.mock.calls;
     expect(preparedCalls.length).toBe(1);
-    // Verify the raw context was set
     expect(record.context).toBe("Work memories");
   });
 
@@ -295,7 +258,6 @@ describe("updateVaultFolderContextOp", () => {
     const result = await updateVaultFolderContextOp(ctx, "folder_5", null);
 
     expect(result).not.toBeNull();
-    // After writing null, the raw context field should be null
     expect(record.context).toBeNull();
   });
 
@@ -310,7 +272,6 @@ describe("updateVaultFolderContextOp", () => {
       }),
     };
 
-    // Re-fetch returns a simple stored-like shape
     const resFetch = {
       id: "folder_7",
       name: "Test",
@@ -357,10 +318,6 @@ describe("updateVaultFolderContextOp", () => {
     expect(result).toBeNull();
   });
 });
-
-// ---------------------------------------------------------------------------
-// createVaultFolderOp — sanity check that isSystem flag is wired
-// ---------------------------------------------------------------------------
 
 describe("createVaultFolderOp — isSystem flag", () => {
   beforeEach(() => vi.clearAllMocks());

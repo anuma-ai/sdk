@@ -1,6 +1,3 @@
-// Unit tests for the `--compare` pairing core — the silent-skip branches
-// rutwik2001 flagged as untested (no prior per-query data, no overlap,
-// malformed prior rows). No API key / network needed.
 import { describe, expect, it } from "vitest";
 
 import { pairForComparison, type PairableRow, type PriorRow } from "./comparison";
@@ -38,9 +35,9 @@ describe("pairForComparison", () => {
   it("skips prior rows with missing/non-numeric recall or ndcg and counts them", () => {
     const prior: PriorRow[] = [
       { query: "good", recall: 0.4, ndcg: 0.3 },
-      { query: "no-ndcg", recall: 0.5 }, // ndcg undefined
+      { query: "no-ndcg", recall: 0.5 },
       { query: "nan-recall", recall: NaN, ndcg: 0.5 },
-      { query: "string", recall: "0.5", ndcg: 0.5 }, // wrong type
+      { query: "string", recall: "0.5", ndcg: 0.5 },
     ];
     const current = [
       cur("good", 0.9, 0.9),
@@ -51,7 +48,7 @@ describe("pairForComparison", () => {
     const result = pairForComparison(current, prior);
     expect(result).toMatchObject({
       status: "paired",
-      curRecall: [0.9], // only "good" survived
+      curRecall: [0.9],
       baseRecall: [0.4],
       malformed: 3,
     });

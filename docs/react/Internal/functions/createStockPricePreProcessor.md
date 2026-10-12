@@ -2,7 +2,7 @@
 
 > **createStockPricePreProcessor**(`options`: [`StockPricePreProcessorOptions`](../interfaces/StockPricePreProcessorOptions.md)): [`PromptPreProcessor`](../type-aliases/PromptPreProcessor.md)
 
-Defined in: [src/lib/chat/stockPriceClassifier.ts:119](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/stockPriceClassifier.ts#119)
+Defined in: [src/lib/chat/stockPriceClassifier.ts:105](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/stockPriceClassifier.ts#105)
 
 Build a pre-processor that runs stock-price classification on the shared
 embedding provided by `runToolLoop`, and — if the classifier decides the

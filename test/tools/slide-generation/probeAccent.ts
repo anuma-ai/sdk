@@ -1,23 +1,3 @@
-/**
- * E2E probe for the `accent` override in plan_deck.
- *
- * Asks the LLM to generate decks for a handful of topics where a specific
- * brand-color register is obvious from context (coffee roastery → warm
- * terracotta, fintech series-A → trust blue, climate tech → green). Logs
- * the accent the LLM chose for each topic (or "default" if it didn't
- * reach for the knob), then dumps each deck to HTML for visual review.
- *
- * Use to answer: does the prompt copy in PLAN_DECK_SCHEMA + system
- * prompt nudge the LLM into using `accent` unprompted? Or does it
- * always fall back to the system's default?
- *
- * Run:
- *   PORTAL_API_KEY=... pnpm exec tsx test/tools/slide-generation/probeAccent.ts
- *
- * Output:
- *   test/tools/slide-generation/.output/probe-accent-<topic>/index.html
- */
-
 import { buildSlideSystemPrompt } from "../../../src/tools/slides/index.js";
 import {
   config,
@@ -34,7 +14,6 @@ const SYSTEM_PROMPT = buildSlideSystemPrompt();
 
 type Probe = {
   slug: string;
-  /** What we expect the LLM to do (informally) — used in the summary print. */
   expect: string;
   prompt: string;
 };
@@ -101,13 +80,9 @@ async function runProbe(probe: Probe): Promise<{
     };
   }
 
-  // Inspect the plan_deck call to learn whether the LLM reached for the
-  // accent knob and which design-system suffix it picked.
   const planCall = log.find((l) => l.name === "plan_deck");
   const args = (planCall?.args ?? {}) as { accent?: string; layouts?: string[] };
   const accent = typeof args.accent === "string" ? args.accent : null;
-  // Layouts use compound names like "cover-statement--minimal-swiss".
-  // Pull the suffix off the first one.
   const layout =
     Array.isArray(args.layouts) && typeof args.layouts[0] === "string" ? args.layouts[0] : null;
   const designSystem = layout?.includes("--") ? layout.split("--").slice(-1)[0]! : null;

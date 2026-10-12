@@ -6,6 +6,12 @@ export class VaultMemory extends Model {
 
   @text("content") content!: string;
   @text("scope") scope!: string;
+  /** Profile kind, or null for a free-form memory. */
+  @field("kind") kind!: string | null;
+  /** Canonical JSON value of a kinded memory, encrypted at rest. */
+  @field("kind_value") kindValue!: string | null;
+  /** private | matching | profile. */
+  @field("level") level!: string | null;
   @field("folder_id") folderId!: string | null;
   @field("user_id") userId!: string | null;
   @field("embedding") embedding!: string | null;

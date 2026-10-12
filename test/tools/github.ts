@@ -1,19 +1,8 @@
-/**
- * GitHub tool e2e test
- *
- * Verifies that the LLM correctly uses github_api and
- * github_get_authenticated_user tools via the real Portal API.
- *
- * Requires: PORTAL_API_KEY environment variable
- */
-
 import { describe, it, expect } from "vitest";
 import { runToolLoop } from "./setup.js";
 import { createGitHubTools } from "../../src/tools/github.js";
 import { config, extractText, printResult, wrapTool, type ToolCallLog } from "./setup.js";
 
-// Use a static token — in CI this would come from a GitHub OAuth token secret.
-// For now, tests verify tool invocation patterns, not actual GitHub API responses.
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN || "";
 
 describe("github", () => {
@@ -105,7 +94,6 @@ describe("github", () => {
     const apiCalls = log.filter((l) => l.name === "github_api");
     expect(apiCalls.length).toBeGreaterThanOrEqual(1);
 
-    // Verify the LLM called the right endpoint
     const prCall = apiCalls.find(
       (l) =>
         (l.args.path as string)?.includes("/pulls") &&

@@ -1,13 +1,5 @@
-/**
- * Security Tests for Google Drive OAuth Authentication
- *
- * These tests document security vulnerabilities. They currently FAIL because the vulnerabilities exist.
- * Once the vulnerabilities are fixed, these tests should PASS, verifying the fixes work correctly.
- */
-
 import { describe, it, expect, afterEach, beforeEach, vi } from "vitest";
 
-// Type declaration for global in test environment
 declare const global: typeof globalThis;
 import { handleGoogleDriveCallback } from "./auth";
 import type { Client } from "../../../client/client";
@@ -15,13 +7,6 @@ import { postAuthOauthByProviderExchange } from "../../../client/sdk.gen";
 import { setLogger, consoleLogger, type Logger } from "../../logger";
 import type { OAuthError, OAuthResult } from "../oauth/storage";
 
-/**
- * `OAuthResult` is a discriminated union, and `expect(result.ok).toBe(false)`
- * does not narrow it for the compiler — so reading `result.error` afterwards is
- * a type error even though the runtime value is there. Assert and narrow in one
- * step: this throws (failing the test) if the callback unexpectedly succeeded,
- * and hands back the `error` payload for the assertions that follow.
- */
 function expectFailure<T>(result: OAuthResult<T>): OAuthError {
   if (result.ok) {
     throw new Error(`expected an error result, got ok: ${JSON.stringify(result.data)}`);
@@ -29,12 +14,10 @@ function expectFailure<T>(result: OAuthResult<T>): OAuthError {
   return result.error;
 }
 
-// Mock the SDK function
 vi.mock("../../../client/sdk.gen", () => ({
   postAuthOauthByProviderExchange: vi.fn(),
 }));
 
-// Mock window, sessionStorage, and localStorage
 const sessionStorageMock = (() => {
   let store: Record<string, string> = {};
   return {
@@ -90,7 +73,6 @@ describe("SECURITY: Google Drive OAuth Error Handling", () => {
     sessionStorageMock.clear();
     localStorageMock.clear();
 
-    // Setup OAuth state
     sessionStorageMock.setItem(
       "google_oauth_state",
       JSON.stringify({
@@ -99,7 +81,6 @@ describe("SECURITY: Google Drive OAuth Error Handling", () => {
       })
     );
 
-    // Mock window
     if (typeof global.window === "undefined") {
       Object.defineProperty(global, "window", {
         value: mockWindow,
@@ -115,23 +96,13 @@ describe("SECURITY: Google Drive OAuth Error Handling", () => {
     setLogger(consoleLogger);
   });
 
-  /**
-   * SECURITY ISSUE: Errors in OAuth callbacks are silently caught and return null
-   *
-   * This test verifies that errors in OAuth callbacks are properly logged or thrown,
-   * not silently ignored, to enable debugging and security monitoring.
-   *
-   * FIXED: Errors now return OAuthResult with error details.
-   */
   it("should log or throw errors in OAuth callbacks instead of silently returning null", async () => {
-    // Mock API call to throw an error
     vi.mocked(postAuthOauthByProviderExchange).mockRejectedValue(
       new Error("Encryption failed: Key not available")
     );
 
     const result = await handleGoogleDriveCallback("/auth/google/callback");
 
-    // Error should be logged and returned in result object
     expect(result.ok).toBe(false);
     const error = expectFailure(result);
     expect(error).toBeDefined();
@@ -141,16 +112,7 @@ describe("SECURITY: Google Drive OAuth Error Handling", () => {
     expect(mockLogger.warn).toHaveBeenCalled();
   });
 
-  /**
-   * SECURITY ISSUE: Encryption failures are masked
-   *
-   * This test verifies that encryption failures are handled explicitly and distinguished
-   * from other errors, preventing tokens from being stored unencrypted.
-   *
-   * FIXED: Encryption failures now return error result with encryption error code.
-   */
   it("should handle encryption failures explicitly and distinguish them from other errors", async () => {
-    // Mock successful API response
     vi.mocked(postAuthOauthByProviderExchange).mockResolvedValue({
       data: {
         access_token: "test_token",
@@ -159,7 +121,6 @@ describe("SECURITY: Google Drive OAuth Error Handling", () => {
       },
     } as any);
 
-    // Mock storeTokenData to throw encryption error
     const storeSpy = vi
       .spyOn(await import("../oauth/storage"), "storeTokenData")
       .mockRejectedValue(new Error("OAuth token encryption failed: Key not available"));
@@ -170,7 +131,6 @@ describe("SECURITY: Google Drive OAuth Error Handling", () => {
       "0x1234567890123456789012345678901234567890"
     );
 
-    // Encryption failure should be explicitly handled with error code
     expect(result.ok).toBe(false);
     const error = expectFailure(result);
     expect(error.code).toBe("encryption");

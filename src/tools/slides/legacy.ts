@@ -1,31 +1,5 @@
-/**
- * Backwards-compat for slide decks generated before the JSX migration.
- *
- * Older decks were persisted as JSON with a typed `SlideDeck` shape:
- *
- *   {
- *     version: 2,
- *     theme: { fontPreset, colors: { background, slideBg, ... } },
- *     slides: [{
- *       id, background?,
- *       elements: [{ kind: 'text'|'image'|'shape'|'icon', id, x, y, w, h, ... }],
- *     }],
- *   }
- *
- * Coordinates were percent-of-canvas (0..100). The new runtime stores
- * decks as `<Anuma.Deck>` JSX with pixel coordinates on a 960×540 slide.
- *
- * This module converts legacy JSON → an `AnumaNode` tree so consumers
- * can load old decks transparently and (if they want) re-serialise as
- * JSX to migrate the persisted form forward.
- */
-
 import type { AnumaNode } from "./jsx.js";
 
-// Slide canvas dimensions match the SLIDE_CANVAS_WIDTH / HEIGHT constants
-// re-exported from `./index.ts`. Inlining them here keeps this module
-// independent of the (much larger) tool-factory module — `./index.ts`
-// imports `./legacy.ts`, not the other way round.
 const REF_W = 960;
 const REF_H = 540;
 
@@ -33,10 +7,6 @@ const round = (n: number): number => Math.round(n * 100) / 100;
 const xPx = (pct: number): number => round((pct / 100) * REF_W);
 const yPx = (pct: number): number => round((pct / 100) * REF_H);
 const fsPx = (pct: number): number => round((pct / 100) * REF_W);
-
-// ---------------------------------------------------------------------------
-// Legacy schema (matches the old `apps/web/lib/legacy-slide-types.ts`)
-// ---------------------------------------------------------------------------
 
 interface LegacyTheme {
   fontPreset?: string;
@@ -118,10 +88,6 @@ export interface LegacyDeckJson {
   slides?: LegacySlide[];
 }
 
-// ---------------------------------------------------------------------------
-// Public API
-// ---------------------------------------------------------------------------
-
 /**
  * Detect whether `raw` looks like a legacy JSON deck. Cheap structural
  * check — used by callers that want to branch between `parseJsx` and
@@ -152,10 +118,6 @@ export function convertLegacyDeckJson(raw: unknown): AnumaNode | null {
   return legacyDeckToAnuma(parsed);
 }
 
-// ---------------------------------------------------------------------------
-// Conversion internals
-// ---------------------------------------------------------------------------
-
 const DEFAULT_COLORS: Required<NonNullable<LegacyTheme["colors"]>> = {
   background: "#222529",
   slideBg: "#1a1b1e",
@@ -163,7 +125,6 @@ const DEFAULT_COLORS: Required<NonNullable<LegacyTheme["colors"]>> = {
   textPrimary: "#ffffff",
   textSecondary: "#ffffff",
   textMuted: "#9a9592",
-  // White on the dark default deck — the brand orange is retired (#8419).
   accent: "#ffffff",
   card: "#1a1a21",
   border: "#434242",
@@ -269,7 +230,6 @@ function legacyElementToAnuma(el: LegacyElement): AnumaNode {
     return { tag, attrs, children: [] };
   }
 
-  // icon
   return {
     tag: "Icon",
     attrs: {

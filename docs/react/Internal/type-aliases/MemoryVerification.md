@@ -2,7 +2,7 @@
 
 > **MemoryVerification** = `object` & { `status`: `"supported"` | `"unsupported"`; } | { `reason`: [`UnverifiableReason`](UnverifiableReason.md); `status`: `"unverifiable"`; } | { `reason`: [`UncheckedReason`](UncheckedReason.md); `status`: `"unchecked"`; }
 
-Defined in: [src/lib/memory/verifySupport.ts:222](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/verifySupport.ts#222)
+Defined in: [src/lib/memory/verifySupport.ts:87](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/verifySupport.ts#87)
 
 One memory's verdict.
 

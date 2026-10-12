@@ -1,10 +1,3 @@
-/**
- * Queue Types
- *
- * Types for the in-memory write queue that holds operations
- * when encryption keys aren't yet available.
- */
-
 import type { EmbeddedWalletSignerFn, SignMessageFn } from "../../../react/useEncryption";
 
 /**

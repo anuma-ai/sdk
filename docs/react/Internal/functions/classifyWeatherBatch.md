@@ -2,7 +2,7 @@
 
 > **classifyWeatherBatch**(`prompts`: `string`\[], `options`: `WeatherClassifierOptions`): `Promise`<[`WeatherClassification`](../interfaces/WeatherClassification.md)\[]>
 
-Defined in: [src/lib/chat/weatherClassifier.ts:71](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/weatherClassifier.ts#71)
+Defined in: [src/lib/chat/weatherClassifier.ts:57](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/weatherClassifier.ts#57)
 
 Batch-classify multiple prompts. Embeds all prompts in one batch
 call for efficiency.

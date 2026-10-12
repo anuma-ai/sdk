@@ -15,7 +15,6 @@ export type StreamSmoothingConfig = {
   rampDuration?: number;
 };
 
-/** Default tick interval in ms (~60fps) */
 const TICK_INTERVAL = 16;
 
 /**
@@ -114,7 +113,6 @@ export class StreamSmoother {
       return Promise.resolve();
     }
 
-    // Ensure the timer is running to drain the buffer
     this.ensureTimer();
 
     return new Promise<void>((resolve) => {

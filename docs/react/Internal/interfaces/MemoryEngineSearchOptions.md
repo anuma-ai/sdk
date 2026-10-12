@@ -1,6 +1,6 @@
 # MemoryEngineSearchOptions
 
-Defined in: [src/lib/memoryEngine/types.ts:13](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryEngine/types.ts#13)
+Defined in: [src/lib/memoryEngine/types.ts:6](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryEngine/types.ts#6)
 
 Options for memory engine search
 
@@ -10,7 +10,7 @@ Options for memory engine search
 
 > `optional` **contextMessages**: `number`
 
-Defined in: [src/lib/memoryEngine/types.ts:29](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryEngine/types.ts#29)
+Defined in: [src/lib/memoryEngine/types.ts:22](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryEngine/types.ts#22)
 
 Number of surrounding messages to include around each match when expanding to full sessions. 0 returns only matched chunks (no expansion), undefined returns the entire conversation. Default: undefined (full session).
 
@@ -20,7 +20,7 @@ Number of surrounding messages to include around each match when expanding to fu
 
 > `optional` **conversationId**: `string`
 
-Defined in: [src/lib/memoryEngine/types.ts:23](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryEngine/types.ts#23)
+Defined in: [src/lib/memoryEngine/types.ts:16](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryEngine/types.ts#16)
 
 Filter to a specific conversation
 
@@ -30,7 +30,7 @@ Filter to a specific conversation
 
 > `optional` **excludeConversationId**: `string`
 
-Defined in: [src/lib/memoryEngine/types.ts:25](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryEngine/types.ts#25)
+Defined in: [src/lib/memoryEngine/types.ts:18](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryEngine/types.ts#18)
 
 Exclude messages from this conversation (e.g., the current conversation)
 
@@ -40,7 +40,7 @@ Exclude messages from this conversation (e.g., the current conversation)
 
 > `optional` **includeAssistant**: `boolean`
 
-Defined in: [src/lib/memoryEngine/types.ts:21](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryEngine/types.ts#21)
+Defined in: [src/lib/memoryEngine/types.ts:14](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryEngine/types.ts#14)
 
 Include assistant messages in results (default: false)
 
@@ -50,7 +50,7 @@ Include assistant messages in results (default: false)
 
 > `optional` **limit**: `number`
 
-Defined in: [src/lib/memoryEngine/types.ts:15](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryEngine/types.ts#15)
+Defined in: [src/lib/memoryEngine/types.ts:8](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryEngine/types.ts#8)
 
 Maximum number of results to return (default: 8)
 
@@ -60,7 +60,7 @@ Maximum number of results to return (default: 8)
 
 > `optional` **minSimilarity**: `number`
 
-Defined in: [src/lib/memoryEngine/types.ts:19](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryEngine/types.ts#19)
+Defined in: [src/lib/memoryEngine/types.ts:12](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryEngine/types.ts#12)
 
 Minimum similarity threshold 0-1 (default: 0.3)
 
@@ -70,7 +70,7 @@ Minimum similarity threshold 0-1 (default: 0.3)
 
 > `optional` **sortBy**: `"similarity"` | `"chronological"`
 
-Defined in: [src/lib/memoryEngine/types.ts:27](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryEngine/types.ts#27)
+Defined in: [src/lib/memoryEngine/types.ts:20](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryEngine/types.ts#20)
 
 Sort order for results: "similarity" (most relevant first) or "chronological" (oldest first). Default: "similarity"
 
@@ -80,6 +80,6 @@ Sort order for results: "similarity" (most relevant first) or "chronological" (o
 
 > `optional` **topK**: `number`
 
-Defined in: [src/lib/memoryEngine/types.ts:17](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryEngine/types.ts#17)
+Defined in: [src/lib/memoryEngine/types.ts:10](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryEngine/types.ts#10)
 
 Alias for limit - number of chunks to return (default: 8)

@@ -1,8 +1,8 @@
-# getAllVaultMemoriesOp
+# ~~getAllVaultMemoriesOp()~~
 
 > **getAllVaultMemoriesOp**(`ctx`: [`VaultMemoryOperationsContext`](../interfaces/VaultMemoryOperationsContext.md), `options?`: `object`): `Promise`<[`StoredVaultMemory`](../interfaces/StoredVaultMemory.md)\[]>
 
-Defined in: [src/lib/db/memoryVault/operations.ts:599](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#599)
+Defined in: [src/lib/db/memoryVault/operations.ts:607](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#607)
 
 ## Parameters
 
@@ -159,6 +159,40 @@ Used by a "memory history" view to render retired facts.
 <tr>
 <td>
 
+`options.kinds?`
+
+</td>
+<td>
+
+`string`\[]
+
+</td>
+<td>
+
+Restrict to these profile kinds.
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.levels?`
+
+</td>
+<td>
+
+(`"private"` | `"matching"` | `"profile"`)\[]
+
+</td>
+<td>
+
+Filter by level.
+
+</td>
+</tr>
+<tr>
+<td>
+
 `options.limit?`
 
 </td>
@@ -249,3 +283,7 @@ published set to diff against the server index.
 ## Returns
 
 `Promise`<[`StoredVaultMemory`](../interfaces/StoredVaultMemory.md)\[]>
+
+## Deprecated
+
+App code: use `MemoryStore.list` (`createLocalMemoryStore`).

@@ -1,12 +1,3 @@
-/**
- * One-off: extract named entities from every memory + query in the vault
- * benchmark dataset, save to JSON, commit. The benchmark loads this cache
- * instead of the heuristic extractor when --entities=llm is passed.
- *
- * Run:  PORTAL_API_KEY=... npx tsx scripts/precompute-bench-entities.ts
- *
- * Re-run idempotent — if the cache already has an entry for a text, skip.
- */
 import "dotenv/config";
 import { readFile, writeFile } from "node:fs/promises";
 
@@ -94,7 +85,6 @@ async function main() {
     return;
   }
 
-  // Batch with bounded concurrency.
   const batches: string[][] = [];
   for (let i = 0; i < missing.length; i += BATCH_SIZE) {
     batches.push(missing.slice(i, i + BATCH_SIZE));
@@ -125,7 +115,6 @@ async function main() {
   }
   await Promise.all(Array.from({ length: CONCURRENCY }, () => worker()));
 
-  // Stable-sort the cache for clean diffs.
   const sorted: Record<string, string[]> = {};
   for (const k of Object.keys(cache).sort()) sorted[k] = cache[k]!.sort();
 

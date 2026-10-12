@@ -2,7 +2,7 @@
 
 > **classifyWebSearchBatch**(`prompts`: `string`\[], `options`: `WebSearchClassifierOptions`): `Promise`<[`WebSearchClassification`](../interfaces/WebSearchClassification.md)\[]>
 
-Defined in: [src/lib/chat/webSearchClassifier.ts:70](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/webSearchClassifier.ts#70)
+Defined in: [src/lib/chat/webSearchClassifier.ts:57](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/webSearchClassifier.ts#57)
 
 Batch-classify multiple prompts. Embeds all prompts in one batch
 call for efficiency.

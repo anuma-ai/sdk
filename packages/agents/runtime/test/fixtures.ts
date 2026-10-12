@@ -1,8 +1,3 @@
-/**
- * Test fixtures shared across the e2e suite. Kept tiny so each test can
- * read its own setup at a glance.
- */
-
 import type { StreamingTransport, StreamingTransportResult } from "@anuma/sdk/server";
 
 import type { AgentConfigLike } from "../src/runAgentRequest.js";
@@ -24,24 +19,13 @@ export const havenGrant: StubGrant = {
 export const sentinelGrant: StubGrant = {
   userAddress: "0xsentinel-user",
   clientId: "sentinel_v1",
-  scopes: ["credits:spend"], // no gmail
+  scopes: ["credits:spend"],
 };
 
 export function mockReq(bearer: string): IncomingRequest {
   return { headers: { authorization: `Bearer ${bearer}` } };
 }
 
-/**
- * Plan-driven streaming transport for tests.
- *
- * Each round in the loop fires the next entry of `plans`:
- *   - kind: "tool_call" → emits a tool-call chunk + finish_reason: "tool_calls"
- *   - kind: "assistant" → emits a content chunk + finish_reason: "stop"
- *
- * Rounds advance via runToolLoop calling the transport once per LLM
- * request. The transport returns an async iterable that yields the
- * planned chunks immediately and ends.
- */
 interface ToolCallPlan {
   kind: "tool_call";
   toolName: string;
@@ -115,10 +99,6 @@ function chunksForPlan(plan: LlmPlan): unknown[] {
   ];
 }
 
-/**
- * Build a transport that walks through `plans` round by round. Each call
- * pops the next plan and yields its chunks.
- */
 export function plannedTransport(plans: LlmPlan[]): StreamingTransport {
   let round = 0;
   return (): StreamingTransportResult => {

@@ -37,13 +37,11 @@ describe("QueueManager", () => {
     });
 
     it("should reject operations when queue is full (1000 limit)", () => {
-      // Fill the queue
       for (let i = 0; i < 1000; i++) {
         const id = manager.queueOperation(testAddress, "createMessage", { i });
         expect(id).toBeTruthy();
       }
 
-      // Next one should return null
       const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
       const id = manager.queueOperation(testAddress, "createMessage", { overflow: true });
       expect(id).toBeNull();
@@ -69,7 +67,6 @@ describe("QueueManager", () => {
 
       const ops = manager.getOperations(testAddress);
       expect(ops.length).toBe(2);
-      // createConversation (priority 0) should come before createMessage (priority 2)
       expect(ops[0].type).toBe("createConversation");
       expect(ops[1].type).toBe("createMessage");
     });
@@ -140,7 +137,6 @@ describe("QueueManager", () => {
       expect(result.succeeded.length).toBe(0);
       expect(result.failed.length).toBe(1);
       expect(result.failed[0].error).toBe("Validation error");
-      // Failed ops get moved out of pending
       expect(manager.getStatus(testAddress).pending).toBe(0);
       expect(manager.getStatus(testAddress).failed).toBe(1);
     });
@@ -159,7 +155,6 @@ describe("QueueManager", () => {
 
       const result = await manager.flush(mockEncryptionContext, executor);
 
-      // Parent fails, dependent also fails
       expect(result.succeeded.length).toBe(0);
       expect(result.failed.length).toBe(2);
       expect(result.failed[1].error).toBe("Dependency failed");
@@ -177,14 +172,11 @@ describe("QueueManager", () => {
         await firstCallPromise;
       });
 
-      // Start first flush (will block on executor)
       const flush1Promise = manager.flush(mockEncryptionContext, executor);
 
-      // Second flush should return empty immediately
       const result2 = await manager.flush(mockEncryptionContext, executor);
       expect(result2.total).toBe(0);
 
-      // Complete first flush
       resolveFirst!();
       const result1 = await flush1Promise;
       expect(result1.total).toBe(1);
@@ -217,7 +209,6 @@ describe("QueueManager", () => {
 
       const result = await manager.flush(mockEncryptionContext, executor);
 
-      // Only first operation should succeed, rest skipped due to pause
       expect(result.succeeded.length).toBe(1);
 
       manager.resume(testAddress);
@@ -247,7 +238,7 @@ describe("QueueManager", () => {
       unsubscribe();
 
       manager.queueOperation(testAddress, "createMessage", { a: 2 });
-      expect(callback).toHaveBeenCalledTimes(1); // Not called again
+      expect(callback).toHaveBeenCalledTimes(1);
     });
   });
 });
@@ -322,9 +313,9 @@ describe("topologicalSort", () => {
     ];
 
     const sorted = topologicalSort(ops);
-    expect(sorted[0].id).toBe("conv1"); // Lowest priority (0)
-    expect(sorted[1].id).toBe("msg1"); // Same priority, earlier timestamp
-    expect(sorted[2].id).toBe("msg2"); // Same priority, later timestamp
+    expect(sorted[0].id).toBe("conv1");
+    expect(sorted[1].id).toBe("msg1");
+    expect(sorted[2].id).toBe("msg2");
   });
 
   it("should handle empty array", () => {

@@ -1,6 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-// Mock the optional peer dependency so this test never loads a real model.
 const { pipeline, classify } = vi.hoisted(() => ({
   pipeline: vi.fn(),
   classify: vi.fn(),
@@ -51,9 +50,6 @@ describe("aggregateTokens", () => {
   });
 
   it("drops the whole entity when one of its tokens can't be located", () => {
-    // The I-PER surface doesn't exist in the text (tokenizer normalization
-    // mismatch). Rather than emit a mis-anchored partial span, the entire PERSON
-    // entity is dropped.
     const spans = aggregateTokens(
       [tok("B-PER", "Sarah"), tok("I-PER", "Xyzzy")],
       "Sarah waved",
@@ -64,8 +60,6 @@ describe("aggregateTokens", () => {
   });
 
   it("skips an unplaceable start token without corrupting a later entity", () => {
-    // The first token can't be located; it's dropped and the cursor doesn't
-    // stall onto the following entity, which is still detected at its real offset.
     const text = "visit Paris";
     const spans = aggregateTokens([tok("B-PER", "Zzz"), tok("B-LOC", "Paris")], text, TAG_MAP, 0.5);
     expect(spans).toEqual([{ start: 6, end: 11, category: "LOCATION", score: expect.any(Number) }]);
@@ -84,13 +78,12 @@ describe("createTransformersNerDetector", () => {
     classify.mockResolvedValue([tok("B-LOC", "Paris")]);
     const detector = createTransformersNerDetector({ model: "test/model", dtype: "q8" });
 
-    // Importing/constructing must NOT load the model yet.
     expect(pipeline).not.toHaveBeenCalled();
 
     const a = await detector.detect("I went to Paris");
     const b = await detector.detect("Paris again");
 
-    expect(pipeline).toHaveBeenCalledTimes(1); // cached across calls
+    expect(pipeline).toHaveBeenCalledTimes(1);
     expect(pipeline).toHaveBeenCalledWith("token-classification", "test/model", { dtype: "q8" });
     expect(a).toEqual([{ start: 10, end: 15, category: "LOCATION", score: expect.any(Number) }]);
     expect(b).toEqual([{ start: 0, end: 5, category: "LOCATION", score: expect.any(Number) }]);

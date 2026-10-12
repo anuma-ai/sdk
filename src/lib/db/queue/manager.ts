@@ -1,16 +1,3 @@
-/**
- * Queue Manager
- *
- * In-memory queue for database operations when encryption keys aren't yet available.
- * Operations are held in memory and flushed to the database once the key becomes available.
- *
- * Key design decisions:
- * - In-memory only: queue is lost on page refresh (acceptable since user must re-auth anyway)
- * - Per-wallet isolation: each wallet has its own queue
- * - Dependency tracking: operations are flushed in correct order (conversation before messages)
- * - Max 1000 operations per wallet to prevent memory leaks
- */
-
 import { v7 as uuidv7 } from "uuid";
 
 import { getLogger } from "../../logger";
@@ -26,7 +13,6 @@ import type {
 const MAX_OPERATIONS_PER_WALLET = 1000;
 const DEFAULT_MAX_RETRIES = 3;
 
-/** Priority levels for operation types (lower = higher priority) */
 const OPERATION_PRIORITY: Record<QueuedOperationType, number> = {
   createConversation: 0,
   updateConversationTitle: 1,
@@ -59,7 +45,6 @@ export function topologicalSort(operations: QueuedOperation[]): QueuedOperation[
     if (visited.has(op.id)) return;
     visited.add(op.id);
 
-    // Visit dependencies first
     for (const depId of op.dependencies) {
       const dep = opMap.get(depId);
       if (dep && !visited.has(depId)) {
@@ -70,7 +55,6 @@ export function topologicalSort(operations: QueuedOperation[]): QueuedOperation[
     sorted.push(op);
   }
 
-  // Sort by priority then timestamp before visiting to ensure stable ordering
   const prioritySorted = [...operations].sort((a, b) => {
     if (a.priority !== b.priority) return a.priority - b.priority;
     return a.timestamp - b.timestamp;
@@ -83,10 +67,6 @@ export function topologicalSort(operations: QueuedOperation[]): QueuedOperation[
   return sorted;
 }
 
-/**
- * Exponential backoff delay for retries.
- * 1s, 2s, 4s for retryCount 0, 1, 2
- */
 function exponentialBackoff(retryCount: number): number {
   return Math.pow(2, retryCount) * 1000;
 }
@@ -95,9 +75,6 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-/**
- * Determines if an error is transient and worth retrying.
- */
 function isRetryableError(error: unknown): boolean {
   if (error instanceof Error) {
     const msg = error.message.toLowerCase();
@@ -219,7 +196,6 @@ export class QueueManager {
   ): Promise<FlushResult> {
     const { walletAddress } = encryptionContext;
 
-    // Prevent concurrent flushes for the same wallet
     if (this.flushing.has(walletAddress)) {
       return { succeeded: [], failed: [], total: 0 };
     }
@@ -240,15 +216,12 @@ export class QueueManager {
 
     try {
       for (const op of operations) {
-        // Check if paused
         if (this.paused.has(walletAddress)) {
           break;
         }
 
-        // Check if all dependencies are met
         const depsUnmet = op.dependencies.some((depId) => !succeededSet.has(depId));
         if (depsUnmet) {
-          // If a dependency failed, this operation also fails
           const depFailed = op.dependencies.some((depId) => failed.some((f) => f.id === depId));
           if (depFailed) {
             failed.push({
@@ -258,8 +231,6 @@ export class QueueManager {
             this.moveToFailed(walletAddress, op);
             continue;
           }
-          // Dependencies not yet processed (shouldn't happen with topological sort)
-          // but handle gracefully
           failed.push({
             id: op.id,
             error: "Dependencies not yet resolved",
@@ -267,7 +238,6 @@ export class QueueManager {
           continue;
         }
 
-        // Try to execute the operation
         let lastError: unknown;
         let success = false;
 
@@ -304,7 +274,6 @@ export class QueueManager {
         }
       }
 
-      // Clean up empty queue
       if (walletQueue.size === 0) {
         this.queues.delete(walletAddress);
       }

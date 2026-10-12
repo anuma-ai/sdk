@@ -1,19 +1,5 @@
 #!/usr/bin/env node
 
-/**
- * Analyzes which consumer apps are impacted by changed SDK files.
- *
- * Uses the TypeScript compiler to resolve exported symbols back to their
- * declaring source files, and dependency-cruiser to build the full transitive
- * dependency graph. For each consumer app it parses @anuma/sdk imports and
- * cross-references with the changed files to produce a per-app impact report.
- *
- * Usage:
- *   node scripts/import-impact.mjs \
- *     --changed "src/lib/chat/useChat.ts,src/lib/hooks/useSettings.ts" \
- *     --apps "/tmp/starter-next,/tmp/dashboard"
- */
-
 import { execSync } from "child_process";
 import { readFileSync, readdirSync, writeFileSync } from "fs";
 import { createRequire } from "module";
@@ -25,10 +11,6 @@ const ts = require("typescript");
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const SDK_ROOT = resolve(__dirname, "..");
-
-// ---------------------------------------------------------------------------
-// CLI
-// ---------------------------------------------------------------------------
 
 function parseArgs() {
   const args = process.argv.slice(2);
@@ -47,10 +29,6 @@ function parseArgs() {
   return result;
 }
 
-// ---------------------------------------------------------------------------
-// 1. Read SDK entry points from package.json
-// ---------------------------------------------------------------------------
-
 function getEntryPoints() {
   const pkg = JSON.parse(readFileSync(join(SDK_ROOT, "package.json"), "utf8"));
   const entryPoints = {};
@@ -59,17 +37,12 @@ function getEntryPoints() {
     const typesPath = config.types;
     if (!typesPath) continue;
 
-    // ./dist/react/index.d.ts → src/react/index.ts
     const srcPath = typesPath.replace("./dist/", "src/").replace(".d.ts", ".ts");
     entryPoints[subpath] = srcPath;
   }
 
   return entryPoints;
 }
-
-// ---------------------------------------------------------------------------
-// 2. Build full dependency graph with dependency-cruiser
-// ---------------------------------------------------------------------------
 
 function buildDependencyGraph() {
   const raw = execSync("pnpm depcruise src --config .dependency-cruiser.cjs --output-type json", {
@@ -80,7 +53,6 @@ function buildDependencyGraph() {
 
   const { modules } = JSON.parse(raw);
 
-  // adjacency list: file → files it imports
   const graph = {};
 
   for (const mod of modules) {
@@ -90,7 +62,6 @@ function buildDependencyGraph() {
   return graph;
 }
 
-/** BFS from `start` following the forward edges of `graph`. */
 function getTransitiveDeps(graph, start) {
   const visited = new Set();
   const queue = [start];
@@ -108,10 +79,6 @@ function getTransitiveDeps(graph, start) {
   return visited;
 }
 
-// ---------------------------------------------------------------------------
-// 3. Map exported symbols → declaring source file (TypeScript compiler)
-// ---------------------------------------------------------------------------
-
 function buildSymbolMap(entryPoints) {
   const configPath = resolve(SDK_ROOT, "tsconfig.json");
   const configFile = ts.readConfigFile(configPath, ts.sys.readFile);
@@ -123,7 +90,6 @@ function buildSymbolMap(entryPoints) {
   );
   const checker = program.getTypeChecker();
 
-  // { subpath → { symbolName → relativeSourceFile } }
   const symbolMap = {};
 
   for (const [subpath, srcPath] of Object.entries(entryPoints)) {
@@ -147,7 +113,6 @@ function buildSymbolMap(entryPoints) {
         try {
           resolved = checker.getAliasedSymbol(resolved);
         } catch {
-          // Couldn't resolve — skip
           continue;
         }
       }
@@ -157,7 +122,6 @@ function buildSymbolMap(entryPoints) {
 
       const declFile = decls[0].getSourceFile().fileName;
 
-      // Only track symbols that originate from within the SDK
       if (!declFile.startsWith(SDK_ROOT)) continue;
 
       symbolMap[subpath][exp.getName()] = relative(SDK_ROOT, declFile);
@@ -167,12 +131,8 @@ function buildSymbolMap(entryPoints) {
   return symbolMap;
 }
 
-// ---------------------------------------------------------------------------
-// 4. Parse consumer-app imports from @anuma/sdk
-// ---------------------------------------------------------------------------
-
 function parseConsumerImports(appPath) {
-  const imports = {}; // { subpath → Set<symbolName> }
+  const imports = {};
 
   function walk(dir) {
     let entries;
@@ -204,10 +164,6 @@ function parseConsumerImports(appPath) {
         continue;
       }
 
-      // Named destructured imports (with optional leading default):
-      //   import { useChat } from '@anuma/sdk/react'
-      //   import type { useChat } from '@anuma/sdk/react'
-      //   import Sdk, { useChat } from '@anuma/sdk/react'
       const namedRegex =
         /import\s+(?:type\s+)?(?:\w+\s*,\s*)?{([^}]+)}\s+from\s+['"]@anuma\/sdk([^'"]*)['"]/g;
       let match;
@@ -230,9 +186,6 @@ function parseConsumerImports(appPath) {
         }
       }
 
-      // Namespace imports: import * as Sdk from '@anuma/sdk/react'
-      // Type namespace imports: import type * as Sdk from '@anuma/sdk/react'
-      // These use all exports from the entry point, so mark with '*'.
       const wildcardRegex =
         /import\s+(?:type\s+)?\*\s+as\s+\w+\s+from\s+['"]@anuma\/sdk([^'"]*)['"]/g;
       while ((match = wildcardRegex.exec(content)) !== null) {
@@ -241,8 +194,6 @@ function parseConsumerImports(appPath) {
         imports[subpath].add("*");
       }
 
-      // Default imports (non-namespace): import Sdk from '@anuma/sdk/react'
-      // Excludes combined forms (already handled above) and type-only namespace imports.
       const defaultImportRegex =
         /import\s+(?!type\s+\*|type\s+{|\*|{)(\w+)\s+from\s+['"]@anuma\/sdk([^'"]*)['"]/g;
       while ((match = defaultImportRegex.exec(content)) !== null) {
@@ -257,15 +208,7 @@ function parseConsumerImports(appPath) {
   return imports;
 }
 
-// ---------------------------------------------------------------------------
-// 5. Cross-reference: which symbols are affected by changed files?
-// ---------------------------------------------------------------------------
-
 function findAffectedSymbols(changedFiles, symbolMap, graph) {
-  // For each (subpath, symbol), get the full dependency set of its declaring
-  // file. If any changed file is in that set, the symbol is affected.
-
-  // Cache transitive deps per file to avoid redundant BFS
   const depsCache = {};
 
   function getDeps(file) {
@@ -275,7 +218,6 @@ function findAffectedSymbols(changedFiles, symbolMap, graph) {
     return depsCache[file];
   }
 
-  // { subpath → Set<symbolName> }
   const affected = {};
 
   for (const [subpath, symbols] of Object.entries(symbolMap)) {
@@ -294,10 +236,6 @@ function findAffectedSymbols(changedFiles, symbolMap, graph) {
 
   return affected;
 }
-
-// ---------------------------------------------------------------------------
-// 6. Generate markdown report
-// ---------------------------------------------------------------------------
 
 function generateMarkdown(results, changedFiles) {
   const lines = [];
@@ -322,7 +260,6 @@ function generateMarkdown(results, changedFiles) {
       lines.push("");
       lines.push(`**${r.app}**`);
 
-      // Group impacted symbols by entry point
       const byEntryPoint = {};
       for (const { subpath, symbol } of r.impactedSymbols) {
         if (!byEntryPoint[subpath]) byEntryPoint[subpath] = [];
@@ -337,7 +274,6 @@ function generateMarkdown(results, changedFiles) {
     }
   }
 
-  // List changed SDK files for context
   if (changedFiles.length > 0 && changedFiles.length <= 20) {
     lines.push("");
     lines.push(`<details><summary>Changed SDK files (${changedFiles.length})</summary>`);
@@ -352,10 +288,6 @@ function generateMarkdown(results, changedFiles) {
   return lines.join("\n");
 }
 
-// ---------------------------------------------------------------------------
-// Main
-// ---------------------------------------------------------------------------
-
 function main() {
   const { changed, apps, output } = parseArgs();
 
@@ -369,7 +301,6 @@ function main() {
     process.exit(0);
   }
 
-  // Filter to only src/ files that exist
   const srcChanged = changed.filter((f) => f.startsWith("src/"));
   if (srcChanged.length === 0) {
     const md = "No SDK source files changed — no import impact to analyze.";
@@ -389,7 +320,6 @@ function main() {
     const appName = appPath.split("/").pop();
     const consumerImports = parseConsumerImports(appPath);
 
-    // Count totals (exclude the synthetic '*' wildcard placeholder)
     let totalSymbols = 0;
     for (const syms of Object.values(consumerImports)) {
       for (const sym of syms) {
@@ -397,13 +327,11 @@ function main() {
       }
     }
 
-    // Find impacted symbols the app actually uses
     const impactedSymbols = [];
     for (const [subpath, affectedSyms] of Object.entries(affected)) {
       const appSyms = consumerImports[subpath];
       if (!appSyms) continue;
 
-      // '*' means the app uses a namespace/default import — all symbols count
       const usesAll = appSyms.has("*");
       for (const sym of affectedSyms) {
         if (usesAll || appSyms.has(sym)) {

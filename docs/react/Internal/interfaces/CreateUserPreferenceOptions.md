@@ -1,6 +1,6 @@
 # CreateUserPreferenceOptions
 
-Defined in: [src/lib/db/userPreferences/types.ts:113](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/userPreferences/types.ts#113)
+Defined in: [src/lib/db/userPreferences/types.ts:106](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/userPreferences/types.ts#106)
 
 Options for creating a new user preference record
 
@@ -10,7 +10,7 @@ Options for creating a new user preference record
 
 > `optional` **description**: `string`
 
-Defined in: [src/lib/db/userPreferences/types.ts:117](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/userPreferences/types.ts#117)
+Defined in: [src/lib/db/userPreferences/types.ts:110](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/userPreferences/types.ts#110)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/lib/db/userPreferences/types.ts:117](https://github.com/anuma-a
 
 > `optional` **models**: `string`
 
-Defined in: [src/lib/db/userPreferences/types.ts:118](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/userPreferences/types.ts#118)
+Defined in: [src/lib/db/userPreferences/types.ts:111](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/userPreferences/types.ts#111)
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: [src/lib/db/userPreferences/types.ts:118](https://github.com/anuma-a
 
 > `optional` **nickname**: `string`
 
-Defined in: [src/lib/db/userPreferences/types.ts:115](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/userPreferences/types.ts#115)
+Defined in: [src/lib/db/userPreferences/types.ts:108](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/userPreferences/types.ts#108)
 
 ***
 
@@ -34,7 +34,7 @@ Defined in: [src/lib/db/userPreferences/types.ts:115](https://github.com/anuma-a
 
 > `optional` **occupation**: `string`
 
-Defined in: [src/lib/db/userPreferences/types.ts:116](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/userPreferences/types.ts#116)
+Defined in: [src/lib/db/userPreferences/types.ts:109](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/userPreferences/types.ts#109)
 
 ***
 
@@ -42,7 +42,7 @@ Defined in: [src/lib/db/userPreferences/types.ts:116](https://github.com/anuma-a
 
 > `optional` **personality**: `string`
 
-Defined in: [src/lib/db/userPreferences/types.ts:119](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/userPreferences/types.ts#119)
+Defined in: [src/lib/db/userPreferences/types.ts:112](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/userPreferences/types.ts#112)
 
 ***
 
@@ -50,4 +50,4 @@ Defined in: [src/lib/db/userPreferences/types.ts:119](https://github.com/anuma-a
 
 > **walletAddress**: `string`
 
-Defined in: [src/lib/db/userPreferences/types.ts:114](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/userPreferences/types.ts#114)
+Defined in: [src/lib/db/userPreferences/types.ts:107](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/userPreferences/types.ts#107)

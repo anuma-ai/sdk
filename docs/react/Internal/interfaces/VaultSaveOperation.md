@@ -1,6 +1,6 @@
 # VaultSaveOperation
 
-Defined in: [src/lib/memoryVault/tool.ts:123](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/tool.ts#123)
+Defined in: [src/lib/memoryVault/tool.ts:94](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/tool.ts#94)
 
 Describes a pending vault save operation for UI confirmation.
 
@@ -10,7 +10,7 @@ Describes a pending vault save operation for UI confirmation.
 
 > **action**: `"update"` | `"add"`
 
-Defined in: [src/lib/memoryVault/tool.ts:125](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/tool.ts#125)
+Defined in: [src/lib/memoryVault/tool.ts:96](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/tool.ts#96)
 
 Whether this is a new memory or an update to an existing one
 
@@ -20,7 +20,7 @@ Whether this is a new memory or an update to an existing one
 
 > **content**: `string`
 
-Defined in: [src/lib/memoryVault/tool.ts:127](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/tool.ts#127)
+Defined in: [src/lib/memoryVault/tool.ts:98](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/tool.ts#98)
 
 The memory content to save
 
@@ -30,7 +30,7 @@ The memory content to save
 
 > `optional` **id**: `string`
 
-Defined in: [src/lib/memoryVault/tool.ts:131](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/tool.ts#131)
+Defined in: [src/lib/memoryVault/tool.ts:102](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/tool.ts#102)
 
 The ID of the memory being updated (only present for updates)
 
@@ -40,7 +40,7 @@ The ID of the memory being updated (only present for updates)
 
 > `optional` **previousContent**: `string`
 
-Defined in: [src/lib/memoryVault/tool.ts:133](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/tool.ts#133)
+Defined in: [src/lib/memoryVault/tool.ts:104](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/tool.ts#104)
 
 The previous content of the memory (only present for updates, for diff display)
 
@@ -50,6 +50,6 @@ The previous content of the memory (only present for updates, for diff display)
 
 > `optional` **scope**: `string`
 
-Defined in: [src/lib/memoryVault/tool.ts:129](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/tool.ts#129)
+Defined in: [src/lib/memoryVault/tool.ts:100](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/tool.ts#100)
 
 The scope of the memory (only present for add operations)

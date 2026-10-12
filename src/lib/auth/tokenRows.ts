@@ -1,11 +1,3 @@
-/**
- * Plain text OAuth token rows.
- *
- * Each store keeps one row per wallet. The wallet-scoped key is the primary
- * location. The legacy unscoped key stays a read source for rows that older
- * builds wrote, then that row moves to the wallet-scoped key on first read.
- */
-
 const ENCRYPTED_PREFIX = "enc:oauth:";
 
 /** Plain text row shape. The owner wallet travels with the token. */

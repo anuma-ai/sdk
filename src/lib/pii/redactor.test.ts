@@ -36,15 +36,12 @@ describe("PiiRedactor", () => {
       it("reuses placeholder for the same email", () => {
         const result = redactor.redactText("john@example.com and john@example.com again");
         expect(result.text).toBe("[EMAIL_1] and [EMAIL_1] again");
-        // Both matches reference the same placeholder
         expect(result.matches).toHaveLength(2);
         expect(result.matches[0].placeholder).toBe("[EMAIL_1]");
         expect(result.matches[1].placeholder).toBe("[EMAIL_1]");
       });
 
       it("does not backtrack quadratically on adversarial no-@ input (ReDoS guard)", () => {
-        // "a.a.a…" with no "@" forced O(n²) backtracking before the
-        // quantifiers were bounded. This must complete near-instantly.
         const input = "a.".repeat(50_000);
         const start = performance.now();
         const result = redactor.redactText(input);
@@ -406,8 +403,6 @@ describe("PiiRedactor", () => {
   describe("restoreForStorage (storage paths)", () => {
     it("chat-display deAnonymize stays exact — a bracket-dropped echo is NOT substituted", () => {
       redactor.redactText("john@example.com");
-      // deAnonymize (no opts) must not rewrite a bare token a model may have
-      // written as genuine content; only restoreForStorage is tolerant.
       expect(redactor.deAnonymize("Your email is EMAIL_1")).toBe("Your email is EMAIL_1");
     });
 
@@ -439,7 +434,7 @@ describe("PiiRedactor", () => {
     });
 
     it("flags a never-assigned token (bracketed, bare, or re-cased) as unresolved", () => {
-      redactor.redactText("john@example.com"); // only [EMAIL_1] minted
+      redactor.redactText("john@example.com");
       expect(redactor.restoreForStorage("User's SSN is [SSN_1]").unresolved).toBe(true);
       expect(redactor.restoreForStorage("User's SSN is SSN_1").unresolved).toBe(true);
       expect(redactor.restoreForStorage("User's ssn is ssn_1").unresolved).toBe(true);
@@ -448,32 +443,25 @@ describe("PiiRedactor", () => {
     it("does not flag ordinary prose as unresolved", () => {
       redactor.redactText("john@example.com");
       expect(redactor.restoreForStorage("send email 1 of 3 to the list").unresolved).toBe(false);
-      // STEP is not a redactor category — never a placeholder.
       expect(redactor.restoreForStorage("follow STEP_1 then STEP_2").unresolved).toBe(false);
     });
 
     it("does NOT false-flag a restored value that itself contains a category-shaped substring", () => {
-      // Regression: an email whose local part is "ssn_1" restores correctly and
-      // must NOT be flagged unresolved (a re-scan of the output would trip on the
-      // "ssn_1" substring and silently drop a good fact).
-      redactor.redactText("My email is ssn_1@example.com"); // mints [EMAIL_1]="ssn_1@example.com"
+      redactor.redactText("My email is ssn_1@example.com");
       const r = redactor.restoreForStorage("User's email is [EMAIL_1]");
       expect(r.text).toBe("User's email is ssn_1@example.com");
       expect(r.unresolved).toBe(false);
     });
 
     it("does not re-scan a restored value containing a sibling placeholder body", () => {
-      // [TOKEN_1]'s value literally contains "EMAIL_1"; a two-pass design would
-      // splice EMAIL_1's value into it. A single pass over the source restores
-      // TOKEN_1 verbatim.
       const r = new PiiRedactor({
         patterns: [
           { category: "EMAIL", regex: /alice@corp\.com/g },
           { category: "TOKEN", regex: /sk-[A-Za-z0-9_-]+/g },
         ],
       });
-      r.redactText("alice@corp.com"); // [EMAIL_1]
-      const minted = r.redactText("sk-zzzz-EMAIL_1-tail"); // [TOKEN_1]
+      r.redactText("alice@corp.com");
+      const minted = r.redactText("sk-zzzz-EMAIL_1-tail");
       expect(minted.matches[0].original).toBe("sk-zzzz-EMAIL_1-tail");
       const out = r.restoreForStorage("key [TOKEN_1]");
       expect(out.text).toBe("key sk-zzzz-EMAIL_1-tail");
@@ -481,14 +469,11 @@ describe("PiiRedactor", () => {
     });
 
     it("resolves the correct value when two categories collide on upper-cased body", () => {
-      // Built-in EMAIL plus a custom category "email" mint distinct placeholders
-      // [EMAIL_1] and [email_1]; an exact-case echo must resolve to its OWN value,
-      // never the other's.
       const r = new PiiRedactor({
         extraPatterns: [{ category: "email", regex: /ATTACKER-DOMAIN/g }],
       });
-      r.redactText("real-user@corp.com"); // [EMAIL_1]
-      r.redactText("ATTACKER-DOMAIN"); // [email_1]
+      r.redactText("real-user@corp.com");
+      r.redactText("ATTACKER-DOMAIN");
       expect(r.restoreForStorage("contact [EMAIL_1]").text).toBe("contact real-user@corp.com");
       expect(r.restoreForStorage("see [email_1]").text).toBe("see ATTACKER-DOMAIN");
     });
@@ -538,12 +523,10 @@ describe("PiiRedactor", () => {
     });
 
     it("does not collide double-digit placeholder indices on de-anonymize", () => {
-      // Create 11 distinct emails so we get [EMAIL_1] .. [EMAIL_11].
       for (let i = 1; i <= 11; i++) redactor.redactText(`user${i}@example.com`);
       const mappings = redactor.getMappings();
       expect(mappings.get("[EMAIL_10]")).toBe("user10@example.com");
       expect(mappings.get("[EMAIL_11]")).toBe("user11@example.com");
-      // [EMAIL_1] must not eat the prefix of [EMAIL_11].
       const restored = redactor.deAnonymize("a [EMAIL_1] b [EMAIL_11] c");
       expect(restored).toBe("a user1@example.com b user11@example.com c");
     });
@@ -569,7 +552,6 @@ describe("PiiRedactor", () => {
     });
 
     it("accepts a duck-typed redactor from a duplicate class copy", () => {
-      // Simulates an instance whose prototype chain differs (dual ESM/CJS).
       const lookalike = {
         redactMessages: () => ({ messages: [], matches: [] }),
         deAnonymize: (t: string) => t,
@@ -584,7 +566,6 @@ describe("PiiRedactor", () => {
       redactor.redactText("john@example.com");
       let out = "";
       const stream = createStreamingDeAnonymizer(redactor, (c) => (out += c));
-      // Simulate the smoother emitting one character at a time.
       for (const ch of "Email [EMAIL_1] now") stream.push(ch);
       stream.flush();
       expect(out).toBe("Email john@example.com now");
@@ -594,7 +575,6 @@ describe("PiiRedactor", () => {
       redactor.redactText("john@example.com and 555-123-4567");
       let out = "";
       const stream = createStreamingDeAnonymizer(redactor, (c) => (out += c));
-      // Boundaries deliberately fall inside the placeholders.
       for (const chunk of ["Contact [EMA", "IL_1] or call [PHO", "NE_1] today"]) {
         stream.push(chunk);
       }
@@ -647,7 +627,6 @@ describe("PiiRedactor", () => {
       redactor.redactText("john@example.com");
       const snapshot = redactor.getMappings();
       expect(snapshot.size).toBe(1);
-      // A later redaction must not retroactively grow the earlier snapshot.
       redactor.redactText("jane@other.com");
       expect(snapshot.size).toBe(1);
       expect(redactor.getMappings().size).toBe(2);
@@ -660,7 +639,6 @@ describe("PiiRedactor", () => {
       const result = r.redactText("Born on 12-25-1985 at 123 Main Street, email a@b.com");
       expect(result.matches.filter((m) => m.category === "US_ADDRESS")).toHaveLength(0);
       expect(result.matches.filter((m) => m.category === "DATE_OF_BIRTH")).toHaveLength(0);
-      // Other categories still detected.
       expect(result.matches.filter((m) => m.category === "EMAIL")).toHaveLength(1);
     });
 
@@ -676,7 +654,6 @@ describe("PiiRedactor", () => {
     it("replaces the entire pattern set when patterns is provided", () => {
       const r = new PiiRedactor({ patterns: [{ category: "EMAIL", regex: /\bx@y\.z\b/g }] });
       const result = r.redactText("a@b.com but x@y.z");
-      // Default email pattern is gone; only the custom one applies.
       expect(result.text).toBe("a@b.com but [EMAIL_1]");
     });
   });
@@ -687,7 +664,6 @@ describe("PiiRedactor", () => {
       expect(redactor.size).toBe(1);
       redactor.clear();
       expect(redactor.size).toBe(0);
-      // After clear, same email gets [EMAIL_1] again
       const result = redactor.redactText("john@example.com");
       expect(result.text).toBe("[EMAIL_1]");
     });

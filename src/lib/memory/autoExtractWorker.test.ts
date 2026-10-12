@@ -22,14 +22,8 @@ const baseOptions = {
   extract: { apiKey: "k" },
 };
 
-/**
- * `extractAndRetain` resolves to an inline object type, so derive it rather than
- * restating it — a field added there (`quarantined` was the last one) then fails
- * the fixtures below instead of being silently absent from what the worker sees.
- */
 type ExtractAndRetainResult = Awaited<ReturnType<typeof extractAndRetain>>;
 
-/** A funnel/timings/model triple for fixtures; the worker forwards these verbatim. */
 const TELEMETRY_FIXTURE = {
   funnel: {
     rawCandidateCount: 0,
@@ -53,7 +47,6 @@ const EMPTY_RESULT: ExtractAndRetainResult = {
   ...TELEMETRY_FIXTURE,
 };
 
-/** Build n messages with ids m0..m(n-1). Tests assert on `.id`, so role/content are filler. */
 const mk = (n: number): AutoExtractMessage[] =>
   Array.from({ length: n }, (_, i) => ({
     id: `m${i}`,
@@ -61,14 +54,8 @@ const mk = (n: number): AutoExtractMessage[] =>
     content: `msg ${i}`,
   }));
 
-/** Drain the microtask + timer queue so fire-and-forget extraction settles. */
 const flush = () => new Promise((r) => setTimeout(r, 0));
 
-/**
- * Make the next extraction call hang until the returned resolver is invoked;
- * all later calls resolve immediately. Used to hold one turn "in-flight" while
- * exercising the coalescing queue.
- */
 const blockFirstCall = (): (() => void) => {
   let resolve!: (v: typeof EMPTY_RESULT) => void;
   vi.mocked(extractAndRetain)
@@ -122,13 +109,11 @@ describe("createAutoExtractor", () => {
     const onSkipped = vi.fn();
     const extractor = createAutoExtractor({ ...baseOptions, onSkipped });
 
-    // First turn dispatches; the second is queued (returns true, NOT dropped).
     expect(extractor.processTurn(messages, "c1")).toBe(true);
     expect(extractor.processTurn(messages, "c2")).toBe(true);
     expect(onSkipped).not.toHaveBeenCalled();
     expect(vi.mocked(extractAndRetain)).toHaveBeenCalledTimes(1);
 
-    // Once the first finishes, the queued turn runs.
     finishFirst();
     await flush();
     expect(vi.mocked(extractAndRetain)).toHaveBeenCalledTimes(2);
@@ -139,15 +124,13 @@ describe("createAutoExtractor", () => {
     const onSkipped = vi.fn();
     const extractor = createAutoExtractor({ ...baseOptions, onSkipped });
 
-    extractor.processTurn(mk(2), "inflight"); // dispatched (different conv, never resolves yet)
-    extractor.processTurn(mk(4), "q"); // queued for "q"
-    extractor.processTurn(mk(6), "q"); // supersedes the older "q" turn
+    extractor.processTurn(mk(2), "inflight");
+    extractor.processTurn(mk(4), "q");
+    extractor.processTurn(mk(6), "q");
     expect(onSkipped).toHaveBeenCalledWith({ reason: "superseded", conversationId: "q" });
 
     finishFirst();
     await flush();
-    // inflight + the surviving "q" turn → two calls. The surviving window must
-    // still include the superseded turn's messages (m0..m3), so no content lost.
     expect(vi.mocked(extractAndRetain)).toHaveBeenCalledTimes(2);
     const qIds = vi.mocked(extractAndRetain).mock.calls[1][0].map((m) => m.id);
     expect(qIds).toEqual(expect.arrayContaining(["m0", "m1", "m2", "m3"]));
@@ -159,15 +142,12 @@ describe("createAutoExtractor", () => {
     const slice = (ids: string[]): AutoExtractMessage[] =>
       ids.map((id) => ({ id, role: "user" as const, content: id }));
 
-    extractor.processTurn(mk(2), "inflight"); // holds the worker in-flight
-    extractor.processTurn(slice(["m0", "m1", "m2"]), "q"); // queued
-    // Newer turn is a BOUNDED window that dropped m0,m1 — not a superset.
+    extractor.processTurn(mk(2), "inflight");
+    extractor.processTurn(slice(["m0", "m1", "m2"]), "q");
     extractor.processTurn(slice(["m2", "m3", "m4"]), "q");
 
     finishFirst();
     await flush();
-    // Union keeps the pending-only m0,m1 ahead of the newer window: nothing lost,
-    // order preserved, no duplicate m2.
     const qIds = vi.mocked(extractAndRetain).mock.calls[1][0].map((m) => m.id);
     expect(qIds).toEqual(["m0", "m1", "m2", "m3", "m4"]);
   });
@@ -177,14 +157,13 @@ describe("createAutoExtractor", () => {
     const onSkipped = vi.fn();
     const extractor = createAutoExtractor({ ...baseOptions, onSkipped });
 
-    extractor.processTurn(messages, "x"); // dispatched
-    extractor.processTurn(messages, "a"); // queued (own slot)
-    extractor.processTurn(messages, "b"); // queued (own slot) — does NOT displace "a"
+    extractor.processTurn(messages, "x");
+    extractor.processTurn(messages, "a");
+    extractor.processTurn(messages, "b");
     expect(onSkipped).not.toHaveBeenCalled();
 
     finishFirst();
     await flush();
-    // x, then a, then b — all three extracted, none dropped.
     expect(vi.mocked(extractAndRetain)).toHaveBeenCalledTimes(3);
   });
 
@@ -195,7 +174,6 @@ describe("createAutoExtractor", () => {
 
     expect(extractor.processTurn(messages, "c1")).toBe(true);
     await flush();
-    // Same final state again → watermark is at the last message → nothing new.
     expect(extractor.processTurn(messages, "c1")).toBe(false);
     expect(onSkipped).toHaveBeenCalledWith({ reason: "no-new-content", conversationId: "c1" });
     expect(vi.mocked(extractAndRetain)).toHaveBeenCalledTimes(1);
@@ -204,14 +182,10 @@ describe("createAutoExtractor", () => {
   it("widens the window to cover messages since the watermark (not just last N)", async () => {
     vi.mocked(extractAndRetain).mockResolvedValue(EMPTY_RESULT);
     const extractor = createAutoExtractor({ ...baseOptions, windowSize: 2 });
-    // First turn: 4 messages, no watermark → trailing slice(-2) = m2,m3.
     extractor.processTurn(mk(4), "c1");
     await flush();
     expect(vi.mocked(extractAndRetain).mock.calls[0][0].map((m) => m.id)).toEqual(["m2", "m3"]);
 
-    // Second turn: history grew to 8. Watermark is m3; with windowSize 2 a naive
-    // slice would send only m6,m7 and lose m4,m5. Widening covers m4..m7
-    // (+ CONTEXT_OVERLAP=2 of already-seen context).
     extractor.processTurn(mk(8), "c1");
     await flush();
     const ids = vi.mocked(extractAndRetain).mock.calls[1][0].map((m) => m.id);
@@ -221,10 +195,8 @@ describe("createAutoExtractor", () => {
   it("caps the widened window at maxWindowSize, oldest-first (rest re-covered next turn)", async () => {
     vi.mocked(extractAndRetain).mockResolvedValue(EMPTY_RESULT);
     const extractor = createAutoExtractor({ ...baseOptions, windowSize: 1, maxWindowSize: 3 });
-    extractor.processTurn(mk(1), "c1"); // watermark → m0
+    extractor.processTurn(mk(1), "c1");
     await flush();
-    // Burst to 10 messages while capped at 3: take the OLDEST 3 so the watermark
-    // advances to m2 and m3..m9 stay after it for the next turn (no skip).
     extractor.processTurn(mk(10), "c1");
     await flush();
     expect(vi.mocked(extractAndRetain).mock.calls[1][0].map((m) => m.id)).toEqual([
@@ -233,7 +205,6 @@ describe("createAutoExtractor", () => {
       "m2",
     ]);
 
-    // Next turn drains the next oldest chunk (watermark m2 → start at m1 w/ overlap).
     extractor.processTurn(mk(10), "c1");
     await flush();
     expect(vi.mocked(extractAndRetain).mock.calls[2][0].map((m) => m.id)).toEqual([
@@ -247,18 +218,15 @@ describe("createAutoExtractor", () => {
     vi.mocked(extractAndRetain).mockResolvedValue(EMPTY_RESULT);
     const extractor = createAutoExtractor({ ...baseOptions, maxTrackedConversations: 2 });
 
-    extractor.processTurn(messages, "a"); // map {a}
+    extractor.processTurn(messages, "a");
     await flush();
-    extractor.processTurn(messages, "b"); // map {a, b}
+    extractor.processTurn(messages, "b");
     await flush();
-    extractor.processTurn(messages, "c"); // inserting "c" evicts oldest idle ("a") → {b, c}
+    extractor.processTurn(messages, "c");
     await flush();
 
-    // "b" and "c" kept their watermarks → re-firing the same state is a no-op.
     expect(extractor.processTurn(messages, "c")).toBe(false);
     expect(extractor.processTurn(messages, "b")).toBe(false);
-    // "a" was evicted → its watermark is gone, so it re-extracts (self-healing)
-    // instead of skipping with no-new-content.
     expect(extractor.processTurn(messages, "a")).toBe(true);
     await flush();
   });
@@ -267,16 +235,12 @@ describe("createAutoExtractor", () => {
     const finishFirst = blockFirstCall();
     const extractor = createAutoExtractor({ ...baseOptions, maxTrackedConversations: 1 });
 
-    // "hold" goes in-flight (never resolves yet); "q" queues behind it.
     extractor.processTurn(mk(2), "hold");
-    extractor.processTurn(mk(2), "q"); // pending for "q"
-    // A third conversation would breach the cap of 1, but the only evictable
-    // entries have pending turns, so nothing is dropped and "q" still runs.
+    extractor.processTurn(mk(2), "q");
     extractor.processTurn(mk(2), "z");
 
     finishFirst();
     await flush();
-    // hold + q + z all extracted — the pending "q" was never evicted.
     expect(vi.mocked(extractAndRetain)).toHaveBeenCalledTimes(3);
   });
 
@@ -286,9 +250,9 @@ describe("createAutoExtractor", () => {
       .mockResolvedValue(EMPTY_RESULT);
     const extractor = createAutoExtractor({ ...baseOptions, onError: vi.fn() });
 
-    extractor.processTurn(messages, "c1"); // throws → watermark NOT advanced
+    extractor.processTurn(messages, "c1");
     await flush();
-    extractor.processTurn(messages, "c1"); // same window re-sent, not skipped
+    extractor.processTurn(messages, "c1");
     await flush();
 
     expect(vi.mocked(extractAndRetain)).toHaveBeenCalledTimes(2);
@@ -296,18 +260,14 @@ describe("createAutoExtractor", () => {
   });
 
   it("does NOT advance the watermark on 'empty-after-retry' (re-covers next turn)", async () => {
-    // The extractor LLM returned empty/malformed after exhausting its retries,
-    // so this window was never actually examined. extractAndRetain reports that
-    // as an outcome rather than throwing, so the worker must not treat it as a
-    // completed pass — otherwise the window's facts are stranded permanently.
     vi.mocked(extractAndRetain)
       .mockResolvedValueOnce({ ...EMPTY_RESULT, outcome: "empty-after-retry" })
       .mockResolvedValue(EMPTY_RESULT);
     const extractor = createAutoExtractor(baseOptions);
 
-    extractor.processTurn(messages, "c1"); // failed extraction
+    extractor.processTurn(messages, "c1");
     await flush();
-    extractor.processTurn(messages, "c1"); // same window must be re-sent
+    extractor.processTurn(messages, "c1");
     await flush();
 
     expect(vi.mocked(extractAndRetain)).toHaveBeenCalledTimes(2);
@@ -315,9 +275,6 @@ describe("createAutoExtractor", () => {
   });
 
   it("DOES advance the watermark on a legitimately quiet turn ('no-facts')", async () => {
-    // Counterpart to the test above: "examined, nothing durable" is a real pass,
-    // so re-firing the same state is a no-op. Guards against over-correcting the
-    // empty-after-retry fix into "never advance on zero candidates".
     vi.mocked(extractAndRetain).mockResolvedValue(EMPTY_RESULT);
     const extractor = createAutoExtractor(baseOptions);
 
@@ -332,13 +289,11 @@ describe("createAutoExtractor", () => {
   it("dispose FLUSHES a queued pending turn instead of dropping it (G2)", async () => {
     const finishFirst = blockFirstCall();
     const extractor = createAutoExtractor(baseOptions);
-    extractor.processTurn(messages, "c1"); // in-flight
-    extractor.processTurn(messages, "c2"); // queued while in-flight
-    extractor.dispose(); // must NOT drop the queued turn
+    extractor.processTurn(messages, "c1");
+    extractor.processTurn(messages, "c2");
+    extractor.dispose();
     finishFirst();
     await flush();
-    // The in-flight call ran AND the queued turn drained on completion — a turn
-    // coalesced right before unmount is no longer silently lost.
     expect(vi.mocked(extractAndRetain)).toHaveBeenCalledTimes(2);
     const drainedIds = vi.mocked(extractAndRetain).mock.calls[1][0].map((m) => m.id);
     expect(drainedIds).toEqual(expect.arrayContaining(["m1", "m2"]));
@@ -347,13 +302,12 @@ describe("createAutoExtractor", () => {
   it("dispose drains a MULTI-conversation queue to empty (G2)", async () => {
     const finishFirst = blockFirstCall();
     const extractor = createAutoExtractor(baseOptions);
-    extractor.processTurn(messages, "c1"); // in-flight
-    extractor.processTurn(messages, "c2"); // queued
-    extractor.processTurn(messages, "c3"); // queued
+    extractor.processTurn(messages, "c1");
+    extractor.processTurn(messages, "c2");
+    extractor.processTurn(messages, "c3");
     extractor.dispose();
     finishFirst();
     await flush();
-    // in-flight + both queued conversations drain sequentially (≤1 in-flight).
     expect(vi.mocked(extractAndRetain)).toHaveBeenCalledTimes(3);
   });
 
@@ -396,7 +350,6 @@ describe("createAutoExtractor", () => {
     });
 
     extractor.processTurn(messages, "c1");
-    // Wait for the microtask queue to drain
     await flush();
 
     expect(onMemoryExtracted).toHaveBeenCalledTimes(2);
@@ -410,8 +363,6 @@ describe("createAutoExtractor", () => {
       candidates: expect.arrayContaining([expect.objectContaining({ content: "fact 1" })]),
       results: expect.any(Array),
       conversationId: "c1",
-      // The pre-retain funnel, the extract/retain split and the model ride along
-      // verbatim — a host emits them, so a drop here would silently zero a dashboard.
       funnel: expect.objectContaining({ rawCandidateCount: 3, validCandidateCount: 2 }),
       timings: { extractMs: 7, retainMs: 3 },
       model: "gpt-oss/gpt-oss-120b",
@@ -514,13 +465,9 @@ describe("createAutoExtractor", () => {
 
     const callOptions = vi.mocked(extractAndRetain).mock.calls[0][2];
     expect(callOptions).not.toHaveProperty("consolidateOptions");
-    // Absent, not `undefined`: presence is what switches the classifier on.
     expect(callOptions).not.toHaveProperty("injectionClassifier");
   });
 
-  // Tier-0 PR5 (C2) — the classifier used to be reachable only from a direct
-  // extractAndRetain call, and createAutoExtractor is the only path either
-  // client uses, so the second security layer could not be enabled at all.
   it("wires injectionClassifier (reusing the extract auth) when the option is set", async () => {
     vi.mocked(extractAndRetain).mockResolvedValue(EMPTY_RESULT);
     const extractor = createAutoExtractor({
@@ -577,10 +524,6 @@ describe("createAutoExtractor", () => {
     expect(onTurnComplete.mock.calls[0][0]).toMatchObject({ outcome: "empty-after-retry" });
   });
 
-  // `outcome` says extraction gave up; `failure` says which failure. Without it
-  // reaching this event the client cannot tell an HTTP-200-with-empty-body from
-  // a 403 from a timeout — which is exactly the gap that made ~63% of production
-  // extraction turns undiagnosable in the 2026-08-11 audit.
   it("forwards the failure reason alongside empty-after-retry (#888)", async () => {
     vi.mocked(extractAndRetain).mockResolvedValue({
       ...EMPTY_RESULT,
@@ -598,9 +541,6 @@ describe("createAutoExtractor", () => {
   });
 
   it("omits the failure KEY entirely on a healthy turn", async () => {
-    // Not `failure: undefined` — analytics backends store an explicit undefined
-    // as a real value, so a quiet turn would ship a null-ish reason and pollute
-    // every breakdown this field exists to produce.
     vi.mocked(extractAndRetain).mockResolvedValue({ ...EMPTY_RESULT, outcome: "no-facts" });
     const onTurnComplete = vi.fn();
     const extractor = createAutoExtractor({ ...baseOptions, onTurnComplete });
@@ -617,11 +557,8 @@ describe("createAutoExtractor", () => {
     });
     extractor.processTurn(messages, "c1");
     await flush();
-    // The retainCtx handed to extractAndRetain now masks embedding input, so raw
-    // PII never reaches the embeddings provider.
     const passedCtx = vi.mocked(extractAndRetain).mock.calls[0][1];
     expect(typeof passedCtx.embeddingOptions.maskInput).toBe("function");
-    // Masking actually redacts (PiiRedactor.maskText), e.g. an email.
     expect(passedCtx.embeddingOptions.maskInput?.("ping me at a@b.com")).not.toContain("a@b.com");
   });
 
@@ -648,7 +585,6 @@ describe("createAutoExtractor", () => {
 });
 
 describe("createAutoExtractor — durable cursor store (A3)", () => {
-  /** In-memory ExtractionCursorStore with spies, mimicking a process-shared KV. */
   const makeCursorStore = () => {
     const backing = new Map<string, string>();
     const get = vi.fn((id: string) => backing.get(id));
@@ -669,13 +605,10 @@ describe("createAutoExtractor — durable cursor store (A3)", () => {
     extractor.processTurn(mk(6), "conv1");
     await flush();
 
-    // Fresh conversation → trailing window of all 6 → watermark advances to m5.
     expect(set).toHaveBeenCalledWith("conv1", "m5");
   });
 
   it("does NOT persist the cursor on 'empty-after-retry'", async () => {
-    // The durable half of the same guard: writing the cursor through on a failed
-    // extraction strands the window for every LATER session too, not just this one.
     vi.mocked(extractAndRetain).mockResolvedValue({
       ...EMPTY_RESULT,
       outcome: "empty-after-retry",
@@ -692,15 +625,13 @@ describe("createAutoExtractor — durable cursor store (A3)", () => {
   it("hydrates the watermark from the cursor so only post-cursor messages are sent", async () => {
     vi.mocked(extractAndRetain).mockResolvedValue(EMPTY_RESULT);
     const { store, get } = makeCursorStore();
-    get.mockReturnValue("m3"); // persisted from a prior session
+    get.mockReturnValue("m3");
 
     const extractor = createAutoExtractor({ ...baseOptions, cursorStore: store });
     extractor.processTurn(mk(6), "conv1");
     await flush();
 
     expect(get).toHaveBeenCalledWith("conv1");
-    // watermark m3 → window starts at m3+1-CONTEXT_OVERLAP(2)=m2: [m2,m3,m4,m5].
-    // Without hydration a fresh worker would send the full trailing slice.
     expect(windowIds(0)).toEqual(["m2", "m3", "m4", "m5"]);
   });
 
@@ -708,15 +639,11 @@ describe("createAutoExtractor — durable cursor store (A3)", () => {
     vi.mocked(extractAndRetain).mockResolvedValue(EMPTY_RESULT);
     const { store } = makeCursorStore();
 
-    // Session A extracts mk(4) through m3, then dies.
     const a = createAutoExtractor({ ...baseOptions, cursorStore: store });
     a.processTurn(mk(4), "conv1");
     await flush();
     a.dispose();
 
-    // Session B (fresh in-memory state, same durable store) sees a longer
-    // history. It must resume after m3 — not re-slice a trailing window that
-    // could skip m4 if history had grown past the window.
     const b = createAutoExtractor({ ...baseOptions, cursorStore: store });
     b.processTurn(mk(6), "conv1");
     await flush();
@@ -729,7 +656,7 @@ describe("createAutoExtractor — durable cursor store (A3)", () => {
     const { store, set, get } = makeCursorStore();
     const extractor = createAutoExtractor({ ...baseOptions, cursorStore: store });
 
-    extractor.processTurn(mk(3)); // no conversationId
+    extractor.processTurn(mk(3));
     await flush();
 
     expect(set).not.toHaveBeenCalled();
@@ -751,43 +678,35 @@ describe("createAutoExtractor — durable cursor store (A3)", () => {
     extractor.processTurn(mk(6), "conv1");
     await flush();
 
-    // Extraction still ran despite the throwing store.
     expect(extractAndRetain).toHaveBeenCalledTimes(1);
   });
 
   it("does NOT advance the durable cursor on a trailing-slice guess (gap-clobber)", async () => {
     vi.mocked(extractAndRetain).mockResolvedValue(EMPTY_RESULT);
     const { store, set, get } = makeCursorStore();
-    // Cursor points at a message NOT in the provided history (scrolled out),
-    // and history is longer than the window → the fallback trailing slice skips
-    // the un-extracted gap. Persisting its end would strand that gap durably.
     get.mockReturnValue("m-scrolled-out");
 
     const extractor = createAutoExtractor({ ...baseOptions, cursorStore: store });
-    extractor.processTurn(mk(10), "conv1"); // windowSize 6 < 10 → trailing slice
+    extractor.processTurn(mk(10), "conv1");
     await flush();
 
-    expect(set).not.toHaveBeenCalled(); // durable cursor left intact for a fuller-history session
+    expect(set).not.toHaveBeenCalled();
   });
 
   it("does not regress the durable cursor when a concurrent writer is ahead", async () => {
     vi.mocked(extractAndRetain).mockResolvedValue(EMPTY_RESULT);
     const { store, set, get } = makeCursorStore();
-    // Hydrate at m0; a concurrent session advanced the shared store to m5 by the
-    // time we persist. Our window (truncated by maxWindowSize) ends earlier, so
-    // the write must NOT move the cursor backwards.
     get.mockReturnValueOnce("m0").mockReturnValueOnce("m5");
 
     const extractor = createAutoExtractor({
       ...baseOptions,
       cursorStore: store,
       windowSize: 1,
-      maxWindowSize: 2, // window truncates to [m0, m1] → advancedTo = m1 (index 1)
+      maxWindowSize: 2,
     });
     extractor.processTurn(mk(10), "conv1");
     await flush();
 
-    // m5 (index 5) is ahead of m1 (index 1) within this turn's messages → skip.
     expect(set).not.toHaveBeenCalled();
   });
 });

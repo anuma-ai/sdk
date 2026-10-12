@@ -1,15 +1,6 @@
-/**
- * Unit tests for `convertLegacyDeckJson` — the JSON → AnumaNode
- * backwards-compat converter for pre-JSX slide decks.
- */
-
 import { describe, expect, it } from "vitest";
 
 import { convertLegacyDeckJson, isLegacyDeckJson } from "./legacy.js";
-
-// ---------------------------------------------------------------------------
-// isLegacyDeckJson
-// ---------------------------------------------------------------------------
 
 describe("isLegacyDeckJson", () => {
   it("recognises a parsed legacy deck object", () => {
@@ -47,10 +38,6 @@ describe("isLegacyDeckJson", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// convertLegacyDeckJson
-// ---------------------------------------------------------------------------
-
 describe("convertLegacyDeckJson", () => {
   it("returns null for malformed JSON", () => {
     expect(convertLegacyDeckJson("not json")).toBeNull();
@@ -80,7 +67,6 @@ describe("convertLegacyDeckJson", () => {
     expect(deck?.attrs.fontPreset).toBe("tech");
     expect(deck?.attrs.background).toBe("#000");
     expect(deck?.attrs.accent).toBe("#10b981");
-    // Defaults filled in for missing colors.
     expect(deck?.attrs.textPrimary).toBe("#ffffff");
   });
 
@@ -136,7 +122,6 @@ describe("convertLegacyDeckJson", () => {
     const text = slide.children[0];
     if (!text || typeof text === "string") throw new Error("expected text node");
     expect(text.tag).toBe("Text");
-    // 10% of 960 = 96, 10% of 540 = 54, 80% of 960 = 768, 20% of 540 = 108.
     expect(text.attrs.x).toBe(96);
     expect(text.attrs.y).toBe(54);
     expect(text.attrs.w).toBe(768);
@@ -144,7 +129,6 @@ describe("convertLegacyDeckJson", () => {
     expect(text.attrs.fontRole).toBe("heading");
     expect(text.children).toEqual(["Hello"]);
     const style = text.attrs.style as Record<string, unknown>;
-    // 4% of 960 ≈ 38.4 px
     expect(style.fontSize).toBe(38.4);
     expect(style.fontWeight).toBe(700);
     expect(style.color).toBe("textPrimary");
@@ -254,7 +238,7 @@ describe("convertLegacyDeckJson", () => {
     expect(icon.attrs.name).toBe("star");
     const style = icon.attrs.style as Record<string, unknown>;
     expect(style.color).toBe("accent");
-    expect(style.fontSize).toBe(28.8); // 3% of 960
+    expect(style.fontSize).toBe(28.8);
   });
 
   it("preserves rotation when present on any element", () => {
@@ -297,9 +281,6 @@ describe("convertLegacyDeckJson", () => {
       slides: [
         {
           id: "s1",
-          // Intentionally minimal, to exercise the defensive defaults. The legacy
-          // element type already declares every field but `kind` optional, so this
-          // needs no suppression.
           elements: [{ kind: "text", id: "t" }, { kind: "image" }],
         },
       ],

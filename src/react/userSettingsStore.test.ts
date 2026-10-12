@@ -38,11 +38,6 @@ interface ObserveSubscriber {
   next: (records: unknown[]) => void;
 }
 
-/**
- * Fake Database whose `userPreferences` and `modelPreferences` collections
- * surface the chained `.query().observeWithColumns().subscribe()` call path
- * the store relies on, plus exposed counters so tests can assert call volume.
- */
 function createFakeDatabase() {
   const observeSubscribers: ObserveSubscriber[] = [];
   const observeCalls: { columns: string[] }[] = [];
@@ -93,8 +88,6 @@ function createFakeDatabase() {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  // `vi.resetModules()` doesn't re-initialize already-resolved module bindings,
-  // so reset the pool explicitly for reliable per-test isolation.
   __resetPoolForTests();
   vi.mocked(getUserPreferenceOp).mockResolvedValue({
     uniqueId: "rec-1",
@@ -125,7 +118,6 @@ describe("subscribeUserSettings — deduplication", () => {
     const unsubC = subscribeUserSettings(database, "0xABC", c);
 
     expect(subscribeCalls).toHaveLength(1);
-    // The single observe must watch the profile columns the snapshot reads.
     expect(observeCalls[0].columns).toContain("nickname");
 
     unsubA();
@@ -138,8 +130,6 @@ describe("subscribeUserSettings — deduplication", () => {
     const listeners = Array.from({ length: 5 }, () => vi.fn());
     const cleanups = listeners.map((l) => subscribeUserSettings(database, "0xABC", l));
 
-    // `startLoad` has multiple awaits, so poll the snapshot rather than draining
-    // a single microtask tick — keeps this robust as the load path grows.
     await vi.waitFor(() => expect(getUserPreferenceOp).toHaveBeenCalledTimes(1));
 
     cleanups.forEach((c) => c());
@@ -211,8 +201,6 @@ describe("snapshot lifecycle", () => {
       expect(getUserSettingsSnapshot(database, "0xABC").isLoading).toBe(false)
     );
 
-    // Both listeners should have been called at least once for the loaded
-    // userPreference + isLoading transitions.
     expect(a).toHaveBeenCalled();
     expect(b).toHaveBeenCalled();
     const snapshot = getUserSettingsSnapshot(database, "0xABC");
@@ -233,7 +221,6 @@ describe("snapshot lifecycle", () => {
     );
     a.mockClear();
 
-    // Simulate WatermelonDB pushing a new record.
     observeSubscribers[0]?.next([
       {
         id: "rec-1",
@@ -257,7 +244,6 @@ describe("snapshot lifecycle", () => {
   it("ignores a load that resolves after the last subscriber unsubscribed", async () => {
     const { database } = createFakeDatabase();
 
-    // Hold the initial load pending so we can unsubscribe before it resolves.
     let resolveLoad!: (value: StoredUserPreference | null) => void;
     vi.mocked(getUserPreferenceOp).mockImplementationOnce(
       () =>
@@ -268,11 +254,9 @@ describe("snapshot lifecycle", () => {
 
     const listener = vi.fn();
     const unsub = subscribeUserSettings(database, "0xABC", listener);
-    // Tear down while `getUserPreferenceOp` is still pending.
     unsub();
     listener.mockClear();
 
-    // The entry is gone; resolving the in-flight load must not patch anything.
     resolveLoad({
       uniqueId: "rec-late",
       walletAddress: "0xABC",
@@ -289,8 +273,6 @@ describe("snapshot lifecycle", () => {
     expect(listener).not.toHaveBeenCalled();
     expect(__hasUserSettingsPoolEntryForTests(database, "0xABC")).toBe(false);
 
-    // A fresh subscriber must start clean — no leaked snapshot from the
-    // cancelled load.
     const fresh = vi.fn();
     const cleanup = subscribeUserSettings(database, "0xABC", fresh);
     expect(getUserSettingsSnapshot(database, "0xABC").userPreference).toBeNull();
@@ -325,7 +307,6 @@ describe("patchUserSettingsSnapshot", () => {
     expect(a).toHaveBeenCalledTimes(1);
     const snapshot = getUserSettingsSnapshot(database, "0xABC");
     expect(snapshot.userPreference?.nickname).toBe("Patched");
-    // isLoading not in the patch — preserved.
     expect(snapshot.isLoading).toBe(false);
 
     cleanup();
@@ -346,7 +327,6 @@ describe("patchUserSettingsSnapshot", () => {
 describe("null database (not yet bound)", () => {
   it("subscribeUserSettings is an inert no-op and never touches the pool", () => {
     const listener = vi.fn();
-    // A null database can't key the WeakMap pool — this must not throw.
     const cleanup = subscribeUserSettings(null, "0xABC", listener);
     expect(listener).not.toHaveBeenCalled();
     expect(getUserPreferenceOp).not.toHaveBeenCalled();

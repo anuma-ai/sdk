@@ -2,18 +2,8 @@ import { getLogger } from "../logger";
 import { extractPdfPageTexts, type RenderedPdfPage, renderPdfPages } from "../pdf";
 import type { FileProcessor, FileWithData, ProcessedFileResult } from "./types";
 
-/**
- * Maximum number of PDF pages to convert to images per document.
- * Keeps payload size reasonable for the vision model.
- */
-// TODO(ceiling): a fixed page count ignores image size/tokens; upgrade to a token-based image
-// budget shared with the text budget (or page retrieval for long scans).
 const MAX_IMAGE_PAGES = 20;
 
-/**
- * A page whose text layer has fewer characters than this is treated as image-only (a scanned
- * page, a page number or running header over a scan) and rendered as an image.
- */
 const MIN_PAGE_TEXT_CHARS = 20;
 
 /**
@@ -97,7 +87,6 @@ export function rewriteImageNote(
     [...imagePages.slice(kept), ...omittedPages].sort((a, b) => a - b),
     pageCount
   );
-  // A replacer function: a replacement STRING would interpolate `$&`, `$'`, `$$` in a file name.
   return result.extractedText.replace(note, () => newNote);
 }
 
@@ -117,7 +106,6 @@ export class PdfProcessor implements FileProcessor {
   async process(file: FileWithData): Promise<ProcessedFileResult | null> {
     const logger = getLogger();
 
-    // --- Text per page first (fast, small payload) ---
     let pageTexts: string[] | null = null;
     try {
       pageTexts = await extractPdfPageTexts(file.dataUrl);
@@ -129,7 +117,6 @@ export class PdfProcessor implements FileProcessor {
     }
 
     const text = (pageTexts ?? []).filter((t) => t.trim()).join("\n\n");
-    // Unknown page layout (text extraction threw): render the first pages, as before.
     const { rendered, omitted } = pageTexts
       ? selectPdfImagePages(pageTexts)
       : { rendered: [] as number[], omitted: [] as number[] };
@@ -138,7 +125,6 @@ export class PdfProcessor implements FileProcessor {
       return text.trim() ? { extractedText: text, format: "plain" } : null;
     }
 
-    // --- Render the image-only pages for vision models ---
     let renderedPages: RenderedPdfPage[];
     let pageCount = pageTexts?.length;
     try {
@@ -159,12 +145,8 @@ export class PdfProcessor implements FileProcessor {
     }
 
     const images = renderedPages.map((p) => p.dataUrl);
-    // The pages the images actually are — a page that could not be rendered is skipped, so
-    // they are not necessarily the first pages asked for.
     const imagePages = renderedPages.map((p) => p.pageNumber);
     const included = new Set(imagePages);
-    // Every page that needed an image and is not in the message. With no text layer to go by
-    // (extraction threw), every page of the document needed one.
     const needImage = pageTexts
       ? [...rendered, ...omitted]
       : Array.from({ length: pageCount ?? 0 }, (_, i) => i + 1);
@@ -179,9 +161,6 @@ export class PdfProcessor implements FileProcessor {
       `[PdfProcessor] Rendered ${images.length} page(s) as images, ${omittedPages.length} image-only page(s) omitted`
     );
 
-    // Contextual note for the LLM — keep it self-contained since the images are only injected
-    // in the current request and not persisted for follow-up turns. It goes FIRST so a text
-    // cap never cuts it off.
     const imageNote = buildPdfImageNote(file.name, imagePages, omittedPages, pageCount);
     return {
       extractedText: text.trim() ? `${imageNote}\n\n${text}` : imageNote,

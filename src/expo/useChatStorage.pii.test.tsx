@@ -1,25 +1,9 @@
 // @vitest-environment happy-dom
-/**
- * Regression coverage for PII-redaction forwarding in the Expo `useChatStorage`.
- *
- * A prior version accepted `piiRedaction` / `onPiiRedacted` in its options type
- * but never forwarded them to the inner `useChat` (the react entry forwarded
- * them; the expo entry did not). The result: mobile chat redaction was a silent
- * no-op regardless of the user's toggle. These tests lock in that:
- *   1. `piiRedaction: true` reaches `useChat` resolved to a real PiiRedactor,
- *      and `onPiiRedacted` is forwarded verbatim.
- *   2. `false` / a custom instance pass through unchanged.
- *   3. Instances for the SAME conversation share ONE redactor (so a placeholder
- *      minted by one useChatStorage instance can be de-anonymized by another —
- *      mobile mounts a singleton setup hook AND a per-conversation stream
- *      driver for the same conversation).
- */
 import { Database } from "@nozbe/watermelondb";
 import LokiJSAdapter from "@nozbe/watermelondb/adapters/lokijs";
 import { renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-// Mock the inner useChat so we can inspect exactly what useChatStorage forwards.
 vi.mock("./useChat", () => ({
   useChat: vi.fn(() => ({
     isLoading: false,
@@ -50,9 +34,6 @@ function makeDatabase(): Database {
 
 function lastUseChatOptions() {
   const calls = mockUseChat.mock.calls;
-  // `useChat`'s options parameter is optional, so the recorded argument is
-  // `UseChatOptions | undefined`. Every call under test passes options — if one
-  // ever doesn't, that's the bug, so fail here rather than on a vaguer assertion.
   const opts = calls[calls.length - 1][0];
   if (!opts) throw new Error("useChat was called without options");
   return opts;

@@ -141,12 +141,6 @@ export function createAgentresClient(options: AgentresClientOptions): AgentresCl
       return readBody<T>(challenged);
     }
 
-    // Release the challenge body before the retry. Everything we need is in the
-    // header, and some fetch implementations hold the underlying connection open
-    // until an unread body is consumed or cancelled — so a registration flow,
-    // which makes a fresh challenged request per call, would accumulate them.
-    // Cancelling can reject on an already-disturbed or errored stream, and that
-    // is not a reason to fail a call whose challenge we have already read.
     await challenged.body?.cancel().catch(() => {});
 
     const header = challenged.headers.get(PAYMENT_REQUIRED_HEADER);
@@ -156,10 +150,6 @@ export function createAgentresClient(options: AgentresClientOptions): AgentresCl
       );
     }
 
-    // Scoped to baseUrl, not to whatever the challenge says about itself: the
-    // proof we are about to sign would otherwise be replayable at any SIWX site
-    // the challenge chose to name. baseUrl is the right thing to scope to only
-    // because resolveUrl has already refused any path that left that origin.
     const challenge = parseChallenge(header, baseUrl);
     const signature = await signMessage(new TextEncoder().encode(buildMessage(challenge, address)));
 
@@ -227,29 +217,6 @@ export function createAgentresClient(options: AgentresClientOptions): AgentresCl
   };
 }
 
-/**
- * Resolve a request path against the base URL, refusing one that moves host.
- *
- * Two layers, and each catches what the other misses.
- *
- * The shape check refuses anything that is not a host-rooted path. `"@evil.com/x"`
- * and `".evil.com/x"` concatenate straight onto the base as an authority
- * (`evil.com` and `agentres.dev.evil.com` respectively), and `"//evil.com/x"`
- * resolves protocol-relative to `https://evil.com/x`. Refusing them is better
- * than the rewrite {@link URL} would otherwise do quietly: a caller that wrote
- * `"@evil.com/x"` did not mean `/@evil.com/x` either, and should hear about it.
- *
- * The origin assertion is the backstop, and it is not redundant. `"/\\evil.com/x"`
- * passes the shape check — it starts with a single slash — and still resolves to
- * `https://evil.com/x`, because the URL parser treats a backslash as a slash for
- * special schemes. Leading control characters do the same thing.
- *
- * This runs before the first fetch, which is the only place it helps: that fetch
- * carries our headers to whatever host it reached, and the 402 it answers with is
- * the challenge we then sign.
- *
- * @throws {AgentresPathError} when the path is not a path on the agentres host.
- */
 function resolveUrl(baseUrl: string, path: string): string {
   if (!path.startsWith("/") || path.startsWith("//")) {
     throw new AgentresPathError(
@@ -278,16 +245,12 @@ function requestInit(request: AgentresRequest): RequestInit & { headers: Record<
   return { method: request.method, headers, body: JSON.stringify(request.body) };
 }
 
-/** Read a response as JSON, turning a refusal into a typed error first. */
 async function readBody<T>(response: Response): Promise<T> {
   const body = await response.text();
   if (!response.ok) {
     throw parseAgentresError(response.status, body);
   }
 
-  // A 2xx is not a promise of JSON: a proxy or a WAF in front of agentres can
-  // answer 200 with an HTML page. Parsed bare, that leaves the module through a
-  // raw SyntaxError, past the typed surface every other failure here uses.
   try {
     return JSON.parse(body) as T;
   } catch {

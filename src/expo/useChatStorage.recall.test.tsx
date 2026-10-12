@@ -1,11 +1,4 @@
 // @vitest-environment happy-dom
-/**
- * Expo parity coverage for the bound `recall` exposed by useChatStorage.
- * Mirrors the react suite: recall routes through the unified recall() pipeline
- * with a shared cache, defaults excludeConversationId to the active
- * conversation (matching createRecallTool), and degrades to an empty result
- * when auth is unavailable.
- */
 
 import { Database } from "@nozbe/watermelondb";
 import LokiJSAdapter from "@nozbe/watermelondb/adapters/lokijs";

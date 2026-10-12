@@ -2,8 +2,6 @@ import { describe, it, expect, vi } from "vitest";
 
 import { shouldAnalyzeStyle, analyzeStyle, DEFAULT_ANALYSIS_PROMPT } from "./analyzeStyle";
 
-// ── shouldAnalyzeStyle ──
-
 describe("shouldAnalyzeStyle", () => {
   it("returns false when opted out", () => {
     expect(
@@ -127,8 +125,6 @@ describe("shouldAnalyzeStyle", () => {
   });
 });
 
-// ── analyzeStyle ──
-
 describe("analyzeStyle", () => {
   it("calls LLM with system + numbered user messages and returns profile", async () => {
     const callLlm = vi.fn().mockResolvedValue("Casual, concise texting style.");
@@ -158,7 +154,7 @@ describe("analyzeStyle", () => {
   });
 
   it("truncates long profiles at word boundary", async () => {
-    const longProfile = "word ".repeat(100); // 500 chars
+    const longProfile = "word ".repeat(100);
     const callLlm = vi.fn().mockResolvedValue(longProfile);
 
     const result = await analyzeStyle({
@@ -171,7 +167,6 @@ describe("analyzeStyle", () => {
     });
 
     expect(result.profile!.length).toBeLessThanOrEqual(200);
-    // Should end at a word boundary (no trailing partial word)
     expect(result.profile!.endsWith("word")).toBe(true);
   });
 
@@ -288,7 +283,6 @@ describe("analyzeStyle", () => {
     });
 
     const userContent = callLlm.mock.calls[0]![0][1].content as string;
-    // Should contain the 3 most recent, in chronological order
     expect(userContent).toContain("1. new1");
     expect(userContent).toContain("2. new2");
     expect(userContent).toContain("3. new3");

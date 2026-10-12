@@ -20,7 +20,6 @@ describe("assembleClientTools — capability gating", () => {
   ];
 
   it("only instantiates factories whose builder (adapter) is present", () => {
-    // Mobile-shaped adapters: memory + connectors + document only.
     const tools = assembleClientTools<T>(
       { clientFactories: factories },
       {
@@ -50,7 +49,6 @@ describe("assembleClientTools — capability gating", () => {
         },
       }
     );
-    // Order follows clientFactories, not the builders object.
     expect(tools.map((x) => x.name)).toEqual(["recall_memory", "plan_deck", "create_file"]);
   });
 
@@ -91,8 +89,6 @@ describe("filterAssembledClientTools", () => {
   });
 
   it("slide-editor with NO name set fails closed (returns []), never the full list", () => {
-    // A missing slideEditorToolNames must not leak the whole toolkit into the
-    // overlay; consumers wanting everything use "include-all".
     expect(filterAssembledClientTools(tools, "slide-editor", { getName })).toEqual([]);
   });
 

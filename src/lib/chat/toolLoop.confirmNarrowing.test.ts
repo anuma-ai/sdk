@@ -1,18 +1,10 @@
-/**
- * Narrowing the tool list after a confirmed booking or cancel in runToolLoop.
- *
- * Once the user approves a booking card, the rest of the turn offers only the
- * restaurant tools and the confirm tool; a cancel card narrows to the list and
- * cancel tools. A declined, cancelled or unrelated
- * confirmation leaves the tools alone, and so does a list that carries no
- * restaurant tool at all.
- */
-
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import * as sseModule from "../../client/core/serverSentEvents.gen";
+import { CONFIRM_REQUIRED_FIELDS } from "../../tools/confirmConstants";
 import * as embeddingsModule from "../memoryEngine/embeddings";
 import type { ModelCallStartEvent } from "./runHooks";
+import bookingTurn from "./fixtures/bookingTurnToolCallEvents.json";
 import { runToolLoop, toolsAfterConfirmation } from "./toolLoop";
 
 vi.mock("../../client/core/serverSentEvents.gen", async (importOriginal) => {
@@ -41,7 +33,6 @@ const RESTAURANT_TOOLS = [FIND, AVAILABILITY, BOOK];
 
 type ToolCallEvent = { id: string; name: string; arguments: string; output?: string };
 
-/** Stream where the model calls one client tool; `events` are the portal's tool_call_events. */
 function makeClientToolStream(callId: string, name: string, events: ToolCallEvent[] = []) {
   return (async function* () {
     yield { type: "response.created", response: { id: "r", model: "m" } };
@@ -62,18 +53,17 @@ function makeClientToolStream(callId: string, name: string, events: ToolCallEven
   })();
 }
 
-function makeTextStream(text: string) {
+function makeTextStream(text: string, events?: ToolCallEvent[]) {
   return (async function* () {
     yield { type: "response.created", response: { id: "r", model: "m" } };
     yield { type: "response.output_text.delta", delta: { OfString: text } };
     yield {
       type: "response.completed",
-      response: { usage: { input_tokens: 1, output_tokens: 1 } },
+      response: { usage: { input_tokens: 1, output_tokens: 1 }, tool_call_events: events },
     };
   })();
 }
 
-/** A server tool as useChatStorage merges it for the responses API. */
 function serverTool(name: string) {
   return { type: "function", name, description: name, parameters: { type: "object" } };
 }
@@ -95,13 +85,24 @@ function answer(confirmed: boolean, action: string) {
   };
 }
 
+function completeAnswer(confirmed: boolean, action: string) {
+  const fields = CONFIRM_REQUIRED_FIELDS.get(action.toLowerCase())?.fields ?? [];
+  return {
+    ...answer(confirmed, action),
+    parameters: fields.map((name) => ({ name, label: name, value: "1" })),
+  };
+}
+
 type Captured = { tools: string[]; toolChoice: unknown };
 
-/** Runs the loop and returns each request's tool names and tool_choice. */
 async function captureRequests(
   tools: Array<Record<string, unknown>>,
   toolChoice?: string
 ): Promise<Captured[]> {
+  return (await runCapturing(tools, toolChoice)).requests;
+}
+
+async function runCapturing(tools: Array<Record<string, unknown>>, toolChoice?: string) {
   const requests: Captured[] = [];
   const result = await runToolLoop({
     messages: [{ role: "user", content: [{ type: "text", text: "book sushi for two" }] }],
@@ -120,10 +121,9 @@ async function captureRequests(
     },
   });
   expect(result.error).toBeNull();
-  return requests;
+  return { requests, result };
 }
 
-/** Round 1 calls the confirm tool, round 2 answers in text. */
 function scriptConfirmThenText() {
   mockCreateSseClient
     .mockReturnValueOnce({ stream: makeClientToolStream("c1", CONFIRM) } as never)
@@ -151,7 +151,6 @@ describe("runToolLoop after a confirmed booking", () => {
     ];
     mockCreateSseClient
       .mockReturnValueOnce({ stream: makeClientToolStream("c1", CONFIRM) } as never)
-      // The portal runs find_restaurant in round 2, then the model shows a fuller card.
       .mockReturnValueOnce({
         stream: makeClientToolStream("c2", CONFIRM, [
           { id: "s1", name: FIND, arguments: "{}", output: '{"restaurants":[]}' },
@@ -164,7 +163,6 @@ describe("runToolLoop after a confirmed booking", () => {
     expect(requests).toHaveLength(3);
     expect(requests[0].tools).toEqual([FIND, AVAILABILITY, BOOK, NEARBY, WEATHER, CONFIRM]);
     expect(requests[1].tools).toEqual([...RESTAURANT_TOOLS, CONFIRM]);
-    // A later cancelled card does not widen the list again.
     expect(requests[2].tools).toEqual([...RESTAURANT_TOOLS, CONFIRM]);
   });
 
@@ -219,6 +217,7 @@ describe("runToolLoop after a confirmed booking", () => {
   it.each([
     ["another action", answer(true, "place_order")],
     ["a decline", answer(false, "book_restaurant")],
+    ["a decline of a complete card", completeAnswer(false, "book_restaurant")],
     ["a cancelled card", { cancelled: true }],
     ["a non-boolean answer", { ...answer(true, "book_restaurant"), confirmed: "yes" }],
   ])("leaves the tools unchanged after %s", async (_label, result) => {
@@ -228,6 +227,76 @@ describe("runToolLoop after a confirmed booking", () => {
     const requests = await captureRequests(tools);
 
     expect(requests[1].tools).toEqual([FIND, NEARBY, CONFIRM]);
+  });
+
+  it("drops the confirm tool after a complete booking card", async () => {
+    const tools = [
+      serverTool(FIND),
+      serverTool(AVAILABILITY),
+      serverTool(BOOK),
+      serverTool(NEARBY),
+      clientTool(CONFIRM, async () => completeAnswer(true, "book_restaurant")),
+    ];
+    scriptConfirmThenText();
+
+    const requests = await captureRequests(tools);
+
+    expect(requests[1].tools).toEqual(RESTAURANT_TOOLS);
+  });
+
+  it("drops the confirm tool after a complete cancel card", async () => {
+    const tools = [
+      serverTool(LIST),
+      serverTool(CANCEL),
+      serverTool(NEARBY),
+      clientTool(CONFIRM, async () => completeAnswer(true, "cancel_reservation")),
+    ];
+    scriptConfirmThenText();
+
+    const requests = await captureRequests(tools);
+
+    expect(requests[1].tools).toEqual([LIST, CANCEL]);
+  });
+
+  it("ends the turn on the model's text when the confirmed booking then fails", async () => {
+    const tools = [
+      ...RESTAURANT_TOOLS.map(serverTool),
+      clientTool(CONFIRM, async () => completeAnswer(true, "book_restaurant")),
+    ];
+    const failedBook = {
+      id: "s-book",
+      name: BOOK,
+      arguments: "{}",
+      output: '{"success":false,"cost":0,"error":"that time is no longer available"}',
+    };
+    mockCreateSseClient
+      .mockReturnValueOnce({ stream: makeClientToolStream("c1", CONFIRM) } as never)
+      .mockReturnValueOnce({
+        stream: makeTextStream("It is not booked yet: that time was just taken.", [failedBook]),
+      } as never);
+
+    const { requests, result } = await runCapturing(tools);
+
+    expect(requests).toHaveLength(2);
+    expect(requests[1].tools).toEqual(RESTAURANT_TOOLS);
+    const output = (result.data as { output: Array<{ content?: Array<{ text: string }> }> }).output;
+    expect(output.at(-1)?.content?.[0]?.text).toBe(
+      "It is not booked yet: that time was just taken."
+    );
+  });
+
+  it("returns the booking result the portal reports with the final answer", async () => {
+    const tools = [
+      ...RESTAURANT_TOOLS.map(serverTool),
+      clientTool(CONFIRM, async () => completeAnswer(true, "book_restaurant")),
+    ];
+    mockCreateSseClient
+      .mockReturnValueOnce({ stream: makeClientToolStream("c1", CONFIRM) } as never)
+      .mockReturnValueOnce({ stream: makeTextStream("Booked.", bookingTurn) } as never);
+
+    const { result } = await runCapturing(tools);
+
+    expect((result.data as { tool_call_events?: unknown }).tool_call_events).toEqual(bookingTurn);
   });
 
   it("leaves the tools unchanged when no restaurant tool is on offer", async () => {
@@ -322,6 +391,25 @@ describe("toolsAfterConfirmation", () => {
     ["another tool's result", { name: WEATHER, result: answer(true, "book_restaurant") }],
   ])("returns undefined for %s", (_label, result) => {
     expect(toolsAfterConfirmation(apiTools, [result])).toBeUndefined();
+  });
+
+  it.each([
+    ["book_restaurant", RESTAURANT_TOOLS],
+    ["AnumaPaymentsMCP-anuma_cancel_reservation", [LIST, CANCEL]],
+  ])("leaves out the confirm tool after a complete %s card", (action, kept) => {
+    const withCancel = [...apiTools, ...[LIST, CANCEL].map(serverTool)];
+    const narrowed = toolsAfterConfirmation(withCancel, [
+      { name: CONFIRM, result: completeAnswer(true, action) },
+    ]);
+    expect(names(narrowed)).toEqual(kept);
+  });
+
+  it("keeps the confirm tool when any approved card lacked a field", () => {
+    const narrowed = toolsAfterConfirmation(apiTools, [
+      { name: CONFIRM, result: completeAnswer(true, "book_restaurant") },
+      { name: CONFIRM, result: answer(true, "book_restaurant") },
+    ]);
+    expect(names(narrowed)).toEqual([...RESTAURANT_TOOLS, CONFIRM]);
   });
 
   it("returns undefined when no set member is on offer", () => {

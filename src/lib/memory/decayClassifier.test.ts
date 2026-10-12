@@ -16,12 +16,9 @@ const choices = (jsonContent: unknown) => ({
   choices: [{ message: { content: JSON.stringify(jsonContent) } }],
 });
 
-/** NER-only PII: a bare personal name, matched by no regex in the redactor. */
 const NAME = "Marguerite Okonkwo";
 
 const DAY = 24 * 60 * 60 * 1000;
-// Fixed sweep clock passed as the classifier's `now` — determinism, and it
-// exercises that age math derives from the injected clock, not wall time.
 const NOW = Date.UTC(2026, 6, 1);
 
 function input(overrides: Partial<DecayInput> = {}): DecayInput {
@@ -68,7 +65,6 @@ describe("createLlmDecayClassifier", () => {
       getContent: async () => null,
     });
     expect(await classifier.classify(input(), "archive", NOW)).toBe("archive");
-    // Zero-knowledge: with no content, no portal call is made.
     expect(fetchFn).not.toHaveBeenCalled();
   });
 
@@ -112,7 +108,6 @@ describe("createLlmDecayClassifier", () => {
     const getContent = vi.fn(async () => "content");
     const classifier = createLlmDecayClassifier({ apiKey: "k", fetchFn, getContent });
     expect(await classifier.classify(input(), "delete", NOW)).toBe("delete");
-    // Delete is deterministic-only; the classifier must not even read content.
     expect(getContent).not.toHaveBeenCalled();
     expect(fetchFn).not.toHaveBeenCalled();
   });
@@ -126,13 +121,11 @@ describe("createLlmDecayClassifier", () => {
     const classifier = createLlmDecayClassifier({
       apiKey: "k",
       fetchFn,
-      // NO piiRedaction option → must default ON.
       getContent: async () => "Email me at bob@acme.com about the trip",
       backoffMs: () => 0,
     });
     await classifier.classify(input(), "archive", NOW);
     expect(fetchFn).toHaveBeenCalled();
-    // The raw PII must NOT appear in the outbound request body (it was redacted).
     expect(sentBody).not.toContain("bob@acme.com");
   });
 
@@ -145,25 +138,17 @@ describe("createLlmDecayClassifier", () => {
     const classifier = createLlmDecayClassifier({
       apiKey: "k",
       fetchFn,
-      piiRedaction: false, // deliberate opt-out
+      piiRedaction: false,
       getContent: async () => "Email me at bob@acme.com about the trip",
       backoffMs: () => 0,
     });
     await classifier.classify(input(), "archive", NOW);
-    // Explicit opt-out → raw content egresses verbatim.
     expect(sentBody).toContain("bob@acme.com");
   });
 
-  // The redactor a caller HANDS us may carry an NER detector, and NER runs only
-  // in `redactTextAsync` — the sync `redactText` is regex-only. Redacting this
-  // path synchronously shipped every name, location and org to the portal in
-  // plain text while emails and phones came back masked, so the leak looked
-  // like working redaction, and only for the callers who configured a detector.
   it("applies the caller's NER detector, not just the regex half of it", async () => {
     const detector: NerDetector = {
       async detect(text: string): Promise<PiiSpan[]> {
-        // A bare personal name — deliberately something no redactor regex
-        // matches. If NER is skipped it survives into the request body.
         const spans: PiiSpan[] = [];
         let at = text.indexOf(NAME);
         while (at !== -1) {
@@ -214,8 +199,6 @@ describe("createLlmDecayClassifier", () => {
       backoffMs: () => 0,
     });
 
-    // Row last written 42 days before the injected sweep clock. The age hint in
-    // the outbound prompt must read exactly 42 regardless of the real wall time.
     const updatedAt = NOW - 42 * DAY;
     await classifier.classify(input({ updatedAt }), "keep", NOW);
     expect(fetchFn).toHaveBeenCalled();
@@ -235,7 +218,6 @@ describe("createLlmDecayClassifier", () => {
       backoffMs: () => 0,
     });
 
-    // A merge pins updated_at and records the sighting in lastObservedAt.
     await classifier.classify(
       input({ updatedAt: NOW - 300 * DAY, lastObservedAt: NOW - 3 * DAY }),
       "keep",

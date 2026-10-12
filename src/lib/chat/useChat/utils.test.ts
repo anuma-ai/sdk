@@ -46,9 +46,6 @@ describe("getInStreamErrorMessage", () => {
   });
 
   it("returns null when error is a string (Bifrost uses strings for terminal 5xx bodies)", () => {
-    // `{"error":"Service error."}` is the 5xx body shape — surfaced via HTTP
-    // status, not this in-stream path, so we must not treat it as an in-stream
-    // event.
     expect(getInStreamErrorMessage({ error: "Service error." })).toBeNull();
   });
 

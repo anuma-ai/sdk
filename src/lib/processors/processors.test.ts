@@ -1,13 +1,5 @@
 // @vitest-environment node
 
-/**
- * Node.js integration tests for file processors.
- *
- * These tests run in a real Node.js environment (not happy-dom) to verify
- * that processors work without browser globals like atob/btoa/document.
- * Test fixtures are generated programmatically to avoid binary file management.
- */
-
 import ExcelJS from "exceljs";
 import JSZip from "jszip";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -23,11 +15,7 @@ import type { FileProcessor, FileWithData, ProcessedFileResult } from "./types";
 import { WordProcessor } from "./WordProcessor";
 import { ZipProcessor } from "./ZipProcessor";
 
-// ── Helpers ──
-
 function toDataUrl(buffer: ArrayBuffer | Buffer | Uint8Array, mimeType: string): string {
-  // `Buffer.from` has separate overloads for ArrayBuffer and for array-likes, and
-  // the union matches neither — normalize to a view first.
   const bytes = buffer instanceof ArrayBuffer ? new Uint8Array(buffer) : buffer;
   const base64 = Buffer.from(bytes).toString("base64");
   return `data:${mimeType};base64,${base64}`;
@@ -85,8 +73,6 @@ async function createTestXlsx(): Promise<string> {
   return toDataUrl(buffer, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
 }
 
-// ── Encoding utility tests ──
-
 describe("encoding utilities (Node.js)", () => {
   it("dataUrlToArrayBuffer decodes a base64 data URL", async () => {
     const text = "Hello, Node.js!";
@@ -99,7 +85,7 @@ describe("encoding utilities (Node.js)", () => {
   });
 
   it("uint8ArrayToBase64 encodes binary data", () => {
-    const data = new Uint8Array([72, 101, 108, 108, 111]); // "Hello"
+    const data = new Uint8Array([72, 101, 108, 108, 111]);
     const base64 = uint8ArrayToBase64(data);
     expect(base64).toBe(Buffer.from("Hello").toString("base64"));
   });
@@ -124,7 +110,6 @@ describe("encoding utilities (Node.js)", () => {
   });
 });
 
-// Deterministic pseudo-random fill so the large-buffer test is reproducible without Math.random.
 function fillPseudoRandom(buf: Uint8Array): Uint8Array {
   let x = 0x9e3779b9;
   for (let i = 0; i < buf.length; i++) {
@@ -136,8 +121,6 @@ function fillPseudoRandom(buf: Uint8Array): Uint8Array {
   return buf;
 }
 
-// Fast byte-equality for large buffers. vitest's `toEqual` deep-diffs element-by-element with rich
-// diffing, which is far too slow (multi-second) on multi-MB typed arrays.
 function bytesEqual(a: Uint8Array, b: Uint8Array): boolean {
   if (a.length !== b.length) return false;
   for (let i = 0; i < a.length; i++) {
@@ -146,11 +129,6 @@ function bytesEqual(a: Uint8Array, b: Uint8Array): boolean {
   return true;
 }
 
-// Regression for the iCloud backup crash: the old upload path did
-// `btoa(String.fromCharCode(...bytes))`, which spreads every byte as an argument and throws
-// `RangeError: Maximum call stack size exceeded` above ~100–500KB — so any real backup crashed.
-// These tests force the browser fallback (Buffer undefined) and prove a multi-MB buffer both
-// encodes without throwing and round-trips to identical bytes.
 describe("encoding utilities (browser fallback, Buffer undefined)", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
@@ -160,7 +138,7 @@ describe("encoding utilities (browser fallback, Buffer undefined)", () => {
     vi.stubGlobal("Buffer", undefined);
     expect(typeof Buffer).toBe("undefined");
 
-    const original = fillPseudoRandom(new Uint8Array(2 * 1024 * 1024)); // 2MB
+    const original = fillPseudoRandom(new Uint8Array(2 * 1024 * 1024));
 
     let base64 = "";
     expect(() => {
@@ -174,7 +152,6 @@ describe("encoding utilities (browser fallback, Buffer undefined)", () => {
   it("chunk-boundary sizes round-trip (no mid-stream padding)", () => {
     vi.stubGlobal("Buffer", undefined);
 
-    // Sizes around the 0x8000*3 chunk boundary, incl. non-multiples of 3.
     for (const size of [
       0,
       1,
@@ -192,17 +169,15 @@ describe("encoding utilities (browser fallback, Buffer undefined)", () => {
   });
 
   it("matches the Node/Buffer encoding for the same bytes", () => {
-    const original = fillPseudoRandom(new Uint8Array(300 * 1024)); // 300KB, above the old crash range
-    const viaBuffer = uint8ArrayToBase64(original); // Buffer path (Node)
+    const original = fillPseudoRandom(new Uint8Array(300 * 1024));
+    const viaBuffer = uint8ArrayToBase64(original);
 
     vi.stubGlobal("Buffer", undefined);
-    const viaBrowser = uint8ArrayToBase64(original); // chunked btoa path
+    const viaBrowser = uint8ArrayToBase64(original);
 
     expect(viaBrowser).toBe(viaBuffer);
   });
 });
-
-// ── ExcelProcessor tests ──
 
 describe("ExcelProcessor (Node.js)", () => {
   it("extracts each sheet as CSV", async () => {
@@ -287,8 +262,6 @@ describe("ExcelProcessor (Node.js)", () => {
   });
 });
 
-// ── WordProcessor tests ──
-
 describe("WordProcessor (Node.js)", () => {
   it("extracts text from a Word document", async () => {
     const dataUrl = await createTestDocx("Hello from Word document");
@@ -316,8 +289,6 @@ describe("WordProcessor (Node.js)", () => {
     expect(result!.metadata!.wordCount).toBe(5);
   });
 });
-
-// ── TextProcessor tests ──
 
 describe("TextProcessor (Node.js)", () => {
   it("decodes a UTF-8 markdown file", async () => {
@@ -357,8 +328,6 @@ describe("TextProcessor (Node.js)", () => {
   });
 
   it("falls back to extension when MIME type is application/octet-stream", async () => {
-    // Browsers/OSes sometimes report .md as octet-stream; the registry's
-    // extension fallback should still route it to TextProcessor.
     const content = "# from octet-stream";
     const result = await preprocessFiles([
       {
@@ -395,8 +364,6 @@ describe("TextProcessor (Node.js)", () => {
   });
 });
 
-// ── Registry query method tests ──
-
 describe("ProcessorRegistry queries", () => {
   it("isSupported returns true for a registered MIME type", () => {
     const registry = new ProcessorRegistry();
@@ -431,11 +398,8 @@ describe("ProcessorRegistry queries", () => {
 
     const mimeTypes = registry.getSupportedMimeTypes();
 
-    // Sorted
     expect(mimeTypes).toEqual([...mimeTypes].sort());
-    // Deduplicated (Set semantics)
     expect(new Set(mimeTypes).size).toBe(mimeTypes.length);
-    // Includes types from both processors
     expect(mimeTypes).toContain("text/markdown");
     expect(mimeTypes).toContain(
       "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
@@ -453,7 +417,6 @@ describe("ProcessorRegistry queries", () => {
     expect(new Set(extensions).size).toBe(extensions.length);
     expect(extensions).toContain(".md");
     expect(extensions).toContain(".docx");
-    // All entries include the leading dot so they're <input accept>-ready
     expect(extensions.every((e) => e.startsWith("."))).toBe(true);
   });
 
@@ -464,8 +427,6 @@ describe("ProcessorRegistry queries", () => {
     expect(registry.getSupportedExtensions()).toEqual([]);
   });
 });
-
-// ── Top-level support helpers tests ──
 
 describe("isSupportedFile / getSupportedFileTypes", () => {
   it("isSupportedFile accepts files handled by default processors", () => {
@@ -478,14 +439,10 @@ describe("isSupportedFile / getSupportedFileTypes", () => {
   it("isSupportedFile rejects formats with no processor", () => {
     expect(isSupportedFile({ name: "song.mp3", type: "audio/mpeg" })).toBe(false);
     expect(isSupportedFile({ name: "video.mp4", type: "video/mp4" })).toBe(false);
-    // Images are handled separately as image_url content parts, not by processors
     expect(isSupportedFile({ name: "photo.png", type: "image/png" })).toBe(false);
   });
 
   it("isSupportedFile uses extension fallback when MIME type is unreliable", () => {
-    // Reproduces the original .md upload bug: macOS/Windows often report .md
-    // as text/plain or octet-stream; extension match keeps validation aligned
-    // with what preprocessFiles will actually accept.
     expect(isSupportedFile({ name: "readme.md", type: "" })).toBe(true);
     expect(isSupportedFile({ name: "readme.md", type: "application/octet-stream" })).toBe(true);
   });
@@ -496,7 +453,6 @@ describe("isSupportedFile / getSupportedFileTypes", () => {
     expect(Array.isArray(mimeTypes)).toBe(true);
     expect(Array.isArray(extensions)).toBe(true);
 
-    // Includes contributions from each default processor
     expect(mimeTypes).toContain("application/pdf");
     expect(mimeTypes).toContain("text/markdown");
     expect(extensions).toContain(".md");
@@ -509,18 +465,14 @@ describe("isSupportedFile / getSupportedFileTypes", () => {
   it("getSupportedFileTypes is consistent with isSupportedFile", () => {
     const { mimeTypes, extensions } = getSupportedFileTypes();
 
-    // Every advertised MIME type should pass validation
     for (const mimeType of mimeTypes) {
       expect(isSupportedFile({ name: "anything", type: mimeType })).toBe(true);
     }
-    // Every advertised extension should pass validation when MIME is missing
     for (const ext of extensions) {
       expect(isSupportedFile({ name: `file${ext}`, type: "" })).toBe(true);
     }
   });
 });
-
-// ── ZipProcessor tests ──
 
 describe("ZipProcessor (Node.js)", () => {
   it("lists archive contents", async () => {
@@ -552,7 +504,6 @@ describe("ZipProcessor (Node.js)", () => {
   });
 
   it("delegates to nested processors", async () => {
-    // Build a DOCX as raw bytes, then wrap in a zip
     const docxDataUrl = await createTestDocx("Nested document content");
     const docxBuffer = Buffer.from(await dataUrlToArrayBuffer(docxDataUrl));
 
@@ -579,8 +530,6 @@ describe("ZipProcessor (Node.js)", () => {
     expect(result!.metadata!.processedFiles).toBe(1);
   });
 });
-
-// ── preprocessFiles orchestration tests ──
 
 describe("preprocessFiles (Node.js)", () => {
   it("returns null content for empty files array", async () => {
@@ -680,8 +629,6 @@ describe("preprocessFiles (Node.js)", () => {
   });
 });
 
-// ── Robustness: encodings, MIME parameters, archive limits ──
-
 describe("TextProcessor byte-order marks", () => {
   const text = "naïve café — 東京";
 
@@ -720,7 +667,6 @@ describe("ProcessorRegistry MIME matching", () => {
   it("ignores MIME parameters and case", () => {
     const registry = new ProcessorRegistry();
     registry.register(new TextProcessor());
-    // Extension-less names so only the MIME type can match.
     expect(registry.findProcessor({ name: "export", type: "text/csv; charset=utf-8" })?.name).toBe(
       "text"
     );
@@ -735,7 +681,6 @@ describe("ProcessorRegistry MIME matching", () => {
   });
 });
 
-/** A stand-in for PdfProcessor that "renders" every page as an image (pdf.js can't run here). */
 function fakeScannedPdfProcessor(pages: number): FileProcessor {
   return {
     name: "pdf",
@@ -830,7 +775,6 @@ describe("ZipProcessor limits", () => {
     );
     expect(result!.extractedText).toContain("small content");
     expect(result!.extractedText).not.toContain("xxxxx");
-    // Only small.txt was inflated.
     expect(asyncSpy).toHaveBeenCalledTimes(1);
     asyncSpy.mockRestore();
   });
@@ -863,8 +807,6 @@ describe("ZipProcessor limits", () => {
     }
   });
 });
-
-// ── preprocessFiles: caps, statuses, image budget, timeout ──
 
 function textFile(id: string, name: string, content: string) {
   return {
@@ -900,13 +842,11 @@ describe("preprocessFiles caps", () => {
 
     expect(content).toContain(`[Extracted content from a.txt]\n${"a".repeat(40)}`);
     expect(content).toMatch(/b+\n\[truncated: showing the first \d+ of 200 characters of b\.txt\]/);
-    // No header + marker per file once the budget is spent — one combined note.
     expect(content).not.toContain("[Extracted content from c.txt]");
     expect(content).not.toContain("[Extracted content from d.txt]");
     expect(content).toContain(
       "[truncated: the attachment text limit (200 characters) was reached; the contents of c.txt, d.txt were not included]"
     );
-    // Everything but that one combined line fits the budget.
     const withoutNote = content.slice(
       0,
       content.lastIndexOf("\n\n---\n\n[truncated: the attachment")
@@ -1048,7 +988,6 @@ describe("preprocessFiles fileStatuses", () => {
     const result = await preprocessFiles([pdf("one"), pdf("two")], {
       processors: [fakeScannedPdfProcessor(15)],
     });
-    // 20 images total: 15 from the first file, 5 from the second.
     expect(result.imageContentUrls).toHaveLength(20);
     expect(result.fileStatuses.map((s) => s.status)).toEqual(["rendered_as_images", "truncated"]);
     expect(result.extractedContent).toContain(

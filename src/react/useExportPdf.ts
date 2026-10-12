@@ -36,7 +36,6 @@ function triggerDownload(blob: Blob, filename: string) {
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
-  // Defer revocation so the browser can finish initiating the download
   setTimeout(() => URL.revokeObjectURL(url), 100);
 }
 

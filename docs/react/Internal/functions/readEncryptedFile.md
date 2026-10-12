@@ -2,7 +2,7 @@
 
 > **readEncryptedFile**(`fileId`: `string`, `encryptionKey`: `CryptoKey`): `Promise`<{ `blob`: `Blob`; `metadata`: `StoredFileMetadata`; } | `null`>
 
-Defined in: [src/lib/storage/opfs.ts:234](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/opfs.ts#234)
+Defined in: [src/lib/storage/opfs.ts:185](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/opfs.ts#185)
 
 Reads and decrypts a file from OPFS.
 

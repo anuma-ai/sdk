@@ -58,10 +58,6 @@ describe("resolveBaseUrl", () => {
     expect(resolveBaseUrl()).toBe(DEV_FALLBACK);
   });
 
-  // The globalThis source is the fallback used by process-less edge runtimes
-  // (Cloudflare Workers without nodejs_compat, Deno). We can't null out `process`
-  // under the vitest forks pool — its teardown needs `process.exit` — so we cover
-  // the globalThis branch directly with process env vars cleared instead.
   it("reads from globalThis when process env vars are unset", () => {
     (globalThis as Record<string, unknown>).API_URL = "https://global.example";
     expect(resolveBaseUrl()).toBe("https://global.example");

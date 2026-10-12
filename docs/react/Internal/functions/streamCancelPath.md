@@ -2,7 +2,7 @@
 
 > **streamCancelPath**(`inferenceId`: `string`): `string`
 
-Defined in: [src/lib/chat/resumeStream.ts:34](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/resumeStream.ts#34)
+Defined in: [src/lib/chat/resumeStream.ts:32](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/resumeStream.ts#32)
 
 Build the cancel path for a detached stream. A POST here tells the portal to
 stop generating into the buffer and release it — the billing-safe teardown

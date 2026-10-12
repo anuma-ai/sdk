@@ -1,18 +1,4 @@
 // @vitest-environment happy-dom
-/**
- * Detach → resume reconciliation coverage for the Expo useChatStorage hook.
- *
- * The non-negotiable invariant: for a single `assistantUniqueId`, a detach
- * followed by a resume yields exactly ONE assistant row — the partial is
- * kept in memory on detach. The terminal creates or updates one assistant row.
- * A new send saves the detached partial before it starts the next turn.
- *
- * Two layers:
- * 1. upsertMessageOp directly against a real WatermelonDB (LokiJS) — the
- *    create-then-update single-row guarantee in isolation.
- * 2. The hook end to end with runToolLoop / resumeStream mocked — detach
- *    keeps a partial in memory, then saves one row at the terminal.
- */
 
 import { Database } from "@nozbe/watermelondb";
 import LokiJSAdapter from "@nozbe/watermelondb/adapters/lokijs";
@@ -28,8 +14,6 @@ import {
   upsertMessageOp,
 } from "../lib/db/chat";
 
-// Mock the framework-agnostic loop + resume primitive so the hook's storage
-// reconciliation is exercised without a real network.
 vi.mock("../lib/chat/toolLoop", async (importOriginal) => {
   const orig = await importOriginal<typeof import("../lib/chat/toolLoop")>();
   return { ...orig, runToolLoop: vi.fn() };
@@ -72,7 +56,6 @@ function makeCtx(db: Database): StorageOperationsContext {
   };
 }
 
-/** A Responses-API-shaped response carrying the given assistant text. */
 function responsesShape(text: string) {
   return {
     id: `resp-${Math.random().toString(36).slice(2)}`,
@@ -118,11 +101,9 @@ describe("upsertMessageOp single-row reconciliation", () => {
       uniqueId: "assistant-1",
     });
 
-    // Same row id — the second call updated, it did not create.
     expect(completed.uniqueId).toBe("assistant-1");
     expect(completed.content).toBe("partial then the rest, complete");
 
-    // Exactly ONE assistant row exists for this conversation.
     const all = await getMessagesOp(ctx, "conv_a");
     const assistantRows = all.filter((m) => m.role === "assistant");
     expect(assistantRows).toHaveLength(1);
@@ -132,7 +113,6 @@ describe("upsertMessageOp single-row reconciliation", () => {
 
   it("preserves the conversation ordinal (message_id) across the update", async () => {
     await createConversationOp(ctx, { conversationId: "conv_b" });
-    // Seed a user message so the assistant row is ordinal #2.
     await upsertMessageOp(ctx, {
       conversationId: "conv_b",
       role: "user",
@@ -151,7 +131,6 @@ describe("upsertMessageOp single-row reconciliation", () => {
       content: "a-updated",
       uniqueId: "assistant-2",
     });
-    // The ordinal is stable across the in-place update.
     expect(second.messageId).toBe(first.messageId);
     const all = await getMessagesOp(ctx, "conv_b");
     expect(all.filter((m) => m.role === "assistant")).toHaveLength(1);
@@ -159,7 +138,6 @@ describe("upsertMessageOp single-row reconciliation", () => {
 
   it("clears a prior wasStopped:true when the update passes wasStopped:false", async () => {
     await createConversationOp(ctx, { conversationId: "conv_clear_stopped" });
-    // The abort-path partial marks the row stopped.
     const stopped = await upsertMessageOp(ctx, {
       conversationId: "conv_clear_stopped",
       role: "assistant",
@@ -169,8 +147,6 @@ describe("upsertMessageOp single-row reconciliation", () => {
     });
     expect(stopped.wasStopped).toBe(true);
 
-    // The resumed completion updates the SAME row with wasStopped:false — the
-    // explicit false must CLEAR the prior true (not be treated as "unset").
     const resumed = await upsertMessageOp(ctx, {
       conversationId: "conv_clear_stopped",
       role: "assistant",
@@ -200,7 +176,6 @@ describe("useChatStorage detach → resume reconciliation", () => {
     vi.clearAllMocks();
   });
 
-  /** Drive a detached send and return the hook result + detached metadata. */
   async function detachSend(
     result: { current: ReturnType<typeof useChatStorage> },
     convId: string,
@@ -247,7 +222,6 @@ describe("useChatStorage detach → resume reconciliation", () => {
     expect(detached.resume?.inferenceId).toBe("inf-np");
     expect(detached.assistantUniqueId).toBeTruthy();
 
-    // No assistant row, and the user message is NOT marked errored.
     const ctx = makeCtx(db);
     const rows = await getMessagesOp(ctx, "conv_nopersist");
     expect(rows.filter((m) => m.role === "assistant")).toHaveLength(0);
@@ -267,7 +241,6 @@ describe("useChatStorage detach → resume reconciliation", () => {
     const detached = await detachSend(result, "conv_resume", "partial answer", "inf-1");
     const rowId = detached.assistantUniqueId;
 
-    // Resume replays to completion (interrupted: false, error: null).
     mockResumeStream.mockResolvedValueOnce({
       data: responsesShape("partial answer, now fully complete"),
       error: null,
@@ -282,7 +255,6 @@ describe("useChatStorage detach → resume reconciliation", () => {
     expect(resumeResult!.error).toBeNull();
     expect(resumeResult!.assistantMessage?.uniqueId).toBe(rowId);
 
-    // Exactly one assistant row — the resume created/updated in place, never two.
     const ctx = makeCtx(db);
     const assistantRows = (await getMessagesOp(ctx, "conv_resume")).filter(
       (m) => m.role === "assistant"
@@ -303,10 +275,6 @@ describe("useChatStorage detach → resume reconciliation", () => {
       })
     );
 
-    // Phases collected via the streaming callback (getThoughtProcess), NOT the
-    // static `thoughtProcess` arg. The last is still "active" at detach — the
-    // resumed finalize must mark it completed. Before the fix the detach stash
-    // kept only the (unset) static arg, so these were dropped on resume.
     const phases = [
       { id: "p1", label: "Searching", timestamp: 1, status: "completed" as const },
       { id: "p2", label: "Writing", timestamp: 2, status: "active" as const },
@@ -350,8 +318,6 @@ describe("useChatStorage detach → resume reconciliation", () => {
     );
     expect(assistantRows).toHaveLength(1);
     expect(assistantRows[0].uniqueId).toBe(rowId);
-    // The callback-collected phases survived detach+resume, with the last one
-    // finalized to "completed".
     expect(assistantRows[0].thoughtProcess?.map((p) => p.label)).toEqual(["Searching", "Writing"]);
     expect(assistantRows[0].thoughtProcess?.map((p) => p.status)).toEqual([
       "completed",
@@ -371,10 +337,6 @@ describe("useChatStorage detach → resume reconciliation", () => {
 
     await detachSend(result, "conv_resume_sources", "searching…", "inf-sources");
 
-    // Clean resume whose replayed data carries search citations via
-    // tool_call_events — the buffered stream included them, exactly like the
-    // live send path. One result is an MCP R2 image URL that must be dropped
-    // (persisted as media, never a citation source).
     mockResumeStream.mockResolvedValueOnce({
       data: {
         ...responsesShape("here is what I found"),
@@ -405,9 +367,7 @@ describe("useChatStorage detach → resume reconciliation", () => {
     );
     expect(assistantRows).toHaveLength(1);
     const urls = (assistantRows[0].sources ?? []).map((s) => s.url);
-    // Citation from tool_call_events is now persisted (was dropped before #639).
     expect(urls).toContain("https://docs.anuma.ai/memory");
-    // R2 image URL is filtered out.
     expect(urls.some((u) => u?.includes(MCP_R2_DOMAIN))).toBe(false);
   });
 
@@ -424,7 +384,6 @@ describe("useChatStorage detach → resume reconciliation", () => {
     const detached = await detachSend(result, "conv_expired", "the partial", "inf-2");
     const rowId = detached.assistantUniqueId;
 
-    // The lib THROWS StreamExpiredError on a 410.
     mockResumeStream.mockRejectedValueOnce(new StreamExpiredError("inf-2"));
 
     let resumeResult: Awaited<ReturnType<typeof result.current.resumeStream>>;
@@ -432,7 +391,6 @@ describe("useChatStorage detach → resume reconciliation", () => {
       resumeResult = await result.current.resumeStream();
     });
 
-    // Surfaced as a graceful expired finalization, not a hard error.
     expect(resumeResult!.expired).toBe(true);
     expect(resumeResult!.error).toBeNull();
 
@@ -445,7 +403,6 @@ describe("useChatStorage detach → resume reconciliation", () => {
     expect(assistantRows[0].content).toBe("the partial");
     expect(assistantRows[0].wasStopped).toBe(true);
 
-    // Handle was cleared: a second resume finds nothing.
     let second: Awaited<ReturnType<typeof result.current.resumeStream>>;
     await act(async () => {
       second = await result.current.resumeStream();
@@ -454,12 +411,6 @@ describe("useChatStorage detach → resume reconciliation", () => {
   });
 
   it("finalizes the stowed PARTIAL as stopped when a clean resume replays ZERO content (empty-replay guard)", async () => {
-    // Dogfood bug (client v1.2.0): a portal replay whose frames are gone but
-    // whose terminal survived serves a clean 200 with zero content frames. The
-    // clean-completion branch used to persist that blank over the turn
-    // (wasStopped: false), wiping the user's already-streamed partial. It must
-    // instead fall back to the stowed partial — same contract as the 410 and
-    // interrupted terminals.
     const { result } = renderHook(() =>
       useChatStorage({
         database: db,
@@ -472,7 +423,6 @@ describe("useChatStorage detach → resume reconciliation", () => {
     const detached = await detachSend(result, "conv_empty_replay", "the visible partial", "inf-e1");
     const rowId = detached.assistantUniqueId;
 
-    // Clean terminal, but the replay carried no content at all.
     mockResumeStream.mockResolvedValueOnce({
       data: responsesShape(""),
       error: null,
@@ -495,11 +445,9 @@ describe("useChatStorage detach → resume reconciliation", () => {
     );
     expect(assistantRows).toHaveLength(1);
     expect(assistantRows[0].uniqueId).toBe(rowId);
-    // The stowed partial wins over the blank replay, finalized as stopped.
     expect(assistantRows[0].content).toBe("the visible partial");
     expect(assistantRows[0].wasStopped).toBe(true);
 
-    // Terminal outcome: the handle is cleared, not retained.
     let second: Awaited<ReturnType<typeof result.current.resumeStream>>;
     await act(async () => {
       second = await result.current.resumeStream();
@@ -508,10 +456,6 @@ describe("useChatStorage detach → resume reconciliation", () => {
   });
 
   it("finalizes an events-only stowed partial as stopped on a clean empty replay (citations count as output)", async () => {
-    // A turn detached after its search events arrived but before any message
-    // text: the stowed partial has tool_call_events and no content/thinking.
-    // That is real output the user saw — an empty replay must finalize it,
-    // not skip the fallback and drop the citations.
     const { result } = renderHook(() =>
       useChatStorage({
         database: db,
@@ -578,10 +522,6 @@ describe("useChatStorage detach → resume reconciliation", () => {
   });
 
   it("persists NO row when a clean resume replays zero content and there is no stowed partial", async () => {
-    // Paul's shape: backgrounded before any content streamed, so the stowed
-    // partial is empty too. A blank row with wasStopped:false (an assistant
-    // bubble that lies "completed") must NOT be manufactured — persist nothing
-    // and surface `empty` so the caller can message the loss honestly.
     const { result } = renderHook(() =>
       useChatStorage({
         database: db,
@@ -616,7 +556,6 @@ describe("useChatStorage detach → resume reconciliation", () => {
     );
     expect(assistantRows).toHaveLength(0);
 
-    // Still a terminal outcome: the handle is cleared.
     let second: Awaited<ReturnType<typeof result.current.resumeStream>>;
     await act(async () => {
       second = await result.current.resumeStream();
@@ -625,11 +564,6 @@ describe("useChatStorage detach → resume reconciliation", () => {
   });
 
   it("finalizes the stowed PARTIAL as stopped when an INTERRUPTED replay carried no output", async () => {
-    // The interrupted flavor of the empty-replay bug: frames lost server-side
-    // with a NON-completed terminal replays zero frames + one in-stream error
-    // event, and the lib's buildInterrupted returns a non-null response built
-    // from the EMPTY accumulator. The old `result.data ?? partialData` picked
-    // that blank over the partial; the guard must prefer the partial.
     const { result } = renderHook(() =>
       useChatStorage({
         database: db,
@@ -642,7 +576,6 @@ describe("useChatStorage detach → resume reconciliation", () => {
     const detached = await detachSend(result, "conv_int_empty", "the visible partial", "inf-ie1");
     const rowId = detached.assistantUniqueId;
 
-    // Interrupted terminal whose replayed data is output-less (blank content).
     mockResumeStream.mockResolvedValueOnce({
       data: responsesShape(""),
       error: "[stream_interrupted] stream went silent",
@@ -695,9 +628,6 @@ describe("useChatStorage detach → resume reconciliation", () => {
   });
 
   it("treats a clean completion carrying only tool_call_events as a REAL completion (not empty)", async () => {
-    // #639 contract: citation events ride a normal text completion — a
-    // search/image turn can complete with events and no message text. The
-    // empty-replay guard must not misclassify it and discard the fresh events.
     const { result } = renderHook(() =>
       useChatStorage({
         database: db,
@@ -733,9 +663,6 @@ describe("useChatStorage detach → resume reconciliation", () => {
       resumeResult = await result.current.resumeStream();
     });
 
-    // Clean completion path: not flagged empty, row reconciled, and the
-    // events' citations merged into sources (#639) instead of being discarded
-    // by a false empty-classification.
     expect(resumeResult!.error).toBeNull();
     expect(resumeResult!.empty).toBeUndefined();
     expect(resumeResult!.assistantMessage?.uniqueId).toBe(rowId);
@@ -780,7 +707,6 @@ describe("useChatStorage detach → resume reconciliation", () => {
     );
     expect(assistantRows).toHaveLength(1);
     expect(assistantRows[0].uniqueId).toBe(rowId);
-    // The replayed content (≥ the partial) wins.
     expect(assistantRows[0].content).toBe("short partial plus more replayed text");
     expect(assistantRows[0].wasStopped).toBe(true);
   });
@@ -811,13 +737,11 @@ describe("useChatStorage detach → resume reconciliation", () => {
 
     expect(resumeResult!.statusCode).toBe(401);
     expect(resumeResult!.assistantMessage).toBeNull();
-    // Nothing persisted.
     const ctx = makeCtx(db);
     expect(
       (await getMessagesOp(ctx, "conv_transient")).filter((m) => m.role === "assistant")
     ).toHaveLength(0);
 
-    // Handle retained — a retry can complete the SAME row.
     mockResumeStream.mockResolvedValueOnce({
       data: responsesShape("partial then complete"),
       error: null,
@@ -843,9 +767,6 @@ describe("useChatStorage detach → resume reconciliation", () => {
       })
     );
 
-    // No detached send first — simulate a fresh process with only a
-    // deserialized handle (mobile PR5). Two sequential resume calls on the SAME
-    // override must reconcile onto one row, not mint a random id each time.
     const override = {
       inferenceId: "inf-cold",
       apiType: "responses" as const,
@@ -877,11 +798,6 @@ describe("useChatStorage detach → resume reconciliation", () => {
   });
 
   it("cold-launch resume files the row under the HANDLE's conversation, not the active one", async () => {
-    // The app relaunched and is already viewing conv_active, but the buffered
-    // stream being resumed originated in conv_origin (carried on the handle).
-    // The reconciled row MUST land under conv_origin — preferring the active
-    // conversation would misfile the answer into the thread the user happens to
-    // be looking at.
     const { result } = renderHook(() =>
       useChatStorage({
         database: db,
@@ -937,8 +853,6 @@ describe("useChatStorage detach → resume reconciliation", () => {
       conversationId: "conv_cold_retry",
     };
 
-    // First cold-launch resume hits a transient 401: nothing persisted, but the
-    // synthesized context (with its minted id) must be retained for retry.
     mockResumeStream.mockResolvedValueOnce({
       data: responsesShape("cold partial"),
       error: "SSE failed: 401 Unauthorized",
@@ -958,12 +872,6 @@ describe("useChatStorage detach → resume reconciliation", () => {
       (await getMessagesOp(ctx, "conv_cold_retry")).filter((m) => m.role === "assistant")
     ).toHaveLength(0);
 
-    // A transient terminal on a SYNTHESIZED context clears the shared slot
-    // (retaining it would let the next registry entry's resume adopt this
-    // stream's context — the cross-conversation misfile). The retry is the
-    // same call the cold-launch worker actually makes: resumeStream(override).
-    // Row stability comes from the deterministic msg_resume_<inferenceId> id,
-    // not from the slot.
     mockResumeStream.mockResolvedValueOnce({
       data: responsesShape("cold replay finally complete"),
       error: null,
@@ -985,13 +893,6 @@ describe("useChatStorage detach → resume reconciliation", () => {
   });
 
   it("cold-launch recovery into a multi-turn conversation parents the recovered row under the last stored message", async () => {
-    // The synthesized cold ctx has no userMessageUniqueId; persisting the row
-    // parentless makes it a second ROOT SIBLING in any conversation with prior
-    // turns — branch navigation prefers the newest root fork, so the whole
-    // prior thread collapses behind a root branch toggle and the recovery
-    // presents as a wiped conversation. The recovered row must anchor under
-    // the conversation's last stored message (the killed turn's user message,
-    // persisted at send time).
     const db2ctx = makeCtx(db);
     await createConversationOp(db2ctx, { conversationId: "conv_multiturn" });
     await upsertMessageOp(db2ctx, {
@@ -1007,7 +908,6 @@ describe("useChatStorage detach → resume reconciliation", () => {
       uniqueId: "assistant-t1",
       parentMessageId: "user-t1",
     });
-    // The killed turn's user message — persisted at send, stream never finished.
     await upsertMessageOp(db2ctx, {
       conversationId: "conv_multiturn",
       role: "user",
@@ -1044,16 +944,10 @@ describe("useChatStorage detach → resume reconciliation", () => {
     const recovered = rows.find((m) => m.uniqueId === "msg_resume_inf-multiturn");
     expect(recovered).toBeTruthy();
     expect(recovered!.content).toBe("the recovered answer");
-    // Anchored under the killed turn's user message — NOT a root sibling.
     expect(recovered!.parentMessageId).toBe("user-t2");
   });
 
   it("cold-launch resume with a handleOverride never adopts a MISMATCHED stowed pending context", async () => {
-    // The cross-conversation misfile: a pending context for stream A (warm
-    // detach, or a synthesized ctx a transient retained) must not be paired
-    // with stream B's override — B's replay would finalize onto A's row in
-    // A's conversation. B must land in B's conversation on B's own row, and
-    // A's pending must survive untouched for A's own retry.
     const { result } = renderHook(() =>
       useChatStorage({
         database: db,
@@ -1063,11 +957,9 @@ describe("useChatStorage detach → resume reconciliation", () => {
       })
     );
 
-    // Stream A: warm detach stows a pending ctx.
     const detachedA = await detachSend(result, "conv_stream_a", "A's partial", "inf-A");
     const rowA = detachedA.assistantUniqueId;
 
-    // Stream B: cold-launch override resume for a DIFFERENT stream.
     const ctxDb = makeCtx(db);
     await createConversationOp(ctxDb, { conversationId: "conv_stream_b" });
     mockResumeStream.mockResolvedValueOnce({
@@ -1086,7 +978,6 @@ describe("useChatStorage detach → resume reconciliation", () => {
       });
     });
 
-    // B landed in B's conversation on B's deterministic row — not on A's.
     expect(resB!.error).toBeNull();
     expect(resB!.assistantMessage?.uniqueId).toBe("msg_resume_inf-B");
     const bRows = (await getMessagesOp(ctxDb, "conv_stream_b")).filter(
@@ -1097,9 +988,8 @@ describe("useChatStorage detach → resume reconciliation", () => {
     const aRows = (await getMessagesOp(ctxDb, "conv_stream_a")).filter(
       (m) => m.role === "assistant"
     );
-    expect(aRows).toHaveLength(0); // A is still detached, nothing misfiled onto it.
+    expect(aRows).toHaveLength(0);
 
-    // A's pending survived B's resume: a bare warm resume still completes A.
     mockResumeStream.mockResolvedValueOnce({
       data: responsesShape("A's partial, completed"),
       error: null,
@@ -1148,10 +1038,6 @@ describe("useChatStorage detach → resume reconciliation", () => {
     const rowId = first!.assistantMessage?.uniqueId;
     expect(rowId).toBeTruthy();
 
-    // A clean completion clears the ref, so a second override resume re-creates
-    // context. Because the cold-launch id is derived deterministically from the
-    // inferenceId, the second resume targets the SAME row id — exactly one
-    // assistant row exists per buffered stream, never a duplicate bubble.
     mockResumeStream.mockResolvedValueOnce({
       data: responsesShape("first cold completion"),
       error: null,
@@ -1184,7 +1070,6 @@ describe("useChatStorage detach → resume reconciliation", () => {
 
     await detachSend(result, "conv_concurrent", "partial", "inf-conc");
 
-    // Gate the first resume so it stays in flight while we fire a second.
     let release!: () => void;
     const gate = new Promise<void>((r) => {
       release = r;
@@ -1202,7 +1087,6 @@ describe("useChatStorage detach → resume reconciliation", () => {
     let second: Awaited<ReturnType<typeof result.current.resumeStream>>;
     await act(async () => {
       firstPromise = result.current.resumeStream();
-      // Second call lands while the first is awaiting the gate.
       second = await result.current.resumeStream();
       release();
       await firstPromise;
@@ -1602,14 +1486,12 @@ describe("useChatStorage detach → resume reconciliation", () => {
           completedSend();
           completedSend();
           if (failKey) {
-            // A true key failure queues the stopped row. The send is not blocked.
             signMessage.mockRejectedValue(new Error("wallet key unavailable"));
             await act(async () => {
               expect((await result.current.sendMessage(nextArgs())).error).toBeNull();
             });
             expect(mockRunToolLoop).toHaveBeenCalledTimes(2);
             expect(await db.get("history").query().fetch()).toHaveLength(1);
-            // Stopped row, new user message, new assistant message.
             expect(result.current.queueStatus.pending).toBe(3);
             act(() => result.current.clearQueue());
             return;
@@ -1798,7 +1680,6 @@ describe("useChatStorage detach → resume reconciliation", () => {
           expect(cancelCalls("inf-gated")).toHaveLength(0);
           expect(await getMessagesOp(makeCtx(db), "conv_writer_gate")).toHaveLength(1);
           resume = await result.current.resumeStream(detached.resume!);
-          // Stop cannot race a second old-row write or cancel before the commit.
           result.current.stop();
           expect(cancelCalls("inf-gated")).toHaveLength(0);
         } finally {
@@ -1843,7 +1724,6 @@ describe("useChatStorage detach → resume reconciliation", () => {
           skipStorage: true,
         });
         try {
-          // Drain the second caller's microtasks while the real writer stays held.
           await Promise.resolve();
           await Promise.resolve();
           expect(mockRunToolLoop).toHaveBeenCalledTimes(1);
@@ -1933,7 +1813,6 @@ describe("useChatStorage detach → resume reconciliation", () => {
         await act(async () => {
           expect((await result.current.sendMessage(nextArgs())).error).toBeNull();
         });
-        // User message, stopped row, next user message, next assistant message.
         expect(result.current.queueStatus.pending).toBe(4);
         expect(await db.get("history").query().fetch()).toHaveLength(0);
         await waitFor(() => expect(cancelCalls("inf-queue-dep")).toHaveLength(1));
@@ -1962,7 +1841,6 @@ describe("useChatStorage detach → resume reconciliation", () => {
         );
       });
       expect(mockRunToolLoop).toHaveBeenCalledTimes(2);
-      // A stored send is still blocked, and the partial is still kept.
       await act(async () => {
         expect((await result.current.sendMessage(nextArgs())).error).toBe("writer unavailable");
       });
@@ -2178,7 +2056,6 @@ describe("useChatStorage detach → resume reconciliation", () => {
   });
 
   it("skipStorage forwards a detached resumable send instead of collapsing it to an error", async () => {
-    // getServerTools is best-effort in the skipStorage path; make it a fast no-op.
     const fetchSpy = vi.spyOn(globalThis, "fetch").mockRejectedValue(new Error("no network"));
     try {
       const { result } = renderHook(() =>
@@ -2211,15 +2088,12 @@ describe("useChatStorage detach → resume reconciliation", () => {
         });
       });
 
-      // The detached variant is forwarded intact, NOT collapsed into a generic
-      // error that nulls the data and drops the resume handle.
       const r = sendResult! as Extract<typeof sendResult, { detached: true }>;
       expect(r.detached).toBe(true);
       expect(r.error).toBe("Request detached");
       expect(r.resume?.inferenceId).toBe("inf-skip");
       expect(r.data).not.toBeNull();
 
-      // skipStorage persists nothing.
       const ctx = makeCtx(db);
       expect(
         (await getMessagesOp(ctx, "conv_skip")).filter((m) => m.role === "assistant")
@@ -2243,8 +2117,6 @@ describe("useChatStorage detach → resume reconciliation", () => {
         })
       );
 
-      // Fire onStreamMeta from the loop so the inner useChat captures the
-      // inferenceId the cancel POST targets, then resolve as detached.
       mockRunToolLoop.mockImplementationOnce((opts) => {
         (opts as { onStreamMeta?: (m: { inferenceId: string }) => void }).onStreamMeta?.({
           inferenceId: "inf-cancelobs",
@@ -2269,8 +2141,6 @@ describe("useChatStorage detach → resume reconciliation", () => {
         });
       });
 
-      // stop() routes through baseStop() → the cancel POST, which rejects; the
-      // storage-level onCancelResult must surface that billing-relevant failure.
       await act(async () => {
         result.current.stop();
       });
@@ -2309,15 +2179,6 @@ describe("useChatStorage detach → resume reconciliation", () => {
       conversationId: "conv_headless",
     };
 
-    // The lib resumeStream is mocked to attempt ALL FOUR callbacks — content,
-    // thinking, a clean finish, and an error — then resolve clean via a manually
-    // controlled deferred. In headless mode the storage hook forwards none of the
-    // four into the inner useChat (which spreads `{}` in their place), so the lib
-    // receives no callbacks and every attempted invocation lands nowhere. A
-    // regression that forwarded any one of them (an accidental onFinish/onError
-    // leak) would be caught. The deferred lets us probe isLoading WHILE the
-    // resume is in flight (before resolution), which is where a FIX-2 regression
-    // would have flickered it true.
     let releaseResume!: () => void;
     const resumeReleased = new Promise<void>((r) => {
       releaseResume = r;
@@ -2341,26 +2202,19 @@ describe("useChatStorage detach → resume reconciliation", () => {
       } as never;
     });
 
-    // Kick the resume off WITHOUT awaiting — it parks on the deferred. Flushing
-    // act commits any pending state update so isLoading reflects the in-flight
-    // value. With the FIX-2 guard, headless never calls setIsLoading(true), so
-    // isLoading stays false mid-flight; without it, this would read true.
     let resumePromise!: ReturnType<typeof result.current.resumeStream>;
     await act(async () => {
       resumePromise = result.current.resumeStream(override, { headless: true });
     });
     expect(result.current.isLoading).toBe(false);
 
-    // Release the deferred and let the resume settle.
     let resumeResult: Awaited<ReturnType<typeof result.current.resumeStream>>;
     await act(async () => {
       releaseResume();
       resumeResult = await resumePromise;
     });
-    // Settled state is still false.
     expect(result.current.isLoading).toBe(false);
 
-    // Row reconciled + persisted exactly as a normal resume.
     expect(resumeResult!.error).toBeNull();
     const rowId = resumeResult!.assistantMessage?.uniqueId;
     expect(rowId).toBeTruthy();
@@ -2371,8 +2225,6 @@ describe("useChatStorage detach → resume reconciliation", () => {
     expect(assistantRows).toHaveLength(1);
     expect(assistantRows[0].content).toBe("headless replay complete");
 
-    // The headless invariant: NONE of the four consumer callbacks fired — no
-    // recovered text, reasoning, response, or error bled into the visible chat.
     expect(onData).not.toHaveBeenCalled();
     expect(onThinking).not.toHaveBeenCalled();
     expect(onFinish).not.toHaveBeenCalled();
@@ -2400,9 +2252,6 @@ describe("useChatStorage detach → resume reconciliation", () => {
       conversationId: "conv_notheadless",
     };
 
-    // Manually controlled deferred so we can observe isLoading WHILE the
-    // non-headless resume is in flight — it must toggle true (the byte-identical
-    // pre-FIX-2 behavior) and settle back to false.
     let releaseResume!: () => void;
     const resumeReleased = new Promise<void>((r) => {
       releaseResume = r;
@@ -2422,23 +2271,18 @@ describe("useChatStorage detach → resume reconciliation", () => {
       } as never;
     });
 
-    // No opts (or { headless: false }) keeps the path byte-identical to today:
-    // onData/onFinish flow through and isLoading toggles true then back.
     let resumePromise!: ReturnType<typeof result.current.resumeStream>;
     await act(async () => {
       resumePromise = result.current.resumeStream(override);
     });
-    // Mid-flight: the non-headless path DID set isLoading true.
     expect(result.current.isLoading).toBe(true);
 
     await act(async () => {
       releaseResume();
-      // Let the in-flight promise settle and the finally's setIsLoading(false) run.
       await resumePromise;
     });
     expect(onData).toHaveBeenCalledWith("live delta");
     expect(onFinish).toHaveBeenCalledTimes(1);
-    // And it settles back to false once the resume resolves.
     expect(result.current.isLoading).toBe(false);
   });
 
@@ -2454,8 +2298,6 @@ describe("useChatStorage detach → resume reconciliation", () => {
       })
     );
 
-    // Fire onStreamMeta from the loop with a known completions-only model under
-    // apiType "auto" — the forwarded payload must carry the RESOLVED type.
     mockRunToolLoop.mockImplementationOnce((opts) => {
       (
         opts as { onStreamMeta?: (m: { inferenceId: string; round?: number }) => void }

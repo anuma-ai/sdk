@@ -2,7 +2,7 @@
 
 > **insertChild**(`parent`: [`AnumaNode`](../interfaces/AnumaNode.md), `node`: [`AnumaNode`](../interfaces/AnumaNode.md), `afterId?`: `string`): `void`
 
-Defined in: [src/tools/slides/jsx.ts:1126](https://github.com/anuma-ai/sdk/blob/main/src/tools/slides/jsx.ts#1126)
+Defined in: [src/tools/slides/jsx.ts:973](https://github.com/anuma-ai/sdk/blob/main/src/tools/slides/jsx.ts#973)
 
 Insert `node` into `parent.children`. If `afterId` is provided, the new
 node is inserted immediately after the matched sibling; otherwise it is

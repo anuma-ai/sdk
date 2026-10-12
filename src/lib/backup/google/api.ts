@@ -1,18 +1,7 @@
-/**
- * Google Drive API utilities
- *
- * Uses Google Drive API v3 for file operations.
- * Requires an OAuth 2.0 access token with drive.file scope.
- */
-
 const DRIVE_API_URL = "https://www.googleapis.com/drive/v3";
 const DRIVE_UPLOAD_URL = "https://www.googleapis.com/upload/drive/v3";
 const FOLDER_MIME_TYPE = "application/vnd.google-apps.folder";
 
-/**
- * Escape single quotes for Google Drive API query strings
- * Single quotes must be doubled to prevent query injection
- */
 function escapeQueryValue(value: string): string {
   return value.replace(/'/g, "''");
 }
@@ -30,9 +19,6 @@ export interface DriveFile {
   size: string;
 }
 
-/**
- * Find or create a folder in Google Drive
- */
 async function ensureFolder(accessToken: string, name: string, parentId?: string): Promise<string> {
   const parentQuery = parentId ? `'${escapeQueryValue(parentId)}' in parents and ` : "";
   const query = `${parentQuery}mimeType='${FOLDER_MIME_TYPE}' and name='${escapeQueryValue(name)}' and trashed=false`;
@@ -53,7 +39,6 @@ async function ensureFolder(accessToken: string, name: string, parentId?: string
     return data.files[0].id;
   }
 
-  // Create folder if it doesn't exist
   const body: Record<string, unknown> = {
     name,
     mimeType: FOLDER_MIME_TYPE,
@@ -172,6 +157,70 @@ export async function listDriveFiles(accessToken: string, folderId: string): Pro
   return data.files ?? [];
 }
 
+const DRIVE_MAX_PAGE_SIZE = 1000;
+
+/**
+ * List every file in a Google Drive folder, with no filter on file type.
+ * Follows nextPageToken until the last page. Use it to build one name index
+ * for a whole run, instead of one findDriveFile request for each file.
+ */
+export async function listAllDriveFiles(
+  accessToken: string,
+  folderId: string
+): Promise<DriveFile[]> {
+  const query = `'${escapeQueryValue(folderId)}' in parents and trashed=false`;
+  const fields = encodeURIComponent("nextPageToken,files(id,name,createdTime,modifiedTime,size)");
+  const files: DriveFile[] = [];
+  let pageToken: string | undefined;
+
+  do {
+    const tokenParam = pageToken ? `&pageToken=${encodeURIComponent(pageToken)}` : "";
+    const response = await fetch(
+      `${DRIVE_API_URL}/files?q=${encodeURIComponent(query)}&fields=${fields}&pageSize=${DRIVE_MAX_PAGE_SIZE}${tokenParam}`,
+      {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`Failed to list files: ${response.status}`);
+    }
+
+    const data = (await response.json()) as { files?: DriveFile[]; nextPageToken?: string };
+    files.push(...(data.files ?? []));
+    pageToken = data.nextPageToken;
+  } while (pageToken);
+
+  return files;
+}
+
+/**
+ * Read the metadata of one Drive file.
+ * Returns null when the file does not exist or is in the trash. An export run uses it to read the
+ * file time again just before it replaces a file, because another client can write the file after
+ * the run listed the folder.
+ */
+export async function getDriveFileMetadata(
+  accessToken: string,
+  fileId: string
+): Promise<DriveFile | null> {
+  const fields = encodeURIComponent("id,name,createdTime,modifiedTime,size,trashed");
+  const response = await fetch(
+    `${DRIVE_API_URL}/files/${encodeURIComponent(fileId)}?fields=${fields}`,
+    {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    }
+  );
+
+  if (response.status === 404) return null;
+  if (!response.ok) {
+    throw new Error(`Failed to read file: ${response.status}`);
+  }
+
+  const data = (await response.json()) as DriveFile & { trashed?: boolean };
+  return data.trashed ? null : data;
+}
+
 /**
  * Download a file from Google Drive
  */
@@ -185,30 +234,4 @@ export async function downloadDriveFile(accessToken: string, fileId: string): Pr
   }
 
   return response.blob();
-}
-
-/**
- * Find a specific file in a Google Drive folder
- */
-export async function findDriveFile(
-  accessToken: string,
-  folderId: string,
-  filename: string
-): Promise<DriveFile | null> {
-  const query = `'${escapeQueryValue(folderId)}' in parents and name='${escapeQueryValue(filename)}' and trashed=false`;
-  const fields = "files(id,name,createdTime,modifiedTime,size)";
-
-  const response = await fetch(
-    `${DRIVE_API_URL}/files?q=${encodeURIComponent(query)}&fields=${fields}&pageSize=1`,
-    {
-      headers: { Authorization: `Bearer ${accessToken}` },
-    }
-  );
-
-  if (!response.ok) {
-    throw new Error(`Failed to find file: ${response.status}`);
-  }
-
-  const data = (await response.json()) as { files?: DriveFile[] };
-  return data.files?.[0] ?? null;
 }

@@ -1,15 +1,3 @@
-/**
- * Unit tests for the embedding layer.
- *
- * Network is faked at the `fetch` boundary (vi.stubGlobal): the real
- * generated API client (`postApiV1Embeddings`) runs against a mock fetch
- * that parses the request body and answers one embedding per input. No
- * injection seam in src was needed — the hey-api client resolves
- * `globalThis.fetch` per request, not at module load.
- *
- * DB operations are module-mocked (retain.test.ts pattern) for the
- * `embedAllMessages` filtering tests.
- */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../db/chat/operations", () => ({
@@ -44,7 +32,6 @@ import {
 import { PiiRedactor } from "../pii/redactor";
 import { type Logger, noopLogger, setLogger } from "../logger";
 
-/** text → deterministic embedding the fake API returns. */
 function embeddingFor(text: string): number[] {
   return [text.length, text.charCodeAt(0) ?? 0, 1];
 }
@@ -130,10 +117,8 @@ describe("generateEmbedding", () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(recorded[0].url).toBe(`${BASE}/api/v1/embeddings`);
     expect(recorded[0].input).toBe("brand new text");
-    // Cache stores the native f32 view, not the float64 number[].
     expect(cache.get("brand new text")).toEqual(Float32Array.from(embeddingFor("brand new text")));
 
-    // Second call for the same text must be served from cache.
     const second = await generateEmbedding("brand new text", { apiKey: "k", baseUrl: BASE, cache });
     expect(second).toEqual(first);
     expect(fetchMock).toHaveBeenCalledTimes(1);
@@ -231,9 +216,6 @@ describe("generateEmbedding", () => {
   });
 
   it("re-throws after exhausting retries when fetch keeps throwing", async () => {
-    // A network fault (fetch rejects) must NOT bypass the retry. openapi-ts
-    // >=0.97 may surface that as `{ error }` instead of a thrown rejection;
-    // withEmbeddingRetry still retries and rethrows the underlying Error.
     const fetchMock = vi.fn(async () => {
       throw new Error("ECONNRESET");
     });
@@ -266,11 +248,8 @@ describe("generateEmbedding", () => {
 
     await generateEmbedding("email bob@acme.com", { apiKey: "k", baseUrl: BASE, cache, maskInput });
 
-    // The server only ever sees the masked text.
     expect(recorded[0].input).toBe("email [EMAIL]");
-    // The cache (and any caller lookups) still key on the original input.
     expect(cache.has("email bob@acme.com")).toBe(true);
-    // A second call for the same original is served from cache (no extra request).
     await generateEmbedding("email bob@acme.com", { apiKey: "k", baseUrl: BASE, cache, maskInput });
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
@@ -294,21 +273,13 @@ describe("generateEmbeddings (batch)", () => {
     });
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
-    // Only the two cache misses went to the API.
     expect(recorded[0].input).toEqual(["alpha", "gamma"]);
-    // Output order matches input order, with the cached vector spliced in.
     expect(result).toEqual([embeddingFor("alpha"), [42, 42, 42], embeddingFor("gamma")]);
-    // New embeddings were written back to the cache as native f32 views.
     expect(cache.get("alpha")).toEqual(Float32Array.from(embeddingFor("alpha")));
     expect(cache.get("gamma")).toEqual(Float32Array.from(embeddingFor("gamma")));
   });
 
   it("masks repeated PII to the same stateless token across batched chunks", async () => {
-    // Message chunks are embedded through this batch path. They must mask with
-    // the STATELESS mask (PiiRedactor.maskText → [EMAIL]) so identical PII embeds
-    // identically: redactText's numbered placeholders ([EMAIL_1], [EMAIL_2]) are
-    // order- and conversation-dependent and would break vector-space consistency
-    // for semantic search (the query side has no matching numbering).
     stubFetchOk();
     const redactor = new PiiRedactor();
     const maskInput = (t: string) => redactor.maskText(t);
@@ -319,7 +290,6 @@ describe("generateEmbeddings (batch)", () => {
       maskInput,
     });
 
-    // Both chunks send the SAME unnumbered token to the server.
     expect(recorded[0].input).toEqual(["contact [EMAIL] now", "email [EMAIL] again"]);
   });
 
@@ -439,8 +409,6 @@ describe("embedAllMessages content filtering", () => {
       makeMessage({ uniqueId: "m3", content: "third message plenty long to embed" }),
     ]);
 
-    // The pass throws the fatal error rather than swallowing it per-message,
-    // and stops after the FIRST failed request (no walk over the corpus).
     await expect(embedAllMessages(ctx, { apiKey: "k", baseUrl: BASE })).rejects.toBeInstanceOf(
       EmbeddingHttpError
     );
@@ -449,9 +417,6 @@ describe("embedAllMessages content filtering", () => {
   });
 
   it("does NOT abort on a non-fatal status (404) — logs and continues per message", async () => {
-    // 404 is non-429 4xx → not retried by withEmbeddingRetry and not fatal, so
-    // the storm guard must NOT fire: each message still gets its own request
-    // (old catch-and-continue behavior). Guards against over-aborting.
     const fetchMock = stubFetchError(404, { error: "not found" });
     vi.mocked(getMessagesOp).mockResolvedValue([
       makeMessage({ uniqueId: "m1", content: "first message plenty long to embed" }),
@@ -460,7 +425,7 @@ describe("embedAllMessages content filtering", () => {
 
     const count = await embedAllMessages(ctx, { apiKey: "k", baseUrl: BASE });
     expect(count).toBe(0);
-    expect(fetchMock).toHaveBeenCalledTimes(2); // walked both, did not abort
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 });
 
@@ -505,8 +470,6 @@ describe("chunkAndEmbedAllMessages retry-storm guard", () => {
   });
 
   it("aborts the pass on a 402 in the short-message batch after one request", async () => {
-    // The other bulk entry point (short messages are batched into a single
-    // embeddings call). A fatal status there must abort too, not swallow.
     const fetchMock = stubFetchError(402, { error: "insufficient balance" });
     vi.mocked(getMessagesOp).mockResolvedValue([
       makeMessage({ uniqueId: "a", content: "short message one, plenty long" }),
@@ -516,7 +479,7 @@ describe("chunkAndEmbedAllMessages retry-storm guard", () => {
     await expect(
       chunkAndEmbedAllMessages(ctx, { apiKey: "k", baseUrl: BASE })
     ).rejects.toBeInstanceOf(EmbeddingHttpError);
-    expect(fetchMock).toHaveBeenCalledTimes(1); // batched → one request, then abort
+    expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(updateMessageEmbeddingOp).not.toHaveBeenCalled();
   });
 });
@@ -537,7 +500,6 @@ describe("embedMessage / chunkAndEmbedMessage — O(1) indexed lookup (D4)", () 
     await embedMessage(ctx, "m2", { apiKey: "k", baseUrl: BASE });
 
     expect(getMessageOp).toHaveBeenCalledWith(ctx, "m2");
-    // The old path scanned every conversation's messages — must not happen now.
     expect(getConversationsOp).not.toHaveBeenCalled();
     expect(getMessagesOp).not.toHaveBeenCalled();
     const [, id, vector] = vi.mocked(updateMessageEmbeddingOp).mock.calls[0];
@@ -577,7 +539,6 @@ describe("embedMessage / chunkAndEmbedMessage — O(1) indexed lookup (D4)", () 
 describe("origin: 'tool_result' is never embedded (sdk#861)", () => {
   const ctx = {} as StorageOperationsContext;
 
-  /** Long enough to take the chunking branch (DEFAULT_CHUNK_SIZE is 400). */
   const longText = (label: string): string => `${label}. `.repeat(120);
 
   function makeMessage(overrides: Partial<StoredMessage>): StoredMessage {
@@ -602,8 +563,6 @@ describe("origin: 'tool_result' is never embedded (sdk#861)", () => {
   });
 
   it("chunkAndEmbedAllMessages skips the dump but still chunks a long real message", async () => {
-    // The production path: consumers run this sweep on every session mount. The
-    // pair matters — a gate that skipped everything would pass a skip-only test.
     const fetchMock = stubFetchOk();
     vi.mocked(getMessagesOp).mockResolvedValue([
       makeMessage({
@@ -628,8 +587,6 @@ describe("origin: 'tool_result' is never embedded (sdk#861)", () => {
   });
 
   it("chunkAndEmbedAllMessages still embeds a legacy row whose origin is unset", async () => {
-    // The column is null on every pre-v44 row. Gating on "has an origin at all"
-    // instead of the sentinel would silently stop embedding the whole back-catalog.
     const fetchMock = stubFetchOk();
     vi.mocked(getMessagesOp).mockResolvedValue([
       makeMessage({ uniqueId: "legacy", content: longText("written before v44") }),
@@ -654,7 +611,6 @@ describe("origin: 'tool_result' is never embedded (sdk#861)", () => {
     });
     vi.mocked(getMessageOp).mockResolvedValue(dump);
 
-    // Unchanged, not thrown — callers treat this like an already-chunked row.
     expect(await chunkAndEmbedMessage(ctx, "dump", { apiKey: "k", baseUrl: BASE })).toBe(dump);
     expect(fetchMock).not.toHaveBeenCalled();
     expect(updateMessageChunksOp).not.toHaveBeenCalled();
@@ -662,8 +618,6 @@ describe("origin: 'tool_result' is never embedded (sdk#861)", () => {
   });
 
   it("embedMessage leaves a tagged row's vector unset but still embeds an untagged one", async () => {
-    // The fourth entry point, and the one with no internal caller — a consumer
-    // can hand it any message id, so the skip cannot rely on who calls it.
     const fetchMock = stubFetchOk();
     const dump = makeMessage({
       uniqueId: "dump",
@@ -677,7 +631,6 @@ describe("origin: 'tool_result' is never embedded (sdk#861)", () => {
     expect(fetchMock).not.toHaveBeenCalled();
     expect(updateMessageEmbeddingOp).not.toHaveBeenCalled();
 
-    // Control: the same call on an untagged row still embeds and persists.
     const prose = makeMessage({ uniqueId: "prose", content: "something the user typed" });
     vi.mocked(getMessageOp).mockResolvedValue(prose);
 
@@ -737,12 +690,6 @@ describe("origin: 'chunks_discarded' is never re-embedded (client#5618)", () => 
     vi.mocked(updateMessageChunksOp).mockResolvedValue(null);
   });
 
-  /**
-   * The whole point of the marker. The sweep clears these rows' chunks, which
-   * hands them straight back to the pass that selects rows LACKING chunks — so
-   * without a skip they are re-embedded on the very next session mount, one paid
-   * call per chunk, billed to the user's own credits.
-   */
   it("chunkAndEmbedAllMessages skips a discarded row but still chunks a real one", async () => {
     const fetchMock = stubFetchOk();
     vi.mocked(getMessagesOp).mockResolvedValue([
@@ -818,12 +765,6 @@ describe("origin: 'chunks_discarded' is never re-embedded (client#5618)", () => 
     );
   });
 
-  /**
-   * The door. Discard means "never automatically", not "never": once the client
-   * half of sdk#864 lands and `content` decrypts, an explicit user action can ask
-   * for these rows back. Off by default is what keeps the credit decision intact,
-   * so the flag has to be the only thing that opens them.
-   */
   it("chunkAndEmbedAllMessages re-chunks a discarded row when reembedDiscarded is set", async () => {
     const fetchMock = stubFetchOk();
     vi.mocked(getMessagesOp).mockResolvedValue([
@@ -873,10 +814,6 @@ describe("origin: 'chunks_discarded' is never re-embedded (client#5618)", () => 
   });
 
   it("reembedDiscarded does NOT re-open tool-result rows on either sweep", async () => {
-    // Scoped deliberately. Tool-result rows are hidden machine-readable dumps
-    // that no UI renders and nobody searches for, and indexing them is the bug
-    // sdk#861 exists to fix — so asking for discarded user messages back must not
-    // drag 52 MB of `assignees_url` templates in with them.
     const fetchMock = stubFetchOk();
     const dump = { uniqueId: "dump", origin: "tool_result" as StoredMessage["origin"] };
 
@@ -904,9 +841,6 @@ describe("origin: 'chunks_discarded' is never re-embedded (client#5618)", () => 
   });
 
   it("reembedDiscarded still refuses a discarded row whose content is ciphertext", async () => {
-    // The door opens the origin gate, not the sdk#864 guard behind it. A row that
-    // still reads back as `enc:v3:` has to stay unindexed however it was asked
-    // for, or the opt-in re-index just rebuilds the corruption it is repairing.
     const fetchMock = stubFetchOk();
     vi.mocked(getMessagesOp).mockResolvedValue([
       makeMessage({
@@ -928,8 +862,6 @@ describe("origin: 'chunks_discarded' is never re-embedded (client#5618)", () => 
   });
 
   it("does not make every origin non-embeddable", async () => {
-    // The gate went from an equality test to set membership, and a set that
-    // accidentally matched anything truthy would pass every test above.
     const fetchMock = stubFetchOk();
     vi.mocked(getMessagesOp).mockResolvedValue([
       makeMessage({
@@ -949,15 +881,8 @@ describe("ciphertext is never chunked or embedded (sdk#864)", () => {
   let warnings: string[] = [];
   let errors: unknown[][] = [];
 
-  /**
-   * A row as the sweep actually reads it when its storage context has no wallet
-   * address: `decryptMessageFields` is a silent no-op, so `content` is the raw
-   * payload. Long enough to take the chunking branch (DEFAULT_CHUNK_SIZE 400),
-   * which is where the damage happened — 620+ uniform windows of hex.
-   */
   const ciphertext = `enc:v3:${"a1b2c3d4e5f6".repeat(80)}`;
 
-  /** Long enough to take the same chunking branch, but real prose. */
   const longText = (label: string): string => `${label}. `.repeat(120);
 
   function makeMessage(overrides: Partial<StoredMessage>): StoredMessage {
@@ -995,8 +920,6 @@ describe("ciphertext is never chunked or embedded (sdk#864)", () => {
   afterEach(() => setLogger(noopLogger));
 
   it("chunkAndEmbedAllMessages skips the encrypted row but still chunks a plaintext one", async () => {
-    // The production path. The pair matters — a gate that skipped everything
-    // would pass a skip-only test.
     const fetchMock = stubFetchOk();
     vi.mocked(getMessagesOp).mockResolvedValue([
       makeMessage({ uniqueId: "sealed", content: ciphertext }),
@@ -1014,14 +937,10 @@ describe("ciphertext is never chunked or embedded (sdk#864)", () => {
       expect.any(Array),
       expect.any(String)
     );
-    // Nothing derived from the ciphertext reached the API or the DB.
     expect(JSON.stringify(recorded)).not.toContain("enc:v3:");
   });
 
   it("chunkAndEmbedAllMessages reports the skip on the error channel with structured counts", async () => {
-    // Deliberately `error` rather than `warn`: both consumer LoggerProviders
-    // drop warn-level logs in prod, so a warn here would be invisible in the
-    // only environment that matters. Downgrading it silences the whole feature.
     stubFetchOk();
     vi.mocked(getMessagesOp).mockResolvedValue([
       makeMessage({ uniqueId: "sealed", content: ciphertext }),
@@ -1035,10 +954,6 @@ describe("ciphertext is never chunked or embedded (sdk#864)", () => {
     const [message, error, context] = errors[0];
     expect(String(message)).toContain("still encrypted");
     expect(error).toBeUndefined();
-    // Numbers in the context object, not interpolated into the message: the
-    // consumer spreads args[2] into the log payload, where they are facetable.
-    // Two ratios: candidate-scoped (what this pass refused) and pass-scoped (is
-    // this pass reading wallet-less at all).
     expect(context).toEqual({
       stillEncrypted: 1,
       considered: 2,
@@ -1048,11 +963,6 @@ describe("ciphertext is never chunked or embedded (sdk#864)", () => {
   });
 
   it("reports a sealed row that never reaches the candidate counter", async () => {
-    // The blind spot rutwik found, and the reason for the second pair. A row that
-    // already carries ciphertext-built chunks exits at the FIRST gate, so
-    // `considered` never sees it and the candidate ratio stays 0/0. That is
-    // exactly the shape of the 25 affected accounts, and before `sealedRowsSeen`
-    // it logged nothing at all.
     stubFetchOk();
     vi.mocked(getMessagesOp).mockResolvedValue([
       makeMessage({
@@ -1075,7 +985,6 @@ describe("ciphertext is never chunked or embedded (sdk#864)", () => {
   });
 
   it("chunkAndEmbedAllMessages stays quiet when every row is readable", async () => {
-    // A guard that logged unconditionally would train readers to ignore it.
     stubFetchOk();
     vi.mocked(getMessagesOp).mockResolvedValue([
       makeMessage({ uniqueId: "prose", content: longText("readable") }),
@@ -1091,7 +1000,6 @@ describe("ciphertext is never chunked or embedded (sdk#864)", () => {
     const sealed = makeMessage({ uniqueId: "sealed", content: ciphertext });
     vi.mocked(getMessageOp).mockResolvedValue(sealed);
 
-    // Unchanged, not thrown — callers treat this like an already-chunked row.
     expect(await chunkAndEmbedMessage(ctx, "sealed", { apiKey: "k", baseUrl: BASE })).toBe(sealed);
     expect(fetchMock).not.toHaveBeenCalled();
     expect(updateMessageChunksOp).not.toHaveBeenCalled();
@@ -1099,7 +1007,6 @@ describe("ciphertext is never chunked or embedded (sdk#864)", () => {
     expect(warnings).toHaveLength(1);
     expect(warnings[0]).toContain("sealed");
 
-    // Control: the same call on a plaintext row still chunks and persists.
     const prose = makeMessage({ uniqueId: "prose", content: longText("something the user typed") });
     vi.mocked(getMessageOp).mockResolvedValue(prose);
 
@@ -1114,8 +1021,6 @@ describe("ciphertext is never chunked or embedded (sdk#864)", () => {
   });
 
   it("chunkAndEmbedMessage still embeds a short plaintext row that merely looks prefixed", async () => {
-    // isEncrypted requires a valid hex payload, so prose that happens to mention
-    // the prefix must not be caught by the guard.
     const fetchMock = stubFetchOk();
     const prose = makeMessage({
       uniqueId: "prose",
@@ -1131,8 +1036,6 @@ describe("ciphertext is never chunked or embedded (sdk#864)", () => {
   });
 
   it("embedMessage returns the encrypted row unchanged without calling the API", async () => {
-    // The whole-message entry point is public API too, so it needs the same
-    // gate: a consumer can hand any message id straight to it.
     const fetchMock = stubFetchOk();
     const sealed = makeMessage({ uniqueId: "sealed", content: ciphertext });
     vi.mocked(getMessageOp).mockResolvedValue(sealed);
@@ -1143,7 +1046,6 @@ describe("ciphertext is never chunked or embedded (sdk#864)", () => {
     expect(warnings).toHaveLength(1);
     expect(warnings[0]).toContain("sealed");
 
-    // Control: the same call on a plaintext row still embeds and persists.
     const prose = makeMessage({ uniqueId: "prose", content: "something the user actually typed" });
     vi.mocked(getMessageOp).mockResolvedValue(prose);
 
@@ -1178,8 +1080,6 @@ describe("ciphertext is never chunked or embedded (sdk#864)", () => {
     );
     expect(JSON.stringify(recorded)).not.toContain("enc:v3:");
 
-    // Aggregate, on the error channel, counts as structured fields — same
-    // contract as the chunking sweep, for the same prod-log reason.
     expect(warnings).toEqual([]);
     expect(errors).toHaveLength(1);
     const [message, error, context] = errors[0];
@@ -1194,8 +1094,6 @@ describe("ciphertext is never chunked or embedded (sdk#864)", () => {
   });
 
   it("embedAllMessages reports a sealed row that already has a vector", async () => {
-    // Same blind spot as the chunking sweep: a ciphertext-derived vector makes the
-    // row exit at the first gate, so only the pass-scoped tally sees it.
     stubFetchOk();
     vi.mocked(getMessagesOp).mockResolvedValue([
       makeMessage({ uniqueId: "sealed-and-vectored", content: ciphertext, vector: [1, 2, 3] }),

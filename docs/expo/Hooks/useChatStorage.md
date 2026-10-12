@@ -2,7 +2,7 @@
 
 > **useChatStorage**(`options`: `object`): [`UseChatStorageResult`](../Internal/interfaces/UseChatStorageResult.md)
 
-Defined in: [src/expo/useChatStorage.ts:725](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChatStorage.ts#725)
+Defined in: [src/expo/useChatStorage.ts:664](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChatStorage.ts#664)
 
 A React hook that wraps useChat with automatic message persistence using WatermelonDB.
 
@@ -490,6 +490,23 @@ Async function to poll for wallet address during Privy initialization.
 R2 domain for identifying MCP-generated image URLs.
 When set, enables OPFS caching of generated images.
 Defaults to the hardcoded MCP\_R2\_DOMAIN from clientConfig.
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.memoryStore?`
+
+</td>
+<td>
+
+[`MemoryStore`](../../react/Internal/interfaces/MemoryStore.md)
+
+</td>
+<td>
+
+Route memory reads, writes, recall and the memory tools through this store instead of the database's vault; folders are unsupported. With `piiRedaction` on, build the store with `embeddingOptions.maskInput` (e.g. `(text) => redactor.maskText(text)` with any `PiiRedactor`) or its memory calls throw.
 
 </td>
 </tr>

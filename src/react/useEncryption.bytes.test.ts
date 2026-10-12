@@ -1,12 +1,3 @@
-/**
- * Tests for the bytes-in crypto variants (no hex round-trip):
- *   - encryptDataBytes:           bytes -> raw [IV][ct+tag] bytes
- *   - decryptDataBytesFromBytes:  raw [IV][ct+tag] bytes -> plaintext bytes
- *
- * These avoid the ~1.37x hex string that encryptData/decryptDataBytes build for
- * binary payloads (large media). Real WebCrypto + deterministic signature so the
- * round-trips and wire-compatibility with the existing hex functions are exercised.
- */
 import { describe, it, expect, beforeEach } from "vitest";
 
 import {
@@ -25,7 +16,6 @@ const ADDRESS = "0x1234567890123456789012345678901234567890";
 const signMessage = async (message: string): Promise<string> =>
   `0x${Buffer.from(message).toString("hex").padStart(130, "0")}`;
 
-// Includes non-UTF-8 bytes — the whole reason media needs a bytes path.
 const PLAIN = new Uint8Array([0x00, 0xff, 0xfe, 0x01, 0x80, 0x7f, 0x10, 0x20, 0x30, 0x40]);
 
 function bytesToHex(bytes: Uint8Array): string {
@@ -52,14 +42,12 @@ describe("bytes-in crypto variants", () => {
   });
 
   it("produces a wire format the existing hex decryptDataBytes can read", async () => {
-    // new encrypt (raw bytes) -> hex -> old hex decrypt
     const encrypted = await encryptDataBytes(PLAIN, ADDRESS);
     const decrypted = await decryptDataBytes(bytesToHex(encrypted), ADDRESS);
     expect(Array.from(decrypted)).toEqual(Array.from(PLAIN));
   });
 
   it("reads the wire format the existing hex encryptData produces", async () => {
-    // old encrypt (hex) -> bytes -> new bytes decrypt
     const hex = await encryptData(PLAIN, ADDRESS);
     const decrypted = await decryptDataBytesFromBytes(hexToBytes(hex), ADDRESS);
     expect(Array.from(decrypted)).toEqual(Array.from(PLAIN));
@@ -81,7 +69,6 @@ describe("bytes-in crypto variants", () => {
 
   it("rejects a tampered ciphertext (GCM auth failure, not a wrong plaintext)", async () => {
     const encrypted = await encryptDataBytes(PLAIN, ADDRESS);
-    // Flip one bit past the 12-byte IV, inside the ciphertext+tag region.
     const tampered = new Uint8Array(encrypted);
     tampered[tampered.length - 1] ^= 0x01;
     await expect(decryptDataBytesFromBytes(tampered, ADDRESS)).rejects.toThrow();

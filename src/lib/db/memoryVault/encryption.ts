@@ -9,6 +9,7 @@ import type { StoredVaultMemory } from "./types";
  *
  * Encrypted fields (random IV):
  * - content: Memory text
+ * - kind_value: a kinded memory's canonical value, encrypted like `content`
  *
  * Non-encrypted fields:
  * - timestamps, isDeleted
@@ -44,15 +45,19 @@ export async function decryptVaultMemoryFields(
     try {
       await requestEncryptionKey(address, signMessage, embeddedWalletSigner);
     } catch (error) {
-      // Key request failed – proceed with raw (possibly still-encrypted) content
       getLogger().warn("Failed to request encryption key for vault decryption:", error);
     }
   }
 
   const decryptedContent = await decryptField(memory.content, address);
+  const decryptedKindValue =
+    typeof memory.kindValue === "string"
+      ? await decryptField(memory.kindValue, address)
+      : memory.kindValue;
 
   return {
     ...memory,
     content: decryptedContent,
+    ...(decryptedKindValue !== undefined && { kindValue: decryptedKindValue }),
   };
 }

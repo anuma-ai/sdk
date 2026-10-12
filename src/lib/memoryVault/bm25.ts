@@ -1,23 +1,8 @@
-/**
- * In-memory BM25 scoring sibling to cosine similarity.
- *
- * Pure function: takes a query string and items, returns a score map.
- * No index persistence — re-tokenized per call. Adequate up to several
- * thousand memories on this codepath; vault search already loads all
- * candidates into memory before ranking.
- */
-
 const K1 = 1.5;
 const B = 0.75;
 
 const TOKEN_RE = /[a-z0-9]+/g;
 
-/**
- * English stopwords + conversational glue. Vault memories are short
- * (often <30 tokens), so BM25 without stopword filtering lets common
- * words ("what", "is", "the", "user") dominate rare discriminative
- * terms. Filtering both query and docs.
- */
 const STOPWORDS = new Set([
   "a",
   "about",
@@ -248,14 +233,6 @@ export function scoreBM25Prepared(query: string, corpus: PreparedBM25Corpus): Ma
  */
 export function scoreBM25(query: string, items: BM25Item[]): Map<string, number> {
   if (items.length === 0) return new Map();
-  // Tokenize the QUERY before preparing the corpus. A query that reduces to zero
-  // terms — empty, punctuation-only, or all stopwords ("the and of") — scores
-  // nothing, and `tokenize` drops stopwords, so this is reachable from real user
-  // input. Preparing first would tokenize every document and build the DF map,
-  // work proportional to the whole vault, only to return an empty result. The
-  // pre-split `scoreBM25` returned right after tokenizing the query; keep that.
-  // `scoreBM25Prepared` re-tokenizes the query, which is trivial next to a
-  // corpus pass, so the delegation stays a one-liner.
   if (tokenize(query).length === 0) return new Map();
   return scoreBM25Prepared(query, prepareBM25Corpus(items));
 }

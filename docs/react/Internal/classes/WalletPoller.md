@@ -1,6 +1,6 @@
 # WalletPoller
 
-Defined in: [src/lib/db/queue/walletPoller.ts:11](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/queue/walletPoller.ts#11)
+Defined in: [src/lib/db/queue/walletPoller.ts:4](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/queue/walletPoller.ts#4)
 
 ## Constructors
 
@@ -18,7 +18,7 @@ Defined in: [src/lib/db/queue/walletPoller.ts:11](https://github.com/anuma-ai/sd
 
 > **startPolling**(`checkWallet`: () => `Promise`<`string` | `null`>, `onWalletReady`: (`address`: `string`) => `void`, `intervalMs`: `number`, `maxAttempts`: `number`): () => `void`
 
-Defined in: [src/lib/db/queue/walletPoller.ts:24](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/queue/walletPoller.ts#24)
+Defined in: [src/lib/db/queue/walletPoller.ts:17](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/queue/walletPoller.ts#17)
 
 Start polling for wallet availability.
 
@@ -141,7 +141,7 @@ Stop function to cancel polling
 
 > **stop**(): `void`
 
-Defined in: [src/lib/db/queue/walletPoller.ts:64](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/queue/walletPoller.ts#64)
+Defined in: [src/lib/db/queue/walletPoller.ts:56](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/queue/walletPoller.ts#56)
 
 Stop polling.
 

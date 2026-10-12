@@ -2,6 +2,7 @@ import type { Collection, Database, Model } from "@nozbe/watermelondb";
 import { Q } from "@nozbe/watermelondb";
 
 import type { VaultMemory } from "../memoryVault/models";
+import { levelForScopeChange } from "../memoryVault/types";
 import type { VaultFolder } from "./models";
 import type {
   CreateVaultFolderOptions,
@@ -76,10 +77,6 @@ export async function updateVaultFolderOp(
     const scopeChanged = opts.scope !== undefined && opts.scope !== record.scope;
 
     const updated = await ctx.database.write(async () => {
-      // Fetch the cascade set BEFORE preparing any update: prepareUpdate →
-      // batch must happen within the same tick (an interleaved `await` lets
-      // WatermelonDB's dev "wasn't sent to batch() synchronously" diagnostic
-      // fire, RedBoxing Debug builds).
       const memories = scopeChanged
         ? await ctx.vaultMemoryCollection
             .query(Q.where("folder_id", id), Q.where("is_deleted", false))
@@ -98,19 +95,18 @@ export async function updateVaultFolderOp(
       for (const memory of memories) {
         updates.push(
           memory.prepareUpdate((r) => {
+            r._setRaw("level", levelForScopeChange(r, opts.scope!));
             r._setRaw("scope", opts.scope!);
           })
         );
       }
 
       await ctx.database.batch(...updates);
-      // Re-fetch to get fresh data after batch update
       return ctx.vaultFolderCollection.find(id);
     });
 
     return folderToStored(updated);
   } catch {
-    // Update failed (record not found or write error) – return null to caller
     return null;
   }
 }
@@ -134,6 +130,7 @@ export async function deleteVaultFolderOp(
       const preparedMemories = memories.map((memory) =>
         memory.prepareUpdate((r) => {
           r._setRaw("folder_id", null);
+          r._setRaw("level", levelForScopeChange(r, "private"));
           r._setRaw("scope", "private");
         })
       );
@@ -147,7 +144,6 @@ export async function deleteVaultFolderOp(
 
     return true;
   } catch {
-    // Delete failed (record not found or write error) – return false to caller
     return false;
   }
 }
@@ -163,7 +159,6 @@ export async function moveMemoriesToFolderOp(
   if (memoryIds.length === 0) return true;
 
   try {
-    // If moving to a folder, inherit the folder's scope; if unfiling, revert to "private"
     let targetScope: string = "private";
     if (folderId) {
       const folder = await ctx.vaultFolderCollection.find(folderId);
@@ -171,7 +166,6 @@ export async function moveMemoriesToFolderOp(
       targetScope = folder.scope;
     }
 
-    // Resolve and update memories inside a single write lock to avoid races
     let movedCount = 0;
     await ctx.database.write(async () => {
       const memories: VaultMemory[] = [];
@@ -189,6 +183,7 @@ export async function moveMemoriesToFolderOp(
       const prepared = memories.map((memory) =>
         memory.prepareUpdate((r) => {
           r._setRaw("folder_id", folderId);
+          r._setRaw("level", levelForScopeChange(r, targetScope));
           r._setRaw("scope", targetScope);
         })
       );
@@ -199,7 +194,6 @@ export async function moveMemoriesToFolderOp(
 
     return movedCount > 0;
   } catch {
-    // Move failed (record not found or write error) – return false to caller
     return false;
   }
 }

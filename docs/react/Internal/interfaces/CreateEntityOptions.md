@@ -14,6 +14,6 @@ Defined in: [src/lib/db/entities/types.ts:107](https://github.com/anuma-ai/sdk/b
 
 ### kind?
 
-> `optional` **kind**: `string` & `object` | `"event"` | `"other"` | `"person"` | `"organization"` | `"place"` | `"product"` | `"thing"` | `"concept"`
+> `optional` **kind**: `string` & `object` | `"event"` | `"person"` | `"organization"` | `"place"` | `"product"` | `"thing"` | `"concept"` | `"other"`
 
 Defined in: [src/lib/db/entities/types.ts:108](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/entities/types.ts#108)

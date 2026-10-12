@@ -2,7 +2,7 @@
 
 > **storeGithubPendingMessage**(`message`: `string`): `void`
 
-Defined in: [src/lib/auth/github.ts:491](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/github.ts#491)
+Defined in: [src/lib/auth/github.ts:397](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/github.ts#397)
 
 Store a pending message to retry after OAuth completes
 

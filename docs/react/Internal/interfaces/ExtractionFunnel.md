@@ -1,6 +1,6 @@
 # ExtractionFunnel
 
-Defined in: [src/lib/memory/autoExtract.ts:368](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#368)
+Defined in: [src/lib/memory/autoExtract.ts:319](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#319)
 
 Where a turn's candidates went between the model's completion and the vault —
 every stage that can drop one, as a count. Returned by [extractAndRetain](../functions/extractAndRetain.md)
@@ -16,7 +16,7 @@ Reads as a funnel: `raw ≥ valid ≥ afterRedaction ≥ aboveConfidence`, then
 
 > **aboveConfidenceCount**: `number`
 
-Defined in: [src/lib/memory/autoExtract.ts:376](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#376)
+Defined in: [src/lib/memory/autoExtract.ts:327](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#327)
 
 Survivors of the `minConfidence` floor — the candidates that reached the injection screen.
 
@@ -26,7 +26,7 @@ Survivors of the `minConfidence` floor — the candidates that reached the injec
 
 > **afterRedactionCount**: `number`
 
-Defined in: [src/lib/memory/autoExtract.ts:374](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#374)
+Defined in: [src/lib/memory/autoExtract.ts:325](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#325)
 
 Survivors of PII de-anonymization (equals `validCandidateCount` when redaction is off).
 
@@ -36,7 +36,7 @@ Survivors of PII de-anonymization (equals `validCandidateCount` when redaction i
 
 > **failedCount**: `number`
 
-Defined in: [src/lib/memory/autoExtract.ts:386](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#386)
+Defined in: [src/lib/memory/autoExtract.ts:337](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#337)
 
 `retain()` threw.
 
@@ -46,7 +46,7 @@ Defined in: [src/lib/memory/autoExtract.ts:386](https://github.com/anuma-ai/sdk/
 
 > **quarantinedCount**: `number`
 
-Defined in: [src/lib/memory/autoExtract.ts:382](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#382)
+Defined in: [src/lib/memory/autoExtract.ts:333](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#333)
 
 Held for review by the injection screen and SUCCESSFULLY persisted — the
 same set as `extractAndRetain`'s `quarantined`. A screened candidate whose
@@ -58,7 +58,7 @@ same set as `extractAndRetain`'s `quarantined`. A screened candidate whose
 
 > **rawCandidateCount**: `number`
 
-Defined in: [src/lib/memory/autoExtract.ts:370](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#370)
+Defined in: [src/lib/memory/autoExtract.ts:321](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#321)
 
 Candidates in the model's completion, before any validation.
 
@@ -68,7 +68,7 @@ Candidates in the model's completion, before any validation.
 
 > **retainedCount**: `number`
 
-Defined in: [src/lib/memory/autoExtract.ts:384](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#384)
+Defined in: [src/lib/memory/autoExtract.ts:335](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#335)
 
 Written through `retain()` (any disposition).
 
@@ -78,6 +78,6 @@ Written through `retain()` (any disposition).
 
 > **validCandidateCount**: `number`
 
-Defined in: [src/lib/memory/autoExtract.ts:372](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#372)
+Defined in: [src/lib/memory/autoExtract.ts:323](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#323)
 
 Survivors of validateCandidates (shape, length, low-signal, confidence-is-a-number).

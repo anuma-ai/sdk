@@ -1,6 +1,6 @@
 # MemoryQuarantinedEvent
 
-Defined in: [src/lib/memory/autoExtractWorker.ts:97](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#97)
+Defined in: [src/lib/memory/autoExtractWorker.ts:38](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#38)
 
 Tier-0 security (PR3) — fired once per candidate the injection screen
 quarantined and persisted as an audit row. Distinct from
@@ -17,7 +17,7 @@ without treating a poisoned fact as a normal saved memory.
 
 > **candidate**: [`ExtractedCandidate`](ExtractedCandidate.md)
 
-Defined in: [src/lib/memory/autoExtract.ts:208](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#208)
+Defined in: [src/lib/memory/autoExtract.ts:159](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#159)
 
 **Inherited from**
 
@@ -29,7 +29,7 @@ Defined in: [src/lib/memory/autoExtract.ts:208](https://github.com/anuma-ai/sdk/
 
 > `optional` **conversationId**: `string`
 
-Defined in: [src/lib/memory/autoExtractWorker.ts:98](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#98)
+Defined in: [src/lib/memory/autoExtractWorker.ts:39](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#39)
 
 ***
 
@@ -37,7 +37,7 @@ Defined in: [src/lib/memory/autoExtractWorker.ts:98](https://github.com/anuma-ai
 
 > **memoryId**: `string`
 
-Defined in: [src/lib/memory/autoExtract.ts:210](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#210)
+Defined in: [src/lib/memory/autoExtract.ts:161](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#161)
 
 The persisted (quarantined) memory row id.
 
@@ -51,7 +51,7 @@ The persisted (quarantined) memory row id.
 
 > **reason**: [`InjectionReason`](../type-aliases/InjectionReason.md)
 
-Defined in: [src/lib/memory/autoExtract.ts:212](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#212)
+Defined in: [src/lib/memory/autoExtract.ts:163](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#163)
 
 Coarse reason bucket from the screen.
 
@@ -65,7 +65,7 @@ Coarse reason bucket from the screen.
 
 > **signature**: `string`
 
-Defined in: [src/lib/memory/autoExtract.ts:214](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#214)
+Defined in: [src/lib/memory/autoExtract.ts:165](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#165)
 
 Stable signature id that matched (safe to log; carries no content).
 

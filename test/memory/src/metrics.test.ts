@@ -14,7 +14,7 @@ describe("bootstrapMeanCI", () => {
     const values = [1, 0, 1, 1, 0, 1, 0, 1, 1, 0];
     const a = bootstrapMeanCI(values);
     const b = bootstrapMeanCI(values);
-    expect(a).toEqual(b); // seeded PRNG → reproducible bounds
+    expect(a).toEqual(b);
     expect(a.mean).toBeCloseTo(0.6, 10);
     expect(a.lo).toBeLessThanOrEqual(a.mean);
     expect(a.hi).toBeGreaterThanOrEqual(a.mean);
@@ -47,7 +47,6 @@ describe("pairedBootstrapDelta", () => {
   });
 
   it("treats a tiny one-query difference on a noisy sample as not significant", () => {
-    // 39 ties + a single +1 → mean +0.025, CI must include 0.
     const base = Array(39).fill(1);
     const a = [...base, 1];
     const b = [...base, 0];

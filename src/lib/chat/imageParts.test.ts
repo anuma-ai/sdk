@@ -15,9 +15,6 @@ describe("isSendableImageURL", () => {
   });
 
   it("rejects local file:// references (the moderation hard-block trigger)", () => {
-    // Regression: a prior document/image stored with a file:// URL was re-sent as an
-    // image_url every turn, tripping ai-portal's image_unscannable_blocked and bricking
-    // the whole conversation with a ToS refusal.
     expect(isSendableImageURL("file:///var/mobile/Documents/report.pdf")).toBe(false);
     expect(isSendableImageURL("file:///tmp/photo.jpg")).toBe(false);
   });

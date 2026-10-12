@@ -22,17 +22,14 @@ describe("WalletPoller", () => {
 
     poller.startPolling(checkWallet, onWalletReady, 100);
 
-    // First call is immediate
     await vi.advanceTimersByTimeAsync(0);
     expect(checkWallet).toHaveBeenCalledTimes(1);
     expect(onWalletReady).not.toHaveBeenCalled();
 
-    // Second call after interval
     await vi.advanceTimersByTimeAsync(100);
     expect(checkWallet).toHaveBeenCalledTimes(2);
     expect(onWalletReady).not.toHaveBeenCalled();
 
-    // Third call - wallet now available
     await vi.advanceTimersByTimeAsync(100);
     expect(checkWallet).toHaveBeenCalledTimes(3);
     expect(onWalletReady).toHaveBeenCalledWith("0x1234567890123456789012345678901234567890");
@@ -45,11 +42,9 @@ describe("WalletPoller", () => {
 
     poller.startPolling(checkWallet, onWalletReady, 100);
 
-    // Immediate call finds wallet
     await vi.advanceTimersByTimeAsync(0);
     expect(onWalletReady).toHaveBeenCalledTimes(1);
 
-    // No more calls after finding wallet
     await vi.advanceTimersByTimeAsync(500);
     expect(checkWallet).toHaveBeenCalledTimes(1);
   });
@@ -61,11 +56,10 @@ describe("WalletPoller", () => {
 
     poller.startPolling(checkWallet, onWalletReady, 100, 3);
 
-    // 3 attempts: immediate + 2 intervals
-    await vi.advanceTimersByTimeAsync(0); // attempt 1
-    await vi.advanceTimersByTimeAsync(100); // attempt 2
-    await vi.advanceTimersByTimeAsync(100); // attempt 3
-    await vi.advanceTimersByTimeAsync(100); // should not fire
+    await vi.advanceTimersByTimeAsync(0);
+    await vi.advanceTimersByTimeAsync(100);
+    await vi.advanceTimersByTimeAsync(100);
+    await vi.advanceTimersByTimeAsync(100);
 
     expect(checkWallet).toHaveBeenCalledTimes(3);
     expect(onWalletReady).not.toHaveBeenCalled();
@@ -78,11 +72,10 @@ describe("WalletPoller", () => {
 
     const stopFn = poller.startPolling(checkWallet, onWalletReady, 100);
 
-    await vi.advanceTimersByTimeAsync(0); // first call
+    await vi.advanceTimersByTimeAsync(0);
     stopFn();
 
     await vi.advanceTimersByTimeAsync(500);
-    // Only the initial call happened
     expect(checkWallet).toHaveBeenCalledTimes(1);
   });
 
@@ -99,11 +92,9 @@ describe("WalletPoller", () => {
 
     poller.startPolling(checkWallet, onWalletReady, 100);
 
-    // First call throws, should continue
     await vi.advanceTimersByTimeAsync(0);
     expect(onWalletReady).not.toHaveBeenCalled();
 
-    // Second call succeeds
     await vi.advanceTimersByTimeAsync(100);
     expect(onWalletReady).toHaveBeenCalledWith("0x1234567890123456789012345678901234567890");
   });

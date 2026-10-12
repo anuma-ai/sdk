@@ -1,18 +1,3 @@
-/**
- * Shared helpers for centroid generation scripts.
- *
- * Each `generate*Centroids.ts` script embeds a list of reference phrases and
- * averages each class into a single centroid vector. The math lives here so
- * all classifier-generation scripts stay in sync.
- */
-
-/**
- * Average a list of equal-length vectors element-wise.
- *
- * Throws if the list is empty or if any vector has a different dimension
- * than the first — both indicate an embedding API regression that should
- * surface immediately rather than silently produce NaN centroids.
- */
 export function averageVectors(vectors: number[][]): number[] {
   if (vectors.length === 0) {
     throw new Error("averageVectors: received an empty vector list");

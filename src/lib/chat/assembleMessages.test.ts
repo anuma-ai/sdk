@@ -4,7 +4,6 @@ import type { LlmapiMessage } from "../../client";
 
 import { assembleMessagesWithHistory } from "./assembleMessages";
 
-/** Helper to create a minimal LlmapiMessage */
 function msg(role: "system" | "user" | "assistant", text: string): LlmapiMessage {
   return { role, content: [{ type: "text", text }] };
 }
@@ -16,12 +15,7 @@ describe("assembleMessagesWithHistory", () => {
 
     const result = assembleMessagesWithHistory(history, caller);
 
-    expect(result.map((m) => m.role)).toEqual([
-      "system", // hoisted from caller
-      "user", // history
-      "assistant", // history
-      "user", // caller (non-system)
-    ]);
+    expect(result.map((m) => m.role)).toEqual(["system", "user", "assistant", "user"]);
     expect(result[0]).toEqual(msg("system", "You are helpful"));
   });
 
@@ -41,13 +35,7 @@ describe("assembleMessagesWithHistory", () => {
 
     const result = assembleMessagesWithHistory(history, caller, summary);
 
-    expect(result.map((m) => m.role)).toEqual([
-      "system", // summary
-      "system", // caller system
-      "user", // history
-      "assistant", // history
-      "user", // caller non-system
-    ]);
+    expect(result.map((m) => m.role)).toEqual(["system", "system", "user", "assistant", "user"]);
     expect(result[0]).toEqual(summary);
     expect(result[1]).toEqual(msg("system", "You are helpful"));
   });

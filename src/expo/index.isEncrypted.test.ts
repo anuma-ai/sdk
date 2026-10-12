@@ -1,9 +1,4 @@
 // @vitest-environment happy-dom
-/**
- * Barrel-surface pin for `isEncrypted` on `@anuma/sdk/expo` — parity with the
- * react entry point. Mobile runs the same Nearby publish reconciler and reads
- * the same decrypt path, so it needs the same guard.
- */
 import { describe, expect, it } from "vitest";
 
 import { isEncrypted } from "./index";

@@ -1,10 +1,6 @@
 import type { jsPDF as JsPDFType } from "jspdf";
 import type { Token, Tokens } from "marked";
 
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
-
 /** Stages of the PDF export pipeline. @category PDF Export */
 export type PdfExportStage = "preparing" | "rendering" | "building" | "complete";
 
@@ -44,10 +40,6 @@ export interface PdfExportOptions {
   onProgress?: (progress: PdfExportProgress) => void;
 }
 
-// ---------------------------------------------------------------------------
-// Lazy-loaded modules (same pattern as pdf.ts)
-// ---------------------------------------------------------------------------
-
 type JsPDFModule = typeof import("jspdf");
 type Html2CanvasModule = typeof import("html2canvas");
 type MarkedModule = typeof import("marked");
@@ -77,10 +69,6 @@ async function getMarked(): Promise<MarkedModule> {
   return markedModule;
 }
 
-// ---------------------------------------------------------------------------
-// Constants
-// ---------------------------------------------------------------------------
-
 type PageSizeKey = NonNullable<PdfExportOptions["pageSize"]>;
 
 const PAGE_SIZES: Record<PageSizeKey, [number, number]> = {
@@ -98,33 +86,19 @@ const HEADING_SIZES: Record<number, number> = {
   6: 12,
 };
 
-/** Spacing constants in mm for consistent layout */
 const SPACING = {
-  /** Small gap after paragraphs, lists, headings-after */
   SM: 2,
-  /** Medium gap before headings, between blocks */
   MD: 3,
-  /** Large gap after titles, code blocks */
   LG: 4,
-  /** Extra-large gap after HRs */
   XL: 5,
-  /** List item indent */
   LIST_INDENT: 6,
-  /** Blockquote indent */
   QUOTE_INDENT: 8,
-  /** Blockquote total inset (border + padding) */
   QUOTE_INSET: 10,
-  /** Code block internal padding */
   CODE_PAD: 4,
-  /** Table cell padding */
   TABLE_CELL_PAD: 2,
 } as const;
 
 const DEFAULT_FILENAME = "document.pdf";
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
 
 interface ResolvedOptions {
   pageSize: [number, number];
@@ -186,7 +160,6 @@ function usableContentWidth(pageW: number, m: ResolvedOptions["margins"]): numbe
   return pageW - m.left - m.right;
 }
 
-/** Strip inline markdown tokens to plain text */
 function tokensToPlainText(tokens: Token[]): string {
   const parts: string[] = [];
   for (const token of tokens) {
@@ -213,10 +186,6 @@ function tokensToPlainText(tokens: Token[]): string {
   return parts.join("");
 }
 
-// ---------------------------------------------------------------------------
-// DOM capture path — renderElementToCanvas + exportElementToPdf
-// ---------------------------------------------------------------------------
-
 /**
  * Render a DOM element to a canvas using iframe isolation.
  *
@@ -235,7 +204,6 @@ export async function renderElementToCanvas(
   const html2canvas = html2canvasMod.default ?? html2canvasMod;
   options?.onProgress?.({ stage: "preparing", percent: 5, detail: "Cloning element" });
 
-  // Use an iframe with its own document root to avoid affecting the main page's dark mode
   const iframe = document.createElement("iframe");
   iframe.style.position = "fixed";
   iframe.style.left = "-9999px";
@@ -251,12 +219,9 @@ export async function renderElementToCanvas(
     throw new Error("Unable to access iframe document");
   }
 
-  // Copy stylesheets to the iframe. Prefer synchronous cssRules copy; only
-  // fall back to async <link> for cross-origin sheets where cssRules throws.
   const pendingLinks: Promise<void>[] = [];
   for (const sheet of Array.from(document.styleSheets)) {
     try {
-      // Try synchronous copy first (works for same-origin, including external sheets)
       const cssText = Array.from(sheet.cssRules)
         .map((rule) => rule.cssText)
         .join("\n");
@@ -264,7 +229,6 @@ export async function renderElementToCanvas(
       style.textContent = cssText;
       iframeDoc.head.appendChild(style);
     } catch {
-      // Cross-origin sheet — fall back to async <link> and track the load promise
       if (sheet.href) {
         const link = iframeDoc.createElement("link");
         link.rel = "stylesheet";
@@ -272,28 +236,25 @@ export async function renderElementToCanvas(
         pendingLinks.push(
           new Promise<void>((resolve) => {
             link.onload = () => resolve();
-            link.onerror = () => resolve(); // don't block on failed loads
+            link.onerror = () => resolve();
           })
         );
         iframeDoc.head.appendChild(link);
       }
     }
   }
-  // Wait for any cross-origin stylesheets to load before capturing
   if (pendingLinks.length > 0) {
     await Promise.all(pendingLinks);
   }
 
   options?.onProgress?.({ stage: "preparing", percent: 10, detail: "Stylesheets ready" });
 
-  // Clone element into the iframe body
   const clone = element.cloneNode(true) as HTMLElement;
   clone.style.backgroundColor = "#ffffff";
   clone.style.color = "#1a1a1a";
   clone.classList.remove("dark:prose-invert");
   iframeDoc.body.appendChild(clone);
 
-  // Remove dark class from iframe's document root (not the main page)
   iframeDoc.documentElement.classList.remove("dark");
 
   options?.onProgress?.({ stage: "rendering", percent: 15, detail: "Capturing content" });
@@ -345,7 +306,6 @@ export async function exportElementToPdf(
   const JsPDF = resolveJsPDFConstructor(jspdfMod);
   const doc = createPdfDoc(JsPDF, pageW, pageH);
 
-  // Reuse a single slice canvas to avoid per-page allocation + PNG encode overhead
   const sliceCanvas = document.createElement("canvas");
   sliceCanvas.width = imgWidthPx;
   const sliceCtx = sliceCanvas.getContext("2d");
@@ -390,10 +350,6 @@ export async function exportElementToPdf(
   return doc.output("blob");
 }
 
-// ---------------------------------------------------------------------------
-// Headless path — exportMarkdownToPdf
-// ---------------------------------------------------------------------------
-
 /**
  * Convert a markdown string to a PDF. No DOM required.
  *
@@ -421,8 +377,6 @@ export async function exportMarkdownToPdf(
   const doc = createPdfDoc(JsPDF, pageW, pageH);
 
   let cursorY = opts.margins.top;
-
-  // --- Utilities ---
 
   function ensureSpace(needed: number) {
     const maxY = pageH - opts.margins.bottom;
@@ -460,8 +414,6 @@ export async function exportMarkdownToPdf(
     }
   }
 
-  // --- Title ---
-
   if (opts.title) {
     doc.setFont("Helvetica", "bold");
     doc.setFontSize(22);
@@ -475,14 +427,11 @@ export async function exportMarkdownToPdf(
     cursorY += SPACING.LG;
   }
 
-  // --- Token rendering ---
-
   const tokens = Lexer.lex(markdown);
   opts.onProgress?.({ stage: "building", percent: 5, detail: "Rendering tokens" });
 
   for (let tokenIdx = 0; tokenIdx < tokens.length; tokenIdx++) {
     const token = tokens[tokenIdx];
-    // Report progress proportional to token position (5–95%)
     const tokenPercent = 5 + Math.round((tokenIdx / tokens.length) * 90);
     opts.onProgress?.({ stage: "building", percent: tokenPercent });
     switch (token.type) {
@@ -615,12 +564,10 @@ export async function exportMarkdownToPdf(
         const lh = lineHeightMm(tableFontSize);
         const cellContentW = colW - SPACING.TABLE_CELL_PAD * 2;
 
-        /** Render a table row, returning the number of lines in the tallest cell */
         function renderRow(cells: Tokens.TableCell[], fontStyle: "bold" | "normal"): number {
           doc.setFont("Helvetica", fontStyle);
           doc.setFontSize(tableFontSize);
 
-          // Pre-compute wrapped lines for each cell to determine row height
           const cellLines: string[][] = cells.map((cell) => {
             const text = tokensToPlainText(cell.tokens);
             return doc.splitTextToSize(text, cellContentW) as string[];
@@ -639,10 +586,8 @@ export async function exportMarkdownToPdf(
           return maxLines;
         }
 
-        // Header row
         ensureSpace(lh + SPACING.LG);
         doc.setFillColor(240, 240, 240);
-        // Draw header background (will be overdrawn if multi-line, but font metrics are stable)
         doc.setFont("Helvetica", "bold");
         doc.setFontSize(tableFontSize);
         const headerLines = header.map(
@@ -652,12 +597,10 @@ export async function exportMarkdownToPdf(
         doc.rect(opts.margins.left, cursorY - lh + 1, cw, headerMaxLines * lh + SPACING.SM, "F");
         renderRow(header, "bold");
 
-        // Header bottom border
         doc.setDrawColor(180, 180, 180);
         doc.setLineWidth(0.3);
         doc.line(opts.margins.left, cursorY - 1, opts.margins.left + cw, cursorY - 1);
 
-        // Data rows
         for (const row of rows) {
           renderRow(row, "normal");
         }

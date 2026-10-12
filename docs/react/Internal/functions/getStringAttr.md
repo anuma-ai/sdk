@@ -2,7 +2,7 @@
 
 > **getStringAttr**(`node`: [`AnumaNode`](../interfaces/AnumaNode.md), `name`: `string`): `string` | `undefined`
 
-Defined in: [src/tools/slides/jsx.ts:1186](https://github.com/anuma-ai/sdk/blob/main/src/tools/slides/jsx.ts#1186)
+Defined in: [src/tools/slides/jsx.ts:1033](https://github.com/anuma-ai/sdk/blob/main/src/tools/slides/jsx.ts#1033)
 
 Read a string attr, returning undefined if absent or wrong type.
 

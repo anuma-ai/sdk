@@ -1,57 +1,7 @@
-/**
- * Storage encoding for `MessageChunk.vector`.
- *
- * Chunk vectors are persisted inside the `chunks` column as JSON. Since #732
- * their values are canonically float32 — `generateEmbeddings` round-trips its
- * return value through a `Float32Array` so a cache hit and a cache miss agree —
- * which paradoxically made the JSON LONGER: `JSON.stringify` emits the shortest
- * decimal that round-trips to the float64, and a binary32-exact value needs ~17
- * significant digits. Measured at 4096 dims (`qwen/qwen3-embedding-8b`): 54.5 KB
- * of JSON before #732, 84.5 KB after.
- *
- * Base64-encoding the `Float32Array` stores the same bits as 4 bytes per value
- * instead of ~21 characters — 21.3 KB at 4096 dims. Because the data already IS
- * float32, the encoding is EXACTLY lossless, so the round-trip assertion is
- * equality and never a tolerance.
- *
- * Rollout (sdk#862). `decodeChunkVector` accepts both encodings and ships first;
- * `encodeChunkVector` is deliberately NOT wired into the write path yet. Every
- * stored chunk on every device is still a JSON array, and chat history syncs
- * those rows between devices verbatim — the backup push spreads the whole raw
- * row and the restore copies every column — so a device on an older build would
- * meet a base64 string where it expects `number[]`. It does not throw, and it
- * does not fall back: the row still HAS chunks, so the old build takes the chunk
- * branch and never reaches the whole-message one. `Float32Array.from` over the
- * string yields one NaN per character, `cosineSimilarity` returns 0 on the
- * dimension mismatch, and the default `minSimilarity` cuts it — the row leaves
- * search entirely. The old build then caches what it built: ~87 KB of NaN per
- * chunk, so ~54 MB resident for a 620-chunk row, on exactly the device this
- * sequencing exists to protect. The writer flips in a later release, once a
- * build that reads both encodings has saturated; the single flip site is
- * `updateMessageChunksOp`.
- *
- * Byte order is the platform's, since this reads the `Float32Array` bytes
- * directly. Every runtime the SDK targets (browsers, iOS, Android, Node on
- * x86/ARM) is little-endian.
- */
-
 import { base64ToUint8Array, uint8ArrayToBase64 } from "../processors/encoding";
 
 const BYTES_PER_FLOAT32 = 4;
 
-/**
- * Canonical base64: the standard alphabet, a length that is a multiple of 4, and
- * padding only at the very end — exactly what `uint8ArrayToBase64` emits on both
- * of its paths.
- *
- * Checked before decoding because Node's `Buffer.from(value, "base64")` DROPS
- * characters outside the alphabet instead of failing, so a corrupted string can
- * still yield a four-byte-aligned payload and sail past the alignment check
- * below as plausible-looking floats that then participate in ranking. Validating
- * the string beats re-encoding the decoded bytes and comparing: no second copy
- * of a 21 KB payload per chunk read, and it makes the two platform decoders
- * agree, since the browser's `atob` already rejects this input.
- */
 const CANONICAL_BASE64 = /^[A-Za-z0-9+/]+={0,2}$/;
 
 /**
@@ -99,8 +49,6 @@ export function decodeChunkVector(
 
   try {
     const bytes = base64ToUint8Array(vector);
-    // A truncated payload cannot be split into whole floats; treat it as absent
-    // rather than silently dropping the trailing bytes.
     if (bytes.byteLength === 0 || bytes.byteLength % BYTES_PER_FLOAT32 !== 0) {
       onMalformed?.();
       return new Float32Array(0);

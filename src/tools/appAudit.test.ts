@@ -1,8 +1,3 @@
-/**
- * Unit tests for the design audit. Pure-function checks against a small
- * gallery of curated App.js / App.css snippets — no LLM, no DOM.
- */
-
 import { describe, expect, it } from "vitest";
 
 import { auditDesign, contrastRatio } from "./appAudit.js";
@@ -116,7 +111,7 @@ body { background: var(--bg); color: var(--accent); }
     const css = `:root { --accent: #b75432; }
 .btn { color: var(--accent); }
 .btn:hover { opacity: 0.9; }
-`; // hover but no focus-visible
+`;
     const result = auditDesign({ "App.js": js, "App.css": css });
     const focus = findIssue(result, "missing-focus-state");
     expect(focus.length).toBe(1);
@@ -147,7 +142,6 @@ body { background: var(--bg); color: var(--accent); }
     const result = auditDesign({ "App.js": js, "App.css": "" });
     const aria = findIssue(result, "missing-aria-label");
     expect(aria).toHaveLength(1);
-    // The first button (the one without aria-label) is the offender.
     expect(aria[0]?.line).toBeGreaterThan(0);
   });
 
@@ -213,7 +207,6 @@ body { background: var(--bg); color: var(--accent); }
     const css = `body { background: #f00; color: #888; }`;
     const result = auditDesign({ "App.js": js, "App.css": css });
     const order = result.issues.map((i) => i.severity);
-    // Errors first (none here), warns next, infos last.
     let lastSev = -1;
     const sev = { error: 0, warn: 1, info: 2 } as const;
     for (const s of order) {
@@ -262,19 +255,9 @@ body { background: var(--bg); }
     expect(findIssue(result, "raw-color")).toHaveLength(0);
   });
 
-  // ---------------------------------------------------------------------
-  // Semantic checks: contrast math, focus rings keyed to tokens,
-  // spacing-scale adherence. The presence-based checks above catch "did
-  // the model declare a focus rule"; these catch "did the model use the
-  // system or game it with a one-off hardcoded value".
-  // ---------------------------------------------------------------------
-
   it("contrastRatio computes WCAG luminance ratio correctly", () => {
-    // Black on white: 21:1 (max).
     expect(contrastRatio([0, 0, 0], [255, 255, 255])).toBeCloseTo(21, 0);
-    // #888 mid-grey on white: ~3.5:1 (a known AA-failing pairing).
     expect(contrastRatio([136, 136, 136], [255, 255, 255])).toBeCloseTo(3.54, 1);
-    // Same color: 1:1.
     expect(contrastRatio([100, 100, 100], [100, 100, 100])).toBeCloseTo(1, 5);
   });
 
@@ -388,7 +371,7 @@ body { background: var(--bg); color: var(--ink); }
     const off = findIssue(result, "off-scale-spacing");
     expect(off).toHaveLength(1);
     expect(off[0].message).toMatch(/17px/);
-    expect(off[0].message).toMatch(/8px/); // mentions a scale value
+    expect(off[0].message).toMatch(/8px/);
   });
 
   it("does not flag off-scale-spacing when the value matches the scale", () => {
@@ -435,10 +418,6 @@ body { background: var(--bg); color: var(--ink); }
   });
 
   it("flags JSX class names that don't appear in App.css", () => {
-    // Models renaming a wrapper class in JSX but forgetting to add the
-    // corresponding CSS rule is exactly the failure mode that broke
-    // kanban step-5 — the page rendered blank because the new
-    // `.app-shell` had no `display: flex` rule.
     const css = `:root { --bg: #fff; --ink: #111; --accent: #b75432; }
 .app-root { display: flex; }
 .sidebar { width: 220px; }
@@ -457,8 +436,8 @@ body { background: var(--bg); color: var(--ink); }
     expect(orphans).toHaveLength(1);
     expect(orphans[0].severity).toBe("warn");
     expect(orphans[0].message).toMatch(/app-shell/);
-    expect(orphans[0].message).not.toMatch(/sidebar/); // sidebar IS in CSS
-    expect(orphans[0].message).not.toMatch(/main/); //   main IS in CSS
+    expect(orphans[0].message).not.toMatch(/sidebar/);
+    expect(orphans[0].message).not.toMatch(/main/);
   });
 
   it("does NOT flag Tailwind utility classes (CDN-injected, never in App.css)", () => {
@@ -477,9 +456,6 @@ body { background: var(--bg); color: var(--ink); }
   });
 
   it("does NOT flag known library-injected class names (lucide, lucide-*)", () => {
-    // lucide-react renders SVGs with `class="lucide lucide-camera"` at
-    // runtime. The model never declares these in CSS — they're not its
-    // responsibility.
     const css = `:root { --bg: #fff; --ink: #111; --accent: #b75432; }`;
     const js = `function App() {
   return (
@@ -497,9 +473,6 @@ body { background: var(--bg); color: var(--ink); }
   });
 
   it("ignores dynamic interpolations in template literal className", () => {
-    // Static `btn` is in CSS, but `btn--${variant}` produces classes the
-    // regex can't statically resolve — we strip the interpolation and
-    // only check the static text. No false positive on `btn--`.
     const css = `:root { --bg: #fff; --ink: #111; --accent: #b75432; }
 .btn { background: var(--accent); }
 .btn--primary { color: white; }`;
@@ -529,8 +502,6 @@ body { background: var(--bg); color: var(--ink); }
   });
 
   it("ignores CSS-comment-only class declarations when matching", () => {
-    // A class commented out in App.css must NOT count as "declared" —
-    // the model would think the class exists when it doesn't.
     const css = `:root { --bg: #fff; --ink: #111; --accent: #b75432; }
 /* .legacy { display: none; } */`;
     const js = `function App() {
@@ -542,18 +513,7 @@ body { background: var(--bg); color: var(--ink); }
     expect(orphans[0].message).toMatch(/legacy/);
   });
 
-  // ---------------------------------------------------------------------
-  // getTokenValue: match the LAST declaration in :root even without a
-  // trailing semicolon. The old `([^;]+);` regex required a `;`, so a
-  // final token (`--bg:#fff` with no `;` before `}`) was invisible to
-  // the contrast / spacing checks.
-  // ---------------------------------------------------------------------
-
   it("detects low-contrast when fg/bg tokens are the final :root declaration without a trailing semicolon", () => {
-    // --bg is the LAST declaration and has NO trailing semicolon before }.
-    // --ink #888 on --bg #fff is ~3.5:1 — fails AA body text. Against the
-    // old `([^;]+);` regex, --bg would never match (no `;`), getTokenValue
-    // would return null, and findLowContrast would skip entirely.
     const css = `:root { --ink:#888; --bg:#fff }`;
     const result = auditDesign({ "App.js": "function App(){return null}", "App.css": css });
     const lc = findIssue(result, "low-contrast");
@@ -563,8 +523,6 @@ body { background: var(--bg); color: var(--ink); }
   });
 
   it("positive control: the same low-contrast pairing is flagged WITH a trailing semicolon (parity)", () => {
-    // Same tokens, but --bg now ends in `;`. This already worked under the
-    // old regex; the no-semicolon case above must reach the same result.
     const css = `:root { --ink:#888; --bg:#fff; }`;
     const result = auditDesign({ "App.js": "function App(){return null}", "App.css": css });
     const lc = findIssue(result, "low-contrast");
@@ -572,13 +530,6 @@ body { background: var(--bg); color: var(--ink); }
     expect(lc[0].severity).toBe("warn");
     expect(lc[0].message).toMatch(/3\.5/);
   });
-
-  // ---------------------------------------------------------------------
-  // findFocusNotKeyed: now walks leaf rule blocks linearly instead of the
-  // quadratic `([^{}]*:focus-visible[^{}]*)\{([^{}]*)\}` regex. Correctness
-  // must be preserved, nested at-rules must still be visited, and a large
-  // brace-sparse input must not hang.
-  // ---------------------------------------------------------------------
 
   it("flags a hardcoded :focus-visible color via the leaf-block walker", () => {
     const css = `:root{--accent:#06f}
@@ -597,8 +548,6 @@ body { background: var(--bg); color: var(--ink); }
   });
 
   it("still flags a hardcoded :focus-visible rule nested inside an @media at-rule", () => {
-    // The leaf-block walker must descend into at-rule wrappers and inspect
-    // the rule inside, not treat the @media block as one opaque leaf.
     const css = `:root{--accent:#06f}
 @media (min-width: 1px){ .x:focus-visible { outline: 2px solid #f00; } }`;
     const result = auditDesign({ "App.js": "function App(){return null}", "App.css": css });
@@ -608,10 +557,6 @@ body { background: var(--bg); color: var(--ink); }
   });
 
   it("does not hang on large brace-sparse input containing :focus-visible (no catastrophic backtracking)", () => {
-    // The old regex backtracked quadratically on input with ':focus-visible'
-    // followed by a long run of non-brace characters and no closing brace.
-    // The linear scan returns immediately. We only assert completion + shape,
-    // not a duration (flaky).
     const css = ":root{--accent:#06f}\n:focus-visible " + "a ".repeat(60000);
     const result = auditDesign({ "App.js": "function App(){return null}", "App.css": css });
     expect(Array.isArray(result.issues)).toBe(true);

@@ -4,10 +4,6 @@ import type { LlmapiMessage } from "../../client";
 import type { NerDetector, PiiSpan } from "./ner";
 import { PiiRedactor } from "./redactor";
 
-/**
- * A deterministic fake {@link NerDetector} for tests: returns a span for every
- * occurrence of each configured phrase. No model, no async I/O of substance.
- */
 function fakeDetector(entities: { text: string; category: string; score?: number }[]): NerDetector {
   return {
     async detect(text: string): Promise<PiiSpan[]> {
@@ -43,16 +39,12 @@ describe("PiiRedactor — NER (async) path", () => {
     const { text, matches } = await redactor.redactTextAsync(input);
 
     expect(text).toBe("Hi, I'm [PERSON_1]. Email [EMAIL_1]. Moved to [LOCATION_1] for [ORG_1].");
-    // regex EMAIL + three NER entities
     expect(matches.map((m) => m.category).sort()).toEqual(["EMAIL", "LOCATION", "ORG", "PERSON"]);
-    // exact round-trip restores every original
     expect(redactor.deAnonymize(text)).toBe(input);
   });
 
   it("lets the regex layer win on overlap (address is not clobbered by a LOCATION span)", async () => {
     const redactor = new PiiRedactor({
-      // The NER detector tags part of the street address as a LOCATION; regex
-      // should still claim the full US_ADDRESS.
       nerDetector: fakeDetector([{ text: "Pinecrest Avenue", category: "LOCATION" }]),
     });
     const { text } = await redactor.redactTextAsync(
@@ -61,18 +53,16 @@ describe("PiiRedactor — NER (async) path", () => {
 
     expect(text).toContain("[US_ADDRESS_1]");
     expect(text).not.toContain("[LOCATION");
-    expect(text).not.toContain("412 ["); // the house number did not leak
+    expect(text).not.toContain("412 [");
   });
 
   it("snaps a sub-word NER span to whole-word boundaries (no partial placeholder)", async () => {
     const redactor = new PiiRedactor({
-      // Detector tagged only "Strip" of "Stripe" (a WordPiece artifact).
       nerDetector: fakeDetector([{ text: "Strip", category: "ORG" }]),
     });
     const { text } = await redactor.redactTextAsync("I met someone from Stripe today.");
 
     expect(text).toBe("I met someone from [ORG_1] today.");
-    // No placeholder is immediately followed by a leftover word character.
     expect(text).not.toMatch(/\][A-Za-z0-9]/);
   });
 
@@ -85,8 +75,8 @@ describe("PiiRedactor — NER (async) path", () => {
     });
     const { text } = await redactor.redactTextAsync("Email a@b.com, I'm Sarah Chen.");
 
-    expect(text).toContain("[EMAIL_1]"); // regex still protects structured PII
-    expect(text).toContain("Sarah Chen"); // NER skipped, not blocked
+    expect(text).toContain("[EMAIL_1]");
+    expect(text).toContain("Sarah Chen");
     expect(warn).toHaveBeenCalledOnce();
     warn.mockRestore();
   });
@@ -97,22 +87,18 @@ describe("PiiRedactor — NER (async) path", () => {
         return [
           { start: NaN, end: 5, category: "PERSON" },
           { start: 2, end: 9999, category: "ORG" },
-          { start: 8, end: 4, category: "ORG" }, // start > end
+          { start: 8, end: 4, category: "ORG" },
         ];
       },
     };
     const redactor = new PiiRedactor({ nerDetector: malformed });
     const { text } = await redactor.redactTextAsync("Hello World, email a@b.com");
-    // No partial/duplicated placeholder; regex still applies.
     expect(text).not.toMatch(/\][A-Za-z0-9]/);
     expect(text).not.toContain("[PERSON_1][PERSON_1]");
     expect(text).toContain("[EMAIL_1]");
   });
 
   it("drops Infinity offsets rather than clamping them to the whole string", async () => {
-    // No regex PII in the input, so if the Infinity span were clamped to [0,len]
-    // (the bug) it would redact the entire string to one placeholder. With the
-    // fix it's dropped and nothing is redacted.
     const det: NerDetector = {
       async detect(): Promise<PiiSpan[]> {
         return [
@@ -153,7 +139,6 @@ describe("PiiRedactor — NER (async) path", () => {
     ];
     const { messages: out } = await redactor.redactMessagesAsync(messages);
 
-    // Same value → same placeholder across messages.
     expect((out[0].content?.[0] as { text: string }).text).toBe("I'm [PERSON_1].");
     expect((out[1].content?.[0] as { text: string }).text).toBe("Yes, [PERSON_1] here.");
   });
@@ -163,12 +148,10 @@ describe("PiiRedactor — NER (async) path", () => {
       nerDetector: fakeDetector([{ text: "Sarah Chen", category: "PERSON" }]),
     });
     const { text } = await redactor.redactTextAsync("I'm Sarah Chen.");
-    // A model echo with brackets dropped is still resolved.
     expect(redactor.restoreForStorage("note about PERSON_1")).toEqual({
       text: "note about Sarah Chen",
       unresolved: false,
     });
-    // A hallucinated placeholder is flagged.
     expect(redactor.restoreForStorage("see [PERSON_9]").unresolved).toBe(true);
     expect(text).toContain("[PERSON_1]");
   });

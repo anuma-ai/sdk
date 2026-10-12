@@ -1,23 +1,3 @@
-/**
- * Tool-selection vocabulary — the neutral, product-agnostic types that let the
- * SDK own the "which tools this turn" orchestration both `apps/web` and
- * `apps/mobile` previously hand-duplicated (see issue #702).
- *
- * The split of ownership is deliberate:
- *
- * - The SDK owns the neutral {@link CreationIntent}→client-factory mapping
- *   ({@link CREATION_INTENT_CLIENT_FACTORIES}) and the send-policy rules.
- * - Each app owns its UI→{@link ToolIntentDescriptor} mapper and injects a
- *   {@link ServerToolCatalog} (built from its own static server-tool lists) and
- *   {@link ../assembleClientTools.ToolSelectionAdapters | adapters}. The SDK
- *   never imports the app's tool lists — the dependency direction stays
- *   app→SDK.
- *
- * This module has no runtime dependency on React, the DOM, WatermelonDB, or the
- * generated HTTP client, so it is safe to import from the node/RN-safe
- * `@anuma/sdk/tools/selection` subpath.
- */
-
 import type { ServerToolsFilterFunction } from "../serverTools";
 
 /**
@@ -260,8 +240,6 @@ export const CREATION_INTENT_CLIENT_FACTORIES: Record<CreationIntent, readonly C
     document: FULL_GENERATIVE_CLIENT_FACTORIES,
     "web-search": FULL_GENERATIVE_CLIENT_FACTORIES,
     "deep-research": FULL_GENERATIVE_CLIENT_FACTORIES,
-    // Builder modes: restrict to their own toolkit; a `saved` toolkit rides
-    // along on app builds (parity with web's app branch).
     app: ["app", "saved"],
     slides: ["slides"],
   };

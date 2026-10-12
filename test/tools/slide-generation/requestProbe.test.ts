@@ -1,17 +1,3 @@
-/**
- * Request-probe variant of the slide-generation e2e.
- *
- * Runs the same plan_slides → create_slides flow as
- * `slide-generation.test.ts`, but additionally captures `onRequest` events
- * to measure how many LLM round-trips happen, how much of each request body
- * is the (re-sent every round) tool catalog, and how the message history
- * grows. Prints a per-round table and aggregate redundancy stats.
- *
- * This is the realistic measurement behind the prompt-caching recommendation:
- * a multi-round generation flow with a non-trivial tool catalog and a real
- * system prompt.
- */
-
 import { describe, expect, it } from "vitest";
 
 import { buildSlideSystemPrompt } from "../../../src/tools/slides/index.js";
@@ -80,12 +66,6 @@ describe("slide-generation request probe", () => {
     const redundantToolsBytes = totalToolsBytes - firstToolsBytes;
     const redundantToolsPct = ((redundantToolsBytes / totalBytes) * 100).toFixed(1);
 
-    // Prompt-caching simulation. Anthropic-style caching with a breakpoint at
-    // the end of each round's prompt prefix (tools + messages) means every
-    // subsequent round can hit the cache for the full prior-round prefix.
-    // Billable input bytes per round ≈ (cur tools + cur messages) − (prev
-    // tools + prev messages). Round 0 has no cache to hit. This is what
-    // would actually be charged as fresh input tokens with caching enabled.
     let cachedBillable = requests[0].messagesBytes + requests[0].toolsBytes;
     for (let i = 1; i < requests.length; i++) {
       const cur = requests[i].messagesBytes + requests[i].toolsBytes;

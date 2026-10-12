@@ -4,8 +4,6 @@ import type { ToolConfig } from "../lib/chat/useChat/types.js";
 import type { CreateWeatherToolOptions, DisplayWeatherResult } from "./weather";
 import { createWeatherTool } from "./weather";
 
-// ── Mock fetch ──────────────────────────────────────────────────────────────
-
 const mockFetch = vi.fn();
 vi.stubGlobal("fetch", mockFetch);
 
@@ -37,8 +35,6 @@ const currentWeatherData = {
   },
 };
 
-// ── Helpers ─────────────────────────────────────────────────────────────────
-
 function buildContext() {
   const createDisplayInteraction = vi.fn();
   const createInteraction = vi.fn();
@@ -60,7 +56,6 @@ function buildTool(weatherOptions?: CreateWeatherToolOptions): {
       getLastMessageId: () => "msg-1",
     },
     {
-      // Default to Celsius for deterministic tests; specific tests override.
       detectUseFahrenheit: () => false,
       ...weatherOptions,
     }
@@ -68,12 +63,9 @@ function buildTool(weatherOptions?: CreateWeatherToolOptions): {
   return { tool, createDisplayInteraction };
 }
 
-// ── Tests ───────────────────────────────────────────────────────────────────
-
 describe("createWeatherTool", () => {
   beforeEach(() => {
     mockFetch.mockReset();
-    // Pin jitter to a deterministic 100 ms so retry tests don't add wall time.
     vi.spyOn(Math, "random").mockReturnValue(0);
   });
   afterEach(() => vi.restoreAllMocks());
@@ -94,8 +86,6 @@ describe("createWeatherTool", () => {
       const result = (await tool.executor!({ location: "" })) as DisplayWeatherResult;
       expect(result).toEqual({ error: "No location provided", _meta: { location: "" } });
       expect(mockFetch).not.toHaveBeenCalled();
-      // No display interaction expected since execute returned synchronously.
-      // (Display interaction is still recorded — see "display integration" below.)
       expect(createDisplayInteraction).toHaveBeenCalledTimes(1);
     });
 
@@ -268,7 +258,6 @@ describe("createWeatherTool", () => {
 
     it("returns timeout error when AbortController fires", async () => {
       const onError = vi.fn();
-      // Resolve very slowly so the 10ms timeout fires first.
       mockFetch.mockImplementation(
         (_url, init: { signal: AbortSignal }) =>
           new Promise((_resolve, reject) => {
@@ -287,7 +276,6 @@ describe("createWeatherTool", () => {
         error: "Weather request timed out",
         _meta: { location: "London" },
       });
-      // onError must NOT be called for timeouts — see weather.ts comment.
       expect(onError).not.toHaveBeenCalled();
     });
 
@@ -398,7 +386,6 @@ describe("createWeatherTool", () => {
         .mockResolvedValueOnce(jsonResponse(geoResultLondon))
         .mockResolvedValueOnce(jsonResponse(currentWeatherData));
       const { context } = buildContext();
-      // No detectUseFahrenheit override → exercises default detector.
       const tool = createWeatherTool({ getContext: () => context });
       let result: DisplayWeatherResult | undefined;
       await new Promise<void>((resolve) => {

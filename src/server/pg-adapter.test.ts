@@ -11,10 +11,6 @@ import { PostgreSQLAdapter, schemaToCreateSQL } from "./pg-adapter";
 import type { PgPoolLike } from "./pg-adapter";
 import type { SerializedQuery } from "@nozbe/watermelondb/Query";
 
-// ---------------------------------------------------------------------------
-// In-memory PostgreSQL mock (stores rows per table)
-// ---------------------------------------------------------------------------
-
 type Row = Record<string, unknown>;
 
 function createMockPool(): PgPoolLike & { tables: Map<string, Row[]> } {
@@ -29,20 +25,16 @@ function createMockPool(): PgPoolLike & { tables: Map<string, Row[]> } {
   return {
     tables,
     async query(text: string, values?: unknown[]) {
-      // --- CREATE TABLE / CREATE INDEX ---
       if (/^create (table|index)/i.test(text)) {
-        // Extract table name for create table
         const tableMatch = text.match(/create table if not exists "(\w+)"/i);
         if (tableMatch) getTable(tableMatch[1]);
         return { rows: [] };
       }
 
-      // --- INSERT ---
       const insertMatch = text.match(/^insert into "(\w+)" \((.+?)\) values/i);
       if (insertMatch) {
         const tableName = insertMatch[1];
 
-        // local_storage upsert
         if (tableName === "local_storage" && values) {
           const key = values[0] as string;
           const value = values[1] as string;
@@ -59,54 +51,46 @@ function createMockPool(): PgPoolLike & { tables: Map<string, Row[]> } {
         return { rows: [] };
       }
 
-      // --- SELECT from local_storage ---
       if (/select "value" from "local_storage"/i.test(text)) {
         const key = values?.[0] as string;
         const val = localStorage.get(key);
         return { rows: val !== undefined ? [{ value: val }] : [] };
       }
 
-      // --- DELETE from local_storage ---
       if (/delete from "local_storage" where "key"/i.test(text)) {
         const key = values?.[0] as string;
         localStorage.delete(key);
         return { rows: [] };
       }
 
-      // --- DELETE from local_storage (all) ---
       if (/delete from "local_storage"$/i.test(text.trim())) {
         localStorage.clear();
         return { rows: [] };
       }
 
-      // --- SELECT * with WHERE id ---
       const selectByIdMatch = text.match(/select \* from "(\w+)" where "id" = \$1/i);
       if (selectByIdMatch) {
         const rows = getTable(selectByIdMatch[1]).filter((r) => r.id === values?.[0]);
         return { rows };
       }
 
-      // --- SELECT * (all) ---
       const selectAllMatch = text.match(/select "(\w+)"\.\* from "(\w+)"/i);
       if (selectAllMatch) {
         const tableName = selectAllMatch[2];
         return { rows: [...getTable(tableName)] };
       }
 
-      // --- SELECT id ---
       const selectIdsMatch = text.match(/select "(\w+)"\."id" from "(\w+)"/i);
       if (selectIdsMatch) {
         const tableName = selectIdsMatch[2];
         return { rows: getTable(tableName).map((r) => ({ id: r.id })) };
       }
 
-      // --- COUNT ---
       const countMatch = text.match(/select count\(\*\) as "count" from "(\w+)"/i);
       if (countMatch) {
         return { rows: [{ count: getTable(countMatch[1]).length }] };
       }
 
-      // --- UPDATE _status = 'deleted' (markAsDeleted) ---
       const markDeletedMatch = text.match(
         /^update "(\w+)" set "_status" = 'deleted' where "id" = \$1/i
       );
@@ -118,7 +102,6 @@ function createMockPool(): PgPoolLike & { tables: Map<string, Row[]> } {
         return { rows: [] };
       }
 
-      // --- UPDATE ---
       const updateMatch = text.match(/^update "(\w+)" set (.+?) where "id" = \$(\d+)/i);
       if (updateMatch) {
         const tableName = updateMatch[1];
@@ -137,7 +120,6 @@ function createMockPool(): PgPoolLike & { tables: Map<string, Row[]> } {
         return { rows: [] };
       }
 
-      // --- DELETE by IDs ---
       const deleteByIdsMatch = text.match(/^delete from "(\w+)" where "id" in/i);
       if (deleteByIdsMatch) {
         const tableName = deleteByIdsMatch[1];
@@ -148,7 +130,6 @@ function createMockPool(): PgPoolLike & { tables: Map<string, Row[]> } {
         return { rows: [] };
       }
 
-      // --- DELETE by ID ---
       const deleteByIdMatch = text.match(/^delete from "(\w+)" where "id" = \$1/i);
       if (deleteByIdMatch) {
         const tableName = deleteByIdMatch[1];
@@ -160,26 +141,22 @@ function createMockPool(): PgPoolLike & { tables: Map<string, Row[]> } {
         return { rows: [] };
       }
 
-      // --- DELETE all from table ---
       const deleteAllMatch = text.match(/^delete from "(\w+)"$/i);
       if (deleteAllMatch) {
         tables.set(deleteAllMatch[1], []);
         return { rows: [] };
       }
 
-      // --- DROP TABLE ---
       const dropMatch = text.match(/^drop table if exists "(\w+)"/i);
       if (dropMatch) {
         tables.delete(dropMatch[1]);
         return { rows: [] };
       }
 
-      // --- ALTER TABLE ADD COLUMN (no-op in mock) ---
       if (/^alter table/i.test(text)) {
         return { rows: [] };
       }
 
-      // --- SELECT deleted ---
       if (/select "id" from "\w+" where "_status" = 'deleted'/i.test(text)) {
         const tblMatch = text.match(/from "(\w+)"/);
         if (tblMatch) {
@@ -200,10 +177,6 @@ function createMockPool(): PgPoolLike & { tables: Map<string, Row[]> } {
   };
 }
 
-// ---------------------------------------------------------------------------
-// Test schema
-// ---------------------------------------------------------------------------
-
 const testSchema = appSchema({
   version: 1,
   tables: [
@@ -219,7 +192,6 @@ const testSchema = appSchema({
   ],
 });
 
-// Helper to build a minimal SerializedQuery for "select all from tasks"
 function allTasksQuery(): SerializedQuery {
   return {
     table: "tasks",
@@ -233,10 +205,6 @@ function allTasksQuery(): SerializedQuery {
   } as unknown as SerializedQuery;
 }
 
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
-
 describe("PostgreSQLAdapter", () => {
   let pool: ReturnType<typeof createMockPool>;
   let adapter: PostgreSQLAdapter;
@@ -248,7 +216,6 @@ describe("PostgreSQLAdapter", () => {
       schema: testSchema,
       dbName: "test-db",
     });
-    // Wait for initialization
     await toPromise((cb) => adapter.getLocal("__noop__", cb));
   });
 
@@ -300,7 +267,6 @@ describe("PostgreSQLAdapter", () => {
 
   describe("batch", () => {
     it("creates, updates, and deletes records", async () => {
-      // Create
       await toPromise((cb) =>
         adapter.batch(
           [
@@ -338,7 +304,6 @@ describe("PostgreSQLAdapter", () => {
       let count = await toPromise((cb) => adapter.count(allTasksQuery(), cb));
       expect(count).toBe(2);
 
-      // Update
       await toPromise((cb) =>
         adapter.batch(
           [
@@ -363,7 +328,6 @@ describe("PostgreSQLAdapter", () => {
       const found = await toPromise((cb) => adapter.find("tasks", "t1", cb));
       expect((found as any).title).toBe("Updated First");
 
-      // Destroy permanently
       await toPromise((cb) => adapter.batch([["destroyPermanently", "tasks", "t2" as any]], cb));
 
       count = await toPromise((cb) => adapter.count(allTasksQuery(), cb));
@@ -488,12 +452,10 @@ describe("PostgreSQLAdapter", () => {
       const val = await toPromise((cb) => adapter.getLocal("key1", cb));
       expect(val).toBe("value1");
 
-      // Overwrite
       await toPromise((cb) => adapter.setLocal("key1", "updated", cb));
       const val2 = await toPromise((cb) => adapter.getLocal("key1", cb));
       expect(val2).toBe("updated");
 
-      // Remove
       await toPromise((cb) => adapter.removeLocal("key1", cb));
       const val3 = await toPromise((cb) => adapter.getLocal("key1", cb));
       expect(val3).toBeUndefined();
@@ -536,7 +498,6 @@ describe("PostgreSQLAdapter", () => {
 
   describe("migrations", () => {
     it("applies add_columns migration when schema version bumps", async () => {
-      // Start with v1 schema
       const v1Schema = appSchema({
         version: 1,
         tables: [
@@ -552,7 +513,6 @@ describe("PostgreSQLAdapter", () => {
 
       const sharedPool = createMockPool();
 
-      // Create v1 adapter — sets up initial tables and stores version
       const v1Adapter = new PostgreSQLAdapter({
         pool: sharedPool,
         schema: v1Schema,
@@ -560,7 +520,6 @@ describe("PostgreSQLAdapter", () => {
       });
       await toPromise((cb) => v1Adapter.getLocal("__noop__", cb));
 
-      // Insert a record in v1
       await toPromise((cb) =>
         v1Adapter.batch(
           [
@@ -580,7 +539,6 @@ describe("PostgreSQLAdapter", () => {
         )
       );
 
-      // Now create v2 schema with a new column
       const v2Schema = appSchema({
         version: 2,
         tables: [
@@ -609,7 +567,6 @@ describe("PostgreSQLAdapter", () => {
         ],
       });
 
-      // Create v2 adapter with migrations on the same pool
       const v2Adapter = new PostgreSQLAdapter({
         pool: sharedPool,
         schema: v2Schema,
@@ -618,20 +575,15 @@ describe("PostgreSQLAdapter", () => {
       });
       await toPromise((cb) => v2Adapter.getLocal("__noop__", cb));
 
-      // Original data should still be there
       const found = await toPromise((cb) => v2Adapter.find("tasks", "t1", cb));
       expect(found).toBeDefined();
       expect((found as any).title).toBe("Original");
     });
 
     it("wraps unsafeExecuteSql in a search_path transaction when using custom pgSchema", async () => {
-      // Track all queries (including those run through connect() clients).
-      // The mock pool only understands unqualified table names, so we strip
-      // schema prefixes (e.g. "custom"."table" → "table") before forwarding.
       const queries: string[] = [];
 
       const innerPool = createMockPool();
-      // Seed version 1 in local_storage so the adapter takes the migration path
       await innerPool.query(
         'insert into "local_storage" ("key", "value") values ($1, $2) on conflict ("key") do update set "value" = $2',
         ["__schema_version", "1"]
@@ -689,7 +641,6 @@ describe("PostgreSQLAdapter", () => {
       });
       await toPromise((cb) => adapter.getLocal("__noop__", cb));
 
-      // Verify the raw SQL was wrapped with BEGIN, SET LOCAL search_path, COMMIT
       expect(queries).toContain("BEGIN");
       expect(queries).toContain('SET LOCAL search_path TO "custom", public');
       expect(
@@ -731,7 +682,6 @@ describe("PostgreSQLAdapter", () => {
         )
       );
 
-      // Jump to v3 with no migrations — should reset
       const v3Schema = appSchema({
         version: 3,
         tables: [
@@ -749,11 +699,9 @@ describe("PostgreSQLAdapter", () => {
         pool: sharedPool,
         schema: v3Schema,
         dbName: "test-db",
-        // No migrations provided
       });
       await toPromise((cb) => v3Adapter.getLocal("__noop__", cb));
 
-      // Data should be gone after destructive reset
       const found = await toPromise((cb) => v3Adapter.find("tasks", "t1", cb));
       expect(found).toBeUndefined();
     });

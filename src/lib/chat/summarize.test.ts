@@ -20,7 +20,6 @@ import {
   summaryToSystemMessage,
 } from "./summarize";
 
-// Mock DB operations for maybeSummarizeHistory tests
 vi.mock("../db/chat/summaryOperations", () => ({
   createSummaryContext: vi.fn(() => ({ database: {}, summariesCollection: {} })),
   getConversationSummaryOp: vi.fn(() => Promise.resolve(null)),
@@ -28,14 +27,8 @@ vi.mock("../db/chat/summaryOperations", () => ({
   deleteConversationSummaryOp: vi.fn(() => Promise.resolve()),
 }));
 
-/**
- * Monotonic stand-in for the DB's autoincrementing `messageId`. Nothing under
- * test reads it, but it is a required field, so hand out distinct values rather
- * than a constant that would make two fixtures look like the same row.
- */
 let nextMessageId = 1;
 
-/** Helper to create a minimal StoredMessage for testing */
 function makeMsg(
   id: string,
   role: "user" | "assistant" | "system",
@@ -54,7 +47,6 @@ function makeMsg(
   };
 }
 
-/** Helper to create a message with a specific token count (chars = tokens * 4) */
 function makeMsgWithTokens(id: string, role: "user" | "assistant", tokens: number): StoredMessage {
   return makeMsg(id, role, "x".repeat(tokens * 4));
 }
@@ -66,14 +58,14 @@ describe("estimateTokens", () => {
 
   it("uses chars/4 approximation", () => {
     expect(estimateTokens("abcd")).toBe(1);
-    expect(estimateTokens("abcde")).toBe(2); // ceil(5/4)
+    expect(estimateTokens("abcde")).toBe(2);
     expect(estimateTokens("a".repeat(100))).toBe(25);
   });
 
   it("rounds up for non-divisible lengths", () => {
-    expect(estimateTokens("abc")).toBe(1); // ceil(3/4)
-    expect(estimateTokens("ab")).toBe(1); // ceil(2/4)
-    expect(estimateTokens("a")).toBe(1); // ceil(1/4)
+    expect(estimateTokens("abc")).toBe(1);
+    expect(estimateTokens("ab")).toBe(1);
+    expect(estimateTokens("a")).toBe(1);
   });
 });
 
@@ -83,11 +75,8 @@ describe("estimateMessagesTokens", () => {
   });
 
   it("sums token estimates across messages including per-message overhead", () => {
-    const msgs = [
-      makeMsg("1", "user", "a".repeat(40)), // 10 content tokens + 4 overhead = 14
-      makeMsg("2", "assistant", "b".repeat(80)), // 20 content tokens + 4 overhead = 24
-    ];
-    expect(estimateMessagesTokens(msgs)).toBe(38); // 14 + 24
+    const msgs = [makeMsg("1", "user", "a".repeat(40)), makeMsg("2", "assistant", "b".repeat(80))];
+    expect(estimateMessagesTokens(msgs)).toBe(38);
   });
 });
 
@@ -120,8 +109,6 @@ describe("splitMessagesAtThreshold", () => {
       makeMsgWithTokens("4", "assistant", 100),
       makeMsgWithTokens("5", "user", 100),
     ];
-    // Threshold 250: walking backwards, msgs 5+4+3 = 300 > 250, but need minWindow=2
-    // At i=2 (msg3): cumulative = 200 (msg5+msg4), adding msg3 = 300 > 250, and window has 2 msgs
     const result = splitMessagesAtThreshold(msgs, 250, 2);
     expect(result.toSummarize.map((m) => m.uniqueId)).toEqual(["1", "2", "3"]);
     expect(result.window.map((m) => m.uniqueId)).toEqual(["4", "5"]);
@@ -134,7 +121,6 @@ describe("splitMessagesAtThreshold", () => {
       makeMsgWithTokens("3", "user", 100),
       makeMsgWithTokens("4", "assistant", 100),
     ];
-    // Threshold 50: very small, but minWindow=4 means all stay in window
     const result = splitMessagesAtThreshold(msgs, 50, 4);
     expect(result.toSummarize).toHaveLength(0);
     expect(result.window).toHaveLength(4);
@@ -149,10 +135,6 @@ describe("splitMessagesAtThreshold", () => {
       makeMsgWithTokens("5", "user", 50),
       makeMsgWithTokens("6", "assistant", 50),
     ];
-    // Each message = 50 content + 4 overhead = 54 tokens
-    // Threshold 162: walking backwards from msg6
-    // msg6=54, msg5=108, msg4=162 (exactly at threshold, not over)
-    // msg3: 162+54=216 > 162, and window has 3 msgs >= minWindow=2 → cutoff at i=2+1=3
     const result = splitMessagesAtThreshold(msgs, 162, 2);
     expect(result.toSummarize.map((m) => m.uniqueId)).toEqual(["1", "2", "3"]);
     expect(result.window.map((m) => m.uniqueId)).toEqual(["4", "5", "6"]);
@@ -164,11 +146,6 @@ describe("splitMessagesAtThreshold", () => {
       makeMsgWithTokens("2", "assistant", 10),
       makeMsgWithTokens("3", "user", 1000),
     ];
-    // Threshold 5, minWindow=2: every msg exceeds threshold, but we need at least 2 in window.
-    // Walking backwards: i=2 (1004>5, window would be 0 < 2 → skip),
-    //   i=1 (1018>5, window would be 1 < 2 → skip),
-    //   i=0 (1032>5, window would be 2 >= 2 → cutoff=1)
-    // window = [msg2, msg3], toSummarize = [msg1]
     const result = splitMessagesAtThreshold(msgs, 5, 2);
     expect(result.toSummarize.map((m) => m.uniqueId)).toEqual(["1"]);
     expect(result.window.map((m) => m.uniqueId)).toEqual(["2", "3"]);
@@ -213,7 +190,7 @@ describe("progressiveSummarize", () => {
     const result = await progressiveSummarize({
       cachedSummary: cached,
       unsummarizedMessages: msgs,
-      tokenThreshold: 100, // 20 (cached) + 10 (msg) = 30 < 100
+      tokenThreshold: 100,
       minWindowMessages: 2,
       callLlm,
       model: "test-model",
@@ -280,14 +257,11 @@ describe("progressiveSummarize", () => {
     expect(onPiiRedacted).toHaveBeenCalledTimes(1);
     const matches = onPiiRedacted.mock.calls[0][0] as { category: string }[];
     expect(matches.some((m) => m.category === "EMAIL")).toBe(true);
-    // The masked prompt — not the raw email — is what reached the model.
     expect(callLlm.mock.calls[0][0]).not.toContain("bob@acme.com");
   });
 
   it("redacts unstructured PII from the summary prompt via the NER detector", async () => {
-    // A detector-backed redactor must fold NER spans into the summary prompt too
-    // (async path), not just regex — otherwise names/locations leak to the model.
-    const name = "Zwhqwpk"; // no regex category matches this; only NER catches it
+    const name = "Zwhqwpk";
     const nerDetector = {
       detect: async (text: string) => {
         const start = text.indexOf(name);
@@ -319,7 +293,6 @@ describe("progressiveSummarize", () => {
     expect(onPiiRedacted).toHaveBeenCalledTimes(1);
     const matches = onPiiRedacted.mock.calls[0][0] as { category: string }[];
     expect(matches.some((m) => m.category === "PERSON")).toBe(true);
-    // The masked prompt — not the raw name — is what reached the model.
     expect(callLlm.mock.calls[0][0]).not.toContain(name);
   });
 
@@ -365,7 +338,6 @@ describe("progressiveSummarize", () => {
     });
 
     expect(result.didSummarize).toBe(true);
-    // The summarizedUpTo should be the last message in toSummarize, not in window
     expect(result.summarizedUpTo).toBeDefined();
     expect(msgs.map((m) => m.uniqueId)).toContain(result.summarizedUpTo);
   });
@@ -427,7 +399,6 @@ describe("progressiveSummarize", () => {
   });
 
   it("adjusts window budget to account for cached summary tokens", async () => {
-    // 4 messages at 100 tokens each (+ 4 overhead = 104 each)
     const msgs = [
       makeMsgWithTokens("1", "user", 100),
       makeMsgWithTokens("2", "assistant", 100),
@@ -437,7 +408,7 @@ describe("progressiveSummarize", () => {
     const cached: StoredConversationSummary = {
       uniqueId: "s1",
       conversationId: "conv-1",
-      summary: "x".repeat(800), // 200 cached tokens
+      summary: "x".repeat(800),
       summarizedUpTo: "0",
       tokenCount: 200,
       createdAt: new Date(),
@@ -445,10 +416,6 @@ describe("progressiveSummarize", () => {
     };
     const callLlm = makeCallLlm("New summary.");
 
-    // tokenThreshold=400, cachedTokens=200 → window budget = 200
-    // 4 messages at 104 tokens each = 416 total → exceeds threshold (200 + 416 = 616 > 400)
-    // Window budget = 400 - 200 = 200. Walking backwards: msg4=104, msg3=208 > 200
-    // So window = [msg4], toSummarize = [msg1, msg2, msg3]
     const result = await progressiveSummarize({
       cachedSummary: cached,
       unsummarizedMessages: msgs,
@@ -459,7 +426,6 @@ describe("progressiveSummarize", () => {
     });
 
     expect(result.didSummarize).toBe(true);
-    // Window should be smaller because the cached summary eats into the budget
     expect(result.windowMessages.length).toBeLessThan(msgs.length);
   });
 
@@ -483,15 +449,12 @@ describe("progressiveSummarize", () => {
       model: "test",
     });
 
-    // The prompt should NOT contain the system message content
     const promptArg = callLlm.mock.calls[0]?.[0] as string;
     expect(promptArg).not.toContain("You are a helpful assistant");
-    // But it should contain user/assistant messages
     expect(promptArg).toContain("Human:");
   });
 
   it("returns no-op when all messages fit in window due to minWindowMessages", async () => {
-    // 5 messages but minWindow=5, so nothing can be summarized
     const msgs = [
       makeMsgWithTokens("1", "user", 200),
       makeMsgWithTokens("2", "assistant", 200),
@@ -504,7 +467,7 @@ describe("progressiveSummarize", () => {
     const result = await progressiveSummarize({
       cachedSummary: null,
       unsummarizedMessages: msgs,
-      tokenThreshold: 100, // Way under, but minWindow prevents splitting
+      tokenThreshold: 100,
       minWindowMessages: 5,
       callLlm,
       model: "test",
@@ -560,14 +523,8 @@ describe("callSummarizationLlm", () => {
         headers: {
           "Content-Type": "application/json",
           Authorization: "Bearer test-token",
-          // Names the task so the portal can own this prompt server-side; asserted
-          // here because it is the only place summarization's provenance is set.
           "X-Anuma-Task-Type": "summarize",
         },
-        // The system message carries the internal-flow marker: this call has no other
-        // provenance (main endpoint, no conversationId, prompt matches no fingerprint),
-        // so without it summarization reads as markerless and gets 403'd once
-        // PORTAL_DETECTION_REJECT_MARKERLESS is on. See ../internalFlowMarker.
         body: JSON.stringify({
           model: "gemini-flash",
           stream: false,
@@ -657,7 +614,6 @@ describe("progressiveSummarize — message cap per summarization", () => {
   const makeCallLlm = (response: string) => vi.fn().mockResolvedValue(response);
 
   it("caps toSummarize at MAX_MESSAGES_PER_SUMMARIZATION and moves excess to window", async () => {
-    // Create more messages than the cap
     const msgCount = MAX_MESSAGES_PER_SUMMARIZATION + 10;
     const msgs = Array.from({ length: msgCount }, (_, i) =>
       makeMsgWithTokens(`msg-${i}`, i % 2 === 0 ? "user" : "assistant", 50)
@@ -667,18 +623,14 @@ describe("progressiveSummarize — message cap per summarization", () => {
     const result = await progressiveSummarize({
       cachedSummary: null,
       unsummarizedMessages: msgs,
-      tokenThreshold: 200, // Very small to force most messages into toSummarize
+      tokenThreshold: 200,
       minWindowMessages: 2,
       callLlm,
       model: "test",
     });
 
     expect(result.didSummarize).toBe(true);
-    // The window should contain more messages than just minWindowMessages
-    // because excess messages from the cap are moved to the window
     expect(result.windowMessages.length).toBeGreaterThan(2);
-    // The prompt's "New lines of conversation" section should only contain
-    // at most MAX_MESSAGES_PER_SUMMARIZATION messages (exclude the template example)
     const promptArg = callLlm.mock.calls[0]?.[0] as string;
     const newLinesSection = promptArg
       .split("New lines of conversation:\n")
@@ -711,8 +663,6 @@ describe("progressiveSummarize — message cap per summarization", () => {
     });
 
     expect(result.didSummarize).toBe(true);
-    // 6 messages < MAX_MESSAGES_PER_SUMMARIZATION, so no capping occurs
-    // Window should be the normal split result
     expect(result.windowMessages.length).toBeLessThan(msgs.length);
   });
 });
@@ -721,8 +671,6 @@ describe("progressiveSummarize — degenerate summary growth (H2 scenario)", () 
   const makeCallLlm = (response: string) => vi.fn().mockResolvedValue(response);
 
   it("still summarizes when cachedTokens consume most of the budget (windowBudget near 0)", async () => {
-    // Simulates H2 scenario: cached summary is 3500 tokens, threshold is 4000
-    // windowBudget = max(0, 4000 - 3500) = 500
     const msgs = [
       makeMsgWithTokens("1", "user", 200),
       makeMsgWithTokens("2", "assistant", 200),
@@ -732,7 +680,7 @@ describe("progressiveSummarize — degenerate summary growth (H2 scenario)", () 
     const cached: StoredConversationSummary = {
       uniqueId: "s1",
       conversationId: "conv-1",
-      summary: "x".repeat(14000), // 3500 tokens
+      summary: "x".repeat(14000),
       summarizedUpTo: "0",
       tokenCount: 3500,
       createdAt: new Date(),
@@ -749,14 +697,11 @@ describe("progressiveSummarize — degenerate summary growth (H2 scenario)", () 
       model: "test",
     });
 
-    // Even with tiny windowBudget, minWindowMessages keeps at least 2 in the window
     expect(result.windowMessages.length).toBeGreaterThanOrEqual(2);
-    // Should still call LLM since total exceeds threshold
     expect(result.didSummarize).toBe(true);
   });
 
   it("keeps minWindowMessages even when windowBudget is 0", async () => {
-    // Extreme case: cached summary equals threshold → windowBudget = 0
     const msgs = [
       makeMsgWithTokens("1", "user", 100),
       makeMsgWithTokens("2", "assistant", 100),
@@ -766,7 +711,7 @@ describe("progressiveSummarize — degenerate summary growth (H2 scenario)", () 
     const cached: StoredConversationSummary = {
       uniqueId: "s1",
       conversationId: "conv-1",
-      summary: "x".repeat(16000), // 4000 tokens = threshold
+      summary: "x".repeat(16000),
       summarizedUpTo: "0",
       tokenCount: 4000,
       createdAt: new Date(),
@@ -783,9 +728,7 @@ describe("progressiveSummarize — degenerate summary growth (H2 scenario)", () 
       model: "test",
     });
 
-    // minWindowMessages=4 and we have 4 messages, so all stay in window
     expect(result.windowMessages).toHaveLength(4);
-    // No messages to summarize → didSummarize = false
     expect(result.didSummarize).toBe(false);
   });
 });
@@ -919,12 +862,9 @@ describe("maybeSummarizeHistory", () => {
       messages: msgs,
     });
 
-    // System message at index 3 should be re-injected if it's in the window range
     const roles = result.messagesToConvert.map((m) => m.role);
     if (result.messagesToConvert.length < msgs.length) {
-      // If summarization happened, check system messages are preserved in window
       const hasSystem = roles.includes("system");
-      // The system message at index 3 should be included if msgs 4+ are in the window
       const windowIds = result.messagesToConvert.map((m) => m.uniqueId);
       if (windowIds.includes("4") || windowIds.includes("5") || windowIds.includes("6")) {
         expect(hasSystem).toBe(true);
@@ -935,7 +875,6 @@ describe("maybeSummarizeHistory", () => {
   });
 
   it("preserves system messages when under threshold (no summarization)", async () => {
-    // Under threshold: 3 messages with system msg, well below 4000 token threshold
     const msgs = [
       makeMsg("sys-1", "system", "You are a helpful assistant"),
       makeMsgWithTokens("1", "user", 100),
@@ -949,7 +888,6 @@ describe("maybeSummarizeHistory", () => {
       messages: msgs,
     });
 
-    // All messages including system should be preserved
     expect(result.messagesToConvert).toHaveLength(4);
     expect(result.messagesToConvert.map((m) => m.role)).toContain("system");
     expect(result.messagesToConvert[0].uniqueId).toBe("sys-1");
@@ -977,11 +915,9 @@ describe("maybeSummarizeHistory", () => {
       } as Response);
     });
 
-    // Launch two concurrent calls
     const promise1 = maybeSummarizeHistory({ ...baseOptions, messages: msgs });
     const promise2 = maybeSummarizeHistory({ ...baseOptions, messages: msgs });
 
-    // Resolve the first call
     resolveFirst!({
       ok: true,
       json: () => Promise.resolve({ choices: [{ message: { content: "Summary." } }] }),
@@ -989,9 +925,7 @@ describe("maybeSummarizeHistory", () => {
 
     const [result1, result2] = await Promise.all([promise1, promise2]);
 
-    // Both should get the same result (second awaits the first)
     expect(result1).toEqual(result2);
-    // Only one fetch should have been made (not two)
     expect(fetchCallCount).toBe(1);
 
     fetchSpy.mockRestore();
@@ -1001,11 +935,10 @@ describe("maybeSummarizeHistory", () => {
     const msgs = Array.from({ length: 6 }, (_, i) =>
       makeMsgWithTokens(`msg-${i}`, i % 2 === 0 ? "user" : "assistant", 100)
     );
-    // Cached summary exceeds 80% of threshold (3500 > 4000 * 0.8 = 3200)
     const oversizedSummary: StoredConversationSummary = {
       uniqueId: "s1",
       conversationId: "conv-test",
-      summary: "x".repeat(14000), // 3500 tokens
+      summary: "x".repeat(14000),
       summarizedUpTo: "msg-0",
       tokenCount: 3500,
       createdAt: new Date(),
@@ -1017,14 +950,12 @@ describe("maybeSummarizeHistory", () => {
     const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(() => {
       fetchCallCount++;
       if (fetchCallCount === 1) {
-        // First call = compaction
         return Promise.resolve({
           ok: true,
           json: () =>
             Promise.resolve({ choices: [{ message: { content: "Compacted summary." } }] }),
         } as Response);
       }
-      // Second call = regular summarization (if needed)
       return Promise.resolve({
         ok: true,
         json: () => Promise.resolve({ choices: [{ message: { content: "New summary." } }] }),
@@ -1033,14 +964,12 @@ describe("maybeSummarizeHistory", () => {
 
     await maybeSummarizeHistory({ ...baseOptions, messages: msgs });
 
-    // Compaction should have triggered (first fetch call)
     expect(fetchCallCount).toBeGreaterThanOrEqual(1);
-    // Compacted summary should be persisted
     expect(mockedUpsertSummary).toHaveBeenCalledWith(
       expect.anything(),
       "conv-test",
       "Compacted summary.",
-      "msg-0", // summarizedUpTo preserved
+      "msg-0",
       expect.any(Number)
     );
 
@@ -1048,18 +977,13 @@ describe("maybeSummarizeHistory", () => {
   });
 
   it("redacts the cached summary before compacting and de-anonymizes the result", async () => {
-    // The cached summary holds real, de-anonymized PII (progressiveSummarize
-    // stores redactor.deAnonymize(...)). When it grows large enough to compact,
-    // that real PII must NOT reach the summarization endpoint in the clear.
     const realEmail = "bob@example.org";
     const redactor = new PiiRedactor();
-    // Fresh conversationId so the module-level compaction cooldown (set by the
-    // H1 test above for "conv-test") doesn't divert us to the non-compaction path.
     const conversationId = "conv-pii-compact";
     const oversizedSummary: StoredConversationSummary = {
       uniqueId: "s1",
       conversationId,
-      summary: `User's email is ${realEmail}. ` + "x".repeat(14000), // > 80% of 4000
+      summary: `User's email is ${realEmail}. ` + "x".repeat(14000),
       summarizedUpTo: "msg-0",
       tokenCount: 3500,
       createdAt: new Date(),
@@ -1072,7 +996,6 @@ describe("maybeSummarizeHistory", () => {
     const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation((_url, init) => {
       fetchCallCount++;
       const body = typeof init?.body === "string" ? init.body : "";
-      // Echo the placeholder back so the de-anonymization round-trip is observable.
       const placeholder = body.match(/\[EMAIL_\d+\]/)?.[0] ?? "[NO_MATCH]";
       if (fetchCallCount === 1) compactionBody = body;
       return Promise.resolve({
@@ -1096,10 +1019,8 @@ describe("maybeSummarizeHistory", () => {
       onPiiRedacted,
     });
 
-    // Leak prevention: the real email never left the device; a placeholder did.
     expect(compactionBody).not.toContain(realEmail);
     expect(compactionBody).toMatch(/\[EMAIL_\d+\]/);
-    // De-anonymization: the persisted compacted summary restores the real value.
     expect(mockedUpsertSummary).toHaveBeenCalledWith(
       expect.anything(),
       conversationId,
@@ -1107,7 +1028,6 @@ describe("maybeSummarizeHistory", () => {
       "msg-0",
       expect.any(Number)
     );
-    // The compaction path also reports its PII matches to the consent UX.
     expect(onPiiRedacted).toHaveBeenCalled();
     expect(
       onPiiRedacted.mock.calls[0][0].some((m: { category: string }) => m.category === "EMAIL")
@@ -1123,7 +1043,7 @@ describe("maybeSummarizeHistory", () => {
     const oversizedSummary: StoredConversationSummary = {
       uniqueId: "s1",
       conversationId: "conv-test",
-      summary: "x".repeat(14000), // 3500 tokens > 80% of 4000
+      summary: "x".repeat(14000),
       summarizedUpTo: "msg-0",
       tokenCount: 3500,
       createdAt: new Date(),
@@ -1135,17 +1055,14 @@ describe("maybeSummarizeHistory", () => {
     const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(() => {
       fetchCallCount++;
       if (fetchCallCount === 1) {
-        // Compaction fails
         return Promise.resolve({ ok: false, status: 500, statusText: "Error" } as Response);
       }
-      // Subsequent calls succeed (regular summarization)
       return Promise.resolve({
         ok: true,
         json: () => Promise.resolve({ choices: [{ message: { content: "Summary." } }] }),
       } as Response);
     });
 
-    // Should not throw — graceful degradation
     const result = await maybeSummarizeHistory({ ...baseOptions, messages: msgs });
     expect(result.messagesToConvert).toBeDefined();
     expect(result.messagesToConvert.length).toBeGreaterThan(0);
@@ -1157,11 +1074,10 @@ describe("maybeSummarizeHistory", () => {
     const msgs = Array.from({ length: 6 }, (_, i) =>
       makeMsgWithTokens(`msg-${i}`, i % 2 === 0 ? "user" : "assistant", 500)
     );
-    // Cached summary is below 80% of threshold (500 < 4000 * 0.8 = 3200)
     const smallSummary: StoredConversationSummary = {
       uniqueId: "s1",
       conversationId: "conv-test",
-      summary: "x".repeat(2000), // 500 tokens
+      summary: "x".repeat(2000),
       summarizedUpTo: "msg-0",
       tokenCount: 500,
       createdAt: new Date(),
@@ -1180,20 +1096,14 @@ describe("maybeSummarizeHistory", () => {
 
     await maybeSummarizeHistory({ ...baseOptions, messages: msgs });
 
-    // Should have at most 1 fetch call (regular summarization), no compaction
-    // If compaction happened, there would be 2 calls
     expect(fetchCallCount).toBeLessThanOrEqual(1);
 
     fetchSpy.mockRestore();
   });
 
   it("observes late rejection from in-progress promise when stale-guard wins the race", async () => {
-    // Regression test for the unobserved-rejection bug in the summarize() race:
-    // when staleGuard wins but inProgress later rejects, the rejection must be
-    // caught to avoid process-level unhandledRejection noise.
     vi.useFakeTimers();
 
-    // Track unhandledRejection events during the test.
     const unhandled: unknown[] = [];
     const onUnhandled = (reason: unknown) => unhandled.push(reason);
     process.on("unhandledRejection", onUnhandled);
@@ -1204,9 +1114,6 @@ describe("maybeSummarizeHistory", () => {
       );
       mockedGetSummary.mockResolvedValueOnce(null);
 
-      // Prime the lock with a promise that resolves AFTER the 15s stale guard
-      // fires and then rejects — this is the exact scenario where the race's
-      // losing branch would otherwise leak an unobserved rejection.
       const rejectionError = new Error("simulated in-progress failure");
       let rejectLate: (err: Error) => void = () => {};
       type LockValue = NonNullable<ReturnType<typeof summarizationLocks.get>>;
@@ -1217,28 +1124,21 @@ describe("maybeSummarizeHistory", () => {
 
       const racePromise = maybeSummarizeHistory({ ...baseOptions, messages: msgs });
 
-      // Advance past the 15s stale-guard timeout so staleGuard wins.
       await vi.advanceTimersByTimeAsync(15_000);
 
       const result = await racePromise;
 
-      // Stale guard returned the verbatim fallback.
       expect(result.messagesToConvert).toEqual(msgs);
       expect(result.summarySystemMessage).toBeNull();
 
-      // Now reject the in-progress promise late — this rejection must be
-      // observed by our attached .catch handler, not leaked to the process.
       rejectLate(rejectionError);
 
-      // Flush pending microtasks so any unhandledRejection would surface.
       await vi.advanceTimersByTimeAsync(0);
       await Promise.resolve();
       await Promise.resolve();
 
       expect(unhandled).toEqual([]);
     } finally {
-      // Teardown must run even if an assertion throws; otherwise fake timers
-      // and the unhandledRejection listener leak into subsequent tests.
       process.off("unhandledRejection", onUnhandled);
       summarizationLocks.clear();
       vi.useRealTimers();

@@ -1,13 +1,3 @@
-/**
- * E2E tests for slide deck generation tool loop.
- *
- * Runs real LLM calls with the slide-tool suite (plan_deck, add_slide,
- * read_slides, patch_slides) backed by an in-memory store. Tests the full
- * generate → read → patch cycle without any UI.
- *
- * Run: PORTAL_API_KEY=... pnpm vitest -c vitest.e2e.config.mts run test/tools/slide-generation
- */
-
 import { describe, expect, it } from "vitest";
 
 import {
@@ -81,20 +71,17 @@ describe.concurrent("slide-generation", () => {
     dumpFiles(store, "remote-work-deck");
     expect(result.error).toBeNull();
 
-    // Generation flow: one plan_deck + one add_slide per slide.
     const planCalls = log.filter((l) => l.name === "plan_deck" && succeeded(l));
     const addCalls = log.filter((l) => l.name === "add_slide");
     expect(planCalls.length).toBe(1);
     expect(addCalls.length).toBeGreaterThanOrEqual(2);
 
-    // slides.jsx should exist and be a valid SlideDeck
     expect(store.has("slides.jsx")).toBe(true);
     const deck = getDeck(store);
     expect(isDeckShape(deck)).toBe(true);
     const slides = slidesOf(deck);
     expect(slides.length).toBeGreaterThanOrEqual(2);
 
-    // Every slide should have at least one element with a unique id
     const ids = new Set<string>();
     for (const slide of slides) {
       const slideId = getId(slide);
@@ -108,7 +95,6 @@ describe.concurrent("slide-generation", () => {
     }
     expect(ids.size).toBe(slides.length);
 
-    // Content should relate to the requested topic
     const text = allSlideText(deck).toLowerCase();
     expect(text).toMatch(/remote|work|flexible|home/);
   });
@@ -118,7 +104,6 @@ describe.concurrent("slide-generation", () => {
     const log: ToolCallLog[] = [];
     const tools = createTestSlideTools(store).map((t) => wrapTool(t, log));
 
-    // Step 1: Generate initial deck
     const genResult = await timedToolLoop({
       messages: makeMessages(
         "Create a 3-slide deck introducing a new productivity app called FocusFlow.",
@@ -143,7 +128,6 @@ describe.concurrent("slide-generation", () => {
     const initialFocusFlowCount = (allSlideText(initialDeck).match(/FocusFlow/gi) ?? []).length;
     const callsAfterGen = log.length;
 
-    // Step 2: Ask the LLM to update the title on the first slide
     const updateMessages: Message[] = [
       ...makeMessages(
         "Create a 3-slide deck introducing a new productivity app called FocusFlow.",
@@ -188,22 +172,15 @@ describe.concurrent("slide-generation", () => {
       `  Update tools: ${readCalls.length} read_slides, ${patchCalls.length} patch_slides, ${reinitCalls.length} plan_deck (reinits)`
     );
 
-    // The LLM should prefer patch_slides over re-initializing the deck
     expect(patchCalls.length).toBeGreaterThanOrEqual(1);
     expect(reinitCalls.length).toBe(0);
 
-    // slides.jsx should have changed and still be valid
     expect(store.get("slides.jsx")).not.toBe(initialJsx);
     const updatedDeck = getDeck(store);
     expect(isDeckShape(updatedDeck)).toBe(true);
 
-    // Slide count should be preserved (we only renamed, not restructured)
     expect(slidesOf(updatedDeck).length).toBe(initialSlideCount);
 
-    // Text should now contain "Momentum" and have fewer "FocusFlow" references
-    // than before. We don't require every occurrence to be replaced — LLMs
-    // sometimes miss a stray reference in body copy, and the test's intent is
-    // to verify that patch_slides-driven renames take effect.
     const text = allSlideText(updatedDeck);
     expect(text).toMatch(/Momentum/i);
     const remainingFocusFlow = (text.match(/FocusFlow/gi) ?? []).length;
@@ -215,7 +192,6 @@ describe.concurrent("slide-generation", () => {
     const log: ToolCallLog[] = [];
     const tools = createTestSlideTools(store).map((t) => wrapTool(t, log));
 
-    // Step 1: Generate
     const genResult = await timedToolLoop({
       messages: makeMessages(
         "Create a 2-slide deck with a cover and one content slide about renewable energy.",
@@ -238,7 +214,6 @@ describe.concurrent("slide-generation", () => {
     const initialElementCount = initialSlides.reduce((n, s) => n + elementsOf(s).length, 0);
     const callsAfterGen = log.length;
 
-    // Step 2: Request a minor tweak
     const updateMessages: Message[] = [
       ...makeMessages(
         "Create a 2-slide deck with a cover and one content slide about renewable energy.",
@@ -279,18 +254,15 @@ describe.concurrent("slide-generation", () => {
       `  Theme update tools: ${patchCalls.length} patch_slides, ${reinitCalls.length} plan_deck (reinits)`
     );
 
-    // Should use patch_slides rather than rewrite the whole deck
     expect(patchCalls.length).toBeGreaterThanOrEqual(1);
     expect(reinitCalls.length).toBe(0);
 
     const updatedDeck = getDeck(store);
-    // Structure should be preserved
     const updatedSlides = slidesOf(updatedDeck);
     expect(updatedSlides.length).toBe(initialSlideCount);
     const updatedElementCount = updatedSlides.reduce((n, s) => n + elementsOf(s).length, 0);
     expect(updatedElementCount).toBe(initialElementCount);
 
-    // Accent should match the requested color (case-insensitive)
     const accent = updatedDeck.attrs.accent;
     expect(typeof accent === "string" ? accent.toLowerCase() : accent).toBe("#10b981");
   });
@@ -322,17 +294,14 @@ describe.concurrent("slide-generation", () => {
     const slides = slidesOf(deck);
     expect(slides.length).toBeGreaterThanOrEqual(4);
 
-    // Collect the set of element tags per slide to measure variety
     const elementTags = new Set<string>();
     for (const slide of slides) {
       for (const el of elementsOf(slide)) elementTags.add(el.tag);
     }
     console.log(`  Element tags used: ${[...elementTags].join(", ")}`);
-    // A polished deck should mix text with at least one shape or icon
     expect(elementTags.has("Text")).toBe(true);
     expect(elementTags.size).toBeGreaterThanOrEqual(2);
 
-    // All element coordinates should be within the 960×540 canvas.
     for (const slide of slides) {
       for (const el of elementsOf(slide)) {
         const x = typeof el.attrs.x === "number" ? el.attrs.x : 0;
@@ -343,7 +312,6 @@ describe.concurrent("slide-generation", () => {
         expect(x).toBeLessThanOrEqual(SLIDE_CANVAS_WIDTH);
         expect(y).toBeGreaterThanOrEqual(0);
         expect(y).toBeLessThanOrEqual(SLIDE_CANVAS_HEIGHT);
-        // Lines legitimately have h=0 or w=0 (rendered as borders).
         expect(w).toBeGreaterThanOrEqual(0);
         expect(w).toBeLessThanOrEqual(SLIDE_CANVAS_WIDTH);
         expect(h).toBeGreaterThanOrEqual(0);
@@ -357,7 +325,6 @@ describe.concurrent("slide-generation", () => {
     const log: ToolCallLog[] = [];
     const tools = createTestSlideTools(store).map((t) => wrapTool(t, log));
 
-    // Step 1: Generate initial deck
     const genResult = await timedToolLoop({
       messages: makeMessages("Create a 2-slide deck about ocean conservation.", SYSTEM_PROMPT),
       model: config.model,
@@ -376,7 +343,6 @@ describe.concurrent("slide-generation", () => {
     const initialCount = slidesOf(initial!).length;
     const callsAfterGen = log.length;
 
-    // Step 2: Add a new slide at the end
     const updateMessages: Message[] = [
       ...makeMessages("Create a 2-slide deck about ocean conservation.", SYSTEM_PROMPT),
       {
@@ -415,7 +381,6 @@ describe.concurrent("slide-generation", () => {
     const updatedSlides = slidesOf(updated);
     expect(updatedSlides.length).toBe(initialCount + 1);
 
-    // The new slide should have content related to donations / call to action
     const lastSlide = updatedSlides[updatedSlides.length - 1]!;
     const lastText = elementsOf(lastSlide)
       .filter((e) => e.tag === "Text")

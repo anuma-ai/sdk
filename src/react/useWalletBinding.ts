@@ -98,20 +98,17 @@ export function useWalletBinding(options: UseWalletBindingOptions = {}): UseWall
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
 
-  // Use refs to avoid recreating callbacks when these change
   const getTokenRef = useRef(getToken);
   const baseUrlRef = useRef(baseUrl);
   const onErrorRef = useRef(onError);
   const abortControllerRef = useRef<AbortController | null>(null);
 
-  // Update refs when values change
   useEffect(() => {
     getTokenRef.current = getToken;
     baseUrlRef.current = baseUrl;
     onErrorRef.current = onError;
   });
 
-  // Cleanup on unmount, aborting any active request
   useEffect(() => {
     return () => {
       if (abortControllerRef.current) {
@@ -140,7 +137,6 @@ export function useWalletBinding(options: UseWalletBindingOptions = {}): UseWall
   }, []);
 
   const fetchBinding = useCallback(async () => {
-    // Abort any pending request
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
     }
@@ -155,7 +151,6 @@ export function useWalletBinding(options: UseWalletBindingOptions = {}): UseWall
     try {
       const headers = await getHeaders();
 
-      // Check if aborted before proceeding
       if (signal.aborted) return;
 
       const response = await getApiV1WalletsBinding({
@@ -169,23 +164,19 @@ export function useWalletBinding(options: UseWalletBindingOptions = {}): UseWall
         throw new Error(errorMsg);
       }
 
-      // Check if aborted before setting state
       if (signal.aborted) return;
 
       setWallets(response.data?.wallets ?? []);
       setTotals(response.data?.totals ?? null);
     } catch (err) {
-      // Handle AbortError specifically - aborts are intentional, not errors
       if (err instanceof Error && err.name === "AbortError") {
         return;
       }
       handleError(err);
     } finally {
-      // Only update loading state if not aborted
       if (!signal.aborted) {
         setIsLoading(false);
       }
-      // Clear abort controller reference if this is still the current request
       if (abortControllerRef.current === abortController) {
         abortControllerRef.current = null;
       }
@@ -193,8 +184,6 @@ export function useWalletBinding(options: UseWalletBindingOptions = {}): UseWall
   }, [getHeaders, handleError]);
 
   const refetch = useCallback(async () => {
-    // Reset before refetching so consumers can treat the empty/null state as a
-    // reload signal, matching useSubscription.refetch (which clears status first).
     setWallets([]);
     setTotals(null);
     await fetchBinding();
@@ -245,7 +234,6 @@ export function useWalletBinding(options: UseWalletBindingOptions = {}): UseWall
           throw new Error(errorMsg);
         }
 
-        // Refetch bound wallets after a successful bind
         await fetchBinding();
 
         return response.data ?? null;
@@ -278,7 +266,6 @@ export function useWalletBinding(options: UseWalletBindingOptions = {}): UseWall
           throw new Error(errorMsg);
         }
 
-        // Refetch bound wallets after a successful unbind
         await fetchBinding();
 
         return true;
@@ -292,14 +279,12 @@ export function useWalletBinding(options: UseWalletBindingOptions = {}): UseWall
     [getHeaders, handleError, fetchBinding]
   );
 
-  // Only run on mount
   const hasFetchedRef = useRef(false);
   useEffect(() => {
     if (autoFetch && !hasFetchedRef.current) {
       hasFetchedRef.current = true;
       void fetchBinding();
     }
-    // Reset flag when autoFetch becomes false to allow re-fetching when it becomes true again
     if (!autoFetch) {
       hasFetchedRef.current = false;
     }

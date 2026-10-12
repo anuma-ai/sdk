@@ -1,6 +1,6 @@
 # PersonalitySliders
 
-Defined in: [src/lib/db/userPreferences/types.ts:8](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/userPreferences/types.ts#8)
+Defined in: [src/lib/db/userPreferences/types.ts:6](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/userPreferences/types.ts#6)
 
 Slider settings for personality customization (1-5 range)
 
@@ -10,7 +10,7 @@ Slider settings for personality customization (1-5 range)
 
 > **depth**: `number`
 
-Defined in: [src/lib/db/userPreferences/types.ts:12](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/userPreferences/types.ts#12)
+Defined in: [src/lib/db/userPreferences/types.ts:10](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/userPreferences/types.ts#10)
 
 1 = high-level summary, 5 = deep-dive analysis
 
@@ -20,7 +20,7 @@ Defined in: [src/lib/db/userPreferences/types.ts:12](https://github.com/anuma-ai
 
 > **emojis**: `number`
 
-Defined in: [src/lib/db/userPreferences/types.ts:10](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/userPreferences/types.ts#10)
+Defined in: [src/lib/db/userPreferences/types.ts:8](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/userPreferences/types.ts#8)
 
 1 = no emojis, 5 = many emojis
 
@@ -30,7 +30,7 @@ Defined in: [src/lib/db/userPreferences/types.ts:10](https://github.com/anuma-ai
 
 > **strictness**: `number`
 
-Defined in: [src/lib/db/userPreferences/types.ts:14](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/userPreferences/types.ts#14)
+Defined in: [src/lib/db/userPreferences/types.ts:12](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/userPreferences/types.ts#12)
 
 1 = evidence-only, 5 = speculative
 
@@ -40,6 +40,6 @@ Defined in: [src/lib/db/userPreferences/types.ts:14](https://github.com/anuma-ai
 
 > **verbosity**: `number`
 
-Defined in: [src/lib/db/userPreferences/types.ts:16](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/userPreferences/types.ts#16)
+Defined in: [src/lib/db/userPreferences/types.ts:14](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/userPreferences/types.ts#14)
 
 1 = concise, 5 = detailed

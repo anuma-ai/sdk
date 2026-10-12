@@ -1,24 +1,3 @@
-/**
- * Coverage for resumeStream — the reconnect primitive that replays a detached
- * stream from the portal's buffer (zeta-chain/ai-portal#1161).
- *
- * Pins the contract ai-memoryless-client and the portal depend on:
- * - the replay GET hits /api/v1/chat/streams/{id} with NO body, NO
- *   starting_after, NO cursor — replay is always whole-stream from seq 0;
- * - a fresh accumulator rebuilds the response (replay equivalence with the
- *   live stream), for both API types incl. the stateful completions parser;
- * - 410 Gone THROWS StreamExpiredError (instanceof + inferenceId); no
- *   onFinish/onError fire;
- * - an in-stream error event terminates as `interrupted: true` with the
- *   replayed content, no throw;
- * - a tool-request terminal is `interrupted: true` and never leaks a tool
- *   payload to onData;
- * - the idle watchdog fires `interrupted: true` "Resume timed out" and resets
- *   on each chunk;
- * - the token is forwarded as the bearer (the hook resolves it at invocation);
- * - a transient 401 is `interrupted: false` with statusCode, handle retained.
- */
-
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { runToolLoop } from "./toolLoop";
@@ -37,7 +16,6 @@ function makeAbortError() {
   return err;
 }
 
-/** A healthy responses-shaped replay: created → text deltas → completed. */
 function makeTextStream(...parts: string[]) {
   return (async function* () {
     yield { type: "response.created", response: { id: "r", model: "m" } };
@@ -51,7 +29,6 @@ function makeTextStream(...parts: string[]) {
   })();
 }
 
-/** A completions-shaped replay carrying a <think> block to exercise the stateful parser. */
 function makeCompletionsThinkStream() {
   return (async function* () {
     yield {
@@ -82,7 +59,6 @@ const handle: StreamResumeHandle = {
   conversationId: "conv-1",
 };
 
-/** Capture transport options and serve a caller-provided stream. */
 function captureTransport(stream: AsyncIterable<unknown>): {
   transport: StreamingTransport;
   calls: StreamingTransportOptions[];
@@ -129,7 +105,6 @@ describe("resumeStream", () => {
     expect(opts.endpoint).toBe("/api/v1/chat/streams/inf-xyz");
     expect(opts.body).toBeUndefined();
     expect(opts.token).toBe("tok");
-    // No client-side cursor leaks into the request anywhere.
     expect(JSON.stringify(opts.headers ?? {})).not.toMatch(/starting_after|last-event-id|cursor/i);
 
     expect(result.interrupted).toBe(false);
@@ -138,12 +113,6 @@ describe("resumeStream", () => {
   });
 
   it("flags a [DONE]-only replay (zero content frames) as empty, with no onData and no onFinish", async () => {
-    // The prod shape behind the resume-wipes-to-blank dogfood bug: the buffer's
-    // frames key is gone (evicted/trimmed) but the terminal survives, so the
-    // portal serves a clean 200 that carries ONLY the [DONE] marker. The clean
-    // terminal must be distinguishable from a real completion so consumers can
-    // keep their partial instead of committing a blank — and onFinish must NOT
-    // deliver the blank response to callback-keyed consumers.
     const doneOnly = (async function* () {
       yield "[DONE]";
     })();
@@ -168,9 +137,6 @@ describe("resumeStream", () => {
   });
 
   it("does not flag a tool-events-only replay as empty (citation-only completions are real output)", async () => {
-    // A search/image turn can complete with tool_call_events and no message
-    // text. Those frames are real buffered output — the replay must count as a
-    // completion (onFinish fires, empty: false) so the events aren't dropped.
     const eventsOnly = (async function* () {
       yield { type: "response.created", response: { id: "r", model: "m" } };
       yield {
@@ -199,8 +165,6 @@ describe("resumeStream", () => {
   });
 
   it("is replay-equivalent with an uninterrupted runToolLoop over the same fixture", async () => {
-    // The live run and the replay drive the SAME fixture chunk sequence; the
-    // assembled onFinish responses must deep-equal.
     let liveResponse: unknown;
     const liveTransport = captureTransport(makeTextStream("alpha ", "beta ", "gamma")).transport;
     await runToolLoop({
@@ -232,10 +196,6 @@ describe("resumeStream", () => {
   });
 
   it("is replay-equivalent for completions with a <think> block (stateful parser, fresh state)", async () => {
-    // Same proof as above but for the completions API type, whose reasoning-tag
-    // parser is stateful — replay-from-0 into a FRESH accumulator must assemble
-    // a response that deep-equals the uninterrupted run, with <think> routed to
-    // reasoning and the rest to content.
     let liveResponse: unknown;
     const liveTransport = captureTransport(makeCompletionsThinkStream()).transport;
     await runToolLoop({
@@ -310,8 +270,6 @@ describe("resumeStream", () => {
   });
 
   it("returns interrupted with the replayed content on an in-stream error event", async () => {
-    // Content frames, then ONE in-stream SSE error event (the shape
-    // getInStreamErrorMessage parses), then [DONE]: an interrupted terminal.
     const stream = (async function* () {
       yield { type: "response.created", response: { id: "r", model: "m" } };
       yield { type: "response.output_text.delta", delta: { OfString: "replayed text" } };
@@ -338,14 +296,11 @@ describe("resumeStream", () => {
     expect(chunks.join("")).toBe("replayed text");
     expect(JSON.stringify(result.data)).toContain("replayed text");
     expect(result.error).toContain("deadline exceeded");
-    // Interrupted terminals never fire onError/onFinish.
     expect(onError).not.toHaveBeenCalled();
     expect(onFinish).not.toHaveBeenCalled();
   });
 
   it("returns interrupted on a tool-request terminal and leaks no tool payload to onData", async () => {
-    // A responses-shaped stream that accumulates a function-call tool item then
-    // completes — resumeStream takes no tools, so this is interrupted.
     const stream = (async function* () {
       yield { type: "response.created", response: { id: "r", model: "m" } };
       yield {
@@ -371,12 +326,8 @@ describe("resumeStream", () => {
     });
 
     expect(result.interrupted).toBe(true);
-    // No tool-call payload ever reaches onData.
     expect(dataChunks.join("")).not.toContain("get_weather");
     expect(dataChunks.join("")).not.toContain("SF");
-    // The returned/persistable data must also be free of the dangling
-    // function_call — a stored orphan tool_call (no tool_result) is rejected by
-    // many providers on the next turn.
     const outputTypes = ((result.data as { output?: Array<{ type?: string }> }).output ?? []).map(
       (item) => item.type
     );
@@ -409,10 +360,6 @@ describe("resumeStream", () => {
 
   it("labels a caller abort as 'Resume aborted' even when the idle watchdog races it", async () => {
     vi.useFakeTimers();
-    // The caller aborts at t=500ms; the idle watchdog is armed for 1000ms. A
-    // slow transport surfaces the AbortError only AFTER the watchdog would have
-    // fired — without the callerAborted flag the label flips to "Resume timed
-    // out". The caller stop must win the label regardless of timer ordering.
     const controller = new AbortController();
     const transport: StreamingTransport = (options) => ({
       stream: (async function* () {
@@ -420,7 +367,6 @@ describe("resumeStream", () => {
           if (options.signal?.aborted) return resolve();
           options.signal?.addEventListener("abort", () => resolve(), { once: true });
         });
-        // The transport reacts late: surface the AbortError after a further gap.
         await new Promise((r) => setTimeout(r, 50));
         throw makeAbortError();
       })(),
@@ -457,13 +403,11 @@ describe("resumeStream", () => {
 
     expect(result.interrupted).toBe(true);
     expect(result.error).toBe("Resume aborted");
-    // The transport must not be invoked for a pre-aborted resume.
     expect(calls).toHaveLength(0);
   });
 
   it("fires the idle watchdog as 'Resume timed out' when no chunk arrives within idleTimeoutMs", async () => {
     vi.useFakeTimers();
-    // A stream that opens, yields nothing, and blocks until its signal aborts.
     const transport: StreamingTransport = (options) => ({
       stream: (async function* () {
         await new Promise<void>((resolve) => {
@@ -485,8 +429,6 @@ describe("resumeStream", () => {
 
   it("resets the idle timer on each chunk (a chunk before the timeout keeps it alive)", async () => {
     vi.useFakeTimers();
-    // Yield a chunk at t≈800ms (under the 1000ms timeout) then complete; the
-    // timer reset means the watchdog never fires.
     const transport: StreamingTransport = () => ({
       stream: (async function* () {
         yield { type: "response.created", response: { id: "r", model: "m" } };
@@ -513,17 +455,12 @@ describe("resumeStream", () => {
 
   it("keep-alive activity during a long content-silent gap does NOT trip the watchdog", async () => {
     vi.useFakeTimers();
-    // Model the real transport: onActivity fires from a keep-alive pump running in
-    // PARALLEL to the generator (like xhr.onprogress), independent of the yield
-    // schedule — so it re-arms the watchdog WHILE the for-await loop is blocked
-    // waiting for the next data chunk. The generator stays data-silent for 1500ms
-    // (> the 1000ms timeout); the 300ms pump keeps it alive on liveness, not data.
     const transport: StreamingTransport = (options) => {
       const pump = setInterval(() => options.onActivity?.(), 300);
       return {
         stream: (async function* () {
           yield { type: "response.created", response: { id: "r", model: "m" } };
-          await new Promise((r) => setTimeout(r, 1500)); // DATA silence > timeout
+          await new Promise((r) => setTimeout(r, 1500));
           clearInterval(pump);
           yield { type: "response.output_text.delta", delta: { OfString: "survived the gap" } };
           yield { type: "response.completed", response: { usage: {} } };
@@ -548,12 +485,6 @@ describe("resumeStream", () => {
 
   it("a keep-alive landing after the stream ends does not re-arm the watchdog (settled guard, no leak)", async () => {
     vi.useFakeTimers();
-    // The safety-critical path: a trailing keep-alive byte (xhr.onprogress firing
-    // one last time as the socket drains) must NOT re-arm the watchdog after the
-    // resume has already settled — otherwise a stray 1000ms timer leaks and could
-    // fire idleController.abort() on a finished stream. The test captures the
-    // transport's onActivity so it can be driven from OUTSIDE the generator, after
-    // the promise resolves.
     let fireKeepAlive: () => void = () => {};
     const transport: StreamingTransport = (options) => {
       fireKeepAlive = () => options.onActivity?.();
@@ -575,13 +506,10 @@ describe("resumeStream", () => {
     });
     expect(result.interrupted).toBe(false);
 
-    // The resume has settled (cleanup ran). No watchdog timer should be pending.
     expect(vi.getTimerCount()).toBe(0);
-    // Late keep-alives arrive — the settled guard must keep armWatchdog a no-op.
     fireKeepAlive();
     fireKeepAlive();
-    expect(vi.getTimerCount()).toBe(0); // no leaked timer armed
-    // Advancing past the timeout window changes nothing — nothing is armed.
+    expect(vi.getTimerCount()).toBe(0);
     await vi.advanceTimersByTimeAsync(2000);
     expect(result.error).toBeNull();
   });
@@ -602,10 +530,6 @@ describe("resumeStream", () => {
   });
 
   it("classifies via the xhrTransport SSE-failure message contract (410 throws, 5xx transient)", async () => {
-    // Pins the producer↔parser contract: parseSseStatusCode reads the status out
-    // of the EXACT string sseFailureMessage produces. Building the error through
-    // the shared helper means a format drift fails HERE, not silently in prod
-    // (where a 410 would otherwise degrade to a retry against an evicted buffer).
     const goneTransport: StreamingTransport = (options) => {
       options.onSseError?.(new Error(sseFailureMessage(410, "Gone")));
       return { stream: (async function* () {})() };
@@ -624,10 +548,6 @@ describe("resumeStream", () => {
   });
 
   it("stops consuming on a mid-stream 5xx and returns transient with the partial captured", async () => {
-    // The error surfaces AFTER a content frame, while the iterator is still
-    // open — exercising the in-loop sseError break so no further bytes are
-    // delivered for a failed stream. Outcome: transient (keep the handle) with
-    // statusCode, the pre-error partial preserved, the post-error frame dropped.
     const transport: StreamingTransport = (options) => ({
       stream: (async function* () {
         yield { type: "response.created", response: { id: "r", model: "m" } };
@@ -669,7 +589,6 @@ describe("resumeStream", () => {
     });
 
     expect(result.interrupted).toBe(false);
-    // The <think>…</think> block routed to thinking; the rest to content.
     expect(thinking.join("")).toContain("reasoning");
     expect(data.join("")).toContain("answer text");
     expect(data.join("")).not.toContain("reasoning");

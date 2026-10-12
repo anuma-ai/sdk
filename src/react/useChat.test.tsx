@@ -65,7 +65,6 @@ describe("useChat", () => {
       });
     });
 
-    // Verify createSseClient was called with correct request body
     expect(mockCreateSseClient).toHaveBeenCalledTimes(1);
     const callOpts = mockCreateSseClient.mock.calls[0][0] as any;
     const body = JSON.parse(callOpts.serializedBody);
@@ -81,11 +80,7 @@ describe("useChat", () => {
     expect(response?.error).toBeNull();
     expect(response?.data).toBeDefined();
 
-    // Type guard: after the assertions above, we know this is the success case
     if (response && response.error === null && response.data) {
-      // `ApiResponse` is a union — the Responses API returns `output[]`, Chat
-      // Completions returns `choices[]`. Assert we got the former before reading it,
-      // so a shape change fails here instead of quietly skipping the assertion.
       expect(response.data).toHaveProperty("output");
       const content = "output" in response.data ? response.data.output?.[0]?.content : undefined;
       expect(content).toEqual([{ type: "output_text", text: "Hello world" }]);
@@ -98,7 +93,6 @@ describe("useChat", () => {
       const serverError = new Error("Internal Server Error");
       (serverError as any).status = 500;
 
-      // createSseClient returns a stream that throws on iteration
       mockCreateSseClient.mockReturnValue({
         stream: (async function* () {
           throw serverError;
@@ -124,11 +118,9 @@ describe("useChat", () => {
         });
       });
 
-      // Verify error was handled
       expect(response?.error).toBeTruthy();
       expect(onErrorSpy).toHaveBeenCalledWith(serverError);
 
-      // Critical: verify isLoading was reset to false
       expect(result.current.isLoading).toBe(false);
     });
 
@@ -177,7 +169,6 @@ describe("useChat", () => {
             type: "response.output_text.delta",
             delta: { OfString: "Hello" },
           };
-          // Simulate error during streaming
           throw new Error("Stream interrupted: 500 Internal Server Error");
         })(),
       } as any);
@@ -201,7 +192,6 @@ describe("useChat", () => {
 
       expect(response?.error).toBeTruthy();
       expect(onErrorSpy).toHaveBeenCalled();
-      // Critical: verify isLoading was reset even though error occurred mid-stream
       expect(result.current.isLoading).toBe(false);
     });
 
@@ -215,7 +205,6 @@ describe("useChat", () => {
               model: "fireworks/accounts/fireworks/models/kimi-k2p5",
             },
           };
-          // Keep yielding to simulate long-running request
           await new Promise((resolve) => setTimeout(resolve, 100));
           yield {
             type: "response.output_text.delta",
@@ -232,7 +221,6 @@ describe("useChat", () => {
 
       let response: SendMessageResult | undefined;
 
-      // Start the request
       const sendPromise = (async () => {
         await act(async () => {
           response = await result.current.sendMessage({
@@ -242,7 +230,6 @@ describe("useChat", () => {
         });
       })();
 
-      // Abort it immediately
       await act(async () => {
         result.current.stop();
       });
@@ -250,24 +237,10 @@ describe("useChat", () => {
       await sendPromise;
 
       expect(response?.error).toBe("Request aborted");
-      // Critical: verify isLoading was reset after abort
       expect(result.current.isLoading).toBe(false);
     });
 
     it("should return success when signal aborts after the stream completed cleanly", async () => {
-      // Repro for the council-mode race: each per-model worker calls
-      // `stop()` from its React unmount cleanup once the store flips
-      // `isStreaming: false`. That cleanup-time abort fires AFTER the
-      // server closed the connection and the for-await loop exited
-      // with every byte parsed. The old post-loop `signal?.aborted`
-      // check incorrectly classified this as "Request aborted" even
-      // though the response was complete.
-      //
-      // We simulate the race by letting the mock SSE generator yield
-      // its full response, then wait one microtask before returning —
-      // and call `stop()` during that microtask. With the old code
-      // that flipped the result to "Request aborted"; with the fix
-      // the already-delivered response is preserved.
       let aborted: (() => void) | null = null;
       const abortGate = new Promise<void>((resolve) => {
         aborted = resolve;
@@ -290,9 +263,6 @@ describe("useChat", () => {
             type: "response.completed",
             response: { usage: { input_tokens: 10, output_tokens: 5 } },
           };
-          // Hold the generator open until the test has aborted the
-          // signal. Returning here would let the for-await exit
-          // before stop() fires, masking the race.
           await abortGate;
         })(),
       } as any);
@@ -314,12 +284,8 @@ describe("useChat", () => {
         });
       })();
 
-      // Yield to the event loop so the generator processes its yields.
       await new Promise((r) => setTimeout(r, 10));
 
-      // Abort the request, then let the generator return. The signal
-      // is now aborted *after* every byte of the response was
-      // delivered — exactly the council-mode race condition.
       await act(async () => {
         result.current.stop();
         aborted!();
@@ -334,7 +300,7 @@ describe("useChat", () => {
     it("should reset isLoading to false when token getter fails", async () => {
       const { result } = renderHook(() =>
         useChat({
-          getToken: undefined, // Missing token getter
+          getToken: undefined,
         })
       );
 
@@ -372,13 +338,11 @@ describe("useChat", () => {
       });
 
       expect(response?.error).toBeTruthy();
-      // Critical: verify isLoading was reset even when token getter fails
       expect(result.current.isLoading).toBe(false);
     });
 
     it("should reset isLoading to false when SSE onSseError callback fires", async () => {
       mockCreateSseClient.mockImplementation((options: any) => {
-        // Trigger SSE error during streaming via the callback
         setTimeout(() => {
           if (options.onSseError) {
             options.onSseError(new Error("SSE connection failed: 500"));
@@ -394,7 +358,6 @@ describe("useChat", () => {
                 model: "fireworks/accounts/fireworks/models/kimi-k2p5",
               },
             };
-            // Wait for SSE error callback to fire
             await new Promise((resolve) => setTimeout(resolve, 10));
           })(),
         } as any;
@@ -417,10 +380,8 @@ describe("useChat", () => {
         });
       });
 
-      // After stream completes, sseError is checked and thrown
       expect(response?.error).toBeTruthy();
       expect(onErrorSpy).toHaveBeenCalled();
-      // Critical: verify isLoading was reset when SSE error occurs
       expect(result.current.isLoading).toBe(false);
     });
 
@@ -435,7 +396,7 @@ describe("useChat", () => {
 
       await act(async () => {
         response = await result.current.sendMessage({
-          messages: [], // Invalid: empty messages
+          messages: [],
           model: "fireworks/accounts/fireworks/models/kimi-k2p5",
         });
       });
@@ -488,7 +449,6 @@ describe("useChat", () => {
       });
       await act(async () => {
         sendB = result.current.sendMessage({ messages, model: "m" });
-        // Let the aborted request A settle while B is still streaming.
         await sendA;
       });
 

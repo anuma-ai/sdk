@@ -1,9 +1,3 @@
-/**
- * Contract tests for {@link createPortalClient} against the live-shaped
- * {@link startStubPortal}. These guard the two bugs the stub previously hid:
- * a body-less mint and a misparsed connect-ticket response.
- */
-
 import { afterEach, beforeEach, describe, expect, test } from "vitest";
 
 import { createPortalClient } from "../src/createPortalClient.js";
@@ -91,10 +85,8 @@ describe("createPortalClient createConnectTicket contract", () => {
     expect(ticket.connectUrl).toBe(
       `${stub.url}/connectors/gmail/connect?ticket=${ticket.ticketId}`
     );
-    // expires_in is 600s; allow slack for the round trip.
     expect(ticket.expiresAt).toBeGreaterThan(before + 590_000);
     expect(ticket.expiresAt).toBeLessThan(Date.now() + 600_000 + 5_000);
-    // Google's three connectors share the "google" oauth_app upstream.
     expect(stub.lastConnectTicketBody?.oauth_app).toBe("google");
   });
 

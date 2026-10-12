@@ -5,23 +5,8 @@ import recorded402 from "./fixtures/paymentRequired402.json";
 import type { SiwxChallenge } from "./siwx.js";
 import { base58Encode, buildMessage, buildPayload, parseChallenge } from "./siwx.js";
 
-/**
- * The address the accepted probe run signed with, and the message agentres
- * accepted from it on 2026-09-17. Nine other serializations of the same
- * challenge were rejected with a bare 401, so this is a byte-for-byte golden
- * test: any change to the builder that still "looks right" is a change that
- * fails in production and nowhere else.
- *
- * The fixture is that run's 402 payload, with `accepts` trimmed to the Solana
- * rail. Do not tidy either one — the line breaks, the blank lines, the bare
- * chain reference and the absent trailing newline are all load-bearing.
- */
 const PROBE_ADDRESS = "FuHqTKA1BeznpbJ7S2FzcPhXcdxssBNJXnJgxT3Tt9AY";
 
-/**
- * Base58 of 64 bytes of 0x07, from the reference implementation (bs58). These
- * vectors are hardcoded so the encoder is never checked against itself.
- */
 const BASE58_OF_SIXTY_FOUR_SEVENS =
   "99eUso3aSbE9tqGSTXzo3TLfKb9RkMTURrHKQ1K7Zh3BbeqPevr5E1iCbpTjqHuTFLtfxTTD5ekfVuZFzQyEQf8";
 
@@ -40,24 +25,16 @@ const ACCEPTED_MESSAGE = [
   "- https://agentres.dev/api/me",
 ].join("\n");
 
-/** The origin the recorded fixture was minted for. */
 const BASE_URL = "https://agentres.dev";
 
-/**
- * `parseChallenge` bound to that origin, so the tests below read as tests of
- * the message format. The scope check the second argument exists for has its
- * own block, which calls `parseChallenge` directly.
- */
 function parse(headerValue: string): SiwxChallenge {
   return parseChallenge(headerValue, BASE_URL);
 }
 
-/** Base64-encode a 402 payload the way agentres returns it in the header. */
 function encodeHeader(payload: unknown): string {
   return Buffer.from(JSON.stringify(payload), "utf-8").toString("base64");
 }
 
-/** The recorded header, optionally with the decoded payload edited first. */
 function header(edit?: (payload: Record<string, unknown>) => void): string {
   const payload = JSON.parse(JSON.stringify(recorded402)) as Record<string, unknown>;
   edit?.(payload);
@@ -79,8 +56,6 @@ describe("parseChallenge", () => {
     });
   });
 
-  // T-U6. A paid endpoint answers 402 without the extension on purpose, and
-  // signing anyway produces a proof that comes back as an unexplained 401.
   test("throws SiwxUnsupportedError when the 402 carries no sign-in-with-x extension", () => {
     const paid = header((payload) => {
       payload.extensions = {};
@@ -153,18 +128,11 @@ describe("parseChallenge", () => {
   });
 });
 
-/**
- * A CAIP-122 proof is portable: any SIWX verifier accepts one addressed to
- * itself. So a challenge naming another host, signed by us, is a working login
- * at that host — and that site cannot tell, because the signature really is the
- * user's. The key holder is the only party positioned to refuse.
- */
 describe("parseChallenge origin binding", () => {
   test.each([
     ["another domain", { domain: "evil.example", uri: "https://evil.example/login" }],
     ["a matching domain whose uri points away", { uri: "https://evil.example/login" }],
     ["a uri that downgrades the scheme", { uri: "http://agentres.dev/api/me" }],
-    // A lookalike merely shares a suffix — `endsWith` matching would take it.
     [
       "a lookalike host",
       { domain: "agentres.dev.evil.example", uri: "https://agentres.dev.evil.example/api/me" },
@@ -186,8 +154,6 @@ describe("parseChallenge origin binding", () => {
     expect(() => parseChallenge(nonsense, BASE_URL)).toThrow(/is not a URL/);
   });
 
-  // The check follows baseUrl rather than pinning agentres.dev, so a staging or
-  // self-hosted deployment still works.
   test("accepts only the host baseUrl names", () => {
     const staging = header((payload) => {
       Object.assign(siwxInfo(payload), {
@@ -205,7 +171,6 @@ describe("parseChallenge origin binding", () => {
 });
 
 describe("buildMessage", () => {
-  // T-U1. The one test in this task that pins something no document could.
   test("renders the exact bytes agentres accepted", () => {
     const message = buildMessage(parse(header()), PROBE_ADDRESS);
 
@@ -235,8 +200,6 @@ describe("buildMessage", () => {
     ).toBe(true);
   });
 
-  // The message takes the bare reference and the payload takes the full id.
-  // A caller assembling a challenge by hand would otherwise sign the wrong one.
   test("refuses a chain id that is not a solana CAIP-2 id", () => {
     const challenge: SiwxChallenge = {
       ...parse(header()),
@@ -248,8 +211,6 @@ describe("buildMessage", () => {
 });
 
 describe("buildPayload", () => {
-  // T-U3. The full CAIP-2 chain id, the base58 signature, and the whole thing
-  // base64. A base64 signature was rejected live with an alphabet error.
   test("encodes the payload agentres accepts", () => {
     const challenge = parse(header());
     const signature = new Uint8Array(64).fill(7);
@@ -275,10 +236,6 @@ describe("buildPayload", () => {
     });
   });
 
-  // A wrong-length signature encodes into a payload that looks entirely
-  // correct, and agentres answers it with a bare 401 naming nothing. Booking
-  // signs server-side, where a signer returning the wrong shape is a real
-  // possibility rather than a typo, so the refusal has to name the cause.
   test.each([
     ["an empty signature", 0],
     ["a 32-byte signature", 32],
@@ -296,10 +253,6 @@ describe("buildPayload", () => {
   });
 });
 
-// Driven directly rather than through buildPayload, which now takes only
-// 64-byte signatures: the short vectors are the ones that pin the leading-zero
-// and carry paths, and neither has a 64-byte equivalent whose base58 we can
-// state from the reference implementation.
 describe("base58Encode", () => {
   test.each([
     [[] as number[], ""],

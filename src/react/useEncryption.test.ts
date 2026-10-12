@@ -1,7 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderHook, act } from "@testing-library/react";
 
-// Type declaration for global in test environment
 declare const global: typeof globalThis;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 declare const Buffer: any;
@@ -25,7 +24,6 @@ import {
 } from "./useEncryption";
 import type { SignMessageFn } from "./useEncryption";
 
-// Mock crypto.subtle for deterministic testing
 const mockCryptoSubtle = {
   digest: vi.fn(),
   importKey: vi.fn(),
@@ -33,18 +31,13 @@ const mockCryptoSubtle = {
   exportKey: vi.fn(),
 };
 
-// Helper to create a deterministic signature
 function createMockSignature(message: string): string {
-  // Return a deterministic signature based on message
   return `0x${Buffer.from(message).toString("hex").padStart(130, "0")}`;
 }
 
-// Helper to validate SPKI format (base64, starts with MII)
 function isValidSPKI(spki: string): boolean {
   try {
     const decoded = atob(spki);
-    // SPKI format starts with specific ASN.1 structure
-    // For EC public keys, it should start with 0x30 (SEQUENCE)
     return decoded.charCodeAt(0) === 0x30;
   } catch {
     return false;
@@ -58,12 +51,9 @@ describe("useEncryption - Key Pair Generation", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    // Clear all stores before each test
     clearAllEncryptionKeys();
     clearAllKeyPairs();
 
-    // Setup real crypto.subtle for most tests (integration tests)
-    // We'll mock specific functions when needed for deterministic testing
     Object.defineProperty(global, "crypto", {
       value: {
         subtle: crypto.subtle,
@@ -88,14 +78,12 @@ describe("useEncryption - Key Pair Generation", () => {
     it("should return immediately if key pair exists", async () => {
       const address = "0x1234567890123456789012345678901234567890";
 
-      // First call
       await act(async () => {
         await requestKeyPair(address, mockSignMessage);
       });
 
       const callCount = mockSignMessage.mock.calls.length;
 
-      // Second call should not trigger another signature
       await act(async () => {
         await requestKeyPair(address, mockSignMessage);
       });
@@ -123,10 +111,8 @@ describe("useEncryption - Key Pair Generation", () => {
       const address = "0x1234567890123456789012345678901234567890";
       const signature = createMockSignature("test message");
 
-      // Clear any existing key pair
       clearKeyPair(address);
 
-      // Generate key pair twice with same signature
       let publicKey1: string;
       let publicKey2: string;
 
@@ -142,7 +128,6 @@ describe("useEncryption - Key Pair Generation", () => {
         publicKey2 = await exportPublicKey(address, async () => signature);
       });
 
-      // Same signature should produce same public key
       expect(publicKey1!).toBe(publicKey2!);
     });
 
@@ -163,7 +148,6 @@ describe("useEncryption - Key Pair Generation", () => {
         publicKey2 = await exportPublicKey(address2, async () => createMockSignature("message2"));
       });
 
-      // Different signatures should produce different public keys
       expect(publicKey1!).not.toBe(publicKey2!);
     });
   });
@@ -202,7 +186,6 @@ describe("useEncryption - Key Pair Generation", () => {
         publicKey2 = await exportPublicKey(address, mockSignMessage);
       });
 
-      // Same key pair should export same public key
       expect(publicKey1!).toBe(publicKey2!);
     });
 
@@ -214,7 +197,6 @@ describe("useEncryption - Key Pair Generation", () => {
 
       let publicKey: string;
       await act(async () => {
-        // exportPublicKey should auto-generate the key pair if it doesn't exist
         publicKey = await exportPublicKey(address, mockSignMessage);
       });
 
@@ -236,7 +218,6 @@ describe("useEncryption - Key Pair Generation", () => {
         publicKeySpki = await exportPublicKey(address, mockSignMessage);
       });
 
-      // Import the exported public key to verify it's valid
       const spkiBytes = Uint8Array.from(atob(publicKeySpki!), (c) => c.charCodeAt(0));
 
       const importedKey = await crypto.subtle.importKey(
@@ -294,7 +275,6 @@ describe("useEncryption - Key Pair Generation", () => {
     it("should not affect encryption keys", async () => {
       const address = "0x1234567890123456789012345678901234567890";
 
-      // Create both encryption key and key pair
       await act(async () => {
         await requestEncryptionKey(address, mockSignMessage);
         await requestKeyPair(address, mockSignMessage);
@@ -305,7 +285,6 @@ describe("useEncryption - Key Pair Generation", () => {
 
       clearKeyPair(address);
 
-      // Encryption key should still exist after clearing key pair
       expect(hasKeyPair(address)).toBe(false);
       expect(hasEncryptionKey(address)).toBe(true);
     });
@@ -357,7 +336,6 @@ describe("useEncryption - Key Pair Generation", () => {
         await requestKeyPair(address2, mockSignMessage);
       });
 
-      // Seed an availability listener and a persisted keypair entry.
       const listener = vi.fn();
       onKeyAvailable(address1, listener);
       listener.mockClear();
@@ -376,8 +354,6 @@ describe("useEncryption - Key Pair Generation", () => {
       expect(hasKeyPair(address2)).toBe(false);
       expect(localStorage.getItem(`ecdh_keypair_${address1}`)).toBeNull();
 
-      // Re-requesting a key after teardown must re-run the sign flow; the old
-      // listener registered pre-teardown must not fire for the new key.
       await act(async () => {
         await requestEncryptionKey(address1, mockSignMessage);
       });
@@ -385,17 +361,12 @@ describe("useEncryption - Key Pair Generation", () => {
     });
 
     it("removes persisted keypair entries even when the in-memory map is empty", async () => {
-      // Simulates the post-page-refresh scenario: keyPairStore is empty, but
-      // encrypted keypair entries remain in localStorage. The teardown must
-      // scan localStorage directly rather than relying on the in-memory map.
       const address1 = "0x1111111111111111111111111111111111111111";
       const address2 = "0x2222222222222222222222222222222222222222";
       localStorage.setItem(`ecdh_keypair_${address1}`, "stale-ciphertext-1");
       localStorage.setItem(`ecdh_keypair_${address2}`, "stale-ciphertext-2");
-      // A non-keypair entry should be preserved.
       localStorage.setItem("unrelated_key", "preserved");
 
-      // Sanity: no in-memory key pairs.
       expect(hasKeyPair(address1)).toBe(false);
       expect(hasKeyPair(address2)).toBe(false);
 
@@ -409,8 +380,6 @@ describe("useEncryption - Key Pair Generation", () => {
     it("drops in-flight requestEncryptionKey results that resolve after teardown", async () => {
       const address = "0x1234567890123456789012345678901234567890";
 
-      // A sign function whose promise we can resolve manually, so we can
-      // reliably sequence: start request, tear down, then let it finish.
       let releaseSignature: (sig: string) => void = () => undefined;
       const slowSignMessage = vi.fn(
         async () =>
@@ -419,19 +388,15 @@ describe("useEncryption - Key Pair Generation", () => {
           })
       ) as unknown as SignMessageFn;
 
-      // Kick off a request that won't resolve until we release it.
       const inFlight = requestEncryptionKey(address, slowSignMessage);
 
-      // Tear down while the request is mid-flight.
       clearAllEncryptionState();
 
-      // Let the signing promise finish.
       await act(async () => {
         releaseSignature(createMockSignature(SIGN_MESSAGE));
         await inFlight;
       });
 
-      // State must remain cleared; the late resolution must not repopulate it.
       expect(hasEncryptionKey(address)).toBe(false);
     });
 
@@ -448,7 +413,6 @@ describe("useEncryption - Key Pair Generation", () => {
 
       clearAllEncryptionKeys();
 
-      // Alias now performs the full canonical teardown, so key pairs go too.
       expect(hasEncryptionKey(address)).toBe(false);
       expect(hasKeyPair(address)).toBe(false);
     });
@@ -472,7 +436,6 @@ describe("useEncryption - Key Pair Generation", () => {
       const address1 = "0x1111111111111111111111111111111111111111";
       const address2 = "0x2222222222222222222222222222222222222222";
 
-      // Use different signatures for different addresses to ensure different key pairs
       const signMessage1: SignMessageFn = async () => createMockSignature(`key-pair-${address1}`);
       const signMessage2: SignMessageFn = async () => createMockSignature(`key-pair-${address2}`);
 
@@ -494,7 +457,6 @@ describe("useEncryption - Key Pair Generation", () => {
         publicKey2 = await exportPublicKey(address2, signMessage2);
       });
 
-      // Different addresses with different signatures should have different public keys
       expect(publicKey1!).not.toBe(publicKey2!);
     });
   });
@@ -513,7 +475,6 @@ describe("useEncryption - Key Pair Generation", () => {
         publicKeySpki = await exportPublicKey(address, mockSignMessage);
       });
 
-      // Import and verify it's a valid ECDH P-256 key
       const spkiBytes = Uint8Array.from(atob(publicKeySpki!), (c) => c.charCodeAt(0));
 
       const importedKey = await crypto.subtle.importKey(
@@ -538,21 +499,18 @@ describe("useEncryption - Key Pair Generation", () => {
       const signature1 = createMockSignature("message1");
       const signature2 = createMockSignature("message2");
 
-      // Generate key pair with signature1
       clearKeyPair(address);
       await act(async () => {
         await requestKeyPair(address, async () => signature1);
       });
       const publicKey1 = await exportPublicKey(address, async () => signature1);
 
-      // Generate key pair with signature2
       clearKeyPair(address);
       await act(async () => {
         await requestKeyPair(address, async () => signature2);
       });
       const publicKey2 = await exportPublicKey(address, async () => signature2);
 
-      // Different signatures should produce different keys
       expect(publicKey1).not.toBe(publicKey2);
     });
   });
@@ -561,29 +519,20 @@ describe("useEncryption - Key Pair Generation", () => {
     it("should not interfere with encryption keys", async () => {
       const address = "0x1234567890123456789012345678901234567890";
 
-      // Create key pair
       await act(async () => {
         await requestKeyPair(address, mockSignMessage);
       });
 
       expect(hasKeyPair(address)).toBe(true);
-
-      // Encryption key should be independent
-      // (This test verifies they use separate storage)
-      // Note: We can't easily test requestEncryptionKey without importing it,
-      // but the storage separation is verified by the clearKeyPair test above
     });
 
     it("should share the same signature between encryption keys and key pairs", async () => {
       const address = "0x1234567890123456789012345678901234567890";
 
-      // Create a signature once
       const sharedSignature = await mockSignMessage(SIGN_MESSAGE);
 
-      // Clear mocks
       vi.clearAllMocks();
 
-      // Use the same signature for both encryption key and key pair
       const signMessageWithSharedSig: SignMessageFn = async () => sharedSignature;
 
       await act(async () => {
@@ -591,11 +540,9 @@ describe("useEncryption - Key Pair Generation", () => {
         await requestKeyPair(address, signMessageWithSharedSig);
       });
 
-      // Both should exist and be independent
       expect(hasEncryptionKey(address)).toBe(true);
       expect(hasKeyPair(address)).toBe(true);
 
-      // Keys should be different despite same signature (due to different derivation)
       const publicKey = await exportPublicKey(address, signMessageWithSharedSig);
       expect(publicKey).toBeDefined();
     });
@@ -605,7 +552,6 @@ describe("useEncryption - Key Pair Generation", () => {
     it("should handle Web Crypto API errors gracefully", async () => {
       const address = "0x1234567890123456789012345678901234567890";
 
-      // Mock a crypto error
       const originalSubtle = crypto.subtle;
       Object.defineProperty(global, "crypto", {
         value: {
@@ -622,7 +568,6 @@ describe("useEncryption - Key Pair Generation", () => {
         await expect(requestKeyPair(address, mockSignMessage)).rejects.toThrow();
       });
 
-      // Restore
       Object.defineProperty(global, "crypto", {
         value: {
           subtle: originalSubtle,
@@ -635,18 +580,14 @@ describe("useEncryption - Key Pair Generation", () => {
     it("should handle invalid signatures", async () => {
       const address = "0x1234567890123456789012345678901234567890";
 
-      // Very short signature might cause issues
       const invalidSignMessage: SignMessageFn = async () => "0x12";
 
-      // Should either work (if it's valid hex) or throw a meaningful error
       try {
         await act(async () => {
           await requestKeyPair(address, invalidSignMessage);
         });
-        // If it doesn't throw, the key pair should exist
         expect(hasKeyPair(address)).toBe(true);
       } catch (error) {
-        // If it throws, error should be meaningful
         expect(error).toBeInstanceOf(Error);
       }
     });
@@ -656,11 +597,11 @@ describe("useEncryption - Key Pair Generation", () => {
     it("should reject invalid wallet addresses", async () => {
       const invalidAddresses = [
         "not_an_address",
-        "0x123", // Too short
-        "1234567890123456789012345678901234567890", // Missing 0x prefix
-        "0xGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG", // Invalid hex
-        "", // Empty
-        "0x12345678901234567890123456789012345678901234567890", // Too long
+        "0x123",
+        "1234567890123456789012345678901234567890",
+        "0xGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG",
+        "",
+        "0x12345678901234567890123456789012345678901234567890",
       ];
 
       for (const invalidAddress of invalidAddresses) {
@@ -688,7 +629,6 @@ describe("useEncryption - Key Pair Generation", () => {
       const address1 = "0x1111111111111111111111111111111111111111";
       const address2 = "0x2222222222222222222222222222222222222222";
 
-      // Use the same signature for both addresses
       const sharedSignature = createMockSignature(SIGN_MESSAGE);
       const signMessageWithSharedSig: SignMessageFn = async () => sharedSignature;
 
@@ -702,8 +642,6 @@ describe("useEncryption - Key Pair Generation", () => {
         publicKey2 = await exportPublicKey(address2, signMessageWithSharedSig);
       });
 
-      // Different addresses should produce different keys even with same signature
-      // (because address is used as salt in HKDF)
       expect(publicKey1!).not.toBe(publicKey2!);
     });
 
@@ -712,7 +650,6 @@ describe("useEncryption - Key Pair Generation", () => {
       const signature = createMockSignature(SIGN_MESSAGE);
       const signMessageWithSig: SignMessageFn = async () => signature;
 
-      // Generate key pair twice with same address and signature
       clearKeyPair(address);
       await act(async () => {
         await requestKeyPair(address, signMessageWithSig);
@@ -725,14 +662,12 @@ describe("useEncryption - Key Pair Generation", () => {
       });
       const publicKey2 = await exportPublicKey(address, signMessageWithSig);
 
-      // Same address + signature should produce same key
       expect(publicKey1).toBe(publicKey2);
     });
   });
 
   describe("Keypair Persistence", () => {
     beforeEach(() => {
-      // Clear localStorage before each test
       if (typeof window !== "undefined") {
         localStorage.clear();
       }
@@ -741,28 +676,22 @@ describe("useEncryption - Key Pair Generation", () => {
     it("should persist keypair to localStorage after generation", async () => {
       const address = "0x1234567890123456789012345678901234567890";
 
-      // First, ensure encryption key exists (required for persistence)
       await act(async () => {
         await requestEncryptionKey(address, mockSignMessage);
         await requestKeyPair(address, mockSignMessage);
       });
 
-      // Check that keypair was persisted (if persistence succeeded)
-      // Note: Persistence may fail in test environments due to crypto context issues
       const storageKey = `ecdh_keypair_${address}`;
       const persisted = localStorage.getItem(storageKey);
-      // Persistence is optional - if it fails, it's logged but doesn't break functionality
       if (persisted) {
         expect(persisted.length).toBeGreaterThan(0);
       }
-      // Keypair should still exist in memory regardless
       expect(hasKeyPair(address)).toBe(true);
     });
 
     it("should load persisted keypair from localStorage without requiring signature", async () => {
       const address = "0x1234567890123456789012345678901234567890";
 
-      // Generate and persist keypair
       await act(async () => {
         await requestEncryptionKey(address, mockSignMessage);
         await requestKeyPair(address, mockSignMessage);
@@ -770,37 +699,28 @@ describe("useEncryption - Key Pair Generation", () => {
 
       const publicKey1 = await exportPublicKey(address, mockSignMessage);
 
-      // Check if persistence actually worked
       const storageKey = `ecdh_keypair_${address}`;
       const persisted = localStorage.getItem(storageKey);
 
-      // Clear memory (clearKeyPair also removes from localStorage,
-      // so we re-set it to simulate only in-memory loss, e.g. page reload)
       clearKeyPair(address);
       if (persisted) {
         localStorage.setItem(storageKey, persisted);
       }
       expect(hasKeyPair(address)).toBe(false);
 
-      // Reset mock to track if signMessage is called
       vi.clearAllMocks();
 
-      // Request keypair again - should load from localStorage without signing if persisted
       await act(async () => {
         await requestKeyPair(address, mockSignMessage);
       });
 
       if (persisted) {
-        // If persistence worked, should not have called signMessage
         expect(mockSignMessage).not.toHaveBeenCalled();
         expect(hasKeyPair(address)).toBe(true);
 
-        // Public key should be the same
         const publicKey2 = await exportPublicKey(address, mockSignMessage);
         expect(publicKey1).toBe(publicKey2);
       } else {
-        // If persistence didn't work (test environment issue), it will regenerate
-        // This is acceptable - persistence is optional
         expect(hasKeyPair(address)).toBe(true);
       }
     });
@@ -808,7 +728,6 @@ describe("useEncryption - Key Pair Generation", () => {
     it("should clear persisted keypair when clearKeyPair is called", async () => {
       const address = "0x1234567890123456789012345678901234567890";
 
-      // Generate and persist keypair
       await act(async () => {
         await requestEncryptionKey(address, mockSignMessage);
         await requestKeyPair(address, mockSignMessage);
@@ -817,10 +736,8 @@ describe("useEncryption - Key Pair Generation", () => {
       const storageKey = `ecdh_keypair_${address}`;
       expect(localStorage.getItem(storageKey)).toBeDefined();
 
-      // Clear keypair
       clearKeyPair(address);
 
-      // Should be removed from both memory and localStorage
       expect(hasKeyPair(address)).toBe(false);
       expect(localStorage.getItem(storageKey)).toBeNull();
     });
@@ -828,23 +745,18 @@ describe("useEncryption - Key Pair Generation", () => {
     it("should handle missing encryption key gracefully when loading persisted keypair", async () => {
       const address = "0x1234567890123456789012345678901234567890";
 
-      // Generate keypair with encryption key
       await act(async () => {
         await requestEncryptionKey(address, mockSignMessage);
         await requestKeyPair(address, mockSignMessage);
       });
 
-      // Clear encryption key but keep persisted keypair
       clearEncryptionKey(address);
       clearKeyPair(address);
 
-      // Try to load - should return null (can't decrypt without encryption key)
-      // This should trigger new keypair generation
       await act(async () => {
         await requestKeyPair(address, mockSignMessage);
       });
 
-      // Should have generated new keypair (signMessage should have been called)
       expect(mockSignMessage).toHaveBeenCalled();
       expect(hasKeyPair(address)).toBe(true);
     });
@@ -852,21 +764,16 @@ describe("useEncryption - Key Pair Generation", () => {
     it("should handle corrupted persisted data gracefully", async () => {
       const address = "0x1234567890123456789012345678901234567890";
 
-      // Set corrupted data in localStorage
       const storageKey = `ecdh_keypair_${address}`;
       localStorage.setItem(storageKey, "corrupted_data");
 
-      // Should handle gracefully and generate new keypair
       await act(async () => {
         await requestEncryptionKey(address, mockSignMessage);
         await requestKeyPair(address, mockSignMessage);
       });
 
-      // Should have generated new keypair
       expect(hasKeyPair(address)).toBe(true);
-      // Corrupted data should be removed
       const persisted = localStorage.getItem(storageKey);
-      // Should either be removed or replaced with valid data
       if (persisted) {
         expect(persisted).not.toBe("corrupted_data");
       }
@@ -885,7 +792,6 @@ describe("useEncryption - Key Pair Generation", () => {
     it("should handle concurrent key pair requests", async () => {
       const address = "0x1234567890123456789012345678901234567890";
 
-      // Make multiple concurrent requests
       await act(async () => {
         await Promise.all([
           requestKeyPair(address, mockSignMessage),
@@ -894,12 +800,8 @@ describe("useEncryption - Key Pair Generation", () => {
         ]);
       });
 
-      // Should only have one key pair
       expect(hasKeyPair(address)).toBe(true);
 
-      // Should only have called signMessage once (due to caching)
-      // Actually, it might be called multiple times if requests are truly concurrent
-      // But the key pair should be consistent
       const publicKey1 = await exportPublicKey(address, mockSignMessage);
       const publicKey2 = await exportPublicKey(address, mockSignMessage);
       expect(publicKey1).toBe(publicKey2);
@@ -915,7 +817,6 @@ describe("useEncryption - Key Pair Generation", () => {
         throw new Error("User rejected signing");
       };
 
-      // Fire multiple concurrent requests — all should reject with the same error
       const results = await Promise.allSettled([
         requestEncryptionKey(address, failingSignMessage),
         requestEncryptionKey(address, failingSignMessage),
@@ -928,7 +829,6 @@ describe("useEncryption - Key Pair Generation", () => {
           expect(result.reason).toBeInstanceOf(Error);
         }
       }
-      // Key should not be stored after failure
       expect(hasEncryptionKey(address)).toBe(false);
     });
 
@@ -940,12 +840,9 @@ describe("useEncryption - Key Pair Generation", () => {
         throw new Error("User rejected signing");
       };
 
-      // First attempt fails
       await expect(requestEncryptionKey(address, failingSignMessage)).rejects.toThrow();
       expect(hasEncryptionKey(address)).toBe(false);
 
-      // pendingKeyRequests should be cleaned up by `finally`, so a second call with
-      // a working signMessage should succeed
       await act(async () => {
         await requestEncryptionKey(address, mockSignMessage);
       });
@@ -962,13 +859,11 @@ describe("useEncryption - Key Pair Generation", () => {
         await requestEncryptionKey(address, mockSignMessage);
       });
 
-      // Both v2 and v3 keys should be available
       const v2Key = await getEncryptionKey(address, "v2");
       const v3Key = await getEncryptionKey(address, "v3");
 
       expect(v2Key).toBeDefined();
       expect(v3Key).toBeDefined();
-      // They should be different CryptoKey objects (different key material)
       expect(v2Key).not.toBe(v3Key);
     });
 
@@ -996,10 +891,8 @@ describe("useEncryption - Key Pair Generation", () => {
       const plaintext = "Legacy encrypted data";
       const encrypted = await encryptData(plaintext, address);
 
-      // Decrypt with v2 version parameter should fail (encrypted with v3 key)
       await expect(decryptData(encrypted, address, "v2")).rejects.toThrow();
 
-      // Decrypt with default (v3) should succeed
       const decrypted = await decryptData(encrypted, address);
       expect(decrypted).toBe(plaintext);
     });

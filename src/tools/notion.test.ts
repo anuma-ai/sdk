@@ -23,21 +23,13 @@ import {
   type NotionUpdatePageArgs,
 } from "./notion";
 
-// ── Fetch mock ──
-
 const mockFetch = vi.fn();
 vi.stubGlobal("fetch", mockFetch);
-
-// ── Unique token per test ──
-// The module caches sessions by access token, so each test must use
-// a unique token to avoid cross-test pollution.
 
 let tokenCounter = 0;
 function uniqueToken(): string {
   return `token-${++tokenCounter}-${Date.now()}`;
 }
-
-// ── Helpers ──
 
 function jsonResponse(body: unknown, init?: { status?: number; headers?: Record<string, string> }) {
   const status = init?.status ?? 200;
@@ -74,13 +66,9 @@ function sseResponse(data: unknown, init?: { status?: number; headers?: Record<s
   };
 }
 
-/**
- * Set up fetch mock for a successful MCP session initialization + tool call.
- */
 function mockSuccessfulMCPFlow(toolResult: unknown): void {
   const sessionId = `session-${tokenCounter}`;
 
-  // 1st call: initialize session
   mockFetch.mockResolvedValueOnce(
     jsonResponse(
       { jsonrpc: "2.0", id: 1, result: { protocolVersion: "2024-11-05" } },
@@ -88,14 +76,10 @@ function mockSuccessfulMCPFlow(toolResult: unknown): void {
     )
   );
 
-  // 2nd call: notifications/initialized (fire-and-forget)
   mockFetch.mockResolvedValueOnce(jsonResponse({}));
 
-  // 3rd call: tools/call
   mockFetch.mockResolvedValueOnce(jsonResponse({ jsonrpc: "2.0", id: 2, result: toolResult }));
 }
-
-// ── Tests ──
 
 describe("Notion MCP Tools", () => {
   const mockGetAccessToken = vi.fn<() => string | null>();
@@ -103,13 +87,10 @@ describe("Notion MCP Tools", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    // Default: each test gets a unique token
     const token = uniqueToken();
     mockGetAccessToken.mockReturnValue(token);
     mockRequestNotionAccess.mockResolvedValue(token);
   });
-
-  // ── parseSSEResponse / parseResponseBody ──
 
   describe("SSE response parsing", () => {
     it("handles SSE-formatted initialization response", async () => {
@@ -120,17 +101,14 @@ describe("Notion MCP Tools", () => {
         result: { protocolVersion: "2024-11-05" },
       };
 
-      // Init returns SSE
       mockFetch.mockResolvedValueOnce(
         sseResponse(initResult, {
           headers: { "Mcp-Session-Id": sessionId },
         })
       );
 
-      // notifications/initialized
       mockFetch.mockResolvedValueOnce(jsonResponse({}));
 
-      // Tool call returns JSON
       const toolResult = { content: [{ type: "text", text: "result" }] };
       mockFetch.mockResolvedValueOnce(jsonResponse({ jsonrpc: "2.0", id: 2, result: toolResult }));
 
@@ -140,8 +118,6 @@ describe("Notion MCP Tools", () => {
       expect(result).toEqual(toolResult);
     });
   });
-
-  // ── Session management ──
 
   describe("session management", () => {
     it("initializes a new session and caches it", async () => {
@@ -153,10 +129,8 @@ describe("Notion MCP Tools", () => {
 
       expect(result).toEqual(toolResult);
 
-      // 3 calls: init, notifications/initialized, tools/call
       expect(mockFetch).toHaveBeenCalledTimes(3);
 
-      // Verify init request
       const initCall = mockFetch.mock.calls[0];
       expect(initCall[0]).toBe("https://mcp.notion.com/mcp");
       const initBody = JSON.parse(initCall[1].body);
@@ -171,11 +145,9 @@ describe("Notion MCP Tools", () => {
 
       const tool = createNotionSearchTool(mockGetAccessToken, mockRequestNotionAccess);
 
-      // First call initializes session
       await tool.executor!({ query: "first" });
       expect(mockFetch).toHaveBeenCalledTimes(3);
 
-      // Second call should reuse cached session (only 1 more fetch)
       mockFetch.mockResolvedValueOnce(jsonResponse({ jsonrpc: "2.0", id: 3, result: result2 }));
 
       const secondResult = await tool.executor!({ query: "second" });
@@ -187,16 +159,14 @@ describe("Notion MCP Tools", () => {
       const sessionId = `initial-session-${tokenCounter}`;
       const newSessionId = `new-session-${tokenCounter}`;
 
-      // First: init session
       mockFetch.mockResolvedValueOnce(
         jsonResponse(
           { jsonrpc: "2.0", id: 1, result: { protocolVersion: "2024-11-05" } },
           { headers: { "Mcp-Session-Id": sessionId } }
         )
       );
-      mockFetch.mockResolvedValueOnce(jsonResponse({})); // notifications
+      mockFetch.mockResolvedValueOnce(jsonResponse({}));
 
-      // Tool call returns 401
       mockFetch.mockResolvedValueOnce({
         ok: false,
         status: 401,
@@ -205,16 +175,14 @@ describe("Notion MCP Tools", () => {
         text: async () => "Unauthorized",
       });
 
-      // Re-init session
       mockFetch.mockResolvedValueOnce(
         jsonResponse(
           { jsonrpc: "2.0", id: 4, result: { protocolVersion: "2024-11-05" } },
           { headers: { "Mcp-Session-Id": newSessionId } }
         )
       );
-      mockFetch.mockResolvedValueOnce(jsonResponse({})); // notifications
+      mockFetch.mockResolvedValueOnce(jsonResponse({}));
 
-      // Retry tool call succeeds
       const toolResult = { content: [{ type: "text", text: "recovered" }] };
       mockFetch.mockResolvedValueOnce(jsonResponse({ jsonrpc: "2.0", id: 5, result: toolResult }));
 
@@ -251,8 +219,6 @@ describe("Notion MCP Tools", () => {
       expect(result).toContain("500");
     });
   });
-
-  // ── Token acquisition ──
 
   describe("token acquisition", () => {
     it("uses existing token from getAccessToken", async () => {
@@ -308,8 +274,6 @@ describe("Notion MCP Tools", () => {
     });
   });
 
-  // ── JSON-RPC error handling ──
-
   describe("JSON-RPC error handling", () => {
     it("returns error string when MCP tool returns JSON-RPC error", async () => {
       const sessionId = `err-session-${tokenCounter}`;
@@ -320,9 +284,8 @@ describe("Notion MCP Tools", () => {
           { headers: { "Mcp-Session-Id": sessionId } }
         )
       );
-      mockFetch.mockResolvedValueOnce(jsonResponse({})); // notifications
+      mockFetch.mockResolvedValueOnce(jsonResponse({}));
 
-      // Tool call returns JSON-RPC error
       mockFetch.mockResolvedValueOnce(
         jsonResponse({
           jsonrpc: "2.0",
@@ -357,8 +320,6 @@ describe("Notion MCP Tools", () => {
       expect(result).toContain("Invalid Request");
     });
   });
-
-  // ── Individual tool factories ──
 
   describe("tool factories", () => {
     const toolFactories = [
@@ -473,7 +434,6 @@ describe("Notion MCP Tools", () => {
         });
 
         it("calls MCP with correct tool name", async () => {
-          // Use a unique token so session cache is fresh
           const token = uniqueToken();
           mockGetAccessToken.mockReturnValue(token);
           mockSuccessfulMCPFlow({ content: [{ type: "text", text: "ok" }] });
@@ -481,7 +441,6 @@ describe("Notion MCP Tools", () => {
           const tool = fn(mockGetAccessToken, mockRequestNotionAccess);
           await tool.executor!(args);
 
-          // 3rd fetch call is the tools/call
           const toolCallBody = JSON.parse(mockFetch.mock.calls[2][1].body);
           expect(toolCallBody.method).toBe("tools/call");
           expect(toolCallBody.params.name).toBe(toolName);
@@ -489,11 +448,9 @@ describe("Notion MCP Tools", () => {
         });
 
         it("returns error string on failure", async () => {
-          // Use a unique token so session cache is fresh
           const token = uniqueToken();
           mockGetAccessToken.mockReturnValue(token);
 
-          // Init fails
           mockFetch.mockResolvedValueOnce({
             ok: false,
             status: 500,
@@ -511,8 +468,6 @@ describe("Notion MCP Tools", () => {
       });
     }
   });
-
-  // ── createNotionTools factory ──
 
   describe("createNotionTools", () => {
     it("returns all 12 tools", () => {
@@ -546,8 +501,6 @@ describe("Notion MCP Tools", () => {
       }
     });
   });
-
-  // ── Argument schemas match Notion's hosted MCP ──
 
   function schemaOf(toolName: string) {
     const tool = createNotionTools(mockGetAccessToken, mockRequestNotionAccess).find(
@@ -594,11 +547,6 @@ describe("Notion MCP Tools", () => {
       expect(schema.properties.verification_expiry_days.type).toBe("number");
     });
 
-    // Each exported arg type is a hand-written copy of its tool's schema. The
-    // compiler checks every shape below against its type, and the test checks
-    // the same shape against the schema, so neither side can drift on its own.
-    // NotionSearchArgs is left out: it types only some of notion-search's
-    // optional filters.
     type ArgShape<T> = { [K in keyof T]-?: undefined extends T[K] ? "optional" : "required" };
 
     it.each([
@@ -689,8 +637,6 @@ describe("Notion MCP Tools", () => {
     });
   });
 
-  // ── Response truncation ──
-
   describe("response truncation", () => {
     it("returns result unchanged when under 50,000 characters", async () => {
       const token = uniqueToken();
@@ -718,7 +664,7 @@ describe("Notion MCP Tools", () => {
 
       expect(typeof result).toBe("string");
       const resultStr = result as string;
-      expect(resultStr.length).toBeLessThanOrEqual(50_000 + 200); // 50K + footer
+      expect(resultStr.length).toBeLessThanOrEqual(50_000 + 200);
       expect(resultStr).toContain("content truncated, showing first 50000 characters of");
     });
 
@@ -729,16 +675,14 @@ describe("Notion MCP Tools", () => {
       const sessionId = `trunc-session-${tokenCounter}`;
       const newSessionId = `trunc-new-session-${tokenCounter}`;
 
-      // Init session
       mockFetch.mockResolvedValueOnce(
         jsonResponse(
           { jsonrpc: "2.0", id: 1, result: { protocolVersion: "2024-11-05" } },
           { headers: { "Mcp-Session-Id": sessionId } }
         )
       );
-      mockFetch.mockResolvedValueOnce(jsonResponse({})); // notifications
+      mockFetch.mockResolvedValueOnce(jsonResponse({}));
 
-      // Tool call returns 401
       mockFetch.mockResolvedValueOnce({
         ok: false,
         status: 401,
@@ -747,16 +691,14 @@ describe("Notion MCP Tools", () => {
         text: async () => "Unauthorized",
       });
 
-      // Re-init session
       mockFetch.mockResolvedValueOnce(
         jsonResponse(
           { jsonrpc: "2.0", id: 4, result: { protocolVersion: "2024-11-05" } },
           { headers: { "Mcp-Session-Id": newSessionId } }
         )
       );
-      mockFetch.mockResolvedValueOnce(jsonResponse({})); // notifications
+      mockFetch.mockResolvedValueOnce(jsonResponse({}));
 
-      // Retry returns large result
       const largeResult = { content: [{ type: "text", text: "b".repeat(80_000) }] };
       mockFetch.mockResolvedValueOnce(jsonResponse({ jsonrpc: "2.0", id: 5, result: largeResult }));
 
@@ -781,8 +723,6 @@ describe("Notion MCP Tools", () => {
     });
   });
 
-  // ── Utility exports ──
-
   describe("getMCPEndpoints", () => {
     it("returns HTTP and SSE endpoint URLs", () => {
       const endpoints = getMCPEndpoints();
@@ -803,13 +743,10 @@ describe("Notion MCP Tools", () => {
 
       expect(result).toEqual(toolResult);
 
-      // Verify token was used
       const initCall = mockFetch.mock.calls[0];
       expect(initCall[1].headers.Authorization).toBe(`Bearer ${token}`);
     });
   });
-
-  // ── Portal proxy path ──
 
   describe("createNotionProxyTools", () => {
     function proxyTool(callMcp: NotionMcpCaller, name = "notion-search") {
@@ -877,7 +814,7 @@ describe("Notion MCP Tools", () => {
       });
     });
 
-    it("keeps the portal's connect_url on the connector error", async () => {
+    it("does not pass a portal connect_url through to the model", async () => {
       const callMcp = vi.fn<NotionMcpCaller>().mockResolvedValue({
         status: 412,
         json: { code: "connector_not_connected", connect_url: "https://portal/connect" },
@@ -885,9 +822,10 @@ describe("Notion MCP Tools", () => {
 
       const result = await proxyTool(callMcp)({ query: "x" });
 
-      expect(JSON.parse(result as string)).toMatchObject({
+      expect(JSON.parse(result as string)).toEqual({
+        __anuma_connector_error_v1: true,
+        code: "connector_not_connected",
         provider: "notion",
-        connect_url: "https://portal/connect",
       });
     });
 
@@ -907,7 +845,6 @@ describe("Notion MCP Tools", () => {
         __anuma_connector_error_v1: true,
         code: "scope_not_covered",
         provider: "notion",
-        connect_url: "https://portal/connect",
         missing_scopes: ["notion.rw"],
       });
     });
@@ -932,7 +869,7 @@ describe("Notion MCP Tools", () => {
       [
         412,
         { code: "invalid_grant", connect_url: "https://portal/connect" },
-        { code: "connector_not_connected", connect_url: "https://portal/connect" },
+        { code: "connector_not_connected" },
       ],
       [403, { code: "connector_disabled" }, { code: "connector_not_connected" }],
       [403, { code: "scope_disabled" }, { code: "connector_not_connected" }],

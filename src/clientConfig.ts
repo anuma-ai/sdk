@@ -1,9 +1,7 @@
 import type { CreateClientConfig } from "./client/client.gen";
 
-/** Last-resort fallback when no env var and no explicit baseUrl is provided. */
 const DEFAULT_BASE_URL = "https://portal.anuma-dev.ai";
 
-/** Read a string-valued key off `globalThis`, treating empty strings as unset. */
 function readGlobal(key: string): string | undefined {
   if (typeof globalThis === "undefined") return undefined;
   const value = (globalThis as Record<string, unknown>)[key];

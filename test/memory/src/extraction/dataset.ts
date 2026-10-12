@@ -1,37 +1,11 @@
-/**
- * Extraction-quality eval corpus.
- *
- * Each case is a short conversation transcript fed to `extractFacts`, paired
- * with the durable facts that SHOULD be extracted (`expected`) and, for the
- * trap cases, the junk that must NOT be (`forbidden`). The point is to measure
- * what the extractor *remembers* — not what retrieval later finds:
- *
- *   - recall    : did it catch the durable facts? (over cases with expected)
- *   - precision : are the facts it extracted real durable facts? (vs over-extraction)
- *   - junk rate : did a "negative" turn (no durable fact) yield any memory?
- *
- * Categories deliberately stress known failure modes: search queries, transient
- * state, hypotheticals, assistant-directed requests, and echoed quotes ("the
- * user said 'tiger'") that have leaked into prod as junk memories before.
- *
- * Facts are written third-person / present-tense to match the extractor's own
- * output convention, so embedding-match scoring is apples-to-apples.
- */
-
 import type { EntityKind } from "../../../../src/lib/db/entities/types.js";
 
-/** A named entity the extractor should surface, with its expected kind. */
 export interface ExpectedEntity {
   name: string;
   kind: EntityKind;
 }
 
-export type ExtractionCategory =
-  | "durable" // one or more clear durable facts
-  | "multi-fact" // several durable facts in one turn
-  | "buried" // a durable fact wrapped in chit-chat / noise
-  | "update" // a fact that supersedes an earlier state
-  | "negative"; // nothing durable — must extract NOTHING
+export type ExtractionCategory = "durable" | "multi-fact" | "buried" | "update" | "negative";
 
 export interface ExtractionMessage {
   id: string;
@@ -43,30 +17,17 @@ export interface ExtractionCase {
   id: string;
   category: ExtractionCategory;
   messages: ExtractionMessage[];
-  /** Durable facts that should be extracted (third-person, present-tense). */
   expected: string[];
-  /** Junk that must NOT be extracted (optional; for eyeballing/regression). */
   forbidden?: string[];
-  /**
-   * Named entities the extractor should surface, each with its correct kind.
-   * Scored by the benchmark's kind-accuracy pass: coverage (was the entity
-   * extracted at all?) + kind correctness (did it get the right label?).
-   * A subset of cases — only those with unambiguous named entities are labeled.
-   * `thing` is sparse and `other` is unlabeled on purpose: they are residual
-   * buckets, and clean, unambiguous NAMED exemplars are rare (most named things
-   * are products/orgs/places), so a forced golden would be a subjective target.
-   */
   expectedEntities?: ExpectedEntity[];
 }
 
-// Compact helper for two-turn transcripts (user then assistant ack).
 const turn = (id: string, user: string, assistant = "Got it."): ExtractionMessage[] => [
   { id: `${id}-u`, role: "user", content: user },
   { id: `${id}-a`, role: "assistant", content: assistant },
 ];
 
 export const EXTRACTION_CASES: ExtractionCase[] = [
-  // ---- durable: single clear facts ----
   {
     id: "d-partner-name",
     category: "durable",
@@ -113,7 +74,6 @@ export const EXTRACTION_CASES: ExtractionCase[] = [
     expectedEntities: [{ name: "Austin", kind: "place" }],
   },
 
-  // ---- multi-fact ----
   {
     id: "m-family",
     category: "multi-fact",
@@ -167,7 +127,6 @@ export const EXTRACTION_CASES: ExtractionCase[] = [
     ],
   },
 
-  // ---- buried: durable fact inside chit-chat ----
   {
     id: "b-name-in-rant",
     category: "buried",
@@ -199,7 +158,6 @@ export const EXTRACTION_CASES: ExtractionCase[] = [
     expected: ["User is left-handed."],
   },
 
-  // ---- update / supersession ----
   {
     id: "u-moved",
     category: "update",
@@ -225,18 +183,11 @@ export const EXTRACTION_CASES: ExtractionCase[] = [
   {
     id: "u-status",
     category: "update",
-    // Forbidden is only the transient mood. Dropped the "User is getting
-    // married." template: it was an embedding-adjacency trap — cosine can't
-    // separate the *correct* supersession facts the model emits here ("wedding
-    // is cancelled", "is single") from "getting married", so it flagged valid
-    // extractions as junk. Those extras already show up in precision; they
-    // shouldn't also be counted as forbidden hits.
     messages: turn("u3", "Update: the wedding is off, we broke up. Rough few weeks."),
     expected: ["User went through a breakup."],
     forbidden: ["User had a rough few weeks."],
   },
 
-  // ---- entity-kind stress: org / product / event vs the old "thing" bucket ----
   {
     id: "k-org-product-event",
     category: "multi-fact",
@@ -273,8 +224,6 @@ export const EXTRACTION_CASES: ExtractionCase[] = [
       "I keep all my notes in Obsidian these days, and on weekends we sail our boat, the Kestrel."
     ),
     expected: ["User takes notes in Obsidian.", "User owns a sailboat named Kestrel."],
-    // Obsidian = a named app (product); Kestrel = a named physical object that
-    // is NOT a brand (thing) — the discriminator the "thing" bucket is for.
     expectedEntities: [
       { name: "Obsidian", kind: "product" },
       { name: "Kestrel", kind: "thing" },
@@ -291,7 +240,6 @@ export const EXTRACTION_CASES: ExtractionCase[] = [
     ],
   },
 
-  // ---- negative: nothing durable should be extracted ----
   {
     id: "n-search-query",
     category: "negative",
@@ -364,22 +312,6 @@ export const EXTRACTION_CASES: ExtractionCase[] = [
     forbidden: ["User wants to buy a laptop.", "User needs a new laptop."],
   },
 
-  // ---- prod-shaped hard cases (2026-09 quality audit) ----
-  //
-  // The 30 cases above sat at ~99% recall / ~99% precision for two months, which
-  // is a corpus that can no longer see a regression. Each case below is a shape
-  // that produced junk or a miss in PRODUCTION vaults, or a shape the extraction
-  // prompt explicitly rules on and nothing here exercised:
-  //   - the assistant restating the user's profile back to them (prompt: NOT durable)
-  //   - a connector/tool payload the assistant surfaced (prompt: bare labels are NOT durable)
-  //   - the user's own name alone (prompt: NOT durable)
-  //   - past-tense gossip about other people wrapped around a real fact (keep the fact)
-  //   - a fact confirmed by the user after the assistant proposed it (prompt: IS durable)
-  //   - a hedge wrapped around a real fact (keep the fact, drop the hedge)
-  //   - coreference across the 2-message overlap the worker re-sends
-  //   - a realistic long window with one fact in six messages
-  //   - a state change with a distractor location
-  //   - a non-English turn (the low-signal gate once killed CJK facts)
   {
     id: "n-assistant-restates-profile",
     category: "negative",
@@ -430,8 +362,6 @@ export const EXTRACTION_CASES: ExtractionCase[] = [
   {
     id: "b-gossip-about-others",
     category: "buried",
-    // The durable part is the user's own world (they have a coworker Dave);
-    // the gossip about Dave's Tesla history is what the prompt rules out.
     messages: turn(
       "g1",
       "lol my coworker Dave used to work at Tesla before they let him go, wild story",
@@ -464,9 +394,6 @@ export const EXTRACTION_CASES: ExtractionCase[] = [
     ),
     expected: ["User has two cats named Pixel and Byte."],
     forbidden: ["User is getting a dog.", "User wants a dog."],
-    // No expectedEntities: pet names fit no kind cleanly (the model says
-    // `thing`, the taxonomy's `person` is a human), so a golden here would be a
-    // subjective target — the same reason `other` is unlabeled corpus-wide.
   },
   {
     id: "b-fact-inside-question",
@@ -478,8 +405,6 @@ export const EXTRACTION_CASES: ExtractionCase[] = [
   {
     id: "m-coreference-across-turns",
     category: "multi-fact",
-    // The worker re-sends 2 already-extracted messages for exactly this: "she"
-    // in the second user turn resolves only through the first.
     messages: [
       { id: "cr1-u", role: "user", content: "My manager is Priya, she runs the platform org." },
       { id: "cr1-a", role: "assistant", content: "Got it." },
@@ -492,7 +417,6 @@ export const EXTRACTION_CASES: ExtractionCase[] = [
   {
     id: "b-long-window-one-fact",
     category: "buried",
-    // A realistic six-message window: small talk, a task, one durable fact.
     messages: [
       {
         id: "lw-u1",
@@ -535,8 +459,6 @@ export const EXTRACTION_CASES: ExtractionCase[] = [
   {
     id: "d-non-english-turn",
     category: "durable",
-    // Gold is written in English like every other case; the extractor's own
-    // convention is third-person English regardless of input language.
     messages: turn("jp1", "私は東京に住んでいて、猫を2匹飼っています。", "了解しました。"),
     expected: ["User lives in Tokyo.", "User has two cats."],
     expectedEntities: [{ name: "Tokyo", kind: "place" }],

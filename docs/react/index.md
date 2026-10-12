@@ -78,6 +78,7 @@ function ChatComponent() {
 | [useBackup](Hooks/useBackup.md) | Unified React hook for backup and restore functionality. |
 | [useBackupAuth](Hooks/useBackupAuth.md) | Hook to access unified backup authentication state and methods. |
 | [useChat](Hooks/useChat.md) | A React hook for managing chat completions with authentication. |
+| [useChatStorage](Hooks/useChatStorage.md) | A React hook that wraps useChat and persists messages and conversations to WatermelonDB as they are sent and received. |
 | [useCredits](Hooks/useCredits.md) | React hook for managing credits: checking balance, browsing packs, and purchasing credits. |
 | [useDropboxAuth](Hooks/useDropboxAuth.md) | Hook to access Dropbox authentication state and methods. |
 | [useDropboxBackup](Hooks/useDropboxBackup.md) | React hook for Dropbox backup and restore functionality. |
@@ -101,27 +102,27 @@ function ChatComponent() {
 
 ## Other
 
-### BACKUP\_DRIVE\_CONVERSATIONS\_FOLDER
+### DEFAULT\_BACKUP\_FOLDER
 
-Renames and re-exports [DEFAULT\_DRIVE\_CONVERSATIONS\_FOLDER](Internal/variables/DEFAULT_DRIVE_CONVERSATIONS_FOLDER.md)
-
-***
-
-### BACKUP\_DRIVE\_ROOT\_FOLDER
-
-Renames and re-exports [DEFAULT\_DRIVE\_ROOT\_FOLDER](Internal/variables/DEFAULT_DRIVE_ROOT_FOLDER.md)
+Renames and re-exports [DEFAULT\_DROPBOX\_FOLDER](Internal/variables/DEFAULT_DROPBOX_FOLDER.md)
 
 ***
 
-### BACKUP\_ICLOUD\_FOLDER
+### DEFAULT\_DRIVE\_CONVERSATIONS\_FOLDER
 
-Renames and re-exports [DEFAULT\_ICLOUD\_BACKUP\_FOLDER](Internal/variables/DEFAULT_ICLOUD_BACKUP_FOLDER.md)
+Renames and re-exports [BACKUP\_DRIVE\_CONVERSATIONS\_FOLDER](Internal/variables/BACKUP_DRIVE_CONVERSATIONS_FOLDER.md)
 
 ***
 
-### DEFAULT\_DROPBOX\_FOLDER
+### DEFAULT\_DRIVE\_ROOT\_FOLDER
 
-Renames and re-exports [DEFAULT\_BACKUP\_FOLDER](Internal/variables/DEFAULT_BACKUP_FOLDER.md)
+Renames and re-exports [BACKUP\_DRIVE\_ROOT\_FOLDER](Internal/variables/BACKUP_DRIVE_ROOT_FOLDER.md)
+
+***
+
+### DEFAULT\_ICLOUD\_BACKUP\_FOLDER
+
+Renames and re-exports [BACKUP\_ICLOUD\_FOLDER](Internal/variables/BACKUP_ICLOUD_FOLDER.md)
 
 ## PDF Export
 

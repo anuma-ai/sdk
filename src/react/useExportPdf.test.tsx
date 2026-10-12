@@ -93,7 +93,6 @@ describe("useExportPdf", () => {
 
     const { result } = renderHook(() => useExportPdf());
 
-    // First call fails
     await act(async () => {
       try {
         await result.current.exportMarkdownToPdf("fail");
@@ -103,7 +102,6 @@ describe("useExportPdf", () => {
     });
     expect(result.current.error).toBe(error);
 
-    // Second call succeeds — error cleared
     await act(async () => {
       await result.current.exportMarkdownToPdf("ok");
     });
@@ -121,7 +119,6 @@ describe("useExportPdf", () => {
       await result.current.exportElementToPdf(element);
     });
 
-    // Verify onProgress was wired into the options
     expect(mockExportElement).toHaveBeenCalledWith(
       element,
       expect.objectContaining({ onProgress: expect.any(Function) })
@@ -156,8 +153,6 @@ describe("useExportPdf", () => {
       await result.current.exportMarkdownToPdf("# Test");
     });
 
-    // Progress was set during export (we can't observe intermediate state
-    // after act() settles, but we verify onProgress was passed above)
     expect(result.current.isExporting).toBe(false);
   });
 

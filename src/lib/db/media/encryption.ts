@@ -33,7 +33,6 @@ export async function encryptMediaFields(
   }
 
   try {
-    // Request encryption key once for all fields
     await requestEncryptionKey(address, signMessage, embeddedWalletSigner);
 
     const encryptedName = await encryptField(

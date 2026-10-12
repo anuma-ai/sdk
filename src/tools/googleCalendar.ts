@@ -1,8 +1,3 @@
-/**
- * Google Calendar tool definition for the chat system.
- * This tool allows the LLM to list events from the user's Google Calendar.
- */
-
 import type { ToolConfig } from "../lib/chat/useChat/types.js";
 
 export interface ListEventsArgs {
@@ -39,35 +34,25 @@ export interface CalendarEvent {
   location?: string;
 }
 
-/**
- * Ensures a timestamp has timezone information (appends Z if missing)
- */
 function ensureTimezone(timestamp: string): string {
-  // If already has timezone (Z, +, or -), return as-is
   if (/[Zz]$/.test(timestamp) || /[+-]\d{2}:\d{2}$/.test(timestamp)) {
     return timestamp;
   }
-  // Append Z for UTC if no timezone specified
   return `${timestamp}Z`;
 }
 
-/**
- * Fetches events from Google Calendar API
- */
 async function fetchCalendarEvents(
   accessToken: string,
   args: ListEventsArgs
 ): Promise<CalendarEvent[] | string> {
   const { timeMin, timeMax, maxResults = 10 } = args;
 
-  // Build query parameters
   const params = new URLSearchParams({
     maxResults: String(maxResults),
     singleEvents: "true",
     orderBy: "startTime",
   });
 
-  // Default to next 7 days if no time range specified
   const now = new Date();
   const defaultTimeMin = now.toISOString();
   const defaultTimeMax = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString();
@@ -128,9 +113,6 @@ async function fetchCalendarEvents(
   }
 }
 
-/**
- * Builds the event body for the Google Calendar API
- */
 function buildEventBody(args: CreateEventArgs): Record<string, unknown> {
   const { summary, start, end, description, location, attendees } = args;
   const isAllDay = !start.includes("T");
@@ -150,9 +132,6 @@ function buildEventBody(args: CreateEventArgs): Record<string, unknown> {
   return eventBody;
 }
 
-/**
- * Parses the API response into a CalendarEvent
- */
 function parseEventResponse(data: {
   id: string;
   summary?: string;
@@ -171,9 +150,6 @@ function parseEventResponse(data: {
   };
 }
 
-/**
- * Creates an event in Google Calendar API
- */
 async function createCalendarEvent(
   accessToken: string,
   args: CreateEventArgs
@@ -215,9 +191,6 @@ async function createCalendarEvent(
   }
 }
 
-/**
- * Builds the update body for the Google Calendar API (only includes provided fields)
- */
 function buildUpdateEventBody(args: UpdateEventArgs): Record<string, unknown> {
   const { summary, start, end, description, location, attendees } = args;
   const eventBody: Record<string, unknown> = {};
@@ -243,19 +216,21 @@ function buildUpdateEventBody(args: UpdateEventArgs): Record<string, unknown> {
   return eventBody;
 }
 
-/**
- * Updates an event in Google Calendar API
- */
+const CALENDAR_EVENT_ID = /^[A-Za-z0-9_]+$/;
+
 async function updateCalendarEvent(
   accessToken: string,
   args: UpdateEventArgs
 ): Promise<CalendarEvent | string> {
   const { eventId } = args;
+  if (typeof eventId !== "string" || !CALENDAR_EVENT_ID.test(eventId)) {
+    return `Error: Invalid event ID: ${String(eventId)}`;
+  }
   const eventBody = buildUpdateEventBody(args);
 
   try {
     const response = await fetch(
-      `https://www.googleapis.com/calendar/v3/calendars/primary/events/${eventId}`,
+      `https://www.googleapis.com/calendar/v3/calendars/primary/events/${encodeURIComponent(eventId)}`,
       {
         method: "PATCH",
         headers: {
@@ -327,10 +302,8 @@ export function createGoogleCalendarTool(
       },
     },
     executor: async (args: Record<string, unknown>): Promise<CalendarEvent[] | string> => {
-      // Try to get existing token first
       let token = getAccessToken();
 
-      // If no token, request calendar access
       if (!token) {
         try {
           token = await requestCalendarAccess();
@@ -403,10 +376,8 @@ export function createGoogleCalendarCreateEventTool(
       },
     },
     executor: async (args: Record<string, unknown>): Promise<CalendarEvent | string> => {
-      // Try to get existing token first
       let token = getAccessToken();
 
-      // If no token, request calendar access
       if (!token) {
         try {
           token = await requestCalendarAccess();
@@ -488,10 +459,8 @@ export function createGoogleCalendarUpdateEventTool(
       },
     },
     executor: async (args: Record<string, unknown>): Promise<CalendarEvent | string> => {
-      // Try to get existing token first
       let token = getAccessToken();
 
-      // If no token, request calendar access
       if (!token) {
         try {
           token = await requestCalendarAccess();

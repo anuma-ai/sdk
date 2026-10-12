@@ -1,6 +1,6 @@
 # LlmDecayClassifierOptions
 
-Defined in: [src/lib/memory/decayClassifier.ts:92](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/decayClassifier.ts#92)
+Defined in: [src/lib/memory/decayClassifier.ts:30](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/decayClassifier.ts#30)
 
 Auth + wiring for [createLlmDecayClassifier](../functions/createLlmDecayClassifier.md). Auth is the dual pattern —
 one of `apiKey` / `getToken` is required at runtime (see [PortalLlmAuth](PortalLlmAuth.md)).
@@ -15,7 +15,7 @@ one of `apiKey` / `getToken` is required at runtime (see [PortalLlmAuth](PortalL
 
 > `optional` **apiKey**: `string`
 
-Defined in: [src/lib/memory/portalLlm.ts:179](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/portalLlm.ts#179)
+Defined in: [src/lib/memory/portalLlm.ts:72](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/portalLlm.ts#72)
 
 Direct API key — sent as `x-api-key` (server-side / CLI usage). Wins when both are provided.
 
@@ -29,7 +29,7 @@ Direct API key — sent as `x-api-key` (server-side / CLI usage). Wins when both
 
 > `optional` **backoffMs**: (`attempt`: `number`) => `number`
 
-Defined in: [src/lib/memory/decayClassifier.ts:102](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/decayClassifier.ts#102)
+Defined in: [src/lib/memory/decayClassifier.ts:40](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/decayClassifier.ts#40)
 
 Backoff before each retry (ms). Tests pass `() => 0`.
 
@@ -68,7 +68,7 @@ Backoff before each retry (ms). Tests pass `() => 0`.
 
 > `optional` **baseUrl**: `string`
 
-Defined in: [src/lib/memory/decayClassifier.ts:93](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/decayClassifier.ts#93)
+Defined in: [src/lib/memory/decayClassifier.ts:31](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/decayClassifier.ts#31)
 
 ***
 
@@ -76,7 +76,7 @@ Defined in: [src/lib/memory/decayClassifier.ts:93](https://github.com/anuma-ai/s
 
 > `optional` **fetchFn**: {(`input`: `RequestInfo` | `URL`, `init?`: `RequestInit`): `Promise`<`Response`>; (`input`: `string` | `Request` | `URL`, `init?`: `RequestInit`): `Promise`<`Response`>; }
 
-Defined in: [src/lib/memory/decayClassifier.ts:96](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/decayClassifier.ts#96)
+Defined in: [src/lib/memory/decayClassifier.ts:34](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/decayClassifier.ts#34)
 
 Override fetch (tests).
 
@@ -180,7 +180,7 @@ Override fetch (tests).
 
 > **getContent**: (`id`: `string`) => `Promise`<`string` | `null`>
 
-Defined in: [src/lib/memory/decayClassifier.ts:117](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/decayClassifier.ts#117)
+Defined in: [src/lib/memory/decayClassifier.ts:55](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/decayClassifier.ts#55)
 
 Resolve a memory's DECRYPTED content by id. The caller supplies this and
 MUST gate it on wallet-key availability — return `null` when no key is
@@ -222,7 +222,7 @@ A throw is treated the same as `null` (fail to the rule verdict).
 
 > `optional` **getToken**: () => `Promise`<`string` | `null`>
 
-Defined in: [src/lib/memory/portalLlm.ts:181](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/portalLlm.ts#181)
+Defined in: [src/lib/memory/portalLlm.ts:74](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/portalLlm.ts#74)
 
 Function to get an auth token (e.g., Privy's getIdentityToken). Token is sent as `Authorization: Bearer`.
 
@@ -240,7 +240,7 @@ Function to get an auth token (e.g., Privy's getIdentityToken). Token is sent as
 
 > `optional` **maxAttempts**: `number`
 
-Defined in: [src/lib/memory/decayClassifier.ts:98](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/decayClassifier.ts#98)
+Defined in: [src/lib/memory/decayClassifier.ts:36](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/decayClassifier.ts#36)
 
 Max portal attempts on a TRANSIENT failure. Default 2.
 
@@ -250,7 +250,7 @@ Max portal attempts on a TRANSIENT failure. Default 2.
 
 > `optional` **model**: `string`
 
-Defined in: [src/lib/memory/decayClassifier.ts:94](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/decayClassifier.ts#94)
+Defined in: [src/lib/memory/decayClassifier.ts:32](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/decayClassifier.ts#32)
 
 ***
 
@@ -258,7 +258,7 @@ Defined in: [src/lib/memory/decayClassifier.ts:94](https://github.com/anuma-ai/s
 
 > `optional` **piiRedaction**: `boolean` | [`PiiRedactor`](../../../expo/Internal/classes/PiiRedactor.md)
 
-Defined in: [src/lib/memory/decayClassifier.ts:110](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/decayClassifier.ts#110)
+Defined in: [src/lib/memory/decayClassifier.ts:48](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/decayClassifier.ts#48)
 
 PII redaction for the outbound content. OPT-OUT: defaults to ON (a fresh
 per-call redactor) when omitted, so decrypted content is never egressed
@@ -272,6 +272,6 @@ redaction. The verdict returned is a bare enum — nothing to de-anonymize.
 
 > `optional` **totalTimeoutMs**: `number`
 
-Defined in: [src/lib/memory/decayClassifier.ts:100](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/decayClassifier.ts#100)
+Defined in: [src/lib/memory/decayClassifier.ts:38](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/decayClassifier.ts#38)
 
 Absolute wall-clock budget across attempts. Default 12s.

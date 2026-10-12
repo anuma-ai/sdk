@@ -2,7 +2,7 @@
 
 > `const` **SLIDER\_CONFIG**: `object`\[]
 
-Defined in: [src/lib/db/userPreferences/types.ts:58](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/userPreferences/types.ts#58)
+Defined in: [src/lib/db/userPreferences/types.ts:56](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/userPreferences/types.ts#56)
 
 Slider configuration for UI rendering
 

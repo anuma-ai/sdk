@@ -1,11 +1,3 @@
-/**
- * One-off: classify + decompose every benchmark query via gpt-5-mini and
- * cache the result to JSON. The bench loads this when --decompose=llm.
- *
- * Run:  PORTAL_API_KEY=... npx tsx scripts/precompute-bench-decompositions.ts
- *
- * Idempotent — if a query already has a cached entry, skip.
- */
 import "dotenv/config";
 import { readFile, writeFile } from "node:fs/promises";
 

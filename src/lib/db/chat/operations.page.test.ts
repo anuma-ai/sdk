@@ -35,14 +35,6 @@ function makeCtx(db: Database): StorageOperationsContext {
   };
 }
 
-/**
- * Seed `count` alternating user/assistant messages; returns the ctx.
- *
- * The exact-messageId assertions below intentionally pin `createMessageOp`'s
- * sequencing contract (`messageId = max(existing) + 1`, so 1…N in a fresh
- * database) — pagination cursors (`beforeMessageId`) depend on that ordering,
- * so a change to id assignment SHOULD fail these tests.
- */
 async function seedThread(count: number, convId = "conv-1"): Promise<StorageOperationsContext> {
   const ctx = makeCtx(makeDatabase());
   for (let i = 1; i <= count; i++) {
@@ -97,8 +89,6 @@ describe("getMessagesPageOp", () => {
   });
 
   it("returns an empty page for non-positive or non-finite limits (never an unbounded read)", async () => {
-    // SQLite treats LIMIT -1 as "no limit" — an unguarded negative limit
-    // would silently fetch and decrypt the whole conversation.
     const ctx = await seedThread(10);
 
     expect(await getMessagesPageOp(ctx, "conv-1", { limit: 0 })).toEqual([]);
@@ -138,7 +128,6 @@ describe("getMessagesPageOp", () => {
       content: "with embedding",
       uniqueId: "msg-emb",
     });
-    // Attach an embedding the way the embedding pipeline does.
     const row = await ctx.messagesCollection.find(created.uniqueId);
     await ctx.database.write(async () => {
       await row.update((msg) => {
@@ -170,7 +159,6 @@ describe("getMessageSkeletonsOp", () => {
       role: "user",
     });
     expect(skeletons[0].createdAt).toBeInstanceOf(Date);
-    // Non-artifact rows never carry content.
     expect(skeletons.every((s) => s.content === undefined)).toBe(true);
   });
 
@@ -204,7 +192,6 @@ describe("getMessageSkeletonsOp", () => {
       content: "original prompt",
       uniqueId: "msg-user",
     });
-    // Regeneration artifact: a user message parented by another user message.
     await createMessageOp(ctx, {
       conversationId: "conv-1",
       role: "user",
@@ -212,7 +199,6 @@ describe("getMessageSkeletonsOp", () => {
       uniqueId: "msg-artifact",
       parentMessageId: "msg-user",
     });
-    // Normal assistant child of a user message — must NOT carry content.
     await createMessageOp(ctx, {
       conversationId: "conv-1",
       role: "assistant",
@@ -248,10 +234,6 @@ describe("getMessageCountOp", () => {
 
 describe("getMessagesPageOp duplicated-boundary handling", () => {
   it("does not lose a duplicated boundary row when boundaryExcludeUniqueIds is passed", async () => {
-    // Legacy data: two rows sharing message_id 5 (count-based assignment
-    // reused a freed id after a mid-thread delete). An exclusive Q.lt cursor
-    // at boundary 5 would drop BOTH; the inclusive+exclude cursor must
-    // return the twin exactly once.
     const ctx = await seedThread(10);
     const twin = await createMessageOp(ctx, {
       conversationId: "conv-1",
@@ -266,7 +248,6 @@ describe("getMessagesPageOp duplicated-boundary handling", () => {
       });
     });
 
-    // The caller holds rows down to id 5 via "msg-5" and pages for the rest.
     const page = await getMessagesPageOp(ctx, "conv-1", {
       beforeMessageId: 5,
       limit: 10,
@@ -275,8 +256,6 @@ describe("getMessagesPageOp duplicated-boundary handling", () => {
 
     expect(page.map((m) => m.uniqueId)).toEqual(["msg-1", "msg-2", "msg-3", "msg-4", "msg-5-twin"]);
 
-    // Without the exclude list the exclusive cursor keeps its old contract
-    // (and skips the twin — the documented legacy hazard).
     const exclusive = await getMessagesPageOp(ctx, "conv-1", { beforeMessageId: 5, limit: 10 });
     expect(exclusive.map((m) => m.uniqueId)).toEqual(["msg-1", "msg-2", "msg-3", "msg-4"]);
   });
@@ -290,17 +269,10 @@ describe("getMessagesPageOp duplicated-boundary handling", () => {
       boundaryExcludeUniqueIds: ["msg-8"],
     });
 
-    // Inclusive fetch of ids ≤ 8 minus the held row, newest 3 of the rest.
     expect(page.map((m) => m.messageId)).toEqual([5, 6, 7]);
   });
 });
 
-/**
- * Seed `count` conversations with a deterministic `created_at` (conv-i at
- * i*1000 ms) so `created_at DESC` = conv-N … conv-1 and keyset cursors are
- * exact. Returns the ctx plus a conversationId → uniqueId (raw `id`) lookup,
- * since boundary-exclude keys on the raw row id.
- */
 async function seedConversations(
   count: number
 ): Promise<{ ctx: StorageOperationsContext; uid: Map<string, string> }> {
@@ -327,7 +299,6 @@ describe("getConversationsPageOp", () => {
     const page = await getConversationsPageOp(ctx, { limit: 4 });
 
     expect(page.map((c) => c.conversationId)).toEqual(["conv-10", "conv-9", "conv-8", "conv-7"]);
-    // Lazy projection: raw title under encryptedTitle, no decrypted `title`.
     expect(page[0].encryptedTitle).toBe("title 10");
     expect((page[0] as unknown as Record<string, unknown>).title).toBeUndefined();
   });
@@ -349,7 +320,6 @@ describe("getConversationsPageOp", () => {
   it("pages backward with `before` (exclusive created_at bound)", async () => {
     const { ctx } = await seedConversations(10);
 
-    // conv-7 sits at created_at 7000; the next page starts strictly below it.
     const page = await getConversationsPageOp(ctx, { before: 7000, limit: 4 });
 
     expect(page.map((c) => c.conversationId)).toEqual(["conv-6", "conv-5", "conv-4", "conv-3"]);
@@ -382,8 +352,6 @@ describe("getConversationsPageOp", () => {
   });
 
   it("returns an empty page for non-positive or non-finite limits (never an unbounded read)", async () => {
-    // SQLite treats LIMIT -1 as "no limit" — an unguarded negative would
-    // silently fetch the ENTIRE list. Mirrors getMessagesPageOp's guard.
     const { ctx } = await seedConversations(10);
 
     expect(await getConversationsPageOp(ctx, { limit: 0 })).toEqual([]);
@@ -403,9 +371,6 @@ describe("getConversationsPageOp", () => {
 
 describe("getConversationsPageOp duplicated-timestamp handling", () => {
   it("does not lose a row sharing the boundary created_at when boundaryExcludeUniqueIds is passed", async () => {
-    // Bulk restore/import: two conversations share created_at 5000. An
-    // exclusive Q.lt cursor at 5000 would drop BOTH; the inclusive+exclude
-    // cursor must return the unheld twin exactly once.
     const { ctx, uid } = await seedConversations(10);
     const twin = await createConversationOp(ctx, {
       conversationId: "conv-5-twin",
@@ -416,7 +381,6 @@ describe("getConversationsPageOp duplicated-timestamp handling", () => {
       await twinRow.update((c) => c._setRaw("created_at", 5000));
     });
 
-    // Caller holds conv-5 at the boundary and pages for the rest below 5000.
     const page = await getConversationsPageOp(ctx, {
       before: 5000,
       limit: 10,
@@ -431,8 +395,6 @@ describe("getConversationsPageOp duplicated-timestamp handling", () => {
       "conv-1",
     ]);
 
-    // Without the exclude list the exclusive cursor keeps its old contract
-    // (and skips the twin — the documented tie hazard).
     const exclusive = await getConversationsPageOp(ctx, { before: 5000, limit: 10 });
     expect(exclusive.map((c) => c.conversationId)).toEqual([
       "conv-4",
@@ -451,7 +413,6 @@ describe("getConversationsPageOp duplicated-timestamp handling", () => {
       boundaryExcludeUniqueIds: [uid.get("conv-8")!],
     });
 
-    // Inclusive fetch of created_at ≤ 8000 minus the held row, newest 3.
     expect(page.map((c) => c.conversationId)).toEqual(["conv-7", "conv-6", "conv-5"]);
   });
 });
@@ -460,7 +421,6 @@ describe("createMessageOp id assignment under deletions", () => {
   it("never reuses a freed message_id (max + 1, not count + 1)", async () => {
     const ctx = await seedThread(3);
 
-    // Delete the middle row — count drops to 2 while max stays 3.
     const middle = await ctx.messagesCollection.find("msg-2");
     await ctx.database.write(async () => {
       await middle.destroyPermanently();
@@ -473,7 +433,6 @@ describe("createMessageOp id assignment under deletions", () => {
       uniqueId: "msg-after-delete",
     });
 
-    // count+1 would have assigned 3 — colliding with the existing "msg-3".
     expect(created.messageId).toBe(4);
   });
 });

@@ -2,7 +2,7 @@
 
 > **fileExists**(`fileId`: `string`): `Promise`<`boolean`>
 
-Defined in: [src/lib/storage/opfs.ts:294](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/opfs.ts#294)
+Defined in: [src/lib/storage/opfs.ts:241](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/opfs.ts#241)
 
 Checks if a file exists in OPFS.
 

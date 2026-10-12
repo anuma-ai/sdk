@@ -1,17 +1,4 @@
 // @vitest-environment happy-dom
-/**
- * Expo parity for the `[Tool Execution Results]` row (#5519).
- *
- * The react entry has always persisted a turn's `autoExecutedToolResults` as a synthetic `role: "user"`
- * row so a reopened conversation can re-render its display cards; the expo entry wrote nothing, so on
- * mobile every tool-backed card had to hand-roll the row — and whatever it did not hand-roll was gone
- * on reopen, model context included.
- *
- * What these lock down: the row exists, carries the shared wrapper, is parented to the ASSISTANT
- * message (mobile walks a parent/child branch to build its visible list, so a row hung off the user
- * prompt is written and never rendered), is returned to the caller so it need not derive the id, and
- * never turns a stored assistant reply into a failed send.
- */
 
 import { Database } from "@nozbe/watermelondb";
 import LokiJSAdapter from "@nozbe/watermelondb/adapters/lokijs";
@@ -25,8 +12,6 @@ vi.mock("../lib/chat/toolLoop", async (importOriginal) => {
   return { ...orig, runToolLoop: vi.fn() };
 });
 
-// Records what the summarizer is handed. An excluded display payload reaching it is egress in its own
-// right: it goes into the summary prompt, and whatever the summary keeps comes back to the main model.
 const summarizerInputs: { role: string; content: string }[][] = [];
 vi.mock("../lib/chat/summarize", async (importOriginal) => {
   const orig = await importOriginal<typeof import("../lib/chat/summarize")>();
@@ -41,8 +26,6 @@ vi.mock("../lib/chat/summarize", async (importOriginal) => {
   };
 });
 
-// The row goes through `createMessageOp` like every other write; spying on the module lets one case
-// fail JUST that write while leaving the user/assistant rows intact.
 vi.mock("../lib/db/chat", async (importOriginal) => {
   const orig = await importOriginal<typeof import("../lib/db/chat")>();
   return { ...orig, createMessageOp: vi.fn(orig.createMessageOp) };
@@ -114,7 +97,6 @@ describe("useChatStorage tool-results row (expo)", () => {
     vi.clearAllMocks();
     summarizerInputs.length = 0;
     db = makeDatabase();
-    // getServerTools is the only network call on this path; fail it fast.
     fetchSpy = vi.spyOn(globalThis, "fetch").mockRejectedValue(new Error("no network"));
   });
 
@@ -140,9 +122,7 @@ describe("useChatStorage tool-results row (expo)", () => {
     expect(row).toBeDefined();
     expect(row?.content).toContain('Tool "display_people_map" returned:');
     expect(row?.content).toContain('"display_name":"Ada"');
-    // The anchor is load-bearing: mobile renders only the walked branch.
     expect(row?.parentMessageId).toBe(assistant?.uniqueId);
-    // Returned, so a caller keys its overlay on the id the SDK wrote rather than deriving one.
     expect(sent).toMatchObject({ error: null });
     expect(
       sent && "toolResultsMessage" in sent ? sent.toolResultsMessage?.uniqueId : undefined
@@ -200,14 +180,12 @@ describe("useChatStorage tool-results row (expo)", () => {
         database: db,
         conversationId: "conv_replay",
         getToken: async () => "tok",
-        // The card's payload exists for the renderer and carries coordinates the search result strips.
         toolResultsHistoryExclude: ["display_people_map"],
         foldToolResultsInHistory: true,
       })
     );
 
     await send(result);
-    // Second turn replays the stored thread.
     mockRunToolLoop.mockResolvedValue(loopResult());
     await send(result, "which of them likes chess");
 
@@ -218,7 +196,6 @@ describe("useChatStorage tool-results row (expo)", () => {
     const text = (m: (typeof replayed)[number]) =>
       m.content.map((part) => part.text ?? "").join("");
 
-    // No synthetic user turn on the wire — that is what made the model answer the previous turn.
     expect(
       replayed.filter((m) => m.role === "user" && text(m).includes(TOOL_RESULTS_PREFIX))
     ).toEqual([]);
@@ -226,9 +203,7 @@ describe("useChatStorage tool-results row (expo)", () => {
       .filter((m) => m.role === "assistant")
       .map(text)
       .join("\n");
-    // The model keeps what it reasoned over…
     expect(assistantText).toContain('Tool "search_people_nearby" returned:');
-    // …and never gets the coordinates back.
     expect(assistantText).not.toContain("display_people_map");
     expect(assistantText).not.toContain("lat");
   });
@@ -254,15 +229,12 @@ describe("useChatStorage tool-results row (expo)", () => {
     mockRunToolLoop.mockResolvedValue(loopResult());
     await send(result, "who was closest?");
 
-    // Second send replays the stored thread; the summarizer sees the FOLDED rows.
     const replayed = summarizerInputs[summarizerInputs.length - 1]!;
     expect(replayed.some((m) => m.content.includes("display_people_map"))).toBe(false);
     expect(replayed.some((m) => m.content.includes("lat"))).toBe(false);
-    // No synthetic user row survives to be summarized either — folding already moved its content.
     expect(
       replayed.some((m) => m.role === "user" && m.content.startsWith(TOOL_RESULTS_PREFIX))
     ).toBe(false);
-    // …and what the model is allowed to keep is still there.
     expect(replayed.some((m) => m.content.includes('Tool "search_people_nearby" returned:'))).toBe(
       true
     );
@@ -273,7 +245,6 @@ describe("useChatStorage tool-results row (expo)", () => {
       loopResult([{ name: "display_people_map", result: PEOPLE_RESULT }])
     );
     const actual = await vi.importActual<typeof import("../lib/db/chat")>("../lib/db/chat");
-    // Third write of the send is the tool-results row (user, assistant, row).
     let writes = 0;
     mockCreateMessageOp.mockImplementation(async (ctx, opts) => {
       writes += 1;

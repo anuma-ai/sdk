@@ -1,8 +1,3 @@
-/**
- * Timezone / current time tool definition for the chat system.
- * Uses the public timeapi.io service (no auth required).
- */
-
 import type { ToolConfig } from "../lib/chat/useChat/types";
 
 interface TimezoneResult {

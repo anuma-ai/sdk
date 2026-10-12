@@ -44,7 +44,6 @@ describe("CompletionsStrategy.processStreamChunk - tool_call_events", () => {
 
   it("captures tool_call_events from wrapped response format", () => {
     const acc = createAccumulator();
-    // CompletionsStrategy unwraps { response: {...}, type: "response" }
     strategy.processStreamChunk(
       {
         type: "response",
@@ -62,13 +61,10 @@ describe("CompletionsStrategy.processStreamChunk - tool_call_events", () => {
   it("ignores empty tool_call_events array (does not block later capture)", () => {
     const acc = createAccumulator();
 
-    // First chunk: empty array
     strategy.processStreamChunk({ tool_call_events: [] }, acc);
 
-    // Empty array should NOT have been stored
     expect(acc.toolCallEvents).toBeUndefined();
 
-    // Second chunk: real events
     strategy.processStreamChunk({ tool_call_events: sampleEvents }, acc);
 
     expect(acc.toolCallEvents).toHaveLength(1);
@@ -100,15 +96,6 @@ describe("CompletionsStrategy.processStreamChunk - tool_call_events", () => {
   });
 });
 
-// Whitespace-only deltas (regression — see PR for details).
-//
-// Chat-completions streams tokenize text like `"## Heading\n\nBody"` into
-// multiple `choice.delta.content` chunks, including pure-whitespace ones
-// (`"\n\n"`, `"  \n"`, `" "`). These must reach the app's `onData` callback
-// or the client's live `streamingContent` ends up glued (e.g. `## HeadingBody`).
-// An earlier `parseResult.messageContent.trim().length > 0` check silently
-// dropped whitespace-only chunks — the final response was fine (accumulator
-// captured them) but per-chunk onData was not.
 describe("CompletionsStrategy.processStreamChunk - whitespace-only deltas", () => {
   const strategy = new CompletionsStrategy();
 
@@ -141,11 +128,6 @@ describe("CompletionsStrategy.processStreamChunk - whitespace-only deltas", () =
   });
 
   it("still skips a truly empty delta (no spurious emit)", () => {
-    // Pins the outer truthiness guard `if (choice.delta.content)` — an empty
-    // string is falsy, so the branch is never entered and `result.content`
-    // stays `null`. A future refactor that replaces the guard with
-    // `if (choice.delta.content !== undefined)` would silently regress, and
-    // this test would fail.
     const acc = createAccumulator();
     const out = strategy.processStreamChunk({ choices: [{ delta: { content: "" } }] }, acc);
     expect(out.content).toBeFalsy();
@@ -158,8 +140,6 @@ describe("CompletionsStrategy.processStreamChunk - whitespace-only deltas", () =
     const emitted: string[] = [];
     for (const content of deltas) {
       const out = strategy.processStreamChunk({ choices: [{ delta: { content } }] }, acc);
-      // `ProcessChunkResult.content` is `string | null` — never `undefined` — so
-      // the no-delta case is null, not a missing key.
       if (out.content !== null) emitted.push(out.content);
     }
     expect(emitted.join("")).toBe("## Heading\n\nBody");
@@ -171,9 +151,6 @@ describe("CompletionsStrategy.buildRequestBody - output-token field", () => {
   const strategy = new CompletionsStrategy();
   const base = { messages: [], model: "gpt-oss/gpt-oss-120b", stream: false };
 
-  // Regression guard: the portal reads only `max_completion_tokens`; the
-  // deprecated `max_tokens` is silently ignored and truncates at the default
-  // cap. Never emit the legacy field.
   it("emits max_completion_tokens (never the deprecated max_tokens)", () => {
     const body = strategy.buildRequestBody({ ...base, maxOutputTokens: 1234 });
     expect(body.max_completion_tokens).toBe(1234);
@@ -190,10 +167,6 @@ describe("CompletionsStrategy.buildRequestBody - output-token field", () => {
 describe("CompletionsStrategy finish_reason passthrough", () => {
   const strategy = new CompletionsStrategy();
 
-  // buildFinalResponse used to derive this field entirely from whether tool
-  // calls were present — `toolCalls ? "tool_calls" : "stop"` — which reported
-  // a completion cut off at the output-token ceiling as a clean "stop". The
-  // tool loop's truncation guard needs the provider's real verdict.
   it("preserves a 'length' finish_reason through to the final response", () => {
     const acc = createAccumulator();
     strategy.processStreamChunk({ choices: [{ index: 0, finish_reason: "length" }] }, acc);

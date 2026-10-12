@@ -48,9 +48,6 @@ export const noopLogger: Logger = {
   error: () => {},
 };
 
-// Every copy of the SDK in one JavaScript realm shares this slot.
-// Bump the key version when the `Logger` interface or the `LoggerState` shape changes.
-// An older copy could otherwise install a logger that a newer copy cannot call.
 const LOGGER_STATE_KEY = Symbol.for("@anuma/sdk/logger/v1");
 
 interface LoggerState {
@@ -63,8 +60,6 @@ const loggerGlobal = globalThis as typeof globalThis & {
 
 const fallbackLoggerState: LoggerState = { logger: consoleLogger };
 
-// Separate entrypoint bundles share one logger in each JavaScript realm.
-// Each bundle uses its local state when the global blocks a new property.
 let fallbackWarned = false;
 
 function getLoggerState(): LoggerState {

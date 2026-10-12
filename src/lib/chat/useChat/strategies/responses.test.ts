@@ -62,16 +62,12 @@ describe("ResponsesStrategy.processStreamChunk - tool_call_events", () => {
   it("ignores empty tool_call_events array (does not block later capture)", () => {
     const acc = createAccumulator();
 
-    // First chunk: empty array (e.g., from an early streaming event)
     strategy.processStreamChunk({ tool_call_events: [] }, acc);
 
-    // Empty array should NOT have been stored
     expect(acc.toolCallEvents).toBeUndefined();
 
-    // Second chunk: real events arrive later
     strategy.processStreamChunk({ tool_call_events: sampleEvents }, acc);
 
-    // Real events should now be captured
     expect(acc.toolCallEvents).toHaveLength(1);
     expect(acc.toolCallEvents![0].name).toBe("generate_cloud_image");
   });
@@ -79,12 +75,10 @@ describe("ResponsesStrategy.processStreamChunk - tool_call_events", () => {
   it("does not overwrite existing non-empty tool_call_events", () => {
     const acc = createAccumulator();
 
-    // First chunk: real events
     strategy.processStreamChunk({ tool_call_events: sampleEvents }, acc);
 
     const secondEvents = [{ id: "evt_2", name: "edit_cloud_image", arguments: "{}", output: "{}" }];
 
-    // Second chunk: different events — should be ignored
     strategy.processStreamChunk({ tool_call_events: secondEvents }, acc);
 
     expect(acc.toolCallEvents).toHaveLength(1);
@@ -120,10 +114,6 @@ describe("ResponsesStrategy.processStreamChunk - response.failed", () => {
   });
 
   it("unwraps double-JSON-encoded error messages (real MiniMax M2.1 shape)", () => {
-    // Bifrost stringifies the Fireworks error into `message`. Regression guard
-    // for `minimax-m2p1` returning:
-    //   { code: "server_error",
-    //     message: "{\"error\": {\"message\": \"Model not found, inaccessible, ...\" ...}}" }
     const acc = createAccumulator();
     const wrapped = JSON.stringify({
       error: { message: "Model not found, inaccessible, and/or not deployed", code: "NOT_FOUND" },
@@ -147,16 +137,6 @@ describe("ResponsesStrategy.processStreamChunk - response.failed", () => {
   });
 });
 
-// Whitespace-only deltas (regression — see PR for details).
-//
-// OpenAI's Responses API tokenizes content like `"## Heading\n\nBody"` as
-// multiple deltas, some of which are pure-whitespace tokens like `"\n\n"`,
-// `"  \n"`, `" "`. These must reach the app's `onData` callback so live
-// streaming markdown renders correctly (heading + body separated by a blank
-// line). An earlier `parseResult.messageContent.trim().length > 0` guard
-// silently dropped those chunks — the final `sendMessage` resolve was fine
-// (accumulator captured them), but `onData` per-chunk was not — so the
-// client's live `streamingContent` was glued (e.g. `## Chapter 1: TitleBody`).
 describe("ResponsesStrategy.processStreamChunk - whitespace-only deltas", () => {
   const strategy = new ResponsesStrategy();
 
@@ -208,17 +188,11 @@ describe("ResponsesStrategy.processStreamChunk - whitespace-only deltas", () => 
   });
 
   it("preserves end-to-end whitespace when chunks are accumulated in order", () => {
-    // Simulate the real `"## Heading\n\nBody"` stream split into tokens where
-    // `"\n\n"` is its own delta. After all chunks arrive, the accumulator
-    // should hold the exact source text and each chunk should have emitted
-    // its content to result.content.
     const acc = createAccumulator();
     const deltas = ["## ", "Heading", "\n\n", "Body"];
     const emitted: string[] = [];
     for (const delta of deltas) {
       const out = strategy.processStreamChunk({ type: "response.output_text.delta", delta }, acc);
-      // `ProcessChunkResult.content` is `string | null` — never `undefined` — so
-      // the no-delta case is null, not a missing key.
       if (out.content !== null) emitted.push(out.content);
     }
     expect(emitted.join("")).toBe("## Heading\n\nBody");
@@ -229,10 +203,6 @@ describe("ResponsesStrategy.processStreamChunk - whitespace-only deltas", () => 
 describe("ResponsesStrategy - credits_exhausted pass-through", () => {
   const strategy = new ResponsesStrategy();
 
-  // ai-portal (#1146) injects credits_exhausted into the usage object on the
-  // out-of-credits wrap-up. These two accumulator sites are the only place the
-  // Responses chain carries it; convertUsageToStored forces the shape directly,
-  // so this is what catches a future refactor silently dropping either site.
   const readExhausted = (usage: unknown) =>
     (usage as { credits_exhausted?: boolean } | undefined)?.credits_exhausted;
 

@@ -1,14 +1,3 @@
-/**
- * Edit-flow probe: instruments a deck-edit cycle to see where the time goes.
- *
- * Generates a deck first (fast, batched), then runs a representative edit
- * ("rename X to Y" — exercises read_slides + patch_slides). For the edit
- * phase we capture per-round payload bytes (via onRequest) AND per-round
- * wall time (via onStepFinish), so we can tell whether the slowness is
- * "many rounds", "big payloads per round", "one slow round of model
- * thinking", or some combination.
- */
-
 import { describe, expect, it } from "vitest";
 
 import { buildSlideSystemPrompt } from "../../../src/tools/slides/index.js";
@@ -58,7 +47,6 @@ describe("slide edit probe", () => {
     const log: ToolCallLog[] = [];
     const tools = createTestSlideTools(store).map((t) => wrapTool(t, log));
 
-    // Phase 1 — generate the initial deck (not the focus; just need realistic state).
     const genResult = await timedToolLoop({
       messages: makeMessages(
         "Create a 5-slide deck introducing a new productivity app called FocusFlow.",
@@ -78,7 +66,6 @@ describe("slide edit probe", () => {
     const initialJsxBytes = (store.get("slides.jsx") ?? "").length;
     const callsAfterGen = log.length;
 
-    // Phase 2 — edit. This is the slow phase we want to understand.
     const editMessages: Message[] = [
       ...makeMessages(
         "Create a 5-slide deck introducing a new productivity app called FocusFlow.",
@@ -126,8 +113,6 @@ describe("slide edit probe", () => {
 
     const editCalls = log.slice(callsAfterGen);
 
-    // Per-round wall time: time from the round's request dispatch to the
-    // next round's request dispatch (or to overall end for the final round).
     const roundEndTimes = requests
       .slice(1)
       .map((r) => r.wallStart)

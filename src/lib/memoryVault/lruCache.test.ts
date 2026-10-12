@@ -21,7 +21,7 @@ describe("LRUCache", () => {
     cache.set("a", 1);
     cache.set("b", 2);
     cache.set("c", 3);
-    cache.set("d", 4); // should evict "a"
+    cache.set("d", 4);
 
     expect(cache.has("a")).toBe(false);
     expect(cache.get("b")).toBe(2);
@@ -36,11 +36,9 @@ describe("LRUCache", () => {
     cache.set("b", 2);
     cache.set("c", 3);
 
-    // Access "a" to promote it
     cache.get("a");
 
-    // Now "b" is the oldest
-    cache.set("d", 4); // should evict "b"
+    cache.set("d", 4);
 
     expect(cache.has("a")).toBe(true);
     expect(cache.has("b")).toBe(false);
@@ -54,11 +52,9 @@ describe("LRUCache", () => {
     cache.set("b", 2);
     cache.set("c", 3);
 
-    // Update "a" to promote it
     cache.set("a", 10);
 
-    // Now "b" is the oldest
-    cache.set("d", 4); // should evict "b"
+    cache.set("d", 4);
 
     expect(cache.get("a")).toBe(10);
     expect(cache.has("b")).toBe(false);

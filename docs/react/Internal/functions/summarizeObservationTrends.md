@@ -2,7 +2,7 @@
 
 > **summarizeObservationTrends**(`inputs`: readonly [`ObservationTrendInput`](../interfaces/ObservationTrendInput.md)\[], `now`: `number`): `Record`<[`ObservationTrend`](../type-aliases/ObservationTrend.md), `number`>
 
-Defined in: [src/lib/memory/observationTrend.ts:94](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/observationTrend.ts#94)
+Defined in: [src/lib/memory/observationTrend.ts:71](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/observationTrend.ts#71)
 
 Summarize trend counts over a set of facts — handy for profile synthesis
 ("N interests strengthening") without another LLM pass.

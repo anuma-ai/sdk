@@ -1,21 +1,3 @@
-/**
- * Visual-quality tests for slide generation.
- *
- * Each test runs a real user-style prompt end-to-end and dumps the resulting
- * slides.jsx to `.output/` for manual visual review. Assertions cover only
- * structural invariants and constraints stated in the prompt — the actual
- * "does it look good" judgment is left to the reviewer reading the dumped
- * deck (or feeding it into the slide renderer).
- *
- * Runs once per model. By default, uses the single model from `E2E_MODEL`
- * (or the project default). Set `E2E_MODELS` to a comma-separated list to
- * compare outputs across multiple models side by side — each model's deck
- * is dumped to its own subdirectory, e.g. `.output/prompt-home-gardening/kimi-k2p5/`.
- *
- * Run: pnpm vitest -c vitest.e2e.config.mts run test/tools/slide-generation/prompts
- * Compare: E2E_MODELS=model-a,model-b pnpm vitest -c vitest.e2e.config.mts run test/tools/slide-generation/prompts
- */
-
 import { describe, expect, it } from "vitest";
 
 import {
@@ -39,17 +21,12 @@ import { createTestSlideTools } from "./tools.js";
 
 const SYSTEM_PROMPT = buildSlideSystemPrompt();
 
-/**
- * Models to run each prompt against. `E2E_MODELS` (comma-separated) wins over
- * the single-model `E2E_MODEL` / default picked up by `config.model`.
- */
 const MODELS = process.env.E2E_MODELS
   ? process.env.E2E_MODELS.split(",")
       .map((m) => m.trim())
       .filter(Boolean)
   : [config.model];
 
-/** Filesystem-safe slug derived from a model id (last path segment). */
 function modelSlug(model: string): string {
   return (model.split("/").pop() ?? model).replace(/[^a-zA-Z0-9-_.]/g, "_");
 }
@@ -66,10 +43,6 @@ function makeMessages(userText: string): Message[] {
 describe.concurrent.each(MODELS)("slide-generation prompts [%s]", (model) => {
   const slug = modelSlug(model);
 
-  // 10+ slides via plan_deck + 10 add_slide calls easily overruns
-  // the suite default (300_000ms) when the upstream LLM is slow —
-  // observed in one e2e run hitting the cutoff mid-generation. Match
-  // the heavier composition-layouts tests' 600s budget.
   it("home gardening fundamentals (no images)", { timeout: 600_000 }, async () => {
     const store = createFileStore();
     const log: ToolCallLog[] = [];
@@ -85,17 +58,10 @@ describe.concurrent.each(MODELS)("slide-generation prompts [%s]", (model) => {
       apiType: config.apiType,
       tools,
       toolChoice: "auto",
-      // Per-slide flow: 1 plan_deck + N add_slide calls, so 12–15 rounds
-      // for a 10+ slide deck. Bumped from the old 8 which was tuned for the
-      // single-shot create_slides flow.
       maxToolRounds: 20,
-      // Anthropic via Bifrost seems to 500 when the streamed JSON payload
-      // exceeds the default output-token budget on dense decks. Raise it.
       maxOutputTokens: 16000,
     });
 
-    // Prefix every log line with the model slug so concurrent runs remain
-    // attributable when vitest drops the test-context header from later lines.
     const tag = `[${slug}]`;
     if (result.error) {
       console.error(`${tag} ERROR: ${result.error}`);
@@ -114,19 +80,14 @@ describe.concurrent.each(MODELS)("slide-generation prompts [%s]", (model) => {
     const deck = getDeck(store);
     const slides = slidesOf(deck);
 
-    // Prompt asks for ≥10 slides. Most models land at 7–9 — coming up short is
-    // a prompt-following miss but not a structural failure, so the floor is
-    // set at 7 and the actual count is logged below for review.
     expect(slides.length).toBeGreaterThanOrEqual(7);
 
-    // "No images" constraint: there should be zero image elements
     const imageCount = slides.reduce(
       (n, s) => n + elementsOf(s).filter((e) => e.tag === "Image").length,
       0
     );
     expect(imageCount).toBe(0);
 
-    // Coordinate validity — elements should stay within the 960×540 pixel canvas
     for (const slide of slides) {
       for (const el of elementsOf(slide)) {
         const x = typeof el.attrs.x === "number" ? el.attrs.x : 0;
@@ -140,7 +101,6 @@ describe.concurrent.each(MODELS)("slide-generation prompts [%s]", (model) => {
       }
     }
 
-    // Content should mention the topics the prompt called out
     const allText = slides
       .flatMap((s) =>
         elementsOf(s)
@@ -154,7 +114,6 @@ describe.concurrent.each(MODELS)("slide-generation prompts [%s]", (model) => {
     expect(allText).toMatch(/pest|insect|bug/);
     expect(allText).toMatch(/plant|climate/);
 
-    // Log element-tag mix so the reviewer can spot text-only decks vs varied ones
     const tagCounts: Record<string, number> = {};
     for (const slide of slides) {
       for (const el of elementsOf(slide)) tagCounts[el.tag] = (tagCounts[el.tag] ?? 0) + 1;

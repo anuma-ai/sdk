@@ -1,6 +1,6 @@
 # NotionRefreshTokenParams
 
-Defined in: [src/lib/auth/notion-primitives.ts:87](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/notion-primitives.ts#87)
+Defined in: [src/lib/auth/notion-primitives.ts:82](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/notion-primitives.ts#82)
 
 Parameters for [refreshNotionAccessToken](../functions/refreshNotionAccessToken.md).
 
@@ -10,7 +10,7 @@ Parameters for [refreshNotionAccessToken](../functions/refreshNotionAccessToken.
 
 > **clientId**: `string`
 
-Defined in: [src/lib/auth/notion-primitives.ts:90](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/notion-primitives.ts#90)
+Defined in: [src/lib/auth/notion-primitives.ts:85](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/notion-primitives.ts#85)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/lib/auth/notion-primitives.ts:90](https://github.com/anuma-ai/s
 
 > **refreshToken**: `string`
 
-Defined in: [src/lib/auth/notion-primitives.ts:89](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/notion-primitives.ts#89)
+Defined in: [src/lib/auth/notion-primitives.ts:84](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/notion-primitives.ts#84)
 
 ***
 
@@ -26,4 +26,4 @@ Defined in: [src/lib/auth/notion-primitives.ts:89](https://github.com/anuma-ai/s
 
 > **tokenEndpoint**: `string`
 
-Defined in: [src/lib/auth/notion-primitives.ts:88](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/notion-primitives.ts#88)
+Defined in: [src/lib/auth/notion-primitives.ts:83](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/notion-primitives.ts#83)

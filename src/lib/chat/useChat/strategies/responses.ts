@@ -12,13 +12,6 @@ type ToolCallEventInput = {
   output?: string;
 };
 
-/**
- * Walk the final `response.output[]` array (present on `response.completed`
- * events) and backfill `name` on matching tool-call accumulator entries.
- * Anthropic via Bifrost doesn't emit `output_item.added` with a usable name —
- * entries are created by the `.delta` handler with name="" and need the name
- * from this authoritative final payload.
- */
 function backfillToolCallNames(
   accumulator: StreamAccumulator,
   response: { output?: unknown } | undefined
@@ -34,7 +27,6 @@ function backfillToolCallNames(
     const itemId = typeof item.id === "string" ? item.id : "";
     const callId = typeof item.call_id === "string" ? item.call_id : "";
 
-    // Prefer direct Map lookup by item.id (that's the key the .delta handler uses).
     let entry: AccumulatedToolCall | undefined = itemId
       ? accumulator.toolCalls.get(itemId)
       : undefined;
@@ -50,11 +42,6 @@ function backfillToolCallNames(
   }
 }
 
-/**
- * Pull the argument fragment from a `response.function_call_arguments.*` event.
- * OpenAI's responses API puts it on `arguments` at the top level; Anthropic via
- * Bifrost puts it on `delta.OfString`. Return empty string if neither is present.
- */
 function extractArgsString(chunk: StreamingChunk): string {
   if (typeof chunk.arguments === "string" && chunk.arguments) return chunk.arguments;
   const delta = chunk.delta;
@@ -65,19 +52,6 @@ function extractArgsString(chunk: StreamingChunk): string {
   return "";
 }
 
-/**
- * Merge the authoritative `tool_call_events` array from a `response.completed`
- * (or equivalent) payload into the accumulator's `toolCalls` Map. Some
- * providers (OpenAI/Anthropic via Bifrost's responses API) emit streaming
- * events whose `item_id`/`call_id` don't line up with the `.added` event,
- * leaving entries in `toolCalls` with empty `arguments`. The final
- * `tool_call_events` array carries complete data, so we use it to backfill
- * missing arguments or create entries that were never streamed.
- *
- * Events with a non-empty `output` are skipped — those are server-side tools
- * already executed by the portal (search, image generation), so they must
- * not be re-added as pending client-side calls.
- */
 function mergeToolCallEventsIntoAccumulator(
   accumulator: StreamAccumulator,
   events: ToolCallEventInput[]
@@ -155,16 +129,9 @@ export class ResponsesStrategy implements ApiStrategy {
     const result: ProcessChunkResult = { content: null, thinking: null };
     const typedChunk = chunk as StreamingChunk;
 
-    // Detect in-stream error events from Bifrost (e.g. OpenRouter Qwen upstream
-    // timeouts). If we don't throw here the stream just ends silently with no
-    // tool call and no usable response. The outer tool loop catches this and
-    // surfaces it as the final error to the caller.
     const inStreamErr = getInStreamErrorMessage(chunk);
     if (inStreamErr) throw new Error(inStreamErr);
 
-    // Detect response.failed events (e.g. model not deployed, upstream refused
-    // the request). Carries a nested error object with message/code; surface
-    // it so callers see a real reason instead of a silent empty response.
     if (typedChunk.type === "response.failed") {
       const resp = (typedChunk as { response?: { error?: { code?: unknown; message?: unknown } } })
         .response;
@@ -172,8 +139,6 @@ export class ResponsesStrategy implements ApiStrategy {
       if (err && typeof err === "object") {
         const code = typeof err.code === "string" ? err.code : "";
         const rawMessage = typeof err.message === "string" ? err.message : "";
-        // Bifrost sometimes double-encodes the upstream error as a JSON string
-        // in `message`. Pull out the inner message when that happens.
         let message = rawMessage;
         if (rawMessage.startsWith("{")) {
           try {
@@ -190,20 +155,15 @@ export class ResponsesStrategy implements ApiStrategy {
       throw new Error("Upstream request failed (response.failed)");
     }
 
-    // Handle full "response" event — sent by the portal's chat/completions fallback
-    // when it uses non-streaming internally and sends the entire result as one chunk.
     if (typedChunk.type === "response" && typedChunk.response) {
       const resp = typedChunk.response as Record<string, unknown>;
       if (typeof resp.id === "string") accumulator.responseId = resp.id;
       if (typeof resp.model === "string") accumulator.responseModel = resp.model;
       if (typeof resp.tools_checksum === "string") accumulator.toolsChecksum = resp.tools_checksum;
 
-      // Extract usage
       const u = (resp.usage as Record<string, number | undefined>) || {};
       const promptTokens = u.input_tokens ?? u.prompt_tokens ?? 0;
       const completionTokens = u.output_tokens ?? u.completion_tokens ?? 0;
-      // Terminal boolean (ai-portal #1146): read off the usage object (boolean,
-      // so not via the number-typed `u` cast) and pass through like credits_used.
       const creditsExhausted = (resp.usage as { credits_exhausted?: boolean } | undefined)
         ?.credits_exhausted;
       accumulator.usage = {
@@ -218,16 +178,6 @@ export class ResponsesStrategy implements ApiStrategy {
         ...(creditsExhausted !== undefined && { credits_exhausted: creditsExhausted }),
       };
 
-      // Extract content from output array — but only if no content was already
-      // accumulated from streaming delta events. The backend sends this "response"
-      // event after all deltas have been streamed; extracting content here would
-      // duplicate everything already delivered via response.output_text.delta.
-      // This branch is only needed for the non-streaming completions fallback
-      // where no delta events are sent.
-      // Note: we intentionally only check `accumulator.content`, not `thinking`.
-      // A model may stream thinking via response.thinking.delta but deliver message
-      // content only in the final response object — guarding on thinking would
-      // silently drop that content.
       if (!accumulator.content) {
         const output = resp.output as
           | Array<{ type?: string; content?: Array<{ type?: string; text?: string }> }>
@@ -264,7 +214,6 @@ export class ResponsesStrategy implements ApiStrategy {
         }
       }
 
-      // Extract tool call events
       const toolCallEvents = resp.tool_call_events as ToolCallEventInput[] | undefined;
       if (toolCallEvents) {
         accumulator.toolCallEvents = toolCallEvents.map((e) => ({
@@ -276,17 +225,6 @@ export class ResponsesStrategy implements ApiStrategy {
         mergeToolCallEventsIntoAccumulator(accumulator, toolCallEvents);
       }
 
-      // Terminal state, same as the `response.completed` branch below (#805).
-      // This branch dropped it entirely: a turn delivered through the portal's
-      // non-streaming fallback carried no finish reason, so the truncation
-      // guard could not fire, `onStepFinish` omitted `finishReason`, and the
-      // response carried no `status` — the exact blindness this PR is fixing,
-      // on the one path that never sees a `response.completed` event.
-      //
-      // Two shapes to read: this envelope is Responses-shaped
-      // (`status` / `incomplete_details`), but it is produced by a
-      // chat/completions call underneath, so it can also carry the completions
-      // verdict directly. Prefer the explicit `finish_reason` when present.
       const fbStatus = typeof resp.status === "string" ? resp.status : undefined;
       const fbIncompleteReason = (resp.incomplete_details as { reason?: string } | undefined)
         ?.reason;
@@ -297,15 +235,12 @@ export class ResponsesStrategy implements ApiStrategy {
       if (fbFinishReason !== undefined) {
         accumulator.finishReason = fbFinishReason;
       } else if (fbStatus === "incomplete" && fbIncompleteReason === "max_output_tokens") {
-        // Same normalization as `response.completed`: only the token ceiling is
-        // a truncation. A content filter must not be reported as one.
         accumulator.finishReason = "length";
       }
 
       return result;
     }
 
-    // Handle response.created event - extract ID and model from response object
     if (typedChunk.type === "response.created" && typedChunk.response) {
       if (typedChunk.response.id && !accumulator.responseId) {
         accumulator.responseId = typedChunk.response.id;
@@ -322,22 +257,11 @@ export class ResponsesStrategy implements ApiStrategy {
       return result;
     }
 
-    // Handle the terminal response event - extract usage and mark tool calls
-    // as completed.
-    //
-    // `response.incomplete` is a *separate* terminal event from
-    // `response.completed`, and it is the one the Responses API sends when a
-    // turn is cut off at `max_output_tokens`. It was not handled here at all,
-    // so a truncated turn skipped usage extraction, tool-call completion, and
-    // the truncation normalization below — the stream simply ended with
-    // everything still pending. Both events carry the same response envelope,
-    // so they take the same path.
     if (typedChunk.type === "response.completed" || typedChunk.type === "response.incomplete") {
       if (typedChunk.response?.usage) {
         const u = typedChunk.response.usage as Record<string, number | undefined>;
         const promptTokens = u.input_tokens ?? u.prompt_tokens ?? 0;
         const completionTokens = u.output_tokens ?? u.completion_tokens ?? 0;
-        // Terminal boolean (ai-portal #1146): pass through like credits_used.
         const creditsExhausted = typedChunk.response.usage.credits_exhausted;
         accumulator.usage = {
           ...accumulator.usage,
@@ -352,14 +276,6 @@ export class ResponsesStrategy implements ApiStrategy {
         };
       }
 
-      // Normalize the Responses-API truncation signal onto the same field the
-      // completions strategy uses, so the tool loop has one thing to check.
-      //
-      // Two shapes in the wild: the dedicated `response.incomplete` event, and
-      // `response.completed` carrying `status: "incomplete"`. Either way the
-      // reason lives in `incomplete_details.reason`, and only
-      // "max_output_tokens" is a truncation — other reasons (e.g. a content
-      // filter) are not, and must not be reported as one.
       const resp = typedChunk.response as
         | { status?: string; incomplete_details?: { reason?: string } }
         | undefined;
@@ -369,21 +285,13 @@ export class ResponsesStrategy implements ApiStrategy {
         accumulator.finishReason = "length";
       }
 
-      // Keep the *unnormalized* terminal state too, so `buildFinalResponse` can
-      // put it back on the response. The normalization above deliberately
-      // collapses everything that is not `max_output_tokens` — which means a
-      // content-filter stop, or a truncation reason we do not model yet, leaves
-      // no trace at all once the stream ends. `response.incomplete` implies the
-      // status even when the envelope omits it (#805).
       accumulator.responseStatus = looksIncomplete ? "incomplete" : resp?.status;
       accumulator.incompleteReason = resp?.incomplete_details?.reason;
 
-      // Capture tools_checksum if present
       if (typedChunk.response?.tools_checksum && !accumulator.toolsChecksum) {
         accumulator.toolsChecksum = typedChunk.response.tools_checksum;
       }
 
-      // Capture tool_call_events if present (skip empty arrays from early chunks)
       if (typedChunk.response?.tool_call_events?.length && !accumulator.toolCallEvents?.length) {
         const events = typedChunk.response.tool_call_events as ToolCallEventInput[];
         accumulator.toolCallEvents = events.map((event) => ({
@@ -395,19 +303,10 @@ export class ResponsesStrategy implements ApiStrategy {
         mergeToolCallEventsIntoAccumulator(accumulator, events);
       }
 
-      // Backfill tool call names from response.output[] — Anthropic via
-      // Bifrost creates entries via the `.delta` handler with name="" (since
-      // its output_item.added event has no name). The final response.output
-      // array carries the names, keyed by item.id / call_id.
       backfillToolCallNames(accumulator, typedChunk.response as { output?: unknown } | undefined);
 
-      // Recover xAI's hybrid tool-call format: Grok streams most args inside
-      // <parameter name="X">Y</parameter> text content while function_call
-      // arguments only carry a subset (e.g. just `path`). Merge the XML
-      // params into the tool call args here, after both streams are final.
       accumulator.content = mergeXaiInlineParameterTags(accumulator.content, accumulator.toolCalls);
 
-      // Mark all pending tool calls as completed and emit completion event
       for (const toolCall of accumulator.toolCalls.values()) {
         if (toolCall.status === "pending") {
           toolCall.status = "completed";
@@ -421,22 +320,18 @@ export class ResponsesStrategy implements ApiStrategy {
       return result;
     }
 
-    // Legacy: Extract response ID and model from top-level fields
     if (typedChunk.id && !accumulator.responseId) {
       accumulator.responseId = typedChunk.id;
     }
     if (typedChunk.model && (!accumulator.responseModel || accumulator.responseModel === "auto")) {
       accumulator.responseModel = typedChunk.model;
     }
-    // Capture tools_checksum from top-level if present
     if (typedChunk.tools_checksum && !accumulator.toolsChecksum) {
       accumulator.toolsChecksum = typedChunk.tools_checksum;
     }
-    // Also capture from nested response if present (fallback for events without explicit type)
     if (typedChunk.response?.tools_checksum && !accumulator.toolsChecksum) {
       accumulator.toolsChecksum = typedChunk.response.tools_checksum;
     }
-    // Capture tool_call_events from top-level if present (skip empty arrays from early chunks)
     if (typedChunk.tool_call_events?.length && !accumulator.toolCallEvents?.length) {
       const events = typedChunk.tool_call_events as ToolCallEventInput[];
       accumulator.toolCallEvents = events.map((event) => ({
@@ -447,7 +342,6 @@ export class ResponsesStrategy implements ApiStrategy {
       }));
       mergeToolCallEventsIntoAccumulator(accumulator, events);
     }
-    // Also capture from nested response if present (skip empty arrays from early chunks)
     if (typedChunk.response?.tool_call_events?.length && !accumulator.toolCallEvents?.length) {
       const events = typedChunk.response.tool_call_events as ToolCallEventInput[];
       accumulator.toolCallEvents = events.map((event) => ({
@@ -459,7 +353,6 @@ export class ResponsesStrategy implements ApiStrategy {
       mergeToolCallEventsIntoAccumulator(accumulator, events);
     }
 
-    // Accumulate usage data - merge instead of replace
     if (typedChunk.usage) {
       accumulator.usage = {
         ...accumulator.usage,
@@ -467,7 +360,6 @@ export class ResponsesStrategy implements ApiStrategy {
       };
     }
 
-    // Handle thinking/reasoning content deltas (streaming)
     if (
       typedChunk.type === "response.reasoning.delta" ||
       typedChunk.type === "response.reasoning_summary_text.delta" ||
@@ -487,37 +379,28 @@ export class ResponsesStrategy implements ApiStrategy {
       return result;
     }
 
-    // Handle thinking/reasoning done events (marks end of thinking phase)
     if (
       typedChunk.type === "response.reasoning.done" ||
       typedChunk.type === "response.reasoning_summary_text.done" ||
       typedChunk.type === "response.thinking.done"
     ) {
-      // Thinking phase complete - no action needed, content already accumulated
       return result;
     }
 
-    // Handle thinking/reasoning part added/done events
     if (
       typedChunk.type === "response.reasoning_summary_part.added" ||
       typedChunk.type === "response.reasoning_summary_part.done" ||
       typedChunk.type === "response.thinking_part.added" ||
       typedChunk.type === "response.thinking_part.done"
     ) {
-      // Part boundary events - no action needed
       return result;
     }
 
-    // Extract content delta from responses API format
-    // For models like Qwen that use implicit reasoning (no opening tag),
-    // we need to parse thinking tags from content as a fallback
     if (typedChunk.type === "response.output_text.delta") {
       const delta = typedChunk.delta;
       if (delta) {
         const deltaText = typeof delta === "string" ? delta : delta.OfString;
         if (deltaText) {
-          // Parse reasoning tags from content (handles `<think>...</think>` tags)
-          // Some models (like Qwen via Fireworks) include thinking in content
           const parseResult = parseReasoningTags(
             deltaText,
             accumulator.partialReasoningTag || "",
@@ -526,7 +409,6 @@ export class ResponsesStrategy implements ApiStrategy {
             accumulator.implicitReasoningStart
           );
 
-          // Update accumulator with parsed content
           accumulator.content += parseResult.messageContent;
           accumulator.thinking += parseResult.reasoningContent;
           accumulator.partialReasoningTag = parseResult.partialTag;
@@ -535,11 +417,6 @@ export class ResponsesStrategy implements ApiStrategy {
             accumulator.implicitReasoningStart = parseResult.implicitReasoningStart;
           }
 
-          // Emit deltas - only emit non-empty content to avoid false error detection.
-          // NOTE: use `.length > 0` (not `.trim().length > 0`) so whitespace-only
-          // deltas (`"\n\n"`, `"  \n"`, ` `) still reach onData. Stripping them
-          // breaks live-streaming markdown: headings glue to the following
-          // paragraph because the `\n\n` between them never reaches the client.
           const willEmitMessage =
             parseResult.messageContent && parseResult.messageContent.length > 0;
           const willEmitReasoning =
@@ -555,7 +432,6 @@ export class ResponsesStrategy implements ApiStrategy {
       }
     }
 
-    // Handle tool call events
     if (typedChunk.type === "response.output_item.added" && typedChunk.item) {
       if (typedChunk.item.type === "function_call") {
         const itemId = typedChunk.item.id || "";
@@ -570,14 +446,10 @@ export class ResponsesStrategy implements ApiStrategy {
             status: "pending",
           });
 
-          // For implicit reasoning models (like Qwen), tool calls trigger a new
-          // reasoning phase. Re-enable reasoning mode if this model was
-          // already detected as using implicit reasoning (no opening `<think>` tag).
           if (accumulator.implicitReasoningStart === true) {
             accumulator.insideReasoning = true;
           }
 
-          // Emit server tool call started event for activity indicators
           result.serverToolCall = {
             name: typedChunk.item.name,
             status: "started",
@@ -587,17 +459,10 @@ export class ResponsesStrategy implements ApiStrategy {
       }
     }
 
-    // Event: response.function_call_arguments.delta - streaming arguments
     if (typedChunk.type === "response.function_call_arguments.delta") {
       const itemId = typedChunk.item_id || typedChunk.call_id || "";
-      // OpenAI uses `arguments` at the top level; Anthropic via Bifrost uses
-      // `delta.OfString`. Accept either.
       const argsDelta = extractArgsString(typedChunk);
       if (itemId && argsDelta) {
-        // Upsert: Anthropic via Bifrost doesn't emit a usable
-        // `response.output_item.added` (name and id are empty), so the entry
-        // may not yet exist. Create it here keyed by item_id; the name gets
-        // backfilled at response.completed from response.output[].
         let existing = accumulator.toolCalls.get(itemId);
         if (!existing) {
           existing = {
@@ -619,7 +484,6 @@ export class ResponsesStrategy implements ApiStrategy {
       }
     }
 
-    // Event: response.function_call_arguments.done - arguments complete
     if (typedChunk.type === "response.function_call_arguments.done") {
       const itemId = typedChunk.item_id || typedChunk.call_id || "";
       const finalArgs = extractArgsString(typedChunk);
@@ -639,15 +503,11 @@ export class ResponsesStrategy implements ApiStrategy {
       }
     }
 
-    // Fallback: handle chat/completions format (choices[].delta.content)
-    // Some models (e.g. MiniMax) are routed through a server-side chat/completions
-    // fallback, which streams in completions format instead of responses format.
     const completionsChunk = typedChunk as Record<string, unknown>;
     const choices = completionsChunk.choices as
       | Array<{ delta?: { content?: string }; message?: { content?: string } }>
       | undefined;
     if (choices && choices.length > 0) {
-      // Extract id and model from completions-format chunks
       if (typeof completionsChunk.id === "string" && !accumulator.responseId) {
         accumulator.responseId = completionsChunk.id;
       }
@@ -689,12 +549,10 @@ export class ResponsesStrategy implements ApiStrategy {
   buildFinalResponse(accumulator: StreamAccumulator): LlmapiResponseResponse {
     const output: LlmapiResponseResponse["output"] = [];
 
-    // Final cleanup: handle any remaining partial tag
     let finalContent = accumulator.content;
     let finalThinking = accumulator.thinking;
 
     if (accumulator.partialReasoningTag) {
-      // Final cleanup: if we have a partial tag, try to parse it one more time
       const finalParse = parseReasoningTags(
         "",
         accumulator.partialReasoningTag,
@@ -706,20 +564,15 @@ export class ResponsesStrategy implements ApiStrategy {
       if (finalParse.reasoningContent) {
         finalThinking += finalParse.reasoningContent;
       }
-      // Handle any remaining partial tag content that couldn't be parsed
-      // (e.g., stream ended with incomplete tag like "<" or "<thi")
       if (finalParse.partialTag) {
         if (finalParse.insideReasoning) {
-          // If we're inside reasoning, the partial belongs to thinking
           finalThinking += finalParse.partialTag;
         } else {
-          // Otherwise, it's regular content
           finalContent += finalParse.partialTag;
         }
       }
     }
 
-    // Add thinking/reasoning output if present
     if (finalThinking) {
       output.push({
         type: "reasoning",
@@ -729,7 +582,6 @@ export class ResponsesStrategy implements ApiStrategy {
       });
     }
 
-    // Add tool calls if present
     if (accumulator.toolCalls.size > 0) {
       for (const toolCall of accumulator.toolCalls.values()) {
         output.push({
@@ -742,7 +594,6 @@ export class ResponsesStrategy implements ApiStrategy {
       }
     }
 
-    // Add the main message output
     output.push({
       type: "message",
       role: "assistant",
@@ -758,12 +609,6 @@ export class ResponsesStrategy implements ApiStrategy {
       usage: Object.keys(accumulator.usage).length > 0 ? accumulator.usage : undefined,
       tools_checksum: accumulator.toolsChecksum,
       tool_call_events: accumulator.toolCallEvents,
-      // Response-level terminal state (#805). Note the individual output items
-      // above hardcode `status: "completed"` — that is the item's own status
-      // and says nothing about the turn. Only these two fields can tell a
-      // caller the turn was cut off, and until now neither survived the stream.
-      // Omitted rather than emitted as `undefined` so a clean turn's response
-      // shape is unchanged.
       ...(accumulator.responseStatus !== undefined && { status: accumulator.responseStatus }),
       ...(accumulator.incompleteReason !== undefined && {
         incomplete_details: { reason: accumulator.incompleteReason },

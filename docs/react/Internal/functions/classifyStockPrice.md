@@ -2,7 +2,7 @@
 
 > **classifyStockPrice**(`prompt`: `string`, `options`: `StockPriceClassifierOptions`): `Promise`<[`StockPriceClassification`](../interfaces/StockPriceClassification.md)>
 
-Defined in: [src/lib/chat/stockPriceClassifier.ts:60](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/stockPriceClassifier.ts#60)
+Defined in: [src/lib/chat/stockPriceClassifier.ts:46](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/stockPriceClassifier.ts#46)
 
 Classify whether a prompt needs stock/ETF/index/FX price data.
 

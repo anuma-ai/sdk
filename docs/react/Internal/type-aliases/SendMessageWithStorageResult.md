@@ -1,8 +1,8 @@
 # SendMessageWithStorageResult
 
-> **SendMessageWithStorageResult** = { `assistantMessage`: [`StoredMessage`](../interfaces/StoredMessage.md); `autoExecutedToolResults?`: `object`\[]; `data`: `ApiResponse`; `error`: `null`; `toolResultsMessage?`: [`StoredMessage`](../interfaces/StoredMessage.md); `userMessage`: [`StoredMessage`](../interfaces/StoredMessage.md); } | { `assistantMessage?`: `undefined`; `data`: `ApiResponse`; `error`: `null`; `skipped`: `true`; `userMessage?`: `undefined`; } | { `assistantMessage?`: `undefined`; `data`: `null`; `error`: `string`; `userMessage?`: [`StoredMessage`](../interfaces/StoredMessage.md); }
+> **SendMessageWithStorageResult** = { `assistantMessage`: [`StoredMessage`](../interfaces/StoredMessage.md); `autoExecutedToolResults?`: `object`\[]; `data`: `ApiResponse`; `error`: `null`; `toolResultsMessage?`: [`StoredMessage`](../interfaces/StoredMessage.md); `userMessage`: [`StoredMessage`](../interfaces/StoredMessage.md); } | { `assistantMessage?`: `undefined`; `autoExecutedToolResults?`: `object`\[]; `data`: `ApiResponse`; `error`: `null`; `skipped`: `true`; `userMessage?`: `undefined`; } | { `assistantMessage?`: `undefined`; `data`: `null`; `error`: `string`; `userMessage?`: [`StoredMessage`](../interfaces/StoredMessage.md); }
 
-Defined in: [src/react/useChatStorage.ts:787](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#787)
+Defined in: [src/react/useChatStorage.ts:713](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#713)
 
 Result from sendMessage with storage (React version)
 The `data` field contains the raw server response which includes `tools_checksum`.
@@ -41,11 +41,17 @@ Absent when no tool ran, or when that (non-fatal) write failed.
 
 > **userMessage**: [`StoredMessage`](../interfaces/StoredMessage.md)
 
-{ `assistantMessage?`: `undefined`; `data`: `ApiResponse`; `error`: `null`; `skipped`: `true`; `userMessage?`: `undefined`; }
+{ `assistantMessage?`: `undefined`; `autoExecutedToolResults?`: `object`\[]; `data`: `ApiResponse`; `error`: `null`; `skipped`: `true`; `userMessage?`: `undefined`; }
 
 ### assistantMessage?
 
 > `optional` **assistantMessage**: `undefined`
+
+### autoExecutedToolResults?
+
+> `optional` **autoExecutedToolResults**: `object`\[]
+
+Client-tool output remains available even when no private history is written.
 
 ### data
 

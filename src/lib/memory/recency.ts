@@ -1,14 +1,3 @@
-/**
- * Linear recency decay multiplier — applied post-fusion to nudge fresh
- * memories above stale ones with otherwise comparable scores.
- *
- * Formula:
- *   multiplier(ageDays) = max(floor, 1 - perYearDecay * (ageDays / 365))
- *
- * Memories without an `updatedAt` get a neutral 0.5 (Hindsight pattern —
- * neither boost nor penalty when freshness is unknown).
- */
-
 const DAY_MS = 1000 * 60 * 60 * 24;
 const DEFAULT_PER_YEAR_DECAY = 0.2;
 const DEFAULT_FLOOR = 0.1;
@@ -37,10 +26,6 @@ export function recencyMultiplier(
   const noDate = opts.noDateMultiplier ?? DEFAULT_NO_DATE_MULTIPLIER;
   if (!updatedAt) return noDate;
 
-  // An Invalid Date (NaN getTime) would propagate NaN through the whole
-  // formula (`Math.max(floor, NaN) === NaN`) and poison the fused score for
-  // that memory. Treat a malformed timestamp the same as a missing one —
-  // unknown freshness, neutral multiplier — rather than emitting NaN.
   const updatedMs = updatedAt.getTime();
   if (!Number.isFinite(updatedMs)) return noDate;
 

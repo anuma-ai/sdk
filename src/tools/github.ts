@@ -1,14 +1,3 @@
-/**
- * GitHub tools for the chat system.
- *
- * Two tools:
- * 1. github_get_authenticated_user — discover the user's identity and orgs
- * 2. github_api — make any authenticated GitHub REST API call
- *
- * This lets the LLM use its training knowledge of the GitHub API directly,
- * instead of us defining individual tools for every endpoint.
- */
-
 import type { ToolConfig } from "../lib/chat/useChat/types.js";
 import { getLogger } from "../lib/logger";
 
@@ -36,15 +25,12 @@ async function githubFetch(
   path: string,
   options: RequestInit = {}
 ): Promise<Response> {
-  // Require relative paths to start with / to prevent concatenation attacks
-  // (e.g., ".evil.com/steal" → "https://api.github.com.evil.com/steal")
   if (!path.startsWith("http") && !path.startsWith("/")) {
     throw new Error("githubFetch: relative path must start with /");
   }
 
   const url = path.startsWith("http") ? path : `${GITHUB_API}${path}`;
 
-  // SSRF protection: validate the final URL targets GitHub API
   if (!url.startsWith(`${GITHUB_API}/`)) {
     throw new Error("githubFetch: URL must target GitHub API");
   }
@@ -179,12 +165,8 @@ IMPORTANT: For write operations (POST, PUT, PATCH, DELETE), always confirm with 
           return `Error: GitHub API ${method} ${path} returned ${resp.status}: ${truncate(text, 500)}`;
         }
 
-        // Parse JSON if possible, otherwise return raw text
         try {
           const data: unknown = JSON.parse(text);
-          // Deliberately unindented: this is model input, not human-read. Indentation is ~12% of a
-          // repo listing (measured on a real 61-repo response), and that share is spent on
-          // whitespace instead of data the truncation below would otherwise keep. See issue #863.
           const json = JSON.stringify(data);
           return truncate(json, MAX_RESPONSE_SIZE);
         } catch {

@@ -40,7 +40,6 @@ export async function encryptMessageFields(
   }
 
   try {
-    // Request encryption key once for all fields
     await requestEncryptionKey(address, signMessage, embeddedWalletSigner);
 
     const msg = message as Record<string, unknown>;
@@ -98,13 +97,6 @@ export async function encryptMessageFields(
   }
 }
 
-/**
- * Decrypt a JSON field that may be either a ciphertext string ("enc:v?:…")
- * or an already-parsed plaintext value.
- *
- * Returns both the parsed value (when decrypt+parse succeed) and the decrypt
- * status so callers can surface sibling-field failures via `decryptionStatus`.
- */
 async function decryptMaybeJsonFieldDetailed<T>(
   value: T | string | null | undefined,
   address: string
@@ -124,18 +116,15 @@ async function decryptMaybeJsonFieldDetailed<T>(
         return { value: undefined, status: "invalid_payload", probe: value };
       }
     }
-    // Plaintext string column from a legacy/unencrypted message — parse once.
     try {
       return { value: JSON.parse(value) as T, status: "plaintext" };
     } catch {
       return { value: undefined, status: "plaintext" };
     }
   }
-  // Already-parsed plaintext object/array — pass through, no copy.
   return { value, status: "plaintext" };
 }
 
-/** Prefer auth_mismatch > key_missing > invalid_payload when aggregating. */
 function worseDecryptStatus(
   a: FieldDecryptStatus | undefined,
   b: FieldDecryptStatus
@@ -204,7 +193,6 @@ export async function decryptMessageFields(
     }
   }
 
-  // refreshProbe is internal — strip before returning
   const { refreshProbe: _probe, ...result } = assembled;
   return result;
 }

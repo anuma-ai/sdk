@@ -1,6 +1,6 @@
 # GoogleDriveImportResult
 
-Defined in: [src/lib/backup/google/backup.ts:48](https://github.com/anuma-ai/sdk/blob/main/src/lib/backup/google/backup.ts#48)
+Defined in: [src/lib/backup/google/backup.ts:42](https://github.com/anuma-ai/sdk/blob/main/src/lib/backup/google/backup.ts#42)
 
 ## Properties
 
@@ -8,7 +8,7 @@ Defined in: [src/lib/backup/google/backup.ts:48](https://github.com/anuma-ai/sdk
 
 > **failed**: `number`
 
-Defined in: [src/lib/backup/google/backup.ts:51](https://github.com/anuma-ai/sdk/blob/main/src/lib/backup/google/backup.ts#51)
+Defined in: [src/lib/backup/google/backup.ts:45](https://github.com/anuma-ai/sdk/blob/main/src/lib/backup/google/backup.ts#45)
 
 ***
 
@@ -16,7 +16,7 @@ Defined in: [src/lib/backup/google/backup.ts:51](https://github.com/anuma-ai/sdk
 
 > `optional` **noBackupsFound**: `boolean`
 
-Defined in: [src/lib/backup/google/backup.ts:54](https://github.com/anuma-ai/sdk/blob/main/src/lib/backup/google/backup.ts#54)
+Defined in: [src/lib/backup/google/backup.ts:48](https://github.com/anuma-ai/sdk/blob/main/src/lib/backup/google/backup.ts#48)
 
 True if no backups were found in Google Drive
 
@@ -26,7 +26,7 @@ True if no backups were found in Google Drive
 
 > **restored**: `number`
 
-Defined in: [src/lib/backup/google/backup.ts:50](https://github.com/anuma-ai/sdk/blob/main/src/lib/backup/google/backup.ts#50)
+Defined in: [src/lib/backup/google/backup.ts:44](https://github.com/anuma-ai/sdk/blob/main/src/lib/backup/google/backup.ts#44)
 
 ***
 
@@ -34,7 +34,7 @@ Defined in: [src/lib/backup/google/backup.ts:50](https://github.com/anuma-ai/sdk
 
 > **success**: `boolean`
 
-Defined in: [src/lib/backup/google/backup.ts:49](https://github.com/anuma-ai/sdk/blob/main/src/lib/backup/google/backup.ts#49)
+Defined in: [src/lib/backup/google/backup.ts:43](https://github.com/anuma-ai/sdk/blob/main/src/lib/backup/google/backup.ts#43)
 
 ***
 
@@ -42,4 +42,4 @@ Defined in: [src/lib/backup/google/backup.ts:49](https://github.com/anuma-ai/sdk
 
 > **total**: `number`
 
-Defined in: [src/lib/backup/google/backup.ts:52](https://github.com/anuma-ai/sdk/blob/main/src/lib/backup/google/backup.ts#52)
+Defined in: [src/lib/backup/google/backup.ts:46](https://github.com/anuma-ai/sdk/blob/main/src/lib/backup/google/backup.ts#46)

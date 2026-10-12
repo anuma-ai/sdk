@@ -35,8 +35,6 @@ describe("mergeTools — client-side field preservation", () => {
     dependsOn: ["other"],
   };
 
-  // Client tools in the parameters/arguments shapes take different branches through
-  // the completions normalizer, so each is covered separately.
   const argumentsTool: ToolConfig = {
     ...clientTool,
     function: { name: "memory_vault_save", arguments: { type: "object", properties: {} } },
@@ -49,9 +47,6 @@ describe("mergeTools — client-side field preservation", () => {
     ] as const) {
       it(`preserves client-side fields through ${apiType} normalization (${shape})`, () => {
         const [merged] = mergeTools([], [tool], apiType) as Array<Record<string, unknown>>;
-        // These client-side-only fields must survive normalization so runToolLoop
-        // can build the executor map (deAnonymizeArgs drives PII de-anonymization,
-        // removeAfterExecution / removeAfterResult drive mid-turn tool removal).
         expect(typeof merged.executor).toBe("function");
         expect(merged.deAnonymizeArgs).toBe(true);
         expect(merged.skipContinuation).toBe(true);
@@ -75,8 +70,6 @@ describe("toolSetSystemPrompts", () => {
   });
 
   it("activates on anchors only, not on non-anchor members", () => {
-    // read_file is a member of the app-generation set but not an anchor, so on
-    // its own it must not pull in the prompt (the set hasn't activated).
     expect(toolSetSystemPrompts(["read_file"])).toEqual([]);
   });
 
@@ -106,13 +99,8 @@ describe("toolSetSystemPrompts", () => {
     expect(toolSetSystemPrompts(new Set(["create_file"]))).toEqual([APP_BUILDER_PROMPT]);
   });
 
-  // Gating on genuine activation (the fix): a borderline anchor that ends up in
-  // the selection (kept by recall-over-precision) must NOT inject the prompt
-  // unless the set actually activated.
   it("gates on activatedSetNames when provided", () => {
-    // create_file is selected, but no set activated → prompt suppressed.
     expect(toolSetSystemPrompts(["create_file"], BUILT_IN_TOOL_SETS, new Set())).toEqual([]);
-    // app-generation activated → prompt rides in.
     expect(
       toolSetSystemPrompts(["create_file"], BUILT_IN_TOOL_SETS, new Set(["app-generation"]))
     ).toEqual([APP_BUILDER_PROMPT]);
@@ -121,7 +109,6 @@ describe("toolSetSystemPrompts", () => {
 
 describe("activatedToolSetNames", () => {
   it("activates only when an anchor clears anchorMinSimilarity", () => {
-    // app-generation's anchorMinSimilarity is 0.55.
     expect(activatedToolSetNames(new Map([["create_file", 0.54]]))).toEqual(new Set());
     expect(activatedToolSetNames(new Map([["create_file", 0.55]]))).toEqual(
       new Set(["app-generation"])
@@ -139,7 +126,6 @@ describe("activatedToolSetNames", () => {
   });
 
   it("does not activate on a non-anchor member's score", () => {
-    // read_file is a member but not an anchor — its score can't activate the set.
     expect(activatedToolSetNames(new Map([["read_file", 0.99]]))).toEqual(new Set());
   });
 });
@@ -193,7 +179,6 @@ describe("mergeTools — defer-loading (Phase 3, opt-in)", () => {
     description: `desc ${name}`,
     parameters: { type: "object", properties: {}, required: [] },
   });
-  // Catalog in arbitrary input order to prove ordering is imposed by the helper, not the input.
   const catalog = [
     st("ZetaMCP-z_tool"),
     st("AnumaJinaMCP-read_url"),
@@ -223,20 +208,16 @@ describe("mergeTools — defer-loading (Phase 3, opt-in)", () => {
       enabled: true,
       hotToolNames: hot,
     }) as Array<Record<string, unknown>>;
-    // Order (responses = flat name at top level)
     expect(merged[0].type).toBe("tool_search_tool_regex_20251119");
     expect(merged[0].name).toBe("tool_search_tool_regex");
     expect(merged[1].name).toBe("AnumaJinaMCP-search_web");
     expect(merged[2].name).toBe("AnumaSearchMCP-anuma_text_search");
     expect(merged[3].name).toBe("AnumaJinaMCP-read_url");
-    // Deferred = the two non-hot tools, name-sorted: AnumaImageMCP-edit_cloud_image < ZetaMCP-z_tool
     expect(merged[4].name).toBe("AnumaImageMCP-edit_cloud_image");
     expect(merged[5].name).toBe("ZetaMCP-z_tool");
-    // defer flags: search + hot non-deferred; deferred flagged
     expect(merged.slice(0, 4).every((t) => t.defer_loading === undefined)).toBe(true);
     expect(merged[4].defer_loading).toBe(true);
     expect(merged[5].defer_loading).toBe(true);
-    // Deferred keep FULL definitions (not name-only)
     expect(merged[4].description).toBe("desc AnumaImageMCP-edit_cloud_image");
     expect(merged[4].parameters).toEqual({ type: "object", properties: {}, required: [] });
   });
@@ -246,10 +227,8 @@ describe("mergeTools — defer-loading (Phase 3, opt-in)", () => {
       enabled: true,
       hotToolNames: hot,
     }) as Array<Record<string, unknown>>;
-    // No tool-search tool (completions toolsToApiFormat would mangle its type; ai-portal can't carry it).
     expect(merged.every((t) => t.type !== "tool_search_tool_regex_20251119")).toBe(true);
     expect(merged.every((t) => t.defer_loading === undefined)).toBe(true);
-    // Same as today's non-defer completions formatting (function-wrapped, catalog order, no extra tools).
     expect(merged).toEqual(mergeTools(catalog, undefined, "completions"));
   });
 
@@ -276,7 +255,7 @@ describe("mergeTools — defer-loading (Phase 3, opt-in)", () => {
         hotToolNames: hot,
       })
     );
-    expect(a).toBe(b); // input order must not matter
+    expect(a).toBe(b);
   });
 });
 
@@ -288,8 +267,6 @@ describe("mergeTools — defer-loading edge: empty server catalog + client tools
     parameters: { type: "object", properties: {}, required: [] },
   });
   it("empty catalog + defer on → NO tool_search (nothing to load), client tools only", () => {
-    // An empty server catalog (e.g. the skip-storage/completions path that never fetched it) must not
-    // emit a tool-search tool — there are no deferred tools for it to load.
     const clientTool = {
       type: "function",
       function: { name: "display_chart", parameters: {} },
@@ -299,9 +276,9 @@ describe("mergeTools — defer-loading edge: empty server catalog + client tools
       hotToolNames: [],
     }) as Array<Record<string, unknown>>;
     const names = merged.map((t) => (t.function as { name?: string } | undefined)?.name ?? t.name);
-    expect(names).not.toContain("tool_search_tool_regex"); // no useless search tool
+    expect(names).not.toContain("tool_search_tool_regex");
     expect(merged.every((t) => t.type !== "tool_search_tool_regex_20251119")).toBe(true);
-    expect(names).toEqual(["display_chart"]); // client tools only
+    expect(names).toEqual(["display_chart"]);
   });
   it("OFF + empty serverTools + client tools → only client tools (unchanged)", () => {
     const clientTool = {
@@ -338,10 +315,10 @@ describe("mergeTools — defer-loading: duplicate hot names", () => {
   it("emits each hot tool once even if hotToolNames repeats it", () => {
     const merged = mergeTools([st("AnumaJinaMCP-read_url")], undefined, "responses", {
       enabled: true,
-      hotToolNames: ["AnumaJinaMCP-read_url", "AnumaJinaMCP-read_url"], // duplicated
+      hotToolNames: ["AnumaJinaMCP-read_url", "AnumaJinaMCP-read_url"],
     }) as Array<Record<string, unknown>>;
     const names = merged.map((t) => (t.function as { name?: string } | undefined)?.name ?? t.name);
-    expect(names.filter((n) => n === "AnumaJinaMCP-read_url")).toHaveLength(1); // once, not twice
+    expect(names.filter((n) => n === "AnumaJinaMCP-read_url")).toHaveLength(1);
     expect(merged[0].type).toBe("tool_search_tool_regex_20251119");
   });
 });
@@ -391,13 +368,13 @@ describe("server-tools cache — pluggable backend (checksum + clear)", () => {
         "any",
         backendWith(() => payload())
       )
-    ).toBe(true); // no cached sum
+    ).toBe(true);
     expect(
       shouldRefreshTools(
         undefined,
         backendWith(() => payload("old"))
       )
-    ).toBe(false); // legacy
+    ).toBe(false);
   });
 
   it("shouldRefreshTools resolves against an async backend", async () => {
@@ -441,7 +418,6 @@ describe("resolveDeferredServerTools — defer keeps the caller's unconditional 
   ];
   const names = (tools: ServerTool[]) => tools.map((t) => t.name);
   const on = { enabled: true, hotToolNames: [] as string[] };
-  // A filter FUNCTION stands in for the semantic per-prompt narrowing defer intentionally skips.
   const semanticFilter = () => ["AnumaJinaMCP-search_web"];
 
   it("filter function + no exclusions → the whole catalog (defer's core behavior, unchanged)", () => {
@@ -449,8 +425,6 @@ describe("resolveDeferredServerTools — defer keeps the caller's unconditional 
   });
 
   it("filter function + excludeTools → catalog MINUS the exclusions", () => {
-    // The regression this guards: defer used to hand back tools the app excludes unconditionally
-    // (a native model capability, or one the app renders with its own UI).
     const result = resolveDeferredServerTools(catalog, semanticFilter, {
       ...on,
       excludeTools: ["OpenMeteoMCP-weather_forecast", "AnumaVisionMCP-anuma_analyze_image"],
@@ -459,8 +433,6 @@ describe("resolveDeferredServerTools — defer keeps the caller's unconditional 
   });
 
   it("explicit static array → defer stays INSIDE it, never widens to the catalog", () => {
-    // The sharper regression: creation modes pass a one-tool array AND coerce tool_choice:'required'.
-    // Widening to the catalog turns "you must call the image generator" into "you must call something".
     const result = resolveDeferredServerTools(catalog, ["AnumaMediaMCP-anuma_create_image"], on);
     expect(names(result)).toEqual(["AnumaMediaMCP-anuma_create_image"]);
   });
@@ -479,7 +451,6 @@ describe("resolveDeferredServerTools — defer keeps the caller's unconditional 
   });
 
   it("empty static array → empty, not the catalog", () => {
-    // `[]` is an explicit 'no server tools'; defer must not read it as 'unset' and send everything.
     expect(resolveDeferredServerTools(catalog, [], on)).toEqual([]);
   });
 
@@ -492,9 +463,6 @@ describe("resolveDeferredServerTools — defer keeps the caller's unconditional 
   });
 
   it("picks up exclusions from a createServerToolsFilter filter without repeating the list", () => {
-    // The footgun this closes: defaultServerToolsFilter already carries
-    // DEFAULT_EXCLUDED_SERVER_TOOLS, so defer must not silently re-admit them just because
-    // the caller didn't repeat the list in DeferLoadingConfig.
     const tagged = createServerToolsFilter({ excludeTools: ["OpenMeteoMCP-weather_forecast"] });
     expect(names(resolveDeferredServerTools(catalog, tagged, on))).toEqual([
       "AnumaJinaMCP-search_web",
@@ -504,9 +472,6 @@ describe("resolveDeferredServerTools — defer keeps the caller's unconditional 
   });
 
   it("config excludeTools UNIONS with the filter's tag — it never overrides it", () => {
-    // The regression this pins: if config replaced the tag, naming one extra tool here would
-    // silently re-admit everything the filter already excludes — this PR's own bug, brought back
-    // by supplying more configuration.
     const tagged = createServerToolsFilter({ excludeTools: ["OpenMeteoMCP-weather_forecast"] });
     const result = resolveDeferredServerTools(catalog, tagged, {
       ...on,
@@ -547,7 +512,6 @@ describe("deferFormattingConfig — an explicit static array skips defer formatt
     description: `desc ${name}`,
     parameters: { type: "object", properties: {}, required: [] },
   });
-  // Mirrors the real creation modes: a one-tool list whose tool is NOT hot.
   const VIDEO = [st("AnumaMediaMCP-anuma_create_video")];
   const hot = ["AnumaJinaMCP-search_web", "AnumaSearchMCP-anuma_text_search"];
   const on = { enabled: true, hotToolNames: hot };
@@ -559,8 +523,6 @@ describe("deferFormattingConfig — an explicit static array skips defer formatt
   ];
 
   it("a required-tool creation turn can actually call its generator, not just tool-search", () => {
-    // The bug: with defer formatting the ONLY directly callable entry was tool_search, so
-    // tool_choice:'required' could only be satisfied by calling tool-search — never the generator.
     const cfg = deferFormattingConfig(["AnumaMediaMCP-anuma_create_video"], on);
     expect(cfg).toBeUndefined();
 
@@ -586,7 +548,6 @@ describe("deferFormattingConfig — an explicit static array skips defer formatt
     const merged = mergeTools(catalog, undefined, "responses", cfg) as Array<
       Record<string, unknown>
     >;
-    // [tool-search] -> [hot in order] -> [deferred name-sorted, flagged]
     expect(merged[0].type).toBe("tool_search_tool_regex_20251119");
     expect(merged.slice(1, 3).map((t) => t.name)).toEqual(hot);
     expect(merged.slice(1, 3).every((t) => t.defer_loading === undefined)).toBe(true);
@@ -605,8 +566,6 @@ describe("deferFormattingConfig — an explicit static array skips defer formatt
   });
 
   it("membership scoping and the I-2 exclusion union are untouched", () => {
-    // resolveDeferredServerTools still narrows to the array and still unions exclusions —
-    // this change only affects FORMATTING, not selection.
     const tagged = createServerToolsFilter({ excludeTools: ["ZetaMCP-z_tool"] });
     expect(
       resolveDeferredServerTools(catalog, ["AnumaMediaMCP-anuma_create_video"], on).map(
@@ -641,9 +600,7 @@ describe("withActiveToolSetServerTools — sticky sets keep their server tools",
   it("defines restaurant-booking with every restaurant server tool, no anchors and no confirm member", () => {
     const set = BUILT_IN_TOOL_SETS.find((s) => s.name === "restaurant-booking");
     expect(set?.members).toEqual(RESTAURANT_TOOLS);
-    // No anchors: the set only makes the tools sticky, it never activates on a prompt.
     expect(set?.anchors).toEqual([]);
-    // As a member, any unrelated confirmation would pin the booking tools.
     expect(set?.members).not.toContain(CONFIRM_TOOL_NAME);
     expect(set?.systemPrompt).toBeUndefined();
   });
@@ -717,7 +674,6 @@ describe("restaurant cancel — the cancel tool always brings the list tool", ()
     parameters: { type: "object", properties: {}, required: [] },
     embedding,
   });
-  // The list tool never scores on a cancel prompt, so only the dependency edge can add it.
   const catalog = [st(CANCEL, [1, 0]), st(LIST, [0, 1])];
 
   it("defines restaurant-cancel as list + cancel, with no anchors", () => {

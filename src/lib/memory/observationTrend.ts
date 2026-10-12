@@ -1,16 +1,3 @@
-/**
- * C2 — Observation trend labels.
- *
- * Algorithmic (no LLM) classification of how a vault fact's evidence has
- * been evolving, derived from the C3 re-observation watermark
- * (`lastObservedAt`), `proofCount`, and `createdAt` over 30/90-day windows.
- *
- * We do not store a full observation-timestamp series — only first-seen,
- * last-seen, and count — so density is approximated from that triple.
- * Good enough for profile signals ("interests trending up") and vault
- * hygiene badges; not a substitute for an observations tier (C5).
- */
-
 const DAY_MS = 1000 * 60 * 60 * 24;
 /** Recent window — observations inside this count as "active". */
 export const TREND_RECENT_WINDOW_DAYS = 30;
@@ -66,21 +53,11 @@ export function classifyObservationTrend(
   const ageDays = Math.max(0, (now - createdMs) / DAY_MS);
   const daysSinceLast = Math.max(0, (now - lastMs) / DAY_MS);
 
-  // Priority: terminal quiet states first, then "brand new", then rising
-  // density, else stable. Ordering matters — a 100-day-old fact with one
-  // recent re-observation is strengthening, not new.
-  // Inclusive lower bound: exactly N days out is already in that bucket
-  // (`stale` = 90+ days, `weakening` = 30–89 days).
   if (daysSinceLast >= TREND_STALE_WINDOW_DAYS) return "stale";
   if (daysSinceLast >= TREND_RECENT_WINDOW_DAYS) return "weakening";
 
-  // Inside the recent window from here.
   if (ageDays <= TREND_RECENT_WINDOW_DAYS && proofs <= 2) return "new";
 
-  // Established (older than the recent window, or already multiply proven)
-  // and re-observed recently → strengthening. proofCount≥3 is the clear
-  // "density rising" signal; proofCount≥2 with age>30d catches the common
-  // "old fact just reconfirmed" case without labeling every second save.
   if (proofs >= 3) return "strengthening";
   if (proofs >= 2 && ageDays > TREND_RECENT_WINDOW_DAYS) return "strengthening";
 

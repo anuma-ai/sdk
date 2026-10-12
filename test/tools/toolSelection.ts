@@ -1,18 +1,3 @@
-/**
- * E2E test: client tool selection (full pipeline)
- *
- * Simulates the real tool selection path in useChatStorage:
- *   1. Fetch all server tools (with embeddings) via getServerTools
- *   2. Use findMatchingTools to semantically filter server tools
- *   3. Use findMatchingTools to auto-filter client tools
- *   4. Merge both sets via mergeTools
- *
- * Each test case checks whether the right client-side tools survive
- * the filtering and merging when competing against the full server
- * tool catalog. Failures here mean tool descriptions need rewording
- * or the matching thresholds need tuning.
- */
-
 import "dotenv/config";
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { table, getBorderCharacters } from "table";
@@ -53,7 +38,7 @@ import {
   READ_FILE_SCHEMA,
   VERIFY_APP_SCHEMA,
 } from "../../src/tools/index.js";
-import { createIpGeolocationTool } from "../../src/tools/ipGeolocation.js";
+import { createIpGeolocationTool } from "./stubs/ipGeolocation.js";
 import { createTimezoneTool } from "../../src/tools/timezone.js";
 import {
   ADD_SLIDE_SCHEMA,
@@ -65,31 +50,10 @@ import { config } from "./setup.js";
 
 const { portalKey: apiKey, baseUrl } = config;
 
-// ── Client tool definitions ──────────────────────────────────────────────────
-// Pulls names + descriptions directly from the source schemas / factory
-// functions. Hard-coded copies drift from production over time and let
-// description-quality regressions slip past the integration tests.
-
-/**
- * Extract { name, description } from a ToolConfig (factory result) or schema.
- *
- * Fields are `unknown` and narrowed here rather than declared as `string`,
- * because `ToolConfig` extends `LlmapiChatCompletionTool`, which is
- * `{ [key: string]: unknown }` (see clientCompat.ts). An all-optional parameter
- * of declared `string` fields is a TS "weak type": it requires the argument to
- * share at least one DECLARED property, and an index signature declares none —
- * so every `toMeta(createXTool(...))` call below failed to typecheck. Reading
- * `unknown` and narrowing is also the honest shape for this function, which
- * parses tool objects whose metadata is untyped by construction.
- */
 function toMeta(source: {
   name?: unknown;
   description?: unknown;
   function?: unknown;
-  // The index signature is what makes this assignable at all: TS skips the
-  // weak-type check entirely when the target has one. Without it, no amount of
-  // widening the three fields helps, because the check keys on the target being
-  // all-optional rather than on the field types.
   [key: string]: unknown;
 }): { name: string; description: string } {
   const fn = (
@@ -105,14 +69,12 @@ function toMeta(source: {
   return { name, description };
 }
 
-// Factory tools need stubbed dependencies; we only read description metadata.
 const stubUIOptions = { getContext: () => null };
 const stubGitHubGetToken = () => null;
 const stubGitHubRequestAccess = async () => "";
 const githubTools: ToolConfig[] = createGitHubTools(stubGitHubGetToken, stubGitHubRequestAccess);
 
 const CLIENT_TOOLS: { name: string; description: string }[] = [
-  // UI interaction tools (factory-created)
   toMeta(createWeatherTool(stubUIOptions)),
   toMeta(createChartTool(stubUIOptions)),
   toMeta(createChoiceTool(stubUIOptions)),
@@ -121,13 +83,8 @@ const CLIENT_TOOLS: { name: string; description: string }[] = [
   toMeta(createIpGeolocationTool()),
   toMeta(createTimezoneTool()),
 
-  // GitHub tools (factory-created)
   ...githubTools.map(toMeta),
 
-  // App generation tools (schema constants — used directly by createAppGenerationTools).
-  // Includes the quality ops (audit/critique/verify): they're non-anchor set
-  // members, so they only reach the model via set expansion — keep them in the
-  // catalog or the "full app-generation set" assertion can never be satisfied.
   toMeta(CREATE_FILE_SCHEMA),
   toMeta(PATCH_FILE_SCHEMA),
   toMeta(DELETE_FILE_SCHEMA),
@@ -137,25 +94,16 @@ const CLIENT_TOOLS: { name: string; description: string }[] = [
   toMeta(CRITIQUE_DESIGN_SCHEMA),
   toMeta(VERIFY_APP_SCHEMA),
 
-  // Slide tools (schema constants — used directly by createSlideTools)
   toMeta(PLAN_DECK_SCHEMA),
   toMeta(ADD_SLIDE_SCHEMA),
   toMeta(READ_SLIDES_SCHEMA),
   toMeta(PATCH_SLIDES_SCHEMA),
 ];
 
-// Selection thresholds are imported from serverTools.ts — the SAME constants
-// production (useChatStorage) uses, so tuning them can't silently desync this
-// suite. MIN_CONTENT_LENGTH_FOR_TOOLS gates embeddings entirely: very short
-// greetings never activate a set or inject a persona.
-// ── Shared state ─────────────────────────────────────────────────────────────
-
 const embeddingOptions = { apiKey, baseUrl };
 
 let allServerTools: ServerTool[] = [];
 let clientToolEmbeddings: Map<string, number[]> = new Map();
-
-// ── Helpers ──────────────────────────────────────────────────────────────────
 
 function buildClientPseudoServerTools() {
   return CLIENT_TOOLS.map((t) => ({
@@ -167,21 +115,7 @@ function buildClientPseudoServerTools() {
   }));
 }
 
-/**
- * Simulate the full tool selection pipeline from useChatStorage:
- * 1. Generate embedding for the prompt
- * 2. Filter server tools by semantic match (like selectServerSideTools)
- * 3. Filter client tools by semantic match (like autoFilterClientTools)
- * 4. Merge both sets (like mergeTools)
- */
 async function selectTools(prompt: string, activeToolSets: string[] = []) {
-  // Mirror production's length gate (useChatStorage): prompts shorter than
-  // MIN_CONTENT_LENGTH_FOR_TOOLS skip embeddings entirely, so no semantic
-  // selection runs and NO tools are sent — EXCEPT sticky tool sets from
-  // conversation state: production's gate branch keeps the members of
-  // `activeToolSets` (a terse "fix" inside an app conversation must keep its
-  // toolkit), counts those sets as genuinely activated, and injects their
-  // persona. Mirror all three.
   if (prompt.length < MIN_CONTENT_LENGTH_FOR_TOOLS) {
     const activeSets = BUILT_IN_TOOL_SETS.filter((s) => activeToolSets.includes(s.name));
     const stickyMembers = new Set(activeSets.flatMap((s) => s.members));
@@ -210,11 +144,6 @@ async function selectTools(prompt: string, activeToolSets: string[] = []) {
 
   const promptEmbedding = await generateEmbedding(prompt, embeddingOptions);
 
-  // Server tool filtering — mirror what `defaultServerToolsFilter` does in
-  // production: same match options, same exclusion list, same dependency-set
-  // expansion (continuation tools ride in with their entry anchor). Earlier
-  // this test used a stricter relevanceRatio (0.85) which prod doesn't apply,
-  // so the test was measuring a different selection than consumers run.
   const excluded = new Set<string>(DEFAULT_EXCLUDED_SERVER_TOOLS);
   const semanticServerMatches = findMatchingTools(
     promptEmbedding,
@@ -222,13 +151,7 @@ async function selectTools(prompt: string, activeToolSets: string[] = []) {
     DEFAULT_SERVER_TOOLS_MATCH_OPTIONS
   );
   const matchedServerNameSet = new Set(semanticServerMatches.map((m) => m.tool.name));
-  // Selection-gated, mirroring createServerToolsFilter exactly: only anchors
-  // that were actually PICKED by findMatchingTools can activate their set.
-  // Scoring the whole catalog here would activate sets from anchors that
-  // grazed the floor but never made the top-N — a more permissive selection
-  // than production performs.
   const serverScores = scoreTools(promptEmbedding, allServerTools);
-  // Excluded tools can't anchor a set, mirroring createServerToolsFilter.
   const selectedServerScores = new Map(
     [...serverScores].filter(([name]) => matchedServerNameSet.has(name) && !excluded.has(name))
   );
@@ -238,8 +161,6 @@ async function selectTools(prompt: string, activeToolSets: string[] = []) {
     selectedServerScores,
     SERVER_TOOL_DEPENDENCY_SETS
   );
-  // Set-expanded tools get similarity 0 (same convention as the client side)
-  // so the summary table distinguishes semantic matches from ride-alongs.
   const serverMatches = [
     ...semanticServerMatches,
     ...[...expandedServerNames]
@@ -248,7 +169,6 @@ async function selectTools(prompt: string, activeToolSets: string[] = []) {
   ].filter((m) => !excluded.has(m.tool.name));
   const filteredServerTools = serverMatches.map((m) => m.tool);
 
-  // Client tool filtering (same as autoFilterClientTools)
   const clientPseudoTools = buildClientPseudoServerTools();
   const clientMatches = findMatchingTools(promptEmbedding, clientPseudoTools, {
     limit: MAX_CLIENT_TOOLS_AFTER_FILTER,
@@ -257,12 +177,7 @@ async function selectTools(prompt: string, activeToolSets: string[] = []) {
     relevanceRatio: CLIENT_TOOLS_RELEVANCE_RATIO,
   });
 
-  // Apply tool sets: if an anchor tool matched OR a set is marked active,
-  // pull in the full set
   const matchedNames = new Set(clientMatches.map((m) => m.tool.name));
-  // Score against the raw catalog so anchors dropped by the 0.9
-  // relevanceRatio above can still activate their set — mirrors
-  // useChatStorage.autoFilterClientTools.
   const scores = scoreTools(promptEmbedding, clientPseudoTools);
   const availableNames = new Set(CLIENT_TOOLS.map((t) => t.name));
   const activeSetNames = activeToolSets.length > 0 ? new Set(activeToolSets) : undefined;
@@ -274,9 +189,6 @@ async function selectTools(prompt: string, activeToolSets: string[] = []) {
     activeSetNames
   );
 
-  // Anchor-only expansion (no `activeSetNames`) — used for the summary
-  // table's "triggered by prompt" column so we can distinguish sets
-  // activated by anchor scoring from sets carried in by conversation state.
   const anchorOnlyNames = expandToolSetsAdditive(
     matchedNames,
     availableNames,
@@ -287,12 +199,6 @@ async function selectTools(prompt: string, activeToolSets: string[] = []) {
     s.members.every((m) => anchorOnlyNames.has(m))
   ).map((s) => s.name);
 
-  // Production-accurate activation gate (anchor score ≥ anchorMinSimilarity, or
-  // a forced set) and the tool-set guidance it would inject — the exact signal
-  // `computeToolGuidance` uses in useChatStorage. This lets the suite verify
-  // which prompts the App Builder persona actually rides in on (app-generation
-  // is the only built-in set with a systemPrompt), not just which tools are
-  // selected.
   const activatedSetNames = activatedToolSetNames(scores, BUILT_IN_TOOL_SETS, activeSetNames);
   const guidancePrompts = toolSetSystemPrompts(
     finalClientNames,
@@ -300,7 +206,6 @@ async function selectTools(prompt: string, activeToolSets: string[] = []) {
     activatedSetNames
   );
 
-  // Build client tool configs from the final set (including set-expanded tools)
   const filteredClientToolConfigs = CLIENT_TOOLS.filter((t) => finalClientNames.has(t.name)).map(
     (t) => ({
       type: "function" as const,
@@ -313,21 +218,17 @@ async function selectTools(prompt: string, activeToolSets: string[] = []) {
   );
   const merged = mergeTools(filteredServerTools, filteredClientToolConfigs, "responses");
 
-  // Extract tool names from merged result
   const allToolNames = merged.map((t) => (t.name as string) || "");
 
-  // Build effective client matches including set-expanded tools
   const effectiveClientMatches = [...clientMatches];
   for (const name of finalClientNames) {
     if (!matchedNames.has(name)) {
-      // Tool was added by tool set expansion — mark with similarity 0 (set-included)
       const pseudoTool = clientPseudoTools.find((t) => t.name === name);
       if (pseudoTool) {
         effectiveClientMatches.push({ tool: pseudoTool, similarity: 0 });
       }
     }
   }
-  // Remove tools that were in matches but got excluded by tool sets
   const prunedClientMatches = effectiveClientMatches.filter((m) =>
     finalClientNames.has(m.tool.name)
   );
@@ -344,50 +245,22 @@ async function selectTools(prompt: string, activeToolSets: string[] = []) {
   };
 }
 
-// ── Test cases ───────────────────────────────────────────────────────────────
-
 interface ToolSelectionCase {
   label: string;
   prompt: string;
-  /**
-   * Issue link for a case that is known to fail for a reason outside the SDK.
-   * The case is skipped, not deleted, so its expectations still document the
-   * intended behaviour; `grep quarantined` lists what the suite does not enforce.
-   */
   quarantined?: string;
-  /** Client tool(s) that MUST be in the final merged set */
   clientMustInclude?: string[];
-  /** Client tool(s) that MUST NOT be in the final merged set */
   clientMustExclude?: string[];
-  /** Expect no client tools to survive filtering */
   expectNoClientTools?: boolean;
-  /** Server tool(s) that MUST be in the results */
   serverMustInclude?: string[];
-  /** Server tool(s) that MUST NOT be in the results */
   serverMustExclude?: string[];
-  /** Expect no server tools to survive filtering */
   expectNoServerTools?: boolean;
-  /**
-   * Tool set names to mark unconditionally active for this case. Simulates
-   * conversation state (e.g. a slide deck artifact already exists, so the
-   * consumer passes `activeToolSets: ["slides"]`).
-   */
   activeToolSets?: string[];
-  /**
-   * Tool set(s) that MUST genuinely activate for this prompt — meaning their
-   * `systemPrompt` (e.g. APP_BUILDER_PROMPT) rides in. Asserted against the
-   * production gate `activatedToolSetNames`, not the display heuristic.
-   */
   mustActivateSets?: string[];
-  /**
-   * Tool set(s) that MUST NOT activate — so their persona is NOT injected. The
-   * bias-bug guard: "write a story" / "hey" must not activate "app-generation".
-   */
   mustNotActivateSets?: string[];
 }
 
 const cases: ToolSelectionCase[] = [
-  // ── Weather ──────────────────────────────────────────────────────────
   {
     label: "weather query includes display_weather",
     prompt: "What's the weather like in Paris today?",
@@ -407,7 +280,6 @@ const cases: ToolSelectionCase[] = [
     clientMustExclude: ["display_chart"],
   },
 
-  // ── Charts ───────────────────────────────────────────────────────────
   {
     label: "chart request includes display_chart",
     prompt: "Show me a bar chart of monthly sales data",
@@ -426,7 +298,6 @@ const cases: ToolSelectionCase[] = [
     clientMustInclude: ["display_chart"],
   },
 
-  // ── Choice ───────────────────────────────────────────────────────────
   {
     label: "choosing between options includes prompt_user_choice",
     prompt: "Help me choose between Italian, Japanese, or Mexican food for dinner",
@@ -435,12 +306,9 @@ const cases: ToolSelectionCase[] = [
   {
     label: "selection request: indirect phrasing scores below threshold",
     prompt: "Which of these travel destinations should I visit: Bali, Tokyo, or Paris?",
-    // prompt_user_choice scores 0.47 — below the 0.5 threshold.
-    // The model can still present choices without the tool.
     expectNoClientTools: true,
   },
 
-  // ── Form ─────────────────────────────────────────────────────────────
   {
     label: "trip planning includes prompt_user_form",
     prompt: "I want to plan a trip — I need to enter my destination, dates, and budget",
@@ -452,7 +320,6 @@ const cases: ToolSelectionCase[] = [
     clientMustInclude: ["prompt_user_form"],
   },
 
-  // ── Phone call offer ─────────────────────────────────────────────────
   {
     label: "calling a business includes display_phone_call_offer",
     prompt: "Can you call this restaurant to check if they have a table tonight?",
@@ -464,14 +331,12 @@ const cases: ToolSelectionCase[] = [
     clientMustInclude: ["display_phone_call_offer"],
   },
 
-  // ── IP Geolocation ───────────────────────────────────────────────────
   {
     label: "IP lookup includes geolocate_ip",
     prompt: "Where is this IP address located: 8.8.8.8?",
     clientMustInclude: ["geolocate_ip"],
   },
 
-  // ── Timezone ─────────────────────────────────────────────────────────
   {
     label: "time query includes get_current_time",
     prompt: "What time is it in Tokyo right now?",
@@ -483,7 +348,6 @@ const cases: ToolSelectionCase[] = [
     clientMustInclude: ["get_current_time"],
   },
 
-  // ── GitHub ───────────────────────────────────────────────────────────
   {
     label: "GitHub PR query includes full github set",
     prompt: "List the open pull requests in my repository",
@@ -495,9 +359,6 @@ const cases: ToolSelectionCase[] = [
     clientMustInclude: ["github_api", "github_get_authenticated_user"],
   },
 
-  // ── Slide decks ──────────────────────────────────────────────────────
-  // Slide tools form a set: plan_deck and patch_slides are anchors that pull
-  // in the full set (plan_deck, add_slide, read_slides, patch_slides).
   {
     label: "slide deck creation includes full slide set",
     prompt: "Create a slide deck about the fundamentals of home gardening",
@@ -552,17 +413,11 @@ const cases: ToolSelectionCase[] = [
     clientMustInclude: ["plan_deck", "add_slide", "read_slides", "patch_slides"],
   },
   {
-    // Regression: dominant non-anchor (add_slide) was suppressing the
-    // anchor (patch_slides) via the 0.9 relevance ratio, so the set never
-    // expanded and only add_slide reached the model.
     label: "add-final-slide prompt still expands full slide set",
     prompt: "Add a final 'thank you' slide to my deck",
     clientMustInclude: ["plan_deck", "add_slide", "read_slides", "patch_slides"],
   },
   {
-    // Terse follow-up in a conversation that already has a deck artifact.
-    // The consumer signals "slides" as active so the full set survives even
-    // though only add_slide would match semantically.
     label: "terse add-thanks-slide with active slides set expands full set",
     prompt: "add a thank you slide",
     activeToolSets: ["slides"],
@@ -575,10 +430,6 @@ const cases: ToolSelectionCase[] = [
     clientMustInclude: ["plan_deck", "add_slide", "read_slides", "patch_slides"],
   },
   {
-    // Below the length gate AND sticky: embeddings are skipped, but the
-    // sticky set's members must still ship — a terse "fix" inside a deck
-    // conversation cannot lose its toolkit. Mirrors the gate branch of
-    // autoFilterClientTools.
     label: "sub-gate terse prompt with active slides set keeps slide tools",
     prompt: "fix",
     activeToolSets: ["slides"],
@@ -586,41 +437,31 @@ const cases: ToolSelectionCase[] = [
     mustActivateSets: ["slides"],
   },
   {
-    // Sanity check: even completely off-topic prompts get the slide set
-    // when the consumer marks it active (mirrors continuing a deck
-    // conversation with an unrelated question).
     label: "off-topic prompt with active slides set still gets slide tools",
     prompt: "what's the weather in Paris?",
     activeToolSets: ["slides"],
     clientMustInclude: ["plan_deck", "add_slide", "read_slides", "patch_slides"],
   },
 
-  // ── Server-side: Image generation ─────────────────────────────────────
   {
     label: "image generation includes image tools",
     prompt: "Generate an image of a sunset over the ocean",
-    // The portal catalog's anuma_create_music description scores 0.56 on this
-    // prompt, above the 0.5 floor. The fix is in the catalog, not here.
     quarantined: "https://github.com/anuma-ai/sdk/issues/804",
     serverMustInclude: ["AnumaMediaMCP-anuma_create_image"],
     serverMustExclude: ["AnumaMediaMCP-anuma_create_music", "OpenMeteoMCP-weather_forecast"],
   },
   {
-    // Editing collapsed into the single anuma_create_image tool (edit is
-    // signalled by input_images at call time, not a distinct tool name).
     label: "image editing includes the image tool",
     prompt: "Edit this photo to look like a watercolor painting",
     serverMustInclude: ["AnumaMediaMCP-anuma_create_image"],
   },
 
-  // ── Server-side: Video generation ────────────────────────────────────
   {
     label: "video generation includes video tools",
     prompt: "Create a video of a cat playing piano",
     serverMustInclude: ["AnumaMediaMCP-anuma_create_video"],
   },
 
-  // ── Server-side: Audio ───────────────────────────────────────────────
   {
     label: "music generation includes audio tool",
     prompt: "Generate some relaxing jazz music",
@@ -633,14 +474,9 @@ const cases: ToolSelectionCase[] = [
     serverMustInclude: ["AnumaMediaMCP-anuma_create_sfx"],
   },
 
-  // ── Server-side: Web search ──────────────────────────────────────────
   {
     label: "web search includes search tools",
     prompt: "Search the web for recent news about AI regulation",
-    // search_web matches semantically; the scrape/parallel continuation tools
-    // score below the 0.5 floor (measured 0.33-0.47) and can only arrive via
-    // the web-research dependency set. This asserts the call-chain expansion
-    // works end-to-end: search results are useless if the model can't open them.
     serverMustInclude: [
       "AnumaJinaMCP-search_web",
       "AnumaSearchMCP-anuma_scrape_url",
@@ -654,7 +490,6 @@ const cases: ToolSelectionCase[] = [
     serverMustInclude: ["AnumaSearchMCP-anuma_scrape_url"],
   },
 
-  // ── Server-side: Finance / Crypto ────────────────────────────────────
   {
     label: "crypto price includes price tool",
     prompt: "What's the current price of Bitcoin?",
@@ -672,37 +507,20 @@ const cases: ToolSelectionCase[] = [
     serverMustInclude: ["AnumaTwelveDataMCP-get_exchange_rate"],
   },
 
-  // ── Server-side: Documents ───────────────────────────────────────────
   {
     label: "PDF extraction includes PDF tool",
     prompt: "Extract the text from this PDF document",
     serverMustInclude: ["AnumaJinaMCP-extract_pdf"],
   },
   {
-    // Vision is intentionally excluded by `defaultServerToolsFilter` —
-    // modern models read image content blocks directly, so routing through
-    // a server-side vision tool is a wasteful hop. The test asserts the
-    // exclusion holds even on a prompt that would otherwise match.
     label: "OCR screenshot prompt does not include vision tool (excluded by default)",
     prompt: "Extract text from this screenshot image",
     serverMustExclude: ["AnumaVisionMCP-anuma_analyze_image"],
   },
 
-  // ── App generation ───────────────────────────────────────────────────
-  // App gen tools form a logical set: when building/modifying apps, the LLM
-  // needs the full toolkit — file ops (create_file, patch_file, read_file,
-  // list_files, delete_file) AND quality ops (audit_design, critique_design,
-  // verify_app). Semantic matching alone picks create_file on a "build an
-  // app" prompt but misses the supporting tools; set expansion (PR #435)
-  // pulls in the full membership when an anchor fires.
   {
     label: "build app includes full app-generation set (file + quality tools)",
     prompt: "Build me a todo list app",
-    // Anchor (create_file) scores; the rest ride along via set expansion.
-    // The quality tools never semantically match "build a todo list" on
-    // their own — they're only included because they're set members. If
-    // a refactor drops them from BUILT_IN_TOOL_SETS["app-generation"],
-    // this assertion is the canary that surfaces it.
     clientMustInclude: [
       "create_file",
       "patch_file",
@@ -713,8 +531,6 @@ const cases: ToolSelectionCase[] = [
       "critique_design",
       "verify_app",
     ],
-    // display_weather, github_api, prompt_user_choice score 0.55-0.65 on
-    // "todo list app" — borderline leaks we tolerate (recall over precision).
     clientMustExclude: ["display_chart"],
     mustActivateSets: ["app-generation"],
   },
@@ -747,14 +563,7 @@ const cases: ToolSelectionCase[] = [
     mustActivateSets: ["app-generation"],
   },
 
-  // ── Noise exclusions on client-focused prompts ───────────────────────
   {
-    // KNOWN server-side leak (documented): AnumaMediaMCP-anuma_create_music
-    // scores ≥0.5 on this chart prompt — a catalog description-quality issue
-    // (the music tool's description overlaps "visualize/generate" phrasing),
-    // not something client-side selection can fix without also dropping real
-    // matches. The load-bearing assertion is that display_chart is selected;
-    // the leaked media tool is inert unless the model calls it.
     label: "chart request: display_chart selected (media leak documented)",
     prompt: "Show me a bar chart of monthly sales data",
     clientMustInclude: ["display_chart"],
@@ -763,27 +572,10 @@ const cases: ToolSelectionCase[] = [
     label: "booking form: no irrelevant server tools",
     prompt: "Let me fill out my booking details: name, email, dates, and room preferences",
     clientMustInclude: ["prompt_user_form"],
-    // NOTE: server tools like anuma_audio_music (0.559) still leak in because
-    // server tool descriptions are too broad — they score within 85% of the top
-    // match. This is a server-side description quality issue.
     serverMustExclude: ["OpenMeteoMCP-weather_forecast", "AnumaMediaMCP-anuma_create_image"],
   },
 
-  // ── Negative cases ───────────────────────────────────────────────────
   {
-    // GATING CEILING (documented — no selection assertions): "...about
-    // programming" pushes create_file to ~0.58, clearing the 0.55 anchor
-    // floor, so the app-gen set expands and ~8 client tools ride in. It's the
-    // same create_file-overlaps-chitchat band that makes a higher floor unsafe
-    // (raising it to 0.575 broke "modify existing app" at ~0.56 — see the
-    // app-generation anchorMinSimilarity note in serverTools.ts). Server-side,
-    // ~5 catalog tools (sequentialthinking, create_music/sfx, fal_*) also
-    // clear the 0.5 floor on this prompt — catalog description breadth, same
-    // class as the chart-case leak. Like "what's up" below, the conditional
-    // APP_BUILDER_PROMPT is what keeps leaked tools from biasing the turn;
-    // pinning either assertion here keeps the suite red with no threshold
-    // that could fix it. The invariant that still holds (asserted globally):
-    // APP_BUILDER_PROMPT injection tracks genuine set activation.
     label: "general chat: documented over-selection ceiling",
     prompt: "Tell me a joke about programming",
   },
@@ -802,12 +594,6 @@ const cases: ToolSelectionCase[] = [
     mustNotActivateSets: ["app-generation"],
   },
 
-  // ── App-builder bias guards ──────────────────────────────────────────
-  // Prompts that aren't app requests but brush the create_file / patch_file
-  // anchors. When the anchor stays below the 0.55 activation floor the set must
-  // NOT activate — so APP_BUILDER_PROMPT is never injected. This is the
-  // selection-level guard for the prompt-pollution bug. (The cases below score
-  // create_file < 0.55 in practice; the gating ceiling is documented separately.)
   {
     label: "writing a story does not activate app-generation",
     prompt: "Write a short story about a dragon who learns to paint",
@@ -824,27 +610,11 @@ const cases: ToolSelectionCase[] = [
     mustNotActivateSets: ["app-generation"],
   },
   {
-    // "hey" (< MIN_CONTENT_LENGTH_FOR_TOOLS) skips embeddings in production, so
-    // no set activates and APP_BUILDER_PROMPT is NOT injected. Semantically
-    // "hey" actually scores create_file ~0.61 — higher than legit app prompts
-    // like "make a dashboard" (0.58) — so without the length gate it would
-    // falsely activate; the gate is what protects very short greetings.
     label: "very short greeting skips selection (no app-generation)",
     prompt: "hey",
     mustNotActivateSets: ["app-generation"],
   },
-  // Longer chitchat clears the length gate, so it runs full semantic selection.
-  // These document whether everyday greetings still pull in app-generation
-  // (≥5 chars → no length-gate protection; only the create_file anchor score
-  // and the conditional persona stand between them and an injected prompt).
   {
-    // GATING CEILING (documented — no activation assertion): "what's up" clears
-    // the length gate and scores create_file ~0.56, which is the SAME band as a
-    // legitimate app-edit prompt ("Edit the app…" also ~0.56). No anchor
-    // threshold separates them — raising it to drop "what's up" also strips the
-    // file tools from real edit requests (verified: 0.575 broke "modify existing
-    // app"). So it activates app-generation and APP_BUILDER_PROMPT is injected;
-    // the conditional persona is what stops it biasing toward building an app.
     label: "casual greeting (what's up): gating ceiling, conditional prompt guards",
     prompt: "what's up",
   },
@@ -859,8 +629,6 @@ const cases: ToolSelectionCase[] = [
     mustNotActivateSets: ["app-generation"],
   },
 ];
-
-// ── Summary table ────────────────────────────────────────────────────────────
 
 type ResultRow = {
   prompt: string;
@@ -901,7 +669,6 @@ function printSummary() {
       })
   );
 
-  // Focused, grep-able readout: which prompts get APP_BUILDER_PROMPT injected.
   const injected = summaryRows.filter((r) => r.appBuilder).map((r) => r.prompt);
   console.log(
     `\n[APP_BUILDER_PROMPT] injected for ${injected.length}/${summaryRows.length} prompts:`
@@ -910,8 +677,6 @@ function printSummary() {
     console.log(`  ${r.appBuilder ? "✓" : "·"}  ${r.prompt}`);
   }
 }
-
-// ── Test runner ──────────────────────────────────────────────────────────────
 
 describe("client tool selection (full pipeline)", () => {
   beforeAll(async () => {
@@ -931,12 +696,6 @@ describe("client tool selection (full pipeline)", () => {
 
   afterAll(() => printSummary());
 
-  // Guard against catalog drift: every canonical name the SDK exports must
-  // exist in the live /api/v1/tools catalog. All matching is exact-string, so
-  // a renamed or removed server tool turns the constants into silent no-ops —
-  // exactly how the May 2026 Anuma-prefix rename broke consumers that kept
-  // their own copies of these lists. This is the loud failure for that class
-  // of bug.
   it("SERVER_TOOL_DEPENDENCY_SETS and DEFAULT_EXCLUDED_SERVER_TOOLS match the live catalog", () => {
     const catalog = new Set(allServerTools.map((t) => t.name));
     const staleSetEntries = SERVER_TOOL_DEPENDENCY_SETS.flatMap((s) =>
@@ -979,10 +738,6 @@ describe("client tool selection (full pipeline)", () => {
         tools: toolsCell,
       });
 
-      // The App Builder persona must ride in EXACTLY when the app-generation set
-      // activates — never on a prompt that merely brushed an anchor below the
-      // activation floor. This invariant is the core guard for the system-prompt
-      // bias bug: gating on activation, not on anchor presence.
       expect(
         guidancePrompts.includes(APP_BUILDER_PROMPT),
         `APP_BUILDER_PROMPT presence must match app-generation activation for: "${tc.prompt}" (activated: [${activatedSets.join(", ")}])`
@@ -1031,10 +786,6 @@ describe("client tool selection (full pipeline)", () => {
       }
 
       if (tc.expectNoClientTools) {
-        // Recall over precision: a few cosmetic borderline matches (single-tool
-        // leaks scoring just above the floor) are acceptable. What we cannot
-        // afford is missing the *right* tool, which is checked separately via
-        // clientMustInclude. So tolerate up to 2 leaked tools here.
         expect(
           clientMatches.length,
           `Expected at most 2 borderline client tools for: "${tc.prompt}" (got: [${clientLine}])`
@@ -1069,14 +820,4 @@ describe("client tool selection (full pipeline)", () => {
       }
     });
   }
-
-  // NOTE: this catalog is the SDK-DEFAULT tool set. The anuma web app
-  // registers a different pool in plain chat (no choice/form/phone-call/
-  // geolocate/timezone tools, no app-generation file tools, plus app-only
-  // tools like schedule/background tasks and connectors). Parity for that
-  // pool is tested where it's defined: the client repo's
-  // apps/web/test/tool-selection suite runs `previewToolSelection` against
-  // the real pool. The app-gen cases above therefore cover the SDK-default
-  // catalog used by other consumers and by app mode — in web plain chat the
-  // app-generation set can never activate (its anchors aren't in the pool).
 });

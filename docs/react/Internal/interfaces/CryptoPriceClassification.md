@@ -1,6 +1,6 @@
 # CryptoPriceClassification
 
-Defined in: [src/lib/chat/cryptoPriceClassifier.ts:23](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/cryptoPriceClassifier.ts#23)
+Defined in: [src/lib/chat/cryptoPriceClassifier.ts:9](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/cryptoPriceClassifier.ts#9)
 
 ## Properties
 
@@ -8,7 +8,7 @@ Defined in: [src/lib/chat/cryptoPriceClassifier.ts:23](https://github.com/anuma-
 
 > **cryptoPriceScore**: `number`
 
-Defined in: [src/lib/chat/cryptoPriceClassifier.ts:27](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/cryptoPriceClassifier.ts#27)
+Defined in: [src/lib/chat/cryptoPriceClassifier.ts:13](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/cryptoPriceClassifier.ts#13)
 
 Cosine similarity to the "needs crypto price" centroid.
 
@@ -18,7 +18,7 @@ Cosine similarity to the "needs crypto price" centroid.
 
 > **needsCryptoPrice**: `boolean`
 
-Defined in: [src/lib/chat/cryptoPriceClassifier.ts:25](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/cryptoPriceClassifier.ts#25)
+Defined in: [src/lib/chat/cryptoPriceClassifier.ts:11](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/cryptoPriceClassifier.ts#11)
 
 Whether the prompt likely asks for crypto price data.
 
@@ -28,6 +28,6 @@ Whether the prompt likely asks for crypto price data.
 
 > **noCryptoPriceScore**: `number`
 
-Defined in: [src/lib/chat/cryptoPriceClassifier.ts:29](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/cryptoPriceClassifier.ts#29)
+Defined in: [src/lib/chat/cryptoPriceClassifier.ts:15](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/cryptoPriceClassifier.ts#15)
 
 Cosine similarity to the "no crypto price" centroid.

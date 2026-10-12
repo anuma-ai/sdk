@@ -1,18 +1,6 @@
-/**
- * Chart display tool factory.
- *
- * Creates a client-side tool that renders bar, line, area, and pie charts
- * inline in the chat. The tool validates the LLM-provided data and passes
- * it through for rendering by the ChartCard component.
- */
-
 import type { ToolConfig } from "../lib/chat/useChat/types.js";
 import type { CreateUIToolsOptions } from "./uiInteraction";
 import { createDisplayTool } from "./uiInteraction";
-
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
 
 export type ChartDataPoint = Record<string, string | number>;
 
@@ -28,10 +16,6 @@ export type DisplayChartResult =
   | {
       error: string;
     };
-
-// ---------------------------------------------------------------------------
-// Tool factory
-// ---------------------------------------------------------------------------
 
 /**
  * Create a display_chart tool that renders charts inline in the chat.
@@ -49,10 +33,6 @@ export type DisplayChartResult =
 export function createChartTool(options: CreateUIToolsOptions): ToolConfig {
   return createDisplayTool(options, {
     name: "display_chart",
-    // Embedding-measured phrasing: naming the data kinds (sales, prices,
-    // temperatures, metrics) and the verb forms ("plot a trend over time")
-    // lifts mixed-intent prompts like "…and chart the temperature trend" from
-    // 0.43 (below the selection floor — tool never offered) to 0.62.
     description:
       'Render a bar, line, area, or pie chart inline — visualize data, plot a trend over time, or graph a comparison. Use whenever the user asks to chart, plot, graph, or visualize numbers (sales, prices, temperatures, metrics). You MUST pass the actual numeric values in the "data" array — they are never inferred.',
     parameters: {

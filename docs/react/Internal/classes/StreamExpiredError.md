@@ -1,6 +1,6 @@
 # StreamExpiredError
 
-Defined in: [src/lib/chat/resumeStream.ts:50](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/resumeStream.ts#50)
+Defined in: [src/lib/chat/resumeStream.ts:48](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/resumeStream.ts#48)
 
 Thrown when the portal answers `410 Gone` to a replay GET: the buffered
 stream is gone — expired (10-min sliding TTL), absent, not owned by the
@@ -22,7 +22,7 @@ is correct.
 
 > **new StreamExpiredError**(`inferenceId`: `string`, `message?`: `string`): `StreamExpiredError`
 
-Defined in: [src/lib/chat/resumeStream.ts:53](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/resumeStream.ts#53)
+Defined in: [src/lib/chat/resumeStream.ts:51](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/resumeStream.ts#51)
 
 **Parameters**
 
@@ -75,7 +75,7 @@ Defined in: [src/lib/chat/resumeStream.ts:53](https://github.com/anuma-ai/sdk/bl
 
 > `readonly` **inferenceId**: `string`
 
-Defined in: [src/lib/chat/resumeStream.ts:52](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/resumeStream.ts#52)
+Defined in: [src/lib/chat/resumeStream.ts:50](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/resumeStream.ts#50)
 
 ***
 
@@ -95,7 +95,7 @@ Defined in: node\_modules/.pnpm/typescript@5.9.3/node\_modules/typescript/lib/li
 
 > `readonly` **name**: `"StreamExpiredError"` = `"StreamExpiredError"`
 
-Defined in: [src/lib/chat/resumeStream.ts:51](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/resumeStream.ts#51)
+Defined in: [src/lib/chat/resumeStream.ts:49](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/resumeStream.ts#49)
 
 **Overrides**
 

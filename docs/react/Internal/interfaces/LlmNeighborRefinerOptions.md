@@ -1,6 +1,6 @@
 # LlmNeighborRefinerOptions
 
-Defined in: [src/lib/memory/graphTraversal.ts:381](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/graphTraversal.ts#381)
+Defined in: [src/lib/memory/graphTraversal.ts:260](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/graphTraversal.ts#260)
 
 Auth + tuning for [createLlmNeighborRefiner](../functions/createLlmNeighborRefiner.md). Reuses the recall
 `decomposeOptions` shape (dual auth — one of `apiKey`/`getToken`).
@@ -15,7 +15,7 @@ Auth + tuning for [createLlmNeighborRefiner](../functions/createLlmNeighborRefin
 
 > `optional` **apiKey**: `string`
 
-Defined in: [src/lib/memory/portalLlm.ts:179](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/portalLlm.ts#179)
+Defined in: [src/lib/memory/portalLlm.ts:72](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/portalLlm.ts#72)
 
 Direct API key — sent as `x-api-key` (server-side / CLI usage). Wins when both are provided.
 
@@ -29,7 +29,7 @@ Direct API key — sent as `x-api-key` (server-side / CLI usage). Wins when both
 
 > `optional` **backoffMs**: (`attempt`: `number`) => `number`
 
-Defined in: [src/lib/memory/graphTraversal.ts:387](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/graphTraversal.ts#387)
+Defined in: [src/lib/memory/graphTraversal.ts:266](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/graphTraversal.ts#266)
 
 **Parameters**
 
@@ -66,7 +66,7 @@ Defined in: [src/lib/memory/graphTraversal.ts:387](https://github.com/anuma-ai/s
 
 > `optional` **baseUrl**: `string`
 
-Defined in: [src/lib/memory/graphTraversal.ts:382](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/graphTraversal.ts#382)
+Defined in: [src/lib/memory/graphTraversal.ts:261](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/graphTraversal.ts#261)
 
 ***
 
@@ -74,7 +74,7 @@ Defined in: [src/lib/memory/graphTraversal.ts:382](https://github.com/anuma-ai/s
 
 > `optional` **fetchFn**: {(`input`: `RequestInfo` | `URL`, `init?`: `RequestInit`): `Promise`<`Response`>; (`input`: `string` | `Request` | `URL`, `init?`: `RequestInit`): `Promise`<`Response`>; }
 
-Defined in: [src/lib/memory/graphTraversal.ts:384](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/graphTraversal.ts#384)
+Defined in: [src/lib/memory/graphTraversal.ts:263](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/graphTraversal.ts#263)
 
 **Call Signature**
 
@@ -176,7 +176,7 @@ Defined in: [src/lib/memory/graphTraversal.ts:384](https://github.com/anuma-ai/s
 
 > `optional` **getToken**: () => `Promise`<`string` | `null`>
 
-Defined in: [src/lib/memory/portalLlm.ts:181](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/portalLlm.ts#181)
+Defined in: [src/lib/memory/portalLlm.ts:74](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/portalLlm.ts#74)
 
 Function to get an auth token (e.g., Privy's getIdentityToken). Token is sent as `Authorization: Bearer`.
 
@@ -194,7 +194,7 @@ Function to get an auth token (e.g., Privy's getIdentityToken). Token is sent as
 
 > `optional` **maxAttempts**: `number`
 
-Defined in: [src/lib/memory/graphTraversal.ts:385](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/graphTraversal.ts#385)
+Defined in: [src/lib/memory/graphTraversal.ts:264](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/graphTraversal.ts#264)
 
 ***
 
@@ -202,7 +202,7 @@ Defined in: [src/lib/memory/graphTraversal.ts:385](https://github.com/anuma-ai/s
 
 > `optional` **model**: `string`
 
-Defined in: [src/lib/memory/graphTraversal.ts:383](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/graphTraversal.ts#383)
+Defined in: [src/lib/memory/graphTraversal.ts:262](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/graphTraversal.ts#262)
 
 ***
 
@@ -210,4 +210,4 @@ Defined in: [src/lib/memory/graphTraversal.ts:383](https://github.com/anuma-ai/s
 
 > `optional` **totalTimeoutMs**: `number`
 
-Defined in: [src/lib/memory/graphTraversal.ts:386](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/graphTraversal.ts#386)
+Defined in: [src/lib/memory/graphTraversal.ts:265](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/graphTraversal.ts#265)

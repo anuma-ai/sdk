@@ -13,7 +13,6 @@ import { getLogger } from "../logger";
 
 export type { EmbeddedWalletSignerFn, SignMessageFn };
 
-/** Current prefix for HKDF derived key encryption (default for new writes) */
 const ENCRYPTION_PREFIX = "enc:v3:";
 
 /**
@@ -49,10 +48,6 @@ export function isEncrypted(value: string): boolean {
   return payload.length >= 56 && /^[0-9a-f]+$/i.test(payload);
 }
 
-/**
- * Detects the encryption version from a prefixed value.
- * @returns The version and encrypted data, or null if not encrypted.
- */
 function detectEncryptionVersion(
   value: string
 ): { version: EncryptionKeyVersion; encryptedData: string } | null {

@@ -106,7 +106,6 @@ describe("createXTools", () => {
         return null;
       }
     })();
-    // Must NOT be a connector error -- it's a server-side failure, not an auth issue.
     expect(parsed?.__anuma_connector_error_v1).toBeUndefined();
   });
 
@@ -176,7 +175,6 @@ describe("createXTools", () => {
       .mockResolvedValueOnce(proxyResult({ data: { id: "9", name: "Test", username: "test" } }))
       .mockResolvedValueOnce(proxyResult({ data: [] }));
     const tools = createXTools(callProxy);
-    // Simulate model emitting a non-numeric value.
     await runExecutor(tools.x_get_my_posts, { maxResults: NaN });
     expect(callProxy.mock.calls[1][1]?.max_results).toBe(10);
   });
@@ -187,7 +185,6 @@ describe("createXTools", () => {
       .mockResolvedValueOnce(proxyResult({ data: { id: "10", name: "Test", username: "test" } }))
       .mockResolvedValueOnce(proxyResult({ data: [] }));
     const tools = createXTools(callProxy);
-    // The model may emit maxResults as a numeric string.
     await runExecutor(tools.x_get_my_posts, { maxResults: "50" as unknown as number });
     expect(callProxy.mock.calls[1][1]?.max_results).toBe(50);
   });

@@ -1,9 +1,3 @@
-/**
- * hexToBytes must reject non-hex input, and a Uint8Array signature must derive
- * through the bytes path. v2/v3 hex derivation is pinned to fixtures computed
- * independently (Node SHA-256 + HKDF), because a silent change here breaks
- * decryption of existing data.
- */
 import { describe, expect, it } from "vitest";
 
 import {
@@ -16,22 +10,12 @@ import {
   requestEncryptionKey,
 } from "./useEncryption";
 
-/** 65-byte signature, the length of an ECDSA secp256k1 signature. All bytes are 0xab. */
 const HEX_SIGNATURE = `0x${"ab".repeat(65)}`;
 
-/**
- * SHA-256 of the 65 0xab bytes. Independent of this module.
- * `sha256(ab ab … ab)` (65 times).
- */
 const V2_KEY = "39cd843414d5125dd308568ace26d04e60b7fa6d2b1a901fb5184fa2eae0598b";
 
-/**
- * HKDF-SHA256, IKM = SHA-256(signature), salt = 32 zero bytes,
- * info = "anuma-sdk-aes-gcm-v3", 32-byte output.
- */
 const V3_KEY = "f4fe9ef2051156f51343b6dcf308f0750e220979fa4478dcdacbdaea7e923179";
 
-/** 64 bytes: deadbeef, then 4..63. Not all zeros. */
 function sampleSignatureBytes(): Uint8Array {
   const raw = new Uint8Array(64);
   raw[0] = 0xde;
@@ -42,26 +26,17 @@ function sampleSignatureBytes(): Uint8Array {
   return raw;
 }
 
-/**
- * HKDF-SHA256 over those raw bytes with info "anuma-sdk-aes-gcm-v4".
- * Not the v3 key of the hex encoding, and not the all-zeros signature.
- */
 const V4_KEY = "5a2215bc5f99e080575582c57d5dc4a9645879b27f4959c2d85ab483627c3a89";
 
-/** Same KDF over 64 zero bytes. The old hex parser stored this class of key. */
 const ALL_ZERO_SIGNATURE_KEY = "bc903660d3d6997ec50f8e9a4176fe76c2fc7c51f912759dff2237ee09b8dec4";
 
 const ADDRESS = "0x1234567890123456789012345678901234567890";
 
 describe("hexToBytes", () => {
   it("throws on non-hex input instead of zero-filling", () => {
-    // parseInt("zz", 16) is NaN; the old loop stored 0.
     expect(() => hexToBytes("zzzz")).toThrow(/hex/);
-    // parseInt("1g", 16) is 1 — a partial parse must not succeed either.
     expect(() => hexToBytes("1g")).toThrow(/hex/);
-    // "0xsig" used to become a single 0 byte.
     expect(() => hexToBytes("0xsig")).toThrow(/hex/);
-    // Base58 (Privy Solana signatures stringified) is not hex.
     expect(() => hexToBytes("5KQwrPbwdL6PhXujxW37FSSQZ1JiwsST4cqQzDeyXtrz")).toThrow(/hex/);
     expect(() => hexToBytes("abc")).toThrow(/hex/);
     expect(() => hexToBytes("")).toThrow(/hex/);

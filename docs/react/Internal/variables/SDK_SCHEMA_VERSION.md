@@ -1,8 +1,8 @@
 # SDK\_SCHEMA\_VERSION
 
-> `const` **SDK\_SCHEMA\_VERSION**: `47` = `47`
+> `const` **SDK\_SCHEMA\_VERSION**: `48` = `48`
 
-Defined in: [src/lib/db/schema.ts:136](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/schema.ts#136)
+Defined in: [src/lib/db/schema.ts:138](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/schema.ts#138)
 
 Current combined schema version for all SDK storage modules.
 
@@ -115,3 +115,5 @@ Version history:
   budget was in memory and reset on every turn, so one batch that could never
   extract blocked its conversation's extraction forever. Additive, both
   nullable, no backfill: NULL reads as "never failed"
+* v48: Added kind, kind\_value (encrypted) and level to memory\_vault; level is
+  backfilled from scope where SQL steps run

@@ -1,17 +1,3 @@
-/**
- * Shared setup for slide-generation tool e2e tests.
- *
- * Extends the base test/tools/setup.ts with slide-generation-specific
- * utilities: in-memory file store for slides.jsx plus any images, and
- * output dumping of the resulting deck JSON to disk for inspection.
- *
- * Environment:
- *   PORTAL_API_KEY   (required)  Portal API key
- *   ANUMA_API_URL    (optional)  Override portal base URL
- *   E2E_MODEL        (optional)  Model override
- *   E2E_API_TYPE     (optional)  "completions" or "responses"
- */
-
 import fs from "node:fs";
 import path from "node:path";
 
@@ -33,12 +19,6 @@ export type { StepFinishEvent };
 
 import { config as _config, requirePortalKey, type ToolCallLog } from "../setup.js";
 
-/**
- * True when a logged tool call was accepted by its executor. A rejected call
- * changes nothing: `plan_deck({})` returns `{ error: "title is required" }` and
- * the model moves on, so counting it as the deck's plan or as a re-init reads
- * the wrong call.
- */
 export function succeeded(entry: ToolCallLog): boolean {
   let r = entry.result;
   if (typeof r === "string") {
@@ -51,10 +31,6 @@ export function succeeded(entry: ToolCallLog): boolean {
   return !(r !== null && typeof r === "object" && "error" in r);
 }
 
-// ---------------------------------------------------------------------------
-// Portal server-tool schemas (e.g. AnumaMediaMCP-anuma_create_image)
-// ---------------------------------------------------------------------------
-
 export type ServerToolSchema = {
   type: "function";
   function: { name: string; description: string; parameters: Record<string, unknown> };
@@ -62,12 +38,6 @@ export type ServerToolSchema = {
 
 let cachedServerTools: ServerToolSchema[] | null = null;
 
-/**
- * Fetch MCP tool schemas from Portal's `/api/v1/tools` endpoint and return
- * the ones matching the given names. Portal executes the tools server-side
- * when the model calls them — there is no client-side executor, so these
- * schemas have no `executor` field. Cached for the test session.
- */
 export async function getServerToolSchemas(names: string[]): Promise<ServerToolSchema[]> {
   if (cachedServerTools) {
     const nameSet = new Set(names);
@@ -78,7 +48,6 @@ export async function getServerToolSchemas(names: string[]): Promise<ServerToolS
   });
   if (!res.ok) throw new Error(`Failed to fetch server tools: ${res.status}`);
   const raw = (await res.json()) as Record<string, unknown>;
-  // Handle both response shapes: { checksum, tools: {...} } or flat { toolName: {...} }
   const toolsMap = ("tools" in raw && typeof raw.tools === "object" ? raw.tools : raw) as Record<
     string,
     Record<string, unknown>
@@ -105,22 +74,11 @@ export async function getServerToolSchemas(names: string[]): Promise<ServerToolS
   return matched;
 }
 
-/**
- * Wrapper that times the tool loop, captures per-round info via
- * `onStepFinish`, and logs the total duration. Returns the raw tool-loop
- * result plus `elapsedMs` and the ordered `rounds` array.
- *
- * If the caller also passes `onStepFinish`, it's invoked after the
- * captured event is recorded.
- */
 export async function timedToolLoop(
   options: Parameters<typeof runToolLoop>[0]
 ): Promise<
   Awaited<ReturnType<typeof runToolLoop>> & { elapsedMs: number; rounds: StepFinishEvent[] }
 > {
-  // Fail fast if the e2e env wasn't provisioned — keeps the "missing
-  // key" surface in the test that needs it, instead of at module load
-  // (which would block unit-mode imports of this file).
   requirePortalKey();
   const rounds: StepFinishEvent[] = [];
   const userOnStepFinish = options.onStepFinish;
@@ -137,11 +95,6 @@ export async function timedToolLoop(
   return { ...result, elapsedMs, rounds };
 }
 
-/**
- * Print a per-round summary: rounds, wall time, input/output tokens, and
- * tool-call names in order. Designed to give a compact, scannable record
- * of what the model did during an e2e run.
- */
 export function printRunSummary(rounds: StepFinishEvent[], elapsedMs: number): void {
   if (rounds.length === 0) {
     console.log(`  Rounds: 0 · ${(elapsedMs / 1000).toFixed(1)}s total`);
@@ -166,37 +119,22 @@ export function printRunSummary(rounds: StepFinishEvent[], elapsedMs: number): v
   }
 }
 
-// ---------------------------------------------------------------------------
-// In-memory file store (replaces IndexedDB for tests)
-// ---------------------------------------------------------------------------
-
 export type FileStore = Map<string, string>;
 
 export function createFileStore(): FileStore {
   return new Map();
 }
 
-// ---------------------------------------------------------------------------
-// Snapshot utility
-// ---------------------------------------------------------------------------
-
-/** Take a snapshot of the file store (deep copy). */
 export function snapshot(store: FileStore): Map<string, string> {
   return new Map(store);
 }
 
-// ---------------------------------------------------------------------------
-// Deck helpers
-// ---------------------------------------------------------------------------
-
-/** Parse slides.jsx from the store as an Anuma AST. Throws if missing/invalid. */
 export function getDeck(store: FileStore): AnumaNode {
   const raw = store.get(SLIDES_FILE_PATH);
   if (!raw) throw new Error(`${SLIDES_FILE_PATH} not found in store`);
   return parseJsx(raw);
 }
 
-/** Return the deck or null if not present / unparseable. */
 export function tryGetDeck(store: FileStore): AnumaNode | null {
   const raw = store.get(SLIDES_FILE_PATH);
   if (!raw) return null;
@@ -207,17 +145,14 @@ export function tryGetDeck(store: FileStore): AnumaNode | null {
   }
 }
 
-/** Return the direct Slide children of a Deck AnumaNode. */
 export function slidesOf(deck: AnumaNode): AnumaNode[] {
   return deck.children.filter((c): c is AnumaNode => typeof c !== "string" && c.tag === "Slide");
 }
 
-/** Element children of a Slide AnumaNode (or any container). */
 export function elementsOf(node: AnumaNode): AnumaNode[] {
   return node.children.filter((c): c is AnumaNode => typeof c !== "string");
 }
 
-/** Extract all Text element body strings from a deck (for content-based assertions). */
 export function allSlideText(deck: AnumaNode): string {
   const out: string[] = [];
   walk(deck, (node) => {
@@ -229,29 +164,8 @@ export function allSlideText(deck: AnumaNode): string {
   return out.join("\n");
 }
 
-// ---------------------------------------------------------------------------
-// Output dumping
-// ---------------------------------------------------------------------------
-
 const OUTPUT_DIR = path.resolve(__dirname, ".output");
 
-/**
- * Write all files from the store to disk for inspection. If slides.jsx is
- * present, parses as a SlideDeck, AND has at least one Slide child, also
- * emits a self-contained `index.html` you can open in a browser to step
- * through the deck, and refreshes the top-level `.output/index.html`
- * with a link to it.
- *
- * Decks that fail to parse, or that parse but contain zero slides
- * (common when a test errors mid-flow before any add_slide lands —
- * e.g. an SSE 503 from the upstream LLM), get a `FAILED.txt` written
- * with the reason and are skipped from the top-level index so they
- * don't masquerade as passing dumps.
- *
- * Callers can also pass `meta.error` to mark a dump as failed even
- * when slides are present — useful when a test made it through some
- * add_slide calls before erroring.
- */
 export function dumpFiles(
   store: FileStore,
   testName: string,
@@ -287,26 +201,16 @@ export function dumpFiles(
     return dir;
   }
 
-  // Happy path — render the deck preview and refresh the top-level index.
-  // Clear any stale FAILED.txt from a prior run that ended in the failure
-  // branch above. Without this, a fresh successful dump sits next to a
-  // leftover failure marker and reviewers can't tell whether this run
-  // passed or failed at a glance.
   const stale = path.join(dir, "FAILED.txt");
   if (fs.existsSync(stale)) fs.unlinkSync(stale);
   const html = renderDeckToHtml(deck!, testName);
   fs.writeFileSync(path.join(dir, "index.html"), html, "utf-8");
-  // Only refresh the canonical .output/index.html, never a custom out dir.
   if (baseDir === OUTPUT_DIR) writeOutputIndex();
 
   console.log(`  Output written to ${path.relative(process.cwd(), dir)}/`);
   return dir;
 }
 
-/**
- * Rewrite the top-level `.output/index.html` with a link to every dumped
- * deck. Scans the directory each call so stale dirs don't linger in the list.
- */
 function writeOutputIndex(): void {
   const entries = fs
     .readdirSync(OUTPUT_DIR, { withFileTypes: true })

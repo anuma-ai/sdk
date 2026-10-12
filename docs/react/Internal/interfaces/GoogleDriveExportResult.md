@@ -1,6 +1,6 @@
 # GoogleDriveExportResult
 
-Defined in: [src/lib/backup/google/backup.ts:41](https://github.com/anuma-ai/sdk/blob/main/src/lib/backup/google/backup.ts#41)
+Defined in: [src/lib/backup/google/backup.ts:35](https://github.com/anuma-ai/sdk/blob/main/src/lib/backup/google/backup.ts#35)
 
 ## Properties
 
@@ -8,7 +8,7 @@ Defined in: [src/lib/backup/google/backup.ts:41](https://github.com/anuma-ai/sdk
 
 > **skipped**: `number`
 
-Defined in: [src/lib/backup/google/backup.ts:44](https://github.com/anuma-ai/sdk/blob/main/src/lib/backup/google/backup.ts#44)
+Defined in: [src/lib/backup/google/backup.ts:38](https://github.com/anuma-ai/sdk/blob/main/src/lib/backup/google/backup.ts#38)
 
 ***
 
@@ -16,7 +16,7 @@ Defined in: [src/lib/backup/google/backup.ts:44](https://github.com/anuma-ai/sdk
 
 > **success**: `boolean`
 
-Defined in: [src/lib/backup/google/backup.ts:42](https://github.com/anuma-ai/sdk/blob/main/src/lib/backup/google/backup.ts#42)
+Defined in: [src/lib/backup/google/backup.ts:36](https://github.com/anuma-ai/sdk/blob/main/src/lib/backup/google/backup.ts#36)
 
 ***
 
@@ -24,7 +24,7 @@ Defined in: [src/lib/backup/google/backup.ts:42](https://github.com/anuma-ai/sdk
 
 > **total**: `number`
 
-Defined in: [src/lib/backup/google/backup.ts:45](https://github.com/anuma-ai/sdk/blob/main/src/lib/backup/google/backup.ts#45)
+Defined in: [src/lib/backup/google/backup.ts:39](https://github.com/anuma-ai/sdk/blob/main/src/lib/backup/google/backup.ts#39)
 
 ***
 
@@ -32,4 +32,4 @@ Defined in: [src/lib/backup/google/backup.ts:45](https://github.com/anuma-ai/sdk
 
 > **uploaded**: `number`
 
-Defined in: [src/lib/backup/google/backup.ts:43](https://github.com/anuma-ai/sdk/blob/main/src/lib/backup/google/backup.ts#43)
+Defined in: [src/lib/backup/google/backup.ts:37](https://github.com/anuma-ai/sdk/blob/main/src/lib/backup/google/backup.ts#37)

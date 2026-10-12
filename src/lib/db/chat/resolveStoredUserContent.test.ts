@@ -2,11 +2,6 @@ import { describe, expect, it } from "vitest";
 
 import { resolveStoredUserContent } from "./types";
 
-// Pins the storedUserContent override contract: the value returned here is what
-// gets persisted to the DB row, embedded for storage, and embedded for
-// tool selection — so injected wire context (recalled memory, precise time)
-// must stay out of it when the caller passes the user's typed text, while the
-// wire `messages` (untouched here) keep that context.
 describe("resolveStoredUserContent", () => {
   const extracted = "what the user actually typed";
 
@@ -19,8 +14,6 @@ describe("resolveStoredUserContent", () => {
   });
 
   it("treats an empty string as a real override, NOT a fallback request", () => {
-    // `??` (not `||`) — an empty typed turn must persist empty, not resurrect
-    // the extracted (possibly context-laden) wire text.
     expect(resolveStoredUserContent("", extracted)).toBe("");
   });
 

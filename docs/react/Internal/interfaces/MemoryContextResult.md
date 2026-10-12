@@ -1,6 +1,6 @@
 # MemoryContextResult
 
-Defined in: [src/lib/memory/context.ts:39](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/context.ts#39)
+Defined in: [src/lib/memory/context.ts:38](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/context.ts#38)
 
 ## Properties
 
@@ -8,7 +8,7 @@ Defined in: [src/lib/memory/context.ts:39](https://github.com/anuma-ai/sdk/blob/
 
 > **degraded**: [`MemoryContextLane`](../type-aliases/MemoryContextLane.md)\[]
 
-Defined in: [src/lib/memory/context.ts:43](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/context.ts#43)
+Defined in: [src/lib/memory/context.ts:42](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/context.ts#42)
 
 ***
 
@@ -16,7 +16,7 @@ Defined in: [src/lib/memory/context.ts:43](https://github.com/anuma-ai/sdk/blob/
 
 > **items**: [`MemoryContextItem`](MemoryContextItem.md)\[]
 
-Defined in: [src/lib/memory/context.ts:40](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/context.ts#40)
+Defined in: [src/lib/memory/context.ts:39](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/context.ts#39)
 
 ***
 
@@ -24,7 +24,7 @@ Defined in: [src/lib/memory/context.ts:40](https://github.com/anuma-ai/sdk/blob/
 
 > **ranked**: `boolean`
 
-Defined in: [src/lib/memory/context.ts:41](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/context.ts#41)
+Defined in: [src/lib/memory/context.ts:40](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/context.ts#40)
 
 ***
 
@@ -32,7 +32,7 @@ Defined in: [src/lib/memory/context.ts:41](https://github.com/anuma-ai/sdk/blob/
 
 > **rankedCount**: `number`
 
-Defined in: [src/lib/memory/context.ts:42](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/context.ts#42)
+Defined in: [src/lib/memory/context.ts:41](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/context.ts#41)
 
 ***
 
@@ -40,4 +40,4 @@ Defined in: [src/lib/memory/context.ts:42](https://github.com/anuma-ai/sdk/blob/
 
 > **truncated**: `boolean`
 
-Defined in: [src/lib/memory/context.ts:44](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/context.ts#44)
+Defined in: [src/lib/memory/context.ts:43](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/context.ts#43)

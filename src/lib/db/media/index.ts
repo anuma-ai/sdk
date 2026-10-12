@@ -1,23 +1,4 @@
-// Models
 export { Media } from "./models";
-
-// Types
-export type {
-  CreateMediaOptions,
-  MediaDimensions,
-  MediaFilterOptions,
-  MediaMetadata,
-  MediaOperationsContext,
-  MediaRole,
-  MediaType,
-  StoredMedia,
-  UpdateMediaOptions,
-} from "./types";
-
-// Utility functions
-export { generateMediaId, getMediaTypeFromMime, isSupportedMediaType } from "./types";
-
-// Operations - CRUD
 export {
   createMediaBatchOp,
   createMediaOp,
@@ -30,8 +11,6 @@ export {
   updateMediaMessageIdBatchOp,
   updateMediaOp,
 } from "./operations";
-
-// Operations - Library queries
 export {
   deleteMediaByConversationOp,
   deleteMediaByMessageOp,
@@ -53,3 +32,15 @@ export {
   getVideosOp,
   searchMediaOp,
 } from "./operations";
+export type {
+  CreateMediaOptions,
+  MediaDimensions,
+  MediaFilterOptions,
+  MediaMetadata,
+  MediaOperationsContext,
+  MediaRole,
+  MediaType,
+  StoredMedia,
+  UpdateMediaOptions,
+} from "./types";
+export { generateMediaId, getMediaTypeFromMime, isSupportedMediaType } from "./types";

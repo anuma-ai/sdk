@@ -1,7 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-// ── Mock useEncryption ──
-
 vi.mock("../../react/useEncryption", () => ({
   getEncryptionKey: vi.fn(async () => "mock-crypto-key"),
   encryptDataWithKey: vi.fn(async (data: string) => `encrypted:${data}`),
@@ -31,22 +29,13 @@ import {
   startNotionAuth,
 } from "./notion";
 
-// ── Fetch mock ──
-
 const mockFetch = vi.fn();
 vi.stubGlobal("fetch", mockFetch);
 
-// ── Helpers ──
-
-/** Clean URL of all query params so they don't leak between tests */
 function resetURL(): void {
   window.history.replaceState({}, "", window.location.pathname);
 }
 
-/**
- * Mock that makes OAuth discovery fail (404 on well-known),
- * causing the code to use fallback endpoints.
- */
 function mockDiscoveryFallback(): void {
   mockFetch.mockResolvedValueOnce({
     ok: false,
@@ -55,8 +44,6 @@ function mockDiscoveryFallback(): void {
   });
 }
 
-// ── Tests ──
-
 describe("Notion OAuth Auth", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -64,11 +51,8 @@ describe("Notion OAuth Auth", () => {
     localStorage.clear();
     sessionStorage.clear();
     resetURL();
-    // Clear in-memory token cache
     clearNotionToken();
   });
-
-  // ── Token storage keys & helpers ──
 
   describe("clearNotionToken", () => {
     it("clears token from localStorage and sessionStorage", () => {
@@ -110,8 +94,6 @@ describe("Notion OAuth Auth", () => {
       expect(await hasNotionCredentials("0xWALLET")).toBe(true);
     });
   });
-
-  // ── Token migration ──
 
   describe("migrateNotionToken", () => {
     const walletAddress = "0xMIGRATE";
@@ -227,8 +209,6 @@ describe("Notion OAuth Auth", () => {
     });
   });
 
-  // ── revokeNotionAccess ──
-
   describe("revokeNotionAccess", () => {
     it("clears all stored data for wallet", () => {
       const walletAddress = "0xREVOKE";
@@ -248,15 +228,11 @@ describe("Notion OAuth Auth", () => {
     });
   });
 
-  // ── getValidNotionToken (sync) ──
-
   describe("getValidNotionToken", () => {
     it("returns null when no token is cached", () => {
       expect(getValidNotionToken()).toBeNull();
     });
   });
-
-  // ── getNotionAccessToken ──
 
   describe("getNotionAccessToken", () => {
     it("returns null when no stored token exists", async () => {
@@ -279,20 +255,14 @@ describe("Notion OAuth Auth", () => {
       const tokenData = {
         accessToken: "expired-token",
         refreshToken: "refresh-123",
-        expiresAt: Date.now() - 120000, // well past expiry + buffer
+        expiresAt: Date.now() - 120000,
       };
       sessionStorage.setItem("oauth_token_notion", JSON.stringify(tokenData));
-
-      // refreshNotionToken calls getClientRegistration → returns null (no registration)
-      // → returns null from refreshNotionToken
-      // The function should return null because refresh can't proceed without registration
 
       const token = await getNotionAccessToken(undefined);
       expect(token).toBeNull();
     });
   });
-
-  // ── URL & message helpers ──
 
   describe("storeNotionReturnUrl / getAndClearNotionReturnUrl", () => {
     it("stores and retrieves the return URL", () => {
@@ -318,21 +288,16 @@ describe("Notion OAuth Auth", () => {
     });
   });
 
-  // ── getNotionMCPUrl ──
-
   describe("getNotionMCPUrl", () => {
     it("returns the Notion MCP base URL", () => {
       expect(getNotionMCPUrl()).toBe("https://mcp.notion.com");
     });
   });
 
-  // ── handleNotionCallback ──
-
   describe("handleNotionCallback", () => {
     const callbackPath = "/auth/notion/callback";
 
     beforeEach(() => {
-      // Ensure clean URL for each handleNotionCallback test
       resetURL();
     });
 
@@ -426,10 +391,8 @@ describe("Notion OAuth Auth", () => {
       url.searchParams.set("state", state);
       window.history.replaceState({}, "", url.toString());
 
-      // Mock OAuth metadata discovery (fallback)
       mockDiscoveryFallback();
 
-      // Mock token exchange response
       mockFetch.mockResolvedValueOnce({
         ok: true,
         status: 200,
@@ -445,7 +408,6 @@ describe("Notion OAuth Auth", () => {
 
       expect(token).toBe("new-access-token");
 
-      // Verify token exchange was called with correct params
       const tokenCall = mockFetch.mock.calls[1];
       const body = new URLSearchParams(tokenCall[1].body);
       expect(body.get("grant_type")).toBe("authorization_code");
@@ -453,7 +415,6 @@ describe("Notion OAuth Auth", () => {
       expect(body.get("client_id")).toBe("registered-client-id");
       expect(body.get("code_verifier")).toBe("my-code-verifier");
 
-      // PKCE state should be consumed (cleared)
       expect(sessionStorage.getItem("notion_oauth_pkce")).toBeNull();
     });
 
@@ -536,17 +497,12 @@ describe("Notion OAuth Auth", () => {
     });
   });
 
-  // ── startNotionAuth ──
-
   describe("startNotionAuth", () => {
     it("stores PKCE state and redirects", async () => {
       const callbackPath = "/auth/notion/callback";
 
-      // ensureClientRegistration calls getOAuthMetadata → discoverOAuthMetadata
-      // fetch 1: well-known resource → 404 → fallback metadata used
       mockDiscoveryFallback();
 
-      // fetch 2: registerClient → returns client_id
       mockFetch.mockResolvedValueOnce({
         ok: true,
         status: 200,
@@ -555,17 +511,12 @@ describe("Notion OAuth Auth", () => {
         }),
       });
 
-      // startNotionAuth calls getOAuthMetadata again for authorization_endpoint
-      // fetch 3: well-known resource → 404 → fallback used
       mockDiscoveryFallback();
 
-      // startNotionAuth sets window.location.href and returns a never-resolving promise.
-      // Race it with a timeout to verify side effects.
       const authPromise = startNotionAuth(callbackPath, "0xSTART");
       const timeout = new Promise((r) => setTimeout(r, 200));
       await Promise.race([authPromise, timeout]);
 
-      // PKCE state should be stored
       const pkceState = sessionStorage.getItem("notion_oauth_pkce");
       expect(pkceState).not.toBeNull();
 
@@ -574,7 +525,6 @@ describe("Notion OAuth Auth", () => {
       expect(parsed.codeChallenge).toBeTruthy();
       expect(parsed.state).toBeTruthy();
 
-      // Return URL should be stored
       const returnUrl = sessionStorage.getItem("notion_return_url");
       expect(returnUrl).toBeTruthy();
     });

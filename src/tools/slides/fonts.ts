@@ -36,7 +36,6 @@ export interface FontSpec {
 }
 
 export const FONT_LIBRARY: FontSpec[] = [
-  // ── DISPLAY ────────────────────────────────────────────────────────────
   {
     name: "Abril Fatface",
     category: "display",
@@ -80,7 +79,6 @@ export const FONT_LIBRARY: FontSpec[] = [
     weights: "",
   },
 
-  // ── SERIF BODY ─────────────────────────────────────────────────────────
   {
     name: "Merriweather",
     category: "serif-body",
@@ -124,7 +122,6 @@ export const FONT_LIBRARY: FontSpec[] = [
     weights: "400;500;600;700",
   },
 
-  // ── SANS BODY (and general-purpose headings) ───────────────────────────
   {
     name: "Inter",
     category: "sans-body",
@@ -288,7 +285,6 @@ export const FONT_LIBRARY: FontSpec[] = [
     weights: "400;500;600;700",
   },
 
-  // ── MONO ───────────────────────────────────────────────────────────────
   {
     name: "JetBrains Mono",
     category: "mono",
@@ -302,7 +298,6 @@ export const FONT_LIBRARY: FontSpec[] = [
     weights: "400;500;600;700",
   },
 
-  // ── ACCENT (use for ONE word or a signature, not body copy) ────────────
   {
     name: "Pacifico",
     category: "accent",
@@ -340,7 +335,6 @@ export function getFontByName(name: string): FontSpec | null {
   return FONT_LIBRARY.find((f) => f.name === name) ?? null;
 }
 
-/** Flat set of all valid font names for quick validation. */
 const FONT_NAMES = new Set(FONT_LIBRARY.map((f) => f.name));
 
 /** Validate a fontFamily value against the library. Returns true if accepted. */
