@@ -473,6 +473,30 @@ describe("remote MemoryStore", () => {
     }
   });
 
+  it("notifies when extraction drops a topic added during the LLM call", async () => {
+    const { store } = await remoteStore();
+    const hike = await store.create({ content: "Hikes Mt Hood", embedding: axis(0) });
+    await store.addTopics(hike.uniqueId, [{ name: "Mt Hood", kind: "place" }]);
+    const onChange = vi.fn();
+    const unsubscribe = store.subscribe(onChange, { topics: true });
+    const llm = fakeTopicLlm({ "Hikes Mt Hood": [{ name: "Mt Hood", kind: "place" }] });
+    const fetchFn = vi.fn(async (url: unknown, init?: RequestInit) => {
+      await store.addTopics(hike.uniqueId, ["Oregon"]);
+      onChange.mockClear();
+      return llm(url as string, init);
+    }) as unknown as typeof fetch;
+    try {
+      await store.topicMaintenance.extractTopics([hike.uniqueId], { apiKey: "k", fetchFn });
+
+      expect(await store.topicsByMemories([hike.uniqueId])).toEqual(
+        new Map([[hike.uniqueId, new Set(["mt hood"])]])
+      );
+      expect(onChange).toHaveBeenCalledTimes(1);
+    } finally {
+      unsubscribe();
+    }
+  });
+
   it("refuses to supersede a profile memory", async () => {
     const { store, server } = await remoteStore();
     const profile = await store.create({ content: "Works as a nurse" });

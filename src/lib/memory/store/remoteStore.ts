@@ -325,7 +325,7 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
   };
   const mutate = async (
     id: string,
-    change: Change,
+    change: Change | ((before: RemoteMemoryRow) => Change),
     edit: (memory: RemoteMemoryRow) => RemoteMemoryRow | null
   ): Promise<RemoteMemoryRecord | null> =>
     serialized(id, async () => {
@@ -334,7 +334,7 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
       const next = edit(structuredClone(record.memory));
       if (!next) return null;
       const saved = await persistence.put(next, record);
-      notify(change, [saved]);
+      notify(typeof change === "function" ? change(record.memory) : change, [saved]);
       return saved;
     });
 
@@ -476,13 +476,13 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
       };
       const ids = [...new Set(memoryIds)];
       const { records, unreadable } = await readForExtraction(ids);
-      const inputs: { id: string; content: string; topics: StoredTopic[] | null }[] = [];
+      const inputs: { id: string; content: string }[] = [];
       for (const id of ids) {
         const memory = records.get(id)?.memory;
         if (unreadable.has(id)) skip(id, "unreadable");
         else if (!memory) skip(id, "not-found");
         else if (memory.is_deleted || memory.topics_user_managed) skip(id, "excluded");
-        else inputs.push({ id, content: memory.content, topics: parseTopics(memory.topics) });
+        else inputs.push({ id, content: memory.content });
       }
 
       const entitiesByMemory = await extractEntitiesForMemories(inputs, extractOptions);
@@ -495,12 +495,14 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
         }
         try {
           const topics = mergeTopics([], await withKnownKinds(topicInputs(entities, "auto")));
-          const unchanged = sameTopics(input.topics, topics);
-          const saved = await mutate(input.id, unchanged ? "metadata" : "edit", (memory) => {
+          const unchanged = (memory: RemoteMemoryRow) =>
+            sameTopics(parseTopics(memory.topics), topics);
+          const change = (before: RemoteMemoryRow) => (unchanged(before) ? "metadata" : "edit");
+          const saved = await mutate(input.id, change, (memory) => {
             if (memory.topics_user_managed || memory.content !== input.content) return null;
             return {
               ...memory,
-              ...(!sameTopics(parseTopics(memory.topics), topics) && {
+              ...(!unchanged(memory) && {
                 topics: serializeTopics(topics),
                 topics_updated_at: Date.now(),
               }),
