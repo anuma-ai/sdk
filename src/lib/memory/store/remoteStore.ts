@@ -356,7 +356,9 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
       const saved = new Map<string, RemoteMemoryRecord>();
       const failed = new Map<string, unknown>();
       const writes: { before: RemoteMemoryRecord; memory: RemoteMemoryRow }[] = [];
-      for (const record of await enumerateIds(decrypted, ids, everyState)) {
+      const { records, unreadable } = await readEveryState(ids);
+      for (const id of unreadable) failed.set(id, new Error(`Memory ${id} could not be decrypted`));
+      for (const record of records.values()) {
         if (record.memory.is_deleted) continue;
         const memory = edit(structuredClone(record.memory));
         if (memory) writes.push({ before: record, memory });
@@ -475,7 +477,7 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
   };
   const withKnownKinds = async (topics: StoredTopic[]) => topics.map(await knownKinds(topics));
 
-  const readForExtraction = async (ids: readonly string[]) => {
+  const readEveryState = async (ids: readonly string[]) => {
     const records = new Map<string, RemoteMemoryRecord>();
     const unreadable = new Set<string>();
     for (const memory_ids of chunks(ids, MAX_QUERY_IDS)) {
@@ -530,7 +532,7 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
         skippedReasons.set(id, reason);
       };
       const ids = [...new Set(memoryIds)];
-      const { records, unreadable } = await readForExtraction(ids);
+      const { records, unreadable } = await readEveryState(ids);
       const inputs: { id: string; content: string }[] = [];
       for (const id of ids) {
         const memory = records.get(id)?.memory;

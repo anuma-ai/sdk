@@ -501,6 +501,26 @@ describe("remote MemoryStore", () => {
     expect(server.rows.get(ids[0])!.memory.topics_extracted_at).toBeUndefined();
   });
 
+  it("reports a memory that became unreadable during the LLM call as link-failed", async () => {
+    const { store, server } = await remoteStore();
+    const ids: string[] = [];
+    for (const content of Object.keys(hikes))
+      ids.push((await store.create({ content, embedding: axis(0) })).uniqueId);
+    const foreign = memoryCipher(await deriveMemoryKeyRing(`0x${"d4".repeat(65)}`));
+    const llm = fakeTopicLlm(hikes);
+    const fetchFn = vi.fn(async (url: unknown, init?: RequestInit) => {
+      server.rows.get(ids[0])!.memory.content = await foreign.encrypt("Hikes Mt Hood");
+      return llm(url as string, init);
+    }) as unknown as typeof fetch;
+
+    const result = await store.topicMaintenance.extractTopics(ids, { apiKey: "k", fetchFn });
+    expect(result.stampedIds).toEqual([ids[1], ids[2]]);
+    expect(result.skippedReasons.get(ids[0])).toBe("link-failed");
+    await expect(store.topicMaintenance.stampTopicsExtracted(ids, Date.now())).rejects.toThrow(
+      `Memory ${ids[0]} could not be decrypted`
+    );
+  });
+
   it("reports every memory in a failed batch as link-failed", async () => {
     const { store, server } = await remoteStore();
     const ids: string[] = [];
