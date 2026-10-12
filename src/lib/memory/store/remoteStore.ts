@@ -344,42 +344,48 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
     edit: RowEdit
   ): Promise<RemoteMemoryRecord | null> => serialized(id, () => mutateLocked(id, change, edit));
   const serializedAll = <T>(ids: readonly string[], task: () => Promise<T>): Promise<T> =>
-    [...ids]
+    [...new Set(ids)]
       .sort()
       .reduceRight<() => Promise<T>>((inner, id) => () => serialized(id, inner), task)();
-  const mutateMany = (
+  const mutateMany = async (
     ids: readonly string[],
     change: (before: RemoteMemoryRow) => Change,
     edit: RowEdit
-  ) =>
-    serializedAll(ids, async () => {
-      const saved = new Map<string, RemoteMemoryRecord>();
-      const failed = new Map<string, unknown>();
-      const writes: { before: RemoteMemoryRecord; memory: RemoteMemoryRow }[] = [];
-      const { records, unreadable } = await readEveryState(ids);
-      for (const id of unreadable) failed.set(id, new Error(`Memory ${id} could not be decrypted`));
-      for (const record of records.values()) {
-        if (record.memory.is_deleted) continue;
-        const memory = edit(structuredClone(record.memory));
-        if (memory) writes.push({ before: record, memory });
-      }
-      for (const batch of chunks(writes, MAX_BATCH)) {
+  ) => {
+    const saved = new Map<string, RemoteMemoryRecord>();
+    const failed = new Map<string, unknown>();
+    for (const slice of chunks([...new Set(ids)], MAX_BATCH)) {
+      await serializedAll(slice, async () => {
+        const writes: { before: RemoteMemoryRecord; memory: RemoteMemoryRow }[] = [];
+        const { records, unreadable } = await readEveryState(slice);
+        for (const id of slice) {
+          const record = records.get(id);
+          if (unreadable.has(id)) failed.set(id, new Error(`Memory ${id} could not be decrypted`));
+          else if (!record) failed.set(id, new Error(`Memory ${id} was not found`));
+          else if (!record.memory.is_deleted) {
+            const memory = edit(structuredClone(record.memory));
+            if (memory) writes.push({ before: record, memory });
+          }
+        }
+        if (writes.length === 0) return;
         try {
-          const records = await persistence.putMany(
-            batch.map(({ before, memory }) => ({ memory, expectedVersion: before }))
+          const written = await persistence.putMany(
+            writes.map(({ before, memory }) => ({ memory, expectedVersion: before }))
           );
           const byChange = new Map<Change, RemoteMemoryRecord[]>();
-          records.forEach((record, i) => {
+          written.forEach((record, i) => {
             saved.set(record.memory.memory_id, record);
-            const kind = change(batch[i].before.memory);
+            const kind = change(writes[i].before.memory);
             byChange.set(kind, [...(byChange.get(kind) ?? []), record]);
           });
           for (const [kind, changed] of byChange) notify(kind, changed);
         } catch (error) {
-          const conflict = error instanceof RemoteMemoryError && error.code === "version_conflict";
-          for (const { before } of batch) {
+          const perRow =
+            error instanceof RemoteMemoryError &&
+            (error.code === "version_conflict" || error.status === 429);
+          for (const { before } of writes) {
             const id = before.memory.memory_id;
-            if (!conflict) {
+            if (!perRow) {
               failed.set(id, error);
               continue;
             }
@@ -391,9 +397,10 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
             }
           }
         }
-      }
-      return { saved, failed };
-    });
+      });
+    }
+    return { saved, failed };
+  };
 
   const embedInBackground = ({ memory: { memory_id: id, content } }: RemoteMemoryRecord) => {
     generateEmbedding(content, embeddingOptions)

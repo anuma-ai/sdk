@@ -522,6 +522,66 @@ describe("remote MemoryStore", () => {
     ]);
   });
 
+  it("reports a memory that vanished during the LLM call as link-failed", async () => {
+    const { store, server } = await remoteStore();
+    const ids: string[] = [];
+    for (const content of Object.keys(hikes))
+      ids.push((await store.create({ content, embedding: axis(0) })).uniqueId);
+    const llm = fakeTopicLlm(hikes);
+    const fetchFn = vi.fn(async (url: unknown, init?: RequestInit) => {
+      server.rows.delete(ids[0]);
+      return llm(url as string, init);
+    }) as unknown as typeof fetch;
+
+    const result = await store.topicMaintenance.extractTopics(ids, { apiKey: "k", fetchFn });
+    expect(result.stampedIds).toEqual([ids[1], ids[2]]);
+    expect(result.skippedReasons.get(ids[0])).toBe("link-failed");
+  });
+
+  it("keeps the batches that committed when a later one fails", async () => {
+    const { store, server } = await remoteStore();
+    const notes = Object.fromEntries(Array.from({ length: 51 }, (_, i) => [`Note ${i}`, []]));
+    const ids: string[] = [];
+    for (const content of Object.keys(notes))
+      ids.push((await store.create({ content, embedding: axis(0) })).uniqueId);
+    const handle = server.fetch.getMockImplementation()!;
+    let batches = 0;
+    server.fetch.mockImplementation(async (input, init) =>
+      String(input).endsWith("/memories/batch") && ++batches === 2
+        ? new Response(JSON.stringify({ detail: "boom" }), { status: 500 })
+        : handle(input, init)
+    );
+
+    const result = await store.topicMaintenance.extractTopics(ids, {
+      apiKey: "k",
+      fetchFn: fakeTopicLlm(notes),
+    });
+    const last = [...ids].sort().at(-1)!;
+    expect(result.stampedIds).toHaveLength(50);
+    expect(Object.fromEntries(result.skippedReasons)).toEqual({ [last]: "link-failed" });
+    expect(server.rows.get(last)!.memory.topics_extracted_at).toBeUndefined();
+  });
+
+  it("writes each memory on its own when the batch is rate limited", async () => {
+    const { store, server } = await remoteStore();
+    const ids: string[] = [];
+    for (const content of Object.keys(hikes))
+      ids.push((await store.create({ content, embedding: axis(0) })).uniqueId);
+    const handle = server.fetch.getMockImplementation()!;
+    server.fetch.mockImplementation(async (input, init) =>
+      String(input).endsWith("/memories/batch")
+        ? new Response(JSON.stringify({ detail: "slow down" }), { status: 429 })
+        : handle(input, init)
+    );
+
+    const result = await store.topicMaintenance.extractTopics(ids, {
+      apiKey: "k",
+      fetchFn: fakeTopicLlm(hikes),
+    });
+    expect(result.stampedIds).toEqual(ids);
+    expect(await store.topicMaintenance.stampTopicsExtracted(ids, Date.now() + 1000)).toEqual(ids);
+  });
+
   it("reports every memory in a failed batch as link-failed", async () => {
     const { store, server } = await remoteStore();
     const ids: string[] = [];
