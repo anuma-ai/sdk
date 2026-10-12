@@ -28,13 +28,14 @@ import { generateEmbedding } from "../../memoryEngine/embeddings.js";
 import type { EmbeddingOptions } from "../../memoryEngine/types.js";
 import { extractEntitiesForMemories, type TopicSkipReason } from "../topicExtract.js";
 import type { RecallFactSource } from "../types.js";
-import type {
-  RemoteMemoryDecodeFailure,
-  RemoteMemoryMetadataRecord,
-  RemoteMemoryPersistence,
-  RemoteMemoryQueryOptions,
-  RemoteMemoryRecord,
-  RemoteMemoryRow,
+import {
+  type RemoteMemoryDecodeFailure,
+  RemoteMemoryError,
+  type RemoteMemoryMetadataRecord,
+  type RemoteMemoryPersistence,
+  type RemoteMemoryQueryOptions,
+  type RemoteMemoryRecord,
+  type RemoteMemoryRow,
 } from "./remotePersistence.js";
 import { createRemoteMemoryPipeline, stored, storedVector } from "./remotePipeline.js";
 import type {
@@ -57,6 +58,7 @@ export interface RemoteMemoryStoreOptions {
 }
 
 type Change = "membership" | "edit" | "embedding" | "metadata";
+type RowEdit = (memory: RemoteMemoryRow) => RemoteMemoryRow | null;
 
 type Row = RemoteMemoryRecord | RemoteMemoryMetadataRecord;
 
@@ -323,19 +325,72 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
     const record = await persistence.get(id);
     return record && !record.memory.is_deleted ? record : null;
   };
-  const mutate = async (
+  const mutateLocked = async (
     id: string,
     change: Change | ((before: RemoteMemoryRow) => Change),
-    edit: (memory: RemoteMemoryRow) => RemoteMemoryRow | null
-  ): Promise<RemoteMemoryRecord | null> =>
-    serialized(id, async () => {
-      const record = await live(id);
-      if (!record) return null;
-      const next = edit(structuredClone(record.memory));
-      if (!next) return null;
-      const saved = await persistence.put(next, record);
-      notify(typeof change === "function" ? change(record.memory) : change, [saved]);
-      return saved;
+    edit: RowEdit
+  ): Promise<RemoteMemoryRecord | null> => {
+    const record = await live(id);
+    if (!record) return null;
+    const next = edit(structuredClone(record.memory));
+    if (!next) return null;
+    const saved = await persistence.put(next, record);
+    notify(typeof change === "function" ? change(record.memory) : change, [saved]);
+    return saved;
+  };
+  const mutate = (
+    id: string,
+    change: Change | ((before: RemoteMemoryRow) => Change),
+    edit: RowEdit
+  ): Promise<RemoteMemoryRecord | null> => serialized(id, () => mutateLocked(id, change, edit));
+  const serializedAll = <T>(ids: readonly string[], task: () => Promise<T>): Promise<T> =>
+    [...ids]
+      .sort()
+      .reduceRight<() => Promise<T>>((inner, id) => () => serialized(id, inner), task)();
+  const mutateMany = (
+    ids: readonly string[],
+    change: (before: RemoteMemoryRow) => Change,
+    edit: RowEdit
+  ) =>
+    serializedAll(ids, async () => {
+      const saved = new Map<string, RemoteMemoryRecord>();
+      const failed = new Map<string, unknown>();
+      const writes: { before: RemoteMemoryRecord; memory: RemoteMemoryRow }[] = [];
+      for (const record of await enumerateIds(decrypted, ids, everyState)) {
+        if (record.memory.is_deleted) continue;
+        const memory = edit(structuredClone(record.memory));
+        if (memory) writes.push({ before: record, memory });
+      }
+      for (const batch of chunks(writes, MAX_BATCH)) {
+        try {
+          const records = await persistence.putMany(
+            batch.map(({ before, memory }) => ({ memory, expectedVersion: before }))
+          );
+          const byChange = new Map<Change, RemoteMemoryRecord[]>();
+          records.forEach((record, i) => {
+            saved.set(record.memory.memory_id, record);
+            const kind = change(batch[i].before.memory);
+            byChange.set(kind, [...(byChange.get(kind) ?? []), record]);
+          });
+          for (const [kind, changed] of byChange) notify(kind, changed);
+        } catch (error) {
+          const conflict = error instanceof RemoteMemoryError && error.code === "version_conflict";
+          for (const { before } of batch) {
+            const id = before.memory.memory_id;
+            if (!conflict) {
+              failed.set(id, error);
+              continue;
+            }
+            try {
+              const record = await mutateLocked(id, change, edit);
+              if (record) saved.set(id, record);
+            } catch (rowError) {
+              failed.set(id, rowError);
+            }
+          }
+        }
+      }
+      return { saved, failed };
     });
 
   const embedInBackground = ({ memory: { memory_id: id, content } }: RemoteMemoryRecord) => {
@@ -395,11 +450,10 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
     return records.map((record) => stored(record.memory));
   };
   const asStored = (record: RemoteMemoryRecord | null) => (record ? stored(record.memory) : null);
-  const withKnownKinds = async (topics: StoredTopic[]): Promise<StoredTopic[]> => {
+  const knownKinds = async (topics: readonly StoredTopic[]) => {
     const unkinded = [
       ...new Set(topics.filter((t) => !t.kind).map((t) => normalizeEntityName(t.name))),
     ];
-    if (unkinded.length === 0) return topics;
     const kinds = new Map<string, string>();
     for (const names of chunks(unkinded, MAX_QUERY_TOPICS)) {
       for (const { memory } of await pages(metadata, {
@@ -414,11 +468,12 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
         }
       }
     }
-    return topics.map((topic) => {
+    return (topic: StoredTopic): StoredTopic => {
       const kind = topic.kind ?? kinds.get(normalizeEntityName(topic.name));
       return kind ? { ...topic, kind } : topic;
-    });
+    };
   };
+  const withKnownKinds = async (topics: StoredTopic[]) => topics.map(await knownKinds(topics));
 
   const readForExtraction = async (ids: readonly string[]) => {
     const records = new Map<string, RemoteMemoryRecord>();
@@ -486,54 +541,72 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
       }
 
       const entitiesByMemory = await extractEntitiesForMemories(inputs, extractOptions);
-      const stampedIds: string[] = [];
+      const answered = new Map<string, { content: string; topics: StoredTopic[] }>();
       for (const input of inputs) {
         const entities = entitiesByMemory.get(input.id);
-        if (entities === undefined) {
-          skip(input.id, "llm-unanswered");
-          continue;
-        }
-        try {
-          const topics = mergeTopics([], await withKnownKinds(topicInputs(entities, "auto")));
-          const unchanged = (memory: RemoteMemoryRow) =>
-            sameTopics(parseTopics(memory.topics), topics);
-          const change = (before: RemoteMemoryRow) => (unchanged(before) ? "metadata" : "edit");
-          const saved = await mutate(input.id, change, (memory) => {
-            if (memory.topics_user_managed || memory.content !== input.content) return null;
+        if (entities === undefined) skip(input.id, "llm-unanswered");
+        else
+          answered.set(input.id, { content: input.content, topics: topicInputs(entities, "auto") });
+      }
+      const stampedIds: string[] = [];
+      const fail = (id: string, reason: TopicSkipReason) => {
+        skip(id, reason);
+        entitiesByMemory.delete(id);
+      };
+      try {
+        const kinded = await knownKinds([...answered.values()].flatMap((a) => a.topics));
+        const topics = new Map(
+          [...answered].map(([id, a]) => [id, mergeTopics([], a.topics.map(kinded))])
+        );
+        const unchanged = (memory: RemoteMemoryRow) =>
+          sameTopics(parseTopics(memory.topics), topics.get(memory.memory_id)!);
+        const { saved, failed } = await mutateMany(
+          [...answered.keys()],
+          (before) => (unchanged(before) ? "metadata" : "edit"),
+          (memory) => {
+            if (
+              memory.topics_user_managed ||
+              memory.content !== answered.get(memory.memory_id)!.content
+            )
+              return null;
             return {
               ...memory,
               ...(!unchanged(memory) && {
-                topics: serializeTopics(topics),
+                topics: serializeTopics(topics.get(memory.memory_id)!),
                 topics_updated_at: Date.now(),
               }),
               topics_extracted_at: extractedAt,
               topics_extracted_version: TOPICS_EXTRACTION_VERSION,
             };
-          });
-          if (saved) {
-            stampedIds.push(input.id);
-            continue;
           }
-          skip(input.id, "link-declined");
-        } catch (error) {
-          getLogger().warn("[memory/remote-store] Failed to write extracted topics:", error);
-          skip(input.id, "link-failed");
+        );
+        for (const id of answered.keys()) {
+          if (saved.has(id)) stampedIds.push(id);
+          else fail(id, failed.has(id) ? "link-failed" : "link-declined");
         }
-        entitiesByMemory.delete(input.id);
+        if (failed.size)
+          getLogger().warn(
+            "[memory/remote-store] Failed to write extracted topics:",
+            failed.values().next().value
+          );
+      } catch (error) {
+        getLogger().warn("[memory/remote-store] Failed to write extracted topics:", error);
+        for (const id of answered.keys()) fail(id, "link-failed");
       }
       return { entitiesByMemory, stampedIds, skippedIds, skippedReasons };
     },
     stampTopicsExtracted: async (memoryIds, extractedAt, version = TOPICS_EXTRACTION_VERSION) => {
-      const stamped: string[] = [];
-      for (const id of new Set(memoryIds)) {
-        const saved = await mutate(id, "metadata", (memory) =>
+      const ids = [...new Set(memoryIds)];
+      const { saved, failed } = await mutateMany(
+        ids,
+        () => "metadata",
+        (memory) =>
           memory.topics_user_managed
             ? null
             : { ...memory, topics_extracted_at: extractedAt, topics_extracted_version: version }
-        );
-        if (saved) stamped.push(id);
-      }
-      return stamped;
+      );
+      if (failed.size) throw failed.values().next().value;
+      return ids.filter((id) => saved.has(id));
     },
     relinkTopics: () => Promise.resolve([]),
     backfillTopics: () => Promise.resolve([]),
