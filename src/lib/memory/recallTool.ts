@@ -236,7 +236,7 @@ async function listRecentFacts(
   ctx: RecallContext,
   limit: number,
   toolOptions: RecallToolOptions | undefined
-): Promise<{ memories: RankedMemory[]; truncated: boolean }> {
+): Promise<{ memories: RankedMemory[]; vaultSize?: number; truncated: boolean }> {
   const store = toolOptions?.memoryStore;
   const vaultCtx = ctx.vaultCtx;
   if (!vaultCtx && !store) return { memories: [], truncated: false };
@@ -257,8 +257,12 @@ async function listRecentFacts(
   const readLimit = limit + 1;
   let batchLimit = limit;
   let start = 0;
+  let projected = 0;
+  let exhausted = false;
   for (let size = readLimit; readable.length < readLimit; size *= 2) {
     const ordered = await project(size);
+    projected = ordered.length;
+    exhausted = !store || ordered.length < size;
     for (let i = start; i < ordered.length && readable.length < readLimit; ) {
       const batch = ordered.slice(i, i + batchLimit).map((p) => p.uniqueId);
       const byId = new Map((await read(batch)).map((m) => [m.uniqueId, m]));
@@ -272,7 +276,7 @@ async function listRecentFacts(
         readable.length > previousCount ? Math.min(limit, readLimit - readable.length) : limit;
       i += batch.length;
     }
-    if (!store || ordered.length < size) break;
+    if (exhausted) break;
     start = ordered.length;
   }
   return {
@@ -289,6 +293,7 @@ async function listRecentFacts(
       createdAt: m.createdAt,
       updatedAt: m.updatedAt,
     })),
+    ...(exhausted && { vaultSize: projected }),
     truncated: readable.length > limit,
   };
 }
@@ -428,7 +433,10 @@ export function createRecallTool(
             ...factRecallDiagnostics(
               result.memories.map((m) => m.score),
               Date.now() - start,
-              { truncated: recent.truncated }
+              {
+                truncated: recent.truncated,
+                ...(recent.vaultSize !== undefined && { vaultSize: recent.vaultSize }),
+              }
             ),
             truncatedByBudget,
           });

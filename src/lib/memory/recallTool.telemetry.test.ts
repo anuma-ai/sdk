@@ -189,7 +189,8 @@ describe("recall tool telemetry", () => {
       expect.objectContaining({
         admittedCount: 0,
         minScoreApplied: -1,
-        emptyReason: "no-candidates",
+        vaultSize: 0,
+        emptyReason: "vault-empty",
         truncatedByBudget: false,
       })
     );
@@ -245,6 +246,7 @@ describe("recall tool telemetry", () => {
       expect(onDiagnostics).toHaveBeenCalledExactlyOnceWith(
         expect.objectContaining({
           admittedCount: count,
+          emptyReason: count ? "" : "vault-empty",
           truncated: false,
           truncatedByBudget: false,
         })
