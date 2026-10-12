@@ -3,19 +3,19 @@ import LokiJSAdapter from "@nozbe/watermelondb/adapters/lokijs";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const encMocks = vi.hoisted(() => ({
-  encrypt: vi.fn(async (content: string) => `enc:${content}`),
-  decrypt: vi.fn(async (m: { content: string }) => ({
-    ...m,
-    content: String(m.content).replace(/^enc:/, ""),
-  })),
+  encrypt: vi.fn((content: string) => Promise.resolve(`enc:${content}`)),
+  decrypt: vi.fn((m: { content: string }) =>
+    Promise.resolve({
+      ...m,
+      content: String(m.content).replace(/^enc:/, ""),
+    })
+  ),
 }));
 
 vi.mock("../db/memoryVault/encryption", () => ({
   encryptVaultMemoryContent: encMocks.encrypt,
   decryptVaultMemoryFields: encMocks.decrypt,
 }));
-
-import type { FactType } from "./autoExtract";
 
 import type { VaultMemory } from "../db/memoryVault/models";
 import {
@@ -30,7 +30,7 @@ import {
   type VaultMemoryOperationsContext,
 } from "../db/memoryVault/operations";
 import { sdkMigrations, sdkModelClasses, sdkSchema } from "../db/schema";
-
+import type { FactType } from "./autoExtract";
 import {
   type DecayInput,
   type DecayVerdict,
@@ -66,7 +66,7 @@ beforeEach(() => {
     database,
     vaultMemoryCollection: database.get<VaultMemory>("memory_vault"),
     walletAddress: "0xtest",
-    signMessage: async (_message: string) => "0xsig",
+    signMessage: (_message: string) => Promise.resolve("0xsig"),
     singleTenant: true,
   };
 });

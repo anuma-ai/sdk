@@ -1,13 +1,15 @@
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("../memory/recall", () => ({
-  recall: vi.fn(async () => ({
-    memories: [{ id: "m1", kind: "fact", content: "Likes tea", score: 0.9 }],
-    usedBudget: "low",
-    reranked: false,
-    candidateCount: 1,
-    vaultSize: 1,
-  })),
+  recall: vi.fn(() =>
+    Promise.resolve({
+      memories: [{ id: "m1", kind: "fact", content: "Likes tea", score: 0.9 }],
+      usedBudget: "low",
+      reranked: false,
+      candidateCount: 1,
+      vaultSize: 1,
+    })
+  ),
 }));
 
 vi.mock("./searchTool", async (importOriginal) => ({
@@ -16,8 +18,8 @@ vi.mock("./searchTool", async (importOriginal) => ({
 }));
 
 import { recall } from "../memory/recall";
-import type { RecallDiagnostics } from "../memory/types";
 import type { MemoryStore } from "../memory/store/types";
+import type { RecallDiagnostics } from "../memory/types";
 import { createVaultEmbeddingCache } from "./lruCache";
 import { searchVaultMemoriesWithSize } from "./searchTool";
 import { createMemoryVaultSearchTool } from "./searchToolExecutor";
@@ -26,12 +28,14 @@ function fakeStore() {
   return {
     retain: vi.fn(),
     factSource: {
-      search: vi.fn(async () => ({
-        results: [{ uniqueId: "m2", content: "Drinks coffee", similarity: 0.8 }],
-        vaultSize: 1,
-      })),
-      graphRanking: vi.fn(async () => []),
-      temporalRanking: vi.fn(async () => []),
+      search: vi.fn(() =>
+        Promise.resolve({
+          results: [{ uniqueId: "m2", content: "Drinks coffee", similarity: 0.8 }],
+          vaultSize: 1,
+        })
+      ),
+      graphRanking: vi.fn(() => Promise.resolve([])),
+      temporalRanking: vi.fn(() => Promise.resolve([])),
     },
   } as unknown as MemoryStore;
 }
@@ -69,15 +73,32 @@ describe("vault search telemetry", () => {
   it("forwards diagnostics, the empty reason, and a result limit cut", async () => {
     const onDiagnostics = vi.fn();
     const onTruncated = vi.fn();
-    const diagnostics = {
+    const diagnostics: RecallDiagnostics = {
+      usedBudget: "low",
+      reranked: false,
+      candidateCount: 0,
+      factCount: 0,
+      chunkCount: 0,
       admittedCount: 0,
+      topScore: -1,
+      lowestAdmittedScore: -1,
+      minScoreApplied: -1,
+      graphLaneCount: 0,
+      temporalLaneCount: 0,
       emptyReason: "no-candidates",
       truncated: true,
+      timings: { total: 0, prep: 0, factLane: 0, rerank: 0, queryEmbed: 0, chunkLane: 0, fuse: 0 },
       degraded: [],
-    } as unknown as RecallDiagnostics;
-    vi.mocked(recall).mockImplementationOnce(async (_query, _ctx, options) => {
+    };
+    vi.mocked(recall).mockImplementationOnce((_query, _ctx, options) => {
       options?.onDiagnostics?.(diagnostics);
-      return { memories: [], vaultSize: 1, usedBudget: "low", reranked: false, candidateCount: 0 };
+      return Promise.resolve({
+        memories: [],
+        vaultSize: 1,
+        usedBudget: "low",
+        reranked: false,
+        candidateCount: 0,
+      });
     });
     const tool = createMemoryVaultSearchTool(
       fakeStore(),
