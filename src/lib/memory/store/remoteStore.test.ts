@@ -421,10 +421,12 @@ describe("remote MemoryStore", () => {
     await store.topicMaintenance.stampTopicsExtracted([edited.uniqueId], Date.now() - 1000);
     await store.update(edited.uniqueId, { content: "Lives in Porto", embedding: axis(2) });
     await store.setTopics(curated.uniqueId, ["Chess"]);
+    const outdated = await store.create({ content: "Drinks tea", embedding: axis(4) });
+    await store.topicMaintenance.stampTopicsExtracted([outdated.uniqueId], Date.now() + 1000, 2);
     server.fetch.mockClear();
 
     expect((await store.topicMaintenance.getTopicBacklog()).pending.map((p) => p.uniqueId)).toEqual(
-      [edited.uniqueId, fresh.uniqueId]
+      [outdated.uniqueId, edited.uniqueId, fresh.uniqueId]
     );
     const queries = server.fetch.mock.calls
       .filter(([input]) => String(input).endsWith("/memories/query"))
@@ -453,6 +455,28 @@ describe("remote MemoryStore", () => {
       .filter(([input]) => String(input).endsWith("/memories/query"))
       .map(([, init]) => JSON.parse(String(init!.body)) as Record<string, unknown>);
     expect(queries).toEqual([expect.objectContaining({ topics_extracted: true, limit: 2 })]);
+  });
+
+  it("fills the rest of the backlog limit with never-extracted rows", async () => {
+    const { store, server } = await remoteStore();
+    const edited = await store.create({ content: "Lives in Lisbon", embedding: axis(0) });
+    await store.topicMaintenance.stampTopicsExtracted([edited.uniqueId], Date.now() - 1000);
+    await store.update(edited.uniqueId, { content: "Lives in Porto", embedding: axis(0) });
+    const fresh: string[] = [];
+    for (const content of ["Likes jazz", "Plays chess", "Hikes Mt Hood"]) {
+      fresh.push((await store.create({ content, embedding: axis(1) })).uniqueId);
+    }
+    server.fetch.mockClear();
+
+    const pending = (await store.topicMaintenance.getTopicBacklog({ limit: 3 })).pending;
+    expect(pending.map((p) => p.uniqueId)).toEqual([edited.uniqueId, fresh[2], fresh[1]]);
+    const queries = server.fetch.mock.calls
+      .filter(([input]) => String(input).endsWith("/memories/query"))
+      .map(([, init]) => JSON.parse(String(init!.body)) as Record<string, unknown>);
+    expect(queries).toEqual([
+      expect.objectContaining({ topics_extracted: true, limit: 3 }),
+      expect.objectContaining({ topics_extracted: false, limit: 2 }),
+    ]);
   });
 
   it("does not write topics extracted from content that changed during the LLM call", async () => {
