@@ -437,20 +437,20 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
 
   const topicMaintenance: MemoryTopicMaintenance = {
     getTopicBacklog: async (backlogOptions = {}) => {
-      const stale: string[] = [];
-      const fresh: string[] = [];
-      for (const { memory } of await pages(metadata, {
-        order: "created",
-        topics_due: TOPICS_EXTRACTION_VERSION,
-      })) {
-        ((memory.topics_extracted_at ?? null) === null ? fresh : stale).push(memory.memory_id);
-      }
       const limit =
         backlogOptions.limit !== undefined && backlogOptions.limit > 0
           ? backlogOptions.limit
           : Infinity;
+      const due = (extracted: boolean, max: number) =>
+        pages(
+          metadata,
+          { order: "created", topics_due: TOPICS_EXTRACTION_VERSION, topics_extracted: extracted },
+          max
+        );
+      const stale = await due(true, limit);
+      const fresh = stale.length < limit ? await due(false, limit - stale.length) : [];
       return {
-        pending: [...stale, ...fresh].slice(0, limit).map((uniqueId) => ({ uniqueId })),
+        pending: [...stale, ...fresh].map(({ memory }) => ({ uniqueId: memory.memory_id })),
         linkedUnstamped: [],
         topicsToRelink: [],
         topicsBackfill: [],

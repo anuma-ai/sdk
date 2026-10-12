@@ -164,7 +164,9 @@ function fakeNearby(keyId: string) {
                 (m.topics_extracted_at == null ||
                   (m.updated_at as number) > (m.topics_extracted_at as number) ||
                   ((m.topics_extracted_version as number | undefined) ?? 0) <
-                    (body.topics_due as number))))
+                    (body.topics_due as number)))) &&
+            (body.topics_extracted === undefined ||
+              (m.topics_extracted_at != null) === body.topics_extracted)
         )
         .map((s) => ({ s, at: [key(s), s.memory.memory_id] as [number, string] }))
         .filter(({ at }) => !after || sign * compare(at, after) > 0)
@@ -428,8 +430,29 @@ describe("remote MemoryStore", () => {
       .filter(([input]) => String(input).endsWith("/memories/query"))
       .map(([, init]) => JSON.parse(String(init!.body)) as Record<string, unknown>);
     expect(queries).toEqual([
-      expect.objectContaining({ topics_due: TOPICS_EXTRACTION_VERSION, order: "created" }),
+      expect.objectContaining({ topics_due: TOPICS_EXTRACTION_VERSION, topics_extracted: true }),
+      expect.objectContaining({ topics_due: TOPICS_EXTRACTION_VERSION, topics_extracted: false }),
     ]);
+  });
+
+  it("reads at most the backlog limit, skipping never-extracted rows when edited ones fill it", async () => {
+    const { store, server } = await remoteStore();
+    const edited: string[] = [];
+    for (const content of ["Lives in Lisbon", "Likes jazz", "Plays chess"]) {
+      const m = await store.create({ content, embedding: axis(0) });
+      await store.topicMaintenance.stampTopicsExtracted([m.uniqueId], Date.now() - 1000);
+      await store.update(m.uniqueId, { content: `${content}!`, embedding: axis(0) });
+      edited.push(m.uniqueId);
+    }
+    await store.create({ content: "Hikes Mt Hood", embedding: axis(1) });
+    server.fetch.mockClear();
+
+    const pending = (await store.topicMaintenance.getTopicBacklog({ limit: 2 })).pending;
+    expect(pending.map((p) => p.uniqueId)).toEqual([edited[2], edited[1]]);
+    const queries = server.fetch.mock.calls
+      .filter(([input]) => String(input).endsWith("/memories/query"))
+      .map(([, init]) => JSON.parse(String(init!.body)) as Record<string, unknown>);
+    expect(queries).toEqual([expect.objectContaining({ topics_extracted: true, limit: 2 })]);
   });
 
   it("does not write topics extracted from content that changed during the LLM call", async () => {

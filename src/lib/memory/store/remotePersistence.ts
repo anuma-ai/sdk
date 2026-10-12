@@ -80,6 +80,7 @@ export interface RemoteMemoryQueryOptions extends RemoteMemoryReadFilters {
   topics?: string[];
   updated_after?: number;
   topics_due?: number;
+  topics_extracted?: boolean;
   order?: "created" | "updated" | "archived" | "changed";
   cursor?: string;
   limit?: number;
@@ -256,6 +257,7 @@ const queryFields = [
   "topics",
   "updated_after",
   "topics_due",
+  "topics_extracted",
   "order",
   "cursor",
   "limit",

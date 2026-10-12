@@ -540,6 +540,7 @@ describe("remote private-memory persistence", () => {
       topics: ["Lisbon"],
       updated_after: 5,
       topics_due: 3,
+      topics_extracted: false,
     });
     expect(page.items.map((item) => item.memory.content)).toEqual(["Speaks Portuguese"]);
     expect(page.changes_cursor).toBe("resume-here");
@@ -548,6 +549,7 @@ describe("remote private-memory persistence", () => {
       topics: ["Lisbon"],
       updated_after: 5,
       topics_due: 3,
+      topics_extracted: false,
     });
   });
 
