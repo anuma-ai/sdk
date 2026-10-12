@@ -186,29 +186,33 @@ export function createLocalMemoryStore(options: LocalMemoryStoreOptions): Memory
     topicsByMemories: (memoryIds: readonly string[]) =>
       getEntitiesByMemoryIdsOp(entityCtx, memoryIds),
     listTopics: async () => {
-      const links = await entityCtx.memoryEntityCollection.query(...linksOwnedBy).fetch();
+      const links = (await entityCtx.memoryEntityCollection
+        .query(...linksOwnedBy)
+        .unsafeFetchRaw()) as Record<string, unknown>[];
       const members = new Map<string, Set<string>>();
       for (const link of links) {
-        const entityId = String(link.entityId);
+        const entityId = String(link.entity_id);
         const set = members.get(entityId) ?? new Set<string>();
-        set.add(String(link.memoryId));
+        set.add(String(link.memory_id));
         members.set(entityId, set);
       }
-      const entities =
+      const entities = (
         userId === undefined
-          ? await entityCtx.entityCollection.query().fetch()
+          ? await entityCtx.entityCollection.query().unsafeFetchRaw()
           : members.size
             ? await entityCtx.entityCollection
                 .query(Q.where("id", Q.oneOf([...members.keys()])))
-                .fetch()
-            : [];
+                .unsafeFetchRaw()
+            : []
+      ) as Record<string, unknown>[];
       const byName = new Map<string, MemoryTopic>();
       for (const entity of entities) {
-        const count = members.get(entity.id)?.size ?? 0;
-        const existing = byName.get(entity.canonicalName);
-        byName.set(entity.canonicalName, {
-          name: entity.canonicalName,
-          kind: existing?.kind ?? entity.kind ?? null,
+        const name = String(entity.canonical_name);
+        const count = members.get(String(entity.id))?.size ?? 0;
+        const existing = byName.get(name);
+        byName.set(name, {
+          name,
+          kind: existing?.kind ?? (entity.kind as string | null) ?? null,
           memoryCount: (existing?.memoryCount ?? 0) + count,
         });
       }
