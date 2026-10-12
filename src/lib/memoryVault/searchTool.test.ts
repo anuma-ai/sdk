@@ -1974,3 +1974,37 @@ describe("composite sub-query embeds — degenerate responses fall through", () 
     expect(out.results.map((r) => r.uniqueId)).toContain("m2");
   });
 });
+
+describe("legacy vault search diagnostics", () => {
+  it("reports the eligible count and limit cut before the result slice", async () => {
+    const memories = [makeMemory("a", "tea"), makeMemory("b", "coffee")];
+    vi.mocked(getAllVaultMemoriesOp).mockResolvedValue(memories);
+    vi.mocked(generateEmbedding).mockResolvedValue([1, 0, 0]);
+    const cache = createVaultEmbeddingCache();
+    seedVector(cache, "a", new Float32Array([1, 0, 0]));
+    seedVector(cache, "b", new Float32Array([0.8, 0.2, 0]));
+    const onDiagnostics = vi.fn();
+    const onTruncated = vi.fn();
+    const tool = createMemoryVaultSearchTool(
+      mockVaultCtx,
+      mockEmbeddingOptions,
+      cache,
+      { useFusion: false },
+      { onDiagnostics, onTruncated }
+    );
+    expect(await tool.executor!({ query: "drink", limit: 1 })).toContain("tea");
+    expect(onDiagnostics).toHaveBeenCalledWith(
+      expect.objectContaining({
+        candidateCount: 2,
+        admittedCount: 1,
+        truncated: true,
+        vaultRowsDecrypted: 2,
+      })
+    );
+    expect(onTruncated).toHaveBeenCalledWith({
+      requestedLimit: 1,
+      effectiveLimit: 1,
+      truncatedByBudget: false,
+    });
+  });
+});

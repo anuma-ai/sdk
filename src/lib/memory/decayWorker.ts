@@ -19,6 +19,10 @@ import {
 
 /** Counts from one sweep, for UI surfacing (e.g. "N memories archived"). */
 export interface DecaySweepResult {
+  ruleDriven: { archived: number; deleted: number };
+  classifierDriven: { archived: number; deleted: number };
+  classifierCalls: number;
+  classifierCapHits: number;
   /** Rows transitioned active → archived this sweep. */
   archived: number;
   /** Rows hard-deleted (archived past the window) this sweep. */
@@ -108,7 +112,17 @@ export interface DecaySweeper {
   dispose(): void;
 }
 
-const EMPTY_RESULT: DecaySweepResult = { archived: 0, deleted: 0, scanned: 0 };
+function emptyResult(): DecaySweepResult {
+  return {
+    archived: 0,
+    deleted: 0,
+    scanned: 0,
+    ruleDriven: { archived: 0, deleted: 0 },
+    classifierDriven: { archived: 0, deleted: 0 },
+    classifierCalls: 0,
+    classifierCapHits: 0,
+  };
+}
 
 /**
  * Default per-sweep ceiling on decay-classifier invocations (see
@@ -168,6 +182,7 @@ export function createDecaySweeper(options: CreateDecaySweeperOptions): DecaySwe
 
   interface SweepState {
     classifierCalls: number;
+    classifierCapHits: number;
     ceilingLogged: boolean;
   }
 
@@ -175,18 +190,21 @@ export function createDecaySweeper(options: CreateDecaySweeperOptions): DecaySwe
     input: DecayInput,
     now: number,
     sweep: SweepState
-  ): Promise<DecayVerdict> {
+  ): Promise<{ verdict: DecayVerdict; source: "ruleDriven" | "classifierDriven" }> {
     const ruleVerdict = classifyDecay(input, now, policy);
-    if (ruleVerdict !== "keep") return ruleVerdict;
+    const rule = { verdict: ruleVerdict, source: "ruleDriven" as const };
+    if (ruleVerdict !== "keep") return rule;
 
-    if (!classifier || !isBorderline(input)) return ruleVerdict;
+    if (!classifier || !isBorderline(input)) return rule;
 
     if (input.id) {
       const cached = classifierCache.get(input.id);
-      if (cached && cached.activityAt === lastActivityAt(input)) return cached.verdict;
+      if (cached && cached.activityAt === lastActivityAt(input))
+        return { verdict: cached.verdict, source: "classifierDriven" };
     }
 
     if (sweep.classifierCalls >= maxClassifierCalls) {
+      sweep.classifierCapHits++;
       if (!sweep.ceilingLogged) {
         sweep.ceilingLogged = true;
         getLogger().warn(
@@ -194,26 +212,26 @@ export function createDecaySweeper(options: CreateDecaySweeperOptions): DecaySwe
             "remaining borderline rows use the rule verdict this sweep"
         );
       }
-      return ruleVerdict;
+      return rule;
     }
 
     sweep.classifierCalls++;
     try {
       const verdict = await classifier.classify(input, ruleVerdict, now);
       if (input.id) classifierCache.set(input.id, { activityAt: lastActivityAt(input), verdict });
-      return verdict;
+      return { verdict, source: "classifierDriven" };
     } catch (err) {
       getLogger().warn(
         `[memory/decay] classifier failed; falling back to rule verdict: ${
           err instanceof Error ? err.message : String(err)
         }`
       );
-      return ruleVerdict;
+      return rule;
     }
   }
 
   async function runSweep(): Promise<DecaySweepResult> {
-    if (disposed) return { ...EMPTY_RESULT };
+    if (disposed) return emptyResult();
     const now = resolveNow(options.now);
 
     let candidates: DecayCandidateRaw[];
@@ -221,7 +239,7 @@ export function createDecaySweeper(options: CreateDecaySweeperOptions): DecaySwe
       candidates = await getDecayCandidatesRawOp(vaultCtx);
     } catch (err) {
       onError?.(err instanceof Error ? err : new Error(String(err)));
-      return { ...EMPTY_RESULT };
+      return emptyResult();
     }
 
     if (classifierCache.size > 0) {
@@ -231,35 +249,48 @@ export function createDecaySweeper(options: CreateDecaySweeperOptions): DecaySwe
       }
     }
 
-    const sweep: SweepState = { classifierCalls: 0, ceilingLogged: false };
-    const toArchive: DecayCandidateRaw[] = [];
-    const toDelete: DecayCandidateRaw[] = [];
+    const sweep: SweepState = { classifierCalls: 0, classifierCapHits: 0, ceilingLogged: false };
+    const toArchive: Array<{
+      candidate: DecayCandidateRaw;
+      source: "ruleDriven" | "classifierDriven";
+    }> = [];
+    const toDelete: Array<{
+      candidate: DecayCandidateRaw;
+      source: "ruleDriven" | "classifierDriven";
+    }> = [];
     for (const c of candidates) {
-      const verdict = await verdictFor(toDecayInput(c), now, sweep);
-      if (verdict === "archive") toArchive.push(c);
-      else if (verdict === "delete") toDelete.push(c);
+      const { verdict, source } = await verdictFor(toDecayInput(c), now, sweep);
+      if (verdict === "archive") toArchive.push({ candidate: c, source });
+      else if (verdict === "delete") toDelete.push({ candidate: c, source });
     }
 
-    let archived = 0;
-    let deleted = 0;
+    const result = emptyResult();
+    result.scanned = candidates.length;
+    result.classifierCalls = sweep.classifierCalls;
+    result.classifierCapHits = sweep.classifierCapHits;
     try {
-      for (const c of toArchive) {
+      for (const { candidate: c, source } of toArchive) {
         const ok = await archiveVaultMemoryOp(vaultCtx, c.uniqueId, {
           now,
           expectedUpdatedAt: c.updatedAt,
           expectedLastObservedAt: c.lastObservedAt ?? null,
         });
-        if (ok) archived++;
+        if (ok) {
+          result.archived++;
+          result[source].archived++;
+        }
       }
-      for (const c of toDelete) {
+      for (const { candidate: c, source } of toDelete) {
         const ok = await hardDeleteDecayedOp(vaultCtx, c.uniqueId, { hardDeleteWindowMs, now });
-        if (ok) deleted++;
+        if (ok) {
+          result.deleted++;
+          result[source].deleted++;
+        }
       }
     } catch (err) {
       onError?.(err instanceof Error ? err : new Error(String(err)));
     }
 
-    const result: DecaySweepResult = { archived, deleted, scanned: candidates.length };
     onSwept?.(result);
     return result;
   }

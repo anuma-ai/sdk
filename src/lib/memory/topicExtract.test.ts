@@ -44,6 +44,33 @@ function mockFetch(content: string): typeof fetch {
 describe("extractEntitiesForMemories", () => {
   beforeEach(() => vi.clearAllMocks());
 
+  it("reports failed attempts before a successful batch and isolates callback errors", async () => {
+    const fetchFn = vi
+      .fn()
+      .mockResolvedValueOnce(new Response("unavailable", { status: 503 }))
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          choices: [{ message: { content: topicResponse([{ id: "mem_1", entities: [] }]) } }],
+        }),
+      });
+    const onBatch = vi.fn((_diagnostics: unknown) => {
+      throw new Error("metrics offline");
+    });
+    const result = await extractEntitiesForMemories([{ id: "mem_1", content: "tea" }], {
+      apiKey: "k",
+      fetchFn,
+      maxAttempts: 2,
+      backoffMs: () => 0,
+      onBatch,
+    });
+    expect(result.get("mem_1")).toEqual([]);
+    expect(onBatch).toHaveBeenCalledWith(
+      expect.objectContaining({ attempts: 2, unansweredCount: 0 })
+    );
+    expect(onBatch.mock.calls[0][0]).not.toHaveProperty("failure");
+  });
+
   it("returns an empty map for empty input without calling the LLM", async () => {
     const fetchFn = vi.fn() as unknown as typeof fetch;
     const result = await extractEntitiesForMemories([], { apiKey: "k", fetchFn });
@@ -367,6 +394,43 @@ function makeOpCtx(records: Record<string, ReturnType<typeof mockVaultRecord>>) 
 
 describe("extractAndLinkEntitiesForMemoriesOp", () => {
   beforeEach(() => vi.clearAllMocks());
+
+  it("reports batch counts, latency, and the HTTP failure for unanswered memories", async () => {
+    const records = Object.fromEntries(
+      Array.from({ length: 11 }, (_, i) => [String(i), mockVaultRecord({ id: String(i) })])
+    );
+    const fetchFn = vi
+      .fn()
+      .mockResolvedValueOnce(new Response("unavailable", { status: 503 }))
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          choices: [{ message: { content: topicResponse([{ id: "10", entities: [] }]) } }],
+        }),
+      });
+    const onBatch = vi.fn();
+    const result = await extractAndLinkEntitiesForMemoriesOp(
+      makeOpCtx(records),
+      Object.keys(records),
+      { apiKey: "k", fetchFn, maxAttempts: 1, onBatch }
+    );
+    expect(result.batchCount).toBe(2);
+    expect(result.durationMs).toBeGreaterThanOrEqual(0);
+    expect(onBatch).toHaveBeenCalledTimes(2);
+    expect(result.batches[0]).toMatchObject({
+      attempts: 1,
+      unansweredCount: 10,
+      failure: { reason: "http-retryable", httpStatus: 503, attempts: 1 },
+    });
+    expect(result.batches[1]).toMatchObject({ attempts: 1, unansweredCount: 0 });
+    expect(result.llmFailures.get("0")).toEqual({
+      reason: "http-retryable",
+      httpStatus: 503,
+      attempts: 1,
+    });
+    expect(result.llmFailures.has("10")).toBe(false);
+    expect(result.stampedIds).toEqual(["10"]);
+  });
 
   it("throws without ctx.entityCtx", async () => {
     const ctx = makeOpCtx({}) as { entityCtx?: unknown };

@@ -26,7 +26,7 @@ import {
   RECALL_TURN_WINDOW_MS,
 } from "./recallTool";
 import type { MemoryStore } from "./store/types";
-import type { RankedMemory, RecallContext, RecallResult } from "./types";
+import type { RankedMemory, RecallContext, RecallDiagnostics, RecallResult } from "./types";
 
 function fact(id: string, content: string): RankedMemory {
   return { id, kind: "fact", content, score: 1 };
@@ -707,5 +707,105 @@ describe("createRecallTool executor — sort: recent", () => {
     const props = (tool.function.arguments as { properties: Record<string, { enum?: string[] }> })
       .properties;
     expect(props.sort?.enum).toEqual(["relevance", "recent"]);
+  });
+});
+
+describe("recall tool telemetry", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("forwards diagnostics and reports the turn budget cut", async () => {
+    const diagnostics = {
+      degraded: [],
+      admittedCount: 20,
+      emptyReason: "",
+      truncated: false,
+    } as unknown as RecallDiagnostics;
+    vi.mocked(recall).mockImplementation(async (_query, _ctx, options) => {
+      const count = options?.limit ?? 0;
+      options?.onDiagnostics?.({ ...diagnostics, admittedCount: count });
+      return recallResult(Array.from({ length: count }, (_, i) => fact(String(i), "tea")));
+    });
+    const onDiagnostics = vi.fn();
+    const onTruncated = vi.fn();
+    const tool = createRecallTool(ctx, undefined, { onDiagnostics, onTruncated });
+    await tool.executor!({ query: "tea", limit: 30 });
+    await tool.executor!({ query: "coffee", limit: 30 });
+    expect(onDiagnostics).toHaveBeenLastCalledWith(
+      expect.objectContaining({ admittedCount: 10, truncatedByBudget: true })
+    );
+    expect(onTruncated).toHaveBeenLastCalledWith({
+      requestedLimit: 30,
+      effectiveLimit: 10,
+      truncatedByBudget: true,
+    });
+    await tool.executor!({ query: "books", limit: 8 });
+    expect(onTruncated).toHaveBeenLastCalledWith({
+      requestedLimit: 8,
+      effectiveLimit: 0,
+      truncatedByBudget: true,
+    });
+  });
+
+  it("keeps the result and budget when telemetry callbacks throw", async () => {
+    vi.mocked(recall).mockImplementation(async (_query, _ctx, options) => {
+      const count = options?.limit ?? 0;
+      options?.onDiagnostics?.({
+        degraded: [],
+        admittedCount: count,
+        truncated: false,
+      } as unknown as RecallDiagnostics);
+      return recallResult(Array.from({ length: count }, (_, i) => fact(String(i), "tea")));
+    });
+    const fail = () => {
+      throw new Error("metrics offline");
+    };
+    const tool = createRecallTool(ctx, undefined, { onDiagnostics: fail, onTruncated: fail });
+    expect(await tool.executor!({ query: "tea", limit: 30 })).toContain("Found 30");
+    expect(await tool.executor!({ query: "tea", limit: 30 })).toContain("Found 10");
+    expect(await tool.executor!({ query: "tea" })).toContain("budget");
+  });
+
+  it("reports diagnostics for the recent facts path", async () => {
+    vi.mocked(getVaultRankingProjectionsOp).mockResolvedValue([]);
+    const onDiagnostics = vi.fn();
+    const tool = createRecallTool(
+      { vaultCtx: {} as VaultMemoryOperationsContext } as RecallContext,
+      undefined,
+      { onDiagnostics }
+    );
+    expect(await tool.executor!({ query: "recent facts", sort: "recent" })).toContain(
+      "No relevant"
+    );
+    expect(onDiagnostics).toHaveBeenCalledWith(
+      expect.objectContaining({
+        admittedCount: 0,
+        minScoreApplied: -1,
+        emptyReason: "no-candidates",
+        truncatedByBudget: false,
+      })
+    );
+    expect(recall).not.toHaveBeenCalled();
+  });
+
+  it("reports an empty reason and a search error to the host", async () => {
+    const onDiagnostics = vi.fn();
+    const onError = vi.fn();
+    vi.mocked(recall)
+      .mockImplementationOnce(async (_query, _ctx, options) => {
+        options?.onDiagnostics?.({
+          degraded: [],
+          emptyReason: "vault-empty",
+          admittedCount: 0,
+        } as unknown as RecallDiagnostics);
+        return recallResult([]);
+      })
+      .mockRejectedValueOnce(new Error("storage unavailable"));
+    const tool = createRecallTool(ctx, undefined, { onDiagnostics, onError });
+    expect(await tool.executor!({ query: "tea" })).toContain("No relevant");
+    expect(onDiagnostics).toHaveBeenCalledWith(
+      expect.objectContaining({ emptyReason: "vault-empty" })
+    );
+    await expect(tool.executor!({ query: "coffee" })).rejects.toThrow("storage unavailable");
+    expect(onError).toHaveBeenCalledWith(expect.objectContaining({ cause: expect.any(Error) }));
   });
 });

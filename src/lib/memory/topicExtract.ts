@@ -12,7 +12,12 @@ import {
   type ExtractedEntity,
   parseEntities,
 } from "./autoExtract.js";
-import { callPortalJsonCompletion, type PortalLlmAuth } from "./portalLlm.js";
+import {
+  callPortalJsonCompletion,
+  type PortalLlmAuth,
+  type PortalLlmFailure,
+} from "./portalLlm.js";
+import { notifyMemoryCallback } from "./recallTelemetry.js";
 
 /** Memories per LLM call. Mirrors the folder Auto-Sort batch size — the cost
  * lever that makes a whole-vault backfill viable. */
@@ -48,11 +53,20 @@ export interface TopicExtractionInput {
   content: string;
 }
 
+export interface TopicExtractionBatchDiagnostics {
+  memoryIds: string[];
+  attempts: number;
+  durationMs: number;
+  unansweredCount: number;
+  failure?: PortalLlmFailure;
+}
+
 /**
  * Options for the topic-extraction LLM call. Auth follows the portal dual
  * pattern — one of `apiKey` / `getToken` is required (see {@link PortalLlmAuth}).
  */
 export interface TopicExtractOptions extends PortalLlmAuth {
+  onBatch?: (diagnostics: TopicExtractionBatchDiagnostics) => void;
   baseUrl?: string;
   /**
    * Optional per-call request path override, forwarded to
@@ -123,6 +137,18 @@ export async function extractEntitiesForMemories(
 
   for (let i = 0; i < memories.length; i += TOPIC_EXTRACTION_BATCH_SIZE) {
     const batch = memories.slice(i, i + TOPIC_EXTRACTION_BATCH_SIZE);
+    const start = Date.now();
+    let attempts = 0;
+    let failure: PortalLlmFailure | undefined;
+    const reportBatch = (unansweredCount: number): void => {
+      notifyMemoryCallback(options.onBatch, {
+        memoryIds: batch.map((m) => m.id),
+        attempts,
+        durationMs: Date.now() - start,
+        unansweredCount,
+        ...(failure && { failure }),
+      });
+    };
     const rows: string[] = [];
     for (const m of batch) {
       const content = m.content.slice(0, MAX_CHARS_PER_MEMORY).replace(/\s+/g, " ").trim();
@@ -141,6 +167,12 @@ export async function extractEntitiesForMemories(
       systemPrompt: SYSTEM_PROMPT,
       userMessage: `${vocabularyNote}Memories:\n${listing}\n\nList each memory's named entities.`,
       tag: "memory/topics",
+      onAttempt: (attempt) => {
+        attempts = attempt.attempt;
+      },
+      onFailure: (value) => {
+        failure = value;
+      },
       extra: { max_completion_tokens: MAX_COMPLETION_TOKENS },
       ...(options.fetchFn && { fetchFn: options.fetchFn }),
       ...(options.maxAttempts !== undefined && { maxAttempts: options.maxAttempts }),
@@ -149,6 +181,7 @@ export async function extractEntitiesForMemories(
       ...(options.backoffMs && { backoffMs: options.backoffMs }),
     });
     if (parsed === null) {
+      reportBatch(batch.length);
       getLogger().warn(
         `[memory/topics] batch of ${batch.length} failed after retries — will retry next sweep`
       );
@@ -157,6 +190,7 @@ export async function extractEntitiesForMemories(
     const validIds = new Set(batch.map((m) => m.id));
     const byId = parseTopicResponse(parsed, validIds);
     if (byId === null) {
+      reportBatch(batch.length);
       getLogger().warn(
         `[memory/topics] batch of ${batch.length} returned an unrecognized shape — will retry next sweep`
       );
@@ -169,6 +203,7 @@ export async function extractEntitiesForMemories(
       }
       out.set(m.id, redactor ? restoreEntities(entities, redactor) : entities);
     }
+    reportBatch(batch.filter((m) => !byId.has(m.id)).length);
   }
   return out;
 }
@@ -260,6 +295,10 @@ export function isDegradedTopicSkip(reason: TopicSkipReason): boolean {
 
 /** Outcome of one {@link extractAndLinkEntitiesForMemoriesOp} run. */
 export interface TopicExtractionRunResult {
+  batchCount: number;
+  durationMs: number;
+  batches: TopicExtractionBatchDiagnostics[];
+  llmFailures: Map<string, PortalLlmFailure>;
   /** memoryId → entities the LLM returned (post-validation, post-linking). */
   entitiesByMemory: Map<string, ExtractedEntity[]>;
   /** Memories stamped `topics_extracted_at` this run — includes zero-entity
@@ -320,6 +359,7 @@ export async function extractAndLinkEntitiesForMemoriesOp(
     now?: number;
   }
 ): Promise<TopicExtractionRunResult> {
+  const start = Date.now();
   const entityCtx = ctx.entityCtx;
   if (!entityCtx) {
     throw new Error("extractAndLinkEntitiesForMemoriesOp requires ctx.entityCtx");
@@ -366,7 +406,18 @@ export async function extractAndLinkEntitiesForMemoriesOp(
     }
   }
 
-  const entitiesByMemory = await extractEntitiesForMemories(inputs, options);
+  const batches: TopicExtractionBatchDiagnostics[] = [];
+  const llmFailures = new Map<string, PortalLlmFailure>();
+  const entitiesByMemory = await extractEntitiesForMemories(inputs, {
+    ...options,
+    onBatch: (batch) => {
+      batches.push(batch);
+      if (batch.failure) {
+        for (const id of batch.memoryIds) llmFailures.set(id, batch.failure);
+      }
+      notifyMemoryCallback(options.onBatch, batch);
+    },
+  });
 
   const toStamp: string[] = [];
   for (const input of inputs) {
@@ -400,5 +451,14 @@ export async function extractAndLinkEntitiesForMemoriesOp(
     }
   }
 
-  return { entitiesByMemory, stampedIds, skippedIds, skippedReasons };
+  return {
+    entitiesByMemory,
+    stampedIds,
+    skippedIds,
+    skippedReasons,
+    batchCount: batches.length,
+    durationMs: Date.now() - start,
+    batches,
+    llmFailures,
+  };
 }

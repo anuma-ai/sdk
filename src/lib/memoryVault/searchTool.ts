@@ -11,6 +11,7 @@ import type { StoredVaultMemory } from "../db/memoryVault/types";
 import { getLogger } from "../logger";
 import { applyMMR } from "../memory/mmr";
 import type { PortalLlmAuth } from "../memory/portalLlm";
+import { notifyMemoryCallback } from "../memory/recallTelemetry";
 import { recencyMultiplier, type RecencyOptions } from "../memory/recency";
 import { RerankerUnavailableError, rerankPairs } from "../memory/reranker";
 import { rrfFuse } from "../memory/rrf";
@@ -101,6 +102,7 @@ let warnedProgrammaticDecomposeIgnored = false;
  * Options for the vault search tool.
  */
 export interface MemoryVaultSearchOptions {
+  onCandidateCount?: (count: number) => void;
   /** Maximum number of results to return (default: 5) */
   limit?: number;
   /** Minimum similarity threshold below which results are discarded (default: 0.1) */
@@ -483,6 +485,7 @@ export function rankVaultMemories(
   options?: {
     limit?: number;
     minSimilarity?: number;
+    onCandidateCount?: (count: number) => void;
     /** Fraction of the score gap transferred old→new on supersession. Default 0.8. */
     supersessionBoost?: number;
     /** Hard cap on the supersession candidate window. Default 50. */
@@ -539,6 +542,7 @@ export function rankVaultMemories(
     filtered.sort((a, b) => b.similarity - a.similarity);
   }
 
+  notifyMemoryCallback(options?.onCandidateCount, filtered.length);
   const itemById = new Map(items.map((i) => [i.id, i]));
   return filtered
     .slice(0, limit)
@@ -2273,6 +2277,7 @@ export async function rankPreparedVaultCandidates(
   const results = rankVaultMemories(query, queryEmbedding, embeddedItems, {
     limit,
     minSimilarity,
+    onCandidateCount: searchOptions?.onCandidateCount,
     ...(searchOptions?.supersessionBoost !== undefined && {
       supersessionBoost: searchOptions.supersessionBoost,
     }),

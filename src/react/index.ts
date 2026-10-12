@@ -511,8 +511,10 @@ export type {
   RecallEmptyReason,
   RecallOptions,
   RecallResult,
+  RecallTelemetryCallbacks,
   RecallToolCallbacks,
   RecallToolOptions,
+  RecallTruncation,
   RecencyOptions,
   ReflectOptions,
   ReflectResult,
@@ -533,6 +535,7 @@ export type {
 export type {
   MemoryToVerify,
   MemoryVerification,
+  TopicExtractionBatchDiagnostics,
   TopicExtractionInput,
   TopicExtractionRunResult,
   TopicExtractOptions,

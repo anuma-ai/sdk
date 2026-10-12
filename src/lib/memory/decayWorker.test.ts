@@ -139,8 +139,10 @@ describe("createDecaySweeper.runSweep — archive selection", () => {
     const sweeper = createDecaySweeper({ vaultCtx, now: NOW, onSwept: swept });
     const result = await sweeper.runSweep();
 
-    expect(result).toEqual({ archived: 1, deleted: 0, scanned: 4 });
-    expect(swept).toHaveBeenCalledWith({ archived: 1, deleted: 0, scanned: 4 });
+    expect(result).toMatchObject({ archived: 1, deleted: 0, scanned: 4 });
+    expect(swept).toHaveBeenCalledWith(
+      expect.objectContaining({ archived: 1, deleted: 0, scanned: 4 })
+    );
 
     expect(await archivedAtOf(agedOther)).toBe(NOW);
     expect(await archivedAtOf(agedIdentity)).toBeNull();
@@ -215,8 +217,8 @@ describe("createDecaySweeper.runSweep — idempotency", () => {
     const first = await sweeper.runSweep();
     const second = await sweeper.runSweep();
 
-    expect(first).toEqual({ archived: 1, deleted: 0, scanned: 1 });
-    expect(second).toEqual({ archived: 0, deleted: 0, scanned: 1 });
+    expect(first).toMatchObject({ archived: 1, deleted: 0, scanned: 1 });
+    expect(second).toMatchObject({ archived: 0, deleted: 0, scanned: 1 });
   });
 
   it("returns zero counts and no-ops after dispose", async () => {
@@ -228,7 +230,7 @@ describe("createDecaySweeper.runSweep — idempotency", () => {
     const sweeper = createDecaySweeper({ vaultCtx, now: NOW });
     sweeper.dispose();
     const result = await sweeper.runSweep();
-    expect(result).toEqual({ archived: 0, deleted: 0, scanned: 0 });
+    expect(result).toMatchObject({ archived: 0, deleted: 0, scanned: 0 });
   });
 });
 
@@ -691,12 +693,71 @@ describe("createDecaySweeper — PR5 classifier seam", () => {
     let clock = NOW + 10 * DAY;
     const sweeper = createDecaySweeper({ vaultCtx, now: () => clock, classifier: { classify } });
 
-    expect(await sweeper.runSweep()).toEqual({ archived: 0, deleted: 0, scanned: 1 });
+    expect(await sweeper.runSweep()).toMatchObject({ archived: 0, deleted: 0, scanned: 1 });
 
     clock = NOW + 200 * DAY;
-    expect(await sweeper.runSweep()).toEqual({ archived: 1, deleted: 0, scanned: 1 });
+    expect(await sweeper.runSweep()).toMatchObject({ archived: 1, deleted: 0, scanned: 1 });
     expect(await archivedAtOf(id)).toBe(clock);
 
     expect(classify).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("decay sweep telemetry", () => {
+  it("counts cached verdicts without a new classifier call", async () => {
+    await seed({ content: "cached", factType: "other", updatedAt: NOW - DAY });
+    await seed({ content: "next", factType: "other", updatedAt: NOW - DAY });
+    const classifier = { classify: vi.fn(() => "keep" as DecayVerdict) };
+    const sweeper = createDecaySweeper({
+      vaultCtx,
+      now: NOW,
+      classifier,
+      maxClassifierCallsPerSweep: 1,
+    });
+    expect(await sweeper.runSweep()).toMatchObject({ classifierCalls: 1, classifierCapHits: 1 });
+    expect(await sweeper.runSweep()).toMatchObject({ classifierCalls: 1, classifierCapHits: 0 });
+    expect(await sweeper.runSweep()).toMatchObject({ classifierCalls: 0, classifierCapHits: 0 });
+    expect(classifier.classify).toHaveBeenCalledTimes(2);
+  });
+
+  it("counts a failed classifier call without a classifier transition", async () => {
+    await seed({ content: "fresh", factType: "other", updatedAt: NOW - DAY });
+    const classifier = { classify: vi.fn().mockRejectedValue(new Error("offline")) };
+    const result = await createDecaySweeper({ vaultCtx, now: NOW, classifier }).runSweep();
+    expect(result).toMatchObject({
+      archived: 0,
+      deleted: 0,
+      classifierCalls: 1,
+      classifierCapHits: 0,
+      classifierDriven: { archived: 0, deleted: 0 },
+    });
+  });
+
+  it("counts successful rule and classifier transitions and classifier cap hits", async () => {
+    await seed({ content: "old", factType: "other", updatedAt: NOW - MEDIUM_TTL_MS - DAY });
+    await seed({
+      content: "expired archive",
+      factType: "other",
+      updatedAt: NOW - 200 * DAY,
+      archivedAt: NOW - HARD_DELETE_WINDOW_MS - DAY,
+    });
+    await seed({ content: "classifier", factType: "other", updatedAt: NOW - DAY });
+    await seed({ content: "capped", factType: "other", updatedAt: NOW - DAY });
+    const classifier = { classify: vi.fn(() => "archive" as DecayVerdict) };
+    const result = await createDecaySweeper({
+      vaultCtx,
+      now: NOW,
+      classifier,
+      maxClassifierCallsPerSweep: 1,
+    }).runSweep();
+    expect(result).toMatchObject({
+      archived: 2,
+      deleted: 1,
+      ruleDriven: { archived: 1, deleted: 1 },
+      classifierDriven: { archived: 1, deleted: 0 },
+      classifierCalls: 1,
+      classifierCapHits: 1,
+    });
+    expect(classifier.classify).toHaveBeenCalledTimes(1);
   });
 });
