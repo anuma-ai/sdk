@@ -516,9 +516,10 @@ describe("remote MemoryStore", () => {
     const result = await store.topicMaintenance.extractTopics(ids, { apiKey: "k", fetchFn });
     expect(result.stampedIds).toEqual([ids[1], ids[2]]);
     expect(result.skippedReasons.get(ids[0])).toBe("link-failed");
-    await expect(store.topicMaintenance.stampTopicsExtracted(ids, Date.now())).rejects.toThrow(
-      `Memory ${ids[0]} could not be decrypted`
-    );
+    expect(await store.topicMaintenance.stampTopicsExtracted(ids, Date.now())).toEqual([
+      ids[1],
+      ids[2],
+    ]);
   });
 
   it("reports every memory in a failed batch as link-failed", async () => {
@@ -540,7 +541,7 @@ describe("remote MemoryStore", () => {
     expect(result.stampedIds).toEqual([]);
     expect([...result.skippedReasons.values()]).toEqual(ids.map(() => "link-failed"));
     expect(result.entitiesByMemory.size).toBe(0);
-    await expect(store.topicMaintenance.stampTopicsExtracted(ids, Date.now())).rejects.toThrow();
+    expect(await store.topicMaintenance.stampTopicsExtracted(ids, Date.now())).toEqual([]);
   });
 
   it("does not write topics extracted from content that changed during the LLM call", async () => {
@@ -635,6 +636,97 @@ describe("remote MemoryStore", () => {
       expect(onChange).toHaveBeenCalledTimes(1);
     } finally {
       unsubscribe();
+    }
+  });
+
+  it("does not notify when a memory with no topics extracts none", async () => {
+    const { store } = await remoteStore();
+    const tea = await store.create({ content: "Drinks tea", embedding: axis(0) });
+    const onChange = vi.fn();
+    const unsubscribe = store.subscribe(onChange, { topics: true });
+    try {
+      const result = await store.topicMaintenance.extractTopics([tea.uniqueId], {
+        apiKey: "k",
+        fetchFn: fakeTopicLlm({ "Drinks tea": [] }),
+      });
+      expect(result.stampedIds).toEqual([tea.uniqueId]);
+      expect(onChange).not.toHaveBeenCalled();
+    } finally {
+      unsubscribe();
+    }
+  });
+
+  it("stamps no earlier than the row's update time when this clock runs behind", async () => {
+    const { store } = await remoteStore();
+    const hike = await store.create({ content: "Hikes Mt Hood", embedding: axis(0) });
+    await store.topicMaintenance.extractTopics([hike.uniqueId], {
+      apiKey: "k",
+      fetchFn: fakeTopicLlm({ "Hikes Mt Hood": [{ name: "Mt Hood", kind: "place" }] }),
+      now: Date.now() - 60_000,
+    });
+    expect((await store.topicMaintenance.getTopicBacklog()).pending).toEqual([]);
+  });
+
+  it("declines when the user curates topics during the LLM call", async () => {
+    const { store } = await remoteStore();
+    const hike = await store.create({ content: "Hikes Mt Hood", embedding: axis(0) });
+    const llm = fakeTopicLlm({ "Hikes Mt Hood": [{ name: "Mt Hood", kind: "place" }] });
+    const fetchFn = vi.fn(async (url: unknown, init?: RequestInit) => {
+      await store.setTopics(hike.uniqueId, ["Oregon"]);
+      return llm(url as string, init);
+    }) as unknown as typeof fetch;
+    const result = await store.topicMaintenance.extractTopics([hike.uniqueId], {
+      apiKey: "k",
+      fetchFn,
+    });
+    expect(result.skippedReasons.get(hike.uniqueId)).toBe("link-declined");
+    expect(await store.topicsByMemories([hike.uniqueId])).toEqual(
+      new Map([[hike.uniqueId, new Set(["oregon"])]])
+    );
+  });
+
+  it("declines when the memory is deleted during the LLM call", async () => {
+    const { store, server } = await remoteStore();
+    const hike = await store.create({ content: "Hikes Mt Hood", embedding: axis(0) });
+    const llm = fakeTopicLlm({ "Hikes Mt Hood": [{ name: "Mt Hood", kind: "place" }] });
+    const fetchFn = vi.fn(async (url: unknown, init?: RequestInit) => {
+      await store.delete(hike.uniqueId);
+      return llm(url as string, init);
+    }) as unknown as typeof fetch;
+    const result = await store.topicMaintenance.extractTopics([hike.uniqueId], {
+      apiKey: "k",
+      fetchFn,
+    });
+    expect(result.skippedReasons.get(hike.uniqueId)).toBe("link-declined");
+    expect(server.rows.get(hike.uniqueId)!.memory.topics_extracted_at).toBeUndefined();
+  });
+
+  it("stamps the rest when one memory cannot be decrypted", async () => {
+    const { store, server } = await remoteStore();
+    const readable = await store.create({ content: "Readable" });
+    const foreign = await deriveMemoryKeyRing(`0x${"d4".repeat(65)}`);
+    server.rows.set("foreign", {
+      memory: {
+        memory_id: "foreign",
+        content: await memoryCipher(foreign).encrypt("Unreadable"),
+        scope: "private",
+        created_at: 1,
+        updated_at: 1,
+        is_deleted: false,
+      },
+      version: 1,
+      server_updated_at: new Date().toISOString(),
+    });
+    const warn = vi.spyOn(getLogger(), "warn");
+    try {
+      expect(
+        await store.topicMaintenance.stampTopicsExtracted(
+          ["foreign", readable.uniqueId],
+          Date.now()
+        )
+      ).toEqual([readable.uniqueId]);
+    } finally {
+      warn.mockRestore();
     }
   });
 

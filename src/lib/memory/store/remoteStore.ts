@@ -564,7 +564,10 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
           sameTopics(parseTopics(memory.topics), topics.get(memory.memory_id)!);
         const { saved, failed } = await mutateMany(
           [...answered.keys()],
-          (before) => (unchanged(before) ? "metadata" : "edit"),
+          (before) =>
+            sameTopics(parseTopics(before.topics) ?? [], topics.get(before.memory_id)!)
+              ? "metadata"
+              : "edit",
           (memory) => {
             if (
               memory.topics_user_managed ||
@@ -577,7 +580,7 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
                 topics: serializeTopics(topics.get(memory.memory_id)!),
                 topics_updated_at: Date.now(),
               }),
-              topics_extracted_at: extractedAt,
+              topics_extracted_at: Math.max(extractedAt, memory.updated_at),
               topics_extracted_version: TOPICS_EXTRACTION_VERSION,
             };
           }
@@ -607,7 +610,8 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
             ? null
             : { ...memory, topics_extracted_at: extractedAt, topics_extracted_version: version }
       );
-      if (failed.size) throw failed.values().next().value;
+      if (failed.size)
+        getLogger().warn("[memory/remote-store] Failed to stamp topics:", [...failed.values()]);
       return ids.filter((id) => saved.has(id));
     },
     relinkTopics: () => Promise.resolve([]),
