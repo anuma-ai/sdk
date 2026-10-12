@@ -96,6 +96,23 @@ An async function that returns an authentication token.
 <tr>
 <td>
 
+`options.hooks?`
+
+</td>
+<td>
+
+`RunHooks` | `RunHooks`\[]
+
+</td>
+<td>
+
+Run lifecycle hooks for telemetry and tracing, for example from `createMetricsHooks`
+
+</td>
+</tr>
+<tr>
+<td>
+
 `options.onCancelResult?`
 
 </td>

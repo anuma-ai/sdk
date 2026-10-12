@@ -170,6 +170,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
     apiType: defaultApiType = "auto",
     smoothing,
     preProcessors,
+    hooks,
     piiRedaction,
     onPiiRedacted,
   } = options || {};
@@ -360,6 +361,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
           onToolCallArgumentsDelta,
           onStepFinish,
           preProcessors,
+          hooks,
           piiRedaction: requestPiiRedaction ?? resolvedPiiRedaction,
           onPiiRedacted,
         });
@@ -398,6 +400,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
       defaultApiType,
       smoothing,
       preProcessors,
+      hooks,
       resolvedPiiRedaction,
       onPiiRedacted,
     ]
