@@ -1696,6 +1696,12 @@ Re-exports [RecallResult](../react/Internal/interfaces/RecallResult.md)
 
 ***
 
+### RecallTelemetryCallbacks
+
+Re-exports [RecallTelemetryCallbacks](../react/Internal/interfaces/RecallTelemetryCallbacks.md)
+
+***
+
 ### RecallToolCallbacks
 
 Re-exports [RecallToolCallbacks](../react/Internal/interfaces/RecallToolCallbacks.md)
@@ -1705,6 +1711,12 @@ Re-exports [RecallToolCallbacks](../react/Internal/interfaces/RecallToolCallback
 ### RecallToolOptions
 
 Re-exports [RecallToolOptions](../react/Internal/interfaces/RecallToolOptions.md)
+
+***
+
+### RecallTruncation
+
+Re-exports [RecallTruncation](../react/Internal/interfaces/RecallTruncation.md)
 
 ***
 
@@ -2239,6 +2251,12 @@ Re-exports [TOPIC\_EXTRACTION\_BATCH\_SIZE](../react/Internal/variables/TOPIC_EX
 ### TOPIC\_SALIENCE\_WEIGHTS
 
 Re-exports [TOPIC\_SALIENCE\_WEIGHTS](../react/Internal/variables/TOPIC_SALIENCE_WEIGHTS.md)
+
+***
+
+### TopicExtractionBatchDiagnostics
+
+Re-exports [TopicExtractionBatchDiagnostics](../react/Internal/interfaces/TopicExtractionBatchDiagnostics.md)
 
 ***
 
