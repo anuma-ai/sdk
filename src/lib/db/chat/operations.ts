@@ -3,7 +3,12 @@ import { Q } from "@nozbe/watermelondb";
 import { v7 as uuidv7 } from "uuid";
 
 import type { EmbeddedWalletSignerFn, SignMessageFn } from "../../../react/useEncryption";
-import { encryptData, requestEncryptionKey } from "../../../react/useEncryption";
+import {
+  decryptDataWithKey,
+  encryptDataWithKey,
+  getEncryptionKey,
+  requestEncryptionKey,
+} from "../../../react/useEncryption";
 import { getLogger } from "../../logger";
 import { cosineSimilarity } from "../../memoryEngine/vector";
 import { decodeChunkVector } from "../../memoryEngine/vectorEncoding";
@@ -1026,8 +1031,10 @@ export async function updateMessageEmbeddingOp(
     return null;
   }
 
+  const address = ctx.walletAddress;
   await ctx.database.write(async () => {
-    const storedVector = await serializeMessageEmbedding(ctx, message, vector);
+    const key = await resolveMessageEmbeddingKey(address, message.content);
+    const storedVector = await serializeMessageEmbedding(key, vector);
     await message.update((msg) => {
       msg._setRaw("vector", storedVector);
       if (msg.origin === "chunks_discarded" && vector.length > 0) {
@@ -1055,8 +1062,10 @@ export async function updateMessageChunksOp(
 
   const storedChunks = chunks.map(({ text: _text, ...rest }) => rest);
 
+  const address = ctx.walletAddress;
   await ctx.database.write(async () => {
-    const serializedChunks = await serializeMessageEmbedding(ctx, message, storedChunks);
+    const key = await resolveMessageEmbeddingKey(address, message.content);
+    const serializedChunks = await serializeMessageEmbedding(key, storedChunks);
     await message.update((msg) => {
       msg._setRaw("chunks", serializedChunks);
       if (
@@ -1073,14 +1082,24 @@ export async function updateMessageChunksOp(
   return messageToStored(message, ctx.walletAddress);
 }
 
-async function serializeMessageEmbedding(
-  ctx: StorageOperationsContext,
-  message: Message,
-  value: unknown
-): Promise<string> {
+async function resolveMessageEmbeddingKey(
+  address: string | undefined,
+  content: string
+): Promise<CryptoKey | null> {
+  if (!address || !isEncrypted(content)) return null;
+  const key = await getEncryptionKey(address, "v3");
+  const contentKey = content.startsWith("enc:v2:") ? await getEncryptionKey(address, "v2") : key;
+  try {
+    await decryptDataWithKey(content.slice("enc:vN:".length), contentKey);
+  } catch {
+    throw new Error("Cannot decrypt the message with the cached wallet key");
+  }
+  return key;
+}
+
+async function serializeMessageEmbedding(key: CryptoKey | null, value: unknown): Promise<string> {
   const json = JSON.stringify(value);
-  if (!ctx.walletAddress || !isEncrypted(message.content)) return json;
-  return `enc:v3:${await encryptData(json, ctx.walletAddress)}`;
+  return key ? `enc:v3:${await encryptDataWithKey(json, key)}` : json;
 }
 
 /** Decrypts raw message embedding columns with the cached wallet key. */
@@ -1130,6 +1149,7 @@ export async function sealLegacyMessageEmbeddingsOp(
         if (plaintext === message.content) {
           throw new Error("Cannot decrypt the message with the cached wallet key");
         }
+        const key = await resolveMessageEmbeddingKey(ctx.walletAddress, message.content);
         const updates: Record<string, string | null> = {};
         for (const column of ["vector", "chunks"]) {
           const value = message._getRaw(column);
@@ -1166,7 +1186,7 @@ export async function sealLegacyMessageEmbeddingsOp(
             }
             parsed = chunks.map(({ text: _text, ...rest }) => rest);
           }
-          updates[column] = await serializeMessageEmbedding(ctx, message, parsed);
+          updates[column] = await serializeMessageEmbedding(key, parsed);
         }
         if (Object.keys(updates).length === 0) continue;
         await message.update((msg) => {

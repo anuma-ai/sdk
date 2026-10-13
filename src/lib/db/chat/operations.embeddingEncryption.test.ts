@@ -138,6 +138,30 @@ describe("message embedding encryption", () => {
     }
   );
 
+  it.each(["vector", "chunks"] as const)(
+    "keeps the sealed %s column unchanged if the cached key is stale",
+    async (column) => {
+      const ctx = await seed();
+      const row = await ctx.messagesCollection.find("message");
+      const value = column === "vector" ? VECTOR : CHUNKS;
+      const sealed = `enc:v3:${await encryption.encryptData(JSON.stringify(value), ADDRESS)}`;
+      await ctx.database.write(() => row.update((message) => message._setRaw(column, sealed)));
+      const before = { ...row._raw };
+      encryption.seedEncryptionKeys(ADDRESS, { current: "ab".repeat(32) });
+      const result =
+        column === "vector"
+          ? updateMessageEmbeddingOp(ctx, "message", [0, 1, 0], "replacement-model")
+          : updateMessageChunksOp(
+              ctx,
+              "message",
+              [{ ...CHUNKS[0], vector: [0, 1, 0] }],
+              "replacement-model"
+            );
+      await expect(result).rejects.toThrow("cached wallet key");
+      expect(row._raw).toEqual(before);
+    }
+  );
+
   it("ranks sealed chunks and vectors on cold and warm searches", async () => {
     const ctx = await seed();
     delete ctx.signMessage;
