@@ -699,6 +699,51 @@ describe("remote MemoryStore", () => {
     }
   });
 
+  it("sees an edit made after extracting with a clock behind the row's", async () => {
+    const { store, server } = await remoteStore();
+    const hike = await store.create({ content: "Hikes Mt Hood", embedding: axis(0) });
+    server.rows.get(hike.uniqueId)!.memory.updated_at = Date.now() + 60_000;
+    await store.topicMaintenance.extractTopics([hike.uniqueId], {
+      apiKey: "k",
+      fetchFn: fakeTopicLlm({ "Hikes Mt Hood": [{ name: "Mt Hood", kind: "place" }] }),
+    });
+    expect((await store.topicMaintenance.getTopicBacklog()).pending).toEqual([]);
+    await store.update(hike.uniqueId, { content: "Hikes Mt Rainier", embedding: axis(0) });
+    expect((await store.topicMaintenance.getTopicBacklog()).pending).toEqual([
+      { uniqueId: hike.uniqueId },
+    ]);
+  });
+
+  it("keeps earlier slices' writes when a later slice cannot be re-read", async () => {
+    const { store, server } = await remoteStore();
+    const notes = Object.fromEntries(Array.from({ length: 51 }, (_, i) => [`Note ${i}`, []]));
+    const ids: string[] = [];
+    for (const content of Object.keys(notes))
+      ids.push((await store.create({ content, embedding: axis(0) })).uniqueId);
+    const last = [...ids].sort().at(-1)!;
+    const handle = server.fetch.getMockImplementation()!;
+    server.fetch.mockImplementation(async (input, init) => {
+      const body = init?.body ? (JSON.parse(String(init.body)) as { memory_ids?: string[] }) : {};
+      return String(input).endsWith("/memories/query") &&
+        body.memory_ids?.length === 1 &&
+        body.memory_ids[0] === last
+        ? new Response(JSON.stringify({ detail: "boom" }), { status: 500 })
+        : handle(input, init);
+    });
+    const warn = vi.spyOn(getLogger(), "warn");
+    try {
+      const result = await store.topicMaintenance.extractTopics(ids, {
+        apiKey: "k",
+        fetchFn: fakeTopicLlm(notes),
+      });
+      expect(result.stampedIds).toHaveLength(50);
+      expect(Object.fromEntries(result.skippedReasons)).toEqual({ [last]: "link-failed" });
+      expect(await store.topicMaintenance.stampTopicsExtracted(ids, Date.now())).toHaveLength(50);
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
   it("does not notify when a memory with no topics extracts none", async () => {
     const { store } = await remoteStore();
     const tea = await store.create({ content: "Drinks tea", embedding: axis(0) });
@@ -973,6 +1018,24 @@ describe("remote MemoryStore", () => {
       await new Promise((resolve) => setTimeout(resolve, 40));
       await laptop.create({ content: "Moved to Lisbon", embedding: axis(2) });
       await vi.waitFor(() => expect(onChange).toHaveBeenCalled());
+    } finally {
+      unsubscribe();
+    }
+  });
+
+  it("still reports another device's new memory after this device stamps it", async () => {
+    const ring = await deriveMemoryKeyRing(`0x${"e5".repeat(65)}`);
+    const shared = fakeNearby(ring.keyId);
+    const { store: phone } = await remoteStore(shared, ring, 300);
+    const { store: laptop } = await remoteStore(shared, ring);
+    const onChange = vi.fn();
+    const unsubscribe = phone.subscribe(onChange);
+    try {
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      const hike = await laptop.create({ content: "Hikes Mt Hood", embedding: axis(0) });
+      await phone.topicMaintenance.stampTopicsExtracted([hike.uniqueId], Date.now());
+      expect(onChange).not.toHaveBeenCalled();
+      await vi.waitFor(() => expect(onChange).toHaveBeenCalled(), { timeout: 1000 });
     } finally {
       unsubscribe();
     }
