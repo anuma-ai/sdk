@@ -340,7 +340,9 @@ export function createRemoteMemoryPipeline(
         const memory = {
           ...snapshot.memory,
           content: patch.content,
-          updated_at: patch.preserveUpdatedAt ? snapshot.memory.updated_at : Date.now(),
+          updated_at: patch.preserveUpdatedAt
+            ? snapshot.memory.updated_at
+            : Math.max(Date.now(), (snapshot.memory.topics_extracted_at ?? 0) + 1),
         };
         if (patch.scope !== undefined) memory.scope = patch.scope;
         if (patch.embedding === undefined && patch.content !== snapshot.memory.content) {

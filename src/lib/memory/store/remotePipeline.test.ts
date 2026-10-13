@@ -501,6 +501,16 @@ describe("remote admission and consolidation regressions", () => {
     expect(sent).not.toHaveProperty("embedding");
     expect(sent).not.toHaveProperty("embedding_model");
   });
+  it("dates a content edit after the row's extraction stamp", async () => {
+    const h = setup();
+    const stamp = Date.now() + 60_000;
+    h.seed("a", { updated_at: stamp, topics_extracted_at: stamp });
+    await h.pipeline.retain("Drinks tea");
+    const port = captured.port!;
+    await port.get("a");
+    await port.update("a", { content: "Drinks coffee" });
+    expect(h.put.mock.calls.at(-1)![0].updated_at).toBeGreaterThan(stamp);
+  });
   it("skips freeFormOnly updates of a kinded row", async () => {
     const h = setup();
     h.seed("profile", { kind: "occupation", kind_value: '"nurse"', level: "profile" });

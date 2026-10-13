@@ -233,7 +233,7 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
     if (timer)
       for (const record of records) {
         const previous = seen.get(record.memory.memory_id);
-        if (!previous || previous.version + 1 === record.version)
+        if ((previous?.version ?? 0) + 1 === record.version)
           seen.set(record.memory.memory_id, record);
       }
     for (const subscriber of [...subscribers])
@@ -353,7 +353,14 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
     for (const slice of chunks([...new Set(ids)], MAX_BATCH)) {
       await serializedAll(slice, async () => {
         const writes: { before: RemoteMemoryRecord; memory: RemoteMemoryRow }[] = [];
-        const { records, unreadable } = await readEveryState(slice);
+        let read: Awaited<ReturnType<typeof readEveryState>>;
+        try {
+          read = await readEveryState(slice);
+        } catch (error) {
+          for (const id of slice) failed.set(id, error);
+          return;
+        }
+        const { records, unreadable } = read;
         for (const id of slice) {
           const record = records.get(id);
           if (unreadable.has(id)) failed.set(id, new Error(`Memory ${id} could not be decrypted`));
@@ -802,7 +809,7 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
         const kind = patch.kind !== undefined ? patch.kind : memory.kind;
         assertValidKindLevel(kind, level);
         memory.content = patch.content;
-        memory.updated_at = Date.now();
+        memory.updated_at = Math.max(Date.now(), (memory.topics_extracted_at ?? 0) + 1);
         if (patch.level !== undefined) {
           memory.level = level;
           memory.scope = scopeForLevel(level);
