@@ -1,6 +1,13 @@
 import { act, render } from "@testing-library/react";
 import React from "react";
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+vi.mock("../lib/backup/icloud/api", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../lib/backup/icloud/api")>()),
+  loadCloudKit: vi.fn(async () => {}),
+  configureCloudKit: vi.fn(async () => {}),
+  authenticateICloud: vi.fn(async () => ({ userRecordName: "icloud-user" })),
+}));
 
 import { type BackupAuthContextValue, BackupAuthProvider, useBackupAuth } from "./useBackupAuth";
 
@@ -70,5 +77,38 @@ describe("BackupAuthProvider", () => {
       </BackupAuthProvider>
     );
     unmount();
+  });
+
+  it("reports iCloud when it is configured and signed in, and logoutAll signs it out", async () => {
+    let ctx: BackupAuthContextValue | null = null;
+    function Probe() {
+      ctx = useBackupAuth();
+      return null;
+    }
+
+    render(
+      <BackupAuthProvider icloudApiToken="cloudkit-token">
+        <Probe />
+      </BackupAuthProvider>
+    );
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    });
+
+    const signedIn = ctx as unknown as BackupAuthContextValue;
+    expect(signedIn.hasAnyProvider).toBe(true);
+    expect(signedIn.hasAnyAuthentication).toBe(true);
+    expect(signedIn.icloud.isConfigured).toBe(true);
+    expect(signedIn.icloud.accessToken).toBe("icloud-user");
+
+    await act(async () => {
+      await signedIn.logoutAll();
+    });
+
+    const signedOut = ctx as unknown as BackupAuthContextValue;
+    expect(signedOut.hasAnyProvider).toBe(true);
+    expect(signedOut.hasAnyAuthentication).toBe(false);
+    expect(signedOut.icloud.isAuthenticated).toBe(false);
+    expect(signedOut.icloud.accessToken).toBeNull();
   });
 });

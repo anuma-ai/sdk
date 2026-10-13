@@ -81,4 +81,16 @@ describe("wallet-scoped OAuth token rows", () => {
     expect(rowA).toEqual({ wallet: WALLET_A, token: { accessToken: "legacy-token" } });
     expect(await getNotionAccessToken(WALLET_B)).toBeNull();
   });
+
+  it("moves an untagged legacy localStorage row onto the wallet key that read it", async () => {
+    vi.mocked(hasEncryptionKey).mockReturnValue(false);
+    localStorage.setItem(NOTION_KEY, JSON.stringify({ accessToken: "legacy-local" }));
+
+    expect(await getNotionAccessToken(WALLET_A)).toBe("legacy-local");
+    expect(localStorage.getItem(NOTION_KEY)).toBeNull();
+    const rowA = JSON.parse(localStorage.getItem(`${NOTION_KEY}:${WALLET_A}`) ?? "{}");
+    expect(rowA).toEqual({ wallet: WALLET_A, token: { accessToken: "legacy-local" } });
+    expect(sessionStorage.length).toBe(0);
+    expect(await getNotionAccessToken(WALLET_B)).toBeNull();
+  });
 });
