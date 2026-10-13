@@ -1139,18 +1139,83 @@ describe("remote MemoryStore", () => {
 });
 
 describe("default recall lanes", () => {
-  async function laneStore() {
+  async function lanes() {
     const keys = await deriveMemoryKeyRing(`0x${"c3".repeat(65)}`);
     const server = fakeNearby(keys.keyId);
+    const cipher = memoryCipher(keys);
+    const decrypt = vi.fn(cipher.decrypt);
+    const queried: Record<string, unknown>[] = [];
+    const fetch = vi.fn(async (url: string | URL, init?: RequestInit) => {
+      if (String(url).endsWith("/memories/query"))
+        queried.push(JSON.parse(String(init?.body)) as Record<string, unknown>);
+      return server.fetch(url as never, init as never);
+    });
     const persistence = await createRemoteMemoryPersistence({
       baseUrl: "https://nearby.test",
       getToken: async () => "token",
       keyId: keys.keyId,
-      ...memoryCipher(keys),
-      fetch: server.fetch as unknown as typeof globalThis.fetch,
+      encrypt: cipher.encrypt,
+      decrypt,
+      fetch: fetch as unknown as typeof globalThis.fetch,
     });
-    return createRemoteMemoryStore({ persistence, embeddingOptions: { apiKey: "test-key" } });
+    const store = createRemoteMemoryStore({
+      persistence,
+      embeddingOptions: { apiKey: "test-key" },
+    });
+    return { store, server, decrypt, queried };
   }
+  async function laneStore() {
+    return (await lanes()).store;
+  }
+
+  it("reads topics as metadata, without decrypting any memory", async () => {
+    const { store, decrypt } = await lanes();
+    const m = await store.create({ content: "Ships the Acme app" });
+    await store.addTopics(m.uniqueId, ["Acme"]);
+    decrypt.mockClear();
+
+    expect(await store.factSource.graphRanking("How is Acme going?", false, {})).toEqual([
+      m.uniqueId,
+    ]);
+    expect(decrypt).not.toHaveBeenCalled();
+  });
+
+  it("reads a bounded number of rows for a common topic", async () => {
+    const { store, server, queried } = await lanes();
+    for (let i = 0; i < 300; i++)
+      server.rows.set(`acme-${i}`, {
+        memory: {
+          memory_id: `acme-${i}`,
+          content: "enc:v3:00",
+          scope: "private",
+          created_at: 1000 + i,
+          updated_at: 1000 + i,
+          is_deleted: false,
+          topics: JSON.stringify([{ name: "Acme", source: "auto" }]),
+        },
+        version: 1,
+        server_updated_at: "2026-01-01T00:00:00Z",
+        seq: i,
+      });
+
+    const ranked = await store.factSource.graphRanking("How is Acme going?", false, {});
+
+    expect(ranked).toHaveLength(64);
+    const requested = queried.reduce((sum, body) => sum + (body.limit as number), 0);
+    expect(requested).toBeLessThanOrEqual(256);
+  });
+
+  it("ranks only memories inside the recall's scope", async () => {
+    const store = await laneStore();
+    const mine = await store.create({ content: "Acme standup", scope: "private" });
+    const shared = await store.create({ content: "Acme launch", scope: "shared" });
+    await store.addTopics(mine.uniqueId, ["Acme"]);
+    await store.addTopics(shared.uniqueId, ["Acme"]);
+
+    expect(
+      await store.factSource.graphRanking("How is Acme going?", false, { scopes: ["private"] })
+    ).toEqual([mine.uniqueId]);
+  });
 
   it("ranks memories by how many query entities their topics name", async () => {
     const store = await laneStore();

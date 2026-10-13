@@ -36,7 +36,7 @@ import {
   type TopicExtractionBatchDiagnostics,
   type TopicSkipReason,
 } from "../topicExtract.js";
-import type { RecallFactSource } from "../types.js";
+import type { RecallFactSource, RecallOptions } from "../types.js";
 import {
   type RemoteMemoryDecodeFailure,
   RemoteMemoryError,
@@ -117,6 +117,7 @@ const MAX_BATCH = 50;
 const MAX_QUERY_IDS = 1000;
 const MAX_QUERY_TOPICS = 100;
 const MAX_QUERY_FILTER = 20;
+const GRAPH_LANE_ROWS = 256;
 
 export class RemoteMemoryPartialCreateError extends Error {
   constructor(
@@ -230,7 +231,7 @@ function sameTopics(stored: readonly StoredTopic[] | null, next: readonly Stored
   return next.every((t) => keys.has(key(t)));
 }
 
-function canonicalTopics(row: RemoteMemoryRow): Set<string> {
+function canonicalTopics(row: Pick<RemoteMemoryRow, "topics">): Set<string> {
   return new Set((parseTopics(row.topics) ?? []).map((topic) => normalizeEntityName(topic.name)));
 }
 
@@ -244,7 +245,9 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
   const pollIntervalMs = options.pollIntervalMs ?? 60_000;
   const pipeline = createRemoteMemoryPipeline({
     ...options,
-    graphRanking: options.graphRanking ?? ((query) => topicGraphRanking(query)),
+    graphRanking:
+      options.graphRanking ??
+      ((query, _traverse, recallOptions) => topicGraphRanking(query, recallOptions)),
     temporalRanking: options.temporalRanking ?? (() => Promise.resolve([])),
   });
   const subscribers = new Set<Subscriber>();
@@ -297,13 +300,31 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
     }
     return out;
   };
-  const topicGraphRanking = async (query: string): Promise<string[]> => {
-    const names = extractQueryEntities(query);
-    if (names.length === 0) return [];
-    return [...(await memoriesByTopics(names))]
-      .sort((a, b) => b[1].size - a[1].size)
+  const topicGraphRanking = async (
+    query: string,
+    recallOptions: RecallOptions = {}
+  ): Promise<string[]> => {
+    const wanted = new Set(extractQueryEntities(query).map(normalizeEntityName).filter(Boolean));
+    if (wanted.size === 0 || recallOptions.memoryIds?.length === 0) return [];
+    const rows = await pages(
+      metadata,
+      {
+        topics: [...wanted].slice(0, MAX_QUERY_TOPICS),
+        ...(recallOptions.scopes && { scopes: recallOptions.scopes }),
+        ...(recallOptions.factTypes && { fact_types: recallOptions.factTypes }),
+        ...(recallOptions.memoryIds && { memory_ids: recallOptions.memoryIds }),
+      },
+      GRAPH_LANE_ROWS
+    );
+    return rows
+      .map(({ memory }) => ({
+        memoryId: memory.memory_id,
+        matched: [...canonicalTopics(memory)].filter((name) => wanted.has(name)).length,
+      }))
+      .filter((row) => row.matched > 0)
+      .sort((a, b) => b.matched - a.matched)
       .slice(0, NODE_BUDGET)
-      .map(([memoryId]) => memoryId);
+      .map((row) => row.memoryId);
   };
   const enumerateIds = async <T extends Row>(
     read: (options: RemoteMemoryQueryOptions) => Promise<Page<T>>,
