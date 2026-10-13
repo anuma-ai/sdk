@@ -181,6 +181,29 @@ describe("recall — query validation", () => {
   });
 });
 
+describe("recall — embedding task type", () => {
+  it("declares the memory_recall_embed task type on every query embedding", async () => {
+    await recall(QUERY, makeCtx(), { types: ["fact", "chunk"] });
+
+    expect(vi.mocked(searchVaultMemoriesWithSize).mock.calls[0][2]).toMatchObject({
+      taskType: "memory_recall_embed",
+    });
+    expect(vi.mocked(generateEmbedding).mock.calls.length).toBeGreaterThan(0);
+    for (const call of vi.mocked(generateEmbedding).mock.calls) {
+      expect(call[1]).toMatchObject({ taskType: "memory_recall_embed" });
+    }
+  });
+
+  it("declares the task type on the fact-only lane too", async () => {
+    await recall(QUERY, makeCtx());
+
+    expect(vi.mocked(generateEmbedding).mock.calls.length).toBeGreaterThan(0);
+    for (const call of vi.mocked(generateEmbedding).mock.calls) {
+      expect(call[1]).toMatchObject({ taskType: "memory_recall_embed" });
+    }
+  });
+});
+
 describe("recall — budget tiers", () => {
   it("defaults to budget=low: no rerank, no decompose, results ranked by fused score", async () => {
     const result = await recall(QUERY, makeCtx());

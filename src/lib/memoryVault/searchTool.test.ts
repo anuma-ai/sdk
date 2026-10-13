@@ -390,7 +390,10 @@ describe("createMemoryVaultSearchTool", () => {
     });
     const result = (await tool.executor!({ query: "test" })) as string;
 
-    expect(generateEmbeddings).toHaveBeenCalledWith(["uncached content"], mockEmbeddingOptions);
+    expect(generateEmbeddings).toHaveBeenCalledWith(["uncached content"], {
+      ...mockEmbeddingOptions,
+      taskType: "memory_recall_embed",
+    });
     expect(cache.has("m2")).toBe(true);
     expect(result).toContain("Found 2 vault memories");
   });

@@ -1,5 +1,6 @@
 import { postApiV1Embeddings } from "../../client";
 import { BASE_URL } from "../../clientConfig";
+import { taskTypeHeader } from "../taskType";
 import { DEFAULT_API_EMBEDDING_MODEL } from "./constants";
 import type { EmbeddingOptions } from "./types";
 
@@ -160,7 +161,10 @@ async function embedOne(
     if (cached) return Array.from(cached);
   }
 
-  const headers = await resolveAuthHeaders(options, outer);
+  const headers = {
+    ...(await resolveAuthHeaders(options, outer)),
+    ...taskTypeHeader(options.taskType),
+  };
 
   const response = await withEmbeddingRetry(
     () =>
@@ -306,7 +310,10 @@ async function embedMany(
     return results as number[][];
   }
 
-  const headers = await resolveAuthHeaders(options, outer);
+  const headers = {
+    ...(await resolveAuthHeaders(options, outer)),
+    ...taskTypeHeader(options.taskType),
+  };
   if (outer?.aborted) throw outer.reason;
 
   const embeddingModel = model ?? DEFAULT_API_EMBEDDING_MODEL;

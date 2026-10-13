@@ -10,8 +10,18 @@ const appGenerationTests = [
   "test/tools/app-generation/precision-updates.test.ts",
 ];
 
+const memoryTelemetryTests = [
+  "src/lib/memory/decayWorker.test.ts",
+  "src/lib/memory/recallTool.telemetry.test.ts",
+  "src/lib/memory/topicExtract.telemetry.test.ts",
+  "src/lib/memoryEngine/generate.taskType.test.ts",
+  "src/lib/memoryVault/searchTool.telemetry.test.ts",
+  "src/lib/memoryVault/searchToolExecutor.store.test.ts",
+];
+
 const checkedTestFiles = [
   ...appGenerationTests,
+  ...memoryTelemetryTests,
   "src/lib/chat/toolLoop.detach.test.ts",
   "src/lib/chat/toolLoop.idleTimeout.test.ts",
   "src/react/useChatStorage.runHooks.test.tsx",

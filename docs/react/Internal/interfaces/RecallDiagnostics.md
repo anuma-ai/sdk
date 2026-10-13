@@ -65,7 +65,7 @@ reached the bundle from a projection that isn't cheaper at that vault size.
 
 > **degraded**: [`RecallDegradation`](../type-aliases/RecallDegradation.md)\[]
 
-Defined in: [src/lib/memory/types.ts:489](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#489)
+Defined in: [src/lib/memory/types.ts:490](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#490)
 
 Soft-degradation signals that fired this call (empty when clean).
 
@@ -75,7 +75,7 @@ Soft-degradation signals that fired this call (empty when clean).
 
 > **emptyReason**: [`RecallEmptyReason`](../type-aliases/RecallEmptyReason.md)
 
-Defined in: [src/lib/memory/types.ts:439](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#439)
+Defined in: [src/lib/memory/types.ts:440](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#440)
 
 Why nothing came back — see [RecallEmptyReason](../type-aliases/RecallEmptyReason.md). `""` when something did.
 
@@ -95,7 +95,7 @@ Facts the fact lane returned (post-dedupe, pre-fusion).
 
 > **graphLaneCount**: `number`
 
-Defined in: [src/lib/memory/types.ts:435](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#435)
+Defined in: [src/lib/memory/types.ts:436](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#436)
 
 Memory ids the W5 graph (entity) side lane contributed to the fusion.
 
@@ -147,7 +147,7 @@ Whether the cross-encoder actually reranked the fact lane this call.
 
 > **temporalLaneCount**: `number`
 
-Defined in: [src/lib/memory/types.ts:437](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#437)
+Defined in: [src/lib/memory/types.ts:438](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#438)
 
 Memory ids the W6 temporal side lane contributed to the fusion.
 
@@ -157,7 +157,7 @@ Memory ids the W6 temporal side lane contributed to the fusion.
 
 > **timings**: `object`
 
-Defined in: [src/lib/memory/types.ts:441](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#441)
+Defined in: [src/lib/memory/types.ts:442](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#442)
 
 Wall-clock phase timings (ms).
 
@@ -253,6 +253,14 @@ derived from `candidateCount > limit`. In the fused path `candidateCount`
 counts before provenance suppression, so a recall whose suppressed chunks
 brought it under the limit would otherwise report a truncation that never
 happened.
+
+***
+
+### truncatedByBudget?
+
+> `optional` **truncatedByBudget**: `boolean`
+
+Defined in: [src/lib/memory/types.ts:434](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#434)
 
 ***
 
