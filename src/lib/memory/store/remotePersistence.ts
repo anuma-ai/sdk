@@ -1,3 +1,5 @@
+import { parseRetryAfterMs } from "../portalLlm.js";
+
 /** The nearby private-memory row. Content and kind_value are plaintext ONLY on the device. */
 export interface RemoteMemoryRow {
   memory_id: string;
@@ -363,14 +365,14 @@ export function createNearbyRequest(
       });
       if (!response.ok) {
         const body: unknown = await response.json().catch(() => null);
-        const retryAfter = Number(response.headers.get("Retry-After"));
+        const retryAfter = parseRetryAfterMs(response.headers.get("Retry-After"));
         throw new RemoteMemoryError(
           record(body) && typeof body.detail === "string"
             ? body.detail
             : `Nearby request failed (${response.status})`,
           response.status,
           record(body) && typeof body.code === "string" ? body.code : undefined,
-          Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter * 1000 : undefined
+          retryAfter ?? undefined
         );
       }
       return (await response.json()) as unknown;

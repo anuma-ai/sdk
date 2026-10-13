@@ -681,6 +681,10 @@ function vaultListOrder(options?: VaultListOptions): Q.Clause[] {
 export async function getAllVaultMemoryRowsOp(
   ctx: VaultMemoryOperationsContext
 ): Promise<Record<string, unknown>[]> {
+  if (ctx.userId === undefined && ctx.singleTenant !== true)
+    throw new Error(
+      "Refusing to read every vault row from an unscoped context: set ctx.userId, or ctx.singleTenant on a single-owner database"
+    );
   return (await ctx.vaultMemoryCollection
     .query(
       ...baseVaultConditions(ctx, {

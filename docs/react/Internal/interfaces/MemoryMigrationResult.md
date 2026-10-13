@@ -1,6 +1,6 @@
 # MemoryMigrationResult
 
-Defined in: [src/lib/memory/store/remoteMigration.ts:62](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteMigration.ts#62)
+Defined in: [src/lib/memory/store/remoteMigration.ts:96](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteMigration.ts#96)
 
 ## Properties
 
@@ -8,7 +8,7 @@ Defined in: [src/lib/memory/store/remoteMigration.ts:62](https://github.com/anum
 
 > **imported**: `number`
 
-Defined in: [src/lib/memory/store/remoteMigration.ts:65](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteMigration.ts#65)
+Defined in: [src/lib/memory/store/remoteMigration.ts:99](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteMigration.ts#99)
 
 ***
 
@@ -16,7 +16,7 @@ Defined in: [src/lib/memory/store/remoteMigration.ts:65](https://github.com/anum
 
 > **skipped**: [`MemoryMigrationSkip`](MemoryMigrationSkip.md)\[]
 
-Defined in: [src/lib/memory/store/remoteMigration.ts:66](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteMigration.ts#66)
+Defined in: [src/lib/memory/store/remoteMigration.ts:100](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteMigration.ts#100)
 
 ***
 
@@ -24,7 +24,7 @@ Defined in: [src/lib/memory/store/remoteMigration.ts:66](https://github.com/anum
 
 > **state**: `"active"` | `"migrating"`
 
-Defined in: [src/lib/memory/store/remoteMigration.ts:63](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteMigration.ts#63)
+Defined in: [src/lib/memory/store/remoteMigration.ts:97](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteMigration.ts#97)
 
 ***
 
@@ -32,4 +32,4 @@ Defined in: [src/lib/memory/store/remoteMigration.ts:63](https://github.com/anum
 
 > **total**: `number`
 
-Defined in: [src/lib/memory/store/remoteMigration.ts:64](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteMigration.ts#64)
+Defined in: [src/lib/memory/store/remoteMigration.ts:98](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteMigration.ts#98)

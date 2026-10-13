@@ -388,7 +388,7 @@ function isRetryableStatus(status: number): boolean {
   return status >= 500 || RETRYABLE_HTTP.has(status);
 }
 
-function parseRetryAfterMs(header: string | null): number | null {
+export function parseRetryAfterMs(header: string | null): number | null {
   if (!header) return null;
   const secs = Number(header);
   if (Number.isFinite(secs)) return Math.max(0, secs * 1000);

@@ -2,11 +2,14 @@ import { Database } from "@nozbe/watermelondb";
 import LokiJSAdapter from "@nozbe/watermelondb/adapters/lokijs";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import type { Entity, MemoryEntity } from "../../db/entities/models";
+import { replaceMemoryEntitiesGuardedOp } from "../../db/entities/operations";
 import type { VaultMemory } from "../../db/memoryVault/models";
 import {
   archiveVaultMemoryOp,
   createVaultMemoryOp,
   deleteVaultMemoryOp,
+  setMemoryVisibilityOp,
   updateVaultMemoryOp,
   type VaultMemoryOperationsContext,
 } from "../../db/memoryVault/operations";
@@ -44,6 +47,11 @@ function vault(
     walletAddress,
     signMessage: vi.fn(async () => signature) as unknown as SignMessageFn,
     userId,
+    entityCtx: {
+      database,
+      entityCollection: database.get<Entity>("entity"),
+      memoryEntityCollection: database.get<MemoryEntity>("memory_entity"),
+    },
   };
 }
 
@@ -54,6 +62,7 @@ function fakeNearby(initial: { state?: string; key_id?: string } = {}) {
   const account = { state: initial.state ?? "none", key_id: initial.key_id };
   const calls: string[] = [];
   let rateLimited = 0;
+  let retryAfter = "0.01";
   let onImport: (() => Promise<void>) | undefined;
   const json = (status: number, body: unknown, headers: Record<string, string> = {}) =>
     new Response(JSON.stringify(body), { status, headers });
@@ -74,7 +83,7 @@ function fakeNearby(initial: { state?: string; key_id?: string } = {}) {
     if (path === "/import") {
       if (rateLimited > 0) {
         rateLimited--;
-        return json(429, { detail: "slow down" }, { "Retry-After": "0.01" });
+        return json(429, { detail: "slow down" }, { "Retry-After": retryAfter });
       }
       if (account.key_id && account.key_id !== body.key_id)
         return json(409, { detail: "key mismatch", code: "key_mismatch" });
@@ -83,7 +92,12 @@ function fakeNearby(initial: { state?: string; key_id?: string } = {}) {
       for (const row of body.memories as Stored[]) {
         expect(row.content).toMatch(/^enc:v3:/);
         const existing = rows.get(row.memory_id);
-        if (!existing || row.updated_at >= existing.updated_at) rows.set(row.memory_id, row);
+        if (
+          !existing ||
+          row.updated_at > existing.updated_at ||
+          (row.updated_at === existing.updated_at && row.is_deleted && !existing.is_deleted)
+        )
+          rows.set(row.memory_id, row);
       }
       await onImport?.();
       return json(200, { written: (body.memories as unknown[]).length });
@@ -102,6 +116,13 @@ function fakeNearby(initial: { state?: string; key_id?: string } = {}) {
         .map((r) => r.memory_id);
       return json(200, { missing });
     }
+    if (path === "/memories/query") {
+      const ids = new Set(body.memory_ids as string[]);
+      const items = [...rows.values()]
+        .filter((row) => ids.has(row.memory_id))
+        .map((memory) => ({ memory, version: 1, server_updated_at: "2026-01-01T00:00:00Z" }));
+      return json(200, { items });
+    }
     return json(404, { detail: "not found" });
   });
   return {
@@ -109,7 +130,10 @@ function fakeNearby(initial: { state?: string; key_id?: string } = {}) {
     account,
     calls,
     fetch: fetch as unknown as typeof globalThis.fetch,
-    rateLimit: (n: number) => (rateLimited = n),
+    rateLimit: (n: number, header = "0.01") => {
+      rateLimited = n;
+      retryAfter = header;
+    },
     onImport: (fn: () => Promise<void>) => (onImport = fn),
   };
 }
@@ -291,5 +315,121 @@ describe("migrateMemoriesToRemote", () => {
     await migrate(nearby, ctx);
 
     expect([...nearby.rows.keys()]).toEqual([mine.uniqueId]);
+  });
+
+  it("activates an account with no local memories by claiming its key first", async () => {
+    const ctx = vault(makeDatabase(), signatureA);
+    const nearby = fakeNearby();
+
+    const result = await migrate(nearby, ctx);
+
+    expect(result).toEqual({ state: "active", total: 0, imported: 0, skipped: [] });
+    expect(nearby.account).toMatchObject({
+      state: "active",
+      key_id: (await deriveMemoryKeyRing(signatureA)).keyId,
+    });
+  });
+
+  it("activates with allowSkipped when every row was skipped", async () => {
+    const database = makeDatabase();
+    const ctx = vault(database, signatureA);
+    await createVaultMemoryOp(vault(database, signatureB, "u1", otherAddress), {
+      content: "Written under another key",
+    });
+    const nearby = fakeNearby();
+
+    const result = await migrate(nearby, ctx, { allowSkipped: true });
+
+    expect(result).toMatchObject({ state: "active", imported: 0 });
+    expect(nearby.account.state).toBe("active");
+  });
+
+  it("refuses to read an unscoped vault", async () => {
+    const ctx = { ...vault(makeDatabase(), signatureA), userId: undefined };
+
+    await expect(migrate(fakeNearby(), ctx)).rejects.toThrow(/unscoped/);
+  });
+
+  it("uploads a sharing change that kept updated_at, after an interrupted run", async () => {
+    const ctx = vault(makeDatabase(), signatureA);
+    const m = await createVaultMemoryOp(ctx, { content: "Likes green tea" });
+    await setMemoryVisibilityOp(ctx, m.uniqueId, { visibility: "public" });
+    const nearby = fakeNearby();
+    await migrate(nearby, ctx);
+    nearby.account.state = "migrating";
+    const before = nearby.rows.get(m.uniqueId)!.updated_at;
+
+    await setMemoryVisibilityOp(ctx, m.uniqueId, { visibility: "private" });
+    const result = await migrate(nearby, ctx);
+
+    expect(result.state).toBe("active");
+    expect(nearby.rows.get(m.uniqueId)).toMatchObject({
+      visibility: "private",
+      updated_at: before + 1,
+    });
+    expect(nearby.rows.get(m.uniqueId)?.published_at).toBeUndefined();
+  });
+
+  it("fills a legacy row's topics from its local links before uploading", async () => {
+    const ctx = vault(makeDatabase(), signatureA);
+    const m = await createVaultMemoryOp(ctx, { content: "Works at Acme" });
+    await replaceMemoryEntitiesGuardedOp(ctx.entityCtx!, m.uniqueId, ["Acme"]);
+    const record = await ctx.vaultMemoryCollection.find(m.uniqueId);
+    await ctx.database.write(async () => {
+      await record.update((r) => {
+        r._setRaw("topics", null);
+        r._setRaw("topics_updated_at", null);
+      });
+    });
+
+    const nearby = fakeNearby();
+    await migrate(nearby, ctx);
+
+    expect(JSON.parse(nearby.rows.get(m.uniqueId)!.topics!)).toEqual([
+      expect.objectContaining({ name: "acme" }),
+    ]);
+  });
+
+  it("activates when the last allowed upload pass finally lands", async () => {
+    const ctx = vault(makeDatabase(), signatureA);
+    const m = await createVaultMemoryOp(ctx, { content: "Edit 0" });
+    const nearby = fakeNearby();
+    let imports = 0;
+    nearby.onImport(async () => {
+      imports++;
+      if (imports > 2) return;
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      await updateVaultMemoryOp(ctx, m.uniqueId, { content: `Edit ${imports}` });
+    });
+
+    const result = await migrate(nearby, ctx);
+
+    expect(result).toMatchObject({ state: "active", imported: 3 });
+  });
+
+  it("honours an HTTP-date Retry-After", async () => {
+    const ctx = vault(makeDatabase(), signatureA);
+    await createVaultMemoryOp(ctx, { content: "Likes green tea" });
+    const nearby = fakeNearby();
+    nearby.rateLimit(1, "Thu, 01 Jan 1970 00:00:00 GMT");
+    const started = Date.now();
+
+    expect((await migrate(nearby, ctx)).state).toBe("active");
+    expect(Date.now() - started).toBeLessThan(5_000);
+  });
+
+  it("releases its abort listener after each rate-limit wait", async () => {
+    const ctx = vault(makeDatabase(), signatureA);
+    await createVaultMemoryOp(ctx, { content: "Likes green tea" });
+    const nearby = fakeNearby();
+    nearby.rateLimit(3);
+    const signal = new AbortController().signal;
+    const add = vi.spyOn(signal, "addEventListener");
+    const remove = vi.spyOn(signal, "removeEventListener");
+
+    await migrate(nearby, ctx, { signal });
+
+    expect(add.mock.calls.length).toBeGreaterThan(0);
+    expect(remove.mock.calls.length).toBe(add.mock.calls.length);
   });
 });
