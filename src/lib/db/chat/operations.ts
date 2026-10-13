@@ -592,12 +592,7 @@ export async function getMessagesOp(
   ctx: StorageOperationsContext,
   convId: string,
   opts?: {
-    /**
-     * Drops rows on their raw columns, BEFORE decryption. Decrypting a row
-     * (content, vector, chunks, sources, …) is the dominant cost of this read;
-     * a caller that will discard most rows on plaintext columns should reject
-     * them here instead of paying for the decrypt first.
-     */
+    /** Keeps only rows whose raw, still-encrypted columns pass; runs before decryption. */
     rawFilter?: (raw: Record<string, unknown>) => boolean;
   }
 ): Promise<StoredMessage[]> {

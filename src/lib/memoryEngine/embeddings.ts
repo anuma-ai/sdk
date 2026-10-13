@@ -1,4 +1,4 @@
-import { TOOL_RESULT_ORIGIN, TOOL_RESULTS_PREFIX } from "../chat/toolResults";
+import { isToolResultsRow, TOOL_RESULT_ORIGIN } from "../chat/toolResults";
 import {
   getConversationsOp,
   getMessageOp,
@@ -278,15 +278,8 @@ export async function chunkAndEmbedMessage(
   return updateMessageChunksOp(ctx, messageId, messageChunks, embeddingModel);
 }
 
-/**
- * Smallest sealed payload that can hold a real embedding. Sealing adds a 12-byte
- * IV and a 16-byte tag (56 hex chars), so `enc:v3:` + `[]` sits well under this
- * while any genuine vector or chunk list is kilobytes. Below it the column might
- * be an empty array, so the row is kept and decided after decryption.
- */
 const MIN_SEALED_EMBEDDING_HEX = 256;
 
-/** True when a raw `vector`/`chunks` column definitely holds a non-empty array. */
 function rawHasEmbedding(value: unknown): boolean {
   if (Array.isArray(value)) return value.length > 0;
   if (typeof value !== "string" || value.length === 0) return false;
@@ -301,13 +294,6 @@ function rawHasEmbedding(value: unknown): boolean {
   }
 }
 
-/**
- * Raw-column pre-check for {@link chunkAndEmbedAllMessages}: false only for rows
- * the post-decrypt checks would certainly skip, so it never drops a row that
- * needs embedding — it just stops a settled vault from being decrypted in full
- * on every pass. Everything uncertain (a short sealed column, unknown encoding)
- * is kept and re-checked after decryption.
- */
 function mayNeedChunkEmbedding(
   raw: Record<string, unknown>,
   embeddingModel: string,
@@ -419,12 +405,7 @@ export async function chunkAndEmbedAllMessages(
         stillEncrypted++;
         continue;
       }
-      // Pre-v44 tool-result rows carry no `origin`, so the gate above misses
-      // them; only their decrypted prefix gives them away. Each is a large dump
-      // costing one paid embedding call per chunk, and the client's ciphertext
-      // sweep clears chunks on exactly this prefix — so embedding one would pay
-      // for vectors that get deleted on the next pull.
-      if (message.content.startsWith(TOOL_RESULTS_PREFIX)) continue;
+      if (isToolResultsRow(message)) continue;
       if (message.content.length < minLength) continue;
 
       if (shouldChunkMessage(message.content, chunkSize)) {

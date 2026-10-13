@@ -214,7 +214,6 @@ describe("getMessagesOp rawFilter", () => {
       },
     });
 
-    // The filter saw both rows still sealed — it runs before decryption.
     expect(seen).toHaveLength(2);
     expect(seen.every((c) => typeof c === "string" && c.startsWith("enc:"))).toBe(true);
     expect(messages.map((m) => m.uniqueId)).toEqual(["m2"]);

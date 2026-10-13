@@ -1174,7 +1174,6 @@ describe("chunkAndEmbedAllMessages raw pre-filter (decrypt only what may need em
 
     expect(keep(row({}))).toBe(true);
     expect(keep(row({ chunks: "[]", vector: "[]" }))).toBe(true);
-    // `enc:v3:` + an encrypted `[]` — could be empty, so decrypt and decide.
     expect(keep(row({ vector: sealed(60) }))).toBe(true);
   });
 
@@ -1205,7 +1204,7 @@ describe("legacy tool-result rows without origin are not embedded", () => {
     vi.mocked(updateMessageChunksOp).mockResolvedValue(null);
   });
 
-  it("skips a decrypted [Tool Execution Results] dump but still chunks real prose", async () => {
+  it("skips a decrypted legacy tool-result dump but still chunks real prose", async () => {
     const fetchMock = stubFetchOk();
     const now = new Date();
     vi.mocked(getMessagesOp).mockResolvedValue([
@@ -1239,5 +1238,30 @@ describe("legacy tool-result rows without origin are not embedded", () => {
       expect.any(String)
     );
     expect(JSON.stringify(recorded)).not.toContain("[Tool Execution Results]");
+  });
+
+  it("still embeds a user message that merely quotes the [Tool Execution Results] heading", async () => {
+    const fetchMock = stubFetchOk();
+    const now = new Date();
+    vi.mocked(getMessagesOp).mockResolvedValue([
+      {
+        uniqueId: "quoted",
+        messageId: 1,
+        conversationId: "c1",
+        role: "user",
+        content: "[Tool Execution Results] what does this heading in my export mean?",
+        createdAt: now,
+        updatedAt: now,
+      },
+    ]);
+
+    expect(await chunkAndEmbedAllMessages(ctx, { apiKey: "k", baseUrl: BASE })).toBe(1);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(updateMessageEmbeddingOp).toHaveBeenCalledWith(
+      ctx,
+      "quoted",
+      expect.any(Array),
+      expect.any(String)
+    );
   });
 });
