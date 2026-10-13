@@ -977,4 +977,23 @@ describe("remote MemoryStore", () => {
       unsubscribe();
     }
   });
+
+  it("still reports another device's change after this device stamps the same memory", async () => {
+    const ring = await deriveMemoryKeyRing(`0x${"e5".repeat(65)}`);
+    const shared = fakeNearby(ring.keyId);
+    const { store: phone } = await remoteStore(shared, ring, 300);
+    const { store: laptop } = await remoteStore(shared, ring);
+    const hike = await phone.create({ content: "Hikes Mt Hood", embedding: axis(0) });
+    const onChange = vi.fn();
+    const unsubscribe = phone.subscribe(onChange);
+    try {
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      await laptop.archive(hike.uniqueId);
+      await phone.topicMaintenance.stampTopicsExtracted([hike.uniqueId], Date.now());
+      expect(onChange).not.toHaveBeenCalled();
+      await vi.waitFor(() => expect(onChange).toHaveBeenCalled(), { timeout: 1000 });
+    } finally {
+      unsubscribe();
+    }
+  });
 });
