@@ -18,6 +18,7 @@ vi.mock("../../memoryEngine/embeddings", () => {
   };
 });
 
+import { parseTopics } from "../../db/entities/types";
 import { getLogger } from "../../logger";
 import type { EmbeddingOptions } from "../../memoryEngine/types";
 import { fakeTopicLlm, runMemoryStoreContract } from "./contract";
@@ -400,6 +401,207 @@ describe("remote MemoryStore", () => {
       stopChange();
       stopEmbedding();
     }
+  });
+
+  const nearbyCalls = (server: { fetch: { mock: { calls: unknown[][] } } }) =>
+    server.fetch.mock.calls.map(([input, init]) => {
+      const path = new URL(String(input)).pathname.replace(/^.*\/api\/private-memories/, "");
+      return `${(init as RequestInit | undefined)?.method ?? "GET"} ${path.replace(/^\/memories\/(?!query$|batch$).+/, "/memories/:id")}`;
+    });
+  const hikes = {
+    "Hikes Mt Hood": [{ name: "Mt Hood", kind: "place" }],
+    "Likes jazz": [{ name: "Jazz" }],
+    "Plays chess": [{ name: "Chess" }],
+  };
+
+  it("writes a chunk's extracted topics and stamps with one read and one batch", async () => {
+    const { store, server } = await remoteStore();
+    const ids: string[] = [];
+    for (const content of Object.keys(hikes))
+      ids.push((await store.create({ content, embedding: axis(0) })).uniqueId);
+    server.fetch.mockClear();
+
+    const result = await store.topicMaintenance.extractTopics(ids, {
+      apiKey: "k",
+      fetchFn: fakeTopicLlm(hikes),
+    });
+    expect(result.stampedIds).toEqual(ids);
+    expect(parseTopics(server.rows.get(ids[2])!.memory.topics as string)).toEqual([
+      expect.objectContaining({ name: "Chess", source: "auto" }),
+    ]);
+    expect(nearbyCalls(server)).toEqual([
+      "POST /memories/query",
+      "POST /memories/query",
+      "POST /memories/query",
+      "POST /memories/batch",
+    ]);
+
+    server.fetch.mockClear();
+    expect(await store.topicMaintenance.stampTopicsExtracted(ids, Date.now())).toEqual(ids);
+    expect(nearbyCalls(server)).toEqual(["POST /memories/query", "POST /memories/batch"]);
+  });
+
+  it("retries each memory on its own when another device wrote during the batch", async () => {
+    const { store, server } = await remoteStore();
+    const ids: string[] = [];
+    for (const content of Object.keys(hikes))
+      ids.push((await store.create({ content, embedding: axis(0) })).uniqueId);
+    const handle = server.fetch.getMockImplementation()!;
+    let raced = false;
+    server.fetch.mockImplementation(async (input, init) => {
+      if (!raced && String(input).endsWith("/memories/batch")) {
+        raced = true;
+        const other = server.rows.get(ids[1])!;
+        other.memory.topics_user_managed = true;
+        other.version += 1;
+      }
+      return handle(input, init);
+    });
+
+    const result = await store.topicMaintenance.extractTopics(ids, {
+      apiKey: "k",
+      fetchFn: fakeTopicLlm(hikes),
+    });
+    expect(result.stampedIds).toEqual([ids[0], ids[2]]);
+    expect(Object.fromEntries(result.skippedReasons)).toEqual({ [ids[1]]: "link-declined" });
+    expect(server.rows.get(ids[1])!.memory.topics_extracted_at).toBeUndefined();
+    expect(server.rows.get(ids[2])!.memory.topics_extracted_at).toBeDefined();
+  });
+
+  it("finishes overlapping batches that list the same memories in opposite orders", async () => {
+    const { store } = await remoteStore();
+    const ids: string[] = [];
+    for (const content of Object.keys(hikes))
+      ids.push((await store.create({ content, embedding: axis(0) })).uniqueId);
+
+    const [forward, backward] = await Promise.all([
+      store.topicMaintenance.stampTopicsExtracted(ids, Date.now()),
+      store.topicMaintenance.stampTopicsExtracted([...ids].reverse(), Date.now()),
+    ]);
+    expect(forward).toEqual(ids);
+    expect(backward).toEqual([...ids].reverse());
+  });
+
+  it("does not stamp a memory deleted during the LLM call", async () => {
+    const { store, server } = await remoteStore();
+    const ids: string[] = [];
+    for (const content of Object.keys(hikes))
+      ids.push((await store.create({ content, embedding: axis(0) })).uniqueId);
+    const llm = fakeTopicLlm(hikes);
+    const fetchFn = vi.fn(async (url: unknown, init?: RequestInit) => {
+      await store.delete(ids[0]);
+      return llm(url as string, init);
+    }) as unknown as typeof fetch;
+
+    const result = await store.topicMaintenance.extractTopics(ids, { apiKey: "k", fetchFn });
+    expect(result.stampedIds).toEqual([ids[1], ids[2]]);
+    expect(result.skippedReasons.get(ids[0])).toBe("link-declined");
+    expect(server.rows.get(ids[0])!.memory.topics_extracted_at).toBeUndefined();
+    expect(await store.topicMaintenance.stampTopicsExtracted([ids[0]], Date.now())).toEqual([]);
+    expect(server.rows.get(ids[0])!.memory.topics_extracted_at).toBeUndefined();
+  });
+
+  it("reports a memory that became unreadable during the LLM call as link-failed", async () => {
+    const { store, server } = await remoteStore();
+    const ids: string[] = [];
+    for (const content of Object.keys(hikes))
+      ids.push((await store.create({ content, embedding: axis(0) })).uniqueId);
+    const foreign = memoryCipher(await deriveMemoryKeyRing(`0x${"d4".repeat(65)}`));
+    const llm = fakeTopicLlm(hikes);
+    const fetchFn = vi.fn(async (url: unknown, init?: RequestInit) => {
+      server.rows.get(ids[0])!.memory.content = await foreign.encrypt("Hikes Mt Hood");
+      return llm(url as string, init);
+    }) as unknown as typeof fetch;
+
+    const result = await store.topicMaintenance.extractTopics(ids, { apiKey: "k", fetchFn });
+    expect(result.stampedIds).toEqual([ids[1], ids[2]]);
+    expect(result.skippedReasons.get(ids[0])).toBe("link-failed");
+    expect(await store.topicMaintenance.stampTopicsExtracted(ids, Date.now())).toEqual([
+      ids[1],
+      ids[2],
+    ]);
+  });
+
+  it("reports a memory that vanished during the LLM call as link-failed", async () => {
+    const { store, server } = await remoteStore();
+    const ids: string[] = [];
+    for (const content of Object.keys(hikes))
+      ids.push((await store.create({ content, embedding: axis(0) })).uniqueId);
+    const llm = fakeTopicLlm(hikes);
+    const fetchFn = vi.fn(async (url: unknown, init?: RequestInit) => {
+      server.rows.delete(ids[0]);
+      return llm(url as string, init);
+    }) as unknown as typeof fetch;
+
+    const result = await store.topicMaintenance.extractTopics(ids, { apiKey: "k", fetchFn });
+    expect(result.stampedIds).toEqual([ids[1], ids[2]]);
+    expect(result.skippedReasons.get(ids[0])).toBe("link-failed");
+  });
+
+  it("keeps the batches that committed when a later one fails", async () => {
+    const { store, server } = await remoteStore();
+    const notes = Object.fromEntries(Array.from({ length: 51 }, (_, i) => [`Note ${i}`, []]));
+    const ids: string[] = [];
+    for (const content of Object.keys(notes))
+      ids.push((await store.create({ content, embedding: axis(0) })).uniqueId);
+    const handle = server.fetch.getMockImplementation()!;
+    let batches = 0;
+    server.fetch.mockImplementation(async (input, init) =>
+      String(input).endsWith("/memories/batch") && ++batches === 2
+        ? new Response(JSON.stringify({ detail: "boom" }), { status: 500 })
+        : handle(input, init)
+    );
+
+    const result = await store.topicMaintenance.extractTopics(ids, {
+      apiKey: "k",
+      fetchFn: fakeTopicLlm(notes),
+    });
+    const last = [...ids].sort().at(-1)!;
+    expect(result.stampedIds).toHaveLength(50);
+    expect(Object.fromEntries(result.skippedReasons)).toEqual({ [last]: "link-failed" });
+    expect(server.rows.get(last)!.memory.topics_extracted_at).toBeUndefined();
+  });
+
+  it("writes each memory on its own when the batch is rate limited", async () => {
+    const { store, server } = await remoteStore();
+    const ids: string[] = [];
+    for (const content of Object.keys(hikes))
+      ids.push((await store.create({ content, embedding: axis(0) })).uniqueId);
+    const handle = server.fetch.getMockImplementation()!;
+    server.fetch.mockImplementation(async (input, init) =>
+      String(input).endsWith("/memories/batch")
+        ? new Response(JSON.stringify({ detail: "slow down" }), { status: 429 })
+        : handle(input, init)
+    );
+
+    const result = await store.topicMaintenance.extractTopics(ids, {
+      apiKey: "k",
+      fetchFn: fakeTopicLlm(hikes),
+    });
+    expect(result.stampedIds).toEqual(ids);
+    expect(await store.topicMaintenance.stampTopicsExtracted(ids, Date.now() + 1000)).toEqual(ids);
+  });
+
+  it("reports every memory in a failed batch as link-failed", async () => {
+    const { store, server } = await remoteStore();
+    const ids: string[] = [];
+    for (const content of Object.keys(hikes))
+      ids.push((await store.create({ content, embedding: axis(0) })).uniqueId);
+    const handle = server.fetch.getMockImplementation()!;
+    server.fetch.mockImplementation(async (input, init) =>
+      String(input).endsWith("/memories/batch")
+        ? new Response(JSON.stringify({ detail: "boom" }), { status: 500 })
+        : handle(input, init)
+    );
+
+    const result = await store.topicMaintenance.extractTopics(ids, {
+      apiKey: "k",
+      fetchFn: fakeTopicLlm(hikes),
+    });
+    expect(result.stampedIds).toEqual([]);
+    expect([...result.skippedReasons.values()]).toEqual(ids.map(() => "link-failed"));
+    expect(result.entitiesByMemory.size).toBe(0);
+    expect(await store.topicMaintenance.stampTopicsExtracted(ids, Date.now())).toEqual([]);
   });
 
   it("does not write topics extracted from content that changed during the LLM call", async () => {
