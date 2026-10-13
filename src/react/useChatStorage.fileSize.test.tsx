@@ -214,9 +214,8 @@ describe("useChatStorage attachment storage size limit", () => {
       expect(response.error).toBeNull();
     });
 
-    expect(vi.mocked(writeEncryptedFile).mock.calls.map((call) => call[3]?.name).sort()).toEqual(
-      options.storedNames
-    );
+    const writtenNames = vi.mocked(writeEncryptedFile).mock.calls.map((call) => call[3]?.name);
+    expect(writtenNames.sort()).toEqual(options.storedNames);
     const media = await storedMedia();
     expect(media.map((file) => file.name).sort()).toEqual(options.storedNames);
     expect((await storedUserMessage()).fileIds?.sort() ?? []).toEqual(
