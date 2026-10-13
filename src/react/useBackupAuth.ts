@@ -71,7 +71,7 @@ export interface BackupAuthContextValue {
 const BackupAuthContext = createContext<BackupAuthContextValue | null>(null);
 
 /**
- * Unified provider component for backup OAuth authentication.
+ * Provider component for backup authentication.
  *
  * Wrap your app with this provider to enable iCloud backup authentication.
  *

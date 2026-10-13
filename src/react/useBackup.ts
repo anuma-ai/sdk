@@ -81,8 +81,9 @@ export interface UseBackupResult {
 /**
  * Unified React hook for backup and restore functionality.
  *
- * This hook provides methods to backup conversations to iCloud and restore them. It handles all the logic for checking timestamps, skipping
- * unchanged files, authentication, and managing the backup/restore process.
+ * This hook provides methods to backup conversations to iCloud and restore them.
+ * It handles all the logic for checking timestamps, skipping unchanged files,
+ * authentication, and managing the backup/restore process.
  *
  * Must be used within a BackupAuthProvider.
  *

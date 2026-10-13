@@ -2,12 +2,13 @@
 
 > **useBackup**(`options`: `object`): [`UseBackupResult`](../Internal/interfaces/UseBackupResult.md)
 
-Defined in: [src/react/useBackup.ts:120](https://github.com/anuma-ai/sdk/blob/main/src/react/useBackup.ts#120)
+Defined in: [src/react/useBackup.ts:121](https://github.com/anuma-ai/sdk/blob/main/src/react/useBackup.ts#121)
 
 Unified React hook for backup and restore functionality.
 
-This hook provides methods to backup conversations to iCloud and restore them. It handles all the logic for checking timestamps, skipping
-unchanged files, authentication, and managing the backup/restore process.
+This hook provides methods to backup conversations to iCloud and restore them.
+It handles all the logic for checking timestamps, skipping unchanged files,
+authentication, and managing the backup/restore process.
 
 Must be used within a BackupAuthProvider.
 

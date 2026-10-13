@@ -4,7 +4,7 @@
 
 Defined in: [src/react/useBackupAuth.ts:95](https://github.com/anuma-ai/sdk/blob/main/src/react/useBackupAuth.ts#95)
 
-Unified provider component for backup OAuth authentication.
+Provider component for backup authentication.
 
 Wrap your app with this provider to enable iCloud backup authentication.
 
