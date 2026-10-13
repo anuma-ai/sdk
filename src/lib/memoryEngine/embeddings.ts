@@ -1,4 +1,4 @@
-import { TOOL_RESULT_ORIGIN } from "../chat/toolResults";
+import { TOOL_RESULT_ORIGIN, TOOL_RESULTS_PREFIX } from "../chat/toolResults";
 import {
   getConversationsOp,
   getMessageOp,
@@ -279,6 +279,54 @@ export async function chunkAndEmbedMessage(
 }
 
 /**
+ * Smallest sealed payload that can hold a real embedding. Sealing adds a 12-byte
+ * IV and a 16-byte tag (56 hex chars), so `enc:v3:` + `[]` sits well under this
+ * while any genuine vector or chunk list is kilobytes. Below it the column might
+ * be an empty array, so the row is kept and decided after decryption.
+ */
+const MIN_SEALED_EMBEDDING_HEX = 256;
+
+/** True when a raw `vector`/`chunks` column definitely holds a non-empty array. */
+function rawHasEmbedding(value: unknown): boolean {
+  if (Array.isArray(value)) return value.length > 0;
+  if (typeof value !== "string" || value.length === 0) return false;
+  if (isEncrypted(value)) {
+    return value.length - value.indexOf(":", 4) - 1 >= MIN_SEALED_EMBEDDING_HEX;
+  }
+  try {
+    const parsed: unknown = JSON.parse(value);
+    return Array.isArray(parsed) && parsed.length > 0;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Raw-column pre-check for {@link chunkAndEmbedAllMessages}: false only for rows
+ * the post-decrypt checks would certainly skip, so it never drops a row that
+ * needs embedding — it just stops a settled vault from being decrypted in full
+ * on every pass. Everything uncertain (a short sealed column, unknown encoding)
+ * is kept and re-checked after decryption.
+ */
+function mayNeedChunkEmbedding(
+  raw: Record<string, unknown>,
+  embeddingModel: string,
+  filter?: { roles?: string[]; rechunkExisting?: boolean; reembedDiscarded?: boolean }
+): boolean {
+  const role = raw.role as string | undefined;
+  if (role === "system") return false;
+  if (filter?.roles && !filter.roles.includes(role ?? "")) return false;
+  if (isNonEmbeddableOrigin(raw.origin as string | null | undefined, filter?.reembedDiscarded)) {
+    return false;
+  }
+  const model = raw.embedding_model;
+  if (typeof model === "string" && model !== embeddingModel) return true;
+  if (rawHasEmbedding(raw.chunks)) return false;
+  if (rawHasEmbedding(raw.vector) && !filter?.rechunkExisting) return false;
+  return true;
+}
+
+/**
  * Chunk and embed messages that don't yet have embeddings/chunks in the
  * database. Uses chunking for long messages, whole-message embedding for short
  * ones.
@@ -347,8 +395,11 @@ export async function chunkAndEmbedAllMessages(
   let sealedRowsSeen = 0;
   let rowsSeen = 0;
 
+  const rawFilter = (raw: Record<string, unknown>): boolean =>
+    mayNeedChunkEmbedding(raw, embeddingModel, filter);
+
   for (const conv of targetConversations) {
-    const messages = await getMessagesOp(ctx, conv.conversationId);
+    const messages = await getMessagesOp(ctx, conv.conversationId, { rawFilter });
 
     for (const message of messages) {
       rowsSeen++;
@@ -368,6 +419,12 @@ export async function chunkAndEmbedAllMessages(
         stillEncrypted++;
         continue;
       }
+      // Pre-v44 tool-result rows carry no `origin`, so the gate above misses
+      // them; only their decrypted prefix gives them away. Each is a large dump
+      // costing one paid embedding call per chunk, and the client's ciphertext
+      // sweep clears chunks on exactly this prefix — so embedding one would pay
+      // for vectors that get deleted on the next pull.
+      if (message.content.startsWith(TOOL_RESULTS_PREFIX)) continue;
       if (message.content.length < minLength) continue;
 
       if (shouldChunkMessage(message.content, chunkSize)) {

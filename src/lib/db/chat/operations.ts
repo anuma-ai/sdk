@@ -590,11 +590,21 @@ export async function getConversationsByProjectOp(
 
 export async function getMessagesOp(
   ctx: StorageOperationsContext,
-  convId: string
+  convId: string,
+  opts?: {
+    /**
+     * Drops rows on their raw columns, BEFORE decryption. Decrypting a row
+     * (content, vector, chunks, sources, …) is the dominant cost of this read;
+     * a caller that will discard most rows on plaintext columns should reject
+     * them here instead of paying for the decrypt first.
+     */
+    rawFilter?: (raw: Record<string, unknown>) => boolean;
+  }
 ): Promise<StoredMessage[]> {
-  const results = (await ctx.messagesCollection
+  const fetched = (await ctx.messagesCollection
     .query(Q.where("conversation_id", convId), Q.sortBy("message_id", Q.asc))
     .unsafeFetchRaw()) as Record<string, unknown>[];
+  const results = opts?.rawFilter ? fetched.filter(opts.rawFilter) : fetched;
 
   return Promise.all(
     results.map((raw) =>
@@ -1053,7 +1063,6 @@ export async function updateMessageChunksOp(
   }
 
   const storedChunks = chunks.map(({ text: _text, ...rest }) => rest);
-
   await ctx.database.write(async () => {
     await message.update((msg) => {
       msg._setRaw("chunks", JSON.stringify(storedChunks));
