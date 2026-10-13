@@ -2577,7 +2577,12 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         fileProcessingOptions?.maxFileSizeBytes ?? DEFAULT_MAX_FILE_SIZE_BYTES;
       const storableFiles = filesForStorage?.filter((file) => file.size <= maxFileSizeBytes);
       if (storableFiles && storableFiles.length > 0 && walletAddress && isEncryptionReady()) {
-        userFileIds = await storeUserFilesInOPFS(storableFiles, walletAddress, convId);
+        userFileIds = await storeUserFilesInOPFS(
+          storableFiles,
+          walletAddress,
+          convId,
+          maxFileSizeBytes
+        );
       }
 
       const userMsgOpts: CreateMessageOptions = {
