@@ -833,6 +833,48 @@ describe("extractAndRetain", () => {
     );
   });
 
+  it("links each entity's salience weight, PII redaction on", async () => {
+    const candidates = {
+      candidates: [
+        {
+          content: "Ran the Chicago Marathon in Nike shoes",
+          type: "event",
+          confidence: 0.95,
+          sourceMessageIds: ["m1"],
+          entities: [
+            { name: "Chicago Marathon", kind: "event", salience: "primary" },
+            { name: "Nike", kind: "organization", salience: "mention" },
+          ],
+        },
+      ],
+    };
+    vi.mocked(retain).mockResolvedValue({ action: "create", memoryId: "mem-1", proofCount: 1 });
+    const entityCtx = freshEntityCtx();
+
+    await extractAndRetain(
+      messages,
+      { vaultCtx: {} as never, embeddingOptions: { apiKey: "k" }, vaultCache: new Map() },
+      {
+        extract: {
+          apiKey: "k",
+          fetchFn: mockFetch(JSON.stringify(candidates)),
+          piiRedaction: true,
+        },
+        entityCtx,
+      }
+    );
+
+    expect(vi.mocked(linkMemoryEntitiesOp)).toHaveBeenCalledWith(
+      entityCtx,
+      "mem-1",
+      [
+        { name: "Chicago Marathon", kind: "event", weight: 1 },
+        { name: "Nike", kind: "organization", weight: 0.3 },
+      ],
+      { unlessTopicsUserManaged: true }
+    );
+  });
+
   it("does NOT link entities when a candidate was suppressed by a tombstone", async () => {
     const candidates = {
       candidates: [

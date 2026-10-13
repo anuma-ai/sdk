@@ -1516,6 +1516,12 @@ Re-exports [preEmbedVaultMemories](../react/Internal/functions/preEmbedVaultMemo
 
 ***
 
+### primaryTopic
+
+Re-exports [primaryTopic](../react/Internal/functions/primaryTopic.md)
+
+***
+
 ### PROFILE\_DOC\_VERSION
 
 Re-exports [PROFILE\_DOC\_VERSION](../react/Internal/variables/PROFILE_DOC_VERSION.md)
@@ -2110,6 +2116,12 @@ Re-exports [StoredMessageWithSimilarity](../react/Internal/interfaces/StoredMess
 
 ***
 
+### StoredTopic
+
+Re-exports [StoredTopic](../react/Internal/interfaces/StoredTopic.md)
+
+***
+
 ### StoredVaultFolder
 
 Re-exports [StoredVaultFolder](../react/Internal/interfaces/StoredVaultFolder.md)
@@ -2224,6 +2236,12 @@ Re-exports [TOPIC\_EXTRACTION\_BATCH\_SIZE](../react/Internal/variables/TOPIC_EX
 
 ***
 
+### TOPIC\_SALIENCE\_WEIGHTS
+
+Re-exports [TOPIC\_SALIENCE\_WEIGHTS](../react/Internal/variables/TOPIC_SALIENCE_WEIGHTS.md)
+
+***
+
 ### TopicExtractionInput
 
 Re-exports [TopicExtractionInput](../react/Internal/interfaces/TopicExtractionInput.md)
@@ -2248,9 +2266,21 @@ Re-exports [TOPICS\_EXTRACTION\_VERSION](../react/Internal/variables/TOPICS_EXTR
 
 ***
 
+### TopicSalience
+
+Re-exports [TopicSalience](../react/Internal/type-aliases/TopicSalience.md)
+
+***
+
 ### TopicSkipReason
 
 Re-exports [TopicSkipReason](../react/Internal/type-aliases/TopicSkipReason.md)
+
+***
+
+### topicWeight
+
+Re-exports [topicWeight](../react/Internal/functions/topicWeight.md)
 
 ***
 

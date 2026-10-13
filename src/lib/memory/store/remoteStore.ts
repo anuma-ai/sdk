@@ -4,6 +4,7 @@ import type { EntityInput } from "../../db/entities/operations.js";
 import {
   normalizeEntityName,
   parseTopics,
+  parseTopicWeight,
   serializeTopics,
   type StoredEntity,
   type StoredTopic,
@@ -193,7 +194,9 @@ function topicInputs(topics: readonly EntityInput[], source: StoredTopic["source
   return topics.flatMap((topic) => {
     const name = (typeof topic === "string" ? topic : topic.name).trim();
     const kind = typeof topic === "string" ? undefined : topic.kind;
-    return name ? [{ name, ...(kind && { kind }), source }] : [];
+    const weight =
+      typeof topic === "string" || source === "user" ? undefined : parseTopicWeight(topic.weight);
+    return name ? [{ name, ...(kind && { kind }), source, ...(weight && { weight }) }] : [];
   });
 }
 
@@ -201,13 +204,17 @@ function mergeTopics(existing: readonly StoredTopic[], added: readonly StoredTop
   const byName = new Map<string, StoredTopic>();
   for (const topic of [...existing, ...added]) {
     const key = normalizeEntityName(topic.name);
-    if (!byName.has(key)) byName.set(key, topic);
+    const kept = byName.get(key);
+    if (!kept) byName.set(key, topic);
+    else if (kept.weight !== undefined && topic.weight !== undefined && topic.weight > kept.weight)
+      byName.set(key, { ...kept, weight: topic.weight });
   }
   return [...byName.values()];
 }
 
 function sameTopics(stored: readonly StoredTopic[] | null, next: readonly StoredTopic[]): boolean {
-  const key = (t: StoredTopic) => JSON.stringify([t.name, t.kind ?? null, t.source]);
+  const key = (t: StoredTopic) =>
+    JSON.stringify([t.name, t.kind ?? null, t.source, t.weight ?? null]);
   if (stored === null || stored.length !== next.length) return false;
   const keys = new Set(stored.map(key));
   return next.every((t) => keys.has(key(t)));

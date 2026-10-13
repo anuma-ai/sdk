@@ -204,6 +204,13 @@ export {
   type StoredConversationMemory,
 } from "../lib/db/conversationMemory";
 export { isEncrypted } from "../lib/db/encryption-utils";
+export {
+  primaryTopic,
+  type StoredTopic,
+  TOPIC_SALIENCE_WEIGHTS,
+  type TopicSalience,
+  topicWeight,
+} from "../lib/db/entities/types";
 export type {
   DatabaseManagerLogger,
   DatabaseManagerOptions,
