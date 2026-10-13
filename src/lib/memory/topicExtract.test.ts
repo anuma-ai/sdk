@@ -263,6 +263,28 @@ describe("extractEntitiesForMemories", () => {
     expect(rawBody).not.toContain("sara@example.com");
   });
 
+  it("keeps each entity's salience weight when PII redaction is on", async () => {
+    const fetchFn = mockFetch(
+      topicResponse([
+        {
+          id: "mem_1",
+          entities: [
+            { name: "Chicago Marathon", kind: "event", salience: "primary" },
+            { name: "Nike", kind: "organization", salience: "mention" },
+          ],
+        },
+      ])
+    );
+    const result = await extractEntitiesForMemories(
+      [{ id: "mem_1", content: "Ran the Chicago Marathon in Nike shoes" }],
+      { apiKey: "k", fetchFn, piiRedaction: true }
+    );
+    expect(result.get("mem_1")).toEqual([
+      { name: "Chicago Marathon", kind: "event", weight: 1 },
+      { name: "Nike", kind: "organization", weight: 0.3 },
+    ]);
+  });
+
   it("redacts PII in the existing-vocabulary names too", async () => {
     const fetchFn = vi.fn().mockResolvedValue({
       ok: true,

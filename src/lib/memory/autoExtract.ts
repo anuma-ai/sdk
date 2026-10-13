@@ -1,7 +1,7 @@
 import { Q } from "@nozbe/watermelondb";
 
 import { type EntityOperationsContext, linkMemoryEntitiesOp } from "../db/entities/operations.js";
-import { ENTITY_KINDS, type EntityKind } from "../db/entities/types.js";
+import { ENTITY_KINDS, type EntityKind, TOPIC_SALIENCE_WEIGHTS } from "../db/entities/types.js";
 import { VaultMemory } from "../db/memoryVault/models.js";
 import { findQuarantinedDuplicateOp } from "../db/memoryVault/operations.js";
 import { getLogger } from "../logger.js";
@@ -98,9 +98,9 @@ For each durable fact, output:
 - type: one of identity | preference | relationship | plan | ongoing_context | constraint | other
 - confidence: 0.0-1.0; how sure you are this is durable AND true. Only include facts >= 0.7.
 - sourceMessageIds: which message IDs from the conversation contained the evidence
-- entities: named entities mentioned, each as an object { "name": string, "kind": one of "person" | "organization" | "place" | "event" | "product" | "thing" | "concept" | "other" }. Optional — include only NAMED entities, skip generic/common nouns. ${ENTITY_KIND_GUIDELINES} Examples:
-    - "started a new job at Hollowpoint Labs and I'm learning Haskell for it" → entities: [{ "name": "Hollowpoint Labs", "kind": "organization" }, { "name": "Haskell", "kind": "concept" }]
-    - "running the Berlin Half in May and I track workouts in Whoop" → entities: [{ "name": "Berlin Half", "kind": "event" }, { "name": "Whoop", "kind": "product" }]
+- entities: named entities mentioned, each as an object { "name": string, "kind": one of "person" | "organization" | "place" | "event" | "product" | "thing" | "concept" | "other", "salience": one of "primary" | "secondary" | "mention" }. Optional — include only NAMED entities, skip generic/common nouns. ${ENTITY_KIND_GUIDELINES} Salience is how central the entity is to the fact: "primary" = the fact is ABOUT it (usually exactly one per fact), "secondary" = a meaningful part of it, "mention" = named in passing. Examples:
+    - "started a new job at Hollowpoint Labs and I'm learning Haskell for it" → entities: [{ "name": "Hollowpoint Labs", "kind": "organization", "salience": "primary" }, { "name": "Haskell", "kind": "concept", "salience": "secondary" }]
+    - "running the Berlin Half in May and I track workouts in Whoop" → entities: [{ "name": "Berlin Half", "kind": "event", "salience": "primary" }, { "name": "Whoop", "kind": "product", "salience": "mention" }]
 - eventTime: when the event in this fact occurs/occurred. Resolve relative phrases ("yesterday", "next week") against the current date given in the user message. Output one of:
     - { "kind": "point", "start": "YYYY-MM-DD" }     for a single date ("met Sara on March 14, 2026")
     - { "kind": "range", "start": "YYYY-MM-DD", "end": "YYYY-MM-DD" }  for a span ("Japan trip May 4–15, 2026")
@@ -129,6 +129,7 @@ export interface AutoExtractMessage {
 export interface ExtractedEntity {
   name: string;
   kind?: EntityKind;
+  weight?: number;
 }
 
 export interface ExtractedCandidate {
@@ -437,15 +438,10 @@ function restoreCandidates(
         candidate: {
           ...c,
           content: content.text,
-          entities: c.entities
-            .map((e) => ({ kind: e.kind, restored: redactor.restoreForStorage(e.name) }))
-            .filter((e) => !e.restored.unresolved)
-            .map(
-              (e): ExtractedEntity =>
-                e.kind !== undefined
-                  ? { name: e.restored.text, kind: e.kind }
-                  : { name: e.restored.text }
-            ),
+          entities: c.entities.flatMap((e) => {
+            const restored = redactor.restoreForStorage(e.name);
+            return restored.unresolved ? [] : [{ ...e, name: restored.text }];
+          }),
         },
         unresolved: content.unresolved,
       };
@@ -880,7 +876,15 @@ export function parseEntities(raw: unknown[]): ExtractedEntity[] {
       typeof obj.kind === "string" && (ENTITY_KINDS as readonly string[]).includes(obj.kind)
         ? (obj.kind as EntityKind)
         : undefined;
-    out.push(kind !== undefined ? { name, kind } : { name });
+    const weight =
+      typeof obj.salience === "string" && Object.keys(TOPIC_SALIENCE_WEIGHTS).includes(obj.salience)
+        ? TOPIC_SALIENCE_WEIGHTS[obj.salience as keyof typeof TOPIC_SALIENCE_WEIGHTS]
+        : undefined;
+    out.push({
+      name,
+      ...(kind !== undefined ? { kind } : {}),
+      ...(weight !== undefined ? { weight } : {}),
+    });
   }
   return out;
 }

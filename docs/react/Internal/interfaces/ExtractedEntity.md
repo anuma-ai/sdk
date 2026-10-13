@@ -21,3 +21,11 @@ Defined in: [src/lib/memory/autoExtract.ts:131](https://github.com/anuma-ai/sdk/
 > **name**: `string`
 
 Defined in: [src/lib/memory/autoExtract.ts:130](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#130)
+
+***
+
+### weight?
+
+> `optional` **weight**: `number`
+
+Defined in: [src/lib/memory/autoExtract.ts:132](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#132)

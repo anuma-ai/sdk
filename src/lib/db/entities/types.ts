@@ -63,6 +63,43 @@ export interface StoredTopic {
   name: string;
   kind?: string;
   source: TopicSource;
+  /** How central the topic is to the memory, in (0, 1]; read it with {@link topicWeight}. */
+  weight?: number;
+}
+
+/**
+ * Fixed weight per salience level the topic extractor assigns.
+ * @public
+ */
+export const TOPIC_SALIENCE_WEIGHTS = { primary: 1, secondary: 0.6, mention: 0.3 } as const;
+
+/** @public */
+export type TopicSalience = keyof typeof TOPIC_SALIENCE_WEIGHTS;
+
+/**
+ * A topic's weight: 1 when it is user-set or carries no weight.
+ * @public
+ */
+export function topicWeight(topic: StoredTopic): number {
+  return topic.source === "user" ? 1 : (topic.weight ?? 1);
+}
+
+/**
+ * The first topic with the highest weight, or null when there are none.
+ * @public
+ */
+export function primaryTopic(
+  topics: readonly StoredTopic[] | null | undefined
+): StoredTopic | null {
+  let best: StoredTopic | null = null;
+  for (const topic of topics ?? []) {
+    if (best === null || topicWeight(topic) > topicWeight(best)) best = topic;
+  }
+  return best;
+}
+
+export function parseTopicWeight(value: unknown): number | undefined {
+  return typeof value === "number" && value > 0 && value <= 1 ? value : undefined;
 }
 
 /** Serialize topics for the `memory_vault.topics` column. */
@@ -91,12 +128,14 @@ export function parseTopics(value: unknown): StoredTopic[] | null {
   const out: StoredTopic[] = [];
   for (const raw of parsed) {
     if (typeof raw !== "object" || raw === null) continue;
-    const { name, kind, source } = raw as Record<string, unknown>;
+    const { name, kind, source, weight } = raw as Record<string, unknown>;
     if (typeof name !== "string" || name.trim().length === 0) continue;
+    const parsedWeight = parseTopicWeight(weight);
     out.push({
       name,
       ...(typeof kind === "string" && kind.length > 0 ? { kind } : {}),
       source: source === "user" ? "user" : "auto",
+      ...(parsedWeight !== undefined ? { weight: parsedWeight } : {}),
     });
   }
   return out;

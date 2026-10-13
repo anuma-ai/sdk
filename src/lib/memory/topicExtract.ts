@@ -31,7 +31,13 @@ Include only NAMED entities, skip generic/common nouns. A topic must identify a 
 - Prefer 0 entities over a weak one. A memory whose only candidate is a generic noun has NO entities.
 ${ENTITY_KIND_GUIDELINES}
 
-Each memory below is written as "<id>: <text>". Output strict JSON: {"memories": [{"id": string, "entities": [{"name": string, "kind": string}]}]}
+Give each entity a "salience" — how central it is to the memory:
+- "primary": the memory is ABOUT it. A memory with entities usually has exactly one primary; never more than two.
+- "secondary": a meaningful part of the memory, but not its subject.
+- "mention": named in passing; the memory would say much the same without it.
+Example: "Ran the Chicago Marathon with my sister Ana in 3:41" → Chicago Marathon primary, Ana secondary.
+
+Each memory below is written as "<id>: <text>". Output strict JSON: {"memories": [{"id": string, "entities": [{"name": string, "kind": string, "salience": "primary" | "secondary" | "mention"}]}]}
 - exactly one element per input memory; copy its id EXACTLY as written (the token before the first ": "), with no brackets, quotes, or extra characters
 - "entities" may be empty when a memory mentions no named entities — most short memories have 0-3
 No prose.`;
@@ -168,13 +174,10 @@ export async function extractEntitiesForMemories(
 }
 
 function restoreEntities(entities: ExtractedEntity[], redactor: PiiRedactor): ExtractedEntity[] {
-  return entities
-    .map((e) => ({ kind: e.kind, restored: redactor.restoreForStorage(e.name) }))
-    .filter((e) => !e.restored.unresolved)
-    .map(
-      (e): ExtractedEntity =>
-        e.kind !== undefined ? { name: e.restored.text, kind: e.kind } : { name: e.restored.text }
-    );
+  return entities.flatMap((e) => {
+    const restored = redactor.restoreForStorage(e.name);
+    return restored.unresolved ? [] : [{ ...e, name: restored.text }];
+  });
 }
 
 function parseTopicResponse(
