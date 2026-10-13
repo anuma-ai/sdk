@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { generateEmbedding, generateEmbeddings } from "../../memoryEngine/embeddings";
 import { primaryTopic, topicWeight } from "../../db/entities/types";
+import { generateEmbedding, generateEmbeddings } from "../../memoryEngine/embeddings";
 import type { EmbeddingOptions } from "../../memoryEngine/types";
 import type { MemoryStore } from "./types";
 
@@ -430,9 +430,7 @@ export function runMemoryStoreContract(
       expect(await weights()).toEqual({ Ana: 1, "Chicago Marathon": 0.3 });
 
       await store.setTopics(run.uniqueId, [{ name: "Chicago Marathon", weight: 0.3 }]);
-      expect((await store.get(run.uniqueId))?.topics).toEqual([
-        expect.not.objectContaining({ weight: expect.anything() }),
-      ]);
+      expect((await store.get(run.uniqueId))?.topics?.map((t) => t.weight)).toEqual([undefined]);
     });
 
     it("leaves a memory pending when the model does not answer for it", async () => {

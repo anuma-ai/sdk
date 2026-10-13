@@ -6,8 +6,8 @@ import type { Entity, MemoryEntity } from "./models";
 import {
   type EntityKind,
   normalizeEntityName as normalizeName,
-  parseTopicWeight,
   parseTopics,
+  parseTopicWeight,
   serializeTopics,
   type StoredEntity,
   type StoredTopic,

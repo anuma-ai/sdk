@@ -3,8 +3,8 @@ import { v7 as uuidv7 } from "uuid";
 import type { EntityInput } from "../../db/entities/operations.js";
 import {
   normalizeEntityName,
-  parseTopicWeight,
   parseTopics,
+  parseTopicWeight,
   serializeTopics,
   type StoredEntity,
   type StoredTopic,
