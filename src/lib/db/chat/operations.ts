@@ -3,7 +3,7 @@ import { Q } from "@nozbe/watermelondb";
 import { v7 as uuidv7 } from "uuid";
 
 import type { EmbeddedWalletSignerFn, SignMessageFn } from "../../../react/useEncryption";
-import { requestEncryptionKey } from "../../../react/useEncryption";
+import { encryptData, requestEncryptionKey } from "../../../react/useEncryption";
 import { getLogger } from "../../logger";
 import { cosineSimilarity } from "../../memoryEngine/vector";
 import { decodeChunkVector } from "../../memoryEngine/vectorEncoding";
@@ -1027,8 +1027,9 @@ export async function updateMessageEmbeddingOp(
   }
 
   await ctx.database.write(async () => {
+    const storedVector = await serializeMessageEmbedding(ctx, message, vector);
     await message.update((msg) => {
-      msg._setRaw("vector", JSON.stringify(vector));
+      msg._setRaw("vector", storedVector);
       if (msg.origin === "chunks_discarded" && vector.length > 0) {
         msg._setRaw("origin", "message");
       }
@@ -1036,7 +1037,7 @@ export async function updateMessageEmbeddingOp(
     });
   });
 
-  return messageToStored(message, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner);
+  return messageToStored(message, ctx.walletAddress);
 }
 
 export async function updateMessageChunksOp(
@@ -1055,8 +1056,9 @@ export async function updateMessageChunksOp(
   const storedChunks = chunks.map(({ text: _text, ...rest }) => rest);
 
   await ctx.database.write(async () => {
+    const serializedChunks = await serializeMessageEmbedding(ctx, message, storedChunks);
     await message.update((msg) => {
-      msg._setRaw("chunks", JSON.stringify(storedChunks));
+      msg._setRaw("chunks", serializedChunks);
       if (
         msg.origin === "chunks_discarded" &&
         storedChunks.length > 0 &&
@@ -1068,7 +1070,112 @@ export async function updateMessageChunksOp(
     });
   });
 
-  return messageToStored(message, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner);
+  return messageToStored(message, ctx.walletAddress);
+}
+
+async function serializeMessageEmbedding(
+  ctx: StorageOperationsContext,
+  message: Message,
+  value: unknown
+): Promise<string> {
+  const json = JSON.stringify(value);
+  if (!ctx.walletAddress || !isEncrypted(message.content)) return json;
+  return `enc:v3:${await encryptData(json, ctx.walletAddress)}`;
+}
+
+/** Decrypts raw message embedding columns with the cached wallet key. */
+export async function decryptMessageEmbeddingFields(
+  raw: Record<string, unknown>,
+  walletAddress?: string
+): Promise<Record<string, unknown>> {
+  const result = { ...raw };
+  for (const column of ["vector", "chunks"]) {
+    const value = raw[column];
+    if (typeof value !== "string" || !value.startsWith("enc:")) continue;
+    const decrypted = walletAddress ? await decryptField(value, walletAddress) : value;
+    result[column] = decrypted.startsWith("enc:") ? undefined : decrypted;
+  }
+  return result;
+}
+
+/** Seals legacy message embedding columns and discards chunks with invalid plaintext offsets. */
+export async function sealLegacyMessageEmbeddingsOp(
+  ctx: StorageOperationsContext
+): Promise<number> {
+  if (!ctx.walletAddress) return 0;
+  const candidateIds = await ctx.messagesCollection
+    .query(
+      Q.where("content", Q.like("enc:%")),
+      Q.or(
+        ...["vector", "chunks"].map((column) =>
+          Q.and(
+            Q.where(column, Q.notEq(null)),
+            Q.where(column, Q.notEq("")),
+            Q.where(column, Q.notLike("enc:%"))
+          )
+        )
+      )
+    )
+    .fetchIds();
+  let sealed = 0;
+  for (let start = 0; start < candidateIds.length; start += 50) {
+    const pageIds = candidateIds.slice(start, start + 50);
+    await ctx.database.write(async () => {
+      for (const id of pageIds) {
+        const message = await ctx.messagesCollection.find(id);
+        if (!isEncrypted(message.content)) continue;
+        const plaintext = await decryptField(message.content, ctx.walletAddress!);
+        if (plaintext === message.content) {
+          throw new Error("Cannot decrypt the message with the cached wallet key");
+        }
+        const updates: Record<string, string | null> = {};
+        for (const column of ["vector", "chunks"]) {
+          const value = message._getRaw(column);
+          if (typeof value !== "string" || value.startsWith("enc:") || !value) continue;
+          let parsed: unknown;
+          try {
+            parsed = JSON.parse(value);
+          } catch {
+            updates[column] = null;
+            continue;
+          }
+          if (!Array.isArray(parsed)) {
+            updates[column] = null;
+            continue;
+          }
+          if (column === "chunks") {
+            const chunks = parsed as MessageChunk[];
+            if (
+              chunks.some(
+                (chunk) =>
+                  !chunk ||
+                  !Number.isInteger(chunk.startOffset) ||
+                  !Number.isInteger(chunk.endOffset) ||
+                  chunk.startOffset < 0 ||
+                  chunk.endOffset <= chunk.startOffset ||
+                  chunk.endOffset > plaintext.length
+              )
+            ) {
+              updates.chunks = null;
+              updates.vector = null;
+              updates.origin =
+                message.origin === "tool_result" ? "tool_result" : "chunks_discarded";
+              break;
+            }
+            parsed = chunks.map(({ text: _text, ...rest }) => rest);
+          }
+          updates[column] = await serializeMessageEmbedding(ctx, message, parsed);
+        }
+        if (Object.keys(updates).length === 0) continue;
+        await message.update((msg) => {
+          for (const [column, value] of Object.entries(updates)) msg._setRaw(column, value);
+          msg._setRaw("updated_at", Math.max(Date.now(), Number(msg._getRaw("updated_at")) + 1));
+        });
+        sealed++;
+      }
+    });
+  }
+  return sealed;
 }
 
 const STRIP_CHUNK_TEXT_PAGE_SIZE = 100;
