@@ -46,11 +46,11 @@ export interface ProviderAuthState {
   isAuthenticated: boolean;
   /** Whether this provider is configured */
   isConfigured: boolean;
-  /** Request access - returns token or redirects to OAuth */
+  /** Request access - triggers iCloud sign-in if needed and returns the user record name */
   requestAccess: () => Promise<string>;
   /** Clear stored token and log out */
   logout: () => Promise<void>;
-  /** Refresh the access token using the refresh token */
+  /** Re-check the iCloud session and return the user record name */
   refreshToken: () => Promise<string | null>;
 }
 

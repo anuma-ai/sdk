@@ -58,7 +58,7 @@ export interface ProviderBackupState {
   backup: (options?: BackupOperationOptions) => Promise<ICloudExportResult | { error: string }>;
   /** Restore conversations from this provider */
   restore: (options?: BackupOperationOptions) => Promise<ICloudImportResult | { error: string }>;
-  /** Request access to this provider (triggers OAuth if needed) */
+  /** Request access to this provider (triggers iCloud sign-in if needed) */
   connect: () => Promise<string>;
   /** Disconnect from this provider */
   disconnect: () => Promise<void>;

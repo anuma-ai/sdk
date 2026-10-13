@@ -51,7 +51,7 @@ Backup all conversations to this provider
 
 Defined in: [src/react/useBackup.ts:62](https://github.com/anuma-ai/sdk/blob/main/src/react/useBackup.ts#62)
 
-Request access to this provider (triggers OAuth if needed)
+Request access to this provider (triggers iCloud sign-in if needed)
 
 **Returns**
 

@@ -198,7 +198,7 @@ clearQueue();
 
 ### How backup works with encryption
 
-The backup modules (Dropbox, Google Drive, iCloud) work through **dependency-injected callbacks**:
+The iCloud backup module works through **dependency-injected callbacks**:
 
 ```typescript
 interface BackupDeps {
@@ -207,10 +207,10 @@ interface BackupDeps {
 }
 ```
 
-These callbacks are implemented in **your client app**, not in the SDK. The SDK backup modules only:
+These callbacks are implemented in **your client app**, not in the SDK. The SDK backup module only:
 1. List conversations (using `conversationToStoredRaw` for timestamp comparison)
 2. Call your `exportConversation` / `importConversation` callbacks
-3. Upload/download blobs to cloud storage
+3. Upload/download blobs to iCloud
 
 ### What you need to know
 

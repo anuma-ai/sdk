@@ -56,7 +56,7 @@ Clear stored token and log out
 
 Defined in: [src/react/useBackupAuth.ts:54](https://github.com/anuma-ai/sdk/blob/main/src/react/useBackupAuth.ts#54)
 
-Refresh the access token using the refresh token
+Re-check the iCloud session and return the user record name
 
 **Returns**
 
@@ -70,7 +70,7 @@ Refresh the access token using the refresh token
 
 Defined in: [src/react/useBackupAuth.ts:50](https://github.com/anuma-ai/sdk/blob/main/src/react/useBackupAuth.ts#50)
 
-Request access - returns token or redirects to OAuth
+Request access - triggers iCloud sign-in if needed and returns the user record name
 
 **Returns**
 
