@@ -288,7 +288,7 @@ export function createLocalMemoryStore(options: LocalMemoryStoreOptions): Memory
         searchVaultMemoriesWithSize(
           query,
           vaultCtx,
-          options.embeddingOptions,
+          { ...options.embeddingOptions, taskType: "memory_recall_embed" },
           vaultCache,
           searchOptions
         ),

@@ -47,6 +47,10 @@ export function createMemoryVaultSearchTool(
 ): ToolConfig {
   const limit = searchOptions?.limit ?? 5;
   const minSimilarity = searchOptions?.minSimilarity ?? 0.1;
+  const recallEmbeddingOptions: EmbeddingOptions = {
+    ...embeddingOptions,
+    taskType: "memory_recall_embed",
+  };
 
   const tuningForward = {
     ...(searchOptions?.rerankTopN !== undefined && { rerankTopN: searchOptions.rerankTopN }),
@@ -151,7 +155,7 @@ export function createMemoryVaultSearchTool(
               : await searchVaultMemoriesWithSize(
                   query,
                   vaultCtx,
-                  embeddingOptions,
+                  recallEmbeddingOptions,
                   cache,
                   legacyOptions
                 );

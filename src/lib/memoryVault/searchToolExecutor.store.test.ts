@@ -17,6 +17,7 @@ vi.mock("./searchTool", async (importOriginal) => ({
   searchVaultMemoriesWithSize: vi.fn(),
 }));
 
+import type { VaultMemoryOperationsContext } from "../db/memoryVault/operations";
 import { recall } from "../memory/recall";
 import type { MemoryStore } from "../memory/store/types";
 import type { RecallDiagnostics } from "../memory/types";
@@ -66,6 +67,25 @@ describe("createMemoryVaultSearchTool with a MemoryStore", () => {
     );
     expect(searchVaultMemoriesWithSize).not.toHaveBeenCalled();
     expect(out).toContain("Drinks coffee");
+  });
+
+  it("declares the recall task type on the legacy vault search", async () => {
+    const emptyOutcome = { results: [], vaultSize: 0 } as never;
+    vi.mocked(searchVaultMemoriesWithSize).mockResolvedValue(emptyOutcome);
+    const vaultCtx = {} as VaultMemoryOperationsContext;
+    const cache = createVaultEmbeddingCache();
+    const tool = createMemoryVaultSearchTool(vaultCtx, { apiKey: "k" }, cache, {
+      useFusion: false,
+    });
+    await tool.executor!({ query: "coffee" });
+
+    expect(searchVaultMemoriesWithSize).toHaveBeenCalledWith(
+      "coffee",
+      vaultCtx,
+      { apiKey: "k", taskType: "memory_recall_embed" },
+      cache,
+      expect.objectContaining({ useFusion: false })
+    );
   });
 });
 
