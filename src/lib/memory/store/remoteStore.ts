@@ -27,7 +27,13 @@ import { getLogger } from "../../logger.js";
 import { DEFAULT_API_EMBEDDING_MODEL } from "../../memoryEngine/constants.js";
 import { generateEmbedding } from "../../memoryEngine/embeddings.js";
 import type { EmbeddingOptions } from "../../memoryEngine/types.js";
-import { extractEntitiesForMemories, type TopicSkipReason } from "../topicExtract.js";
+import type { PortalLlmFailure } from "../portalLlm.js";
+import { notifyMemoryCallback } from "../recallTelemetry.js";
+import {
+  extractEntitiesForMemories,
+  type TopicExtractionBatchDiagnostics,
+  type TopicSkipReason,
+} from "../topicExtract.js";
 import type { RecallFactSource } from "../types.js";
 import {
   type RemoteMemoryDecodeFailure,
@@ -549,7 +555,8 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
       };
     },
     extractTopics: async (memoryIds, extractOptions) => {
-      const extractedAt = extractOptions.now ?? Date.now();
+      const start = Date.now();
+      const extractedAt = extractOptions.now ?? start;
       const skippedIds: string[] = [];
       const skippedReasons = new Map<string, TopicSkipReason>();
       const skip = (id: string, reason: TopicSkipReason) => {
@@ -568,7 +575,18 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
         else inputs.push({ id, content: memory.content });
       }
 
-      const entitiesByMemory = await extractEntitiesForMemories(inputs, extractOptions);
+      const batches: TopicExtractionBatchDiagnostics[] = [];
+      const llmFailures = new Map<string, PortalLlmFailure>();
+      const entitiesByMemory = await extractEntitiesForMemories(inputs, {
+        ...extractOptions,
+        onBatch: (batch) => {
+          batches.push(batch);
+          if (batch.failure) {
+            for (const id of batch.memoryIds) llmFailures.set(id, batch.failure);
+          }
+          notifyMemoryCallback(extractOptions.onBatch, batch);
+        },
+      });
       const answered = new Map<string, { content: string; topics: StoredTopic[] }>();
       for (const input of inputs) {
         const entities = entitiesByMemory.get(input.id);
@@ -624,7 +642,16 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
         getLogger().warn("[memory/remote-store] Failed to write extracted topics:", error);
         for (const id of answered.keys()) fail(id, "link-failed");
       }
-      return { entitiesByMemory, stampedIds, skippedIds, skippedReasons };
+      return {
+        entitiesByMemory,
+        stampedIds,
+        skippedIds,
+        skippedReasons,
+        batchCount: batches.length,
+        durationMs: Date.now() - start,
+        batches,
+        llmFailures,
+      };
     },
     stampTopicsExtracted: async (memoryIds, extractedAt, version = TOPICS_EXTRACTION_VERSION) => {
       const ids = [...new Set(memoryIds)];
