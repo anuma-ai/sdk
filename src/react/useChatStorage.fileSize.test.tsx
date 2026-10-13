@@ -2,7 +2,7 @@
 
 import { Database } from "@nozbe/watermelondb";
 import LokiJSAdapter from "@nozbe/watermelondb/adapters/lokijs";
-import { act, renderHook } from "@testing-library/react";
+import { act, cleanup, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, type MockInstance, vi } from "vitest";
 
 import { runToolLoop } from "../lib/chat/toolLoop";
@@ -53,11 +53,13 @@ describe("useChatStorage attachment storage size limit", () => {
       }),
       modelClasses: sdkModelClasses,
     });
-    fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+    fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation((input) => {
       if (typeof input === "string" && input.startsWith("data:")) {
-        return new Response("file", { headers: { "Content-Type": "application/octet-stream" } });
+        return Promise.resolve(
+          new Response("file", { headers: { "Content-Type": "application/octet-stream" } })
+        );
       }
-      throw new Error("No network access in the test");
+      return Promise.reject(new Error("No network access in the test"));
     });
     vi.mocked(runToolLoop).mockResolvedValue({
       data: {
@@ -74,10 +76,11 @@ describe("useChatStorage attachment storage size limit", () => {
         ],
       },
       error: null,
-    } as never);
+    });
   });
 
   afterEach(() => {
+    cleanup();
     fetchSpy.mockRestore();
     clearAllEncryptionKeys();
   });
@@ -118,7 +121,7 @@ describe("useChatStorage attachment storage size limit", () => {
         database,
         conversationId: CONVERSATION_ID,
         walletAddress: ADDRESS,
-        getToken: async () => "token",
+        getToken: () => Promise.resolve("token"),
         fileProcessors: options.fileProcessors,
         fileProcessingOptions: { maxFileSizeBytes: options.maxFileSizeBytes },
       })
@@ -154,7 +157,7 @@ describe("useChatStorage attachment storage size limit", () => {
         database,
         conversationId: CONVERSATION_ID,
         walletAddress: ADDRESS,
-        getToken: async () => "token",
+        getToken: () => Promise.resolve("token"),
         fileProcessingOptions: { maxFileSizeBytes: 0 },
       })
     );
@@ -169,7 +172,9 @@ describe("useChatStorage attachment storage size limit", () => {
     });
 
     expect(writeEncryptedFile).not.toHaveBeenCalled();
-    expect(fetchSpy.mock.calls.some(([input]) => String(input).startsWith("data:"))).toBe(false);
+    expect(
+      fetchSpy.mock.calls.some(([input]) => typeof input === "string" && input.startsWith("data:"))
+    ).toBe(false);
     expect(await storedMedia()).toEqual([]);
     expect((await storedUserMessage()).fileIds ?? []).toEqual([]);
     expect(runToolLoop).toHaveBeenCalledTimes(1);
