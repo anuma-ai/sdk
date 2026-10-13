@@ -230,7 +230,12 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
   const seen = new Map<string, RemoteMemoryRecord>();
   let timer: ReturnType<typeof setInterval> | undefined;
   const notify = (change: Change, records: readonly RemoteMemoryRecord[] = []) => {
-    if (timer) for (const record of records) seen.set(record.memory.memory_id, record);
+    if (timer)
+      for (const record of records) {
+        const previous = seen.get(record.memory.memory_id);
+        if (!previous || previous.version + 1 === record.version)
+          seen.set(record.memory.memory_id, record);
+      }
     for (const subscriber of [...subscribers])
       if (relevant(change, subscriber.options)) safely(subscriber.onChange);
   };
