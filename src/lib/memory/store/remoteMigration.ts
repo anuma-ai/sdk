@@ -20,7 +20,26 @@ const QUERY_PAGE = 200;
 const MAX_UPLOAD_PASSES = 3;
 const MAX_RATE_LIMIT_WAITS = 10;
 const DEFAULT_RATE_LIMIT_WAIT_MS = 10_000;
-const MAX_FIELD_BYTES = 32 << 10;
+const MAX_ID_BYTES = 128;
+const MAX_CONTENT_BYTES = 32 << 10;
+const MAX_TEXT_BYTES = 16 << 10;
+const MAX_SHORT_BYTES = 256;
+const TEXT_FIELDS = ["topics", "media", "source_chunk_ids"] as const;
+const SHORT_FIELDS = [
+  "scope",
+  "kind",
+  "level",
+  "folder_id",
+  "embedding_model",
+  "source",
+  "event_time_kind",
+  "superseded_by",
+  "fact_type",
+  "trust_tier",
+  "visibility",
+  "geohash",
+] as const;
+const utf8 = new TextEncoder();
 
 const METADATA_FIELDS = [
   "scope",
@@ -144,12 +163,26 @@ function embedding(raw: RawRow): number[] | undefined {
   }
 }
 
+function bytes(value: string | undefined): number {
+  return value === undefined ? 0 : utf8.encode(value).length;
+}
+
+function fitsNearby(row: RemoteMemoryRow): boolean {
+  return (
+    bytes(row.memory_id) <= MAX_ID_BYTES &&
+    bytes(row.content) <= MAX_CONTENT_BYTES &&
+    bytes(row.kind_value) <= MAX_CONTENT_BYTES &&
+    TEXT_FIELDS.every((field) => bytes(row[field]) <= MAX_TEXT_BYTES) &&
+    SHORT_FIELDS.every((field) => bytes(row[field]) <= MAX_SHORT_BYTES)
+  );
+}
+
 function invalid(raw: RawRow): boolean {
   const id = raw.id;
   return (
     typeof id !== "string" ||
     id === "" ||
-    id.length > 128 ||
+    bytes(id) > MAX_ID_BYTES ||
     !text(raw.scope) ||
     (num(raw.created_at) ?? 0) <= 0 ||
     (num(raw.updated_at) ?? 0) <= 0
@@ -211,9 +244,7 @@ async function remoteRow(
   const encryptedKindValue = kindValue
     ? await reencryptMemoryField(kindValue, canonical, fallbacks)
     : undefined;
-  if (content.length > MAX_FIELD_BYTES || (encryptedKindValue?.length ?? 0) > MAX_FIELD_BYTES)
-    return null;
-  return {
+  const row: RemoteMemoryRow = {
     ...defined({ ...metadata(raw), kind_value: encryptedKindValue }),
     memory_id: raw.id as string,
     content,
@@ -222,6 +253,7 @@ async function remoteRow(
     updated_at: updatedAt,
     is_deleted: bool(raw.is_deleted) ?? false,
   };
+  return fitsNearby(row) ? row : null;
 }
 
 function sameMetadata(local: RawRow, remote: Record<string, unknown>): boolean {

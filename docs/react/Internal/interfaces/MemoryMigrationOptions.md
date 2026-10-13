@@ -1,6 +1,6 @@
 # MemoryMigrationOptions
 
-Defined in: [src/lib/memory/store/remoteMigration.ts:60](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteMigration.ts#60)
+Defined in: [src/lib/memory/store/remoteMigration.ts:79](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteMigration.ts#79)
 
 Options for [migrateMemoriesToRemote](../functions/migrateMemoriesToRemote.md).
 
@@ -14,7 +14,7 @@ Options for [migrateMemoriesToRemote](../functions/migrateMemoriesToRemote.md).
 
 > `optional` **allowSkipped**: `boolean`
 
-Defined in: [src/lib/memory/store/remoteMigration.ts:71](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteMigration.ts#71)
+Defined in: [src/lib/memory/store/remoteMigration.ts:90](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteMigration.ts#90)
 
 Activate even when some rows could not be migrated. Default false.
 
@@ -36,7 +36,7 @@ Defined in: [src/lib/memory/store/remotePersistence.ts:126](https://github.com/a
 
 > **canonical**: [`MemoryKeyRing`](MemoryKeyRing.md)
 
-Defined in: [src/lib/memory/store/remoteMigration.ts:67](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteMigration.ts#67)
+Defined in: [src/lib/memory/store/remoteMigration.ts:86](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteMigration.ts#86)
 
 The account's canonical key, which encrypts every uploaded field.
 
@@ -46,7 +46,7 @@ The account's canonical key, which encrypts every uploaded field.
 
 > `optional` **fallbacks**: readonly [`MemoryKeyRing`](MemoryKeyRing.md)\[]
 
-Defined in: [src/lib/memory/store/remoteMigration.ts:69](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteMigration.ts#69)
+Defined in: [src/lib/memory/store/remoteMigration.ts:88](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteMigration.ts#88)
 
 Older keys that may have encrypted local rows.
 
@@ -178,7 +178,7 @@ Defined in: [src/lib/memory/store/remotePersistence.ts:127](https://github.com/a
 
 > `optional` **onProgress**: (`progress`: [`MemoryMigrationProgress`](MemoryMigrationProgress.md)) => `void`
 
-Defined in: [src/lib/memory/store/remoteMigration.ts:73](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteMigration.ts#73)
+Defined in: [src/lib/memory/store/remoteMigration.ts:92](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteMigration.ts#92)
 
 **Parameters**
 
@@ -215,7 +215,7 @@ Defined in: [src/lib/memory/store/remoteMigration.ts:73](https://github.com/anum
 
 > `optional` **signal**: `AbortSignal`
 
-Defined in: [src/lib/memory/store/remoteMigration.ts:72](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteMigration.ts#72)
+Defined in: [src/lib/memory/store/remoteMigration.ts:91](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteMigration.ts#91)
 
 ***
 
@@ -235,6 +235,6 @@ Defined in: [src/lib/memory/store/remotePersistence.ts:134](https://github.com/a
 
 > **vaultCtx**: [`VaultMemoryOperationsContext`](VaultMemoryOperationsContext.md)
 
-Defined in: [src/lib/memory/store/remoteMigration.ts:65](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteMigration.ts#65)
+Defined in: [src/lib/memory/store/remoteMigration.ts:84](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteMigration.ts#84)
 
 The local vault to read, scoped by `userId` or marked `singleTenant`.

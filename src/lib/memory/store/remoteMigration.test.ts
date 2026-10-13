@@ -87,6 +87,29 @@ function fakeNearby(initial: { state?: string; key_id?: string } = {}) {
       }
       if (account.key_id && account.key_id !== body.key_id)
         return json(409, { detail: "key mismatch", code: "key_mismatch" });
+      const size = (v: unknown) => (typeof v === "string" ? new TextEncoder().encode(v).length : 0);
+      const refused = (body.memories as Record<string, unknown>[]).some(
+        (row) =>
+          size(row.memory_id) > 128 ||
+          size(row.content) > 32 << 10 ||
+          size(row.kind_value) > 32 << 10 ||
+          ["topics", "media", "source_chunk_ids"].some((f) => size(row[f]) > 16 << 10) ||
+          [
+            "scope",
+            "kind",
+            "level",
+            "folder_id",
+            "embedding_model",
+            "source",
+            "event_time_kind",
+            "superseded_by",
+            "fact_type",
+            "trust_tier",
+            "visibility",
+            "geohash",
+          ].some((f) => size(row[f]) > 256)
+      );
+      if (refused) return json(400, { detail: "a field is over its limit" });
       account.key_id = body.key_id as string;
       if (account.state === "none") account.state = "migrating";
       for (const row of body.memories as Stored[]) {
@@ -431,5 +454,37 @@ describe("migrateMemoriesToRemote", () => {
 
     expect(add.mock.calls.length).toBeGreaterThan(0);
     expect(remove.mock.calls.length).toBe(add.mock.calls.length);
+  });
+
+  it("skips a row whose source_chunk_ids nearby would refuse instead of failing its batch", async () => {
+    const ctx = vault(makeDatabase(), signatureA);
+    const ok = await createVaultMemoryOp(ctx, { content: "Lives in Austin" });
+    const big = await createVaultMemoryOp(ctx, {
+      content: "Name is Sam",
+      sourceChunkIds: Array.from({ length: 600 }, (_, i) => `message-${i}-${"x".repeat(24)}`),
+    });
+    const nearby = fakeNearby();
+
+    const result = await migrate(nearby, ctx);
+
+    expect(result).toMatchObject({
+      state: "migrating",
+      skipped: [{ memoryId: big.uniqueId, reason: "invalid" }],
+    });
+    expect(nearby.rows.has(ok.uniqueId)).toBe(true);
+    expect(await migrate(nearby, ctx, { allowSkipped: true })).toMatchObject({ state: "active" });
+  });
+
+  it("measures nearby's limits in bytes, not characters", async () => {
+    const ctx = vault(makeDatabase(), signatureA);
+    const m = await createVaultMemoryOp(ctx, { content: "Likes green tea" });
+    const record = await ctx.vaultMemoryCollection.find(m.uniqueId);
+    await ctx.database.write(async () => {
+      await record.update((r) => r._setRaw("geohash", "é".repeat(200)));
+    });
+
+    const result = await migrate(fakeNearby(), ctx);
+
+    expect(result.skipped).toEqual([{ memoryId: m.uniqueId, reason: "invalid" }]);
   });
 });
