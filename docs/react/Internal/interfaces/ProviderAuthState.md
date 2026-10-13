@@ -42,7 +42,7 @@ Whether this provider is configured
 
 Defined in: [src/react/useBackupAuth.ts:52](https://github.com/anuma-ai/sdk/blob/main/src/react/useBackupAuth.ts#52)
 
-Clear stored token and log out
+Sign out of iCloud
 
 **Returns**
 

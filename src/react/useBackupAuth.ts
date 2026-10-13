@@ -48,7 +48,7 @@ export interface ProviderAuthState {
   isConfigured: boolean;
   /** Request access - triggers iCloud sign-in if needed and returns the user record name */
   requestAccess: () => Promise<string>;
-  /** Clear stored token and log out */
+  /** Sign out of iCloud */
   logout: () => Promise<void>;
   /** Re-check the iCloud session and return the user record name */
   refreshToken: () => Promise<string | null>;
