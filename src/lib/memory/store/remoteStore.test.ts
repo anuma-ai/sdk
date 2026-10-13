@@ -18,6 +18,7 @@ vi.mock("../../memoryEngine/embeddings", () => {
   };
 });
 
+import { TOPICS_EXTRACTION_VERSION } from "../../db/memoryVault/operations";
 import { parseTopics } from "../../db/entities/types";
 import { getLogger } from "../../logger";
 import type { EmbeddingOptions } from "../../memoryEngine/types";
@@ -158,7 +159,15 @@ function fakeNearby(keyId: string) {
             (!list("memory_ids") || list("memory_ids")!.includes(m.memory_id)) &&
             (!wantedTopics?.length || topicNames(m).some((t) => wantedTopics.includes(t))) &&
             (body.updated_after === undefined ||
-              (m.updated_at as number) > (body.updated_after as number))
+              (m.updated_at as number) > (body.updated_after as number)) &&
+            (body.topics_due === undefined ||
+              (m.topics_user_managed !== true &&
+                (m.topics_extracted_at == null ||
+                  (m.updated_at as number) > (m.topics_extracted_at as number) ||
+                  ((m.topics_extracted_version as number | undefined) ?? 0) <
+                    (body.topics_due as number)))) &&
+            (body.topics_extracted === undefined ||
+              (m.topics_extracted_at != null) === body.topics_extracted)
         )
         .map((s) => ({ s, at: [key(s), s.memory.memory_id] as [number, string] }))
         .filter(({ at }) => !after || sign * compare(at, after) > 0)
@@ -401,6 +410,74 @@ describe("remote MemoryStore", () => {
       stopChange();
       stopEmbedding();
     }
+  });
+
+  it("reads only due rows for the topic backlog, edited rows first", async () => {
+    const { store, server } = await remoteStore();
+    const done = await store.create({ content: "Hikes Mt Hood", embedding: axis(0) });
+    const fresh = await store.create({ content: "Likes jazz", embedding: axis(1) });
+    const edited = await store.create({ content: "Lives in Lisbon", embedding: axis(2) });
+    const curated = await store.create({ content: "Plays chess", embedding: axis(3) });
+    await store.topicMaintenance.stampTopicsExtracted([done.uniqueId], Date.now());
+    await store.topicMaintenance.stampTopicsExtracted([edited.uniqueId], Date.now() - 1000);
+    await store.update(edited.uniqueId, { content: "Lives in Porto", embedding: axis(2) });
+    await store.setTopics(curated.uniqueId, ["Chess"]);
+    const outdated = await store.create({ content: "Drinks tea", embedding: axis(4) });
+    await store.topicMaintenance.stampTopicsExtracted([outdated.uniqueId], Date.now() + 1000, 2);
+    server.fetch.mockClear();
+
+    expect((await store.topicMaintenance.getTopicBacklog()).pending.map((p) => p.uniqueId)).toEqual(
+      [outdated.uniqueId, edited.uniqueId, fresh.uniqueId]
+    );
+    const queries = server.fetch.mock.calls
+      .filter(([input]) => String(input).endsWith("/memories/query"))
+      .map(([, init]) => JSON.parse(String(init!.body)) as Record<string, unknown>);
+    expect(queries).toEqual([
+      expect.objectContaining({ topics_due: TOPICS_EXTRACTION_VERSION, topics_extracted: true }),
+      expect.objectContaining({ topics_due: TOPICS_EXTRACTION_VERSION, topics_extracted: false }),
+    ]);
+  });
+
+  it("reads at most the backlog limit, skipping never-extracted rows when edited ones fill it", async () => {
+    const { store, server } = await remoteStore();
+    const edited: string[] = [];
+    for (const content of ["Lives in Lisbon", "Likes jazz", "Plays chess"]) {
+      const m = await store.create({ content, embedding: axis(0) });
+      await store.topicMaintenance.stampTopicsExtracted([m.uniqueId], Date.now() - 1000);
+      await store.update(m.uniqueId, { content: `${content}!`, embedding: axis(0) });
+      edited.push(m.uniqueId);
+    }
+    await store.create({ content: "Hikes Mt Hood", embedding: axis(1) });
+    server.fetch.mockClear();
+
+    const pending = (await store.topicMaintenance.getTopicBacklog({ limit: 2 })).pending;
+    expect(pending.map((p) => p.uniqueId)).toEqual([edited[2], edited[1]]);
+    const queries = server.fetch.mock.calls
+      .filter(([input]) => String(input).endsWith("/memories/query"))
+      .map(([, init]) => JSON.parse(String(init!.body)) as Record<string, unknown>);
+    expect(queries).toEqual([expect.objectContaining({ topics_extracted: true, limit: 2 })]);
+  });
+
+  it("fills the rest of the backlog limit with never-extracted rows", async () => {
+    const { store, server } = await remoteStore();
+    const edited = await store.create({ content: "Lives in Lisbon", embedding: axis(0) });
+    await store.topicMaintenance.stampTopicsExtracted([edited.uniqueId], Date.now() - 1000);
+    await store.update(edited.uniqueId, { content: "Lives in Porto", embedding: axis(0) });
+    const fresh: string[] = [];
+    for (const content of ["Likes jazz", "Plays chess", "Hikes Mt Hood"]) {
+      fresh.push((await store.create({ content, embedding: axis(1) })).uniqueId);
+    }
+    server.fetch.mockClear();
+
+    const pending = (await store.topicMaintenance.getTopicBacklog({ limit: 3 })).pending;
+    expect(pending.map((p) => p.uniqueId)).toEqual([edited.uniqueId, fresh[2], fresh[1]]);
+    const queries = server.fetch.mock.calls
+      .filter(([input]) => String(input).endsWith("/memories/query"))
+      .map(([, init]) => JSON.parse(String(init!.body)) as Record<string, unknown>);
+    expect(queries).toEqual([
+      expect.objectContaining({ topics_extracted: true, limit: 3 }),
+      expect.objectContaining({ topics_extracted: false, limit: 2 }),
+    ]);
   });
 
   const nearbyCalls = (server: { fetch: { mock: { calls: unknown[][] } } }) =>

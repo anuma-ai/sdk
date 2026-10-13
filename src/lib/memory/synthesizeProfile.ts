@@ -16,6 +16,7 @@ import {
 import { recall } from "./recall.js";
 import { RECALL_MAX_LIMIT } from "./recallConstants.js";
 import { reflect } from "./reflect.js";
+import type { MemoryStore } from "./store/types.js";
 import type { RankedMemory, RecallContext } from "./types.js";
 
 const DEFAULT_SYNTHESIS_MODEL = "inclusionai/ling-2.6-flash";
@@ -242,6 +243,12 @@ export interface ProfileDoc {
    * without another LLM pass. Recomputed every synthesis (not delta-cached).
    */
   observationTrends: Record<ObservationTrend, number>;
+  /**
+   * Sorted ids the store listed but could not decrypt at synthesis time.
+   * Absent when every memory was readable. A later call regenerates only when
+   * this set changes, and attributes a memory once it becomes readable.
+   */
+  unreadableMemoryIds?: string[];
   /** Unix ms this doc was produced. */
   generatedAt: number;
 }
@@ -296,6 +303,12 @@ export interface SynthesizeProfileOptions extends PortalLlmAuth {
    * never accidentally disable the gate by finding it empty.
    */
   reviewedMemoryIds?: readonly string[];
+  /**
+   * Read facts and recall through this store instead of `ctx.vaultCtx` and
+   * `ctx.vaultCache`, so a remote store works. Only `ctx.embeddingOptions` is
+   * then read from `ctx`.
+   */
+  store?: Pick<MemoryStore, "list" | "listProjections" | "factSource">;
 }
 
 /**
@@ -309,12 +322,21 @@ export async function synthesizeProfile(
   ctx: RecallContext,
   options: SynthesizeProfileOptions = {}
 ): Promise<ProfileDoc> {
-  if (!ctx.vaultCtx) {
-    throw new Error("synthesizeProfile requires ctx.vaultCtx (vault-backed facts).");
+  const { store } = options;
+  const vaultCtx = ctx.vaultCtx;
+  if (!store && !vaultCtx) {
+    throw new Error(
+      "synthesizeProfile requires options.store or ctx.vaultCtx (vault-backed facts)."
+    );
   }
-  if (!ctx.vaultCache) {
-    throw new Error("synthesizeProfile requires ctx.vaultCache (semantic fact recall).");
+  if (!store && !ctx.vaultCache) {
+    throw new Error(
+      "synthesizeProfile requires options.store or ctx.vaultCache (semantic fact recall)."
+    );
   }
+  const recallCtx: RecallContext = store
+    ? { embeddingOptions: ctx.embeddingOptions, factSource: store.factSource }
+    : ctx;
   const facets = options.facets ?? DEFAULT_PROFILE_FACETS;
   const scopes = options.scopes ?? DEFAULT_SCOPES;
   const config: ProfileConfigFingerprint = {
@@ -332,11 +354,10 @@ export async function synthesizeProfile(
       ? options.previous
       : undefined;
 
-  const memories = await getAllVaultMemoriesOp(ctx.vaultCtx, {
-    scopes,
-    includeDeleted: true,
-    includeSuperseded: true,
-  });
+  const listOptions = { scopes, includeDeleted: true, includeSuperseded: true };
+  const [memories, projections] = store
+    ? await Promise.all([store.list(listOptions), store.listProjections(listOptions)])
+    : [await getAllVaultMemoriesOp(vaultCtx!, listOptions), []];
   const watermark = computeVaultWatermark(memories);
   const observationTrends = summarizeObservationTrends(
     memories
@@ -349,11 +370,25 @@ export async function synthesizeProfile(
   );
 
   const presentIds = new Set(memories.map((m) => m.uniqueId));
+  const unreadableMemoryIds = projections
+    .map((p) => p.uniqueId)
+    .filter((id) => !presentIds.has(id))
+    .sort();
+  const previousUnreadable = new Set(previous?.unreadableMemoryIds ?? []);
+  const sameUnreadable =
+    unreadableMemoryIds.length === previousUnreadable.size &&
+    unreadableMemoryIds.every((id) => previousUnreadable.has(id));
   const hasStaleSections = previous?.sections.some((s) => s.stale);
   const citesMissingFact = previous?.sections.some((s) =>
     s.sourceMemoryIds.some((id) => !presentIds.has(id))
   );
-  if (previous && previous.vaultWatermark === watermark && !hasStaleSections && !citesMissingFact) {
+  if (
+    previous &&
+    previous.vaultWatermark === watermark &&
+    !hasStaleSections &&
+    !citesMissingFact &&
+    sameUnreadable
+  ) {
     const sameOrder =
       previous.sections.length === facets.length &&
       facets.every((f, i) => previous.sections[i]?.key === f.key);
@@ -369,12 +404,13 @@ export async function synthesizeProfile(
   }
 
   const staleKeys = await computeStaleFacetKeys(
-    ctx,
+    recallCtx,
     memories,
     facets,
     previous,
     watermark,
-    options.reviewedMemoryIds
+    options.reviewedMemoryIds,
+    previousUnreadable
   );
 
   const memoriesById = new Map(memories.map((memory) => [memory.uniqueId, memory]));
@@ -406,7 +442,7 @@ export async function synthesizeProfile(
       if (prior && !staleKeys.has(facet.key)) {
         return prior;
       }
-      return synthesizeFacet(facet, ctx, options, fallbackPriors.get(facet.key));
+      return synthesizeFacet(facet, recallCtx, options, fallbackPriors.get(facet.key));
     })
   );
 
@@ -423,12 +459,19 @@ export async function synthesizeProfile(
     return fallbackSection(facet, fallbackPriors.get(facet.key));
   });
 
+  if (!sameUnreadable && unreadableMemoryIds.length > 0) {
+    getLogger().warn("[memory/synthesizeProfile] some memories could not be read", {
+      unreadable: unreadableMemoryIds.length,
+    });
+  }
+
   return {
     version: PROFILE_DOC_VERSION,
     sections,
     vaultWatermark: watermark,
     config,
     observationTrends,
+    ...(unreadableMemoryIds.length > 0 && { unreadableMemoryIds }),
     generatedAt: Date.now(),
   };
 }
@@ -530,13 +573,16 @@ async function computeStaleFacetKeys(
   facets: ProfileFacet[],
   previous: ProfileDoc | undefined,
   watermark: number,
-  reviewedMemoryIds: readonly string[] | undefined
+  reviewedMemoryIds: readonly string[] | undefined,
+  previouslyUnreadable: ReadonlySet<string>
 ): Promise<Set<ProfileFacetKey>> {
   const allKeys = new Set(facets.map((f) => f.key));
   if (previous && watermark < previous.vaultWatermark) return allKeys;
   if (!previous) return allKeys;
 
-  const changed = memories.filter((m) => changeTime(m) > previous.vaultWatermark);
+  const changed = memories.filter(
+    (m) => changeTime(m) > previous.vaultWatermark || previouslyUnreadable.has(m.uniqueId)
+  );
   const changedIds = new Set(changed.map((m) => m.uniqueId));
   const presentIds = new Set(memories.map((m) => m.uniqueId));
   const stale = new Set<ProfileFacetKey>();
@@ -620,7 +666,12 @@ async function attributeFacts(
   for (const fv of factVectors) {
     let matchedAny = false;
     for (let i = 0; i < facets.length; i++) {
-      if (cosineSimilarity(fv, queryVectors[i]) >= NEW_FACT_ATTRIBUTION_MIN_SCORE) {
+      const query = queryVectors[i];
+      const similarity = cosineSimilarity(
+        fv,
+        fv.length < query.length ? query.slice(0, fv.length) : query
+      );
+      if (similarity >= NEW_FACT_ATTRIBUTION_MIN_SCORE) {
         keys.add(facets[i].key);
         matchedAny = true;
       }

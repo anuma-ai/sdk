@@ -1,6 +1,6 @@
 # ProfileDoc
 
-Defined in: [src/lib/memory/synthesizeProfile.ts:228](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/synthesizeProfile.ts#228)
+Defined in: [src/lib/memory/synthesizeProfile.ts:229](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/synthesizeProfile.ts#229)
 
 A synthesized profile. Server-authoritative once published; the client
 caches it and passes it back as [SynthesizeProfileOptions.previous](SynthesizeProfileOptions.md#previous).
@@ -11,7 +11,7 @@ caches it and passes it back as [SynthesizeProfileOptions.previous](SynthesizePr
 
 > **config**: [`ProfileConfigFingerprint`](ProfileConfigFingerprint.md)
 
-Defined in: [src/lib/memory/synthesizeProfile.ts:238](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/synthesizeProfile.ts#238)
+Defined in: [src/lib/memory/synthesizeProfile.ts:239](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/synthesizeProfile.ts#239)
 
 The config that produced this doc — see [ProfileConfigFingerprint](ProfileConfigFingerprint.md).
 
@@ -21,7 +21,7 @@ The config that produced this doc — see [ProfileConfigFingerprint](ProfileConf
 
 > **generatedAt**: `number`
 
-Defined in: [src/lib/memory/synthesizeProfile.ts:246](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/synthesizeProfile.ts#246)
+Defined in: [src/lib/memory/synthesizeProfile.ts:253](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/synthesizeProfile.ts#253)
 
 Unix ms this doc was produced.
 
@@ -31,7 +31,7 @@ Unix ms this doc was produced.
 
 > **observationTrends**: `Record`<[`ObservationTrend`](../type-aliases/ObservationTrend.md), `number`>
 
-Defined in: [src/lib/memory/synthesizeProfile.ts:244](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/synthesizeProfile.ts#244)
+Defined in: [src/lib/memory/synthesizeProfile.ts:245](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/synthesizeProfile.ts#245)
 
 C2 — counts of observation-trend labels over live vault facts at
 synthesis time. Lets People Nearby surface "interests trending up"
@@ -43,9 +43,21 @@ without another LLM pass. Recomputed every synthesis (not delta-cached).
 
 > **sections**: [`ProfileSection`](ProfileSection.md)\[]
 
-Defined in: [src/lib/memory/synthesizeProfile.ts:232](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/synthesizeProfile.ts#232)
+Defined in: [src/lib/memory/synthesizeProfile.ts:233](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/synthesizeProfile.ts#233)
 
 One section per requested facet (in facet order).
+
+***
+
+### unreadableMemoryIds?
+
+> `optional` **unreadableMemoryIds**: `string`\[]
+
+Defined in: [src/lib/memory/synthesizeProfile.ts:251](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/synthesizeProfile.ts#251)
+
+Sorted ids the store listed but could not decrypt at synthesis time.
+Absent when every memory was readable. A later call regenerates only when
+this set changes, and attributes a memory once it becomes readable.
 
 ***
 
@@ -53,7 +65,7 @@ One section per requested facet (in facet order).
 
 > **vaultWatermark**: `number`
 
-Defined in: [src/lib/memory/synthesizeProfile.ts:236](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/synthesizeProfile.ts#236)
+Defined in: [src/lib/memory/synthesizeProfile.ts:237](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/synthesizeProfile.ts#237)
 
 Max change-time across all vault facts (incl. deleted/superseded) at
 synthesis time. Delta refresh regenerates only sections whose source facts
@@ -65,6 +77,6 @@ changed since a previous doc's watermark.
 
 > **version**: `number`
 
-Defined in: [src/lib/memory/synthesizeProfile.ts:230](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/synthesizeProfile.ts#230)
+Defined in: [src/lib/memory/synthesizeProfile.ts:231](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/synthesizeProfile.ts#231)
 
 [PROFILE\_DOC\_VERSION](../variables/PROFILE_DOC_VERSION.md) at synthesis time.
