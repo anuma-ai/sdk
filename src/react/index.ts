@@ -267,9 +267,15 @@ export type {
   EntityKind,
   StoredEntity,
   StoredTopic,
+  TopicSalience,
   TopicSource,
 } from "../lib/db/entities/types";
-export { ENTITY_KINDS } from "../lib/db/entities/types";
+export {
+  ENTITY_KINDS,
+  primaryTopic,
+  TOPIC_SALIENCE_WEIGHTS,
+  topicWeight,
+} from "../lib/db/entities/types";
 export type {
   DatabaseManagerLogger,
   DatabaseManagerOptions,

@@ -91,4 +91,22 @@ describe("parseEntities — salience gate", () => {
   it("still returns an empty array rather than throwing when everything is generic", () => {
     expect(parseEntities([{ name: "Today" }, "Lunch"])).toEqual([]);
   });
+
+  it("maps a known salience to its weight and ignores an unknown one", () => {
+    expect(
+      parseEntities([
+        { name: "Chicago Marathon", kind: "event", salience: "primary" },
+        { name: "Ana", salience: "secondary" },
+        { name: "Nike", salience: "mention" },
+        { name: "Whoop", salience: "central" },
+        { name: "Oura", salience: "constructor" },
+      ])
+    ).toEqual([
+      { name: "Chicago Marathon", kind: "event", weight: 1 },
+      { name: "Ana", weight: 0.6 },
+      { name: "Nike", weight: 0.3 },
+      { name: "Whoop" },
+      { name: "Oura" },
+    ]);
+  });
 });

@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { generateEmbedding, generateEmbeddings } from "../../memoryEngine/embeddings";
+import { primaryTopic, topicWeight } from "../../db/entities/types";
 import type { EmbeddingOptions } from "../../memoryEngine/types";
 import type { MemoryStore } from "./types";
 
@@ -8,7 +9,9 @@ interface MemoryStoreContractFixtures {
   vectors: readonly [string, string];
 }
 
-export function fakeTopicLlm(entitiesFor: Record<string, { name: string; kind?: string }[]>) {
+export function fakeTopicLlm(
+  entitiesFor: Record<string, { name: string; kind?: string; salience?: string }[]>
+) {
   return vi.fn((_url: unknown, init?: RequestInit) => {
     const body = JSON.parse(init?.body as string) as {
       messages?: { role: string; content: string }[];
@@ -381,6 +384,55 @@ export function runMemoryStoreContract(
         new Map([[hike.uniqueId, new Set(["mt rainier"])]])
       );
       expect(await backlog()).toEqual([]);
+    });
+
+    it("weights extracted topics by salience and keeps the highest weight on add", async () => {
+      const store = await makeStore();
+      const run = await store.create({ content: "Ran the Chicago Marathon with Ana" });
+      const jobs = store.topicMaintenance;
+      const weights = async () =>
+        Object.fromEntries(
+          ((await store.get(run.uniqueId))?.topics ?? []).map((t) => [t.name, topicWeight(t)])
+        );
+
+      await jobs.extractTopics([run.uniqueId], {
+        apiKey: "k",
+        fetchFn: fakeTopicLlm({
+          "Ran the Chicago Marathon with Ana": [
+            { name: "Ana", kind: "person", salience: "secondary" },
+            { name: "Chicago Marathon", kind: "event", salience: "primary" },
+          ],
+        }),
+      });
+      expect(await weights()).toEqual({ Ana: 0.6, "Chicago Marathon": 1 });
+      expect(primaryTopic((await store.get(run.uniqueId))?.topics)?.name).toBe("Chicago Marathon");
+
+      await store.addTopics(run.uniqueId, [
+        { name: "Chicago Marathon", weight: 0.3 },
+        "Ana",
+        { name: "Nike", weight: 0.3 },
+      ]);
+      expect(await weights()).toEqual({ Ana: 0.6, "Chicago Marathon": 1, Nike: 0.3 });
+      await store.addTopics(run.uniqueId, [{ name: "Ana", weight: 1 }]);
+      expect(await weights()).toEqual({ Ana: 1, "Chicago Marathon": 1, Nike: 0.3 });
+
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      await store.update(run.uniqueId, { content: "Ana ran the Chicago Marathon" });
+      await jobs.extractTopics([run.uniqueId], {
+        apiKey: "k",
+        fetchFn: fakeTopicLlm({
+          "Ana ran the Chicago Marathon": [
+            { name: "Ana", kind: "person", salience: "primary" },
+            { name: "Chicago Marathon", kind: "event", salience: "mention" },
+          ],
+        }),
+      });
+      expect(await weights()).toEqual({ Ana: 1, "Chicago Marathon": 0.3 });
+
+      await store.setTopics(run.uniqueId, [{ name: "Chicago Marathon", weight: 0.3 }]);
+      expect((await store.get(run.uniqueId))?.topics).toEqual([
+        expect.not.objectContaining({ weight: expect.anything() }),
+      ]);
     });
 
     it("leaves a memory pending when the model does not answer for it", async () => {

@@ -6,6 +6,7 @@ import type { Entity, MemoryEntity } from "./models";
 import {
   type EntityKind,
   normalizeEntityName as normalizeName,
+  parseTopicWeight,
   parseTopics,
   serializeTopics,
   type StoredEntity,
@@ -19,7 +20,9 @@ import {
  * form carries an optional classification.
  * @public
  */
-export type EntityInput = string | { name: string; kind?: EntityKind | (string & {}) };
+export type EntityInput =
+  | string
+  | { name: string; kind?: EntityKind | (string & {}); weight?: number };
 
 export interface EntityOperationsContext {
   database: Database;
@@ -159,7 +162,8 @@ type NamedEntity = { canonicalName: string; kind: string | null };
 
 function topicsEqual(stored: StoredTopic[] | null, computed: readonly StoredTopic[]): boolean {
   if (stored === null || stored.length !== computed.length) return false;
-  const key = (t: StoredTopic): string => JSON.stringify([t.name, t.kind ?? null, t.source]);
+  const key = (t: StoredTopic): string =>
+    JSON.stringify([t.name, t.kind ?? null, t.source, t.weight ?? null]);
   const storedKeys = stored.map(key).sort();
   const computedKeys = computed.map(key).sort();
   return storedKeys.every((k, i) => k === computedKeys[i]);
@@ -179,29 +183,61 @@ export type MemoryTopicsWrite = { row: VaultMemory; topics: StoredTopic[] };
 function resolveTopicsWrite(
   row: VaultMemory | null,
   linked: ReadonlyArray<NamedEntity>,
-  displayNames: Map<string, string>,
-  source: TopicSource | null
+  inputs: ReadonlyArray<{ name: string; weight?: number }>,
+  source: TopicSource | null,
+  mode: "merge" | "replace"
 ): MemoryTopicsWrite | null {
   if (row === null || source === null) return null;
-  const topics = topicsForEntities(linked, displayNames, source);
-  if (topicsEqual(parseTopics(row.topics), topics)) return null;
+  const stored = parseTopics(row.topics);
+  const carried = mode === "merge" ? stored : null;
+  const weights = source === "auto" ? weightsOf(carried, inputs) : null;
+  const displayNames = displayNamesOf([...inputs, ...(carried ?? [])]);
+  const topics = topicsForEntities(linked, displayNames, source, weights);
+  if (topicsEqual(stored, topics)) return null;
   return { row, topics };
+}
+
+function weightsOf(
+  stored: readonly StoredTopic[] | null,
+  inputs: ReadonlyArray<{ name: string; weight?: number }>
+): Map<string, number | undefined> {
+  const out = new Map<string, number | undefined>();
+  for (const topic of stored ?? []) out.set(normalizeName(topic.name), topic.weight);
+  for (const input of inputs) {
+    const weight = parseTopicWeight(input.weight);
+    if (weight === undefined) continue;
+    const name = normalizeName(input.name);
+    if (!out.has(name)) {
+      out.set(name, weight);
+      continue;
+    }
+    const current = out.get(name);
+    if (current !== undefined && weight > current) out.set(name, weight);
+  }
+  return out;
 }
 
 function topicsForEntities(
   entities: ReadonlyArray<NamedEntity>,
   displayNames: Map<string, string>,
-  source: TopicSource
+  source: TopicSource,
+  weights: Map<string, number | undefined> | null
 ): StoredTopic[] {
   return entities.map((e) => {
     const name = displayNames.get(e.canonicalName) ?? e.canonicalName;
-    return { name, ...(e.kind ? { kind: e.kind } : {}), source };
+    const weight = weights?.get(e.canonicalName);
+    return {
+      name,
+      ...(e.kind ? { kind: e.kind } : {}),
+      source,
+      ...(weight !== undefined ? { weight } : {}),
+    };
   });
 }
 
 function toEntityObjects(
   entityInputs: ReadonlyArray<EntityInput>
-): Array<{ name: string; kind?: string }> {
+): Array<{ name: string; kind?: string; weight?: number }> {
   return entityInputs.map((e) => (typeof e === "string" ? { name: e } : e));
 }
 
@@ -228,7 +264,7 @@ export async function resolveMemoryTopicsWrite(
   source: TopicSource
 ): Promise<MemoryTopicsWrite | null> {
   const row = await findVaultRowInWrite(ctx, memoryId);
-  return resolveTopicsWrite(row, linked, displayNamesOf(toEntityObjects(inputs)), source);
+  return resolveTopicsWrite(row, linked, toEntityObjects(inputs), source, "replace");
 }
 
 /**
@@ -311,8 +347,9 @@ export async function linkMemoryEntitiesOp(
     const topicsWrite = resolveTopicsWrite(
       vaultRow,
       [...carriedOver, ...entities],
-      displayNamesOf(normalized),
-      options?.topicsSource ?? "auto"
+      normalized,
+      options?.topicsSource ?? "auto",
+      "merge"
     );
     if (
       entityOps.length === 0 &&
@@ -448,8 +485,9 @@ async function replaceMemoryEntities(
     const topicsWrite = resolveTopicsWrite(
       vaultRow,
       entities,
-      displayNamesOf(normalized),
-      options.topicsSource
+      normalized,
+      options.topicsSource,
+      "replace"
     );
     if (
       entityOps.length === 0 &&

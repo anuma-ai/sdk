@@ -1,7 +1,7 @@
 import { Q } from "@nozbe/watermelondb";
 
 import { type EntityOperationsContext, linkMemoryEntitiesOp } from "../db/entities/operations.js";
-import { ENTITY_KINDS, type EntityKind } from "../db/entities/types.js";
+import { ENTITY_KINDS, type EntityKind, TOPIC_SALIENCE_WEIGHTS } from "../db/entities/types.js";
 import { VaultMemory } from "../db/memoryVault/models.js";
 import { findQuarantinedDuplicateOp } from "../db/memoryVault/operations.js";
 import { getLogger } from "../logger.js";
@@ -129,6 +129,7 @@ export interface AutoExtractMessage {
 export interface ExtractedEntity {
   name: string;
   kind?: EntityKind;
+  weight?: number;
 }
 
 export interface ExtractedCandidate {
@@ -880,7 +881,15 @@ export function parseEntities(raw: unknown[]): ExtractedEntity[] {
       typeof obj.kind === "string" && (ENTITY_KINDS as readonly string[]).includes(obj.kind)
         ? (obj.kind as EntityKind)
         : undefined;
-    out.push(kind !== undefined ? { name, kind } : { name });
+    const weight =
+      typeof obj.salience === "string" && Object.keys(TOPIC_SALIENCE_WEIGHTS).includes(obj.salience)
+        ? TOPIC_SALIENCE_WEIGHTS[obj.salience as keyof typeof TOPIC_SALIENCE_WEIGHTS]
+        : undefined;
+    out.push({
+      name,
+      ...(kind !== undefined ? { kind } : {}),
+      ...(weight !== undefined ? { weight } : {}),
+    });
   }
   return out;
 }

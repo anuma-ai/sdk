@@ -256,6 +256,13 @@ export {
   type VaultMemoryProjection,
   type VaultMemoryVisibility,
 } from "../lib/db/memoryVault";
+export {
+  primaryTopic,
+  type StoredTopic,
+  TOPIC_SALIENCE_WEIGHTS,
+  type TopicSalience,
+  topicWeight,
+} from "../lib/db/entities/types";
 export type { FlushResult, QueueStatus } from "../lib/db/queue";
 export { QueueManager, queueManager, WalletPoller } from "../lib/db/queue";
 export { SDK_SCHEMA_VERSION, sdkMigrations, sdkModelClasses, sdkSchema } from "../lib/db/schema";

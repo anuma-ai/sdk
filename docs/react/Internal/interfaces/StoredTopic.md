@@ -31,3 +31,13 @@ Defined in: [src/lib/db/entities/types.ts:63](https://github.com/anuma-ai/sdk/bl
 > **source**: [`TopicSource`](../type-aliases/TopicSource.md)
 
 Defined in: [src/lib/db/entities/types.ts:65](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/entities/types.ts#65)
+
+***
+
+### weight?
+
+> `optional` **weight**: `number`
+
+Defined in: [src/lib/db/entities/types.ts:67](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/entities/types.ts#67)
+
+How central the topic is to the memory, in (0, 1]; read it with [topicWeight](../functions/topicWeight.md).
