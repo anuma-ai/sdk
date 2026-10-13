@@ -27,6 +27,8 @@ import { getLogger } from "../../logger.js";
 import { DEFAULT_API_EMBEDDING_MODEL } from "../../memoryEngine/constants.js";
 import { generateEmbedding } from "../../memoryEngine/embeddings.js";
 import type { EmbeddingOptions } from "../../memoryEngine/types.js";
+import { NODE_BUDGET } from "../graphTraversal.js";
+import { extractQueryEntities } from "../queryEntities.js";
 import { extractEntitiesForMemories, type TopicSkipReason } from "../topicExtract.js";
 import type { RecallFactSource } from "../types.js";
 import {
@@ -53,8 +55,10 @@ import type {
 export interface RemoteMemoryStoreOptions {
   persistence: RemoteMemoryPersistence;
   embeddingOptions: EmbeddingOptions;
-  graphRanking: RecallFactSource["graphRanking"];
-  temporalRanking: RecallFactSource["temporalRanking"];
+  /** Defaults to ranking memories by how many query entities their topics name. */
+  graphRanking?: RecallFactSource["graphRanking"];
+  /** Defaults to no temporal lane: nearby has no event-time filter yet. */
+  temporalRanking?: RecallFactSource["temporalRanking"];
   pollIntervalMs?: number;
 }
 
@@ -232,7 +236,11 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
   const { persistence, embeddingOptions } = options;
   const model = embeddingOptions.model ?? DEFAULT_API_EMBEDDING_MODEL;
   const pollIntervalMs = options.pollIntervalMs ?? 60_000;
-  const pipeline = createRemoteMemoryPipeline(options);
+  const pipeline = createRemoteMemoryPipeline({
+    ...options,
+    graphRanking: options.graphRanking ?? ((query) => topicGraphRanking(query)),
+    temporalRanking: options.temporalRanking ?? (() => Promise.resolve([])),
+  });
   const subscribers = new Set<Subscriber>();
   const seen = new Map<string, RemoteMemoryRecord>();
   let timer: ReturnType<typeof setInterval> | undefined;
@@ -271,6 +279,26 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
     persistence.queryMetadata(options as Parameters<typeof persistence.queryMetadata>[0]);
   const enumerate = (filters: Omit<RemoteMemoryQueryOptions, "cursor" | "limit">, max = Infinity) =>
     pages(decrypted, filters, max);
+  const memoriesByTopics = async (names: readonly string[]) => {
+    const wanted = new Set(names.map(normalizeEntityName).filter(Boolean));
+    const out = new Map<string, Set<string>>();
+    const pages = await Promise.all(
+      chunks([...wanted], MAX_QUERY_TOPICS).map((topics) => enumerate({ topics }))
+    );
+    for (const { memory } of pages.flat()) {
+      const matched = [...canonicalTopics(memory)].filter((name) => wanted.has(name));
+      if (matched.length) out.set(memory.memory_id, new Set(matched));
+    }
+    return out;
+  };
+  const topicGraphRanking = async (query: string): Promise<string[]> => {
+    const names = extractQueryEntities(query);
+    if (names.length === 0) return [];
+    return [...(await memoriesByTopics(names))]
+      .sort((a, b) => b[1].size - a[1].size)
+      .slice(0, NODE_BUDGET)
+      .map(([memoryId]) => memoryId);
+  };
   const enumerateIds = async <T extends Row>(
     read: (options: RemoteMemoryQueryOptions) => Promise<Page<T>>,
     ids: readonly string[],
@@ -759,18 +787,7 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
       (await enumerate({ archived_only: true, order: "archived", include_embeddings: true })).map(
         (record) => stored(record.memory)
       ),
-    memoriesByTopics: async (names) => {
-      const wanted = new Set(names.map(normalizeEntityName).filter(Boolean));
-      const out = new Map<string, Set<string>>();
-      const pages = await Promise.all(
-        chunks([...wanted], MAX_QUERY_TOPICS).map((topics) => enumerate({ topics }))
-      );
-      for (const { memory } of pages.flat()) {
-        const matched = [...canonicalTopics(memory)].filter((name) => wanted.has(name));
-        if (matched.length) out.set(memory.memory_id, new Set(matched));
-      }
-      return out;
-    },
+    memoriesByTopics,
     topicsByMemories: async (memoryIds) => {
       const out = new Map<string, Set<string>>();
       for (const { memory } of await enumerateIds(decrypted, memoryIds, {

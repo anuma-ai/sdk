@@ -1137,3 +1137,38 @@ describe("remote MemoryStore", () => {
     }
   });
 });
+
+describe("default recall lanes", () => {
+  async function laneStore() {
+    const keys = await deriveMemoryKeyRing(`0x${"c3".repeat(65)}`);
+    const server = fakeNearby(keys.keyId);
+    const persistence = await createRemoteMemoryPersistence({
+      baseUrl: "https://nearby.test",
+      getToken: async () => "token",
+      keyId: keys.keyId,
+      ...memoryCipher(keys),
+      fetch: server.fetch as unknown as typeof globalThis.fetch,
+    });
+    return createRemoteMemoryStore({ persistence, embeddingOptions: { apiKey: "test-key" } });
+  }
+
+  it("ranks memories by how many query entities their topics name", async () => {
+    const store = await laneStore();
+    const both = await store.create({ content: "Ships the Acme app with Priya" });
+    const one = await store.create({ content: "Acme standup is at nine" });
+    const none = await store.create({ content: "Likes green tea" });
+    await store.addTopics(both.uniqueId, ["Acme", "Priya"]);
+    await store.addTopics(one.uniqueId, ["Acme"]);
+    await store.addTopics(none.uniqueId, ["Tea"]);
+
+    expect(
+      await store.factSource.graphRanking("What did Priya say about Acme?", false, {})
+    ).toEqual([both.uniqueId, one.uniqueId]);
+    expect(await store.factSource.graphRanking("what did she say", false, {})).toEqual([]);
+  });
+
+  it("has no temporal lane until nearby can filter by event time", async () => {
+    const store = await laneStore();
+    expect(await store.factSource.temporalRanking("What did I do last week?")).toEqual([]);
+  });
+});
