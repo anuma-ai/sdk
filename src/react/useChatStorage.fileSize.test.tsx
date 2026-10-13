@@ -183,48 +183,45 @@ describe("useChatStorage attachment storage size limit", () => {
   it.each([
     { name: "rejects", maxFileSizeBytes: 3, storedNames: [] },
     { name: "accepts", maxFileSizeBytes: 4, storedNames: ["image", "notes.txt"] },
-  ])(
-    "$name message attachments by their fetched size",
-    async ({ maxFileSizeBytes, storedNames }) => {
-      const { result } = renderHook(() =>
-        useChatStorage({
-          database,
-          conversationId: CONVERSATION_ID,
-          walletAddress: ADDRESS,
-          getToken: () => Promise.resolve("token"),
-          fileProcessingOptions: { maxFileSizeBytes },
-        })
-      );
+  ])("$name message attachments by their fetched size", async (options) => {
+    const { result } = renderHook(() =>
+      useChatStorage({
+        database,
+        conversationId: CONVERSATION_ID,
+        walletAddress: ADDRESS,
+        getToken: () => Promise.resolve("token"),
+        fileProcessingOptions: { maxFileSizeBytes: options.maxFileSizeBytes },
+      })
+    );
 
-      await act(async () => {
-        const response = await result.current.sendMessage({
-          messages: [
-            {
-              role: "user",
-              content: [
-                { type: "text", text: "Review these files." },
-                { type: "image_url", image_url: { url: "data:image/png;base64,aW1n" } },
-                {
-                  type: "input_file",
-                  file: { filename: "notes.txt", file_data: "data:text/plain;base64,bm90ZXM=" },
-                },
-              ],
-            },
-          ],
-          model: "test-model",
-        });
-        expect(response.error).toBeNull();
+    await act(async () => {
+      const response = await result.current.sendMessage({
+        messages: [
+          {
+            role: "user",
+            content: [
+              { type: "text", text: "Review these files." },
+              { type: "image_url", image_url: { url: "data:image/png;base64,aW1n" } },
+              {
+                type: "input_file",
+                file: { filename: "notes.txt", file_data: "data:text/plain;base64,bm90ZXM=" },
+              },
+            ],
+          },
+        ],
+        model: "test-model",
       });
+      expect(response.error).toBeNull();
+    });
 
-      expect(vi.mocked(writeEncryptedFile).mock.calls.map((call) => call[3]?.name).sort()).toEqual(
-        storedNames
-      );
-      const media = await storedMedia();
-      expect(media.map((file) => file.name).sort()).toEqual(storedNames);
-      expect((await storedUserMessage()).fileIds?.sort() ?? []).toEqual(
-        media.map((file) => file.mediaId).sort()
-      );
-      expect(runToolLoop).toHaveBeenCalledTimes(1);
-    }
-  );
+    expect(vi.mocked(writeEncryptedFile).mock.calls.map((call) => call[3]?.name).sort()).toEqual(
+      options.storedNames
+    );
+    const media = await storedMedia();
+    expect(media.map((file) => file.name).sort()).toEqual(options.storedNames);
+    expect((await storedUserMessage()).fileIds?.sort() ?? []).toEqual(
+      media.map((file) => file.mediaId).sort()
+    );
+    expect(runToolLoop).toHaveBeenCalledTimes(1);
+  });
 });
