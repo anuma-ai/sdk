@@ -195,15 +195,17 @@ describe("synthesizeProfile", () => {
       temporalRanking: vi.fn(),
     } as unknown as RecallFactSource;
     const list = vi.fn().mockResolvedValue([mem("a", { updatedAt: new Date(3000) })]);
+    const listProjections = vi.fn().mockResolvedValue([{ uniqueId: "a" }]);
     mockReflect.mockResolvedValue(reflectResult("A bio", ["a"]));
 
     const doc = await synthesizeProfile(
       { embeddingOptions: { apiKey: "k" } },
-      { apiKey: "k", facets: FACETS, store: { list, factSource } }
+      { apiKey: "k", facets: FACETS, store: { list, listProjections, factSource } }
     );
 
     expect(doc.vaultWatermark).toBe(3000);
     expect(doc.sections[0].text).toBe("A bio");
+    expect(doc.sections.some((s) => s.stale)).toBe(false);
     expect(list).toHaveBeenCalledWith({
       scopes: ["private"],
       includeDeleted: true,
@@ -217,12 +219,73 @@ describe("synthesizeProfile", () => {
   it("leaves the local vault out of recall when a store is supplied", async () => {
     const factSource = {} as RecallFactSource;
     const list = vi.fn().mockResolvedValue([mem("a")]);
+    const listProjections = vi.fn().mockResolvedValue([{ uniqueId: "a" }]);
     mockReflect.mockResolvedValue(reflectResult("A bio", ["a"]));
 
-    await synthesizeProfile(ctx, { apiKey: "k", facets: FACETS, store: { list, factSource } });
+    await synthesizeProfile(ctx, {
+      apiKey: "k",
+      facets: FACETS,
+      store: { list, listProjections, factSource },
+    });
 
     expect(mockGetAll).not.toHaveBeenCalled();
     expect(mockRecall.mock.calls[0][1]).toEqual({ embeddingOptions: { apiKey: "k" }, factSource });
+  });
+
+  it("marks every section stale when the store could not read some memories", async () => {
+    const factSource = {} as RecallFactSource;
+    const list = vi.fn().mockResolvedValue([mem("a", { updatedAt: new Date(3000) })]);
+    const listProjections = vi.fn().mockResolvedValue([{ uniqueId: "a" }, { uniqueId: "b" }]);
+    mockReflect.mockResolvedValue(reflectResult("A bio", ["a"]));
+    const previous = priorDoc(
+      [section("bio", "old bio", ["b"]), section("interests", "old interests", ["a"])],
+      3000
+    );
+
+    const doc = await synthesizeProfile(ctx, {
+      apiKey: "k",
+      facets: FACETS,
+      previous,
+      store: { list, listProjections, factSource },
+    });
+
+    expect(doc.sections.map((s) => s.stale)).toEqual([true, true]);
+  });
+
+  it("attributes a new remote fact whose vector is shorter than the query's", async () => {
+    const factSource = {} as RecallFactSource;
+    const list = vi.fn().mockResolvedValue([
+      mem("a", { updatedAt: new Date(1000) }),
+      mem("b", { updatedAt: new Date(1000) }),
+      mem("c", {
+        updatedAt: new Date(6000),
+        createdAt: new Date(6000),
+        embedding: JSON.stringify([1, 0]),
+      }),
+    ]);
+    const listProjections = vi
+      .fn()
+      .mockResolvedValue([{ uniqueId: "a" }, { uniqueId: "b" }, { uniqueId: "c" }]);
+    mockEmbed.mockResolvedValue([
+      [0.6, 0, 0.8, 0],
+      [0, 0.6, 0, 0.8],
+    ]);
+    mockReflect.mockResolvedValueOnce(reflectResult("bio with new fact", ["a", "c"]));
+    const previous = priorDoc(
+      [section("bio", "old bio", ["a"]), section("interests", "old interests", ["b"])],
+      2000
+    );
+
+    const doc = await synthesizeProfile(ctx, {
+      apiKey: "k",
+      facets: FACETS,
+      previous,
+      store: { list, listProjections, factSource },
+    });
+
+    expect(mockReflect).toHaveBeenCalledTimes(1);
+    expect(doc.sections.find((s) => s.key === "bio")!.text).toBe("bio with new fact");
+    expect(doc.sections.find((s) => s.key === "interests")!.text).toBe("old interests");
   });
 
   it("synthesizes one section per facet, carrying source ids + watermark + config", async () => {

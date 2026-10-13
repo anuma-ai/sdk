@@ -302,7 +302,7 @@ export interface SynthesizeProfileOptions extends PortalLlmAuth {
    * `ctx.vaultCache`, so a remote store works. Only `ctx.embeddingOptions` is
    * then read from `ctx`.
    */
-  store?: Pick<MemoryStore, "list" | "factSource">;
+  store?: Pick<MemoryStore, "list" | "listProjections" | "factSource">;
 }
 
 /**
@@ -349,9 +349,9 @@ export async function synthesizeProfile(
       : undefined;
 
   const listOptions = { scopes, includeDeleted: true, includeSuperseded: true };
-  const memories = store
-    ? await store.list(listOptions)
-    : await getAllVaultMemoriesOp(vaultCtx!, listOptions);
+  const [memories, projections] = store
+    ? await Promise.all([store.list(listOptions), store.listProjections(listOptions)])
+    : [await getAllVaultMemoriesOp(vaultCtx!, listOptions), []];
   const watermark = computeVaultWatermark(memories);
   const observationTrends = summarizeObservationTrends(
     memories
@@ -364,6 +364,7 @@ export async function synthesizeProfile(
   );
 
   const presentIds = new Set(memories.map((m) => m.uniqueId));
+  const unreadable = projections.filter((p) => !presentIds.has(p.uniqueId)).length;
   const hasStaleSections = previous?.sections.some((s) => s.stale);
   const citesMissingFact = previous?.sections.some((s) =>
     s.sourceMemoryIds.some((id) => !presentIds.has(id))
@@ -438,9 +439,16 @@ export async function synthesizeProfile(
     return fallbackSection(facet, fallbackPriors.get(facet.key));
   });
 
+  if (unreadable > 0) {
+    getLogger().warn(
+      "[memory/synthesizeProfile] some memories could not be read; marking sections stale",
+      { unreadable }
+    );
+  }
+
   return {
     version: PROFILE_DOC_VERSION,
-    sections,
+    sections: unreadable > 0 ? sections.map((s) => ({ ...s, stale: true })) : sections,
     vaultWatermark: watermark,
     config,
     observationTrends,
@@ -635,7 +643,12 @@ async function attributeFacts(
   for (const fv of factVectors) {
     let matchedAny = false;
     for (let i = 0; i < facets.length; i++) {
-      if (cosineSimilarity(fv, queryVectors[i]) >= NEW_FACT_ATTRIBUTION_MIN_SCORE) {
+      const query = queryVectors[i];
+      const similarity = cosineSimilarity(
+        fv,
+        fv.length < query.length ? query.slice(0, fv.length) : query
+      );
+      if (similarity >= NEW_FACT_ATTRIBUTION_MIN_SCORE) {
         keys.add(facets[i].key);
         matchedAny = true;
       }
