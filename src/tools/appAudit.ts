@@ -12,7 +12,9 @@
  * Returned as a structured AuditResult so the model (or a host) can
  * read it programmatically: each issue has a path, line, severity,
  * type, and human-readable message. The model is expected to call this
- * after substantial changes and patch the actionable issues.
+ * on the initial build, when adding new UI, or after a user-requested
+ * design change, and patch only the actionable issues within the
+ * current request. For text, logic, or data edits, the audit is skipped.
  */
 
 export type AuditSeverity = "error" | "warn" | "info";

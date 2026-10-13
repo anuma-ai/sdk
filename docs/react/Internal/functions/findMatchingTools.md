@@ -2,7 +2,7 @@
 
 > **findMatchingTools**(`promptEmbeddings`: `number`\[] | `number`\[]\[], `tools`: [`ServerTool`](../interfaces/ServerTool.md)\[], `options?`: [`ToolMatchOptions`](../interfaces/ToolMatchOptions.md)): [`ToolMatchResult`](../interfaces/ToolMatchResult.md)\[]
 
-Defined in: [src/lib/tools/serverTools.ts:850](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#850)
+Defined in: [src/lib/tools/serverTools.ts:877](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#877)
 
 Find tools that semantically match prompt embedding(s).
 

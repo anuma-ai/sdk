@@ -1,8 +1,22 @@
 import eslint from "@eslint/js";
-import simpleImportSort from "eslint-plugin-simple-import-sort";
 import react from "eslint-plugin-react";
 import reactHooks from "eslint-plugin-react-hooks";
+import simpleImportSort from "eslint-plugin-simple-import-sort";
 import tseslint from "typescript-eslint";
+
+const appGenerationTests = [
+  "src/tools/appBuilderPrompt.test.ts",
+  "src/tools/appGeneration.test.ts",
+  "test/tools/app-generation/precision-updates.test.ts",
+];
+
+const checkedTestFiles = [
+  ...appGenerationTests,
+  "src/lib/chat/toolLoop.detach.test.ts",
+  "src/lib/chat/toolLoop.idleTimeout.test.ts",
+  "src/react/useChatStorage.runHooks.test.tsx",
+  "test/tools/slide-generation/models.ts",
+];
 
 export default tseslint.config(
   {
@@ -15,13 +29,19 @@ export default tseslint.config(
       "scripts/**",
       "patches/**",
       "packages/**",
-      "test/**",
+      "test/**/*",
+      "!test/tools/",
+      "!test/tools/app-generation/",
       "**/*.test.ts",
       "**/*.test.tsx",
       "**/*.security.test.ts",
       "*.config.*",
       ".prettierrc.mjs",
       ".dependency-cruiser.cjs",
+      "!eslint.config.mjs",
+      "!test/",
+      "!test/**/",
+      ...checkedTestFiles.map((file) => `!${file}`),
     ],
   },
   eslint.configs.recommended,
@@ -63,6 +83,27 @@ export default tseslint.config(
       "no-useless-assignment": "warn",
       "no-console": ["warn", { allow: ["warn", "error"] }],
       eqeqeq: "warn",
+    },
+  },
+  {
+    // Check the regression tests with the test TypeScript project.
+    files: checkedTestFiles,
+    languageOptions: {
+      parserOptions: {
+        projectService: false,
+        project: "./tsconfig.test.json",
+      },
+    },
+  },
+  {
+    files: ["eslint.config.mjs"],
+    extends: [tseslint.configs.disableTypeChecked],
+  },
+  {
+    // The live-model benchmark writes test metrics to the console.
+    files: ["test/tools/app-generation/precision-updates.test.ts"],
+    rules: {
+      "no-console": ["warn", { allow: ["log", "warn", "error"] }],
     },
   },
   {

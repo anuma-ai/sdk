@@ -11,6 +11,7 @@ import type {
 } from "../../../client";
 import { isAttachedFilesText } from "../../chat/fileContext";
 import type { PromptPreProcessor } from "../../chat/preProcessor";
+import type { RunHooks } from "../../chat/runHooks";
 import {
   type ApiResponse,
   getCostMicroUsd,
@@ -489,6 +490,8 @@ export interface UpdateMessageOptions {
  * @inline
  */
 export interface BaseUseChatStorageOptions {
+  /** Run lifecycle hooks for telemetry and tracing, for example from `createMetricsHooks` */
+  hooks?: RunHooks | RunHooks[];
   /** WatermelonDB database instance for storing conversations and messages */
   database: Database;
   /** Route memory reads, writes, recall and the memory tools through this store instead of the database's vault; folders are unsupported. With `piiRedaction` on, build the store with `embeddingOptions.maskInput` (e.g. `(text) => redactor.maskText(text)` with any `PiiRedactor`) or its memory calls throw. */
