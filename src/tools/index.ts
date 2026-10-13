@@ -15,14 +15,8 @@
  *
  * ```typescript
  * import { createChatTools } from "@anuma/sdk/tools";
- * import { useGoogleDriveAuth } from "@anuma/sdk/react";
  *
- * const { getAccessToken, requestAccess } = useGoogleDriveAuth();
- *
- * const calendarTools = createChatTools(
- *   () => getAccessToken('calendar'),
- *   () => requestAccess('calendar')
- * );
+ * const calendarTools = createChatTools(getCalendarToken, connectCalendar);
  *
  * // Use with chat
  * await sendMessage({
@@ -37,10 +31,7 @@
  * ```typescript
  * import { createDriveTools } from "@anuma/sdk/tools";
  *
- * const driveTools = createDriveTools(
- *   () => getAccessToken('drive'),
- *   () => requestAccess('drive')
- * );
+ * const driveTools = createDriveTools(getDriveToken, connectDrive);
  * ```
  *
  * ## Notion MCP Tools
