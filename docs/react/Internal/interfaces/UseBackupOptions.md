@@ -1,6 +1,6 @@
 # UseBackupOptions
 
-Defined in: [src/react/useBackup.ts:41](https://github.com/anuma-ai/sdk/blob/main/src/react/useBackup.ts#41)
+Defined in: [src/react/useBackup.ts:21](https://github.com/anuma-ai/sdk/blob/main/src/react/useBackup.ts#21)
 
 Options for useBackup hook
 
@@ -10,19 +10,9 @@ Options for useBackup hook
 
 > **database**: `Database`
 
-Defined in: [src/react/useBackup.ts:43](https://github.com/anuma-ai/sdk/blob/main/src/react/useBackup.ts#43)
+Defined in: [src/react/useBackup.ts:23](https://github.com/anuma-ai/sdk/blob/main/src/react/useBackup.ts#23)
 
 WatermelonDB database instance
-
-***
-
-### dropboxFolder?
-
-> `optional` **dropboxFolder**: `string`
-
-Defined in: [src/react/useBackup.ts:56](https://github.com/anuma-ai/sdk/blob/main/src/react/useBackup.ts#56)
-
-Dropbox folder path for backups (default: '/ai-chat-app/conversations')
 
 ***
 
@@ -30,7 +20,7 @@ Dropbox folder path for backups (default: '/ai-chat-app/conversations')
 
 > **exportConversation**: (`conversationId`: `string`, `userAddress`: `string`) => `Promise`<{ `blob?`: `Blob`; `success`: `boolean`; }>
 
-Defined in: [src/react/useBackup.ts:49](https://github.com/anuma-ai/sdk/blob/main/src/react/useBackup.ts#49)
+Defined in: [src/react/useBackup.ts:29](https://github.com/anuma-ai/sdk/blob/main/src/react/useBackup.ts#29)
 
 Export a conversation to an encrypted blob
 
@@ -77,31 +67,11 @@ Export a conversation to an encrypted blob
 
 ***
 
-### googleConversationsFolder?
-
-> `optional` **googleConversationsFolder**: `string`
-
-Defined in: [src/react/useBackup.ts:60](https://github.com/anuma-ai/sdk/blob/main/src/react/useBackup.ts#60)
-
-Google Drive conversations subfolder (default: 'conversations')
-
-***
-
-### googleRootFolder?
-
-> `optional` **googleRootFolder**: `string`
-
-Defined in: [src/react/useBackup.ts:58](https://github.com/anuma-ai/sdk/blob/main/src/react/useBackup.ts#58)
-
-Google Drive root folder name (default: 'ai-chat-app')
-
-***
-
 ### importConversation()
 
 > **importConversation**: (`blob`: `Blob`, `userAddress`: `string`) => `Promise`<{ `success`: `boolean`; }>
 
-Defined in: [src/react/useBackup.ts:54](https://github.com/anuma-ai/sdk/blob/main/src/react/useBackup.ts#54)
+Defined in: [src/react/useBackup.ts:34](https://github.com/anuma-ai/sdk/blob/main/src/react/useBackup.ts#34)
 
 Import a conversation from an encrypted blob
 
@@ -152,7 +122,7 @@ Import a conversation from an encrypted blob
 
 > **requestEncryptionKey**: (`address`: `string`) => `Promise`<`void`>
 
-Defined in: [src/react/useBackup.ts:47](https://github.com/anuma-ai/sdk/blob/main/src/react/useBackup.ts#47)
+Defined in: [src/react/useBackup.ts:27](https://github.com/anuma-ai/sdk/blob/main/src/react/useBackup.ts#27)
 
 Request encryption key for the user address
 
@@ -191,6 +161,6 @@ Request encryption key for the user address
 
 > **userAddress**: `string` | `null`
 
-Defined in: [src/react/useBackup.ts:45](https://github.com/anuma-ai/sdk/blob/main/src/react/useBackup.ts#45)
+Defined in: [src/react/useBackup.ts:25](https://github.com/anuma-ai/sdk/blob/main/src/react/useBackup.ts#25)
 
 Current user address (null if not signed in)

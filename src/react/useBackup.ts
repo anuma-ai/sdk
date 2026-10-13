@@ -55,13 +55,9 @@ export interface ProviderBackupState {
   /** Whether user has authenticated with this provider */
   isAuthenticated: boolean;
   /** Backup all conversations to this provider */
-  backup: (
-    options?: BackupOperationOptions
-  ) => Promise<ICloudExportResult | { error: string }>;
+  backup: (options?: BackupOperationOptions) => Promise<ICloudExportResult | { error: string }>;
   /** Restore conversations from this provider */
-  restore: (
-    options?: BackupOperationOptions
-  ) => Promise<ICloudImportResult | { error: string }>;
+  restore: (options?: BackupOperationOptions) => Promise<ICloudImportResult | { error: string }>;
   /** Request access to this provider (triggers OAuth if needed) */
   connect: () => Promise<string>;
   /** Disconnect from this provider */
@@ -122,13 +118,8 @@ export interface UseBackupResult {
  * @category Hooks
  */
 export function useBackup(options: UseBackupOptions): UseBackupResult {
-  const {
-    database,
-    userAddress,
-    requestEncryptionKey,
-    exportConversation,
-    importConversation,
-  } = options;
+  const { database, userAddress, requestEncryptionKey, exportConversation, importConversation } =
+    options;
 
   const { icloud: icloudAuth, hasAnyProvider, hasAnyAuthentication, logoutAll } = useBackupAuth();
 
