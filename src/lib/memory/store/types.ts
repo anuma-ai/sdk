@@ -167,11 +167,29 @@ export interface MemorySubscribeOptions {
  * from the main interface.
  * @public
  */
-export interface MemoryMaintenance {
+export interface MemoryMaintenance extends MemoryTopicMaintenance {
   /** Decay sweeper bound to this store's vault (see `createDecaySweeper`). */
   createDecaySweeper(options?: Omit<CreateDecaySweeperOptions, "vaultCtx">): DecaySweeper;
   /** One page of the topic-extraction backlog (see `getMemoriesNeedingTopicExtractionOp`). */
   getTopicBacklog(options?: { limit?: number }): Promise<MemoriesNeedingTopicExtraction>;
+}
+
+/** @public */
+export interface MemoryTopicBacklog {
+  pending: readonly { uniqueId: string }[];
+  linkedUnstamped: readonly string[];
+  topicsToRelink: readonly string[];
+  topicsBackfill: readonly string[];
+}
+
+/**
+ * Topic-extraction upkeep for either backend. On a remote store `pending` carries ids only, the
+ * other backlog lists are always empty, and `relinkTopics` / `backfillTopics` do nothing.
+ * @public
+ */
+export interface MemoryTopicMaintenance {
+  /** One page of the topic-extraction backlog, edited or outdated rows first. */
+  getTopicBacklog(options?: { limit?: number }): Promise<MemoryTopicBacklog>;
   /** LLM topic extraction + link + stamp for these memories. */
   extractTopics(
     memoryIds: readonly string[],
@@ -260,4 +278,6 @@ export interface MemoryStore {
 
   /** TRANSITIONAL — see {@link MemoryMaintenance}. Absent on a remote backend. */
   maintenance?: MemoryMaintenance;
+  /** Topic-extraction upkeep, available on every backend. */
+  readonly topicMaintenance: MemoryTopicMaintenance;
 }

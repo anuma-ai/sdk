@@ -418,6 +418,8 @@ export {
   type MemoryStore,
   type MemorySubscribeOptions,
   type MemoryTopic,
+  type MemoryTopicBacklog,
+  type MemoryTopicMaintenance,
   type MemoryUpdate,
 } from "../lib/memory";
 export {
