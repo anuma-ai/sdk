@@ -85,17 +85,21 @@ export async function retain(
   ctx: RetainContext,
   options: RetainOptions = {}
 ): Promise<RetainResult> {
+  const embeddingOptions: EmbeddingOptions = {
+    ...ctx.embeddingOptions,
+    taskType: "memory_retain_embed",
+  };
   return retainWithPersistence(
     content,
     {
-      embeddingOptions: ctx.embeddingOptions,
+      embeddingOptions,
       vaultCache: ctx.vaultCache,
       persistence: {
         prepare: (query, searchOptions) =>
           prepareVaultCandidates(
             query,
             ctx.vaultCtx,
-            ctx.embeddingOptions,
+            embeddingOptions,
             ctx.vaultCache,
             searchOptions
           ),

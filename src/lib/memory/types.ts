@@ -431,6 +431,7 @@ export interface RecallDiagnostics {
    * happened.
    */
   truncated: boolean;
+  truncatedByBudget?: boolean;
   /** Memory ids the W5 graph (entity) side lane contributed to the fusion. */
   graphLaneCount: number;
   /** Memory ids the W6 temporal side lane contributed to the fusion. */
@@ -487,6 +488,18 @@ export interface RecallDiagnostics {
   };
   /** Soft-degradation signals that fired this call (empty when clean). */
   degraded: RecallDegradation[];
+}
+
+export interface RecallTruncation {
+  requestedLimit: number;
+  effectiveLimit: number;
+  truncatedByBudget: boolean;
+}
+
+export interface RecallTelemetryCallbacks {
+  onDiagnostics?: (diagnostics: RecallDiagnostics) => void;
+  onTruncated?: (truncation: RecallTruncation) => void;
+  onError?: (error: Error) => void;
 }
 
 export type RetainAction = "create" | "merge" | "update" | "skip" | "suppressed" | "supersede";

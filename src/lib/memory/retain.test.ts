@@ -116,6 +116,26 @@ describe("retain", () => {
     expect(vi.mocked(updateVaultMemoryOp)).not.toHaveBeenCalled();
   });
 
+  it("declares the memory_retain_embed task type on every embedding call", async () => {
+    mockVaultMatches([], []);
+    vi.mocked(generateEmbedding).mockResolvedValue([0.1, 0.2, 0.3]);
+    vi.mocked(createVaultMemoryOp).mockResolvedValue({ uniqueId: "new" } as never);
+
+    await retain("Allergic to shellfish", ctx);
+
+    expect(vi.mocked(prepareVaultCandidates).mock.calls[0][2]).toMatchObject({
+      taskType: "memory_retain_embed",
+    });
+    expect(vi.mocked(rankPreparedVaultCandidates).mock.calls[0][2]).toMatchObject({
+      taskType: "memory_retain_embed",
+    });
+    expect(vi.mocked(generateEmbedding).mock.calls.length).toBeGreaterThan(0);
+    for (const call of vi.mocked(generateEmbedding).mock.calls) {
+      expect(call[1]).toMatchObject({ taskType: "memory_retain_embed" });
+    }
+    expect(mockEmbeddingOptions.taskType).toBeUndefined();
+  });
+
   it("tags its cache write with the committed row's version", async () => {
     mockVaultMatches([]);
     vi.mocked(generateEmbedding).mockResolvedValue([0.1, 0.2, 0.3]);
@@ -1267,10 +1287,10 @@ describe("retain — shared candidate preparation", () => {
 
     await retain("Moved to SF", ctx, { consolidateOptions: { apiKey: "k" } });
 
-    expect(vi.mocked(generateEmbedding)).toHaveBeenCalledWith(
-      "Lives in San Francisco",
-      mockEmbeddingOptions
-    );
+    expect(vi.mocked(generateEmbedding)).toHaveBeenCalledWith("Lives in San Francisco", {
+      ...mockEmbeddingOptions,
+      taskType: "memory_retain_embed",
+    });
   });
 
   it("does not prepare at all when auto-merge is off", async () => {

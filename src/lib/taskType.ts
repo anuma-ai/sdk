@@ -56,6 +56,8 @@ export type TaskType =
   | "memory_decompose"
   | "memory_profile_synth"
   | "memory_graph"
+  | "memory_recall_embed"
+  | "memory_retain_embed"
   | "folder_context"
   | "selection_memory"
   | "summarize"
