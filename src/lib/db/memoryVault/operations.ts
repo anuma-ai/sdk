@@ -677,6 +677,22 @@ function vaultListOrder(options?: VaultListOptions): Q.Clause[] {
   ];
 }
 
+/** Every raw `memory_vault` row the context's user owns, in every state, content still encrypted. */
+export async function getAllVaultMemoryRowsOp(
+  ctx: VaultMemoryOperationsContext
+): Promise<Record<string, unknown>[]> {
+  return (await ctx.vaultMemoryCollection
+    .query(
+      ...baseVaultConditions(ctx, {
+        includeDeleted: true,
+        includeArchived: true,
+        includeQuarantined: true,
+        includeSuperseded: true,
+      })
+    )
+    .unsafeFetchRaw()) as Record<string, unknown>[];
+}
+
 /** Content-free projections of the rows {@link getAllVaultMemoriesOp} would return. */
 export async function getVaultMemoryProjectionsOp(
   ctx: VaultMemoryOperationsContext,

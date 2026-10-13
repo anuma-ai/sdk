@@ -137,7 +137,8 @@ export class RemoteMemoryError extends Error {
   constructor(
     message: string,
     public readonly status: number,
-    public readonly code?: string
+    public readonly code?: string,
+    public readonly retryAfterMs?: number
   ) {
     super(message);
     this.name = "RemoteMemoryError";
@@ -295,14 +296,15 @@ function memoryRecord(value: unknown): RemoteMemoryRecord {
   return value as unknown as RemoteMemoryRecord;
 }
 
-/**
- * Connect to an already-active account. Encryption/key failures fail closed; a
- * failed write is never replayed automatically because its outcome may be unknown.
- * @public
- */
-export async function createRemoteMemoryPersistence(
-  options: RemoteMemoryPersistenceOptions
-): Promise<RemoteMemoryPersistence> {
+export type NearbyRequest = (
+  path: string,
+  init?: RequestInit,
+  signal?: AbortSignal
+) => Promise<unknown>;
+
+export function createNearbyRequest(
+  options: Pick<RemoteMemoryPersistenceOptions, "baseUrl" | "getToken" | "fetch" | "timeoutMs">
+): NearbyRequest {
   const base = new URL(options.baseUrl);
   if (
     !/^https?:$/.test(base.protocol) ||
@@ -315,8 +317,6 @@ export async function createRemoteMemoryPersistence(
       "baseUrl must be an HTTP(S) origin or base path without credentials, query or fragment"
     );
   }
-  if (!options.keyId || options.keyId.length > 256)
-    throw new Error("A canonical keyId is required");
   const timeoutMs = options.timeoutMs ?? 30_000;
   if (!Number.isFinite(timeoutMs) || timeoutMs <= 0)
     throw new Error("timeoutMs must be a positive number");
@@ -363,12 +363,14 @@ export async function createRemoteMemoryPersistence(
       });
       if (!response.ok) {
         const body: unknown = await response.json().catch(() => null);
+        const retryAfter = Number(response.headers.get("Retry-After"));
         throw new RemoteMemoryError(
           record(body) && typeof body.detail === "string"
             ? body.detail
             : `Nearby request failed (${response.status})`,
           response.status,
-          record(body) && typeof body.code === "string" ? body.code : undefined
+          record(body) && typeof body.code === "string" ? body.code : undefined,
+          Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter * 1000 : undefined
         );
       }
       return (await response.json()) as unknown;
@@ -381,6 +383,20 @@ export async function createRemoteMemoryPersistence(
       if (rejectAborted) controller.signal.removeEventListener("abort", rejectAborted);
     }
   };
+  return request;
+}
+
+/**
+ * Connect to an already-active account. Encryption/key failures fail closed; a
+ * failed write is never replayed automatically because its outcome may be unknown.
+ * @public
+ */
+export async function createRemoteMemoryPersistence(
+  options: RemoteMemoryPersistenceOptions
+): Promise<RemoteMemoryPersistence> {
+  if (!options.keyId || options.keyId.length > 256)
+    throw new Error("A canonical keyId is required");
+  const request = createNearbyRequest(options);
   const account = await request("/account", {}, options.signal);
   if (!record(account) || account.state !== "active") {
     throw new RemoteMemoryError(

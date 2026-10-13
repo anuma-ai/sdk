@@ -110,6 +110,13 @@ export {
   reencryptMemoryField,
 } from "./store/memoryKeys.js";
 export {
+  type MemoryMigrationOptions,
+  type MemoryMigrationProgress,
+  type MemoryMigrationResult,
+  type MemoryMigrationSkip,
+  migrateMemoriesToRemote,
+} from "./store/remoteMigration.js";
+export {
   createRemoteMemoryPersistence,
   type RemoteMemoryCandidateOptions,
   type RemoteMemoryDecodeFailure,
