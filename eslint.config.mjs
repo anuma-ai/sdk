@@ -14,6 +14,8 @@ const checkedTestFiles = [
   ...appGenerationTests,
   "src/lib/chat/toolLoop.detach.test.ts",
   "src/lib/chat/toolLoop.idleTimeout.test.ts",
+  "src/lib/db/chat/operations.chunkText.test.ts",
+  "src/lib/db/chat/operations.embeddingEncryption.test.ts",
   "src/react/useChatStorage.runHooks.test.tsx",
   "test/tools/slide-generation/models.ts",
 ];

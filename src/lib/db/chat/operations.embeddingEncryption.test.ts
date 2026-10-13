@@ -11,9 +11,9 @@ import {
   createConversationOp,
   createMessageOp,
   decryptMessageEmbeddingFields,
+  sealLegacyMessageEmbeddingsOp,
   searchChunksOp,
   searchMessagesOp,
-  sealLegacyMessageEmbeddingsOp,
   type StorageOperationsContext,
   updateMessageChunksOp,
   updateMessageEmbeddingOp,
@@ -24,8 +24,8 @@ const CONTENT = "apples and oranges";
 const VECTOR = [1, 0, 0];
 const CHUNKS = [{ text: CONTENT, vector: VECTOR, startOffset: 0, endOffset: CONTENT.length }];
 const MODEL = "test-model";
-const signMessage = vi.fn(
-  async (message: string) => `0x${Buffer.from(message).toString("hex").padStart(130, "0")}`
+const signMessage = vi.fn((message: string) =>
+  Promise.resolve(`0x${Buffer.from(message).toString("hex").padStart(130, "0")}`)
 );
 
 async function seed(): Promise<StorageOperationsContext> {
@@ -57,30 +57,36 @@ async function seed(): Promise<StorageOperationsContext> {
 }
 
 describe("message embedding encryption", () => {
-  beforeEach(async () => {
+  beforeEach(() => {
     vi.restoreAllMocks();
     signMessage.mockClear();
-    await encryption.clearAllEncryptionKeys();
+    encryption.clearAllEncryptionKeys();
   });
 
   it.each(["vector", "chunks"] as const)(
     "seals %s with the cached key and no signer request",
     async (column) => {
       const ctx = await seed();
+      delete ctx.signMessage;
+      signMessage.mockClear();
+      const row = await ctx.messagesCollection.find("message");
+      expect(isEncrypted(row.content)).toBe(true);
       const request = vi.spyOn(encryption, "requestEncryptionKey");
       const stored =
         column === "vector"
           ? await updateMessageEmbeddingOp(ctx, "message", VECTOR, MODEL)
           : await updateMessageChunksOp(ctx, "message", CHUNKS, MODEL);
-      const row = await ctx.messagesCollection.find("message");
       const raw = String(row._getRaw(column));
       expect(isEncrypted(raw)).toBe(true);
-      expect(() => JSON.parse(raw)).toThrow();
+      expect(() => {
+        JSON.parse(raw);
+      }).toThrow();
       const expected =
         column === "vector" ? VECTOR : CHUNKS.map(({ text: _text, ...rest }) => rest);
       expect(await decryptJsonField(raw, ADDRESS)).toEqual(expected);
       expect(stored?.[column]).toEqual(expected);
       expect(request).not.toHaveBeenCalled();
+      expect(signMessage).not.toHaveBeenCalled();
     }
   );
 
@@ -90,7 +96,7 @@ describe("message embedding encryption", () => {
       const ctx = await seed();
       const row = await ctx.messagesCollection.find("message");
       const before = { ...row._raw };
-      await encryption.clearAllEncryptionKeys();
+      encryption.clearAllEncryptionKeys();
       const request = vi.spyOn(encryption, "requestEncryptionKey");
       const result =
         column === "vector"
@@ -99,6 +105,36 @@ describe("message embedding encryption", () => {
       await expect(result).rejects.toBeInstanceOf(encryption.EncryptionKeyMissingError);
       expect(row._raw).toEqual(before);
       expect(request).not.toHaveBeenCalled();
+    }
+  );
+
+  it.each(["vector", "chunks"] as const)(
+    "keeps the sealed %s column unchanged if the cached key is missing",
+    async (column) => {
+      const ctx = await seed();
+      const row = await ctx.messagesCollection.find("message");
+      const value = column === "vector" ? VECTOR : CHUNKS;
+      const sealed = `enc:v3:${await encryption.encryptData(JSON.stringify(value), ADDRESS)}`;
+      await ctx.database.write(() => row.update((message) => message._setRaw(column, sealed)));
+      expect(isEncrypted(String(row._getRaw(column)))).toBe(true);
+      const before = { ...row._raw };
+      encryption.clearAllEncryptionKeys();
+      signMessage.mockClear();
+      const request = vi.spyOn(encryption, "requestEncryptionKey");
+      const replacement = [0, 1, 0];
+      const result =
+        column === "vector"
+          ? updateMessageEmbeddingOp(ctx, "message", replacement, "replacement-model")
+          : updateMessageChunksOp(
+              ctx,
+              "message",
+              [{ ...CHUNKS[0], vector: replacement }],
+              "replacement-model"
+            );
+      await expect(result).rejects.toBeInstanceOf(encryption.EncryptionKeyMissingError);
+      expect(row._raw).toEqual(before);
+      expect(request).not.toHaveBeenCalled();
+      expect(signMessage).not.toHaveBeenCalled();
     }
   );
 
@@ -130,7 +166,7 @@ describe("message embedding encryption", () => {
       CHUNKS.map(({ text: _text, ...rest }) => rest)
     );
     expect(isEncrypted(String(raw.chunks))).toBe(true);
-    await encryption.clearAllEncryptionKeys();
+    encryption.clearAllEncryptionKeys();
     expect(await decryptMessageEmbeddingFields(raw, ADDRESS)).toMatchObject({
       vector: undefined,
       chunks: undefined,
@@ -141,11 +177,13 @@ describe("message embedding encryption", () => {
     const ctx = await seed();
     const row = await ctx.messagesCollection.find("message");
     await ctx.database.write(() => row.update((message) => message._setRaw("content", CONTENT)));
-    await encryption.clearAllEncryptionKeys();
+    encryption.clearAllEncryptionKeys();
     await updateMessageEmbeddingOp(ctx, "message", VECTOR, MODEL);
     await updateMessageChunksOp(ctx, "message", CHUNKS, MODEL);
     expect(JSON.parse(String(row._getRaw("vector")))).toEqual(VECTOR);
-    expect(JSON.parse(String(row._getRaw("chunks")))[0].text).toBeUndefined();
+    expect(JSON.parse(String(row._getRaw("chunks")))).toEqual(
+      CHUNKS.map(({ text: _text, ...rest }) => rest)
+    );
   });
 
   it("reuses cached vectors without a decrypt of losing rows", async () => {
@@ -220,7 +258,7 @@ describe("message embedding encryption", () => {
     );
     const before = { ...row._raw };
     expect(await sealLegacyMessageEmbeddingsOp({ ...ctx, walletAddress: undefined })).toBe(0);
-    await encryption.clearAllEncryptionKeys();
+    encryption.clearAllEncryptionKeys();
     const request = vi.spyOn(encryption, "requestEncryptionKey");
     await expect(sealLegacyMessageEmbeddingsOp(ctx)).rejects.toThrow("cached wallet key");
     expect(row._raw).toEqual(before);

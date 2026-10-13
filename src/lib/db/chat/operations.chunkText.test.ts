@@ -1,4 +1,6 @@
 // @vitest-environment happy-dom
+import { webcrypto } from "node:crypto";
+
 import { Database } from "@nozbe/watermelondb";
 import LokiJSAdapter from "@nozbe/watermelondb/adapters/lokijs";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -20,26 +22,18 @@ import {
 } from "./operations";
 import type { MessageChunk } from "./types";
 
-declare const global: typeof globalThis;
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-declare const require: any;
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-declare const Buffer: any;
-
 const TEST_ADDRESS = "0x1234567890123456789012345678901234567890";
 const SECRET = "MY-BANK-PIN-IS-SEVEN-SEVEN-THREE-ONE";
 const MODEL = "qwen/qwen3-embedding-8b";
 
-const mockSignMessage = vi.fn(
-  async (message: string) => `0x${Buffer.from(message).toString("hex").padStart(130, "0")}`
-) as unknown as SignMessageFn;
+const mockSignMessage = vi.fn<SignMessageFn>((message) =>
+  Promise.resolve(`0x${Buffer.from(message).toString("hex").padStart(130, "0")}`)
+);
 
 function ensureCrypto(): void {
-  if (!global.crypto) {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { webcrypto } = require("node:crypto");
-    Object.defineProperty(global, "crypto", {
-      value: webcrypto as Crypto,
+  if (!globalThis.crypto) {
+    Object.defineProperty(globalThis, "crypto", {
+      value: webcrypto,
       writable: true,
       configurable: true,
     });
@@ -102,7 +96,7 @@ async function rawChunks(db: Database, uniqueId: string): Promise<string> {
 describe("updateMessageChunksOp — chunk text is not persisted (sdk#880)", () => {
   beforeEach(async () => {
     ensureCrypto();
-    await clearAllEncryptionKeys();
+    clearAllEncryptionKeys();
     await requestEncryptionKey(TEST_ADDRESS, mockSignMessage);
   });
 
@@ -129,7 +123,9 @@ describe("updateMessageChunksOp — chunk text is not persisted (sdk#880)", () =
 
     const raw = await rawChunks(db, "m1");
     expect(raw.startsWith("enc:v3:")).toBe(true);
-    expect(() => JSON.parse(raw)).toThrow();
+    expect(() => {
+      JSON.parse(raw);
+    }).toThrow();
     const parsed = (await decryptJsonField<MessageChunk[]>(raw, TEST_ADDRESS))!;
     expect(parsed).toHaveLength(2);
     expect(parsed[0].vector).toBeDefined();
