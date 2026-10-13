@@ -2,6 +2,6 @@
 
 > `const` **PROFILE\_DOC\_VERSION**: `1` = `1`
 
-Defined in: [src/lib/memory/synthesizeProfile.ts:27](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/synthesizeProfile.ts#27)
+Defined in: [src/lib/memory/synthesizeProfile.ts:28](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/synthesizeProfile.ts#28)
 
 Bump when the ProfileDoc / section shape changes incompatibly.
