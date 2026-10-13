@@ -151,6 +151,7 @@ type UseChatResult = BaseUseChatResult & {
    * off, or no inference id had been issued yet). Pair with `resumeStream`.
    */
   detach: () => StreamResumeHandle | null;
+  cancel: (handle: StreamResumeHandle) => void;
   /**
    * Replay a detached stream from the portal's buffer (GET from seq 0, fresh
    * accumulator). Thin hook wrapper over the library `resumeStream` — supplies
@@ -285,6 +286,16 @@ export function useChat(options?: UseChatOptions): UseChatResult {
     detachControllerRef.current = null;
     pendingResumeRef.current = null;
   }, [resumable, fireCancel]);
+
+  const cancel = useCallback(
+    (handle: StreamResumeHandle) => {
+      if (resumable) fireCancel(handle);
+      if (pendingResumeRef.current?.inferenceId === handle.inferenceId) {
+        pendingResumeRef.current = null;
+      }
+    },
+    [resumable, fireCancel]
+  );
 
   const detach = useCallback((): StreamResumeHandle | null => {
     if (detachControllerRef.current) {
@@ -567,6 +578,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
     isLoading,
     sendMessage,
     stop,
+    cancel,
     detach,
     resumeStream,
   };
