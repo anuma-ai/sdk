@@ -16,6 +16,7 @@ import {
 import { recall } from "./recall.js";
 import { RECALL_MAX_LIMIT } from "./recallConstants.js";
 import { reflect } from "./reflect.js";
+import type { MemoryStore } from "./store/types.js";
 import type { RankedMemory, RecallContext } from "./types.js";
 
 const DEFAULT_SYNTHESIS_MODEL = "inclusionai/ling-2.6-flash";
@@ -296,6 +297,12 @@ export interface SynthesizeProfileOptions extends PortalLlmAuth {
    * never accidentally disable the gate by finding it empty.
    */
   reviewedMemoryIds?: readonly string[];
+  /**
+   * Read facts and recall through this store instead of `ctx.vaultCtx` and
+   * `ctx.vaultCache`, so a remote store works. Only `ctx.embeddingOptions` is
+   * then read from `ctx`.
+   */
+  store?: Pick<MemoryStore, "list" | "factSource">;
 }
 
 /**
@@ -309,12 +316,21 @@ export async function synthesizeProfile(
   ctx: RecallContext,
   options: SynthesizeProfileOptions = {}
 ): Promise<ProfileDoc> {
-  if (!ctx.vaultCtx) {
-    throw new Error("synthesizeProfile requires ctx.vaultCtx (vault-backed facts).");
+  const { store } = options;
+  const vaultCtx = ctx.vaultCtx;
+  if (!store && !vaultCtx) {
+    throw new Error(
+      "synthesizeProfile requires options.store or ctx.vaultCtx (vault-backed facts)."
+    );
   }
-  if (!ctx.vaultCache) {
-    throw new Error("synthesizeProfile requires ctx.vaultCache (semantic fact recall).");
+  if (!store && !ctx.vaultCache) {
+    throw new Error(
+      "synthesizeProfile requires options.store or ctx.vaultCache (semantic fact recall)."
+    );
   }
+  const recallCtx: RecallContext = store
+    ? { embeddingOptions: ctx.embeddingOptions, factSource: store.factSource }
+    : ctx;
   const facets = options.facets ?? DEFAULT_PROFILE_FACETS;
   const scopes = options.scopes ?? DEFAULT_SCOPES;
   const config: ProfileConfigFingerprint = {
@@ -332,11 +348,10 @@ export async function synthesizeProfile(
       ? options.previous
       : undefined;
 
-  const memories = await getAllVaultMemoriesOp(ctx.vaultCtx, {
-    scopes,
-    includeDeleted: true,
-    includeSuperseded: true,
-  });
+  const listOptions = { scopes, includeDeleted: true, includeSuperseded: true };
+  const memories = store
+    ? await store.list(listOptions)
+    : await getAllVaultMemoriesOp(vaultCtx!, listOptions);
   const watermark = computeVaultWatermark(memories);
   const observationTrends = summarizeObservationTrends(
     memories
@@ -369,7 +384,7 @@ export async function synthesizeProfile(
   }
 
   const staleKeys = await computeStaleFacetKeys(
-    ctx,
+    recallCtx,
     memories,
     facets,
     previous,
@@ -406,7 +421,7 @@ export async function synthesizeProfile(
       if (prior && !staleKeys.has(facet.key)) {
         return prior;
       }
-      return synthesizeFacet(facet, ctx, options, fallbackPriors.get(facet.key));
+      return synthesizeFacet(facet, recallCtx, options, fallbackPriors.get(facet.key));
     })
   );
 

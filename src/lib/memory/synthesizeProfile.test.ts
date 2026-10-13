@@ -26,7 +26,7 @@ import {
   PROFILE_DOC_VERSION,
   synthesizeProfile,
 } from "./synthesizeProfile.js";
-import type { RankedMemory, RecallContext } from "./types.js";
+import type { RankedMemory, RecallContext, RecallFactSource } from "./types.js";
 
 const mockReflect = vi.mocked(reflect);
 const mockRecall = vi.mocked(recall);
@@ -186,6 +186,43 @@ describe("synthesizeProfile", () => {
     await expect(
       synthesizeProfile({ embeddingOptions: { apiKey: "k" }, vaultCtx: {} } as RecallContext)
     ).rejects.toThrow(/vaultCache/);
+  });
+
+  it("reads facts and recalls through a store with no vault context", async () => {
+    const factSource = {
+      search: vi.fn(),
+      graphRanking: vi.fn(),
+      temporalRanking: vi.fn(),
+    } as unknown as RecallFactSource;
+    const list = vi.fn().mockResolvedValue([mem("a", { updatedAt: new Date(3000) })]);
+    mockReflect.mockResolvedValue(reflectResult("A bio", ["a"]));
+
+    const doc = await synthesizeProfile(
+      { embeddingOptions: { apiKey: "k" } },
+      { apiKey: "k", facets: FACETS, store: { list, factSource } }
+    );
+
+    expect(doc.vaultWatermark).toBe(3000);
+    expect(doc.sections[0].text).toBe("A bio");
+    expect(list).toHaveBeenCalledWith({
+      scopes: ["private"],
+      includeDeleted: true,
+      includeSuperseded: true,
+    });
+    expect(mockGetAll).not.toHaveBeenCalled();
+    expect(mockRecall.mock.calls[0][1]).toEqual({ embeddingOptions: { apiKey: "k" }, factSource });
+    expect(mockReflect.mock.calls[0][1]).toEqual({ embeddingOptions: { apiKey: "k" }, factSource });
+  });
+
+  it("leaves the local vault out of recall when a store is supplied", async () => {
+    const factSource = {} as RecallFactSource;
+    const list = vi.fn().mockResolvedValue([mem("a")]);
+    mockReflect.mockResolvedValue(reflectResult("A bio", ["a"]));
+
+    await synthesizeProfile(ctx, { apiKey: "k", facets: FACETS, store: { list, factSource } });
+
+    expect(mockGetAll).not.toHaveBeenCalled();
+    expect(mockRecall.mock.calls[0][1]).toEqual({ embeddingOptions: { apiKey: "k" }, factSource });
   });
 
   it("synthesizes one section per facet, carrying source ids + watermark + config", async () => {
