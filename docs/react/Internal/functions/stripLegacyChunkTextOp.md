@@ -2,7 +2,7 @@
 
 > **stripLegacyChunkTextOp**(`ctx`: [`StorageOperationsContext`](../interfaces/StorageOperationsContext.md)): `Promise`<`number`>
 
-Defined in: [src/lib/db/chat/operations.ts:1119](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/operations.ts#1119)
+Defined in: [src/lib/db/chat/operations.ts:1228](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/operations.ts#1228)
 
 Removes the plaintext `text` that rows chunked before sdk#889 still carry in
 their `chunks` column. Since #889 `updateMessageChunksOp` never writes it, so

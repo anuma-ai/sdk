@@ -283,4 +283,21 @@ describe("message embedding encryption", () => {
     expect(await sealLegacyMessageEmbeddingsOp(ctx)).toBe(51);
     expect(await sealLegacyMessageEmbeddingsOp(ctx)).toBe(0);
   });
+
+  it("skips candidates deleted before their page is sealed", async () => {
+    const ctx = await seed();
+    const row = await ctx.messagesCollection.find("message");
+    await ctx.database.write(() =>
+      row.update((message) => message._setRaw("vector", JSON.stringify(VECTOR)))
+    );
+    const query = ctx.messagesCollection.query.bind(ctx.messagesCollection);
+    vi.spyOn(ctx.messagesCollection, "query").mockImplementationOnce((...clauses) => {
+      const candidates = query(...clauses);
+      return Object.assign(Object.create(candidates), {
+        fetchIds: async () => [...(await candidates.fetchIds()), "deleted"],
+      });
+    });
+    expect(await sealLegacyMessageEmbeddingsOp(ctx)).toBe(1);
+    expect(isEncrypted(String(row._getRaw("vector")))).toBe(true);
+  });
 });

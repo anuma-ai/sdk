@@ -652,6 +652,12 @@ Re-exports [decryptConversationTitle](../react/Internal/functions/decryptConvers
 
 ***
 
+### decryptMessageEmbeddingFields
+
+Re-exports [decryptMessageEmbeddingFields](../react/Internal/functions/decryptMessageEmbeddingFields.md)
+
+***
+
 ### DEFAULT\_CACHE\_EXPIRATION\_MS
 
 Re-exports [DEFAULT\_CACHE\_EXPIRATION\_MS](../react/Internal/variables/DEFAULT_CACHE_EXPIRATION_MS.md)
@@ -2029,6 +2035,12 @@ Re-exports [sdkModelClasses](../react/Internal/variables/sdkModelClasses.md)
 ### sdkSchema
 
 Re-exports [sdkSchema](../react/Internal/variables/sdkSchema.md)
+
+***
+
+### sealLegacyMessageEmbeddingsOp
+
+Re-exports [sealLegacyMessageEmbeddingsOp](../react/Internal/functions/sealLegacyMessageEmbeddingsOp.md)
 
 ***
 

@@ -1121,8 +1121,10 @@ export async function sealLegacyMessageEmbeddingsOp(
   for (let start = 0; start < candidateIds.length; start += 50) {
     const pageIds = candidateIds.slice(start, start + 50);
     await ctx.database.write(async () => {
-      for (const id of pageIds) {
-        const message = await ctx.messagesCollection.find(id);
+      const pageMessages = await ctx.messagesCollection
+        .query(Q.where("id", Q.oneOf(pageIds)))
+        .fetch();
+      for (const message of pageMessages) {
         if (!isEncrypted(message.content)) continue;
         const plaintext = await decryptField(message.content, ctx.walletAddress!);
         if (plaintext === message.content) {
