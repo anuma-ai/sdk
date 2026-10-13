@@ -232,13 +232,41 @@ describe("synthesizeProfile", () => {
     expect(mockRecall.mock.calls[0][1]).toEqual({ embeddingOptions: { apiKey: "k" }, factSource });
   });
 
-  it("marks every section stale when the store could not read some memories", async () => {
+  it("settles on a permanently unreadable cited memory instead of regenerating every run", async () => {
     const factSource = {} as RecallFactSource;
     const list = vi.fn().mockResolvedValue([mem("a", { updatedAt: new Date(3000) })]);
     const listProjections = vi.fn().mockResolvedValue([{ uniqueId: "a" }, { uniqueId: "b" }]);
-    mockReflect.mockResolvedValue(reflectResult("A bio", ["a"]));
+    mockReflect.mockResolvedValue(reflectResult("new bio", ["a"]));
+    const store = { list, listProjections, factSource };
     const previous = priorDoc(
       [section("bio", "old bio", ["b"]), section("interests", "old interests", ["a"])],
+      3000
+    );
+
+    const first = await synthesizeProfile(ctx, { apiKey: "k", facets: FACETS, previous, store });
+
+    expect(first.unreadableMemoryIds).toEqual(["b"]);
+    expect(first.sections.some((s) => s.stale)).toBe(false);
+    expect(mockReflect).toHaveBeenCalledTimes(1);
+
+    mockReflect.mockClear();
+    const second = await synthesizeProfile(ctx, {
+      apiKey: "k",
+      facets: FACETS,
+      previous: first,
+      store,
+    });
+
+    expect(second).toBe(first);
+    expect(mockReflect).not.toHaveBeenCalled();
+  });
+
+  it("records a new unreadable memory rather than returning the cached doc unchanged", async () => {
+    const factSource = {} as RecallFactSource;
+    const list = vi.fn().mockResolvedValue([mem("a", { updatedAt: new Date(3000) })]);
+    const listProjections = vi.fn().mockResolvedValue([{ uniqueId: "a" }, { uniqueId: "b" }]);
+    const previous = priorDoc(
+      [section("bio", "old bio", ["a"]), section("interests", "old interests", ["a"])],
       3000
     );
 
@@ -249,7 +277,44 @@ describe("synthesizeProfile", () => {
       store: { list, listProjections, factSource },
     });
 
-    expect(doc.sections.map((s) => s.stale)).toEqual([true, true]);
+    expect(doc).not.toBe(previous);
+    expect(doc.unreadableMemoryIds).toEqual(["b"]);
+    expect(doc.sections.map((s) => s.text)).toEqual(["old bio", "old interests"]);
+    expect(mockReflect).not.toHaveBeenCalled();
+  });
+
+  it("attributes a memory once it becomes readable, even without a newer change time", async () => {
+    const factSource = {} as RecallFactSource;
+    const list = vi
+      .fn()
+      .mockResolvedValue([
+        mem("a", { updatedAt: new Date(3000) }),
+        mem("b", { updatedAt: new Date(2000), embedding: JSON.stringify([1, 0]) }),
+      ]);
+    const listProjections = vi.fn().mockResolvedValue([{ uniqueId: "a" }, { uniqueId: "b" }]);
+    mockEmbed.mockResolvedValue([
+      [1, 0],
+      [0, 1],
+    ]);
+    mockReflect.mockResolvedValueOnce(reflectResult("bio with b", ["a", "b"]));
+    const previous = {
+      ...priorDoc(
+        [section("bio", "old bio", ["a"]), section("interests", "old interests", ["a"])],
+        3000
+      ),
+      unreadableMemoryIds: ["b"],
+    };
+
+    const doc = await synthesizeProfile(ctx, {
+      apiKey: "k",
+      facets: FACETS,
+      previous,
+      store: { list, listProjections, factSource },
+    });
+
+    expect(mockReflect).toHaveBeenCalledTimes(1);
+    expect(doc.sections.map((s) => s.text)).toEqual(["bio with b", "old interests"]);
+    expect(doc.unreadableMemoryIds).toBeUndefined();
   });
 
   it("attributes a new remote fact whose vector is shorter than the query's", async () => {

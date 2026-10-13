@@ -21,7 +21,7 @@ The config that produced this doc — see [ProfileConfigFingerprint](ProfileConf
 
 > **generatedAt**: `number`
 
-Defined in: [src/lib/memory/synthesizeProfile.ts:247](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/synthesizeProfile.ts#247)
+Defined in: [src/lib/memory/synthesizeProfile.ts:253](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/synthesizeProfile.ts#253)
 
 Unix ms this doc was produced.
 
@@ -46,6 +46,18 @@ without another LLM pass. Recomputed every synthesis (not delta-cached).
 Defined in: [src/lib/memory/synthesizeProfile.ts:233](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/synthesizeProfile.ts#233)
 
 One section per requested facet (in facet order).
+
+***
+
+### unreadableMemoryIds?
+
+> `optional` **unreadableMemoryIds**: `string`\[]
+
+Defined in: [src/lib/memory/synthesizeProfile.ts:251](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/synthesizeProfile.ts#251)
+
+Sorted ids the store listed but could not decrypt at synthesis time.
+Absent when every memory was readable. A later call regenerates only when
+this set changes, and attributes a memory once it becomes readable.
 
 ***
 

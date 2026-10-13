@@ -243,6 +243,12 @@ export interface ProfileDoc {
    * without another LLM pass. Recomputed every synthesis (not delta-cached).
    */
   observationTrends: Record<ObservationTrend, number>;
+  /**
+   * Sorted ids the store listed but could not decrypt at synthesis time.
+   * Absent when every memory was readable. A later call regenerates only when
+   * this set changes, and attributes a memory once it becomes readable.
+   */
+  unreadableMemoryIds?: string[];
   /** Unix ms this doc was produced. */
   generatedAt: number;
 }
@@ -364,12 +370,25 @@ export async function synthesizeProfile(
   );
 
   const presentIds = new Set(memories.map((m) => m.uniqueId));
-  const unreadable = projections.filter((p) => !presentIds.has(p.uniqueId)).length;
+  const unreadableMemoryIds = projections
+    .map((p) => p.uniqueId)
+    .filter((id) => !presentIds.has(id))
+    .sort();
+  const previousUnreadable = new Set(previous?.unreadableMemoryIds ?? []);
+  const sameUnreadable =
+    unreadableMemoryIds.length === previousUnreadable.size &&
+    unreadableMemoryIds.every((id) => previousUnreadable.has(id));
   const hasStaleSections = previous?.sections.some((s) => s.stale);
   const citesMissingFact = previous?.sections.some((s) =>
     s.sourceMemoryIds.some((id) => !presentIds.has(id))
   );
-  if (previous && previous.vaultWatermark === watermark && !hasStaleSections && !citesMissingFact) {
+  if (
+    previous &&
+    previous.vaultWatermark === watermark &&
+    !hasStaleSections &&
+    !citesMissingFact &&
+    sameUnreadable
+  ) {
     const sameOrder =
       previous.sections.length === facets.length &&
       facets.every((f, i) => previous.sections[i]?.key === f.key);
@@ -390,7 +409,8 @@ export async function synthesizeProfile(
     facets,
     previous,
     watermark,
-    options.reviewedMemoryIds
+    options.reviewedMemoryIds,
+    previousUnreadable
   );
 
   const memoriesById = new Map(memories.map((memory) => [memory.uniqueId, memory]));
@@ -439,19 +459,19 @@ export async function synthesizeProfile(
     return fallbackSection(facet, fallbackPriors.get(facet.key));
   });
 
-  if (unreadable > 0) {
-    getLogger().warn(
-      "[memory/synthesizeProfile] some memories could not be read; marking sections stale",
-      { unreadable }
-    );
+  if (!sameUnreadable && unreadableMemoryIds.length > 0) {
+    getLogger().warn("[memory/synthesizeProfile] some memories could not be read", {
+      unreadable: unreadableMemoryIds.length,
+    });
   }
 
   return {
     version: PROFILE_DOC_VERSION,
-    sections: unreadable > 0 ? sections.map((s) => ({ ...s, stale: true })) : sections,
+    sections,
     vaultWatermark: watermark,
     config,
     observationTrends,
+    ...(unreadableMemoryIds.length > 0 && { unreadableMemoryIds }),
     generatedAt: Date.now(),
   };
 }
@@ -553,13 +573,16 @@ async function computeStaleFacetKeys(
   facets: ProfileFacet[],
   previous: ProfileDoc | undefined,
   watermark: number,
-  reviewedMemoryIds: readonly string[] | undefined
+  reviewedMemoryIds: readonly string[] | undefined,
+  previouslyUnreadable: ReadonlySet<string>
 ): Promise<Set<ProfileFacetKey>> {
   const allKeys = new Set(facets.map((f) => f.key));
   if (previous && watermark < previous.vaultWatermark) return allKeys;
   if (!previous) return allKeys;
 
-  const changed = memories.filter((m) => changeTime(m) > previous.vaultWatermark);
+  const changed = memories.filter(
+    (m) => changeTime(m) > previous.vaultWatermark || previouslyUnreadable.has(m.uniqueId)
+  );
   const changedIds = new Set(changed.map((m) => m.uniqueId));
   const presentIds = new Set(memories.map((m) => m.uniqueId));
   const stale = new Set<ProfileFacetKey>();
