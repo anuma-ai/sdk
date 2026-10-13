@@ -293,7 +293,7 @@ describe("message embedding encryption", () => {
     const query = ctx.messagesCollection.query.bind(ctx.messagesCollection);
     vi.spyOn(ctx.messagesCollection, "query").mockImplementationOnce((...clauses) => {
       const candidates = query(...clauses);
-      return Object.assign(Object.create(candidates), {
+      return Object.assign(Object.create(candidates) as typeof candidates, {
         fetchIds: async () => [...(await candidates.fetchIds()), "deleted"],
       });
     });
