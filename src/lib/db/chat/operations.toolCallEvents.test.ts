@@ -379,6 +379,51 @@ describe("encryptToolCallEventsOp", () => {
     expect((await readOne(encryptedCtx(db), "m1")).toolCallEvents).toEqual(EVENTS);
   });
 
+  it("repairs every page across several conversations", async () => {
+    const db = makeDatabase();
+    const ctx = plainCtx(db);
+    const conversationIds = ["conv_a", "conv_b"];
+    const ids = Array.from({ length: 205 }, (_, i) => `m${i}`);
+    for (const conversationId of conversationIds) {
+      await createConversationOp(ctx, { conversationId, title: "T" });
+    }
+    for (const [i, uniqueId] of ids.entries()) {
+      await createMessageOp(ctx, {
+        conversationId: conversationIds[i % 2],
+        role: "assistant",
+        content: "plain reply",
+        uniqueId,
+      });
+    }
+    await db.write(async () => {
+      const messages = await ctx.messagesCollection.query().fetch();
+      const conversations = await ctx.conversationsCollection.query().fetch();
+      await db.batch(
+        ...messages.map((m) =>
+          m.prepareUpdate((msg) => {
+            msg._setRaw("tool_call_events", JSON.stringify(EVENTS));
+            msg._setRaw("updated_at", PINNED_UPDATED_AT);
+          })
+        ),
+        ...conversations.map((c) =>
+          c.prepareUpdate((conv) => conv._setRaw("updated_at", PINNED_UPDATED_AT))
+        )
+      );
+    });
+
+    expect(await encryptToolCallEventsOp(encryptedCtx(db))).toBe(ids.length);
+
+    for (const id of ids) await expectEncryptedAtRest(db, id);
+    const conversations = (await db
+      .get<Conversation>("conversations")
+      .query()
+      .unsafeFetchRaw()) as Record<string, unknown>[];
+    expect(conversations.map((c) => c.conversation_id).sort()).toEqual(conversationIds);
+    for (const conversation of conversations) {
+      expect(Number(conversation.updated_at)).toBeGreaterThan(PINNED_UPDATED_AT);
+    }
+  });
+
   it("leaves already-encrypted rows untouched", async () => {
     const db = makeDatabase();
     const column = JSON.stringify(await encryptEvents(EVENTS));
