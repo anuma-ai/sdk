@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+
 import type {
   BatchOperation,
   CachedFindResult,
@@ -20,7 +22,7 @@ export interface PgClientLike {
 
 export interface PgPoolLike {
   query(text: string, values?: unknown[]): Promise<{ rows: Record<string, unknown>[] }>;
-  /** Optional. When provided, batch operations run inside a transaction on a dedicated connection. */
+  /** Optional for regular operations; required for raw SQL and transactional batches. */
   connect?(): Promise<PgClientLike>;
 }
 
@@ -29,11 +31,7 @@ export interface PostgreSQLAdapterOptions {
   schema: AppSchema;
   migrations?: SchemaMigrations;
   dbName: string;
-  /**
-   * PostgreSQL schema (namespace) for all SDK tables.
-   * Defaults to "public". Use a custom schema (e.g. "sdk") to avoid
-   * conflicts with existing tables in the same database.
-   */
+  /** Namespace key for the isolated database schema; defaults to "public". */
   pgSchema?: string;
 }
 
@@ -142,6 +140,12 @@ interface QueryDescription {
   take?: number;
   skip?: number;
   sql?: { sql: string; values: unknown[] };
+}
+
+function hasSql(clauses: Where[]): boolean {
+  return clauses.some(
+    (clause) => clause.type === "sql" || ("conditions" in clause && hasSql(clause.conditions))
+  );
 }
 
 function encodeQuery(
@@ -267,10 +271,7 @@ export function schemaToCreateSQL(schema: AppSchema, pgSchema = "public"): strin
       cols.push(`"${col.name}" ${pgType}${nullable}${def}`);
 
       if (col.isIndexed) {
-        const indexName =
-          pgSchema === "public"
-            ? `"${tableName}_${col.name}"`
-            : `"${pgSchema}_${tableName}_${col.name}"`;
+        const indexName = `"${tableName}_${col.name}"`;
         indexes.push(
           `create index if not exists ${indexName} on ${qualify(tableName)} ("${col.name}");`
         );
@@ -328,7 +329,10 @@ export class PostgreSQLAdapter implements DatabaseAdapter {
     this.dbName = options.dbName;
     this.migrations = options.migrations;
     this.pool = options.pool;
-    this._pgSchema = options.pgSchema ?? "public";
+    this._pgSchema = `anuma_${createHash("sha256")
+      .update(JSON.stringify([options.pgSchema ?? "public", this.dbName]))
+      .digest("hex")
+      .slice(0, 48)}`;
     this.qualify = makeQualify(this._pgSchema);
     this.initialized = this._initialize();
   }
@@ -417,10 +421,7 @@ export class PostgreSQLAdapter implements DatabaseAdapter {
         );
         for (const col of ts.columnArray) {
           if (col.isIndexed) {
-            const indexName =
-              this._pgSchema === "public"
-                ? `"${ts.name}_${col.name}"`
-                : `"${this._pgSchema}_${ts.name}_${col.name}"`;
+            const indexName = `"${ts.name}_${col.name}"`;
             await this.pool.query(
               `create index if not exists ${indexName} on ${this.qualify(ts.name)} ("${col.name}");`
             );
@@ -438,10 +439,7 @@ export class PostgreSQLAdapter implements DatabaseAdapter {
             `alter table ${this.qualify(table)} add column if not exists "${col.name}" ${pgType}${nullable}${def};`
           );
           if (col.isIndexed) {
-            const indexName =
-              this._pgSchema === "public"
-                ? `"${table}_${col.name}"`
-                : `"${this._pgSchema}_${table}_${col.name}"`;
+            const indexName = `"${table}_${col.name}"`;
             await this.pool.query(
               `create index if not exists ${indexName} on ${this.qualify(table)} ("${col.name}");`
             );
@@ -450,25 +448,37 @@ export class PostgreSQLAdapter implements DatabaseAdapter {
         break;
       }
       case "sql": {
-        if (this._pgSchema !== "public" && this.pool.connect) {
-          const client = await this.pool.connect();
-          try {
-            await client.query("BEGIN");
-            await client.query(`SET LOCAL search_path TO "${this._pgSchema}", public`);
-            await client.query(step.sql);
-            await client.query("COMMIT");
-          } catch (err) {
-            await client.query("ROLLBACK");
-            throw err;
-          } finally {
-            client.release();
-          }
-        } else {
-          await this.pool.query(step.sql);
-        }
+        await this._withSchema((client) => client.query(step.sql));
         break;
       }
     }
+  }
+
+  private async _withSchema<T>(run: (client: PgClientLike) => Promise<T>): Promise<T> {
+    if (!this.pool.connect) {
+      throw new Error("PostgreSQLAdapter raw SQL requires pool.connect for database isolation");
+    }
+    const client = await this.pool.connect();
+    try {
+      await client.query("BEGIN");
+      await client.query(`SET LOCAL search_path TO "${this._pgSchema}"`);
+      const result = await run(client);
+      await client.query("COMMIT");
+      return result;
+    } catch (err) {
+      await client.query("ROLLBACK");
+      throw err;
+    } finally {
+      client.release();
+    }
+  }
+
+  private async _query(query: SerializedQuery, countMode = false, idsOnly = false) {
+    const [sql, values] = encodeQuery(query, this.qualify, countMode, idsOnly);
+    const description = query.description as unknown as QueryDescription;
+    return description.sql || hasSql(description.where)
+      ? this._withSchema((client) => client.query(sql, values))
+      : this.pool.query(sql, values);
   }
 
   private async _resetAndRecreate(targetVersion: number): Promise<void> {
@@ -520,8 +530,7 @@ export class PostgreSQLAdapter implements DatabaseAdapter {
     this._fromPromise(
       (async () => {
         await this._ready();
-        const [sql, values] = encodeQuery(query, this.qualify);
-        const { rows } = await this.pool.query(sql, values);
+        const { rows } = await this._query(query);
         return rows.map(rowToRaw) as CachedQueryResult;
       })(),
       callback
@@ -532,8 +541,7 @@ export class PostgreSQLAdapter implements DatabaseAdapter {
     this._fromPromise(
       (async () => {
         await this._ready();
-        const [sql, values] = encodeQuery(query, this.qualify, false, true);
-        const { rows } = await this.pool.query(sql, values);
+        const { rows } = await this._query(query, false, true);
         return rows.map((r) => r.id as RecordId);
       })(),
       callback
@@ -545,8 +553,7 @@ export class PostgreSQLAdapter implements DatabaseAdapter {
     this._fromPromise(
       (async () => {
         await this._ready();
-        const [sql, values] = encodeQuery(query, this.qualify);
-        const { rows } = await this.pool.query(sql, values);
+        const { rows } = await this._query(query);
         return rows;
       })(),
       callback
@@ -557,8 +564,7 @@ export class PostgreSQLAdapter implements DatabaseAdapter {
     this._fromPromise(
       (async () => {
         await this._ready();
-        const [sql, values] = encodeQuery(query, this.qualify, true);
-        const { rows } = await this.pool.query(sql, values);
+        const { rows } = await this._query(query, true);
         return Number(rows[0]?.count ?? 0);
       })(),
       callback
@@ -704,7 +710,7 @@ export class PostgreSQLAdapter implements DatabaseAdapter {
       this._fromPromise(
         (async () => {
           await this._ready();
-          await this.pool.query(ops.sqlString!);
+          await this._withSchema((client) => client.query(ops.sqlString!));
         })(),
         callback
       );
@@ -714,9 +720,11 @@ export class PostgreSQLAdapter implements DatabaseAdapter {
       this._fromPromise(
         (async () => {
           await this._ready();
-          for (const [sql, args] of ops.sqls!) {
-            await this.pool.query(sql, args);
-          }
+          await this._withSchema(async (client) => {
+            for (const [sql, args] of ops.sqls!) {
+              await client.query(sql, args);
+            }
+          });
         })(),
         callback
       );

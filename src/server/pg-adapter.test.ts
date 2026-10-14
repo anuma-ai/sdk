@@ -15,7 +15,7 @@ type Row = Record<string, unknown>;
 
 function createMockPool(): PgPoolLike & { tables: Map<string, Row[]> } {
   const tables = new Map<string, Row[]>();
-  const localStorage = new Map<string, string>();
+  const schemas = new Set<string>();
 
   function getTable(name: string): Row[] {
     if (!tables.has(name)) tables.set(name, []);
@@ -25,6 +25,11 @@ function createMockPool(): PgPoolLike & { tables: Map<string, Row[]> } {
   return {
     tables,
     async query(text: string, values?: unknown[]) {
+      const schemaMatch = text.match(/^create schema if not exists "([^"]+)"/i);
+      if (schemaMatch) schemas.add(schemaMatch[1]);
+      text = text.replace(/"([^"]+)"\."([^"]+)"/g, (qualified, schema: string, table: string) =>
+        schemas.has(schema) ? `"${schema}__${table}"` : qualified
+      );
       if (/^create (table|index)/i.test(text)) {
         const tableMatch = text.match(/create table if not exists "(\w+)"/i);
         if (tableMatch) getTable(tableMatch[1]);
@@ -35,10 +40,13 @@ function createMockPool(): PgPoolLike & { tables: Map<string, Row[]> } {
       if (insertMatch) {
         const tableName = insertMatch[1];
 
-        if (tableName === "local_storage" && values) {
+        if (tableName.endsWith("local_storage") && values) {
           const key = values[0] as string;
           const value = values[1] as string;
-          localStorage.set(key, value);
+          const table = getTable(tableName);
+          const row = table.find((row) => row.key === key);
+          if (row) row.value = value;
+          else table.push({ key, value });
           return { rows: [] };
         }
 
@@ -51,20 +59,20 @@ function createMockPool(): PgPoolLike & { tables: Map<string, Row[]> } {
         return { rows: [] };
       }
 
-      if (/select "value" from "local_storage"/i.test(text)) {
+      const getLocalMatch = text.match(/select "value" from "(\w+)"/i);
+      if (getLocalMatch) {
         const key = values?.[0] as string;
-        const val = localStorage.get(key);
-        return { rows: val !== undefined ? [{ value: val }] : [] };
+        return { rows: getTable(getLocalMatch[1]).filter((row) => row.key === key) };
       }
 
-      if (/delete from "local_storage" where "key"/i.test(text)) {
+      const removeLocalMatch = text.match(/delete from "(\w+)" where "key"/i);
+      if (removeLocalMatch) {
         const key = values?.[0] as string;
-        localStorage.delete(key);
-        return { rows: [] };
-      }
-
-      if (/delete from "local_storage"$/i.test(text.trim())) {
-        localStorage.clear();
+        const tableName = removeLocalMatch[1];
+        tables.set(
+          tableName,
+          getTable(tableName).filter((row) => row.key !== key)
+        );
         return { rows: [] };
       }
 
@@ -227,6 +235,112 @@ describe("PostgreSQLAdapter", () => {
         true
       );
       expect(sql.some((s) => s.includes('"local_storage"'))).toBe(true);
+    });
+  });
+
+  describe("database isolation", () => {
+    it.each([undefined, "public", "custom"])(
+      "isolates records, local storage, and resets with pgSchema %s",
+      async (pgSchema) => {
+        const first = new PostgreSQLAdapter({
+          pool,
+          schema: testSchema,
+          dbName: "wallet-a",
+          pgSchema,
+        });
+        const second = new PostgreSQLAdapter({
+          pool,
+          schema: testSchema,
+          dbName: "wallet-b",
+          pgSchema,
+        });
+        const raw = {
+          id: "shared-id",
+          _status: "created" as const,
+          _changed: "",
+          title: "First wallet",
+          is_done: false,
+          priority: null,
+          created_at: 1,
+        };
+        await toPromise((cb) => first.batch([["create", "tasks", raw]], cb));
+        expect(await toPromise((cb) => second.query(allTasksQuery(), cb))).toEqual([]);
+        expect(await toPromise((cb) => second.find("tasks", raw.id, cb))).toBeUndefined();
+        const otherTask = { ...raw, title: "Other wallet" };
+        await toPromise((cb) => second.batch([["update", "tasks", otherTask]], cb));
+        expect(await toPromise((cb) => first.find("tasks", raw.id, cb))).toMatchObject({
+          title: raw.title,
+        });
+        await toPromise((cb) => second.batch([["destroyPermanently", "tasks", raw.id]], cb));
+        expect(await toPromise((cb) => first.count(allTasksQuery(), cb))).toBe(1);
+        const secondTask = { ...raw, title: "Second wallet" };
+        await toPromise((cb) => second.batch([["create", "tasks", secondTask]], cb));
+        expect(await toPromise((cb) => second.queryIds(allTasksQuery(), cb))).toEqual([raw.id]);
+        await toPromise((cb) => first.setLocal("token", "first", cb));
+        expect(await toPromise((cb) => second.getLocal("token", cb))).toBeUndefined();
+        await toPromise((cb) => second.setLocal("token", "second", cb));
+        await toPromise((cb) => second.removeLocal("token", cb));
+        expect(await toPromise((cb) => first.getLocal("token", cb))).toBe("first");
+        await toPromise((cb) => second.unsafeResetDatabase(cb));
+        expect(await toPromise((cb) => second.count(allTasksQuery(), cb))).toBe(0);
+        expect(await toPromise((cb) => first.count(allTasksQuery(), cb))).toBe(1);
+        expect(await toPromise((cb) => first.getLocal("token", cb))).toBe("first");
+        const reopened = new PostgreSQLAdapter({
+          pool,
+          schema: testSchema,
+          dbName: "wallet-a",
+          pgSchema,
+        });
+        expect(await toPromise((cb) => reopened.find("tasks", raw.id, cb))).toMatchObject({
+          title: raw.title,
+        });
+      }
+    );
+
+    it("rejects raw SQL without a dedicated connection", async () => {
+      const queries: string[] = [];
+      const isolated = new PostgreSQLAdapter({
+        pool: {
+          query(text, values) {
+            queries.push(text);
+            return pool.query(text, values);
+          },
+        },
+        schema: testSchema,
+        dbName: "query-only",
+      });
+      await toPromise((cb) => isolated.getLocal("__noop__", cb));
+      const sql = 'delete from "tasks";';
+      await expect(
+        toPromise((cb) => isolated.unsafeExecute({ sqlString: sql }, cb))
+      ).rejects.toThrow("requires pool.connect");
+      const rawQuery = {
+        ...allTasksQuery(),
+        description: {
+          ...allTasksQuery().description,
+          sql: { type: "sqlQuery" as const, sql, values: [] },
+        },
+      };
+      await expect(toPromise((cb) => isolated.unsafeQueryRaw(rawQuery, cb))).rejects.toThrow(
+        "requires pool.connect"
+      );
+      const migrationAdapter = new PostgreSQLAdapter({
+        pool: {
+          query(text, values) {
+            queries.push(text);
+            return pool.query(text, values);
+          },
+        },
+        schema: { ...testSchema, version: 2 },
+        dbName: "query-only",
+        migrations: schemaMigrations({
+          migrations: [{ toVersion: 2, steps: [unsafeExecuteSql(sql)] }],
+        }),
+      });
+      await expect(toPromise((cb) => migrationAdapter.getLocal("__noop__", cb))).rejects.toThrow(
+        "requires pool.connect"
+      );
+      expect(queries).not.toContain(sql);
     });
   });
 
@@ -584,29 +698,35 @@ describe("PostgreSQLAdapter", () => {
       const queries: string[] = [];
 
       const innerPool = createMockPool();
-      await innerPool.query(
-        'insert into "local_storage" ("key", "value") values ($1, $2) on conflict ("key") do update set "value" = $2',
-        ["__schema_version", "1"]
-      );
 
-      const stripSchema = (sql: string) => sql.replace(/"custom"\./g, "");
       const trackedPool: typeof innerPool = {
         ...innerPool,
         tables: innerPool.tables,
         async query(text: string, values?: unknown[]) {
           queries.push(text);
-          return innerPool.query(stripSchema(text), values);
+          return innerPool.query(text, values);
         },
         async connect() {
           return {
             async query(text: string, values?: unknown[]) {
               queries.push(text);
-              return innerPool.query(stripSchema(text), values);
+              return innerPool.query(text, values);
             },
             release: () => {},
           };
         },
       };
+
+      const initialAdapter = new PostgreSQLAdapter({
+        pool: trackedPool,
+        schema: testSchema,
+        dbName: "test-db",
+        pgSchema: "custom",
+      });
+      await toPromise((cb) => initialAdapter.getLocal("__noop__", cb));
+      const schemaName = queries
+        .find((sql) => sql.startsWith("create schema"))
+        ?.match(/"([^"]+)"/)?.[1];
 
       const v2Schema = appSchema({
         version: 2,
@@ -642,7 +762,7 @@ describe("PostgreSQLAdapter", () => {
       await toPromise((cb) => adapter.getLocal("__noop__", cb));
 
       expect(queries).toContain("BEGIN");
-      expect(queries).toContain('SET LOCAL search_path TO "custom", public');
+      expect(queries).toContain(`SET LOCAL search_path TO "${schemaName}"`);
       expect(
         queries.some((q) => q.includes("CREATE INDEX IF NOT EXISTS tasks_title ON tasks"))
       ).toBe(true);
