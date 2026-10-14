@@ -311,44 +311,48 @@ export async function recall(
           ctx.vaultCache!,
           searchOptions
         ))
-    )(query, {
-      limit: types.includes("chunk") ? Math.max(limit * 2, 16) : limit,
-      minSimilarity: vaultMinScore,
-      useFusion: true,
-      rerank: flags.rerank,
-      ...(options.rerankTopN !== undefined && { rerankTopN: options.rerankTopN }),
-      ...(options.ceWeight !== undefined && { ceWeight: options.ceWeight }),
-      ...(options.rerankLoadTimeoutMs !== undefined && {
-        rerankLoadTimeoutMs: options.rerankLoadTimeoutMs,
-      }),
-      ...(options.recencyAlpha !== undefined && { recencyAlpha: options.recencyAlpha }),
-      ...(options.recency && { recency: options.recency }),
-      ...(options.mmr !== undefined && { mmr: options.mmr }),
-      ...(options.supersessionBoost !== undefined && {
-        supersessionBoost: options.supersessionBoost,
-      }),
-      ...(options.supersessionWindow !== undefined && {
-        supersessionWindow: options.supersessionWindow,
-      }),
-      ...(options.proofCountAlpha !== undefined && {
-        proofCountAlpha: options.proofCountAlpha,
-      }),
-      ...(options.bm25AdmissionDivisor !== undefined && {
-        bm25AdmissionDivisor: options.bm25AdmissionDivisor,
-      }),
-      ...(options.rrfK !== undefined && { rrfK: options.rrfK }),
-      ...(options.decryptLast !== undefined && { decryptLast: options.decryptLast }),
-      ...(subQueries && { subQueries }),
-      ...(options.scopes && { scopes: options.scopes }),
-      ...(options.folderId !== undefined && { folderId: options.folderId }),
-      ...(options.factTypes?.length && { factTypes: options.factTypes }),
-      ...(options.memoryIds !== undefined && { memoryIds: options.memoryIds }),
-      ...(options.factTypeWeights && { factTypeWeights: options.factTypeWeights }),
-      ...(entityRanking.length > 0 && { entityRanking }),
-      ...(temporalRanking.length > 0 && { temporalRanking }),
-      ...(needsChunkEmbedding && { queryEmbedding: queryEmbedding ?? [] }),
-      queryEmbedTotalTimeoutMs,
-    });
+    )(
+      query,
+      {
+        limit: types.includes("chunk") ? Math.max(limit * 2, 16) : limit,
+        minSimilarity: vaultMinScore,
+        useFusion: true,
+        rerank: flags.rerank,
+        ...(options.rerankTopN !== undefined && { rerankTopN: options.rerankTopN }),
+        ...(options.ceWeight !== undefined && { ceWeight: options.ceWeight }),
+        ...(options.rerankLoadTimeoutMs !== undefined && {
+          rerankLoadTimeoutMs: options.rerankLoadTimeoutMs,
+        }),
+        ...(options.recencyAlpha !== undefined && { recencyAlpha: options.recencyAlpha }),
+        ...(options.recency && { recency: options.recency }),
+        ...(options.mmr !== undefined && { mmr: options.mmr }),
+        ...(options.supersessionBoost !== undefined && {
+          supersessionBoost: options.supersessionBoost,
+        }),
+        ...(options.supersessionWindow !== undefined && {
+          supersessionWindow: options.supersessionWindow,
+        }),
+        ...(options.proofCountAlpha !== undefined && {
+          proofCountAlpha: options.proofCountAlpha,
+        }),
+        ...(options.bm25AdmissionDivisor !== undefined && {
+          bm25AdmissionDivisor: options.bm25AdmissionDivisor,
+        }),
+        ...(options.rrfK !== undefined && { rrfK: options.rrfK }),
+        ...(options.decryptLast !== undefined && { decryptLast: options.decryptLast }),
+        ...(subQueries && { subQueries }),
+        ...(options.scopes && { scopes: options.scopes }),
+        ...(options.folderId !== undefined && { folderId: options.folderId }),
+        ...(options.factTypes?.length && { factTypes: options.factTypes }),
+        ...(options.memoryIds !== undefined && { memoryIds: options.memoryIds }),
+        ...(options.factTypeWeights && { factTypeWeights: options.factTypeWeights }),
+        ...(entityRanking.length > 0 && { entityRanking }),
+        ...(temporalRanking.length > 0 && { temporalRanking }),
+        ...(needsChunkEmbedding && { queryEmbedding: queryEmbedding ?? [] }),
+        queryEmbedTotalTimeoutMs,
+      },
+      options.embeddingCache
+    );
     factResults.push(
       ...dedupeBy(
         results,
