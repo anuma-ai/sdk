@@ -2,18 +2,24 @@ import type { Collection, Database } from "@nozbe/watermelondb";
 import { Q } from "@nozbe/watermelondb";
 import { v7 as uuidv7 } from "uuid";
 
+import type { LlmapiToolCallEvent } from "../../../client";
 import type { EmbeddedWalletSignerFn, SignMessageFn } from "../../../react/useEncryption";
-import { requestEncryptionKey } from "../../../react/useEncryption";
+import {
+  hasEncryptionKey,
+  refreshEncryptionKeyIfMatches,
+  requestEncryptionKey,
+} from "../../../react/useEncryption";
 import { getLogger } from "../../logger";
 import { cosineSimilarity } from "../../memoryEngine/vector";
 import { decodeChunkVector } from "../../memoryEngine/vectorEncoding";
-import { decryptJsonField } from "../encryption-utils";
+import { decryptFieldDetailed, decryptJsonField } from "../encryption-utils";
 import { ExtractionJob } from "../extractionJobs/models";
 import { decryptConversationFields, encryptConversationFields } from "./conversationEncryption";
 import {
   decryptField,
   decryptMessageFields,
   encryptMessageFields,
+  encryptToolCallEvents,
   isEncrypted,
 } from "./encryption";
 import { Conversation, Message } from "./models";
@@ -719,15 +725,7 @@ export async function getMessageSkeletonsOp(
   return skeletons;
 }
 
-/**
- * Tool-call-event id scan for the send hot path: collect every stored
- * `toolCallEvents[].id` across a conversation WITHOUT building StoredMessages
- * and WITHOUT any field decryption — `tool_call_events` is a plaintext JSON
- * column (encryptMessageFields never touches it), so the dedup set the sender
- * needs is a cheap column read. The previous shape (getMessagesOp) parsed and
- * decrypted every embedding column in the thread just to build this set.
- * unsafeFetchRaw (NOT fetch): never pin a Model per row (web Pile-2).
- */
+/** Collects every stored tool call event id in a conversation without decrypting any field. */
 export async function getToolCallEventIdsOp(
   ctx: StorageOperationsContext,
   convId: string
@@ -1071,7 +1069,7 @@ export async function updateMessageChunksOp(
   return messageToStored(message, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner);
 }
 
-const STRIP_CHUNK_TEXT_PAGE_SIZE = 100;
+const RAW_REPAIR_PAGE_SIZE = 100;
 
 function chunksWithoutText(raw: unknown): object[] | null {
   if (typeof raw !== "string") return null;
@@ -1122,8 +1120,8 @@ export async function stripLegacyChunkTextOp(ctx: StorageOperationsContext): Pro
     .fetchIds();
 
   let stripped = 0;
-  for (let start = 0; start < candidateIds.length; start += STRIP_CHUNK_TEXT_PAGE_SIZE) {
-    const pageIds = candidateIds.slice(start, start + STRIP_CHUNK_TEXT_PAGE_SIZE);
+  for (let start = 0; start < candidateIds.length; start += RAW_REPAIR_PAGE_SIZE) {
+    const pageIds = candidateIds.slice(start, start + RAW_REPAIR_PAGE_SIZE);
     const rows = (await ctx.messagesCollection
       .query(Q.where("id", Q.oneOf(pageIds)))
       .unsafeFetchRaw()) as Record<string, unknown>[];
@@ -1154,6 +1152,126 @@ export async function stripLegacyChunkTextOp(ctx: StorageOperationsContext): Pro
     });
   }
   return stripped;
+}
+
+async function encryptedToolCallEventsColumn(
+  raw: unknown,
+  address: string,
+  signMessage: SignMessageFn,
+  embeddedWalletSigner?: EmbeddedWalletSignerFn
+): Promise<string | null> {
+  if (typeof raw !== "string") return null;
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return null;
+  }
+  if (!Array.isArray(parsed)) return null;
+  const column = JSON.stringify(
+    await encryptToolCallEvents(
+      parsed as LlmapiToolCallEvent[],
+      address,
+      signMessage,
+      embeddedWalletSigner
+    )
+  );
+  return column === JSON.stringify(parsed) ? null : column;
+}
+
+/**
+ * Encrypts tool call arguments and results still stored in plaintext and
+ * returns how many rows changed, giving each touched conversation a new
+ * `updatedAt` so backups re-upload it, which moves it to the top of any list
+ * sorted by `updatedAt`.
+ */
+export async function encryptToolCallEventsOp(ctx: StorageOperationsContext): Promise<number> {
+  const { walletAddress: address, signMessage, embeddedWalletSigner } = ctx;
+  if (!address || !signMessage) return 0;
+  if (!(await requestEncryptionKey(address, signMessage, embeddedWalletSigner))) return 0;
+  if (!hasEncryptionKey(address)) return 0;
+  if (!(await savedKeyOpensExistingData(ctx, address, signMessage, embeddedWalletSigner))) {
+    return 0;
+  }
+
+  const candidateIds = await ctx.messagesCollection
+    .query(
+      Q.where("tool_call_events", Q.notEq(null)),
+      Q.where("tool_call_events", Q.notIn(["", "[]"]))
+    )
+    .fetchIds();
+
+  let encrypted = 0;
+  for (let start = 0; start < candidateIds.length; start += RAW_REPAIR_PAGE_SIZE) {
+    const pageIds = candidateIds.slice(start, start + RAW_REPAIR_PAGE_SIZE);
+    const rows = (await ctx.messagesCollection
+      .query(Q.where("id", Q.oneOf(pageIds)))
+      .unsafeFetchRaw()) as Record<string, unknown>[];
+
+    const repairs = new Map<string, { raw: unknown; column: string }>();
+    for (const row of rows) {
+      const column = await encryptedToolCallEventsColumn(
+        row.tool_call_events,
+        address,
+        signMessage,
+        embeddedWalletSigner
+      );
+      if (column !== null) repairs.set(String(row.id), { raw: row.tool_call_events, column });
+    }
+    if (repairs.size === 0) continue;
+
+    await ctx.database.write(async () => {
+      const messages = (
+        await ctx.messagesCollection.query(Q.where("id", Q.oneOf([...repairs.keys()]))).fetch()
+      ).filter(
+        (message) =>
+          (message._raw as unknown as { tool_call_events: unknown }).tool_call_events ===
+          repairs.get(message.id)?.raw
+      );
+      if (messages.length === 0) return;
+      const conversationIds = [...new Set(messages.map((message) => message.conversationId))];
+      const conversations = await ctx.conversationsCollection
+        .query(Q.where("conversation_id", Q.oneOf(conversationIds)))
+        .fetch();
+      await ctx.database.batch(
+        ...messages.map((message) =>
+          message.prepareUpdate((msg) => {
+            msg._setRaw("tool_call_events", repairs.get(message.id)!.column);
+          })
+        ),
+        ...conversations.map((conversation) => conversation.prepareUpdate(() => {}))
+      );
+      encrypted += messages.length;
+    });
+  }
+  return encrypted;
+}
+
+async function savedKeyOpensExistingData(
+  ctx: StorageOperationsContext,
+  address: string,
+  signMessage: SignMessageFn,
+  embeddedWalletSigner?: EmbeddedWalletSignerFn
+): Promise<boolean> {
+  const v3Probe = await findEncryptedContent(ctx, "enc:v3:%");
+  if (v3Probe) {
+    const { status } = await decryptFieldDetailed(v3Probe, address);
+    if (status !== "auth_mismatch" && status !== "key_missing") return true;
+    return refreshEncryptionKeyIfMatches(address, v3Probe, signMessage, embeddedWalletSigner);
+  }
+  const v2Probe = await findEncryptedContent(ctx, "enc:v2:%");
+  if (!v2Probe) return true;
+  return refreshEncryptionKeyIfMatches(address, v2Probe, signMessage, embeddedWalletSigner);
+}
+
+async function findEncryptedContent(
+  ctx: StorageOperationsContext,
+  pattern: string
+): Promise<string | null> {
+  const [row] = (await ctx.messagesCollection
+    .query(Q.where("content", Q.like(pattern)), Q.take(1))
+    .unsafeFetchRaw()) as Record<string, unknown>[];
+  return row ? String(row.content) : null;
 }
 
 export async function updateMessageErrorOp(

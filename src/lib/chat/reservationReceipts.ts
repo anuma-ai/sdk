@@ -1,4 +1,5 @@
 import type { LlmapiToolCallEvent } from "../../client";
+import { hasEncryptedToolPayload } from "../db/encryption-utils";
 
 /**
  * What became of a restaurant booking or cancellation in one turn, read from
@@ -56,7 +57,8 @@ export function extractReservationReceipts(
   for (const event of toolCallEvents ?? []) {
     const action = ACTIONS.find((a) => event.name?.endsWith(a.tool));
     const output = event.output ?? "";
-    if (!action || !output || NOT_AN_ATTEMPT.test(output)) continue;
+    if (!action || !output || hasEncryptedToolPayload(event) || NOT_AN_ATTEMPT.test(output))
+      continue;
     const kept = latest.get(action.kind)?.status;
     if (kept === "made") continue;
     const receipt = toReceipt(action, event.arguments ?? "", output);

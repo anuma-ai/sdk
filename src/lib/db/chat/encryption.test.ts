@@ -548,4 +548,77 @@ describe("Chat Encryption Utilities", () => {
       expect(() => seedEncryptionKeys(testAddress, { legacy: "zz".repeat(32) })).toThrow(/64 hex/);
     });
   });
+
+  describe("tool call events", () => {
+    const events = [
+      {
+        id: "call_1",
+        name: "web_search",
+        arguments: '{"q":"secret"}',
+        output: "result",
+        cost_micro_usd: 7,
+      },
+      { id: "call_2", name: "noop", arguments: "", output: undefined },
+    ];
+
+    const storedWith = (toolCallEvents: StoredMessage["toolCallEvents"]): StoredMessage => ({
+      uniqueId: "msg-tce",
+      messageId: 1,
+      conversationId: "conv-123",
+      role: "assistant",
+      content: "plain",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      toolCallEvents,
+    });
+
+    it("encrypts arguments and output and leaves the rest of each event alone", async () => {
+      await requestEncryptionKey(testAddress, mockSignMessage);
+      const input = events.map((e) => ({ ...e }));
+      const encrypted = (await encryptMessageFields(
+        { conversationId: "conv-123", role: "assistant", content: "x", toolCallEvents: input },
+        testAddress,
+        mockSignMessage
+      )) as { toolCallEvents: typeof events };
+
+      expect(input).toEqual(events);
+      const [first, second] = encrypted.toolCallEvents;
+      expect(isEncrypted(first.arguments)).toBe(true);
+      expect(isEncrypted(first.output as string)).toBe(true);
+      expect(first).toMatchObject({ id: "call_1", name: "web_search", cost_micro_usd: 7 });
+      expect(second).toEqual(events[1]);
+
+      const again = (await encryptMessageFields(
+        { conversationId: "conv-123", role: "assistant", toolCallEvents: encrypted.toolCallEvents },
+        testAddress,
+        mockSignMessage
+      )) as { toolCallEvents: typeof events };
+      expect(again.toolCallEvents).toEqual(encrypted.toolCallEvents);
+    });
+
+    it("decrypts events back and reports key_missing or auth_mismatch on failure", async () => {
+      await requestEncryptionKey(testAddress, mockSignMessage);
+      const encrypted = (await encryptMessageFields(
+        { conversationId: "conv-123", role: "assistant", content: "x", toolCallEvents: events },
+        testAddress,
+        mockSignMessage
+      )) as { toolCallEvents: StoredMessage["toolCallEvents"] };
+      const stored = storedWith(encrypted.toolCallEvents);
+
+      const ok = await decryptMessageFields(stored, testAddress);
+      expect(ok.toolCallEvents).toEqual(events);
+      expect(ok.decryptionStatus).toBeUndefined();
+
+      clearAllEncryptionKeys();
+      const missing = await decryptMessageFields(stored, testAddress);
+      expect(missing.decryptionStatus).toBe("key_missing");
+      expect(missing.toolCallEvents).toEqual(encrypted.toolCallEvents);
+
+      const { seedEncryptionKeys } = await import("../../../react/useEncryption");
+      seedEncryptionKeys(testAddress, { current: "ee".repeat(32) });
+      const mismatch = await decryptMessageFields(stored, testAddress);
+      expect(mismatch.decryptionStatus).toBe("auth_mismatch");
+      expect(mismatch.toolCallEvents).toEqual(encrypted.toolCallEvents);
+    });
+  });
 });

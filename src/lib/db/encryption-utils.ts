@@ -1,3 +1,4 @@
+import type { LlmapiToolCallEvent } from "../../client";
 import type {
   EmbeddedWalletSignerFn,
   EncryptionKeyVersion,
@@ -46,6 +47,13 @@ export function isEncrypted(value: string): boolean {
   if (!prefix) return false;
   const payload = value.slice(prefix.length);
   return payload.length >= 56 && /^[0-9a-f]+$/i.test(payload);
+}
+
+/** True when a stored tool call event still holds ciphertext in its arguments or output. */
+export function hasEncryptedToolPayload(event: LlmapiToolCallEvent): boolean {
+  return [event.arguments, event.output].some(
+    (value) => typeof value === "string" && isEncrypted(value)
+  );
 }
 
 function detectEncryptionVersion(
