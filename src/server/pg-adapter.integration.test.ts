@@ -1,8 +1,8 @@
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { randomUUID } from "node:crypto";
-import type { Pool } from "pg";
+
 import { appSchema, tableSchema } from "@nozbe/watermelondb";
 import type { SerializedQuery } from "@nozbe/watermelondb/Query";
+import type { RawRecord } from "@nozbe/watermelondb/RawRecord";
 import type { SchemaMigrations } from "@nozbe/watermelondb/Schema/migrations";
 import {
   addColumns,
@@ -11,8 +11,11 @@ import {
   unsafeExecuteSql,
 } from "@nozbe/watermelondb/Schema/migrations";
 import { toPromise } from "@nozbe/watermelondb/utils/fp/Result";
-import { PostgreSQLAdapter } from "./pg-adapter";
+import type { Pool } from "pg";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
+
 import type { PgClientLike, PgPoolLike } from "./pg-adapter";
+import { PostgreSQLAdapter } from "./pg-adapter";
 
 const databaseUrl = process.env.NEARBY_TEST_DATABASE_URL;
 const runIntegration = process.env.INTEGRATION === "1" || Boolean(databaseUrl);
@@ -50,6 +53,10 @@ function tasksQuery(sql?: string): SerializedQuery {
     },
     associations: [],
   };
+}
+
+function rawRecord(record: RawRecord & Record<string, unknown>): RawRecord {
+  return record;
 }
 
 function task(id: string, title: string) {
@@ -307,7 +314,7 @@ describe.skipIf(!runIntegration)("PostgreSQLAdapter (integration)", () => {
     } finally {
       await pool.query(`drop table public."${fallbackTable}"`);
     }
-    const { rows } = await pool.query("SHOW search_path");
+    const { rows } = await pool.query<{ search_path: string }>("SHOW search_path");
     expect(rows[0].search_path).not.toContain("anuma_");
   });
 
@@ -318,7 +325,7 @@ describe.skipIf(!runIntegration)("PostgreSQLAdapter (integration)", () => {
           [
             "create",
             "tasks",
-            {
+            rawRecord({
               id: "dup-1",
               _status: "created",
               _changed: "",
@@ -326,15 +333,14 @@ describe.skipIf(!runIntegration)("PostgreSQLAdapter (integration)", () => {
               is_done: false,
               priority: null,
               created_at: 1,
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any -- test fixture shape
-            } as any,
+            }),
           ],
         ],
         cb
       )
     );
 
-    let err: Error | undefined;
+    let err: unknown;
     try {
       await toPromise((cb) =>
         adapter.batch(
@@ -342,7 +348,7 @@ describe.skipIf(!runIntegration)("PostgreSQLAdapter (integration)", () => {
             [
               "create",
               "tasks",
-              {
+              rawRecord({
                 id: "dup-1",
                 _status: "created",
                 _changed: "",
@@ -350,26 +356,23 @@ describe.skipIf(!runIntegration)("PostgreSQLAdapter (integration)", () => {
                 is_done: false,
                 priority: null,
                 created_at: 2,
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any -- test fixture shape
-              } as any,
+              }),
             ],
           ],
           cb
         )
       );
     } catch (e) {
-      err = e as Error;
+      err = e;
     }
     expect(err).toBeDefined();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- pg error shape
-    expect((err as any)?.code ?? String(err)).toMatch(/23505|duplicate key/i);
+    expect(err).toMatchObject({ code: "23505" });
   });
 
   it("rejects inserts that violate a foreign-key constraint", async () => {
     await toPromise((cb) =>
       adapter.unsafeExecute(
         {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any -- cast through UnsafeExecuteOperations
           sqls: [
             [
               `create table if not exists "task_notes" (
@@ -379,15 +382,13 @@ describe.skipIf(!runIntegration)("PostgreSQLAdapter (integration)", () => {
               )`,
               [],
             ],
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any -- cast through UnsafeExecuteOperations
-          ] as any,
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any -- cast through UnsafeExecuteOperations
-        } as any,
+          ],
+        },
         cb
       )
     );
 
-    let err: Error | undefined;
+    let err: unknown;
     try {
       await toPromise((cb) =>
         adapter.unsafeExecute(
@@ -397,19 +398,16 @@ describe.skipIf(!runIntegration)("PostgreSQLAdapter (integration)", () => {
                 `insert into "task_notes" ("id", "task_id", "note") values ($1, $2, $3)`,
                 ["note-1", "does-not-exist", "orphan"],
               ],
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any -- cast through UnsafeExecuteOperations
-            ] as any,
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any -- cast through UnsafeExecuteOperations
-          } as any,
+            ],
+          },
           cb
         )
       );
     } catch (e) {
-      err = e as Error;
+      err = e;
     }
     expect(err).toBeDefined();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- pg error shape
-    expect((err as any)?.code ?? String(err)).toMatch(/23503|foreign key/i);
+    expect(err).toMatchObject({ code: "23503" });
   });
 
   it("rolls back the whole batch when one operation inside the transaction fails", async () => {
@@ -419,7 +417,7 @@ describe.skipIf(!runIntegration)("PostgreSQLAdapter (integration)", () => {
           [
             "create",
             "tasks",
-            {
+            rawRecord({
               id: "seed-1",
               _status: "created",
               _changed: "",
@@ -427,8 +425,7 @@ describe.skipIf(!runIntegration)("PostgreSQLAdapter (integration)", () => {
               is_done: false,
               priority: null,
               created_at: 10,
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any -- test fixture shape
-            } as any,
+            }),
           ],
         ],
         cb
@@ -456,7 +453,7 @@ describe.skipIf(!runIntegration)("PostgreSQLAdapter (integration)", () => {
     });
     await toPromise((cb) => txAdapter.getLocal("__noop__", cb));
 
-    let err: Error | undefined;
+    let err: unknown;
     try {
       await toPromise((cb) =>
         txAdapter.batch(
@@ -464,7 +461,7 @@ describe.skipIf(!runIntegration)("PostgreSQLAdapter (integration)", () => {
             [
               "create",
               "tasks",
-              {
+              rawRecord({
                 id: "batch-new",
                 _status: "created",
                 _changed: "",
@@ -472,13 +469,12 @@ describe.skipIf(!runIntegration)("PostgreSQLAdapter (integration)", () => {
                 is_done: false,
                 priority: null,
                 created_at: 20,
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any -- test fixture shape
-              } as any,
+              }),
             ],
             [
               "update",
               "tasks",
-              {
+              rawRecord({
                 id: "seed-1",
                 _status: "updated",
                 _changed: "title",
@@ -486,27 +482,24 @@ describe.skipIf(!runIntegration)("PostgreSQLAdapter (integration)", () => {
                 is_done: false,
                 priority: null,
                 created_at: 10,
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any -- test fixture shape
-              } as any,
+              }),
             ],
           ],
           cb
         )
       );
     } catch (e) {
-      err = e as Error;
+      err = e;
     }
 
     expect(err).toBeDefined();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- pg error shape
-    expect((err as any)?.code ?? String(err)).toMatch(/22012|division by zero/i);
+    expect(err).toMatchObject({ code: "22012" });
 
     const newRow = await toPromise((cb) => adapter.find("tasks", "batch-new", cb));
     expect(newRow).toBeUndefined();
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- raw-record shape
-    const seed = (await toPromise((cb) => adapter.find("tasks", "seed-1", cb))) as any;
+    const seed = await toPromise((cb) => adapter.find("tasks", "seed-1", cb));
     expect(seed).toBeDefined();
-    expect(seed.title).toBe("Seed");
+    expect(seed).toMatchObject({ title: "Seed" });
   });
 });

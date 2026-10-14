@@ -1,17 +1,22 @@
-import { describe, it, expect, beforeEach } from "vitest";
 import { appSchema, tableSchema } from "@nozbe/watermelondb";
+import type { SerializedQuery } from "@nozbe/watermelondb/Query";
+import type { RawRecord } from "@nozbe/watermelondb/RawRecord";
 import {
-  schemaMigrations,
   addColumns,
-  createTable,
+  schemaMigrations,
   unsafeExecuteSql,
 } from "@nozbe/watermelondb/Schema/migrations";
 import { toPromise } from "@nozbe/watermelondb/utils/fp/Result";
-import { PostgreSQLAdapter, schemaToCreateSQL } from "./pg-adapter";
+import { beforeEach, describe, expect, it } from "vitest";
+
 import type { PgPoolLike } from "./pg-adapter";
-import type { SerializedQuery } from "@nozbe/watermelondb/Query";
+import { PostgreSQLAdapter, schemaToCreateSQL } from "./pg-adapter";
 
 type Row = Record<string, unknown>;
+
+function rawRecord(record: RawRecord & Record<string, unknown>): RawRecord {
+  return record;
+}
 
 function createMockPool(): PgPoolLike & { tables: Map<string, Row[]> } {
   const tables = new Map<string, Row[]>();
@@ -22,166 +27,166 @@ function createMockPool(): PgPoolLike & { tables: Map<string, Row[]> } {
     return tables.get(name)!;
   }
 
+  function executeQuery(text: string, values?: unknown[]): { rows: Row[] } {
+    const schemaMatch = text.match(/^create schema if not exists "([^"]+)"/i);
+    if (schemaMatch) schemas.add(schemaMatch[1]);
+    text = text.replace(/"([^"]+)"\."([^"]+)"/g, (qualified, schema: string, table: string) =>
+      schemas.has(schema) ? `"${schema}__${table}"` : qualified
+    );
+    if (/^create (table|index)/i.test(text)) {
+      const tableMatch = text.match(/create table if not exists "(\w+)"/i);
+      if (tableMatch) getTable(tableMatch[1]);
+      return { rows: [] };
+    }
+
+    const insertMatch = text.match(/^insert into "(\w+)" \((.+?)\) values/i);
+    if (insertMatch) {
+      const tableName = insertMatch[1];
+
+      if (tableName.endsWith("local_storage") && values) {
+        const key = values[0] as string;
+        const value = values[1] as string;
+        const table = getTable(tableName);
+        const row = table.find((row) => row.key === key);
+        if (row) row.value = value;
+        else table.push({ key, value });
+        return { rows: [] };
+      }
+
+      const colNames = insertMatch[2].split(",").map((c) => c.trim().replace(/"/g, ""));
+      const row: Row = {};
+      colNames.forEach((col, i) => {
+        row[col] = values?.[i] ?? null;
+      });
+      getTable(tableName).push(row);
+      return { rows: [] };
+    }
+
+    const getLocalMatch = text.match(/select "value" from "(\w+)"/i);
+    if (getLocalMatch) {
+      const key = values?.[0] as string;
+      return { rows: getTable(getLocalMatch[1]).filter((row) => row.key === key) };
+    }
+
+    const removeLocalMatch = text.match(/delete from "(\w+)" where "key"/i);
+    if (removeLocalMatch) {
+      const key = values?.[0] as string;
+      const tableName = removeLocalMatch[1];
+      tables.set(
+        tableName,
+        getTable(tableName).filter((row) => row.key !== key)
+      );
+      return { rows: [] };
+    }
+
+    const selectByIdMatch = text.match(/select \* from "(\w+)" where "id" = \$1/i);
+    if (selectByIdMatch) {
+      const rows = getTable(selectByIdMatch[1]).filter((r) => r.id === values?.[0]);
+      return { rows };
+    }
+
+    const selectAllMatch = text.match(/select "(\w+)"\.\* from "(\w+)"/i);
+    if (selectAllMatch) {
+      const tableName = selectAllMatch[2];
+      return { rows: [...getTable(tableName)] };
+    }
+
+    const selectIdsMatch = text.match(/select "(\w+)"\."id" from "(\w+)"/i);
+    if (selectIdsMatch) {
+      const tableName = selectIdsMatch[2];
+      return { rows: getTable(tableName).map((r) => ({ id: r.id })) };
+    }
+
+    const countMatch = text.match(/select count\(\*\) as "count" from "(\w+)"/i);
+    if (countMatch) {
+      return { rows: [{ count: getTable(countMatch[1]).length }] };
+    }
+
+    const markDeletedMatch = text.match(
+      /^update "(\w+)" set "_status" = 'deleted' where "id" = \$1/i
+    );
+    if (markDeletedMatch) {
+      const tableName = markDeletedMatch[1];
+      const id = values?.[0];
+      const row = getTable(tableName).find((r) => r.id === id);
+      if (row) row._status = "deleted";
+      return { rows: [] };
+    }
+
+    const updateMatch = text.match(/^update "(\w+)" set (.+?) where "id" = \$(\d+)/i);
+    if (updateMatch) {
+      const tableName = updateMatch[1];
+      const id = values?.[Number(updateMatch[3]) - 1];
+      const table = getTable(tableName);
+      const row = table.find((r) => r.id === id);
+      if (row) {
+        const setParts = updateMatch[2].split(",").map((s) => s.trim());
+        setParts.forEach((part) => {
+          const colMatch = part.match(/"(\w+)" = \$(\d+)/);
+          if (colMatch) {
+            row[colMatch[1]] = values?.[Number(colMatch[2]) - 1] ?? null;
+          }
+        });
+      }
+      return { rows: [] };
+    }
+
+    const deleteByIdsMatch = text.match(/^delete from "(\w+)" where "id" in/i);
+    if (deleteByIdsMatch) {
+      const tableName = deleteByIdsMatch[1];
+      const ids = new Set(values);
+      const table = getTable(tableName);
+      const remaining = table.filter((r) => !ids.has(r.id));
+      tables.set(tableName, remaining);
+      return { rows: [] };
+    }
+
+    const deleteByIdMatch = text.match(/^delete from "(\w+)" where "id" = \$1/i);
+    if (deleteByIdMatch) {
+      const tableName = deleteByIdMatch[1];
+      const table = getTable(tableName);
+      tables.set(
+        tableName,
+        table.filter((r) => r.id !== values?.[0])
+      );
+      return { rows: [] };
+    }
+
+    const deleteAllMatch = text.match(/^delete from "(\w+)"$/i);
+    if (deleteAllMatch) {
+      tables.set(deleteAllMatch[1], []);
+      return { rows: [] };
+    }
+
+    const dropMatch = text.match(/^drop table if exists "(\w+)"/i);
+    if (dropMatch) {
+      tables.delete(dropMatch[1]);
+      return { rows: [] };
+    }
+
+    if (/^alter table/i.test(text)) {
+      return { rows: [] };
+    }
+
+    if (/select "id" from "\w+" where "_status" = 'deleted'/i.test(text)) {
+      const tblMatch = text.match(/from "(\w+)"/);
+      if (tblMatch) {
+        const rows = getTable(tblMatch[1]).filter((r) => r._status === "deleted");
+        return { rows: rows.map((r) => ({ id: r.id })) };
+      }
+    }
+
+    return { rows: [] };
+  }
+
   return {
     tables,
-    async query(text: string, values?: unknown[]) {
-      const schemaMatch = text.match(/^create schema if not exists "([^"]+)"/i);
-      if (schemaMatch) schemas.add(schemaMatch[1]);
-      text = text.replace(/"([^"]+)"\."([^"]+)"/g, (qualified, schema: string, table: string) =>
-        schemas.has(schema) ? `"${schema}__${table}"` : qualified
-      );
-      if (/^create (table|index)/i.test(text)) {
-        const tableMatch = text.match(/create table if not exists "(\w+)"/i);
-        if (tableMatch) getTable(tableMatch[1]);
-        return { rows: [] };
-      }
-
-      const insertMatch = text.match(/^insert into "(\w+)" \((.+?)\) values/i);
-      if (insertMatch) {
-        const tableName = insertMatch[1];
-
-        if (tableName.endsWith("local_storage") && values) {
-          const key = values[0] as string;
-          const value = values[1] as string;
-          const table = getTable(tableName);
-          const row = table.find((row) => row.key === key);
-          if (row) row.value = value;
-          else table.push({ key, value });
-          return { rows: [] };
-        }
-
-        const colNames = insertMatch[2].split(",").map((c) => c.trim().replace(/"/g, ""));
-        const row: Row = {};
-        colNames.forEach((col, i) => {
-          row[col] = values?.[i] ?? null;
-        });
-        getTable(tableName).push(row);
-        return { rows: [] };
-      }
-
-      const getLocalMatch = text.match(/select "value" from "(\w+)"/i);
-      if (getLocalMatch) {
-        const key = values?.[0] as string;
-        return { rows: getTable(getLocalMatch[1]).filter((row) => row.key === key) };
-      }
-
-      const removeLocalMatch = text.match(/delete from "(\w+)" where "key"/i);
-      if (removeLocalMatch) {
-        const key = values?.[0] as string;
-        const tableName = removeLocalMatch[1];
-        tables.set(
-          tableName,
-          getTable(tableName).filter((row) => row.key !== key)
-        );
-        return { rows: [] };
-      }
-
-      const selectByIdMatch = text.match(/select \* from "(\w+)" where "id" = \$1/i);
-      if (selectByIdMatch) {
-        const rows = getTable(selectByIdMatch[1]).filter((r) => r.id === values?.[0]);
-        return { rows };
-      }
-
-      const selectAllMatch = text.match(/select "(\w+)"\.\* from "(\w+)"/i);
-      if (selectAllMatch) {
-        const tableName = selectAllMatch[2];
-        return { rows: [...getTable(tableName)] };
-      }
-
-      const selectIdsMatch = text.match(/select "(\w+)"\."id" from "(\w+)"/i);
-      if (selectIdsMatch) {
-        const tableName = selectIdsMatch[2];
-        return { rows: getTable(tableName).map((r) => ({ id: r.id })) };
-      }
-
-      const countMatch = text.match(/select count\(\*\) as "count" from "(\w+)"/i);
-      if (countMatch) {
-        return { rows: [{ count: getTable(countMatch[1]).length }] };
-      }
-
-      const markDeletedMatch = text.match(
-        /^update "(\w+)" set "_status" = 'deleted' where "id" = \$1/i
-      );
-      if (markDeletedMatch) {
-        const tableName = markDeletedMatch[1];
-        const id = values?.[0];
-        const row = getTable(tableName).find((r) => r.id === id);
-        if (row) row._status = "deleted";
-        return { rows: [] };
-      }
-
-      const updateMatch = text.match(/^update "(\w+)" set (.+?) where "id" = \$(\d+)/i);
-      if (updateMatch) {
-        const tableName = updateMatch[1];
-        const id = values?.[Number(updateMatch[3]) - 1];
-        const table = getTable(tableName);
-        const row = table.find((r) => r.id === id);
-        if (row) {
-          const setParts = updateMatch[2].split(",").map((s) => s.trim());
-          setParts.forEach((part) => {
-            const colMatch = part.match(/"(\w+)" = \$(\d+)/);
-            if (colMatch) {
-              row[colMatch[1]] = values?.[Number(colMatch[2]) - 1] ?? null;
-            }
-          });
-        }
-        return { rows: [] };
-      }
-
-      const deleteByIdsMatch = text.match(/^delete from "(\w+)" where "id" in/i);
-      if (deleteByIdsMatch) {
-        const tableName = deleteByIdsMatch[1];
-        const ids = new Set(values);
-        const table = getTable(tableName);
-        const remaining = table.filter((r) => !ids.has(r.id));
-        tables.set(tableName, remaining);
-        return { rows: [] };
-      }
-
-      const deleteByIdMatch = text.match(/^delete from "(\w+)" where "id" = \$1/i);
-      if (deleteByIdMatch) {
-        const tableName = deleteByIdMatch[1];
-        const table = getTable(tableName);
-        tables.set(
-          tableName,
-          table.filter((r) => r.id !== values?.[0])
-        );
-        return { rows: [] };
-      }
-
-      const deleteAllMatch = text.match(/^delete from "(\w+)"$/i);
-      if (deleteAllMatch) {
-        tables.set(deleteAllMatch[1], []);
-        return { rows: [] };
-      }
-
-      const dropMatch = text.match(/^drop table if exists "(\w+)"/i);
-      if (dropMatch) {
-        tables.delete(dropMatch[1]);
-        return { rows: [] };
-      }
-
-      if (/^alter table/i.test(text)) {
-        return { rows: [] };
-      }
-
-      if (/select "id" from "\w+" where "_status" = 'deleted'/i.test(text)) {
-        const tblMatch = text.match(/from "(\w+)"/);
-        if (tblMatch) {
-          const rows = getTable(tblMatch[1]).filter((r) => r._status === "deleted");
-          return { rows: rows.map((r) => ({ id: r.id })) };
-        }
-      }
-
-      return { rows: [] };
-    },
-    async connect() {
-      const pool = this as PgPoolLike;
-      return {
-        query: (text: string, values?: unknown[]) => pool.query(text, values),
+    query: (text, values) => Promise.resolve(executeQuery(text, values)),
+    connect: () =>
+      Promise.resolve({
+        query: (text, values) => Promise.resolve(executeQuery(text, values)),
         release: () => {},
-      };
-    },
+      }),
   };
 }
 
@@ -210,7 +215,7 @@ function allTasksQuery(): SerializedQuery {
       sortBy: [],
     },
     associations: [],
-  } as unknown as SerializedQuery;
+  };
 }
 
 describe("PostgreSQLAdapter", () => {
@@ -239,6 +244,25 @@ describe("PostgreSQLAdapter", () => {
   });
 
   describe("database isolation", () => {
+    it("keeps wallet local storage private on a shared query-only pool", async () => {
+      const queryOnlyPool: PgPoolLike = { query: (text, values) => pool.query(text, values) };
+      const first = new PostgreSQLAdapter({
+        pool: queryOnlyPool,
+        schema: testSchema,
+        dbName: "wallet-a",
+      });
+      const second = new PostgreSQLAdapter({
+        pool: queryOnlyPool,
+        schema: testSchema,
+        dbName: "wallet-b",
+      });
+
+      await toPromise((cb) => first.setLocal("token", "first-wallet-token", cb));
+
+      expect(await toPromise((cb) => second.getLocal("token", cb))).toBeUndefined();
+      expect(await toPromise((cb) => first.getLocal("token", cb))).toBe("first-wallet-token");
+    });
+
     it.each([undefined, "public", "custom"])(
       "isolates records, local storage, and resets with pgSchema %s",
       async (pgSchema) => {
@@ -357,7 +381,7 @@ describe("PostgreSQLAdapter", () => {
             [
               "create",
               "tasks",
-              {
+              rawRecord({
                 id: "task1",
                 _status: "created",
                 _changed: "",
@@ -365,7 +389,7 @@ describe("PostgreSQLAdapter", () => {
                 is_done: 0,
                 priority: null,
                 created_at: 1000,
-              } as any,
+              }),
             ],
           ],
           cb
@@ -374,8 +398,7 @@ describe("PostgreSQLAdapter", () => {
 
       const result = await toPromise((cb) => adapter.find("tasks", "task1", cb));
       expect(result).toBeDefined();
-      expect((result as any).id).toBe("task1");
-      expect((result as any).title).toBe("Test");
+      expect(result).toMatchObject({ id: "task1", title: "Test" });
     });
   });
 
@@ -387,7 +410,7 @@ describe("PostgreSQLAdapter", () => {
             [
               "create",
               "tasks",
-              {
+              rawRecord({
                 id: "t1",
                 _status: "created",
                 _changed: "",
@@ -395,12 +418,12 @@ describe("PostgreSQLAdapter", () => {
                 is_done: 0,
                 priority: null,
                 created_at: 1,
-              } as any,
+              }),
             ],
             [
               "create",
               "tasks",
-              {
+              rawRecord({
                 id: "t2",
                 _status: "created",
                 _changed: "",
@@ -408,7 +431,7 @@ describe("PostgreSQLAdapter", () => {
                 is_done: 0,
                 priority: null,
                 created_at: 2,
-              } as any,
+              }),
             ],
           ],
           cb
@@ -424,7 +447,7 @@ describe("PostgreSQLAdapter", () => {
             [
               "update",
               "tasks",
-              {
+              rawRecord({
                 id: "t1",
                 _status: "updated",
                 _changed: "title",
@@ -432,7 +455,7 @@ describe("PostgreSQLAdapter", () => {
                 is_done: 1,
                 priority: null,
                 created_at: 1,
-              } as any,
+              }),
             ],
           ],
           cb
@@ -440,9 +463,9 @@ describe("PostgreSQLAdapter", () => {
       );
 
       const found = await toPromise((cb) => adapter.find("tasks", "t1", cb));
-      expect((found as any).title).toBe("Updated First");
+      expect(found).toMatchObject({ title: "Updated First" });
 
-      await toPromise((cb) => adapter.batch([["destroyPermanently", "tasks", "t2" as any]], cb));
+      await toPromise((cb) => adapter.batch([["destroyPermanently", "tasks", "t2"]], cb));
 
       count = await toPromise((cb) => adapter.count(allTasksQuery(), cb));
       expect(count).toBe(1);
@@ -455,7 +478,7 @@ describe("PostgreSQLAdapter", () => {
             [
               "create",
               "tasks",
-              {
+              rawRecord({
                 id: "t1",
                 _status: "created",
                 _changed: "",
@@ -463,14 +486,14 @@ describe("PostgreSQLAdapter", () => {
                 is_done: 0,
                 priority: null,
                 created_at: 1,
-              } as any,
+              }),
             ],
           ],
           cb
         )
       );
 
-      await toPromise((cb) => adapter.batch([["markAsDeleted", "tasks", "t1" as any]], cb));
+      await toPromise((cb) => adapter.batch([["markAsDeleted", "tasks", "t1"]], cb));
 
       const deleted = await toPromise((cb) => adapter.getDeletedRecords("tasks", cb));
       expect(deleted).toContain("t1");
@@ -485,7 +508,7 @@ describe("PostgreSQLAdapter", () => {
             [
               "create",
               "tasks",
-              {
+              rawRecord({
                 id: "a",
                 _status: "created",
                 _changed: "",
@@ -493,12 +516,12 @@ describe("PostgreSQLAdapter", () => {
                 is_done: 0,
                 priority: 1,
                 created_at: 100,
-              } as any,
+              }),
             ],
             [
               "create",
               "tasks",
-              {
+              rawRecord({
                 id: "b",
                 _status: "created",
                 _changed: "",
@@ -506,7 +529,7 @@ describe("PostgreSQLAdapter", () => {
                 is_done: 1,
                 priority: 2,
                 created_at: 200,
-              } as any,
+              }),
             ],
           ],
           cb
@@ -539,7 +562,7 @@ describe("PostgreSQLAdapter", () => {
             [
               "create",
               "tasks",
-              {
+              rawRecord({
                 id: "d1",
                 _status: "deleted",
                 _changed: "",
@@ -547,7 +570,7 @@ describe("PostgreSQLAdapter", () => {
                 is_done: 0,
                 priority: null,
                 created_at: 1,
-              } as any,
+              }),
             ],
           ],
           cb
@@ -584,7 +607,7 @@ describe("PostgreSQLAdapter", () => {
             [
               "create",
               "tasks",
-              {
+              rawRecord({
                 id: "x",
                 _status: "created",
                 _changed: "",
@@ -592,7 +615,7 @@ describe("PostgreSQLAdapter", () => {
                 is_done: 0,
                 priority: null,
                 created_at: 1,
-              } as any,
+              }),
             ],
           ],
           cb
@@ -640,13 +663,13 @@ describe("PostgreSQLAdapter", () => {
             [
               "create",
               "tasks",
-              {
+              rawRecord({
                 id: "t1",
                 _status: "created",
                 _changed: "",
                 title: "Original",
                 is_done: 0,
-              } as any,
+              }),
             ],
           ],
           cb
@@ -691,7 +714,7 @@ describe("PostgreSQLAdapter", () => {
 
       const found = await toPromise((cb) => v2Adapter.find("tasks", "t1", cb));
       expect(found).toBeDefined();
-      expect((found as any).title).toBe("Original");
+      expect(found).toMatchObject({ title: "Original" });
     });
 
     it("wraps unsafeExecuteSql in a search_path transaction when using custom pgSchema", async () => {
@@ -706,14 +729,14 @@ describe("PostgreSQLAdapter", () => {
           queries.push(text);
           return innerPool.query(text, values);
         },
-        async connect() {
-          return {
-            async query(text: string, values?: unknown[]) {
+        connect() {
+          return Promise.resolve({
+            query(text: string, values?: unknown[]) {
               queries.push(text);
               return innerPool.query(text, values);
             },
             release: () => {},
-          };
+          });
         },
       };
 
@@ -795,7 +818,7 @@ describe("PostgreSQLAdapter", () => {
             [
               "create",
               "tasks",
-              { id: "t1", _status: "created", _changed: "", title: "Gone" } as any,
+              rawRecord({ id: "t1", _status: "created", _changed: "", title: "Gone" }),
             ],
           ],
           cb
