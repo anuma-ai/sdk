@@ -808,6 +808,12 @@ Re-exports [EncryptionKeyMissingError](../react/Internal/classes/EncryptionKeyMi
 
 ***
 
+### encryptToolCallEventsOp
+
+Re-exports [encryptToolCallEventsOp](../react/Internal/functions/encryptToolCallEventsOp.md)
+
+***
+
 ### ensureDefaultFoldersOp
 
 Re-exports [ensureDefaultFoldersOp](../react/Internal/functions/ensureDefaultFoldersOp.md)

@@ -8,7 +8,7 @@ This guide explains how to enable field-level encryption at rest in applications
 
 | Data | Fields Encrypted | Encryption Type |
 |------|-----------------|-----------------|
-| Messages | `content`, `thinking`, `vector`, `sources`, `thoughtProcess` | Random IV (AES-GCM) |
+| Messages | `content`, `thinking`, `vector`, `sources`, `thoughtProcess`, and each tool call event's `arguments` and `output` | Random IV (AES-GCM) |
 | Conversations | `title` | Random IV (AES-GCM) |
 | Media | `name`, `sourceUrl`, `metadata` | Random IV (AES-GCM) |
 | Memory | `namespace`, `key`, `value`, `rawEvidence` | Deterministic (AES-GCM) |
@@ -17,6 +17,7 @@ This guide explains how to enable field-level encryption at rest in applications
 **What is NOT encrypted** (by design):
 
 - IDs (`conversationId`, `messageId`, `mediaId`, `walletAddress`)
+- Tool call event `id` and `name` (needed to dedupe tool calls without decrypting)
 - Roles, models, MIME types
 - Timestamps, token counts, flags (`isDeleted`, `wasStopped`, `error`)
 - Dimensions, duration, file sizes
@@ -131,6 +132,27 @@ Encryption is **fully backwards compatible**:
 - **Mixed state works.** A conversation can contain some plaintext messages (written before encryption) and some encrypted messages (written after). Both read correctly.
 - **No migration step.** There is no batch migration. Old data stays plaintext, new data is encrypted. The database gradually transitions as new data is written.
 - **No schema changes.** Encrypted values are stored in the same columns as plaintext values. The `enc:v2:` prefix distinguishes them.
+
+### Encrypting old tool call events
+
+Messages written by older SDK versions, or restored from an older backup, can still hold tool call `arguments` and `output` in plaintext. `encryptToolCallEventsOp(ctx)` encrypts those in place and returns how many messages it changed.
+
+- **Needs the key.** It requests the wallet key first and does nothing without a wallet address, signer or key.
+- **Safe to repeat.** Events that are already encrypted are left as they are, so a second run changes nothing.
+- **Backups pick it up.** It bumps `updatedAt` on each changed message and its conversation, so the next backup re-uploads them.
+- **When to call it.** After the user unlocks encryption, and again after a backup restore.
+
+```typescript
+import { encryptToolCallEventsOp } from "@anuma/sdk/react";
+
+const changed = await encryptToolCallEventsOp({
+  database,
+  messagesCollection: database.get("history"),
+  conversationsCollection: database.get("conversations"),
+  walletAddress,
+  signMessage,
+});
+```
 
 ### What happens without `walletAddress`
 
@@ -295,7 +317,7 @@ stopPolling();
 
 ### Does upgrading the SDK encrypt my existing data?
 
-No. Old plaintext data stays plaintext. New data written after you pass `walletAddress` + `signMessage` is encrypted. Both coexist safely. There is no batch migration.
+No. Old plaintext data stays plaintext. New data written after you pass `walletAddress` + `signMessage` is encrypted. Both coexist safely. There is no batch migration. The one exception is tool call events: call `encryptToolCallEventsOp` to encrypt the old ones (see [Encrypting old tool call events](#encrypting-old-tool-call-events)).
 
 ### What if the user loses their wallet?
 
