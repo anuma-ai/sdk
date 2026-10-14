@@ -52,7 +52,7 @@ describe.each([
       },
       error: null,
       autoExecutedToolResults: [{ name: "lookup", result: { value: "found" } }],
-    } as never);
+    });
   });
 
   afterEach(() => {
@@ -73,7 +73,7 @@ describe.each([
           database,
           walletAddress,
           signMessage,
-          getToken: async () => "token",
+          getToken: () => Promise.resolve("token"),
           autoEmbedMessages: false,
           autoFlushOnKeyAvailable: false,
         })
@@ -93,7 +93,7 @@ describe.each([
       );
 
       expect(sent.error).toBeNull();
-      if (!("toolResultsMessage" in sent)) {
+      if (!("toolResultsMessage" in sent) || !sent.toolResultsMessage) {
         throw new Error("The send result has no tool result message");
       }
       expect(sent.userMessage).toBeDefined();
@@ -104,22 +104,28 @@ describe.each([
       expect(await database.get("history").query().fetch()).toHaveLength(0);
       expect(result.current.queueStatus.pending).toBe(4);
 
-      const syntheticMessages = [
-        sent.userMessage!,
-        sent.assistantMessage!,
-        sent.toolResultsMessage!,
-      ];
+      const syntheticMessages = [sent.userMessage, sent.assistantMessage, sent.toolResultsMessage];
       expect(new Set(syntheticMessages.map((message) => message.uniqueId)).size).toBe(3);
-      expect(sent.assistantMessage!.parentMessageId).toBe(sent.userMessage!.uniqueId);
-      expect(sent.toolResultsMessage!.parentMessageId).toBe(sent.assistantMessage!.uniqueId);
+      expect(sent.assistantMessage.parentMessageId).toBe(sent.userMessage.uniqueId);
+      expect(sent.toolResultsMessage.parentMessageId).toBe(sent.assistantMessage.uniqueId);
       const queuedOperations = queueManager.getOperations(walletAddress);
-      expect(queuedOperations[0].payload.conversationId).toBe(conversation.conversationId);
-      expect(queuedOperations.slice(1).map((operation) => operation.payload.uniqueId)).toEqual(
-        syntheticMessages.map((message) => message.uniqueId)
-      );
+      expect(queuedOperations).toMatchObject([
+        {
+          type: "createConversation",
+          payload: { conversationId: conversation.conversationId },
+        },
+        ...syntheticMessages.map((message) => ({
+          type: "createMessage",
+          payload: {
+            uniqueId: message.uniqueId,
+            conversationId: conversation.conversationId,
+            parentMessageId: message.parentMessageId,
+          },
+        })),
+      ]);
       if (explicitIds) {
         expect(conversation.conversationId).toBe("conversation-explicit");
-        expect(sent.assistantMessage!.uniqueId).toBe("assistant-explicit");
+        expect(sent.assistantMessage.uniqueId).toBe("assistant-explicit");
       }
 
       seedEncryptionKeys(walletAddress, { legacy: "11".repeat(32), current: "22".repeat(32) });
