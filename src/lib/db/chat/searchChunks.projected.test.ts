@@ -145,7 +145,11 @@ type ClauseLike = {
   comparison?: { operator?: string; right?: { values?: SqlValue[] } };
 };
 
-function makeSqliteCtx(db: SqliteDb, executed: string[]): StorageOperationsContext {
+function makeSqliteCtx(
+  db: SqliteDb,
+  executed: string[],
+  beforeFullRead?: () => void
+): StorageOperationsContext {
   const query = (...clauses: ClauseLike[]) => ({
     unsafeFetchRaw: async () => {
       const [first] = clauses;
@@ -156,6 +160,7 @@ function makeSqliteCtx(db: SqliteDb, executed: string[]): StorageOperationsConte
       if (clauses.length === 1 && first?.left === "id" && first.comparison?.operator === "oneOf") {
         const ids = first.comparison.right?.values ?? [];
         if (ids.length === 0) return [];
+        beforeFullRead?.();
         return db
           .prepare(
             `select * from "history" where "_status" is not 'deleted' and "id" in (${ids.map(() => "?").join(",")})`
@@ -295,11 +300,51 @@ describe("searchChunksOp — projected SQL path", () => {
     ]);
   });
 
+  it("drops a result whose message changed after it was scored", async () => {
+    const projected = await searchChunksOp(
+      makeSqliteCtx(sqlite, [], () => {
+        sqlite
+          .prepare(
+            `update "history" set "updated_at" = "updated_at" + 1 where "id" = 'm-vector-only'`
+          )
+          .run();
+      }),
+      [1, 0, 0],
+      options
+    );
+
+    expect(summarize(projected).map((r) => r.id)).toEqual(["m-coffee", "m-coffee"]);
+  });
+
   it("reports the same stats on the full-load fallback", async () => {
     const stats: ChunkSearchStats[] = [];
     await searchChunksOp(lokiCtx, [1, 0, 0], { ...options, onStats: (s) => stats.push(s) });
 
     expect(stats).toEqual([{ rowsScanned: 4, rowsFetched: 3, cacheHits: 0 }]);
+  });
+});
+
+describe("searchChunksOp — ties", () => {
+  it("keeps scan order for tied scores whether or not a row is cached", async () => {
+    const ctx = makeLokiCtx();
+    await createConversationOp(ctx, { conversationId: "tie" });
+    await seedChunked(ctx, "tie", "m-first", [["first twin", [1, 0, 0]]]);
+    await seedChunked(ctx, "tie", "m-second", [["second twin", [1, 0, 0]]]);
+    const tieOptions = { minSimilarity: 0.1, embeddingModel: MODEL, limit: 1 };
+
+    const cold = await searchChunksOp(ctx, [1, 0, 0], tieOptions);
+    const cache = createChunkVectorCache();
+    await searchChunksOp(ctx, [1, 0, 0], { ...tieOptions, chunkCache: cache });
+    const [firstKey] = [...cache.keys()].filter((id) => id !== cold[0].message.uniqueId);
+    cache.delete(cold[0].message.uniqueId);
+    expect(cache.has(firstKey)).toBe(true);
+
+    const partiallyWarm = await searchChunksOp(ctx, [1, 0, 0], {
+      ...tieOptions,
+      chunkCache: cache,
+    });
+
+    expect(summarize(partiallyWarm)).toEqual(summarize(cold));
   });
 });
 
@@ -326,6 +371,32 @@ describe("searchChunksOp — yields during a long scan", () => {
       minSimilarity: 0.1,
       embeddingModel: MODEL,
       onStats: () => {
+        timerRanBeforeScoringEnded = timerRan;
+      },
+    });
+
+    expect(timerRanBeforeScoringEnded).toBe(true);
+  });
+
+  it("yields while skipping rows that never reach a vector read", async () => {
+    const ctx = makeLokiCtx();
+    await createConversationOp(ctx, { conversationId: "stale" });
+    for (let i = 0; i < 6; i++) {
+      await seedChunked(ctx, "stale", `m-${i}`, [[`row ${i}`, [1, 0, 0]]], "old/model");
+    }
+    let clock = 0;
+    vi.spyOn(performance, "now").mockImplementation(() => (clock += 20));
+    let timerRan = false;
+    let timerRanBeforeScoringEnded = false;
+    setTimeout(() => {
+      timerRan = true;
+    }, 0);
+
+    await searchChunksOp(ctx, [1, 0, 0], {
+      minSimilarity: 0.1,
+      embeddingModel: MODEL,
+      onStats: (stats) => {
+        expect(stats.rowsFetched).toBe(0);
         timerRanBeforeScoringEnded = timerRan;
       },
     });

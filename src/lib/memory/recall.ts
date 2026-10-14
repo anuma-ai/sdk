@@ -13,6 +13,7 @@ import type { EmbeddingOptions } from "../memoryEngine/types.js";
 import { normalizeSubQueries } from "../memoryVault/decomposeQuery.js";
 import type { VaultSearchResult } from "../memoryVault/searchTool.js";
 import { searchVaultMemoriesWithSize } from "../memoryVault/searchTool.js";
+import { nowMs } from "../scheduling.js";
 import {
   createLlmNeighborRefiner,
   type NeighborRefiner,
@@ -39,11 +40,6 @@ const DEFAULT_LIMIT = 8;
 const DEFAULT_BUDGET: Budget = "low";
 const DEFAULT_FACT_MIN_SCORE = 0.1;
 
-function nowMs(): number {
-  return typeof performance !== "undefined" && typeof performance.now === "function"
-    ? performance.now()
-    : Date.now();
-}
 const DEFAULT_CHUNK_MIN_SCORE = 0.5;
 const DEFAULT_QUERY_EMBED_TOTAL_TIMEOUT_MS = 8_000;
 

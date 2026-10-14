@@ -12,6 +12,7 @@ import {
 import { getLogger } from "../../logger";
 import { cosineSimilarity } from "../../memoryEngine/vector";
 import { decodeChunkVector } from "../../memoryEngine/vectorEncoding";
+import { createTimeSliceYielder } from "../../scheduling";
 import { decryptFieldDetailed, decryptJsonField } from "../encryption-utils";
 import { ExtractionJob } from "../extractionJobs/models";
 import { decryptConversationFields, encryptConversationFields } from "./conversationEncryption";
@@ -1591,15 +1592,6 @@ function toChunkCandidateKey(raw: Record<string, unknown>): ChunkCandidateKey {
   };
 }
 
-function createScanYielder(budgetMs: number): () => Promise<void> {
-  let sliceStart = performance.now();
-  return async () => {
-    if (performance.now() - sliceStart < budgetMs) return;
-    await new Promise<void>((resolve) => setTimeout(resolve, 0));
-    sliceStart = performance.now();
-  };
-}
-
 async function fetchRowsByIds(
   ctx: StorageOperationsContext,
   ids: string[]
@@ -1743,10 +1735,12 @@ export async function searchChunksOp(
   } = options || {};
 
   const source = await chunkRowSource(ctx, { conversationId, excludeConversationId });
-  const yieldIfDue = createScanYielder(CHUNK_SCAN_YIELD_BUDGET_MS);
+  const yieldIfDue = createTimeSliceYielder(CHUNK_SCAN_YIELD_BUDGET_MS);
 
   type Candidate = {
     id: string;
+    version: number;
+    order: number;
     similarity: number;
     chunkTextSource:
       | {
@@ -1763,7 +1757,10 @@ export async function searchChunksOp(
   let cacheHits = 0;
   const missIds: string[] = [];
 
-  for (const key of source.keys) {
+  const orderById = new Map<string, number>();
+  for (const [order, key] of source.keys.entries()) {
+    await yieldIfDue();
+    orderById.set(key.id, order);
     if (embeddingModel && key.embeddingModel !== null && key.embeddingModel !== embeddingModel) {
       staleSkipped++;
       continue;
@@ -1782,6 +1779,8 @@ export async function searchChunksOp(
         if (similarity >= minSimilarity) {
           candidates.push({
             id: key.id,
+            version: key.version,
+            order,
             similarity,
             chunkTextSource: { kind: "chunk-cached", chunkIndex: ci, version: key.version },
           });
@@ -1790,10 +1789,15 @@ export async function searchChunksOp(
     } else if (cached.fallback) {
       const similarity = cosineSimilarity(queryVector, cached.fallback);
       if (similarity >= minSimilarity) {
-        candidates.push({ id: key.id, similarity, chunkTextSource: { kind: "message" } });
+        candidates.push({
+          id: key.id,
+          version: key.version,
+          order,
+          similarity,
+          chunkTextSource: { kind: "message" },
+        });
       }
     }
-    await yieldIfDue();
   }
 
   let rowsFetched = 0;
@@ -1803,8 +1807,10 @@ export async function searchChunksOp(
     );
     rowsFetched += rows.length;
     for (const row of rows) {
+      await yieldIfDue();
       const id = row.id as string;
       const version = Number(row.updated_at) || 0;
+      const order = orderById.get(id) ?? Number.MAX_SAFE_INTEGER;
       const chunks = await readRawJsonField<MessageChunk[]>(row, "chunks", ctx.walletAddress);
 
       if (chunks && chunks.length > 0) {
@@ -1822,6 +1828,8 @@ export async function searchChunksOp(
           if (similarity >= minSimilarity) {
             candidates.push({
               id,
+              version,
+              order,
               similarity,
               chunkTextSource: { kind: "chunk", chunk: chunks[ci], siblings: chunks },
             });
@@ -1835,11 +1843,16 @@ export async function searchChunksOp(
 
           const similarity = cosineSimilarity(queryVector, fallback);
           if (similarity >= minSimilarity) {
-            candidates.push({ id, similarity, chunkTextSource: { kind: "message" } });
+            candidates.push({
+              id,
+              version,
+              order,
+              similarity,
+              chunkTextSource: { kind: "message" },
+            });
           }
         }
       }
-      await yieldIfDue();
     }
   }
 
@@ -1860,12 +1873,17 @@ export async function searchChunksOp(
     );
   }
 
-  const topK = candidates.sort((a, b) => b.similarity - a.similarity).slice(0, limit);
+  const topK = candidates
+    .sort((a, b) => b.similarity - a.similarity || a.order - b.order)
+    .slice(0, limit);
 
   const topIds = Array.from(new Set(topK.map((c) => c.id)));
   const fullRows = await source.loadFullRows(topIds);
   const rowById = new Map(fullRows.map((row) => [row.id as string, row]));
-  const liveTopK = topK.filter((c) => rowById.has(c.id));
+  const liveTopK = topK.filter((c) => {
+    const row = rowById.get(c.id);
+    return row !== undefined && (Number(row.updated_at) || 0) === c.version;
+  });
 
   const storedById = new Map<string, StoredMessage>(
     await Promise.all(
