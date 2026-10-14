@@ -24,6 +24,7 @@ const checkedTestFiles = [
   ...memoryTelemetryTests,
   "src/lib/chat/toolLoop.detach.test.ts",
   "src/lib/chat/toolLoop.idleTimeout.test.ts",
+  "src/lib/processors/preprocessor.remoteUrls.test.ts",
   "src/react/useChatStorage.fileSize.test.tsx",
   "src/react/useChatStorage.runHooks.test.tsx",
   "test/tools/slide-generation/models.ts",

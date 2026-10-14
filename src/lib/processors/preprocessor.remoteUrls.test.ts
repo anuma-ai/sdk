@@ -1,6 +1,7 @@
 // @vitest-environment node
 
 import { createServer } from "node:http";
+
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { FileMetadata } from "../db/chat/types";
@@ -64,6 +65,26 @@ describe("server file URL restrictions", () => {
     ]);
     expect(onError).toHaveBeenCalledWith("private.txt", expect.any(Error));
     expect(requests).toEqual([]);
+  });
+
+  it("extracts a data URL after it rejects a remote URL", async () => {
+    const localFile = {
+      ...attachment(`data:text/plain;base64,${Buffer.from("local attachment").toString("base64")}`),
+      id: "local",
+      name: "local.txt",
+    };
+
+    const result = await preprocessFiles([attachment(`${origin}/private`), localFile]);
+
+    expect(requests).toEqual([]);
+    expect(result.extractedContent).toContain("local attachment");
+    expect(result.extractedContent).not.toContain("internal service secret");
+    expect(result.preprocessedFileIds).toEqual(["local"]);
+    expect(result.metadata).toEqual({ processedCount: 1, skippedCount: 0, errorCount: 1 });
+    expect(result.fileStatuses).toEqual([
+      { fileId: "remote", fileName: "private.txt", status: "failed", reason: "error" },
+      { fileId: "local", fileName: "local.txt", status: "extracted" },
+    ]);
   });
 
   it.each([
