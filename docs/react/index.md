@@ -80,13 +80,9 @@ function ChatComponent() {
 | [useChat](Hooks/useChat.md) | A React hook for managing chat completions with authentication. |
 | [useChatStorage](Hooks/useChatStorage.md) | A React hook that wraps useChat and persists messages and conversations to WatermelonDB as they are sent and received. |
 | [useCredits](Hooks/useCredits.md) | React hook for managing credits: checking balance, browsing packs, and purchasing credits. |
-| [useDropboxAuth](Hooks/useDropboxAuth.md) | Hook to access Dropbox authentication state and methods. |
-| [useDropboxBackup](Hooks/useDropboxBackup.md) | React hook for Dropbox backup and restore functionality. |
 | [useEncryption](Hooks/useEncryption.md) | Hook that provides encryption key management for securing local data. |
 | [useExportPdf](Hooks/useExportPdf.md) | React hook for exporting content as PDF. |
 | [useFiles](Hooks/useFiles.md) | A React hook for managing files (images, videos, audio, documents). |
-| [useGoogleDriveAuth](Hooks/useGoogleDriveAuth.md) | Hook to access Google Drive authentication state and methods. |
-| [useGoogleDriveBackup](Hooks/useGoogleDriveBackup.md) | React hook for Google Drive backup and restore functionality. |
 | [useICloudAuth](Hooks/useICloudAuth.md) | Hook to access iCloud authentication state and methods. |
 | [useICloudBackup](Hooks/useICloudBackup.md) | React hook for iCloud backup and restore functionality. |
 | [useModels](Hooks/useModels.md) | React hook for fetching available LLM models. Automatically fetches all available models. |
@@ -101,24 +97,6 @@ function ChatComponent() {
 | [useWalletBinding](Hooks/useWalletBinding.md) | React hook for managing ZETA wallet bindings and reading staked-based Pro status. Provides methods to list bound wallets, request a binding nonce, bind a wallet with a signed proof, and unbind a wallet. |
 
 ## Other
-
-### DEFAULT\_BACKUP\_FOLDER
-
-Renames and re-exports [DEFAULT\_DROPBOX\_FOLDER](Internal/variables/DEFAULT_DROPBOX_FOLDER.md)
-
-***
-
-### DEFAULT\_DRIVE\_CONVERSATIONS\_FOLDER
-
-Renames and re-exports [BACKUP\_DRIVE\_CONVERSATIONS\_FOLDER](Internal/variables/BACKUP_DRIVE_CONVERSATIONS_FOLDER.md)
-
-***
-
-### DEFAULT\_DRIVE\_ROOT\_FOLDER
-
-Renames and re-exports [BACKUP\_DRIVE\_ROOT\_FOLDER](Internal/variables/BACKUP_DRIVE_ROOT_FOLDER.md)
-
-***
 
 ### DEFAULT\_ICLOUD\_BACKUP\_FOLDER
 
