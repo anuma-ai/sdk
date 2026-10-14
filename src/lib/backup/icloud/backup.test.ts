@@ -10,6 +10,8 @@ import {
   getMessagesOp,
   type StorageOperationsContext,
   updateConversationTitleOp,
+  updateMessageChunksOp,
+  updateMessageEmbeddingOp,
   upsertMessageOp,
 } from "../../db/chat/operations";
 import type { StoredMessage } from "../../db/chat/types";
@@ -183,6 +185,21 @@ describe("iCloud backup revisions", () => {
     await updateConversationTitleOp(ctx, "conv_1", "New title");
     expect(await backup()).toMatchObject({ uploaded: 1, skipped: 0 });
     expect(await backup()).toMatchObject({ uploaded: 0, skipped: 1 });
+  });
+
+  it("skips a backup when only the embedding sweep changed a message", async () => {
+    const { ctx, deps, backup } = await setup();
+    expect(await backup()).toMatchObject({ uploaded: 1 });
+    vi.setSystemTime(Date.now() + 1_000);
+    await updateMessageEmbeddingOp(ctx, "m1", [0.1, 0.2], "model-a");
+    await updateMessageChunksOp(
+      ctx,
+      "m1",
+      [{ text: "first turn", vector: [0.1, 0.2], startOffset: 0, endOffset: 10 }],
+      "model-a"
+    );
+    expect(await backup()).toMatchObject({ uploaded: 0, skipped: 1 });
+    expect(deps.exportConversation).toHaveBeenCalledTimes(1);
   });
 
   it("replaces a legacy backup that has no saved revision", async () => {

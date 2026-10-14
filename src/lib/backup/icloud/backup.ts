@@ -47,6 +47,14 @@ export interface ICloudImportResult {
   noBackupsFound?: boolean;
 }
 
+const UNREVISIONED_COLUMNS = new Set([
+  "updated_at",
+  "vector",
+  "embedding_model",
+  "chunks",
+  "origin",
+]);
+
 async function getBackupRevision(database: Database, conversationId: string): Promise<string> {
   const serialized = await database.read(async () => {
     const { Q } = await import("@nozbe/watermelondb");
@@ -62,7 +70,7 @@ async function getBackupRevision(database: Database, conversationId: string): Pr
       tables.map((rows) =>
         rows.map((row) =>
           Object.entries(row)
-            .filter(([key]) => !key.startsWith("_"))
+            .filter(([key]) => !key.startsWith("_") && !UNREVISIONED_COLUMNS.has(key))
             .sort(([left], [right]) => (left < right ? -1 : left > right ? 1 : 0))
         )
       )
