@@ -188,7 +188,7 @@ describe("recall embedding cache through a local fact source", () => {
     const seen: RecallDiagnostics[] = [];
     vi.mocked(postApiV1Embeddings).mockImplementationOnce(
       ({ signal }) =>
-        new Promise((_, reject) => {
+        new Promise<never>((_, reject) => {
           signal?.addEventListener("abort", () => reject(signal.reason), { once: true });
         })
     );
