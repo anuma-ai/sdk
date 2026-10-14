@@ -138,6 +138,7 @@ Encryption is **fully backwards compatible**:
 Messages written by older SDK versions, or restored from an older backup, can still hold tool call `arguments` and `output` in plaintext. `encryptToolCallEventsOp(ctx)` encrypts those in place and returns how many messages it changed.
 
 - **Needs the key.** It requests the wallet key first and does nothing without a wallet address, signer or key.
+- **Checks the saved key first.** It tries the saved key on one encrypted message. If the key cannot open it and a fresh signature cannot recover the right key, it returns 0 and changes nothing.
 - **Safe to repeat.** Events that are already encrypted are left as they are, so a second run changes nothing.
 - **Backups pick it up.** It sets `updatedAt` to now on each changed message and its conversation. Backup only uploads conversations whose `updatedAt` moved, so the next backup includes them.
 - **It reorders the chat list once.** A chat list sorted by `updatedAt` will show every repaired conversation at the top after the first run. Later runs only touch conversations that still hold plaintext, such as ones a backup restore brought back.
