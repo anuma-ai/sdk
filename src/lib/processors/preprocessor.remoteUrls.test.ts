@@ -126,6 +126,20 @@ describe("server file URL restrictions", () => {
     expect(processSpy).not.toHaveBeenCalled();
   });
 
+  it("rejects a remote URL when the PDF processor is called directly", async () => {
+    const file = {
+      ...attachment(`${origin}/private`),
+      name: "private.pdf",
+      type: "application/pdf",
+      dataUrl: `${origin}/private`,
+    };
+
+    await expect(new PdfProcessor().process(file)).rejects.toThrow(
+      "Server file preprocessing requires a data URL or blob URL."
+    );
+    expect(requests).toEqual([]);
+  });
+
   it("extracts a data URL without fetch", async () => {
     const fetchSpy = vi.spyOn(globalThis, "fetch");
     const url = `data:text/plain;base64,${Buffer.from("local attachment").toString("base64")}`;
