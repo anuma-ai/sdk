@@ -2,6 +2,7 @@ import { postApiV1Embeddings } from "../../client";
 import { BASE_URL } from "../../clientConfig";
 import { taskTypeHeader } from "../taskType";
 import { DEFAULT_API_EMBEDDING_MODEL } from "./constants";
+import { getEmbeddingCacheState } from "./embeddingCacheState";
 import type { EmbeddingOptions } from "./types";
 
 const EMBED_MAX_ATTEMPTS = 4;
@@ -148,12 +149,8 @@ export async function generateEmbedding(
   return withDeadline((signal) => embedOne(text, options, signal), total, "embedding");
 }
 
-const inFlightByCache = new WeakMap<
-  Map<string, Float32Array>,
-  Map<string, Promise<Float32Array>>
->();
 // TODO(ceiling): Text-keyed caches retain one model vector per text; use model-scoped entries to reuse alternating models.
-const cachedEmbeddingModels = new WeakMap<Float32Array, string>();
+const { inFlightByCache, cachedEmbeddingModels } = getEmbeddingCacheState();
 
 async function embedOne(
   text: string,
