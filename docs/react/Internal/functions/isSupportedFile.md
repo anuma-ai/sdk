@@ -2,7 +2,7 @@
 
 > **isSupportedFile**(`file`: [`FileTypeQuery`](../interfaces/FileTypeQuery.md)): `boolean`
 
-Defined in: [src/lib/processors/preprocessor.ts:95](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/preprocessor.ts#95)
+Defined in: [src/lib/processors/preprocessor.ts:96](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/preprocessor.ts#96)
 
 Test whether the SDK can extract text from the given file.
 
