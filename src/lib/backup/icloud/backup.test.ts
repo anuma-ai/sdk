@@ -40,27 +40,30 @@ async function setup() {
     messagesCollection: database.get("history"),
   };
   const records = new Map<string, RemoteRecord>();
-  const saveRecords = vi.fn(async (record: RemoteRecord) => {
+  const saveRecords = vi.fn((record: RemoteRecord) => {
     const saved = { ...record, modified: { timestamp: Date.now() + 60_000 } };
     records.set(saved.recordName, saved);
-    return { records: [saved] };
+    return Promise.resolve({ records: [saved] });
   });
   vi.stubGlobal("CloudKit", {
     getDefaultContainer: () => ({
       privateCloudDatabase: {
         saveRecords,
-        performQuery: async (query: { filterBy?: { fieldValue: { value: string } }[] }) => ({
-          records: [...records.values()].filter(
-            (record) =>
-              !query.filterBy || record.fields.filename.value === query.filterBy[0].fieldValue.value
-          ),
-        }),
-        fetchRecords: async (requested: { recordName: string }[]) => ({
-          records: requested.flatMap(({ recordName }) => {
-            const record = records.get(recordName);
-            return record ? [record] : [];
+        performQuery: (query: { filterBy?: { fieldValue: { value: string } }[] }) =>
+          Promise.resolve({
+            records: [...records.values()].filter(
+              (record) =>
+                !query.filterBy ||
+                record.fields.filename.value === query.filterBy[0].fieldValue.value
+            ),
           }),
-        }),
+        fetchRecords: (requested: { recordName: string }[]) =>
+          Promise.resolve({
+            records: requested.flatMap(({ recordName }) => {
+              const record = records.get(recordName);
+              return record ? [record] : [];
+            }),
+          }),
       },
     }),
   });

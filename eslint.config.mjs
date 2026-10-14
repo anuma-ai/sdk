@@ -22,6 +22,7 @@ const memoryTelemetryTests = [
 const checkedTestFiles = [
   ...appGenerationTests,
   ...memoryTelemetryTests,
+  "src/lib/backup/icloud/backup.test.ts",
   "src/lib/chat/toolLoop.detach.test.ts",
   "src/lib/chat/toolLoop.idleTimeout.test.ts",
   "src/react/useChatStorage.fileSize.test.tsx",
