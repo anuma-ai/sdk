@@ -597,11 +597,16 @@ export async function getConversationsByProjectOp(
 
 export async function getMessagesOp(
   ctx: StorageOperationsContext,
-  convId: string
+  convId: string,
+  opts?: {
+    /** Keeps only rows whose raw, still-encrypted columns pass; runs before decryption. */
+    rawFilter?: (raw: Record<string, unknown>) => boolean;
+  }
 ): Promise<StoredMessage[]> {
-  const results = (await ctx.messagesCollection
+  const fetched = (await ctx.messagesCollection
     .query(Q.where("conversation_id", convId), Q.sortBy("message_id", Q.asc))
     .unsafeFetchRaw()) as Record<string, unknown>[];
+  const results = opts?.rawFilter ? fetched.filter(opts.rawFilter) : fetched;
 
   return Promise.all(
     results.map((raw) =>
@@ -1052,7 +1057,6 @@ export async function updateMessageChunksOp(
   }
 
   const storedChunks = chunks.map(({ text: _text, ...rest }) => rest);
-
   await ctx.database.write(async () => {
     await message.update((msg) => {
       msg._setRaw("chunks", JSON.stringify(storedChunks));

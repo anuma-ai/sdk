@@ -940,11 +940,48 @@ describe("ciphertext is never chunked or embedded (sdk#864)", () => {
     expect(JSON.stringify(recorded)).not.toContain("enc:v3:");
   });
 
+  type RawRow = Record<string, unknown> & { id: string; opensTo?: string };
+
+  function rawRow(overrides: Partial<RawRow> & { id: string }): RawRow {
+    return {
+      role: "user",
+      content: ciphertext,
+      chunks: null,
+      vector: null,
+      origin: null,
+      embedding_model: null,
+      ...overrides,
+    };
+  }
+
+  function stored(raw: RawRow): StoredMessage {
+    const content = raw.opensTo ?? (raw.content as string);
+    return makeMessage({
+      uniqueId: raw.id,
+      content,
+      chunks: raw.chunks
+        ? (JSON.parse(raw.chunks as string) as StoredMessage["chunks"])
+        : undefined,
+    });
+  }
+
+  function serveThroughRawFilter(rows: RawRow[]): void {
+    vi.mocked(getMessagesOp).mockImplementation(async (_ctx, _convId, opts) =>
+      rows.filter((raw) => opts?.rawFilter?.(raw) ?? true).map(stored)
+    );
+    vi.mocked(getMessageOp).mockImplementation(async (_ctx, id) => {
+      const raw = rows.find((r) => r.id === id);
+      return raw ? stored(raw) : null;
+    });
+  }
+
+  const embedded = JSON.stringify([{ vector: [1, 2, 3], startOffset: 0, endOffset: 6 }]);
+
   it("chunkAndEmbedAllMessages reports the skip on the error channel with structured counts", async () => {
     stubFetchOk();
-    vi.mocked(getMessagesOp).mockResolvedValue([
-      makeMessage({ uniqueId: "sealed", content: ciphertext }),
-      makeMessage({ uniqueId: "prose", content: longText("readable") }),
+    serveThroughRawFilter([
+      rawRow({ id: "sealed" }),
+      rawRow({ id: "prose", content: longText("readable") }),
     ]);
 
     await chunkAndEmbedAllMessages(ctx, { apiKey: "k", baseUrl: BASE });
@@ -962,18 +999,13 @@ describe("ciphertext is never chunked or embedded (sdk#864)", () => {
     });
   });
 
-  it("reports a sealed row that never reaches the candidate counter", async () => {
+  it("reports sealed rows the pre-filter drops when the key cannot open them", async () => {
     stubFetchOk();
-    vi.mocked(getMessagesOp).mockResolvedValue([
-      makeMessage({
-        uniqueId: "sealed-and-chunked",
-        content: ciphertext,
-        chunks: [{ text: "a1b2c3", vector: [1, 2, 3], startOffset: 0, endOffset: 6 }],
-      }),
-    ]);
+    serveThroughRawFilter([rawRow({ id: "sealed-and-chunked", chunks: embedded })]);
 
     expect(await chunkAndEmbedAllMessages(ctx, { apiKey: "k", baseUrl: BASE })).toBe(0);
 
+    expect(getMessageOp).toHaveBeenCalledTimes(1);
     expect(errors).toHaveLength(1);
     const [, , context] = errors[0];
     expect(context).toEqual({
@@ -982,6 +1014,32 @@ describe("ciphertext is never chunked or embedded (sdk#864)", () => {
       sealedRowsSeen: 1,
       rowsSeen: 1,
     });
+  });
+
+  it("stays quiet for a fully indexed vault whose key opens the probed row", async () => {
+    stubFetchOk();
+    serveThroughRawFilter([
+      rawRow({ id: "a", chunks: embedded, opensTo: longText("readable") }),
+      rawRow({ id: "b", chunks: embedded, opensTo: longText("also readable") }),
+    ]);
+
+    expect(await chunkAndEmbedAllMessages(ctx, { apiKey: "k", baseUrl: BASE })).toBe(0);
+
+    expect(getMessageOp).toHaveBeenCalledTimes(1);
+    expect(errors).toEqual([]);
+  });
+
+  it("skips the probe when a decrypted candidate already proved the key", async () => {
+    stubFetchOk();
+    serveThroughRawFilter([
+      rawRow({ id: "indexed", chunks: embedded }),
+      rawRow({ id: "fresh", opensTo: longText("readable") }),
+    ]);
+
+    expect(await chunkAndEmbedAllMessages(ctx, { apiKey: "k", baseUrl: BASE })).toBe(1);
+
+    expect(getMessageOp).not.toHaveBeenCalled();
+    expect(errors).toEqual([]);
   });
 
   it("chunkAndEmbedAllMessages stays quiet when every row is readable", async () => {
@@ -1120,5 +1178,148 @@ describe("ciphertext is never chunked or embedded (sdk#864)", () => {
     expect(await embedAllMessages(ctx, { apiKey: "k", baseUrl: BASE })).toBe(1);
     expect(warnings).toEqual([]);
     expect(errors).toEqual([]);
+  });
+});
+
+describe("chunkAndEmbedAllMessages raw pre-filter (decrypt only what may need embedding)", () => {
+  const ctx = {} as StorageOperationsContext;
+  const MODEL = "qwen/qwen3-embedding-8b";
+  const sealed = (hexLength: number): string => `enc:v3:${"a".repeat(hexLength)}`;
+
+  async function capturedRawFilter(
+    filter?: Parameters<typeof chunkAndEmbedAllMessages>[2]
+  ): Promise<(raw: Record<string, unknown>) => boolean> {
+    vi.mocked(getConversationsOp).mockResolvedValue([
+      { conversationId: "c1" } as StoredConversation,
+    ]);
+    vi.mocked(getMessagesOp).mockResolvedValue([]);
+    await chunkAndEmbedAllMessages(ctx, { apiKey: "k", baseUrl: BASE, model: MODEL }, filter);
+    const opts = vi.mocked(getMessagesOp).mock.calls[0][2] as {
+      rawFilter: (raw: Record<string, unknown>) => boolean;
+    };
+    return opts.rawFilter;
+  }
+
+  const row = (overrides: Record<string, unknown>): Record<string, unknown> => ({
+    role: "user",
+    content: sealed(400),
+    chunks: null,
+    vector: null,
+    origin: null,
+    embedding_model: null,
+    ...overrides,
+  });
+
+  it("drops rows that already hold chunks or a vector, plain or sealed, before decrypting", async () => {
+    const keep = await capturedRawFilter();
+
+    expect(keep(row({ chunks: JSON.stringify([{ vector: [1], startOffset: 0 }]) }))).toBe(false);
+    expect(keep(row({ vector: JSON.stringify([0.1, 0.2]) }))).toBe(false);
+    expect(keep(row({ vector: sealed(4000) }))).toBe(false);
+    expect(keep(row({ chunks: sealed(4000) }))).toBe(false);
+  });
+
+  it("drops system rows and non-embeddable origins", async () => {
+    const keep = await capturedRawFilter();
+
+    expect(keep(row({ role: "system" }))).toBe(false);
+    expect(keep(row({ origin: "tool_result" }))).toBe(false);
+    expect(keep(row({ origin: CHUNKS_DISCARDED_ORIGIN }))).toBe(false);
+  });
+
+  it("keeps rows with nothing embedded, an empty array, or a sealed column too short to judge", async () => {
+    const keep = await capturedRawFilter();
+
+    expect(keep(row({}))).toBe(true);
+    expect(keep(row({ chunks: "[]", vector: "[]" }))).toBe(true);
+    expect(keep(row({ vector: sealed(60) }))).toBe(true);
+  });
+
+  it("keeps an embedded row built with a different model (stale) and honours rechunkExisting", async () => {
+    const keep = await capturedRawFilter({ rechunkExisting: true });
+
+    expect(keep(row({ chunks: "[1]", embedding_model: "old-model" }))).toBe(true);
+    expect(keep(row({ vector: "[0.1]" }))).toBe(true);
+    expect(keep(row({ chunks: "[1]", embedding_model: MODEL }))).toBe(false);
+  });
+
+  it("honours the roles filter", async () => {
+    const keep = await capturedRawFilter({ roles: ["assistant"] });
+
+    expect(keep(row({ role: "user" }))).toBe(false);
+    expect(keep(row({ role: "assistant" }))).toBe(true);
+  });
+});
+
+describe("legacy tool-result rows without origin are not embedded", () => {
+  const ctx = {} as StorageOperationsContext;
+
+  beforeEach(() => {
+    vi.mocked(getConversationsOp).mockResolvedValue([
+      { conversationId: "c1" } as StoredConversation,
+    ]);
+    vi.mocked(updateMessageEmbeddingOp).mockResolvedValue(null);
+    vi.mocked(updateMessageChunksOp).mockResolvedValue(null);
+  });
+
+  it("skips a decrypted legacy tool-result dump but still chunks real prose", async () => {
+    const fetchMock = stubFetchOk();
+    const now = new Date();
+    vi.mocked(getMessagesOp).mockResolvedValue([
+      {
+        uniqueId: "legacy-dump",
+        messageId: 1,
+        conversationId: "c1",
+        role: "user",
+        content: `[Tool Execution Results]\n\n${'Tool "gmail_search" returned: {"id":"abc"}\n'.repeat(80)}`,
+        createdAt: now,
+        updatedAt: now,
+      },
+      {
+        uniqueId: "prose",
+        messageId: 2,
+        conversationId: "c1",
+        role: "user",
+        content: "a long thing the user wrote. ".repeat(120),
+        createdAt: now,
+        updatedAt: now,
+      },
+    ]);
+
+    expect(await chunkAndEmbedAllMessages(ctx, { apiKey: "k", baseUrl: BASE })).toBe(1);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(updateMessageChunksOp).toHaveBeenCalledTimes(1);
+    expect(updateMessageChunksOp).toHaveBeenCalledWith(
+      ctx,
+      "prose",
+      expect.any(Array),
+      expect.any(String)
+    );
+    expect(JSON.stringify(recorded)).not.toContain("[Tool Execution Results]");
+  });
+
+  it("still embeds a user message that merely quotes the [Tool Execution Results] heading", async () => {
+    const fetchMock = stubFetchOk();
+    const now = new Date();
+    vi.mocked(getMessagesOp).mockResolvedValue([
+      {
+        uniqueId: "quoted",
+        messageId: 1,
+        conversationId: "c1",
+        role: "user",
+        content: "[Tool Execution Results] what does this heading in my export mean?",
+        createdAt: now,
+        updatedAt: now,
+      },
+    ]);
+
+    expect(await chunkAndEmbedAllMessages(ctx, { apiKey: "k", baseUrl: BASE })).toBe(1);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(updateMessageEmbeddingOp).toHaveBeenCalledWith(
+      ctx,
+      "quoted",
+      expect.any(Array),
+      expect.any(String)
+    );
   });
 });
