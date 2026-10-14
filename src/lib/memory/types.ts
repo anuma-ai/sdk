@@ -389,6 +389,12 @@ export interface RecallDiagnostics {
    * LEGACY read path this batch is uncapped, so it can be the whole vault.
    */
   vaultRowsEmbedded?: number;
+  /** Embedded messages the chunk lane considered; absent when the lane did not run. */
+  chunkRowsScanned?: number;
+  /** Messages whose vectors the chunk lane read from storage on a cache miss. */
+  chunkRowsFetched?: number;
+  /** Messages the chunk lane scored from the vector cache. */
+  chunkCacheHits?: number;
   /** Facts the fact lane returned (post-dedupe, pre-fusion). */
   factCount: number;
   /** Chunks the chunk lane returned (post-dedupe, pre-fusion). */

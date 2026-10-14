@@ -888,6 +888,33 @@ describe("createRecallTool executor", () => {
 });
 
 describe("recall — diagnostics (onDiagnostics)", () => {
+  it("carries the chunk lane's row counts when the lane ran", async () => {
+    vi.mocked(searchChunksOp).mockImplementation(async (_ctx, _vector, options) => {
+      options?.onStats?.({ rowsScanned: 1312, rowsFetched: 40, cacheHits: 1272 });
+      return [makeChunk("m1", "conv1", 0.9)];
+    });
+    const seen: RecallDiagnostics[] = [];
+
+    await recall(QUERY, makeCtx({ storageCtx }), {
+      types: ["chunk"],
+      onDiagnostics: (d) => seen.push(d),
+    });
+
+    expect(seen[0]).toMatchObject({
+      chunkRowsScanned: 1312,
+      chunkRowsFetched: 40,
+      chunkCacheHits: 1272,
+    });
+  });
+
+  it("omits the chunk lane's row counts when the lane did not run", async () => {
+    const seen: RecallDiagnostics[] = [];
+
+    await recall(QUERY, makeCtx(), { onDiagnostics: (d) => seen.push(d) });
+
+    expect(seen[0]).not.toHaveProperty("chunkRowsScanned");
+  });
+
   it("emits once with timings, lane counts, and no degradation on a clean rerank", async () => {
     const seen: RecallDiagnostics[] = [];
     const result = await recall(QUERY, makeCtx(), {

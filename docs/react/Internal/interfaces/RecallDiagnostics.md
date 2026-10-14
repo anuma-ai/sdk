@@ -12,7 +12,7 @@ pre-fusion. Intended to be forwarded to a metrics sink (e.g. PostHog).
 
 > **admittedCount**: `number`
 
-Defined in: [src/lib/memory/types.ts:405](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#405)
+Defined in: [src/lib/memory/types.ts:411](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#411)
 
 Memories actually RETURNED — `memories.length` after fusion, cross-lane
 dedup and the `limit` slice.
@@ -34,13 +34,43 @@ Total candidates considered before truncation.
 
 ***
 
+### chunkCacheHits?
+
+> `optional` **chunkCacheHits**: `number`
+
+Defined in: [src/lib/memory/types.ts:397](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#397)
+
+Messages the chunk lane scored from the vector cache.
+
+***
+
 ### chunkCount
 
 > **chunkCount**: `number`
 
-Defined in: [src/lib/memory/types.ts:395](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#395)
+Defined in: [src/lib/memory/types.ts:401](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#401)
 
 Chunks the chunk lane returned (post-dedupe, pre-fusion).
+
+***
+
+### chunkRowsFetched?
+
+> `optional` **chunkRowsFetched**: `number`
+
+Defined in: [src/lib/memory/types.ts:395](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#395)
+
+Messages whose vectors the chunk lane read from storage on a cache miss.
+
+***
+
+### chunkRowsScanned?
+
+> `optional` **chunkRowsScanned**: `number`
+
+Defined in: [src/lib/memory/types.ts:393](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#393)
+
+Embedded messages the chunk lane considered; absent when the lane did not run.
 
 ***
 
@@ -65,7 +95,7 @@ reached the bundle from a projection that isn't cheaper at that vault size.
 
 > **degraded**: [`RecallDegradation`](../type-aliases/RecallDegradation.md)\[]
 
-Defined in: [src/lib/memory/types.ts:490](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#490)
+Defined in: [src/lib/memory/types.ts:496](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#496)
 
 Soft-degradation signals that fired this call (empty when clean).
 
@@ -75,7 +105,7 @@ Soft-degradation signals that fired this call (empty when clean).
 
 > **emptyReason**: [`RecallEmptyReason`](../type-aliases/RecallEmptyReason.md)
 
-Defined in: [src/lib/memory/types.ts:440](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#440)
+Defined in: [src/lib/memory/types.ts:446](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#446)
 
 Why nothing came back — see [RecallEmptyReason](../type-aliases/RecallEmptyReason.md). `""` when something did.
 
@@ -85,7 +115,7 @@ Why nothing came back — see [RecallEmptyReason](../type-aliases/RecallEmptyRea
 
 > **factCount**: `number`
 
-Defined in: [src/lib/memory/types.ts:393](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#393)
+Defined in: [src/lib/memory/types.ts:399](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#399)
 
 Facts the fact lane returned (post-dedupe, pre-fusion).
 
@@ -95,7 +125,7 @@ Facts the fact lane returned (post-dedupe, pre-fusion).
 
 > **graphLaneCount**: `number`
 
-Defined in: [src/lib/memory/types.ts:436](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#436)
+Defined in: [src/lib/memory/types.ts:442](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#442)
 
 Memory ids the W5 graph (entity) side lane contributed to the fusion.
 
@@ -105,7 +135,7 @@ Memory ids the W5 graph (entity) side lane contributed to the fusion.
 
 > **lowestAdmittedScore**: `number`
 
-Defined in: [src/lib/memory/types.ts:409](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#409)
+Defined in: [src/lib/memory/types.ts:415](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#415)
 
 Lowest score among the returned memories; -1 when none were returned.
 
@@ -115,7 +145,7 @@ Lowest score among the returned memories; -1 when none were returned.
 
 > **minScoreApplied**: `number`
 
-Defined in: [src/lib/memory/types.ts:425](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#425)
+Defined in: [src/lib/memory/types.ts:431](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#431)
 
 The similarity floor the lane that produced these scores actually applied:
 the fact lane's when it RETURNED results, otherwise the chunk lane's, and
@@ -147,7 +177,7 @@ Whether the cross-encoder actually reranked the fact lane this call.
 
 > **temporalLaneCount**: `number`
 
-Defined in: [src/lib/memory/types.ts:438](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#438)
+Defined in: [src/lib/memory/types.ts:444](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#444)
 
 Memory ids the W6 temporal side lane contributed to the fusion.
 
@@ -157,7 +187,7 @@ Memory ids the W6 temporal side lane contributed to the fusion.
 
 > **timings**: `object`
 
-Defined in: [src/lib/memory/types.ts:442](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#442)
+Defined in: [src/lib/memory/types.ts:448](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#448)
 
 Wall-clock phase timings (ms).
 
@@ -236,7 +266,7 @@ Whole `recall()` call.
 
 > **topScore**: `number`
 
-Defined in: [src/lib/memory/types.ts:407](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#407)
+Defined in: [src/lib/memory/types.ts:413](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#413)
 
 Highest score among the returned memories; -1 when none were returned.
 
@@ -246,7 +276,7 @@ Highest score among the returned memories; -1 when none were returned.
 
 > **truncated**: `boolean`
 
-Defined in: [src/lib/memory/types.ts:433](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#433)
+Defined in: [src/lib/memory/types.ts:439](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#439)
 
 Whether the `limit` cut an ELIGIBLE result — recorded at the cut, not
 derived from `candidateCount > limit`. In the fused path `candidateCount`
@@ -260,7 +290,7 @@ happened.
 
 > `optional` **truncatedByBudget**: `boolean`
 
-Defined in: [src/lib/memory/types.ts:434](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#434)
+Defined in: [src/lib/memory/types.ts:440](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#440)
 
 ***
 

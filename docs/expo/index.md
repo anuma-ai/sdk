@@ -220,6 +220,12 @@ Re-exports [CHUNKS\_DISCARDED\_ORIGIN](../react/Internal/variables/CHUNKS_DISCAR
 
 ***
 
+### ChunkSearchStats
+
+Re-exports [ChunkSearchStats](../react/Internal/interfaces/ChunkSearchStats.md)
+
+***
+
 ### chunkText
 
 Re-exports [chunkText](../react/Internal/functions/chunkText.md)

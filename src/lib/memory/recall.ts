@@ -1,4 +1,4 @@
-import { searchChunksOp } from "../db/chat/operations.js";
+import { type ChunkSearchStats, searchChunksOp } from "../db/chat/operations.js";
 import type { ChunkSearchResult } from "../db/chat/types.js";
 import { getMemoriesByEntityNamesOp } from "../db/entities/operations.js";
 import {
@@ -113,6 +113,7 @@ export async function recall(
   let prepMs = 0;
   let factLaneMs = 0;
   let chunkLaneMs = 0;
+  let chunkStats: ChunkSearchStats | undefined;
   let fuseMs = 0;
   const factResults: VaultSearchResult[] = [];
   const chunkResults: ChunkSearchResult[] = [];
@@ -179,6 +180,11 @@ export async function recall(
       ...(decryptLastRan !== undefined && { decryptLast: decryptLastRan }),
       ...(vaultRowsDecrypted !== undefined && { vaultRowsDecrypted }),
       ...(vaultRowsEmbedded !== undefined && { vaultRowsEmbedded }),
+      ...(chunkStats && {
+        chunkRowsScanned: chunkStats.rowsScanned,
+        chunkRowsFetched: chunkStats.rowsFetched,
+        chunkCacheHits: chunkStats.cacheHits,
+      }),
       factCount: factResults.length,
       chunkCount: chunkResults.length,
       admittedCount: admitted.length,
@@ -374,6 +380,9 @@ export async function recall(
         excludeConversationId: options.excludeConversationId,
       }),
       ...(ctx.chunkCache && { chunkCache: ctx.chunkCache }),
+      onStats: (stats) => {
+        chunkStats = stats;
+      },
     });
     chunkResults.push(...dedupeBy(results, (r) => r.chunkText.trim()));
     chunkLaneMs = nowMs() - chunkStart;
