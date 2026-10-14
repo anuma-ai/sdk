@@ -1184,7 +1184,12 @@ async function encryptedToolCallEventsColumn(
   return column === JSON.stringify(parsed) ? null : column;
 }
 
-/** Encrypts tool call arguments and results still stored in plaintext, returning how many rows changed. */
+/**
+ * Encrypts tool call arguments and results still stored in plaintext and
+ * returns how many rows changed, giving each touched conversation a new
+ * `updatedAt` so backups re-upload it, which moves it to the top of any list
+ * sorted by `updatedAt`.
+ */
 export async function encryptToolCallEventsOp(ctx: StorageOperationsContext): Promise<number> {
   const { walletAddress: address, signMessage, embeddedWalletSigner } = ctx;
   if (!address || !signMessage) return 0;

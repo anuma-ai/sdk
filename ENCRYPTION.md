@@ -130,7 +130,7 @@ Encryption is **fully backwards compatible**:
 
 - **Old data reads correctly.** Plaintext fields (no `enc:v2:` prefix) are returned unchanged.
 - **Mixed state works.** A conversation can contain some plaintext messages (written before encryption) and some encrypted messages (written after). Both read correctly.
-- **No migration step.** There is no batch migration. Old data stays plaintext, new data is encrypted. The database gradually transitions as new data is written.
+- **No migration step.** There is no batch migration. Old data stays plaintext, new data is encrypted. The database gradually transitions as new data is written. The one exception is tool call events: see [Encrypting old tool call events](#encrypting-old-tool-call-events).
 - **No schema changes.** Encrypted values are stored in the same columns as plaintext values. The `enc:v2:` prefix distinguishes them.
 
 ### Encrypting old tool call events
@@ -139,8 +139,9 @@ Messages written by older SDK versions, or restored from an older backup, can st
 
 - **Needs the key.** It requests the wallet key first and does nothing without a wallet address, signer or key.
 - **Safe to repeat.** Events that are already encrypted are left as they are, so a second run changes nothing.
-- **Backups pick it up.** It bumps `updatedAt` on each changed message and its conversation, so the next backup re-uploads them.
-- **When to call it.** After the user unlocks encryption, and again after a backup restore.
+- **Backups pick it up.** It sets `updatedAt` to now on each changed message and its conversation. Backup only uploads conversations whose `updatedAt` moved, so the next backup includes them.
+- **It reorders the chat list once.** A chat list sorted by `updatedAt` will show every repaired conversation at the top after the first run. Later runs only touch conversations that still hold plaintext, such as ones a backup restore brought back.
+- **When to call it.** Once after upgrading the SDK, when the user first unlocks encryption, and again after each backup restore. Each run reads every message that has tool call events, so do not call it on every unlock.
 
 ```typescript
 import { encryptToolCallEventsOp } from "@anuma/sdk/react";

@@ -2,9 +2,12 @@
 
 > **encryptToolCallEventsOp**(`ctx`: [`StorageOperationsContext`](../interfaces/StorageOperationsContext.md)): `Promise`<`number`>
 
-Defined in: [src/lib/db/chat/operations.ts:1188](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/operations.ts#1188)
+Defined in: [src/lib/db/chat/operations.ts:1193](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/operations.ts#1193)
 
-Encrypts tool call arguments and results still stored in plaintext, returning how many rows changed.
+Encrypts tool call arguments and results still stored in plaintext and
+returns how many rows changed, giving each touched conversation a new
+`updatedAt` so backups re-upload it, which moves it to the top of any list
+sorted by `updatedAt`.
 
 ## Parameters
 
