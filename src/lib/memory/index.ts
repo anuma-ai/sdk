@@ -1,4 +1,8 @@
-export type { CachedChunkVectors, ChunkVectorCache } from "../db/chat/operations.js";
+export type {
+  CachedChunkVectors,
+  ChunkSearchStats,
+  ChunkVectorCache,
+} from "../db/chat/operations.js";
 export { INTERNAL_FLOW_MARKER, withInternalFlowMarker } from "../internalFlowMarker.js";
 export {
   type AutoExtractMessage,
@@ -110,6 +114,13 @@ export {
   reencryptMemoryField,
 } from "./store/memoryKeys.js";
 export {
+  type MemoryMigrationOptions,
+  type MemoryMigrationProgress,
+  type MemoryMigrationResult,
+  type MemoryMigrationSkip,
+  migrateMemoriesToRemote,
+} from "./store/remoteMigration.js";
+export {
   createRemoteMemoryPersistence,
   type RemoteMemoryCandidateOptions,
   type RemoteMemoryDecodeFailure,
@@ -165,6 +176,7 @@ export {
   extractEntitiesForMemories,
   isDegradedTopicSkip,
   TOPIC_EXTRACTION_BATCH_SIZE,
+  type TopicExtractionBatchDiagnostics,
   type TopicExtractionInput,
   type TopicExtractionRunResult,
   type TopicExtractOptions,
@@ -185,6 +197,8 @@ export type {
   RecallEmptyReason,
   RecallOptions,
   RecallResult,
+  RecallTelemetryCallbacks,
+  RecallTruncation,
   RetainAction,
   RetainOptions,
   RetainResult,

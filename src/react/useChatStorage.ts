@@ -73,6 +73,7 @@ import {
   updateMessageErrorOp,
 } from "../lib/db/chat";
 import { maskScopedEmbeddingCache } from "../lib/db/chat/embeddingCache";
+import { hasEncryptedToolPayload } from "../lib/db/encryption-utils";
 import {
   Entity as EntityModel,
   MemoryEntity as MemoryEntityModel,
@@ -146,6 +147,7 @@ import type { NerDetector } from "../lib/pii/ner";
 import { isPiiRedactor, PiiRedactor } from "../lib/pii/redactor";
 import type { FileProcessingStatus } from "../lib/processors";
 import { formatFileProcessingNotes, preprocessFiles } from "../lib/processors";
+import { DEFAULT_MAX_FILE_SIZE_BYTES } from "../lib/processors/fileStatusNotes";
 import {
   BlobUrlManager,
   createFilePlaceholder,
@@ -499,12 +501,15 @@ export async function storedToLlmapiMessage(
   const content: LlmapiMessage["content"] = [{ type: "text", text: textContent }, ...imageParts];
 
   const messages: LlmapiMessage[] = [];
+  const toolCallEvents = Array.isArray(stored.toolCallEvents)
+    ? stored.toolCallEvents.filter((event) => !hasEncryptedToolPayload(event))
+    : [];
 
-  if (stored.role === "assistant" && stored.toolCallEvents?.length) {
+  if (stored.role === "assistant" && toolCallEvents.length) {
     messages.push({
       role: stored.role,
       content: undefined,
-      tool_calls: stored.toolCallEvents.map((event) => ({
+      tool_calls: toolCallEvents.map((event) => ({
         id: event.id,
         type: "function",
         function: {
@@ -514,7 +519,7 @@ export async function storedToLlmapiMessage(
       })),
     });
 
-    for (const event of stored.toolCallEvents) {
+    for (const event of toolCallEvents) {
       if (event.id && event.output !== undefined && event.output !== null) {
         messages.push({
           role: "tool" as LlmapiMessage["role"],
@@ -2568,8 +2573,16 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       }
 
       let userFileIds: string[] = [];
-      if (filesForStorage && filesForStorage.length > 0 && walletAddress && isEncryptionReady()) {
-        userFileIds = await storeUserFilesInOPFS(filesForStorage, walletAddress, convId);
+      const maxFileSizeBytes =
+        fileProcessingOptions?.maxFileSizeBytes ?? DEFAULT_MAX_FILE_SIZE_BYTES;
+      const storableFiles = filesForStorage?.filter((file) => file.size <= maxFileSizeBytes);
+      if (storableFiles && storableFiles.length > 0 && walletAddress && isEncryptionReady()) {
+        userFileIds = await storeUserFilesInOPFS(
+          storableFiles,
+          walletAddress,
+          convId,
+          maxFileSizeBytes
+        );
       }
 
       const userMsgOpts: CreateMessageOptions = {

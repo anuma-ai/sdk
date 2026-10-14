@@ -56,55 +56,6 @@
  * @module react
  */
 export {
-  clearGithubToken,
-  getAndClearGithubPendingMessage,
-  getAndClearGithubReturnUrl,
-  getGithubAccessToken,
-  getValidGithubToken,
-  handleGithubCallback,
-  hasGithubCredentials,
-  isGithubCallback,
-  migrateGithubToken,
-  refreshGithubToken,
-  revokeGithubToken,
-  startGithubAuth,
-  storeGithubPendingMessage,
-  storeGithubReturnUrl,
-  storeGithubToken,
-} from "../lib/auth/github";
-export {
-  clearCalendarToken,
-  getAndClearCalendarPendingMessage,
-  getAndClearCalendarReturnUrl,
-  getCalendarAccessToken,
-  getValidCalendarToken,
-  handleCalendarCallback,
-  hasCalendarCredentials,
-  isCalendarCallback,
-  migrateCalendarToken,
-  refreshCalendarToken,
-  revokeCalendarToken,
-  storeCalendarPendingMessage,
-  storeCalendarReturnUrl,
-  storeCalendarToken,
-} from "../lib/auth/google-calendar";
-export {
-  clearDriveToken,
-  getAndClearDrivePendingMessage,
-  getAndClearDriveReturnUrl,
-  getDriveAccessToken,
-  getValidDriveToken,
-  handleDriveCallback,
-  hasDriveCredentials,
-  isDriveCallback,
-  migrateDriveToken,
-  refreshDriveToken,
-  revokeDriveToken,
-  storeDrivePendingMessage,
-  storeDriveReturnUrl,
-  storeDriveToken,
-} from "../lib/auth/google-drive";
-export {
   clearNotionToken,
   getAndClearNotionPendingMessage,
   getAndClearNotionReturnUrl,
@@ -122,8 +73,6 @@ export {
   storeNotionPendingMessage,
   storeNotionReturnUrl,
 } from "../lib/auth/notion";
-export type { DropboxExportResult, DropboxImportResult } from "../lib/backup/dropbox/backup";
-export type { GoogleDriveExportResult, GoogleDriveImportResult } from "../lib/backup/google/backup";
 export type { ICloudExportResult, ICloudImportResult } from "../lib/backup/icloud/backup";
 export type {
   CryptoPriceClassification,
@@ -210,6 +159,7 @@ export {
   type CreateMessageOptions,
   decryptConversationTitle,
   deleteMessageOp,
+  encryptToolCallEventsOp,
   type FileMetadata,
   generateConversationId,
   getConversationsByProjectLazyOp,
@@ -462,6 +412,7 @@ export type {
   AutoExtractor,
   Budget,
   CachedChunkVectors,
+  ChunkSearchStats,
   ChunkVectorCache,
   ConsolidationAction,
   ConsolidationFallbackReason,
@@ -511,8 +462,10 @@ export type {
   RecallEmptyReason,
   RecallOptions,
   RecallResult,
+  RecallTelemetryCallbacks,
   RecallToolCallbacks,
   RecallToolOptions,
+  RecallTruncation,
   RecencyOptions,
   ReflectOptions,
   ReflectResult,
@@ -533,6 +486,7 @@ export type {
 export type {
   MemoryToVerify,
   MemoryVerification,
+  TopicExtractionBatchDiagnostics,
   TopicExtractionInput,
   TopicExtractionRunResult,
   TopicExtractOptions,
@@ -554,6 +508,10 @@ export {
   type MemoryKeyRing,
   type MemoryListOptions,
   type MemoryMaintenance,
+  type MemoryMigrationOptions,
+  type MemoryMigrationProgress,
+  type MemoryMigrationResult,
+  type MemoryMigrationSkip,
   type MemoryRecallOptions,
   type MemoryRetainOptions,
   type MemoryStore,
@@ -562,6 +520,7 @@ export {
   type MemoryTopicBacklog,
   type MemoryTopicMaintenance,
   type MemoryUpdate,
+  migrateMemoriesToRemote,
   reencryptMemoryField,
   type RemoteMemoryCandidateOptions,
   type RemoteMemoryDecodeFailure,
@@ -847,13 +806,7 @@ export type {
   UseBackupOptions,
   UseBackupResult,
 } from "./useBackup";
-export {
-  DEFAULT_DRIVE_CONVERSATIONS_FOLDER as BACKUP_DRIVE_CONVERSATIONS_FOLDER,
-  DEFAULT_DRIVE_ROOT_FOLDER as BACKUP_DRIVE_ROOT_FOLDER,
-  DEFAULT_ICLOUD_FOLDER as BACKUP_ICLOUD_FOLDER,
-  DEFAULT_DROPBOX_FOLDER,
-  useBackup,
-} from "./useBackup";
+export { DEFAULT_ICLOUD_FOLDER as BACKUP_ICLOUD_FOLDER, useBackup } from "./useBackup";
 export type {
   BackupAuthContextValue,
   BackupAuthProviderProps,
@@ -872,15 +825,6 @@ export { maskScopedEmbeddingCache, previewToolSelection, useChatStorage } from "
 export type { UseCreditsOptions, UseCreditsResult } from "./useCredits";
 export { useCredits } from "./useCredits";
 export { useDatabaseManager } from "./useDatabaseManager";
-export type { DropboxAuthContextValue, DropboxAuthProviderProps } from "./useDropboxAuth";
-export {
-  clearToken as clearDropboxToken,
-  DropboxAuthProvider,
-  hasDropboxCredentials,
-  useDropboxAuth,
-} from "./useDropboxAuth";
-export type { UseDropboxBackupOptions, UseDropboxBackupResult } from "./useDropboxBackup";
-export { DEFAULT_BACKUP_FOLDER, useDropboxBackup } from "./useDropboxBackup";
 export type {
   EmbeddedWalletSignerFn,
   EncryptionKeyVersion,
@@ -921,26 +865,6 @@ export type { UseExportPdfResult } from "./useExportPdf";
 export { useExportPdf } from "./useExportPdf";
 export type { UseFilesOptions, UseFilesResult } from "./useFiles";
 export { useFiles } from "./useFiles";
-export type {
-  GoogleDriveAuthContextValue,
-  GoogleDriveAuthProviderProps,
-} from "./useGoogleDriveAuth";
-export {
-  clearGoogleDriveToken,
-  getGoogleDriveStoredToken,
-  GoogleDriveAuthProvider,
-  hasGoogleDriveCredentials,
-  useGoogleDriveAuth,
-} from "./useGoogleDriveAuth";
-export type {
-  UseGoogleDriveBackupOptions,
-  UseGoogleDriveBackupResult,
-} from "./useGoogleDriveBackup";
-export {
-  DEFAULT_CONVERSATIONS_FOLDER as DEFAULT_DRIVE_CONVERSATIONS_FOLDER,
-  DEFAULT_ROOT_FOLDER as DEFAULT_DRIVE_ROOT_FOLDER,
-  useGoogleDriveBackup,
-} from "./useGoogleDriveBackup";
 export type { ICloudAuthContextValue, ICloudAuthProviderProps } from "./useICloudAuth";
 export {
   clearICloudAuth,

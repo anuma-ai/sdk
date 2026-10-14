@@ -64,9 +64,17 @@ class MaskScopedEmbeddingCache extends Map<string, Float32Array> {
  * Get it wrong and you simply miss the cache; you cannot be served the other decision's vector,
  * which is the property the namespacing exists to guarantee.
  */
+const scopedViews = new WeakMap<
+  Map<string, Float32Array>,
+  { masked?: MaskScopedEmbeddingCache; raw?: MaskScopedEmbeddingCache }
+>();
+
 export function maskScopedEmbeddingCache(
   cache: Map<string, Float32Array>,
   masked: boolean
 ): Map<string, Float32Array> {
-  return new MaskScopedEmbeddingCache(cache, masked);
+  const views = scopedViews.get(cache) ?? {};
+  scopedViews.set(cache, views);
+  const slot = masked ? "masked" : "raw";
+  return (views[slot] ??= new MaskScopedEmbeddingCache(cache, masked));
 }

@@ -220,6 +220,12 @@ Re-exports [CHUNKS\_DISCARDED\_ORIGIN](../react/Internal/variables/CHUNKS_DISCAR
 
 ***
 
+### ChunkSearchStats
+
+Re-exports [ChunkSearchStats](../react/Internal/interfaces/ChunkSearchStats.md)
+
+***
+
 ### chunkText
 
 Re-exports [chunkText](../react/Internal/functions/chunkText.md)
@@ -808,6 +814,12 @@ Re-exports [EncryptionKeyMissingError](../react/Internal/classes/EncryptionKeyMi
 
 ***
 
+### encryptToolCallEventsOp
+
+Re-exports [encryptToolCallEventsOp](../react/Internal/functions/encryptToolCallEventsOp.md)
+
+***
+
 ### ensureDefaultFoldersOp
 
 Re-exports [ensureDefaultFoldersOp](../react/Internal/functions/ensureDefaultFoldersOp.md)
@@ -1324,6 +1336,30 @@ Re-exports [MemoryMaintenance](../react/Internal/interfaces/MemoryMaintenance.md
 
 ***
 
+### MemoryMigrationOptions
+
+Re-exports [MemoryMigrationOptions](../react/Internal/interfaces/MemoryMigrationOptions.md)
+
+***
+
+### MemoryMigrationProgress
+
+Re-exports [MemoryMigrationProgress](../react/Internal/interfaces/MemoryMigrationProgress.md)
+
+***
+
+### MemoryMigrationResult
+
+Re-exports [MemoryMigrationResult](../react/Internal/interfaces/MemoryMigrationResult.md)
+
+***
+
+### MemoryMigrationSkip
+
+Re-exports [MemoryMigrationSkip](../react/Internal/interfaces/MemoryMigrationSkip.md)
+
+***
+
 ### MemoryQuarantinedEvent
 
 Re-exports [MemoryQuarantinedEvent](../react/Internal/interfaces/MemoryQuarantinedEvent.md)
@@ -1405,6 +1441,12 @@ Re-exports [MemoryVerification](../react/Internal/type-aliases/MemoryVerificatio
 ### MessageSkeleton
 
 Re-exports [MessageSkeleton](../react/Internal/interfaces/MessageSkeleton.md)
+
+***
+
+### migrateMemoriesToRemote
+
+Re-exports [migrateMemoriesToRemote](../react/Internal/functions/migrateMemoriesToRemote.md)
 
 ***
 
@@ -1696,6 +1738,12 @@ Re-exports [RecallResult](../react/Internal/interfaces/RecallResult.md)
 
 ***
 
+### RecallTelemetryCallbacks
+
+Re-exports [RecallTelemetryCallbacks](../react/Internal/interfaces/RecallTelemetryCallbacks.md)
+
+***
+
 ### RecallToolCallbacks
 
 Re-exports [RecallToolCallbacks](../react/Internal/interfaces/RecallToolCallbacks.md)
@@ -1705,6 +1753,12 @@ Re-exports [RecallToolCallbacks](../react/Internal/interfaces/RecallToolCallback
 ### RecallToolOptions
 
 Re-exports [RecallToolOptions](../react/Internal/interfaces/RecallToolOptions.md)
+
+***
+
+### RecallTruncation
+
+Re-exports [RecallTruncation](../react/Internal/interfaces/RecallTruncation.md)
 
 ***
 
@@ -2239,6 +2293,12 @@ Re-exports [TOPIC\_EXTRACTION\_BATCH\_SIZE](../react/Internal/variables/TOPIC_EX
 ### TOPIC\_SALIENCE\_WEIGHTS
 
 Re-exports [TOPIC\_SALIENCE\_WEIGHTS](../react/Internal/variables/TOPIC_SALIENCE_WEIGHTS.md)
+
+***
+
+### TopicExtractionBatchDiagnostics
+
+Re-exports [TopicExtractionBatchDiagnostics](../react/Internal/interfaces/TopicExtractionBatchDiagnostics.md)
 
 ***
 

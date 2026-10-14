@@ -2,7 +2,7 @@
 
 > **recall**(`query`: `string`, `ctx`: [`RecallContext`](../interfaces/RecallContext.md), `options`: [`RecallOptions`](../interfaces/RecallOptions.md)): `Promise`<[`RecallResult`](../interfaces/RecallResult.md)>
 
-Defined in: [src/lib/memory/recall.ts:90](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/recall.ts#90)
+Defined in: [src/lib/memory/recall.ts:88](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/recall.ts#88)
 
 Single entry point for memory retrieval across facts (vault) and chunks
 (engine). Returns a unified, ranked list.

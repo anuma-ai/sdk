@@ -36,7 +36,7 @@ export function parsePlaintextToken<T extends { accessToken: string }>(
  * The unscoped key is dropped in the same step, so a later read for another
  * wallet cannot claim the same token.
  */
-export function promoteUnscopedRow<T extends { accessToken: string }>(
+function promoteUnscopedRow<T extends { accessToken: string }>(
   raw: string,
   data: T,
   store: Storage,

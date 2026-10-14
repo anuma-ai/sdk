@@ -94,6 +94,8 @@ export interface RankedMemory {
 }
 
 export interface RecallOptions {
+  /** Embedding cache shared with the rest of the turn, so the query is embedded once across lanes and the send. */
+  embeddingCache?: Map<string, Float32Array>;
   /** Which kinds to search. Default: ['fact']. */
   types?: MemoryKind[];
   /** Max items returned. Default: 8. */
@@ -389,6 +391,12 @@ export interface RecallDiagnostics {
    * LEGACY read path this batch is uncapped, so it can be the whole vault.
    */
   vaultRowsEmbedded?: number;
+  /** Embedded messages the chunk lane considered; absent when the lane did not run. */
+  chunkRowsScanned?: number;
+  /** Messages whose vectors the chunk lane read from storage on a cache miss. */
+  chunkRowsFetched?: number;
+  /** Messages the chunk lane scored from the vector cache. */
+  chunkCacheHits?: number;
   /** Facts the fact lane returned (post-dedupe, pre-fusion). */
   factCount: number;
   /** Chunks the chunk lane returned (post-dedupe, pre-fusion). */
@@ -431,6 +439,7 @@ export interface RecallDiagnostics {
    * happened.
    */
   truncated: boolean;
+  truncatedByBudget?: boolean;
   /** Memory ids the W5 graph (entity) side lane contributed to the fusion. */
   graphLaneCount: number;
   /** Memory ids the W6 temporal side lane contributed to the fusion. */
@@ -487,6 +496,18 @@ export interface RecallDiagnostics {
   };
   /** Soft-degradation signals that fired this call (empty when clean). */
   degraded: RecallDegradation[];
+}
+
+export interface RecallTruncation {
+  requestedLimit: number;
+  effectiveLimit: number;
+  truncatedByBudget: boolean;
+}
+
+export interface RecallTelemetryCallbacks {
+  onDiagnostics?: (diagnostics: RecallDiagnostics) => void;
+  onTruncated?: (truncation: RecallTruncation) => void;
+  onError?: (error: Error) => void;
 }
 
 export type RetainAction = "create" | "merge" | "update" | "skip" | "suppressed" | "supersede";

@@ -27,8 +27,16 @@ import { getLogger } from "../../logger.js";
 import { DEFAULT_API_EMBEDDING_MODEL } from "../../memoryEngine/constants.js";
 import { generateEmbedding } from "../../memoryEngine/embeddings.js";
 import type { EmbeddingOptions } from "../../memoryEngine/types.js";
-import { extractEntitiesForMemories, type TopicSkipReason } from "../topicExtract.js";
-import type { RecallFactSource } from "../types.js";
+import { NODE_BUDGET } from "../graphTraversal.js";
+import type { PortalLlmFailure } from "../portalLlm.js";
+import { extractQueryEntities } from "../queryEntities.js";
+import { notifyMemoryCallback } from "../recallTelemetry.js";
+import {
+  extractEntitiesForMemories,
+  type TopicExtractionBatchDiagnostics,
+  type TopicSkipReason,
+} from "../topicExtract.js";
+import type { RecallFactSource, RecallOptions } from "../types.js";
 import {
   type RemoteMemoryDecodeFailure,
   RemoteMemoryError,
@@ -53,8 +61,10 @@ import type {
 export interface RemoteMemoryStoreOptions {
   persistence: RemoteMemoryPersistence;
   embeddingOptions: EmbeddingOptions;
-  graphRanking: RecallFactSource["graphRanking"];
-  temporalRanking: RecallFactSource["temporalRanking"];
+  /** Defaults to ranking memories by how many query entities their topics name. */
+  graphRanking?: RecallFactSource["graphRanking"];
+  /** Defaults to no temporal lane: nearby has no event-time filter yet. */
+  temporalRanking?: RecallFactSource["temporalRanking"];
   pollIntervalMs?: number;
 }
 
@@ -107,6 +117,7 @@ const MAX_BATCH = 50;
 const MAX_QUERY_IDS = 1000;
 const MAX_QUERY_TOPICS = 100;
 const MAX_QUERY_FILTER = 20;
+const GRAPH_LANE_ROWS = 256;
 
 export class RemoteMemoryPartialCreateError extends Error {
   constructor(
@@ -220,7 +231,7 @@ function sameTopics(stored: readonly StoredTopic[] | null, next: readonly Stored
   return next.every((t) => keys.has(key(t)));
 }
 
-function canonicalTopics(row: RemoteMemoryRow): Set<string> {
+function canonicalTopics(row: Pick<RemoteMemoryRow, "topics">): Set<string> {
   return new Set((parseTopics(row.topics) ?? []).map((topic) => normalizeEntityName(topic.name)));
 }
 
@@ -232,7 +243,13 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
   const { persistence, embeddingOptions } = options;
   const model = embeddingOptions.model ?? DEFAULT_API_EMBEDDING_MODEL;
   const pollIntervalMs = options.pollIntervalMs ?? 60_000;
-  const pipeline = createRemoteMemoryPipeline(options);
+  const pipeline = createRemoteMemoryPipeline({
+    ...options,
+    graphRanking:
+      options.graphRanking ??
+      ((query, _traverse, recallOptions) => topicGraphRanking(query, recallOptions)),
+    temporalRanking: options.temporalRanking ?? (() => Promise.resolve([])),
+  });
   const subscribers = new Set<Subscriber>();
   const seen = new Map<string, RemoteMemoryRecord>();
   let timer: ReturnType<typeof setInterval> | undefined;
@@ -271,6 +288,44 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
     persistence.queryMetadata(options as Parameters<typeof persistence.queryMetadata>[0]);
   const enumerate = (filters: Omit<RemoteMemoryQueryOptions, "cursor" | "limit">, max = Infinity) =>
     pages(decrypted, filters, max);
+  const memoriesByTopics = async (names: readonly string[]) => {
+    const wanted = new Set(names.map(normalizeEntityName).filter(Boolean));
+    const out = new Map<string, Set<string>>();
+    const pages = await Promise.all(
+      chunks([...wanted], MAX_QUERY_TOPICS).map((topics) => enumerate({ topics }))
+    );
+    for (const { memory } of pages.flat()) {
+      const matched = [...canonicalTopics(memory)].filter((name) => wanted.has(name));
+      if (matched.length) out.set(memory.memory_id, new Set(matched));
+    }
+    return out;
+  };
+  const topicGraphRanking = async (
+    query: string,
+    recallOptions: RecallOptions = {}
+  ): Promise<string[]> => {
+    const wanted = new Set(extractQueryEntities(query).map(normalizeEntityName).filter(Boolean));
+    if (wanted.size === 0 || recallOptions.memoryIds?.length === 0) return [];
+    const rows = await pages(
+      metadata,
+      {
+        topics: [...wanted].slice(0, MAX_QUERY_TOPICS),
+        ...(recallOptions.scopes && { scopes: recallOptions.scopes }),
+        ...(recallOptions.factTypes && { fact_types: recallOptions.factTypes }),
+        ...(recallOptions.memoryIds && { memory_ids: recallOptions.memoryIds }),
+      },
+      GRAPH_LANE_ROWS
+    );
+    return rows
+      .map(({ memory }) => ({
+        memoryId: memory.memory_id,
+        matched: [...canonicalTopics(memory)].filter((name) => wanted.has(name)).length,
+      }))
+      .filter((row) => row.matched > 0)
+      .sort((a, b) => b.matched - a.matched)
+      .slice(0, NODE_BUDGET)
+      .map((row) => row.memoryId);
+  };
   const enumerateIds = async <T extends Row>(
     read: (options: RemoteMemoryQueryOptions) => Promise<Page<T>>,
     ids: readonly string[],
@@ -540,7 +595,8 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
       };
     },
     extractTopics: async (memoryIds, extractOptions) => {
-      const extractedAt = extractOptions.now ?? Date.now();
+      const start = Date.now();
+      const extractedAt = extractOptions.now ?? start;
       const skippedIds: string[] = [];
       const skippedReasons = new Map<string, TopicSkipReason>();
       const skip = (id: string, reason: TopicSkipReason) => {
@@ -559,7 +615,18 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
         else inputs.push({ id, content: memory.content });
       }
 
-      const entitiesByMemory = await extractEntitiesForMemories(inputs, extractOptions);
+      const batches: TopicExtractionBatchDiagnostics[] = [];
+      const llmFailures = new Map<string, PortalLlmFailure>();
+      const entitiesByMemory = await extractEntitiesForMemories(inputs, {
+        ...extractOptions,
+        onBatch: (batch) => {
+          batches.push(batch);
+          if (batch.failure) {
+            for (const id of batch.memoryIds) llmFailures.set(id, batch.failure);
+          }
+          notifyMemoryCallback(extractOptions.onBatch, batch);
+        },
+      });
       const answered = new Map<string, { content: string; topics: StoredTopic[] }>();
       for (const input of inputs) {
         const entities = entitiesByMemory.get(input.id);
@@ -615,7 +682,16 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
         getLogger().warn("[memory/remote-store] Failed to write extracted topics:", error);
         for (const id of answered.keys()) fail(id, "link-failed");
       }
-      return { entitiesByMemory, stampedIds, skippedIds, skippedReasons };
+      return {
+        entitiesByMemory,
+        stampedIds,
+        skippedIds,
+        skippedReasons,
+        batchCount: batches.length,
+        durationMs: Date.now() - start,
+        batches,
+        llmFailures,
+      };
     },
     stampTopicsExtracted: async (memoryIds, extractedAt, version = TOPICS_EXTRACTION_VERSION) => {
       const ids = [...new Set(memoryIds)];
@@ -759,18 +835,7 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
       (await enumerate({ archived_only: true, order: "archived", include_embeddings: true })).map(
         (record) => stored(record.memory)
       ),
-    memoriesByTopics: async (names) => {
-      const wanted = new Set(names.map(normalizeEntityName).filter(Boolean));
-      const out = new Map<string, Set<string>>();
-      const pages = await Promise.all(
-        chunks([...wanted], MAX_QUERY_TOPICS).map((topics) => enumerate({ topics }))
-      );
-      for (const { memory } of pages.flat()) {
-        const matched = [...canonicalTopics(memory)].filter((name) => wanted.has(name));
-        if (matched.length) out.set(memory.memory_id, new Set(matched));
-      }
-      return out;
-    },
+    memoriesByTopics,
     topicsByMemories: async (memoryIds) => {
       const out = new Map<string, Set<string>>();
       for (const { memory } of await enumerateIds(decrypted, memoryIds, {
