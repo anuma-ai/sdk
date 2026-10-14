@@ -3,6 +3,11 @@ import { Database } from "@nozbe/watermelondb";
 import LokiJSAdapter from "@nozbe/watermelondb/adapters/lokijs";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+vi.mock("../../../react/useEncryption", async (importOriginal) => {
+  const orig = await importOriginal<typeof import("../../../react/useEncryption")>();
+  return { ...orig, requestEncryptionKey: vi.fn(orig.requestEncryptionKey) };
+});
+
 import type { LlmapiToolCallEvent } from "../../../client";
 import {
   clearAllEncryptionKeys,
@@ -16,6 +21,7 @@ import { Conversation, Message } from "./models";
 import {
   createConversationOp,
   createMessageOp,
+  encryptToolCallEventsOp,
   getMessagesOp,
   getToolCallEventIdsOp,
   type StorageOperationsContext,
@@ -32,6 +38,8 @@ const TEST_ADDRESS = "0x1234567890123456789012345678901234567890";
 const mockSignMessage = vi.fn(
   async (message: string) => `0x${Buffer.from(message).toString("hex").padStart(130, "0")}`
 ) as unknown as SignMessageFn;
+
+const mockRequestEncryptionKey = vi.mocked(requestEncryptionKey);
 
 const PINNED_UPDATED_AT = 1_700_000_000_000;
 
@@ -332,5 +340,158 @@ describe("getToolCallEventIdsOp with encrypted events", () => {
     );
     await seedRaw(db, "m2", JSON.stringify([EVENTS[0]]));
     expect(await getToolCallEventIdsOp(lockedCtx(db), "conv_1")).toEqual(new Set(["call_1"]));
+  });
+});
+
+describe("encryptToolCallEventsOp", () => {
+  async function seedConversationUpdatedAt(db: Database, updatedAt: number): Promise<void> {
+    const [conversation] = await db.get<Conversation>("conversations").query().fetch();
+    await db.write(async () => {
+      await conversation.update((c) => {
+        c._setRaw("updated_at", updatedAt);
+      });
+    });
+  }
+
+  async function conversationUpdatedAt(db: Database): Promise<number> {
+    const [conversation] = (await db
+      .get<Conversation>("conversations")
+      .query()
+      .unsafeFetchRaw()) as Record<string, unknown>[];
+    return Number(conversation.updated_at);
+  }
+
+  async function seedPlaintext(db: Database, ids: string[]): Promise<void> {
+    for (const id of ids) await seedRaw(db, id, JSON.stringify(EVENTS));
+    await seedConversationUpdatedAt(db, PINNED_UPDATED_AT);
+  }
+
+  it("encrypts plaintext rows and bumps the message and conversation updated_at", async () => {
+    const db = makeDatabase();
+    await seedPlaintext(db, ["m1", "m2"]);
+
+    expect(await encryptToolCallEventsOp(encryptedCtx(db))).toBe(2);
+
+    await expectEncryptedAtRest(db, "m1");
+    await expectEncryptedAtRest(db, "m2");
+    expect(Number((await rawRow(db, "m1")).updated_at)).toBeGreaterThan(PINNED_UPDATED_AT);
+    expect(await conversationUpdatedAt(db)).toBeGreaterThan(PINNED_UPDATED_AT);
+    expect((await readOne(encryptedCtx(db), "m1")).toolCallEvents).toEqual(EVENTS);
+  });
+
+  it("leaves already-encrypted rows untouched", async () => {
+    const db = makeDatabase();
+    const column = JSON.stringify(await encryptEvents(EVENTS));
+    await seedRaw(db, "m1", column);
+    await seedConversationUpdatedAt(db, PINNED_UPDATED_AT);
+
+    expect(await encryptToolCallEventsOp(encryptedCtx(db))).toBe(0);
+
+    const row = await rawRow(db, "m1");
+    expect(row.tool_call_events).toBe(column);
+    expect(row.updated_at).toBe(PINNED_UPDATED_AT);
+    expect(await conversationUpdatedAt(db)).toBe(PINNED_UPDATED_AT);
+  });
+
+  it("keeps an already-encrypted value byte-identical in a mixed row", async () => {
+    const db = makeDatabase();
+    const [, encryptedSecond] = await encryptEvents(EVENTS);
+    await seedRaw(db, "m1", JSON.stringify([EVENTS[0], encryptedSecond]));
+
+    expect(await encryptToolCallEventsOp(encryptedCtx(db))).toBe(1);
+
+    await expectEncryptedAtRest(db, "m1");
+    const stored = JSON.parse(String((await rawRow(db, "m1")).tool_call_events));
+    expect(stored[1]).toEqual(encryptedSecond);
+  });
+
+  it("is idempotent", async () => {
+    const db = makeDatabase();
+    await seedPlaintext(db, ["m1"]);
+    expect(await encryptToolCallEventsOp(encryptedCtx(db))).toBe(1);
+    const column = (await rawRow(db, "m1")).tool_call_events;
+
+    expect(await encryptToolCallEventsOp(encryptedCtx(db))).toBe(0);
+    expect((await rawRow(db, "m1")).tool_call_events).toBe(column);
+  });
+
+  it("does nothing without a wallet, a signer, or a key", async () => {
+    const db = makeDatabase();
+    await seedPlaintext(db, ["m1"]);
+    const plain = JSON.stringify(EVENTS);
+
+    expect(await encryptToolCallEventsOp(plainCtx(db))).toBe(0);
+    expect(await encryptToolCallEventsOp(lockedCtx(db))).toBe(0);
+    clearAllEncryptionKeys();
+    mockRequestEncryptionKey.mockResolvedValueOnce(false);
+    expect(await encryptToolCallEventsOp(encryptedCtx(db))).toBe(0);
+
+    expect((await rawRow(db, "m1")).tool_call_events).toBe(plain);
+    expect(await conversationUpdatedAt(db)).toBe(PINNED_UPDATED_AT);
+  });
+
+  it("rejects without writing when the key request fails", async () => {
+    const db = makeDatabase();
+    await seedPlaintext(db, ["m1"]);
+    mockRequestEncryptionKey.mockRejectedValueOnce(new Error("user rejected signature"));
+
+    await expect(encryptToolCallEventsOp(encryptedCtx(db))).rejects.toThrow(
+      "user rejected signature"
+    );
+    expect((await rawRow(db, "m1")).tool_call_events).toBe(JSON.stringify(EVENTS));
+  });
+
+  it("skips rows it cannot read as a list of events", async () => {
+    const db = makeDatabase();
+    await seedRaw(db, "obj", '{"id":"x","output":"SECRET-OUT-1"}');
+    await seedRaw(db, "broken", "[not json");
+    await seedRaw(db, "empty", "[]");
+    await seedRaw(db, "m1", JSON.stringify(EVENTS));
+
+    expect(await encryptToolCallEventsOp(encryptedCtx(db))).toBe(1);
+
+    expect((await rawRow(db, "obj")).tool_call_events).toBe('{"id":"x","output":"SECRET-OUT-1"}');
+    expect((await rawRow(db, "broken")).tool_call_events).toBe("[not json");
+    expect((await rawRow(db, "empty")).tool_call_events).toBe("[]");
+    await expectEncryptedAtRest(db, "m1");
+  });
+
+  it("repairs a restored plaintext row, and ids stay readable while locked", async () => {
+    const db = makeDatabase();
+    await createMessageOp(encryptedCtx(db), {
+      conversationId: "conv_1",
+      role: "assistant",
+      content: "reply",
+      uniqueId: "m1",
+      toolCallEvents: EVENTS,
+    });
+    await seedRaw(db, "restored", JSON.stringify(EVENTS));
+
+    expect(await encryptToolCallEventsOp(encryptedCtx(db))).toBe(1);
+
+    await expectEncryptedAtRest(db, "restored");
+    clearAllEncryptionKeys();
+    expect(await getToolCallEventIdsOp(lockedCtx(db), "conv_1")).toEqual(
+      new Set(["call_1", "call_2"])
+    );
+  });
+
+  it("does not overwrite a row that changed while its page was being encrypted", async () => {
+    const db = makeDatabase();
+    await seedPlaintext(db, ["m1"]);
+    const newer = JSON.stringify([{ id: "call_9", name: "web_search", arguments: "{}" }]);
+    const write = db.write.bind(db);
+    vi.spyOn(db, "write").mockImplementationOnce(async (work) => {
+      await write(async () => {
+        const row = await db.get<Message>("history").find("m1");
+        await row.update((m) => {
+          m._setRaw("tool_call_events", newer);
+        });
+      });
+      return write(work);
+    });
+
+    expect(await encryptToolCallEventsOp(encryptedCtx(db))).toBe(0);
+    expect((await rawRow(db, "m1")).tool_call_events).toBe(newer);
   });
 });

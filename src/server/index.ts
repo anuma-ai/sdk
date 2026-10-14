@@ -131,6 +131,7 @@ export {
   deleteConversationOp,
   deleteConversationSummaryOp,
   deleteMessageOp,
+  encryptToolCallEventsOp,
   getAllFilesOp,
   getConversationOp,
   getConversationsByProjectLazyOp,

@@ -6,6 +6,7 @@ export {
   createMessageOp,
   deleteConversationOp,
   deleteMessageOp,
+  encryptToolCallEventsOp,
   getAllFilesOp,
   getConversationOp,
   getConversationsByProjectLazyOp,
