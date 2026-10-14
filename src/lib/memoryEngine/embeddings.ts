@@ -294,6 +294,11 @@ function rawHasEmbedding(value: unknown): boolean {
   }
 }
 
+function sealedVersion(value: unknown): "v2" | "v3" | null {
+  if (typeof value !== "string" || !isEncrypted(value)) return null;
+  return value.startsWith("enc:v2:") ? "v2" : "v3";
+}
+
 function mayNeedChunkEmbedding(
   raw: Record<string, unknown>,
   embeddingModel: string,
@@ -381,17 +386,20 @@ export async function chunkAndEmbedAllMessages(
   let sealedRowsSeen = 0;
   let rowsSeen = 0;
 
-  let sealedRowsDropped = 0;
-  let sealedRowsKept = 0;
-  let dropProbeId: string | undefined;
+  const keptSealed = new Map<string, number>();
+  const candidatesStillSealed = new Map<string, number>();
+  const droppedSealed = new Map<string, { count: number; probeId: string }>();
   const rawFilter = (raw: Record<string, unknown>): boolean => {
     rowsSeen++;
-    const sealed = typeof raw.content === "string" && isEncrypted(raw.content);
     const keep = mayNeedChunkEmbedding(raw, embeddingModel, filter);
-    if (sealed && keep) sealedRowsKept++;
-    if (sealed && !keep) {
-      sealedRowsDropped++;
-      dropProbeId ??= raw.id as string;
+    const version = sealedVersion(raw.content);
+    if (!version) return keep;
+    if (keep) {
+      keptSealed.set(version, (keptSealed.get(version) ?? 0) + 1);
+    } else {
+      const dropped = droppedSealed.get(version);
+      if (dropped) dropped.count++;
+      else droppedSealed.set(version, { count: 1, probeId: raw.id as string });
     }
     return keep;
   };
@@ -400,7 +408,11 @@ export async function chunkAndEmbedAllMessages(
     const messages = await getMessagesOp(ctx, conv.conversationId, { rawFilter });
 
     for (const message of messages) {
-      if (isEncrypted(message.content)) sealedRowsSeen++;
+      const stillSealed = sealedVersion(message.content);
+      if (stillSealed) {
+        sealedRowsSeen++;
+        candidatesStillSealed.set(stillSealed, (candidatesStillSealed.get(stillSealed) ?? 0) + 1);
+      }
       const isStale =
         message.embeddingModel !== undefined &&
         message.embeddingModel !== null &&
@@ -430,12 +442,12 @@ export async function chunkAndEmbedAllMessages(
     }
   }
 
-  if (sealedRowsDropped > 0) {
-    const keyOpenedACandidate = sealedRowsKept > sealedRowsSeen;
-    const probe = keyOpenedACandidate || !dropProbeId ? null : await getMessageOp(ctx, dropProbeId);
-    if (!keyOpenedACandidate && (!probe || isEncrypted(probe.content))) {
-      sealedRowsSeen += sealedRowsDropped;
-    }
+  for (const [version, dropped] of droppedSealed) {
+    const keyOpenedACandidate =
+      (keptSealed.get(version) ?? 0) > (candidatesStillSealed.get(version) ?? 0);
+    if (keyOpenedACandidate) continue;
+    const probe = await getMessageOp(ctx, dropped.probeId);
+    if (!probe || isEncrypted(probe.content)) sealedRowsSeen += dropped.count;
   }
 
   if (stillEncrypted > 0 || sealedRowsSeen > 0) {
