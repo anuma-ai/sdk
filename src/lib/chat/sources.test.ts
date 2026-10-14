@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 
 import { extractSourcesFromToolCallEvents } from "./sources.js";
 
+const CIPHERTEXT = `enc:v3:${"a1".repeat(40)}`;
+
 describe("extractSourcesFromToolCallEvents", () => {
   it("returns [] for undefined / empty input", () => {
     expect(extractSourcesFromToolCallEvents(undefined)).toEqual([]);
@@ -52,6 +54,11 @@ describe("extractSourcesFromToolCallEvents", () => {
       },
     ];
     expect(extractSourcesFromToolCallEvents(events).map((s) => s.url)).toEqual(["https://ok.test"]);
+  });
+
+  it("returns no sources for an encrypted search result", () => {
+    const events = [{ id: "1", name: "AnumaSearchMCP-text_search", output: CIPHERTEXT }];
+    expect(extractSourcesFromToolCallEvents(events)).toEqual([]);
   });
 
   it("ignores non-search tool events", () => {

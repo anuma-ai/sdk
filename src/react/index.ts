@@ -159,6 +159,7 @@ export {
   type CreateMessageOptions,
   decryptConversationTitle,
   deleteMessageOp,
+  encryptToolCallEventsOp,
   type FileMetadata,
   generateConversationId,
   getConversationsByProjectLazyOp,
