@@ -4,11 +4,15 @@ import { v7 as uuidv7 } from "uuid";
 
 import type { LlmapiToolCallEvent } from "../../../client";
 import type { EmbeddedWalletSignerFn, SignMessageFn } from "../../../react/useEncryption";
-import { hasEncryptionKey, requestEncryptionKey } from "../../../react/useEncryption";
+import {
+  hasEncryptionKey,
+  refreshEncryptionKeyIfMatches,
+  requestEncryptionKey,
+} from "../../../react/useEncryption";
 import { getLogger } from "../../logger";
 import { cosineSimilarity } from "../../memoryEngine/vector";
 import { decodeChunkVector } from "../../memoryEngine/vectorEncoding";
-import { decryptJsonField } from "../encryption-utils";
+import { decryptFieldDetailed, decryptJsonField } from "../encryption-utils";
 import { ExtractionJob } from "../extractionJobs/models";
 import { decryptConversationFields, encryptConversationFields } from "./conversationEncryption";
 import {
@@ -1193,8 +1197,11 @@ async function encryptedToolCallEventsColumn(
 export async function encryptToolCallEventsOp(ctx: StorageOperationsContext): Promise<number> {
   const { walletAddress: address, signMessage, embeddedWalletSigner } = ctx;
   if (!address || !signMessage) return 0;
-  await requestEncryptionKey(address, signMessage, embeddedWalletSigner);
+  if (!(await requestEncryptionKey(address, signMessage, embeddedWalletSigner))) return 0;
   if (!hasEncryptionKey(address)) return 0;
+  if (!(await savedKeyOpensExistingData(ctx, address, signMessage, embeddedWalletSigner))) {
+    return 0;
+  }
 
   const candidateIds = await ctx.messagesCollection
     .query(
@@ -1247,6 +1254,22 @@ export async function encryptToolCallEventsOp(ctx: StorageOperationsContext): Pr
     });
   }
   return encrypted;
+}
+
+async function savedKeyOpensExistingData(
+  ctx: StorageOperationsContext,
+  address: string,
+  signMessage: SignMessageFn,
+  embeddedWalletSigner?: EmbeddedWalletSignerFn
+): Promise<boolean> {
+  const [probe] = (await ctx.messagesCollection
+    .query(Q.where("content", Q.like("enc:v%")), Q.take(1))
+    .unsafeFetchRaw()) as Record<string, unknown>[];
+  if (!probe) return true;
+  const content = String(probe.content);
+  const { status } = await decryptFieldDetailed(content, address);
+  if (status !== "auth_mismatch" && status !== "key_missing") return true;
+  return refreshEncryptionKeyIfMatches(address, content, signMessage, embeddedWalletSigner);
 }
 
 export async function updateMessageErrorOp(
