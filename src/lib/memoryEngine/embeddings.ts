@@ -381,14 +381,25 @@ export async function chunkAndEmbedAllMessages(
   let sealedRowsSeen = 0;
   let rowsSeen = 0;
 
-  const rawFilter = (raw: Record<string, unknown>): boolean =>
-    mayNeedChunkEmbedding(raw, embeddingModel, filter);
+  let sealedRowsDropped = 0;
+  let sealedRowsKept = 0;
+  let dropProbeId: string | undefined;
+  const rawFilter = (raw: Record<string, unknown>): boolean => {
+    rowsSeen++;
+    const sealed = typeof raw.content === "string" && isEncrypted(raw.content);
+    const keep = mayNeedChunkEmbedding(raw, embeddingModel, filter);
+    if (sealed && keep) sealedRowsKept++;
+    if (sealed && !keep) {
+      sealedRowsDropped++;
+      dropProbeId ??= raw.id as string;
+    }
+    return keep;
+  };
 
   for (const conv of targetConversations) {
     const messages = await getMessagesOp(ctx, conv.conversationId, { rawFilter });
 
     for (const message of messages) {
-      rowsSeen++;
       if (isEncrypted(message.content)) sealedRowsSeen++;
       const isStale =
         message.embeddingModel !== undefined &&
@@ -416,6 +427,14 @@ export async function chunkAndEmbedAllMessages(
       } else {
         shortMessages.push({ uniqueId: message.uniqueId, content: message.content });
       }
+    }
+  }
+
+  if (sealedRowsDropped > 0) {
+    const keyOpenedACandidate = sealedRowsKept > sealedRowsSeen;
+    const probe = keyOpenedACandidate || !dropProbeId ? null : await getMessageOp(ctx, dropProbeId);
+    if (!keyOpenedACandidate && (!probe || isEncrypted(probe.content))) {
+      sealedRowsSeen += sealedRowsDropped;
     }
   }
 

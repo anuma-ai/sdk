@@ -940,11 +940,48 @@ describe("ciphertext is never chunked or embedded (sdk#864)", () => {
     expect(JSON.stringify(recorded)).not.toContain("enc:v3:");
   });
 
+  type RawRow = Record<string, unknown> & { id: string; opensTo?: string };
+
+  function rawRow(overrides: Partial<RawRow> & { id: string }): RawRow {
+    return {
+      role: "user",
+      content: ciphertext,
+      chunks: null,
+      vector: null,
+      origin: null,
+      embedding_model: null,
+      ...overrides,
+    };
+  }
+
+  function stored(raw: RawRow): StoredMessage {
+    const content = raw.opensTo ?? (raw.content as string);
+    return makeMessage({
+      uniqueId: raw.id,
+      content,
+      chunks: raw.chunks
+        ? (JSON.parse(raw.chunks as string) as StoredMessage["chunks"])
+        : undefined,
+    });
+  }
+
+  function serveThroughRawFilter(rows: RawRow[]): void {
+    vi.mocked(getMessagesOp).mockImplementation(async (_ctx, _convId, opts) =>
+      rows.filter((raw) => opts?.rawFilter?.(raw) ?? true).map(stored)
+    );
+    vi.mocked(getMessageOp).mockImplementation(async (_ctx, id) => {
+      const raw = rows.find((r) => r.id === id);
+      return raw ? stored(raw) : null;
+    });
+  }
+
+  const embedded = JSON.stringify([{ vector: [1, 2, 3], startOffset: 0, endOffset: 6 }]);
+
   it("chunkAndEmbedAllMessages reports the skip on the error channel with structured counts", async () => {
     stubFetchOk();
-    vi.mocked(getMessagesOp).mockResolvedValue([
-      makeMessage({ uniqueId: "sealed", content: ciphertext }),
-      makeMessage({ uniqueId: "prose", content: longText("readable") }),
+    serveThroughRawFilter([
+      rawRow({ id: "sealed" }),
+      rawRow({ id: "prose", content: longText("readable") }),
     ]);
 
     await chunkAndEmbedAllMessages(ctx, { apiKey: "k", baseUrl: BASE });
@@ -962,18 +999,13 @@ describe("ciphertext is never chunked or embedded (sdk#864)", () => {
     });
   });
 
-  it("reports a sealed row that never reaches the candidate counter", async () => {
+  it("reports sealed rows the pre-filter drops when the key cannot open them", async () => {
     stubFetchOk();
-    vi.mocked(getMessagesOp).mockResolvedValue([
-      makeMessage({
-        uniqueId: "sealed-and-chunked",
-        content: ciphertext,
-        chunks: [{ text: "a1b2c3", vector: [1, 2, 3], startOffset: 0, endOffset: 6 }],
-      }),
-    ]);
+    serveThroughRawFilter([rawRow({ id: "sealed-and-chunked", chunks: embedded })]);
 
     expect(await chunkAndEmbedAllMessages(ctx, { apiKey: "k", baseUrl: BASE })).toBe(0);
 
+    expect(getMessageOp).toHaveBeenCalledTimes(1);
     expect(errors).toHaveLength(1);
     const [, , context] = errors[0];
     expect(context).toEqual({
@@ -982,6 +1014,32 @@ describe("ciphertext is never chunked or embedded (sdk#864)", () => {
       sealedRowsSeen: 1,
       rowsSeen: 1,
     });
+  });
+
+  it("stays quiet for a fully indexed vault whose key opens the probed row", async () => {
+    stubFetchOk();
+    serveThroughRawFilter([
+      rawRow({ id: "a", chunks: embedded, opensTo: longText("readable") }),
+      rawRow({ id: "b", chunks: embedded, opensTo: longText("also readable") }),
+    ]);
+
+    expect(await chunkAndEmbedAllMessages(ctx, { apiKey: "k", baseUrl: BASE })).toBe(0);
+
+    expect(getMessageOp).toHaveBeenCalledTimes(1);
+    expect(errors).toEqual([]);
+  });
+
+  it("skips the probe when a decrypted candidate already proved the key", async () => {
+    stubFetchOk();
+    serveThroughRawFilter([
+      rawRow({ id: "indexed", chunks: embedded }),
+      rawRow({ id: "fresh", opensTo: longText("readable") }),
+    ]);
+
+    expect(await chunkAndEmbedAllMessages(ctx, { apiKey: "k", baseUrl: BASE })).toBe(1);
+
+    expect(getMessageOp).not.toHaveBeenCalled();
+    expect(errors).toEqual([]);
   });
 
   it("chunkAndEmbedAllMessages stays quiet when every row is readable", async () => {
