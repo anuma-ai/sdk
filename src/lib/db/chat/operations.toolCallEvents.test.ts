@@ -467,12 +467,52 @@ describe("encryptToolCallEventsOp", () => {
 
     expect(await encryptToolCallEventsOp(plainCtx(db))).toBe(0);
     expect(await encryptToolCallEventsOp(lockedCtx(db))).toBe(0);
+    mockRequestEncryptionKey.mockResolvedValueOnce(false);
+    expect(await encryptToolCallEventsOp(encryptedCtx(db))).toBe(0);
     clearAllEncryptionKeys();
     mockRequestEncryptionKey.mockResolvedValueOnce(false);
     expect(await encryptToolCallEventsOp(encryptedCtx(db))).toBe(0);
 
     expect((await rawRow(db, "m1")).tool_call_events).toBe(plain);
     expect(await conversationUpdatedAt(db)).toBe(PINNED_UPDATED_AT);
+  });
+
+  async function seedUnderWrongPinnedKey(db: Database): Promise<void> {
+    await createConversationOp(plainCtx(db), { conversationId: "conv_1", title: "T" });
+    await createMessageOp(encryptedCtx(db), {
+      conversationId: "conv_1",
+      role: "user",
+      content: "secret question",
+      uniqueId: "probe",
+    });
+    await seedPlaintext(db, ["m1"]);
+    clearAllEncryptionKeys();
+    seedEncryptionKeys(TEST_ADDRESS, { legacy: "cd".repeat(32), current: "cd".repeat(32) });
+  }
+
+  it("writes nothing when the saved key cannot open existing data and cannot be recovered", async () => {
+    const db = makeDatabase();
+    await seedUnderWrongPinnedKey(db);
+    const otherWallet = vi.fn(async () => `0x${"ab".repeat(65)}`) as unknown as SignMessageFn;
+
+    expect(await encryptToolCallEventsOp({ ...encryptedCtx(db), signMessage: otherWallet })).toBe(
+      0
+    );
+
+    expect((await rawRow(db, "m1")).tool_call_events).toBe(JSON.stringify(EVENTS));
+    expect(await conversationUpdatedAt(db)).toBe(PINNED_UPDATED_AT);
+  });
+
+  it("recovers a wrong saved key before encrypting", async () => {
+    const db = makeDatabase();
+    await seedUnderWrongPinnedKey(db);
+
+    expect(await encryptToolCallEventsOp(encryptedCtx(db))).toBe(1);
+
+    await expectEncryptedAtRest(db, "m1");
+    clearAllEncryptionKeys();
+    await requestEncryptionKey(TEST_ADDRESS, mockSignMessage);
+    expect((await readOne(lockedCtx(db), "m1")).toolCallEvents).toEqual(EVENTS);
   });
 
   it("rejects without writing when the key request fails", async () => {
