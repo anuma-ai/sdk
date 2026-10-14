@@ -412,6 +412,7 @@ export type {
   AutoExtractor,
   Budget,
   CachedChunkVectors,
+  ChunkSearchStats,
   ChunkVectorCache,
   ConsolidationAction,
   ConsolidationFallbackReason,

@@ -1,4 +1,8 @@
-export type { CachedChunkVectors, ChunkVectorCache } from "../db/chat/operations.js";
+export type {
+  CachedChunkVectors,
+  ChunkSearchStats,
+  ChunkVectorCache,
+} from "../db/chat/operations.js";
 export { INTERNAL_FLOW_MARKER, withInternalFlowMarker } from "../internalFlowMarker.js";
 export {
   type AutoExtractMessage,

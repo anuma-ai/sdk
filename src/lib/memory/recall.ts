@@ -1,4 +1,5 @@
-import { searchChunksOp } from "../db/chat/operations.js";
+import { maskScopedEmbeddingCache } from "../db/chat/embeddingCache.js";
+import { type ChunkSearchStats, searchChunksOp } from "../db/chat/operations.js";
 import type { ChunkSearchResult } from "../db/chat/types.js";
 import { getMemoriesByEntityNamesOp } from "../db/entities/operations.js";
 import {
@@ -13,6 +14,7 @@ import type { EmbeddingOptions } from "../memoryEngine/types.js";
 import { normalizeSubQueries } from "../memoryVault/decomposeQuery.js";
 import type { VaultSearchResult } from "../memoryVault/searchTool.js";
 import { searchVaultMemoriesWithSize } from "../memoryVault/searchTool.js";
+import { nowMs } from "../scheduling.js";
 import {
   createLlmNeighborRefiner,
   type NeighborRefiner,
@@ -39,11 +41,6 @@ const DEFAULT_LIMIT = 8;
 const DEFAULT_BUDGET: Budget = "low";
 const DEFAULT_FACT_MIN_SCORE = 0.1;
 
-function nowMs(): number {
-  return typeof performance !== "undefined" && typeof performance.now === "function"
-    ? performance.now()
-    : Date.now();
-}
 const DEFAULT_CHUNK_MIN_SCORE = 0.5;
 const DEFAULT_QUERY_EMBED_TOTAL_TIMEOUT_MS = 8_000;
 
@@ -107,12 +104,20 @@ export async function recall(
   const embeddingOptions: EmbeddingOptions = {
     ...ctx.embeddingOptions,
     taskType: "memory_recall_embed",
+    ...(options.embeddingCache &&
+      !ctx.embeddingOptions.cache && {
+        cache: maskScopedEmbeddingCache(
+          options.embeddingCache,
+          Boolean(ctx.embeddingOptions.maskInput)
+        ),
+      }),
   };
 
   const t0 = nowMs();
   let prepMs = 0;
   let factLaneMs = 0;
   let chunkLaneMs = 0;
+  let chunkStats: ChunkSearchStats | undefined;
   let fuseMs = 0;
   const factResults: VaultSearchResult[] = [];
   const chunkResults: ChunkSearchResult[] = [];
@@ -179,6 +184,11 @@ export async function recall(
       ...(decryptLastRan !== undefined && { decryptLast: decryptLastRan }),
       ...(vaultRowsDecrypted !== undefined && { vaultRowsDecrypted }),
       ...(vaultRowsEmbedded !== undefined && { vaultRowsEmbedded }),
+      ...(chunkStats && {
+        chunkRowsScanned: chunkStats.rowsScanned,
+        chunkRowsFetched: chunkStats.rowsFetched,
+        chunkCacheHits: chunkStats.cacheHits,
+      }),
       factCount: factResults.length,
       chunkCount: chunkResults.length,
       admittedCount: admitted.length,
@@ -374,6 +384,9 @@ export async function recall(
         excludeConversationId: options.excludeConversationId,
       }),
       ...(ctx.chunkCache && { chunkCache: ctx.chunkCache }),
+      onStats: (stats) => {
+        chunkStats = stats;
+      },
     });
     chunkResults.push(...dedupeBy(results, (r) => r.chunkText.trim()));
     chunkLaneMs = nowMs() - chunkStart;

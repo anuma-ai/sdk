@@ -19,6 +19,7 @@ import { DEFAULT_API_EMBEDDING_MODEL } from "../memoryEngine/constants";
 import { generateEmbedding, generateEmbeddings } from "../memoryEngine/embeddings";
 import type { EmbeddingOptions } from "../memoryEngine/types";
 import { cosineSimilarity } from "../memoryEngine/vector";
+import { nowMs } from "../scheduling";
 import { prepareBM25Corpus, type PreparedBM25Corpus, scoreBM25, scoreBM25Prepared } from "./bm25";
 import { normalizeSubQueries } from "./decomposeQuery";
 import { cachedRowVector, cacheRowVector, rowVectorMatchesContent } from "./vectorVersion";
@@ -88,12 +89,6 @@ interface EmbedStats {
   queryMs: number;
   /** Rows whose stored vector was unusable and had to be re-embedded. */
   rowsEmbedded: number;
-}
-
-function nowMs(): number {
-  return typeof performance !== "undefined" && typeof performance.now === "function"
-    ? performance.now()
-    : Date.now();
 }
 
 let warnedProgrammaticDecomposeIgnored = false;

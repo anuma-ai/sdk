@@ -148,18 +148,51 @@ export async function generateEmbedding(
   return withDeadline((signal) => embedOne(text, options, signal), total, "embedding");
 }
 
+const inFlightByCache = new WeakMap<
+  Map<string, Float32Array>,
+  Map<string, Promise<Float32Array>>
+>();
+
 async function embedOne(
   text: string,
   options: EmbeddingOptions,
   outer: AbortSignal | undefined
 ): Promise<number[]> {
-  const { baseUrl = BASE_URL, model, cache } = options;
-  const timeoutMs = options.timeoutMs ?? DEFAULT_EMBEDDING_REQUEST_TIMEOUT_MS;
+  const { cache } = options;
+  if (!cache) return Array.from(await requestEmbedding(text, options, outer));
 
-  if (cache) {
-    const cached = cache.get(text);
-    if (cached) return Array.from(cached);
+  const cached = cache.get(text);
+  if (cached) return Array.from(cached);
+
+  const inFlight = inFlightByCache.get(cache) ?? new Map<string, Promise<Float32Array>>();
+  inFlightByCache.set(cache, inFlight);
+  const pending = inFlight.get(text);
+  if (pending) {
+    try {
+      return Array.from(await pending);
+    } catch (err) {
+      if (outer?.aborted) throw err;
+    }
   }
+
+  const request = requestEmbedding(text, options, outer);
+  inFlight.set(text, request);
+  try {
+    const embedding = await request;
+    cache.set(text, embedding);
+    return Array.from(embedding);
+  } finally {
+    if (inFlight.get(text) === request) inFlight.delete(text);
+  }
+}
+
+async function requestEmbedding(
+  text: string,
+  options: EmbeddingOptions,
+  outer: AbortSignal | undefined
+): Promise<Float32Array> {
+  const { baseUrl = BASE_URL, model } = options;
+  const timeoutMs = options.timeoutMs ?? DEFAULT_EMBEDDING_REQUEST_TIMEOUT_MS;
 
   const headers = {
     ...(await resolveAuthHeaders(options, outer)),
@@ -203,12 +236,7 @@ async function embedOne(
     });
   }
 
-  const f32Embedding = Float32Array.from(embedding);
-  if (cache) {
-    cache.set(text, f32Embedding);
-  }
-
-  return Array.from(f32Embedding);
+  return Float32Array.from(embedding);
 }
 
 const DEFAULT_EMBEDDING_BATCH_SIZE = 100;
