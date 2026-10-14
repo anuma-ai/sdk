@@ -1,6 +1,6 @@
 # CachedChunkVectors
 
-Defined in: [src/lib/db/chat/operations.ts:1510](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/operations.ts#1510)
+Defined in: [src/lib/db/chat/operations.ts:1533](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/operations.ts#1533)
 
 Decrypted, model-native chunk vectors for one message, cached across recall
 calls so the chunk lane doesn't re-decrypt + re-JSON.parse every message's
@@ -18,7 +18,7 @@ the SDK's data-at-rest posture.
 
 > **chunks**: `Float32Array`<`ArrayBufferLike`>\[]
 
-Defined in: [src/lib/db/chat/operations.ts:1519](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/operations.ts#1519)
+Defined in: [src/lib/db/chat/operations.ts:1542](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/operations.ts#1542)
 
 Per-chunk embedding vectors, index-aligned with the message's decrypted
 `chunks` array (empty-vector chunks kept as zero-length placeholders so
@@ -31,7 +31,7 @@ indices stay aligned). Empty when the message has only a whole-message
 
 > `optional` **fallback**: `Float32Array`<`ArrayBufferLike`>
 
-Defined in: [src/lib/db/chat/operations.ts:1521](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/operations.ts#1521)
+Defined in: [src/lib/db/chat/operations.ts:1544](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/operations.ts#1544)
 
 Whole-message vector when the message was embedded without chunking.
 
@@ -41,6 +41,6 @@ Whole-message vector when the message was embedded without chunking.
 
 > **version**: `number`
 
-Defined in: [src/lib/db/chat/operations.ts:1512](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/operations.ts#1512)
+Defined in: [src/lib/db/chat/operations.ts:1535](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/operations.ts#1535)
 
 Message `updated_at` (ms) at cache time — the invalidation token.
