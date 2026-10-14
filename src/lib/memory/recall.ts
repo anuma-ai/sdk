@@ -1,3 +1,4 @@
+import { maskScopedEmbeddingCache } from "../db/chat/embeddingCache.js";
 import { type ChunkSearchStats, searchChunksOp } from "../db/chat/operations.js";
 import type { ChunkSearchResult } from "../db/chat/types.js";
 import { getMemoriesByEntityNamesOp } from "../db/entities/operations.js";
@@ -103,6 +104,13 @@ export async function recall(
   const embeddingOptions: EmbeddingOptions = {
     ...ctx.embeddingOptions,
     taskType: "memory_recall_embed",
+    ...(options.embeddingCache &&
+      !ctx.embeddingOptions.cache && {
+        cache: maskScopedEmbeddingCache(
+          options.embeddingCache,
+          Boolean(ctx.embeddingOptions.maskInput)
+        ),
+      }),
   };
 
   const t0 = nowMs();

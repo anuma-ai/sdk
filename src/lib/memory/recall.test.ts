@@ -59,6 +59,7 @@ import {
   type VaultMemoryOperationsContext,
 } from "../db/memoryVault/operations";
 import type { StoredVaultMemory } from "../db/memoryVault/types";
+import { maskScopedEmbeddingCache } from "../db/chat/embeddingCache";
 import { generateEmbedding, generateEmbeddings } from "../memoryEngine/embeddings";
 import { decomposeQuery } from "../memoryVault/decomposeQuery";
 import { searchVaultMemoriesWithSize } from "../memoryVault/searchTool";
@@ -905,6 +906,15 @@ describe("recall — diagnostics (onDiagnostics)", () => {
       chunkRowsFetched: 40,
       chunkCacheHits: 1272,
     });
+  });
+
+  it("embeds the query through the caller's turn cache when one is passed", async () => {
+    const shared = new Map<string, Float32Array>();
+
+    await recall(QUERY, makeCtx({ storageCtx }), { types: ["chunk"], embeddingCache: shared });
+
+    const [, embedOptions] = vi.mocked(generateEmbedding).mock.calls.at(-1)!;
+    expect(embedOptions.cache).toBe(maskScopedEmbeddingCache(shared, false));
   });
 
   it("omits the chunk lane's row counts when the lane did not run", async () => {

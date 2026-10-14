@@ -51,7 +51,7 @@ Called with the conversation IDs returned via the chunk lane.
 
 > `optional` **onDiagnostics**: (`diagnostics`: [`RecallDiagnostics`](RecallDiagnostics.md)) => `void`
 
-Defined in: [src/lib/memory/types.ts:506](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#506)
+Defined in: [src/lib/memory/types.ts:508](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#508)
 
 **Parameters**
 
@@ -92,7 +92,7 @@ Defined in: [src/lib/memory/types.ts:506](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **onError**: (`error`: `Error`) => `void`
 
-Defined in: [src/lib/memory/types.ts:508](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#508)
+Defined in: [src/lib/memory/types.ts:510](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#510)
 
 **Parameters**
 
@@ -215,7 +215,7 @@ Called with the fact IDs returned via the fact lane.
 
 > `optional` **onTruncated**: (`truncation`: [`RecallTruncation`](RecallTruncation.md)) => `void`
 
-Defined in: [src/lib/memory/types.ts:507](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#507)
+Defined in: [src/lib/memory/types.ts:509](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#509)
 
 **Parameters**
 
