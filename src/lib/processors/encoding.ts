@@ -1,10 +1,16 @@
 const B64_ENCODE_CHUNK = 0x8000 * 3;
 
-/**
- * Convert a data URL, blob URL, or HTTP URL to an ArrayBuffer.
- * Works in both browser and Node.js environments.
- */
+export function assertFileUrlAllowed(dataUrl: string): void {
+  const isNode = typeof process !== "undefined" && Boolean(process.versions?.node);
+  if (isNode && !dataUrl.startsWith("data:") && !dataUrl.startsWith("blob:")) {
+    throw new Error("Server file preprocessing requires a data URL or blob URL.");
+  }
+}
+
+/** Convert a data URL or blob URL to an ArrayBuffer, or an HTTP URL in a browser. */
 export async function dataUrlToArrayBuffer(dataUrl: string): Promise<ArrayBuffer> {
+  assertFileUrlAllowed(dataUrl);
+
   if (
     dataUrl.startsWith("blob:") ||
     dataUrl.startsWith("http://") ||
