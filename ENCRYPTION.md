@@ -17,7 +17,7 @@ This guide explains how to enable field-level encryption at rest in applications
 **What is NOT encrypted** (by design):
 
 - IDs (`conversationId`, `messageId`, `mediaId`, `walletAddress`)
-- Tool call event `id` and `name` (needed to dedupe tool calls without decrypting)
+- Tool call event `id`, `name` and `cost_micro_usd` (`id` is needed to dedupe tool calls without decrypting)
 - Roles, models, MIME types
 - Timestamps, token counts, flags (`isDeleted`, `wasStopped`, `error`)
 - Dimensions, duration, file sizes
