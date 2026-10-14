@@ -11,6 +11,7 @@ vi.mock("../../../react/useEncryption", async (importOriginal) => {
 import type { LlmapiToolCallEvent } from "../../../client";
 import {
   clearAllEncryptionKeys,
+  getEncryptionKey,
   requestEncryptionKey,
   seedEncryptionKeys,
   type SignMessageFn,
@@ -489,6 +490,69 @@ describe("encryptToolCallEventsOp", () => {
     clearAllEncryptionKeys();
     seedEncryptionKeys(TEST_ADDRESS, { legacy: "cd".repeat(32), current: "cd".repeat(32) });
   }
+
+  async function seedV2Content(db: Database, uniqueId: string): Promise<void> {
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const ciphertext = new Uint8Array(
+      await crypto.subtle.encrypt(
+        { name: "AES-GCM", iv },
+        await getEncryptionKey(TEST_ADDRESS, "v2"),
+        new TextEncoder().encode("old question")
+      )
+    );
+    const hex = Array.from([...iv, ...ciphertext])
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join("");
+    await createMessageOp(plainCtx(db), {
+      conversationId: "conv_1",
+      role: "user",
+      content: "placeholder",
+      uniqueId,
+    });
+    const row = await db.get<Message>("history").find(uniqueId);
+    await db.write(async () => {
+      await row.update((m) => {
+        m._setRaw("content", `enc:v2:${hex}`);
+      });
+    });
+  }
+
+  async function expectReadableAfterRederive(db: Database): Promise<void> {
+    await expectEncryptedAtRest(db, "m1");
+    clearAllEncryptionKeys();
+    await requestEncryptionKey(TEST_ADDRESS, mockSignMessage);
+    expect((await readOne(lockedCtx(db), "m1")).toolCallEvents).toEqual(EVENTS);
+  }
+
+  it("recovers a wrong saved v3 key when v2 data still opens", async () => {
+    const db = makeDatabase();
+    await createConversationOp(plainCtx(db), { conversationId: "conv_1", title: "T" });
+    await seedV2Content(db, "old");
+    await createMessageOp(encryptedCtx(db), {
+      conversationId: "conv_1",
+      role: "user",
+      content: "secret question",
+      uniqueId: "probe",
+    });
+    await seedPlaintext(db, ["m1"]);
+    seedEncryptionKeys(TEST_ADDRESS, { current: "cd".repeat(32) });
+
+    expect(await encryptToolCallEventsOp(encryptedCtx(db))).toBe(1);
+
+    await expectReadableAfterRederive(db);
+  });
+
+  it("re-derives the v3 key when only v2 data exists", async () => {
+    const db = makeDatabase();
+    await createConversationOp(plainCtx(db), { conversationId: "conv_1", title: "T" });
+    await seedV2Content(db, "old");
+    await seedPlaintext(db, ["m1"]);
+    seedEncryptionKeys(TEST_ADDRESS, { current: "cd".repeat(32) });
+
+    expect(await encryptToolCallEventsOp(encryptedCtx(db))).toBe(1);
+
+    await expectReadableAfterRederive(db);
+  });
 
   it("writes nothing when the saved key cannot open existing data and cannot be recovered", async () => {
     const db = makeDatabase();

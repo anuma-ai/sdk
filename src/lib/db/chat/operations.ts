@@ -725,16 +725,7 @@ export async function getMessageSkeletonsOp(
   return skeletons;
 }
 
-/**
- * Tool-call-event id scan for the send hot path: collect every stored
- * `toolCallEvents[].id` across a conversation WITHOUT building StoredMessages
- * and WITHOUT any field decryption — each event's `id` and `name` stay readable
- * in the `tool_call_events` column (only `arguments` and `output` are
- * encrypted), so the dedup set the sender needs is a cheap column read. The
- * previous shape (getMessagesOp) parsed and decrypted every embedding column in
- * the thread just to build this set.
- * unsafeFetchRaw (NOT fetch): never pin a Model per row (web Pile-2).
- */
+/** Collects every stored tool call event id in a conversation without decrypting any field. */
 export async function getToolCallEventIdsOp(
   ctx: StorageOperationsContext,
   convId: string
@@ -1262,14 +1253,25 @@ async function savedKeyOpensExistingData(
   signMessage: SignMessageFn,
   embeddedWalletSigner?: EmbeddedWalletSignerFn
 ): Promise<boolean> {
-  const [probe] = (await ctx.messagesCollection
-    .query(Q.where("content", Q.like("enc:v%")), Q.take(1))
+  const v3Probe = await findEncryptedContent(ctx, "enc:v3:%");
+  if (v3Probe) {
+    const { status } = await decryptFieldDetailed(v3Probe, address);
+    if (status !== "auth_mismatch" && status !== "key_missing") return true;
+    return refreshEncryptionKeyIfMatches(address, v3Probe, signMessage, embeddedWalletSigner);
+  }
+  const v2Probe = await findEncryptedContent(ctx, "enc:v2:%");
+  if (!v2Probe) return true;
+  return refreshEncryptionKeyIfMatches(address, v2Probe, signMessage, embeddedWalletSigner);
+}
+
+async function findEncryptedContent(
+  ctx: StorageOperationsContext,
+  pattern: string
+): Promise<string | null> {
+  const [row] = (await ctx.messagesCollection
+    .query(Q.where("content", Q.like(pattern)), Q.take(1))
     .unsafeFetchRaw()) as Record<string, unknown>[];
-  if (!probe) return true;
-  const content = String(probe.content);
-  const { status } = await decryptFieldDetailed(content, address);
-  if (status !== "auth_mismatch" && status !== "key_missing") return true;
-  return refreshEncryptionKeyIfMatches(address, content, signMessage, embeddedWalletSigner);
+  return row ? String(row.content) : null;
 }
 
 export async function updateMessageErrorOp(
