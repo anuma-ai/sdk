@@ -73,6 +73,7 @@ import {
   updateMessageErrorOp,
 } from "../lib/db/chat";
 import { maskScopedEmbeddingCache } from "../lib/db/chat/embeddingCache";
+import { hasEncryptedToolPayload } from "../lib/db/encryption-utils";
 import {
   Entity as EntityModel,
   MemoryEntity as MemoryEntityModel,
@@ -499,12 +500,15 @@ export async function storedToLlmapiMessage(
   const content: LlmapiMessage["content"] = [{ type: "text", text: textContent }, ...imageParts];
 
   const messages: LlmapiMessage[] = [];
+  const toolCallEvents = Array.isArray(stored.toolCallEvents)
+    ? stored.toolCallEvents.filter((event) => !hasEncryptedToolPayload(event))
+    : [];
 
-  if (stored.role === "assistant" && stored.toolCallEvents?.length) {
+  if (stored.role === "assistant" && toolCallEvents.length) {
     messages.push({
       role: stored.role,
       content: undefined,
-      tool_calls: stored.toolCallEvents.map((event) => ({
+      tool_calls: toolCallEvents.map((event) => ({
         id: event.id,
         type: "function",
         function: {
@@ -514,7 +518,7 @@ export async function storedToLlmapiMessage(
       })),
     });
 
-    for (const event of stored.toolCallEvents) {
+    for (const event of toolCallEvents) {
       if (event.id && event.output !== undefined && event.output !== null) {
         messages.push({
           role: "tool" as LlmapiMessage["role"],
