@@ -1,10 +1,11 @@
 // @vitest-environment happy-dom
 
-import { Database } from "@nozbe/watermelondb";
+import { Database, Q } from "@nozbe/watermelondb";
 import LokiJSAdapter from "@nozbe/watermelondb/adapters/lokijs";
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import type { Message } from "../lib/db/chat/models";
 import { sdkMigrations, sdkModelClasses, sdkSchema } from "../lib/db/schema";
 
 vi.mock("../lib/chat/toolLoop", async (importOriginal) => {
@@ -103,5 +104,34 @@ describe("useChatStorage tool call event replay (expo)", () => {
       replayed.filter((m) => m.role === "tool").map((m) => [m.tool_call_id, m.content?.[0]?.text])
     ).toEqual([["t1", '{"title":"Plan"}']]);
     expect(JSON.stringify(replayed)).not.toContain("enc:v");
+  });
+
+  it("replays no tool calls when the stored column never decoded to a list", async () => {
+    mockRunToolLoop.mockResolvedValue(
+      loopResult([{ id: "t1", name: "notion_search", arguments: "{}", output: "{}" }])
+    );
+    const { result } = renderHook(() =>
+      useChatStorage({ database: db, conversationId: "conv_events", getToken: async () => "tok" })
+    );
+
+    await send(result, "find my plan");
+    await db.write(async () => {
+      const rows = await db
+        .get<Message>("history")
+        .query(Q.where("tool_call_events", Q.notEq(null)))
+        .fetch();
+      await db.batch(
+        ...rows.map((row) => row.prepareUpdate((m) => m._setRaw("tool_call_events", CIPHERTEXT)))
+      );
+    });
+    mockRunToolLoop.mockResolvedValue(loopResult());
+    await send(result, "summarize it");
+
+    const replayed = mockRunToolLoop.mock.calls[1]![0]!.messages as {
+      role: string;
+      tool_calls?: unknown[];
+    }[];
+    expect(replayed.some((m) => m.tool_calls || m.role === "tool")).toBe(false);
+    expect(replayed.map((m) => m.role)).toContain("assistant");
   });
 });
