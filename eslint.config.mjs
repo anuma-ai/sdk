@@ -24,6 +24,7 @@ const checkedTestFiles = [
   ...memoryTelemetryTests,
   "src/lib/chat/toolLoop.detach.test.ts",
   "src/lib/chat/toolLoop.idleTimeout.test.ts",
+  "src/react/useChatStorage.fileSize.test.tsx",
   "src/react/useChatStorage.runHooks.test.tsx",
   "test/tools/slide-generation/models.ts",
 ];
@@ -96,7 +97,6 @@ export default tseslint.config(
     },
   },
   {
-    // Check the regression tests with the test TypeScript project.
     files: checkedTestFiles,
     languageOptions: {
       parserOptions: {
@@ -110,7 +110,6 @@ export default tseslint.config(
     extends: [tseslint.configs.disableTypeChecked],
   },
   {
-    // The live-model benchmark writes test metrics to the console.
     files: ["test/tools/app-generation/precision-updates.test.ts"],
     rules: {
       "no-console": ["warn", { allow: ["log", "warn", "error"] }],

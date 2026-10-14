@@ -147,6 +147,7 @@ import type { NerDetector } from "../lib/pii/ner";
 import { isPiiRedactor, PiiRedactor } from "../lib/pii/redactor";
 import type { FileProcessingStatus } from "../lib/processors";
 import { formatFileProcessingNotes, preprocessFiles } from "../lib/processors";
+import { DEFAULT_MAX_FILE_SIZE_BYTES } from "../lib/processors/fileStatusNotes";
 import {
   BlobUrlManager,
   createFilePlaceholder,
@@ -2572,8 +2573,16 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       }
 
       let userFileIds: string[] = [];
-      if (filesForStorage && filesForStorage.length > 0 && walletAddress && isEncryptionReady()) {
-        userFileIds = await storeUserFilesInOPFS(filesForStorage, walletAddress, convId);
+      const maxFileSizeBytes =
+        fileProcessingOptions?.maxFileSizeBytes ?? DEFAULT_MAX_FILE_SIZE_BYTES;
+      const storableFiles = filesForStorage?.filter((file) => file.size <= maxFileSizeBytes);
+      if (storableFiles && storableFiles.length > 0 && walletAddress && isEncryptionReady()) {
+        userFileIds = await storeUserFilesInOPFS(
+          storableFiles,
+          walletAddress,
+          convId,
+          maxFileSizeBytes
+        );
       }
 
       const userMsgOpts: CreateMessageOptions = {
