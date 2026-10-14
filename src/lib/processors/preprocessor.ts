@@ -1,5 +1,6 @@
 import type { FileMetadata } from "../db/chat/types";
 import { getLogger } from "../logger";
+import { assertFileUrlAllowed } from "./encoding";
 import { ExcelProcessor } from "./ExcelProcessor";
 import { DEFAULT_MAX_FILE_SIZE_BYTES } from "./fileStatusNotes";
 import { PdfProcessor, rewriteImageNote } from "./PdfProcessor";
@@ -239,6 +240,8 @@ export async function preprocessFiles(
         skip("no_data");
         continue;
       }
+
+      assertFileUrlAllowed(file.url);
 
       const fileWithData: FileWithData = {
         ...file,
