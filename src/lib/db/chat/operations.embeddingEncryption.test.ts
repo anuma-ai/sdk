@@ -289,6 +289,31 @@ describe("message embedding encryption", () => {
     expect(request).not.toHaveBeenCalled();
   });
 
+  it("skips a legacy row sealed under another key and seals the rest", async () => {
+    const ctx = await seed();
+    const row = await ctx.messagesCollection.find("message");
+    const otherAddress = "0x0987654321098765432109876543210987654321";
+    encryption.seedEncryptionKeys(otherAddress, { current: "ab".repeat(32) });
+    const foreignContent = `enc:v3:${await encryption.encryptData(CONTENT, otherAddress)}`;
+    await createMessageOp(
+      { ...ctx, walletAddress: undefined },
+      { conversationId: "conv", uniqueId: "foreign", role: "user", content: CONTENT }
+    );
+    const foreign = await ctx.messagesCollection.find("foreign");
+    await ctx.database.write(async () => {
+      await foreign.update((message) => {
+        message._setRaw("content", foreignContent);
+        message._setRaw("vector", JSON.stringify(VECTOR));
+      });
+      await row.update((message) => message._setRaw("vector", JSON.stringify(VECTOR)));
+    });
+    const foreignBefore = { ...foreign._raw };
+    expect(await sealLegacyMessageEmbeddingsOp(ctx)).toBe(1);
+    expect(isEncrypted(String(row._getRaw("vector")))).toBe(true);
+    expect(foreign._raw).toEqual(foreignBefore);
+    expect(await sealLegacyMessageEmbeddingsOp(ctx)).toBe(0);
+  });
+
   it("seals legacy columns across more than one page", async () => {
     const ctx = await seed();
     const content = (await ctx.messagesCollection.find("message")).content;

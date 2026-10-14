@@ -12,7 +12,7 @@ import {
 import { getLogger } from "../../logger";
 import { cosineSimilarity } from "../../memoryEngine/vector";
 import { decodeChunkVector } from "../../memoryEngine/vectorEncoding";
-import { decryptJsonField } from "../encryption-utils";
+import { decryptFieldDetailed, decryptJsonField } from "../encryption-utils";
 import { ExtractionJob } from "../extractionJobs/models";
 import { decryptConversationFields, encryptConversationFields } from "./conversationEncryption";
 import {
@@ -1137,6 +1137,7 @@ export async function sealLegacyMessageEmbeddingsOp(
     )
     .fetchIds();
   let sealed = 0;
+  let undecryptable = 0;
   for (let start = 0; start < candidateIds.length; start += 50) {
     const pageIds = candidateIds.slice(start, start + 50);
     await ctx.database.write(async () => {
@@ -1145,10 +1146,15 @@ export async function sealLegacyMessageEmbeddingsOp(
         .fetch();
       for (const message of pageMessages) {
         if (!isEncrypted(message.content)) continue;
-        const plaintext = await decryptField(message.content, ctx.walletAddress!);
-        if (plaintext === message.content) {
+        const content = await decryptFieldDetailed(message.content, ctx.walletAddress!);
+        if (content.status === "key_missing") {
           throw new Error("Cannot decrypt the message with the cached wallet key");
         }
+        if (content.status !== "ok") {
+          undecryptable++;
+          continue;
+        }
+        const plaintext = content.value;
         const key = await resolveMessageEmbeddingKey(ctx.walletAddress, message.content);
         const updates: Record<string, string | null> = {};
         for (const column of ["vector", "chunks"]) {
@@ -1196,6 +1202,11 @@ export async function sealLegacyMessageEmbeddingsOp(
         sealed++;
       }
     });
+  }
+  if (undecryptable > 0) {
+    getLogger().warn(
+      `Skipped ${undecryptable} message embeddings that the cached wallet key cannot decrypt`
+    );
   }
   return sealed;
 }
