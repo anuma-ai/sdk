@@ -33,6 +33,8 @@ export interface PostgreSQLAdapterOptions {
   dbName: string;
   /** Namespace key for the isolated database schema; defaults to "public". */
   pgSchema?: string;
+  /** Move legacy tables only when this database owns all records in the legacy schema. */
+  migrateLegacySchema?: boolean;
 }
 
 function makeQualify(pgSchema: string): (table: string) => string {
@@ -334,12 +336,75 @@ export class PostgreSQLAdapter implements DatabaseAdapter {
       .digest("hex")
       .slice(0, 48)}`;
     this.qualify = makeQualify(this._pgSchema);
-    this.initialized = this._initialize();
+    this.initialized = this._initialize(
+      options.pgSchema ?? "public",
+      options.migrateLegacySchema ?? false
+    );
   }
 
   private static SCHEMA_VERSION_KEY = "__schema_version";
 
-  private async _initialize(): Promise<void> {
+  private async _hasLegacyData(pgSchema: string, executor: Pick<PgPoolLike, "query">) {
+    const legacyStorage = `"${pgSchema.replace(/"/g, '""')}"."local_storage"`;
+    const { rows } = await executor.query(
+      "select to_regclass($1) as legacy, to_regclass($2) as isolated",
+      [legacyStorage, this.qualify("local_storage")]
+    );
+    if (!rows[0]?.legacy) return false;
+    if (rows[0].isolated) {
+      const { rows: version } = await executor.query(
+        `select "value" from ${this.qualify("local_storage")} where "key" = $1`,
+        [PostgreSQLAdapter.SCHEMA_VERSION_KEY]
+      );
+      if (Number(version[0]?.value) > 0) return false;
+    }
+    const { rows: version } = await executor.query(
+      `select "value" from ${legacyStorage} where "key" = $1`,
+      [PostgreSQLAdapter.SCHEMA_VERSION_KEY]
+    );
+    return Number(version[0]?.value) > 0;
+  }
+
+  private async _upgradeLegacySchema(pgSchema: string, migrateLegacySchema: boolean) {
+    if (!migrateLegacySchema) {
+      if (await this._hasLegacyData(pgSchema, this.pool)) {
+        throw new Error(
+          "PostgreSQLAdapter found legacy data. Set migrateLegacySchema to true only for the database that owns all legacy records."
+        );
+      }
+      return;
+    }
+    if (!this.pool.connect) {
+      throw new Error("PostgreSQLAdapter legacy migration requires pool.connect");
+    }
+    const client = await this.pool.connect();
+    try {
+      await client.query("BEGIN");
+      await client.query("select pg_advisory_xact_lock(hashtext($1))", [
+        `PostgreSQLAdapter:${pgSchema}`,
+      ]);
+      if (await this._hasLegacyData(pgSchema, client)) {
+        await client.query(`create schema if not exists "${this._pgSchema}"`);
+        const { rows } = await client.query(
+          "select tablename from pg_catalog.pg_tables where schemaname = $1 and tablename = any($2::text[])",
+          [pgSchema, [...Object.keys(this.schema.tables), "local_storage"]]
+        );
+        for (const row of rows) {
+          const table = `"${pgSchema.replace(/"/g, '""')}"."${String(row.tablename).replace(/"/g, '""')}"`;
+          await client.query(`alter table ${table} set schema "${this._pgSchema}"`);
+        }
+      }
+      await client.query("COMMIT");
+    } catch (error) {
+      await client.query("ROLLBACK");
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
+  private async _initialize(pgSchema: string, migrateLegacySchema: boolean): Promise<void> {
+    await this._upgradeLegacySchema(pgSchema, migrateLegacySchema);
     if (this._pgSchema !== "public") {
       await this.pool.query(`create schema if not exists "${this._pgSchema}"`);
     }

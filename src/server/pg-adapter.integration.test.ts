@@ -82,9 +82,53 @@ describe.skipIf(!runIntegration)("PostgreSQLAdapter (integration)", () => {
     dbName: string,
     schema = testSchema,
     migrations?: SchemaMigrations,
-    pgSchema?: string
+    pgSchema?: string,
+    migrateLegacySchema = false
   ) {
-    return new PostgreSQLAdapter({ pool: adapterPool, schema, migrations, dbName, pgSchema });
+    return new PostgreSQLAdapter({
+      pool: adapterPool,
+      schema,
+      migrations,
+      dbName,
+      pgSchema,
+      migrateLegacySchema,
+    });
+  }
+
+  async function seedLegacyDatabase(pgSchema = "public") {
+    const qualify = (table: string) => `"${pgSchema}"."${table}"`;
+    const { rows } = await pool.query<{ storage: string | null }>(
+      "select to_regclass($1) as storage",
+      [qualify("local_storage")]
+    );
+    expect(rows[0].storage).toBeNull();
+    if (pgSchema !== "public") {
+      await adapterPool.query(`create schema if not exists "${pgSchema}"`);
+    }
+    await pool.query(`create table ${qualify("tasks")} (
+      "id" text primary key,
+      "_status" text not null default 'created',
+      "_changed" text not null default '',
+      "title" text not null default '',
+      "is_done" boolean not null default false,
+      "priority" double precision default null,
+      "created_at" double precision not null default 0
+    )`);
+    const index = pgSchema === "public" ? "tasks_created_at" : `${pgSchema}_tasks_created_at`;
+    await pool.query(`create index "${index}" on ${qualify("tasks")} ("created_at")`);
+    await pool.query(
+      `create table ${qualify("local_storage")} ("key" text primary key, "value" text not null)`
+    );
+    const record = task("legacy-task", "Saved task");
+    await pool.query(
+      `insert into ${qualify("tasks")} ("id", "_status", "_changed", "title", "is_done", "priority", "created_at") values ($1, $2, $3, $4, $5, $6, $7)`,
+      Object.values(record)
+    );
+    await pool.query(
+      `insert into ${qualify("local_storage")} ("key", "value") values ($1, $2), ($3, $4)`,
+      ["__schema_version", "1", "token", "legacy-token"]
+    );
+    return record;
   }
 
   beforeAll(async () => {
@@ -120,6 +164,116 @@ describe.skipIf(!runIntegration)("PostgreSQLAdapter (integration)", () => {
     }
     if (container) await container.stop();
   }, 60_000);
+
+  it.each([undefined, "public", `legacy_${randomUUID().replaceAll("-", "")}`])(
+    "requires an explicit upgrade and preserves legacy data with pgSchema %s",
+    async (pgSchema) => {
+      const legacySchema = pgSchema ?? "public";
+      const record = await seedLegacyDatabase(legacySchema);
+      const dbName = `${integrationDbName}-legacy-${pgSchema ?? "default"}`;
+      try {
+        const blocked = createAdapter(dbName, testSchema, undefined, pgSchema);
+        await expect(toPromise((cb) => blocked.getLocal("token", cb))).rejects.toThrow(
+          "migrateLegacySchema"
+        );
+        const upgraded = createAdapter(dbName, testSchema, undefined, pgSchema, true);
+        expect(await toPromise((cb) => upgraded.find("tasks", record.id, cb))).toEqual(record);
+        expect(await toPromise((cb) => upgraded.getLocal("token", cb))).toBe("legacy-token");
+        expect(await toPromise((cb) => upgraded.getLocal("__schema_version", cb))).toBe("1");
+        const reopened = createAdapter(dbName, testSchema, undefined, pgSchema);
+        expect(await toPromise((cb) => reopened.find("tasks", record.id, cb))).toEqual(record);
+        expect(await toPromise((cb) => reopened.getLocal("token", cb))).toBe("legacy-token");
+        const other = createAdapter(`${dbName}-other`, testSchema, undefined, pgSchema);
+        expect(await toPromise((cb) => other.count(tasksQuery(), cb))).toBe(0);
+        expect(await toPromise((cb) => other.getLocal("token", cb))).toBeUndefined();
+        await toPromise((cb) => other.unsafeResetDatabase(cb));
+        expect(await toPromise((cb) => upgraded.find("tasks", record.id, cb))).toEqual(record);
+      } finally {
+        await pool.query(
+          `drop table if exists "${legacySchema}"."tasks", "${legacySchema}"."local_storage" cascade`
+        );
+      }
+    }
+  );
+
+  it("rolls back a failed legacy upgrade and applies migrations after a retry", async () => {
+    const pgSchema = `legacy_${randomUUID().replaceAll("-", "")}`;
+    const record = await seedLegacyDatabase(pgSchema);
+    const dbName = `${integrationDbName}-legacy-retry`;
+    await pool.query(`create table "${pgSchema}"."unrelated" ("id" text)`);
+    const queryOnly = new PostgreSQLAdapter({
+      pool: { query: (text, values) => adapterPool.query(text, values) },
+      schema: testSchema,
+      dbName,
+      pgSchema,
+      migrateLegacySchema: true,
+    });
+    await expect(toPromise((cb) => queryOnly.getLocal("token", cb))).rejects.toThrow(
+      "legacy migration requires pool.connect"
+    );
+    const failed = new PostgreSQLAdapter({
+      pool: {
+        query: (text, values) => adapterPool.query(text, values),
+        async connect() {
+          const client = await pool.connect();
+          let moves = 0;
+          return {
+            async query(text, values) {
+              if (text.startsWith("alter table") && ++moves === 2) {
+                await client.query("SELECT 1 / 0");
+              }
+              return client.query(text, values);
+            },
+            release: () => client.release(),
+          };
+        },
+      },
+      schema: testSchema,
+      dbName,
+      pgSchema,
+      migrateLegacySchema: true,
+    });
+    await expect(toPromise((cb) => failed.getLocal("token", cb))).rejects.toMatchObject({
+      code: "22012",
+    });
+    expect((await pool.query(`select * from "${pgSchema}"."tasks"`)).rows).toEqual([record]);
+    expect(
+      (
+        await pool.query(`select "value" from "${pgSchema}"."local_storage" where "key" = $1`, [
+          "token",
+        ])
+      ).rows
+    ).toEqual([{ value: "legacy-token" }]);
+    const noteColumn = { name: "note", type: "string" as const };
+    const nextSchema = appSchema({
+      version: 2,
+      tables: [
+        tableSchema({
+          name: "tasks",
+          columns: [...testSchema.tables.tasks.columnArray, noteColumn],
+        }),
+      ],
+    });
+    const migrations = schemaMigrations({
+      migrations: [
+        { toVersion: 2, steps: [addColumns({ table: "tasks", columns: [noteColumn] })] },
+      ],
+    });
+    const upgrades = [
+      createAdapter(dbName, nextSchema, migrations, pgSchema, true),
+      createAdapter(dbName, testSchema, undefined, pgSchema, true),
+    ];
+    await Promise.all(upgrades.map((upgrade) => toPromise((cb) => upgrade.getLocal("token", cb))));
+    expect(await toPromise((cb) => upgrades[0].find("tasks", record.id, cb))).toEqual({
+      ...record,
+      note: "",
+    });
+    expect(await toPromise((cb) => upgrades[0].getLocal("__schema_version", cb))).toBe("2");
+    expect(await toPromise((cb) => upgrades[0].getLocal("token", cb))).toBe("legacy-token");
+    expect(
+      (await pool.query("select to_regclass($1) as unrelated", [`"${pgSchema}"."unrelated"`])).rows
+    ).toEqual([{ unrelated: `${pgSchema}.unrelated` }]);
+  });
 
   it.each([undefined, "custom", 'tenant"' + "x".repeat(80)])(
     "isolates wallet records, local storage, and resets with pgSchema %s",
