@@ -31,7 +31,7 @@ export interface PostgreSQLAdapterOptions {
   schema: AppSchema;
   migrations?: SchemaMigrations;
   dbName: string;
-  /** Namespace key for the isolated database schema; defaults to "public". */
+  /** Namespace key combined with dbName to derive the isolated schema; defaults to "public". */
   pgSchema?: string;
   /** Move legacy tables only when this database owns all records in the legacy schema. */
   migrateLegacySchema?: boolean;
@@ -405,9 +405,7 @@ export class PostgreSQLAdapter implements DatabaseAdapter {
 
   private async _initialize(pgSchema: string, migrateLegacySchema: boolean): Promise<void> {
     await this._upgradeLegacySchema(pgSchema, migrateLegacySchema);
-    if (this._pgSchema !== "public") {
-      await this.pool.query(`create schema if not exists "${this._pgSchema}"`);
-    }
+    await this.pool.query(`create schema if not exists "${this._pgSchema}"`);
 
     await this.pool.query(
       `create table if not exists ${this.qualify("local_storage")} ("key" text primary key, "value" text not null);`

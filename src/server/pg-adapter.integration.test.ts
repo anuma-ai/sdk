@@ -17,7 +17,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { PgClientLike, PgPoolLike } from "./pg-adapter";
 import { PostgreSQLAdapter } from "./pg-adapter";
 
-const databaseUrl = process.env.NEARBY_TEST_DATABASE_URL;
+const databaseUrl = process.env.PG_TEST_DATABASE_URL;
 const runIntegration = process.env.INTEGRATION === "1" || Boolean(databaseUrl);
 const integrationDbName = `integration-test-${randomUUID()}`;
 
