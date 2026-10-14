@@ -139,6 +139,25 @@ describe("recall embedding cache through a local fact source", () => {
     expect(postApiV1Embeddings).toHaveBeenCalledTimes(2);
   });
 
+  it("does not serve a source vector to a caller using a different model", async () => {
+    const ctx = await setup();
+    const embeddingCache = new Map<string, Float32Array>();
+    await recall(QUERY, ctx, { embeddingCache });
+    vi.mocked(postApiV1Embeddings).mockResolvedValueOnce({
+      data: { data: [{ embedding: [0, 1, 0] }] },
+    } as Awaited<ReturnType<typeof postApiV1Embeddings>>);
+
+    const callerVector = await generateEmbedding(QUERY, {
+      ...embeddingOptions,
+      model: "other-model",
+      cache: maskScopedEmbeddingCache(embeddingCache, false),
+    });
+    expect(callerVector).toEqual([0, 1, 0]);
+    const recalled = await recall(QUERY, ctx, { embeddingCache });
+    expect(recalled.memories).toHaveLength(1);
+    expect(postApiV1Embeddings).toHaveBeenCalledTimes(3);
+  });
+
   it("recovers on the same cache after a query embedding failure", async () => {
     const ctx = await setup();
     const embeddingCache = new Map<string, Float32Array>();
