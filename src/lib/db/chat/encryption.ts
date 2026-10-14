@@ -109,28 +109,29 @@ export async function encryptMessageFields(
   }
 }
 
-export async function encryptToolCallEvents(
+function mapToolCallPayloads(
+  events: LlmapiToolCallEvent[],
+  transform: (value: string) => Promise<string>
+): Promise<LlmapiToolCallEvent[]> {
+  return Promise.all(
+    events.map(async (event) => {
+      if (!event || typeof event !== "object") return event;
+      const mapped = { ...event };
+      if (typeof event.arguments === "string") mapped.arguments = await transform(event.arguments);
+      if (typeof event.output === "string") mapped.output = await transform(event.output);
+      return mapped;
+    })
+  );
+}
+
+export function encryptToolCallEvents(
   events: LlmapiToolCallEvent[],
   address: string,
   signMessage: SignMessageFn,
   embeddedWalletSigner?: EmbeddedWalletSignerFn
 ): Promise<LlmapiToolCallEvent[]> {
-  const encryptText = async (value: unknown) =>
-    typeof value === "string"
-      ? await encryptField(value, address, signMessage, embeddedWalletSigner, true)
-      : value;
-  return Promise.all(
-    events.map(async (event) => {
-      if (!event || typeof event !== "object") return event;
-      const encrypted = { ...event };
-      if (event.arguments !== undefined) {
-        encrypted.arguments = (await encryptText(event.arguments)) as string;
-      }
-      if (event.output !== undefined) {
-        encrypted.output = (await encryptText(event.output)) as string;
-      }
-      return encrypted;
-    })
+  return mapToolCallPayloads(events, (value) =>
+    encryptField(value, address, signMessage, embeddedWalletSigner, true)
   );
 }
 
@@ -289,24 +290,12 @@ async function assembleDecryptedMessage(
     consider(toolCallEventsResult.status, toolCallEventsResult.probe);
   }
 
-  const decryptText = async (value: unknown) => {
-    if (typeof value !== "string") return value as string | undefined;
-    const detailed = await decryptFieldDetailed(value, address);
-    consider(detailed.status, isEncrypted(value) ? value : undefined);
-    return detailed.value;
-  };
   const toolCallEvents = Array.isArray(toolCallEventsResult.value)
-    ? await Promise.all(
-        toolCallEventsResult.value.map(async (event) => {
-          if (!event || typeof event !== "object") return event;
-          const decrypted = { ...event };
-          if (event.arguments !== undefined) {
-            decrypted.arguments = await decryptText(event.arguments);
-          }
-          if (event.output !== undefined) decrypted.output = await decryptText(event.output);
-          return decrypted;
-        })
-      )
+    ? await mapToolCallPayloads(toolCallEventsResult.value, async (value) => {
+        const detailed = await decryptFieldDetailed(value, address);
+        consider(detailed.status, isEncrypted(value) ? value : undefined);
+        return detailed.value;
+      })
     : undefined;
 
   const statusForConsumer =

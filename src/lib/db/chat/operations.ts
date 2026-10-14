@@ -726,8 +726,9 @@ export async function getMessageSkeletonsOp(
  * `toolCallEvents[].id` across a conversation WITHOUT building StoredMessages
  * and WITHOUT any field decryption — each event's `id` and `name` stay readable
  * in the `tool_call_events` column (only `arguments` and `output` are
- * encrypted), so the dedup set the sender needs is a cheap column read. The previous shape (getMessagesOp) parsed and
- * decrypted every embedding column in the thread just to build this set.
+ * encrypted), so the dedup set the sender needs is a cheap column read. The
+ * previous shape (getMessagesOp) parsed and decrypted every embedding column in
+ * the thread just to build this set.
  * unsafeFetchRaw (NOT fetch): never pin a Model per row (web Pile-2).
  */
 export async function getToolCallEventIdsOp(
