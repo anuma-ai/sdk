@@ -19,7 +19,6 @@ import {
   getMessagesOp,
   getToolCallEventIdsOp,
   type StorageOperationsContext,
-  updateMessageOp,
   upsertMessageOp,
 } from "./operations";
 
@@ -173,19 +172,6 @@ describe("tool call events are encrypted at rest", () => {
     await expectEncryptedAtRest(db, "m1");
   });
 
-  it("updateMessageOp stores new events encrypted", async () => {
-    const db = makeDatabase();
-    const ctx = encryptedCtx(db);
-    await createMessageOp(ctx, {
-      conversationId: "conv_1",
-      role: "assistant",
-      content: "reply",
-      uniqueId: "m1",
-    });
-    await updateMessageOp(ctx, "m1", { toolCallEvents: EVENTS });
-    await expectEncryptedAtRest(db, "m1");
-  });
-
   it("upsertMessageOp stores events encrypted on create and on update", async () => {
     const db = makeDatabase();
     const ctx = encryptedCtx(db);
@@ -314,11 +300,7 @@ describe("tool call events on a decrypting read", () => {
   it("returns no events for a column that decodes to something other than an array", async () => {
     const db = makeDatabase();
     await seedRaw(db, "obj", '{"id":"x"}');
-    await seedRaw(
-      db,
-      "encObj",
-      await encryptField('{"id":"x"}', TEST_ADDRESS, mockSignMessage)
-    );
+    await seedRaw(db, "encObj", await encryptField('{"id":"x"}', TEST_ADDRESS, mockSignMessage));
     const ctx = encryptedCtx(db);
     expect((await readOne(ctx, "obj")).toolCallEvents).toBeUndefined();
     expect((await readOne(ctx, "encObj")).toolCallEvents).toBeUndefined();

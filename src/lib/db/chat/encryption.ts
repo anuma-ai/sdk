@@ -1,3 +1,4 @@
+import type { LlmapiToolCallEvent } from "../../../client";
 import type { EmbeddedWalletSignerFn, SignMessageFn } from "../../../react/useEncryption";
 import { refreshEncryptionKeyIfMatches, requestEncryptionKey } from "../../../react/useEncryption";
 import { getLogger } from "../../logger";
@@ -24,6 +25,7 @@ type FieldDecryptStatus = Awaited<ReturnType<typeof decryptFieldDetailed>>["stat
  * - chunks: MessageChunk[] with embeddings
  * - sources: SearchSource[] (reveals browsing patterns)
  * - thoughtProcess: ActivityPhase[] (may contain memory data)
+ * - toolCallEvents: each event's arguments and output (ids and names stay readable)
  *
  * Non-encrypted fields:
  * - IDs, roles, models, timestamps, flags, token counts, dimensions
@@ -82,6 +84,15 @@ export async function encryptMessageFields(
       ? await encryptJsonField(msg.thoughtProcess, address, signMessage, embeddedWalletSigner, true)
       : undefined;
 
+    const encryptedToolCallEvents = Array.isArray(msg.toolCallEvents)
+      ? await encryptToolCallEvents(
+          msg.toolCallEvents as LlmapiToolCallEvent[],
+          address,
+          signMessage,
+          embeddedWalletSigner
+        )
+      : undefined;
+
     return {
       ...message,
       ...(encryptedContent !== undefined && { content: encryptedContent }),
@@ -90,11 +101,37 @@ export async function encryptMessageFields(
       ...(encryptedChunks !== undefined && { chunks: encryptedChunks }),
       ...(encryptedSources !== undefined && { sources: encryptedSources }),
       ...(encryptedThoughtProcess !== undefined && { thoughtProcess: encryptedThoughtProcess }),
+      ...(encryptedToolCallEvents !== undefined && { toolCallEvents: encryptedToolCallEvents }),
     };
   } catch (error) {
     getLogger().warn("Failed to encrypt message fields:", error);
     throw error;
   }
+}
+
+export async function encryptToolCallEvents(
+  events: LlmapiToolCallEvent[],
+  address: string,
+  signMessage: SignMessageFn,
+  embeddedWalletSigner?: EmbeddedWalletSignerFn
+): Promise<LlmapiToolCallEvent[]> {
+  const encryptText = async (value: unknown) =>
+    typeof value === "string"
+      ? await encryptField(value, address, signMessage, embeddedWalletSigner, true)
+      : value;
+  return Promise.all(
+    events.map(async (event) => {
+      if (!event || typeof event !== "object") return event;
+      const encrypted = { ...event };
+      if (event.arguments !== undefined) {
+        encrypted.arguments = (await encryptText(event.arguments)) as string;
+      }
+      if (event.output !== undefined) {
+        encrypted.output = (await encryptText(event.output)) as string;
+      }
+      return encrypted;
+    })
+  );
 }
 
 async function decryptMaybeJsonFieldDetailed<T>(
@@ -223,6 +260,10 @@ async function assembleDecryptedMessage(
     message.thoughtProcess as typeof message.thoughtProcess | string | undefined,
     address
   );
+  const toolCallEventsResult = await decryptMaybeJsonFieldDetailed<LlmapiToolCallEvent[]>(
+    message.toolCallEvents as LlmapiToolCallEvent[] | string | undefined,
+    address
+  );
 
   let decryptionStatus: FieldDecryptStatus | undefined;
   let refreshProbe: string | undefined;
@@ -244,6 +285,29 @@ async function assembleDecryptedMessage(
   if (thoughtProcessResult.probe) {
     consider(thoughtProcessResult.status, thoughtProcessResult.probe);
   }
+  if (toolCallEventsResult.probe) {
+    consider(toolCallEventsResult.status, toolCallEventsResult.probe);
+  }
+
+  const decryptText = async (value: unknown) => {
+    if (typeof value !== "string") return value as string | undefined;
+    const detailed = await decryptFieldDetailed(value, address);
+    consider(detailed.status, isEncrypted(value) ? value : undefined);
+    return detailed.value;
+  };
+  const toolCallEvents = Array.isArray(toolCallEventsResult.value)
+    ? await Promise.all(
+        toolCallEventsResult.value.map(async (event) => {
+          if (!event || typeof event !== "object") return event;
+          const decrypted = { ...event };
+          if (event.arguments !== undefined) {
+            decrypted.arguments = await decryptText(event.arguments);
+          }
+          if (event.output !== undefined) decrypted.output = await decryptText(event.output);
+          return decrypted;
+        })
+      )
+    : undefined;
 
   const statusForConsumer =
     decryptionStatus === "ok" || decryptionStatus === "plaintext" || !decryptionStatus
@@ -258,6 +322,7 @@ async function assembleDecryptedMessage(
     chunks: chunksResult.value,
     sources: sourcesResult.value,
     thoughtProcess: thoughtProcessResult.value,
+    toolCallEvents,
   };
   if (statusForConsumer) {
     result.decryptionStatus = statusForConsumer;
