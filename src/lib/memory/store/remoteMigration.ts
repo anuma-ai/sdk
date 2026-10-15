@@ -241,7 +241,7 @@ function metadata(raw: RawRow, model: string): Partial<RemoteMemoryRow> {
     level: text(raw.level),
     folder_id: text(raw.folder_id),
     is_deleted: bool(raw.is_deleted) ?? false,
-    ...(vector && { embedding: vector, embedding_model: text(raw.embedding_model) }),
+    ...(vector && { embedding: vector, embedding_model: model }),
     source_chunk_ids: sourceChunkIds(raw),
     proof_count: num(raw.proof_count),
     source: text(raw.source),
