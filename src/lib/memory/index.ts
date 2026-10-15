@@ -16,6 +16,7 @@ export {
   type ExtractOutcome,
   type FactType,
   type QuarantinedMemoryInfo,
+  type WriteFailureReason,
 } from "./autoExtract.js";
 export {
   type AutoExtractor,

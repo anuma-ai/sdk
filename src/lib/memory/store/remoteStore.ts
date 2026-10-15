@@ -17,6 +17,7 @@ import {
 import {
   levelForScopeChange,
   type MemoryLevel,
+  MemorySourceIneligibleError,
   resolveMemoryLevel,
   scopeForLevel,
   type StoredVaultMemory,
@@ -419,7 +420,7 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
     if (!record) return null;
     if (record.memory.is_deleted) return null;
     if (writeOptions?.canWrite && !(await writeOptions.canWrite()))
-      throw new Error("Memory source is no longer eligible");
+      throw new MemorySourceIneligibleError();
     writeOptions?.signal?.throwIfAborted();
     const next = edit(structuredClone(record.memory));
     if (!next) return null;

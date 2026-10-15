@@ -473,6 +473,26 @@ export function createDurableAutoExtractor(options: DurableAutoExtractorOptions)
             );
             continue;
           }
+          const foreign = new Set(
+            ids.filter((_id, index) => loaded[index]?.conversationId !== conversationId)
+          );
+          if (foreign.size) {
+            await database.write(() =>
+              job.update((r) =>
+                r._setRaw(
+                  "message_ids",
+                  JSON.stringify(idsOf(job).filter((id) => !foreign.has(id)))
+                )
+              )
+            );
+            attempts.delete(job.id);
+            scheduleAfterSuccess = true;
+            reportError(
+              new Error(`Dropped ${foreign.size} source id(s) from another conversation`),
+              conversationId
+            );
+            continue;
+          }
           const locked = loaded.filter((message) => message && isEncrypted(message.content));
           if (locked.length) {
             throw new LockedSourcesError(
@@ -485,9 +505,7 @@ export function createDurableAutoExtractor(options: DurableAutoExtractorOptions)
             );
           }
           const messages: AutoExtractMessage[] = loaded.flatMap((m) =>
-            m &&
-            m.conversationId === conversationId &&
-            (m.role === "user" || m.role === "assistant")
+            m && (m.role === "user" || m.role === "assistant")
               ? [{ id: m.uniqueId, role: m.role, content: m.content }]
               : []
           );
@@ -589,11 +607,37 @@ export function createDurableAutoExtractor(options: DurableAutoExtractorOptions)
                 (candidate._getRaw("folder_id") ?? null) === folderId
             );
             const positions = new Map(ids.map((id, index) => [id, index]));
+            const watermarks = existing.flatMap((prior) => {
+              const watermark = prior._getRaw("watermark");
+              return typeof watermark === "string" && watermark ? [watermark] : [];
+            });
+            if (watermarks.length) {
+              const misplaced = new Set(
+                await storage.messagesCollection
+                  .query(
+                    Q.where("id", Q.oneOf(watermarks)),
+                    Q.where("conversation_id", Q.notEq(conversationId))
+                  )
+                  .fetchIds()
+              );
+              for (const prior of existing)
+                if (misplaced.has(String(prior._getRaw("watermark"))))
+                  await prior.update((r) => {
+                    r._setRaw("watermark", null);
+                    r._setRaw("watermark_seq", null);
+                  });
+            }
             const rows = await storage.messagesCollection
               .query(Q.where("id", Q.oneOf(ids)))
               .fetch();
+            const foreignRows = new Set(
+              rows
+                .filter((row) => row._getRaw("conversation_id") !== conversationId)
+                .map((row) => row.id)
+            );
             const sequences = new Map<string, number>();
             for (const row of rows) {
+              if (foreignRows.has(row.id)) continue;
               const sequence = Number(row._getRaw("message_id"));
               if (Number.isFinite(sequence) && sequence > 0) sequences.set(row.id, sequence);
             }
@@ -648,7 +692,9 @@ export function createDurableAutoExtractor(options: DurableAutoExtractorOptions)
                 (sequences.get(ids[boundary]) !== undefined &&
                   sequences.get(ids[boundary]) === seqOf(job)));
             const overlapStart = atOwnWatermark ? Math.max(0, boundary - 1) : start;
-            const fresh = ids.slice(overlapStart).filter((id) => !foreignSources.has(id));
+            const fresh = ids
+              .slice(overlapStart)
+              .filter((id) => !foreignSources.has(id) && !foreignRows.has(id));
             if (!fresh.length) return;
             if (job) {
               await job.update((r) =>

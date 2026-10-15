@@ -2,6 +2,7 @@ import type { Collection, Database, Model } from "@nozbe/watermelondb";
 import { Q } from "@nozbe/watermelondb";
 
 import type { VaultMemory } from "../memoryVault/models";
+import { MemorySourceIneligibleError } from "../memoryVault/types";
 import type { Entity, MemoryEntity } from "./models";
 import {
   type EntityKind,
@@ -48,7 +49,7 @@ export interface EntityOperationsContext {
 
 async function assertCanWrite(ctx: EntityOperationsContext): Promise<void> {
   if (ctx.canWrite && !(await ctx.canWrite())) {
-    throw new Error("Memory source is no longer eligible");
+    throw new MemorySourceIneligibleError();
   }
 }
 

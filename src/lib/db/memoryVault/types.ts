@@ -68,6 +68,13 @@ export class MemoryLevelError extends Error {
   }
 }
 
+export class MemorySourceIneligibleError extends Error {
+  constructor() {
+    super("Memory source is no longer eligible");
+    this.name = "MemorySourceIneligibleError";
+  }
+}
+
 const PUBLISHED_SCOPES = new Set(["shared", "public"]);
 
 /**

@@ -33,6 +33,7 @@ import {
   MEMORY_KINDS,
   MEMORY_LEVELS,
   MemoryLevelError,
+  MemorySourceIneligibleError,
   parseMedia,
   resolveMemoryLevel,
   scopeForLevel,
@@ -60,7 +61,7 @@ function isKinded(record: { kind?: string | null }): boolean {
 
 async function assertCanWrite(ctx: VaultMemoryOperationsContext): Promise<void> {
   if (ctx.canWrite && !(await ctx.canWrite())) {
-    throw new Error("Memory source is no longer eligible");
+    throw new MemorySourceIneligibleError();
   }
 }
 
@@ -1171,7 +1172,7 @@ export async function updateVaultMemoryOp(
       ctx.embeddedWalletSigner
     );
   } catch (err) {
-    if (err instanceof MemoryLevelError) throw err;
+    if (err instanceof MemoryLevelError || err instanceof MemorySourceIneligibleError) throw err;
     return null;
   }
 }

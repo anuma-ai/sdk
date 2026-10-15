@@ -482,6 +482,7 @@ export type {
   TopicSkipReason,
   TurnCompleteEvent,
   TurnSkippedEvent,
+  WriteFailureReason,
 } from "../lib/memory";
 export type {
   MemoryToVerify,

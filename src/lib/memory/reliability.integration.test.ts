@@ -14,6 +14,7 @@ import {
   updateVaultMemoryEmbeddingOp,
   type VaultMemoryOperationsContext,
 } from "../db/memoryVault/operations";
+import { MemorySourceIneligibleError } from "../db/memoryVault/types";
 import { Conversation, Message } from "../db/chat/models";
 import {
   clearMessagesOp,
@@ -84,6 +85,16 @@ describe("memory persistence reliability", () => {
     const rows = await getAllVaultMemoriesOp(ctx);
     expect(rows.map((row) => row.content)).toEqual(["Lives in Paris"]);
     expect(rows[0].supersededBy).toBeFalsy();
+  });
+  it("reports an ineligible source on update instead of a silent miss", async () => {
+    const original = await createVaultMemoryOp(ctx, { content: "Lives in Paris" });
+    await expect(
+      updateVaultMemoryOp({ ...ctx, canWrite: async () => false }, original!.uniqueId, {
+        content: "Lives in Paris",
+        proofCountIncrement: 1,
+      })
+    ).rejects.toBeInstanceOf(MemorySourceIneligibleError);
+    expect((await getAllVaultMemoriesOp(ctx))[0].proofCount ?? 1).toBe(1);
   });
   it("replayed source ids add no evidence but still apply the write", async () => {
     const memory = await createVaultMemoryOp(ctx, {
@@ -540,6 +551,146 @@ describe("durable extraction outbox", () => {
       worker.dispose();
     }
   );
+
+  it.each(["first", "last"] as const)(
+    "drops a queued source from another conversation (%s) and keeps extracting later turns",
+    async (position) => {
+      await conversation();
+      await foreignMessage();
+      await db.write(() =>
+        db.get<ExtractionJob>(ExtractionJob.table).create((r) => {
+          r._setRaw("owner_key", "owner");
+          r._setRaw("conversation_id", "conversation");
+          r._setRaw("scope", "private");
+          r._setRaw("folder_id", null);
+          r._setRaw(
+            "message_ids",
+            JSON.stringify(position === "first" ? ["foreign", "m0", "m1"] : ["m0", "m1", "foreign"])
+          );
+        })
+      );
+      const writeErrors: unknown[] = [];
+      vi.mocked(extractAndRetain).mockImplementation(async (batch, retainCtx) => {
+        try {
+          await createVaultMemoryOp(retainCtx.vaultCtx, { content: batch.at(-1)!.content });
+          return empty;
+        } catch (error) {
+          writeErrors.push(error);
+          return { ...empty, failedCount: 1 };
+        }
+      });
+      const onError = vi.fn();
+      const worker = createDurableAutoExtractor({ ...options(), onError });
+      await vi.waitFor(() => expect(extractAndRetain).toHaveBeenCalledOnce());
+      expect(vi.mocked(extractAndRetain).mock.calls[0][0].map((m) => m.id)).toEqual(["m0", "m1"]);
+      const [job] = await db.get<ExtractionJob>(ExtractionJob.table).query().fetch();
+      await vi.waitFor(() => expect(job._getRaw("watermark_seq")).toBe(2));
+      expect(onError.mock.calls.map(([error]) => String(error.message))).toContain(
+        "Dropped 1 source id(s) from another conversation"
+      );
+
+      worker.processTurn(messages.slice(0, 3), "conversation");
+      await vi.waitFor(() => expect(extractAndRetain).toHaveBeenCalledTimes(2));
+      expect(vi.mocked(extractAndRetain).mock.calls[1][0].at(-1)?.id).toBe("m2");
+      worker.dispose();
+      expect(writeErrors).toEqual([]);
+      expect((await getAllVaultMemoriesOp(ctx)).map((m) => m.content).sort()).toEqual([
+        "secret-1",
+        "secret-2",
+      ]);
+    }
+  );
+
+  async function foreignMessage() {
+    await db.write(() =>
+      db.get<Message>("history").create((row) => {
+        row._raw.id = "foreign";
+        row._setRaw("conversation_id", "other-conversation");
+        row._setRaw("message_id", 100);
+        row._setRaw("role", "user");
+        row._setRaw("content", "from another chat");
+      })
+    );
+  }
+
+  it("never queues a source from another conversation, so it cannot hide later turns", async () => {
+    await conversation();
+    await foreignMessage();
+    const onError = vi.fn();
+    const worker = createDurableAutoExtractor({ ...options(), onError });
+    const foreign = { id: "foreign", role: "user" as const, content: "from another chat" };
+    worker.processTurn([...messages.slice(0, 2), foreign], "conversation");
+    worker.processTurn(messages.slice(0, 3), "conversation");
+    await vi.waitFor(() => expect(extractAndRetain).toHaveBeenCalled());
+    worker.dispose();
+    expect(
+      vi.mocked(extractAndRetain).mock.calls.flatMap(([batch]) => batch.map((m) => m.id))
+    ).toEqual(["m0", "m1", "m2"]);
+    expect(onError).not.toHaveBeenCalled();
+  });
+
+  it("heals a job abandoned on a source from another conversation", async () => {
+    await conversation();
+    await foreignMessage();
+    await db.write(() =>
+      db.get<ExtractionJob>(ExtractionJob.table).create((r) => {
+        r._setRaw("owner_key", "owner");
+        r._setRaw("conversation_id", "conversation");
+        r._setRaw("scope", "private");
+        r._setRaw("folder_id", null);
+        r._setRaw("message_ids", "[]");
+        r._setRaw("watermark", "foreign");
+        r._setRaw("watermark_seq", 100);
+      })
+    );
+    const worker = createDurableAutoExtractor(options());
+    worker.processTurn(messages.slice(0, 3), "conversation");
+    await vi.waitFor(() => expect(extractAndRetain).toHaveBeenCalledOnce());
+    expect(vi.mocked(extractAndRetain).mock.calls[0][0].map((m) => m.id)).toEqual([
+      "m0",
+      "m1",
+      "m2",
+    ]);
+    const [job] = await db.get<ExtractionJob>(ExtractionJob.table).query().fetch();
+    await vi.waitFor(() => expect(job._getRaw("watermark")).toBe("m2"));
+    expect(job._getRaw("watermark_seq")).toBe(3);
+    worker.dispose();
+  });
+
+  it("lets a batch write when its job also holds a source from another conversation", async () => {
+    await conversation();
+    await db.write(() =>
+      db.get<Message>("history").create((row) => {
+        row._raw.id = "foreign";
+        row._setRaw("conversation_id", "other-conversation");
+        row._setRaw("message_id", 100);
+        row._setRaw("role", "user");
+        row._setRaw("content", "from another chat");
+      })
+    );
+    const writeErrors: unknown[] = [];
+    vi.mocked(extractAndRetain).mockImplementation(async (_messages, retainCtx) => {
+      try {
+        await createVaultMemoryOp(retainCtx.vaultCtx, { content: "The user lives in Lisbon" });
+        return empty;
+      } catch (error) {
+        writeErrors.push(error);
+        return { ...empty, failedCount: 1 };
+      }
+    });
+    const worker = createDurableAutoExtractor(options());
+    worker.processTurn(
+      [{ id: "foreign", role: "user", content: "from another chat" }, ...messages.slice(0, 2)],
+      "conversation"
+    );
+    await vi.waitFor(() => expect(extractAndRetain).toHaveBeenCalled());
+    worker.dispose();
+    expect(vi.mocked(extractAndRetain).mock.calls[0][0].map((m) => m.id)).toEqual(["m0", "m1"]);
+    expect(writeErrors).toEqual([]);
+    expect((await getAllVaultMemoriesOp(ctx)).map((m) => m.content)).toEqual([
+      "The user lives in Lisbon",
+    ]);
+  });
 
   it("preserves the queued folder after resume in another folder", async () => {
     await conversation();

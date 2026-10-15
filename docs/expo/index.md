@@ -2593,3 +2593,9 @@ Re-exports [WebSearchClassification](../react/Internal/interfaces/WebSearchClass
 ### WebSearchPreProcessorOptions
 
 Re-exports [WebSearchPreProcessorOptions](../react/Internal/interfaces/WebSearchPreProcessorOptions.md)
+
+***
+
+### WriteFailureReason
+
+Re-exports [WriteFailureReason](../react/Internal/type-aliases/WriteFailureReason.md)

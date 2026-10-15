@@ -4,6 +4,7 @@ import { type EntityOperationsContext, linkMemoryEntitiesOp } from "../db/entiti
 import { ENTITY_KINDS, type EntityKind, TOPIC_SALIENCE_WEIGHTS } from "../db/entities/types.js";
 import { VaultMemory } from "../db/memoryVault/models.js";
 import { findQuarantinedDuplicateOp } from "../db/memoryVault/operations.js";
+import { MemorySourceIneligibleError } from "../db/memoryVault/types.js";
 import { getLogger } from "../logger.js";
 import { type PiiRedactor, resolvePiiRedactor } from "../pii/redactor.js";
 import { isGenericEntityName } from "./entitySalience.js";
@@ -18,7 +19,7 @@ import {
   type PortalLlmAuth,
   type PortalLlmFailure,
 } from "./portalLlm.js";
-import { retain, type RetainContext } from "./retain.js";
+import { retain, type RetainContext, RetainError } from "./retain.js";
 import type { MemoryStore } from "./store/types.js";
 import type { RetainOptions, RetainResult } from "./types.js";
 
@@ -482,6 +483,20 @@ export type ExtractOutcome =
   | "empty-after-retry"
   | "dropped-after-redaction";
 
+export type WriteFailureReason =
+  | "source-ineligible"
+  | "embeddings-unavailable"
+  | "merge-not-persisted"
+  | "aborted"
+  | "unknown";
+
+function writeFailureReasonOf(err: unknown): WriteFailureReason {
+  if (err instanceof MemorySourceIneligibleError) return "source-ineligible";
+  if (err instanceof RetainError) return err.reason;
+  if ((err as { name?: unknown } | null)?.name === "AbortError") return "aborted";
+  return "unknown";
+}
+
 /**
  * Stage 2 — for each extracted candidate, call retain() with auto-merge
  * enabled. When `consolidateOptions` are wired, retain()'s consolidation pass
@@ -556,6 +571,7 @@ export async function extractAndRetain(
   candidates: ExtractedCandidate[];
   results: RetainResult[];
   failedCount: number;
+  writeFailureReason?: WriteFailureReason;
   outcome: ExtractOutcome;
   /**
    * Tier-0 security (PR3) — candidates quarantined by the injection screen and
@@ -683,6 +699,7 @@ export async function extractAndRetain(
   const results: RetainResult[] = [];
   const quarantinedInfo: QuarantinedMemoryInfo[] = [];
   let failedWrites = 0;
+  let writeFailureReason: WriteFailureReason | undefined;
   let auditRows: ReturnType<MemoryStore["list"]> | undefined;
   const tRetain = Date.now();
   for (const { candidate, isQuarantined, reason, signature } of toRetain) {
@@ -794,6 +811,7 @@ export async function extractAndRetain(
       }
     } catch (err) {
       failedWrites++;
+      writeFailureReason ??= writeFailureReasonOf(err);
       log.warn("[memory/extract] retain failed for one candidate", err);
       options.onCandidateFailed?.(candidate, err);
     }
@@ -814,6 +832,7 @@ export async function extractAndRetain(
     candidates: succeededCandidates,
     results,
     failedCount: failedWrites,
+    ...(writeFailureReason !== undefined && { writeFailureReason }),
     outcome,
     quarantined: quarantinedInfo,
     funnel: {
