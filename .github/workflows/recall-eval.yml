@@ -113,6 +113,23 @@ on:
       - "test/memory/src/longmemeval/**"
       - "test/memory/src/gate.ts"
 
+# Every job below spends real Cerebras quota against the shared dev portal, and
+# that quota is account-wide — a superseded run left in flight competes with the
+# run that replaced it, and (2026-07-28) starved prod chat completions on
+# cerebras/gpt-oss-120b for ~40 minutes. Cancel the old run on a new push.
+# NOTE: this serializes per branch only — runs from DIFFERENT branches still
+# stack against the same account-wide quota, so it narrows the window rather
+# than closing it. Full isolation needs a separate upstream account for CI.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  # Cancel ONLY on pull_request. A blanket `true` would also cancel the
+  # push-to-main run, and on recall/vault-search that run is the sole seeder of
+  # the shared dataset + embedding caches — a run of merges would cancel it
+  # repeatedly and send every PR back to a cold start (HuggingFace 429s on the
+  # dataset pull). false makes those queue instead, so seeding still completes
+  # and concurrent runs are serialized rather than stacked.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   recall-eval:
     runs-on: ubuntu-latest
@@ -163,14 +180,20 @@ jobs:
             ~/.cache/longmemeval/longmemeval_oracle.json
           key: longmemeval-recall-gate-v1
 
-      # The pinned bounded config. Every knob here is RECORDED in the baseline
-      # and the harness refuses to gate on a mismatch, so changing any of them
-      # requires regenerating the baseline — they can't drift apart silently.
+      # The pinned bounded config. Every SCORING knob here is RECORDED in the
+      # baseline and the harness refuses to gate on a mismatch, so changing any of
+      # them requires regenerating the baseline — they can't drift apart silently.
       #   --max 50            : ~2.5 min end to end; enough sample for an 8pt floor
       #   --decompose=off     : drops the LLM query-decomposition call
       #   --consolidate=false : drops the LLM retain-time consolidation call
       #   --rerank=false      : drops the native cross-encoder (also avoids a
       #                         teardown crash in the ONNX runtime)
+      # --concurrency is the exception: it is a THROUGHPUT knob, absent from the
+      # baseline's recorded config (describeConfigMismatch only compares keys the
+      # baseline recorded), so it can be retuned without regenerating. Held at 5
+      # rather than 10 because every parallel question is an upstream Cerebras
+      # call on an account-wide quota shared with prod — 10 across overlapping
+      # runs is what starved prod on 2026-07-28. Trade: a gate run takes longer.
       - name: Run recall gate
         if: env.INPUT_MODE == 'gate'
         run: |
@@ -178,7 +201,7 @@ jobs:
           pnpm --silent eval:longmemeval \
             --strategy recall --variant oracle --max 50 \
             --llm gpt-oss/gpt-oss-120b --extract-llm gpt-oss/gpt-oss-120b \
-            --concurrency 10 --decompose=off --consolidate=false --rerank=false \
+            --concurrency 5 --decompose=off --consolidate=false --rerank=false \
             --output results.json \
             --baseline test/memory/src/longmemeval/recall-baseline.json
 
@@ -189,7 +212,7 @@ jobs:
           pnpm --silent eval:longmemeval \
             --strategy recall --variant oracle --max 50 \
             --llm gpt-oss/gpt-oss-120b --extract-llm gpt-oss/gpt-oss-120b \
-            --concurrency 10 --decompose=off --consolidate=false --rerank=false \
+            --concurrency 5 --decompose=off --consolidate=false --rerank=false \
             --output results.json --save-baseline \
             --baseline-repeat "$INPUT_BASELINE_REPEAT"
           echo "### Generated recall baseline" >> "$GITHUB_STEP_SUMMARY"
