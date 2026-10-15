@@ -751,6 +751,34 @@ describe("remote MemoryStore", () => {
       unsubscribe();
     }
   });
+  it("guards automatic topic links against manual curation and cancelled extraction", async () => {
+    const { store } = await remoteStore();
+    const memory = await store.create({ content: "Hikes Mt Hood", embedding: axis(0) });
+    await store.setTopics(memory.uniqueId, ["Chosen topic"]);
+    expect(
+      await store.addTopics(memory.uniqueId, ["Mt Hood"], {
+        unlessUserManaged: true,
+      })
+    ).toEqual([]);
+    expect((await store.get(memory.uniqueId))?.topics?.map((topic) => topic.name)).toEqual([
+      "Chosen topic",
+    ]);
+    await expect(
+      store.addTopics(memory.uniqueId, ["Late topic"], {
+        canWrite: async () => false,
+      })
+    ).rejects.toThrow("no longer eligible");
+    const controller = new AbortController();
+    controller.abort();
+    await expect(
+      store.addTopics(memory.uniqueId, ["Cancelled topic"], {
+        signal: controller.signal,
+      })
+    ).rejects.toThrow();
+    expect((await store.get(memory.uniqueId))?.topics?.map((topic) => topic.name)).toEqual([
+      "Chosen topic",
+    ]);
+  });
 
   it("notifies when extraction drops a topic added during the LLM call", async () => {
     const { store } = await remoteStore();

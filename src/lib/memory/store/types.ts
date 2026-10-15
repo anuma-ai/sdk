@@ -120,7 +120,12 @@ export type MemoryRecallOptions = Omit<
  * and never receives these credentials, callbacks or redactor instances.
  * @public
  */
-export type MemoryRetainOptions = Omit<RetainOptions, "folderId">;
+export type MemoryRetainOptions = Omit<RetainOptions, "folderId"> & {
+  /** Reject writes when the originating extraction is no longer eligible. */
+  canWrite?: () => Promise<boolean>;
+  /** Abort pending remote requests when the originating extraction is cancelled. */
+  signal?: AbortSignal;
+};
 
 /**
  * A topic and how many memories link to it.
@@ -255,7 +260,15 @@ export interface MemoryStore {
   /** Replace the memory's topics with a user-chosen set and stop auto-tagging it. */
   setTopics(memoryId: string, topics: readonly EntityInput[]): Promise<StoredVaultMemory | null>;
   /** Add topics alongside the existing ones (auto-tagging stays on). */
-  addTopics(memoryId: string, topics: readonly EntityInput[]): Promise<StoredEntity[]>;
+  addTopics(
+    memoryId: string,
+    topics: readonly EntityInput[],
+    options?: {
+      unlessUserManaged?: boolean;
+      canWrite?: () => Promise<boolean>;
+      signal?: AbortSignal;
+    }
+  ): Promise<StoredEntity[]>;
   setVisibility(
     id: string,
     visibility: VaultMemoryVisibility,

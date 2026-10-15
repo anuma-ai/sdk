@@ -68,6 +68,8 @@ export interface LocalMemoryStoreOptions {
   walletAddress?: string;
   signMessage?: SignMessageFn;
   embeddedWalletSigner?: EmbeddedWalletSignerFn;
+  /** Rechecked inside each serialized memory write. */
+  canWrite?: () => Promise<boolean>;
   /**
    * Scope every read/write to this user — for a shared, multi-tenant database
    * whose rows all carry their `user_id`. Rows with no `user_id` are invisible
@@ -102,6 +104,7 @@ export function createLocalMemoryStore(options: LocalMemoryStoreOptions): Memory
     database,
     entityCollection: database.get<Entity>("entity"),
     memoryEntityCollection: database.get<MemoryEntity>("memory_entity"),
+    canWrite: options.canWrite,
     ...(userId !== undefined && { userId }),
     ...(options.allowUnscopedRows !== undefined && {
       allowUnscopedRows: options.allowUnscopedRows,
@@ -113,9 +116,23 @@ export function createLocalMemoryStore(options: LocalMemoryStoreOptions): Memory
     walletAddress: options.walletAddress,
     signMessage: options.signMessage,
     embeddedWalletSigner: options.embeddedWalletSigner,
+    canWrite: options.canWrite,
     ...(userId !== undefined && { userId }),
     ...(options.singleTenant !== undefined && { singleTenant: options.singleTenant }),
     entityCtx,
+  };
+  const assertWrite = async (writeOptions?: {
+    canWrite?: () => Promise<boolean>;
+    signal?: AbortSignal;
+  }) => {
+    writeOptions?.signal?.throwIfAborted();
+    if (writeOptions?.canWrite && !(await writeOptions.canWrite())) {
+      throw new Error("Memory source is no longer eligible");
+    }
+    if (options.canWrite && !(await options.canWrite())) {
+      throw new Error("Memory source is no longer eligible");
+    }
+    writeOptions?.signal?.throwIfAborted();
   };
   const vaultCache = options.vaultCache ?? createVaultEmbeddingCache();
   const ownedBy = userId !== undefined ? [Q.where("user_id", userId)] : [];
@@ -257,13 +274,33 @@ export function createLocalMemoryStore(options: LocalMemoryStoreOptions): Memory
     restore: (id: string) => restoreVaultMemoryOp(vaultCtx, id),
     setTopics: (memoryId: string, topics: readonly EntityInput[]) =>
       setMemoryEntitiesOp(vaultCtx, memoryId, topics),
-    addTopics: (memoryId: string, topics: readonly EntityInput[]) =>
+    addTopics: (
+      memoryId: string,
+      topics: readonly EntityInput[],
+      writeOptions?: Parameters<MemoryStore["addTopics"]>[2]
+    ) =>
       database.write(async (writer) => {
+        await assertWrite(writeOptions);
         const owned = await vaultCtx.vaultMemoryCollection
           .query(Q.where("id", memoryId), Q.where("is_deleted", false), ...ownedBy)
           .fetchCount();
         return owned > 0
-          ? writer.callWriter(() => linkMemoryEntitiesOp(entityCtx, memoryId, topics))
+          ? writer.callWriter(() =>
+              linkMemoryEntitiesOp(
+                {
+                  ...entityCtx,
+                  canWrite: async () => {
+                    await assertWrite(writeOptions);
+                    return true;
+                  },
+                },
+                memoryId,
+                topics,
+                {
+                  unlessTopicsUserManaged: writeOptions?.unlessUserManaged,
+                }
+              )
+            )
           : [];
       }),
     setVisibility: (
@@ -281,7 +318,17 @@ export function createLocalMemoryStore(options: LocalMemoryStoreOptions): Memory
     retain: (content: string, retainOptions?: MemoryRetainOptions) =>
       retain(
         content,
-        { vaultCtx, embeddingOptions: options.embeddingOptions, vaultCache },
+        {
+          vaultCtx: {
+            ...vaultCtx,
+            canWrite: async () => {
+              await assertWrite(retainOptions);
+              return true;
+            },
+          },
+          embeddingOptions: options.embeddingOptions,
+          vaultCache,
+        },
         retainOptions
       ),
     factSource: {

@@ -14,6 +14,7 @@ import {
 import type { InjectionClassifierOptions } from "./injectionClassifier.js";
 import type { PortalLlmFailure } from "./portalLlm.js";
 import type { RetainContext } from "./retain.js";
+import type { MemoryStore } from "./store/types.js";
 import type {
   ConsolidationFallbackReason,
   PortalLlmAuth,
@@ -158,6 +159,10 @@ export function createPlatformCursorStore(
 
 export interface CreateAutoExtractorOptions {
   retainCtx: RetainContext;
+  /** Route retained facts and topics through this store; null disables memory writes. */
+  memoryStore?: MemoryStore | null;
+  /** Cancel remote writes for an extraction batch. */
+  signal?: AbortSignal;
   extract: ExtractFactsOptions;
   /** Confidence floor for retained facts. Default 0.7. */
   minConfidence?: number;
@@ -434,7 +439,7 @@ export function createAutoExtractor(options: CreateAutoExtractorOptions): AutoEx
       ? { ...options.injectionClassifier, ...subPassAuth(options.injectionClassifier.baseUrl) }
       : undefined;
 
-  if (options.retainCtx.vaultCtx.entityCtx && !options.entityCtx) {
+  if (!options.memoryStore && options.retainCtx.vaultCtx.entityCtx && !options.entityCtx) {
     getLogger().warn(
       "[memory/extract] retainCtx.vaultCtx.entityCtx is set but extractor was created without `entityCtx` — W5 graph lane will receive no writes"
     );
@@ -487,6 +492,8 @@ export function createAutoExtractor(options: CreateAutoExtractorOptions): AutoEx
         const { candidates, results, failedCount, outcome, failure, funnel, timings, model } =
           await extractAndRetain(window, retainCtx, {
             extract,
+            memoryStore: options.memoryStore,
+            signal: options.signal,
             ...(options.minConfidence !== undefined && { minConfidence: options.minConfidence }),
             ...(options.entityCtx !== undefined && { entityCtx: options.entityCtx }),
             ...(options.scope !== undefined && { scope: options.scope }),

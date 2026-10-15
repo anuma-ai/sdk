@@ -58,6 +58,12 @@ function isKinded(record: { kind?: string | null }): boolean {
   return record.kind !== null && record.kind !== undefined;
 }
 
+async function assertCanWrite(ctx: VaultMemoryOperationsContext): Promise<void> {
+  if (ctx.canWrite && !(await ctx.canWrite())) {
+    throw new Error("Memory source is no longer eligible");
+  }
+}
+
 export function assertValidKindLevel(
   kind: string | null | undefined,
   level: string | undefined
@@ -319,8 +325,7 @@ export async function createVaultMemoryOp(
       : opts.content;
 
   const created = await ctx.database.write(async () => {
-    if (ctx.canWrite && !(await ctx.canWrite()))
-      throw new Error("Memory source is no longer eligible");
+    await assertCanWrite(ctx);
     return ctx.vaultMemoryCollection.create((record) =>
       populateNewVaultMemory(record, ctx, opts, encryptedContent, encryptedKindValue)
     );
@@ -361,8 +366,7 @@ export async function createSupersedingMemoryOp(
 
   let createdRecord: VaultMemory | null = null;
   await ctx.database.write(async () => {
-    if (ctx.canWrite && !(await ctx.canWrite()))
-      throw new Error("Memory source is no longer eligible");
+    await assertCanWrite(ctx);
     let target: VaultMemory;
     try {
       target = await ctx.vaultMemoryCollection.find(targetId);
@@ -502,8 +506,7 @@ export async function createVaultMemoriesBatchOp(
   );
 
   const created = await ctx.database.write(async () => {
-    if (ctx.canWrite && !(await ctx.canWrite()))
-      throw new Error("Memory source is no longer eligible");
+    await assertCanWrite(ctx);
     const prepared = optionsArray.map((opts, i) =>
       ctx.vaultMemoryCollection.prepareCreate((record) =>
         populateNewVaultMemory(record, ctx, opts, encryptedContents[i], encryptedKindValues[i])
@@ -1066,8 +1069,7 @@ export async function updateVaultMemoryOp(
     const record = probe;
     const originalUpdatedAt = record.updatedAt.getTime();
     await ctx.database.write(async () => {
-      if (ctx.canWrite && !(await ctx.canWrite()))
-        throw new Error("Memory source is no longer eligible");
+      await assertCanWrite(ctx);
       if (
         record.isDeleted ||
         record.supersededBy ||
@@ -1205,6 +1207,7 @@ export async function setMemoryEntitiesOp(
   let stale = false;
   const originalUpdatedAt = record.updatedAt.getTime();
   await ctx.database.write(async (writer) => {
+    await assertCanWrite(ctx);
     if (record.isDeleted || !isOwnedByCtxUser(ctx, record)) {
       stale = true;
       return;
@@ -1282,6 +1285,7 @@ export async function clearMemoryTopicsOverrideOp(
   const originalUpdatedAt = record.updatedAt.getTime();
   let cleared = false;
   await ctx.database.write(async () => {
+    await assertCanWrite(ctx);
     if (options?.unlessTopicsRecorded && parseTopics(record.topics) !== null) return;
     cleared = true;
     await record.update((r) => {
@@ -1330,6 +1334,7 @@ export async function setMemoryVisibilityOp(
 
   let stale = false;
   await ctx.database.write(async () => {
+    await assertCanWrite(ctx);
     if (record.isDeleted || !isOwnedByCtxUser(ctx, record)) {
       stale = true;
       return;
@@ -1365,6 +1370,7 @@ export async function deleteVaultMemoryOp(
 
     let stale = false;
     await ctx.database.write(async () => {
+      await assertCanWrite(ctx);
       if (record.isDeleted || !isOwnedByCtxUser(ctx, record)) {
         stale = true;
         return;
@@ -1425,8 +1431,7 @@ export async function supersedeVaultMemoryOp(
 
     let stale = false;
     await ctx.database.write(async () => {
-      if (ctx.canWrite && !(await ctx.canWrite()))
-        throw new Error("Memory source is no longer eligible");
+      await assertCanWrite(ctx);
       if (record.isDeleted || record.supersededBy || !isOwnedByCtxUser(ctx, record)) {
         stale = true;
         return;
@@ -1746,6 +1751,7 @@ export async function stampTopicsExtractedAtOp(
     const chunkIds = uniqueIds.slice(i, i + CHUNK);
 
     await ctx.database.write(async () => {
+      await assertCanWrite(ctx);
       const records: VaultMemory[] = [];
       for (const id of chunkIds) {
         try {
@@ -1802,6 +1808,7 @@ export async function relinkMemoryTopicsOp(
   for (const id of Array.from(new Set(memoryIds))) {
     try {
       await ctx.database.write(async (writer) => {
+        await assertCanWrite(ctx);
         let record: VaultMemory;
         try {
           record = await ctx.vaultMemoryCollection.find(id);
@@ -1862,6 +1869,7 @@ export async function backfillMemoryTopicsOp(
   for (let i = 0; i < uniqueIds.length; i += CHUNK) {
     const chunkIds = uniqueIds.slice(i, i + CHUNK);
     await ctx.database.write(async () => {
+      await assertCanWrite(ctx);
       const writes: MemoryTopicsWrite[] = [];
       for (const id of chunkIds) {
         let record: VaultMemory;
@@ -1908,6 +1916,7 @@ export async function deleteAllVaultMemoriesForUserOp(
   if (records.length === 0) return 0;
 
   await ctx.database.write(async () => {
+    await assertCanWrite(ctx);
     const prepared = records.map((record) =>
       record.prepareUpdate((r) => {
         r._setRaw("is_deleted", true);
@@ -2071,6 +2080,7 @@ export async function archiveVaultMemoryOp(
     let stale = false;
     const archivedAtValue = opts?.now ?? Date.now();
     await ctx.database.write(async () => {
+      await assertCanWrite(ctx);
       if (record.isDeleted || !isOwnedByCtxUser(ctx, record) || record.archivedAt !== null) {
         stale = true;
         return;
@@ -2114,6 +2124,7 @@ export async function restoreVaultMemoryOp(
 
     let stale = false;
     await ctx.database.write(async () => {
+      await assertCanWrite(ctx);
       if (record.isDeleted || !isOwnedByCtxUser(ctx, record)) {
         stale = true;
         return;
@@ -2152,6 +2163,7 @@ export async function hardDeleteDecayedOp(
     const now = opts.now ?? Date.now();
     let stale = false;
     await ctx.database.write(async () => {
+      await assertCanWrite(ctx);
       const archivedAt = record.archivedAt;
       if (
         record.isDeleted ||
@@ -2219,6 +2231,7 @@ export async function updateVaultMemoryEmbeddingOp(
     }
     let written = false;
     await ctx.database.write(async () => {
+      await assertCanWrite(ctx);
       if (record.isDeleted || !isOwnedByCtxUser(ctx, record)) return;
       const originalUpdatedAt = record.updatedAt.getTime();
       if (originalUpdatedAt !== readUpdatedAt || record._getRaw("content") !== readStoredContent)

@@ -386,21 +386,33 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
   const mutateLocked = async (
     id: string,
     change: Change | ((before: RemoteMemoryRow) => Change),
-    edit: RowEdit
+    edit: RowEdit,
+    writeOptions?: Parameters<MemoryStore["addTopics"]>[2]
   ): Promise<RemoteMemoryRecord | null> => {
-    const record = await live(id);
+    writeOptions?.signal?.throwIfAborted();
+    const record = writeOptions?.signal
+      ? await persistence.get(id, writeOptions.signal)
+      : await live(id);
     if (!record) return null;
+    if (record.memory.is_deleted) return null;
+    if (writeOptions?.canWrite && !(await writeOptions.canWrite()))
+      throw new Error("Memory source is no longer eligible");
+    writeOptions?.signal?.throwIfAborted();
     const next = edit(structuredClone(record.memory));
     if (!next) return null;
-    const saved = await persistence.put(next, record);
+    const saved = writeOptions?.signal
+      ? await persistence.put(next, record, writeOptions.signal)
+      : await persistence.put(next, record);
     notify(typeof change === "function" ? change(record.memory) : change, [saved]);
     return saved;
   };
   const mutate = (
     id: string,
     change: Change | ((before: RemoteMemoryRow) => Change),
-    edit: RowEdit
-  ): Promise<RemoteMemoryRecord | null> => serialized(id, () => mutateLocked(id, change, edit));
+    edit: RowEdit,
+    writeOptions?: Parameters<MemoryStore["addTopics"]>[2]
+  ): Promise<RemoteMemoryRecord | null> =>
+    serialized(id, () => mutateLocked(id, change, edit, writeOptions));
   const serializedAll = <T>(ids: readonly string[], task: () => Promise<T>): Promise<T> =>
     [...new Set(ids)]
       .sort()
@@ -964,13 +976,21 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
         }))
       );
     },
-    addTopics: async (memoryId, topics) => {
+    addTopics: async (memoryId, topics, writeOptions) => {
       const added = await withKnownKinds(topicInputs(topics, "auto"));
-      const saved = await mutate(memoryId, "edit", (memory) => ({
-        ...memory,
-        topics: serializeTopics(mergeTopics(parseTopics(memory.topics) ?? [], added)),
-        topics_updated_at: Date.now(),
-      }));
+      const saved = await mutate(
+        memoryId,
+        "edit",
+        (memory) => {
+          if (writeOptions?.unlessUserManaged && memory.topics_user_managed) return null;
+          return {
+            ...memory,
+            topics: serializeTopics(mergeTopics(parseTopics(memory.topics) ?? [], added)),
+            topics_updated_at: Date.now(),
+          };
+        },
+        writeOptions
+      );
       if (!saved) return [];
       const now = new Date();
       return mergeTopics([], added).map(

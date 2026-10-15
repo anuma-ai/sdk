@@ -336,6 +336,118 @@ describe("durable extraction outbox", () => {
     expect(extractAndRetain).toHaveBeenCalledTimes(2);
     resumed.dispose();
   });
+  it("passes the selected store through durable batches and aborts late writes on disposal", async () => {
+    await conversation();
+    let finish!: (value: typeof empty) => void;
+    vi.mocked(extractAndRetain).mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve;
+        })
+    );
+    const memoryStore = { retain: vi.fn() } as unknown as import("./store/types").MemoryStore;
+    const worker = createDurableAutoExtractor({ ...options(), memoryStore });
+    worker.processTurn(messages.slice(0, 2), "conversation");
+    await vi.waitFor(() => expect(extractAndRetain).toHaveBeenCalled());
+    const [, batchCtx, batchOptions] = vi.mocked(extractAndRetain).mock.calls[0];
+    expect(batchOptions.memoryStore).toBe(memoryStore);
+    expect(batchOptions.signal?.aborted).toBe(false);
+    worker.dispose();
+    expect(batchOptions.signal?.aborted).toBe(true);
+    expect(await batchCtx.vaultCtx.canWrite?.()).toBe(false);
+    finish(empty);
+    await vi.waitFor(() => expect(worker.isProcessing()).toBe(false));
+    const [job] = await db.get<ExtractionJob>(ExtractionJob.table).query().fetch();
+    expect(job._getRaw("message_ids")).not.toBe("[]");
+  });
+  it("keeps a completed batch queued when its completion callback disposes the worker", async () => {
+    await conversation();
+    const onTurnComplete = vi.fn(() => worker.dispose());
+    const worker = createDurableAutoExtractor({ ...options(), onTurnComplete });
+    worker.processTurn(messages.slice(0, 2), "conversation");
+    await vi.waitFor(() => expect(onTurnComplete).toHaveBeenCalledOnce());
+    await vi.waitFor(() => expect(worker.isProcessing()).toBe(false));
+    const [job] = await db.get<ExtractionJob>(ExtractionJob.table).query().fetch();
+    expect(job._getRaw("message_ids")).toBe('["m0","m1"]');
+    expect(job._getRaw("watermark")).toBeNull();
+    expect(job._getRaw("watermark_seq")).toBeNull();
+  });
+  it("keeps a completed batch queued when disposal precedes its acknowledgement writer", async () => {
+    await conversation();
+    let release!: () => void;
+    const blocked = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const write = vi.spyOn(db, "write");
+    let blocker: Promise<void> | undefined;
+    const onTurnComplete = vi.fn(() => {
+      write.mockClear();
+      blocker = db.write(async () => blocked);
+    });
+    const worker = createDurableAutoExtractor({ ...options(), onTurnComplete });
+    worker.processTurn(messages.slice(0, 2), "conversation");
+    await vi.waitFor(() => expect(onTurnComplete).toHaveBeenCalledOnce());
+    await vi.waitFor(() => expect(write).toHaveBeenCalledTimes(2));
+    worker.dispose();
+    release();
+    await blocker;
+    await vi.waitFor(() => expect(worker.isProcessing()).toBe(false));
+    const [job] = await db.get<ExtractionJob>(ExtractionJob.table).query().fetch();
+    expect(job._getRaw("message_ids")).toBe('["m0","m1"]');
+    expect(job._getRaw("watermark")).toBeNull();
+    expect(job._getRaw("watermark_seq")).toBeNull();
+    write.mockRestore();
+  });
+  it("does not resume queued work with an already-aborted caller signal", async () => {
+    await conversation();
+    const first = createDurableAutoExtractor({ ...options(), debounceMs: 60_000 });
+    first.processTurn(messages.slice(0, 2), "conversation");
+    first.dispose();
+    await vi.waitFor(async () =>
+      expect(await db.get<ExtractionJob>(ExtractionJob.table).query().fetchCount()).toBe(1)
+    );
+    const controller = new AbortController();
+    controller.abort();
+    const worker = createDurableAutoExtractor({ ...options(), signal: controller.signal });
+    expect(worker.processTurn(messages.slice(0, 2), "conversation")).toBe(false);
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    expect(extractAndRetain).not.toHaveBeenCalled();
+    const [job] = await db.get<ExtractionJob>(ExtractionJob.table).query().fetch();
+    expect(job._getRaw("message_ids")).toBe('["m0","m1"]');
+    worker.dispose();
+  });
+  it("aborts an active batch and retains its job when the caller signal aborts", async () => {
+    await conversation();
+    let finish!: (value: typeof empty) => void;
+    vi.mocked(extractAndRetain).mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve;
+        })
+    );
+    const controller = new AbortController();
+    const onTurnComplete = vi.fn();
+    const worker = createDurableAutoExtractor({
+      ...options(),
+      signal: controller.signal,
+      onTurnComplete,
+    });
+    worker.processTurn(messages.slice(0, 2), "conversation");
+    await vi.waitFor(() => expect(extractAndRetain).toHaveBeenCalledOnce());
+    const [, batchCtx, batchOptions] = vi.mocked(extractAndRetain).mock.calls[0];
+    controller.abort(new Error("caller cancelled"));
+    expect(batchOptions.signal?.aborted).toBe(true);
+    expect(batchOptions.signal?.reason).toBe(controller.signal.reason);
+    expect(await batchCtx.vaultCtx.canWrite?.()).toBe(false);
+    expect(worker.processTurn(messages.slice(0, 3), "conversation")).toBe(false);
+    finish(empty);
+    await vi.waitFor(() => expect(worker.isProcessing()).toBe(false));
+    expect(onTurnComplete).not.toHaveBeenCalled();
+    const [job] = await db.get<ExtractionJob>(ExtractionJob.table).query().fetch();
+    expect(job._getRaw("message_ids")).toBe('["m0","m1"]');
+    expect(job._getRaw("watermark")).toBeNull();
+    worker.dispose();
+  });
   it("retains a failed batch and retries without a subsequent message", async () => {
     await conversation();
     vi.mocked(extractAndRetain).mockResolvedValueOnce({

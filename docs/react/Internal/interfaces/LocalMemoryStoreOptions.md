@@ -8,9 +8,23 @@ Defined in: [src/lib/memory/store/local.ts:64](https://github.com/anuma-ai/sdk/b
 
 > `optional` **allowUnscopedRows**: `boolean`
 
-Defined in: [src/lib/memory/store/local.ts:86](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/local.ts#86)
+Defined in: [src/lib/memory/store/local.ts:88](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/local.ts#88)
 
 Admit pre-v31 `user_id = null` link rows alongside `userId`'s (LokiJS web).
+
+***
+
+### canWrite()?
+
+> `optional` **canWrite**: () => `Promise`<`boolean`>
+
+Defined in: [src/lib/memory/store/local.ts:72](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/local.ts#72)
+
+Rechecked inside each serialized memory write.
+
+**Returns**
+
+`Promise`<`boolean`>
 
 ***
 
@@ -36,7 +50,7 @@ Defined in: [src/lib/memory/store/local.ts:70](https://github.com/anuma-ai/sdk/b
 
 > **embeddingOptions**: [`MemoryEngineEmbeddingOptions`](MemoryEngineEmbeddingOptions.md)
 
-Defined in: [src/lib/memory/store/local.ts:88](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/local.ts#88)
+Defined in: [src/lib/memory/store/local.ts:90](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/local.ts#90)
 
 Embedding API options for `recall` / `retain`.
 
@@ -54,7 +68,7 @@ Defined in: [src/lib/memory/store/local.ts:69](https://github.com/anuma-ai/sdk/b
 
 > `optional` **singleTenant**: `boolean`
 
-Defined in: [src/lib/memory/store/local.ts:84](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/local.ts#84)
+Defined in: [src/lib/memory/store/local.ts:86](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/local.ts#86)
 
 The database holds exactly one owner's rows (the per-wallet client DBs).
 Required for the decay sweep to run without `userId` — see
@@ -66,7 +80,7 @@ Required for the decay sweep to run without `userId` — see
 
 > `optional` **userId**: `string`
 
-Defined in: [src/lib/memory/store/local.ts:78](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/local.ts#78)
+Defined in: [src/lib/memory/store/local.ts:80](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/local.ts#80)
 
 Scope every read/write to this user — for a shared, multi-tenant database
 whose rows all carry their `user_id`. Rows with no `user_id` are invisible
@@ -80,7 +94,7 @@ vault ctx.
 
 > `optional` **vaultCache**: [`VaultEmbeddingCache`](../type-aliases/VaultEmbeddingCache.md)
 
-Defined in: [src/lib/memory/store/local.ts:90](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/local.ts#90)
+Defined in: [src/lib/memory/store/local.ts:92](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/local.ts#92)
 
 Share a warm cache with other recall surfaces; one is created when omitted.
 

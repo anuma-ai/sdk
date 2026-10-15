@@ -2,7 +2,7 @@
 
 > **extractAndRetain**(`messages`: [`AutoExtractMessage`](../interfaces/AutoExtractMessage.md)\[], `retainCtx`: [`RetainContext`](../interfaces/RetainContext.md), `options`: `object`): `Promise`<{ `candidates`: [`ExtractedCandidate`](../interfaces/ExtractedCandidate.md)\[]; `failedCount`: `number`; `failure?`: [`PortalLlmFailure`](../interfaces/PortalLlmFailure.md); `funnel`: [`ExtractionFunnel`](../interfaces/ExtractionFunnel.md); `model`: `string`; `outcome`: [`ExtractOutcome`](../type-aliases/ExtractOutcome.md); `quarantined`: [`QuarantinedMemoryInfo`](../interfaces/QuarantinedMemoryInfo.md)\[]; `results`: [`RetainResult`](../interfaces/RetainResult.md)\[]; `timings`: [`ExtractionTimings`](../interfaces/ExtractionTimings.md); }>
 
-Defined in: [src/lib/memory/autoExtract.ts:498](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#498)
+Defined in: [src/lib/memory/autoExtract.ts:499](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#499)
 
 Stage 2 — for each extracted candidate, call retain() with auto-merge
 enabled. When `consolidateOptions` are wired, retain()'s consolidation pass
@@ -180,6 +180,23 @@ extraction redaction setting when this option doesn't set its own.
 <tr>
 <td>
 
+`options.memoryStore?`
+
+</td>
+<td>
+
+[`MemoryStore`](../interfaces/MemoryStore.md) | `null`
+
+</td>
+<td>
+
+Route extracted facts through this store instead of the local vault.
+
+</td>
+</tr>
+<tr>
+<td>
+
 `options.minConfidence?`
 
 </td>
@@ -251,6 +268,23 @@ failed one (that goes to `onCandidateFailed`).
 <td>
 
 Override scope/folder for all retained facts.
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.signal?`
+
+</td>
+<td>
+
+`AbortSignal`
+
+</td>
+<td>
+
+Cancel remote writes for this extraction batch.
 
 </td>
 </tr>
