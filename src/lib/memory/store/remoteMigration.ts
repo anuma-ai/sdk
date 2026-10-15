@@ -513,9 +513,15 @@ export async function migrateMemoriesToRemote(
         candidates.map((raw) => raw.id as string),
         signal
       );
+      const needsVector = (raw: RawRow, server: Record<string, unknown>) =>
+        !!options.embeddingOptions && !embedding(raw, model) && server.embedding_model !== model;
       for (const raw of candidates) {
         const server = remote.get(raw.id as string);
-        if (server && server.updated_at === raw.updated_at && !sameMetadata(raw, server, model))
+        if (
+          server &&
+          server.updated_at === raw.updated_at &&
+          (!sameMetadata(raw, server, model) || needsVector(raw, server))
+        )
           pending.set(raw.id as string, (raw.updated_at as number) + 1);
       }
     }

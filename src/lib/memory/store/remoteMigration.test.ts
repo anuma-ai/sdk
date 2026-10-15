@@ -552,16 +552,37 @@ describe("migrateMemoriesToRemote", () => {
     expect(nearby.calls.filter((c) => c === "POST /import")).toHaveLength(1);
   });
 
+  it("repairs a vector an interrupted earlier run uploaded without one", async () => {
+    const ctx = vault(makeDatabase(), signatureA);
+    const m = await createVaultMemoryOp(ctx, { content: "Has a dog" });
+    const nearby = fakeNearby();
+    await migrate(nearby, ctx);
+    nearby.account.state = "migrating";
+    expect(nearby.rows.get(m.uniqueId)!.embedding).toBeUndefined();
+
+    const result = await migrate(nearby, ctx, { embeddingOptions: {} });
+
+    expect(result).toMatchObject({ state: "active", reembedded: 1, unembedded: 0 });
+    expect(nearby.rows.get(m.uniqueId)).toMatchObject({
+      embedding_model: DEFAULT_API_EMBEDDING_MODEL,
+      updated_at: m.updatedAt.getTime() + 1,
+    });
+    expect(nearby.rows.get(m.uniqueId)!.embedding).toHaveLength(1536);
+  });
+
   it("uploads a row without a vector when re-embedding fails", async () => {
     const ctx = vault(makeDatabase(), signatureA);
     const m = await createVaultMemoryOp(ctx, { content: "Has a dog" });
-    vi.mocked(generateEmbeddings).mockRejectedValueOnce(new Error("embedding outage"));
+    vi.mocked(generateEmbeddings)
+      .mockRejectedValueOnce(new Error("embedding outage"))
+      .mockRejectedValueOnce(new Error("embedding outage"));
     const nearby = fakeNearby();
 
     const result = await migrate(nearby, ctx, { embeddingOptions: {} });
 
     expect(result).toMatchObject({ state: "active", reembedded: 0, unembedded: 1 });
     expect(nearby.rows.get(m.uniqueId)!.embedding).toBeUndefined();
+    expect(nearby.calls.filter((c) => c === "POST /import")).toHaveLength(2);
   });
 
   it("never labels a pre-model 1536-dimension vector as the current model", async () => {
