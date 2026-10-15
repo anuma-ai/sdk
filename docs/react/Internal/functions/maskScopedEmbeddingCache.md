@@ -2,7 +2,7 @@
 
 > **maskScopedEmbeddingCache**(`cache`: `Map`<`string`, `Float32Array`<`ArrayBufferLike`>>, `masked`: `boolean`): `Map`<`string`, `Float32Array`<`ArrayBufferLike`>>
 
-Defined in: [src/lib/db/chat/embeddingCache.ts:72](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/embeddingCache.ts#72)
+Defined in: [src/lib/db/chat/embeddingCache.ts:71](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/embeddingCache.ts#71)
 
 ## Parameters
 

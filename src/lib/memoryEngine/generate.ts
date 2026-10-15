@@ -2,6 +2,7 @@ import { postApiV1Embeddings } from "../../client";
 import { BASE_URL } from "../../clientConfig";
 import { taskTypeHeader } from "../taskType";
 import { DEFAULT_API_EMBEDDING_MODEL } from "./constants";
+import { getEmbeddingCacheState } from "./embeddingCacheState";
 import type { EmbeddingOptions } from "./types";
 
 const EMBED_MAX_ATTEMPTS = 4;
@@ -148,10 +149,8 @@ export async function generateEmbedding(
   return withDeadline((signal) => embedOne(text, options, signal), total, "embedding");
 }
 
-const inFlightByCache = new WeakMap<
-  Map<string, Float32Array>,
-  Map<string, Promise<Float32Array>>
->();
+// TODO(ceiling): Text-keyed caches retain one model vector per text; use model-scoped entries to reuse alternating models.
+const { inFlightByCache, cachedEmbeddingModels } = getEmbeddingCacheState();
 
 async function embedOne(
   text: string,
@@ -161,12 +160,15 @@ async function embedOne(
   const { cache } = options;
   if (!cache) return Array.from(await requestEmbedding(text, options, outer));
 
+  const model = options.model ?? DEFAULT_API_EMBEDDING_MODEL;
   const cached = cache.get(text);
-  if (cached) return Array.from(cached);
+  const cachedModel = cached && cachedEmbeddingModels.get(cached);
+  if (cached && (cachedModel === undefined || cachedModel === model)) return Array.from(cached);
 
   const inFlight = inFlightByCache.get(cache) ?? new Map<string, Promise<Float32Array>>();
   inFlightByCache.set(cache, inFlight);
-  const pending = inFlight.get(text);
+  const requestKey = JSON.stringify([model, text]);
+  const pending = inFlight.get(requestKey);
   if (pending) {
     try {
       return Array.from(await pending);
@@ -176,13 +178,14 @@ async function embedOne(
   }
 
   const request = requestEmbedding(text, options, outer);
-  inFlight.set(text, request);
+  inFlight.set(requestKey, request);
   try {
     const embedding = await request;
+    cachedEmbeddingModels.set(embedding, model);
     cache.set(text, embedding);
     return Array.from(embedding);
   } finally {
-    if (inFlight.get(text) === request) inFlight.delete(text);
+    if (inFlight.get(requestKey) === request) inFlight.delete(requestKey);
   }
 }
 
@@ -317,6 +320,7 @@ async function embedMany(
   const { baseUrl = BASE_URL, model, batchSize, cache } = options;
   const timeoutMs = options.timeoutMs ?? DEFAULT_EMBEDDING_REQUEST_TIMEOUT_MS;
   const chunkSize = batchSize ?? DEFAULT_EMBEDDING_BATCH_SIZE;
+  const embeddingModel = model ?? DEFAULT_API_EMBEDDING_MODEL;
 
   const results: (number[] | null)[] = new Array<number[] | null>(texts.length).fill(null);
   const uncachedIndices: number[] = [];
@@ -325,7 +329,8 @@ async function embedMany(
   for (let i = 0; i < texts.length; i++) {
     if (cache) {
       const cached = cache.get(texts[i]);
-      if (cached) {
+      const cachedModel = cached && cachedEmbeddingModels.get(cached);
+      if (cached && (cachedModel === undefined || cachedModel === embeddingModel)) {
         results[i] = Array.from(cached);
         continue;
       }
@@ -343,8 +348,6 @@ async function embedMany(
     ...taskTypeHeader(options.taskType),
   };
   if (outer?.aborted) throw outer.reason;
-
-  const embeddingModel = model ?? DEFAULT_API_EMBEDDING_MODEL;
 
   let newEmbeddings: number[][];
 
@@ -400,6 +403,7 @@ async function embedMany(
     const f32Embedding = Float32Array.from(newEmbeddings[i]);
     results[uncachedIndices[i]] = Array.from(f32Embedding);
     if (cache) {
+      cachedEmbeddingModels.set(f32Embedding, embeddingModel);
       cache.set(uncachedTexts[i], f32Embedding);
     }
   }
