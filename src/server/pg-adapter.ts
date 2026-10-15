@@ -64,7 +64,7 @@ type Where =
 
 const operators: Record<string, string> = {
   eq: "=",
-  notEq: "!=",
+  notEq: "is distinct from",
   gt: ">",
   gte: ">=",
   weakGt: ">",

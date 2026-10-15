@@ -1,6 +1,15 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { appSchema, tableSchema } from "@nozbe/watermelondb";
+import { appSchema, Database, tableSchema } from "@nozbe/watermelondb";
 import { toPromise } from "@nozbe/watermelondb/utils/fp/Result";
+
+import type { VaultMemory } from "../lib/db/memoryVault/models";
+import {
+  countActiveVaultMemoriesOp,
+  createVaultMemoryOp,
+  getAllVaultMemoriesOp,
+  getVaultMemoriesByIdsOp,
+} from "../lib/db/memoryVault/operations";
+import { sdkModelClasses, sdkSchema } from "../lib/db/schema";
 import { PostgreSQLAdapter } from "./pg-adapter";
 import type { PgClientLike, PgPoolLike } from "./pg-adapter";
 
@@ -53,6 +62,47 @@ describe.skipIf(!runIntegration)("PostgreSQLAdapter (integration)", () => {
     if (pool) await pool.end();
     if (container) await container.stop();
   }, 60_000);
+
+  it("keeps NULL and trusted vault memories and excludes quarantined memories", async () => {
+    const database = new Database({
+      adapter: new PostgreSQLAdapter({
+        pool: pool as PgPoolLike,
+        schema: sdkSchema,
+        dbName: "vault-inequality-test",
+        pgSchema: "vault_inequality_test",
+      }),
+      modelClasses: sdkModelClasses,
+    });
+    const ctx = {
+      database,
+      vaultMemoryCollection: database.get<VaultMemory>("memory_vault"),
+    };
+    const ordinary = await createVaultMemoryOp(ctx, { content: "Ordinary memory" });
+    const trusted = await createVaultMemoryOp(ctx, {
+      content: "Trusted memory",
+      trustTier: "trusted",
+    });
+    const quarantined = await createVaultMemoryOp(ctx, {
+      content: "Quarantined memory",
+      trustTier: "quarantined",
+    });
+    const expectedIds = [ordinary.uniqueId, trusted.uniqueId].sort();
+    const allIds = [...expectedIds, quarantined.uniqueId].sort();
+
+    expect(ordinary.trustTier).toBeNull();
+    expect
+      .soft((await getAllVaultMemoriesOp(ctx)).map((memory) => memory.uniqueId).sort())
+      .toEqual(expectedIds);
+    expect.soft(await countActiveVaultMemoriesOp(ctx)).toBe(2);
+    expect
+      .soft((await getVaultMemoriesByIdsOp(ctx, allIds)).map((memory) => memory.uniqueId).sort())
+      .toEqual(expectedIds);
+    expect(
+      (await getAllVaultMemoriesOp(ctx, { includeQuarantined: true }))
+        .map((memory) => memory.uniqueId)
+        .sort()
+    ).toEqual(allIds);
+  });
 
   it("rejects inserts that violate the primary-key unique constraint", async () => {
     await toPromise((cb) =>
