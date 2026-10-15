@@ -351,7 +351,9 @@ It clears chunks whose offsets cannot refer to the decrypted content and clears 
 Such rows keep `tool_result` or receive `chunks_discarded`, which prevents automatic paid repair.
 The migration advances `updated_at` so vector caches and backup sync observe the change.
 It uses at most 50 rows per write. A second pass leaves sealed columns unchanged.
-A missing or incorrect cached key rejects the pass. Earlier completed rows remain sealed and the pass can retry.
+A missing cached key rejects the pass. Earlier completed rows remain sealed and the pass can retry.
+The pass skips a row that the cached key cannot decrypt and leaves it unchanged.
+The pass logs one warning with the count of skipped rows and continues with the remaining rows.
 
 The client ciphertext chunk sweep must inspect the stored chunks before the helper decrypts them.
 A sealed chunks column is the signal for the new storage format. The sweep must skip it.
