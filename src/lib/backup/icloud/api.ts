@@ -26,6 +26,7 @@ export interface ICloudFile {
   filename: string;
   modifiedAt: Date;
   size: number;
+  backupRevision?: string;
   assetDownloadURL?: string;
 }
 
@@ -36,6 +37,7 @@ interface CloudKitRecord {
   fields: {
     filename?: { value: string };
     data?: { value: { downloadURL: string; size: number } };
+    backupRevision?: { value: string };
   };
   modified?: { timestamp: number };
   created?: { timestamp: number };
@@ -283,7 +285,11 @@ export async function requestICloudSignIn(): Promise<CloudKitUserIdentity> {
 /**
  * Upload a file to iCloud
  */
-export async function uploadFileToICloud(filename: string, content: Blob): Promise<ICloudFile> {
+export async function uploadFileToICloud(
+  filename: string,
+  content: Blob,
+  backupRevision?: string
+): Promise<ICloudFile> {
   const container = await getContainer();
   const database = container.privateCloudDatabase;
 
@@ -300,6 +306,7 @@ export async function uploadFileToICloud(filename: string, content: Blob): Promi
       data: { value: base64Data },
       size: { value: content.size },
       contentType: { value: content.type || "application/json" },
+      ...(backupRevision ? { backupRevision: { value: backupRevision } } : {}),
     },
   };
 
@@ -316,6 +323,7 @@ export async function uploadFileToICloud(filename: string, content: Blob): Promi
     filename,
     modifiedAt: new Date(savedRecord.modified?.timestamp ?? Date.now()),
     size: content.size,
+    backupRevision: savedRecord.fields.backupRevision?.value,
   };
 }
 
@@ -345,6 +353,7 @@ export async function listICloudFiles(): Promise<ICloudFile[]> {
     recordName: record.recordName,
     filename: record.fields.filename?.value ?? "",
     modifiedAt: new Date(record.modified?.timestamp ?? Date.now()),
+    backupRevision: record.fields.backupRevision?.value,
     size:
       typeof record.fields.data?.value === "object" && record.fields.data?.value !== null
         ? (record.fields.data.value as { size: number }).size
@@ -421,6 +430,7 @@ export async function findICloudFile(filename: string): Promise<ICloudFile | nul
     recordName: record.recordName,
     filename: record.fields.filename?.value ?? "",
     modifiedAt: new Date(record.modified?.timestamp ?? Date.now()),
+    backupRevision: record.fields.backupRevision?.value,
     size:
       typeof record.fields.data?.value === "object" && record.fields.data?.value !== null
         ? (record.fields.data.value as { size: number }).size

@@ -47,6 +47,42 @@ export interface ICloudImportResult {
   noBackupsFound?: boolean;
 }
 
+const UNREVISIONED_COLUMNS = new Set([
+  "updated_at",
+  "vector",
+  "embedding_model",
+  "chunks",
+  "origin",
+]);
+
+async function getBackupRevision(database: Database, conversationId: string): Promise<string> {
+  const serialized = await database.read(async () => {
+    const { Q } = await import("@nozbe/watermelondb");
+    const tables = (await Promise.all(
+      ["conversations", "history"].map((table) =>
+        database
+          .get(table)
+          .query(Q.where("conversation_id", conversationId), Q.sortBy("id", Q.asc))
+          .unsafeFetchRaw()
+      )
+    )) as Record<string, unknown>[][];
+    return JSON.stringify(
+      tables.map((rows) =>
+        rows.map((row) =>
+          Object.entries(row)
+            .filter(([key]) => !key.startsWith("_") && !UNREVISIONED_COLUMNS.has(key))
+            .sort(([left], [right]) => (left < right ? -1 : left > right ? 1 : 0))
+        )
+      )
+    );
+  });
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(serialized));
+  return (
+    "v1:" +
+    Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("")
+  );
+}
+
 async function pushConversationToICloud(
   database: Database,
   conversationId: string,
@@ -59,22 +95,10 @@ async function pushConversationToICloud(
 
     const filename = `${conversationId}.json`;
     const existingFile = await findICloudFile(filename);
+    const backupRevision = await getBackupRevision(database, conversationId);
 
-    if (existingFile) {
-      const { Q } = await import("@nozbe/watermelondb");
-      const conversationsCollection = database.get<Conversation>("conversations");
-      const records = await conversationsCollection
-        .query(Q.where("conversation_id", conversationId))
-        .fetch();
-
-      if (records.length > 0) {
-        const conversation = conversationToStoredRaw(records[0]);
-        const localUpdated = conversation.updatedAt.getTime();
-        const remoteModified = existingFile.modifiedAt.getTime();
-        if (localUpdated <= remoteModified) {
-          return "skipped";
-        }
-      }
+    if (existingFile?.backupRevision === backupRevision) {
+      return "skipped";
     }
 
     const exportResult = await deps.exportConversation(conversationId, userAddress);
@@ -83,7 +107,7 @@ async function pushConversationToICloud(
       return "failed";
     }
 
-    await uploadFileToICloud(filename, exportResult.blob);
+    await uploadFileToICloud(filename, exportResult.blob, backupRevision);
     return "uploaded";
   } catch (err) {
     if (isAuthError(err) && !_retried) {
