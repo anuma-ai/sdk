@@ -17,6 +17,7 @@ import {
 import { normalizeEntityName, parseTopics, type StoredTopic } from "../entities/types";
 import { decryptVaultMemoryFields, encryptVaultMemoryContent } from "./encryption";
 import type { VaultMemory } from "./models";
+import { serializeSourceChunkIds } from "./sourceChunkIds";
 import type {
   CreateVaultMemoryOptions,
   MemoryLevel,
@@ -275,7 +276,7 @@ function populateNewVaultMemory(
     record._setRaw("embedding_model", opts.embeddingModel ?? null);
   }
   if (opts.sourceChunkIds !== undefined) {
-    record._setRaw("source_chunk_ids", JSON.stringify(opts.sourceChunkIds));
+    record._setRaw("source_chunk_ids", serializeSourceChunkIds(opts.sourceChunkIds));
   }
   record._setRaw("proof_count", opts.proofCount ?? 1);
   record._setRaw("source", opts.source ?? "manual");
@@ -1116,7 +1117,7 @@ export async function updateVaultMemoryOp(
         if (opts.sourceChunkIds !== undefined) {
           r._setRaw(
             "source_chunk_ids",
-            JSON.stringify(
+            serializeSourceChunkIds(
               opts.observationSourceIds?.length
                 ? [...new Set([...observedSources, ...opts.sourceChunkIds])]
                 : opts.sourceChunkIds
