@@ -1371,6 +1371,14 @@ export function admitVaultProjections(
     .map((s) => s.it.uniqueId);
 }
 
+export interface CorpusStats {
+  keysMs: number;
+  embeddingsFetchMs: number;
+  rowsFetchMs: number;
+  cacheHits: number;
+  cacheMisses: number;
+}
+
 /**
  * Projected decrypt-last corpus (B2). Ranks from the vector LRU + a
  * column-projected key scan (no blobs), loads the embedding column ONLY for
@@ -1455,12 +1463,21 @@ export async function buildProjectedCorpus(
    * exists to end.
    */
   rowsDecrypted: number;
+  corpusStats: CorpusStats;
 }> {
   let rowsDecrypted = 0;
+  const keysStart = nowMs();
   const keys = await getVaultCandidateKeysOp(
     vaultCtx,
     Object.keys(queryOpts).length > 0 ? queryOpts : undefined
   );
+  const corpusStats: CorpusStats = {
+    keysMs: nowMs() - keysStart,
+    embeddingsFetchMs: 0,
+    rowsFetchMs: 0,
+    cacheHits: 0,
+    cacheMisses: 0,
+  };
   const hydrateOpts = queryOpts.includeArchived ? { includeArchived: true } : undefined;
   const vaultSize = keys.length;
   if (keys.length === 0) {
@@ -1471,6 +1488,7 @@ export async function buildProjectedCorpus(
       vaultSize: 0,
       laneEmbedFailed: false,
       rowsDecrypted: 0,
+      corpusStats,
     };
   }
   const queryEmbedStart = nowMs();
@@ -1493,9 +1511,11 @@ export async function buildProjectedCorpus(
     for (const k of keys) {
       const cached = cachedRowVector(cache, k.uniqueId, k.updatedAt);
       if (cached && cached.length === queryEmbedding.length) {
+        corpusStats.cacheHits++;
         vectored.push({ uniqueId: k.uniqueId, embedding: cached, updatedAt: k.updatedAt });
         continue;
       }
+      corpusStats.cacheMisses++;
       const modelCompatible = (k.embeddingModel ?? currentModel) === currentModel;
       if (modelCompatible) missIds.push(k.uniqueId);
       else noVectorIds.push(k.uniqueId);
@@ -1503,7 +1523,9 @@ export async function buildProjectedCorpus(
   }
 
   if (missIds.length > 0) {
+    const embeddingsStart = nowMs();
     const rows = await getVaultEmbeddingsByIdsOp(vaultCtx, missIds, hydrateOpts);
+    corpusStats.embeddingsFetchMs += nowMs() - embeddingsStart;
     const gotVector = new Set<string>();
     for (const r of rows) {
       if (!r.embedding) continue;
@@ -1533,7 +1555,9 @@ export async function buildProjectedCorpus(
         `memoryVault: projected search un-embedded lane capped at ${laneIds.length}/${noVectorIds.length}`
       );
     }
+    const laneStart = nowMs();
     const laneFetched = await getVaultMemoriesByIdsOp(vaultCtx, laneIds, hydrateOpts);
+    corpusStats.rowsFetchMs += nowMs() - laneStart;
     rowsDecrypted += laneFetched.length;
     for (const row of laneFetched) laneById.set(row.uniqueId, row);
     const laneRows = laneFetched.filter((m) => !isEncrypted(m.content));
@@ -1587,8 +1611,10 @@ export async function buildProjectedCorpus(
     }
   }
   const idsToFetch = [...admissionSet].filter((id) => !laneById.has(id));
+  const admittedStart = nowMs();
   const fetched =
     idsToFetch.length > 0 ? await getVaultMemoriesByIdsOp(vaultCtx, idsToFetch, hydrateOpts) : [];
+  corpusStats.rowsFetchMs += nowMs() - admittedStart;
   rowsDecrypted += fetched.length;
   const admittedRows = [
     ...fetched,
@@ -1618,7 +1644,10 @@ export async function buildProjectedCorpus(
   }
   if (staleIds.length > 0) {
     const contentById = new Map(memories.map((m) => [m.uniqueId, m]));
-    for (const r of await getVaultEmbeddingsByIdsOp(vaultCtx, staleIds, hydrateOpts)) {
+    const staleStart = nowMs();
+    const staleRows = await getVaultEmbeddingsByIdsOp(vaultCtx, staleIds, hydrateOpts);
+    corpusStats.embeddingsFetchMs += nowMs() - staleStart;
+    for (const r of staleRows) {
       if (!r.embedding) continue;
       try {
         const parsed = JSON.parse(r.embedding) as number[];
@@ -1651,7 +1680,15 @@ export async function buildProjectedCorpus(
     eventTimeKind: normalizeEventTimeKind(m.eventTimeKind),
     factType: m.factType,
   }));
-  return { memories, embeddedItems, queryEmbedding, vaultSize, laneEmbedFailed, rowsDecrypted };
+  return {
+    memories,
+    embeddedItems,
+    queryEmbedding,
+    vaultSize,
+    laneEmbedFailed,
+    rowsDecrypted,
+    corpusStats,
+  };
 }
 
 /**
@@ -1781,6 +1818,7 @@ export interface PreparedVaultCandidates {
    * portal — see {@link EmbedStats}. Uncapped on the legacy read path.
    */
   rowsEmbedded: number;
+  corpusStats?: CorpusStats;
 }
 
 /**
@@ -1856,6 +1894,7 @@ export async function prepareVaultCandidates(
   };
 
   const embedStats: EmbedStats = { queryMs: 0, rowsEmbedded: 0 };
+  let corpusStats: CorpusStats | undefined;
 
   if (searchOptions?.decryptLast) {
     const forceIncludeIds = [
@@ -1877,6 +1916,7 @@ export async function prepareVaultCandidates(
       onEmbeddingDegraded,
       embedStats,
     });
+    corpusStats = corpus.corpusStats;
     if (corpus.vaultSize === 0) {
       return {
         memories: [],
@@ -1889,6 +1929,7 @@ export async function prepareVaultCandidates(
         rowsDecrypted: corpus.rowsDecrypted,
         queryEmbedMs: embedStats.queryMs,
         rowsEmbedded: embedStats.rowsEmbedded,
+        corpusStats,
       };
     }
     ({ memories, embeddedItems, queryEmbedding, vaultSize } = corpus);
@@ -1906,6 +1947,7 @@ export async function prepareVaultCandidates(
         rowsDecrypted: corpus.rowsDecrypted,
         queryEmbedMs: embedStats.queryMs,
         rowsEmbedded: embedStats.rowsEmbedded,
+        corpusStats,
       };
     }
   } else {
@@ -2049,6 +2091,7 @@ export async function prepareVaultCandidates(
     embeddingFailure,
     decryptLast: !!searchOptions?.decryptLast,
     rowsDecrypted,
+    ...(corpusStats && { corpusStats }),
   };
 }
 
@@ -2337,6 +2380,7 @@ export async function searchVaultMemoriesWithSize(
    */
   queryEmbedMs: number;
   rowsEmbedded: number;
+  corpusStats?: CorpusStats;
 }> {
   if (!query || typeof query !== "string") {
     return {
@@ -2386,6 +2430,7 @@ export async function searchVaultMemoriesWithSize(
       rowsDecrypted: prepared.rowsDecrypted,
       queryEmbedMs: prepared.queryEmbedMs,
       rowsEmbedded: prepared.rowsEmbedded,
+      ...(prepared.corpusStats && { corpusStats: prepared.corpusStats }),
     };
   }
   if (prepared.memories.length === 0) {
@@ -2401,6 +2446,7 @@ export async function searchVaultMemoriesWithSize(
       rowsDecrypted: prepared.rowsDecrypted,
       queryEmbedMs: prepared.queryEmbedMs,
       rowsEmbedded: prepared.rowsEmbedded,
+      ...(prepared.corpusStats && { corpusStats: prepared.corpusStats }),
     };
   }
   const ranked = await rankPreparedVaultCandidates(
@@ -2416,6 +2462,7 @@ export async function searchVaultMemoriesWithSize(
     rowsDecrypted: prepared.rowsDecrypted,
     queryEmbedMs: prepared.queryEmbedMs,
     rowsEmbedded: prepared.rowsEmbedded,
+    ...(prepared.corpusStats && { corpusStats: prepared.corpusStats }),
   };
 }
 

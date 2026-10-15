@@ -1040,6 +1040,53 @@ describe("recall — diagnostics (onDiagnostics)", () => {
     expect(seen[0].vaultRowsEmbedded).toBe(0);
   });
 
+  it("splits the projected corpus build out of the fact lane", async () => {
+    vi.mocked(searchVaultMemoriesWithSize).mockResolvedValueOnce({
+      results: [],
+      vaultSize: 400,
+      reranked: false,
+      rerankMs: 0,
+      hadV2Head: false,
+      embeddingsUnavailable: false,
+      rankedOnCosine: true,
+      decryptLast: true,
+      rowsDecrypted: 30,
+      queryEmbedMs: 120,
+      rowsEmbedded: 0,
+      corpusStats: {
+        keysMs: 4100,
+        embeddingsFetchMs: 5200,
+        rowsFetchMs: 700,
+        cacheHits: 10,
+        cacheMisses: 390,
+      },
+    });
+    const seen: RecallDiagnostics[] = [];
+
+    await recall(QUERY, makeCtx(), {
+      budget: "low",
+      decryptLast: true,
+      onDiagnostics: (d) => seen.push(d),
+    });
+
+    expect(seen[0]).toMatchObject({ vaultCacheHits: 10, vaultCacheMisses: 390 });
+    expect(seen[0].timings).toMatchObject({
+      corpusKeys: 4100,
+      corpusEmbeddingsFetch: 5200,
+      corpusRowsFetch: 700,
+    });
+  });
+
+  it("omits corpus timings on the legacy whole-vault read", async () => {
+    const seen: RecallDiagnostics[] = [];
+
+    await recall(QUERY, makeCtx(), { budget: "low", onDiagnostics: (d) => seen.push(d) });
+
+    expect(seen[0]).not.toHaveProperty("vaultCacheHits");
+    expect(seen[0]).not.toHaveProperty("vaultCacheMisses");
+    expect(seen[0].timings).not.toHaveProperty("corpusKeys");
+  });
+
   it("flags rerank-unavailable when the cross-encoder fails", async () => {
     vi.mocked(rerankPairs).mockRejectedValue(new RerankerUnavailableError(undefined));
     const seen: RecallDiagnostics[] = [];
