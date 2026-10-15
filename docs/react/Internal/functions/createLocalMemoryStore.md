@@ -2,7 +2,7 @@
 
 > **createLocalMemoryStore**(`options`: [`LocalMemoryStoreOptions`](../interfaces/LocalMemoryStoreOptions.md)): [`MemoryStore`](../interfaces/MemoryStore.md)
 
-Defined in: [src/lib/memory/store/local.ts:100](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/local.ts#100)
+Defined in: [src/lib/memory/store/local.ts:101](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/local.ts#101)
 
 [MemoryStore](../interfaces/MemoryStore.md) over the on-device WatermelonDB vault. Builds the vault +
 entity contexts once and delegates every method to the existing ops, so

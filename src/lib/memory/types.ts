@@ -241,7 +241,8 @@ export interface RecallOptions {
 export interface RecallFactSource {
   search: (
     query: string,
-    options?: import("../memoryVault/searchTool.js").MemoryVaultSearchOptions
+    options?: import("../memoryVault/searchTool.js").MemoryVaultSearchOptions,
+    embeddingCache?: Map<string, Float32Array>
   ) => ReturnType<typeof import("../memoryVault/searchTool.js").searchVaultMemoriesWithSize>;
   graphRanking: (query: string, traverse: boolean, options: RecallOptions) => Promise<string[]>;
   temporalRanking: (query: string, now?: number) => Promise<string[]>;

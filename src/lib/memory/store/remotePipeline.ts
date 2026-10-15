@@ -1,5 +1,6 @@
 import { v7 as uuidv7 } from "uuid";
 
+import { maskScopedEmbeddingCache } from "../../db/chat/embeddingCache.js";
 import { parseTopics } from "../../db/entities/types.js";
 import { normalizeTrustTier } from "../../db/memoryVault/operations.js";
 import {
@@ -10,7 +11,7 @@ import {
 } from "../../db/memoryVault/types.js";
 import { getLogger } from "../../logger.js";
 import { DEFAULT_API_EMBEDDING_MODEL } from "../../memoryEngine/constants.js";
-import { generateEmbeddings } from "../../memoryEngine/embeddings.js";
+import { generateEmbedding, generateEmbeddings } from "../../memoryEngine/embeddings.js";
 import type { EmbeddingOptions } from "../../memoryEngine/types.js";
 import { normalizeSubQueries } from "../../memoryVault/decomposeQuery.js";
 import {
@@ -122,7 +123,11 @@ export function createRemoteMemoryPipeline(
 ): RemoteMemoryPipeline {
   const { persistence, embeddingOptions } = options;
   const model = embeddingOptions.model ?? DEFAULT_API_EMBEDDING_MODEL;
-  const operation = (mode: "recall" | "retain", writeOptions?: MemoryRetainOptions) => {
+  const operation = (
+    mode: "recall" | "retain",
+    queryOptions = embeddingOptions,
+    writeOptions?: MemoryRetainOptions
+  ) => {
     const signal = writeOptions?.signal;
     const assertWrite = async () => {
       signal?.throwIfAborted();
@@ -165,7 +170,7 @@ export function createRemoteMemoryPipeline(
       const budgetMs = search.queryEmbedTotalTimeoutMs ?? 8000;
       const embed = (texts: string[]) =>
         generateEmbeddings(texts, {
-          ...embeddingOptions,
+          ...queryOptions,
           taskType: mode === "retain" ? "memory_retain_embed" : "memory_recall_embed",
           totalTimeoutMs: budgetMs,
         });
@@ -185,7 +190,14 @@ export function createRemoteMemoryPipeline(
         }
       };
       const [primary, facetEmbeddings] = await Promise.all([
-        search.queryEmbedding ?? embed([query]).then((vectors) => vectors[0]),
+        search.queryEmbedding ??
+          (mode === "recall" && queryOptions.cache
+            ? generateEmbedding(query, {
+                ...queryOptions,
+                taskType: "memory_recall_embed",
+                totalTimeoutMs: budgetMs,
+              })
+            : embed([query]).then((vectors) => vectors[0])),
         embedFacets(),
       ]);
       const queryEmbedding = storedVector(primary);
@@ -448,15 +460,18 @@ export function createRemoteMemoryPipeline(
   const factSource: RecallFactSource = {
     graphRanking: options.graphRanking,
     temporalRanking: options.temporalRanking,
-    search: async (text, searchOptions) => {
-      const { prepare } = operation("recall");
+    search: async (text, searchOptions, embeddingCache) => {
+      const queryOptions: EmbeddingOptions = {
+        ...embeddingOptions,
+        taskType: "memory_recall_embed",
+        ...(embeddingCache &&
+          !embeddingOptions.cache && {
+            cache: maskScopedEmbeddingCache(embeddingCache, Boolean(embeddingOptions.maskInput)),
+          }),
+      };
+      const { prepare } = operation("recall", queryOptions);
       const prepared = await prepare(text, searchOptions);
-      const ranked = await rankPreparedVaultCandidates(
-        text,
-        prepared,
-        { ...embeddingOptions, taskType: "memory_recall_embed" },
-        searchOptions
-      );
+      const ranked = await rankPreparedVaultCandidates(text, prepared, queryOptions, searchOptions);
       return {
         ...ranked,
         rankedOnCosine: prepared.memories.length > 0 && !prepared.embeddingsUnavailable,
@@ -472,7 +487,7 @@ export function createRemoteMemoryPipeline(
     recall: async (query, recallOptions = {}) =>
       recall(query, { embeddingOptions, factSource }, { ...recallOptions, types: ["fact"] }),
     retain: async (content, retainOptions) => {
-      const { port } = operation("retain", retainOptions);
+      const { port } = operation("retain", embeddingOptions, retainOptions);
       return retainWithPersistence(
         content,
         {

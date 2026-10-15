@@ -1,3 +1,5 @@
+import { getEmbeddingCacheState } from "../../memoryEngine/embeddingCacheState.js";
+
 /**
  * Namespacing for a caller-shared embedding cache.
  *
@@ -64,10 +66,7 @@ class MaskScopedEmbeddingCache extends Map<string, Float32Array> {
  * Get it wrong and you simply miss the cache; you cannot be served the other decision's vector,
  * which is the property the namespacing exists to guarantee.
  */
-const scopedViews = new WeakMap<
-  Map<string, Float32Array>,
-  { masked?: MaskScopedEmbeddingCache; raw?: MaskScopedEmbeddingCache }
->();
+const { scopedViews } = getEmbeddingCacheState();
 
 export function maskScopedEmbeddingCache(
   cache: Map<string, Float32Array>,

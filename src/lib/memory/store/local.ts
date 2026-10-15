@@ -1,6 +1,7 @@
 import type { Database } from "@nozbe/watermelondb";
 import { Q } from "@nozbe/watermelondb";
 
+import { maskScopedEmbeddingCache } from "../../db/chat/embeddingCache.js";
 import type { EmbeddedWalletSignerFn, SignMessageFn } from "../../db/encryption-utils.js";
 import type { Entity, MemoryEntity } from "../../db/entities/models.js";
 import type { EntityInput } from "../../db/entities/operations.js";
@@ -331,11 +332,21 @@ export function createLocalMemoryStore(options: LocalMemoryStoreOptions): Memory
         retainOptions
       ),
     factSource: {
-      search: (query, searchOptions) =>
+      search: (query, searchOptions, embeddingCache) =>
         searchVaultMemoriesWithSize(
           query,
           vaultCtx,
-          { ...options.embeddingOptions, taskType: "memory_recall_embed" },
+          {
+            ...options.embeddingOptions,
+            taskType: "memory_recall_embed",
+            ...(embeddingCache &&
+              !options.embeddingOptions.cache && {
+                cache: maskScopedEmbeddingCache(
+                  embeddingCache,
+                  Boolean(options.embeddingOptions.maskInput)
+                ),
+              }),
+          },
           vaultCache,
           searchOptions
         ),

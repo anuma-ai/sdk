@@ -1,6 +1,6 @@
 # LocalMemoryStoreOptions
 
-Defined in: [src/lib/memory/store/local.ts:63](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/local.ts#63)
+Defined in: [src/lib/memory/store/local.ts:64](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/local.ts#64)
 
 ## Properties
 
@@ -8,7 +8,7 @@ Defined in: [src/lib/memory/store/local.ts:63](https://github.com/anuma-ai/sdk/b
 
 > `optional` **allowUnscopedRows**: `boolean`
 
-Defined in: [src/lib/memory/store/local.ts:87](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/local.ts#87)
+Defined in: [src/lib/memory/store/local.ts:88](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/local.ts#88)
 
 Admit pre-v31 `user_id = null` link rows alongside `userId`'s (LokiJS web).
 
@@ -18,7 +18,7 @@ Admit pre-v31 `user_id = null` link rows alongside `userId`'s (LokiJS web).
 
 > `optional` **canWrite**: () => `Promise`<`boolean`>
 
-Defined in: [src/lib/memory/store/local.ts:71](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/local.ts#71)
+Defined in: [src/lib/memory/store/local.ts:72](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/local.ts#72)
 
 Rechecked inside each serialized memory write.
 
@@ -32,7 +32,7 @@ Rechecked inside each serialized memory write.
 
 > **database**: `Database`
 
-Defined in: [src/lib/memory/store/local.ts:65](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/local.ts#65)
+Defined in: [src/lib/memory/store/local.ts:66](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/local.ts#66)
 
 A database built from `sdkSchema` (memory\_vault + entity + memory\_entity).
 
@@ -42,7 +42,7 @@ A database built from `sdkSchema` (memory\_vault + entity + memory\_entity).
 
 > `optional` **embeddedWalletSigner**: [`EmbeddedWalletSignerFn`](../type-aliases/EmbeddedWalletSignerFn.md)
 
-Defined in: [src/lib/memory/store/local.ts:69](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/local.ts#69)
+Defined in: [src/lib/memory/store/local.ts:70](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/local.ts#70)
 
 ***
 
@@ -50,7 +50,7 @@ Defined in: [src/lib/memory/store/local.ts:69](https://github.com/anuma-ai/sdk/b
 
 > **embeddingOptions**: [`MemoryEngineEmbeddingOptions`](MemoryEngineEmbeddingOptions.md)
 
-Defined in: [src/lib/memory/store/local.ts:89](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/local.ts#89)
+Defined in: [src/lib/memory/store/local.ts:90](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/local.ts#90)
 
 Embedding API options for `recall` / `retain`.
 
@@ -60,7 +60,7 @@ Embedding API options for `recall` / `retain`.
 
 > `optional` **signMessage**: [`SignMessageFn`](../type-aliases/SignMessageFn.md)
 
-Defined in: [src/lib/memory/store/local.ts:68](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/local.ts#68)
+Defined in: [src/lib/memory/store/local.ts:69](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/local.ts#69)
 
 ***
 
@@ -68,7 +68,7 @@ Defined in: [src/lib/memory/store/local.ts:68](https://github.com/anuma-ai/sdk/b
 
 > `optional` **singleTenant**: `boolean`
 
-Defined in: [src/lib/memory/store/local.ts:85](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/local.ts#85)
+Defined in: [src/lib/memory/store/local.ts:86](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/local.ts#86)
 
 The database holds exactly one owner's rows (the per-wallet client DBs).
 Required for the decay sweep to run without `userId` — see
@@ -80,7 +80,7 @@ Required for the decay sweep to run without `userId` — see
 
 > `optional` **userId**: `string`
 
-Defined in: [src/lib/memory/store/local.ts:79](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/local.ts#79)
+Defined in: [src/lib/memory/store/local.ts:80](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/local.ts#80)
 
 Scope every read/write to this user — for a shared, multi-tenant database
 whose rows all carry their `user_id`. Rows with no `user_id` are invisible
@@ -94,7 +94,7 @@ vault ctx.
 
 > `optional` **vaultCache**: [`VaultEmbeddingCache`](../type-aliases/VaultEmbeddingCache.md)
 
-Defined in: [src/lib/memory/store/local.ts:91](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/local.ts#91)
+Defined in: [src/lib/memory/store/local.ts:92](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/local.ts#92)
 
 Share a warm cache with other recall surfaces; one is created when omitted.
 
@@ -104,6 +104,6 @@ Share a warm cache with other recall surfaces; one is created when omitted.
 
 > `optional` **walletAddress**: `string`
 
-Defined in: [src/lib/memory/store/local.ts:67](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/local.ts#67)
+Defined in: [src/lib/memory/store/local.ts:68](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/local.ts#68)
 
 With `signMessage`, encrypts content on write and decrypts on read.
