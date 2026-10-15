@@ -283,6 +283,15 @@ describe("remote shared recall/retain pipeline", () => {
     await h.pipeline.retain("Drinks tea", { sourceChunkIds: ["message"] });
     expect(h.rows.get("a")!.memory).toMatchObject({ proof_count: 2, last_observed_at: observed });
   });
+  it("keeps a merge's newest source ids within nearby's limit", async () => {
+    const h = setup();
+    const old = Array.from({ length: 600 }, (_, i) => `message-${i}-${"x".repeat(24)}`);
+    h.seed("a", { source_chunk_ids: JSON.stringify(old) });
+    await h.pipeline.retain("Drinks tea", { sourceChunkIds: ["newest"] });
+    const stored = h.rows.get("a")!.memory.source_chunk_ids!;
+    expect(new TextEncoder().encode(stored).length).toBeLessThanOrEqual(16 << 10);
+    expect((JSON.parse(stored) as string[]).at(-1)).toBe("newest");
+  });
   it("never merges into or supersedes a kinded profile memory", async () => {
     const h = setup();
     h.seed("profile", { kind: "interest", kind_value: '"tea"', level: "profile" });
