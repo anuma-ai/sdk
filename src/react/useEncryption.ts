@@ -141,7 +141,7 @@ export function onKeyAvailable(address: string, callback: () => void): () => voi
 
   return () => {
     callbacks.delete(callback);
-    if (callbacks.size === 0) {
+    if (callbacks.size === 0 && keyAvailableCallbacks.get(address) === callbacks) {
       keyAvailableCallbacks.delete(address);
     }
   };

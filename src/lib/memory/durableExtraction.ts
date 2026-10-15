@@ -1,5 +1,6 @@
 import { Q } from "@nozbe/watermelondb";
 
+import { onKeyAvailable } from "../../react/useEncryption.js";
 import { isEncrypted } from "../db/chat/encryption.js";
 import type { Conversation, Message } from "../db/chat/models.js";
 import { getMessageOp, type StorageOperationsContext } from "../db/chat/operations.js";
@@ -134,8 +135,22 @@ class AccountFailureError extends Error {}
  * loaded yet reports, so it is never counted, and neither is ciphertext read
  * with no key at all. */
 class LockedSourcesError extends Error {
-  constructor(readonly persistentIds: string[]) {
-    super("Source messages are locked; retained for retry");
+  constructor(
+    readonly persistentIds: string[],
+    locked: StoredMessage[]
+  ) {
+    const counts = new Map<string, number>();
+    for (const message of locked) {
+      const version = /^enc:(v\d+):/.exec(message.content)?.[1] ?? "unknown";
+      const key = `${message.decryptionStatus ?? "no_status"}:${version}`;
+      counts.set(key, (counts.get(key) ?? 0) + 1);
+    }
+    const summary = [...counts].map(([key, count]) => `${key}=${count}`).join(", ");
+    super(`Source messages are locked; retained for retry (${summary})`);
+  }
+
+  get awaitingKey(): boolean {
+    return this.persistentIds.length === 0;
   }
 }
 
@@ -200,6 +215,8 @@ export function createDurableAutoExtractor(options: DurableAutoExtractorOptions)
   const attempts = new Map<string, number>();
   const sessionFailures = new Map<string, { head: string; count: number }>();
   const skippedThisSession = new Set<string>();
+  const awaitingKey = new Set<string>();
+  let keyEpoch = 0;
   const clock = options.now ?? Date.now;
   const reportError = (error: unknown, conversationId?: string) => {
     try {
@@ -431,13 +448,15 @@ export function createDurableAutoExtractor(options: DurableAutoExtractorOptions)
       for (const job of pending) {
         if (disposed) break;
         const attempted = attempts.get(job.id) ?? 0;
-        if (attempted >= MAX_ATTEMPTS || skippedThisSession.has(job.id)) continue;
+        if (attempted >= MAX_ATTEMPTS || skippedThisSession.has(job.id) || awaitingKey.has(job.id))
+          continue;
         if (processed >= MAX_JOBS_PER_PASS) {
           scheduleAfterSuccess = true;
           break;
         }
         processed++;
         const conversationId = String(job._getRaw("conversation_id"));
+        const epochAtRead = keyEpoch;
         let ids: string[] = [];
         let loaded: (StoredMessage | null)[] = [];
         try {
@@ -493,15 +512,18 @@ export function createDurableAutoExtractor(options: DurableAutoExtractorOptions)
             );
             continue;
           }
-          const locked = loaded.filter((message) => message && isEncrypted(message.content));
+          const locked = loaded.filter(
+            (message): message is StoredMessage => !!message && isEncrypted(message.content)
+          );
           if (locked.length) {
             throw new LockedSourcesError(
               locked.flatMap((message) =>
-                message!.decryptionStatus === "auth_mismatch" ||
-                message!.decryptionStatus === "invalid_payload"
-                  ? [message!.uniqueId]
+                message.decryptionStatus === "auth_mismatch" ||
+                message.decryptionStatus === "invalid_payload"
+                  ? [message.uniqueId]
                   : []
-              )
+              ),
+              locked
             );
           }
           const messages: AutoExtractMessage[] = loaded.flatMap((m) =>
@@ -557,6 +579,12 @@ export function createDurableAutoExtractor(options: DurableAutoExtractorOptions)
           scheduleAfterSuccess = true;
         } catch (error) {
           if (disposed) break;
+          if (error instanceof LockedSourcesError && error.awaitingKey) {
+            reportError(error, conversationId);
+            if (keyEpoch === epochAtRead) awaitingKey.add(job.id);
+            else scheduleAfterSuccess = true;
+            continue;
+          }
           attempts.set(job.id, attempted + 1);
           retry = true;
           reportError(error, conversationId);
@@ -585,8 +613,21 @@ export function createDurableAutoExtractor(options: DurableAutoExtractorOptions)
     activeBatch?.abort(options.signal?.reason);
     if (timer !== undefined) clearTimeout(timer);
     options.signal?.removeEventListener("abort", dispose);
+    unsubscribeKey?.();
   }
 
+  const unsubscribeKey = vault.walletAddress
+    ? onKeyAvailable(vault.walletAddress, () => {
+        keyEpoch++;
+        if (!awaitingKey.size) return;
+        awaitingKey.clear();
+        if (timer !== undefined) {
+          clearTimeout(timer);
+          timer = undefined;
+        }
+        schedule(0);
+      })
+    : undefined;
   if (options.signal?.aborted) dispose();
   else options.signal?.addEventListener("abort", dispose, { once: true });
   schedule(0);
@@ -701,6 +742,7 @@ export function createDurableAutoExtractor(options: DurableAutoExtractorOptions)
                 r._setRaw("message_ids", JSON.stringify([...new Set([...idsOf(job), ...fresh])]))
               );
               attempts.delete(job.id);
+              awaitingKey.delete(job.id);
             } else {
               await jobs.create((r) => {
                 r._setRaw("owner_key", owner);
