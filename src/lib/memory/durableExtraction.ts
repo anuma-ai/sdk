@@ -191,6 +191,7 @@ export function createDurableAutoExtractor(options: DurableAutoExtractorOptions)
   };
   const folderId = options.folderId ?? null;
   let disposed = false;
+  let activeBatch: AbortController | null = null;
   let running = false;
   let wakeRequested = false;
   let timer: ReturnType<typeof setTimeout> | undefined;
@@ -236,14 +237,18 @@ export function createDurableAutoExtractor(options: DurableAutoExtractorOptions)
     jobScope: string,
     jobFolderId: string | null
   ): Promise<TurnCompleteEvent> {
+    if (disposed) throw new Error("Extraction session was disposed");
     let watchdog: ReturnType<typeof setTimeout> | undefined;
     let cancelled = false;
+    const controller = new AbortController();
+    activeBatch = controller;
     const model = options.modelForScope?.(jobScope) ?? options.extract.model;
     try {
       return await Promise.race([
         new Promise<TurnCompleteEvent>((resolve, reject) => {
           const worker = createAutoExtractor({
             ...options,
+            signal: controller.signal,
             retainCtx: {
               ...options.retainCtx,
               vaultCtx: {
@@ -283,6 +288,8 @@ export function createDurableAutoExtractor(options: DurableAutoExtractorOptions)
       ]);
     } finally {
       cancelled = true;
+      controller.abort();
+      if (activeBatch === controller) activeBatch = null;
       if (watchdog !== undefined) clearTimeout(watchdog);
     }
   }
@@ -300,6 +307,7 @@ export function createDurableAutoExtractor(options: DurableAutoExtractorOptions)
     for (const message of loaded)
       if (message && message.messageId > 0) sequences.set(message.uniqueId, message.messageId);
     await database.write(async () => {
+      if (disposed) return;
       const current = idsOf(job);
       const acknowledged = ids.filter((id) => current.includes(id));
       if (!acknowledged.length) return;
@@ -493,6 +501,7 @@ export function createDurableAutoExtractor(options: DurableAutoExtractorOptions)
               jobScope,
               jobFolderId
             );
+            if (disposed) throw new Error("Extraction session was disposed");
             options.onTurnComplete?.(result);
             return result;
           };
@@ -529,6 +538,7 @@ export function createDurableAutoExtractor(options: DurableAutoExtractorOptions)
           );
           scheduleAfterSuccess = true;
         } catch (error) {
+          if (disposed) break;
           attempts.set(job.id, attempted + 1);
           retry = true;
           reportError(error, conversationId);
@@ -552,6 +562,15 @@ export function createDurableAutoExtractor(options: DurableAutoExtractorOptions)
     }
   }
 
+  function dispose(): void {
+    disposed = true;
+    activeBatch?.abort(options.signal?.reason);
+    if (timer !== undefined) clearTimeout(timer);
+    options.signal?.removeEventListener("abort", dispose);
+  }
+
+  if (options.signal?.aborted) dispose();
+  else options.signal?.addEventListener("abort", dispose, { once: true });
   schedule(0);
   return {
     processTurn(messages, conversationId) {
@@ -652,9 +671,6 @@ export function createDurableAutoExtractor(options: DurableAutoExtractorOptions)
       return true;
     },
     isProcessing: () => running,
-    dispose() {
-      disposed = true;
-      if (timer !== undefined) clearTimeout(timer);
-    },
+    dispose,
   };
 }

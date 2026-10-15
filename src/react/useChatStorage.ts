@@ -958,6 +958,7 @@ const CONVERSATION_REDACTOR_LIMIT = 50;
 const NO_CONVERSATION_KEY = "__no_conversation__";
 const NO_STORE_FOLDERS = "Folders are not supported with a memoryStore";
 const NO_STORE_MASK = "piiRedaction needs a memoryStore built with embeddingOptions.maskInput";
+const MEMORY_STORE_NOT_READY = "Memory store is not ready";
 const conversationRedactors = new Map<string, { redactor: PiiRedactor; detector?: NerDetector }>();
 
 function getConversationRedactor(
@@ -1147,6 +1148,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
   );
   const storeMaskMissing =
     memoryStore !== undefined &&
+    memoryStore !== null &&
     maskEmbeddingInput !== undefined &&
     !memoryStore.masksEmbeddingInput;
 
@@ -1479,6 +1481,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
 
   const retainVaultMemory = useCallback(
     async (input: VaultWriteInput): Promise<RetainResult> => {
+      if (memoryStore === null) throw new Error(MEMORY_STORE_NOT_READY);
       if (memoryStore) {
         if (storeMaskMissing) throw new Error(NO_STORE_MASK);
         if (input.folderId !== undefined) throw new Error(NO_STORE_FOLDERS);
@@ -1511,6 +1514,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
 
   const createMemoryVaultTool = useCallback(
     (options?: MemoryVaultToolOptions): ToolConfig => {
+      if (memoryStore === null) throw new Error(MEMORY_STORE_NOT_READY);
       if (storeMaskMissing) throw new Error(NO_STORE_MASK);
       const embOpts = getToken ? vaultEmbeddingOptions : undefined;
       return createMemoryVaultToolBase(
@@ -1533,6 +1537,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
 
   const getVaultMemories = useCallback(
     (options?: Parameters<typeof getAllVaultMemoriesOp>[1]): Promise<StoredVaultMemory[]> => {
+      if (memoryStore === null) return Promise.resolve([]);
       if (!memoryStore) return getAllVaultMemoriesOp(vaultCtx, options);
       const { folderId, levels, kinds, ...listOptions } = options ?? {};
       if (folderId !== undefined) throw new Error(NO_STORE_FOLDERS);
@@ -1545,6 +1550,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
 
   const createVaultMemory = useCallback(
     async (content: string, scope?: string): Promise<StoredVaultMemory> => {
+      if (memoryStore === null) throw new Error(MEMORY_STORE_NOT_READY);
       if (storeMaskMissing) throw new Error(NO_STORE_MASK);
       if (memoryStore) return memoryStore.create({ content, scope });
       const result = await createVaultMemoryOp(vaultCtx, { content, scope });
@@ -1567,6 +1573,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
 
   const updateVaultMemory = useCallback(
     async (id: string, content: string, scope?: string): Promise<StoredVaultMemory | null> => {
+      if (memoryStore === null) throw new Error(MEMORY_STORE_NOT_READY);
       if (storeMaskMissing) throw new Error(NO_STORE_MASK);
       if (memoryStore) return memoryStore.update(id, { content, scope });
       const existing = await getVaultMemoryOp(vaultCtx, id);
@@ -1593,6 +1600,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
 
   const deleteVaultMemory = useCallback(
     async (id: string): Promise<boolean> => {
+      if (memoryStore === null) throw new Error(MEMORY_STORE_NOT_READY);
       if (memoryStore) return memoryStore.delete(id);
       const existing = await getVaultMemoryOp(vaultCtx, id);
       const result = await deleteVaultMemoryOp(vaultCtx, id);
@@ -1609,7 +1617,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
   const clientToolEmbeddingsCacheRef = useRef<Map<string, number[]>>(new Map());
 
   useEffect(() => {
-    if (!getToken || memoryStore) return;
+    if (!getToken || memoryStore !== undefined) return;
     void (async () => {
       try {
         await preEmbedVaultMemories(vaultCtx, vaultEmbeddingOptions, vaultEmbeddingCache);
@@ -1628,6 +1636,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
 
   const createMemoryVaultSearchTool = useCallback(
     (searchOptions?: MemoryVaultSearchOptions): ToolConfig => {
+      if (memoryStore === null) throw new Error(MEMORY_STORE_NOT_READY);
       if (!getToken && !memoryStore) {
         throw new Error("getToken is required for memory vault search tool");
       }
@@ -1644,6 +1653,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
 
   const createRecallTool = useCallback(
     (toolOptions?: RecallToolOptions, callbacks?: RecallToolCallbacks): ToolConfig => {
+      if (memoryStore === null) throw new Error(MEMORY_STORE_NOT_READY);
       if (!getToken && !memoryStore) {
         throw new Error("getToken is required for recall tool");
       }
@@ -1692,6 +1702,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       query: string,
       searchOptions?: MemoryVaultSearchOptions
     ): Promise<VaultSearchResult[]> => {
+      if (memoryStore === null) return [];
       if (storeMaskMissing) throw new Error(NO_STORE_MASK);
       if (memoryStore) return (await memoryStore.factSource.search(query, searchOptions)).results;
       if (!getToken) return [];
@@ -1708,7 +1719,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
 
   const recallFn = useCallback(
     async (query: string, options?: RecallOptions): Promise<RecallResult> => {
-      if (!getToken && !memoryStore) {
+      if (memoryStore === null || (!getToken && !memoryStore)) {
         return {
           memories: [],
           usedBudget: options?.budget ?? "low",

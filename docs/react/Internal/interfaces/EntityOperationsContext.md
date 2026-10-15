@@ -19,6 +19,18 @@ lane until `backfillMemoryEntityUserIdsOp` runs. Default `false`
 
 ***
 
+### canWrite()?
+
+> `optional` **canWrite**: () => `Promise`<`boolean`>
+
+Defined in: [src/lib/db/entities/operations.ts:46](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/entities/operations.ts#46)
+
+**Returns**
+
+`Promise`<`boolean`>
+
+***
+
 ### database
 
 > **database**: `Database`
