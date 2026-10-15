@@ -3,6 +3,7 @@ import { v7 as uuidv7 } from "uuid";
 import { maskScopedEmbeddingCache } from "../../db/chat/embeddingCache.js";
 import { parseTopics } from "../../db/entities/types.js";
 import { normalizeTrustTier } from "../../db/memoryVault/operations.js";
+import { serializeSourceChunkIds } from "../../db/memoryVault/sourceChunkIds.js";
 import {
   MEMORY_LEVELS,
   type MemoryLevel,
@@ -298,7 +299,7 @@ export function createRemoteMemoryPipeline(
           embedding: storedVector(JSON.parse(input.embedding) as number[]),
           embedding_model: input.embeddingModel,
         }),
-        source_chunk_ids: JSON.stringify(input.sourceChunkIds ?? []),
+        source_chunk_ids: serializeSourceChunkIds(input.sourceChunkIds ?? []),
         proof_count: input.proofCount ?? 1,
         source: input.source ?? "manual",
         ...(input.eventTime && {
@@ -368,7 +369,7 @@ export function createRemoteMemoryPipeline(
           !!patch.observationSourceIds?.length &&
           patch.observationSourceIds.every((id) => observed.includes(id));
         if (patch.sourceChunkIds !== undefined)
-          memory.source_chunk_ids = JSON.stringify(
+          memory.source_chunk_ids = serializeSourceChunkIds(
             patch.observationSourceIds?.length
               ? [...new Set([...observed, ...patch.sourceChunkIds])]
               : patch.sourceChunkIds

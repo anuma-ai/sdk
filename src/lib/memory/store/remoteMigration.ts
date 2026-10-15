@@ -3,7 +3,18 @@ import {
   getAllVaultMemoryRowsOp,
   type VaultMemoryOperationsContext,
 } from "../../db/memoryVault/operations.js";
-import { MemoryKeyError, type MemoryKeyRing, reencryptMemoryField } from "./memoryKeys.js";
+import { serializeSourceChunkIds } from "../../db/memoryVault/sourceChunkIds.js";
+import { getLogger } from "../../logger.js";
+import { DEFAULT_API_EMBEDDING_MODEL } from "../../memoryEngine/constants.js";
+import { generateEmbeddings } from "../../memoryEngine/embeddings.js";
+import type { EmbeddingOptions } from "../../memoryEngine/types.js";
+import { createDecaySweeper } from "../decayWorker.js";
+import {
+  decryptMemoryField,
+  memoryCipher,
+  MemoryKeyError,
+  type MemoryKeyRing,
+} from "./memoryKeys.js";
 import {
   createNearbyRequest,
   type NearbyRequest,
@@ -14,6 +25,8 @@ import {
 import { storedVector } from "./remotePipeline.js";
 
 const IMPORT_BATCH = 50;
+const EMBED_BATCH = 100;
+const LOCAL_VECTOR_DIMS = 4096;
 const VERIFY_BATCH = 1000;
 const QUERY_IDS = 1000;
 const QUERY_PAGE = 200;
@@ -88,6 +101,8 @@ export interface MemoryMigrationOptions extends Pick<
   fallbacks?: readonly MemoryKeyRing[];
   /** Activate even when some rows could not be migrated. Default false. */
   allowSkipped?: boolean;
+  /** Re-embeds rows whose local vector nearby could not rank; without it those rows upload unembedded. */
+  embeddingOptions?: EmbeddingOptions;
   signal?: AbortSignal;
   onProgress?: (progress: MemoryMigrationProgress) => void;
 }
@@ -117,6 +132,14 @@ export interface MemoryMigrationResult {
   total: number;
   imported: number;
   skipped: MemoryMigrationSkip[];
+  /** Rows uploaded with a vector embedded during migration. */
+  reembedded: number;
+  /** Rows uploaded without a vector nearby can rank. */
+  unembedded: number;
+  /** Deleted rows no supplied key decrypts, uploaded with placeholder content. */
+  placeholderTombstones: number;
+  /** Rows whose oldest source ids were dropped to fit nearby's limit. */
+  truncatedSourceChunkIds: number;
 }
 
 interface Revision {
@@ -153,14 +176,35 @@ function revision(raw: RawRow): Revision {
   };
 }
 
-function embedding(raw: RawRow): number[] | undefined {
+function embedding(raw: RawRow, model: string): number[] | undefined {
   const value = text(raw.embedding);
   if (!value) return undefined;
   try {
-    return storedVector(JSON.parse(value) as number[]);
+    const vector = JSON.parse(value) as number[];
+    const stored = text(raw.embedding_model);
+    if (stored === undefined ? vector.length !== LOCAL_VECTOR_DIMS : stored !== model)
+      return undefined;
+    return storedVector(vector);
   } catch {
     return undefined;
   }
+}
+
+function stringArray(value: string): string[] | undefined {
+  try {
+    const parsed = JSON.parse(value) as unknown;
+    return Array.isArray(parsed) && parsed.every((id) => typeof id === "string")
+      ? parsed
+      : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function sourceChunkIds(raw: RawRow): string | undefined {
+  const value = text(raw.source_chunk_ids);
+  const ids = value && stringArray(value);
+  return ids ? serializeSourceChunkIds(ids) : value;
 }
 
 function bytes(value: string | undefined): number {
@@ -189,16 +233,16 @@ function invalid(raw: RawRow): boolean {
   );
 }
 
-function metadata(raw: RawRow): Partial<RemoteMemoryRow> {
-  const vector = embedding(raw);
+function metadata(raw: RawRow, model: string): Partial<RemoteMemoryRow> {
+  const vector = embedding(raw, model);
   return {
     scope: raw.scope as string,
     kind: text(raw.kind),
     level: text(raw.level),
     folder_id: text(raw.folder_id),
     is_deleted: bool(raw.is_deleted) ?? false,
-    ...(vector && { embedding: vector, embedding_model: text(raw.embedding_model) }),
-    source_chunk_ids: text(raw.source_chunk_ids),
+    ...(vector && { embedding: vector, embedding_model: model }),
+    source_chunk_ids: sourceChunkIds(raw),
     proof_count: num(raw.proof_count),
     source: text(raw.source),
     event_time_start: num(raw.event_time_start),
@@ -229,38 +273,81 @@ function defined<T extends object>(value: T): Partial<T> {
   ) as Partial<T>;
 }
 
-async function remoteRow(
+interface PreparedRow {
+  row: RemoteMemoryRow;
+  plaintext?: string;
+}
+
+async function prepareRow(
   raw: RawRow,
   canonical: MemoryKeyRing,
-  fallbacks: readonly MemoryKeyRing[],
+  rings: readonly MemoryKeyRing[],
+  model: string,
   updatedAt: number
-): Promise<RemoteMemoryRow | null> {
-  const content = await reencryptMemoryField(
-    typeof raw.content === "string" ? raw.content : "",
-    canonical,
-    fallbacks
-  );
-  const kindValue = text(raw.kind_value);
-  const encryptedKindValue = kindValue
-    ? await reencryptMemoryField(kindValue, canonical, fallbacks)
-    : undefined;
+): Promise<PreparedRow> {
+  const deleted = bool(raw.is_deleted) ?? false;
+  const { encrypt } = memoryCipher(canonical);
+  const localKindValue = text(raw.kind_value);
+  let plaintext: string | undefined;
+  let kindValue: string | undefined;
+  try {
+    plaintext = await decryptMemoryField(typeof raw.content === "string" ? raw.content : "", rings);
+    kindValue = localKindValue && (await decryptMemoryField(localKindValue, rings));
+  } catch (error) {
+    if (!deleted || !(error instanceof MemoryKeyError)) throw error;
+    plaintext = undefined;
+    kindValue = undefined;
+  }
   const row: RemoteMemoryRow = {
-    ...defined({ ...metadata(raw), kind_value: encryptedKindValue }),
+    ...defined({
+      ...metadata(raw, model),
+      kind_value: kindValue === undefined ? undefined : await encrypt(kindValue),
+    }),
     memory_id: raw.id as string,
-    content,
+    content: await encrypt(plaintext ?? ""),
     scope: raw.scope as string,
     created_at: raw.created_at as number,
     updated_at: updatedAt,
-    is_deleted: bool(raw.is_deleted) ?? false,
+    is_deleted: deleted,
   };
-  return fitsNearby(row) ? row : null;
+  return { row, plaintext };
 }
 
-function sameMetadata(local: RawRow, remote: Record<string, unknown>): boolean {
-  const mine = metadata(local) as Record<string, unknown>;
+async function embedMissing(
+  prepared: readonly PreparedRow[],
+  options: EmbeddingOptions,
+  model: string,
+  signal?: AbortSignal
+): Promise<void> {
+  const needed = prepared.filter((p) => !p.row.embedding && p.plaintext);
+  for (const batch of chunks(needed, EMBED_BATCH)) {
+    if (signal?.aborted) throw aborted(signal);
+    try {
+      const vectors = await generateEmbeddings(
+        batch.map((p) => p.plaintext!),
+        { ...options, taskType: "memory_retain_embed" }
+      );
+      if (vectors.length !== batch.length) throw new Error("Incomplete migration embeddings");
+      const stored = vectors.map(storedVector);
+      batch.forEach((p, i) => {
+        p.row.embedding = stored[i];
+        p.row.embedding_model = model;
+      });
+    } catch (error) {
+      getLogger().warn(
+        `[memory/migration] Uploading ${batch.length} row(s) without a vector: embedding failed`,
+        error
+      );
+    }
+  }
+}
+
+function sameMetadata(local: RawRow, remote: Record<string, unknown>, model: string): boolean {
+  const mine = metadata(local, model) as Record<string, unknown>;
   return METADATA_FIELDS.every((field) => {
     const a = mine[field] ?? null;
     const b = remote[field] ?? null;
+    if (field === "embedding_model" && a === null) return true;
     if (field === "visibility") return (a ?? "private") === (b ?? "private");
     if (field === "is_deleted" || field === "topics_user_managed" || field === "twin_opt_in")
       return (a ?? false) === (b ?? false);
@@ -390,7 +477,8 @@ export async function migrateMemoriesToRemote(
   options: MemoryMigrationOptions
 ): Promise<MemoryMigrationResult> {
   const { canonical, signal } = options;
-  const fallbacks = options.fallbacks ?? [];
+  const rings = [canonical, ...(options.fallbacks ?? [])];
+  const model = options.embeddingOptions?.model ?? DEFAULT_API_EMBEDDING_MODEL;
   const request = createNearbyRequest(options);
   const account = (await request("/account", {}, signal)) as { state?: unknown; key_id?: unknown };
   if (typeof account.key_id === "string" && account.key_id !== canonical.keyId)
@@ -402,9 +490,14 @@ export async function migrateMemoriesToRemote(
   const active = account.state === "active";
   let claimed = account.key_id === canonical.keyId;
 
+  if (!active) await createDecaySweeper({ vaultCtx: options.vaultCtx }).runSweep();
   await backfillTopics(options.vaultCtx);
 
   const skipped = new Map<string, MemoryMigrationSkip["reason"]>();
+  const reembedded = new Set<string>();
+  const unembedded = new Set<string>();
+  const placeholders = new Set<string>();
+  const truncated = new Set<string>();
   let imported = 0;
   for (let pass = 0; ; pass++) {
     const rows = await getAllVaultMemoryRowsOp(options.vaultCtx);
@@ -420,9 +513,15 @@ export async function migrateMemoriesToRemote(
         candidates.map((raw) => raw.id as string),
         signal
       );
+      const needsVector = (raw: RawRow, server: Record<string, unknown>) =>
+        !!options.embeddingOptions && !embedding(raw, model) && server.embedding_model !== model;
       for (const raw of candidates) {
         const server = remote.get(raw.id as string);
-        if (server && server.updated_at === raw.updated_at && !sameMetadata(raw, server))
+        if (
+          server &&
+          server.updated_at === raw.updated_at &&
+          (!sameMetadata(raw, server, model) || needsVector(raw, server))
+        )
           pending.set(raw.id as string, (raw.updated_at as number) + 1);
       }
     }
@@ -433,6 +532,10 @@ export async function migrateMemoriesToRemote(
         total: rows.length,
         imported,
         skipped: [...skipped].map(([memoryId, reason]) => ({ memoryId, reason })),
+        reembedded: reembedded.size,
+        unembedded: unembedded.size,
+        placeholderTombstones: placeholders.size,
+        truncatedSourceChunkIds: truncated.size,
       });
       if (skipped.size > 0 && !options.allowSkipped) return result("migrating");
       if (!claimed) await importBatch(request, canonical.keyId, [], signal);
@@ -451,18 +554,34 @@ export async function migrateMemoriesToRemote(
         "migration_incomplete"
       );
 
-    const upload: RemoteMemoryRow[] = [];
+    const prepared: PreparedRow[] = [];
     for (const raw of candidates) {
       const updatedAt = pending.get(raw.id as string);
       if (updatedAt === undefined) continue;
       try {
-        const row = await remoteRow(raw, canonical, fallbacks, updatedAt);
-        if (row) upload.push(row);
-        else skipped.set(raw.id as string, "invalid");
+        prepared.push(await prepareRow(raw, canonical, rings, model, updatedAt));
       } catch (error) {
         if (!(error instanceof MemoryKeyError)) throw error;
         skipped.set(raw.id as string, "unreadable");
       }
+    }
+    const usable = new Set(prepared.filter((p) => p.row.embedding).map((p) => p.row.memory_id));
+    if (options.embeddingOptions)
+      await embedMissing(prepared, options.embeddingOptions, model, signal);
+    const local = new Map(candidates.map((raw) => [raw.id as string, raw]));
+    const upload: RemoteMemoryRow[] = [];
+    for (const { row, plaintext } of prepared) {
+      const id = row.memory_id;
+      if (!fitsNearby(row)) {
+        skipped.set(id, "invalid");
+        continue;
+      }
+      upload.push(row);
+      const track = (set: Set<string>, on: boolean) => (on ? set.add(id) : set.delete(id));
+      track(reembedded, !!row.embedding && !usable.has(id));
+      track(unembedded, !row.embedding);
+      track(placeholders, plaintext === undefined);
+      track(truncated, row.source_chunk_ids !== text(local.get(id)!.source_chunk_ids));
     }
     let sent = 0;
     options.onProgress?.({ imported: sent, toImport: upload.length });
