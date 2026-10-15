@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { v7 as uuidv7 } from "uuid";
 
 import type { LlmapiChatCompletionTool, LlmapiMessage } from "../client";
 import { MCP_R2_DOMAIN } from "../clientConfig";
@@ -45,6 +46,7 @@ import {
   deleteConversationOp,
   extractUserMessageFromMessages,
   finalizeThoughtProcess,
+  generateConversationId,
   getAllFilesOp,
   getConversationOp,
   getConversationsOp,
@@ -1780,11 +1782,15 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
 
   const createConversation = useCallback(
     async (opts?: CreateConversationOptions): Promise<StoredConversation> => {
+      const conversationOpts = {
+        ...opts,
+        conversationId: opts?.conversationId || generateConversationId(),
+      };
       const { result, queued, queueId } = await writeOrQueue(
         "createConversation",
-        { conversationId: opts?.conversationId, title: opts?.title, projectId: opts?.projectId },
-        () => createConversationOp(storageCtx, opts, defaultConversationTitle),
-        () => makeSyntheticStoredConversation(opts, defaultConversationTitle)
+        conversationOpts,
+        () => createConversationOp(storageCtx, conversationOpts, defaultConversationTitle),
+        () => makeSyntheticStoredConversation(conversationOpts, defaultConversationTitle)
       );
       if (queued) {
         syntheticConvIdsRef.current.add(result.conversationId);
@@ -2586,6 +2592,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       }
 
       const userMsgOpts: CreateMessageOptions = {
+        uniqueId: `msg_${uuidv7()}`,
         conversationId: convId,
         role: "user",
         content: contentForStorage,
@@ -2969,7 +2976,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           currentTurnToolCallEvents && currentTurnToolCallEvents.length > 0
             ? currentTurnToolCallEvents
             : undefined,
-        uniqueId: assistantUniqueId,
+        uniqueId: assistantUniqueId || `msg_${uuidv7()}`,
       };
 
       let storedAssistantMessage: StoredMessage;
@@ -3024,6 +3031,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       let storedToolResultsMessage: StoredMessage | undefined;
       if (autoToolResults && autoToolResults.length > 0) {
         const toolResultsOpts: CreateMessageOptions = {
+          uniqueId: `msg_${uuidv7()}`,
           conversationId: convId,
           role: "user",
           content: buildToolResultContent(autoToolResults),

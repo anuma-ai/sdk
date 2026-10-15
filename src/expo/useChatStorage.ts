@@ -48,6 +48,7 @@ import {
   deleteConversationOp,
   extractUserMessageFromMessages,
   finalizeThoughtProcess,
+  generateConversationId,
   getConversationOp,
   getConversationsOp,
   getMessageCountOp,
@@ -1257,11 +1258,15 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
 
   const createConversation = useCallback(
     async (opts?: CreateConversationOptions): Promise<StoredConversation> => {
+      const conversationOpts = {
+        ...opts,
+        conversationId: opts?.conversationId || generateConversationId(),
+      };
       const { result, queued } = await writeOrQueue(
         "createConversation",
-        { conversationId: opts?.conversationId, title: opts?.title, projectId: opts?.projectId },
-        () => createConversationOp(storageCtx, opts, defaultConversationTitle),
-        () => makeSyntheticStoredConversation(opts, defaultConversationTitle)
+        conversationOpts,
+        () => createConversationOp(storageCtx, conversationOpts, defaultConversationTitle),
+        () => makeSyntheticStoredConversation(conversationOpts, defaultConversationTitle)
       );
       if (queued) {
         syntheticConvIdsRef.current.add(result.conversationId);
@@ -2103,6 +2108,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       }));
 
       const userMsgOpts: CreateMessageOptions = {
+        uniqueId: `msg_${uuidv7()}`,
         conversationId: convId,
         role: "user",
         content: contentForStorage,
@@ -2525,7 +2531,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           currentTurnToolCallEvents && currentTurnToolCallEvents.length > 0
             ? currentTurnToolCallEvents
             : undefined,
-        uniqueId: effectiveAssistantUniqueId,
+        uniqueId: effectiveAssistantUniqueId || `msg_${uuidv7()}`,
       };
 
       let storedAssistantMessage: StoredMessage;
@@ -2558,6 +2564,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       let storedToolResultsMessage: StoredMessage | undefined;
       if (autoToolResults && autoToolResults.length > 0) {
         const toolResultsOpts: CreateMessageOptions = {
+          uniqueId: `msg_${uuidv7()}`,
           conversationId: convId,
           role: "user",
           content: buildToolResultContent(autoToolResults),
