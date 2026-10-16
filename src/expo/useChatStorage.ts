@@ -1965,6 +1965,8 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         return {
           data: result.data,
           error: null,
+          autoExecutedToolResults:
+            "autoExecutedToolResults" in result ? result.autoExecutedToolResults : undefined,
           skipped: true,
         };
       }

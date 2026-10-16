@@ -1057,6 +1057,7 @@ export interface BaseSendMessageSkippedResult {
   error: null;
   userMessage?: undefined;
   assistantMessage?: undefined;
+  autoExecutedToolResults?: { name: string; result: unknown }[];
   /** Indicates this was a skipStorage request - no messages were persisted */
   skipped: true;
 }
