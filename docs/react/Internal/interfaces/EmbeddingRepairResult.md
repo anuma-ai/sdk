@@ -1,6 +1,6 @@
 # EmbeddingRepairResult
 
-Defined in: [src/lib/memory/store/types.ts:226](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#226)
+Defined in: [src/lib/memory/store/types.ts:243](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#243)
 
 ## Properties
 
@@ -8,7 +8,7 @@ Defined in: [src/lib/memory/store/types.ts:226](https://github.com/anuma-ai/sdk/
 
 > `optional` **cursor**: `string`
 
-Defined in: [src/lib/memory/store/types.ts:232](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#232)
+Defined in: [src/lib/memory/store/types.ts:249](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#249)
 
 Where the next run resumes; absent when the next run starts over from the newest memory.
 
@@ -18,7 +18,7 @@ Where the next run resumes; absent when the next run starts over from the newest
 
 > **failed**: `number`
 
-Defined in: [src/lib/memory/store/types.ts:229](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#229)
+Defined in: [src/lib/memory/store/types.ts:246](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#246)
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: [src/lib/memory/store/types.ts:229](https://github.com/anuma-ai/sdk/
 
 > **reembedded**: `number`
 
-Defined in: [src/lib/memory/store/types.ts:228](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#228)
+Defined in: [src/lib/memory/store/types.ts:245](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#245)
 
 ***
 
@@ -34,7 +34,7 @@ Defined in: [src/lib/memory/store/types.ts:228](https://github.com/anuma-ai/sdk/
 
 > **scanned**: `number`
 
-Defined in: [src/lib/memory/store/types.ts:227](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#227)
+Defined in: [src/lib/memory/store/types.ts:244](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#244)
 
 ***
 
@@ -42,4 +42,4 @@ Defined in: [src/lib/memory/store/types.ts:227](https://github.com/anuma-ai/sdk/
 
 > **skippedConflict**: `number`
 
-Defined in: [src/lib/memory/store/types.ts:230](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#230)
+Defined in: [src/lib/memory/store/types.ts:247](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#247)
