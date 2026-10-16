@@ -21,6 +21,7 @@ vi.mock("../../memoryEngine/embeddings", () => {
 import { TOPICS_EXTRACTION_VERSION } from "../../db/memoryVault/operations";
 import { parseTopics } from "../../db/entities/types";
 import { getLogger } from "../../logger";
+import { parseQueryTimeWindow } from "../queryTemporal";
 import type { EmbeddingOptions } from "../../memoryEngine/types";
 import { fakeTopicLlm, runMemoryStoreContract } from "./contract";
 import { deriveMemoryKeyRing, type MemoryKeyRing, memoryCipher } from "./memoryKeys";
@@ -167,7 +168,9 @@ function fakeNearby(keyId: string) {
                   ((m.topics_extracted_version as number | undefined) ?? 0) <
                     (body.topics_due as number)))) &&
             (body.topics_extracted === undefined ||
-              (m.topics_extracted_at != null) === body.topics_extracted)
+              (m.topics_extracted_at != null) === body.topics_extracted) &&
+            (!body.event_time_overlaps ||
+              inEventWindow(m, body.event_time_overlaps as { start: number; end: number }))
         )
         .map((s) => ({ s, at: [key(s), s.memory.memory_id] as [number, string] }))
         .filter(({ at }) => !after || sign * compare(at, after) > 0)
@@ -1166,6 +1169,15 @@ describe("remote MemoryStore", () => {
   });
 });
 
+function inEventWindow(m: Record<string, unknown>, window: { start: number; end: number }) {
+  const start = m.event_time_start as number | null | undefined;
+  const end = m.event_time_end as number | null | undefined;
+  if (start == null || start >= window.end) return false;
+  if (m.event_time_kind === "ongoing") return end == null || end >= window.start;
+  if (m.event_time_kind === "range") return (end ?? start) >= window.start;
+  return start >= window.start;
+}
+
 describe("default recall lanes", () => {
   async function lanes() {
     const keys = await deriveMemoryKeyRing(`0x${"c3".repeat(65)}`);
@@ -1260,8 +1272,74 @@ describe("default recall lanes", () => {
     expect(await store.factSource.graphRanking("what did she say", false, {})).toEqual([]);
   });
 
-  it("has no temporal lane until nearby can filter by event time", async () => {
-    const store = await laneStore();
-    expect(await store.factSource.temporalRanking("What did I do last week?")).toEqual([]);
+  const NOW = Date.UTC(2026, 9, 15, 12);
+  const day = 24 * 60 * 60 * 1000;
+  function eventRow(id: string, event: Record<string, unknown>, i = 0) {
+    return {
+      memory: {
+        memory_id: id,
+        content: "enc:v3:00",
+        scope: "private",
+        created_at: 1000 + i,
+        updated_at: 1000 + i,
+        is_deleted: false,
+        ...event,
+      },
+      version: 1,
+      server_updated_at: "2026-01-01T00:00:00Z",
+      seq: i,
+    };
+  }
+
+  it("ranks memories by how much of the query's time window their event covers", async () => {
+    const { store, server, queried, decrypt } = await lanes();
+    const window = parseQueryTimeWindow("What did I do yesterday?", NOW)!;
+    const rows: Array<[string, Record<string, unknown>]> = [
+      ["dinner", { event_time_start: window.start + 3_600_000, event_time_kind: "point" }],
+      [
+        "trip",
+        {
+          event_time_start: window.start - day,
+          event_time_end: window.start + day / 2,
+          event_time_kind: "range",
+        },
+      ],
+      ["job", { event_time_start: window.start - 30 * day, event_time_kind: "ongoing" }],
+      ["older", { event_time_start: window.start - 3 * day, event_time_kind: "point" }],
+      ["undated", {}],
+    ];
+    rows.forEach(([id, event], i) => server.rows.set(id, eventRow(id, event, i)));
+    decrypt.mockClear();
+
+    const ranked = await store.factSource.temporalRanking("What did I do yesterday?", NOW);
+    expect(ranked).toHaveLength(3);
+    expect(ranked.slice(0, 2).sort()).toEqual(["dinner", "job"]);
+    expect(ranked[2]).toBe("trip");
+    expect(queried.at(-1)).toMatchObject({
+      event_time_overlaps: { start: window.start, end: window.end },
+    });
+    expect(decrypt).not.toHaveBeenCalled();
+  });
+
+  it("asks nearby nothing for a query with no time phrase", async () => {
+    const { store, queried } = await lanes();
+    expect(await store.factSource.temporalRanking("What does Priya like?", NOW)).toEqual([]);
+    expect(queried).toEqual([]);
+  });
+
+  it("reads a bounded number of rows for a busy time window", async () => {
+    const { store, server, queried } = await lanes();
+    const window = parseQueryTimeWindow("What did I do yesterday?", NOW)!;
+    for (let i = 0; i < 300; i++)
+      server.rows.set(
+        `e-${i}`,
+        eventRow(`e-${i}`, { event_time_start: window.start + i, event_time_kind: "point" }, i)
+      );
+
+    const ranked = await store.factSource.temporalRanking("What did I do yesterday?", NOW);
+
+    expect(ranked).toHaveLength(256);
+    const requested = queried.reduce((sum, body) => sum + (body.limit as number), 0);
+    expect(requested).toBeLessThanOrEqual(256);
   });
 });

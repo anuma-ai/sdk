@@ -30,6 +30,7 @@ import type { EmbeddingOptions } from "../../memoryEngine/types.js";
 import { NODE_BUDGET } from "../graphTraversal.js";
 import type { PortalLlmFailure } from "../portalLlm.js";
 import { extractQueryEntities } from "../queryEntities.js";
+import { parseQueryTimeWindow, scoreEventTimeOverlap } from "../queryTemporal.js";
 import { notifyMemoryCallback } from "../recallTelemetry.js";
 import {
   extractEntitiesForMemories,
@@ -63,7 +64,6 @@ export interface RemoteMemoryStoreOptions {
   embeddingOptions: EmbeddingOptions;
   /** Defaults to ranking memories by how many query entities their topics name. */
   graphRanking?: RecallFactSource["graphRanking"];
-  /** Defaults to no temporal lane: nearby has no event-time filter yet. */
   temporalRanking?: RecallFactSource["temporalRanking"];
   pollIntervalMs?: number;
 }
@@ -118,6 +118,7 @@ const MAX_QUERY_IDS = 1000;
 const MAX_QUERY_TOPICS = 100;
 const MAX_QUERY_FILTER = 20;
 const GRAPH_LANE_ROWS = 256;
+const TEMPORAL_LANE_ROWS = 256;
 
 export class RemoteMemoryPartialCreateError extends Error {
   constructor(
@@ -248,7 +249,7 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
     graphRanking:
       options.graphRanking ??
       ((query, _traverse, recallOptions) => topicGraphRanking(query, recallOptions)),
-    temporalRanking: options.temporalRanking ?? (() => Promise.resolve([])),
+    temporalRanking: options.temporalRanking ?? ((query, now) => eventTimeRanking(query, now)),
   });
   const subscribers = new Set<Subscriber>();
   const seen = new Map<string, RemoteMemoryRecord>();
@@ -324,6 +325,28 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
       .filter((row) => row.matched > 0)
       .sort((a, b) => b.matched - a.matched)
       .slice(0, NODE_BUDGET)
+      .map((row) => row.memoryId);
+  };
+  const eventTimeRanking = async (query: string, now?: number): Promise<string[]> => {
+    const window = parseQueryTimeWindow(query, now);
+    if (!window) return [];
+    const rows = await pages(
+      metadata,
+      { event_time_overlaps: { start: window.start, end: window.end } },
+      TEMPORAL_LANE_ROWS
+    );
+    return rows
+      .map(({ memory }) => ({
+        memoryId: memory.memory_id,
+        score: scoreEventTimeOverlap(
+          memory.event_time_start ?? null,
+          memory.event_time_end ?? null,
+          memory.event_time_kind ?? null,
+          window
+        ),
+      }))
+      .filter((row) => row.score > 0)
+      .sort((a, b) => b.score - a.score)
       .map((row) => row.memoryId);
   };
   const enumerateIds = async <T extends Row>(
