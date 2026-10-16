@@ -347,6 +347,22 @@ describe("remote MemoryStore", () => {
     expect(server.rows.size).toBe(100);
   });
 
+  it("lists projections without vectors when asked, and with them by default", async () => {
+    const { store, server } = await remoteStore();
+    const m = await store.create({ content: "Likes jazz", embedding: axis(1) });
+    server.fetch.mockClear();
+
+    const lean = await store.listProjections({ withEmbeddings: false });
+    const full = await store.listProjections();
+
+    expect(lean.map((p) => [p.uniqueId, p.embedding])).toEqual([[m.uniqueId, null]]);
+    expect(full[0]!.embedding).not.toBeNull();
+    const queries = server.fetch.mock.calls
+      .filter(([input]) => String(input).endsWith("/memories/query"))
+      .map(([, init]) => JSON.parse(String(init!.body)) as Record<string, unknown>);
+    expect(queries.map((q) => q.include_embeddings)).toEqual([false, true]);
+  });
+
   it("filters list, archive and topic reads on nearby instead of reading the vault", async () => {
     const { store, server } = await remoteStore();
     const work = await store.create({

@@ -364,7 +364,7 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
     ).flat();
   const listFilters = (listOptions: MemoryListOptions): ListFilters => ({
     ...stateFilters(listOptions),
-    include_embeddings: true,
+    include_embeddings: listOptions.withEmbeddings !== false,
     order: listOptions.since ? "updated" : "created",
     ...(listOptions.scopes?.length && { scopes: listOptions.scopes }),
     ...(listOptions.factTypes?.length && { fact_types: listOptions.factTypes }),
