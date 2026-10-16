@@ -874,7 +874,8 @@ export async function runLongMemEval(
               recallEmit: options.recallEmit,
               recallLaneMode: options.recallLaneMode,
               ...tuningKnobs,
-            }
+            },
+            embeddingCache
           );
         } else {
           result = await processEntryMemoryVault(

@@ -86,7 +86,8 @@ export async function processEntryRecall(
     recallTypes?: RecallTypes;
     recallEmit?: RecallEmit;
     recallLaneMode?: RecallLaneMode;
-  } & RetrievalTuningKnobs
+  } & RetrievalTuningKnobs,
+  textEmbeddingCache?: Map<string, Float32Array>
 ): Promise<LongMemEvalResult> {
   const startTime = performance.now();
   const { indices: sessionIndices, limited } = selectSessions(entry, maxSessions);
@@ -185,6 +186,7 @@ export async function processEntryRecall(
     const embeddingOptions = {
       apiKey: api.apiKey,
       baseUrl: api.baseUrl,
+      ...(textEmbeddingCache ? { cache: textEmbeddingCache } : {}),
       onUsage: (usage: { promptTokens: number; totalTokens: number }) => {
         tokenUsage.embeddingTokens += usage.totalTokens;
       },
