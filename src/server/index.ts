@@ -415,6 +415,8 @@ export type {
 } from "../lib/memory";
 export {
   createLocalMemoryStore,
+  type EmbeddingRepairOptions,
+  type EmbeddingRepairResult,
   type LocalMemoryStoreOptions,
   type MemoryListOptions,
   type MemoryMaintenance,

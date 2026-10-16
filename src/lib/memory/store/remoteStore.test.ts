@@ -22,6 +22,8 @@ import { TOPICS_EXTRACTION_VERSION } from "../../db/memoryVault/operations";
 import { parseTopics } from "../../db/entities/types";
 import { getLogger } from "../../logger";
 import { parseQueryTimeWindow } from "../queryTemporal";
+import { DEFAULT_API_EMBEDDING_MODEL } from "../../memoryEngine/constants";
+import { generateEmbeddings } from "../../memoryEngine/embeddings";
 import type { EmbeddingOptions } from "../../memoryEngine/types";
 import { fakeTopicLlm, runMemoryStoreContract } from "./contract";
 import { deriveMemoryKeyRing, type MemoryKeyRing, memoryCipher } from "./memoryKeys";
@@ -1341,5 +1343,135 @@ describe("default recall lanes", () => {
     expect(ranked).toHaveLength(256);
     const requested = queried.reduce((sum, body) => sum + (body.limit as number), 0);
     expect(requested).toBeLessThanOrEqual(256);
+  });
+});
+
+describe("repairEmbeddings", () => {
+  async function repairStore() {
+    const keys = await deriveMemoryKeyRing(`0x${"d4".repeat(65)}`);
+    const server = fakeNearby(keys.keyId);
+    const cipher = memoryCipher(keys);
+    const decrypt = vi.fn(cipher.decrypt);
+    const persistence = await createRemoteMemoryPersistence({
+      baseUrl: "https://nearby.test",
+      getToken: async () => "token",
+      keyId: keys.keyId,
+      encrypt: cipher.encrypt,
+      decrypt,
+      fetch: server.fetch as unknown as typeof globalThis.fetch,
+    });
+    const store = createRemoteMemoryStore({
+      persistence,
+      embeddingOptions: { apiKey: "test-key" },
+      graphRanking: async () => [],
+      temporalRanking: async () => [],
+    });
+    let seq = 0;
+    const seed = async (id: string, text: string, extra: Record<string, unknown> = {}) => {
+      seq++;
+      server.rows.set(id, {
+        memory: {
+          memory_id: id,
+          content: await cipher.encrypt(text),
+          scope: "private",
+          created_at: 1000 + seq,
+          updated_at: 1000 + seq,
+          is_deleted: false,
+          ...extra,
+        },
+        version: 1,
+        server_updated_at: "2026-01-01T00:00:00Z",
+        seq,
+      } as unknown as Stored);
+    };
+    const current = { embedding: axis(3), embedding_model: DEFAULT_API_EMBEDDING_MODEL };
+    return { store, server, decrypt, seed, current };
+  }
+
+  it("re-embeds rows nearby cannot rank and decrypts only those", async () => {
+    const { store, server, decrypt, seed, current } = await repairStore();
+    await seed("missing", "Moved to Lisbon");
+    await seed("old-model", "Plays cello", { embedding: axis(4), embedding_model: "openai/old" });
+    await seed("fine", "Likes tea", current);
+    decrypt.mockClear();
+    vi.mocked(generateEmbeddings).mockClear();
+
+    await expect(store.repairEmbeddings!()).resolves.toEqual({
+      scanned: 3,
+      reembedded: 2,
+      failed: 0,
+      skippedConflict: 0,
+    });
+    for (const id of ["missing", "old-model"]) {
+      const row = server.rows.get(id)!;
+      expect(row.memory.embedding_model).toBe(DEFAULT_API_EMBEDDING_MODEL);
+      expect((row.memory.embedding as number[]).length).toBe(1536);
+      expect(row.memory.updated_at).toBe(id === "missing" ? 1001 : 1002);
+    }
+    expect(server.rows.get("fine")!.version).toBe(1);
+    expect(decrypt).toHaveBeenCalledTimes(2);
+    expect(generateEmbeddings).toHaveBeenCalledTimes(1);
+    expect([...vi.mocked(generateEmbeddings).mock.calls[0][0]].sort()).toEqual([
+      "Moved to Lisbon",
+      "Plays cello",
+    ]);
+  });
+
+  it("does nothing beyond a metadata scan when every row is current", async () => {
+    const { store, decrypt, seed, current } = await repairStore();
+    await seed("a", "Likes tea", current);
+    await seed("b", "Hikes", current);
+    decrypt.mockClear();
+    vi.mocked(generateEmbeddings).mockClear();
+
+    await expect(store.repairEmbeddings!()).resolves.toMatchObject({ scanned: 2, reembedded: 0 });
+    expect(decrypt).not.toHaveBeenCalled();
+    expect(generateEmbeddings).not.toHaveBeenCalled();
+  });
+
+  it("repairs tombstones that keep their text and skips placeholders on later runs", async () => {
+    const { store, server, decrypt, seed } = await repairStore();
+    await seed("deleted", "Used to live in Porto", { is_deleted: true });
+    await seed("placeholder", "", { is_deleted: true });
+
+    await expect(store.repairEmbeddings!()).resolves.toMatchObject({ reembedded: 1, failed: 0 });
+    expect(server.rows.get("deleted")!.memory).toMatchObject({
+      is_deleted: true,
+      embedding_model: DEFAULT_API_EMBEDDING_MODEL,
+    });
+    decrypt.mockClear();
+    await expect(store.repairEmbeddings!()).resolves.toMatchObject({ reembedded: 0 });
+    expect(decrypt).not.toHaveBeenCalled();
+  });
+
+  it("skips a row another writer changed after it was read", async () => {
+    const { store, server, seed } = await repairStore();
+    await seed("raced", "Moved to Lisbon");
+    const original = server.fetch.getMockImplementation()!;
+    server.fetch.mockImplementation(async (input, init) => {
+      if (init?.method === "PUT") server.rows.get("raced")!.version++;
+      return original(input, init);
+    });
+
+    await expect(store.repairEmbeddings!()).resolves.toMatchObject({
+      reembedded: 0,
+      skippedConflict: 1,
+    });
+    expect(server.rows.get("raced")!.memory.embedding).toBeUndefined();
+  });
+
+  it("bounds how many rows one run inspects and re-embeds", async () => {
+    const { store, seed } = await repairStore();
+    for (let i = 0; i < 5; i++) await seed(`m${i}`, `Memory number ${i}`);
+    vi.mocked(generateEmbeddings).mockClear();
+
+    await expect(store.repairEmbeddings!({ maxRows: 2 })).resolves.toMatchObject({
+      scanned: 5,
+      reembedded: 2,
+    });
+    expect(vi.mocked(generateEmbeddings).mock.calls[0][0]).toHaveLength(2);
+    await expect(store.repairEmbeddings!({ maxScan: 3 })).resolves.toMatchObject({
+      scanned: 3,
+    });
   });
 });

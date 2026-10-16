@@ -149,6 +149,8 @@ export {
   type RemoteMemoryStoreOptions,
 } from "./store/remoteStore.js";
 export type {
+  EmbeddingRepairOptions,
+  EmbeddingRepairResult,
   MemoryCreate,
   MemoryListOptions,
   MemoryMaintenance,

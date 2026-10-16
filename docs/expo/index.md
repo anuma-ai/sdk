@@ -796,6 +796,18 @@ Re-exports [EmbeddedWalletSignerFn](../react/Internal/type-aliases/EmbeddedWalle
 
 ***
 
+### EmbeddingRepairOptions
+
+Re-exports [EmbeddingRepairOptions](../react/Internal/interfaces/EmbeddingRepairOptions.md)
+
+***
+
+### EmbeddingRepairResult
+
+Re-exports [EmbeddingRepairResult](../react/Internal/interfaces/EmbeddingRepairResult.md)
+
+***
+
 ### embedMessage
 
 Re-exports [embedMessage](../react/Internal/functions/embedMessage.md)
