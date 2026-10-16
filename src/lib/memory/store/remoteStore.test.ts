@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
-vi.mock("../../memoryEngine/embeddings", () => {
+vi.mock("../../memoryEngine/embeddings", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../memoryEngine/embeddings")>();
   const DIM = 1536;
   const embed = (text: string): number[] => {
     const v: number[] = new Array<number>(DIM).fill(0);
@@ -15,6 +16,8 @@ vi.mock("../../memoryEngine/embeddings", () => {
   return {
     generateEmbedding: vi.fn(async (text: string) => embed(text)),
     generateEmbeddings: vi.fn(async (texts: string[]) => texts.map(embed)),
+    EmbeddingHttpError: actual.EmbeddingHttpError,
+    isFatalEmbeddingError: actual.isFatalEmbeddingError,
   };
 });
 
@@ -23,7 +26,7 @@ import { parseTopics } from "../../db/entities/types";
 import { getLogger } from "../../logger";
 import { parseQueryTimeWindow } from "../queryTemporal";
 import { DEFAULT_API_EMBEDDING_MODEL } from "../../memoryEngine/constants";
-import { generateEmbeddings } from "../../memoryEngine/embeddings";
+import { EmbeddingHttpError, generateEmbeddings } from "../../memoryEngine/embeddings";
 import type { EmbeddingOptions } from "../../memoryEngine/types";
 import { fakeTopicLlm, runMemoryStoreContract } from "./contract";
 import { deriveMemoryKeyRing, type MemoryKeyRing, memoryCipher } from "./memoryKeys";
@@ -1503,6 +1506,90 @@ describe("repairEmbeddings", () => {
     expect(second.cursor).toBeDefined();
     expect(server.rows.get("n0")!.memory.embedding_model).toBe(DEFAULT_API_EMBEDDING_MODEL);
     expect(server.rows.get("n1")!.memory.embedding_model).toBe(DEFAULT_API_EMBEDDING_MODEL);
+  });
+
+  it("repairs the rest of a batch the embedder rejects one row of, and moves past it", async () => {
+    const { store, server, seed } = await repairStore();
+    await seed("o1", "Older memory one");
+    await seed("o2", "Older memory two");
+    await seed("poison", "Rejected by the embedder");
+    await seed("a", "Newer memory a");
+    await seed("b", "Newer memory b");
+    const embed = vi.mocked(generateEmbeddings);
+    const original = embed.getMockImplementation()!;
+    embed.mockClear();
+    embed.mockImplementation(async (texts, options) => {
+      if (texts.includes("Rejected by the embedder"))
+        throw new EmbeddingHttpError("input too long", 400);
+      return original(texts, options);
+    });
+    try {
+      const first = await store.repairEmbeddings!({ maxScan: 3, maxRows: 3 });
+      expect(first).toMatchObject({ scanned: 3, reembedded: 2, failed: 1 });
+      expect(first.cursor).toBeDefined();
+      expect(server.rows.get("a")!.memory.embedding_model).toBe(DEFAULT_API_EMBEDDING_MODEL);
+      expect(server.rows.get("b")!.memory.embedding_model).toBe(DEFAULT_API_EMBEDDING_MODEL);
+
+      embed.mockClear();
+      const second = await store.repairEmbeddings!({ maxScan: 3, maxRows: 3 });
+      expect(second).toMatchObject({ reembedded: 2, failed: 0 });
+      expect(embed.mock.calls.flatMap(([texts]) => texts)).not.toContain(
+        "Rejected by the embedder"
+      );
+      expect(server.rows.get("o1")!.memory.embedding_model).toBe(DEFAULT_API_EMBEDDING_MODEL);
+    } finally {
+      embed.mockImplementation(original);
+    }
+  });
+
+  it("stops a run on a fatal embedding error without giving up on any row", async () => {
+    const { store, server, seed } = await repairStore();
+    await seed("old", "Older memory");
+    await seed("a", "Newer memory a");
+    await seed("b", "Newer memory b");
+    const embed = vi.mocked(generateEmbeddings);
+    const original = embed.getMockImplementation()!;
+    embed.mockClear();
+    embed.mockImplementation(async () => {
+      throw new EmbeddingHttpError("payment required", 402);
+    });
+    try {
+      const first = await store.repairEmbeddings!({ maxScan: 2 });
+      expect(first).toMatchObject({ reembedded: 0, failed: 2 });
+      expect(first.cursor).toBeUndefined();
+      expect(embed).toHaveBeenCalledTimes(1);
+    } finally {
+      embed.mockImplementation(original);
+    }
+    await expect(store.repairEmbeddings!({ maxScan: 2 })).resolves.toMatchObject({
+      reembedded: 2,
+      failed: 0,
+    });
+    expect(server.rows.get("a")!.memory.embedding_model).toBe(DEFAULT_API_EMBEDDING_MODEL);
+    expect(server.rows.get("b")!.memory.embedding_model).toBe(DEFAULT_API_EMBEDDING_MODEL);
+  });
+
+  it("stops falling back row by row once a single-row embed hits a fatal error", async () => {
+    const { store, seed } = await repairStore();
+    await seed("a", "Newer memory a");
+    await seed("b", "Newer memory b");
+    const embed = vi.mocked(generateEmbeddings);
+    const original = embed.getMockImplementation()!;
+    embed.mockImplementation(async (texts) => {
+      throw new EmbeddingHttpError(
+        texts.length > 1 ? "bad batch" : "payment required",
+        texts.length > 1 ? 400 : 402
+      );
+    });
+    try {
+      await expect(store.repairEmbeddings!()).resolves.toMatchObject({
+        reembedded: 0,
+        failed: 2,
+      });
+    } finally {
+      embed.mockImplementation(original);
+    }
+    await expect(store.repairEmbeddings!()).resolves.toMatchObject({ reembedded: 2, failed: 0 });
   });
 
   it("bounds how many rows one run inspects and re-embeds", async () => {

@@ -26,7 +26,11 @@ import {
 } from "../../db/memoryVault/types.js";
 import { getLogger } from "../../logger.js";
 import { DEFAULT_API_EMBEDDING_MODEL } from "../../memoryEngine/constants.js";
-import { generateEmbedding, generateEmbeddings } from "../../memoryEngine/embeddings.js";
+import {
+  generateEmbedding,
+  generateEmbeddings,
+  isFatalEmbeddingError,
+} from "../../memoryEngine/embeddings.js";
 import type { EmbeddingOptions } from "../../memoryEngine/types.js";
 import { NODE_BUDGET } from "../graphTraversal.js";
 import type { PortalLlmFailure } from "../portalLlm.js";
@@ -858,41 +862,47 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
     const allStale = scannedRows.filter(
       ({ memory }) => memory.embedding_model !== model && !unrepairable.has(memory.memory_id)
     );
-    repairCursor = allStale.length > maxRows ? start : cursor;
-    const result = {
+    const repaired = new Set<string>();
+    const result: EmbeddingRepairResult = {
       scanned: scannedRows.length,
       reembedded: 0,
       failed: 0,
       skippedConflict: 0,
-      ...(repairCursor && { cursor: repairCursor }),
+    };
+    const finish = () => {
+      const settled = allStale.every(
+        ({ memory }) => repaired.has(memory.memory_id) || unrepairable.has(memory.memory_id)
+      );
+      repairCursor = settled ? cursor : start;
+      return repairCursor ? { ...result, cursor: repairCursor } : result;
     };
     const stale = allStale.slice(0, maxRows).map(({ memory }) => memory.memory_id);
-    if (stale.length === 0) return result;
+    if (stale.length === 0) return finish();
     const { records, unreadable } = await readEveryState(stale);
     result.failed += unreadable.size;
     for (const id of stale)
       if (unreadable.has(id) || !records.get(id)?.memory.content.trim()) unrepairable.add(id);
     const targets = stale.filter((id) => !unrepairable.has(id)).map((id) => records.get(id)!);
-    if (targets.length === 0) return result;
-    let vectors: number[][];
-    try {
-      vectors = await generateEmbeddings(
-        targets.map(({ memory }) => memory.content),
-        embeddingOptions
-      );
-    } catch (error) {
-      getLogger().warn("[memory/remote-store] Failed to embed memories for repair:", error);
+    if (targets.length === 0) return finish();
+    const vectors = await embedForRepair(targets);
+    if (!vectors) {
       result.failed += targets.length;
-      return result;
+      return finish();
     }
-    for (const [i, record] of targets.entries())
+    for (const [i, record] of targets.entries()) {
+      const vector = vectors[i];
+      if (!vector) {
+        result.failed++;
+        continue;
+      }
       await serialized(record.memory.memory_id, async () => {
         try {
           const saved = await persistence.put(
-            { ...record.memory, embedding: storedVector(vectors[i]), embedding_model: model },
+            { ...record.memory, embedding: storedVector(vector), embedding_model: model },
             record
           );
           notify("embedding", [saved]);
+          repaired.add(record.memory.memory_id);
           result.reembedded++;
         } catch (error) {
           if (error instanceof RemoteMemoryError && error.code === "version_conflict")
@@ -900,7 +910,29 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
           else result.failed++;
         }
       });
-    return result;
+    }
+    return finish();
+  };
+  const embedForRepair = async (
+    targets: RemoteMemoryRecord[]
+  ): Promise<(number[] | undefined)[] | null> => {
+    const texts = targets.map(({ memory }) => memory.content);
+    try {
+      return await generateEmbeddings(texts, embeddingOptions);
+    } catch (error) {
+      getLogger().warn("[memory/remote-store] Failed to embed memories for repair:", error);
+      if (isFatalEmbeddingError(error)) return null;
+    }
+    const vectors: (number[] | undefined)[] = [];
+    for (const [i, text] of texts.entries()) {
+      try {
+        [vectors[i]] = await generateEmbeddings([text], embeddingOptions);
+      } catch (error) {
+        if (isFatalEmbeddingError(error)) return null;
+        unrepairable.add(targets[i].memory.memory_id);
+      }
+    }
+    return vectors;
   };
 
   return {
