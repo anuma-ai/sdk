@@ -23,10 +23,6 @@ auto-merge with no consolidation LLM calls.
 
 Portal base URL for consolidation calls. Default: the `extract` options' `baseUrl`.
 
-**endpointOverride?**
-
-> `optional` **endpointOverride**: `string`
-
 **model?**
 
 > `optional` **model**: `string`
@@ -122,7 +118,7 @@ Override folderId for all retained facts.
 
 > `optional` **injectionClassifier**: `object`
 
-Defined in: [src/lib/memory/autoExtractWorker.ts:245](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#245)
+Defined in: [src/lib/memory/autoExtractWorker.ts:244](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#244)
 
 Tier-0 security (PR5) — enable the optional SECOND-layer LLM injection
 classifier over the candidates the deterministic screen passed as clean.
@@ -204,7 +200,7 @@ Confidence floor for retained facts. Default 0.7.
 
 > `optional` **onCandidateFailed**: (`event`: `object`) => `void`
 
-Defined in: [src/lib/memory/autoExtractWorker.ts:272](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#272)
+Defined in: [src/lib/memory/autoExtractWorker.ts:271](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#271)
 
 Per-candidate retain() failure. Lets UI layers ("Anuma is saving …
 — couldn't save Lives in Portland") surface the specific fact that
@@ -282,7 +278,7 @@ once per filtered candidate that threw during retain.
 
 > `optional` **onError**: (`error`: `Error`, `conversationId?`: `string`) => `void`
 
-Defined in: [src/lib/memory/autoExtractWorker.ts:265](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#265)
+Defined in: [src/lib/memory/autoExtractWorker.ts:264](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#264)
 
 Diagnostic — fires on unexpected pipeline errors.
 
@@ -333,7 +329,7 @@ Diagnostic — fires on unexpected pipeline errors.
 
 > `optional` **onMemoryExtracted**: (`event`: [`MemoryExtractedEvent`](MemoryExtractedEvent.md)) => `void`
 
-Defined in: [src/lib/memory/autoExtractWorker.ts:253](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#253)
+Defined in: [src/lib/memory/autoExtractWorker.ts:252](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#252)
 
 Per-fact event — fires once per memory written.
 
@@ -372,7 +368,7 @@ Per-fact event — fires once per memory written.
 
 > `optional` **onMemoryQuarantined**: (`event`: [`MemoryQuarantinedEvent`](MemoryQuarantinedEvent.md)) => `void`
 
-Defined in: [src/lib/memory/autoExtractWorker.ts:259](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#259)
+Defined in: [src/lib/memory/autoExtractWorker.ts:258](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#258)
 
 Tier-0 security (PR3) — fires once per candidate quarantined by the
 injection screen (and persisted as an audit row). Lets a client surface a
@@ -413,7 +409,7 @@ injection screen (and persisted as an audit row). Lets a client surface a
 
 > `optional` **onSkipped**: (`event`: [`TurnSkippedEvent`](TurnSkippedEvent.md)) => `void`
 
-Defined in: [src/lib/memory/autoExtractWorker.ts:263](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#263)
+Defined in: [src/lib/memory/autoExtractWorker.ts:262](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#262)
 
 Diagnostic — fires when a turn is skipped.
 
@@ -452,7 +448,7 @@ Diagnostic — fires when a turn is skipped.
 
 > `optional` **onTurnComplete**: (`event`: [`TurnCompleteEvent`](TurnCompleteEvent.md)) => `void`
 
-Defined in: [src/lib/memory/autoExtractWorker.ts:261](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#261)
+Defined in: [src/lib/memory/autoExtractWorker.ts:260](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#260)
 
 Per-turn event — fires once after the whole pipeline finishes.
 

@@ -886,6 +886,24 @@ Re-exports [ExtractionFunnel](../react/Internal/interfaces/ExtractionFunnel.md)
 
 ***
 
+### ExtractionMessageSource
+
+Re-exports [ExtractionMessageSource](../react/Internal/interfaces/ExtractionMessageSource.md)
+
+***
+
+### ExtractionSourceMessage
+
+Re-exports [ExtractionSourceMessage](../react/Internal/interfaces/ExtractionSourceMessage.md)
+
+***
+
+### ExtractionSourceStatus
+
+Re-exports [ExtractionSourceStatus](../react/Internal/type-aliases/ExtractionSourceStatus.md)
+
+***
+
 ### ExtractionTimings
 
 Re-exports [ExtractionTimings](../react/Internal/interfaces/ExtractionTimings.md)

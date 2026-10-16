@@ -10,12 +10,7 @@ import { type MemoryToVerify, verifyMemoriesForPublish } from "./verifySupport";
 
 interface CapturedRequest {
   model: string;
-  messages?: Array<{ role: string; content: string }>;
-  input?: Array<{ role: string; content: string }>;
-}
-
-function turnsOf(req: CapturedRequest): Array<{ role: string; content: string }> {
-  return req.messages ?? req.input ?? [];
+  messages: Array<{ role: string; content: string }>;
 }
 
 function capturingFetch(captured: CapturedRequest[], content: string): typeof fetch {
@@ -29,13 +24,13 @@ function capturingFetch(captured: CapturedRequest[], content: string): typeof fe
 }
 
 function systemOf(req: CapturedRequest): string {
-  const first = turnsOf(req)[0];
+  const first = req.messages[0];
   expect(first.role).toBe("system");
   return first.content;
 }
 
 function userOf(req: CapturedRequest): string {
-  return turnsOf(req).find((m) => m.role === "user")?.content ?? "";
+  return req.messages.find((m) => m.role === "user")?.content ?? "";
 }
 
 function sharedPrefix(a: string, b: string): string {
@@ -91,7 +86,7 @@ describe("extractFacts prompt prefix", () => {
     const fetchFn = capturingFetch(captured, JSON.stringify({ candidates: [] }));
     await extractFacts(messagesA, { apiKey: "k", fetchFn });
 
-    expect(turnsOf(captured[0]).map((m) => m.role)).toEqual(["system", "user"]);
+    expect(captured[0].messages.map((m) => m.role)).toEqual(["system", "user"]);
   });
 
   it("shares the whole user-message head, up to the transcript, on the same day", async () => {
@@ -121,7 +116,7 @@ describe("extractFacts prompt prefix", () => {
     await extractFacts(messagesA, { apiKey: "k", fetchFn });
     await extractFacts(messagesA, { apiKey: "k", fetchFn, model: "anthropic/claude-sonnet-4-6" });
 
-    const roles = turnsOf(captured[1]).map((m) => m.role);
+    const roles = captured[1].messages.map((m) => m.role);
     expect(roles[0]).toBe("system");
     expect(roles[roles.length - 1]).toBe("assistant");
     expect(systemOf(captured[1])).toBe(systemOf(captured[0]));
@@ -165,7 +160,7 @@ describe("consolidateMemory prompt prefix", () => {
     expect(system).not.toContain("mem_a41f");
     expect(system).not.toContain("Vantiscoro");
     expect(system).not.toContain("0.83");
-    expect(turnsOf(captured[0]).map((m) => m.role)).toEqual(["system", "user"]);
+    expect(captured[0].messages.map((m) => m.role)).toEqual(["system", "user"]);
   });
 });
 
@@ -212,7 +207,7 @@ describe("extractEntitiesForMemories prompt prefix", () => {
     expect(system).not.toContain("mem_0");
     expect(system).not.toContain("Memory number 0");
     expect(system).not.toContain("ZetaChain");
-    expect(turnsOf(captured[0]).map((m) => m.role)).toEqual(["system", "user"]);
+    expect(captured[0].messages.map((m) => m.role)).toEqual(["system", "user"]);
   });
 });
 
@@ -256,7 +251,7 @@ describe("classifyInjectionCandidates prompt prefix", () => {
     expect(system).not.toContain("quillfish");
     expect(system).not.toContain("[1] ");
     expect(userOf(captured[0])).toContain("[1] Lives in Vantiscoro");
-    expect(turnsOf(captured[0]).map((m) => m.role)).toEqual(["system", "user"]);
+    expect(captured[0].messages.map((m) => m.role)).toEqual(["system", "user"]);
   });
 });
 
@@ -308,7 +303,7 @@ describe("createLlmDecayClassifier prompt prefix", () => {
     expect(system).not.toContain("Vantiscoro");
     expect(system).not.toContain("mem_a41f");
     expect(system).not.toContain("ageDays");
-    expect(turnsOf(captured[0]).map((m) => m.role)).toEqual(["system", "user"]);
+    expect(captured[0].messages.map((m) => m.role)).toEqual(["system", "user"]);
   });
 });
 

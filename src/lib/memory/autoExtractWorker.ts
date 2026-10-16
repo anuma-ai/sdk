@@ -226,7 +226,6 @@ export interface CreateAutoExtractorOptions {
     baseUrl?: string;
     /** Override the consolidation model. Default: see `consolidate.ts`. */
     model?: string;
-    endpointOverride?: string;
     /**
      * Notified on each degraded create-fallback (LLM failure or
      * schema-violating response). See
@@ -433,14 +432,8 @@ export function createAutoExtractor(options: CreateAutoExtractorOptions): AutoEx
     };
   };
 
-  const consolidateEndpoint =
-    options.consolidate?.endpointOverride ?? options.extract.endpointOverride;
   const consolidateOptions: RetainOptions["consolidateOptions"] = options.consolidate
-    ? {
-        ...options.consolidate,
-        ...subPassAuth(options.consolidate.baseUrl),
-        ...(consolidateEndpoint !== undefined && { endpointOverride: consolidateEndpoint }),
-      }
+    ? { ...options.consolidate, ...subPassAuth(options.consolidate.baseUrl) }
     : undefined;
 
   const injectionClassifierOptions: InjectionClassifierOptions | undefined =

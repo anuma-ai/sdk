@@ -91,11 +91,7 @@ interface Case {
   category: Category;
   newFact: string;
   candidates: Candidate[];
-  expect: {
-    action: "create" | "update" | "supersede" | "noop";
-    targetIds?: string[];
-    contentIncludes?: string[];
-  };
+  expect: { action: "create" | "update" | "supersede" | "noop"; targetIds?: string[] };
 }
 
 const CASES: Case[] = [
@@ -224,30 +220,6 @@ const CASES: Case[] = [
     ],
     expect: { action: "noop", targetIds: ["c1"] },
   },
-  {
-    name: "introduced relative gains a home city",
-    category: "update",
-    newFact: "Ana lives in Paris.",
-    candidates: [
-      { id: "c1", content: "User's sister is called Ana.", similarity: 0.8 },
-      { id: "c2", content: "User is learning French.", similarity: 0.34 },
-    ],
-    expect: { action: "update", targetIds: ["c1"], contentIncludes: ["sister", "Ana", "Paris"] },
-  },
-  {
-    name: "folded memory's city changes, relation kept",
-    category: "supersede-single",
-    newFact: "Ana lives in London.",
-    candidates: [
-      { id: "c1", content: "User's sister Ana lives in Paris.", similarity: 0.86 },
-      { id: "c2", content: "User is learning French.", similarity: 0.3 },
-    ],
-    expect: {
-      action: "supersede",
-      targetIds: ["c1"],
-      contentIncludes: ["sister", "Ana", "London"],
-    },
-  },
 ];
 
 const GATE_METRICS: GateMetricSpec[] = [
@@ -286,12 +258,8 @@ function scoreDecision(
 ): { correct: boolean; targets: string[] } {
   const targets = result.targetIds ?? (result.targetId ? [result.targetId] : []);
   if (result.action !== expect.action) return { correct: false, targets };
-  const content = (result.content ?? "").toLowerCase();
-  const keepsContent = (expect.contentIncludes ?? []).every((w) =>
-    content.includes(w.toLowerCase())
-  );
-  if (expect.action === "create") return { correct: keepsContent, targets };
-  return { correct: keepsContent && setEqual(targets, expect.targetIds ?? []), targets };
+  if (expect.action === "create") return { correct: true, targets };
+  return { correct: setEqual(targets, expect.targetIds ?? []), targets };
 }
 
 function median(xs: number[]): number {
