@@ -13,13 +13,46 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  integration:
+  pack:
     if: github.actor != 'dependabot[bot]'
+    runs-on: ubuntu-24.04
+    strategy:
+      matrix:
+        ref: [pr, main]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ matrix.ref == 'main' && 'main' || '' }}
+
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+
+      - name: Setup Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "22"
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Build SDK
+        run: pnpm build
+
+      - name: Pack SDK
+        run: pnpm pack --pack-destination /tmp/sdk-pack
+
+      - name: Upload SDK tarball
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: sdk-${{ matrix.ref }}
+          path: /tmp/sdk-pack/*.tgz
+
+  integration:
+    needs: pack
     runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
-        ref: [pr, main]
         repo:
           [
             starter-next,
@@ -67,19 +100,6 @@ jobs:
       NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          ref: ${{ matrix.ref == 'main' && 'main' || '' }}
-
-      - name: Ensure packageManager field
-        run: |
-          if ! grep -q '"packageManager"' package.json; then
-            node -e "
-              const fs = require('fs');
-              const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
-              pkg.packageManager = 'pnpm@10.23.0';
-              fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
-            "
-          fi
 
       - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
 
@@ -89,90 +109,38 @@ jobs:
           node-version: "22"
           cache: "pnpm"
 
-      - name: Install dependencies
-        run: pnpm install
-
-      - name: Build SDK
-        run: pnpm build
-
-      - name: Pack SDK
-        run: pnpm pack --pack-destination /tmp/sdk-pack
+      - name: Download SDK tarballs
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: sdk-*
+          path: /tmp/sdk-pack
 
       - name: Clone ${{ matrix.repo }}
         env:
           GH_TOKEN: ${{ matrix.repo == 'ai-memoryless-client' && secrets.PAT_TOKEN_ZETACHAIN || secrets.PAT_TOKEN }}
         run: |
           ORG=${{ matrix.repo == 'ai-memoryless-client' && 'zeta-chain' || 'anuma-ai' }}
-          gh repo clone $ORG/${{ matrix.repo }} /tmp/${{ matrix.repo }} -- --depth 1
+          gh repo clone $ORG/${{ matrix.repo }} /tmp/${{ matrix.repo }}-pr -- --depth 1
+          cp -a /tmp/${{ matrix.repo }}-pr /tmp/${{ matrix.repo }}-main
 
-      - name: Detect package manager
-        id: pm
-        working-directory: /tmp/${{ matrix.repo }}
-        run: |
-          if [ -f pnpm-lock.yaml ]; then
-            echo "cmd=pnpm" >> $GITHUB_OUTPUT
-          else
-            echo "cmd=npm" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Install SDK from tarball
-        working-directory: /tmp/${{ matrix.repo }}
+      - name: Check against PR SDK
+        id: pr
         env:
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: |
-          # Some integration targets depend on private @anuma packages (the client
-          # pins @anuma/nearby), and a bare install fetches them anonymously and
-          # 404s — failing the leg before any SDK code is exercised. Authenticate
-          # for the scope when a token is available; unauthenticated runs behave
-          # exactly as before.
-          #
-          # The credential lives only for the two installs below: the trap restores
-          # the original .npmrc when this step exits, on success or failure alike.
-          # It must not survive into the Build / E2E steps, which execute the cloned
-          # repo's OWN scripts — anything readable there is effectively disclosed.
-          if [ -n "$NPM_TOKEN" ]; then
-            cp .npmrc /tmp/npmrc.orig 2>/dev/null || : > /tmp/npmrc.orig
-            trap 'cp /tmp/npmrc.orig .npmrc; rm -f /tmp/npmrc.orig' EXIT
-            echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" >> .npmrc
-          fi
-          ${{ steps.pm.outputs.cmd }} install
-          SDK_TARBALL=$(ls /tmp/sdk-pack/*.tgz)
-          WORKSPACE_FLAG=""
-          if [ "${{ steps.pm.outputs.cmd }}" == "pnpm" ] && [ -f pnpm-workspace.yaml ]; then
-            WORKSPACE_FLAG="-w"
-          fi
-          ${{ steps.pm.outputs.cmd }} add $WORKSPACE_FLAG "$SDK_TARBALL"
+          REPO: ${{ matrix.repo }}
+          E2E: ${{ matrix.e2e }}
+        run: bash scripts/integration-leg.sh pr
 
-      - name: Build ${{ matrix.repo }}
-        id: build
-        working-directory: /tmp/${{ matrix.repo }}
-        continue-on-error: true
-        run: ${{ steps.pm.outputs.cmd }} run build
-
-      - name: Install Playwright browsers
-        if: matrix.e2e && steps.build.outcome == 'success'
-        working-directory: /tmp/${{ matrix.repo }}
-        run: ${{ steps.pm.outputs.cmd }} exec playwright install --with-deps chromium
-
-      - name: Run light e2e tests
-        id: e2e
-        if: matrix.e2e && steps.build.outcome == 'success'
-        working-directory: /tmp/${{ matrix.repo }}
-        continue-on-error: true
-        run: ${{ steps.pm.outputs.cmd }} run test:e2e:light
-
-      - name: Write outcome
-        run: |
-          mkdir -p /tmp/outcomes
-          echo "${{ steps.build.outcome }}" > /tmp/outcomes/${{ matrix.repo }}-${{ matrix.ref }}-build
-          if [ "${{ matrix.e2e }}" == "true" ]; then
-            echo "${{ steps.e2e.outcome }}" > /tmp/outcomes/${{ matrix.repo }}-${{ matrix.ref }}-e2e
-          fi
+      - name: Check against main SDK (baseline)
+        if: steps.pr.outputs.passed != 'true'
+        env:
+          REPO: ${{ matrix.repo }}
+          E2E: ${{ matrix.e2e }}
+        run: bash scripts/integration-leg.sh main
 
       - name: Upload outcome
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: outcome-${{ matrix.repo }}-${{ matrix.ref }}
+          name: outcome-${{ matrix.repo }}
           path: /tmp/outcomes/
 
   report:
@@ -184,6 +152,7 @@ jobs:
       - name: Download outcomes
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
+          pattern: outcome-*
           path: /tmp/outcomes
           merge-multiple: true
 
@@ -194,7 +163,13 @@ jobs:
           REPOS="starter-next starter-mini starter-telegram starter-agent dashboard text cli ai-memoryless-client"
           E2E_REPOS="starter-next"
 
-          icon() { [ "$1" == "success" ] && echo "✅" || echo "❌"; }
+          icon() {
+            case "$1" in
+              success) echo "✅" ;;
+              not-run) echo "—" ;;
+              *) echo "❌" ;;
+            esac
+          }
 
           has_e2e() {
             for r in $E2E_REPOS; do [ "$r" == "$1" ] && return 0; done
@@ -207,10 +182,12 @@ jobs:
 
           ALL_PR_OK=true
           ANY_REGRESSION=false
+          ANY_BASELINE_SKIPPED=false
           BROKEN_REPOS=""
 
           for REPO in $REPOS; do
-            MAIN_BUILD=$(cat /tmp/outcomes/${REPO}-main-build 2>/dev/null || echo "skipped")
+            MAIN_BUILD=$(cat /tmp/outcomes/${REPO}-main-build 2>/dev/null || echo "not-run")
+            [ "$MAIN_BUILD" == "not-run" ] && ANY_BASELINE_SKIPPED=true
             PR_BUILD=$(cat /tmp/outcomes/${REPO}-pr-build 2>/dev/null || echo "skipped")
             TABLE="$TABLE
           | ${REPO} build | $(icon "$MAIN_BUILD") | $(icon "$PR_BUILD") |"
@@ -222,7 +199,7 @@ jobs:
             fi
 
             if has_e2e "$REPO"; then
-              MAIN_E2E=$(cat /tmp/outcomes/${REPO}-main-e2e 2>/dev/null || echo "skipped")
+              MAIN_E2E=$(cat /tmp/outcomes/${REPO}-main-e2e 2>/dev/null || echo "not-run")
               PR_E2E=$(cat /tmp/outcomes/${REPO}-pr-e2e 2>/dev/null || echo "skipped")
               TABLE="$TABLE
           | ${REPO} e2e | $(icon "$MAIN_E2E") | $(icon "$PR_E2E") |"
@@ -233,6 +210,12 @@ jobs:
               fi
             fi
           done
+
+          if [ "$ANY_BASELINE_SKIPPED" == "true" ]; then
+            TABLE="$TABLE
+
+          — main baseline skipped: it only builds when the PR leg fails."
+          fi
 
           if [ "$ALL_PR_OK" == "true" ]; then
             BODY="<!-- integration-check -->
