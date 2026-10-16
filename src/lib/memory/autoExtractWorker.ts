@@ -10,6 +10,7 @@ import {
   type ExtractionTimings,
   type ExtractOutcome,
   type QuarantinedMemoryInfo,
+  type WriteFailureReason,
 } from "./autoExtract.js";
 import type { InjectionClassifierOptions } from "./injectionClassifier.js";
 import type { PortalLlmFailure } from "./portalLlm.js";
@@ -65,6 +66,7 @@ export interface TurnCompleteEvent {
   results: RetainResult[];
   /** Per-candidate retain() failures. `onError` only fires on pipeline throws. */
   failedCount: number;
+  writeFailureReason?: WriteFailureReason;
   durationMs: number;
   conversationId?: string;
   /**
@@ -489,27 +491,36 @@ export function createAutoExtractor(options: CreateAutoExtractorOptions): AutoEx
 
     void (async () => {
       try {
-        const { candidates, results, failedCount, outcome, failure, funnel, timings, model } =
-          await extractAndRetain(window, retainCtx, {
-            extract,
-            memoryStore: options.memoryStore,
-            signal: options.signal,
-            ...(options.minConfidence !== undefined && { minConfidence: options.minConfidence }),
-            ...(options.entityCtx !== undefined && { entityCtx: options.entityCtx }),
-            ...(options.scope !== undefined && { scope: options.scope }),
-            ...(options.folderId !== undefined && { folderId: options.folderId }),
-            ...(consolidateOptions !== undefined && { consolidateOptions }),
-            ...(injectionClassifierOptions !== undefined && {
-              injectionClassifier: injectionClassifierOptions,
-            }),
-            ...(options.onCandidateFailed && {
-              onCandidateFailed: (candidate, error) =>
-                options.onCandidateFailed?.({ candidate, error, conversationId }),
-            }),
-            ...(options.onMemoryQuarantined && {
-              onQuarantined: (info) => options.onMemoryQuarantined?.({ ...info, conversationId }),
-            }),
-          });
+        const {
+          candidates,
+          results,
+          failedCount,
+          writeFailureReason,
+          outcome,
+          failure,
+          funnel,
+          timings,
+          model,
+        } = await extractAndRetain(window, retainCtx, {
+          extract,
+          memoryStore: options.memoryStore,
+          signal: options.signal,
+          ...(options.minConfidence !== undefined && { minConfidence: options.minConfidence }),
+          ...(options.entityCtx !== undefined && { entityCtx: options.entityCtx }),
+          ...(options.scope !== undefined && { scope: options.scope }),
+          ...(options.folderId !== undefined && { folderId: options.folderId }),
+          ...(consolidateOptions !== undefined && { consolidateOptions }),
+          ...(injectionClassifierOptions !== undefined && {
+            injectionClassifier: injectionClassifierOptions,
+          }),
+          ...(options.onCandidateFailed && {
+            onCandidateFailed: (candidate, error) =>
+              options.onCandidateFailed?.({ candidate, error, conversationId }),
+          }),
+          ...(options.onMemoryQuarantined && {
+            onQuarantined: (info) => options.onMemoryQuarantined?.({ ...info, conversationId }),
+          }),
+        });
 
         if (outcome !== "empty-after-retry" && failedCount === 0) {
           const advancedTo = window[window.length - 1].id;
@@ -529,6 +540,7 @@ export function createAutoExtractor(options: CreateAutoExtractorOptions): AutoEx
           candidates,
           results,
           failedCount,
+          ...(writeFailureReason !== undefined && { writeFailureReason }),
           durationMs: Date.now() - t0,
           conversationId,
           outcome,

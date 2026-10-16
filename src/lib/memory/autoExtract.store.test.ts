@@ -1,6 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("./retain.js", () => ({ retain: vi.fn() }));
+vi.mock("./retain.js", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./retain.js")>()),
+  retain: vi.fn(),
+}));
 
 import { extractAndRetain } from "./autoExtract.js";
 import { retain, type RetainContext } from "./retain.js";

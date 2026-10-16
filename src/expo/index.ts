@@ -369,6 +369,7 @@ export type {
   UnverifiableReason,
   VerificationSources,
   VerifyMemoriesForPublishOptions,
+  WriteFailureReason,
 } from "../lib/memory";
 export {
   createLocalMemoryStore,

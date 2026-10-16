@@ -1,6 +1,6 @@
 # RetainContext
 
-Defined in: [src/lib/memory/retain.ts:30](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/retain.ts#30)
+Defined in: [src/lib/memory/retain.ts:41](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/retain.ts#41)
 
 ## Properties
 
@@ -8,7 +8,7 @@ Defined in: [src/lib/memory/retain.ts:30](https://github.com/anuma-ai/sdk/blob/m
 
 > **embeddingOptions**: [`MemoryEngineEmbeddingOptions`](MemoryEngineEmbeddingOptions.md)
 
-Defined in: [src/lib/memory/retain.ts:32](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/retain.ts#32)
+Defined in: [src/lib/memory/retain.ts:43](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/retain.ts#43)
 
 ***
 
@@ -16,7 +16,7 @@ Defined in: [src/lib/memory/retain.ts:32](https://github.com/anuma-ai/sdk/blob/m
 
 > **vaultCache**: [`VaultEmbeddingCache`](../type-aliases/VaultEmbeddingCache.md)
 
-Defined in: [src/lib/memory/retain.ts:33](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/retain.ts#33)
+Defined in: [src/lib/memory/retain.ts:44](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/retain.ts#44)
 
 ***
 
@@ -24,4 +24,4 @@ Defined in: [src/lib/memory/retain.ts:33](https://github.com/anuma-ai/sdk/blob/m
 
 > **vaultCtx**: [`VaultMemoryOperationsContext`](VaultMemoryOperationsContext.md)
 
-Defined in: [src/lib/memory/retain.ts:31](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/retain.ts#31)
+Defined in: [src/lib/memory/retain.ts:42](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/retain.ts#42)

@@ -4,6 +4,7 @@ import { maskScopedEmbeddingCache } from "../../db/chat/embeddingCache.js";
 import { parseTopics } from "../../db/entities/types.js";
 import { normalizeTrustTier } from "../../db/memoryVault/operations.js";
 import { serializeSourceChunkIds } from "../../db/memoryVault/sourceChunkIds.js";
+import { MemorySourceIneligibleError } from "../../db/memoryVault/types.js";
 import {
   MEMORY_LEVELS,
   type MemoryLevel,
@@ -133,7 +134,7 @@ export function createRemoteMemoryPipeline(
     const assertWrite = async () => {
       signal?.throwIfAborted();
       if (writeOptions?.canWrite && !(await writeOptions.canWrite()))
-        throw new Error("Memory source is no longer eligible");
+        throw new MemorySourceIneligibleError();
       signal?.throwIfAborted();
     };
     const rejectUndecryptable = (failed: RemoteMemoryDecodeFailure[]) => {

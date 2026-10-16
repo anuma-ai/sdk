@@ -31,7 +31,11 @@ import {
   updateVaultMemoryOp,
   type VaultMemoryOperationsContext,
 } from "../../db/memoryVault/operations.js";
-import type { StoredVaultMemory, VaultMemoryVisibility } from "../../db/memoryVault/types.js";
+import {
+  MemorySourceIneligibleError,
+  type StoredVaultMemory,
+  type VaultMemoryVisibility,
+} from "../../db/memoryVault/types.js";
 import { getLogger } from "../../logger.js";
 import type { EmbeddingOptions } from "../../memoryEngine/types.js";
 import { createVaultEmbeddingCache } from "../../memoryVault/lruCache.js";
@@ -127,10 +131,10 @@ export function createLocalMemoryStore(options: LocalMemoryStoreOptions): Memory
   }) => {
     writeOptions?.signal?.throwIfAborted();
     if (writeOptions?.canWrite && !(await writeOptions.canWrite())) {
-      throw new Error("Memory source is no longer eligible");
+      throw new MemorySourceIneligibleError();
     }
     if (options.canWrite && !(await options.canWrite())) {
-      throw new Error("Memory source is no longer eligible");
+      throw new MemorySourceIneligibleError();
     }
     writeOptions?.signal?.throwIfAborted();
   };
