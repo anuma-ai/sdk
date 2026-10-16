@@ -40,6 +40,8 @@ export interface MemoryListOptions {
   includeQuarantined?: boolean;
   /** Memory history — rows carry `supersededBy`. */
   includeSuperseded?: boolean;
+  /** `false` lets a remote store skip downloading vectors; its rows then carry a null `embedding`. */
+  withEmbeddings?: boolean;
 }
 
 /**
