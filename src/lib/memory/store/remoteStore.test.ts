@@ -1343,3 +1343,162 @@ describe("default recall lanes", () => {
     expect(requested).toBeLessThanOrEqual(256);
   });
 });
+
+describe("remote decay", () => {
+  const DAY = 24 * 60 * 60 * 1000;
+  async function decayStore() {
+    const keys = await deriveMemoryKeyRing(`0x${"d4".repeat(65)}`);
+    const server = fakeNearby(keys.keyId);
+    const cipher = memoryCipher(keys);
+    const decrypt = vi.fn(cipher.decrypt);
+    let afterScan: (() => void) | undefined;
+    const fetch = vi.fn(async (url: string | URL, init?: RequestInit) => {
+      const response = await server.fetch(url as never, init as never);
+      if (String(url).endsWith("/memories/query") && afterScan) {
+        const run = afterScan;
+        afterScan = undefined;
+        run();
+      }
+      return response;
+    });
+    const persistence = await createRemoteMemoryPersistence({
+      baseUrl: "https://nearby.test",
+      getToken: async () => "token",
+      keyId: keys.keyId,
+      encrypt: cipher.encrypt,
+      decrypt,
+      fetch: fetch as unknown as typeof globalThis.fetch,
+    });
+    const store = createRemoteMemoryStore({
+      persistence,
+      embeddingOptions: { apiKey: "test-key" },
+      graphRanking: async () => [],
+      temporalRanking: async () => [],
+      pollIntervalMs: 0,
+    });
+    const onAfterScan = (run: () => void) => {
+      afterScan = run;
+    };
+    return { store, server, decrypt, onAfterScan };
+  }
+  const aged = (server: ReturnType<typeof fakeNearby>, id: string, fields = {}) =>
+    Object.assign(server.rows.get(id)!.memory, {
+      source: "auto-extracted",
+      fact_type: "other",
+      updated_at: 1000,
+      ...fields,
+    });
+
+  it("archives an aged extracted memory after a metadata-only scan", async () => {
+    const { store, server, decrypt } = await decayStore();
+    const stale = await store.create({ content: "Was into crosswords", embedding: axis(0) });
+    const durable = await store.create({ content: "Name is Ana", embedding: axis(1) });
+    const manual = await store.create({ content: "Likes green tea", embedding: axis(2) });
+    aged(server, stale.uniqueId);
+    aged(server, durable.uniqueId, { fact_type: "identity" });
+    const untouched = new Set(
+      [durable.uniqueId, manual.uniqueId].map((id) => server.rows.get(id)!.memory.content)
+    );
+    decrypt.mockClear();
+
+    const result = await store.decay!.createDecaySweeper().runSweep();
+
+    expect(result).toMatchObject({ archived: 1, deleted: 0, scanned: 3 });
+    expect(server.rows.get(stale.uniqueId)!.memory.archived_at).toEqual(expect.any(Number));
+    expect(server.rows.get(durable.uniqueId)!.memory.archived_at).toBeUndefined();
+    expect(server.rows.get(manual.uniqueId)!.memory.archived_at).toBeUndefined();
+    expect(decrypt.mock.calls.some(([value]) => untouched.has(value as string))).toBe(false);
+  });
+
+  it("keeps a memory re-observed between the scan and the write", async () => {
+    const { store, server, onAfterScan } = await decayStore();
+    const m = await store.create({ content: "Was into crosswords", embedding: axis(0) });
+    aged(server, m.uniqueId);
+    onAfterScan(() => {
+      const row = server.rows.get(m.uniqueId)!;
+      row.memory.last_observed_at = Date.now();
+      row.version++;
+    });
+
+    const result = await store.decay!.createDecaySweeper().runSweep();
+
+    expect(result.archived).toBe(0);
+    expect(server.rows.get(m.uniqueId)!.memory.archived_at).toBeUndefined();
+  });
+
+  it("never decays a profile memory", async () => {
+    const { store, server } = await decayStore();
+    const m = await store.create({ content: "Was into crosswords", embedding: axis(0) });
+    aged(server, m.uniqueId, { kind: "interest" });
+
+    const result = await store.decay!.createDecaySweeper().runSweep();
+
+    expect(result).toMatchObject({ archived: 0, scanned: 0 });
+  });
+
+  it("tombstones an archived memory once its window passes", async () => {
+    const { store, server } = await decayStore();
+    const m = await store.create({ content: "Was into crosswords", embedding: axis(0) });
+    aged(server, m.uniqueId, { archived_at: Date.now() - 31 * DAY });
+
+    const result = await store.decay!.createDecaySweeper().runSweep();
+
+    expect(result.deleted).toBe(1);
+    expect(server.rows.get(m.uniqueId)!.memory.is_deleted).toBe(true);
+  });
+
+  it("lets a restore between the scan and the write win over the delete", async () => {
+    const { store, server, onAfterScan } = await decayStore();
+    const m = await store.create({ content: "Was into crosswords", embedding: axis(0) });
+    aged(server, m.uniqueId, { archived_at: Date.now() - 31 * DAY });
+    onAfterScan(() => {
+      const row = server.rows.get(m.uniqueId)!;
+      delete row.memory.archived_at;
+      row.version++;
+    });
+
+    const result = await store.decay!.createDecaySweeper().runSweep();
+
+    expect(result.deleted).toBe(0);
+    expect(server.rows.get(m.uniqueId)!.memory.is_deleted).toBe(false);
+  });
+
+  it("keeps a memory re-archived between the scan and the write", async () => {
+    const { store, server, onAfterScan } = await decayStore();
+    const m = await store.create({ content: "Was into crosswords", embedding: axis(0) });
+    aged(server, m.uniqueId, { archived_at: Date.now() - 31 * DAY });
+    onAfterScan(() => {
+      const row = server.rows.get(m.uniqueId)!;
+      row.memory.archived_at = Date.now();
+      row.version++;
+    });
+
+    const result = await store.decay!.createDecaySweeper().runSweep();
+
+    expect(result.deleted).toBe(0);
+    expect(server.rows.get(m.uniqueId)!.memory.is_deleted).toBe(false);
+  });
+
+  it("keeps an archived memory inside its restore window", async () => {
+    const { store, server } = await decayStore();
+    const m = await store.create({ content: "Was into crosswords", embedding: axis(0) });
+    aged(server, m.uniqueId, { archived_at: Date.now() - 5 * DAY });
+
+    const result = await store.decay!.createDecaySweeper().runSweep();
+
+    expect(result.deleted).toBe(0);
+    expect(server.rows.get(m.uniqueId)!.memory.is_deleted).toBe(false);
+  });
+
+  it("moves at most 200 memories per sweep and finishes on the next", async () => {
+    const { store, server } = await decayStore();
+    const created = await store.createMany(
+      Array.from({ length: 230 }, (_, i) => ({ content: `Fact ${i}`, embedding: axis(0) }))
+    );
+    for (const m of created) aged(server, m.uniqueId);
+    const sweeper = store.decay!.createDecaySweeper();
+
+    expect((await sweeper.runSweep()).archived).toBe(200);
+    expect((await sweeper.runSweep()).archived).toBe(30);
+  });
+});

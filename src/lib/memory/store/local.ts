@@ -44,7 +44,7 @@ import {
   searchVaultMemoriesWithSize,
   type VaultEmbeddingCache,
 } from "../../memoryVault/searchTool.js";
-import { createDecaySweeper } from "../decayWorker.js";
+import { createDecaySweeper, ruleBasedDecayOptions } from "../decayWorker.js";
 import {
   buildGraphLaneRanking,
   buildTemporalLaneRanking,
@@ -395,5 +395,9 @@ export function createLocalMemoryStore(options: LocalMemoryStoreOptions): Memory
 
     maintenance,
     topicMaintenance: maintenance,
+    decay: {
+      createDecaySweeper: (sweeperOptions) =>
+        createDecaySweeper({ ...ruleBasedDecayOptions(sweeperOptions), vaultCtx }),
+    },
   };
 }

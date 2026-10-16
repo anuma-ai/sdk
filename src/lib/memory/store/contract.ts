@@ -126,6 +126,31 @@ export function runMemoryStoreContract(
       expect(await store.listArchived()).toEqual([]);
     });
 
+    it("decays an archived memory past its window and keeps a manual one", async () => {
+      const store = await makeStore();
+      const old = await store.create({ content: "Planned a trip to Porto" });
+      const kept = await store.create({ content: "Likes green tea" });
+      expect(await store.archive(old.uniqueId)).toBe(true);
+
+      const result = await store
+        .decay!.createDecaySweeper({ now: Date.now() + 31 * 24 * 60 * 60 * 1000 })
+        .runSweep();
+
+      expect(result).toMatchObject({ archived: 0, deleted: 1, scanned: 2 });
+      expect(await store.get(old.uniqueId)).toBeNull();
+      expect(await store.get(kept.uniqueId)).toMatchObject({ content: "Likes green tea" });
+      expect(await store.listArchived()).toEqual([]);
+    });
+
+    it("decays by rule only", async () => {
+      const store = await makeStore();
+      expect(() =>
+        store.decay!.createDecaySweeper({
+          classifier: { classify: () => "keep" },
+        } as Parameters<NonNullable<MemoryStore["decay"]>["createDecaySweeper"]>[0])
+      ).toThrow(/rule only/);
+    });
+
     it("supersedes an old memory behind a new one", async () => {
       const store = await makeStore();
       const old = await store.create({ content: "Lives in Portland" });

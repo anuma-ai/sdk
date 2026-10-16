@@ -416,6 +416,8 @@ export type {
 export {
   createLocalMemoryStore,
   type LocalMemoryStoreOptions,
+  type MemoryDecay,
+  type MemoryDecaySweeperOptions,
   type MemoryListOptions,
   type MemoryMaintenance,
   type MemoryRecallOptions,
