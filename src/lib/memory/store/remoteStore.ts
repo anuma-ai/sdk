@@ -28,6 +28,7 @@ import {
 import { getLogger } from "../../logger.js";
 import { DEFAULT_API_EMBEDDING_MODEL } from "../../memoryEngine/constants.js";
 import {
+  EmbeddingHttpError,
   generateEmbedding,
   generateEmbeddings,
   isFatalEmbeddingError,
@@ -144,6 +145,17 @@ export class RemoteMemoryPartialCreateError extends Error {
     super(`createMany stored ${created.length} memories before a batch failed`);
     this.name = "RemoteMemoryPartialCreateError";
   }
+}
+
+function rejectsInput(error: unknown): boolean {
+  return (
+    error instanceof EmbeddingHttpError &&
+    error.status !== undefined &&
+    error.status >= 400 &&
+    error.status < 500 &&
+    error.status !== 429 &&
+    !isFatalEmbeddingError(error)
+  );
 }
 
 function warnFailed(failed: RemoteMemoryDecodeFailure[]) {
@@ -978,14 +990,14 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
       return await generateEmbeddings(texts, embeddingOptions);
     } catch (error) {
       getLogger().warn("[memory/remote-store] Failed to embed memories for repair:", error);
-      if (isFatalEmbeddingError(error)) return null;
+      if (!rejectsInput(error)) return null;
     }
     const vectors: (number[] | undefined)[] = [];
     for (const [i, text] of texts.entries()) {
       try {
         [vectors[i]] = await generateEmbeddings([text], embeddingOptions);
       } catch (error) {
-        if (isFatalEmbeddingError(error)) return null;
+        if (!rejectsInput(error)) return null;
         unrepairable.add(targets[i].memory.memory_id);
       }
     }

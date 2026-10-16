@@ -1608,6 +1608,59 @@ describe("repairEmbeddings", () => {
     await expect(store.repairEmbeddings!()).resolves.toMatchObject({ reembedded: 2, failed: 0 });
   });
 
+  it.each([
+    ["a 503 that outlasted retries", () => new EmbeddingHttpError("unavailable", 503)],
+    ["a non-HTTP failure", () => new Error("No token available for embedding generation")],
+  ])("treats %s as transient: marks nothing and rescans the window", async (_label, failure) => {
+    const { store, server, seed } = await repairStore();
+    await seed("old", "Older memory");
+    await seed("a", "Newer memory a");
+    await seed("b", "Newer memory b");
+    const embed = vi.mocked(generateEmbeddings);
+    const original = embed.getMockImplementation()!;
+    embed.mockClear();
+    embed.mockImplementation(async () => {
+      throw failure();
+    });
+    try {
+      const first = await store.repairEmbeddings!({ maxScan: 2 });
+      expect(first).toMatchObject({ reembedded: 0, failed: 2 });
+      expect(first.cursor).toBeUndefined();
+      expect(embed).toHaveBeenCalledTimes(1);
+    } finally {
+      embed.mockImplementation(original);
+    }
+    await expect(store.repairEmbeddings!({ maxScan: 2 })).resolves.toMatchObject({
+      reembedded: 2,
+      failed: 0,
+    });
+    expect(server.rows.get("a")!.memory.embedding_model).toBe(DEFAULT_API_EMBEDDING_MODEL);
+    expect(server.rows.get("b")!.memory.embedding_model).toBe(DEFAULT_API_EMBEDDING_MODEL);
+  });
+
+  it("treats a transient single-row failure as ending the run, not as a rejected row", async () => {
+    const { store, seed } = await repairStore();
+    await seed("a", "Newer memory a");
+    await seed("b", "Newer memory b");
+    const embed = vi.mocked(generateEmbeddings);
+    const original = embed.getMockImplementation()!;
+    embed.mockImplementation(async (texts) => {
+      throw new EmbeddingHttpError(
+        texts.length > 1 ? "bad batch" : "unavailable",
+        texts.length > 1 ? 400 : 503
+      );
+    });
+    try {
+      await expect(store.repairEmbeddings!()).resolves.toMatchObject({
+        reembedded: 0,
+        failed: 2,
+      });
+    } finally {
+      embed.mockImplementation(original);
+    }
+    await expect(store.repairEmbeddings!()).resolves.toMatchObject({ reembedded: 2, failed: 0 });
+  });
+
   it("bounds how many rows one run inspects and re-embeds", async () => {
     const { store, seed } = await repairStore();
     for (let i = 0; i < 5; i++) await seed(`m${i}`, `Memory number ${i}`);
