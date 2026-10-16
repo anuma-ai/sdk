@@ -1,11 +1,17 @@
 import { type PiiRedactor, resolvePiiRedactor } from "../pii/redactor.js";
 import { notifyConsolidationFallback } from "./consolidationFallback.js";
-import { callPortalJsonCompletion, type PortalLlmAuth } from "./portalLlm.js";
+import {
+  callPortalJsonCompletion,
+  endpointForTransport,
+  type PortalLlmAuth,
+  type PortalLlmFailure,
+  requiresResponsesTransport,
+} from "./portalLlm.js";
 import type { ConsolidationFallbackReason } from "./types.js";
 
 /** Exported so the consolidation eval gates the model production actually runs,
  * rather than a copy of this string that can drift out of sync. */
-export const DEFAULT_CONSOLIDATION_MODEL = "inclusionai/ling-2.6-flash";
+export const DEFAULT_CONSOLIDATION_MODEL = "openai/gpt-6-luna";
 
 const DEFAULT_CONSOLIDATE_ATTEMPTS = 3;
 const DEFAULT_CONSOLIDATE_TOTAL_TIMEOUT_MS = 20_000;
@@ -47,7 +53,11 @@ OUTPUT — strict JSON, no prose:
 For "create": content is the new memory verbatim (or a slight refinement); omit targetId/targetIds.
 For "update": content is the merged richest-version, ≤80 words; targetId is the single memory to update.
 For "supersede": content is the NEW fact only (≤80 words); "targetIds" lists EVERY stale memory being retired (all candidates describing the same now-changed attribute). You MUST also name the subjects: "newSubject" for the new memory, and one entry in "targetSubjects" for EACH memory you are retiring (use "targetSubject" as well when you retire a single memory). List a subject ONLY for the memories you are actually retiring, not for every candidate you were shown. Write the plain subject, not a sentence: "the user", "the user's sister", "the user's manager", "Biscuit the dog". Rule 1a means a supersede is only valid when every one of those subjects is the SAME as "newSubject"; name them and check them against each other before you commit to the action. If ANY of them differs, the answer is "create" — do not retire the ones that match and keep the rest, because a group that mixes subjects was grouped wrongly in the first place. A subjectless fact ("Lives in Denver", "Works at Riverbend") is about "the user" — the extractor omits the subject when it is the user, so treat the absence of a subject as the user, never as unknown.
-For "noop": no content (existing memory is already correct); targetId is that memory.`;
+For "noop": no content (existing memory is already correct); targetId is that memory.
+
+ADDING TO AN INTRODUCED ENTITY (check this before choosing "create"): when an existing memory only introduces or names someone or something in the user's life ("User has a cat named Mochi", "User's sister is called Ana") and the new memory gives an attribute of that SAME entity that the existing memory does not state yet (its age, breed, job, home city), choose "update": targetId is that memory and content folds both into one sentence ("User has a cat named Mochi, who is four years old."). The "dog's name vs dog's age" example above means two memories that each already state a different attribute stay separate; a memory that only introduces the entity absorbs the next attribute about it. If the existing memory already states a value and the new memory changes it, that is "supersede" (rule 4), not this.
+
+CARRY FORWARD UNCHANGED DETAILS (every "update" and "supersede"): a memory can hold several details at once, such as one folded from an introduction and an attribute ("User's sister Ana lives in Paris"). content replaces ONLY the value that changed and keeps every other detail of the memory it replaces, the subject's relation to the user and name above all: "Ana lives in London" against "User's sister Ana lives in Paris" is "supersede" with content "User's sister Ana lives in London", never just "Ana lives in London". Name the subject the same way on both sides: here "newSubject" and "targetSubjects" are both "the user's sister Ana".`;
 
 interface ConsolidationCandidate {
   id: string;
@@ -88,6 +98,7 @@ interface ConsolidationResult {
 interface ConsolidateOptions extends PortalLlmAuth {
   baseUrl?: string;
   model?: string;
+  endpointOverride?: string;
   /** Notified on each degraded fallback. See `RetainOptions.consolidateOptions.onFallback`. */
   onFallback?: (reason: ConsolidationFallbackReason) => void;
   /**
@@ -150,14 +161,28 @@ export async function consolidateMemory(
   const candidateText = rows.join("\n");
   const userMessage = `New memory:\n  ${safeTrimmed}\n\nExisting memories (top ${candidates.length} by cosine):\n${candidateText}`;
 
+  const model = options.model ?? DEFAULT_CONSOLIDATION_MODEL;
+  const viaResponses = requiresResponsesTransport(model);
+  const endpointOverride =
+    options.endpointOverride === undefined
+      ? undefined
+      : endpointForTransport(options.endpointOverride, viaResponses ? "responses" : "chat");
   let parsed: unknown;
+  let failure: PortalLlmFailure | undefined;
   try {
     parsed = await callPortalJsonCompletion({
+      onFailure: (f) => {
+        failure = f;
+      },
       ...(options.apiKey !== undefined && { apiKey: options.apiKey }),
       ...(options.getToken !== undefined && { getToken: options.getToken }),
       ...(options.baseUrl !== undefined && { baseUrl: options.baseUrl }),
+      ...(endpointOverride !== undefined && { endpointOverride }),
       taskType: "memory_consolidate",
-      model: options.model ?? DEFAULT_CONSOLIDATION_MODEL,
+      model,
+      ...(viaResponses
+        ? { transport: "responses" as const, reasoning: { effort: "low" as const } }
+        : { transport: "chat" as const }),
       systemPrompt: SYSTEM_PROMPT,
       userMessage,
       tag: "memory/consolidate",
@@ -169,7 +194,7 @@ export async function consolidateMemory(
   } catch (err) {
     return degrade("llm_error", fallback, options, err);
   }
-  if (parsed === null) return degrade("llm_error", fallback, options);
+  if (parsed === null) return degrade(fallbackReasonFor(failure), fallback, options, failure);
 
   const validIds = new Set(candidates.map((c) => c.id));
   const result = validate(parsed, trimmed, validIds);
@@ -182,6 +207,12 @@ export async function consolidateMemory(
     return reportRefusal({ ...result, content: restored.text }, options);
   }
   return reportRefusal(result, options);
+}
+
+function fallbackReasonFor(failure: PortalLlmFailure | undefined): ConsolidationFallbackReason {
+  if (failure?.reason === "time-budget-exhausted") return "llm_timeout";
+  if (failure?.reason === "content-flagged") return "content_flagged";
+  return "llm_error";
 }
 
 function reportRefusal(

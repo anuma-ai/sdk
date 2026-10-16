@@ -1,5 +1,8 @@
+import { createHash } from "node:crypto";
+
 import { describe, expect, it, vi } from "vitest";
 
+import { INTERNAL_FLOW_MARKER } from "../internalFlowMarker";
 import { noopLogger, setLogger } from "../logger";
 import type { NerDetector, PiiSpan } from "../pii/ner";
 import { PiiRedactor } from "../pii/redactor";
@@ -596,6 +599,119 @@ describe("consolidateMemory", () => {
     } as never);
     expect(result).toEqual({ action: "create", content: "new fact", fallbackReason: "llm_error" });
     expect(onFallback).toHaveBeenCalledWith("llm_error");
+  });
+
+  it("defaults to gpt-6-luna on the Responses transport, following an endpoint override", async () => {
+    const fetchFn = mockFetch(choices({ action: "noop", targetId: "m1" }));
+    await consolidateMemory("dup fact", candidates, {
+      apiKey: "k",
+      baseUrl: "https://portal.example",
+      endpointOverride: "/api/v1/utility/chat/completions",
+      fetchFn,
+    });
+    const [url, init] = vi.mocked(fetchFn).mock.calls[0] as [string, RequestInit];
+    expect(url).toBe("https://portal.example/api/v1/utility/responses");
+    const body = JSON.parse(init.body as string) as {
+      model: string;
+      input?: unknown;
+      reasoning?: unknown;
+    };
+    expect(body.model).toBe("openai/gpt-6-luna");
+    expect(body.input).toBeDefined();
+    expect(body.reasoning).toEqual({ effort: "low" });
+  });
+
+  it("keeps the pre-entity-rule prompt as an exact prefix so an older portal registry still matches", async () => {
+    const fetchFn = mockFetch(choices({ action: "noop", targetId: "m1" }));
+    await consolidateMemory("dup fact", candidates, { apiKey: "k", fetchFn });
+    const [, init] = vi.mocked(fetchFn).mock.calls[0] as [string, RequestInit];
+    const body = JSON.parse(init.body as string) as { input: Array<{ content: string }> };
+    const prompt = body.input[0].content.replace(`${INTERNAL_FLOW_MARKER}\n`, "");
+    const prefix = createHash("sha256").update(prompt.slice(0, 7403)).digest("hex");
+    expect(prefix).toBe("9285d62fc7725d6791f985efdef3cfd56046e8aaf738be1d8dbc191e11826dbf");
+    expect(prompt.slice(7403)).toMatch(/^\n\nADDING TO AN INTRODUCED ENTITY/);
+    expect(createHash("sha256").update(prompt).digest("hex")).toBe(
+      "41c65e493cd601a1004b8d040258f28d0e270c53ee79aafd6530f2d7e6f2296b"
+    );
+  });
+
+  it.each([
+    [undefined, "/api/v1/utility/chat/completions/", "/api/v1/utility/responses"],
+    [undefined, "/api/v1/utility/chat/completions?trace=1", "/api/v1/utility/responses?trace=1"],
+    ["gpt-oss/gpt-oss-120b", "/api/v1/utility/responses", "/api/v1/utility/chat/completions"],
+    ["gpt-oss/gpt-oss-120b", "/api/v1/utility/responses/", "/api/v1/utility/chat/completions"],
+  ])(
+    "sends model %s with override %s to the transport's own endpoint %s",
+    async (model, override, expected) => {
+      const fetchFn = mockFetch(choices({ action: "noop", targetId: "m1" }));
+      const result = await consolidateMemory("dup fact", candidates, {
+        apiKey: "k",
+        baseUrl: "https://portal.example",
+        endpointOverride: override,
+        ...(model !== undefined && { model }),
+        fetchFn,
+      });
+      expect(fetchFn).toHaveBeenCalledTimes(1);
+      expect(vi.mocked(fetchFn).mock.calls[0][0]).toBe(`https://portal.example${expected}`);
+      expect(result.fallbackReason).toBeUndefined();
+    }
+  );
+
+  it("keeps a chat-transport model override on chat completions with no reasoning", async () => {
+    const fetchFn = mockFetch(choices({ action: "noop", targetId: "m1" }));
+    await consolidateMemory("dup fact", candidates, {
+      apiKey: "k",
+      baseUrl: "https://portal.example",
+      model: "gpt-oss/gpt-oss-120b",
+      fetchFn,
+    });
+    const [url, init] = vi.mocked(fetchFn).mock.calls[0] as [string, RequestInit];
+    expect(url).toBe("https://portal.example/api/v1/chat/completions");
+    expect(JSON.parse(init.body as string)).not.toHaveProperty("reasoning");
+  });
+
+  it("reports a call that ran out of its time budget as llm_timeout", async () => {
+    const fetchFn = vi.fn(
+      (_url: string, init: RequestInit) =>
+        new Promise((_resolve, reject) => {
+          init.signal?.addEventListener("abort", () => reject(new Error("aborted")));
+        })
+    ) as unknown as typeof fetch;
+    const onFallback = vi.fn();
+    const result = await consolidateMemory("new fact", candidates, {
+      apiKey: "k",
+      fetchFn,
+      onFallback,
+      totalTimeoutMs: 50,
+      backoffMs: () => 0,
+    });
+    expect(result).toEqual({
+      action: "create",
+      content: "new fact",
+      fallbackReason: "llm_timeout",
+    });
+    expect(onFallback).toHaveBeenCalledWith("llm_timeout");
+  });
+
+  it("degrades once on a moderation refusal, without retrying, as content_flagged", async () => {
+    const fetchFn = mockFetch({
+      id: "moderation",
+      choices: [{ message: { content: "This request violates the terms of service." } }],
+    });
+    const onFallback = vi.fn();
+    const result = await consolidateMemory("new fact", candidates, {
+      apiKey: "k",
+      fetchFn,
+      onFallback,
+      backoffMs: () => 0,
+    });
+    expect(result).toEqual({
+      action: "create",
+      content: "new fact",
+      fallbackReason: "content_flagged",
+    });
+    expect(fetchFn).toHaveBeenCalledTimes(1);
+    expect(onFallback).toHaveBeenCalledWith("content_flagged");
   });
 
   it("notifies onFallback with llm_error on LLM failure", async () => {
