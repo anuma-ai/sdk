@@ -352,6 +352,14 @@ const FOREIGN_ENDPOINT_SUFFIX: Record<PortalLlmTransport, string> = {
   responses: "/chat/completions",
 };
 
+export function endpointForTransport(endpoint: string, transport: PortalLlmTransport): string {
+  const { path, rest } = splitEndpoint(endpoint);
+  const foreign = FOREIGN_ENDPOINT_SUFFIX[transport];
+  if (!path.endsWith(foreign)) return endpoint;
+  const own = FOREIGN_ENDPOINT_SUFFIX[transport === "chat" ? "responses" : "chat"];
+  return `${path.slice(0, -foreign.length)}${own}${rest}`;
+}
+
 function assertTransportMatchesEndpoint(transport: PortalLlmTransport, endpoint: string): void {
   const foreign = FOREIGN_ENDPOINT_SUFFIX[transport];
   if (!splitEndpoint(endpoint).path.endsWith(foreign)) return;
@@ -461,10 +469,7 @@ export async function callPortalJsonCompletion(req: PortalLlmRequest): Promise<u
       throw new Error(overrideValidation.message);
     }
     endpoint = overrideValidation.endpoint;
-    const { path, rest } = splitEndpoint(endpoint);
-    if (autoUpgraded && path.endsWith("/chat/completions")) {
-      endpoint = `${path.slice(0, -"/chat/completions".length)}/responses${rest}`;
-    }
+    if (autoUpgraded) endpoint = endpointForTransport(endpoint, transport);
     assertTransportMatchesEndpoint(transport, endpoint);
   }
   const maxAttempts = Math.max(1, req.maxAttempts ?? 3);
