@@ -559,6 +559,8 @@ export type RetainSource = "manual" | "auto-extracted" | "capsule";
  */
 export type ConsolidationFallbackReason =
   | "llm_error"
+  | "llm_timeout"
+  | "content_flagged"
   | "invalid_response"
   | "target_vanished"
   /**
@@ -600,6 +602,7 @@ export interface RetainOptions {
   consolidateOptions?: PortalLlmAuth & {
     baseUrl?: string;
     model?: string;
+    endpointOverride?: string;
     /**
      * Invoked when the consolidator degrades to its "create" fallback
      * instead of returning a real decision — `llm_error` for network /
