@@ -218,6 +218,8 @@ export interface EmbeddingRepairOptions {
   maxRows?: number;
   /** Most memories one run inspects. Default 2000. */
   maxScan?: number;
+  /** Where to resume the scan, from a previous result. Defaults to where this store's last run stopped. */
+  cursor?: string;
 }
 
 /** @public */
@@ -226,6 +228,8 @@ export interface EmbeddingRepairResult {
   reembedded: number;
   failed: number;
   skippedConflict: number;
+  /** Where the next run resumes; absent when the next run starts over from the newest memory. */
+  cursor?: string;
 }
 
 /**

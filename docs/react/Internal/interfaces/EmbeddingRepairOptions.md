@@ -4,6 +4,16 @@ Defined in: [src/lib/memory/store/types.ts:216](https://github.com/anuma-ai/sdk/
 
 ## Properties
 
+### cursor?
+
+> `optional` **cursor**: `string`
+
+Defined in: [src/lib/memory/store/types.ts:222](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#222)
+
+Where to resume the scan, from a previous result. Defaults to where this store's last run stopped.
+
+***
+
 ### maxRows?
 
 > `optional` **maxRows**: `number`

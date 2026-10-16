@@ -1,14 +1,24 @@
 # EmbeddingRepairResult
 
-Defined in: [src/lib/memory/store/types.ts:224](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#224)
+Defined in: [src/lib/memory/store/types.ts:226](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#226)
 
 ## Properties
+
+### cursor?
+
+> `optional` **cursor**: `string`
+
+Defined in: [src/lib/memory/store/types.ts:232](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#232)
+
+Where the next run resumes; absent when the next run starts over from the newest memory.
+
+***
 
 ### failed
 
 > **failed**: `number`
 
-Defined in: [src/lib/memory/store/types.ts:227](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#227)
+Defined in: [src/lib/memory/store/types.ts:229](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#229)
 
 ***
 
@@ -16,7 +26,7 @@ Defined in: [src/lib/memory/store/types.ts:227](https://github.com/anuma-ai/sdk/
 
 > **reembedded**: `number`
 
-Defined in: [src/lib/memory/store/types.ts:226](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#226)
+Defined in: [src/lib/memory/store/types.ts:228](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#228)
 
 ***
 
@@ -24,7 +34,7 @@ Defined in: [src/lib/memory/store/types.ts:226](https://github.com/anuma-ai/sdk/
 
 > **scanned**: `number`
 
-Defined in: [src/lib/memory/store/types.ts:225](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#225)
+Defined in: [src/lib/memory/store/types.ts:227](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#227)
 
 ***
 
@@ -32,4 +42,4 @@ Defined in: [src/lib/memory/store/types.ts:225](https://github.com/anuma-ai/sdk/
 
 > **skippedConflict**: `number`
 
-Defined in: [src/lib/memory/store/types.ts:228](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#228)
+Defined in: [src/lib/memory/store/types.ts:230](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#230)

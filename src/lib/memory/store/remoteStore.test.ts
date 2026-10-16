@@ -1347,9 +1347,9 @@ describe("default recall lanes", () => {
 });
 
 describe("repairEmbeddings", () => {
-  async function repairStore() {
+  async function repairStore(shared?: ReturnType<typeof fakeNearby>) {
     const keys = await deriveMemoryKeyRing(`0x${"d4".repeat(65)}`);
-    const server = fakeNearby(keys.keyId);
+    const server = shared ?? fakeNearby(keys.keyId);
     const cipher = memoryCipher(keys);
     const decrypt = vi.fn(cipher.decrypt);
     const persistence = await createRemoteMemoryPersistence({
@@ -1366,7 +1366,7 @@ describe("repairEmbeddings", () => {
       graphRanking: async () => [],
       temporalRanking: async () => [],
     });
-    let seq = 0;
+    let seq = server.rows.size;
     const seed = async (id: string, text: string, extra: Record<string, unknown> = {}) => {
       seq++;
       server.rows.set(id, {
@@ -1458,6 +1458,51 @@ describe("repairEmbeddings", () => {
       skippedConflict: 1,
     });
     expect(server.rows.get("raced")!.memory.embedding).toBeUndefined();
+  });
+
+  it("reaches stale rows older than one run's scan on later runs", async () => {
+    const { store, server, seed, current } = await repairStore();
+    await seed("old", "Grew up in Seoul");
+    for (let i = 0; i < 4; i++) await seed(`new${i}`, `Recent memory ${i}`, current);
+
+    const first = await store.repairEmbeddings!({ maxScan: 2 });
+    expect(first).toMatchObject({ scanned: 2, reembedded: 0 });
+    expect(first.cursor).toBeDefined();
+    await expect(store.repairEmbeddings!({ maxScan: 2 })).resolves.toMatchObject({
+      reembedded: 0,
+    });
+    const third = await store.repairEmbeddings!({ maxScan: 2 });
+    expect(third).toMatchObject({ scanned: 1, reembedded: 1 });
+    expect(third.cursor).toBeUndefined();
+    expect(server.rows.get("old")!.memory.embedding_model).toBe(DEFAULT_API_EMBEDDING_MODEL);
+  });
+
+  it("resumes from a returned cursor on a new store instance", async () => {
+    const first = await repairStore();
+    await first.seed("old", "Grew up in Seoul");
+    for (let i = 0; i < 2; i++) await first.seed(`new${i}`, `Recent memory ${i}`, first.current);
+    const { cursor } = await first.store.repairEmbeddings!({ maxScan: 2 });
+
+    const second = await repairStore(first.server);
+    await expect(second.store.repairEmbeddings!({ maxScan: 2, cursor })).resolves.toMatchObject({
+      scanned: 1,
+      reembedded: 1,
+    });
+  });
+
+  it("rescans a window that held more stale rows than one run repairs", async () => {
+    const { store, server, seed } = await repairStore();
+    for (let i = 0; i < 3; i++) await seed(`m${i}`, `Memory number ${i}`);
+    for (let i = 0; i < 2; i++) await seed(`n${i}`, `Newer memory ${i}`);
+
+    const first = await store.repairEmbeddings!({ maxScan: 2, maxRows: 1 });
+    expect(first).toMatchObject({ reembedded: 1 });
+    expect(first.cursor).toBeUndefined();
+    const second = await store.repairEmbeddings!({ maxScan: 2, maxRows: 1 });
+    expect(second).toMatchObject({ reembedded: 1 });
+    expect(second.cursor).toBeDefined();
+    expect(server.rows.get("n0")!.memory.embedding_model).toBe(DEFAULT_API_EMBEDDING_MODEL);
+    expect(server.rows.get("n1")!.memory.embedding_model).toBe(DEFAULT_API_EMBEDDING_MODEL);
   });
 
   it("bounds how many rows one run inspects and re-embeds", async () => {

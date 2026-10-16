@@ -835,27 +835,38 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
   };
 
   const unrepairable = new Set<string>();
+  let repairCursor: string | undefined;
   const repairEmbeddings = async ({
     maxRows = REPAIR_ROWS,
     maxScan = REPAIR_SCAN,
+    cursor: start = repairCursor,
   }: EmbeddingRepairOptions = {}): Promise<EmbeddingRepairResult> => {
-    const scannedRows = await pages(
-      metadata,
-      {
+    const scannedRows: RemoteMemoryMetadataRecord[] = [];
+    let cursor = start;
+    do {
+      const page = await metadata({
         include_deleted: true,
         include_archived: true,
         include_quarantined: true,
         include_superseded: true,
-      },
-      maxScan
+        limit: Math.min(200, Math.max(1, maxScan - scannedRows.length)),
+        ...(cursor && { cursor }),
+      });
+      scannedRows.push(...page.items);
+      cursor = page.next_cursor;
+    } while (cursor && scannedRows.length < maxScan);
+    const allStale = scannedRows.filter(
+      ({ memory }) => memory.embedding_model !== model && !unrepairable.has(memory.memory_id)
     );
-    const result = { scanned: scannedRows.length, reembedded: 0, failed: 0, skippedConflict: 0 };
-    const stale = scannedRows
-      .filter(
-        ({ memory }) => memory.embedding_model !== model && !unrepairable.has(memory.memory_id)
-      )
-      .slice(0, maxRows)
-      .map(({ memory }) => memory.memory_id);
+    repairCursor = allStale.length > maxRows ? start : cursor;
+    const result = {
+      scanned: scannedRows.length,
+      reembedded: 0,
+      failed: 0,
+      skippedConflict: 0,
+      ...(repairCursor && { cursor: repairCursor }),
+    };
+    const stale = allStale.slice(0, maxRows).map(({ memory }) => memory.memory_id);
     if (stale.length === 0) return result;
     const { records, unreadable } = await readEveryState(stale);
     result.failed += unreadable.size;
