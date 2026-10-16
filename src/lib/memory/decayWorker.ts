@@ -168,12 +168,75 @@ function isBorderline(input: DecayInput): boolean {
   return false;
 }
 
+export interface DecaySweepBackend {
+  candidates(): Promise<DecayCandidateRaw[]>;
+  archive(rows: readonly DecayCandidateRaw[], now: number): Promise<ReadonlySet<string>>;
+  hardDelete(
+    rows: readonly DecayCandidateRaw[],
+    options: { hardDeleteWindowMs: number; now: number }
+  ): Promise<ReadonlySet<string>>;
+}
+
+type DecaySweepOptions = Omit<CreateDecaySweeperOptions, "vaultCtx"> & {
+  maxTransitionsPerSweep?: number;
+};
+
+function vaultDecayBackend(vaultCtx: VaultMemoryOperationsContext): DecaySweepBackend {
+  return {
+    candidates: () => getDecayCandidatesRawOp(vaultCtx),
+    archive: async (rows, now) => {
+      const archived = new Set<string>();
+      for (const c of rows) {
+        const ok = await archiveVaultMemoryOp(vaultCtx, c.uniqueId, {
+          now,
+          expectedUpdatedAt: c.updatedAt,
+          expectedLastObservedAt: c.lastObservedAt ?? null,
+        });
+        if (ok) archived.add(c.uniqueId);
+      }
+      return archived;
+    },
+    hardDelete: async (rows, deleteOptions) => {
+      const deleted = new Set<string>();
+      for (const c of rows) {
+        if (await hardDeleteDecayedOp(vaultCtx, c.uniqueId, deleteOptions)) deleted.add(c.uniqueId);
+      }
+      return deleted;
+    },
+  };
+}
+
 /**
  * Create a decay sweeper. See module docstring for the zero-knowledge contract.
  */
 export function createDecaySweeper(options: CreateDecaySweeperOptions): DecaySweeper {
-  const { vaultCtx, policy, classifier, onSwept, onError } = options;
+  const { vaultCtx, ...sweepOptions } = options;
   assertVaultScopeForSweep(vaultCtx);
+  return createDecaySweeperOver(vaultDecayBackend(vaultCtx), sweepOptions);
+}
+
+export function ruleBasedDecayOptions(
+  options: Pick<CreateDecaySweeperOptions, "now" | "policy" | "onSwept" | "onError"> = {}
+): DecaySweepOptions {
+  if ((options as { classifier?: unknown }).classifier !== undefined)
+    throw new Error(
+      "MemoryStore.decay sweeps by rule only; a decay classifier needs decrypted content"
+    );
+  const { now, policy, onSwept, onError } = options;
+  return {
+    ...(now !== undefined && { now }),
+    ...(policy && { policy }),
+    ...(onSwept && { onSwept }),
+    ...(onError && { onError }),
+  };
+}
+
+export function createDecaySweeperOver(
+  backend: DecaySweepBackend,
+  options: DecaySweepOptions
+): DecaySweeper {
+  const { policy, classifier, onSwept, onError } = options;
+  const maxTransitions = options.maxTransitionsPerSweep ?? Number.POSITIVE_INFINITY;
   const hardDeleteWindowMs = policy?.hardDeleteWindowMs ?? DEFAULT_DECAY_POLICY.hardDeleteWindowMs;
   const maxClassifierCalls =
     options.maxClassifierCallsPerSweep ?? DEFAULT_MAX_CLASSIFIER_CALLS_PER_SWEEP;
@@ -236,7 +299,7 @@ export function createDecaySweeper(options: CreateDecaySweeperOptions): DecaySwe
 
     let candidates: DecayCandidateRaw[];
     try {
-      candidates = await getDecayCandidatesRawOp(vaultCtx);
+      candidates = await backend.candidates();
     } catch (err) {
       onError?.(err instanceof Error ? err : new Error(String(err)));
       return emptyResult();
@@ -268,25 +331,41 @@ export function createDecaySweeper(options: CreateDecaySweeperOptions): DecaySwe
     result.scanned = candidates.length;
     result.classifierCalls = sweep.classifierCalls;
     result.classifierCapHits = sweep.classifierCapHits;
+    let landed = 0;
+    const apply = async (
+      queue: typeof toArchive,
+      run: (rows: DecayCandidateRaw[]) => Promise<ReadonlySet<string>>,
+      count: (source: "ruleDriven" | "classifierDriven") => void
+    ) => {
+      let next = 0;
+      while (next < queue.length && landed < maxTransitions) {
+        const batch = queue.slice(next, next + (maxTransitions - landed));
+        next += batch.length;
+        const done = await run(batch.map(({ candidate }) => candidate));
+        for (const { candidate, source } of batch) {
+          if (!done.has(candidate.uniqueId)) continue;
+          landed++;
+          count(source);
+        }
+      }
+    };
     try {
-      for (const { candidate: c, source } of toArchive) {
-        const ok = await archiveVaultMemoryOp(vaultCtx, c.uniqueId, {
-          now,
-          expectedUpdatedAt: c.updatedAt,
-          expectedLastObservedAt: c.lastObservedAt ?? null,
-        });
-        if (ok) {
+      await apply(
+        toArchive,
+        (rows) => backend.archive(rows, now),
+        (source) => {
           result.archived++;
           result[source].archived++;
         }
-      }
-      for (const { candidate: c, source } of toDelete) {
-        const ok = await hardDeleteDecayedOp(vaultCtx, c.uniqueId, { hardDeleteWindowMs, now });
-        if (ok) {
+      );
+      await apply(
+        toDelete,
+        (rows) => backend.hardDelete(rows, { hardDeleteWindowMs, now }),
+        (source) => {
           result.deleted++;
           result[source].deleted++;
         }
-      }
+      );
     } catch (err) {
       onError?.(err instanceof Error ? err : new Error(String(err)));
     }

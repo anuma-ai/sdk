@@ -418,6 +418,8 @@ export {
   type EmbeddingRepairOptions,
   type EmbeddingRepairResult,
   type LocalMemoryStoreOptions,
+  type MemoryDecay,
+  type MemoryDecaySweeperOptions,
   type MemoryListOptions,
   type MemoryMaintenance,
   type MemoryRecallOptions,

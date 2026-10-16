@@ -40,6 +40,8 @@ export interface MemoryListOptions {
   includeQuarantined?: boolean;
   /** Memory history — rows carry `supersededBy`. */
   includeSuperseded?: boolean;
+  /** `false` lets a remote store skip downloading vectors; its rows then carry a null `embedding`. */
+  withEmbeddings?: boolean;
 }
 
 /**
@@ -155,6 +157,21 @@ export interface MemorySubscribeOptions {
    * Ignored when `includeDeleted` is `true`, which remains membership-only.
    */
   embeddings?: boolean;
+}
+
+/** @public */
+export type MemoryDecaySweeperOptions = Pick<
+  CreateDecaySweeperOptions,
+  "now" | "policy" | "onSwept" | "onError"
+>;
+
+/**
+ * Rule-based memory decay over a store's metadata, on any backend.
+ * @public
+ */
+export interface MemoryDecay {
+  /** A rule-based decay sweeper over this store's memories. */
+  createDecaySweeper(options?: MemoryDecaySweeperOptions): DecaySweeper;
 }
 
 /**
@@ -314,6 +331,8 @@ export interface MemoryStore {
 
   /** TRANSITIONAL — see {@link MemoryMaintenance}. Absent on a remote backend. */
   maintenance?: MemoryMaintenance;
+  /** Rule-based decay, available without the local-only {@link MemoryMaintenance}. */
+  readonly decay?: MemoryDecay;
   /** Topic-extraction upkeep, available on every backend. */
   readonly topicMaintenance: MemoryTopicMaintenance;
 }

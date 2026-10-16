@@ -9,6 +9,7 @@ import {
   type StoredEntity,
   type StoredTopic,
 } from "../../db/entities/types.js";
+import type { DecayCandidateRaw } from "../../db/memoryVault/operations.js";
 import {
   assertValidKindLevel,
   resolveCreateLevel,
@@ -32,6 +33,11 @@ import {
   isFatalEmbeddingError,
 } from "../../memoryEngine/embeddings.js";
 import type { EmbeddingOptions } from "../../memoryEngine/types.js";
+import {
+  createDecaySweeperOver,
+  type DecaySweepBackend,
+  ruleBasedDecayOptions,
+} from "../decayWorker.js";
 import { NODE_BUDGET } from "../graphTraversal.js";
 import type { PortalLlmFailure } from "../portalLlm.js";
 import { extractQueryEntities } from "../queryEntities.js";
@@ -128,6 +134,7 @@ const GRAPH_LANE_ROWS = 256;
 const TEMPORAL_LANE_ROWS = 256;
 const REPAIR_ROWS = 50;
 const REPAIR_SCAN = 2000;
+const DECAY_TRANSITIONS_PER_SWEEP = 200;
 
 export class RemoteMemoryPartialCreateError extends Error {
   constructor(
@@ -372,7 +379,7 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
     ).flat();
   const listFilters = (listOptions: MemoryListOptions): ListFilters => ({
     ...stateFilters(listOptions),
-    include_embeddings: true,
+    include_embeddings: listOptions.withEmbeddings !== false,
     order: listOptions.since ? "updated" : "created",
     ...(listOptions.scopes?.length && { scopes: listOptions.scopes }),
     ...(listOptions.factTypes?.length && { fact_types: listOptions.factTypes }),
@@ -753,6 +760,56 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
     },
     relinkTopics: () => Promise.resolve([]),
     backfillTopics: () => Promise.resolve([]),
+  };
+
+  const decayRow = (memory: RemoteMemoryMetadataRecord["memory"]): DecayCandidateRaw => ({
+    uniqueId: memory.memory_id,
+    factType: memory.fact_type ?? null,
+    eventTimeEnd: memory.event_time_end ?? null,
+    eventTimeKind: memory.event_time_kind ?? null,
+    updatedAt: memory.updated_at,
+    lastObservedAt: memory.last_observed_at ?? null,
+    archivedAt: memory.archived_at ?? null,
+    source: memory.source ?? null,
+    trustTier: memory.trust_tier ?? null,
+  });
+  const decayWrite = async (
+    rows: readonly DecayCandidateRaw[],
+    change: Change,
+    edit: (memory: RemoteMemoryRow, seen: DecayCandidateRaw) => RemoteMemoryRow | null
+  ) => {
+    if (rows.length === 0) return new Set<string>();
+    const seen = new Map(rows.map((row) => [row.uniqueId, row]));
+    const { saved, failed } = await mutateMany(
+      [...seen.keys()],
+      () => change,
+      (memory) => edit(memory, seen.get(memory.memory_id)!)
+    );
+    if (failed.size)
+      getLogger().warn("[memory/remote-store] Decay skipped memories:", [...failed.values()]);
+    return new Set(saved.keys());
+  };
+  const decayBackend: DecaySweepBackend = {
+    candidates: async () =>
+      (await pages(metadata, { include_archived: true, include_quarantined: true }))
+        .filter(({ memory }) => memory.kind === undefined || memory.kind === null)
+        .map(({ memory }) => decayRow(memory)),
+    archive: (rows, now) =>
+      decayWrite(rows, "edit", (memory, seen) =>
+        (memory.archived_at ?? null) === null &&
+        memory.updated_at === seen.updatedAt &&
+        (memory.last_observed_at ?? null) === (seen.lastObservedAt ?? null)
+          ? { ...memory, archived_at: now }
+          : null
+      ),
+    hardDelete: (rows, { hardDeleteWindowMs, now }) =>
+      decayWrite(rows, "membership", (memory) =>
+        memory.archived_at !== undefined &&
+        memory.archived_at !== null &&
+        now - memory.archived_at > hardDeleteWindowMs
+          ? { ...memory, is_deleted: true }
+          : null
+      ),
   };
 
   const everyState = {
@@ -1152,6 +1209,14 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
       if (result.action === "create" || result.action === "supersede") notify("membership");
       else if (result.action === "update" || result.action === "merge") notify("edit");
       return result;
+    },
+
+    decay: {
+      createDecaySweeper: (sweeperOptions) =>
+        createDecaySweeperOver(decayBackend, {
+          ...ruleBasedDecayOptions(sweeperOptions),
+          maxTransitionsPerSweep: DECAY_TRANSITIONS_PER_SWEEP,
+        }),
     },
 
     subscribe: (onChange, subscribeOptions = {}) => {

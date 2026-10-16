@@ -1282,6 +1282,18 @@ Re-exports [MemoryCreate](../react/Internal/type-aliases/MemoryCreate.md)
 
 ***
 
+### MemoryDecay
+
+Re-exports [MemoryDecay](../react/Internal/interfaces/MemoryDecay.md)
+
+***
+
+### MemoryDecaySweeperOptions
+
+Re-exports [MemoryDecaySweeperOptions](../react/Internal/type-aliases/MemoryDecaySweeperOptions.md)
+
+***
+
 ### MemoryEngineEmbeddingOptions
 
 Re-exports [MemoryEngineEmbeddingOptions](../react/Internal/interfaces/MemoryEngineEmbeddingOptions.md)

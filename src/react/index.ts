@@ -507,6 +507,8 @@ export {
   type LocalMemoryStoreOptions,
   memoryCipher,
   type MemoryCreate,
+  type MemoryDecay,
+  type MemoryDecaySweeperOptions,
   MemoryKeyError,
   type MemoryKeyRing,
   type MemoryListOptions,

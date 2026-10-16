@@ -152,6 +152,8 @@ export type {
   EmbeddingRepairOptions,
   EmbeddingRepairResult,
   MemoryCreate,
+  MemoryDecay,
+  MemoryDecaySweeperOptions,
   MemoryListOptions,
   MemoryMaintenance,
   MemoryRecallOptions,

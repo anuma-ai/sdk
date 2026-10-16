@@ -59,6 +59,7 @@ runMemoryStoreContract((overrides) =>
   createLocalMemoryStore({
     database: makeDatabase(),
     embeddingOptions: { ...embeddingOptions, ...overrides },
+    singleTenant: true,
   })
 );
 
