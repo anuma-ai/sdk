@@ -156,12 +156,13 @@ jobs:
       # `loadLongMemEvalDataset` fetches on demand, so the eval pulls oracle
       # itself on a cold cache and reuses it on every warm one.
       - name: Restore longmemeval cache (oracle dataset + embeddings)
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: |
             ~/.cache/longmemeval/embedding-cache-*.json
             ~/.cache/longmemeval/longmemeval_oracle.json
-          key: longmemeval-recall-gate-v1
+          key: longmemeval-recall-gate-v2-${{ github.run_id }}
+          restore-keys: longmemeval-recall-gate-v2-
 
       # The pinned bounded config. Every knob here is RECORDED in the baseline
       # and the harness refuses to gate on a mismatch, so changing any of them
@@ -241,6 +242,15 @@ jobs:
           name: recall-eval-results
           path: results.json
           if-no-files-found: ignore
+
+      - name: Save longmemeval cache (oracle dataset + embeddings)
+        if: always() && github.event_name == 'push'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cache/longmemeval/embedding-cache-*.json
+            ~/.cache/longmemeval/longmemeval_oracle.json
+          key: longmemeval-recall-gate-v2-${{ github.run_id }}
 
   # Reports this gate's outcome as one stable line. See the advisory note on
   # the pull_request trigger for why it is not a required check today.
