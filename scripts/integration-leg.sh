@@ -14,14 +14,13 @@ workspace_flag=()
 tarball=$(ls /tmp/sdk-pack/sdk-"$ref"/*.tgz)
 
 install_sdk() (
-  set -e
   if [ -n "${NPM_TOKEN:-}" ]; then
     cp .npmrc "$dir.npmrc.orig" 2>/dev/null || : > "$dir.npmrc.orig"
     trap 'cp "$dir.npmrc.orig" .npmrc; rm -f "$dir.npmrc.orig"' EXIT
     echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" >> .npmrc
   fi
-  "$pm" install
-  "$pm" add "${workspace_flag[@]}" "$tarball"
+  "$pm" install || exit 1
+  "$pm" add "${workspace_flag[@]}" "$tarball" || exit 1
 )
 
 build=failure
