@@ -324,6 +324,21 @@ describe("useEncryption - Key Pair Generation", () => {
     });
   });
 
+  it("a listener removed after a clear does not unsubscribe one registered since", async () => {
+    const address = "0x3333333333333333333333333333333333333333";
+    const stale = onKeyAvailable(address, vi.fn());
+    clearAllEncryptionState();
+    const fresh = vi.fn();
+    const unsubscribeFresh = onKeyAvailable(address, fresh);
+    stale();
+    await act(async () => {
+      await requestEncryptionKey(address, mockSignMessage);
+    });
+    expect(fresh).toHaveBeenCalledOnce();
+    unsubscribeFresh();
+    clearAllEncryptionState();
+  });
+
   describe("clearAllEncryptionState", () => {
     it("wipes encryption keys, key pairs, persisted key pairs, and availability listeners", async () => {
       const address1 = "0x1111111111111111111111111111111111111111";

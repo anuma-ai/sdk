@@ -1,4 +1,4 @@
-import { appSchema, Database } from "@nozbe/watermelondb";
+import { appSchema, Database, Q } from "@nozbe/watermelondb";
 import LokiJSAdapter from "@nozbe/watermelondb/adapters/lokijs";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { sdkSchema, sdkModelClasses } from "../db/schema";
@@ -26,6 +26,7 @@ import {
 import { ExtractionJob } from "../db/extractionJobs/models";
 import { extractAndRetain } from "./autoExtract";
 import { createDurableAutoExtractor } from "./durableExtraction";
+import { clearEncryptionKey, seedEncryptionKeys } from "../../react/useEncryption";
 
 vi.mock("./autoExtract", () => ({ extractAndRetain: vi.fn() }));
 vi.mock("../db/chat/operations", async (importOriginal) => {
@@ -480,30 +481,152 @@ describe("durable extraction outbox", () => {
     expect(extractAndRetain).not.toHaveBeenCalled();
     worker.dispose();
   });
-  it.each(["missing", "locked"] as const)(
-    "retries a %s source without acknowledging it",
-    async (reason) => {
+  it("retries a missing source without acknowledging it", async () => {
+    await conversation();
+    vi.mocked(getMessageOp).mockResolvedValueOnce(null);
+    const onError = vi.fn(() => {
+      throw new Error("diagnostics failed");
+    });
+    const worker = createDurableAutoExtractor({ ...options(), retryDelayMs: 100, onError });
+    worker.processTurn(messages.slice(0, 1), "conversation");
+    await vi.waitFor(() => expect(onError).toHaveBeenCalledOnce());
+    expect(extractAndRetain).not.toHaveBeenCalled();
+    const [job] = await db.get<ExtractionJob>(ExtractionJob.table).query().fetch();
+    expect(job._getRaw("message_ids")).toBe('["m0"]');
+    await vi.waitFor(() => expect(job._getRaw("message_ids")).toBe("[]"));
+    expect(extractAndRetain).toHaveBeenCalledOnce();
+    worker.dispose();
+  });
+
+  describe("a source locked only because the key is not loaded yet", () => {
+    const ADDRESS = `0x${"b".repeat(40)}`;
+    let keyReady = false;
+    const keyedOptions = () => ({
+      ...options(),
+      retainCtx: { ...options().retainCtx, vaultCtx: { ...ctx, walletAddress: ADDRESS } },
+    });
+    async function lockUntilKey() {
       await conversation();
+      keyReady = false;
       const stored = await getMessageOp(storage(), "m0");
-      vi.mocked(getMessageOp).mockResolvedValueOnce(
-        reason === "missing"
-          ? null
-          : { ...stored!, content: CIPHERTEXT, decryptionStatus: "key_missing" }
+      vi.mocked(getMessageOp).mockImplementation(async (storageCtx, id) =>
+        id === "m0" && !keyReady
+          ? { ...stored!, content: CIPHERTEXT, decryptionStatus: "key_missing" }
+          : realGetMessageOp(storageCtx, id)
       );
-      const onError = vi.fn(() => {
-        throw new Error("diagnostics failed");
-      });
-      const worker = createDurableAutoExtractor({ ...options(), retryDelayMs: 100, onError });
-      worker.processTurn(messages.slice(0, 1), "conversation");
-      await vi.waitFor(() => expect(onError).toHaveBeenCalledOnce());
-      expect(extractAndRetain).not.toHaveBeenCalled();
-      const [job] = await db.get<ExtractionJob>(ExtractionJob.table).query().fetch();
-      expect(job._getRaw("message_ids")).toBe('["m0"]');
-      await vi.waitFor(() => expect(job._getRaw("message_ids")).toBe("[]"));
-      expect(extractAndRetain).toHaveBeenCalledOnce();
-      worker.dispose();
     }
-  );
+
+    it("waits without retrying, says why, and extracts as soon as the key arrives", async () => {
+      await lockUntilKey();
+      const onError = vi.fn();
+      const worker = createDurableAutoExtractor({ ...keyedOptions(), onError });
+      try {
+        worker.processTurn(messages.slice(0, 1), "conversation");
+        await vi.waitFor(() => expect(onError).toHaveBeenCalledOnce());
+        expect(String(onError.mock.calls[0][0].message)).toBe(
+          "Source messages are locked; retained for retry (key_missing:v2=1)"
+        );
+        await new Promise((resolve) => setTimeout(resolve, 60));
+        expect(onError).toHaveBeenCalledOnce();
+        expect(extractAndRetain).not.toHaveBeenCalled();
+
+        keyReady = true;
+        seedEncryptionKeys(ADDRESS, { current: "c".repeat(64) });
+        await vi.waitFor(() => expect(extractAndRetain).toHaveBeenCalledOnce());
+        const [job] = await db.get<ExtractionJob>(ExtractionJob.table).query().fetch();
+        await vi.waitFor(() => expect(job._getRaw("message_ids")).toBe("[]"));
+      } finally {
+        worker.dispose();
+        clearEncryptionKey(ADDRESS);
+      }
+    });
+
+    it("does not park on a stale read when the key lands while the batch is still reading", async () => {
+      await conversation();
+      keyReady = false;
+      const stored = await getMessageOp(storage(), "m0");
+      let releaseM1!: () => void;
+      const m1Held = new Promise<void>((resolve) => (releaseM1 = resolve));
+      let m1Reads = 0;
+      vi.mocked(getMessageOp).mockImplementation(async (storageCtx, id) => {
+        if (id === "m0" && !keyReady)
+          return { ...stored!, content: CIPHERTEXT, decryptionStatus: "key_missing" };
+        if (id === "m1" && ++m1Reads === 1) await m1Held;
+        return realGetMessageOp(storageCtx, id);
+      });
+      const worker = createDurableAutoExtractor({ ...keyedOptions(), onError: vi.fn() });
+      try {
+        worker.processTurn(messages.slice(0, 2), "conversation");
+        await vi.waitFor(() => expect(m1Reads).toBe(1));
+        keyReady = true;
+        seedEncryptionKeys(ADDRESS, { current: "c".repeat(64) });
+        releaseM1();
+        await vi.waitFor(() => expect(extractAndRetain).toHaveBeenCalledOnce());
+        expect(vi.mocked(extractAndRetain).mock.calls[0][0].map((m) => m.id)).toEqual(["m0", "m1"]);
+      } finally {
+        worker.dispose();
+        clearEncryptionKey(ADDRESS);
+      }
+    });
+
+    it("drains a waiting job at once when the key lands behind another turn's debounce", async () => {
+      await lockUntilKey();
+      await db.write(async () => {
+        await db.get<Conversation>("conversations").create((r) => {
+          r._setRaw("conversation_id", "other");
+          r._setRaw("is_deleted", false);
+        });
+        await db.get<Message>("history").create((row) => {
+          row._raw.id = "n0";
+          row._setRaw("conversation_id", "other");
+          row._setRaw("message_id", 1);
+          row._setRaw("role", "user");
+          row._setRaw("content", "another chat");
+        });
+      });
+      const onError = vi.fn();
+      const worker = createDurableAutoExtractor({ ...keyedOptions(), debounceMs: 60_000, onError });
+      try {
+        worker.processTurn(messages.slice(0, 1), "conversation");
+        await vi.waitFor(() => expect(onError).toHaveBeenCalledOnce());
+        worker.processTurn([{ id: "n0", role: "user", content: "another chat" }], "other");
+        await vi.waitFor(async () =>
+          expect(
+            await db
+              .get<ExtractionJob>(ExtractionJob.table)
+              .query(Q.where("conversation_id", "other"))
+              .fetchCount()
+          ).toBe(1)
+        );
+        keyReady = true;
+        seedEncryptionKeys(ADDRESS, { current: "c".repeat(64) });
+        await vi.waitFor(() =>
+          expect(vi.mocked(extractAndRetain).mock.calls.map(([batch]) => batch[0].id)).toContain(
+            "m0"
+          )
+        );
+      } finally {
+        worker.dispose();
+        clearEncryptionKey(ADDRESS);
+      }
+    });
+
+    it("retries a waiting job when a new turn arrives in its conversation", async () => {
+      await lockUntilKey();
+      const onError = vi.fn();
+      const worker = createDurableAutoExtractor({ ...keyedOptions(), onError });
+      try {
+        worker.processTurn(messages.slice(0, 1), "conversation");
+        await vi.waitFor(() => expect(onError).toHaveBeenCalledOnce());
+        keyReady = true;
+        worker.processTurn(messages.slice(0, 2), "conversation");
+        await vi.waitFor(() => expect(extractAndRetain).toHaveBeenCalledOnce());
+        expect(vi.mocked(extractAndRetain).mock.calls[0][0].map((m) => m.id)).toEqual(["m0", "m1"]);
+      } finally {
+        worker.dispose();
+      }
+    });
+  });
 
   it.each(["clear", "delete", "conversation", "dispose"] as const)(
     "prevents writes when sources %s while extraction is in flight",
@@ -1253,7 +1376,7 @@ describe("durable extraction outbox", () => {
       await vi.waitFor(
         () =>
           expect(vi.mocked(getMessageOp).mock.calls.filter(([, id]) => id === "m0").length).toBe(
-            3 * session
+            session
           ),
         { timeout: 2000 }
       );
@@ -1275,7 +1398,7 @@ describe("durable extraction outbox", () => {
       nextSession();
       const worker = createDurableAutoExtractor(options());
       if (session === 1) worker.processTurn(messages.slice(0, 2), "conversation");
-      await vi.waitFor(() => expect(reads()).toBe(3 * session), { timeout: 2000 });
+      await vi.waitFor(() => expect(reads()).toBe(session), { timeout: 2000 });
       await settle();
       worker.dispose();
     }
