@@ -159,6 +159,21 @@ export interface MemorySubscribeOptions {
   embeddings?: boolean;
 }
 
+/** @public */
+export type MemoryDecaySweeperOptions = Pick<
+  CreateDecaySweeperOptions,
+  "now" | "policy" | "onSwept" | "onError"
+>;
+
+/**
+ * Rule-based memory decay over a store's metadata, on any backend.
+ * @public
+ */
+export interface MemoryDecay {
+  /** A rule-based decay sweeper over this store's memories. */
+  createDecaySweeper(options?: MemoryDecaySweeperOptions): DecaySweeper;
+}
+
 /**
  * Background jobs that keep a LOCAL store healthy.
  *
@@ -293,6 +308,8 @@ export interface MemoryStore {
 
   /** TRANSITIONAL — see {@link MemoryMaintenance}. Absent on a remote backend. */
   maintenance?: MemoryMaintenance;
+  /** Rule-based decay, available without the local-only {@link MemoryMaintenance}. */
+  readonly decay?: MemoryDecay;
   /** Topic-extraction upkeep, available on every backend. */
   readonly topicMaintenance: MemoryTopicMaintenance;
 }

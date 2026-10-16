@@ -150,6 +150,8 @@ export {
 } from "./store/remoteStore.js";
 export type {
   MemoryCreate,
+  MemoryDecay,
+  MemoryDecaySweeperOptions,
   MemoryListOptions,
   MemoryMaintenance,
   MemoryRecallOptions,
