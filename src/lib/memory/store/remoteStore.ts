@@ -27,7 +27,12 @@ import {
 } from "../../db/memoryVault/types.js";
 import { getLogger } from "../../logger.js";
 import { DEFAULT_API_EMBEDDING_MODEL } from "../../memoryEngine/constants.js";
-import { generateEmbedding } from "../../memoryEngine/embeddings.js";
+import {
+  EmbeddingHttpError,
+  generateEmbedding,
+  generateEmbeddings,
+  isFatalEmbeddingError,
+} from "../../memoryEngine/embeddings.js";
 import type { EmbeddingOptions } from "../../memoryEngine/types.js";
 import {
   createDecaySweeperOver,
@@ -56,6 +61,8 @@ import {
 } from "./remotePersistence.js";
 import { createRemoteMemoryPipeline, stored, storedVector } from "./remotePipeline.js";
 import type {
+  EmbeddingRepairOptions,
+  EmbeddingRepairResult,
   MemoryCreate,
   MemoryListOptions,
   MemoryStore,
@@ -126,6 +133,8 @@ const MAX_QUERY_TOPICS = 100;
 const MAX_QUERY_FILTER = 20;
 const GRAPH_LANE_ROWS = 256;
 const TEMPORAL_LANE_ROWS = 256;
+const REPAIR_ROWS = 50;
+const REPAIR_SCAN = 2000;
 const DECAY_TRANSITIONS_PER_SWEEP = 200;
 
 export class RemoteMemoryPartialCreateError extends Error {
@@ -136,6 +145,17 @@ export class RemoteMemoryPartialCreateError extends Error {
     super(`createMany stored ${created.length} memories before a batch failed`);
     this.name = "RemoteMemoryPartialCreateError";
   }
+}
+
+function rejectsInput(error: unknown): boolean {
+  return (
+    error instanceof EmbeddingHttpError &&
+    error.status !== undefined &&
+    error.status >= 400 &&
+    error.status < 500 &&
+    error.status !== 429 &&
+    !isFatalEmbeddingError(error)
+  );
 }
 
 function warnFailed(failed: RemoteMemoryDecodeFailure[]) {
@@ -887,9 +907,107 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
       });
   };
 
+  const unrepairable = new Set<string>();
+  let repairCursor: string | undefined;
+  const repairEmbeddings = async ({
+    maxRows = REPAIR_ROWS,
+    maxScan = REPAIR_SCAN,
+    cursor: start = repairCursor,
+  }: EmbeddingRepairOptions = {}): Promise<EmbeddingRepairResult> => {
+    const scannedRows: RemoteMemoryMetadataRecord[] = [];
+    let cursor = start;
+    do {
+      const page = await metadata({
+        include_deleted: true,
+        include_archived: true,
+        include_quarantined: true,
+        include_superseded: true,
+        limit: Math.min(200, Math.max(1, maxScan - scannedRows.length)),
+        ...(cursor && { cursor }),
+      });
+      scannedRows.push(...page.items);
+      cursor = page.next_cursor;
+    } while (cursor && scannedRows.length < maxScan);
+    const allStale = scannedRows.filter(
+      ({ memory }) => memory.embedding_model !== model && !unrepairable.has(memory.memory_id)
+    );
+    const repaired = new Set<string>();
+    const result: EmbeddingRepairResult = {
+      scanned: scannedRows.length,
+      reembedded: 0,
+      failed: 0,
+      skippedConflict: 0,
+    };
+    const finish = () => {
+      const settled = allStale.every(
+        ({ memory }) => repaired.has(memory.memory_id) || unrepairable.has(memory.memory_id)
+      );
+      repairCursor = settled ? cursor : start;
+      return repairCursor ? { ...result, cursor: repairCursor } : result;
+    };
+    const stale = allStale.slice(0, maxRows).map(({ memory }) => memory.memory_id);
+    if (stale.length === 0) return finish();
+    const { records, unreadable } = await readEveryState(stale);
+    result.failed += unreadable.size;
+    for (const id of stale)
+      if (unreadable.has(id) || !records.get(id)?.memory.content.trim()) unrepairable.add(id);
+    const targets = stale.filter((id) => !unrepairable.has(id)).map((id) => records.get(id)!);
+    if (targets.length === 0) return finish();
+    const vectors = await embedForRepair(targets);
+    if (!vectors) {
+      result.failed += targets.length;
+      return finish();
+    }
+    for (const [i, record] of targets.entries()) {
+      const vector = vectors[i];
+      if (!vector) {
+        result.failed++;
+        continue;
+      }
+      await serialized(record.memory.memory_id, async () => {
+        try {
+          const saved = await persistence.put(
+            { ...record.memory, embedding: storedVector(vector), embedding_model: model },
+            record
+          );
+          notify("embedding", [saved]);
+          repaired.add(record.memory.memory_id);
+          result.reembedded++;
+        } catch (error) {
+          if (error instanceof RemoteMemoryError && error.code === "version_conflict")
+            result.skippedConflict++;
+          else result.failed++;
+        }
+      });
+    }
+    return finish();
+  };
+  const embedForRepair = async (
+    targets: RemoteMemoryRecord[]
+  ): Promise<(number[] | undefined)[] | null> => {
+    const texts = targets.map(({ memory }) => memory.content);
+    try {
+      return await generateEmbeddings(texts, embeddingOptions);
+    } catch (error) {
+      getLogger().warn("[memory/remote-store] Failed to embed memories for repair:", error);
+      if (!rejectsInput(error)) return null;
+    }
+    const vectors: (number[] | undefined)[] = [];
+    for (const [i, text] of texts.entries()) {
+      try {
+        [vectors[i]] = await generateEmbeddings([text], embeddingOptions);
+      } catch (error) {
+        if (!rejectsInput(error)) return null;
+        unrepairable.add(targets[i].memory.memory_id);
+      }
+    }
+    return vectors;
+  };
+
   return {
     masksEmbeddingInput: embeddingOptions.maskInput !== undefined,
     topicMaintenance,
+    repairEmbeddings,
     list: async (listOptions = {}) =>
       (await listRows(decrypted, listOptions, listFilters(listOptions), maxOf(listOptions))).map(
         (r) => stored(r.memory)

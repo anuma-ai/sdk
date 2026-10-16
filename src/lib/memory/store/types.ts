@@ -229,6 +229,26 @@ export interface MemoryTopicMaintenance {
   backfillTopics(memoryIds: readonly string[]): Promise<string[]>;
 }
 
+/** @public */
+export interface EmbeddingRepairOptions {
+  /** Most memories one run re-embeds. Default 50. */
+  maxRows?: number;
+  /** Most memories one run inspects. Default 2000. */
+  maxScan?: number;
+  /** Where to resume the scan, from a previous result. Defaults to where this store's last run stopped. */
+  cursor?: string;
+}
+
+/** @public */
+export interface EmbeddingRepairResult {
+  scanned: number;
+  reembedded: number;
+  failed: number;
+  skippedConflict: number;
+  /** Where the next run resumes; absent when the next run starts over from the newest memory. */
+  cursor?: string;
+}
+
 /**
  * One user's memories, pitched at what the apps do with them rather than at
  * the storage ops underneath. Two backends are intended: the on-device
@@ -305,6 +325,9 @@ export interface MemoryStore {
    * after subscribing. Returns the unsubscribe function.
    */
   subscribe(onChange: () => void, options?: MemorySubscribeOptions): () => void;
+
+  /** Re-embeds memories the backend cannot rank with the current model. Absent where recall re-embeds lazily. */
+  repairEmbeddings?(options?: EmbeddingRepairOptions): Promise<EmbeddingRepairResult>;
 
   /** TRANSITIONAL — see {@link MemoryMaintenance}. Absent on a remote backend. */
   maintenance?: MemoryMaintenance;

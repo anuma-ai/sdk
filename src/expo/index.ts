@@ -377,6 +377,8 @@ export {
   createRemoteMemoryPipeline,
   createRemoteMemoryStore,
   deriveMemoryKeyRing,
+  type EmbeddingRepairOptions,
+  type EmbeddingRepairResult,
   type LocalMemoryStoreOptions,
   memoryCipher,
   type MemoryCreate,
