@@ -222,6 +222,9 @@ export {
 export {
   createDurableAutoExtractor,
   type DurableAutoExtractorOptions,
+  type ExtractionMessageSource,
+  type ExtractionSourceMessage,
+  type ExtractionSourceStatus,
 } from "./durableExtraction.js";
 export {
   createMessageSourceResolver,

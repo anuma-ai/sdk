@@ -121,6 +121,8 @@ export interface AutoExtractMessage {
   id: string;
   role: "user" | "assistant";
   content: string;
+  /** Position in the conversation, for a conversation outside local chat history. */
+  seq?: number;
 }
 
 /**

@@ -1,6 +1,6 @@
 # DurableAutoExtractorOptions
 
-Defined in: [src/lib/memory/durableExtraction.ts:17](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/durableExtraction.ts#17)
+Defined in: [src/lib/memory/durableExtraction.ts:40](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/durableExtraction.ts#40)
 
 ## Extends
 
@@ -12,7 +12,7 @@ Defined in: [src/lib/memory/durableExtraction.ts:17](https://github.com/anuma-ai
 
 > `optional` **batchTimeoutMs**: `number`
 
-Defined in: [src/lib/memory/durableExtraction.ts:52](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/durableExtraction.ts#52)
+Defined in: [src/lib/memory/durableExtraction.ts:75](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/durableExtraction.ts#75)
 
 Ceiling on one batch, from the extraction call through retention. Defaults
 to the extraction call's own worst case — `extract.timeoutMs` (60s) x
@@ -121,7 +121,7 @@ Omit for in-memory-only (legacy) behavior.
 
 > `optional` **debounceMs**: `number`
 
-Defined in: [src/lib/memory/durableExtraction.ts:37](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/durableExtraction.ts#37)
+Defined in: [src/lib/memory/durableExtraction.ts:60](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/durableExtraction.ts#60)
 
 Coalesce arrivals after durably recording them. Defaults to 20 seconds.
 
@@ -258,6 +258,47 @@ Route retained facts and topics through this store; null disables memory writes.
 
 ***
 
+### messageSource()?
+
+> `optional` **messageSource**: (`conversationId`: `string`) => [`ExtractionMessageSource`](ExtractionMessageSource.md) | `undefined`
+
+Defined in: [src/lib/memory/durableExtraction.ts:83](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/durableExtraction.ts#83)
+
+Message source for a conversation outside local chat history, or `undefined`
+for history. Jobs still store only ids; the source resolves them at drain
+time and is re-checked before every write.
+
+**Parameters**
+
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`conversationId`
+
+</td>
+<td>
+
+`string`
+
+</td>
+</tr>
+</tbody>
+</table>
+
+**Returns**
+
+[`ExtractionMessageSource`](ExtractionMessageSource.md) | `undefined`
+
+***
+
 ### minConfidence?
 
 > `optional` **minConfidence**: `number`
@@ -276,7 +317,7 @@ Confidence floor for retained facts. Default 0.7.
 
 > `optional` **modelForScope**: (`scope`: `string`) => `string` | `undefined`
 
-Defined in: [src/lib/memory/durableExtraction.ts:35](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/durableExtraction.ts#35)
+Defined in: [src/lib/memory/durableExtraction.ts:58](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/durableExtraction.ts#58)
 
 Extraction model for a batch, chosen from the scope that batch will be
 retained under. A queued job keeps its scope across a privacy-mode flip but
@@ -321,7 +362,7 @@ is exactly the mistake this exists to prevent.
 
 > `optional` **now**: () => `number`
 
-Defined in: [src/lib/memory/durableExtraction.ts:54](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/durableExtraction.ts#54)
+Defined in: [src/lib/memory/durableExtraction.ts:77](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/durableExtraction.ts#77)
 
 Clock for the failed-session spacing. Defaults to `Date.now`.
 
@@ -658,7 +699,7 @@ Defined in: [src/lib/memory/autoExtractWorker.ts:163](https://github.com/anuma-a
 
 > `optional` **retryDelayMs**: `number`
 
-Defined in: [src/lib/memory/durableExtraction.ts:40](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/durableExtraction.ts#40)
+Defined in: [src/lib/memory/durableExtraction.ts:63](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/durableExtraction.ts#63)
 
 Retry delay for a failed batch. Defaults to 30 seconds; max three attempts
 per session. Unfinished jobs remain available on the next resume.
@@ -669,7 +710,7 @@ per session. Unfinished jobs remain available on the next resume.
 
 > `optional` **scope**: `string` | () => `string`
 
-Defined in: [src/lib/memory/durableExtraction.ts:25](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/durableExtraction.ts#25)
+Defined in: [src/lib/memory/durableExtraction.ts:48](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/durableExtraction.ts#48)
 
 Scope for facts retained from newly queued turns. Pass an accessor to have
 a privacy-mode flip observed at write time: a plain string is sampled once
@@ -690,6 +731,16 @@ Cancel remote writes for an extraction batch.
 **Inherited from**
 
 [`CreateAutoExtractorOptions`](CreateAutoExtractorOptions.md).[`signal`](CreateAutoExtractorOptions.md#signal)
+
+***
+
+### sourceTimeoutMs?
+
+> `optional` **sourceTimeoutMs**: `number`
+
+Defined in: [src/lib/memory/durableExtraction.ts:85](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/durableExtraction.ts#85)
+
+Ceiling on one `status` or `load` call of a message source. Defaults to 30 seconds.
 
 ***
 

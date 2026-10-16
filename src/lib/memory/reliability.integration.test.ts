@@ -25,7 +25,7 @@ import {
 } from "../db/chat/operations";
 import { ExtractionJob } from "../db/extractionJobs/models";
 import { extractAndRetain } from "./autoExtract";
-import { createDurableAutoExtractor } from "./durableExtraction";
+import { createDurableAutoExtractor, type ExtractionSourceStatus } from "./durableExtraction";
 import { clearEncryptionKey, seedEncryptionKeys } from "../../react/useEncryption";
 
 vi.mock("./autoExtract", () => ({ extractAndRetain: vi.fn() }));
@@ -1647,4 +1647,201 @@ describe("durable extraction outbox", () => {
       shared.dispose();
     }
   );
+  describe("conversations from a message source", () => {
+    const dm = Array.from({ length: 25 }, (_, i) => ({
+      id: `d${i}`,
+      role: i % 2 === 0 ? ("user" as const) : ("assistant" as const),
+      content: `dm-secret-${i}`,
+      seq: i + 1,
+    }));
+    function dmSource(initial: ExtractionSourceStatus) {
+      const state = { status: initial };
+      const byId = new Map(dm.map((m) => [m.id, m]));
+      const source = {
+        status: vi.fn(async () => state.status),
+        load: vi.fn(async (_conversationId: string, ids: string[]) =>
+          ids.flatMap((id) => byId.get(id) ?? [])
+        ),
+      };
+      const messageSource = (conversationId: string) =>
+        conversationId.startsWith("nearby:") ? source : undefined;
+      return { state, source, messageSource };
+    }
+    const jobs = () => db.get<ExtractionJob>(ExtractionJob.table).query().fetch();
+
+    it("extracts every queued message from the source, with only ids at rest", async () => {
+      const { messageSource } = dmSource("ready");
+      const worker = createDurableAutoExtractor({ ...options(), windowSize: 6, messageSource });
+      worker.processTurn(dm, "nearby:7");
+      await vi.waitFor(() => expect(extractAndRetain).toHaveBeenCalledTimes(2));
+      expect(vi.mocked(extractAndRetain).mock.calls[0][0].map((m) => m.id)).toEqual(
+        dm.slice(0, 20).map((m) => m.id)
+      );
+      expect(vi.mocked(extractAndRetain).mock.calls[1][0].at(-1)?.id).toBe("d24");
+      const [job] = await jobs();
+      expect(JSON.stringify(job._raw)).not.toContain("dm-secret");
+      await vi.waitFor(() => expect(job._getRaw("message_ids")).toBe("[]"));
+      worker.dispose();
+    });
+
+    it("drops the job once its source reports the conversation gone", async () => {
+      const { messageSource } = dmSource("gone");
+      const worker = createDurableAutoExtractor({ ...options(), messageSource });
+      worker.processTurn(dm.slice(0, 3), "nearby:7");
+      await vi.waitFor(async () => expect(await jobs()).toHaveLength(0));
+      expect(extractAndRetain).not.toHaveBeenCalled();
+      worker.dispose();
+    });
+
+    it("keeps a waiting source's job queued without spinning, and runs it once ready", async () => {
+      const { state, source, messageSource } = dmSource("later");
+      const worker = createDurableAutoExtractor({
+        ...options(),
+        retryDelayMs: 100,
+        messageSource,
+      });
+      for (const id of ["nearby:1", "nearby:2", "nearby:3", "nearby:7"])
+        worker.processTurn(dm.slice(0, 3), id);
+      await vi.waitFor(async () => expect(await jobs()).toHaveLength(4));
+      const settled = source.status.mock.calls.length;
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      expect(extractAndRetain).not.toHaveBeenCalled();
+      expect(source.status.mock.calls.length - settled).toBeLessThan(8);
+      state.status = "ready";
+      worker.processTurn(dm.slice(0, 3), "nearby:7");
+      await vi.waitFor(() => expect(extractAndRetain).toHaveBeenCalledTimes(4));
+      expect(vi.mocked(extractAndRetain).mock.calls[0][0].map((m) => m.id)).toEqual([
+        "d0",
+        "d1",
+        "d2",
+      ]);
+      worker.dispose();
+    });
+
+    it("refuses a batch's writes once its source stops being ready", async () => {
+      const { state, messageSource } = dmSource("ready");
+      const verdicts: boolean[] = [];
+      vi.mocked(extractAndRetain).mockImplementationOnce(async (_messages, retainCtx) => {
+        verdicts.push(await retainCtx.vaultCtx.canWrite!());
+        state.status = "gone";
+        verdicts.push(await retainCtx.vaultCtx.canWrite!());
+        return empty;
+      });
+      const worker = createDurableAutoExtractor({ ...options(), messageSource });
+      worker.processTurn(dm.slice(0, 3), "nearby:7");
+      await vi.waitFor(() => expect(verdicts).toEqual([true, false]));
+      worker.dispose();
+    });
+
+    it("keeps a job queued under Private private after a flip to Public", async () => {
+      const { state, messageSource } = dmSource("later");
+      let scope = "private";
+      const worker = createDurableAutoExtractor({
+        ...options(),
+        scope: () => scope,
+        messageSource,
+      });
+      worker.processTurn(dm.slice(0, 3), "nearby:7");
+      await vi.waitFor(async () => expect(await jobs()).toHaveLength(1));
+      scope = "shared";
+      state.status = "ready";
+      worker.processTurn(dm.slice(0, 3), "nearby:7");
+      await vi.waitFor(() => expect(extractAndRetain).toHaveBeenCalledOnce());
+      expect(vi.mocked(extractAndRetain).mock.calls[0][2].scope).toBe("private");
+      worker.dispose();
+    });
+
+    async function drained(count: number) {
+      await vi.waitFor(() => expect(extractAndRetain).toHaveBeenCalledTimes(count));
+      await vi.waitFor(async () => {
+        const all = await jobs();
+        expect(all.map((job) => job._getRaw("message_ids"))).toEqual(["[]"]);
+      });
+    }
+
+    it("never re-queues extracted messages after the watermark message goes away", async () => {
+      const { messageSource } = dmSource("ready");
+      let scope = "private";
+      const worker = createDurableAutoExtractor({
+        ...options(),
+        scope: () => scope,
+        messageSource,
+      });
+      worker.processTurn(dm.slice(0, 10), "nearby:7");
+      await drained(1);
+      scope = "shared";
+      worker.processTurn([...dm.slice(0, 9), dm[10]], "nearby:7");
+      await vi.waitFor(() => expect(extractAndRetain).toHaveBeenCalledTimes(2));
+      expect(vi.mocked(extractAndRetain).mock.calls[1][0].map((m) => m.id)).toEqual(["d10"]);
+      expect(vi.mocked(extractAndRetain).mock.calls[1][2].scope).toBe("shared");
+      worker.dispose();
+    });
+
+    it("extracts a later window whose messages are all newer than the watermark", async () => {
+      const { messageSource } = dmSource("ready");
+      const worker = createDurableAutoExtractor({ ...options(), messageSource });
+      worker.processTurn(dm.slice(0, 10), "nearby:7");
+      await drained(1);
+      worker.processTurn(dm.slice(20, 23), "nearby:7");
+      await vi.waitFor(() => expect(extractAndRetain).toHaveBeenCalledTimes(2));
+      expect(vi.mocked(extractAndRetain).mock.calls[1][0].map((m) => m.id)).toEqual([
+        "d20",
+        "d21",
+        "d22",
+      ]);
+      worker.dispose();
+    });
+
+    it("skips rather than re-observes a turn that carries no positions", async () => {
+      const { source, messageSource } = dmSource("ready");
+      source.load.mockImplementation(async (_conversationId: string, ids: string[]) =>
+        dm.filter((m) => ids.includes(m.id)).map((m) => ({ ...m, seq: 0 }))
+      );
+      const onError = vi.fn();
+      const unordered = dm.map(({ seq: _seq, ...message }) => message);
+      const worker = createDurableAutoExtractor({ ...options(), onError, messageSource });
+      worker.processTurn(unordered.slice(0, 10), "nearby:7");
+      await drained(1);
+      worker.processTurn([...unordered.slice(0, 9), unordered[10]], "nearby:7");
+      await vi.waitFor(() =>
+        expect(onError).toHaveBeenCalledWith(
+          expect.objectContaining({ message: expect.stringContaining("boundary unresolved") }),
+          "nearby:7"
+        )
+      );
+      expect(extractAndRetain).toHaveBeenCalledTimes(1);
+      worker.dispose();
+    });
+
+    it("rechecks a waiting source on its own once it is ready", async () => {
+      const { state, messageSource } = dmSource("later");
+      const worker = createDurableAutoExtractor({ ...options(), messageSource });
+      worker.processTurn(dm.slice(0, 3), "nearby:7");
+      await vi.waitFor(async () => expect(await jobs()).toHaveLength(1));
+      state.status = "ready";
+      await vi.waitFor(() => expect(extractAndRetain).toHaveBeenCalledOnce());
+      worker.dispose();
+    });
+
+    it("keeps chat jobs running when a source never answers", async () => {
+      await conversation();
+      const { source, messageSource } = dmSource("ready");
+      source.status.mockImplementation(() => new Promise<never>(() => {}));
+      const worker = createDurableAutoExtractor({
+        ...options(),
+        sourceTimeoutMs: 20,
+        messageSource,
+      });
+      worker.processTurn(dm.slice(0, 3), "nearby:7");
+      await vi.waitFor(() => expect(source.status).toHaveBeenCalled());
+      worker.processTurn(messages.slice(0, 2), "conversation");
+      await vi.waitFor(() =>
+        expect(vi.mocked(extractAndRetain).mock.calls.map((call) => call[0][0].id)).toContain("m0")
+      );
+      expect(vi.mocked(extractAndRetain).mock.calls.flatMap((call) => call[0])).not.toContainEqual(
+        expect.objectContaining({ id: "d0" })
+      );
+      worker.dispose();
+    });
+  });
 });
