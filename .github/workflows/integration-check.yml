@@ -182,10 +182,12 @@ jobs:
 
           ALL_PR_OK=true
           ANY_REGRESSION=false
+          ANY_BASELINE_SKIPPED=false
           BROKEN_REPOS=""
 
           for REPO in $REPOS; do
             MAIN_BUILD=$(cat /tmp/outcomes/${REPO}-main-build 2>/dev/null || echo "not-run")
+            [ "$MAIN_BUILD" == "not-run" ] && ANY_BASELINE_SKIPPED=true
             PR_BUILD=$(cat /tmp/outcomes/${REPO}-pr-build 2>/dev/null || echo "skipped")
             TABLE="$TABLE
           | ${REPO} build | $(icon "$MAIN_BUILD") | $(icon "$PR_BUILD") |"
@@ -209,9 +211,11 @@ jobs:
             fi
           done
 
-          TABLE="$TABLE
+          if [ "$ANY_BASELINE_SKIPPED" == "true" ]; then
+            TABLE="$TABLE
 
           — main baseline skipped: it only builds when the PR leg fails."
+          fi
 
           if [ "$ALL_PR_OK" == "true" ]; then
             BODY="<!-- integration-check -->
