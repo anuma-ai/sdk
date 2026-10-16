@@ -1490,6 +1490,33 @@ describe("remote decay", () => {
     expect(server.rows.get(m.uniqueId)!.memory.is_deleted).toBe(false);
   });
 
+  it("deletes a due memory even when more than 200 archive candidates cannot be read", async () => {
+    const { store, server } = await decayStore();
+    const due = await store.create({ content: "Was into crosswords", embedding: axis(0) });
+    aged(server, due.uniqueId, { archived_at: Date.now() - 31 * DAY });
+    for (let i = 0; i < 201; i++)
+      server.rows.set(`unreadable-${i}`, {
+        memory: {
+          memory_id: `unreadable-${i}`,
+          content: "enc:v3:00",
+          scope: "private",
+          created_at: 1000 + i,
+          updated_at: 1000,
+          is_deleted: false,
+          source: "auto-extracted",
+          fact_type: "other",
+        },
+        version: 1,
+        server_updated_at: "2026-01-01T00:00:00Z",
+        seq: 1000 + i,
+      });
+
+    const result = await store.decay!.createDecaySweeper().runSweep();
+
+    expect(result).toMatchObject({ archived: 0, deleted: 1 });
+    expect(server.rows.get(due.uniqueId)!.memory.is_deleted).toBe(true);
+  });
+
   it("moves at most 200 memories per sweep and finishes on the next", async () => {
     const { store, server } = await decayStore();
     const created = await store.createMany(

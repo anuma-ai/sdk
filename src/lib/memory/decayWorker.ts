@@ -331,27 +331,41 @@ export function createDecaySweeperOver(
     result.scanned = candidates.length;
     result.classifierCalls = sweep.classifierCalls;
     result.classifierCapHits = sweep.classifierCapHits;
-    const archiving = toArchive.slice(0, maxTransitions);
-    const deleting = toDelete.slice(0, Math.max(0, maxTransitions - archiving.length));
+    let landed = 0;
+    const apply = async (
+      queue: typeof toArchive,
+      run: (rows: DecayCandidateRaw[]) => Promise<ReadonlySet<string>>,
+      count: (source: "ruleDriven" | "classifierDriven") => void
+    ) => {
+      let next = 0;
+      while (next < queue.length && landed < maxTransitions) {
+        const batch = queue.slice(next, next + (maxTransitions - landed));
+        next += batch.length;
+        const done = await run(batch.map(({ candidate }) => candidate));
+        for (const { candidate, source } of batch) {
+          if (!done.has(candidate.uniqueId)) continue;
+          landed++;
+          count(source);
+        }
+      }
+    };
     try {
-      const archived = await backend.archive(
-        archiving.map(({ candidate }) => candidate),
-        now
+      await apply(
+        toArchive,
+        (rows) => backend.archive(rows, now),
+        (source) => {
+          result.archived++;
+          result[source].archived++;
+        }
       );
-      for (const { candidate, source } of archiving) {
-        if (!archived.has(candidate.uniqueId)) continue;
-        result.archived++;
-        result[source].archived++;
-      }
-      const deleted = await backend.hardDelete(
-        deleting.map(({ candidate }) => candidate),
-        { hardDeleteWindowMs, now }
+      await apply(
+        toDelete,
+        (rows) => backend.hardDelete(rows, { hardDeleteWindowMs, now }),
+        (source) => {
+          result.deleted++;
+          result[source].deleted++;
+        }
       );
-      for (const { candidate, source } of deleting) {
-        if (!deleted.has(candidate.uniqueId)) continue;
-        result.deleted++;
-        result[source].deleted++;
-      }
     } catch (err) {
       onError?.(err instanceof Error ? err : new Error(String(err)));
     }
