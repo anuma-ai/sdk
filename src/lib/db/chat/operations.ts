@@ -1196,9 +1196,11 @@ export async function sealLegacyMessageEmbeddingsOp(
           updates[column] = await serializeMessageEmbedding(key, parsed);
         }
         if (Object.keys(updates).length === 0) continue;
+        const updatedAt = Number(message._getRaw("updated_at"));
+        const discarded = updates.origin !== undefined;
         await message.update((msg) => {
           for (const [column, value] of Object.entries(updates)) msg._setRaw(column, value);
-          msg._setRaw("updated_at", Math.max(Date.now(), Number(msg._getRaw("updated_at")) + 1));
+          msg._setRaw("updated_at", discarded ? Math.max(Date.now(), updatedAt + 1) : updatedAt);
         });
         sealed++;
       }

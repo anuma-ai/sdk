@@ -250,7 +250,7 @@ describe("message embedding encryption", () => {
     expect(await decryptJsonField(String(row._getRaw("chunks")), ADDRESS)).toEqual(
       CHUNKS.map(({ text: _text, ...rest }) => rest)
     );
-    expect(Number(row._getRaw("updated_at"))).toBeGreaterThan(1000);
+    expect(Number(row._getRaw("updated_at"))).toBe(1000);
     delete ctx.signMessage;
     expect((await searchChunksOp(ctx, VECTOR))[0]?.chunkText).toBe(CONTENT);
   });
@@ -265,9 +265,11 @@ describe("message embedding encryption", () => {
           JSON.stringify([{ ...CHUNKS[0], endOffset: message.content.length }])
         );
         message._setRaw("vector", JSON.stringify(VECTOR));
+        message._setRaw("updated_at", 1000);
       })
     );
     expect(await sealLegacyMessageEmbeddingsOp(ctx)).toBe(1);
+    expect(Number(row._getRaw("updated_at"))).toBeGreaterThan(1000);
     expect(row._getRaw("chunks")).toBeNull();
     expect(row._getRaw("vector")).toBeNull();
     expect(row.origin).toBe("chunks_discarded");

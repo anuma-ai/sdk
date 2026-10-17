@@ -373,7 +373,9 @@ The same helper and migration are exported from `@anuma/sdk/expo` and `@anuma/sd
 The migration seals plaintext vectors and chunks on sealed messages. It removes any legacy chunk text.
 It clears chunks whose offsets cannot refer to the decrypted content and clears the row's vector.
 Such rows keep `tool_result` or receive `chunks_discarded`, which prevents automatic paid repair.
-The migration advances `updated_at` so vector caches and backup sync observe the change.
+The migration keeps `updated_at` on rows that it only seals. The seal stays on the local device and backup sync does not upload the row again.
+Each device seals its own copy, so an older client does not receive sealed columns from the migration.
+The migration advances `updated_at` on rows that it clears, so vector caches and backup sync observe that change.
 It uses at most 50 rows per write. A second pass leaves sealed columns unchanged.
 A missing cached key rejects the pass. Earlier completed rows remain sealed and the pass can retry.
 The pass skips a row that the cached key cannot decrypt and leaves it unchanged.
