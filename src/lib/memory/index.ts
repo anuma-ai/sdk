@@ -16,6 +16,7 @@ export {
   type ExtractOutcome,
   type FactType,
   type QuarantinedMemoryInfo,
+  type WriteFailureReason,
 } from "./autoExtract.js";
 export {
   type AutoExtractor,
@@ -148,7 +149,11 @@ export {
   type RemoteMemoryStoreOptions,
 } from "./store/remoteStore.js";
 export type {
+  EmbeddingRepairOptions,
+  EmbeddingRepairResult,
   MemoryCreate,
+  MemoryDecay,
+  MemoryDecaySweeperOptions,
   MemoryListOptions,
   MemoryMaintenance,
   MemoryRecallOptions,
@@ -217,6 +222,9 @@ export {
 export {
   createDurableAutoExtractor,
   type DurableAutoExtractorOptions,
+  type ExtractionMessageSource,
+  type ExtractionSourceMessage,
+  type ExtractionSourceStatus,
 } from "./durableExtraction.js";
 export {
   createMessageSourceResolver,

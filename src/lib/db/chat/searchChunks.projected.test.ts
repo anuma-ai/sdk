@@ -351,31 +351,36 @@ describe("searchChunksOp — ties", () => {
 describe("searchChunksOp — yields during a long scan", () => {
   afterEach(() => {
     vi.restoreAllMocks();
+    vi.unstubAllGlobals();
   });
 
-  it("lets a pending timer run before scoring finishes once the slice budget is spent", async () => {
+  function spendEveryCheck() {
+    let clock = 0;
+    vi.spyOn(performance, "now").mockImplementation(() => (clock += 20));
+    const scheduler = { yield: vi.fn(() => Promise.resolve()) };
+    vi.stubGlobal("scheduler", scheduler);
+    return scheduler.yield;
+  }
+
+  it("yields in both the key scan and the vector reads once the slice budget is spent", async () => {
     const ctx = makeLokiCtx();
     await createConversationOp(ctx, { conversationId: "big" });
     for (let i = 0; i < 6; i++) {
       await seedChunked(ctx, "big", `m-${i}`, [[`row ${i}`, [1, 0, 0]]]);
     }
-    let clock = 0;
-    vi.spyOn(performance, "now").mockImplementation(() => (clock += 20));
-    let timerRan = false;
-    let timerRanBeforeScoringEnded = false;
-    setTimeout(() => {
-      timerRan = true;
-    }, 0);
+    const yields = spendEveryCheck();
+    let yieldsBeforeStats = 0;
 
     await searchChunksOp(ctx, [1, 0, 0], {
       minSimilarity: 0.1,
       embeddingModel: MODEL,
-      onStats: () => {
-        timerRanBeforeScoringEnded = timerRan;
+      onStats: (stats) => {
+        expect(stats.rowsFetched).toBe(6);
+        yieldsBeforeStats = yields.mock.calls.length;
       },
     });
 
-    expect(timerRanBeforeScoringEnded).toBe(true);
+    expect(yieldsBeforeStats).toBeGreaterThan(6);
   });
 
   it("yields while skipping rows that never reach a vector read", async () => {
@@ -384,23 +389,18 @@ describe("searchChunksOp — yields during a long scan", () => {
     for (let i = 0; i < 6; i++) {
       await seedChunked(ctx, "stale", `m-${i}`, [[`row ${i}`, [1, 0, 0]]], "old/model");
     }
-    let clock = 0;
-    vi.spyOn(performance, "now").mockImplementation(() => (clock += 20));
-    let timerRan = false;
-    let timerRanBeforeScoringEnded = false;
-    setTimeout(() => {
-      timerRan = true;
-    }, 0);
+    const yields = spendEveryCheck();
+    let yieldsBeforeStats = 0;
 
     await searchChunksOp(ctx, [1, 0, 0], {
       minSimilarity: 0.1,
       embeddingModel: MODEL,
       onStats: (stats) => {
         expect(stats.rowsFetched).toBe(0);
-        timerRanBeforeScoringEnded = timerRan;
+        yieldsBeforeStats = yields.mock.calls.length;
       },
     });
 
-    expect(timerRanBeforeScoringEnded).toBe(true);
+    expect(yieldsBeforeStats).toBeGreaterThan(0);
   });
 });

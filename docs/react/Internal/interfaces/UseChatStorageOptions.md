@@ -464,11 +464,11 @@ Defaults to the hardcoded MCP\_R2\_DOMAIN from clientConfig.
 
 ### memoryStore?
 
-> `optional` **memoryStore**: [`MemoryStore`](MemoryStore.md)
+> `optional` **memoryStore**: [`MemoryStore`](MemoryStore.md) | `null`
 
 Defined in: [src/lib/db/chat/types.ts:498](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#498)
 
-Route memory reads, writes, recall and the memory tools through this store instead of the database's vault; folders are unsupported. With `piiRedaction` on, build the store with `embeddingOptions.maskInput` (e.g. `(text) => redactor.maskText(text)` with any `PiiRedactor`) or its memory calls throw.
+Route memory operations through this store; `null` disables memory access while `undefined` uses the local vault. Folders are unsupported. With `piiRedaction` on, build the store with `embeddingOptions.maskInput` or its memory calls throw.
 
 **Inherited from**
 

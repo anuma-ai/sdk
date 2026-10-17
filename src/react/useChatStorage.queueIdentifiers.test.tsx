@@ -64,7 +64,7 @@ describe.each([
   });
 
   it.each([false, true])(
-    "preserves identifiers and parent references after flush with explicit IDs: %s",
+    "preserves identifiers across queued and direct turns with explicit IDs: %s",
     async (explicitIds) => {
       const database = makeDatabase();
       const signMessage = vi.fn().mockRejectedValue(new Error("Encryption key unavailable"));
@@ -99,15 +99,39 @@ describe.each([
       expect(sent.userMessage).toBeDefined();
       expect(sent.assistantMessage).toBeDefined();
       expect(sent.toolResultsMessage).toBeDefined();
+
+      const followUpParentId = sent.toolResultsMessage.uniqueId;
+      const followUp = await act(async () =>
+        result.current.sendMessage({
+          messages: [{ role: "user", content: [{ type: "text", text: "Find another value." }] }],
+          model: "test-model",
+          parentMessageId: followUpParentId,
+        })
+      );
+
+      expect(followUp.error).toBeNull();
+      if (!("toolResultsMessage" in followUp) || !followUp.toolResultsMessage) {
+        throw new Error("The follow-up result has no tool result message");
+      }
       expect(hasEncryptionKey(walletAddress)).toBe(false);
       expect(await database.get("conversations").query().fetch()).toHaveLength(0);
       expect(await database.get("history").query().fetch()).toHaveLength(0);
-      expect(result.current.queueStatus.pending).toBe(4);
+      expect(result.current.queueStatus.pending).toBe(7);
 
-      const syntheticMessages = [sent.userMessage, sent.assistantMessage, sent.toolResultsMessage];
-      expect(new Set(syntheticMessages.map((message) => message.uniqueId)).size).toBe(3);
-      expect(sent.assistantMessage.parentMessageId).toBe(sent.userMessage.uniqueId);
-      expect(sent.toolResultsMessage.parentMessageId).toBe(sent.assistantMessage.uniqueId);
+      const syntheticMessages = [
+        sent.userMessage,
+        sent.assistantMessage,
+        sent.toolResultsMessage,
+        followUp.userMessage,
+        followUp.assistantMessage,
+        followUp.toolResultsMessage,
+      ];
+      expect(new Set(syntheticMessages.map((message) => message.uniqueId)).size).toBe(6);
+      for (let index = 1; index < syntheticMessages.length; index++) {
+        expect(syntheticMessages[index].parentMessageId).toBe(
+          syntheticMessages[index - 1].uniqueId
+        );
+      }
       const queuedOperations = queueManager.getOperations(walletAddress);
       expect(queuedOperations).toMatchObject([
         {
@@ -132,14 +156,14 @@ describe.each([
       const flushed = await act(async () => result.current.flushQueue());
 
       expect(flushed.failed).toEqual([]);
-      expect(flushed.succeeded).toHaveLength(4);
+      expect(flushed.succeeded).toHaveLength(7);
       expect(result.current.queueStatus.pending).toBe(0);
       const storedConversations = await result.current.getConversations();
       expect(storedConversations.map((stored) => stored.conversationId)).toEqual([
         conversation.conversationId,
       ]);
       const storedMessages = await result.current.getMessages(conversation.conversationId);
-      expect(storedMessages).toHaveLength(3);
+      expect(storedMessages).toHaveLength(6);
       for (const synthetic of syntheticMessages) {
         const stored = storedMessages.find((message) => message.uniqueId === synthetic.uniqueId);
         expect(stored).toMatchObject({
@@ -148,6 +172,37 @@ describe.each([
           content: synthetic.content,
         });
         expect(stored!.parentMessageId ?? null).toBe(synthetic.parentMessageId ?? null);
+      }
+
+      const directParentId = followUp.toolResultsMessage.uniqueId;
+      const direct = await act(async () =>
+        result.current.sendMessage({
+          messages: [{ role: "user", content: [{ type: "text", text: "Find the final value." }] }],
+          model: "test-model",
+          parentMessageId: directParentId,
+        })
+      );
+
+      expect(direct.error).toBeNull();
+      if (!("toolResultsMessage" in direct) || !direct.toolResultsMessage) {
+        throw new Error("The direct result has no tool result message");
+      }
+      expect(direct.userMessage.parentMessageId).toBe(directParentId);
+      expect(direct.assistantMessage.parentMessageId).toBe(direct.userMessage.uniqueId);
+      expect(direct.toolResultsMessage.parentMessageId).toBe(direct.assistantMessage.uniqueId);
+      expect(result.current.queueStatus.pending).toBe(0);
+      const allMessages = await result.current.getMessages(conversation.conversationId);
+      expect(allMessages).toHaveLength(9);
+      for (const message of [
+        direct.userMessage,
+        direct.assistantMessage,
+        direct.toolResultsMessage,
+      ]) {
+        expect(allMessages.find((stored) => stored.uniqueId === message.uniqueId)).toMatchObject({
+          conversationId: conversation.conversationId,
+          content: message.content,
+          parentMessageId: message.parentMessageId,
+        });
       }
     }
   );

@@ -59,6 +59,7 @@ runMemoryStoreContract((overrides) =>
   createLocalMemoryStore({
     database: makeDatabase(),
     embeddingOptions: { ...embeddingOptions, ...overrides },
+    singleTenant: true,
   })
 );
 
@@ -295,5 +296,102 @@ describe("createLocalMemoryStore parity with the raw ops", () => {
     } finally {
       writeSpy.mockRestore();
     }
+  });
+});
+
+describe("createLocalMemoryStore write eligibility", () => {
+  it("checks eligibility after a queued mutation enters the database writer", async () => {
+    const database = makeDatabase();
+    let writable = true;
+    const store = createLocalMemoryStore({
+      database,
+      embeddingOptions,
+      canWrite: async () => writable,
+    });
+    const memory = await store.create({ content: "Original memory", embedding: "[1,0]" });
+    let release!: () => void;
+    let started!: () => void;
+    const entered = new Promise<void>((resolve) => {
+      started = resolve;
+    });
+    const blocked = database.write(async () => {
+      started();
+      await new Promise<void>((resolve) => {
+        release = resolve;
+      });
+    });
+    await entered;
+    const writer = vi.spyOn(database, "write");
+    const mutations = Promise.allSettled([
+      store.create({ content: "Late save", embedding: "[1,0]" }),
+      store.createMany([{ content: "Late batch", embedding: "[1,0]" }]),
+      store.update(memory.uniqueId, { content: "Late edit", embedding: "[0,1]" }),
+      store.delete(memory.uniqueId),
+      store.archive(memory.uniqueId),
+      store.restore(memory.uniqueId),
+      store.setTopics(memory.uniqueId, ["Late topic"]),
+      store.addTopics(memory.uniqueId, ["Late auto topic"]),
+      store.setVisibility(memory.uniqueId, "public"),
+    ]);
+    await vi.waitFor(() => expect(writer).toHaveBeenCalledTimes(9));
+    writable = false;
+    release();
+    await blocked;
+    const settled = await mutations;
+    expect(settled[0].status).toBe("rejected");
+    expect(settled[1].status).toBe("rejected");
+    expect(await store.list()).toEqual([
+      expect.objectContaining({
+        content: "Original memory",
+        archivedAt: null,
+        visibility: "private",
+      }),
+    ]);
+    expect(await store.topicsByMemories([memory.uniqueId])).toEqual(new Map());
+    writer.mockRestore();
+  });
+
+  it("rechecks retain eligibility after embeddings complete", async () => {
+    const database = makeDatabase();
+    let writable = true;
+    let finishEmbedding!: (value: number[]) => void;
+    const embed = vi.mocked(generateEmbedding);
+    embed.mockImplementationOnce(
+      () =>
+        new Promise<number[]>((resolve) => {
+          finishEmbedding = resolve;
+        })
+    );
+    const store = createLocalMemoryStore({
+      database,
+      embeddingOptions,
+      canWrite: async () => writable,
+    });
+    const retained = store.retain("A delayed fact", { enableAutoMerge: false });
+    const rejected = expect(retained).rejects.toThrow("Memory source is no longer eligible");
+    await vi.waitFor(() => expect(finishEmbedding).toBeDefined());
+    writable = false;
+    finishEmbedding([1, 0]);
+    await rejected;
+    expect(await store.list()).toEqual([]);
+  });
+
+  it("honors per-retain cancellation and entity-link eligibility", async () => {
+    const database = makeDatabase();
+    const store = createLocalMemoryStore({ database, embeddingOptions });
+    const controller = new AbortController();
+    controller.abort();
+    await expect(store.retain("Cancelled fact", { signal: controller.signal })).rejects.toThrow();
+    const row = await store.create({ content: "Manual topics", embedding: "[1,0]" });
+    await store.setTopics(row.uniqueId, ["User choice"]);
+    expect(await store.addTopics(row.uniqueId, ["Automatic"], { unlessUserManaged: true })).toEqual(
+      []
+    );
+    await expect(
+      store.addTopics(row.uniqueId, ["Disallowed"], { canWrite: async () => false })
+    ).rejects.toThrow("Memory source is no longer eligible");
+    expect(await store.topicsByMemories([row.uniqueId])).toEqual(
+      new Map([[row.uniqueId, new Set(["user choice"])]])
+    );
   });
 });

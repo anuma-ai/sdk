@@ -95,3 +95,13 @@ Only memories updated after this instant (results then sort by `updatedAt`).
 Defined in: [src/lib/memory/store/types.ts:36](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#36)
 
 People Nearby visibility filter; a legacy NULL column reads as "private".
+
+***
+
+### withEmbeddings?
+
+> `optional` **withEmbeddings**: `boolean`
+
+Defined in: [src/lib/memory/store/types.ts:44](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#44)
+
+`false` lets a remote store skip downloading vectors; its rows then carry a null `embedding`.

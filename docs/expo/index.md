@@ -796,6 +796,18 @@ Re-exports [EmbeddedWalletSignerFn](../react/Internal/type-aliases/EmbeddedWalle
 
 ***
 
+### EmbeddingRepairOptions
+
+Re-exports [EmbeddingRepairOptions](../react/Internal/interfaces/EmbeddingRepairOptions.md)
+
+***
+
+### EmbeddingRepairResult
+
+Re-exports [EmbeddingRepairResult](../react/Internal/interfaces/EmbeddingRepairResult.md)
+
+***
+
 ### embedMessage
 
 Re-exports [embedMessage](../react/Internal/functions/embedMessage.md)
@@ -883,6 +895,24 @@ Re-exports [ExtractionCursorStore](../react/Internal/interfaces/ExtractionCursor
 ### ExtractionFunnel
 
 Re-exports [ExtractionFunnel](../react/Internal/interfaces/ExtractionFunnel.md)
+
+***
+
+### ExtractionMessageSource
+
+Re-exports [ExtractionMessageSource](../react/Internal/interfaces/ExtractionMessageSource.md)
+
+***
+
+### ExtractionSourceMessage
+
+Re-exports [ExtractionSourceMessage](../react/Internal/interfaces/ExtractionSourceMessage.md)
+
+***
+
+### ExtractionSourceStatus
+
+Re-exports [ExtractionSourceStatus](../react/Internal/type-aliases/ExtractionSourceStatus.md)
 
 ***
 
@@ -1267,6 +1297,18 @@ Re-exports [MemoryContextResult](../react/Internal/interfaces/MemoryContextResul
 ### MemoryCreate
 
 Re-exports [MemoryCreate](../react/Internal/type-aliases/MemoryCreate.md)
+
+***
+
+### MemoryDecay
+
+Re-exports [MemoryDecay](../react/Internal/interfaces/MemoryDecay.md)
+
+***
+
+### MemoryDecaySweeperOptions
+
+Re-exports [MemoryDecaySweeperOptions](../react/Internal/type-aliases/MemoryDecaySweeperOptions.md)
 
 ***
 
@@ -2593,3 +2635,9 @@ Re-exports [WebSearchClassification](../react/Internal/interfaces/WebSearchClass
 ### WebSearchPreProcessorOptions
 
 Re-exports [WebSearchPreProcessorOptions](../react/Internal/interfaces/WebSearchPreProcessorOptions.md)
+
+***
+
+### WriteFailureReason
+
+Re-exports [WriteFailureReason](../react/Internal/type-aliases/WriteFailureReason.md)

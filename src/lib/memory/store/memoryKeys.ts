@@ -100,9 +100,22 @@ export async function reencryptMemoryField(
   canonical: MemoryKeyRing,
   fallbacks: readonly MemoryKeyRing[] = []
 ): Promise<string> {
-  const { encrypt } = memoryCipher(canonical);
-  if (!value.startsWith("enc:")) return encrypt(value);
+  return memoryCipher(canonical).encrypt(
+    await decryptMemoryField(value, [canonical, ...fallbacks])
+  );
+}
+
+/**
+ * Read a local field: plaintext as is, ciphertext with the first ring that decrypts it.
+ * @throws MemoryKeyError when no ring decrypts the field.
+ * @internal
+ */
+export async function decryptMemoryField(
+  value: string,
+  rings: readonly MemoryKeyRing[]
+): Promise<string> {
+  if (!value.startsWith("enc:")) return value;
   if (!isEncrypted(value))
     throw new MemoryKeyError("Field has an encryption prefix but an invalid payload");
-  return encrypt(await decryptWith(value, [canonical, ...fallbacks]));
+  return decryptWith(value, rings);
 }

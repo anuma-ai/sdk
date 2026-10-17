@@ -1025,6 +1025,103 @@ describe("buildProjectedCorpus", () => {
     expect(byIds.mock.calls[0][1]).toContain("cached");
   });
 
+  it("reports corpus timings and vault cache hits and misses, cold then warm", async () => {
+    const after = <T>(ms: number, value: T) =>
+      new Promise<T>((resolve) => setTimeout(() => resolve(value), ms));
+    const key = (uniqueId: string) => ({
+      uniqueId,
+      folderId: null,
+      scope: "private",
+      embeddingModel: "m",
+      updatedAt: ROW_VERSION,
+    });
+    const row = (uniqueId: string, content: string) => ({
+      uniqueId,
+      content,
+      embeddingModel: "m",
+      scope: "private",
+      folderId: null,
+      userId: null,
+      isDeleted: false,
+      proofCount: 1,
+      sourceChunkIds: null,
+      eventTimeStart: null,
+      eventTimeEnd: null,
+      eventTimeKind: null,
+      createdAt: new Date(),
+      updatedAt: ROW_VERSION,
+    });
+    vi.spyOn(ops, "getVaultCandidateKeysOp").mockImplementation(() =>
+      after(30, [key("a"), key("b")] as any)
+    );
+    vi.spyOn(ops, "getVaultEmbeddingsByIdsOp").mockImplementation(() =>
+      after(20, [
+        { uniqueId: "a", embedding: "[1,0]", embeddingModel: "m" },
+        { uniqueId: "b", embedding: "[0.6,0.8]", embeddingModel: "m" },
+      ] as any)
+    );
+    vi.spyOn(ops, "getVaultMemoriesByIdsOp").mockImplementation(() =>
+      after(10, [row("a", "alpha"), row("b", "beta")] as any)
+    );
+    vi.spyOn(embed, "generateEmbedding").mockResolvedValue([1, 0]);
+    const cache: VaultEmbeddingCache = new Map();
+    const opts = { limit: 2, admitFactor: 1, admitFloor: 2, unembeddedCap: 100 };
+
+    const cold = await buildProjectedCorpus("q", {} as any, embOpts, cache, {}, opts);
+    expect(cold.corpusStats).toMatchObject({ cacheHits: 0, cacheMisses: 2 });
+    expect(cold.corpusStats.keysMs).toBeGreaterThanOrEqual(25);
+    expect(cold.corpusStats.embeddingsFetchMs).toBeGreaterThanOrEqual(15);
+    expect(cold.corpusStats.rowsFetchMs).toBeGreaterThanOrEqual(5);
+
+    const warm = await buildProjectedCorpus("q", {} as any, embOpts, cache, {}, opts);
+    expect(warm.corpusStats).toMatchObject({
+      cacheHits: 2,
+      cacheMisses: 0,
+      embeddingsFetchMs: 0,
+    });
+  });
+
+  it("counts a stale-model row as a cache miss even though it skips the embedding fetch", async () => {
+    vi.spyOn(ops, "getVaultCandidateKeysOp").mockResolvedValue([
+      {
+        uniqueId: "fresh",
+        folderId: null,
+        scope: "private",
+        embeddingModel: "m",
+        updatedAt: ROW_VERSION,
+      },
+      {
+        uniqueId: "stale",
+        folderId: null,
+        scope: "private",
+        embeddingModel: "old",
+        updatedAt: ROW_VERSION,
+      },
+    ] as any);
+    const embByIds = vi
+      .spyOn(ops, "getVaultEmbeddingsByIdsOp")
+      .mockResolvedValue([{ uniqueId: "fresh", embedding: "[1,0]", embeddingModel: "m" }] as any);
+    vi.spyOn(ops, "getVaultMemoriesByIdsOp").mockResolvedValue([] as any);
+    vi.spyOn(embed, "generateEmbedding").mockResolvedValue([1, 0]);
+
+    const out = await buildProjectedCorpus(
+      "q",
+      {} as any,
+      embOpts,
+      new Map(),
+      {},
+      {
+        limit: 2,
+        admitFactor: 1,
+        admitFloor: 2,
+        unembeddedCap: 100,
+      }
+    );
+
+    expect(embByIds).toHaveBeenCalledWith({} as any, ["fresh"], undefined);
+    expect(out.corpusStats).toMatchObject({ cacheHits: 0, cacheMisses: 2 });
+  });
+
   it("forwards includeArchived to BOTH hydration steps, not just the key scan", async () => {
     const keys = vi.spyOn(ops, "getVaultCandidateKeysOp").mockResolvedValue([
       {
@@ -1107,6 +1204,13 @@ describe("buildProjectedCorpus", () => {
       vaultSize: 0,
       laneEmbedFailed: false,
       rowsDecrypted: 0,
+      corpusStats: {
+        keysMs: expect.any(Number),
+        embeddingsFetchMs: 0,
+        rowsFetchMs: 0,
+        cacheHits: 0,
+        cacheMisses: 0,
+      },
     });
   });
 
@@ -1574,6 +1678,7 @@ describe("searchVaultMemoriesWithSize — decryptLast branch", () => {
 
     expect(getAll).not.toHaveBeenCalled();
     expect(out.results.map((r) => r.uniqueId)).toContain("a");
+    expect(out.corpusStats).toMatchObject({ cacheHits: 0, cacheMisses: 1 });
   });
 
   it("counts an admitted row that came back ENCRYPTED as decrypt work", async () => {

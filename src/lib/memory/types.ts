@@ -392,6 +392,8 @@ export interface RecallDiagnostics {
    * LEGACY read path this batch is uncapped, so it can be the whole vault.
    */
   vaultRowsEmbedded?: number;
+  vaultCacheHits?: number;
+  vaultCacheMisses?: number;
   /** Embedded messages the chunk lane considered; absent when the lane did not run. */
   chunkRowsScanned?: number;
   /** Messages whose vectors the chunk lane read from storage on a cache miss. */
@@ -494,6 +496,9 @@ export interface RecallDiagnostics {
     chunkLane: number;
     /** Cross-lane RRF fusion + provenance dedup after both lanes. */
     fuse: number;
+    corpusKeys?: number;
+    corpusEmbeddingsFetch?: number;
+    corpusRowsFetch?: number;
   };
   /** Soft-degradation signals that fired this call (empty when clean). */
   degraded: RecallDegradation[];
@@ -554,6 +559,8 @@ export type RetainSource = "manual" | "auto-extracted" | "capsule";
  */
 export type ConsolidationFallbackReason =
   | "llm_error"
+  | "llm_timeout"
+  | "content_flagged"
   | "invalid_response"
   | "target_vanished"
   /**
@@ -595,6 +602,7 @@ export interface RetainOptions {
   consolidateOptions?: PortalLlmAuth & {
     baseUrl?: string;
     model?: string;
+    endpointOverride?: string;
     /**
      * Invoked when the consolidator degrades to its "create" fallback
      * instead of returning a real decision — `llm_error` for network /

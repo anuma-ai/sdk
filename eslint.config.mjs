@@ -22,6 +22,7 @@ const memoryTelemetryTests = [
 const checkedTestFiles = [
   ...appGenerationTests,
   ...memoryTelemetryTests,
+  "src/lib/backup/icloud/backup.test.ts",
   "src/lib/chat/toolLoop.detach.test.ts",
   "src/lib/chat/toolLoop.idleTimeout.test.ts",
   "src/react/useChatStorage.fileSize.test.tsx",
@@ -29,6 +30,7 @@ const checkedTestFiles = [
   "src/react/useChatStorage.runHooks.test.tsx",
   "src/server/pg-adapter.inequality.test.ts",
   "src/server/pg-adapter.integration.test.ts",
+  "src/server/pg-adapter.test.ts",
   "test/tools/slide-generation/models.ts",
 ];
 

@@ -3,6 +3,8 @@ import { v7 as uuidv7 } from "uuid";
 import { maskScopedEmbeddingCache } from "../../db/chat/embeddingCache.js";
 import { parseTopics } from "../../db/entities/types.js";
 import { normalizeTrustTier } from "../../db/memoryVault/operations.js";
+import { serializeSourceChunkIds } from "../../db/memoryVault/sourceChunkIds.js";
+import { MemorySourceIneligibleError } from "../../db/memoryVault/types.js";
 import {
   MEMORY_LEVELS,
   type MemoryLevel,
@@ -123,7 +125,18 @@ export function createRemoteMemoryPipeline(
 ): RemoteMemoryPipeline {
   const { persistence, embeddingOptions } = options;
   const model = embeddingOptions.model ?? DEFAULT_API_EMBEDDING_MODEL;
-  const operation = (mode: "recall" | "retain", queryOptions = embeddingOptions) => {
+  const operation = (
+    mode: "recall" | "retain",
+    queryOptions = embeddingOptions,
+    writeOptions?: MemoryRetainOptions
+  ) => {
+    const signal = writeOptions?.signal;
+    const assertWrite = async () => {
+      signal?.throwIfAborted();
+      if (writeOptions?.canWrite && !(await writeOptions.canWrite()))
+        throw new MemorySourceIneligibleError();
+      signal?.throwIfAborted();
+    };
     const rejectUndecryptable = (failed: RemoteMemoryDecodeFailure[]) => {
       if (!failed.length) return;
       if (mode === "retain")
@@ -141,7 +154,8 @@ export function createRemoteMemoryPipeline(
       return items.map((item) => stored(item.memory));
     };
     const get = async (id: string) => {
-      const snapshot = snapshots.get(id) ?? (await persistence.get(id));
+      const snapshot =
+        snapshots.get(id) ?? (await (signal ? persistence.get(id, signal) : persistence.get(id)));
       if (!snapshot || snapshot.memory.is_deleted || snapshot.memory.superseded_by) return null;
       snapshots.set(id, snapshot);
       return stored(snapshot.memory);
@@ -217,7 +231,9 @@ export function createRemoteMemoryPipeline(
       }[];
       if (mode === "retain") {
         windows = await Promise.all(
-          vectors.map((embedding, i) => persistence.candidateSet(embedding, windowOptions(i)))
+          vectors.map((embedding, i) =>
+            persistence.candidateSet(embedding, windowOptions(i, signal))
+          )
         );
       } else {
         const deadline = new AbortController();
@@ -298,7 +314,7 @@ export function createRemoteMemoryPipeline(
           embedding: storedVector(JSON.parse(input.embedding) as number[]),
           embedding_model: input.embeddingModel,
         }),
-        source_chunk_ids: JSON.stringify(input.sourceChunkIds ?? []),
+        source_chunk_ids: serializeSourceChunkIds(input.sourceChunkIds ?? []),
         proof_count: input.proofCount ?? 1,
         source: input.source ?? "manual",
         ...(input.eventTime && {
@@ -313,13 +329,15 @@ export function createRemoteMemoryPipeline(
         twin_opt_in: false,
       };
     };
-    const write = async (memory: RemoteMemoryRow, snapshot: RemoteMemoryRecord | 0) =>
-      remember([await persistence.put(memory, snapshot)])[0];
+    const write = async (memory: RemoteMemoryRow, snapshot: RemoteMemoryRecord | 0) => {
+      await assertWrite();
+      return remember([await persistence.put(memory, snapshot, signal)])[0];
+    };
     const port: RetainPersistence = {
       prepare,
       get,
       getFresh: async (id) => {
-        const current = await persistence.get(id);
+        const current = await (signal ? persistence.get(id, signal) : persistence.get(id));
         return current && !current.memory.is_deleted && !current.memory.superseded_by
           ? stored(current.memory)
           : null;
@@ -333,6 +351,7 @@ export function createRemoteMemoryPipeline(
           strict_model: true,
           include_deleted: true,
           deleted_only: true,
+          signal,
         });
         rejectUndecryptable(window.failed);
         return remember(window.items);
@@ -368,7 +387,7 @@ export function createRemoteMemoryPipeline(
           !!patch.observationSourceIds?.length &&
           patch.observationSourceIds.every((id) => observed.includes(id));
         if (patch.sourceChunkIds !== undefined)
-          memory.source_chunk_ids = JSON.stringify(
+          memory.source_chunk_ids = serializeSourceChunkIds(
             patch.observationSourceIds?.length
               ? [...new Set([...observed, ...patch.sourceChunkIds])]
               : patch.sourceChunkIds
@@ -398,14 +417,18 @@ export function createRemoteMemoryPipeline(
         if (!target || !newer || id === successor) return false;
         const old = snapshots.get(id)!;
         const next = snapshots.get(successor)!;
+        await assertWrite();
         remember(
-          await persistence.putMany([
-            {
-              memory: { ...old.memory, superseded_by: successor, superseded_at: Date.now() },
-              expectedVersion: old,
-            },
-            { memory: next.memory, expectedVersion: next },
-          ])
+          await persistence.putMany(
+            [
+              {
+                memory: { ...old.memory, superseded_by: successor, superseded_at: Date.now() },
+                expectedVersion: old,
+              },
+              { memory: next.memory, expectedVersion: next },
+            ],
+            signal
+          )
         );
         return true;
       },
@@ -414,18 +437,22 @@ export function createRemoteMemoryPipeline(
         if (!target) return { created: null, retired: false };
         const snapshot = snapshots.get(targetId)!;
         const successor = createRow(input);
+        await assertWrite();
         const rows = remember(
-          await persistence.putMany([
-            { memory: successor, expectedVersion: 0 },
-            {
-              memory: {
-                ...snapshot.memory,
-                superseded_by: successor.memory_id,
-                superseded_at: Date.now(),
+          await persistence.putMany(
+            [
+              { memory: successor, expectedVersion: 0 },
+              {
+                memory: {
+                  ...snapshot.memory,
+                  superseded_by: successor.memory_id,
+                  superseded_at: Date.now(),
+                },
+                expectedVersion: snapshot,
               },
-              expectedVersion: snapshot,
-            },
-          ])
+            ],
+            signal
+          )
         );
         return { created: rows[0], retired: true };
       },
@@ -462,7 +489,7 @@ export function createRemoteMemoryPipeline(
     recall: async (query, recallOptions = {}) =>
       recall(query, { embeddingOptions, factSource }, { ...recallOptions, types: ["fact"] }),
     retain: async (content, retainOptions) => {
-      const { port } = operation("retain");
+      const { port } = operation("retain", embeddingOptions, retainOptions);
       return retainWithPersistence(
         content,
         {

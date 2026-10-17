@@ -2,7 +2,7 @@
 
 > **backfillMemoryEntityUserIdsOp**(`ctx`: [`EntityOperationsContext`](../interfaces/EntityOperationsContext.md), `vaultMemoryCollection`: `object`): `Promise`<`number`>
 
-Defined in: [src/lib/db/entities/operations.ts:595](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/entities/operations.ts#595)
+Defined in: [src/lib/db/entities/operations.ts:607](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/entities/operations.ts#607)
 
 Backfill `memory_entity.user_id` from the parent vault row's user\_id.
 Idempotent — only touches rows where user\_id is null.

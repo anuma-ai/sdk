@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
-vi.mock("../../memoryEngine/embeddings", () => {
+vi.mock("../../memoryEngine/embeddings", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../memoryEngine/embeddings")>();
   const DIM = 1536;
   const embed = (text: string): number[] => {
     const v: number[] = new Array<number>(DIM).fill(0);
@@ -15,12 +16,17 @@ vi.mock("../../memoryEngine/embeddings", () => {
   return {
     generateEmbedding: vi.fn(async (text: string) => embed(text)),
     generateEmbeddings: vi.fn(async (texts: string[]) => texts.map(embed)),
+    EmbeddingHttpError: actual.EmbeddingHttpError,
+    isFatalEmbeddingError: actual.isFatalEmbeddingError,
   };
 });
 
 import { TOPICS_EXTRACTION_VERSION } from "../../db/memoryVault/operations";
 import { parseTopics } from "../../db/entities/types";
 import { getLogger } from "../../logger";
+import { parseQueryTimeWindow } from "../queryTemporal";
+import { DEFAULT_API_EMBEDDING_MODEL } from "../../memoryEngine/constants";
+import { EmbeddingHttpError, generateEmbeddings } from "../../memoryEngine/embeddings";
 import type { EmbeddingOptions } from "../../memoryEngine/types";
 import { fakeTopicLlm, runMemoryStoreContract } from "./contract";
 import { deriveMemoryKeyRing, type MemoryKeyRing, memoryCipher } from "./memoryKeys";
@@ -167,7 +173,9 @@ function fakeNearby(keyId: string) {
                   ((m.topics_extracted_version as number | undefined) ?? 0) <
                     (body.topics_due as number)))) &&
             (body.topics_extracted === undefined ||
-              (m.topics_extracted_at != null) === body.topics_extracted)
+              (m.topics_extracted_at != null) === body.topics_extracted) &&
+            (!body.event_time_overlaps ||
+              inEventWindow(m, body.event_time_overlaps as { start: number; end: number }))
         )
         .map((s) => ({ s, at: [key(s), s.memory.memory_id] as [number, string] }))
         .filter(({ at }) => !after || sign * compare(at, after) > 0)
@@ -342,6 +350,22 @@ describe("remote MemoryStore", () => {
     );
     expect(partial.cause).toMatchObject({ status: 500 });
     expect(server.rows.size).toBe(100);
+  });
+
+  it("lists projections without vectors when asked, and with them by default", async () => {
+    const { store, server } = await remoteStore();
+    const m = await store.create({ content: "Likes jazz", embedding: axis(1) });
+    server.fetch.mockClear();
+
+    const lean = await store.listProjections({ withEmbeddings: false });
+    const full = await store.listProjections();
+
+    expect(lean.map((p) => [p.uniqueId, p.embedding])).toEqual([[m.uniqueId, null]]);
+    expect(full[0]!.embedding).not.toBeNull();
+    const queries = server.fetch.mock.calls
+      .filter(([input]) => String(input).endsWith("/memories/query"))
+      .map(([, init]) => JSON.parse(String(init!.body)) as Record<string, unknown>);
+    expect(queries.map((q) => q.include_embeddings)).toEqual([false, true]);
   });
 
   it("filters list, archive and topic reads on nearby instead of reading the vault", async () => {
@@ -751,6 +775,34 @@ describe("remote MemoryStore", () => {
       unsubscribe();
     }
   });
+  it("guards automatic topic links against manual curation and cancelled extraction", async () => {
+    const { store } = await remoteStore();
+    const memory = await store.create({ content: "Hikes Mt Hood", embedding: axis(0) });
+    await store.setTopics(memory.uniqueId, ["Chosen topic"]);
+    expect(
+      await store.addTopics(memory.uniqueId, ["Mt Hood"], {
+        unlessUserManaged: true,
+      })
+    ).toEqual([]);
+    expect((await store.get(memory.uniqueId))?.topics?.map((topic) => topic.name)).toEqual([
+      "Chosen topic",
+    ]);
+    await expect(
+      store.addTopics(memory.uniqueId, ["Late topic"], {
+        canWrite: async () => false,
+      })
+    ).rejects.toThrow("no longer eligible");
+    const controller = new AbortController();
+    controller.abort();
+    await expect(
+      store.addTopics(memory.uniqueId, ["Cancelled topic"], {
+        signal: controller.signal,
+      })
+    ).rejects.toThrow();
+    expect((await store.get(memory.uniqueId))?.topics?.map((topic) => topic.name)).toEqual([
+      "Chosen topic",
+    ]);
+  });
 
   it("notifies when extraction drops a topic added during the LLM call", async () => {
     const { store } = await remoteStore();
@@ -1138,6 +1190,15 @@ describe("remote MemoryStore", () => {
   });
 });
 
+function inEventWindow(m: Record<string, unknown>, window: { start: number; end: number }) {
+  const start = m.event_time_start as number | null | undefined;
+  const end = m.event_time_end as number | null | undefined;
+  if (start == null || start >= window.end) return false;
+  if (m.event_time_kind === "ongoing") return end == null || end >= window.start;
+  if (m.event_time_kind === "range") return (end ?? start) >= window.start;
+  return start >= window.start;
+}
+
 describe("default recall lanes", () => {
   async function lanes() {
     const keys = await deriveMemoryKeyRing(`0x${"c3".repeat(65)}`);
@@ -1232,8 +1293,572 @@ describe("default recall lanes", () => {
     expect(await store.factSource.graphRanking("what did she say", false, {})).toEqual([]);
   });
 
-  it("has no temporal lane until nearby can filter by event time", async () => {
-    const store = await laneStore();
-    expect(await store.factSource.temporalRanking("What did I do last week?")).toEqual([]);
+  const NOW = Date.UTC(2026, 9, 15, 12);
+  const day = 24 * 60 * 60 * 1000;
+  function eventRow(id: string, event: Record<string, unknown>, i = 0) {
+    return {
+      memory: {
+        memory_id: id,
+        content: "enc:v3:00",
+        scope: "private",
+        created_at: 1000 + i,
+        updated_at: 1000 + i,
+        is_deleted: false,
+        ...event,
+      },
+      version: 1,
+      server_updated_at: "2026-01-01T00:00:00Z",
+      seq: i,
+    };
+  }
+
+  it("ranks memories by how much of the query's time window their event covers", async () => {
+    const { store, server, queried, decrypt } = await lanes();
+    const window = parseQueryTimeWindow("What did I do yesterday?", NOW)!;
+    const rows: Array<[string, Record<string, unknown>]> = [
+      ["dinner", { event_time_start: window.start + 3_600_000, event_time_kind: "point" }],
+      [
+        "trip",
+        {
+          event_time_start: window.start - day,
+          event_time_end: window.start + day / 2,
+          event_time_kind: "range",
+        },
+      ],
+      ["job", { event_time_start: window.start - 30 * day, event_time_kind: "ongoing" }],
+      ["older", { event_time_start: window.start - 3 * day, event_time_kind: "point" }],
+      ["undated", {}],
+    ];
+    rows.forEach(([id, event], i) => server.rows.set(id, eventRow(id, event, i)));
+    decrypt.mockClear();
+
+    const ranked = await store.factSource.temporalRanking("What did I do yesterday?", NOW);
+    expect(ranked).toHaveLength(3);
+    expect(ranked.slice(0, 2).sort()).toEqual(["dinner", "job"]);
+    expect(ranked[2]).toBe("trip");
+    expect(queried.at(-1)).toMatchObject({
+      event_time_overlaps: { start: window.start, end: window.end },
+    });
+    expect(decrypt).not.toHaveBeenCalled();
+  });
+
+  it("asks nearby nothing for a query with no time phrase", async () => {
+    const { store, queried } = await lanes();
+    expect(await store.factSource.temporalRanking("What does Priya like?", NOW)).toEqual([]);
+    expect(queried).toEqual([]);
+  });
+
+  it("reads a bounded number of rows for a busy time window", async () => {
+    const { store, server, queried } = await lanes();
+    const window = parseQueryTimeWindow("What did I do yesterday?", NOW)!;
+    for (let i = 0; i < 300; i++)
+      server.rows.set(
+        `e-${i}`,
+        eventRow(`e-${i}`, { event_time_start: window.start + i, event_time_kind: "point" }, i)
+      );
+
+    const ranked = await store.factSource.temporalRanking("What did I do yesterday?", NOW);
+
+    expect(ranked).toHaveLength(256);
+    const requested = queried.reduce((sum, body) => sum + (body.limit as number), 0);
+    expect(requested).toBeLessThanOrEqual(256);
+  });
+});
+
+describe("repairEmbeddings", () => {
+  async function repairStore(shared?: ReturnType<typeof fakeNearby>) {
+    const keys = await deriveMemoryKeyRing(`0x${"d4".repeat(65)}`);
+    const server = shared ?? fakeNearby(keys.keyId);
+    const cipher = memoryCipher(keys);
+    const decrypt = vi.fn(cipher.decrypt);
+    const persistence = await createRemoteMemoryPersistence({
+      baseUrl: "https://nearby.test",
+      getToken: async () => "token",
+      keyId: keys.keyId,
+      encrypt: cipher.encrypt,
+      decrypt,
+      fetch: server.fetch as unknown as typeof globalThis.fetch,
+    });
+    const store = createRemoteMemoryStore({
+      persistence,
+      embeddingOptions: { apiKey: "test-key" },
+      graphRanking: async () => [],
+      temporalRanking: async () => [],
+    });
+    let seq = server.rows.size;
+    const seed = async (id: string, text: string, extra: Record<string, unknown> = {}) => {
+      seq++;
+      server.rows.set(id, {
+        memory: {
+          memory_id: id,
+          content: await cipher.encrypt(text),
+          scope: "private",
+          created_at: 1000 + seq,
+          updated_at: 1000 + seq,
+          is_deleted: false,
+          ...extra,
+        },
+        version: 1,
+        server_updated_at: "2026-01-01T00:00:00Z",
+        seq,
+      } as unknown as Stored);
+    };
+    const current = { embedding: axis(3), embedding_model: DEFAULT_API_EMBEDDING_MODEL };
+    return { store, server, decrypt, seed, current };
+  }
+
+  it("re-embeds rows nearby cannot rank and decrypts only those", async () => {
+    const { store, server, decrypt, seed, current } = await repairStore();
+    await seed("missing", "Moved to Lisbon");
+    await seed("old-model", "Plays cello", { embedding: axis(4), embedding_model: "openai/old" });
+    await seed("fine", "Likes tea", current);
+    decrypt.mockClear();
+    vi.mocked(generateEmbeddings).mockClear();
+
+    await expect(store.repairEmbeddings!()).resolves.toEqual({
+      scanned: 3,
+      reembedded: 2,
+      failed: 0,
+      skippedConflict: 0,
+    });
+    for (const id of ["missing", "old-model"]) {
+      const row = server.rows.get(id)!;
+      expect(row.memory.embedding_model).toBe(DEFAULT_API_EMBEDDING_MODEL);
+      expect((row.memory.embedding as number[]).length).toBe(1536);
+      expect(row.memory.updated_at).toBe(id === "missing" ? 1001 : 1002);
+    }
+    expect(server.rows.get("fine")!.version).toBe(1);
+    expect(decrypt).toHaveBeenCalledTimes(2);
+    expect(generateEmbeddings).toHaveBeenCalledTimes(1);
+    expect([...vi.mocked(generateEmbeddings).mock.calls[0][0]].sort()).toEqual([
+      "Moved to Lisbon",
+      "Plays cello",
+    ]);
+  });
+
+  it("does nothing beyond a metadata scan when every row is current", async () => {
+    const { store, decrypt, seed, current } = await repairStore();
+    await seed("a", "Likes tea", current);
+    await seed("b", "Hikes", current);
+    decrypt.mockClear();
+    vi.mocked(generateEmbeddings).mockClear();
+
+    await expect(store.repairEmbeddings!()).resolves.toMatchObject({ scanned: 2, reembedded: 0 });
+    expect(decrypt).not.toHaveBeenCalled();
+    expect(generateEmbeddings).not.toHaveBeenCalled();
+  });
+
+  it("repairs tombstones that keep their text and skips placeholders on later runs", async () => {
+    const { store, server, decrypt, seed } = await repairStore();
+    await seed("deleted", "Used to live in Porto", { is_deleted: true });
+    await seed("placeholder", "", { is_deleted: true });
+
+    await expect(store.repairEmbeddings!()).resolves.toMatchObject({ reembedded: 1, failed: 0 });
+    expect(server.rows.get("deleted")!.memory).toMatchObject({
+      is_deleted: true,
+      embedding_model: DEFAULT_API_EMBEDDING_MODEL,
+    });
+    decrypt.mockClear();
+    await expect(store.repairEmbeddings!()).resolves.toMatchObject({ reembedded: 0 });
+    expect(decrypt).not.toHaveBeenCalled();
+  });
+
+  it("skips a row another writer changed after it was read", async () => {
+    const { store, server, seed } = await repairStore();
+    await seed("raced", "Moved to Lisbon");
+    const original = server.fetch.getMockImplementation()!;
+    server.fetch.mockImplementation(async (input, init) => {
+      if (init?.method === "PUT") server.rows.get("raced")!.version++;
+      return original(input, init);
+    });
+
+    await expect(store.repairEmbeddings!()).resolves.toMatchObject({
+      reembedded: 0,
+      skippedConflict: 1,
+    });
+    expect(server.rows.get("raced")!.memory.embedding).toBeUndefined();
+  });
+
+  it("reaches stale rows older than one run's scan on later runs", async () => {
+    const { store, server, seed, current } = await repairStore();
+    await seed("old", "Grew up in Seoul");
+    for (let i = 0; i < 4; i++) await seed(`new${i}`, `Recent memory ${i}`, current);
+
+    const first = await store.repairEmbeddings!({ maxScan: 2 });
+    expect(first).toMatchObject({ scanned: 2, reembedded: 0 });
+    expect(first.cursor).toBeDefined();
+    await expect(store.repairEmbeddings!({ maxScan: 2 })).resolves.toMatchObject({
+      reembedded: 0,
+    });
+    const third = await store.repairEmbeddings!({ maxScan: 2 });
+    expect(third).toMatchObject({ scanned: 1, reembedded: 1 });
+    expect(third.cursor).toBeUndefined();
+    expect(server.rows.get("old")!.memory.embedding_model).toBe(DEFAULT_API_EMBEDDING_MODEL);
+  });
+
+  it("resumes from a returned cursor on a new store instance", async () => {
+    const first = await repairStore();
+    await first.seed("old", "Grew up in Seoul");
+    for (let i = 0; i < 2; i++) await first.seed(`new${i}`, `Recent memory ${i}`, first.current);
+    const { cursor } = await first.store.repairEmbeddings!({ maxScan: 2 });
+
+    const second = await repairStore(first.server);
+    await expect(second.store.repairEmbeddings!({ maxScan: 2, cursor })).resolves.toMatchObject({
+      scanned: 1,
+      reembedded: 1,
+    });
+  });
+
+  it("rescans a window that held more stale rows than one run repairs", async () => {
+    const { store, server, seed } = await repairStore();
+    for (let i = 0; i < 3; i++) await seed(`m${i}`, `Memory number ${i}`);
+    for (let i = 0; i < 2; i++) await seed(`n${i}`, `Newer memory ${i}`);
+
+    const first = await store.repairEmbeddings!({ maxScan: 2, maxRows: 1 });
+    expect(first).toMatchObject({ reembedded: 1 });
+    expect(first.cursor).toBeUndefined();
+    const second = await store.repairEmbeddings!({ maxScan: 2, maxRows: 1 });
+    expect(second).toMatchObject({ reembedded: 1 });
+    expect(second.cursor).toBeDefined();
+    expect(server.rows.get("n0")!.memory.embedding_model).toBe(DEFAULT_API_EMBEDDING_MODEL);
+    expect(server.rows.get("n1")!.memory.embedding_model).toBe(DEFAULT_API_EMBEDDING_MODEL);
+  });
+
+  it("repairs the rest of a batch the embedder rejects one row of, and moves past it", async () => {
+    const { store, server, seed } = await repairStore();
+    await seed("o1", "Older memory one");
+    await seed("o2", "Older memory two");
+    await seed("poison", "Rejected by the embedder");
+    await seed("a", "Newer memory a");
+    await seed("b", "Newer memory b");
+    const embed = vi.mocked(generateEmbeddings);
+    const original = embed.getMockImplementation()!;
+    embed.mockClear();
+    embed.mockImplementation(async (texts, options) => {
+      if (texts.includes("Rejected by the embedder"))
+        throw new EmbeddingHttpError("input too long", 400);
+      return original(texts, options);
+    });
+    try {
+      const first = await store.repairEmbeddings!({ maxScan: 3, maxRows: 3 });
+      expect(first).toMatchObject({ scanned: 3, reembedded: 2, failed: 1 });
+      expect(first.cursor).toBeDefined();
+      expect(server.rows.get("a")!.memory.embedding_model).toBe(DEFAULT_API_EMBEDDING_MODEL);
+      expect(server.rows.get("b")!.memory.embedding_model).toBe(DEFAULT_API_EMBEDDING_MODEL);
+
+      embed.mockClear();
+      const second = await store.repairEmbeddings!({ maxScan: 3, maxRows: 3 });
+      expect(second).toMatchObject({ reembedded: 2, failed: 0 });
+      expect(embed.mock.calls.flatMap(([texts]) => texts)).not.toContain(
+        "Rejected by the embedder"
+      );
+      expect(server.rows.get("o1")!.memory.embedding_model).toBe(DEFAULT_API_EMBEDDING_MODEL);
+    } finally {
+      embed.mockImplementation(original);
+    }
+  });
+
+  it("stops a run on a fatal embedding error without giving up on any row", async () => {
+    const { store, server, seed } = await repairStore();
+    await seed("old", "Older memory");
+    await seed("a", "Newer memory a");
+    await seed("b", "Newer memory b");
+    const embed = vi.mocked(generateEmbeddings);
+    const original = embed.getMockImplementation()!;
+    embed.mockClear();
+    embed.mockImplementation(async () => {
+      throw new EmbeddingHttpError("payment required", 402);
+    });
+    try {
+      const first = await store.repairEmbeddings!({ maxScan: 2 });
+      expect(first).toMatchObject({ reembedded: 0, failed: 2 });
+      expect(first.cursor).toBeUndefined();
+      expect(embed).toHaveBeenCalledTimes(1);
+    } finally {
+      embed.mockImplementation(original);
+    }
+    await expect(store.repairEmbeddings!({ maxScan: 2 })).resolves.toMatchObject({
+      reembedded: 2,
+      failed: 0,
+    });
+    expect(server.rows.get("a")!.memory.embedding_model).toBe(DEFAULT_API_EMBEDDING_MODEL);
+    expect(server.rows.get("b")!.memory.embedding_model).toBe(DEFAULT_API_EMBEDDING_MODEL);
+  });
+
+  it("stops falling back row by row once a single-row embed hits a fatal error", async () => {
+    const { store, seed } = await repairStore();
+    await seed("a", "Newer memory a");
+    await seed("b", "Newer memory b");
+    const embed = vi.mocked(generateEmbeddings);
+    const original = embed.getMockImplementation()!;
+    embed.mockImplementation(async (texts) => {
+      throw new EmbeddingHttpError(
+        texts.length > 1 ? "bad batch" : "payment required",
+        texts.length > 1 ? 400 : 402
+      );
+    });
+    try {
+      await expect(store.repairEmbeddings!()).resolves.toMatchObject({
+        reembedded: 0,
+        failed: 2,
+      });
+    } finally {
+      embed.mockImplementation(original);
+    }
+    await expect(store.repairEmbeddings!()).resolves.toMatchObject({ reembedded: 2, failed: 0 });
+  });
+
+  it.each([
+    ["a 503 that outlasted retries", () => new EmbeddingHttpError("unavailable", 503)],
+    ["a non-HTTP failure", () => new Error("No token available for embedding generation")],
+  ])("treats %s as transient: marks nothing and rescans the window", async (_label, failure) => {
+    const { store, server, seed } = await repairStore();
+    await seed("old", "Older memory");
+    await seed("a", "Newer memory a");
+    await seed("b", "Newer memory b");
+    const embed = vi.mocked(generateEmbeddings);
+    const original = embed.getMockImplementation()!;
+    embed.mockClear();
+    embed.mockImplementation(async () => {
+      throw failure();
+    });
+    try {
+      const first = await store.repairEmbeddings!({ maxScan: 2 });
+      expect(first).toMatchObject({ reembedded: 0, failed: 2 });
+      expect(first.cursor).toBeUndefined();
+      expect(embed).toHaveBeenCalledTimes(1);
+    } finally {
+      embed.mockImplementation(original);
+    }
+    await expect(store.repairEmbeddings!({ maxScan: 2 })).resolves.toMatchObject({
+      reembedded: 2,
+      failed: 0,
+    });
+    expect(server.rows.get("a")!.memory.embedding_model).toBe(DEFAULT_API_EMBEDDING_MODEL);
+    expect(server.rows.get("b")!.memory.embedding_model).toBe(DEFAULT_API_EMBEDDING_MODEL);
+  });
+
+  it("treats a transient single-row failure as ending the run, not as a rejected row", async () => {
+    const { store, seed } = await repairStore();
+    await seed("a", "Newer memory a");
+    await seed("b", "Newer memory b");
+    const embed = vi.mocked(generateEmbeddings);
+    const original = embed.getMockImplementation()!;
+    embed.mockImplementation(async (texts) => {
+      throw new EmbeddingHttpError(
+        texts.length > 1 ? "bad batch" : "unavailable",
+        texts.length > 1 ? 400 : 503
+      );
+    });
+    try {
+      await expect(store.repairEmbeddings!()).resolves.toMatchObject({
+        reembedded: 0,
+        failed: 2,
+      });
+    } finally {
+      embed.mockImplementation(original);
+    }
+    await expect(store.repairEmbeddings!()).resolves.toMatchObject({ reembedded: 2, failed: 0 });
+  });
+
+  it("bounds how many rows one run inspects and re-embeds", async () => {
+    const { store, seed } = await repairStore();
+    for (let i = 0; i < 5; i++) await seed(`m${i}`, `Memory number ${i}`);
+    vi.mocked(generateEmbeddings).mockClear();
+
+    await expect(store.repairEmbeddings!({ maxRows: 2 })).resolves.toMatchObject({
+      scanned: 5,
+      reembedded: 2,
+    });
+    expect(vi.mocked(generateEmbeddings).mock.calls[0][0]).toHaveLength(2);
+    await expect(store.repairEmbeddings!({ maxScan: 3 })).resolves.toMatchObject({
+      scanned: 3,
+    });
+  });
+});
+
+describe("remote decay", () => {
+  const DAY = 24 * 60 * 60 * 1000;
+  async function decayStore() {
+    const keys = await deriveMemoryKeyRing(`0x${"d4".repeat(65)}`);
+    const server = fakeNearby(keys.keyId);
+    const cipher = memoryCipher(keys);
+    const decrypt = vi.fn(cipher.decrypt);
+    let afterScan: (() => void) | undefined;
+    const fetch = vi.fn(async (url: string | URL, init?: RequestInit) => {
+      const response = await server.fetch(url as never, init as never);
+      if (String(url).endsWith("/memories/query") && afterScan) {
+        const run = afterScan;
+        afterScan = undefined;
+        run();
+      }
+      return response;
+    });
+    const persistence = await createRemoteMemoryPersistence({
+      baseUrl: "https://nearby.test",
+      getToken: async () => "token",
+      keyId: keys.keyId,
+      encrypt: cipher.encrypt,
+      decrypt,
+      fetch: fetch as unknown as typeof globalThis.fetch,
+    });
+    const store = createRemoteMemoryStore({
+      persistence,
+      embeddingOptions: { apiKey: "test-key" },
+      graphRanking: async () => [],
+      temporalRanking: async () => [],
+      pollIntervalMs: 0,
+    });
+    const onAfterScan = (run: () => void) => {
+      afterScan = run;
+    };
+    return { store, server, decrypt, onAfterScan };
+  }
+  const aged = (server: ReturnType<typeof fakeNearby>, id: string, fields = {}) =>
+    Object.assign(server.rows.get(id)!.memory, {
+      source: "auto-extracted",
+      fact_type: "other",
+      updated_at: 1000,
+      ...fields,
+    });
+
+  it("archives an aged extracted memory after a metadata-only scan", async () => {
+    const { store, server, decrypt } = await decayStore();
+    const stale = await store.create({ content: "Was into crosswords", embedding: axis(0) });
+    const durable = await store.create({ content: "Name is Ana", embedding: axis(1) });
+    const manual = await store.create({ content: "Likes green tea", embedding: axis(2) });
+    aged(server, stale.uniqueId);
+    aged(server, durable.uniqueId, { fact_type: "identity" });
+    const untouched = new Set(
+      [durable.uniqueId, manual.uniqueId].map((id) => server.rows.get(id)!.memory.content)
+    );
+    decrypt.mockClear();
+
+    const result = await store.decay!.createDecaySweeper().runSweep();
+
+    expect(result).toMatchObject({ archived: 1, deleted: 0, scanned: 3 });
+    expect(server.rows.get(stale.uniqueId)!.memory.archived_at).toEqual(expect.any(Number));
+    expect(server.rows.get(durable.uniqueId)!.memory.archived_at).toBeUndefined();
+    expect(server.rows.get(manual.uniqueId)!.memory.archived_at).toBeUndefined();
+    expect(decrypt.mock.calls.some(([value]) => untouched.has(value as string))).toBe(false);
+  });
+
+  it("keeps a memory re-observed between the scan and the write", async () => {
+    const { store, server, onAfterScan } = await decayStore();
+    const m = await store.create({ content: "Was into crosswords", embedding: axis(0) });
+    aged(server, m.uniqueId);
+    onAfterScan(() => {
+      const row = server.rows.get(m.uniqueId)!;
+      row.memory.last_observed_at = Date.now();
+      row.version++;
+    });
+
+    const result = await store.decay!.createDecaySweeper().runSweep();
+
+    expect(result.archived).toBe(0);
+    expect(server.rows.get(m.uniqueId)!.memory.archived_at).toBeUndefined();
+  });
+
+  it("never decays a profile memory", async () => {
+    const { store, server } = await decayStore();
+    const m = await store.create({ content: "Was into crosswords", embedding: axis(0) });
+    aged(server, m.uniqueId, { kind: "interest" });
+
+    const result = await store.decay!.createDecaySweeper().runSweep();
+
+    expect(result).toMatchObject({ archived: 0, scanned: 0 });
+  });
+
+  it("tombstones an archived memory once its window passes", async () => {
+    const { store, server } = await decayStore();
+    const m = await store.create({ content: "Was into crosswords", embedding: axis(0) });
+    aged(server, m.uniqueId, { archived_at: Date.now() - 31 * DAY });
+
+    const result = await store.decay!.createDecaySweeper().runSweep();
+
+    expect(result.deleted).toBe(1);
+    expect(server.rows.get(m.uniqueId)!.memory.is_deleted).toBe(true);
+  });
+
+  it("lets a restore between the scan and the write win over the delete", async () => {
+    const { store, server, onAfterScan } = await decayStore();
+    const m = await store.create({ content: "Was into crosswords", embedding: axis(0) });
+    aged(server, m.uniqueId, { archived_at: Date.now() - 31 * DAY });
+    onAfterScan(() => {
+      const row = server.rows.get(m.uniqueId)!;
+      delete row.memory.archived_at;
+      row.version++;
+    });
+
+    const result = await store.decay!.createDecaySweeper().runSweep();
+
+    expect(result.deleted).toBe(0);
+    expect(server.rows.get(m.uniqueId)!.memory.is_deleted).toBe(false);
+  });
+
+  it("keeps a memory re-archived between the scan and the write", async () => {
+    const { store, server, onAfterScan } = await decayStore();
+    const m = await store.create({ content: "Was into crosswords", embedding: axis(0) });
+    aged(server, m.uniqueId, { archived_at: Date.now() - 31 * DAY });
+    onAfterScan(() => {
+      const row = server.rows.get(m.uniqueId)!;
+      row.memory.archived_at = Date.now();
+      row.version++;
+    });
+
+    const result = await store.decay!.createDecaySweeper().runSweep();
+
+    expect(result.deleted).toBe(0);
+    expect(server.rows.get(m.uniqueId)!.memory.is_deleted).toBe(false);
+  });
+
+  it("keeps an archived memory inside its restore window", async () => {
+    const { store, server } = await decayStore();
+    const m = await store.create({ content: "Was into crosswords", embedding: axis(0) });
+    aged(server, m.uniqueId, { archived_at: Date.now() - 5 * DAY });
+
+    const result = await store.decay!.createDecaySweeper().runSweep();
+
+    expect(result.deleted).toBe(0);
+    expect(server.rows.get(m.uniqueId)!.memory.is_deleted).toBe(false);
+  });
+
+  it("deletes a due memory even when more than 200 archive candidates cannot be read", async () => {
+    const { store, server } = await decayStore();
+    const due = await store.create({ content: "Was into crosswords", embedding: axis(0) });
+    aged(server, due.uniqueId, { archived_at: Date.now() - 31 * DAY });
+    for (let i = 0; i < 201; i++)
+      server.rows.set(`unreadable-${i}`, {
+        memory: {
+          memory_id: `unreadable-${i}`,
+          content: "enc:v3:00",
+          scope: "private",
+          created_at: 1000 + i,
+          updated_at: 1000,
+          is_deleted: false,
+          source: "auto-extracted",
+          fact_type: "other",
+        },
+        version: 1,
+        server_updated_at: "2026-01-01T00:00:00Z",
+        seq: 1000 + i,
+      });
+
+    const result = await store.decay!.createDecaySweeper().runSweep();
+
+    expect(result).toMatchObject({ archived: 0, deleted: 1 });
+    expect(server.rows.get(due.uniqueId)!.memory.is_deleted).toBe(true);
+  });
+
+  it("moves at most 200 memories per sweep and finishes on the next", async () => {
+    const { store, server } = await decayStore();
+    const created = await store.createMany(
+      Array.from({ length: 230 }, (_, i) => ({ content: `Fact ${i}`, embedding: axis(0) }))
+    );
+    for (const m of created) aged(server, m.uniqueId);
+    const sweeper = store.decay!.createDecaySweeper();
+
+    expect((await sweeper.runSweep()).archived).toBe(200);
+    expect((await sweeper.runSweep()).archived).toBe(30);
   });
 });

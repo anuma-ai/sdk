@@ -12,7 +12,7 @@ import { DEFAULT_API_EMBEDDING_MODEL } from "../memoryEngine/constants.js";
 import { generateEmbedding } from "../memoryEngine/embeddings.js";
 import type { EmbeddingOptions } from "../memoryEngine/types.js";
 import { normalizeSubQueries } from "../memoryVault/decomposeQuery.js";
-import type { VaultSearchResult } from "../memoryVault/searchTool.js";
+import type { CorpusStats, VaultSearchResult } from "../memoryVault/searchTool.js";
 import { searchVaultMemoriesWithSize } from "../memoryVault/searchTool.js";
 import { nowMs } from "../scheduling.js";
 import {
@@ -132,6 +132,7 @@ export async function recall(
   let factLaneRankedOnCosine = false;
   let decryptLastRan: boolean | undefined;
   let vaultRowsDecrypted: number | undefined;
+  let corpusStats: CorpusStats | undefined;
   let graphLaneCount = 0;
   let temporalLaneCount = 0;
   let graphLaneFailed = false;
@@ -184,6 +185,10 @@ export async function recall(
       ...(decryptLastRan !== undefined && { decryptLast: decryptLastRan }),
       ...(vaultRowsDecrypted !== undefined && { vaultRowsDecrypted }),
       ...(vaultRowsEmbedded !== undefined && { vaultRowsEmbedded }),
+      ...(corpusStats && {
+        vaultCacheHits: corpusStats.cacheHits,
+        vaultCacheMisses: corpusStats.cacheMisses,
+      }),
       ...(chunkStats && {
         chunkRowsScanned: chunkStats.rowsScanned,
         chunkRowsFetched: chunkStats.rowsFetched,
@@ -207,6 +212,11 @@ export async function recall(
         queryEmbed: queryEmbedMs,
         chunkLane: chunkLaneMs,
         fuse: fuseMs,
+        ...(corpusStats && {
+          corpusKeys: corpusStats.keysMs,
+          corpusEmbeddingsFetch: corpusStats.embeddingsFetchMs,
+          corpusRowsFetch: corpusStats.rowsFetchMs,
+        }),
       },
       degraded,
     };
@@ -301,6 +311,7 @@ export async function recall(
       rankedOnCosine: factRankedOnCosine,
       decryptLast: factDecryptLast,
       rowsDecrypted: factRowsDecrypted,
+      corpusStats: factCorpusStats,
     } = await (
       ctx.factSource?.search.bind(ctx.factSource) ??
       ((searchQuery, searchOptions) =>
@@ -370,6 +381,7 @@ export async function recall(
     factLaneRankedOnCosine = factRankedOnCosine;
     decryptLastRan = factDecryptLast;
     vaultRowsDecrypted = factRowsDecrypted;
+    corpusStats = factCorpusStats;
     factLaneMs = nowMs() - factStart;
   }
 

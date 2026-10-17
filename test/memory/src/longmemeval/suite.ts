@@ -694,6 +694,8 @@ export function createConsolidationFallbackTracker(): {
 } {
   const counts: Record<ConsolidationFallbackReason, number> = {
     llm_error: 0,
+    llm_timeout: 0,
+    content_flagged: 0,
     invalid_response: 0,
     target_vanished: 0,
     subject_mismatch: 0,
@@ -872,7 +874,8 @@ export async function runLongMemEval(
               recallEmit: options.recallEmit,
               recallLaneMode: options.recallLaneMode,
               ...tuningKnobs,
-            }
+            },
+            embeddingCache
           );
         } else {
           result = await processEntryMemoryVault(

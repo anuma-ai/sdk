@@ -482,6 +482,7 @@ export type {
   TopicSkipReason,
   TurnCompleteEvent,
   TurnSkippedEvent,
+  WriteFailureReason,
 } from "../lib/memory";
 export type {
   MemoryToVerify,
@@ -501,9 +502,13 @@ export {
   createRemoteMemoryPipeline,
   createRemoteMemoryStore,
   deriveMemoryKeyRing,
+  type EmbeddingRepairOptions,
+  type EmbeddingRepairResult,
   type LocalMemoryStoreOptions,
   memoryCipher,
   type MemoryCreate,
+  type MemoryDecay,
+  type MemoryDecaySweeperOptions,
   MemoryKeyError,
   type MemoryKeyRing,
   type MemoryListOptions,
@@ -606,7 +611,13 @@ export {
   type MemoryContextResult,
   shouldRecallMemory,
 } from "../lib/memory";
-export { createDurableAutoExtractor, type DurableAutoExtractorOptions } from "../lib/memory";
+export {
+  createDurableAutoExtractor,
+  type DurableAutoExtractorOptions,
+  type ExtractionMessageSource,
+  type ExtractionSourceMessage,
+  type ExtractionSourceStatus,
+} from "../lib/memory";
 export type {
   ChunkingOptions,
   EmbeddingOptions as MemoryEngineEmbeddingOptions,

@@ -1,6 +1,6 @@
 # ExtractedEntity
 
-Defined in: [src/lib/memory/autoExtract.ts:129](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#129)
+Defined in: [src/lib/memory/autoExtract.ts:133](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#133)
 
 A named entity extracted from the conversation, with an optional
 classification. `kind` is omitted when the model gave no kind or an
@@ -12,7 +12,7 @@ unrecognized one — see validateCandidates.
 
 > `optional` **kind**: `"event"` | `"person"` | `"organization"` | `"place"` | `"product"` | `"thing"` | `"concept"` | `"other"`
 
-Defined in: [src/lib/memory/autoExtract.ts:131](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#131)
+Defined in: [src/lib/memory/autoExtract.ts:135](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#135)
 
 ***
 
@@ -20,7 +20,7 @@ Defined in: [src/lib/memory/autoExtract.ts:131](https://github.com/anuma-ai/sdk/
 
 > **name**: `string`
 
-Defined in: [src/lib/memory/autoExtract.ts:130](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#130)
+Defined in: [src/lib/memory/autoExtract.ts:134](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#134)
 
 ***
 
@@ -28,4 +28,4 @@ Defined in: [src/lib/memory/autoExtract.ts:130](https://github.com/anuma-ai/sdk/
 
 > `optional` **weight**: `number`
 
-Defined in: [src/lib/memory/autoExtract.ts:132](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#132)
+Defined in: [src/lib/memory/autoExtract.ts:136](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#136)

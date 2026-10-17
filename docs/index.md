@@ -74,6 +74,16 @@ The SDK provides entry points for different platforms:
 * `@anuma/sdk/expo` — React Native / Expo
 * `@anuma/sdk/client` — Generated API client and types
 
+### iCloud backups
+
+Add a `backupRevision` field with type `String` to the `ConversationBackup`
+record type in the development schema.
+[Deploy the schema to production](https://developer.apple.com/documentation/cloudkit/deploying-an-icloud-container-s-schema)
+before you release a client that uses iCloud backup.
+
+The SDK compares this saved revision with the local conversation and message
+data. The next backup replaces older files that have no saved revision.
+
 ## Features
 
 The SDK gives you access to a unified API across multiple LLM providers through

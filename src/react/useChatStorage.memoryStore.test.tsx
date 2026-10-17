@@ -6,6 +6,8 @@ import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { sdkMigrations, sdkModelClasses, sdkSchema } from "../lib/db/schema";
+import { createVaultMemoryOp } from "../lib/db/memoryVault";
+import type { VaultMemory } from "../lib/db/memoryVault/models";
 
 vi.mock("../lib/memory", async (importOriginal) => {
   const orig = await importOriginal<typeof import("../lib/memory")>();
@@ -20,8 +22,14 @@ vi.mock("../lib/memory", async (importOriginal) => {
   };
 });
 
+vi.mock("../lib/memoryVault", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../lib/memoryVault")>()),
+  preEmbedVaultMemories: vi.fn(async () => {}),
+}));
+
 import { recall as recallBase } from "../lib/memory";
 import type { MemoryStore } from "../lib/memory/store/types";
+import { preEmbedVaultMemories } from "../lib/memoryVault";
 import { useChatStorage } from "./useChatStorage";
 
 function makeDatabase(): Database {
@@ -56,6 +64,66 @@ describe("useChatStorage with a memoryStore", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     db = makeDatabase();
+  });
+
+  it("keeps the local vault available when memoryStore is undefined", async () => {
+    const { result } = renderHook(() => useChatStorage({ database: db }));
+    const memory = await result.current.createVaultMemory("Likes tea");
+    expect(await result.current.getVaultMemories()).toMatchObject([
+      { uniqueId: memory.uniqueId, content: "Likes tea" },
+    ]);
+    expect(await result.current.deleteVaultMemory(memory.uniqueId)).toBe(true);
+  });
+
+  it("fails closed for null without reading, writing or embedding the local vault", async () => {
+    const local = await createVaultMemoryOp(
+      { database: db, vaultMemoryCollection: db.get<VaultMemory>("memory_vault") },
+      { content: "Legacy local memory" }
+    );
+    const { result } = renderHook(() =>
+      useChatStorage({
+        database: db,
+        memoryStore: null,
+        getToken: async () => "tok",
+        piiRedaction: true,
+        enableQueue: false,
+      })
+    );
+
+    expect(await result.current.getVaultMemories()).toEqual([]);
+    expect(await result.current.searchVaultMemories("legacy")).toEqual([]);
+    expect(await result.current.recall("legacy", { budget: "high" })).toEqual({
+      memories: [],
+      usedBudget: "high",
+      reranked: false,
+      candidateCount: 0,
+    });
+    await expect(result.current.createVaultMemory("New memory")).rejects.toThrow(
+      "Memory store is not ready"
+    );
+    await expect(result.current.updateVaultMemory(local.uniqueId, "Changed")).rejects.toThrow(
+      "Memory store is not ready"
+    );
+    await expect(result.current.deleteVaultMemory(local.uniqueId)).rejects.toThrow(
+      "Memory store is not ready"
+    );
+    await expect(
+      result.current.retainVaultMemory({ content: "New memory", scope: "private" })
+    ).rejects.toThrow("Memory store is not ready");
+    expect(() => result.current.createRecallTool()).toThrow("Memory store is not ready");
+    expect(() => result.current.createMemoryVaultTool()).toThrow("Memory store is not ready");
+    expect(() => result.current.createMemoryVaultSearchTool()).toThrow("Memory store is not ready");
+    expect(() => result.current.createMemoryEngineTool()).not.toThrow();
+    expect(recallBase).not.toHaveBeenCalled();
+    expect(preEmbedVaultMemories).not.toHaveBeenCalled();
+    expect(await db.get<VaultMemory>("memory_vault").query().fetchCount()).toBe(1);
+
+    await act(async () => {
+      const conversation = await result.current.createConversation({ title: "Still usable" });
+      expect(await result.current.getConversation(conversation.conversationId)).toMatchObject({
+        title: "Still usable",
+      });
+    });
   });
 
   it("recalls facts through the store's fact source alongside conversation chunks", async () => {
