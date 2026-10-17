@@ -1,5 +1,7 @@
 import type { PDFDocumentProxy } from "pdfjs-dist";
 
+import { assertFileUrlAllowed } from "./processors/encoding";
+
 let pdfjsModule: typeof import("pdfjs-dist") | null = null;
 let workerConfigured = false;
 
@@ -23,6 +25,7 @@ async function withPdfDocument<T>(
   pdfDataUrl: string,
   fn: (pdf: PDFDocumentProxy) => Promise<T>
 ): Promise<T> {
+  assertFileUrlAllowed(pdfDataUrl);
   const pdfjs = await getPdfjs();
   const loadingTask = pdfjs.getDocument(pdfDataUrl);
   let pdf: PDFDocumentProxy;
