@@ -28,6 +28,8 @@ const checkedTestFiles = [
   "src/react/useChatStorage.fileSize.test.tsx",
   "src/react/useChatStorage.queueIdentifiers.test.tsx",
   "src/react/useChatStorage.runHooks.test.tsx",
+  "src/server/pg-adapter.integration.test.ts",
+  "src/server/pg-adapter.test.ts",
   "test/tools/slide-generation/models.ts",
 ];
 

@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+
 import type {
   BatchOperation,
   CachedFindResult,
@@ -20,7 +22,7 @@ export interface PgClientLike {
 
 export interface PgPoolLike {
   query(text: string, values?: unknown[]): Promise<{ rows: Record<string, unknown>[] }>;
-  /** Optional. When provided, batch operations run inside a transaction on a dedicated connection. */
+  /** Optional for regular operations; required for raw SQL and transactional batches. */
   connect?(): Promise<PgClientLike>;
 }
 
@@ -29,12 +31,10 @@ export interface PostgreSQLAdapterOptions {
   schema: AppSchema;
   migrations?: SchemaMigrations;
   dbName: string;
-  /**
-   * PostgreSQL schema (namespace) for all SDK tables.
-   * Defaults to "public". Use a custom schema (e.g. "sdk") to avoid
-   * conflicts with existing tables in the same database.
-   */
+  /** Namespace key combined with dbName to derive the isolated schema; defaults to "public". */
   pgSchema?: string;
+  /** Move legacy tables only when this database owns all records in the legacy schema. */
+  migrateLegacySchema?: boolean;
 }
 
 function makeQualify(pgSchema: string): (table: string) => string {
@@ -142,6 +142,12 @@ interface QueryDescription {
   take?: number;
   skip?: number;
   sql?: { sql: string; values: unknown[] };
+}
+
+function hasSql(clauses: Where[]): boolean {
+  return clauses.some(
+    (clause) => clause.type === "sql" || ("conditions" in clause && hasSql(clause.conditions))
+  );
 }
 
 function encodeQuery(
@@ -267,10 +273,7 @@ export function schemaToCreateSQL(schema: AppSchema, pgSchema = "public"): strin
       cols.push(`"${col.name}" ${pgType}${nullable}${def}`);
 
       if (col.isIndexed) {
-        const indexName =
-          pgSchema === "public"
-            ? `"${tableName}_${col.name}"`
-            : `"${pgSchema}_${tableName}_${col.name}"`;
+        const indexName = `"${tableName}_${col.name}"`;
         indexes.push(
           `create index if not exists ${indexName} on ${qualify(tableName)} ("${col.name}");`
         );
@@ -328,17 +331,81 @@ export class PostgreSQLAdapter implements DatabaseAdapter {
     this.dbName = options.dbName;
     this.migrations = options.migrations;
     this.pool = options.pool;
-    this._pgSchema = options.pgSchema ?? "public";
+    this._pgSchema = `anuma_${createHash("sha256")
+      .update(JSON.stringify([options.pgSchema ?? "public", this.dbName]))
+      .digest("hex")
+      .slice(0, 48)}`;
     this.qualify = makeQualify(this._pgSchema);
-    this.initialized = this._initialize();
+    this.initialized = this._initialize(
+      options.pgSchema ?? "public",
+      options.migrateLegacySchema ?? false
+    );
   }
 
   private static SCHEMA_VERSION_KEY = "__schema_version";
 
-  private async _initialize(): Promise<void> {
-    if (this._pgSchema !== "public") {
-      await this.pool.query(`create schema if not exists "${this._pgSchema}"`);
+  private async _hasLegacyData(pgSchema: string, executor: Pick<PgPoolLike, "query">) {
+    const legacyStorage = `"${pgSchema.replace(/"/g, '""')}"."local_storage"`;
+    const { rows } = await executor.query(
+      "select to_regclass($1) as legacy, to_regclass($2) as isolated",
+      [legacyStorage, this.qualify("local_storage")]
+    );
+    if (!rows[0]?.legacy) return false;
+    if (rows[0].isolated) {
+      const { rows: version } = await executor.query(
+        `select "value" from ${this.qualify("local_storage")} where "key" = $1`,
+        [PostgreSQLAdapter.SCHEMA_VERSION_KEY]
+      );
+      if (Number(version[0]?.value) > 0) return false;
     }
+    const { rows: version } = await executor.query(
+      `select "value" from ${legacyStorage} where "key" = $1`,
+      [PostgreSQLAdapter.SCHEMA_VERSION_KEY]
+    );
+    return Number(version[0]?.value) > 0;
+  }
+
+  private async _upgradeLegacySchema(pgSchema: string, migrateLegacySchema: boolean) {
+    if (!migrateLegacySchema) {
+      if (await this._hasLegacyData(pgSchema, this.pool)) {
+        throw new Error(
+          "PostgreSQLAdapter found legacy data. Set migrateLegacySchema to true only for the database that owns all legacy records."
+        );
+      }
+      return;
+    }
+    if (!this.pool.connect) {
+      throw new Error("PostgreSQLAdapter legacy migration requires pool.connect");
+    }
+    const client = await this.pool.connect();
+    try {
+      await client.query("BEGIN");
+      await client.query("select pg_advisory_xact_lock(hashtext($1))", [
+        `PostgreSQLAdapter:${pgSchema}`,
+      ]);
+      if (await this._hasLegacyData(pgSchema, client)) {
+        await client.query(`create schema if not exists "${this._pgSchema}"`);
+        const { rows } = await client.query(
+          "select tablename from pg_catalog.pg_tables where schemaname = $1 and tablename = any($2::text[])",
+          [pgSchema, [...Object.keys(this.schema.tables), "local_storage"]]
+        );
+        for (const row of rows) {
+          const table = `"${pgSchema.replace(/"/g, '""')}"."${String(row.tablename).replace(/"/g, '""')}"`;
+          await client.query(`alter table ${table} set schema "${this._pgSchema}"`);
+        }
+      }
+      await client.query("COMMIT");
+    } catch (error) {
+      await client.query("ROLLBACK");
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
+  private async _initialize(pgSchema: string, migrateLegacySchema: boolean): Promise<void> {
+    await this._upgradeLegacySchema(pgSchema, migrateLegacySchema);
+    await this.pool.query(`create schema if not exists "${this._pgSchema}"`);
 
     await this.pool.query(
       `create table if not exists ${this.qualify("local_storage")} ("key" text primary key, "value" text not null);`
@@ -417,10 +484,7 @@ export class PostgreSQLAdapter implements DatabaseAdapter {
         );
         for (const col of ts.columnArray) {
           if (col.isIndexed) {
-            const indexName =
-              this._pgSchema === "public"
-                ? `"${ts.name}_${col.name}"`
-                : `"${this._pgSchema}_${ts.name}_${col.name}"`;
+            const indexName = `"${ts.name}_${col.name}"`;
             await this.pool.query(
               `create index if not exists ${indexName} on ${this.qualify(ts.name)} ("${col.name}");`
             );
@@ -438,10 +502,7 @@ export class PostgreSQLAdapter implements DatabaseAdapter {
             `alter table ${this.qualify(table)} add column if not exists "${col.name}" ${pgType}${nullable}${def};`
           );
           if (col.isIndexed) {
-            const indexName =
-              this._pgSchema === "public"
-                ? `"${table}_${col.name}"`
-                : `"${this._pgSchema}_${table}_${col.name}"`;
+            const indexName = `"${table}_${col.name}"`;
             await this.pool.query(
               `create index if not exists ${indexName} on ${this.qualify(table)} ("${col.name}");`
             );
@@ -450,25 +511,37 @@ export class PostgreSQLAdapter implements DatabaseAdapter {
         break;
       }
       case "sql": {
-        if (this._pgSchema !== "public" && this.pool.connect) {
-          const client = await this.pool.connect();
-          try {
-            await client.query("BEGIN");
-            await client.query(`SET LOCAL search_path TO "${this._pgSchema}", public`);
-            await client.query(step.sql);
-            await client.query("COMMIT");
-          } catch (err) {
-            await client.query("ROLLBACK");
-            throw err;
-          } finally {
-            client.release();
-          }
-        } else {
-          await this.pool.query(step.sql);
-        }
+        await this._withSchema((client) => client.query(step.sql));
         break;
       }
     }
+  }
+
+  private async _withSchema<T>(run: (client: PgClientLike) => Promise<T>): Promise<T> {
+    if (!this.pool.connect) {
+      throw new Error("PostgreSQLAdapter raw SQL requires pool.connect for database isolation");
+    }
+    const client = await this.pool.connect();
+    try {
+      await client.query("BEGIN");
+      await client.query(`SET LOCAL search_path TO "${this._pgSchema}"`);
+      const result = await run(client);
+      await client.query("COMMIT");
+      return result;
+    } catch (err) {
+      await client.query("ROLLBACK");
+      throw err;
+    } finally {
+      client.release();
+    }
+  }
+
+  private async _query(query: SerializedQuery, countMode = false, idsOnly = false) {
+    const [sql, values] = encodeQuery(query, this.qualify, countMode, idsOnly);
+    const description = query.description as unknown as QueryDescription;
+    return description.sql || hasSql(description.where)
+      ? this._withSchema((client) => client.query(sql, values))
+      : this.pool.query(sql, values);
   }
 
   private async _resetAndRecreate(targetVersion: number): Promise<void> {
@@ -520,8 +593,7 @@ export class PostgreSQLAdapter implements DatabaseAdapter {
     this._fromPromise(
       (async () => {
         await this._ready();
-        const [sql, values] = encodeQuery(query, this.qualify);
-        const { rows } = await this.pool.query(sql, values);
+        const { rows } = await this._query(query);
         return rows.map(rowToRaw) as CachedQueryResult;
       })(),
       callback
@@ -532,8 +604,7 @@ export class PostgreSQLAdapter implements DatabaseAdapter {
     this._fromPromise(
       (async () => {
         await this._ready();
-        const [sql, values] = encodeQuery(query, this.qualify, false, true);
-        const { rows } = await this.pool.query(sql, values);
+        const { rows } = await this._query(query, false, true);
         return rows.map((r) => r.id as RecordId);
       })(),
       callback
@@ -545,8 +616,7 @@ export class PostgreSQLAdapter implements DatabaseAdapter {
     this._fromPromise(
       (async () => {
         await this._ready();
-        const [sql, values] = encodeQuery(query, this.qualify);
-        const { rows } = await this.pool.query(sql, values);
+        const { rows } = await this._query(query);
         return rows;
       })(),
       callback
@@ -557,8 +627,7 @@ export class PostgreSQLAdapter implements DatabaseAdapter {
     this._fromPromise(
       (async () => {
         await this._ready();
-        const [sql, values] = encodeQuery(query, this.qualify, true);
-        const { rows } = await this.pool.query(sql, values);
+        const { rows } = await this._query(query, true);
         return Number(rows[0]?.count ?? 0);
       })(),
       callback
@@ -704,7 +773,7 @@ export class PostgreSQLAdapter implements DatabaseAdapter {
       this._fromPromise(
         (async () => {
           await this._ready();
-          await this.pool.query(ops.sqlString!);
+          await this._withSchema((client) => client.query(ops.sqlString!));
         })(),
         callback
       );
@@ -714,9 +783,11 @@ export class PostgreSQLAdapter implements DatabaseAdapter {
       this._fromPromise(
         (async () => {
           await this._ready();
-          for (const [sql, args] of ops.sqls!) {
-            await this.pool.query(sql, args);
-          }
+          await this._withSchema(async (client) => {
+            for (const [sql, args] of ops.sqls!) {
+              await client.query(sql, args);
+            }
+          });
         })(),
         callback
       );
