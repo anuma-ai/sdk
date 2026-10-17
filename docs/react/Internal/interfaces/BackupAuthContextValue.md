@@ -1,36 +1,16 @@
 # BackupAuthContextValue
 
-Defined in: [src/react/useBackupAuth.ts:99](https://github.com/anuma-ai/sdk/blob/main/src/react/useBackupAuth.ts#99)
+Defined in: [src/react/useBackupAuth.ts:60](https://github.com/anuma-ai/sdk/blob/main/src/react/useBackupAuth.ts#60)
 
 Context value for unified backup authentication
 
 ## Properties
 
-### dropbox
-
-> **dropbox**: [`ProviderAuthState`](ProviderAuthState.md)
-
-Defined in: [src/react/useBackupAuth.ts:101](https://github.com/anuma-ai/sdk/blob/main/src/react/useBackupAuth.ts#101)
-
-Dropbox authentication state and methods
-
-***
-
-### googleDrive
-
-> **googleDrive**: [`ProviderAuthState`](ProviderAuthState.md)
-
-Defined in: [src/react/useBackupAuth.ts:103](https://github.com/anuma-ai/sdk/blob/main/src/react/useBackupAuth.ts#103)
-
-Google Drive authentication state and methods
-
-***
-
 ### hasAnyAuthentication
 
 > **hasAnyAuthentication**: `boolean`
 
-Defined in: [src/react/useBackupAuth.ts:109](https://github.com/anuma-ai/sdk/blob/main/src/react/useBackupAuth.ts#109)
+Defined in: [src/react/useBackupAuth.ts:66](https://github.com/anuma-ai/sdk/blob/main/src/react/useBackupAuth.ts#66)
 
 Check if any provider is authenticated
 
@@ -40,7 +20,7 @@ Check if any provider is authenticated
 
 > **hasAnyProvider**: `boolean`
 
-Defined in: [src/react/useBackupAuth.ts:107](https://github.com/anuma-ai/sdk/blob/main/src/react/useBackupAuth.ts#107)
+Defined in: [src/react/useBackupAuth.ts:64](https://github.com/anuma-ai/sdk/blob/main/src/react/useBackupAuth.ts#64)
 
 Check if any provider is configured
 
@@ -50,7 +30,7 @@ Check if any provider is configured
 
 > **icloud**: [`ProviderAuthState`](ProviderAuthState.md)
 
-Defined in: [src/react/useBackupAuth.ts:105](https://github.com/anuma-ai/sdk/blob/main/src/react/useBackupAuth.ts#105)
+Defined in: [src/react/useBackupAuth.ts:62](https://github.com/anuma-ai/sdk/blob/main/src/react/useBackupAuth.ts#62)
 
 iCloud authentication state and methods
 
@@ -60,7 +40,7 @@ iCloud authentication state and methods
 
 > **logoutAll**: () => `Promise`<`void`>
 
-Defined in: [src/react/useBackupAuth.ts:111](https://github.com/anuma-ai/sdk/blob/main/src/react/useBackupAuth.ts#111)
+Defined in: [src/react/useBackupAuth.ts:68](https://github.com/anuma-ai/sdk/blob/main/src/react/useBackupAuth.ts#68)
 
 Logout from all providers
 

@@ -1,6 +1,6 @@
 # ProviderAuthState
 
-Defined in: [src/react/useBackupAuth.ts:81](https://github.com/anuma-ai/sdk/blob/main/src/react/useBackupAuth.ts#81)
+Defined in: [src/react/useBackupAuth.ts:42](https://github.com/anuma-ai/sdk/blob/main/src/react/useBackupAuth.ts#42)
 
 Auth state for a single provider
 
@@ -10,7 +10,7 @@ Auth state for a single provider
 
 > **accessToken**: `string` | `null`
 
-Defined in: [src/react/useBackupAuth.ts:83](https://github.com/anuma-ai/sdk/blob/main/src/react/useBackupAuth.ts#83)
+Defined in: [src/react/useBackupAuth.ts:44](https://github.com/anuma-ai/sdk/blob/main/src/react/useBackupAuth.ts#44)
 
 Current access token (null if not authenticated)
 
@@ -20,7 +20,7 @@ Current access token (null if not authenticated)
 
 > **isAuthenticated**: `boolean`
 
-Defined in: [src/react/useBackupAuth.ts:85](https://github.com/anuma-ai/sdk/blob/main/src/react/useBackupAuth.ts#85)
+Defined in: [src/react/useBackupAuth.ts:46](https://github.com/anuma-ai/sdk/blob/main/src/react/useBackupAuth.ts#46)
 
 Whether user has authenticated with this provider
 
@@ -30,7 +30,7 @@ Whether user has authenticated with this provider
 
 > **isConfigured**: `boolean`
 
-Defined in: [src/react/useBackupAuth.ts:87](https://github.com/anuma-ai/sdk/blob/main/src/react/useBackupAuth.ts#87)
+Defined in: [src/react/useBackupAuth.ts:48](https://github.com/anuma-ai/sdk/blob/main/src/react/useBackupAuth.ts#48)
 
 Whether this provider is configured
 
@@ -40,9 +40,9 @@ Whether this provider is configured
 
 > **logout**: () => `Promise`<`void`>
 
-Defined in: [src/react/useBackupAuth.ts:91](https://github.com/anuma-ai/sdk/blob/main/src/react/useBackupAuth.ts#91)
+Defined in: [src/react/useBackupAuth.ts:52](https://github.com/anuma-ai/sdk/blob/main/src/react/useBackupAuth.ts#52)
 
-Clear stored token and log out
+Sign out of iCloud
 
 **Returns**
 
@@ -54,9 +54,9 @@ Clear stored token and log out
 
 > **refreshToken**: () => `Promise`<`string` | `null`>
 
-Defined in: [src/react/useBackupAuth.ts:93](https://github.com/anuma-ai/sdk/blob/main/src/react/useBackupAuth.ts#93)
+Defined in: [src/react/useBackupAuth.ts:54](https://github.com/anuma-ai/sdk/blob/main/src/react/useBackupAuth.ts#54)
 
-Refresh the access token using the refresh token
+Re-check the iCloud session and return the user record name
 
 **Returns**
 
@@ -68,9 +68,9 @@ Refresh the access token using the refresh token
 
 > **requestAccess**: () => `Promise`<`string`>
 
-Defined in: [src/react/useBackupAuth.ts:89](https://github.com/anuma-ai/sdk/blob/main/src/react/useBackupAuth.ts#89)
+Defined in: [src/react/useBackupAuth.ts:50](https://github.com/anuma-ai/sdk/blob/main/src/react/useBackupAuth.ts#50)
 
-Request access - returns token or redirects to OAuth
+Request access - triggers iCloud sign-in if needed and returns the user record name
 
 **Returns**
 

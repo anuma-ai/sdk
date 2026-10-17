@@ -94,6 +94,8 @@ export interface RankedMemory {
 }
 
 export interface RecallOptions {
+  /** Embedding cache shared with the rest of the turn, so the query is embedded once across lanes and the send. */
+  embeddingCache?: Map<string, Float32Array>;
   /** Which kinds to search. Default: ['fact']. */
   types?: MemoryKind[];
   /** Max items returned. Default: 8. */
@@ -239,7 +241,8 @@ export interface RecallOptions {
 export interface RecallFactSource {
   search: (
     query: string,
-    options?: import("../memoryVault/searchTool.js").MemoryVaultSearchOptions
+    options?: import("../memoryVault/searchTool.js").MemoryVaultSearchOptions,
+    embeddingCache?: Map<string, Float32Array>
   ) => ReturnType<typeof import("../memoryVault/searchTool.js").searchVaultMemoriesWithSize>;
   graphRanking: (query: string, traverse: boolean, options: RecallOptions) => Promise<string[]>;
   temporalRanking: (query: string, now?: number) => Promise<string[]>;
@@ -389,6 +392,14 @@ export interface RecallDiagnostics {
    * LEGACY read path this batch is uncapped, so it can be the whole vault.
    */
   vaultRowsEmbedded?: number;
+  vaultCacheHits?: number;
+  vaultCacheMisses?: number;
+  /** Embedded messages the chunk lane considered; absent when the lane did not run. */
+  chunkRowsScanned?: number;
+  /** Messages whose vectors the chunk lane read from storage on a cache miss. */
+  chunkRowsFetched?: number;
+  /** Messages the chunk lane scored from the vector cache. */
+  chunkCacheHits?: number;
   /** Facts the fact lane returned (post-dedupe, pre-fusion). */
   factCount: number;
   /** Chunks the chunk lane returned (post-dedupe, pre-fusion). */
@@ -431,6 +442,7 @@ export interface RecallDiagnostics {
    * happened.
    */
   truncated: boolean;
+  truncatedByBudget?: boolean;
   /** Memory ids the W5 graph (entity) side lane contributed to the fusion. */
   graphLaneCount: number;
   /** Memory ids the W6 temporal side lane contributed to the fusion. */
@@ -484,9 +496,24 @@ export interface RecallDiagnostics {
     chunkLane: number;
     /** Cross-lane RRF fusion + provenance dedup after both lanes. */
     fuse: number;
+    corpusKeys?: number;
+    corpusEmbeddingsFetch?: number;
+    corpusRowsFetch?: number;
   };
   /** Soft-degradation signals that fired this call (empty when clean). */
   degraded: RecallDegradation[];
+}
+
+export interface RecallTruncation {
+  requestedLimit: number;
+  effectiveLimit: number;
+  truncatedByBudget: boolean;
+}
+
+export interface RecallTelemetryCallbacks {
+  onDiagnostics?: (diagnostics: RecallDiagnostics) => void;
+  onTruncated?: (truncation: RecallTruncation) => void;
+  onError?: (error: Error) => void;
 }
 
 export type RetainAction = "create" | "merge" | "update" | "skip" | "suppressed" | "supersede";
@@ -532,6 +559,8 @@ export type RetainSource = "manual" | "auto-extracted" | "capsule";
  */
 export type ConsolidationFallbackReason =
   | "llm_error"
+  | "llm_timeout"
+  | "content_flagged"
   | "invalid_response"
   | "target_vanished"
   /**
@@ -573,6 +602,7 @@ export interface RetainOptions {
   consolidateOptions?: PortalLlmAuth & {
     baseUrl?: string;
     model?: string;
+    endpointOverride?: string;
     /**
      * Invoked when the consolidator degrades to its "create" fallback
      * instead of returning a real decision — `llm_error` for network /

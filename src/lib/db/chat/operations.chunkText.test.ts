@@ -16,6 +16,7 @@ import { Conversation, Message } from "./models";
 import {
   createConversationOp,
   createMessageOp,
+  getMessagesOp,
   searchChunksOp,
   type StorageOperationsContext,
   updateMessageChunksOp,
@@ -184,5 +185,39 @@ describe("updateMessageChunksOp — chunk text is not persisted (sdk#880)", () =
     expect(await decryptJsonField(await rawChunks(encDb, "m1"), TEST_ADDRESS)).toEqual(
       JSON.parse(await rawChunks(plainDb, "m1"))
     );
+  });
+});
+
+describe("getMessagesOp rawFilter", () => {
+  beforeEach(async () => {
+    ensureCrypto();
+    clearAllEncryptionKeys();
+    await requestEncryptionKey(TEST_ADDRESS, mockSignMessage);
+  });
+
+  it("drops rows on raw columns before decrypting, and decrypts the rest", async () => {
+    const db = makeDatabase();
+    const ctx = ctxFor(db, true);
+    const { content, chunks } = tile(["already embedded text", "second chunk"]);
+    await seed(ctx, content, chunks);
+    await createMessageOp(ctx, {
+      conversationId: "conv_1",
+      role: "user",
+      content: "not embedded yet",
+      uniqueId: "m2",
+    });
+
+    const seen: unknown[] = [];
+    const messages = await getMessagesOp(ctx, "conv_1", {
+      rawFilter: (raw) => {
+        seen.push(raw.content);
+        return !raw.chunks;
+      },
+    });
+
+    expect(seen).toHaveLength(2);
+    expect(seen.every((c) => typeof c === "string" && c.startsWith("enc:"))).toBe(true);
+    expect(messages.map((m) => m.uniqueId)).toEqual(["m2"]);
+    expect(messages[0].content).toBe("not embedded yet");
   });
 });

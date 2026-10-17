@@ -1,4 +1,5 @@
 import type { StorageOperationsContext } from "../db/chat/operations";
+import type { TaskType } from "../taskType";
 
 /**
  * Options for memory engine search
@@ -50,6 +51,7 @@ export interface MemoryEngineResult {
  * At least one of `getToken` or `apiKey` must be provided.
  */
 export interface EmbeddingOptions {
+  taskType?: TaskType;
   /** Function to get auth token (e.g., Privy's getIdentityToken). Uses Authorization: Bearer header. */
   getToken?: () => Promise<string | null>;
   /** Direct API key for server-side usage. Uses X-API-Key header. */

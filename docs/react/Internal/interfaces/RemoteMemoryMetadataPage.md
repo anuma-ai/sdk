@@ -1,6 +1,6 @@
 # RemoteMemoryMetadataPage
 
-Defined in: [src/lib/memory/store/remotePersistence.ts:103](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#103)
+Defined in: [src/lib/memory/store/remotePersistence.ts:104](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#104)
 
 ## Properties
 
@@ -8,7 +8,7 @@ Defined in: [src/lib/memory/store/remotePersistence.ts:103](https://github.com/a
 
 > **items**: [`RemoteMemoryMetadataRecord`](RemoteMemoryMetadataRecord.md)\[]
 
-Defined in: [src/lib/memory/store/remotePersistence.ts:104](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#104)
+Defined in: [src/lib/memory/store/remotePersistence.ts:105](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#105)
 
 ***
 
@@ -16,4 +16,4 @@ Defined in: [src/lib/memory/store/remotePersistence.ts:104](https://github.com/a
 
 > `optional` **next\_cursor**: `string`
 
-Defined in: [src/lib/memory/store/remotePersistence.ts:105](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#105)
+Defined in: [src/lib/memory/store/remotePersistence.ts:106](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#106)

@@ -1,4 +1,5 @@
-import { searchChunksOp } from "../db/chat/operations.js";
+import { maskScopedEmbeddingCache } from "../db/chat/embeddingCache.js";
+import { type ChunkSearchStats, searchChunksOp } from "../db/chat/operations.js";
 import type { ChunkSearchResult } from "../db/chat/types.js";
 import { getMemoriesByEntityNamesOp } from "../db/entities/operations.js";
 import {
@@ -9,9 +10,11 @@ import {
 import { getLogger } from "../logger.js";
 import { DEFAULT_API_EMBEDDING_MODEL } from "../memoryEngine/constants.js";
 import { generateEmbedding } from "../memoryEngine/embeddings.js";
+import type { EmbeddingOptions } from "../memoryEngine/types.js";
 import { normalizeSubQueries } from "../memoryVault/decomposeQuery.js";
-import type { VaultSearchResult } from "../memoryVault/searchTool.js";
+import type { CorpusStats, VaultSearchResult } from "../memoryVault/searchTool.js";
 import { searchVaultMemoriesWithSize } from "../memoryVault/searchTool.js";
+import { nowMs } from "../scheduling.js";
 import {
   createLlmNeighborRefiner,
   type NeighborRefiner,
@@ -38,11 +41,6 @@ const DEFAULT_LIMIT = 8;
 const DEFAULT_BUDGET: Budget = "low";
 const DEFAULT_FACT_MIN_SCORE = 0.1;
 
-function nowMs(): number {
-  return typeof performance !== "undefined" && typeof performance.now === "function"
-    ? performance.now()
-    : Date.now();
-}
 const DEFAULT_CHUNK_MIN_SCORE = 0.5;
 const DEFAULT_QUERY_EMBED_TOTAL_TIMEOUT_MS = 8_000;
 
@@ -103,11 +101,23 @@ export async function recall(
   const flags = flagsForBudget(usedBudget);
   const normalizedFacets = normalizeSubQueries(options.subQueries);
   const subQueries = normalizedFacets.length >= 2 ? normalizedFacets : undefined;
+  const embeddingOptions: EmbeddingOptions = {
+    ...ctx.embeddingOptions,
+    taskType: "memory_recall_embed",
+    ...(options.embeddingCache &&
+      !ctx.embeddingOptions.cache && {
+        cache: maskScopedEmbeddingCache(
+          options.embeddingCache,
+          Boolean(ctx.embeddingOptions.maskInput)
+        ),
+      }),
+  };
 
   const t0 = nowMs();
   let prepMs = 0;
   let factLaneMs = 0;
   let chunkLaneMs = 0;
+  let chunkStats: ChunkSearchStats | undefined;
   let fuseMs = 0;
   const factResults: VaultSearchResult[] = [];
   const chunkResults: ChunkSearchResult[] = [];
@@ -122,6 +132,7 @@ export async function recall(
   let factLaneRankedOnCosine = false;
   let decryptLastRan: boolean | undefined;
   let vaultRowsDecrypted: number | undefined;
+  let corpusStats: CorpusStats | undefined;
   let graphLaneCount = 0;
   let temporalLaneCount = 0;
   let graphLaneFailed = false;
@@ -174,6 +185,15 @@ export async function recall(
       ...(decryptLastRan !== undefined && { decryptLast: decryptLastRan }),
       ...(vaultRowsDecrypted !== undefined && { vaultRowsDecrypted }),
       ...(vaultRowsEmbedded !== undefined && { vaultRowsEmbedded }),
+      ...(corpusStats && {
+        vaultCacheHits: corpusStats.cacheHits,
+        vaultCacheMisses: corpusStats.cacheMisses,
+      }),
+      ...(chunkStats && {
+        chunkRowsScanned: chunkStats.rowsScanned,
+        chunkRowsFetched: chunkStats.rowsFetched,
+        chunkCacheHits: chunkStats.cacheHits,
+      }),
       factCount: factResults.length,
       chunkCount: chunkResults.length,
       admittedCount: admitted.length,
@@ -192,6 +212,11 @@ export async function recall(
         queryEmbed: queryEmbedMs,
         chunkLane: chunkLaneMs,
         fuse: fuseMs,
+        ...(corpusStats && {
+          corpusKeys: corpusStats.keysMs,
+          corpusEmbeddingsFetch: corpusStats.embeddingsFetchMs,
+          corpusRowsFetch: corpusStats.rowsFetchMs,
+        }),
       },
       degraded,
     };
@@ -216,7 +241,7 @@ export async function recall(
   const [queryEmbedding, entityRanking, temporalRanking] = await Promise.all([
     needsChunkEmbedding
       ? generateEmbedding(query, {
-          ...ctx.embeddingOptions,
+          ...embeddingOptions,
           totalTimeoutMs: queryEmbedTotalTimeoutMs,
         })
           .finally(() => {
@@ -286,54 +311,59 @@ export async function recall(
       rankedOnCosine: factRankedOnCosine,
       decryptLast: factDecryptLast,
       rowsDecrypted: factRowsDecrypted,
+      corpusStats: factCorpusStats,
     } = await (
       ctx.factSource?.search.bind(ctx.factSource) ??
       ((searchQuery, searchOptions) =>
         searchVaultMemoriesWithSize(
           searchQuery,
           ctx.vaultCtx!,
-          ctx.embeddingOptions,
+          embeddingOptions,
           ctx.vaultCache!,
           searchOptions
         ))
-    )(query, {
-      limit: types.includes("chunk") ? Math.max(limit * 2, 16) : limit,
-      minSimilarity: vaultMinScore,
-      useFusion: true,
-      rerank: flags.rerank,
-      ...(options.rerankTopN !== undefined && { rerankTopN: options.rerankTopN }),
-      ...(options.ceWeight !== undefined && { ceWeight: options.ceWeight }),
-      ...(options.rerankLoadTimeoutMs !== undefined && {
-        rerankLoadTimeoutMs: options.rerankLoadTimeoutMs,
-      }),
-      ...(options.recencyAlpha !== undefined && { recencyAlpha: options.recencyAlpha }),
-      ...(options.recency && { recency: options.recency }),
-      ...(options.mmr !== undefined && { mmr: options.mmr }),
-      ...(options.supersessionBoost !== undefined && {
-        supersessionBoost: options.supersessionBoost,
-      }),
-      ...(options.supersessionWindow !== undefined && {
-        supersessionWindow: options.supersessionWindow,
-      }),
-      ...(options.proofCountAlpha !== undefined && {
-        proofCountAlpha: options.proofCountAlpha,
-      }),
-      ...(options.bm25AdmissionDivisor !== undefined && {
-        bm25AdmissionDivisor: options.bm25AdmissionDivisor,
-      }),
-      ...(options.rrfK !== undefined && { rrfK: options.rrfK }),
-      ...(options.decryptLast !== undefined && { decryptLast: options.decryptLast }),
-      ...(subQueries && { subQueries }),
-      ...(options.scopes && { scopes: options.scopes }),
-      ...(options.folderId !== undefined && { folderId: options.folderId }),
-      ...(options.factTypes?.length && { factTypes: options.factTypes }),
-      ...(options.memoryIds !== undefined && { memoryIds: options.memoryIds }),
-      ...(options.factTypeWeights && { factTypeWeights: options.factTypeWeights }),
-      ...(entityRanking.length > 0 && { entityRanking }),
-      ...(temporalRanking.length > 0 && { temporalRanking }),
-      ...(needsChunkEmbedding && { queryEmbedding: queryEmbedding ?? [] }),
-      queryEmbedTotalTimeoutMs,
-    });
+    )(
+      query,
+      {
+        limit: types.includes("chunk") ? Math.max(limit * 2, 16) : limit,
+        minSimilarity: vaultMinScore,
+        useFusion: true,
+        rerank: flags.rerank,
+        ...(options.rerankTopN !== undefined && { rerankTopN: options.rerankTopN }),
+        ...(options.ceWeight !== undefined && { ceWeight: options.ceWeight }),
+        ...(options.rerankLoadTimeoutMs !== undefined && {
+          rerankLoadTimeoutMs: options.rerankLoadTimeoutMs,
+        }),
+        ...(options.recencyAlpha !== undefined && { recencyAlpha: options.recencyAlpha }),
+        ...(options.recency && { recency: options.recency }),
+        ...(options.mmr !== undefined && { mmr: options.mmr }),
+        ...(options.supersessionBoost !== undefined && {
+          supersessionBoost: options.supersessionBoost,
+        }),
+        ...(options.supersessionWindow !== undefined && {
+          supersessionWindow: options.supersessionWindow,
+        }),
+        ...(options.proofCountAlpha !== undefined && {
+          proofCountAlpha: options.proofCountAlpha,
+        }),
+        ...(options.bm25AdmissionDivisor !== undefined && {
+          bm25AdmissionDivisor: options.bm25AdmissionDivisor,
+        }),
+        ...(options.rrfK !== undefined && { rrfK: options.rrfK }),
+        ...(options.decryptLast !== undefined && { decryptLast: options.decryptLast }),
+        ...(subQueries && { subQueries }),
+        ...(options.scopes && { scopes: options.scopes }),
+        ...(options.folderId !== undefined && { folderId: options.folderId }),
+        ...(options.factTypes?.length && { factTypes: options.factTypes }),
+        ...(options.memoryIds !== undefined && { memoryIds: options.memoryIds }),
+        ...(options.factTypeWeights && { factTypeWeights: options.factTypeWeights }),
+        ...(entityRanking.length > 0 && { entityRanking }),
+        ...(temporalRanking.length > 0 && { temporalRanking }),
+        ...(needsChunkEmbedding && { queryEmbedding: queryEmbedding ?? [] }),
+        queryEmbedTotalTimeoutMs,
+      },
+      options.embeddingCache
+    );
     factResults.push(
       ...dedupeBy(
         results,
@@ -351,6 +381,7 @@ export async function recall(
     factLaneRankedOnCosine = factRankedOnCosine;
     decryptLastRan = factDecryptLast;
     vaultRowsDecrypted = factRowsDecrypted;
+    corpusStats = factCorpusStats;
     factLaneMs = nowMs() - factStart;
   }
 
@@ -369,6 +400,9 @@ export async function recall(
         excludeConversationId: options.excludeConversationId,
       }),
       ...(ctx.chunkCache && { chunkCache: ctx.chunkCache }),
+      onStats: (stats) => {
+        chunkStats = stats;
+      },
     });
     chunkResults.push(...dedupeBy(results, (r) => r.chunkText.trim()));
     chunkLaneMs = nowMs() - chunkStart;

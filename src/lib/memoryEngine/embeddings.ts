@@ -1,4 +1,4 @@
-import { TOOL_RESULT_ORIGIN } from "../chat/toolResults";
+import { isToolResultsRow, TOOL_RESULT_ORIGIN } from "../chat/toolResults";
 import {
   getConversationsOp,
   getMessageOp,
@@ -278,6 +278,45 @@ export async function chunkAndEmbedMessage(
   return updateMessageChunksOp(ctx, messageId, messageChunks, embeddingModel);
 }
 
+const MIN_SEALED_EMBEDDING_HEX = 256;
+
+function rawHasEmbedding(value: unknown): boolean {
+  if (Array.isArray(value)) return value.length > 0;
+  if (typeof value !== "string" || value.length === 0) return false;
+  if (isEncrypted(value)) {
+    return value.length - value.indexOf(":", 4) - 1 >= MIN_SEALED_EMBEDDING_HEX;
+  }
+  try {
+    const parsed: unknown = JSON.parse(value);
+    return Array.isArray(parsed) && parsed.length > 0;
+  } catch {
+    return false;
+  }
+}
+
+function sealedVersion(value: unknown): "v2" | "v3" | null {
+  if (typeof value !== "string" || !isEncrypted(value)) return null;
+  return value.startsWith("enc:v2:") ? "v2" : "v3";
+}
+
+function mayNeedChunkEmbedding(
+  raw: Record<string, unknown>,
+  embeddingModel: string,
+  filter?: { roles?: string[]; rechunkExisting?: boolean; reembedDiscarded?: boolean }
+): boolean {
+  const role = raw.role as string | undefined;
+  if (role === "system") return false;
+  if (filter?.roles && !filter.roles.includes(role ?? "")) return false;
+  if (isNonEmbeddableOrigin(raw.origin as string | null | undefined, filter?.reembedDiscarded)) {
+    return false;
+  }
+  const model = raw.embedding_model;
+  if (typeof model === "string" && model !== embeddingModel) return true;
+  if (rawHasEmbedding(raw.chunks)) return false;
+  if (rawHasEmbedding(raw.vector) && !filter?.rechunkExisting) return false;
+  return true;
+}
+
 /**
  * Chunk and embed messages that don't yet have embeddings/chunks in the
  * database. Uses chunking for long messages, whole-message embedding for short
@@ -347,12 +386,33 @@ export async function chunkAndEmbedAllMessages(
   let sealedRowsSeen = 0;
   let rowsSeen = 0;
 
+  const keptSealed = new Map<string, number>();
+  const candidatesStillSealed = new Map<string, number>();
+  const droppedSealed = new Map<string, { count: number; probeId: string }>();
+  const rawFilter = (raw: Record<string, unknown>): boolean => {
+    rowsSeen++;
+    const keep = mayNeedChunkEmbedding(raw, embeddingModel, filter);
+    const version = sealedVersion(raw.content);
+    if (!version) return keep;
+    if (keep) {
+      keptSealed.set(version, (keptSealed.get(version) ?? 0) + 1);
+    } else {
+      const dropped = droppedSealed.get(version);
+      if (dropped) dropped.count++;
+      else droppedSealed.set(version, { count: 1, probeId: raw.id as string });
+    }
+    return keep;
+  };
+
   for (const conv of targetConversations) {
-    const messages = await getMessagesOp(ctx, conv.conversationId);
+    const messages = await getMessagesOp(ctx, conv.conversationId, { rawFilter });
 
     for (const message of messages) {
-      rowsSeen++;
-      if (isEncrypted(message.content)) sealedRowsSeen++;
+      const stillSealed = sealedVersion(message.content);
+      if (stillSealed) {
+        sealedRowsSeen++;
+        candidatesStillSealed.set(stillSealed, (candidatesStillSealed.get(stillSealed) ?? 0) + 1);
+      }
       const isStale =
         message.embeddingModel !== undefined &&
         message.embeddingModel !== null &&
@@ -368,6 +428,7 @@ export async function chunkAndEmbedAllMessages(
         stillEncrypted++;
         continue;
       }
+      if (isToolResultsRow(message)) continue;
       if (message.content.length < minLength) continue;
 
       if (shouldChunkMessage(message.content, chunkSize)) {
@@ -379,6 +440,14 @@ export async function chunkAndEmbedAllMessages(
         shortMessages.push({ uniqueId: message.uniqueId, content: message.content });
       }
     }
+  }
+
+  for (const [version, dropped] of droppedSealed) {
+    const keyOpenedACandidate =
+      (keptSealed.get(version) ?? 0) > (candidatesStillSealed.get(version) ?? 0);
+    if (keyOpenedACandidate) continue;
+    const probe = await getMessageOp(ctx, dropped.probeId);
+    if (!probe || isEncrypted(probe.content)) sealedRowsSeen += dropped.count;
   }
 
   if (stillEncrypted > 0 || sealedRowsSeen > 0) {

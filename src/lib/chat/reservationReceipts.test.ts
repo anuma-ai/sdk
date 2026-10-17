@@ -27,6 +27,8 @@ const CANCEL_ARGS = JSON.stringify({
   fee_amount: "0",
 });
 
+const CIPHERTEXT = `enc:v3:${"a1".repeat(40)}`;
+
 const MOTEK = { venueName: "Motek Brickell", day: "2026-10-23", time: "9:00 PM", partySize: 2 };
 
 const failed = (tool: string, detail: string) => `Tool "${tool}" failed: ${detail}`;
@@ -242,6 +244,13 @@ describe("extractReservationReceipts", () => {
       "cancel:made",
       "booking:made",
     ]);
+  });
+
+  it("skips a booking whose stored arguments or result are still encrypted", () => {
+    expect(extractReservationReceipts([book(CIPHERTEXT)])).toEqual([]);
+    expect(
+      extractReservationReceipts([{ ...book(OUTPUTS.booked), arguments: CIPHERTEXT }])
+    ).toEqual([]);
   });
 
   it("ignores every other tool", () => {

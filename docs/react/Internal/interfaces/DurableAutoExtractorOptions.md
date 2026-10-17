@@ -1,6 +1,6 @@
 # DurableAutoExtractorOptions
 
-Defined in: [src/lib/memory/durableExtraction.ts:16](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/durableExtraction.ts#16)
+Defined in: [src/lib/memory/durableExtraction.ts:40](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/durableExtraction.ts#40)
 
 ## Extends
 
@@ -12,7 +12,7 @@ Defined in: [src/lib/memory/durableExtraction.ts:16](https://github.com/anuma-ai
 
 > `optional` **batchTimeoutMs**: `number`
 
-Defined in: [src/lib/memory/durableExtraction.ts:51](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/durableExtraction.ts#51)
+Defined in: [src/lib/memory/durableExtraction.ts:75](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/durableExtraction.ts#75)
 
 Ceiling on one batch, from the extraction call through retention. Defaults
 to the extraction call's own worst case — `extract.timeoutMs` (60s) x
@@ -30,7 +30,7 @@ the rest of the session.
 
 > `optional` **consolidate**: `object`
 
-Defined in: [src/lib/memory/autoExtractWorker.ts:217](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#217)
+Defined in: [src/lib/memory/autoExtractWorker.ts:224](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#224)
 
 Enable the LLM-based consolidation pass (Hindsight facet-dedup) on
 every retain() write. Auth is NOT configured here — the consolidation
@@ -44,6 +44,10 @@ auto-merge with no consolidation LLM calls.
 > `optional` **baseUrl**: `string`
 
 Portal base URL for consolidation calls. Default: the `extract` options' `baseUrl`.
+
+**endpointOverride?**
+
+> `optional` **endpointOverride**: `string`
 
 **model?**
 
@@ -98,7 +102,7 @@ schema-violating response). See
 
 > `optional` **cursorStore**: [`ExtractionCursorStore`](ExtractionCursorStore.md)
 
-Defined in: [src/lib/memory/autoExtractWorker.ts:197](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#197)
+Defined in: [src/lib/memory/autoExtractWorker.ts:204](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#204)
 
 Durable per-conversation watermark store. When provided, the watermark is
 hydrated from it the first time each conversation is touched and written
@@ -117,7 +121,7 @@ Omit for in-memory-only (legacy) behavior.
 
 > `optional` **debounceMs**: `number`
 
-Defined in: [src/lib/memory/durableExtraction.ts:36](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/durableExtraction.ts#36)
+Defined in: [src/lib/memory/durableExtraction.ts:60](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/durableExtraction.ts#60)
 
 Coalesce arrivals after durably recording them. Defaults to 20 seconds.
 
@@ -127,7 +131,7 @@ Coalesce arrivals after durably recording them. Defaults to 20 seconds.
 
 > `optional` **entityCtx**: [`EntityOperationsContext`](EntityOperationsContext.md)
 
-Defined in: [src/lib/memory/autoExtractWorker.ts:204](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#204)
+Defined in: [src/lib/memory/autoExtractWorker.ts:211](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#211)
 
 Entity / memory\_entity write context — when provided, each retained
 candidate's `entities[]` is persisted via `linkMemoryEntitiesOp`,
@@ -144,7 +148,7 @@ empty and recall's graph fusion is a no-op.
 
 > **extract**: [`ExtractFactsOptions`](ExtractFactsOptions.md)
 
-Defined in: [src/lib/memory/autoExtractWorker.ts:161](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#161)
+Defined in: [src/lib/memory/autoExtractWorker.ts:168](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#168)
 
 **Inherited from**
 
@@ -156,7 +160,7 @@ Defined in: [src/lib/memory/autoExtractWorker.ts:161](https://github.com/anuma-a
 
 > `optional` **folderId**: `string` | `null`
 
-Defined in: [src/lib/memory/autoExtractWorker.ts:208](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#208)
+Defined in: [src/lib/memory/autoExtractWorker.ts:215](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#215)
 
 Override folderId for all retained facts.
 
@@ -170,7 +174,7 @@ Override folderId for all retained facts.
 
 > `optional` **injectionClassifier**: `object`
 
-Defined in: [src/lib/memory/autoExtractWorker.ts:237](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#237)
+Defined in: [src/lib/memory/autoExtractWorker.ts:245](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#245)
 
 Tier-0 security (PR5) — enable the optional SECOND-layer LLM injection
 classifier over the candidates the deterministic screen passed as clean.
@@ -207,7 +211,7 @@ Portal base URL for classifier calls. Default: the `extract` options' `baseUrl`.
 
 > `optional` **maxTrackedConversations**: `number`
 
-Defined in: [src/lib/memory/autoExtractWorker.ts:188](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#188)
+Defined in: [src/lib/memory/autoExtractWorker.ts:195](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#195)
 
 Cap on the number of conversations whose extraction state (watermark +
 coalescing queue) is held in memory. When exceeded, the oldest entry with
@@ -226,7 +230,7 @@ sessions in RAM-constrained hosts. Default 200.
 
 > `optional` **maxWindowSize**: `number`
 
-Defined in: [src/lib/memory/autoExtractWorker.ts:179](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#179)
+Defined in: [src/lib/memory/autoExtractWorker.ts:186](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#186)
 
 Upper bound on the widened (post-watermark) window. Under an extreme burst
 — more un-extracted messages accumulate than this cap while an extraction
@@ -240,11 +244,66 @@ Default 20. Coerced to be ≥ `windowSize`.
 
 ***
 
+### memoryStore?
+
+> `optional` **memoryStore**: [`MemoryStore`](MemoryStore.md) | `null`
+
+Defined in: [src/lib/memory/autoExtractWorker.ts:165](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#165)
+
+Route retained facts and topics through this store; null disables memory writes.
+
+**Inherited from**
+
+[`CreateAutoExtractorOptions`](CreateAutoExtractorOptions.md).[`memoryStore`](CreateAutoExtractorOptions.md#memorystore)
+
+***
+
+### messageSource()?
+
+> `optional` **messageSource**: (`conversationId`: `string`) => [`ExtractionMessageSource`](ExtractionMessageSource.md) | `undefined`
+
+Defined in: [src/lib/memory/durableExtraction.ts:83](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/durableExtraction.ts#83)
+
+Message source for a conversation outside local chat history, or `undefined`
+for history. Jobs still store only ids; the source resolves them at drain
+time and is re-checked before every write.
+
+**Parameters**
+
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`conversationId`
+
+</td>
+<td>
+
+`string`
+
+</td>
+</tr>
+</tbody>
+</table>
+
+**Returns**
+
+[`ExtractionMessageSource`](ExtractionMessageSource.md) | `undefined`
+
+***
+
 ### minConfidence?
 
 > `optional` **minConfidence**: `number`
 
-Defined in: [src/lib/memory/autoExtractWorker.ts:163](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#163)
+Defined in: [src/lib/memory/autoExtractWorker.ts:170](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#170)
 
 Confidence floor for retained facts. Default 0.7.
 
@@ -258,7 +317,7 @@ Confidence floor for retained facts. Default 0.7.
 
 > `optional` **modelForScope**: (`scope`: `string`) => `string` | `undefined`
 
-Defined in: [src/lib/memory/durableExtraction.ts:34](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/durableExtraction.ts#34)
+Defined in: [src/lib/memory/durableExtraction.ts:58](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/durableExtraction.ts#58)
 
 Extraction model for a batch, chosen from the scope that batch will be
 retained under. A queued job keeps its scope across a privacy-mode flip but
@@ -303,7 +362,7 @@ is exactly the mistake this exists to prevent.
 
 > `optional` **now**: () => `number`
 
-Defined in: [src/lib/memory/durableExtraction.ts:53](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/durableExtraction.ts#53)
+Defined in: [src/lib/memory/durableExtraction.ts:77](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/durableExtraction.ts#77)
 
 Clock for the failed-session spacing. Defaults to `Date.now`.
 
@@ -317,7 +376,7 @@ Clock for the failed-session spacing. Defaults to `Date.now`.
 
 > `optional` **onCandidateFailed**: (`event`: `object`) => `void`
 
-Defined in: [src/lib/memory/autoExtractWorker.ts:264](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#264)
+Defined in: [src/lib/memory/autoExtractWorker.ts:272](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#272)
 
 Per-candidate retain() failure. Lets UI layers ("Anuma is saving …
 — couldn't save Lives in Portland") surface the specific fact that
@@ -399,7 +458,7 @@ once per filtered candidate that threw during retain.
 
 > `optional` **onError**: (`error`: `Error`, `conversationId?`: `string`) => `void`
 
-Defined in: [src/lib/memory/autoExtractWorker.ts:257](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#257)
+Defined in: [src/lib/memory/autoExtractWorker.ts:265](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#265)
 
 Diagnostic — fires on unexpected pipeline errors.
 
@@ -454,7 +513,7 @@ Diagnostic — fires on unexpected pipeline errors.
 
 > `optional` **onMemoryExtracted**: (`event`: [`MemoryExtractedEvent`](MemoryExtractedEvent.md)) => `void`
 
-Defined in: [src/lib/memory/autoExtractWorker.ts:245](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#245)
+Defined in: [src/lib/memory/autoExtractWorker.ts:253](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#253)
 
 Per-fact event — fires once per memory written.
 
@@ -497,7 +556,7 @@ Per-fact event — fires once per memory written.
 
 > `optional` **onMemoryQuarantined**: (`event`: [`MemoryQuarantinedEvent`](MemoryQuarantinedEvent.md)) => `void`
 
-Defined in: [src/lib/memory/autoExtractWorker.ts:251](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#251)
+Defined in: [src/lib/memory/autoExtractWorker.ts:259](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#259)
 
 Tier-0 security (PR3) — fires once per candidate quarantined by the
 injection screen (and persisted as an audit row). Lets a client surface a
@@ -542,7 +601,7 @@ injection screen (and persisted as an audit row). Lets a client surface a
 
 > `optional` **onSkipped**: (`event`: [`TurnSkippedEvent`](TurnSkippedEvent.md)) => `void`
 
-Defined in: [src/lib/memory/autoExtractWorker.ts:255](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#255)
+Defined in: [src/lib/memory/autoExtractWorker.ts:263](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#263)
 
 Diagnostic — fires when a turn is skipped.
 
@@ -585,7 +644,7 @@ Diagnostic — fires when a turn is skipped.
 
 > `optional` **onTurnComplete**: (`event`: [`TurnCompleteEvent`](TurnCompleteEvent.md)) => `void`
 
-Defined in: [src/lib/memory/autoExtractWorker.ts:253](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#253)
+Defined in: [src/lib/memory/autoExtractWorker.ts:261](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#261)
 
 Per-turn event — fires once after the whole pipeline finishes.
 
@@ -628,7 +687,7 @@ Per-turn event — fires once after the whole pipeline finishes.
 
 > **retainCtx**: [`RetainContext`](RetainContext.md)
 
-Defined in: [src/lib/memory/autoExtractWorker.ts:160](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#160)
+Defined in: [src/lib/memory/autoExtractWorker.ts:163](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#163)
 
 **Inherited from**
 
@@ -640,7 +699,7 @@ Defined in: [src/lib/memory/autoExtractWorker.ts:160](https://github.com/anuma-a
 
 > `optional` **retryDelayMs**: `number`
 
-Defined in: [src/lib/memory/durableExtraction.ts:39](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/durableExtraction.ts#39)
+Defined in: [src/lib/memory/durableExtraction.ts:63](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/durableExtraction.ts#63)
 
 Retry delay for a failed batch. Defaults to 30 seconds; max three attempts
 per session. Unfinished jobs remain available on the next resume.
@@ -651,7 +710,7 @@ per session. Unfinished jobs remain available on the next resume.
 
 > `optional` **scope**: `string` | () => `string`
 
-Defined in: [src/lib/memory/durableExtraction.ts:24](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/durableExtraction.ts#24)
+Defined in: [src/lib/memory/durableExtraction.ts:48](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/durableExtraction.ts#48)
 
 Scope for facts retained from newly queued turns. Pass an accessor to have
 a privacy-mode flip observed at write time: a plain string is sampled once
@@ -661,11 +720,35 @@ as `"private"` — the direction that cannot publish.
 
 ***
 
+### signal?
+
+> `optional` **signal**: `AbortSignal`
+
+Defined in: [src/lib/memory/autoExtractWorker.ts:167](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#167)
+
+Cancel remote writes for an extraction batch.
+
+**Inherited from**
+
+[`CreateAutoExtractorOptions`](CreateAutoExtractorOptions.md).[`signal`](CreateAutoExtractorOptions.md#signal)
+
+***
+
+### sourceTimeoutMs?
+
+> `optional` **sourceTimeoutMs**: `number`
+
+Defined in: [src/lib/memory/durableExtraction.ts:85](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/durableExtraction.ts#85)
+
+Ceiling on one `status` or `load` call of a message source. Defaults to 30 seconds.
+
+***
+
 ### windowSize?
 
 > `optional` **windowSize**: `number`
 
-Defined in: [src/lib/memory/autoExtractWorker.ts:171](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#171)
+Defined in: [src/lib/memory/autoExtractWorker.ts:178](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#178)
 
 Trailing-window size used when there is no watermark yet for a
 conversation (the first extraction, or after the watermark scrolled out of

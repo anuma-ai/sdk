@@ -1,6 +1,6 @@
 # BackupOperationOptions
 
-Defined in: [src/react/useBackup.ts:71](https://github.com/anuma-ai/sdk/blob/main/src/react/useBackup.ts#71)
+Defined in: [src/react/useBackup.ts:45](https://github.com/anuma-ai/sdk/blob/main/src/react/useBackup.ts#45)
 
 Backup options for individual operations
 
@@ -10,4 +10,4 @@ Backup options for individual operations
 
 > `optional` **onProgress**: [`ProgressCallback`](../type-aliases/ProgressCallback.md)
 
-Defined in: [src/react/useBackup.ts:72](https://github.com/anuma-ai/sdk/blob/main/src/react/useBackup.ts#72)
+Defined in: [src/react/useBackup.ts:46](https://github.com/anuma-ai/sdk/blob/main/src/react/useBackup.ts#46)

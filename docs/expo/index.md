@@ -220,6 +220,12 @@ Re-exports [CHUNKS\_DISCARDED\_ORIGIN](../react/Internal/variables/CHUNKS_DISCAR
 
 ***
 
+### ChunkSearchStats
+
+Re-exports [ChunkSearchStats](../react/Internal/interfaces/ChunkSearchStats.md)
+
+***
+
 ### chunkText
 
 Re-exports [chunkText](../react/Internal/functions/chunkText.md)
@@ -796,6 +802,18 @@ Re-exports [EmbeddedWalletSignerFn](../react/Internal/type-aliases/EmbeddedWalle
 
 ***
 
+### EmbeddingRepairOptions
+
+Re-exports [EmbeddingRepairOptions](../react/Internal/interfaces/EmbeddingRepairOptions.md)
+
+***
+
+### EmbeddingRepairResult
+
+Re-exports [EmbeddingRepairResult](../react/Internal/interfaces/EmbeddingRepairResult.md)
+
+***
+
 ### embedMessage
 
 Re-exports [embedMessage](../react/Internal/functions/embedMessage.md)
@@ -811,6 +829,12 @@ Re-exports [encodeChunkVector](../react/Internal/functions/encodeChunkVector.md)
 ### EncryptionKeyMissingError
 
 Re-exports [EncryptionKeyMissingError](../react/Internal/classes/EncryptionKeyMissingError.md)
+
+***
+
+### encryptToolCallEventsOp
+
+Re-exports [encryptToolCallEventsOp](../react/Internal/functions/encryptToolCallEventsOp.md)
 
 ***
 
@@ -877,6 +901,24 @@ Re-exports [ExtractionCursorStore](../react/Internal/interfaces/ExtractionCursor
 ### ExtractionFunnel
 
 Re-exports [ExtractionFunnel](../react/Internal/interfaces/ExtractionFunnel.md)
+
+***
+
+### ExtractionMessageSource
+
+Re-exports [ExtractionMessageSource](../react/Internal/interfaces/ExtractionMessageSource.md)
+
+***
+
+### ExtractionSourceMessage
+
+Re-exports [ExtractionSourceMessage](../react/Internal/interfaces/ExtractionSourceMessage.md)
+
+***
+
+### ExtractionSourceStatus
+
+Re-exports [ExtractionSourceStatus](../react/Internal/type-aliases/ExtractionSourceStatus.md)
 
 ***
 
@@ -1261,6 +1303,18 @@ Re-exports [MemoryContextResult](../react/Internal/interfaces/MemoryContextResul
 ### MemoryCreate
 
 Re-exports [MemoryCreate](../react/Internal/type-aliases/MemoryCreate.md)
+
+***
+
+### MemoryDecay
+
+Re-exports [MemoryDecay](../react/Internal/interfaces/MemoryDecay.md)
+
+***
+
+### MemoryDecaySweeperOptions
+
+Re-exports [MemoryDecaySweeperOptions](../react/Internal/type-aliases/MemoryDecaySweeperOptions.md)
 
 ***
 
@@ -1732,6 +1786,12 @@ Re-exports [RecallResult](../react/Internal/interfaces/RecallResult.md)
 
 ***
 
+### RecallTelemetryCallbacks
+
+Re-exports [RecallTelemetryCallbacks](../react/Internal/interfaces/RecallTelemetryCallbacks.md)
+
+***
+
 ### RecallToolCallbacks
 
 Re-exports [RecallToolCallbacks](../react/Internal/interfaces/RecallToolCallbacks.md)
@@ -1741,6 +1801,12 @@ Re-exports [RecallToolCallbacks](../react/Internal/interfaces/RecallToolCallback
 ### RecallToolOptions
 
 Re-exports [RecallToolOptions](../react/Internal/interfaces/RecallToolOptions.md)
+
+***
+
+### RecallTruncation
+
+Re-exports [RecallTruncation](../react/Internal/interfaces/RecallTruncation.md)
 
 ***
 
@@ -2284,6 +2350,12 @@ Re-exports [TOPIC\_SALIENCE\_WEIGHTS](../react/Internal/variables/TOPIC_SALIENCE
 
 ***
 
+### TopicExtractionBatchDiagnostics
+
+Re-exports [TopicExtractionBatchDiagnostics](../react/Internal/interfaces/TopicExtractionBatchDiagnostics.md)
+
+***
+
 ### TopicExtractionInput
 
 Re-exports [TopicExtractionInput](../react/Internal/interfaces/TopicExtractionInput.md)
@@ -2575,3 +2647,9 @@ Re-exports [WebSearchClassification](../react/Internal/interfaces/WebSearchClass
 ### WebSearchPreProcessorOptions
 
 Re-exports [WebSearchPreProcessorOptions](../react/Internal/interfaces/WebSearchPreProcessorOptions.md)
+
+***
+
+### WriteFailureReason
+
+Re-exports [WriteFailureReason](../react/Internal/type-aliases/WriteFailureReason.md)

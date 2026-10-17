@@ -2,16 +2,20 @@ import type { Collection, Database } from "@nozbe/watermelondb";
 import { Q } from "@nozbe/watermelondb";
 import { v7 as uuidv7 } from "uuid";
 
+import type { LlmapiToolCallEvent } from "../../../client";
 import type { EmbeddedWalletSignerFn, SignMessageFn } from "../../../react/useEncryption";
 import {
   decryptDataWithKey,
   encryptDataWithKey,
   getEncryptionKey,
+  hasEncryptionKey,
+  refreshEncryptionKeyIfMatches,
   requestEncryptionKey,
 } from "../../../react/useEncryption";
 import { getLogger } from "../../logger";
 import { cosineSimilarity } from "../../memoryEngine/vector";
 import { decodeChunkVector } from "../../memoryEngine/vectorEncoding";
+import { createTimeSliceYielder } from "../../scheduling";
 import { decryptFieldDetailed, decryptJsonField } from "../encryption-utils";
 import { ExtractionJob } from "../extractionJobs/models";
 import { decryptConversationFields, encryptConversationFields } from "./conversationEncryption";
@@ -19,6 +23,7 @@ import {
   decryptField,
   decryptMessageFields,
   encryptMessageFields,
+  encryptToolCallEvents,
   isEncrypted,
 } from "./encryption";
 import { Conversation, Message } from "./models";
@@ -595,11 +600,16 @@ export async function getConversationsByProjectOp(
 
 export async function getMessagesOp(
   ctx: StorageOperationsContext,
-  convId: string
+  convId: string,
+  opts?: {
+    /** Keeps only rows whose raw, still-encrypted columns pass; runs before decryption. */
+    rawFilter?: (raw: Record<string, unknown>) => boolean;
+  }
 ): Promise<StoredMessage[]> {
-  const results = (await ctx.messagesCollection
+  const fetched = (await ctx.messagesCollection
     .query(Q.where("conversation_id", convId), Q.sortBy("message_id", Q.asc))
     .unsafeFetchRaw()) as Record<string, unknown>[];
+  const results = opts?.rawFilter ? fetched.filter(opts.rawFilter) : fetched;
 
   return Promise.all(
     results.map((raw) =>
@@ -724,15 +734,7 @@ export async function getMessageSkeletonsOp(
   return skeletons;
 }
 
-/**
- * Tool-call-event id scan for the send hot path: collect every stored
- * `toolCallEvents[].id` across a conversation WITHOUT building StoredMessages
- * and WITHOUT any field decryption — `tool_call_events` is a plaintext JSON
- * column (encryptMessageFields never touches it), so the dedup set the sender
- * needs is a cheap column read. The previous shape (getMessagesOp) parsed and
- * decrypted every embedding column in the thread just to build this set.
- * unsafeFetchRaw (NOT fetch): never pin a Model per row (web Pile-2).
- */
+/** Collects every stored tool call event id in a conversation without decrypting any field. */
 export async function getToolCallEventIdsOp(
   ctx: StorageOperationsContext,
   convId: string
@@ -1061,7 +1063,6 @@ export async function updateMessageChunksOp(
   }
 
   const storedChunks = chunks.map(({ text: _text, ...rest }) => rest);
-
   const address = ctx.walletAddress;
   await ctx.database.write(async () => {
     const key = await resolveMessageEmbeddingKey(address, message.content);
@@ -1211,7 +1212,7 @@ export async function sealLegacyMessageEmbeddingsOp(
   return sealed;
 }
 
-const STRIP_CHUNK_TEXT_PAGE_SIZE = 100;
+const RAW_REPAIR_PAGE_SIZE = 100;
 
 function chunksWithoutText(raw: unknown): object[] | null {
   if (typeof raw !== "string") return null;
@@ -1262,8 +1263,8 @@ export async function stripLegacyChunkTextOp(ctx: StorageOperationsContext): Pro
     .fetchIds();
 
   let stripped = 0;
-  for (let start = 0; start < candidateIds.length; start += STRIP_CHUNK_TEXT_PAGE_SIZE) {
-    const pageIds = candidateIds.slice(start, start + STRIP_CHUNK_TEXT_PAGE_SIZE);
+  for (let start = 0; start < candidateIds.length; start += RAW_REPAIR_PAGE_SIZE) {
+    const pageIds = candidateIds.slice(start, start + RAW_REPAIR_PAGE_SIZE);
     const rows = (await ctx.messagesCollection
       .query(Q.where("id", Q.oneOf(pageIds)))
       .unsafeFetchRaw()) as Record<string, unknown>[];
@@ -1294,6 +1295,126 @@ export async function stripLegacyChunkTextOp(ctx: StorageOperationsContext): Pro
     });
   }
   return stripped;
+}
+
+async function encryptedToolCallEventsColumn(
+  raw: unknown,
+  address: string,
+  signMessage: SignMessageFn,
+  embeddedWalletSigner?: EmbeddedWalletSignerFn
+): Promise<string | null> {
+  if (typeof raw !== "string") return null;
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return null;
+  }
+  if (!Array.isArray(parsed)) return null;
+  const column = JSON.stringify(
+    await encryptToolCallEvents(
+      parsed as LlmapiToolCallEvent[],
+      address,
+      signMessage,
+      embeddedWalletSigner
+    )
+  );
+  return column === JSON.stringify(parsed) ? null : column;
+}
+
+/**
+ * Encrypts tool call arguments and results still stored in plaintext and
+ * returns how many rows changed, giving each touched conversation a new
+ * `updatedAt` so backups re-upload it, which moves it to the top of any list
+ * sorted by `updatedAt`.
+ */
+export async function encryptToolCallEventsOp(ctx: StorageOperationsContext): Promise<number> {
+  const { walletAddress: address, signMessage, embeddedWalletSigner } = ctx;
+  if (!address || !signMessage) return 0;
+  if (!(await requestEncryptionKey(address, signMessage, embeddedWalletSigner))) return 0;
+  if (!hasEncryptionKey(address)) return 0;
+  if (!(await savedKeyOpensExistingData(ctx, address, signMessage, embeddedWalletSigner))) {
+    return 0;
+  }
+
+  const candidateIds = await ctx.messagesCollection
+    .query(
+      Q.where("tool_call_events", Q.notEq(null)),
+      Q.where("tool_call_events", Q.notIn(["", "[]"]))
+    )
+    .fetchIds();
+
+  let encrypted = 0;
+  for (let start = 0; start < candidateIds.length; start += RAW_REPAIR_PAGE_SIZE) {
+    const pageIds = candidateIds.slice(start, start + RAW_REPAIR_PAGE_SIZE);
+    const rows = (await ctx.messagesCollection
+      .query(Q.where("id", Q.oneOf(pageIds)))
+      .unsafeFetchRaw()) as Record<string, unknown>[];
+
+    const repairs = new Map<string, { raw: unknown; column: string }>();
+    for (const row of rows) {
+      const column = await encryptedToolCallEventsColumn(
+        row.tool_call_events,
+        address,
+        signMessage,
+        embeddedWalletSigner
+      );
+      if (column !== null) repairs.set(String(row.id), { raw: row.tool_call_events, column });
+    }
+    if (repairs.size === 0) continue;
+
+    await ctx.database.write(async () => {
+      const messages = (
+        await ctx.messagesCollection.query(Q.where("id", Q.oneOf([...repairs.keys()]))).fetch()
+      ).filter(
+        (message) =>
+          (message._raw as unknown as { tool_call_events: unknown }).tool_call_events ===
+          repairs.get(message.id)?.raw
+      );
+      if (messages.length === 0) return;
+      const conversationIds = [...new Set(messages.map((message) => message.conversationId))];
+      const conversations = await ctx.conversationsCollection
+        .query(Q.where("conversation_id", Q.oneOf(conversationIds)))
+        .fetch();
+      await ctx.database.batch(
+        ...messages.map((message) =>
+          message.prepareUpdate((msg) => {
+            msg._setRaw("tool_call_events", repairs.get(message.id)!.column);
+          })
+        ),
+        ...conversations.map((conversation) => conversation.prepareUpdate(() => {}))
+      );
+      encrypted += messages.length;
+    });
+  }
+  return encrypted;
+}
+
+async function savedKeyOpensExistingData(
+  ctx: StorageOperationsContext,
+  address: string,
+  signMessage: SignMessageFn,
+  embeddedWalletSigner?: EmbeddedWalletSignerFn
+): Promise<boolean> {
+  const v3Probe = await findEncryptedContent(ctx, "enc:v3:%");
+  if (v3Probe) {
+    const { status } = await decryptFieldDetailed(v3Probe, address);
+    if (status !== "auth_mismatch" && status !== "key_missing") return true;
+    return refreshEncryptionKeyIfMatches(address, v3Probe, signMessage, embeddedWalletSigner);
+  }
+  const v2Probe = await findEncryptedContent(ctx, "enc:v2:%");
+  if (!v2Probe) return true;
+  return refreshEncryptionKeyIfMatches(address, v2Probe, signMessage, embeddedWalletSigner);
+}
+
+async function findEncryptedContent(
+  ctx: StorageOperationsContext,
+  pattern: string
+): Promise<string | null> {
+  const [row] = (await ctx.messagesCollection
+    .query(Q.where("content", Q.like(pattern)), Q.take(1))
+    .unsafeFetchRaw()) as Record<string, unknown>[];
+  return row ? String(row.content) : null;
 }
 
 export async function updateMessageErrorOp(
@@ -1576,6 +1697,154 @@ export interface CachedChunkVectors {
  */
 export type ChunkVectorCache = Map<string, CachedChunkVectors>;
 
+/** Row counts from one {@link searchChunksOp} call. */
+export interface ChunkSearchStats {
+  /** Embedded messages in live conversations that the search considered. */
+  rowsScanned: number;
+  /** Messages whose vectors were read from storage because the cache missed. */
+  rowsFetched: number;
+  /** Messages scored straight from the vector cache. */
+  cacheHits: number;
+}
+
+interface ChunkCandidateKey {
+  id: string;
+  conversationId: string;
+  version: number;
+  embeddingModel: string | null;
+}
+
+interface ChunkRowSource {
+  keys: ChunkCandidateKey[];
+  loadVectorRows: (ids: string[]) => Promise<Record<string, unknown>[]>;
+  loadFullRows: (ids: string[]) => Promise<Record<string, unknown>[]>;
+}
+
+const CHUNK_VECTOR_BATCH_SIZE = 50;
+const CHUNK_SCAN_YIELD_BUDGET_MS = 12;
+
+const hasEmbeddingSql = `(coalesce("chunks", '') != '' or coalesce("vector", '') != '')`;
+
+function toChunkCandidateKey(raw: Record<string, unknown>): ChunkCandidateKey {
+  return {
+    id: raw.id as string,
+    conversationId: String(raw.conversation_id),
+    version: Number(raw.updated_at) || 0,
+    embeddingModel: (raw.embedding_model as string | null | undefined) ?? null,
+  };
+}
+
+async function fetchRowsByIds(
+  ctx: StorageOperationsContext,
+  ids: string[]
+): Promise<Record<string, unknown>[]> {
+  if (ids.length === 0) return [];
+  return (await ctx.messagesCollection
+    .query(Q.where("id", Q.oneOf(ids)))
+    .unsafeFetchRaw()) as Record<string, unknown>[];
+}
+
+async function projectedChunkRowSource(
+  ctx: StorageOperationsContext,
+  filter: { conversationId?: string; excludeConversationId?: string }
+): Promise<ChunkRowSource> {
+  const clauses = [
+    `"history"."_status" is not 'deleted'`,
+    hasEmbeddingSql,
+    `exists (select 1 from "conversations" where "conversations"."conversation_id" = "history"."conversation_id" and "conversations"."is_deleted" = 0 and "conversations"."_status" is not 'deleted')`,
+  ];
+  const args: string[] = [];
+  if (filter.conversationId !== undefined) {
+    clauses.push(`"history"."conversation_id" = ?`);
+    args.push(filter.conversationId);
+  }
+  if (filter.excludeConversationId !== undefined) {
+    clauses.push(`"history"."conversation_id" != ?`);
+    args.push(filter.excludeConversationId);
+  }
+  const keyRows = (await ctx.messagesCollection
+    .query(
+      Q.unsafeSqlQuery(
+        `select "id", "conversation_id", "updated_at", "embedding_model" from "history" where ${clauses.join(" and ")}`,
+        args
+      )
+    )
+    .unsafeFetchRaw()) as Record<string, unknown>[];
+  return {
+    keys: keyRows.map(toChunkCandidateKey),
+    loadVectorRows: async (ids) => {
+      if (ids.length === 0) return [];
+      return (await ctx.messagesCollection
+        .query(
+          Q.unsafeSqlQuery(
+            `select "id", "updated_at", "chunks", "vector" from "history" where "_status" is not 'deleted' and "id" in (${ids.map(() => "?").join(",")})`,
+            ids
+          )
+        )
+        .unsafeFetchRaw()) as Record<string, unknown>[];
+    },
+    loadFullRows: (ids) => fetchRowsByIds(ctx, ids),
+  };
+}
+
+async function fullScanChunkRowSource(
+  ctx: StorageOperationsContext,
+  filter: { conversationId?: string; excludeConversationId?: string }
+): Promise<ChunkRowSource> {
+  const activeConversations = await ctx.conversationsCollection
+    .query(Q.where("is_deleted", false))
+    .fetch();
+  const activeConversationIds = new Set(
+    activeConversations.map((c) => String(c._getRaw("conversation_id")))
+  );
+  const queryConditions =
+    filter.conversationId !== undefined ? [Q.where("conversation_id", filter.conversationId)] : [];
+  const rows = (await ctx.messagesCollection.query(...queryConditions).unsafeFetchRaw()) as Record<
+    string,
+    unknown
+  >[];
+  const rowsById = new Map<string, Record<string, unknown>>();
+  for (const row of rows) {
+    const conversationId = String(row.conversation_id);
+    if (!activeConversationIds.has(conversationId)) continue;
+    if (
+      filter.excludeConversationId !== undefined &&
+      conversationId === filter.excludeConversationId
+    ) {
+      continue;
+    }
+    if (!row.chunks && !row.vector) continue;
+    rowsById.set(row.id as string, row);
+  }
+  const pick = (ids: string[]) =>
+    Promise.resolve(
+      ids.flatMap((id) => {
+        const row = rowsById.get(id);
+        return row ? [row] : [];
+      })
+    );
+  return {
+    keys: Array.from(rowsById.values(), toChunkCandidateKey),
+    loadVectorRows: pick,
+    loadFullRows: pick,
+  };
+}
+
+async function chunkRowSource(
+  ctx: StorageOperationsContext,
+  filter: { conversationId?: string; excludeConversationId?: string }
+): Promise<ChunkRowSource> {
+  try {
+    return await projectedChunkRowSource(ctx, filter);
+  } catch (err) {
+    getLogger().debug(
+      "searchChunksOp: projected SQL unavailable, using full-load fallback: " +
+        (err instanceof Error ? err.message : String(err))
+    );
+    return fullScanChunkRowSource(ctx, filter);
+  }
+}
+
 /**
  * Search through message chunks for fine-grained semantic search.
  * Returns the matching chunk text along with the parent message.
@@ -1587,29 +1856,14 @@ export async function searchChunksOp(
     limit?: number;
     minSimilarity?: number;
     conversationId?: string;
-    /**
-     * Skip every message in this conversation BEFORE scoring, so it can't take
-     * top-K slots. Filtering after the cut (what recall() used to do) lets a
-     * long current conversation fill all `limit` slots and leaves
-     * past-conversation recall with nothing.
-     */
+    /** Skip every message in this conversation before scoring. */
     excludeConversationId?: string;
-    /**
-     * Current embedding model. When set, messages whose stored
-     * `embedding_model` is non-null and differs are skipped — their vectors
-     * live in a different space, so cosine against the current-model query is
-     * meaningless (and the dim-mismatch path returns 0 silently). Null/absent
-     * `embedding_model` is grandfathered as current-model-compatible. Skipped
-     * messages are re-embedded out-of-band by `chunkAndEmbedAllMessages`.
-     */
+    /** Current embedding model; messages stored under a different non-null model are skipped. */
     embeddingModel?: string;
-    /**
-     * Optional decrypted-vector cache. When provided, the per-query decrypt +
-     * JSON.parse of every message's chunk vectors is skipped on warm entries
-     * (validated by `updated_at`), which is the dominant cost of the chunk
-     * lane. Omit for the legacy always-decrypt behavior.
-     */
+    /** Decrypted-vector cache, validated by `updated_at`. */
     chunkCache?: ChunkVectorCache;
+    /** Receives row counts for the call. */
+    onStats?: (stats: ChunkSearchStats) => void;
   }
 ): Promise<ChunkSearchResult[]> {
   const {
@@ -1619,23 +1873,16 @@ export async function searchChunksOp(
     excludeConversationId,
     embeddingModel,
     chunkCache,
+    onStats,
   } = options || {};
 
-  const activeConversations = await ctx.conversationsCollection
-    .query(Q.where("is_deleted", false))
-    .fetch();
-  const activeConversationIds = new Set(
-    activeConversations.map((c) => String(c._getRaw("conversation_id")))
-  );
-
-  const queryConditions = conversationId ? [Q.where("conversation_id", conversationId)] : [];
-
-  const messages = (await ctx.messagesCollection
-    .query(...queryConditions)
-    .unsafeFetchRaw()) as Record<string, unknown>[];
+  const source = await chunkRowSource(ctx, { conversationId, excludeConversationId });
+  const yieldIfDue = createTimeSliceYielder(CHUNK_SCAN_YIELD_BUDGET_MS);
 
   type Candidate = {
-    message: Record<string, unknown>;
+    id: string;
+    version: number;
+    order: number;
     similarity: number;
     chunkTextSource:
       | {
@@ -1649,80 +1896,109 @@ export async function searchChunksOp(
   const candidates: Candidate[] = [];
   let staleSkipped = 0;
   let unreadableVectors = 0;
+  let cacheHits = 0;
+  const missIds: string[] = [];
 
-  for (const message of messages) {
-    const msgConvId = String(message.conversation_id);
-    if (!activeConversationIds.has(msgConvId)) continue;
-    if (excludeConversationId !== undefined && msgConvId === excludeConversationId) continue;
-
-    if (embeddingModel) {
-      const storedModel = message.embedding_model as string | null | undefined;
-      if (storedModel !== null && storedModel !== undefined && storedModel !== embeddingModel) {
-        staleSkipped++;
-        continue;
-      }
-    }
-
-    const version = Number(message.updated_at) || 0;
-    const cached = chunkCache?.get(message.id as string);
-    if (cached && cached.version === version) {
-      if (cached.chunks.length > 0) {
-        for (let ci = 0; ci < cached.chunks.length; ci++) {
-          const vec = cached.chunks[ci];
-          if (vec.length === 0) continue;
-          const similarity = cosineSimilarity(queryVector, vec);
-          if (similarity >= minSimilarity) {
-            candidates.push({
-              message,
-              similarity,
-              chunkTextSource: { kind: "chunk-cached", chunkIndex: ci, version },
-            });
-          }
-        }
-      } else if (cached.fallback) {
-        const similarity = cosineSimilarity(queryVector, cached.fallback);
-        if (similarity >= minSimilarity) {
-          candidates.push({ message, similarity, chunkTextSource: { kind: "message" } });
-        }
-      }
+  const orderById = new Map<string, number>();
+  for (const [order, key] of source.keys.entries()) {
+    await yieldIfDue();
+    orderById.set(key.id, order);
+    if (embeddingModel && key.embeddingModel !== null && key.embeddingModel !== embeddingModel) {
+      staleSkipped++;
       continue;
     }
-
-    const chunks = await readRawJsonField<MessageChunk[]>(message, "chunks", ctx.walletAddress);
-
-    if (chunks && chunks.length > 0) {
-      const vectors: Float32Array[] = chunks.map((chunk) =>
-        decodeChunkVector(chunk.vector, () => {
-          unreadableVectors++;
-        })
-      );
-      chunkCache?.set(message.id as string, { version, chunks: vectors });
-
-      for (let ci = 0; ci < chunks.length; ci++) {
-        const vec = vectors[ci];
+    const cached = chunkCache?.get(key.id);
+    if (!cached || cached.version !== key.version) {
+      missIds.push(key.id);
+      continue;
+    }
+    cacheHits++;
+    if (cached.chunks.length > 0) {
+      for (let ci = 0; ci < cached.chunks.length; ci++) {
+        const vec = cached.chunks[ci];
         if (vec.length === 0) continue;
         const similarity = cosineSimilarity(queryVector, vec);
         if (similarity >= minSimilarity) {
           candidates.push({
-            message,
+            id: key.id,
+            version: key.version,
+            order,
             similarity,
-            chunkTextSource: { kind: "chunk", chunk: chunks[ci], siblings: chunks },
+            chunkTextSource: { kind: "chunk-cached", chunkIndex: ci, version: key.version },
           });
         }
       }
-    } else {
-      const messageVector = await readRawJsonField<number[]>(message, "vector", ctx.walletAddress);
-      if (!messageVector || messageVector.length === 0) continue;
-
-      const fallback = Float32Array.from(messageVector);
-      chunkCache?.set(message.id as string, { version, chunks: [], fallback });
-
-      const similarity = cosineSimilarity(queryVector, fallback);
+    } else if (cached.fallback) {
+      const similarity = cosineSimilarity(queryVector, cached.fallback);
       if (similarity >= minSimilarity) {
-        candidates.push({ message, similarity, chunkTextSource: { kind: "message" } });
+        candidates.push({
+          id: key.id,
+          version: key.version,
+          order,
+          similarity,
+          chunkTextSource: { kind: "message" },
+        });
       }
     }
   }
+
+  let rowsFetched = 0;
+  for (let offset = 0; offset < missIds.length; offset += CHUNK_VECTOR_BATCH_SIZE) {
+    const rows = await source.loadVectorRows(
+      missIds.slice(offset, offset + CHUNK_VECTOR_BATCH_SIZE)
+    );
+    rowsFetched += rows.length;
+    for (const row of rows) {
+      await yieldIfDue();
+      const id = row.id as string;
+      const version = Number(row.updated_at) || 0;
+      const order = orderById.get(id) ?? Number.MAX_SAFE_INTEGER;
+      const chunks = await readRawJsonField<MessageChunk[]>(row, "chunks", ctx.walletAddress);
+
+      if (chunks && chunks.length > 0) {
+        const vectors: Float32Array[] = chunks.map((chunk) =>
+          decodeChunkVector(chunk.vector, () => {
+            unreadableVectors++;
+          })
+        );
+        chunkCache?.set(id, { version, chunks: vectors });
+
+        for (let ci = 0; ci < chunks.length; ci++) {
+          const vec = vectors[ci];
+          if (vec.length === 0) continue;
+          const similarity = cosineSimilarity(queryVector, vec);
+          if (similarity >= minSimilarity) {
+            candidates.push({
+              id,
+              version,
+              order,
+              similarity,
+              chunkTextSource: { kind: "chunk", chunk: chunks[ci], siblings: chunks },
+            });
+          }
+        }
+      } else {
+        const messageVector = await readRawJsonField<number[]>(row, "vector", ctx.walletAddress);
+        if (messageVector && messageVector.length > 0) {
+          const fallback = Float32Array.from(messageVector);
+          chunkCache?.set(id, { version, chunks: [], fallback });
+
+          const similarity = cosineSimilarity(queryVector, fallback);
+          if (similarity >= minSimilarity) {
+            candidates.push({
+              id,
+              version,
+              order,
+              similarity,
+              chunkTextSource: { kind: "message" },
+            });
+          }
+        }
+      }
+    }
+  }
+
+  onStats?.({ rowsScanned: source.keys.length, rowsFetched, cacheHits });
 
   if (staleSkipped > 0) {
     getLogger().warn(
@@ -1739,14 +2015,21 @@ export async function searchChunksOp(
     );
   }
 
-  const topK = candidates.sort((a, b) => b.similarity - a.similarity).slice(0, limit);
+  const topK = candidates
+    .sort((a, b) => b.similarity - a.similarity || a.order - b.order)
+    .slice(0, limit);
 
-  const uniqueMessages = new Map<string, Record<string, unknown>>();
-  for (const c of topK) uniqueMessages.set(c.message.id as string, c.message);
+  const topIds = Array.from(new Set(topK.map((c) => c.id)));
+  const fullRows = await source.loadFullRows(topIds);
+  const rowById = new Map(fullRows.map((row) => [row.id as string, row]));
+  const liveTopK = topK.filter((c) => {
+    const row = rowById.get(c.id);
+    return row !== undefined && (Number(row.updated_at) || 0) === c.version;
+  });
 
   const storedById = new Map<string, StoredMessage>(
     await Promise.all(
-      Array.from(uniqueMessages, async ([id, m]) => {
+      Array.from(rowById, async ([id, m]) => {
         const stored = await messageRawToStored(
           m,
           ctx.walletAddress,
@@ -1760,25 +2043,25 @@ export async function searchChunksOp(
 
   const chunkStateByMsgId = new Map<string, { version: number; chunks: MessageChunk[] }>();
   const needsChunkText = new Set<string>();
-  for (const c of topK) {
-    if (c.chunkTextSource.kind === "chunk-cached") needsChunkText.add(c.message.id as string);
+  for (const c of liveTopK) {
+    if (c.chunkTextSource.kind === "chunk-cached") needsChunkText.add(c.id);
   }
   await Promise.all(
     Array.from(needsChunkText, async (id) => {
-      const m = uniqueMessages.get(id)!;
+      const m = rowById.get(id)!;
       const parsed = await readRawJsonField<MessageChunk[]>(m, "chunks", ctx.walletAddress);
       const version = Number(m.updated_at) || 0;
       if (parsed) chunkStateByMsgId.set(id, { version, chunks: parsed });
     })
   );
 
-  return topK.map(({ message, similarity, chunkTextSource }) => {
-    const stored = { ...storedById.get(message.id as string)! };
+  return liveTopK.map(({ id, similarity, chunkTextSource }) => {
+    const stored = { ...storedById.get(id)! };
     let chunkText: string;
     if (chunkTextSource.kind === "chunk") {
       chunkText = resolveChunkText(stored.content, chunkTextSource.chunk, chunkTextSource.siblings);
     } else if (chunkTextSource.kind === "chunk-cached") {
-      const state = chunkStateByMsgId.get(message.id as string);
+      const state = chunkStateByMsgId.get(id);
       const chunk =
         state && state.version === chunkTextSource.version
           ? state.chunks[chunkTextSource.chunkIndex]

@@ -2,13 +2,13 @@
 
 > **useBackup**(`options`: `object`): [`UseBackupResult`](../Internal/interfaces/UseBackupResult.md)
 
-Defined in: [src/react/useBackup.ts:183](https://github.com/anuma-ai/sdk/blob/main/src/react/useBackup.ts#183)
+Defined in: [src/react/useBackup.ts:121](https://github.com/anuma-ai/sdk/blob/main/src/react/useBackup.ts#121)
 
 Unified React hook for backup and restore functionality.
 
-This hook provides methods to backup conversations to both Dropbox and Google Drive,
-and restore them. It handles all the logic for checking timestamps, skipping
-unchanged files, authentication, and managing the backup/restore process.
+This hook provides methods to backup conversations to iCloud and restore them.
+It handles all the logic for checking timestamps, skipping unchanged files,
+authentication, and managing the backup/restore process.
 
 Must be used within a BackupAuthProvider.
 
@@ -60,23 +60,6 @@ WatermelonDB database instance
 <tr>
 <td>
 
-`options.dropboxFolder?`
-
-</td>
-<td>
-
-`string`
-
-</td>
-<td>
-
-Dropbox folder path for backups (default: '/ai-chat-app/conversations')
-
-</td>
-</tr>
-<tr>
-<td>
-
 `options.exportConversation`
 
 </td>
@@ -88,40 +71,6 @@ Dropbox folder path for backups (default: '/ai-chat-app/conversations')
 <td>
 
 Export a conversation to an encrypted blob
-
-</td>
-</tr>
-<tr>
-<td>
-
-`options.googleConversationsFolder?`
-
-</td>
-<td>
-
-`string`
-
-</td>
-<td>
-
-Google Drive conversations subfolder (default: 'conversations')
-
-</td>
-</tr>
-<tr>
-<td>
-
-`options.googleRootFolder?`
-
-</td>
-<td>
-
-`string`
-
-</td>
-<td>
-
-Google Drive root folder name (default: 'ai-chat-app')
 
 </td>
 </tr>
@@ -189,7 +138,7 @@ Current user address (null if not signed in)
 import { useBackup } from "@anuma/sdk/react";
 
 function BackupManager() {
-  const { dropbox, googleDrive, hasAnyProvider } = useBackup({
+  const { icloud, hasAnyProvider } = useBackup({
     database,
     userAddress,
     requestEncryptionKey,
@@ -201,38 +150,14 @@ function BackupManager() {
     return <p>No backup providers configured</p>;
   }
 
-  return (
-    <div>
-      {dropbox.isConfigured && (
-        <div>
-          <h3>Dropbox</h3>
-          {dropbox.isAuthenticated ? (
-            <>
-              <button onClick={() => dropbox.backup()}>Backup</button>
-              <button onClick={() => dropbox.restore()}>Restore</button>
-              <button onClick={dropbox.disconnect}>Disconnect</button>
-            </>
-          ) : (
-            <button onClick={dropbox.connect}>Connect Dropbox</button>
-          )}
-        </div>
-      )}
-
-      {googleDrive.isConfigured && (
-        <div>
-          <h3>Google Drive</h3>
-          {googleDrive.isAuthenticated ? (
-            <>
-              <button onClick={() => googleDrive.backup()}>Backup</button>
-              <button onClick={() => googleDrive.restore()}>Restore</button>
-              <button onClick={googleDrive.disconnect}>Disconnect</button>
-            </>
-          ) : (
-            <button onClick={googleDrive.connect}>Connect Google Drive</button>
-          )}
-        </div>
-      )}
-    </div>
+  return icloud.isAuthenticated ? (
+    <>
+      <button onClick={() => icloud.backup()}>Backup</button>
+      <button onClick={() => icloud.restore()}>Restore</button>
+      <button onClick={icloud.disconnect}>Disconnect</button>
+    </>
+  ) : (
+    <button onClick={icloud.connect}>Connect iCloud</button>
   );
 }
 ```

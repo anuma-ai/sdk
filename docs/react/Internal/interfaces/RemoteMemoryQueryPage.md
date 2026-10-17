@@ -1,6 +1,6 @@
 # RemoteMemoryQueryPage
 
-Defined in: [src/lib/memory/store/remotePersistence.ts:93](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#93)
+Defined in: [src/lib/memory/store/remotePersistence.ts:94](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#94)
 
 ## Extends
 
@@ -12,7 +12,7 @@ Defined in: [src/lib/memory/store/remotePersistence.ts:93](https://github.com/an
 
 > `optional` **changes\_cursor**: `string`
 
-Defined in: [src/lib/memory/store/remotePersistence.ts:94](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#94)
+Defined in: [src/lib/memory/store/remotePersistence.ts:95](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#95)
 
 ***
 

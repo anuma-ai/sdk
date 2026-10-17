@@ -40,6 +40,8 @@ export interface MemoryListOptions {
   includeQuarantined?: boolean;
   /** Memory history — rows carry `supersededBy`. */
   includeSuperseded?: boolean;
+  /** `false` lets a remote store skip downloading vectors; its rows then carry a null `embedding`. */
+  withEmbeddings?: boolean;
 }
 
 /**
@@ -120,7 +122,12 @@ export type MemoryRecallOptions = Omit<
  * and never receives these credentials, callbacks or redactor instances.
  * @public
  */
-export type MemoryRetainOptions = Omit<RetainOptions, "folderId">;
+export type MemoryRetainOptions = Omit<RetainOptions, "folderId"> & {
+  /** Reject writes when the originating extraction is no longer eligible. */
+  canWrite?: () => Promise<boolean>;
+  /** Abort pending remote requests when the originating extraction is cancelled. */
+  signal?: AbortSignal;
+};
 
 /**
  * A topic and how many memories link to it.
@@ -150,6 +157,21 @@ export interface MemorySubscribeOptions {
    * Ignored when `includeDeleted` is `true`, which remains membership-only.
    */
   embeddings?: boolean;
+}
+
+/** @public */
+export type MemoryDecaySweeperOptions = Pick<
+  CreateDecaySweeperOptions,
+  "now" | "policy" | "onSwept" | "onError"
+>;
+
+/**
+ * Rule-based memory decay over a store's metadata, on any backend.
+ * @public
+ */
+export interface MemoryDecay {
+  /** A rule-based decay sweeper over this store's memories. */
+  createDecaySweeper(options?: MemoryDecaySweeperOptions): DecaySweeper;
 }
 
 /**
@@ -207,6 +229,26 @@ export interface MemoryTopicMaintenance {
   backfillTopics(memoryIds: readonly string[]): Promise<string[]>;
 }
 
+/** @public */
+export interface EmbeddingRepairOptions {
+  /** Most memories one run re-embeds. Default 50. */
+  maxRows?: number;
+  /** Most memories one run inspects. Default 2000. */
+  maxScan?: number;
+  /** Where to resume the scan, from a previous result. Defaults to where this store's last run stopped. */
+  cursor?: string;
+}
+
+/** @public */
+export interface EmbeddingRepairResult {
+  scanned: number;
+  reembedded: number;
+  failed: number;
+  skippedConflict: number;
+  /** Where the next run resumes; absent when the next run starts over from the newest memory. */
+  cursor?: string;
+}
+
 /**
  * One user's memories, pitched at what the apps do with them rather than at
  * the storage ops underneath. Two backends are intended: the on-device
@@ -255,7 +297,15 @@ export interface MemoryStore {
   /** Replace the memory's topics with a user-chosen set and stop auto-tagging it. */
   setTopics(memoryId: string, topics: readonly EntityInput[]): Promise<StoredVaultMemory | null>;
   /** Add topics alongside the existing ones (auto-tagging stays on). */
-  addTopics(memoryId: string, topics: readonly EntityInput[]): Promise<StoredEntity[]>;
+  addTopics(
+    memoryId: string,
+    topics: readonly EntityInput[],
+    options?: {
+      unlessUserManaged?: boolean;
+      canWrite?: () => Promise<boolean>;
+      signal?: AbortSignal;
+    }
+  ): Promise<StoredEntity[]>;
   setVisibility(
     id: string,
     visibility: VaultMemoryVisibility,
@@ -276,8 +326,13 @@ export interface MemoryStore {
    */
   subscribe(onChange: () => void, options?: MemorySubscribeOptions): () => void;
 
+  /** Re-embeds memories the backend cannot rank with the current model. Absent where recall re-embeds lazily. */
+  repairEmbeddings?(options?: EmbeddingRepairOptions): Promise<EmbeddingRepairResult>;
+
   /** TRANSITIONAL — see {@link MemoryMaintenance}. Absent on a remote backend. */
   maintenance?: MemoryMaintenance;
+  /** Rule-based decay, available without the local-only {@link MemoryMaintenance}. */
+  readonly decay?: MemoryDecay;
   /** Topic-extraction upkeep, available on every backend. */
   readonly topicMaintenance: MemoryTopicMaintenance;
 }

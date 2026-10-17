@@ -4,6 +4,7 @@ import { type EntityOperationsContext, linkMemoryEntitiesOp } from "../db/entiti
 import { ENTITY_KINDS, type EntityKind, TOPIC_SALIENCE_WEIGHTS } from "../db/entities/types.js";
 import { VaultMemory } from "../db/memoryVault/models.js";
 import { findQuarantinedDuplicateOp } from "../db/memoryVault/operations.js";
+import { MemorySourceIneligibleError } from "../db/memoryVault/types.js";
 import { getLogger } from "../logger.js";
 import { type PiiRedactor, resolvePiiRedactor } from "../pii/redactor.js";
 import { isGenericEntityName } from "./entitySalience.js";
@@ -18,7 +19,8 @@ import {
   type PortalLlmAuth,
   type PortalLlmFailure,
 } from "./portalLlm.js";
-import { retain, type RetainContext } from "./retain.js";
+import { retain, type RetainContext, RetainError } from "./retain.js";
+import type { MemoryStore } from "./store/types.js";
 import type { RetainOptions, RetainResult } from "./types.js";
 
 async function isMemoryTopicsUserManaged(
@@ -119,6 +121,8 @@ export interface AutoExtractMessage {
   id: string;
   role: "user" | "assistant";
   content: string;
+  /** Position in the conversation, for a conversation outside local chat history. */
+  seq?: number;
 }
 
 /**
@@ -481,6 +485,20 @@ export type ExtractOutcome =
   | "empty-after-retry"
   | "dropped-after-redaction";
 
+export type WriteFailureReason =
+  | "source-ineligible"
+  | "embeddings-unavailable"
+  | "merge-not-persisted"
+  | "aborted"
+  | "unknown";
+
+function writeFailureReasonOf(err: unknown): WriteFailureReason {
+  if (err instanceof MemorySourceIneligibleError) return "source-ineligible";
+  if (err instanceof RetainError) return err.reason;
+  if ((err as { name?: unknown } | null)?.name === "AbortError") return "aborted";
+  return "unknown";
+}
+
 /**
  * Stage 2 — for each extracted candidate, call retain() with auto-merge
  * enabled. When `consolidateOptions` are wired, retain()'s consolidation pass
@@ -500,6 +518,10 @@ export async function extractAndRetain(
   retainCtx: RetainContext,
   options: {
     extract: ExtractFactsOptions;
+    /** Route extracted facts through this store instead of the local vault. */
+    memoryStore?: MemoryStore | null;
+    /** Cancel remote writes for this extraction batch. */
+    signal?: AbortSignal;
     minConfidence?: number;
     /** Override scope/folder for all retained facts. */
     scope?: string;
@@ -551,6 +573,7 @@ export async function extractAndRetain(
   candidates: ExtractedCandidate[];
   results: RetainResult[];
   failedCount: number;
+  writeFailureReason?: WriteFailureReason;
   outcome: ExtractOutcome;
   /**
    * Tier-0 security (PR3) — candidates quarantined by the injection screen and
@@ -572,6 +595,13 @@ export async function extractAndRetain(
   /** The extraction model this call asked for (the resolved default when unset). */
   model: string;
 }> {
+  const { memoryStore, signal } = options;
+  if (memoryStore === null) throw new Error("Memory store is not ready");
+  if (memoryStore && options.folderId !== undefined && options.folderId !== null)
+    throw new Error("Remote memory extraction does not support folders");
+  if (memoryStore && options.extract.piiRedaction && !memoryStore.masksEmbeddingInput)
+    throw new Error("PII-redacted extraction requires a memory store that masks embedding inputs");
+  signal?.throwIfAborted();
   const minConfidence = options.minConfidence ?? DEFAULT_MIN_CONFIDENCE;
 
   const resolvedConsolidatePii =
@@ -611,6 +641,7 @@ export async function extractAndRetain(
     },
   });
   const extractMs = Date.now() - tExtract;
+  signal?.throwIfAborted();
   const filtered = candidates.filter((c) => c.confidence >= minConfidence);
 
   const log = getLogger();
@@ -670,16 +701,40 @@ export async function extractAndRetain(
   const results: RetainResult[] = [];
   const quarantinedInfo: QuarantinedMemoryInfo[] = [];
   let failedWrites = 0;
+  let writeFailureReason: WriteFailureReason | undefined;
+  let auditRows: ReturnType<MemoryStore["list"]> | undefined;
   const tRetain = Date.now();
   for (const { candidate, isQuarantined, reason, signature } of toRetain) {
     try {
+      signal?.throwIfAborted();
       if (isQuarantined) {
-        const existingId = await findQuarantinedDuplicateOp(
-          retainCtx.vaultCtx,
-          candidate.content,
-          candidate.sourceMessageIds,
-          { scope: options.scope ?? "private", folderId: options.folderId ?? null }
-        ).catch(() => null);
+        let existingId: string | null;
+        if (memoryStore) {
+          auditRows ??= memoryStore.list({
+            scopes: [options.scope ?? "private"],
+            includeArchived: true,
+            includeQuarantined: true,
+            includeSuperseded: true,
+          });
+          const sourceKey = [...new Set(candidate.sourceMessageIds)].sort().join("\u0000");
+          const normalize = (value: string) =>
+            value.normalize("NFKC").trim().replace(/\s+/g, " ").toLowerCase();
+          existingId =
+            (await auditRows).find(
+              (row) =>
+                row.trustTier === "quarantined" &&
+                row.scope === (options.scope ?? "private") &&
+                [...new Set(row.sourceChunkIds ?? [])].sort().join("\u0000") === sourceKey &&
+                normalize(row.content) === normalize(candidate.content)
+            )?.uniqueId ?? null;
+        } else {
+          existingId = await findQuarantinedDuplicateOp(
+            retainCtx.vaultCtx,
+            candidate.content,
+            candidate.sourceMessageIds,
+            { scope: options.scope ?? "private", folderId: options.folderId ?? null }
+          ).catch(() => null);
+        }
         if (existingId) {
           quarantinedInfo.push({
             candidate,
@@ -690,19 +745,29 @@ export async function extractAndRetain(
           continue;
         }
       }
-      const result = await retain(candidate.content, retainCtx, {
+      const retainOptions: RetainOptions = {
         source: "auto-extracted",
         sourceChunkIds: candidate.sourceMessageIds,
         respectTombstones: true,
         ...(options.scope !== undefined && { scope: options.scope }),
-        ...(options.folderId !== undefined && { folderId: options.folderId }),
         ...(consolidateOptions !== undefined && { consolidateOptions }),
         ...(candidate.eventTime !== null && { eventTime: candidate.eventTime }),
         factType: candidate.type,
         ...(isQuarantined && { trustTier: "quarantined", enableAutoMerge: false }),
-      });
+      };
+      const result = memoryStore
+        ? await memoryStore.retain(candidate.content, {
+            ...retainOptions,
+            canWrite: retainCtx.vaultCtx.canWrite,
+            signal,
+          })
+        : await retain(candidate.content, retainCtx, {
+            ...retainOptions,
+            ...(options.folderId !== undefined && { folderId: options.folderId }),
+          });
 
       if (isQuarantined) {
+        auditRows = undefined;
         const info: QuarantinedMemoryInfo = {
           candidate,
           memoryId: result.memoryId,
@@ -725,9 +790,19 @@ export async function extractAndRetain(
       succeededCandidates.push(candidate);
       results.push(result);
 
-      if (result.action !== "suppressed" && options.entityCtx && candidate.entities.length > 0) {
+      if (result.action !== "suppressed" && candidate.entities.length > 0) {
         try {
-          if (!(await isMemoryTopicsUserManaged(options.entityCtx, result.memoryId))) {
+          signal?.throwIfAborted();
+          if (memoryStore) {
+            await memoryStore.addTopics(result.memoryId, candidate.entities, {
+              unlessUserManaged: true,
+              canWrite: retainCtx.vaultCtx.canWrite,
+              signal,
+            });
+          } else if (
+            options.entityCtx &&
+            !(await isMemoryTopicsUserManaged(options.entityCtx, result.memoryId))
+          ) {
             await linkMemoryEntitiesOp(options.entityCtx, result.memoryId, candidate.entities, {
               unlessTopicsUserManaged: true,
             });
@@ -738,6 +813,7 @@ export async function extractAndRetain(
       }
     } catch (err) {
       failedWrites++;
+      writeFailureReason ??= writeFailureReasonOf(err);
       log.warn("[memory/extract] retain failed for one candidate", err);
       options.onCandidateFailed?.(candidate, err);
     }
@@ -758,6 +834,7 @@ export async function extractAndRetain(
     candidates: succeededCandidates,
     results,
     failedCount: failedWrites,
+    ...(writeFailureReason !== undefined && { writeFailureReason }),
     outcome,
     quarantined: quarantinedInfo,
     funnel: {

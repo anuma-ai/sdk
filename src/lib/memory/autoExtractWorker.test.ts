@@ -457,6 +457,28 @@ describe("createAutoExtractor", () => {
     expect(callOptions.consolidateOptions).not.toHaveProperty("apiKey");
   });
 
+  it.each([
+    [undefined, "/api/v1/utility/chat/completions"],
+    ["/api/v1/other/chat/completions", "/api/v1/other/chat/completions"],
+  ])(
+    "sends consolidation to the extraction endpoint unless consolidate overrides it (%s)",
+    async (consolidateEndpoint, expected) => {
+      vi.mocked(extractAndRetain).mockResolvedValue(EMPTY_RESULT);
+      const extractor = createAutoExtractor({
+        ...baseOptions,
+        extract: { apiKey: "k", endpointOverride: "/api/v1/utility/chat/completions" },
+        consolidate: {
+          ...(consolidateEndpoint !== undefined && { endpointOverride: consolidateEndpoint }),
+        },
+      });
+      extractor.processTurn(messages, "c1");
+      await flush();
+
+      const callOptions = vi.mocked(extractAndRetain).mock.calls[0][2];
+      expect(callOptions.consolidateOptions?.endpointOverride).toBe(expected);
+    }
+  );
+
   it("calls extractAndRetain WITHOUT the optional sub-pass options when neither is set", async () => {
     vi.mocked(extractAndRetain).mockResolvedValue(EMPTY_RESULT);
     const extractor = createAutoExtractor(baseOptions);

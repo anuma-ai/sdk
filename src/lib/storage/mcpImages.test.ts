@@ -1,9 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { extractMCPImageUrls } from "./mcpImages";
+import { extractMCPImageUrls, toolOutputForModel } from "./mcpImages";
 
 const MCP_DOMAIN = "ai-image-mcp-images.4cf0e0ea50b97e72386fcf2f92a2d4e8.r2.cloudflarestorage.com";
 const MCP_URL_1 = `https://${MCP_DOMAIN}/image1.png?token=abc`;
 const MCP_URL_2 = `https://${MCP_DOMAIN}/image2.png?token=def`;
+const CIPHERTEXT = `enc:v3:${"a1".repeat(40)}`;
 const MCP_VIDEO_URL = `https://${MCP_DOMAIN}/2026-05-26/clip.mp4?X-Amz-Signature=abc`;
 
 describe("extractMCPImageUrls", () => {
@@ -238,5 +239,13 @@ describe("extractMCPImageUrls", () => {
     ];
     const result = extractMCPImageUrls("", events, MCP_DOMAIN);
     expect(result).toEqual([{ url, model: "veo-3.1", mediaType: "video" }]);
+  });
+});
+
+describe("encrypted tool output", () => {
+  it("yields no media URLs and passes through toolOutputForModel unchanged", () => {
+    const events = [{ name: "AnumaImageMCP-generate_cloud_image", output: CIPHERTEXT }];
+    expect(extractMCPImageUrls("", events, MCP_DOMAIN)).toEqual([]);
+    expect(toolOutputForModel("AnumaImageMCP-generate_cloud_image", CIPHERTEXT)).toBe(CIPHERTEXT);
   });
 });

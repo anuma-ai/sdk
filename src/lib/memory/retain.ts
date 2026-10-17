@@ -19,6 +19,7 @@ import {
   type VaultEmbeddingCache,
 } from "../memoryVault/searchTool.js";
 import { cacheRowVector } from "../memoryVault/vectorVersion.js";
+import type { WriteFailureReason } from "./autoExtract.js";
 import { notifyConsolidationFallback } from "./consolidationFallback.js";
 import type { RetainOptions, RetainResult } from "./types.js";
 
@@ -26,6 +27,16 @@ const DEFAULT_AUTO_MERGE_THRESHOLD = 0.8;
 const DEFAULT_SCOPE = "private";
 const DEFAULT_CONSOLIDATE_THRESHOLD = 0.55;
 const DEFAULT_CONSOLIDATE_TOP_K = 20;
+
+export class RetainError extends Error {
+  constructor(
+    readonly reason: Extract<WriteFailureReason, "embeddings-unavailable" | "merge-not-persisted">,
+    message: string
+  ) {
+    super(message);
+    this.name = "RetainError";
+  }
+}
 
 export interface RetainContext {
   vaultCtx: VaultMemoryOperationsContext;
@@ -85,17 +96,21 @@ export async function retain(
   ctx: RetainContext,
   options: RetainOptions = {}
 ): Promise<RetainResult> {
+  const embeddingOptions: EmbeddingOptions = {
+    ...ctx.embeddingOptions,
+    taskType: "memory_retain_embed",
+  };
   return retainWithPersistence(
     content,
     {
-      embeddingOptions: ctx.embeddingOptions,
+      embeddingOptions,
       vaultCache: ctx.vaultCache,
       persistence: {
         prepare: (query, searchOptions) =>
           prepareVaultCandidates(
             query,
             ctx.vaultCtx,
-            ctx.embeddingOptions,
+            embeddingOptions,
             ctx.vaultCache,
             searchOptions
           ),
@@ -149,7 +164,8 @@ export async function retainWithPersistence(
     prepared = withoutKindedRows(prepared);
 
     if (prepared.embeddingFailure || prepared.embeddingsUnavailable) {
-      throw new Error(
+      throw new RetainError(
+        "embeddings-unavailable",
         "retain: embeddings unavailable — refusing to auto-merge against an inert cosine lane, " +
           "which would create a duplicate instead of merging into the existing memory. Retry " +
           "when embeddings recover, or pass enableAutoMerge: false to force a create."
@@ -617,6 +633,9 @@ async function assertMergeTargetGoneOrThrow(
     ? ctx.persistence.getFresh(targetId)
     : ctx.persistence.get(targetId));
   if (stillExists && (stillExists.kind === null || stillExists.kind === undefined)) {
-    throw new Error(`retain: merge into memory ${targetId} failed to persist`);
+    throw new RetainError(
+      "merge-not-persisted",
+      `retain: merge into memory ${targetId} failed to persist`
+    );
   }
 }

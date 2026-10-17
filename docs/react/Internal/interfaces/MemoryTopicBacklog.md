@@ -1,6 +1,6 @@
 # MemoryTopicBacklog
 
-Defined in: [src/lib/memory/store/types.ts:178](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#178)
+Defined in: [src/lib/memory/store/types.ts:200](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#200)
 
 ## Properties
 
@@ -8,7 +8,7 @@ Defined in: [src/lib/memory/store/types.ts:178](https://github.com/anuma-ai/sdk/
 
 > **linkedUnstamped**: readonly `string`\[]
 
-Defined in: [src/lib/memory/store/types.ts:180](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#180)
+Defined in: [src/lib/memory/store/types.ts:202](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#202)
 
 ***
 
@@ -16,7 +16,7 @@ Defined in: [src/lib/memory/store/types.ts:180](https://github.com/anuma-ai/sdk/
 
 > **pending**: readonly `object`\[]
 
-Defined in: [src/lib/memory/store/types.ts:179](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#179)
+Defined in: [src/lib/memory/store/types.ts:201](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#201)
 
 ***
 
@@ -24,7 +24,7 @@ Defined in: [src/lib/memory/store/types.ts:179](https://github.com/anuma-ai/sdk/
 
 > **topicsBackfill**: readonly `string`\[]
 
-Defined in: [src/lib/memory/store/types.ts:182](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#182)
+Defined in: [src/lib/memory/store/types.ts:204](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#204)
 
 ***
 
@@ -32,4 +32,4 @@ Defined in: [src/lib/memory/store/types.ts:182](https://github.com/anuma-ai/sdk/
 
 > **topicsToRelink**: readonly `string`\[]
 
-Defined in: [src/lib/memory/store/types.ts:181](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#181)
+Defined in: [src/lib/memory/store/types.ts:203](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#203)

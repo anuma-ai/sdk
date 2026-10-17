@@ -69,7 +69,8 @@ interface UseChatMediaResult {
   storeUserFilesInOPFS: (
     files: FileMetadata[],
     address: string,
-    conversationId: string
+    conversationId: string,
+    maxFileSizeBytes?: number
   ) => Promise<string[]>;
 }
 
@@ -275,7 +276,12 @@ export function useChatMedia(options: UseChatMediaOptions): UseChatMediaResult {
   );
 
   const storeUserFilesInOPFS = useCallback(
-    async (files: FileMetadata[], address: string, conversationId: string): Promise<string[]> => {
+    async (
+      files: FileMetadata[],
+      address: string,
+      conversationId: string,
+      maxFileSizeBytes?: number
+    ): Promise<string[]> => {
       const canUseOPFS = isOPFSSupported() && hasEncryptionKey(address);
       let encryptionKey: CryptoKey | undefined;
 
@@ -323,6 +329,10 @@ export function useChatMedia(options: UseChatMediaOptions): UseChatMediaResult {
               } finally {
                 clearTimeout(timeoutId);
               }
+            }
+
+            if (maxFileSizeBytes !== undefined && blob.size > maxFileSizeBytes) {
+              continue;
             }
 
             size = blob.size;

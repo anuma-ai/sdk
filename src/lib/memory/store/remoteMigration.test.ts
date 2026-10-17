@@ -1,3 +1,9 @@
+vi.mock("../../memoryEngine/embeddings.js", () => ({
+  generateEmbeddings: vi.fn(async (texts: string[]) =>
+    texts.map((t) => Array.from({ length: 4096 }, (_, i) => (i === 0 ? t.length : 1)))
+  ),
+}));
+
 import { Database } from "@nozbe/watermelondb";
 import LokiJSAdapter from "@nozbe/watermelondb/adapters/lokijs";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -14,10 +20,14 @@ import {
   type VaultMemoryOperationsContext,
 } from "../../db/memoryVault/operations";
 import { sdkMigrations, sdkModelClasses, sdkSchema } from "../../db/schema";
+import { DEFAULT_API_EMBEDDING_MODEL } from "../../memoryEngine/constants";
+import { generateEmbeddings } from "../../memoryEngine/embeddings.js";
+import { MEDIUM_TTL_MS } from "../decay";
 import { clearAllEncryptionKeys, type SignMessageFn } from "../../../react/useEncryption";
 import { deriveMemoryKeyRing, memoryCipher } from "./memoryKeys";
 import { migrateMemoriesToRemote } from "./remoteMigration";
 import { RemoteMemoryError, type RemoteMemoryRow } from "./remotePersistence";
+import { storedVector } from "./remotePipeline";
 
 const signatureA = `0x${"a1".repeat(65)}`;
 const signatureB = `0x${"b2".repeat(65)}`;
@@ -178,7 +188,26 @@ async function migrate(
   });
 }
 
-beforeEach(() => clearAllEncryptionKeys());
+const counts = {
+  reembedded: 0,
+  unembedded: 0,
+  placeholderTombstones: 0,
+  truncatedSourceChunkIds: 0,
+};
+
+async function setRaw(ctx: VaultMemoryOperationsContext, id: string, raw: Record<string, unknown>) {
+  const record = await ctx.vaultMemoryCollection.find(id);
+  await ctx.database.write(async () => {
+    await record.update((r) => {
+      for (const [column, value] of Object.entries(raw)) r._setRaw(column, value as string);
+    });
+  });
+}
+
+beforeEach(() => {
+  clearAllEncryptionKeys();
+  vi.mocked(generateEmbeddings).mockClear();
+});
 
 describe("migrateMemoriesToRemote", () => {
   it("uploads every local row in every state under the canonical key, then activates", async () => {
@@ -195,7 +224,14 @@ describe("migrateMemoriesToRemote", () => {
 
     const result = await migrate(nearby, ctx);
 
-    expect(result).toEqual({ state: "active", total: 3, imported: 3, skipped: [] });
+    expect(result).toEqual({
+      state: "active",
+      total: 3,
+      imported: 3,
+      skipped: [],
+      ...counts,
+      unembedded: 2,
+    });
     expect(nearby.account.state).toBe("active");
     const canonical = await deriveMemoryKeyRing(signatureA);
     const remoteLive = nearby.rows.get(live.uniqueId)!;
@@ -346,7 +382,7 @@ describe("migrateMemoriesToRemote", () => {
 
     const result = await migrate(nearby, ctx);
 
-    expect(result).toEqual({ state: "active", total: 0, imported: 0, skipped: [] });
+    expect(result).toEqual({ state: "active", total: 0, imported: 0, skipped: [], ...counts });
     expect(nearby.account).toMatchObject({
       state: "active",
       key_id: (await deriveMemoryKeyRing(signatureA)).keyId,
@@ -456,23 +492,176 @@ describe("migrateMemoriesToRemote", () => {
     expect(remove.mock.calls.length).toBe(add.mock.calls.length);
   });
 
-  it("skips a row whose source_chunk_ids nearby would refuse instead of failing its batch", async () => {
+  it("keeps a legacy row's newest source ids that fit nearby instead of skipping it", async () => {
     const ctx = vault(makeDatabase(), signatureA);
     const ok = await createVaultMemoryOp(ctx, { content: "Lives in Austin" });
-    const big = await createVaultMemoryOp(ctx, {
-      content: "Name is Sam",
-      sourceChunkIds: Array.from({ length: 600 }, (_, i) => `message-${i}-${"x".repeat(24)}`),
+    const big = await createVaultMemoryOp(ctx, { content: "Name is Sam" });
+    const ids = Array.from({ length: 600 }, (_, i) => `message-${i}-${"x".repeat(24)}`);
+    await setRaw(ctx, big.uniqueId, { source_chunk_ids: JSON.stringify(ids) });
+    const nearby = fakeNearby();
+
+    const result = await migrate(nearby, ctx);
+
+    expect(result).toMatchObject({ state: "active", skipped: [], truncatedSourceChunkIds: 1 });
+    expect(nearby.rows.has(ok.uniqueId)).toBe(true);
+    const kept = JSON.parse(nearby.rows.get(big.uniqueId)!.source_chunk_ids!) as string[];
+    expect(new TextEncoder().encode(JSON.stringify(kept)).length).toBeLessThanOrEqual(16 << 10);
+    expect(kept).toEqual(ids.slice(ids.length - kept.length));
+    expect(kept.length).toBeGreaterThan(400);
+  });
+
+  it("re-embeds every row nearby could not rank and keeps the vectors it can", async () => {
+    const ctx = vault(makeDatabase(), signatureA);
+    const vector1536 = JSON.stringify(Array.from({ length: 1536 }, (_, i) => (i % 5) + 1));
+    const noVector = await createVaultMemoryOp(ctx, { content: "Has a dog" });
+    const legacy = await createVaultMemoryOp(ctx, { content: "Likes jazz" });
+    await setRaw(ctx, legacy.uniqueId, { embedding: vector1536, embedding_model: null });
+    const otherModel = await createVaultMemoryOp(ctx, {
+      content: "Runs marathons",
+      embedding: vector4096,
+      embeddingModel: "openai/text-embedding-3-small",
+    });
+    const current = await createVaultMemoryOp(ctx, {
+      content: "Lives in Austin",
+      embedding: vector4096,
+      embeddingModel: DEFAULT_API_EMBEDDING_MODEL,
+    });
+    const unlabelledQwen = await createVaultMemoryOp(ctx, {
+      content: "Works at Acme",
+      embedding: vector4096,
+    });
+    const tombstone = await createVaultMemoryOp(ctx, { content: "Had a cat" });
+    await deleteVaultMemoryOp(ctx, tombstone.uniqueId);
+    const nearby = fakeNearby();
+
+    const result = await migrate(nearby, ctx, { embeddingOptions: { getToken: async () => "t" } });
+
+    expect(result).toMatchObject({ state: "active", reembedded: 4, unembedded: 0 });
+    expect(vi.mocked(generateEmbeddings)).toHaveBeenCalledTimes(1);
+    expect([...vi.mocked(generateEmbeddings).mock.calls[0][0]].sort()).toEqual(
+      ["Has a dog", "Likes jazz", "Runs marathons", "Had a cat"].sort()
+    );
+    for (const m of [noVector, legacy, otherModel, tombstone]) {
+      const row = nearby.rows.get(m.uniqueId)!;
+      expect(row.embedding_model).toBe(DEFAULT_API_EMBEDDING_MODEL);
+      expect(row.embedding).toHaveLength(1536);
+    }
+    const original = storedVector(JSON.parse(vector4096) as number[]);
+    expect(nearby.rows.get(current.uniqueId)!.embedding).toEqual(original);
+    expect(nearby.rows.get(unlabelledQwen.uniqueId)!.embedding).toEqual(original);
+    expect(nearby.calls.filter((c) => c === "POST /import")).toHaveLength(1);
+  });
+
+  it("labels an unlabelled current vector so its tombstone can suppress a re-extraction", async () => {
+    const ctx = vault(makeDatabase(), signatureA);
+    const tombstone = await createVaultMemoryOp(ctx, {
+      content: "Had a cat",
+      embedding: vector4096,
+    });
+    await deleteVaultMemoryOp(ctx, tombstone.uniqueId);
+    const nearby = fakeNearby();
+    await migrate(nearby, ctx);
+    const sent = nearby.rows.get(tombstone.uniqueId)!;
+    expect(sent.embedding_model).toBe(DEFAULT_API_EMBEDDING_MODEL);
+
+    delete sent.embedding_model;
+    nearby.account.state = "migrating";
+    const result = await migrate(nearby, ctx, { embeddingOptions: {} });
+
+    expect(result).toMatchObject({ state: "active", reembedded: 0 });
+    expect(vi.mocked(generateEmbeddings)).not.toHaveBeenCalled();
+    expect(nearby.rows.get(tombstone.uniqueId)).toMatchObject({
+      embedding_model: DEFAULT_API_EMBEDDING_MODEL,
+      updated_at: sent.updated_at + 1,
+      embedding: storedVector(JSON.parse(vector4096) as number[]),
+    });
+    expect(nearby.calls.filter((c) => c === "POST /import")).toHaveLength(2);
+  });
+
+  it("repairs a vector an interrupted earlier run uploaded without one", async () => {
+    const ctx = vault(makeDatabase(), signatureA);
+    const m = await createVaultMemoryOp(ctx, { content: "Has a dog" });
+    const nearby = fakeNearby();
+    await migrate(nearby, ctx);
+    nearby.account.state = "migrating";
+    expect(nearby.rows.get(m.uniqueId)!.embedding).toBeUndefined();
+
+    const result = await migrate(nearby, ctx, { embeddingOptions: {} });
+
+    expect(result).toMatchObject({ state: "active", reembedded: 1, unembedded: 0 });
+    expect(nearby.rows.get(m.uniqueId)).toMatchObject({
+      embedding_model: DEFAULT_API_EMBEDDING_MODEL,
+      updated_at: m.updatedAt.getTime() + 1,
+    });
+    expect(nearby.rows.get(m.uniqueId)!.embedding).toHaveLength(1536);
+  });
+
+  it("uploads a row without a vector when re-embedding fails", async () => {
+    const ctx = vault(makeDatabase(), signatureA);
+    const m = await createVaultMemoryOp(ctx, { content: "Has a dog" });
+    vi.mocked(generateEmbeddings)
+      .mockRejectedValueOnce(new Error("embedding outage"))
+      .mockRejectedValueOnce(new Error("embedding outage"));
+    const nearby = fakeNearby();
+
+    const result = await migrate(nearby, ctx, { embeddingOptions: {} });
+
+    expect(result).toMatchObject({ state: "active", reembedded: 0, unembedded: 1 });
+    expect(nearby.rows.get(m.uniqueId)!.embedding).toBeUndefined();
+    expect(nearby.calls.filter((c) => c === "POST /import")).toHaveLength(2);
+  });
+
+  it("never labels a pre-model 1536-dimension vector as the current model", async () => {
+    const ctx = vault(makeDatabase(), signatureA);
+    const m = await createVaultMemoryOp(ctx, { content: "Likes jazz" });
+    await setRaw(ctx, m.uniqueId, {
+      embedding: JSON.stringify(Array.from({ length: 1536 }, () => 1)),
+      embedding_model: null,
     });
     const nearby = fakeNearby();
 
     const result = await migrate(nearby, ctx);
 
-    expect(result).toMatchObject({
-      state: "migrating",
-      skipped: [{ memoryId: big.uniqueId, reason: "invalid" }],
+    expect(result).toMatchObject({ state: "active", unembedded: 1 });
+    expect(nearby.rows.get(m.uniqueId)!.embedding).toBeUndefined();
+    expect(vi.mocked(generateEmbeddings)).not.toHaveBeenCalled();
+  });
+
+  it("uploads a deleted row no key decrypts as a placeholder tombstone and activates", async () => {
+    const database = makeDatabase();
+    const ctx = vault(database, signatureA);
+    const foreignCtx = vault(database, signatureB, "u1", otherAddress);
+    const foreign = await createVaultMemoryOp(foreignCtx, {
+      content: "Written under another key",
+      embedding: vector4096,
+      embeddingModel: DEFAULT_API_EMBEDDING_MODEL,
     });
-    expect(nearby.rows.has(ok.uniqueId)).toBe(true);
-    expect(await migrate(nearby, ctx, { allowSkipped: true })).toMatchObject({ state: "active" });
+    await deleteVaultMemoryOp(foreignCtx, foreign.uniqueId);
+    const nearby = fakeNearby();
+
+    const result = await migrate(nearby, ctx);
+
+    expect(result).toMatchObject({ state: "active", skipped: [], placeholderTombstones: 1 });
+    const row = nearby.rows.get(foreign.uniqueId)!;
+    expect(row.is_deleted).toBe(true);
+    expect(row.embedding).toHaveLength(1536);
+    const canonical = await deriveMemoryKeyRing(signatureA);
+    expect(await memoryCipher(canonical).decrypt(row.content)).toBe("");
+  });
+
+  it("runs a final decay sweep before uploading", async () => {
+    const ctx = vault(makeDatabase(), signatureA);
+    const aged = await createVaultMemoryOp(ctx, {
+      content: "Was reading a thriller",
+      source: "auto-extracted",
+      factType: "other",
+    });
+    await setRaw(ctx, aged.uniqueId, { updated_at: Date.now() - MEDIUM_TTL_MS - 86_400_000 });
+    const nearby = fakeNearby();
+
+    await migrate(nearby, ctx);
+
+    expect(nearby.rows.get(aged.uniqueId)!.archived_at).toBeGreaterThan(0);
   });
 
   it("measures nearby's limits in bytes, not characters", async () => {

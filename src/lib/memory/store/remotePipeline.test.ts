@@ -160,6 +160,44 @@ function setup() {
 }
 beforeEach(() => vi.clearAllMocks());
 
+describe("remote retain source eligibility", () => {
+  it("checks eligibility after asynchronous embeddings finish, before any remote write", async () => {
+    const h = setup();
+    let eligible = true;
+    let release!: (value: number[][]) => void;
+    vi.mocked(generateEmbeddings).mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          release = resolve;
+        })
+    );
+    const pending = h.pipeline.retain("Drinks tea", { canWrite: async () => eligible });
+    const rejected = expect(pending).rejects.toThrow("no longer eligible");
+    await vi.waitFor(() => expect(release).toBeDefined());
+    eligible = false;
+    release([[1, ...new Array<number>(4095).fill(0)]]);
+    await rejected;
+    expect(h.put).not.toHaveBeenCalled();
+    expect(h.putMany).not.toHaveBeenCalled();
+  });
+
+  it("refuses cancelled writes and carries the abort signal into remote persistence", async () => {
+    const h = setup();
+    const controller = new AbortController();
+    await h.pipeline.retain("Drinks tea", { enableAutoMerge: false, signal: controller.signal });
+    expect(h.put).toHaveBeenCalledWith(expect.any(Object), 0, controller.signal);
+    h.put.mockClear();
+    controller.abort();
+    await expect(
+      h.pipeline.retain("Drinks coffee", {
+        enableAutoMerge: false,
+        signal: controller.signal,
+      })
+    ).rejects.toThrow();
+    expect(h.put).not.toHaveBeenCalled();
+  });
+});
+
 describe("remote shared recall/retain pipeline", () => {
   it.each(["deleted", "superseded", "live"])(
     "freshly probes %s secondary targets after a write conflict",
@@ -244,6 +282,15 @@ describe("remote shared recall/retain pipeline", () => {
     });
     await h.pipeline.retain("Drinks tea", { sourceChunkIds: ["message"] });
     expect(h.rows.get("a")!.memory).toMatchObject({ proof_count: 2, last_observed_at: observed });
+  });
+  it("keeps a merge's newest source ids within nearby's limit", async () => {
+    const h = setup();
+    const old = Array.from({ length: 600 }, (_, i) => `message-${i}-${"x".repeat(24)}`);
+    h.seed("a", { source_chunk_ids: JSON.stringify(old) });
+    await h.pipeline.retain("Drinks tea", { sourceChunkIds: ["newest"] });
+    const stored = h.rows.get("a")!.memory.source_chunk_ids!;
+    expect(new TextEncoder().encode(stored).length).toBeLessThanOrEqual(16 << 10);
+    expect((JSON.parse(stored) as string[]).at(-1)).toBe("newest");
   });
   it("never merges into or supersedes a kinded profile memory", async () => {
     const h = setup();

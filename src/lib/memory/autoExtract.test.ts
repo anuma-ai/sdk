@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("./retain", () => ({
+vi.mock("./retain", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./retain")>()),
   retain: vi.fn(),
 }));
 
@@ -10,7 +11,8 @@ vi.mock("../db/entities/operations", () => ({
 
 import { linkMemoryEntitiesOp } from "../db/entities/operations";
 
-import { retain } from "./retain";
+import { MemorySourceIneligibleError } from "../db/memoryVault/types";
+import { retain, RetainError } from "./retain";
 
 import type { NerDetector, PiiSpan } from "../pii/ner";
 import { PiiRedactor } from "../pii/redactor";
@@ -585,6 +587,84 @@ describe("extractAndRetain", () => {
       retainedCount: 0,
       failedCount: 1,
     });
+    expect(result.writeFailureReason).toBe("unknown");
+  });
+
+  it.each([
+    [new MemorySourceIneligibleError(), "source-ineligible"],
+    [
+      new RetainError("embeddings-unavailable", "retain: embeddings unavailable"),
+      "embeddings-unavailable",
+    ],
+    [
+      new RetainError("merge-not-persisted", "retain: merge failed to persist"),
+      "merge-not-persisted",
+    ],
+    [new DOMException("aborted", "AbortError"), "aborted"],
+    [{ name: "AbortError", message: "polyfilled abort" }, "aborted"],
+  ] as const)("reports why the first write failed: %s", async (error, reason) => {
+    vi.mocked(retain)
+      .mockRejectedValueOnce(error)
+      .mockResolvedValueOnce({
+        action: "create",
+        memoryId: "mem-2",
+      } as never);
+    const result = await extractAndRetain(
+      messages,
+      { vaultCtx: {} as never, embeddingOptions: { apiKey: "embed-k" }, vaultCache: new Map() },
+      {
+        extract: {
+          apiKey: "k",
+          fetchFn: mockFetch(
+            JSON.stringify({
+              candidates: [
+                {
+                  content: "Owns a 60m rope",
+                  type: "other",
+                  confidence: 0.9,
+                  sourceMessageIds: ["m1"],
+                },
+                {
+                  content: "Climbs in Kalymnos",
+                  type: "other",
+                  confidence: 0.9,
+                  sourceMessageIds: ["m1"],
+                },
+              ],
+            })
+          ),
+        },
+      }
+    );
+    expect(result.failedCount).toBe(1);
+    expect(result.writeFailureReason).toBe(reason);
+  });
+
+  it("omits the write failure reason when every write lands", async () => {
+    vi.mocked(retain).mockResolvedValue({ action: "create", memoryId: "mem-1" } as never);
+    const result = await extractAndRetain(
+      messages,
+      { vaultCtx: {} as never, embeddingOptions: { apiKey: "embed-k" }, vaultCache: new Map() },
+      {
+        extract: {
+          apiKey: "k",
+          fetchFn: mockFetch(
+            JSON.stringify({
+              candidates: [
+                {
+                  content: "Owns a 60m rope",
+                  type: "other",
+                  confidence: 0.9,
+                  sourceMessageIds: ["m1"],
+                },
+              ],
+            })
+          ),
+        },
+      }
+    );
+    expect(result.failedCount).toBe(0);
+    expect(result).not.toHaveProperty("writeFailureReason");
   });
 
   it("reports outcome 'no-facts' on a legitimate empty extraction (H3)", async () => {

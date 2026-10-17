@@ -2,7 +2,7 @@
 
 > **searchChunksOp**(`ctx`: [`StorageOperationsContext`](../interfaces/StorageOperationsContext.md), `queryVector`: `number`\[], `options?`: `object`): `Promise`<[`ChunkSearchResult`](../interfaces/ChunkSearchResult.md)\[]>
 
-Defined in: [src/lib/db/chat/operations.ts:1583](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/operations.ts#1583)
+Defined in: [src/lib/db/chat/operations.ts:1852](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/operations.ts#1852)
 
 Search through message chunks for fine-grained semantic search.
 Returns the matching chunk text along with the parent message.
@@ -82,10 +82,7 @@ Returns the matching chunk text along with the parent message.
 </td>
 <td>
 
-Optional decrypted-vector cache. When provided, the per-query decrypt +
-JSON.parse of every message's chunk vectors is skipped on warm entries
-(validated by `updated_at`), which is the dominant cost of the chunk
-lane. Omit for the legacy always-decrypt behavior.
+Decrypted-vector cache, validated by `updated_at`.
 
 </td>
 </tr>
@@ -119,12 +116,7 @@ lane. Omit for the legacy always-decrypt behavior.
 </td>
 <td>
 
-Current embedding model. When set, messages whose stored
-`embedding_model` is non-null and differs are skipped — their vectors
-live in a different space, so cosine against the current-model query is
-meaningless (and the dim-mismatch path returns 0 silently). Null/absent
-`embedding_model` is grandfathered as current-model-compatible. Skipped
-messages are re-embedded out-of-band by `chunkAndEmbedAllMessages`.
+Current embedding model; messages stored under a different non-null model are skipped.
 
 </td>
 </tr>
@@ -141,10 +133,7 @@ messages are re-embedded out-of-band by `chunkAndEmbedAllMessages`.
 </td>
 <td>
 
-Skip every message in this conversation BEFORE scoring, so it can't take
-top-K slots. Filtering after the cut (what recall() used to do) lets a
-long current conversation fill all `limit` slots and leaves
-past-conversation recall with nothing.
+Skip every message in this conversation before scoring.
 
 </td>
 </tr>
@@ -179,6 +168,23 @@ past-conversation recall with nothing.
 <td>
 
 ‐
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.onStats?`
+
+</td>
+<td>
+
+(`stats`: [`ChunkSearchStats`](../interfaces/ChunkSearchStats.md)) => `void`
+
+</td>
+<td>
+
+Receives row counts for the call.
 
 </td>
 </tr>

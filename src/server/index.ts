@@ -132,6 +132,7 @@ export {
   deleteConversationOp,
   deleteConversationSummaryOp,
   deleteMessageOp,
+  encryptToolCallEventsOp,
   getAllFilesOp,
   getConversationOp,
   getConversationsByProjectLazyOp,
@@ -333,6 +334,7 @@ export type {
   AutoExtractor,
   Budget,
   CachedChunkVectors,
+  ChunkSearchStats,
   ChunkVectorCache,
   ConsolidationAction,
   ConsolidationFallbackReason,
@@ -384,8 +386,10 @@ export type {
   RecallEmptyReason,
   RecallOptions,
   RecallResult,
+  RecallTelemetryCallbacks,
   RecallToolCallbacks,
   RecallToolOptions,
+  RecallTruncation,
   RecencyOptions,
   ReflectOptions,
   ReflectResult,
@@ -399,6 +403,7 @@ export type {
   ScreenedCandidate,
   ScreenResult,
   SynthesizeProfileOptions,
+  TopicExtractionBatchDiagnostics,
   TopicExtractionInput,
   TopicExtractionRunResult,
   TopicExtractOptions,
@@ -412,7 +417,11 @@ export type {
 } from "../lib/memory";
 export {
   createLocalMemoryStore,
+  type EmbeddingRepairOptions,
+  type EmbeddingRepairResult,
   type LocalMemoryStoreOptions,
+  type MemoryDecay,
+  type MemoryDecaySweeperOptions,
   type MemoryListOptions,
   type MemoryMaintenance,
   type MemoryRecallOptions,
@@ -487,7 +496,13 @@ export {
   type MemoryContextResult,
   shouldRecallMemory,
 } from "../lib/memory";
-export { createDurableAutoExtractor, type DurableAutoExtractorOptions } from "../lib/memory";
+export {
+  createDurableAutoExtractor,
+  type DurableAutoExtractorOptions,
+  type ExtractionMessageSource,
+  type ExtractionSourceMessage,
+  type ExtractionSourceStatus,
+} from "../lib/memory";
 export type {
   ChunkingOptions,
   EmbeddingOptions as MemoryEngineEmbeddingOptions,

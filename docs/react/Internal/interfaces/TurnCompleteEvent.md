@@ -1,6 +1,6 @@
 # TurnCompleteEvent
 
-Defined in: [src/lib/memory/autoExtractWorker.ts:62](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#62)
+Defined in: [src/lib/memory/autoExtractWorker.ts:64](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#64)
 
 ## Properties
 
@@ -8,7 +8,7 @@ Defined in: [src/lib/memory/autoExtractWorker.ts:62](https://github.com/anuma-ai
 
 > **candidates**: [`ExtractedCandidate`](ExtractedCandidate.md)\[]
 
-Defined in: [src/lib/memory/autoExtractWorker.ts:63](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#63)
+Defined in: [src/lib/memory/autoExtractWorker.ts:65](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#65)
 
 ***
 
@@ -16,7 +16,7 @@ Defined in: [src/lib/memory/autoExtractWorker.ts:63](https://github.com/anuma-ai
 
 > `optional` **conversationId**: `string`
 
-Defined in: [src/lib/memory/autoExtractWorker.ts:68](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#68)
+Defined in: [src/lib/memory/autoExtractWorker.ts:71](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#71)
 
 ***
 
@@ -24,7 +24,7 @@ Defined in: [src/lib/memory/autoExtractWorker.ts:68](https://github.com/anuma-ai
 
 > **durationMs**: `number`
 
-Defined in: [src/lib/memory/autoExtractWorker.ts:67](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#67)
+Defined in: [src/lib/memory/autoExtractWorker.ts:70](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#70)
 
 ***
 
@@ -32,7 +32,7 @@ Defined in: [src/lib/memory/autoExtractWorker.ts:67](https://github.com/anuma-ai
 
 > **failedCount**: `number`
 
-Defined in: [src/lib/memory/autoExtractWorker.ts:66](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#66)
+Defined in: [src/lib/memory/autoExtractWorker.ts:68](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#68)
 
 Per-candidate retain() failures. `onError` only fires on pipeline throws.
 
@@ -42,7 +42,7 @@ Per-candidate retain() failures. `onError` only fires on pipeline throws.
 
 > `optional` **failure**: [`PortalLlmFailure`](PortalLlmFailure.md)
 
-Defined in: [src/lib/memory/autoExtractWorker.ts:91](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#91)
+Defined in: [src/lib/memory/autoExtractWorker.ts:94](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#94)
 
 Present only alongside `outcome: "empty-after-retry"` — WHICH failure ended
 the turn (#888).
@@ -64,7 +64,7 @@ carries content.
 
 > `optional` **funnel**: [`ExtractionFunnel`](ExtractionFunnel.md)
 
-Defined in: [src/lib/memory/autoExtractWorker.ts:97](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#97)
+Defined in: [src/lib/memory/autoExtractWorker.ts:100](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#100)
 
 Where the candidates went between the model and the vault, as counts — the
 drops before `retain()` that `candidates`/`results` cannot show. See
@@ -76,7 +76,7 @@ drops before `retain()` that `candidates`/`results` cannot show. See
 
 > `optional` **model**: `string`
 
-Defined in: [src/lib/memory/autoExtractWorker.ts:101](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#101)
+Defined in: [src/lib/memory/autoExtractWorker.ts:104](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#104)
 
 The extraction model this turn asked for.
 
@@ -86,7 +86,7 @@ The extraction model this turn asked for.
 
 > **outcome**: [`ExtractOutcome`](../type-aliases/ExtractOutcome.md)
 
-Defined in: [src/lib/memory/autoExtractWorker.ts:75](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#75)
+Defined in: [src/lib/memory/autoExtractWorker.ts:78](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#78)
 
 Why the turn did/didn't produce facts. `empty-after-retry` means the
 extractor failed (empty/malformed after exhausting retries) — alarm on a
@@ -99,7 +99,7 @@ previously indistinguishable (both surfaced as zero candidates).
 
 > **results**: [`RetainResult`](RetainResult.md)\[]
 
-Defined in: [src/lib/memory/autoExtractWorker.ts:64](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#64)
+Defined in: [src/lib/memory/autoExtractWorker.ts:66](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#66)
 
 ***
 
@@ -107,6 +107,14 @@ Defined in: [src/lib/memory/autoExtractWorker.ts:64](https://github.com/anuma-ai
 
 > `optional` **timings**: [`ExtractionTimings`](ExtractionTimings.md)
 
-Defined in: [src/lib/memory/autoExtractWorker.ts:99](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#99)
+Defined in: [src/lib/memory/autoExtractWorker.ts:102](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#102)
 
 Extract vs. retain wall-clock split of `durationMs`. See [ExtractionTimings](ExtractionTimings.md).
+
+***
+
+### writeFailureReason?
+
+> `optional` **writeFailureReason**: [`WriteFailureReason`](../type-aliases/WriteFailureReason.md)
+
+Defined in: [src/lib/memory/autoExtractWorker.ts:69](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#69)

@@ -2,7 +2,9 @@ import type { ToolConfig } from "../chat/useChat/types";
 import type { VaultMemoryOperationsContext } from "../db/memoryVault/operations";
 import { recall } from "../memory/recall";
 import { EMBEDDINGS_DEGRADED_EMPTY, RECALL_MAX_LIMIT } from "../memory/recallConstants";
+import { factRecallDiagnostics, notifyMemoryCallback } from "../memory/recallTelemetry";
 import type { MemoryStore } from "../memory/store/types";
+import type { RecallTelemetryCallbacks } from "../memory/types";
 import type { EmbeddingOptions } from "../memoryEngine/types";
 import { decomposeQuery } from "./decomposeQuery";
 import {
@@ -40,10 +42,15 @@ export function createMemoryVaultSearchTool(
   vaultCtx: VaultMemoryOperationsContext | MemoryStore,
   embeddingOptions: EmbeddingOptions,
   cache: VaultEmbeddingCache,
-  searchOptions?: MemoryVaultSearchOptions
+  searchOptions?: MemoryVaultSearchOptions,
+  callbacks?: RecallTelemetryCallbacks
 ): ToolConfig {
   const limit = searchOptions?.limit ?? 5;
   const minSimilarity = searchOptions?.minSimilarity ?? 0.1;
+  const recallEmbeddingOptions: EmbeddingOptions = {
+    ...embeddingOptions,
+    taskType: "memory_recall_embed",
+  };
 
   const tuningForward = {
     ...(searchOptions?.rerankTopN !== undefined && { rerankTopN: searchOptions.rerankTopN }),
@@ -114,6 +121,7 @@ export function createMemoryVaultSearchTool(
       const argFolderId = args.folder_id as string | null | undefined;
 
       if (!query || typeof query !== "string") {
+        notifyMemoryCallback(callbacks?.onError, new Error("A search query is required."));
         return "Error: A search query is required.";
       }
 
@@ -128,7 +136,11 @@ export function createMemoryVaultSearchTool(
         const folderId = searchOptions?.folderId ?? argFolderId;
 
         if (searchOptions?.useFusion === false) {
+          let candidateCount: number | undefined;
           const legacyOptions = {
+            onCandidateCount: (count: number) => {
+              candidateCount = count;
+            },
             limit: requestLimit,
             minSimilarity,
             useFusion: false,
@@ -136,16 +148,41 @@ export function createMemoryVaultSearchTool(
             ...(folderId !== undefined && { folderId }),
             ...(searchOptions?.scopes && { scopes: searchOptions.scopes }),
           };
-          const { results: legacy, embeddingsUnavailable } =
+          const start = Date.now();
+          const outcome =
             "retain" in vaultCtx
               ? await vaultCtx.factSource.search(query, legacyOptions)
               : await searchVaultMemoriesWithSize(
                   query,
                   vaultCtx,
-                  embeddingOptions,
+                  recallEmbeddingOptions,
                   cache,
                   legacyOptions
                 );
+          const { results: legacy, embeddingsUnavailable, vaultSize } = outcome;
+          const diagnostics = factRecallDiagnostics(
+            legacy.map((m) => m.similarity),
+            Date.now() - start,
+            {
+              vaultSize,
+              minScore: minSimilarity,
+              embeddingsUnavailable,
+              candidateCount,
+              truncated: candidateCount !== undefined && candidateCount > requestLimit,
+              decryptLast: outcome.decryptLast,
+              vaultRowsDecrypted: outcome.rowsDecrypted,
+              vaultRowsEmbedded: outcome.rowsEmbedded,
+              queryEmbedMs: outcome.queryEmbedMs,
+            }
+          );
+          notifyMemoryCallback(callbacks?.onDiagnostics, diagnostics);
+          if (diagnostics.truncated) {
+            notifyMemoryCallback(callbacks?.onTruncated, {
+              requestedLimit: requestLimit,
+              effectiveLimit: requestLimit,
+              truncatedByBudget: false,
+            });
+          }
           if (legacy.length === 0) {
             return embeddingsUnavailable
               ? EMBEDDINGS_DEGRADED_EMPTY_NO_LEXICAL
@@ -173,6 +210,14 @@ export function createMemoryVaultSearchTool(
           {
             onDiagnostics: (d) => {
               recallDegraded = d.degraded;
+              notifyMemoryCallback(callbacks?.onDiagnostics, d);
+              if (d.truncated) {
+                notifyMemoryCallback(callbacks?.onTruncated, {
+                  requestedLimit: requestLimit,
+                  effectiveLimit: requestLimit,
+                  truncatedByBudget: false,
+                });
+              }
             },
             types: ["fact"],
             limit: requestLimit,
@@ -209,6 +254,10 @@ export function createMemoryVaultSearchTool(
         );
         return `Found ${result.memories.length} vault memories:\n\n${formatted}`;
       } catch (error) {
+        notifyMemoryCallback(
+          callbacks?.onError,
+          error instanceof Error ? error : new Error(String(error))
+        );
         const message = error instanceof Error ? error.message : "Unknown error";
         return `Error searching vault: ${message}`;
       }

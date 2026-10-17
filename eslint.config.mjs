@@ -10,12 +10,25 @@ const appGenerationTests = [
   "test/tools/app-generation/precision-updates.test.ts",
 ];
 
+const memoryTelemetryTests = [
+  "src/lib/memory/decayWorker.test.ts",
+  "src/lib/memory/recallTool.telemetry.test.ts",
+  "src/lib/memory/topicExtract.telemetry.test.ts",
+  "src/lib/memoryEngine/generate.taskType.test.ts",
+  "src/lib/memoryVault/searchTool.telemetry.test.ts",
+  "src/lib/memoryVault/searchToolExecutor.store.test.ts",
+];
+
 const checkedTestFiles = [
   ...appGenerationTests,
+  ...memoryTelemetryTests,
+  "src/lib/backup/icloud/backup.test.ts",
   "src/lib/chat/toolLoop.detach.test.ts",
   "src/lib/chat/toolLoop.idleTimeout.test.ts",
   "src/lib/db/chat/operations.chunkText.test.ts",
   "src/lib/db/chat/operations.embeddingEncryption.test.ts",
+  "src/react/useChatStorage.fileSize.test.tsx",
+  "src/react/useChatStorage.queueIdentifiers.test.tsx",
   "src/react/useChatStorage.runHooks.test.tsx",
   "test/tools/slide-generation/models.ts",
 ];
@@ -88,7 +101,6 @@ export default tseslint.config(
     },
   },
   {
-    // Check the regression tests with the test TypeScript project.
     files: checkedTestFiles,
     languageOptions: {
       parserOptions: {
@@ -102,7 +114,6 @@ export default tseslint.config(
     extends: [tseslint.configs.disableTypeChecked],
   },
   {
-    // The live-model benchmark writes test metrics to the console.
     files: ["test/tools/app-generation/precision-updates.test.ts"],
     rules: {
       "no-console": ["warn", { allow: ["log", "warn", "error"] }],

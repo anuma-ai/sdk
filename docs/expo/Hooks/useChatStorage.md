@@ -518,12 +518,12 @@ Defaults to the hardcoded MCP\_R2\_DOMAIN from clientConfig.
 </td>
 <td>
 
-[`MemoryStore`](../../react/Internal/interfaces/MemoryStore.md)
+[`MemoryStore`](../../react/Internal/interfaces/MemoryStore.md) | `null`
 
 </td>
 <td>
 
-Route memory reads, writes, recall and the memory tools through this store instead of the database's vault; folders are unsupported. With `piiRedaction` on, build the store with `embeddingOptions.maskInput` (e.g. `(text) => redactor.maskText(text)` with any `PiiRedactor`) or its memory calls throw.
+Route memory operations through this store; `null` disables memory access while `undefined` uses the local vault. Folders are unsupported. With `piiRedaction` on, build the store with `embeddingOptions.maskInput` or its memory calls throw.
 
 </td>
 </tr>

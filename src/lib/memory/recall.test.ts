@@ -59,6 +59,7 @@ import {
   type VaultMemoryOperationsContext,
 } from "../db/memoryVault/operations";
 import type { StoredVaultMemory } from "../db/memoryVault/types";
+import { maskScopedEmbeddingCache } from "../db/chat/embeddingCache";
 import { generateEmbedding, generateEmbeddings } from "../memoryEngine/embeddings";
 import { decomposeQuery } from "../memoryVault/decomposeQuery";
 import { searchVaultMemoriesWithSize } from "../memoryVault/searchTool";
@@ -178,6 +179,29 @@ describe("recall — query validation", () => {
   it("reports the requested budget even on the empty-query early return", async () => {
     const result = await recall("", makeCtx(), { budget: "high" });
     expect(result.usedBudget).toBe("high");
+  });
+});
+
+describe("recall — embedding task type", () => {
+  it("declares the memory_recall_embed task type on every query embedding", async () => {
+    await recall(QUERY, makeCtx(), { types: ["fact", "chunk"] });
+
+    expect(vi.mocked(searchVaultMemoriesWithSize).mock.calls[0][2]).toMatchObject({
+      taskType: "memory_recall_embed",
+    });
+    expect(vi.mocked(generateEmbedding).mock.calls.length).toBeGreaterThan(0);
+    for (const call of vi.mocked(generateEmbedding).mock.calls) {
+      expect(call[1]).toMatchObject({ taskType: "memory_recall_embed" });
+    }
+  });
+
+  it("declares the task type on the fact-only lane too", async () => {
+    await recall(QUERY, makeCtx());
+
+    expect(vi.mocked(generateEmbedding).mock.calls.length).toBeGreaterThan(0);
+    for (const call of vi.mocked(generateEmbedding).mock.calls) {
+      expect(call[1]).toMatchObject({ taskType: "memory_recall_embed" });
+    }
   });
 });
 
@@ -865,6 +889,42 @@ describe("createRecallTool executor", () => {
 });
 
 describe("recall — diagnostics (onDiagnostics)", () => {
+  it("carries the chunk lane's row counts when the lane ran", async () => {
+    vi.mocked(searchChunksOp).mockImplementation(async (_ctx, _vector, options) => {
+      options?.onStats?.({ rowsScanned: 1312, rowsFetched: 40, cacheHits: 1272 });
+      return [makeChunk("m1", "conv1", 0.9)];
+    });
+    const seen: RecallDiagnostics[] = [];
+
+    await recall(QUERY, makeCtx({ storageCtx }), {
+      types: ["chunk"],
+      onDiagnostics: (d) => seen.push(d),
+    });
+
+    expect(seen[0]).toMatchObject({
+      chunkRowsScanned: 1312,
+      chunkRowsFetched: 40,
+      chunkCacheHits: 1272,
+    });
+  });
+
+  it("embeds the query through the caller's turn cache when one is passed", async () => {
+    const shared = new Map<string, Float32Array>();
+
+    await recall(QUERY, makeCtx({ storageCtx }), { types: ["chunk"], embeddingCache: shared });
+
+    const [, embedOptions] = vi.mocked(generateEmbedding).mock.calls.at(-1)!;
+    expect(embedOptions.cache).toBe(maskScopedEmbeddingCache(shared, false));
+  });
+
+  it("omits the chunk lane's row counts when the lane did not run", async () => {
+    const seen: RecallDiagnostics[] = [];
+
+    await recall(QUERY, makeCtx(), { onDiagnostics: (d) => seen.push(d) });
+
+    expect(seen[0]).not.toHaveProperty("chunkRowsScanned");
+  });
+
   it("emits once with timings, lane counts, and no degradation on a clean rerank", async () => {
     const seen: RecallDiagnostics[] = [];
     const result = await recall(QUERY, makeCtx(), {
@@ -978,6 +1038,53 @@ describe("recall — diagnostics (onDiagnostics)", () => {
     await recall(QUERY, makeCtx(), { budget: "low", onDiagnostics: (d) => seen.push(d) });
 
     expect(seen[0].vaultRowsEmbedded).toBe(0);
+  });
+
+  it("splits the projected corpus build out of the fact lane", async () => {
+    vi.mocked(searchVaultMemoriesWithSize).mockResolvedValueOnce({
+      results: [],
+      vaultSize: 400,
+      reranked: false,
+      rerankMs: 0,
+      hadV2Head: false,
+      embeddingsUnavailable: false,
+      rankedOnCosine: true,
+      decryptLast: true,
+      rowsDecrypted: 30,
+      queryEmbedMs: 120,
+      rowsEmbedded: 0,
+      corpusStats: {
+        keysMs: 4100,
+        embeddingsFetchMs: 5200,
+        rowsFetchMs: 700,
+        cacheHits: 10,
+        cacheMisses: 390,
+      },
+    });
+    const seen: RecallDiagnostics[] = [];
+
+    await recall(QUERY, makeCtx(), {
+      budget: "low",
+      decryptLast: true,
+      onDiagnostics: (d) => seen.push(d),
+    });
+
+    expect(seen[0]).toMatchObject({ vaultCacheHits: 10, vaultCacheMisses: 390 });
+    expect(seen[0].timings).toMatchObject({
+      corpusKeys: 4100,
+      corpusEmbeddingsFetch: 5200,
+      corpusRowsFetch: 700,
+    });
+  });
+
+  it("omits corpus timings on the legacy whole-vault read", async () => {
+    const seen: RecallDiagnostics[] = [];
+
+    await recall(QUERY, makeCtx(), { budget: "low", onDiagnostics: (d) => seen.push(d) });
+
+    expect(seen[0]).not.toHaveProperty("vaultCacheHits");
+    expect(seen[0]).not.toHaveProperty("vaultCacheMisses");
+    expect(seen[0].timings).not.toHaveProperty("corpusKeys");
   });
 
   it("flags rerank-unavailable when the cross-encoder fails", async () => {

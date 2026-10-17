@@ -494,8 +494,8 @@ export interface BaseUseChatStorageOptions {
   hooks?: RunHooks | RunHooks[];
   /** WatermelonDB database instance for storing conversations and messages */
   database: Database;
-  /** Route memory reads, writes, recall and the memory tools through this store instead of the database's vault; folders are unsupported. With `piiRedaction` on, build the store with `embeddingOptions.maskInput` (e.g. `(text) => redactor.maskText(text)` with any `PiiRedactor`) or its memory calls throw. */
-  memoryStore?: MemoryStore;
+  /** Route memory operations through this store; `null` disables memory access while `undefined` uses the local vault. Folders are unsupported. With `piiRedaction` on, build the store with `embeddingOptions.maskInput` or its memory calls throw. */
+  memoryStore?: MemoryStore | null;
   /** ID of an existing conversation to load and continue */
   conversationId?: string;
   /** Automatically create a new conversation if none is set (default: true) */
@@ -1057,6 +1057,7 @@ export interface BaseSendMessageSkippedResult {
   error: null;
   userMessage?: undefined;
   assistantMessage?: undefined;
+  autoExecutedToolResults?: { name: string; result: unknown }[];
   /** Indicates this was a skipStorage request - no messages were persisted */
   skipped: true;
 }

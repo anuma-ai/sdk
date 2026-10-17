@@ -1,6 +1,6 @@
 # MemoryMigrationProgress
 
-Defined in: [src/lib/memory/store/remoteMigration.ts:98](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteMigration.ts#98)
+Defined in: [src/lib/memory/store/remoteMigration.ts:113](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteMigration.ts#113)
 
 ## Properties
 
@@ -8,7 +8,7 @@ Defined in: [src/lib/memory/store/remoteMigration.ts:98](https://github.com/anum
 
 > **imported**: `number`
 
-Defined in: [src/lib/memory/store/remoteMigration.ts:99](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteMigration.ts#99)
+Defined in: [src/lib/memory/store/remoteMigration.ts:114](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteMigration.ts#114)
 
 ***
 
@@ -16,4 +16,4 @@ Defined in: [src/lib/memory/store/remoteMigration.ts:99](https://github.com/anum
 
 > **toImport**: `number`
 
-Defined in: [src/lib/memory/store/remoteMigration.ts:100](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteMigration.ts#100)
+Defined in: [src/lib/memory/store/remoteMigration.ts:115](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteMigration.ts#115)

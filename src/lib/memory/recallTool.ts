@@ -13,6 +13,7 @@ import {
   RECALL_MAX_LIMIT,
   RECALL_TOOL_NAME,
 } from "./recallConstants.js";
+import { factRecallDiagnostics, notifyMemoryCallback } from "./recallTelemetry.js";
 import type { MemoryStore } from "./store/types.js";
 import type {
   Budget,
@@ -21,6 +22,7 @@ import type {
   RankedMemory,
   RecallContext,
   RecallOptions,
+  RecallTelemetryCallbacks,
 } from "./types.js";
 
 export { RECALL_MAX_LIMIT, RECALL_TOOL_NAME };
@@ -63,7 +65,7 @@ export interface RecallToolOptions {
   now?: number;
 }
 
-export interface RecallToolCallbacks {
+export interface RecallToolCallbacks extends RecallTelemetryCallbacks {
   /** Called with the conversation IDs returned via the chunk lane. */
   onChunksRetrieved?: (conversationIds: string[]) => void;
   /** Called with the fact IDs returned via the fact lane. */
@@ -234,10 +236,10 @@ async function listRecentFacts(
   ctx: RecallContext,
   limit: number,
   toolOptions: RecallToolOptions | undefined
-): Promise<RankedMemory[]> {
+): Promise<{ memories: RankedMemory[]; vaultSize?: number; truncated: boolean }> {
   const store = toolOptions?.memoryStore;
   const vaultCtx = ctx.vaultCtx;
-  if (!vaultCtx && !store) return [];
+  if (!vaultCtx && !store) return { memories: [], truncated: false };
   const read = (ids: string[]) =>
     store ? store.list({ memoryIds: ids }) : getVaultMemoriesByIdsOp(vaultCtx!, ids);
   const filters = {
@@ -252,34 +254,48 @@ async function listRecentFacts(
           ...(toolOptions?.folderId !== undefined && { folderId: toolOptions.folderId }),
         });
   const readable: StoredVaultMemory[] = [];
+  const readLimit = limit + 1;
+  let batchLimit = limit;
   let start = 0;
-  for (let size = limit; readable.length < limit; size *= 2) {
+  let projected = 0;
+  let exhausted = false;
+  for (let size = readLimit; readable.length < readLimit; size *= 2) {
     const ordered = await project(size);
-    for (let i = start; i < ordered.length && readable.length < limit; i += limit) {
-      const batch = ordered.slice(i, i + limit).map((p) => p.uniqueId);
+    projected = ordered.length;
+    exhausted = !store || ordered.length < size;
+    for (let i = start; i < ordered.length && readable.length < readLimit; ) {
+      const batch = ordered.slice(i, i + batchLimit).map((p) => p.uniqueId);
       const byId = new Map((await read(batch)).map((m) => [m.uniqueId, m]));
+      const previousCount = readable.length;
       for (const id of batch) {
         const m = byId.get(id);
         if (m && !isEncrypted(m.content)) readable.push(m);
-        if (readable.length >= limit) break;
+        if (readable.length >= readLimit) break;
       }
+      batchLimit =
+        readable.length > previousCount ? Math.min(limit, readLimit - readable.length) : limit;
+      i += batch.length;
     }
-    if (!store || ordered.length < size) break;
+    if (exhausted) break;
     start = ordered.length;
   }
-  return readable.map((m) => ({
-    id: m.uniqueId,
-    kind: "fact" as const,
-    content: m.content,
-    score: 0,
-    folderId: m.folderId,
-    eventTimeStart: m.eventTimeStart,
-    eventTimeEnd: m.eventTimeEnd,
-    eventTimeKind: m.eventTimeKind as RankedMemory["eventTimeKind"],
-    factType: m.factType,
-    createdAt: m.createdAt,
-    updatedAt: m.updatedAt,
-  }));
+  return {
+    memories: readable.slice(0, limit).map((m) => ({
+      id: m.uniqueId,
+      kind: "fact" as const,
+      content: m.content,
+      score: 0,
+      folderId: m.folderId,
+      eventTimeStart: m.eventTimeStart,
+      eventTimeEnd: m.eventTimeEnd,
+      eventTimeKind: m.eventTimeKind as RankedMemory["eventTimeKind"],
+      factType: m.factType,
+      createdAt: m.createdAt,
+      updatedAt: m.updatedAt,
+    })),
+    ...(exhausted && { vaultSize: projected }),
+    truncated: readable.length > limit,
+  };
 }
 
 /**
@@ -342,7 +358,11 @@ export function createRecallTool(
     },
     executor: async (args: Record<string, unknown>): Promise<string> => {
       if (typeof args.query !== "string" || args.query.length === 0) {
-        throw new Error("recall_memory: `query` is required and must be a non-empty string.");
+        const error = new Error(
+          "recall_memory: `query` is required and must be a non-empty string."
+        );
+        notifyMemoryCallback(callbacks?.onError, error);
+        throw error;
       }
       const query = args.query;
 
@@ -382,11 +402,17 @@ export function createRecallTool(
         RECALL_MAX_MEMORIES_PER_CONVERSATION - conversationMemories
       );
       const effectiveLimit = Math.min(requestLimit, remainingTurnBudget, remainingConvBudget);
+      const truncatedByBudget = effectiveLimit < requestLimit;
+      if (truncatedByBudget) {
+        notifyMemoryCallback(callbacks?.onTruncated, {
+          requestedLimit: requestLimit,
+          effectiveLimit,
+          truncatedByBudget,
+        });
+      }
       if (effectiveLimit <= 0) {
         return VOLUME_LIMIT_NOTICE;
       }
-      const truncatedByBudget = effectiveLimit < requestLimit;
-
       turnMemories += effectiveLimit;
       conversationMemories += effectiveLimit;
       let surfaced = 0;
@@ -400,7 +426,27 @@ export function createRecallTool(
           (ctx.vaultCtx !== undefined || toolOptions?.memoryStore !== undefined);
         let result: { memories: RankedMemory[] };
         if (wantsRecent) {
-          result = { memories: await listRecentFacts(ctx, effectiveLimit, toolOptions) };
+          const start = Date.now();
+          const recent = await listRecentFacts(ctx, effectiveLimit, toolOptions);
+          result = recent;
+          notifyMemoryCallback(callbacks?.onDiagnostics, {
+            ...factRecallDiagnostics(
+              result.memories.map((m) => m.score),
+              Date.now() - start,
+              {
+                truncated: recent.truncated,
+                ...(recent.vaultSize !== undefined && { vaultSize: recent.vaultSize }),
+              }
+            ),
+            truncatedByBudget,
+          });
+          if (recent.truncated && !truncatedByBudget) {
+            notifyMemoryCallback(callbacks?.onTruncated, {
+              requestedLimit: requestLimit,
+              effectiveLimit,
+              truncatedByBudget,
+            });
+          }
         } else {
           let subQueries: string[] | undefined;
           if (defaultBudget === "high" && toolOptions?.decomposeOptions) {
@@ -413,6 +459,14 @@ export function createRecallTool(
           const recallOpts: RecallOptions = {
             onDiagnostics: (d) => {
               recallDegraded = d.degraded;
+              notifyMemoryCallback(callbacks?.onDiagnostics, { ...d, truncatedByBudget });
+              if (d.truncated && !truncatedByBudget) {
+                notifyMemoryCallback(callbacks?.onTruncated, {
+                  requestedLimit: requestLimit,
+                  effectiveLimit,
+                  truncatedByBudget,
+                });
+              }
             },
             types: defaultTypes,
             limit: effectiveLimit,
@@ -467,6 +521,7 @@ export function createRecallTool(
           cause?: unknown;
         };
         wrapped.cause = error;
+        notifyMemoryCallback(callbacks?.onError, wrapped);
         throw wrapped;
       } finally {
         const unused = effectiveLimit - surfaced;

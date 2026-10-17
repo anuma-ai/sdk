@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { v7 as uuidv7 } from "uuid";
 
 import type { LlmapiChatCompletionTool, LlmapiMessage } from "../client";
 import { MCP_R2_DOMAIN } from "../clientConfig";
@@ -45,6 +46,7 @@ import {
   deleteConversationOp,
   extractUserMessageFromMessages,
   finalizeThoughtProcess,
+  generateConversationId,
   getAllFilesOp,
   getConversationOp,
   getConversationsOp,
@@ -73,6 +75,7 @@ import {
   updateMessageErrorOp,
 } from "../lib/db/chat";
 import { maskScopedEmbeddingCache } from "../lib/db/chat/embeddingCache";
+import { hasEncryptedToolPayload } from "../lib/db/encryption-utils";
 import {
   Entity as EntityModel,
   MemoryEntity as MemoryEntityModel,
@@ -146,6 +149,7 @@ import type { NerDetector } from "../lib/pii/ner";
 import { isPiiRedactor, PiiRedactor } from "../lib/pii/redactor";
 import type { FileProcessingStatus } from "../lib/processors";
 import { formatFileProcessingNotes, preprocessFiles } from "../lib/processors";
+import { DEFAULT_MAX_FILE_SIZE_BYTES } from "../lib/processors/fileStatusNotes";
 import {
   BlobUrlManager,
   createFilePlaceholder,
@@ -499,12 +503,15 @@ export async function storedToLlmapiMessage(
   const content: LlmapiMessage["content"] = [{ type: "text", text: textContent }, ...imageParts];
 
   const messages: LlmapiMessage[] = [];
+  const toolCallEvents = Array.isArray(stored.toolCallEvents)
+    ? stored.toolCallEvents.filter((event) => !hasEncryptedToolPayload(event))
+    : [];
 
-  if (stored.role === "assistant" && stored.toolCallEvents?.length) {
+  if (stored.role === "assistant" && toolCallEvents.length) {
     messages.push({
       role: stored.role,
       content: undefined,
-      tool_calls: stored.toolCallEvents.map((event) => ({
+      tool_calls: toolCallEvents.map((event) => ({
         id: event.id,
         type: "function",
         function: {
@@ -514,7 +521,7 @@ export async function storedToLlmapiMessage(
       })),
     });
 
-    for (const event of stored.toolCallEvents) {
+    for (const event of toolCallEvents) {
       if (event.id && event.output !== undefined && event.output !== null) {
         messages.push({
           role: "tool" as LlmapiMessage["role"],
@@ -953,6 +960,7 @@ const CONVERSATION_REDACTOR_LIMIT = 50;
 const NO_CONVERSATION_KEY = "__no_conversation__";
 const NO_STORE_FOLDERS = "Folders are not supported with a memoryStore";
 const NO_STORE_MASK = "piiRedaction needs a memoryStore built with embeddingOptions.maskInput";
+const MEMORY_STORE_NOT_READY = "Memory store is not ready";
 const conversationRedactors = new Map<string, { redactor: PiiRedactor; detector?: NerDetector }>();
 
 function getConversationRedactor(
@@ -1142,6 +1150,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
   );
   const storeMaskMissing =
     memoryStore !== undefined &&
+    memoryStore !== null &&
     maskEmbeddingInput !== undefined &&
     !memoryStore.masksEmbeddingInput;
 
@@ -1474,6 +1483,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
 
   const retainVaultMemory = useCallback(
     async (input: VaultWriteInput): Promise<RetainResult> => {
+      if (memoryStore === null) throw new Error(MEMORY_STORE_NOT_READY);
       if (memoryStore) {
         if (storeMaskMissing) throw new Error(NO_STORE_MASK);
         if (input.folderId !== undefined) throw new Error(NO_STORE_FOLDERS);
@@ -1506,6 +1516,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
 
   const createMemoryVaultTool = useCallback(
     (options?: MemoryVaultToolOptions): ToolConfig => {
+      if (memoryStore === null) throw new Error(MEMORY_STORE_NOT_READY);
       if (storeMaskMissing) throw new Error(NO_STORE_MASK);
       const embOpts = getToken ? vaultEmbeddingOptions : undefined;
       return createMemoryVaultToolBase(
@@ -1528,6 +1539,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
 
   const getVaultMemories = useCallback(
     (options?: Parameters<typeof getAllVaultMemoriesOp>[1]): Promise<StoredVaultMemory[]> => {
+      if (memoryStore === null) return Promise.resolve([]);
       if (!memoryStore) return getAllVaultMemoriesOp(vaultCtx, options);
       const { folderId, levels, kinds, ...listOptions } = options ?? {};
       if (folderId !== undefined) throw new Error(NO_STORE_FOLDERS);
@@ -1540,6 +1552,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
 
   const createVaultMemory = useCallback(
     async (content: string, scope?: string): Promise<StoredVaultMemory> => {
+      if (memoryStore === null) throw new Error(MEMORY_STORE_NOT_READY);
       if (storeMaskMissing) throw new Error(NO_STORE_MASK);
       if (memoryStore) return memoryStore.create({ content, scope });
       const result = await createVaultMemoryOp(vaultCtx, { content, scope });
@@ -1562,6 +1575,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
 
   const updateVaultMemory = useCallback(
     async (id: string, content: string, scope?: string): Promise<StoredVaultMemory | null> => {
+      if (memoryStore === null) throw new Error(MEMORY_STORE_NOT_READY);
       if (storeMaskMissing) throw new Error(NO_STORE_MASK);
       if (memoryStore) return memoryStore.update(id, { content, scope });
       const existing = await getVaultMemoryOp(vaultCtx, id);
@@ -1588,6 +1602,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
 
   const deleteVaultMemory = useCallback(
     async (id: string): Promise<boolean> => {
+      if (memoryStore === null) throw new Error(MEMORY_STORE_NOT_READY);
       if (memoryStore) return memoryStore.delete(id);
       const existing = await getVaultMemoryOp(vaultCtx, id);
       const result = await deleteVaultMemoryOp(vaultCtx, id);
@@ -1604,7 +1619,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
   const clientToolEmbeddingsCacheRef = useRef<Map<string, number[]>>(new Map());
 
   useEffect(() => {
-    if (!getToken || memoryStore) return;
+    if (!getToken || memoryStore !== undefined) return;
     void (async () => {
       try {
         await preEmbedVaultMemories(vaultCtx, vaultEmbeddingOptions, vaultEmbeddingCache);
@@ -1623,6 +1638,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
 
   const createMemoryVaultSearchTool = useCallback(
     (searchOptions?: MemoryVaultSearchOptions): ToolConfig => {
+      if (memoryStore === null) throw new Error(MEMORY_STORE_NOT_READY);
       if (!getToken && !memoryStore) {
         throw new Error("getToken is required for memory vault search tool");
       }
@@ -1639,6 +1655,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
 
   const createRecallTool = useCallback(
     (toolOptions?: RecallToolOptions, callbacks?: RecallToolCallbacks): ToolConfig => {
+      if (memoryStore === null) throw new Error(MEMORY_STORE_NOT_READY);
       if (!getToken && !memoryStore) {
         throw new Error("getToken is required for recall tool");
       }
@@ -1687,6 +1704,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       query: string,
       searchOptions?: MemoryVaultSearchOptions
     ): Promise<VaultSearchResult[]> => {
+      if (memoryStore === null) return [];
       if (storeMaskMissing) throw new Error(NO_STORE_MASK);
       if (memoryStore) return (await memoryStore.factSource.search(query, searchOptions)).results;
       if (!getToken) return [];
@@ -1703,7 +1721,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
 
   const recallFn = useCallback(
     async (query: string, options?: RecallOptions): Promise<RecallResult> => {
-      if (!getToken && !memoryStore) {
+      if (memoryStore === null || (!getToken && !memoryStore)) {
         return {
           memories: [],
           usedBudget: options?.budget ?? "low",
@@ -1775,11 +1793,15 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
 
   const createConversation = useCallback(
     async (opts?: CreateConversationOptions): Promise<StoredConversation> => {
+      const conversationOpts = {
+        ...opts,
+        conversationId: opts?.conversationId || generateConversationId(),
+      };
       const { result, queued, queueId } = await writeOrQueue(
         "createConversation",
-        { conversationId: opts?.conversationId, title: opts?.title, projectId: opts?.projectId },
-        () => createConversationOp(storageCtx, opts, defaultConversationTitle),
-        () => makeSyntheticStoredConversation(opts, defaultConversationTitle)
+        conversationOpts,
+        () => createConversationOp(storageCtx, conversationOpts, defaultConversationTitle),
+        () => makeSyntheticStoredConversation(conversationOpts, defaultConversationTitle)
       );
       if (queued) {
         syntheticConvIdsRef.current.add(result.conversationId);
@@ -2568,11 +2590,20 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       }
 
       let userFileIds: string[] = [];
-      if (filesForStorage && filesForStorage.length > 0 && walletAddress && isEncryptionReady()) {
-        userFileIds = await storeUserFilesInOPFS(filesForStorage, walletAddress, convId);
+      const maxFileSizeBytes =
+        fileProcessingOptions?.maxFileSizeBytes ?? DEFAULT_MAX_FILE_SIZE_BYTES;
+      const storableFiles = filesForStorage?.filter((file) => file.size <= maxFileSizeBytes);
+      if (storableFiles && storableFiles.length > 0 && walletAddress && isEncryptionReady()) {
+        userFileIds = await storeUserFilesInOPFS(
+          storableFiles,
+          walletAddress,
+          convId,
+          maxFileSizeBytes
+        );
       }
 
       const userMsgOpts: CreateMessageOptions = {
+        uniqueId: `msg_${uuidv7()}`,
         conversationId: convId,
         role: "user",
         content: contentForStorage,
@@ -2956,7 +2987,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           currentTurnToolCallEvents && currentTurnToolCallEvents.length > 0
             ? currentTurnToolCallEvents
             : undefined,
-        uniqueId: assistantUniqueId,
+        uniqueId: assistantUniqueId || `msg_${uuidv7()}`,
       };
 
       let storedAssistantMessage: StoredMessage;
@@ -3011,6 +3042,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       let storedToolResultsMessage: StoredMessage | undefined;
       if (autoToolResults && autoToolResults.length > 0) {
         const toolResultsOpts: CreateMessageOptions = {
+          uniqueId: `msg_${uuidv7()}`,
           conversationId: convId,
           role: "user",
           content: buildToolResultContent(autoToolResults),

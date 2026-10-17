@@ -2,6 +2,7 @@ import type { Collection, Database, Model } from "@nozbe/watermelondb";
 import { Q } from "@nozbe/watermelondb";
 
 import type { VaultMemory } from "../memoryVault/models";
+import { MemorySourceIneligibleError } from "../memoryVault/types";
 import type { Entity, MemoryEntity } from "./models";
 import {
   type EntityKind,
@@ -43,6 +44,13 @@ export interface EntityOperationsContext {
    * (server / SQLite, where the migration backfill is authoritative).
    */
   allowUnscopedRows?: boolean;
+  canWrite?: () => Promise<boolean>;
+}
+
+async function assertCanWrite(ctx: EntityOperationsContext): Promise<void> {
+  if (ctx.canWrite && !(await ctx.canWrite())) {
+    throw new MemorySourceIneligibleError();
+  }
 }
 
 function entityToStored(e: Entity): StoredEntity {
@@ -315,6 +323,7 @@ export async function linkMemoryEntitiesOp(
   let entities: StoredEntity[] = [];
 
   await ctx.database.write(async () => {
+    await assertCanWrite(ctx);
     const {
       entities: byName,
       operations: entityOps,
@@ -462,6 +471,7 @@ async function replaceMemoryEntities(
   let entities: StoredEntity[] = [];
 
   await ctx.database.write(async () => {
+    await assertCanWrite(ctx);
     const vaultRow = await findVaultRowInWrite(ctx, memoryId);
     if (options.guarded && autoLinkBlocked(vaultRow)) {
       skipped = true;
@@ -553,6 +563,7 @@ export async function unlinkMemoryEntitiesOp(
     .fetch();
   if (links.length === 0) return;
   await ctx.database.write(async () => {
+    await assertCanWrite(ctx);
     await ctx.database.batch(...links.map((l) => l.prepareDestroyPermanently()));
   });
 }
@@ -571,6 +582,7 @@ export async function unlinkAllMemoryEntitiesForUserOp(
   const links = await ctx.memoryEntityCollection.query(Q.where("user_id", userId)).fetch();
   if (links.length === 0) return;
   await ctx.database.write(async () => {
+    await assertCanWrite(ctx);
     await ctx.database.batch(...links.map((l) => l.prepareDestroyPermanently()));
   });
 }
@@ -615,6 +627,7 @@ export async function backfillMemoryEntityUserIdsOp(
   if (toUpdate.length === 0) return 0;
 
   await ctx.database.write(async () => {
+    await assertCanWrite(ctx);
     await ctx.database.batch(
       ...toUpdate.map(({ link, userId }) => link.prepareUpdate((r) => r._setRaw("user_id", userId)))
     );

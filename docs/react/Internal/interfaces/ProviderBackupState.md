@@ -1,6 +1,6 @@
 # ProviderBackupState
 
-Defined in: [src/react/useBackup.ts:78](https://github.com/anuma-ai/sdk/blob/main/src/react/useBackup.ts#78)
+Defined in: [src/react/useBackup.ts:52](https://github.com/anuma-ai/sdk/blob/main/src/react/useBackup.ts#52)
 
 Provider-specific backup state
 
@@ -8,9 +8,9 @@ Provider-specific backup state
 
 ### backup()
 
-> **backup**: (`options?`: [`BackupOperationOptions`](BackupOperationOptions.md)) => `Promise`<[`DropboxExportResult`](DropboxExportResult.md) | [`GoogleDriveExportResult`](GoogleDriveExportResult.md) | [`ICloudExportResult`](ICloudExportResult.md) | { `error`: `string`; }>
+> **backup**: (`options?`: [`BackupOperationOptions`](BackupOperationOptions.md)) => `Promise`<[`ICloudExportResult`](ICloudExportResult.md) | { `error`: `string`; }>
 
-Defined in: [src/react/useBackup.ts:84](https://github.com/anuma-ai/sdk/blob/main/src/react/useBackup.ts#84)
+Defined in: [src/react/useBackup.ts:58](https://github.com/anuma-ai/sdk/blob/main/src/react/useBackup.ts#58)
 
 Backup all conversations to this provider
 
@@ -41,7 +41,7 @@ Backup all conversations to this provider
 
 **Returns**
 
-`Promise`<[`DropboxExportResult`](DropboxExportResult.md) | [`GoogleDriveExportResult`](GoogleDriveExportResult.md) | [`ICloudExportResult`](ICloudExportResult.md) | { `error`: `string`; }>
+`Promise`<[`ICloudExportResult`](ICloudExportResult.md) | { `error`: `string`; }>
 
 ***
 
@@ -49,9 +49,9 @@ Backup all conversations to this provider
 
 > **connect**: () => `Promise`<`string`>
 
-Defined in: [src/react/useBackup.ts:96](https://github.com/anuma-ai/sdk/blob/main/src/react/useBackup.ts#96)
+Defined in: [src/react/useBackup.ts:62](https://github.com/anuma-ai/sdk/blob/main/src/react/useBackup.ts#62)
 
-Request access to this provider (triggers OAuth if needed)
+Request access to this provider (triggers iCloud sign-in if needed)
 
 **Returns**
 
@@ -63,7 +63,7 @@ Request access to this provider (triggers OAuth if needed)
 
 > **disconnect**: () => `Promise`<`void`>
 
-Defined in: [src/react/useBackup.ts:98](https://github.com/anuma-ai/sdk/blob/main/src/react/useBackup.ts#98)
+Defined in: [src/react/useBackup.ts:64](https://github.com/anuma-ai/sdk/blob/main/src/react/useBackup.ts#64)
 
 Disconnect from this provider
 
@@ -77,7 +77,7 @@ Disconnect from this provider
 
 > **isAuthenticated**: `boolean`
 
-Defined in: [src/react/useBackup.ts:82](https://github.com/anuma-ai/sdk/blob/main/src/react/useBackup.ts#82)
+Defined in: [src/react/useBackup.ts:56](https://github.com/anuma-ai/sdk/blob/main/src/react/useBackup.ts#56)
 
 Whether user has authenticated with this provider
 
@@ -87,7 +87,7 @@ Whether user has authenticated with this provider
 
 > **isConfigured**: `boolean`
 
-Defined in: [src/react/useBackup.ts:80](https://github.com/anuma-ai/sdk/blob/main/src/react/useBackup.ts#80)
+Defined in: [src/react/useBackup.ts:54](https://github.com/anuma-ai/sdk/blob/main/src/react/useBackup.ts#54)
 
 Whether the provider is configured
 
@@ -95,9 +95,9 @@ Whether the provider is configured
 
 ### restore()
 
-> **restore**: (`options?`: [`BackupOperationOptions`](BackupOperationOptions.md)) => `Promise`<[`DropboxImportResult`](DropboxImportResult.md) | [`GoogleDriveImportResult`](GoogleDriveImportResult.md) | [`ICloudImportResult`](ICloudImportResult.md) | { `error`: `string`; }>
+> **restore**: (`options?`: [`BackupOperationOptions`](BackupOperationOptions.md)) => `Promise`<[`ICloudImportResult`](ICloudImportResult.md) | { `error`: `string`; }>
 
-Defined in: [src/react/useBackup.ts:90](https://github.com/anuma-ai/sdk/blob/main/src/react/useBackup.ts#90)
+Defined in: [src/react/useBackup.ts:60](https://github.com/anuma-ai/sdk/blob/main/src/react/useBackup.ts#60)
 
 Restore conversations from this provider
 
@@ -128,4 +128,4 @@ Restore conversations from this provider
 
 **Returns**
 
-`Promise`<[`DropboxImportResult`](DropboxImportResult.md) | [`GoogleDriveImportResult`](GoogleDriveImportResult.md) | [`ICloudImportResult`](ICloudImportResult.md) | { `error`: `string`; }>
+`Promise`<[`ICloudImportResult`](ICloudImportResult.md) | { `error`: `string`; }>

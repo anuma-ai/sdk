@@ -8,7 +8,7 @@ This guide explains how to enable field-level encryption at rest in applications
 
 | Data | Fields Encrypted | Encryption Type |
 |------|-----------------|-----------------|
-| Messages | `content`, `thinking`, `vector`, `chunks`, `sources`, `thoughtProcess` | Random IV (AES-GCM) |
+| Messages | `content`, `thinking`, `vector`, `chunks`, `sources`, `thoughtProcess`, and each tool call event's `arguments` and `output` | Random IV (AES-GCM) |
 | Conversations | `title` | Random IV (AES-GCM) |
 | Media | `name`, `sourceUrl`, `metadata` | Random IV (AES-GCM) |
 | Memory | `namespace`, `key`, `value`, `rawEvidence` | Deterministic (AES-GCM) |
@@ -17,6 +17,7 @@ This guide explains how to enable field-level encryption at rest in applications
 **What is NOT encrypted** (by design):
 
 - IDs (`conversationId`, `messageId`, `mediaId`, `walletAddress`)
+- Tool call event `id`, `name` and `cost_micro_usd` (`id` is needed to dedupe tool calls without decrypting)
 - Roles, models, MIME types
 - Timestamps, token counts, flags (`isDeleted`, `wasStopped`, `error`)
 - Dimensions, duration, file sizes
@@ -129,8 +130,31 @@ Encryption is **fully backwards compatible**:
 
 - **Old data reads correctly.** Plaintext fields (no `enc:v2:` prefix) are returned unchanged.
 - **Mixed state works.** A conversation can contain some plaintext messages (written before encryption) and some encrypted messages (written after). Both read correctly.
-- **No migration step.** There is no batch migration. Old data stays plaintext, new data is encrypted. The database gradually transitions as new data is written.
+- **No migration step.** There is no batch migration. Old data stays plaintext, new data is encrypted. The database gradually transitions as new data is written. The one exception is tool call events: see [Encrypting old tool call events](#encrypting-old-tool-call-events).
 - **No schema changes.** Encrypted values are stored in the same columns as plaintext values. The `enc:v2:` prefix distinguishes them.
+
+### Encrypting old tool call events
+
+Messages written by older SDK versions, or restored from an older backup, can still hold tool call `arguments` and `output` in plaintext. `encryptToolCallEventsOp(ctx)` encrypts those in place and returns how many messages it changed.
+
+- **Needs the key.** It requests the wallet key first and does nothing without a wallet address, signer or key.
+- **Checks the saved key first.** It tries the saved key on one encrypted message. If the key cannot open it and a fresh signature cannot recover the right key, it returns 0 and changes nothing.
+- **Safe to repeat.** Events that are already encrypted are left as they are, so a second run changes nothing.
+- **Backups pick it up.** It sets `updatedAt` to now on each changed message and its conversation. Backup only uploads conversations whose `updatedAt` moved, so the next backup includes them.
+- **It reorders the chat list once.** A chat list sorted by `updatedAt` will show every repaired conversation at the top after the first run. Later runs only touch conversations that still hold plaintext, such as ones a backup restore brought back.
+- **When to call it.** Once after upgrading the SDK, when the user first unlocks encryption, and again after each backup restore. Each run reads every message that has tool call events, so do not call it on every unlock.
+
+```typescript
+import { encryptToolCallEventsOp } from "@anuma/sdk/react";
+
+const changed = await encryptToolCallEventsOp({
+  database,
+  messagesCollection: database.get("history"),
+  conversationsCollection: database.get("conversations"),
+  walletAddress,
+  signMessage,
+});
+```
 
 ### What happens without `walletAddress`
 
@@ -198,7 +222,7 @@ clearQueue();
 
 ### How backup works with encryption
 
-The backup modules (Dropbox, Google Drive, iCloud) work through **dependency-injected callbacks**:
+The iCloud backup module works through **dependency-injected callbacks**:
 
 ```typescript
 interface BackupDeps {
@@ -207,10 +231,10 @@ interface BackupDeps {
 }
 ```
 
-These callbacks are implemented in **your client app**, not in the SDK. The SDK backup modules only:
+These callbacks are implemented in **your client app**, not in the SDK. The SDK backup module only:
 1. List conversations (using `conversationToStoredRaw` for timestamp comparison)
 2. Call your `exportConversation` / `importConversation` callbacks
-3. Upload/download blobs to cloud storage
+3. Upload/download blobs to iCloud
 
 ### What you need to know
 
@@ -295,7 +319,7 @@ stopPolling();
 
 ### Does upgrading the SDK encrypt my existing data?
 
-No. Old plaintext data stays plaintext. New data written after you pass `walletAddress` + `signMessage` is encrypted. Both coexist safely. There is no batch migration.
+No. Old plaintext data stays plaintext. New data written after you pass `walletAddress` + `signMessage` is encrypted. Both coexist safely. There is no batch migration. The one exception is tool call events: call `encryptToolCallEventsOp` to encrypt the old ones (see [Encrypting old tool call events](#encrypting-old-tool-call-events)).
 
 ### What if the user loses their wallet?
 

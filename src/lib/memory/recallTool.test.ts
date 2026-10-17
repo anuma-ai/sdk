@@ -543,7 +543,7 @@ describe("createRecallTool executor — sort: recent", () => {
     });
     const out = await tool.executor!({ query: "latest", sort: "recent", limit: 5 });
 
-    expect(memoryStore.listProjections).toHaveBeenCalledWith({ scopes: ["private"], limit: 5 });
+    expect(memoryStore.listProjections).toHaveBeenCalledWith({ scopes: ["private"], limit: 6 });
     expect(getVaultRankingProjectionsOp).not.toHaveBeenCalled();
     expect(recall).not.toHaveBeenCalled();
     expect(out.indexOf("id: new")).toBeLessThan(out.indexOf("id: old"));
@@ -575,7 +575,7 @@ describe("createRecallTool executor — sort: recent", () => {
       )
     );
 
-  it("reads only the requested window of a large store", async () => {
+  it("reads the requested window and one extra fact from a large store", async () => {
     const { memoryStore, served } = windowedStore(vault(9000));
     const tool = createRecallTool({ embeddingOptions: {} } as RecallContext, {
       types: ["fact"],
@@ -584,12 +584,13 @@ describe("createRecallTool executor — sort: recent", () => {
     const out = await tool.executor!({ query: "latest", sort: "recent", limit: 5 });
 
     expect(memoryStore.listProjections).toHaveBeenCalledTimes(1);
-    expect(served).toEqual({ projections: 5, decrypted: 5 });
+    expect(served).toEqual({ projections: 6, decrypted: 6 });
     expect(out).toContain("id: m0");
     expect(out).toContain("id: m4");
+    expect(out).not.toContain("id: m5");
   });
 
-  it("widens the window only to replace unreadable rows", async () => {
+  it("widens the window to find readable results and one extra fact", async () => {
     const { memoryStore, served } = windowedStore(vault(9000, 7));
     const tool = createRecallTool({ embeddingOptions: {} } as RecallContext, {
       types: ["fact"],
@@ -598,9 +599,9 @@ describe("createRecallTool executor — sort: recent", () => {
     const out = await tool.executor!({ query: "latest", sort: "recent", limit: 5 });
 
     expect(vi.mocked(memoryStore.listProjections).mock.calls.map(([o]) => o?.limit)).toEqual([
-      5, 10, 20,
+      6, 12, 24,
     ]);
-    expect(served.decrypted).toBe(15);
+    expect(served.decrypted).toBe(13);
     expect(out).not.toContain("enc:v3:");
     expect(out).toContain("id: m7");
     expect(out).toContain("id: m11");
@@ -644,10 +645,11 @@ describe("createRecallTool executor — sort: recent", () => {
     );
     const tool = createRecallTool(recentCtx, { types: ["fact"] });
     const out = await tool.executor!({ query: "latest", sort: "recent", limit: 100 });
-    expect(getVaultMemoriesByIdsOp).toHaveBeenCalledTimes(1);
+    expect(getVaultMemoriesByIdsOp).toHaveBeenCalledTimes(2);
     expect(vi.mocked(getVaultMemoriesByIdsOp).mock.calls[0]![1]).toHaveLength(
       RECALL_MAX_MEMORIES_PER_TURN
     );
+    expect(vi.mocked(getVaultMemoriesByIdsOp).mock.calls[1]![1]).toHaveLength(1);
     expect(out).toContain(`Found ${RECALL_MAX_MEMORIES_PER_TURN} relevant memories`);
   });
 
@@ -678,7 +680,8 @@ describe("createRecallTool executor — sort: recent", () => {
     expect(out.indexOf("id: v2a")).toBeGreaterThan(-1);
     expect(out.indexOf("id: v2a")).toBeLessThan(out.indexOf("id: v2b"));
     expect(out).not.toContain("id: v2c");
-    expect(getVaultMemoriesByIdsOp).toHaveBeenCalledTimes(2);
+    expect(getVaultMemoriesByIdsOp).toHaveBeenCalledTimes(3);
+    expect(vi.mocked(getVaultMemoriesByIdsOp).mock.calls[2]![1]).toEqual(["v2c"]);
   });
 
   it("reports listed ids but no relevance scores", async () => {

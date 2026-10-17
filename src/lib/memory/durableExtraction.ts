@@ -1,5 +1,6 @@
 import { Q } from "@nozbe/watermelondb";
 
+import { onKeyAvailable } from "../../react/useEncryption.js";
 import { isEncrypted } from "../db/chat/encryption.js";
 import type { Conversation, Message } from "../db/chat/models.js";
 import { getMessageOp, type StorageOperationsContext } from "../db/chat/operations.js";
@@ -12,6 +13,29 @@ import {
   type CreateAutoExtractorOptions,
   type TurnCompleteEvent,
 } from "./autoExtractWorker.js";
+
+/** A message a {@link ExtractionMessageSource} resolves from a queued id. */
+export interface ExtractionSourceMessage {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+  /** Position in the conversation; must increase with send order. */
+  seq: number;
+}
+
+/** `ready` runs the job, `later` leaves it queued without counting an attempt, `gone` drops it. */
+export type ExtractionSourceStatus = "ready" | "later" | "gone";
+
+/** Resolves queued ids for a conversation that does not live in local chat history. */
+export interface ExtractionMessageSource {
+  status(conversationId: string): Promise<ExtractionSourceStatus>;
+  load(conversationId: string, ids: string[]): Promise<ExtractionSourceMessage[]>;
+}
+
+type LoadedMessage = Pick<
+  StoredMessage,
+  "uniqueId" | "messageId" | "conversationId" | "role" | "content" | "decryptionStatus"
+>;
 
 export interface DurableAutoExtractorOptions extends Omit<CreateAutoExtractorOptions, "scope"> {
   /**
@@ -51,6 +75,14 @@ export interface DurableAutoExtractorOptions extends Omit<CreateAutoExtractorOpt
   batchTimeoutMs?: number;
   /** Clock for the failed-session spacing. Defaults to `Date.now`. */
   now?: () => number;
+  /**
+   * Message source for a conversation outside local chat history, or `undefined`
+   * for history. Jobs still store only ids; the source resolves them at drain
+   * time and is re-checked before every write.
+   */
+  messageSource?: (conversationId: string) => ExtractionMessageSource | undefined;
+  /** Ceiling on one `status` or `load` call of a message source. Defaults to 30 seconds. */
+  sourceTimeoutMs?: number;
 }
 
 const MAX_JOBS_PER_PASS = 3;
@@ -134,8 +166,22 @@ class AccountFailureError extends Error {}
  * loaded yet reports, so it is never counted, and neither is ciphertext read
  * with no key at all. */
 class LockedSourcesError extends Error {
-  constructor(readonly persistentIds: string[]) {
-    super("Source messages are locked; retained for retry");
+  constructor(
+    readonly persistentIds: string[],
+    locked: LoadedMessage[]
+  ) {
+    const counts = new Map<string, number>();
+    for (const message of locked) {
+      const version = /^enc:(v\d+):/.exec(message.content)?.[1] ?? "unknown";
+      const key = `${message.decryptionStatus ?? "no_status"}:${version}`;
+      counts.set(key, (counts.get(key) ?? 0) + 1);
+    }
+    const summary = [...counts].map(([key, count]) => `${key}=${count}`).join(", ");
+    super(`Source messages are locked; retained for retry (${summary})`);
+  }
+
+  get awaitingKey(): boolean {
+    return this.persistentIds.length === 0;
   }
 }
 
@@ -191,6 +237,7 @@ export function createDurableAutoExtractor(options: DurableAutoExtractorOptions)
   };
   const folderId = options.folderId ?? null;
   let disposed = false;
+  let activeBatch: AbortController | null = null;
   let running = false;
   let wakeRequested = false;
   let timer: ReturnType<typeof setTimeout> | undefined;
@@ -199,6 +246,8 @@ export function createDurableAutoExtractor(options: DurableAutoExtractorOptions)
   const attempts = new Map<string, number>();
   const sessionFailures = new Map<string, { head: string; count: number }>();
   const skippedThisSession = new Set<string>();
+  const awaitingKey = new Set<string>();
+  let keyEpoch = 0;
   const clock = options.now ?? Date.now;
   const reportError = (error: unknown, conversationId?: string) => {
     try {
@@ -216,6 +265,62 @@ export function createDurableAutoExtractor(options: DurableAutoExtractorOptions)
       return "private";
     }
   };
+
+  async function fromSource<T>(call: Promise<T>): Promise<T> {
+    let timeout: ReturnType<typeof setTimeout> | undefined;
+    try {
+      return await Promise.race([
+        call,
+        new Promise<never>((_resolve, reject) => {
+          timeout = setTimeout(
+            () => reject(new Error("Message source did not answer in time")),
+            options.sourceTimeoutMs ?? 30_000
+          );
+        }),
+      ]);
+    } finally {
+      if (timeout !== undefined) clearTimeout(timeout);
+    }
+  }
+
+  async function loadFromSource(
+    source: ExtractionMessageSource,
+    conversationId: string,
+    ids: string[]
+  ): Promise<(LoadedMessage | null)[]> {
+    const byId = new Map(
+      (await fromSource(source.load(conversationId, ids))).map((m) => [m.id, m])
+    );
+    return ids.map((id) => {
+      const message = byId.get(id);
+      return message
+        ? {
+            uniqueId: message.id,
+            messageId: message.seq,
+            conversationId,
+            role: message.role,
+            content: message.content,
+          }
+        : null;
+    });
+  }
+
+  async function sourcesEligible(conversationId: string, ids: string[]): Promise<boolean> {
+    const source = options.messageSource?.(conversationId);
+    if (source)
+      return (
+        (await fromSource(source.status(conversationId))) === "ready" &&
+        (await loadFromSource(source, conversationId, ids)).every(Boolean)
+      );
+    return (
+      (await storage.conversationsCollection
+        .query(Q.where("conversation_id", conversationId), Q.where("is_deleted", false))
+        .fetchCount()) > 0 &&
+      (await storage.messagesCollection
+        .query(Q.where("conversation_id", conversationId), Q.where("id", Q.oneOf(ids)))
+        .fetchCount()) === ids.length
+    );
+  }
 
   function schedule(delay: number): void {
     if (disposed) return;
@@ -236,14 +341,18 @@ export function createDurableAutoExtractor(options: DurableAutoExtractorOptions)
     jobScope: string,
     jobFolderId: string | null
   ): Promise<TurnCompleteEvent> {
+    if (disposed) throw new Error("Extraction session was disposed");
     let watchdog: ReturnType<typeof setTimeout> | undefined;
     let cancelled = false;
+    const controller = new AbortController();
+    activeBatch = controller;
     const model = options.modelForScope?.(jobScope) ?? options.extract.model;
     try {
       return await Promise.race([
         new Promise<TurnCompleteEvent>((resolve, reject) => {
           const worker = createAutoExtractor({
             ...options,
+            signal: controller.signal,
             retainCtx: {
               ...options.retainCtx,
               vaultCtx: {
@@ -251,12 +360,7 @@ export function createDurableAutoExtractor(options: DurableAutoExtractorOptions)
                 canWrite: async () =>
                   !disposed &&
                   !cancelled &&
-                  (await storage.conversationsCollection
-                    .query(Q.where("conversation_id", conversationId), Q.where("is_deleted", false))
-                    .fetchCount()) > 0 &&
-                  (await storage.messagesCollection
-                    .query(Q.where("conversation_id", conversationId), Q.where("id", Q.oneOf(ids)))
-                    .fetchCount()) === ids.length &&
+                  (await sourcesEligible(conversationId, ids)) &&
                   (!vault.canWrite || (await vault.canWrite())) &&
                   !disposed &&
                   !cancelled,
@@ -283,6 +387,8 @@ export function createDurableAutoExtractor(options: DurableAutoExtractorOptions)
       ]);
     } finally {
       cancelled = true;
+      controller.abort();
+      if (activeBatch === controller) activeBatch = null;
       if (watchdog !== undefined) clearTimeout(watchdog);
     }
   }
@@ -290,7 +396,7 @@ export function createDurableAutoExtractor(options: DurableAutoExtractorOptions)
   async function acknowledge(
     job: ExtractionJob,
     ids: string[],
-    loaded: (StoredMessage | null)[],
+    loaded: (LoadedMessage | null)[],
     abandoned: boolean
   ): Promise<void> {
     attempts.delete(job.id);
@@ -300,6 +406,7 @@ export function createDurableAutoExtractor(options: DurableAutoExtractorOptions)
     for (const message of loaded)
       if (message && message.messageId > 0) sequences.set(message.uniqueId, message.messageId);
     await database.write(async () => {
+      if (disposed) return;
       const current = idsOf(job);
       const acknowledged = ids.filter((id) => current.includes(id));
       if (!acknowledged.length) return;
@@ -329,7 +436,7 @@ export function createDurableAutoExtractor(options: DurableAutoExtractorOptions)
   async function recordFailure(
     job: ExtractionJob,
     ids: string[],
-    loaded: (StoredMessage | null)[],
+    loaded: (LoadedMessage | null)[],
     error: unknown,
     conversationId: string
   ): Promise<boolean> {
@@ -413,6 +520,7 @@ export function createDurableAutoExtractor(options: DurableAutoExtractorOptions)
     wakeRequested = false;
     let retry = false;
     let scheduleAfterSuccess = false;
+    let sourceWaiting = false;
     try {
       await writes;
       const pending = await jobs
@@ -423,25 +531,45 @@ export function createDurableAutoExtractor(options: DurableAutoExtractorOptions)
       for (const job of pending) {
         if (disposed) break;
         const attempted = attempts.get(job.id) ?? 0;
-        if (attempted >= MAX_ATTEMPTS || skippedThisSession.has(job.id)) continue;
+        if (attempted >= MAX_ATTEMPTS || skippedThisSession.has(job.id) || awaitingKey.has(job.id))
+          continue;
+        const conversationId = String(job._getRaw("conversation_id"));
+        const source = options.messageSource?.(conversationId);
+        let sourceStatus: ExtractionSourceStatus | undefined;
+        if (source) {
+          try {
+            sourceStatus = await fromSource(source.status(conversationId));
+          } catch (error) {
+            reportError(error, conversationId);
+            sourceStatus = "later";
+          }
+          if (sourceStatus === "later") {
+            sourceWaiting = true;
+            continue;
+          }
+        }
         if (processed >= MAX_JOBS_PER_PASS) {
           scheduleAfterSuccess = true;
           break;
         }
         processed++;
-        const conversationId = String(job._getRaw("conversation_id"));
+        const epochAtRead = keyEpoch;
         let ids: string[] = [];
-        let loaded: (StoredMessage | null)[] = [];
+        let loaded: (LoadedMessage | null)[] = [];
         try {
-          const conversations = await storage.conversationsCollection
-            .query(Q.where("conversation_id", conversationId), Q.where("is_deleted", false))
-            .fetchCount();
-          if (!conversations) {
+          const present = source
+            ? sourceStatus === "ready"
+            : (await storage.conversationsCollection
+                .query(Q.where("conversation_id", conversationId), Q.where("is_deleted", false))
+                .fetchCount()) > 0;
+          if (!present) {
             await database.write(() => job.destroyPermanently());
             continue;
           }
           ids = idsOf(job).slice(0, 20);
-          loaded = await Promise.all(ids.map((id) => getMessageOp(storage, id)));
+          loaded = source
+            ? await loadFromSource(source, conversationId, ids)
+            : await Promise.all(ids.map((id) => getMessageOp(storage, id)));
           const missing = ids.filter((_id, index) => loaded[index] === null);
           if (missing.length) {
             if (attempted < MAX_ATTEMPTS - 1)
@@ -465,21 +593,44 @@ export function createDurableAutoExtractor(options: DurableAutoExtractorOptions)
             );
             continue;
           }
-          const locked = loaded.filter((message) => message && isEncrypted(message.content));
+          const foreign = new Set(
+            ids.filter((_id, index) => loaded[index]?.conversationId !== conversationId)
+          );
+          if (foreign.size) {
+            await database.write(() =>
+              job.update((r) =>
+                r._setRaw(
+                  "message_ids",
+                  JSON.stringify(idsOf(job).filter((id) => !foreign.has(id)))
+                )
+              )
+            );
+            attempts.delete(job.id);
+            scheduleAfterSuccess = true;
+            reportError(
+              new Error(`Dropped ${foreign.size} source id(s) from another conversation`),
+              conversationId
+            );
+            continue;
+          }
+          const locked = source
+            ? []
+            : loaded.filter(
+                (message): message is LoadedMessage => !!message && isEncrypted(message.content)
+              );
           if (locked.length) {
             throw new LockedSourcesError(
               locked.flatMap((message) =>
-                message!.decryptionStatus === "auth_mismatch" ||
-                message!.decryptionStatus === "invalid_payload"
-                  ? [message!.uniqueId]
+                message.decryptionStatus === "auth_mismatch" ||
+                message.decryptionStatus === "invalid_payload"
+                  ? [message.uniqueId]
                   : []
-              )
+              ),
+              locked
             );
           }
           const messages: AutoExtractMessage[] = loaded.flatMap((m) =>
-            m &&
-            m.conversationId === conversationId &&
-            (m.role === "user" || m.role === "assistant")
+            m && (m.role === "user" || m.role === "assistant")
               ? [{ id: m.uniqueId, role: m.role, content: m.content }]
               : []
           );
@@ -493,6 +644,7 @@ export function createDurableAutoExtractor(options: DurableAutoExtractorOptions)
               jobScope,
               jobFolderId
             );
+            if (disposed) throw new Error("Extraction session was disposed");
             options.onTurnComplete?.(result);
             return result;
           };
@@ -529,6 +681,13 @@ export function createDurableAutoExtractor(options: DurableAutoExtractorOptions)
           );
           scheduleAfterSuccess = true;
         } catch (error) {
+          if (disposed) break;
+          if (error instanceof LockedSourcesError && error.awaitingKey) {
+            reportError(error, conversationId);
+            if (keyEpoch === epochAtRead) awaitingKey.add(job.id);
+            else scheduleAfterSuccess = true;
+            continue;
+          }
           attempts.set(job.id, attempted + 1);
           retry = true;
           reportError(error, conversationId);
@@ -549,9 +708,32 @@ export function createDurableAutoExtractor(options: DurableAutoExtractorOptions)
       wakeRequested = false;
       if (retry || scheduleAfterSuccess || woken)
         schedule(retry ? (options.retryDelayMs ?? 30_000) : 0);
+      else if (sourceWaiting) schedule(options.retryDelayMs ?? 30_000);
     }
   }
 
+  function dispose(): void {
+    disposed = true;
+    activeBatch?.abort(options.signal?.reason);
+    if (timer !== undefined) clearTimeout(timer);
+    options.signal?.removeEventListener("abort", dispose);
+    unsubscribeKey?.();
+  }
+
+  const unsubscribeKey = vault.walletAddress
+    ? onKeyAvailable(vault.walletAddress, () => {
+        keyEpoch++;
+        if (!awaitingKey.size) return;
+        awaitingKey.clear();
+        if (timer !== undefined) {
+          clearTimeout(timer);
+          timer = undefined;
+        }
+        schedule(0);
+      })
+    : undefined;
+  if (options.signal?.aborted) dispose();
+  else options.signal?.addEventListener("abort", dispose, { once: true });
   schedule(0);
   return {
     processTurn(messages, conversationId) {
@@ -570,11 +752,44 @@ export function createDurableAutoExtractor(options: DurableAutoExtractorOptions)
                 (candidate._getRaw("folder_id") ?? null) === folderId
             );
             const positions = new Map(ids.map((id, index) => [id, index]));
-            const rows = await storage.messagesCollection
-              .query(Q.where("id", Q.oneOf(ids)))
-              .fetch();
+            const fromSourceConversation = options.messageSource?.(conversationId) !== undefined;
+            const watermarks = fromSourceConversation
+              ? []
+              : existing.flatMap((prior) => {
+                  const watermark = prior._getRaw("watermark");
+                  return typeof watermark === "string" && watermark ? [watermark] : [];
+                });
+            if (watermarks.length) {
+              const misplaced = new Set(
+                await storage.messagesCollection
+                  .query(
+                    Q.where("id", Q.oneOf(watermarks)),
+                    Q.where("conversation_id", Q.notEq(conversationId))
+                  )
+                  .fetchIds()
+              );
+              for (const prior of existing)
+                if (misplaced.has(String(prior._getRaw("watermark"))))
+                  await prior.update((r) => {
+                    r._setRaw("watermark", null);
+                    r._setRaw("watermark_seq", null);
+                  });
+            }
+            const rows = fromSourceConversation
+              ? []
+              : await storage.messagesCollection.query(Q.where("id", Q.oneOf(ids))).fetch();
+            const foreignRows = new Set(
+              rows
+                .filter((row) => row._getRaw("conversation_id") !== conversationId)
+                .map((row) => row.id)
+            );
             const sequences = new Map<string, number>();
+            if (fromSourceConversation)
+              for (const message of messages)
+                if (message.seq !== undefined && message.seq > 0)
+                  sequences.set(message.id, message.seq);
             for (const row of rows) {
+              if (foreignRows.has(row.id)) continue;
               const sequence = Number(row._getRaw("message_id"));
               if (Number.isFinite(sequence) && sequence > 0) sequences.set(row.id, sequence);
             }
@@ -605,9 +820,16 @@ export function createDurableAutoExtractor(options: DurableAutoExtractorOptions)
                 reportError(error, conversationId);
               }
             }
+            const ordered = fromSourceConversation && ids.every((id) => sequences.has(id));
             if (
               boundary < 0 &&
-              existing.some((prior) => idsOf(prior).length > 0 || seqOf(prior) !== undefined)
+              !ordered &&
+              existing.some(
+                (prior) =>
+                  idsOf(prior).length > 0 ||
+                  seqOf(prior) !== undefined ||
+                  (fromSourceConversation && !!prior._getRaw("watermark"))
+              )
             ) {
               reportError(
                 new Error("Extraction boundary unresolved; skipped rather than re-observing"),
@@ -618,7 +840,9 @@ export function createDurableAutoExtractor(options: DurableAutoExtractorOptions)
             const start =
               boundary >= 0
                 ? boundary + 1
-                : Math.max(0, ids.length - Math.max(1, options.windowSize ?? 6));
+                : fromSourceConversation
+                  ? 0
+                  : Math.max(0, ids.length - Math.max(1, options.windowSize ?? 6));
             if (start >= ids.length) return;
             const ownWatermark = job?._getRaw("watermark");
             const atOwnWatermark =
@@ -629,13 +853,16 @@ export function createDurableAutoExtractor(options: DurableAutoExtractorOptions)
                 (sequences.get(ids[boundary]) !== undefined &&
                   sequences.get(ids[boundary]) === seqOf(job)));
             const overlapStart = atOwnWatermark ? Math.max(0, boundary - 1) : start;
-            const fresh = ids.slice(overlapStart).filter((id) => !foreignSources.has(id));
+            const fresh = ids
+              .slice(overlapStart)
+              .filter((id) => !foreignSources.has(id) && !foreignRows.has(id));
             if (!fresh.length) return;
             if (job) {
               await job.update((r) =>
                 r._setRaw("message_ids", JSON.stringify([...new Set([...idsOf(job), ...fresh])]))
               );
               attempts.delete(job.id);
+              awaitingKey.delete(job.id);
             } else {
               await jobs.create((r) => {
                 r._setRaw("owner_key", owner);
@@ -652,9 +879,6 @@ export function createDurableAutoExtractor(options: DurableAutoExtractorOptions)
       return true;
     },
     isProcessing: () => running,
-    dispose() {
-      disposed = true;
-      if (timer !== undefined) clearTimeout(timer);
-    },
+    dispose,
   };
 }

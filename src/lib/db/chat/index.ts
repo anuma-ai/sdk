@@ -7,6 +7,7 @@ export {
   decryptMessageEmbeddingFields,
   deleteConversationOp,
   deleteMessageOp,
+  encryptToolCallEventsOp,
   getAllFilesOp,
   getConversationOp,
   getConversationsByProjectLazyOp,

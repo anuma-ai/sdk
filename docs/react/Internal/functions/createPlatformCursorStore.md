@@ -2,7 +2,7 @@
 
 > **createPlatformCursorStore**(`storage`: `SyncKeyValueStore`, `keyPrefix`: `string`): [`ExtractionCursorStore`](../interfaces/ExtractionCursorStore.md)
 
-Defined in: [src/lib/memory/autoExtractWorker.ts:137](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#137)
+Defined in: [src/lib/memory/autoExtractWorker.ts:140](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#140)
 
 Build an [ExtractionCursorStore](../interfaces/ExtractionCursorStore.md) over a synchronous key/value store
 (e.g. the SDK's `PlatformStorage`). Keys are namespaced by `keyPrefix`.

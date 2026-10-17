@@ -1,9 +1,9 @@
 {
   "config": {
-    "model": "inclusionai/ling-2.6-flash",
-    "cases": 12
+    "model": "openai/gpt-6-luna",
+    "cases": 14
   },
-  "runs": 25,
+  "runs": 15,
   "metrics": {
     "overallAccuracy": {
       "mean": 1,
@@ -13,10 +13,10 @@
       "tolerance": 0.03
     },
     "fallbackRate": {
-      "mean": 0.006666666666666666,
+      "mean": 0,
       "min": 0,
-      "max": 0.08333333333333333,
-      "stdDev": 0.023073955174772422,
+      "max": 0,
+      "stdDev": 0,
       "tolerance": 0.03
     }
   }

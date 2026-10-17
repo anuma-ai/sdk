@@ -1,6 +1,6 @@
 # RemoteMemoryStoreOptions
 
-Defined in: [src/lib/memory/store/remoteStore.ts:53](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteStore.ts#53)
+Defined in: [src/lib/memory/store/remoteStore.ts:76](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteStore.ts#76)
 
 ## Properties
 
@@ -8,15 +8,17 @@ Defined in: [src/lib/memory/store/remoteStore.ts:53](https://github.com/anuma-ai
 
 > **embeddingOptions**: [`MemoryEngineEmbeddingOptions`](MemoryEngineEmbeddingOptions.md)
 
-Defined in: [src/lib/memory/store/remoteStore.ts:55](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteStore.ts#55)
+Defined in: [src/lib/memory/store/remoteStore.ts:78](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteStore.ts#78)
 
 ***
 
-### graphRanking()
+### graphRanking()?
 
-> **graphRanking**: (`query`: `string`, `traverse`: `boolean`, `options`: [`RecallOptions`](RecallOptions.md)) => `Promise`<`string`\[]>
+> `optional` **graphRanking**: (`query`: `string`, `traverse`: `boolean`, `options`: [`RecallOptions`](RecallOptions.md)) => `Promise`<`string`\[]>
 
-Defined in: [src/lib/memory/store/remoteStore.ts:56](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteStore.ts#56)
+Defined in: [src/lib/memory/store/remoteStore.ts:80](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteStore.ts#80)
+
+Defaults to ranking memories by how many query entities their topics name.
 
 **Parameters**
 
@@ -77,7 +79,7 @@ Defined in: [src/lib/memory/store/remoteStore.ts:56](https://github.com/anuma-ai
 
 > **persistence**: [`RemoteMemoryPersistence`](RemoteMemoryPersistence.md)
 
-Defined in: [src/lib/memory/store/remoteStore.ts:54](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteStore.ts#54)
+Defined in: [src/lib/memory/store/remoteStore.ts:77](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteStore.ts#77)
 
 ***
 
@@ -85,15 +87,15 @@ Defined in: [src/lib/memory/store/remoteStore.ts:54](https://github.com/anuma-ai
 
 > `optional` **pollIntervalMs**: `number`
 
-Defined in: [src/lib/memory/store/remoteStore.ts:58](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteStore.ts#58)
+Defined in: [src/lib/memory/store/remoteStore.ts:82](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteStore.ts#82)
 
 ***
 
-### temporalRanking()
+### temporalRanking()?
 
-> **temporalRanking**: (`query`: `string`, `now?`: `number`) => `Promise`<`string`\[]>
+> `optional` **temporalRanking**: (`query`: `string`, `now?`: `number`) => `Promise`<`string`\[]>
 
-Defined in: [src/lib/memory/store/remoteStore.ts:57](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteStore.ts#57)
+Defined in: [src/lib/memory/store/remoteStore.ts:81](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteStore.ts#81)
 
 **Parameters**
 

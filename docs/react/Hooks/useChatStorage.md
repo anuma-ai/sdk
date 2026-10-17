@@ -2,7 +2,7 @@
 
 > **useChatStorage**(`options`: `object`): [`UseChatStorageResult`](../Internal/interfaces/UseChatStorageResult.md)
 
-Defined in: [src/react/useChatStorage.ts:1062](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#1062)
+Defined in: [src/react/useChatStorage.ts:1070](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#1070)
 
 A React hook that wraps useChat and persists messages and conversations to WatermelonDB as they are sent and received.
 
@@ -522,12 +522,12 @@ Defaults to the hardcoded MCP\_R2\_DOMAIN from clientConfig.
 </td>
 <td>
 
-[`MemoryStore`](../Internal/interfaces/MemoryStore.md)
+[`MemoryStore`](../Internal/interfaces/MemoryStore.md) | `null`
 
 </td>
 <td>
 
-Route memory reads, writes, recall and the memory tools through this store instead of the database's vault; folders are unsupported. With `piiRedaction` on, build the store with `embeddingOptions.maskInput` (e.g. `(text) => redactor.maskText(text)` with any `PiiRedactor`) or its memory calls throw.
+Route memory operations through this store; `null` disables memory access while `undefined` uses the local vault. Folders are unsupported. With `piiRedaction` on, build the store with `embeddingOptions.maskInput` or its memory calls throw.
 
 </td>
 </tr>
