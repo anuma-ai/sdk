@@ -5,6 +5,9 @@ import { v7 as uuidv7 } from "uuid";
 import type { LlmapiToolCallEvent } from "../../../client";
 import type { EmbeddedWalletSignerFn, SignMessageFn } from "../../../react/useEncryption";
 import {
+  decryptDataWithKey,
+  encryptDataWithKey,
+  getEncryptionKey,
   hasEncryptionKey,
   refreshEncryptionKeyIfMatches,
   requestEncryptionKey,
@@ -1030,9 +1033,12 @@ export async function updateMessageEmbeddingOp(
     return null;
   }
 
+  const address = ctx.walletAddress;
   await ctx.database.write(async () => {
+    const key = await resolveMessageEmbeddingKey(address, message.content);
+    const storedVector = await serializeMessageEmbedding(key, vector);
     await message.update((msg) => {
-      msg._setRaw("vector", JSON.stringify(vector));
+      msg._setRaw("vector", storedVector);
       if (msg.origin === "chunks_discarded" && vector.length > 0) {
         msg._setRaw("origin", "message");
       }
@@ -1040,7 +1046,7 @@ export async function updateMessageEmbeddingOp(
     });
   });
 
-  return messageToStored(message, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner);
+  return messageToStored(message, ctx.walletAddress);
 }
 
 export async function updateMessageChunksOp(
@@ -1057,9 +1063,12 @@ export async function updateMessageChunksOp(
   }
 
   const storedChunks = chunks.map(({ text: _text, ...rest }) => rest);
+  const address = ctx.walletAddress;
   await ctx.database.write(async () => {
+    const key = await resolveMessageEmbeddingKey(address, message.content);
+    const serializedChunks = await serializeMessageEmbedding(key, storedChunks);
     await message.update((msg) => {
-      msg._setRaw("chunks", JSON.stringify(storedChunks));
+      msg._setRaw("chunks", serializedChunks);
       if (
         msg.origin === "chunks_discarded" &&
         storedChunks.length > 0 &&
@@ -1071,7 +1080,138 @@ export async function updateMessageChunksOp(
     });
   });
 
-  return messageToStored(message, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner);
+  return messageToStored(message, ctx.walletAddress);
+}
+
+async function resolveMessageEmbeddingKey(
+  address: string | undefined,
+  content: string
+): Promise<CryptoKey | null> {
+  if (!address || !isEncrypted(content)) return null;
+  const key = await getEncryptionKey(address, "v3");
+  const contentKey = content.startsWith("enc:v2:") ? await getEncryptionKey(address, "v2") : key;
+  try {
+    await decryptDataWithKey(content.slice("enc:vN:".length), contentKey);
+  } catch {
+    throw new Error("Cannot decrypt the message with the cached wallet key");
+  }
+  return key;
+}
+
+async function serializeMessageEmbedding(key: CryptoKey | null, value: unknown): Promise<string> {
+  const json = JSON.stringify(value);
+  return key ? `enc:v3:${await encryptDataWithKey(json, key)}` : json;
+}
+
+/** Decrypts raw message embedding columns with the cached wallet key. */
+export async function decryptMessageEmbeddingFields(
+  raw: Record<string, unknown>,
+  walletAddress?: string
+): Promise<Record<string, unknown>> {
+  const result = { ...raw };
+  for (const column of ["vector", "chunks"]) {
+    const value = raw[column];
+    if (typeof value !== "string" || !value.startsWith("enc:")) continue;
+    const decrypted = walletAddress ? await decryptField(value, walletAddress) : value;
+    result[column] = decrypted.startsWith("enc:") ? undefined : decrypted;
+  }
+  return result;
+}
+
+/** Seals legacy message embedding columns and discards chunks with invalid plaintext offsets. */
+export async function sealLegacyMessageEmbeddingsOp(
+  ctx: StorageOperationsContext
+): Promise<number> {
+  if (!ctx.walletAddress) return 0;
+  const candidateIds = await ctx.messagesCollection
+    .query(
+      Q.where("content", Q.like("enc:%")),
+      Q.or(
+        ...["vector", "chunks"].map((column) =>
+          Q.and(
+            Q.where(column, Q.notEq(null)),
+            Q.where(column, Q.notEq("")),
+            Q.where(column, Q.notLike("enc:%"))
+          )
+        )
+      )
+    )
+    .fetchIds();
+  let sealed = 0;
+  let undecryptable = 0;
+  for (let start = 0; start < candidateIds.length; start += 50) {
+    const pageIds = candidateIds.slice(start, start + 50);
+    await ctx.database.write(async () => {
+      const pageMessages = await ctx.messagesCollection
+        .query(Q.where("id", Q.oneOf(pageIds)))
+        .fetch();
+      for (const message of pageMessages) {
+        if (!isEncrypted(message.content)) continue;
+        const content = await decryptFieldDetailed(message.content, ctx.walletAddress!);
+        if (content.status === "key_missing") {
+          throw new Error("Cannot decrypt the message with the cached wallet key");
+        }
+        if (content.status !== "ok") {
+          undecryptable++;
+          continue;
+        }
+        const plaintext = content.value;
+        const key = await resolveMessageEmbeddingKey(ctx.walletAddress, message.content);
+        const updates: Record<string, string | null> = {};
+        for (const column of ["vector", "chunks"]) {
+          const value = message._getRaw(column);
+          if (typeof value !== "string" || value.startsWith("enc:") || !value) continue;
+          let parsed: unknown;
+          try {
+            parsed = JSON.parse(value);
+          } catch {
+            updates[column] = null;
+            continue;
+          }
+          if (!Array.isArray(parsed)) {
+            updates[column] = null;
+            continue;
+          }
+          if (column === "chunks") {
+            const chunks = parsed as MessageChunk[];
+            if (
+              chunks.some(
+                (chunk) =>
+                  !chunk ||
+                  !Number.isInteger(chunk.startOffset) ||
+                  !Number.isInteger(chunk.endOffset) ||
+                  chunk.startOffset < 0 ||
+                  chunk.endOffset <= chunk.startOffset ||
+                  chunk.endOffset > plaintext.length
+              )
+            ) {
+              updates.chunks = null;
+              updates.vector = null;
+              updates.origin =
+                message.origin === "tool_result" ? "tool_result" : "chunks_discarded";
+              break;
+            }
+            parsed = chunks.map(({ text: _text, ...rest }) => rest);
+          }
+          updates[column] = await serializeMessageEmbedding(key, parsed);
+        }
+        if (Object.keys(updates).length === 0) continue;
+        const updatedAt = Number(message._getRaw("updated_at"));
+        const discarded = updates.origin !== undefined;
+        await message.update((msg) => {
+          for (const [column, value] of Object.entries(updates)) msg._setRaw(column, value);
+          msg._setRaw("updated_at", discarded ? Math.max(Date.now(), updatedAt + 1) : updatedAt);
+        });
+        sealed++;
+      }
+    });
+  }
+  if (undecryptable > 0) {
+    getLogger().warn(
+      `Skipped ${undecryptable} message embeddings that the cached wallet key cannot decrypt`
+    );
+  }
+  return sealed;
 }
 
 const RAW_REPAIR_PAGE_SIZE = 100;

@@ -2,7 +2,7 @@
 
 > **encryptToolCallEventsOp**(`ctx`: [`StorageOperationsContext`](../interfaces/StorageOperationsContext.md)): `Promise`<`number`>
 
-Defined in: [src/lib/db/chat/operations.ts:1193](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/operations.ts#1193)
+Defined in: [src/lib/db/chat/operations.ts:1333](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/operations.ts#1333)
 
 Encrypts tool call arguments and results still stored in plaintext and
 returns how many rows changed, giving each touched conversation a new

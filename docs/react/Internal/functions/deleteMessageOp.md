@@ -2,7 +2,7 @@
 
 > **deleteMessageOp**(`ctx`: [`StorageOperationsContext`](../interfaces/StorageOperationsContext.md), `uniqueId`: `string`): `Promise`<`string` | `null`>
 
-Defined in: [src/lib/db/chat/operations.ts:804](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/operations.ts#804)
+Defined in: [src/lib/db/chat/operations.ts:807](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/operations.ts#807)
 
 Delete a single message by its unique ID.
 Clears file\_ids before deletion and returns the unique ID.

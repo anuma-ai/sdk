@@ -8,7 +8,7 @@ This guide explains how to enable field-level encryption at rest in applications
 
 | Data | Fields Encrypted | Encryption Type |
 |------|-----------------|-----------------|
-| Messages | `content`, `thinking`, `vector`, `sources`, `thoughtProcess`, and each tool call event's `arguments` and `output` | Random IV (AES-GCM) |
+| Messages | `content`, `thinking`, `vector`, `chunks`, `sources`, `thoughtProcess`, and each tool call event's `arguments` and `output` | Random IV (AES-GCM) |
 | Conversations | `title` | Random IV (AES-GCM) |
 | Media | `name`, `sourceUrl`, `metadata` | Random IV (AES-GCM) |
 | Memory | `namespace`, `key`, `value`, `rawEvidence` | Deterministic (AES-GCM) |
@@ -21,7 +21,7 @@ This guide explains how to enable field-level encryption at rest in applications
 - Roles, models, MIME types
 - Timestamps, token counts, flags (`isDeleted`, `wasStopped`, `error`)
 - Dimensions, duration, file sizes
-- Embeddings stored via `updateMessageEmbeddingOp` / `updateMessageChunksOp` (needed for vector search). These columns hold **vectors and character offsets only** — nothing readable. Chunk TEXT used to be stored alongside the vectors, which made the `chunks` column a plaintext copy of any message over 400 characters; it is no longer persisted at all (sdk#880), and search snippets are rebuilt by slicing the message's own encrypted-at-rest `content` at those offsets.
+- Embeddings on messages with plaintext content. For sealed content, the dedicated embedding operations seal the vectors and chunks with the cached wallet key. Chunk text is not stored. Search builds snippets from the decrypted message content and chunk offsets.
 
 ## Quick Start
 
@@ -333,9 +333,59 @@ Yes. The SDK fetches all media records, decrypts names in memory, and then filte
 
 ### What about vector search (`searchMessagesOp`)?
 
-Vector search works because embeddings stored via `updateMessageEmbeddingOp` / `updateMessageChunksOp` are **not encrypted**. These dedicated ops write embeddings in plaintext specifically so cosine similarity search works. However, when embeddings are passed as part of `createMessageOp` (via the `vector` field in `CreateMessageOptions`), they are encrypted along with other sensitive fields.
+`updateMessageEmbeddingOp` and `updateMessageChunksOp` seal their columns when the context has a wallet and the stored content is sealed.
+These operations use the cached key. They do not request a signature, even when the context supplies a signer.
+A missing key rejects the write before the row changes. Messages with plaintext content keep JSON embedding columns.
 
-That plaintext is deliberate and load-bearing — clients read the `chunks` column directly and `JSON.parse` it, so writing ciphertext there does not fail loudly, it silently scores every chunk 0 and quietly degrades search. What these columns must therefore never contain is anything *readable*. They hold vectors and offsets; chunk text is not persisted (sdk#880) and a snippet is reconstructed on read from the message's own decrypted `content`. Keep it that way: protect readable data by not storing it here, not by encrypting this column.
+`searchMessagesOp` and `searchChunksOp` decrypt these columns before they calculate similarity.
+Chunk text is not stored. Search builds snippets from the decrypted content and chunk offsets.
+Pass `createChunkVectorCache()` through `chunkCache` to reuse Float32 vectors across searches.
+Clear the cache when the wallet or encryption key changes.
+
+#### Required client changes
+
+This column format change requires a coordinated client release. Old raw readers cannot parse sealed embedding columns.
+
+1. Update the web and mobile `embeddingPaging.ts` page loaders before the SDK upgrade reaches users.
+2. Call `decryptMessageEmbeddingFields(raw, walletAddress)` for each raw row before the Int8 score and Float32 score.
+3. Keep the decrypted columns in memory only. Do not write the returned row to the database.
+4. Use the current wallet in the search callback dependencies.
+5. Run `sealLegacyMessageEmbeddingsOp(ctx)` after the wallet key is ready on each device.
+6. Run the migration again after a backup restore or sync pull.
+
+The following loader keeps the existing synchronous score functions:
+
+```ts
+import { decryptMessageEmbeddingFields } from "@anuma/sdk/react";
+
+const loadChunk = async (offset: number, limit: number) => {
+  const rows = await loadRawChunk(offset, limit);
+  return Promise.all(rows.map((row) => decryptMessageEmbeddingFields(row, walletAddress)));
+};
+```
+
+The helper preserves the row metadata. It returns plaintext JSON for readable embedding columns.
+It omits sealed columns when the key is unavailable. It does not request a signature or change the input row.
+The same helper and migration are exported from `@anuma/sdk/expo` and `@anuma/sdk/server`.
+
+#### Legacy data and the ciphertext chunk sweep
+
+The migration seals plaintext vectors and chunks on sealed messages. It removes any legacy chunk text.
+It clears chunks whose offsets cannot refer to the decrypted content and clears the row's vector.
+Such rows keep `tool_result` or receive `chunks_discarded`, which prevents automatic paid repair.
+The migration keeps `updated_at` on rows that it only seals. The seal stays on the local device and backup sync does not upload the row again.
+Each device seals its own copy, so an older client does not receive sealed columns from the migration.
+The migration advances `updated_at` on rows that it clears, so vector caches and backup sync observe that change.
+It uses at most 50 rows per write. A second pass leaves sealed columns unchanged.
+A missing cached key rejects the pass. Earlier completed rows remain sealed and the pass can retry.
+The pass skips a row that the cached key cannot decrypt and leaves it unchanged.
+The pass logs one warning with the count of skipped rows and continues with the remaining rows.
+
+The client ciphertext chunk sweep must inspect the stored chunks before the helper decrypts them.
+A sealed chunks column is the signal for the new storage format. The sweep must skip it.
+Parseable chunks beside sealed content identify legacy data only. They do not prove that the producer embedded ciphertext.
+For an ordinary message, compare the chunk offsets with the decrypted content before any discard.
+The migration performs this check and marks invalid rows. Keep the sweep's separate tool-result cleanup.
 
 ### Can I encrypt some conversations but not others?
 
