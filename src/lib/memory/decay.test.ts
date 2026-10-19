@@ -1,3 +1,6 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { noopLogger, setLogger } from "../logger";
@@ -38,6 +41,19 @@ function input(overrides: Partial<DecayInput> = {}): DecayInput {
     ...overrides,
   };
 }
+
+describe("classifyDecay documentation", () => {
+  it("documents the inclusive event grace boundary in the age-rule exception", () => {
+    const source = readFileSync(join(__dirname, "decay.ts"), "utf8");
+    const declarationStart = source.indexOf("export function classifyDecay");
+    const documentation = source.slice(
+      source.lastIndexOf("/**", declarationStart),
+      declarationStart
+    );
+
+    expect(documentation).toContain("`eventTimeEnd >= now - pastEventGraceMs`");
+  });
+});
 
 describe("ttlForType", () => {
   it("maps durable identity-class types to Infinity", () => {
