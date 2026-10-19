@@ -1401,7 +1401,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       const currentStorageCtx = storageCtx.walletAddress ? storageCtx : storageCtxRef.current;
       const currentWalletAddress = currentStorageCtx.walletAddress;
 
-      if (enableQueue && !currentWalletAddress && getWalletAddress) {
+      if (enableQueue && signMessage && !currentWalletAddress && getWalletAddress) {
         pendingOpsRef.current.push({ type: opType, payload, dependencies });
         return { result: makeSynthetic(), queued: true };
       }
@@ -1439,7 +1439,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       const result = await directWrite(currentStorageCtx);
       return { result, queued: false };
     },
-    [storageCtx, enableQueue, getWalletAddress]
+    [storageCtx, enableQueue, signMessage, getWalletAddress]
   );
 
   const embedMessageAsync = useCallback(
