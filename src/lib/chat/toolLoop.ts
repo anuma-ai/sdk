@@ -315,9 +315,8 @@ function getToolName(tool: Record<string, unknown>): string | undefined {
  * The tools to keep once the user approves a confirm card whose action maps to
  * a tool set: the set's members, the tool-search tool that loads deferred
  * members, and the confirm tool only when the approved card lacked a required
- * field. A confirmed wallet choice narrows the same way to the flight-booking set
- * plus both payment tools. Returns undefined to leave the tools alone: nothing was
- * confirmed, the action maps to no set, or none of the set's members is on offer.
+ * field. Returns undefined to leave the tools alone: nothing was confirmed, the
+ * action maps to no set, or none of the set's members is on offer.
  */
 export function toolsAfterConfirmation(
   apiTools: Array<Record<string, unknown>>,

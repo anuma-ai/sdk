@@ -2,7 +2,7 @@
 
 > `const` **SDK\_SCHEMA\_VERSION**: `49` = `49`
 
-Defined in: [src/lib/db/schema.ts:140](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/schema.ts#140)
+Defined in: [src/lib/db/schema.ts:138](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/schema.ts#138)
 
 Current combined schema version for all SDK storage modules.
 
@@ -117,5 +117,3 @@ Version history:
   nullable, no backfill: NULL reads as "never failed"
 * v48: Added kind, kind\_value (encrypted) and level to memory\_vault; level is
   backfilled from scope where SQL steps run
-* v49: Added external\_wallets to userPreferences (JSON list of the user's
-  saved external wallets)
