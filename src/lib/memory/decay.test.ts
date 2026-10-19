@@ -1,7 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { noopLogger, setLogger } from "../logger";
-
 import {
   classifyDecay,
   type DecayInput,
@@ -202,6 +201,21 @@ describe("classifyDecay — plan/ongoing_context event-past archiving", () => {
         NOW
       );
       expect(verdict).toBe(expected);
+    });
+
+    it(`uses the custom grace period for an old ${t}`, () => {
+      const memory = input({
+        factType: t,
+        eventTimeEnd: NOW - 2 * DAY,
+        eventTimeKind: "range",
+        updatedAt: NOW - (SHORT_TTL_MS + DAY),
+      });
+      const policy = { pastEventGraceMs: 2 * DAY };
+
+      expect(classifyDecay(memory, NOW - 1, policy)).toBe("keep");
+      expect(classifyDecay(memory, NOW, policy)).toBe("keep");
+      expect(classifyDecay(memory, NOW + 1, policy)).toBe("archive");
+      expect(classifyDecay(memory, NOW + 1)).toBe("keep");
     });
 
     it(`keeps ${t} whose event is in the future`, () => {
