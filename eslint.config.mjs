@@ -33,6 +33,7 @@ const checkedTestFiles = [
   "src/lib/db/chat/operations.eventIdIndex.test.ts",
   "src/lib/db/memoryVault/operations.sweeps.test.ts",
   "src/lib/db/memoryVault/operations.test.ts",
+  "src/lib/memory/portalLlm.test.ts",
   "src/lib/memoryVault/searchTool.concurrent.test.ts",
   "src/lib/memoryVault/searchTool.test.ts",
   "src/react/useChatStorage.fileSize.test.tsx",

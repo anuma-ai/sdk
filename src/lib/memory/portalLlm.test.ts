@@ -1,9 +1,17 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { noopLogger, setLogger } from "../logger.js";
-
-import { callPortalJsonCompletion, requiresResponsesTransport } from "./portalLlm.js";
 import { INTERNAL_FLOW_MARKER } from "../internalFlowMarker.js";
+import { noopLogger, setLogger } from "../logger.js";
+import {
+  callPortalJsonCompletion,
+  type PortalLlmAttempt,
+  requiresResponsesTransport,
+} from "./portalLlm.js";
+
+function parseRequestBody(init: RequestInit | undefined): Record<string, unknown> {
+  expect(init?.body).toBeTypeOf("string");
+  return JSON.parse(init?.body as string) as Record<string, unknown>;
+}
 
 function mockResponse(content: string): Response {
   return new Response(
@@ -24,21 +32,21 @@ describe("callPortalJsonCompletion — prose-tolerant JSON extraction", () => {
   } as const;
 
   it("parses a clean JSON object", async () => {
-    const fetchFn = vi.fn().mockResolvedValue(mockResponse('{"a":1,"b":2}'));
+    const fetchFn = vi.fn<typeof fetch>().mockResolvedValue(mockResponse('{"a":1,"b":2}'));
     const result = await callPortalJsonCompletion({ ...baseArgs, fetchFn });
     expect(result).toEqual({ a: 1, b: 2 });
   });
 
   it("extracts JSON wrapped in a ```json fence", async () => {
     const content = 'Sure, here it is:\n```json\n{"items":["a","b"]}\n```';
-    const fetchFn = vi.fn().mockResolvedValue(mockResponse(content));
+    const fetchFn = vi.fn<typeof fetch>().mockResolvedValue(mockResponse(content));
     const result = await callPortalJsonCompletion({ ...baseArgs, fetchFn });
     expect(result).toEqual({ items: ["a", "b"] });
   });
 
   it("extracts JSON wrapped in a bare ``` fence", async () => {
     const content = 'Here you go:\n```\n{"k":"v"}\n```';
-    const fetchFn = vi.fn().mockResolvedValue(mockResponse(content));
+    const fetchFn = vi.fn<typeof fetch>().mockResolvedValue(mockResponse(content));
     const result = await callPortalJsonCompletion({ ...baseArgs, fetchFn });
     expect(result).toEqual({ k: "v" });
   });
@@ -46,7 +54,7 @@ describe("callPortalJsonCompletion — prose-tolerant JSON extraction", () => {
   it("strips a leading prose paragraph before the JSON", async () => {
     const content =
       'I have extracted the following memories from the conversation:\n\n{"items":[{"content":"hi"}]}';
-    const fetchFn = vi.fn().mockResolvedValue(mockResponse(content));
+    const fetchFn = vi.fn<typeof fetch>().mockResolvedValue(mockResponse(content));
     const result = await callPortalJsonCompletion({ ...baseArgs, fetchFn });
     expect(result).toEqual({ items: [{ content: "hi" }] });
   });
@@ -54,69 +62,69 @@ describe("callPortalJsonCompletion — prose-tolerant JSON extraction", () => {
   it("strips a trailing prose paragraph after the JSON", async () => {
     const content =
       '{"mode":"specific","subQueries":["q"]}\n\nLet me know if you want a different breakdown.';
-    const fetchFn = vi.fn().mockResolvedValue(mockResponse(content));
+    const fetchFn = vi.fn<typeof fetch>().mockResolvedValue(mockResponse(content));
     const result = await callPortalJsonCompletion({ ...baseArgs, fetchFn });
     expect(result).toEqual({ mode: "specific", subQueries: ["q"] });
   });
 
   it("balances nested braces inside string values", async () => {
     const content = 'Here:\n{"text":"this has {nested} braces and \\"quotes\\""}';
-    const fetchFn = vi.fn().mockResolvedValue(mockResponse(content));
+    const fetchFn = vi.fn<typeof fetch>().mockResolvedValue(mockResponse(content));
     const result = await callPortalJsonCompletion({ ...baseArgs, fetchFn });
     expect(result).toEqual({ text: 'this has {nested} braces and "quotes"' });
   });
 
   it("supports top-level arrays", async () => {
     const content = "Sure:\n[1, 2, 3]\nThat's the list.";
-    const fetchFn = vi.fn().mockResolvedValue(mockResponse(content));
+    const fetchFn = vi.fn<typeof fetch>().mockResolvedValue(mockResponse(content));
     const result = await callPortalJsonCompletion({ ...baseArgs, fetchFn });
     expect(result).toEqual([1, 2, 3]);
   });
 
   it("returns null and warns when the response is pure prose with no JSON", async () => {
     const content = "Do you want me to summarize the conversation first?";
-    const fetchFn = vi.fn().mockResolvedValue(mockResponse(content));
+    const fetchFn = vi.fn<typeof fetch>().mockResolvedValue(mockResponse(content));
     const result = await callPortalJsonCompletion({ ...baseArgs, maxAttempts: 1, fetchFn });
     expect(result).toBeNull();
   });
 
   it("appends an assistant prefill { for anthropic models and prepends it on parse", async () => {
     const fetchFn = vi
-      .fn()
+      .fn<typeof fetch>()
       .mockResolvedValue(mockResponse('"mode":"specific","subQueries":["q"]}'));
     const result = await callPortalJsonCompletion({ ...baseArgs, fetchFn });
     expect(result).toEqual({ mode: "specific", subQueries: ["q"] });
 
-    const sentBody = JSON.parse(fetchFn.mock.calls[0][1].body as string);
+    const sentBody = parseRequestBody(fetchFn.mock.calls[0][1]);
     const messages = sentBody.messages as Array<{ role: string; content: string }>;
     expect(messages.at(-1)).toEqual({ role: "assistant", content: "{" });
   });
 
   it("avoids double-prefix when an anthropic provider echoes the prefill", async () => {
     const fetchFn = vi
-      .fn()
+      .fn<typeof fetch>()
       .mockResolvedValue(mockResponse('{"mode":"specific","subQueries":["q"]}'));
     const result = await callPortalJsonCompletion({ ...baseArgs, fetchFn });
     expect(result).toEqual({ mode: "specific", subQueries: ["q"] });
   });
 
   it("does NOT add an assistant prefill for non-anthropic models", async () => {
-    const fetchFn = vi.fn().mockResolvedValue(mockResponse('{"ok":true}'));
+    const fetchFn = vi.fn<typeof fetch>().mockResolvedValue(mockResponse('{"ok":true}'));
     await callPortalJsonCompletion({
       ...baseArgs,
       model: "openai/gpt-5.4",
       fetchFn,
     });
-    const sentBody = JSON.parse(fetchFn.mock.calls[0][1].body as string);
+    const sentBody = parseRequestBody(fetchFn.mock.calls[0][1]);
     const messages = sentBody.messages as Array<{ role: string; content: string }>;
     expect(messages.map((m) => m.role)).toEqual(["system", "user"]);
   });
 
   it("marks the system prompt as a first-party internal flow", async () => {
-    const fetchFn = vi.fn().mockResolvedValue(mockResponse('{"ok":true}'));
+    const fetchFn = vi.fn<typeof fetch>().mockResolvedValue(mockResponse('{"ok":true}'));
     await callPortalJsonCompletion({ ...baseArgs, model: "openai/gpt-5.4", fetchFn });
 
-    const sentBody = JSON.parse(fetchFn.mock.calls[0][1].body as string);
+    const sentBody = parseRequestBody(fetchFn.mock.calls[0][1]);
     const messages = sentBody.messages as Array<{ role: string; content: string }>;
     const system = messages.find((m) => m.role === "system");
     expect(system?.content).toContain(INTERNAL_FLOW_MARKER);
@@ -130,36 +138,36 @@ describe("callPortalJsonCompletion — prose-tolerant JSON extraction", () => {
       "deepseek/deepseek-v4-flash",
       "openrouter/openai/gpt-5-mini",
     ]) {
-      const fetchFn = vi.fn().mockResolvedValue(mockResponse('{"ok":true}'));
+      const fetchFn = vi.fn<typeof fetch>().mockResolvedValue(mockResponse('{"ok":true}'));
       await callPortalJsonCompletion({ ...baseArgs, model, fetchFn });
-      const sentBody = JSON.parse(fetchFn.mock.calls[0][1].body as string);
+      const sentBody = parseRequestBody(fetchFn.mock.calls[0][1]);
       expect(sentBody.response_format, model).toEqual({ type: "json_object" });
     }
   });
 
   it("does not match a provider name as a coincidental id substring", async () => {
-    const fetchFn = vi.fn().mockResolvedValue(mockResponse('{"ok":true}'));
+    const fetchFn = vi.fn<typeof fetch>().mockResolvedValue(mockResponse('{"ok":true}'));
     await callPortalJsonCompletion({ ...baseArgs, model: "someprovider-openai/x", fetchFn });
-    const sentBody = JSON.parse(fetchFn.mock.calls[0][1].body as string);
+    const sentBody = parseRequestBody(fetchFn.mock.calls[0][1]);
     expect(sentBody.response_format).toBeUndefined();
   });
 
   it("omits response_format for gpt-oss (it 400s on the flag)", async () => {
-    const fetchFn = vi.fn().mockResolvedValue(mockResponse('{"ok":true}'));
+    const fetchFn = vi.fn<typeof fetch>().mockResolvedValue(mockResponse('{"ok":true}'));
     await callPortalJsonCompletion({ ...baseArgs, model: "gpt-oss/gpt-oss-120b", fetchFn });
-    const sentBody = JSON.parse(fetchFn.mock.calls[0][1].body as string);
+    const sentBody = parseRequestBody(fetchFn.mock.calls[0][1]);
     expect(sentBody.response_format).toBeUndefined();
   });
 
   it("strips a caller-supplied response_format for a model that rejects it", async () => {
-    const fetchFn = vi.fn().mockResolvedValue(mockResponse('{"ok":true}'));
+    const fetchFn = vi.fn<typeof fetch>().mockResolvedValue(mockResponse('{"ok":true}'));
     await callPortalJsonCompletion({
       ...baseArgs,
       model: "gpt-oss/gpt-oss-120b",
       extra: { response_format: { type: "json_object" } },
       fetchFn,
     });
-    const sentBody = JSON.parse(fetchFn.mock.calls[0][1].body as string);
+    const sentBody = parseRequestBody(fetchFn.mock.calls[0][1]);
     expect(sentBody.response_format).toBeUndefined();
   });
 });
@@ -173,37 +181,37 @@ describe("callPortalJsonCompletion — dual auth (apiKey / getToken)", () => {
   } as const;
 
   it("sends x-api-key when apiKey is provided", async () => {
-    const fetchFn = vi.fn().mockResolvedValue(mockResponse('{"ok":true}'));
+    const fetchFn = vi.fn<typeof fetch>().mockResolvedValue(mockResponse('{"ok":true}'));
     const result = await callPortalJsonCompletion({ ...noAuthArgs, apiKey: "key-1", fetchFn });
     expect(result).toEqual({ ok: true });
-    const headers = fetchFn.mock.calls[0][1].headers as Record<string, string>;
+    const headers = fetchFn.mock.calls[0][1]?.headers as Record<string, string>;
     expect(headers["x-api-key"]).toBe("key-1");
     expect(headers.Authorization).toBeUndefined();
   });
 
   it("sends Authorization: Bearer when only getToken is provided", async () => {
-    const fetchFn = vi.fn().mockResolvedValue(mockResponse('{"ok":true}'));
+    const fetchFn = vi.fn<typeof fetch>().mockResolvedValue(mockResponse('{"ok":true}'));
     const getToken = vi.fn().mockResolvedValue("tok-123");
     const result = await callPortalJsonCompletion({ ...noAuthArgs, getToken, fetchFn });
     expect(result).toEqual({ ok: true });
     expect(getToken).toHaveBeenCalledOnce();
-    const headers = fetchFn.mock.calls[0][1].headers as Record<string, string>;
+    const headers = fetchFn.mock.calls[0][1]?.headers as Record<string, string>;
     expect(headers.Authorization).toBe("Bearer tok-123");
     expect(headers["x-api-key"]).toBeUndefined();
   });
 
   it("prefers apiKey when both apiKey and getToken are provided", async () => {
-    const fetchFn = vi.fn().mockResolvedValue(mockResponse('{"ok":true}'));
+    const fetchFn = vi.fn<typeof fetch>().mockResolvedValue(mockResponse('{"ok":true}'));
     const getToken = vi.fn().mockResolvedValue("tok-123");
     await callPortalJsonCompletion({ ...noAuthArgs, apiKey: "key-1", getToken, fetchFn });
     expect(getToken).not.toHaveBeenCalled();
-    const headers = fetchFn.mock.calls[0][1].headers as Record<string, string>;
+    const headers = fetchFn.mock.calls[0][1]?.headers as Record<string, string>;
     expect(headers["x-api-key"]).toBe("key-1");
     expect(headers.Authorization).toBeUndefined();
   });
 
   it("returns null (without fetching) when getToken yields no token", async () => {
-    const fetchFn = vi.fn();
+    const fetchFn = vi.fn<typeof fetch>();
     const getToken = vi.fn().mockResolvedValue(null);
     const result = await callPortalJsonCompletion({ ...noAuthArgs, getToken, fetchFn });
     expect(result).toBeNull();
@@ -211,7 +219,7 @@ describe("callPortalJsonCompletion — dual auth (apiKey / getToken)", () => {
   });
 
   it("returns null (without fetching) when getToken throws", async () => {
-    const fetchFn = vi.fn();
+    const fetchFn = vi.fn<typeof fetch>();
     const getToken = vi.fn().mockRejectedValue(new Error("token service down"));
     const result = await callPortalJsonCompletion({ ...noAuthArgs, getToken, fetchFn });
     expect(result).toBeNull();
@@ -219,7 +227,7 @@ describe("callPortalJsonCompletion — dual auth (apiKey / getToken)", () => {
   });
 
   it("throws when neither apiKey nor getToken is provided", async () => {
-    const fetchFn = vi.fn();
+    const fetchFn = vi.fn<typeof fetch>();
     await expect(callPortalJsonCompletion({ ...noAuthArgs, fetchFn })).rejects.toThrow(
       "Either apiKey or getToken must be provided"
     );
@@ -245,9 +253,9 @@ describe("callPortalJsonCompletion - total deadline", () => {
     vi.useFakeTimers();
     let resolveToken!: (token: string) => void;
     const getToken = vi.fn(() => new Promise<string>((resolve) => (resolveToken = resolve)));
-    const fetchFn = vi.fn().mockResolvedValue(mockResponse('{"ok":true}'));
+    const fetchFn = vi.fn<typeof fetch>().mockResolvedValue(mockResponse('{"ok":true}'));
     const onFailure = vi.fn();
-    const onAttempt = vi.fn();
+    const onAttempt = vi.fn<(attempt: PortalLlmAttempt) => void>();
     const settled = vi.fn();
     const result = callPortalJsonCompletion({
       ...baseArgs,
@@ -258,7 +266,13 @@ describe("callPortalJsonCompletion - total deadline", () => {
     });
     void result.then(settled);
 
-    await vi.advanceTimersByTimeAsync(20_000);
+    await vi.advanceTimersByTimeAsync(19_999);
+
+    expect(settled).not.toHaveBeenCalled();
+    expect(onFailure).not.toHaveBeenCalled();
+    expect(fetchFn).not.toHaveBeenCalled();
+
+    await vi.advanceTimersByTimeAsync(1);
 
     expect(settled).toHaveBeenCalledWith(null);
     expect(onFailure).toHaveBeenCalledExactlyOnceWith({
@@ -280,6 +294,46 @@ describe("callPortalJsonCompletion - total deadline", () => {
     expect(vi.getTimerCount()).toBe(0);
   });
 
+  it("reports the deadline once when token acquisition rejects late", async () => {
+    vi.useFakeTimers();
+    let rejectToken!: (reason: Error) => void;
+    const getToken = vi.fn(() => new Promise<string>((_resolve, reject) => (rejectToken = reject)));
+    const fetchFn = vi.fn<typeof fetch>().mockResolvedValue(mockResponse('{"ok":true}'));
+    const onFailure = vi.fn();
+    const onAttempt = vi.fn<(attempt: PortalLlmAttempt) => void>();
+    const settled = vi.fn();
+    const result = callPortalJsonCompletion({
+      ...baseArgs,
+      getToken,
+      fetchFn,
+      onFailure,
+      onAttempt,
+    });
+    void result.then(settled);
+
+    await vi.advanceTimersByTimeAsync(20_000);
+
+    expect(settled).toHaveBeenCalledExactlyOnceWith(null);
+    expect(onFailure).toHaveBeenCalledExactlyOnceWith({
+      reason: "time-budget-exhausted",
+      attempts: 1,
+    });
+    expect(onAttempt).toHaveBeenCalledExactlyOnceWith({
+      attempt: 1,
+      ok: false,
+      reason: "time-budget-exhausted",
+    });
+
+    rejectToken(new Error("token service down"));
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(settled).toHaveBeenCalledExactlyOnceWith(null);
+    expect(onFailure).toHaveBeenCalledOnce();
+    expect(onAttempt).toHaveBeenCalledOnce();
+    expect(fetchFn).not.toHaveBeenCalled();
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
   it("does not start a request when authentication consumes the budget", async () => {
     vi.useFakeTimers();
     const startedAt = Date.now();
@@ -287,7 +341,7 @@ describe("callPortalJsonCompletion - total deadline", () => {
       vi.setSystemTime(startedAt + 20_000);
       return Promise.resolve("late-token");
     });
-    const fetchFn = vi.fn().mockResolvedValue(mockResponse('{"ok":true}'));
+    const fetchFn = vi.fn<typeof fetch>().mockResolvedValue(mockResponse('{"ok":true}'));
     const onFailure = vi.fn();
 
     const result = await callPortalJsonCompletion({ ...baseArgs, getToken, fetchFn, onFailure });
@@ -369,7 +423,7 @@ describe("callPortalJsonCompletion — retry on transient failure", () => {
 
   it("retries an empty completion, then succeeds", async () => {
     const fetchFn = vi
-      .fn()
+      .fn<typeof fetch>()
       .mockResolvedValueOnce(mockResponse(""))
       .mockResolvedValueOnce(mockResponse('{"ok":true}'));
     const result = await callPortalJsonCompletion({ ...baseArgs, fetchFn });
@@ -379,7 +433,7 @@ describe("callPortalJsonCompletion — retry on transient failure", () => {
 
   it("retries a no-JSON prose completion, then succeeds", async () => {
     const fetchFn = vi
-      .fn()
+      .fn<typeof fetch>()
       .mockResolvedValueOnce(mockResponse("Now output the JSON."))
       .mockResolvedValueOnce(mockResponse('{"candidates":[]}'));
     const result = await callPortalJsonCompletion({ ...baseArgs, fetchFn });
@@ -389,7 +443,7 @@ describe("callPortalJsonCompletion — retry on transient failure", () => {
 
   it("retries a 500, then succeeds", async () => {
     const fetchFn = vi
-      .fn()
+      .fn<typeof fetch>()
       .mockResolvedValueOnce(new Response("upstream error", { status: 500 }))
       .mockResolvedValueOnce(mockResponse('{"ok":true}'));
     const result = await callPortalJsonCompletion({ ...baseArgs, fetchFn });
@@ -398,7 +452,9 @@ describe("callPortalJsonCompletion — retry on transient failure", () => {
   });
 
   it("does NOT retry a 400 (a bad request won't succeed on retry)", async () => {
-    const fetchFn = vi.fn().mockResolvedValue(new Response("bad request", { status: 400 }));
+    const fetchFn = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(new Response("bad request", { status: 400 }));
     const result = await callPortalJsonCompletion({ ...baseArgs, fetchFn });
     expect(result).toBeNull();
     expect(fetchFn).toHaveBeenCalledTimes(1);
@@ -416,7 +472,7 @@ describe("callPortalJsonCompletion — retry on transient failure", () => {
     }) as typeof setTimeout);
     try {
       const fetchFn = vi
-        .fn()
+        .fn<typeof fetch>()
         .mockResolvedValueOnce(
           new Response("rate limited", { status: 429, headers: { "retry-after": "2" } })
         )
@@ -431,10 +487,10 @@ describe("callPortalJsonCompletion — retry on transient failure", () => {
 
   it("reports every attempt to onAttempt, success included, so a retry-then-succeed call is visible", async () => {
     const fetchFn = vi
-      .fn()
+      .fn<typeof fetch>()
       .mockResolvedValueOnce(mockResponse("NONE"))
       .mockResolvedValueOnce(mockResponse('{"candidates":[]}'));
-    const onAttempt = vi.fn();
+    const onAttempt = vi.fn<(attempt: PortalLlmAttempt) => void>();
     const onFailure = vi.fn();
     const result = await callPortalJsonCompletion({
       ...baseArgs,
@@ -462,7 +518,7 @@ describe("callPortalJsonCompletion — retry on transient failure", () => {
         },
       ],
     };
-    const fetchFn = vi.fn().mockResolvedValue(new Response(JSON.stringify(refusal)));
+    const fetchFn = vi.fn<typeof fetch>().mockResolvedValue(new Response(JSON.stringify(refusal)));
     const onFailure = vi.fn();
     const result = await callPortalJsonCompletion({
       ...baseArgs,
@@ -477,7 +533,9 @@ describe("callPortalJsonCompletion — retry on transient failure", () => {
   });
 
   it("does not start a request when the totalTimeoutMs budget is zero", async () => {
-    const fetchFn = vi.fn().mockResolvedValue(new Response("upstream error", { status: 503 }));
+    const fetchFn = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(new Response("upstream error", { status: 503 }));
     const onFailure = vi.fn();
     const result = await callPortalJsonCompletion({
       ...baseArgs,
@@ -496,7 +554,7 @@ describe("callPortalJsonCompletion — retry on transient failure", () => {
 
   it("retries a thrown network error, then succeeds", async () => {
     const fetchFn = vi
-      .fn()
+      .fn<typeof fetch>()
       .mockRejectedValueOnce(new Error("ECONNRESET"))
       .mockResolvedValueOnce(mockResponse('{"ok":true}'));
     const result = await callPortalJsonCompletion({ ...baseArgs, fetchFn });
@@ -505,7 +563,9 @@ describe("callPortalJsonCompletion — retry on transient failure", () => {
   });
 
   it("does NOT retry a 401 on the apiKey path (static key — genuine auth failure)", async () => {
-    const fetchFn = vi.fn().mockResolvedValue(new Response("unauthorized", { status: 401 }));
+    const fetchFn = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(new Response("unauthorized", { status: 401 }));
     const result = await callPortalJsonCompletion({ ...baseArgs, fetchFn });
     expect(result).toBeNull();
     expect(fetchFn).toHaveBeenCalledTimes(1);
@@ -514,7 +574,7 @@ describe("callPortalJsonCompletion — retry on transient failure", () => {
   it("retries a 401 on the getToken path with a refreshed token, then succeeds", async () => {
     const getToken = vi.fn().mockResolvedValueOnce("expired").mockResolvedValueOnce("fresh");
     const fetchFn = vi
-      .fn()
+      .fn<typeof fetch>()
       .mockResolvedValueOnce(new Response("unauthorized", { status: 401 }))
       .mockResolvedValueOnce(mockResponse('{"ok":true}'));
     const result = await callPortalJsonCompletion({
@@ -528,13 +588,13 @@ describe("callPortalJsonCompletion — retry on transient failure", () => {
     });
     expect(result).toEqual({ ok: true });
     expect(getToken).toHaveBeenCalledTimes(2);
-    const secondHeaders = fetchFn.mock.calls[1][1].headers as Record<string, string>;
+    const secondHeaders = fetchFn.mock.calls[1][1]?.headers as Record<string, string>;
     expect(secondHeaders.Authorization).toBe("Bearer fresh");
   });
 
   it("does NOT retry unavailable auth — it's terminal, not a transient failure", async () => {
     const getToken = vi.fn().mockResolvedValue(null);
-    const fetchFn = vi.fn();
+    const fetchFn = vi.fn<typeof fetch>();
     const result = await callPortalJsonCompletion({
       model: "openai/gpt-5-mini",
       systemPrompt: "s",
@@ -551,35 +611,41 @@ describe("callPortalJsonCompletion — retry on transient failure", () => {
   });
 
   it("does NOT retry a terminal 404", async () => {
-    const fetchFn = vi.fn().mockResolvedValue(new Response("not found", { status: 404 }));
+    const fetchFn = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(new Response("not found", { status: 404 }));
     const result = await callPortalJsonCompletion({ ...baseArgs, fetchFn });
     expect(result).toBeNull();
     expect(fetchFn).toHaveBeenCalledTimes(1);
   });
 
   it("gives up after maxAttempts and returns null", async () => {
-    const fetchFn = vi.fn().mockResolvedValue(new Response("upstream error", { status: 503 }));
+    const fetchFn = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(new Response("upstream error", { status: 503 }));
     const result = await callPortalJsonCompletion({ ...baseArgs, maxAttempts: 3, fetchFn });
     expect(result).toBeNull();
     expect(fetchFn).toHaveBeenCalledTimes(3);
   });
 
   it("maxAttempts: 1 disables retries (single fetch on a transient failure)", async () => {
-    const fetchFn = vi.fn().mockResolvedValue(new Response("upstream error", { status: 500 }));
+    const fetchFn = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(new Response("upstream error", { status: 500 }));
     const result = await callPortalJsonCompletion({ ...baseArgs, maxAttempts: 1, fetchFn });
     expect(result).toBeNull();
     expect(fetchFn).toHaveBeenCalledTimes(1);
   });
 
   it("defaults to 3 attempts when maxAttempts is unset", async () => {
-    const fetchFn = vi.fn().mockResolvedValue(mockResponse("no json here"));
+    const fetchFn = vi.fn<typeof fetch>().mockResolvedValue(mockResponse("no json here"));
     await callPortalJsonCompletion({ ...baseArgs, fetchFn });
     expect(fetchFn).toHaveBeenCalledTimes(3);
   });
 
   it("retries when the completion parses to literal null, then succeeds", async () => {
     const fetchFn = vi
-      .fn()
+      .fn<typeof fetch>()
       .mockResolvedValueOnce(mockResponse("null"))
       .mockResolvedValueOnce(mockResponse('{"ok":true}'));
     const result = await callPortalJsonCompletion({ ...baseArgs, fetchFn });
@@ -590,7 +656,7 @@ describe("callPortalJsonCompletion — retry on transient failure", () => {
   it("re-resolves auth each attempt — a retry uses a fresh token", async () => {
     const getToken = vi.fn().mockResolvedValueOnce("tok-1").mockResolvedValueOnce("tok-2");
     const fetchFn = vi
-      .fn()
+      .fn<typeof fetch>()
       .mockResolvedValueOnce(new Response("upstream error", { status: 500 }))
       .mockResolvedValueOnce(mockResponse('{"ok":true}'));
     const result = await callPortalJsonCompletion({
@@ -604,7 +670,7 @@ describe("callPortalJsonCompletion — retry on transient failure", () => {
     });
     expect(result).toEqual({ ok: true });
     expect(getToken).toHaveBeenCalledTimes(2);
-    const secondHeaders = fetchFn.mock.calls[1][1].headers as Record<string, string>;
+    const secondHeaders = fetchFn.mock.calls[1][1]?.headers as Record<string, string>;
     expect(secondHeaders.Authorization).toBe("Bearer tok-2");
   });
 });
@@ -620,13 +686,13 @@ describe("callPortalJsonCompletion — endpointOverride", () => {
   } as const;
 
   it("posts to the default /api/v1/chat/completions when no override is given", async () => {
-    const fetchFn = vi.fn().mockResolvedValue(mockResponse('{"a":1}'));
+    const fetchFn = vi.fn<typeof fetch>().mockResolvedValue(mockResponse('{"a":1}'));
     await callPortalJsonCompletion({ ...baseArgs, fetchFn });
     expect(fetchFn.mock.calls[0][0]).toBe("https://portal.test/api/v1/chat/completions");
   });
 
   it("posts to the overridden path when endpointOverride is set", async () => {
-    const fetchFn = vi.fn().mockResolvedValue(mockResponse('{"a":1}'));
+    const fetchFn = vi.fn<typeof fetch>().mockResolvedValue(mockResponse('{"a":1}'));
     await callPortalJsonCompletion({
       ...baseArgs,
       endpointOverride: "/api/v1/utility/chat/completions",
@@ -636,7 +702,7 @@ describe("callPortalJsonCompletion — endpointOverride", () => {
   });
 
   it("routes a reasoning-family model to /responses without being asked", async () => {
-    const fetchFn = vi.fn().mockResolvedValue(mockResponse('{"a":1}'));
+    const fetchFn = vi.fn<typeof fetch>().mockResolvedValue(mockResponse('{"a":1}'));
     await callPortalJsonCompletion({
       ...baseArgs,
       model: "openai/gpt-5.6-luna",
@@ -646,7 +712,7 @@ describe("callPortalJsonCompletion — endpointOverride", () => {
   });
 
   it("moves an override to the sibling lane rather than throwing", async () => {
-    const fetchFn = vi.fn().mockResolvedValue(mockResponse('{"a":1}'));
+    const fetchFn = vi.fn<typeof fetch>().mockResolvedValue(mockResponse('{"a":1}'));
     await callPortalJsonCompletion({
       ...baseArgs,
       model: "openai/gpt-5.6-luna",
@@ -657,20 +723,20 @@ describe("callPortalJsonCompletion — endpointOverride", () => {
   });
 
   it("sends a Responses-shaped body once it has auto-upgraded", async () => {
-    const fetchFn = vi.fn().mockResolvedValue(mockResponse('{"a":1}'));
+    const fetchFn = vi.fn<typeof fetch>().mockResolvedValue(mockResponse('{"a":1}'));
     await callPortalJsonCompletion({
       ...baseArgs,
       model: "openai/gpt-5.6-luna",
       endpointOverride: "/api/v1/utility/chat/completions",
       fetchFn,
     });
-    const body = JSON.parse(String(fetchFn.mock.calls[0][1].body));
+    const body = parseRequestBody(fetchFn.mock.calls[0][1]);
     expect(body.input).toBeDefined();
     expect(body.messages).toBeUndefined();
   });
 
   it("leaves a non-reasoning model on the chat lane", async () => {
-    const fetchFn = vi.fn().mockResolvedValue(mockResponse('{"a":1}'));
+    const fetchFn = vi.fn<typeof fetch>().mockResolvedValue(mockResponse('{"a":1}'));
     await callPortalJsonCompletion({
       ...baseArgs,
       model: "gpt-oss/gpt-oss-120b",
@@ -682,7 +748,7 @@ describe("callPortalJsonCompletion — endpointOverride", () => {
 
   it("auto-upgrades gpt-6-luna under the app's utility override and parses the Responses reply", async () => {
     const fetchFn = vi
-      .fn()
+      .fn<typeof fetch>()
       .mockResolvedValue(mockResponsesBody('{"candidates":[]}', { withReasoningItem: true }));
     const result = await callPortalJsonCompletion({
       ...baseArgs,
@@ -699,7 +765,7 @@ describe("callPortalJsonCompletion — endpointOverride", () => {
     ["/api/v1/utility/chat/completions/", "/api/v1/utility/responses"],
     ["/api/v1/utility/chat/completions#frag", "/api/v1/utility/responses#frag"],
   ])("moves a near-miss override %s to the sibling lane", async (override, expected) => {
-    const fetchFn = vi.fn().mockResolvedValue(mockResponsesBody('{"a":1}'));
+    const fetchFn = vi.fn<typeof fetch>().mockResolvedValue(mockResponsesBody('{"a":1}'));
     await callPortalJsonCompletion({
       ...baseArgs,
       model: "openai/gpt-6-luna",
@@ -710,7 +776,7 @@ describe("callPortalJsonCompletion — endpointOverride", () => {
   });
 
   it("still throws for an explicit chat transport on a near-miss responses override", async () => {
-    const fetchFn = vi.fn();
+    const fetchFn = vi.fn<typeof fetch>();
     await expect(
       callPortalJsonCompletion({
         ...baseArgs,
@@ -724,7 +790,7 @@ describe("callPortalJsonCompletion — endpointOverride", () => {
   });
 
   it("translates a chat-spelled output cap after auto-upgrading", async () => {
-    const fetchFn = vi.fn().mockResolvedValue(mockResponsesBody('{"a":1}'));
+    const fetchFn = vi.fn<typeof fetch>().mockResolvedValue(mockResponsesBody('{"a":1}'));
     await callPortalJsonCompletion({
       ...baseArgs,
       model: "openai/gpt-6-luna",
@@ -732,13 +798,13 @@ describe("callPortalJsonCompletion — endpointOverride", () => {
       extra: { max_completion_tokens: 8192 },
       fetchFn,
     });
-    const body = JSON.parse(String(fetchFn.mock.calls[0][1].body));
+    const body = parseRequestBody(fetchFn.mock.calls[0][1]);
     expect(body.max_output_tokens).toBe(8192);
     expect(body.max_completion_tokens).toBeUndefined();
   });
 
   it("normalizes a missing leading slash onto the override path", async () => {
-    const fetchFn = vi.fn().mockResolvedValue(mockResponse('{"a":1}'));
+    const fetchFn = vi.fn<typeof fetch>().mockResolvedValue(mockResponse('{"a":1}'));
     await callPortalJsonCompletion({
       ...baseArgs,
       endpointOverride: "api/v1/utility/chat/completions",
@@ -748,20 +814,20 @@ describe("callPortalJsonCompletion — endpointOverride", () => {
   });
 
   it("changes only the path — the request body is byte-identical with vs without override", async () => {
-    const fetchFn = vi.fn().mockResolvedValue(mockResponse('{"a":1}'));
+    const fetchFn = vi.fn<typeof fetch>().mockResolvedValue(mockResponse('{"a":1}'));
     await callPortalJsonCompletion({ ...baseArgs, fetchFn });
     await callPortalJsonCompletion({
       ...baseArgs,
       endpointOverride: "/api/v1/utility/chat/completions",
       fetchFn,
     });
-    const bodyDefault = fetchFn.mock.calls[0][1].body as string;
-    const bodyOverride = fetchFn.mock.calls[1][1].body as string;
+    const bodyDefault = fetchFn.mock.calls[0][1]?.body as string;
+    const bodyOverride = fetchFn.mock.calls[1][1]?.body as string;
     expect(bodyOverride).toBe(bodyDefault);
   });
 
   it("throws (rejects) on an empty/whitespace override before any request is sent", async () => {
-    const fetchFn = vi.fn().mockResolvedValue(mockResponse('{"a":1}'));
+    const fetchFn = vi.fn<typeof fetch>().mockResolvedValue(mockResponse('{"a":1}'));
     await expect(
       callPortalJsonCompletion({ ...baseArgs, endpointOverride: "   ", fetchFn })
     ).rejects.toThrow(/non-empty, root-relative path/);
@@ -769,7 +835,7 @@ describe("callPortalJsonCompletion — endpointOverride", () => {
   });
 
   it("throws (rejects) on an off-origin (absolute URL) override", async () => {
-    const fetchFn = vi.fn().mockResolvedValue(mockResponse('{"a":1}'));
+    const fetchFn = vi.fn<typeof fetch>().mockResolvedValue(mockResponse('{"a":1}'));
     await expect(
       callPortalJsonCompletion({
         ...baseArgs,
@@ -809,7 +875,7 @@ describe("callPortalJsonCompletion — reported token usage", () => {
 
   it("reports prompt, completion and portal-reported cached tokens", async () => {
     withSpyLogger();
-    const fetchFn = vi.fn().mockResolvedValue(
+    const fetchFn = vi.fn<typeof fetch>().mockResolvedValue(
       bodyResponse({
         choices: [{ message: { content: '{"a":1}' } }],
         usage: { prompt_tokens: 1500, completion_tokens: 40, total_tokens: 1540 },
@@ -826,7 +892,7 @@ describe("callPortalJsonCompletion — reported token usage", () => {
 
   it("reports cached=0 when the portal omits the field — that IS the no-cache-hit signal", async () => {
     withSpyLogger();
-    const fetchFn = vi.fn().mockResolvedValue(
+    const fetchFn = vi.fn<typeof fetch>().mockResolvedValue(
       bodyResponse({
         choices: [{ message: { content: '{"a":1}' } }],
         usage: { prompt_tokens: 1500, completion_tokens: 40 },
@@ -840,7 +906,7 @@ describe("callPortalJsonCompletion — reported token usage", () => {
 
   it("falls back to the OpenAI-standard prompt_tokens_details.cached_tokens", async () => {
     withSpyLogger();
-    const fetchFn = vi.fn().mockResolvedValue(
+    const fetchFn = vi.fn<typeof fetch>().mockResolvedValue(
       bodyResponse({
         choices: [{ message: { content: '{"a":1}' } }],
         usage: {
@@ -858,7 +924,7 @@ describe("callPortalJsonCompletion — reported token usage", () => {
 
   it("logs nothing when the response carries no usage at all", async () => {
     withSpyLogger();
-    const fetchFn = vi.fn().mockResolvedValue(mockResponse('{"a":1}'));
+    const fetchFn = vi.fn<typeof fetch>().mockResolvedValue(mockResponse('{"a":1}'));
     const result = await callPortalJsonCompletion({ ...baseArgs, fetchFn });
     expect(result).toEqual({ a: 1 });
     expect(debug).not.toHaveBeenCalled();
@@ -866,7 +932,7 @@ describe("callPortalJsonCompletion — reported token usage", () => {
 
   it("survives a malformed usage object without failing the call", async () => {
     withSpyLogger();
-    const fetchFn = vi.fn().mockResolvedValue(
+    const fetchFn = vi.fn<typeof fetch>().mockResolvedValue(
       bodyResponse({
         choices: [{ message: { content: '{"a":1}' } }],
         usage: "not-an-object",
@@ -883,7 +949,7 @@ describe("callPortalJsonCompletion — reported token usage", () => {
       throw new Error("logger backend is down");
     });
     setLogger({ debug: throwing, info: vi.fn(), warn: vi.fn(), error: vi.fn() });
-    const fetchFn = vi.fn().mockResolvedValue(
+    const fetchFn = vi.fn<typeof fetch>().mockResolvedValue(
       bodyResponse({
         choices: [{ message: { content: '{"a":1}' } }],
         usage: { prompt_tokens: 1500, completion_tokens: 40 },
@@ -899,7 +965,7 @@ describe("callPortalJsonCompletion — reported token usage", () => {
 
   it("still reports usage when the completion came back empty", async () => {
     withSpyLogger();
-    const fetchFn = vi.fn().mockResolvedValue(
+    const fetchFn = vi.fn<typeof fetch>().mockResolvedValue(
       bodyResponse({
         choices: [{ message: { content: "" } }],
         usage: { prompt_tokens: 1500, completion_tokens: 0 },
@@ -927,27 +993,27 @@ describe("callPortalJsonCompletion — X-Anuma-Task-Type", () => {
     setLogger(noopLogger);
   });
 
-  function headersOf(fetchFn: ReturnType<typeof vi.fn>): Record<string, string> {
+  function headersOf(fetchFn: ReturnType<typeof vi.fn<typeof fetch>>): Record<string, string> {
     return (fetchFn.mock.calls[0][1] as RequestInit).headers as Record<string, string>;
   }
 
   it("sends the declared task type so the portal can own the prompt for it", async () => {
     setLogger(noopLogger);
-    const fetchFn = vi.fn().mockResolvedValue(mockResponse('{"a":1}'));
+    const fetchFn = vi.fn<typeof fetch>().mockResolvedValue(mockResponse('{"a":1}'));
     await callPortalJsonCompletion({ ...baseArgs, taskType: "memory_extract", fetchFn });
     expect(headersOf(fetchFn)["X-Anuma-Task-Type"]).toBe("memory_extract");
   });
 
   it("omits the header entirely when no task is declared", async () => {
     setLogger(noopLogger);
-    const fetchFn = vi.fn().mockResolvedValue(mockResponse('{"a":1}'));
+    const fetchFn = vi.fn<typeof fetch>().mockResolvedValue(mockResponse('{"a":1}'));
     await callPortalJsonCompletion({ ...baseArgs, fetchFn });
     expect(headersOf(fetchFn)).not.toHaveProperty("X-Anuma-Task-Type");
   });
 
   it("keeps auth and content-type intact alongside it", async () => {
     setLogger(noopLogger);
-    const fetchFn = vi.fn().mockResolvedValue(mockResponse('{"a":1}'));
+    const fetchFn = vi.fn<typeof fetch>().mockResolvedValue(mockResponse('{"a":1}'));
     await callPortalJsonCompletion({ ...baseArgs, taskType: "memory_topic", fetchFn });
     expect(headersOf(fetchFn)).toMatchObject({
       "x-api-key": "test-key",
@@ -967,15 +1033,15 @@ describe("callPortalJsonCompletion — JSON contract reinforcement on retry (#91
     backoffMs: () => 0,
   } as const;
 
-  function systemsOf(fetchFn: ReturnType<typeof vi.fn>, callIndex: number): string[] {
-    const body = JSON.parse(fetchFn.mock.calls[callIndex][1].body as string) as {
+  function systemsOf(fetchFn: ReturnType<typeof vi.fn<typeof fetch>>, callIndex: number): string[] {
+    const body = parseRequestBody(fetchFn.mock.calls[callIndex][1]) as {
       messages: { role: string; content: string }[];
     };
     return body.messages.filter((m) => m.role === "system").map((m) => m.content);
   }
 
   it("does not send the reminder on the first attempt", async () => {
-    const fetchFn = vi.fn().mockResolvedValue(mockResponse('{"ok":1}'));
+    const fetchFn = vi.fn<typeof fetch>().mockResolvedValue(mockResponse('{"ok":1}'));
     await callPortalJsonCompletion({ ...baseArgs, fetchFn });
 
     expect(fetchFn).toHaveBeenCalledTimes(1);
@@ -984,7 +1050,7 @@ describe("callPortalJsonCompletion — JSON contract reinforcement on retry (#91
 
   it("adds the reminder to the attempt AFTER a prose answer", async () => {
     const fetchFn = vi
-      .fn()
+      .fn<typeof fetch>()
       .mockResolvedValueOnce(mockResponse("Sure! Here's what I found:"))
       .mockResolvedValueOnce(mockResponse('{"ok":1}'));
 
@@ -1000,7 +1066,7 @@ describe("callPortalJsonCompletion — JSON contract reinforcement on retry (#91
 
   it("leaves the marked system prompt byte-identical across attempts", async () => {
     const fetchFn = vi
-      .fn()
+      .fn<typeof fetch>()
       .mockResolvedValueOnce(mockResponse("nope"))
       .mockResolvedValueOnce(mockResponse('{"ok":1}'));
 
@@ -1011,7 +1077,7 @@ describe("callPortalJsonCompletion — JSON contract reinforcement on retry (#91
   });
 
   it("stays on for every later attempt once a parse has failed", async () => {
-    const fetchFn = vi.fn().mockResolvedValue(mockResponse("still prose"));
+    const fetchFn = vi.fn<typeof fetch>().mockResolvedValue(mockResponse("still prose"));
 
     await callPortalJsonCompletion({ ...baseArgs, fetchFn, maxAttempts: 3 });
 
@@ -1023,7 +1089,7 @@ describe("callPortalJsonCompletion — JSON contract reinforcement on retry (#91
 
   it("does NOT reinforce after a network failure", async () => {
     const fetchFn = vi
-      .fn()
+      .fn<typeof fetch>()
       .mockRejectedValueOnce(new Error("connection reset"))
       .mockResolvedValueOnce(mockResponse('{"ok":1}'));
 
@@ -1035,7 +1101,7 @@ describe("callPortalJsonCompletion — JSON contract reinforcement on retry (#91
 
   it("does NOT reinforce after a retryable HTTP status", async () => {
     const fetchFn = vi
-      .fn()
+      .fn<typeof fetch>()
       .mockResolvedValueOnce(new Response("upstream boom", { status: 503 }))
       .mockResolvedValueOnce(mockResponse('{"ok":1}'));
 
@@ -1074,7 +1140,7 @@ describe("callPortalJsonCompletion — responses transport", () => {
   } as const;
 
   it("posts a Responses-shaped body to the responses endpoint", async () => {
-    const fetchFn = vi.fn().mockResolvedValue(mockResponsesBody('{"ok":true}'));
+    const fetchFn = vi.fn<typeof fetch>().mockResolvedValue(mockResponsesBody('{"ok":true}'));
     const out = await callPortalJsonCompletion({
       ...baseArgs,
       transport: "responses",
@@ -1083,30 +1149,31 @@ describe("callPortalJsonCompletion — responses transport", () => {
     });
 
     const [url, init] = fetchFn.mock.calls[0];
-    expect(String(url)).toContain("/api/v1/responses");
-    const sent = JSON.parse(init.body as string);
+    expect(url).toContain("/api/v1/responses");
+    const sent = parseRequestBody(init);
+    const input = sent.input as Array<{ role: string; content: string }>;
     expect(
-      sent.input.map((m: { role: string }) => m.role),
+      input.map((m) => m.role),
       "Responses takes `input`, not `messages`"
     ).toEqual(["system", "user"]);
-    expect(sent.input[0].content).toContain("system");
-    expect(sent.input[1].content).toBe("user");
+    expect(input[0].content).toContain("system");
+    expect(input[1].content).toBe("user");
     expect(sent.messages).toBeUndefined();
     expect(sent.reasoning).toEqual({ effort: "medium" });
     expect(out).toEqual({ ok: true });
   });
 
   it("does not send response_format on this transport", async () => {
-    const fetchFn = vi.fn().mockResolvedValue(mockResponsesBody('{"ok":true}'));
+    const fetchFn = vi.fn<typeof fetch>().mockResolvedValue(mockResponsesBody('{"ok":true}'));
     await callPortalJsonCompletion({ ...baseArgs, transport: "responses", fetchFn });
-    const sent = JSON.parse(fetchFn.mock.calls[0][1].body as string);
+    const sent = parseRequestBody(fetchFn.mock.calls[0][1]);
     expect(sent.response_format).toBeUndefined();
     expect(sent.text).toBeUndefined();
   });
 
   it("reads text past a leading reasoning item", async () => {
     const fetchFn = vi
-      .fn()
+      .fn<typeof fetch>()
       .mockResolvedValue(mockResponsesBody('{"facts":[1]}', { withReasoningItem: true }));
     const out = await callPortalJsonCompletion({
       ...baseArgs,
@@ -1119,32 +1186,34 @@ describe("callPortalJsonCompletion — responses transport", () => {
   });
 
   it("prefers output_text when the portal provides it", async () => {
-    const fetchFn = vi.fn().mockResolvedValue(mockResponsesBody('{"ok":1}', { outputText: true }));
+    const fetchFn = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(mockResponsesBody('{"ok":1}', { outputText: true }));
     expect(
       await callPortalJsonCompletion({ ...baseArgs, transport: "responses", fetchFn })
     ).toEqual({ ok: 1 });
   });
 
   it("defaults to the chat transport and leaves it byte-identical", async () => {
-    const fetchFn = vi.fn().mockResolvedValue(mockResponse('{"ok":true}'));
+    const fetchFn = vi.fn<typeof fetch>().mockResolvedValue(mockResponse('{"ok":true}'));
     await callPortalJsonCompletion({ ...baseArgs, model: "openai/gpt-5-mini", fetchFn });
     const [url, init] = fetchFn.mock.calls[0];
-    expect(String(url)).toContain("/api/v1/chat/completions");
-    const sent = JSON.parse(init.body as string);
+    expect(url).toContain("/api/v1/chat/completions");
+    const sent = parseRequestBody(init);
     expect(sent.messages).toHaveLength(2);
     expect(sent.input).toBeUndefined();
     expect(sent.response_format).toEqual({ type: "json_object" });
   });
 
   it("still honours an endpointOverride on the responses transport", async () => {
-    const fetchFn = vi.fn().mockResolvedValue(mockResponsesBody('{"ok":true}'));
+    const fetchFn = vi.fn<typeof fetch>().mockResolvedValue(mockResponsesBody('{"ok":true}'));
     await callPortalJsonCompletion({
       ...baseArgs,
       transport: "responses",
       endpointOverride: "/api/v1/utility/responses",
       fetchFn,
     });
-    expect(String(fetchFn.mock.calls[0][0])).toContain("/api/v1/utility/responses");
+    expect(fetchFn.mock.calls[0][0]).toContain("/api/v1/utility/responses");
   });
 
   it("retries an empty responses answer rather than accepting it", async () => {
@@ -1154,7 +1223,7 @@ describe("callPortalJsonCompletion — responses transport", () => {
         headers: { "Content-Type": "application/json" },
       });
     const fetchFn = vi
-      .fn()
+      .fn<typeof fetch>()
       .mockResolvedValueOnce(empty())
       .mockResolvedValue(mockResponsesBody('{"ok":true}'));
     const out = await callPortalJsonCompletion({
@@ -1178,44 +1247,44 @@ describe("callPortalJsonCompletion — responses transport misuse guards", () =>
   } as const;
 
   it("translates the chat-spelled output cap that topicExtract passes", async () => {
-    const fetchFn = vi.fn().mockResolvedValue(mockResponsesBody('{"ok":true}'));
+    const fetchFn = vi.fn<typeof fetch>().mockResolvedValue(mockResponsesBody('{"ok":true}'));
     await callPortalJsonCompletion({
       ...baseArgs,
       transport: "responses",
       extra: { max_completion_tokens: 8192 },
       fetchFn,
     });
-    const sent = JSON.parse(fetchFn.mock.calls[0][1].body as string);
+    const sent = parseRequestBody(fetchFn.mock.calls[0][1]);
     expect(sent.max_output_tokens).toBe(8192);
     expect(sent.max_completion_tokens, "the chat spelling must not survive").toBeUndefined();
   });
 
   it("passes unknown extra keys through untranslated", async () => {
-    const fetchFn = vi.fn().mockResolvedValue(mockResponsesBody('{"ok":true}'));
+    const fetchFn = vi.fn<typeof fetch>().mockResolvedValue(mockResponsesBody('{"ok":true}'));
     await callPortalJsonCompletion({
       ...baseArgs,
       transport: "responses",
       extra: { metadata: { lane: "topic" } },
       fetchFn,
     });
-    const sent = JSON.parse(fetchFn.mock.calls[0][1].body as string);
+    const sent = parseRequestBody(fetchFn.mock.calls[0][1]);
     expect(sent.metadata).toEqual({ lane: "topic" });
   });
 
   it("strips a caller-supplied response_format on the responses branch", async () => {
-    const fetchFn = vi.fn().mockResolvedValue(mockResponsesBody('{"ok":true}'));
+    const fetchFn = vi.fn<typeof fetch>().mockResolvedValue(mockResponsesBody('{"ok":true}'));
     await callPortalJsonCompletion({
       ...baseArgs,
       transport: "responses",
       extra: { response_format: { type: "json_object" } },
       fetchFn,
     });
-    const sent = JSON.parse(fetchFn.mock.calls[0][1].body as string);
+    const sent = parseRequestBody(fetchFn.mock.calls[0][1]);
     expect(sent.response_format).toBeUndefined();
   });
 
   it("throws when an endpointOverride contradicts the transport", async () => {
-    const fetchFn = vi.fn();
+    const fetchFn = vi.fn<typeof fetch>();
     await expect(
       callPortalJsonCompletion({
         ...baseArgs,
@@ -1228,7 +1297,7 @@ describe("callPortalJsonCompletion — responses transport misuse guards", () =>
   });
 
   it("throws for the mirror mismatch on the chat transport", async () => {
-    const fetchFn = vi.fn();
+    const fetchFn = vi.fn<typeof fetch>();
     await expect(
       callPortalJsonCompletion({
         ...baseArgs,
@@ -1241,58 +1310,61 @@ describe("callPortalJsonCompletion — responses transport misuse guards", () =>
   });
 
   it("accepts the matching utility override on each transport", async () => {
-    const responsesFetch = vi.fn().mockResolvedValue(mockResponsesBody('{"ok":true}'));
+    const responsesFetch = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(mockResponsesBody('{"ok":true}'));
     await callPortalJsonCompletion({
       ...baseArgs,
       transport: "responses",
       endpointOverride: "/api/v1/utility/responses",
       fetchFn: responsesFetch,
     });
-    expect(String(responsesFetch.mock.calls[0][0])).toContain("/api/v1/utility/responses");
+    expect(responsesFetch.mock.calls[0][0]).toContain("/api/v1/utility/responses");
 
-    const chatFetch = vi.fn().mockResolvedValue(mockResponse('{"ok":true}'));
+    const chatFetch = vi.fn<typeof fetch>().mockResolvedValue(mockResponse('{"ok":true}'));
     await callPortalJsonCompletion({
       ...baseArgs,
       model: "anthropic/claude-sonnet-4-6",
       endpointOverride: "/api/v1/utility/chat/completions",
       fetchFn: chatFetch,
     });
-    expect(String(chatFetch.mock.calls[0][0])).toContain("/api/v1/utility/chat/completions");
+    expect(chatFetch.mock.calls[0][0]).toContain("/api/v1/utility/chat/completions");
   });
 
   it("does not carry the Anthropic prefill into `input`", async () => {
-    const fetchFn = vi.fn().mockResolvedValue(mockResponsesBody('{"ok":true}'));
+    const fetchFn = vi.fn<typeof fetch>().mockResolvedValue(mockResponsesBody('{"ok":true}'));
     await callPortalJsonCompletion({
       ...baseArgs,
       model: "anthropic/claude-sonnet-5",
       transport: "responses",
       fetchFn,
     });
-    const sent = JSON.parse(fetchFn.mock.calls[0][1].body as string);
-    expect(sent.input.map((m: { role: string }) => m.role)).toEqual(["system", "user"]);
+    const sent = parseRequestBody(fetchFn.mock.calls[0][1]);
+    const input = sent.input as Array<{ role: string }>;
+    expect(input.map((m) => m.role)).toEqual(["system", "user"]);
   });
 
   it("leaves a neutral proxy path alone — the guard rejects only the wrong endpoint", async () => {
-    const fetchFn = vi.fn().mockResolvedValue(mockResponse('{"ok":true}'));
+    const fetchFn = vi.fn<typeof fetch>().mockResolvedValue(mockResponse('{"ok":true}'));
     await callPortalJsonCompletion({ ...baseArgs, endpointOverride: "/api/llm-proxy", fetchFn });
-    expect(String(fetchFn.mock.calls[0][0])).toContain("/api/llm-proxy");
+    expect(fetchFn.mock.calls[0][0]).toContain("/api/llm-proxy");
   });
 
   it("does not let key order decide when both cap spellings are passed", async () => {
-    const fetchFn = vi.fn().mockResolvedValue(mockResponsesBody('{"ok":true}'));
+    const fetchFn = vi.fn<typeof fetch>().mockResolvedValue(mockResponsesBody('{"ok":true}'));
     await callPortalJsonCompletion({
       ...baseArgs,
       transport: "responses",
       extra: { max_completion_tokens: 1024, max_output_tokens: 8192 },
       fetchFn,
     });
-    const sent = JSON.parse(fetchFn.mock.calls[0][1].body as string);
+    const sent = parseRequestBody(fetchFn.mock.calls[0][1]);
     expect(sent.max_output_tokens).toBe(8192);
     expect(sent.max_completion_tokens).toBeUndefined();
   });
 
   it("disarms the prefill RESTORE on the responses transport, not just the push", async () => {
-    const fetchFn = vi.fn().mockResolvedValue(mockResponsesBody('"hello"'));
+    const fetchFn = vi.fn<typeof fetch>().mockResolvedValue(mockResponsesBody('"hello"'));
     const out = await callPortalJsonCompletion({
       ...baseArgs,
       model: "anthropic/claude-sonnet-5",
@@ -1304,7 +1376,7 @@ describe("callPortalJsonCompletion — responses transport misuse guards", () =>
   });
 
   it("keeps the prefill restore on the chat transport", async () => {
-    const fetchFn = vi.fn().mockResolvedValue(mockResponse('"a": 1}'));
+    const fetchFn = vi.fn<typeof fetch>().mockResolvedValue(mockResponse('"a": 1}'));
     const out = await callPortalJsonCompletion({
       ...baseArgs,
       model: "anthropic/claude-sonnet-5",
@@ -1324,7 +1396,7 @@ describe("callPortalJsonCompletion — responses transport misuse guards", () =>
       }),
       { status: 200, headers: { "Content-Type": "application/json" } }
     );
-    const fetchFn = vi.fn().mockResolvedValue(body);
+    const fetchFn = vi.fn<typeof fetch>().mockResolvedValue(body);
     const out = await callPortalJsonCompletion({ ...baseArgs, transport: "responses", fetchFn });
     expect(out).toEqual({ ok: true });
     expect(fetchFn, "must not have retried").toHaveBeenCalledTimes(1);
