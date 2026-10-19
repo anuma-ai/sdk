@@ -47,7 +47,7 @@ export type CreateSelectPaymentWalletToolOptions = CreateUIToolsOptions & {
 
 /** Options for {@link createWalletPaymentTool}. */
 export type CreateWalletPaymentToolOptions = CreateUIToolsOptions & {
-  /** Pays the booking: stop before submitting if `signal` fires, and once submitted show the user the real outcome, because the tool result will read cancelled. */
+  /** Pays the booking: if `signal` fires before submitting, stop there; if it fires after submitting, show the user the real outcome, because the tool result will read cancelled. */
   pay: (request: WalletPaymentRequest, signal?: AbortSignal) => Promise<WalletPaymentOutcome>;
 };
 
