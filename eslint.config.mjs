@@ -22,6 +22,7 @@ const checkedTestFiles = [
   ...appGenerationTests,
   ...memoryTelemetryTests,
   "src/expo/useChatStorage.sendHistoryRead.test.tsx",
+  "src/lib/memory/reliability.integration.test.ts",
   "src/lib/backup/icloud/backup.test.ts",
   "src/lib/chat/toolLoop.detach.test.ts",
   "src/lib/chat/toolLoop.idleTimeout.test.ts",
