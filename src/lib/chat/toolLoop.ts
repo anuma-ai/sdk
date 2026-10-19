@@ -8,6 +8,11 @@ import type {
 import { createSseClient } from "../../client/core/serverSentEvents.gen";
 import { BASE_URL } from "../../clientConfig";
 import { CONFIRM_TOOL_NAME, missingConfirmFields } from "../../tools/confirmConstants";
+import {
+  FLIGHT_BOOK_TOOL_SET,
+  SELECT_PAYMENT_WALLET_TOOL_NAME,
+  WALLET_PAYMENT_TOOL_NAME,
+} from "../../tools/walletPaymentConstants";
 import { generateEmbedding } from "../memoryEngine/embeddings";
 import {
   createStreamingDeAnonymizer,
@@ -310,8 +315,9 @@ function getToolName(tool: Record<string, unknown>): string | undefined {
  * The tools to keep once the user approves a confirm card whose action maps to
  * a tool set: the set's members, the tool-search tool that loads deferred
  * members, and the confirm tool only when the approved card lacked a required
- * field. Returns undefined to leave the tools alone: nothing was confirmed, the
- * action maps to no set, or none of the set's members is on offer.
+ * field. A confirmed wallet choice narrows the same way to the flight-booking set
+ * plus both payment tools. Returns undefined to leave the tools alone: nothing was
+ * confirmed, the action maps to no set, or none of the set's members is on offer.
  */
 export function toolsAfterConfirmation(
   apiTools: Array<Record<string, unknown>>,
@@ -319,7 +325,17 @@ export function toolsAfterConfirmation(
 ): Array<Record<string, unknown>> | undefined {
   const members = new Set<string>();
   let keepConfirm = false;
+  let keepPaymentTools = false;
   for (const r of executionResults) {
+    if (
+      r.name === SELECT_PAYMENT_WALLET_TOOL_NAME &&
+      (r.result as { confirmed?: unknown } | null | undefined)?.confirmed === true
+    ) {
+      const flightSet = BUILT_IN_TOOL_SETS.find((s) => s.name === FLIGHT_BOOK_TOOL_SET);
+      for (const member of flightSet?.members ?? []) members.add(member);
+      keepPaymentTools = true;
+      continue;
+    }
     if (r.name !== CONFIRM_TOOL_NAME) continue;
     const answer = r.result as
       | { confirmed?: unknown; action?: unknown; parameters?: unknown }
@@ -337,7 +353,9 @@ export function toolsAfterConfirmation(
     return (
       members.has(name) ||
       name === TOOL_SEARCH_TOOL_NAME ||
-      (keepConfirm && name === CONFIRM_TOOL_NAME)
+      (keepConfirm && name === CONFIRM_TOOL_NAME) ||
+      (keepPaymentTools &&
+        (name === SELECT_PAYMENT_WALLET_TOOL_NAME || name === WALLET_PAYMENT_TOOL_NAME))
     );
   });
 }

@@ -131,7 +131,13 @@ describe("useSettings with a bound database", () => {
 
     act(() => {
       observeSubscribers[0]?.next([
-        { id: "rec-1", walletAddress: "0xABC", externalWallets: second, createdAt: 1, updatedAt: 2 },
+        {
+          id: "rec-1",
+          walletAddress: "0xABC",
+          externalWallets: second,
+          createdAt: 1,
+          updatedAt: 2,
+        },
       ]);
     });
 

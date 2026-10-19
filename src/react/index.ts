@@ -777,6 +777,21 @@ export {
 export type { DisplayToolMigrations } from "../tools/uiInteraction";
 export { migrateDisplayResult } from "../tools/uiInteraction";
 export type {
+  CreateSelectPaymentWalletToolOptions,
+  CreateWalletPaymentToolOptions,
+  PaymentWallet,
+  SelectPaymentWalletResult,
+  WalletPaymentOutcome,
+  WalletPaymentPassenger,
+  WalletPaymentRequest,
+  WalletPaymentResult,
+} from "../tools/walletPayment";
+export { createSelectPaymentWalletTool, createWalletPaymentTool } from "../tools/walletPayment";
+export {
+  SELECT_PAYMENT_WALLET_TOOL_NAME,
+  WALLET_PAYMENT_TOOL_NAME,
+} from "../tools/walletPaymentConstants";
+export type {
   AnumaShadowIsolationProviderProps,
   AnumaTheme,
   AnumaThemeProviderProps,

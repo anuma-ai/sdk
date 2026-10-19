@@ -586,6 +586,21 @@ export {
 export type { UseModelsOptions, UseModelsResult } from "../react/useModels";
 export { clearModelsCache, useModels } from "../react/useModels";
 export { createNotionProxyTools, createNotionTools, type NotionMcpCaller } from "../tools/notion";
+export type {
+  CreateSelectPaymentWalletToolOptions,
+  CreateWalletPaymentToolOptions,
+  PaymentWallet,
+  SelectPaymentWalletResult,
+  WalletPaymentOutcome,
+  WalletPaymentPassenger,
+  WalletPaymentRequest,
+  WalletPaymentResult,
+} from "../tools/walletPayment";
+export { createSelectPaymentWalletTool, createWalletPaymentTool } from "../tools/walletPayment";
+export {
+  SELECT_PAYMENT_WALLET_TOOL_NAME,
+  WALLET_PAYMENT_TOOL_NAME,
+} from "../tools/walletPaymentConstants";
 export { useChat } from "./useChat";
 export type {
   ResumeStreamWithStorageResult,

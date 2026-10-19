@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { ToolConfig } from "../chat/useChat/types";
 import { APP_BUILDER_PROMPT } from "../../tools/appBuilderPrompt";
 import { CONFIRM_TOOL_NAME } from "../../tools/confirmConstants";
+import { FLIGHT_BOOK_TOOL_SET, FLIGHT_SERVER_TOOL_NAMES } from "../../tools/walletPaymentConstants";
 import {
   activatedToolSetNames,
   BUILT_IN_TOOL_SETS,
@@ -14,6 +15,7 @@ import {
   getToolsChecksum,
   mergeTools,
   resolveDeferredServerTools,
+  SERVER_TOOL_DEPENDENCY_SETS,
   type ServerTool,
   shouldRefreshTools,
   type ToolsCacheBackend,
@@ -688,5 +690,45 @@ describe("restaurant cancel — the cancel tool always brings the list tool", ()
 
   it("does not add the cancel tool when only the list tool is selected", () => {
     expect(defaultServerToolsFilter([0, 1], catalog)).toEqual([LIST]);
+  });
+});
+
+describe("flight booking — searching flights brings the booking tools", () => {
+  const [SEARCH, DETAILS, INTENT, BOOKING] = FLIGHT_SERVER_TOOL_NAMES;
+  const st = (name: string, embedding: number[]): ServerTool => ({
+    type: "function",
+    name,
+    description: `desc ${name}`,
+    parameters: { type: "object", properties: {}, required: [] },
+    embedding,
+  });
+  const catalogWithSearchScore = (score: number) => [
+    st(SEARCH, [score, Math.sqrt(1 - score * score)]),
+    st(DETAILS, [0, 1]),
+    st(INTENT, [0, 1]),
+    st(BOOKING, [0, 1]),
+  ];
+
+  it("defines flight-book as exactly the four flight server tools, with no anchors", () => {
+    const set = BUILT_IN_TOOL_SETS.find((s) => s.name === FLIGHT_BOOK_TOOL_SET);
+    expect(set?.members).toEqual([...FLIGHT_SERVER_TOOL_NAMES]);
+    expect(set?.anchors).toEqual([]);
+  });
+
+  it("adds the booking tools when the search tool scores at least 0.5", () => {
+    expect(defaultServerToolsFilter([1, 0], catalogWithSearchScore(0.5))).toEqual([
+      SEARCH,
+      DETAILS,
+      INTENT,
+      BOOKING,
+    ]);
+  });
+
+  it("does not add the booking tools when the search tool scores 0.4", () => {
+    const looseFilter = createServerToolsFilter({
+      matchOptions: { limit: 5, minSimilarity: 0.3 },
+      toolSets: SERVER_TOOL_DEPENDENCY_SETS,
+    });
+    expect(looseFilter([1, 0], catalogWithSearchScore(0.4))).toEqual([SEARCH]);
   });
 });

@@ -2,7 +2,7 @@
 
 > `const` **sdkMigrations**: `Readonly`<{ `maxVersion`: `number`; `minVersion`: `number`; `sortedMigrations`: `Readonly`<{ `steps`: `MigrationStep`\[]; `toVersion`: `number`; }>\[]; `validated`: `true`; }>
 
-Defined in: [src/lib/db/schema.ts:452](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/schema.ts#452)
+Defined in: [src/lib/db/schema.ts:456](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/schema.ts#456)
 
 Combined migrations for all SDK storage modules.
 
@@ -58,3 +58,4 @@ Migration history:
 * v42 → v43: Added a composite `(is_deleted, created_at)` index to conversations so the list reads stop temp-sorting (structural only, no data rewritten)
 * v43 → v44: Added `origin` column to history recording which producer synthesised a row, so the embedding sweep can skip never-rendered tool-result dumps (plaintext by design — the sweep has no wallet context; null = legacy, embedded as before)
 * v47 → v48: Added `kind`, `kind_value`, `level` to memory\_vault; `level` backfilled from `scope` (`shared`/`public` → matching, else private) where SQL steps run
+* v48 → v49: Added `external_wallets` to userPreferences (JSON list of the user's saved external wallets; null for existing rows)

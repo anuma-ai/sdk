@@ -520,6 +520,18 @@ Re-exports [createRemoteMemoryStore](../react/Internal/functions/createRemoteMem
 
 ***
 
+### createSelectPaymentWalletTool
+
+Re-exports [createSelectPaymentWalletTool](../react/Internal/functions/createSelectPaymentWalletTool.md)
+
+***
+
+### CreateSelectPaymentWalletToolOptions
+
+Re-exports [CreateSelectPaymentWalletToolOptions](../react/Internal/type-aliases/CreateSelectPaymentWalletToolOptions.md)
+
+***
+
 ### createStockPricePreProcessor
 
 Re-exports [createStockPricePreProcessor](../react/Internal/functions/createStockPricePreProcessor.md)
@@ -559,6 +571,18 @@ Re-exports [createVaultMemoryOp](../react/Internal/functions/createVaultMemoryOp
 ### CreateVaultMemoryOptions
 
 Re-exports [CreateVaultMemoryOptions](../react/Internal/interfaces/CreateVaultMemoryOptions.md)
+
+***
+
+### createWalletPaymentTool
+
+Re-exports [createWalletPaymentTool](../react/Internal/functions/createWalletPaymentTool.md)
+
+***
+
+### CreateWalletPaymentToolOptions
+
+Re-exports [CreateWalletPaymentToolOptions](../react/Internal/type-aliases/CreateWalletPaymentToolOptions.md)
 
 ***
 
@@ -1564,6 +1588,12 @@ Re-exports [PAST\_EVENT\_GRACE\_MS](../react/Internal/variables/PAST_EVENT_GRACE
 
 ***
 
+### PaymentWallet
+
+Re-exports [PaymentWallet](../react/Internal/type-aliases/PaymentWallet.md)
+
+***
+
 ### PhotoIngestResult
 
 Re-exports [PhotoIngestResult](../react/Internal/interfaces/PhotoIngestResult.md)
@@ -2128,6 +2158,18 @@ Re-exports [seedEncryptionKeys](../react/Internal/functions/seedEncryptionKeys.m
 
 ***
 
+### SELECT\_PAYMENT\_WALLET\_TOOL\_NAME
+
+Re-exports [SELECT\_PAYMENT\_WALLET\_TOOL\_NAME](../react/Internal/variables/SELECT_PAYMENT_WALLET_TOOL_NAME.md)
+
+***
+
+### SelectPaymentWalletResult
+
+Re-exports [SelectPaymentWalletResult](../react/Internal/type-aliases/SelectPaymentWalletResult.md)
+
+***
+
 ### ServerToolsOptions
 
 Re-exports [ServerToolsOptions](../react/Internal/interfaces/ServerToolsOptions.md)
@@ -2617,6 +2659,36 @@ Re-exports [verifyMemoriesForPublish](../react/Internal/functions/verifyMemories
 ### VerifyMemoriesForPublishOptions
 
 Re-exports [VerifyMemoriesForPublishOptions](../react/Internal/interfaces/VerifyMemoriesForPublishOptions.md)
+
+***
+
+### WALLET\_PAYMENT\_TOOL\_NAME
+
+Re-exports [WALLET\_PAYMENT\_TOOL\_NAME](../react/Internal/variables/WALLET_PAYMENT_TOOL_NAME.md)
+
+***
+
+### WalletPaymentOutcome
+
+Re-exports [WalletPaymentOutcome](../react/Internal/type-aliases/WalletPaymentOutcome.md)
+
+***
+
+### WalletPaymentPassenger
+
+Re-exports [WalletPaymentPassenger](../react/Internal/type-aliases/WalletPaymentPassenger.md)
+
+***
+
+### WalletPaymentRequest
+
+Re-exports [WalletPaymentRequest](../react/Internal/type-aliases/WalletPaymentRequest.md)
+
+***
+
+### WalletPaymentResult
+
+Re-exports [WalletPaymentResult](../react/Internal/type-aliases/WalletPaymentResult.md)
 
 ***
 

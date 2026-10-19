@@ -2,6 +2,6 @@
 
 > `const` **DEFAULT\_CACHE\_EXPIRATION\_MS**: `number`
 
-Defined in: [src/lib/tools/serverTools.ts:138](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#138)
+Defined in: [src/lib/tools/serverTools.ts:139](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#139)
 
 Default cache expiration: 1 day

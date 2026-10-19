@@ -2,7 +2,7 @@
 
 > **StepFinishEvent** = `object`
 
-Defined in: [src/lib/chat/toolLoop.ts:389](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/toolLoop.ts#389)
+Defined in: [src/lib/chat/toolLoop.ts:407](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/toolLoop.ts#407)
 
 Information emitted after each tool execution round completes.
 
@@ -12,7 +12,7 @@ Information emitted after each tool execution round completes.
 
 > **content**: `string`
 
-Defined in: [src/lib/chat/toolLoop.ts:393](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/toolLoop.ts#393)
+Defined in: [src/lib/chat/toolLoop.ts:411](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/toolLoop.ts#411)
 
 Text content the model produced in this round (may be empty if the model only called tools).
 
@@ -22,7 +22,7 @@ Text content the model produced in this round (may be empty if the model only ca
 
 > `optional` **finishReason**: `string`
 
-Defined in: [src/lib/chat/toolLoop.ts:419](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/toolLoop.ts#419)
+Defined in: [src/lib/chat/toolLoop.ts:437](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/toolLoop.ts#437)
 
 The round's own finish reason, as the provider sent it — `"length"` means
 this round hit the output ceiling.
@@ -43,7 +43,7 @@ the result for the final round.
 
 > **stepIndex**: `number`
 
-Defined in: [src/lib/chat/toolLoop.ts:391](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/toolLoop.ts#391)
+Defined in: [src/lib/chat/toolLoop.ts:409](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/toolLoop.ts#409)
 
 1-based index of this tool round.
 
@@ -53,7 +53,7 @@ Defined in: [src/lib/chat/toolLoop.ts:391](https://github.com/anuma-ai/sdk/blob/
 
 > **toolCalls**: `object`\[]
 
-Defined in: [src/lib/chat/toolLoop.ts:395](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/toolLoop.ts#395)
+Defined in: [src/lib/chat/toolLoop.ts:413](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/toolLoop.ts#413)
 
 Tool calls the model made in this round.
 
@@ -71,7 +71,7 @@ Tool calls the model made in this round.
 
 > **toolResults**: `object`\[]
 
-Defined in: [src/lib/chat/toolLoop.ts:397](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/toolLoop.ts#397)
+Defined in: [src/lib/chat/toolLoop.ts:415](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/toolLoop.ts#415)
 
 Results from auto-executed tools in this round.
 
@@ -97,7 +97,7 @@ Results from auto-executed tools in this round.
 
 > **usage**: `object`
 
-Defined in: [src/lib/chat/toolLoop.ts:404](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/toolLoop.ts#404)
+Defined in: [src/lib/chat/toolLoop.ts:422](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/toolLoop.ts#422)
 
 Token usage for this round, if available.
 

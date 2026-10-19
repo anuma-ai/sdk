@@ -1,6 +1,6 @@
 # Database Schema
 
-Current version: **v48**
+Current version: **v49**
 
 ```mermaid
 graph LR
@@ -112,6 +112,7 @@ graph LR
 | `description` | string |  | ✓ |
 | `models` | string |  | ✓ |
 | `personality` | string |  | ✓ |
+| `external_wallets` | string |  | ✓ |
 | `created_at` | number |  |  |
 | `updated_at` | number |  |  |
 
@@ -254,6 +255,7 @@ graph LR
 
 | Version | Changes |
 |---------|---------|
+| v49 | Added `external_wallets` to `userPreferences` |
 | v48 | Added `kind`, `kind_value`, `level` to `memory_vault`; `UPDATE memory_vault SET level = CASE WHEN scope IN ('shared', 'public') THEN 'matching' ELSE 'private' END WHERE level IS NULL;` |
 | v47 | Added `failed_sessions`, `failed_head`, `failed_at` to `memory_extraction_jobs` |
 | v46 | Added `memory_extraction_jobs` table |
