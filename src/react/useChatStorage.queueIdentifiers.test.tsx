@@ -18,6 +18,26 @@ vi.mock("../lib/chat/toolLoop", async (importOriginal) => {
 
 const walletAddress = "0x1234567890123456789012345678901234567890";
 
+type ToolLoopResult = Awaited<ReturnType<typeof runToolLoop>>;
+
+const toolLoopResult: ToolLoopResult = {
+  data: {
+    id: "response-1",
+    model: "test-model",
+    object: "response",
+    output: [
+      {
+        type: "message",
+        role: "assistant",
+        content: [{ type: "output_text", text: "The tool returned a result." }],
+        status: "completed",
+      },
+    ],
+  },
+  error: null,
+  autoExecutedToolResults: [{ name: "lookup", result: { value: "found" } }],
+};
+
 function makeDatabase(): Database {
   const adapter = new LokiJSAdapter({
     schema: sdkSchema,
@@ -37,23 +57,7 @@ describe.each([
     clearEncryptionKey(walletAddress);
     queueManager.clear(walletAddress);
     vi.spyOn(globalThis, "fetch").mockRejectedValue(new Error("Network unavailable"));
-    vi.mocked(runToolLoop).mockResolvedValue({
-      data: {
-        id: "response-1",
-        model: "test-model",
-        object: "response",
-        output: [
-          {
-            type: "message",
-            role: "assistant",
-            content: [{ type: "output_text", text: "The tool returned a result." }],
-            status: "completed",
-          },
-        ],
-      },
-      error: null,
-      autoExecutedToolResults: [{ name: "lookup", result: { value: "found" } }],
-    });
+    vi.mocked(runToolLoop).mockResolvedValue(toolLoopResult);
   });
 
   afterEach(() => {
@@ -64,91 +68,205 @@ describe.each([
     vi.clearAllMocks();
   });
 
-  it("queues writes until the wallet arrives and flushes encrypted rows into its database", async () => {
-    const initialDatabase = makeDatabase();
-    const walletDatabase = makeDatabase();
-    const signMessage = vi.fn().mockRejectedValue(new Error("Encryption key unavailable"));
-    const getWalletAddress = vi.fn().mockResolvedValue(null);
-    const { result, rerender } = renderHook(
-      ({ database, address }: { database: Database; address?: string }) =>
-        useChatStorage({
-          database,
-          walletAddress: address,
-          signMessage,
-          getWalletAddress,
-          enableQueue: true,
-          getToken: () => Promise.resolve("token"),
-          autoEmbedMessages: false,
-        }),
-      { initialProps: { database: initialDatabase, address: undefined as string | undefined } }
-    );
+  it.each([false, true])(
+    "flushes buffered writes when the wallet arrives with a cached key: %s",
+    async (cachedKey) => {
+      const initialDatabase = makeDatabase();
+      const walletDatabase = makeDatabase();
+      const signMessage = vi.fn().mockRejectedValue(new Error("Encryption key unavailable"));
+      const getWalletAddress = vi.fn().mockResolvedValue(null);
+      const { result, rerender } = renderHook(
+        ({ database, address }: { database: Database; address?: string }) =>
+          useChatStorage({
+            database,
+            walletAddress: address,
+            signMessage,
+            getWalletAddress,
+            enableQueue: true,
+            getToken: () => Promise.resolve("token"),
+            autoEmbedMessages: false,
+          }),
+        { initialProps: { database: initialDatabase, address: undefined as string | undefined } }
+      );
 
-    const conversation = await act(async () =>
-      result.current.createConversation({ title: "Private conversation" })
-    );
-    const sent = await act(async () =>
-      result.current.sendMessage({
-        messages: [{ role: "user", content: [{ type: "text", text: "Private message" }] }],
-        model: "test-model",
-      })
-    );
+      const conversation = await act(async () =>
+        result.current.createConversation({ title: "Private conversation" })
+      );
+      const sent = await act(async () =>
+        result.current.sendMessage({
+          messages: [{ role: "user", content: [{ type: "text", text: "Private message" }] }],
+          model: "test-model",
+        })
+      );
 
-    expect(sent.error).toBeNull();
-    if (!("assistantMessage" in sent)) {
-      throw new Error("The send result has no assistant message");
+      expect(sent.error).toBeNull();
+      if (!("assistantMessage" in sent)) {
+        throw new Error("The send result has no assistant message");
+      }
+      expect(await initialDatabase.get("conversations").query().fetch()).toHaveLength(0);
+      expect(await initialDatabase.get("history").query().fetch()).toHaveLength(0);
+      expect(queueManager.getOperations(walletAddress)).toEqual([]);
+
+      if (cachedKey) {
+        seedEncryptionKeys(walletAddress, { legacy: "11".repeat(32), current: "22".repeat(32) });
+      }
+      getWalletAddress.mockResolvedValue(walletAddress);
+      rerender({ database: walletDatabase, address: walletAddress });
+
+      if (!cachedKey) {
+        expect(result.current.queueStatus.pending).toBe(4);
+        expect(await walletDatabase.get("conversations").query().fetch()).toHaveLength(0);
+        expect(await walletDatabase.get("history").query().fetch()).toHaveLength(0);
+
+        await act(() =>
+          Promise.resolve(
+            seedEncryptionKeys(walletAddress, { legacy: "11".repeat(32), current: "22".repeat(32) })
+          )
+        );
+      }
+      await waitFor(() => {
+        expect(result.current.queueStatus.pending).toBe(0);
+        expect(result.current.queueStatus.isFlushing).toBe(false);
+      });
+
+      expect(result.current.queueStatus.failed).toBe(0);
+      expect(await initialDatabase.get("conversations").query().fetch()).toHaveLength(0);
+      expect(await initialDatabase.get("history").query().fetch()).toHaveLength(0);
+      expect(await result.current.getConversations()).toMatchObject([
+        { conversationId: conversation.conversationId, title: "Private conversation" },
+      ]);
+      const storedMessages = await result.current.getMessages(conversation.conversationId);
+      expect(storedMessages).toHaveLength(3);
+      expect(storedMessages).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            uniqueId: sent.userMessage?.uniqueId,
+            content: "Private message",
+          }),
+          expect.objectContaining({
+            uniqueId: sent.assistantMessage?.uniqueId,
+            content: sent.assistantMessage?.content,
+          }),
+        ])
+      );
+      const rows = [
+        ...(await walletDatabase.get("conversations").query().fetch()).map((row) =>
+          row._getRaw("title")
+        ),
+        ...(await walletDatabase.get("history").query().fetch()).map((row) =>
+          row._getRaw("content")
+        ),
+      ];
+      expect(rows).toHaveLength(4);
+      for (const value of rows) {
+        expect(isEncrypted(value as string)).toBe(true);
+      }
     }
-    expect(await initialDatabase.get("conversations").query().fetch()).toHaveLength(0);
-    expect(await initialDatabase.get("history").query().fetch()).toHaveLength(0);
-    expect(queueManager.getOperations(walletAddress)).toEqual([]);
+  );
 
-    getWalletAddress.mockResolvedValue(walletAddress);
-    rerender({ database: walletDatabase, address: walletAddress });
+  it.each(["cached", "after-transfer", "manual"] as const)(
+    "stores replies after the wallet arrives during a send with key mode: %s",
+    async (keyMode) => {
+      const initialDatabase = makeDatabase();
+      const walletDatabase = makeDatabase();
+      const signMessage = vi.fn().mockRejectedValue(new Error("Encryption key unavailable"));
+      const getWalletAddress = vi.fn().mockResolvedValue(null);
+      let resolveReply!: (value: ToolLoopResult) => void;
+      const reply = new Promise<ToolLoopResult>((resolve) => {
+        resolveReply = resolve;
+      });
+      vi.mocked(runToolLoop).mockReturnValueOnce(reply);
+      const { result, rerender } = renderHook(
+        ({ database, address }: { database: Database; address?: string }) =>
+          useChatStorage({
+            database,
+            walletAddress: address,
+            signMessage,
+            getWalletAddress,
+            enableQueue: true,
+            autoFlushOnKeyAvailable: keyMode !== "manual",
+            getToken: () => Promise.resolve("token"),
+            autoEmbedMessages: false,
+          }),
+        { initialProps: { database: initialDatabase, address: undefined as string | undefined } }
+      );
+      const conversation = await act(async () =>
+        result.current.createConversation({ title: "Private conversation" })
+      );
+      let sendPromise!: ReturnType<typeof result.current.sendMessage>;
+      act(() => {
+        sendPromise = result.current.sendMessage({
+          messages: [{ role: "user", content: [{ type: "text", text: "Private message" }] }],
+          model: "test-model",
+        });
+      });
+      await waitFor(() => expect(runToolLoop).toHaveBeenCalledOnce());
 
-    expect(result.current.queueStatus.pending).toBe(4);
-    expect(await walletDatabase.get("conversations").query().fetch()).toHaveLength(0);
-    expect(await walletDatabase.get("history").query().fetch()).toHaveLength(0);
+      if (keyMode === "cached") {
+        seedEncryptionKeys(walletAddress, { legacy: "11".repeat(32), current: "22".repeat(32) });
+      }
+      getWalletAddress.mockResolvedValue(walletAddress);
+      rerender({ database: walletDatabase, address: walletAddress });
 
-    await act(() =>
-      Promise.resolve(
-        seedEncryptionKeys(walletAddress, { legacy: "11".repeat(32), current: "22".repeat(32) })
-      )
-    );
-    await waitFor(() => {
+      if (keyMode === "after-transfer") {
+        await act(() =>
+          Promise.resolve(
+            seedEncryptionKeys(walletAddress, { legacy: "11".repeat(32), current: "22".repeat(32) })
+          )
+        );
+      }
+      if (keyMode !== "manual") {
+        await waitFor(() => {
+          expect(result.current.queueStatus.pending).toBe(0);
+          expect(result.current.queueStatus.isFlushing).toBe(false);
+        });
+      }
+
+      const sent = await act(async () => {
+        resolveReply(toolLoopResult);
+        return sendPromise;
+      });
+      expect(sent.error).toBeNull();
+      if (!("toolResultsMessage" in sent) || !sent.toolResultsMessage) {
+        throw new Error("The send result has no tool result message");
+      }
+
+      if (keyMode === "manual") {
+        expect(result.current.queueStatus.pending).toBe(4);
+        seedEncryptionKeys(walletAddress, { legacy: "11".repeat(32), current: "22".repeat(32) });
+        const flushed = await act(() => result.current.flushQueue());
+        expect(flushed.succeeded).toHaveLength(4);
+        expect(flushed.failed).toEqual([]);
+      }
+
       expect(result.current.queueStatus.pending).toBe(0);
-      expect(result.current.queueStatus.isFlushing).toBe(false);
-    });
-
-    expect(result.current.queueStatus.failed).toBe(0);
-    expect(await initialDatabase.get("conversations").query().fetch()).toHaveLength(0);
-    expect(await initialDatabase.get("history").query().fetch()).toHaveLength(0);
-    expect(await result.current.getConversations()).toMatchObject([
-      { conversationId: conversation.conversationId, title: "Private conversation" },
-    ]);
-    const storedMessages = await result.current.getMessages(conversation.conversationId);
-    expect(storedMessages).toHaveLength(3);
-    expect(storedMessages).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          uniqueId: sent.userMessage?.uniqueId,
-          content: "Private message",
-        }),
-        expect.objectContaining({
-          uniqueId: sent.assistantMessage?.uniqueId,
-          content: sent.assistantMessage?.content,
-        }),
-      ])
-    );
-    const rows = [
-      ...(await walletDatabase.get("conversations").query().fetch()).map((row) =>
-        row._getRaw("title")
-      ),
-      ...(await walletDatabase.get("history").query().fetch()).map((row) => row._getRaw("content")),
-    ];
-    expect(rows).toHaveLength(4);
-    for (const value of rows) {
-      expect(isEncrypted(value as string)).toBe(true);
+      expect(result.current.queueStatus.failed).toBe(0);
+      expect(await initialDatabase.get("conversations").query().fetch()).toHaveLength(0);
+      expect(await initialDatabase.get("history").query().fetch()).toHaveLength(0);
+      const storedMessages = await result.current.getMessages(conversation.conversationId);
+      expect(storedMessages).toHaveLength(3);
+      for (const message of [sent.userMessage, sent.assistantMessage, sent.toolResultsMessage]) {
+        const stored = storedMessages.find((stored) => stored.uniqueId === message.uniqueId);
+        expect(stored).toMatchObject({
+          conversationId: conversation.conversationId,
+          content: message.content,
+        });
+        expect(stored!.parentMessageId ?? null).toBe(message.parentMessageId ?? null);
+      }
+      const rows = [
+        ...(await walletDatabase.get("conversations").query().fetch()).map((row) =>
+          row._getRaw("title")
+        ),
+        ...(await walletDatabase.get("history").query().fetch()).map((row) =>
+          row._getRaw("content")
+        ),
+      ];
+      expect(rows).toHaveLength(4);
+      for (const value of rows) {
+        expect(isEncrypted(value as string)).toBe(true);
+      }
     }
-  });
+  );
 
   it.each([false, true])(
     "preserves identifiers across queued and direct turns with explicit IDs: %s",

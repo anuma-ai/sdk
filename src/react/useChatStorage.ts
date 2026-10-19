@@ -1188,6 +1188,9 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     ]
   );
 
+  const storageCtxRef = useRef(storageCtx);
+  storageCtxRef.current = storageCtx;
+
   const mediaCtx = useMemo(
     () => ({
       database,
@@ -1340,22 +1343,11 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
   }, [walletAddress, refreshQueueStatus]);
 
   useEffect(() => {
-    if (!walletAddress || !enableQueue || !autoFlushOnKeyAvailable || !signMessage) return;
-
-    return onKeyAvailable(walletAddress, () => {
-      flushQueue().catch((err) => {
-        getLogger().warn("[useChatStorage] Auto-flush failed:", err);
-      });
-    });
-  }, [walletAddress, enableQueue, autoFlushOnKeyAvailable, signMessage, flushQueue]);
-
-  useEffect(() => {
     if (!getWalletAddress || walletAddress) return;
 
     const poller = new WalletPoller();
     return poller.startPolling(getWalletAddress, () => {
       // Wallet is now available - the parent component should update walletAddress prop
-      // which triggers the onKeyAvailable auto-flush above.
       // We don't need to do anything here since state will flow through props.
     });
   }, [getWalletAddress, walletAddress]);
@@ -1387,45 +1379,67 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     refreshQueueStatus();
   }, [walletAddress, enableQueue, refreshQueueStatus]);
 
+  useEffect(() => {
+    if (!walletAddress || !enableQueue || !autoFlushOnKeyAvailable || !signMessage) return;
+
+    return onKeyAvailable(walletAddress, () => {
+      flushQueue().catch((err) => {
+        getLogger().warn("[useChatStorage] Auto-flush failed:", err);
+      });
+    });
+  }, [walletAddress, enableQueue, autoFlushOnKeyAvailable, signMessage, flushQueue]);
+
   const writeOrQueue = useCallback(
     async <T>(
       opType: QueuedOperationType,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       payload: Record<string, any>,
-      directWrite: () => Promise<T>,
+      directWrite: (ctx: StorageOperationsContext) => Promise<T>,
       makeSynthetic: () => T,
       dependencies: string[] = []
     ): Promise<{ result: T; queued: boolean; queueId?: string }> => {
-      if (enableQueue && !walletAddress && getWalletAddress) {
+      const currentStorageCtx = storageCtx.walletAddress ? storageCtx : storageCtxRef.current;
+      const currentWalletAddress = currentStorageCtx.walletAddress;
+
+      if (enableQueue && !currentWalletAddress && getWalletAddress) {
         pendingOpsRef.current.push({ type: opType, payload, dependencies });
         return { result: makeSynthetic(), queued: true };
       }
 
-      if (isEncryptionReady()) {
-        const result = await directWrite();
+      if (
+        !currentWalletAddress ||
+        !currentStorageCtx.signMessage ||
+        hasEncryptionKey(currentWalletAddress)
+      ) {
+        const result = await directWrite(currentStorageCtx);
         return { result, queued: false };
       }
 
       if (!enableQueue) {
-        const result = await directWrite();
+        const result = await directWrite(currentStorageCtx);
         return { result, queued: false };
       }
 
-      if (walletAddress) {
-        const queueId = queueManager.queueOperation(walletAddress, opType, payload, dependencies);
+      if (currentWalletAddress) {
+        const queueId = queueManager.queueOperation(
+          currentWalletAddress,
+          opType,
+          payload,
+          dependencies
+        );
         if (queueId === null) {
           getLogger().warn("[useChatStorage] Queue full, falling back to direct write");
-          const result = await directWrite();
+          const result = await directWrite(currentStorageCtx);
           return { result, queued: false };
         }
-        refreshQueueStatus();
+        setQueueStatus(queueManager.getStatus(currentWalletAddress));
         return { result: makeSynthetic(), queued: true, queueId };
       }
 
-      const result = await directWrite();
+      const result = await directWrite(currentStorageCtx);
       return { result, queued: false };
     },
-    [isEncryptionReady, enableQueue, walletAddress, getWalletAddress, refreshQueueStatus]
+    [storageCtx, enableQueue, getWalletAddress]
   );
 
   const embedMessageAsync = useCallback(
@@ -1800,7 +1814,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       const { result, queued, queueId } = await writeOrQueue(
         "createConversation",
         conversationOpts,
-        () => createConversationOp(storageCtx, conversationOpts, defaultConversationTitle),
+        (ctx) => createConversationOp(ctx, conversationOpts, defaultConversationTitle),
         () => makeSyntheticStoredConversation(conversationOpts, defaultConversationTitle)
       );
       if (queued) {
@@ -1812,7 +1826,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       setCurrentConversationId(result.conversationId);
       return result;
     },
-    [storageCtx, defaultConversationTitle, writeOrQueue]
+    [defaultConversationTitle, writeOrQueue]
   );
 
   const getConversation = useCallback(
@@ -1831,12 +1845,12 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       const { result } = await writeOrQueue(
         "updateConversationTitle",
         { conversationId: id, title },
-        () => updateConversationTitleOp(storageCtx, id, title),
+        (ctx) => updateConversationTitleOp(ctx, id, title),
         () => true
       );
       return result;
     },
-    [storageCtx, writeOrQueue]
+    [writeOrQueue]
   );
 
   const updateConversationPinned = useCallback(
@@ -1844,12 +1858,12 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       const { result } = await writeOrQueue(
         "updateConversationPinned",
         { conversationId: id, pinned },
-        () => updateConversationPinnedOp(storageCtx, id, pinned),
+        (ctx) => updateConversationPinnedOp(ctx, id, pinned),
         () => true
       );
       return result;
     },
-    [storageCtx, writeOrQueue]
+    [writeOrQueue]
   );
 
   const deleteConversation = useCallback(
@@ -2619,7 +2633,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         const userMsgResult = await writeOrQueue(
           "createMessage",
           userMsgOpts,
-          () => createMessageOp(storageCtx, userMsgOpts),
+          (ctx) => createMessageOp(ctx, userMsgOpts),
           () => makeSyntheticStoredMessage(userMsgOpts),
           convId && syntheticConvQueueIdsRef.current.has(convId)
             ? [syntheticConvQueueIdsRef.current.get(convId)!]
@@ -2996,7 +3010,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         const assistantMsgResult = await writeOrQueue(
           "createMessage",
           assistantMsgOpts,
-          () => createMessageOp(storageCtx, assistantMsgOpts),
+          (ctx) => createMessageOp(ctx, assistantMsgOpts),
           () => makeSyntheticStoredMessage(assistantMsgOpts),
           userMsgQueueId ? [userMsgQueueId] : []
         );
@@ -3054,7 +3068,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           const toolResultsWrite = await writeOrQueue(
             "createMessage",
             toolResultsOpts,
-            () => createMessageOp(storageCtx, toolResultsOpts),
+            (ctx) => createMessageOp(ctx, toolResultsOpts),
             () => makeSyntheticStoredMessage(toolResultsOpts),
             assistantMsgQueueId ? [assistantMsgQueueId] : []
           );
