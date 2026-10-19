@@ -134,8 +134,10 @@ import { VaultFolder } from "./vaultFolders/models";
  *   nullable, no backfill: NULL reads as "never failed"
  * - v48: Added kind, kind_value (encrypted) and level to memory_vault; level is
  *   backfilled from scope where SQL steps run
+ * - v49: Added external_wallets to userPreferences (JSON list of the user's
+ *   saved external wallets)
  */
-export const SDK_SCHEMA_VERSION = 48;
+export const SDK_SCHEMA_VERSION = 49;
 
 /**
  * Combined WatermelonDB schema for all SDK storage modules.
@@ -252,6 +254,7 @@ export const sdkSchema = appSchema({
         { name: "description", type: "string", isOptional: true },
         { name: "models", type: "string", isOptional: true },
         { name: "personality", type: "string", isOptional: true },
+        { name: "external_wallets", type: "string", isOptional: true },
         { name: "created_at", type: "number" },
         { name: "updated_at", type: "number" },
       ],
@@ -448,6 +451,7 @@ export const sdkSchema = appSchema({
  * - v42 → v43: Added a composite `(is_deleted, created_at)` index to conversations so the list reads stop temp-sorting (structural only, no data rewritten)
  * - v43 → v44: Added `origin` column to history recording which producer synthesised a row, so the embedding sweep can skip never-rendered tool-result dumps (plaintext by design — the sweep has no wallet context; null = legacy, embedded as before)
  * - v47 → v48: Added `kind`, `kind_value`, `level` to memory_vault; `level` backfilled from `scope` (`shared`/`public` → matching, else private) where SQL steps run
+ * - v48 → v49: Added `external_wallets` to userPreferences (JSON list of the user's saved external wallets; null for existing rows)
  */
 export const sdkMigrations = schemaMigrations({
   migrations: [
@@ -1011,6 +1015,15 @@ export const sdkMigrations = schemaMigrations({
         unsafeExecuteSql(
           "UPDATE memory_vault SET level = CASE WHEN scope IN ('shared', 'public') THEN 'matching' ELSE 'private' END WHERE level IS NULL;"
         ),
+      ],
+    },
+    {
+      toVersion: 49,
+      steps: [
+        addColumns({
+          table: "userPreferences",
+          columns: [{ name: "external_wallets", type: "string", isOptional: true }],
+        }),
       ],
     },
   ],

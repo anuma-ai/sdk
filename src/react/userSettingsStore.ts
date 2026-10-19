@@ -113,6 +113,7 @@ function startObserve(entry: PoolEntry, walletAddress: string): void {
       "description",
       "models",
       "personality",
+      "external_wallets",
       "updated_at",
     ])
     .subscribe({
@@ -128,6 +129,7 @@ function startObserve(entry: PoolEntry, walletAddress: string): void {
             description: record.description,
             models: record.models,
             personality: record.personality,
+            externalWallets: record.externalWallets,
             createdAt: record.createdAt,
             updatedAt: record.updatedAt,
           },
