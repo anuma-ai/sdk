@@ -1,10 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("./recall.js", () => ({ recall: vi.fn() }));
-vi.mock("../db/memoryVault/operations.js", () => ({ getAllVaultMemoriesOp: vi.fn() }));
+vi.mock("../db/memoryVault/operations.js", () => ({ getVaultProfileMetadataOp: vi.fn() }));
 vi.mock("../memoryEngine/embeddings.js", () => ({ generateEmbeddings: vi.fn() }));
 
-import { getAllVaultMemoriesOp } from "../db/memoryVault/operations.js";
+import { getVaultProfileMetadataOp } from "../db/memoryVault/operations.js";
 import { INTERNAL_FLOW_MARKER } from "../internalFlowMarker.js";
 import { generateEmbeddings } from "../memoryEngine/embeddings.js";
 import { recall } from "./recall.js";
@@ -12,7 +12,7 @@ import { type ProfileFacet, synthesizeProfile } from "./synthesizeProfile.js";
 import type { RankedMemory, RecallContext } from "./types.js";
 
 const mockRecall = vi.mocked(recall);
-const mockGetAll = vi.mocked(getAllVaultMemoriesOp);
+const mockGetMetadata = vi.mocked(getVaultProfileMetadataOp);
 const mockEmbed = vi.mocked(generateEmbeddings);
 
 const ctx = {
@@ -42,7 +42,7 @@ const ranked: RankedMemory = {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  mockGetAll.mockResolvedValue([]);
+  mockGetMetadata.mockResolvedValue([]);
   mockEmbed.mockResolvedValue([]);
   mockRecall.mockResolvedValue({
     memories: [ranked],

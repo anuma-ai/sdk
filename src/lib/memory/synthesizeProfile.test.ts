@@ -2,10 +2,18 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("./reflect.js", () => ({ reflect: vi.fn() }));
 vi.mock("./recall.js", () => ({ recall: vi.fn() }));
-vi.mock("../db/memoryVault/operations.js", () => ({ getAllVaultMemoriesOp: vi.fn() }));
+vi.mock("../db/memoryVault/operations.js", () => ({
+  getAllVaultMemoriesOp: vi.fn(),
+  getVaultProfileMetadataOp: vi.fn(),
+  getVaultEmbeddingsByIdsOp: vi.fn(),
+}));
 vi.mock("../memoryEngine/embeddings.js", () => ({ generateEmbeddings: vi.fn() }));
 
-import { getAllVaultMemoriesOp } from "../db/memoryVault/operations.js";
+import {
+  getAllVaultMemoriesOp,
+  getVaultProfileMetadataOp,
+  getVaultEmbeddingsByIdsOp,
+} from "../db/memoryVault/operations.js";
 import type { StoredVaultMemory } from "../db/memoryVault/types.js";
 import { generateEmbeddings } from "../memoryEngine/embeddings.js";
 import {
@@ -31,6 +39,29 @@ import type { RankedMemory, RecallContext, RecallFactSource } from "./types.js";
 const mockReflect = vi.mocked(reflect);
 const mockRecall = vi.mocked(recall);
 const mockGetAll = vi.mocked(getAllVaultMemoriesOp);
+const mockGetMetadata = vi.mocked(getVaultProfileMetadataOp);
+const mockGetEmbeddings = vi.mocked(getVaultEmbeddingsByIdsOp);
+
+function setMemories(memories: StoredVaultMemory[]) {
+  mockGetMetadata.mockResolvedValue(
+    memories.map((memory) => ({
+      uniqueId: memory.uniqueId,
+      scope: memory.scope,
+      createdAt: memory.createdAt,
+      updatedAt: memory.updatedAt,
+      lastObservedAt: memory.lastObservedAt,
+      supersededAt: memory.supersededAt,
+      supersededBy: memory.supersededBy,
+      isDeleted: memory.isDeleted,
+      proofCount: memory.proofCount,
+    }))
+  );
+  mockGetEmbeddings.mockImplementation(async (_ctx, ids) =>
+    memories
+      .filter((memory) => ids.includes(memory.uniqueId))
+      .map(({ uniqueId, embedding, embeddingModel }) => ({ uniqueId, embedding, embeddingModel }))
+  );
+}
 const mockEmbed = vi.mocked(generateEmbeddings);
 
 const ctx = {
@@ -172,10 +203,103 @@ function priorDoc(sections: ProfileSection[], watermark: number, config = cfg())
 
 beforeEach(() => {
   vi.clearAllMocks();
+  mockGetAll.mockReset();
+  setMemories([]);
   stubRecallForReflect();
 });
 
 describe("synthesizeProfile", () => {
+  it("validates a cached local profile without full rows or embeddings", async () => {
+    const metadata = [
+      {
+        uniqueId: "a",
+        scope: "private",
+        createdAt: new Date(500),
+        updatedAt: new Date(2000),
+        lastObservedAt: 3000,
+        supersededAt: null,
+        supersededBy: null,
+        isDeleted: false,
+        proofCount: 3,
+      },
+    ];
+    vi.mocked(getVaultProfileMetadataOp).mockResolvedValue(metadata);
+    mockGetAll.mockRejectedValueOnce(new Error("Full vault reads must not run"));
+    const previous = priorDoc(
+      [section("bio", "old bio", ["a"]), section("interests", "old interests", ["a"])],
+      3000
+    );
+
+    const doc = await synthesizeProfile(ctx, { apiKey: "k", facets: FACETS, previous });
+
+    expect(doc.sections).toBe(previous.sections);
+    expect(doc.vaultWatermark).toBe(3000);
+    expect(doc.observationTrends).toEqual({
+      new: 0,
+      strengthening: 0,
+      stable: 0,
+      weakening: 0,
+      stale: 1,
+    });
+    expect(getVaultProfileMetadataOp).toHaveBeenCalledWith(ctx.vaultCtx, { scopes: ["private"] });
+    expect(mockGetAll).not.toHaveBeenCalled();
+    expect(getVaultEmbeddingsByIdsOp).not.toHaveBeenCalled();
+    expect(mockEmbed).not.toHaveBeenCalled();
+    expect(mockRecall).not.toHaveBeenCalled();
+    expect(mockReflect).not.toHaveBeenCalled();
+  });
+
+  it("loads embeddings only for uncited changed facts that pass the review gate", async () => {
+    setMemories([
+      mem("a", { updatedAt: new Date(4000) }),
+      mem("b"),
+      mem("c", { updatedAt: new Date(6000), embedding: "[1,0]" }),
+      mem("unreviewed", { updatedAt: new Date(9000) }),
+      mem("deleted", { updatedAt: new Date(11000), isDeleted: true }),
+      mem("superseded", { supersededBy: "c", supersededAt: 12000 }),
+    ]);
+    const reviewedMemoryIds = ["a", "b", "c"];
+    const previous = priorDoc(
+      [section("bio", "old bio", ["a"]), section("interests", "old interests", ["b"])],
+      2000,
+      fingerprint(FACETS, false, reviewedMemoryIds)
+    );
+    mockEmbed.mockResolvedValue([
+      [1, 0],
+      [0, 1],
+    ]);
+    mockReflect.mockResolvedValueOnce(reflectResult("new bio", ["a"]));
+
+    const doc = await synthesizeProfile(ctx, {
+      apiKey: "k",
+      facets: FACETS,
+      previous,
+      reviewedMemoryIds,
+    });
+
+    expect(mockGetEmbeddings).toHaveBeenCalledExactlyOnceWith(ctx.vaultCtx, ["c"]);
+    expect(mockGetAll).not.toHaveBeenCalled();
+    expect(mockReflect).toHaveBeenCalledTimes(1);
+    expect(doc.sections.map((s) => s.text)).toEqual(["new bio", "old interests"]);
+    expect(doc.vaultWatermark).toBe(12000);
+    expect(doc.observationTrends.stale).toBe(4);
+  });
+
+  it("refreshes all facets if an attribution candidate disappears before the embedding read", async () => {
+    setMemories([mem("a"), mem("b"), mem("c", { updatedAt: new Date(6000) })]);
+    mockGetEmbeddings.mockResolvedValue([]);
+    mockReflect.mockResolvedValue(reflectResult("new section", ["a"]));
+    const previous = priorDoc(
+      [section("bio", "old bio", ["a"]), section("interests", "old interests", ["b"])],
+      2000
+    );
+
+    await synthesizeProfile(ctx, { apiKey: "k", facets: FACETS, previous });
+
+    expect(mockGetEmbeddings).toHaveBeenCalledExactlyOnceWith(ctx.vaultCtx, ["c"]);
+    expect(mockReflect).toHaveBeenCalledTimes(FACETS.length);
+  });
+
   it("throws without a vault context", async () => {
     await expect(
       synthesizeProfile({ embeddingOptions: { apiKey: "k" } } as RecallContext)
@@ -354,7 +478,7 @@ describe("synthesizeProfile", () => {
   });
 
   it("synthesizes one section per facet, carrying source ids + watermark + config", async () => {
-    mockGetAll.mockResolvedValue([mem("a", { updatedAt: new Date(3000) })]);
+    setMemories([mem("a", { updatedAt: new Date(3000) })]);
     mockRecall
       .mockResolvedValueOnce({
         memories: [ranked("a")],
@@ -401,7 +525,7 @@ describe("synthesizeProfile", () => {
     expect(mockReflect.mock.calls[0][2]).toMatchObject({
       memories: [expect.objectContaining({ id: "a" })],
     });
-    expect(mockGetAll.mock.calls[0][1]).toMatchObject({ scopes: ["private"] });
+    expect(mockGetMetadata.mock.calls[0][1]).toMatchObject({ scopes: ["private"] });
   });
 
   it("leaves instruction memories out of the evidence a facet is synthesized from", async () => {
@@ -420,7 +544,7 @@ describe("synthesizeProfile", () => {
   });
 
   it("collapses a section to empty when the facet reports no evidence", async () => {
-    mockGetAll.mockResolvedValue([mem("a")]);
+    setMemories([mem("a")]);
     mockRecall
       .mockResolvedValueOnce({
         memories: [],
@@ -446,7 +570,7 @@ describe("synthesizeProfile", () => {
   });
 
   it("reuses the previous doc wholesale when the vault hasn't advanced", async () => {
-    mockGetAll.mockResolvedValue([mem("a", { updatedAt: new Date(2000) })]);
+    setMemories([mem("a", { updatedAt: new Date(2000) })]);
     const previous = priorDoc(
       [section("bio", "old bio", ["a"]), section("interests", "old", ["a"])],
       2000
@@ -466,7 +590,7 @@ describe("synthesizeProfile", () => {
   });
 
   it("delta-refreshes only facets whose cited facts changed (no new facts)", async () => {
-    mockGetAll.mockResolvedValue([
+    setMemories([
       mem("a", { updatedAt: new Date(5000), createdAt: new Date(500) }),
       mem("b", { updatedAt: new Date(1000) }),
     ]);
@@ -486,7 +610,7 @@ describe("synthesizeProfile", () => {
   });
 
   it("delta-refreshes a facet when its fact was re-observed (last_observed_at)", async () => {
-    mockGetAll.mockResolvedValue([
+    setMemories([
       mem("a", { updatedAt: new Date(1000), lastObservedAt: 5000 }),
       mem("b", { updatedAt: new Date(1000) }),
     ]);
@@ -506,7 +630,7 @@ describe("synthesizeProfile", () => {
   });
 
   it("regenerates all facets when a new fact has no embedding to attribute", async () => {
-    mockGetAll.mockResolvedValue([
+    setMemories([
       mem("a", { updatedAt: new Date(1000) }),
       mem("c", { updatedAt: new Date(6000), createdAt: new Date(6000), embedding: null }),
     ]);
@@ -527,7 +651,7 @@ describe("synthesizeProfile", () => {
   });
 
   it("attributes a new fact only to the facet it matches", async () => {
-    mockGetAll.mockResolvedValue([
+    setMemories([
       mem("a", { updatedAt: new Date(1000) }),
       mem("b", { updatedAt: new Date(1000) }),
       mem("c", {
@@ -555,7 +679,7 @@ describe("synthesizeProfile", () => {
   });
 
   it("regenerates all facets when a new fact matches no facet query semantically", async () => {
-    mockGetAll.mockResolvedValue([
+    setMemories([
       mem("a", { updatedAt: new Date(1000) }),
       mem("b", { updatedAt: new Date(1000) }),
       mem("c", {
@@ -584,7 +708,7 @@ describe("synthesizeProfile", () => {
   });
 
   it("does not reuse an un-redacted prior doc when a redactor is newly supplied", async () => {
-    mockGetAll.mockResolvedValue([mem("a", { updatedAt: new Date(2000) })]);
+    setMemories([mem("a", { updatedAt: new Date(2000) })]);
     mockReflect
       .mockResolvedValueOnce(reflectResult("Bio with x@y.com", ["a"]))
       .mockResolvedValueOnce(reflectResult("", [], false));
@@ -611,7 +735,7 @@ describe("synthesizeProfile", () => {
   });
 
   it("fully regenerates when the previous doc version differs", async () => {
-    mockGetAll.mockResolvedValue([mem("a", { updatedAt: new Date(2000) })]);
+    setMemories([mem("a", { updatedAt: new Date(2000) })]);
     mockReflect
       .mockResolvedValueOnce(reflectResult("new bio", ["a"]))
       .mockResolvedValueOnce(reflectResult("new interests", ["a"]));
@@ -629,7 +753,7 @@ describe("synthesizeProfile", () => {
   });
 
   it("survives a facet failure and clears the changed prior section", async () => {
-    mockGetAll.mockResolvedValue([
+    setMemories([
       mem("a", { updatedAt: new Date(5000), createdAt: new Date(500) }),
       mem("b", { updatedAt: new Date(5000), createdAt: new Date(500) }),
     ]);
@@ -651,9 +775,7 @@ describe("synthesizeProfile", () => {
   });
 
   it("keeps the prior section on a degraded-empty result", async () => {
-    mockGetAll.mockResolvedValue([
-      mem("a", { updatedAt: new Date(2000), createdAt: new Date(500) }),
-    ]);
+    setMemories([mem("a", { updatedAt: new Date(2000), createdAt: new Date(500) })]);
     mockReflect.mockResolvedValueOnce({
       text: "",
       basedOn: { memoryIds: ["a"] },
@@ -689,7 +811,7 @@ describe("synthesizeProfile", () => {
       updatedAt: new Date(5000),
       ...(change === "superseded" ? { supersededBy: "b", supersededAt: 5000 } : {}),
     });
-    mockGetAll.mockResolvedValue([
+    setMemories([
       ...(change === "deleted" ? [] : [source]),
       mem("b", { updatedAt: new Date(5000) }),
     ]);
@@ -730,9 +852,7 @@ describe("synthesizeProfile", () => {
   });
 
   it("keeps an intact prior section when an unrelated delete rolls the watermark back", async () => {
-    mockGetAll.mockResolvedValue([
-      mem("a", { updatedAt: new Date(2000), createdAt: new Date(500) }),
-    ]);
+    setMemories([mem("a", { updatedAt: new Date(2000), createdAt: new Date(500) })]);
     mockReflect.mockRejectedValueOnce(new Error("LLM down"));
 
     const previous = priorDoc(
@@ -755,9 +875,7 @@ describe("synthesizeProfile", () => {
   });
 
   it("still clears a section whose own source is the delete that rolled the watermark back", async () => {
-    mockGetAll.mockResolvedValue([
-      mem("b", { updatedAt: new Date(2000), createdAt: new Date(500) }),
-    ]);
+    setMemories([mem("b", { updatedAt: new Date(2000), createdAt: new Date(500) })]);
     mockReflect.mockRejectedValueOnce(new Error("LLM down"));
 
     const previous = priorDoc(
@@ -778,10 +896,7 @@ describe("synthesizeProfile", () => {
   });
 
   it("retries a stale section even when the vault is unchanged", async () => {
-    mockGetAll.mockResolvedValue([
-      mem("a", { updatedAt: new Date(2000) }),
-      mem("b", { updatedAt: new Date(2000) }),
-    ]);
+    setMemories([mem("a", { updatedAt: new Date(2000) }), mem("b", { updatedAt: new Date(2000) })]);
     mockReflect.mockResolvedValueOnce(reflectResult("retried bio", ["a"]));
 
     const previous = priorDoc(
@@ -803,7 +918,7 @@ describe("synthesizeProfile", () => {
   });
 
   it("marks an empty section stale when a facet fails with no prior", async () => {
-    mockGetAll.mockResolvedValue([mem("a")]);
+    setMemories([mem("a")]);
     mockReflect
       .mockRejectedValueOnce(new Error("LLM down"))
       .mockResolvedValueOnce(reflectResult("interests", ["a"]));
@@ -817,9 +932,7 @@ describe("synthesizeProfile", () => {
   });
 
   it("clears a section when recall finds no evidence", async () => {
-    mockGetAll.mockResolvedValue([
-      mem("a", { updatedAt: new Date(5000), createdAt: new Date(500) }),
-    ]);
+    setMemories([mem("a", { updatedAt: new Date(5000), createdAt: new Date(500) })]);
     mockReflect.mockResolvedValueOnce({
       text: "",
       basedOn: { memoryIds: [] },
@@ -835,7 +948,7 @@ describe("synthesizeProfile", () => {
   });
 
   it("falls back to regenerating all facets when facet-query embedding throws", async () => {
-    mockGetAll.mockResolvedValue([
+    setMemories([
       mem("a", { updatedAt: new Date(1000) }),
       mem("c", {
         updatedAt: new Date(6000),
@@ -860,7 +973,7 @@ describe("synthesizeProfile", () => {
   });
 
   it("does not reuse sections when a facet's prompt changed", async () => {
-    mockGetAll.mockResolvedValue([mem("a", { updatedAt: new Date(2000) })]);
+    setMemories([mem("a", { updatedAt: new Date(2000) })]);
     mockReflect
       .mockResolvedValueOnce(reflectResult("re-bio", ["a"]))
       .mockResolvedValueOnce(reflectResult("re-interests", ["a"]));
@@ -881,7 +994,7 @@ describe("synthesizeProfile", () => {
   });
 
   it("attributes a fact that newly entered scope (old createdAt, uncited)", async () => {
-    mockGetAll.mockResolvedValue([
+    setMemories([
       mem("a", { updatedAt: new Date(1000) }),
       mem("b", { updatedAt: new Date(1000) }),
       mem("d", {
@@ -909,7 +1022,7 @@ describe("synthesizeProfile", () => {
   });
 
   it("reorders reused sections to the current facet order without regenerating", async () => {
-    mockGetAll.mockResolvedValue([mem("a", { updatedAt: new Date(2000) })]);
+    setMemories([mem("a", { updatedAt: new Date(2000) })]);
     const previous = priorDoc(
       [section("bio", "old bio", ["a"]), section("interests", "old interests", ["a"])],
       2000
@@ -924,10 +1037,7 @@ describe("synthesizeProfile", () => {
   });
 
   it("regenerates and resets the watermark when the scoped max dropped", async () => {
-    mockGetAll.mockResolvedValue([
-      mem("a", { updatedAt: new Date(2000) }),
-      mem("b", { updatedAt: new Date(2000) }),
-    ]);
+    setMemories([mem("a", { updatedAt: new Date(2000) }), mem("b", { updatedAt: new Date(2000) })]);
     mockReflect
       .mockResolvedValueOnce(reflectResult("re bio", ["a"]))
       .mockResolvedValueOnce(reflectResult("re interests", ["b"]));
@@ -945,9 +1055,7 @@ describe("synthesizeProfile", () => {
   });
 
   it("does not publish a raw JSON payload when structured output is incomplete", async () => {
-    mockGetAll.mockResolvedValue([
-      mem("a", { updatedAt: new Date(5000), createdAt: new Date(500) }),
-    ]);
+    setMemories([mem("a", { updatedAt: new Date(5000), createdAt: new Date(500) })]);
     mockReflect.mockResolvedValueOnce({
       text: '{"summary": "half a sen',
       basedOn: { memoryIds: ["a"] },
@@ -967,7 +1075,7 @@ describe("synthesizeProfile", () => {
   });
 
   it("refreshes a section when a cited fact left scope (watermark unchanged)", async () => {
-    mockGetAll.mockResolvedValue([mem("b", { updatedAt: new Date(2000) })]);
+    setMemories([mem("b", { updatedAt: new Date(2000) })]);
     mockReflect.mockResolvedValueOnce({
       text: "",
       basedOn: { memoryIds: [] },
@@ -988,7 +1096,7 @@ describe("synthesizeProfile", () => {
   });
 
   it("intersects facet evidence with reviewedMemoryIds before reflect", async () => {
-    mockGetAll.mockResolvedValue([mem("a"), mem("b")]);
+    setMemories([mem("a"), mem("b")]);
     mockRecall.mockResolvedValue({
       memories: [ranked("a"), ranked("b")],
       usedBudget: "low",
@@ -1011,7 +1119,7 @@ describe("synthesizeProfile", () => {
   });
 
   it("recalls with RECALL_MAX_LIMIT when reviewedMemoryIds gate is on", async () => {
-    mockGetAll.mockResolvedValue([mem("a")]);
+    setMemories([mem("a")]);
     mockRecall.mockImplementation(async (_q, _ctx, options) => {
       const all = Array.from({ length: 30 }, (_, i) => ranked(`m${i}`));
       const limit = options?.limit ?? 8;
@@ -1038,7 +1146,7 @@ describe("synthesizeProfile", () => {
   });
 
   it("clears a section when reviewedMemoryIds excludes all recalled evidence", async () => {
-    mockGetAll.mockResolvedValue([mem("a")]);
+    setMemories([mem("a")]);
     mockRecall.mockResolvedValue({
       memories: [ranked("a")],
       usedBudget: "low",
@@ -1059,7 +1167,7 @@ describe("synthesizeProfile", () => {
   });
 
   it("gates everything out when reviewedMemoryIds is empty (fails closed)", async () => {
-    mockGetAll.mockResolvedValue([mem("a")]);
+    setMemories([mem("a")]);
     mockRecall.mockResolvedValue({
       memories: [ranked("a"), ranked("b")],
       usedBudget: "low",
@@ -1081,7 +1189,7 @@ describe("synthesizeProfile", () => {
   });
 
   it("emits no structured occupation or interests when the gate excludes everything", async () => {
-    mockGetAll.mockResolvedValue([mem("a")]);
+    setMemories([mem("a")]);
     mockRecall.mockResolvedValue({
       memories: [ranked("a"), ranked("b")],
       usedBudget: "low",
@@ -1105,7 +1213,7 @@ describe("synthesizeProfile", () => {
   });
 
   it("still runs ungated when reviewedMemoryIds is omitted entirely", async () => {
-    mockGetAll.mockResolvedValue([mem("a")]);
+    setMemories([mem("a")]);
     mockRecall.mockResolvedValue({
       memories: [ranked("a"), ranked("b")],
       usedBudget: "low",
@@ -1123,7 +1231,7 @@ describe("synthesizeProfile", () => {
   });
 
   it("does not reuse an ungated prior doc once the empty gate is active", async () => {
-    mockGetAll.mockResolvedValue([mem("a")]);
+    setMemories([mem("a")]);
     mockRecall.mockResolvedValue({
       memories: [ranked("a")],
       usedBudget: "low",
@@ -1145,7 +1253,7 @@ describe("synthesizeProfile", () => {
   });
 
   it("invalidates delta reuse when reviewedMemoryIds changes (vault unchanged)", async () => {
-    mockGetAll.mockResolvedValue([mem("a", { updatedAt: new Date(2000) }), mem("b")]);
+    setMemories([mem("a", { updatedAt: new Date(2000) }), mem("b")]);
     mockRecall.mockResolvedValue({
       memories: [ranked("a"), ranked("b")],
       usedBudget: "low",
@@ -1184,7 +1292,7 @@ describe("synthesizeProfile", () => {
   });
 
   it("does not regenerate a gated facet for an unreviewed changed fact", async () => {
-    mockGetAll.mockResolvedValue([
+    setMemories([
       mem("a", { updatedAt: new Date(1000) }),
       mem("b", { updatedAt: new Date(1000) }),
       mem("z", {
@@ -1220,7 +1328,7 @@ describe("synthesizeProfile", () => {
   });
 
   it("does not regenerate every gated facet for an unreviewed, unembedded fact", async () => {
-    mockGetAll.mockResolvedValue([
+    setMemories([
       mem("a", { updatedAt: new Date(1000) }),
       mem("b", { updatedAt: new Date(1000) }),
       mem("z", { createdAt: new Date(6000), updatedAt: new Date(6000), embedding: null }),
@@ -1245,7 +1353,7 @@ describe("synthesizeProfile", () => {
   });
 
   it("still attributes a reviewed changed fact no section cites", async () => {
-    mockGetAll.mockResolvedValue([
+    setMemories([
       mem("a", { updatedAt: new Date(1000) }),
       mem("b", { updatedAt: new Date(1000) }),
       mem("c", {
@@ -1285,7 +1393,7 @@ describe("synthesizeProfile", () => {
   });
 
   it("emits a structured occupation alongside the work_role prose", async () => {
-    mockGetAll.mockResolvedValue([mem("a")]);
+    setMemories([mem("a")]);
     mockReflect.mockResolvedValueOnce(
       reflectResult("Backend engineer at a fintech startup.", ["a"], true, {
         occupation: "  Backend engineer, fintech  ",
@@ -1300,7 +1408,7 @@ describe("synthesizeProfile", () => {
   });
 
   it("emits structured interests alongside the interests prose", async () => {
-    mockGetAll.mockResolvedValue([mem("a")]);
+    setMemories([mem("a")]);
     mockReflect.mockResolvedValueOnce(
       reflectResult("trail running, film photography, Thai cooking", ["a"], true, {
         interests: ["trail running", "film photography", "Thai cooking"],
@@ -1319,7 +1427,7 @@ describe("synthesizeProfile", () => {
   });
 
   it("omits a blank occupation rather than publishing an empty column value", async () => {
-    mockGetAll.mockResolvedValue([mem("a")]);
+    setMemories([mem("a")]);
     mockReflect.mockResolvedValueOnce(
       reflectResult("Works in logistics.", ["a"], true, { occupation: "   " })
     );
@@ -1331,7 +1439,7 @@ describe("synthesizeProfile", () => {
   });
 
   it("measures the length caps in code points, not UTF-16 units", async () => {
-    mockGetAll.mockResolvedValue([mem("a")]);
+    setMemories([mem("a")]);
     const occupation = "\u{1D518}".repeat(45);
     const interest = "\u{1D518}".repeat(25);
     expect(occupation.length).toBe(90);
@@ -1350,7 +1458,7 @@ describe("synthesizeProfile", () => {
   });
 
   it("drops over-cap structured values instead of truncating them", async () => {
-    mockGetAll.mockResolvedValue([mem("a")]);
+    setMemories([mem("a")]);
     mockReflect
       .mockResolvedValueOnce(
         reflectResult("role prose", ["a"], true, { occupation: "x".repeat(81) })
@@ -1369,7 +1477,7 @@ describe("synthesizeProfile", () => {
   });
 
   it("normalizes interests into a deduped, capped set", async () => {
-    mockGetAll.mockResolvedValue([mem("a")]);
+    setMemories([mem("a")]);
     mockReflect.mockResolvedValueOnce(
       reflectResult("prose", ["a"], true, {
         interests: [
@@ -1391,7 +1499,7 @@ describe("synthesizeProfile", () => {
   });
 
   it("recovers interests emitted as a comma-separated string", async () => {
-    mockGetAll.mockResolvedValue([mem("a")]);
+    setMemories([mem("a")]);
     mockReflect.mockResolvedValueOnce(
       reflectResult("prose", ["a"], true, {
         interests: "trail running, film photography ,, Thai cooking",
@@ -1408,7 +1516,7 @@ describe("synthesizeProfile", () => {
   });
 
   it("recovers interests emitted as a serialized array rather than splitting it", async () => {
-    mockGetAll.mockResolvedValue([mem("a")]);
+    setMemories([mem("a")]);
     mockReflect
       .mockResolvedValueOnce(
         reflectResult("prose", ["a"], true, {
@@ -1427,7 +1535,7 @@ describe("synthesizeProfile", () => {
   });
 
   it("sheds serialization punctuation from near-JSON interests strings", async () => {
-    mockGetAll.mockResolvedValue([mem("a")]);
+    setMemories([mem("a")]);
     const shapes = [
       '["trail running", "film photography",]',
       "['trail running', 'film photography']",
@@ -1443,7 +1551,7 @@ describe("synthesizeProfile", () => {
   });
 
   it("keeps an unmatched leading quote that belongs to the interest", async () => {
-    mockGetAll.mockResolvedValue([mem("a")]);
+    setMemories([mem("a")]);
     mockReflect.mockResolvedValueOnce(
       reflectResult("prose", ["a"], true, { interests: "'90s music, trail running" })
     );
@@ -1454,7 +1562,7 @@ describe("synthesizeProfile", () => {
   });
 
   it("bounds how many raw interests reach the redactor", async () => {
-    mockGetAll.mockResolvedValue([mem("a")]);
+    setMemories([mem("a")]);
     mockReflect.mockResolvedValueOnce(
       reflectResult("prose", ["a"], true, {
         interests: Array.from({ length: 500 }, (_, i) => `hobby ${i}`).join(","),
@@ -1473,7 +1581,7 @@ describe("synthesizeProfile", () => {
   });
 
   it("omits a structured attribute the model returned in the wrong shape", async () => {
-    mockGetAll.mockResolvedValue([mem("a")]);
+    setMemories([mem("a")]);
     mockReflect
       .mockResolvedValueOnce(reflectResult("role prose", ["a"], true, { occupation: 42 }))
       .mockResolvedValueOnce(
@@ -1489,7 +1597,7 @@ describe("synthesizeProfile", () => {
   });
 
   it("ignores a structured attribute volunteered by a facet with no column", async () => {
-    mockGetAll.mockResolvedValue([mem("a")]);
+    setMemories([mem("a")]);
     mockReflect.mockResolvedValueOnce(
       reflectResult("A bio", ["a"], true, {
         occupation: "Backend engineer",
@@ -1505,9 +1613,7 @@ describe("synthesizeProfile", () => {
   });
 
   it("clears the structured values on a no-evidence verdict", async () => {
-    mockGetAll.mockResolvedValue([
-      mem("a", { updatedAt: new Date(5000), createdAt: new Date(500) }),
-    ]);
+    setMemories([mem("a", { updatedAt: new Date(5000), createdAt: new Date(500) })]);
     mockReflect.mockResolvedValueOnce(
       reflectResult("", ["a"], false, { occupation: "still here" })
     );
@@ -1526,9 +1632,7 @@ describe("synthesizeProfile", () => {
   });
 
   it("carries a prior section's structured values forward when regeneration fails", async () => {
-    mockGetAll.mockResolvedValue([
-      mem("a", { updatedAt: new Date(2000), createdAt: new Date(500) }),
-    ]);
+    setMemories([mem("a", { updatedAt: new Date(2000), createdAt: new Date(500) })]);
     mockReflect.mockRejectedValueOnce(new Error("LLM down"));
 
     const previous = priorDoc(
@@ -1550,7 +1654,7 @@ describe("synthesizeProfile", () => {
   });
 
   it("redacts structured values and normalizes the redacted text", async () => {
-    mockGetAll.mockResolvedValue([mem("a")]);
+    setMemories([mem("a")]);
     mockReflect.mockResolvedValueOnce(
       reflectResult("Hiking with Alice and Bob.", ["a"], true, {
         interests: ["Hiking with Alice", "Hiking with Bob", "film photography"],
@@ -1572,7 +1676,7 @@ describe("synthesizeProfile", () => {
   });
 
   it("drops an occupation that redaction pushed past the cap", async () => {
-    mockGetAll.mockResolvedValue([mem("a")]);
+    setMemories([mem("a")]);
     const occupation = "Support engineer at a mid-sized logistics firm, a@b.co";
     expect(occupation.length).toBeLessThanOrEqual(80);
     mockReflect.mockResolvedValueOnce(reflectResult("role prose", ["a"], true, { occupation }));
@@ -1592,7 +1696,7 @@ describe("synthesizeProfile", () => {
   });
 
   it("does not reuse a doc whose facet signature predates the response schema", async () => {
-    mockGetAll.mockResolvedValue([mem("a", { updatedAt: new Date(2000) })]);
+    setMemories([mem("a", { updatedAt: new Date(2000) })]);
     mockReflect
       .mockResolvedValueOnce(reflectResult("re bio", ["a"]))
       .mockResolvedValueOnce(reflectResult("re interests", ["a"]));
@@ -1618,7 +1722,7 @@ describe("synthesizeProfile", () => {
   });
 
   it("does not reuse a doc whose facet signature predates the system prompt", async () => {
-    mockGetAll.mockResolvedValue([mem("a", { updatedAt: new Date(2000) })]);
+    setMemories([mem("a", { updatedAt: new Date(2000) })]);
     mockReflect
       .mockResolvedValueOnce(reflectResult("re bio", ["a"]))
       .mockResolvedValueOnce(reflectResult("re interests", ["a"]));
@@ -1640,7 +1744,7 @@ describe("synthesizeProfile", () => {
   });
 
   it("asks for a pronoun-free voice, never third person", async () => {
-    mockGetAll.mockResolvedValue([mem("a")]);
+    setMemories([mem("a")]);
     mockReflect.mockResolvedValue(reflectResult("Values clear communication.", ["a"]));
 
     await synthesizeProfile(ctx, { apiKey: "k", facets: FACETS });
