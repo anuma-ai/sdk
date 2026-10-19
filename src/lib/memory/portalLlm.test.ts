@@ -227,6 +227,136 @@ describe("callPortalJsonCompletion — dual auth (apiKey / getToken)", () => {
   });
 });
 
+describe("callPortalJsonCompletion - total deadline", () => {
+  const baseArgs = {
+    model: "openai/gpt-5-mini",
+    systemPrompt: "system",
+    userMessage: "user",
+    tag: "test",
+    totalTimeoutMs: 20_000,
+    maxAttempts: 1,
+  } as const;
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("returns at the deadline when token acquisition stalls and ignores a late token", async () => {
+    vi.useFakeTimers();
+    let resolveToken!: (token: string) => void;
+    const getToken = vi.fn(() => new Promise<string>((resolve) => (resolveToken = resolve)));
+    const fetchFn = vi.fn().mockResolvedValue(mockResponse('{"ok":true}'));
+    const onFailure = vi.fn();
+    const onAttempt = vi.fn();
+    const settled = vi.fn();
+    const result = callPortalJsonCompletion({
+      ...baseArgs,
+      getToken,
+      fetchFn,
+      onFailure,
+      onAttempt,
+    });
+    void result.then(settled);
+
+    await vi.advanceTimersByTimeAsync(20_000);
+
+    expect(settled).toHaveBeenCalledWith(null);
+    expect(onFailure).toHaveBeenCalledExactlyOnceWith({
+      reason: "time-budget-exhausted",
+      attempts: 1,
+    });
+    expect(onAttempt).toHaveBeenCalledExactlyOnceWith({
+      attempt: 1,
+      ok: false,
+      reason: "time-budget-exhausted",
+    });
+    expect(fetchFn).not.toHaveBeenCalled();
+
+    resolveToken("late-token");
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(fetchFn).not.toHaveBeenCalled();
+    expect(onFailure).toHaveBeenCalledOnce();
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("does not start a request when authentication consumes the budget", async () => {
+    vi.useFakeTimers();
+    const startedAt = Date.now();
+    const getToken = vi.fn(() => {
+      vi.setSystemTime(startedAt + 20_000);
+      return Promise.resolve("late-token");
+    });
+    const fetchFn = vi.fn().mockResolvedValue(mockResponse('{"ok":true}'));
+    const onFailure = vi.fn();
+
+    const result = await callPortalJsonCompletion({ ...baseArgs, getToken, fetchFn, onFailure });
+
+    expect(result).toBeNull();
+    expect(fetchFn).not.toHaveBeenCalled();
+    expect(onFailure).toHaveBeenCalledExactlyOnceWith({
+      reason: "time-budget-exhausted",
+      attempts: 1,
+    });
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("limits the request to the budget that remains after authentication", async () => {
+    vi.useFakeTimers();
+    const getToken = vi.fn(
+      () => new Promise<string>((resolve) => setTimeout(() => resolve("token"), 15_000))
+    );
+    let requestSignal: AbortSignal | undefined;
+    const fetchFn = vi.fn((_url: string | URL | Request, init?: RequestInit) => {
+      requestSignal = init?.signal ?? undefined;
+      return new Promise<Response>((_resolve, reject) => {
+        requestSignal?.addEventListener("abort", () => reject(new Error("request aborted")));
+      });
+    });
+    const onFailure = vi.fn();
+    const settled = vi.fn();
+    const result = callPortalJsonCompletion({ ...baseArgs, getToken, fetchFn, onFailure });
+    void result.then(settled);
+
+    await vi.advanceTimersByTimeAsync(19_999);
+
+    expect(fetchFn).toHaveBeenCalledOnce();
+    expect(requestSignal?.aborted).toBe(false);
+    expect(settled).not.toHaveBeenCalled();
+
+    await vi.advanceTimersByTimeAsync(1);
+
+    expect(settled).toHaveBeenCalledWith(null);
+    expect(requestSignal?.aborted).toBe(true);
+    expect(onFailure).toHaveBeenCalledExactlyOnceWith({
+      reason: "time-budget-exhausted",
+      attempts: 1,
+    });
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("accepts a response within the deadline and clears the timers", async () => {
+    vi.useFakeTimers();
+    const getToken = vi.fn(
+      () => new Promise<string>((resolve) => setTimeout(() => resolve("token"), 15_000))
+    );
+    const fetchFn = vi.fn(
+      () =>
+        new Promise<Response>((resolve) =>
+          setTimeout(() => resolve(mockResponse('{"ok":true}')), 4_000)
+        )
+    );
+    const onFailure = vi.fn();
+    const result = callPortalJsonCompletion({ ...baseArgs, getToken, fetchFn, onFailure });
+
+    await vi.advanceTimersByTimeAsync(19_000);
+
+    expect(await result).toEqual({ ok: true });
+    expect(onFailure).not.toHaveBeenCalled();
+    expect(vi.getTimerCount()).toBe(0);
+  });
+});
+
 describe("callPortalJsonCompletion — retry on transient failure", () => {
   const baseArgs = {
     apiKey: "test-key",
@@ -346,16 +476,22 @@ describe("callPortalJsonCompletion — retry on transient failure", () => {
     expect(onFailure).toHaveBeenCalledWith({ reason: "content-flagged", attempts: 1 });
   });
 
-  it("stops retrying once the absolute totalTimeoutMs budget is spent", async () => {
+  it("does not start a request when the totalTimeoutMs budget is zero", async () => {
     const fetchFn = vi.fn().mockResolvedValue(new Response("upstream error", { status: 503 }));
+    const onFailure = vi.fn();
     const result = await callPortalJsonCompletion({
       ...baseArgs,
       maxAttempts: 3,
       totalTimeoutMs: 0,
       fetchFn,
+      onFailure,
     });
     expect(result).toBeNull();
-    expect(fetchFn).toHaveBeenCalledTimes(1);
+    expect(fetchFn).not.toHaveBeenCalled();
+    expect(onFailure).toHaveBeenCalledExactlyOnceWith({
+      reason: "time-budget-exhausted",
+      attempts: 1,
+    });
   });
 
   it("retries a thrown network error, then succeeds", async () => {

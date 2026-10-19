@@ -390,6 +390,12 @@ type AttemptOutcome =
     }
   | { kind: "terminal"; code: PortalLlmFailureReason; reason: string; httpStatus?: number };
 
+const TIME_BUDGET_EXHAUSTED = {
+  kind: "terminal",
+  code: "time-budget-exhausted",
+  reason: "time budget exhausted",
+} as const;
+
 const RETRYABLE_HTTP = new Set([408, 409, 425, 429]);
 
 function isRetryableStatus(status: number): boolean {
@@ -474,8 +480,8 @@ export async function callPortalJsonCompletion(req: PortalLlmRequest): Promise<u
   }
   const maxAttempts = Math.max(1, req.maxAttempts ?? 3);
   const startedAt = Date.now();
-  const overBudget = () =>
-    req.totalTimeoutMs !== undefined && Date.now() - startedAt >= req.totalTimeoutMs;
+  const deadlineAt = req.totalTimeoutMs === undefined ? undefined : startedAt + req.totalTimeoutMs;
+  const overBudget = () => deadlineAt !== undefined && Date.now() >= deadlineAt;
 
   let lastFailure: PortalLlmFailure | undefined;
   let reinforce = false;
@@ -490,22 +496,11 @@ export async function callPortalJsonCompletion(req: PortalLlmRequest): Promise<u
       lastFailure = { reason: "time-budget-exhausted", attempts: attempt - 1 };
       break;
     }
-    const attemptReq =
-      req.totalTimeoutMs !== undefined
-        ? {
-            ...req,
-            timeoutMs: Math.max(
-              1,
-              Math.min(req.timeoutMs ?? 60_000, req.totalTimeoutMs - (Date.now() - startedAt))
-            ),
-            ...(reinforce && { reinforceJsonContract: true }),
-          }
-        : reinforce
-          ? { ...req, reinforceJsonContract: true }
-          : req;
+    const attemptReq = reinforce ? { ...req, reinforceJsonContract: true } : req;
     const outcome = await attemptPortalJson(
       { ...attemptReq, transport } as PortalLlmRequest,
-      endpoint
+      endpoint,
+      deadlineAt
     );
     if (outcome.kind === "ok") {
       req.onAttempt?.({ attempt, ok: true });
@@ -549,14 +544,50 @@ export async function callPortalJsonCompletion(req: PortalLlmRequest): Promise<u
   return giveUp();
 }
 
-async function attemptPortalJson(req: PortalLlmRequest, endpoint: string): Promise<AttemptOutcome> {
+async function attemptPortalJson(
+  req: PortalLlmRequest,
+  endpoint: string,
+  deadlineAt?: number
+): Promise<AttemptOutcome> {
+  const controller = new AbortController();
+  if (deadlineAt === undefined || deadlineAt === Infinity) {
+    return requestPortalJson(req, endpoint, controller);
+  }
+  const remainingMs = deadlineAt - Date.now();
+  if (remainingMs <= 0) return TIME_BUDGET_EXHAUSTED;
+
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    const outcome = await Promise.race([
+      new Promise<AttemptOutcome>((resolve) => {
+        timer = setTimeout(() => {
+          resolve(TIME_BUDGET_EXHAUSTED);
+          controller.abort();
+        }, remainingMs);
+      }),
+      requestPortalJson(req, endpoint, controller, deadlineAt),
+    ]);
+    return Date.now() >= deadlineAt ? TIME_BUDGET_EXHAUSTED : outcome;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function requestPortalJson(
+  req: PortalLlmRequest,
+  endpoint: string,
+  controller: AbortController,
+  deadlineAt?: number
+): Promise<AttemptOutcome> {
   const baseUrl = req.baseUrl ?? defaultBaseUrl();
   const fetchImpl = req.fetchFn ?? fetch;
-  const timeoutMs = req.timeoutMs ?? 60_000;
 
   const authHeaders = await resolvePortalAuthHeaders(req, req.tag);
+  const remainingMs = deadlineAt === undefined ? Infinity : deadlineAt - Date.now();
+  if (controller.signal.aborted || remainingMs <= 0) return TIME_BUDGET_EXHAUSTED;
   if (authHeaders === null)
     return { kind: "terminal", code: "auth-unavailable", reason: "auth unavailable (no token)" };
+  const timeoutMs = Math.min(req.timeoutMs ?? 60_000, remainingMs);
 
   const usesPrefill = req.transport !== "responses" && req.model.startsWith("anthropic/");
   const prefill = usesPrefill ? "{" : "";
@@ -571,7 +602,6 @@ async function attemptPortalJson(req: PortalLlmRequest, endpoint: string): Promi
 
   const supportsJsonObjectFormat = supportsResponseFormat(req.model);
 
-  const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
 
   const requestBody: Record<string, unknown> =
