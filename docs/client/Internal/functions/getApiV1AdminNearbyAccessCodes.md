@@ -2,7 +2,7 @@
 
 > **getApiV1AdminNearbyAccessCodes**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`GetApiV1AdminNearbyAccessCodesData`](../type-aliases/GetApiV1AdminNearbyAccessCodesData.md), `ThrowOnError`>): `RequestResult`<[`GetApiV1AdminNearbyAccessCodesResponses`](../type-aliases/GetApiV1AdminNearbyAccessCodesResponses.md), [`GetApiV1AdminNearbyAccessCodesErrors`](../type-aliases/GetApiV1AdminNearbyAccessCodesErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:285](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#285)
+Defined in: [src/client/sdk.gen.ts:286](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#286)
 
 List People Nearby beta access codes
 

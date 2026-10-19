@@ -2,7 +2,7 @@
 
 > **postInternalMeetupsJoins**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`PostInternalMeetupsJoinsData`](../type-aliases/PostInternalMeetupsJoinsData.md), `ThrowOnError`>): `RequestResult`<[`PostInternalMeetupsJoinsResponses`](../type-aliases/PostInternalMeetupsJoinsResponses.md), [`PostInternalMeetupsJoinsErrors`](../type-aliases/PostInternalMeetupsJoinsErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:1833](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1833)
+Defined in: [src/client/sdk.gen.ts:1834](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1834)
 
 Report a meetup join (internal)
 

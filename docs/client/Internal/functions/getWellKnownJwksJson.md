@@ -2,7 +2,7 @@
 
 > **getWellKnownJwksJson**<`ThrowOnError`>(`options?`: [`Options`](../type-aliases/Options.md)<[`GetWellKnownJwksJsonData`](../type-aliases/GetWellKnownJwksJsonData.md), `ThrowOnError`, `unknown`>): `RequestResult`<[`GetWellKnownJwksJsonResponses`](../type-aliases/GetWellKnownJwksJsonResponses.md), `unknown`, `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:26](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#26)
+Defined in: [src/client/sdk.gen.ts:27](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#27)
 
 OAuth 2.0 JSON Web Key Set
 

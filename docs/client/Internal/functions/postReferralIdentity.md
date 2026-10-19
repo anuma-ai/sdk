@@ -2,7 +2,7 @@
 
 > **postReferralIdentity**<`ThrowOnError`>(`options?`: [`Options`](../type-aliases/Options.md)<[`PostReferralIdentityData`](../type-aliases/PostReferralIdentityData.md), `ThrowOnError`, `unknown`>): `RequestResult`<[`PostReferralIdentityResponses`](../type-aliases/PostReferralIdentityResponses.md), [`PostReferralIdentityErrors`](../type-aliases/PostReferralIdentityErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:1983](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1983)
+Defined in: [src/client/sdk.gen.ts:1984](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1984)
 
 Mint the Prefinery widget identity proof
 

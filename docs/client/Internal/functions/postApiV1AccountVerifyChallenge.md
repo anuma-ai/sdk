@@ -2,7 +2,7 @@
 
 > **postApiV1AccountVerifyChallenge**<`ThrowOnError`>(`options?`: [`Options`](../type-aliases/Options.md)<[`PostApiV1AccountVerifyChallengeData`](../type-aliases/PostApiV1AccountVerifyChallengeData.md), `ThrowOnError`, `unknown`>): `RequestResult`<[`PostApiV1AccountVerifyChallengeResponses`](../type-aliases/PostApiV1AccountVerifyChallengeResponses.md), [`PostApiV1AccountVerifyChallengeErrors`](../type-aliases/PostApiV1AccountVerifyChallengeErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:47](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#47)
+Defined in: [src/client/sdk.gen.ts:48](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#48)
 
 Verify the signup challenge
 

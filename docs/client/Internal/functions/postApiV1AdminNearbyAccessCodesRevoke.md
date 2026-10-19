@@ -2,7 +2,7 @@
 
 > **postApiV1AdminNearbyAccessCodesRevoke**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`PostApiV1AdminNearbyAccessCodesRevokeData`](../type-aliases/PostApiV1AdminNearbyAccessCodesRevokeData.md), `ThrowOnError`>): `RequestResult`<[`PostApiV1AdminNearbyAccessCodesRevokeResponses`](../type-aliases/PostApiV1AdminNearbyAccessCodesRevokeResponses.md), [`PostApiV1AdminNearbyAccessCodesRevokeErrors`](../type-aliases/PostApiV1AdminNearbyAccessCodesRevokeErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:306](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#306)
+Defined in: [src/client/sdk.gen.ts:307](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#307)
 
 Revoke or un-revoke a People Nearby beta access code
 
