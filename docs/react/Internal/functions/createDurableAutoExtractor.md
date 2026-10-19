@@ -2,7 +2,7 @@
 
 > **createDurableAutoExtractor**(`options`: [`DurableAutoExtractorOptions`](../interfaces/DurableAutoExtractorOptions.md)): [`AutoExtractor`](../interfaces/AutoExtractor.md)
 
-Defined in: [src/lib/memory/durableExtraction.ts:224](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/durableExtraction.ts#224)
+Defined in: [src/lib/memory/durableExtraction.ts:250](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/durableExtraction.ts#250)
 
 Durable client extraction. Call once per authenticated database session.
 Resumes pending jobs on creation, reads bounded batches from encrypted
