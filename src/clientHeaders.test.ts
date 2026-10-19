@@ -1,6 +1,8 @@
+// @vitest-environment node
+
 import { describe, expect, it, vi } from "vitest";
 
-import { createClient, type Client, type Config } from "./client/client";
+import { type Client, type Config, createClient } from "./client/client";
 import {
   postApiV1NotificationsDevices,
   postNearbyAccessCode,
@@ -50,9 +52,7 @@ const headerForms = [
 function setup() {
   const fetch = vi
     .fn<typeof globalThis.fetch>()
-    .mockImplementation(
-      async () => new Response("{}", { headers: { "Content-Type": "application/json" } })
-    );
+    .mockResolvedValue(new Response("{}", { headers: { "Content-Type": "application/json" } }));
   const client = createClient({
     baseUrl: "https://portal.example",
     fetch,
@@ -100,6 +100,24 @@ describe.each(headerForms)("generated request headers from $name", ({ create }) 
     expect(new Headers(fetch.mock.calls[0][1]?.headers).get("content-type")).toBe(
       "application/vnd.anuma+json"
     );
+  });
+
+  it("retains header names that match object properties", async () => {
+    const { client, fetch } = setup();
+
+    await postNearbyAccessCode({
+      client,
+      body: { code: "beta-code" },
+      headers: create([
+        ["__proto__", "request-prototype"],
+        ["constructor", "request-constructor"],
+      ]),
+    });
+
+    expect(fetch).toHaveBeenCalledOnce();
+    const headers = new Headers(fetch.mock.calls[0][1]?.headers);
+    expect(headers.get("__proto__")).toBe("request-prototype");
+    expect(headers.get("constructor")).toBe("request-constructor");
   });
 });
 

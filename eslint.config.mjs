@@ -23,6 +23,7 @@ const checkedTestFiles = [
   "src/lib/memory/store/remoteMigration.test.ts",
   ...appGenerationTests,
   ...memoryTelemetryTests,
+  "src/clientHeaders.test.ts",
   "src/expo/useChatStorage.sendHistoryRead.test.tsx",
   "src/lib/memory/reliability.integration.test.ts",
   "src/lib/memory/retain.test.ts",
@@ -55,10 +56,12 @@ export default tseslint.config(
     ignores: [
       ".claude/**",
       "dist/**",
-      "src/client/**",
+      "src/client/**/*",
+      "!src/client/sdk.gen.ts",
       "docs/**",
       "coverage/**",
       "scripts/**/*",
+      "!scripts/patch-generated-client.mjs",
       "patches/**",
       "packages/**",
       "test/**/*",
@@ -127,8 +130,29 @@ export default tseslint.config(
     },
   },
   {
-    files: ["eslint.config.mjs", "scripts/excluded-test-suites.mjs"],
+    files: [
+      "eslint.config.mjs",
+      "scripts/excluded-test-suites.mjs",
+      "scripts/patch-generated-client.mjs",
+    ],
     extends: [tseslint.configs.disableTypeChecked],
+  },
+  {
+    files: ["scripts/patch-generated-client.mjs"],
+    languageOptions: {
+      globals: {
+        console: "readonly",
+      },
+    },
+    rules: {
+      "no-console": ["warn", { allow: ["log", "warn", "error"] }],
+    },
+  },
+  {
+    files: ["src/client/sdk.gen.ts"],
+    rules: {
+      "simple-import-sort/imports": "off",
+    },
   },
   {
     files: ["src/react/**/*.{ts,tsx}"],
