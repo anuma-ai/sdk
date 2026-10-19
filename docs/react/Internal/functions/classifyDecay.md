@@ -19,9 +19,10 @@ Rules, in order (first match wins):
    null `eventTimeEnd` is still ongoing, so this rule does not fire for it.
 4. Age fallback — `now - updatedAt > TTL(factType)` → archive. Durable types
    have Infinity TTL, so this never fires for them; null/unknown use medium.
-   EXCEPTION: a `plan`/`ongoing_context` with a still-upcoming event
-   (`eventTimeEnd >= now`) is kept — it must not age-archive before the event
-   happens; only rule 3 (after it passes) may archive it.
+   EXCEPTION: a `plan` / `ongoing_context` with an upcoming event or an event
+   within the grace period (`eventTimeEnd >= now - pastEventGraceMs`) stays
+   active, even after its activity TTL expires. Rule 3 archives it after the
+   grace period ends.
 5. Otherwise → keep.
 
 ## Parameters
