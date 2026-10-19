@@ -187,6 +187,23 @@ describe("classifyDecay — plan/ongoing_context event-past archiving", () => {
       expect(verdict).toBe("keep");
     });
 
+    it.each([
+      ["keep", DAY],
+      ["keep", PAST_EVENT_GRACE_MS],
+      ["archive", PAST_EVENT_GRACE_MS + 1],
+    ] as const)(`returns %s for stale ${t} %i ms after its event ends`, (expected, elapsed) => {
+      const verdict = classifyDecay(
+        input({
+          factType: t,
+          eventTimeEnd: NOW - elapsed,
+          eventTimeKind: "range",
+          updatedAt: NOW - (SHORT_TTL_MS + DAY),
+        }),
+        NOW
+      );
+      expect(verdict).toBe(expected);
+    });
+
     it(`keeps ${t} whose event is in the future`, () => {
       const verdict = classifyDecay(
         input({ factType: t, eventTimeEnd: NOW + 30 * DAY, eventTimeKind: "range" }),

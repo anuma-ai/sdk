@@ -203,7 +203,7 @@ export function classifyDecay(
 
   if (isTimeSensitiveType(m.factType) && m.eventTimeEnd !== null) {
     if (m.eventTimeEnd < now - resolved.pastEventGraceMs) return "archive";
-    if (m.eventTimeEnd >= now) return "keep";
+    return "keep";
   }
 
   if (now - lastActivityAt(m) > ttlForType(m.factType, resolved)) return "archive";
