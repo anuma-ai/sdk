@@ -1396,6 +1396,11 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       makeSynthetic: () => T,
       dependencies: string[] = []
     ): Promise<{ result: T; queued: boolean; queueId?: string }> => {
+      if (enableQueue && !walletAddress && getWalletAddress) {
+        pendingOpsRef.current.push({ type: opType, payload, dependencies });
+        return { result: makeSynthetic(), queued: true };
+      }
+
       if (isEncryptionReady()) {
         const result = await directWrite();
         return { result, queued: false };
@@ -1404,11 +1409,6 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       if (!enableQueue) {
         const result = await directWrite();
         return { result, queued: false };
-      }
-
-      if (!walletAddress && getWalletAddress) {
-        pendingOpsRef.current.push({ type: opType, payload, dependencies });
-        return { result: makeSynthetic(), queued: true };
       }
 
       if (walletAddress) {

@@ -1,10 +1,11 @@
 import { Database } from "@nozbe/watermelondb";
 import LokiJSAdapter from "@nozbe/watermelondb/adapters/lokijs";
-import { act, cleanup, renderHook } from "@testing-library/react";
+import { act, cleanup, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { useChatStorage as useExpoChatStorage } from "../expo/useChatStorage";
 import { runToolLoop } from "../lib/chat/toolLoop";
+import { isEncrypted } from "../lib/db/chat/encryption";
 import { queueManager } from "../lib/db/queue";
 import { sdkMigrations, sdkModelClasses, sdkSchema } from "../lib/db/schema";
 import { useChatStorage as useReactChatStorage } from "./useChatStorage";
@@ -61,6 +62,92 @@ describe.each([
     clearEncryptionKey(walletAddress);
     vi.restoreAllMocks();
     vi.clearAllMocks();
+  });
+
+  it("queues writes until the wallet arrives and flushes encrypted rows into its database", async () => {
+    const initialDatabase = makeDatabase();
+    const walletDatabase = makeDatabase();
+    const signMessage = vi.fn().mockRejectedValue(new Error("Encryption key unavailable"));
+    const getWalletAddress = vi.fn().mockResolvedValue(null);
+    const { result, rerender } = renderHook(
+      ({ database, address }: { database: Database; address?: string }) =>
+        useChatStorage({
+          database,
+          walletAddress: address,
+          signMessage,
+          getWalletAddress,
+          enableQueue: true,
+          getToken: () => Promise.resolve("token"),
+          autoEmbedMessages: false,
+        }),
+      { initialProps: { database: initialDatabase, address: undefined as string | undefined } }
+    );
+
+    const conversation = await act(async () =>
+      result.current.createConversation({ title: "Private conversation" })
+    );
+    const sent = await act(async () =>
+      result.current.sendMessage({
+        messages: [{ role: "user", content: [{ type: "text", text: "Private message" }] }],
+        model: "test-model",
+      })
+    );
+
+    expect(sent.error).toBeNull();
+    if (!("assistantMessage" in sent)) {
+      throw new Error("The send result has no assistant message");
+    }
+    expect(await initialDatabase.get("conversations").query().fetch()).toHaveLength(0);
+    expect(await initialDatabase.get("history").query().fetch()).toHaveLength(0);
+    expect(queueManager.getOperations(walletAddress)).toEqual([]);
+
+    getWalletAddress.mockResolvedValue(walletAddress);
+    rerender({ database: walletDatabase, address: walletAddress });
+
+    expect(result.current.queueStatus.pending).toBe(4);
+    expect(await walletDatabase.get("conversations").query().fetch()).toHaveLength(0);
+    expect(await walletDatabase.get("history").query().fetch()).toHaveLength(0);
+
+    await act(() =>
+      Promise.resolve(
+        seedEncryptionKeys(walletAddress, { legacy: "11".repeat(32), current: "22".repeat(32) })
+      )
+    );
+    await waitFor(() => {
+      expect(result.current.queueStatus.pending).toBe(0);
+      expect(result.current.queueStatus.isFlushing).toBe(false);
+    });
+
+    expect(result.current.queueStatus.failed).toBe(0);
+    expect(await initialDatabase.get("conversations").query().fetch()).toHaveLength(0);
+    expect(await initialDatabase.get("history").query().fetch()).toHaveLength(0);
+    expect(await result.current.getConversations()).toMatchObject([
+      { conversationId: conversation.conversationId, title: "Private conversation" },
+    ]);
+    const storedMessages = await result.current.getMessages(conversation.conversationId);
+    expect(storedMessages).toHaveLength(3);
+    expect(storedMessages).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          uniqueId: sent.userMessage?.uniqueId,
+          content: "Private message",
+        }),
+        expect.objectContaining({
+          uniqueId: sent.assistantMessage?.uniqueId,
+          content: sent.assistantMessage?.content,
+        }),
+      ])
+    );
+    const rows = [
+      ...(await walletDatabase.get("conversations").query().fetch()).map((row) =>
+        row._getRaw("title")
+      ),
+      ...(await walletDatabase.get("history").query().fetch()).map((row) => row._getRaw("content")),
+    ];
+    expect(rows).toHaveLength(4);
+    for (const value of rows) {
+      expect(isEncrypted(value as string)).toBe(true);
+    }
   });
 
   it.each([false, true])(
