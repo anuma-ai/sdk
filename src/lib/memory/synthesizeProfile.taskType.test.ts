@@ -55,10 +55,9 @@ beforeEach(() => {
 function turnsOf(fetchFn: ReturnType<typeof vi.fn>) {
   return fetchFn.mock.calls.map((call) => {
     const init = call[1] as RequestInit;
-    const messages = JSON.parse(init.body as string).messages as Array<{
-      role: string;
-      content: string;
-    }>;
+    const { messages } = JSON.parse(init.body as string) as {
+      messages: Array<{ role: string; content: string }>;
+    };
     return {
       headers: init.headers as Record<string, string>,
       system: messages.find((m) => m.role === "system")!.content,
@@ -67,13 +66,14 @@ function turnsOf(fetchFn: ReturnType<typeof vi.fn>) {
   });
 }
 
-describe("synthesizeProfile — what facet synthesis puts on the wire", () => {
+describe("synthesizeProfile - facet synthesis requests", () => {
   it("declares memory_profile_synth on every facet request", async () => {
     const fetchFn = vi.fn().mockResolvedValue({
       ok: true,
-      json: async () => ({
-        choices: [{ message: { content: JSON.stringify({ summary: "s", hasEvidence: true }) } }],
-      }),
+      json: () =>
+        Promise.resolve({
+          choices: [{ message: { content: JSON.stringify({ summary: "s", hasEvidence: true }) } }],
+        }),
     });
     await synthesizeProfile(ctx, {
       apiKey: "k",
@@ -91,9 +91,10 @@ describe("synthesizeProfile — what facet synthesis puts on the wire", () => {
   it("sends one fixed system prompt for every facet, with the facet data on the user turn", async () => {
     const fetchFn = vi.fn().mockResolvedValue({
       ok: true,
-      json: async () => ({
-        choices: [{ message: { content: JSON.stringify({ summary: "s", hasEvidence: true }) } }],
-      }),
+      json: () =>
+        Promise.resolve({
+          choices: [{ message: { content: JSON.stringify({ summary: "s", hasEvidence: true }) } }],
+        }),
     });
     await synthesizeProfile(ctx, {
       apiKey: "k",

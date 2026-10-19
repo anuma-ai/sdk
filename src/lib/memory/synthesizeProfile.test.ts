@@ -11,10 +11,11 @@ vi.mock("../memoryEngine/embeddings.js", () => ({ generateEmbeddings: vi.fn() })
 
 import {
   getAllVaultMemoriesOp,
-  getVaultProfileMetadataOp,
   getVaultEmbeddingsByIdsOp,
+  getVaultProfileMetadataOp,
 } from "../db/memoryVault/operations.js";
 import type { StoredVaultMemory } from "../db/memoryVault/types.js";
+import { INTERNAL_FLOW_MARKER } from "../internalFlowMarker.js";
 import { generateEmbeddings } from "../memoryEngine/embeddings.js";
 import {
   DEFAULT_PROFILE_FACT_TYPE_WEIGHTS,
@@ -22,16 +23,15 @@ import {
 } from "./profileSalience.js";
 import { recall } from "./recall.js";
 import { RECALL_MAX_LIMIT } from "./recallConstants.js";
-import { INTERNAL_FLOW_MARKER } from "../internalFlowMarker.js";
 import { reflect } from "./reflect.js";
 import {
   facetsSignature,
+  PROFILE_DOC_VERSION,
   type ProfileConfigFingerprint,
   type ProfileDoc,
   type ProfileFacet,
   type ProfileFacetKey,
   type ProfileSection,
-  PROFILE_DOC_VERSION,
   synthesizeProfile,
 } from "./synthesizeProfile.js";
 import type { RankedMemory, RecallContext, RecallFactSource } from "./types.js";
@@ -56,10 +56,12 @@ function setMemories(memories: StoredVaultMemory[]) {
       proofCount: memory.proofCount,
     }))
   );
-  mockGetEmbeddings.mockImplementation(async (_ctx, ids) =>
-    memories
-      .filter((memory) => ids.includes(memory.uniqueId))
-      .map(({ uniqueId, embedding, embeddingModel }) => ({ uniqueId, embedding, embeddingModel }))
+  mockGetEmbeddings.mockImplementation((_ctx, ids) =>
+    Promise.resolve(
+      memories
+        .filter((memory) => ids.includes(memory.uniqueId))
+        .map(({ uniqueId, embedding, embeddingModel }) => ({ uniqueId, embedding, embeddingModel }))
+    )
   );
 }
 const mockEmbed = vi.mocked(generateEmbeddings);
@@ -209,45 +211,39 @@ beforeEach(() => {
 });
 
 describe("synthesizeProfile", () => {
-  it("validates a cached local profile without full rows or embeddings", async () => {
-    const metadata = [
-      {
-        uniqueId: "a",
-        scope: "private",
-        createdAt: new Date(500),
-        updatedAt: new Date(2000),
-        lastObservedAt: 3000,
-        supersededAt: null,
-        supersededBy: null,
-        isDeleted: false,
-        proofCount: 3,
-      },
-    ];
-    vi.mocked(getVaultProfileMetadataOp).mockResolvedValue(metadata);
-    mockGetAll.mockRejectedValueOnce(new Error("Full vault reads must not run"));
-    const previous = priorDoc(
-      [section("bio", "old bio", ["a"]), section("interests", "old interests", ["a"])],
-      3000
-    );
+  it.each([1, 1000])(
+    "reuses a cached local profile with %i memories without full reads",
+    async (count) => {
+      const memories = Array.from({ length: count }, (_, i) =>
+        mem(`m${i}`, { updatedAt: new Date(2000), lastObservedAt: 3000, proofCount: 3 })
+      );
+      setMemories(memories);
+      mockGetAll.mockResolvedValue(memories);
+      const previous = priorDoc(
+        [section("bio", "old bio", ["m0"]), section("interests", "old interests", ["m0"])],
+        3000
+      );
+      previous.observationTrends = {
+        new: 0,
+        strengthening: 0,
+        stable: 0,
+        weakening: 0,
+        stale: count,
+      };
 
-    const doc = await synthesizeProfile(ctx, { apiKey: "k", facets: FACETS, previous });
+      const doc = await synthesizeProfile(ctx, { apiKey: "k", facets: FACETS, previous });
 
-    expect(doc.sections).toBe(previous.sections);
-    expect(doc.vaultWatermark).toBe(3000);
-    expect(doc.observationTrends).toEqual({
-      new: 0,
-      strengthening: 0,
-      stable: 0,
-      weakening: 0,
-      stale: 1,
-    });
-    expect(getVaultProfileMetadataOp).toHaveBeenCalledWith(ctx.vaultCtx, { scopes: ["private"] });
-    expect(mockGetAll).not.toHaveBeenCalled();
-    expect(getVaultEmbeddingsByIdsOp).not.toHaveBeenCalled();
-    expect(mockEmbed).not.toHaveBeenCalled();
-    expect(mockRecall).not.toHaveBeenCalled();
-    expect(mockReflect).not.toHaveBeenCalled();
-  });
+      expect(doc).toBe(previous);
+      expect(mockGetAll).not.toHaveBeenCalled();
+      expect(mockGetMetadata).toHaveBeenCalledExactlyOnceWith(ctx.vaultCtx, {
+        scopes: ["private"],
+      });
+      expect(getVaultEmbeddingsByIdsOp).not.toHaveBeenCalled();
+      expect(mockEmbed).not.toHaveBeenCalled();
+      expect(mockRecall).not.toHaveBeenCalled();
+      expect(mockReflect).not.toHaveBeenCalled();
+    }
+  );
 
   it("loads embeddings only for uncited changed facts that pass the review gate", async () => {
     setMemories([
@@ -1120,15 +1116,15 @@ describe("synthesizeProfile", () => {
 
   it("recalls with RECALL_MAX_LIMIT when reviewedMemoryIds gate is on", async () => {
     setMemories([mem("a")]);
-    mockRecall.mockImplementation(async (_q, _ctx, options) => {
+    mockRecall.mockImplementation((_q, _ctx, options) => {
       const all = Array.from({ length: 30 }, (_, i) => ranked(`m${i}`));
       const limit = options?.limit ?? 8;
-      return {
+      return Promise.resolve({
         memories: all.slice(0, limit),
         usedBudget: "low" as const,
         reranked: false,
         candidateCount: all.length,
-      };
+      });
     });
     mockReflect.mockResolvedValueOnce(reflectResult("Bio", ["m0"]));
 
@@ -1568,7 +1564,7 @@ describe("synthesizeProfile", () => {
         interests: Array.from({ length: 500 }, (_, i) => `hobby ${i}`).join(","),
       })
     );
-    const redactTextAsync = vi.fn(async (text: string) => ({ text, matches: [] }));
+    const redactTextAsync = vi.fn((text: string) => Promise.resolve({ text, matches: [] }));
 
     const doc = await synthesizeProfile(ctx, {
       apiKey: "k",
@@ -1660,10 +1656,12 @@ describe("synthesizeProfile", () => {
         interests: ["Hiking with Alice", "Hiking with Bob", "film photography"],
       })
     );
-    const redactTextAsync = vi.fn(async (text: string) => ({
-      text: text.replace(/Alice|Bob/g, "[PERSON_1]"),
-      matches: [],
-    }));
+    const redactTextAsync = vi.fn((text: string) =>
+      Promise.resolve({
+        text: text.replace(/Alice|Bob/g, "[PERSON_1]"),
+        matches: [],
+      })
+    );
 
     const doc = await synthesizeProfile(ctx, {
       apiKey: "k",
@@ -1680,10 +1678,12 @@ describe("synthesizeProfile", () => {
     const occupation = "Support engineer at a mid-sized logistics firm, a@b.co";
     expect(occupation.length).toBeLessThanOrEqual(80);
     mockReflect.mockResolvedValueOnce(reflectResult("role prose", ["a"], true, { occupation }));
-    const redactTextAsync = vi.fn(async (text: string) => ({
-      text: text.replace("a@b.co", "[EMAIL_ADDRESS_PLACEHOLDER_NUMBER_ONE]"),
-      matches: [],
-    }));
+    const redactTextAsync = vi.fn((text: string) =>
+      Promise.resolve({
+        text: text.replace("a@b.co", "[EMAIL_ADDRESS_PLACEHOLDER_NUMBER_ONE]"),
+        matches: [],
+      })
+    );
 
     const doc = await synthesizeProfile(ctx, {
       apiKey: "k",
