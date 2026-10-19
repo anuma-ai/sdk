@@ -396,6 +396,8 @@ const TIME_BUDGET_EXHAUSTED = {
   reason: "time budget exhausted",
 } as const;
 
+const MAX_TIMER_DELAY_MS = 2_147_483_647;
+
 const RETRYABLE_HTTP = new Set([408, 409, 425, 429]);
 
 function isRetryableStatus(status: number): boolean {
@@ -550,7 +552,7 @@ async function attemptPortalJson(
   deadlineAt?: number
 ): Promise<AttemptOutcome> {
   const controller = new AbortController();
-  if (deadlineAt === undefined || deadlineAt === Infinity) {
+  if (deadlineAt === undefined || deadlineAt - Date.now() > MAX_TIMER_DELAY_MS) {
     return requestPortalJson(req, endpoint, controller);
   }
   const remainingMs = deadlineAt - Date.now();

@@ -409,6 +409,30 @@ describe("callPortalJsonCompletion - total deadline", () => {
     expect(onFailure).not.toHaveBeenCalled();
     expect(vi.getTimerCount()).toBe(0);
   });
+
+  it("accepts a budget larger than the maximum timer delay", async () => {
+    vi.useFakeTimers();
+    const fetchFn = vi.fn(
+      () =>
+        new Promise<Response>((resolve) =>
+          setTimeout(() => resolve(mockResponse('{"ok":true}')), 4_000)
+        )
+    );
+    const onFailure = vi.fn();
+    const result = callPortalJsonCompletion({
+      ...baseArgs,
+      apiKey: "key",
+      totalTimeoutMs: Number.MAX_SAFE_INTEGER,
+      fetchFn,
+      onFailure,
+    });
+
+    await vi.advanceTimersByTimeAsync(4_000);
+
+    expect(await result).toEqual({ ok: true });
+    expect(onFailure).not.toHaveBeenCalled();
+    expect(vi.getTimerCount()).toBe(0);
+  });
 });
 
 describe("callPortalJsonCompletion — retry on transient failure", () => {
