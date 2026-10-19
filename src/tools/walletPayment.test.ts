@@ -151,11 +151,10 @@ describe("createWalletPaymentTool", () => {
 
     expect(createInteraction.mock.calls[0][1]).toBe("prompt_wallet_payment");
     expect(pay).toHaveBeenCalledTimes(1);
-    expect(pay).toHaveBeenCalledWith({
-      provider: "brij",
-      reference: "ref_1",
-      passengers: PASSENGERS,
-    });
+    expect(pay).toHaveBeenCalledWith(
+      { provider: "brij", reference: "ref_1", passengers: PASSENGERS },
+      undefined
+    );
   });
 
   it("returns only the paid flag, provider, reference and status on success", async () => {
@@ -202,6 +201,25 @@ describe("createWalletPaymentTool", () => {
     });
     expect(createInteraction).not.toHaveBeenCalled();
     expect(pay).not.toHaveBeenCalled();
+  });
+
+  it("hands the turn's signal to pay, so a stop during payment reaches the caller", async () => {
+    const { context, createInteraction, settle } = pendingContext();
+    let paySignal: AbortSignal | undefined;
+    const pay = vi.fn((_request: unknown, signal?: AbortSignal) => {
+      paySignal = signal;
+      return new Promise<WalletPaymentOutcome>(() => {});
+    });
+    const tool = createWalletPaymentTool({ getContext: () => context, pay });
+    const controller = new AbortController();
+
+    void tool.executor?.(PAYMENT_ARGS, controller.signal);
+    await vi.waitFor(() => expect(createInteraction).toHaveBeenCalled());
+    settle().answer({ passengers: PASSENGERS });
+    await vi.waitFor(() => expect(pay).toHaveBeenCalledTimes(1));
+    controller.abort();
+
+    expect(paySignal?.aborted).toBe(true);
   });
 
   it("does not pay when the turn is aborted while the card is open", async () => {

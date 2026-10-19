@@ -43,6 +43,6 @@ import { createWalletPaymentTool } from "@anuma/sdk/tools";
 const paymentTool = createWalletPaymentTool({
   getContext: () => uiInteraction,
   getLastMessageId: () => lastMsgId,
-  pay: (request) => payFromWallet(request),
+  pay: (request, signal) => payFromWallet(request, signal),
 });
 ```

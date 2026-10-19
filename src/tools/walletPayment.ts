@@ -47,7 +47,7 @@ export type CreateSelectPaymentWalletToolOptions = CreateUIToolsOptions & {
 
 /** Options for {@link createWalletPaymentTool}. */
 export type CreateWalletPaymentToolOptions = CreateUIToolsOptions & {
-  pay: (request: WalletPaymentRequest) => Promise<WalletPaymentOutcome>;
+  pay: (request: WalletPaymentRequest, signal?: AbortSignal) => Promise<WalletPaymentOutcome>;
 };
 
 const CANCELLED = { cancelled: true } as const;
@@ -150,7 +150,7 @@ export function createSelectPaymentWalletTool(
  * const paymentTool = createWalletPaymentTool({
  *   getContext: () => uiInteraction,
  *   getLastMessageId: () => lastMsgId,
- *   pay: (request) => payFromWallet(request),
+ *   pay: (request, signal) => payFromWallet(request, signal),
  * });
  * ```
  */
@@ -204,7 +204,7 @@ export function createWalletPaymentTool(options: CreateWalletPaymentToolOptions)
       const reference = args.reference as string;
       let outcome: WalletPaymentOutcome;
       try {
-        outcome = await options.pay({ provider, reference, passengers: answer.passengers });
+        outcome = await options.pay({ provider, reference, passengers: answer.passengers }, signal);
       } catch {
         return { paid: false, error_code: "payment_failed", retryable: false };
       }

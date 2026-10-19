@@ -10,7 +10,7 @@ Options for [createWalletPaymentTool](../functions/createWalletPaymentTool.md).
 
 ### pay()
 
-> **pay**: (`request`: [`WalletPaymentRequest`](WalletPaymentRequest.md)) => `Promise`<[`WalletPaymentOutcome`](WalletPaymentOutcome.md)>
+> **pay**: (`request`: [`WalletPaymentRequest`](WalletPaymentRequest.md), `signal?`: `AbortSignal`) => `Promise`<[`WalletPaymentOutcome`](WalletPaymentOutcome.md)>
 
 **Parameters**
 
@@ -31,6 +31,18 @@ Options for [createWalletPaymentTool](../functions/createWalletPaymentTool.md).
 <td>
 
 [`WalletPaymentRequest`](WalletPaymentRequest.md)
+
+</td>
+</tr>
+<tr>
+<td>
+
+`signal?`
+
+</td>
+<td>
+
+`AbortSignal`
 
 </td>
 </tr>
