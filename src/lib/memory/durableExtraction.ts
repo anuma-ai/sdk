@@ -37,6 +37,32 @@ type LoadedMessage = Pick<
   "uniqueId" | "messageId" | "conversationId" | "role" | "content" | "decryptionStatus"
 >;
 
+type MessagePosition = {
+  id: string;
+  conversation_id: string;
+  message_id: number;
+};
+
+async function messagePositions(
+  storage: StorageOperationsContext,
+  ids: string[]
+): Promise<MessagePosition[]> {
+  try {
+    return (await storage.messagesCollection
+      .query(
+        Q.unsafeSqlQuery(
+          `select "id", "conversation_id", "message_id" from "history" where "_status" is not 'deleted' and "id" in (${ids.map(() => "?").join(",")})`,
+          ids
+        )
+      )
+      .unsafeFetchRaw()) as MessagePosition[];
+  } catch {
+    return (await storage.messagesCollection
+      .query(Q.where("id", Q.oneOf(ids)))
+      .unsafeFetchRaw()) as MessagePosition[];
+  }
+}
+
 export interface DurableAutoExtractorOptions extends Omit<CreateAutoExtractorOptions, "scope"> {
   /**
    * Scope for facts retained from newly queued turns. Pass an accessor to have
@@ -775,13 +801,9 @@ export function createDurableAutoExtractor(options: DurableAutoExtractorOptions)
                     r._setRaw("watermark_seq", null);
                   });
             }
-            const rows = fromSourceConversation
-              ? []
-              : await storage.messagesCollection.query(Q.where("id", Q.oneOf(ids))).fetch();
+            const rows = fromSourceConversation ? [] : await messagePositions(storage, ids);
             const foreignRows = new Set(
-              rows
-                .filter((row) => row._getRaw("conversation_id") !== conversationId)
-                .map((row) => row.id)
+              rows.filter((row) => row.conversation_id !== conversationId).map((row) => row.id)
             );
             const sequences = new Map<string, number>();
             if (fromSourceConversation)
@@ -790,7 +812,7 @@ export function createDurableAutoExtractor(options: DurableAutoExtractorOptions)
                   sequences.set(message.id, message.seq);
             for (const row of rows) {
               if (foreignRows.has(row.id)) continue;
-              const sequence = Number(row._getRaw("message_id"));
+              const sequence = Number(row.message_id);
               if (Number.isFinite(sequence) && sequence > 0) sequences.set(row.id, sequence);
             }
             let boundary = -1;

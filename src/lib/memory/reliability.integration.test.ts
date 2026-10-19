@@ -1,3 +1,5 @@
+import { createRequire } from "node:module";
+
 import { appSchema, Database, Q } from "@nozbe/watermelondb";
 import LokiJSAdapter from "@nozbe/watermelondb/adapters/lokijs";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -326,6 +328,70 @@ describe("durable extraction outbox", () => {
     role: "user" as const,
     content: `secret-${i}`,
   }));
+  it.each(["sql", "loki"] as const)(
+    "reads enqueue metadata without history models and loads only the tail on %s",
+    async (adapterType) => {
+      await conversation();
+      await db.write(() =>
+        db.get<ExtractionJob>(ExtractionJob.table).create((row) => {
+          row._setRaw("owner_key", "owner");
+          row._setRaw("conversation_id", "conversation");
+          row._setRaw("scope", "private");
+          row._setRaw("folder_id", null);
+          row._setRaw("message_ids", "[]");
+          row._setRaw("watermark", "m19");
+          row._setRaw("watermark_seq", 20);
+        })
+      );
+      const { DatabaseSync } = createRequire(import.meta.url)(
+        "node:sqlite"
+      ) as typeof import("node:sqlite");
+      const sqlDb = new DatabaseSync(":memory:");
+      sqlDb.exec(
+        'create table "history" ("id" text, "conversation_id" text, "message_id" integer, "_status" text)'
+      );
+      const insert = sqlDb.prepare('insert into "history" values (?, ?, ?, ?)');
+      for (const [index, message] of messages.entries())
+        insert.run(message.id, "conversation", index + 1, "created");
+      const adapter = db.adapter.underlyingAdapter;
+      const fetch = vi.spyOn(adapter, "query");
+      const queryRaw = adapter.unsafeQueryRaw.bind(adapter);
+      const projections: Record<string, unknown>[][] = [];
+      const raw = vi.spyOn(adapter, "unsafeQueryRaw").mockImplementation((query, callback) => {
+        const sql = query.description.sql;
+        if (adapterType === "sql" && query.table === "history" && sql) {
+          const rows = sqlDb.prepare(sql.sql).all(...(sql.values as string[]));
+          projections.push(rows);
+          callback({ value: rows });
+        } else queryRaw(query, callback);
+      });
+      const onError = vi.fn();
+      const worker = createDurableAutoExtractor({ ...options(), onError });
+      try {
+        expect(worker.processTurn(messages, "conversation")).toBe(true);
+        const [job] = await db.get<ExtractionJob>(ExtractionJob.table).query().fetch();
+        await vi.waitFor(() => expect(job._getRaw("watermark")).toBe("m24"));
+        const tail = messages.slice(18).map((message) => message.id);
+        expect(vi.mocked(getMessageOp).mock.calls.map(([, id]) => id)).toEqual(tail);
+        expect(vi.mocked(extractAndRetain).mock.calls[0][0].map((message) => message.id)).toEqual(
+          tail
+        );
+        expect(fetch.mock.calls.filter(([query]) => query.table === "history")).toEqual([]);
+        expect(onError).not.toHaveBeenCalled();
+        if (adapterType === "sql") {
+          expect(projections).toHaveLength(1);
+          expect(projections[0]).toHaveLength(messages.length);
+          for (const row of projections[0])
+            expect(Object.keys(row).sort()).toEqual(["conversation_id", "id", "message_id"]);
+        }
+      } finally {
+        worker.dispose();
+        fetch.mockRestore();
+        raw.mockRestore();
+        sqlDb.close();
+      }
+    }
+  );
   it("persists only ids and resumes a disposed session without a new turn", async () => {
     await conversation();
     const first = createDurableAutoExtractor({ ...options(), debounceMs: 60_000 });
