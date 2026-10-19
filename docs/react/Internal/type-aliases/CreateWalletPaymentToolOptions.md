@@ -12,6 +12,8 @@ Options for [createWalletPaymentTool](../functions/createWalletPaymentTool.md).
 
 > **pay**: (`request`: [`WalletPaymentRequest`](WalletPaymentRequest.md), `signal?`: `AbortSignal`) => `Promise`<[`WalletPaymentOutcome`](WalletPaymentOutcome.md)>
 
+Pays the booking: stop before submitting if `signal` fires, and once submitted show the user the real outcome, because the tool result will read cancelled.
+
 **Parameters**
 
 <table>

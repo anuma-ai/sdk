@@ -97,6 +97,27 @@ describe("createSelectPaymentWalletTool", () => {
     expect(createInteraction).not.toHaveBeenCalled();
   });
 
+  it("returns cancelled without opening a card when the turn stops while wallets are loading", async () => {
+    const { context, createInteraction } = pendingContext();
+    let deliverWallets!: (wallets: PaymentWallet[]) => void;
+    const listWallets = vi.fn(
+      () =>
+        new Promise<PaymentWallet[]>((resolve) => {
+          deliverWallets = resolve;
+        })
+    );
+    const tool = createSelectPaymentWalletTool({ getContext: () => context, listWallets });
+    const controller = new AbortController();
+
+    const pending = tool.executor?.(OFFER_ARGS, controller.signal);
+    await vi.waitFor(() => expect(listWallets).toHaveBeenCalledOnce());
+    controller.abort();
+    deliverWallets(WALLETS);
+
+    expect(await pending).toEqual({ cancelled: true });
+    expect(createInteraction).not.toHaveBeenCalled();
+  });
+
   it("does not pass stray model arguments to the card", async () => {
     const { createInteraction } = await chooseWallet(
       { confirmed: false },

@@ -2,7 +2,7 @@
 
 > **createWalletPaymentTool**(`options`: [`CreateWalletPaymentToolOptions`](../type-aliases/CreateWalletPaymentToolOptions.md)): `ToolConfig`
 
-Defined in: [src/tools/walletPayment.ts:157](https://github.com/anuma-ai/sdk/blob/main/src/tools/walletPayment.ts#157)
+Defined in: [src/tools/walletPayment.ts:159](https://github.com/anuma-ai/sdk/blob/main/src/tools/walletPayment.ts#159)
 
 Create the prompt\_wallet\_payment tool, which collects the passengers on a card and then pays the booking through the caller's `pay` function.
 
