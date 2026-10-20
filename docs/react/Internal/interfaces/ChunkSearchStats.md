@@ -1,6 +1,6 @@
 # ChunkSearchStats
 
-Defined in: [src/lib/db/chat/operations.ts:1703](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/operations.ts#1703)
+Defined in: [src/lib/db/chat/operations.ts:1681](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/operations.ts#1681)
 
 Row counts from one [searchChunksOp](../functions/searchChunksOp.md) call.
 
@@ -10,7 +10,7 @@ Row counts from one [searchChunksOp](../functions/searchChunksOp.md) call.
 
 > **cacheHits**: `number`
 
-Defined in: [src/lib/db/chat/operations.ts:1709](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/operations.ts#1709)
+Defined in: [src/lib/db/chat/operations.ts:1687](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/operations.ts#1687)
 
 Messages scored straight from the vector cache.
 
@@ -20,7 +20,7 @@ Messages scored straight from the vector cache.
 
 > **rowsFetched**: `number`
 
-Defined in: [src/lib/db/chat/operations.ts:1707](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/operations.ts#1707)
+Defined in: [src/lib/db/chat/operations.ts:1685](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/operations.ts#1685)
 
 Messages whose vectors were read from storage because the cache missed.
 
@@ -30,6 +30,6 @@ Messages whose vectors were read from storage because the cache missed.
 
 > **rowsScanned**: `number`
 
-Defined in: [src/lib/db/chat/operations.ts:1705](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/operations.ts#1705)
+Defined in: [src/lib/db/chat/operations.ts:1683](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/operations.ts#1683)
 
 Embedded messages in live conversations that the search considered.

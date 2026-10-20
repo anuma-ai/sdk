@@ -2,7 +2,7 @@
 
 import { Database } from "@nozbe/watermelondb";
 import LokiJSAdapter from "@nozbe/watermelondb/adapters/lokijs";
-import { act, renderHook } from "@testing-library/react";
+import { act, cleanup, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { sdkMigrations, sdkModelClasses, sdkSchema } from "../lib/db/schema";
@@ -40,7 +40,7 @@ function makeDatabase(): Database {
   return new Database({ adapter, modelClasses: sdkModelClasses });
 }
 
-function loopResult() {
+function loopResult(): Awaited<ReturnType<typeof runToolLoop>> {
   return {
     data: {
       id: `resp-${Math.random().toString(36).slice(2)}`,
@@ -57,11 +57,11 @@ function loopResult() {
       usage: undefined,
     },
     error: null,
-  } as never;
+  };
 }
 
 function replayedTexts(callIndex: number): string[] {
-  const messages = mockRunToolLoop.mock.calls[callIndex]![0]!.messages as {
+  const messages = mockRunToolLoop.mock.calls[callIndex][0].messages as {
     role: string;
     content: { text?: string }[];
   }[];
@@ -70,16 +70,16 @@ function replayedTexts(callIndex: number): string[] {
 
 describe("useChatStorage send history read", () => {
   let db: Database;
-  let fetchSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
     vi.clearAllMocks();
     db = makeDatabase();
-    fetchSpy = vi.spyOn(globalThis, "fetch").mockRejectedValue(new Error("no network"));
+    vi.spyOn(globalThis, "fetch").mockRejectedValue(new Error("no network"));
   });
 
   afterEach(() => {
-    fetchSpy.mockRestore();
+    cleanup();
+    vi.restoreAllMocks();
     vi.clearAllMocks();
   });
 
@@ -104,7 +104,11 @@ describe("useChatStorage send history read", () => {
     mockRunToolLoop.mockResolvedValue(loopResult());
 
     const { result } = renderHook(() =>
-      useChatStorage({ database: db, conversationId: "conv_long", getToken: async () => "tok" })
+      useChatStorage({
+        database: db,
+        conversationId: "conv_long",
+        getToken: () => Promise.resolve("tok"),
+      })
     );
 
     await act(async () => {
@@ -133,6 +137,34 @@ describe("useChatStorage send history read", () => {
       "seeded-25",
     ]);
     expect(texts[texts.length - 1]).toContain("new prompt");
+  });
+
+  it("does not read history again when includeHistory is false", async () => {
+    await seed(25, "conv_long");
+    mockRunToolLoop.mockResolvedValue(loopResult());
+    const { result } = renderHook(() =>
+      useChatStorage({
+        database: db,
+        conversationId: "conv_long",
+        getToken: () => Promise.resolve("tok"),
+      })
+    );
+    const send = () =>
+      act(async () => {
+        await result.current.sendMessage({
+          messages: [{ role: "user", content: [{ type: "text", text: "next" }] }],
+          model: "test-model",
+          includeHistory: false,
+          serverTools: [],
+        });
+      });
+    await send();
+    const reads = vi.spyOn(db.adapter.underlyingAdapter, "unsafeQueryRaw");
+
+    await send();
+
+    expect(reads.mock.calls.filter(([query]) => query.table === "history")).toEqual([]);
+    expect(replayedTexts(1)).toEqual(["next"]);
   });
 
   it("pages backward until the FOLDED window is full (synthetic rows don't spend slots)", async () => {
@@ -168,7 +200,7 @@ describe("useChatStorage send history read", () => {
       useChatStorage({
         database: db,
         conversationId: "conv_fold",
-        getToken: async () => "tok",
+        getToken: () => Promise.resolve("tok"),
         foldToolResultsInHistory: true,
       })
     );
@@ -243,7 +275,11 @@ describe("useChatStorage send history read", () => {
     mockRunToolLoop.mockResolvedValue(loopResult());
 
     const { result } = renderHook(() =>
-      useChatStorage({ database: db, conversationId: "conv_dup", getToken: async () => "tok" })
+      useChatStorage({
+        database: db,
+        conversationId: "conv_dup",
+        getToken: () => Promise.resolve("tok"),
+      })
     );
 
     await act(async () => {
