@@ -137,6 +137,18 @@ describe("getToolCallEventIdsOp index", () => {
     expect(read).not.toHaveBeenCalled();
   });
 
+  it("adds the first event to an empty cached conversation without another read", async () => {
+    const ctx = makeContext();
+    await createMessageOp(ctx, { conversationId: "conv-1", role: "user", content: "prompt" });
+    expect(await getToolCallEventIdsOp(ctx, "conv-1")).toEqual(new Set());
+    const read = vi.spyOn(ctx.database.adapter.underlyingAdapter, "unsafeQueryRaw");
+
+    await createEvents(ctx, "m1", ["call-1"]);
+
+    expect(await getToolCallEventIdsOp(ctx, "conv-1")).toEqual(new Set(["call-1"]));
+    expect(read).not.toHaveBeenCalled();
+  });
+
   it("keeps shared IDs until the last message is deleted", async () => {
     const ctx = makeContext();
     await createEvents(ctx, "m1", ["shared", "shared"]);
