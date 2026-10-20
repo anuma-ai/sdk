@@ -1,5 +1,9 @@
 import type { LlmapiChatCompletionTool } from "../../client";
 import { CONFIRM_TOOL_NAME } from "../../tools/confirmConstants";
+import {
+  SELECT_PAYMENT_WALLET_TOOL_NAME,
+  WALLET_PAYMENT_TOOL_NAME,
+} from "../../tools/walletPaymentConstants";
 import { RECALL_TOOL_NAME } from "../memory/recallConstants";
 import { generateEmbeddings } from "../memoryEngine/generate";
 import {
@@ -78,7 +82,7 @@ export async function autoFilterClientTools(
   activeToolSets: string[] = [],
   /**
    * Why `promptEmbeddings` is null. "short-prompt" (the length gate —
-   * deliberate) sends NO tools; "error" (embedding generation failed —
+   * deliberate) sends only the always-included tools, plus any sticky sets; "error" (embedding generation failed —
    * transient) degrades to the FULL catalog so an embeddings outage never
    * strips every tool from every request.
    */
@@ -91,7 +95,11 @@ export async function autoFilterClientTools(
   const isAlwaysIncluded = (t: LlmapiChatCompletionTool) => {
     const name = getToolName(t);
     return (
-      name.startsWith("memory_vault_") || name === RECALL_TOOL_NAME || name === CONFIRM_TOOL_NAME
+      name.startsWith("memory_vault_") ||
+      name === RECALL_TOOL_NAME ||
+      name === CONFIRM_TOOL_NAME ||
+      name === SELECT_PAYMENT_WALLET_TOOL_NAME ||
+      name === WALLET_PAYMENT_TOOL_NAME
     );
   };
   const alwaysInclude = clientTools.filter(isAlwaysIncluded);
@@ -107,7 +115,7 @@ export async function autoFilterClientTools(
 
   if (!promptEmbeddings) {
     if (activeToolSets.length === 0) {
-      return { tools: [], activatedSetNames: new Set(), matchedSetNames: new Set() };
+      return { tools: alwaysInclude, activatedSetNames: new Set(), matchedSetNames: new Set() };
     }
     const allSets =
       extraToolSets.length > 0 ? [...BUILT_IN_TOOL_SETS, ...extraToolSets] : BUILT_IN_TOOL_SETS;

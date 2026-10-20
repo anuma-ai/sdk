@@ -20,6 +20,7 @@ function userPreferenceToStored(preference: UserPreference): StoredUserPreferenc
     description: preference.description,
     models: preference.models,
     personality: preference.personality,
+    externalWallets: preference.externalWallets,
     createdAt: preference.createdAt,
     updatedAt: preference.updatedAt,
   };
@@ -62,6 +63,7 @@ async function createUserPreferenceOp(
       if (opts.description) pref._setRaw("description", opts.description);
       if (opts.models) pref._setRaw("models", opts.models);
       if (opts.personality) pref._setRaw("personality", opts.personality);
+      if (opts.externalWallets) pref._setRaw("external_wallets", opts.externalWallets);
       pref._setRaw("created_at", now);
       pref._setRaw("updated_at", now);
     });
@@ -98,6 +100,9 @@ async function updateUserPreferenceOp(
       }
       if (opts.personality !== undefined) {
         pref._setRaw("personality", opts.personality || null);
+      }
+      if (opts.externalWallets !== undefined) {
+        pref._setRaw("external_wallets", opts.externalWallets || null);
       }
       pref._setRaw("updated_at", Date.now());
     });
@@ -139,6 +144,9 @@ export async function setUserPreferenceOp(
         if (opts.personality !== undefined) {
           pref._setRaw("personality", opts.personality || null);
         }
+        if (opts.externalWallets !== undefined) {
+          pref._setRaw("external_wallets", opts.externalWallets || null);
+        }
         pref._setRaw("updated_at", now);
       });
       return preference;
@@ -151,6 +159,7 @@ export async function setUserPreferenceOp(
       if (opts.description) pref._setRaw("description", opts.description);
       if (opts.models) pref._setRaw("models", opts.models);
       if (opts.personality) pref._setRaw("personality", opts.personality);
+      if (opts.externalWallets) pref._setRaw("external_wallets", opts.externalWallets);
       pref._setRaw("created_at", now);
       pref._setRaw("updated_at", now);
     });

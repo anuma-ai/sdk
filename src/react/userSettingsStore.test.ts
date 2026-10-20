@@ -241,6 +241,26 @@ describe("snapshot lifecycle", () => {
     cleanup();
   });
 
+  it("delivers a saved wallet list change from the observed record", async () => {
+    const { database, observeCalls, observeSubscribers } = createFakeDatabase();
+    const cleanup = subscribeUserSettings(database, "0xABC", vi.fn());
+    const wallets = '[{"chainType":"solana","address":"FAKE","addedAt":1}]';
+
+    await vi.waitFor(() =>
+      expect(getUserSettingsSnapshot(database, "0xABC").isLoading).toBe(false)
+    );
+    observeSubscribers[0]?.next([
+      { id: "rec-1", walletAddress: "0xABC", externalWallets: wallets, createdAt: 1, updatedAt: 2 },
+    ]);
+
+    expect(observeCalls[0]?.columns).toContain("external_wallets");
+    expect(getUserSettingsSnapshot(database, "0xABC").userPreference?.externalWallets).toBe(
+      wallets
+    );
+
+    cleanup();
+  });
+
   it("ignores a load that resolves after the last subscriber unsubscribed", async () => {
     const { database } = createFakeDatabase();
 

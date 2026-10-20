@@ -72,6 +72,6 @@ describe("selectCouncilClientTools — runs the shared semantic selector", () =>
         noEmbeddingsReason: "short-prompt",
       }
     );
-    expect(result.tools).toEqual([]);
+    expect(result.tools.map(getToolName)).toEqual(["recall_memory"]);
   });
 });

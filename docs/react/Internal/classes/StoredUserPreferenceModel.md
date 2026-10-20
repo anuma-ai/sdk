@@ -142,7 +142,7 @@ Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/
 
 > **createdAt**: `number`
 
-Defined in: [src/lib/db/userPreferences/models.ts:22](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/userPreferences/models.ts#22)
+Defined in: [src/lib/db/userPreferences/models.ts:23](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/userPreferences/models.ts#23)
 
 ***
 
@@ -151,6 +151,14 @@ Defined in: [src/lib/db/userPreferences/models.ts:22](https://github.com/anuma-a
 > `optional` **description**: `string`
 
 Defined in: [src/lib/db/userPreferences/models.ts:17](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/userPreferences/models.ts#17)
+
+***
+
+### externalWallets?
+
+> `optional` **externalWallets**: `string`
+
+Defined in: [src/lib/db/userPreferences/models.ts:21](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/userPreferences/models.ts#21)
 
 ***
 
@@ -190,7 +198,7 @@ Defined in: [src/lib/db/userPreferences/models.ts:20](https://github.com/anuma-a
 
 > **updatedAt**: `number`
 
-Defined in: [src/lib/db/userPreferences/models.ts:23](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/userPreferences/models.ts#23)
+Defined in: [src/lib/db/userPreferences/models.ts:24](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/userPreferences/models.ts#24)
 
 ***
 

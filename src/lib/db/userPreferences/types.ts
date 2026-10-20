@@ -96,6 +96,8 @@ export interface StoredUserPreference {
   description?: string;
   models?: string;
   personality?: string;
+  /** JSON array of the user's saved external wallets, stored as given. */
+  externalWallets?: string;
   createdAt: number;
   updatedAt: number;
 }
@@ -110,6 +112,7 @@ export interface CreateUserPreferenceOptions {
   description?: string;
   models?: string;
   personality?: string;
+  externalWallets?: string;
 }
 
 /**
@@ -121,6 +124,7 @@ export interface UpdateUserPreferenceOptions {
   description?: string;
   models?: string;
   personality?: string;
+  externalWallets?: string;
 }
 
 /**
