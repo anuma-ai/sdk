@@ -9,7 +9,9 @@ name: E2E Tools
 #     ADVISORY on a PR: the `e2e-tools` check goes red, but the required
 #     `e2e-tools-status` context does not, because the suite has been red or
 #     timing out on main since at least 2026-08-04 and a pre-existing failure
-#     must not block unrelated tool PRs. The blocking run is the queue's.
+#     must not block unrelated tool PRs. The blocking run is the queue's, and
+#     only for the `tools` suite: the `quality` suite (app and slide
+#     generation) is advisory everywhere.
 #   - workflow_dispatch: pick a model (or "all" for the compat matrix).
 #
 # Deliberately NOT paths-scoped at the workflow level: `e2e-tools-status` is a
@@ -121,6 +123,11 @@ jobs:
     # Measured 6.5-8.3 min end to end (anuma-ai/sdk#962). The ceiling covers the
     # two 600s tests plus install. At 5 min every queue run was cancelled.
     timeout-minutes: 20
+    continue-on-error: ${{ matrix.suite == 'quality' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        suite: [tools, quality]
     env:
       PORTAL_API_KEY: ${{ secrets.PORTAL_API_KEY }}
       ANUMA_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
@@ -144,7 +151,20 @@ jobs:
       - name: Run e2e tool tests
         env:
           TEST_FILTER: ${{ github.event.inputs.test_filter || '' }}
-        run: pnpm e2e:tools "$TEST_FILTER" --reporter=default --reporter=json --outputFile.json=e2e-results.json
+          SUITE: ${{ matrix.suite }}
+        run: |
+          report=(--reporter=default --reporter=json --outputFile.json=e2e-results.json)
+          if [[ -n "$TEST_FILTER" ]]; then
+            if [[ "$SUITE" == "quality" ]]; then
+              echo "::notice::test_filter is set; the tools leg runs it alone."
+              exit 0
+            fi
+            pnpm e2e:tools "$TEST_FILTER" "${report[@]}"
+          elif [[ "$SUITE" == "quality" ]]; then
+            pnpm e2e:tools test/tools/app-generation/ test/tools/slide-generation/ "${report[@]}"
+          else
+            pnpm e2e:tools --exclude 'test/tools/app-generation/**' --exclude 'test/tools/slide-generation/**' "${report[@]}"
+          fi
 
       # Per-test status, duration and failure message. The raw loop traces in
       # test/tools/.runs/ are deliberately not uploaded: they hold tool results
@@ -154,7 +174,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: e2e-tools-results
+          name: e2e-tools-results-${{ matrix.suite }}
           if-no-files-found: warn
           path: e2e-results.json
 
