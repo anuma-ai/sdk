@@ -26,7 +26,7 @@ import {
   encryptToolCallEvents,
   isEncrypted,
 } from "./encryption";
-import { Conversation, Message } from "./models";
+import { Conversation, ConversationSummary, Message } from "./models";
 import {
   type ChunkSearchResult,
   type CreateConversationOptions,
@@ -765,6 +765,19 @@ export async function getToolCallEventIdsOp(
   return ids;
 }
 
+async function invalidateConversationSummary(
+  database: Database,
+  conversationId: string
+): Promise<void> {
+  const summaries = await database
+    .get<ConversationSummary>("conversation_summaries")
+    .query(Q.where("conversation_id", conversationId))
+    .fetch();
+  for (const summary of summaries) {
+    await summary.destroyPermanently();
+  }
+}
+
 /**
  * Clear all messages in a conversation.
  * Clears file_ids before deletion.
@@ -775,6 +788,7 @@ export async function clearMessagesOp(
   convId: string
 ): Promise<void> {
   await ctx.database.write(async () => {
+    await invalidateConversationSummary(ctx.database, convId);
     const messages = await ctx.messagesCollection.query(Q.where("conversation_id", convId)).fetch();
     const jobs = ctx.database.schema?.tables[ExtractionJob.table]
       ? await ctx.database
@@ -816,6 +830,7 @@ export async function deleteMessageOp(
   }
 
   await ctx.database.write(async () => {
+    await invalidateConversationSummary(ctx.database, message.conversationId);
     const jobs = ctx.database.schema?.tables[ExtractionJob.table]
       ? await ctx.database
           .get<ExtractionJob>(ExtractionJob.table)
@@ -1514,6 +1529,9 @@ async function _updateMessageOp(
       : (opts as unknown as Record<string, unknown>);
 
   await ctx.database.write(async () => {
+    if (encryptedOpts.content !== undefined && encryptedOpts.content !== message.content) {
+      await invalidateConversationSummary(ctx.database, message.conversationId);
+    }
     await message.update((msg) => {
       if (encryptedOpts.content !== undefined)
         msg._setRaw("content", encryptedOpts.content as string);
