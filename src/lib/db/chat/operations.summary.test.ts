@@ -155,7 +155,7 @@ describe("conversation summary invalidation", () => {
     "preserves the summary only for unchanged encrypted content: %j",
     async (content) => {
       const walletAddress = "0x1234567890123456789012345678901234567890";
-      seedEncryptionKeys(walletAddress, { current: "ab".repeat(32) });
+      seedEncryptionKeys(walletAddress, { legacy: "cd".repeat(32), current: "ab".repeat(32) });
       const encryptedCtx = {
         ...ctx,
         walletAddress,
