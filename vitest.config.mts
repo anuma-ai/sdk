@@ -6,7 +6,6 @@ export default defineConfig({
     globals: true,
     include: [
       "src/**/*.{test,spec}.{ts,tsx}",
-      "test/tools/slide-generation/dumpFiles.test.ts",
       "test/memory/src/metrics.test.ts",
       "test/memory/src/vault/embeddingCache.test.ts",
       "test/memory/src/vault/comparison.test.ts",
