@@ -7,7 +7,7 @@ import {
   unsafeExecuteSql,
 } from "@nozbe/watermelondb/Schema/migrations";
 import { toPromise } from "@nozbe/watermelondb/utils/fp/Result";
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { PgPoolLike } from "./pg-adapter";
 import { PostgreSQLAdapter, schemaToCreateSQL } from "./pg-adapter";
@@ -365,6 +365,64 @@ describe("PostgreSQLAdapter", () => {
         "requires pool.connect"
       );
       expect(queries).not.toContain(sql);
+    });
+  });
+
+  describe("raw SQL parameters", () => {
+    it.each([
+      {
+        name: "SQLite parameters",
+        sql: 'select "id" from "tasks" where "title" = ? and "priority" = ?',
+        expected: 'select "id" from "tasks" where "title" = $1 and "priority" = $2',
+        values: ["title-'?", 1],
+      },
+      {
+        name: "quoted text and comments",
+        sql: `select '?', 'it''s ?', "?", $$?$$, $body$?$body$ from "tasks" -- ?
+where "title" = ? /* ? */ and "priority" = ?`,
+        expected: `select '?', 'it''s ?', "?", $$?$$, $body$?$body$ from "tasks" -- ?
+where "title" = $1 /* ? */ and "priority" = $2`,
+        values: ["title", 1],
+      },
+      {
+        name: "escaped strings and quoted parameter names",
+        sql: String.raw`select E'it\'s ?', '$1', "$2", $$?$3$$ from "tasks" where "title" = ?`,
+        expected: String.raw`select E'it\'s ?', '$1', "$2", $$?$3$$ from "tasks" where "title" = $1`,
+        values: ["title"],
+      },
+      {
+        name: "PostgreSQL parameters and JSON operators",
+        sql: `select '{"key": 1}'::jsonb ? $1, '{"key": 1}'::jsonb ?| array[$1]`,
+        expected: `select '{"key": 1}'::jsonb ? $1, '{"key": 1}'::jsonb ?| array[$1]`,
+        values: ["key"],
+      },
+      {
+        name: "SQL without parameters",
+        sql: `select '{"key": 1}'::jsonb ? 'key'`,
+        expected: `select '{"key": 1}'::jsonb ? 'key'`,
+        values: [],
+      },
+    ])("preserves values for $name", async ({ sql, expected, values }) => {
+      const query = vi.fn<PgPoolLike["query"]>().mockResolvedValue({ rows: [] });
+      const rawAdapter = new PostgreSQLAdapter({
+        pool: {
+          query: (text, args) => pool.query(text, args),
+          connect: () => Promise.resolve({ query, release: () => {} }),
+        },
+        schema: testSchema,
+        dbName: "raw-parameters",
+      });
+      const serializedQuery = {
+        ...allTasksQuery(),
+        description: {
+          ...allTasksQuery().description,
+          sql: { type: "sqlQuery" as const, sql, values },
+        },
+      };
+
+      await toPromise((cb) => rawAdapter.unsafeQueryRaw(serializedQuery, cb));
+
+      expect(query).toHaveBeenCalledWith(expected, values);
     });
   });
 
