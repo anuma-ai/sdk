@@ -81,6 +81,15 @@ describe("refreshEncryptionKeyIfMatches session teardown", () => {
           expect(listener).not.toHaveBeenCalled();
           expect(refreshed).toBe(false);
           expect(signMessage).toHaveBeenCalledTimes(source === "cached" ? 0 : 1);
+
+          vi.restoreAllMocks();
+          signMessage.mockClear();
+
+          expect(await refreshEncryptionKeyIfMatches(ADDRESS, probe, signMessage)).toBe(true);
+          expect(hasEncryptionKey(ADDRESS, "v2")).toBe(true);
+          expect(hasEncryptionKey(ADDRESS, "v3")).toBe(true);
+          expect(listener).toHaveBeenCalledTimes(1);
+          expect(signMessage).toHaveBeenCalledTimes(1);
         }
       );
     });
