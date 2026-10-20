@@ -93,6 +93,40 @@ describe("conversation summary invalidation", () => {
     await expectCurrentHistory();
   });
 
+  it("excludes deleted facts from the next request after a new message", async () => {
+    const options = {
+      database: ctx.database,
+      conversationId: "conv_1",
+      summarizeHistory: true,
+      summaryTokenThreshold: 10_000,
+      summaryMinWindowMessages: 1,
+      summaryModel: "test",
+      token: "test-token",
+    };
+    const before = await maybeSummarizeHistory({
+      ...options,
+      messages: await getMessagesOp(ctx, "conv_1"),
+    });
+    expect(before.summarySystemMessage?.role).toBe("system");
+    expect(JSON.stringify(before.summarySystemMessage)).toContain("Lives in Paris.");
+
+    await deleteMessageOp(ctx, "m1");
+    await createMessageOp(ctx, {
+      conversationId: "conv_1",
+      uniqueId: "m4",
+      role: "user",
+      content: "Where do I live?",
+    });
+    const after = await maybeSummarizeHistory({
+      ...options,
+      messages: await getMessagesOp(ctx, "conv_1"),
+    });
+
+    expect(after.summarySystemMessage).toBeNull();
+    expect(after.messagesToConvert.map(({ uniqueId }) => uniqueId)).toEqual(["m2", "m3", "m4"]);
+    expect(after.messagesToConvert.map(({ content }) => content).join(" ")).not.toContain("Paris");
+  });
+
   it.each(["I live in Rome.", ""])(
     "invalidates the summary after a content update to %j",
     async (content) => {

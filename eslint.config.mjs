@@ -27,6 +27,7 @@ const checkedTestFiles = [
   "src/lib/chat/toolLoop.idleTimeout.test.ts",
   "src/lib/db/chat/operations.chunkText.test.ts",
   "src/lib/db/chat/operations.embeddingEncryption.test.ts",
+  "src/lib/db/chat/operations.summary.test.ts",
   "src/react/useChatStorage.fileSize.test.tsx",
   "src/react/useChatStorage.queueIdentifiers.test.tsx",
   "src/react/useChatStorage.runHooks.test.tsx",
