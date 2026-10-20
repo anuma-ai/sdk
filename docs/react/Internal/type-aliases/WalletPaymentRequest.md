@@ -2,7 +2,7 @@
 
 > **WalletPaymentRequest** = `object`
 
-Defined in: [src/tools/walletPayment.ts:29](https://github.com/anuma-ai/sdk/blob/main/src/tools/walletPayment.ts#29)
+Defined in: [src/tools/walletPayment.ts:30](https://github.com/anuma-ai/sdk/blob/main/src/tools/walletPayment.ts#30)
 
 What the caller's `pay` function receives once the user has filled in the payment card.
 
@@ -12,7 +12,7 @@ What the caller's `pay` function receives once the user has filled in the paymen
 
 > **passengers**: [`WalletPaymentPassenger`](WalletPaymentPassenger.md)\[]
 
-Defined in: [src/tools/walletPayment.ts:32](https://github.com/anuma-ai/sdk/blob/main/src/tools/walletPayment.ts#32)
+Defined in: [src/tools/walletPayment.ts:33](https://github.com/anuma-ai/sdk/blob/main/src/tools/walletPayment.ts#33)
 
 ***
 
@@ -20,7 +20,7 @@ Defined in: [src/tools/walletPayment.ts:32](https://github.com/anuma-ai/sdk/blob
 
 > **provider**: `string`
 
-Defined in: [src/tools/walletPayment.ts:30](https://github.com/anuma-ai/sdk/blob/main/src/tools/walletPayment.ts#30)
+Defined in: [src/tools/walletPayment.ts:31](https://github.com/anuma-ai/sdk/blob/main/src/tools/walletPayment.ts#31)
 
 ***
 
@@ -28,4 +28,4 @@ Defined in: [src/tools/walletPayment.ts:30](https://github.com/anuma-ai/sdk/blob
 
 > **reference**: `string`
 
-Defined in: [src/tools/walletPayment.ts:31](https://github.com/anuma-ai/sdk/blob/main/src/tools/walletPayment.ts#31)
+Defined in: [src/tools/walletPayment.ts:32](https://github.com/anuma-ai/sdk/blob/main/src/tools/walletPayment.ts#32)

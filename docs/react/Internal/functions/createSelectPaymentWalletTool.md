@@ -2,7 +2,7 @@
 
 > **createSelectPaymentWalletTool**(`options`: [`CreateSelectPaymentWalletToolOptions`](../type-aliases/CreateSelectPaymentWalletToolOptions.md)): `ToolConfig`
 
-Defined in: [src/tools/walletPayment.ts:78](https://github.com/anuma-ai/sdk/blob/main/src/tools/walletPayment.ts#78)
+Defined in: [src/tools/walletPayment.ts:79](https://github.com/anuma-ai/sdk/blob/main/src/tools/walletPayment.ts#79)
 
 Create the select\_payment\_wallet tool, which shows the user's wallets for a flight offer and returns the one they chose.
 

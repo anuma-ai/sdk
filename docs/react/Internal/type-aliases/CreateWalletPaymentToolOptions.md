@@ -2,7 +2,7 @@
 
 > **CreateWalletPaymentToolOptions** = `CreateUIToolsOptions` & `object`
 
-Defined in: [src/tools/walletPayment.ts:49](https://github.com/anuma-ai/sdk/blob/main/src/tools/walletPayment.ts#49)
+Defined in: [src/tools/walletPayment.ts:50](https://github.com/anuma-ai/sdk/blob/main/src/tools/walletPayment.ts#50)
 
 Options for [createWalletPaymentTool](../functions/createWalletPaymentTool.md).
 

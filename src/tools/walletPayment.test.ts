@@ -86,14 +86,17 @@ describe("createSelectPaymentWalletTool", () => {
     expect(createInteraction).not.toHaveBeenCalled();
   });
 
-  it("returns cancelled without opening a card when listing wallets fails", async () => {
+  it("returns a retryable error without opening a card when listing wallets fails", async () => {
     const { context, createInteraction } = pendingContext();
     const tool = createSelectPaymentWalletTool({
       getContext: () => context,
       listWallets: () => Promise.reject(new Error("rpc down")),
     });
 
-    expect(await tool.executor?.(OFFER_ARGS)).toEqual({ cancelled: true });
+    expect(await tool.executor?.(OFFER_ARGS)).toEqual({
+      error_code: "wallets_unavailable",
+      retryable: true,
+    });
     expect(createInteraction).not.toHaveBeenCalled();
   });
 

@@ -20,7 +20,8 @@ export type PaymentWallet = {
 export type SelectPaymentWalletResult =
   | { confirmed: true; offer_id: string; funding_wallet: string }
   | { confirmed: false }
-  | { cancelled: true };
+  | { cancelled: true }
+  | { error_code: "wallets_unavailable"; retryable: true };
 
 /** One passenger as the payment card collects it. */
 export type WalletPaymentPassenger = Record<string, unknown>;
@@ -134,7 +135,7 @@ export function createSelectPaymentWalletTool(
       try {
         wallets = await options.listWallets();
       } catch {
-        return CANCELLED;
+        return { error_code: "wallets_unavailable", retryable: true };
       }
       if (signal?.aborted) return CANCELLED;
       return showCard?.({ ...args, wallets }, signal);
