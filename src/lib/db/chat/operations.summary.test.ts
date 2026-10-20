@@ -1,9 +1,11 @@
 import { Database } from "@nozbe/watermelondb";
 import LokiJSAdapter from "@nozbe/watermelondb/adapters/lokijs";
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { maybeSummarizeHistory } from "../../chat/summarize";
+import { clearAllEncryptionKeys, seedEncryptionKeys } from "../../../react/useEncryption";
+import { cleanupConversationSummary, maybeSummarizeHistory } from "../../chat/summarize";
 import { sdkMigrations, sdkModelClasses, sdkSchema } from "../schema";
+import { Conversation, Message } from "./models";
 import {
   clearMessagesOp,
   createMessageOp,
@@ -14,6 +16,7 @@ import {
   updateMessageFileIdsOp,
   upsertMessageOp,
 } from "./operations";
+import { chatStorageMigrations, chatStorageSchema } from "./schema";
 import {
   createSummaryContext,
   getConversationSummaryOp,
@@ -23,6 +26,12 @@ import {
 describe("conversation summary invalidation", () => {
   let ctx: StorageOperationsContext;
   let summaryCtx: ReturnType<typeof createSummaryContext>;
+
+  afterEach(async () => {
+    vi.unstubAllGlobals();
+    clearAllEncryptionKeys();
+    await cleanupConversationSummary(ctx.database, "conv_1");
+  });
 
   beforeEach(async () => {
     const database = new Database({
@@ -142,6 +151,133 @@ describe("conversation summary invalidation", () => {
     }
   );
 
+  it.each(["I live in Paris.", "I live in Rome.", ""])(
+    "preserves the summary only for unchanged encrypted content: %j",
+    async (content) => {
+      const walletAddress = "0x1234567890123456789012345678901234567890";
+      seedEncryptionKeys(walletAddress, { current: "ab".repeat(32) });
+      const encryptedCtx = {
+        ...ctx,
+        walletAddress,
+        signMessage: vi.fn(() => Promise.resolve("test-signature")),
+      };
+      await upsertMessageOp(encryptedCtx, {
+        conversationId: "conv_1",
+        uniqueId: "m1",
+        role: "user",
+        content: "I live in Paris.",
+      });
+      await upsertConversationSummaryOp(
+        summaryCtx,
+        "conv_1",
+        "Lives in Paris. Works at Acme.",
+        "m2",
+        9
+      );
+      const summary = await getConversationSummaryOp(summaryCtx, "conv_1");
+      const encryptedContent = (await ctx.messagesCollection.find("m1")).content;
+      expect(encryptedContent).toMatch(/^enc:/);
+
+      const updated = await upsertMessageOp(encryptedCtx, {
+        conversationId: "conv_1",
+        uniqueId: "m1",
+        role: "user",
+        content,
+      });
+
+      expect(updated.content).toBe(content);
+      expect((await ctx.messagesCollection.find("m1")).content).not.toBe(encryptedContent);
+      expect(await getConversationSummaryOp(summaryCtx, "conv_1")).toEqual(
+        content === "I live in Paris." ? summary : null
+      );
+    }
+  );
+
+  it.each([
+    ["summary", "delete"],
+    ["summary", "edit"],
+    ["summary", "clear"],
+    ["compaction", "delete"],
+    ["compaction", "edit"],
+    ["compaction", "clear"],
+  ])("rejects a pending %s after a message %s", async (mode, mutation) => {
+    const threshold = mode === "compaction" ? 10 : 100;
+    await upsertMessageOp(ctx, {
+      conversationId: "conv_1",
+      uniqueId: "m3",
+      role: "user",
+      content: "What do you remember? ".repeat(100),
+    });
+    await createMessageOp(ctx, {
+      conversationId: "conv_1",
+      uniqueId: "m4",
+      role: "user",
+      content: "Where do I live?",
+    });
+    await upsertConversationSummaryOp(
+      summaryCtx,
+      "conv_1",
+      "Lives in Paris. Works at Acme.",
+      "m2",
+      9
+    );
+    let resolveResponse!: (response: Response) => void;
+    const response = new Promise<Response>((resolve) => {
+      resolveResponse = resolve;
+    });
+    let markStarted!: () => void;
+    const started = new Promise<void>((resolve) => {
+      markStarted = resolve;
+    });
+    const fetchMock = vi.fn(() => {
+      markStarted();
+      return response;
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const options = {
+      database: ctx.database,
+      conversationId: "conv_1",
+      summarizeHistory: true,
+      summaryTokenThreshold: threshold,
+      summaryMinWindowMessages: 1,
+      summaryModel: "test",
+      token: "test-token",
+    };
+    const pending = maybeSummarizeHistory({
+      ...options,
+      messages: await getMessagesOp(ctx, "conv_1"),
+    });
+    await started;
+
+    if (mutation === "delete") {
+      await deleteMessageOp(ctx, "m1");
+    } else if (mutation === "clear") {
+      await clearMessagesOp(ctx, "conv_1");
+    } else {
+      await upsertMessageOp(ctx, {
+        conversationId: "conv_1",
+        uniqueId: "m1",
+        role: "user",
+        content: "I live in Rome.",
+      });
+    }
+    resolveResponse(
+      new Response(JSON.stringify({ choices: [{ message: { content: "Lives in Paris." } }] }))
+    );
+
+    await expect(pending).rejects.toThrow("The conversation changed");
+    expect(await getConversationSummaryOp(summaryCtx, "conv_1")).toBeNull();
+    const currentMessages = await getMessagesOp(ctx, "conv_1");
+    const nextRequest = await maybeSummarizeHistory({
+      ...options,
+      summaryTokenThreshold: 10_000,
+      messages: currentMessages,
+    });
+    expect(nextRequest.summarySystemMessage).toBeNull();
+    expect(nextRequest.messagesToConvert).toEqual(currentMessages);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
   it("preserves the summary after an attachment update", async () => {
     const summary = await getConversationSummaryOp(summaryCtx, "conv_1");
 
@@ -171,4 +307,51 @@ describe("conversation summary invalidation", () => {
 
     expect(await getConversationSummaryOp(summaryCtx, "conv_1")).toEqual(summary);
   });
+});
+
+describe("message changes with the chat storage schema", () => {
+  it.each(["delete", "clear", "edit"])(
+    "allows a message %s without a summary table",
+    async (action) => {
+      const database = new Database({
+        adapter: new LokiJSAdapter({
+          schema: chatStorageSchema,
+          migrations: chatStorageMigrations,
+          useWebWorker: false,
+          useIncrementalIndexedDB: false,
+          dbName: `chat-only-${Math.random()}`,
+        }),
+        modelClasses: [Message, Conversation],
+      });
+      const ctx: StorageOperationsContext = {
+        database,
+        messagesCollection: database.get("history"),
+        conversationsCollection: database.get("conversations"),
+      };
+      await createMessageOp(ctx, {
+        conversationId: "conv_1",
+        uniqueId: "m1",
+        role: "user",
+        content: "Original content.",
+      });
+
+      if (action === "edit") {
+        const updated = await upsertMessageOp(ctx, {
+          conversationId: "conv_1",
+          uniqueId: "m1",
+          role: "user",
+          content: "Updated content.",
+        });
+        expect(updated.content).toBe("Updated content.");
+        expect((await getMessageOp(ctx, "m1"))?.content).toBe("Updated content.");
+      } else {
+        if (action === "delete") {
+          expect(await deleteMessageOp(ctx, "m1")).toBe("m1");
+        } else {
+          await clearMessagesOp(ctx, "conv_1");
+        }
+        expect(await getMessagesOp(ctx, "conv_1")).toEqual([]);
+      }
+    }
+  );
 });

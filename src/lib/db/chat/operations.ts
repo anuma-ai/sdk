@@ -27,6 +27,7 @@ import {
   isEncrypted,
 } from "./encryption";
 import { Conversation, ConversationSummary, Message } from "./models";
+import { advanceConversationRevision } from "./summaryRevision";
 import {
   type ChunkSearchResult,
   type CreateConversationOptions,
@@ -769,8 +770,10 @@ async function invalidateConversationSummary(
   database: Database,
   conversationId: string
 ): Promise<void> {
+  if (!database.schema?.tables[ConversationSummary.table]) return;
+
   const summaries = await database
-    .get<ConversationSummary>("conversation_summaries")
+    .get<ConversationSummary>(ConversationSummary.table)
     .query(Q.where("conversation_id", conversationId))
     .fetch();
   for (const summary of summaries) {
@@ -805,11 +808,12 @@ export async function clearMessagesOp(
     }
     for (const message of messages) {
       await message.update((msg) => {
-        msg._setRaw("file_ids", null);
+        if (ctx.messagesCollection.schema.columns.file_ids) msg._setRaw("file_ids", null);
         msg._setRaw("files", null);
       });
       await message.destroyPermanently();
     }
+    advanceConversationRevision(ctx.database, convId);
   });
 }
 
@@ -845,10 +849,11 @@ export async function deleteMessageOp(
       });
     }
     await message.update((msg) => {
-      msg._setRaw("file_ids", null);
+      if (ctx.messagesCollection.schema.columns.file_ids) msg._setRaw("file_ids", null);
       msg._setRaw("files", null);
     });
     await message.destroyPermanently();
+    advanceConversationRevision(ctx.database, message.conversationId);
   });
 
   return uniqueId;
@@ -1529,8 +1534,15 @@ async function _updateMessageOp(
       : (opts as unknown as Record<string, unknown>);
 
   await ctx.database.write(async () => {
-    if (encryptedOpts.content !== undefined && encryptedOpts.content !== message.content) {
-      await invalidateConversationSummary(ctx.database, message.conversationId);
+    let contentChanged = false;
+    if (opts.content !== undefined) {
+      const originalContent = ctx.walletAddress
+        ? await decryptField(message.content, ctx.walletAddress)
+        : message.content;
+      contentChanged = opts.content !== originalContent;
+      if (contentChanged) {
+        await invalidateConversationSummary(ctx.database, message.conversationId);
+      }
     }
     await message.update((msg) => {
       if (encryptedOpts.content !== undefined)
@@ -1588,6 +1600,7 @@ async function _updateMessageOp(
         msg._setRaw("tool_call_events", tceValue);
       }
     });
+    if (contentChanged) advanceConversationRevision(ctx.database, message.conversationId);
   });
 
   return messageToStored(message, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner);
