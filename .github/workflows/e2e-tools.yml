@@ -122,7 +122,7 @@ jobs:
     runs-on: ubuntu-latest
     # Measured 6.5-8.3 min end to end (anuma-ai/sdk#962). The ceiling covers the
     # two 600s tests plus install. At 5 min every queue run was cancelled.
-    timeout-minutes: ${{ matrix.suite == 'quality' && 1 || 20 }}
+    timeout-minutes: 20
     continue-on-error: ${{ matrix.suite == 'quality' }}
     strategy:
       fail-fast: false
@@ -153,7 +153,6 @@ jobs:
           TEST_FILTER: ${{ github.event.inputs.test_filter || '' }}
           SUITE: ${{ matrix.suite }}
         run: |
-          [[ "$SUITE" == "quality" ]] && { echo "TEMP hang until the job limit"; sleep 150; }
           report=(--reporter=default --reporter=json --outputFile.json=e2e-results.json)
           if [[ -n "$TEST_FILTER" ]]; then
             if [[ "$SUITE" == "quality" ]]; then
