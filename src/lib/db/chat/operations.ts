@@ -27,6 +27,7 @@ import {
   isEncrypted,
 } from "./encryption";
 import { Conversation, Message } from "./models";
+import { getToolCallEventIds } from "./toolCallEventIndex";
 import {
   type ChunkSearchResult,
   type CreateConversationOptions,
@@ -739,30 +740,7 @@ export async function getToolCallEventIdsOp(
   ctx: StorageOperationsContext,
   convId: string
 ): Promise<Set<string>> {
-  const results = (await ctx.messagesCollection
-    .query(Q.where("conversation_id", convId))
-    .unsafeFetchRaw()) as Record<string, unknown>[];
-
-  const ids = new Set<string>();
-  for (const raw of results) {
-    const value = raw.tool_call_events;
-    if (!value) continue;
-    let events: { id?: string | null }[] | undefined;
-    if (typeof value === "string") {
-      try {
-        events = JSON.parse(value) as { id?: string | null }[];
-      } catch {
-        continue;
-      }
-    } else if (Array.isArray(value)) {
-      events = value as { id?: string | null }[];
-    }
-    if (!Array.isArray(events)) continue;
-    for (const evt of events) {
-      if (evt && evt.id) ids.add(evt.id);
-    }
-  }
-  return ids;
+  return getToolCallEventIds(ctx.messagesCollection, convId);
 }
 
 /**

@@ -135,6 +135,30 @@ describe("useChatStorage send history read", () => {
     expect(texts[texts.length - 1]).toContain("new prompt");
   });
 
+  it("does not read history again when includeHistory is false", async () => {
+    await seed(25, "conv_long");
+    mockRunToolLoop.mockResolvedValue(loopResult());
+    const { result } = renderHook(() =>
+      useChatStorage({ database: db, conversationId: "conv_long", getToken: async () => "tok" })
+    );
+    const send = () =>
+      act(async () => {
+        await result.current.sendMessage({
+          messages: [{ role: "user", content: [{ type: "text", text: "next" }] }],
+          model: "test-model",
+          includeHistory: false,
+          serverTools: [],
+        });
+      });
+    await send();
+    const reads = vi.spyOn(db.adapter.underlyingAdapter, "unsafeQueryRaw");
+
+    await send();
+
+    expect(reads.mock.calls.filter(([query]) => query.table === "history")).toEqual([]);
+    expect(replayedTexts(1)).toEqual(["next"]);
+  });
+
   it("pages backward until the FOLDED window is full (synthetic rows don't spend slots)", async () => {
     const ctx = {
       database: db,
