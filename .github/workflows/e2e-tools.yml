@@ -9,9 +9,7 @@ name: E2E Tools
 #     ADVISORY on a PR: the `e2e-tools` check goes red, but the required
 #     `e2e-tools-status` context does not, because the suite has been red or
 #     timing out on main since at least 2026-08-04 and a pre-existing failure
-#     must not block unrelated tool PRs. The blocking run is the queue's, and
-#     only for `e2e-tools`: the app and slide generation tests run in
-#     `e2e-quality`, which is advisory everywhere.
+#     must not block unrelated tool PRs. The blocking run is the queue's.
 #   - workflow_dispatch: pick a model (or "all" for the compat matrix).
 #
 # Deliberately NOT paths-scoped at the workflow level: `e2e-tools-status` is a
