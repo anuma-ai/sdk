@@ -144,7 +144,13 @@ jobs:
       - name: Run e2e tool tests
         env:
           TEST_FILTER: ${{ github.event.inputs.test_filter || '' }}
-        run: pnpm e2e:tools "$TEST_FILTER" --reporter=default --reporter=json --outputFile.json=e2e-results.json
+        run: |
+          report=(--maxWorkers=4 --reporter=default --reporter=json --outputFile.json=e2e-results.json)
+          if [[ -n "$TEST_FILTER" ]]; then
+            pnpm e2e:tools "$TEST_FILTER" "${report[@]}"
+          else
+            pnpm e2e:tools --exclude 'test/tools/app-generation/**' --exclude 'test/tools/slide-generation/**' "${report[@]}"
+          fi
 
       # Per-test status, duration and failure message. The raw loop traces in
       # test/tools/.runs/ are deliberately not uploaded: they hold tool results
@@ -155,6 +161,45 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: e2e-tools-results
+          if-no-files-found: warn
+          path: e2e-results.json
+
+  e2e-quality:
+    needs: changes
+    if: >-
+      needs.changes.outputs.run == 'true' && (
+        github.event_name == 'merge_group' ||
+        github.event_name == 'pull_request' ||
+        (github.event_name == 'workflow_dispatch' &&
+          github.event.inputs.model != 'all' && github.event.inputs.test_filter == ''))
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      PORTAL_API_KEY: ${{ secrets.PORTAL_API_KEY }}
+      ANUMA_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
+      E2E_MODEL: ${{ github.event.inputs.model || '' }}
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "22"
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Run app and slide generation tests
+        run: pnpm e2e:tools test/tools/app-generation/ test/tools/slide-generation/ --maxWorkers=4 --reporter=default --reporter=json --outputFile.json=e2e-results.json
+
+      - name: Upload e2e results
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: e2e-quality-results
           if-no-files-found: warn
           path: e2e-results.json
 
