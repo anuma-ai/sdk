@@ -2,7 +2,7 @@
 
 > **getConversationsLazyOp**(`ctx`: [`StorageOperationsContext`](../interfaces/StorageOperationsContext.md)): `Promise`<[`LazyStoredConversation`](../interfaces/LazyStoredConversation.md)\[]>
 
-Defined in: [src/lib/db/chat/operations.ts:390](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/operations.ts#390)
+Defined in: [src/lib/db/chat/operations.ts:391](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/operations.ts#391)
 
 Lazy variant of getConversationsOp.
 
