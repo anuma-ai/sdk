@@ -10,8 +10,8 @@ name: E2E Tools
 #     `e2e-tools-status` context does not, because the suite has been red or
 #     timing out on main since at least 2026-08-04 and a pre-existing failure
 #     must not block unrelated tool PRs. The blocking run is the queue's, and
-#     only for the `tools` suite: the `quality` suite (app and slide
-#     generation) is advisory everywhere.
+#     only for `e2e-tools`: the app and slide generation tests run in
+#     `e2e-quality`, which is advisory everywhere.
 #   - workflow_dispatch: pick a model (or "all" for the compat matrix).
 #
 # Deliberately NOT paths-scoped at the workflow level: `e2e-tools-status` is a
@@ -123,11 +123,6 @@ jobs:
     # Measured 6.5-8.3 min end to end (anuma-ai/sdk#962). The ceiling covers the
     # two 600s tests plus install. At 5 min every queue run was cancelled.
     timeout-minutes: 20
-    continue-on-error: ${{ matrix.suite == 'quality' }}
-    strategy:
-      fail-fast: false
-      matrix:
-        suite: [tools, quality]
     env:
       PORTAL_API_KEY: ${{ secrets.PORTAL_API_KEY }}
       ANUMA_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
@@ -151,17 +146,10 @@ jobs:
       - name: Run e2e tool tests
         env:
           TEST_FILTER: ${{ github.event.inputs.test_filter || '' }}
-          SUITE: ${{ matrix.suite }}
         run: |
-          report=(--reporter=default --reporter=json --outputFile.json=e2e-results.json)
+          report=(--maxWorkers=4 --reporter=default --reporter=json --outputFile.json=e2e-results.json)
           if [[ -n "$TEST_FILTER" ]]; then
-            if [[ "$SUITE" == "quality" ]]; then
-              echo "::notice::test_filter is set; the tools leg runs it alone."
-              exit 0
-            fi
             pnpm e2e:tools "$TEST_FILTER" "${report[@]}"
-          elif [[ "$SUITE" == "quality" ]]; then
-            pnpm e2e:tools test/tools/app-generation/ test/tools/slide-generation/ "${report[@]}"
           else
             pnpm e2e:tools --exclude 'test/tools/app-generation/**' --exclude 'test/tools/slide-generation/**' "${report[@]}"
           fi
@@ -174,7 +162,46 @@ jobs:
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: e2e-tools-results-${{ matrix.suite }}
+          name: e2e-tools-results
+          if-no-files-found: warn
+          path: e2e-results.json
+
+  e2e-quality:
+    needs: changes
+    if: >-
+      needs.changes.outputs.run == 'true' && (
+        github.event_name == 'merge_group' ||
+        github.event_name == 'pull_request' ||
+        (github.event_name == 'workflow_dispatch' &&
+          github.event.inputs.model != 'all' && github.event.inputs.test_filter == ''))
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      PORTAL_API_KEY: ${{ secrets.PORTAL_API_KEY }}
+      ANUMA_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
+      E2E_MODEL: ${{ github.event.inputs.model || '' }}
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "22"
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Run app and slide generation tests
+        run: pnpm e2e:tools test/tools/app-generation/ test/tools/slide-generation/ --maxWorkers=4 --reporter=default --reporter=json --outputFile.json=e2e-results.json
+
+      - name: Upload e2e results
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: e2e-quality-results
           if-no-files-found: warn
           path: e2e-results.json
 
