@@ -7,7 +7,6 @@ import tseslint from "typescript-eslint";
 const appGenerationTests = [
   "src/tools/appBuilderPrompt.test.ts",
   "src/tools/appGeneration.test.ts",
-  "test/tools/app-generation/precision-updates.test.ts",
 ];
 
 const memoryTelemetryTests = [
@@ -36,7 +35,6 @@ const checkedTestFiles = [
   "src/server/pg-adapter.inequality.test.ts",
   "src/server/pg-adapter.integration.test.ts",
   "src/server/pg-adapter.test.ts",
-  "test/tools/slide-generation/models.ts",
 ];
 
 export default tseslint.config(
@@ -52,7 +50,6 @@ export default tseslint.config(
       "packages/**",
       "test/**/*",
       "!test/tools/",
-      "!test/tools/app-generation/",
       "**/*.test.ts",
       "**/*.test.tsx",
       "**/*.security.test.ts",
@@ -118,12 +115,6 @@ export default tseslint.config(
   {
     files: ["eslint.config.mjs"],
     extends: [tseslint.configs.disableTypeChecked],
-  },
-  {
-    files: ["test/tools/app-generation/precision-updates.test.ts"],
-    rules: {
-      "no-console": ["warn", { allow: ["log", "warn", "error"] }],
-    },
   },
   {
     files: ["src/react/**/*.{ts,tsx}"],

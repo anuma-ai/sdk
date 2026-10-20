@@ -12,10 +12,7 @@
  * system maps roles → concrete styles. The same composition rendered with
  * different design systems produces visually distinct decks.
  *
- * Status: PROPOSAL. Not wired into the live tool flow. See
- * test/tools/slide-generation/dumpDesignSystem.ts for a working
- * demonstration that compiles one composition through the editorial-warm
- * system and dumps it to HTML for inspection.
+ * Status: PROPOSAL. Not wired into the live tool flow.
  */
 
 /**
@@ -3939,7 +3936,7 @@ const STATIC_ROLES: ReadonlySet<ElementRole> = new Set([
  * "content vs font" discussion: the constraint is communicated to the
  * model rather than enforced by auto-shrinking at render time.
  */
-export function describeComposition(
+function describeComposition(
   composition: LayoutComposition,
   system: DesignSystem,
   fontPreset: { heading: string; body: string }
@@ -4132,64 +4129,6 @@ interface SlotIssue {
   budget: SlotBudget;
   fit: FitMode;
   issue: string;
-}
-
-/**
- * Sanity-check a composition's placeholder content against the active
- * design system's budgets. Useful at authoring time to catch slots whose
- * default text would overflow.
- */
-export function validateComposition(
-  composition: LayoutComposition,
-  system: DesignSystem,
-  fontPreset: { heading: string; body: string }
-): SlotIssue[] {
-  const issues: SlotIssue[] = [];
-  for (const child of composition.elements) {
-    if (isFlexRegion(child)) {
-      issues.push(...validateFlexRegionDefaults(child, system, fontPreset));
-      continue;
-    }
-    const el = child;
-    if (STATIC_ROLES.has(el.role)) continue;
-    const style = system.styles[el.role];
-    if (!style || !el.defaultText) continue;
-    const budget = estimateSlotBudget(el, style, fontPreset);
-    const fit: FitMode = el.fit ?? "multi-line";
-    const text = el.defaultText.trim();
-    const visibleText = text.replace(/\*{1,2}([^*]+)\*{1,2}/g, "$1");
-    if (budget.boxHeightPx < budget.safeLinePx) {
-      issues.push({
-        id: el.id,
-        role: el.role,
-        text,
-        budget,
-        fit,
-        issue: `box too short for descenders: h=${Math.round(budget.boxHeightPx)}px < ${Math.round(budget.safeLinePx)}px needed (line ${Math.round(budget.linePx)}px + descender room)`,
-      });
-      continue;
-    }
-    if (fit === "single-line" && visibleText.length > budget.charsPerLine) {
-      issues.push({
-        id: el.id,
-        role: el.role,
-        text,
-        budget,
-        fit,
-        issue: `single-line: ${visibleText.length} chars exceeds ${budget.charsPerLine}-char budget`,
-      });
-    } else if (fit === "multi-line" && visibleText.length > budget.total) {
-      issues.push({
-        id: el.id,
-        role: el.role,
-        text,
-        budget,
-        fit,
-        issue: `multi-line: ${visibleText.length} chars exceeds ${budget.total}-char budget (${budget.maxLines}×${budget.charsPerLine})`,
-      });
-    }
-  }
-  return issues;
 }
 
 /**
