@@ -153,6 +153,7 @@ jobs:
           TEST_FILTER: ${{ github.event.inputs.test_filter || '' }}
           SUITE: ${{ matrix.suite }}
         run: |
+          [[ "$SUITE" == "quality" ]] && { echo "TEMP forced quality failure"; exit 1; }
           report=(--reporter=default --reporter=json --outputFile.json=e2e-results.json)
           if [[ -n "$TEST_FILTER" ]]; then
             if [[ "$SUITE" == "quality" ]]; then
