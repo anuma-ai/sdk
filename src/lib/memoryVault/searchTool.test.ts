@@ -1,24 +1,25 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { createMemoryVaultSearchTool } from "./searchToolExecutor";
-import {
-  searchVaultMemories,
-  searchVaultMemoriesWithSize,
-  preEmbedVaultMemories,
-  eagerEmbedContent,
-  admitVaultProjections,
-  buildProjectedCorpus,
-  prepareVaultCandidates,
-} from "./searchTool";
-import { createVaultEmbeddingCache } from "./lruCache";
-import type { VaultEmbeddingCache } from "./searchTool";
-import { cacheRowVector } from "./vectorVersion";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
 import type { VaultMemoryOperationsContext } from "../db/memoryVault/operations";
 import type { StoredVaultMemory } from "../db/memoryVault/types";
 import type { EmbeddingOptions } from "../memoryEngine/types";
+import { createVaultEmbeddingCache } from "./lruCache";
+import type { VaultEmbeddingCache } from "./searchTool";
+import {
+  admitVaultProjections,
+  buildProjectedCorpus,
+  eagerEmbedContent,
+  preEmbedVaultMemories,
+  prepareVaultCandidates,
+  searchVaultMemories,
+  searchVaultMemoriesWithSize,
+} from "./searchTool";
+import { createMemoryVaultSearchTool } from "./searchToolExecutor";
+import { cacheRowVector } from "./vectorVersion";
 
 vi.mock("../db/memoryVault/operations", () => ({
   getAllVaultMemoriesOp: vi.fn(),
-  updateVaultMemoryEmbeddingOp: vi.fn().mockResolvedValue(undefined),
+  updateVaultMemoryEmbeddingOp: vi.fn().mockResolvedValue(true),
   getVaultCandidateKeysOp: vi.fn(),
   getVaultEmbeddingsByIdsOp: vi.fn(),
   getVaultMemoriesByIdsOp: vi.fn(),
@@ -43,12 +44,12 @@ vi.mock("./decomposeQuery", async (importOriginal) => {
 });
 
 import * as ops from "../db/memoryVault/operations";
-import * as embed from "../memoryEngine/embeddings";
 import { getAllVaultMemoriesOp } from "../db/memoryVault/operations";
-import { generateEmbedding, generateEmbeddings } from "../memoryEngine/embeddings";
+import { type Logger, noopLogger, setLogger } from "../logger";
 import { rerankPairs } from "../memory/reranker";
-import { setLogger, noopLogger, type Logger } from "../logger";
 import { DEFAULT_API_EMBEDDING_MODEL } from "../memoryEngine/constants";
+import * as embed from "../memoryEngine/embeddings";
+import { generateEmbedding, generateEmbeddings } from "../memoryEngine/embeddings";
 
 const mockVaultCtx = {} as VaultMemoryOperationsContext;
 
@@ -73,6 +74,28 @@ function makeMemory(id: string, content: string, scope = "private"): StoredVault
     folderId: null,
     userId: null,
     embedding: null,
+    embeddingModel: null,
+    sourceChunkIds: null,
+    proofCount: null,
+    source: null,
+    eventTimeStart: null,
+    eventTimeEnd: null,
+    eventTimeKind: null,
+    topicsUserManaged: false,
+    topicsExtractedAt: null,
+    topicsExtractedVersion: null,
+    supersededBy: null,
+    supersededAt: null,
+    lastObservedAt: null,
+    factType: null,
+    archivedAt: null,
+    trustTier: null,
+    topics: null,
+    topicsUpdatedAt: null,
+    visibility: "private",
+    twinOptIn: false,
+    publishedAt: null,
+    geohash: null,
     createdAt: ROW_VERSION,
     updatedAt: ROW_VERSION,
     isDeleted: false,
@@ -185,9 +208,9 @@ describe("searchVaultMemories", () => {
 
   it("returns [] for invalid query", async () => {
     const cache = createVaultEmbeddingCache();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
     const results = await searchVaultMemories(
-      null as any,
+      null as unknown as string,
       mockVaultCtx,
       mockEmbeddingOptions,
       cache
@@ -308,6 +331,67 @@ describe("searchVaultMemories", () => {
 
     expect(cache.has("m2")).toBe(true);
     expect(generateEmbeddings).toHaveBeenCalledWith(["uncached"], mockEmbeddingOptions);
+  });
+});
+
+describe("concurrent vault search", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("shares one row batch across concurrent searches with separate rankings", async () => {
+    const memories = [
+      makeMemory("cats", "cats are great"),
+      {
+        ...makeMemory("dogs", "dogs are loyal"),
+        embedding: "[1,0]",
+        embeddingModel: "old-model",
+      },
+    ];
+    vi.mocked(getAllVaultMemoriesOp).mockResolvedValue(memories);
+    vi.mocked(generateEmbedding).mockImplementation((query) =>
+      Promise.resolve(query === "cats" ? [1, 0] : [0, 1])
+    );
+    let releaseBatch!: (vectors: number[][]) => void;
+    const batch = new Promise<number[][]>((resolve) => {
+      releaseBatch = resolve;
+    });
+    vi.mocked(generateEmbeddings).mockReturnValue(batch);
+    const ctx = {} as VaultMemoryOperationsContext;
+    const cache = createVaultEmbeddingCache();
+    const queries = ["cats", "dogs", "cats", "dogs", "cats", "dogs"];
+    const searches = queries.map((query) =>
+      searchVaultMemoriesWithSize(query, ctx, mockEmbeddingOptions, cache, {
+        limit: 1,
+        minSimilarity: 0,
+        useFusion: false,
+      })
+    );
+    await vi.waitFor(() => {
+      expect(generateEmbedding).toHaveBeenCalledTimes(queries.length);
+      expect(generateEmbeddings).toHaveBeenCalled();
+    });
+    releaseBatch([
+      [1, 0],
+      [0, 1],
+    ]);
+    const results = await Promise.all(searches);
+
+    expect(results.map(({ results }) => results.map((row) => row.uniqueId))).toEqual(
+      queries.map((query) => [query])
+    );
+    expect(generateEmbeddings).toHaveBeenCalledExactlyOnceWith(
+      memories.map((row) => row.content),
+      mockEmbeddingOptions
+    );
+    expect(ops.updateVaultMemoryEmbeddingOp).toHaveBeenCalledTimes(memories.length);
+    memories.forEach((row, index) => {
+      expect(ops.updateVaultMemoryEmbeddingOp).toHaveBeenCalledWith(
+        ctx,
+        row.uniqueId,
+        JSON.stringify(index === 0 ? [1, 0] : [0, 1]),
+        DEFAULT_API_EMBEDDING_MODEL,
+        { content: row.content, updatedAt: row.updatedAt.getTime() }
+      );
+    });
   });
 });
 
@@ -808,7 +892,12 @@ describe("embedding dimension-mismatch guard", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     warnings = [];
-    const spy: Logger = { ...noopLogger, warn: (msg: string) => warnings.push(String(msg)) };
+    const spy: Logger = {
+      ...noopLogger,
+      warn: (msg) => {
+        warnings.push(String(msg));
+      },
+    };
     setLogger(spy);
   });
   afterEach(() => setLogger(noopLogger));
@@ -957,7 +1046,7 @@ describe("admitVaultProjections", () => {
 });
 
 describe("buildProjectedCorpus", () => {
-  const embOpts = { model: "m" } as any;
+  const embOpts = { apiKey: "test-key", model: "m" };
   beforeEach(() => {
     vi.restoreAllMocks();
     vi.clearAllMocks();
@@ -978,31 +1067,19 @@ describe("buildProjectedCorpus", () => {
         embeddingModel: "m",
         updatedAt: ROW_VERSION,
       },
-    ] as any);
+    ]);
     const embByIds = vi
       .spyOn(ops, "getVaultEmbeddingsByIdsOp")
-      .mockResolvedValue([
-        { uniqueId: "miss", embedding: "[0.6,0.8]", embeddingModel: "m" },
-      ] as any);
+      .mockResolvedValue([{ uniqueId: "miss", embedding: "[0.6,0.8]", embeddingModel: "m" }]);
     const byIds = vi.spyOn(ops, "getVaultMemoriesByIdsOp").mockResolvedValue([
       {
-        uniqueId: "cached",
-        content: "alpha",
+        ...makeMemory("cached", "alpha"),
         embedding: "[1,0]",
         embeddingModel: "m",
-        scope: "private",
-        folderId: null,
-        userId: null,
-        isDeleted: false,
         proofCount: 1,
-        sourceChunkIds: null,
-        eventTimeStart: null,
-        eventTimeEnd: null,
-        eventTimeKind: null,
         createdAt: new Date(),
-        updatedAt: ROW_VERSION,
       },
-    ] as any);
+    ]);
     const getAll = vi.spyOn(ops, "getAllVaultMemoriesOp");
     vi.spyOn(embed, "generateEmbedding").mockResolvedValue([1, 0]);
 
@@ -1010,7 +1087,7 @@ describe("buildProjectedCorpus", () => {
     seedVector(cache, "cached", Float32Array.from([1, 0]));
     const out = await buildProjectedCorpus(
       "q",
-      {} as any,
+      {} as VaultMemoryOperationsContext,
       embOpts,
       cache,
       {},
@@ -1023,7 +1100,7 @@ describe("buildProjectedCorpus", () => {
     );
 
     expect(getAll).not.toHaveBeenCalled();
-    expect(embByIds).toHaveBeenCalledWith({} as any, ["miss"], undefined);
+    expect(embByIds).toHaveBeenCalledWith({} as VaultMemoryOperationsContext, ["miss"], undefined);
     expect(out.vaultSize).toBe(2);
     expect(byIds.mock.calls[0][1]).toContain("cached");
   });
@@ -1039,44 +1116,48 @@ describe("buildProjectedCorpus", () => {
       updatedAt: ROW_VERSION,
     });
     const row = (uniqueId: string, content: string) => ({
-      uniqueId,
-      content,
+      ...makeMemory(uniqueId, content),
       embeddingModel: "m",
-      scope: "private",
-      folderId: null,
-      userId: null,
-      isDeleted: false,
       proofCount: 1,
-      sourceChunkIds: null,
-      eventTimeStart: null,
-      eventTimeEnd: null,
-      eventTimeKind: null,
       createdAt: new Date(),
-      updatedAt: ROW_VERSION,
     });
     vi.spyOn(ops, "getVaultCandidateKeysOp").mockImplementation(() =>
-      after(30, [key("a"), key("b")] as any)
+      after(30, [key("a"), key("b")])
     );
     vi.spyOn(ops, "getVaultEmbeddingsByIdsOp").mockImplementation(() =>
       after(20, [
         { uniqueId: "a", embedding: "[1,0]", embeddingModel: "m" },
         { uniqueId: "b", embedding: "[0.6,0.8]", embeddingModel: "m" },
-      ] as any)
+      ])
     );
     vi.spyOn(ops, "getVaultMemoriesByIdsOp").mockImplementation(() =>
-      after(10, [row("a", "alpha"), row("b", "beta")] as any)
+      after(10, [row("a", "alpha"), row("b", "beta")])
     );
     vi.spyOn(embed, "generateEmbedding").mockResolvedValue([1, 0]);
     const cache: VaultEmbeddingCache = new Map();
     const opts = { limit: 2, admitFactor: 1, admitFloor: 2, unembeddedCap: 100 };
 
-    const cold = await buildProjectedCorpus("q", {} as any, embOpts, cache, {}, opts);
+    const cold = await buildProjectedCorpus(
+      "q",
+      {} as VaultMemoryOperationsContext,
+      embOpts,
+      cache,
+      {},
+      opts
+    );
     expect(cold.corpusStats).toMatchObject({ cacheHits: 0, cacheMisses: 2 });
     expect(cold.corpusStats.keysMs).toBeGreaterThanOrEqual(25);
     expect(cold.corpusStats.embeddingsFetchMs).toBeGreaterThanOrEqual(15);
     expect(cold.corpusStats.rowsFetchMs).toBeGreaterThanOrEqual(5);
 
-    const warm = await buildProjectedCorpus("q", {} as any, embOpts, cache, {}, opts);
+    const warm = await buildProjectedCorpus(
+      "q",
+      {} as VaultMemoryOperationsContext,
+      embOpts,
+      cache,
+      {},
+      opts
+    );
     expect(warm.corpusStats).toMatchObject({
       cacheHits: 2,
       cacheMisses: 0,
@@ -1100,16 +1181,16 @@ describe("buildProjectedCorpus", () => {
         embeddingModel: "old",
         updatedAt: ROW_VERSION,
       },
-    ] as any);
+    ]);
     const embByIds = vi
       .spyOn(ops, "getVaultEmbeddingsByIdsOp")
-      .mockResolvedValue([{ uniqueId: "fresh", embedding: "[1,0]", embeddingModel: "m" }] as any);
-    vi.spyOn(ops, "getVaultMemoriesByIdsOp").mockResolvedValue([] as any);
+      .mockResolvedValue([{ uniqueId: "fresh", embedding: "[1,0]", embeddingModel: "m" }]);
+    vi.spyOn(ops, "getVaultMemoriesByIdsOp").mockResolvedValue([]);
     vi.spyOn(embed, "generateEmbedding").mockResolvedValue([1, 0]);
 
     const out = await buildProjectedCorpus(
       "q",
-      {} as any,
+      {} as VaultMemoryOperationsContext,
       embOpts,
       new Map(),
       {},
@@ -1121,7 +1202,7 @@ describe("buildProjectedCorpus", () => {
       }
     );
 
-    expect(embByIds).toHaveBeenCalledWith({} as any, ["fresh"], undefined);
+    expect(embByIds).toHaveBeenCalledWith({} as VaultMemoryOperationsContext, ["fresh"], undefined);
     expect(out.corpusStats).toMatchObject({ cacheHits: 0, cacheMisses: 2 });
   });
 
@@ -1134,34 +1215,24 @@ describe("buildProjectedCorpus", () => {
         embeddingModel: "m",
         updatedAt: ROW_VERSION,
       },
-    ] as any);
+    ]);
     const embByIds = vi
       .spyOn(ops, "getVaultEmbeddingsByIdsOp")
-      .mockResolvedValue([{ uniqueId: "arch", embedding: "[1,0]", embeddingModel: "m" }] as any);
+      .mockResolvedValue([{ uniqueId: "arch", embedding: "[1,0]", embeddingModel: "m" }]);
     const byIds = vi.spyOn(ops, "getVaultMemoriesByIdsOp").mockResolvedValue([
       {
-        uniqueId: "arch",
-        content: "archived fact",
+        ...makeMemory("arch", "archived fact"),
         embedding: "[1,0]",
         embeddingModel: "m",
-        scope: "private",
-        folderId: null,
-        userId: null,
-        isDeleted: false,
         proofCount: 1,
-        sourceChunkIds: null,
-        eventTimeStart: null,
-        eventTimeEnd: null,
-        eventTimeKind: null,
         createdAt: new Date(),
-        updatedAt: ROW_VERSION,
       },
-    ] as any);
+    ]);
     vi.spyOn(embed, "generateEmbedding").mockResolvedValue([1, 0]);
 
     const out = await buildProjectedCorpus(
       "q",
-      {} as any,
+      {} as VaultMemoryOperationsContext,
       embOpts,
       new Map(),
       {
@@ -1178,16 +1249,16 @@ describe("buildProjectedCorpus", () => {
     expect(keys.mock.calls[0][1]).toMatchObject({ includeArchived: true });
     expect(embByIds.mock.calls[0][2]).toEqual({ includeArchived: true });
     expect(byIds.mock.calls[0][2]).toEqual({ includeArchived: true });
-    expect(out.memories.map((m: any) => m.uniqueId)).toContain("arch");
+    expect(out.memories.map((m) => m.uniqueId)).toContain("arch");
   });
 
   it("empty candidate set: returns empty WITHOUT embedding the query", async () => {
-    vi.spyOn(ops, "getVaultCandidateKeysOp").mockResolvedValue([] as any);
+    vi.spyOn(ops, "getVaultCandidateKeysOp").mockResolvedValue([]);
     const genEmb = vi.spyOn(embed, "generateEmbedding").mockResolvedValue([1, 0]);
 
     const out = await buildProjectedCorpus(
       "q",
-      {} as any,
+      {} as VaultMemoryOperationsContext,
       embOpts,
       new Map(),
       {},
@@ -1208,7 +1279,7 @@ describe("buildProjectedCorpus", () => {
       laneEmbedFailed: false,
       rowsDecrypted: 0,
       corpusStats: {
-        keysMs: expect.any(Number),
+        keysMs: expect.any(Number) as number,
         embeddingsFetchMs: 0,
         rowsFetchMs: 0,
         cacheHits: 0,
@@ -1233,28 +1304,20 @@ describe("buildProjectedCorpus", () => {
         embeddingModel: "m",
         updatedAt: ROW_VERSION,
       },
-    ] as any);
-    vi.spyOn(ops, "getVaultEmbeddingsByIdsOp").mockResolvedValue([] as any);
-    const byIds = vi.spyOn(ops, "getVaultMemoriesByIdsOp").mockImplementation(
-      async (_ctx: any, ids: string[]) =>
-        ids.map((id) => ({
-          uniqueId: id,
-          content: id,
-          embedding: null,
-          embeddingModel: "m",
-          scope: "private",
-          folderId: null,
-          userId: null,
-          isDeleted: false,
-          proofCount: 1,
-          sourceChunkIds: null,
-          eventTimeStart: null,
-          eventTimeEnd: null,
-          eventTimeKind: null,
-          createdAt: new Date(),
-          updatedAt: ROW_VERSION,
-        })) as any
-    );
+    ]);
+    vi.spyOn(ops, "getVaultEmbeddingsByIdsOp").mockResolvedValue([]);
+    const byIds = vi
+      .spyOn(ops, "getVaultMemoriesByIdsOp")
+      .mockImplementation((_ctx, ids: string[]) =>
+        Promise.resolve(
+          ids.map((id) => ({
+            ...makeMemory(id, id),
+            embeddingModel: "m",
+            proofCount: 1,
+            createdAt: new Date(),
+          }))
+        )
+      );
     vi.spyOn(embed, "generateEmbedding").mockResolvedValue([1, 0]);
 
     const cache: VaultEmbeddingCache = new Map();
@@ -1262,7 +1325,7 @@ describe("buildProjectedCorpus", () => {
     seedVector(cache, "sidehit", Float32Array.from([0, 1]));
     const out = await buildProjectedCorpus(
       "q",
-      {} as any,
+      {} as VaultMemoryOperationsContext,
       embOpts,
       cache,
       {},
@@ -1275,7 +1338,7 @@ describe("buildProjectedCorpus", () => {
       }
     );
 
-    const decryptedIds = byIds.mock.calls.flatMap((c) => c[1] as string[]);
+    const decryptedIds = byIds.mock.calls.flatMap((c) => c[1]);
     expect(decryptedIds).toContain("sidehit");
     expect(out.memories.map((m) => m.uniqueId)).toContain("sidehit");
   });
@@ -1289,35 +1352,27 @@ describe("buildProjectedCorpus", () => {
         embeddingModel: "m",
         updatedAt: ROW_VERSION,
       },
-    ] as any);
-    vi.spyOn(ops, "getVaultEmbeddingsByIdsOp").mockResolvedValue([] as any);
-    const byIds = vi.spyOn(ops, "getVaultMemoriesByIdsOp").mockImplementation(
-      async (_ctx: any, ids: string[]) =>
-        ids.map((id) => ({
-          uniqueId: id,
-          content: id,
-          embedding: null,
-          embeddingModel: "m",
-          scope: "private",
-          folderId: null,
-          userId: null,
-          isDeleted: false,
-          proofCount: 1,
-          sourceChunkIds: null,
-          eventTimeStart: null,
-          eventTimeEnd: null,
-          eventTimeKind: null,
-          createdAt: new Date(),
-          updatedAt: ROW_VERSION,
-        })) as any
-    );
+    ]);
+    vi.spyOn(ops, "getVaultEmbeddingsByIdsOp").mockResolvedValue([]);
+    const byIds = vi
+      .spyOn(ops, "getVaultMemoriesByIdsOp")
+      .mockImplementation((_ctx, ids: string[]) =>
+        Promise.resolve(
+          ids.map((id) => ({
+            ...makeMemory(id, id),
+            embeddingModel: "m",
+            proofCount: 1,
+            createdAt: new Date(),
+          }))
+        )
+      );
     vi.spyOn(embed, "generateEmbedding").mockResolvedValue([1, 0]);
 
     const cache: VaultEmbeddingCache = new Map();
     seedVector(cache, "top", Float32Array.from([1, 0]));
     await buildProjectedCorpus(
       "q",
-      {} as any,
+      {} as VaultMemoryOperationsContext,
       embOpts,
       cache,
       {},
@@ -1330,7 +1385,7 @@ describe("buildProjectedCorpus", () => {
       }
     );
 
-    const decryptedIds = byIds.mock.calls.flatMap((c) => c[1] as string[]);
+    const decryptedIds = byIds.mock.calls.flatMap((c) => c[1]);
     expect(decryptedIds).not.toContain("ghost");
   });
 
@@ -1340,28 +1395,21 @@ describe("buildProjectedCorpus", () => {
     vi.spyOn(ops, "getVaultCandidateKeysOp").mockResolvedValue([
       { uniqueId: "old", folderId: null, scope: "private", embeddingModel: "m", updatedAt: older },
       { uniqueId: "new", folderId: null, scope: "private", embeddingModel: "m", updatedAt: newer },
-    ] as any);
-    const embByIds = vi.spyOn(ops, "getVaultEmbeddingsByIdsOp").mockResolvedValue([] as any);
-    const byIds = vi.spyOn(ops, "getVaultMemoriesByIdsOp").mockImplementation(
-      async (_ctx: any, ids: string[]) =>
-        ids.map((id) => ({
-          uniqueId: id,
-          content: id === "new" ? "allergic to shellfish" : "prefers window seats",
-          embedding: null,
-          embeddingModel: "m",
-          scope: "private",
-          folderId: null,
-          userId: null,
-          isDeleted: false,
-          proofCount: 1,
-          sourceChunkIds: null,
-          eventTimeStart: null,
-          eventTimeEnd: null,
-          eventTimeKind: null,
-          createdAt: new Date(),
-          updatedAt: id === "new" ? newer : older,
-        })) as any
-    );
+    ]);
+    const embByIds = vi.spyOn(ops, "getVaultEmbeddingsByIdsOp").mockResolvedValue([]);
+    const byIds = vi
+      .spyOn(ops, "getVaultMemoriesByIdsOp")
+      .mockImplementation((_ctx, ids: string[]) =>
+        Promise.resolve(
+          ids.map((id) => ({
+            ...makeMemory(id, id === "new" ? "allergic to shellfish" : "prefers window seats"),
+            embeddingModel: "m",
+            proofCount: 1,
+            createdAt: new Date(),
+            updatedAt: id === "new" ? newer : older,
+          }))
+        )
+      );
     vi.spyOn(embed, "generateEmbedding").mockRejectedValue(new Error("API rate limit"));
     const onEmbeddingDegraded = vi.fn();
 
@@ -1369,7 +1417,7 @@ describe("buildProjectedCorpus", () => {
     seedVector(cache, "old", Float32Array.from([1, 0]));
     const out = await buildProjectedCorpus(
       "q",
-      {} as any,
+      {} as VaultMemoryOperationsContext,
       embOpts,
       cache,
       {},
@@ -1377,7 +1425,7 @@ describe("buildProjectedCorpus", () => {
     );
 
     expect(out.memories.map((m) => m.uniqueId)).toEqual(["new"]);
-    expect(byIds.mock.calls.flatMap((c) => c[1] as string[])).toEqual(["new"]);
+    expect(byIds.mock.calls.flatMap((c) => c[1])).toEqual(["new"]);
     expect(onEmbeddingDegraded).toHaveBeenCalled();
     expect(embByIds).not.toHaveBeenCalled();
   });
@@ -1406,28 +1454,20 @@ describe("buildProjectedCorpus", () => {
         embeddingModel: "m",
         updatedAt: t("2026-05-01T00:00:00Z"),
       },
-    ] as any);
-    vi.spyOn(ops, "getVaultEmbeddingsByIdsOp").mockResolvedValue([] as any);
-    const byIds = vi.spyOn(ops, "getVaultMemoriesByIdsOp").mockImplementation(
-      async (_ctx: any, ids: string[]) =>
-        ids.map((id) => ({
-          uniqueId: id,
-          content: id,
-          embedding: null,
-          embeddingModel: "m",
-          scope: "private",
-          folderId: null,
-          userId: null,
-          isDeleted: false,
-          proofCount: 1,
-          sourceChunkIds: null,
-          eventTimeStart: null,
-          eventTimeEnd: null,
-          eventTimeKind: null,
-          createdAt: new Date(),
-          updatedAt: ROW_VERSION,
-        })) as any
-    );
+    ]);
+    vi.spyOn(ops, "getVaultEmbeddingsByIdsOp").mockResolvedValue([]);
+    const byIds = vi
+      .spyOn(ops, "getVaultMemoriesByIdsOp")
+      .mockImplementation((_ctx, ids: string[]) =>
+        Promise.resolve(
+          ids.map((id) => ({
+            ...makeMemory(id, id),
+            embeddingModel: "m",
+            proofCount: 1,
+            createdAt: new Date(),
+          }))
+        )
+      );
     vi.spyOn(embed, "generateEmbedding").mockResolvedValue([1, 0]);
     vi.spyOn(embed, "generateEmbeddings").mockRejectedValue(new Error("429 rate limited"));
 
@@ -1435,14 +1475,14 @@ describe("buildProjectedCorpus", () => {
     seedVector(cache, "warm", Float32Array.from([1, 0]));
     const out = await buildProjectedCorpus(
       "q",
-      {} as any,
+      {} as VaultMemoryOperationsContext,
       embOpts,
       cache,
       {},
       { limit: 3, admitFactor: 1, admitFloor: 3, unembeddedCap: 100 }
     );
 
-    const decryptedIds = byIds.mock.calls.flatMap((c) => c[1] as string[]);
+    const decryptedIds = byIds.mock.calls.flatMap((c) => c[1]);
     expect(decryptedIds).toEqual(expect.arrayContaining(["warm", "cold1", "cold2"]));
     expect(decryptedIds.length).toBe(new Set(decryptedIds).size);
     expect(out.memories.map((m) => m.uniqueId).sort()).toEqual(["cold1", "cold2", "warm"]);
@@ -1460,7 +1500,7 @@ describe("searchVaultMemoriesWithSize — embedding failures beyond the query em
     vi.spyOn(ops, "getAllVaultMemoriesOp").mockResolvedValue([
       makeMemory("m1", "allergic to shellfish"),
       makeMemory("m2", "prefers window seats"),
-    ] as any);
+    ]);
     vi.spyOn(embed, "generateEmbedding").mockResolvedValue([1, 0, 0]);
     vi.spyOn(embed, "generateEmbeddings").mockRejectedValue(new Error("429 rate limited"));
 
@@ -1480,7 +1520,7 @@ describe("searchVaultMemoriesWithSize — embedding failures beyond the query em
     vi.spyOn(ops, "getAllVaultMemoriesOp").mockResolvedValue([
       makeMemory("m1", "allergic to shellfish"),
       makeMemory("m2", "prefers window seats"),
-    ] as any);
+    ]);
     vi.spyOn(embed, "generateEmbedding").mockResolvedValue([1, 0, 0]);
     vi.spyOn(embed, "generateEmbeddings").mockRejectedValue(new Error("429 rate limited"));
 
@@ -1501,7 +1541,7 @@ describe("searchVaultMemoriesWithSize — embedding failures beyond the query em
   it("does NOT report an outage when only the composite sub-query embed fails", async () => {
     vi.spyOn(ops, "getAllVaultMemoriesOp").mockResolvedValue([
       makeMemory("m1", "allergic to shellfish"),
-    ] as any);
+    ]);
     vi.spyOn(embed, "generateEmbedding").mockResolvedValue([1, 0, 0]);
     vi.spyOn(embed, "generateEmbeddings").mockRejectedValue(new Error("429 rate limited"));
 
@@ -1526,7 +1566,7 @@ describe("searchVaultMemoriesWithSize — embedding failures beyond the query em
   it("treats a successful-but-empty query embedding as degraded", async () => {
     vi.spyOn(ops, "getAllVaultMemoriesOp").mockResolvedValue([
       makeMemory("m1", "allergic to shellfish"),
-    ] as any);
+    ]);
     vi.spyOn(embed, "generateEmbedding").mockResolvedValue([]);
 
     const out = await searchVaultMemoriesWithSize(
@@ -1551,7 +1591,7 @@ describe("prepareVaultCandidates — embeddingFailure", () => {
     vi.spyOn(ops, "getAllVaultMemoriesOp").mockResolvedValue([
       makeMemory("m1", "allergic to shellfish"),
       makeMemory("m2", "prefers window seats"),
-    ] as any);
+    ]);
     vi.spyOn(embed, "generateEmbedding").mockResolvedValue([1, 0, 0]);
     vi.spyOn(embed, "generateEmbeddings").mockRejectedValue(new Error("429 rate limited"));
 
@@ -1573,7 +1613,7 @@ describe("prepareVaultCandidates — embeddingFailure", () => {
   it("reports a failed query embed on both flags", async () => {
     vi.spyOn(ops, "getAllVaultMemoriesOp").mockResolvedValue([
       makeMemory("m1", "allergic to shellfish"),
-    ] as any);
+    ]);
     vi.spyOn(embed, "generateEmbedding").mockRejectedValue(new Error("503"));
 
     const prepared = await prepareVaultCandidates(
@@ -1591,7 +1631,7 @@ describe("prepareVaultCandidates — embeddingFailure", () => {
   it("stays false on a healthy pass", async () => {
     vi.spyOn(ops, "getAllVaultMemoriesOp").mockResolvedValue([
       makeMemory("m1", "allergic to shellfish"),
-    ] as any);
+    ]);
     vi.spyOn(embed, "generateEmbedding").mockResolvedValue([1, 0, 0]);
     vi.spyOn(embed, "generateEmbeddings").mockResolvedValue([[1, 0, 0]]);
 
@@ -1609,14 +1649,20 @@ describe("prepareVaultCandidates — embeddingFailure", () => {
 
   it("reports the projected un-embedded lane's batch failure", async () => {
     vi.spyOn(ops, "getVaultCandidateKeysOp").mockResolvedValue([
-      { uniqueId: "m1", updatedAt: ROW_VERSION, embeddingModel: null },
-    ] as any);
+      {
+        uniqueId: "m1",
+        updatedAt: ROW_VERSION,
+        embeddingModel: null,
+        folderId: null,
+        scope: "private",
+      },
+    ]);
     vi.spyOn(ops, "getVaultEmbeddingsByIdsOp").mockResolvedValue([
-      { uniqueId: "m1", embedding: null },
-    ] as any);
+      { uniqueId: "m1", embedding: null, embeddingModel: null },
+    ]);
     vi.spyOn(ops, "getVaultMemoriesByIdsOp").mockResolvedValue([
       makeMemory("m1", "allergic to shellfish"),
-    ] as any);
+    ]);
     vi.spyOn(embed, "generateEmbedding").mockResolvedValue([1, 0, 0]);
     vi.spyOn(embed, "generateEmbeddings").mockRejectedValue(new Error("429 rate limited"));
 
@@ -1647,37 +1693,33 @@ describe("searchVaultMemoriesWithSize — decryptLast branch", () => {
         embeddingModel: "m",
         updatedAt: ROW_VERSION,
       },
-    ] as any);
+    ]);
     vi.spyOn(ops, "getVaultEmbeddingsByIdsOp").mockResolvedValue([
       { uniqueId: "a", embedding: "[1,0]", embeddingModel: "m" },
-    ] as any);
+    ]);
     vi.spyOn(ops, "getVaultMemoriesByIdsOp").mockResolvedValue([
       {
-        uniqueId: "a",
-        content: "alpha",
+        ...makeMemory("a", "alpha"),
         embedding: "[1,0]",
         embeddingModel: "m",
-        scope: "private",
-        folderId: null,
-        userId: null,
-        isDeleted: false,
         proofCount: 1,
-        sourceChunkIds: null,
-        eventTimeStart: null,
-        eventTimeEnd: null,
-        eventTimeKind: null,
         createdAt: new Date(),
-        updatedAt: ROW_VERSION,
       },
-    ] as any);
+    ]);
     const getAll = vi.spyOn(ops, "getAllVaultMemoriesOp");
     vi.spyOn(embed, "generateEmbedding").mockResolvedValue([1, 0]);
 
     const cache = createVaultEmbeddingCache();
-    const out = await searchVaultMemoriesWithSize("q", {} as any, { model: "m" } as any, cache, {
-      limit: 5,
-      decryptLast: true,
-    });
+    const out = await searchVaultMemoriesWithSize(
+      "q",
+      {} as VaultMemoryOperationsContext,
+      { apiKey: "test-key", model: "m" },
+      cache,
+      {
+        limit: 5,
+        decryptLast: true,
+      }
+    );
 
     expect(getAll).not.toHaveBeenCalled();
     expect(out.results.map((r) => r.uniqueId)).toContain("a");
@@ -1699,37 +1741,33 @@ describe("searchVaultMemoriesWithSize — decryptLast branch", () => {
         scope: "private",
         embeddingModel: "m",
         updatedAt: ROW_VERSION,
-      })) as any
+      }))
     );
     vi.spyOn(ops, "getVaultEmbeddingsByIdsOp").mockResolvedValue(
-      rows.map((r) => ({ uniqueId: r.uniqueId, embedding: "[1,0]", embeddingModel: "m" })) as any
+      rows.map((r) => ({ uniqueId: r.uniqueId, embedding: "[1,0]", embeddingModel: "m" }))
     );
     vi.spyOn(ops, "getVaultMemoriesByIdsOp").mockResolvedValue(
       rows.map((r) => ({
-        uniqueId: r.uniqueId,
-        content: r.content,
+        ...makeMemory(r.uniqueId, r.content),
         embedding: "[1,0]",
         embeddingModel: "m",
-        scope: "private",
-        folderId: null,
-        userId: null,
-        isDeleted: false,
         proofCount: 1,
-        sourceChunkIds: null,
-        eventTimeStart: null,
-        eventTimeEnd: null,
-        eventTimeKind: null,
         createdAt: new Date(),
-        updatedAt: ROW_VERSION,
-      })) as any
+      }))
     );
     vi.spyOn(embed, "generateEmbedding").mockResolvedValue([1, 0]);
 
     const cache = createVaultEmbeddingCache();
-    const out = await searchVaultMemoriesWithSize("q", {} as any, { model: "m" } as any, cache, {
-      limit: 5,
-      decryptLast: true,
-    });
+    const out = await searchVaultMemoriesWithSize(
+      "q",
+      {} as VaultMemoryOperationsContext,
+      { apiKey: "test-key", model: "m" },
+      cache,
+      {
+        limit: 5,
+        decryptLast: true,
+      }
+    );
 
     expect(out.results.map((r) => r.uniqueId)).toEqual(["a"]);
     expect(out.decryptLast).toBe(true);
@@ -1744,59 +1782,60 @@ describe("searchVaultMemoriesWithSize — decryptLast branch", () => {
       embeddingModel: "m",
       updatedAt: ROW_VERSION,
     }));
-    vi.spyOn(ops, "getVaultCandidateKeysOp").mockResolvedValue(keys as any);
+    vi.spyOn(ops, "getVaultCandidateKeysOp").mockResolvedValue(keys);
     vi.spyOn(ops, "getVaultEmbeddingsByIdsOp").mockResolvedValue([
       { uniqueId: "novec", embedding: null, embeddingModel: "m" },
-    ] as any);
+    ]);
     const row = {
-      uniqueId: "novec",
-      content: "alpha",
-      embedding: null,
+      ...makeMemory("novec", "alpha"),
       embeddingModel: "m",
-      scope: "private",
-      folderId: null,
-      userId: null,
-      isDeleted: false,
       proofCount: 1,
-      sourceChunkIds: null,
-      eventTimeStart: null,
-      eventTimeEnd: null,
-      eventTimeKind: null,
       createdAt: new Date(),
-      updatedAt: ROW_VERSION,
     };
     const byIds = vi
       .spyOn(ops, "getVaultMemoriesByIdsOp")
-      .mockImplementation(async (_ctx: any, ids: string[]) =>
-        ids.includes("novec") ? ([row] as any) : ([] as any)
+      .mockImplementation((_ctx, ids: string[]) =>
+        Promise.resolve(ids.includes("novec") ? [row] : [])
       );
     vi.spyOn(embed, "generateEmbedding").mockResolvedValue([1, 0]);
     vi.spyOn(embed, "generateEmbeddings").mockResolvedValue([[1, 0]]);
-    vi.spyOn(ops, "updateVaultMemoryEmbeddingOp").mockResolvedValue(undefined as any);
+    vi.spyOn(ops, "updateVaultMemoryEmbeddingOp").mockResolvedValue(true);
 
     const cache = createVaultEmbeddingCache();
-    const out = await searchVaultMemoriesWithSize("q", {} as any, { model: "m" } as any, cache, {
-      limit: 5,
-      decryptLast: true,
-    });
+    const out = await searchVaultMemoriesWithSize(
+      "q",
+      {} as VaultMemoryOperationsContext,
+      { apiKey: "test-key", model: "m" },
+      cache,
+      {
+        limit: 5,
+        decryptLast: true,
+      }
+    );
 
     expect(out.vaultSize).toBe(1);
     expect(out.rowsDecrypted).toBe(1);
     expect(out.rowsDecrypted).toBeLessThanOrEqual(out.vaultSize);
-    const fetchedIdBatches = byIds.mock.calls.map((c) => (c[1] as string[]).length);
+    const fetchedIdBatches = byIds.mock.calls.map((c) => c[1].length);
     expect(fetchedIdBatches).toEqual([1]);
     expect(out.results.map((r) => r.uniqueId)).toEqual(["novec"]);
   });
 
   it("decryptLast OFF: legacy whole-vault path", async () => {
-    const getAll = vi.spyOn(ops, "getAllVaultMemoriesOp").mockResolvedValue([] as any);
+    const getAll = vi.spyOn(ops, "getAllVaultMemoriesOp").mockResolvedValue([]);
     const keys = vi.spyOn(ops, "getVaultCandidateKeysOp");
     vi.spyOn(embed, "generateEmbedding").mockResolvedValue([1, 0]);
 
     const cache = createVaultEmbeddingCache();
-    const out = await searchVaultMemoriesWithSize("q", {} as any, { model: "m" } as any, cache, {
-      limit: 5,
-    });
+    const out = await searchVaultMemoriesWithSize(
+      "q",
+      {} as VaultMemoryOperationsContext,
+      { apiKey: "test-key", model: "m" },
+      cache,
+      {
+        limit: 5,
+      }
+    );
 
     expect(getAll).toHaveBeenCalledTimes(1);
     expect(keys).not.toHaveBeenCalled();
@@ -1812,24 +1851,15 @@ describe("searchVaultMemoriesWithSize — decryptLast branch", () => {
     ];
     const now = new Date("2026-01-01T00:00:00Z");
     const toRow = (f: (typeof FIXTURE)[number]) => ({
-      uniqueId: f.uniqueId,
-      content: f.content,
+      ...makeMemory(f.uniqueId, f.content),
       embedding: JSON.stringify(f.vec),
       embeddingModel: "m",
-      scope: "private",
-      folderId: null,
-      userId: null,
-      isDeleted: false,
       proofCount: 1,
-      sourceChunkIds: null,
-      eventTimeStart: null,
-      eventTimeEnd: null,
-      eventTimeKind: null,
       createdAt: now,
       updatedAt: now,
     });
 
-    const embOpts = { model: "m" } as any;
+    const embOpts = { apiKey: "test-key", model: "m" };
     vi.spyOn(embed, "generateEmbedding").mockResolvedValue([1, 0, 0, 0]);
 
     vi.spyOn(ops, "getVaultCandidateKeysOp").mockResolvedValue(
@@ -1839,33 +1869,44 @@ describe("searchVaultMemoriesWithSize — decryptLast branch", () => {
         scope: "private",
         embeddingModel: "m",
         updatedAt: now,
-      })) as any
+      }))
     );
-    vi.spyOn(ops, "getVaultMemoriesByIdsOp").mockImplementation(
-      async (_ctx: any, ids: string[]) =>
-        FIXTURE.filter((f) => ids.includes(f.uniqueId)).map(toRow) as any
+    vi.spyOn(ops, "getVaultMemoriesByIdsOp").mockImplementation((_ctx, ids: string[]) =>
+      Promise.resolve(FIXTURE.filter((f) => ids.includes(f.uniqueId)).map(toRow))
     );
     const cacheA = createVaultEmbeddingCache();
     FIXTURE.forEach((f) =>
       cacheRowVector(cacheA, f.uniqueId, Float32Array.from(f.vec), now, f.content)
     );
 
-    const decryptLastOut = await searchVaultMemoriesWithSize("cats", {} as any, embOpts, cacheA, {
-      limit: 3,
-      decryptLast: true,
-      admitFactor: 10,
-      admitFloor: 10,
-    });
+    const decryptLastOut = await searchVaultMemoriesWithSize(
+      "cats",
+      {} as VaultMemoryOperationsContext,
+      embOpts,
+      cacheA,
+      {
+        limit: 3,
+        decryptLast: true,
+        admitFactor: 10,
+        admitFloor: 10,
+      }
+    );
 
-    vi.spyOn(ops, "getAllVaultMemoriesOp").mockResolvedValue(FIXTURE.map(toRow) as any);
+    vi.spyOn(ops, "getAllVaultMemoriesOp").mockResolvedValue(FIXTURE.map(toRow));
     const cacheB = createVaultEmbeddingCache();
     FIXTURE.forEach((f) =>
       cacheRowVector(cacheB, f.uniqueId, Float32Array.from(f.vec), now, f.content)
     );
 
-    const legacyOut = await searchVaultMemoriesWithSize("cats", {} as any, embOpts, cacheB, {
-      limit: 3,
-    });
+    const legacyOut = await searchVaultMemoriesWithSize(
+      "cats",
+      {} as VaultMemoryOperationsContext,
+      embOpts,
+      cacheB,
+      {
+        limit: 3,
+      }
+    );
 
     expect(legacyOut.results.length).toBeGreaterThan(0);
     expect(decryptLastOut.results.map((r) => r.uniqueId)).toEqual(
@@ -1891,44 +1932,42 @@ describe("searchVaultMemoriesWithSize — decryptLast branch", () => {
         updatedAt: ROW_VERSION,
       },
     ];
-    vi.spyOn(ops, "getVaultCandidateKeysOp").mockResolvedValue(rows as any);
-    vi.spyOn(ops, "getVaultEmbeddingsByIdsOp").mockResolvedValue([] as any);
-    const byIds = vi.spyOn(ops, "getVaultMemoriesByIdsOp").mockImplementation(
-      async (_ctx: any, ids: string[]) =>
-        ids.map((id) => ({
-          uniqueId: id,
-          content: id === "top" ? "cats are great" : "sidehit content",
-          embedding: null,
-          embeddingModel: "m",
-          scope: "private",
-          folderId: null,
-          userId: null,
-          isDeleted: false,
-          proofCount: 1,
-          sourceChunkIds: null,
-          eventTimeStart: null,
-          eventTimeEnd: null,
-          eventTimeKind: null,
-          createdAt: new Date(),
-          updatedAt: ROW_VERSION,
-        })) as any
-    );
+    vi.spyOn(ops, "getVaultCandidateKeysOp").mockResolvedValue(rows);
+    vi.spyOn(ops, "getVaultEmbeddingsByIdsOp").mockResolvedValue([]);
+    const byIds = vi
+      .spyOn(ops, "getVaultMemoriesByIdsOp")
+      .mockImplementation((_ctx, ids: string[]) =>
+        Promise.resolve(
+          ids.map((id) => ({
+            ...makeMemory(id, id === "top" ? "cats are great" : "sidehit content"),
+            embeddingModel: "m",
+            proofCount: 1,
+            createdAt: new Date(),
+          }))
+        )
+      );
     vi.spyOn(embed, "generateEmbedding").mockResolvedValue([1, 0]);
 
     const cache = createVaultEmbeddingCache();
     seedVector(cache, "top", Float32Array.from([1, 0]));
     seedVector(cache, "sidehit", Float32Array.from([0, 1]));
 
-    const out = await searchVaultMemoriesWithSize("cats", {} as any, { model: "m" } as any, cache, {
-      limit: 5,
-      minSimilarity: 0,
-      decryptLast: true,
-      admitFactor: 0.2,
-      admitFloor: 1,
-      entityRanking: ["sidehit"],
-    });
+    const out = await searchVaultMemoriesWithSize(
+      "cats",
+      {} as VaultMemoryOperationsContext,
+      { apiKey: "test-key", model: "m" },
+      cache,
+      {
+        limit: 5,
+        minSimilarity: 0,
+        decryptLast: true,
+        admitFactor: 0.2,
+        admitFloor: 1,
+        entityRanking: ["sidehit"],
+      }
+    );
 
-    const decryptedIds = byIds.mock.calls.flatMap((c) => c[1] as string[]);
+    const decryptedIds = byIds.mock.calls.flatMap((c) => c[1]);
     expect(decryptedIds).toContain("sidehit");
     expect(out.results.map((r) => r.uniqueId)).toContain("sidehit");
   });
@@ -1949,27 +1988,17 @@ describe("searchVaultMemoriesWithSize — decryptLast branch", () => {
         embeddingModel: "m",
         updatedAt: ROW_VERSION,
       },
-    ] as any);
-    vi.spyOn(ops, "getVaultEmbeddingsByIdsOp").mockResolvedValue([] as any);
-    vi.spyOn(ops, "getVaultMemoriesByIdsOp").mockImplementation(
-      async (_ctx: any, ids: string[]) =>
+    ]);
+    vi.spyOn(ops, "getVaultEmbeddingsByIdsOp").mockResolvedValue([]);
+    vi.spyOn(ops, "getVaultMemoriesByIdsOp").mockImplementation((_ctx, ids: string[]) =>
+      Promise.resolve(
         ids.map((id) => ({
-          uniqueId: id,
-          content: "enc:v3:deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef00",
-          embedding: null,
+          ...makeMemory(id, "enc:v3:deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef00"),
           embeddingModel: "m",
-          scope: "private",
-          folderId: null,
-          userId: null,
-          isDeleted: false,
           proofCount: 1,
-          sourceChunkIds: null,
-          eventTimeStart: null,
-          eventTimeEnd: null,
-          eventTimeKind: null,
           createdAt: new Date(),
-          updatedAt: ROW_VERSION,
-        })) as any
+        }))
+      )
     );
     vi.spyOn(embed, "generateEmbedding").mockResolvedValue([1, 0]);
 
@@ -1977,11 +2006,17 @@ describe("searchVaultMemoriesWithSize — decryptLast branch", () => {
     seedVector(cache, "a", Float32Array.from([1, 0]));
     seedVector(cache, "b", Float32Array.from([0, 1]));
 
-    const out = await searchVaultMemoriesWithSize("q", {} as any, { model: "m" } as any, cache, {
-      limit: 5,
-      decryptLast: true,
-      subQueries: ["facet a", "facet b"],
-    });
+    const out = await searchVaultMemoriesWithSize(
+      "q",
+      {} as VaultMemoryOperationsContext,
+      { apiKey: "test-key", model: "m" },
+      cache,
+      {
+        limit: 5,
+        decryptLast: true,
+        subQueries: ["facet a", "facet b"],
+      }
+    );
 
     expect(out.results).toEqual([]);
     expect(out.vaultSize).toBe(2);
@@ -1996,7 +2031,12 @@ describe("composite sub-query embeds — degenerate responses fall through", () 
     vi.restoreAllMocks();
     vi.clearAllMocks();
     warnings = [];
-    setLogger({ ...noopLogger, warn: (msg: string) => warnings.push(String(msg)) });
+    setLogger({
+      ...noopLogger,
+      warn: (msg) => {
+        warnings.push(String(msg));
+      },
+    });
   });
   afterEach(() => setLogger(noopLogger));
 
@@ -2018,7 +2058,7 @@ describe("composite sub-query embeds — degenerate responses fall through", () 
     vi.spyOn(ops, "getAllVaultMemoriesOp").mockResolvedValue([
       makeMemory("m1", "allergic to shellfish"),
       makeMemory("m2", "prefers window seats"),
-    ] as any);
+    ]);
     vi.spyOn(embed, "generateEmbedding").mockResolvedValue([1, 0, 0]);
   });
 
