@@ -10,7 +10,7 @@ Stored user preference record from the database
 
 > **createdAt**: `number`
 
-Defined in: [src/lib/db/userPreferences/types.ts:99](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/userPreferences/types.ts#99)
+Defined in: [src/lib/db/userPreferences/types.ts:101](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/userPreferences/types.ts#101)
 
 ***
 
@@ -19,6 +19,16 @@ Defined in: [src/lib/db/userPreferences/types.ts:99](https://github.com/anuma-ai
 > `optional` **description**: `string`
 
 Defined in: [src/lib/db/userPreferences/types.ts:96](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/userPreferences/types.ts#96)
+
+***
+
+### externalWallets?
+
+> `optional` **externalWallets**: `string`
+
+Defined in: [src/lib/db/userPreferences/types.ts:100](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/userPreferences/types.ts#100)
+
+JSON array of the user's saved external wallets, stored as given.
 
 ***
 
@@ -66,7 +76,7 @@ Defined in: [src/lib/db/userPreferences/types.ts:92](https://github.com/anuma-ai
 
 > **updatedAt**: `number`
 
-Defined in: [src/lib/db/userPreferences/types.ts:100](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/userPreferences/types.ts#100)
+Defined in: [src/lib/db/userPreferences/types.ts:102](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/userPreferences/types.ts#102)
 
 ***
 

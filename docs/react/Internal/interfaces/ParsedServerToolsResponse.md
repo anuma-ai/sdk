@@ -1,6 +1,6 @@
 # ParsedServerToolsResponse
 
-Defined in: [src/lib/tools/serverTools.ts:184](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#184)
+Defined in: [src/lib/tools/serverTools.ts:185](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#185)
 
 Result of parsing server tools response
 
@@ -10,7 +10,7 @@ Result of parsing server tools response
 
 > `optional` **checksum**: `string`
 
-Defined in: [src/lib/tools/serverTools.ts:186](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#186)
+Defined in: [src/lib/tools/serverTools.ts:187](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#187)
 
 ***
 
@@ -18,4 +18,4 @@ Defined in: [src/lib/tools/serverTools.ts:186](https://github.com/anuma-ai/sdk/b
 
 > **tools**: [`ServerTool`](ServerTool.md)\[]
 
-Defined in: [src/lib/tools/serverTools.ts:185](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#185)
+Defined in: [src/lib/tools/serverTools.ts:186](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#186)

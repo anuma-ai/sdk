@@ -1,6 +1,7 @@
 import type { LlmapiChatCompletionTool } from "../../client";
 import { APP_BUILDER_PROMPT } from "../../tools/appBuilderPrompt";
 import { DOCUMENT_BUILDER_PROMPT } from "../../tools/document/documentBuilderPrompt";
+import { FLIGHT_BOOK_TOOL_SET, FLIGHT_SERVER_TOOL_NAMES } from "../../tools/walletPaymentConstants";
 import type { ToolConfig } from "../chat/useChat/types";
 import { getLogger } from "../logger";
 import { chunkText, DEFAULT_CHUNK_SIZE, shouldChunkMessage } from "../memoryEngine/chunking";
@@ -1153,6 +1154,7 @@ export const BUILT_IN_TOOL_SETS: ToolSet[] = [
     ],
     anchors: [],
   },
+  { name: FLIGHT_BOOK_TOOL_SET, members: [...FLIGHT_SERVER_TOOL_NAMES], anchors: [] },
 ];
 
 /**
@@ -1547,6 +1549,16 @@ export const SERVER_TOOL_DEPENDENCY_SETS: ToolSet[] = [
     name: "restaurant-cancel-lookup",
     members: ["AnumaPaymentsMCP-anuma_list_reservations"],
     anchors: ["AnumaPaymentsMCP-anuma_cancel_reservation"],
+    anchorMinSimilarity: 0.5,
+  },
+  {
+    name: "flight-book-lookup",
+    members: [
+      "AnumaPaymentsMCP-anuma_flight_offer_details",
+      "AnumaPaymentsMCP-anuma_create_flight_intent",
+      "AnumaPaymentsMCP-anuma_get_flight_booking",
+    ],
+    anchors: ["AnumaPaymentsMCP-anuma_search_flights"],
     anchorMinSimilarity: 0.5,
   },
 ];

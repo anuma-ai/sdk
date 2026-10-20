@@ -1,6 +1,6 @@
 # ToolMatchOptions
 
-Defined in: [src/lib/tools/serverTools.ts:820](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#820)
+Defined in: [src/lib/tools/serverTools.ts:821](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#821)
 
 Options for findMatchingTools
 
@@ -10,7 +10,7 @@ Options for findMatchingTools
 
 > `optional` **ambiguityThreshold**: `number`
 
-Defined in: [src/lib/tools/serverTools.ts:836](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#836)
+Defined in: [src/lib/tools/serverTools.ts:837](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#837)
 
 Top score must be above this to skip the ambiguity check (default: 0.55)
 
@@ -20,7 +20,7 @@ Top score must be above this to skip the ambiguity check (default: 0.55)
 
 > `optional` **filterAmbiguous**: `boolean`
 
-Defined in: [src/lib/tools/serverTools.ts:834](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#834)
+Defined in: [src/lib/tools/serverTools.ts:835](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#835)
 
 When enabled, returns empty results if the top match doesn't clearly
 stand out from the runner-up. This filters out generic prompts like
@@ -37,7 +37,7 @@ A match is considered ambiguous when:
 
 > `optional` **limit**: `number`
 
-Defined in: [src/lib/tools/serverTools.ts:822](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#822)
+Defined in: [src/lib/tools/serverTools.ts:823](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#823)
 
 Maximum number of tools to return (default: 5)
 
@@ -47,7 +47,7 @@ Maximum number of tools to return (default: 5)
 
 > `optional` **minLead**: `number`
 
-Defined in: [src/lib/tools/serverTools.ts:838](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#838)
+Defined in: [src/lib/tools/serverTools.ts:839](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#839)
 
 Minimum gap between top and runner-up scores (default: 0.04)
 
@@ -57,7 +57,7 @@ Minimum gap between top and runner-up scores (default: 0.04)
 
 > `optional` **minSimilarity**: `number`
 
-Defined in: [src/lib/tools/serverTools.ts:824](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#824)
+Defined in: [src/lib/tools/serverTools.ts:825](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#825)
 
 Minimum similarity threshold 0-1 (default: 0.3)
 
@@ -67,7 +67,7 @@ Minimum similarity threshold 0-1 (default: 0.3)
 
 > `optional` **relevanceRatio**: `number`
 
-Defined in: [src/lib/tools/serverTools.ts:845](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#845)
+Defined in: [src/lib/tools/serverTools.ts:846](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#846)
 
 Only keep tools scoring at least this fraction of the top match's score.
 Filters out the tail of weakly-related tools that fill up the limit.

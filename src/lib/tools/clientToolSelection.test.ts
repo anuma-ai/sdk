@@ -2,6 +2,10 @@ import { describe, expect, it } from "vitest";
 
 import type { LlmapiChatCompletionTool } from "../../client";
 import { CONFIRM_TOOL_NAME } from "../../tools/confirmConstants";
+import {
+  SELECT_PAYMENT_WALLET_TOOL_NAME,
+  WALLET_PAYMENT_TOOL_NAME,
+} from "../../tools/walletPaymentConstants";
 import { autoFilterClientTools, getToolDescription, getToolName } from "./clientToolSelection";
 
 function tool(name: string, description = name): LlmapiChatCompletionTool {
@@ -36,7 +40,7 @@ describe("autoFilterClientTools — gate outcomes (parity)", () => {
     expect(names(tools).sort()).toEqual(["memory_vault_save", "recall_memory"]);
   });
 
-  it("short-prompt + no active sets → zero tools (the length gate)", async () => {
+  it("short-prompt + no active sets → only the always-included tools", async () => {
     const clientTools = [tool("recall_memory"), tool("notion_search")];
     const { tools, activatedSetNames } = await autoFilterClientTools(
       clientTools,
@@ -47,7 +51,7 @@ describe("autoFilterClientTools — gate outcomes (parity)", () => {
       [],
       "short-prompt"
     );
-    expect(tools).toEqual([]);
+    expect(names(tools)).toEqual(["recall_memory"]);
     expect([...(activatedSetNames ?? [])]).toEqual([]);
   });
 
@@ -142,10 +146,39 @@ describe("autoFilterClientTools — the confirm tool is always included", () => 
     expect(names(tools).sort()).toEqual(["plan_deck", CONFIRM_TOOL_NAME, "recall_memory"]);
   });
 
-  it("short-prompt + no active sets → still zero tools", async () => {
+  it("short-prompt + no active sets → only the always-included tools", async () => {
     const clientTools = [tool("recall_memory"), tool(CONFIRM_TOOL_NAME), tool("notion_search")];
     const { tools } = await autoFilterClientTools(clientTools, null, new Map(), {});
-    expect(tools).toEqual([]);
+    expect(names(tools)).toEqual(["recall_memory", CONFIRM_TOOL_NAME]);
+  });
+});
+
+describe("autoFilterClientTools — the wallet payment tools are always included", () => {
+  const scoring = (score: number) => [score, Math.sqrt(1 - score * score)];
+
+  it("short-prompt + no active sets → keeps both payment tools", async () => {
+    const clientTools = [
+      tool(SELECT_PAYMENT_WALLET_TOOL_NAME),
+      tool(WALLET_PAYMENT_TOOL_NAME),
+      tool("notion_search"),
+    ];
+    const { tools } = await autoFilterClientTools(clientTools, null, new Map(), {});
+    expect(names(tools)).toEqual([SELECT_PAYMENT_WALLET_TOOL_NAME, WALLET_PAYMENT_TOOL_NAME]);
+  });
+
+  it("keeps both payment tools when nothing clears the similarity floor", async () => {
+    const c = new Map<string, number[]>([
+      [SELECT_PAYMENT_WALLET_TOOL_NAME, scoring(0.01)],
+      [WALLET_PAYMENT_TOOL_NAME, scoring(0.01)],
+      ["notion_search", scoring(0.01)],
+    ]);
+    const clientTools = [
+      tool(SELECT_PAYMENT_WALLET_TOOL_NAME),
+      tool(WALLET_PAYMENT_TOOL_NAME),
+      tool("notion_search"),
+    ];
+    const { tools } = await autoFilterClientTools(clientTools, [1, 0], c, {});
+    expect(names(tools)).toEqual([SELECT_PAYMENT_WALLET_TOOL_NAME, WALLET_PAYMENT_TOOL_NAME]);
   });
 });
 
