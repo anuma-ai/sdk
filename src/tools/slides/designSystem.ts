@@ -4065,62 +4065,6 @@ function estimateRelativeSlotBudget(
   );
 }
 
-function validateFlexRegionDefaults(
-  region: FlexRegion,
-  system: DesignSystem,
-  fontPreset: { heading: string; body: string }
-): SlotIssue[] {
-  const issues: SlotIssue[] = [];
-  for (let i = 0; i < region.defaultItems.length; i++) {
-    const data = region.defaultItems[i];
-    const idx = i + 1;
-    for (const rel of region.item) {
-      if (STATIC_ROLES.has(rel.role)) continue;
-      const style = system.styles[rel.role];
-      if (!style) continue;
-      const raw = data[rel.id];
-      const text = (typeof raw === "string" ? raw : undefined) ?? rel.defaultText;
-      if (!text) continue;
-      const budget = estimateRelativeSlotBudget(rel, region, style, fontPreset, undefined, idx);
-      const fit: FitMode = rel.fit ?? "multi-line";
-      const trimmed = text.trim();
-      const visible = trimmed.replace(/\*{1,2}([^*]+)\*{1,2}/g, "$1");
-      const fullId = `${region.idPrefix}_${idx}_${rel.id}`;
-      if (budget.boxHeightPx < budget.safeLinePx) {
-        issues.push({
-          id: fullId,
-          role: rel.role,
-          text: trimmed,
-          budget,
-          fit,
-          issue: `box too short for descenders: h=${Math.round(budget.boxHeightPx)}px < ${Math.round(budget.safeLinePx)}px needed (line ${Math.round(budget.linePx)}px + descender room)`,
-        });
-        continue;
-      }
-      if (fit === "single-line" && visible.length > budget.charsPerLine) {
-        issues.push({
-          id: fullId,
-          role: rel.role,
-          text: trimmed,
-          budget,
-          fit,
-          issue: `single-line: ${visible.length} chars exceeds ${budget.charsPerLine}-char budget`,
-        });
-      } else if (fit === "multi-line" && visible.length > budget.total) {
-        issues.push({
-          id: fullId,
-          role: rel.role,
-          text: trimmed,
-          budget,
-          fit,
-          issue: `multi-line: ${visible.length} chars exceeds ${budget.total}-char budget (${budget.maxLines}×${budget.charsPerLine})`,
-        });
-      }
-    }
-  }
-  return issues;
-}
-
 /** A slot whose `defaultText` exceeds the slot's budget under the system. */
 interface SlotIssue {
   id: string;
