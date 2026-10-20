@@ -3,6 +3,7 @@ import type { EntityOperationsContext } from "../db/entities/operations.js";
 import type { VaultMemoryOperationsContext } from "../db/memoryVault/operations.js";
 import type { EmbeddingOptions } from "../memoryEngine/types.js";
 import type { VaultEmbeddingCache } from "../memoryVault/searchTool.js";
+import type { VaultPreparation } from "../memoryVault/vaultPreparation.js";
 import type { PiiRedactor } from "../pii/redactor.js";
 import type { FactType } from "./autoExtract.js";
 import type { ObservationTrend } from "./observationTrend.js";
@@ -94,6 +95,7 @@ export interface RankedMemory {
 }
 
 export interface RecallOptions {
+  vaultPreparation?: VaultPreparation;
   /** Embedding cache shared with the rest of the turn, so the query is embedded once across lanes and the send. */
   embeddingCache?: Map<string, Float32Array>;
   /** Which kinds to search. Default: ['fact']. */

@@ -1,7 +1,6 @@
 import { isEncrypted } from "../db/encryption-utils";
 import type { VaultMemoryOperationsContext } from "../db/memoryVault/operations";
 import {
-  getAllVaultMemoriesOp,
   getVaultCandidateKeysOp,
   getVaultEmbeddingsByIdsOp,
   getVaultMemoriesByIdsOp,
@@ -22,6 +21,7 @@ import { cosineSimilarity } from "../memoryEngine/vector";
 import { nowMs } from "../scheduling";
 import { prepareBM25Corpus, type PreparedBM25Corpus, scoreBM25, scoreBM25Prepared } from "./bm25";
 import { normalizeSubQueries } from "./decomposeQuery";
+import { embedVaultRows, loadVaultCorpus, type VaultPreparation } from "./vaultPreparation";
 import { cachedRowVector, cacheRowVector, rowVectorMatchesContent } from "./vectorVersion";
 
 export { createVaultEmbeddingCache, DEFAULT_VAULT_CACHE_SIZE } from "./lruCache";
@@ -97,6 +97,7 @@ let warnedProgrammaticDecomposeIgnored = false;
  * Options for the vault search tool.
  */
 export interface MemoryVaultSearchOptions {
+  vaultPreparation?: VaultPreparation;
   onCandidateCount?: (count: number) => void;
   /** Maximum number of results to return (default: 5) */
   limit?: number;
@@ -1245,11 +1246,11 @@ export async function preEmbedVaultMemories(
   cache: VaultEmbeddingCache,
   options?: { scopes?: string[] }
 ): Promise<void> {
-  const memories = await getAllVaultMemoriesOp(vaultCtx, options);
+  const memories = await loadVaultCorpus(vaultCtx, options);
   const currentModel = embeddingOptions.model ?? DEFAULT_API_EMBEDDING_MODEL;
   const uncachedTexts: string[] = [];
   const uncachedKeys: string[] = [];
-  const uncachedIds: string[] = [];
+  const uncachedRows: StoredVaultMemory[] = [];
   const uncachedVersions: Array<Date | undefined> = [];
   for (const m of memories) {
     const content = m.content;
@@ -1269,12 +1270,12 @@ export async function preEmbedVaultMemories(
       }
       uncachedTexts.push(m.content);
       uncachedKeys.push(m.uniqueId);
-      uncachedIds.push(m.uniqueId);
+      uncachedRows.push(m);
       uncachedVersions.push(m.updatedAt);
     }
   }
   if (uncachedTexts.length > 0) {
-    const embeddings = await generateEmbeddings(uncachedTexts, embeddingOptions);
+    const embeddings = await embedVaultRows(vaultCtx, embeddingOptions, uncachedRows);
     for (let i = 0; i < uncachedKeys.length; i++) {
       cacheRowVector(
         cache,
@@ -1283,12 +1284,6 @@ export async function preEmbedVaultMemories(
         uncachedVersions[i],
         uncachedTexts[i]
       );
-      updateVaultMemoryEmbeddingOp(
-        vaultCtx,
-        uncachedIds[i],
-        JSON.stringify(embeddings[i]),
-        currentModel
-      ).catch(() => {});
     }
   }
 }
@@ -1565,10 +1560,7 @@ export async function buildProjectedCorpus(
       let laneVecs: number[][] | undefined;
       if (opts.embedStats) opts.embedStats.rowsEmbedded += laneRows.length;
       try {
-        laneVecs = await generateEmbeddings(
-          laneRows.map((m) => m.content),
-          embeddingOptions
-        );
+        laneVecs = await embedVaultRows(vaultCtx, embeddingOptions, laneRows);
       } catch (err) {
         laneEmbedFailed = true;
         getLogger().warn(
@@ -1584,12 +1576,6 @@ export async function buildProjectedCorpus(
           cacheRowVector(cache, m.uniqueId, vec, m.updatedAt, m.content);
           resolvedThisCall.add(m.uniqueId);
           vectored.push({ uniqueId: m.uniqueId, embedding: vec, updatedAt: m.updatedAt });
-          updateVaultMemoryEmbeddingOp(
-            vaultCtx,
-            m.uniqueId,
-            JSON.stringify(vecs[i]),
-            currentModel
-          ).catch(() => {});
         });
       }
     }
@@ -1951,9 +1937,10 @@ export async function prepareVaultCandidates(
       };
     }
   } else {
-    const loaded = await getAllVaultMemoriesOp(
+    const loaded = await loadVaultCorpus(
       vaultCtx,
-      Object.keys(queryOpts).length > 0 ? queryOpts : undefined
+      Object.keys(queryOpts).length > 0 ? queryOpts : undefined,
+      searchOptions?.vaultPreparation
     );
     vaultSize = loaded.length;
     rowsDecrypted = loaded.length;
@@ -2032,7 +2019,12 @@ export async function prepareVaultCandidates(
       let newEmbeddings: number[][] | undefined;
       embedStats.rowsEmbedded += uncachedTexts.length;
       try {
-        newEmbeddings = await generateEmbeddings(uncachedTexts, embeddingOptions);
+        newEmbeddings = await embedVaultRows(
+          vaultCtx,
+          embeddingOptions,
+          uncachedIndices.map((index) => memories[index]),
+          searchOptions?.vaultPreparation
+        );
       } catch (err) {
         embeddingFailure = true;
         getLogger().warn(
@@ -2050,12 +2042,6 @@ export async function prepareVaultCandidates(
             memories[uncachedIndices[j]].updatedAt,
             memories[uncachedIndices[j]].content
           );
-          updateVaultMemoryEmbeddingOp(
-            vaultCtx,
-            memories[uncachedIndices[j]].uniqueId,
-            JSON.stringify(newEmbeddings[j]),
-            currentModel
-          ).catch(() => {});
         }
       }
     }

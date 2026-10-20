@@ -287,7 +287,8 @@ describe("searchVaultMemories", () => {
         mockVaultCtx,
         "m1",
         JSON.stringify([0.9, 0.1, 0]),
-        DEFAULT_API_EMBEDDING_MODEL
+        DEFAULT_API_EMBEDDING_MODEL,
+        { content: "fallback", updatedAt: ROW_VERSION.getTime() }
       )
     );
   });
@@ -564,7 +565,8 @@ describe("preEmbedVaultMemories", () => {
         mockVaultCtx,
         "m1",
         JSON.stringify([3, 2, 1]),
-        DEFAULT_API_EMBEDDING_MODEL
+        DEFAULT_API_EMBEDDING_MODEL,
+        { content: "needs embed", updatedAt: ROW_VERSION.getTime() }
       )
     );
   });
@@ -893,7 +895,8 @@ describe("embedding model versioning", () => {
         mockVaultCtx,
         "m1",
         JSON.stringify([1, 0, 0]),
-        DEFAULT_API_EMBEDDING_MODEL
+        DEFAULT_API_EMBEDDING_MODEL,
+        { content: "stale fact", updatedAt: ROW_VERSION.getTime() }
       )
     );
   });
