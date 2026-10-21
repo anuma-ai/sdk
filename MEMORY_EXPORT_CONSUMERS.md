@@ -71,7 +71,6 @@ Client paths are in `zeta-chain/ai-memoryless-client`.
 | `reencryptMemoryField` | dark | Migration helper: re-encrypts a local field under the canonical key from whichever supplied key decrypts it, failing closed. No app call sites yet. |
 | `migrateMemoriesToRemote` | dark | Uploads a device's local vault to nearby, verifies it and activates the account ([#1023](https://github.com/anuma-ai/sdk/issues/1023)). Needs a client PR to run it per device before switching to `createRemoteMemoryStore`. No app call sites yet. |
 | `MemoryKeyError` | public-utility | Typed failure when no supplied key decrypts a field, so migration callers can stop instead of uploading unreadable rows. |
-| `RemoteMemoryError` | public-utility | Typed HTTP/version/key failures for consumers of `createRemoteMemoryPersistence`; callers branch on status/code without inspecting prose. |
 | `RemoteMemoryPartialCreateError` | public-utility | Thrown by the remote store's `createMany` when a later 50-memory batch fails after earlier ones committed; carries the committed memories so callers can tell what was saved. |
 
 ## Config-level knobs

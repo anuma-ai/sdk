@@ -163,6 +163,19 @@ export {
 } from "../lib/chat/webSearchClassifier";
 export { xhrTransport } from "../lib/chat/xhrTransport";
 export {
+  type ChatJson,
+  type ChatListOptions,
+  type ChatPage,
+  type ChatRecord,
+  type ChatRecordKind,
+  type ChatSnapshot,
+  type ChatStore,
+  ChatStoreError,
+  type ChatWrite,
+  createRemoteChatStore,
+  type RemoteChatStoreOptions,
+} from "../lib/chatStore";
+export {
   Conversation as ChatConversation,
   Message as ChatMessage,
   type ChatRole,

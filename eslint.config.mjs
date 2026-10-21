@@ -19,6 +19,7 @@ const memoryTelemetryTests = [
 ];
 
 const checkedTestFiles = [
+  "src/lib/chatStore/remote.test.ts",
   ...appGenerationTests,
   ...memoryTelemetryTests,
   "src/expo/useChatStorage.sendHistoryRead.test.tsx",
