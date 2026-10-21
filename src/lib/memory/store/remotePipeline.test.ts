@@ -120,6 +120,8 @@ function setup() {
   });
   const get = vi.fn(async (id: string) => structuredClone(rows.get(id) ?? null));
   const persistence: RemoteMemoryPersistence = {
+    claimWork: vi.fn(),
+    releaseWork: vi.fn(),
     topics: vi.fn(async () => []),
     putTopic: vi.fn(),
     importTopics: vi.fn(),

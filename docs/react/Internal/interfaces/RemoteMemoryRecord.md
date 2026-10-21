@@ -1,6 +1,6 @@
 # RemoteMemoryRecord
 
-Defined in: [src/lib/memory/store/remotePersistence.ts:42](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#42)
+Defined in: [src/lib/memory/store/remotePersistence.ts:45](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#45)
 
 A server snapshot. Pass its version back when writing; device timestamps are not a CAS token.
 
@@ -10,7 +10,7 @@ A server snapshot. Pass its version back when writing; device timestamps are not
 
 > **memory**: [`RemoteMemoryRow`](RemoteMemoryRow.md)
 
-Defined in: [src/lib/memory/store/remotePersistence.ts:43](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#43)
+Defined in: [src/lib/memory/store/remotePersistence.ts:46](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#46)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/lib/memory/store/remotePersistence.ts:43](https://github.com/an
 
 > `optional` **score**: `number`
 
-Defined in: [src/lib/memory/store/remotePersistence.ts:46](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#46)
+Defined in: [src/lib/memory/store/remotePersistence.ts:49](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#49)
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: [src/lib/memory/store/remotePersistence.ts:46](https://github.com/an
 
 > **server\_updated\_at**: `string`
 
-Defined in: [src/lib/memory/store/remotePersistence.ts:45](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#45)
+Defined in: [src/lib/memory/store/remotePersistence.ts:48](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#48)
 
 ***
 
@@ -34,4 +34,4 @@ Defined in: [src/lib/memory/store/remotePersistence.ts:45](https://github.com/an
 
 > **version**: `number`
 
-Defined in: [src/lib/memory/store/remotePersistence.ts:44](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#44)
+Defined in: [src/lib/memory/store/remotePersistence.ts:47](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#47)

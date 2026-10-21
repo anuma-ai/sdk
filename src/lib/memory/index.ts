@@ -228,6 +228,11 @@ export {
   type ExtractionSourceStatus,
 } from "./durableExtraction.js";
 export type { RemoteMemoryTopic, RemoteTopicPersistence } from "./store/remoteTopics.js";
+export type {
+  RemoteMemoryWorkKind,
+  RemoteMemoryWorkLease,
+  RemoteMemoryWorkPersistence,
+} from "./store/remoteWork.js";
 export {
   createMessageSourceResolver,
   type MemoryToVerify,

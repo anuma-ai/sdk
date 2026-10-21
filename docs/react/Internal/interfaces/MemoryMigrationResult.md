@@ -1,6 +1,6 @@
 # MemoryMigrationResult
 
-Defined in: [src/lib/memory/store/remoteMigration.ts:130](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteMigration.ts#130)
+Defined in: [src/lib/memory/store/remoteMigration.ts:133](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteMigration.ts#133)
 
 ## Properties
 
@@ -8,7 +8,7 @@ Defined in: [src/lib/memory/store/remoteMigration.ts:130](https://github.com/anu
 
 > **imported**: `number`
 
-Defined in: [src/lib/memory/store/remoteMigration.ts:133](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteMigration.ts#133)
+Defined in: [src/lib/memory/store/remoteMigration.ts:136](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteMigration.ts#136)
 
 ***
 
@@ -16,7 +16,7 @@ Defined in: [src/lib/memory/store/remoteMigration.ts:133](https://github.com/anu
 
 > **placeholderTombstones**: `number`
 
-Defined in: [src/lib/memory/store/remoteMigration.ts:140](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteMigration.ts#140)
+Defined in: [src/lib/memory/store/remoteMigration.ts:143](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteMigration.ts#143)
 
 Deleted rows no supplied key decrypts, uploaded with placeholder content.
 
@@ -26,7 +26,7 @@ Deleted rows no supplied key decrypts, uploaded with placeholder content.
 
 > **reembedded**: `number`
 
-Defined in: [src/lib/memory/store/remoteMigration.ts:136](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteMigration.ts#136)
+Defined in: [src/lib/memory/store/remoteMigration.ts:139](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteMigration.ts#139)
 
 Rows uploaded with a vector embedded during migration.
 
@@ -36,7 +36,7 @@ Rows uploaded with a vector embedded during migration.
 
 > **skipped**: [`MemoryMigrationSkip`](MemoryMigrationSkip.md)\[]
 
-Defined in: [src/lib/memory/store/remoteMigration.ts:134](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteMigration.ts#134)
+Defined in: [src/lib/memory/store/remoteMigration.ts:137](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteMigration.ts#137)
 
 ***
 
@@ -44,7 +44,7 @@ Defined in: [src/lib/memory/store/remoteMigration.ts:134](https://github.com/anu
 
 > **state**: `"active"` | `"migrating"`
 
-Defined in: [src/lib/memory/store/remoteMigration.ts:131](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteMigration.ts#131)
+Defined in: [src/lib/memory/store/remoteMigration.ts:134](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteMigration.ts#134)
 
 ***
 
@@ -52,7 +52,7 @@ Defined in: [src/lib/memory/store/remoteMigration.ts:131](https://github.com/anu
 
 > **total**: `number`
 
-Defined in: [src/lib/memory/store/remoteMigration.ts:132](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteMigration.ts#132)
+Defined in: [src/lib/memory/store/remoteMigration.ts:135](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteMigration.ts#135)
 
 ***
 
@@ -60,7 +60,7 @@ Defined in: [src/lib/memory/store/remoteMigration.ts:132](https://github.com/anu
 
 > **truncatedSourceChunkIds**: `number`
 
-Defined in: [src/lib/memory/store/remoteMigration.ts:142](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteMigration.ts#142)
+Defined in: [src/lib/memory/store/remoteMigration.ts:145](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteMigration.ts#145)
 
 Rows whose oldest source ids were dropped to fit nearby's limit.
 
@@ -70,6 +70,6 @@ Rows whose oldest source ids were dropped to fit nearby's limit.
 
 > **unembedded**: `number`
 
-Defined in: [src/lib/memory/store/remoteMigration.ts:138](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteMigration.ts#138)
+Defined in: [src/lib/memory/store/remoteMigration.ts:141](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteMigration.ts#141)
 
 Rows uploaded without a vector nearby can rank.

@@ -74,6 +74,10 @@ function fakeNearby(keyId: string) {
     { name: string; kind?: string; version: number; is_deleted: boolean; server_updated_at: string }
   >();
   let writes = 0;
+  const leases = new Map<
+    string,
+    { kind: string; token: string; processor_version: string; expires_at: string }
+  >();
   const json = (status: number, body: unknown) =>
     new Response(JSON.stringify(body), {
       status,
@@ -124,6 +128,34 @@ function fakeNearby(keyId: string) {
     const method = init.method ?? "GET";
     const body = init.body ? (JSON.parse(String(init.body)) as Record<string, unknown>) : {};
     if (path === "/account") return json(200, { state: "active", key_id: keyId });
+    if (path === "/work/claim") {
+      const kind = String(body.kind);
+      const current = leases.get(kind);
+      if (body.token) {
+        if (
+          !current ||
+          current.token !== body.token ||
+          Date.parse(current.expires_at) <= Date.now()
+        )
+          return json(200, {});
+        current.expires_at = new Date(Date.now() + 120_000).toISOString();
+        return json(200, { lease: current });
+      }
+      if (current && Date.parse(current.expires_at) > Date.now()) return json(200, {});
+      const lease = {
+        kind,
+        token: crypto.randomUUID(),
+        processor_version: String(body.processor_version),
+        expires_at: new Date(Date.now() + 120_000).toISOString(),
+      };
+      leases.set(kind, lease);
+      return json(200, { lease });
+    }
+    if (path === "/work/release") {
+      if (leases.get(String(body.kind))?.token === body.token) leases.delete(String(body.kind));
+      return json(200, {});
+    }
+
     if (path === "/topics") {
       if (method === "GET")
         return json(200, {
@@ -254,6 +286,14 @@ function fakeNearby(keyId: string) {
       });
     }
     if (path === "/memories/batch") {
+      if (
+        body.lease_token &&
+        ![...leases.values()].some(
+          (lease) => lease.token === body.lease_token && Date.parse(lease.expires_at) > Date.now()
+        )
+      )
+        return problem(409, "work_lease_expired");
+
       const writes = body.writes as { expected_version: number; memory: Row }[];
       if (body.key_id !== keyId) return problem(409, "key_mismatch");
       if (conflicting(writes)) return problem(409, "version_conflict");
@@ -319,7 +359,7 @@ function fakeNearby(keyId: string) {
       seq: ++writes,
     });
   };
-  return { rows, catalog, fetch, touch };
+  return { rows, catalog, leases, fetch, touch };
 }
 
 async function remoteStore(
@@ -595,10 +635,12 @@ describe("remote MemoryStore", () => {
       expect.objectContaining({ name: "Chess", source: "auto" }),
     ]);
     expect(nearbyCalls(server)).toEqual([
+      "POST /work/claim",
       "POST /memories/query",
       "POST /memories/query",
       "POST /memories/query",
       "POST /memories/batch",
+      "POST /work/release",
     ]);
 
     server.fetch.mockClear();
@@ -727,7 +769,7 @@ describe("remote MemoryStore", () => {
     expect(server.rows.get(last)!.memory.topics_extracted_at).toBeUndefined();
   });
 
-  it("writes each memory on its own when the batch is rate limited", async () => {
+  it("leaves lease-guarded work pending on rate limits and resumes on the next run", async () => {
     const { store, server } = await remoteStore();
     const ids: string[] = [];
     for (const content of Object.keys(hikes))
@@ -743,8 +785,14 @@ describe("remote MemoryStore", () => {
       apiKey: "k",
       fetchFn: fakeTopicLlm(hikes),
     });
-    expect(result.stampedIds).toEqual(ids);
-    expect(await store.topicMaintenance.stampTopicsExtracted(ids, Date.now() + 1000)).toEqual(ids);
+    expect(result.stampedIds).toEqual([]);
+    expect([...result.skippedReasons.values()]).toEqual(ids.map(() => "link-failed"));
+    server.fetch.mockImplementation(handle);
+    const retried = await store.topicMaintenance.extractTopics(ids, {
+      apiKey: "k",
+      fetchFn: fakeTopicLlm(hikes),
+    });
+    expect(retried.stampedIds).toEqual(ids);
   });
 
   it("reports every memory in a failed batch as link-failed", async () => {
@@ -767,6 +815,44 @@ describe("remote MemoryStore", () => {
     expect([...result.skippedReasons.values()]).toEqual(ids.map(() => "link-failed"));
     expect(result.entitiesByMemory.size).toBe(0);
     expect(await store.topicMaintenance.stampTopicsExtracted(ids, Date.now())).toEqual([]);
+  });
+
+  it("keeps each extraction's token when a second run reclaims an expired lease", async () => {
+    const { store, server } = await remoteStore();
+    const memory = await store.create({ content: "Hikes Mt Hood", embedding: axis(0) });
+    const llm = fakeTopicLlm(hikes);
+    let finishFirst!: () => void;
+    let finishSecond!: () => void;
+    const firstGate = new Promise<void>((resolve) => {
+      finishFirst = resolve;
+    });
+    const secondGate = new Promise<void>((resolve) => {
+      finishSecond = resolve;
+    });
+    const firstLlm = vi.fn(async (url: unknown, init?: RequestInit) => {
+      await firstGate;
+      return llm(url as string, init);
+    });
+    const secondLlm = vi.fn(async (url: unknown, init?: RequestInit) => {
+      await secondGate;
+      return llm(url as string, init);
+    });
+    const first = store.topicMaintenance.extractTopics([memory.uniqueId], {
+      apiKey: "k",
+      fetchFn: firstLlm as unknown as typeof fetch,
+    });
+    await vi.waitFor(() => expect(firstLlm).toHaveBeenCalled());
+    server.leases.get("topics")!.expires_at = new Date(0).toISOString();
+    const second = store.topicMaintenance.extractTopics([memory.uniqueId], {
+      apiKey: "k",
+      fetchFn: secondLlm as unknown as typeof fetch,
+    });
+    await vi.waitFor(() => expect(secondLlm).toHaveBeenCalled());
+    finishFirst();
+    expect((await first).stampedIds).toEqual([]);
+    expect(server.leases.has("topics")).toBe(true);
+    finishSecond();
+    expect((await second).stampedIds).toEqual([memory.uniqueId]);
   });
 
   it("does not write topics extracted from content that changed during the LLM call", async () => {
@@ -1541,12 +1627,43 @@ describe("repairEmbeddings", () => {
     expect(decrypt).not.toHaveBeenCalled();
   });
 
+  it("allows only one device to re-embed and fences results after lease loss", async () => {
+    const first = await repairStore();
+    await first.seed("work", "A memory needing a vector");
+    const second = await repairStore(first.server);
+    const embedding = vi.mocked(generateEmbeddings);
+    const original = embedding.getMockImplementation()!;
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    embedding.mockImplementationOnce(async (...args) => {
+      await gate;
+      return original(...args);
+    });
+    const running = first.store.repairEmbeddings!();
+    await vi.waitFor(() => expect(first.server.leases.has("embeddings")).toBe(true));
+    await expect(second.store.repairEmbeddings!()).resolves.toEqual({
+      deferred: true,
+      scanned: 0,
+      reembedded: 0,
+      failed: 0,
+      skippedConflict: 0,
+    });
+    first.server.leases.delete("embeddings");
+    release();
+    await expect(running).resolves.toMatchObject({ reembedded: 0, failed: 1 });
+    expect(first.server.rows.get("work")!.memory.embedding).toBeUndefined();
+    await expect(second.store.repairEmbeddings!()).resolves.toMatchObject({ reembedded: 1 });
+    expect(first.server.leases.size).toBe(0);
+  });
+
   it("skips a row another writer changed after it was read", async () => {
     const { store, server, seed } = await repairStore();
     await seed("raced", "Moved to Lisbon");
     const original = server.fetch.getMockImplementation()!;
     server.fetch.mockImplementation(async (input, init) => {
-      if (init?.method === "PUT") server.rows.get("raced")!.version++;
+      if (String(input).endsWith("/memories/batch")) server.rows.get("raced")!.version++;
       return original(input, init);
     });
 

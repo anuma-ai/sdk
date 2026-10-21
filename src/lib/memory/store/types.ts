@@ -248,6 +248,8 @@ export interface EmbeddingRepairOptions {
 
 /** @public */
 export interface EmbeddingRepairResult {
+  /** Another device owns the work; preserve the cursor and retry later. */
+  deferred?: boolean;
   scanned: number;
   reembedded: number;
   failed: number;

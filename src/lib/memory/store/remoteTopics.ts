@@ -1,5 +1,6 @@
 import { type NearbyRequest, RemoteMemoryError } from "./remotePersistence.js";
 
+/** @public */
 export interface RemoteMemoryTopic {
   name: string;
   kind?: string;
@@ -8,6 +9,7 @@ export interface RemoteMemoryTopic {
   server_updated_at: string;
 }
 
+/** @public */
 export interface RemoteTopicPersistence {
   topics(): Promise<RemoteMemoryTopic[]>;
   putTopic(

@@ -295,6 +295,8 @@ export function isDegradedTopicSkip(reason: TopicSkipReason): boolean {
 
 /** Outcome of one {@link extractAndLinkEntitiesForMemoriesOp} run. */
 export interface TopicExtractionRunResult {
+  /** Another device owns the work; retry later without counting a failed attempt. */
+  deferred?: boolean;
   batchCount: number;
   durationMs: number;
   batches: TopicExtractionBatchDiagnostics[];

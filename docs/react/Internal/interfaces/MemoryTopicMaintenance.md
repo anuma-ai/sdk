@@ -1,6 +1,6 @@
 # MemoryTopicMaintenance
 
-Defined in: [src/lib/memory/store/types.ts:212](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#212)
+Defined in: [src/lib/memory/store/types.ts:219](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#219)
 
 Topic-extraction upkeep for either backend. On a remote store `pending` carries ids only, the
 other backlog lists are always empty, and `relinkTopics` / `backfillTopics` do nothing.
@@ -15,7 +15,7 @@ other backlog lists are always empty, and `relinkTopics` / `backfillTopics` do n
 
 > **backfillTopics**(`memoryIds`: readonly `string`\[]): `Promise`<`string`\[]>
 
-Defined in: [src/lib/memory/store/types.ts:229](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#229)
+Defined in: [src/lib/memory/store/types.ts:236](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#236)
 
 Fill `topics` on pre-v42 rows from their existing links. Returns the ids filled.
 
@@ -54,7 +54,7 @@ readonly `string`\[]
 
 > **extractTopics**(`memoryIds`: readonly `string`\[], `options`: [`TopicExtractOptions`](TopicExtractOptions.md) & `object`): `Promise`<[`TopicExtractionRunResult`](TopicExtractionRunResult.md)>
 
-Defined in: [src/lib/memory/store/types.ts:216](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#216)
+Defined in: [src/lib/memory/store/types.ts:223](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#223)
 
 LLM topic extraction + link + stamp for these memories.
 
@@ -105,7 +105,7 @@ readonly `string`\[]
 
 > **getTopicBacklog**(`options?`: `object`): `Promise`<[`MemoryTopicBacklog`](MemoryTopicBacklog.md)>
 
-Defined in: [src/lib/memory/store/types.ts:214](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#214)
+Defined in: [src/lib/memory/store/types.ts:221](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#221)
 
 One page of the topic-extraction backlog, edited or outdated rows first.
 
@@ -156,7 +156,7 @@ One page of the topic-extraction backlog, edited or outdated rows first.
 
 > **relinkTopics**(`memoryIds`: readonly `string`\[]): `Promise`<`string`\[]>
 
-Defined in: [src/lib/memory/store/types.ts:227](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#227)
+Defined in: [src/lib/memory/store/types.ts:234](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#234)
 
 Rebuild the local link index from each row's synced `topics`. Returns the ids relinked.
 
@@ -195,7 +195,7 @@ readonly `string`\[]
 
 > **stampTopicsExtracted**(`memoryIds`: readonly `string`\[], `extractedAt`: `number`, `version?`: `number`): `Promise`<`string`\[]>
 
-Defined in: [src/lib/memory/store/types.ts:221](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#221)
+Defined in: [src/lib/memory/store/types.ts:228](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#228)
 
 Grandfather already-linked rows without an LLM call. Returns the ids stamped.
 

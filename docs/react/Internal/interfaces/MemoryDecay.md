@@ -1,6 +1,6 @@
 # MemoryDecay
 
-Defined in: [src/lib/memory/store/types.ts:172](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#172)
+Defined in: [src/lib/memory/store/types.ts:179](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#179)
 
 Rule-based memory decay over a store's metadata, on any backend.
 
@@ -10,7 +10,7 @@ Rule-based memory decay over a store's metadata, on any backend.
 
 > **createDecaySweeper**(`options?`: [`MemoryDecaySweeperOptions`](../type-aliases/MemoryDecaySweeperOptions.md)): [`DecaySweeper`](DecaySweeper.md)
 
-Defined in: [src/lib/memory/store/types.ts:174](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#174)
+Defined in: [src/lib/memory/store/types.ts:181](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#181)
 
 A rule-based decay sweeper over this store's memories.
 

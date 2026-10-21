@@ -1,5 +1,6 @@
 import { parseRetryAfterMs } from "../portalLlm.js";
 import { createRemoteTopicPersistence, type RemoteTopicPersistence } from "./remoteTopics.js";
+import { createRemoteWorkPersistence, type RemoteMemoryWorkPersistence } from "./remoteWork.js";
 import type { MemoryCounts } from "./types.js";
 
 /** The nearby private-memory row. Content and kind_value are plaintext ONLY on the device. */
@@ -156,7 +157,8 @@ export class RemoteMemoryError extends Error {
  * No local database or replica, import/activation, automatic conflict retry or rollback.
  * Migration must have activated the account under the canonical key before construction.
  */
-export interface RemoteMemoryPersistence extends RemoteTopicPersistence {
+export interface RemoteMemoryPersistence
+  extends RemoteTopicPersistence, RemoteMemoryWorkPersistence {
   counts(): Promise<MemoryCounts>;
   temporal(window: { start: number; end: number }, limit?: number): Promise<string[]>;
   get(memoryId: string, signal?: AbortSignal): Promise<RemoteMemoryRecord | null>;
@@ -178,7 +180,8 @@ export interface RemoteMemoryPersistence extends RemoteTopicPersistence {
   /** 1–50 writes in one server transaction; never split or replay a batch. */
   putMany(
     writes: { memory: RemoteMemoryRow; expectedVersion: number | RemoteMemoryRecord }[],
-    signal?: AbortSignal
+    signal?: AbortSignal,
+    leaseToken?: string
   ): Promise<RemoteMemoryRecord[]>;
   /** Candidate window plus counts for distinguishing empty storage from unavailable vectors. */
   candidateSet(
@@ -694,6 +697,7 @@ export async function createRemoteMemoryPersistence(
 
   return {
     ...createRemoteTopicPersistence(request),
+    ...createRemoteWorkPersistence(request),
     counts: async () => {
       const result = await request("/counts", {});
       if (
@@ -795,7 +799,7 @@ export async function createRemoteMemoryPersistence(
         write
       );
     },
-    putMany: async (writes, signal) => {
+    putMany: async (writes, signal, leaseToken) => {
       if (
         writes.length < 1 ||
         writes.length > 50 ||
@@ -809,7 +813,11 @@ export async function createRemoteMemoryPersistence(
         "/memories/batch",
         {
           method: "POST",
-          body: JSON.stringify({ key_id: options.keyId, writes: prepared.map((w) => w.body) }),
+          body: JSON.stringify({
+            key_id: options.keyId,
+            writes: prepared.map((w) => w.body),
+            ...(leaseToken && { lease_token: leaseToken }),
+          }),
         },
         signal
       );

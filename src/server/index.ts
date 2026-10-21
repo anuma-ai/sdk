@@ -420,6 +420,7 @@ export {
   type EmbeddingRepairOptions,
   type EmbeddingRepairResult,
   type LocalMemoryStoreOptions,
+  type MemoryCounts,
   type MemoryDecay,
   type MemoryDecaySweeperOptions,
   type MemoryListOptions,
