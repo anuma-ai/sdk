@@ -42,7 +42,7 @@ import {
 import { NODE_BUDGET } from "../graphTraversal.js";
 import type { PortalLlmFailure } from "../portalLlm.js";
 import { extractQueryEntities } from "../queryEntities.js";
-import { parseQueryTimeWindow, scoreEventTimeOverlap } from "../queryTemporal.js";
+import { parseQueryTimeWindow } from "../queryTemporal.js";
 import { notifyMemoryCallback } from "../recallTelemetry.js";
 import {
   extractEntitiesForMemories,
@@ -132,7 +132,6 @@ const MAX_QUERY_IDS = 1000;
 const MAX_QUERY_TOPICS = 100;
 const MAX_QUERY_FILTER = 20;
 const GRAPH_LANE_ROWS = 256;
-const TEMPORAL_LANE_ROWS = 256;
 const REPAIR_ROWS = 50;
 const REPAIR_SCAN = 2000;
 const DECAY_TRANSITIONS_PER_SWEEP = 200;
@@ -358,24 +357,7 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
   const eventTimeRanking = async (query: string, now?: number): Promise<string[]> => {
     const window = parseQueryTimeWindow(query, now);
     if (!window) return [];
-    const rows = await pages(
-      metadata,
-      { event_time_overlaps: { start: window.start, end: window.end } },
-      TEMPORAL_LANE_ROWS
-    );
-    return rows
-      .map(({ memory }) => ({
-        memoryId: memory.memory_id,
-        score: scoreEventTimeOverlap(
-          memory.event_time_start ?? null,
-          memory.event_time_end ?? null,
-          memory.event_time_kind ?? null,
-          window
-        ),
-      }))
-      .filter((row) => row.score > 0)
-      .sort((a, b) => b.score - a.score)
-      .map((row) => row.memoryId);
+    return persistence.temporal({ start: window.start, end: window.end });
   };
   const enumerateIds = async <T extends Row>(
     read: (options: RemoteMemoryQueryOptions) => Promise<Page<T>>,
@@ -1005,6 +987,7 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
   };
 
   return {
+    counts: () => persistence.counts(),
     masksEmbeddingInput: embeddingOptions.maskInput !== undefined,
     topicMaintenance,
     repairEmbeddings,

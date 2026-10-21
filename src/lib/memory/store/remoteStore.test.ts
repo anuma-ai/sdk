@@ -24,7 +24,7 @@ vi.mock("../../memoryEngine/embeddings", async (importOriginal) => {
 import { TOPICS_EXTRACTION_VERSION } from "../../db/memoryVault/operations";
 import { parseTopics } from "../../db/entities/types";
 import { getLogger } from "../../logger";
-import { parseQueryTimeWindow } from "../queryTemporal";
+import { parseQueryTimeWindow, scoreEventTimeOverlap } from "../queryTemporal";
 import { DEFAULT_API_EMBEDDING_MODEL } from "../../memoryEngine/constants";
 import { EmbeddingHttpError, generateEmbeddings } from "../../memoryEngine/embeddings";
 import type { EmbeddingOptions } from "../../memoryEngine/types";
@@ -120,6 +120,37 @@ function fakeNearby(keyId: string) {
     const method = init.method ?? "GET";
     const body = init.body ? (JSON.parse(String(init.body)) as Record<string, unknown>) : {};
     if (path === "/account") return json(200, { state: "active", key_id: keyId });
+    if (path === "/counts") {
+      const memories = [...rows.values()].map((r) => r.memory);
+      return json(200, {
+        live: memories.filter((m) => shown(m, {})).length,
+        archived: memories.filter(
+          (m) => shown(m, { include_archived: true }) && m.archived_at !== undefined
+        ).length,
+        quarantined: memories.filter(
+          (m) => shown(m, { include_quarantined: true }) && m.trust_tier === "quarantined"
+        ).length,
+      });
+    }
+    if (path === "/temporal") {
+      const window = { start: Number(body.start), end: Number(body.end), matchedPhrase: "" };
+      return json(200, {
+        items: [...rows.values()]
+          .filter((r) => shown(r.memory, {}))
+          .map(({ memory: m }) => ({
+            memory_id: m.memory_id,
+            score: scoreEventTimeOverlap(
+              (m.event_time_start as number) ?? null,
+              (m.event_time_end as number) ?? null,
+              (m.event_time_kind as string) ?? null,
+              window
+            ),
+          }))
+          .filter((r) => r.score > 0)
+          .sort((a, b) => b.score - a.score || a.memory_id.localeCompare(b.memory_id))
+          .slice(0, Number(body.limit ?? 100)),
+      });
+    }
     if (path === "/memories" && method === "GET") {
       const flags = Object.fromEntries(
         [...url.searchParams].map(([k, v]) => [k, v === "true" ? true : v])
@@ -1207,7 +1238,7 @@ describe("default recall lanes", () => {
     const decrypt = vi.fn(cipher.decrypt);
     const queried: Record<string, unknown>[] = [];
     const fetch = vi.fn(async (url: string | URL, init?: RequestInit) => {
-      if (String(url).endsWith("/memories/query"))
+      if (String(url).endsWith("/memories/query") || String(url).endsWith("/temporal"))
         queried.push(JSON.parse(String(init?.body)) as Record<string, unknown>);
       return server.fetch(url as never, init as never);
     });
@@ -1337,7 +1368,9 @@ describe("default recall lanes", () => {
     expect(ranked.slice(0, 2).sort()).toEqual(["dinner", "job"]);
     expect(ranked[2]).toBe("trip");
     expect(queried.at(-1)).toMatchObject({
-      event_time_overlaps: { start: window.start, end: window.end },
+      start: window.start,
+      end: window.end,
+      limit: 100,
     });
     expect(decrypt).not.toHaveBeenCalled();
   });
@@ -1348,20 +1381,32 @@ describe("default recall lanes", () => {
     expect(queried).toEqual([]);
   });
 
-  it("reads a bounded number of rows for a busy time window", async () => {
+  it("finds an older best match beyond 256 rows without downloading the window", async () => {
     const { store, server, queried } = await lanes();
     const window = parseQueryTimeWindow("What did I do yesterday?", NOW)!;
     for (let i = 0; i < 300; i++)
       server.rows.set(
         `e-${i}`,
-        eventRow(`e-${i}`, { event_time_start: window.start + i, event_time_kind: "point" }, i)
+        eventRow(
+          `e-${i}`,
+          {
+            event_time_start: window.start - day,
+            event_time_end: window.start + day / 2,
+            event_time_kind: "range",
+          },
+          i
+        )
       );
 
+    server.rows.set(
+      "old-best",
+      eventRow("old-best", { event_time_start: window.start + 1, event_time_kind: "point" }, -1)
+    );
     const ranked = await store.factSource.temporalRanking("What did I do yesterday?", NOW);
 
-    expect(ranked).toHaveLength(256);
-    const requested = queried.reduce((sum, body) => sum + (body.limit as number), 0);
-    expect(requested).toBeLessThanOrEqual(256);
+    expect(ranked).toHaveLength(100);
+    expect(ranked[0]).toBe("old-best");
+    expect(queried).toEqual([{ start: window.start, end: window.end, limit: 100 }]);
   });
 });
 

@@ -236,6 +236,8 @@ describe("recall embedding cache through a remote fact source", () => {
         ...(masked && { maskInput: () => "[masked]" }),
       };
       const persistence: RemoteMemoryPersistence = {
+        counts: vi.fn(async () => ({ live: 0, archived: 0, quarantined: 0 })),
+        temporal: vi.fn(async () => []),
         get: vi.fn(),
         list: vi.fn(),
         query: vi.fn(),

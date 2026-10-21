@@ -1,4 +1,5 @@
 import { parseRetryAfterMs } from "../portalLlm.js";
+import type { MemoryCounts } from "./types.js";
 
 /** The nearby private-memory row. Content and kind_value are plaintext ONLY on the device. */
 export interface RemoteMemoryRow {
@@ -155,6 +156,8 @@ export class RemoteMemoryError extends Error {
  * Migration must have activated the account under the canonical key before construction.
  */
 export interface RemoteMemoryPersistence {
+  counts(): Promise<MemoryCounts>;
+  temporal(window: { start: number; end: number }, limit?: number): Promise<string[]>;
   get(memoryId: string, signal?: AbortSignal): Promise<RemoteMemoryRecord | null>;
   /** One stable memory-id page; follow next_cursor to enumerate. Embeddings are opt-in. */
   list(options?: RemoteMemoryListOptions): Promise<RemoteMemoryPage>;
@@ -689,6 +692,52 @@ export async function createRemoteMemoryPersistence(
   };
 
   return {
+    counts: async () => {
+      const result = await request("/counts", {});
+      if (
+        !record(result) ||
+        ["live", "archived", "quarantined"].some(
+          (key) => !Number.isSafeInteger(result[key]) || (result[key] as number) < 0
+        )
+      )
+        throw new Error("Invalid nearby memory counts");
+      return {
+        live: result.live as number,
+        archived: result.archived as number,
+        quarantined: result.quarantined as number,
+      };
+    },
+    temporal: async (window, limit = 100) => {
+      if (
+        !Number.isFinite(window.start) ||
+        !Number.isFinite(window.end) ||
+        window.end <= window.start ||
+        !Number.isInteger(limit) ||
+        limit < 1 ||
+        limit > 100
+      )
+        throw new Error("Temporal window must have end > start and limit must be 1–100");
+      const result = await request("/temporal", {
+        method: "POST",
+        body: JSON.stringify({ ...window, limit }),
+      });
+      if (
+        !record(result) ||
+        !Array.isArray(result.items) ||
+        result.items.some(
+          (item) =>
+            !record(item) ||
+            typeof item.memory_id !== "string" ||
+            !item.memory_id ||
+            typeof item.score !== "number" ||
+            !Number.isFinite(item.score) ||
+            item.score <= 0 ||
+            item.score > 1
+        )
+      )
+        throw new Error("Invalid nearby temporal candidates");
+      return result.items.map((item) => (item as { memory_id: string }).memory_id);
+    },
     get: async (id, signal) => {
       try {
         return await decode(await request(memoryPath(id), {}, signal));

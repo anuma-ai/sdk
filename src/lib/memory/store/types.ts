@@ -140,6 +140,13 @@ export interface MemoryTopic {
 }
 
 /** @public */
+export interface MemoryCounts {
+  live: number;
+  archived: number;
+  quarantined: number;
+}
+
+/** @public */
 export interface MemorySubscribeOptions {
   /**
    * Watch the whole table, soft-deleted rows included, and fire on row-SET
@@ -269,6 +276,8 @@ export interface EmbeddingRepairResult {
  * @public
  */
 export interface MemoryStore {
+  /** Metadata-only counts for the live, archived and quarantined lists. */
+  counts?(): Promise<MemoryCounts>;
   /** Memories newest-first, decrypted, WITH `embedding` (Memory Graph edges read it). */
   list(options?: MemoryListOptions): Promise<StoredVaultMemory[]>;
   get(id: string): Promise<StoredVaultMemory | null>;
