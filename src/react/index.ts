@@ -133,6 +133,19 @@ export {
   createWebSearchPreProcessor,
 } from "../lib/chat/webSearchClassifier";
 export {
+  type ChatJson,
+  type ChatListOptions,
+  type ChatPage,
+  type ChatRecord,
+  type ChatRecordKind,
+  type ChatSnapshot,
+  type ChatStore,
+  ChatStoreError,
+  type ChatWrite,
+  createRemoteChatStore,
+  type RemoteChatStoreOptions,
+} from "../lib/chatStore";
+export {
   AppFile as AppFileModel,
   type AppFileOperationsContext,
   appFileToStored,

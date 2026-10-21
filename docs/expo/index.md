@@ -172,15 +172,51 @@ Re-exports [ChatConversation](../react/Internal/classes/ChatConversation.md)
 
 ***
 
+### ChatJson
+
+Re-exports [ChatJson](../react/Internal/type-aliases/ChatJson.md)
+
+***
+
+### ChatListOptions
+
+Re-exports [ChatListOptions](../react/Internal/interfaces/ChatListOptions.md)
+
+***
+
 ### ChatMessage
 
 Re-exports [ChatMessage](../react/Internal/classes/ChatMessage.md)
 
 ***
 
+### ChatPage
+
+Re-exports [ChatPage](../react/Internal/interfaces/ChatPage.md)
+
+***
+
+### ChatRecord
+
+Re-exports [ChatRecord](../react/Internal/interfaces/ChatRecord.md)
+
+***
+
+### ChatRecordKind
+
+Re-exports [ChatRecordKind](../react/Internal/type-aliases/ChatRecordKind.md)
+
+***
+
 ### ChatRole
 
 Re-exports [ChatRole](../react/Internal/type-aliases/ChatRole.md)
+
+***
+
+### ChatSnapshot
+
+Re-exports [ChatSnapshot](../react/Internal/interfaces/ChatSnapshot.md)
 
 ***
 
@@ -193,6 +229,24 @@ Re-exports [chatStorageMigrations](../react/Internal/variables/chatStorageMigrat
 ### chatStorageSchema
 
 Re-exports [chatStorageSchema](../react/Internal/variables/chatStorageSchema.md)
+
+***
+
+### ChatStore
+
+Re-exports [ChatStore](../react/Internal/interfaces/ChatStore.md)
+
+***
+
+### ChatStoreError
+
+Re-exports [ChatStoreError](../react/Internal/classes/ChatStoreError.md)
+
+***
+
+### ChatWrite
+
+Re-exports [ChatWrite](../react/Internal/interfaces/ChatWrite.md)
 
 ***
 
@@ -499,6 +553,12 @@ Re-exports [createPlatformCursorStore](../react/Internal/functions/createPlatfor
 ### createRecallTool
 
 Re-exports [createRecallTool](../react/Internal/functions/createRecallTool.md)
+
+***
+
+### createRemoteChatStore
+
+Re-exports [createRemoteChatStore](../react/Internal/functions/createRemoteChatStore.md)
 
 ***
 
@@ -1885,6 +1945,12 @@ Re-exports [refreshEncryptionKeyIfMatches](../react/Internal/functions/refreshEn
 ### relinkMemoryTopicsOp
 
 Re-exports [relinkMemoryTopicsOp](../react/Internal/functions/relinkMemoryTopicsOp.md)
+
+***
+
+### RemoteChatStoreOptions
+
+Re-exports [RemoteChatStoreOptions](../react/Internal/interfaces/RemoteChatStoreOptions.md)
 
 ***
 

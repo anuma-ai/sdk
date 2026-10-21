@@ -314,7 +314,8 @@ export type NearbyRequest = (
 ) => Promise<unknown>;
 
 export function createNearbyRequest(
-  options: Pick<RemoteMemoryPersistenceOptions, "baseUrl" | "getToken" | "fetch" | "timeoutMs">
+  options: Pick<RemoteMemoryPersistenceOptions, "baseUrl" | "getToken" | "fetch" | "timeoutMs">,
+  apiPath = "/api/private-memories"
 ): NearbyRequest {
   const base = new URL(options.baseUrl);
   if (
@@ -331,7 +332,7 @@ export function createNearbyRequest(
   const timeoutMs = options.timeoutMs ?? 30_000;
   if (!Number.isFinite(timeoutMs) || timeoutMs <= 0)
     throw new Error("timeoutMs must be a positive number");
-  const root = base.href.replace(/\/$/, "") + "/api/private-memories";
+  const root = base.href.replace(/\/$/, "") + apiPath;
   const fetcher = options.fetch ?? globalThis.fetch;
   const request = async (
     path: string,

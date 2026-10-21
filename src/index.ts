@@ -766,6 +766,19 @@ export {
   getImageModel,
   getToolCallEvents,
 } from "./lib/chat/useChat/strategies/types";
+export {
+  type ChatJson,
+  type ChatListOptions,
+  type ChatPage,
+  type ChatRecord,
+  type ChatRecordKind,
+  type ChatSnapshot,
+  type ChatStore,
+  ChatStoreError,
+  type ChatWrite,
+  createRemoteChatStore,
+  type RemoteChatStoreOptions,
+} from "./lib/chatStore";
 export type { LazyStoredConversation } from "./lib/db/chat";
 export { clearLazyTitleCache, decryptConversationTitle } from "./lib/db/chat";
 export type { Logger } from "./lib/logger";
