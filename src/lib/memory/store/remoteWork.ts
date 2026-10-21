@@ -63,8 +63,9 @@ export async function withRemoteWorkLease<T>(
   const lease = await persistence.claimWork(kind, processorVersion);
   if (!lease) return null;
   const controller = new AbortController();
+  const leaseLostError = new RemoteMemoryError("Maintenance lease lost", 409, "work_lease_expired");
   const cancelled = new Promise<never>((_resolve, reject) => {
-    controller.signal.addEventListener("abort", () => reject(controller.signal.reason), {
+    controller.signal.addEventListener("abort", () => reject(leaseLostError), {
       once: true,
     });
   });
@@ -74,10 +75,7 @@ export async function withRemoteWorkLease<T>(
     renewing = persistence
       .claimWork(kind, processorVersion, lease.token)
       .then((renewed) => {
-        if (!renewed)
-          controller.abort(
-            new RemoteMemoryError("Maintenance lease lost", 409, "work_lease_expired")
-          );
+        if (!renewed) controller.abort(leaseLostError);
       })
       .catch((error: unknown) => getLogger().warn("[memory/work] Lease renewal failed:", error))
       .finally(() => {
