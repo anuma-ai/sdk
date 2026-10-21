@@ -505,7 +505,7 @@ export async function migrateMemoriesToRemote(
           >[]
         )
           .map((t) => ({
-            name: String(t.canonical_name ?? "")
+            name: (typeof t.canonical_name === "string" ? t.canonical_name : "")
               .trim()
               .toLowerCase(),
             ...(typeof t.kind === "string" && { kind: t.kind }),
