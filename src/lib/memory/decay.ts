@@ -62,6 +62,7 @@ export const DEFAULT_DECAY_POLICY: DecayPolicy = {
     preference: NEVER_TTL_MS,
     relationship: NEVER_TTL_MS,
     constraint: NEVER_TTL_MS,
+    instruction: NEVER_TTL_MS,
     plan: SHORT_TTL_MS,
     ongoing_context: SHORT_TTL_MS,
     other: MEDIUM_TTL_MS,

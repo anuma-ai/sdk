@@ -316,6 +316,7 @@ async function runOnce(): Promise<RunSummary> {
     "multi-fact",
     "buried",
     "update",
+    "instruction",
     "negative",
   ];
   const byCategory = categories.map((cat) => {

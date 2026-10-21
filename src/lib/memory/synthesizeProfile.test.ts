@@ -404,6 +404,21 @@ describe("synthesizeProfile", () => {
     expect(mockGetAll.mock.calls[0][1]).toMatchObject({ scopes: ["private"] });
   });
 
+  it("leaves instruction memories out of the evidence a facet is synthesized from", async () => {
+    mockGetAll.mockResolvedValue([mem("a"), mem("b", { factType: "instruction" })]);
+    mockRecall.mockResolvedValueOnce({
+      memories: [ranked("a"), { ...ranked("b"), factType: "instruction" }],
+      usedBudget: "low",
+      reranked: false,
+      candidateCount: 2,
+    });
+    mockReflect.mockResolvedValueOnce(reflectResult("A bio", ["a"]));
+
+    await synthesizeProfile(ctx, { apiKey: "k", facets: [FACETS[0]] });
+
+    expect(mockReflect.mock.calls[0][2]?.memories?.map((m) => m.id)).toEqual(["a"]);
+  });
+
   it("collapses a section to empty when the facet reports no evidence", async () => {
     mockGetAll.mockResolvedValue([mem("a")]);
     mockRecall

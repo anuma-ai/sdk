@@ -60,7 +60,7 @@ existing values untouched.
 
 ### factType?
 
-> `optional` **factType**: `"other"` | `"identity"` | `"preference"` | `"relationship"` | `"plan"` | `"ongoing_context"` | `"constraint"`
+> `optional` **factType**: `"other"` | `"identity"` | `"preference"` | `"relationship"` | `"plan"` | `"ongoing_context"` | `"constraint"` | `"instruction"`
 
 Defined in: [src/lib/db/memoryVault/types.ts:412](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#412)
 

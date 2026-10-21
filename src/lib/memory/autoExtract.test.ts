@@ -511,6 +511,44 @@ describe("extractAndRetain", () => {
     );
   });
 
+  it("retains instructions as private while other facts keep the batch scope", async () => {
+    const completion = {
+      candidates: [
+        {
+          content: "Lives in Portland",
+          type: "identity",
+          confidence: 0.95,
+          sourceMessageIds: ["m3"],
+        },
+        {
+          content: "Wants answers without bullet points",
+          type: "instruction",
+          confidence: 0.9,
+          sourceMessageIds: ["m3"],
+        },
+      ],
+    };
+    vi.mocked(retain).mockResolvedValue({ action: "create", memoryId: "id", proofCount: 1 });
+
+    const result = await extractAndRetain(
+      messages,
+      { vaultCtx: {} as never, embeddingOptions: { apiKey: "e" }, vaultCache: new Map() },
+      { extract: { apiKey: "k", fetchFn: mockFetch(JSON.stringify(completion)) }, scope: "shared" }
+    );
+
+    expect(result.candidates.map((c) => c.type)).toEqual(["identity", "instruction"]);
+    expect(vi.mocked(retain)).toHaveBeenCalledWith(
+      "Lives in Portland",
+      expect.anything(),
+      expect.objectContaining({ scope: "shared", factType: "identity" })
+    );
+    expect(vi.mocked(retain)).toHaveBeenCalledWith(
+      "Wants answers without bullet points",
+      expect.anything(),
+      expect.objectContaining({ scope: "private", factType: "instruction" })
+    );
+  });
+
   it("reports the funnel: where the candidates went before and through retain()", async () => {
     const completion = {
       candidates: [
