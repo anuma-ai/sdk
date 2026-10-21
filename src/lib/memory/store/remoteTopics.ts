@@ -1,3 +1,4 @@
+import { normalizeEntityName } from "../../db/entities/types.js";
 import { type NearbyRequest, RemoteMemoryError } from "./remotePersistence.js";
 
 /** @public */
@@ -16,7 +17,10 @@ export interface RemoteTopicPersistence {
     topic: Pick<RemoteMemoryTopic, "name" | "kind" | "is_deleted">,
     expectedVersion: number
   ): Promise<RemoteMemoryTopic>;
-  importTopics(topics: readonly { name: string; kind?: string }[]): Promise<void>;
+  importTopics(
+    topics: readonly { name: string; kind?: string }[],
+    signal?: AbortSignal
+  ): Promise<void>;
 }
 
 function topic(value: unknown): RemoteMemoryTopic {
@@ -65,12 +69,19 @@ export function createRemoteTopicPersistence(request: NearbyRequest): RemoteTopi
         })
       );
     },
-    importTopics: async (topics) => {
-      for (let i = 0; i < topics.length; i += 50)
-        await request("/topics/import", {
-          method: "POST",
-          body: JSON.stringify({ topics: topics.slice(i, i + 50) }),
-        });
+    importTopics: async (topics, signal) => {
+      for (let i = 0; i < topics.length; i += 50) {
+        signal?.throwIfAborted();
+        await request(
+          "/topics/import",
+          {
+            method: "POST",
+            body: JSON.stringify({ topics: topics.slice(i, i + 50) }),
+          },
+          signal
+        );
+      }
+      signal?.throwIfAborted();
     },
   };
 }
@@ -79,7 +90,7 @@ export async function createRemoteTopic(
   persistence: RemoteTopicPersistence,
   name: string
 ): Promise<string | null> {
-  const canonical = name.trim().toLowerCase();
+  const canonical = normalizeEntityName(name);
   if (!canonical) return null;
   const existing = (await persistence.topics()).find((t) => t.name === canonical);
   if (existing && !existing.is_deleted) return canonical;

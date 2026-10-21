@@ -1,5 +1,5 @@
 import { getLogger } from "../../logger.js";
-import type { NearbyRequest } from "./remotePersistence.js";
+import { type NearbyRequest, RemoteMemoryError } from "./remotePersistence.js";
 
 /** @public */
 export type RemoteMemoryWorkKind = "topics" | "embeddings";
@@ -58,22 +58,39 @@ export async function withRemoteWorkLease<T>(
   persistence: RemoteMemoryWorkPersistence,
   kind: RemoteMemoryWorkKind,
   processorVersion: string,
-  task: (token: string) => Promise<T>
+  task: (token: string, signal: AbortSignal) => Promise<T>
 ): Promise<T | null> {
   const lease = await persistence.claimWork(kind, processorVersion);
   if (!lease) return null;
+  const controller = new AbortController();
+  const cancelled = new Promise<never>((_resolve, reject) => {
+    controller.signal.addEventListener("abort", () => reject(controller.signal.reason), {
+      once: true,
+    });
+  });
   let renewing: Promise<unknown> | undefined;
   const timer = setInterval(() => {
-    if (renewing) return;
+    if (renewing || controller.signal.aborted) return;
     renewing = persistence
       .claimWork(kind, processorVersion, lease.token)
+      .then((renewed) => {
+        if (!renewed)
+          controller.abort(
+            new RemoteMemoryError("Maintenance lease lost", 409, "work_lease_expired")
+          );
+      })
       .catch((error: unknown) => getLogger().warn("[memory/work] Lease renewal failed:", error))
       .finally(() => {
         renewing = undefined;
       });
   }, 30_000);
   try {
-    return await task(lease.token);
+    const result = await Promise.race([task(lease.token, controller.signal), cancelled]);
+    await renewing;
+    return controller.signal.aborted ? null : result;
+  } catch (error) {
+    if (controller.signal.aborted || isRemoteWorkLeaseExpired(error)) return null;
+    throw error;
   } finally {
     clearInterval(timer);
     await renewing;
@@ -81,4 +98,8 @@ export async function withRemoteWorkLease<T>(
       .releaseWork(kind, lease.token)
       .catch((error: unknown) => getLogger().warn("[memory/work] Lease release failed:", error));
   }
+}
+
+export function isRemoteWorkLeaseExpired(error: unknown): boolean {
+  return error instanceof RemoteMemoryError && error.code === "work_lease_expired";
 }

@@ -849,10 +849,55 @@ describe("remote MemoryStore", () => {
     });
     await vi.waitFor(() => expect(secondLlm).toHaveBeenCalled());
     finishFirst();
-    expect((await first).stampedIds).toEqual([]);
+    const deferred = await first;
+    expect(deferred.deferred).toBe(true);
+    expect(deferred.stampedIds).toEqual([]);
+    expect(deferred.skippedReasons.size).toBe(0);
     expect(server.leases.has("topics")).toBe(true);
     finishSecond();
     expect((await second).stampedIds).toEqual([memory.uniqueId]);
+  });
+
+  it("defers a lost topic renewal and never writes a late inference result", async () => {
+    const { store, server } = await remoteStore(undefined, undefined, 0);
+    const memory = await store.create({ content: "Hikes Mt Hood", embedding: axis(0) });
+    const llm = fakeTopicLlm(hikes);
+    let finish!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      finish = resolve;
+    });
+    const fetchFn = vi.fn(async (...args: Parameters<typeof fetch>) => {
+      await gate;
+      return llm(...args);
+    });
+    server.fetch.mockClear();
+    vi.useFakeTimers();
+    try {
+      const running = store.topicMaintenance.extractTopics([memory.uniqueId], {
+        apiKey: "k",
+        fetchFn: fetchFn as typeof fetch,
+      });
+      await vi.waitFor(() => expect(fetchFn).toHaveBeenCalled());
+      server.leases.delete("topics");
+      await vi.advanceTimersByTimeAsync(30_000);
+      const result = await running;
+      expect(result.deferred).toBe(true);
+      expect(result.skippedReasons.size).toBe(0);
+      finish();
+      await vi.advanceTimersByTimeAsync(0);
+      expect(server.rows.get(memory.uniqueId)!.memory.topics_extracted_at).toBeUndefined();
+      expect(server.fetch.mock.calls.some(([url]) => String(url).endsWith("/memories/batch"))).toBe(
+        false
+      );
+    } finally {
+      finish();
+      vi.useRealTimers();
+    }
+    const retried = await store.topicMaintenance.extractTopics([memory.uniqueId], {
+      apiKey: "k",
+      fetchFn: llm,
+    });
+    expect(retried.stampedIds).toEqual([memory.uniqueId]);
   });
 
   it("does not write topics extracted from content that changed during the LLM call", async () => {
@@ -1272,6 +1317,55 @@ describe("remote MemoryStore", () => {
     }
   });
 
+  it("delivers memory changes and advances the cursor while the topic catalog fails", async () => {
+    const ring = await deriveMemoryKeyRing(`0x${"e5".repeat(65)}`);
+    const shared = fakeNearby(ring.keyId);
+    const { store: laptop } = await remoteStore(shared, ring);
+    const seeded = await laptop.create({ content: "Lives in Porto", embedding: axis(0) });
+    await laptop.createTopic!("coffee");
+    const { store: phone } = await remoteStore(shared, ring, 20);
+    let failCatalog = false;
+    const original = shared.fetch.getMockImplementation()!;
+    shared.fetch.mockImplementation(async (input, init) => {
+      if (failCatalog && String(input).includes("/topics?"))
+        return new Response(JSON.stringify({ detail: "unavailable" }), { status: 500 });
+      return original(input, init);
+    });
+    const polls = () =>
+      shared.fetch.mock.calls
+        .filter(([input]) => String(input).endsWith("/memories/query"))
+        .map(([, init]) => JSON.parse(String(init!.body)) as { cursor?: string });
+    const onChange = vi.fn();
+    const onTopics = vi.fn();
+    const stopChange = phone.subscribe(onChange);
+    const stopTopics = phone.subscribe(onTopics, { topics: true });
+    const warn = vi.spyOn(getLogger(), "warn");
+    try {
+      await vi.waitFor(() => expect(polls().some((p) => p.cursor !== undefined)).toBe(true));
+      failCatalog = true;
+      await laptop.update(seeded.uniqueId, { content: "Lives in Lisbon", embedding: axis(1) });
+      shared.catalog.set("gardening", {
+        name: "gardening",
+        version: 1,
+        is_deleted: false,
+        server_updated_at: new Date().toISOString(),
+      });
+      await vi.waitFor(() => expect(onChange).toHaveBeenCalledTimes(1));
+      expect(onTopics).toHaveBeenCalledTimes(1);
+      const updated = shared.rows.get(seeded.uniqueId)!;
+      const cursor = JSON.stringify({ order: "changed", at: [updated.seq, seeded.uniqueId] });
+      await vi.waitFor(() => expect(polls().some((p) => p.cursor === cursor)).toBe(true));
+
+      failCatalog = false;
+      await vi.waitFor(() => expect(onTopics).toHaveBeenCalledTimes(2));
+      expect(onChange).toHaveBeenCalledTimes(1);
+    } finally {
+      stopChange();
+      stopTopics();
+      warn.mockRestore();
+    }
+  });
+
   it("surfaces a concurrent edit as a version conflict", async () => {
     const { store, server } = await remoteStore();
     const m = await store.create({ content: "Drinks coffee", embedding: axis(0) });
@@ -1652,10 +1746,47 @@ describe("repairEmbeddings", () => {
     });
     first.server.leases.delete("embeddings");
     release();
-    await expect(running).resolves.toMatchObject({ reembedded: 0, failed: 1 });
+    await expect(running).resolves.toMatchObject({ deferred: true, reembedded: 0, failed: 0 });
     expect(first.server.rows.get("work")!.memory.embedding).toBeUndefined();
     await expect(second.store.repairEmbeddings!()).resolves.toMatchObject({ reembedded: 1 });
     expect(first.server.leases.size).toBe(0);
+  });
+
+  it("defers on a lost renewal and discards a late embedding result", async () => {
+    const { store, server, seed } = await repairStore();
+    await seed("work", "A memory needing a vector");
+    const embedding = vi.mocked(generateEmbeddings);
+    const original = embedding.getMockImplementation()!;
+    let finish!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      finish = resolve;
+    });
+    embedding.mockImplementationOnce(async (...args) => {
+      await gate;
+      return original(...args);
+    });
+    embedding.mockClear();
+    vi.useFakeTimers();
+    try {
+      const running = store.repairEmbeddings!();
+      await vi.waitFor(() => expect(embedding).toHaveBeenCalled());
+      server.leases.delete("embeddings");
+      await vi.advanceTimersByTimeAsync(30_000);
+      await expect(running).resolves.toMatchObject({ deferred: true, failed: 0, reembedded: 0 });
+      const workSignal = embedding.mock.calls[0][2]!;
+      expect(workSignal.aborted).toBe(true);
+      finish();
+      await vi.advanceTimersByTimeAsync(0);
+      expect(server.rows.get("work")!.memory.embedding).toBeUndefined();
+      expect(server.fetch.mock.calls.some(([url]) => String(url).endsWith("/memories/batch"))).toBe(
+        false
+      );
+    } finally {
+      finish();
+      embedding.mockImplementation(original);
+      vi.useRealTimers();
+    }
+    await expect(store.repairEmbeddings!()).resolves.toMatchObject({ reembedded: 1, failed: 0 });
   });
 
   it("skips a row another writer changed after it was read", async () => {
@@ -2069,5 +2200,44 @@ describe("account topic catalog", () => {
     expect(first.server.rows.size).toBe(0);
     await second.store.createTopic!("coffee");
     expect(first.server.catalog.size).toBe(1);
+  });
+
+  it("notifies topic imports without polling and makes repeated reads idempotent", async () => {
+    const { store, server } = await remoteStore(undefined, undefined, 0);
+    server.catalog.set("coffee", {
+      name: "coffee",
+      version: 2,
+      is_deleted: true,
+      server_updated_at: new Date().toISOString(),
+    });
+    const topics = [
+      { name: " Gardening ", kind: "hobby" },
+      { name: "gardening" },
+      { name: "Coffee" },
+    ];
+    let refresh: Promise<unknown> | undefined;
+    const onTopics = vi.fn(() => {
+      refresh = store.importTopics!(topics).then(() => store.listTopics());
+    });
+    const stop = store.subscribe(onTopics, { topics: true });
+    try {
+      await store.importTopics!(topics);
+      await refresh;
+      await store.importTopics!(topics);
+      expect(onTopics).toHaveBeenCalledTimes(1);
+      expect(await store.listTopics()).toEqual([
+        { name: "gardening", kind: "hobby", memoryCount: 0 },
+      ]);
+      expect(server.catalog.get("coffee")!.is_deleted).toBe(true);
+      const imports = server.fetch.mock.calls.filter(([input]) =>
+        String(input).endsWith("/topics/import")
+      );
+      expect(imports).toHaveLength(1);
+      expect(JSON.parse(String(imports[0][1]!.body))).toEqual({
+        topics: [{ name: "gardening", kind: "hobby" }],
+      });
+    } finally {
+      stop();
+    }
   });
 });

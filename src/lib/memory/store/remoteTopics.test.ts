@@ -39,6 +39,23 @@ describe("remote topic catalog", () => {
     );
   });
 
+  it.each([1, 123])("honors cancellation for an import of %i topics", async (count) => {
+    const topics = Array.from({ length: count }, (_, i) => ({ name: `t-${i}` }));
+    const controller = new AbortController();
+    const request = vi.fn<NearbyRequest>().mockResolvedValue(undefined);
+    const persistence = createRemoteTopicPersistence(request);
+    await persistence.importTopics(topics, controller.signal);
+    expect(request.mock.calls).toHaveLength(Math.ceil(count / 50));
+    expect(request.mock.calls.every((call) => call[2] === controller.signal)).toBe(true);
+
+    request.mockClear().mockImplementation(async () => controller.abort(new Error("cancelled")));
+    await expect(persistence.importTopics(topics, controller.signal)).rejects.toThrow("cancelled");
+    expect(request).toHaveBeenCalledTimes(1);
+    request.mockClear();
+    await expect(persistence.importTopics(topics, controller.signal)).rejects.toThrow("cancelled");
+    expect(request).not.toHaveBeenCalled();
+  });
+
   it("restores a topic only on an explicit create with the current version", async () => {
     const persistence: RemoteTopicPersistence = {
       topics: vi.fn(async () => [{ ...entry, is_deleted: true }]),

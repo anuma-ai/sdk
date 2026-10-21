@@ -687,6 +687,46 @@ describe("migrateMemoriesToRemote", () => {
 });
 
 describe("topic migration", () => {
+  it("cancels an in-flight topic import before later batches or activation", async () => {
+    const ctx = vault(makeDatabase(), signatureA);
+    const server = fakeNearby();
+    const controller = new AbortController();
+    const original = server.fetch;
+    let pending: (() => void) | undefined;
+    const started = new Promise<void>((resolve) => {
+      pending = resolve;
+    });
+    let imports = 0;
+    let requestSignal: AbortSignal | null | undefined;
+    server.fetch = (async (url, init) => {
+      if (String(url).endsWith("/topics/import") && ++imports === 2) {
+        requestSignal = init?.signal;
+        pending!();
+        return new Promise<Response>((_resolve, reject) => {
+          requestSignal!.addEventListener("abort", () => reject(requestSignal!.reason), {
+            once: true,
+          });
+        });
+      }
+      return original(url, init);
+    }) as typeof globalThis.fetch;
+    const migration = migrate(server, ctx, {
+      signal: controller.signal,
+      topics: Array.from({ length: 123 }, (_, i) => ({ name: `t-${i}` })),
+    });
+    const cancelled = expect(migration).rejects.toThrow("cancelled");
+    await started;
+    controller.abort(new Error("cancelled"));
+    await cancelled;
+
+    expect(requestSignal!.aborted).toBe(true);
+    expect(imports).toBe(2);
+    expect(server.catalog.size).toBe(50);
+    expect(server.calls).not.toContain("POST /import");
+    expect(server.calls).not.toContain("PUT /account");
+    expect(server.account.state).toBe("none");
+  });
+
   it("imports empty topics from a single-owner database before activation", async () => {
     const db = makeDatabase();
     const ctx = { ...vault(db, signatureA), singleTenant: true };

@@ -1,6 +1,6 @@
 # MemoryMigrationSkip
 
-Defined in: [src/lib/memory/store/remoteMigration.ts:125](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteMigration.ts#125)
+Defined in: [src/lib/memory/store/remoteMigration.ts:126](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteMigration.ts#126)
 
 A local row that was not uploaded: no supplied key decrypts it, or nearby would refuse it.
 
@@ -10,7 +10,7 @@ A local row that was not uploaded: no supplied key decrypts it, or nearby would 
 
 > **memoryId**: `string`
 
-Defined in: [src/lib/memory/store/remoteMigration.ts:126](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteMigration.ts#126)
+Defined in: [src/lib/memory/store/remoteMigration.ts:127](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteMigration.ts#127)
 
 ***
 
@@ -18,4 +18,4 @@ Defined in: [src/lib/memory/store/remoteMigration.ts:126](https://github.com/anu
 
 > **reason**: `"unreadable"` | `"invalid"`
 
-Defined in: [src/lib/memory/store/remoteMigration.ts:127](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteMigration.ts#127)
+Defined in: [src/lib/memory/store/remoteMigration.ts:128](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteMigration.ts#128)

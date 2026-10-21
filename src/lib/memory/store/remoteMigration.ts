@@ -1,3 +1,4 @@
+import { normalizeEntityName } from "../../db/entities/types.js";
 import {
   backfillMemoryTopicsOp,
   getAllVaultMemoryRowsOp,
@@ -505,14 +506,13 @@ export async function migrateMemoriesToRemote(
           >[]
         )
           .map((t) => ({
-            name: (typeof t.canonical_name === "string" ? t.canonical_name : "")
-              .trim()
-              .toLowerCase(),
+            name: normalizeEntityName(typeof t.canonical_name === "string" ? t.canonical_name : ""),
             ...(typeof t.kind === "string" && { kind: t.kind }),
           }))
           .filter((t) => t.name.length > 0)
       : []);
-  if (localTopics.length) await createRemoteTopicPersistence(request).importTopics(localTopics);
+  if (localTopics.length)
+    await createRemoteTopicPersistence(request).importTopics(localTopics, signal);
 
   const skipped = new Map<string, MemoryMigrationSkip["reason"]>();
   const reembedded = new Set<string>();
