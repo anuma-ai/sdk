@@ -84,6 +84,14 @@ import { normalizeHeaders } from '../clientHeaders';`,
     replace: "...normalizeHeaders(options?.headers)",
   },
   {
+    file: "src/client/client/utils.gen.ts",
+    find: "    const iterator = header instanceof Headers ? headersEntries(header) : Object.entries(header);",
+    replace: `    const iterator =
+      Array.isArray(header) || header instanceof Headers
+        ? headersEntries(new Headers(header))
+        : Object.entries(header);`,
+  },
+  {
     file: "src/client/core/serverSentEvents.gen.ts",
     find: `              if (dataLines.length) {
                 yield data as any;
