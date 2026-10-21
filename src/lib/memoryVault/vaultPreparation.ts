@@ -78,7 +78,16 @@ export function embedVaultRows(
   const prepared = preparation && rowRequestsFor(preparation.rows, ctx, options.maskInput);
   const model = options.model ?? DEFAULT_API_EMBEDDING_MODEL;
   const keys = rows.map((row) =>
-    JSON.stringify([row.uniqueId, row.updatedAt?.getTime(), row.content, model, options.baseUrl])
+    JSON.stringify([
+      row.uniqueId,
+      row.updatedAt?.getTime(),
+      row.content,
+      model,
+      options.baseUrl,
+      options.timeoutMs,
+      options.tokenTimeoutMs,
+      options.totalTimeoutMs,
+    ])
   );
   const missing = new Map<string, StoredVaultMemory>();
   rows.forEach((row, index) => {

@@ -253,7 +253,7 @@ describe("concurrent vault preparation", () => {
     expect(updateVaultMemoryEmbeddingOp).toHaveBeenCalledTimes(1);
   });
 
-  it.each(["content", "revision", "model", "context", "mask", "base URL"])(
+  it.each(["content", "revision", "model", "context", "mask", "base URL", "deadline"])(
     "keeps a different %s separate from a pending row request",
     async (difference) => {
       const batch = deferred<number[][]>();
@@ -280,6 +280,7 @@ describe("concurrent vault preparation", () => {
           ...(difference === "model" && { model: "other-model" }),
           ...(difference === "mask" && { maskInput: () => "[masked]" }),
           ...(difference === "base URL" && { baseUrl: "https://other.example" }),
+          ...(difference === "deadline" && { totalTimeoutMs: 1000 }),
         },
         createVaultEmbeddingCache()
       );
