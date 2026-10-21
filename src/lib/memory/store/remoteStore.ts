@@ -60,6 +60,7 @@ import {
   type RemoteMemoryRow,
 } from "./remotePersistence.js";
 import { createRemoteMemoryPipeline, stored, storedVector } from "./remotePipeline.js";
+import { createRemoteTopic } from "./remoteTopics.js";
 import type {
   EmbeddingRepairOptions,
   EmbeddingRepairResult,
@@ -856,15 +857,27 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
   let ready = false;
   let cursor: string | undefined;
   let pending = new Set<string>();
+  let topicFingerprint: string | undefined;
   let polling = false;
   const poll = () => {
     if (polling) return;
     polling = true;
     const current = generation;
     changesSince(cursor, pending)
-      .then(({ records, resume, failed }) => {
+      .then(async ({ records, resume, failed }) => {
+        const topicState = [...subscribers].some((s) => s.options.topics)
+          ? JSON.stringify((await persistence.topics()).map((t) => [t.name, t.version]))
+          : undefined;
         if (current !== generation) return;
         const changed = new Set<Subscriber>();
+        if (
+          topicState !== undefined &&
+          topicFingerprint !== undefined &&
+          topicState !== topicFingerprint
+        )
+          for (const subscriber of subscribers)
+            if (subscriber.options.topics) changed.add(subscriber);
+        if (topicState !== undefined) topicFingerprint = topicState;
         for (const record of records) {
           const id = record.memory.memory_id;
           const previous = seen.get(id);
@@ -987,6 +1000,14 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
   };
 
   return {
+    createTopic: async (name) => {
+      const canonical = await createRemoteTopic(persistence, name);
+      if (canonical) notify("edit", []);
+      return canonical;
+    },
+    importTopics: async (topics) => {
+      await persistence.importTopics(topics);
+    },
     counts: () => persistence.counts(),
     masksEmbeddingInput: embeddingOptions.maskInput !== undefined,
     topicMaintenance,
@@ -1019,6 +1040,18 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
           entry.members.add(memory.memory_id);
           topics.set(name, entry);
         }
+      }
+      for (const topic of await persistence.topics()) {
+        if (topic.is_deleted) continue;
+        const current = topics.get(topic.name);
+        if (current) current.kind ??= topic.kind ?? null;
+        else
+          topics.set(topic.name, {
+            name: topic.name,
+            kind: topic.kind ?? null,
+            memoryCount: 0,
+            members: new Set(),
+          });
       }
       return [...topics.values()]
         .map(({ members, ...topic }) => ({ ...topic, memoryCount: members.size }))

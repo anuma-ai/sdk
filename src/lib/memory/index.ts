@@ -227,6 +227,7 @@ export {
   type ExtractionSourceMessage,
   type ExtractionSourceStatus,
 } from "./durableExtraction.js";
+export type { RemoteMemoryTopic, RemoteTopicPersistence } from "./store/remoteTopics.js";
 export {
   createMessageSourceResolver,
   type MemoryToVerify,

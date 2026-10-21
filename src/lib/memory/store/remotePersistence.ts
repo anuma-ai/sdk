@@ -1,4 +1,5 @@
 import { parseRetryAfterMs } from "../portalLlm.js";
+import { createRemoteTopicPersistence, type RemoteTopicPersistence } from "./remoteTopics.js";
 import type { MemoryCounts } from "./types.js";
 
 /** The nearby private-memory row. Content and kind_value are plaintext ONLY on the device. */
@@ -155,7 +156,7 @@ export class RemoteMemoryError extends Error {
  * No local database or replica, import/activation, automatic conflict retry or rollback.
  * Migration must have activated the account under the canonical key before construction.
  */
-export interface RemoteMemoryPersistence {
+export interface RemoteMemoryPersistence extends RemoteTopicPersistence {
   counts(): Promise<MemoryCounts>;
   temporal(window: { start: number; end: number }, limit?: number): Promise<string[]>;
   get(memoryId: string, signal?: AbortSignal): Promise<RemoteMemoryRecord | null>;
@@ -692,6 +693,7 @@ export async function createRemoteMemoryPersistence(
   };
 
   return {
+    ...createRemoteTopicPersistence(request),
     counts: async () => {
       const result = await request("/counts", {});
       if (

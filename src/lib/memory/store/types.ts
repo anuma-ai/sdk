@@ -276,6 +276,10 @@ export interface EmbeddingRepairResult {
  * @public
  */
 export interface MemoryStore {
+  /** Creates an account-scoped topic without requiring a memory. */
+  createTopic?(name: string): Promise<string | null>;
+  /** Imports local topic metadata without replacing server entries or tombstones. */
+  importTopics?(topics: readonly { name: string; kind?: string }[]): Promise<void>;
   /** Metadata-only counts for the live, archived and quarantined lists. */
   counts?(): Promise<MemoryCounts>;
   /** Memories newest-first, decrypted, WITH `embedding` (Memory Graph edges read it). */

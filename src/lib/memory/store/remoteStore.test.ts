@@ -69,6 +69,10 @@ function normalized(vector: number[]): number[] {
 
 function fakeNearby(keyId: string) {
   const rows = new Map<string, Stored>();
+  const catalog = new Map<
+    string,
+    { name: string; kind?: string; version: number; is_deleted: boolean; server_updated_at: string }
+  >();
   let writes = 0;
   const json = (status: number, body: unknown) =>
     new Response(JSON.stringify(body), {
@@ -120,6 +124,35 @@ function fakeNearby(keyId: string) {
     const method = init.method ?? "GET";
     const body = init.body ? (JSON.parse(String(init.body)) as Record<string, unknown>) : {};
     if (path === "/account") return json(200, { state: "active", key_id: keyId });
+    if (path === "/topics") {
+      if (method === "GET")
+        return json(200, {
+          items: [...catalog.values()].sort((a, b) => a.name.localeCompare(b.name)),
+        });
+      const value = body.topic as { name: string; kind?: string; is_deleted: boolean };
+      const current = catalog.get(value.name);
+      if ((current?.version ?? 0) !== body.expected_version)
+        return problem(409, "version_conflict");
+      const saved = {
+        ...value,
+        version: (current?.version ?? 0) + 1,
+        server_updated_at: new Date().toISOString(),
+      };
+      catalog.set(value.name, saved);
+      return json(200, saved);
+    }
+    if (path === "/topics/import") {
+      for (const value of body.topics as { name: string; kind?: string }[])
+        if (!catalog.has(value.name))
+          catalog.set(value.name, {
+            ...value,
+            version: 1,
+            is_deleted: false,
+            server_updated_at: new Date().toISOString(),
+          });
+      return json(200, {});
+    }
+
     if (path === "/counts") {
       const memories = [...rows.values()].map((r) => r.memory);
       return json(200, {
@@ -286,7 +319,7 @@ function fakeNearby(keyId: string) {
       seq: ++writes,
     });
   };
-  return { rows, fetch, touch };
+  return { rows, catalog, fetch, touch };
 }
 
 async function remoteStore(
@@ -1905,5 +1938,19 @@ describe("remote decay", () => {
 
     expect((await sweeper.runSweep()).archived).toBe(200);
     expect((await sweeper.runSweep()).archived).toBe(30);
+  });
+});
+
+describe("account topic catalog", () => {
+  it("shares empty topics across devices and never creates a memory", async () => {
+    const first = await remoteStore();
+    await first.store.createTopic!(" Coffee ");
+    const second = await remoteStore(first.server, first.keys);
+    expect(await second.store.listTopics()).toEqual([
+      { name: "coffee", kind: null, memoryCount: 0 },
+    ]);
+    expect(first.server.rows.size).toBe(0);
+    await second.store.createTopic!("coffee");
+    expect(first.server.catalog.size).toBe(1);
   });
 });
