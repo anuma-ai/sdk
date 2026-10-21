@@ -1,6 +1,6 @@
 # extractEntitiesForMemories
 
-> **extractEntitiesForMemories**(`memories`: readonly [`TopicExtractionInput`](../interfaces/TopicExtractionInput.md)\[], `options`: [`TopicExtractOptions`](../interfaces/TopicExtractOptions.md)): `Promise`<`Map`<`string`, [`ExtractedEntity`](../interfaces/ExtractedEntity.md)\[]>>
+> **extractEntitiesForMemories**(`memories`: readonly [`TopicExtractionInput`](../interfaces/TopicExtractionInput.md)\[], `options`: [`TopicExtractOptions`](../interfaces/TopicExtractOptions.md), `signal?`: `AbortSignal`): `Promise`<`Map`<`string`, [`ExtractedEntity`](../interfaces/ExtractedEntity.md)\[]>>
 
 Defined in: [src/lib/memory/topicExtract.ts:119](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/topicExtract.ts#119)
 
@@ -44,6 +44,18 @@ readonly [`TopicExtractionInput`](../interfaces/TopicExtractionInput.md)\[]
 <td>
 
 [`TopicExtractOptions`](../interfaces/TopicExtractOptions.md)
+
+</td>
+</tr>
+<tr>
+<td>
+
+`signal?`
+
+</td>
+<td>
+
+`AbortSignal`
 
 </td>
 </tr>

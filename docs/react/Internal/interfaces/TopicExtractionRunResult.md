@@ -1,6 +1,6 @@
 # TopicExtractionRunResult
 
-Defined in: [src/lib/memory/topicExtract.ts:297](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/topicExtract.ts#297)
+Defined in: [src/lib/memory/topicExtract.ts:301](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/topicExtract.ts#301)
 
 Outcome of one [extractAndLinkEntitiesForMemoriesOp](../functions/extractAndLinkEntitiesForMemoriesOp.md) run.
 
@@ -10,7 +10,7 @@ Outcome of one [extractAndLinkEntitiesForMemoriesOp](../functions/extractAndLink
 
 > **batchCount**: `number`
 
-Defined in: [src/lib/memory/topicExtract.ts:298](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/topicExtract.ts#298)
+Defined in: [src/lib/memory/topicExtract.ts:304](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/topicExtract.ts#304)
 
 ***
 
@@ -18,7 +18,17 @@ Defined in: [src/lib/memory/topicExtract.ts:298](https://github.com/anuma-ai/sdk
 
 > **batches**: [`TopicExtractionBatchDiagnostics`](TopicExtractionBatchDiagnostics.md)\[]
 
-Defined in: [src/lib/memory/topicExtract.ts:300](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/topicExtract.ts#300)
+Defined in: [src/lib/memory/topicExtract.ts:306](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/topicExtract.ts#306)
+
+***
+
+### deferred?
+
+> `optional` **deferred**: `boolean`
+
+Defined in: [src/lib/memory/topicExtract.ts:303](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/topicExtract.ts#303)
+
+Another device owns the work; retry later without counting a failed attempt.
 
 ***
 
@@ -26,7 +36,7 @@ Defined in: [src/lib/memory/topicExtract.ts:300](https://github.com/anuma-ai/sdk
 
 > **durationMs**: `number`
 
-Defined in: [src/lib/memory/topicExtract.ts:299](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/topicExtract.ts#299)
+Defined in: [src/lib/memory/topicExtract.ts:305](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/topicExtract.ts#305)
 
 ***
 
@@ -34,7 +44,7 @@ Defined in: [src/lib/memory/topicExtract.ts:299](https://github.com/anuma-ai/sdk
 
 > **entitiesByMemory**: `Map`<`string`, [`ExtractedEntity`](ExtractedEntity.md)\[]>
 
-Defined in: [src/lib/memory/topicExtract.ts:303](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/topicExtract.ts#303)
+Defined in: [src/lib/memory/topicExtract.ts:309](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/topicExtract.ts#309)
 
 memoryId → entities the LLM returned (post-validation, post-linking).
 
@@ -44,7 +54,7 @@ memoryId → entities the LLM returned (post-validation, post-linking).
 
 > **llmFailures**: `Map`<`string`, [`PortalLlmFailure`](PortalLlmFailure.md)>
 
-Defined in: [src/lib/memory/topicExtract.ts:301](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/topicExtract.ts#301)
+Defined in: [src/lib/memory/topicExtract.ts:307](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/topicExtract.ts#307)
 
 ***
 
@@ -52,7 +62,7 @@ Defined in: [src/lib/memory/topicExtract.ts:301](https://github.com/anuma-ai/sdk
 
 > **skippedIds**: `string`\[]
 
-Defined in: [src/lib/memory/topicExtract.ts:311](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/topicExtract.ts#311)
+Defined in: [src/lib/memory/topicExtract.ts:317](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/topicExtract.ts#317)
 
 Memories NOT processed: missing/deleted/foreign rows, user-managed rows
 (including ones that became user-managed mid-run), and members of failed
@@ -65,7 +75,7 @@ by a later sweep — callers should apply their own attempt caps.
 
 > **skippedReasons**: `Map`<`string`, [`TopicSkipReason`](../type-aliases/TopicSkipReason.md)>
 
-Defined in: [src/lib/memory/topicExtract.ts:329](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/topicExtract.ts#329)
+Defined in: [src/lib/memory/topicExtract.ts:335](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/topicExtract.ts#335)
 
 Why each id in [skippedIds](#skippedids) was skipped.
 
@@ -89,7 +99,7 @@ cannot drift. Group by [isDegradedTopicSkip](../functions/isDegradedTopicSkip.md
 
 > **stampedIds**: `string`\[]
 
-Defined in: [src/lib/memory/topicExtract.ts:306](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/topicExtract.ts#306)
+Defined in: [src/lib/memory/topicExtract.ts:312](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/topicExtract.ts#312)
 
 Memories stamped `topics_extracted_at` this run — includes zero-entity
 results so quiet memories aren't re-asked every sweep.

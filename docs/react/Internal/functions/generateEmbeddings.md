@@ -1,6 +1,6 @@
 # generateEmbeddings
 
-> **generateEmbeddings**(`texts`: `string`\[], `options`: [`MemoryEngineEmbeddingOptions`](../interfaces/MemoryEngineEmbeddingOptions.md)): `Promise`<`number`\[]\[]>
+> **generateEmbeddings**(`texts`: `string`\[], `options`: [`MemoryEngineEmbeddingOptions`](../interfaces/MemoryEngineEmbeddingOptions.md), `signal?`: `AbortSignal`): `Promise`<`number`\[]\[]>
 
 Defined in: [src/lib/memoryEngine/generate.ts:305](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryEngine/generate.ts#305)
 
@@ -53,6 +53,23 @@ Array of texts to embed
 <td>
 
 Embedding options
+
+</td>
+</tr>
+<tr>
+<td>
+
+`signal?`
+
+</td>
+<td>
+
+`AbortSignal`
+
+</td>
+<td>
+
+‐
 
 </td>
 </tr>

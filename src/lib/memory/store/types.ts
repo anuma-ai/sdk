@@ -140,6 +140,13 @@ export interface MemoryTopic {
 }
 
 /** @public */
+export interface MemoryCounts {
+  live: number;
+  archived: number;
+  quarantined: number;
+}
+
+/** @public */
 export interface MemorySubscribeOptions {
   /**
    * Watch the whole table, soft-deleted rows included, and fire on row-SET
@@ -241,6 +248,8 @@ export interface EmbeddingRepairOptions {
 
 /** @public */
 export interface EmbeddingRepairResult {
+  /** Another device owns the work; preserve the cursor and retry later. */
+  deferred?: boolean;
   scanned: number;
   reembedded: number;
   failed: number;
@@ -269,6 +278,12 @@ export interface EmbeddingRepairResult {
  * @public
  */
 export interface MemoryStore {
+  /** Creates an account-scoped topic without requiring a memory. */
+  createTopic?(name: string): Promise<string | null>;
+  /** Imports local topic metadata without replacing server entries or tombstones. */
+  importTopics?(topics: readonly { name: string; kind?: string }[]): Promise<void>;
+  /** Metadata-only counts for the live, archived and quarantined lists. */
+  counts?(): Promise<MemoryCounts>;
   /** Memories newest-first, decrypted, WITH `embedding` (Memory Graph edges read it). */
   list(options?: MemoryListOptions): Promise<StoredVaultMemory[]>;
   get(id: string): Promise<StoredVaultMemory | null>;

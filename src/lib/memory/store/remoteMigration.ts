@@ -1,3 +1,4 @@
+import { normalizeEntityName } from "../../db/entities/types.js";
 import {
   backfillMemoryTopicsOp,
   getAllVaultMemoryRowsOp,
@@ -23,6 +24,7 @@ import {
   type RemoteMemoryRow,
 } from "./remotePersistence.js";
 import { storedVector } from "./remotePipeline.js";
+import { createRemoteTopicPersistence } from "./remoteTopics.js";
 
 const IMPORT_BATCH = 50;
 const EMBED_BATCH = 100;
@@ -103,6 +105,8 @@ export interface MemoryMigrationOptions extends Pick<
   allowSkipped?: boolean;
   /** Re-embeds rows whose local vector nearby could not rank; without it those rows upload unembedded. */
   embeddingOptions?: EmbeddingOptions;
+  /** Explicitly account-owned topics for databases that are not marked singleTenant. */
+  topics?: readonly { name: string; kind?: string }[];
   signal?: AbortSignal;
   onProgress?: (progress: MemoryMigrationProgress) => void;
 }
@@ -492,6 +496,23 @@ export async function migrateMemoriesToRemote(
 
   if (!active) await createDecaySweeper({ vaultCtx: options.vaultCtx }).runSweep();
   await backfillTopics(options.vaultCtx);
+  const localTopics =
+    options.topics ??
+    (options.vaultCtx.singleTenant === true
+      ? (
+          (await options.vaultCtx.database.get("entity").query().unsafeFetchRaw()) as Record<
+            string,
+            unknown
+          >[]
+        )
+          .map((t) => ({
+            name: normalizeEntityName(typeof t.canonical_name === "string" ? t.canonical_name : ""),
+            ...(typeof t.kind === "string" && { kind: t.kind }),
+          }))
+          .filter((t) => t.name.length > 0)
+      : []);
+  if (localTopics.length)
+    await createRemoteTopicPersistence(request).importTopics(localTopics, signal);
 
   const skipped = new Map<string, MemoryMigrationSkip["reason"]>();
   const reembedded = new Set<string>();

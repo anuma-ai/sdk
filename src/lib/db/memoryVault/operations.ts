@@ -1010,6 +1010,25 @@ export async function countActiveVaultMemoriesOp(
   return ctx.vaultMemoryCollection.query(...baseVaultConditions(ctx)).fetchCount();
 }
 
+export async function getVaultMemoryCountsOp(ctx: VaultMemoryOperationsContext) {
+  const [live, archived, quarantined] = await Promise.all([
+    countActiveVaultMemoriesOp(ctx),
+    ctx.vaultMemoryCollection
+      .query(
+        ...baseVaultConditions(ctx, { includeArchived: true }),
+        Q.where("archived_at", Q.notEq(null))
+      )
+      .fetchCount(),
+    ctx.vaultMemoryCollection
+      .query(
+        ...baseVaultConditions(ctx, { includeQuarantined: true }),
+        Q.where("trust_tier", "quarantined")
+      )
+      .fetchCount(),
+  ]);
+  return { live, archived, quarantined };
+}
+
 /**
  * Given a set of candidate memory ids, return the subset that is ACTIVE — i.e.
  * passes the same {@link baseVaultConditions} choke point every recall lane

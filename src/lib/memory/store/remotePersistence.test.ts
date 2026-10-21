@@ -641,3 +641,49 @@ describe("remote private-memory persistence", () => {
     expect(new RemoteMemoryError("Conflict", 409, "version_conflict")).toBeInstanceOf(Error);
   });
 });
+
+describe("metadata-only reads", () => {
+  it("reads counts and temporal ids without encryption or decryption", async () => {
+    const s = setup();
+    const persistence = await createRemoteMemoryPersistence(s.options);
+    s.fetch.mockResolvedValueOnce(Response.json({ live: 4, archived: 2, quarantined: 1 }));
+    expect(await persistence.counts()).toEqual({ live: 4, archived: 2, quarantined: 1 });
+    expect(String(s.fetch.mock.calls.at(-1)![0])).toMatch(/\/counts$/);
+    s.fetch.mockResolvedValueOnce(
+      Response.json({
+        items: [
+          { memory_id: "best", score: 1 },
+          { memory_id: "partial", score: 0.25 },
+        ],
+      })
+    );
+    expect(await persistence.temporal({ start: 100, end: 200 })).toEqual(["best", "partial"]);
+    expect(s.encrypt).not.toHaveBeenCalled();
+    expect(s.decrypt).not.toHaveBeenCalled();
+    const [url, init] = s.fetch.mock.calls.at(-1)!;
+    expect(String(url)).toMatch(/\/temporal$/);
+    expect(JSON.parse(String(init?.body))).toEqual({ start: 100, end: 200, limit: 100 });
+  });
+
+  it.each([
+    { live: -1, archived: 0, quarantined: 0 },
+    { live: 1, archived: "2", quarantined: 0 },
+    { live: 1 },
+  ])("rejects invalid count responses: %j", async (response) => {
+    const s = setup();
+    const persistence = await createRemoteMemoryPersistence(s.options);
+    s.fetch.mockResolvedValueOnce(Response.json(response));
+    await expect(persistence.counts()).rejects.toThrow("Invalid nearby memory counts");
+  });
+
+  it("rejects invalid windows before making a request", async () => {
+    const s = setup();
+    const persistence = await createRemoteMemoryPersistence(s.options);
+    const calls = s.fetch.mock.calls.length;
+    await expect(persistence.temporal({ start: 100, end: 100 })).rejects.toThrow("Temporal window");
+    await expect(persistence.temporal({ start: 100, end: 200 }, 101)).rejects.toThrow(
+      "Temporal window"
+    );
+    expect(s.fetch).toHaveBeenCalledTimes(calls);
+  });
+});

@@ -383,6 +383,7 @@ export {
   type EmbeddingRepairResult,
   type LocalMemoryStoreOptions,
   memoryCipher,
+  type MemoryCounts,
   type MemoryCreate,
   type MemoryDecay,
   type MemoryDecaySweeperOptions,
@@ -422,6 +423,11 @@ export {
   type RemoteMemoryRecord,
   type RemoteMemoryRow,
   type RemoteMemoryStoreOptions,
+  type RemoteMemoryTopic,
+  type RemoteMemoryWorkKind,
+  type RemoteMemoryWorkLease,
+  type RemoteMemoryWorkPersistence,
+  type RemoteTopicPersistence,
 } from "../lib/memory";
 export {
   capHopsForDensity,

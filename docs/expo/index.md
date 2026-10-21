@@ -1324,6 +1324,12 @@ Re-exports [MemoryContextResult](../react/Internal/interfaces/MemoryContextResul
 
 ***
 
+### MemoryCounts
+
+Re-exports [MemoryCounts](../react/Internal/interfaces/MemoryCounts.md)
+
+***
+
 ### MemoryCreate
 
 Re-exports [MemoryCreate](../react/Internal/type-aliases/MemoryCreate.md)
@@ -1987,6 +1993,36 @@ Re-exports [RemoteMemoryRow](../react/Internal/interfaces/RemoteMemoryRow.md)
 ### RemoteMemoryStoreOptions
 
 Re-exports [RemoteMemoryStoreOptions](../react/Internal/interfaces/RemoteMemoryStoreOptions.md)
+
+***
+
+### RemoteMemoryTopic
+
+Re-exports [RemoteMemoryTopic](../react/Internal/interfaces/RemoteMemoryTopic.md)
+
+***
+
+### RemoteMemoryWorkKind
+
+Re-exports [RemoteMemoryWorkKind](../react/Internal/type-aliases/RemoteMemoryWorkKind.md)
+
+***
+
+### RemoteMemoryWorkLease
+
+Re-exports [RemoteMemoryWorkLease](../react/Internal/interfaces/RemoteMemoryWorkLease.md)
+
+***
+
+### RemoteMemoryWorkPersistence
+
+Re-exports [RemoteMemoryWorkPersistence](../react/Internal/interfaces/RemoteMemoryWorkPersistence.md)
+
+***
+
+### RemoteTopicPersistence
+
+Re-exports [RemoteTopicPersistence](../react/Internal/interfaces/RemoteTopicPersistence.md)
 
 ***
 

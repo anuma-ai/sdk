@@ -304,12 +304,19 @@ async function generateEmbeddingsBatch(
  */
 export async function generateEmbeddings(
   texts: string[],
-  options: EmbeddingOptions
+  options: EmbeddingOptions,
+  signal?: AbortSignal
 ): Promise<number[][]> {
+  signal?.throwIfAborted();
   if (texts.length === 0) return [];
   const total = options.totalTimeoutMs;
-  if (total === undefined) return embedMany(texts, options, undefined);
-  return withDeadline((signal) => embedMany(texts, options, signal), total, "embedding batch");
+  if (total === undefined) return embedMany(texts, options, signal);
+  return withDeadline(
+    (inner) => embedMany(texts, options, inner),
+    total,
+    "embedding batch",
+    signal
+  );
 }
 
 async function embedMany(

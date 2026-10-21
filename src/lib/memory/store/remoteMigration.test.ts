@@ -69,6 +69,7 @@ type Stored = RemoteMemoryRow;
 
 function fakeNearby(initial: { state?: string; key_id?: string } = {}) {
   const rows = new Map<string, Stored>();
+  const catalog = new Map<string, { name: string; kind?: string }>();
   const account = { state: initial.state ?? "none", key_id: initial.key_id };
   const calls: string[] = [];
   let rateLimited = 0;
@@ -83,6 +84,12 @@ function fakeNearby(initial: { state?: string; key_id?: string } = {}) {
     const method = init?.method ?? "GET";
     const body = init?.body ? (JSON.parse(String(init.body)) as Record<string, unknown>) : {};
     calls.push(`${method} ${path}`);
+    if (path === "/topics/import") {
+      for (const t of body.topics as { name: string; kind?: string }[])
+        if (!catalog.has(t.name)) catalog.set(t.name, t);
+      return json(200, {});
+    }
+
     if (path === "/account" && method === "GET")
       return json(200, { ...account, memory_count: rows.size });
     if (path === "/account" && method === "PUT") {
@@ -160,6 +167,7 @@ function fakeNearby(initial: { state?: string; key_id?: string } = {}) {
   });
   return {
     rows,
+    catalog,
     account,
     calls,
     fetch: fetch as unknown as typeof globalThis.fetch,
@@ -675,5 +683,77 @@ describe("migrateMemoriesToRemote", () => {
     const result = await migrate(fakeNearby(), ctx);
 
     expect(result.skipped).toEqual([{ memoryId: m.uniqueId, reason: "invalid" }]);
+  });
+});
+
+describe("topic migration", () => {
+  it("cancels an in-flight topic import before later batches or activation", async () => {
+    const ctx = vault(makeDatabase(), signatureA);
+    const server = fakeNearby();
+    const controller = new AbortController();
+    const original = server.fetch;
+    let pending: (() => void) | undefined;
+    const started = new Promise<void>((resolve) => {
+      pending = resolve;
+    });
+    let imports = 0;
+    let requestSignal: AbortSignal | null | undefined;
+    server.fetch = (async (url, init) => {
+      if (String(url).endsWith("/topics/import") && ++imports === 2) {
+        requestSignal = init?.signal;
+        pending!();
+        return new Promise<Response>((_resolve, reject) => {
+          requestSignal!.addEventListener("abort", () => reject(requestSignal!.reason), {
+            once: true,
+          });
+        });
+      }
+      return original(url, init);
+    }) as typeof globalThis.fetch;
+    const migration = migrate(server, ctx, {
+      signal: controller.signal,
+      topics: Array.from({ length: 123 }, (_, i) => ({ name: `t-${i}` })),
+    });
+    const cancelled = expect(migration).rejects.toThrow("cancelled");
+    await started;
+    controller.abort(new Error("cancelled"));
+    await cancelled;
+
+    expect(requestSignal!.aborted).toBe(true);
+    expect(imports).toBe(2);
+    expect(server.catalog.size).toBe(50);
+    expect(server.calls).not.toContain("POST /import");
+    expect(server.calls).not.toContain("PUT /account");
+    expect(server.account.state).toBe("none");
+  });
+
+  it("imports empty topics from a single-owner database before activation", async () => {
+    const db = makeDatabase();
+    const ctx = { ...vault(db, signatureA), singleTenant: true };
+    await db.write(async () => {
+      await ctx.entityCtx!.entityCollection.create((r) => {
+        r._setRaw("canonical_name", "Gardening");
+      });
+    });
+    const server = fakeNearby();
+    expect((await migrate(server, ctx)).state).toBe("active");
+    expect([...server.catalog.keys()]).toEqual(["gardening"]);
+    expect(server.rows.size).toBe(0);
+    expect(server.calls.indexOf("POST /topics/import")).toBeLessThan(
+      server.calls.indexOf("PUT /account")
+    );
+  });
+
+  it("does not upload unowned entity rows from a shared database", async () => {
+    const db = makeDatabase();
+    const ctx = vault(db, signatureA);
+    await db.write(async () => {
+      await ctx.entityCtx!.entityCollection.create((r) => {
+        r._setRaw("canonical_name", "someone else's topic");
+      });
+    });
+    const server = fakeNearby();
+    await migrate(server, ctx);
+    expect(server.catalog.size).toBe(0);
   });
 });

@@ -39,6 +39,22 @@ export function runMemoryStoreContract(
 ): void {
   const [vectorA, vectorB] = fixtures.vectors;
   describe("MemoryStore contract", () => {
+    it("counts list membership after archive, restore, supersession and deletion", async () => {
+      const store = await makeStore();
+      const [a, b, c] = await store.createMany([
+        { content: "a" },
+        { content: "b" },
+        { content: "c" },
+      ]);
+      expect(await store.counts!()).toEqual({ live: 3, archived: 0, quarantined: 0 });
+      await store.archive(a.uniqueId);
+      expect(await store.counts!()).toEqual({ live: 2, archived: 1, quarantined: 0 });
+      await store.restore(a.uniqueId);
+      await store.supersede(b.uniqueId, c.uniqueId);
+      await store.delete(a.uniqueId);
+      expect(await store.counts!()).toEqual({ live: 1, archived: 0, quarantined: 0 });
+    });
+
     it("creates, reads, updates and deletes", async () => {
       const store = await makeStore();
       const created = await store.create({ content: "Likes green tea", embedding: vectorA });

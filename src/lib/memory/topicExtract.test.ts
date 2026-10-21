@@ -51,6 +51,28 @@ describe("extractEntitiesForMemories", () => {
     expect(fetchFn).not.toHaveBeenCalled();
   });
 
+  it("stops later inference batches when cancelled during the current batch", async () => {
+    const controller = new AbortController();
+    const fetchFn = vi.fn(async () => {
+      controller.abort(new Error("lease lost"));
+      return {
+        ok: true,
+        json: async () => ({ choices: [{ message: { content: topicResponse([]) } }] }),
+      };
+    });
+    await expect(
+      extractEntitiesForMemories(
+        Array.from({ length: TOPIC_EXTRACTION_BATCH_SIZE + 1 }, (_, i) => ({
+          id: `m-${i}`,
+          content: "fact",
+        })),
+        { apiKey: "k", fetchFn: fetchFn as unknown as typeof fetch },
+        controller.signal
+      )
+    ).rejects.toThrow("lease lost");
+    expect(fetchFn).toHaveBeenCalledTimes(1);
+  });
+
   it("forwards endpointOverride to the request path (baseUrl + override)", async () => {
     const fetchFn = vi.fn().mockResolvedValue({
       ok: true,

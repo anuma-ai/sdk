@@ -24,7 +24,7 @@ vi.mock("../../memoryEngine/embeddings", async (importOriginal) => {
 import { TOPICS_EXTRACTION_VERSION } from "../../db/memoryVault/operations";
 import { parseTopics } from "../../db/entities/types";
 import { getLogger } from "../../logger";
-import { parseQueryTimeWindow } from "../queryTemporal";
+import { parseQueryTimeWindow, scoreEventTimeOverlap } from "../queryTemporal";
 import { DEFAULT_API_EMBEDDING_MODEL } from "../../memoryEngine/constants";
 import { EmbeddingHttpError, generateEmbeddings } from "../../memoryEngine/embeddings";
 import type { EmbeddingOptions } from "../../memoryEngine/types";
@@ -69,7 +69,15 @@ function normalized(vector: number[]): number[] {
 
 function fakeNearby(keyId: string) {
   const rows = new Map<string, Stored>();
+  const catalog = new Map<
+    string,
+    { name: string; kind?: string; version: number; is_deleted: boolean; server_updated_at: string }
+  >();
   let writes = 0;
+  const leases = new Map<
+    string,
+    { kind: string; token: string; processor_version: string; expires_at: string }
+  >();
   const json = (status: number, body: unknown) =>
     new Response(JSON.stringify(body), {
       status,
@@ -120,6 +128,94 @@ function fakeNearby(keyId: string) {
     const method = init.method ?? "GET";
     const body = init.body ? (JSON.parse(String(init.body)) as Record<string, unknown>) : {};
     if (path === "/account") return json(200, { state: "active", key_id: keyId });
+    if (path === "/work/claim") {
+      const kind = String(body.kind);
+      const current = leases.get(kind);
+      if (body.token) {
+        if (
+          !current ||
+          current.token !== body.token ||
+          Date.parse(current.expires_at) <= Date.now()
+        )
+          return json(200, {});
+        current.expires_at = new Date(Date.now() + 120_000).toISOString();
+        return json(200, { lease: current });
+      }
+      if (current && Date.parse(current.expires_at) > Date.now()) return json(200, {});
+      const lease = {
+        kind,
+        token: crypto.randomUUID(),
+        processor_version: String(body.processor_version),
+        expires_at: new Date(Date.now() + 120_000).toISOString(),
+      };
+      leases.set(kind, lease);
+      return json(200, { lease });
+    }
+    if (path === "/work/release") {
+      if (leases.get(String(body.kind))?.token === body.token) leases.delete(String(body.kind));
+      return json(200, {});
+    }
+
+    if (path === "/topics") {
+      if (method === "GET")
+        return json(200, {
+          items: [...catalog.values()].sort((a, b) => a.name.localeCompare(b.name)),
+        });
+      const value = body.topic as { name: string; kind?: string; is_deleted: boolean };
+      const current = catalog.get(value.name);
+      if ((current?.version ?? 0) !== body.expected_version)
+        return problem(409, "version_conflict");
+      const saved = {
+        ...value,
+        version: (current?.version ?? 0) + 1,
+        server_updated_at: new Date().toISOString(),
+      };
+      catalog.set(value.name, saved);
+      return json(200, saved);
+    }
+    if (path === "/topics/import") {
+      for (const value of body.topics as { name: string; kind?: string }[])
+        if (!catalog.has(value.name))
+          catalog.set(value.name, {
+            ...value,
+            version: 1,
+            is_deleted: false,
+            server_updated_at: new Date().toISOString(),
+          });
+      return json(200, {});
+    }
+
+    if (path === "/counts") {
+      const memories = [...rows.values()].map((r) => r.memory);
+      return json(200, {
+        live: memories.filter((m) => shown(m, {})).length,
+        archived: memories.filter(
+          (m) => shown(m, { include_archived: true }) && m.archived_at !== undefined
+        ).length,
+        quarantined: memories.filter(
+          (m) => shown(m, { include_quarantined: true }) && m.trust_tier === "quarantined"
+        ).length,
+      });
+    }
+    if (path === "/temporal") {
+      const window = { start: Number(body.start), end: Number(body.end), matchedPhrase: "" };
+      return json(200, {
+        items: [...rows.values()]
+          .filter((r) => shown(r.memory, {}))
+          .map(({ memory: m }) => ({
+            memory_id: m.memory_id,
+            score: scoreEventTimeOverlap(
+              (m.event_time_start as number) ?? null,
+              (m.event_time_end as number) ?? null,
+              (m.event_time_kind as string) ?? null,
+              window
+            ),
+          }))
+          .filter((r) => r.score > 0)
+          .sort((a, b) => b.score - a.score || a.memory_id.localeCompare(b.memory_id))
+          .slice(0, Number(body.limit ?? 100)),
+      });
+    }
     if (path === "/memories" && method === "GET") {
       const flags = Object.fromEntries(
         [...url.searchParams].map(([k, v]) => [k, v === "true" ? true : v])
@@ -190,6 +286,14 @@ function fakeNearby(keyId: string) {
       });
     }
     if (path === "/memories/batch") {
+      if (
+        body.lease_token &&
+        ![...leases.values()].some(
+          (lease) => lease.token === body.lease_token && Date.parse(lease.expires_at) > Date.now()
+        )
+      )
+        return problem(409, "work_lease_expired");
+
       const writes = body.writes as { expected_version: number; memory: Row }[];
       if (body.key_id !== keyId) return problem(409, "key_mismatch");
       if (conflicting(writes)) return problem(409, "version_conflict");
@@ -255,7 +359,7 @@ function fakeNearby(keyId: string) {
       seq: ++writes,
     });
   };
-  return { rows, fetch, touch };
+  return { rows, catalog, leases, fetch, touch };
 }
 
 async function remoteStore(
@@ -531,10 +635,12 @@ describe("remote MemoryStore", () => {
       expect.objectContaining({ name: "Chess", source: "auto" }),
     ]);
     expect(nearbyCalls(server)).toEqual([
+      "POST /work/claim",
       "POST /memories/query",
       "POST /memories/query",
       "POST /memories/query",
       "POST /memories/batch",
+      "POST /work/release",
     ]);
 
     server.fetch.mockClear();
@@ -663,7 +769,7 @@ describe("remote MemoryStore", () => {
     expect(server.rows.get(last)!.memory.topics_extracted_at).toBeUndefined();
   });
 
-  it("writes each memory on its own when the batch is rate limited", async () => {
+  it("leaves lease-guarded work pending on rate limits and resumes on the next run", async () => {
     const { store, server } = await remoteStore();
     const ids: string[] = [];
     for (const content of Object.keys(hikes))
@@ -679,8 +785,14 @@ describe("remote MemoryStore", () => {
       apiKey: "k",
       fetchFn: fakeTopicLlm(hikes),
     });
-    expect(result.stampedIds).toEqual(ids);
-    expect(await store.topicMaintenance.stampTopicsExtracted(ids, Date.now() + 1000)).toEqual(ids);
+    expect(result.stampedIds).toEqual([]);
+    expect([...result.skippedReasons.values()]).toEqual(ids.map(() => "link-failed"));
+    server.fetch.mockImplementation(handle);
+    const retried = await store.topicMaintenance.extractTopics(ids, {
+      apiKey: "k",
+      fetchFn: fakeTopicLlm(hikes),
+    });
+    expect(retried.stampedIds).toEqual(ids);
   });
 
   it("reports every memory in a failed batch as link-failed", async () => {
@@ -703,6 +815,89 @@ describe("remote MemoryStore", () => {
     expect([...result.skippedReasons.values()]).toEqual(ids.map(() => "link-failed"));
     expect(result.entitiesByMemory.size).toBe(0);
     expect(await store.topicMaintenance.stampTopicsExtracted(ids, Date.now())).toEqual([]);
+  });
+
+  it("keeps each extraction's token when a second run reclaims an expired lease", async () => {
+    const { store, server } = await remoteStore();
+    const memory = await store.create({ content: "Hikes Mt Hood", embedding: axis(0) });
+    const llm = fakeTopicLlm(hikes);
+    let finishFirst!: () => void;
+    let finishSecond!: () => void;
+    const firstGate = new Promise<void>((resolve) => {
+      finishFirst = resolve;
+    });
+    const secondGate = new Promise<void>((resolve) => {
+      finishSecond = resolve;
+    });
+    const firstLlm = vi.fn(async (url: unknown, init?: RequestInit) => {
+      await firstGate;
+      return llm(url as string, init);
+    });
+    const secondLlm = vi.fn(async (url: unknown, init?: RequestInit) => {
+      await secondGate;
+      return llm(url as string, init);
+    });
+    const first = store.topicMaintenance.extractTopics([memory.uniqueId], {
+      apiKey: "k",
+      fetchFn: firstLlm as unknown as typeof fetch,
+    });
+    await vi.waitFor(() => expect(firstLlm).toHaveBeenCalled());
+    server.leases.get("topics")!.expires_at = new Date(0).toISOString();
+    const second = store.topicMaintenance.extractTopics([memory.uniqueId], {
+      apiKey: "k",
+      fetchFn: secondLlm as unknown as typeof fetch,
+    });
+    await vi.waitFor(() => expect(secondLlm).toHaveBeenCalled());
+    finishFirst();
+    const deferred = await first;
+    expect(deferred.deferred).toBe(true);
+    expect(deferred.stampedIds).toEqual([]);
+    expect(deferred.skippedReasons.size).toBe(0);
+    expect(server.leases.has("topics")).toBe(true);
+    finishSecond();
+    expect((await second).stampedIds).toEqual([memory.uniqueId]);
+  });
+
+  it("defers a lost topic renewal and never writes a late inference result", async () => {
+    const { store, server } = await remoteStore(undefined, undefined, 0);
+    const memory = await store.create({ content: "Hikes Mt Hood", embedding: axis(0) });
+    const llm = fakeTopicLlm(hikes);
+    let finish!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      finish = resolve;
+    });
+    const fetchFn = vi.fn(async (...args: Parameters<typeof fetch>) => {
+      await gate;
+      return llm(...args);
+    });
+    server.fetch.mockClear();
+    vi.useFakeTimers();
+    try {
+      const running = store.topicMaintenance.extractTopics([memory.uniqueId], {
+        apiKey: "k",
+        fetchFn: fetchFn as typeof fetch,
+      });
+      await vi.waitFor(() => expect(fetchFn).toHaveBeenCalled());
+      server.leases.delete("topics");
+      await vi.advanceTimersByTimeAsync(30_000);
+      const result = await running;
+      expect(result.deferred).toBe(true);
+      expect(result.skippedReasons.size).toBe(0);
+      finish();
+      await vi.advanceTimersByTimeAsync(0);
+      expect(server.rows.get(memory.uniqueId)!.memory.topics_extracted_at).toBeUndefined();
+      expect(server.fetch.mock.calls.some(([url]) => String(url).endsWith("/memories/batch"))).toBe(
+        false
+      );
+    } finally {
+      finish();
+      vi.useRealTimers();
+    }
+    const retried = await store.topicMaintenance.extractTopics([memory.uniqueId], {
+      apiKey: "k",
+      fetchFn: llm,
+    });
+    expect(retried.stampedIds).toEqual([memory.uniqueId]);
   });
 
   it("does not write topics extracted from content that changed during the LLM call", async () => {
@@ -1122,6 +1317,55 @@ describe("remote MemoryStore", () => {
     }
   });
 
+  it("delivers memory changes and advances the cursor while the topic catalog fails", async () => {
+    const ring = await deriveMemoryKeyRing(`0x${"e5".repeat(65)}`);
+    const shared = fakeNearby(ring.keyId);
+    const { store: laptop } = await remoteStore(shared, ring);
+    const seeded = await laptop.create({ content: "Lives in Porto", embedding: axis(0) });
+    await laptop.createTopic!("coffee");
+    const { store: phone } = await remoteStore(shared, ring, 20);
+    let failCatalog = false;
+    const original = shared.fetch.getMockImplementation()!;
+    shared.fetch.mockImplementation(async (input, init) => {
+      if (failCatalog && String(input).includes("/topics?"))
+        return new Response(JSON.stringify({ detail: "unavailable" }), { status: 500 });
+      return original(input, init);
+    });
+    const polls = () =>
+      shared.fetch.mock.calls
+        .filter(([input]) => String(input).endsWith("/memories/query"))
+        .map(([, init]) => JSON.parse(String(init!.body)) as { cursor?: string });
+    const onChange = vi.fn();
+    const onTopics = vi.fn();
+    const stopChange = phone.subscribe(onChange);
+    const stopTopics = phone.subscribe(onTopics, { topics: true });
+    const warn = vi.spyOn(getLogger(), "warn");
+    try {
+      await vi.waitFor(() => expect(polls().some((p) => p.cursor !== undefined)).toBe(true));
+      failCatalog = true;
+      await laptop.update(seeded.uniqueId, { content: "Lives in Lisbon", embedding: axis(1) });
+      shared.catalog.set("gardening", {
+        name: "gardening",
+        version: 1,
+        is_deleted: false,
+        server_updated_at: new Date().toISOString(),
+      });
+      await vi.waitFor(() => expect(onChange).toHaveBeenCalledTimes(1));
+      expect(onTopics).toHaveBeenCalledTimes(1);
+      const updated = shared.rows.get(seeded.uniqueId)!;
+      const cursor = JSON.stringify({ order: "changed", at: [updated.seq, seeded.uniqueId] });
+      await vi.waitFor(() => expect(polls().some((p) => p.cursor === cursor)).toBe(true));
+
+      failCatalog = false;
+      await vi.waitFor(() => expect(onTopics).toHaveBeenCalledTimes(2));
+      expect(onChange).toHaveBeenCalledTimes(1);
+    } finally {
+      stopChange();
+      stopTopics();
+      warn.mockRestore();
+    }
+  });
+
   it("surfaces a concurrent edit as a version conflict", async () => {
     const { store, server } = await remoteStore();
     const m = await store.create({ content: "Drinks coffee", embedding: axis(0) });
@@ -1207,7 +1451,7 @@ describe("default recall lanes", () => {
     const decrypt = vi.fn(cipher.decrypt);
     const queried: Record<string, unknown>[] = [];
     const fetch = vi.fn(async (url: string | URL, init?: RequestInit) => {
-      if (String(url).endsWith("/memories/query"))
+      if (String(url).endsWith("/memories/query") || String(url).endsWith("/temporal"))
         queried.push(JSON.parse(String(init?.body)) as Record<string, unknown>);
       return server.fetch(url as never, init as never);
     });
@@ -1337,7 +1581,9 @@ describe("default recall lanes", () => {
     expect(ranked.slice(0, 2).sort()).toEqual(["dinner", "job"]);
     expect(ranked[2]).toBe("trip");
     expect(queried.at(-1)).toMatchObject({
-      event_time_overlaps: { start: window.start, end: window.end },
+      start: window.start,
+      end: window.end,
+      limit: 100,
     });
     expect(decrypt).not.toHaveBeenCalled();
   });
@@ -1348,20 +1594,32 @@ describe("default recall lanes", () => {
     expect(queried).toEqual([]);
   });
 
-  it("reads a bounded number of rows for a busy time window", async () => {
+  it("finds an older best match beyond 256 rows without downloading the window", async () => {
     const { store, server, queried } = await lanes();
     const window = parseQueryTimeWindow("What did I do yesterday?", NOW)!;
     for (let i = 0; i < 300; i++)
       server.rows.set(
         `e-${i}`,
-        eventRow(`e-${i}`, { event_time_start: window.start + i, event_time_kind: "point" }, i)
+        eventRow(
+          `e-${i}`,
+          {
+            event_time_start: window.start - day,
+            event_time_end: window.start + day / 2,
+            event_time_kind: "range",
+          },
+          i
+        )
       );
 
+    server.rows.set(
+      "old-best",
+      eventRow("old-best", { event_time_start: window.start + 1, event_time_kind: "point" }, -1)
+    );
     const ranked = await store.factSource.temporalRanking("What did I do yesterday?", NOW);
 
-    expect(ranked).toHaveLength(256);
-    const requested = queried.reduce((sum, body) => sum + (body.limit as number), 0);
-    expect(requested).toBeLessThanOrEqual(256);
+    expect(ranked).toHaveLength(100);
+    expect(ranked[0]).toBe("old-best");
+    expect(queried).toEqual([{ start: window.start, end: window.end, limit: 100 }]);
   });
 });
 
@@ -1463,12 +1721,80 @@ describe("repairEmbeddings", () => {
     expect(decrypt).not.toHaveBeenCalled();
   });
 
+  it("allows only one device to re-embed and fences results after lease loss", async () => {
+    const first = await repairStore();
+    await first.seed("work", "A memory needing a vector");
+    const second = await repairStore(first.server);
+    const embedding = vi.mocked(generateEmbeddings);
+    const original = embedding.getMockImplementation()!;
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    embedding.mockImplementationOnce(async (...args) => {
+      await gate;
+      return original(...args);
+    });
+    const running = first.store.repairEmbeddings!();
+    await vi.waitFor(() => expect(first.server.leases.has("embeddings")).toBe(true));
+    await expect(second.store.repairEmbeddings!()).resolves.toEqual({
+      deferred: true,
+      scanned: 0,
+      reembedded: 0,
+      failed: 0,
+      skippedConflict: 0,
+    });
+    first.server.leases.delete("embeddings");
+    release();
+    await expect(running).resolves.toMatchObject({ deferred: true, reembedded: 0, failed: 0 });
+    expect(first.server.rows.get("work")!.memory.embedding).toBeUndefined();
+    await expect(second.store.repairEmbeddings!()).resolves.toMatchObject({ reembedded: 1 });
+    expect(first.server.leases.size).toBe(0);
+  });
+
+  it("defers on a lost renewal and discards a late embedding result", async () => {
+    const { store, server, seed } = await repairStore();
+    await seed("work", "A memory needing a vector");
+    const embedding = vi.mocked(generateEmbeddings);
+    const original = embedding.getMockImplementation()!;
+    let finish!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      finish = resolve;
+    });
+    embedding.mockImplementationOnce(async (...args) => {
+      await gate;
+      return original(...args);
+    });
+    embedding.mockClear();
+    vi.useFakeTimers();
+    try {
+      const running = store.repairEmbeddings!();
+      await vi.waitFor(() => expect(embedding).toHaveBeenCalled());
+      server.leases.delete("embeddings");
+      await vi.advanceTimersByTimeAsync(30_000);
+      await expect(running).resolves.toMatchObject({ deferred: true, failed: 0, reembedded: 0 });
+      const workSignal = embedding.mock.calls[0][2]!;
+      expect(workSignal.aborted).toBe(true);
+      finish();
+      await vi.advanceTimersByTimeAsync(0);
+      expect(server.rows.get("work")!.memory.embedding).toBeUndefined();
+      expect(server.fetch.mock.calls.some(([url]) => String(url).endsWith("/memories/batch"))).toBe(
+        false
+      );
+    } finally {
+      finish();
+      embedding.mockImplementation(original);
+      vi.useRealTimers();
+    }
+    await expect(store.repairEmbeddings!()).resolves.toMatchObject({ reembedded: 1, failed: 0 });
+  });
+
   it("skips a row another writer changed after it was read", async () => {
     const { store, server, seed } = await repairStore();
     await seed("raced", "Moved to Lisbon");
     const original = server.fetch.getMockImplementation()!;
     server.fetch.mockImplementation(async (input, init) => {
-      if (init?.method === "PUT") server.rows.get("raced")!.version++;
+      if (String(input).endsWith("/memories/batch")) server.rows.get("raced")!.version++;
       return original(input, init);
     });
 
@@ -1860,5 +2186,58 @@ describe("remote decay", () => {
 
     expect((await sweeper.runSweep()).archived).toBe(200);
     expect((await sweeper.runSweep()).archived).toBe(30);
+  });
+});
+
+describe("account topic catalog", () => {
+  it("shares empty topics across devices and never creates a memory", async () => {
+    const first = await remoteStore();
+    await first.store.createTopic!(" Coffee ");
+    const second = await remoteStore(first.server, first.keys);
+    expect(await second.store.listTopics()).toEqual([
+      { name: "coffee", kind: null, memoryCount: 0 },
+    ]);
+    expect(first.server.rows.size).toBe(0);
+    await second.store.createTopic!("coffee");
+    expect(first.server.catalog.size).toBe(1);
+  });
+
+  it("notifies topic imports without polling and makes repeated reads idempotent", async () => {
+    const { store, server } = await remoteStore(undefined, undefined, 0);
+    server.catalog.set("coffee", {
+      name: "coffee",
+      version: 2,
+      is_deleted: true,
+      server_updated_at: new Date().toISOString(),
+    });
+    const topics = [
+      { name: " Gardening ", kind: "hobby" },
+      { name: "gardening" },
+      { name: "Coffee" },
+    ];
+    let refresh: Promise<unknown> | undefined;
+    const onTopics = vi.fn(() => {
+      refresh = store.importTopics!(topics).then(() => store.listTopics());
+    });
+    const stop = store.subscribe(onTopics, { topics: true });
+    try {
+      await store.importTopics!(topics);
+      await refresh;
+      await store.importTopics!(topics);
+      expect(onTopics).toHaveBeenCalledTimes(1);
+      expect(await store.listTopics()).toEqual([
+        { name: "gardening", kind: "hobby", memoryCount: 0 },
+      ]);
+      expect(server.catalog.get("coffee")!.is_deleted).toBe(true);
+      const imports = server.fetch.mock.calls.filter(([input]) =>
+        String(input).endsWith("/topics/import")
+      );
+      expect(imports).toHaveLength(1);
+      expect(JSON.parse(String(imports[0][1]!.body))).toEqual({
+        topics: [{ name: "gardening", kind: "hobby" }],
+      });
+    } finally {
+      stop();
+    }
   });
 });

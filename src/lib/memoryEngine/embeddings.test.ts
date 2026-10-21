@@ -262,6 +262,29 @@ describe("generateEmbeddings (batch)", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
+  it("forwards cancellation to in-flight requests and stops later batches", async () => {
+    const controller = new AbortController();
+    const signals: AbortSignal[] = [];
+    const fetchMock = vi.fn(async (_url: unknown, init?: RequestInit) => {
+      signals.push(init!.signal!);
+      if (signals.length === 3) controller.abort(new Error("lease lost"));
+      return new Response(JSON.stringify({ data: [{ embedding: [1, 2, 3], index: 0 }] }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    await expect(
+      generateEmbeddings(
+        Array.from({ length: 7 }, (_, i) => `t-${i}`),
+        { apiKey: "k", baseUrl: BASE, batchSize: 1 },
+        controller.signal
+      )
+    ).rejects.toThrow("lease lost");
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(signals.every((signal) => signal.aborted)).toBe(true);
+  });
+
   it("sends only uncached texts and preserves input order in the result", async () => {
     const fetchMock = stubFetchOk();
     const cache = new Map<string, Float32Array>([["beta", Float32Array.from([42, 42, 42])]]);
