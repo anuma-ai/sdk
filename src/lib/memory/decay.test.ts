@@ -18,7 +18,13 @@ import {
 const DAY = 24 * 60 * 60 * 1000;
 const NOW = Date.UTC(2026, 6, 1);
 
-const NEVER_TYPES = ["identity", "preference", "relationship", "constraint"] as const;
+const NEVER_TYPES = [
+  "identity",
+  "preference",
+  "relationship",
+  "constraint",
+  "instruction",
+] as const;
 const SHORT_TYPES = ["plan", "ongoing_context"] as const;
 const MEDIUM_TYPES = ["other", null] as const;
 
@@ -263,7 +269,7 @@ describe("classifyDecay — degenerate timestamps", () => {
   });
 });
 
-describe("classifyDecay — age fallback matrix (7 types + null × event × age)", () => {
+describe("classifyDecay — age fallback matrix (8 types + null × event × age)", () => {
   const eventVariants: Array<{ label: string; eventTimeEnd: number | null }> = [
     { label: "event-past", eventTimeEnd: NOW - (PAST_EVENT_GRACE_MS + DAY) },
     { label: "event-future", eventTimeEnd: NOW + 30 * DAY },

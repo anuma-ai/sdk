@@ -712,7 +712,7 @@ async function synthesizeFacet(
     proofCountAlpha,
   });
 
-  let memories: RankedMemory[] = recalled.memories;
+  let memories: RankedMemory[] = recalled.memories.filter((m) => m.factType !== "instruction");
   if (hasReviewGate) {
     const allowed = new Set(reviewed);
     memories = memories.filter((m) => allowed.has(m.id)).slice(0, limit);

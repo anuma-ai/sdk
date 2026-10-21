@@ -102,7 +102,13 @@ interface CaseResult {
   matchedExpected: number;
   goodCandidates: number;
   expectedDetail: { fact: string; matched: boolean; best: number }[];
-  candidateDetail: { content: string; matched: boolean; best: number; forbidden: boolean }[];
+  candidateDetail: {
+    content: string;
+    type: string;
+    matched: boolean;
+    best: number;
+    forbidden: boolean;
+  }[];
   forbiddenHits: number;
   entityDetail: {
     name: string;
@@ -182,6 +188,7 @@ async function scoreCase(c: ExtractionCase): Promise<CaseResult> {
     const matched = best >= MATCH_THRESHOLD;
     return {
       content,
+      type: candidates[i].type,
       matched,
       best,
       forbidden: forbiddenBest >= MATCH_THRESHOLD && forbiddenBest > best,
@@ -316,6 +323,7 @@ async function runOnce(): Promise<RunSummary> {
     "multi-fact",
     "buried",
     "update",
+    "instruction",
     "negative",
   ];
   const byCategory = categories.map((cat) => {
@@ -506,9 +514,11 @@ function printVerbose(run: RunSummary): void {
     }
     for (const cd of r.candidateDetail) {
       if (cd.forbidden) {
-        console.error(`  ✗ FORBIDDEN: ${cd.content}  (matched a junk pattern)`);
+        console.error(`  ✗ FORBIDDEN [${cd.type}]: ${cd.content}  (matched a junk pattern)`);
       } else if (!cd.matched) {
-        console.error(`  • extra: ${cd.content}  (best ${cd.best.toFixed(2)})`);
+        console.error(`  • extra [${cd.type}]: ${cd.content}  (best ${cd.best.toFixed(2)})`);
+      } else {
+        console.error(`  · matched [${cd.type}]: ${cd.content}`);
       }
     }
     for (const ed of r.entityDetail) {

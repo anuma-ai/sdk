@@ -146,7 +146,7 @@ Auto-extraction emits this; manual writes can omit it.
 
 ### factType?
 
-> `optional` **factType**: `"other"` | `"identity"` | `"preference"` | `"relationship"` | `"plan"` | `"ongoing_context"` | `"constraint"`
+> `optional` **factType**: `"other"` | `"identity"` | `"preference"` | `"relationship"` | `"plan"` | `"ongoing_context"` | `"constraint"` | `"instruction"`
 
 Defined in: [src/lib/memory/types.ts:653](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#653)
 
