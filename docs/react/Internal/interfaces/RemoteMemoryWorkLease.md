@@ -1,6 +1,6 @@
 # RemoteMemoryWorkLease
 
-Defined in: src/lib/memory/store/remoteWork.ts:8
+Defined in: [src/lib/memory/store/remoteWork.ts:8](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteWork.ts#8)
 
 ## Properties
 
@@ -8,7 +8,7 @@ Defined in: src/lib/memory/store/remoteWork.ts:8
 
 > **expires\_at**: `string`
 
-Defined in: src/lib/memory/store/remoteWork.ts:12
+Defined in: [src/lib/memory/store/remoteWork.ts:12](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteWork.ts#12)
 
 ***
 
@@ -16,7 +16,7 @@ Defined in: src/lib/memory/store/remoteWork.ts:12
 
 > **kind**: [`RemoteMemoryWorkKind`](../type-aliases/RemoteMemoryWorkKind.md)
 
-Defined in: src/lib/memory/store/remoteWork.ts:9
+Defined in: [src/lib/memory/store/remoteWork.ts:9](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteWork.ts#9)
 
 ***
 
@@ -24,7 +24,7 @@ Defined in: src/lib/memory/store/remoteWork.ts:9
 
 > **processor\_version**: `string`
 
-Defined in: src/lib/memory/store/remoteWork.ts:11
+Defined in: [src/lib/memory/store/remoteWork.ts:11](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteWork.ts#11)
 
 ***
 
@@ -32,4 +32,4 @@ Defined in: src/lib/memory/store/remoteWork.ts:11
 
 > **token**: `string`
 
-Defined in: src/lib/memory/store/remoteWork.ts:10
+Defined in: [src/lib/memory/store/remoteWork.ts:10](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteWork.ts#10)

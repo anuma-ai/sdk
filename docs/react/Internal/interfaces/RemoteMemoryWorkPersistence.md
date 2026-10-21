@@ -1,6 +1,6 @@
 # RemoteMemoryWorkPersistence
 
-Defined in: src/lib/memory/store/remoteWork.ts:16
+Defined in: [src/lib/memory/store/remoteWork.ts:16](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteWork.ts#16)
 
 ## Extended by
 
@@ -12,7 +12,7 @@ Defined in: src/lib/memory/store/remoteWork.ts:16
 
 > **claimWork**(`kind`: [`RemoteMemoryWorkKind`](../type-aliases/RemoteMemoryWorkKind.md), `processorVersion`: `string`, `token?`: `string`): `Promise`<[`RemoteMemoryWorkLease`](RemoteMemoryWorkLease.md) | `null`>
 
-Defined in: src/lib/memory/store/remoteWork.ts:17
+Defined in: [src/lib/memory/store/remoteWork.ts:17](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteWork.ts#17)
 
 **Parameters**
 
@@ -73,7 +73,7 @@ Defined in: src/lib/memory/store/remoteWork.ts:17
 
 > **releaseWork**(`kind`: [`RemoteMemoryWorkKind`](../type-aliases/RemoteMemoryWorkKind.md), `token`: `string`): `Promise`<`void`>
 
-Defined in: src/lib/memory/store/remoteWork.ts:22
+Defined in: [src/lib/memory/store/remoteWork.ts:22](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteWork.ts#22)
 
 **Parameters**
 

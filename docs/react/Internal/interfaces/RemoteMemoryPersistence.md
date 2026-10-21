@@ -119,7 +119,7 @@ Candidate window plus counts for distinguishing empty storage from unavailable v
 
 > **claimWork**(`kind`: [`RemoteMemoryWorkKind`](../type-aliases/RemoteMemoryWorkKind.md), `processorVersion`: `string`, `token?`: `string`): `Promise`<[`RemoteMemoryWorkLease`](RemoteMemoryWorkLease.md) | `null`>
 
-Defined in: src/lib/memory/store/remoteWork.ts:17
+Defined in: [src/lib/memory/store/remoteWork.ts:17](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteWork.ts#17)
 
 **Parameters**
 
@@ -580,7 +580,7 @@ Same page as `query`, with content and kind\_value dropped instead of decrypted.
 
 > **releaseWork**(`kind`: [`RemoteMemoryWorkKind`](../type-aliases/RemoteMemoryWorkKind.md), `token`: `string`): `Promise`<`void`>
 
-Defined in: src/lib/memory/store/remoteWork.ts:22
+Defined in: [src/lib/memory/store/remoteWork.ts:22](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteWork.ts#22)
 
 **Parameters**
 
