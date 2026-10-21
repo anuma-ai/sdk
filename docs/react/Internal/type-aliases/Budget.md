@@ -2,7 +2,7 @@
 
 > **Budget** = `"low"` | `"mid"` | `"high"`
 
-Defined in: [src/lib/memory/types.ts:26](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#26)
+Defined in: [src/lib/memory/types.ts:27](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#27)
 
 Budget controls retrieval depth/cost. Higher budgets enable more
 candidate sources and the cross-encoder reranker.

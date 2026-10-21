@@ -95,7 +95,7 @@ export interface RankedMemory {
 }
 
 export interface RecallOptions {
-  vaultPreparation?: VaultPreparation;
+  /** @internal */ vaultPreparation?: VaultPreparation;
   /** Embedding cache shared with the rest of the turn, so the query is embedded once across lanes and the send. */
   embeddingCache?: Map<string, Float32Array>;
   /** Which kinds to search. Default: ['fact']. */

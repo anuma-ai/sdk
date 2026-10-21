@@ -97,7 +97,7 @@ let warnedProgrammaticDecomposeIgnored = false;
  * Options for the vault search tool.
  */
 export interface MemoryVaultSearchOptions {
-  vaultPreparation?: VaultPreparation;
+  /** @internal */ vaultPreparation?: VaultPreparation;
   onCandidateCount?: (count: number) => void;
   /** Maximum number of results to return (default: 5) */
   limit?: number;
