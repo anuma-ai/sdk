@@ -1,6 +1,6 @@
 # ChatStore
 
-Defined in: src/lib/chatStore/types.ts:43
+Defined in: [src/lib/chatStore/types.ts:43](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#43)
 
 Explicit versions protect edits; ambiguous writes are never replayed automatically.
 
@@ -10,7 +10,7 @@ Explicit versions protect edits; ambiguous writes are never replayed automatical
 
 > **get**(`kind`: [`ChatRecordKind`](../type-aliases/ChatRecordKind.md), `id`: `string`, `signal?`: `AbortSignal`): `Promise`<[`ChatSnapshot`](ChatSnapshot.md) | `null`>
 
-Defined in: src/lib/chatStore/types.ts:44
+Defined in: [src/lib/chatStore/types.ts:44](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#44)
 
 **Parameters**
 
@@ -71,7 +71,7 @@ Defined in: src/lib/chatStore/types.ts:44
 
 > **list**(`options`: [`ChatListOptions`](ChatListOptions.md)): `Promise`<[`ChatPage`](ChatPage.md)>
 
-Defined in: src/lib/chatStore/types.ts:45
+Defined in: [src/lib/chatStore/types.ts:45](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#45)
 
 **Parameters**
 
@@ -108,7 +108,7 @@ Defined in: src/lib/chatStore/types.ts:45
 
 > **putMany**(`writes`: readonly [`ChatWrite`](ChatWrite.md)\[], `signal?`: `AbortSignal`): `Promise`<[`ChatSnapshot`](ChatSnapshot.md)\[]>
 
-Defined in: src/lib/chatStore/types.ts:46
+Defined in: [src/lib/chatStore/types.ts:46](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#46)
 
 **Parameters**
 

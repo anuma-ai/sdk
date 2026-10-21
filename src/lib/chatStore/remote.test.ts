@@ -12,7 +12,15 @@ beforeAll(() => {
 afterAll(() => vi.unstubAllGlobals());
 
 interface WireSnapshot {
-  record: Record<string, unknown> & { payload: string; kind: string; id: string };
+  record: {
+    payload: string;
+    kind: string;
+    id: string;
+    conversation_id: string;
+    sort_key: number;
+    created_at: number;
+    is_deleted: boolean;
+  };
   version: number;
   server_updated_at: string;
 }
@@ -74,10 +82,34 @@ async function setup() {
     }
     if (url.searchParams.get("account_id") !== String(account.account_id))
       return Response.json({ code: "account_changed" }, { status: 409 });
-    if (url.pathname.endsWith("/records"))
+    if (url.pathname.endsWith("/records")) {
+      const matching = [...rows.values()]
+        .filter(
+          ({ record }) =>
+            record.kind === url.searchParams.get("kind") &&
+            record.conversation_id === url.searchParams.get("conversation_id") &&
+            (url.searchParams.get("include_deleted") === "true" || !record.is_deleted)
+        )
+        .sort(
+          ({ record: a }, { record: b }) =>
+            b.sort_key - a.sort_key ||
+            b.created_at - a.created_at ||
+            (a.id < b.id ? 1 : a.id > b.id ? -1 : 0)
+        );
+      const cursor = url.searchParams.get("cursor");
+      const offset = cursor
+        ? matching.findIndex(({ record }) => `after:${record.id}+` === cursor) + 1
+        : 0;
+      if (cursor && offset === 0) return Response.json({}, { status: 400 });
+      const limit = Number(url.searchParams.get("limit") ?? 20);
+      const items = matching.slice(offset, offset + limit);
       return Response.json({
-        items: [...rows.values()].filter((r) => r.record.kind === url.searchParams.get("kind")),
+        items,
+        ...(offset + limit < matching.length
+          ? { next_cursor: `after:${items[items.length - 1].record.id}+` }
+          : {}),
       });
+    }
     const [kind, id] = url.pathname.split("/").slice(-2).map(decodeURIComponent);
     const row = rows.get(kind + "/" + id);
     return row ? Response.json(row) : Response.json({}, { status: 404 });
@@ -162,6 +194,55 @@ describe("encrypted remote ChatStore", () => {
     expect(s.bodies).toHaveLength(2);
     expect(await s.store.get("conversation", "new")).toBeNull();
   });
+
+  it.each(["conversation", "message"] as const)(
+    "follows bounded %s pages without losing or duplicating records",
+    async (kind) => {
+      const s = await setup();
+      const records: ChatRecord[] = Array.from({ length: 7 }, (_, i) => ({
+        ...conversation(`record-${i}`),
+        kind,
+        conversationId: kind === "message" ? "chat" : "",
+      }));
+      await s.store.putMany(
+        [
+          conversation(),
+          conversation("other"),
+          ...records,
+          { ...records[0], id: "deleted", isDeleted: true },
+          { ...records[0], kind: "project" as const, id: "project", conversationId: "" },
+          { ...records[0], kind: "message" as const, id: "unrelated", conversationId: "other" },
+        ].map((record) => ({ record, expectedVersion: 0 }))
+      );
+      const query = { kind, conversationId: records[0].conversationId, limit: 3 };
+      const expected =
+        kind === "conversation"
+          ? [...records].reverse().concat(conversation("other"), conversation())
+          : [...records].reverse();
+      const fresh = await createRemoteChatStore(s.options);
+      const received: ChatRecord[] = [];
+      const pageSizes: number[] = [];
+      const cursors = new Set<string>();
+      let cursor: string | undefined;
+      do {
+        const page = await fresh.list({ ...query, cursor });
+        pageSizes.push(page.items.length);
+        received.push(...page.items.map(({ record }) => record));
+        cursor = page.nextCursor;
+        if (cursor) {
+          expect(cursors.has(cursor)).toBe(false);
+          cursors.add(cursor);
+        }
+      } while (cursor && pageSizes.length < 5);
+      expect(cursor).toBeUndefined();
+      expect(pageSizes).toEqual(kind === "conversation" ? [3, 3, 3] : [3, 3, 1]);
+      expect(received).toEqual(expected);
+      expect(new Set(received.map(({ id }) => id)).size).toBe(expected.length);
+      expect((await fresh.list({ ...query, includeDeleted: true, limit: 20 })).items).toHaveLength(
+        expected.length + 1
+      );
+    }
+  );
 
   it("binds ciphertext to routing, order, deletion metadata and canonical key", async () => {
     const s = await setup();
