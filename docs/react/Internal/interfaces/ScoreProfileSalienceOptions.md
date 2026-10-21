@@ -6,7 +6,7 @@ Defined in: [src/lib/memory/profileSalience.ts:50](https://github.com/anuma-ai/s
 
 ### factTypeWeights?
 
-> `optional` **factTypeWeights**: `Partial`<`Record`<`"other"` | `"identity"` | `"preference"` | `"relationship"` | `"plan"` | `"ongoing_context"` | `"constraint"`, `number`>>
+> `optional` **factTypeWeights**: `Partial`<`Record`<`"other"` | `"identity"` | `"preference"` | `"relationship"` | `"plan"` | `"ongoing_context"` | `"constraint"` | `"instruction"`, `number`>>
 
 Defined in: [src/lib/memory/profileSalience.ts:52](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/profileSalience.ts#52)
 

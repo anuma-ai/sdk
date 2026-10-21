@@ -125,7 +125,7 @@ Exclude one conversation from chunk search. Chunk-only.
 
 ### factTypes?
 
-> `optional` **factTypes**: (`"other"` | `"identity"` | `"preference"` | `"relationship"` | `"plan"` | `"ongoing_context"` | `"constraint"`)\[]
+> `optional` **factTypes**: (`"other"` | `"identity"` | `"preference"` | `"relationship"` | `"plan"` | `"ongoing_context"` | `"constraint"` | `"instruction"`)\[]
 
 Defined in: [src/lib/memory/types.ts:117](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#117)
 
@@ -136,7 +136,7 @@ and no-op when unset (all types are eligible). Vault-only.
 
 ### factTypeWeights?
 
-> `optional` **factTypeWeights**: `Partial`<`Record`<`"other"` | `"identity"` | `"preference"` | `"relationship"` | `"plan"` | `"ongoing_context"` | `"constraint"`, `number`>>
+> `optional` **factTypeWeights**: `Partial`<`Record`<`"other"` | `"identity"` | `"preference"` | `"relationship"` | `"plan"` | `"ongoing_context"` | `"constraint"` | `"instruction"`, `number`>>
 
 Defined in: [src/lib/memory/types.ts:129](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#129)
 

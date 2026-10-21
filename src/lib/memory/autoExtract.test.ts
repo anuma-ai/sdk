@@ -378,6 +378,41 @@ describe("extractFacts", () => {
     expect(result.map((c) => c.content)).toEqual(["Lives in Portland"]);
   });
 
+  it("keeps an instruction only when it cites a user message, with no fallback", async () => {
+    const fetchFn = mockFetch(
+      JSON.stringify({
+        candidates: [
+          {
+            content: "Wants replies in Spanish",
+            type: "instruction",
+            confidence: 0.9,
+            sourceMessageIds: ["m2"],
+          },
+          {
+            content: "When resolving relative dates, uses today as the reference date",
+            type: "instruction",
+            confidence: 0.9,
+            sourceMessageIds: [],
+          },
+          {
+            content: "Wants answers without bullet points",
+            type: "instruction",
+            confidence: 0.9,
+            sourceMessageIds: ["m3"],
+          },
+          { content: "Lives in Portland", type: "identity", confidence: 0.9, sourceMessageIds: [] },
+        ],
+      })
+    );
+
+    const result = await extractFacts(messages, { apiKey: "k", fetchFn });
+
+    expect(result.map((c) => [c.content, c.sourceMessageIds])).toEqual([
+      ["Wants answers without bullet points", ["m3"]],
+      ["Lives in Portland", ["m3"]],
+    ]);
+  });
+
   describe("utterance-echo gate", () => {
     const extractOne = async (content: string) => {
       const result = await extractFacts(messages, {
@@ -508,6 +543,44 @@ describe("extractAndRetain", () => {
         sourceChunkIds: ["m1"],
         respectTombstones: true,
       })
+    );
+  });
+
+  it("retains instructions as private while other facts keep the batch scope", async () => {
+    const completion = {
+      candidates: [
+        {
+          content: "Lives in Portland",
+          type: "identity",
+          confidence: 0.95,
+          sourceMessageIds: ["m3"],
+        },
+        {
+          content: "Wants answers without bullet points",
+          type: "instruction",
+          confidence: 0.9,
+          sourceMessageIds: ["m3"],
+        },
+      ],
+    };
+    vi.mocked(retain).mockResolvedValue({ action: "create", memoryId: "id", proofCount: 1 });
+
+    const result = await extractAndRetain(
+      messages,
+      { vaultCtx: {} as never, embeddingOptions: { apiKey: "e" }, vaultCache: new Map() },
+      { extract: { apiKey: "k", fetchFn: mockFetch(JSON.stringify(completion)) }, scope: "shared" }
+    );
+
+    expect(result.candidates.map((c) => c.type)).toEqual(["identity", "instruction"]);
+    expect(vi.mocked(retain)).toHaveBeenCalledWith(
+      "Lives in Portland",
+      expect.anything(),
+      expect.objectContaining({ scope: "shared", factType: "identity" })
+    );
+    expect(vi.mocked(retain)).toHaveBeenCalledWith(
+      "Wants answers without bullet points",
+      expect.anything(),
+      expect.objectContaining({ scope: "private", factType: "instruction" })
     );
   });
 

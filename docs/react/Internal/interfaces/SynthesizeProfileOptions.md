@@ -47,7 +47,7 @@ Facets to synthesize. Defaults to [DEFAULT\_PROFILE\_FACETS](../variables/DEFAUL
 
 ### factTypeWeights?
 
-> `optional` **factTypeWeights**: `Partial`<`Record`<`"other"` | `"identity"` | `"preference"` | `"relationship"` | `"plan"` | `"ongoing_context"` | `"constraint"`, `number`>>
+> `optional` **factTypeWeights**: `Partial`<`Record`<`"other"` | `"identity"` | `"preference"` | `"relationship"` | `"plan"` | `"ongoing_context"` | `"constraint"` | `"instruction"`, `number`>>
 
 Defined in: [src/lib/memory/synthesizeProfile.ts:283](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/synthesizeProfile.ts#283)
 
