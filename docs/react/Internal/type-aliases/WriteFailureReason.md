@@ -2,4 +2,4 @@
 
 > **WriteFailureReason** = `"source-ineligible"` | `"embeddings-unavailable"` | `"merge-not-persisted"` | `"aborted"` | `"unknown"`
 
-Defined in: [src/lib/memory/autoExtract.ts:495](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#495)
+Defined in: [src/lib/memory/autoExtract.ts:496](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#496)

@@ -378,6 +378,41 @@ describe("extractFacts", () => {
     expect(result.map((c) => c.content)).toEqual(["Lives in Portland"]);
   });
 
+  it("keeps an instruction only when it cites a user message, with no fallback", async () => {
+    const fetchFn = mockFetch(
+      JSON.stringify({
+        candidates: [
+          {
+            content: "Wants replies in Spanish",
+            type: "instruction",
+            confidence: 0.9,
+            sourceMessageIds: ["m2"],
+          },
+          {
+            content: "When resolving relative dates, uses today as the reference date",
+            type: "instruction",
+            confidence: 0.9,
+            sourceMessageIds: [],
+          },
+          {
+            content: "Wants answers without bullet points",
+            type: "instruction",
+            confidence: 0.9,
+            sourceMessageIds: ["m3"],
+          },
+          { content: "Lives in Portland", type: "identity", confidence: 0.9, sourceMessageIds: [] },
+        ],
+      })
+    );
+
+    const result = await extractFacts(messages, { apiKey: "k", fetchFn });
+
+    expect(result.map((c) => [c.content, c.sourceMessageIds])).toEqual([
+      ["Wants answers without bullet points", ["m3"]],
+      ["Lives in Portland", ["m3"]],
+    ]);
+  });
+
   describe("utterance-echo gate", () => {
     const extractOne = async (content: string) => {
       const result = await extractFacts(messages, {
