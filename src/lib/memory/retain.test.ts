@@ -32,13 +32,36 @@ import {
   updateVaultMemoryOp,
   type VaultMemoryOperationsContext,
 } from "../db/memoryVault/operations";
-import { consolidateMemory } from "./consolidate";
+import type { StoredVaultMemory } from "../db/memoryVault/types";
 import { DEFAULT_API_EMBEDDING_MODEL } from "../memoryEngine/constants";
 import { generateEmbedding } from "../memoryEngine/embeddings";
 import type { EmbeddingOptions } from "../memoryEngine/types";
 import { prepareVaultCandidates, rankPreparedVaultCandidates } from "../memoryVault/searchTool";
+import { consolidateMemory } from "./consolidate";
 
 type VaultMatch = { uniqueId: string; content?: string; similarity?: number };
+
+const storedMemoryDefaults = {
+  embeddingModel: null,
+  eventTimeStart: null,
+  eventTimeEnd: null,
+  eventTimeKind: null,
+  topicsUserManaged: false,
+  topics: null,
+  topicsUpdatedAt: null,
+  topicsExtractedAt: null,
+  supersededBy: null,
+  supersededAt: null,
+  topicsExtractedVersion: null,
+  lastObservedAt: null,
+  factType: null,
+  archivedAt: null,
+  trustTier: null,
+  visibility: "private",
+  twinOptIn: false,
+  publishedAt: null,
+  geohash: null,
+} satisfies Partial<StoredVaultMemory>;
 
 const PREPARED = {
   memories: [],
@@ -93,6 +116,7 @@ describe("retain", () => {
     mockVaultMatches([]);
     vi.mocked(generateEmbedding).mockResolvedValue([0.1, 0.2, 0.3]);
     vi.mocked(createVaultMemoryOp).mockResolvedValue({
+      ...storedMemoryDefaults,
       uniqueId: "new-id",
       content: "Allergic to shellfish",
       scope: "private",
@@ -234,6 +258,7 @@ describe("retain", () => {
       { uniqueId: "existing-id", content: "Allergic to shellfish", similarity: 0.92 },
     ]);
     vi.mocked(getVaultMemoryOp).mockResolvedValue({
+      ...storedMemoryDefaults,
       uniqueId: "existing-id",
       content: "Allergic to shellfish",
       scope: "private",
@@ -248,6 +273,7 @@ describe("retain", () => {
       isDeleted: false,
     });
     vi.mocked(updateVaultMemoryOp).mockResolvedValue({
+      ...storedMemoryDefaults,
       uniqueId: "existing-id",
       content: "Allergic to shellfish",
       scope: "private",
@@ -280,8 +306,10 @@ describe("retain", () => {
         proofCountIncrement: 1,
         sourceChunkIds: ["msg-old", "msg-new"],
         preserveUpdatedAt: true,
-        lastObservedAt: expect.any(Number),
       })
+    );
+    expect(vi.mocked(updateVaultMemoryOp).mock.calls[0][2].lastObservedAt).toEqual(
+      expect.any(Number)
     );
   });
 
@@ -460,6 +488,7 @@ describe("retain", () => {
   it("dedupes source chunk ids on merge (no duplicates if already present)", async () => {
     mockVaultMatches([{ uniqueId: "id1", content: "Foo", similarity: 0.9 }]);
     vi.mocked(getVaultMemoryOp).mockResolvedValue({
+      ...storedMemoryDefaults,
       uniqueId: "id1",
       content: "Foo",
       scope: "private",
@@ -487,6 +516,7 @@ describe("retain", () => {
   });
 
   const mergeTarget = {
+    ...storedMemoryDefaults,
     uniqueId: "target",
     content: "Foo",
     scope: "private",
@@ -534,6 +564,7 @@ describe("retain", () => {
     mockVaultMatches([{ uniqueId: "near-dup", content: "Foo", similarity: 0.99 }]);
     vi.mocked(generateEmbedding).mockResolvedValue([0.1]);
     vi.mocked(createVaultMemoryOp).mockResolvedValue({
+      ...storedMemoryDefaults,
       uniqueId: "fresh",
       content: "Foo",
       scope: "private",
@@ -560,6 +591,7 @@ describe("retain", () => {
     mockVaultMatches([]);
     vi.mocked(generateEmbedding).mockResolvedValue([0.1]);
     vi.mocked(createVaultMemoryOp).mockResolvedValue({
+      ...storedMemoryDefaults,
       uniqueId: "x",
       content: "Foo",
       scope: "private",
@@ -584,6 +616,7 @@ describe("retain", () => {
     mockVaultMatches([]);
     vi.mocked(generateEmbedding).mockResolvedValue([0.1]);
     vi.mocked(createVaultMemoryOp).mockResolvedValue({
+      ...storedMemoryDefaults,
       uniqueId: "auto",
       content: "Partner's name is Sara",
       scope: "private",
@@ -618,6 +651,7 @@ describe("retain", () => {
     vi.mocked(getVaultMemoryOp).mockResolvedValue(null);
     vi.mocked(generateEmbedding).mockResolvedValue([0.1]);
     vi.mocked(createVaultMemoryOp).mockResolvedValue({
+      ...storedMemoryDefaults,
       uniqueId: "fresh",
       content: "x",
       scope: "private",
@@ -960,8 +994,8 @@ describe("retain — a dropped consolidation decision is reported (#630)", () =>
   function stages(matches: VaultMatch[]) {
     let call = 0;
     vi.mocked(prepareVaultCandidates).mockResolvedValue(prepared([0.1, 0.2, 0.3]) as never);
-    vi.mocked(rankPreparedVaultCandidates).mockImplementation(
-      async () => rankResult(call++ === 0 ? matches : []) as never
+    vi.mocked(rankPreparedVaultCandidates).mockImplementation(() =>
+      Promise.resolve(rankResult(call++ === 0 ? matches : []) as never)
     );
   }
 
@@ -1121,11 +1155,12 @@ describe("retain — a dropped consolidation decision is reported (#630)", () =>
       targetIds: ["old", "already-retired"],
       content: "Lives in San Francisco",
     });
-    vi.mocked(getVaultMemoryOp).mockImplementation(
-      async (_ctx, id) =>
+    vi.mocked(getVaultMemoryOp).mockImplementation((_ctx, id) =>
+      Promise.resolve(
         (id === "old"
           ? { uniqueId: "old", content: "Lives in Portland" }
           : { uniqueId: id, supersededBy: "someone-else" }) as never
+      )
     );
     vi.mocked(generateEmbedding).mockResolvedValue([0.1, 0.2, 0.3]);
     vi.mocked(createSupersedingMemoryOp).mockResolvedValue({

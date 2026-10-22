@@ -71,7 +71,6 @@
     "src/lib/memory/recall.test.ts",
     "src/lib/memory/recallTool.test.ts",
     // #834 (tool-save via retain)
-    "src/lib/memory/retain.test.ts",
     "src/lib/memoryVault/tool.test.ts"
   ]
 }
